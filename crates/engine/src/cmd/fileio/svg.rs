@@ -49,6 +49,12 @@ pub const OPTIONS: &[FormatOption] = &[
     FormatOption { name: "minify", ty: "boolean", default: "false", description: "no XML declaration, indentation or line breaks" },
     FormatOption { name: "responsive", ty: "boolean", default: "false", description: "no width/height: the SVG scales to its container" },
     FormatOption {
+        name: "physicalSize",
+        ty: "boolean",
+        default: "false",
+        description: "width/height in points (\"72pt\"), so viewers that read unitless lengths as CSS pixels keep the printed size; ignored with responsive",
+    },
+    FormatOption {
         name: "preserveEditing",
         ty: "boolean",
         default: "false",

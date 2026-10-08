@@ -103,7 +103,8 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         out.push_str(" version=\"1.2\" baseProfile=\"tiny\"");
     }
     if !opts.responsive {
-        out.push_str(&format!(" width=\"{ww}\" height=\"{hh}\""));
+        let unit = if opts.physical_size { "pt" } else { "" };
+        out.push_str(&format!(" width=\"{ww}{unit}\" height=\"{hh}{unit}\""));
     }
     out.push_str(&format!(" viewBox=\"0 0 {ww} {hh}\">{nl}"));
     let css = opts.styling == Styling::InternalCss && !w.classes.is_empty();

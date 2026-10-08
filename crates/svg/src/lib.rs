@@ -199,6 +199,10 @@ pub struct ExportOptions {
     pub minify: bool,
     /// Omit `width`/`height` so the SVG scales to its container.
     pub responsive: bool,
+    /// Write `width`/`height` in points (`72pt`), so viewers that read unitless lengths as CSS
+    /// pixels (96 per inch) keep the artwork's physical size; the viewBox stays in points.
+    /// Ignored when `responsive`.
+    pub physical_size: bool,
     /// Fonts → Convert to Outlines: text becomes paths (portable, no font needed to view it).
     pub outline_text: bool,
     /// Embed the native document (passed to [`export_full`]) in `<metadata>` so VectorCraft
@@ -231,6 +235,7 @@ impl Default for ExportOptions {
             images: ImageMode::Embed,
             minify: false,
             responsive: false,
+            physical_size: false,
             outline_text: false,
             preserve_editing: false,
             metadata: false,
