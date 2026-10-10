@@ -4145,3 +4145,15 @@ lighting	Light	Свет
 @msg	unsupported native docking operation	Неподдерживаемая собственная операция прикрепления
 	Linux Display Server	Дисплейный сервер Linux
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	Применить стиль параллельных линий
+	Add parallel line	Добавить параллельную линию
+	Dash	Штрих
+	Dash 4 / 2	Штрих 4 / 2
+	Double	Двойной
+	Inherit	Наследовать
+	Inherit paint	Наследовать цвет
+	Lane:	Линия:
+	Mixed parallel lanes	Смешанные параллельные линии
+	Parallel style:	Стиль параллельных линий:
+	Road	Дорога
+	Triple	Тройной

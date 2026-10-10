@@ -465,6 +465,24 @@ impl FillLayer {
     }
 }
 
+/// One lane of an enhanced parallel line style. `offset` is signed relative to the path's
+/// direction (positive to its left); absent attributes inherit the parent stroke.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SubLine {
+    #[serde(default, skip_serializing_if = "crate::skip::is_default")]
+    pub offset: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paint: Option<Paint>,
+    /// An absent value inherits the parent dash; an empty pattern means solid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dash: Option<Dash>,
+}
+
+/// Maximum number of additional lanes attached to one parent stroke.
+pub const MAX_SUB_LINES: usize = 8;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct StrokeLayer {
     pub paint: Paint,
@@ -514,6 +532,9 @@ pub struct StrokeLayer {
     /// art leave it behind ([`Appearance::without_pressure`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pressure: Option<PressureProfile>,
+    /// Additional lanes for a composite parallel line style; empty preserves legacy single strokes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sub_lines: Vec<SubLine>,
 }
 
 /// How a gradient on a stroke is laid out (the Gradient panel's Stroke buttons). Saved by variant
@@ -562,6 +583,16 @@ fn is_hundreds(v: &(f64, f64)) -> bool {
     *v == (100.0, 100.0)
 }
 
+impl SubLine {
+    /// Whether the lane is safe to use in rendering and bounds calculations.
+    pub fn is_valid(&self) -> bool {
+        self.offset.is_finite()
+            && self.offset.abs() <= 10_000.0
+            && self.width.is_none_or(|w| w.is_finite() && (0.0..=1000.0).contains(&w))
+            && self.dash.as_ref().is_none_or(|d| d.pattern.len() <= 6 && d.pattern.iter().all(|v| v.is_finite() && *v >= 0.0) && d.offset.is_finite())
+    }
+}
+
 impl StrokeLayer {
     pub fn new(paint: Paint, width: f64) -> Self {
         Self {
@@ -585,7 +616,44 @@ impl StrokeLayer {
             overprint: false,
             gradient_mode: StrokeGradientMode::Within,
             pressure: None,
+            sub_lines: vec![],
         }
+    }
+    /// Whether the parent stroke or any valid lane has a positive, finite weight.
+    pub fn has_positive_width(&self) -> bool {
+        (self.width.is_finite() && self.width > 0.0)
+            || self.sub_lines.iter().take(MAX_SUB_LINES).filter(|line| line.is_valid()).any(|line| {
+                let width = line.width.unwrap_or(self.width);
+                width.is_finite() && width > 0.0
+            })
+    }
+    /// Whether the parent stroke or any valid lane paints visible art.
+    pub fn paints_anything(&self) -> bool {
+        self.visible
+            && ((self.width.is_finite() && self.width > 0.0 && !self.paint.is_none())
+                || self.sub_lines.iter().take(MAX_SUB_LINES).filter(|line| line.is_valid()).any(|line| {
+                    let sub = self.sub_line_stroke(line);
+                    sub.width.is_finite() && sub.width > 0.0 && !sub.paint.is_none()
+                }))
+    }
+    /// Make an independent single-stroke lane from this style's shared stroke attributes.
+    pub fn sub_line_stroke(&self, line: &SubLine) -> Self {
+        let mut stroke = self.clone();
+        stroke.sub_lines.clear();
+        stroke.width = line.width.unwrap_or(self.width);
+        stroke.paint = line.paint.clone().unwrap_or_else(|| self.paint.clone());
+        if let Some(dash) = &line.dash {
+            stroke.dash = Some(dash.clone());
+        }
+        stroke
+    }
+    /// Parent paint and any explicit per-lane paint overrides.
+    pub fn paints(&self) -> impl Iterator<Item = &Paint> {
+        std::iter::once(&self.paint).chain(self.sub_lines.iter().take(MAX_SUB_LINES).filter_map(|line| line.paint.as_ref()))
+    }
+    /// Mutable parent paint and explicit per-lane overrides.
+    pub fn paints_mut(&mut self) -> impl Iterator<Item = &mut Paint> {
+        std::iter::once(&mut self.paint).chain(self.sub_lines.iter_mut().take(MAX_SUB_LINES).filter_map(|line| line.paint.as_mut()))
     }
     /// Weight of the start (`end == false`) or end arrowhead: stroke weight × its scale, at least
     /// a quarter point. A head of weight `hw` fits a box about `4·hw` long and wide.
@@ -631,7 +699,11 @@ impl StrokeLayer {
         let side = self.side_reach(true).max(self.side_reach(false));
         let miter = if self.join == LineJoin::Miter { self.miter_limit.max(1.0) } else { 1.0 };
         let cap = if self.cap == LineCap::Square { std::f64::consts::SQRT_2 } else { 1.0 };
-        (side * miter.max(cap)).max(self.arrow_reach())
+        let own = (side * miter.max(cap)).max(self.arrow_reach());
+        self.sub_lines.iter().take(MAX_SUB_LINES).filter(|line| line.is_valid()).fold(own, |reach, line| {
+            let sub = self.sub_line_stroke(line);
+            reach.max(line.offset.abs() + sub.reach())
+        })
     }
     /// The box an unplaced gradient on this stroke fits to (see [`stroke_paint_bounds`]).
     pub fn paint_bounds(&self, geometric: vectorcraft_geom::Rect) -> vectorcraft_geom::Rect {
@@ -809,7 +881,13 @@ impl Appearance {
             && self.contents_index.is_none()
             && count(true) <= 1
             && count(false) <= 1
-            && self.items.iter().all(|i| i.visible() && i.effects().is_empty() && i.opacity() == 1.0 && i.blend() == BlendMode::Normal)
+            && self.items.iter().all(|i| {
+                i.visible()
+                    && i.effects().is_empty()
+                    && i.opacity() == 1.0
+                    && i.blend() == BlendMode::Normal
+                    && !matches!(i, AppearanceItem::Stroke(st) if !st.sub_lines.is_empty())
+            })
     }
     /// Fill item `index`, or the topmost fill for `None`. `None` when that item is not a fill.
     pub fn fill_at(&self, index: Option<usize>) -> Option<&FillLayer> {
@@ -905,7 +983,7 @@ impl Appearance {
     /// The visible strokes that paint something.
     pub fn painted_strokes(&self) -> impl Iterator<Item = &StrokeLayer> {
         self.items.iter().filter_map(|i| match i {
-            AppearanceItem::Stroke(s) if s.visible && !s.paint.is_none() => Some(s),
+            AppearanceItem::Stroke(s) if s.paints_anything() => Some(s),
             _ => None,
         })
     }
@@ -922,6 +1000,15 @@ impl Appearance {
                 if let Some(d) = &mut st.dash {
                     d.scale(s);
                 }
+                for line in st.sub_lines.iter_mut().take(MAX_SUB_LINES) {
+                    line.offset *= s;
+                    if let Some(width) = &mut line.width {
+                        *width *= s;
+                    }
+                    if let Some(dash) = &mut line.dash {
+                        dash.scale(s);
+                    }
+                }
             }
         }
     }
@@ -935,19 +1022,45 @@ impl Appearance {
     }
     /// Gradient paints of the fills and strokes.
     fn gradients_mut(&mut self) -> impl Iterator<Item = &mut vectorcraft_color::GradientPaint> {
-        self.items.iter_mut().filter_map(|i| match i {
-            AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. })
-            | AppearanceItem::Stroke(StrokeLayer { paint: Paint::Gradient(g), .. }) => Some(&mut **g),
-            _ => None,
-        })
+        let mut gradients = Vec::new();
+        for item in &mut self.items {
+            match item {
+                AppearanceItem::Fill(fill) => {
+                    if let Paint::Gradient(g) = &mut fill.paint {
+                        gradients.push(&mut **g);
+                    }
+                }
+                AppearanceItem::Stroke(stroke) => {
+                    for paint in stroke.paints_mut() {
+                        if let Paint::Gradient(g) = paint {
+                            gradients.push(&mut **g);
+                        }
+                    }
+                }
+            }
+        }
+        gradients.into_iter()
     }
     /// Gradient paints of the fills and strokes.
     fn gradients(&self) -> impl Iterator<Item = &vectorcraft_color::GradientPaint> {
-        self.items.iter().filter_map(|i| match i {
-            AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. })
-            | AppearanceItem::Stroke(StrokeLayer { paint: Paint::Gradient(g), .. }) => Some(&**g),
-            _ => None,
-        })
+        let mut gradients = Vec::new();
+        for item in &self.items {
+            match item {
+                AppearanceItem::Fill(fill) => {
+                    if let Paint::Gradient(g) = &fill.paint {
+                        gradients.push(&**g);
+                    }
+                }
+                AppearanceItem::Stroke(stroke) => {
+                    for paint in stroke.paints() {
+                        if let Paint::Gradient(g) = paint {
+                            gradients.push(&**g);
+                        }
+                    }
+                }
+            }
+        }
+        gradients.into_iter()
     }
     /// Is `self` equal to `other`, placed gradients within rounding (1e-6 pt) of each other, as
     /// moving them between boxes leaves them?
@@ -977,11 +1090,7 @@ impl Appearance {
     /// Does a fill or stroke carry a gradient whose placement `placed` is (some: placed in document
     /// space; none: fitted to the bounds on each render)?
     fn has_gradient(&self, placed: bool) -> bool {
-        self.items.iter().any(|i| match i {
-            AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. })
-            | AppearanceItem::Stroke(StrokeLayer { paint: Paint::Gradient(g), .. }) => g.is_placed() == placed,
-            _ => false,
-        })
+        self.gradients().any(|gradient| gradient.is_placed() == placed)
     }
     /// Does a fill or stroke carry a gradient that is fitted to the bounds on each render?
     pub fn has_unplaced_gradient(&self) -> bool {
@@ -998,9 +1107,16 @@ impl Appearance {
             match i {
                 AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. }) => g.pin(bounds),
                 AppearanceItem::Stroke(s) => {
-                    let b = s.paint_bounds(bounds);
+                    let (base_bounds, base_width) = (s.paint_bounds(bounds), s.width);
                     if let Paint::Gradient(g) = &mut s.paint {
-                        g.pin(b);
+                        g.pin(base_bounds);
+                    }
+                    for line in s.sub_lines.iter_mut().take(MAX_SUB_LINES) {
+                        if let Some(Paint::Gradient(g)) = &mut line.paint {
+                            let lane_bounds =
+                                stroke_paint_bounds(bounds.inflate(line.offset.abs(), line.offset.abs()), line.width.unwrap_or(base_width));
+                            g.pin(lane_bounds);
+                        }
                     }
                 }
                 _ => {}
@@ -1015,9 +1131,17 @@ impl Appearance {
             match i {
                 AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. }) => g.rebase(from, to),
                 AppearanceItem::Stroke(s) => {
-                    let (f, t) = (s.paint_bounds(from), s.paint_bounds(to));
+                    let (from_base, to_base, base_width) = (s.paint_bounds(from), s.paint_bounds(to), s.width);
                     if let Paint::Gradient(g) = &mut s.paint {
-                        g.rebase(f, t);
+                        g.rebase(from_base, to_base);
+                    }
+                    for line in s.sub_lines.iter_mut().take(MAX_SUB_LINES) {
+                        if let Some(Paint::Gradient(g)) = &mut line.paint {
+                            let width = line.width.unwrap_or(base_width);
+                            let from_lane = stroke_paint_bounds(from.inflate(line.offset.abs(), line.offset.abs()), width);
+                            let to_lane = stroke_paint_bounds(to.inflate(line.offset.abs(), line.offset.abs()), width);
+                            g.rebase(from_lane, to_lane);
+                        }
                     }
                 }
                 _ => {}
@@ -1035,22 +1159,31 @@ impl Appearance {
     /// (taken at the middle of each gradient's vector). Unplaced ones are fixed to their fit first;
     /// other gradients stay as they are.
     pub fn warp_linear_gradients(&mut self, bounds: vectorcraft_geom::Rect, near: &dyn Fn(vectorcraft_geom::Point) -> vectorcraft_geom::Affine) {
-        for i in &mut self.items {
-            let (g, b) = match i {
-                AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. }) => (g, bounds),
-                AppearanceItem::Stroke(s) => {
-                    let b = s.paint_bounds(bounds);
-                    let Paint::Gradient(g) = &mut s.paint else { continue };
-                    (g, b)
-                }
-                _ => continue,
-            };
+        let warp = |paint: &mut Paint, paint_bounds: vectorcraft_geom::Rect| {
+            let Paint::Gradient(g) = paint else { return };
             if g.gradient.kind != vectorcraft_color::GradientKind::Linear {
-                continue;
+                return;
             }
-            g.pin(b);
+            g.pin(paint_bounds);
             if let Some(geom) = g.geom {
                 g.transform(near(geom.start.midpoint(geom.end)));
+            }
+        };
+        for item in &mut self.items {
+            match item {
+                AppearanceItem::Fill(fill) => warp(&mut fill.paint, bounds),
+                AppearanceItem::Stroke(stroke) => {
+                    let base_bounds = stroke.paint_bounds(bounds);
+                    warp(&mut stroke.paint, base_bounds);
+                    let base_width = stroke.width;
+                    for line in stroke.sub_lines.iter_mut().take(MAX_SUB_LINES) {
+                        if let Some(paint) = &mut line.paint {
+                            let lane_bounds =
+                                stroke_paint_bounds(bounds.inflate(line.offset.abs(), line.offset.abs()), line.width.unwrap_or(base_width));
+                            warp(paint, lane_bounds);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1152,6 +1285,17 @@ impl Appearance {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parallel_lanes_round_trip_and_legacy_strokes_default_empty() {
+        let old: StrokeLayer = serde_json::from_str(r#"{"paint":{"type":"none"},"width":2.0}"#).unwrap();
+        assert!(old.sub_lines.is_empty());
+        let mut stroke = StrokeLayer::new(Paint::solid(Color::BLACK), 2.0);
+        stroke.sub_lines.push(SubLine { offset: -3.0, width: Some(1.5), paint: Some(Paint::solid(Color::WHITE)), dash: Some(Dash::default()) });
+        let encoded = serde_json::to_string(&stroke).unwrap();
+        let decoded: StrokeLayer = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded, stroke);
+    }
 
     #[test]
     fn hidden_attributes_show_again() {

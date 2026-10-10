@@ -1,6 +1,6 @@
 use super::*;
 use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, Node};
+use vectorcraft_doc::{Appearance, Node, SubLine};
 use vectorcraft_geom::shapes;
 
 fn rect_node(d: &mut Document, r: Rect, fill: Paint, stroke: Paint, w: f64) -> Node {
@@ -48,6 +48,22 @@ fn stroke_draws_outline_only() {
     let r = render(&d);
     assert_eq!(r.pixel(10, 50), [0, 0, 0, 255]);
     assert_eq!(r.pixel(50, 50), [255, 255, 255, 255]);
+}
+
+#[test]
+fn lane_only_parallel_stroke_renders_at_its_offset_without_a_parent_hairline() {
+    let mut d = Document::new(100.0, 100.0);
+    let mut n = Node::path(
+        d.alloc_id(),
+        shapes::line((10.0, 50.0).into(), (90.0, 50.0).into()),
+        Appearance::basic(Paint::None, Paint::solid(Color::rgb8(0, 0, 255)), 0.0),
+    );
+    let stroke = n.appearance.stroke_mut().unwrap();
+    stroke.sub_lines.push(SubLine { offset: 10.0, width: Some(2.0), paint: Some(Paint::solid(Color::rgb8(255, 0, 0))), ..Default::default() });
+    d.insert(Some(d.layers[0].id), 0, n).unwrap();
+    let rendered = render(&d);
+    assert_eq!(rendered.pixel(50, 40), [255, 0, 0, 255]);
+    assert_eq!(rendered.pixel(50, 50), [255, 255, 255, 255]);
 }
 
 #[test]

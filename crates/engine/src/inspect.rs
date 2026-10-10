@@ -233,7 +233,8 @@ pub fn node_stroke(n: &Node) -> Option<StrokeLayer> {
 /// A stroke's options in `stroke.set` terms: cap, join, miterLimit, align, dash (null when
 /// solid), dashOffset, alignDashes, startArrow/endArrow (null for none), arrowAlign and profile,
 /// plus widthPoints: the profile's `[t, left, right]` points (width factors; null when uniform)
-/// and gradientMode: how a gradient lies on it (`paint.editGradient` strokeMode).
+/// and gradientMode: how a gradient lies on it (`paint.editGradient` strokeMode), plus the stroke's
+/// parallel `subLines` lanes.
 pub fn stroke_options(st: &StrokeLayer) -> Value {
     json!({
         "cap": name_of(&CAPS, st.cap),
@@ -249,6 +250,7 @@ pub fn stroke_options(st: &StrokeLayer) -> Value {
         "profile": WidthProfile::id_of(st.profile.as_ref()),
         "widthPoints": st.profile.as_ref().map(|p| &p.points),
         "gradientMode": st.gradient_mode.name(),
+        "subLines": &st.sub_lines,
     })
 }
 
@@ -262,5 +264,6 @@ pub struct StrokeMixed {
     pub miter_limit: bool,
     pub align: bool,
     pub dash: bool,
+    pub sub_lines: bool,
     pub can_align: bool,
 }

@@ -38,6 +38,24 @@ fn fill_paint(n: &Node, i: usize) -> &Paint {
 }
 
 #[test]
+fn parallel_stroke_lanes_are_command_editable_and_presets_validate_limits() {
+    let mut s = session();
+    let id = rect(&mut s, 100.0);
+    run(&mut s, "stroke.set", json!({"subLines": [{"offset": 5.0, "width": 2.0}]}));
+    let n = node(&s, id);
+    assert_eq!(stroke(&n, 1).sub_lines.len(), 1);
+    assert_eq!(stroke(&n, 1).sub_lines[0].offset, 5.0);
+    assert_eq!(stroke(&n, 1).sub_lines[0].width, Some(2.0));
+    run(&mut s, "stroke.parallelPreset", json!({"preset": "road"}));
+    assert_eq!(stroke(&node(&s, id), 1).sub_lines.len(), 2);
+    assert!(s.execute("stroke.set", &json!({"subLines": [{"offset": 10001.0}]})).is_err());
+    let too_many = vec![json!({"offset": 0.0}); 9];
+    assert!(s.execute("stroke.set", &json!({"subLines": too_many})).is_err());
+    run(&mut s, "stroke.set", json!({"subLines": null}));
+    assert!(stroke(&node(&s, id), 1).sub_lines.is_empty());
+}
+
+#[test]
 fn stroke_set_with_item_changes_only_that_stroke() {
     let mut s = session();
     let id = rect(&mut s, 100.0);

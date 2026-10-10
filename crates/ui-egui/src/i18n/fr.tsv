@@ -4157,3 +4157,15 @@ lighting	Light	Lumière
 @msg	unsupported native docking operation	Opération native d’ancrage non prise en charge
 	Linux Display Server	Serveur d’affichage Linux
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	Appliquer un style de lignes parallèles
+	Add parallel line	Ajouter une ligne parallèle
+	Dash	Tiret
+	Dash 4 / 2	Tiret 4 / 2
+	Double	Double
+	Inherit	Hériter
+	Inherit paint	Hériter de la couleur
+	Lane:	Voie :
+	Mixed parallel lanes	Voies parallèles mixtes
+	Parallel style:	Style parallèle :
+	Road	Route
+	Triple	Triple

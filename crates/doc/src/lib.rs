@@ -61,8 +61,8 @@ pub(crate) mod skip {
 
 pub use appearance::StrokeGradientMode;
 pub use appearance::{
-    Appearance, AppearanceItem, ArrowAlign, Arrowhead, Dash, Effect, FillLayer, LineCap, LineJoin, PressureProfile, ProfilePreset, SavedProfile,
-    StrokeAlign, StrokeLayer, WidthProfile,
+    Appearance, AppearanceItem, ArrowAlign, Arrowhead, Dash, Effect, FillLayer, LineCap, LineJoin, MAX_SUB_LINES, PressureProfile, ProfilePreset,
+    SavedProfile, StrokeAlign, StrokeLayer, SubLine, WidthProfile,
 };
 pub use assets::ExportAsset;
 pub use corners::LiveCorners;

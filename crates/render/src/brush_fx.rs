@@ -79,7 +79,22 @@ impl Renderer {
                 e.pieces.clone()
             }
             _ => {
-                let pieces = Arc::new(vectorcraft_brush::stroke_pieces(&brush, bp, st));
+                let mut pieces = vec![];
+                let mut base = st.clone();
+                base.sub_lines.clear();
+                if base.paints_anything() {
+                    pieces.extend(vectorcraft_brush::stroke_pieces(&brush, bp, &base));
+                }
+                for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+                    let sub = st.sub_line_stroke(line);
+                    if !sub.paints_anything() {
+                        continue;
+                    }
+                    if let Some(offset) = vectorcraft_geom::parallel::parallel_path(bp, line.offset, (f.px * 0.25).max(0.02), st.miter_limit) {
+                        pieces.extend(vectorcraft_brush::stroke_pieces(&brush, &offset, &sub));
+                    }
+                }
+                let pieces = Arc::new(pieces);
                 if self.brushes.entries.len() > 2048 {
                     self.brushes.entries.retain(|_, e| stamp.saturating_sub(e.stamp) <= 3);
                 }

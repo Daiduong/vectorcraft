@@ -4,7 +4,9 @@
 use egui::{Color32, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ArrowAlign, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeLayer, Unit, WidthProfile};
+use vectorcraft_doc::{
+    Appearance, ArrowAlign, Arrowhead, Dash, Document, LineCap, LineJoin, MAX_SUB_LINES, Node, StrokeAlign, StrokeLayer, SubLine, Unit, WidthProfile,
+};
 use vectorcraft_engine::inspect::StrokeMixed;
 
 use super::{character, current_stroke, pstate, set_pstate, stroke_mixed};
@@ -105,6 +107,13 @@ fn set(app: &mut VectorcraftApp, p: Value) {
     }
 }
 
+fn set_sub_lines(app: &mut VectorcraftApp, lines: &[SubLine]) {
+    // SubLine is an in-memory serde model; serialization to a command value is infallible for it.
+    if let Ok(value) = serde_json::to_value(lines) {
+        app.run("stroke.set", json!({"subLines": value})).ok();
+    }
+}
+
 /// The weight the Stroke panel, Control bar and Properties panel show: blank where the selected
 /// objects differ, the default for new art without a stroke.
 pub(crate) fn shown_weight(app: &VectorcraftApp, st: Option<&StrokeLayer>, mixed: &StrokeMixed) -> Option<f64> {
@@ -148,6 +157,90 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
     if hidden {
         return;
+    }
+    if character::text_editing(app).is_none() {
+        ui.horizontal_wrapped(|ui| {
+            row_label(ui, tl!("Parallel style:"));
+            for (preset, label) in [("double", tl!("Double")), ("triple", tl!("Triple")), ("road", tl!("Road")), ("none", tl!("None"))] {
+                if ui.small_button(label).clicked() {
+                    app.run("stroke.parallelPreset", json!({"preset": preset})).ok();
+                }
+            }
+        });
+        let sub_lines = st.as_ref().map(|stroke| stroke.sub_lines.clone()).unwrap_or_default();
+        if mixed.sub_lines {
+            widgets::dim_label(ui, tl!("Mixed parallel lanes"));
+        } else {
+            for (i, line) in sub_lines.iter().enumerate() {
+                ui.horizontal_wrapped(|ui| {
+                    row_label(ui, tl!("Lane:"));
+                    let offset = widgets::plain_field(ui, ("parallel-offset", i), line.offset, " pt", 0, 64.0);
+                    let width = widgets::plain_field(
+                        ui,
+                        ("parallel-width", i),
+                        line.width.unwrap_or(st.as_ref().map_or(1.0, |stroke| stroke.width)),
+                        " pt",
+                        1,
+                        64.0,
+                    );
+                    let base_color =
+                        line.paint.as_ref().or_else(|| st.as_ref().map(|stroke| &stroke.paint)).and_then(Paint::color).unwrap_or(Color::BLACK);
+                    let [r, g, b, _] = base_color.to_rgba8(1.0);
+                    let mut rgb = [r, g, b];
+                    let paint_changed = ui.color_edit_button_srgb(&mut rgb).changed();
+                    let inherit_paint = ui.small_button(tl!("Inherit paint")).clicked();
+                    let mut next = sub_lines.clone();
+                    let mut changed = false;
+                    ui.menu_button(tl!("Dash"), |ui| {
+                        for (label, dash) in [
+                            (tl!("Inherit"), None),
+                            (tl!("Solid"), Some(Dash::default())),
+                            (tl!("Dash 4 / 2"), Some(Dash { pattern: vec![4.0, 2.0], offset: 0.0, align_corners: false })),
+                            (tl!("Dots"), Some(Dash { pattern: vec![0.0, 4.0], offset: 0.0, align_corners: false })),
+                        ] {
+                            if ui.button(label).clicked() {
+                                if let Some(target) = next.get_mut(i) {
+                                    target.dash = dash;
+                                    changed = true;
+                                }
+                                ui.close();
+                            }
+                        }
+                    });
+                    if let Some(value) = offset
+                        && let Some(target) = next.get_mut(i)
+                    {
+                        target.offset = value.clamp(-10_000.0, 10_000.0);
+                        changed = true;
+                    }
+                    if let Some(value) = width
+                        && let Some(target) = next.get_mut(i)
+                    {
+                        target.width = Some(value.clamp(0.0, 1000.0));
+                        changed = true;
+                    }
+                    if (paint_changed || inherit_paint)
+                        && let Some(target) = next.get_mut(i)
+                    {
+                        target.paint = if inherit_paint { None } else { Some(Paint::solid(Color::rgb8(rgb[0], rgb[1], rgb[2]))) };
+                        changed = true;
+                    }
+                    if ui.small_button(tl!("Remove")).clicked() {
+                        next = next.into_iter().enumerate().filter_map(|(index, line)| (index != i).then_some(line)).collect();
+                        changed = true;
+                    }
+                    if changed {
+                        set_sub_lines(app, &next);
+                    }
+                });
+            }
+            if sub_lines.len() < MAX_SUB_LINES && ui.small_button(tl!("Add parallel line")).clicked() {
+                let mut next = sub_lines.clone();
+                let offset = (next.len() as f64 + 1.0) * 3.0;
+                next.push(SubLine { offset, ..Default::default() });
+                set_sub_lines(app, &next);
+            }
+        }
     }
     // Mixed values light no button.
     let cap = st.as_ref().map(|s| s.cap).filter(|_| !mixed.cap);

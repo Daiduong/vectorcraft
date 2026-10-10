@@ -350,7 +350,7 @@ impl<'a> Scene<'a> {
                     self.note_item(fl.opacity, fl.blend);
                     self.fill(bp, rule, &fl.paint, bounds, fl.overprint);
                 }
-                AppearanceItem::Stroke(st) if st.visible && !st.paint.is_none() && st.width > 0.0 && st.width.is_finite() => {
+                AppearanceItem::Stroke(st) if st.paints_anything() => {
                     self.stroke(bp, rule, st, bounds);
                 }
                 _ => {}
@@ -420,6 +420,20 @@ impl<'a> Scene<'a> {
 
     /// Paint stroke `st` of the shape `bp` (filled by `rule`; geometric bounds `bounds`).
     fn stroke(&mut self, bp: &BezPath, rule: FillRule, st: &StrokeLayer, bounds: Rect) {
+        if !st.sub_lines.is_empty() {
+            let mut base = st.clone();
+            base.sub_lines.clear();
+            self.stroke(bp, rule, &base, bounds);
+            for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+                let Some(offset) = vectorcraft_geom::parallel::parallel_path(bp, line.offset, stroke::OUTLINE_TOL, st.miter_limit) else { continue };
+                let sub = st.sub_line_stroke(line);
+                self.stroke(&offset, rule, &sub, bounds.inflate(line.offset.abs(), line.offset.abs()));
+            }
+            return;
+        }
+        if !st.width.is_finite() || st.width <= 0.0 || st.paint.is_none() {
+            return;
+        }
         if !stroke::is_plain(st) && self.brush_art(bp, st) {
             return;
         }
@@ -595,7 +609,7 @@ impl<'a> Scene<'a> {
                     self.note_item(fl.opacity, fl.blend);
                     self.fill(bp, FillRule::NonZero, &fl.paint, tb, fl.overprint);
                 }
-                AppearanceItem::Stroke(st) if st.visible && !st.paint.is_none() && st.width > 0.0 && st.width.is_finite() => {
+                AppearanceItem::Stroke(st) if st.paints_anything() => {
                     self.stroke(bp, FillRule::NonZero, st, tb);
                 }
                 _ => {}

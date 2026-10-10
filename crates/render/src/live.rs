@@ -61,12 +61,18 @@ fn resources_key(doc: &Document, n: &Node) -> u64 {
         {
             (Arc::as_ptr(&s.art) as usize).hash(&mut h);
         }
-        for i in &c.appearance.items {
-            if let vectorcraft_color::Paint::Pattern { pattern, .. } = i.paint()
-                && let Some(def) = doc.pattern(pattern)
-            {
-                def.art.iter().for_each(|a| (Arc::as_ptr(a) as usize).hash(&mut h));
-                [def.tile.x0, def.tile.y0, def.tile.x1, def.tile.y1].iter().for_each(|v| v.to_bits().hash(&mut h));
+        for item in &c.appearance.items {
+            let paints: Vec<&vectorcraft_color::Paint> = match item {
+                vectorcraft_doc::AppearanceItem::Fill(fill) => vec![&fill.paint],
+                vectorcraft_doc::AppearanceItem::Stroke(stroke) => stroke.paints().collect(),
+            };
+            for paint in paints {
+                if let vectorcraft_color::Paint::Pattern { pattern, .. } = paint
+                    && let Some(def) = doc.pattern(pattern)
+                {
+                    def.art.iter().for_each(|a| (Arc::as_ptr(a) as usize).hash(&mut h));
+                    [def.tile.x0, def.tile.y0, def.tile.x1, def.tile.y1].iter().for_each(|v| v.to_bits().hash(&mut h));
+                }
             }
         }
     });

@@ -3,7 +3,9 @@
 
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{ArrowAlign, Arrowhead, CharStyle, Dash, LineCap, LineJoin, Node, NodeKind, SavedProfile, StrokeLayer, Unit, WidthProfile};
+use vectorcraft_doc::{
+    ArrowAlign, Arrowhead, CharStyle, Dash, LineCap, LineJoin, MAX_SUB_LINES, Node, NodeKind, SavedProfile, StrokeLayer, SubLine, Unit, WidthProfile,
+};
 
 use super::appearance::{ItemTarget, edit_items, item_target};
 use super::paint::painted;
@@ -18,9 +20,18 @@ pub fn specs() -> Vec<CommandSpec> {
             "Stroke Options",
             ["Window", "Stroke"],
             None,
-            "{weight?: pt, cap?: butt|round|square, join?: miter|round|bevel, miterLimit?, align?: center|inside|outside, dash?: [d,g,…]|null (a 0 dash with a round or projecting cap draws dots or squares; a new pattern keeps the current offset and alignment), dashOffset? (exact dashes only), alignDashes?: bool (true: dashes fitted to corners and path ends, every run between them holding whole periods with a dash centred on each corner and end; false, the default for a new pattern: exact lengths), startArrow?, endArrow?: Arrow|ArrowOpen|Barbed|Concave|DoubleArrow|HalfArrowLeft|HalfArrowRight|Chevron|Feather|Swallowtail|Triangle|TriangleOpen|TriangleReverse|TriangleBar|Kite|Leaf|Drop|Circle|CircleOpen|HalfCircle|Oval|Target|Square|SquareOpen|Tag|TagOpen|Diamond|DiamondOpen|Hexagon|HexagonOpen|Star|Cross|Plus|Bar|DoubleBar|DotOnBar|Slash|DoubleSlash|Bracket|Fork|null (HalfArrowLeft/Right: one barb, left or right of the direction the head points), arrowAlign?: \"extend\" (tip past the end point, default)|\"tip\" (tip on the end point; the stroke is shortened), profile?: \"uniform\"|\"lens\"|\"taperStart\"|\"taperEnd\"|\"pinch\"|\"teardrop\"|\"wave\"|a saved profile's name (stroke.widthProfile.list), item?: stroke item index|null (omitted: the Appearance panel's active item if it is a stroke, else the top stroke, created when missing), ids?} Without a stroke item, type takes weight, cap, join, miterLimit and the dash options as its characters' stroke (every run; text.setRangeStyle `strokeOptions` styles a range), and images and symbol instances (also in groups) are left alone. With nothing selected (and no ids) they set up the next object drawn (appearance.newArt; weight always does)",
+            "{weight?: pt, cap?: butt|round|square, join?: miter|round|bevel, miterLimit?, align?: center|inside|outside, dash?: [d,g,…]|null (a 0 dash with a round or projecting cap draws dots or squares; a new pattern keeps the current offset and alignment), dashOffset? (exact dashes only), alignDashes?: bool (true: dashes fitted to corners and path ends, every run between them holding whole periods with a dash centred on each corner and end; false, the default for a new pattern: exact lengths), startArrow?, endArrow?: Arrow|ArrowOpen|Barbed|Concave|DoubleArrow|HalfArrowLeft|HalfArrowRight|Chevron|Feather|Swallowtail|Triangle|TriangleOpen|TriangleReverse|TriangleBar|Kite|Leaf|Drop|Circle|CircleOpen|HalfCircle|Oval|Target|Square|SquareOpen|Tag|TagOpen|Diamond|DiamondOpen|Hexagon|HexagonOpen|Star|Cross|Plus|Bar|DoubleBar|DotOnBar|Slash|DoubleSlash|Bracket|Fork|null (HalfArrowLeft/Right: one barb, left or right of the direction the head points), arrowAlign?: \"extend\" (tip past the end point, default)|\"tip\" (tip on the end point; the stroke is shortened), profile?: \"uniform\"|\"lens\"|\"taperStart\"|\"taperEnd\"|\"pinch\"|\"teardrop\"|\"wave\"|a saved profile's name (stroke.widthProfile.list), item?: stroke item index|null (omitted: the Appearance panel's active item if it is a stroke, else the top stroke, created when missing), ids?} Without a stroke item, type takes weight, cap, join, miterLimit and the dash options as its characters' stroke (every run; text.setRangeStyle `strokeOptions` styles a range), and images and symbol instances (also in groups) are left alone. With nothing selected (and no ids) they set up the next object drawn (appearance.newArt; weight always does); `subLines` is a list of up to 8 additional `{offset, width?, paint?, dash?}` lanes (positive offsets are left of the path direction)",
             has_doc,
             stroke_set
+        ),
+        cmd!(
+            "stroke.parallelPreset",
+            "Apply Parallel Line Style",
+            ["Window", "Stroke"],
+            None,
+            "{preset: double|triple|road|none, item?: stroke item index|null, ids?} apply an original built-in parallel line style or remove its sub-lines",
+            has_doc,
+            parallel_preset
         ),
         cmd!(
             "stroke.setAdvanced",
@@ -82,6 +93,7 @@ pub(crate) struct StrokeChange {
     dash: Option<Option<Vec<f64>>>,
     dash_offset: Option<f64>,
     align_dashes: Option<bool>,
+    sub_lines: Option<Vec<SubLine>>,
 }
 
 /// The value param `key` names in `table` (see [`crate::inspect::CAPS`]); `None` when absent.
@@ -96,6 +108,9 @@ fn named<T: Copy>(table: &[(T, &str)], p: &Value, key: &str, cmd: &str) -> Resul
 
 impl StrokeChange {
     pub(crate) fn parse(p: &Value, cmd: &str) -> Result<Self> {
+        if cmd != "stroke.set" && p.get("subLines").is_some() {
+            return Err(bad(cmd, "parallel line styles apply to shape strokes, not character strokes"));
+        }
         let num = |k: &str| p.get(k).and_then(Value::as_f64);
         let dash = match p.get("dash") {
             None => None,
@@ -108,6 +123,19 @@ impl StrokeChange {
             }
             Some(v) => return Err(bad(cmd, format!("dash must be a list of lengths or null, got {v}"))),
         };
+        let sub_lines = match p.get("subLines") {
+            None => None,
+            Some(Value::Null) => Some(vec![]),
+            Some(Value::Array(_)) => {
+                let value = p.get("subLines").cloned().ok_or_else(|| bad(cmd, "subLines is missing"))?;
+                let lines: Vec<SubLine> = serde_json::from_value(value).map_err(|_| bad(cmd, "subLines contains an invalid lane"))?;
+                if lines.len() > MAX_SUB_LINES || lines.iter().any(|line| !line.is_valid()) {
+                    return Err(bad(cmd, format!("subLines must contain at most {MAX_SUB_LINES} valid lanes")));
+                }
+                Some(lines)
+            }
+            Some(_) => return Err(bad(cmd, "subLines must be a list or null")),
+        };
         Ok(Self {
             weight: num("weight").map(|w| w.clamp(0.0, 1000.0)),
             cap: named(&CAPS, p, "cap", cmd)?,
@@ -116,6 +144,7 @@ impl StrokeChange {
             dash,
             dash_offset: num("dashOffset"),
             align_dashes: p.get("alignDashes").and_then(Value::as_bool),
+            sub_lines,
         })
     }
 
@@ -127,6 +156,7 @@ impl StrokeChange {
             && self.dash.is_none()
             && self.dash_offset.is_none()
             && self.align_dashes.is_none()
+            && self.sub_lines.is_none()
     }
 
     pub(crate) fn apply(&self, st: &mut StrokeLayer) {
@@ -154,6 +184,9 @@ impl StrokeChange {
                 d.align_corners = a;
             }
         }
+        if let Some(lines) = &self.sub_lines {
+            st.sub_lines = lines.clone();
+        }
     }
 
     /// [`Self::apply`] to a character stroke.
@@ -167,6 +200,65 @@ impl StrokeChange {
 /// Does a Stroke panel edit find nothing selected (and no `ids`)? It then sets up new art.
 fn no_targets(ids: &[vectorcraft_doc::NodeId], p: &Value) -> bool {
     ids.is_empty() && p.get("ids").is_none() && p.get("id").is_none()
+}
+
+fn parallel_preset(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "stroke.parallelPreset";
+    let preset = str_param(p, "preset").ok_or_else(|| bad(C, "preset is required"))?;
+    let (width, paint, lines) = match preset {
+        "none" => (None, None, vec![]),
+        "double" => (
+            Some(3.0),
+            Some(Paint::solid(Color::rgb8(32, 38, 48))),
+            vec![SubLine { offset: 4.0, width: Some(3.0), paint: Some(Paint::solid(Color::rgb8(245, 245, 238))), ..Default::default() }],
+        ),
+        "triple" => (
+            Some(2.0),
+            Some(Paint::solid(Color::rgb8(31, 42, 68))),
+            vec![
+                SubLine { offset: -4.0, width: Some(2.0), paint: Some(Paint::solid(Color::rgb8(224, 97, 64))), ..Default::default() },
+                SubLine { offset: 4.0, width: Some(2.0), paint: Some(Paint::solid(Color::rgb8(236, 198, 91))), ..Default::default() },
+            ],
+        ),
+        "road" => (
+            Some(8.0),
+            Some(Paint::solid(Color::rgb8(48, 54, 61))),
+            vec![
+                SubLine { offset: -5.0, width: Some(1.5), paint: Some(Paint::solid(Color::rgb8(245, 239, 218))), ..Default::default() },
+                SubLine { offset: 5.0, width: Some(1.5), paint: Some(Paint::solid(Color::rgb8(245, 239, 218))), ..Default::default() },
+            ],
+        ),
+        _ => return Err(bad(C, "preset must be double|triple|road|none")),
+    };
+    let item = item_target(s, p, C)?.of_kind(s, false);
+    let ids = item.targets(s, p)?;
+    let apply = |st: &mut StrokeLayer| {
+        if let Some(width) = width {
+            st.width = width;
+        }
+        if let Some(paint) = &paint {
+            st.paint = paint.clone();
+        }
+        st.sub_lines = lines.clone();
+    };
+    if no_targets(&ids, p)
+        && let Some(st) = s.new_art_stroke_mut()
+    {
+        apply(st);
+    }
+    edit_items(s, &ids, item, C, "Stroke", false, |n, index| {
+        if matches!(&n.kind, NodeKind::Text(_)) {
+            return Err(bad(C, "parallel line styles apply to shape strokes, not character strokes"));
+        }
+        if index.is_none() && n.appearance.stroke().is_none() {
+            n.appearance.set_stroke(Paint::solid(Color::BLACK));
+        }
+        if let Some(st) = n.appearance.stroke_at_mut(index) {
+            apply(st);
+        }
+        Ok(())
+    })?;
+    ok()
 }
 
 fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
@@ -222,6 +314,9 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
         if index.is_none()
             && let NodeKind::Text(t) = &mut n.kind
         {
+            if change.sub_lines.is_some() {
+                return Err(bad(C, "parallel line styles apply to shape strokes, not character strokes"));
+            }
             t.runs.iter_mut().for_each(|r| change.apply_char(&mut r.style));
             return Ok(());
         }
@@ -302,6 +397,7 @@ impl DocState {
             miter_limit: differs(|a, b| a.miter_limit == b.miter_limit),
             align: differs(|a, b| a.align == b.align),
             dash: differs(|a, b| a.dash == b.dash),
+            sub_lines: differs(|a, b| a.sub_lines == b.sub_lines),
             can_align,
         }
     }

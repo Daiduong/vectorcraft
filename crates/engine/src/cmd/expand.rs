@@ -245,7 +245,11 @@ fn expand_fills(d: &mut Document, l: &Node, to: GradientTo) -> Option<Node> {
     for item in &l.appearance.items {
         // Items that paint nothing go; a gradient that can't be expanded stays.
         let Some(art) = gradient_fill(item).and_then(|(f, g)| gradient_art(d, l, &path, bounds, f, g, to)) else {
-            if item.visible() && !item.paint().is_none() {
+            let paints = match item {
+                AppearanceItem::Fill(fill) => fill.visible && !fill.paint.is_none(),
+                AppearanceItem::Stroke(stroke) => stroke.paints_anything(),
+            };
+            if paints {
                 rest.push(item.clone());
             }
             continue;

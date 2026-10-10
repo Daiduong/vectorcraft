@@ -4030,6 +4030,18 @@ axis	Both	Entrambi
 	Top Right	In alto a destra
 	Bottom Right	In basso a destra
 effect	Soft	Morbido
+	Apply Parallel Line Style	Applica stile linee parallele
+	Add parallel line	Aggiungi linea parallela
+	Dash	Tratteggio
+	Dash 4 / 2	Tratteggio 4 / 2
+	Double	Doppia
+	Inherit	Eredita
+	Inherit paint	Eredita colore
+	Lane:	Corsia:
+	Mixed parallel lanes	Corsie parallele miste
+	Parallel style:	Stile parallelo:
+	Road	Strada
+	Triple	Tripla
 effect	Regular	Normale
 	Edge	Bordo
 	System Title Bar	Barra del titolo di sistema

@@ -93,7 +93,13 @@ pub fn encode(n: &Node) -> Option<Value> {
         .appearance
         .items
         .iter()
-        .filter_map(|i| if let AppearanceItem::Stroke(s) = i { Some(json!({"paint": paint_json(&s.paint), "width": s.width})) } else { None })
+        .filter_map(|i| {
+            if let AppearanceItem::Stroke(s) = i {
+                Some(json!({"paint": paint_json(&s.paint), "width": s.width, "subLines": &s.sub_lines}))
+            } else {
+                None
+            }
+        })
         .collect();
     let mut o = json!({
         "id": n.id.0, "type": if compound { "compound" } else { "path" }, "path": path, "fillRule": rule_name(rule),

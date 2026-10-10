@@ -43,7 +43,8 @@ pub enum WrittenShape {
 /// profile, brush, fitted dashes, dots or gradient along or across it)? Writers then need no
 /// geometry for it.
 pub fn is_plain(st: &StrokeLayer) -> bool {
-    st.align == StrokeAlign::Center
+    st.sub_lines.is_empty()
+        && st.align == StrokeAlign::Center
         && st.start_arrow.is_none()
         && st.end_arrow.is_none()
         && st.profile.is_none()
@@ -104,18 +105,34 @@ impl Written {
 /// canvas: the line (width profile, dashes, caps, joins) united with the arrowheads, and kept
 /// inside or outside a closed path for inside or outside alignment. Brushes are not drawn.
 pub fn outline_region(path: &PathData, rule: FillRule, st: &StrokeLayer) -> PathData {
-    if !(st.width > 0.0 && st.width.is_finite()) || path.is_empty() {
+    if path.is_empty() {
         return PathData::default();
     }
     let bp = path.to_bezpath();
-    let closed = is_closed(&bp);
-    let pieces = stroke_pieces(&bp, st);
-    let mut parts = vec![line_outline(&pieces.line, st, aligned_width(st, closed), OUTLINE_TOL)];
-    parts.extend(pieces.heads.into_iter().map(|h| h.outline));
-    let region = vectorcraft_pathops::stroke_region(&parts);
-    match st.align {
-        StrokeAlign::Inside if closed => vectorcraft_pathops::boolean(&region, FillRule::NonZero, path, rule, BoolOp::Intersect),
-        StrokeAlign::Outside if closed => vectorcraft_pathops::boolean(&region, FillRule::NonZero, path, rule, BoolOp::Difference),
-        _ => region,
+    let own = if st.width > 0.0 && st.width.is_finite() {
+        let closed = is_closed(&bp);
+        let pieces = stroke_pieces(&bp, st);
+        let mut parts = vec![line_outline(&pieces.line, st, aligned_width(st, closed), OUTLINE_TOL)];
+        parts.extend(pieces.heads.into_iter().map(|h| h.outline));
+        let region = vectorcraft_pathops::stroke_region(&parts);
+        match st.align {
+            StrokeAlign::Inside if closed => vectorcraft_pathops::boolean(&region, FillRule::NonZero, path, rule, BoolOp::Intersect),
+            StrokeAlign::Outside if closed => vectorcraft_pathops::boolean(&region, FillRule::NonZero, path, rule, BoolOp::Difference),
+            _ => region,
+        }
+    } else {
+        PathData::default()
+    };
+    if st.sub_lines.is_empty() {
+        return own;
     }
+    let mut outlines = vec![own.to_bezpath()];
+    for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+        let Some(offset) = vectorcraft_geom::parallel::parallel_path(&bp, line.offset, OUTLINE_TOL, st.miter_limit) else { continue };
+        let mut sub = st.sub_line_stroke(line);
+        sub.sub_lines.clear();
+        let sub_region = outline_region(&PathData::from_bezpath(&offset), rule, &sub);
+        outlines.push(sub_region.to_bezpath());
+    }
+    vectorcraft_pathops::stroke_region(&outlines)
 }

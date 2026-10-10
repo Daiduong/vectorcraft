@@ -274,20 +274,22 @@ fn info(s: &mut Session, p: &Value) -> Result<Value> {
                 *counts.entry(k).or_default() += 1;
             }
             for item in &n.appearance.items {
-                let paint = match item {
-                    vectorcraft_doc::AppearanceItem::Fill(f) => &f.paint,
-                    vectorcraft_doc::AppearanceItem::Stroke(s) => &s.paint,
+                let paints: Vec<&Paint> = match item {
+                    vectorcraft_doc::AppearanceItem::Fill(fill) => vec![&fill.paint],
+                    vectorcraft_doc::AppearanceItem::Stroke(stroke) => stroke.paints().collect(),
                 };
-                if let Some(k) = paint_kind(paint) {
-                    *counts.entry(k).or_default() += 1;
-                }
-                if let Paint::Pattern { pattern, .. } = paint {
-                    patterns.insert(pattern.clone());
-                }
-                if let Paint::Solid { swatch: Some(name), .. } = paint
-                    && d.swatch(name).is_some_and(|s| s.spot)
-                {
-                    spot.insert(name.clone());
+                for paint in paints {
+                    if let Some(k) = paint_kind(paint) {
+                        *counts.entry(k).or_default() += 1;
+                    }
+                    if let Paint::Pattern { pattern, .. } = paint {
+                        patterns.insert(pattern.clone());
+                    }
+                    if let Paint::Solid { swatch: Some(name), .. } = paint
+                        && d.swatch(name).is_some_and(|swatch| swatch.spot)
+                    {
+                        spot.insert(name.clone());
+                    }
                 }
             }
             if n.mask.is_some() {
@@ -366,6 +368,12 @@ fn pixel_perfect(s: &mut Session, p: &Value) -> Result<Value> {
                     && st.width > 0.0
                 {
                     st.width = st.width.round().max(1.0);
+                    for line in st.sub_lines.iter_mut().take(vectorcraft_doc::MAX_SUB_LINES) {
+                        line.offset = line.offset.round();
+                        if let Some(width) = &mut line.width {
+                            *width = width.round().max(1.0);
+                        }
+                    }
                     odd |= st.width as i64 % 2 == 1 && st.align == vectorcraft_doc::StrokeAlign::Center;
                 }
             }

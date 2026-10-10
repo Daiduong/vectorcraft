@@ -108,7 +108,11 @@ pub fn multiply_overprints(a: &mut Arc<Node>, discard_white: bool) {
     for it in &mut n.appearance.items {
         match it {
             crate::AppearanceItem::Fill(l) if multiplies(l.overprint, l.blend, &l.paint) => l.blend = BlendMode::Multiply,
-            crate::AppearanceItem::Stroke(l) if multiplies(l.overprint, l.blend, &l.paint) => l.blend = BlendMode::Multiply,
+            crate::AppearanceItem::Stroke(l)
+                if l.overprint && l.blend == BlendMode::Normal && !(discard_white && l.paints().filter(|paint| !paint.is_none()).all(is_white)) =>
+            {
+                l.blend = BlendMode::Multiply;
+            }
             _ => {}
         }
     }

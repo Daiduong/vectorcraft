@@ -122,8 +122,15 @@ impl Document {
             n += map_trees(&mut p.art, f);
         }
         for gs in &mut self.graphic_styles {
-            for it in &mut gs.appearance.items {
-                n += usize::from(item_paint_mut(it).map_links(f));
+            for item in &mut gs.appearance.items {
+                match item {
+                    AppearanceItem::Fill(fill) => n += usize::from(fill.paint.map_links(f)),
+                    AppearanceItem::Stroke(stroke) => {
+                        for paint in stroke.paints_mut() {
+                            n += usize::from(paint.map_links(f));
+                        }
+                    }
+                }
             }
         }
         for w in self.swatches_iter_mut() {
@@ -164,7 +171,12 @@ impl Document {
             })
         };
         self.layers.iter().chain(self.symbols.iter().map(|s| &s.art)).chain(self.patterns.iter().flat_map(|p| &p.art)).for_each(|n| tree(n));
-        self.graphic_styles.iter().flat_map(|gs| &gs.appearance.items).for_each(|it| f(item_paint(it)));
+        for item in self.graphic_styles.iter().flat_map(|style| &style.appearance.items) {
+            match item {
+                AppearanceItem::Fill(fill) => f(&fill.paint),
+                AppearanceItem::Stroke(stroke) => stroke.paints().for_each(&mut *f),
+            }
+        }
     }
 }
 
@@ -204,17 +216,17 @@ pub fn node_colors(n: &Node, f: &mut dyn FnMut(&Color, Option<&str>)) {
     });
 }
 
-fn item_paint(it: &AppearanceItem) -> &Paint {
+fn item_paints(it: &AppearanceItem) -> Box<dyn Iterator<Item = &Paint> + '_> {
     match it {
-        AppearanceItem::Fill(l) => &l.paint,
-        AppearanceItem::Stroke(l) => &l.paint,
+        AppearanceItem::Fill(l) => Box::new(std::iter::once(&l.paint)),
+        AppearanceItem::Stroke(l) => Box::new(l.paints()),
     }
 }
 
-fn item_paint_mut(it: &mut AppearanceItem) -> &mut Paint {
+fn item_paints_mut(it: &mut AppearanceItem) -> Box<dyn Iterator<Item = &mut Paint> + '_> {
     match it {
-        AppearanceItem::Fill(l) => &mut l.paint,
-        AppearanceItem::Stroke(l) => &mut l.paint,
+        AppearanceItem::Fill(l) => Box::new(std::iter::once(&mut l.paint)),
+        AppearanceItem::Stroke(l) => Box::new(l.paints_mut()),
     }
 }
 
@@ -224,7 +236,7 @@ fn node_paints(n: &Node) -> impl Iterator<Item = &Paint> {
         NodeKind::Text(t) => t.runs.as_slice(),
         _ => &[],
     };
-    n.appearance.items.iter().map(item_paint).chain(runs.iter().flat_map(|r| [&r.style.fill, &r.style.stroke]))
+    n.appearance.items.iter().flat_map(item_paints).chain(runs.iter().flat_map(|r| [&r.style.fill, &r.style.stroke]))
 }
 
 /// Mutable [`node_paints`], in the same order.
@@ -233,7 +245,7 @@ fn node_paints_mut(n: &mut Node) -> impl Iterator<Item = &mut Paint> {
         NodeKind::Text(t) => t.runs.as_mut_slice(),
         _ => &mut [],
     };
-    n.appearance.items.iter_mut().map(item_paint_mut).chain(runs.iter_mut().flat_map(|r| [&mut r.style.fill, &mut r.style.stroke]))
+    n.appearance.items.iter_mut().flat_map(item_paints_mut).chain(runs.iter_mut().flat_map(|r| [&mut r.style.fill, &mut r.style.stroke]))
 }
 
 /// `n` with `f` applied to its subtree's linkable colours, or `None` when nothing changed (then

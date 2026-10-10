@@ -4,8 +4,11 @@
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeLayer, WidthProfile};
+use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
+use vectorcraft_doc::{
+    Appearance, AppearanceItem, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeGradientMode, StrokeLayer, SubLine,
+    WidthProfile,
+};
 use vectorcraft_geom::{PathData, Point, SubPath, shapes};
 use vectorcraft_svg::{ExportOptions, export};
 use vectorcraft_testkit::raster::{Image, assert_similar, render_artboard};
@@ -63,6 +66,39 @@ fn exported_strokes_render_like_the_canvas() {
     for y in [20, 50, 80, 110, 160] {
         assert!((0..200).any(|x| canvas.over_white(x, y).iter().any(|c| *c < 200)), "row {y} has ink");
     }
+}
+
+#[test]
+fn parallel_line_style_exports_and_renders_like_the_canvas() {
+    let mut d = Document::new(200.0, 100.0);
+    add(&mut d, line(20.0, 50.0, 180.0), |s| {
+        s.paint = Paint::solid(Color::rgb8(30, 45, 80));
+        s.width = 3.0;
+        s.sub_lines.push(SubLine { offset: 8.0, width: Some(2.0), paint: Some(Paint::solid(Color::rgb8(210, 40, 30))), ..Default::default() });
+    });
+    let svg = export(&d, &ExportOptions::default());
+    let canvas = render_artboard(&d);
+    let written = resvg_render(&svg, 200, 100);
+    assert_similar(&canvas, &written, 24.0, 0.002);
+}
+
+#[test]
+fn parallel_across_gradient_exports_like_the_canvas() {
+    let mut d = Document::new(200.0, 100.0);
+    add(&mut d, line(20.0, 50.0, 180.0), |s| {
+        s.width = 3.0;
+        s.gradient_mode = StrokeGradientMode::Across;
+        s.sub_lines.push(SubLine {
+            offset: 12.0,
+            width: Some(10.0),
+            paint: Some(Paint::Gradient(Box::new(GradientPaint::new(Gradient::default())))),
+            ..Default::default()
+        });
+    });
+    let svg = export(&d, &ExportOptions::default());
+    let canvas = render_artboard(&d);
+    let written = resvg_render(&svg, 200, 100);
+    assert_similar(&canvas, &written, 24.0, 0.002);
 }
 
 #[test]

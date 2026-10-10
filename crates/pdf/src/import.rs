@@ -827,7 +827,14 @@ pub(crate) fn round3(v: f32) -> f32 {
 fn paints(nodes: &[Arc<Node>]) -> Vec<Paint> {
     let mut out = vec![];
     for n in nodes {
-        n.walk(&mut |c| out.extend(c.appearance.items.iter().map(|i| i.paint().clone())));
+        n.walk(&mut |c| {
+            for item in &c.appearance.items {
+                match item {
+                    AppearanceItem::Fill(fill) => out.push(fill.paint.clone()),
+                    AppearanceItem::Stroke(stroke) => out.extend(stroke.paints().cloned()),
+                }
+            }
+        });
     }
     out
 }

@@ -457,7 +457,7 @@ fn offset_path(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Can Outline Stroke turn `st` into filled art?
 fn outlinable(st: &StrokeLayer) -> bool {
-    st.visible && !st.paint.is_none() && st.width > 0.0
+    st.paints_anything()
 }
 
 /// `n` with `opacity` and `blend` applied: set on it when it has none of its own, else on a
@@ -485,6 +485,32 @@ pub(crate) fn outlined_stroke(
     rule: FillRule,
     st: &StrokeLayer,
 ) -> Option<Node> {
+    if !st.sub_lines.is_empty() {
+        let bp = path.to_bezpath();
+        let mut base = st.clone();
+        base.sub_lines.clear();
+        let mut nodes = Vec::new();
+        if let Some(node) = outlined_stroke(d, brushes, path, rule, &base) {
+            nodes.push(node);
+        }
+        for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let Some(offset) =
+                vectorcraft_geom::parallel::parallel_path(&bp, line.offset, vectorcraft_render::effects::stroke::OUTLINE_TOL, st.miter_limit)
+            else {
+                continue;
+            };
+            let sub_path = PathData::from_bezpath(&offset);
+            let sub = st.sub_line_stroke(line);
+            if let Some(node) = outlined_stroke(d, brushes, &sub_path, rule, &sub) {
+                nodes.push(node);
+            }
+        }
+        if nodes.is_empty() {
+            return None;
+        }
+        let group = Node::group(NodeId(0), nodes.into_iter().map(Arc::new).collect());
+        return Some(d.reid(&group));
+    }
     if let Some(b) = st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) {
         let mut pieces = vectorcraft_brush::stroke_pieces(b, &path.to_bezpath(), st);
         let art = match pieces.len() {
@@ -726,7 +752,7 @@ fn split_into_grid(s: &mut Session, p: &Value) -> Result<Value> {
 fn is_painted(a: &Appearance) -> bool {
     a.items.iter().any(|i| match i {
         AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
-        AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0,
+        AppearanceItem::Stroke(s) => s.paints_anything(),
     })
 }
 

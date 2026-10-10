@@ -3748,3 +3748,15 @@ lighting	Light	光源
 	Move Guide to Layer	将参考线移至图层
 	Linux Display Server	Linux 显示服务器
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	应用平行线样式
+	Add parallel line	添加平行线
+	Dash	虚线
+	Dash 4 / 2	虚线 4 / 2
+	Double	双线
+	Inherit	继承
+	Inherit paint	继承填色
+	Lane:	线道：
+	Mixed parallel lanes	平行线道混合
+	Parallel style:	平行线样式：
+	Road	道路
+	Triple	三线

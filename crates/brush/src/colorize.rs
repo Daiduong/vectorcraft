@@ -77,13 +77,15 @@ pub fn colorize(n: &mut Node, mode: Colorization, stroke: &Paint) {
 /// Mix every solid paint under `n` towards `color` by `amount` (0..1) — the Symbol Stainer.
 pub fn tint_node(n: &mut Node, color: &Color, amount: f32) {
     let amount = amount.clamp(0.0, 1.0);
-    for it in &mut n.appearance.items {
-        let p = match it {
-            AppearanceItem::Fill(f) => &mut f.paint,
-            AppearanceItem::Stroke(s) => &mut s.paint,
+    for item in &mut n.appearance.items {
+        let paints: Vec<&mut Paint> = match item {
+            AppearanceItem::Fill(fill) => vec![&mut fill.paint],
+            AppearanceItem::Stroke(stroke) => stroke.paints_mut().collect(),
         };
-        if let Paint::Solid { color: c, .. } = p {
-            *p = Paint::solid(c.lerp(color, amount));
+        for paint in paints {
+            if let Paint::Solid { color: c, .. } = paint {
+                *paint = Paint::solid(c.lerp(color, amount));
+            }
         }
     }
     if let vectorcraft_doc::NodeKind::Text(t) = &mut n.kind {
@@ -121,14 +123,18 @@ pub fn instance_art(art: &Node, inst: &Node) -> Node {
 /// its default.
 pub fn art_colors<'a>(nodes: impl IntoIterator<Item = &'a Node>) -> Vec<Color> {
     fn walk(n: &Node, seen: &mut std::collections::HashMap<String, (usize, usize, Color)>) {
-        for it in &n.appearance.items {
-            let (visible, paint) = match it {
-                AppearanceItem::Fill(f) => (f.visible, &f.paint),
-                AppearanceItem::Stroke(s) => (s.visible, &s.paint),
+        for item in &n.appearance.items {
+            let paints: Vec<&Paint> = match item {
+                AppearanceItem::Fill(fill) if fill.visible => vec![&fill.paint],
+                AppearanceItem::Fill(_) => vec![],
+                AppearanceItem::Stroke(stroke) if stroke.visible => stroke.paints().collect(),
+                AppearanceItem::Stroke(_) => vec![],
             };
-            if let (true, Some(c)) = (visible, paint.color()) {
-                let order = seen.len();
-                seen.entry(c.to_hex()).or_insert((0, order, c)).0 += 1;
+            for paint in paints {
+                if let Some(color) = paint.color() {
+                    let order = seen.len();
+                    seen.entry(color.to_hex()).or_insert((0, order, color)).0 += 1;
+                }
             }
         }
         for c in n.children().into_iter().flatten() {

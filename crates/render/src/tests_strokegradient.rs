@@ -1,8 +1,8 @@
 //! Gradients along and across strokes: positions along the path and across the stroke, no seams
 //! between the slices, translucent stops painted once.
 
-use vectorcraft_color::{Gradient, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Node, StrokeGradientMode, StrokeLayer};
+use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
+use vectorcraft_doc::{Appearance, AppearanceItem, Node, StrokeGradientMode, StrokeLayer, SubLine};
 use vectorcraft_geom::PathData;
 
 use super::*;
@@ -31,6 +31,42 @@ fn line(a: (f64, f64), b: (f64, f64)) -> BezPath {
 /// Grey level (0..1) at the centre of pixel (x, y).
 fn grey(img: &Rendered, x: f64, y: f64) -> f64 {
     img.pixel(x as u32, y as u32)[0] as f64 / 255.0
+}
+
+#[test]
+fn parallel_lanes_keep_their_own_across_gradient_cache_entries() {
+    let solid_gradient = |color| {
+        let mut gradient = Gradient::default();
+        for stop in &mut gradient.stops {
+            stop.color = color;
+        }
+        gradient
+    };
+    let mut stroke = StrokeLayer::new(Paint::Gradient(Box::new(GradientPaint::new(solid_gradient(Color::rgb(0.0, 0.0, 1.0))))), 10.0);
+    stroke.gradient_mode = StrokeGradientMode::Across;
+    stroke.sub_lines.push(SubLine {
+        offset: 20.0,
+        width: Some(10.0),
+        paint: Some(Paint::Gradient(Box::new(GradientPaint::new(solid_gradient(Color::rgb(1.0, 0.0, 0.0)))))),
+        ..Default::default()
+    });
+    let bp = line((20.0, 100.0), (180.0, 100.0));
+    let mut document = Document::new(200.0, 200.0);
+    let node = Node::path(
+        document.alloc_id(),
+        PathData::from_bezpath(&bp),
+        Appearance { items: vec![AppearanceItem::Stroke(stroke)], ..Default::default() },
+    );
+    document.insert(Some(document.layers[0].id), 0, node).unwrap();
+    let rendered = Renderer::new().render(
+        &document,
+        SIZE,
+        SIZE,
+        Affine::IDENTITY,
+        &RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() },
+    );
+    assert!(rendered.pixel(100, 100)[2] > 240, "the parent lane should be blue");
+    assert!(rendered.pixel(100, 80)[0] > 240, "the offset lane should use its red gradient");
 }
 
 #[test]

@@ -322,13 +322,37 @@ pub fn bake_appearance(n: &Node) -> Option<Node> {
         let ig = apply(item_effects(item), &g, &ctx.item(item));
         let mut it = item.clone();
         clear_item_effects(&mut it);
-        pieces.push(match &it {
-            AppearanceItem::Stroke(st) if st.brush.is_none() => {
-                let fill = FillLayer { opacity: st.opacity, blend: st.blend, ..FillLayer::new(st.paint.clone()) };
-                piece(crate::stroke::outline_region(&ig, rule, st), FillRule::NonZero, AppearanceItem::Fill(fill))
+        if let AppearanceItem::Stroke(st) = &it
+            && st.brush.is_none()
+        {
+            let bp = ig.to_bezpath();
+            let mut base = st.clone();
+            base.sub_lines.clear();
+            if base.width.is_finite() && base.width > 0.0 && !base.paint.is_none() {
+                let fill = FillLayer { opacity: base.opacity, blend: base.blend, ..FillLayer::new(base.paint.clone()) };
+                let outline = crate::stroke::outline_region(&ig, rule, &base);
+                if !outline.is_empty() {
+                    pieces.push(piece(outline, FillRule::NonZero, AppearanceItem::Fill(fill)));
+                }
             }
-            _ => piece(ig, rule, it),
-        });
+            for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+                let sub = st.sub_line_stroke(line);
+                if !sub.paints_anything() {
+                    continue;
+                }
+                let Some(offset) = vectorcraft_geom::parallel::parallel_path(&bp, line.offset, crate::stroke::OUTLINE_TOL, st.miter_limit) else {
+                    continue;
+                };
+                let sub_path = PathData::from_bezpath(&offset);
+                let outline = crate::stroke::outline_region(&sub_path, rule, &sub);
+                if !outline.is_empty() {
+                    let fill = FillLayer { opacity: sub.opacity, blend: sub.blend, ..FillLayer::new(sub.paint.clone()) };
+                    pieces.push(piece(outline, FillRule::NonZero, AppearanceItem::Fill(fill)));
+                }
+            }
+            continue;
+        }
+        pieces.push(piece(ig, rule, it));
     }
     m.appearance.items.clear();
     m.appearance.contents_index = None;

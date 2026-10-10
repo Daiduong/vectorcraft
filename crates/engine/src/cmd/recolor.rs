@@ -88,12 +88,21 @@ fn used_colors(d: &Document, ids: &[NodeId]) -> Vec<Used> {
                 NodeKind::Text(t) => t.runs.as_slice(),
                 _ => &[],
             };
-            let items = m.appearance.items.iter().map(|it| match it {
-                AppearanceItem::Fill(l) => &l.paint,
-                AppearanceItem::Stroke(l) => &l.paint,
-            });
-            for p in items.chain(runs.iter().flat_map(|r| [&r.style.fill, &r.style.stroke])) {
-                if let Paint::Pattern { pattern, .. } = p
+            for item in &m.appearance.items {
+                let paints: Vec<&Paint> = match item {
+                    AppearanceItem::Fill(layer) => vec![&layer.paint],
+                    AppearanceItem::Stroke(layer) => layer.paints().collect(),
+                };
+                for paint in paints {
+                    if let Paint::Pattern { pattern, .. } = paint
+                        && !patterns.contains(&pattern.as_str())
+                    {
+                        patterns.push(pattern);
+                    }
+                }
+            }
+            for paint in runs.iter().flat_map(|r| [&r.style.fill, &r.style.stroke]) {
+                if let Paint::Pattern { pattern, .. } = paint
                     && !patterns.contains(&pattern.as_str())
                 {
                     patterns.push(pattern);
