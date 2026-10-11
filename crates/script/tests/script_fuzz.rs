@@ -16,6 +16,18 @@ fn small() -> ScriptOptions {
 }
 
 const TOKENS: &[&str] = &[
+    // Depth: brackets in runs, and strings that eval and JSON.parse nest.
+    "[[[[[[[[[[[[[[[[",
+    "((((((((((((((((",
+    "{a:{a:{a:{a:",
+    "`${`${`${",
+    "eval(",
+    "JSON.parse(",
+    "'['.repeat(99999)",
+    "new Function(",
+    "1+1+1+1+1+1+1+1+",
+    "a?b:c?d:",
+    "!!!!!!!!",
     "vc.run(",
     "\"shape.rectangle\"",
     "\"no.such\"",
@@ -77,7 +89,7 @@ const TOKENS: &[&str] = &[
 proptest! {
     #![proptest_config(ProptestConfig { cases: 300, ..ProptestConfig::default() })]
     #[test]
-    fn token_soup_never_panics_and_a_failed_run_changes_nothing(tokens in prop::collection::vec(prop::sample::select(TOKENS), 0..40)) {
+    fn token_soup_never_panics_and_a_failed_run_changes_nothing(tokens in prop::collection::vec(prop::sample::select(TOKENS), 0..400)) {
         let src = tokens.concat();
         let mut s = Fixture::Multi.session();
         let before = doc_json(&s.doc().unwrap().doc);

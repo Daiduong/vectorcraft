@@ -6,7 +6,7 @@ use std::rc::Rc;
 use boa_engine::error::PanicError;
 use boa_engine::object::ObjectInitializer;
 use boa_engine::property::Attribute;
-use boa_engine::{Context, JsNativeError, JsResult, JsValue, NativeFunction, js_string};
+use boa_engine::{Context, JsNativeError, JsObject, JsResult, JsValue, NativeFunction, js_string};
 use serde_json::{Value, json};
 use vectorcraft_engine::{BatchRun, Session};
 
@@ -30,13 +30,26 @@ pub(crate) struct Host {
     pub(crate) commands: usize,
     /// Why the host stopped the script (a limit), which no `catch` sees.
     pub(crate) stopped: Option<String>,
+    /// Promises rejected with nothing handling them yet ([`crate::hooks`]).
+    pub(crate) unhandled: Vec<JsObject>,
 }
 
 pub(crate) type Shared = Rc<RefCell<Option<Host>>>;
 
 impl Host {
     pub(crate) fn new(session: Session, batch: BatchRun, limits: Limits) -> Self {
-        Self { session, batch, limits, log: vec![], log_bytes: 0, log_truncated: false, alerts: vec![], commands: 0, stopped: None }
+        Self {
+            session,
+            batch,
+            limits,
+            log: vec![],
+            log_bytes: 0,
+            log_truncated: false,
+            alerts: vec![],
+            commands: 0,
+            stopped: None,
+            unhandled: vec![],
+        }
     }
 
     fn push_log(&mut self, line: String) {
@@ -66,7 +79,7 @@ fn text_of(v: &JsValue, ctx: &mut Context) -> String {
     }
     match convert::to_json(v, ctx) {
         Ok(j) => j.to_string(),
-        Err(_) => v.to_string(ctx).map(|s| s.to_std_string_escaped()).unwrap_or_else(|_| "[value]".into()),
+        Err(e) => convert::describe(v, &e, ctx),
     }
 }
 

@@ -182,3 +182,91 @@ fn crlf_scripts_report_the_right_line() {
     let e = run(&mut s, "1;\r\n2;\r\nthrow new Error('x');").unwrap_err();
     assert_eq!(e.line, Some(3), "{e}");
 }
+
+// ---------- hostile scripts (final review) ----------
+
+#[test]
+fn deeply_nested_source_is_refused_with_a_position() {
+    let mut s = session();
+    let deep = format!("const ok = 1;\nconst a = {}{};", "[".repeat(5000), "]".repeat(5000));
+    let e = run(&mut s, &deep).unwrap_err();
+    assert!(e.message.contains("nested"), "{e}");
+    assert_eq!(e.line, Some(2), "{e}");
+    let e = run(&mut s, &format!("x = {}1{}", "{a:".repeat(3000), "}".repeat(3000))).unwrap_err();
+    assert!(e.message.contains("nested"), "{e}");
+    let e = run(&mut s, &format!("{}1{}", "(".repeat(100_000), ")".repeat(100_000))).unwrap_err();
+    assert!(e.message.contains("nested"), "{e}");
+}
+
+#[test]
+fn very_long_expressions_are_refused() {
+    let mut s = session();
+    for src in [
+        format!("1{}", "+1".repeat(50_000)),
+        format!("{}1", "1?1:".repeat(20_000)),
+        format!("{}1", "!".repeat(20_000)),
+        format!("var a = {{}}; a{}", ".a".repeat(20_000)),
+    ] {
+        let e = run(&mut s, &src).unwrap_err();
+        assert!(e.message.contains("long"), "{e}");
+    }
+}
+
+#[test]
+fn ordinary_nesting_and_long_data_still_run() {
+    let mut s = session();
+    let nested = format!("const a = {}1{}; 'ok'", "[".repeat(200), "]".repeat(200));
+    assert_eq!(run(&mut s, &nested).unwrap().value, json!("ok"));
+    let data = format!("const a = [{}]; a.length", vec!["1"; 100_000].join(","));
+    assert_eq!(run(&mut s, &data).unwrap().value, json!(100_000));
+    let sum = format!("1{}", "+1".repeat(500));
+    assert_eq!(run(&mut s, &sum).unwrap().value, json!(501));
+    // Brackets in strings, comments, templates and regular expressions don't count.
+    let tricky = format!(
+        "const s = '{}'; /* {} */ const r = /[(]{{2}}/; const t = `{}${{1}}`; s.length",
+        "[".repeat(1000),
+        "(".repeat(1000),
+        "{".repeat(1000)
+    );
+    assert_eq!(run(&mut s, &tricky).unwrap().value, json!(1000));
+}
+
+#[test]
+fn deep_eval_and_json_parse_are_refused() {
+    let mut s = session();
+    let e = run(&mut s, "eval('['.repeat(20000) + ']'.repeat(20000))").unwrap_err();
+    assert!(e.message.contains("nested"), "{e}");
+    let e = run(&mut s, "new Function('return ' + '('.repeat(20000) + '1' + ')'.repeat(20000))()").unwrap_err();
+    assert!(e.message.contains("nested"), "{e}");
+    let e = run(&mut s, "JSON.parse('['.repeat(20000) + ']'.repeat(20000))").unwrap_err();
+    assert!(e.message.contains("nested"), "{e}");
+    // Shallow ones still work.
+    assert_eq!(run(&mut s, "eval('[[1]]')[0][0] + JSON.parse('{\"a\": [2]}').a[0]").unwrap().value, json!(3));
+}
+
+#[test]
+fn values_sharing_objects_are_refused_quickly() {
+    let mut s = session();
+    let shared = "let o = [0]; for (let i = 0; i < 40; i++) o = [o, o];";
+    let t = std::time::Instant::now();
+    let e = run(&mut s, &format!("{shared} vc.run('document.inspect', {{ o }})")).unwrap_err();
+    assert!(e.message.contains("TypeError"), "{e}");
+    let out = run(&mut s, &format!("{shared} vc.log(o); alert(o); o")).unwrap();
+    assert_eq!(out.log.len(), 1);
+    assert!(t.elapsed().as_secs() < 10, "took {:?}", t.elapsed());
+}
+
+#[test]
+fn an_async_throw_fails_the_run_and_rolls_back() {
+    let mut s = session();
+    let e = run(&mut s, &format!("async function main() {{ {RECT}; await null; throw new Error('boom'); }} main();")).unwrap_err();
+    assert!(e.message.contains("boom"), "{e}");
+    assert_eq!(count(&s), 0);
+    let e = run(&mut s, &format!("async function main() {{ {RECT}; await null; throw new Error('later'); }} main(); 'done'")).unwrap_err();
+    assert!(e.message.contains("later"), "{e}");
+    assert_eq!(count(&s), 0);
+    // A rejection that is handled is fine, and an awaited value is the script's value.
+    let out = run(&mut s, &format!("Promise.reject(new Error('x')).catch(() => {{}}); (async () => {{ {RECT}; return 7; }})()")).unwrap();
+    assert_eq!(out.value, json!(7));
+    assert_eq!(count(&s), 1);
+}

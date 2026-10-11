@@ -7,6 +7,9 @@ use serde_json::Value;
 pub(crate) const MAX_DEPTH: usize = 256;
 /// Most elements (or keys) in one array (or object) passed to a command.
 pub(crate) const MAX_LENGTH: u64 = 1_000_000;
+/// Most values in all passed to a command: a value that reuses the same objects (`o = [o, o]`)
+/// would otherwise be walked an exponential number of times.
+pub(crate) const MAX_VALUES: usize = 1_000_000;
 
 fn type_error(msg: impl Into<String>) -> JsError {
     JsNativeError::typ().with_message(msg.into()).into()
@@ -20,42 +23,68 @@ pub(crate) fn from_json(v: &Value, ctx: &mut Context) -> JsResult<JsValue> {
 /// A script value as JSON, as `JSON.stringify` would see it, refusing what isn't JSON (functions,
 /// symbols, BigInts, cycles, NaN and Infinity) with a `TypeError` instead of dropping it.
 pub(crate) fn to_json(v: &JsValue, ctx: &mut Context) -> JsResult<Value> {
-    walk(v, ctx, &mut Vec::new(), 0)
+    let mut walk = Walk { seen: Vec::new(), left: MAX_VALUES };
+    walk.value(v, ctx, 0)
 }
 
-fn walk(v: &JsValue, ctx: &mut Context, seen: &mut Vec<JsObject>, depth: usize) -> JsResult<Value> {
-    if depth > MAX_DEPTH {
-        return Err(type_error(format!("values nested more than {MAX_DEPTH} levels deep are not passed to commands")));
+/// A value that isn't JSON as `vc.log`, `alert` and a script's value show it: a function's
+/// source, a primitive's text, else why it isn't JSON (turning a big object into text could
+/// itself run for ever).
+pub(crate) fn describe(v: &JsValue, why: &JsError, ctx: &mut Context) -> String {
+    if (v.as_callable().is_some() || !v.is_object())
+        && let Ok(s) = v.to_string(ctx)
+    {
+        return s.to_std_string_escaped();
     }
-    if v.is_null() || v.is_undefined() {
-        return Ok(Value::Null);
+    format!("[not JSON: {why}]")
+}
+
+struct Walk {
+    /// The objects being walked (their ancestors): a cycle.
+    seen: Vec<JsObject>,
+    /// Values still allowed ([`MAX_VALUES`]).
+    left: usize,
+}
+
+impl Walk {
+    fn value(&mut self, v: &JsValue, ctx: &mut Context, depth: usize) -> JsResult<Value> {
+        if self.left == 0 {
+            return Err(type_error(format!("values with more than {MAX_VALUES} entries in all are not passed to commands")));
+        }
+        self.left -= 1;
+        if depth > MAX_DEPTH {
+            return Err(type_error(format!("values nested more than {MAX_DEPTH} levels deep are not passed to commands")));
+        }
+        if v.is_null() || v.is_undefined() {
+            return Ok(Value::Null);
+        }
+        if let Some(b) = v.as_boolean() {
+            return Ok(Value::Bool(b));
+        }
+        if let Some(s) = v.as_string() {
+            return Ok(Value::String(s.to_std_string_escaped()));
+        }
+        if let Some(n) = v.as_number() {
+            return number(n);
+        }
+        if v.is_bigint() {
+            return Err(type_error("a BigInt is not JSON: convert it with Number() or String()"));
+        }
+        if v.is_symbol() {
+            return Err(type_error("a Symbol is not JSON"));
+        }
+        let Some(obj) = v.as_object() else { return Err(type_error("not a JSON value")) };
+        if obj.is_callable() {
+            return Err(type_error("a function is not JSON"));
+        }
+        if self.seen.contains(&obj) {
+            return Err(type_error("a cyclic object is not JSON"));
+        }
+        self.seen.push(obj.clone());
+        let r = if obj.is_array() { self.array(&obj, ctx, depth) } else { self.object(&obj, ctx, depth) };
+        self.seen.pop();
+        r
     }
-    if let Some(b) = v.as_boolean() {
-        return Ok(Value::Bool(b));
-    }
-    if let Some(s) = v.as_string() {
-        return Ok(Value::String(s.to_std_string_escaped()));
-    }
-    if let Some(n) = v.as_number() {
-        return number(n);
-    }
-    if v.is_bigint() {
-        return Err(type_error("a BigInt is not JSON: convert it with Number() or String()"));
-    }
-    if v.is_symbol() {
-        return Err(type_error("a Symbol is not JSON"));
-    }
-    let Some(obj) = v.as_object() else { return Err(type_error("not a JSON value")) };
-    if obj.is_callable() {
-        return Err(type_error("a function is not JSON"));
-    }
-    if seen.contains(&obj) {
-        return Err(type_error("a cyclic object is not JSON"));
-    }
-    seen.push(obj.clone());
-    let r = if obj.is_array() { array(&obj, ctx, seen, depth) } else { object(&obj, ctx, seen, depth) };
-    seen.pop();
-    r
 }
 
 fn number(n: f64) -> JsResult<Value> {
@@ -77,33 +106,35 @@ fn length(obj: &JsObject, ctx: &mut Context, what: &str) -> JsResult<u32> {
     u32::try_from(n).map_err(|_| type_error("too long"))
 }
 
-fn array(obj: &JsObject, ctx: &mut Context, seen: &mut Vec<JsObject>, depth: usize) -> JsResult<Value> {
-    let n = length(obj, ctx, "arrays")?;
-    let mut out = Vec::with_capacity(n as usize);
-    for i in 0..n {
-        let item = obj.get(i, ctx)?;
-        out.push(walk(&item, ctx, seen, depth + 1)?);
-    }
-    Ok(Value::Array(out))
-}
-
-fn object(obj: &JsObject, ctx: &mut Context, seen: &mut Vec<JsObject>, depth: usize) -> JsResult<Value> {
-    // Its own enumerable string keys, in JSON.stringify's order.
-    let keys_fn = ctx.intrinsics().constructors().object().constructor().get(js_string!("keys"), ctx)?;
-    let keys_fn = keys_fn.as_callable().ok_or_else(|| type_error("Object.keys is not a function"))?;
-    let keys = keys_fn.call(&JsValue::undefined(), &[obj.clone().into()], ctx)?;
-    let keys = keys.as_object().ok_or_else(|| type_error("Object.keys returned no array"))?;
-    let n = length(&keys, ctx, "objects")?;
-    let mut map = serde_json::Map::new();
-    for i in 0..n {
-        let key = keys.get(i, ctx)?.to_string(ctx)?;
-        let value = obj.get(key.clone(), ctx)?;
-        if value.is_undefined() {
-            continue;
+impl Walk {
+    fn array(&mut self, obj: &JsObject, ctx: &mut Context, depth: usize) -> JsResult<Value> {
+        let n = length(obj, ctx, "arrays")?;
+        let mut out = Vec::with_capacity(n as usize);
+        for i in 0..n {
+            let item = obj.get(i, ctx)?;
+            out.push(self.value(&item, ctx, depth + 1)?);
         }
-        map.insert(key.to_std_string_escaped(), walk(&value, ctx, seen, depth + 1)?);
+        Ok(Value::Array(out))
     }
-    Ok(Value::Object(map))
+
+    fn object(&mut self, obj: &JsObject, ctx: &mut Context, depth: usize) -> JsResult<Value> {
+        // Its own enumerable string keys, in JSON.stringify's order.
+        let keys_fn = ctx.intrinsics().constructors().object().constructor().get(js_string!("keys"), ctx)?;
+        let keys_fn = keys_fn.as_callable().ok_or_else(|| type_error("Object.keys is not a function"))?;
+        let keys = keys_fn.call(&JsValue::undefined(), &[obj.clone().into()], ctx)?;
+        let keys = keys.as_object().ok_or_else(|| type_error("Object.keys returned no array"))?;
+        let n = length(&keys, ctx, "objects")?;
+        let mut map = serde_json::Map::new();
+        for i in 0..n {
+            let key = keys.get(i, ctx)?.to_string(ctx)?;
+            let value = obj.get(key.clone(), ctx)?;
+            if value.is_undefined() {
+                continue;
+            }
+            map.insert(key.to_std_string_escaped(), self.value(&value, ctx, depth + 1)?);
+        }
+        Ok(Value::Object(map))
+    }
 }
 
 #[cfg(test)]
