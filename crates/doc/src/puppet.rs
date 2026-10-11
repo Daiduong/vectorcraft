@@ -9,7 +9,7 @@ use vectorcraft_geom::Point;
 use crate::{Document, Node, NodeId};
 
 /// One pin: where it sits on the rest shape, where it is now, and the turn it holds.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PuppetPin {
     pub rest: Point,
     pub at: Point,
@@ -18,7 +18,7 @@ pub struct PuppetPin {
 }
 
 /// The pins on some objects and the shape they warp from.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PuppetPins {
     /// The warped objects.
     pub ids: Vec<NodeId>,

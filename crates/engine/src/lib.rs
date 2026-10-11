@@ -1745,3 +1745,6 @@ mod tests_widthprofiles;
 mod tests_widthtool;
 #[cfg(test)]
 mod tests_xform;
+
+mod craft_codec;
+mod craft_session;

@@ -208,6 +208,10 @@ pub struct Services {
     /// Read the system clipboard's text (desktop). Without it, pasted text only arrives with
     /// egui's Paste event (web, and keyboard paste everywhere).
     pub clipboard_read: Option<Box<dyn FnMut() -> Option<String>>>,
+    /// User-initiated async browser read; completion supplies a Flavour to finish_web_paste.
+    pub clipboard_paste: Option<Box<dyn FnMut(&str, Value, Option<u64>) -> Result<(), String>>>,
+    pub clipboard_text: Option<Box<dyn FnMut(Option<u64>, egui::Id, egui::text_edit::TextEditState) -> Result<(), String>>>,
+    pub clipboard_publish: Option<Box<dyn FnMut(&[vectorcraft_engine::cmd::clipboard::Flavour]) -> Result<(), String>>>,
     /// Open a URL in the system browser (desktop). Without it, egui opens it (a new tab on the web).
     pub open_url: Option<OpenUrlFn>,
     /// Show an open dialog for several files (File → Place…); returns their paths (none: cancelled).
@@ -596,6 +600,12 @@ impl VectorcraftApp {
             p.insert("artboard".into(), serde_json::json!(panels::artboards::selected(self, n)));
         }
         if id.starts_with("edit.paste") {
+            if self.clipboard_in.is_none() {
+                if let Some(request) = self.services.clipboard_paste.as_mut() {
+                    request(id, params.clone(), self.session.active().map(|d| d.uid))?;
+                    return Ok(json!({"pending": true}));
+                }
+            }
             if let Err(e) = self.adopt_system_clipboard() {
                 self.ui.status = e.clone();
                 return Err(e);
@@ -1215,5 +1225,27 @@ impl VectorcraftApp {
         native_menu::sync(self, &ctx);
         self.perf.frame_ms = now_ms() - t0;
         let _ = json!(null);
+    }
+}
+
+impl VectorcraftApp {
+    fn craft_state(&self) -> Result<serde_json::Value, String> {
+        Ok(serde_json::json!({"ui":self.ui,"views":self.views,"tool":self.session.tool_id()}))
+    }
+    pub fn craft_signature(&self) -> Result<String, String> {
+        Ok(self.session.craft_signature(&self.craft_state()?))
+    }
+    pub fn craft_capture(&self) -> Result<Vec<u8>, String> {
+        self.session.craft_capture(self.craft_state()?)
+    }
+    pub fn craft_restore(&mut self, bytes: &[u8]) -> Result<(), String> {
+        let v = Session::craft_ui(bytes)?;
+        let ui: UiState = serde_json::from_value(v["ui"].clone()).map_err(|e| e.to_string())?;
+        let views: Vec<View> = serde_json::from_value(v["views"].clone()).map_err(|e| e.to_string())?;
+        self.session.craft_restore(bytes)?;
+        self.ui = ui;
+        self.views = views;
+        self.sync_views();
+        Ok(())
     }
 }

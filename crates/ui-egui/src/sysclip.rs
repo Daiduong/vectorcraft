@@ -51,6 +51,13 @@ pub(crate) fn import_command(f: &Flavour, center: Option<[f64; 2]>) -> (&'static
 impl VectorcraftApp {
     /// After Copy or Cut: offer the copied objects to other apps.
     pub(crate) fn publish_clipboard(&mut self) {
+        if let Some(publish) = self.services.clipboard_publish.as_mut() {
+            self.clipboard_published = self.session.clipboard_svg();
+            if let Err(e) = publish(&self.session.clipboard_flavours()) {
+                self.ui.status = format!("Copied inside VectorCraft, but system clipboard write failed: {e}");
+            }
+            return;
+        }
         match self.services.system_clipboard.as_mut() {
             Some(cb) => {
                 if let Err(e) = cb.write(&self.session.clipboard_flavours()) {
@@ -63,6 +70,15 @@ impl VectorcraftApp {
             }
             None => {}
         }
+    }
+
+    /// Complete the menu's asynchronous read only in the document that requested it.
+    pub fn finish_web_paste(&mut self, command: &str, params: Value, target: Option<u64>, flavour: Flavour) -> Result<Value, String> {
+        if self.session.active().map(|d| d.uid) != target {
+            return Err("Paste cancelled because the active document changed".into());
+        }
+        self.clipboard_in = Some(flavour);
+        self.run(command, params)
     }
 
     /// Paste `f`, which the host read from the system clipboard itself (a web page's paste carries
@@ -99,12 +115,20 @@ impl VectorcraftApp {
             (pasted, None) => {
                 let text =
                     pasted.map(|f| String::from_utf8_lossy(&f.data).into_owned()).or_else(|| self.services.clipboard_read.as_mut().and_then(|f| f()));
-                let Some(text) = text.filter(|t| looks_like_svg(t)) else { return Ok(()) };
+                let Some(text) = text else { return Ok(()) };
+                if text.is_empty() {
+                    return Err("The clipboard contains no supported artwork or text".into());
+                }
                 if self.clipboard_published.as_deref() == Some(text.as_str()) {
                     return Ok(());
                 }
-                self.clipboard_published = Some(text.clone());
-                ("clipboard.importSvg", json!({ "svg": text, "center": center }))
+                if looks_like_svg(&text) {
+                    self.clipboard_published = Some(text.clone());
+                    ("clipboard.importSvg", json!({ "svg": text, "center": center }))
+                } else {
+                    self.clipboard_published = None;
+                    ("clipboard.importText", json!({ "text": text, "center": center }))
+                }
             }
         };
         self.session.execute(cmd, &params).map(drop).map_err(|e| {

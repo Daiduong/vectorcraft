@@ -205,9 +205,27 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
+/// The browser owns C/X/V key gestures and delivers their payload separately. On native,
+/// remove only a key paired with a logical event. Keep events for focused text fields.
+fn normalize_clipboard_events(events: &mut Vec<egui::Event>, web: bool) {
+    let copy = events.iter().any(|e| matches!(e, egui::Event::Copy));
+    let cut = events.iter().any(|e| matches!(e, egui::Event::Cut));
+    let paste = events.iter().any(|e| matches!(e, egui::Event::Paste(_)));
+    events.retain(|e| match e {
+        egui::Event::Key { key, pressed: true, modifiers, .. } if modifiers.command => !match key {
+            Key::C => web || copy,
+            Key::X => web || cut,
+            Key::V => web || paste,
+            _ => false,
+        },
+        _ => true,
+    });
+}
+
 pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // Followed before anything returns, so a key typed in a field isn't taken for a paste.
     let textless_paste = ctx.input(|i| app.paste_chord.textless_paste(&i.events));
+    ctx.input_mut(|i| normalize_clipboard_events(&mut i.events, cfg!(target_arch = "wasm32")));
     // A numeric field being scrubbed has the keyboard: Escape cancels the drag.
     if crate::scrub::phase(ctx) != crate::scrub::Phase::Idle {
         return;
@@ -615,9 +633,9 @@ mod tests {
         let foreign = r##"<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="5"/><circle cx="20" cy="5" r="5"/><circle cx="35" cy="5" r="5"/></svg>"##;
         frame(&mut app, vec![egui::Event::Paste(foreign.into())]);
         assert_eq!(app.session.doc().unwrap().doc.layers[0].children().unwrap().len(), 5);
-        // Plain text is not art: nothing is pasted from it (the internal clipboard is reused).
+        // External plain text replaces stale internal artwork with one text object.
         frame(&mut app, vec![egui::Event::Paste("hello".into())]);
-        assert_eq!(app.session.doc().unwrap().doc.layers[0].children().unwrap().len(), 8);
+        assert_eq!(app.session.doc().unwrap().doc.layers[0].children().unwrap().len(), 6);
     }
 
     /// While a grid is dragged out, ↑/↓ change its rows and ←/→ its columns.
@@ -853,5 +871,34 @@ mod tests {
                 assert!(parse(c.2).is_some(), "{} has unparsable shortcut {}", c.0, c.2);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod clipboard_normalization_tests {
+    use super::*;
+    fn key(key: Key) -> egui::Event {
+        egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND }
+    }
+    #[test]
+    fn clipboard_pairs_in_either_order_keep_only_the_payload() {
+        for (k, event) in [(Key::C, egui::Event::Copy), (Key::X, egui::Event::Cut), (Key::V, egui::Event::Paste("svg".into()))] {
+            for mut events in [vec![key(k), event.clone()], vec![event.clone(), key(k)]] {
+                normalize_clipboard_events(&mut events, false);
+                assert_eq!(events, vec![event.clone()]);
+            }
+        }
+    }
+    #[test]
+    fn web_key_in_an_earlier_frame_waits_for_payload() {
+        let mut keys = vec![key(Key::V), key(Key::C), key(Key::X)];
+        normalize_clipboard_events(&mut keys, true);
+        assert!(keys.is_empty());
+        let mut payload = vec![egui::Event::Paste("text".into())];
+        normalize_clipboard_events(&mut payload, true);
+        assert_eq!(payload.len(), 1);
+        let mut native = vec![key(Key::V)];
+        normalize_clipboard_events(&mut native, false);
+        assert_eq!(native.len(), 1);
     }
 }
