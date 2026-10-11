@@ -1371,6 +1371,11 @@ impl Session {
     }
 
     pub fn commit_interaction(&mut self) -> Result<()> {
+        // A batch's steps run inside its own interaction, which the batch keeps or rolls back as a
+        // whole: a step that commits what is in progress (Undo, Type) leaves it alone.
+        if self.depth > 0 && self.batch_stash.is_some() {
+            return Ok(());
+        }
         self.remember_pending_paint();
         let st = self.doc_mut()?;
         let Some(mut it) = st.interaction.take() else { return Ok(()) };

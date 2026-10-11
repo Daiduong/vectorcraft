@@ -103,3 +103,41 @@ fn a_batch_run_can_start_with_no_document_open() {
     assert_eq!(count(&s), 1);
     assert_eq!(labels(&s), ["Script: new.js"]);
 }
+
+#[test]
+fn rolling_back_restores_a_step_the_run_undid() {
+    let mut s = session();
+    s.execute("shape.rectangle", &rect()).unwrap();
+    let mut run = s.begin_batch("Script: undo.js", None).unwrap();
+    s.batch_step(&mut run, "edit.undo", &json!({})).unwrap();
+    assert_eq!(count(&s), 0);
+    s.roll_back_batch(run);
+    assert_eq!(count(&s), 1);
+    assert_eq!(labels(&s).len(), 1);
+    assert!(s.doc().unwrap().history.redo.is_empty());
+}
+
+#[test]
+fn an_undo_inside_a_run_is_part_of_its_undo_step() {
+    let mut s = session();
+    s.execute("shape.rectangle", &rect()).unwrap();
+    let mut run = s.begin_batch("Script: undo.js", None).unwrap();
+    s.batch_step(&mut run, "edit.undo", &json!({})).unwrap();
+    s.batch_step(&mut run, "shape.ellipse", &json!({"x": 20, "y": 0, "width": 10, "height": 10})).unwrap();
+    s.finish_batch(run);
+    assert_eq!(labels(&s), ["Script: undo.js"]);
+    s.execute("edit.undo", &json!({})).unwrap();
+    let kinds: Vec<&str> = s.doc().unwrap().doc.layers[0].children().unwrap().iter().map(|n| n.kind_label()).collect();
+    assert_eq!(kinds.len(), 1, "back to the rectangle alone: {kinds:?}");
+}
+
+#[test]
+fn a_failed_batch_brings_back_a_step_it_undid() {
+    let mut s = session();
+    s.execute("shape.rectangle", &rect()).unwrap();
+    let r = s.execute("command.batch", &json!({"commands": [{"command": "edit.undo", "params": {}}, {"command": "no.such.command", "params": {}}]}));
+    assert!(r.is_err());
+    assert_eq!(count(&s), 1);
+    assert_eq!(labels(&s).len(), 1);
+    assert!(s.doc().unwrap().history.redo.is_empty());
+}

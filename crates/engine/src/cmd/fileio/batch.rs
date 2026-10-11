@@ -6,7 +6,7 @@ use vectorcraft_doc::NodeId;
 use vectorcraft_tools::PaintDefaults;
 
 use super::super::*;
-use crate::{Clipboard, DocState, DrawMode, EngineError};
+use crate::{Clipboard, DocState, DrawMode, EngineError, History};
 
 /// A batch under way ([`Session::begin_batch`]): what it labels its undo steps and what an error
 /// rolls back to.
@@ -19,6 +19,8 @@ pub struct BatchRun {
     saved: (PaintDefaults, bool, DrawMode, Option<NodeId>, Clipboard, u32),
     /// The open documents' uids in order, and the active one, before the batch.
     start: Vec<u64>,
+    /// Their undo histories (a step may undo or redo).
+    histories: Vec<(u64, History)>,
     active: Option<usize>,
     /// The command depth before the batch: 0 when it runs outside a command (a script), 1 inside
     /// `command.batch`.
@@ -46,6 +48,7 @@ impl Session {
             artboard,
             saved: (self.paint.clone(), self.fill_active, self.draw_mode, self.draw_inside, self.clipboard.clone(), self.untitled_counter),
             start: self.docs.iter().map(|d| d.uid).collect(),
+            histories: self.docs.iter().map(|d| (d.uid, d.history.clone())).collect(),
             active: self.active,
             depth: self.depth,
             steps: 0,
@@ -108,6 +111,11 @@ impl Session {
     pub fn roll_back_batch(&mut self, run: BatchRun) {
         let stash = self.batch_stash.take().unwrap_or_default();
         roll_back(self, &run.start, stash);
+        for (uid, history) in run.histories {
+            if let Some(st) = self.docs.iter_mut().find(|d| d.uid == uid) {
+                st.history = history;
+            }
+        }
         self.active = run.active;
         (self.paint, self.fill_active, self.draw_mode, self.draw_inside, self.clipboard, self.untitled_counter) = run.saved;
         self.pending_paint = None;
