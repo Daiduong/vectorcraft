@@ -20,7 +20,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Stroke Options",
             ["Window", "Stroke"],
             None,
-            "{weight?: pt, cap?: butt|round|square, join?: miter|round|bevel, miterLimit?, align?: center|inside|outside, dash?: [d,g,…]|null (a 0 dash with a round or projecting cap draws dots or squares; a new pattern keeps the current offset and alignment), dashOffset? (exact dashes only), alignDashes?: bool (true: dashes fitted to corners and path ends, every run between them holding whole periods with a dash centred on each corner and end; false, the default for a new pattern: exact lengths), startArrow?, endArrow?: Arrow|ArrowOpen|Barbed|Concave|DoubleArrow|HalfArrowLeft|HalfArrowRight|Chevron|Feather|Swallowtail|Triangle|TriangleOpen|TriangleReverse|TriangleBar|Kite|Leaf|Drop|Circle|CircleOpen|HalfCircle|Oval|Target|Square|SquareOpen|Tag|TagOpen|Diamond|DiamondOpen|Hexagon|HexagonOpen|Star|Cross|Plus|Bar|DoubleBar|DotOnBar|Slash|DoubleSlash|Bracket|Fork|null (HalfArrowLeft/Right: one barb, left or right of the direction the head points), arrowAlign?: \"extend\" (tip past the end point, default)|\"tip\" (tip on the end point; the stroke is shortened), profile?: \"uniform\"|\"lens\"|\"taperStart\"|\"taperEnd\"|\"pinch\"|\"teardrop\"|\"wave\"|a saved profile's name (stroke.widthProfile.list), item?: stroke item index|null (omitted: the Appearance panel's active item if it is a stroke, else the top stroke, created when missing), ids?} Without a stroke item, type takes weight, cap, join, miterLimit and the dash options as its characters' stroke (every run; text.setRangeStyle `strokeOptions` styles a range), and images and symbol instances (also in groups) are left alone. With nothing selected (and no ids) they set up the next object drawn (appearance.newArt; weight always does); `subLines` is a list of up to 8 additional `{offset, width?, paint?, dash?}` lanes (positive offsets are left of the path direction)",
+            "{weight?: pt, cap?: butt|round|square, join?: miter|round|bevel, miterLimit?, align?: center|inside|outside, dash?: [d,g,…]|null (a 0 dash with a round or projecting cap draws dots or squares; a new pattern keeps the current offset and alignment), dashOffset? (exact dashes only), alignDashes?: bool (true: dashes fitted to corners and path ends, every run between them holding whole periods with a dash centred on each corner and end; false, the default for a new pattern: exact lengths), startArrow?, endArrow?: Arrow|ArrowOpen|Barbed|Concave|DoubleArrow|HalfArrowLeft|HalfArrowRight|Chevron|Feather|Swallowtail|Triangle|TriangleOpen|TriangleReverse|TriangleBar|Kite|Leaf|Drop|Circle|CircleOpen|HalfCircle|Oval|Target|Square|SquareOpen|Tag|TagOpen|Diamond|DiamondOpen|Hexagon|HexagonOpen|Star|Cross|Plus|Bar|DoubleBar|DotOnBar|Slash|DoubleSlash|Bracket|Fork|null (HalfArrowLeft/Right: one barb, left or right of the direction the head points), arrowAlign?: \"extend\" (tip past the end point, default)|\"tip\" (tip on the end point; the stroke is shortened), profile?: \"uniform\"|\"lens\"|\"taperStart\"|\"taperEnd\"|\"pinch\"|\"teardrop\"|\"wave\"|a saved profile's name (stroke.widthProfile.list), item?: stroke item index|null (omitted: the Appearance panel's active item if it is a stroke, else the top stroke, created when missing), ids?} Without a stroke item, type takes weight, cap, join, miterLimit and the dash options as its characters' stroke (every run; text.setRangeStyle `strokeOptions` styles a range), and images and symbol instances (also in groups) are left alone. With nothing selected (and no ids) they set up the next object drawn (appearance.newArt; weight always does, and an edit of selected art also becomes the next object drawn's stroke options); `subLines` is a list of up to 8 additional `{offset, width?, paint?, dash?}` lanes (positive offsets are left of the path direction)",
             has_doc,
             stroke_set
         ),
@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Apply Parallel Line Style",
             ["Window", "Stroke"],
             None,
-            "{preset: double|triple|road|none, item?: stroke item index|null, ids?} apply an original built-in parallel line style or remove its sub-lines",
+            "{preset: double|triple|road|none, item?: stroke item index|null, ids?} apply an original built-in parallel line style or remove its sub-lines; with selected art it is also the next object drawn's style",
             has_doc,
             parallel_preset
         ),
@@ -241,9 +241,12 @@ fn parallel_preset(s: &mut Session, p: &Value) -> Result<Value> {
         }
         st.sub_lines = lines.clone();
     };
-    if no_targets(&ids, p)
-        && let Some(st) = s.new_art_stroke_mut()
-    {
+    let targeted = !no_targets(&ids, p);
+    // The preset's weight becomes the panel's too, so the next object drawn keeps the look.
+    if let Some(width) = width {
+        s.paint.stroke_width = width;
+    }
+    if !targeted && let Some(st) = s.new_art_stroke_mut() {
         apply(st);
     }
     edit_items(s, &ids, item, C, "Stroke", false, |n, index| {
@@ -258,6 +261,10 @@ fn parallel_preset(s: &mut Session, p: &Value) -> Result<Value> {
         }
         Ok(())
     })?;
+    // A preset applied to selected art is also the panel state the next object drawn takes.
+    if targeted && let Some(st) = s.new_art_stroke_mut() {
+        apply(st);
+    }
     ok()
 }
 
@@ -292,9 +299,11 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
         None => None,
         Some(id) => Some(s.resolve_profile(id).ok_or_else(|| bad(C, format!("unknown profile {id} (see stroke.widthProfile.list)")))?),
     };
-    let set = |st: &mut StrokeLayer| {
+    // `align` stays out of the template: inside/outside only makes sense for a closed path, so
+    // the next object drawn keeps the align its shape allows.
+    let set = |st: &mut StrokeLayer, with_align: bool| {
         change.apply(st);
-        if let Some(a) = align {
+        if with_align && let Some(a) = align {
             st.align = a;
         }
         if let Some(a) = sa {
@@ -324,7 +333,7 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
             n.appearance.set_stroke(Paint::solid(Color::BLACK));
         }
         if let Some(st) = n.appearance.stroke_at_mut(index) {
-            set(st);
+            set(st, true);
         }
         Ok(())
     })?;
@@ -333,8 +342,12 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(w) = change.weight {
         s.paint.stroke_width = w;
     }
-    if new_art && let Some(st) = s.new_art_stroke_mut() {
-        set(st);
+    if new_art || !ids.is_empty() {
+        // The panel's stroke options are what the next object drawn takes, also when the edit
+        // went to selected art (the proxies keep carrying paint and weight).
+        if let Some(st) = s.new_art_stroke_mut() {
+            set(st, false);
+        }
     }
     ok()
 }

@@ -478,6 +478,9 @@ pub struct SubLine {
     /// An absent value inherits the parent dash; an empty pattern means solid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dash: Option<Dash>,
+    /// An absent value inherits the parent cap; a lane of dots needs a round or projecting cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cap: Option<LineCap>,
 }
 
 /// Maximum number of additional lanes attached to one parent stroke.
@@ -644,6 +647,9 @@ impl StrokeLayer {
         stroke.paint = line.paint.clone().unwrap_or_else(|| self.paint.clone());
         if let Some(dash) = &line.dash {
             stroke.dash = Some(dash.clone());
+        }
+        if let Some(cap) = line.cap {
+            stroke.cap = cap;
         }
         stroke
     }
@@ -1291,7 +1297,13 @@ mod tests {
         let old: StrokeLayer = serde_json::from_str(r#"{"paint":{"type":"none"},"width":2.0}"#).unwrap();
         assert!(old.sub_lines.is_empty());
         let mut stroke = StrokeLayer::new(Paint::solid(Color::BLACK), 2.0);
-        stroke.sub_lines.push(SubLine { offset: -3.0, width: Some(1.5), paint: Some(Paint::solid(Color::WHITE)), dash: Some(Dash::default()) });
+        stroke.sub_lines.push(SubLine {
+            offset: -3.0,
+            width: Some(1.5),
+            paint: Some(Paint::solid(Color::WHITE)),
+            dash: Some(Dash::default()),
+            cap: Some(LineCap::Round),
+        });
         let encoded = serde_json::to_string(&stroke).unwrap();
         let decoded: StrokeLayer = serde_json::from_str(&encoded).unwrap();
         assert_eq!(decoded, stroke);

@@ -55,6 +55,31 @@ fn parallel_stroke_lanes_are_command_editable_and_presets_validate_limits() {
     assert!(stroke(&node(&s, id), 1).sub_lines.is_empty());
 }
 
+/// A stroke edit of selected art is also what the next object drawn takes (#new-art-options): the
+/// proxies keep carrying paint and weight, the template the rest (dash, caps, arrows, lanes).
+#[test]
+fn stroke_edits_of_selected_art_persist_to_the_next_object_drawn() {
+    let mut s = session();
+    let _rect = rect(&mut s, 100.0);
+    run(&mut s, "stroke.set", json!({"cap": "round", "dash": [0, 4], "subLines": [{"offset": 5.0, "width": 2.0}]}));
+    run(&mut s, "stroke.parallelPreset", json!({"preset": "road"}));
+    run(&mut s, "select.none", json!({}));
+    let next = s.execute("shape.line", &json!({"x1": 10, "y1": 10, "x2": 100, "y2": 10})).unwrap();
+    let next = NodeId(next["id"].as_u64().unwrap());
+    let next_node = node(&s, next);
+    let st = stroke(&next_node, 1);
+    assert_eq!(st.width, 8.0, "the preset's weight persists");
+    assert_eq!(st.cap, vectorcraft_doc::LineCap::Round);
+    assert_eq!(st.dash.as_ref().unwrap().pattern, vec![0.0, 4.0]);
+    assert_eq!(st.sub_lines.len(), 2);
+    // Removing the lanes again clears them for new art too.
+    run(&mut s, "stroke.set", json!({"subLines": null}));
+    run(&mut s, "select.none", json!({}));
+    let next = s.execute("shape.line", &json!({"x1": 10, "y1": 50, "x2": 100, "y2": 50})).unwrap();
+    let next = NodeId(next["id"].as_u64().unwrap());
+    assert!(stroke(&node(&s, next), 1).sub_lines.is_empty());
+}
+
 #[test]
 fn stroke_set_with_item_changes_only_that_stroke() {
     let mut s = session();

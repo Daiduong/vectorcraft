@@ -114,6 +114,34 @@ fn set_sub_lines(app: &mut VectorcraftApp, lines: &[SubLine]) {
     }
 }
 
+/// The built-in parallel presets' lanes, as `stroke.parallelPreset` applies them (mirrored here to
+/// show which preset the current lanes are; `preset_of`'s test keeps them in step).
+fn preset_lanes(preset: &str) -> Vec<SubLine> {
+    match preset {
+        "double" => vec![SubLine { offset: 4.0, width: Some(3.0), paint: Some(Paint::solid(Color::rgb8(245, 245, 238))), ..Default::default() }],
+        "triple" => vec![
+            SubLine { offset: -4.0, width: Some(2.0), paint: Some(Paint::solid(Color::rgb8(224, 97, 64))), ..Default::default() },
+            SubLine { offset: 4.0, width: Some(2.0), paint: Some(Paint::solid(Color::rgb8(236, 198, 91))), ..Default::default() },
+        ],
+        "road" => vec![
+            SubLine { offset: -5.0, width: Some(1.5), paint: Some(Paint::solid(Color::rgb8(245, 239, 218))), ..Default::default() },
+            SubLine { offset: 5.0, width: Some(1.5), paint: Some(Paint::solid(Color::rgb8(245, 239, 218))), ..Default::default() },
+        ],
+        _ => vec![],
+    }
+}
+
+/// Which built-in preset's lanes these are (`None`: custom, no preset applies).
+fn parallel_preset_of(lines: &[SubLine]) -> Option<&'static str> {
+    for (name, preset) in [("double", "double"), ("triple", "triple"), ("road", "road")] {
+        let p = preset_lanes(preset);
+        if p.len() == lines.len() && p.iter().zip(lines).all(|(a, b)| a.offset == b.offset && a.width == b.width && a.paint == b.paint) {
+            return Some(name);
+        }
+    }
+    None
+}
+
 /// The weight the Stroke panel, Control bar and Properties panel show: blank where the selected
 /// objects differ, the default for new art without a stroke.
 pub(crate) fn shown_weight(app: &VectorcraftApp, st: Option<&StrokeLayer>, mixed: &StrokeMixed) -> Option<f64> {
@@ -159,80 +187,172 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         return;
     }
     if character::text_editing(app).is_none() {
-        ui.horizontal_wrapped(|ui| {
-            row_label(ui, tl!("Parallel style:"));
-            for (preset, label) in [("double", tl!("Double")), ("triple", tl!("Triple")), ("road", tl!("Road")), ("none", tl!("None"))] {
-                if ui.small_button(label).clicked() {
+        let sub_lines = st.as_ref().map(|stroke| stroke.sub_lines.clone()).unwrap_or_default();
+        let on = !sub_lines.is_empty();
+        ui.horizontal(|ui| {
+            // The parallel lines hide behind a checkbox (as Dashed Line does), so a plain stroke's
+            // options stay uncluttered.
+            if widgets::check3(ui, tl!("Parallel Lines"), if mixed.sub_lines { None } else { Some(on) }, st.is_some()) {
+                if on {
+                    set_pstate(ui.ctx(), "stroke-parallel-last", sub_lines.clone());
+                    set(app, json!({"subLines": null}));
+                } else {
+                    let last: Vec<SubLine> = pstate(ui.ctx(), "stroke-parallel-last");
+                    if last.is_empty() {
+                        app.run("stroke.parallelPreset", json!({"preset": "double"})).ok();
+                    } else {
+                        set_sub_lines(app, &last);
+                    }
+                }
+            }
+            if on {
+                let current = parallel_preset_of(&sub_lines).unwrap_or("custom");
+                let label = match current {
+                    "double" => tl!("Double"),
+                    "triple" => tl!("Triple"),
+                    "road" => tl!("Road"),
+                    _ => tl!("Custom"),
+                };
+                if let Some(i) = widgets::dropdown(ui, "parallel-preset", label, &[tl!("Double"), tl!("Triple"), tl!("Road")], 96.0) {
+                    let preset = ["double", "triple", "road"][i];
                     app.run("stroke.parallelPreset", json!({"preset": preset})).ok();
                 }
             }
         });
-        let sub_lines = st.as_ref().map(|stroke| stroke.sub_lines.clone()).unwrap_or_default();
-        if mixed.sub_lines {
+        if on && mixed.sub_lines {
             widgets::dim_label(ui, tl!("Mixed parallel lanes"));
-        } else {
+        } else if on {
             for (i, line) in sub_lines.iter().enumerate() {
-                ui.horizontal_wrapped(|ui| {
-                    row_label(ui, tl!("Lane:"));
-                    let offset = widgets::plain_field(ui, ("parallel-offset", i), line.offset, " pt", 0, 64.0);
-                    let width = widgets::plain_field(
-                        ui,
-                        ("parallel-width", i),
-                        line.width.unwrap_or(st.as_ref().map_or(1.0, |stroke| stroke.width)),
-                        " pt",
-                        1,
-                        64.0,
-                    );
-                    let base_color =
-                        line.paint.as_ref().or_else(|| st.as_ref().map(|stroke| &stroke.paint)).and_then(Paint::color).unwrap_or(Color::BLACK);
-                    let [r, g, b, _] = base_color.to_rgba8(1.0);
-                    let mut rgb = [r, g, b];
-                    let paint_changed = ui.color_edit_button_srgb(&mut rgb).changed();
-                    let inherit_paint = ui.small_button(tl!("Inherit paint")).clicked();
-                    let mut next = sub_lines.clone();
-                    let mut changed = false;
-                    ui.menu_button(tl!("Dash"), |ui| {
-                        for (label, dash) in [
-                            (tl!("Inherit"), None),
-                            (tl!("Solid"), Some(Dash::default())),
-                            (tl!("Dash 4 / 2"), Some(Dash { pattern: vec![4.0, 2.0], offset: 0.0, align_corners: false })),
-                            (tl!("Dots"), Some(Dash { pattern: vec![0.0, 4.0], offset: 0.0, align_corners: false })),
+                let mut next = sub_lines.clone();
+                let mut changed = false;
+                egui::Frame::group(ui.style()).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(format!("{} {}", tl!("Line"), i + 1)).size(12.0).color(t.text_strong));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.small_button(tl!("Remove")).clicked() {
+                                next = sub_lines.iter().enumerate().filter_map(|(j, l)| (j != i).then_some(l.clone())).collect();
+                                changed = true;
+                            }
+                        });
+                    });
+                    ui.horizontal_wrapped(|ui| {
+                        widgets::dim_label(ui, tl!("Offset:"));
+                        if let Some(offset) = widgets::plain_field(ui, ("parallel-offset", i), line.offset, " pt", 0, 64.0)
+                            && let Some(target) = next.get_mut(i)
+                        {
+                            target.offset = offset.clamp(-10_000.0, 10_000.0);
+                            changed = true;
+                        }
+                        widgets::dim_label(ui, tl!("Width:"));
+                        if let Some(width) = widgets::plain_field(
+                            ui,
+                            ("parallel-width", i),
+                            line.width.unwrap_or(st.as_ref().map_or(1.0, |stroke| stroke.width)),
+                            " pt",
+                            1,
+                            64.0,
+                        ) && let Some(target) = next.get_mut(i)
+                        {
+                            target.width = Some(width.clamp(0.0, 1000.0));
+                            changed = true;
+                        }
+                    });
+                    ui.horizontal_wrapped(|ui| {
+                        widgets::dim_label(ui, tl!("Paint:"));
+                        let base_color =
+                            line.paint.as_ref().or_else(|| st.as_ref().map(|stroke| &stroke.paint)).and_then(Paint::color).unwrap_or(Color::BLACK);
+                        let [r, g, b, _] = base_color.to_rgba8(1.0);
+                        let mut rgb = [r, g, b];
+                        let paint_changed = ui.color_edit_button_srgb(&mut rgb).changed();
+                        let inherit_paint = ui.small_button(tl!("Inherit")).clicked();
+                        if (paint_changed || inherit_paint)
+                            && let Some(target) = next.get_mut(i)
+                        {
+                            target.paint = if inherit_paint { None } else { Some(Paint::solid(Color::rgb8(rgb[0], rgb[1], rgb[2]))) };
+                            changed = true;
+                        }
+                        widgets::dim_label(ui, tl!("Cap:"));
+                        for (cap, icon, tip) in [
+                            (None, "dc-cap-butt", tl!("Inherit the stroke's cap")),
+                            (Some(LineCap::Round), "dc-cap-round", tl!("Round Cap")),
+                            (Some(LineCap::Square), "dc-cap-square", tl!("Projecting Cap")),
                         ] {
-                            if ui.button(label).clicked() {
-                                if let Some(target) = next.get_mut(i) {
-                                    target.dash = dash;
-                                    changed = true;
-                                }
-                                ui.close();
+                            if widgets::icon_button(ui, icon, tip, line.cap == cap, 24.0).clicked()
+                                && let Some(target) = next.get_mut(i)
+                            {
+                                target.cap = cap;
+                                changed = true;
                             }
                         }
                     });
-                    if let Some(value) = offset
-                        && let Some(target) = next.get_mut(i)
-                    {
-                        target.offset = value.clamp(-10_000.0, 10_000.0);
-                        changed = true;
-                    }
-                    if let Some(value) = width
-                        && let Some(target) = next.get_mut(i)
-                    {
-                        target.width = Some(value.clamp(0.0, 1000.0));
-                        changed = true;
-                    }
-                    if (paint_changed || inherit_paint)
-                        && let Some(target) = next.get_mut(i)
-                    {
-                        target.paint = if inherit_paint { None } else { Some(Paint::solid(Color::rgb8(rgb[0], rgb[1], rgb[2]))) };
-                        changed = true;
-                    }
-                    if ui.small_button(tl!("Remove")).clicked() {
-                        next = next.into_iter().enumerate().filter_map(|(index, line)| (index != i).then_some(line)).collect();
-                        changed = true;
-                    }
-                    if changed {
-                        set_sub_lines(app, &next);
+                    let dashed = line.dash.is_some();
+                    ui.horizontal(|ui| {
+                        if widgets::check(ui, tl!("Dashed"), dashed, true)
+                            && let Some(target) = next.get_mut(i)
+                        {
+                            // Off: the lane inherits the parent dash; on: a plain first pattern.
+                            target.dash = if dashed { None } else { Some(Dash { pattern: vec![12.0, 6.0], offset: 0.0, align_corners: true }) };
+                            changed = true;
+                        }
+                        ui.add_space(4.0);
+                        if dashed {
+                            let align = line.dash.as_ref().is_some_and(|d| d.align_corners);
+                            if widgets::icon_button(ui, "dc-dash-exact", tl!("Exact dash lengths"), !align, 24.0).clicked()
+                                && let Some(target) = next.get_mut(i)
+                                && let Some(d) = target.dash.as_mut()
+                            {
+                                d.align_corners = false;
+                                changed = true;
+                            }
+                            if widgets::icon_button(ui, "dc-dash-align", tl!("Fit dashes to corners and ends"), align, 24.0).clicked()
+                                && let Some(target) = next.get_mut(i)
+                                && let Some(d) = target.dash.as_mut()
+                            {
+                                d.align_corners = true;
+                                changed = true;
+                            }
+                            if ui.small_button(tl!("Dots")).clicked()
+                                && let Some(target) = next.get_mut(i)
+                            {
+                                // A 0 dash with a round cap paints dots; gap and cap stay editable.
+                                target.dash = Some(Dash { pattern: vec![0.0, 6.0], offset: 0.0, align_corners: false });
+                                target.cap = Some(LineCap::Round);
+                                changed = true;
+                            }
+                        }
+                    });
+                    if dashed {
+                        let mut nf = dash_fields(line.dash.as_ref().map_or(&[] as &[f64], |d| &d.pattern));
+                        let mut dash_changed = false;
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 3.0;
+                            let fw = ((ui.available_width() - 15.0) / 6.0).clamp(28.0, 40.0);
+                            let shown = nf;
+                            for (k, f) in shown.iter().enumerate() {
+                                if let Some(value) = widgets::opt_field(ui, ("lane-dash", i, k), *f, unit, fw) {
+                                    nf[k] = value.map(|v| v.max(0.0));
+                                    dash_changed = true;
+                                }
+                            }
+                        });
+                        if dash_changed && let Some(target) = next.get_mut(i) {
+                            // The command keeps the dash offset; a pattern emptied here is solid.
+                            let dash = target.dash.take().unwrap_or_default();
+                            target.dash = Some(Dash { pattern: dash_pattern(&nf), ..dash });
+                            changed = true;
+                        }
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 3.0;
+                            let fw = ((ui.available_width() - 15.0) / 6.0).clamp(28.0, 40.0);
+                            for lbl in [tl!("dash"), tl!("gap"), tl!("dash"), tl!("gap"), tl!("dash"), tl!("gap")] {
+                                ui.add_sized(vec2(fw, 12.0), egui::Label::new(egui::RichText::new(lbl).size(10.5).color(t.text_dim)));
+                            }
+                        });
                     }
                 });
+                if changed {
+                    set_sub_lines(app, &next);
+                }
             }
             if sub_lines.len() < MAX_SUB_LINES && ui.small_button(tl!("Add parallel line")).clicked() {
                 let mut next = sub_lines.clone();
@@ -314,6 +434,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         if widgets::icon_button_enabled(ui, "dc-dash-align", tl!("Fit dashes to corners and ends"), on && align_corners, on, 24.0).clicked() {
             set(app, json!({"alignDashes": true}));
+        }
+        // Dots: a 0 dash with a round cap paints discs; the fields and Cap row keep them editable.
+        if on && ui.small_button(tl!("Dots")).clicked() {
+            set(app, json!({"dash": [0.0, 6.0], "cap": "round", "alignDashes": false}));
         }
     });
     ui.horizontal(|ui| {
@@ -642,6 +766,27 @@ mod tests {
             menu(app, ui);
         });
         out.textures_delta.clear();
+    }
+
+    /// The panel's lane groups draw, and its preset labels stay in step with the engine's
+    /// `stroke.parallelPreset` lanes.
+    #[test]
+    fn panel_draws_lanes_and_matches_the_engine_presets() {
+        use vectorcraft_engine::Session;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let r = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+        r(&mut app, "file.new", json!({"width": 100, "height": 100}));
+        r(&mut app, "shape.line", json!({"x1": 10, "y1": 50, "x2": 90, "y2": 50}));
+        for preset in ["double", "triple", "road"] {
+            r(&mut app, "stroke.parallelPreset", json!({"preset": preset}));
+            frame(&mut app);
+            let st = current_stroke(&app).unwrap();
+            assert_eq!(parallel_preset_of(&st.sub_lines), Some(preset), "{preset}");
+        }
+        // A lane of our own is no preset.
+        r(&mut app, "stroke.set", json!({"subLines": [{"offset": 1.0, "width": 1.0}]}));
+        frame(&mut app);
+        assert_eq!(parallel_preset_of(&current_stroke(&app).unwrap().sub_lines), None);
     }
 
     #[test]

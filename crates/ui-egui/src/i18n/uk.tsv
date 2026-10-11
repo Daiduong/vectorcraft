@@ -3386,6 +3386,8 @@ axis	Both	Обидві
 @msg	Opened with {_1} note(s): {_2}	Відкрито із примітками ({_1}) : {_2}
 @msg	Opened {url}	Відкрито {url}
 @msg	Outline Stroke: no stroked paths selected	Обведення контуру: не виділено контури з обведенням
+@msg	no parallel line styles in the selection	у виділенні немає стилів паралельних ліній
+@msg	{C}: no parallel line styles in the selection	{C}: у виділенні немає стилів паралельних ліній
 @msg	PDF settings are not an object	Параметри PDF не є об’єктом
 @msg	PDF writer error: {0}	Помилка запису PDF: {0}
 @msg	Packaged {n} file(s) in {folder}{note}	Упаковано файли: {n} {folder}{note}
@@ -4131,6 +4133,10 @@ lighting	Light	Світло
 	X11 (XWayland)	X11 (XWayland)
 	Apply Parallel Line Style	Застосувати стиль паралельних ліній
 	Add parallel line	Додати паралельну лінію
+	Parallel Lines	Параллельные линии
+	Paint:	Колір:
+	Inherit the stroke's cap	Успадкувати закінчення обведення
+	Expand Parallel Lines	Розібрати паралельні лінії
 	Dash	Штрих
 	Dash 4 / 2	Штрих 4 / 2
 	Double	Подвійний

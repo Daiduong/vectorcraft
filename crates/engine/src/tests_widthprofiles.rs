@@ -60,9 +60,13 @@ fn add_list_apply_delete_reset() {
     // The same profile can't be saved twice.
     assert!(s.execute("stroke.widthProfile.add", &json!({"name": "Again"})).is_err());
 
-    // Apply it by name to another stroke.
+    // Apply it by name to another stroke: a new line takes the last `stroke.set` profile
+    // (#new-art-options; the Width-tool edit above didn't go through the panel), so give it a
+    // built-in one first.
     let other = NodeId(s.execute("shape.line", &json!({"x1": 10, "y1": 150, "x2": 150, "y2": 150})).unwrap()["id"].as_u64().unwrap());
-    assert!(profile(&s, other).is_none());
+    assert_eq!(WidthProfile::id_of(profile(&s, other).as_ref()), "lens", "new art takes the last stroke.set profile");
+    s.execute("stroke.set", &json!({"ids": [other.0], "profile": "taperEnd"})).unwrap();
+    assert_ne!(profile(&s, other), Some(custom()));
     s.execute("stroke.set", &json!({"profile": "Width Profile 1"})).unwrap();
     assert_eq!(profile(&s, other), Some(custom()));
     assert!(s.execute("stroke.set", &json!({"profile": "Nope"})).is_err());

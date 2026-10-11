@@ -1,6 +1,6 @@
 use super::*;
 use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, Node, SubLine};
+use vectorcraft_doc::{Appearance, Dash, LineCap, Node, SubLine};
 use vectorcraft_geom::shapes;
 
 fn rect_node(d: &mut Document, r: Rect, fill: Paint, stroke: Paint, w: f64) -> Node {
@@ -64,6 +64,38 @@ fn lane_only_parallel_stroke_renders_at_its_offset_without_a_parent_hairline() {
     let rendered = render(&d);
     assert_eq!(rendered.pixel(50, 40), [255, 0, 0, 255]);
     assert_eq!(rendered.pixel(50, 50), [255, 255, 255, 255]);
+}
+
+/// Lane dots: a 0 dash paints discs only with a round or projecting lane cap (the parent's butt
+/// cap inherits otherwise) — #parallel-dots.
+#[test]
+fn lane_dots_render_with_their_own_cap() {
+    let mut d = Document::new(100.0, 40.0);
+    let mut n = Node::path(
+        d.alloc_id(),
+        shapes::line((10.0, 20.0).into(), (90.0, 20.0).into()),
+        Appearance::basic(Paint::None, Paint::solid(Color::rgb8(0, 0, 255)), 2.0),
+    );
+    let stroke = n.appearance.stroke_mut().unwrap();
+    stroke.sub_lines.push(SubLine {
+        offset: 8.0,
+        width: Some(3.0),
+        paint: Some(Paint::solid(Color::rgb8(255, 0, 0))),
+        dash: Some(Dash { pattern: vec![0.0, 6.0], ..Default::default() }),
+        cap: Some(LineCap::Round),
+    });
+    let id = n.id;
+    d.insert(Some(d.layers[0].id), 0, n).unwrap();
+    let rendered = render(&d);
+    // A disc sits at the first dot (the path start, x = 10) on the offset lane, y = 12.
+    assert_eq!(rendered.pixel(10, 12), [255, 0, 0, 255]);
+    assert_eq!(rendered.pixel(13, 12), [255, 255, 255, 255]);
+    // The next dot comes at the next period.
+    assert_eq!(rendered.pixel(16, 12), [255, 0, 0, 255]);
+    // Without a lane cap the parent's butt cap paints nothing.
+    d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().sub_lines[0].cap = None;
+    let rendered = render(&d);
+    assert_eq!(rendered.pixel(10, 12), [255, 255, 255, 255]);
 }
 
 #[test]

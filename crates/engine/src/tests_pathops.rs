@@ -259,6 +259,40 @@ fn outline_stroke_with_fill_makes_group() {
     assert!(close(ch[1].geometric_bounds().unwrap(), Rect::new(-2.0, -2.0, 102.0, 102.0), 1e-2));
 }
 
+/// Expand Parallel Lines: each lane becomes its own single-stroke path at its offset, the parent
+/// keeps its stroke without the lanes, all in one group.
+#[test]
+fn expand_parallel_lines_makes_independent_single_strokes() {
+    use vectorcraft_doc::SubLine;
+    let mut s = session();
+    let r = s.execute("shape.line", &json!({"x1": 0, "y1": 50, "x2": 100, "y2": 50})).unwrap();
+    let l = NodeId(r["id"].as_u64().unwrap());
+    s.edit("t", |d, _| {
+        let st = d.node_mut(l).unwrap().appearance.stroke_mut().unwrap();
+        st.width = 6.0;
+        st.sub_lines.push(SubLine { offset: 8.0, width: Some(1.5), ..Default::default() });
+        Ok(())
+    })
+    .unwrap();
+    let r = ids(&s.execute("object.path.expandParallelLines", &json!({})).unwrap());
+    let ch = node(&s, r[0]).children().unwrap().to_vec();
+    assert_eq!(ch.len(), 2, "the parent plus one lane");
+    let parent = &ch[0];
+    let p_st = parent.appearance.stroke().unwrap();
+    assert_eq!(p_st.width, 6.0, "the parent keeps its stroke");
+    assert!(p_st.sub_lines.is_empty());
+    let lane = &ch[1];
+    let l_st = lane.appearance.stroke().unwrap();
+    assert_eq!(l_st.width, 1.5, "the lane is a single stroke");
+    assert!(l_st.sub_lines.is_empty());
+    assert!(lane.appearance.fill_paint().is_none());
+    let (lane_path, _) = path_of(&s, ch[1].id);
+    let b = lane_path.bounds().unwrap();
+    assert!(close(Rect::new(b.x0, b.y0, b.x1, b.y1), Rect::new(0.0, 42.0, 100.0, 42.0), 1e-2), "{b:?}");
+    // Without lanes left the command refuses.
+    assert!(s.execute("object.path.expandParallelLines", &json!({})).is_err());
+}
+
 #[test]
 fn simplify_dense_polyline() {
     let mut s = session();

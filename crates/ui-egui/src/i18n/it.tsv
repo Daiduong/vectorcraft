@@ -3402,6 +3402,8 @@ axis	Both	Entrambi
 @msg	Opened with {_1} note(s): {_2}	Aperto con {_1} nota/e: {_2}
 @msg	Opened {url}	Aperto {url}
 @msg	Outline Stroke: no stroked paths selected	Contorna traccia: nessun tracciato con traccia selezionato
+@msg	no parallel line styles in the selection	nessuno stile di linee parallele nella selezione
+@msg	{C}: no parallel line styles in the selection	{C}: nessuno stile di linee parallele nella selezione
 @msg	PDF settings are not an object	Le impostazioni PDF non sono un oggetto
 @msg	PDF writer error: {0}	Errore del generatore PDF: {0}
 @msg	Packaged {n} file(s) in {folder}{note}	Pacchetto creato con {n} file in {folder}{note}
@@ -4032,6 +4034,10 @@ axis	Both	Entrambi
 effect	Soft	Morbido
 	Apply Parallel Line Style	Applica stile linee parallele
 	Add parallel line	Aggiungi linea parallela
+	Parallel Lines	Linee parallele
+	Paint:	Colore:
+	Inherit the stroke's cap	Eredita l'estremità del tratto
+	Expand Parallel Lines	Espandi linee parallele
 	Dash	Tratteggio
 	Dash 4 / 2	Tratteggio 4 / 2
 	Double	Doppia
