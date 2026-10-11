@@ -1054,22 +1054,33 @@ impl Document {
     pub fn artboard_at(&self, p: Point) -> Option<usize> {
         self.artboards.iter().rposition(|a| a.rect.contains(p))
     }
-    /// The art that moves with an artboard at `rect`: top-level objects (children of layers and
-    /// sublayers) lying entirely inside it. Locked and hidden objects and layers stay put unless
+    /// Top-level objects (children of layers and sublayers) lying entirely inside `rect`, used
+    /// when scaling artwork with an artboard. Locked and hidden objects and layers stay put unless
     /// `locked_and_hidden` (Selection & Anchor Display › Move Locked and Hidden Artwork with
     /// Artboard).
     pub fn art_on_artboard(&self, rect: Rect, locked_and_hidden: bool) -> Vec<NodeId> {
-        fn collect(n: &Node, rect: Rect, all: bool, out: &mut Vec<NodeId>) {
+        self.art_in_artboard(rect, locked_and_hidden, false)
+    }
+
+    /// Artwork moving or copying with an artboard includes objects partly overlapping it.
+    /// Objects merely touching an edge from outside stay put. Degenerate bounds (lines, points)
+    /// inside the artboard still count, as do backgrounds coincident within numerical roundoff.
+    pub fn art_overlapping_artboard(&self, rect: Rect, locked_and_hidden: bool) -> Vec<NodeId> {
+        self.art_in_artboard(rect, locked_and_hidden, true)
+    }
+
+    fn art_in_artboard(&self, rect: Rect, locked_and_hidden: bool, overlapping: bool) -> Vec<NodeId> {
+        // Document points: enough for transform roundoff, far below a visible displacement.
+        let inside = rect.inflate(1e-6, 1e-6);
+        fn collect(n: &Node, rect: Rect, inside: Rect, all: bool, overlapping: bool, out: &mut Vec<NodeId>) {
             for c in n.children().into_iter().flatten().filter(|c| c.rides_with_artboard(all)) {
                 if c.is_layer() {
-                    collect(c, rect, all, out);
+                    collect(c, rect, inside, all, overlapping, out);
                 } else if let Some(b) = c.geometric_bounds()
                     // Inside it, edges included: art flush with the right or bottom edge is on it too
                     // (`Rect::contains` leaves those out, #890).
-                    && b.x0 >= rect.x0
-                    && b.y0 >= rect.y0
-                    && b.x1 <= rect.x1
-                    && b.y1 <= rect.y1
+                    && ((b.x0 >= inside.x0 && b.y0 >= inside.y0 && b.x1 <= inside.x1 && b.y1 <= inside.y1)
+                        || (overlapping && b.x0 < rect.x1 && b.y0 < rect.y1 && b.x1 > rect.x0 && b.y1 > rect.y0))
                 {
                     out.push(c.id);
                 }
@@ -1077,7 +1088,7 @@ impl Document {
         }
         let mut art = vec![];
         for l in self.layers.iter().filter(|l| l.rides_with_artboard(locked_and_hidden)) {
-            collect(l, rect, locked_and_hidden, &mut art);
+            collect(l, rect, inside, locked_and_hidden, overlapping, &mut art);
         }
         art
     }
@@ -1341,6 +1352,43 @@ mod tests {
         assert_eq!(d.layers.len(), 1);
         assert_eq!(d.layers[0].display_name(), "Layer 1");
         assert_eq!(d.artboards[0].rect, Rect::new(0.0, 0.0, 612.0, 792.0));
+    }
+
+    #[test]
+    fn art_overlapping_artboard_includes_partial_art_and_respects_visibility_and_locks() {
+        let (mut d, a, b) = doc_with_rects();
+        let board = Rect::new(5.0, 0.0, 25.0, 10.0);
+        assert_eq!(d.art_overlapping_artboard(board, false), vec![a, b]);
+        assert!(d.art_on_artboard(board, false).is_empty(), "scaling still requires containment");
+        assert!(d.art_overlapping_artboard(Rect::new(10.0, 0.0, 20.0, 10.0), false).is_empty(), "edge contact from outside is not overlap");
+        assert!(d.art_overlapping_artboard(Rect::new(40.0, 0.0, 50.0, 10.0), true).is_empty(), "outside art stays put");
+        d.node_mut(a).unwrap().locked = true;
+        d.node_mut(b).unwrap().visible = false;
+        assert!(d.art_overlapping_artboard(board, false).is_empty());
+        assert_eq!(d.art_overlapping_artboard(board, true), vec![a, b]);
+        Arc::make_mut(&mut d.layers[0]).locked = true;
+        assert!(d.art_overlapping_artboard(board, false).is_empty());
+        assert_eq!(d.art_overlapping_artboard(board, true), vec![a, b]);
+    }
+
+    #[test]
+    fn art_on_artboard_tolerates_roundoff_at_each_edge() {
+        let (d, a, _) = doc_with_rects();
+        let roundoff = 1e-12;
+        for board in [
+            Rect::new(roundoff, 0.0, 10.0, 10.0),
+            Rect::new(0.0, roundoff, 10.0, 10.0),
+            Rect::new(0.0, 0.0, 10.0 - roundoff, 10.0),
+            Rect::new(0.0, 0.0, 10.0, 10.0 - roundoff),
+        ] {
+            assert_eq!(d.art_on_artboard(board, false), vec![a], "roundoff at {board:?}");
+        }
+        // A real overhang remains outside: this does not change partial-overlap semantics.
+        for board in
+            [Rect::new(0.001, 0.0, 10.0, 10.0), Rect::new(0.0, 0.001, 10.0, 10.0), Rect::new(0.0, 0.0, 9.999, 10.0), Rect::new(0.0, 0.0, 10.0, 9.999)]
+        {
+            assert!(d.art_on_artboard(board, false).is_empty(), "overhang at {board:?}");
+        }
     }
 
     #[test]
