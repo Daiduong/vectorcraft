@@ -4155,3 +4155,5 @@ lighting	Light	Luz
 @msg	unsupported native docking operation	Operación nativa de anclaje no admitida
 	Linux Display Server	Servidor de pantalla de Linux
 	X11 (XWayland)	X11 (XWayland)
+
+	Rotation Snap Angle	Incremento de ajuste de rotación

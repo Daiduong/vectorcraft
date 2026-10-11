@@ -821,3 +821,46 @@ fn hyphenation_exceptions_preference_reaches_the_hyphenator() {
     set_pref(&mut s, "hyphenationExceptions", json!(""));
     assert!(vectorcraft_text::hyphenation_exceptions().is_empty());
 }
+
+#[test]
+fn rotation_step_persists_defaults_and_drives_rotate_tool() {
+    use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
+    let mut s = Session::new();
+    assert_eq!(s.prefs.rotation_snap_angle, 45.0);
+    s.execute("prefs.set", &json!({"key":"rotationSnapAngle", "value":15})).unwrap();
+    let saved = s.prefs.to_json();
+    s.prefs = serde_json::from_value(saved.clone()).unwrap();
+    assert_eq!(s.prefs.rotation_snap_angle, 15.0);
+    let mut legacy = saved;
+    legacy.as_object_mut().unwrap().remove("rotationSnapAngle");
+    assert_eq!(serde_json::from_value::<Prefs>(legacy).unwrap().rotation_snap_angle, 45.0);
+    for bad in [json!(0), json!(-5), json!(181), json!("invalid")] {
+        assert!(s.execute("prefs.set", &json!({"key":"rotationSnapAngle", "value":bad})).is_err());
+        assert_eq!(s.prefs.rotation_snap_angle, 15.0);
+    }
+    s.execute("file.new", &json!({"width":400,"height":400})).unwrap();
+    let id = s.execute("shape.rectangle", &json!({"x":100,"y":100,"width":100,"height":100})).unwrap()["id"].as_u64().unwrap();
+    s.execute("select.set", &json!({"ids":[id]})).unwrap();
+    s.select_tool("rotate", ViewInfo::default()).unwrap();
+    let original = s.doc().unwrap().doc.clone();
+    let undo = s.doc().unwrap().history.undo.len();
+    let angle = 26.0_f64.to_radians();
+    let (x, y) = (150.0 + 100.0 * angle.cos(), 150.0 + 100.0 * angle.sin());
+    for (kind, x, y) in [(PointerKind::Down, 250.0, 150.0), (PointerKind::Drag, x, y), (PointerKind::Up, x, y)] {
+        s.pointer(&PointerEvent::new(kind, x, y).with_mods(Mods { shift: true, ..Default::default() }), ViewInfo::default()).unwrap();
+    }
+    let pd = s.doc().unwrap().doc.node(NodeId(id)).unwrap().path_data().unwrap();
+    let expected = vectorcraft_geom::Affine::translate((150.0, 150.0))
+        * vectorcraft_geom::Affine::rotate(30.0_f64.to_radians())
+        * vectorcraft_geom::Affine::translate((-150.0, -150.0));
+    let before = original.node(NodeId(id)).unwrap().path_data().unwrap();
+    for ((_, _, a), (_, _, b)) in pd.anchors().zip(before.anchors()) {
+        assert!(a.p.distance(expected * b.p) < 1e-8);
+    }
+    let changed = s.doc().unwrap().doc.clone();
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc, original);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc, changed);
+}

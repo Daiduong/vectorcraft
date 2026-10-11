@@ -77,9 +77,9 @@ pub struct SelectionTool {
 }
 
 /// Snapping for the selection moved as a whole, its targets gathered when the move begins: View →
-/// Snap to Grid lands its bounds on the grid (#740), taking over from the rest; otherwise Smart
-/// Guides line its bounds up with the other art, and with them off, View → Snap to Point lands the
-/// point it was grabbed by on an anchor or a ruler guide. Snap to Pixel puts its top-left on whole
+/// Snap to Grid lands its bounds on the grid (#740), taking over from the rest; otherwise View → Snap to Point lands the
+/// grabbed point on an anchor or ruler guide, with Smart Guides aligning bounds when no point
+/// target is close enough. Snap to Pixel puts its top-left on whole
 /// pixels. A copy (Alt, which can go down or up at any time during the drag) leaves the original
 /// behind, so it snaps to the original too.
 pub(crate) struct MoveSnap {
@@ -115,12 +115,16 @@ impl MoveSnap {
         {
             d += grid_pull(b + d, cx.grid_step());
         }
+        let mut point_snapped = false;
         if let Some(t) = points {
             let (q, ov) = t.snap_point(start + d, cx.tol(cx.snap_tolerance));
+            point_snapped = q != start + d || t.on_snap_target(q) || !ov.is_empty();
             d = q - start;
             guides = ov;
         }
-        if let (Some(t), Some(b)) = (targets, self.bounds) {
+        // Once Snap to Point found an anchor or ruler guide, bounds alignment must not pull
+        // the grabbed point away from it.
+        if !point_snapped && let (Some(t), Some(b)) = (targets, self.bounds) {
             // The point the selection was grabbed by, near another object's anchor or centre,
             // lands on it, rather than the bounds lining up a little beside it (#955).
             if t.has_point_near(start + d, cx.snap_tol()) {
@@ -374,7 +378,7 @@ impl Tool for SelectionTool {
                 vec![Action::Preview("object.transform".into(), params)]
             }
             (PointerKind::Drag, State::Rotating { center, start, .. }) => {
-                let (a, deg) = rotate_for_drag(center, start, p, m.shift);
+                let (a, deg) = rotate_for_drag(center, start, p, m.shift, cx.rotation_snap_angle);
                 self.measure = cx.transform_tools_guides.then(|| (p, format!("{:.1}°", -deg)));
                 vec![Action::Preview("object.transform".into(), json!({ "matrix": matrix_json(a), "copy": false }))]
             }
@@ -1103,5 +1107,20 @@ mod tests {
         let mut t = SelectionTool::default();
         t.pointer(&cx, &ev(PointerKind::Down, 400.0, 400.0));
         assert_eq!(t.pointer(&cx, &ev(PointerKind::Up, 400.0, 400.0)), vec![Action::Exec("select.none".into(), json!({}))]);
+    }
+    #[test]
+    fn selection_rotation_reads_custom_step() {
+        let (d, id) = doc_with_rect();
+        let (mut s, p) = (Selection::default(), paint());
+        s.add(id);
+        let c = ToolContext { rotation_snap_angle: 15.0, ..cx(&d, &s, &p) };
+        let mut tool = SelectionTool { state: State::Rotating { center: Point::ZERO, start: Point::new(100.0, 0.0) }, ..Default::default() };
+        let a = 26.0_f64.to_radians();
+        let actions = tool.pointer(
+            &c,
+            &PointerEvent::new(PointerKind::Drag, 100.0 * a.cos(), 100.0 * a.sin()).with_mods(Mods { shift: true, ..Default::default() }),
+        );
+        let Action::Preview(_, params) = &actions[0] else { panic!("missing preview") };
+        assert!((params["matrix"][0].as_f64().unwrap() - 30.0_f64.to_radians().cos()).abs() < 1e-9);
     }
 }

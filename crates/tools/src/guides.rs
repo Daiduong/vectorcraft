@@ -69,7 +69,7 @@ impl Kind {
 }
 
 /// Snap targets gathered from the document (excluding the objects being edited).
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Targets {
     points: Vec<(Point, Kind)>,
     xs: Vec<(f64, Point, Kind)>,
@@ -87,6 +87,7 @@ pub struct Targets {
 }
 
 /// A ruler guide as a snap target.
+#[derive(Clone)]
 struct Ruler {
     vertical: bool,
     pos: f64,
@@ -366,7 +367,7 @@ impl Targets {
     /// View → Snap to Point: only these targets' anchors pull, and the ruler guides (shown and
     /// unlocked, as the selection tools pick them) pull the pointer into line where they run.
     fn for_snap_to_point(self, cx: &ToolContext) -> Self {
-        self.anchors_only().with_rulers(cx)
+        self.anchors_only().with_rulers(cx).styled(cx)
     }
 
     /// These targets and the ruler guides, when they are shown (and so unlocked to the selection
@@ -384,10 +385,9 @@ impl Targets {
         self
     }
 
-    /// What a dragged selection's grabbed point snaps to with View → Snap to Point and Smart
-    /// Guides off: the anchors of the art but `exclude` and the ruler guides.
+    /// What a dragged selection's grabbed point snaps to with View → Snap to Point: the anchors of the art but `exclude` and the ruler guides.
     pub fn snap_to_point(cx: &ToolContext, exclude: &[NodeId]) -> Option<Self> {
-        (cx.snap_to_point && !cx.smart_guides).then(|| Self::collect(cx.doc, exclude, None).for_snap_to_point(cx))
+        cx.snap_to_point.then(|| Self::collect(cx.doc, exclude, None).for_snap_to_point(cx))
     }
 
     /// Anchors and centres of the visible leaves under `roots` (the roots included) whose bounds
@@ -480,6 +480,13 @@ impl Targets {
     /// Is a target point (an anchor, a centre) within `tol` of `p`?
     pub(crate) fn has_point_near(&self, p: Point, tol: f64) -> bool {
         self.nearest_point(p, tol).is_some()
+    }
+
+    /// Whether the point already lies on an anchor or shown ruler guide. This must not depend
+    /// on whether the user chose to show guide lines or labels.
+    pub(crate) fn on_snap_target(&self, p: Point) -> bool {
+        self.nearest_point(p, 1e-9).is_some()
+            || self.rulers.iter().any(|r| r.line_at(p, 1e-9).is_some_and(|(v, ..)| (v - if r.vertical { p.x } else { p.y }).abs() < 1e-9))
     }
 
     fn nearest_point(&self, p: Point, tol: f64) -> Option<(Point, Kind)> {
@@ -836,6 +843,7 @@ fn snap_with(cx: &ToolContext, p: Point, targets: impl FnOnce() -> Targets) -> (
 /// Snapping for a dragged point, its targets gathered once (when the drag begins): what
 /// [`snap_draw`] does for a point at a time.
 pub struct PointSnap {
+    points: Option<Targets>,
     /// The smart guide targets, or with Smart Guides off those of Snap to Point, and how near (in
     /// screen pixels) they pull; none with pixels or the grid snapping instead, or nothing on.
     targets: Option<(Targets, f64)>,
@@ -843,18 +851,20 @@ pub struct PointSnap {
 
 impl PointSnap {
     pub fn new(cx: &ToolContext, targets: impl FnOnce() -> Targets) -> Self {
+        let gathered = (!(cx.snap_to_pixel || cx.snap_to_grid) && (cx.smart_guides || cx.snap_to_point)).then(targets);
+        let points = if cx.snap_to_point && cx.smart_guides { gathered.clone().map(|t| t.for_snap_to_point(cx)) } else { None };
         let targets = if cx.snap_to_pixel || cx.snap_to_grid {
             None
         } else if cx.smart_guides {
             // Snap to Point keeps pulling points onto the ruler guides with Smart Guides on (#812).
-            let t = targets().styled(cx);
+            let t = gathered.unwrap_or_default().styled(cx);
             Some((if cx.snap_to_point { t.with_rulers(cx) } else { t }, cx.snapping_tolerance))
         } else if cx.snap_to_point {
-            Some((targets().for_snap_to_point(cx), cx.snap_tolerance))
+            Some((gathered.unwrap_or_default().for_snap_to_point(cx), cx.snap_tolerance))
         } else {
             None
         };
-        Self { targets }
+        Self { targets, points }
     }
 
     /// Where `p` goes, and the guides showing why.
@@ -871,6 +881,14 @@ impl PointSnap {
         }
         if cx.snap_to_grid {
             return (keep(vectorcraft_geom::snap::snap_point_to_grid(p, cx.grid_step())), vec![]);
+        }
+        if let Some(points) = &self.points {
+            // Keep Shift and construction-guide geometry when landing on a ruler guide.
+            // A construction angle alone leaves Smart Guides free to find their other targets.
+            let (q, ov) = points.snap_from(p, from, cx.tol(cx.snap_tolerance));
+            if points.on_snap_target(q) {
+                return (q, ov);
+            }
         }
         match &self.targets {
             Some((t, tol)) => t.snap_from(p, from, cx.tol(*tol)),
@@ -1470,5 +1488,46 @@ mod tests {
         let from = Leave::segment(&c, Point::ZERO, true);
         let q = snap.press(&c, Point::new(31.0, 2.0), &[], Some(&from));
         assert!((q.y - 0.0).abs() < 1e-9, "{q:?}");
+    }
+    #[test]
+    fn snap_to_point_has_its_own_tolerance_with_smart_guides_on() {
+        let (d, _) = doc_with_rect();
+        let (s, p) = (Selection::default(), paint());
+        let c = ToolContext { snap_tolerance: 8.0, snapping_tolerance: 1.0, ..cx(&d, &s, &p) };
+        let at = Point::new(205.0, 204.0);
+        let build = || Targets::collect(&d, &[], None);
+        assert_eq!(PointSnap::new(&c, build).snap(&c, at).0, Point::new(200.0, 200.0));
+        let off = ToolContext { snap_to_point: false, ..c };
+        assert_eq!(PointSnap::new(&off, build).snap(&off, at).0, at);
+        let grid = ToolContext { snap_to_grid: true, ..c };
+        assert_eq!(PointSnap::new(&grid, build).snap(&grid, at).0, vectorcraft_geom::snap::snap_point_to_grid(at, grid.grid_step()));
+        let pixel = ToolContext { snap_to_pixel: true, ..c };
+        assert_eq!(PointSnap::new(&pixel, build).snap(&pixel, Point::new(205.4, 204.3)).0, Point::new(205.0, 204.0));
+        let hidden = ToolContext { alignment_guides: false, anchor_path_labels: false, ..c };
+        assert_eq!(PointSnap::new(&hidden, build).snap(&hidden, at).0, Point::new(200.0, 200.0));
+    }
+
+    #[test]
+    fn moved_selection_grab_snaps_before_bounds_alignment() {
+        let (mut d, _) = doc_with_rect();
+        let (mut s, p) = (Selection::default(), paint());
+        let id = d.alloc_id();
+        let path = vectorcraft_geom::PathData::single(SubPath::polyline(
+            &[Point::new(50.0, 50.0), Point::new(80.0, 50.0), Point::new(80.0, 80.0), Point::new(50.0, 80.0)],
+            true,
+        ));
+        d.insert(Some(d.layers[0].id), 1, Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+        s.add(id);
+        let c = ToolContext { snap_tolerance: 8.0, snapping_tolerance: 1.0, ..cx(&d, &s, &p) };
+        let start = Point::new(50.0, 50.0);
+        let delta = Vec2::new(155.0, 154.0);
+        let snap = crate::select::MoveSnap::new(&c);
+        assert_eq!(start + snap.snap(&c, start, delta, false).0, Point::new(200.0, 200.0));
+        let off = ToolContext { snap_to_point: false, ..c };
+        assert_eq!(crate::select::MoveSnap::new(&off).snap(&off, start, delta, false).0, delta);
+        let hidden = ToolContext { alignment_guides: false, anchor_path_labels: false, ..c };
+        assert_eq!(start + crate::select::MoveSnap::new(&hidden).snap(&hidden, start, delta, false).0, Point::new(200.0, 200.0));
+        assert_eq!(snap.snap(&c, start, Vec2::new(3.0, 4.0), false).0, Vec2::new(3.0, 4.0), "don't snap to the moving source");
+        assert_eq!(snap.snap(&c, start, Vec2::new(3.0, 4.0), true).0, Vec2::ZERO, "an Alt-copy may snap to the original");
     }
 }

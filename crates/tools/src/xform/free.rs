@@ -206,7 +206,7 @@ impl FreeTransformTool {
             }
             Op::Shear(h) => shear_for_side(d.rect, h, delta, m.alt),
             Op::Rotate => {
-                let (a, deg) = rotate_for_drag(d.rect.center(), d.start, p, shift);
+                let (a, deg) = rotate_for_drag(d.rect.center(), d.start, p, shift, cx.rotation_snap_angle);
                 self.measure = cx.transform_tools_guides.then(|| (p, format!("{:.1}°", -deg)));
                 a
             }
@@ -457,5 +457,23 @@ mod tests {
         assert_eq!(q[0], Point::new(2.0, 0.0));
         assert_eq!(q[1], Point::new(8.0, 0.0));
         assert_eq!(q[2], Point::new(10.0, 10.0));
+    }
+    #[test]
+    fn free_transform_rotation_reads_custom_step() {
+        let (d, id) = doc_with_rect();
+        let (mut s, p) = (Selection::default(), paint());
+        s.add(id);
+        let c = ToolContext { rotation_snap_angle: 15.0, ..cx(&d, &s, &p) };
+        let mut tool = FreeTransformTool {
+            drag: Some(Drag { op: Op::Rotate, rect: Rect::new(-50.0, -50.0, 50.0, 50.0), start: Point::new(100.0, 0.0), began: true }),
+            ..Default::default()
+        };
+        let a = 26.0_f64.to_radians();
+        let actions = tool.pointer(
+            &c,
+            &PointerEvent::new(PointerKind::Drag, 100.0 * a.cos(), 100.0 * a.sin()).with_mods(Mods { shift: true, ..Default::default() }),
+        );
+        let Action::Preview(_, params) = &actions[0] else { panic!("missing preview") };
+        assert!((params["matrix"][0].as_f64().unwrap() - 30.0_f64.to_radians().cos()).abs() < 1e-9);
     }
 }

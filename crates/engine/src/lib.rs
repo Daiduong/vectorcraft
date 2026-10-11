@@ -446,6 +446,8 @@ pub struct Prefs {
     /// Arrow-key nudge distance (General → Keyboard Increment), points.
     pub keyboard_increment: f64,
     pub constrain_angle: f64,
+    /// Shift-rotation increment in degrees, independent of the drawing constrain angle.
+    pub rotation_snap_angle: f64,
     pub corner_radius: f64,
     pub disable_auto_add_delete: bool,
     pub use_precise_cursors: bool,
@@ -687,6 +689,7 @@ impl Default for Prefs {
         Self {
             keyboard_increment: 1.0,
             constrain_angle: 0.0,
+            rotation_snap_angle: 45.0,
             corner_radius: 12.0,
             disable_auto_add_delete: false,
             use_precise_cursors: false,

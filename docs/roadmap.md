@@ -1,6 +1,6 @@
 # Roadmap: milestones and what's next
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (M14: native macOS save Format menu, #866; M6: compound appearance and member fill-rule fixes, #1197; estimates unchanged; M9: PDF raster-effect cap warnings; G11: #893 fixed, #937 open; M7: accurate character controls after scaling, #1034; estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (G1: cursor, saved rotation increments and point snapping, #1269/#973/#1274; scores unchanged; M14: native macOS save Format menu, #866; M6: compound appearance and member fill-rule fixes, #1197; estimates unchanged; M9: PDF raster-effect cap warnings; G11: #893 fixed, #937 open; M7: accurate character controls after scaling, #1034; estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Forward-looking plan. Where VectorCraft stands is in [`ROADMAP.md`](../ROADMAP.md) and
 [target-app-parity.md](target-app-parity.md); the ranked work list is [gaps.md](gaps.md). Hours are Opus 5.5
@@ -87,3 +87,9 @@ After placed documents (File › Place of a `.vectorcraft` file, linked), M4.14�
 | 2026-10-10 | minor | M9 row from main: initial Revolve |
 | 2026-10-10 | minor | Added the Alpha gate table (core-workflow gate): all six workflows work end to end, `.ai` exchange partial but not blocking; stage stays alpha |
 | 2026-10-10 | major | Created from ROADMAP.md's milestone table and "Where we're going"; added Current focus and the beta list |
+
+### G1 repair evidence (2026-10-11)
+
+The original eyedropper cursor (#1269), saved rotation increments (#973) and Snap to Point
+with Smart Guides enabled (#1274) are documented in [ui-parity.md](ui-parity.md#g1-cursor-rotation-and-point-snapping-repairs-2026-10-11).
+Scores and time estimates are unchanged; OS/browser interaction checks remain pending.

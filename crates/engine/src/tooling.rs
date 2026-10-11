@@ -195,6 +195,7 @@ impl Session {
             gradient_stop: self.selected_stop(),
             appearance_item: self.appearance_item(),
             constrain_angle: self.prefs.constrain_angle,
+            rotation_snap_angle: self.prefs.rotation_snap_angle,
             freeform_point: self.selected_freeform_point(),
             raster_sample: self.prefs.eyedropper.sample_size,
             preview_bounds: self.prefs.use_preview_bounds,

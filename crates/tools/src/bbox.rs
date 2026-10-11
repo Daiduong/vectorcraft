@@ -91,13 +91,14 @@ pub fn scale_for_drag(r: Rect, handle: Handle, p: Point, proportional: bool, fro
     Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(clamp(sx), clamp(sy)) * Affine::translate(-origin.to_vec2())
 }
 
-/// Rotation about `center` taking `from` to `to`; `snap` constrains to 45° steps.
-pub fn rotate_for_drag(center: Point, from: Point, to: Point, snap: bool) -> (Affine, f64) {
+/// Rotation about `center` taking `from` to `to`; `snap` constrains to `step_degrees` steps.
+pub fn rotate_for_drag(center: Point, from: Point, to: Point, snap: bool, step_degrees: f64) -> (Affine, f64) {
     let a0 = (from - center).atan2();
     let a1 = (to - center).atan2();
     let mut a = a1 - a0;
     if snap {
-        let step = std::f64::consts::FRAC_PI_4;
+        // Preferences loaded from disk can bypass the command validator.
+        let step = if step_degrees.is_finite() && (0.1..=180.0).contains(&step_degrees) { step_degrees } else { 45.0 }.to_radians();
         a = (a / step).round() * step;
     }
     (Affine::translate(center.to_vec2()) * Affine::rotate(a) * Affine::translate(-center.to_vec2()), -a.to_degrees())
@@ -142,9 +143,20 @@ mod tests {
 
     #[test]
     fn rotate_snaps() {
-        let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true);
+        let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true, 45.0);
         assert!((deg + 45.0).abs() < 1e-9);
         assert!(in_rotate_zone(R, Point::new(-8.0, -8.0), 4.0, 20.0).is_some());
         assert!(in_rotate_zone(R, Point::new(5.0, 5.0), 4.0, 20.0).is_none());
+    }
+    #[test]
+    fn custom_rotation_steps_and_invalid_saved_values() {
+        for (step, expected) in [(15.0, 30.0), (10.0, 30.0), (5.0, 25.0), (45.0, 45.0), (0.0, 45.0), (f64::NAN, 45.0)] {
+            let a = 26.0_f64.to_radians();
+            let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(a.cos() * 10.0, a.sin() * 10.0), true, step);
+            assert!((deg + expected).abs() < 1e-9, "{step}: {deg}");
+        }
+        let a = 26.0_f64.to_radians();
+        let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(a.cos(), a.sin()), false, 15.0);
+        assert!((deg + 26.0).abs() < 1e-9);
     }
 }
