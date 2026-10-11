@@ -184,6 +184,7 @@ impl Session {
             isolation: st.isolation,
             paint: &self.paint,
             outline: view.outline,
+            transparency_grid: st.transparency_grid,
             smart_guides: view.smart_guides,
             guides: view.guides && !self.menu.guides_locked,
             snap_to_grid: view.snap_to_grid,

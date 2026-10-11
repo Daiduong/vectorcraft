@@ -5,7 +5,8 @@
 //! onto the clicked object (`reverse`); Shift+Alt-click: add the clicked object's appearance to the
 //! selection's (`append`). Shift-click: sample only the colour under the cursor into the active
 //! fill/stroke (`paint.sampleColor`, keeping the colour's model). Clicking an image samples its
-//! pixels (averaged over the options' raster sample size).
+//! pixels (averaged over the options' raster sample size). Empty artboard clicks sample the
+//! visible paper into the active paint; transparent checkerboard and pasteboard have no colour.
 //!
 //! The Gradient panel's eyedropper sets the `stop` option (the tool to return to): the next click
 //! samples the colour under the cursor into the selected gradient stop (`paint.sampleColor
@@ -13,8 +14,8 @@
 
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::hit::{HitKind, hit_test};
-use vectorcraft_doc::{Node, NodeKind};
+use vectorcraft_doc::hit::{HitKind, hit_test, hit_test_visible};
+use vectorcraft_doc::{Background, Node, NodeKind};
 use vectorcraft_geom::Point;
 
 use super::paint_owner;
@@ -61,6 +62,20 @@ fn image_color_at(cx: &ToolContext, n: &Node, p: Point) -> Option<Color> {
     Some(Color::rgb8(r, g, b))
 }
 
+/// Paper follows the canvas: white in Outline, otherwise simulated paper or white unless the
+/// transparency grid is showing. Its checker colours and the pasteboard are UI decorations.
+fn paper_color_at(cx: &ToolContext, p: Point) -> Option<Color> {
+    cx.doc.artboard_at(p)?;
+    if cx.outline {
+        return Some(Color::WHITE);
+    }
+    let setup = &cx.doc.setup;
+    if cx.transparency_grid && setup.background == Background::Transparent {
+        return None;
+    }
+    Some(if setup.simulate_paper { setup.paper() } else { Color::WHITE })
+}
+
 impl Tool for EyedropperTool {
     fn id(&self) -> &'static str {
         "eyedropper"
@@ -73,19 +88,29 @@ impl Tool for EyedropperTool {
         // A click inside a fill or among characters samples it too, whatever Object and Type
         // Object Selection by Path Only say.
         let opts = vectorcraft_doc::hit::HitOptions { path_only: false, type_path_only: false, ..cx.hit_options() };
-        let Some(h) = hit_test(cx.doc, ev.pos, opts) else { return vec![] };
-        let src = paint_owner(cx.doc, h.leaf);
-        let Some(n) = cx.doc.node(src) else { return vec![] };
         let stop = self.stop.as_ref().zip(cx.gradient_stop);
-        if ev.mods.alt && stop.is_none() {
-            let how = if ev.mods.shift { "append" } else { "reverse" };
-            return vec![Action::Exec("appearance.copyFrom".into(), json!({ "source": src.0, how: true }))];
-        }
-        let image = matches!(n.kind, NodeKind::Image(_));
-        if !(ev.mods.shift || stop.is_some() || image) {
-            return vec![Action::Exec("appearance.copyFrom".into(), json!({ "source": src.0 }))];
-        }
-        let sampled = if image { image_color_at(cx, n, ev.pos) } else { paint_sample(n, h.kind == HitKind::Stroke, ev.pos) };
+        // Reading a locked object's colour is safe; applying to one with Alt still follows
+        // the editing hit test, so locked art cannot be mistaken for empty paper.
+        let hit = if ev.mods.alt && stop.is_none() { hit_test(cx.doc, ev.pos, opts) } else { hit_test_visible(cx.doc, ev.pos, opts) };
+        let sampled = if let Some(h) = hit {
+            let src = paint_owner(cx.doc, h.leaf);
+            let Some(n) = cx.doc.node(src) else { return vec![] };
+            if ev.mods.alt && stop.is_none() {
+                let how = if ev.mods.shift { "append" } else { "reverse" };
+                return vec![Action::Exec("appearance.copyFrom".into(), json!({ "source": src.0, how: true }))];
+            }
+            let image = matches!(n.kind, NodeKind::Image(_));
+            if !(ev.mods.shift || stop.is_some() || image) {
+                return vec![Action::Exec("appearance.copyFrom".into(), json!({ "source": src.0 }))];
+            }
+            if image { image_color_at(cx, n, ev.pos) } else { paint_sample(n, h.kind == HitKind::Stroke, ev.pos) }
+        } else {
+            // Alt applies an appearance to an object; there is no paper object to paint.
+            if ev.mods.alt && stop.is_none() {
+                return vec![];
+            }
+            paper_color_at(cx, ev.pos)
+        };
         let Some(c) = sampled else { return vec![] };
         let color = color_json(&c);
         let Some((back, i)) = stop else { return vec![Action::Exec("paint.sampleColor".into(), json!({ "color": color }))] };
@@ -130,7 +155,7 @@ mod tests {
         // On the stroke edge → the stroke colour.
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 150.0).with_mods(shift));
         assert_eq!(a, vec![Action::Exec("paint.sampleColor".into(), json!({"color": color_json(&Color::BLACK)}))]);
-        assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 400.0, 400.0)).is_empty());
+        assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 600.0, 400.0)).is_empty());
     }
 
     #[test]
@@ -146,8 +171,8 @@ mod tests {
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 150.0, 150.0));
         assert!(matches!(&a[0], Action::Exec(c, _) if c == "appearance.copyFrom"));
         cx.gradient_stop = Some(1);
-        // Empty canvas: still waiting.
-        assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 400.0, 400.0)).is_empty());
+        // Pasteboard: still waiting.
+        assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 600.0, 400.0)).is_empty());
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 150.0));
         assert_eq!(
             a,
