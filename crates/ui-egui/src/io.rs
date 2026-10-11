@@ -113,7 +113,7 @@ pub fn open_document(app: &mut VectorcraftApp, name: &str, bytes: &[u8], path: O
 }
 
 /// A path from the open dialog, or "cancelled".
-fn pick_open(app: &mut VectorcraftApp, pick: &FilePick) -> Result<String, String> {
+pub(crate) fn pick_open(app: &mut VectorcraftApp, pick: &FilePick) -> Result<String, String> {
     crate::picks::open(app, pick).ok_or_else(|| "cancelled".into())
 }
 
@@ -157,7 +157,7 @@ pub fn open_reporting(app: &mut VectorcraftApp, path: &str) -> Result<Value, Str
     r
 }
 
-fn read(app: &VectorcraftApp, path: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn read(app: &VectorcraftApp, path: &str) -> Result<Vec<u8>, String> {
     app.services.read.as_ref().ok_or("no file reader")?(path)
 }
 

@@ -5423,6 +5423,7 @@ dependencies = [
  "vectorcraft-pdf",
  "vectorcraft-plugins",
  "vectorcraft-render",
+ "vectorcraft-script",
  "vectorcraft-svg",
  "vectorcraft-testkit",
  "vectorcraft-text",

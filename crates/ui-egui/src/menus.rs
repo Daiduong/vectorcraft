@@ -752,6 +752,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{path?: a .wasm file} install a WebAssembly plug-in (plugin.install); without a path pick one (the web opens the browser's file picker; File › Open of a .wasm installs it too)",
     ),
     (
+        "ui.runScript",
+        "Other Script…",
+        "Cmd+F12",
+        "{path?: a .js file} File › Scripts: run a JavaScript file over the commands (docs/scripting.md) as one undo step per document it changes; without a path pick one (the web opens the browser's file picker). Alerts, the log and errors show in a dialog → the script's value",
+    ),
+    (
         "ui.perspectiveGridDialog",
         "Define Perspective Grid…",
         "",
@@ -1408,6 +1414,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "ui.printPresetDialog" => crate::dialogs::print::open_preset(app, p),
         "plugin.dialog" => crate::dialogs::plugin::open(app, p),
         "ui.installPlugin" => io::install_plugin(app, s("path")),
+        "ui.runScript" => crate::scripts::run(app, s("path")),
         "ui.perspectiveGridDialog" => crate::dialogs::perspective_grid::open(app),
         "ui.perspectivePresetsDialog" => {
             crate::dialogs::perspective_presets::open(app, s("selected").as_deref());
@@ -2047,7 +2054,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 c("Export Selection…", "file.exportSelection"),
                 Sep,
                 c("Package…", "ui.packageDialog"),
-                sub("Scripts", vec![todos("Other Script…", "Cmd+F12")]),
+                sub("Scripts", vec![c("Other Script…", "ui.runScript")]),
                 Sep,
                 c("Document Setup…", "file.documentSetup"),
                 sub(

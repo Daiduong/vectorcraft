@@ -3529,3 +3529,5 @@ lighting	Light	光源
 	Move Guide to Layer	將參考線移至圖層
 	Linux Display Server	Linux 顯示伺服器
 	X11 (XWayland)	X11 (XWayland)
+	Script “{name}” failed.	指令碼「{name}」執行失敗。
+	Script “{name}” finished.	指令碼「{name}」已執行完畢。

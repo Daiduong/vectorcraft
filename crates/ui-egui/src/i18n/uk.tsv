@@ -4129,3 +4129,7 @@ lighting	Light	Світло
 @msg	unsupported native docking operation	Непідтримувана власна операція прикріплення
 	Linux Display Server	Дисплейний сервер Linux
 	X11 (XWayland)	X11 (XWayland)
+	Script “{name}” failed.	Сценарій «{name}» завершився з помилкою.
+	Script “{name}” finished.	Сценарій «{name}» виконано.
+@msg	Ran script {name} ({_1} commands)	Сценарій {name} виконано (команд: {_1})
+@msg	Script {name} failed: {error}	Сценарій {name} завершився з помилкою: {error}

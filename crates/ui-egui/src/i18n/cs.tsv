@@ -744,3 +744,5 @@ lighting	Light	Světlo
 	Sumi-e…	Sumi-e…
 	Vertical Guide	Svislé vodítko
 	Horizontal Guide	Vodorovné vodítko
+	Script “{name}” failed.	Skript „{name}“ selhal.
+	Script “{name}” finished.	Skript „{name}“ doběhl.

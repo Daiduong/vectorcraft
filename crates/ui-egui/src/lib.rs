@@ -45,6 +45,7 @@ pub mod prefs_dialog;
 pub mod print;
 pub mod recovery;
 pub mod render_worker;
+pub mod scripts;
 mod scrub;
 pub mod shortcut_editor;
 pub mod shortcuts;
@@ -125,6 +126,8 @@ mod tests_save;
 mod tests_saveext;
 #[cfg(test)]
 mod tests_screenmode;
+#[cfg(test)]
+mod tests_scripts;
 #[cfg(test)]
 mod tests_scrub;
 #[cfg(test)]
@@ -217,6 +220,10 @@ pub struct Services {
     /// Files that arrived asynchronously to be placed (web: picked for Place, or dropped on the
     /// canvas).
     pub place_inbox: Option<place::PlaceInbox>,
+    /// Web: start an async pick of a script to run (it arrives via `script_inbox`).
+    pub script_async: Option<Box<dyn FnMut()>>,
+    /// Scripts picked asynchronously (web): (name, bytes).
+    pub script_inbox: Option<Inbox>,
     /// The system clipboard with all its formats (desktop): Copy offers text, SVG, PDF and PNG,
     /// Paste takes SVG, PDF, text and bitmaps from other apps. Without it, SVG text only (through
     /// egui and `clipboard_read`).
@@ -852,6 +859,7 @@ impl VectorcraftApp {
             }
         }
         place::drain(self);
+        scripts::drain(self);
     }
 }
 

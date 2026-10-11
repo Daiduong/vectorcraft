@@ -2804,3 +2804,5 @@ lighting	Light	Luz
 	Sumi-e…	Sumi-e…
 	Vertical Guide	Guia vertical
 	Horizontal Guide	Guia horizontal
+	Script “{name}” failed.	O script “{name}” falhou.
+	Script “{name}” finished.	O script “{name}” terminou.
