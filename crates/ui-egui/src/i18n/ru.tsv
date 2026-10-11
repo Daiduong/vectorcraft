@@ -4149,3 +4149,6 @@ lighting	Light	Свет
 	Script “{name}” finished.	Сценарий «{name}» выполнен.
 @msg	Ran script {name} ({_1} commands)	Сценарий {name} выполнен (команд: {_1})
 @msg	Script {name} failed: {error}	Сценарий {name} завершился с ошибкой: {error}
+	Open Scripts Folder	Открыть папку сценариев
+	Clear Recent Scripts	Очистить недавние сценарии
+@msg	there is no Scripts folder here	здесь нет папки сценариев

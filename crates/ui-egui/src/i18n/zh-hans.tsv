@@ -3750,3 +3750,5 @@ lighting	Light	光源
 	X11 (XWayland)	X11 (XWayland)
 	Script “{name}” failed.	脚本“{name}”运行失败。
 	Script “{name}” finished.	脚本“{name}”已运行完毕。
+	Open Scripts Folder	打开脚本文件夹
+	Clear Recent Scripts	清除最近使用的脚本

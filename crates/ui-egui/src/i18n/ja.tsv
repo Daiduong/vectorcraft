@@ -4147,3 +4147,6 @@ lighting	Light	ライト
 	Script “{name}” finished.	スクリプト「{name}」が終了しました。
 @msg	Ran script {name} ({_1} commands)	スクリプト {name} を実行しました（{_1} 個のコマンド）
 @msg	Script {name} failed: {error}	スクリプト {name} が失敗しました: {error}
+	Open Scripts Folder	スクリプトフォルダーを開く
+	Clear Recent Scripts	最近使用したスクリプトを消去
+@msg	there is no Scripts folder here	ここにはスクリプトフォルダーがありません

@@ -746,3 +746,5 @@ lighting	Light	Světlo
 	Horizontal Guide	Vodorovné vodítko
 	Script “{name}” failed.	Skript „{name}“ selhal.
 	Script “{name}” finished.	Skript „{name}“ doběhl.
+	Open Scripts Folder	Otevřít složku skriptů
+	Clear Recent Scripts	Vymazat nedávné skripty

@@ -3531,3 +3531,5 @@ lighting	Light	光源
 	X11 (XWayland)	X11 (XWayland)
 	Script “{name}” failed.	指令碼「{name}」執行失敗。
 	Script “{name}” finished.	指令碼「{name}」已執行完畢。
+	Open Scripts Folder	開啟指令碼檔案夾
+	Clear Recent Scripts	清除最近使用的指令碼

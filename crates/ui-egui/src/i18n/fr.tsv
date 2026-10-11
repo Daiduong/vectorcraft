@@ -4161,3 +4161,6 @@ lighting	Light	Lumière
 	Script “{name}” finished.	Le script « {name} » est terminé.
 @msg	Ran script {name} ({_1} commands)	Script {name} exécuté ({_1} commandes)
 @msg	Script {name} failed: {error}	Le script {name} a échoué : {error}
+	Open Scripts Folder	Ouvrir le dossier des scripts
+	Clear Recent Scripts	Effacer les scripts récents
+@msg	there is no Scripts folder here	il n’y a pas de dossier des scripts ici

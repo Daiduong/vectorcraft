@@ -2806,3 +2806,5 @@ lighting	Light	Luz
 	Horizontal Guide	Guia horizontal
 	Script “{name}” failed.	O script “{name}” falhou.
 	Script “{name}” finished.	O script “{name}” terminou.
+	Open Scripts Folder	Abrir pasta de scripts
+	Clear Recent Scripts	Limpar scripts recentes

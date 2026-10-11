@@ -12,6 +12,19 @@ vectorcraft-cli script grid.js [document.svg] [--out art.png]... [--arg key=valu
 Scripts written for Adobe Illustrator (`.jsx`, `app.activeDocument`…) don't run: VectorCraft's
 scripts use its own commands.
 
+## The Scripts menu
+
+On the desktop, File › Scripts lists scripts to run again:
+
+- the `.js` files in the **VectorCraft Scripts** folder in your documents folder, by name
+  (subfolders become submenus; File › Scripts › Open Scripts Folder makes and shows it). A script
+  copied in shows within a couple of seconds, without a restart;
+- the last ten scripts you ran from anywhere else, newest first (Clear Recent Scripts forgets
+  them; one that has moved or been deleted leaves the list when you choose it).
+
+On the web, where the browser hands over a file's contents but not where it lives, the menu has
+Other Script… only.
+
 ## A first script
 
 ```js

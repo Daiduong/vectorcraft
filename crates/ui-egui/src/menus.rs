@@ -755,8 +755,15 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "ui.runScript",
         "Other Script…",
         "Cmd+F12",
-        "{path?: a .js file} File › Scripts: run a JavaScript file over the commands (docs/scripting.md) as one undo step per document it changes; without a path pick one (the web opens the browser's file picker). Alerts, the log and errors show in a dialog → the script's value",
+        "{path?: a .js file} File › Scripts: run a JavaScript file over the commands (docs/scripting.md) as one undo step per document it changes; without a path pick one (the web opens the browser's file picker). Alerts, the log and errors show in a dialog; the script joins File › Scripts' recent scripts → the script's value",
     ),
+    (
+        "ui.openScriptsFolder",
+        "Open Scripts Folder",
+        "",
+        "{} File › Scripts: show the Scripts folder (VectorCraft Scripts in the documents folder), made when it's missing; its .js files are listed in File › Scripts, subfolders as submenus",
+    ),
+    ("ui.clearRecentScripts", "Clear Recent Scripts", "", "{} File › Scripts: forget the scripts run lately"),
     (
         "ui.perspectiveGridDialog",
         "Define Perspective Grid…",
@@ -1415,6 +1422,8 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "plugin.dialog" => crate::dialogs::plugin::open(app, p),
         "ui.installPlugin" => io::install_plugin(app, s("path")),
         "ui.runScript" => crate::scripts::run(app, s("path")),
+        "ui.openScriptsFolder" => crate::scripts::open_folder(app),
+        "ui.clearRecentScripts" => crate::scripts::clear_recent(app),
         "ui.perspectiveGridDialog" => crate::dialogs::perspective_grid::open(app),
         "ui.perspectivePresetsDialog" => {
             crate::dialogs::perspective_presets::open(app, s("selected").as_deref());
@@ -2054,7 +2063,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 c("Export Selection…", "file.exportSelection"),
                 Sep,
                 c("Package…", "ui.packageDialog"),
-                sub("Scripts", vec![c("Other Script…", "ui.runScript")]),
+                sub("Scripts", crate::scripts::menu()),
                 Sep,
                 c("Document Setup…", "file.documentSetup"),
                 sub(
@@ -3250,7 +3259,11 @@ fn flatten(app: &VectorcraftApp, path: Vec<String>, items: &[Item], out: &mut Ve
                     command: Some(id.to_string()),
                     params: p.clone(),
                     enabled,
-                    shortcut: item_shortcut(id, p).or_else(|| shortcut_of(id)).unwrap_or("").to_string(),
+                    // A script File › Scripts lists runs that file: Cmd+F12 is Other Script…'s.
+                    shortcut: item_shortcut(id, p)
+                        .or_else(|| shortcut_of(id).filter(|_| !(*id == "ui.runScript" && !p.is_null())))
+                        .unwrap_or("")
+                        .to_string(),
                 })
             }
             Item::Todo(l, sc) => out.push(MenuEntry {
@@ -3533,7 +3546,8 @@ pub const DYNAMIC_LABELS: &[&str] = &[
 pub fn menu_strings() -> std::collections::BTreeSet<String> {
     use std::collections::BTreeSet;
     fn user_data(id: &str) -> bool {
-        hidden_when_disabled(id) || id.starts_with("type.recentFont")
+        // File › Scripts lists scripts by their file names.
+        hidden_when_disabled(id) || id.starts_with("type.recentFont") || id == "ui.runScript"
     }
     fn walk(items: &[Item], under: &str, out: &mut BTreeSet<String>) {
         for it in items {

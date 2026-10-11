@@ -224,6 +224,9 @@ pub struct Services {
     pub script_async: Option<Box<dyn FnMut()>>,
     /// Scripts picked asynchronously (web): (name, bytes).
     pub script_inbox: Option<Inbox>,
+    /// The Scripts folder File › Scripts lists (desktop: `VectorCraft Scripts` in the documents
+    /// folder). Without it (the web, tests) only recent scripts and Other Script… are listed.
+    pub scripts_folder: Option<String>,
     /// The system clipboard with all its formats (desktop): Copy offers text, SVG, PDF and PNG,
     /// Paste takes SVG, PDF, text and bitmaps from other apps. Without it, SVG text only (through
     /// egui and `clipboard_read`).
@@ -774,6 +777,20 @@ impl VectorcraftApp {
         std::mem::take(&mut self.ime_discard)
     }
 
+    /// File › Scripts follows the Scripts folder: read again every two seconds and when the window
+    /// comes back to the front (a script copied in shows in the menu without a restart).
+    fn tick_scripts(&mut self, ctx: &egui::Context, now: f64) {
+        let (last_key, focus_key) = (egui::Id::new("scripts.lastScan"), egui::Id::new("scripts.focused"));
+        let focused = ctx.input(|i| i.focused);
+        let was_focused: bool = ctx.data(|d| d.get_temp(focus_key)).unwrap_or(focused);
+        let last: f64 = ctx.data(|d| d.get_temp(last_key)).unwrap_or(f64::NEG_INFINITY);
+        ctx.data_mut(|d| d.insert_temp(focus_key, focused));
+        if now - last >= 2.0 || (focused && !was_focused) {
+            ctx.data_mut(|d| d.insert_temp(last_key, now));
+            scripts::refresh(self);
+        }
+    }
+
     /// Linked files another app changed while their document is open: every two seconds, and as
     /// soon as the window comes back to the front, stamp the active document's linked files on a
     /// worker thread and act on the changed ones as Preferences › File Handling › Update Links
@@ -983,6 +1000,7 @@ impl VectorcraftApp {
         background::poll(self);
         #[cfg(not(target_arch = "wasm32"))]
         self.tick_link_updates(ctx, now);
+        self.tick_scripts(ctx, now);
         if !self.background.jobs.is_empty() {
             // Keep the status bar's progress moving and pick the result up when it arrives.
             ctx.request_repaint_after(std::time::Duration::from_millis(100));

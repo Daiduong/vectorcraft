@@ -4107,3 +4107,6 @@ theme	Appearance	Erscheinungsbild
 	Script “{name}” finished.	Skript „{name}“ ist fertig.
 @msg	Ran script {name} ({_1} commands)	Skript {name} ausgeführt ({_1} Befehle)
 @msg	Script {name} failed: {error}	Skript {name} fehlgeschlagen: {error}
+	Open Scripts Folder	Skriptordner öffnen
+	Clear Recent Scripts	Zuletzt verwendete Skripte löschen
+@msg	there is no Scripts folder here	hier gibt es keinen Skriptordner
