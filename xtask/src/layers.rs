@@ -62,6 +62,7 @@ pub const TABLE: &[(&str, Class)] = &[
     ("metafile", Class::Layer(3)),
     ("plugins", Class::Layer(2)),
     ("affinity", Class::Standalone),
+    ("script", Class::Layer(6)),
 ];
 
 /// Explicit orderings *within* a layer (earlier may be used by later).
@@ -80,6 +81,8 @@ pub const INTRA_LAYER_ORDER: &[&[&str]] = &[
     &["pdf", "eps"],
     &["plugins", "effects"],
     &["three-d", "effects"],
+    // File › Scripts runs scripts.
+    &["script", "ui-egui"],
 ];
 
 fn intra_layer_allowed(from: &str, to: &str) -> bool {
