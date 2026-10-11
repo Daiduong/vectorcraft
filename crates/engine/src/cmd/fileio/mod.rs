@@ -21,6 +21,7 @@
 
 mod affinity;
 mod batch;
+pub use batch::BatchRun;
 pub mod dxf;
 pub mod dxfimport;
 mod encode;
