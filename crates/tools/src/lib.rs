@@ -227,6 +227,8 @@ pub struct ToolContext<'a> {
     pub isolation: Option<NodeId>,
     pub paint: &'a PaintDefaults,
     pub outline: bool,
+    /// View → Show Transparency Grid for this document. Transparent paper has no colour to sample.
+    pub transparency_grid: bool,
     pub smart_guides: bool,
     /// View → Show Guides with Lock Guides off: the selection tools pick and drag ruler guides.
     pub guides: bool,
@@ -687,6 +689,7 @@ pub(crate) mod testutil {
             isolation: None,
             paint: p,
             outline: false,
+            transparency_grid: false,
             smart_guides: true,
             guides: true,
             snap_to_grid: false,
