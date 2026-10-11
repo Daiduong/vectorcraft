@@ -5048,6 +5048,7 @@ dependencies = [
  "vectorcraft-geom",
  "vectorcraft-mcp",
  "vectorcraft-render",
+ "vectorcraft-script",
  "vectorcraft-svg",
  "vectorcraft-testkit",
  "vectorcraft-text",
