@@ -43,6 +43,15 @@ impl Session {
         if self.depth > 0 && self.batch_stash.is_some() {
             return Err(bad("command.batch", "batches cannot nest"));
         }
+        // Typing (or a drag) still in progress is kept as its own step first, as Undo does: the
+        // batch is then a step of its own, and rolling it back leaves the typing.
+        if self.in_interaction() {
+            let typing = crate::cmd::edit::typing_in_progress(self);
+            self.commit_interaction()?;
+            if typing {
+                self.set_tool_option("endTyping", &Value::Bool(true));
+            }
+        }
         let run = BatchRun {
             label: label.to_string(),
             artboard,
