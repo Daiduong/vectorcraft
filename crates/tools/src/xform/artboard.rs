@@ -124,11 +124,17 @@ impl ArtboardTool {
 
     /// Gather the Smart Guide targets for dragging artboard `index` (call before the first preview,
     /// while the document still shows where everything started).
-    fn begin_snapping(&mut self, cx: &ToolContext, index: usize, art_moves: bool) {
+    fn begin_snapping(&mut self, cx: &ToolContext, index: usize, art_moves: bool, overlapping: bool) {
         self.guides.clear();
         self.targets = cx.smart_guides.then(|| {
             let art = match cx.doc.artboards.get(index) {
-                Some(a) if art_moves => cx.doc.art_on_artboard(a.rect, cx.move_locked_with_artboard),
+                Some(a) if art_moves => {
+                    if overlapping {
+                        cx.doc.art_overlapping_artboard(a.rect, cx.move_locked_with_artboard)
+                    } else {
+                        cx.doc.art_on_artboard(a.rect, cx.move_locked_with_artboard)
+                    }
+                }
                 _ => vec![],
             };
             Targets::for_artboard(cx.doc, index, &art).styled(cx)
@@ -256,7 +262,7 @@ impl Tool for ArtboardTool {
                         return out;
                     }
                     out.push(Action::Begin(label(m.alt).into()));
-                    self.begin_snapping(cx, index, self.move_art);
+                    self.begin_snapping(cx, index, self.move_art, true);
                 } else if m.alt != copy {
                     // Alt pressed or released mid-drag: start over as a copy or a move.
                     out.push(Action::Cancel);
@@ -276,7 +282,7 @@ impl Tool for ArtboardTool {
                 let mut out = vec![];
                 if !began {
                     out.push(Action::Begin("Resize Artboard".into()));
-                    self.begin_snapping(cx, index, self.scale_art);
+                    self.begin_snapping(cx, index, self.scale_art, false);
                 }
                 self.drag = Some(Drag::Resize { index, handle, rect, grab, began: true });
                 let h = self.snap_handle(cx, p + grab, bleed_offset(cx, rect, handle));

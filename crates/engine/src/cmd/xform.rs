@@ -45,7 +45,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Move Artboard",
             [],
             None,
-            "{index | indices: [index…], dx, dy, moveArt?: bool, copy?: bool, patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} move artboards (and the art fully inside them; locked and hidden art only with prefs moveLockedWithArtboard), several in one step; `copy` (Alt-drag) leaves them and moves copies → {index (the first), indices: the artboards moved or the copies, moved: the art moved or the copies}",
+            "{index | indices: [index…], dx, dy, moveArt?: bool, copy?: bool, patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} move artboards (and the art fully or partly overlapping them; locked and hidden art only with prefs moveLockedWithArtboard), several in one step; `copy` (Alt-drag) leaves them and moves copies → {index (the first), indices: the artboards moved or the copies, moved: the art moved or the copies}",
             has_doc,
             artboard_move
         ),

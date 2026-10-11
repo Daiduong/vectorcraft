@@ -290,6 +290,87 @@ fn artboard_tool_moves_with_art_creates_and_deletes() {
 }
 
 #[test]
+fn artboard_moves_and_copies_partial_art_but_leaves_outside_locked_and_hidden_art() {
+    for mode in ["drag", "move", "position", "copy", "off"] {
+        let mut s = session();
+        let partial = rect(&mut s, 750.0, 100.0, 100.0, 50.0);
+        let outside = rect(&mut s, 900.0, 100.0, 50.0, 50.0);
+        let locked = rect(&mut s, 100.0, 100.0, 50.0, 50.0);
+        let hidden = rect(&mut s, 200.0, 100.0, 50.0, 50.0);
+        std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(locked).unwrap().locked = true;
+        std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(hidden).unwrap().visible = false;
+        let was = bounds(&s, partial);
+        match mode {
+            "drag" => {
+                gesture(&mut s, "artboard", &[(400.0, 300.0), (500.0, 340.0), (500.0, 340.0)], Mods::default());
+            }
+            "position" => {
+                s.execute("artboard.setProps", &json!({"index": 0, "x": 100, "y": 40, "moveArt": true})).unwrap();
+            }
+            _ => {
+                s.execute("artboard.move", &json!({"index": 0, "dx": 100, "dy": 40, "moveArt": mode != "off", "copy": mode == "copy"})).unwrap();
+            }
+        }
+        for (id, expected) in [
+            (outside, Rect::new(900.0, 100.0, 950.0, 150.0)),
+            (locked, Rect::new(100.0, 100.0, 150.0, 150.0)),
+            (hidden, Rect::new(200.0, 100.0, 250.0, 150.0)),
+        ] {
+            assert_eq!(bounds(&s, id), expected, "{mode}: excluded art stays put");
+        }
+        if mode == "copy" {
+            assert_eq!(bounds(&s, partial), was);
+            let children = s.doc().unwrap().doc.layers[0].children().unwrap();
+            assert_eq!(children.len(), 5, "only the partial object is copied");
+            let copy = children.iter().find(|n| ![partial, outside, locked, hidden].contains(&n.id)).unwrap();
+            assert_eq!(copy.geometric_bounds().unwrap(), Rect::new(850.0, 140.0, 950.0, 190.0));
+        } else {
+            let delta = s.doc().unwrap().doc.artboards[0].rect.origin() - Point::ZERO;
+            assert!(close(bounds(&s, partial), if mode == "off" { was } else { was + delta }), "{mode}: partial art follows the artboard");
+        }
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(bounds(&s, partial), was, "{mode}: Undo restores partial art");
+    }
+}
+
+#[test]
+fn artboard_drag_keeps_a_flush_background_with_roundoff_and_multiple_texts() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 600, "height": 400})).unwrap();
+    let (x, y) = (-35.23064566724116, -107.85371637852609);
+    s.execute("artboard.setProps", &json!({"index": 0, "x": x, "y": y})).unwrap();
+    // Original geometry: the background's top is 2.84e-14 pt above the artboard's top.
+    // Synthetic art only; no user's file or typography is embedded in the test.
+    let background = rect(&mut s, x, -107.85371637852612, 600.0, 400.0);
+    let mut ids = vec![background];
+    for i in 0..3 {
+        let text = s.execute("text.create", &json!({"x": x + 100.0, "y": y + 80.0 + f64::from(i) * 60.0, "text": "Test", "size": 12})).unwrap();
+        ids.push(NodeId(text["id"].as_u64().unwrap()));
+    }
+    s.execute("select.none", &json!({})).unwrap();
+    let before: Vec<Rect> = ids.iter().map(|id| bounds(&s, *id)).collect();
+    let board = s.doc().unwrap().doc.artboards[0].rect;
+    let history = undo_len(&s);
+    gesture(&mut s, "artboard", &[(x + 300.0, y + 200.0), (x + 400.0, y + 240.0), (x + 400.0, y + 240.0)], Mods::default());
+    let moved_board = s.doc().unwrap().doc.artboards[0].rect;
+    let delta = moved_board.origin() - board.origin();
+    assert!(delta.hypot() > 1.0, "the artboard actually moved");
+    for (id, was) in ids.iter().zip(&before) {
+        assert!(close(bounds(&s, *id), *was + delta), "{id:?} must move with the artboard");
+    }
+    assert_eq!(undo_len(&s), history + 1);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.artboards[0].rect, board);
+    for (id, was) in ids.iter().zip(&before) {
+        assert!(close(bounds(&s, *id), *was), "Undo restores {id:?}");
+    }
+    s.execute("edit.redo", &json!({})).unwrap();
+    for (id, was) in ids.iter().zip(&before) {
+        assert!(close(bounds(&s, *id), *was + delta), "Redo moves {id:?}");
+    }
+}
+
+#[test]
 fn artboard_resize_via_handle_and_move_command() {
     let mut s = session();
     gesture(&mut s, "artboard", &[(800.0, 300.0), (850.0, 300.0), (900.0, 300.0), (900.0, 300.0)], Mods::default());
@@ -402,7 +483,7 @@ fn artboard_set_props_scales_art_only_when_asked_and_resized() {
     assert!(s.execute("artboard.setProps", &json!({"index": 9, "width": 10, "scaleArt": true})).is_err());
 }
 
-/// Move Artwork is independent of scaling and takes only fully contained art and board guides.
+/// Move Artwork is independent of scaling and takes overlapping art and board guides.
 #[test]
 fn coordinate_moves_honor_move_art_and_keep_resize_behavior() {
     let mut s = session();
@@ -415,7 +496,7 @@ fn coordinate_moves_honor_move_art_and_keep_resize_behavior() {
     for scale in [false, true] {
         let out = s.execute("artboard.setProps", &json!({"index": 0, "x": 30, "y": -10, "moveArt": true, "scaleArt": scale})).unwrap();
         assert_eq!(bounds(&s, inside), Rect::new(130.0, 90.0, 330.0, 190.0));
-        assert_eq!(bounds(&s, partly), Rect::new(700.0, 500.0, 900.0, 700.0));
+        assert_eq!(bounds(&s, partly), Rect::new(730.0, 490.0, 930.0, 690.0));
         assert_eq!(stroke_width(&s, inside), 4.0);
         assert_eq!(guide_positions(&s), vec![430.0, 400.0]);
         assert_eq!(out, if scale { json!({"scaled": []}) } else { Value::Null });
