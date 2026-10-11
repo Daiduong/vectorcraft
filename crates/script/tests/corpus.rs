@@ -481,6 +481,57 @@ const CASES: &[Case] = &[
             assert_eq!(children(s).len(), 1);
         },
     },
+    // Third-party libraries (MIT, tests/thirdparty) driven by original scripts
+    Case {
+        file: "thirdparty_tinycolor.js",
+        libs: &[("tinycolor.js", "tinycolor")],
+        setup: no_setup,
+        args: no_args,
+        check: |s, o, _| {
+            let v = ok(o).value;
+            let want: Vec<String> = v.as_array().unwrap().iter().map(|c| c.as_str().unwrap().to_string()).collect();
+            assert_eq!(want[0], "#3366ff");
+            assert_eq!(want[3], "#ffcc33", "the complement");
+            assert_eq!(fills(s), want);
+        },
+    },
+    Case {
+        file: "thirdparty_alea.js",
+        libs: &[("alea.js", "alea")],
+        setup: no_setup,
+        args: no_args,
+        check: |s, o, _| {
+            let v = ok(o).value;
+            assert_eq!(v.as_array().unwrap().len(), 40);
+            assert_eq!(children(s).len(), 40);
+            let mut again = session();
+            let case = Case { file: "thirdparty_alea.js", libs: &[("alea.js", "alea")], setup: no_setup, args: no_args, check: |_, _, _| {} };
+            assert_eq!(run_script(&mut again, &source(&case), case.file, &ScriptOptions::default()).unwrap().value, v);
+        },
+    },
+    Case {
+        file: "thirdparty_simplex.js",
+        libs: &[("simplex-noise.js", "SimplexNoise")],
+        setup: no_setup,
+        args: no_args,
+        check: |s, o, _| {
+            assert_eq!(ok(o).value, json!(20));
+            let heights: Vec<f64> = children(s).iter().map(|c| bounds(c).3).collect();
+            assert!(heights.iter().all(|h| (20.0..=120.0 + 1e-6).contains(h)), "{heights:?}");
+            assert!(heights.windows(2).any(|w| (w[0] - w[1]).abs() > 1e-3), "noise varies");
+        },
+    },
+    Case {
+        file: "thirdparty_bezier.js",
+        libs: &[("bezier-easing.js", "BezierEasing")],
+        setup: no_setup,
+        args: no_args,
+        check: |_, o, _| {
+            let xs: Vec<i64> = ok(o).value.as_array().unwrap().iter().map(|x| x.as_i64().unwrap()).collect();
+            assert_eq!((xs[0], xs[5], xs[10]), (20, 200, 380));
+            assert!(xs[1] - xs[0] < xs[5] - xs[4], "eases in");
+        },
+    },
     // The language
     Case {
         file: "lang_classes.js",
@@ -562,6 +613,15 @@ const CASES: &[Case] = &[
                 ok(o).value,
                 json!({"sum": 7.5, "clamped": [255, 0, 128], "bytes": [18, 52, 52, 18], "firstTwo": [18, 52], "mapped": [3, 5, 7], "sub": [2, 3]})
             );
+        },
+    },
+    Case {
+        file: "lang_legacy_web.js",
+        libs: &[],
+        setup: no_setup,
+        args: no_args,
+        check: |_, o, _| {
+            assert_eq!(ok(o).value, json!({"substr": "ef", "escape": "a%20b", "unescape": "A", "bold": "<b>x</b>", "proto": true, "trimLeft": "x"}));
         },
     },
     Case {
