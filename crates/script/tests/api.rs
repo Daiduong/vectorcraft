@@ -270,3 +270,17 @@ fn an_async_throw_fails_the_run_and_rolls_back() {
     assert_eq!(out.value, json!(7));
     assert_eq!(count(&s), 1);
 }
+
+#[test]
+fn a_limit_gives_no_misleading_position() {
+    // Boa reports no place for a limit, only the calls before it: the error shouldn't point at
+    // the earlier vc.run as if it were the loop.
+    let mut s = session();
+    let e = run(&mut s, &format!("{RECT};\nlet n = 0;\nwhile (true) n++;")).unwrap_err();
+    assert!(e.message.contains("loop"), "{e}");
+    assert_eq!((e.line, e.column), (None, None), "{e}");
+    assert!(e.to_string().starts_with("test.js: "), "{e}");
+    // A thrown string still has its place.
+    let e = run(&mut s, "1;\nthrow 'plain';").unwrap_err();
+    assert_eq!(e.line, Some(2), "{e}");
+}

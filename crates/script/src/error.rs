@@ -1,5 +1,6 @@
 //! Script errors, with the position Boa reports.
 
+use boa_engine::error::TryNativeError;
 use boa_engine::{Context, JsError};
 
 /// Why a script failed, and where.
@@ -23,11 +24,14 @@ impl ScriptError {
     pub(crate) fn from_js(e: &JsError, ctx: &mut Context, file: &str) -> Self {
         // An `Error` object knows where it was made; anything else thrown (a string, a limit)
         // carries the place in its backtrace lines.
-        let text = match e.try_native(ctx) {
-            Ok(native) => native.to_string(),
-            Err(_) => e.to_string(),
+        let (text, backtrace) = match e.try_native(ctx) {
+            Ok(native) => (native.to_string(), true),
+            // A limit stops the engine wherever it is: its backtrace names the calls before the
+            // loop, not the loop, so it gives no place.
+            Err(TryNativeError::EngineError { .. }) => (e.to_string(), false),
+            Err(_) => (e.to_string(), true),
         };
-        let (message, at) = split_position(&text);
+        let (message, at) = split_position(&text, backtrace);
         Self { message, file: file.to_string(), line: at.map(|p| p.0), column: at.map(|p| p.1), log: vec![] }
     }
 }
@@ -46,8 +50,8 @@ impl std::error::Error for ScriptError {}
 /// Boa's error text → its first line without the position, and (line, column). Syntax errors end
 /// `… at line 3, col 7 (native)`; runtime errors `… (name.js:3:7)` (`(name.js:?:?)` when unknown),
 /// followed by backtrace lines `    at f (name.js:3:7)`, which give the position of what isn't an
-/// `Error` object (a thrown string, a limit).
-pub(crate) fn split_position(text: &str) -> (String, Option<(u32, u32)>) {
+/// `Error` object (a thrown string), read when `backtrace` is set.
+pub(crate) fn split_position(text: &str, backtrace: bool) -> (String, Option<(u32, u32)>) {
     let mut lines = text.lines();
     let first = lines.next().unwrap_or_default();
     let head = first.strip_suffix(" (native)").unwrap_or(first);
@@ -61,7 +65,7 @@ pub(crate) fn split_position(text: &str) -> (String, Option<(u32, u32)>) {
         Some((rest, at)) => (rest.to_string(), at),
         None => (head.to_string(), None),
     };
-    if at.is_none() {
+    if at.is_none() && backtrace {
         at = lines.find_map(|l| trailing_position(l.trim()).and_then(|(_, at)| at));
     }
     (message, at)
@@ -93,18 +97,19 @@ mod tests {
     #[test]
     fn positions_are_split_off() {
         assert_eq!(
-            split_position("SyntaxError: unexpected token ';', primary expression at line 1, col 9 (native)"),
+            split_position("SyntaxError: unexpected token ';', primary expression at line 1, col 9 (native)", true),
             ("SyntaxError: unexpected token ';', primary expression".into(), Some((1, 9)))
         );
-        assert_eq!(split_position("Error: kaput (test.js:3:7)"), ("Error: kaput".into(), Some((3, 7))));
-        assert_eq!(split_position("ReferenceError: x is not defined (test.js:?:?)"), ("ReferenceError: x is not defined".into(), None));
-        assert_eq!(split_position("\"plain\"\n    at <main> (test.js:1:7)"), ("\"plain\"".into(), Some((1, 7))));
+        assert_eq!(split_position("Error: kaput (test.js:3:7)", true), ("Error: kaput".into(), Some((3, 7))));
+        assert_eq!(split_position("ReferenceError: x is not defined (test.js:?:?)", true), ("ReferenceError: x is not defined".into(), None));
+        assert_eq!(split_position("\"plain\"\n    at <main> (test.js:1:7)", true), ("\"plain\"".into(), Some((1, 7))));
         assert_eq!(
-            split_position("RuntimeLimitError: reached the maximum number of iteration loops on this execution\n    at <main> (t.js:?:?)"),
+            split_position("RuntimeLimitError: reached the maximum number of iteration loops on this execution\n    at <main> (t.js:?:?)", true),
             ("RuntimeLimitError: reached the maximum number of iteration loops on this execution".into(), None)
         );
-        assert_eq!(split_position("Error: (nothing) here"), ("Error: (nothing) here".into(), None));
-        assert_eq!(split_position("plain"), ("plain".into(), None));
-        assert_eq!(split_position(""), (String::new(), None));
+        assert_eq!(split_position("Error: (nothing) here", true), ("Error: (nothing) here".into(), None));
+        assert_eq!(split_position("plain", true), ("plain".into(), None));
+        assert_eq!(split_position("", true), (String::new(), None));
+        assert_eq!(split_position("RuntimeLimitError: loops\n    at <main> (t.js:1:7)", false), ("RuntimeLimitError: loops".into(), None));
     }
 }

@@ -53,6 +53,17 @@ visibility) aren't.
 
 The script's last expression is its value: the CLI prints it as JSON.
 
+Commands act as the menus and panels do, defaults included: `paint.setFill` and `paint.setStroke`
+also set the fill or stroke that new art gets, even with `ids`. After colouring a shape, give new
+art its own colour (`text.create`'s `color`, a `paint.setFill` for the new object), or it takes the
+shape's:
+
+```js
+const { id } = vc.run("shape.rectangle", { x: 20, y: 20, width: 160, height: 60 });
+vc.run("paint.setFill", { ids: [id], color: "#dbeafe" });
+vc.run("text.create", { x: 32, y: 56, text: "Ada", size: 16, color: "#111827" });
+```
+
 ```js
 // Recolour everything on the top layer, then report how many.
 const ids = vc.document().layers[0].children.map((c) => c.id);
@@ -101,5 +112,6 @@ corpus runs tinycolor, Alea (seedrandom), simplex-noise and bezier-easing that w
 ## Errors
 
 The menu shows a dialog with `file.js:LINE:COL: message` and the log; the CLI prints the same on
-stderr and exits with code 1. Errors from commands carry the command's message, for example
+stderr and exits with code 1. A limit is reported without a line (`file.js: RuntimeLimitError: …`):
+the engine stops wherever it happens to be. Errors from commands carry the command's message, for example
 ``unknown command `shape.hexagram` `` or ``invalid parameters for `shape.rectangle`: …``.
