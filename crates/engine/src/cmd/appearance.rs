@@ -529,6 +529,8 @@ fn set_item(s: &mut Session, p: &Value) -> Result<Value> {
                 AppearanceItem::Stroke(st) => {
                     if let Some(w) = p.get("weight").and_then(Value::as_f64) {
                         st.width = w.max(0.0);
+                    } else if paint.as_ref().is_some_and(|p| !p.is_none()) && st.width == 0.0 {
+                        st.width = 1.0;
                     }
                     let bounds = bounds.map(|b| st.paint_bounds(b));
                     (&mut st.paint, &mut st.opacity, &mut st.blend, &mut st.visible, bounds)

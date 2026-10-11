@@ -119,6 +119,18 @@ fn swap_and_default_work_on_type() {
 }
 
 #[test]
+fn setting_stroke_on_unstroked_shape_defaults_to_one_point() {
+    let mut s = session();
+    let id = rect(&mut s);
+    // Remove stroke or set weight to 0
+    s.execute("stroke.set", &json!({"ids": [id.0], "weight": 0})).unwrap();
+    assert_eq!(node(&s, id).appearance.stroke().unwrap().width, 0.0);
+    s.execute("paint.setStroke", &json!({"ids": [id.0], "color": "#ff0000"})).unwrap();
+    assert_eq!(node(&s, id).appearance.stroke_paint().color().unwrap().to_hex(), "#ff0000");
+    assert_eq!(node(&s, id).appearance.stroke().unwrap().width, 1.0);
+}
+
+#[test]
 fn recent_colors_are_fed_by_every_paint_command() {
     let mut s = session();
     let id = rect(&mut s);

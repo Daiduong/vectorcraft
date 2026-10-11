@@ -308,6 +308,17 @@ fn set_item_and_remove_item() {
 }
 
 #[test]
+fn set_item_on_zero_width_stroke_defaults_to_one_point() {
+    let mut s = session();
+    let id = rect(&mut s, 100.0);
+    run(&mut s, "stroke.set", json!({"weight": 0}));
+    assert_eq!(stroke(&node(&s, id), 1).width, 0.0);
+    run(&mut s, "appearance.setItem", json!({"index": 1, "color": "#00ff00"}));
+    assert_eq!(stroke(&node(&s, id), 1).width, 1.0);
+    assert_eq!(stroke(&node(&s, id), 1).paint.color().unwrap().to_hex(), "#00ff00");
+}
+
+#[test]
 fn clear_and_reduce_to_basic() {
     let mut s = session();
     let id = rect(&mut s, 100.0);

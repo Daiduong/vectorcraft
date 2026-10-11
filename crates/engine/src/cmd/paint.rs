@@ -446,6 +446,9 @@ fn apply_paint(s: &mut Session, p: &Value, paint: Paint, fill: bool) -> Result<V
             if n.appearance.paint_at(index, fill).is_none() {
                 n.appearance.set_paint_at(index, fill, Paint::None);
             }
+            if !fill && !paint.is_none() && let Some(st) = n.appearance.stroke_at_mut(index) && st.width == 0.0 {
+                st.width = 1.0;
+            }
             let placed = place_paint(&paint, p, item_paint_bounds(n, index, fill));
             n.appearance.set_paint_at(index, fill, placed);
             Ok(())
@@ -503,6 +506,11 @@ fn swap(s: &mut Session, p: &Value) -> Result<Value> {
                 let st = n.appearance.stroke_paint();
                 n.appearance.set_fill(st);
                 n.appearance.set_stroke(f);
+                if !n.appearance.stroke_paint().is_none() && n.appearance.stroke_width() == 0.0 {
+                    if let Some(s) = n.appearance.stroke_mut() {
+                        s.width = 1.0;
+                    }
+                }
             }
             Ok(())
         })?;
