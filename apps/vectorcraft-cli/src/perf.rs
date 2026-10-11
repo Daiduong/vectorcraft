@@ -167,6 +167,45 @@ fn deep(n: usize) -> Result<(), String> {
     }
     note("after 45 whole-selection edits");
     drop(s);
+    // Pointing at things in an n-path document: what hovering, clicking, marquee selection and
+    // snapping cost when nothing narrows the search.
+    {
+        use vectorcraft_engine::tools::{Mods, PointerEvent, PointerKind};
+        let mut s = vectorcraft_engine::Session::new();
+        s.add_document(synthetic(n)?, None);
+        let view = vectorcraft_engine::ViewInfo { zoom: 1.0, ..Default::default() };
+        s.select_tool("selection", view).map_err(err)?;
+        // Off the art (nothing under the pointer), the case every hover over empty canvas pays.
+        let off = Point::new(-200.0, -200.0);
+        let hover = |s: &mut vectorcraft_engine::Session| {
+            let _ = s.pointer(&PointerEvent { kind: PointerKind::Move, pos: off, mods: Mods::default(), pressure: 1.0 }, view);
+            let _ = s.cursor(off, Mods::default(), view);
+        };
+        rows.push((format!("hover over empty canvas ({n} paths)"), median_ms(5, || hover(&mut s))));
+        s.execute("select.all", &json!({})).map_err(err)?;
+        rows.push((format!("hover over empty canvas, all selected ({n} paths)"), median_ms(5, || hover(&mut s))));
+        let doc = s.doc().map_err(err)?.doc.clone();
+        rows.push((format!("hit test, a miss ({n} paths)"), median_ms(5, || drop(hit::hit_test(&doc, off, hit::HitOptions::default())))));
+        let r = Rect::new(600.0, 450.0, 1000.0, 750.0);
+        rows.push((format!("marquee 400×300 ({n} paths)"), median_ms(5, || drop(hit::marquee(&doc, r, None, false)))));
+        let view_rect = Rect::new(0.0, 0.0, 1600.0, 1200.0);
+        rows.push((
+            format!("smart guide targets in view ({n} paths)"),
+            median_ms(5, || drop(vectorcraft_engine::tools::guides::Targets::collect(&doc, &[], Some(view_rect)))),
+        ));
+        // Shift-clicking one more object into a selection of half the document.
+        let ids: Vec<u64> = doc.layers[0].children().map(|c| c.iter().map(|n| n.id.0).collect()).unwrap_or_default();
+        s.execute("select.set", &json!({"ids": ids[..ids.len() / 2]})).map_err(err)?;
+        let mut k = ids.len() / 2;
+        rows.push((
+            format!("shift-click into a {}-object selection", ids.len() / 2),
+            median_ms(5, || {
+                k += 1;
+                let _ = s.execute("select.toggle", &json!({"id": ids[k % ids.len()]}));
+            }),
+        ));
+    }
+    note("after pointing");
     // Live effects on 2,000 paths: render a page whose every object has the effect.
     let opts = RenderOptions::default();
     for (fx, params) in [("path.offsetPath", json!({"offset": 3})), ("distort.roughen", json!({"size": 5, "relative": true}))] {
