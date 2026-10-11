@@ -1,6 +1,6 @@
 # Parity with Adobe Illustrator
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (PDF export warns when the pixel cap lowers raster-effect resolution; Drawing tools: Live Corners round corners between curved sides, #1144; Type advanced: proportional vertical metrics (`vpal`) done, #966; Shape Builder: #893 fixed, merged regions of crossing lines no longer keep seams; scores unchanged while #937 is open; #1034: document-point character controls after object/group scaling; full readiness recomputed as the standard's additive weighted sum, ~62%; per-audience hours; essentials-user score ~75% added; ready-for-real-work re-examined: 50% → 55%, mainstream 65% added; earlier the same day: full re-measure against Illustrator 2026 30.x; merged the ROADMAP's parity estimate, honest assessment and "Shipped so far" into this file) · **Target:** Adobe Illustrator 2026 (30.x; public release notes through 30.7, August 2026)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (anchor alignment acts on selected points, #1180; PDF export warns when the pixel cap lowers raster-effect resolution; Drawing tools: Live Corners round corners between curved sides, #1144; Type advanced: proportional vertical metrics (`vpal`) done, #966; Shape Builder: #893 fixed, merged regions of crossing lines no longer keep seams; scores unchanged while #937 is open; #1034: document-point character controls after object/group scaling; full readiness recomputed as the standard's additive weighted sum, ~62%; per-audience hours; essentials-user score ~75% added; ready-for-real-work re-examined: 50% → 55%, mainstream 65% added; earlier the same day: full re-measure against Illustrator 2026 30.x; merged the ROADMAP's parity estimate, honest assessment and "Shipped so far" into this file) · **Target:** Adobe Illustrator 2026 (30.x; public release notes through 30.7, August 2026)
 
 The authoritative parity assessment. [`ROADMAP.md`](../ROADMAP.md) summarizes it; [`gaps.md`](gaps.md) is
 the work list made from it. Deep areas have their own checklists: [UI and interaction](ui-parity.md),
@@ -67,7 +67,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 
 | Area | Weight | Done | Main gaps | One agent (h) | Kind |
 |---|---:|---:|---|---:|---|
-| Selection, transform & align tools | 6 | 85% | Free Transform/Scale/Reflect along a rotated box, Start Global Edit, transform nuances | 4–6 | estimated |
+| Selection, transform & align tools | 6 | 85% | Free Transform/Scale/Reflect along a rotated box, Start Global Edit, key-anchor alignment and anchor distribution; selected-anchor alignment fixed (#1180) | 4–6 | estimated |
 | Drawing tools (Pen, Curvature, Pencil, shapes, Shaper) | 7 | 85% | Shaper construction widget, Pencil/Pen nuances, Blob Brush options, Touch Type, Dimension tool, Live Corners' Relative rounding; see [ui-parity.md](ui-parity.md) | 8–13 | estimated |
 | Path operations, Pathfinder, Shape Builder, Live Paint | 5 | 80% | Shape Builder misses planar regions in real files (#937), its gap detection and options; Live Paint Gap Options | 4–8 | estimated (lowered from 86%: open issues) |
 | Colour, swatches, gradients, patterns, mesh, recolor | 7 | 92% | 30.0's gradient dither, perceptual blending and gradient presets; freeform and mixed spot/process gradients in SVG/PDF | 4–7 | estimated (lowered from 96%: target moved) |
@@ -359,6 +359,11 @@ since 2026-10-01.
 
 ## Evidence: what ships today, by area
 
+Selected-anchor alignment (#1180) uses point positions within the selection or the chosen artboard,
+leaves unselected points in place and translates handles with their anchors. Evidence:
+`crates/engine/tests/align_anchors.rs` and the Align panel pointer-event test in
+`crates/ui-egui/src/panels/align.rs`. Key-anchor alignment and anchor distribution remain missing.
+
 Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a feature lands.
 
 - **Architecture:** 19+ crates with enforced layering (`cargo xtask layers`). Every action is a command (~400 engine + ~50 UI). Undo is unlimited via structural sharing. `command.batch` runs several commands as one transaction.
@@ -461,6 +466,7 @@ Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a featur
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | Selection/align: selected anchors align without translating the whole path (#1180); score and hours unchanged at this rounding (estimated) |
 | 2026-10-11 | minor | PDF raster-effect cap reductions are reported per original object with requested/achieved ppi; scores and hours unchanged |
 | 2026-10-11 | minor | Platforms: Preferences › Performance › Linux Display Server opens the window through XWayland, where file drops work (#1151); score unchanged (estimated) |
 | 2026-10-11 | minor | Drawing tools: Live Corners on corners between curved sides (#1144) leaves the missing list; score and hours unchanged at this rounding (estimated) |

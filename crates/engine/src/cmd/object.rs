@@ -16,6 +16,8 @@ use super::opacitymask::percent;
 use super::*;
 use crate::EngineError;
 
+mod align_anchors;
+
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
@@ -167,7 +169,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Align",
             ["Window", "Align"],
             None,
-            "{horizontal?: \"left\"|\"center\"|\"right\", vertical?: \"top\"|\"center\"|\"bottom\", to?: \"selection\"|\"artboard\"|\"key\" (default: the key object when the selection has one, select.key, else the selection), artboard?: index (0-based; with to: \"artboard\", the artboard to align to; the app passes the active one; default: the artboard under the center of the selection, else the first), bounds?: \"preview\"|\"geometric\" (default: the Use Preview Bounds preference; preview bounds take in strokes), patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)}",
+            "{horizontal?: \"left\"|\"center\"|\"right\", vertical?: \"top\"|\"center\"|\"bottom\", to?: \"selection\"|\"artboard\"|\"key\" (default: the key object when the selection has one, select.key, else the selection), artboard?: index (0-based; with to: \"artboard\", the artboard to align to; the app passes the active one; default: the artboard under the center of the selection, else the first), bounds?: \"preview\"|\"geometric\" (default: the Use Preview Bounds preference; preview bounds take in strokes), patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} direct-selected anchors align by their own positions, preserving the other points and moving their handles with them",
             has_selection,
             align
         ),
@@ -1035,11 +1037,11 @@ fn align_to<'a>(s: &Session, p: &'a Value) -> Option<&'a str> {
     str_param(p, "to").or_else(|| s.doc().ok()?.selection.key.map(|_| "key"))
 }
 
-fn reference_rect(s: &Session, p: &Value, ids: &[NodeId], preview: bool) -> Result<Rect> {
+fn reference_rect(s: &Session, p: &Value, ids: &[NodeId], preview: bool, anchors: Option<Rect>) -> Result<Rect> {
     let st = s.doc()?;
     match align_to(s, p) {
         Some("artboard") => {
-            let b = st.doc.bounds_of(ids, preview).unwrap_or_default();
+            let b = anchors.or_else(|| st.doc.bounds_of(ids, preview)).unwrap_or_default();
             // Align to Artboard uses artboard `artboard` (the app passes the active one). Without
             // it, or with an index the document doesn't have, it uses the artboard under the center
             // of the selection, or the first one when no artboard is there.
@@ -1051,7 +1053,7 @@ fn reference_rect(s: &Session, p: &Value, ids: &[NodeId], preview: bool) -> Resu
             let k = st.selection.key.ok_or_else(|| EngineError::Other("no key object".into()))?;
             st.doc.bounds_of(&[k], preview).ok_or(EngineError::NoNode(k))
         }
-        _ => st.doc.bounds_of(ids, preview).ok_or_else(|| EngineError::Other("nothing to align".into())),
+        _ => anchors.or_else(|| st.doc.bounds_of(ids, preview)).ok_or_else(|| EngineError::Other("nothing to align".into())),
     }
 }
 
@@ -1072,7 +1074,12 @@ fn align(s: &mut Session, p: &Value) -> Result<Value> {
     if h.is_none() && v.is_none() {
         return Err(bad("object.align", "give horizontal or vertical"));
     }
-    let r = reference_rect(s, p, &ids, preview)?;
+    if let Some(anchors) = align_anchors::selected(s)? {
+        let bounds = anchors.iter().map(|a| Rect::from_points(a.point, a.point)).reduce(|a, b| a.union(b));
+        let r = reference_rect(s, p, &ids, preview, bounds)?;
+        return align_anchors::apply(s, &anchors, r, h, v);
+    }
+    let r = reference_rect(s, p, &ids, preview, None)?;
     let key = key_root(s, &ids);
     let moves: Vec<(NodeId, Vec2)> = {
         let d = &s.doc()?.doc;

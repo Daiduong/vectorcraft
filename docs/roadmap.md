@@ -1,6 +1,6 @@
 # Roadmap: milestones and what's next
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (M9: PDF raster-effect cap warnings; G11: #893 fixed, #937 open; M7: accurate character controls after scaling, #1034; estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (M1: selected-anchor alignment fixed, #1180; M9: PDF raster-effect cap warnings; G11: #893 fixed, #937 open; M7: accurate character controls after scaling, #1034; estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Forward-looking plan. Where VectorCraft stands is in [`ROADMAP.md`](../ROADMAP.md) and
 [target-app-parity.md](target-app-parity.md); the ranked work list is [gaps.md](gaps.md). Hours are Opus 5.5
@@ -48,7 +48,7 @@ Checked 2026-10-10 from the code, tests and open issues; no workflow fails, so V
 | # | Milestone | Status | Est. remaining, one agent (h) |
 |---|---|---|---|
 | M0 | Skeleton + vertical slice | ✅ done | — |
-| M1 | Selection, transform, layers, MCP (common command tools, strict keys, session resources and version-aware result hints) | ✅ mostly done (transform reference point snaps to anchors/centres; rotated objects keep a rotated bounding box and their angle; Free Transform, Scale and Reflect along a rotated box pending) | 4–6 |
+| M1 | Selection, transform, layers, MCP (common command tools, strict keys, session resources and version-aware result hints) | ✅ mostly done (Align acts on selected anchors, #1180; transform reference point snaps to anchors/centres; rotated objects keep a rotated bounding box and their angle; Free Transform, Scale and Reflect along a rotated box pending) | 4–6 |
 | M2 | Drawing tools + smart guides | ✅ mostly done (Flare, Reshape, Live Corners widget dragging and per-corner radii and kinds landed, on any path's corners; Shaper rough-shape recognition and orientation steps, the remaining Pen modifier nuances; Shaper Groups with editable sources and separate fill/stroke edits landed; construction widget/refinements pending) | 12–18 |
 | M3 | Paint & appearance (swatches, color, gradient, stroke, appearance, transparency, styles) | ✅ done (M3.7–M3.98): swatches, groups, libraries, tints, Lab spots and Registration; Color Picker, Color panel, Color Guide, Color Themes, Edit Colors and Recolor Artwork; gradients that follow every transform, the annotator, linked stops, freeform gradients, focal points, gradients on strokes and Expand; stroke geometry, arrowheads, dashes fitted to corners, stroke on type, width profiles and the Width tool, Scale Strokes and preview bounds; Appearance targeting, container appearance, target circles, Expand Appearance; knockout, isolation, blend accuracy, CMYK blending, overprint, Attributes, masks and clipping, Flatten Transparency; graphic styles, links and libraries. Left: freeform and mixed spot/process gradients export as stops or process colours to SVG/PDF; confirm the Scale Strokes & Effects default | 4–8 |
 | M4 | Files (native, SVG, PDF, raster, Export for Screens, clipboard interop) | ✅ done (M4.14–M4.98 on 2026-10-05): Save As/Save a Copy/Revert/templates, Data Recovery and background save, SVG import and export fidelity (units, text, symbols, filters, SVGZ, Preserve Editing, SVG Options), PDF import (colours, layers, masks, editable text, security) and export (presets, marks, bleed, ICC and output intent, raster effects, subset fonts, PDF/X-1a, X-3 and X-4, PDF layers, overprint, page thumbnails, fast web view, PDF 1.3), Place and Links, Package, EPS and DXF in and out, EMF/WMF, TIFF/BMP/Targa/PSD/GIF/PNG-8 export, Print and print presets, slices, Save for Web, Asset Export, clipboard flavours, File Info; AF.1–AF.4 add Affinity import (native layers, artboards, vectors, text and images from Affinity 1–3 files; the embedded preview only as a warned fallback; AF.4 expands current `.af` fixtures and every-board round-trip validation). Left: DWG (use DXF), PSD placement as layers, overprint read back from PDF, Affinity export, polish | 3–6 (existing scope; Affinity export unestimated) |
@@ -79,6 +79,7 @@ After placed documents (File › Place of a `.vectorcraft` file, linked), M4.14�
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | M1: Align acts on selected anchors, keeps unselected points in place and supports Undo (#1180); estimates unchanged |
 | 2026-10-11 | minor | M9: PDF raster-effect resolution-cap warnings verified with real capped/uncapped exports; scores and hours unchanged |
 | 2026-10-11 | minor | #893 (Shape Builder seams on grids of lines) fixed; G11 keeps #937 and its 8–15 h |
 | 2026-10-10 | minor | M7: document-point character sizes, leading and baseline shift, and resettable horizontal stretching after object/group scaling (#1034). Optional group font-size preservation remains separate; scores/hours unchanged. |
