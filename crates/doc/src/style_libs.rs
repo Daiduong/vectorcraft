@@ -70,15 +70,21 @@ impl GraphicStyle {
     /// The style as a library holds it: no id, and its paints unlinked from swatches.
     pub fn standalone(&self) -> GraphicStyle {
         let mut g = GraphicStyle { id: 0, ..self.clone() };
-        for it in &mut g.appearance.items {
-            match it.paint_mut() {
-                // The colour shown stays, unlinked.
-                Paint::Solid { swatch, tint, .. } => (*swatch, *tint) = (None, 1.0),
-                Paint::Gradient(gp) => {
-                    gp.swatch = None;
-                    gp.gradient.stops.iter_mut().for_each(|st| st.set_color(st.color, None));
+        for item in &mut g.appearance.items {
+            let paints: Vec<&mut Paint> = match item {
+                AppearanceItem::Fill(fill) => vec![&mut fill.paint],
+                AppearanceItem::Stroke(stroke) => stroke.paints_mut().collect(),
+            };
+            for paint in paints {
+                match paint {
+                    // The colour shown stays, unlinked.
+                    Paint::Solid { swatch, tint, .. } => (*swatch, *tint) = (None, 1.0),
+                    Paint::Gradient(gp) => {
+                        gp.swatch = None;
+                        gp.gradient.stops.iter_mut().for_each(|st| st.set_color(st.color, None));
+                    }
+                    Paint::None | Paint::Pattern { .. } => {}
                 }
-                Paint::None | Paint::Pattern { .. } => {}
             }
         }
         g
@@ -86,9 +92,15 @@ impl GraphicStyle {
 
     /// The names of the patterns the style's fills and strokes paint with.
     pub fn patterns(&self) -> impl Iterator<Item = &str> {
-        self.appearance.items.iter().filter_map(|it| match it.paint() {
-            Paint::Pattern { pattern, .. } => Some(pattern.as_str()),
-            _ => None,
+        self.appearance.items.iter().flat_map(|item| {
+            let paints: Vec<&Paint> = match item {
+                AppearanceItem::Fill(fill) => vec![&fill.paint],
+                AppearanceItem::Stroke(stroke) => stroke.paints().collect(),
+            };
+            paints.into_iter().filter_map(|paint| match paint {
+                Paint::Pattern { pattern, .. } => Some(pattern.as_str()),
+                _ => None,
+            })
         })
     }
 }

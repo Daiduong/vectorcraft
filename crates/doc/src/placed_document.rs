@@ -444,7 +444,11 @@ fn rename(n: &mut Node, prefix: &str) {
         for it in &mut n.appearance.items {
             match it {
                 AppearanceItem::Fill(f) => paint(&mut f.paint),
-                AppearanceItem::Stroke(s) => paint(&mut s.paint),
+                AppearanceItem::Stroke(s) => {
+                    for p in s.paints_mut() {
+                        paint(p);
+                    }
+                }
             }
         }
         match &mut n.kind {

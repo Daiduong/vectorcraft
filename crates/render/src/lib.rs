@@ -1200,7 +1200,7 @@ impl Renderer {
         let solid = |p: &vectorcraft_color::Paint| matches!(p, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None);
         let needs_bounds = n.appearance.items.iter().any(|i| match i {
             AppearanceItem::Fill(fl) => !solid(&fl.paint),
-            AppearanceItem::Stroke(st) => !solid(&st.paint),
+            AppearanceItem::Stroke(st) => st.paints().any(|paint| !solid(paint)),
         });
         let bounds = if needs_bounds { bp.bounding_box() } else { Rect::ZERO };
         for item in &n.appearance.items {
@@ -1225,7 +1225,7 @@ impl Renderer {
                     }
                 }
                 AppearanceItem::Stroke(st) => {
-                    if !st.visible || st.paint.is_none() || st.width <= 0.0 {
+                    if !st.paints_anything() {
                         continue;
                     }
                     if st.brush.is_some() && self.draw_brush(ctx, f, n, bp, st) {
@@ -1246,10 +1246,37 @@ impl Renderer {
         }
     }
 
-    /// Paint stroke `st` of the shape `bp` (in the space `xf` maps to the document; `bounds`: its
-    /// geometric bounds there) with its alignment, dashes, profile, arrowheads, opacity and blend.
+    /// Paint a stroke and its optional parallel lanes as one composite appearance item.
     #[allow(clippy::too_many_arguments)]
     fn draw_stroke(&mut self, ctx: &mut RenderContext, f: &Frame, xf: Affine, bp: &BezPath, rule: FillRule, st: &StrokeLayer, bounds: Rect) {
+        if st.width.is_finite() && st.width > 0.0 && !st.paint.is_none() {
+            self.draw_stroke_single(ctx, f, xf, bp, rule, st, bounds, true);
+        }
+        for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let sub = st.sub_line_stroke(line);
+            if !sub.paints_anything() {
+                continue;
+            }
+            let Some(path) = vectorcraft_geom::parallel::parallel_path(bp, line.offset, (f.px * 0.25).max(0.02), st.miter_limit) else { continue };
+            let sub_bounds = bounds.inflate(line.offset.abs(), line.offset.abs());
+            self.draw_stroke_single(ctx, f, xf, &path, rule, &sub, sub_bounds, false);
+        }
+    }
+
+    /// Paint a single stroke lane. Cached only for the document-owned parent stroke; sub-lanes are
+    /// temporary style values and use fresh outlines to avoid cache-key aliasing.
+    #[allow(clippy::too_many_arguments)]
+    fn draw_stroke_single(
+        &mut self,
+        ctx: &mut RenderContext,
+        f: &Frame,
+        xf: Affine,
+        bp: &BezPath,
+        rule: FillRule,
+        st: &StrokeLayer,
+        bounds: Rect,
+        cache: bool,
+    ) {
         let pieces = effects::stroke::stroke_pieces(bp, st);
         // The line and its heads overlap: they take the opacity once, in one layer, instead of
         // each folding it into its paint.
@@ -1272,11 +1299,11 @@ impl Renderer {
         // One paint box for the line and the heads, so a gradient runs on into the heads.
         let paint_bounds = bounds.inflate(st.width / 2.0, st.width / 2.0);
         if let Some(g) = st.path_gradient() {
-            self.fill_path_gradient(ctx, f, bp, rule, st, &pieces, width, &g.gradient);
+            self.fill_path_gradient(ctx, f, bp, rule, st, &pieces, width, &g.gradient, cache);
         } else if paint::set_paint(ctx, &st.paint, paint_bounds, f) {
             self.fold_alpha(ctx, f.ink, &st.paint);
             ctx.set_fill_rule(peniko::Fill::NonZero);
-            match self.cached_stroke(f, &pieces.line, st, width) {
+            match cache.then(|| self.cached_stroke(f, &pieces.line, st, width)).flatten() {
                 Some(o) => ctx.fill_path(&o),
                 None => ctx.fill_path(&effects::stroke::line_outline(&pieces.line, st, width, f.px * 0.25)),
             }
@@ -1318,6 +1345,7 @@ impl Renderer {
         pieces: &effects::stroke::StrokePieces,
         width: f64,
         g: &vectorcraft_color::Gradient,
+        cache: bool,
     ) {
         let level = (f.px * 0.25).log2().floor() as i32;
         let make = || -> Slices {
@@ -1334,24 +1362,28 @@ impl Renderer {
                     .collect(),
             )
         };
-        let slices = match self.cur.clone() {
-            Some(node) => {
-                let key = (st as *const StrokeLayer as usize, level);
-                match self.stroke_slices.get_mut(&key) {
-                    Some(e) if Arc::ptr_eq(&e.node, &node) => {
-                        e.stamp = self.stamp;
-                        e.slices.clone()
-                    }
-                    _ => {
-                        let slices = make();
-                        self.stroke_slices.insert(key, SliceEntry { node, slices: slices.clone(), stamp: self.stamp });
-                        slices
+        let slices = if !cache {
+            make()
+        } else {
+            match self.cur.clone() {
+                Some(node) => {
+                    let key = (st as *const StrokeLayer as usize, level);
+                    match self.stroke_slices.get_mut(&key) {
+                        Some(e) if Arc::ptr_eq(&e.node, &node) => {
+                            e.stamp = self.stamp;
+                            e.slices.clone()
+                        }
+                        _ => {
+                            let slices = make();
+                            self.stroke_slices.insert(key, SliceEntry { node, slices: slices.clone(), stamp: self.stamp });
+                            slices
+                        }
                     }
                 }
+                None => make(),
             }
-            None => make(),
         };
-        let line = match self.cached_stroke(f, &pieces.line, st, width) {
+        let line = match cache.then(|| self.cached_stroke(f, &pieces.line, st, width)).flatten() {
             Some(o) => o,
             None => Arc::new(effects::stroke::line_outline(&pieces.line, st, width, f.px * 0.25)),
         };
@@ -1519,7 +1551,10 @@ impl Renderer {
     /// (document space; `tb` their bounds). Fills composite with their own opacity and blend mode;
     /// strokes take every stroke option, as on paths.
     fn draw_text_items(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, items: &[AppearanceItem], all: &BezPath, tb: Rect) {
-        for item in items.iter().filter(|i| i.visible() && !i.paint().is_none()) {
+        for item in items.iter().filter(|i| match i {
+            AppearanceItem::Fill(fill) => fill.visible && !fill.paint.is_none(),
+            AppearanceItem::Stroke(stroke) => stroke.paints_anything(),
+        }) {
             match item {
                 AppearanceItem::Fill(fl) => {
                     let layered = fl.opacity < 1.0 || fl.blend != vectorcraft_color::BlendMode::Normal;
@@ -1536,12 +1571,11 @@ impl Renderer {
                         ctx.pop_layer();
                     }
                 }
-                AppearanceItem::Stroke(st) if st.width > 0.0 => {
+                AppearanceItem::Stroke(st) => {
                     if st.brush.is_none() || !self.draw_brush(ctx, f, n, all, st) {
                         self.draw_stroke(ctx, f, Affine::IDENTITY, all, FillRule::NonZero, st, tb);
                     }
                 }
-                AppearanceItem::Stroke(_) => {}
             }
         }
     }
@@ -1729,7 +1763,7 @@ pub(crate) fn single_threaded_context(w: u16, h: u16) -> RenderContext {
 fn single_plain_fill(n: &Node) -> bool {
     let mut painted = n.appearance.items.iter().filter(|i| match i {
         AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
-        AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0,
+        AppearanceItem::Stroke(s) => s.paints_anything(),
     });
     matches!((painted.next(), painted.next()), (Some(AppearanceItem::Fill(f)), None) if f.blend == vectorcraft_color::BlendMode::Normal && f.opacity >= 1.0 && !matches!(f.paint, vectorcraft_color::Paint::Pattern { .. }))
 }
@@ -1741,10 +1775,13 @@ fn painted_items(n: &Node) -> usize {
         .iter()
         .filter(|i| match i {
             AppearanceItem::Fill(f) => f.visible && !f.paint.is_none() && matches!(f.paint, vectorcraft_color::Paint::Solid { .. }),
-            AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0 && matches!(s.paint, vectorcraft_color::Paint::Solid { .. }) && s.dash.is_none(),
+            AppearanceItem::Stroke(s) => s.sub_lines.is_empty() && s.brush.is_none() && s.visible && !s.paint.is_none() && s.width > 0.0 && matches!(s.paint, vectorcraft_color::Paint::Solid { .. }) && s.dash.is_none(),
         })
         .count()
-        .max(if n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Fill(f) if f.visible && !matches!(f.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None)) || matches!(i, AppearanceItem::Stroke(s) if s.visible && !matches!(s.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None))) { 2 } else { 0 })
+        .max(if n.appearance.items.iter().any(|i| {
+            matches!(i, AppearanceItem::Fill(f) if f.visible && !matches!(f.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None))
+                || matches!(i, AppearanceItem::Stroke(s) if s.visible && (s.brush.is_some() || !s.sub_lines.is_empty() || !matches!(s.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None)))
+        }) { 2 } else { 0 })
 }
 
 /// Preferred rasterizer thread count set by the app (Preferences → Performance); negative = automatic.

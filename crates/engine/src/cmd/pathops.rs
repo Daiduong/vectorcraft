@@ -117,6 +117,15 @@ pub fn specs() -> Vec<CommandSpec> {
             outline_stroke
         ),
         cmd!(
+            "object.path.expandParallelLines",
+            "Expand Parallel Lines",
+            ["Object", "Path"],
+            None,
+            "{} replace each selected object's parallel line styles with independent single-stroke paths (the parent keeps its stroke without them), grouped → {ids}",
+            has_parallel_lines,
+            expand_parallel_lines
+        ),
+        cmd!(
             "object.path.offsetPath",
             "Offset Path…",
             ["Object", "Path"],
@@ -457,7 +466,7 @@ fn offset_path(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Can Outline Stroke turn `st` into filled art?
 fn outlinable(st: &StrokeLayer) -> bool {
-    st.visible && !st.paint.is_none() && st.width > 0.0
+    st.paints_anything()
 }
 
 /// `n` with `opacity` and `blend` applied: set on it when it has none of its own, else on a
@@ -485,6 +494,32 @@ pub(crate) fn outlined_stroke(
     rule: FillRule,
     st: &StrokeLayer,
 ) -> Option<Node> {
+    if !st.sub_lines.is_empty() {
+        let bp = path.to_bezpath();
+        let mut base = st.clone();
+        base.sub_lines.clear();
+        let mut nodes = Vec::new();
+        if let Some(node) = outlined_stroke(d, brushes, path, rule, &base) {
+            nodes.push(node);
+        }
+        for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let Some(offset) =
+                vectorcraft_geom::parallel::parallel_path(&bp, line.offset, vectorcraft_render::effects::stroke::OUTLINE_TOL, st.miter_limit)
+            else {
+                continue;
+            };
+            let sub_path = PathData::from_bezpath(&offset);
+            let sub = st.sub_line_stroke(line);
+            if let Some(node) = outlined_stroke(d, brushes, &sub_path, rule, &sub) {
+                nodes.push(node);
+            }
+        }
+        if nodes.is_empty() {
+            return None;
+        }
+        let group = Node::group(NodeId(0), nodes.into_iter().map(Arc::new).collect());
+        return Some(d.reid(&group));
+    }
     if let Some(b) = st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) {
         let mut pieces = vectorcraft_brush::stroke_pieces(b, &path.to_bezpath(), st);
         let art = match pieces.len() {
@@ -584,6 +619,87 @@ pub(crate) fn assemble(d: &mut Document, l: &Node, mut parts: Vec<Node>) -> Opti
 /// how many paths changed).
 pub(crate) fn outline_strokes_under(d: &mut Document, brushes: &[vectorcraft_brush::Brush], root: NodeId) -> Result<(NodeId, usize)> {
     replace_leaves(d, root, |d, l| if matches!(l.kind, NodeKind::Text(_)) { None } else { outline_strokes(d, brushes, l) })
+}
+
+/// A selected object (or something under one) holds a parallel line style to expand.
+fn has_parallel_lines(s: &Session) -> std::result::Result<(), String> {
+    has_selection(s)?;
+    let st = s.doc().map_err(|e| e.to_string())?;
+    let roots = selected_roots(s).map_err(|e| e.to_string())?;
+    let mut any = false;
+    for r in &roots {
+        if let Some(n) = st.doc.node(*r) {
+            n.walk(&mut |c| {
+                any |= matches!(c.kind, NodeKind::Path { .. } | NodeKind::Compound { .. })
+                    && c.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(st) if st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).any(|line| line.is_valid())));
+            });
+        }
+    }
+    if any { Ok(()) } else { Err("no parallel line styles in the selection".into()) }
+}
+
+/// Object `l` with every stroke's parallel line styles expanded into independent single-stroke
+/// paths (the parent keeps its stroke without the lanes): a group of them, `None` without lanes.
+fn expand_lanes(d: &mut Document, l: &Node) -> Option<Node> {
+    let has = matches!(l.kind, NodeKind::Path { .. } | NodeKind::Compound { .. })
+        && l.appearance
+            .items
+            .iter()
+            .any(|i| matches!(i, AppearanceItem::Stroke(st) if st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).any(|line| line.is_valid())));
+    if !has {
+        return None;
+    }
+    let (path, _) = node_path(l)?;
+    let bp = path.to_bezpath();
+    // The parent, its strokes without the lanes, paints first as it did.
+    let mut parts = vec![styled_copy(d, l, l.appearance.items.clone())];
+    for item in &mut parts[0].appearance.items {
+        if let AppearanceItem::Stroke(st) = item {
+            st.sub_lines.clear();
+        }
+    }
+    for item in &l.appearance.items {
+        let AppearanceItem::Stroke(st) = item else { continue };
+        for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let Some(offset) =
+                vectorcraft_geom::parallel::parallel_path(&bp, line.offset, vectorcraft_render::effects::stroke::OUTLINE_TOL, st.miter_limit)
+            else {
+                continue;
+            };
+            let sub = st.sub_line_stroke(line);
+            if !sub.paints_anything() {
+                continue;
+            }
+            let n = Node::path(
+                d.alloc_id(),
+                PathData::from_bezpath(&offset),
+                Appearance { items: vec![AppearanceItem::Stroke(sub)], ..Default::default() },
+            );
+            parts.push(with_transparency(d, n, st.opacity, st.blend));
+        }
+    }
+    assemble(d, l, parts)
+}
+
+/// Expand the parallel line styles of every selected object into single-stroke paths.
+fn expand_parallel_lines(s: &mut Session, _: &Value) -> Result<Value> {
+    const C: &str = "object.path.expandParallelLines";
+    let roots = selected_roots(s)?;
+    let ids = s.edit("Expand Parallel Lines", |d, sel| {
+        let mut new_sel = vec![];
+        let mut changed = 0;
+        for root in &roots {
+            let (id, n) = replace_leaves(d, *root, expand_lanes)?;
+            new_sel.push(id);
+            changed += n;
+        }
+        if changed == 0 {
+            return Err(EngineError::Other(format!("{C}: no parallel line styles in the selection")));
+        }
+        sel.set(new_sel.iter().copied());
+        Ok(new_sel)
+    })?;
+    Ok(ids_json(&ids))
 }
 
 /// Replace each leaf shape under `root` ([`leaves`]) by what `f` makes of it (`None` keeps it):
@@ -726,7 +842,7 @@ fn split_into_grid(s: &mut Session, p: &Value) -> Result<Value> {
 fn is_painted(a: &Appearance) -> bool {
     a.items.iter().any(|i| match i {
         AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
-        AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0,
+        AppearanceItem::Stroke(s) => s.paints_anything(),
     })
 }
 

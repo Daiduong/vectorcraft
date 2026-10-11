@@ -586,17 +586,31 @@ pub fn node_pieces(doc: &Document, n: &Node) -> Option<Vec<Node>> {
     for item in &n.appearance.items {
         let AppearanceItem::Stroke(st) = item else { continue };
         let Some(b) = st.brush.as_deref().and_then(|name| lib.iter().find(|x| x.name == name)) else { continue };
-        if !st.visible || st.paint.is_none() {
-            any = true;
-            continue;
-        }
         any = true;
-        for mut p in stroke_pieces(b, &bp, st) {
-            p.opacity *= st.opacity;
-            if st.blend != vectorcraft_color::BlendMode::Normal {
-                p.blend = st.blend;
+        let mut base = st.clone();
+        base.sub_lines.clear();
+        if base.paints_anything() {
+            for mut p in stroke_pieces(b, &bp, &base) {
+                p.opacity *= base.opacity;
+                if base.blend != vectorcraft_color::BlendMode::Normal {
+                    p.blend = base.blend;
+                }
+                out.push(p);
             }
-            out.push(p);
+        }
+        for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let sub = st.sub_line_stroke(line);
+            if !sub.paints_anything() {
+                continue;
+            }
+            let Some(offset) = vectorcraft_geom::parallel::parallel_path(&bp, line.offset, 0.05, st.miter_limit) else { continue };
+            for mut p in stroke_pieces(b, &offset, &sub) {
+                p.opacity *= sub.opacity;
+                if sub.blend != vectorcraft_color::BlendMode::Normal {
+                    p.blend = sub.blend;
+                }
+                out.push(p);
+            }
         }
     }
     any.then_some(out)
@@ -633,7 +647,7 @@ pub fn expand(doc: &Document, n: &Node) -> Option<Node> {
     base.appearance.items.retain(|i| !matches!(i, AppearanceItem::Stroke(s) if s.brush.is_some()));
     let painted = base.appearance.items.iter().any(|i| match i {
         AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
-        AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0,
+        AppearanceItem::Stroke(s) => s.paints_anything(),
     });
     if painted {
         base.id = NodeId(0);

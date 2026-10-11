@@ -41,7 +41,11 @@ pub fn recolor_node(n: &mut Node, reach: Reach, v: &mut dyn ColorVisitor) -> usi
     for it in &mut n.appearance.items {
         match it {
             AppearanceItem::Fill(l) if reach.fill => changed += v.paint(&mut l.paint) as usize,
-            AppearanceItem::Stroke(l) if reach.stroke => changed += v.paint(&mut l.paint) as usize,
+            AppearanceItem::Stroke(l) if reach.stroke => {
+                for paint in l.paints_mut() {
+                    changed += v.paint(paint) as usize;
+                }
+            }
             _ => {}
         }
     }

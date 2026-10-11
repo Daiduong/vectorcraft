@@ -996,10 +996,13 @@ fn paints_opaquely(n: &Node) -> bool {
         && n.blend == vectorcraft_color::BlendMode::Normal
         && n.mask.is_none()
         && n.appearance.effects.is_empty()
-        && n.appearance
-            .items
-            .iter()
-            .all(|i| i.opacity() >= 1.0 && i.blend() == vectorcraft_color::BlendMode::Normal && i.effects().is_empty() && paint(i.paint()))
+        && n.appearance.items.iter().all(|item| {
+            let paints = match item {
+                AppearanceItem::Fill(fill) => paint(&fill.paint),
+                AppearanceItem::Stroke(stroke) => stroke.paints().all(paint),
+            };
+            item.opacity() >= 1.0 && item.blend() == vectorcraft_color::BlendMode::Normal && item.effects().is_empty() && paints
+        })
         && n.children().is_none_or(|c| c.iter().all(|c| paints_opaquely(c)))
 }
 

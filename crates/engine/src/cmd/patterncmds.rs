@@ -332,7 +332,7 @@ fn pattern_edit(s: &mut Session, p: &Value) -> Result<Value> {
                 .find_map(|n| {
                     n.appearance.items.iter().find_map(|it| match it {
                         vectorcraft_doc::AppearanceItem::Fill(f) => pattern_name(&f.paint),
-                        vectorcraft_doc::AppearanceItem::Stroke(sk) => pattern_name(&sk.paint),
+                        vectorcraft_doc::AppearanceItem::Stroke(sk) => sk.paints().find_map(pattern_name),
                     })
                 })
                 .ok_or_else(|| bad(C, "give a pattern name or select an object painted with a pattern"))?
@@ -504,7 +504,11 @@ fn rename_pattern_uses(d: &mut Document, old: &str, new: &str) {
             for it in n.appearance.items.iter_mut() {
                 match it {
                     vectorcraft_doc::AppearanceItem::Fill(f) => fix(&mut f.paint),
-                    vectorcraft_doc::AppearanceItem::Stroke(s) => fix(&mut s.paint),
+                    vectorcraft_doc::AppearanceItem::Stroke(s) => {
+                        for paint in s.paints_mut() {
+                            fix(paint);
+                        }
+                    }
                 }
             }
         }
@@ -541,12 +545,14 @@ fn pattern_delete(s: &mut Session, p: &Value) -> Result<Value> {
         for id in &ids {
             if let Some(n) = d.node_mut(*id) {
                 for it in n.appearance.items.iter_mut() {
-                    let p = match it {
-                        vectorcraft_doc::AppearanceItem::Fill(f) => &mut f.paint,
-                        vectorcraft_doc::AppearanceItem::Stroke(s) => &mut s.paint,
+                    let paints: Vec<&mut Paint> = match it {
+                        vectorcraft_doc::AppearanceItem::Fill(f) => vec![&mut f.paint],
+                        vectorcraft_doc::AppearanceItem::Stroke(s) => s.paints_mut().collect(),
                     };
-                    if matches!(p, Paint::Pattern { pattern, .. } if *pattern == name) {
-                        *p = Paint::None;
+                    for p in paints {
+                        if matches!(p, Paint::Pattern { pattern, .. } if *pattern == name) {
+                            *p = Paint::None;
+                        }
                     }
                 }
             }

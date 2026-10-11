@@ -52,7 +52,9 @@ fn dashes_caps_and_width_profiles_interpolate() {
     let a = rect(&mut s, 0.0, 0.0, 40.0, 40.0);
     s.execute("stroke.set", &json!({"ids": [a.0], "weight": 2, "dash": [10, 10], "cap": "butt"})).unwrap();
     let b = rect(&mut s, 200.0, 0.0, 40.0, 40.0);
-    s.execute("stroke.set", &json!({"ids": [b.0], "weight": 6, "cap": "round", "profile": "lens"})).unwrap();
+    // A new rectangle takes the last-edited stroke's options; the key b stays solid, so the gaps
+    // close towards it.
+    s.execute("stroke.set", &json!({"ids": [b.0], "weight": 6, "cap": "round", "profile": "lens", "dash": null})).unwrap();
     let g = make(&mut s, &[a, b], 3);
     let st = steps(&s, g);
     let stroke = |n: &Node| n.appearance.stroke().cloned().unwrap();

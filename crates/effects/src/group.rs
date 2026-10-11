@@ -145,12 +145,10 @@ fn is_container(n: &Node) -> bool {
 
 /// Does `item` paint anything?
 pub fn paints(item: &AppearanceItem) -> bool {
-    item.visible()
-        && !item.paint().is_none()
-        && match item {
-            AppearanceItem::Stroke(s) => s.width > 0.0,
-            AppearanceItem::Fill(_) => true,
-        }
+    match item {
+        AppearanceItem::Stroke(stroke) => stroke.paints_anything(),
+        AppearanceItem::Fill(fill) => fill.visible && !fill.paint.is_none(),
+    }
 }
 
 /// Do the own fills or strokes of `n`, a group or layer, paint anything?

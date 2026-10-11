@@ -461,13 +461,27 @@ impl<'a> Scene<'a> {
                         self.area(bp, rule, &style, false);
                     }
                 }
-                AppearanceItem::Stroke(st) if st.visible && st.width > 0.0 && st.width.is_finite() => self.stroke(bp, rule, st),
+                AppearanceItem::Stroke(st) if st.paints_anything() => self.stroke(bp, rule, st),
                 _ => {}
             }
         }
     }
 
     fn stroke(&mut self, bp: &BezPath, rule: FillRule, st: &StrokeLayer) {
+        if !st.sub_lines.is_empty() {
+            let mut base = st.clone();
+            base.sub_lines.clear();
+            self.stroke(bp, rule, &base);
+            for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+                let Some(offset) = vectorcraft_geom::parallel::parallel_path(bp, line.offset, stroke::OUTLINE_TOL, st.miter_limit) else { continue };
+                let sub = st.sub_line_stroke(line);
+                self.stroke(&offset, rule, &sub);
+            }
+            return;
+        }
+        if !st.width.is_finite() || st.width <= 0.0 || st.paint.is_none() {
+            return;
+        }
         let appearance = self.o.preserve == Preserve::Appearance;
         if appearance
             && st.brush.is_some()

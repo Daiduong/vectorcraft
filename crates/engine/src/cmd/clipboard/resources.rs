@@ -81,11 +81,16 @@ fn paint_refs(p: &Paint, f: Visit) {
 
 fn appearance_refs(a: &Appearance, f: Visit) {
     for it in &a.items {
-        paint_refs(it.paint(), f);
-        if let AppearanceItem::Stroke(l) = it
-            && let Some(b) = &l.brush
-        {
-            f(Ref::Name(Res::Brush, b));
+        match it {
+            AppearanceItem::Fill(layer) => paint_refs(&layer.paint, f),
+            AppearanceItem::Stroke(layer) => {
+                for paint in layer.paints() {
+                    paint_refs(paint, f);
+                }
+                if let Some(b) = &layer.brush {
+                    f(Ref::Name(Res::Brush, b));
+                }
+            }
         }
     }
 }
@@ -404,11 +409,16 @@ impl Relink {
     }
     fn appearance(&self, a: &mut Appearance) {
         for it in &mut a.items {
-            self.paint(it.paint_mut());
-            if let AppearanceItem::Stroke(l) = it
-                && let Some(b) = &mut l.brush
-            {
-                self.name(Res::Brush, b);
+            match it {
+                AppearanceItem::Fill(layer) => self.paint(&mut layer.paint),
+                AppearanceItem::Stroke(layer) => {
+                    for paint in layer.paints_mut() {
+                        self.paint(paint);
+                    }
+                    if let Some(b) = &mut layer.brush {
+                        self.name(Res::Brush, b);
+                    }
+                }
             }
         }
     }

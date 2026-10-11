@@ -465,7 +465,7 @@ fn same_graphic_style(s: &mut Session, _: &Value) -> Result<Value> {
 
 /// An appearance attribute Select > Same > Appearance Attribute matches.
 enum Attribute {
-    Item(vectorcraft_doc::AppearanceItem),
+    Item(Box<vectorcraft_doc::AppearanceItem>),
     Effect(vectorcraft_doc::Effect),
 }
 
@@ -476,11 +476,11 @@ fn same_attribute(s: &mut Session, p: &Value) -> Result<Value> {
     let ap = &refn.appearance;
     let item = p.get("item").and_then(Value::as_u64).map(|i| i as usize).or(s.appearance_item());
     let attr = match (item.and_then(|i| ap.items.get(i)), ap.effects.first()) {
-        (Some(it), _) => Attribute::Item(it.clone()),
+        (Some(it), _) => Attribute::Item(Box::new(it.clone())),
         (None, Some(e)) => Attribute::Effect(e.clone()),
-        (None, None) => {
-            Attribute::Item(ap.items.iter().rev().find(|i| i.is_fill()).cloned().ok_or_else(|| bad(cmd, "the object has no fill, stroke or effect"))?)
-        }
+        (None, None) => Attribute::Item(Box::new(
+            ap.items.iter().rev().find(|i| i.is_fill()).cloned().ok_or_else(|| bad(cmd, "the object has no fill, stroke or effect"))?,
+        )),
     };
     select_where(s, cmd, p, |_, n| match &attr {
         Attribute::Item(it) => n.appearance.items.contains(it),

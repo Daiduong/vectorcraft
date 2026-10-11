@@ -116,7 +116,11 @@ pub fn visit_node_colors(n: &mut Node, f: &mut ColorVisitor) {
     for it in &mut n.appearance.items {
         match it {
             AppearanceItem::Fill(l) => visit_paint(&mut l.paint, f),
-            AppearanceItem::Stroke(l) => visit_paint(&mut l.paint, f),
+            AppearanceItem::Stroke(l) => {
+                for paint in l.paints_mut() {
+                    visit_paint(paint, f);
+                }
+            }
         }
     }
     match &mut n.kind {

@@ -46,14 +46,14 @@ fn stroke_options_set_with_nothing_selected_carry_to_the_next_object() {
     assert_eq!(st.dash, Some(Dash { pattern: vec![4.0, 2.0], ..Default::default() }));
     assert_eq!(node(&s, id).appearance.fill_paint(), Paint::solid(vectorcraft_color::Color::WHITE), "the fill stays the proxy's");
     assert_eq!(node(&s, before).appearance.stroke().unwrap().cap, LineCap::Butt, "art drawn before keeps its stroke");
-    // Editing a selected object's stroke leaves the template alone.
+    // Editing a selected object's stroke is also what the next object drawn takes (#new-art-options).
     run(&mut s, "stroke.set", json!({"cap": "square"}));
     run(&mut s, "select.none", json!({}));
-    assert_eq!(s.shown_stroke().unwrap().cap, LineCap::Round);
+    assert_eq!(s.shown_stroke().unwrap().cap, LineCap::Square);
     // Other new art takes it too (a line still without a fill).
     let line = NodeId(run(&mut s, "shape.line", json!({"x1": 10, "y1": 200, "x2": 200, "y2": 200}))["id"].as_u64().unwrap());
     let l = node(&s, line).appearance;
-    assert_eq!((l.fill_paint(), l.stroke().unwrap().cap), (Paint::None, LineCap::Round));
+    assert_eq!((l.fill_paint(), l.stroke().unwrap().cap), (Paint::None, LineCap::Square));
     // Default Fill and Stroke resets the template.
     run(&mut s, "paint.default", json!({}));
     let plain = rect(&mut s, 200.0);

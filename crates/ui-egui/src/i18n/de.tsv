@@ -3303,6 +3303,8 @@ theme	Appearance	Erscheinungsbild
 @msg	Opened with {_1} note(s): {_2}	Mit {_1} Hinweis(en) geöffnet: {_2}
 @msg	Opened {url}	{url} geöffnet
 @msg	Outline Stroke: no stroked paths selected	Konturlinie: keine Pfade mit Kontur ausgewählt
+@msg	no parallel line styles in the selection	kein Stil für parallele Linien in der Auswahl
+@msg	{C}: no parallel line styles in the selection	{C}: kein Stil für parallele Linien in der Auswahl
 @msg	PDF settings are not an object	die PDF-Einstellungen sind kein Objekt
 @msg	PDF writer error: {0}	Fehler beim Schreiben der PDF-Datei: {0}
 @msg	Packaged {n} file(s) in {folder}{note}	{n} Datei(en) in {folder} verpackt{note}
@@ -4104,3 +4106,19 @@ theme	Appearance	Erscheinungsbild
 @msg	unsupported native docking operation	Nicht unterstützte native Docking-Operation
 	Linux Display Server	Linux-Anzeigeserver
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	Stil für parallele Linien anwenden
+	Add parallel line	Parallele Linie hinzufügen
+	Parallel Lines	Parallele Linien
+	Paint:	Farbe:
+	Inherit the stroke's cap	Linienende des Strichs übernehmen
+	Expand Parallel Lines	Parallele Linien erweitern
+	Dash	Strich
+	Dash 4 / 2	Strich 4 / 2
+	Double	Doppelt
+	Inherit	Übernehmen
+	Inherit paint	Farbe übernehmen
+	Lane:	Spur:
+	Mixed parallel lanes	Gemischte parallele Spuren
+	Parallel style:	Paralleler Stil:
+	Road	Straße
+	Triple	Dreifach

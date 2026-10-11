@@ -122,7 +122,8 @@ impl StrokeLayer {
     /// Does bounding this stroke need its path's shape: miter spikes, projecting caps, arrowheads,
     /// or an alignment that depends on whether the path is closed? Else it reaches evenly round it.
     fn needs_shape(&self) -> bool {
-        self.join == LineJoin::Miter
+        !self.sub_lines.is_empty()
+            || self.join == LineJoin::Miter
             || self.cap == LineCap::Square
             || self.start_arrow.is_some()
             || self.end_arrow.is_some()
@@ -133,8 +134,17 @@ impl StrokeLayer {
     /// by the body's reach, with the tips of the miter spikes the limit keeps, the corners of
     /// projecting caps and the reach of the arrowheads round their end points.
     pub fn bounds_on(&self, bp: &BezPath, bounds: Rect) -> Rect {
-        let els = bp.elements();
         let mut out = bounds;
+        for line in self.sub_lines.iter().take(crate::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let sub = self.sub_line_stroke(line);
+            if !sub.paints_anything() {
+                continue;
+            }
+            if let Some(path) = vectorcraft_geom::parallel::parallel_path(bp, line.offset, 0.05, self.miter_limit) {
+                out = out.union(sub.bounds_on(&path, path.bounding_box()));
+            }
+        }
+        let els = bp.elements();
         let mut side_max: f64 = 0.0;
         // Dashes put a cap on every dash: projecting ones reach a corner's diagonal anywhere.
         let capped_dashes = self.cap == LineCap::Square && self.dash.as_ref().is_some_and(Dash::is_dashed);
@@ -170,6 +180,15 @@ impl StrokeLayer {
     /// outside strokes of closed paths count on their own side only (and within `tol` of the
     /// path); a width profile counts at its width where `p` is nearest.
     pub fn hits(&self, bp: &BezPath, rule: FillRule, p: Point, tol: f64) -> bool {
+        for line in self.sub_lines.iter().take(crate::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let sub = self.sub_line_stroke(line);
+            if sub.paints_anything()
+                && vectorcraft_geom::parallel::parallel_path(bp, line.offset, tol.max(0.05), self.miter_limit)
+                    .is_some_and(|path| sub.hits(&path, rule, p, tol))
+            {
+                return true;
+            }
+        }
         let reach = self.reach() + tol;
         if self.width.is_nan() || self.width <= 0.0 || !bp.bounding_box().inflate(reach, reach).contains(p) {
             return false;
@@ -304,6 +323,16 @@ mod tests {
 
     fn line() -> BezPath {
         shapes::line(Point::new(0.0, 0.0), Point::new(100.0, 0.0)).to_bezpath()
+    }
+
+    #[test]
+    fn parallel_lane_contributes_to_bounds_and_hit_testing() {
+        let mut s = stroke(1.0, |_| {});
+        s.sub_lines.push(crate::SubLine { offset: 10.0, width: Some(2.0), ..Default::default() });
+        let path = line();
+        let bounds = s.bounds_on(&path, path.bounding_box());
+        assert!(bounds.y0 <= -11.0);
+        assert!(s.hits(&path, FillRule::NonZero, Point::new(50.0, -10.0), 0.1));
     }
 
     /// A thin triangle whose 22.6° apex at (100, 20) miters about 5 times half the weight out.

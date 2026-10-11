@@ -3558,6 +3558,8 @@ theme	Appearance	外観
 @msg	Divide Objects Below: select exactly one path	背面のオブジェクトで型抜き: パスを 1 つだけ選択してください
 @msg	Offset Path: select paths	パスのオフセット: パスを選択してください
 @msg	Outline Stroke: no stroked paths selected	パスのアウトライン: 線のあるパスが選択されていません
+@msg	no parallel line styles in the selection	選択範囲に平行線スタイルがありません
+@msg	{C}: no parallel line styles in the selection	{C}: 選択範囲に平行線スタイルがありません
 @msg	Split Into Grid: select paths large enough for the grid	グリッドに分割: グリッドが収まる大きさのパスを選択してください
 @msg	empty cutter	型抜きに使うパスが空です
 @msg	paths contain invalid coordinates	パスに無効な座標が含まれています
@@ -4144,3 +4146,19 @@ lighting	Light	ライト
 @msg	unsupported native docking operation	ネイティブドッキング操作は未対応です
 	Linux Display Server	Linux ディスプレイサーバー
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	平行線スタイルを適用
+	Add parallel line	平行線を追加
+	Parallel Lines	平行線
+	Paint:	ペイント:
+	Inherit the stroke's cap	線の線端を継承
+	Expand Parallel Lines	平行線を拡張
+	Dash	破線
+	Dash 4 / 2	破線 4 / 2
+	Double	二重線
+	Inherit	継承
+	Inherit paint	塗りを継承
+	Lane:	レーン:
+	Mixed parallel lanes	平行線レーンが混在
+	Parallel style:	平行線スタイル:
+	Road	道路
+	Triple	三重線

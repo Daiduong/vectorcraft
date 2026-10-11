@@ -1040,7 +1040,7 @@ impl Exporter<'_> {
                     });
                 }
                 AppearanceItem::Stroke(st) => {
-                    if !st.visible || st.paint.is_none() || st.width <= 0.0 {
+                    if !st.paints_anything() {
                         continue;
                     }
                     self.warn_raster(&st.effects, || "strokes".into());
@@ -1152,6 +1152,21 @@ impl Exporter<'_> {
     /// unplaced gradients.
     #[allow(clippy::too_many_arguments)]
     fn stroke(&mut self, s: &mut Surface, bp: &BezPath, path: &Path, r: FillRule, st: &StrokeLayer, page: Rect, bounds: Rect) {
+        if !st.sub_lines.is_empty() {
+            let mut base = st.clone();
+            base.sub_lines.clear();
+            self.stroke(s, bp, path, r, &base, page, bounds);
+            for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+                let Some(offset) = vectorcraft_geom::parallel::parallel_path(bp, line.offset, stroke::OUTLINE_TOL, st.miter_limit) else { continue };
+                let Some(offset_path) = to_path(&offset) else { continue };
+                let sub = st.sub_line_stroke(line);
+                self.stroke(s, &offset, &offset_path, r, &sub, page, bounds.inflate(line.offset.abs(), line.offset.abs()));
+            }
+            return;
+        }
+        if !st.width.is_finite() || st.width <= 0.0 || st.paint.is_none() {
+            return;
+        }
         if !stroke::is_plain(st) && self.brush_art(s, bp, st, page) {
             return;
         }
@@ -1393,7 +1408,7 @@ impl Exporter<'_> {
                         s.draw_path(path);
                     }
                 }),
-                AppearanceItem::Stroke(st) if st.visible && st.width > 0.0 => {
+                AppearanceItem::Stroke(st) if st.paints_anything() => {
                     self.overprinting(s, st.overprint, &st.paint, |ex, s| ex.stroke(s, bp, path, FillRule::NonZero, st, page, tb))
                 }
                 _ => {}

@@ -678,7 +678,12 @@ pub fn report(doc: &Document, roots: &[NodeId], o: &FlattenOptions) -> Result<Fl
             }
         }
     }
-    let pattern = |n: &Node| n.appearance.items.iter().any(|i| i.visible() && matches!(i.paint(), Paint::Pattern { .. }));
+    let pattern = |n: &Node| {
+        n.appearance.items.iter().any(|item| match item {
+            AppearanceItem::Fill(fill) => fill.visible && matches!(&fill.paint, Paint::Pattern { .. }),
+            AppearanceItem::Stroke(stroke) => stroke.visible && stroke.paints().any(|paint| matches!(paint, Paint::Pattern { .. })),
+        })
+    };
     for f in &plan.flat {
         r.affected.extend(&f.roots);
         r.vector += f.regions.len();
@@ -1136,7 +1141,7 @@ fn kept_work(n: &Node, o: &FlattenOptions) -> bool {
 /// Whether `n` is a path with a visible stroke (outlining turns it into a fill).
 fn stroked(n: &Node) -> bool {
     matches!(n.kind, NodeKind::Path { guide: false, .. } | NodeKind::Compound { .. })
-        && n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(s) if s.visible && !s.paint.is_none() && s.width > 0.0))
+        && n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(s) if s.paints_anything()))
 }
 
 fn overprints(n: &Node) -> bool {

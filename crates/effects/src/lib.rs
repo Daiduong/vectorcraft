@@ -691,7 +691,7 @@ impl<'a> GeomContext<'a> {
             NodeKind::Path { rule, .. } | NodeKind::Compound { rule, .. } => *rule,
             _ => FillRule::NonZero,
         };
-        Self { stroke: n.appearance.stroke().filter(|s| !s.paint.is_none() && s.width > 0.0), rule, seed: n.id.0 }
+        Self { stroke: n.appearance.stroke().filter(|s| s.has_positive_width()), rule, seed: n.id.0 }
     }
 
     /// The context of the effects on `item`, one of the same object's appearance items: a
@@ -768,7 +768,7 @@ pub(crate) fn apply_one(id: &str, p: &Value, path: &PathData, b: Rect, ctx: &Geo
                 Some(w) => std::borrow::Cow::Owned(StrokeLayer { width: w, ..base.clone() }),
                 None => std::borrow::Cow::Borrowed(base),
             };
-            if st.width.is_nan() || st.width <= 0.0 {
+            if !st.has_positive_width() {
                 return path.clone();
             }
             stroke::outline_region(path, ctx.rule, &st)

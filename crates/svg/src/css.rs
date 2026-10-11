@@ -429,10 +429,16 @@ impl Rules<'_> {
     /// A shape's fill (`background-*`) and stroke (`border*`).
     fn paints(&mut self, n: &Node, art: &mut Art) {
         let bounds = n.geometric_bounds().unwrap_or_default();
-        let shown = |i: &&AppearanceItem| i.visible() && !i.paint().is_none() && !matches!(i, AppearanceItem::Stroke(s) if s.width <= 0.0);
+        let shown = |i: &&AppearanceItem| match i {
+            AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
+            AppearanceItem::Stroke(s) => s.paints_anything(),
+        };
         let items: Vec<&AppearanceItem> = n.appearance.items.iter().filter(shown).collect();
         let fills: Vec<_> = items.iter().filter_map(|i| if let AppearanceItem::Fill(f) = i { Some(f) } else { None }).collect();
         let strokes: Vec<_> = items.iter().filter_map(|i| if let AppearanceItem::Stroke(s) = i { Some(s) } else { None }).collect();
+        if strokes.iter().any(|stroke| !stroke.sub_lines.is_empty()) {
+            art.unsupported("parallel stroke lanes");
+        }
         if fills.len() > 1 || strokes.len() > 1 {
             art.unsupported("several fills or strokes");
         }
@@ -529,7 +535,10 @@ impl Rules<'_> {
         if matches!(t.kind, TextKind::OnPath { .. }) {
             art.unsupported("type on a path");
         }
-        if n.appearance.items.iter().any(|i| i.visible() && !i.paint().is_none()) {
+        if n.appearance.items.iter().any(|item| match item {
+            AppearanceItem::Fill(fill) => fill.visible && !fill.paint.is_none(),
+            AppearanceItem::Stroke(stroke) => stroke.paints_anything(),
+        }) {
             art.unsupported("fills or strokes on the type object");
         }
         let st = t.first_style();

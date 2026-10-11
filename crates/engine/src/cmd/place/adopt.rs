@@ -56,7 +56,11 @@ fn refs(n: &mut Node, f: &mut impl FnMut(Ref)) {
         for it in &mut n.appearance.items {
             match it {
                 AppearanceItem::Fill(fl) => paint_refs(&mut fl.paint, f),
-                AppearanceItem::Stroke(st) => paint_refs(&mut st.paint, f),
+                AppearanceItem::Stroke(st) => {
+                    for paint in st.paints_mut() {
+                        paint_refs(paint, f);
+                    }
+                }
             }
         }
         match &mut n.kind {

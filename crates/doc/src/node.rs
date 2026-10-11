@@ -1086,7 +1086,7 @@ impl Node {
         let paints = |fill: bool| {
             let item = |i: &AppearanceItem| match i {
                 AppearanceItem::Fill(f) => fill && f.visible && !f.paint.is_none(),
-                AppearanceItem::Stroke(s) => !fill && s.visible && !s.paint.is_none() && s.width > 0.0,
+                AppearanceItem::Stroke(s) => !fill && s.paints_anything(),
             };
             let run = |r: &crate::text::TextRun| if fill { !r.style.fill.is_none() } else { !r.style.stroke.is_none() && r.style.stroke_width > 0.0 };
             self.appearance.items.iter().any(item) || runs.is_some_and(|rs| rs.iter().any(run))
@@ -1356,11 +1356,18 @@ impl Node {
                 || self.blend != BlendMode::Normal
                 || self.mask.as_ref().is_some_and(|m| !m.disabled)
                 || effects(&self.appearance.effects)
-                || self
-                    .appearance
-                    .items
-                    .iter()
-                    .any(|i| i.visible() && (i.opacity() < 1.0 || i.blend() != BlendMode::Normal || see_through(i.paint()) || effects(i.effects())))
+                || self.appearance.items.iter().any(|item| match item {
+                    crate::AppearanceItem::Fill(fill) => {
+                        fill.visible && (fill.opacity < 1.0 || fill.blend != BlendMode::Normal || see_through(&fill.paint) || effects(&fill.effects))
+                    }
+                    crate::AppearanceItem::Stroke(stroke) => {
+                        stroke.paints_anything()
+                            && (stroke.opacity < 1.0
+                                || stroke.blend != BlendMode::Normal
+                                || stroke.paints().any(see_through)
+                                || effects(&stroke.effects))
+                    }
+                })
                 || self.children().is_some_and(|ch| ch.iter().any(|c| c.shows_transparency())))
     }
 }

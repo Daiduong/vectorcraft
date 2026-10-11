@@ -3400,6 +3400,8 @@ axis	Both	Les deux
 @msg	Opened with {_1} note(s): {_2}	Ouvert avec {_1} remarque(s) : {_2}
 @msg	Opened {url}	{url} ouvert
 @msg	Outline Stroke: no stroked paths selected	Vectoriser le contour : aucun tracé avec contour sélectionné
+@msg	no parallel line styles in the selection	aucun style de lignes parallèles dans la sélection
+@msg	{C}: no parallel line styles in the selection	{C} : aucun style de lignes parallèles dans la sélection
 @msg	PDF settings are not an object	Les paramètres PDF ne sont pas un objet
 @msg	PDF writer error: {0}	Erreur du générateur PDF : {0}
 @msg	Packaged {n} file(s) in {folder}{note}	{n} fichier(s) assemblé(s) dans {folder}{note}
@@ -4158,3 +4160,19 @@ lighting	Light	Lumière
 @msg	unsupported native docking operation	Opération native d’ancrage non prise en charge
 	Linux Display Server	Serveur d’affichage Linux
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	Appliquer un style de lignes parallèles
+	Add parallel line	Ajouter une ligne parallèle
+	Parallel Lines	Lignes parallèles
+	Paint:	Couleur :
+	Inherit the stroke's cap	Hériter de l'extrémité du contour
+	Expand Parallel Lines	Décomposer les lignes parallèles
+	Dash	Tiret
+	Dash 4 / 2	Tiret 4 / 2
+	Double	Double
+	Inherit	Hériter
+	Inherit paint	Hériter de la couleur
+	Lane:	Voie :
+	Mixed parallel lanes	Voies parallèles mixtes
+	Parallel style:	Style parallèle :
+	Road	Route
+	Triple	Triple

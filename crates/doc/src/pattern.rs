@@ -332,24 +332,28 @@ pub fn pattern_paint(name: &str) -> Paint {
 
 /// Does `n` (not its children) paint any fill/stroke with pattern `name` (any pattern for `None`)?
 pub fn uses_pattern(n: &Node, name: Option<&str>) -> bool {
-    n.appearance.items.iter().any(|it| {
-        let p = match it {
-            AppearanceItem::Fill(f) => &f.paint,
-            AppearanceItem::Stroke(s) => &s.paint,
-        };
-        matches!(p, Paint::Pattern { pattern, .. } if name.is_none_or(|nm| nm == pattern))
+    n.appearance.items.iter().any(|it| match it {
+        AppearanceItem::Fill(f) => matches!(&f.paint, Paint::Pattern { pattern, .. } if name.is_none_or(|nm| nm == pattern)),
+        AppearanceItem::Stroke(s) => s.paints().any(|p| matches!(p, Paint::Pattern { pattern, .. } if name.is_none_or(|nm| nm == pattern))),
     })
 }
 
 /// Apply `m` to the pattern placement of every pattern paint of `n` (Transform Patterns).
 pub fn transform_pattern_paints(n: &mut Node, m: Affine) {
     for it in n.appearance.items.iter_mut() {
-        let p = match it {
-            AppearanceItem::Fill(f) => &mut f.paint,
-            AppearanceItem::Stroke(s) => &mut s.paint,
-        };
-        if let Paint::Pattern { xf, .. } = p {
-            *xf = m * *xf;
+        match it {
+            AppearanceItem::Fill(f) => {
+                if let Paint::Pattern { xf, .. } = &mut f.paint {
+                    *xf = m * *xf;
+                }
+            }
+            AppearanceItem::Stroke(s) => {
+                for paint in s.paints_mut() {
+                    if let Paint::Pattern { xf, .. } = paint {
+                        *xf = m * *xf;
+                    }
+                }
+            }
         }
     }
 }

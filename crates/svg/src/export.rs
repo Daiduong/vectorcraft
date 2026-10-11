@@ -10,7 +10,7 @@ use vectorcraft_doc::{
 };
 use vectorcraft_doc::{CharStyle, ImageBlob, Justify};
 use vectorcraft_effects::stroke::{self, Written, WrittenShape};
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect};
+use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Shape};
 
 use vectorcraft_text::{FontDb, FontFace};
 
@@ -336,9 +336,7 @@ impl Reuse {
         }
         for i in &n.appearance.items {
             if let AppearanceItem::Stroke(s) = i
-                && s.visible
-                && !s.paint.is_none()
-                && s.width > 0.0
+                && s.paints_anything()
             {
                 // Stroke weights don't scale; brushes can orient their art to the page.
                 self.scales = false;
@@ -909,7 +907,7 @@ impl Writer<'_> {
             .iter()
             .filter(|i| match i {
                 AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
-                AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0,
+                AppearanceItem::Stroke(s) => s.paints_anything(),
             })
             .collect();
         let mut bp = None;
@@ -927,6 +925,7 @@ impl Writer<'_> {
         let simple = fills <= 1
             && strokes <= 1
             && !items.iter().any(|i| has_raster(i.effects()))
+            && !items.iter().any(|i| matches!(i, AppearanceItem::Stroke(s) if !s.sub_lines.is_empty()))
             && items.iter().all(|i| i.blend() == BlendMode::Normal)
             && !items.iter().any(|i| freeform(i.paint()).is_some())
             && plans.iter().flatten().all(|p| matches!(p, StrokePlan::Written(Written { shape: WrittenShape::Stroke { .. }, side: None })));
@@ -1054,10 +1053,99 @@ impl Writer<'_> {
                 }
                 (AppearanceItem::Stroke(_), None) => {}
             }
+            if let AppearanceItem::Stroke(st) = it {
+                self.parallel_sub_lines(st, paths, rule, bounds);
+            }
             self.close_filters(filters);
         }
         self.depth -= 1;
         self.line("</g>");
+    }
+
+    /// Export additional parallel lanes as their own brush art or filled outlines, preserving the
+    /// canvas geometry for dashes, profiles, caps, joins and brush strokes.
+    fn parallel_sub_lines(&mut self, st: &StrokeLayer, paths: &[&PathData], rule: FillRule, bounds: Option<Rect>) {
+        if st.sub_lines.is_empty() {
+            return;
+        }
+        let source = doc_path(paths);
+        let base_bounds = bounds.unwrap_or_else(|| source.bounding_box());
+        for line in st.sub_lines.iter().take(vectorcraft_doc::MAX_SUB_LINES).filter(|line| line.is_valid()) {
+            let Some(offset) = vectorcraft_geom::parallel::parallel_path(&source, line.offset, OUTLINE_TOLERANCE, st.miter_limit) else { continue };
+            let sub = st.sub_line_stroke(line);
+            if !sub.paints_anything() {
+                continue;
+            }
+            let offset_data = PathData::from_bezpath(&offset);
+            let mut lane_path = Some(offset.clone());
+            let plan = self.stroke_plan(&sub, &mut lane_path, &[&offset_data]);
+            if let StrokePlan::Brush(art) = plan {
+                let mut props = Props::new();
+                if sub.opacity < 1.0 {
+                    props.push(("opacity", fmt_num(sub.opacity as f64, 3)));
+                }
+                if sub.blend != BlendMode::Normal {
+                    props.push(("mix-blend-mode", blend_css(sub.blend).into()));
+                }
+                let attrs = self.attrs(&props);
+                self.line(&format!("<g{attrs}>"));
+                self.depth += 1;
+                for piece in &art {
+                    self.node(piece);
+                }
+                self.depth -= 1;
+                self.line("</g>");
+                continue;
+            }
+            let lane_bounds = base_bounds.inflate(line.offset.abs(), line.offset.abs());
+            let paint_bounds = sub.paint_bounds(lane_bounds);
+            if let Some(gradient) = freeform(&sub.paint) {
+                let outline = stroke::outline_region(&offset_data, rule, &sub);
+                if !outline.is_empty() {
+                    let clip = self.path_d(&outline, self.xf);
+                    let mut props = Props::new();
+                    if sub.opacity < 1.0 {
+                        props.push(("opacity", fmt_num(sub.opacity as f64, 3)));
+                    }
+                    if sub.blend != BlendMode::Normal {
+                        props.push(("mix-blend-mode", blend_css(sub.blend).into()));
+                    }
+                    self.raster_paint(gradient, paint_bounds, &[clip], FillRule::NonZero, &props, "");
+                }
+                continue;
+            }
+            if sub.path_gradient().is_some() {
+                let written = stroke::for_writer(&offset, &sub);
+                if let WrittenShape::Fill(outlines) = &written.shape
+                    && let Some(slices) = stroke::written_slices(&offset, rule, &sub, outlines)
+                {
+                    let lane_d = self.path_d(&offset_data, self.xf);
+                    let side = self.side_attr(written.side, &lane_d, rule, written.reach(&sub, offset.bounding_box()));
+                    let mut props = Props::new();
+                    if sub.opacity < 1.0 {
+                        props.push(("opacity", fmt_num(sub.opacity as f64, 3)));
+                    }
+                    if sub.blend != BlendMode::Normal {
+                        props.push(("mix-blend-mode", blend_css(sub.blend).into()));
+                    }
+                    self.sliced(&slices, &props, &side);
+                    continue;
+                }
+            }
+            let outline = stroke::outline_region(&offset_data, rule, &sub);
+            if outline.is_empty() {
+                continue;
+            }
+            let d = self.path_d(&outline, self.xf);
+            let paint = self.paint(&sub.paint, Some(paint_bounds));
+            let opacity = (sub.opacity < 1.0).then(|| ("fill-opacity", fmt_num(sub.opacity as f64, 3)));
+            let blend = (sub.blend != BlendMode::Normal).then(|| ("mix-blend-mode", blend_css(sub.blend).to_string()));
+            let mut props = vec![("fill", paint), ("fill-rule", "nonzero".into())];
+            props.extend(opacity);
+            props.extend(blend);
+            let attrs = self.attrs(&props);
+            self.line(&format!("<path d=\"{d}\"{attrs}/>"));
+        }
     }
 
     /// A stroke whose gradient runs along or across it ([`stroke::written_slices`]): a group (with
@@ -1630,7 +1718,10 @@ impl Writer<'_> {
         let inline = t.runs.iter().any(|r| r.inline.is_some());
         let outlined = self.opts.outline_text || t.vertical || (inline && matches!(t.kind, TextKind::OnPath { .. }));
         let chars = |w: &mut Self, n: &Node| if outlined { w.text_outlines(n, t) } else { w.text(n, t) };
-        let painted = n.appearance.items.iter().any(|i| i.visible() && !i.paint().is_none());
+        let painted = n.appearance.items.iter().any(|item| match item {
+            AppearanceItem::Fill(fill) => fill.visible && !fill.paint.is_none(),
+            AppearanceItem::Stroke(stroke) => stroke.paints_anything(),
+        });
         if !painted && !inline {
             return chars(self, n);
         }

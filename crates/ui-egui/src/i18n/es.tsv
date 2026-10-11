@@ -3403,6 +3403,8 @@ axis	Both	Ambos
 @msg	Opened with {_1} note(s): {_2}	Se abrió con {_1} nota(s): {_2}
 @msg	Opened {url}	Se abrió {url}
 @msg	Outline Stroke: no stroked paths selected	Contornear trazo: no hay trazados con trazo seleccionados
+@msg	no parallel line styles in the selection	no hay estilos de líneas paralelas en la selección
+@msg	{C}: no parallel line styles in the selection	{C}: no hay estilos de líneas paralelas en la selección
 @msg	PDF settings are not an object	los ajustes de PDF no son un objeto
 @msg	PDF writer error: {0}	error del escritor de PDF: {0}
 @msg	Packaged {n} file(s) in {folder}{note}	Se empaquetaron {n} archivo(s) en {folder}{note}
@@ -4148,3 +4150,19 @@ lighting	Light	Luz
 @msg	unsupported native docking operation	Operación nativa de anclaje no admitida
 	Linux Display Server	Servidor de pantalla de Linux
 	X11 (XWayland)	X11 (XWayland)
+	Apply Parallel Line Style	Aplicar estilo de líneas paralelas
+	Add parallel line	Agregar línea paralela
+	Parallel Lines	Líneas paralelas
+	Paint:	Pintura:
+	Inherit the stroke's cap	Heredar el extremo del trazo
+	Expand Parallel Lines	Expandir líneas paralelas
+	Dash	Guion
+	Dash 4 / 2	Guion 4 / 2
+	Double	Doble
+	Inherit	Heredar
+	Inherit paint	Heredar pintura
+	Lane:	Carril:
+	Mixed parallel lanes	Carriles paralelos mixtos
+	Parallel style:	Estilo paralelo:
+	Road	Carretera
+	Triple	Triple

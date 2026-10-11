@@ -701,7 +701,11 @@ impl Renderer {
     fn paint_items(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, g: &BezPath, rule: FillRule, gctx: &GeomContext) {
         let bounds = g.bounding_box();
         for (j, item) in n.appearance.items.iter().enumerate() {
-            if !item.visible() || item.paint().is_none() {
+            let paints = match item {
+                AppearanceItem::Fill(fill) => !fill.paint.is_none(),
+                AppearanceItem::Stroke(stroke) => stroke.paints_anything(),
+            };
+            if !item.visible() || !paints {
                 continue;
             }
             let ig = apply(item_effects(item), g, &gctx.item(item));
@@ -714,10 +718,7 @@ impl Renderer {
             // The item's silhouette: its fill area, or the outline of its stroke.
             let outline = match item {
                 AppearanceItem::Fill(_) => ig.clone(),
-                AppearanceItem::Stroke(st) => {
-                    let w = effects::stroke::aligned_width(st, effects::stroke::is_closed(&ig));
-                    effects::stroke::line_outline(&effects::stroke::stroke_pieces(&ig, st).line, st, w, f.px * 0.25)
-                }
+                AppearanceItem::Stroke(st) => effects::stroke::outline_region(&vectorcraft_geom::PathData::from_bezpath(&ig), rule, st).to_bezpath(),
             };
             let outset = n.appearance.outset();
             let orule = if item.is_fill() { rule } else { FillRule::NonZero };
@@ -748,7 +749,7 @@ impl Renderer {
                 }
             }
             AppearanceItem::Stroke(st) => {
-                if st.width <= 0.0 {
+                if !st.paints_anything() {
                     return;
                 }
                 // Brushed strokes keep their brush art under effects (e.g. a glowing scatter brush).
