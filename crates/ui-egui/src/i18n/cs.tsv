@@ -4181,3 +4181,6 @@ effect	Regular	Pravidelný
 @msg	missing panel layout	chybí rozložení panelů
 @msg	unsupported native docking operation	nepodporovaná nativní operace ukotvení
 @msg	this kind of brush has no options dialog yet	tento druh štětce zatím nemá dialogové okno možností
+@msg	Ran script {name} ({_1} commands)	Skript {name} proběhl (příkazů: {_1})
+@msg	Script {name} failed: {error}	Skript {name} selhal: {error}
+@msg	there is no Scripts folder here	zde není žádná složka skriptů
