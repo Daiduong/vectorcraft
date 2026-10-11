@@ -49,6 +49,7 @@ pub mod shortcuts;
 pub mod state;
 pub mod sysclip;
 pub mod theme;
+mod theme_favorites;
 pub mod titlebar;
 pub mod toolbar;
 mod touch;

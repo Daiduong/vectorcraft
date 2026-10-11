@@ -236,6 +236,7 @@ impl Dialog {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiState {
+    pub theme_favorites: crate::theme_favorites::Favorites,
     /// The interface language older versions saved here (`ja`, `cs`…). It now lives in the
     /// `interfaceLanguage` preference, which [`crate::prefs_dialog::restore`] carries it over to;
     /// it is never written back.
@@ -487,6 +488,7 @@ impl UiState {
 impl Default for UiState {
     fn default() -> Self {
         Self {
+            theme_favorites: Default::default(),
             legacy_language: None,
             brightness: Brightness::MediumDark,
             dock_tab: DockTab::Properties,

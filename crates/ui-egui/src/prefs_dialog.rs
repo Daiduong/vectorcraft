@@ -30,6 +30,7 @@ pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
         fields.insert("unitsGeneral".into(), json!(st.doc.units.key()));
     }
     let cat = category.and_then(|c| PREF_CATEGORIES.iter().find(|x| x.eq_ignore_ascii_case(c))).copied().unwrap_or(PREF_CATEGORIES[0]);
+    fields.insert("__themeFavorites".into(), json!(app.ui.theme_favorites));
     fields.insert("__category".into(), json!(cat));
     fields.insert("__smartGuides".into(), json!(app.ui.view.smart_guides));
     fields.insert("__snapToGrid".into(), json!(app.ui.view.snap_to_grid));
@@ -45,6 +46,9 @@ pub fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
     app.ui.view.smart_guides = d.fields.get("__smartGuides").and_then(Value::as_bool).unwrap_or(app.ui.view.smart_guides);
     app.ui.view.snap_to_grid = d.fields.get("__snapToGrid").and_then(Value::as_bool).unwrap_or(app.ui.view.snap_to_grid);
     app.ui.task_bar = d.fields.get("__taskBar").and_then(Value::as_bool).unwrap_or(app.ui.task_bar);
+    if let Some(value) = d.fields.get("__themeFavorites") {
+        app.ui.theme_favorites = crate::theme_favorites::Favorites::from_value(value);
+    }
     app.ui.dialog = None;
     app.ui.engine_prefs = app.session.prefs.to_json();
     Ok(Value::Null)
@@ -458,9 +462,29 @@ fn theme_card(ui: &mut egui::Ui, d: &mut Dialog, key: &str, title: &str, options
                 theme_preview(ui, Brightness::parse(shown).unwrap_or_default(), inner);
                 ui.add_space(4.0);
                 for (v, label) in options {
-                    if ui.radio(*v == shown, tl!(*label)).clicked() {
-                        d.fields.insert(key.into(), json!(v));
-                    }
+                    ui.horizontal(|ui| {
+                        let row = ui.radio(*v == shown, tl!(*label));
+                        if row.clicked() {
+                            d.fields.insert(key.into(), json!(v));
+                        }
+                        if let Some(b) = Brightness::parse(v) {
+                            let mut favorites =
+                                crate::theme_favorites::Favorites::from_value(d.fields.get("__themeFavorites").unwrap_or(&Value::Null));
+                            if crate::theme_favorites::star(
+                                ui,
+                                favorites.contains(b),
+                                row.hovered(),
+                                tl!("Add to favorites"),
+                                tl!("Remove from favorites"),
+                                tl!(*label),
+                            )
+                            .clicked()
+                            {
+                                favorites.toggle(b);
+                                d.fields.insert("__themeFavorites".into(), json!(favorites));
+                            }
+                        }
+                    });
                 }
             });
         });
@@ -589,11 +613,86 @@ fn labeled(ui: &mut egui::Ui, label: &str, add: impl FnOnce(&mut egui::Ui)) {
     });
 }
 
+/// Right-click shortcuts keep the opposite theme selection intact.
+pub(crate) fn appearance_context_menu(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+    if ui.button(tl!("Appearance Settings…")).clicked() {
+        open(app, Some("User Interface"));
+        ui.close();
+    }
+    for light in [true, false] {
+        let favorites: Vec<_> = app.ui.theme_favorites.themes(light).collect();
+        if favorites.is_empty() {
+            continue;
+        }
+        ui.separator();
+        ui.label(tl!(if light { "Light Theme" } else { "Dark Theme" }));
+        for b in favorites {
+            if ui.selectable_label(app.ui.brightness == b, tl!(b.label())).clicked() {
+                let _ = app.run("window.brightness", json!({"brightness": b.id()}));
+                ui.close();
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Services;
     use vectorcraft_engine::Session;
+
+    #[test]
+    fn favorites_stay_in_dialog_until_confirmed() {
+        let mut a = app();
+        open(&mut a, Some("User Interface"));
+        a.ui.dialog.as_mut().unwrap().fields.insert("__themeFavorites".into(), json!(["light", "light", "unknown"]));
+        assert!(!a.ui.theme_favorites.contains(Brightness::Light));
+        confirm(&mut a).unwrap();
+        assert_eq!(serde_json::to_value(&a.ui.theme_favorites).unwrap(), json!(["light"]));
+    }
+
+    #[test]
+    fn favorite_context_menu_selects_explicit_theme_and_preserves_other_family() {
+        let mut a = app();
+        a.ui.theme_favorites = crate::theme_favorites::Favorites::from_value(&json!(["light", "dark"]));
+        a.run("prefs.set", json!({"values": {"darkTheme": "mediumDark", "appearanceMode": "auto"}})).unwrap();
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| appearance_context_menu(&mut a, ui));
+        output.textures_delta.clear();
+        let texts: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) => Some((text.galley.text().to_string(), text.pos + text.galley.size() * 0.5)),
+                _ => None,
+            })
+            .collect();
+        let settings = texts.iter().position(|(s, _)| s == "Appearance Settings…").unwrap();
+        let light = texts.iter().position(|(s, _)| s == "Light Theme").unwrap();
+        let dark = texts.iter().position(|(s, _)| s == "Dark Theme").unwrap();
+        assert!(settings < light && light < dark);
+        let pos = texts.iter().find(|(s, _)| s == "Light").unwrap().1;
+        for pressed in [true, false] {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    events: vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() },
+                    ],
+                    ..Default::default()
+                },
+                |ui| appearance_context_menu(&mut a, ui),
+            );
+            output.textures_delta.clear();
+        }
+        assert_eq!(a.session.prefs.appearance_mode, "light");
+        assert_eq!(a.session.prefs.light_theme, "light");
+        assert_eq!(a.session.prefs.dark_theme, "mediumDark");
+        let saved = serde_json::to_vec(&a.ui).unwrap();
+        let restored: crate::state::UiState = serde_json::from_slice(&saved).unwrap();
+        assert!(restored.theme_favorites.contains(Brightness::Light));
+        assert!(restored.theme_favorites.contains(Brightness::Dark));
+    }
 
     /// User Interface › Canvas Color (#663): White and the three greys paint the canvas around the
     /// artboards; Match User Interface Brightness keeps the theme's.

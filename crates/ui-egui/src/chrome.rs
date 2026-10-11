@@ -109,9 +109,11 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                     _ => ("moon", tl!("Dark")),
                 };
                 let tip = format!("{}{} {mode}", tl!("Appearance Mode"), tl!(":"));
-                if widgets::icon_button(ui, icon, &tip, false, 24.0).clicked() {
+                let response = widgets::icon_button(ui, icon, &tip, false, 24.0);
+                if response.clicked() {
                     app.run("window.appearanceMode", json!({})).ok();
                 }
+                response.context_menu(|ui| crate::prefs_dialog::appearance_context_menu(app, ui));
             }
             if discord {
                 ui.add_space(10.0);

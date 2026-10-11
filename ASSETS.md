@@ -332,3 +332,5 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `examples/ribbons.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
 | `examples/feature-sheet.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
 | `examples/perspective-city.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
+
+The favorite stars in `crates/ui-egui/src/theme_favorites.rs` are original procedural artwork under MIT OR Apache-2.0. The appearance settings and favorite action translations were adapted from [PhotoCraft #2445](https://github.com/storytold/photocraft/pull/2445), by PhotoCraft contributors, under MIT OR Apache-2.0.
