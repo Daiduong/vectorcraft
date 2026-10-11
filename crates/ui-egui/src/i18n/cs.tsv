@@ -3096,7 +3096,6 @@ theme	Appearance	Motiv
 	Add to Selection	Přidat do výběru
 	Select Anchors	Vybrat kotevní body
 	Select Objects	Vybrat objekty
-	Set Key Object	Nastavit klíčový objekt
 	Toggle Selection	Přepnout výběr
 	Create Slice	Vytvořit řez
 	Delete Slices	Odstranit řezy
@@ -3883,6 +3882,7 @@ effect	Regular	Pravidelný
 @msg	nothing to wrap	není co obtékat
 @msg	object {0} cannot have children	objekt {0} nemůže mít potomky
 @msg	object {id} is not a path	objekt {id} není cesta
+@msg	object {id} is not a selected top-level object	objekt {id} není vybraný objekt nejvyšší úrovně
 @msg	page size {w} × {h}	velikost stránky {w} × {h}
 @msg	page {0} does not exist (the PDF has {1})	stránka {0} neexistuje (PDF jich má {1})
 @msg	paste unavailable	vložení není k dispozici
