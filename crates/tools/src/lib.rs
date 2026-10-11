@@ -250,6 +250,8 @@ pub struct ToolContext<'a> {
     pub appearance_item: Option<usize>,
     /// General → Constrain Angle (degrees): Shift constrains drags to 45° steps from it.
     pub constrain_angle: f64,
+    /// General → Rotation Snap Angle: Shift-rotation steps, in degrees.
+    pub rotation_snap_angle: f64,
     /// The selected freeform gradient point (`paint.freeform.selectPoint`), marked on the
     /// freeform annotator.
     pub freeform_point: Option<usize>,
@@ -698,6 +700,7 @@ pub(crate) mod testutil {
             gradient_stop: None,
             appearance_item: None,
             constrain_angle: 0.0,
+            rotation_snap_angle: 45.0,
             freeform_point: None,
             raster_sample: 1,
             preview_bounds: false,

@@ -1,6 +1,6 @@
 # Parity with Adobe Illustrator
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (UI chrome: native macOS save Format menu, #866, scores unchanged; compound paths inherit the backmost appearance and member fill-rule edits reach their owner, #1197; scores unchanged; Type core: Middle Eastern digit types done, Character panel menu › Digits; PDF export warns when the pixel cap lowers raster-effect resolution; Drawing tools: Live Corners round corners between curved sides, #1144; Type advanced: proportional vertical metrics (`vpal`) done, #966; Shape Builder: #893 fixed, merged regions of crossing lines no longer keep seams; scores unchanged while #937 is open; #1034: document-point character controls after object/group scaling; full readiness recomputed as the standard's additive weighted sum, ~62%; per-audience hours; essentials-user score ~75% added; ready-for-real-work re-examined: 50% → 55%, mainstream 65% added; earlier the same day: full re-measure against Illustrator 2026 30.x; merged the ROADMAP's parity estimate, honest assessment and "Shipped so far" into this file) · **Target:** Adobe Illustrator 2026 (30.x; public release notes through 30.7, August 2026)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (G1: cursor, saved rotation increments and point snapping, #1269/#973/#1274; scores unchanged; UI chrome: native macOS save Format menu, #866, scores unchanged; compound paths inherit the backmost appearance and member fill-rule edits reach their owner, #1197; scores unchanged; Type core: Middle Eastern digit types done, Character panel menu › Digits; PDF export warns when the pixel cap lowers raster-effect resolution; Drawing tools: Live Corners round corners between curved sides, #1144; Type advanced: proportional vertical metrics (`vpal`) done, #966; Shape Builder: #893 fixed, merged regions of crossing lines no longer keep seams; scores unchanged while #937 is open; #1034: document-point character controls after object/group scaling; full readiness recomputed as the standard's additive weighted sum, ~62%; per-audience hours; essentials-user score ~75% added; ready-for-real-work re-examined: 50% → 55%, mainstream 65% added; earlier the same day: full re-measure against Illustrator 2026 30.x; merged the ROADMAP's parity estimate, honest assessment and "Shipped so far" into this file) · **Target:** Adobe Illustrator 2026 (30.x; public release notes through 30.7, August 2026)
 
 The authoritative parity assessment. [`ROADMAP.md`](../ROADMAP.md) summarizes it; [`gaps.md`](gaps.md) is
 the work list made from it. Deep areas have their own checklists: [UI and interaction](ui-parity.md),
@@ -67,7 +67,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 
 | Area | Weight | Done | Main gaps | One agent (h) | Kind |
 |---|---:|---:|---|---:|---|
-| Selection, transform & align tools | 6 | 85% | Free Transform/Scale/Reflect along a rotated box, Start Global Edit, transform nuances | 4–6 | estimated |
+| Selection, transform & align tools | 6 | 85% | Free Transform/Scale/Reflect along a rotated box, Start Global Edit, transform nuances | 4–6 | estimated; saved rotation increment (#973, requested extension) and point-snap priority (#1274) regression-tested; scores/hours unchanged |
 | Drawing tools (Pen, Curvature, Pencil, shapes, Shaper) | 7 | 85% | Shaper construction widget, Pencil/Pen nuances, Blob Brush options, Touch Type, Dimension tool, Live Corners' Relative rounding; see [ui-parity.md](ui-parity.md) | 8–13 | estimated |
 | Path operations, Pathfinder, Shape Builder, Live Paint | 5 | 80% | Shape Builder misses planar regions in real files (#937), its gap detection and options; Live Paint Gap Options | 4–8 | estimated (lowered from 86%: open issues); compound attributes regression-tested (#1197) |
 | Colour, swatches, gradients, patterns, mesh, recolor | 7 | 92% | 30.0's gradient dither, perceptual blending and gradient presets; freeform and mixed spot/process gradients in SVG/PDF | 4–7 | estimated (lowered from 96%: target moved) |
@@ -87,7 +87,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 | Export for Screens, Asset Export, slices, Save for Web | 3 | 85% | anti-aliasing ghost borders (#983), TIFF in Export for Screens (30.2) | 2–4 | estimated |
 | Print, colour management, separations, flattener | 3 | 80% | print preview fidelity | 2–4 | estimated |
 | Automation (Actions, Variables, scripting, batch) | 3 | 60% | a scripting surface (Illustrator: JavaScript/ExtendScript), Batch, image and graph variables, dataset import/export | 8–14 | estimated |
-| UI chrome (panels, Properties, workspaces, preferences) | 6 | 80% | Properties per context, ~17 Preferences options stored but unused (#394), panels outside the window, SVG Interactivity, context menus beyond the canvas, accessibility | 13–20 | estimated; macOS save Format menu implemented (#866), score and hours unchanged |
+| UI chrome (panels, Properties, workspaces, preferences) | 6 | 80% | Properties per context, ~17 Preferences options stored but unused (#394), panels outside the window, SVG Interactivity, context menus beyond the canvas, accessibility | 13–20 | estimated; original eyedropper cursor (#1269) and rotation preference (#973) regression-tested; macOS save Format menu implemented (#866), score and hours unchanged |
 | Libraries, Links, Package | 2 | 82% | shared libraries, linked graphics, gradients and patterns as library items (no cloud by design) | 2–3 | estimated |
 | Generative AI (Text to Vector, Generative Recolor, Shape Fill, Concept to Vector, Prompt to Edit, Rewrite Text) | 2 | 0% | a pluggable provider and the panels; needs an owner decision on models | 30–60 | measured (absent) |
 | **Feature depth** | **105** | **~75%** | | **~250–420** | |
@@ -467,6 +467,7 @@ Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a featur
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | G1: original eyedropper cursor (#1269), saved rotation increments (#973, requested extension), and Snap to Point with Smart Guides (#1274); regression-tested, full CI/UI/performance verification pending; scores and hours unchanged |
 | 2026-10-12 | minor | UI chrome: native macOS save sheets gain a Format menu (#866), with extension regression tests and actual save/cancel verification; score and hours unchanged (estimated) |
 | 2026-10-12 | minor | Compound-path appearance and fill-rule edits through directly selected members (#1197) verified with rendered holes and Undo/Redo; scores and hours unchanged |
 | 2026-10-11 | minor | Type core: Middle Eastern digit types (Character panel menu › Digits: Default, Arabic, Hindi, Farsi; `{digits}`) leave the missing list; score and hours unchanged at this rounding (estimated) |
@@ -484,3 +485,9 @@ Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a featur
 | 2026-10-10 | major | Full re-measure against Illustrator 2026 30.x from code counts, open issues and public docs; added breadth/depth/ready-for-real-work numbers, generative-AI row, calibration from PR timestamps; merged the ROADMAP's parity estimate, honest assessment and "Shipped so far" into this file |
 | 2026-10-05 | major | (in ROADMAP.md) M3 and M4 rows re-derived after the paint and files milestones |
 | 2026-10-02 | major | (in ROADMAP.md) First 22-area weighted estimate |
+
+### G1 repair evidence (2026-10-11)
+
+The original eyedropper cursor (#1269), saved rotation increments (#973) and Snap to Point
+with Smart Guides enabled (#1274) are documented in [ui-parity.md](ui-parity.md#g1-cursor-rotation-and-point-snapping-repairs-2026-10-11).
+Scores and time estimates are unchanged; OS/browser interaction checks remain pending.

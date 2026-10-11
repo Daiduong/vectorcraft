@@ -1,6 +1,6 @@
 # Gaps
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (G15: large-selection edits, cached live effects and faster Pathfinder, #1173; G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (G1: cursor, saved rotation increments and point snapping, #1269/#973/#1274; scores unchanged; G15: large-selection edits, cached live effects and faster Pathfinder, #1173; G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Every known shortfall against Illustrator, one entry each, **ranked by how much it stops a professional from
 switching**. This is the work list: unless you were given a task, pick the highest-ranked gap you can make
@@ -47,7 +47,9 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
   isolation mode and small behaviours, against the public tool and shortcut documentation. Itemized in
   [ui-parity.md](ui-parity.md). The Shaper's construction-mode widget and gesture refinements remain.
 - **Evidence:** no side-by-side session has ever happened (the clean-room rule forbids running Illustrator, so
-  the pass works from the documentation); users keep reporting small differences: #991, #975, #973, #955, #908.
+  the pass works from the documentation); users keep reporting small differences: #991, #975, #955, #908.
+  G1 repairs for #1269/#973/#1274 have automated coverage; see [repair evidence](#g1-repair-evidence-2026-10-11).
+  Full CI, app-level UI QA and before/after performance verification remain pending.
 - **Impact:** a power user notices this in the first minutes and stops trusting the tool.
 - **Estimate:** 60–90 h; splits well by tool across agents.
 
@@ -204,6 +206,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | G1: original eyedropper cursor (#1269), saved rotation increments (#973, requested extension), and Snap to Point with Smart Guides (#1274); regression-tested, full CI/UI/performance verification pending; scores and hours unchanged |
 | 2026-10-11 | minor | G15: large-selection edits, cached live effects and faster Pathfinder (#1173); a 25k-path perf run meets every budget; estimate unchanged |
 | 2026-10-11 | minor | G4: Middle Eastern digit types done (Character panel menu › Digits); estimate unchanged |
 | 2026-10-11 | minor | G4: proportional vertical metrics (#966) done; estimate unchanged |
@@ -215,3 +218,9 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 | 2026-10-10 | minor | G9 evidence counted from the tracker (28 `.ai`/EPS issues, 20 fixed); impact narrowed to handing files back |
 | 2026-10-10 | minor | Alpha blockers checked against the core-workflow gate: none |
 | 2026-10-10 | major | Moved from the ROADMAP's "Where we're lacking"; kept ids G1–G8, added G9–G19 (file formats, stability, bugs, preferences, 30.x additions, pen hardware, performance, localization, ecosystem, AI, accessibility) and re-ranked |
+
+### G1 repair evidence (2026-10-11)
+
+The original eyedropper cursor (#1269), saved rotation increments (#973) and Snap to Point
+with Smart Guides enabled (#1274) are documented in [ui-parity.md](ui-parity.md#g1-cursor-rotation-and-point-snapping-repairs-2026-10-11).
+Scores and time estimates are unchanged; OS/browser interaction checks remain pending.

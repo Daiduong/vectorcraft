@@ -110,10 +110,10 @@ impl TransformTool {
     }
 
     /// Transform for dragging from `start` to `p` about `o`; returns the matrix and a readout.
-    pub fn matrix_for(&self, o: Point, start: Point, p: Point, shift: bool, bounds: Rect) -> (Affine, String) {
+    pub fn matrix_for(&self, o: Point, start: Point, p: Point, shift: bool, bounds: Rect, rotation_snap_angle: f64) -> (Affine, String) {
         match self.kind {
             TransformKind::Rotate => {
-                let (a, deg) = rotate_for_drag(o, start, p, shift);
+                let (a, deg) = rotate_for_drag(o, start, p, shift, rotation_snap_angle);
                 (a, format!("{:.1}°", -deg))
             }
             TransformKind::Reflect => {
@@ -205,7 +205,7 @@ impl Tool for TransformTool {
                 }
                 let (p, guides) = self.snap.as_ref().map_or((p, vec![]), |s| s.snap(cx, p));
                 self.hover = guides;
-                let (m, text) = self.matrix_for(d.origin, d.pick, p, ev.mods.shift, d.bounds);
+                let (m, text) = self.matrix_for(d.origin, d.pick, p, ev.mods.shift, d.bounds, cx.rotation_snap_angle);
                 d.last = m;
                 self.drag = Some(d);
                 self.measure = Some((p, text));
@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn scale_shift_is_uniform() {
         let t = TransformTool::new(TransformKind::Scale);
-        let (m, _) = t.matrix_for(Point::new(150.0, 150.0), Point::new(200.0, 200.0), Point::new(250.0, 240.0), true, Rect::ZERO);
+        let (m, _) = t.matrix_for(Point::new(150.0, 150.0), Point::new(200.0, 200.0), Point::new(250.0, 240.0), true, Rect::ZERO, 45.0);
         let c = m.as_coeffs();
         assert!((c[0] - c[3]).abs() < 1e-9 && c[0] > 1.0);
     }
@@ -487,7 +487,7 @@ mod tests {
     fn reflect_vertical_axis_mirrors_x() {
         let t = TransformTool::new(TransformKind::Reflect);
         let o = Point::new(150.0, 150.0);
-        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(150.0, 50.0), false, Rect::ZERO);
+        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(150.0, 50.0), false, Rect::ZERO, 45.0);
         assert!((m * Point::new(100.0, 120.0)).distance(Point::new(200.0, 120.0)) < 1e-9);
     }
 
@@ -495,7 +495,7 @@ mod tests {
     fn shear_horizontal_keeps_origin_row() {
         let t = TransformTool::new(TransformKind::Shear);
         let o = Point::new(150.0, 200.0);
-        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(200.0, 100.0), false, Rect::new(100.0, 100.0, 200.0, 200.0));
+        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(200.0, 100.0), false, Rect::new(100.0, 100.0, 200.0, 200.0), 45.0);
         assert!((m * Point::new(100.0, 200.0)).distance(Point::new(100.0, 200.0)) < 1e-9);
         assert!((m * Point::new(150.0, 100.0)).distance(Point::new(200.0, 100.0)) < 1e-9);
     }

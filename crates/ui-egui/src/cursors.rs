@@ -66,6 +66,14 @@ fn crosshair(p: &mut Ink, o: Pos2) {
     }
 }
 
+/// Original pipette glyph: the sampling tip is the pointer hotspot.
+fn eyedropper(p: &mut Ink, o: Pos2) {
+    let points = [(0.0, 0.0), (2.0, -5.0), (10.0, -13.0), (13.0, -10.0), (5.0, -2.0)].iter().map(|(x, y)| o + vec2(*x, *y)).collect();
+    poly(p, points, HALO, INK);
+    line(p, o + vec2(8.0, -15.0), o + vec2(15.0, -8.0));
+    poly(p, [(10.0, -16.0), (14.0, -20.0), (20.0, -14.0), (16.0, -10.0)].iter().map(|(x, y)| o + vec2(*x, *y)).collect(), INK, INK);
+}
+
 fn pen(p: &mut Ink, o: Pos2, badge: &str) {
     // Nib pointing to the top-left hotspot.
     let pts = vec![o, o + vec2(4.0, 12.0), o + vec2(8.0, 16.0), o + vec2(16.0, 8.0), o + vec2(12.0, 4.0)];
@@ -314,7 +322,8 @@ fn glyph(c: Cursor, p: Pos2) -> Option<Vec<Shape>> {
             arrow(ink, p, false);
             double_arrow(ink, p + vec2(15.0, 18.0), vec2(1.0, 0.0));
         }
-        Cursor::Crosshair | Cursor::Eyedropper => crosshair(ink, p),
+        Cursor::Crosshair => crosshair(ink, p),
+        Cursor::Eyedropper => eyedropper(ink, p),
         Cursor::ResizeH => double_arrow(ink, p, vec2(1.0, 0.0)),
         Cursor::ResizeV => double_arrow(ink, p, vec2(0.0, 1.0)),
         Cursor::ResizeNwSe => double_arrow(ink, p, vec2(1.0, 1.0)),
@@ -676,5 +685,21 @@ mod tests {
         let pts = arrow_points(pos2(10.0, 20.0));
         assert_eq!(pts[0], pos2(10.0, 20.0));
         assert!(pts.iter().all(|q| q.x >= 10.0 && q.y >= 20.0));
+    }
+    #[test]
+    fn eyedropper_has_a_distinct_glyph_and_preserves_precise_cursor() {
+        for ppp in [1.0, 1.25, 2.0, 3.0] {
+            let drop = rasterize(Cursor::Eyedropper, ppp).unwrap();
+            let cross = rasterize(Cursor::Crosshair, ppp).unwrap();
+            assert_ne!(drop.rgba, cross.rgba);
+            if ppp == 3.0
+                && let Ok(path) = std::env::var("VECTORCRAFT_CURSOR_PREVIEW")
+            {
+                image::save_buffer(path, &drop.rgba, u32::from(drop.size[0]), u32::from(drop.size[1]), image::ColorType::Rgba8).unwrap();
+            }
+            let [x, y] = drop.hotspot.map(usize::from);
+            assert!(pixel(&drop, x, y)[3] > 0);
+        }
+        assert_eq!(Cursor::Eyedropper.precise(), Cursor::Crosshair);
     }
 }

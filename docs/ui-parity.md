@@ -1,6 +1,6 @@
 # UI and interaction parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (G1: cursor, saved rotation increments and point snapping, #1269/#973/#1274; scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x)
 
 How VectorCraft's tools, handles, snapping and panels behave next to Illustrator's. A vector illustrator's
 trust is in the details: where a handle lands, what Shift and Alt do mid-drag, what a smart guide snaps to,
@@ -86,11 +86,11 @@ tools, never checked side by side) isn't captured row by row.
 | Measurement labels while drawing, moving and resizing | partial | sizes and offsets; angle and distance readouts while drawing missing |
 | Spacing guides (equal distances) | partial | for moves (#394); not for resizing or drawing |
 | Snapping tolerance preference | done | |
-| Snap to Point, Snap to Grid, Snap to Pixel; Pixel Preview | done | |
+| Snap to Point, Snap to Grid, Snap to Pixel; Pixel Preview | done | Snap to Point uses its own tolerance with Smart Guides on; anchor/ruler priority and grid/pixel precedence regression-tested (#1274). App-level QA pending. |
 | Snap to Glyph | missing | menu stub |
 | Tangent and perpendicular snapping for line endpoints (new in 30.0) | missing | |
 | Snapping panel/popover consolidating the snap options (30.0) | missing | |
-| Customisable rotation snap angle (#973) | missing | Illustrator: Constrain Angle and construction angles only |
+| Customisable rotation snap angle (#973) | implemented extension | General › Rotation Snap Angle, 0.1–180°, default 45°; Selection, Rotate and Free Transform use the saved increment. Requested extension, not a claim of Illustrator parity. |
 | Ruler guides: drag out, select, move, delete, lock, Make/Release Guides | done | #414, #451 |
 | Ruler guides as Layers rows: shown, hidden, locked and deleted with their layer; rows dragged to another layer | done | `guide.setLayer`; guides from older files go on a layer |
 | Alt swaps a ruler guide's orientation while dragging | missing | |
@@ -172,6 +172,7 @@ re-measure of the panels added since.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | G1: original eyedropper cursor (#1269), saved rotation increments (#973, requested extension), and Snap to Point with Smart Guides (#1274); regression-tested, full CI/UI/performance verification pending; scores and hours unchanged |
 | 2026-10-12 | minor | macOS native save sheets gain a localised Format menu (#866); filename regression tests and an actual SVG save, PDF selection and cancellation verified; scores unchanged (estimated) |
 | 2026-10-12 | minor | Attributes: directly selected compound members read and change the compound fill rule; path direction stays member-local (#1197); score unchanged |
 | 2026-10-11 | minor | A marquee inside a filled shape no longer selects it: only touching its path does (#1103); score unchanged (estimated) |
@@ -180,3 +181,28 @@ re-measure of the panels added since.
 | 2026-10-11 | minor | Edit Toolbar opens the All Tools drawer beside the toolbar instead of a centred dialog, dims the tools the toolbar holds, and edits the toolbar by drag and drop while it is open (#1018); score unchanged (estimated) |
 | 2026-10-11 | minor | Direct Selection: dragging a path selected whole by an anchor moves it whole; Alt-drag copies by an anchor too, toggles during the drag and snaps onto the original (#1104); score unchanged (estimated) |
 | 2026-10-10 | major | First checklist, built from the tool sources and tests against Illustrator 2026's public documentation |
+
+### G1: cursor, rotation and point-snapping repairs (2026-10-11)
+
+Issue-driven behavior (public requests: [#1269](https://github.com/storytold/vectorcraft/issues/1269), [#973](https://github.com/storytold/vectorcraft/issues/973), [#1274](https://github.com/storytold/vectorcraft/issues/1274)): #1269 uses an original pipette cursor with its sampling tip at the
+hotspot; Use Precise Cursors retains the crosshair. #973 adds General › Rotation Snap Angle
+(`rotationSnapAngle`, 0.1–180 degrees), saved with preferences, defaulting to the existing
+45-degree increment. Selection, Free Transform and Rotate read it. This is a requested
+extension, not an Illustrator compatibility claim. #1274 lets Snap to Point use its own
+screen-pixel tolerance with Smart Guides enabled. Nearby anchors/ruler guides take priority;
+Smart Guides remain the fallback, and grid/pixel snapping retain precedence.
+
+Evidence: rasterized cursor/hotspot tests, preference migration and validation, engine
+rotation with Undo/Redo, and point/move snapping tests. These tests use original synthetic
+artwork. Manual desktop/browser interaction and complete OS coverage remain unverified.
+Area scores, headline readiness and time estimates remain unchanged.
+
+Verification against `AGENTS.md`: implementation and tests are Rust, preferences use the
+existing engine commands, tools retain Begin/Preview/Commit transforms, and no lower
+layer gains UI dependencies. Formatting, workspace Clippy, layers, assets and all 21
+WASM checks passed; 1,741 engine, 307 tools and 9 cursor tests passed. Full
+`cargo xtask ci` remains incomplete because integration-test linking exhausted disk
+space. The actual cursor bitmap was inspected; presented-frame or headless preference
+panel verification and manual pointer QA remain pending. The required before/after
+`vectorcraft-cli perf` run for geometry changes has not been performed. These are
+outstanding verification requirements; this draft does not claim full compliance.

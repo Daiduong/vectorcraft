@@ -3755,3 +3755,5 @@ lighting	Light	光源
 	Move Guide to Layer	将参考线移至图层
 	Linux Display Server	Linux 显示服务器
 	X11 (XWayland)	X11 (XWayland)
+
+	Rotation Snap Angle	旋转吸附角度

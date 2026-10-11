@@ -122,6 +122,7 @@ pub const PREF_SPECS: &[PrefSpec] = &[
     // General
     p!("keyboardIncrement", "General", "", "Keyboard Increment", len(0.001, 1296.0, General)),
     p!("constrainAngle", "General", "", "Constrain Angle", num(-360.0, 360.0, "°")),
+    p!("rotationSnapAngle", "General", "", "Rotation Snap Angle", num(0.1, 180.0, "°")),
     p!("cornerRadius", "General", "", "Corner Radius", len(0.0, 1296.0, General)),
     p!("pasteOffset", "General", "", "Paste Offset", len(0.0, 1296.0, General)),
     p!("disableAutoAddDelete", "General", "Options", "Disable Auto Add/Delete", bool),
