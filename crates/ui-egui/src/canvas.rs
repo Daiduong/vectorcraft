@@ -2110,6 +2110,48 @@ mod tests {
     use vectorcraft_engine::Session;
     use vectorcraft_geom::Shape as _;
 
+    /// #1229: the box disappears during radius editing, while the rounded outline stays.
+    #[test]
+    fn corner_radius_drag_draws_the_outline_without_the_selection_box() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 500, "height": 500})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap();
+        let view = vectorcraft_engine::ViewInfo::default();
+        app.session.select_tool("selection", view).unwrap();
+        let ctx = egui::Context::default();
+        let xf = Xf { rect: egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0)), zoom: 1.0, center: Point::new(250.0, 250.0), rot: 0.0 };
+        let draw = |app: &mut VectorcraftApp| {
+            let mut out = ctx.run_ui(Default::default(), |ui| selection_overlay(app, ui.painter(), &xf));
+            out.textures_delta.clear();
+            out.shapes.into_iter().map(|s| s.shape).collect::<Vec<_>>()
+        };
+        let boxes = |shapes: &[Shape]| shapes.iter().filter(|s| matches!(s, Shape::Path(p) if p.closed && p.points.len() == 4)).count();
+        let pointer = |app: &mut VectorcraftApp, kind, x, y| app.session.pointer(&PointerEvent::new(kind, x, y), view).unwrap();
+        assert_eq!(boxes(&draw(&mut app)), 1);
+        pointer(&mut app, PointerKind::Down, 110.0, 110.0);
+        pointer(&mut app, PointerKind::Drag, 130.0, 130.0);
+        let dragged = draw(&mut app);
+        assert_eq!(boxes(&dragged), 0, "the original rectangle's box is hidden");
+        assert!(
+            dragged.iter().any(|s| matches!(s, Shape::Path(p) if p.points.len() > 8 && p.points.first() == p.points.last())),
+            "the rounded outline remains"
+        );
+        pointer(&mut app, PointerKind::Up, 130.0, 130.0);
+        assert_eq!(boxes(&draw(&mut app)), 1, "release restores the box");
+        app.session.execute("edit.undo", &json!({})).unwrap();
+        for _ in 0..2 {
+            pointer(&mut app, PointerKind::Down, 110.0, 110.0);
+            pointer(&mut app, PointerKind::Drag, 130.0, 130.0);
+            assert_eq!(boxes(&draw(&mut app)), 0);
+            // The canvas cancels an interrupted preview, then sends mouse-up to reset the tool.
+            app.session.cancel_interaction().unwrap();
+            pointer(&mut app, PointerKind::Up, 130.0, 130.0);
+            assert!(!app.session.tool_transforming());
+            assert!(!app.session.in_interaction());
+            assert_eq!(boxes(&draw(&mut app)), 1, "cancellation restores the box");
+        }
+    }
+
     /// #826: in a turned view each ruler still has ticks along its whole length; at 0° the top one
     /// reads x where the canvas has it.
     #[test]
