@@ -86,7 +86,7 @@ tools, never checked side by side) isn't captured row by row.
 | Measurement labels while drawing, moving and resizing | partial | sizes and offsets; angle and distance readouts while drawing missing |
 | Spacing guides (equal distances) | partial | for moves (#394); not for resizing or drawing |
 | Snapping tolerance preference | done | |
-| Snap to Point, Snap to Grid, Snap to Pixel; Pixel Preview | done | |
+| Snap to Point, Snap to Grid, Snap to Pixel; Pixel Preview | done | Snap to Point uses its own tolerance with Smart Guides on; anchor/ruler priority and grid/pixel precedence regression-tested (#1274). App-level QA pending. |
 | Snap to Glyph | missing | menu stub |
 | Tangent and perpendicular snapping for line endpoints (new in 30.0) | missing | |
 | Snapping panel/popover consolidating the snap options (30.0) | missing | |
@@ -172,6 +172,7 @@ re-measure of the panels added since.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | G1: original eyedropper cursor (#1269), saved rotation increments (#973, requested extension), and Snap to Point with Smart Guides (#1274); regression-tested, full CI/UI/performance verification pending; scores and hours unchanged |
 | 2026-10-12 | minor | macOS native save sheets gain a localised Format menu (#866); filename regression tests and an actual SVG save, PDF selection and cancellation verified; scores unchanged (estimated) |
 | 2026-10-12 | minor | Attributes: directly selected compound members read and change the compound fill rule; path direction stays member-local (#1197); score unchanged |
 | 2026-10-11 | minor | A marquee inside a filled shape no longer selects it: only touching its path does (#1103); score unchanged (estimated) |
@@ -183,7 +184,7 @@ re-measure of the panels added since.
 
 ### G1: cursor, rotation and point-snapping repairs (2026-10-11)
 
-Issue-driven behavior: #1269 uses an original pipette cursor with its sampling tip at the
+Issue-driven behavior (public requests: [#1269](https://github.com/storytold/vectorcraft/issues/1269), [#973](https://github.com/storytold/vectorcraft/issues/973), [#1274](https://github.com/storytold/vectorcraft/issues/1274)): #1269 uses an original pipette cursor with its sampling tip at the
 hotspot; Use Precise Cursors retains the crosshair. #973 adds General › Rotation Snap Angle
 (`rotationSnapAngle`, 0.1–180 degrees), saved with preferences, defaulting to the existing
 45-degree increment. Selection, Free Transform and Rotate read it. This is a requested
@@ -195,3 +196,13 @@ Evidence: rasterized cursor/hotspot tests, preference migration and validation, 
 rotation with Undo/Redo, and point/move snapping tests. These tests use original synthetic
 artwork. Manual desktop/browser interaction and complete OS coverage remain unverified.
 Area scores, headline readiness and time estimates remain unchanged.
+
+Verification against `AGENTS.md`: implementation and tests are Rust, preferences use the
+existing engine commands, tools retain Begin/Preview/Commit transforms, and no lower
+layer gains UI dependencies. Formatting, workspace Clippy, layers, assets and all 21
+WASM checks passed; 1,741 engine, 307 tools and 9 cursor tests passed. Full
+`cargo xtask ci` remains incomplete because integration-test linking exhausted disk
+space. The actual cursor bitmap was inspected; presented-frame or headless preference
+panel verification and manual pointer QA remain pending. The required before/after
+`vectorcraft-cli perf` run for geometry changes has not been performed. These are
+outstanding verification requirements; this draft does not claim full compliance.

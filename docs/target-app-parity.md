@@ -67,7 +67,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 
 | Area | Weight | Done | Main gaps | One agent (h) | Kind |
 |---|---:|---:|---|---:|---|
-| Selection, transform & align tools | 6 | 85% | Free Transform/Scale/Reflect along a rotated box, Start Global Edit, transform nuances | 4–6 | estimated |
+| Selection, transform & align tools | 6 | 85% | Free Transform/Scale/Reflect along a rotated box, Start Global Edit, transform nuances | 4–6 | estimated; saved rotation increment (#973, requested extension) and point-snap priority (#1274) regression-tested; scores/hours unchanged |
 | Drawing tools (Pen, Curvature, Pencil, shapes, Shaper) | 7 | 85% | Shaper construction widget, Pencil/Pen nuances, Blob Brush options, Touch Type, Dimension tool, Live Corners' Relative rounding; see [ui-parity.md](ui-parity.md) | 8–13 | estimated |
 | Path operations, Pathfinder, Shape Builder, Live Paint | 5 | 80% | Shape Builder misses planar regions in real files (#937), its gap detection and options; Live Paint Gap Options | 4–8 | estimated (lowered from 86%: open issues); compound attributes regression-tested (#1197) |
 | Colour, swatches, gradients, patterns, mesh, recolor | 7 | 92% | 30.0's gradient dither, perceptual blending and gradient presets; freeform and mixed spot/process gradients in SVG/PDF | 4–7 | estimated (lowered from 96%: target moved) |
@@ -87,7 +87,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 | Export for Screens, Asset Export, slices, Save for Web | 3 | 85% | anti-aliasing ghost borders (#983), TIFF in Export for Screens (30.2) | 2–4 | estimated |
 | Print, colour management, separations, flattener | 3 | 80% | print preview fidelity | 2–4 | estimated |
 | Automation (Actions, Variables, scripting, batch) | 3 | 60% | a scripting surface (Illustrator: JavaScript/ExtendScript), Batch, image and graph variables, dataset import/export | 8–14 | estimated |
-| UI chrome (panels, Properties, workspaces, preferences) | 6 | 80% | Properties per context, ~17 Preferences options stored but unused (#394), panels outside the window, SVG Interactivity, context menus beyond the canvas, accessibility | 13–20 | estimated; macOS save Format menu implemented (#866), score and hours unchanged |
+| UI chrome (panels, Properties, workspaces, preferences) | 6 | 80% | Properties per context, ~17 Preferences options stored but unused (#394), panels outside the window, SVG Interactivity, context menus beyond the canvas, accessibility | 13–20 | estimated; original eyedropper cursor (#1269) and rotation preference (#973) regression-tested; macOS save Format menu implemented (#866), score and hours unchanged |
 | Libraries, Links, Package | 2 | 82% | shared libraries, linked graphics, gradients and patterns as library items (no cloud by design) | 2–3 | estimated |
 | Generative AI (Text to Vector, Generative Recolor, Shape Fill, Concept to Vector, Prompt to Edit, Rewrite Text) | 2 | 0% | a pluggable provider and the panels; needs an owner decision on models | 30–60 | measured (absent) |
 | **Feature depth** | **105** | **~75%** | | **~250–420** | |
@@ -467,6 +467,7 @@ Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a featur
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | G1: original eyedropper cursor (#1269), saved rotation increments (#973, requested extension), and Snap to Point with Smart Guides (#1274); regression-tested, full CI/UI/performance verification pending; scores and hours unchanged |
 | 2026-10-12 | minor | UI chrome: native macOS save sheets gain a Format menu (#866), with extension regression tests and actual save/cancel verification; score and hours unchanged (estimated) |
 | 2026-10-12 | minor | Compound-path appearance and fill-rule edits through directly selected members (#1197) verified with rendered holes and Undo/Redo; scores and hours unchanged |
 | 2026-10-11 | minor | Type core: Middle Eastern digit types (Character panel menu › Digits: Default, Arabic, Hindi, Farsi; `{digits}`) leave the missing list; score and hours unchanged at this rounding (estimated) |
