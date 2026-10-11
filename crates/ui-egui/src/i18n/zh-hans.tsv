@@ -1978,6 +1978,10 @@
 	Proof Setup	校样设置
 	Properties	属性
 	Proportional Metrics	比例度量
+	Digits	数字
+	Arabic	阿拉伯数字
+	Hindi	印地数字
+	Farsi	波斯数字
 	Proportional Oldstyle	比例旧式数字
 	Pucker & Bloat…	缩拢与膨胀…
 	Pucker Tool	收缩工具
@@ -2077,6 +2081,9 @@
 	Redefine Symbol	重新定义符号
 	Redefine {kind} Style	重新定义{kind}样式
 	Redo	重做
+	List Folder	列出文件夹
+	Begin Undo Group	开始还原组
+	End Undo Group	结束还原组
 	Redo {name}	重做 {name}
 	Redo {}	重做 {}
 	Reduce Colors	减少颜色
@@ -3414,6 +3421,7 @@
 	Graphics: {adapter}	显卡：{adapter}
 	Japanese	日文
 	Latin	拉丁文
+	Thai	泰文
 	Layer Options	图层选项
 	Layers Panel Options	图层面板选项
 	Monospaced	等宽

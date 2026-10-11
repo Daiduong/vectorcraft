@@ -1335,6 +1335,7 @@
 	Last Effect…	Останній ефект…
 	Last Page	Остання сторінка
 	Latin	Латиниця
+	Thai	Тайська
 	Latin Extended	Розширена латиниця
 	Latin-1 Supplement	Додаток Latin-1
 	Layer	Шар
@@ -2045,6 +2046,10 @@
 	Proof Setup	Налаштування кольоропроби
 	Properties	Властивості
 	Proportional Metrics	Пропорційні метрики
+	Digits	Цифри
+	Arabic	Арабські
+	Hindi	Гінді
+	Farsi	Фарсі
 	Proportional Oldstyle	Пропорційні цифри старого стилю
 	Pucker & Bloat…	Зморщування та роздування …
 	Pucker Tool	Інструмент «Зморщування»
@@ -2144,6 +2149,9 @@
 	Redefine Symbol	Перевизначити символ
 	Redefine {kind} Style	Перевизначити стиль {kind}
 	Redo	Повторити
+	List Folder	Показати вміст теки
+	Begin Undo Group	Почати групу скасування
+	End Undo Group	Завершити групу скасування
 	Redo {name}	Повторити {name}
 	Redo {}	Повторити {}
 	Reduce Colors	Скоротити кількість кольорів

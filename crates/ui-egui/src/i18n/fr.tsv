@@ -1340,6 +1340,7 @@
 	Last Effect…	Dernier effet…
 	Last Page	Dernière page
 	Latin	Latin
+	Thai	Thaï
 	Latin Extended	Latin étendu
 	Latin-1 Supplement	Supplément Latin-1
 	Layer	Calque
@@ -2050,6 +2051,10 @@
 	Proof Setup	Format d’épreuve
 	Properties	Propriétés
 	Proportional Metrics	Métrique proportionnelle
+	Digits	Chiffres
+	Arabic	Arabes
+	Hindi	Hindi
+	Farsi	Farsi
 	Proportional Oldstyle	Elzévirien proportionnel
 	Pucker & Bloat…	Contracter et dilater…
 	Pucker Tool	Outil Contraction
@@ -2149,6 +2154,9 @@
 	Redefine Symbol	Redéfinir le symbole
 	Redefine {kind} Style	Redéfinir le style de {kind}
 	Redo	Rétablir
+	List Folder	Lister le dossier
+	Begin Undo Group	Commencer un groupe d’annulation
+	End Undo Group	Terminer le groupe d’annulation
 	Redo {name}	Rétablir {name}
 	Redo {}	Rétablir {}
 	Reduce Colors	Réduire les couleurs

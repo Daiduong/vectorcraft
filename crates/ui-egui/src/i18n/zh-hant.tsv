@@ -1316,6 +1316,7 @@
 	Last Effect…	最後一次效果…
 	Last Page	最後一頁
 	Latin	拉丁文
+	Thai	泰文
 	Latin Extended	拉丁文擴充
 	Latin-1 Supplement	拉丁文-1 補充
 	Layer	圖層
@@ -2031,6 +2032,10 @@
 	Proof Setup	校樣設定
 	Properties	內容
 	Proportional Metrics	比例度量
+	Digits	數字
+	Arabic	阿拉伯數字
+	Hindi	印地數字
+	Farsi	波斯數字
 	Proportional Oldstyle	比例舊式數字
 	Pucker & Bloat…	縮攏與膨脹…
 	Pucker Tool	縮攏工具
@@ -2130,6 +2135,9 @@
 	Redefine Symbol	重新定義符號
 	Redefine {kind} Style	重新定義{kind}樣式
 	Redo	重做
+	List Folder	列出資料夾
+	Begin Undo Group	開始還原群組
+	End Undo Group	結束還原群組
 	Redo {name}	重做 {name}
 	Redo {}	重做 {}
 	Reduce Colors	縮減顏色

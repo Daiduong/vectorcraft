@@ -74,6 +74,14 @@ sync_github_name = false
 [people.webdevtodayjason]
 display_name = "Jason Brashear"
 
+[people.Losminek]
+sync_github_name = true
+
+[people.atoslins]
+real_name = "Atos Lins"
+display_name = "Atos Lins"
+sync_github_name = false
+
 [people.sirj0k3r]
 real_name = "Pedro Ferreira"
 display_name = "sirj0k3r"

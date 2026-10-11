@@ -38,6 +38,10 @@
 	ICF Top/Right	平均字面の上 / 右
 	ICF Bottom/Left	平均字面の下 / 左
 	Proportional Metrics	プロポーショナルメトリクス
+	Digits	数字
+	Arabic	アラビア数字
+	Hindi	ヒンディー数字
+	Farsi	ペルシャ数字
 	Favorites	お気に入り
 	Flip	反転
 	Japanese	日本語
@@ -48,6 +52,7 @@
 	Hard	強い禁則
 	Soft	弱い禁則
 	Latin	欧文
+	Thai	タイ文字
 	Monospaced	等幅
 	Roman Baseline	欧文ベースライン
 	Rounded	丸ゴシック
@@ -101,6 +106,9 @@
 	Edit	編集
 	Undo	取り消し
 	Redo	やり直し
+	List Folder	フォルダーの内容を一覧表示
+	Begin Undo Group	取り消しグループを開始
+	End Undo Group	取り消しグループを終了
 	Cut	切り取り
 	Copy	コピー
 	Paste	貼り付け
