@@ -3,9 +3,9 @@
 //! or a document swatch, which stays linked when it is a global or spot colour), opacity and
 //! location. It edits the selected stop (`gradient.selectStop`) through `paint.editGradient`, moves
 //! by dragging its background (it stays where it was dragged to while it is open; the next opening
-//! starts beside the art again), and closes on Escape or a click elsewhere. On a freeform gradient it edits the selected point
-//! (`paint.freeform.selectPoint`) instead: its colour, opacity and spread, through
-//! `paint.freeform.setPoint`.
+//! starts beside the art again), and closes on Escape or a click elsewhere. On a freeform gradient
+//! it edits the selected point (`paint.freeform.selectPoint`) instead: its colour, opacity and
+//! spread, through `paint.freeform.setPoint`.
 //!
 //! Fields: `index`, `x`, `y` (the chip, document coordinates) or `screen` ([x, y], screen points,
 //! from the panel), and `tab` (`color` or `swatches`).
