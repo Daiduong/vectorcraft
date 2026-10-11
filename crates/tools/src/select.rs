@@ -226,7 +226,7 @@ impl Tool for SelectionTool {
     }
 
     fn transforming(&self) -> bool {
-        matches!(self.state, State::Moving { began: true, .. } | State::Scaling { .. } | State::Rotating { .. })
+        matches!(self.state, State::Moving { began: true, .. } | State::Scaling { .. } | State::Rotating { .. } | State::Corner(_))
     }
 
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
@@ -539,6 +539,53 @@ mod tests {
 
     fn ev(kind: PointerKind, x: f64, y: f64) -> PointerEvent {
         PointerEvent::new(kind, x, y)
+    }
+
+    /// #1229: radius editing hides the selection box, while keeping its own feedback.
+    #[test]
+    fn corner_radius_drag_hides_bounds_and_restores_them_on_release() {
+        let (mut d, id) = doc_with_rect();
+        let live = vectorcraft_doc::LiveShape::Rectangle {
+            w: 100.0,
+            h: 100.0,
+            radii: [0.0; 4],
+            kinds: Default::default(),
+            xf: Affine::translate((100.0, 100.0)),
+        };
+        let vectorcraft_doc::NodeKind::Path { path, live: slot, .. } = &mut d.node_mut(id).unwrap().kind else { panic!("not a path") };
+        *path = live.to_path();
+        *slot = Some(live);
+        let mut s = Selection::default();
+        s.add(id);
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = SelectionTool::default();
+        for end in [130.0, 210.0] {
+            assert!(!t.transforming());
+            t.pointer(&cx, &ev(PointerKind::Down, 110.0, 110.0));
+            assert!(t.transforming(), "the radius gesture hides the bounding box");
+            let actions = t.pointer(&cx, &ev(PointerKind::Drag, end, end));
+            assert!(matches!(actions.first(), Some(Action::Begin(_))));
+            assert!(matches!(actions.get(1), Some(Action::Preview(command, _) ) if command == "object.setLiveShape"));
+            assert!(t.transforming());
+            let overlays = t.overlays(&cx);
+            assert!(overlays.iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("Radius: "))));
+            assert_eq!(
+                overlays.iter().any(
+                    |o| matches!(o, Overlay::Path { color, width, dashed: false, .. } if *color == crate::builder::HIGHLIGHT_RED && *width == 2.0)
+                ),
+                end == 210.0
+            );
+            assert_eq!(t.pointer(&cx, &ev(PointerKind::Up, end, end)), vec![Action::Commit]);
+            assert!(!t.transforming(), "release restores the bounding box");
+            assert!(!t.busy());
+            assert!(!t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("Radius: "))));
+        }
+        // A click without dragging restores the box without creating an undo step.
+        t.pointer(&cx, &ev(PointerKind::Down, 110.0, 110.0));
+        assert!(t.transforming());
+        assert!(t.pointer(&cx, &ev(PointerKind::Up, 110.0, 110.0)).is_empty());
+        assert!(!t.transforming());
     }
 
     /// #955: grabbed by an anchor and dropped near another object's anchor, the anchor lands
