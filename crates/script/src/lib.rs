@@ -2,6 +2,10 @@
 //! `vectorcraft-cli script`). See `docs/scripting.md`.
 #![deny(unsafe_code)]
 
+// Used by run_script (next commit).
+#[allow(dead_code)]
+mod convert;
+
 /// Evaluates `source` in a fresh context → its completion value as text (spike; replaced by
 /// `run_script`).
 pub fn eval_text(source: &str) -> Result<String, String> {
