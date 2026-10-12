@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use super::*;
+use crate::Node;
 
 #[test]
 fn basic_ops() {
@@ -126,4 +129,130 @@ fn a_key_object_needs_two_or_more_selected_objects() {
     s.key = Some(ids[3]);
     s.prune(&d);
     assert_eq!(s.key, Some(ids[3]), "another object outside the group");
+}
+
+#[test]
+fn deselecting_uneditable_objects_drops_their_anchors_segments_and_key() {
+    let mut d = Document::new(100.0, 100.0);
+    let layer = d.layers[0].id;
+    let [a, b, c] = [(); 3].map(|()| {
+        let id = d.alloc_id();
+        d.insert(Some(layer), usize::MAX, crate::Node::group(id, vec![])).unwrap()
+    });
+    let mut s = Selection::default();
+    s.set([a, b, c]);
+    s.anchors.insert(a, BTreeSet::from([(0, 0)]));
+    s.anchors.insert(b, BTreeSet::from([(0, 1)]));
+    s.segments.insert(a, BTreeSet::from([(0, 0)]));
+    (s.key, s.target, s.slices) = (Some(a), Some(layer), vec![c]);
+    // Nothing hidden or locked: the selection stays as it is.
+    let before = s.clone();
+    s.deselect_uneditable(&d);
+    assert_eq!(s, before);
+    d.node_mut(a).unwrap().locked = true;
+    d.node_mut(c).unwrap().visible = false;
+    s.deselect_uneditable(&d);
+    assert_eq!(s.objects, vec![b]);
+    assert_eq!(s.anchors.keys().copied().collect::<Vec<_>>(), vec![b]);
+    assert!(s.segments.is_empty());
+    assert_eq!((s.key, s.target, s.slices.len()), (None, None, 0));
+}
+
+/// Xorshift step: a number below `n`.
+fn below(r: &mut u64, n: u64) -> u64 {
+    *r ^= *r << 13;
+    *r ^= *r >> 7;
+    *r ^= *r << 17;
+    *r % n.max(1)
+}
+
+/// A group nested up to `depth` deep (empty at the bottom), hidden or locked one time in six each.
+fn random_group(d: &mut Document, r: &mut u64, depth: u64, ids: &mut Vec<NodeId>) -> Arc<Node> {
+    let id = d.alloc_id();
+    ids.push(id);
+    let count = if depth == 0 { 0 } else { 1 + below(r, 4) };
+    let children = (0..count)
+        .map(|_| {
+            let k = below(r, depth);
+            random_group(d, r, k, ids)
+        })
+        .collect();
+    let mut n = Node::group(id, children);
+    n.locked = below(r, 6) == 0;
+    n.visible = below(r, 6) != 0;
+    Arc::new(n)
+}
+
+/// A layer of random groups, with a sublayer of its own when `sublayer`, hidden or locked one time
+/// in six each.
+fn random_layer(d: &mut Document, r: &mut u64, sublayer: bool, ids: &mut Vec<NodeId>) -> Arc<Node> {
+    let mut layer = Node::layer(d.alloc_id(), "L", crate::LayerColor::Preset(0));
+    let mut children: Vec<Arc<Node>> = (0..1 + below(r, 4)).map(|_| random_group(d, r, 3, ids)).collect();
+    if sublayer {
+        children.push(random_layer(d, r, false, ids));
+    }
+    if let Some(ch) = layer.children_mut() {
+        *ch = children;
+    }
+    layer.locked = below(r, 6) == 0;
+    layer.visible = below(r, 6) != 0;
+    Arc::new(layer)
+}
+
+/// Some of `ids` (and sometimes an id not in the document) in random order, with anchors,
+/// segments, a key, a target, slices and guides.
+fn random_selection(r: &mut u64, ids: &[NodeId]) -> Selection {
+    let mut s = Selection::default();
+    let gone = (below(r, 2) == 0).then_some(NodeId(u64::MAX));
+    s.set(ids.iter().copied().filter(|_| below(r, 2) == 0).chain(gone));
+    let k = below(r, s.objects.len() as u64) as usize;
+    s.objects.rotate_left(k);
+    for &o in &s.objects {
+        let pick = below(r, 4);
+        if pick < 2 {
+            s.anchors.insert(o, BTreeSet::from([(0, pick as usize)]));
+        }
+        if pick == 1 {
+            s.segments.insert(o, BTreeSet::from([(0, 0)]));
+        }
+    }
+    s.key = s.objects.get(below(r, s.objects.len() as u64) as usize).copied();
+    s.target = ids.get(below(r, ids.len() as u64) as usize).copied().filter(|_| below(r, 2) == 0);
+    s.slices = ids.iter().copied().take(below(r, 3) as usize).collect();
+    s.guides = vec![1, 0];
+    s
+}
+
+/// Deselecting hidden and locked objects in one pass leaves the selection exactly as removing them
+/// one at a time does: on random nested documents (objects hidden or locked themselves or through
+/// a group, layer or sublayer) and random selections.
+#[test]
+fn deselect_uneditable_matches_removing_one_at_a_time() {
+    let (mut none_dropped, mut some_dropped, mut key_kept) = (0, 0, 0);
+    for seed in 1..400u64 {
+        let mut r = seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1;
+        let mut d = Document::new(100.0, 100.0);
+        let mut ids = vec![];
+        for _ in 0..3 {
+            let layer = random_layer(&mut d, &mut r, true, &mut ids);
+            d.layers.push(layer);
+        }
+        // Every fourth selection is of editable objects only (but maybe one not in the document).
+        if seed % 4 == 0 {
+            ids.retain(|i| d.is_editable(*i));
+        }
+        let s = random_selection(&mut r, &ids);
+        let mut one_at_a_time = s.clone();
+        for o in s.objects.iter().copied().filter(|o| !d.is_editable(*o)) {
+            one_at_a_time.remove(o);
+        }
+        let mut batched = s.clone();
+        batched.deselect_uneditable(&d);
+        assert_eq!(batched, one_at_a_time, "seed {seed}");
+        none_dropped += usize::from(batched == s);
+        some_dropped += usize::from(batched.objects.len() < s.objects.len() && !batched.objects.is_empty());
+        key_kept += usize::from(batched.key.is_some() && batched.objects.len() < s.objects.len());
+    }
+    // The random cases reach each branch often.
+    assert!(none_dropped > 10 && some_dropped > 100 && key_kept > 50, "{none_dropped} {some_dropped} {key_kept}");
 }

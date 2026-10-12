@@ -165,9 +165,18 @@ impl Selection {
     /// around them (and so the key object when it is one): hidden or locked art can't stay
     /// selected.
     pub fn deselect_uneditable(&mut self, doc: &Document) {
-        let out: Vec<NodeId> = self.objects.iter().copied().filter(|o| !doc.is_editable(*o)).collect();
-        for o in out {
-            self.remove(o);
+        let out: std::collections::HashSet<NodeId> = self.objects.iter().copied().filter(|o| !doc.is_editable(*o)).collect();
+        if out.is_empty() {
+            return;
+        }
+        // What `remove` per id does, in one pass instead of a scan of `objects` per id.
+        self.target = None;
+        self.slices.clear();
+        self.objects.retain(|o| !out.contains(o));
+        self.anchors.retain(|id, _| !out.contains(id));
+        self.segments.retain(|id, _| !out.contains(id));
+        if self.key.is_some_and(|k| out.contains(&k)) {
+            self.key = None;
         }
     }
     /// Target `id` (see [`Selection::target`]): a layer gets its visible, unlocked art selected
