@@ -1748,6 +1748,8 @@ mod tests_knockout;
 #[cfg(test)]
 mod tests_labspots;
 #[cfg(test)]
+mod tests_large_edits;
+#[cfg(test)]
 mod tests_layerclip;
 #[cfg(test)]
 mod tests_layers;
