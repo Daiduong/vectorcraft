@@ -1402,7 +1402,13 @@ impl Session {
         let before_sel = st.selection.clone();
         let doc = Arc::make_mut(&mut st.doc);
         let result = match f(doc, &mut st.selection) {
-            Ok(v) => match cmd::shaper::refresh(&before, Arc::make_mut(&mut st.doc)) {
+            // Shaper groups are evaluated again only when one changed or was added: unchanged ones
+            // (shared with `before`) have nothing to refresh.
+            Ok(v) => match if vectorcraft_doc::change::any_new(&before, &st.doc, &|n| n.extras().shaper.is_some()) {
+                cmd::shaper::refresh(&before, Arc::make_mut(&mut st.doc))
+            } else {
+                Ok(())
+            } {
                 Err(e) => Err(e),
                 Ok(()) => {
                     // Inline graphics in text follow their symbols.

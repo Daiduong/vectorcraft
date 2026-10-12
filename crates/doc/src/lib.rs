@@ -6,13 +6,15 @@
 //!
 //! What is worked out from the tree is cached by node identity: [`bounds_cache`] (each object's
 //! bounds, so a group's come from its members'). It holds weak references to the nodes it
-//! describes, so a node it knows can't change in place or be replaced at its address.
+//! describes, so a node it knows can't change in place or be replaced at its address; [`change`]
+//! finds what changed between two versions by comparing pointers.
 #![forbid(unsafe_code)]
 
 pub mod appearance;
 pub mod assets;
 pub mod blend;
 pub mod bounds_cache;
+pub mod change;
 pub mod clipnest;
 pub mod cmyk;
 pub mod corners;
