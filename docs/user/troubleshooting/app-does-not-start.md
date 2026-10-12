@@ -28,8 +28,6 @@ Install the latest release first. If that does not help, start VectorCraft once 
 
 To choose a graphics processor by name instead, set `WGPU_ADAPTER_NAME` to part of its name, for example `set WGPU_ADAPTER_NAME=Intel`.
 
-If the window flashes and closes, you can also try the Direct3D 12 graphics interface: run `setx WGPU_BACKEND dx12`, then sign out and in again.
-
 Do not use `VECTORCRAFT_NO_PREFS=1` to get past this problem. It starts VectorCraft without your preferences, but it also stops VectorCraft from saving them, and `set` keeps it for the rest of that Command Prompt window.
 
 ## Why this happens

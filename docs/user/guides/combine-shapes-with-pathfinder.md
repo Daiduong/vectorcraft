@@ -32,11 +32,9 @@ The result depends on which shape is in front.
 | Outline     | Splits every edge where shapes cross and returns open paths.                       |
 | Minus Back  | The front-most shape minus everything behind it.                                   |
 
-VectorCraft combines shapes with exact curve operations.
-
 ## Repeat the last operation
 
-Choose the **Repeat** entry in the Pathfinder panel menu. It is named after the last operation, for example **Repeat Unite**.
+Click the **Panel menu** button of the Pathfinder panel and choose the **Repeat** entry. It is named after the last operation, for example **Repeat Unite**. It is disabled until you have run an operation, and while nothing is selected.
 
 ## Other ways to cut shapes apart
 

@@ -30,7 +30,7 @@ VectorCraft also opens `.afphoto` files from Affinity 1 and 2, recognized by the
 
 ## Illustrator files
 
-VectorCraft opens Illustrator `.ai` files that contain a PDF page. The layer structure of real files does not always come across the way Illustrator had it, and live effects, brushes and symbols can arrive as their drawn look. VectorCraft saves `.ai` files in the PDF-compatible form only, without Illustrator's private editing data. See [Can VectorCraft open Illustrator and Affinity files?](../faq/illustrator-and-affinity-files.md).
+VectorCraft opens `.ai` files that contain a PDF page, but exchange with Illustrator files is not reliable yet. The README lists it under what is still missing, and the project has no collection of real Illustrator files to test against. Layers can come out flattened or multiplied, and live effects, brushes and symbols can arrive as their drawn look. VectorCraft saves `.ai` files in the PDF-compatible form only, without Illustrator's private editing data. Check the result before you rely on it. See [Can VectorCraft open Illustrator and Affinity files?](../faq/illustrator-and-affinity-files.md).
 
 ## Affinity files
 

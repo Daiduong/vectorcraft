@@ -1,17 +1,19 @@
 ---
 title: Can VectorCraft open Illustrator and Affinity files?
-description: VectorCraft opens Illustrator .ai files and Affinity files, with limits, and saves .ai only in the PDF-compatible form.
+description: VectorCraft opens Illustrator .ai files, but exchange with them is not reliable yet; Affinity files open natively.
 order: 20
 verified: 0.9.0
 ---
 
-Yes to both, with limits. VectorCraft opens Illustrator `.ai` files and Affinity files. It writes `.ai` only as a PDF-compatible file, and it does not write Affinity files.
+VectorCraft opens `.ai` files, but exchange with Illustrator files is not reliable yet. Affinity files open natively. VectorCraft writes `.ai` only as a PDF-compatible file and does not write Affinity files.
 
 ## Illustrator (.ai)
 
-- VectorCraft reads the PDF page inside an `.ai` file, including vectors, text, images, color, transparency and layers. It also reads the structure of Illustrator's editing data.
+The README lists reliable exchange of Illustrator's own `.ai` files under what is still missing. The project has no collection of real Illustrator files to test against, so the list below is the project's own assessment, not a tested guarantee.
+
+- VectorCraft aims to read the PDF page inside an `.ai` file, including vectors, text, images, color, transparency and layers, and the structure of Illustrator's editing data.
 - Saving as **PDF-compatible .ai** writes a file that Illustrator opens as plain artwork, without Illustrator's private editing data.
-- Known problems with real files: the layer structure can come out flattened or multiplied, guides can be lost, and live effects, brushes and symbols can come in as their drawn look.
+- Known problems, all open: the layer structure can come out flattened or multiplied ([#951](https://github.com/storytold/vectorcraft/issues/951), [#868](https://github.com/storytold/vectorcraft/issues/868)), guides and non-printing lines can be lost ([#779](https://github.com/storytold/vectorcraft/issues/779)), and live effects, brushes and symbols can come in as their drawn look ([#637](https://github.com/storytold/vectorcraft/issues/637)).
 
 ## Affinity
 
