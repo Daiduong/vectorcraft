@@ -13,7 +13,9 @@ pub type SegmentRef = (usize, usize);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Selection {
-    /// Selected objects in selection order.
+    /// Selected objects in selection order. Change them through the methods (or
+    /// [`Selection::objects_mut`]): they keep the membership set [`Selection::contains`] answers
+    /// from in step.
     pub objects: Vec<NodeId>,
     /// Direct-selected anchors, or a selected segment's endpoints used for movement. A path in
     /// `objects` with no entry here is fully selected; `segments` distinguishes segment picks.
@@ -43,6 +45,86 @@ pub struct Selection {
     /// guides and objects can be selected together, in either order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub guides: Vec<usize>,
+    /// Which ids `objects` holds, for [`Selection::contains`] in constant time ([`Members`]): a
+    /// cache, public only so that `Selection { objects, ..Default::default() }` works.
+    #[serde(skip)]
+    #[doc(hidden)]
+    pub members: Members,
+}
+
+/// A hash set of [`Selection::objects`], built when a large selection is first asked whether it
+/// holds an id, kept up to date by [`Selection::add`] and dropped by the other changes. `objects`
+/// is public: a set whose length, buffer or capacity no longer match it is built again, and debug
+/// builds check every answer against the list (a change in place that keeps all three, made
+/// without [`Selection::objects_mut`], would go unnoticed).
+#[derive(Default)]
+pub struct Members(std::sync::Mutex<Option<MemberSet>>);
+
+struct MemberSet {
+    ids: crate::IdSet,
+    /// `objects`' length, buffer and capacity when the set was last in step with it.
+    seen: (usize, usize, usize),
+}
+
+/// Selections smaller than this are searched in order.
+const MEMBERS_MIN: usize = 32;
+
+fn fingerprint(v: &[NodeId], cap: usize) -> (usize, usize, usize) {
+    (v.len(), v.as_ptr() as usize, cap)
+}
+
+impl Members {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Option<MemberSet>> {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+    fn contains(&self, objects: &Vec<NodeId>, id: NodeId) -> bool {
+        if objects.len() < MEMBERS_MIN {
+            return objects.contains(&id);
+        }
+        let now = fingerprint(objects, objects.capacity());
+        let mut g = self.lock();
+        let set = match &mut *g {
+            Some(m) if m.seen == now => m,
+            slot => slot.insert(MemberSet { ids: objects.iter().copied().collect(), seen: now }),
+        };
+        let found = set.ids.contains(&id);
+        debug_assert_eq!(found, objects.contains(&id), "Selection::objects changed behind the membership set");
+        found
+    }
+    /// `id` was just pushed onto `objects` (now `objects`).
+    fn pushed(&mut self, objects: &Vec<NodeId>, before: (usize, usize, usize), id: NodeId) {
+        let slot = self.0.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner);
+        match slot {
+            Some(m) if m.seen == before => {
+                m.ids.insert(id);
+                m.seen = fingerprint(objects, objects.capacity());
+            }
+            _ => *slot = None,
+        }
+    }
+    fn reset(&mut self) {
+        *self.0.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
+/// A copy builds its own set when asked.
+impl Clone for Members {
+    fn clone(&self) -> Self {
+        Members::default()
+    }
+}
+
+/// A cache, not content.
+impl PartialEq for Members {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for Members {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Members")
+    }
 }
 
 impl Selection {
@@ -56,10 +138,19 @@ impl Selection {
     pub fn len(&self) -> usize {
         self.objects.len()
     }
+    /// The selected objects, to change in place: the membership set is built again when next
+    /// asked. (A change of [`Selection::objects`] itself that keeps its length, buffer and
+    /// capacity goes unnoticed by the set: change it through here or the other methods.)
+    pub fn objects_mut(&mut self) -> &mut Vec<NodeId> {
+        self.members.reset();
+        &mut self.objects
+    }
+    /// Is `id` selected? Constant time, however large the selection.
     pub fn contains(&self, id: NodeId) -> bool {
-        self.objects.contains(&id)
+        self.members.contains(&self.objects, id)
     }
     pub fn clear(&mut self) {
+        self.members.reset();
         self.objects.clear();
         self.anchors.clear();
         self.segments.clear();
@@ -71,23 +162,48 @@ impl Selection {
     pub fn set(&mut self, ids: impl IntoIterator<Item = NodeId>) {
         self.clear();
         // What `add` per id does after a clear, without its linear duplicate check per id.
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = crate::IdSet::default();
         self.objects.extend(ids.into_iter().filter(|id| seen.insert(*id)));
+        // The set just made is the membership set.
+        if self.objects.len() >= MEMBERS_MIN {
+            let seen_now = fingerprint(&self.objects, self.objects.capacity());
+            *self.members.0.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(MemberSet { ids: seen, seen: seen_now });
+        }
     }
     pub fn add(&mut self, id: NodeId) {
         self.target = None;
         self.slices.clear();
-        if !self.objects.contains(&id) {
+        if !self.contains(id) {
+            let before = fingerprint(&self.objects, self.objects.capacity());
             self.objects.push(id);
+            self.members.pushed(&self.objects, before, id);
         }
     }
     pub fn remove(&mut self, id: NodeId) {
         self.target = None;
         self.slices.clear();
-        self.objects.retain(|x| *x != id);
+        if self.contains(id) {
+            self.members.reset();
+            self.objects.retain(|x| *x != id);
+        }
         self.anchors.remove(&id);
         self.segments.remove(&id);
         if self.key == Some(id) {
+            self.key = None;
+        }
+    }
+    /// [`Selection::remove`] each of `ids`, in one pass over the selection.
+    pub fn remove_all(&mut self, ids: impl IntoIterator<Item = NodeId>) {
+        let out: crate::IdSet = ids.into_iter().collect();
+        if out.is_empty() {
+            return;
+        }
+        self.target = None;
+        self.slices.clear();
+        self.members.reset();
+        self.objects.retain(|x| !out.contains(x));
+        self.anchors.retain(|id, _| !out.contains(id));
+        if self.key.is_some_and(|k| out.contains(&k)) {
             self.key = None;
         }
     }
@@ -133,15 +249,27 @@ impl Selection {
     }
     /// Drop ids that no longer exist or are no longer editable.
     pub fn prune(&mut self, doc: &Document) {
-        // Every id this looks up, found in one walk of the tree.
+        let found = self.lookup(doc);
+        self.prune_found(doc, &found);
+    }
+    /// Where every id the selection names is in `doc` (the objects, the direct-selected paths and
+    /// segments, the key and the target), found in one walk of the tree: what [`Selection::prune_found`] takes.
+    pub fn lookup(&self, doc: &Document) -> crate::IndexPaths {
         let ids = self.objects.iter().chain(self.anchors.keys()).chain(self.segments.keys()).copied().chain(self.key).chain(self.target);
-        let found = doc.index_paths(ids);
-        self.objects.retain(|id| found.contains_key(id));
+        doc.index_paths(ids)
+    }
+    /// [`Selection::prune`] with `found`: the [`Document::index_paths`] of (at least) the ids it
+    /// looks up (the objects, the direct-selected paths and segments, the key and the target).
+    pub fn prune_found(&mut self, doc: &Document, found: &crate::IndexPaths) {
+        if !self.objects.iter().all(|id| found.contains_key(id)) {
+            self.members.reset();
+            self.objects.retain(|id| found.contains_key(id));
+        }
         self.anchors.retain(|id, _| found.contains_key(id));
         self.segments.retain(|id, refs| {
             let Some(path) = found.get(id).and_then(|p| doc.node_at(p)).and_then(|n| n.path_data()) else { return false };
             refs.retain(|&(si, seg)| path.subpaths.get(si).is_some_and(|sp| seg < sp.segment_count()));
-            !refs.is_empty() && self.objects.contains(id) && self.anchors.contains_key(id)
+            !refs.is_empty() && self.members.contains(&self.objects, *id) && self.anchors.contains_key(id)
         });
         // The key object stays while another selected object lies outside it.
         let keep = self.key.and_then(|k| found.get(&k)).and_then(|p| doc.node_at(p)).is_some_and(|n| {
@@ -166,8 +294,8 @@ impl Selection {
     /// selected.
     pub fn deselect_uneditable(&mut self, doc: &Document) {
         let out: Vec<NodeId> = self.objects.iter().copied().filter(|o| !doc.is_editable(*o)).collect();
-        for o in out {
-            self.remove(o);
+        if !out.is_empty() {
+            self.remove_all(out);
         }
     }
     /// Target `id` (see [`Selection::target`]): a layer gets its visible, unlocked art selected
@@ -187,7 +315,7 @@ impl Selection {
             _ => vec![id],
         };
         if ids.iter().all(|i| self.contains(*i)) {
-            ids.iter().for_each(|i| self.remove(*i));
+            self.remove_all(ids);
         } else {
             ids.into_iter().for_each(|i| self.add(i));
         }
@@ -222,6 +350,33 @@ mod tests {
         assert_eq!(s.objects, vec![NodeId(2)]);
         s.clear();
         assert!(s.is_empty());
+    }
+
+    /// A large selection answers membership from its set, which follows every change: through the
+    /// methods, and through the public list itself.
+    #[test]
+    fn membership_follows_the_list() {
+        let mut s = Selection::default();
+        s.set((0..100).map(NodeId));
+        let agree = |s: &Selection| (0..300).all(|i| s.contains(NodeId(i)) == s.objects.contains(&NodeId(i)));
+        assert!(agree(&s) && s.contains(NodeId(99)) && !s.contains(NodeId(100)));
+        for i in 100..140 {
+            s.add(NodeId(i));
+        }
+        s.toggle(NodeId(5));
+        s.remove(NodeId(7));
+        assert!(agree(&s) && !s.contains(NodeId(5)) && s.contains(NodeId(139)));
+        s.remove_all((0..50).map(NodeId));
+        assert!(agree(&s) && !s.contains(NodeId(49)) && s.contains(NodeId(50)));
+        assert_eq!(s.len(), 90);
+        // Changed through `objects_mut`, or behind its back to another length: the list wins.
+        s.objects_mut().push(NodeId(250));
+        s.objects_mut().retain(|id| id.0 != 60);
+        assert!(agree(&s) && s.contains(NodeId(250)) && !s.contains(NodeId(60)));
+        s.objects.push(NodeId(260));
+        assert!(agree(&s) && s.contains(NodeId(260)));
+        let copy = s.clone();
+        assert!(agree(&copy) && copy == s);
     }
 
     #[test]

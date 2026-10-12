@@ -63,16 +63,24 @@ fn current(app: &mut VectorcraftApp) -> Option<String> {
     app.run("symbol.list", json!({})).ok().and_then(|v| v["current"].as_str().map(str::to_string))
 }
 
-fn has_instances_selected(app: &VectorcraftApp) -> bool {
-    app.session.active().is_some_and(|st| {
-        st.selection.objects.iter().any(|id| {
-            let mut any = false;
-            if let Some(n) = st.doc.node(*id) {
-                n.walk(&mut |c| any |= matches!(c.kind, NodeKind::SymbolInstance { .. }));
-            }
-            any
-        })
-    })
+/// Whether a symbol instance is selected or inside the selection: looked for once per revision.
+fn has_instances_selected(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+    let Some(st) = app.session.active() else { return false };
+    let key = (st.uid, st.revision);
+    if let Some((k, any)) = super::pstate::<Option<((u64, u64), bool)>>(ctx, "symbols-instances")
+        && k == key
+    {
+        return any;
+    }
+    let any = st.selection.objects.iter().any(|id| {
+        let mut any = false;
+        if let Some(n) = st.doc.node(*id) {
+            n.walk(&mut |c| any |= matches!(c.kind, NodeKind::SymbolInstance { .. }));
+        }
+        any
+    });
+    super::set_pstate(ctx, "symbols-instances", Some((key, any)));
+    any
 }
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
@@ -144,7 +152,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
     }
     let has_sel = app.session.active().is_some_and(|d| !d.selection.is_empty());
-    let inst = has_instances_selected(app);
+    let inst = has_instances_selected(app, ui.ctx());
     widgets::bottom_bar(ui, |ui| {
         widgets::icon_button_enabled(ui, "library", tl!("Symbol Libraries (on the roadmap)"), false, false, 24.0);
         if widgets::icon_button_enabled(ui, "dc-place-symbol", tl!("Place Symbol Instance"), false, sel.is_some(), 24.0).clicked() {
@@ -168,7 +176,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let sel = current(app);
     let has_sel = app.session.active().is_some_and(|d| !d.selection.is_empty());
-    let inst = has_instances_selected(app);
+    let inst = has_instances_selected(app, ui.ctx());
     let name = json!({"name": sel});
     let items: [(&str, bool, &str, Value); 9] = [
         (tl!("New Symbol…"), has_sel, "symbol.new", json!({})),

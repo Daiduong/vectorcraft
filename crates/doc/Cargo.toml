@@ -18,6 +18,7 @@ zune-jpeg = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+rstar = { workspace = true }
 
 [dev-dependencies]
 jpeg-encoder = { workspace = true }

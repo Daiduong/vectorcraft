@@ -36,8 +36,8 @@ fn has_area(r: Rect) -> bool {
 }
 
 /// Snap `p` as the drawing tools do, then to the nearest ruler guide within reach (guides win).
-fn snap(cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
-    let (mut q, ov) = crate::guides::snap_draw(cx, p, &[]);
+fn snap(targets: &mut crate::guides::ArtSnap, cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
+    let (mut q, ov) = targets.snap(cx, p, &[]);
     let tol = cx.tol(5.0);
     let nearest = |vertical: bool, v: f64| {
         cx.doc
@@ -62,6 +62,8 @@ pub struct SliceTool {
     last: Point,
     began: bool,
     guides: Vec<Overlay>,
+    /// What its corners snap to, kept while the document stays.
+    targets: crate::guides::ArtSnap,
 }
 
 impl Tool for SliceTool {
@@ -76,13 +78,13 @@ impl Tool for SliceTool {
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
         match ev.kind {
             PointerKind::Down => {
-                let (p, _) = snap(cx, ev.pos);
+                let (p, _) = snap(&mut self.targets, cx, ev.pos);
                 (self.start, self.last, self.began) = (Some(p), p, false);
                 vec![]
             }
             PointerKind::Drag => {
                 let Some(start) = self.start else { return vec![] };
-                let (p, guides) = snap(cx, ev.pos);
+                let (p, guides) = snap(&mut self.targets, cx, ev.pos);
                 (self.last, self.guides) = (p, guides);
                 let mut out = vec![];
                 if !self.began {

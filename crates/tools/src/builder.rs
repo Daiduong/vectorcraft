@@ -621,7 +621,10 @@ fn lp_hover(cx: &ToolContext, cache: &mut RegionCache, p: Point, edge: bool) -> 
             return LpHover::Part(bp);
         }
     }
-    let sel_is_live = cx.selection.objects.iter().any(|id| cx.doc.node(*id).is_some_and(is_live_paint));
+    // Per document state: hovering asks on every pointer move.
+    let sel_is_live = *crate::cache::ToolCache::get(cx, crate::cache::Slot::SelectionLivePaint, || {
+        cx.doc.nodes_of(&cx.selection.objects).into_iter().any(|n| is_live_paint(n))
+    });
     if !sel_is_live && let Some(i) = cache.at(cx, p) {
         return LpHover::Region(i);
     }

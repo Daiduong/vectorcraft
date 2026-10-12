@@ -1053,7 +1053,7 @@ impl GradientMesh {
 
 /// Union of the geometric bounds of `nodes`.
 pub fn nodes_bounds(nodes: &[Arc<Node>]) -> Option<Rect> {
-    nodes.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.geometric_bounds()))
+    nodes.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, crate::bounds_cache::geometric(c)))
 }
 
 /// A `(rows+1)×(cols+1)` grid over `r` (row-major).

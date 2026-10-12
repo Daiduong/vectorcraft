@@ -179,6 +179,7 @@ impl Session {
         let cx = ToolContext {
             doc: &st.doc,
             revision: (st.uid, st.revision),
+            cache: &self.tool_cache,
             selection: &st.selection,
             zoom: view.zoom,
             isolation: st.isolation,

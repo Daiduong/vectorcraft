@@ -52,8 +52,14 @@ impl Document {
     pub fn paint_order(&self, ids: impl IntoIterator<Item = NodeId>) -> Vec<NodeId> {
         let ids: Vec<NodeId> = ids.into_iter().collect();
         let paths = self.index_paths(ids.iter().copied());
-        let mut v: Vec<(Vec<usize>, NodeId)> = ids.into_iter().filter_map(|id| paths.get(&id).map(|p| (p.clone(), id))).collect();
-        v.sort();
-        v.into_iter().map(|(_, id)| id).collect()
+        paint_order_in(&paths, ids)
     }
+}
+
+/// [`Document::paint_order`] of `ids` with `paths`, their [`Document::index_paths`] (looked up
+/// once for other uses too).
+pub fn paint_order_in(paths: &crate::IndexPaths, ids: impl IntoIterator<Item = NodeId>) -> Vec<NodeId> {
+    let mut v: Vec<(&[usize], NodeId)> = ids.into_iter().filter_map(|id| paths.get(&id).map(|p| (p, id))).collect();
+    v.sort_unstable();
+    v.into_iter().map(|(_, id)| id).collect()
 }

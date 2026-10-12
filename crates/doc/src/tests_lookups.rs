@@ -54,7 +54,7 @@ fn batched_lookups_match_one_at_a_time() {
         let (d, ids) = tree(seed);
         let paths = d.index_paths(ids.iter().copied());
         for id in &ids {
-            assert_eq!(paths.get(id).cloned(), d.index_path(*id), "seed {seed} id {id:?}");
+            assert_eq!(paths.get(id).map(<[usize]>::to_vec), d.index_path(*id), "seed {seed} id {id:?}");
             let p = paths.get(id);
             assert_eq!(p.and_then(|p| d.node_at(p)).map(|n| n as *const Node), d.node(*id).map(|n| n as *const Node), "seed {seed} node {id:?}");
             assert_eq!(p.and_then(|p| d.ancestry_at(p)), d.ancestry(*id), "seed {seed} ancestry {id:?}");
@@ -62,7 +62,7 @@ fn batched_lookups_match_one_at_a_time() {
         // A subset, and nothing.
         let some: Vec<NodeId> = ids.iter().copied().step_by(3).collect();
         let sub = d.index_paths(some.iter().copied());
-        assert!(some.iter().all(|id| sub.get(id).cloned() == d.index_path(*id)));
+        assert!(some.iter().all(|id| sub.get(id).map(<[usize]>::to_vec) == d.index_path(*id)));
         assert!(d.index_paths(std::iter::empty()).is_empty());
         // Mutable access reaches the same node as node_mut, copy-on-write.
         let mut a = d.clone();
@@ -100,7 +100,7 @@ fn agree_except(d: &Document, ids: &[NodeId], dup: Option<NodeId>, what: &str) {
     }
     let batched = d.index_paths(ids.iter().copied());
     for id in ids {
-        assert_eq!(batched.get(id).cloned(), d.walk_index_path(*id), "{what}: index_paths {id:?}");
+        assert_eq!(batched.get(id).map(<[usize]>::to_vec), d.walk_index_path(*id), "{what}: index_paths {id:?}");
     }
 }
 

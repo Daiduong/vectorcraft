@@ -18,6 +18,7 @@ use vectorcraft_doc::{NodeId, OrientedBox};
 use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use crate::bbox::{Handle, hit_handle, in_rotate_zone, move_delta, rotate_for_drag, scale_for_drag};
+use crate::cache::{Slot, ToolCache};
 use crate::corners::{self, CornerDrag, over_widget};
 use crate::guides::Targets;
 use crate::pathtype::{self, BracketDrag, over_bracket};
@@ -160,13 +161,13 @@ pub fn matrix_json(a: Affine) -> Value {
 /// Selection bounds used for the bounding box: visual bounds with Use Preview Bounds, else
 /// geometric bounds.
 pub fn selection_bounds(cx: &ToolContext) -> Option<Rect> {
-    cx.doc.bounds_of(&cx.selection.objects, cx.preview_bounds)
+    *ToolCache::get(cx, Slot::SelectionBounds(cx.preview_bounds), || cx.doc.bounds_of(&cx.selection.objects, cx.preview_bounds))
 }
 
 /// [`selection_bounds`] square to the selection's own angle: the bounding box the Selection tool
 /// shows and drags (rotated after a rotation).
 pub fn selection_box(cx: &ToolContext) -> Option<OrientedBox> {
-    cx.doc.oriented_bounds(&cx.selection.objects, cx.preview_bounds)
+    *ToolCache::get(cx, Slot::SelectionBox(cx.preview_bounds), || cx.doc.oriented_bounds(&cx.selection.objects, cx.preview_bounds))
 }
 
 /// What of the bounding box is under the pointer.
@@ -208,19 +209,66 @@ impl SelectionTool {
         let nearest = |points: &mut dyn Iterator<Item = Point>| {
             points.filter(|q| q.distance(p) <= reach).min_by(|a, b| a.distance(p).total_cmp(&b.distance(p)))
         };
-        // A press on an unselected object selects it alone: the selected ones stay behind.
-        let selected = if under.is_none_or(|u| cx.selection.contains(u)) { &cx.selection.objects[..] } else { &[] };
-        under.into_iter().chain(selected.iter().copied()).find_map(|id| {
-            let n = cx.doc.node(id)?;
+        // Is box `b` (grown by a rounding margin) farther than `reach` from `p`?
+        let far = |b: Rect| {
+            let e = 1e-9 * (1.0 + b.x0.abs().max(b.y0.abs()).max(b.x1.abs()).max(b.y1.abs()));
+            let dx = (b.x0 - e - p.x).max(p.x - b.x1 - e).max(0.0);
+            let dy = (b.y0 - e - p.y).max(p.y - b.y1 - e).max(0.0);
+            dx.hypot(dy) > reach * (1.0 + 1e-9) + e
+        };
+        let point_of = |n: &vectorcraft_doc::Node| {
+            // A path's anchors, and its geometric bounds (and so their centre), lie within its
+            // anchors and handles: a path whose handles are all far from the pointer has neither
+            // near it.
+            if !cx.preview_bounds && n.path_data().and_then(|pd| pd.control_bounds()).is_some_and(far) {
+                return None;
+            }
             let anchor = n.path_data().and_then(|pd| nearest(&mut pd.subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|a| a.p))));
             anchor.map(|q| (q, "anchor")).or_else(|| {
                 if !cx.smart_guides {
                     return None;
                 }
-                let c = cx.doc.bounds_of(&[id], cx.preview_bounds)?.center();
+                let c = (if cx.preview_bounds { n.visual_bounds() } else { n.geometric_bounds() })?.center();
                 (c.distance(p) <= reach).then_some((c, "center"))
             })
-        })
+        };
+        if let Some(hit) = under.and_then(|id| point_of(cx.doc.node(id)?)) {
+            return Some(hit);
+        }
+        // A press on an unselected object selects it alone: the selected ones stay behind.
+        if under.is_some_and(|u| !cx.selection.contains(u)) {
+            return None;
+        }
+        // The selected objects whose anchors or centre may be in reach, in selection order: the
+        // first of them with one is the one a walk of the whole selection finds.
+        let index = ToolCache::get(cx, Slot::HoverPoints(cx.preview_bounds), || HoverPoints::of(cx));
+        let slack = reach * 1e-6 + 1e-6 * (1.0 + p.x.abs().max(p.y.abs()));
+        index.ix.near(p, reach + slack).into_iter().filter_map(|i| index.ids.get(i as usize)).find_map(|id| point_of(cx.doc.node(*id)?))
+    }
+}
+
+/// The selected objects as [`SelectionTool::hover_point`] looks at them: each one's id (in
+/// selection order), and a box round its anchors and the centre a hover may label.
+struct HoverPoints {
+    ids: Vec<NodeId>,
+    ix: crate::boxindex::BoxIndex,
+}
+
+impl HoverPoints {
+    fn of(cx: &ToolContext) -> Self {
+        let nodes = cx.doc.nodes_of(&cx.selection.objects);
+        let mut ids = Vec::with_capacity(nodes.len());
+        let mut boxes = Vec::with_capacity(nodes.len());
+        for n in nodes {
+            let centre = if cx.preview_bounds { vectorcraft_doc::bounds_cache::visual(n) } else { vectorcraft_doc::bounds_cache::geometric(n) };
+            let centre = centre.map(|b| Rect::from_points(b.center(), b.center()));
+            let anchors = n.path_data().and_then(|pd| pd.control_bounds());
+            // Neither: no point to label.
+            let Some(b) = vectorcraft_geom::union_opt(anchors, centre) else { continue };
+            boxes.push((b, u32::try_from(ids.len()).unwrap_or(u32::MAX)));
+            ids.push(n.id);
+        }
+        Self { ids, ix: crate::boxindex::BoxIndex::new(boxes) }
     }
 }
 
@@ -297,7 +345,7 @@ impl Tool for SelectionTool {
                             // Only area type: the step resizes type areas; anything else scales.
                             let label = if areas && cx.selection.objects.iter().all(is_area) { "Resize Type Area" } else { "Scale" };
                             // Smart Guides align what the handle moves with the other objects.
-                            self.targets = cx.smart_guides.then(|| Targets::collect(cx.doc, &cx.selection.objects, None).styled(cx));
+                            self.targets = cx.smart_guides.then(|| Targets::collect_near(cx.doc, &cx.selection.objects, None, Some(p)).styled(cx));
                             self.state = State::Scaling { handle, bx, areas };
                             return vec![Action::Begin(label.into())];
                         }
@@ -1117,5 +1165,55 @@ mod tests {
         let mut t = SelectionTool::default();
         t.pointer(&cx, &ev(PointerKind::Down, 400.0, 400.0));
         assert_eq!(t.pointer(&cx, &ev(PointerKind::Up, 400.0, 400.0)), vec![Action::Exec("select.none".into(), json!({}))]);
+    }
+
+    /// Hovering finds the selected object's anchor or centre among those near the pointer that a
+    /// walk of the whole selection finds.
+    #[test]
+    fn hover_points_match_walking_the_selection() {
+        // The lookup as it was: every selected object, in selection order.
+        fn oracle(cx: &ToolContext, p: Point) -> Option<(Point, &'static str)> {
+            if !cx.smart_guides && !cx.snap_to_point {
+                return None;
+            }
+            let reach = cx.tol(HOVER_REACH);
+            let under = hit_test(cx.doc, p, cx.hit_options()).map(|h| h.top_object(cx.isolation));
+            let nearest = |points: &mut dyn Iterator<Item = Point>| {
+                points.filter(|q| q.distance(p) <= reach).min_by(|a, b| a.distance(p).total_cmp(&b.distance(p)))
+            };
+            // A press on an unselected object selects it alone: the selected ones stay behind.
+            let selected = if under.is_none_or(|u| cx.selection.contains(u)) { &cx.selection.objects[..] } else { &[] };
+            under.into_iter().chain(selected.iter().copied()).find_map(|id| {
+                let n = cx.doc.node(id)?;
+                let anchor = n.path_data().and_then(|pd| nearest(&mut pd.subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|a| a.p))));
+                anchor.map(|q| (q, "anchor")).or_else(|| {
+                    if !cx.smart_guides {
+                        return None;
+                    }
+                    let c = cx.doc.bounds_of(&[id], cx.preview_bounds)?.center();
+                    (c.distance(p) <= reach).then_some((c, "center"))
+                })
+            })
+        }
+        let p = paint();
+        let mut found = 0;
+        for seed in 1..=5 {
+            let d = random_doc(seed, 400);
+            let s = random_selection(&d, seed, 0.6);
+            // Smart Guides on (anchors and centres), or off with Snap to Point (anchors only).
+            for (preview_bounds, smart_guides, snap_to_point) in
+                [(false, true, false), (true, true, false), (false, false, true), (true, false, true)]
+            {
+                let c = ToolContext { preview_bounds, smart_guides, snap_to_point, ..cx(&d, &s, &p) };
+                let mut probes = crate::testutil::probes(&d, seed, 500);
+                d.walk(|n| probes.extend(n.geometric_bounds().map(|b| b.center())));
+                for q in probes {
+                    let want = oracle(&c, q);
+                    assert_eq!(SelectionTool::hover_point(&c, q), want, "seed {seed} at {q:?}");
+                    found += usize::from(want.is_some());
+                }
+            }
+        }
+        assert!(found > 100, "{found}");
     }
 }

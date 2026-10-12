@@ -1019,13 +1019,13 @@ impl Node {
         match &self.kind {
             NodeKind::Path { path, .. } => path.bounds(),
             NodeKind::Group { children, clip: true } | NodeKind::Layer { children, clip: true, .. } => {
-                children.first().and_then(|c| c.geometric_bounds())
+                children.first().and_then(crate::bounds_cache::geometric)
             }
             NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } | NodeKind::Compound { children, .. } => children
                 .iter()
                 .skip(usize::from(self.extras().shaper.is_some()))
                 .filter(|c| c.visible || !matches!(self.kind, NodeKind::Layer { .. }))
-                .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.geometric_bounds())),
+                .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, crate::bounds_cache::geometric(c))),
             NodeKind::Text(t) => self.projected(t.bounds()),
             NodeKind::Image(im) => Some(im.xf.transform_rect_bbox(Rect::new(0.0, 0.0, im.width as f64, im.height as f64))),
             NodeKind::SymbolInstance { xf, .. } => self.projected(Some(xf.transform_rect_bbox(Rect::new(-10.0, -10.0, 10.0, 10.0)))),
@@ -1047,9 +1047,9 @@ impl Node {
                 // A clipping path that paints (see `clip_paint`) strokes over the clip edge.
                 let clip = children.first()?;
                 if matches!(clip.kind, NodeKind::Path { .. } | NodeKind::Compound { .. } | NodeKind::Text(_)) {
-                    clip.visual_bounds()
+                    crate::bounds_cache::visual(clip)
                 } else {
-                    clip.geometric_bounds()
+                    crate::bounds_cache::geometric(clip)
                 }
             }
             NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } => {
@@ -1058,11 +1058,11 @@ impl Node {
                 children
                     .iter()
                     .skip(usize::from(self.extras().shaper.is_some()))
-                    .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.visual_bounds()))
+                    .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, crate::bounds_cache::visual(c)))
                     .map(|b| b.inflate(o, o))
             }
             NodeKind::Blend { children, spec } => {
-                let b = children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.visual_bounds()));
+                let b = children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, crate::bounds_cache::visual(c)));
                 let o = crate::live::max_outset(children);
                 vectorcraft_geom::union_opt(b, spec.spine.as_ref().and_then(|s| s.bounds()).map(|r| r.inflate(o, o)))
             }
@@ -1079,6 +1079,23 @@ impl Node {
                 self.geometric_bounds().map(|b| b.inflate(o, o))
             }
         }
+    }
+    /// A box round everything a click or a marquee can find in the object: its
+    /// [`Node::reach_bounds`] (what a click culls by), and what a marquee tests: a path's curve and
+    /// anchors, a container's members (hidden and clipped ones too), anything else's geometric
+    /// bounds. The spatial index ([`crate::spatial`]) keeps it per object.
+    pub fn pick_bounds(&self) -> Option<Rect> {
+        let own = match &self.kind {
+            NodeKind::Path { path, .. } => {
+                let anchors = path.anchors().map(|(_, _, a)| Rect::from_points(a.p, a.p)).reduce(|a, b| a.union(b));
+                vectorcraft_geom::union_opt(path.bounds(), anchors)
+            }
+            NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } | NodeKind::Compound { children, .. } => {
+                children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, crate::bounds_cache::pick(c)))
+            }
+            _ => self.geometric_bounds(),
+        };
+        vectorcraft_geom::union_opt(self.reach_bounds(), own)
     }
     /// Apply an affine transform to the geometry (and gradients) of this node and its descendants.
     /// `scaling` says what else scales by the transform's mean scale (a bool: stroke weights

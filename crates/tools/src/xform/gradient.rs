@@ -31,7 +31,6 @@ use vectorcraft_geom::{Affine, Point, Shape, Vec2, constrain_angle_from};
 
 use super::freeform::{self, Annotator as FreeformAnnotator};
 use super::paint_owner;
-use crate::guides::snap_draw;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 const BAR: [u8; 3] = [0x20, 0x20, 0x20];
@@ -236,6 +235,9 @@ pub struct GradientTool {
     lines: freeform::Lines,
     /// Smart-guide feedback of the handle being dragged.
     guides: Vec<Overlay>,
+    /// What the vector's ends snap to: gathered at the press (or the drag's first move) and kept
+    /// for the drag, whose previews change only paint.
+    snap: crate::guides::ArtSnap,
 }
 
 /// Overlays of an annotator: the bar, the handles, the midpoint diamonds and a chip per stop; a
@@ -329,13 +331,19 @@ impl GradientTool {
             }
         };
         // A vector drawn on the art starts on the snapped point.
-        let at = if grab == Grab::Art { snap_draw(cx, p, &[]).0 } else { p };
+        let at = if grab == Grab::Art {
+            self.snap.press(cx, p).0
+        } else {
+            self.snap.forget();
+            p
+        };
         self.gesture = Some(Gesture { grab, at, began: false, vector: None, stop: None });
         out
     }
 
     fn drag(&mut self, cx: &ToolContext, p: Point, mods: Mods) -> Vec<Action> {
         let Some(g) = &mut self.gesture else { return vec![] };
+        let snap = &mut self.snap;
         let mut out = vec![];
         if !g.began {
             if p.distance(g.at) < cx.tol(DRAG_START) {
@@ -352,7 +360,7 @@ impl GradientTool {
             if mods.shift {
                 from + constrain(to - from)
             } else {
-                let (q, o) = snap_draw(cx, to, &[]);
+                let (q, o) = snap.drag(cx, to);
                 guides = o;
                 q
             }

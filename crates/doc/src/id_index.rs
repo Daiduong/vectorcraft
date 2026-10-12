@@ -41,6 +41,8 @@ impl Hasher for IdHasher {
 
 /// A map keyed by node id with [`IdHasher`].
 pub type IdMap<V> = HashMap<NodeId, V, BuildHasherDefault<IdHasher>>;
+/// A set of node ids with [`IdHasher`].
+pub type IdSet = std::collections::HashSet<NodeId, BuildHasherDefault<IdHasher>>;
 /// Where each node is: its parent's entry (`u32::MAX` for a top-level layer) and its index among
 /// its siblings. One flat table, so building it allocates nothing per node.
 #[derive(Default)]
