@@ -595,6 +595,8 @@
 	Description:	Descrição:
 	Deselect	Desmarcar
 	Design…	Projeto…
+	Graph Design	Projeto do gráfico
+	Graph Marker	Marcador do gráfico
 	Destination:	Destino:
 	Detail:	Detalhe:
 	Devices	Dispositivos
@@ -2071,6 +2073,7 @@
 	Select All Instances	Selecionar Todas as Instâncias
 	Select All Unused	Selecionar Todos os Não Usados
 	Select Anchors	Selecionar Âncoras
+	Select Segments	Selecionar segmentos
 	Select Appearance Item	Selecionar Item de Aparência
 	Select Freeform Point	Selecionar Ponto Livre
 	Select Gradient Stop	Selecionar Parada de Gradiente
@@ -2115,7 +2118,6 @@
 	Set Anchors	Definir Âncoras
 	Set Bounds	Definir Limites
 	Set Current Layer	Definir Camada Atual
-	Set Key Object	Definir Objeto-Chave
 	Set Keyboard Shortcut	Definir Atalho de Teclado
 	Set Mesh Point Color	Definir Cor do Ponto de Malha
 	Set Preference	Definir Preferência
@@ -2565,6 +2567,7 @@
 	Vertical	Vertical
 	Vertical Align Bottom	Alinhar Inferior Verticalmente
 	Vertical Align Center	Alinhar Centro Verticalmente
+	Horizontal & Vertical Align Center	Alinhar Centro Horizontal e Verticalmente
 	Vertical Align Top	Alinhar Superior Verticalmente
 	Vertical Area Type Tool	Ferramenta Texto Vertical de Área
 	Vertical Distribute Space	Distribuir Espaço Verticalmente
@@ -3045,6 +3048,7 @@ axis	Both	Ambos
 @msg	its page has text, and its layers have no text objects to put it in	sua página tem texto, e suas camadas não têm objetos de texto para recebê-lo
 @msg	its type is to come in as outlines, which only its page has	seu texto deve entrar como contornos, que somente sua página possui
 @msg	the art on them differs from the page's in {_1}% of it	a arte nelas difere da página em {_1}% do conteúdo
+@msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	a arte nelas difere da página em {_1}% do conteúdo: mesmo assim elas vêm dos seus dados de edição
 @msg	`to` must be "corner" or "smooth"	`to` deve ser "corner" ou "smooth"
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	arquivos BMP são RGB ou em tons de cinza: colorModel rgb ou gray
 @msg	Blend colors: select at least three objects with filled colours	Mesclar cores: selecione pelo menos três objetos com preenchimento de cor
@@ -3665,3 +3669,26 @@ axis	Both	Ambos
 @msg	invalid native panel set	conjunto de painéis nativos inválido
 @msg	missing panel layout	layout de painéis ausente
 @msg	unsupported native docking operation	operação de encaixe nativa não suportada
+	Ruler Origin	Origem das réguas
+	Reset Ruler Origin	Redefinir origem das réguas
+	Artistic	Artístico
+	Film Grain…	Granulação de filme…
+	Grain	Grão
+	Highlight Area	Área de realces
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	o arquivo compactado se expande para mais do que o VectorCraft lê ({_1} MB de documento, {_2} MB por imagem)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	o documento é grande demais para ser salvo compactado ({0}): salve-o com Usar Compressão desativado
+@msg	the file stopped being read (please report this bug)	a leitura do arquivo foi interrompida (informe este erro)
+	Concentric Dividers:	Divisórias concêntricas:
+	Radial Dividers:	Divisórias radiais:
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+	Skew:	Inclinação:
+	Inside	Dentro
+	Outside	Fora
+	Use Outside Rectangle As Frame	Usar Retângulo Externo como Moldura
+	Create Compound Path From Ellipses	Criar Caminho Composto a partir das Elipses
+	Fill Grid	Preencher Grade
+	Select two or more objects, or a group	Selecione dois ou mais objetos, ou um grupo
+	Transform Objects	Transformar objetos
+@msg	unknown parameter `{key}`; did you mean `{near}`?	parâmetro desconhecido `{key}`; você quis dizer `{near}`?
+@msg	unknown parameter `{key}`; the command takes no parameters	parâmetro desconhecido `{key}`; o comando não tem parâmetros
+@msg	unknown parameter `{key}`; the command takes: {keys}	parâmetro desconhecido `{key}`; o comando aceita: {keys}

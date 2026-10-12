@@ -360,6 +360,10 @@ pub struct UiState {
     /// swatches) or "" (none) (`ui.colorGuideLimit`).
     #[serde(default)]
     pub color_guide_limit: String,
+    /// Align panel: the Align To choice, Selection or Artboard, which Object → Align and the align
+    /// buttons follow ([`crate::panels::align::with_align_to`]).
+    #[serde(default, deserialize_with = "crate::panels::align::deserialize_align_to")]
+    pub align_to: crate::panels::align::AlignTo,
     /// The SVG Options chosen last (`svg` object of the export/save commands; null: never used).
     #[serde(default)]
     pub svg_options: Value,
@@ -382,6 +386,10 @@ pub struct UiState {
     /// dialog is gone.
     #[serde(skip)]
     pub dialog_search: Option<u64>,
+    /// The search the Find Linked Files dialog started (`links.findFiles`'s `id`), stopped once the
+    /// dialog is gone.
+    #[serde(skip)]
+    pub links_search: Option<u64>,
     /// The DXF Options chosen last (`document.exportDxf` options; null: never used).
     #[serde(default)]
     pub dxf_options: Value,
@@ -635,12 +643,14 @@ impl Default for UiState {
             library_panel: None,
             flattener_preview: Default::default(),
             color_guide_limit: String::new(),
+            align_to: Default::default(),
             svg_options: Value::Null,
             place_link: true,
             dialog_file: None,
             pending_fonts: vec![],
             fonts_dialog: None,
             dialog_search: None,
+            links_search: None,
             dxf_options: Value::Null,
             eps_options: Value::Null,
             offset_path: Value::Null,

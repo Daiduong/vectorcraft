@@ -341,8 +341,25 @@ pub fn uses_pattern(n: &Node, name: Option<&str>) -> bool {
     })
 }
 
+/// Transform Patterns without Transform Objects: `m` moves the pattern tiles of `n` and of
+/// everything inside it, and the art stays where it is.
+pub fn transform_patterns_only(n: &mut Node, m: Affine) {
+    transform_pattern_paints(n, m);
+    for c in n.children_mut().into_iter().flatten() {
+        transform_patterns_only(Arc::make_mut(c), m);
+    }
+}
+
 /// Apply `m` to the pattern placement of every pattern paint of `n` (Transform Patterns).
 pub fn transform_pattern_paints(n: &mut Node, m: Affine) {
+    // Without pattern paints there is nothing to change: don't copy the shared appearance.
+    let patterned = |it: &AppearanceItem| {
+        matches!(it, AppearanceItem::Fill(f) if matches!(f.paint, Paint::Pattern { .. }))
+            || matches!(it, AppearanceItem::Stroke(s) if matches!(s.paint, Paint::Pattern { .. }))
+    };
+    if !n.appearance.items.iter().any(patterned) {
+        return;
+    }
     for it in n.appearance.items.iter_mut() {
         let p = match it {
             AppearanceItem::Fill(f) => &mut f.paint,

@@ -29,12 +29,15 @@ mod export_as;
 mod export_for_screens;
 pub mod eyedropper;
 pub mod file_info;
+pub mod find_links;
 pub mod flare_options;
 pub mod flatten;
 pub mod flattener_presets;
 mod form;
 pub mod freehand;
 mod gradient_stop;
+pub mod graph_data;
+pub mod graph_design;
 pub mod graphic_style_options;
 pub mod halftone;
 pub mod import_pdf;
@@ -49,7 +52,7 @@ mod new_document;
 pub mod new_swatch;
 pub mod office_export;
 pub mod package;
-mod path_ops;
+pub(crate) mod path_ops;
 pub mod pdf_presets;
 pub mod perspective_grid;
 pub mod perspective_options;
@@ -96,6 +99,7 @@ use serde_json::{Value, json};
 
 pub use color_picker::open as open_color_picker;
 pub use document_setup::open as open_document_setup;
+pub(crate) use effect::FILM_GRAIN_FIELDS;
 pub use effect::open as open_effect_dialog;
 pub use export_as::open as open_export_as;
 pub use export_for_screens::open as open_export_for_screens;
@@ -205,7 +209,7 @@ macro_rules! registry {
 
 registry! {
     NewDocument: [new_document::KIND] => new_document::SPEC,
-    Shape: ["rectangle", "roundedRectangle", "ellipse", "polygon", "star", "lineSegment"] => shapes::SPEC,
+    Shape: ["rectangle", "roundedRectangle", "ellipse", "polygon", "star", "lineSegment", "rectangularGrid", "polarGrid"] => shapes::SPEC,
     Transform: ["move", "rotate", "scale", "reflect", "shear"] => transform::SPEC,
     PathOp: ["average", "offsetPath", "simplify", "splitIntoGrid"] => path_ops::SPEC,
     DocumentSetup: ["documentSetup"] => document_setup::SPEC,
@@ -225,6 +229,9 @@ registry! {
     Message: [confirm::MESSAGE] => confirm::MESSAGE_SPEC,
     NewSwatch: [new_swatch::KIND] => new_swatch::SPEC,
     NewColorGroup: [new_color_group::KIND] => new_color_group::SPEC,
+    GraphData: [graph_data::KIND] => graph_data::SPEC,
+    GraphDesign: [graph_design::DESIGN] => graph_design::DESIGN_SPEC,
+    GraphMarker: [graph_design::MARKER] => graph_design::MARKER_SPEC,
     GradientStop: ["gradientStop"] => gradient_stop::SPEC,
     ColorPicker: [color_picker::KIND] => color_picker::SPEC,
     GraphicStyleOptions: [graphic_style_options::KIND] => graphic_style_options::SPEC,
@@ -255,6 +262,7 @@ registry! {
     RasterEffectsSettings: [raster_effects::KIND] => raster_effects::SPEC,
     MissingLinks: [missing_links::KIND] => missing_links::SPEC,
     MissingFonts: [missing_fonts::KIND] => missing_fonts::SPEC,
+    FindLinks: [find_links::KIND] => find_links::SPEC,
     TextImport: [text_import::KIND] => text_import::SPEC,
     PdfPresets: [pdf_presets::KIND] => pdf_presets::SPEC,
     PdfPreset: [save_pdf::PRESET_KIND] => save_pdf::PRESET_SPEC,
@@ -340,11 +348,13 @@ pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
 }
 
 /// After a dialog closes, and each frame: a Missing Fonts dialog that another dialog replaced waits
-/// for its turn again, the search a Missing Fonts dialog started stops once that dialog is gone,
-/// and with no dialog open the next document's Missing Fonts dialog opens (one dialog at a time).
+/// for its turn again, the search a Missing Fonts or Find Linked Files dialog started stops once
+/// that dialog is gone, and with no dialog open the next document's Missing Fonts dialog opens
+/// (one dialog at a time).
 pub(crate) fn settle(app: &mut VectorcraftApp) {
     missing_fonts::requeue_replaced(app);
     missing_fonts::stop_when_closed(app);
+    find_links::stop_when_closed(app);
     missing_fonts::open_next(app);
 }
 
@@ -373,6 +383,13 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         }
         m.get_temp::<bool>(focus_id).unwrap_or(false)
     });
+    // Not in the frame of a click (the one on the menu item that opened it): egui takes the focus
+    // from a field the click missed, so the field takes it a frame later (#1367).
+    let clicked = ctx.input(|i| i.pointer.any_click());
+    if focus_first && clicked {
+        ctx.request_repaint();
+    }
+    let focus_first = focus_first && !clicked;
     let spec = spec(&d.kind);
     if let Some(window) = spec.window {
         return window(app, ctx);
@@ -395,8 +412,8 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         ui.set_max_width(spec.max_width.map_or(room, |w| w.min(room)));
         modal::heading(ui, &heading);
         ui.add_space(12.0);
-        // Just opened: its first field takes the keyboard focus, as in the reference app (type a
-        // value, press Enter). Only the body's fields can take it.
+        // Just opened: its first enabled field takes the keyboard focus, as in the reference app
+        // (type a value, press Enter). Only the body's fields can take it.
         if focus_first {
             ui.data_mut(|m| m.insert_temp(widgets::dialog_focus_flag(), true));
         }
@@ -473,6 +490,8 @@ mod tests_import_pdf;
 mod tests_package;
 #[cfg(test)]
 mod tests_raster_formats;
+#[cfg(test)]
+mod tests_svg_options_range;
 
 #[cfg(test)]
 mod tests_dxf;
@@ -513,3 +532,6 @@ mod tests_perspective;
 
 #[cfg(test)]
 mod tests_modal;
+
+#[cfg(test)]
+mod tests_rectangular_grid;

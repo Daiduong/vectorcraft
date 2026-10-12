@@ -1095,6 +1095,23 @@
 	Graph	圖表
 	Graph Data	圖表資料
 	Graph Type	圖表類型
+	Graph Design	圖表設計
+	Graph Marker	圖表標記
+	New Design	新增設計
+	Delete Design	刪除設計
+	Paste Design	貼上設計
+	Select Unused	選取未使用項目
+	Import Data…	匯入資料…
+	Transpose	轉置
+	Switch x/y	切換 x/y
+	Number of Decimals:	小數位數：
+	Column Width:	欄寬：
+	No Legend	無圖例
+	Standard Legend	標準圖例
+	Legends in Wedges	楔形中的圖例
+	Ratio	比例
+	Even	平均
+	Stacked	堆疊
 	Graphic Style	繪圖樣式
 	Graphic Style Libraries	繪圖樣式資料庫
 	Graphic Style Libraries Menu	繪圖樣式資料庫選單
@@ -2126,6 +2143,9 @@
 	Rectangle: Sunshine	矩形：陽光
 	Rectangle…	矩形…
 	Rectangular Grid	矩形格線
+# Rectangular Grid click dialog.
+	Horizontal Dividers:	水平分隔線：
+	Vertical Dividers:	垂直分隔線：
 	Rectangular Grid Tool	矩形格線工具
 	Red	紅色
 	Redefine Character Style	重新定義字元樣式
@@ -2190,6 +2210,13 @@
 	Relinked {n} image(s); not in that folder: {}	已重新連結 {n} 張影像；不在該資料夾中：{}
 	Relinked {} image(s)	已重新連結 {} 張影像
 	Relink…	重新連結…
+	Find Linked Files	尋找連結檔案
+	Find Linked Files in Folder…	在資料夾中尋找連結檔案…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	請為每個連結檔案選擇要重新連結的檔案。大小和內容與連結所儲存相同的檔案會排在最前面。
+	Same file	相同檔案
+	Same size	相同大小
+	Don't Relink	不重新連結
+	Copy into the document's folder	複製到文件所在的資料夾
 	Reload Plug-ins	重新載入增效模組
 	Remove	移除
 	Remove Anchor Points	移除錨點
@@ -2458,6 +2485,7 @@
 	Select an image to see its Link Info.	選取影像以檢視其連結資訊。
 	Select an image to trace	選取要描圖的影像
 	Select Anchors	選取錨點
+	Select Segments	選取路徑區段
 	Select Appearance Item	選取外觀項目
 	Select Art	選取圖稿
 	Select art and choose Object › Pattern › Make.	選取圖稿，然後選擇「物件 › 圖樣 › 製作」。
@@ -2503,7 +2531,6 @@
 	Set base color to the current color	將基本色設為目前顏色
 	Set Bounds	設定邊界
 	Set Current Layer	設定目前圖層
-	Set Key Object	設定關鍵物件
 	Set Keyboard Shortcut	設定鍵盤快速鍵
 	Set Mesh Point Color	設定網格點顏色
 	Set Preference	設定偏好設定
@@ -2692,6 +2719,8 @@
 	Spiral Tool	螺旋工具
 	Split Freeform Line	分割任意形狀線條
 	Split Into Grid	分割為格線
+	Total:	總計：
+	Add Guides	增加參考線
 	Split Into Grid…	分割為格線…
 	Split Path	分割路徑
 	spot	特別色
@@ -3002,6 +3031,8 @@
 	Update Changed Links	更新已變更的連結
 	{count} linked image(s) changed on disk. Show the new versions?	有 {count} 個連結影像已在磁碟上變更。要顯示新版本嗎？
 @msg	Updated {_1} linked file(s) changed on disk	已更新 {_1} 個在磁碟上變更的連結檔案
+@msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	連結的圖片在找到其檔案之前顯示檔案中儲存的低解析度預覽：請在「連結」面板中重新連結
+@msg	area type in frames too short for a line of the font it shows in got taller frames ({_1}): their type wouldn't show otherwise	框架高度不足以容納所顯示字體一行的區域文字已加高框架 ({_1})：否則文字不會顯示
 	Update Modified Links	更新已修改的連結
 	Updated {} image(s)	已更新 {} 張影像
 	UPPERCASE	全部大寫
@@ -3102,6 +3133,7 @@
 	Vertical %	垂直 %
 	Vertical Align Bottom	垂直靠下對齊
 	Vertical Align Center	垂直置中對齊
+	Horizontal & Vertical Align Center	水平和垂直置中對齊
 	Vertical Align Top	垂直靠上對齊
 	Vertical Area Type Tool	垂直區域文字工具
 	Vertical Distribute Bottom	垂直均分下緣
@@ -3534,3 +3566,60 @@ lighting	Light	光源
 	Move Guide to Layer	將參考線移至圖層
 	Linux Display Server	Linux 顯示伺服器
 	X11 (XWayland)	X11 (XWayland)
+	Ruler Origin	尺標原點
+	Reset Ruler Origin	重設尺標原點
+	Artistic	藝術效果
+	Film Grain…	底片顆粒…
+	Highlight Area	亮部範圍
+	Concentric Dividers:	同心分隔線：
+	Radial Dividers:	徑向分隔線：
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+	Skew:	傾斜：
+	Inside	內側
+	Outside	外側
+	Use Outside Rectangle As Frame	使用外部矩形作為框架
+	Create Compound Path From Ellipses	從橢圓形建立複合路徑
+	Fill Grid	格線填色
+	Select two or more objects, or a group	請選取兩個或更多物件，或一個群組
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+	Back	背面
+	Both sides	雙面
+	Classic	經典
+	Cove	凹圓
+	Depth	深度
+	Front	正面
+	Isometric Bottom	等角底部
+	Isometric Left	等角左側
+	Isometric Right	等角右側
+	Isometric Top	等角頂部
+	Off-Axis Back	離軸背面
+	Off-Axis Bottom	離軸底部
+	Off-Axis Front	離軸正面
+	Off-Axis Left	離軸左側
+	Off-Axis Right	離軸右側
+	Off-Axis Top	離軸頂部
+	Ogee	反曲線
+	Reset all 3D settings to their defaults.	將所有 3D 設定重設為預設值。
+	Step	階梯
+	Taper	錐化
+	Twist	扭轉
+	Volume	體積
+3d	Cap	封口
+3d	Solid	實心
+3d	Hollow	空心
+3d	Bevel	斜角
+3d	Rounded	圓角
+3d	Space	間距
+	Bevel Shape	斜角形狀
+	Bevel Inside	斜角向內
+	Bevel both sides	雙面斜角
+	Presets	預設集
+@msg	An object takes one 3D effect. Edit the existing effect's options, or remove it first.	一個物件只能套用一種 3D 效果。請編輯現有效果的選項，或先將其移除。
+@msg	{label} currently requires a path or compound path. Convert type, images and groups to paths first.	{label}目前需要路徑或複合路徑。請先將文字、影像和群組轉換為路徑。
+@msg	{label} requires a shape with at least two anchors	{label}需要至少有兩個錨點的形狀
+@msg	The shape is too complex for a 3D effect	形狀過於複雜，無法套用 3D 效果
+@msg	The 3D surface is too complex; simplify the shape	3D 表面過於複雜；請簡化形狀
+	Transform Objects	變形物件
+@msg	unknown parameter `{key}`; did you mean `{near}`?	未知的參數 `{key}`；您是指 `{near}` 嗎？
+@msg	unknown parameter `{key}`; the command takes no parameters	未知的參數 `{key}`；此指令沒有參數
+@msg	unknown parameter `{key}`; the command takes: {keys}	未知的參數 `{key}`；此指令接受：{keys}

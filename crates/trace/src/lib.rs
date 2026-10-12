@@ -8,18 +8,27 @@
 //!    histogram as the [`Palette`] asks: median cut to a colour count followed by weighted k-means
 //!    (Limited), median cut until every colour box is tight (Full Tone), one of those two by
 //!    whether the image is flat art (Automatic), or the most used colours of a swatch library
-//!    (Document Library). Transparent pixels are left out.
+//!    (Document Library). Transparent pixels are left out. The palette is made of the picture's own
+//!    colours: the blends that anti-aliasing and blur leave along edges take none of it, colours that
+//!    noise made of one colour are merged, and a blend pixel goes to one of the two colours it lies
+//!    between (see `quantize`).
+//!    A continuous-tone image (a photo) is first smoothed within its tones, edges kept (see
+//!    `smooth`): otherwise its noise decides, pixel by pixel, which of two neighbouring tones a
+//!    pixel gets, and every such pixel is a speck.
 //! 2. **Remove noise**: 4-connected same-colour components smaller than `noise` pixels are merged
 //!    into their most common neighbouring colour.
 //! 3. **Follow boundaries**: for each colour layer, the pixel-crack edges between inside and
 //!    outside are linked into closed loops (inside on the right, right turns at saddles, so
 //!    diagonal pixels stay separate, matching 4-connectivity). Outer loops run clockwise and
 //!    holes counter-clockwise (y down), so the result fills correctly with either fill rule.
-//! 4. **Polygon**: each loop is reduced to a polygon whose vertices stay within a fidelity
-//!    dependent distance of the pixel boundary (Douglas–Peucker on the crack vertices, which
-//!    removes the staircase).
-//! 5. **Curves**: the polygon is fitted with cubic Béziers (`vectorcraft_pathops::simplify_with`,
-//!    least squares with corner detection); optionally nearly-straight curves snap to lines.
+//! 4. **Sub-pixel edges**: each crack of a loop is moved to where the image says the edge really
+//!    is (an anti-aliased or blurred edge pixel is part one tone, part the other), so the outline
+//!    is right to a fraction of a pixel before any fitting; hard-edged images are read as
+//!    staircases instead (see `subpixel`).
+//! 5. **Curves**: the outline is fitted as Flat Logo mode fits its own (`logo::fit_outline`):
+//!    corners the pixels rounded are put back, straight runs become lines, a round outline a
+//!    true circle, and the rest as few cubic Béziers as the Paths tolerance allows; Snap Curves To
+//!    Lines also straightens slightly curved runs and makes arcs of parts of circles.
 //!
 //! With **Create: Strokes**, the parts of a colour layer no wider than the stroke width are traced
 //! as stroked centre lines instead (see `centerline`); without Fills, wider parts become stroked
@@ -35,6 +44,8 @@ mod fit;
 mod logo;
 mod mosaic;
 mod quantize;
+mod smooth;
+mod subpixel;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -44,6 +55,7 @@ use vectorcraft_geom::PathData;
 pub use contour::{Component, Loop, trace_mask};
 pub use mosaic::mosaic;
 pub use quantize::{FULL_TONE_MAX, Quantized, TRANSPARENT, denoise, quantize};
+use subpixel::Crack;
 
 /// Errors decoding a raster.
 #[derive(Debug, thiserror::Error)]
@@ -67,6 +79,30 @@ pub enum TraceError {
 /// The most pixels an image to trace may have (64 megapixels: 256 MB decoded); larger images are
 /// refused instead of running out of memory.
 pub const MAX_PIXELS: u64 = 64 << 20;
+
+/// The most pixels an image may have for [`Raster::decode_to_fit`] to decode it and scale it down
+/// to [`MAX_PIXELS`] (192 megapixels: 768 MB decoded); larger images are refused.
+pub const MAX_SOURCE_PIXELS: u64 = 192 << 20;
+
+/// The largest size with `w : h`'s aspect of at most `max` pixels (each side at least 1).
+fn fit_size(w: u32, h: u32, max: u64) -> (u32, u32) {
+    let pixels = u64::from(w) * u64::from(h);
+    if pixels <= max || pixels == 0 {
+        return (w, h);
+    }
+    let k = (max as f64 / pixels as f64).sqrt();
+    let side = |v: u32| ((f64::from(v) * k).floor() as u32).clamp(1, v);
+    let (mut nw, mut nh) = (side(w), side(h));
+    // A side held at 1 pixel leaves the other too long: cut it to what fits.
+    if u64::from(nw) * u64::from(nh) > max {
+        if nw >= nh {
+            nw = u32::try_from(max / u64::from(nh)).unwrap_or(nw).clamp(1, nw);
+        } else {
+            nh = u32::try_from(max / u64::from(nw)).unwrap_or(nh).clamp(1, nh);
+        }
+    }
+    (nw, nh)
+}
 
 /// An RGBA8 raster (row-major, top row first).
 #[derive(Clone, Debug, PartialEq)]
@@ -106,6 +142,37 @@ impl Raster {
         let img = image::load_from_memory(bytes).map_err(decode_err)?.to_rgba8();
         let (w, h) = img.dimensions();
         Ok(Self { width: w, height: h, rgba: img.into_raw() })
+    }
+    /// Decode as [`Raster::decode`], but an image of more than [`MAX_PIXELS`] (up to
+    /// [`MAX_SOURCE_PIXELS`]) is scaled down, aspect kept, to the largest size within
+    /// [`MAX_PIXELS`] instead of being refused: a 300 ppi scan of a poster traces at slightly
+    /// less than its own resolution. The caller maps the result back with `width` / `height`.
+    pub fn decode_to_fit(bytes: &[u8]) -> Result<Self, TraceError> {
+        let decode_err = |e: image::ImageError| TraceError::Decode(e.to_string());
+        let reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().map_err(|e| TraceError::Decode(e.to_string()))?;
+        let (w, h) = reader.into_dimensions().map_err(decode_err)?;
+        if w == 0 || h == 0 {
+            return Err(TraceError::Empty);
+        }
+        let pixels = u64::from(w) * u64::from(h);
+        if pixels <= MAX_PIXELS {
+            return Self::decode(bytes);
+        }
+        if pixels > MAX_SOURCE_PIXELS {
+            return Err(TraceError::TooLarge { width: w, height: h, max: MAX_SOURCE_PIXELS >> 20 });
+        }
+        // Decoded within the allocation the source limit needs; the web keeps file import's 512 MB.
+        // A deeper image (16 bits a channel) that needs more fails with a decode error.
+        let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().map_err(|e| TraceError::Decode(e.to_string()))?;
+        let mut limits = image::Limits::default();
+        limits.max_alloc = Some(if cfg!(target_arch = "wasm32") { 512 << 20 } else { MAX_SOURCE_PIXELS * 4 });
+        reader.limits(limits);
+        let img = reader.decode().map_err(decode_err)?.into_rgba8();
+        let (w, h) = img.dimensions();
+        let (nw, nh) = fit_size(w, h, MAX_PIXELS);
+        // Box-filtered: every source pixel counts, so thin lines and anti-aliased edges survive.
+        let small = image::imageops::thumbnail(&img, nw, nh);
+        Ok(Self { width: nw, height: nh, rgba: small.into_raw() })
     }
     /// Encode as PNG.
     pub fn encode_png(&self) -> Vec<u8> {
@@ -252,6 +319,27 @@ impl TraceParams {
         let f = (self.paths / 100.0).clamp(0.0, 1.0);
         0.2 + 1.6 * (1.0 - f)
     }
+    /// How outlines are fitted: Paths sets how closely the curves follow the edge (0.08 px at 100,
+    /// 0.33 px at 50, 0.78 px at 0), Corners the turn that makes a corner (35° at 100, 90° at 0).
+    /// Straight edges are always lines; Snap Curves To Lines also straightens slightly curved ones
+    /// and makes parts of circles true arcs.
+    fn outline_style(&self) -> logo::Style {
+        // Parameters come from users and agents: a NaN or infinity must not reach the geometry.
+        let unit = |v: f64, default: f64| if v.is_finite() { (v / 100.0).clamp(0.0, 1.0) } else { default };
+        let snap = self.snap_curves_to_lines;
+        logo::Style {
+            step: 0.25,
+            tol: 0.08 + 0.7 * (1.0 - unit(self.paths, 0.5)).powf(1.5),
+            corner_deg: 90.0 - 55.0 * unit(self.corners, 0.75),
+            snap: true,
+            arcs: snap,
+            line_tol: if snap { 0.5 } else { 0.2 },
+            circle_tol: if snap { 0.3 } else { 0.15 },
+            restore: Some(logo::RestoreParams::default()),
+            check_step: 0.15,
+            ..logo::Style::default()
+        }
+    }
     /// Turn angle (degrees) above which a polygon vertex stays a corner.
     fn corner_angle(&self) -> f64 {
         let c = (self.corners / 100.0).clamp(0.0, 1.0);
@@ -373,6 +461,9 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
     if params.mode == Mode::Logo {
         return logo::trace_logo(img, params, max_anchors);
     }
+    // A photo is traced from a copy with its noise smoothed away (see `smooth`).
+    let smoothed = (params.mode != Mode::BlackAndWhite && quantize::continuous_tone(img)).then(|| smooth::smoothed(img));
+    let img = smoothed.as_ref().unwrap_or(img);
     let mut q = quantize(img, params);
     denoise(&mut q.labels, w, h, params.noise as usize);
     // Pixel count per palette entry.
@@ -385,6 +476,19 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
     // Layers bottom → top: largest area first.
     let mut order: Vec<usize> = (0..q.palette.len()).filter(|&i| counts[i] > 0).collect();
     order.sort_by(|a, b| counts[*b].cmp(&counts[*a]).then(a.cmp(b)));
+    if params.method == Method::Overlapping {
+        // Stacked layers go by lightness instead, from the largest colour's end of the scale: each
+        // layer reaches under all those above it, so where two colours meet, every layer between
+        // them in the stack ends on that same edge and shows through its anti-aliasing. Neighbours
+        // in a picture are mostly neighbours in tone, and in this order they are neighbours in the
+        // stack too (by area, an unrelated colour's edge would shine through as a hairline).
+        let light = |i: usize| q.palette.get(i).map_or(0, |c| u32::from(c[0]) * 299 + u32::from(c[1]) * 587 + u32::from(c[2]) * 114);
+        let first = order.first().copied();
+        order.sort_by(|a, b| light(*a).cmp(&light(*b)).then(a.cmp(b)));
+        if first.is_some_and(|f| order.iter().position(|&i| i == f).is_some_and(|at| at * 2 >= order.len())) {
+            order.reverse();
+        }
+    }
     let mut rank = vec![usize::MAX; q.palette.len()];
     for (r, &i) in order.iter().enumerate() {
         rank[i] = r;
@@ -395,6 +499,9 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
         q: &q,
         rank: &rank,
         params,
+        img,
+        bw_tones: bw_tones(img, &q),
+        style: params.outline_style(),
         opts: fit::FitOptions {
             polygon_tol: params.polygon_tolerance(),
             fit_tol: params.fit_tolerance(),
@@ -417,12 +524,31 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
     Ok(out)
 }
 
+/// The mean luminance of the pixels labelled 0 (white) and 1 (black) of a Black and White
+/// quantisation: pure white and black where a side has no pixel.
+fn bw_tones(img: &Raster, q: &Quantized) -> [f64; 2] {
+    let (mut sum, mut n) = ([0.0f64; 2], [0.0f64; 2]);
+    for (p, &l) in img.rgba.as_chunks::<4>().0.iter().zip(&q.labels) {
+        if let (Some(s), Some(n)) = (sum.get_mut(l as usize), n.get_mut(l as usize)) {
+            *s += (f64::from(p[0]) * 299.0 + f64::from(p[1]) * 587.0 + f64::from(p[2]) * 114.0) / 1000.0;
+            *n += 1.0;
+        }
+    }
+    [if n[0] > 0.0 { sum[0] / n[0] } else { 255.0 }, if n[1] > 0.0 { sum[1] / n[1] } else { 0.0 }]
+}
+
 /// What tracing one colour layer needs.
 struct Layers<'a> {
     q: &'a Quantized,
     /// Each palette entry's layer, bottom (0) up.
     rank: &'a [usize],
     params: &'a TraceParams,
+    img: &'a Raster,
+    /// Black and White: the mean luminance of the white pixels and of the black ones.
+    bw_tones: [f64; 2],
+    /// How outlines are fitted.
+    style: logo::Style,
+    /// How centre lines are fitted.
     opts: fit::FitOptions,
     w: usize,
     h: usize,
@@ -432,6 +558,101 @@ struct Layers<'a> {
 }
 
 impl Layers<'_> {
+    /// Ignore White: white is no part of any layer (stacked layers reach under the layers above
+    /// them, and must not reach under white that is left out).
+    fn ignored(&self, label: u16) -> bool {
+        self.params.ignore_white && self.q.palette.get(label as usize).is_some_and(|c| is_white(*c))
+    }
+    /// How far the edge lies from a crack between two pixels, towards the outside one (−0.5 to 0.5).
+    ///
+    /// Each pixel of the column across the crack is read as a blend of the tones on its two sides
+    /// (the two pixels' palette colours; in Black and White the mean luminance of the black and of
+    /// the white pixels). The edge is where the blends, summed, put it: as far out as there is
+    /// inside tone in the outside pixels, less the outside tone in the inside ones (two pixels each
+    /// way, while they are on the same side and no more blended than the pixel before: more would be
+    /// another edge's doing).
+    ///
+    /// Where the inside is at most three pixels deep with the outside's colour behind it (a thin
+    /// line), its two edges share those pixels and cannot be read apart; the inside tone of the
+    /// whole column gives the line's middle (its centroid) and width (its sum) instead. A thin gap
+    /// between two parts of the inside is read the same way, with the tones swapped.
+    ///
+    /// Black and White then moves the edge to where the luminance crosses the threshold: by the
+    /// threshold's distance from the middle tone, over how steep the edge is (nothing for a
+    /// threshold in the middle, more the softer the edge).
+    fn shift(&self, c: Crack) -> f64 {
+        let label = |k: i32| c.at(k).and_then(|i| self.q.labels.get(i).copied()).filter(|&l| l != TRANSPARENT);
+        let (Some(la), Some(lb)) = (label(0), label(1)) else { return 0.0 };
+        if la == lb {
+            return 0.0;
+        }
+        let bw = self.params.mode == Mode::BlackAndWhite;
+        let (ca, cb) = if bw {
+            let tone = |l: u16| [self.bw_tones[usize::from(l == 1)]; 3];
+            (tone(la), tone(lb))
+        } else {
+            let (Some(ca), Some(cb)) = (self.q.palette.get(la as usize), self.q.palette.get(lb as usize)) else { return 0.0 };
+            (ca.map(f64::from), cb.map(f64::from))
+        };
+        let d = [0, 1, 2].map(|k| cb[k] - ca[k]);
+        let len2: f64 = d.iter().map(|v| v * v).sum();
+        if len2 <= 0.0 {
+            return 0.0;
+        }
+        // How much of the inside tone (0 to 1) the pixel `k` steps out has; none off the image.
+        let inside = |k: i32| {
+            let Some(p) = c.at(k).and_then(|i| self.img.rgba.get(i * 4..i * 4 + 3)) else { return 0.0 };
+            let p = [f64::from(p[0]), f64::from(p[1]), f64::from(p[2])];
+            let p = if bw { [(p[0] * 299.0 + p[1] * 587.0 + p[2] * 114.0) / 1000.0; 3] } else { p };
+            1.0 - ((0..3).map(|k| (p[k] - ca[k]) * d[k]).sum::<f64>() / len2).clamp(0.0, 1.0)
+        };
+        // The edge from a thin run of `n` pixels starting at pixel `from` and going `dir`, by the
+        // amounts `tone` of the run's own tone in it and in the two pixels at either end of it.
+        // Returns the run's middle and width, measured from the crack towards the outside.
+        let thin = |from: i32, dir: i32, n: i32, tone: &dyn Fn(i32) -> f64| {
+            let (near, far) = (from - dir, from + n * dir);
+            let mut cells: Vec<(i32, f64)> = (0..n).map(|j| from + j * dir).chain([near, far]).map(|k| (k, tone(k))).collect();
+            for (edge, out) in [(near, -dir), (far, dir)] {
+                if label(edge + out) == label(edge) {
+                    cells.push((edge + out, tone(edge + out).min(tone(edge))));
+                }
+            }
+            let width: f64 = cells.iter().map(|c| c.1).sum();
+            // Pixel `k`'s centre is `k - 0.5` from the crack.
+            (width > 1e-6).then(|| (cells.iter().map(|c| c.1 * (f64::from(c.0) - 0.5)).sum::<f64>() / width, width))
+        };
+        // How deep each side is here: up to three pixels of its own label, then the other's.
+        let depth = |dir: i32, own: u16, other: u16| {
+            let start = if dir < 0 { 0 } else { 1 };
+            let n = (1..=3).take_while(|j| label(start + j * dir) == Some(own)).count() as i32 + 1;
+            (n <= 3 && label(start + n * dir) == Some(other)).then_some(n)
+        };
+        let mut steep = 1.0;
+        let mut shift = if let Some((middle, width)) = depth(-1, la, lb).and_then(|n| thin(0, -1, n, &inside)) {
+            middle + width / 2.0
+        } else if let Some((middle, width)) = depth(1, lb, la).and_then(|n| thin(1, 1, n, &|k| 1.0 - inside(k))) {
+            middle - width / 2.0
+        } else {
+            let (a1, b1) = (1.0 - inside(0), inside(1));
+            let a2 = (label(-1) == Some(la)).then(|| (1.0 - inside(-1)).min(a1));
+            let b2 = (label(2) == Some(lb)).then(|| inside(2).min(b1));
+            // The edge's steepness per pixel: the square of the change over two pixels (1 for an
+            // anti-aliased edge, less for a blurred one).
+            let change = [a2.map(|v| 1.0 - v - b1), b2.map(|v| 1.0 - a1 - v)].into_iter().flatten().fold(f64::NAN, f64::max);
+            if !change.is_nan() {
+                steep = (change * change).clamp(0.35, 1.0);
+            }
+            b1 + b2.unwrap_or(0.0) - a1 - a2.unwrap_or(0.0)
+        };
+        if bw {
+            // The share of black at which a pixel turns black.
+            let (white, black) = (self.bw_tones[0], self.bw_tones[1]);
+            let turn = ((white - f64::from(self.params.threshold)) / (white - black).max(1.0)).clamp(0.02, 0.98);
+            shift += if la == 1 { 1.0 } else { -1.0 } * (0.5 - turn) / steep;
+        }
+        shift
+    }
+
     /// The paths of layer `r` (palette entry `ci`), or `None` once the anchors made pass the
     /// maximum.
     fn layer(&self, r: usize, ci: usize) -> Option<Vec<TracedPath>> {
@@ -453,7 +674,7 @@ impl Layers<'_> {
             .map(|(i, &l)| {
                 l != TRANSPARENT
                     && !thin.get(i).copied().unwrap_or(false)
-                    && if overlapping { self.rank.get(l as usize).is_some_and(|&lr| lr >= r) } else { l as usize == ci }
+                    && if overlapping { self.rank.get(l as usize).is_some_and(|&lr| lr >= r) && !self.ignored(l) } else { l as usize == ci }
             })
             .collect();
         // Without Fills, areas are outlined with a 1 px stroke.
@@ -469,13 +690,14 @@ impl Layers<'_> {
             true
         };
         for comp in trace_mask(&mask, w, h) {
-            let Some(outer) = fit::fit_loop(&comp.outer, opts) else { continue };
+            let fit = |l: &Loop| fit::fit_loop(l, w, h, &|c| self.shift(c), &self.style);
+            let Some(outer) = fit(&comp.outer) else { continue };
             let mut subs = vec![outer];
             for hole in &comp.holes {
                 if hole.area2.abs() / 2 < min_hole && params.noise > 0 {
                     continue;
                 }
-                subs.extend(fit::fit_loop(hole, opts));
+                subs.extend(fit(hole));
             }
             if !add(PathData::new(subs), comp.pixels, area_stroke) {
                 return None;

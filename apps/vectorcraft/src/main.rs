@@ -6,7 +6,8 @@
 //! `--in-window-menus` (or `VECTORCRAFT_IN_WINDOW_MENUS=1`) keeps the menus inside the window on
 //! macOS instead of the macOS menu bar (`mac_menu`).
 //!
-//! `--control <port>` (or `VECTORCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control server:
+//! `--control <port>` (or `VECTORCRAFT_CONTROL_PORT`; a port from 1 to 65535, or the app doesn't
+//! start) starts a localhost JSON-lines control server:
 //! `{"id":1,"method":"ui.inspect","params":{}}` → `{"id":1,"ok":true,"result":…}`.
 //! See `vectorcraft_ui_egui::control` for the methods. `--automation-read-root` and
 //! `--automation-write-root` (or `VECTORCRAFT_AUTOMATION_READ_ROOT` / `_WRITE_ROOT`) confine the
@@ -33,6 +34,8 @@ mod logging;
 mod mac_fonts;
 #[cfg(target_os = "macos")]
 mod mac_menu;
+#[cfg(target_os = "macos")]
+mod mac_save_format;
 #[cfg(target_os = "macos")]
 mod mac_window;
 #[cfg(target_os = "macos")]
@@ -305,10 +308,17 @@ dialog_settings!(rfd::FileDialog, rfd::AsyncFileDialog);
 fn dialog_for<D: DialogSettings>(d: D, request: &PickRequest) -> D {
     let pick = match request {
         PickRequest::Open(pick) | PickRequest::Save(pick) => pick,
-        PickRequest::OpenMany => return fileio::place_filters().fold(d.title("Place"), |d, (name, exts)| d.filter(name, exts)),
+        PickRequest::OpenMany => {
+            return fileio::place_filters().fold(d.title(vectorcraft_ui_egui::i18n::t("Place")), |d, (name, exts)| {
+                d.filter(vectorcraft_ui_egui::i18n::tr_ctx(vectorcraft_ui_egui::i18n::current(), "file-filter", name), exts)
+            });
+        }
         PickRequest::Folder => return d,
     };
-    let d = pick.filters.iter().fold(d, |d, (name, exts)| d.filter(name, exts));
+    let d = pick
+        .filters
+        .iter()
+        .fold(d, |d, (name, exts)| d.filter(vectorcraft_ui_egui::i18n::tr_ctx(vectorcraft_ui_egui::i18n::current(), "file-filter", name), exts));
     let d = match &pick.folder {
         Some(folder) => d.folder(folder),
         None => d,
@@ -462,8 +472,9 @@ fn start_pick(request: PickRequest, parent: &Parent, ui: &egui::Context) -> Opti
             let picked = dialog.pick_files();
             Box::pin(async move { picked.await.unwrap_or_default().iter().map(path).collect() })
         }
-        PickRequest::Save(_) => {
+        PickRequest::Save(pick) => {
             let picked = dialog.save_file();
+            mac_save_format::attach(window, &pick);
             Box::pin(async move { picked.await.iter().map(path).collect() })
         }
         PickRequest::Folder => {
@@ -491,6 +502,10 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         write: Some(Box::new(write_file)),
         // Background Save and Export write from a worker thread.
         write_shared: Some(std::sync::Arc::new(write_file)),
+        // Native saves stream into the file as they are encoded.
+        stream_shared: Some(std::sync::Arc::new(|p: &str, fill: &mut dyn FnMut(&mut dyn std::io::Write) -> std::io::Result<()>| {
+            fileio::write_file_with(p, fill).map_err(|e| e.to_string())
+        })),
         // Every format Copy offers and Paste reads (menu-bar Paste never sees egui's Paste event).
         system_clipboard: Some(clipboard::system_clipboard()),
         // Linux checks whether Paste has something to take on a background thread: an X11 clipboard
@@ -591,7 +606,7 @@ fn native_options(custom_titlebar: bool) -> eframe::NativeOptions {
 fn main() -> std::process::ExitCode {
     // Validate roots before logging, font scans, preferences or the window: a missing value
     // must not clear an environment root and start the control channel without confinement.
-    let mut control_port: Option<u16> = std::env::var("VECTORCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
+    let mut control = automation_args::ControlArg::default();
     let root_env = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty()).map(std::path::PathBuf::from);
     let mut roots_args =
         automation_args::AutomationArgs::new(root_env("VECTORCRAFT_AUTOMATION_READ_ROOT"), root_env("VECTORCRAFT_AUTOMATION_WRITE_ROOT"));
@@ -599,7 +614,7 @@ fn main() -> std::process::ExitCode {
     let mut in_window_menus = std::env::var_os("VECTORCRAFT_IN_WINDOW_MENUS").is_some_and(|v| !v.is_empty() && v != "0");
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
-        match roots_args.consume(&a, &mut args) {
+        match roots_args.consume(&a, &mut args).and_then(|root| if root { Ok(true) } else { control.consume(&a, &mut args) }) {
             Ok(true) => continue,
             Ok(false) => {}
             Err(e) => {
@@ -608,7 +623,6 @@ fn main() -> std::process::ExitCode {
             }
         }
         match a.as_str() {
-            "--control" => control_port = args.next().and_then(|p| p.parse().ok()),
             "--in-window-menus" => in_window_menus = true,
             "--version" => {
                 println!("vectorcraft {}", env!("CARGO_PKG_VERSION"));
@@ -618,6 +632,17 @@ fn main() -> std::process::ExitCode {
         }
     }
     let automation_args::AutomationArgs { read_root, write_root, .. } = roots_args;
+    // After the arguments: `--control` and `--version` win over a bad environment value.
+    let control_port = match control.port {
+        Some(port) => Some(port),
+        None => match automation_args::env_control_port(std::env::var_os("VECTORCRAFT_CONTROL_PORT")) {
+            Ok(port) => port,
+            Err(e) => {
+                eprintln!("vectorcraft: {e}");
+                return std::process::ExitCode::FAILURE;
+            }
+        },
+    };
     // Before desktop services, so every start-up warning is recorded (`logging`).
     let logger = logging::install();
     vectorcraft_ui_egui::i18n::detect_system_lang_in_background();
@@ -727,6 +752,16 @@ fn main() -> std::process::ExitCode {
             // losing the device before the first frame (#1194). `WGPU_DX12_COMPILER` picks another.
             create.instance_descriptor.backend_options.dx12.shader_compiler =
                 eframe::wgpu::Dx12Compiler::from_env().unwrap_or(eframe::wgpu::Dx12Compiler::Fxc);
+            // The window's surface may be as large as the adapter allows, not eframe's fixed
+            // 8192 px: a window stretched over several monitors, or grown by a display scale
+            // change, otherwise fails to configure its surface and the app closes (#1459).
+            let device = create.device_descriptor.clone();
+            create.device_descriptor = std::sync::Arc::new(move |adapter: &eframe::wgpu::Adapter| {
+                let mut descriptor = device(adapter);
+                let limit = &mut descriptor.required_limits.max_texture_dimension_2d;
+                *limit = gpu::surface_limit(*limit, adapter.limits().max_texture_dimension_2d);
+                descriptor
+            });
         }
         options
     };

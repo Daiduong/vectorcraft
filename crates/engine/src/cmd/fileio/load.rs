@@ -9,7 +9,7 @@ use vectorcraft_geom::Affine;
 use super::super::*;
 use super::pdfimport::LoadOptions;
 use super::{Format, SAVE_FORMATS, absolute_path, file_stamp, format, format_for_name, psdread, read_file};
-use crate::EngineError;
+use crate::{EngineError, Prefs};
 
 /// A file read into a document, with its format and non-fatal import notes.
 pub struct Loaded {
@@ -24,6 +24,18 @@ pub struct Loaded {
     /// Only a stand-in picture of the file (an Affinity document whose native data couldn't be
     /// read): Open shows it with its warning; Place, templates and libraries refuse it.
     pub preview_only: bool,
+}
+
+impl Loaded {
+    /// The file with the grid of Preferences › Guides & Grid, unless it is a native document (also
+    /// one that an SVG, PDF, `.ai` or EPS file carries, `restored`), which keeps the grid it was
+    /// saved with.
+    pub(crate) fn with_grid_prefs(mut self, prefs: &Prefs) -> Self {
+        if !self.restored && !matches!(self.format.id, "vectorcraft" | "template") {
+            self.doc.grid = prefs.grid();
+        }
+        self
+    }
 }
 
 /// An image ready to embed: PNG/JPEG/GIF/WebP keep their bytes, other formats are stored as PNG
@@ -136,21 +148,24 @@ pub fn load(name: &str, bytes: &[u8]) -> Result<Loaded> {
     load_with(name, bytes, &LoadOptions::default())
 }
 
-/// A PDF-compatible `.ai` read through the editor's own copy of its art, which it carries: its
-/// layers and hidden objects as they were, and the art outside its artboard (its PDF part has
-/// only what is on the artboards), as an EPS of the editor is read. Anything else as it was.
+/// A PDF-compatible `.ai`, or a PDF saved with the editing data, read through the editor's own copy
+/// of its art, which it carries: its layers and hidden objects as they were, and the art outside
+/// its artboard (its PDF part has only what is on the artboards), as an EPS of the editor is read.
+/// Anything else as it was.
 fn through_editing_data(bytes: &[u8], opts: &LoadOptions, doc: Document, warnings: Vec<String>) -> (Document, Vec<String>) {
     if opts.pages.is_some() || !opts.layers || !opts.editing_data {
         return (doc, warnings);
     }
     let Some(private) = vectorcraft_pdf::illustrator_data(bytes, opts.password.as_deref()) else { return (doc, warnings) };
     let outlined = opts.text_as == vectorcraft_pdf::TextAs::Outlines;
-    let (doc, mut warnings) = vectorcraft_eps::layered_ai(&private, doc, warnings, outlined);
-    // The note that the art outside the artboard is lost is the reason the layers weren't read.
-    if warnings.iter().any(|w| w.starts_with("the file's layers weren't read from its editing data")) {
+    let (doc, mut warnings, read) = vectorcraft_eps::layered_ai(&private, doc, warnings, outlined, opts.trust_editing_data);
+    // The layers weren't read (or couldn't be): the notes of reading the PDF part still hold.
+    if !read {
         return (doc, warnings);
     }
-    warnings.retain(|w| w != vectorcraft_pdf::OFF_ARTBOARD_NOTE);
+    // The layers hold the art that the PDF part leaves out or, in a PDF, that the import clipped
+    // to the page.
+    warnings.retain(|w| w != vectorcraft_pdf::OFF_ARTBOARD_NOTE && w != vectorcraft_pdf::PAST_PAGE_NOTE);
     (doc, warnings)
 }
 
@@ -206,8 +221,13 @@ pub fn load_with(name: &str, bytes: &[u8], opts: &LoadOptions) -> Result<Loaded>
                 .then(|| vectorcraft_pdf::editing_with(bytes, opts.password.as_deref()))
                 .flatten()
                 .map(|e| (e.intact, move || Some(e.data)));
-            restore_or_import(editing, || match super::pdfimport::import(bytes, opts) {
-                Ok((doc, warnings)) => Ok(through_editing_data(bytes, opts, doc, warnings)),
+            restore_or_import(editing, || match super::pdfimport::import(bytes, opts, format.id != "pdf") {
+                Ok(r) => {
+                    // Pages of text alone: the editing copy alone where it reads, as for a file
+                    // saved without its PDF part (#1387: else the page, which is the art).
+                    let alone = r.only_text.then(|| from_editing_data_alone(bytes, opts)).flatten().and_then(|read| read.ok());
+                    Ok(alone.unwrap_or_else(|| through_editing_data(bytes, opts, r.document, r.warnings)))
+                }
                 // Saved without its PDF part: the editing copy is all the file has.
                 Err(e) if e.to_string() == vectorcraft_pdf::PdfError::PlaceholderOnly.to_string() => {
                     from_editing_data_alone(bytes, opts).unwrap_or(Err(e))
@@ -271,8 +291,26 @@ pub fn open_bytes(s: &mut Session, name: &str, bytes: &[u8], path: Option<String
 
 /// [`open_bytes`] with the `document.open` options in `p` ([`LoadOptions::from_params`]).
 pub fn open_bytes_with(s: &mut Session, name: &str, bytes: &[u8], path: Option<String>, p: &Value) -> Result<Value> {
+    open_read(s, read_for_open(name, bytes, p)?, path)
+}
+
+/// A file read for `document.open` but not opened yet ([`read_for_open`], [`open_read`]).
+pub struct ReadFile {
+    loaded: Loaded,
+    opts: LoadOptions,
+}
+
+/// The first half of [`open_bytes_with`]: read and decode the file, which needs no session (an
+/// app may do it on another thread) → what [`open_read`] opens.
+pub fn read_for_open(name: &str, bytes: &[u8], p: &Value) -> Result<ReadFile> {
     let opts = LoadOptions::from_params("document.open", p)?;
-    open_loaded(s, load_with(name, bytes, &opts)?, path, &opts, false)
+    Ok(ReadFile { loaded: load_with(name, bytes, &opts)?, opts })
+}
+
+/// The second half of [`open_bytes_with`]: open a file [`read_for_open`] read as the new active
+/// document (`path`: where it was read from) → `document.open`'s result.
+pub fn open_read(s: &mut Session, file: ReadFile, path: Option<String>) -> Result<Value> {
+    open_loaded(s, file.loaded, path, &file.opts, false)
 }
 
 /// File → New from Template: any readable file (at `path`, if it is one: its links are looked for
@@ -289,7 +327,7 @@ pub fn open_template(s: &mut Session, name: &str, bytes: &[u8], path: Option<&st
 
 /// Make a loaded file the new active document; `opts` are the options it was read with.
 fn open_loaded(s: &mut Session, loaded: Loaded, path: Option<String>, opts: &LoadOptions, as_template: bool) -> Result<Value> {
-    let Loaded { mut doc, format, warnings, restored, converted, .. } = loaded;
+    let Loaded { mut doc, format, warnings, restored, converted, .. } = loaded.with_grid_prefs(&s.prefs);
     // What reading the file left out of the document, if anything.
     let losses: Vec<String> = warnings.iter().filter(|w| is_loss(w)).cloned().collect();
     let source_path = path.clone().filter(|_| !losses.is_empty());
@@ -354,12 +392,13 @@ pub(super) fn new_from_template(s: &mut Session, p: &Value) -> Result<Value> {
 /// The most memory decoding one image may take: a 60 in print sheet at 300 ppi (18000 × 6600 px)
 /// is ~475 MB as RGBA, past the decoder's 512 MB default once it is converted. The web app keeps
 /// that default: wasm32 has 4 GB to address and aborts when an allocation fails.
-const MAX_RASTER_ALLOC: u64 = if cfg!(target_arch = "wasm32") { 512 << 20 } else { 2 << 30 };
+pub(crate) const MAX_RASTER_ALLOC: u64 = if cfg!(target_arch = "wasm32") { 512 << 20 } else { 2 << 30 };
 
 /// Decode an image's header (and, for formats stored as PNG, its pixels). CMYK TIFFs are kept as
 /// they are, with their ink amounts ([`ImageBlob::cmyk`]); CMYK TIFFs with an alpha channel, which
 /// the decoder can't read, become RGBA in the active colour settings' CMYK, as do CMYK Photoshop
-/// documents, whose merged image is read ([`psdread`]).
+/// documents, whose merged image is read ([`psdread`]). Grayscale TIFFs with an alpha channel or
+/// other extra channels, which the decoder can't read either, become RGBA too.
 pub fn raster_image(bytes: &[u8]) -> Result<RasterImage> {
     let ppi = super::ppi::resolution(bytes);
     if psdread::is_psd(bytes) {
@@ -377,11 +416,11 @@ pub fn raster_image(bytes: &[u8]) -> Result<RasterImage> {
         let (width, height) = reader.into_dimensions().map_err(err)?;
         return stored(bytes.to_vec(), f.mime, (width, height), ppi);
     }
-    let cmyka = || {
+    let extra_samples = || {
         let cms = vectorcraft_color::cms::active();
-        vectorcraft_doc::cmyk::cmyka_tiff_rgba(bytes, |c| cms.cmyk_to_srgb(c, false))
+        vectorcraft_doc::cmyk::extra_samples_tiff_rgba(bytes, |c| cms.cmyk_to_srgb(c, false))
     };
-    let img = match (f.id == "tiff").then(cmyka).flatten() {
+    let img = match (f.id == "tiff").then(extra_samples).flatten() {
         Some(img) => img,
         None => reader.decode().map_err(err)?.to_rgba8(),
     };
@@ -418,7 +457,8 @@ pub(super) fn raster_doc(name: &str, bytes: &[u8]) -> Result<Document> {
     let layer = d.layers[0].id;
     let id = d.alloc_id();
     let xf = Affine::scale_non_uniform(sx, sy);
-    let mut n = Node::new(id, NodeKind::Image(ImageObject { key: key.clone(), width, height, xf, link: None, placement: Default::default() }));
+    let mut n =
+        Node::new(id, NodeKind::Image(Box::new(ImageObject { key: key.clone(), width, height, xf, link: None, placement: Default::default() })));
     n.name = Some(name.to_string());
     d.images.insert(key, blob);
     d.insert(Some(layer), 0, n).map_err(err)?;

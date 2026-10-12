@@ -3,10 +3,11 @@
 use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
+use vectorcraft_doc::{NodeId, NodeKind, Scaling};
 use vectorcraft_geom::{AnchorKind, PathData, Point, SubPath, Vec2};
 
 use super::create::anchor_from_json;
+use super::pathops::Beside;
 use super::*;
 use crate::EngineError;
 
@@ -27,7 +28,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Move Anchors",
             [],
             None,
-            "{dx, dy} move direct-selected anchors (whole paths if fully selected)",
+            "{dx, dy, patterns?: bool (Transform Patterns: pattern fills and strokes transform with the objects that move whole; default: prefs transformPatternTiles)} move direct-selected anchors (whole paths if fully selected)",
             has_selection,
             move_anchors
         ),
@@ -54,7 +55,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Reverse Path Direction",
             ["Object", "Path"],
             None,
-            "{ids?, reversed?: bool (true: every subpath runs counter-clockwise on screen, false: clockwise, the Attributes panel's Reverse Path Direction On / Off; omitted: flip each path)} the paths in ids or the selection (groups and compound paths: the paths inside), as one undo step → {changed: paths}",
+            "{ids?|id?, reversed?: bool (true: every subpath runs counter-clockwise on screen, false: clockwise, the Attributes panel's Reverse Path Direction On / Off; omitted: flip each path)} the paths in ids or the selection (groups and compound paths: the paths inside), as one undo step → {changed: paths}",
             has_doc,
             reverse
         ),
@@ -168,31 +169,38 @@ fn close(s: &mut Session, p: &Value) -> Result<Value> {
 
 pub(crate) fn move_anchors(s: &mut Session, p: &Value) -> Result<Value> {
     let d = Vec2::new(f64_or(p, "dx", 0.0), f64_or(p, "dy", 0.0));
-    let st = s.doc()?;
-    let sel = st.selection.clone();
-    let scale_strokes = s.prefs.scale_strokes;
-    let _ = scale_strokes;
-    s.edit("Move", |doc, _| {
+    // Objects selected whole move as objects, and their pattern tiles move with them when
+    // `patterns` (default: General › Transform Pattern Tiles) is on.
+    let whole = s.doc()?.selection.whole();
+    let sc = Scaling { patterns: super::object::transform_patterns(s, p, &whole)?, ..Scaling::default() };
+    transform_anchors(s, "Move", vectorcraft_geom::Affine::translate(d), sc)?;
+    ok()
+}
+
+/// Apply `xf` to the direct-selected anchors, their handles with them, and (with `sc`) to the
+/// objects selected whole (those with no entry in the selection's `anchors`).
+pub(crate) fn transform_anchors(s: &mut Session, label: &str, xf: vectorcraft_geom::Affine, sc: Scaling) -> Result<()> {
+    let sel = s.doc()?.selection.clone();
+    s.edit(label, |doc, _| {
         for id in &sel.objects {
             match sel.anchors.get(id) {
                 Some(set) => {
                     let path = path_mut(doc, *id)?;
                     for &(si, ai) in set {
                         if let Some(a) = path.anchor_mut(si, ai) {
-                            a.translate(d);
+                            *a = a.transform(xf);
                         }
                     }
                 }
                 None => {
                     if let Some(n) = doc.node_mut(*id) {
-                        n.transform(vectorcraft_geom::Affine::translate(d), false);
+                        n.transform(xf, sc);
                     }
                 }
             }
         }
         Ok(())
-    })?;
-    ok()
+    })
 }
 
 fn set_handle(s: &mut Session, p: &Value) -> Result<Value> {
@@ -456,21 +464,36 @@ fn convert_anchors(s: &mut Session, p: &Value) -> Result<Value> {
 pub(crate) fn delete_anchors(s: &mut Session, _: &Value) -> Result<Value> {
     let st = s.doc()?;
     let sel = st.selection.anchors.clone();
+    let segments = st.selection.segments.clone();
     s.edit("Clear", |d, selection| {
+        let mut survivors = vec![];
+        let mut emptied = Beside::replacing(d, &sel.keys().copied().collect::<Vec<_>>());
         for (id, set) in &sel {
             let remove_node = {
                 let path = path_mut(d, *id)?;
-                // Deleting an anchor from a closed path opens it there (Illustrator behaviour on Delete).
-                for &(si, ai) in set.iter().rev() {
-                    if let Some(sp) = path.subpaths.get_mut(si)
-                        && ai < sp.anchors.len()
-                    {
-                        if sp.closed {
-                            sp.anchors.rotate_left(ai + 1);
-                            sp.anchors.pop();
-                            sp.closed = false;
-                        } else {
-                            sp.anchors.remove(ai);
+                if let Some(refs) = segments.get(id) {
+                    // A segment pick cuts its connection, keeping every neighboring cubic.
+                    path.subpaths = std::mem::take(&mut path.subpaths)
+                        .into_iter()
+                        .enumerate()
+                        .flat_map(|(si, sp)| {
+                            let cuts = refs.iter().filter_map(|&(s, seg)| (s == si).then_some(seg)).collect();
+                            without_segments(sp, &cuts)
+                        })
+                        .collect();
+                } else {
+                    // Deleting an anchor from a closed path opens it there (Illustrator behaviour on Delete).
+                    for &(si, ai) in set.iter().rev() {
+                        if let Some(sp) = path.subpaths.get_mut(si)
+                            && ai < sp.anchors.len()
+                        {
+                            if sp.closed {
+                                sp.anchors.rotate_left(ai + 1);
+                                sp.anchors.pop();
+                                sp.closed = false;
+                            } else {
+                                sp.anchors.remove(ai);
+                            }
                         }
                     }
                 }
@@ -478,13 +501,52 @@ pub(crate) fn delete_anchors(s: &mut Session, _: &Value) -> Result<Value> {
                 path.subpaths.is_empty()
             };
             if remove_node {
-                d.remove(*id)?;
+                emptied.put(d, *id, vec![])?;
+            } else if segments.contains_key(id) {
+                survivors.push(*id);
             }
         }
-        selection.clear();
+        emptied.finish(d)?;
+        // Another Delete removes the remaining path after a segment cut. Anchor Delete keeps
+        // its existing deselection behavior.
+        selection.set(survivors);
         Ok(())
     })?;
     ok()
+}
+
+/// Remove connections, splitting open/closed contours into their surviving open runs.
+fn without_segments(sp: SubPath, removed: &BTreeSet<usize>) -> Vec<SubPath> {
+    let cuts: BTreeSet<usize> = removed.iter().copied().filter(|&i| i < sp.segment_count()).collect();
+    let Some(&first) = cuts.first() else { return vec![sp] };
+    let n = sp.anchors.len();
+    let start = if sp.closed { (first + 1) % n } else { 0 };
+    let mut result = vec![];
+    let mut run = vec![];
+    let mut previous = None;
+    for (index, anchor) in sp.anchors.iter().enumerate().cycle().skip(start).take(n) {
+        if previous.is_some_and(|i| cuts.contains(&i)) {
+            result.extend(open_run(std::mem::take(&mut run)));
+        }
+        run.push(*anchor);
+        previous = Some(index);
+    }
+    result.extend(open_run(run));
+    result
+}
+
+fn open_run(mut anchors: Vec<vectorcraft_geom::Anchor>) -> Option<SubPath> {
+    if anchors.len() < 2 {
+        return None;
+    }
+    // The cut edge's incoming/outgoing controls are no longer part of an open endpoint.
+    if let Some(first) = anchors.first_mut() {
+        first.h_in = first.p;
+    }
+    if let Some(last) = anchors.last_mut() {
+        last.h_out = last.p;
+    }
+    Some(SubPath::new(anchors, false))
 }
 
 fn reshape(s: &mut Session, p: &Value) -> Result<Value> {
@@ -566,11 +628,12 @@ fn cut_at_anchors(s: &mut Session, _: &Value) -> Result<Value> {
     }
     let ids = s.edit("Cut Path", |d, sel| {
         let (mut all, mut picked) = (vec![], vec![]);
+        let mut cut = Beside::replacing(d, &cuts.iter().map(|(id, ..)| *id).collect::<Vec<_>>());
         for (id, subs, starts) in cuts {
             // A path of one subpath becomes one path per piece (the first keeps the id); the
             // pieces of a compound shape stay subpaths of it.
             if d.node(id).and_then(|n| n.path_data()).is_some_and(|pd| pd.subpaths.len() == 1) {
-                let ids = super::draw2::replace_with_pieces(d, id, subs.into_iter().map(PathData::single).collect())?;
+                let ids = super::draw2::replace_with_pieces(d, &mut cut, id, subs.into_iter().map(PathData::single).collect())?;
                 picked.extend(ids.iter().zip(&starts).filter(|(_, s)| **s).map(|(id, _)| (*id, (0, 0))));
                 all.extend(ids);
             } else {
@@ -579,6 +642,7 @@ fn cut_at_anchors(s: &mut Session, _: &Value) -> Result<Value> {
                 all.push(id);
             }
         }
+        cut.finish(d)?;
         // Each cut leaves one of its two coincident anchors selected, so a drag pulls the ends apart.
         sel.clear();
         for (id, a) in picked {

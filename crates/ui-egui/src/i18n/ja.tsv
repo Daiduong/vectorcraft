@@ -173,6 +173,7 @@
 	Horizontal Align Right	水平方向右に整列
 	Vertical Align Top	垂直方向上に整列
 	Vertical Align Center	垂直方向中央に整列
+	Horizontal & Vertical Align Center	水平方向および垂直方向中央に整列
 	Vertical Align Bottom	垂直方向下に整列
 	Group	グループ
 	Ungroup	グループ解除
@@ -2151,6 +2152,9 @@
 	Rectangle Properties:	長方形のプロパティ:
 	Rectangle Tool	長方形ツール
 	Rectangular Grid	長方形グリッド
+# Rectangular Grid click dialog.
+	Horizontal Dividers:	水平方向の分割線:
+	Vertical Dividers:	垂直方向の分割線:
 	Rectangular Grid Tool	長方形グリッドツール
 	Red	レッド
 	Redefine Character Style	文字スタイルを再定義
@@ -2197,6 +2201,13 @@
 	Relink	再リンク
 	Relink to Folder…	フォルダーに再リンク…
 	Relink…	再リンク…
+	Find Linked Files	リンクファイルを検索
+	Find Linked Files in Folder…	フォルダー内のリンクファイルを検索…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	リンクファイルごとに、再リンク先のファイルを選んでください。リンクに保存されたサイズと内容が同じファイルが先頭に表示されます。
+	Same file	同じファイル
+	Same size	同じサイズ
+	Don't Relink	再リンクしない
+	Copy into the document's folder	ドキュメントのフォルダーにコピー
 	Remove	削除
 	Remove Asset	アセットを削除
 	Remove Brush Stroke	ブラシストロークを削除
@@ -2355,6 +2366,7 @@
 	Select All Instances	すべてのインスタンスを選択
 	Select All Unused	未使用項目をすべて選択
 	Select Anchors	アンカーを選択
+	Select Segments	パスのセグメントを選択
 	Select Appearance Item	アピアランス項目を選択
 	Select Freeform Point	フリーフォームポイントを選択
 	Select Gradient Stop	グラデーションの分岐点を選択
@@ -2392,7 +2404,6 @@
 	Set Anchors	アンカーポイントを設定
 	Set Bounds	境界を設定
 	Set Current Layer	現在のレイヤーを設定
-	Set Key Object	キーオブジェクトを設定
 	Set Keyboard Shortcut	キーボードショートカットを設定
 	Set Mesh Point Color	メッシュポイントのカラーを設定
 	Set Preference	環境設定を設定
@@ -2511,6 +2522,8 @@
 	Spiral Tool	スパイラルツール
 	Split Freeform Line	フリーフォームラインを分割
 	Split Into Grid	グリッドに分割
+	Total:	合計:
+	Add Guides	ガイドを追加
 	Split Path	パスを分割
 	Spot Color	特色
 	Spot Colors	特色
@@ -2982,6 +2995,23 @@
 	Gradient (.)	グラデーション (.)
 	Graph Data	グラフデータ
 	Graph Type	グラフの種類
+	Graph Design	グラフのデザイン
+	Graph Marker	グラフのマーカー
+	New Design	新規デザイン
+	Delete Design	デザインを削除
+	Paste Design	デザインをペースト
+	Select Unused	未使用を選択
+	Import Data…	データを読み込み…
+	Transpose	行と列を入れ替え
+	Switch x/y	X/Y を入れ替え
+	Number of Decimals:	小数点以下の桁数:
+	Column Width:	列の幅:
+	No Legend	凡例なし
+	Standard Legend	標準の凡例
+	Legends in Wedges	くさび形内に凡例
+	Ratio	比率
+	Even	均等
+	Stacked	積み重ね
 	Graphic Style Libraries Menu	グラフィックスタイルライブラリメニュー
 	Graphics	グラフィックス
 	Greek & Cyrillic	ギリシャ文字とキリル文字
@@ -3449,6 +3479,7 @@ theme	Appearance	外観
 @msg	no such segment	指定されたセグメントが見つかりません
 @msg	no such subpath	指定されたサブパスが見つかりません
 @msg	object {id} is not a path	オブジェクト {id} はパスではありません
+@msg	object {id} is not a selected top-level object	オブジェクト {id} は選択されている最上位のオブジェクトではありません
 @msg	nothing to redo	やり直す操作がありません
 @msg	nothing to undo	取り消す操作がありません
 @msg	Expand Appearance: the selection has a basic appearance	アピアランスを分割: 選択範囲は基本アピアランスです
@@ -3650,6 +3681,8 @@ theme	Appearance	外観
 @msg	its section ending with `%{end}` doesn't end	`%{end}` で終わるはずのセクションが終わっていません
 @msg	an image VectorCraft can't read was left out	VectorCraft で読み込めない画像は除外されました
 @msg	an image whose data is cut short was left out	データが途中で切れている画像は除外されました
+@msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	リンク画像は、元のファイルが見つかるまで、ファイルに保存された低解像度のプレビューで表示されます：リンクパネルで再リンクしてください
+@msg	area type in frames too short for a line of the font it shows in got taller frames ({_1}): their type wouldn't show otherwise	表示に使われるフォントの 1 行に対して低すぎるフレーム内のエリア内文字は、フレームを高くしました ({_1}): そうしないと文字が表示されません
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	グラデーション「{name}」はファイル内で定義されていません: 代わりに単色を使用しています
 @msg	objects with several fills or strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	塗りや線が複数ある、または効果やブラシを適用したオブジェクト {_1} 個は見た目のまま読み込まれました: アピアランスはまだ編集できません
 @msg	patterns nested too deeply are filled with mid-grey	入れ子が深すぎるパターンは中間のグレーで塗りつぶされています
@@ -3674,6 +3707,7 @@ theme	Appearance	外観
 @msg	its editing data is for a different page	編集データが別のページのものです
 @msg	its page has text, and its layers have no text objects to put it in	ページにテキストがありますが、レイヤーにはそれを入れるテキストオブジェクトがありません
 @msg	the art on them differs from the page's in {_1}% of it	レイヤー上のアートの {_1}% がページのアートと異なります
+@msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	レイヤー上のアートの {_1}% がページのアートと異なりますが、レイヤーは編集データから読み込まれました
 @msg	its Windows metafile preview was opened instead, which may simplify the art	代わりに Windows メタファイルのプレビューを開いたため、アートが簡略化されている場合があります
 @msg	its preview was placed instead, at screen resolution	代わりにプレビューを画面解像度で配置しました
 @msg	shadings of more than 4096 patches or triangles were left out	パッチまたは三角形が 4096 個を超えるシェーディングは除外されました
@@ -3949,6 +3983,9 @@ theme	Appearance	外観
 @msg	larger than 256 MB	256 MB を超えています
 @msg	the files come to more than 1 GB: add fewer at a time	ファイルの合計が 1 GB を超えています: 一度に追加するファイルを減らしてください
 @msg	every numbered name for it is taken in the Fonts folder	Fonts フォルダーでは、このファイルの番号付きの名前がすべて使われています
+@msg	every numbered name for {name} is taken in the document's folder	ドキュメントのフォルダーでは、{name} の番号付きの名前がすべて使われています
+@msg	No linked files to look for	検索するリンクファイルがありません
+@msg	Relinked {n} image(s); {name} couldn't be relinked: {reason}	画像を {n} 枚再リンクしましたが、{name} は再リンクできませんでした: {reason}
 @msg	`id` is the step reference {r}, which only `run` and `command_batch` resolve	`id` はステップ参照 {r} です。ステップ参照を解決できるのは `run` と `command_batch` だけです
 @msg	`ids` must be an array of object ids, not {v}	`ids` はオブジェクト ID の配列にしてください ({v} は使えません)
 @msg	`corners` must be an array of anchor indices, not {v}	`corners` はアンカーポイントのインデックスの配列にしてください ({v} は使えません)
@@ -4148,3 +4185,63 @@ lighting	Light	ライト
 @msg	unsupported native docking operation	ネイティブドッキング操作は未対応です
 	Linux Display Server	Linux ディスプレイサーバー
 	X11 (XWayland)	X11 (XWayland)
+	Ruler Origin	定規の原点
+	Reset Ruler Origin	定規の原点をリセット
+	Artistic	アーティスティック
+	Film Grain…	フィルム粒子…
+	Highlight Area	ハイライト領域
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	圧縮ファイルを展開すると VectorCraft が読み込める量を超えます (ドキュメント {_1} MB、画像 1 枚あたり {_2} MB)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	ドキュメントが大きすぎて圧縮保存できません ({0}): 「圧縮を使用」をオフにして保存してください
+@msg	the file stopped being read (please report this bug)	ファイルの読み込みが中断されました (このバグを報告してください)
+	Concentric Dividers:	同心円の分割線:
+	Radial Dividers:	放射状の分割線:
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+	Skew:	歪み:
+	Inside	内側
+	Outside	外側
+	Use Outside Rectangle As Frame	外側の長方形をフレームとして使用
+	Create Compound Path From Ellipses	楕円形から複合パスを作成
+	Fill Grid	グリッドを塗りつぶす
+	Select two or more objects, or a group	2 つ以上のオブジェクト、またはグループを選択してください
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+	Back	背面
+	Both sides	両面
+	Classic	クラシック
+	Cove	凹面
+	Depth	奥行き
+	Front	正面
+	Isometric Bottom	等角図（底面）
+	Isometric Left	等角図（左）
+	Isometric Right	等角図（右）
+	Isometric Top	等角図（上面）
+	Off-Axis Back	斜め（背面）
+	Off-Axis Bottom	斜め（底面）
+	Off-Axis Front	斜め（正面）
+	Off-Axis Left	斜め（左）
+	Off-Axis Right	斜め（右）
+	Off-Axis Top	斜め（上面）
+	Ogee	S字
+	Reset all 3D settings to their defaults.	すべての 3D 設定を初期値に戻します。
+	Step	段
+	Taper	テーパー
+	Twist	ねじれ
+	Volume	ボリューム
+3d	Cap	キャップ
+3d	Solid	ソリッド
+3d	Hollow	中空
+3d	Bevel	ベベル
+3d	Rounded	丸み
+3d	Space	間隔
+	Bevel Shape	ベベルシェイプ
+	Bevel Inside	ベベルを内側に
+	Bevel both sides	両面にベベル
+	Presets	プリセット
+@msg	An object takes one 3D effect. Edit the existing effect's options, or remove it first.	1 つのオブジェクトに適用できる 3D 効果は 1 つです。既存の効果のオプションを編集するか、先に削除してください。
+@msg	{label} currently requires a path or compound path. Convert type, images and groups to paths first.	{label} には現在、パスまたは複合パスが必要です。テキスト、画像、グループは先にパスに変換してください。
+@msg	{label} requires a shape with at least two anchors	{label} には 2 つ以上のアンカーポイントを持つシェイプが必要です
+@msg	The shape is too complex for a 3D effect	シェイプが複雑すぎるため 3D 効果を適用できません
+@msg	The 3D surface is too complex; simplify the shape	3D サーフェスが複雑すぎます。シェイプを単純化してください
+	Transform Objects	オブジェクトの変形
+@msg	unknown parameter `{key}`; did you mean `{near}`?	`{key}` は不明なパラメーターです。`{near}` のことですか?
+@msg	unknown parameter `{key}`; the command takes no parameters	`{key}` は不明なパラメーターです。このコマンドにパラメーターはありません
+@msg	unknown parameter `{key}`; the command takes: {keys}	`{key}` は不明なパラメーターです。このコマンドで使えるパラメーター: {keys}

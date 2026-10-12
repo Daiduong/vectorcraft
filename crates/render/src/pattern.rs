@@ -12,7 +12,7 @@
 //! dimmed copies of it at the neighbouring tile positions and the tile edge.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use vectorcraft_doc::pattern::{Overlap, PatternDef, TileType};
@@ -22,6 +22,7 @@ use vello_cpu::peniko::{Extend, ImageQuality, ImageSampler};
 use vello_cpu::{Pixmap, RenderContext};
 
 use crate::ink::Ink;
+use crate::lru::{self, FrameCache};
 use crate::{Frame, RenderOptions, Rendered, Renderer};
 
 /// Largest super-tile raster side (pixels).
@@ -36,12 +37,17 @@ struct TileEntry {
     pixmap: Arc<Pixmap>,
 }
 
-#[derive(Default)]
 struct PatternCache {
-    /// Per ink ([`Ink`] as index).
-    tiles: [HashMap<String, TileEntry>; 3],
+    /// Per ink ([`Ink`] as index), each within [`lru::PATTERN_BUDGET`], least recently used first out.
+    tiles: [FrameCache<String, TileEntry>; 4],
     renderer: Option<Box<Renderer>>,
     depth: u32,
+}
+
+impl Default for PatternCache {
+    fn default() -> Self {
+        Self { tiles: std::array::from_fn(|_| FrameCache::new(lru::PATTERN_BUDGET, usize::MAX)), renderer: None, depth: 0 }
+    }
 }
 
 thread_local! {
@@ -50,6 +56,19 @@ thread_local! {
 
 fn same_art(a: &[Arc<Node>], b: &[Arc<Node>]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(x, y)| Arc::ptr_eq(x, y))
+}
+
+/// Hash what pattern `def`'s tiling is drawn from, as the tile cache checks it: its name, the
+/// addresses of its art, its tile, tile type and overlap.
+pub(crate) fn hash_tiling(def: &PatternDef, h: &mut impl Hasher) {
+    def.name.hash(h);
+    def.art.iter().for_each(|a| (Arc::as_ptr(a) as usize).hash(h));
+    [def.tile.x0, def.tile.y0, def.tile.x1, def.tile.y1].map(f64::to_bits).hash(h);
+    std::mem::discriminant(&def.tile_type).hash(h);
+    if let TileType::BrickByRow { offset } | TileType::BrickByColumn { offset } = def.tile_type {
+        offset.to_bits().hash(h);
+    }
+    (def.overlap.right_in_front, def.overlap.bottom_in_front).hash(h);
 }
 
 /// Power-of-two raster scale for a pattern seen at device scale `s`, capped so the super-tile
@@ -137,10 +156,10 @@ pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine,
     let scale = raster_scale(s, (pw, ph));
     let params = (def.tile, def.tile_type, def.overlap);
     let hit = CACHE.with(|c| {
-        c.borrow().tiles[ink as usize]
-            .get(name)
-            .filter(|e| e.scale == scale && e.params == params && same_art(&e.art, &def.art))
-            .map(|e| (e.pixmap.clone(), e.sx, e.sy))
+        let mut c = c.borrow_mut();
+        let tiles = &mut c.tiles[ink as usize];
+        let t = tiles.tick();
+        tiles.get(name, t).filter(|e| e.scale == scale && e.params == params && same_art(&e.art, &def.art)).map(|e| (e.pixmap.clone(), e.sx, e.sy))
     });
     let (pm, sx, sy) = match hit {
         Some(h) => h,
@@ -156,10 +175,8 @@ pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine,
             CACHE.with(|c| {
                 let mut c = c.borrow_mut();
                 let tiles = &mut c.tiles[ink as usize];
-                if tiles.len() > 64 {
-                    tiles.clear();
-                }
-                tiles.insert(name.to_string(), TileEntry { art: def.art.clone(), params, scale, sx, sy, pixmap: pm.clone() });
+                let (t, bytes) = (tiles.tick(), size_of::<TileEntry>() + w as usize * h as usize * 4);
+                tiles.insert(name.to_string(), TileEntry { art: def.art.clone(), params, scale, sx, sy, pixmap: pm.clone() }, bytes, t);
             });
             (pm, sx, sy)
         }

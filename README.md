@@ -148,6 +148,9 @@ exposes to agents, and exported by VectorCraft's own renderer. The source files 
 ## Quick start
 
 ```sh
+git clone https://github.com/storytold/vectorcraft
+cd vectorcraft
+
 cargo run --release -p vectorcraft                          # desktop app
 cargo run --release -p vectorcraft -- examples/dusk-poster.vectorcraft
 cargo run --release -p vectorcraft -- --control 7979        # + JSON control channel
@@ -217,7 +220,7 @@ doesn't write Affinity files. Current `.af` validation includes 33 pinned files,
 and every-board SVG/PDF/PSD export, with fixes for Affinity 3 artboards, source-backed JPEGs and text runs.
 [Scope and limits](crates/affinity/README.md); [source audit and remaining gaps](docs/affinity-validation.md).
 The interface
-speaks English, German, Japanese, Traditional and Simplified Chinese, Spanish, French, Italian, Russian and Ukrainian (and Czech and Brazilian Portuguese in the menus);
+speaks English, German, Japanese, Korean, Vietnamese, Traditional and Simplified Chinese, Spanish, French, Hungarian, Italian, Russian and Ukrainian (and Czech and Brazilian Portuguese in the menus);
 [localization-parity.md](docs/localization-parity.md) has the details.
 The scores are self-assessed from our code against Illustrator's public documentation;
 [target-app-parity.md](docs/target-app-parity.md#how-this-was-measured-2026-10-10) explains how far to trust them.
@@ -226,7 +229,7 @@ The scores are self-assessed from our code against Illustrator's public document
 - reliable exchange of Illustrator's own `.ai` files (layer structure in real files; Illustrator's editing data isn't written);
 - an interaction-fidelity pass covering every tool's modifiers and small behaviours;
 - 3D and Materials beyond the initial live Revolve (Extrude & Bevel, Inflate, Rotate, materials);
-- about half of the Photoshop-style raster effects (29 of 57 still missing) and the Effect Gallery;
+- about half of the Photoshop-style raster effects (28 of 57 still missing; Film Grain is available under Artistic) and the Effect Gallery;
 - CJK composition for vertical type (vertical type itself has initial support, with a Japanese interface);
 - scripting, and the rest of Variables (image and graph kinds, dataset import);
 - generative AI features.
