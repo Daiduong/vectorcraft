@@ -602,34 +602,76 @@ fn native_options(custom_titlebar: bool) -> eframe::NativeOptions {
     }
 }
 
+/// `--control`, `--control=PORT`, and `VECTORCRAFT_CONTROL_PORT`. A value that is not a port is an error.
+fn parse_control_port(raw: &str) -> Result<u16, String> {
+    raw.parse::<u16>().map_err(|_| format!("--control needs a port number, not `{raw}`"))
+}
+
+struct LaunchArgs {
+    control_port: Option<u16>,
+    files: Vec<String>,
+    in_window_menus: bool,
+    roots: automation_args::AutomationArgs,
+    /// `--version` was the first command that ends the process before the window.
+    version: bool,
+}
+
+fn parse_launch(
+    mut args: impl Iterator<Item = String>,
+    env_port: Option<&str>,
+    mut in_window_menus: bool,
+    mut roots: automation_args::AutomationArgs,
+) -> Result<LaunchArgs, String> {
+    let mut control_port = match env_port {
+        Some(raw) => Some(parse_control_port(raw)?),
+        None => None,
+    };
+    let mut files = Vec::new();
+    let mut version = false;
+    while let Some(a) = args.next() {
+        match roots.consume(&a, &mut args) {
+            Ok(true) => continue,
+            Ok(false) => {}
+            Err(e) => return Err(e),
+        }
+        if let Some(raw) = a.strip_prefix("--control=") {
+            control_port = Some(parse_control_port(raw)?);
+            continue;
+        }
+        match a.as_str() {
+            "--control" => {
+                let Some(raw) = args.next() else {
+                    return Err("--control needs a port number".into());
+                };
+                control_port = Some(parse_control_port(&raw)?);
+            }
+            "--in-window-menus" => in_window_menus = true,
+            "--version" => version = true,
+            _ => files.push(a),
+        }
+    }
+    Ok(LaunchArgs { control_port, files, in_window_menus, roots, version })
+}
+
 fn main() -> std::process::ExitCode {
     // Validate roots before logging, font scans, preferences or the window: a missing value
     // must not clear an environment root and start the control channel without confinement.
-    let mut control_port: Option<u16> = std::env::var("VECTORCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
     let root_env = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty()).map(std::path::PathBuf::from);
-    let mut roots_args =
+    let roots_args =
         automation_args::AutomationArgs::new(root_env("VECTORCRAFT_AUTOMATION_READ_ROOT"), root_env("VECTORCRAFT_AUTOMATION_WRITE_ROOT"));
-    let mut files = Vec::new();
-    let mut in_window_menus = std::env::var_os("VECTORCRAFT_IN_WINDOW_MENUS").is_some_and(|v| !v.is_empty() && v != "0");
-    let mut args = std::env::args().skip(1);
-    while let Some(a) = args.next() {
-        match roots_args.consume(&a, &mut args) {
-            Ok(true) => continue,
-            Ok(false) => {}
+    let in_window_menus = std::env::var_os("VECTORCRAFT_IN_WINDOW_MENUS").is_some_and(|v| !v.is_empty() && v != "0");
+    let env_port = std::env::var("VECTORCRAFT_CONTROL_PORT").ok();
+    let LaunchArgs { control_port, files, in_window_menus, roots: roots_args, version } =
+        match parse_launch(std::env::args().skip(1), env_port.as_deref(), in_window_menus, roots_args) {
+            Ok(parsed) => parsed,
             Err(e) => {
                 eprintln!("vectorcraft: {e}");
                 return std::process::ExitCode::FAILURE;
             }
-        }
-        match a.as_str() {
-            "--control" => control_port = args.next().and_then(|p| p.parse().ok()),
-            "--in-window-menus" => in_window_menus = true,
-            "--version" => {
-                println!("vectorcraft {}", env!("CARGO_PKG_VERSION"));
-                return std::process::ExitCode::SUCCESS;
-            }
-            _ => files.push(a),
-        }
+        };
+    if version {
+        println!("vectorcraft {}", env!("CARGO_PKG_VERSION"));
+        return std::process::ExitCode::SUCCESS;
     }
     let automation_args::AutomationArgs { read_root, write_root, .. } = roots_args;
     // Before desktop services, so every start-up warning is recorded (`logging`).
@@ -848,6 +890,33 @@ fn main() -> std::process::ExitCode {
             log::error!("VectorCraft stopped: {e}");
             std::process::ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod launch_tests {
+    use super::*;
+
+    fn roots() -> automation_args::AutomationArgs {
+        automation_args::AutomationArgs::new(None, None)
+    }
+
+    #[test]
+    fn a_control_port_must_be_a_number_and_does_not_swallow_the_next_argument() {
+        let err = parse_launch(["--control".into(), "nope".into(), "art.svg".into()].into_iter(), None, false, roots()).err().unwrap();
+        assert!(err.contains("nope"), "{err}");
+        let err = parse_launch(["--control".into()].into_iter(), None, false, roots()).err().unwrap();
+        assert!(err.contains("port"), "{err}");
+        let err = parse_launch(["--control".into(), "--version".into()].into_iter(), None, false, roots()).err().unwrap();
+        assert!(err.contains("--version"), "{err}");
+        let err = parse_launch(["art.svg".into()].into_iter(), Some("abc"), false, roots()).err().unwrap();
+        assert!(err.contains("abc"), "{err}");
+        let ok = parse_launch(["--control=7979".into(), "art.svg".into()].into_iter(), None, false, roots()).unwrap();
+        assert_eq!(ok.control_port, Some(7979));
+        assert_eq!(ok.files, ["art.svg"]);
+        assert!(!ok.version);
+        let ok = parse_launch(["--version".into(), "art.svg".into()].into_iter(), Some("7979"), false, roots()).unwrap();
+        assert!(ok.version && ok.control_port == Some(7979) && ok.files == ["art.svg"]);
     }
 }
 
