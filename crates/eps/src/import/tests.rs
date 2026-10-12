@@ -669,6 +669,75 @@ fn read_soon(body: &str) -> crate::Imported {
     rx.recv_timeout(std::time::Duration::from_secs(20)).unwrap_or_else(|_| panic!("reading {body} did not finish")).unwrap()
 }
 
+/// Reads `body` after a square through [`read_soon`]: the square stays, and the program runs out
+/// of the operation budget.
+fn runs_out_of_budget(body: &str) {
+    let r = read_soon(&format!("0 0 10 10 rectfill {body}"));
+    assert_eq!(objects(&r.document).len(), 1, "{body}: {:?}", r.warnings);
+    assert!(r.warnings.iter().any(|w| w.contains("the program runs too long")), "{body}: {:?}", r.warnings);
+}
+
+/// A loop of operators whose work grows with the path they make runs out of the operation budget
+/// (PLRM 3rd ed., chapter 8): `arc` and `arct` with a huge radius, which make thousands of curve
+/// segments, `strokepath` with a dash far finer than the line, dashes of length zero included, and
+/// `rectfill` with an array of 2,000 rectangles.
+#[test]
+fn paths_made_in_a_loop_run_out_of_the_budget() {
+    for body in [
+        "{ newpath 0 0 2.2e18 0 1440 arc } loop",
+        "{ newpath 0 0 moveto 1 0 1 1 1e30 arct } loop",
+        "[1] 0 setdash { newpath 0 0 moveto 9900 0 lineto strokepath } loop",
+        "[0 1] 0 setdash { newpath 0 0 moveto 9900 0 lineto strokepath } loop",
+        "/a [ 0 1 1999 { pop 0 0 1 1 } for ] def nulldevice { a rectfill } loop",
+    ] {
+        runs_out_of_budget(body);
+    }
+}
+
+/// A loop of operators that read or copy the whole current path or clip path runs out of the
+/// operation budget (PLRM 3rd ed., chapter 8): `pathbbox`, `clip`, `clippath`, `shfill` (which
+/// reads the clip path for the area it paints), `pathforall` (which copies the path before it runs
+/// a procedure), `gstate`, `currentgstate` and `setgstate`.
+#[test]
+fn paths_read_or_copied_in_a_loop_run_out_of_the_budget() {
+    // 10,001 elements reaching 10,000,000 points to the right: what `shfill` paints in a clip of
+    // them lies far outside the page and is left out.
+    let path = "newpath 0 0 moveto 0 1 9999 { pop 1000 0 rlineto } for";
+    let sh = "/sh << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 10 0] \
+              /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> def";
+    for body in [
+        "{ pathbbox pop pop pop pop } loop",
+        "{ clip } loop",
+        "clip newpath { clippath } loop",
+        "clip newpath { sh shfill } loop",
+        "{ { pop pop exit } { } { } { } pathforall } loop",
+        "{ gstate pop } loop",
+        "/g gstate def { g currentgstate pop } loop",
+        "/g gstate def { g setgstate } loop",
+    ] {
+        runs_out_of_budget(&format!("{sh} {path} {body}"));
+    }
+}
+
+/// A loop of `uappend` on an encoded user path runs out of the operation budget (PLRM 3rd ed.,
+/// section 4.6.2 and Table 4.3: each byte of the operator string is an operator, or a count of up
+/// to 223 repeats of the next one): one that runs `ucache` millions of times, one of repeat counts
+/// alone, and one with a long data array.
+#[test]
+fn encoded_user_paths_in_a_loop_run_out_of_the_budget() {
+    for body in [
+        // 100,000 pairs of a count of 223 repeats (byte 255) and `ucache` (byte 11): each
+        // `uappend` runs `ucache` 22,300,000 times.
+        "/s 200000 string def 0 2 199998 { dup s exch 255 put 1 add s exch 11 put } for /up [ [ ] s ] def",
+        // 200,000 repeat counts and no operator.
+        "/s 200000 string def 0 1 199999 { s exch 255 put } for /up [ [ ] s ] def",
+        // A data array of 400,000 nulls and an empty operator string.
+        "/up [ 400000 array () ] def",
+    ] {
+        runs_out_of_budget(&format!("{body} {{ up uappend }} loop"));
+    }
+}
+
 /// `arc` raises its second angle by multiples of 360 until it is at least the first, and `arcn`
 /// lowers it until it is at most the first (PLRM 3rd ed., `arc` and `arcn` in chapter 8), however
 /// large the angles: the arc runs between the angles' remainders after whole turns and ends at
@@ -694,6 +763,36 @@ fn arcs_with_huge_angles_end_at_their_second_angle() {
         // The second object is the square drawn at the current point.
         assert!(near(bounds(&o[1]), Rect::new(b.x, b.y - 1.0, b.x + 1.0, b.y)), "{body}: {:?}", bounds(&o[1]));
     }
+}
+
+/// An axial shading's function is one function dictionary or an array of one for each color
+/// component (PLRM 3rd ed., Table 4.13). One evaluation visits at most 257 functions, and past
+/// that the shading raises `limitcheck`: when four levels of arrays each have 100 entries that all
+/// refer to the same array of the level below (at the last level, the same function), one
+/// evaluation would visit 101,010,101 functions. Each function visited also counts against the
+/// operation budget.
+#[test]
+fn shading_functions_in_shared_arrays_stop_at_the_limits() {
+    let axial = |function: &str| format!("<< /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 100 0] /Function {function} >>");
+    let f = "/f << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> def";
+    // `a`: an array of `n` references to the function `f`.
+    let array = |n: usize| format!("{f} /a {n} array def 0 1 {} {{ a exch f put }} for", n - 1);
+    // Each level is an array of 100 references to the level below.
+    let levels = "/l2 100 array def 0 1 99 { l2 exch a put } for /l3 100 array def 0 1 99 { l3 exch l2 put } for \
+                  /l4 100 array def 0 1 99 { l4 exch l3 put } for";
+    let limitcheck = |r: &crate::Imported| r.warnings.iter().any(|w| w.contains("limitcheck in `shfill`: Function"));
+    let r = read_soon(&format!("0 0 10 10 rectfill {} {levels} {} shfill", array(100), axial("l4")));
+    assert!(limitcheck(&r) && objects(&r.document).len() == 1, "{:?}", r.warnings);
+    // 256 references are 257 functions for each sample, the most allowed; one more raises `limitcheck`.
+    let r = read_soon(&format!("{} {} shfill", array(256), axial("a")));
+    let o = objects(&r.document);
+    assert!(r.warnings.is_empty() && matches!(fill(&o[0]), Some(Paint::Gradient(_))), "{:?}", r.warnings);
+    let r = read_soon(&format!("0 0 10 10 rectfill {} {} shfill", array(257), axial("a")));
+    assert!(limitcheck(&r) && objects(&r.document).len() == 1, "{:?}", r.warnings);
+    // Each of these shadings visits 33 * 257 functions (33 samples), and 2000 of them count for
+    // more than the operation budget.
+    let r = read(&format!("{} /sh {} def 2000 {{ sh shfill }} repeat", array(256), axial("a")));
+    assert!(r.warnings.iter().any(|w| w.contains("the program runs too long")), "{:?}", r.warnings);
 }
 
 #[test]

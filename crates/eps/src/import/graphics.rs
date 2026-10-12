@@ -37,6 +37,16 @@ const SHADING_SAMPLES: usize = 32;
 /// Most bounds of a stitched linear function that become a gradient's stops: past it, the
 /// function is sampled like any other (each stop evaluates the whole function).
 const MAX_STITCH_STOPS: usize = 1024;
+/// Most functions one evaluation of a shading's function visits: the function itself, each entry
+/// of an array of functions and, in each stitching function, the piece that applies to the input.
+/// For every shading type, the `Function` entry is one function dictionary or an array of one for
+/// each color component (PLRM 3rd ed., Tables 4.12 to 4.17; a type 7 shading has the entries of
+/// type 6). The reader allows at most [`MAX_INKS`] components, and the depth limit allows each
+/// entry a chain of at most 8 functions.
+const MAX_FUNCTION_VISITS: usize = 1 + MAX_INKS * 8;
+/// Work one function costs against the operation budget each time it is evaluated: about as much
+/// as 8 operations (measured).
+const FUNCTION_OPS: u64 = 8;
 
 pub(super) const FAR_AWAY: &str = "objects far outside the page were left out";
 pub(super) const TOO_MUCH: &str = "the file draws more than VectorCraft reads: the rest was left out";
@@ -392,6 +402,13 @@ impl Interp<'_> {
         Ok(())
     }
 
+    /// Count `n` path elements an operator makes, reads or copies against the operation budget,
+    /// an operation each: making or reading an element takes up to about as long as an operation,
+    /// and copying one takes less (measured).
+    fn spend_elements(&mut self, n: usize) -> Res {
+        self.spend(n as u64)
+    }
+
     fn move_to(&mut self, p: Point) -> Res {
         self.grow()?;
         // Consecutive movetos: the last one counts.
@@ -414,10 +431,12 @@ impl Interp<'_> {
         Ok(())
     }
 
-    /// Path elements in user space appended (the first move a line when there is a current point).
+    /// Path elements in user space appended (the first move a line when there is a current point),
+    /// each counted against the operation budget.
     fn append_user(&mut self, els: impl Iterator<Item = PathEl>) -> Res {
         let xf = self.xf();
         for el in els {
+            self.spend_elements(1)?;
             match el {
                 PathEl::MoveTo(p) => {
                     let p = xf * p;
@@ -506,6 +525,8 @@ impl Interp<'_> {
         let nums: Vec<f64> = match self.stack.last() {
             Some(Obj::Array { .. }) => {
                 let items = self.pop_array()?;
+                // Five elements a rectangle, counted before the array is read.
+                self.spend_elements(items.len() / 4 * 5)?;
                 let v: Option<Vec<f64>> = items.borrow().iter().map(Obj::as_num).collect();
                 v.ok_or(PsError::Ps("typecheck", String::new()))?
             }
@@ -596,6 +617,7 @@ impl Interp<'_> {
         let curve = self.pop_proc()?;
         let line = self.pop_proc()?;
         let mv = self.pop_proc()?;
+        self.spend_elements(self.g.path.elements().len())?;
         for (op, pts) in self.user_elements()? {
             for p in pts {
                 self.push_num(p.x)?;
@@ -639,7 +661,12 @@ impl Interp<'_> {
             (Op::UCache, 0),
         ];
         let nums: Vec<f64> = match nums {
-            Obj::Array { items, .. } => items.borrow().iter().filter_map(Obj::as_num).collect(),
+            Obj::Array { items, .. } => {
+                // Each entry of the data array and each byte of the operator string counts as an
+                // element read.
+                self.spend_elements(items.len().saturating_add(ops.len()))?;
+                items.borrow().iter().filter_map(Obj::as_num).collect()
+            }
             _ => return ps_err("typecheck", "an encoded user path"),
         };
         let mut next = nums.into_iter();
@@ -655,6 +682,8 @@ impl Interp<'_> {
                     let v = next.next().ok_or(PsError::Ps("rangecheck", "a user path".into()))?;
                     self.push_num(v)?;
                 }
+                // Each operator run counts as an operation.
+                self.spend(1)?;
                 self.op(op)?;
             }
         }
@@ -742,9 +771,13 @@ impl Interp<'_> {
         }
     }
 
-    /// The area the clip leaves, in document space (the page without a clip).
-    fn clip_bounds(&self) -> Rect {
-        self.g.clips.iter().rev().find_map(|c| c.region.as_ref()).map_or(self.out.frame, |(p, _)| p.bounding_box())
+    /// The area the clip leaves, in document space (the page without a clip). The clip path read
+    /// counts against the operation budget.
+    fn clip_bounds(&mut self) -> Res<Rect> {
+        let (bounds, len) =
+            self.g.clips.iter().rev().find_map(|c| c.region.as_ref()).map_or((self.out.frame, 0), |(p, _)| (p.bounding_box(), p.elements().len()));
+        self.spend_elements(len)?;
+        Ok(bounds)
     }
 
     // ---------- colour ----------
@@ -1064,16 +1097,34 @@ impl Interp<'_> {
     /// A function (types 0, 2 and 3; an array of them, one per component) at `x` (types 2 and 3
     /// take one input).
     pub fn eval(&mut self, f: &Obj, x: &[f64], depth: u32) -> Res<Vec<f64>> {
-        if depth > 8 {
+        self.eval_inner(f, x, depth, &mut 0)
+    }
+
+    /// [`Self::eval`], with `visits` (shared by the whole recursion, incremented on every call)
+    /// counting the functions visited against [`MAX_FUNCTION_VISITS`], as [`linear_points`] counts
+    /// its nodes. The depth limit alone stops a function that refers to itself, but not one that
+    /// fans out through shared arrays: when four levels of arrays each have 100 entries that all
+    /// refer to the same array of the level below (at the last level, the same function), one
+    /// evaluation would visit 101,010,101 functions. Each function visited also counts
+    /// [`FUNCTION_OPS`] against the operation budget.
+    fn eval_inner(&mut self, f: &Obj, x: &[f64], depth: u32, visits: &mut usize) -> Res<Vec<f64>> {
+        *visits += 1;
+        if depth > 8 || *visits > MAX_FUNCTION_VISITS {
             return ps_err("limitcheck", "Function");
         }
+        self.spend(FUNCTION_OPS)?;
         let d = match f {
             Obj::Dict(d) => d.clone(),
             Obj::Array { items, .. } => {
+                // Each entry is at least one more function: an array with more entries than the
+                // visits left raises `limitcheck` before it is copied.
+                if items.len() > MAX_FUNCTION_VISITS - *visits {
+                    return ps_err("limitcheck", "Function");
+                }
                 let fs = items.to_vec();
                 let mut out = vec![];
                 for g in &fs {
-                    out.extend(self.eval(g, x, depth + 1)?.first().copied());
+                    out.extend(self.eval_inner(g, x, depth + 1, visits)?.first().copied());
                 }
                 return Ok(out);
             }
@@ -1115,7 +1166,7 @@ impl Interp<'_> {
                 let (e0, e1) = (encode.get(2 * k).copied().unwrap_or(0.0), encode.get(2 * k + 1).copied().unwrap_or(1.0));
                 let u = if b != a { e0 + (t - a) / (b - a) * (e1 - e0) } else { e0 };
                 let g = fs.and_then(|fs| fs.get(k)).ok_or(PsError::Ps("rangecheck", "Functions".into()))?;
-                self.eval(&g, &[u], depth + 1)
+                self.eval_inner(&g, &[u], depth + 1, visits)
             }
             _ => {
                 self.out.warn(UNKNOWN_FUNCTIONS);
@@ -1153,11 +1204,16 @@ impl Interp<'_> {
                 let mut st = self.stroke_layer();
                 // A dash pattern far finer than the path would make countless pieces.
                 let period: f64 = st.dash.as_ref().map_or(0.0, |d| d.pattern.iter().sum());
-                if st.dash.is_some() && !(period > 0.0 && bp.perimeter(1e-3) / period < MAX_DASHES) {
+                let periods = if st.dash.is_some() && period > 0.0 { bp.perimeter(1e-3) / period } else { 0.0 };
+                if st.dash.is_some() && !(period > 0.0 && periods < MAX_DASHES) {
                     st.dash = None;
                 }
                 let tol = (0.01 / self.scale().max(1e-9)).clamp(1e-4, 1.0);
                 let outline = vectorcraft_effects::stroke::line_outline(&bp, &st, st.width, tol);
+                // The path, each entry of the dash pattern in each period, and the outline count
+                // as elements.
+                let dashes = st.dash.as_ref().map_or(0.0, |d| periods * d.pattern.len() as f64) as usize;
+                self.spend_elements(bp.elements().len().saturating_add(dashes).saturating_add(outline.elements().len()))?;
                 if outline.elements().len() >= MAX_PATH {
                     return Err(PsError::Limit("a path has too many points"));
                 }
@@ -1217,13 +1273,20 @@ impl Interp<'_> {
                 self.push(Obj::Int(0))?;
                 self.push(Obj::Int(0))?;
             }
-            GStateNew => self.push(Obj::GState(Rc::new(self.g.clone())))?,
+            GStateNew => {
+                self.spend_elements(self.g.path.elements().len())?;
+                self.push(Obj::GState(Rc::new(self.g.clone())))?;
+            }
             CurrentGState => {
                 self.pop()?;
+                self.spend_elements(self.g.path.elements().len())?;
                 self.push(Obj::GState(Rc::new(self.g.clone())))?;
             }
             SetGState => match self.pop()? {
-                Obj::GState(g) => self.g = (*g).clone(),
+                Obj::GState(g) => {
+                    self.spend_elements(g.path.elements().len())?;
+                    self.g = (*g).clone();
+                }
                 _ => return ps_err("typecheck", ""),
             },
             SetLineWidth => self.g.width = self.pop_num()?.abs(),
@@ -1545,13 +1608,14 @@ impl Interp<'_> {
                 if xf.determinant().abs() < 1e-12 {
                     return ps_err("undefinedresult", "");
                 }
+                self.spend_elements(self.g.path.elements().len())?;
                 let b = xf.inverse().transform_rect_bbox(self.g.path.bounding_box());
                 for v in [b.x0, b.y0, b.x1, b.y1] {
                     self.push_num(v)?;
                 }
             }
             ClipPath => {
-                let b = self.clip_bounds();
+                let b = self.clip_bounds()?;
                 self.take_path();
                 self.g.path = b.to_path(0.1);
                 self.g.cur = Some(b.origin());
@@ -1572,6 +1636,7 @@ impl Interp<'_> {
                 }
             }
             Clip | EoClip => {
+                self.spend_elements(self.g.path.elements().len())?;
                 let bp = self.g.path.clone();
                 self.clip_with(bp, if op == EoClip { FillRule::EvenOdd } else { FillRule::NonZero });
             }
@@ -1615,7 +1680,7 @@ impl Interp<'_> {
                 }
                 let m = self.xf();
                 if let Some(g) = self.gradient(&d, m)? {
-                    let area = self.clip_bounds();
+                    let area = self.clip_bounds()?;
                     let paint = Paint::Gradient(Box::new(g));
                     let clips = self.g.clips.clone();
                     self.out.fill(area.to_path(0.1), FillRule::NonZero, paint, self.g.overprint, &clips);
