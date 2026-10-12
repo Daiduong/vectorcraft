@@ -162,6 +162,11 @@ that shows fewer children than it has reports their total as `childCount`, so tr
 nothing truncated the reply is the plain summary. Both must be non-negative integers and need `summary: true`
 (the full object JSON is never truncated); anything else is an error.
 
+In the summary an object reports its paint as `fill`, `stroke` (labels) and `strokeWidth`. So does a compound path,
+whose paint is its own: its member paths report `compoundMember: true` instead of a paint they don't have. Every
+node (layers and groups too) reports `opacity` when it is below 1 and `blend` when it isn't Normal, as the label
+`object.setProps {blend}` takes (`"Multiply"`, `"Color Burn"`).
+
 On a large document, drill instead of dumping: `inspect_document {depth: 0}` (or `run_command document.inspect
 {depth?, childLimit?}`, same rules) is the skeleton (artboards with top layers and counts), `run_command
 document.find {name?, kind?, text?, limit?}` locates nodes across the whole tree, and `document.node` reads the
@@ -410,10 +415,17 @@ document uses are written, and document keys written by a newer version are kept
 
 ## Resources
 
+Fixed resources and the four templates (same as [Resource templates](#resource-templates) under Protocol):
+
 | URI | Content |
 |---|---|
 | `vectorcraft://document` | `document.inspect` summary (JSON) |
 | `vectorcraft://document/json` | The complete document model (JSON) |
+| `vectorcraft://commands` | Live command catalog with enabled state |
+| `vectorcraft://object/{id}` | One layer or object (`document.node {id, summary: true}`) |
+| `vectorcraft://command/{id}` | One command's metadata and enablement |
+| `vectorcraft://effect/{id}` | One live effect with parameters and defaults |
+| `vectorcraft://swatch/{name}` | One swatch (percent-encode spaces) |
 
 ## Examples
 
@@ -496,7 +508,8 @@ pattern fills, placed files or anything else the reader doesn't read on a layer 
 different from its page, opens as before: an EPS as its printed page, a `.ai` file from its PDF content (where plain
 groups open ungrouped), with a warning saying why. Layers look different when they draw an object the page doesn't (or
 miss one it draws), and, for an EPS whose page is the box of its art, when they print art outside it. With
-`textAs: "outlines"` a `.ai` file whose type shows opens from its PDF content, which has the type's outlines.
+`textAs: "outlines"` a `.ai` file whose type shows opens from its PDF content, which has the type's outlines. A PDF
+saved with Illustrator's editing data holds it in `AIPDFPrivateData` streams and opens from it as a `.ai` file does.
 
 The document then has what the file's page doesn't print: hidden objects and layers, layers that don't print, guides and
 the art outside the artboards, as the app that wrote the file shows them. Exports and `artboard.fitToArt` leave out the
@@ -509,8 +522,9 @@ an EPS as its page, a `.ai` file from its PDF content (a `.ai` saved without PDF
 ```
 
 Opening a PDF (or `.ai`) imports every page as an artboard and layer; `document.open` takes `pages` ("2-3, 5", 1-based),
-`cropTo` (`bounding` (the art's bounds), `art`, `crop` (default), `trim`, `bleed`, `media`: the box each artboard gets)
-and `password` for an encrypted file. `document.pdfInfo` reads a file without opening it: the page count, each page's
+`cropTo` (`bounding` (the art's bounds), `art`, `crop` (default), `trim`, `bleed`, `media`: the box each artboard gets;
+with `trim` the bleed box round it becomes the document's bleed, and a PDF-compatible `.ai` or a PDF saved with its editing data opens on its trim boxes for
+`crop`, its crop box taking the bleed in) and `password` for an encrypted file. `document.pdfInfo` reads a file without opening it: the page count, each page's
 size and boxes, `needsPassword`, and with `thumbnail: n` a PNG of page n. Imported colours keep their model:
 DeviceCMYK and CMYK ICC colours stay CMYK (a file painted mostly in CMYK opens as a CMYK document), DeviceGray is Gray,
 and Separation and DeviceN inks become spot swatches the art links to at its tint (gradient stops too). CMYK images
@@ -750,6 +764,11 @@ that were already hidden or locked. The key object is cleared when it is one of 
 them again with the key object. When the call changes nothing, it records no undo step and still deselects them.
 Other `object.setProps` calls leave the selection unchanged.
 
+`layer.move`, `node.move`, `layer.merge`, `layer.flatten`, `layer.collectInNew`, `dataset.select`, `dataset.next`
+and `dataset.prev` also deselect every selected object that is hidden or locked after the call, such as objects
+moved into a hidden or locked layer or group, or objects that a data set hides. The key object is cleared when it
+is one of them, and `edit.undo` selects them again with the key object.
+
 These Select menu commands select only the objects that `select.all` selects and the objects inside them: every
 `select.same.*` and `select.object.*` command except `select.object.slices`, `select.nextAbove`, `select.nextBelow`
 and `select.recall`. They leave out hidden and locked objects with the objects inside them, the objects on hidden,
@@ -802,6 +821,28 @@ Guides) can't be picked. An artboard guide is picked, drawn and snapped to acros
 {"name":"run_command","arguments":{"command":"guide.add","params":{"vertical":false,"pos":200,"artboard":0}}}
 {"name":"pointer_gesture","arguments":{"tool":"selection","events":[{"kind":"down","x":100,"y":50},{"kind":"drag","x":140,"y":50},{"kind":"up","x":140,"y":50}]}}
 {"name":"run_command","arguments":{"command":"guide.list","params":{}}}
+```
+
+## Symbols, brushes, variables and Image Trace
+
+These families are in the live catalog (`command_list` / `vectorcraft://commands`); the prompt `trace-and-style`
+already walks Image Trace. Short agent entry points:
+
+- Symbols: `symbol.list`, `symbol.new {name?, ids?}`, `symbol.place {name?, x?, y?}`, `symbol.breakLink {ids?}`,
+  `symbol.replace`, `symbol.edit`, `symbol.duplicate`, `symbol.selectInstances {name}`.
+- Brushes: `brush.list`, `brush.get {name}`, `brush.apply {name, ids?}`, `brush.new {type, name?, params?, ids?}`,
+  `brush.setCurrent {name}`, `brush.options {name, params?}`, `brush.freehand`, `object.expandBrush {ids?}`.
+- Variables: `variable.list`, `variable.define {name, kind: text|visibility}`, `variable.bind {variable, ids?}`,
+  `variable.makeTextDynamic`, `variable.makeVisibilityDynamic`, `variable.unbind`, `dataset.new` / `dataset.set` /
+  `dataset.select`.
+- Image Trace: `imageTrace.presets`, `imageTrace.make {id?, preset?, params?, view?}` (or `imageTrace.makeAndExpand`),
+  `imageTrace.setView`, `imageTrace.expand`, `imageTrace.release`.
+
+```json
+{"name":"run_command","arguments":{"command":"symbol.list","params":{}}}
+{"name":"run_command","arguments":{"command":"brush.list","params":{}}}
+{"name":"run_command","arguments":{"command":"variable.list","params":{}}}
+{"name":"run_command","arguments":{"command":"imageTrace.presets","params":{}}}
 ```
 
 ## Graphic styles
@@ -1146,7 +1187,7 @@ and `layerRows`, the rows highlighted in the panel.
   only in layers or at the top level and objects in layers and groups (an object placed beside a top-level layer goes
   inside it); a row never goes into itself or a row inside it, and a locked layer or group takes nothing. Dragging the
   selected-art square is `layer.move` with the selected objects. `node.move {id, parent?, index}` is the low-level
-  form with the same rules.
+  form with the same nesting rules; unlike `layer.move`, it also moves a row into a locked layer or group.
 - **Buttons**: `layer.new {name?, top?, …options}` (above the current layer at its level; `top` with Ctrl/Cmd),
   `layer.newSublayer {parent?, name?, …options}` (on top of the parent's contents), `layer.delete {ids?}` (rows with
   what they hold; the last layer stays), `layer.locate {id?}` (highlights the selected object's row; the panel opens
@@ -1158,7 +1199,7 @@ and `layerRows`, the rows highlighted in the panel.
   `layer.reverse {ids?}`, `layer.template {ids?, on?}`, `layer.hideOthers` / `layer.showAll`,
   `layer.outlineOthers` / `layer.previewAll`, `layer.lockOthers` / `layer.unlockAll` (Alt-clicking an eye or a lock
   runs Hide or Lock Others for the row's layer, or Show or Unlock All when the others already are), `layer.pasteRemembersLayers`,
-  `object.isolate {id}` / `object.exitIsolation`.
+  `object.isolate {id}` (a group, a layer or a single object; not type) / `object.exitIsolation`.
 - **Dialogs and panel state** (control channel and the app's MCP): `ui.layerOptions {ids?}` and `ui.newLayer
   {sublayer?}` open Layer Options (dialog `layerOptions`: name, color, template, locked, visible, printable, preview,
   dimImages, dimPercent; OK is one undo step), `ui.layersPanelOptions` opens Panel Options (`layersPanelOptions`:
@@ -1571,7 +1612,8 @@ The Selection & Anchor Display and General preferences apply to `pointer_gesture
 - `ctrlClickSelectsBehind` (on by default): a Selection tool click with `mods: {cmd: true}` (Command on macOS, Ctrl
   elsewhere) selects the object under the selected one there, the next such click the one under that, then the
   topmost again. Cmd held to borrow the selection tool from another tool clicks as usual.
-- `doubleClickToIsolate` (on by default): off, a `doubleclick` on a group with the Selection tool no longer isolates it.
+- `doubleClickToIsolate` (on by default): a `doubleclick` with the Selection tool isolates a group, a compound path or a
+  single path, image, mesh or placed file (not type, blends, envelopes, repeats or symbol instances); off, it no longer does.
 - `usePreciseCursors`: the Pen, Eyedropper, Slice and Blend tools' pointers are a crosshair.
 - `snapToPointTolerance` (1–8 px, 2 by default): with View › Snap to Point on and Smart Guides off (desktop app), the
   point a selection is dragged by, a drawn point and a transform tool's reference point land on an anchor or a ruler
@@ -1591,7 +1633,8 @@ The Selection & Anchor Display and General preferences apply to `pointer_gesture
   `object.align`, `object.distribute`, `object.distributeSpacing`, the Selection and transform tools, the dialogs'
   Transform Patterns) and of the same param on the commands that move or duplicate art with an artboard (`artboard.move`
   and the Artboard tool, `artboard.duplicate`, `artboard.rearrange`, `artboard.setProps`): pattern fills and strokes
-  move with the art.
+  move with the art. `object.nudge` (the arrow keys) and `path.moveAnchors` (a Direct Selection drag of selected
+  anchors) take the same param, with the same default, for the objects they move whole.
 - `selectSameTintPercent` (off by default): `select.same.fillColor`, `strokeColor` and `fillAndStroke` take every tint
   of a global or spot swatch; on, only the same tint.
 
@@ -1613,7 +1656,13 @@ control channel's `ui.drag` scrubs), `showHomeScreen` (on by default: the Home s
 off, an empty window, and the Home button or `app.home` still shows the screen), `autoCollapseIconPanels` (off by
 default: on, a click away from a panel popped out of the icon column puts it away) and `displayPrintSize` (off by
 default: View › Actual Size / `view.actualSize` is one document point per screen point; on, one document inch fills
-96 screen points, an inch at the system's reference density whatever the display scaling).
+96 screen points, an inch at the system's reference density whatever the display scaling). `blackOnScreen`
+(Appearance of Black › On Screen, `accurate` by default) sets how the canvas shows pure CMYK black, black ink alone
+at 100%: `accurate` shows it through the CMYK profile, a dark grey, and `rich` shows it as RGB black. Rich blacks,
+black tints and images show the same either way, and exports are unchanged. `antiAliasedBitmaps` (off by default;
+desktop app): in View › Pixel Preview, on softens placed and embedded bitmaps; off, their pixels stay hard-edged.
+`disableAutoAddDelete` (off by default): on, the Pen no longer adds or deletes an anchor when a click lands on a
+segment or an anchor of a selected path.
 
 `gridlineEvery` (72 pt by default) and `gridSubdivisions` (8 by default) set the document grid that View › Show Grid
 draws, and View › Snap to Grid snaps to its subdivisions. Changing either sets the grid of every open document.
@@ -1643,6 +1692,9 @@ Guides change where a snapped point lands:
   angles through the point it leaves from (the Pen's or Curvature tool's last anchor, a line's start) lands on that
   line, where a target's alignment line crosses it if one does nearby. "90°" gives the horizontal and the vertical,
   "45°" the diagonals, "60°" and "30°" the multiples of those angles in between. Off, the point only lines up.
+- `spacingGuides` (on by default): a moved selection (Selection tool / `pointer_gesture` with `selection`) snaps so
+  the gap to a neighbour matches the equal spacing among other objects nearby; off, only alignment and construction
+  guides pull.
 
 With Smart Guides on, a bounding-box handle dragged with the Selection or Free Transform tool (`mods.shift`
 proportional, `mods.alt` from the centre) lands on another object's anchor or centre (labelled "anchor" or
@@ -1673,8 +1725,6 @@ of it headless), gathered once per document state; the shape being drawn is neve
 With a 100 × 100 square at (100, 100), the first starts the rectangle on its corner (200, 200); the second puts the
 Pen's second anchor at (150, 431), in line with the square's centre.
 
-Not read yet: Spacing Guides (the tools draw none).
-
 ## Type preferences
 
 - `placeholderText` (on by default): type the Type tools place (`pointer_gesture` with `type`, `areaType`…) starts with
@@ -1695,12 +1745,21 @@ Not read yet: Spacing Guides (the tools draw none).
   Type → Font menus label a family by its native-language name when the font has one. `text.fontList` and
   `text.setStyle {font}` always use the English (canonical) family name; a document may still name a font by any of
   its aliases (`ヒラギノ角ゴシック` resolves to Hiragino Sans).
+- `hyphenationExceptions` (empty by default): Preferences › Hyphenation › Exceptions. A comma-separated list of words,
+  matched without regard to case: a word with no hyphens is never hyphenated (`typography`), and a word with hyphens
+  breaks only where they are (`hap-pen`). `prefs.set` pushes the list into the hyphenator and reflows open documents.
 
 ```json
 {"name":"run_command","arguments":{"command":"prefs.set","params":{"values":{"typeSizeIncrement":4,"trackingIncrement":50}}}}
 {"name":"run_command","arguments":{"command":"prefs.set","params":{"key":"fontNamesInEnglish","value":false}}}
+{"name":"run_command","arguments":{"command":"prefs.set","params":{"key":"hyphenationExceptions","value":"typography, hap-pen"}}}
 {"name":"run_command","arguments":{"command":"type.step","params":{"attribute":"tracking","by":-2}}}
 ```
+
+File Handling › `appendConverted` (on by default): an older native file (the former `.drawcraft` extension or an
+older format version) opens titled `<name> [Converted]`, and Save doesn't write over it: `document.save` without a
+`path` answers with a suggested `.vectorcraft` name (the app asks for one). Off, it opens under its own name and Save
+writes over it.
 
 ## Width points
 
@@ -2144,10 +2203,10 @@ the package report write.
 
 ## Slices
 
-Object → Slice cuts the art into the pieces web output saves. User slices are rectangles of their own
-(`document.slices`, ids from the object id counter); `object.slice.make` turns the selected objects into object
-slices, whose slice follows the object's bounds; auto slices fill what no other slice covers (the artboards with
-Clip to Artboard on, the default, else the art and the slices). `slice.list` returns every slice as laid out,
+Object → Slice cuts the art into the pieces web output saves. User slices are rectangles of their own (ids from the
+object id counter); `object.slice.make` turns the selected objects into object slices, whose slice follows the
+object's bounds; auto slices fill what no other slice covers (the artboards with Clip to Artboard on, the default,
+else the art and the slices). `slice.list` returns every slice as laid out,
 numbered left to right and top to bottom: `{number, id (null for auto slices), source: user|object|auto, name, x, y,
 width, height, options, selected}`, plus `clipToArtboard`, `hidden` and `locked`.
 
@@ -2760,8 +2819,8 @@ not kerned). Off by default and saved only when on. One undo step.
 start, end, digits}` (a range) set the numeral system the characters' digits are drawn in, as the Character panel menu's
 Digits does with the Middle Eastern (Indic) options shown: `arabic` draws every digit as the Western 0–9, `hindi` as the
 Arabic-Indic ٠–٩ (U+0660–U+0669) and `farsi` as the Eastern Arabic-Indic ۰–۹ (U+06F0–U+06F9), whichever of the three sets
-was typed; `default` leaves each digit as typed. The text keeps the digits that were typed (`text.get`, search, the
-caret and selection are unchanged); only the glyphs change, as with All Caps, and SVG export writes the digits as drawn.
+was typed; `default` leaves each digit as typed. The text keeps the digits that were typed (`text.getRange`, search,
+the caret and selection are unchanged); only the glyphs change, as with All Caps, and SVG export writes the digits as drawn.
 A digit the font lacks comes from a fallback font. Default and saved only when set. One undo step.
 
 ```json

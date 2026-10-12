@@ -50,6 +50,50 @@ fn stroke_draws_outline_only() {
     assert_eq!(r.pixel(50, 50), [255, 255, 255, 255]);
 }
 
+/// #1396: a stroke wider than its ellipse is a solid blob, pixel for pixel the disc a renderer
+/// with a native stroke (the PDF and SVG exports) draws, at every alignment and zoom.
+#[test]
+fn a_stroke_wider_than_its_ellipse_paints_solid() {
+    let doc = |r: f64, fill: Paint, stroke: Paint, w: f64, align: StrokeAlign| {
+        let mut d = Document::new(100.0, 100.0);
+        let id = d.alloc_id();
+        let mut n = Node::path(id, shapes::ellipse(Rect::new(50.0 - r, 50.0 - r, 50.0 + r, 50.0 + r)), Appearance::basic(fill, stroke, w));
+        if let Some(st) = n.appearance.stroke_mut() {
+            st.align = align;
+        }
+        let l = d.layers[0].id;
+        d.insert(Some(l), 0, n).unwrap();
+        d
+    };
+    let black = || Paint::solid(Color::BLACK);
+    let render = |d: &Document, zoom: f64| {
+        let view = Affine::translate((50.0, 50.0)) * Affine::scale(zoom) * Affine::translate((-50.0, -50.0));
+        Renderer::new().render(d, 100, 100, view, &RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() })
+    };
+    // (ellipse radius, weight, alignment, radius of the disc it paints)
+    for (r, w, align, disc) in [
+        (10.0, 60.0, StrokeAlign::Center, 40.0),
+        (6.0, 50.0, StrokeAlign::Center, 31.0),
+        (15.0, 50.0, StrokeAlign::Center, 40.0),
+        (10.0, 30.0, StrokeAlign::Outside, 40.0),
+        (10.0, 30.0, StrokeAlign::Inside, 10.0),
+    ] {
+        for zoom in [0.5, 1.0, 2.0] {
+            let got = render(&doc(r, Paint::None, black(), w, align), zoom);
+            if align == StrokeAlign::Outside {
+                // The shape itself stays unpainted, and the stroke around it has no gap.
+                assert_eq!(got.pixel(50, 50), [255, 255, 255, 255], "{r} {w} {align:?} at {zoom}");
+                assert_eq!(got.pixel(50 + (12.0 * zoom) as u32, 50), [0, 0, 0, 255], "{r} {w} {align:?} at {zoom}");
+                continue;
+            }
+            let want = render(&doc(disc, black(), Paint::None, 0.0, StrokeAlign::Center), zoom);
+            let off =
+                (0..100).flat_map(|y| (0..100).map(move |x| (x, y))).filter(|&(x, y)| got.pixel(x, y)[0].abs_diff(want.pixel(x, y)[0]) > 40).count();
+            assert!(off <= 8, "{r} {w} {align:?} at {zoom}: {off} pixels differ from the disc");
+        }
+    }
+}
+
 #[test]
 fn inside_stroke_stays_inside() {
     let mut d = Document::new(100.0, 100.0);
@@ -221,7 +265,7 @@ fn masked_doc(clip: bool, invert: bool) -> Document {
     let art = Node::group(gid, vec![Arc::new(white), Arc::new(grey)]);
     let mut m = vectorcraft_doc::OpacityMask::new(art, clip);
     m.invert = invert;
-    n.mask = Some(Box::new(m));
+    n.extras_mut().mask = Some(Box::new(m));
     let l = d.layers[0].id;
     d.insert(Some(l), 0, n).unwrap();
     d
@@ -256,7 +300,7 @@ fn disabled_or_outline_mask_draws_unmasked() {
     let mut d = masked_doc(true, false);
     let id = d.layers[0].children().unwrap()[0].id;
     let n = d.node_mut(id).unwrap();
-    n.mask.as_mut().unwrap().disabled = true;
+    n.extras_mut().mask.as_mut().unwrap().disabled = true;
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
     let img = Renderer::new().render(&d, 100, 100, Affine::IDENTITY, &opts);
     assert_eq!(img.pixel(80, 50), [255, 0, 0, 255]);
@@ -376,7 +420,7 @@ fn images_take_their_nearest_pixel_without_smoothing() {
     d.images.insert("bw".into(), ImageBlob::new("image/png", png));
     let id = d.alloc_id();
     let im = ImageObject { key: "bw".into(), width: 2, height: 1, xf: Affine::scale(20.0), link: None, placement: Default::default() };
-    d.insert(Some(d.layers[0].id), 0, Node::new(id, NodeKind::Image(im))).unwrap();
+    d.insert(Some(d.layers[0].id), 0, Node::new(id, NodeKind::Image(Box::new(im)))).unwrap();
     // How many pixels across the image are neither black nor white.
     let greys = |smooth_images| {
         let r = Renderer::new().render(&d, 40, 20, Affine::IDENTITY, &RenderOptions { smooth_images, ..Default::default() });

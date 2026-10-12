@@ -193,7 +193,8 @@ pub fn specs() -> Vec<CommandSpec> {
 fn selectable(d: &Document, iso: Option<NodeId>) -> Vec<NodeId> {
     match iso.and_then(|i| d.node(i)) {
         Some(c) if d.ancestry(c.id).is_some_and(|a| a.iter().all(|i| d.node(*i).is_some_and(|n| n.visible && !n.locked && !n.is_template()))) => {
-            c.layer_art(true)
+            // A single object isolated is all there is to select.
+            if c.is_container() { c.layer_art(true) } else { vec![c.id] }
         }
         Some(_) => vec![],
         None => d.selectable_art(),
@@ -547,7 +548,7 @@ fn same_graphic_style(s: &mut Session, _: &Value) -> Result<Value> {
         .and_then(|id| super::style::linked_style(&st.doc, st.doc.node(*id)?))
         .map(|g| g.id)
         .ok_or_else(|| bad(cmd, "the selection has no graphic style"))?;
-    select_where(s, cmd, &json!({}), |d, n| n.graphic_style == Some(id) && super::style::linked_style(d, n).is_some())
+    select_where(s, cmd, &json!({}), |d, n| n.extras().graphic_style == Some(id) && super::style::linked_style(d, n).is_some())
 }
 
 /// An appearance attribute Select > Same > Appearance Attribute matches.
