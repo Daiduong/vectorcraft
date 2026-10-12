@@ -87,6 +87,10 @@ fn styled(src: &Node, path: PathData, outline: bool) -> Node {
         appearance = Appearance { items: vec![AppearanceItem::Stroke(StrokeLayer::new(paint, 1.0))], ..Default::default() };
     }
     let mut n = Node::path(src.id, path, appearance);
+    // Keep the source's name so the SVG `id="…"` round-trip and any downstream scripts that key
+    // by name survive the boolean op. The pathfinder chose `src` for this result precisely
+    // because it should inherit its paint; the name is part of that identity. (#1293)
+    n.name = src.name.clone();
     n.opacity = src.opacity;
     n.blend = src.blend;
     n
@@ -293,6 +297,16 @@ mod tests {
         ))
     }
 
+    fn sq_named(id: u64, x: f64, color: Color, name: &str) -> Arc<Node> {
+        let mut n = Node::path(
+            NodeId(id),
+            shapes::rectangle(Rect::new(x, 0.0, x + 10.0, 10.0)),
+            Appearance::basic(Paint::solid(color), Paint::None, 0.0),
+        );
+        n.name = Some(name.into());
+        Arc::new(n)
+    }
+
     fn group_with(effect: &str) -> Node {
         let mut g = Node::group(NodeId(10), vec![sq(1, 0.0, Color::rgb(1.0, 0.0, 0.0)), sq(2, 5.0, Color::rgb(0.0, 0.0, 1.0))]);
         g.appearance.effects.push(Effect { id: effect.into(), params: serde_json::json!({}), visible: true });
@@ -336,5 +350,33 @@ mod tests {
         g.appearance.effects[0].visible = false;
         assert!(pathfinder_children(&g, None).is_none());
         assert!(!has_pathfinder(&sq(1, 0.0, Color::BLACK)));
+    }
+
+    /// The result of a boolean op keeps the name of the source the op says it should. The
+    /// result already takes that source's paint and `NodeId`; the `name` is the third leg of
+    /// the identity that downstream SVG round-trips and scripts rely on.
+    #[test]
+    fn shape_modes_keep_the_expected_source_name() {
+        fn group_named(effect: &str) -> Node {
+            let mut g = Node::group(
+                NodeId(10),
+                vec![sq_named(1, 0.0, Color::rgb(1.0, 0.0, 0.0), "back"), sq_named(2, 5.0, Color::rgb(0.0, 0.0, 1.0), "front")],
+            );
+            g.appearance.effects.push(Effect { id: effect.into(), params: serde_json::json!({}), visible: true });
+            g
+        }
+        // minusFront keeps the back object's name; minusBack keeps the front object's name;
+        // unite and intersect keep the front object's (matches what tests assert on `id`).
+        for (op, expected) in [
+            ("pathfinder.add", Some("front")),
+            ("pathfinder.subtract", Some("back")),
+            ("pathfinder.intersect", Some("front")),
+            ("pathfinder.exclude", Some("front")),
+            ("pathfinder.minusBack", Some("front")),
+        ] {
+            let result = pathfinder_children(&group_named(op), None).unwrap();
+            assert_eq!(result.len(), 1, "{op}: exactly one result");
+            assert_eq!(result[0].name.as_deref(), expected, "{op}: keeps the right source name");
+        }
     }
 }
