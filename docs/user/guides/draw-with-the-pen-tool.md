@@ -16,7 +16,7 @@ Pick the **Pen Tool** (shortcut P), click for a corner point, click and drag for
 5. To close the path, press on the first point. If you drag as you press, the drag shapes the closing curve.
 6. To leave the path open, press Enter or Esc, or pick another tool.
 
-While you draw, a preview line shows where the next segment will go. This is the rubber band preview. The preference is **Enable Rubber Band for** › **Pen Tool**, in **Edit** › **Preferences…** under **Selection & Anchor Display**.
+While you draw, a preview line shows where the next segment will go. This is the rubber band preview. The preference is **Enable Rubber Band for** › **Pen Tool**, in **Edit** › **Preferences…** under **Selection & Anchor Display** (on macOS, **VectorCraft** › **Settings** › **Selection & Anchor Display…**).
 
 ## Continue or join an open path
 
@@ -31,4 +31,4 @@ While you draw, a preview line shows where the next segment will go. This is the
 
 ## Add and delete points
 
-With a path selected, the Pen Tool adds a point where you click on a segment, and deletes a point where you click on one. To start a new path on top of a selected path instead, hold Shift while you click. The preference **Disable Auto Add/Delete**, under **General**, turns the add and delete behavior off. The toolbar group of the Pen Tool also has the **Add Anchor Point Tool** (+), the **Delete Anchor Point Tool** (-) and the **Anchor Point Tool** (Shift+C).
+With a path selected, the Pen Tool adds a point where you click on a segment, and deletes a point where you click on one. To start a new path on top of a selected path instead, hold Shift while you click. The preference **Disable Auto Add/Delete**, under **General** (on macOS, **VectorCraft** › **Settings** › **General…**), turns the add and delete behavior off. The toolbar group of the Pen Tool also has the **Add Anchor Point Tool** (+), the **Delete Anchor Point Tool** (-) and the **Anchor Point Tool** (Shift+C).

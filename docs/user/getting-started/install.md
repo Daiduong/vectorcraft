@@ -20,7 +20,6 @@ Other Windows files in the release:
 |------------------------------|-------------------------------------------|----------------------------------------------------|
 | 64-bit Intel or AMD          | `vectorcraft-<version>-windows-x64.msi`   | `vectorcraft-<version>-windows-x64-portable.zip`   |
 | Snapdragon and other ARM PCs | `vectorcraft-<version>-windows-arm64.msi` | `vectorcraft-<version>-windows-arm64-portable.zip` |
-| 32-bit                       | `vectorcraft-<version>-windows-x86.msi`   | `vectorcraft-<version>-windows-x86-portable.zip`   |
 
 The installers and executables are code-signed. The release also has a `SHA256SUMS.txt` file with a checksum for every download.
 
