@@ -3105,6 +3105,7 @@ theme	Appearance	Motiv
 	Untitled	Bez názvu
 	Add to Selection	Přidat do výběru
 	Select Anchors	Vybrat kotevní body
+	Select Segments	Vybrat segmenty
 	Select Objects	Vybrat objekty
 	Toggle Selection	Přepnout výběr
 	Create Slice	Vytvořit řez
@@ -4465,3 +4466,6 @@ effect	Regular	Pravidelný
 	24 bits/pixel	24 bitů na pixel
 	32 bits/pixel	32 bitů na pixel
 	DWG (use DXF)	DWG (použijte DXF)
+	Artistic	Umělecké
+	Film Grain…	Filmové zrno…
+	Highlight Area	Oblast světel

@@ -1423,6 +1423,45 @@ fn direct_selection_moves_one_anchor() {
     assert_eq!(p.subpaths[0].anchors[1].p, vectorcraft_geom::Point::new(200.0, 100.0));
 }
 
+/// Follow-up to #1254: toggling or adding anchors of a path selected as a whole starts from all
+/// its anchors, so toggling one deselects it alone and adding one keeps them all.
+#[test]
+fn select_anchors_toggle_and_add_start_from_a_whole_path() {
+    let mut s = session();
+    let a = rect(&mut s, 100.0, 100.0, 100.0, 100.0);
+    let picked = |s: &Session| s.doc().unwrap().selection.partial(a).map(|set| set.iter().copied().collect::<Vec<_>>());
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0]], "mode": "toggle"})).unwrap();
+    assert_eq!(picked(&s), Some(vec![(0, 1), (0, 2), (0, 3)]));
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0]], "mode": "add"})).unwrap();
+    assert!(picked(&s).is_none_or(|v| v.len() == 4), "{:?}", picked(&s));
+    assert!(s.doc().unwrap().selection.contains(a));
+}
+
+/// Follow-up to #1254: Shift-clicking an anchor of a path selected as a whole (with the Selection
+/// tool) deselects that anchor and keeps the others, as in Illustrator.
+#[test]
+fn direct_selection_shift_click_deselects_one_anchor_of_a_whole_path() {
+    let mut s = session();
+    let a = rect(&mut s, 100.0, 100.0, 100.0, 100.0);
+    let v = ViewInfo::default();
+    s.execute("select.none", &json!({})).unwrap();
+    s.select_tool("selection", v).unwrap();
+    for kind in [PointerKind::Down, PointerKind::Up] {
+        s.pointer(&PointerEvent::new(kind, 150.0, 150.0), v).unwrap();
+    }
+    assert_eq!(s.doc().unwrap().selection.objects, vec![a]);
+    assert!(s.doc().unwrap().selection.partial(a).is_none(), "selected whole");
+    s.select_tool("directSelection", v).unwrap();
+    let shift = vectorcraft_tools::Mods { shift: true, ..Default::default() };
+    for kind in [PointerKind::Down, PointerKind::Up] {
+        s.pointer(&PointerEvent::new(kind, 100.0, 100.0).with_mods(shift), v).unwrap();
+    }
+    let sel = &s.doc().unwrap().selection;
+    assert_eq!(sel.partial(a).map(|set| set.iter().copied().collect::<Vec<_>>()), Some(vec![(0, 1), (0, 2), (0, 3)]));
+}
+
 /// Dragging a curved segment with Direct Selection bends it (its anchors stay), and dragging a
 /// straight one moves its two anchors, not the whole path; each is one undo step.
 #[test]
@@ -2089,6 +2128,52 @@ fn align_moves_selected_anchor_points() {
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.execute("object.align", &json!({"vertical": "top", "to": "artboard"})).unwrap();
     assert_eq!(anchors(&s)[2].1 - anchors(&s)[0].1, 120.0, "its shape kept");
+}
+
+/// Repeating anchor Align must leave one Undo for the move that actually changed the path.
+#[test]
+fn repeating_anchor_alignment_does_not_consume_undo() {
+    let mut s = session();
+    let id = NodeId(s.execute("path.create", &json!({"d": "M100 40 L200 60 L150 160 Z"})).unwrap()["id"].as_u64().unwrap());
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    let original = s.doc().unwrap().doc.clone();
+    let top = json!({"vertical": "top", "to": "selection"});
+    s.execute("object.align", &top).unwrap();
+    let aligned = s.doc().unwrap().doc.clone();
+    assert_ne!(serde_json::to_value(&original).unwrap(), serde_json::to_value(&aligned).unwrap());
+    let before = history(&s);
+    s.execute("object.align", &top).unwrap();
+    assert_eq!(history(&s), before, "the repeated Align adds no undo step");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(serde_json::to_value(&s.doc().unwrap().doc).unwrap(), serde_json::to_value(&original).unwrap());
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(serde_json::to_value(&s.doc().unwrap().doc).unwrap(), serde_json::to_value(&aligned).unwrap());
+}
+
+/// As whole-object Align does, tiny rounding differences leave a saved path and its Redo intact.
+#[test]
+fn a_noop_anchor_alignment_keeps_redo_and_saved_state() {
+    let mut s = session();
+    let id =
+        NodeId(s.execute("path.create", &json!({"d": "M0.0000000005 40 C50 40 40 60 0.0000000005 60 L20 100"})).unwrap()["id"].as_u64().unwrap());
+    select_with_a_step_to_redo(&mut s, &[id]);
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    let before = history(&s);
+    assert_eq!((before.1, before.2), (1, false));
+    let doc = s.doc().unwrap().doc.clone();
+    let revision = s.doc().unwrap().revision;
+    let left = json!({"horizontal": "left", "to": "artboard"});
+    s.execute("object.align", &left).unwrap();
+    assert_eq!(history(&s), before);
+    assert_eq!(s.doc().unwrap().revision, revision);
+    assert_eq!(
+        serde_json::to_value(&s.doc().unwrap().doc).unwrap(),
+        serde_json::to_value(&doc).unwrap(),
+        "anchors, handles and other artwork unchanged"
+    );
+    assert_eq!(s.journal.last().unwrap(), &("object.align".to_string(), left));
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_ne!(serde_json::to_value(&s.doc().unwrap().doc).unwrap(), serde_json::to_value(&doc).unwrap(), "Redo still restores the earlier move");
 }
 
 /// #1197: Make Compound Path cuts holes where the paths in front overlap the backmost one, also

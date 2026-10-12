@@ -2500,6 +2500,7 @@
 	Select an image to see its Link Info.	Selecciona una imagen para ver su información de vínculo.
 	Select an image to trace	Selecciona una imagen para calcar
 	Select Anchors	Seleccionar anclas
+	Select Segments	Seleccionar segmentos
 	Select Appearance Item	Seleccionar elemento de apariencia
 	Select Art	Seleccionar ilustración
 	Select art and choose Object › Pattern › Make.	Selecciona una ilustración y elige Objeto › Motivo › Crear.
@@ -4180,3 +4181,6 @@ lighting	Light	Luz
 	Open Scripts Folder	Abrir carpeta de scripts
 	Clear Recent Scripts	Borrar scripts recientes
 @msg	there is no Scripts folder here	aquí no hay carpeta de scripts
+	Artistic	Artístico
+	Film Grain…	Granulado de película…
+	Highlight Area	Área de iluminaciones

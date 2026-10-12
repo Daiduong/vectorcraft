@@ -2492,6 +2492,7 @@
 	Select an image to see its Link Info.	Виберіть зображення, щоб побачити зв’язок.
 	Select an image to trace	Виберіть зображення для трасування
 	Select Anchors	Виділити опорні точки
+	Select Segments	Виділити сегменти
 	Select Appearance Item	Виділити елемент оформлення
 	Select Art	Виділити малюнок
 	Select art and choose Object › Pattern › Make.	Виділіть малюнок та виберіть «Об’єкт › Візерунок › Створити».
@@ -4162,3 +4163,6 @@ lighting	Light	Світло
 	Open Scripts Folder	Відкрити теку сценаріїв
 	Clear Recent Scripts	Очистити нещодавні сценарії
 @msg	there is no Scripts folder here	тут немає теки сценаріїв
+	Artistic	Художні
+	Film Grain…	Зернистість плівки…
+	Highlight Area	Область світлих тонів
