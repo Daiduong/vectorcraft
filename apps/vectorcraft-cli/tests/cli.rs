@@ -395,6 +395,49 @@ fn script_opens_a_document() {
     assert_eq!(String::from_utf8(out.stdout).unwrap().trim(), "true");
 }
 
+/// `script --automation-read-root` / `--automation-write-root`: every path a script's commands
+/// reach is checked as for `mcp` (#832), and so are the DOCUMENT argument and `--out`.
+#[test]
+fn script_automation_roots() {
+    let base = tmp("script-roots");
+    for d in ["in", "out", "outside"] {
+        std::fs::create_dir_all(base.join(d)).unwrap();
+    }
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"><rect width="20" height="10"/></svg>"#;
+    std::fs::write(base.join("in/a.svg"), svg).unwrap();
+    std::fs::write(base.join("outside/b.svg"), svg).unwrap();
+    let file = |d: &str, f: &str| base.join(d).join(f).to_string_lossy().into_owned();
+    let js = script_file("roots.js", "vc.run(vc.args.cmd, {path: vc.args.path}); 'ran'");
+    let run = |cmd: &str, path: &str, extra: &[&str]| {
+        let roots = ["--automation-read-root", &file("in", ""), "--automation-write-root", &file("out", "")];
+        let args = ["script", js.to_str().unwrap(), "--arg", &format!("cmd={cmd}"), "--arg", &format!("path={path}")];
+        Command::new(BIN).args(args).args(extra).args(roots).output().unwrap()
+    };
+    let rejected = |out: std::process::Output, root: &str| {
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(1), "{err}");
+        assert!(err.contains(&format!("outside the {root} root")), "{err}");
+    };
+
+    assert!(run("document.open", &file("in", "a.svg"), &[]).status.success());
+    assert!(run("file.place", &file("in", "a.svg"), &[]).status.success());
+    assert!(run("file.saveAs", &file("out", "a.svg"), &[]).status.success());
+    assert!(base.join("out/a.svg").is_file());
+
+    rejected(run("document.open", &file("outside", "b.svg"), &[]), "read");
+    rejected(run("document.open", &file("in", "../outside/b.svg"), &[]), "read");
+    rejected(run("file.place", &file("outside", "b.svg"), &[]), "read");
+    rejected(run("file.saveAs", &file("outside", "c.svg"), &[]), "write");
+    rejected(run("document.export", &file("outside", "c.png"), &[]), "write");
+    rejected(run("file.saveAs", &file("out", "../outside/c.svg"), &[]), "write");
+    assert!(!base.join("outside/c.svg").exists() && !base.join("outside/c.png").exists());
+
+    // The document to open and the `--out` exports are confined too.
+    rejected(run("document.open", &file("in", "a.svg"), &[&file("outside", "b.svg")]), "read");
+    rejected(run("document.open", &file("in", "a.svg"), &["--out", &file("outside", "d.png")]), "write");
+    assert!(!base.join("outside/d.png").exists());
+}
+
 #[test]
 fn script_rejects_bad_arguments() {
     let js = script_file("noop.js", "1");

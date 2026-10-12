@@ -75,8 +75,11 @@ ids.length;
 
 A script can't reach files, the network or the system except through commands (File › Save,
 Export…), which behave as they do from the menus; `vectorcraft-cli script` can confine them with
-`--automation-read-root` / `--automation-write-root`. A run stops with an error, and changes
-nothing, when it:
+`--automation-read-root` / `--automation-write-root`. With them, every file a script's commands
+open, place, save or export, the DOCUMENT it opens and its `--out` exports must lie inside the
+root, checked as for [MCP](mcp.md) (links followed, `..` resolved); a path outside fails the
+command, and the run stops with exit code 1. A run stops with an error, and changes nothing, when
+it:
 
 - goes round loops more than 10,000,000 times in all (every loop counts towards the same total);
 - nests calls more than 512 deep;
