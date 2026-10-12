@@ -13,6 +13,7 @@ pub mod corners;
 pub mod hit;
 pub mod path;
 pub mod projective;
+pub mod qr;
 pub mod recognize;
 pub mod shapes;
 pub mod snap;

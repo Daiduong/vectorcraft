@@ -338,6 +338,11 @@ fn structured_junk() {
             "shape.polarGrid",
             json!({"x": 0, "y": 0, "width": 10, "height": 10, "concentric": -1, "radial": 0.5, "radialSkew": null, "compound": "yes"}),
         ),
+        (
+            "shape.qrCode",
+            json!({"x": 1e308, "y": -1e308, "size": 1e308, "text": "\u{0}\u{FFFF}\u{1F600}", "ecc": "H", "background": "#fff", "quietZone": 100}),
+        ),
+        ("shape.qrCode", json!({"x": 0, "y": 0, "size": 1e-308, "text": "x".repeat(1273), "ecc": "h", "quietZone": -1})),
         ("object.path.splitIntoGrid", json!({"rows": 500, "columns": 1, "gutter": 1e308})),
         ("object.path.splitIntoGrid", json!({"rows": 0.4})),
         ("object.setBounds", json!({"width": 0, "height": 0})),

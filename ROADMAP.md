@@ -127,6 +127,7 @@ Ranked; detail in [docs/roadmap.md](docs/roadmap.md) and [docs/gaps.md](docs/gap
 
 | Date | What landed |
 |---|---|
+| 2026-10-13 | `shape.qrCode` draws a QR Code (ISO/IEC 18004, written from the public specification): text in byte mode, versions 1–40, levels L, M, Q and H, the mask chosen by the penalty rules; the dark modules are one path in the current fill, optionally grouped over a quiet-zone square. Scripts and agents only for now (no tool or dialog yet). |
 | 2026-10-13 | Image Trace traces anti-aliased and blurred images to a fraction of a pixel in Black and White, Grayscale and Color, with corners put back, straight edges as lines and round outlines as circles; a harness measures every preset before and after ([`docs/image-trace-quality.md`](docs/image-trace-quality.md)): outlines 0.31 → 0.09 px off on average (Default), 0.27 → 0.06 (Black and White Logo). |
 | 2026-10-12 | Effect › 3D and Materials: Extrude & Bevel (depth, twist, taper, solid or hollow caps, five bevel shapes with repeat, spacing, inside and both sides), Inflate (volume, both sides) and Rotate, with Position presets and the rotation and light gizmos; live, exported as vector faces, expandable (#1407). |
 | 2026-10-12 | `convert --editing-data` (`editingData: "always"`) opens a `.ai` from its editing data even where its page, which can be older, draws differently, with a note. |
