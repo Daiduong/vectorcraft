@@ -781,8 +781,8 @@ fn main() -> std::process::ExitCode {
                     let recovery = prefs_path().and_then(|p| Some(p.parent()?.join("Data Recovery").to_string_lossy().to_string()));
                     app.session.recovery.set_default_folder(recovery);
                 }
-                // The swatch and graphic style libraries opened from files before the last quit are
-                // listed again, from the files the saved UI state names.
+                // A worker reads the swatch and graphic style libraries opened from files before the
+                // last quit, from the files the saved UI state names, and a later frame lists them.
                 file_access::unconfined(|| vectorcraft_ui_egui::panels::library_panel::restore_files(&mut app));
                 let graphics_loss = GraphicsLoss::default();
                 #[cfg(feature = "wgpu")]

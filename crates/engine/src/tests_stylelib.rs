@@ -232,7 +232,7 @@ fn libraries_loaded_from_files_are_listed_again_and_a_missing_one_says_so() {
     // In a new session, restore lists both again: the one whose file is gone is listed as missing
     // and named after the file.
     let mut s = session();
-    cmd::stylelib::restore(&mut s, &kept);
+    cmd::stylelib::restore(&mut s, cmd::stylelib::read_remembered(&kept));
     let list = run(&mut s, "graphicStyle.libraries", json!({}));
     let loaded: Vec<(&str, u64, bool)> = list["libraries"]
         .as_array()

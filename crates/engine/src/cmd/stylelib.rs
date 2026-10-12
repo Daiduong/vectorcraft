@@ -17,7 +17,7 @@ use vectorcraft_doc::{Document, GraphicStyle, PatternDef, StyleLibrary};
 
 use super::menucmds::squash;
 use super::swatch::str_list;
-use super::swatchlib::{FileData, LibraryFile, LibraryInfo, stem};
+use super::swatchlib::{FileData, LibraryFile, LibraryInfo, RememberedFile, stem};
 use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -254,11 +254,17 @@ fn load(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"library": info.id, "name": info.name, "count": lib.len()}))
 }
 
-/// List the graphic style library files `paths` again as loaded libraries, as
-/// `graphicStyle.loadLibrary` reads them: the paths [`Libraries::remembered`] gave when the desktop
-/// app last quit. A file that can't be read is listed as missing.
-pub fn restore(s: &mut Session, paths: &[String]) {
-    s.style_libraries.restore(paths, parse);
+/// Read the graphic style library files `paths` again as `graphicStyle.loadLibrary` reads them,
+/// each inside the panic guard: the paths [`Libraries::remembered`] gave when the desktop app last
+/// quit, for [`restore`]. It takes no session and can run on any thread.
+pub fn read_remembered(paths: &[String]) -> Vec<RememberedFile<StyleLibrary>> {
+    Libraries::read_remembered(paths, parse)
+}
+
+/// List the graphic style library files [`read_remembered`] read as loaded libraries again. A file
+/// that couldn't be read is listed as missing.
+pub fn restore(s: &mut Session, files: Vec<RememberedFile<StyleLibrary>>) {
+    s.style_libraries.restore(files);
 }
 
 fn remove(s: &mut Session, p: &Value) -> Result<Value> {

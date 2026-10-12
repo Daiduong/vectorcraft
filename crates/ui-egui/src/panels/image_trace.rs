@@ -497,7 +497,8 @@ mod tests {
         // it as missing.
         app.run("swatch.library.remove", json!({ "library": id })).unwrap();
         std::fs::remove_file(&gpl).unwrap();
-        vectorcraft_engine::cmd::swatchlib::restore(&mut app.session, std::slice::from_ref(&gpl));
+        let read = vectorcraft_engine::cmd::swatchlib::read_remembered(std::slice::from_ref(&gpl));
+        vectorcraft_engine::cmd::swatchlib::restore(&mut app.session, read);
         let texts = frame(&mut app, &ctx, vec![]);
         assert!(texts.iter().any(|(t, _)| *t == format!("{file} (missing)")), "{texts:?}");
     }

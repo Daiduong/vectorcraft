@@ -379,7 +379,7 @@ mod tests {
         // swatchlib::restore lists the library as missing, and the guide is still not limited.
         // Loading its file again limits the guide to the library's colors again.
         std::fs::remove_file(&gpl).unwrap();
-        swatchlib::restore(&mut app.session, std::slice::from_ref(&gpl));
+        swatchlib::restore(&mut app.session, swatchlib::read_remembered(std::slice::from_ref(&gpl)));
         frame(&mut app, &ctx);
         assert!(shown(&app, &ctx).contains(&"#3a7bd5".to_string()));
         std::fs::write(&gpl, palette).unwrap();

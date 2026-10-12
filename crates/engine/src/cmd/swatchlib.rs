@@ -122,6 +122,14 @@ struct Extra<L> {
     lib: Option<Arc<L>>,
 }
 
+/// A file of a [`Libraries::remembered`] list as [`Libraries::read_remembered`] read it, for
+/// [`Libraries::restore`].
+pub struct RememberedFile<L> {
+    path: String,
+    /// `None` when the file couldn't be read or parsed, or reading it panicked.
+    lib: Option<L>,
+}
+
 /// A kind of library that lives in files ([`Libraries`]).
 pub trait LibraryFile: Sized {
     /// The extensions of its files (lower case).
@@ -165,13 +173,16 @@ impl<L: LibraryFile> Libraries<L> {
     }
 
     /// Re-read the library files of the user library folder (unreadable ones are skipped). The
-    /// folder is the app's own: automation roots don't apply to it ([`crate::file_access`]).
+    /// folder is the app's own: automation roots don't apply to it ([`crate::file_access`]). Each
+    /// file is read inside [`crate::guard::catch_panic`], and a file whose reading panics is
+    /// skipped too.
     pub fn rescan(&mut self) {
         self.extra.retain(|e| e.info.category != "user");
         let Some(dir) = self.user_dir.clone() else { return };
         for path in library_files(&dir, L::EXTS) {
             let file = file_name(&path);
-            let Some(lib) = crate::file_access::unconfined(|| read_file(&path)).ok().and_then(|b| L::read(&b, stem(&file)).ok()) else { continue };
+            let read = || crate::file_access::unconfined(|| read_file(&path)).ok().and_then(|b| L::read(&b, stem(&file)).ok());
+            let Some(lib) = crate::guard::catch_panic(read).ok().flatten() else { continue };
             let info = LibraryInfo { id: format!("user/{file}"), name: lib.name().to_string(), category: "user", missing: false };
             self.extra.push(Extra { info, path: Some(path), lib: Some(Arc::new(lib)) });
         }
@@ -326,22 +337,34 @@ impl<L: LibraryFile> Libraries<L> {
         self.extra.iter().filter(|e| e.info.category == "loaded").filter_map(|e| e.path.clone()).collect()
     }
 
-    /// List the library files `paths` (a [`Libraries::remembered`] list) as loaded libraries
-    /// again, in that order, each read by `parse` (its bytes and file name) as the load command
-    /// reads it. A file that can't be read is listed as missing, named after the file without its
-    /// extension, until [`Libraries::remove`] takes it off or loading the file again replaces it.
-    /// Paths already listed and empty paths are skipped.
-    pub(crate) fn restore(&mut self, paths: &[String], parse: impl Fn(&[u8], &str) -> Result<L>) {
-        for path in paths.iter().filter(|p| !p.is_empty()) {
+    /// Read the library files `paths` (a [`Libraries::remembered`] list) again, in that order,
+    /// `parse` reading each file's bytes and name as the load command reads them. Each file is read
+    /// and parsed inside [`crate::guard::catch_panic`]: a file that can't be read or parsed, or
+    /// whose reading panics, comes back without a library. Empty paths are skipped. The desktop app
+    /// runs it on a worker thread at launch.
+    pub(crate) fn read_remembered(paths: &[String], parse: impl Fn(&[u8], &str) -> Result<L>) -> Vec<RememberedFile<L>> {
+        let read = |path: &String| {
+            let file = file_name(path);
+            let lib = crate::guard::catch_panic(|| read_file(path).and_then(|bytes| parse(&bytes, &file)).ok()).ok().flatten();
+            RememberedFile { path: path.clone(), lib }
+        };
+        paths.iter().filter(|p| !p.is_empty()).map(read).collect()
+    }
+
+    /// List the files [`Libraries::read_remembered`] read as loaded libraries again, in that order.
+    /// A file without a library is listed as missing, named after the file without its extension,
+    /// until [`Libraries::remove`] takes it off or loading the file again replaces it. Paths
+    /// already listed are skipped.
+    pub(crate) fn restore(&mut self, files: Vec<RememberedFile<L>>) {
+        for RememberedFile { path, lib } in files {
             let id = format!("loaded/{path}");
             if self.extra.iter().any(|e| e.info.id == id) {
                 continue;
             }
-            let file = file_name(path);
-            let lib = read_file(path).and_then(|bytes| parse(&bytes, &file)).ok().map(Arc::new);
-            let name = lib.as_ref().map_or_else(|| stem(&file).to_string(), |l| l.name().to_string());
+            let lib = lib.map(Arc::new);
+            let name = lib.as_ref().map_or_else(|| stem(&file_name(&path)).to_string(), |l| l.name().to_string());
             let info = LibraryInfo { id, name, category: "loaded", missing: lib.is_none() };
-            self.extra.push(Extra { info, path: Some(path.clone()), lib });
+            self.extra.push(Extra { info, path: Some(path), lib });
         }
     }
 
@@ -560,11 +583,17 @@ fn load(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"library": info.id, "name": info.name, "count": lib.len()}))
 }
 
-/// List the swatch library files `paths` again as loaded libraries, as `swatch.library.load`
-/// reads them: the paths [`Libraries::remembered`] gave when the desktop app last quit. A file
-/// that can't be read is listed as missing.
-pub fn restore(s: &mut Session, paths: &[String]) {
-    s.swatch_libraries.restore(paths, parse);
+/// Read the swatch library files `paths` again as `swatch.library.load` reads them, each inside
+/// the panic guard: the paths [`Libraries::remembered`] gave when the desktop app last quit, for
+/// [`restore`]. It takes no session and can run on any thread.
+pub fn read_remembered(paths: &[String]) -> Vec<RememberedFile<SwatchLibrary>> {
+    Libraries::read_remembered(paths, parse)
+}
+
+/// List the swatch library files [`read_remembered`] read as loaded libraries again. A file that
+/// couldn't be read is listed as missing.
+pub fn restore(s: &mut Session, files: Vec<RememberedFile<SwatchLibrary>>) {
+    s.swatch_libraries.restore(files);
 }
 
 fn remove(s: &mut Session, p: &Value) -> Result<Value> {
