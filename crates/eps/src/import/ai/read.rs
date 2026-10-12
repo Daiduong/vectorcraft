@@ -702,13 +702,19 @@ impl<'a> Reader<'a> {
             "*U" => self.close(what, |k| matches!(k, Kind::Compound))?,
             _ => self.close(what, |k| matches!(k, Kind::Clip))?,
         };
-        let Frame { kind, children: mut kids, gs, clips, hidden: opened_hidden, .. } = f;
+        let Frame { kind, children: kids, gs, clips, hidden: opened_hidden, .. } = f;
         // A compound path of clipping paths clips its clipping group.
         let clipping = matches!(kind, Kind::Compound) && !clips.is_empty();
         let node = match kind {
             Kind::Compound => {
-                let Some(first) = kids.first() else { return Ok(()) };
-                let (appearance, opacity, blend, rule) = (first.appearance.clone(), first.opacity, first.blend, path_rule(first));
+                let mut paths = Vec::with_capacity(kids.len());
+                group_paths(kids, &mut paths);
+                let mut kids = paths;
+                let (Some(first), Some(last)) = (kids.first(), kids.last()) else { return Ok(()) };
+                // The whole compound path is painted as its last path is: the paths before it can
+                // carry another paint (a gear whose outline is painted black and its last path with
+                // the gradient the gear shows).
+                let (appearance, opacity, blend, rule) = (last.appearance.clone(), first.opacity, first.blend, path_rule(first));
                 for k in &mut kids {
                     k.opacity = 1.0;
                     k.blend = BlendMode::Normal;
@@ -1712,6 +1718,17 @@ type Indexed = (usize, Node);
 fn close(bp: &mut BezPath) {
     if bp.elements().last().is_some_and(|e| !matches!(e, PathEl::ClosePath)) {
         bp.close_path();
+    }
+}
+
+/// The paths of a compound path's `kids` into `out`, those of the groups among them too: a compound
+/// path can keep its paths in a group (`*u u … U *U`), which has no paint of its own.
+fn group_paths(kids: Vec<Node>, out: &mut Vec<Node>) {
+    for k in kids {
+        match k.kind {
+            NodeKind::Group { children, clip: false } => group_paths(children.into_iter().map(Arc::unwrap_or_clone).collect(), out),
+            _ => out.push(k),
+        }
     }
 }
 

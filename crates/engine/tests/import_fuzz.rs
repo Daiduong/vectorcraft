@@ -1954,6 +1954,7 @@ fn arb_ai_token() -> impl Strategy<Value = String> {
             "U",
             "*u",
             "*U",
+            "*u u 0 g 0 0 m 9 0 L 9 9 L f U *U",
             "q",
             "Q",
             "LB",

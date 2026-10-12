@@ -233,6 +233,15 @@ fn compound_paths_and_clipping() {
     let NodeKind::Compound { children, .. } = &a[0].kind else { panic!("{:?}", a[0].kind) };
     assert_eq!((children.len(), a[0].name.as_deref()), (2, Some("Donut")));
     assert_eq!(fill(&a[0]).color(), Some(Color::rgb(1.0, 0.0, 0.0)));
+    // Painted as its last path is, when the paths before it are painted otherwise.
+    let two = format!("0 Ae\n*u\n0 g\n{}f\n{RED}{}f\n*U\n", rect_path(0.0, 0.0, 30.0, 30.0), rect_path(10.0, 10.0, 20.0, 20.0));
+    assert_eq!(fill(&art(&read_ok(&layer(&two)).doc)[0]).color(), Some(Color::rgb(1.0, 0.0, 0.0)));
+    // Its paths kept in a group are its own.
+    let grouped = format!("0 Ae\n*u\n0 Ae\nu\n0 g\n{}f\n{RED}{}f\nU\n*U\n", rect_path(0.0, 0.0, 30.0, 30.0), rect_path(10.0, 10.0, 20.0, 20.0));
+    let g = art(&read_ok(&layer(&grouped)).doc);
+    let NodeKind::Compound { children, .. } = &g[0].kind else { panic!("{:?}", g[0].kind) };
+    assert!(children.len() == 2 && children.iter().all(|c| matches!(c.kind, NodeKind::Path { .. })), "{children:?}");
+    assert_eq!(fill(&g[0]).color(), Some(Color::rgb(1.0, 0.0, 0.0)));
     let NodeKind::Group { children, clip: true } = &a[1].kind else { panic!("a clipping group") };
     assert_eq!(a[1].name.as_deref(), Some("Clipped"));
     // The clipping path goes first.
