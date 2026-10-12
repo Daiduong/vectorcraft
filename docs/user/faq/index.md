@@ -1,5 +1,5 @@
 ---
-title: Questions and answers
+title: FAQ
 description: Short answers about VectorCraft: price, Illustrator and Affinity files, and languages.
 order: 40
 verified: 0.9.0

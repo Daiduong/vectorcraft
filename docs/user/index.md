@@ -16,7 +16,7 @@ VectorCraft is one of the Crafting Apps from the ArtCraft team. It is licensed M
 - [Getting started](getting-started/index.md)
 - [Guides](guides/index.md): open files, draw with the Pen, combine shapes, export
 - [Troubleshooting](troubleshooting/index.md): the app does not start, report a problem
-- [Questions and answers](faq/index.md): price, Illustrator and Affinity files, languages
+- [FAQ](faq/index.md): price, Illustrator and Affinity files, languages
 
 ## Get help
 
