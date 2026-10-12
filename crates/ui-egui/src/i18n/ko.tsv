@@ -4165,3 +4165,5 @@ lighting	Light	광원
 @msg	Ran script {name} ({_1} commands)	스크립트 {name} 실행됨(명령 {_1}개)
 @msg	Script {name} failed: {error}	스크립트 {name} 실패: {error}
 @msg	there is no Scripts folder here	여기에는 스크립트 폴더가 없습니다
+	Concentric Dividers:	동심원 구분선:
+	Radial Dividers:	방사형 구분선:
