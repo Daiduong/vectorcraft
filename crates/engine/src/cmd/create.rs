@@ -52,6 +52,15 @@ pub fn specs() -> Vec<CommandSpec> {
             polar_grid
         ),
         cmd!(
+            "shape.qrCode",
+            "QR Code",
+            [],
+            None,
+            "{x, y, text, size=100 (pt, the symbol without its quiet zone), ecc=\"M\" (L|M|Q|H), background?: color (adds a square behind, quietZone modules wider on each side), quietZone=4 (modules)} → {id, version, modules, ecc, mask}; the dark modules are one path in the current fill (black when the fill is None or white)",
+            has_doc,
+            qr_code
+        ),
+        cmd!(
             "path.create",
             "Create Path",
             [],
@@ -434,6 +443,70 @@ fn polar_grid(s: &mut Session, p: &Value) -> Result<Value> {
         switch(p, "compound", false, CMD)?,
     );
     grid_group(s, "Polar Grid", paths, switch(p, "fill", false, CMD)?)
+}
+
+/// QR Code: `text` (UTF-8, byte mode) encoded at `ecc` in the smallest version that holds it, its
+/// dark modules one path `size` points square at (`x`, `y`); with `background`, grouped over a
+/// square of that colour reaching `quietZone` modules past the symbol.
+fn qr_code(s: &mut Session, p: &Value) -> Result<Value> {
+    use vectorcraft_color::{Color, Paint};
+    use vectorcraft_geom::qr::{Ecc, QrCode};
+    const CMD: &str = "shape.qrCode";
+    let origin = Point::new(f64_req(p, "x", CMD)?, f64_req(p, "y", CMD)?);
+    if !(origin.x.is_finite() && origin.y.is_finite()) {
+        return Err(bad(CMD, "x and y must be finite"));
+    }
+    let text = str_param(p, "text").ok_or_else(|| bad(CMD, "`text` is required"))?;
+    let size = match p.get("size").filter(|v| !v.is_null()) {
+        None => 100.0,
+        Some(v) => v.as_f64().filter(|v| v.is_finite() && *v > 0.0).ok_or_else(|| bad(CMD, "`size` must be a positive number"))?,
+    }
+    .min(1.0e6);
+    let ecc = match p.get("ecc").filter(|v| !v.is_null()) {
+        None => Ecc::Medium,
+        Some(v) => v.as_str().and_then(Ecc::from_letter).ok_or_else(|| bad(CMD, "`ecc` must be \"L\", \"M\", \"Q\" or \"H\""))?,
+    };
+    let quiet = match p.get("quietZone").filter(|v| !v.is_null()) {
+        None => 4,
+        Some(v) => v.as_u64().filter(|n| *n <= 100).ok_or_else(|| bad(CMD, "`quietZone` must be a whole number of modules from 0 to 100"))?,
+    };
+    let background = match p.get("background").filter(|v| !v.is_null()) {
+        None => None,
+        Some(v) => Some(color_value(v).ok_or_else(|| bad(CMD, "`background` must be a colour"))?),
+    };
+    let qr = QrCode::encode(text.as_bytes(), ecc).map_err(|e| bad(CMD, e.to_string()))?;
+    let module = size / qr.size() as f64;
+    let modules = qr.to_path(origin, module);
+    let fill = if s.paint.fill.is_none() || s.paint.fill == Paint::solid(Color::WHITE) { Paint::solid(Color::BLACK) } else { s.paint.fill.clone() };
+    let info = json!({ "version": qr.version, "modules": qr.size(), "ecc": qr.ecc.letter(), "mask": qr.mask });
+    let mut out = match background {
+        None => {
+            let look = s.new_art_look(fill, Paint::None, 0.0);
+            add_look(s, "QR Code", path_kind(modules, None), look, Some("QR Code".into()))?
+        }
+        Some(bg) => {
+            let margin = quiet as f64 * module;
+            let square = shapes::rectangle(Rect::new(origin.x - margin, origin.y - margin, origin.x + size + margin, origin.y + size + margin));
+            let parent = s.doc()?.target_parent()?;
+            let id = s.edit("QR Code", |d, sel| {
+                let mut back = Node::path(d.alloc_id(), square, Appearance::basic(Paint::solid(bg), Paint::None, 0.0));
+                back.name = Some("Quiet Zone".into());
+                let mut code = Node::path(d.alloc_id(), modules, Appearance::basic(fill, Paint::None, 0.0));
+                code.name = Some("Modules".into());
+                let gid = d.alloc_id();
+                let mut g = Node::group(gid, vec![std::sync::Arc::new(back), std::sync::Arc::new(code)]);
+                g.name = Some("QR Code".into());
+                d.insert(parent, usize::MAX, g)?;
+                sel.set([gid]);
+                Ok(gid)
+            })?;
+            json!({ "id": id.0 })
+        }
+    };
+    if let (Some(o), Some(i)) = (out.as_object_mut(), info.as_object()) {
+        o.extend(i.clone());
+    }
+    Ok(out)
 }
 
 /// An anchor `{x, y, in?, out?, smooth?}` given to `cmd` (handles `[x, y]`, at the anchor when
