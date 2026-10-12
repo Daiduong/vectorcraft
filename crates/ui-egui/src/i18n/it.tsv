@@ -4193,6 +4193,8 @@ lighting	Light	Luce
 	Open Scripts Folder	Apri cartella degli script
 	Clear Recent Scripts	Cancella script recenti
 @msg	there is no Scripts folder here	qui non c’è una cartella degli script
+	Ruler Origin	Origine dei righelli
+	Reset Ruler Origin	Ripristina origine dei righelli
 	Artistic	Artistico
 	Film Grain…	Grana della pellicola…
 	Highlight Area	Area luci

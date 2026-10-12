@@ -4201,6 +4201,8 @@ lighting	Light	Lumière
 	Open Scripts Folder	Ouvrir le dossier des scripts
 	Clear Recent Scripts	Effacer les scripts récents
 @msg	there is no Scripts folder here	il n’y a pas de dossier des scripts ici
+	Ruler Origin	Origine des règles
+	Reset Ruler Origin	Réinitialiser l’origine des règles
 	Artistic	Artistique
 	Film Grain…	Grain photographique…
 	Highlight Area	Zone des tons clairs

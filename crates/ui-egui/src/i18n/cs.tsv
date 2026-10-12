@@ -4205,6 +4205,8 @@ effect	Regular	Pravidelný
 @msg	Ran script {name} ({_1} commands)	Skript {name} proběhl (příkazů: {_1})
 @msg	Script {name} failed: {error}	Skript {name} selhal: {error}
 @msg	there is no Scripts folder here	zde není žádná složka skriptů
+	Ruler Origin	Počátek pravítek
+	Reset Ruler Origin	Obnovit počátek pravítek
 	Column Width:	Šířka sloupce:
 	Import Data…	Importovat data…
 	Number of Decimals:	Počet desetinných míst:

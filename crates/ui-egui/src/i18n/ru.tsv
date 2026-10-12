@@ -4189,6 +4189,8 @@ lighting	Light	Свет
 	Open Scripts Folder	Открыть папку сценариев
 	Clear Recent Scripts	Очистить недавние сценарии
 @msg	there is no Scripts folder here	здесь нет папки сценариев
+	Ruler Origin	Начало координат линеек
+	Reset Ruler Origin	Сбросить начало координат линеек
 	Artistic	Художественные
 	Film Grain…	Зернистость плёнки…
 	Highlight Area	Область светов

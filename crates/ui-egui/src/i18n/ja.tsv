@@ -4187,6 +4187,8 @@ lighting	Light	ライト
 	Open Scripts Folder	スクリプトフォルダーを開く
 	Clear Recent Scripts	最近使用したスクリプトを消去
 @msg	there is no Scripts folder here	ここにはスクリプトフォルダーがありません
+	Ruler Origin	定規の原点
+	Reset Ruler Origin	定規の原点をリセット
 	Artistic	アーティスティック
 	Film Grain…	フィルム粒子…
 	Highlight Area	ハイライト領域

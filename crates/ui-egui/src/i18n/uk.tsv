@@ -4173,6 +4173,8 @@ lighting	Light	Світло
 	Open Scripts Folder	Відкрити теку сценаріїв
 	Clear Recent Scripts	Очистити нещодавні сценарії
 @msg	there is no Scripts folder here	тут немає теки сценаріїв
+	Ruler Origin	Початок координат лінійок
+	Reset Ruler Origin	Скинути початок координат лінійок
 	Artistic	Художні
 	Film Grain…	Зернистість плівки…
 	Highlight Area	Область світлих тонів
