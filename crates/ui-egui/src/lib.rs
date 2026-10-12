@@ -277,6 +277,8 @@ pub struct CanvasCache {
     pub selection_bounds: Option<((u64, u64), Option<vectorcraft_geom::Rect>)>,
     /// The tools' cursors as OS cursor bitmaps.
     pub cursors: cursors::Images,
+    /// What the selection overlay and the hover highlight keep between frames.
+    pub overlay: canvas::OverlayCache,
 }
 
 /// [`CanvasCache::slices`]: the layout of the slices of (document uid, revision).
@@ -456,6 +458,7 @@ impl VectorcraftApp {
                 selection_box: None,
                 selection_bounds: None,
                 cursors: Default::default(),
+                overlay: Default::default(),
             },
             perf: Perf::default(),
             titlebar_inset: 0.0,

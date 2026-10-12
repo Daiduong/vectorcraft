@@ -255,7 +255,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             select_row(app, ui.ctx(), Sel::None);
         }
         ui.painter().line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, t.input_border));
-        let mixed = mixed_appearances(app);
+        let mixed = mixed_appearances(app, ui.ctx());
         let label = if mixed { tl!("Mixed Appearances") } else { tl!(object_label(app)) };
         // A linked object names its graphic style ("Rectangle: Sunshine"), and so does new art
         // with nothing selected.
@@ -318,11 +318,20 @@ pub(crate) fn object_label(app: &VectorcraftApp) -> &'static str {
 }
 
 /// Do the selected objects differ in appearance (fills, strokes, effects, opacity or blend mode)?
-fn mixed_appearances(app: &VectorcraftApp) -> bool {
+/// Compared once per revision.
+fn mixed_appearances(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
     let Some(st) = app.session.active() else { return false };
+    let key = (st.uid, st.revision);
+    if let Some((k, mixed)) = super::pstate::<Option<((u64, u64), bool)>>(ctx, "appearance-mixed")
+        && k == key
+    {
+        return mixed;
+    }
     let mut nodes = st.selection.subjects().iter().filter_map(|id| st.doc.node(*id));
-    let Some(first) = nodes.next() else { return false };
-    nodes.any(|n| n.appearance != first.appearance || n.opacity != first.opacity || n.blend != first.blend)
+    let mixed =
+        nodes.next().is_some_and(|first| nodes.any(|n| n.appearance != first.appearance || n.opacity != first.opacity || n.blend != first.blend));
+    super::set_pstate(ctx, "appearance-mixed", Some((key, mixed)));
+    mixed
 }
 
 /// What the next object drawn gets when nothing is selected (`Session::new_art`): its fills and

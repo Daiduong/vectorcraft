@@ -66,7 +66,7 @@ fn set_options(ctx: &egui::Context, f: impl FnOnce(&mut Options)) {
 fn cached(app: &mut VectorcraftApp, ctx: &egui::Context, o: &Options) -> Option<Cache> {
     let st = app.session.active()?;
     let key = Some((st.uid, st.revision, o.show, o.sort));
-    let first = selected_images(app).first().copied();
+    let first = shown_selected_images(app, ctx).first().copied();
     let now = ctx.input(|i| i.time);
     let mut c: Cache = pstate(ctx, "links-cache");
     let stale = c.key != key || now - c.at > RECHECK;
@@ -82,6 +82,20 @@ fn cached(app: &mut VectorcraftApp, ctx: &egui::Context, o: &Options) -> Option<
     // Files change on disk without a frame of ours: look again later.
     ctx.request_repaint_after(std::time::Duration::from_secs_f64(RECHECK));
     Some(c)
+}
+
+/// [`selected_images`] as the panel shows them, looked for once per revision.
+fn shown_selected_images(app: &VectorcraftApp, ctx: &egui::Context) -> std::sync::Arc<Vec<u64>> {
+    let Some(st) = app.session.active() else { return Default::default() };
+    let key = (st.uid, st.revision);
+    if let Some((k, ids)) = pstate::<Option<((u64, u64), std::sync::Arc<Vec<u64>>)>>(ctx, "links-selected")
+        && k == key
+    {
+        return ids;
+    }
+    let ids = std::sync::Arc::new(selected_images(app));
+    set_pstate(ctx, "links-selected", Some((key, ids.clone())));
+    ids
 }
 
 /// The ids of the selected image objects and placed documents.
@@ -237,7 +251,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else { return };
     let doc = st.doc.clone();
     let thumbs = super::layers::ThumbSource::of(app, st, &doc);
-    let selected = selected_images(app);
+    let selected = shown_selected_images(app, ui.ctx());
     let rows: &[Value] = cache.list["links"].as_array().map_or(&[], Vec::as_slice);
     let mut clicked: Option<(u64, bool, bool)> = None;
     widgets::list_box(ui, |ui| {
@@ -447,7 +461,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let o = options(ui.ctx());
     // The rows the panel shows (the menu opens from it).
     let list = pstate::<Cache>(ui.ctx(), "links-cache").list;
-    let selected = selected_images(app);
+    let selected = shown_selected_images(app, ui.ctx());
     let sel = selected_rows(&list, &selected);
     let linked = ids(&sel, |r| r["linked"] == true);
     let embedded: Vec<&Value> = sel.iter().copied().filter(|r| status_is(r, "embedded")).collect();
