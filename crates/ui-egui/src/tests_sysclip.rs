@@ -240,14 +240,14 @@ fn keyboard_paste_of_a_bitmap_without_a_paste_event() {
 }
 
 #[test]
-fn without_the_service_plain_text_is_still_not_pasted() {
+fn without_the_service_external_text_becomes_a_text_object() {
     // The web: SVG text through egui only (see shortcuts' copy_and_paste_events_use_the_system_clipboard).
     let mut app = VectorcraftApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     frame(&mut app, vec![]);
     frame(&mut app, vec![key(egui::Key::V, false, egui::Modifiers::COMMAND)]);
     frame(&mut app, vec![egui::Event::Paste("hello".into())]);
-    assert_eq!(count(&app), 0);
+    assert_eq!(count(&app), 1);
 }
 
 #[test]

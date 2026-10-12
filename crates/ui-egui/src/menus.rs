@@ -1931,7 +1931,8 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
     }
     if let Some(c) = vectorcraft_engine::find_command(id) {
         // The system clipboard's contents can be pasted with an empty internal clipboard.
-        return (c.enabled)(&app.session).is_ok() || app.system_paste && id.starts_with("edit.paste");
+        return (c.enabled)(&app.session).is_ok()
+            || (app.system_paste || app.services.clipboard_paste.is_some() && app.session.active().is_some()) && id.starts_with("edit.paste");
     }
     match id {
         // Save is off for a clean document that already has its own file.
@@ -2862,6 +2863,11 @@ pub fn menu_bar(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> f32 {
         ctx.data_mut(|d| d.remove::<Field>(field_key));
     }
     if let Some((id, p)) = clicked {
+        if let Some(field) = field.clone()
+            && request_web_field_paste(app, field, &id)
+        {
+            return end;
+        }
         match field.and_then(|f| Some((f, field_event(app, &id)?))) {
             Some(chosen) => {
                 ctx.data_mut(|d| d.insert_temp(chosen_key, chosen));
@@ -3048,10 +3054,27 @@ fn field_event(app: &mut VectorcraftApp, id: &str) -> Option<egui::Event> {
 /// Copy and Paste act on the field's text, as their keys do; everything else (and those commands
 /// with no field focused) goes to [`invoke`].
 pub fn invoke_from_system_menu(app: &mut VectorcraftApp, ctx: &egui::Context, id: &str, p: Value) {
+    if let Some(field) = focused_text_field(ctx).and_then(|f| egui::TextEdit::load_state(ctx, f).map(|s| (f, s)))
+        && request_web_field_paste(app, field, id)
+    {
+        return;
+    }
     match focused_text_field(ctx).and_then(|f| Some((f, field_event(app, id)?))) {
         Some((field, e)) => to_field(ctx, field, e),
         None => invoke(app, id, p),
     }
+}
+
+fn request_web_field_paste(app: &mut VectorcraftApp, field: (egui::Id, egui::text_edit::TextEditState), id: &str) -> bool {
+    if !matches!(id, "edit.paste" | "edit.pasteWithoutFormatting") {
+        return false;
+    }
+    let target = app.session.active().map(|d| d.uid);
+    let Some(read) = app.services.clipboard_text.as_mut() else { return false };
+    if let Err(error) = read(target, field.0, field.1) {
+        app.status(error);
+    }
+    true
 }
 
 /// The text field that has the keyboard, if any.
@@ -4129,5 +4152,28 @@ mod tests {
         let tall = rect(3000.0);
         assert!(tall.height() > short.height() + 100.0, "{} vs {}", tall.height(), short.height());
         assert!(tall.bottom() < 3000.0);
+    }
+}
+
+#[cfg(test)]
+mod clipboard_field_tests {
+    use super::*;
+    #[test]
+    fn browser_menu_paste_requests_field_text_without_pasting_artwork() {
+        let requested = std::rc::Rc::new(std::cell::Cell::new(false));
+        let flag = requested.clone();
+        let mut app = VectorcraftApp::new(
+            vectorcraft_engine::Session::new(),
+            crate::Services {
+                clipboard_text: Some(Box::new(move |_, _, _| {
+                    flag.set(true);
+                    Ok(())
+                })),
+                ..Default::default()
+            },
+        );
+        assert!(request_web_field_paste(&mut app, (egui::Id::new("field"), Default::default()), "edit.paste"));
+        assert!(requested.get());
+        assert_eq!(app.run_count, 0);
     }
 }

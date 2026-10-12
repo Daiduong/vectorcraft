@@ -152,7 +152,7 @@ pub enum Action {
 }
 
 /// Paint defaults for new art (the fill/stroke proxy) and the rest of the new-art template.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PaintDefaults {
     pub fill: Paint,
     pub stroke: Paint,

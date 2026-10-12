@@ -73,3 +73,17 @@ fn a_paste_takes_the_command_of_the_v_chord_held() {
 fn no_two_commands_tools_or_panels_share_a_default_shortcut() {
     assert_eq!(shortcut_editor::all_conflicts(&BTreeMap::new()), vec![]);
 }
+
+#[test]
+fn browser_key_and_payload_create_one_object_and_cut_once() {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+    let key = |key| Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND };
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>"#;
+    frame(&mut app, Modifiers::COMMAND, vec![key(Key::V), Event::Paste(svg.into())]);
+    assert_eq!(app.session.active().unwrap().doc.layers[0].children().unwrap().len(), 1);
+    frame(&mut app, Modifiers::COMMAND, vec![key(Key::X), Event::Cut]);
+    assert_eq!(app.session.active().unwrap().doc.layers[0].children().unwrap().len(), 0);
+    frame(&mut app, Modifiers::COMMAND, vec![key(Key::V), Event::Paste(svg.into())]);
+    assert_eq!(app.session.active().unwrap().doc.layers[0].children().unwrap().len(), 1);
+}

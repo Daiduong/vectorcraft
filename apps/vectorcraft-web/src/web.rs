@@ -28,6 +28,12 @@ type DragPos = Rc<Cell<Option<(f32, f32, bool)>>>;
 /// held at the paste, and the context to wake for it (the current runner's).
 #[derive(Default)]
 struct Pasted {
+    menu: std::collections::VecDeque<MenuPasteArrival>,
+    pending: bool,
+    errors: Vec<String>,
+    fields: Vec<FieldPasteArrival>,
+    target: Option<u64>,
+    destination: Option<u64>,
     flavour: Option<(Flavour, egui::Modifiers)>,
     ctx: Option<egui::Context>,
 }
@@ -102,6 +108,7 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
             web_options(),
             Box::new(move |cc| {
                 let ctx = &cc.egui_ctx;
+                craft_bridge::wake(ctx.clone());
                 crate::fonts::spawn_background_fonts(ctx.clone());
                 let loss = GraphicsLoss::default();
                 watch_canvas(&page, &loss, ctx);
@@ -111,7 +118,8 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                     rs.device.set_device_lost_callback(move |reason, msg| loss.report(&ctx, format!("{reason:?}: {msg}")));
                 }
                 host.pasted.borrow_mut().ctx = Some(ctx.clone());
-                let services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.locks.clone());
+                let mut services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.locks.clone());
+                install_clipboard_read(&mut services, host.pasted.clone(), ctx.clone());
                 let app = match taken.borrow_mut().take() {
                     Some(mut app) => {
                         // The old services asked the old context for frames.
@@ -202,6 +210,16 @@ fn track_paste(pasted: &Rc<RefCell<Pasted>>) {
     let Some(window) = web_sys::window() else { return };
     let pasted = pasted.clone();
     let on_paste = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::ClipboardEvent)>::new(move |e: web_sys::ClipboardEvent| {
+        if e.target()
+            .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+            .is_some_and(|el| el.closest("input,textarea,[contenteditable='true'],[contenteditable='']").ok().flatten().is_some())
+        {
+            return;
+        }
+        // Never import artwork while an egui text field owns the paste.
+        if pasted.borrow().ctx.as_ref().is_none_or(|ctx| !ctx.input(|i| i.focused) || ctx.egui_wants_keyboard_input()) {
+            return;
+        }
         let Some(data) = e.clipboard_data() else { return };
         let Some(files) = data.files().filter(|f| f.length() > 0) else { return };
         // Text is egui's, but for the address a browser's Copy Image puts next to the picture.
@@ -209,12 +227,25 @@ fn track_paste(pasted: &Rc<RefCell<Pasted>>) {
         if data.get_data("text").is_ok_and(|t| !t.trim().is_empty() && !is_address(&t)) {
             return;
         }
+        if pasted.borrow().pending {
+            e.prevent_default();
+            e.stop_immediate_propagation();
+            return;
+        }
+        let target = pasted.borrow().target;
+        pasted.borrow_mut().pending = true;
         e.prevent_default();
+        // This listener owns the binary payload. eframe must not also paste its URL/text.
+        e.stop_immediate_propagation();
         let held = pasted.borrow().ctx.as_ref().map(|c| c.input(|i| i.modifiers)).unwrap_or_default();
         let files: Vec<web_sys::File> = (0..files.length()).filter_map(|i| files.get(i)).collect();
         let pasted = pasted.clone();
         wasm_bindgen_futures::spawn_local(async move {
             for file in files {
+                if file.size() > 64.0 * 1024.0 * 1024.0 {
+                    log::error!("Pasted file exceeds the 64 MiB clipboard limit");
+                    continue;
+                }
                 let bytes = match wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await {
                     Ok(buf) => js_sys::Uint8Array::new(&buf).to_vec(),
                     Err(e) => {
@@ -225,11 +256,19 @@ fn track_paste(pasted: &Rc<RefCell<Pasted>>) {
                 if let Some(mime) = file_flavour(&file.name(), bytes.get(..FILE_HEAD).unwrap_or(&bytes), &PASTE_ORDER) {
                     let mut p = pasted.borrow_mut();
                     p.flavour = Some((Flavour { mime, data: bytes }, held));
+                    p.destination = target;
+                    p.pending = false;
                     if let Some(ctx) = &p.ctx {
                         ctx.request_repaint();
                     }
                     return;
                 }
+            }
+            let mut p = pasted.borrow_mut();
+            p.pending = false;
+            p.menu.push_back(("edit.paste".into(), serde_json::json!({}), target, Err("The pasted file is unsupported or exceeds 64 MiB".into())));
+            if let Some(ctx) = &p.ctx {
+                ctx.request_repaint();
             }
         });
     });
@@ -348,9 +387,47 @@ impl eframe::App for WebShell {
             self.restart(&why);
         }
         let Some(app) = &mut self.app else { return };
+        if !craft_bridge::restore(app.session.documents().is_empty(), |bytes| app.craft_restore(bytes)) {
+            return;
+        }
+        app.session.prefs.autosave_recovery = false;
+        if craft_bridge::has_previous() {
+            app.session.recovery = Default::default();
+        }
         let pasted = self.host.pasted.borrow_mut().flavour.take();
         if let Some((f, held)) = pasted {
-            app.paste_from_host(ctx, f, held);
+            if app.session.active().map(|d| d.uid) == self.host.pasted.borrow().destination {
+                app.paste_from_host(ctx, f, held);
+            } else {
+                app.status("Paste cancelled because the active document changed");
+            }
+        }
+        for error in std::mem::take(&mut self.host.pasted.borrow_mut().errors) {
+            app.status(error);
+        }
+        for (target, field, state, text) in std::mem::take(&mut self.host.pasted.borrow_mut().fields) {
+            let focus_changed = ctx.memory(|m| m.focused().is_some_and(|id| id != field));
+            let selection_changed =
+                egui::TextEdit::load_state(ctx, field).is_none_or(|current| current.cursor.char_range() != state.cursor.char_range());
+            if app.session.active().map(|d| d.uid) != target || focus_changed || selection_changed {
+                app.status("Text paste cancelled because the editing target changed");
+                continue;
+            }
+            match text {
+                Ok(text) => {
+                    state.store(ctx, field);
+                    ctx.memory_mut(|m| m.request_focus(field));
+                    ctx.input_mut(|i| i.events.push(egui::Event::Paste(text)));
+                }
+                Err(error) => app.status(error),
+            }
+        }
+        let arrivals = std::mem::take(&mut self.host.pasted.borrow_mut().menu);
+        for (command, params, target, result) in arrivals {
+            let result = result.and_then(|flavour| app.finish_web_paste(&command, params, target, flavour));
+            if let Err(e) = result {
+                app.status(e);
+            }
         }
         let dropped = ctx.input_mut(|i| std::mem::take(&mut i.raw.dropped_files));
         if !dropped.is_empty() {
@@ -382,15 +459,138 @@ impl eframe::App for WebShell {
 
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
         if let Some(app) = &mut self.app {
+            self.host.pasted.borrow_mut().target = app.session.active().map(|d| d.uid);
             app.raw_input_hook(raw);
         }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if let Some(app) = &mut self.app {
+            if !craft_bridge::restore(app.session.documents().is_empty(), |bytes| app.craft_restore(bytes)) {
+                return;
+            }
             app.ui(ui);
+            craft_bridge::ui(app.session.documents().is_empty(), ui.ctx());
+            if !app.ui.dialog.as_ref().is_some_and(|d| d.kind == "recovery") {
+                app.session.recovery = Default::default();
+                craft_bridge::save(app.craft_signature(), || app.craft_capture(), ui.ctx());
+            }
         }
     }
+}
+
+/// Menu/context-menu paste has no ClipboardEvent payload. Read only on explicit invocation.
+fn install_clipboard_read(services: &mut Services, pasted: Rc<RefCell<Pasted>>, ctx: egui::Context) {
+    let (fields, wake) = (pasted.clone(), ctx.clone());
+    services.clipboard_text = Some(Box::new(move |target, field, state| {
+        let promise = browser_clipboard("readText")?.read_text();
+        let (fields, wake) = (fields.clone(), wake.clone());
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = wasm_bindgen_futures::JsFuture::from(promise)
+                .await
+                .map_err(js_err)
+                .and_then(|v| v.as_string().ok_or_else(|| "Clipboard returned no text".into()));
+            fields.borrow_mut().fields.push((target, field, state, result));
+            wake.request_repaint();
+        });
+        Ok(())
+    }));
+    let (out, wake) = (pasted.clone(), ctx.clone());
+    services.clipboard_publish = Some(Box::new(move |flavours| {
+        let promise = write_clipboard(flavours)?;
+        let (out, wake) = (out.clone(), wake.clone());
+        wasm_bindgen_futures::spawn_local(async move {
+            if let Err(e) = wasm_bindgen_futures::JsFuture::from(promise).await {
+                out.borrow_mut().errors.push(format!("Copied inside VectorCraft, but system clipboard write failed: {}", js_err(e)));
+                wake.request_repaint();
+            }
+        });
+        Ok(())
+    }));
+    services.clipboard_paste = Some(Box::new(move |command, params, target| {
+        if pasted.borrow().pending {
+            return Err("A clipboard read is already pending".into());
+        }
+        let promise = browser_clipboard("read")?.read();
+        pasted.borrow_mut().pending = true;
+        let (pasted, ctx, command) = (pasted.clone(), ctx.clone(), command.to_string());
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = read_clipboard(promise).await;
+            let mut p = pasted.borrow_mut();
+            p.pending = false;
+            p.menu.push_back((command, params, target, result));
+            ctx.request_repaint();
+        });
+        Ok(())
+    }));
+}
+async fn read_clipboard(promise: js_sys::Promise) -> Result<Flavour, String> {
+    use vectorcraft_engine::cmd::clipboard::{SVG, TEXT};
+    let denied = |e| format!("Clipboard access failed: {}. Use Ctrl/Cmd+V or allow clipboard access for this site.", js_err(e));
+    let items = wasm_bindgen_futures::JsFuture::from(promise).await.map_err(denied)?;
+    // SVG retains editable objects. PNG wins over an accompanying image URL.
+    let mut text_fallback = None;
+    for mime in [SVG, TEXT, "image/png"] {
+        for item in js_sys::Array::from(&items).iter() {
+            let item: web_sys::ClipboardItem = item.dyn_into().map_err(denied)?;
+            if !item.types().iter().any(|t| t.as_string().as_deref() == Some(mime)) {
+                continue;
+            }
+            let value = wasm_bindgen_futures::JsFuture::from(item.get_type(mime)).await.map_err(denied)?;
+            let blob: web_sys::Blob = value.dyn_into().map_err(denied)?;
+            if blob.size() > 64.0 * 1024.0 * 1024.0 {
+                return Err("Clipboard data exceeds 64 MiB".into());
+            }
+            let buffer = wasm_bindgen_futures::JsFuture::from(blob.array_buffer()).await.map_err(denied)?;
+            let flavour = Flavour { mime, data: js_sys::Uint8Array::new(&buffer).to_vec() };
+            if mime == TEXT && !vectorcraft_engine::cmd::clipboard::looks_like_svg(&String::from_utf8_lossy(&flavour.data)) {
+                text_fallback = Some(flavour);
+            } else {
+                return Ok(flavour);
+            }
+        }
+    }
+    text_fallback.ok_or_else(|| "The clipboard contains no supported artwork or text".into())
+}
+
+fn browser_clipboard(method: &str) -> Result<web_sys::Clipboard, String> {
+    let unavailable =
+        "This browser does not allow clipboard access here. Use Ctrl/Cmd+V to paste, or use a browser with Clipboard API support over HTTPS.";
+    let navigator = web_sys::window().ok_or(unavailable)?.navigator();
+    let value = js_sys::Reflect::get(&navigator, &wasm_bindgen::JsValue::from_str("clipboard")).map_err(|_| unavailable)?;
+    if value.is_null() || value.is_undefined() {
+        return Err(unavailable.into());
+    }
+    let action = js_sys::Reflect::get(&value, &wasm_bindgen::JsValue::from_str(method)).map_err(|_| unavailable)?;
+    if !action.is_function() {
+        return Err(unavailable.into());
+    }
+    value.dyn_into::<web_sys::Clipboard>().map_err(|_| unavailable.into())
+}
+
+/// One ClipboardItem publishes editable SVG as text plus a PNG for raster applications.
+/// eframe must not subsequently replace it with CopyText.
+fn write_clipboard(flavours: &[Flavour]) -> Result<js_sys::Promise, String> {
+    use vectorcraft_engine::cmd::clipboard::{SVG, TEXT};
+    let data = js_sys::Object::new();
+    let text = flavours.iter().find(|f| f.mime == SVG).or_else(|| flavours.iter().find(|f| f.mime == TEXT));
+    let png = flavours.iter().find(|f| f.mime == "image/png");
+    for (mime, flavour) in [(TEXT, text), ("image/png", png)] {
+        let Some(flavour) = flavour else { continue };
+        if flavour.data.len() > 64 * 1024 * 1024 {
+            return Err("Clipboard data exceeds 64 MiB".into());
+        }
+        let parts = js_sys::Array::of1(&js_sys::Uint8Array::from(flavour.data.as_slice()));
+        let opts = web_sys::BlobPropertyBag::new();
+        opts.set_type(mime);
+        let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &opts).map_err(js_err)?;
+        js_sys::Reflect::set(&data, &wasm_bindgen::JsValue::from_str(mime), &blob).map_err(js_err)?;
+    }
+    if text.is_none() && png.is_none() {
+        return Err("There is no supported clipboard representation".into());
+    }
+    let item = web_sys::ClipboardItem::new_with_record_from_str_to_blob_promise(&data).map_err(js_err)?;
+    Ok(browser_clipboard("write")?.write(&js_sys::Array::of1(&item)))
 }
 
 fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, locks: Option<WebLocks>) -> Services {
@@ -440,7 +640,7 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, locks: Op
             }
         })),
         inbox: Some(inbox),
-        recovery_store: Some(Arc::new(BrowserStore { locks })),
+        recovery_store: Some(Arc::new(BrowserStore { locks })), // Read-only legacy migration until the first shared checkpoint.
         // File → Print: the browser's print dialog.
         print: Some(Box::new(BrowserPrint)),
         ..Default::default()
@@ -580,3 +780,16 @@ fn print_pdf(pdf: &[u8]) -> Result<(), String> {
     document.body().ok_or("no body")?.append_child(&frame).map_err(js_err)?;
     Ok(())
 }
+
+#[path = "craft_bridge.rs"]
+mod craft_bridge;
+
+#[path = "browser_store.rs"]
+mod browser_store;
+
+#[cfg(feature = "browser-storage-tests")]
+#[path = "browser_storage_checks.rs"]
+mod browser_storage_tests;
+
+type MenuPasteArrival = (String, serde_json::Value, Option<u64>, Result<Flavour, String>);
+type FieldPasteArrival = (Option<u64>, egui::Id, egui::text_edit::TextEditState, Result<String, String>);
