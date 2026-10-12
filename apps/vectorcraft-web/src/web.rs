@@ -405,7 +405,10 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, script_inbox: Inbox, ctx: egu
             let inbox = picked.clone();
             let ctx = place_ctx.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let dialog = fileio::place_filters().fold(rfd::AsyncFileDialog::new().set_title("Place"), |d, (name, exts)| d.add_filter(name, exts));
+                let dialog =
+                    fileio::place_filters().fold(rfd::AsyncFileDialog::new().set_title(vectorcraft_ui_egui::i18n::t("Place")), |d, (name, exts)| {
+                        d.add_filter(vectorcraft_ui_egui::i18n::tr_ctx(vectorcraft_ui_egui::i18n::current(), "file-filter", name), exts)
+                    });
                 let Some(files) = dialog.pick_files().await else {
                     return;
                 };
@@ -441,7 +444,9 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, script_inbox: Inbox, ctx: egu
             let inbox = open_inbox.clone();
             let ctx = ctx.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let dialog = fileio::open_filters().fold(rfd::AsyncFileDialog::new(), |d, (name, exts)| d.add_filter(name, exts));
+                let dialog = fileio::open_filters().fold(rfd::AsyncFileDialog::new(), |d, (name, exts)| {
+                    d.add_filter(vectorcraft_ui_egui::i18n::tr_ctx(vectorcraft_ui_egui::i18n::current(), "file-filter", name), exts)
+                });
                 let Some(file) = dialog.pick_file().await else {
                     return;
                 };

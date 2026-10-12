@@ -134,8 +134,11 @@ pub struct DocState {
     pub interaction: Option<Interaction>,
     /// Edits made while this is open are one undo step (a scrubbed numeric field).
     pub undo_group: Option<UndoGroup>,
-    /// For Object → Transform → Transform Again (⌘D).
-    pub last_transform: Option<(Affine, bool)>,
+    /// For Object → Transform → Transform Again (⌘D): the last transform's matrix and the options
+    /// Transform Again passes with it. A transform command keeps the `copy`, `typeAreas` and
+    /// `patterns` it used, and `strokes` and `corners` when it scales; a drag keeps the params of its
+    /// last preview with the values that preview noted ([`Session::note_journal`]).
+    pub last_transform: Option<(Affine, Value)>,
     /// What Select → Reselect repeats: the last selection command, its params and the objects
     /// selected when it ran (a Same command's reference objects).
     pub last_selection_cmd: Option<(String, Value, Vec<NodeId>)>,
@@ -916,6 +919,9 @@ pub struct Session {
     /// The last search for the files of missing fonts (`text.findFontFiles`), until another
     /// starts; dropping it stops it.
     pub(crate) font_search: Option<cmd::fontfiles::FontSearch>,
+    /// The last search for the files of linked images and placed documents (`links.findFiles`),
+    /// until another starts; dropping it stops it.
+    pub(crate) link_search: Option<cmd::linkfiles::LinkSearch>,
     /// Where folder searches may go; `None`: this computer's rules ([`cmd::findfiles::Rules`]).
     /// Tests set it.
     pub search_rules: Option<cmd::findfiles::Rules>,
@@ -980,6 +986,7 @@ impl Session {
             plane_widget_press: false,
             ruler_guide: None,
             font_search: None,
+            link_search: None,
             search_rules: None,
             search_threads: None,
             link_stamps: Default::default(),
@@ -1394,7 +1401,14 @@ impl Session {
         if preview.0 == "object.transform" {
             let m = cmd::matrix_param(&preview.1, "matrix");
             if let Some(m) = m {
-                st.last_transform = Some((m, copy));
+                // The options are the last preview's params with the values it noted, without the
+                // matrix and the ids.
+                let mut options = preview.1.clone();
+                if let Some(o) = options.as_object_mut() {
+                    o.remove("matrix");
+                    o.remove("ids");
+                }
+                st.last_transform = Some((m, options));
                 st.last_perspective = None;
             }
         }
@@ -1589,6 +1603,8 @@ mod tests_layers;
 mod tests_library;
 #[cfg(test)]
 mod tests_linked_stops;
+#[cfg(test)]
+mod tests_linkfiles;
 #[cfg(test)]
 mod tests_links;
 #[cfg(test)]
