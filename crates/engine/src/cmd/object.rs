@@ -247,10 +247,15 @@ pub(crate) fn scaling(s: &mut Session, p: &Value) -> Scaling {
 /// param, else General › Transform Pattern Tiles)? Noted in the journal when they use a pattern,
 /// so a replay moves their tiles alike whatever the preference is then.
 pub(crate) fn transform_patterns(s: &mut Session, p: &Value, ids: &[NodeId]) -> Result<bool> {
+    let paths = s.doc()?.doc.index_paths(ids.iter().copied());
+    transform_patterns_in(s, p, ids, &paths)
+}
+
+/// [`transform_patterns`] with `paths`, the [`Document::index_paths`] of (at least) `ids`.
+fn transform_patterns_in(s: &mut Session, p: &Value, ids: &[NodeId], paths: &vectorcraft_doc::IndexPaths) -> Result<bool> {
     let on = bool_or(p, "patterns", s.prefs.transform_pattern_tiles);
     let d = &s.doc()?.doc;
     let mut uses = false;
-    let paths = d.index_paths(ids.iter().copied());
     for n in ids.iter().filter_map(|id| paths.get(id)).filter_map(|p| d.node_at(p)) {
         n.walk(&mut |c| uses |= vectorcraft_doc::pattern::uses_pattern(c, None));
     }
@@ -267,19 +272,21 @@ pub(crate) fn apply_transform(s: &mut Session, label: &str, ids: Vec<NodeId>, xf
     let copy = bool_or(p, "copy", false);
     let areas = bool_or(p, "typeAreas", false);
     let mut sc = if Scaling::factor(xf).is_some() { scaling(s, p) } else { Scaling::default() };
-    sc.patterns = transform_patterns(s, p, &ids)?;
+    // One lookup of the ids serves the patterns check, the check below and the transform.
+    let paths = s.doc()?.doc.index_paths(ids.iter().copied());
+    sc.patterns = transform_patterns_in(s, p, &ids, &paths)?;
     // A transform of ids that name no object, or an identity transform without a copy, moves
     // nothing: the document and its undo history stay as they are, and Transform Again repeats it.
     // With a copy, the reply lists the copies, and there are none.
-    let d = &s.doc()?.doc;
-    let none = d.index_paths(ids.iter().copied()).is_empty();
+    let none = paths.is_empty();
     let ids = if none || (!copy && xf == Affine::IDENTITY) {
         if copy { vec![] } else { ids }
     } else {
         s.edit(label, |d, sel| {
             let targets = if copy { duplicate_in(d, sel, &ids, Affine::IDENTITY)? } else { ids.clone() };
+            // The edit starts from the document the paths were found in; duplicates are new.
             // Transforms don't move nodes in the tree, so the paths found up front stay right.
-            let paths = d.index_paths(targets.iter().copied());
+            let paths = if copy { d.index_paths(targets.iter().copied()) } else { paths };
             for id in &targets {
                 if let Some(n) = paths.get(id).and_then(|p| d.node_mut_at(p))
                     && !(areas && resize_type_area(n, xf))

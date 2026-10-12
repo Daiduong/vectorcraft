@@ -3,17 +3,26 @@
 //! Documents are persistent trees: children are `Arc<Node>`, and edits go through
 //! [`Document::node_mut`], which clones only the nodes on the path from the root to the edited node.
 //! Keeping the previous `Document` value around is therefore a cheap undo snapshot.
+//!
+//! What is worked out from the tree is cached by node identity: [`bounds_cache`] (each object's
+//! bounds, so a group's come from its members') and [`spatial`] (an R-tree of the members of
+//! large containers, for hit testing and marquee selection). Both hold weak references to the
+//! nodes they describe, so a node they know can't change in place or be replaced at its address;
+//! [`change`] finds what changed between two versions by comparing pointers.
 #![forbid(unsafe_code)]
 
 pub mod appearance;
 pub mod assets;
 pub mod blend;
+pub mod bounds_cache;
+pub mod change;
 pub mod clipnest;
 pub mod cmyk;
 pub mod corners;
 pub mod graph;
 pub mod hit;
 mod id_index;
+pub use id_index::{IdHasher, IdMap, IdSet};
 pub mod inks;
 mod inline;
 pub mod shared;
@@ -41,6 +50,7 @@ pub mod selection;
 pub mod setup;
 pub mod shaper;
 pub mod slices;
+pub mod spatial;
 pub mod style_libs;
 pub mod swatches;
 pub mod text;
@@ -680,6 +690,53 @@ pub struct Document {
     /// Where each node is in the tree, for lookups by id ([`id_index`]): a cache, never saved.
     #[serde(skip)]
     index: id_index::IdIndex,
+    /// The spatial index of large containers ([`spatial`]): a cache shared by this document's
+    /// clones (its edits, undo states and previews), never saved.
+    #[serde(skip)]
+    pub(crate) spatial: spatial::SpatialCache,
+}
+
+/// The index paths of many ids ([`Document::index_paths`]), kept in one buffer: looking up a whole
+/// selection allocates nothing per object.
+#[derive(Clone, Debug, Default)]
+pub struct IndexPaths {
+    /// Each id's path: its start and length in `steps`.
+    at: id_index::IdMap<(usize, usize)>,
+    steps: Vec<usize>,
+}
+
+impl IndexPaths {
+    fn with_capacity(n: usize) -> Self {
+        Self { at: id_index::IdMap::with_capacity_and_hasher(n, Default::default()), steps: Vec::with_capacity(n.saturating_mul(2)) }
+    }
+    fn insert(&mut self, id: NodeId, path: &[usize]) {
+        self.at.insert(id, (self.steps.len(), path.len()));
+        self.steps.extend_from_slice(path);
+    }
+    fn extend(&mut self, other: &IndexPaths) {
+        for (id, p) in other.iter() {
+            self.insert(id, p);
+        }
+    }
+    /// The index path of `id`, if it is in the tree.
+    pub fn get(&self, id: &NodeId) -> Option<&[usize]> {
+        let &(start, len) = self.at.get(id)?;
+        self.steps.get(start..start.checked_add(len)?)
+    }
+    pub fn contains_key(&self, id: &NodeId) -> bool {
+        self.at.contains_key(id)
+    }
+    /// How many of the ids are in the tree.
+    pub fn len(&self) -> usize {
+        self.at.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.at.is_empty()
+    }
+    /// Every id found and its path (in no particular order).
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, &[usize])> {
+        self.at.iter().filter_map(|(id, &(start, len))| Some((*id, self.steps.get(start..start.checked_add(len)?)?)))
+    }
 }
 
 fn ppi72() -> f64 {
@@ -753,6 +810,7 @@ impl Document {
             assets: vec![],
             puppet: None,
             index: Default::default(),
+            spatial: Default::default(),
         };
         let id = d.alloc_id();
         d.layers.push(Arc::new(Node::layer(id, "Layer 1", LayerColor::Preset(0))));
@@ -795,9 +853,23 @@ impl Document {
     }
 
     /// Let go of the lookup cache ([`id_index`]), as a document kept in the undo history does: a
-    /// table per step would add up. Lookups still work; the first one builds the cache again.
+    /// table per step would add up. Lookups still work; the first one builds the cache again. (The
+    /// spatial index is one per document, shared by its versions: nothing to let go of per step.)
     pub fn drop_lookup_cache(&self) {
         self.index.clear();
+    }
+
+    /// The spatial index of this document's large containers ([`spatial`]), shared with its
+    /// clones: what hit testing and marquee selection narrow their search with.
+    pub fn spatial(&self) -> &spatial::SpatialCache {
+        &self.spatial
+    }
+
+    /// Give this document a spatial index of its own instead of the one it shares with the
+    /// document it was cloned from (a copy opened as a document of its own): the index follows one
+    /// document's versions best.
+    pub fn unshare_spatial_index(&mut self) {
+        self.spatial = Default::default();
     }
 
     /// Whether the lookup cache ([`id_index`]) is built (see [`Document::drop_lookup_cache`]).
@@ -849,19 +921,23 @@ impl Document {
     /// [`Document::index_path`] of every id in `ids` that is in the tree, in one walk of it: an
     /// edit of many objects looks them all up for the cost of one search instead of one each. Like
     /// `index_path`, an id that appears twice maps to its first place in tree order.
-    pub fn index_paths(&self, ids: impl IntoIterator<Item = NodeId>) -> std::collections::HashMap<NodeId, Vec<usize>> {
-        use std::collections::{HashMap, HashSet};
-        fn walk(nodes: &[Arc<Node>], want: &HashSet<NodeId>, path: &mut Vec<usize>, out: &mut HashMap<NodeId, Vec<usize>>) -> bool {
+    pub fn index_paths(&self, ids: impl IntoIterator<Item = NodeId>) -> IndexPaths {
+        // `want` marks the ids found so far (the first place in tree order counts).
+        fn walk(nodes: &[Arc<Node>], want: &mut id_index::IdMap<bool>, left: &mut usize, path: &mut Vec<usize>, out: &mut IndexPaths) -> bool {
             for (i, n) in nodes.iter().enumerate() {
                 path.push(i);
-                if want.contains(&n.id) && !out.contains_key(&n.id) {
-                    out.insert(n.id, path.clone());
-                    if out.len() == want.len() {
+                if let Some(found) = want.get_mut(&n.id)
+                    && !*found
+                {
+                    *found = true;
+                    out.insert(n.id, path);
+                    *left -= 1;
+                    if *left == 0 {
                         return true;
                     }
                 }
                 if let Some(ch) = n.children()
-                    && walk(ch, want, path, out)
+                    && walk(ch, want, left, path, out)
                 {
                     return true;
                 }
@@ -869,25 +945,41 @@ impl Document {
             }
             false
         }
-        let mut want: HashSet<NodeId> = ids.into_iter().collect();
-        let mut out = HashMap::with_capacity(want.len());
+        let mut want: id_index::IdMap<bool> = ids.into_iter().map(|id| (id, false)).collect();
+        let mut out = IndexPaths::with_capacity(want.len());
         // Cached paths that still check out ([`id_index`]); the rest take one walk. For a good
         // share of the document, one walk is quicker than checking each cached path.
         if let Some(cache) = self.index.get().filter(|c| want.len().saturating_mul(8) < c.len()) {
-            want.retain(|id| match cache.get(id) {
+            want.retain(|id, _| match cache.get(id) {
                 Some(Some(p)) if self.node_at(&p).is_some_and(|n| n.id == *id) => {
-                    out.insert(*id, p);
+                    out.insert(*id, &p);
                     false
                 }
                 _ => true,
             });
         }
         if !want.is_empty() {
-            let mut rest = HashMap::with_capacity(want.len());
-            walk(&self.layers, &want, &mut Vec::new(), &mut rest);
-            out.extend(rest);
+            let mut left = want.len();
+            let mut rest = IndexPaths::with_capacity(left);
+            walk(&self.layers, &mut want, &mut left, &mut Vec::new(), &mut rest);
+            if out.is_empty() {
+                out = rest;
+            } else {
+                out.extend(&rest);
+            }
         }
         out
+    }
+
+    /// The node at index path `path` as the tree holds it (shared: comparing pointers says whether
+    /// it changed).
+    pub fn arc_at(&self, path: &[usize]) -> Option<&Arc<Node>> {
+        let (first, rest) = path.split_first()?;
+        let mut cur: &Arc<Node> = self.layers.get(*first)?;
+        for &i in rest {
+            cur = cur.children()?.get(i)?;
+        }
+        Some(cur)
     }
 
     /// The node at index path `path` (as [`Document::index_path`] gives it).
@@ -1079,9 +1171,19 @@ impl Document {
     }
     /// Union of the geometric bounds of `ids`.
     pub fn bounds_of(&self, ids: &[NodeId], visual: bool) -> Option<Rect> {
-        ids.iter()
-            .filter_map(|id| self.node(*id))
-            .fold(None, |acc, n| vectorcraft_geom::union_opt(acc, if visual { n.visual_bounds() } else { n.geometric_bounds() }))
+        self.nodes_of(ids)
+            .into_iter()
+            .fold(None, |acc, n| vectorcraft_geom::union_opt(acc, if visual { bounds_cache::visual(n) } else { bounds_cache::geometric(n) }))
+    }
+    /// The nodes `ids` name, in the order of `ids` (those not in the tree left out), each found
+    /// where [`Document::node`] finds it: one by one for a few ids, in one walk of the tree for
+    /// many (a large selection).
+    pub fn nodes_of(&self, ids: &[NodeId]) -> Vec<&Arc<Node>> {
+        if ids.len() < 64 {
+            return ids.iter().filter_map(|id| self.node_arc(*id)).collect();
+        }
+        let paths = self.index_paths(ids.iter().copied());
+        ids.iter().filter_map(|id| paths.get(id).and_then(|p| self.arc_at(p))).collect()
     }
     /// Bounds of all art.
     pub fn art_bounds(&self) -> Option<Rect> {
@@ -1521,6 +1623,8 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod tests_hit_oracle;
 #[cfg(test)]
 mod tests_lookups;
 #[cfg(test)]

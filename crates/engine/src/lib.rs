@@ -362,6 +362,8 @@ impl DocState {
         let view = doc.last_view.take();
         let saved_open = doc.layers_open.take();
         let layers_open = OpenRows::new(&doc, saved_open);
+        // A document opened from a copy of another indexes its own versions.
+        doc.unshare_spatial_index();
         let doc = Arc::new(doc);
         Self {
             saved_doc: doc.clone(),
@@ -554,12 +556,23 @@ fn strip_replay_only(id: &str, p: &mut Value) {
 
 /// Cheap sanity check after an edit: artboards and the objects just touched (the selection) must
 /// have finite, in-range geometry, so saved files always reload and renderers never see NaN/∞.
-fn doc_sane(d: &Document, sel: &Selection) -> bool {
+///
+/// `found` holds the [`Document::index_paths`] of (at least) the selected objects.
+fn doc_sane(d: &Document, sel: &Selection, found: &vectorcraft_doc::IndexPaths) -> bool {
     let ok = |r: vectorcraft_geom::Rect| [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD);
-    d.artboards.iter().all(|a| ok(a.rect)) && d.guides.iter().all(|g| g.pos.is_finite() && g.pos.abs() <= MAX_COORD) && {
-        let paths = d.index_paths(sel.objects.iter().copied());
-        sel.objects.iter().all(|id| paths.get(id).and_then(|p| d.node_at(p)).and_then(|n| n.geometric_bounds()).is_none_or(ok))
-    }
+    // A path's curve lies within its anchors and handles (each point of a segment is a weighted
+    // mean of its four), so when those are finite and in range (with a margin for rounding) so
+    // are its bounds, and they needn't be measured.
+    let controls_in_range = |n: &vectorcraft_doc::Node| {
+        const SAFE: f64 = MAX_COORD * (1.0 - 1e-9);
+        let fine = |p: vectorcraft_geom::Point| p.x.is_finite() && p.y.is_finite() && p.x.abs() <= SAFE && p.y.abs() <= SAFE;
+        n.path_data().is_some_and(|pd| pd.anchors().all(|(_, _, a)| fine(a.p) && fine(a.h_in) && fine(a.h_out)))
+    };
+    d.artboards.iter().all(|a| ok(a.rect))
+        && d.guides.iter().all(|g| g.pos.is_finite() && g.pos.abs() <= MAX_COORD)
+        && sel.objects.iter().all(|id| {
+            found.get(id).and_then(|p| d.arc_at(p)).is_none_or(|n| controls_in_range(n) || vectorcraft_doc::bounds_cache::geometric(n).is_none_or(ok))
+        })
 }
 
 /// Where new art goes (Illustrator's drawing modes, Shift+D cycles).
@@ -1385,13 +1398,26 @@ impl Session {
 
     /// Run `f` on a mutable copy of the active document. Outside an interaction this records one
     /// undo step labelled `label`; inside one it just mutates (the interaction commits later).
+    ///
+    /// Published nodes are never changed in place: `before` shares the document while `f` runs, so
+    /// every node `f` reaches through `Arc::make_mut` is copied, and the undo history, the
+    /// interaction snapshot and anything else holding the old version keep it as it was. (The
+    /// bounds cache and the spatial index don't depend on this: they hold weak references, which
+    /// make `Arc::make_mut` move a node to a new allocation even when nothing else shares it, see
+    /// `vectorcraft_doc::bounds_cache`.)
     pub fn edit<T>(&mut self, label: &str, f: impl FnOnce(&mut Document, &mut Selection) -> Result<T>) -> Result<T> {
         let st = self.doc_mut()?;
         let before = st.doc.clone();
         let before_sel = st.selection.clone();
         let doc = Arc::make_mut(&mut st.doc);
         let result = match f(doc, &mut st.selection) {
-            Ok(v) => match cmd::shaper::refresh(&before, Arc::make_mut(&mut st.doc)) {
+            // Shaper groups are evaluated again only when one changed or was added: unchanged ones
+            // (shared with `before`) have nothing to refresh.
+            Ok(v) => match if vectorcraft_doc::change::any_new(&before, &st.doc, &|n| n.extras().shaper.is_some()) {
+                cmd::shaper::refresh(&before, Arc::make_mut(&mut st.doc))
+            } else {
+                Ok(())
+            } {
                 Err(e) => Err(e),
                 Ok(()) => {
                     // Inline graphics in text follow their symbols.
@@ -1414,8 +1440,10 @@ impl Session {
                     if !st.doc.variables.bindings.is_empty() {
                         Arc::make_mut(&mut st.doc).prune_variable_bindings();
                     }
-                    if doc_sane(&st.doc, &st.selection) {
-                        Ok(v)
+                    // One lookup of what the selection names serves the check and the prune below.
+                    let found = st.selection.lookup(&st.doc);
+                    if doc_sane(&st.doc, &st.selection, &found) {
+                        Ok((v, found))
                     } else {
                         Err(EngineError::Other("result would exceed the canvas (coordinates out of range)".into()))
                     }
@@ -1424,8 +1452,8 @@ impl Session {
             Err(e) => Err(e),
         };
         match result {
-            Ok(v) => {
-                st.selection.prune(&st.doc);
+            Ok((v, found)) => {
+                st.selection.prune_found(&st.doc, &found);
                 st.revision += 1;
                 if st.interaction.is_none() {
                     let selection = match st.history.undo.last() {
@@ -1848,6 +1876,8 @@ mod tests_shaper;
 mod tests_slices;
 #[cfg(test)]
 mod tests_smartguides;
+#[cfg(test)]
+mod tests_spatial;
 #[cfg(test)]
 mod tests_strokegeom;
 #[cfg(test)]

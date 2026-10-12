@@ -153,7 +153,7 @@ fn magic_wand(s: &mut Session, p: &Value) -> Result<Value> {
     let w = s.menu.wand.clone();
     let hits: Vec<NodeId> = paintable(&st.doc).into_iter().filter(|i| st.doc.node(*i).is_some_and(|n| w.matches(&reference, n))).collect();
     let ids: Vec<NodeId> = match str_param(p, "mode").unwrap_or("set") {
-        "add" => st.selection.objects.iter().copied().chain(hits.iter().copied().filter(|h| !st.selection.objects.contains(h))).collect(),
+        "add" => st.selection.objects.iter().copied().chain(hits.iter().copied().filter(|h| !st.selection.contains(*h))).collect(),
         "subtract" => st.selection.objects.iter().copied().filter(|i| !hits.contains(i)).collect(),
         "set" => hits,
         other => return Err(bad("select.magicWand", format!("unknown mode `{other}` (set, add, subtract)"))),
