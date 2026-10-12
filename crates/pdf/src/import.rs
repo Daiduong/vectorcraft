@@ -261,7 +261,7 @@ pub fn import_with_report(bytes: &[u8], opts: &ImportOptions) -> Result<ImportRe
             b.warn(PAST_PAGE_NOTE);
         }
         let children: Vec<Arc<Node>> = parts.iter().flat_map(|(_, v)| v.iter().cloned()).collect();
-        placeholder &= ai && only_text(&children);
+        placeholder &= ai && compatibility_placeholder(&children);
         let mut right = ab.x1;
         if opts.crop == CropTo::Bounding
             && let Some(art) = vectorcraft_doc::live::nodes_bounds(&children)
@@ -596,6 +596,29 @@ fn drop_page_fill(parts: &mut Vec<(Option<usize>, Vec<Arc<Node>>)>, page: Rect) 
             parts.remove(0);
         }
     }
+}
+
+/// A PDF-compatible `.ai` whose page is one short notice about a missing PDF part, not a text design.
+fn compatibility_placeholder(nodes: &[Arc<Node>]) -> bool {
+    if !only_text(nodes) {
+        return false;
+    }
+    let mut count = 0usize;
+    let mut words = String::new();
+    fn walk(nodes: &[Arc<Node>], count: &mut usize, words: &mut String) {
+        for n in nodes {
+            match &n.kind {
+                NodeKind::Text(t) => {
+                    *count += 1;
+                    words.push_str(&t.plain_text());
+                }
+                NodeKind::Group { children, .. } => walk(children, count, words),
+                _ => {}
+            }
+        }
+    }
+    walk(nodes, &mut count, &mut words);
+    count == 1 && words.chars().count() <= 160 && words.to_ascii_lowercase().contains("pdf")
 }
 
 /// Is this art text and nothing else (in groups and clips), with some text?

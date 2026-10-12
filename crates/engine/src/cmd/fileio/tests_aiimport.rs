@@ -171,6 +171,21 @@ fn editing_data_false_opens_only_what_the_page_prints() {
     assert!(e.contains("placeholder"), "{e}");
 }
 
+/// A text-only page is the document when it is not the short PDF-compatibility notice.
+#[test]
+fn text_on_an_ai_page_opens_when_it_is_not_the_compatibility_notice() {
+    let page = "BT /F1 12 Tf 10 50 Td (Hello) Tj ET";
+    let mut s = Session::new();
+    let r = open(&mut s, "hello.ai", &ai::ai(b"", page), json!({})).unwrap();
+    let layers = &s.doc().unwrap().doc.layers;
+    assert_eq!(layers.len(), 1, "{r}");
+    let text = layers[0].children().unwrap().iter().find_map(|n| match &n.kind {
+        NodeKind::Text(t) => Some(t.plain_text().to_string()),
+        _ => None,
+    });
+    assert_eq!(text.as_deref(), Some("Hello"), "{r}");
+}
+
 #[test]
 fn fit_to_artwork_bounds_leaves_out_the_hidden_art_and_guides_the_editing_data_has() {
     // A shown square; a hidden one and a long guide far from it, which the page doesn't draw.
