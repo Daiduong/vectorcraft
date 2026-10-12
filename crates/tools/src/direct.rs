@@ -33,6 +33,8 @@ use vectorcraft_doc::{AnchorRef, Node, NodeId, NodeKind, Selection};
 use vectorcraft_geom::{Anchor, PathData, Point, Rect};
 
 use crate::bbox::move_delta;
+use crate::boxindex::BoxIndex;
+use crate::cache::{Slot, ToolCache};
 use crate::corners::{self, CornerDrag, over_widget};
 use crate::guides::{HandleSnap, Leave, PointSnap, Targets};
 use crate::meshedit::MeshEdit;
@@ -165,6 +167,11 @@ impl DirectSelectionTool {
 
 /// The spines of the editable blends, topmost first: (blend, spine).
 pub(crate) fn spines(cx: &ToolContext) -> Vec<(NodeId, PathData)> {
+    // Kept per document state: the Pen asks on every pointer move.
+    ToolCache::get(cx, Slot::Spines, || find_spines(cx)).as_ref().clone()
+}
+
+fn find_spines(cx: &ToolContext) -> Vec<(NodeId, PathData)> {
     let mut v = vec![];
     cx.doc.walk(|n| {
         if let NodeKind::Blend { children, spec } = &n.kind
@@ -222,24 +229,72 @@ fn editable_path(n: &Node) -> Option<Cow<'_, PathData>> {
     }
 }
 
-/// The editable objects `f` accepts, topmost first.
-fn anchor_owners(cx: &ToolContext, f: fn(&Node) -> bool) -> Vec<NodeId> {
-    let mut v = vec![];
-    cx.doc.walk(|n| {
-        if f(n) {
-            v.push(n.id)
+/// The objects whose anchors Direct Selection picks, each with a box round its anchors and
+/// handles (and so its segments too), and an index of the boxes: per document state
+/// ([`crate::cache`]), so a press or a hover looks only at those near the pointer.
+struct AnchorBoxes {
+    /// Each object, numbered as the index has them, and whether it is a path ([`NodeKind::Path`])
+    /// and whether it is area type ([`is_area_type`]).
+    owners: Vec<(NodeId, bool, bool)>,
+    ix: BoxIndex,
+}
+
+impl AnchorBoxes {
+    fn new(nodes: impl IntoIterator<Item = (NodeId, Rect, bool, bool)>) -> Self {
+        let mut owners = vec![];
+        let mut boxes = vec![];
+        for (id, b, path, area) in nodes {
+            boxes.push((b, u32::try_from(owners.len()).unwrap_or(u32::MAX)));
+            owners.push((id, path, area));
         }
-    });
-    v.reverse();
-    v.retain(|id| cx.doc.is_editable(*id));
-    v
+        Self { owners, ix: BoxIndex::new(boxes) }
+    }
+
+    /// The objects (id, path, area type) whose box may meet `r`, in their order.
+    fn meeting(&self, r: Rect) -> impl Iterator<Item = (NodeId, bool, bool)> + '_ {
+        self.ix.meeting(r).into_iter().filter_map(|i| self.owners.get(i as usize).copied())
+    }
+
+    fn near(&self, p: Point, tol: f64) -> impl Iterator<Item = (NodeId, bool, bool)> + '_ {
+        let t = tol.max(0.0);
+        self.meeting(Rect::new(p.x - t, p.y - t, p.x + t, p.y + t))
+    }
+}
+
+/// The box round what [`editable_path`] gives of `n` (its anchors and handles), whether `n` is a
+/// path and whether it is area type; none when it has no anchors.
+fn anchor_box(n: &Node) -> Option<(NodeId, Rect, bool, bool)> {
+    let path = matches!(n.kind, NodeKind::Path { .. });
+    let b = editable_path(n)?.control_bounds()?;
+    Some((n.id, b, path, is_area_type(n)))
+}
+
+/// The editable paths and area type, topmost first ([`AnchorBoxes`]): every node of the tree a
+/// walk finds whose own and every enclosing object's visibility and lock allow editing
+/// ([`vectorcraft_doc::Document::is_editable`]).
+fn anchor_owners(cx: &ToolContext) -> std::sync::Arc<AnchorBoxes> {
+    ToolCache::get(cx, Slot::AnchorOwners, || {
+        fn walk<'a>(n: &'a Node, editable: bool, out: &mut Vec<&'a Node>) {
+            let editable = editable && n.visible && !n.locked;
+            if editable && (matches!(n.kind, NodeKind::Path { .. }) || is_area_type(n)) {
+                out.push(n);
+            }
+            for c in n.children().into_iter().flatten() {
+                walk(c, editable, out);
+            }
+        }
+        let mut nodes = vec![];
+        for l in &cx.doc.layers {
+            walk(l, true, &mut nodes);
+        }
+        AnchorBoxes::new(nodes.into_iter().rev().filter_map(anchor_box))
+    })
 }
 
 /// The anchor within `tol` of `p` nearest to it, of the topmost visible path or area type frame
 /// that has one: (id, si, ai, where it is).
 fn hit_anchor(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, usize, usize, Point)> {
-    let owners = anchor_owners(cx, |n| matches!(n.kind, NodeKind::Path { .. }) || is_area_type(n));
-    owners.into_iter().find_map(|id| {
+    anchor_owners(cx).near(p, tol).find_map(|(id, ..)| {
         let pd = cx.doc.node(id).and_then(editable_path)?;
         nearest_anchor(&pd, p, tol).map(|(si, ai, a)| (id, si, ai, a))
     })
@@ -252,12 +307,29 @@ fn nearest_anchor(pd: &PathData, p: Point, tol: f64) -> Option<(usize, usize, Po
 
 /// An edge of an area type frame under `p`, topmost first: (text, the edge's two anchors).
 fn hit_frame_edge(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, Vec<AnchorRef>)> {
-    anchor_owners(cx, is_area_type).into_iter().find_map(|id| {
+    anchor_owners(cx).near(p, tol).filter(|(.., area)| *area).find_map(|(id, ..)| {
         let frame = cx.doc.node(id).and_then(editable_path)?;
         let (si, seg, _, _, d) = frame.nearest(p)?;
         let n = frame.subpaths.get(si)?.anchors.len();
         (d <= tol && n > 0).then(|| (id, vec![(si, seg % n), (si, (seg + 1) % n)]))
     })
+}
+
+/// The anchors of every editable path inside `r`, in the order of the tree (paths without one
+/// left out).
+fn anchors_in(cx: &ToolContext, r: Rect) -> Vec<(NodeId, Vec<AnchorRef>)> {
+    let owners = anchor_owners(cx);
+    // Topmost first there: the order of the tree is the other way round.
+    let found: Vec<(NodeId, bool, bool)> = owners.meeting(r).filter(|(_, path, _)| *path).collect();
+    found
+        .into_iter()
+        .rev()
+        .filter_map(|(id, ..)| {
+            let path = cx.doc.node(id)?.path_data()?;
+            let v: Vec<AnchorRef> = path.anchors().filter(|(_, _, a)| r.contains(a.p)).map(|(s, i, _)| (s, i)).collect();
+            (!v.is_empty()).then_some((id, v))
+        })
+        .collect()
 }
 
 /// The anchors whose direction handles show, and drag, with the tools that edit anchors
@@ -266,8 +338,9 @@ fn hit_frame_edge(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, Vec<A
 /// selected off, none while more than one anchor is selected.
 fn handle_anchors(cx: &ToolContext) -> Vec<(NodeId, usize, usize, Anchor)> {
     let mut v = vec![];
-    for &id in &cx.selection.objects {
-        let Some(pd) = cx.doc.node(id).and_then(|n| n.path_data()) else { continue };
+    for n in cx.doc.nodes_of(&cx.selection.objects) {
+        let Some(pd) = n.path_data() else { continue };
+        let id = n.id;
         let shown = cx.selection.partial(id);
         v.extend(pd.anchors().filter(|(si, ai, _)| shown.is_none_or(|set| set.contains(&(*si, *ai)))).map(|(si, ai, a)| {
             let mut a = *a;
@@ -289,12 +362,24 @@ fn handle_anchors(cx: &ToolContext) -> Vec<(NodeId, usize, usize, Anchor)> {
     v
 }
 
+/// [`handle_anchors`] per document state, with an index of where each one's handles end.
+struct HandleAnchors {
+    anchors: Vec<(NodeId, usize, usize, Anchor)>,
+    ix: BoxIndex,
+}
+
 /// The end of a shown direction handle ([`handle_anchors`]) nearest to `p` within `tol`, and
 /// nearer to it than the handle's anchor (a short handle leaves its anchor to be picked): (path,
 /// subpath, anchor, is_out).
 pub(crate) fn hit_handle(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, usize, usize, bool)> {
+    let shown = ToolCache::get(cx, Slot::HandleAnchors(cx.handles_multiple), || {
+        let anchors = handle_anchors(cx);
+        let ix =
+            BoxIndex::new(anchors.iter().enumerate().map(|(i, (.., a))| (Rect::from_points(a.h_in, a.h_out), u32::try_from(i).unwrap_or(u32::MAX))));
+        HandleAnchors { anchors, ix }
+    });
     let mut best: Option<((NodeId, usize, usize, bool), f64)> = None;
-    for (id, si, ai, a) in handle_anchors(cx) {
+    for &(id, si, ai, a) in shown.ix.near(p, tol).into_iter().filter_map(|i| shown.anchors.get(i as usize)) {
         for (out, has, h) in [(true, a.has_out(), a.h_out), (false, a.has_in(), a.h_in)] {
             let d = h.distance(p);
             if has && d <= tol && d < a.p.distance(p) && best.is_none_or(|b| d < b.1) {
@@ -675,24 +760,16 @@ impl Tool for DirectSelectionTool {
                     return if toggle { vec![] } else { vec![Action::Exec("select.none".into(), json!({}))] };
                 }
                 // Collect anchors inside the rect for every editable path.
-                let mut sel: Vec<(NodeId, Vec<AnchorRef>)> = vec![];
-                cx.doc.walk(|n| {
-                    if let NodeKind::Path { path, .. } = &n.kind {
-                        let v: Vec<AnchorRef> = path.anchors().filter(|(_, _, a)| r.contains(a.p)).map(|(s, i, _)| (s, i)).collect();
-                        if !v.is_empty() {
-                            sel.push((n.id, v));
-                        }
-                    }
-                });
+                let mut sel = anchors_in(cx, r);
                 // Objects without anchors to pick (type, images, symbols…) are selected whole when
                 // the marquee touches them, as with the Selection tool (#927).
                 for id in vectorcraft_doc::hit::marquee(cx.doc, r, cx.isolation, true) {
                     let whole = cx.doc.node(id).is_some_and(|n| !matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }));
-                    if whole && !sel.iter().any(|(s, _)| *s == id) {
+                    // The paths found are editable already.
+                    if whole && !sel.iter().any(|(s, _)| *s == id) && cx.doc.is_editable(id) {
                         sel.push((id, vec![]));
                     }
                 }
-                sel.retain(|(id, _)| cx.doc.is_editable(*id));
                 let items: Vec<Value> = sel.iter().map(|(id, v)| json!({"id": id.0, "anchors": anchors_json(v)})).collect();
                 vec![Action::Exec("select.anchorsMany".into(), json!({"items": items, "mode": if toggle { "toggle" } else { "set" }}))]
             }
@@ -738,7 +815,11 @@ impl Tool for DirectSelectionTool {
 fn hovered_anchor(cx: &ToolContext, p: Point) -> Option<(NodeId, Point)> {
     let under = hit_test(cx.doc, p, cx.hit_options()).map(|h| h.leaf);
     let tol = cx.point_tol();
-    cx.selection.objects.iter().copied().chain(under).find_map(|id| {
+    // The selected objects near `p`, in selection order, then the one under it.
+    let selected = ToolCache::get(cx, Slot::SelectedAnchors, || {
+        AnchorBoxes::new(cx.doc.nodes_of(&cx.selection.objects).into_iter().filter_map(|n| anchor_box(n)))
+    });
+    selected.near(p, tol).map(|(id, ..)| id).chain(under).find_map(|id| {
         let path = cx.doc.node(id).and_then(editable_path)?;
         nearest_anchor(&path, p, tol).map(|(.., a)| (id, a))
     })
@@ -747,7 +828,11 @@ fn hovered_anchor(cx: &ToolContext, p: Point) -> Option<(NodeId, Point)> {
 /// The frame anchors of the selected area type, which Direct Selection drags.
 fn frame_overlays(cx: &ToolContext) -> Vec<Overlay> {
     let mut out = vec![];
-    for id in &cx.selection.objects {
+    // The selected area type, from the selection's anchor boxes kept per document state.
+    let selected = ToolCache::get(cx, Slot::SelectedAnchors, || {
+        AnchorBoxes::new(cx.doc.nodes_of(&cx.selection.objects).into_iter().filter_map(|n| anchor_box(n)))
+    });
+    for (id, ..) in selected.owners.iter().filter(|(.., area)| *area) {
         let Some(frame) = cx.doc.node(*id).filter(|n| is_area_type(n)).and_then(editable_path) else { continue };
         let color = cx.doc.layer_color(*id);
         out.extend(frame.anchors().map(|(_, _, a)| Overlay::Anchor { p: a.p, color, filled: false, size: 5.0 }));
@@ -1374,5 +1459,111 @@ mod tests {
             let (v, _) = drag(&mut t, &c, (350.0, 350.0), (253.0, 351.0), Mods::default());
             assert_eq!(v["matrix"], json!([1.0, 0.0, 0.0, 1.0, -100.0, 1.0]), "group: {group}");
         }
+    }
+
+    /// The lookups as they were before the per-state indexes (walks of the whole document or
+    /// selection), as oracles.
+    mod oracle {
+        use super::super::*;
+
+        pub fn anchor_owners(cx: &ToolContext, f: fn(&Node) -> bool) -> Vec<NodeId> {
+            let mut v = vec![];
+            cx.doc.walk(|n| {
+                if f(n) {
+                    v.push(n.id)
+                }
+            });
+            v.reverse();
+            v.retain(|id| cx.doc.is_editable(*id));
+            v
+        }
+
+        pub fn hit_anchor(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, usize, usize, Point)> {
+            let owners = anchor_owners(cx, |n| matches!(n.kind, NodeKind::Path { .. }) || is_area_type(n));
+            owners.into_iter().find_map(|id| {
+                let pd = cx.doc.node(id).and_then(editable_path)?;
+                nearest_anchor(&pd, p, tol).map(|(si, ai, a)| (id, si, ai, a))
+            })
+        }
+
+        pub fn hit_frame_edge(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, Vec<AnchorRef>)> {
+            anchor_owners(cx, is_area_type).into_iter().find_map(|id| {
+                let frame = cx.doc.node(id).and_then(editable_path)?;
+                let (si, seg, _, _, d) = frame.nearest(p)?;
+                let n = frame.subpaths.get(si)?.anchors.len();
+                (d <= tol && n > 0).then(|| (id, vec![(si, seg % n), (si, (seg + 1) % n)]))
+            })
+        }
+
+        pub fn anchors_in(cx: &ToolContext, r: Rect) -> Vec<(NodeId, Vec<AnchorRef>)> {
+            let mut sel: Vec<(NodeId, Vec<AnchorRef>)> = vec![];
+            cx.doc.walk(|n| {
+                if let NodeKind::Path { path, .. } = &n.kind {
+                    let v: Vec<AnchorRef> = path.anchors().filter(|(_, _, a)| r.contains(a.p)).map(|(s, i, _)| (s, i)).collect();
+                    if !v.is_empty() {
+                        sel.push((n.id, v));
+                    }
+                }
+            });
+            sel.retain(|(id, _)| cx.doc.is_editable(*id));
+            sel
+        }
+
+        pub fn hovered_anchor(cx: &ToolContext, p: Point) -> Option<(NodeId, Point)> {
+            let under = hit_test(cx.doc, p, cx.hit_options()).map(|h| h.leaf);
+            let tol = cx.point_tol();
+            cx.selection.objects.iter().copied().chain(under).find_map(|id| {
+                let path = cx.doc.node(id).and_then(editable_path)?;
+                nearest_anchor(&path, p, tol).map(|(.., a)| (id, a))
+            })
+        }
+
+        pub fn hit_handle(cx: &ToolContext, p: Point, tol: f64) -> Option<(NodeId, usize, usize, bool)> {
+            let mut best: Option<((NodeId, usize, usize, bool), f64)> = None;
+            for (id, si, ai, a) in handle_anchors(cx) {
+                for (out, has, h) in [(true, a.has_out(), a.h_out), (false, a.has_in(), a.h_in)] {
+                    let d = h.distance(p);
+                    if has && d <= tol && d < a.p.distance(p) && best.is_none_or(|b| d < b.1) {
+                        best = Some(((id, si, ai, out), d));
+                    }
+                }
+            }
+            best.map(|b| b.0)
+        }
+    }
+
+    /// Picking anchors, frame edges and handles, hovering anchors and the marquee find through
+    /// the per-state indexes exactly what walking the whole document (or selection) finds.
+    #[test]
+    fn anchor_lookups_match_walking_everything() {
+        let p = paint();
+        // How often each lookup found something: the probes must exercise them.
+        let mut found = [0; 5];
+        for seed in 1..=6 {
+            let d = random_doc(seed, 400);
+            let s = random_selection(&d, seed, 0.3);
+            for (zoom, many) in [(1.0, true), (0.25, false), (4.0, true)] {
+                let c = ToolContext { zoom, handles_multiple: many, ..cx(&d, &s, &p) };
+                for q in probes(&d, seed * 7 + 1, 600) {
+                    let (tol, point) = (c.pick_tol(), c.point_tol());
+                    assert_eq!(hit_anchor(&c, q, point), oracle::hit_anchor(&c, q, point), "seed {seed} at {q:?}");
+                    assert_eq!(hit_frame_edge(&c, q, tol), oracle::hit_frame_edge(&c, q, tol), "seed {seed} at {q:?}");
+                    assert_eq!(hovered_anchor(&c, q), oracle::hovered_anchor(&c, q), "seed {seed} at {q:?}");
+                    assert_eq!(hit_handle(&c, q, point), oracle::hit_handle(&c, q, point), "seed {seed} at {q:?}");
+                    found[0] += usize::from(hit_anchor(&c, q, point).is_some());
+                    found[1] += usize::from(hit_frame_edge(&c, q, tol).is_some());
+                    found[2] += usize::from(hovered_anchor(&c, q).is_some());
+                    found[3] += usize::from(hit_handle(&c, q, point).is_some());
+                }
+                let mut r = Rng(seed * 13 + 5);
+                for _ in 0..60 {
+                    let a = Point::new(r.next() * 640.0 - 20.0, r.next() * 640.0 - 20.0);
+                    let rect = Rect::from_points(a, a + vectorcraft_geom::Vec2::new(r.next() * 300.0, r.next() * 300.0));
+                    assert_eq!(anchors_in(&c, rect), oracle::anchors_in(&c, rect), "seed {seed} in {rect:?}");
+                    found[4] += usize::from(!anchors_in(&c, rect).is_empty());
+                }
+            }
+        }
+        assert!(found.iter().all(|n| *n > 20), "{found:?}");
     }
 }

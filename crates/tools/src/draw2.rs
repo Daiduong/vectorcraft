@@ -77,21 +77,57 @@ pub fn polyline(pts: &[Point]) -> BezPath {
 
 /// Editable path nodes, selected ones first, then the rest top-most first.
 fn candidate_paths(cx: &ToolContext) -> Vec<NodeId> {
-    let mut v: Vec<NodeId> = cx.selection.objects.iter().copied().filter(|id| cx.doc.node(*id).is_some_and(|n| n.path_data().is_some())).collect();
-    let mut rest = vec![];
-    cx.doc.walk(|n| {
+    let selected = cx.doc.nodes_of(&cx.selection.objects);
+    let mut v: Vec<NodeId> = selected.into_iter().filter(|n| n.path_data().is_some()).map(|n| n.id).collect();
+    // The other paths, each with whether it and everything round it are visible and unlocked
+    // (`Document::is_editable`), found in the same walk.
+    fn walk(n: &vectorcraft_doc::Node, editable: bool, out: &mut Vec<(NodeId, bool)>) {
+        let editable = editable && n.visible && !n.locked;
         if let NodeKind::Path { guide: false, .. } = &n.kind {
-            rest.push(n.id);
+            out.push((n.id, editable));
         }
-    });
-    rest.reverse();
-    for id in rest {
-        if !v.contains(&id) {
-            v.push(id);
+        for c in n.children().into_iter().flatten() {
+            walk(c, editable, out);
         }
     }
-    v.retain(|id| cx.doc.is_editable(*id));
+    let mut rest = vec![];
+    for l in &cx.doc.layers {
+        walk(l, true, &mut rest);
+    }
+    // A selected path's editability from the walk (the first place its id is found, as a lookup
+    // finds it); anything else (a guide, a compound path…) looked up.
+    let mut walked: vectorcraft_doc::IdMap<bool> = vectorcraft_doc::IdMap::default();
+    for (id, editable) in &rest {
+        walked.entry(*id).or_insert(*editable);
+    }
+    v.retain(|id| walked.get(id).copied().unwrap_or_else(|| cx.doc.is_editable(*id)));
+    let picked: std::collections::HashSet<NodeId> = cx.selection.objects.iter().copied().collect();
+    v.extend(rest.into_iter().rev().filter(|(id, editable)| *editable && !picked.contains(id)).map(|(id, _)| id));
     v
+}
+
+/// [`editable_paths`] that may pass within `tol` of `p` (their anchors and handles do), in the
+/// same order: per document state ([`crate::cache`]), so a hover looks only at those near it.
+pub(crate) fn editable_paths_near(cx: &ToolContext, p: Point, tol: f64) -> Vec<NodeId> {
+    struct Near {
+        ids: Vec<NodeId>,
+        ix: crate::boxindex::BoxIndex,
+    }
+    let near = crate::cache::ToolCache::get(cx, crate::cache::Slot::EditablePaths, || {
+        let mut ids = vec![];
+        let mut boxes = vec![];
+        let editable = crate::cache::editable(cx);
+        for n in cx.doc.nodes_of(&cx.selection.objects) {
+            let NodeKind::Path { path, guide: false, .. } = &n.kind else { continue };
+            let Some(b) = path.control_bounds() else { continue };
+            if editable.get(&n.id).copied().unwrap_or(false) {
+                boxes.push((b, u32::try_from(ids.len()).unwrap_or(u32::MAX)));
+                ids.push(n.id);
+            }
+        }
+        Near { ids, ix: crate::boxindex::BoxIndex::new(boxes) }
+    });
+    near.ix.near(p, tol).into_iter().filter_map(|i| near.ids.get(i as usize).copied()).collect()
 }
 
 /// The selected paths the Pen and the Curvature tool edit (not guides, nor locked or hidden ones).
@@ -105,6 +141,9 @@ pub(crate) fn editable_paths<'a>(cx: &'a ToolContext) -> impl Iterator<Item = No
 
 /// The paths whose anchors show with the Pen: the selected ones, and those inside selected groups
 /// and compound paths (not guides, nor locked or hidden ones). Pen + Alt converts their anchors.
+/// The tools ask [`shown_paths_near`], which looks only at those near the pointer; this is its
+/// oracle.
+#[cfg(test)]
 pub(crate) fn shown_paths(cx: &ToolContext) -> Vec<NodeId> {
     fn inside(n: &vectorcraft_doc::Node, v: &mut Vec<NodeId>) {
         match &n.kind {
@@ -124,6 +163,44 @@ pub(crate) fn shown_paths(cx: &ToolContext) -> Vec<NodeId> {
     }
     v.retain(|id| cx.doc.is_editable(*id));
     v
+}
+
+/// [`shown_paths`] that may pass within `tol` of `p` (their anchors and handles do), in the same
+/// order: per document state ([`crate::cache`]), so a hover with Alt looks only at those near it.
+pub(crate) fn shown_paths_near(cx: &ToolContext, p: Point, tol: f64) -> Vec<NodeId> {
+    struct Near {
+        ids: Vec<NodeId>,
+        ix: crate::boxindex::BoxIndex,
+    }
+    let near = crate::cache::ToolCache::get(cx, crate::cache::Slot::ShownPaths, || {
+        fn inside<'a>(n: &'a vectorcraft_doc::Node, v: &mut Vec<&'a vectorcraft_doc::Node>) {
+            match &n.kind {
+                NodeKind::Path { guide: false, .. } => v.push(n),
+                // A Shape Builder group's first child is its shaper, not art.
+                NodeKind::Group { children, .. } | NodeKind::Compound { children, .. } => {
+                    for c in children.iter().skip(usize::from(n.extras().shaper.is_some())) {
+                        inside(c, v);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut paths = vec![];
+        for n in cx.doc.nodes_of(&cx.selection.objects) {
+            inside(n, &mut paths);
+        }
+        let editable = crate::cache::editable(cx);
+        let (mut ids, mut boxes) = (vec![], vec![]);
+        for n in paths {
+            let Some(b) = n.path_data().and_then(|pd| pd.control_bounds()) else { continue };
+            if editable.get(&n.id).copied().unwrap_or(false) {
+                boxes.push((b, u32::try_from(ids.len()).unwrap_or(u32::MAX)));
+                ids.push(n.id);
+            }
+        }
+        Near { ids, ix: crate::boxindex::BoxIndex::new(boxes) }
+    });
+    near.ix.near(p, tol).into_iter().filter_map(|i| near.ids.get(i as usize).copied()).collect()
 }
 
 /// Nearest anchor within `tol`: (path, subpath, anchor).
@@ -218,5 +295,44 @@ mod tests {
             assert_eq!(create(id).unwrap().id(), id);
         }
         assert!(create("selection").is_none());
+    }
+
+    /// The paths the Pen, the Curvature tool and the anchor tools pick from, found per state and
+    /// near the pointer, are those walking everything finds, in the same order.
+    #[test]
+    fn path_candidates_match_walking_everything() {
+        use crate::testutil::*;
+        fn old_candidates(cx: &ToolContext) -> Vec<NodeId> {
+            let mut v: Vec<NodeId> =
+                cx.selection.objects.iter().copied().filter(|id| cx.doc.node(*id).is_some_and(|n| n.path_data().is_some())).collect();
+            let mut rest = vec![];
+            cx.doc.walk(|n| {
+                if let NodeKind::Path { guide: false, .. } = &n.kind {
+                    rest.push(n.id);
+                }
+            });
+            rest.reverse();
+            for id in rest {
+                if !v.contains(&id) {
+                    v.push(id);
+                }
+            }
+            v.retain(|id| cx.doc.is_editable(*id));
+            v
+        }
+        let p = paint();
+        for seed in 1..=4 {
+            let d = random_doc(seed, 300);
+            let s = random_selection(&d, seed, 0.4);
+            let c = cx(&d, &s, &p);
+            assert_eq!(candidate_paths(&c), old_candidates(&c), "seed {seed}");
+            for q in probes(&d, seed, 400) {
+                let (tol, point) = (c.pick_tol(), c.point_tol());
+                assert_eq!(anchor_in(&c, editable_paths_near(&c, q, point), q, point), anchor_in(&c, editable_paths(&c), q, point));
+                assert_eq!(segment_in(&c, editable_paths_near(&c, q, tol), q, tol), segment_in(&c, editable_paths(&c), q, tol));
+                assert_eq!(anchor_in(&c, shown_paths_near(&c, q, point), q, point), anchor_in(&c, shown_paths(&c), q, point));
+                assert_eq!(segment_in(&c, shown_paths_near(&c, q, tol), q, tol), segment_in(&c, shown_paths(&c), q, tol));
+            }
+        }
     }
 }

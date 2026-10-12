@@ -233,7 +233,7 @@ impl Tool for FreeTransformTool {
                 let Some(r) = selection_bounds(cx) else { return vec![] };
                 if let Some(op) = self.classify(cx, r, p, ev.mods) {
                     self.targets = (cx.smart_guides && op.handle().is_some())
-                        .then(|| crate::guides::Targets::collect(cx.doc, &cx.selection.objects, None).styled(cx));
+                        .then(|| crate::guides::Targets::collect_near(cx.doc, &cx.selection.objects, None, Some(p)).styled(cx));
                     self.drag = Some(Drag { op, rect: r, start: p, began: false });
                 }
                 vec![]

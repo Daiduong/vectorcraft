@@ -4922,6 +4922,7 @@ version = "0.9.0"
 dependencies = [
  "image",
  "kurbo 0.13.1",
+ "rstar",
  "serde",
  "serde_json",
  "vectorcraft-color",

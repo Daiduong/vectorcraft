@@ -200,7 +200,7 @@ impl Tool for TransformTool {
                     }
                     d.began = true;
                     // The selection moves, so only the other objects are targets.
-                    self.snap = Some(PointSnap::new(cx, || Targets::collect(cx.doc, &cx.selection.objects, None)));
+                    self.snap = Some(PointSnap::new(cx, || Targets::collect_near(cx.doc, &cx.selection.objects, None, Some(p))));
                     out.push(Action::Begin(self.kind.label().into()));
                 }
                 let (p, guides) = self.snap.as_ref().map_or((p, vec![]), |s| s.snap(cx, p));

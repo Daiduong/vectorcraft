@@ -12,6 +12,8 @@ use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, Tool
 pub struct MeasureTool {
     line: Option<(Point, Point)>,
     dragging: bool,
+    /// Its points snap as a drawing tool's do, the targets kept while the document stays.
+    snap: crate::guides::ArtSnap,
 }
 
 /// (distance, angle in degrees counter-clockwise, dx, dy)
@@ -32,17 +34,13 @@ impl Tool for MeasureTool {
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
         match ev.kind {
             PointerKind::Down => {
-                let (p, _) = crate::guides::snap_draw(cx, ev.pos, &[]);
+                let (p, _) = self.snap.snap(cx, ev.pos, &[]);
                 self.line = Some((p, p));
                 self.dragging = true;
             }
             PointerKind::Drag | PointerKind::Up if self.dragging => {
                 if let Some((a, _)) = self.line {
-                    let b = if ev.mods.shift {
-                        a + vectorcraft_geom::constrain_angle(ev.pos - a, 45.0)
-                    } else {
-                        crate::guides::snap_draw(cx, ev.pos, &[]).0
-                    };
+                    let b = if ev.mods.shift { a + vectorcraft_geom::constrain_angle(ev.pos - a, 45.0) } else { self.snap.snap(cx, ev.pos, &[]).0 };
                     self.line = Some((a, b));
                 }
                 self.dragging = ev.kind == PointerKind::Drag;

@@ -50,7 +50,8 @@ impl TypeWidget {
 
     /// The widget the Selection tool can double-click (its bounding box showing).
     pub fn for_tool(cx: &ToolContext) -> Option<Self> {
-        if !cx.show_bbox {
+        // One object only: the bounding box of a large selection isn't worked out for nothing.
+        if !cx.show_bbox || cx.selection.objects.len() != 1 {
             return None;
         }
         Self::of(cx.doc, cx.selection, &selection_box(cx)?, cx.zoom)

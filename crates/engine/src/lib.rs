@@ -991,6 +991,9 @@ pub struct Session {
     /// While Cmd lends `tool` (a selection tool) for a drag: the tool it was lent to, which comes
     /// back as it was at the release ([`Session::pointer`]).
     pub(crate) lender: Option<Box<dyn Tool>>,
+    /// What the tools work out over the whole selection, kept per document state (the hover of a
+    /// large selection costs what is near the pointer).
+    pub(crate) tool_cache: vectorcraft_tools::cache::ToolCache,
     /// The selection tool chosen last (Selection, Direct Selection or Group Selection): the one Cmd
     /// lends the other tools. None until one is chosen.
     pub(crate) last_selection_tool: Option<&'static str>,
@@ -1100,6 +1103,7 @@ impl Session {
             journal: Journal::default(),
             tool: vectorcraft_tools::create("selection"),
             lender: None,
+            tool_cache: Default::default(),
             last_selection_tool: None,
             last_view: ViewInfo::default(),
             depth: 0,
@@ -1266,6 +1270,7 @@ impl Session {
             return false;
         }
         self.reset_tool_for_doc_switch();
+        self.tool_cache.clear();
         // Closed (saved or discarded): nothing left to recover.
         let uid = self.docs[index].uid;
         cmd::recovery::forget(self, uid);
@@ -1910,6 +1915,8 @@ mod tests_textimport;
 mod tests_tileedge;
 #[cfg(test)]
 mod tests_tints;
+#[cfg(test)]
+mod tests_tool_cache;
 #[cfg(test)]
 mod tests_toolsettings;
 #[cfg(test)]

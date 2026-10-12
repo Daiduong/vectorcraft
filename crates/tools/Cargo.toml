@@ -15,6 +15,7 @@ vectorcraft-doc = { workspace = true }
 vectorcraft-pathops = { workspace = true }
 vectorcraft-text = { workspace = true }
 kurbo = { workspace = true }
+rstar = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
