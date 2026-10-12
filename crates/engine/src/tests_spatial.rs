@@ -79,3 +79,23 @@ fn bounds_follow_edits_drags_undo_and_redo() {
         check(&doc(&s), &format!("redo {i}"));
     }
 }
+
+/// Shift-adding to a large selection and toggling targets stay as they were, with the membership
+/// set kept beside the list.
+#[test]
+fn large_selections_answer_membership_like_the_list() {
+    let mut s = session();
+    let all: Vec<u64> = s.doc().unwrap().doc.selectable_art().iter().map(|id| id.0).collect();
+    s.execute("select.set", &json!({"ids": all[..60]})).unwrap();
+    for id in &all[50..80] {
+        s.execute("select.toggle", &json!({"id": id})).unwrap();
+    }
+    let sel = &s.doc().unwrap().selection;
+    let want: Vec<NodeId> = all[..50].iter().chain(&all[60..80]).map(|i| NodeId(*i)).collect();
+    assert_eq!(sel.objects, want);
+    assert!(all.iter().all(|i| sel.contains(NodeId(*i)) == want.contains(&NodeId(*i))));
+    s.execute("select.inverse", &json!({})).unwrap();
+    let sel = &s.doc().unwrap().selection;
+    assert_eq!(sel.len(), all.len() - want.len());
+    assert!(want.iter().all(|i| !sel.contains(*i)));
+}

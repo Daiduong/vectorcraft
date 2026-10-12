@@ -208,19 +208,52 @@ impl SelectionTool {
         let nearest = |points: &mut dyn Iterator<Item = Point>| {
             points.filter(|q| q.distance(p) <= reach).min_by(|a, b| a.distance(p).total_cmp(&b.distance(p)))
         };
-        // A press on an unselected object selects it alone: the selected ones stay behind.
-        let selected = if under.is_none_or(|u| cx.selection.contains(u)) { &cx.selection.objects[..] } else { &[] };
-        under.into_iter().chain(selected.iter().copied()).find_map(|id| {
-            let n = cx.doc.node(id)?;
+        // Is box `b` (grown by a rounding margin) farther than `reach` from `p`?
+        let far = |b: Rect| {
+            let e = 1e-9 * (1.0 + b.x0.abs().max(b.y0.abs()).max(b.x1.abs()).max(b.y1.abs()));
+            let dx = (b.x0 - e - p.x).max(p.x - b.x1 - e).max(0.0);
+            let dy = (b.y0 - e - p.y).max(p.y - b.y1 - e).max(0.0);
+            dx.hypot(dy) > reach * (1.0 + 1e-9) + e
+        };
+        let point_of = |n: &vectorcraft_doc::Node| {
+            // A path's anchors, and its geometric bounds (and so their centre), lie within its
+            // anchors and handles: a path whose handles are all far from the pointer has neither
+            // near it.
+            if !cx.preview_bounds && n.path_data().and_then(|pd| pd.control_bounds()).is_some_and(far) {
+                return None;
+            }
             let anchor = n.path_data().and_then(|pd| nearest(&mut pd.subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|a| a.p))));
             anchor.map(|q| (q, "anchor")).or_else(|| {
                 if !cx.smart_guides {
                     return None;
                 }
-                let c = cx.doc.bounds_of(&[id], cx.preview_bounds)?.center();
+                let c = (if cx.preview_bounds { n.visual_bounds() } else { n.geometric_bounds() })?.center();
                 (c.distance(p) <= reach).then_some((c, "center"))
             })
-        })
+        };
+        if let Some(hit) = under.and_then(|id| point_of(cx.doc.node(id)?)) {
+            return Some(hit);
+        }
+        // A press on an unselected object selects it alone: the selected ones stay behind.
+        let objects: &[NodeId] = if under.is_none_or(|u| cx.selection.contains(u)) { &cx.selection.objects } else { &[] };
+        if objects.len() < 1024 {
+            return objects.iter().find_map(|id| point_of(cx.doc.node(*id)?));
+        }
+        // A large selection: its objects found in one walk of the tree (each id's first place in
+        // tree order, as a lookup finds it), then looked at in selection order.
+        let mut at: vectorcraft_doc::IdMap<usize> = vectorcraft_doc::IdMap::default();
+        for (i, id) in objects.iter().enumerate() {
+            at.entry(*id).or_insert(i);
+        }
+        let mut nodes: Vec<Option<&vectorcraft_doc::Node>> = vec![None; objects.len()];
+        cx.doc.walk(|n| {
+            if let Some(slot) = at.get(&n.id).and_then(|&i| nodes.get_mut(i))
+                && slot.is_none()
+            {
+                *slot = Some(n);
+            }
+        });
+        nodes.into_iter().flatten().find_map(point_of)
     }
 }
 

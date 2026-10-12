@@ -3,6 +3,8 @@
 //! square to it: scaling by a side handle stretches it along its own width or height. Path
 //! geometry is still baked; Object ▸ Transform ▸ Reset Bounding Box sets the angle back to 0.
 
+use std::sync::Arc;
+
 use vectorcraft_geom::{Affine, Point, Rect, Vec2, normalize_deg, union_opt};
 
 use crate::{Document, Node, NodeId, NodeKind};
@@ -112,21 +114,29 @@ impl Node {
 impl Document {
     /// The angle the bounding box of `ids` stands at: the `bbox_angle` they share, else 0.
     pub fn bbox_angle(&self, ids: &[NodeId]) -> f64 {
-        let mut angles = ids.iter().filter_map(|id| self.node(*id)).map(|n| n.bbox_angle);
-        let Some(first) = angles.next() else { return 0.0 };
-        if angles.all(|a| normalize_deg(a - first).abs() <= EPS_DEG) { first } else { 0.0 }
+        shared_angle(&self.nodes_of(ids))
     }
     /// The bounding box of `ids` square to their shared angle ([`Document::bbox_angle`]):
     /// geometric bounds, or `visual` with their strokes.
     pub fn oriented_bounds(&self, ids: &[NodeId], visual: bool) -> Option<OrientedBox> {
-        let angle = self.bbox_angle(ids);
+        // The objects looked up once, for the angle and the box.
+        let nodes = self.nodes_of(ids);
+        let angle = shared_angle(&nodes);
         if angle == 0.0 {
-            return self.bounds_of(ids, visual).map(OrientedBox::aligned);
+            let b = |n: &Arc<Node>| if visual { crate::bounds_cache::visual(n) } else { crate::bounds_cache::geometric(n) };
+            return nodes.into_iter().fold(None, |acc, n| union_opt(acc, b(n))).map(OrientedBox::aligned);
         }
         let to_local = OrientedBox { angle, rect: Rect::ZERO }.to_doc().inverse();
-        let rect = ids.iter().filter_map(|id| self.node(*id)).fold(None, |acc, n| union_opt(acc, n.bounds_in(to_local, visual)))?;
+        let rect = nodes.into_iter().fold(None, |acc, n| union_opt(acc, n.bounds_in(to_local, visual)))?;
         Some(OrientedBox { angle, rect })
     }
+}
+
+/// The angle `nodes` share ([`Document::bbox_angle`]).
+fn shared_angle(nodes: &[&Arc<Node>]) -> f64 {
+    let mut angles = nodes.iter().map(|n| n.bbox_angle);
+    let Some(first) = angles.next() else { return 0.0 };
+    if angles.all(|a| normalize_deg(a - first).abs() <= EPS_DEG) { first } else { 0.0 }
 }
 
 #[cfg(test)]

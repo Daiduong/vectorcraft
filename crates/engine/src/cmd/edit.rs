@@ -255,7 +255,10 @@ fn shared_selection(selection: vectorcraft_doc::Selection, like: Option<&crate::
 /// Selected top-level objects in paint order, dropping any whose ancestor is also selected.
 pub(crate) fn selected_roots(s: &Session) -> Result<Vec<NodeId>> {
     let st = s.doc()?;
-    Ok(roots_of(&st.doc, st.selection.in_paint_order(&st.doc)))
+    // One lookup of the selection serves the paint order and the roots.
+    let paths = st.doc.index_paths(st.selection.objects.iter().copied());
+    let ordered = vectorcraft_doc::assets::paint_order_in(&paths, st.selection.objects.iter().copied());
+    Ok(roots_in(&st.doc, ordered, &paths))
 }
 
 /// The top-level objects among `ids` (in paint order): compound-path members stand for their
@@ -263,26 +266,41 @@ pub(crate) fn selected_roots(s: &Session) -> Result<Vec<NodeId>> {
 pub(crate) fn roots_of(doc: &Document, ids: Vec<NodeId>) -> Vec<NodeId> {
     // Every id's place in the tree, found in one walk (a lookup per id is a walk per id).
     let paths = doc.index_paths(ids.iter().copied());
+    roots_in(doc, ids, &paths)
+}
+
+/// [`roots_of`] with `paths`, the [`Document::index_paths`] of (at least) `ids`.
+fn roots_in(doc: &Document, ids: Vec<NodeId>, paths: &vectorcraft_doc::IndexPaths) -> Vec<NodeId> {
     // A compound-path member acts as its compound (compounds are one object).
-    let mut sel: Vec<(NodeId, Option<Vec<usize>>)> = ids
+    let mut sel: Vec<(NodeId, Option<&[usize]>)> = ids
         .into_iter()
         .map(|id| {
             let path = paths.get(&id);
             let parent = path.and_then(|p| p.split_last()).map(|(_, up)| up).filter(|up| !up.is_empty());
             match parent.and_then(|up| doc.node_at(up).map(|n| (up, n))) {
-                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) => (n.id, Some(up.to_vec())),
-                _ => (id, path.cloned()),
+                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) => (n.id, Some(up)),
+                _ => (id, path),
             }
         })
         .collect();
     sel.dedup_by_key(|(id, _)| *id);
-    let listed: std::collections::HashSet<NodeId> = sel.iter().map(|(id, _)| *id).collect();
+    let listed: vectorcraft_doc::IdSet = sel.iter().map(|(id, _)| *id).collect();
+    // Is an ancestor along `path` listed? What `Document::ancestry_at` gives (nothing for a path
+    // that doesn't lead anywhere), without building it.
+    let listed_above = |path: &[usize]| {
+        let (mut nodes, mut above) = (&doc.layers, false);
+        for (k, &i) in path.iter().enumerate() {
+            let Some(n) = nodes.get(i) else { return false };
+            above |= k + 1 < path.len() && listed.contains(&n.id);
+            if let Some(ch) = n.children() {
+                nodes = ch;
+            }
+        }
+        above
+    };
     sel.iter()
-        .filter(|(_, path)| {
-            let anc = path.as_deref().and_then(|p| doc.ancestry_at(p)).unwrap_or_default();
-            !anc[..anc.len().saturating_sub(1)].iter().any(|a| listed.contains(a))
-        })
-        .filter(|(_, path)| path.as_deref().and_then(|p| doc.node_at(p)).is_some_and(|n| !n.is_layer()))
+        .filter(|(_, path)| !path.is_some_and(listed_above))
+        .filter(|(_, path)| path.and_then(|p| doc.node_at(p)).is_some_and(|n| !n.is_layer()))
         .map(|(id, _)| *id)
         .collect()
 }

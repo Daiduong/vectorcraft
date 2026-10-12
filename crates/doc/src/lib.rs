@@ -19,6 +19,7 @@ pub mod corners;
 pub mod graph;
 pub mod hit;
 mod id_index;
+pub use id_index::{IdHasher, IdMap, IdSet};
 pub mod inks;
 mod inline;
 pub mod shared;
@@ -687,6 +688,49 @@ pub struct Document {
     index: id_index::IdIndex,
 }
 
+/// The index paths of many ids ([`Document::index_paths`]), kept in one buffer: looking up a whole
+/// selection allocates nothing per object.
+#[derive(Clone, Debug, Default)]
+pub struct IndexPaths {
+    /// Each id's path: its start and length in `steps`.
+    at: id_index::IdMap<(usize, usize)>,
+    steps: Vec<usize>,
+}
+
+impl IndexPaths {
+    fn with_capacity(n: usize) -> Self {
+        Self { at: id_index::IdMap::with_capacity_and_hasher(n, Default::default()), steps: Vec::with_capacity(n.saturating_mul(2)) }
+    }
+    fn insert(&mut self, id: NodeId, path: &[usize]) {
+        self.at.insert(id, (self.steps.len(), path.len()));
+        self.steps.extend_from_slice(path);
+    }
+    fn extend(&mut self, other: &IndexPaths) {
+        for (id, p) in other.iter() {
+            self.insert(id, p);
+        }
+    }
+    /// The index path of `id`, if it is in the tree.
+    pub fn get(&self, id: &NodeId) -> Option<&[usize]> {
+        let &(start, len) = self.at.get(id)?;
+        self.steps.get(start..start.checked_add(len)?)
+    }
+    pub fn contains_key(&self, id: &NodeId) -> bool {
+        self.at.contains_key(id)
+    }
+    /// How many of the ids are in the tree.
+    pub fn len(&self) -> usize {
+        self.at.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.at.is_empty()
+    }
+    /// Every id found and its path (in no particular order).
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, &[usize])> {
+        self.at.iter().filter_map(|(id, &(start, len))| Some((*id, self.steps.get(start..start.checked_add(len)?)?)))
+    }
+}
+
 fn ppi72() -> f64 {
     72.0
 }
@@ -854,19 +898,23 @@ impl Document {
     /// [`Document::index_path`] of every id in `ids` that is in the tree, in one walk of it: an
     /// edit of many objects looks them all up for the cost of one search instead of one each. Like
     /// `index_path`, an id that appears twice maps to its first place in tree order.
-    pub fn index_paths(&self, ids: impl IntoIterator<Item = NodeId>) -> std::collections::HashMap<NodeId, Vec<usize>> {
-        use std::collections::{HashMap, HashSet};
-        fn walk(nodes: &[Arc<Node>], want: &HashSet<NodeId>, path: &mut Vec<usize>, out: &mut HashMap<NodeId, Vec<usize>>) -> bool {
+    pub fn index_paths(&self, ids: impl IntoIterator<Item = NodeId>) -> IndexPaths {
+        // `want` marks the ids found so far (the first place in tree order counts).
+        fn walk(nodes: &[Arc<Node>], want: &mut id_index::IdMap<bool>, left: &mut usize, path: &mut Vec<usize>, out: &mut IndexPaths) -> bool {
             for (i, n) in nodes.iter().enumerate() {
                 path.push(i);
-                if want.contains(&n.id) && !out.contains_key(&n.id) {
-                    out.insert(n.id, path.clone());
-                    if out.len() == want.len() {
+                if let Some(found) = want.get_mut(&n.id)
+                    && !*found
+                {
+                    *found = true;
+                    out.insert(n.id, path);
+                    *left -= 1;
+                    if *left == 0 {
                         return true;
                     }
                 }
                 if let Some(ch) = n.children()
-                    && walk(ch, want, path, out)
+                    && walk(ch, want, left, path, out)
                 {
                     return true;
                 }
@@ -874,23 +922,28 @@ impl Document {
             }
             false
         }
-        let mut want: HashSet<NodeId> = ids.into_iter().collect();
-        let mut out = HashMap::with_capacity(want.len());
+        let mut want: id_index::IdMap<bool> = ids.into_iter().map(|id| (id, false)).collect();
+        let mut out = IndexPaths::with_capacity(want.len());
         // Cached paths that still check out ([`id_index`]); the rest take one walk. For a good
         // share of the document, one walk is quicker than checking each cached path.
         if let Some(cache) = self.index.get().filter(|c| want.len().saturating_mul(8) < c.len()) {
-            want.retain(|id| match cache.get(id) {
+            want.retain(|id, _| match cache.get(id) {
                 Some(Some(p)) if self.node_at(&p).is_some_and(|n| n.id == *id) => {
-                    out.insert(*id, p);
+                    out.insert(*id, &p);
                     false
                 }
                 _ => true,
             });
         }
         if !want.is_empty() {
-            let mut rest = HashMap::with_capacity(want.len());
-            walk(&self.layers, &want, &mut Vec::new(), &mut rest);
-            out.extend(rest);
+            let mut left = want.len();
+            let mut rest = IndexPaths::with_capacity(left);
+            walk(&self.layers, &mut want, &mut left, &mut Vec::new(), &mut rest);
+            if out.is_empty() {
+                out = rest;
+            } else {
+                out.extend(&rest);
+            }
         }
         out
     }
@@ -1095,9 +1148,19 @@ impl Document {
     }
     /// Union of the geometric bounds of `ids`.
     pub fn bounds_of(&self, ids: &[NodeId], visual: bool) -> Option<Rect> {
-        ids.iter()
-            .filter_map(|id| self.node_arc(*id))
+        self.nodes_of(ids)
+            .into_iter()
             .fold(None, |acc, n| vectorcraft_geom::union_opt(acc, if visual { bounds_cache::visual(n) } else { bounds_cache::geometric(n) }))
+    }
+    /// The nodes `ids` name, in the order of `ids` (those not in the tree left out), each found
+    /// where [`Document::node`] finds it: one by one for a few ids, in one walk of the tree for
+    /// many (a large selection).
+    pub fn nodes_of(&self, ids: &[NodeId]) -> Vec<&Arc<Node>> {
+        if ids.len() < 64 {
+            return ids.iter().filter_map(|id| self.node_arc(*id)).collect();
+        }
+        let paths = self.index_paths(ids.iter().copied());
+        ids.iter().filter_map(|id| paths.get(id).and_then(|p| self.arc_at(p))).collect()
     }
     /// Bounds of all art.
     pub fn art_bounds(&self) -> Option<Rect> {

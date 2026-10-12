@@ -554,12 +554,23 @@ fn strip_replay_only(id: &str, p: &mut Value) {
 
 /// Cheap sanity check after an edit: artboards and the objects just touched (the selection) must
 /// have finite, in-range geometry, so saved files always reload and renderers never see NaN/∞.
-fn doc_sane(d: &Document, sel: &Selection) -> bool {
+///
+/// `found` holds the [`Document::index_paths`] of (at least) the selected objects.
+fn doc_sane(d: &Document, sel: &Selection, found: &vectorcraft_doc::IndexPaths) -> bool {
     let ok = |r: vectorcraft_geom::Rect| [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD);
-    d.artboards.iter().all(|a| ok(a.rect)) && d.guides.iter().all(|g| g.pos.is_finite() && g.pos.abs() <= MAX_COORD) && {
-        let paths = d.index_paths(sel.objects.iter().copied());
-        sel.objects.iter().all(|id| paths.get(id).and_then(|p| d.node_at(p)).and_then(|n| n.geometric_bounds()).is_none_or(ok))
-    }
+    // A path's curve lies within its anchors and handles (each point of a segment is a weighted
+    // mean of its four), so when those are finite and in range (with a margin for rounding) so
+    // are its bounds, and they needn't be measured.
+    let controls_in_range = |n: &vectorcraft_doc::Node| {
+        const SAFE: f64 = MAX_COORD * (1.0 - 1e-9);
+        let fine = |p: vectorcraft_geom::Point| p.x.is_finite() && p.y.is_finite() && p.x.abs() <= SAFE && p.y.abs() <= SAFE;
+        n.path_data().is_some_and(|pd| pd.anchors().all(|(_, _, a)| fine(a.p) && fine(a.h_in) && fine(a.h_out)))
+    };
+    d.artboards.iter().all(|a| ok(a.rect))
+        && d.guides.iter().all(|g| g.pos.is_finite() && g.pos.abs() <= MAX_COORD)
+        && sel.objects.iter().all(|id| {
+            found.get(id).and_then(|p| d.arc_at(p)).is_none_or(|n| controls_in_range(n) || vectorcraft_doc::bounds_cache::geometric(n).is_none_or(ok))
+        })
 }
 
 /// Where new art goes (Illustrator's drawing modes, Shift+D cycles).
@@ -1414,8 +1425,10 @@ impl Session {
                     if !st.doc.variables.bindings.is_empty() {
                         Arc::make_mut(&mut st.doc).prune_variable_bindings();
                     }
-                    if doc_sane(&st.doc, &st.selection) {
-                        Ok(v)
+                    // One lookup of what the selection names serves the check and the prune below.
+                    let found = st.selection.lookup(&st.doc);
+                    if doc_sane(&st.doc, &st.selection, &found) {
+                        Ok((v, found))
                     } else {
                         Err(EngineError::Other("result would exceed the canvas (coordinates out of range)".into()))
                     }
@@ -1424,8 +1437,8 @@ impl Session {
             Err(e) => Err(e),
         };
         match result {
-            Ok(v) => {
-                st.selection.prune(&st.doc);
+            Ok((v, found)) => {
+                st.selection.prune_found(&st.doc, &found);
                 st.revision += 1;
                 if st.interaction.is_none() {
                     let selection = match st.history.undo.last() {
