@@ -93,8 +93,24 @@ fn plural_polish(n: u64) -> usize {
     }
 }
 
+/// Arabic counts (CLDR): zero (0), one (1), two (2), `few` when the last two digits are 3–10
+/// (3–10, 103–110, 203–210…), `many` when they are 11–99 (11–99, 111–199…) and `other`
+/// otherwise (100, 101, 102, 200…). Six forms, in that order in every `@plural` row.
+fn plural_arabic(n: u64) -> usize {
+    match n {
+        0 => 0,
+        1 => 1,
+        2 => 2,
+        _ => match n % 100 {
+            3..=10 => 3,
+            11..=99 => 4,
+            _ => 5,
+        },
+    }
+}
+
 /// The registry. English first: it is the fallback and the source language.
-pub static LANGUAGES: [LangInfo; 16] = [
+pub static LANGUAGES: [LangInfo; 17] = [
     LangInfo { code: "en", name: "English", source: "", plural: plural_one_other, complete_menus: false, catalog: OnceLock::new() },
     // Japanese: the whole interface (every menu string and `tl!` literal) and the status and error
     // messages, keeping the product, workspace and perspective preset names in English (`MENU_KEEP_AS_IS`).
@@ -200,6 +216,16 @@ pub static LANGUAGES: [LangInfo; 16] = [
         name: "简体中文",
         source: include_str!("zh-hans.tsv"),
         plural: plural_none,
+        complete_menus: true,
+        catalog: OnceLock::new(),
+    },
+    // Arabic (العربية): the whole interface (every menu string and `tl!` literal), the status and
+    // error messages and the plural messages with six forms. Every `ar-*` locale resolves here.
+    LangInfo {
+        code: "ar",
+        name: "العربية",
+        source: include_str!("ar.tsv"),
+        plural: plural_arabic,
         complete_menus: true,
         catalog: OnceLock::new(),
     },
