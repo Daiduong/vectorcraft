@@ -209,9 +209,9 @@ pub struct Services {
     /// egui's Paste event (web, and keyboard paste everywhere).
     pub clipboard_read: Option<Box<dyn FnMut() -> Option<String>>>,
     /// User-initiated async browser read; completion supplies a Flavour to finish_web_paste.
-    pub clipboard_paste: Option<Box<dyn FnMut(&str, Value, Option<u64>) -> Result<(), String>>>,
-    pub clipboard_text: Option<Box<dyn FnMut(Option<u64>, egui::Id, egui::text_edit::TextEditState) -> Result<(), String>>>,
-    pub clipboard_publish: Option<Box<dyn FnMut(&[vectorcraft_engine::cmd::clipboard::Flavour]) -> Result<(), String>>>,
+    pub clipboard_paste: Option<ClipboardPasteFn>,
+    pub clipboard_text: Option<ClipboardTextFn>,
+    pub clipboard_publish: Option<ClipboardPublishFn>,
     /// Open a URL in the system browser (desktop). Without it, egui opens it (a new tab on the web).
     pub open_url: Option<OpenUrlFn>,
     /// Show an open dialog for several files (File → Place…); returns their paths (none: cancelled).
@@ -600,11 +600,11 @@ impl VectorcraftApp {
             p.insert("artboard".into(), serde_json::json!(panels::artboards::selected(self, n)));
         }
         if id.starts_with("edit.paste") {
-            if self.clipboard_in.is_none() {
-                if let Some(request) = self.services.clipboard_paste.as_mut() {
-                    request(id, params.clone(), self.session.active().map(|d| d.uid))?;
-                    return Ok(json!({"pending": true}));
-                }
+            if self.clipboard_in.is_none()
+                && let Some(request) = self.services.clipboard_paste.as_mut()
+            {
+                request(id, params.clone(), self.session.active().map(|d| d.uid))?;
+                return Ok(json!({"pending": true}));
             }
             if let Err(e) = self.adopt_system_clipboard() {
                 self.ui.status = e.clone();
@@ -1249,3 +1249,7 @@ impl VectorcraftApp {
         Ok(())
     }
 }
+
+pub type ClipboardPasteFn = Box<dyn FnMut(&str, Value, Option<u64>) -> Result<(), String>>;
+pub type ClipboardTextFn = Box<dyn FnMut(Option<u64>, egui::Id, egui::text_edit::TextEditState) -> Result<(), String>>;
+pub type ClipboardPublishFn = Box<dyn FnMut(&[vectorcraft_engine::cmd::clipboard::Flavour]) -> Result<(), String>>;

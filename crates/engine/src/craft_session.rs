@@ -113,6 +113,9 @@ impl Session {
         self.fill_active = fill;
         self.prefs = prefs;
         self.tool = tool;
+        if v["app"] != "vectorcraft" || v["schema"] != 1 {
+            return Err("Incompatible VectorCraft session".into());
+        }
         Ok(v["ui"].clone())
     }
 }
@@ -120,6 +123,9 @@ impl Session {
 impl Session {
     pub fn craft_ui(bytes: &[u8]) -> std::result::Result<Value, String> {
         let (v, _) = crate::craft_codec::unpack(bytes)?;
+        if v["app"] != "vectorcraft" || v["schema"] != 1 {
+            return Err("Incompatible VectorCraft session".into());
+        }
         Ok(v["ui"].clone())
     }
 }
@@ -129,13 +135,8 @@ fn encode_doc(d: &Document) -> std::result::Result<Vec<u8>, String> {
     let mut blobs = Vec::new();
     let mut images = serde_json::Map::new();
     for (name, img) in &d.images {
-        let i = blobs.len();
-        blobs.push(img.bytes.as_ref().clone());
-        let proxy = img.proxy.as_ref().map(|b| {
-            let j = blobs.len();
-            blobs.push(b.as_ref().clone());
-            j
-        });
+        let i = codec::push(&mut blobs, img.bytes.as_ref().clone())?;
+        let proxy = img.proxy.as_ref().map(|b| codec::push(&mut blobs, b.as_ref().clone())).transpose()?;
         images.insert(name.clone(), json!([i, proxy]));
     }
     codec::pack(&json!({"document":d,"images":images,"maskEdit":d.mask_edit,"puppet":d.puppet}), &blobs)

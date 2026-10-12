@@ -1748,3 +1748,5 @@ mod tests_xform;
 
 mod craft_codec;
 mod craft_session;
+
+mod recovery_cmds;

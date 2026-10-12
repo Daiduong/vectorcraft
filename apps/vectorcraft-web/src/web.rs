@@ -28,10 +28,10 @@ type DragPos = Rc<Cell<Option<(f32, f32, bool)>>>;
 /// held at the paste, and the context to wake for it (the current runner's).
 #[derive(Default)]
 struct Pasted {
-    menu: std::collections::VecDeque<(String, serde_json::Value, Option<u64>, Result<Flavour, String>)>,
+    menu: std::collections::VecDeque<MenuPasteArrival>,
     pending: bool,
     errors: Vec<String>,
-    fields: Vec<(Option<u64>, egui::Id, egui::text_edit::TextEditState, Result<String, String>)>,
+    fields: Vec<FieldPasteArrival>,
     target: Option<u64>,
     destination: Option<u64>,
     flavour: Option<(Flavour, egui::Modifiers)>,
@@ -386,11 +386,11 @@ impl eframe::App for WebShell {
             self.restart(&why);
         }
         let Some(app) = &mut self.app else { return };
-        if !craft_bridge::restore(|bytes| app.craft_restore(bytes)) {
+        if !craft_bridge::restore(app.session.documents().is_empty(), |bytes| app.craft_restore(bytes)) {
             return;
         }
         app.session.prefs.autosave_recovery = false;
-        if craft_has_previous() {
+        if craft_bridge::has_previous() {
             app.session.recovery = Default::default();
         }
         let pasted = self.host.pasted.borrow_mut().flavour.take();
@@ -465,10 +465,11 @@ impl eframe::App for WebShell {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if let Some(app) = &mut self.app {
-            if !craft_bridge::restore(|bytes| app.craft_restore(bytes)) {
+            if !craft_bridge::restore(app.session.documents().is_empty(), |bytes| app.craft_restore(bytes)) {
                 return;
             }
             app.ui(ui);
+            craft_bridge::ui(app.session.documents().is_empty(), ui.ctx());
             if !app.ui.dialog.as_ref().is_some_and(|d| d.kind == "recovery") {
                 app.session.recovery = Default::default();
                 craft_bridge::save(app.craft_signature(), || app.craft_capture(), ui.ctx());
@@ -774,10 +775,15 @@ fn print_pdf(pdf: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-#[wasm_bindgen::prelude::wasm_bindgen(inline_js = "export function craft_has_previous(){return globalThis.CraftSession?.hasPrevious() ?? true;}")]
-extern "C" {
-    fn craft_has_previous() -> bool;
-}
-
 #[path = "craft_bridge.rs"]
 mod craft_bridge;
+
+#[path = "browser_store.rs"]
+mod browser_store;
+
+#[cfg(feature = "browser-storage-tests")]
+#[path = "browser_storage_checks.rs"]
+mod browser_storage_tests;
+
+type MenuPasteArrival = (String, serde_json::Value, Option<u64>, Result<Flavour, String>);
+type FieldPasteArrival = (Option<u64>, egui::Id, egui::text_edit::TextEditState, Result<String, String>);

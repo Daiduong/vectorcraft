@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
 use serde_json::json;
 use vectorcraft_doc::Document;
 use vectorcraft_engine::Session;
@@ -23,4 +24,17 @@ fn craft_session_tabs_history_and_saved_identity_round_trip() {
     assert!(!r.active().unwrap().is_dirty());
     assert!(r.craft_restore(&bytes[..20]).is_err());
     assert_eq!(r.documents().len(), 2);
+}
+
+#[test]
+fn recovery_inspection_rejects_wrong_app_and_malformed_envelopes() {
+    for bytes in [b"".as_slice(), b"CRAFTS01", b"CRAFTS01\xff\xff\xff\xff"] {
+        assert!(Session::craft_ui(bytes).is_err());
+    }
+    let meta = br#"{"app":"unrelated","schema":1,"ui":{}}"#;
+    let mut bytes = b"CRAFTS01".to_vec();
+    bytes.extend_from_slice(&(meta.len() as u32).to_le_bytes());
+    bytes.extend_from_slice(meta);
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    assert!(Session::craft_ui(&bytes).is_err());
 }
