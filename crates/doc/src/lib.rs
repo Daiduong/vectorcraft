@@ -3,11 +3,16 @@
 //! Documents are persistent trees: children are `Arc<Node>`, and edits go through
 //! [`Document::node_mut`], which clones only the nodes on the path from the root to the edited node.
 //! Keeping the previous `Document` value around is therefore a cheap undo snapshot.
+//!
+//! What is worked out from the tree is cached by node identity: [`bounds_cache`] (each object's
+//! bounds, so a group's come from its members'). It holds weak references to the nodes it
+//! describes, so a node it knows can't change in place or be replaced at its address.
 #![forbid(unsafe_code)]
 
 pub mod appearance;
 pub mod assets;
 pub mod blend;
+pub mod bounds_cache;
 pub mod clipnest;
 pub mod cmyk;
 pub mod corners;
@@ -890,6 +895,17 @@ impl Document {
         out
     }
 
+    /// The node at index path `path` as the tree holds it (shared: comparing pointers says whether
+    /// it changed).
+    pub fn arc_at(&self, path: &[usize]) -> Option<&Arc<Node>> {
+        let (first, rest) = path.split_first()?;
+        let mut cur: &Arc<Node> = self.layers.get(*first)?;
+        for &i in rest {
+            cur = cur.children()?.get(i)?;
+        }
+        Some(cur)
+    }
+
     /// The node at index path `path` (as [`Document::index_path`] gives it).
     pub fn node_at(&self, path: &[usize]) -> Option<&Node> {
         let (first, rest) = path.split_first()?;
@@ -1080,8 +1096,8 @@ impl Document {
     /// Union of the geometric bounds of `ids`.
     pub fn bounds_of(&self, ids: &[NodeId], visual: bool) -> Option<Rect> {
         ids.iter()
-            .filter_map(|id| self.node(*id))
-            .fold(None, |acc, n| vectorcraft_geom::union_opt(acc, if visual { n.visual_bounds() } else { n.geometric_bounds() }))
+            .filter_map(|id| self.node_arc(*id))
+            .fold(None, |acc, n| vectorcraft_geom::union_opt(acc, if visual { bounds_cache::visual(n) } else { bounds_cache::geometric(n) }))
     }
     /// Bounds of all art.
     pub fn art_bounds(&self) -> Option<Rect> {

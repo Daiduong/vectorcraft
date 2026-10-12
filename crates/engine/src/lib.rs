@@ -1849,6 +1849,8 @@ mod tests_slices;
 #[cfg(test)]
 mod tests_smartguides;
 #[cfg(test)]
+mod tests_spatial;
+#[cfg(test)]
 mod tests_strokegeom;
 #[cfg(test)]
 mod tests_strokegradient;

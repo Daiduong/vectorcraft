@@ -43,18 +43,7 @@ impl PuppetPins {
 impl Document {
     /// The node `id` as the document holds it (shared: comparing pointers says whether it changed).
     pub fn node_arc(&self, id: NodeId) -> Option<&Arc<Node>> {
-        fn find(nodes: &[Arc<Node>], id: NodeId) -> Option<&Arc<Node>> {
-            for n in nodes {
-                if n.id == id {
-                    return Some(n);
-                }
-                if let Some(f) = n.children().and_then(|ch| find(ch, id)) {
-                    return Some(f);
-                }
-            }
-            None
-        }
-        find(&self.layers, id)
+        self.index_path(id).and_then(|p| self.arc_at(&p))
     }
 }
 

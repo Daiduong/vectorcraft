@@ -170,7 +170,7 @@ fn hit_children(
         // (An envelope's content sits where it was, not where the envelope draws it.)
         if !(edits_contents(c)
             || c.extras().shaper.is_some() && c.children().and_then(|children| children.first()).is_some_and(|source| Some(source.id) == opt.scope))
-            && let Some(b) = c.reach_bounds()
+            && let Some(b) = crate::bounds_cache::reach(c)
             && !b.inflate(opt.tol, opt.tol).contains(p)
         {
             continue;
