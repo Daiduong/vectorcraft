@@ -418,14 +418,18 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         vec![]
     };
     if app.ui.view.edges && !revolve_edit {
-        hover_highlight(app, &painter, &xf);
-        selection_overlay(app, &painter, &xf, overlays.iter().any(|o| matches!(o, Overlay::CurvePoint { .. })));
+        let mut cache = std::mem::take(&mut app.canvas.overlay);
+        cache.begin(&xf);
+        hover_highlight(app, &mut cache, &painter, &xf);
+        selection_overlay(app, &mut cache, &painter, &xf, overlays.iter().any(|o| matches!(o, Overlay::CurvePoint { .. })));
+        cache.end();
         if app.ui.view.text_threads {
             thread_overlay(app, &painter, &xf);
         }
         if app.ui.view.hidden_chars {
-            hidden_chars_overlay(app, &painter, &xf);
+            hidden_chars_overlay(app, &mut cache, &painter, &xf);
         }
+        app.canvas.overlay = cache;
     }
     draw_overlays(&painter, &xf, &overlays, &t, HandleLook::of(&app.session.prefs));
     ime_output(app, ui.ctx(), &xf);
@@ -1183,9 +1187,13 @@ fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, unit: Unit, 
 }
 
 fn to_screen_path(bp: &BezPath, xf: &Xf) -> Vec<Vec<Pos2>> {
-    // Flatten for drawing: a polyline per subpath (tolerance ~0.25 screen px).
+    flatten(bp, xf.affine())
+}
+
+/// `bp` mapped by `a` to screen points and flattened for drawing: a polyline per subpath
+/// (tolerance ~0.25 screen px).
+fn flatten(bp: &BezPath, a: Affine) -> Vec<Vec<Pos2>> {
     let mut out: Vec<Vec<Pos2>> = vec![];
-    let a = xf.affine();
     let mut t = bp.clone();
     t.apply_affine(a);
     let mut cur: Vec<Pos2> = vec![];
@@ -1211,9 +1219,9 @@ fn to_screen_path(bp: &BezPath, xf: &Xf) -> Vec<Vec<Pos2>> {
     out
 }
 
-fn stroke_path(p: &egui::Painter, bp: &BezPath, xf: &Xf, s: Stroke) {
+fn stroke_path(p: &impl Sink, bp: &BezPath, xf: &Xf, s: Stroke) {
     for line in to_screen_path(bp, xf) {
-        p.add(Shape::line(line, s));
+        p.put(Shape::line(line, s));
     }
 }
 
@@ -1397,7 +1405,7 @@ fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, xf: &Xf)
     }
 }
 
-fn hover_highlight(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+fn hover_highlight(app: &VectorcraftApp, cache: &mut OverlayCache, p: &egui::Painter, xf: &Xf) {
     let Some(h) = app.hover_doc else { return };
     // Smart Guides › Object Highlighting: a Smart Guides display option, so it needs them on.
     if !app.ui.view.smart_guides || !app.session.prefs.object_highlighting {
@@ -1407,14 +1415,314 @@ fn hover_highlight(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
         return;
     }
     let Some(st) = app.session.active() else { return };
-    let Some(hit) = hit_at(app, h, xf.zoom) else { return };
+    // One hit test per pointer position, document revision and view: a still pointer (an idle
+    // frame, an animation) tests nothing. later: the tool's cursor (`Session::cursor`) hit-tests
+    // the same point again inside the tools; sharing this result needs a way to hand it to them.
+    let prefs = &app.session.prefs;
+    let key = HoverKey {
+        doc: (st.uid, st.revision),
+        at: (h.x.to_bits(), h.y.to_bits()),
+        zoom: xf.zoom.to_bits(),
+        tol: prefs.selection_tolerance.to_bits(),
+        flags: (app.ui.view.outline, prefs.object_selection_by_path_only, prefs.type_selection_by_path_only),
+        scope: st.isolation,
+    };
+    let hit = match &cache.hover {
+        Some((k, hit)) if *k == key => hit.clone(),
+        _ => {
+            let hit = hit_at(app, h, xf.zoom);
+            cache.hover = Some((key, hit.clone()));
+            hit
+        }
+    };
+    let Some(hit) = hit else { return };
     let id = if app.session.tool_id() == "selection" { hit.top_object(st.isolation) } else { hit.leaf };
     if st.selection.contains(id) {
         return;
     }
-    if let Some(n) = st.doc.node(id).filter(|n| !too_many_anchors([*n])) {
-        let color = c32(st.doc.layer_color(id));
-        stroke_path(p, &node_outline(n), xf, Stroke::new(1.5, color));
+    let Some(n) = node_arc(&st.doc, id) else { return };
+    let o = cache.outline(n);
+    if !o.too_many {
+        o.stroke(p, xf, Stroke::new(1.5, c32(st.doc.layer_color(id))));
+    }
+}
+
+/// [`OverlayCache::hover`]: what the hover highlight's hit test depends on.
+#[derive(Clone, Copy, PartialEq)]
+struct HoverKey {
+    /// Document uid and revision.
+    doc: (u64, u64),
+    /// The pointer in document coordinates (bits).
+    at: (u64, u64),
+    zoom: u64,
+    /// Selection & Anchor Display › Tolerance (bits).
+    tol: u64,
+    /// Outline view, Object Selection by Path Only, Type Object Selection by Path Only.
+    flags: (bool, bool, bool),
+    /// The isolated group.
+    scope: Option<vectorcraft_doc::NodeId>,
+}
+
+/// What the selection overlay and the hover highlight keep between frames
+/// ([`crate::CanvasCache::overlay`]), so a frame where nothing changed redoes little: the outlines
+/// flattened per object, the selection resolved and its anchors counted per revision, the hover
+/// highlight's hit test per pointer position.
+#[derive(Default)]
+pub struct OverlayCache {
+    /// Outlines by object, flattened at view scale `scale`. Each holds the object it was made
+    /// from: an edited object (a new `Arc`) is outlined again, and panning only moves them.
+    outlines: std::collections::HashMap<vectorcraft_doc::NodeId, Outline>,
+    /// The (zoom, rotation) the outlines are flattened at.
+    scale: (f64, f64),
+    /// The selection for (document uid, revision): its objects with their layer colours, and
+    /// whether it has too many anchors to outline ([`too_many_anchors`]).
+    selection: Option<((u64, u64), std::sync::Arc<SelectionItems>)>,
+    /// The hover highlight's hit test.
+    hover: Option<(HoverKey, Option<vectorcraft_doc::hit::Hit>)>,
+    /// The Live Corners widgets on show, with their layer colours.
+    corners: Option<(CornersKey, CornerDots)>,
+    /// The document's text objects for (document uid, revision) (Show Hidden Characters).
+    texts: Option<((u64, u64), Texts)>,
+    /// Frames drawn, and outlines used this frame: outlines no longer used are let go.
+    frame: u64,
+    used: usize,
+}
+
+/// [`OverlayCache::corners`]: where each Live Corners widget shows, in its layer colour.
+type CornerDots = std::sync::Arc<Vec<(Point, Color32)>>;
+
+/// [`OverlayCache::texts`].
+type Texts = std::sync::Arc<Vec<std::sync::Arc<Node>>>;
+
+/// [`OverlayCache::selection`].
+struct SelectionItems {
+    items: Vec<(std::sync::Arc<Node>, Color32)>,
+    big: bool,
+    /// The selected blends and the blends holding selected objects, whose spines show.
+    blends: Vec<vectorcraft_doc::NodeId>,
+}
+
+/// [`OverlayCache::corners`]: what the Live Corners widgets on show depend on.
+#[derive(Clone, Copy, PartialEq)]
+struct CornersKey {
+    doc: (u64, u64),
+    zoom: u64,
+    /// Direct Selection (widgets on any path), else Selection.
+    direct: bool,
+    /// View → Show Corner Widget.
+    on: bool,
+    /// Hide Corner Widget for angles greater than (bits).
+    max_angle: u64,
+}
+
+/// The outline of an object as the overlay draws it, flattened for the view's scale.
+struct Outline {
+    node: std::sync::Arc<Node>,
+    /// More anchor points than [`OVERLAY_MAX_ANCHORS`]: `lines` is its bounds' rectangle.
+    too_many: bool,
+    /// Document-space box round everything the overlay draws for the object (its outline,
+    /// anchors, handles, mesh points, centre and type baseline), for culling.
+    reach: Option<Rect>,
+    /// The points of the gradient meshes and mesh envelopes drawn inside it, by object.
+    grids: Vec<(vectorcraft_doc::NodeId, Vec<Point>)>,
+    /// The document point `lines` are relative to.
+    origin: Point,
+    /// The outline flattened for the view's scale: screen offsets from `origin`.
+    lines: Vec<Vec<Pos2>>,
+    /// The frame it was last used in.
+    used: u64,
+}
+
+impl Outline {
+    fn new(n: &std::sync::Arc<Node>, scale: (f64, f64), frame: u64) -> Self {
+        let too_many = too_many_anchors([&**n]);
+        let bp = if too_many { n.geometric_bounds().map(|b| vectorcraft_geom::shapes::rectangle(b).to_bezpath()) } else { Some(node_outline(n)) };
+        let bp = bp.unwrap_or_default();
+        let mut reach = n.geometric_bounds();
+        let mut add = |q: Point| reach = Some(reach.map_or(Rect::from_points(q, q), |r| r.union_pt(q)));
+        for el in bp.elements() {
+            match *el {
+                PathEl::MoveTo(a) | PathEl::LineTo(a) => add(a),
+                PathEl::QuadTo(a, b) => [a, b].into_iter().for_each(&mut add),
+                PathEl::CurveTo(a, b, c) => [a, b, c].into_iter().for_each(&mut add),
+                PathEl::ClosePath => {}
+            }
+        }
+        if let NodeKind::Text(tx) = &n.kind {
+            add(tx.xf * Point::ZERO);
+        }
+        let mut grids = vec![];
+        if !too_many {
+            walk_drawn(n, &mut |c| {
+                let points: Vec<Point> = match &c.kind {
+                    NodeKind::Mesh(m) => m.points.iter().map(|q| q.p).collect(),
+                    NodeKind::Envelope { .. } => match vectorcraft_doc::live::envelope_overlay(c).and_then(|(_, grid)| grid) {
+                        Some(grid) => grid.points.iter().map(|q| q.p).collect(),
+                        None => return,
+                    },
+                    _ => return,
+                };
+                points.iter().for_each(|q| add(*q));
+                grids.push((c.id, points));
+            });
+        }
+        let origin = reach.map_or(Point::ZERO, |r| Point::new(r.x0, r.y0));
+        let (zoom, rot) = scale;
+        let lines = flatten(&bp, Affine::rotate(rot) * Affine::scale(zoom) * Affine::translate(-origin.to_vec2()));
+        Self { node: n.clone(), too_many, reach, grids, origin, lines, used: frame }
+    }
+
+    /// Stroke the outline at view `xf`.
+    fn stroke(&self, p: &impl Sink, xf: &Xf, s: Stroke) {
+        let o = xf.to_screen(self.origin).to_vec2();
+        for line in &self.lines {
+            p.put(Shape::line(line.iter().map(|q| *q + o).collect(), s));
+        }
+    }
+}
+
+impl OverlayCache {
+    /// Start a frame at view `xf`: outlines flattened at another zoom or rotation are dropped.
+    fn begin(&mut self, xf: &Xf) {
+        if self.scale != (xf.zoom, xf.rot) {
+            self.outlines.clear();
+            self.scale = (xf.zoom, xf.rot);
+        }
+        self.frame += 1;
+        self.used = 0;
+    }
+
+    /// End a frame: outlines not used in it are let go once they outnumber those used.
+    fn end(&mut self) {
+        if self.outlines.len() > 2 * self.used + 64 {
+            let frame = self.frame;
+            self.outlines.retain(|_, o| o.used == frame);
+        }
+    }
+
+    /// The outline of `n`, made now if it wasn't for this very object.
+    fn outline(&mut self, n: &std::sync::Arc<Node>) -> &Outline {
+        let (frame, scale) = (self.frame, self.scale);
+        self.used += 1;
+        let o = self.outlines.entry(n.id).or_insert_with(|| Outline::new(n, scale, frame));
+        if !std::sync::Arc::ptr_eq(&o.node, n) {
+            *o = Outline::new(n, scale, frame);
+        }
+        o.used = frame;
+        o
+    }
+
+    /// The selection's objects and layer colours, and whether it has too many anchors to outline:
+    /// looked up once per revision.
+    fn selection(&mut self, st: &vectorcraft_engine::DocState) -> std::sync::Arc<SelectionItems> {
+        let key = (st.uid, st.revision);
+        if let Some((k, items)) = &self.selection
+            && *k == key
+        {
+            return items.clone();
+        }
+        // Each object, its layer colour and what holds it, from one lookup of its place.
+        let (mut items, mut blends) = (Vec::with_capacity(st.selection.objects.len()), vec![]);
+        for id in &st.selection.objects {
+            let Some(chain) = st.doc.index_path(*id).and_then(|p| arc_chain(&st.doc, &p)) else { continue };
+            let Some((n, above)) = chain.split_last() else { continue };
+            // The innermost layer or sublayer holding it (or itself), as Document::layer_color.
+            let color = match chain.iter().rev().map(|n| &n.kind).find(|k| matches!(k, NodeKind::Layer { .. })) {
+                Some(NodeKind::Layer { color, .. }) => color.rgb(),
+                _ => vectorcraft_doc::LAYER_COLORS[0].1,
+            };
+            items.push(((*n).clone(), c32(color)));
+            let blend = [Some(*n), above.last().copied()].into_iter().flatten().find(|b| matches!(b.kind, NodeKind::Blend { .. }));
+            if let Some(b) = blend.map(|b| b.id).filter(|b| !blends.contains(b)) {
+                blends.push(b);
+            }
+        }
+        let big = too_many_anchors(items.iter().map(|(n, _)| &**n));
+        let items = std::sync::Arc::new(SelectionItems { items, big, blends });
+        self.selection = Some((key, items.clone()));
+        items
+    }
+}
+
+/// The nodes from the top-level layer down to the one at index path `path`.
+fn arc_chain<'a>(doc: &'a vectorcraft_doc::Document, path: &[usize]) -> Option<Vec<&'a std::sync::Arc<Node>>> {
+    let (first, rest) = path.split_first()?;
+    let mut chain = Vec::with_capacity(path.len());
+    chain.push(doc.layers.get(*first)?);
+    for &i in rest {
+        let next = chain.last()?.children()?.get(i)?;
+        chain.push(next);
+    }
+    Some(chain)
+}
+
+/// The `Arc` holding node `id` in `doc` (the node [`vectorcraft_doc::Document::node`] finds): the
+/// overlay's caches hold it to tell an edited object from an unchanged one.
+fn node_arc(doc: &vectorcraft_doc::Document, id: vectorcraft_doc::NodeId) -> Option<&std::sync::Arc<Node>> {
+    let path = doc.index_path(id)?;
+    let (first, rest) = path.split_first()?;
+    let mut cur = doc.layers.get(*first)?;
+    for &i in rest {
+        cur = cur.children()?.get(i)?;
+    }
+    Some(cur)
+}
+
+/// How many anchors of selected object `n` (up to `upto`) [`selection_overlay`] draws handles
+/// for: those in `partial`, else all of them with a direct selection tool.
+fn selected_anchors(n: &Node, partial: Option<&std::collections::BTreeSet<(usize, usize)>>, direct: bool, upto: usize) -> usize {
+    let mut count = 0;
+    walk_drawn(n, &mut |c| {
+        let NodeKind::Path { path, .. } = &c.kind else { return };
+        for (si, ai, _) in path.anchors() {
+            if count < upto && partial.map_or(direct && c.id == n.id, |set| set.contains(&(si, ai))) {
+                count += 1;
+            }
+        }
+    });
+    count
+}
+
+/// Whether document box `b` drawn at `xf`, grown by `margin` screen points, can show in `clip`.
+fn shows(xf: &Xf, b: Rect, margin: f32, clip: egui::Rect) -> bool {
+    let q = [Point::new(b.x0, b.y0), Point::new(b.x1, b.y0), Point::new(b.x1, b.y1), Point::new(b.x0, b.y1)].map(|q| xf.to_screen(q));
+    egui::Rect::from_points(&q).expand(margin).intersects(clip)
+}
+
+/// How far past an object's [`Outline::reach`] the overlay draws, in screen points: the largest
+/// anchor square, handle dot and outline width.
+const OVERLAY_MARGIN: f32 = 12.0;
+
+/// Where overlay shapes go: straight to a painter, or into a [`Batch`].
+trait Sink {
+    fn put(&self, s: impl Into<Shape>);
+}
+
+impl Sink for egui::Painter {
+    fn put(&self, s: impl Into<Shape>) {
+        self.add(s);
+    }
+}
+
+/// Shapes collected as they are drawn and painted as one ([`Shape::Vec`], which egui tessellates
+/// exactly as it would the shapes one by one): a selection of thousands of objects is one shape
+/// handed to the painter instead of one per anchor.
+#[derive(Default)]
+struct Batch(std::cell::RefCell<Vec<Shape>>);
+
+impl Batch {
+    /// Paint what was drawn.
+    fn finish(self, p: &egui::Painter) {
+        let shapes = self.0.into_inner();
+        if !shapes.is_empty() {
+            p.add(Shape::Vec(shapes));
+        }
+    }
+}
+
+impl Sink for Batch {
+    fn put(&self, s: impl Into<Shape>) {
+        self.0.borrow_mut().push(s.into());
     }
 }
 
@@ -1438,44 +1746,70 @@ impl<'a> HandleLook<'a> {
     }
 
     /// A direction handle's end at `c`: a solid dot, a hollow one or a larger solid one.
-    fn draw(self, p: &egui::Painter, c: Pos2, color: Color32) {
+    fn draw(self, p: &impl Sink, c: Pos2, color: Color32) {
         let r = 2.75 + self.grow / 2.0;
         let hollow = self.style == "hollow";
-        p.circle_filled(c, if self.style == "large" { r + 1.5 } else { r }, if hollow { Color32::WHITE } else { color });
+        p.put(egui::epaint::CircleShape::filled(c, if self.style == "large" { r + 1.5 } else { r }, if hollow { Color32::WHITE } else { color }));
         if hollow {
-            p.circle_stroke(c, r, Stroke::new(1.0, color));
+            p.put(egui::epaint::CircleShape::stroke(c, r, Stroke::new(1.0, color)));
         }
     }
 }
 
-fn anchor_square(p: &egui::Painter, c: Pos2, color: Color32, filled: bool, size: f32) {
+fn anchor_square(p: &impl Sink, c: Pos2, color: Color32, filled: bool, size: f32) {
+    use egui::epaint::RectShape;
     let r = egui::Rect::from_center_size(c, vec2(size, size));
     if filled {
-        p.rect_filled(r, 0.0, color);
+        p.put(RectShape::filled(r, 0.0, color));
     } else {
-        p.rect_filled(r, 0.0, Color32::WHITE);
-        p.rect_stroke(r, 0.0, Stroke::new(1.0, color), StrokeKind::Inside);
+        p.put(RectShape::filled(r, 0.0, Color32::WHITE));
+        p.put(RectShape::stroke(r, 0.0, Stroke::new(1.0, color), StrokeKind::Inside));
     }
 }
 
-fn curve_point(p: &egui::Painter, c: Pos2, color: Color32, filled: bool, size: f32) {
-    p.circle(c, size / 2.0, if filled { color } else { Color32::WHITE }, Stroke::new(1.0, color));
+fn curve_point(p: &impl Sink, c: Pos2, color: Color32, filled: bool, size: f32) {
+    p.put(egui::epaint::CircleShape {
+        center: c,
+        radius: size / 2.0,
+        fill: if filled { color } else { Color32::WHITE },
+        stroke: Stroke::new(1.0, color),
+    });
 }
 
 /// Type → Show Hidden Characters: spaces as dots, ¶ at paragraph ends, # at the end of a story.
-fn hidden_chars_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+fn hidden_chars_overlay(app: &VectorcraftApp, cache: &mut OverlayCache, p: &egui::Painter, xf: &Xf) {
     let Some(st) = app.session.active() else { return };
     let clip = p.clip_rect();
     let color = Color32::from_rgb(0x4f, 0x9d, 0xff);
     let font = egui::FontId::proportional(((10.0 * xf.zoom) as f32).clamp(7.0, 18.0));
-    st.doc.walk(|n| {
-        let NodeKind::Text(tx) = &n.kind else { return };
+    // The document's text objects, found once per revision.
+    let key = (st.uid, st.revision);
+    let texts = match &cache.texts {
+        Some((k, texts)) if *k == key => texts.clone(),
+        _ => {
+            fn find(nodes: &[std::sync::Arc<Node>], out: &mut Vec<std::sync::Arc<Node>>) {
+                for n in nodes {
+                    if matches!(n.kind, NodeKind::Text(_)) {
+                        out.push(n.clone());
+                    }
+                    find(n.children().map_or(&[], |c| c), out);
+                }
+            }
+            let mut texts = vec![];
+            find(&st.doc.layers, &mut texts);
+            let texts = std::sync::Arc::new(texts);
+            cache.texts = Some((key, texts.clone()));
+            texts
+        }
+    };
+    for n in texts.iter() {
+        let NodeKind::Text(tx) = &n.kind else { continue };
         if !n.visible || n.geometric_bounds().is_none_or(|b| !xf.rect_to_screen(b).intersects(clip)) {
-            return;
+            continue;
         }
         let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), tx);
         if lay.on_path {
-            return;
+            continue;
         }
         let text = tx.plain_text();
         let to = |q: Point| xf.to_screen(tx.xf * q);
@@ -1498,7 +1832,7 @@ fn hidden_chars_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
                 p.text(to(Point::new(line.x1 + 1.0, line.baseline)), egui::Align2::LEFT_BOTTOM, glyph, font.clone(), color);
             }
         }
-    });
+    }
 }
 
 /// Text threads of the selected frames: a line from each frame's out port (bottom right) to the
@@ -1601,7 +1935,7 @@ fn print_tiling_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
 /// The print tiling's lines: a neutral grey that reads on the paper and on the pasteboard.
 const PRINT_TILING: Color32 = Color32::from_gray(96);
 
-fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
+fn selection_overlay(app: &mut VectorcraftApp, cache: &mut OverlayCache, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
     // The Selection tool's bounding box (rotated with the objects after a rotation). It hides while
     // a drag moves or resizes the selection, so only the art is seen going with the pointer (#712).
     let show_box = app.session.tool_id() == "selection"
@@ -1609,8 +1943,8 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
         && app.ui.view.bounding_box
         && app.session.active().is_some_and(|st| !st.selection.is_empty() && st.selection.anchors.is_empty());
     let bbox = if show_box { app.selection_box() } else { None };
-    let st = app.session.active();
-    let big = st.is_some_and(|st| too_many_anchors(st.selection.objects.iter().filter_map(|id| st.doc.node(*id))));
+    let Some(selected) = app.session.active().map(|st| cache.selection(st)) else { return };
+    let big = selected.big;
     let big_bounds = if big { app.selection_bounds() } else { None };
     let app = &*app;
     let Some(st) = app.session.active() else { return };
@@ -1631,33 +1965,44 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
     }
     // The key object (Align to Key Object): its outline drawn thicker, or its bounds when it has
     // too many paths to outline.
-    if let Some((k, n)) = st.selection.key.and_then(|k| Some((k, st.doc.node(k)?))) {
-        let outline = if too_many_anchors([n]) {
-            n.geometric_bounds().map(|b| vectorcraft_geom::shapes::rectangle(b).to_bezpath())
-        } else {
-            Some(node_outline(n))
-        };
-        if let Some(bp) = outline {
-            stroke_path(p, &bp, xf, Stroke::new(KEY_OUTLINE, c32(st.doc.layer_color(k))));
-        }
+    if let Some((k, n)) = st.selection.key.and_then(|k| Some((k, node_arc(&st.doc, k)?))) {
+        cache.outline(n).stroke(p, xf, Stroke::new(KEY_OUTLINE, c32(st.doc.layer_color(k))));
     }
-    for id in st.selection.objects.iter().filter(|_| !big) {
-        let Some(n) = st.doc.node(*id) else { continue };
-        let color = c32(st.doc.layer_color(*id));
+    // The objects' outlines, anchors and handles are painted as one shape. Objects out of view are
+    // left out (a path by its anchors and handles, before its outline is made; anything else by
+    // the reach of its outline).
+    let batch = Batch::default();
+    let clip = p.clip_rect();
+    for (arc, color) in selected.items.iter().filter(|_| !big) {
+        let (n, color, id) = (&**arc, *color, &arc.id);
         let partial = st.selection.partial(*id);
+        // Out of view, its selected anchors still count for Show Handles When Multiple Anchors
+        // Are Selected.
+        let culled = |with_handles: &mut usize| {
+            // (The Curvature tool shows no handles, so counts none.)
+            if !curvature && *with_handles < 2 && (direct || partial.is_some()) {
+                *with_handles += selected_anchors(n, partial, direct, 2 - *with_handles);
+            }
+        };
+        if let NodeKind::Path { path, .. } = &n.kind
+            && path.control_bounds().is_none_or(|b| !shows(xf, b, OVERLAY_MARGIN, clip))
+        {
+            culled(&mut with_handles);
+            continue;
+        }
+        let outline = cache.outline(arc);
+        if outline.reach.is_none_or(|b| !shows(xf, b, OVERLAY_MARGIN, clip)) {
+            culled(&mut with_handles);
+            continue;
+        }
         // Path outlines.
-        stroke_path(p, &node_outline(n), xf, Stroke::new(1.0, color));
+        outline.stroke(&batch, xf, Stroke::new(1.0, color));
         // Anchors (and handles for selected anchors in direct mode); a gradient mesh's or a mesh
         // envelope's points.
         walk_drawn(n, &mut |c| {
-            let envelope = vectorcraft_doc::live::envelope_overlay(c).and_then(|(_, grid)| grid);
-            let grid = match &c.kind {
-                NodeKind::Mesh(m) => Some(m),
-                _ => envelope.as_ref(),
-            };
-            if let Some(grid) = grid {
-                for q in &grid.points {
-                    anchor_square(p, xf.to_screen(q.p), color, false, anchor(direct));
+            if let Some((_, points)) = outline.grids.iter().find(|(g, _)| *g == c.id) {
+                for q in points {
+                    anchor_square(&batch, xf.to_screen(*q), color, false, anchor(direct));
                 }
                 return;
             }
@@ -1678,7 +2023,7 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
                     } else {
                         outline.curve_to(curve.p1, curve.p2, curve.p3);
                     }
-                    stroke_path(p, &outline, xf, Stroke::new(2.0, color));
+                    stroke_path(&batch, &outline, xf, Stroke::new(2.0, color));
                 }
             }
             for (si, ai, a) in path.anchors() {
@@ -1700,9 +2045,9 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
                 let anchor_selected = sel && selected_segments.is_none();
                 let ink = if anchor_selected && partial.is_some() { selected_anchor(color) } else { color };
                 if curvature {
-                    curve_point(p, sp, ink, anchor_selected && partial.is_some(), grow + 6.0);
+                    curve_point(&batch, sp, ink, anchor_selected && partial.is_some(), grow + 6.0);
                 } else {
-                    anchor_square(p, sp, ink, anchor_selected, anchor(partial.is_some() || direct));
+                    anchor_square(&batch, sp, ink, anchor_selected, anchor(partial.is_some() || direct));
                 }
             }
         });
@@ -1710,7 +2055,7 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
         if n.shows_center()
             && let Some(b) = n.geometric_bounds()
         {
-            anchor_square(p, xf.to_screen(b.center()), color, true, anchor(false));
+            anchor_square(&batch, xf.to_screen(b.center()), color, true, anchor(false));
         }
         // Point type: baseline marker (area type shows its frame instead, which may not be a
         // rectangle, and type on a path its path).
@@ -1720,22 +2065,19 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
             let o = xf.to_screen(tx.xf * Point::ZERO);
             let b = n.geometric_bounds().unwrap_or_default();
             let e = xf.to_screen(Point::new(b.x1, (tx.xf * Point::ZERO).y));
-            p.line_segment([o, e], Stroke::new(1.0, color));
-            p.circle_filled(o, 2.5, color);
+            batch.put(Shape::LineSegment { points: [o, e], stroke: Stroke::new(1.0, color) });
+            batch.put(egui::epaint::CircleShape::filled(o, 2.5, color));
         }
     }
     if app.session.prefs.show_handles_multiple_anchors || with_handles <= 1 {
         for (sp, hp, color) in handles {
-            p.line_segment([sp, hp], Stroke::new(1.0, color));
-            look.draw(p, hp, color);
+            batch.put(Shape::LineSegment { points: [sp, hp], stroke: Stroke::new(1.0, color) });
+            look.draw(&batch, hp, color);
         }
     }
+    batch.finish(p);
     // The spine of each selected blend (or of the blend a selected key object belongs to).
-    let mut spines = vec![];
-    for id in &st.selection.objects {
-        let is_blend = |b: &vectorcraft_doc::NodeId| st.doc.node(*b).is_some_and(|n| matches!(n.kind, NodeKind::Blend { .. }));
-        let Some(b) = [Some(*id), st.doc.parent_of(*id)].into_iter().flatten().find(is_blend).filter(|b| !spines.contains(b)) else { continue };
-        spines.push(b);
+    for &b in &selected.blends {
         let Some(NodeKind::Blend { children, spec }) = st.doc.node(b).map(|n| &n.kind) else { continue };
         let Some((path, _)) = vectorcraft_doc::live::blend_spine(children, spec) else { continue };
         let color = c32(st.doc.layer_color(b));
@@ -1744,23 +2086,44 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
             anchor_square(p, xf.to_screen(a.p), color, false, anchor(direct));
         }
     }
-    // Live Corners widgets (Selection on a live rectangle or polygon, Direct Selection on any path).
-    if matches!(tool, "selection" | "directSelection")
-        && let Some(w) = vectorcraft_tools::corners::CornerWidgets::showing(
-            &st.doc,
-            &st.selection,
-            xf.zoom,
-            tool == "directSelection",
-            app.ui.view.corner_widgets,
-            app.session.prefs.hide_corner_widget_above,
-        )
-    {
-        for (id, q) in w.visible_on() {
-            let (sp, color) = (xf.to_screen(q), c32(st.doc.layer_color(id)));
-            p.circle_filled(sp, 3.0, Color32::WHITE);
-            p.circle_stroke(sp, 3.0, Stroke::new(1.0, color));
-            p.circle_filled(sp, 1.0, color);
+    // Live Corners widgets (Selection on a live rectangle or polygon, Direct Selection on any path),
+    // found once per revision and zoom; those out of view are left out.
+    if matches!(tool, "selection" | "directSelection") {
+        let key = CornersKey {
+            doc: (st.uid, st.revision),
+            zoom: xf.zoom.to_bits(),
+            direct: tool == "directSelection",
+            on: app.ui.view.corner_widgets,
+            max_angle: app.session.prefs.hide_corner_widget_above.to_bits(),
+        };
+        let widgets = match &cache.corners {
+            Some((k, w)) if *k == key => w.clone(),
+            _ => {
+                let w = vectorcraft_tools::corners::CornerWidgets::showing(
+                    &st.doc,
+                    &st.selection,
+                    xf.zoom,
+                    key.direct,
+                    key.on,
+                    app.session.prefs.hide_corner_widget_above,
+                );
+                let w = std::sync::Arc::new(w.map_or_else(Vec::new, |w| w.visible_on().map(|(id, q)| (q, c32(st.doc.layer_color(id)))).collect()));
+                cache.corners = Some((key, w.clone()));
+                w
+            }
+        };
+        let batch = Batch::default();
+        let near = clip.expand(4.0);
+        for &(q, color) in widgets.iter() {
+            let sp = xf.to_screen(q);
+            if !near.contains(sp) {
+                continue;
+            }
+            batch.put(egui::epaint::CircleShape::filled(sp, 3.0, Color32::WHITE));
+            batch.put(egui::epaint::CircleShape::stroke(sp, 3.0, Stroke::new(1.0, color)));
+            batch.put(egui::epaint::CircleShape::filled(sp, 1.0, color));
         }
+        batch.finish(p);
     }
     // Bounding box with handles (Selection tool).
     if let Some(b) = bbox {
@@ -3971,5 +4334,78 @@ mod tests {
         assert!(!app.ui.task_bar_place.pinned);
         near(select(&mut app, &a), under_a);
         near(select(&mut app, &b), under_b);
+    }
+
+    /// The selection overlay draws only what is in view, and outlines an object once for a view
+    /// scale: panning moves the outline made before, an edit makes it again.
+    #[test]
+    fn the_selection_overlay_skips_what_is_out_of_view_and_keeps_outlines() {
+        let ctx = egui::Context::default();
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let r = app.session.execute("shape.rectangle", &json!({"x": 20, "y": 20, "width": 60, "height": 40})).unwrap();
+        let id = vectorcraft_doc::NodeId(r["id"].as_u64().unwrap());
+        app.run("tool.select", json!({"tool": "directSelection"})).unwrap();
+        app.session.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+        let color = c32(app.session.active().unwrap().doc.layer_color(id));
+        // (anchor squares, outline points) drawn.
+        let drawn = |app: &mut VectorcraftApp| {
+            let shapes = shapes(app, &ctx);
+            let anchors = shapes.iter().filter(|s| matches!(s, Shape::Rect(r) if r.rect.size() == vec2(5.0, 5.0) && r.fill == color)).count();
+            let outline: Vec<Pos2> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    Shape::Path(p) if p.stroke.color == egui::epaint::ColorMode::Solid(color) && p.stroke.width == 1.0 => Some(p.points.clone()),
+                    _ => None,
+                })
+                .flatten()
+                .collect();
+            (anchors, outline)
+        };
+        let (anchors, outline) = drawn(&mut app);
+        assert_eq!(anchors, 4, "the rectangle's anchors");
+        assert!(outline.len() >= 4);
+        let lines = |app: &VectorcraftApp| app.canvas.overlay.outlines.get(&id).map(|o| o.lines.as_ptr());
+        let made = lines(&app);
+        assert!(made.is_some());
+        // Panned 10 points: the same outline, moved.
+        app.view_mut().unwrap().center.x -= 10.0;
+        let zoom = app.view().unwrap().zoom as f32;
+        let (_, moved) = drawn(&mut app);
+        assert_eq!(lines(&app), made, "not flattened again");
+        assert_eq!(moved.len(), outline.len());
+        assert!(moved.iter().zip(&outline).all(|(a, b)| (a.x - b.x - 10.0 * zoom).abs() < 1e-3 && (a.y - b.y).abs() < 1e-3));
+        // Out of view: nothing drawn for it.
+        app.view_mut().unwrap().center = Point::new(10_000.0, 10_000.0);
+        assert_eq!(drawn(&mut app), (0, vec![]));
+        app.view_mut().unwrap().center.x -= 10_000.0 - 50.0;
+        app.view_mut().unwrap().center.y -= 10_000.0 - 50.0;
+        assert_eq!(drawn(&mut app).0, 4, "back in view");
+        // Edited: outlined again from the object as it is now.
+        app.session.execute("object.move", &json!({"dx": 5, "dy": 0})).unwrap();
+        let _ = drawn(&mut app);
+        let st = app.session.active().unwrap();
+        let o = app.canvas.overlay.outlines.get(&id).unwrap();
+        assert!(std::sync::Arc::ptr_eq(&o.node, node_arc(&st.doc, id).unwrap()));
+    }
+
+    /// A selection whose anchors and handles are partly out of view still counts them for Show
+    /// Handles When Multiple Anchors Are Selected: with it off, two selected anchors show no
+    /// handles even when one of them is out of view.
+    #[test]
+    fn handles_out_of_view_still_count_as_selected_anchors() {
+        let ctx = egui::Context::default();
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let a = app.session.execute("shape.ellipse", &json!({"x": 20, "y": 20, "width": 60, "height": 40})).unwrap();
+        let b = app.session.execute("shape.ellipse", &json!({"x": 3000, "y": 20, "width": 60, "height": 40})).unwrap();
+        let (a, b) = (a["id"].as_u64().unwrap(), b["id"].as_u64().unwrap());
+        app.session.execute("prefs.set", &json!({"key": "showHandlesMultipleAnchors", "value": false})).unwrap();
+        app.run("tool.select", json!({"tool": "directSelection"})).unwrap();
+        app.session.execute("select.anchors", &json!({"id": a, "anchors": [[0, 0]], "mode": "set"})).unwrap();
+        let handles = |app: &mut VectorcraftApp| shapes(app, &ctx).iter().filter(|s| matches!(s, Shape::LineSegment { .. })).count();
+        assert_eq!(handles(&mut app), 2, "one anchor selected: its two handles");
+        app.session.execute("select.anchors", &json!({"id": b, "anchors": [[0, 0]], "mode": "add"})).unwrap();
+        assert_eq!(handles(&mut app), 0, "two anchors selected, one out of view: no handles");
     }
 }

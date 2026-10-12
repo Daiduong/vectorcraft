@@ -48,7 +48,18 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let units = app.session.general_unit();
     let p = app.hover_doc.unwrap_or_default();
-    let bounds = app.session.active().and_then(|st| st.doc.bounds_of(&st.selection.objects, false));
+    // The selection's bounds, measured once per revision (the panel draws every frame).
+    let bounds = app.session.active().and_then(|st| {
+        let key = (st.uid, st.revision);
+        match super::pstate::<Option<((u64, u64), Option<vectorcraft_geom::Rect>)>>(ui.ctx(), "info-bounds") {
+            Some((k, b)) if k == key => b,
+            _ => {
+                let b = st.doc.bounds_of(&st.selection.objects, false);
+                super::set_pstate(ui.ctx(), "info-bounds", Some((key, b)));
+                b
+            }
+        }
+    });
     let mono = |ui: &mut Ui, s: String| {
         ui.label(egui::RichText::new(s).monospace().color(t.text));
     };

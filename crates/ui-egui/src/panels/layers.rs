@@ -26,9 +26,10 @@
 //! While an opacity mask is edited the panel lists only its art, under an `<Opacity Mask>` entry.
 //!
 //! The rows open are the document's ([`OpenRows`], saved in native files): a document opens with
-//! only its top-level layers open. The rows shown are listed once per document change, and only
-//! those scrolled into view are laid out, so a document of many thousand objects costs no more
-//! per frame than a small one.
+//! only its top-level layers open. The rows shown are listed when rows come or go (an edit that
+//! only moves or restyles objects refreshes the rows of what it edited), the selection they show
+//! is worked out once per change, and only the rows scrolled into view are laid out, so a
+//! document of many thousand objects costs no more per frame than a small one.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
@@ -225,18 +226,23 @@ struct Row {
     colour: Color32,
     /// Drawn dimmed: hidden itself or in a hidden layer or group, or a template layer.
     dim: bool,
+    /// It and what holds it are visible: what the rows inside it inherit.
+    shown: bool,
     /// A ruler guide on the layer `node` (its index in the document's guides): the guide's row.
     guide: Option<usize>,
 }
 
-/// What the rows were listed from: listed again when any of it changes.
-#[derive(Clone, PartialEq)]
+/// What the rows were listed from, besides the document: listed again when any of it changes.
+#[derive(Clone, Default, PartialEq)]
 struct RowsKey {
     uid: u64,
-    revision: u64,
     open: u64,
     layers_only: bool,
     query: String,
+    /// The layer of the opacity mask being edited.
+    mask_layer: Option<NodeId>,
+    /// The layer of each ruler guide: guides are rows in their layers.
+    guides: Vec<Option<NodeId>>,
 }
 
 /// The rows the panel shows, top down: the layers (only the opacity mask's while one is edited)
@@ -279,10 +285,10 @@ fn push_rows(
     let opens = opens(n, opts) || !guides.is_empty();
     let open = opens && (searching || open_rows.contains(n.id));
     let at = out.len();
-    out.push(Row { node: n.clone(), depth, clip_path, opens, open, colour, dim: !shown || n.is_template(), guide: None });
+    out.push(Row { node: n.clone(), depth, clip_path, opens, open, colour, dim: !shown || n.is_template(), shown, guide: None });
     if open {
         for i in guides.into_iter().rev() {
-            out.push(Row { node: n.clone(), depth: depth + 1, clip_path: false, opens: false, open: false, colour, dim: !shown, guide: Some(i) });
+            out.push(guide_row_of(n, depth, colour, shown, i));
         }
     }
     if open && let Some(children) = n.children() {
@@ -296,20 +302,150 @@ fn push_rows(
     }
 }
 
-/// The rows of the active document as [`list_rows`] lists them, listed again only when the
-/// document, its open rows, the search or Show Layers Only changed.
+/// The row of ruler guide `i` on layer `n`, whose row is at `depth`.
+fn guide_row_of(n: &Arc<Node>, depth: usize, colour: Color32, shown: bool, i: usize) -> Row {
+    Row { node: n.clone(), depth: depth + 1, clip_path: false, opens: false, open: false, colour, dim: !shown, shown, guide: Some(i) }
+}
+
+/// [`push_rows`] over `rows`, listed from an earlier version of the document, from `rows[*at]`
+/// on: whether they are the rows it lists now (the same objects in the same places, open, shown
+/// and coloured as they were). They then hold the objects as they are now. A subtree that is the
+/// very same `Arc` as before lists the same rows and is skipped; an edit that changes only how
+/// objects look or where they are (a move, a recolour) touches only the rows of what it edited.
+fn refresh_rows(
+    n: &Arc<Node>,
+    depth: usize,
+    clip_path: bool,
+    (colour, shown): (Color32, bool),
+    cx: (&OpenRows, &PanelOptions, &Document),
+    rows: &mut [Row],
+    at: &mut usize,
+) -> bool {
+    let (open_rows, opts, doc) = cx;
+    if opts.layers_only && !n.is_layer() {
+        return true;
+    }
+    let colour = match &n.kind {
+        NodeKind::Layer { color, .. } => {
+            let [r, g, b] = color.rgb();
+            Color32::from_rgb(r, g, b)
+        }
+        _ => colour,
+    };
+    let shown = shown && n.visible;
+    let Some(r) = rows.get_mut(*at) else { return false };
+    if r.guide.is_some() || (r.node.id, r.depth, r.clip_path, r.colour, r.shown) != (n.id, depth, clip_path, colour, shown) {
+        return false;
+    }
+    // The very same object where it was, and what holds it as it was: so are its rows (its guides
+    // included, as their layers are as they were), which follow it one level deeper.
+    if Arc::ptr_eq(&r.node, n) {
+        *at += 1;
+        while rows.get(*at).is_some_and(|r| r.depth > depth) {
+            *at += 1;
+        }
+        return true;
+    }
+    let guides: Vec<usize> = if n.is_layer() && !opts.layers_only { doc.guides_on(n.id).map(|(i, _)| i).collect() } else { vec![] };
+    let opens = opens(n, opts) || !guides.is_empty();
+    let open = opens && open_rows.contains(n.id);
+    if (r.opens, r.open, r.dim) != (opens, open, !shown || n.is_template()) {
+        return false;
+    }
+    r.node = n.clone();
+    *at += 1;
+    if open {
+        for i in guides.into_iter().rev() {
+            let Some(r) = rows.get_mut(*at) else { return false };
+            if r.guide != Some(i) || r.node.id != n.id {
+                return false;
+            }
+            r.node = n.clone();
+            *at += 1;
+        }
+        if let Some(children) = n.children() {
+            for (i, c) in children.iter().enumerate().rev() {
+                if !refresh_rows(c, depth + 1, i == 0 && n.clips(), (colour, shown), cx, rows, at) {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
+/// The rows of the active document as [`list_rows`] lists them, listed again only when its open
+/// rows, the search or Show Layers Only changed, or the document changed in a way that adds,
+/// removes, moves, opens or shows rows; any other change of the document only refreshes the rows
+/// of what changed ([`refresh_rows`]), as a drag does every frame.
 fn rows_of_doc(ui: &Ui, st: &vectorcraft_engine::DocState, opts: &PanelOptions, query: &str) -> Arc<Vec<Row>> {
-    let now =
-        RowsKey { uid: st.uid, revision: st.revision, open: st.layers_open.generation(), layers_only: opts.layers_only, query: query.to_string() };
+    let doc = &st.doc;
+    let now = RowsKey {
+        uid: st.uid,
+        open: st.layers_open.generation(),
+        layers_only: opts.layers_only,
+        query: query.to_string(),
+        mask_layer: doc.mask_edit.map(|m| m.layer),
+        guides: doc.guides.iter().map(|g| g.layer).collect(),
+    };
     let id = key("rows");
-    if let Some((was, rows)) = ui.data(|d| d.get_temp::<(RowsKey, Arc<Vec<Row>>)>(id))
+    // Taken out, so the rows aren't shared while they are refreshed in place.
+    let was = ui.data_mut(|d| d.remove_temp::<(RowsKey, u64, Arc<Vec<Row>>)>(id)).filter(|(k, ..)| *k == now);
+    let rows = match was {
+        Some((_, revision, rows)) if revision == st.revision => rows,
+        // Searching, rows also come and go with names: listed again.
+        Some((_, _, mut rows)) if query.is_empty() => {
+            let list = Arc::make_mut(&mut rows);
+            let mask_layer = now.mask_layer;
+            let mut at = 0;
+            let same = doc
+                .layers
+                .iter()
+                .rev()
+                .filter(|l| mask_layer.is_none_or(|m| m == l.id))
+                .all(|l| refresh_rows(l, 0, false, (Color32::PLACEHOLDER, true), (&st.layers_open, opts, doc), list, &mut at));
+            if same && at == list.len() { rows } else { Arc::new(list_rows(doc, &st.layers_open, opts, query)) }
+        }
+        _ => Arc::new(list_rows(doc, &st.layers_open, opts, query)),
+    };
+    ui.data_mut(|d| d.insert_temp(id, (now, st.revision, rows.clone())));
+    rows
+}
+
+/// The selection as the rows show it.
+#[derive(Default)]
+struct Selected {
+    ids: HashSet<NodeId>,
+    /// The layers, groups and objects with selected art inside them.
+    inside: HashSet<NodeId>,
+}
+
+/// [`Selected`] for the active document, worked out once per revision: from each selected
+/// object up through what holds it, instead of every container row looking through everything in
+/// it every frame.
+fn selected(ui: &Ui, st: &vectorcraft_engine::DocState) -> Arc<Selected> {
+    let now = (st.uid, st.revision);
+    let id = key("selected");
+    if let Some((was, sel)) = ui.data(|d| d.get_temp::<((u64, u64), Arc<Selected>)>(id))
         && was == now
     {
-        return rows;
+        return sel;
     }
-    let rows = Arc::new(list_rows(&st.doc, &st.layers_open, opts, query));
-    ui.data_mut(|d| d.insert_temp(id, (now, rows.clone())));
-    rows
+    let ids: HashSet<NodeId> = st.selection.objects.iter().copied().collect();
+    // What holds each selected object: the places above it in the tree, each looked up once.
+    let paths = st.doc.index_paths(ids.iter().copied());
+    let mut above: HashSet<&[usize]> = HashSet::new();
+    for (_, p) in paths.iter() {
+        for k in (1..p.len()).rev() {
+            if !above.insert(&p[..k]) {
+                break;
+            }
+        }
+    }
+    let inside = above.into_iter().filter_map(|p| st.doc.node_at(p)).map(|n| n.id).collect();
+    let sel = Arc::new(Selected { ids, inside });
+    ui.data_mut(|d| d.insert_temp(id, (now, sel.clone())));
+    sel
 }
 
 /// Everything one frame of the panel reads.
@@ -317,7 +453,7 @@ struct View<'a> {
     doc: &'a Arc<Document>,
     /// Where the row thumbnails come from.
     thumbs: ThumbSource<'a>,
-    sel: HashSet<NodeId>,
+    sel: Arc<Selected>,
     /// The selected ruler guides.
     guides: Vec<usize>,
     target: Option<NodeId>,
@@ -380,7 +516,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let view = View {
         doc: &doc,
         thumbs: ThumbSource::of(app, st, &doc),
-        sel: st.selection.objects.iter().copied().collect(),
+        sel: selected(ui, st),
         guides: st.selection.guides.clone(),
         target: st.selection.target,
         current: st.current_layer(),
@@ -637,13 +773,8 @@ fn row(ui: &mut Ui, view: &View, item: &Row, out: &mut Out) {
     if view.reveal == Some(n.id) {
         ui.scroll_to_rect(r, None);
     }
-    let is_sel = view.sel.contains(&n.id);
-    let child_sel = !is_sel
-        && n.children().is_some_and(|_| {
-            let mut any = false;
-            n.walk(&mut |c| any |= c.id != n.id && view.sel.contains(&c.id));
-            any
-        });
+    let is_sel = view.sel.ids.contains(&n.id);
+    let child_sel = !is_sel && view.sel.inside.contains(&n.id);
     // Highlighted rows (else the current layer's).
     let highlighted = if view.rows.is_empty() { n.is_layer() && Some(n.id) == view.current } else { view.rows.contains(&n.id) };
     if highlighted {
@@ -860,7 +991,7 @@ fn drop_target(ui: &Ui, view: &View, n: &Node, r: egui::Rect, indent: f32, open:
     let doc = view.doc;
     let moving: Vec<NodeId> = match &*drag {
         LayersDrag::Rows(ids) => ids.clone(),
-        LayersDrag::Art => view.sel.iter().copied().collect(),
+        LayersDrag::Art => view.sel.ids.iter().copied().collect(),
         LayersDrag::Guides(guides) => {
             // Guides go to the layer of the row (the row's own, for a layer).
             if let Some(layer) = if n.is_layer() { Some(n.id) } else { doc.layer_containing(n.id) } {
@@ -2039,6 +2170,84 @@ mod tests {
         frame(&mut app, vec![]);
         assert_eq!(rows_of(&app), vec![sub]);
         assert_eq!(app.session.active().unwrap().current_layer(), Some(sub));
+    }
+
+    /// The rows a frame of the panel lists, and the selection as the rows show it.
+    fn listed(app: &mut VectorcraftApp, ctx: &egui::Context) -> (Arc<Vec<Row>>, Arc<Selected>) {
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
+        out.textures_delta.clear();
+        let mut got = None;
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let st = app.session.active().unwrap();
+            got = Some((rows_of_doc(ui, st, &app.ui.layers_panel, ""), selected(ui, st)));
+        });
+        out.textures_delta.clear();
+        got.unwrap()
+    }
+
+    /// A row as the panel shows it, with whether it holds the document's own object.
+    type ShownRow = (NodeId, usize, bool, bool, bool, Color32, bool, Option<usize>, bool);
+
+    fn shown_rows(app: &VectorcraftApp, rows: &[Row]) -> Vec<ShownRow> {
+        let doc = &app.session.active().unwrap().doc;
+        rows.iter()
+            .map(|r| {
+                let current = std::ptr::eq(doc.node(r.node.id).unwrap(), &*r.node);
+                (r.node.id, r.depth, r.clip_path, r.opens, r.open, r.colour, r.dim, r.guide, current)
+            })
+            .collect()
+    }
+
+    /// An edit that only moves art keeps the rows listed (refreshed to hold the moved objects);
+    /// one that adds, hides or regroups art lists them again, as from scratch.
+    #[test]
+    fn rows_are_refreshed_in_place_unless_the_tree_changed() {
+        let (mut app, [layer, sub, _, b, a, c]) = nested();
+        let ctx = egui::Context::default();
+        app.session.execute("guide.add", &json!({"vertical": true, "pos": 10, "layer": layer.0})).unwrap();
+        let fresh = |app: &VectorcraftApp| {
+            let st = app.session.active().unwrap();
+            list_rows(&st.doc, &st.layers_open, &app.ui.layers_panel, "")
+        };
+        let (rows, _) = listed(&mut app, &ctx);
+        assert_eq!(rows.len(), 7, "six objects and the guide");
+        let before = Arc::as_ptr(&rows);
+        drop(rows);
+        app.session.execute("select.set", &json!({"ids": [b.0, c.0]})).unwrap();
+        app.session.execute("object.move", &json!({"dx": 5, "dy": 3})).unwrap();
+        let (rows, _) = listed(&mut app, &ctx);
+        assert_eq!(Arc::as_ptr(&rows), before, "refreshed in place, not listed again");
+        assert_eq!(shown_rows(&app, &rows), shown_rows(&app, &fresh(&app)));
+        assert!(shown_rows(&app, &rows).iter().all(|r| r.8), "every row holds the object as it is now");
+        drop(rows);
+        // Hiding the sublayer dims its rows; a new object adds one; grouping moves one.
+        for (cmd, p) in [
+            ("layer.setProps", json!({"ids": [sub.0], "visible": false})),
+            ("shape.rectangle", json!({"x": 50, "y": 50, "width": 10, "height": 10})),
+            ("select.set", json!({"ids": [a.0]})),
+            ("object.group", json!({})),
+        ] {
+            app.session.execute(cmd, &p).unwrap();
+            let (rows, _) = listed(&mut app, &ctx);
+            assert_eq!(shown_rows(&app, &rows), shown_rows(&app, &fresh(&app)), "after {cmd}");
+        }
+    }
+
+    /// The rows that hold selected art are the layers and groups above it.
+    #[test]
+    fn rows_holding_selected_art_are_found_from_the_selection_up() {
+        let (mut app, [layer, sub, g, b, a, c]) = nested();
+        let ctx = egui::Context::default();
+        app.session.execute("select.set", &json!({"ids": [b.0]})).unwrap();
+        let (_, sel) = listed(&mut app, &ctx);
+        assert_eq!(sel.ids, HashSet::from([b]));
+        assert_eq!(sel.inside, HashSet::from([layer, sub, g]));
+        app.session.execute("select.set", &json!({"ids": [c.0, a.0]})).unwrap();
+        let (_, sel) = listed(&mut app, &ctx);
+        assert_eq!(sel.inside, HashSet::from([layer, sub]));
+        app.session.execute("select.none", &json!({})).unwrap();
+        let (_, sel) = listed(&mut app, &ctx);
+        assert!(sel.ids.is_empty() && sel.inside.is_empty());
     }
 
     /// A layer of 2,000 groups of 10 paths with every row open: one frame lays out only the rows
