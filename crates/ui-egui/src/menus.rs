@@ -2167,6 +2167,9 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                         cp("Horizontal Align Left", "object.align", json!({"horizontal": "left"})),
                         cp("Horizontal Align Center", "object.align", json!({"horizontal": "center"})),
                         cp("Horizontal Align Right", "object.align", json!({"horizontal": "right"})),
+                        Sep,
+                        cp("Horizontal & Vertical Align Center", "object.align", json!({"horizontal": "center", "vertical": "center"})),
+                        Sep,
                         cp("Vertical Align Top", "object.align", json!({"vertical": "top"})),
                         cp("Vertical Align Center", "object.align", json!({"vertical": "center"})),
                         cp("Vertical Align Bottom", "object.align", json!({"vertical": "bottom"})),
@@ -2349,7 +2352,16 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                         c("Fit to Selected Art", "artboard.fitToSelection"),
                     ],
                 ),
-                sub("Graph", vec![c("Type…", "graph.setType"), c("Data…", "graph.setData"), todo("Design…"), todo("Column…"), todo("Marker…")]),
+                sub(
+                    "Graph",
+                    vec![
+                        c("Type…", "graph.setType"),
+                        c("Data…", "graph.setData"),
+                        c("Design…", "graph.design"),
+                        todo("Column…"),
+                        c("Marker…", "graph.marker"),
+                    ],
+                ),
                 sub(
                     "Collect for Export",
                     vec![
@@ -3063,8 +3075,12 @@ fn to_field(ctx: &egui::Context, field: egui::Id, e: egui::Event) {
 /// Object › Graph › Type… or Data… (`id`): its dialog, with the selected graph's current values
 /// (the command's query).
 pub(crate) fn graph_dialog(app: &mut VectorcraftApp, id: &str) -> Result<Value, String> {
+    // Graph Data: the worksheet.
+    if id == "graph.setData" {
+        return crate::dialogs::graph_data::open(app);
+    }
     let v = app.session.execute(id, &json!({})).map_err(|e| e.to_string())?;
-    let (label, fields) = if id == "graph.setData" { ("Graph Data", json!({"csv": v["csv"]})) } else { ("Graph Type", v) };
+    let (label, fields) = ("Graph Type", v);
     app.run("ui.paramDialog", json!({"command": id, "label": label, "params": fields})).map(|_| json!({ "dialog": "command" }))
 }
 
@@ -3117,6 +3133,14 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
     // Object → Graph → Type… / Data…: dialogs with the selected graph's current values.
     if matches!(id, "graph.setType" | "graph.setData") && p.as_object().is_none_or(|o| o.is_empty()) {
         if let Err(e) = graph_dialog(app, id) {
+            app.status(e);
+        }
+        return;
+    }
+    // Object → Graph → Design… / Marker…: the document's graph designs.
+    if matches!(id, "graph.design" | "graph.marker") && p.as_object().is_none_or(|o| o.is_empty()) {
+        let r = if id == "graph.design" { crate::dialogs::graph_design::open_design(app) } else { crate::dialogs::graph_design::open_marker(app) };
+        if let Err(e) = r {
             app.status(e);
         }
         return;

@@ -35,6 +35,8 @@ pub mod flattener_presets;
 mod form;
 pub mod freehand;
 mod gradient_stop;
+pub mod graph_data;
+pub mod graph_design;
 pub mod graphic_style_options;
 pub mod halftone;
 pub mod import_pdf;
@@ -225,6 +227,9 @@ registry! {
     Message: [confirm::MESSAGE] => confirm::MESSAGE_SPEC,
     NewSwatch: [new_swatch::KIND] => new_swatch::SPEC,
     NewColorGroup: [new_color_group::KIND] => new_color_group::SPEC,
+    GraphData: [graph_data::KIND] => graph_data::SPEC,
+    GraphDesign: [graph_design::DESIGN] => graph_design::DESIGN_SPEC,
+    GraphMarker: [graph_design::MARKER] => graph_design::MARKER_SPEC,
     GradientStop: ["gradientStop"] => gradient_stop::SPEC,
     ColorPicker: [color_picker::KIND] => color_picker::SPEC,
     GraphicStyleOptions: [graphic_style_options::KIND] => graphic_style_options::SPEC,
@@ -473,6 +478,8 @@ mod tests_import_pdf;
 mod tests_package;
 #[cfg(test)]
 mod tests_raster_formats;
+#[cfg(test)]
+mod tests_svg_options_range;
 
 #[cfg(test)]
 mod tests_dxf;

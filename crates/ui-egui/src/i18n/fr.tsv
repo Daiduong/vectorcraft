@@ -1120,6 +1120,23 @@
 	Graph	Graphe
 	Graph Data	Données du graphe
 	Graph Type	Type de graphe
+	Graph Design	Conception de graphe
+	Graph Marker	Marqueur de graphe
+	New Design	Nouvelle conception
+	Delete Design	Supprimer la conception
+	Paste Design	Coller la conception
+	Select Unused	Sélectionner les éléments inutilisés
+	Import Data…	Importer des données…
+	Transpose	Transposer
+	Switch x/y	Permuter x/y
+	Number of Decimals:	Nombre de décimales :
+	Column Width:	Largeur de colonne :
+	No Legend	Aucune légende
+	Standard Legend	Légende standard
+	Legends in Wedges	Légendes dans les secteurs
+	Ratio	Proportionnel
+	Even	Égal
+	Stacked	Empilé
 	Graphic Style	Style graphique
 	Graphic Style Libraries	Bibliothèques de styles graphiques
 	Graphic Style Libraries Menu	Menu Bibliothèques de styles graphiques
@@ -3117,6 +3134,7 @@
 	Vertical %	% vertical
 	Vertical Align Bottom	Alignement vertical en bas
 	Vertical Align Center	Alignement vertical au centre
+	Horizontal & Vertical Align Center	Alignement centré horizontal et vertical
 	Vertical Align Top	Alignement vertical en haut
 	Vertical Area Type Tool	Outil Texte captif vertical
 	Vertical Distribute Bottom	Répartition verticale en bas

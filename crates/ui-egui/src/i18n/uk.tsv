@@ -1114,6 +1114,23 @@
 	Graph	Діаграма
 	Graph Data	Дані діаграми
 	Graph Type	Тип діаграми
+	Graph Design	Дизайн діаграми
+	Graph Marker	Маркер діаграми
+	New Design	Новий дизайн
+	Delete Design	Видалити дизайн
+	Paste Design	Вставити дизайн
+	Select Unused	Вибрати невикористані
+	Import Data…	Імпорт даних…
+	Transpose	Транспонувати
+	Switch x/y	Поміняти x/y
+	Number of Decimals:	Кількість десяткових знаків:
+	Column Width:	Ширина стовпця:
+	No Legend	Без легенди
+	Standard Legend	Стандартна легенда
+	Legends in Wedges	Легенди в секторах
+	Ratio	Пропорційно
+	Even	Однаково
+	Stacked	Стосом
 	Graphic Style	Графічний стиль
 	Graphic Style Libraries	Бібліотеки графічних стилів
 	Graphic Style Libraries Menu	Меню "Бібліотеки графічних стилів"
@@ -3113,6 +3130,7 @@ effect	Points	Точки
 	Vertical %	По вертикалі, %
 	Vertical Align Bottom	Вирівняти по нижньому краю по вертикалі
 	Vertical Align Center	Вирівняти по центру по вертикалі
+	Horizontal & Vertical Align Center	Вирівняти по центру по горизонталі й вертикалі
 	Vertical Align Top	Вирівняти по верхньому краю по вертикалі
 	Vertical Area Type Tool	Інструмент «Вертикальний текст в області»
 	Vertical Distribute Bottom	Розподілити по нижньому краю по вертикалі

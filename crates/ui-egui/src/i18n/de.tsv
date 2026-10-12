@@ -1104,6 +1104,23 @@
 	Graph	Diagramm
 	Graph Data	Diagrammdaten
 	Graph Type	Diagrammtyp
+	Graph Design	Diagrammdesign
+	Graph Marker	Diagrammmarkierung
+	New Design	Neues Design
+	Delete Design	Design löschen
+	Paste Design	Design einfügen
+	Select Unused	Nicht verwendete auswählen
+	Import Data…	Daten importieren…
+	Transpose	Transponieren
+	Switch x/y	x/y vertauschen
+	Number of Decimals:	Anzahl Dezimalstellen:
+	Column Width:	Spaltenbreite:
+	No Legend	Keine Legende
+	Standard Legend	Standardlegende
+	Legends in Wedges	Legenden in Segmenten
+	Ratio	Verhältnis
+	Even	Gleich
+	Stacked	Gestapelt
 	Graphic Style	Grafikstil
 	Graphic Style Libraries	Grafikstil-Bibliotheken
 	Graphic Style Libraries Menu	Menü „Grafikstil-Bibliotheken“
@@ -3020,6 +3037,7 @@ effect	Points	Punkte
 	Vertical %	Vertikal %
 	Vertical Align Bottom	Vertikal unten ausrichten
 	Vertical Align Center	Vertikal zentriert ausrichten
+	Horizontal & Vertical Align Center	Horizontal und vertikal zentriert ausrichten
 	Vertical Align Top	Vertikal oben ausrichten
 	Vertical Area Type Tool	Vertikaler-Flächentext-Werkzeug
 	Vertical Distribute Bottom	Vertikal unten verteilen

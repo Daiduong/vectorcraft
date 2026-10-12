@@ -1071,6 +1071,23 @@
 	Graph	图表
 	Graph Data	图表数据
 	Graph Type	图表类型
+	Graph Design	图表设计
+	Graph Marker	图表标记
+	New Design	新建设计
+	Delete Design	删除设计
+	Paste Design	粘贴设计
+	Select Unused	选择未使用项
+	Import Data…	导入数据…
+	Transpose	转置
+	Switch x/y	切换 x/y
+	Number of Decimals:	小数位数：
+	Column Width:	列宽：
+	No Legend	无图例
+	Standard Legend	标准图例
+	Legends in Wedges	楔形中的图例
+	Ratio	比例
+	Even	平均
+	Stacked	堆积
 	Graphic Style	图形样式
 	Graphic Style Libraries	图形样式库
 	Graphic Style Libraries Menu	图形样式库菜单
@@ -3011,6 +3028,7 @@
 	Vertical %	垂直 %
 	Vertical Align Bottom	垂直底对齐
 	Vertical Align Center	垂直居中对齐
+	Horizontal & Vertical Align Center	水平和垂直居中对齐
 	Vertical Align Top	垂直顶对齐
 	Vertical Area Type Tool	直排区域文字工具
 	Vertical Distribute Bottom	垂直分布下缘
