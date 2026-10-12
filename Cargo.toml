@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
+exclude = ["vendor"]
 default-members = ["crates/*", "apps/vectorcraft", "apps/vectorcraft-cli", "xtask"]
 
 [workspace.package]
@@ -107,3 +108,7 @@ opt-level = 1
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Patched copies of crates.io dependencies; see vendor/README.md.
+[patch.crates-io]
+wgpu-hal = { path = "vendor/wgpu-hal" }
