@@ -411,7 +411,9 @@ pub const THAI_FAMILIES: &[&str] = &[
 ];
 
 /// The families tried first for character `c`, in a script whose text only fonts made for it set
-/// well (Thai, Lao, Khmer, Myanmar); none for other characters.
+/// well (Thai, Lao, Khmer, Myanmar); none for other characters. Han ideographs are shared by
+/// Japanese, Chinese and Korean, so which face draws them follows the interface language rather
+/// than the character (see [`set_cjk_locale`]).
 fn script_families(c: char) -> &'static [&'static str] {
     use unicode_script::{Script, UnicodeScript};
     match c.script() {
@@ -419,8 +421,76 @@ fn script_families(c: char) -> &'static [&'static str] {
         Script::Lao => &["Lao UI", "Leelawadee UI", "Lao Sangam MN", "Noto Sans Lao", "Noto Sans Lao UI", "Phetsarath OT"],
         Script::Khmer => &["Khmer UI", "Khmer Sangam MN", "Noto Sans Khmer", "Noto Sans Khmer UI", "Khmer OS"],
         Script::Myanmar => &["Myanmar Text", "Myanmar Sangam MN", "Noto Sans Myanmar", "Noto Sans Myanmar UI", "Padauk"],
+        Script::Han => han_families(),
         _ => &[],
     }
+}
+
+/// The interface language the host asked Han fallbacks to follow, when it has one (see
+/// [`set_cjk_locale`]).
+static REQUESTED_CJK_LOCALE: RwLock<Option<String>> = RwLock::new(None);
+
+/// Ask Han fallbacks to draw with `tag`'s script: an interface in Simplified or Traditional Chinese
+/// must not be drawn with the other's glyph forms, and a Japanese interface's kanji must not come
+/// from a Chinese face. Simplified and Traditional share nearly all of their code points and differ
+/// only in the glyphs, so coverage cannot tell them apart - the language has to. Empty, `c` or
+/// `posix` clears the request. Process-global, like the environment it replaces: every layout in the
+/// process follows it, so canvas text follows the same language as the interface chrome.
+pub fn set_cjk_locale(tag: &str) {
+    let tag = tag.trim().to_ascii_lowercase();
+    let requested = if tag.is_empty() || tag == "c" || tag == "posix" { None } else { Some(tag) };
+    *REQUESTED_CJK_LOCALE.write().unwrap_or_else(|e| e.into_inner()) = requested;
+}
+
+fn cjk_locale() -> String {
+    REQUESTED_CJK_LOCALE.read().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_default()
+}
+
+/// Han ideograph families for Simplified Chinese, in the order the platforms' own fallback tables
+/// prefer them (macOS, Windows, then the Linux/Noto names). Missing ones cost one lookup each.
+const HAN_SIMPLIFIED_FAMILIES: &[&str] = &[
+    "PingFang SC",
+    "Heiti SC",
+    "STHeiti",
+    "Microsoft YaHei",
+    "SimSun",
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "Source Han Sans SC",
+    "WenQuanYi Micro Hei",
+];
+/// The same for Traditional Chinese: one list per script, because a Simplified face covers the
+/// Traditional glyphs' code points and would otherwise win (`东` against `東`'s neighbours).
+const HAN_TRADITIONAL_FAMILIES: &[&str] =
+    &["PingFang TC", "Heiti TC", "Microsoft JhengHei", "MingLiU", "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC"];
+/// Japanese faces for kanji, so a Japanese interface does not take a Chinese face's forms.
+const HAN_JAPANESE_FAMILIES: &[&str] =
+    &["Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", "Source Han Sans JP"];
+
+/// Whether a CJK tag asks for Traditional Chinese: a `Hant` script, or a Taiwan, Hong Kong or
+/// Macao region (`zh-TW`, `zh_HK`, `zh_MO.UTF-8`). Anything else Chinese - including a bare `zh` -
+/// is Simplified.
+fn asks_traditional_chinese(tag: &str) -> bool {
+    tag.split(['-', '_', '.']).any(|p| matches!(p, "hant" | "tw" | "hk" | "mo"))
+}
+
+/// The Han families to try first for the interface language `tag`: Chinese forms for a Chinese
+/// interface, Japanese for a Japanese one, and the simplified list for everything else (the order
+/// this fallback had before, so a language that does not choose sees no change).
+fn han_families_for(tag: &str) -> &'static [&'static str] {
+    let tag = tag.trim().to_ascii_lowercase();
+    if tag.starts_with("zh") {
+        if asks_traditional_chinese(&tag) { HAN_TRADITIONAL_FAMILIES } else { HAN_SIMPLIFIED_FAMILIES }
+    } else if tag.starts_with("ja") {
+        HAN_JAPANESE_FAMILIES
+    } else {
+        HAN_SIMPLIFIED_FAMILIES
+    }
+}
+
+/// [`han_families_for`] for the locale in force.
+fn han_families() -> &'static [&'static str] {
+    han_families_for(&cjk_locale())
 }
 
 /// Families tried (when installed) for characters the loaded fonts lack: CJK, symbols, emoji.
@@ -2239,5 +2309,35 @@ mod race_tests {
         for t in threads {
             assert_eq!(t.join().unwrap().as_deref(), Some("Inter"));
         }
+    }
+
+    #[test]
+    fn han_families_follow_the_interface_language() {
+        // Chinese forms for a Chinese interface, and the two scripts never share a list.
+        assert_eq!(han_families_for("zh-Hans-CN"), HAN_SIMPLIFIED_FAMILIES);
+        assert_eq!(han_families_for("zh_CN.UTF-8"), HAN_SIMPLIFIED_FAMILIES);
+        assert_eq!(han_families_for("zh"), HAN_SIMPLIFIED_FAMILIES);
+        assert_eq!(han_families_for("zh-SG"), HAN_SIMPLIFIED_FAMILIES);
+        assert_eq!(han_families_for("zh-Hant"), HAN_TRADITIONAL_FAMILIES);
+        assert_eq!(han_families_for("zh-Hant-TW"), HAN_TRADITIONAL_FAMILIES);
+        assert_eq!(han_families_for("zh_TW"), HAN_TRADITIONAL_FAMILIES);
+        assert_eq!(han_families_for("zh-HK"), HAN_TRADITIONAL_FAMILIES);
+        assert_eq!(han_families_for("zh_MO.UTF-8"), HAN_TRADITIONAL_FAMILIES);
+        // Kanji in a Japanese interface are the Japanese forms; anything else keeps the order this
+        // fallback had before, so no language that does not choose sees a change.
+        assert_eq!(han_families_for("ja-JP"), HAN_JAPANESE_FAMILIES);
+        assert_eq!(han_families_for("en-US"), HAN_SIMPLIFIED_FAMILIES);
+        assert_eq!(han_families_for(""), HAN_SIMPLIFIED_FAMILIES);
+        // The Traditional list carries no Simplified face and the other way round: `PingFang SC`
+        // covers every code point `PingFang TC` does, so a shared list would keep the wrong forms.
+        assert!(HAN_TRADITIONAL_FAMILIES.iter().any(|f| f.contains("PingFang TC")));
+        assert!(!HAN_TRADITIONAL_FAMILIES.iter().any(|f| f.contains("YaHei") || f.ends_with(" SC")));
+        assert!(HAN_SIMPLIFIED_FAMILIES.iter().any(|f| f.contains("PingFang SC")));
+        assert!(!HAN_SIMPLIFIED_FAMILIES.iter().any(|f| f.contains("JhengHei") || f.ends_with(" TC")));
+        assert!(!HAN_JAPANESE_FAMILIES.iter().any(|f| f.contains("CJK SC") || f.contains("CJK TC")));
+        // And the arm the fallback actually walks: a Han character asks for the list the language in
+        // force picked, which is the Simplified one while nothing asked for another.
+        assert_eq!(script_families('中'), HAN_SIMPLIFIED_FAMILIES);
+        assert_eq!(script_families('東'), HAN_SIMPLIFIED_FAMILIES);
     }
 }
