@@ -6,7 +6,7 @@ verified: 0.9.0
 
 VectorCraft is a vector illustration app. It is a free, open-source alternative to Adobe Illustrator, with the same kind of layout, tools, menus, panels and shortcuts: the Pen, Direct Selection, Pathfinder, Smart Guides, Appearance, Swatches and Layers.
 
-It is in active development (alpha). Many everyday illustration tasks work today. Some things are still missing, such as 3D beyond the first live Revolve, scripting and generative AI features. These pages cover VectorCraft 0.9.0 on Windows 11.
+It is in active development (alpha). Many everyday illustration tasks work today. Some things are still missing, such as 3D beyond the first live Revolve, scripting and generative AI features. These pages cover VectorCraft 0.9.0. Install steps and menu paths are for Windows 11, with macOS menu paths given where they differ.
 
 VectorCraft is one of the Crafting Apps from the ArtCraft team. It is licensed MIT or Apache-2.0.
 
