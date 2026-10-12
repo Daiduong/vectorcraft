@@ -1083,7 +1083,7 @@ impl Node {
     /// A box round everything a click or a marquee can find in the object: its
     /// [`Node::reach_bounds`] (what a click culls by), and what a marquee tests: a path's curve and
     /// anchors, a container's members (hidden and clipped ones too), anything else's geometric
-    /// bounds.
+    /// bounds. The spatial index ([`crate::spatial`]) keeps it per object.
     pub fn pick_bounds(&self) -> Option<Rect> {
         let own = match &self.kind {
             NodeKind::Path { path, .. } => {

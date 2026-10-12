@@ -5,9 +5,10 @@
 //! Keeping the previous `Document` value around is therefore a cheap undo snapshot.
 //!
 //! What is worked out from the tree is cached by node identity: [`bounds_cache`] (each object's
-//! bounds, so a group's come from its members'). It holds weak references to the nodes it
-//! describes, so a node it knows can't change in place or be replaced at its address; [`change`]
-//! finds what changed between two versions by comparing pointers.
+//! bounds, so a group's come from its members') and [`spatial`] (an R-tree of the members of
+//! large containers, for hit testing and marquee selection). Both hold weak references to the
+//! nodes they describe, so a node they know can't change in place or be replaced at its address;
+//! [`change`] finds what changed between two versions by comparing pointers.
 #![forbid(unsafe_code)]
 
 pub mod appearance;
@@ -49,6 +50,7 @@ pub mod selection;
 pub mod setup;
 pub mod shaper;
 pub mod slices;
+pub mod spatial;
 pub mod style_libs;
 pub mod swatches;
 pub mod text;
@@ -688,6 +690,10 @@ pub struct Document {
     /// Where each node is in the tree, for lookups by id ([`id_index`]): a cache, never saved.
     #[serde(skip)]
     index: id_index::IdIndex,
+    /// The spatial index of large containers ([`spatial`]): a cache shared by this document's
+    /// clones (its edits, undo states and previews), never saved.
+    #[serde(skip)]
+    pub(crate) spatial: spatial::SpatialCache,
 }
 
 /// The index paths of many ids ([`Document::index_paths`]), kept in one buffer: looking up a whole
@@ -804,6 +810,7 @@ impl Document {
             assets: vec![],
             puppet: None,
             index: Default::default(),
+            spatial: Default::default(),
         };
         let id = d.alloc_id();
         d.layers.push(Arc::new(Node::layer(id, "Layer 1", LayerColor::Preset(0))));
@@ -846,9 +853,23 @@ impl Document {
     }
 
     /// Let go of the lookup cache ([`id_index`]), as a document kept in the undo history does: a
-    /// table per step would add up. Lookups still work; the first one builds the cache again.
+    /// table per step would add up. Lookups still work; the first one builds the cache again. (The
+    /// spatial index is one per document, shared by its versions: nothing to let go of per step.)
     pub fn drop_lookup_cache(&self) {
         self.index.clear();
+    }
+
+    /// The spatial index of this document's large containers ([`spatial`]), shared with its
+    /// clones: what hit testing and marquee selection narrow their search with.
+    pub fn spatial(&self) -> &spatial::SpatialCache {
+        &self.spatial
+    }
+
+    /// Give this document a spatial index of its own instead of the one it shares with the
+    /// document it was cloned from (a copy opened as a document of its own): the index follows one
+    /// document's versions best.
+    pub fn unshare_spatial_index(&mut self) {
+        self.spatial = Default::default();
     }
 
     /// Whether the lookup cache ([`id_index`]) is built (see [`Document::drop_lookup_cache`]).
@@ -1602,6 +1623,8 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod tests_hit_oracle;
 #[cfg(test)]
 mod tests_lookups;
 #[cfg(test)]

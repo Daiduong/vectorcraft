@@ -362,6 +362,8 @@ impl DocState {
         let view = doc.last_view.take();
         let saved_open = doc.layers_open.take();
         let layers_open = OpenRows::new(&doc, saved_open);
+        // A document opened from a copy of another indexes its own versions.
+        doc.unshare_spatial_index();
         let doc = Arc::new(doc);
         Self {
             saved_doc: doc.clone(),
@@ -1396,6 +1398,13 @@ impl Session {
 
     /// Run `f` on a mutable copy of the active document. Outside an interaction this records one
     /// undo step labelled `label`; inside one it just mutates (the interaction commits later).
+    ///
+    /// Published nodes are never changed in place: `before` shares the document while `f` runs, so
+    /// every node `f` reaches through `Arc::make_mut` is copied, and the undo history, the
+    /// interaction snapshot and anything else holding the old version keep it as it was. (The
+    /// bounds cache and the spatial index don't depend on this: they hold weak references, which
+    /// make `Arc::make_mut` move a node to a new allocation even when nothing else shares it, see
+    /// `vectorcraft_doc::bounds_cache`.)
     pub fn edit<T>(&mut self, label: &str, f: impl FnOnce(&mut Document, &mut Selection) -> Result<T>) -> Result<T> {
         let st = self.doc_mut()?;
         let before = st.doc.clone();

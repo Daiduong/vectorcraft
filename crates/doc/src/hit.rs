@@ -1,5 +1,7 @@
 //! Hit testing over the document tree.
 
+use std::sync::Arc;
+
 use vectorcraft_geom::hit::{fill_contains, stroke_contains};
 use vectorcraft_geom::{Point, Rect};
 
@@ -65,6 +67,10 @@ impl Default for HitOptions {
 }
 
 /// Topmost editable object under `p`.
+///
+/// Large layers and groups are searched through the document's spatial index
+/// ([`crate::spatial`]): only the members whose bounds come within the tolerance of `p` are looked
+/// at, topmost first, by the same tests as looking at every member, so the result is the same.
 pub fn hit_test(doc: &Document, p: Point, opt: HitOptions) -> Option<Hit> {
     hit_test_skipping(doc, p, opt, &|_| false, true)
 }
@@ -80,7 +86,8 @@ pub fn hit_test_visible(doc: &Document, p: Point, opt: HitOptions) -> Option<Hit
 pub fn objects_at(doc: &Document, p: Point, opt: HitOptions, scope: Option<NodeId>) -> Vec<NodeId> {
     let opt = HitOptions { scope: scope.or(opt.scope), ..opt };
     let mut tops: Vec<NodeId> = vec![];
-    // Each round leaves out the objects found so far (and everything inside them).
+    // Each round leaves out the objects found so far (and everything inside them); each looks only
+    // at what the spatial index finds near `p`.
     while let Some(top) = hit_test_skipping(doc, p, opt, &|id| tops.contains(&id), true).map(|h| h.top_object(scope)) {
         if tops.contains(&top) {
             break;
@@ -101,10 +108,10 @@ fn hit_test_skipping(doc: &Document, p: Point, opt: HitOptions, skip: &dyn Fn(No
     // locked, and clicks pass through it (#833).
     if editable_only
         && let Some(scope) = opt.scope
-        && let Some(container) = doc.node(scope).filter(|n| n.is_container())
+        && let Some(container) = doc.node_arc(scope).filter(|n| n.is_container())
         && let Some(mut chain) = doc.ancestry(scope)
     {
-        return hit_children(container, p, opt, skip, &mut chain, editable_only).map(finish);
+        return hit_children(doc, container, p, opt, skip, &mut chain, editable_only).map(finish);
     }
     let mut chain = Vec::new();
     for layer in doc.layers.iter().rev() {
@@ -117,7 +124,7 @@ fn hit_test_skipping(doc: &Document, p: Point, opt: HitOptions, skip: &dyn Fn(No
         }
         chain.push(layer.id);
         let opt = if matches!(layer.kind, NodeKind::Layer { preview: false, .. }) { HitOptions { outline: true, ..opt } } else { opt };
-        if let Some(h) = hit_children(layer, p, opt, skip, &mut chain, editable_only) {
+        if let Some(h) = hit_children(doc, layer, p, opt, skip, &mut chain, editable_only) {
             return Some(finish(h));
         }
         chain.pop();
@@ -126,13 +133,13 @@ fn hit_test_skipping(doc: &Document, p: Point, opt: HitOptions, skip: &dyn Fn(No
 }
 
 /// Is `n` an envelope whose contents are being edited (they hit, not the envelope)?
-fn edits_contents(n: &Node) -> bool {
+pub(crate) fn edits_contents(n: &Node) -> bool {
     matches!(n.kind, NodeKind::Envelope { editing: true, .. })
 }
 
 /// Is `p` inside the region `clip` clips to ([`Node::clip_shapes`])? Text counts by its frame:
 /// glyph outlines need the font engine, above this crate.
-fn clip_contains(clip: &Node, p: Point) -> bool {
+pub(crate) fn clip_contains(clip: &Node, p: Point) -> bool {
     let frame = |n: &Node| {
         let b = n.geometric_bounds()?;
         Some(Node::path(n.id, vectorcraft_geom::shapes::rectangle(b), Default::default()))
@@ -140,8 +147,15 @@ fn clip_contains(clip: &Node, p: Point) -> bool {
     clip.clip_shapes(Some(&frame)).iter().any(|(bp, rule)| fill_contains(bp, *rule, p))
 }
 
+/// The positions of `parent`'s members to look at, bottom first: those the spatial index finds
+/// within `tol` of `p` (a large container), else all of them.
+fn members_near(doc: &Document, parent: &Arc<Node>, len: usize, p: Point, tol: f64) -> Vec<usize> {
+    doc.spatial.candidates_near(parent, p, tol).unwrap_or_else(|| (0..len).collect())
+}
+
 fn hit_children(
-    parent: &Node,
+    doc: &Document,
+    parent: &Arc<Node>,
     p: Point,
     opt: HitOptions,
     skip: &dyn Fn(NodeId) -> bool,
@@ -156,7 +170,9 @@ fn hit_children(
     {
         return None;
     }
-    for (i, c) in children.iter().enumerate().rev() {
+    // The members the reach test below can't rule out (and maybe a few more), topmost first.
+    for i in members_near(doc, parent, children.len(), p, opt.tol).into_iter().rev() {
+        let Some(c) = children.get(i) else { continue };
         if parent.extras().shaper.is_some() {
             let construction = children.first().is_some_and(|source| Some(source.id) == opt.scope);
             if (i == 0) != construction {
@@ -178,13 +194,13 @@ fn hit_children(
         chain.push(c.id);
         let hit = match &c.kind {
             // A sublayer whose Preview is off is clicked in outline, like an outline view.
-            NodeKind::Layer { preview: false, .. } => hit_children(c, p, HitOptions { outline: true, ..opt }, skip, chain, editable_only),
-            NodeKind::Layer { .. } | NodeKind::Group { .. } => hit_children(c, p, opt, skip, chain, editable_only),
+            NodeKind::Layer { preview: false, .. } => hit_children(doc, c, p, HitOptions { outline: true, ..opt }, skip, chain, editable_only),
+            NodeKind::Layer { .. } | NodeKind::Group { .. } => hit_children(doc, c, p, opt, skip, chain, editable_only),
             // Edit Contents: the envelope's content hits, undistorted.
-            NodeKind::Envelope { editing: true, .. } => hit_children(c, p, opt, skip, chain, editable_only),
+            NodeKind::Envelope { editing: true, .. } => hit_children(doc, c, p, opt, skip, chain, editable_only),
             // A blend's key objects first (Direct and Group Selection pick them); its steps hit
             // as the blend.
-            NodeKind::Blend { .. } => hit_children(c, p, opt, skip, chain, editable_only)
+            NodeKind::Blend { .. } => hit_children(doc, c, p, opt, skip, chain, editable_only)
                 .or_else(|| hit_leaf(c, p, opt).map(|kind| Hit { leaf: c.id, ancestry: chain.clone(), kind, contents_of: None, layers: 1 })),
             _ => hit_leaf(c, p, opt).map(|kind| Hit { leaf: c.id, ancestry: chain.clone(), kind, contents_of: None, layers: 1 }),
         };
@@ -206,7 +222,7 @@ fn hit_stroke(n: &Node, bp: &vectorcraft_geom::BezPath, rule: vectorcraft_geom::
     stroke_contains(bp, 0.0, opt.tol, p).then_some(HitKind::Outline)
 }
 
-fn hit_leaf(n: &Node, p: Point, opt: HitOptions) -> Option<HitKind> {
+pub(crate) fn hit_leaf(n: &Node, p: Point, opt: HitOptions) -> Option<HitKind> {
     match &n.kind {
         NodeKind::Path { path, rule, .. } => {
             let bp = path.to_bezpath();
@@ -280,25 +296,36 @@ fn hit_any(n: &Node, p: Point, opt: HitOptions) -> Option<HitKind> {
 }
 
 /// Objects (children of layers, or of `scope` in isolation mode) touched by a marquee rect.
+///
+/// Large layers and groups are searched through the document's spatial index
+/// ([`crate::spatial`]): members whose bounds miss `r` are passed over, groups and all, and the
+/// rest are tested as before, in order.
 pub fn marquee(doc: &Document, r: Rect, scope: Option<NodeId>, leaves: bool) -> Vec<NodeId> {
+    // The index answers for a proper rectangle; anything else is tested member by member.
+    let indexed = r.x0 <= r.x1 && r.y0 <= r.y1;
+    let members = |n: &Arc<Node>| -> Vec<usize> {
+        let len = n.children().map_or(0, Vec::len);
+        indexed.then(|| doc.spatial.candidates(n, r)).flatten().unwrap_or_else(|| (0..len).collect())
+    };
     let mut out = Vec::new();
-    let tops: Vec<&std::sync::Arc<Node>> = match scope.and_then(|s| doc.node(s)) {
-        Some(s) => s.children().map(|c| c.iter().collect()).unwrap_or_default(),
+    let tops: Vec<&Arc<Node>> = match scope.and_then(|s| doc.node_arc(s)) {
+        Some(s) => s.children().map(|c| members(s).into_iter().filter_map(|i| c.get(i)).collect()).unwrap_or_default(),
         // The objects of the layers, looking through sublayers (hidden, locked and template ones
         // are left out).
         None => doc
             .layers
             .iter()
             .filter(|l| l.visible && !l.locked && !l.is_template() && doc.pattern_edit.as_ref().is_none_or(|e| e.layer == l.id))
-            .flat_map(|l| layer_objects(l))
+            .flat_map(|l| layer_objects(l, &members))
             .collect(),
     };
-    fn layer_objects(l: &Node) -> Vec<&std::sync::Arc<Node>> {
+    fn layer_objects<'a>(l: &'a Arc<Node>, members: &dyn Fn(&Arc<Node>) -> Vec<usize>) -> Vec<&'a Arc<Node>> {
         let mut out = vec![];
-        for c in l.children().into_iter().flatten() {
+        let Some(children) = l.children() else { return out };
+        for c in members(l).into_iter().filter_map(|i| children.get(i)) {
             if c.is_layer() {
                 if c.visible && !c.locked && !c.is_template() {
-                    out.extend(layer_objects(c));
+                    out.extend(layer_objects(c, members));
                 }
             } else {
                 out.push(c);
@@ -306,26 +333,26 @@ pub fn marquee(doc: &Document, r: Rect, scope: Option<NodeId>, leaves: bool) -> 
         }
         out
     }
-    fn touches(n: &Node, r: Rect) -> bool {
+    fn touches(n: &Arc<Node>, r: Rect, members: &dyn Fn(&Arc<Node>) -> Vec<usize>) -> bool {
         match &n.kind {
             NodeKind::Path { path, .. } => vectorcraft_geom::hit::intersects_rect(path, r),
             NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } | NodeKind::Compound { children, .. } => {
-                children.iter().any(|c| c.visible && touches(c, r))
+                members(n).into_iter().filter_map(|i| children.get(i)).any(|c| c.visible && touches(c, r, members))
             }
             _ => n.geometric_bounds().is_some_and(|b| b.intersect(r).area() > 0.0 || r.contains(b.origin())),
         }
     }
-    fn collect_leaves(n: &Node, r: Rect, out: &mut Vec<NodeId>) {
+    fn collect_leaves(n: &Arc<Node>, r: Rect, out: &mut Vec<NodeId>, members: &dyn Fn(&Arc<Node>) -> Vec<usize>) {
         match &n.kind {
             NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } => {
-                for c in children {
+                for c in members(n).into_iter().filter_map(|i| children.get(i)) {
                     if c.visible && !c.locked {
-                        collect_leaves(c, r, out);
+                        collect_leaves(c, r, out, members);
                     }
                 }
             }
             _ => {
-                if touches(n, r) {
+                if touches(n, r, members) {
                     out.push(n.id);
                 }
             }
@@ -336,9 +363,47 @@ pub fn marquee(doc: &Document, r: Rect, scope: Option<NodeId>, leaves: bool) -> 
             continue;
         }
         if leaves {
-            collect_leaves(t, r, &mut out);
-        } else if touches(t, r) {
+            collect_leaves(t, r, &mut out, &members);
+        } else if touches(t, r, &members) {
             out.push(t.id);
+        }
+    }
+    out
+}
+
+/// The objects (children of layers, looking through sublayers, or of `scope` in isolation mode)
+/// whose [`Node::pick_bounds`] meet `r`, in paint order (bottom first): everything a marquee of
+/// `r` can select and anything that can be clicked within it, found through the spatial index,
+/// and maybe a few more. Hidden, locked and template layers are left out, as the marquee leaves
+/// them; the objects themselves may be hidden or locked. For tools that look for objects in a
+/// region (snapping targets in view, anchors near the pointer): run the exact test on these.
+pub fn objects_in(doc: &Document, r: Rect, scope: Option<NodeId>) -> Vec<&Arc<Node>> {
+    let slack = 1e-6 * (1.0 + r.x0.abs().max(r.y0.abs()).max(r.x1.abs()).max(r.y1.abs()));
+    let meets = |n: &Arc<Node>| {
+        crate::bounds_cache::pick(n).is_none_or(|b| b.x0 <= r.x1 + slack && r.x0 <= b.x1 + slack && b.y0 <= r.y1 + slack && r.y0 <= b.y1 + slack)
+    };
+    fn walk<'a>(doc: &Document, n: &'a Arc<Node>, r: Rect, meets: &dyn Fn(&Arc<Node>) -> bool, out: &mut Vec<&'a Arc<Node>>, layers: bool) {
+        let Some(children) = n.children() else { return };
+        let at = doc.spatial.candidates(n, r).unwrap_or_else(|| (0..children.len()).collect());
+        for c in at.into_iter().filter_map(|i| children.get(i)) {
+            if layers && c.is_layer() {
+                if c.visible && !c.locked && !c.is_template() {
+                    walk(doc, c, r, meets, out, true);
+                }
+            } else if meets(c) {
+                out.push(c);
+            }
+        }
+    }
+    let mut out = vec![];
+    match scope.and_then(|s| doc.node_arc(s)) {
+        Some(s) => walk(doc, s, r, &meets, &mut out, false),
+        None => {
+            for l in
+                doc.layers.iter().filter(|l| l.visible && !l.locked && !l.is_template() && doc.pattern_edit.as_ref().is_none_or(|e| e.layer == l.id))
+            {
+                walk(doc, l, r, &meets, &mut out, true);
+            }
         }
     }
     out
