@@ -27,7 +27,7 @@ use vectorcraft_doc::{NodeId, NodeKind};
 use vectorcraft_geom::{BezPath, Point};
 
 use crate::direct::hit_handle;
-use crate::draw2::{AnchorTool, editable_paths};
+use crate::draw2::{AnchorTool, editable_paths_near};
 use crate::guides::{DrawSnap, Leave};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -137,8 +137,8 @@ fn alt_converts(cx: &ToolContext, p: Point, m: Mods) -> bool {
     let point = cx.point_tol();
     m.alt
         && (hit_handle(cx, p, point).is_some()
-            || crate::draw2::anchor_in(cx, crate::draw2::shown_paths(cx), p, point).is_some()
-            || crate::draw2::segment_in(cx, crate::draw2::shown_paths(cx), p, cx.pick_tol()).is_some())
+            || crate::draw2::anchor_in(cx, crate::draw2::shown_paths_near(cx, p, point), p, point).is_some()
+            || crate::draw2::segment_in(cx, crate::draw2::shown_paths_near(cx, p, cx.pick_tol()), p, cx.pick_tol()).is_some())
 }
 
 /// Preview the outgoing handle of anchor `ai` of subpath `si` at `h`, the incoming one left alone.
@@ -437,8 +437,8 @@ fn auto_add_delete(cx: &ToolContext, p: Point, m: Mods, tol: f64) -> Option<Acti
     if !cx.auto_add_delete || m.shift {
         return None;
     }
-    let anchor = crate::draw2::anchor_in(cx, editable_paths(cx), p, tol).map(crate::draw2::remove_anchor);
-    anchor.or_else(|| crate::draw2::segment_in(cx, editable_paths(cx), p, tol).map(crate::draw2::insert_anchor))
+    let anchor = crate::draw2::anchor_in(cx, editable_paths_near(cx, p, tol), p, tol).map(crate::draw2::remove_anchor);
+    anchor.or_else(|| crate::draw2::segment_in(cx, editable_paths_near(cx, p, tol), p, tol).map(crate::draw2::insert_anchor))
 }
 
 /// A click on a selected blend's spine: delete the point under `p` when no key object sits on it

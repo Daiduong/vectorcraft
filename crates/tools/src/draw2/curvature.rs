@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use vectorcraft_doc::{NodeId, Selection};
 use vectorcraft_geom::{Anchor, AnchorKind, BezPath, Point, SubPath, Vec2};
 
-use super::{FEEDBACK, anchor_in, catmull_rom, editable_paths, remove_anchor, segment_in};
+use super::{FEEDBACK, anchor_in, catmull_rom, editable_paths, editable_paths_near, remove_anchor, segment_in};
 use crate::guides::{DrawSnap, Leave, Targets};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -363,7 +363,7 @@ impl CurvatureTool {
             let v = json!({"id": e.id.0, "subpath": e.si, "op": "close", "end": e.name(), "from": how.name()});
             return Some(vec![Action::Exec(EDIT.into(), v)]);
         }
-        if let Some(hit) = anchor_in(cx, editable_paths(cx), p, tol) {
+        if let Some(hit) = anchor_in(cx, editable_paths_near(cx, p, tol), p, tol) {
             let mut out = vec![select_point(hit)];
             if ev.mods.alt {
                 out.extend(toggle(cx, hit));
@@ -381,7 +381,7 @@ impl CurvatureTool {
             let v = json!({"id": e.id.0, "subpath": e.si, "op": "extend", "end": e.name(), "x": q.x, "y": q.y, "from": how.name()});
             return Some(vec![Action::Exec(EDIT.into(), v)]);
         }
-        let (id, si, seg, t) = segment_in(cx, editable_paths(cx), p, tol)?;
+        let (id, si, seg, t) = segment_in(cx, editable_paths_near(cx, p, tol), p, tol)?;
         let n = subpath(cx, id, si)?.anchors.len().max(1);
         hold_targets(&mut self.snap, cx, id, si, &[seg, (seg + 1) % n]);
         self.drag = Some((Grab::Inserted(id, si, seg, t), p, true));
@@ -480,7 +480,10 @@ impl Tool for CurvatureTool {
             }
             PointerKind::DoubleClick => {
                 if active.is_none() {
-                    return anchor_in(cx, editable_paths(cx), p, point_tol(cx)).and_then(|hit| toggle(cx, hit)).into_iter().collect();
+                    return anchor_in(cx, editable_paths_near(cx, p, point_tol(cx)), p, point_tol(cx))
+                        .and_then(|hit| toggle(cx, hit))
+                        .into_iter()
+                        .collect();
                 }
                 let Some(i) = self.hit_point(cx, p) else { return vec![] };
                 self.pts[i].1 = !self.pts[i].1;
@@ -584,7 +587,7 @@ impl Tool for CurvatureTool {
         if end.is_some_and(|e| e.anchors >= 3 && p.distance(e.other) <= tol) {
             return Cursor::PenClose;
         }
-        if let Some((id, si, ai)) = anchor_in(cx, editable_paths(cx), p, tol) {
+        if let Some((id, si, ai)) = anchor_in(cx, editable_paths_near(cx, p, tol), p, tol) {
             let open_end = subpath(cx, id, si).is_some_and(|sp| !sp.closed && (ai == 0 || ai + 1 == sp.anchors.len()));
             return if m.alt {
                 Cursor::PenConvert
@@ -594,7 +597,7 @@ impl Tool for CurvatureTool {
                 Cursor::Move
             };
         }
-        if end.is_none() && segment_in(cx, editable_paths(cx), p, tol).is_some() {
+        if end.is_none() && segment_in(cx, editable_paths_near(cx, p, tol), p, tol).is_some() {
             return Cursor::PenAdd;
         }
         Cursor::Pen

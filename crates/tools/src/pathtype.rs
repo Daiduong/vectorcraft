@@ -6,10 +6,13 @@
 //! draw the brackets from the same geometry they hit-test.
 
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{NodeId, NodeKind, TextKind};
+use std::sync::Arc;
+
+use vectorcraft_doc::{Node, NodeId, NodeKind, TextKind};
 use vectorcraft_geom::kurbo::{Line, ParamCurveNearest};
 use vectorcraft_geom::{Affine, ArcPath, Point, Vec2};
 
+use crate::cache::{Slot, ToolCache};
 use crate::{Action, Overlay, PointerEvent, ToolContext};
 
 /// How far a bracket reaches (screen px): up from the path on the type's side, down across it,
@@ -50,13 +53,23 @@ pub struct Brackets {
 impl Brackets {
     /// The brackets of the selected type on a path the tools can edit (outside perspective).
     pub fn of(cx: &ToolContext) -> Vec<Self> {
-        cx.selection.objects.iter().filter_map(|id| Self::of_node(cx, *id)).collect()
+        Self::shown(cx).as_ref().clone()
     }
 
-    fn of_node(cx: &ToolContext, id: NodeId) -> Option<Self> {
-        let n = cx.doc.node(id).filter(|n| n.extras().perspective.is_none() && cx.doc.is_editable(id))?;
+    /// [`Self::of`], kept for the document state ([`crate::cache`]): the tools ask on every
+    /// pointer move and frame.
+    fn shown(cx: &ToolContext) -> Arc<Vec<Self>> {
+        ToolCache::get(cx, Slot::Brackets, || cx.doc.nodes_of(&cx.selection.objects).into_iter().filter_map(|n| Self::of_node(cx, n)).collect())
+    }
+
+    fn of_node(cx: &ToolContext, n: &Node) -> Option<Self> {
+        let id = n.id;
         let NodeKind::Text(t) = &n.kind else { return None };
         let TextKind::OnPath { path, end, .. } = &t.kind else { return None };
+        // Looked at after the kind: it walks up the tree.
+        if n.extras().perspective.is_some() || !crate::cache::editable(cx).get(&id).copied().unwrap_or(false) {
+            return None;
+        }
         let det = t.xf.determinant();
         let arc = ArcPath::new(path);
         if !det.is_finite() || det.abs() < 1e-12 || arc.is_empty() {
@@ -112,9 +125,9 @@ impl Brackets {
 
 /// The selected type on a path's bracket under `p`, if any.
 fn bracket_at(cx: &ToolContext, p: Point) -> Option<(Brackets, Bracket)> {
-    Brackets::of(cx).into_iter().find_map(|b| {
+    Brackets::shown(cx).iter().find_map(|b| {
         let which = b.hit(p, cx.zoom, cx.tol(5.0))?;
-        Some((b, which))
+        Some((b.clone(), which))
     })
 }
 
@@ -126,7 +139,7 @@ pub fn over_bracket(cx: &ToolContext, p: Point) -> bool {
 /// The brackets of the selected type on a path, in their layer's colour.
 pub fn overlays(cx: &ToolContext) -> Vec<Overlay> {
     let mut out = vec![];
-    for b in Brackets::of(cx) {
+    for b in Brackets::shown(cx).iter() {
         let color = cx.doc.layer_color(b.id);
         for which in Bracket::ALL {
             out.extend(b.lines(which, cx.zoom).into_iter().map(|(a, b)| Overlay::Line { a, b, color, dashed: false }));

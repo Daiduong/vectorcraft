@@ -6,10 +6,21 @@
 //!
 //! The drawing tools (Pen, Curvature, Pencil, the shape tools, Type, Artboard) all snap the points
 //! they place through one [`DrawSnap`]: their targets are gathered once per document state, sorted,
-//! and each pointer move looks up the few near the pointer by bisection.
+//! and each pointer move looks up the few near the pointer by bisection (anchors many of which
+//! stand in line, through an R-tree). The Measure, Slice and Gradient tools keep theirs the same
+//! way ([`ArtSnap`]).
+//!
+//! The targets are gathered in the order of the document up to [`BUDGET`]. In larger art, those
+//! near the point they are for (the pointer, the selection being moved) are gathered as well,
+//! nearest first, through the document's spatial index, so the art beside the pointer always
+//! snaps; a drawing tool gathers again once the pointer leaves that neighbourhood. Under the
+//! budget nothing changes.
 
 use std::collections::HashSet;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+use rstar::RTree;
+use rstar::primitives::GeomWithData;
 
 use vectorcraft_doc::hit::{HitOptions, hit_test};
 use vectorcraft_doc::{Document, Node, NodeId, NodeKind, OrientedBox, Selection};
@@ -17,6 +28,7 @@ use vectorcraft_geom::kurbo::ParamCurveNearest;
 use vectorcraft_geom::{Affine, Line, ParamCurve, PathSeg, Point, Rect, SubPath, Vec2, constrain_angle_from};
 
 use crate::bbox::Handle;
+use crate::cache::{Slot, ToolCache};
 use crate::{Overlay, ScreenFrame, ToolContext};
 
 pub const MAGENTA: [u8; 3] = [0xff, 0x3d, 0xfc];
@@ -80,10 +92,18 @@ pub struct Targets {
     /// Ruler guides, which pull a point into line where they run (Snap to Point).
     rulers: Vec<Ruler>,
     /// The bounds of the objects a moved selection spaces itself evenly with (Spacing Guides):
-    /// gathered only for moves ([`Self::for_move`]).
-    boxes: Vec<Rect>,
+    /// gathered only for moves ([`Self::for_move`]). Sorted once by where they start along the x
+    /// axis (`[0]`) and along the y axis (`[1]`), each with its start and end along that axis.
+    boxes: [Vec<(Rect, f64, f64)>; 2],
     /// How the guides these targets produce look.
     style: GuideStyle,
+    /// [`Self::points`] in an R-tree (by their position there), made the first time a lookup
+    /// finds many points in line (a tall column of art), where bisection on x alone would look
+    /// at each of them.
+    points_2d: OnceLock<RTree<GeomWithData<[f64; 2], u32>>>,
+    /// The art outgrew [`BUDGET`] and the targets near this point were gathered too, out to this
+    /// distance (see [`Targets::collect_near`]): a point farther than that may miss some.
+    near: Option<(Point, f64)>,
 }
 
 /// A ruler guide as a snap target.
@@ -110,8 +130,18 @@ impl Ruler {
     }
 }
 
-/// How many anchors, and how many segments, the targets gather at most.
+/// How many anchors, and how many segments, the targets gather at most in the order of the
+/// document. When the art has more, those near the point the targets are for (the pointer, the
+/// moved selection) are gathered as well, nearest first, up to as many again
+/// ([`Targets::collect_near`]): in a large document the art beside the pointer still snaps.
 const BUDGET: usize = 20_000;
+
+/// The first neighbourhood (half its side, in points) looked at round the point the targets are
+/// for when the art outgrows [`BUDGET`]; it doubles until the extra budget is spent.
+const NEAR_START: f64 = 32.0;
+
+/// A strip of points in line longer than this is searched with the R-tree instead.
+const STRIP: usize = 64;
 
 /// What [`Targets::collect_inner`] gathers from each path besides its anchors and bounds.
 #[derive(Clone, Copy, PartialEq)]
@@ -155,37 +185,147 @@ fn span(r: &Rect, x: bool) -> (f64, f64) {
 
 /// The objects a moved selection (`moving`) spaces itself evenly with, by their bounds: each
 /// visible object on a layer as a whole (a group too), and inside a group holding some of the
-/// moving objects its other objects. At most [`BUDGET`].
-fn object_boxes(doc: &Document, moving: &[NodeId]) -> Vec<Rect> {
-    fn push(nodes: &[Arc<Node>], moving: &HashSet<NodeId>, holders: &HashSet<NodeId>, out: &mut Vec<Rect>) {
+/// moving objects its other objects. At most [`BUDGET`] in the order of the document; with more,
+/// those round `focus` too, nearest first ([`near_rings`]).
+fn object_boxes(doc: &Document, moving: &[NodeId], focus: Option<Point>) -> Vec<Rect> {
+    fn push<'a>(
+        nodes: &'a [Arc<Node>],
+        moving: &HashSet<NodeId>,
+        holders: &HashSet<NodeId>,
+        out: &mut Vec<Rect>,
+        seen: &mut Vec<&'a Node>,
+        cap: usize,
+    ) {
         for n in nodes.iter().filter(|n| n.visible && !moving.contains(&n.id)) {
-            if out.len() >= BUDGET {
+            if out.len() >= cap {
                 return;
             }
             match n.children() {
-                Some(ch) if n.is_layer() || holders.contains(&n.id) => push(ch, moving, holders, out),
-                _ => out.extend(n.geometric_bounds()),
+                Some(ch) if n.is_layer() || holders.contains(&n.id) => push(ch, moving, holders, out, seen, cap),
+                _ => {
+                    if let Some(b) = n.geometric_bounds() {
+                        out.push(b);
+                        seen.push(n);
+                    }
+                }
             }
         }
     }
     let holders: HashSet<NodeId> = moving.iter().filter_map(|id| doc.ancestry(*id)).flatten().collect();
-    let mut out = vec![];
-    push(&doc.layers, &moving.iter().copied().collect(), &holders, &mut out);
+    let moving: HashSet<NodeId> = moving.iter().copied().collect();
+    let (mut out, mut seen) = (vec![], vec![]);
+    push(&doc.layers, &moving, &holders, &mut out, &mut seen, BUDGET);
+    if out.len() >= BUDGET
+        && let Some(f) = focus
+    {
+        // The objects near `focus` the budget left out: those on visible layers, as a whole or
+        // inside a holder.
+        let seen: HashSet<usize> = seen.into_iter().map(|n| std::ptr::from_ref(n) as usize).collect();
+        let mut extra = vec![];
+        near_rings(doc, f, None, &moving, |objects| {
+            for n in objects.iter().filter(|n| n.visible) {
+                let mut found = (vec![], vec![]);
+                push(std::slice::from_ref(*n), &moving, &holders, &mut found.0, &mut found.1, usize::MAX);
+                for (b, m) in found.0.into_iter().zip(found.1) {
+                    if extra.len() < BUDGET && !seen.contains(&(std::ptr::from_ref(m) as usize)) {
+                        extra.push(b);
+                    }
+                }
+            }
+            extra.len() < BUDGET
+        });
+        out.extend(extra);
+    }
     out
+}
+
+/// `boxes` sorted (stably) by where they start along the x axis and along the y axis, with their
+/// extents there: [`Targets::boxes`].
+fn sorted_boxes(boxes: Vec<Rect>) -> [Vec<(Rect, f64, f64)>; 2] {
+    [true, false].map(|x| {
+        let mut v: Vec<(Rect, f64, f64)> = boxes.iter().map(|b| (*b, span(b, x).0, span(b, x).1)).collect();
+        v.sort_by(|a, b| a.1.total_cmp(&b.1));
+        v
+    })
+}
+
+/// The objects round `focus` ever farther out: squares of half-side [`NEAR_START`], doubling,
+/// each time handing `f` the objects (of layers, looking through sublayers but those in `skip`;
+/// visible layers only) newly found to meet it, nearest square first, in paint order, until `f`
+/// says it has enough or the square holds `limit` (the art, when none). Returns how far out it
+/// looked (infinite: everything), found through the documents' spatial index.
+fn near_rings(doc: &Document, focus: Point, limit: Option<Rect>, skip: &HashSet<NodeId>, mut f: impl FnMut(&[&Arc<Node>]) -> bool) -> f64 {
+    fn meet<'a>(doc: &Document, n: &'a Arc<Node>, r: Rect, skip: &HashSet<NodeId>, done: &mut HashSet<NodeId>, out: &mut Vec<&'a Arc<Node>>) {
+        let Some(children) = n.children() else { return };
+        let at = doc.spatial().candidates(n, r).unwrap_or_else(|| (0..children.len()).collect());
+        for c in at.into_iter().filter_map(|i| children.get(i)) {
+            if skip.contains(&c.id) {
+                continue;
+            }
+            if c.is_layer() {
+                if c.visible {
+                    meet(doc, c, r, skip, done, out);
+                }
+            } else if vectorcraft_doc::bounds_cache::pick(c).is_none_or(|b| b.x0 <= r.x1 && r.x0 <= b.x1 && b.y0 <= r.y1 && r.y0 <= b.y1)
+                && done.insert(c.id)
+            {
+                out.push(c);
+            }
+        }
+    }
+    if !(focus.x.is_finite() && focus.y.is_finite()) {
+        return 0.0;
+    }
+    let limit = limit.or_else(|| doc.layers.iter().fold(None, |acc, l| vectorcraft_geom::union_opt(acc, vectorcraft_doc::bounds_cache::pick(l))));
+    let mut done = HashSet::new();
+    let mut half = NEAR_START;
+    // Doubling 60 times reaches past any coordinate the canvas allows.
+    for _ in 0..60 {
+        let r = Rect::new(focus.x - half, focus.y - half, focus.x + half, focus.y + half);
+        let mut found = vec![];
+        for l in doc.layers.iter().filter(|l| l.visible && !skip.contains(&l.id)) {
+            meet(doc, l, r, skip, &mut done, &mut found);
+        }
+        let all = limit.is_none_or(|b| r.x0 <= b.x0 && r.y0 <= b.y0 && r.x1 >= b.x1 && r.y1 >= b.y1);
+        if !f(&found) {
+            return if all { f64::INFINITY } else { half };
+        }
+        if all {
+            return f64::INFINITY;
+        }
+        half *= 2.0;
+    }
+    f64::INFINITY
 }
 
 impl Targets {
     pub fn collect(doc: &Document, exclude: &[NodeId], visible: Option<Rect>) -> Self {
-        Self::collect_inner(doc, exclude, None, visible, Gather::Bounds)
+        Self::collect_inner(doc, exclude, None, visible, Gather::Bounds, None)
+    }
+
+    /// [`Self::collect`], and when the art outgrows [`BUDGET`] (the targets then stop where the
+    /// budget runs out, in the order of the document), also the targets near `focus` the budget
+    /// left out, nearest first, up to as many again. Under the budget, the same as
+    /// [`Self::collect`].
+    pub fn collect_near(doc: &Document, exclude: &[NodeId], visible: Option<Rect>, focus: Option<Point>) -> Self {
+        Self::collect_inner(doc, exclude, None, visible, Gather::Bounds, focus)
+    }
+
+    /// The point the targets near which were gathered beyond [`BUDGET`] ([`Self::collect_near`])
+    /// and how far out: none when every target was gathered.
+    pub fn near(&self) -> Option<(Point, f64)> {
+        self.near
     }
 
     /// Targets for moving the selection of `cx`: [`Self::collect`]'s but `exclude` (the selection,
     /// or nothing for a copy, which leaves it behind), styled as `cx` asks, and with Smart Guides ›
     /// Spacing Guides the objects it spaces itself evenly with ([`Self::snap_rect`]).
     pub fn for_move(cx: &ToolContext, exclude: &[NodeId]) -> Self {
-        let mut t = Self::collect(cx.doc, exclude, None).styled(cx);
+        // Near the selection where the move starts, when the art outgrows the budget.
+        let focus = crate::select::selection_bounds(cx).map(|b| b.center());
+        let mut t = Self::collect_near(cx.doc, exclude, None, focus).styled(cx);
         if cx.spacing_guides {
-            t.boxes = object_boxes(cx.doc, &cx.selection.objects);
+            t.boxes = sorted_boxes(object_boxes(cx.doc, &cx.selection.objects, focus));
         }
         t
     }
@@ -194,7 +334,13 @@ impl Targets {
     /// anchors, centres, edges and path segments, its anchors in line too. The anchors and
     /// segments of `exclude` (the path being drawn, whose bounds grow with it) stay targets.
     pub fn for_drawing(doc: &Document, exclude: &[NodeId], visible: Option<Rect>) -> Self {
-        let mut t = Self::collect_inner(doc, exclude, None, visible, Gather::Drawing);
+        Self::for_drawing_near(doc, exclude, visible, None)
+    }
+
+    /// [`Self::for_drawing`], and the targets round `focus` beyond the budget
+    /// ([`Self::collect_near`]).
+    pub fn for_drawing_near(doc: &Document, exclude: &[NodeId], visible: Option<Rect>, focus: Option<Point>) -> Self {
+        let mut t = Self::collect_inner(doc, exclude, None, visible, Gather::Drawing, focus);
         t.push_paths(doc, exclude, true);
         t.index()
     }
@@ -202,7 +348,7 @@ impl Targets {
     /// Targets for a dragged direction handle of path `id`: the other art, and the anchors of `id`
     /// (its bounds and the segments through the handle move with it, so they would chase it).
     pub fn for_handle(doc: &Document, id: NodeId) -> Self {
-        let mut t = Self::collect_inner(doc, &[id], None, None, Gather::Bounds);
+        let mut t = Self::collect_inner(doc, &[id], None, None, Gather::Bounds, None);
         t.push_paths(doc, &[id], false);
         t.index()
     }
@@ -226,6 +372,7 @@ impl Targets {
     /// and centres by x, the lines by where they run. Every constructor ends with it (the sort
     /// is stable: of targets alike, the first gathered still wins).
     fn index(mut self) -> Self {
+        self.points_2d = OnceLock::new();
         self.points.sort_by(|a, b| a.0.x.total_cmp(&b.0.x));
         self.xs.sort_by(|a, b| a.0.total_cmp(&b.0));
         self.ys.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -259,14 +406,14 @@ impl Targets {
     /// Targets for dragging artboard `index`: everything except that artboard and `exclude` (the
     /// art that moves along with it).
     pub fn for_artboard(doc: &Document, index: usize, exclude: &[NodeId]) -> Self {
-        Self::collect_inner(doc, exclude, Some(index), None, Gather::Bounds)
+        Self::collect_inner(doc, exclude, Some(index), None, Gather::Bounds, None)
     }
 
     /// Targets for dragging the direct-selected anchors of `sel` (and its objects selected as a
     /// whole): the other art, its path segments too, and the anchors and segments that stay put on
     /// the paths being reshaped (their bounds move along, so they are no targets).
     pub fn for_anchor_drag(doc: &Document, sel: &Selection) -> Self {
-        let mut t = Self::collect_inner(doc, &sel.objects, None, None, Gather::Segments);
+        let mut t = Self::collect_inner(doc, &sel.objects, None, None, Gather::Segments, None);
         let (mut anchors, mut segments) = (BUDGET, BUDGET);
         for (id, set) in &sel.anchors {
             let Some(path) = doc.node(*id).and_then(|n| n.path_data()) else { continue };
@@ -301,62 +448,105 @@ impl Targets {
         }
     }
 
-    fn collect_inner(doc: &Document, exclude: &[NodeId], skip_artboard: Option<usize>, visible: Option<Rect>, gather: Gather) -> Self {
+    fn collect_inner(
+        doc: &Document,
+        exclude: &[NodeId],
+        skip_artboard: Option<usize>,
+        visible: Option<Rect>,
+        gather: Gather,
+        focus: Option<Point>,
+    ) -> Self {
         let mut t = Targets::default();
-        let add_rect = |t: &mut Targets, r: Rect, kind: Kind| {
-            let c = r.center();
-            for p in [Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)] {
-                t.xs.push((p.x, p, kind));
-                t.ys.push((p.y, p, kind));
-            }
-            // A bleed shares its artboard's centre.
-            if kind != Kind::Bleed {
-                t.points.push((c, Kind::Center));
-                t.xs.push((c.x, c, Kind::Center));
-                t.ys.push((c.y, c, Kind::Center));
-            }
-        };
         for (_, ab) in doc.artboards.iter().enumerate().filter(|(i, _)| Some(*i) != skip_artboard) {
-            add_rect(&mut t, ab.rect, Kind::Artboard);
+            t.add_rect(ab.rect, Kind::Artboard);
             if doc.setup.has_bleed() {
-                add_rect(&mut t, doc.setup.bleed_rect(ab.rect), Kind::Bleed);
+                t.add_rect(doc.setup.bleed_rect(ab.rect), Kind::Bleed);
             }
         }
+        let skip: HashSet<NodeId> = exclude.iter().copied().collect();
         let (mut budget, mut segment_budget) = (BUDGET, BUDGET);
-        walk_but(&doc.layers, &exclude.iter().copied().collect(), &mut |n| {
-            if budget == 0 || n.is_container() || !n.visible {
+        // The objects taken (for the targets near `focus`, which leave them out).
+        let mut taken: Vec<&Node> = vec![];
+        let mut full = false;
+        walk_but(&doc.layers, &skip, &mut |n| {
+            if budget == 0 {
+                full = true;
                 return;
             }
-            let Some(b) = n.geometric_bounds() else { return };
-            if let Some(v) = visible
-                && b.intersect(v).area() <= 0.0
-                && !v.contains(b.center())
-            {
-                return;
+            if t.add_object(n, visible, gather, &mut budget, &mut segment_budget) {
+                taken.push(n);
             }
-            if let NodeKind::Path { path, .. } = &n.kind {
-                for (_, _, a) in path.anchors() {
-                    if gather == Gather::Drawing {
-                        t.push_anchor(a.p);
-                    } else {
-                        t.points.push((a.p, Kind::Anchor));
-                    }
-                    budget = budget.saturating_sub(1);
-                }
-                if gather != Gather::Bounds {
-                    for sp in &path.subpaths {
-                        t.push_segments(sp, |_| false, &mut segment_budget);
-                    }
-                }
-            }
-            add_rect(&mut t, b, Kind::Edge);
         });
+        if full && let Some(f) = focus {
+            let taken: HashSet<usize> = taken.into_iter().map(|n| std::ptr::from_ref(n) as usize).collect();
+            let (mut budget, mut segment_budget) = (BUDGET, BUDGET);
+            let reach = near_rings(doc, f, visible, &skip, |objects| {
+                for o in objects {
+                    walk_but(std::slice::from_ref(*o), &skip, &mut |n| {
+                        if budget > 0 && !taken.contains(&(std::ptr::from_ref(n) as usize)) {
+                            t.add_object(n, visible, gather, &mut budget, &mut segment_budget);
+                        }
+                    });
+                }
+                budget > 0
+            });
+            t.near = reach.is_finite().then_some((f, reach));
+        }
         t.index()
+    }
+
+    /// An object's bounds (corners and centre) as targets of `kind`.
+    fn add_rect(&mut self, r: Rect, kind: Kind) {
+        let c = r.center();
+        for p in [Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)] {
+            self.xs.push((p.x, p, kind));
+            self.ys.push((p.y, p, kind));
+        }
+        // A bleed shares its artboard's centre.
+        if kind != Kind::Bleed {
+            self.points.push((c, Kind::Center));
+            self.xs.push((c.x, c, Kind::Center));
+            self.ys.push((c.y, c, Kind::Center));
+        }
+    }
+
+    /// Node `n` of the art as targets (when it is a visible object whose bounds reach into
+    /// `visible`): its anchors, segments (`gather`) and bounds, counting down the budgets. Whether
+    /// it was taken.
+    fn add_object(&mut self, n: &Node, visible: Option<Rect>, gather: Gather, budget: &mut usize, segment_budget: &mut usize) -> bool {
+        if n.is_container() || !n.visible {
+            return false;
+        }
+        let Some(b) = n.geometric_bounds() else { return false };
+        if let Some(v) = visible
+            && b.intersect(v).area() <= 0.0
+            && !v.contains(b.center())
+        {
+            return false;
+        }
+        if let NodeKind::Path { path, .. } = &n.kind {
+            for (_, _, a) in path.anchors() {
+                if gather == Gather::Drawing {
+                    self.push_anchor(a.p);
+                } else {
+                    self.points.push((a.p, Kind::Anchor));
+                }
+                *budget = budget.saturating_sub(1);
+            }
+            if gather != Gather::Bounds {
+                for sp in &path.subpaths {
+                    self.push_segments(sp, |_| false, segment_budget);
+                }
+            }
+        }
+        self.add_rect(b, Kind::Edge);
+        true
     }
 
     /// Only these targets' anchors pull (View → Snap to Point).
     pub(crate) fn anchors_only(mut self) -> Self {
         self.points.retain(|(_, k)| *k == Kind::Anchor);
+        self.points_2d = OnceLock::new();
         self.xs.clear();
         self.ys.clear();
         self.segments.clear();
@@ -483,11 +673,23 @@ impl Targets {
     }
 
     fn nearest_point(&self, p: Point, tol: f64) -> Option<(Point, Kind)> {
-        within(&self.points, |q| q.0.x, p.x, tol)
-            .iter()
-            .copied()
-            .filter(|(q, _)| q.distance(p) <= tol)
-            .min_by(|a, b| a.0.distance(p).total_cmp(&b.0.distance(p)))
+        let nearest = |points: &mut dyn Iterator<Item = &(Point, Kind)>| {
+            points.copied().filter(|(q, _)| q.distance(p) <= tol).min_by(|a, b| a.0.distance(p).total_cmp(&b.0.distance(p)))
+        };
+        let strip = within(&self.points, |q| q.0.x, p.x, tol);
+        if strip.len() <= STRIP || !(p.x.is_finite() && p.y.is_finite() && tol.is_finite()) {
+            return nearest(&mut strip.iter());
+        }
+        // Many in line: those near `p` from the R-tree (a little farther, the exact test above
+        // decides), in the strip's order, so a tie goes the same way.
+        let tree = self.points_2d.get_or_init(|| {
+            let points = self.points.iter().enumerate().filter(|(_, (q, _))| q.x.is_finite() && q.y.is_finite());
+            RTree::bulk_load(points.map(|(i, (q, _))| GeomWithData::new([q.x, q.y], u32::try_from(i).unwrap_or(u32::MAX))).collect())
+        });
+        let r = tol.max(0.0) * (1.0 + 1e-9) + 1e-9 * (1.0 + p.x.abs().max(p.y.abs()));
+        let mut near: Vec<u32> = tree.locate_within_distance([p.x, p.y], r * r).map(|e| e.data).collect();
+        near.sort_unstable();
+        nearest(&mut near.into_iter().filter_map(|i| self.points.get(i as usize)))
     }
 
     /// Slide `q`, on the line through `at` along `dir` (beyond `at` only, for a `ray`), to where
@@ -584,7 +786,7 @@ impl Targets {
     pub fn snap_rects(&self, rects: &[Rect], tol: f64) -> (Vec2, Vec<Overlay>) {
         let (mut d, mut ov, aligned) = self.align_rects(rects, tol);
         if let [r] = rects
-            && !self.boxes.is_empty()
+            && !self.boxes[0].is_empty()
         {
             let moved = *r + d;
             let mut spaced = false;
@@ -615,13 +817,12 @@ impl Targets {
         let len = r1 - r0;
         let (c0, c1) = span(&r, !x);
         // The objects beside it, before or after, overlapping it across, by where they start.
-        let mut row: Vec<(Rect, f64, f64)> = self
-            .boxes
+        // (Sorted once, when gathered: filtering keeps the order.)
+        let row: Vec<(Rect, f64, f64)> = self.boxes[usize::from(!x)]
             .iter()
-            .map(|b| (*b, span(b, x).0, span(b, x).1))
+            .copied()
             .filter(|(b, a0, a1)| span(b, !x).0 < c1 && span(b, !x).1 > c0 && (*a1 <= r0 + tol || *a0 >= r1 - tol))
             .collect();
-        row.sort_by(|a, b| a.1.total_cmp(&b.1));
         // Where two boxes overlap across: the middle of that (or of the space between them).
         let mid = |a: &Rect, b: &Rect| (span(a, !x).0.max(span(b, !x).0) + span(a, !x).1.min(span(b, !x).1)) / 2.0;
         // Each object and the nearest one after it, unless the moved rectangle sits between them.
@@ -842,6 +1043,11 @@ pub struct PointSnap {
 }
 
 impl PointSnap {
+    /// [`Targets::near`] of the targets.
+    pub fn near(&self) -> Option<(Point, f64)> {
+        self.targets.as_ref().and_then(|(t, _)| t.near())
+    }
+
     pub fn new(cx: &ToolContext, targets: impl FnOnce() -> Targets) -> Self {
         let targets = if cx.snap_to_pixel || cx.snap_to_grid {
             None
@@ -981,6 +1187,47 @@ pub struct DrawSnap {
     /// The targets, and what they were gathered for (none: for one drag only).
     targets: Option<(Option<SnapKey>, PointSnap)>,
     guides: Vec<Overlay>,
+    /// The targets are [`snap_draw`]'s (the art's anchors, centres and bounds, the whole
+    /// document's): [`ArtSnap`].
+    art: bool,
+}
+
+/// [`snap_draw`] with its targets kept: gathered once per document state (and per neighbourhood
+/// in art beyond the budget) instead of on every pointer move. The Measure, Slice and Gradient
+/// tools snap their points through one.
+pub struct ArtSnap(DrawSnap);
+
+impl Default for ArtSnap {
+    fn default() -> Self {
+        Self(DrawSnap { art: true, ..DrawSnap::default() })
+    }
+}
+
+impl ArtSnap {
+    /// Where [`snap_draw`] puts `p` (the art but `exclude` as targets), and the guides.
+    pub fn snap(&mut self, cx: &ToolContext, p: Point, exclude: &[NodeId]) -> (Point, Vec<Overlay>) {
+        let q = self.0.hover(cx, p, exclude, None);
+        (q, self.0.guides.clone())
+    }
+
+    /// [`Self::snap`] for a press: the targets gathered now are kept for the drag ([`Self::drag`])
+    /// while its previews change the document.
+    pub fn press(&mut self, cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
+        let q = self.0.press(cx, p, &[], None);
+        (q, self.0.guides.clone())
+    }
+
+    /// Snap `p`, dragged since the press, with the targets [`Self::press`] gathered (gathered now
+    /// when none were).
+    pub fn drag(&mut self, cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
+        let q = self.0.drag(cx, p, None);
+        (q, self.0.guides.clone())
+    }
+
+    /// Forget the targets (a gesture whose press gathered none).
+    pub fn forget(&mut self) {
+        self.0.targets = None;
+    }
 }
 
 /// What a [`DrawSnap`]'s targets were gathered for: the document state, the art left out, the
@@ -1017,11 +1264,16 @@ fn visible(cx: &ToolContext) -> Option<Rect> {
 
 impl DrawSnap {
     /// Snap the pointer hovering at `p` (the art but `exclude` as targets, the anchors of
-    /// `exclude` still pulling), reusing the targets while nothing they depend on changed.
+    /// `exclude` still pulling), reusing the targets while nothing they depend on changed (and,
+    /// in art beyond the budget, while `p` stays near where those near it were gathered).
     pub fn hover(&mut self, cx: &ToolContext, p: Point, exclude: &[NodeId], from: Option<&Leave>) -> Point {
         let key = SnapKey::of(cx, exclude);
-        if self.targets.as_ref().is_none_or(|(k, _)| k.as_ref() != Some(&key)) {
-            self.gather(cx, key);
+        let stale = match &self.targets {
+            Some((k, t)) => k.as_ref() != Some(&key) || t.near().is_some_and(|(f, r)| p.distance(f) > r / 2.0),
+            None => true,
+        };
+        if stale {
+            self.gather(cx, key, p);
         }
         self.snap(cx, p, from)
     }
@@ -1029,7 +1281,7 @@ impl DrawSnap {
     /// Snap the point pressed at `p`, the targets gathered afresh: the drag that follows keeps
     /// them ([`Self::drag`]).
     pub fn press(&mut self, cx: &ToolContext, p: Point, exclude: &[NodeId], from: Option<&Leave>) -> Point {
-        self.gather(cx, SnapKey::of(cx, exclude));
+        self.gather(cx, SnapKey::of(cx, exclude), p);
         self.snap(cx, p, from)
     }
 
@@ -1043,7 +1295,7 @@ impl DrawSnap {
     /// Snap `p`, dragged since the press, with the targets the press gathered.
     pub fn drag(&mut self, cx: &ToolContext, p: Point, from: Option<&Leave>) -> Point {
         if self.targets.is_none() {
-            self.gather(cx, SnapKey::of(cx, &[]));
+            self.gather(cx, SnapKey::of(cx, &[]), p);
         }
         self.snap(cx, p, from)
     }
@@ -1058,8 +1310,13 @@ impl DrawSnap {
         self.guides.clear();
     }
 
-    fn gather(&mut self, cx: &ToolContext, key: SnapKey) {
-        let snap = PointSnap::new(cx, || Targets::for_drawing(cx.doc, &key.exclude, visible(cx)));
+    /// Gather the targets for `key`, those round `p` too in art beyond the budget.
+    fn gather(&mut self, cx: &ToolContext, key: SnapKey, p: Point) {
+        let snap = if self.art {
+            PointSnap::new(cx, || Targets::collect_near(cx.doc, &key.exclude, None, Some(p)))
+        } else {
+            PointSnap::new(cx, || Targets::for_drawing_near(cx.doc, &key.exclude, visible(cx), Some(p)))
+        };
         self.targets = Some((Some(key), snap));
     }
 
@@ -1102,10 +1359,51 @@ pub fn snap_pick(cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
         return (p, vec![]);
     }
     let tol = if cx.smart_guides { cx.snap_tol() } else { cx.tol(cx.snap_tolerance) };
-    let mut roots = cx.selection.objects.clone();
-    roots.extend(hit_test(cx.doc, p, HitOptions { tol, ..cx.hit_options() }).map(|h| h.leaf));
     let near = Rect::new(p.x - tol, p.y - tol, p.x + tol, p.y + tol);
-    Targets::points_near(cx.doc, &roots, near).styled(cx).snap_point(p, tol)
+    // The selection's leaves, kept per document state (the transform tools ask on every hover),
+    // then the leaf under the pointer.
+    let selected = ToolCache::get(cx, Slot::PickPoints, || PickPoints::of(cx.doc, &cx.selection.objects));
+    let mut t = Targets::default();
+    for i in selected.ix.meeting(near) {
+        if let Some((b, points)) = selected.leaves.get(i as usize)
+            && !(b.x0 > near.x1 || b.x1 < near.x0 || b.y0 > near.y1 || b.y1 < near.y0)
+        {
+            t.points.extend_from_slice(points);
+        }
+    }
+    let under: Vec<NodeId> = hit_test(cx.doc, p, HitOptions { tol, ..cx.hit_options() }).map(|h| h.leaf).into_iter().collect();
+    t.points.extend(Targets::points_near(cx.doc, &under, near).points);
+    t.index().styled(cx).snap_point(p, tol)
+}
+
+/// What [`Targets::points_near`] finds in the selection, worked out once per document state: each
+/// visible leaf (in the order of the selection, then of the tree) with its geometric bounds, its
+/// anchors and its centre, and an index of the bounds.
+struct PickPoints {
+    leaves: Vec<(Rect, Vec<(Point, Kind)>)>,
+    ix: crate::boxindex::BoxIndex,
+}
+
+impl PickPoints {
+    fn of(doc: &Document, roots: &[NodeId]) -> Self {
+        let mut leaves = vec![];
+        for n in doc.nodes_of(roots) {
+            n.walk(&mut |c| {
+                if c.is_container() || !c.visible {
+                    return;
+                }
+                let Some(b) = c.geometric_bounds() else { return };
+                let mut points = vec![];
+                if let NodeKind::Path { path, .. } = &c.kind {
+                    points.extend(path.anchors().map(|(_, _, a)| (a.p, Kind::Anchor)));
+                }
+                points.push((b.center(), Kind::Center));
+                leaves.push((b, points));
+            });
+        }
+        let ix = crate::boxindex::BoxIndex::new(leaves.iter().enumerate().map(|(i, (b, _))| (*b, u32::try_from(i).unwrap_or(u32::MAX))));
+        Self { leaves, ix }
+    }
 }
 
 #[cfg(test)]
@@ -1470,5 +1768,229 @@ mod tests {
         let from = Leave::segment(&c, Point::ZERO, true);
         let q = snap.press(&c, Point::new(31.0, 2.0), &[], Some(&from));
         assert!((q.y - 0.0).abs() < 1e-9, "{q:?}");
+    }
+
+    /// Spacing Guides as they were: the boxes filtered and sorted on every call.
+    fn even_spacing_oracle(boxes: &[Rect], r: Rect, x: bool, tol: f64) -> Option<(f64, Vec<[f64; 3]>)> {
+        let (r0, r1) = span(&r, x);
+        let len = r1 - r0;
+        let (c0, c1) = span(&r, !x);
+        // The objects beside it, before or after, overlapping it across, by where they start.
+        let mut row: Vec<(Rect, f64, f64)> = boxes
+            .iter()
+            .map(|b| (*b, span(b, x).0, span(b, x).1))
+            .filter(|(b, a0, a1)| span(b, !x).0 < c1 && span(b, !x).1 > c0 && (*a1 <= r0 + tol || *a0 >= r1 - tol))
+            .collect();
+        row.sort_by(|a, b| a.1.total_cmp(&b.1));
+        // Where two boxes overlap across: the middle of that (or of the space between them).
+        let mid = |a: &Rect, b: &Rect| (span(a, !x).0.max(span(b, !x).0) + span(a, !x).1.min(span(b, !x).1)) / 2.0;
+        // Each object and the nearest one after it, unless the moved rectangle sits between them.
+        let pairs: Vec<(f64, [f64; 3])> = row
+            .iter()
+            .filter_map(|(p, _, p1)| {
+                let next = row.partition_point(|(_, a0, _)| *a0 < *p1);
+                let (q, q0, _) = row.get(next)?;
+                let straddles = *p1 <= r0 + tol && *q0 >= r1 - tol;
+                (*q0 > *p1 && !straddles).then(|| (q0 - p1, [*p1, *q0, mid(p, q)]))
+            })
+            .collect();
+        let before = row.iter().filter(|(_, _, a1)| *a1 <= r0 + tol).max_by(|a, b| a.2.total_cmp(&b.2));
+        let after = row.iter().filter(|(_, a0, _)| *a0 >= r1 - tol).min_by(|a, b| a.1.total_cmp(&b.1));
+        // Where it could start, and the gap it repeats (None: halfway between its neighbours).
+        let mut starts: Vec<(f64, Option<f64>)> = vec![];
+        if let (Some(a), Some(b)) = (before, after)
+            && b.1 - a.2 > len
+        {
+            starts.push(((a.2 + b.1 - len) / 2.0, None));
+        }
+        for (g, _) in &pairs {
+            starts.extend(before.map(|a| (a.2 + g, Some(*g))));
+            starts.extend(after.map(|b| (b.1 - g - len, Some(*g))));
+        }
+        let (start, repeats) =
+            starts.into_iter().filter(|(t, _)| (t - r0).abs() <= tol).min_by(|a, b| (a.0 - r0).abs().total_cmp(&(b.0 - r0).abs()))?;
+        let at = r + if x { Vec2::new(start - r0, 0.0) } else { Vec2::new(0.0, start - r0) };
+        let (end, mut gaps) = (start + len, vec![]);
+        if let Some((a, _, a1)) = before
+            && repeats.is_none_or(|g| (start - a1 - g).abs() <= 1e-9)
+        {
+            gaps.push([*a1, start, mid(a, &at)]);
+        }
+        if let Some((b, b0, _)) = after
+            && repeats.is_none_or(|g| (b0 - end - g).abs() <= 1e-9)
+        {
+            gaps.push([end, *b0, mid(b, &at)]);
+        }
+        if let Some(g) = repeats {
+            gaps.extend(pairs.iter().filter(|(pg, _)| (pg - g).abs() <= 1e-9).map(|(_, gap)| *gap));
+        }
+        Some((start - r0, gaps))
+    }
+
+    /// A random scatter of boxes, some in rows and columns with equal gaps.
+    fn scatter(seed: u64, n: usize) -> Vec<Rect> {
+        let mut r = Rng(seed | 1);
+        (0..n)
+            .map(|i| {
+                let (x, y) = if i % 2 == 0 { ((r.below(20) * 40) as f64, (r.below(3) * 100) as f64) } else { (r.next() * 800.0, r.next() * 800.0) };
+                Rect::new(x, y, x + 10.0 + (r.below(3) * 5) as f64, y + 10.0 + r.next() * 20.0)
+            })
+            .collect()
+    }
+
+    /// Spacing Guides with the boxes sorted once give what sorting them on every call gave.
+    #[test]
+    fn even_spacing_sorted_once_matches_sorting_each_time() {
+        let mut hits = 0;
+        for seed in 1..=8 {
+            let boxes = scatter(seed, 200);
+            let t = Targets { boxes: sorted_boxes(boxes.clone()), ..Targets::default() };
+            let mut r = Rng(seed * 3 + 1);
+            for _ in 0..400 {
+                let (x0, y0) = (r.next() * 820.0 - 10.0, r.next() * 320.0);
+                let moved = Rect::new(x0, y0, x0 + 10.0 + (r.below(3) * 5) as f64, y0 + 15.0);
+                for x in [true, false] {
+                    let want = even_spacing_oracle(&boxes, moved, x, 4.0);
+                    hits += usize::from(want.is_some());
+                    assert_eq!(t.even_spacing(moved, x, 4.0), want, "seed {seed} {moved:?} {x}");
+                }
+            }
+        }
+        assert!(hits > 50, "{hits}");
+    }
+
+    /// The anchor or centre nearest a point, looked up in the R-tree when many stand in line (a
+    /// tall column), is the one the strip on x finds, ties included.
+    #[test]
+    fn nearest_point_in_a_tall_column_matches_the_strip() {
+        let mut t = Targets::default();
+        let mut r = Rng(7);
+        for i in 0..3000 {
+            // A column of anchors (some on top of each other), and others scattered.
+            let q = if i % 3 == 0 {
+                Point::new(r.next() * 500.0, r.next() * 500.0)
+            } else {
+                Point::new(100.0 + (r.below(3) as f64) * 0.5, (r.below(1500) as f64) * 0.4)
+            };
+            t.push_anchor(q);
+        }
+        let t = t.index();
+        let strip = |p: Point, tol: f64| {
+            within(&t.points, |q| q.0.x, p.x, tol)
+                .iter()
+                .copied()
+                .filter(|(q, _)| q.distance(p) <= tol)
+                .min_by(|a, b| a.0.distance(p).total_cmp(&b.0.distance(p)))
+        };
+        let mut hits = 0;
+        for _ in 0..3000 {
+            let p = Point::new(98.0 + r.next() * 4.0, r.next() * 610.0 - 5.0);
+            for tol in [0.0, 0.2, 1.0, 4.0] {
+                let want = strip(p, tol);
+                hits += usize::from(want.is_some());
+                assert_eq!(t.nearest_point(p, tol), want, "{p:?} {tol}");
+            }
+        }
+        assert!(hits > 1000, "{hits}");
+        assert!(t.points_2d.get().is_some(), "the column went through the R-tree");
+    }
+
+    /// Under the budget, gathering the targets near a point too changes nothing: the same targets
+    /// in the same order. Snapping as the Measure, Slice and Gradient tools do, the targets kept,
+    /// lands where gathering them for every point did.
+    #[test]
+    fn targets_under_the_budget_are_the_same_with_a_focus() {
+        let p = paint();
+        for seed in 1..=4 {
+            let d = random_doc(seed, 300);
+            let s = Selection::default();
+            let f = Point::new(300.0, 300.0);
+            let (a, b) = (Targets::collect(&d, &[], None), Targets::collect_near(&d, &[], None, Some(f)));
+            assert!(a.points == b.points && a.xs == b.xs && a.ys == b.ys && b.near.is_none(), "seed {seed}");
+            let (a, b) = (Targets::for_drawing(&d, &[], None), Targets::for_drawing_near(&d, &[], None, Some(f)));
+            assert!(a.points == b.points && a.xs == b.xs && a.ys == b.ys && a.segments.len() == b.segments.len(), "seed {seed}");
+            let c = ToolContext { revision: (1, seed), ..cx(&d, &s, &p) };
+            let mut art = ArtSnap::default();
+            for q in probes(&d, seed, 300) {
+                assert_eq!(art.snap(&c, q, &[]), snap_draw(&c, q, &[]), "seed {seed} at {q:?}");
+            }
+        }
+    }
+
+    /// Art beyond the budget: the targets gathered in the order of the document stop short of an
+    /// object placed last, but the targets near the pointer include it, so it snaps.
+    #[test]
+    fn an_object_beside_the_pointer_snaps_in_art_beyond_the_budget() {
+        use vectorcraft_doc::{Appearance, Node};
+        let mut d = vectorcraft_doc::Document::new(2000.0, 3000.0);
+        let l = d.layers[0].id;
+        // 12,000 squares: 48,000 anchors, more than twice the budget.
+        for i in 0..12_000 {
+            let (x, y) = ((i % 80) as f64 * 20.0, (i / 80) as f64 * 20.0);
+            let id = d.alloc_id();
+            d.insert(
+                Some(l),
+                usize::MAX,
+                Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(x, y, x + 10.0, y + 10.0)), Appearance::default_art()),
+            )
+            .unwrap();
+        }
+        let last = d.alloc_id();
+        let corner = Point::new(813.0, 2213.0);
+        let r = Rect::new(corner.x, corner.y, corner.x + 30.0, corner.y + 30.0);
+        d.insert(Some(l), usize::MAX, Node::path(last, vectorcraft_geom::shapes::rectangle(r), Appearance::default_art())).unwrap();
+        let at = corner + Vec2::new(1.5, -1.0);
+        let old = Targets::collect(&d, &[], None);
+        assert!(old.nearest_point(at, 4.0).is_none(), "the budget ran out before it");
+        let t = Targets::collect_near(&d, &[], None, Some(at));
+        assert_eq!(t.snap_point(at, 4.0).0, corner);
+        assert!(t.near().is_some_and(|(f, reach)| f == at && reach >= NEAR_START));
+        // A drawing tool's snapper gathers round the pointer, and again once it goes far.
+        let (s, p) = (Selection::default(), paint());
+        let c = ToolContext { revision: (1, 1), ..cx(&d, &s, &p) };
+        let mut snap = DrawSnap::default();
+        assert_eq!(snap.hover(&c, at, &[], None), corner);
+        let mut snap = DrawSnap::default();
+        assert_ne!(snap.hover(&c, Point::new(5.0, 1990.0), &[], None), corner);
+        assert_eq!(snap.hover(&c, at, &[], None), corner);
+        // A move of the selection lines up with the art round it: its left side half a point
+        // right of the object's right side (and farther from the squares' edges and centres)
+        // goes onto it.
+        let mut sel = Selection::default();
+        let moved = d.alloc_id();
+        let mut d2 = d.clone();
+        let b = Rect::new(r.x1 + 0.5, 2232.0, r.x1 + 10.5, 2238.0);
+        d2.insert(Some(l), usize::MAX, Node::path(moved, vectorcraft_geom::shapes::rectangle(b), Appearance::default_art())).unwrap();
+        sel.add(moved);
+        let c = cx(&d2, &sel, &p);
+        assert_eq!(Targets::collect(&d2, &[moved], None).snap_rect(b, 0.8).0.x, 0.0, "the budget ran out before it");
+        let (dv, _) = Targets::for_move(&c, &[moved]).snap_rect(b, 0.8);
+        assert_eq!(dv.x, -0.5);
+    }
+
+    /// A picked point snaps, through the selection's points kept per state, where walking the
+    /// whole selection for every point put it.
+    #[test]
+    fn snap_pick_matches_walking_the_selection() {
+        fn oracle(cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
+            let tol = if cx.smart_guides { cx.snap_tol() } else { cx.tol(cx.snap_tolerance) };
+            let mut roots = cx.selection.objects.clone();
+            roots.extend(hit_test(cx.doc, p, HitOptions { tol, ..cx.hit_options() }).map(|h| h.leaf));
+            let near = Rect::new(p.x - tol, p.y - tol, p.x + tol, p.y + tol);
+            Targets::points_near(cx.doc, &roots, near).styled(cx).snap_point(p, tol)
+        }
+        let p = paint();
+        let mut moved = 0;
+        for seed in 1..=4 {
+            let d = random_doc(seed, 300);
+            let s = random_selection(&d, seed, 0.5);
+            let c = cx(&d, &s, &p);
+            for q in probes(&d, seed, 400) {
+                let want = oracle(&c, q);
+                moved += usize::from(want.0 != q);
+                assert_eq!(snap_pick(&c, q), want, "seed {seed} at {q:?}");
+            }
+        }
+        assert!(moved > 50, "{moved}");
     }
 }

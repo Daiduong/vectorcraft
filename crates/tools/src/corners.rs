@@ -8,11 +8,15 @@
 //! geometry.
 
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{Document, LiveCorners, LiveShape, NodeId, NodeKind, Selection};
+use std::sync::Arc;
+
+use vectorcraft_doc::{Document, LiveCorners, LiveShape, Node, NodeId, NodeKind, Selection};
 use vectorcraft_geom::corners::{Corner, cut_corners};
 use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Vec2};
+use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect, Vec2};
 
+use crate::boxindex::BoxIndex;
+use crate::cache::{Slot, ToolCache, bits};
 use crate::{Action, Overlay, PointerEvent, ToolContext};
 
 /// The dialog a double-click on a corner widget opens: `{id, corners}`.
@@ -53,12 +57,18 @@ struct PathWidgets {
 impl PathWidgets {
     /// The widgets of path `id` at `zoom` (screen px per document point), if it has any: any path
     /// with Direct Selection (`any_path`), live rectangles and polygons with Selection.
-    fn of(doc: &Document, selection: &Selection, id: NodeId, zoom: f64, any_path: bool) -> Option<Self> {
-        if !doc.is_editable(id) || selection.segments.contains_key(&id) {
+    fn of(selection: &Selection, n: &Node, zoom: f64, any_path: bool, editable: &dyn Fn(NodeId) -> bool) -> Option<Self> {
+        let id = n.id;
+        // A path with selected segments shows no corner widgets (#1278).
+        if selection.segments.contains_key(&id) {
             return None;
         }
-        let NodeKind::Path { path, live, .. } = &doc.node(id)?.kind else { return None };
+        let NodeKind::Path { path, live, .. } = &n.kind else { return None };
         if !any_path && !matches!(live.as_deref(), Some(LiveShape::Rectangle { .. } | LiveShape::Polygon { .. })) {
+            return None;
+        }
+        // Looked at after the kind: it may walk up the tree.
+        if !editable(id) {
             return None;
         }
         let lc = LiveCorners::new(path, live.as_deref())?;
@@ -101,7 +111,14 @@ impl CornerWidgets {
     /// The widgets at `zoom` (screen px per document point), if the selection has them: on any
     /// path with Direct Selection (`any_path`), on live rectangles and polygons with Selection.
     pub fn of(doc: &Document, selection: &Selection, zoom: f64, any_path: bool) -> Option<Self> {
-        let paths: Vec<_> = selection.objects.iter().filter_map(|id| PathWidgets::of(doc, selection, *id, zoom, any_path)).collect();
+        Self::of_with(doc, selection, zoom, any_path, &|id| doc.is_editable(id))
+    }
+
+    /// [`Self::of`] with `editable` saying whether an object can be edited.
+    fn of_with(doc: &Document, selection: &Selection, zoom: f64, any_path: bool, editable: &dyn Fn(NodeId) -> bool) -> Option<Self> {
+        // The selected objects found in one walk of the tree for a large selection.
+        let nodes = doc.nodes_of(&selection.objects);
+        let paths: Vec<_> = nodes.into_iter().filter_map(|n| PathWidgets::of(selection, n, zoom, any_path, editable)).collect();
         (!paths.is_empty()).then_some(Self { paths })
     }
 
@@ -128,7 +145,7 @@ impl CornerWidgets {
 
     /// The widgets the active tool can drag (Direct Selection: `any_path`).
     pub fn for_tool(cx: &ToolContext, any_path: bool) -> Option<Self> {
-        Self::showing(cx.doc, cx.selection, cx.zoom, any_path, cx.corner_widgets, cx.corner_widget_max_angle)
+        Shown::of(cx, any_path).widgets.clone()
     }
 
     /// The centres of the widgets that show.
@@ -147,7 +164,9 @@ impl CornerWidgets {
         self.paths.iter().flat_map(PathWidgets::corners).collect()
     }
 
-    /// The widget nearest to `p` within `tol` (document units): its path's and its own index.
+    /// The widget nearest to `p` within `tol` (document units): its path's and its own index. The
+    /// tools ask [`Shown::hit`], which looks only at the widgets near `p`; this is its oracle.
+    #[cfg(test)]
     fn hit(&self, p: Point, tol: f64) -> Option<(usize, usize)> {
         let d = |&(i, k): &(usize, usize)| self.widget(i, k).map_or(f64::INFINITY, |w| w.at.distance(p));
         self.paths
@@ -191,6 +210,52 @@ impl CornerWidgets {
     }
 }
 
+/// The widgets the active tool can drag ([`CornerWidgets::for_tool`]), kept for the document
+/// state ([`crate::cache`]) with an index of where they are, so a hover looks only at those near
+/// the pointer.
+struct Shown {
+    widgets: Option<CornerWidgets>,
+    /// Each widget's path and own index, in [`CornerWidgets::hit`]'s order, numbered as `ix` has
+    /// them.
+    at: Vec<(usize, usize)>,
+    ix: BoxIndex,
+}
+
+impl Shown {
+    fn of(cx: &ToolContext, any_path: bool) -> Arc<Self> {
+        let slot = Slot::Corners { any_path, zoom: bits(cx.zoom), on: cx.corner_widgets, max_angle: bits(cx.corner_widget_max_angle) };
+        ToolCache::get(cx, slot, || {
+            let editable = crate::cache::editable(cx);
+            let widgets = cx
+                .corner_widgets
+                .then(|| CornerWidgets::of_with(cx.doc, cx.selection, cx.zoom, any_path, &|id| editable.get(&id).copied().unwrap_or(false)))
+                .flatten()
+                .and_then(|w| w.within_angle(cx.corner_widget_max_angle));
+            let mut at = vec![];
+            let mut boxes = vec![];
+            for (i, path) in widgets.iter().flat_map(|w| w.paths.iter().enumerate()) {
+                for (k, w) in path.widgets.iter().enumerate() {
+                    boxes.push((Rect::from_points(w.at, w.at), u32::try_from(at.len()).unwrap_or(u32::MAX)));
+                    at.push((i, k));
+                }
+            }
+            Self { widgets, at, ix: BoxIndex::new(boxes) }
+        })
+    }
+
+    /// [`CornerWidgets::hit`], looking only at the widgets near `p`.
+    fn hit(&self, p: Point, tol: f64) -> Option<(usize, usize)> {
+        let w = self.widgets.as_ref()?;
+        let d = |&(i, k): &(usize, usize)| w.widget(i, k).map_or(f64::INFINITY, |w| w.at.distance(p));
+        self.ix
+            .near(p, tol)
+            .into_iter()
+            .filter_map(|n| self.at.get(n as usize).copied())
+            .filter(|ik| d(ik) <= tol)
+            .min_by(|a, b| d(a).total_cmp(&d(b)))
+    }
+}
+
 /// The angle between corner `c`'s sides once `xf` maps them into the document, in degrees.
 fn angle_in(xf: Affine, c: &Corner) -> f64 {
     let [a, b, cc, d, _, _] = xf.as_coeffs();
@@ -201,14 +266,14 @@ fn angle_in(xf: Affine, c: &Corner) -> f64 {
 
 /// Is `p` over a corner widget the active tool would drag (Direct Selection: `any_path`)?
 pub fn over_widget(cx: &ToolContext, p: Point, any_path: bool) -> bool {
-    CornerWidgets::for_tool(cx, any_path).and_then(|w| w.hit(p, cx.tol(5.0))).is_some()
+    Shown::of(cx, any_path).hit(p, cx.tol(5.0)).is_some()
 }
 
 /// A double-click on a corner widget opens the Corners dialog for the shown corners of its path.
 pub fn double_click(cx: &ToolContext, p: Point, any_path: bool) -> Option<Action> {
-    let w = CornerWidgets::for_tool(cx, any_path)?;
-    let (i, _) = w.hit(p, cx.tol(5.0))?;
-    let path = w.paths.get(i)?;
+    let shown = Shown::of(cx, any_path);
+    let (i, _) = shown.hit(p, cx.tol(5.0))?;
+    let path = shown.widgets.as_ref()?.paths.get(i)?;
     Some(Action::Dialog(DIALOG.into(), json!({ "id": path.id.0, "corners": path.corners() })))
 }
 
@@ -244,8 +309,9 @@ impl CornerDrag {
     /// Start a drag when the press `ev` is on a widget of the selection (Direct Selection:
     /// `any_path`).
     pub fn hit(cx: &ToolContext, ev: &PointerEvent, any_path: bool) -> Option<Self> {
-        let (widgets, p) = (CornerWidgets::for_tool(cx, any_path)?, ev.pos);
-        let widget = widgets.hit(p, cx.tol(5.0))?;
+        let (shown, p) = (Shown::of(cx, any_path), ev.pos);
+        let widget = shown.hit(p, cx.tol(5.0))?;
+        let widgets = shown.widgets.clone()?;
         let radius = widgets.widget(widget.0, widget.1)?.radius;
         let outlines = widgets
             .paths
@@ -715,5 +781,31 @@ mod tests {
         let w = CornerWidgets::for_tool(&cx(&d, &s, &p), true).unwrap();
         assert_eq!(w.corners(), [1, 2]);
         assert_eq!(pts(&w)[0], Point::new(290.0, 110.0));
+    }
+
+    /// The widget under the pointer, found among those near it, is the one looking at every
+    /// widget finds.
+    #[test]
+    fn widget_hits_match_looking_at_every_widget() {
+        let p = paint();
+        let mut found = 0;
+        for seed in 1..=4 {
+            let d = random_doc(seed, 300);
+            let s = random_selection(&d, seed, 0.5);
+            for (zoom, any_path) in [(4.0, true), (1.0, true), (8.0, false)] {
+                let c = ToolContext { zoom, ..cx(&d, &s, &p) };
+                let all = CornerWidgets::of(&d, &s, zoom, any_path).and_then(|w| w.within_angle(c.corner_widget_max_angle));
+                let mut probes: Vec<Point> = all.iter().flat_map(|w| w.visible().collect::<Vec<_>>()).collect();
+                probes.extend(crate::testutil::probes(&d, seed, 300));
+                let shown = Shown::of(&c, any_path);
+                for q in probes.iter().flat_map(|q| [*q, *q + Vec2::new(2.0 / zoom, 1.0 / zoom)]) {
+                    let want = all.as_ref().and_then(|w| w.hit(q, c.tol(5.0)));
+                    assert_eq!(shown.hit(q, c.tol(5.0)), want, "seed {seed} at {q:?}");
+                    assert_eq!(over_widget(&c, q, any_path), want.is_some());
+                    found += usize::from(want.is_some());
+                }
+            }
+        }
+        assert!(found > 100, "{found}");
     }
 }

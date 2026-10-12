@@ -8,7 +8,9 @@
 #![forbid(unsafe_code)]
 
 pub mod bbox;
+pub mod boxindex;
 pub mod builder;
+pub mod cache;
 pub mod catalog;
 pub mod corners;
 pub mod cropimage;
@@ -221,6 +223,9 @@ pub struct ToolContext<'a> {
     /// every change of the document or the selection: what a tool keeps between pointer events
     /// for the document as it is (the snap targets of hovering) is keyed on it.
     pub revision: (u64, u64),
+    /// What the tools work out over the whole selection, kept per document state
+    /// ([`cache::ToolCache`]): one per host, shared by every context it makes.
+    pub cache: &'a cache::ToolCache,
     pub selection: &'a Selection,
     /// Screen pixels per document point.
     pub zoom: f64,
@@ -650,6 +655,125 @@ pub(crate) mod testutil {
         (d, id)
     }
 
+    /// Deterministic xorshift in 0..1, for [`random_doc`].
+    pub struct Rng(pub u64);
+    impl Rng {
+        pub fn next(&mut self) -> f64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 % 1_000_000) as f64 / 1_000_000.0
+        }
+        pub fn below(&mut self, n: usize) -> usize {
+            ((self.next() * n as f64) as usize).min(n.saturating_sub(1))
+        }
+    }
+
+    /// A random document of about `n` objects on a 600 × 600 page, for comparing the tools'
+    /// lookups with walks of everything: rectangles, ellipses, stars and curved paths (some
+    /// sharing anchors, some locked or hidden), groups of them, area type, a hidden layer, a locked
+    /// layer and a sublayer.
+    pub fn random_doc(seed: u64, n: usize) -> Document {
+        let mut r = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
+        let mut d = Document::new(600.0, 600.0);
+        let main = d.layers[0].id;
+        let hidden = d.add_layer(Some("hidden"));
+        let locked = d.add_layer(Some("locked"));
+        let sub = d.alloc_id();
+        d.insert(Some(main), usize::MAX, Node::layer(sub, "sub", vectorcraft_doc::LayerColor::Preset(2))).unwrap();
+        let shape = |d: &mut Document, r: &mut Rng| {
+            let id = d.alloc_id();
+            // Coordinates on a coarse grid now and then, so anchors coincide and ties happen.
+            let c = |r: &mut Rng| if r.next() < 0.3 { (r.below(30) * 20) as f64 } else { r.next() * 600.0 };
+            let (x, y, s) = (c(r), c(r), 2.0 + r.next() * 40.0);
+            let path = match r.below(4) {
+                0 => shapes::rectangle(Rect::new(x, y, x + s, y + s * 0.7)),
+                1 => shapes::ellipse(Rect::from_center_size(Point::new(x, y), (s, s * 1.3))),
+                2 => shapes::star(Point::new(x, y), s, s / 2.0, 5, 0.0),
+                _ => vectorcraft_geom::PathData::from_bezpath(&BezPath::from_vec(vec![
+                    vectorcraft_geom::PathEl::MoveTo(Point::new(x, y)),
+                    vectorcraft_geom::PathEl::CurveTo(Point::new(x + s, y - s), Point::new(x + 2.0 * s, y + s), Point::new(x + 3.0 * s, y)),
+                ])),
+            };
+            let mut node = Node::path(id, path, Appearance::default_art());
+            node.locked = r.next() < 0.05;
+            node.visible = r.next() > 0.05;
+            node
+        };
+        for _ in 0..n {
+            let parent = match r.below(10) {
+                0 => hidden,
+                1 => locked,
+                2 | 3 => sub,
+                _ => main,
+            };
+            let node = match r.below(12) {
+                0 => {
+                    let id = d.alloc_id();
+                    let kids = (0..1 + r.below(4)).map(|_| std::sync::Arc::new(shape(&mut d, &mut r))).collect();
+                    let mut g = Node::group(id, kids);
+                    g.locked = r.next() < 0.1;
+                    g
+                }
+                1 => {
+                    let id = d.alloc_id();
+                    let (x, y) = (r.next() * 560.0, r.next() * 560.0);
+                    let mut t = vectorcraft_doc::TextObject::point(Point::new(x, y), "Words", Default::default());
+                    t.kind = vectorcraft_doc::TextKind::Area {
+                        frame: shapes::rectangle(Rect::new(0.0, 0.0, 10.0 + r.next() * 60.0, 10.0 + r.next() * 30.0)),
+                    };
+                    Node::new(id, vectorcraft_doc::NodeKind::Text(Box::new(t)))
+                }
+                _ => shape(&mut d, &mut r),
+            };
+            d.insert(Some(parent), usize::MAX, node).unwrap();
+        }
+        d
+    }
+
+    /// Points to probe a document at: on and beside its anchors and handle ends, and anywhere.
+    pub fn probes(d: &Document, seed: u64, n: usize) -> Vec<Point> {
+        let mut pts = vec![];
+        d.walk(|node| {
+            if let Some(pd) = node.path_data() {
+                pts.extend(pd.anchors().flat_map(|(_, _, a)| [a.p, a.h_out]));
+            }
+        });
+        let mut r = Rng(seed | 1);
+        (0..n)
+            .map(|i| match (i % 3, pts.len()) {
+                (0, _) | (_, 0) => Point::new(r.next() * 640.0 - 20.0, r.next() * 640.0 - 20.0),
+                (1, k) => pts[r.below(k)],
+                (_, k) => pts[r.below(k)] + vectorcraft_geom::Vec2::new(r.next() * 8.0 - 4.0, r.next() * 8.0 - 4.0),
+            })
+            .collect()
+    }
+
+    /// A random selection of `d`'s objects (top level and inside groups), some with only some
+    /// anchors picked.
+    pub fn random_selection(d: &Document, seed: u64, share: f64) -> Selection {
+        let mut r = Rng(seed.wrapping_mul(0x2545_f491_4f6c_dd1d) | 1);
+        let mut s = Selection::default();
+        let mut picked = vec![];
+        d.walk(|n| {
+            if !n.is_layer() && r.next() < share {
+                picked.push((n.id, n.path_data().map(|p| p.anchors().map(|(si, ai, _)| (si, ai)).collect::<Vec<_>>())));
+            }
+        });
+        for (id, anchors) in picked {
+            s.add(id);
+            let Some(a) = anchors.filter(|a| a.len() > 1) else { continue };
+            if r.next() < 0.3 {
+                s.anchors.insert(id, a.into_iter().filter(|_| r.next() < 0.5).collect());
+            } else if r.next() < 0.15 && a.iter().filter(|(si, _)| *si == 0).count() > 1 {
+                // A segment pick (#1278): its endpoints move with it, its own handles show.
+                s.anchors.insert(id, [(0, 0), (0, 1)].into());
+                s.segments.insert(id, [(0, 0)].into());
+            }
+        }
+        s
+    }
+
     /// [`doc_with_rect`] plus 120 × 40 area type at (300, 300).
     pub fn doc_with_area_type() -> (Document, NodeId) {
         let (mut d, _) = doc_with_rect();
@@ -684,6 +808,8 @@ pub(crate) mod testutil {
         ToolContext {
             doc: d,
             revision: (0, 0),
+            // A cache per context: tests edit documents in place between contexts.
+            cache: Box::leak(Box::default()),
             selection: s,
             zoom: 1.0,
             isolation: None,
