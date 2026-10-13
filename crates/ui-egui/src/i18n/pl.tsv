@@ -4599,3 +4599,6 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Schowek

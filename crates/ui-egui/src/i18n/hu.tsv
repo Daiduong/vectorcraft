@@ -4724,3 +4724,6 @@ imageTrace	Outline	Körvonal
 	Softness	Lágyság
 	Ambient Light	Környezeti fény
 	Light behind the object	Fény az objektum mögött
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Vágólap

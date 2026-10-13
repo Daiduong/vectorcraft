@@ -4322,3 +4322,6 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Буфер обмена
