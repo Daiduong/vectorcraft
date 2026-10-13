@@ -4690,3 +4690,12 @@ mark-style	Japanese	Japonské
 @msg	unknown parameter `{key}`; the command takes: {keys}	neznámý parametr `{key}`; příkaz přijímá: {keys}
 	Load EPS into Clipboard	Načíst EPS do schránky
 @msg	an image of {w} × {h} pixels is too large to draw	obraz o velikosti {w} × {h} obrazových bodů je příliš velký na vykreslení
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Jeden poloměr rohů
+	Corner Widget Drag Rounds All Corners	Tažení ovladače rohu zaoblí všechny rohy
+	Hold to Switch One or All Corners	Podržením přepnete jeden nebo všechny rohy
+	Top Left:	Vlevo nahoře:
+	Top Right:	Vpravo nahoře:
+	Bottom Left:	Vlevo dole:
+	Bottom Right:	Vpravo dole:

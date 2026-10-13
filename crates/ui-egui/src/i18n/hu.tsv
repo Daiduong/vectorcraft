@@ -4656,3 +4656,12 @@ imageTrace	Outline	Körvonal
 @msg	unknown parameter `{key}`; the command takes: {keys}	ismeretlen paraméter: `{key}`; a parancs ezeket fogadja el: {keys}
 	Load EPS into Clipboard	EPS betöltése a vágólapra
 @msg	an image of {w} × {h} pixels is too large to draw	egy {w} × {h} pixeles kép túl nagy a kirajzoláshoz
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Egységes sarokkerekítés
+	Corner Widget Drag Rounds All Corners	A sarokfogantyú húzása minden sarkot lekerekít
+	Hold to Switch One or All Corners	Nyomva tartva vált egy vagy minden sarok között
+	Top Left:	Bal felső:
+	Top Right:	Jobb felső:
+	Bottom Left:	Bal alsó:
+	Bottom Right:	Jobb alsó:

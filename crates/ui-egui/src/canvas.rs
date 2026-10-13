@@ -1809,11 +1809,12 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
             app.session.prefs.hide_corner_widget_above,
         )
     {
-        for (id, q) in w.visible_on() {
+        // A selected corner's widget is filled (#1232).
+        for (id, q, selected) in w.visible_marked() {
             let (sp, color) = (xf.to_screen(q), c32(st.doc.layer_color(id)));
-            p.circle_filled(sp, 3.0, Color32::WHITE);
+            p.circle_filled(sp, 3.0, if selected { color } else { Color32::WHITE });
             p.circle_stroke(sp, 3.0, Stroke::new(1.0, color));
-            p.circle_filled(sp, 1.0, color);
+            p.circle_filled(sp, 1.0, if selected { Color32::WHITE } else { color });
         }
     }
     // Bounding box with handles (Selection tool).
@@ -3349,6 +3350,22 @@ mod tests {
         assert_eq!(widgets(&mut app), 10);
         app.run("view.cornerWidget", json!({})).unwrap();
         assert_eq!(widgets(&mut app), 0);
+    }
+
+    /// #1232: with a corner Direct-Selected, every widget still shows, and the selected one is
+    /// filled in the layer colour.
+    #[test]
+    fn a_selected_corner_fills_its_widget() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let id = app.session.execute("shape.star", &json!({"cx": 200, "cy": 150, "radius1": 80, "radius2": 40})).unwrap()["id"].as_u64().unwrap();
+        app.select_tool("directSelection");
+        app.session.execute("select.anchors", &json!({"id": id, "anchors": [[0, 2]], "mode": "set"})).unwrap();
+        let layer = c32(app.session.active().unwrap().doc.layer_color(vectorcraft_doc::NodeId(id)));
+        let ctx = egui::Context::default();
+        let circles = shapes(&mut app, &ctx);
+        let count = |fill: Color32| circles.iter().filter(|s| matches!(s, Shape::Circle(c) if c.radius == 3.0 && c.fill == fill)).count();
+        assert_eq!((count(Color32::WHITE), count(layer)), (9, 1));
     }
 
     /// The type widget beside selected type's bounding box: hollow (white) on point type, filled

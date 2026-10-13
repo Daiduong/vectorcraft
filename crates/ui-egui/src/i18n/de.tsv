@@ -4213,3 +4213,12 @@ theme	Appearance	Erscheinungsbild
 @msg	unknown parameter `{key}`; the command takes: {keys}	unbekannter Parameter `{key}`; der Befehl akzeptiert: {keys}
 	Load EPS into Clipboard	EPS in die Zwischenablage laden
 @msg	an image of {w} × {h} pixels is too large to draw	ein Bild mit {w} × {h} Pixeln ist zu groß, um gezeichnet zu werden
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Einheitlicher Eckenradius
+	Corner Widget Drag Rounds All Corners	Ziehen am Ecken-Widget rundet alle Ecken
+	Hold to Switch One or All Corners	Halten zum Umschalten: eine oder alle Ecken
+	Top Left:	Oben links:
+	Top Right:	Oben rechts:
+	Bottom Left:	Unten links:
+	Bottom Right:	Unten rechts:

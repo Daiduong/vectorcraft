@@ -3696,3 +3696,12 @@ axis	Both	Ambos
 @msg	unknown parameter `{key}`; the command takes no parameters	parâmetro desconhecido `{key}`; o comando não tem parâmetros
 @msg	unknown parameter `{key}`; the command takes: {keys}	parâmetro desconhecido `{key}`; o comando aceita: {keys}
 	Load EPS into Clipboard	Carregar EPS na Área de Transferência
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Raio de Canto Único
+	Corner Widget Drag Rounds All Corners	Arrastar o Widget de Canto Arredonda Todos os Cantos
+	Hold to Switch One or All Corners	Segure para Alternar entre Um ou Todos os Cantos
+	Top Left:	Superior Esquerdo:
+	Top Right:	Superior Direito:
+	Bottom Left:	Inferior Esquerdo:
+	Bottom Right:	Inferior Direito:

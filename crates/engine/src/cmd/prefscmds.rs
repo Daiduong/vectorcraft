@@ -174,6 +174,20 @@ pub const PREF_SPECS: &[PrefSpec] = &[
         "Hide Corner Widget for angles greater than",
         num(0.0, 180.0, "°")
     ),
+    p!(
+        "cornerDragAll",
+        "Selection & Anchor Display",
+        "Anchor Points, Handle, and Bounding Box Display",
+        "Corner Widget Drag Rounds All Corners",
+        bool
+    ),
+    p!(
+        "cornerSwitchKey",
+        "Selection & Anchor Display",
+        "Anchor Points, Handle, and Bounding Box Display",
+        "Hold to Switch One or All Corners",
+        choice(&[("alt", "Alt"), ("ctrl", "Ctrl"), ("shift", "Shift")])
+    ),
     p!("penRubberBand", "Selection & Anchor Display", "Enable Rubber Band for", "Pen Tool", bool),
     p!("curvatureRubberBand", "Selection & Anchor Display", "Enable Rubber Band for", "Curvature Tool", bool),
     // Type
@@ -351,6 +365,7 @@ pub const PREF_SPECS: &[PrefSpec] = &[
     p!("useCompression", "File Handling", "Files", "Use Compression", bool),
     // The W/H link of the Transform panel, the Properties panel and the Control bar
     p!("constrainProportions", "General", "Transform Panel", "Constrain Width and Height Proportions", bool),
+    p!("singleCornerRadius", "General", "Transform Panel", "Single Corner Radius", bool),
 ];
 
 pub fn spec(key: &str) -> Option<&'static PrefSpec> {
