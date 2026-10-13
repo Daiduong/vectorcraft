@@ -201,7 +201,8 @@ impl Tool for ShapeTool {
                     self.began = false;
                     vec![Action::Commit]
                 } else {
-                    vec![Action::Dialog(self.id.into(), json!({ "x": s.x, "y": s.y }))]
+                    // Alt held at the click: the dialog's shape is drawn from its centre there.
+                    vec![Action::Dialog(self.id.into(), json!({ "x": s.x, "y": s.y, "center": ev.mods.alt }))]
                 }
             }
             _ => vec![],
@@ -375,7 +376,15 @@ mod tests {
         t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
         assert_eq!(
             t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 10.0, 10.0)),
-            vec![Action::Dialog("star".into(), json!({"x": 10.0, "y": 10.0}))]
+            vec![Action::Dialog("star".into(), json!({"x": 10.0, "y": 10.0, "center": false}))]
+        );
+        // Alt held at the click: the dialog draws its shape from the click's centre.
+        let mut t = ShapeTool::new("ellipse");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        let alt = Mods { alt: true, ..Default::default() };
+        assert_eq!(
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 10.0, 10.0).with_mods(alt)),
+            vec![Action::Dialog("ellipse".into(), json!({"x": 10.0, "y": 10.0, "center": true}))]
         );
     }
 

@@ -151,7 +151,12 @@ impl Tool for FamilyTool {
             PointerKind::Up => {
                 let Some(s) = self.start.take() else { return vec![] };
                 self.snap.clear();
-                if std::mem::take(&mut self.began) { vec![Action::Commit] } else { vec![Action::Dialog(self.id.into(), json!({"x": s.x, "y": s.y}))] }
+                if std::mem::take(&mut self.began) {
+                    vec![Action::Commit]
+                } else {
+                    // Alt held at the click: the dialog's shape is drawn from its centre there.
+                    vec![Action::Dialog(self.id.into(), json!({ "x": s.x, "y": s.y, "center": ev.mods.alt }))]
+                }
             }
             _ => vec![],
         }
@@ -322,7 +327,15 @@ mod tests {
         t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
         assert_eq!(
             t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 10.0, 10.0)),
-            vec![Action::Dialog("spiral".into(), json!({"x": 10.0, "y": 10.0}))]
+            vec![Action::Dialog("spiral".into(), json!({"x": 10.0, "y": 10.0, "center": false}))]
+        );
+        // Alt held at the click: the dialog draws its grid from the click's centre.
+        let mut t = FamilyTool::new("rectangularGrid");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        let alt = Mods { alt: true, ..Default::default() };
+        assert_eq!(
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 10.0, 10.0).with_mods(alt)),
+            vec![Action::Dialog("rectangularGrid".into(), json!({"x": 10.0, "y": 10.0, "center": true}))]
         );
         let t = FamilyTool::new("arc");
         let (c, v) = t.command(Point::new(0.0, 0.0), Point::new(10.0, 4.0), Mods { shift: true, ..Default::default() });

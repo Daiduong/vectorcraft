@@ -462,7 +462,7 @@ fn line_family_tools_draw_and_click_asks_dialog() {
     let b = paths(&s)[0].1.bounds().unwrap();
     assert!((b.width() - 100.0).abs() < 1e-6 && (b.height() - 50.0).abs() < 1e-6, "{b:?}");
     let ui = click(&mut s, "polarGrid", 10.0, 10.0);
-    assert_eq!(ui, vec![UiRequest::Dialog("polarGrid".into(), json!({"x": 10.0, "y": 10.0}))]);
+    assert_eq!(ui, vec![UiRequest::Dialog("polarGrid".into(), json!({"x": 10.0, "y": 10.0, "center": false}))]);
 }
 
 /// The children of the grid a `shape.rectangularGrid` / `shape.polarGrid` call made, bottom first.
