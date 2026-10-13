@@ -668,6 +668,7 @@
 	Hide Print Tiling	인쇄 타일링 숨기기
 	Unlock Grid	격자 잠금 해제
 	Edit Envelope	엔벨로프 편집
+	Auto Color	자동 색상
 	Automatic	자동
 	Isolate Selected Group	선택한 그룹 격리
 	Exit Isolation Mode	격리 모드 종료
@@ -1420,6 +1421,8 @@
 	Graphic Style Library	그래픽 스타일 라이브러리
 	Graphic Style Options	그래픽 스타일 옵션
 	Graphic Style Options…	그래픽 스타일 옵션…
+	Symbol Options	심볼 옵션
+	Symbol Options…	심볼 옵션…
 	Graphic Styles Options	그래픽 스타일 옵션
 	Graphics Processor	그래픽 프로세서
 	Graphics: {adapter}	그래픽: {adapter}
@@ -1480,6 +1483,8 @@
 	Identify Objects By	개체 식별 기준
 	Ignore	무시
 	Ignore Artboards (all the art as one page)	아트보드 무시 (모든 아트웍을 한 페이지로)
+	Auto Grouping	자동 그룹화
+	Ignore Color	색상 무시
 	Ignore White	흰색 무시
 	Palette:	팔레트:
 	Limited	제한
@@ -2520,6 +2525,8 @@
 	Spiral Tool	나선 도구
 	Split Freeform Line	자유형 선 분할
 	Split Into Grid	격자로 분할
+	Total:	합계:
+	Add Guides	안내선 추가
 	Split Path	패스 분할
 	Spot Color	별색
 	Spot Colors	별색
@@ -3220,6 +3227,7 @@
 	Yellow	노랑
 	[Normal Character Style]	[기본 문자 스타일]
 	[Normal Paragraph Style]	[기본 단락 스타일]
+imageTrace	Outline	윤곽선
 @plural	Color Table ({n} color)|Color Table ({n} colors)	색상 표 ({n}색)|색상 표 ({n}색)
 @plural	Delete this {n} graphic style?|Delete these {n} graphic styles?	그래픽 스타일 {n}개를 삭제하시겠습니까?|그래픽 스타일 {n}개를 삭제하시겠습니까?
 @plural	{n} Layer|{n} Layers	레이어 {n}개|레이어 {n}개
@@ -3572,6 +3580,7 @@ theme	Appearance	외관
 @msg	Divide Objects Below: select a path	아래 개체 분할: 패스를 선택하세요
 @msg	Divide Objects Below: select exactly one path	아래 개체 분할: 패스를 하나만 선택하세요
 @msg	Offset Path: select paths	패스 오프셋: 패스를 선택하세요
+@msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	패스 오프셋: 오프셋을 적용하면 선택한 패스가 남지 않습니다(안쪽 오프셋이 모양보다 큼)
 @msg	Outline Stroke: no stroked paths selected	선 윤곽선화: 선이 있는 패스가 선택되지 않았습니다
 @msg	Split Into Grid: select paths large enough for the grid	격자로 분할: 격자에 충분한 크기의 패스를 선택하세요
 @msg	empty cutter	빈 커터입니다
@@ -4177,3 +4186,48 @@ lighting	Light	광원
 	Use Outside Rectangle As Frame	바깥쪽 사각형을 프레임으로 사용
 	Create Compound Path From Ellipses	원에서 컴파운드 패스 만들기
 	Fill Grid	격자 칠하기
+	Select two or more objects, or a group	두 개 이상의 개체 또는 그룹을 선택하십시오
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+	Back	뒷면
+	Both sides	양면
+	Classic	클래식
+	Cove	오목
+	Depth	깊이
+	Front	앞면
+	Isometric Bottom	등각 밑면
+	Isometric Left	등각 왼쪽
+	Isometric Right	등각 오른쪽
+	Isometric Top	등각 윗면
+	Off-Axis Back	비스듬한 뒷면
+	Off-Axis Bottom	비스듬한 밑면
+	Off-Axis Front	비스듬한 앞면
+	Off-Axis Left	비스듬한 왼쪽
+	Off-Axis Right	비스듬한 오른쪽
+	Off-Axis Top	비스듬한 윗면
+	Ogee	S자
+	Reset all 3D settings to their defaults.	모든 3D 설정을 기본값으로 재설정합니다.
+	Step	계단
+	Taper	테이퍼
+	Twist	비틀기
+	Volume	볼륨
+3d	Cap	캡
+3d	Solid	솔리드
+3d	Hollow	속이 빈
+3d	Bevel	베벨
+3d	Rounded	둥글게
+3d	Space	간격
+	Bevel Shape	베벨 모양
+	Bevel Inside	안쪽 베벨
+	Bevel both sides	양면 베벨
+	Presets	사전 설정
+@msg	An object takes one 3D effect. Edit the existing effect's options, or remove it first.	오브젝트에는 3D 효과를 하나만 적용할 수 있습니다. 기존 효과의 옵션을 편집하거나 먼저 제거하십시오.
+@msg	{label} currently requires a path or compound path. Convert type, images and groups to paths first.	{label}에는 현재 패스 또는 컴파운드 패스가 필요합니다. 문자, 이미지 및 그룹을 먼저 패스로 변환하십시오.
+@msg	{label} requires a shape with at least two anchors	{label}에는 고정점이 두 개 이상인 모양이 필요합니다
+@msg	The shape is too complex for a 3D effect	모양이 너무 복잡하여 3D 효과를 적용할 수 없습니다
+@msg	The 3D surface is too complex; simplify the shape	3D 표면이 너무 복잡합니다. 모양을 단순화하십시오
+	Transform Objects	개체 변형
+@msg	unknown parameter `{key}`; did you mean `{near}`?	알 수 없는 매개변수 `{key}`: `{near}`을(를) 의미하셨습니까?
+@msg	unknown parameter `{key}`; the command takes no parameters	알 수 없는 매개변수 `{key}`: 이 명령에는 매개변수가 없습니다
+@msg	unknown parameter `{key}`; the command takes: {keys}	알 수 없는 매개변수 `{key}`: 이 명령이 받는 매개변수: {keys}
+	Load EPS into Clipboard	EPS를 클립보드로 불러오기
+@msg	an image of {w} × {h} pixels is too large to draw	{w} × {h}픽셀 이미지는 너무 커서 그릴 수 없습니다

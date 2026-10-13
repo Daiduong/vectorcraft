@@ -12,6 +12,7 @@
 //! dimmed copies of it at the neighbouring tile positions and the tile edge.
 
 use std::cell::RefCell;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use vectorcraft_doc::pattern::{Overlap, PatternDef, TileType};
@@ -55,6 +56,19 @@ thread_local! {
 
 fn same_art(a: &[Arc<Node>], b: &[Arc<Node>]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(x, y)| Arc::ptr_eq(x, y))
+}
+
+/// Hash what pattern `def`'s tiling is drawn from, as the tile cache checks it: its name, the
+/// addresses of its art, its tile, tile type and overlap.
+pub(crate) fn hash_tiling(def: &PatternDef, h: &mut impl Hasher) {
+    def.name.hash(h);
+    def.art.iter().for_each(|a| (Arc::as_ptr(a) as usize).hash(h));
+    [def.tile.x0, def.tile.y0, def.tile.x1, def.tile.y1].map(f64::to_bits).hash(h);
+    std::mem::discriminant(&def.tile_type).hash(h);
+    if let TileType::BrickByRow { offset } | TileType::BrickByColumn { offset } = def.tile_type {
+        offset.to_bits().hash(h);
+    }
+    (def.overlap.right_in_front, def.overlap.bottom_in_front).hash(h);
 }
 
 /// Power-of-two raster scale for a pattern seen at device scale `s`, capped so the super-tile
@@ -258,6 +272,58 @@ mod tests {
     }
     fn is_white(p: [u8; 4]) -> bool {
         p[0] > 200 && p[1] > 200 && p[2] > 200
+    }
+
+    /// #1536: a raster effect drawn after a pattern fill is the same as without the pattern (the
+    /// pattern's paint transform must not resample the effect's raster).
+    #[test]
+    fn effects_after_a_pattern_fill_keep_their_place_and_size() {
+        let fx = |id: &str, params: serde_json::Value| vectorcraft_doc::Effect { id: id.into(), params, visible: true };
+        for effect in [
+            fx("blur.gaussian", serde_json::json!({"radius": 4.0})),
+            fx("stylize.dropShadow", serde_json::json!({"x": 6, "y": 6, "blur": 3, "opacity": 100})),
+        ] {
+            let make = |with_pattern: bool| {
+                let mut d = doc_with_pattern(TileType::Grid);
+                let l = d.layers[0].id;
+                let filled = d.children(Some(l)).unwrap()[0].id;
+                d.remove(filled).unwrap();
+                if with_pattern {
+                    let id = d.alloc_id();
+                    let n = Node::path(
+                        id,
+                        shapes::rectangle(Rect::new(0.0, 0.0, 80.0, 80.0)),
+                        Appearance::basic(pattern_paint("Checks"), Paint::None, 0.0),
+                    );
+                    d.insert(Some(l), 0, n).unwrap();
+                }
+                let id = d.alloc_id();
+                let mut n = Node::path(
+                    id,
+                    shapes::ellipse(Rect::new(120.0, 110.0, 180.0, 170.0)),
+                    Appearance::basic(Paint::solid(Color::rgb(0.5, 0.5, 0.5)), Paint::None, 0.0),
+                );
+                n.appearance.effects.push(effect.clone());
+                let at = d.children(Some(l)).map_or(0, Vec::len);
+                d.insert(Some(l), at, n).unwrap();
+                d
+            };
+            // Supersampled, as raster exports draw.
+            let one = |d: &Document| {
+                let mut r = Renderer::new();
+                r.render(
+                    d,
+                    200,
+                    200,
+                    Affine::IDENTITY,
+                    &RenderOptions { background: Some([255, 255, 255, 255]), supersample: true, ..Default::default() },
+                )
+            };
+            let (with, without) = (one(&make(true)), one(&make(false)));
+            for (x, y) in [(150, 140), (125, 140), (176, 160), (150, 172), (184, 176)] {
+                assert_eq!(with.pixel(x, y), without.pixel(x, y), "{} at ({x}, {y})", effect.id);
+            }
+        }
     }
 
     #[test]

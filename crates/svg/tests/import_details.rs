@@ -181,3 +181,38 @@ fn reflect_and_repeat_match_resvg() {
         assert_similar(&render_artboard(&d), &resvg_render(&svg(&body), 200, 120), 24.0, 0.01);
     }
 }
+
+/// #1557: `transform` as a CSS property, in CSS syntax, moves the object (and wins over the
+/// attribute, as in CSS), from a `style` attribute or a `<style>` rule.
+#[test]
+fn css_transforms_move_objects() {
+    let d = import_with(
+        &svg(r#"<style>.r { transform: rotate(90deg) }</style>
+            <rect id="a" x="0" y="0" width="50" height="50" fill="red" style="transform: translate(100px, 100px)"/>
+            <rect id="b" x="0" y="0" width="50" height="50" fill="blue" transform="translate(0 100)" style="transform: translateX(100px)"/>
+            <rect id="c" class="r" x="0" y="0" width="50" height="20" fill="green"/>"#),
+        &ImportOptions::default(),
+    )
+    .unwrap()
+    .0;
+    let b: Vec<Rect> = art(&d).iter().map(|n| n.geometric_bounds().unwrap()).collect();
+    let near =
+        |r: Rect, x0: f64, y0: f64, x1: f64, y1: f64| [(r.x0, x0), (r.y0, y0), (r.x1, x1), (r.y1, y1)].iter().all(|(a, b)| (a - b).abs() < 1e-6);
+    assert!(near(b[0], 100.0, 100.0, 150.0, 150.0), "{:?}", b[0]);
+    assert!(near(b[1], 100.0, 0.0, 150.0, 50.0), "{:?}", b[1]);
+    assert!(near(b[2], -20.0, 0.0, 0.0, 50.0), "{:?}", b[2]);
+}
+
+/// #1561: percentages in a `<symbol>` with a `viewBox` are of the `viewBox`, so the symbol draws as
+/// the same one written with numbers.
+#[test]
+fn percentages_in_a_symbol_are_of_its_view_box() {
+    let drawing = |w: &str, h: &str, cx: &str, cy: &str| {
+        let s = svg(&format!(
+            r##"<defs><symbol id="s" viewBox="0 0 100 50"><rect width="{w}" height="{h}" fill="red"/><circle cx="{cx}" cy="{cy}" r="20" fill="blue"/></symbol></defs>
+            <use xlink:href="#s" x="20" y="10" width="160" height="100"/>"##
+        ));
+        render_artboard(&import_with(&s, &ImportOptions::default()).unwrap().0)
+    };
+    assert_similar(&drawing("100%", "100%", "25%", "50%"), &drawing("100", "50", "25", "25"), 24.0, 0.001);
+}

@@ -983,6 +983,8 @@
 	Graphic Style Library	Biblioteca de Estilos Gráficos
 	Graphic Style Options	Opções de Estilo Gráfico
 	Graphic Style Options…	Opções de Estilo Gráfico…
+	Symbol Options	Opções de Símbolo
+	Symbol Options…	Opções de Símbolo…
 	Graphic Styles	Estilos Gráficos
 	Graphic Styles Options	Opções de Estilos Gráficos
 	Graphics Processor	Processador Gráfico
@@ -1070,7 +1072,7 @@
 	Identify Objects By	Identificar Objetos Por
 	Ignore	Ignorar
 	Ignore Artboards (all the art as one page)	Ignorar Mesas de Trabalho (toda a arte como uma página)
-	Ignore White	Ignorar Branco
+	Ignore Color	Ignorar Cor
 	Image Info	Informações da Imagem
 	Image Map:	Mapa da Imagem:
 	Image Size	Tamanho da Imagem
@@ -2661,6 +2663,7 @@
 	{warning}: click to correct to the closest color ({hex})	{warning}: clique para corrigir para a cor mais próxima ({hex})
 	“{file}” is protected by a password.	“{file}” é protegido por uma senha.
 	● Recording	● Gravando
+imageTrace	Outline	Contorno
 @plural	{n} item|{n} items	{n} item|{n} itens
 @plural	Color Table ({n} color)|Color Table ({n} colors)	Tabela de Cores ({n} cor)|Tabela de Cores ({n} cores)
 @plural	Delete this {n} graphic style?|Delete these {n} graphic styles?	Excluir este {n} estilo gráfico?|Excluir estes {n} estilos gráficos?
@@ -3095,6 +3098,7 @@ axis	Both	Ambos
 @msg	No saved selections (Select → Save Selection…)	Nenhuma seleção salva (Selecionar → Salvar seleção…)
 @msg	No saved views (View → New View…)	Nenhuma vista salva (Exibir → Nova vista…)
 @msg	Offset Path: select paths	Deslocar traçado: selecione traçados
+@msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	Deslocar traçado: o deslocamento não deixa nada dos traçados selecionados (um deslocamento para dentro maior que as formas)
 @msg	Opened with {_1} note(s): {_2}	Aberto com {_1} observação(ões): {_2}
 @msg	Opened {url}	{url} aberto
 @msg	Outline Stroke: no stroked paths selected	Contornar traço: nenhum traçado com traço selecionado
@@ -3691,3 +3695,9 @@ axis	Both	Ambos
 	Use Outside Rectangle As Frame	Usar Retângulo Externo como Moldura
 	Create Compound Path From Ellipses	Criar Caminho Composto a partir das Elipses
 	Fill Grid	Preencher Grade
+	Select two or more objects, or a group	Selecione dois ou mais objetos, ou um grupo
+	Transform Objects	Transformar objetos
+@msg	unknown parameter `{key}`; did you mean `{near}`?	parâmetro desconhecido `{key}`; você quis dizer `{near}`?
+@msg	unknown parameter `{key}`; the command takes no parameters	parâmetro desconhecido `{key}`; o comando não tem parâmetros
+@msg	unknown parameter `{key}`; the command takes: {keys}	parâmetro desconhecido `{key}`; o comando aceita: {keys}
+	Load EPS into Clipboard	Carregar EPS na Área de Transferência

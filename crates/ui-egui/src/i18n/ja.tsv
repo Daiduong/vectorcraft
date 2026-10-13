@@ -666,6 +666,7 @@
 	Hide Print Tiling	プリント分割を隠す
 	Unlock Grid	グリッドをロック解除
 	Edit Envelope	エンベロープを編集
+	Auto Color	自動カラー
 	Automatic	自動
 	Isolate Selected Group	選択したグループを分離
 	Exit Isolation Mode	分離モードを終了
@@ -1421,6 +1422,8 @@
 	Graphic Style Library	グラフィックスタイルライブラリ
 	Graphic Style Options	グラフィックスタイルオプション
 	Graphic Style Options…	グラフィックスタイルオプション…
+	Symbol Options	シンボルオプション
+	Symbol Options…	シンボルオプション…
 	Graphic Styles Options	グラフィックスタイルオプション
 	Graphics Processor	グラフィックプロセッサー
 	Graphics: {adapter}	グラフィックス: {adapter}
@@ -1481,6 +1484,8 @@
 	Identify Objects By	オブジェクトの識別方法
 	Ignore	無視
 	Ignore Artboards (all the art as one page)	アートボードを無視 (すべてのアートを 1 ページとして扱う)
+	Auto Grouping	自動グループ化
+	Ignore Color	カラーを無視
 	Ignore White	白を無視
 	Palette:	パレット:
 	Limited	限定
@@ -2522,6 +2527,8 @@
 	Spiral Tool	スパイラルツール
 	Split Freeform Line	フリーフォームラインを分割
 	Split Into Grid	グリッドに分割
+	Total:	合計:
+	Add Guides	ガイドを追加
 	Split Path	パスを分割
 	Spot Color	特色
 	Spot Colors	特色
@@ -3223,6 +3230,7 @@
 	Yellow	イエロー
 	[Normal Character Style]	[標準文字スタイル]
 	[Normal Paragraph Style]	[標準段落スタイル]
+imageTrace	Outline	アウトライン
 @plural	Color Table ({n} color)|Color Table ({n} colors)	カラーテーブル ({n} 色)
 @plural	Delete this {n} graphic style?|Delete these {n} graphic styles?	{n} 個のグラフィックスタイルを削除しますか？
 @plural	{n} Layer|{n} Layers	{n} レイヤー
@@ -3590,6 +3598,7 @@ theme	Appearance	外観
 @msg	Divide Objects Below: select a path	背面のオブジェクトで型抜き: パスを選択してください
 @msg	Divide Objects Below: select exactly one path	背面のオブジェクトで型抜き: パスを 1 つだけ選択してください
 @msg	Offset Path: select paths	パスのオフセット: パスを選択してください
+@msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	パスのオフセット: オフセットすると選択したパスが何も残りません (内側へのオフセットがシェイプより大きい)
 @msg	Outline Stroke: no stroked paths selected	パスのアウトライン: 線のあるパスが選択されていません
 @msg	Split Into Grid: select paths large enough for the grid	グリッドに分割: グリッドが収まる大きさのパスを選択してください
 @msg	empty cutter	型抜きに使うパスが空です
@@ -4207,3 +4216,48 @@ lighting	Light	ライト
 	Use Outside Rectangle As Frame	外側の長方形をフレームとして使用
 	Create Compound Path From Ellipses	楕円形から複合パスを作成
 	Fill Grid	グリッドを塗りつぶす
+	Select two or more objects, or a group	2 つ以上のオブジェクト、またはグループを選択してください
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+	Back	背面
+	Both sides	両面
+	Classic	クラシック
+	Cove	凹面
+	Depth	奥行き
+	Front	正面
+	Isometric Bottom	等角図（底面）
+	Isometric Left	等角図（左）
+	Isometric Right	等角図（右）
+	Isometric Top	等角図（上面）
+	Off-Axis Back	斜め（背面）
+	Off-Axis Bottom	斜め（底面）
+	Off-Axis Front	斜め（正面）
+	Off-Axis Left	斜め（左）
+	Off-Axis Right	斜め（右）
+	Off-Axis Top	斜め（上面）
+	Ogee	S字
+	Reset all 3D settings to their defaults.	すべての 3D 設定を初期値に戻します。
+	Step	段
+	Taper	テーパー
+	Twist	ねじれ
+	Volume	ボリューム
+3d	Cap	キャップ
+3d	Solid	ソリッド
+3d	Hollow	中空
+3d	Bevel	ベベル
+3d	Rounded	丸み
+3d	Space	間隔
+	Bevel Shape	ベベルシェイプ
+	Bevel Inside	ベベルを内側に
+	Bevel both sides	両面にベベル
+	Presets	プリセット
+@msg	An object takes one 3D effect. Edit the existing effect's options, or remove it first.	1 つのオブジェクトに適用できる 3D 効果は 1 つです。既存の効果のオプションを編集するか、先に削除してください。
+@msg	{label} currently requires a path or compound path. Convert type, images and groups to paths first.	{label} には現在、パスまたは複合パスが必要です。テキスト、画像、グループは先にパスに変換してください。
+@msg	{label} requires a shape with at least two anchors	{label} には 2 つ以上のアンカーポイントを持つシェイプが必要です
+@msg	The shape is too complex for a 3D effect	シェイプが複雑すぎるため 3D 効果を適用できません
+@msg	The 3D surface is too complex; simplify the shape	3D サーフェスが複雑すぎます。シェイプを単純化してください
+	Transform Objects	オブジェクトの変形
+@msg	unknown parameter `{key}`; did you mean `{near}`?	`{key}` は不明なパラメーターです。`{near}` のことですか?
+@msg	unknown parameter `{key}`; the command takes no parameters	`{key}` は不明なパラメーターです。このコマンドにパラメーターはありません
+@msg	unknown parameter `{key}`; the command takes: {keys}	`{key}` は不明なパラメーターです。このコマンドで使えるパラメーター: {keys}
+	Load EPS into Clipboard	EPS をクリップボードに読み込む
+@msg	an image of {w} × {h} pixels is too large to draw	{w} × {h} ピクセルの画像は大きすぎて描画できません
