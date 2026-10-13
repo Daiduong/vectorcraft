@@ -14,11 +14,7 @@ pub fn is_rtl(lang: Lang) -> bool {
 
 /// The egui layout for a language: left-to-right for most, right-to-left for Arabic, Hebrew, …
 pub fn layout(lang: Lang, align: egui::Align) -> egui::Layout {
-    if is_rtl(lang) {
-        egui::Layout::right_to_left(align)
-    } else {
-        egui::Layout::left_to_right(align)
-    }
+    if is_rtl(lang) { egui::Layout::right_to_left(align) } else { egui::Layout::left_to_right(align) }
 }
 
 /// True when the current UI language is written right-to-left.
