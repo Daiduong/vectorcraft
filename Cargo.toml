@@ -38,6 +38,7 @@ vectorcraft-metafile = { path = "crates/metafile" }
 vectorcraft-plugins = { path = "crates/plugins" }
 vectorcraft-affinity = { path = "crates/affinity" }
 vectorcraft-script = { path = "crates/script" }
+vectorcraft-scriptcheck = { path = "crates/scriptcheck" }
 
 # foundation
 kurbo = { version = "0.13", features = ["serde"] }

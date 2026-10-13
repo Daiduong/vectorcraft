@@ -230,10 +230,10 @@ fn clear_recent_scripts_empties_the_list() {
 }
 
 #[test]
-fn without_a_scripts_folder_only_other_script_is_listed() {
+fn without_a_scripts_folder_only_check_script_and_other_script_are_listed() {
     let mut app = app();
     scripts::refresh(&mut app);
-    assert_eq!(labels(&app), ["Other Script…"]);
+    assert_eq!(labels(&app), ["Check Script…", "Other Script…"]);
 }
 
 #[test]

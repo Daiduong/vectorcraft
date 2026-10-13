@@ -10,7 +10,8 @@ vectorcraft-cli script grid.js [document.svg] [--out art.png]... [--arg key=valu
 ```
 
 Scripts written for Adobe Illustrator (`.jsx`, `app.activeDocument`…) don't run: VectorCraft's
-scripts use its own commands.
+scripts use its own commands. File › Scripts › Check Script… reports what such a script needs and
+does without running it.
 
 ## The Scripts menu
 
@@ -23,7 +24,7 @@ On the desktop, File › Scripts lists scripts to run again:
   them; one that has moved or been deleted leaves the list when you choose it).
 
 On the web, where the browser hands over a file's contents but not where it lives, the menu has
-Other Script… only.
+Check Script… and Other Script… only.
 
 ## A first script
 

@@ -5187,6 +5187,7 @@ dependencies = [
  "vectorcraft-pdf",
  "vectorcraft-plugins",
  "vectorcraft-render",
+ "vectorcraft-scriptcheck",
  "vectorcraft-svg",
  "vectorcraft-testkit",
  "vectorcraft-text",
@@ -5365,6 +5366,13 @@ dependencies = [
  "serde_json",
  "vectorcraft-engine",
  "vectorcraft-testkit",
+]
+
+[[package]]
+name = "vectorcraft-scriptcheck"
+version = "0.10.0"
+dependencies = [
+ "proptest",
 ]
 
 [[package]]

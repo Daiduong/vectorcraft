@@ -138,8 +138,8 @@ fn items(listed: &[Listed]) -> Vec<Item> {
         .collect()
 }
 
-/// File › Scripts: the Scripts folder's scripts, the recent ones, Other Script…, then Open Scripts
-/// Folder and Clear Recent Scripts where they apply.
+/// File › Scripts: the Scripts folder's scripts, the recent ones, Check Script… and Other Script…,
+/// then Open Scripts Folder and Clear Recent Scripts where they apply.
 pub fn menu() -> Vec<Item> {
     LISTING.with(|l| {
         let (listing, _) = &*l.borrow();
@@ -158,6 +158,7 @@ pub fn menu() -> Vec<Item> {
         if !out.is_empty() {
             out.push(Item::Sep);
         }
+        out.push(Item::Cmd("Check Script…", "ui.checkScript", Value::Null));
         out.push(Item::Cmd("Other Script…", "ui.runScript", Value::Null));
         if listing.has_folder {
             out.push(Item::Cmd("Open Scripts Folder", "ui.openScriptsFolder", Value::Null));
