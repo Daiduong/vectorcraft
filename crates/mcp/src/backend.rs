@@ -2,9 +2,11 @@
 
 use std::io::{BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
+
+use crate::headless::Headless;
 
 /// Something that answers control-channel methods (`engine.execute`, `document.inspect`,
 /// `ui.pointer`, `ui.render`, `app.export`, …). See `vectorcraft_ui_egui::control` for the list.
@@ -15,6 +17,10 @@ pub trait Backend {
     fn has_ui(&self) -> bool;
     /// Short human description ("headless", "remote 127.0.0.1:7979").
     fn describe(&self) -> String;
+    /// Reconsider where calls go before a UI-only tool reads [`has_ui`](Self::has_ui). Most
+    /// backends already know; one that follows a running app looks again here, so a tool gated on
+    /// the UI answers from a live routing rather than from the last call's.
+    fn refresh(&mut self) {}
 }
 
 /// A running VectorCraft app, reached through its loopback control port.
@@ -33,9 +39,16 @@ const MAX_REPLY_BYTES: usize = 256 * 1024 * 1024;
 impl Remote {
     /// Connect to `addr` (e.g. `127.0.0.1:7979`), failing fast when nothing is listening.
     pub fn connect(addr: &str) -> std::io::Result<Self> {
-        let mut r = Self { addr: addr.to_string(), conn: None, next_id: 1 };
+        let mut r = Self::lazy(addr);
         r.reconnect()?;
         Ok(r)
+    }
+
+    /// Reach `addr` without contacting it: the first call connects, and a connection that has
+    /// failed is attempted again on the next one. [`connect`](Self::connect) is the form that
+    /// fails at once, for a caller that asked for an app explicitly.
+    pub fn lazy(addr: impl Into<String>) -> Self {
+        Self { addr: addr.into(), conn: None, next_id: 1 }
     }
 
     pub fn addr(&self) -> &str {
@@ -45,6 +58,21 @@ impl Remote {
     #[cfg(test)]
     pub(crate) fn connection_probe(&self) -> TcpStream {
         self.conn.as_ref().unwrap().1.try_clone().unwrap()
+    }
+
+    /// Whether a connection to the app is open right now.
+    pub fn is_connected(&self) -> bool {
+        self.conn.is_some()
+    }
+
+    /// Connect unless already connected, without failing when nothing is listening: the result
+    /// says whether the app can be reached. A failed attempt is retried by the next call.
+    pub fn ensure_connected(&mut self) -> bool {
+        if self.conn.is_some() {
+            return true;
+        }
+        self.reconnect().is_ok()
+    }
     }
 
     fn reconnect(&mut self) -> std::io::Result<()> {
@@ -149,5 +177,109 @@ impl Backend for Remote {
 
     fn describe(&self) -> String {
         format!("remote {}", self.addr)
+    }
+}
+
+/// How long [`Auto`] waits before looking for the app again after an attempt that found nothing.
+/// A session with no app open must not pay a connect timeout on every tool call, and an app the
+/// user opens during the session should be picked up while they wait for the next reply.
+const PROBE_INTERVAL: Duration = Duration::from_secs(1);
+
+/// The server without a mode flag: the running app when one answers, an in-process headless
+/// session otherwise.
+///
+/// An MCP client starts its server when a session begins, which is normally before the user opens
+/// VectorCraft. Deciding the backend once — the way `--connect` does, by choice — would leave that
+/// app unreachable for the server's whole lifetime: the UI-only tools would keep asking for the
+/// desktop app and everything else would edit a headless document nobody can see (#1470). So this
+/// backend holds both halves, sends each call to the app whenever one answers, and says so when the
+/// routing changes (a log record, which a client that sent `logging/setLevel` receives as a
+/// `notifications/message`).
+pub struct Auto {
+    remote: Remote,
+    /// Built on first use: a session served by an app never needs the document.
+    headless: Option<Headless>,
+    /// Whether calls currently go to the app.
+    on_app: bool,
+    /// The earliest time to look for the app again, after the last attempt found nothing.
+    probe_after: Option<Instant>,
+    /// How long that wait is; shorter in tests.
+    pub(crate) re_probe: Duration,
+}
+
+impl Auto {
+    pub fn new(addr: impl Into<String>) -> Self {
+        Self { remote: Remote::lazy(addr), headless: None, on_app: false, probe_after: None, re_probe: PROBE_INTERVAL }
+    }
+
+    /// The address an app is looked for at.
+    pub fn addr(&self) -> &str {
+        self.remote.addr()
+    }
+
+    /// Whether tool calls currently reach the app.
+    pub fn on_app(&self) -> bool {
+        self.on_app
+    }
+
+    /// Record where calls go, saying so when it changed (a log record, which a client that
+    /// sent `logging/setLevel` receives as a `notifications/message`).
+    fn set_routing(&mut self, app: bool) {
+        if app != self.on_app {
+            let addr = self.remote.addr().to_string();
+            log::info!(
+                "backend: now using the {}",
+                if app { format!("VectorCraft app at {addr}") } else { format!("in-process headless session (no app answered at {addr})") }
+            );
+            self.on_app = app;
+        }
+    }
+
+    /// Decide where the next call goes, looking for the app again when it wasn't there recently.
+    fn route(&mut self) -> bool {
+        let app = if self.remote.is_connected() {
+            true
+        } else if let Some(after) = self.probe_after
+            && Instant::now() < after
+        {
+            false
+        } else {
+            let app = self.remote.ensure_connected();
+            self.probe_after = if app { None } else { Some(Instant::now() + self.re_probe) };
+            app
+        };
+        self.set_routing(app);
+        app
+    }
+
+    fn session(&mut self) -> &mut Headless {
+        self.headless.get_or_insert_with(Headless::with_document)
+    }
+}
+
+impl Backend for Auto {
+    fn call(&mut self, method: &str, params: Value) -> Result<Value, String> {
+        if self.route() {
+            let replied = self.remote.call(method, params);
+            if replied.is_err() {
+                // The call is over either way; report the routing as it now stands.
+                self.set_routing(self.remote.is_connected());
+            }
+            replied
+        } else {
+            self.session().call(method, params)
+        }
+    }
+
+    fn has_ui(&self) -> bool {
+        self.on_app
+    }
+
+    fn refresh(&mut self) {
+        self.route();
+    }
+
+    fn describe(&self) -> String {
+        if self.on_app { self.remote.describe() } else { format!("headless (an app at {} takes over when one runs)", self.remote.addr()) }
     }
 }
