@@ -566,6 +566,9 @@ struct FlyoutInput {
     bar: Option<egui::Response>,
     /// A floating flyout's × was clicked.
     close: bool,
+    /// The rows of the tools, for a press released over one (a drag from the button that opened
+    /// the flyout picks the row under its release).
+    rows: Vec<(&'static str, egui::Rect)>,
 }
 
 /// A flyout's tool rows (a floating flyout's strip of tool buttons) with the grab bar down their
@@ -576,7 +579,11 @@ fn flyout_body(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String], floating
     let key = tools.first().map_or("", String::as_str);
     ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
     ui.horizontal(|ui| {
-        let rows = if floating { ui.horizontal(|ui| tool_strip(ui, t, active, tools)) } else { ui.vertical(|ui| tool_rows(ui, t, active, tools)) };
+        let rows = if floating {
+            ui.horizontal(|ui| tool_strip(ui, t, active, tools, &mut out.rows))
+        } else {
+            ui.vertical(|ui| tool_rows(ui, t, active, tools, &mut out.rows))
+        };
         out.chosen = rows.inner;
         let (bar, _) = ui.allocate_exact_size(vec2(BAR, rows.response.rect.height()), Sense::hover());
         ui.painter().rect_filled(bar, 0.0, t.tab_strip);
@@ -607,8 +614,9 @@ fn flyout_body(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String], floating
     out
 }
 
-/// One row per tool: icon, name and shortcut, with a dot by the active tool. Returns the tool clicked.
-fn tool_rows(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String]) -> Option<&'static str> {
+/// One row per tool: icon, name and shortcut, with a dot by the active tool. Returns the tool
+/// clicked; each row's rect lands in `rects` for a release over it.
+fn tool_rows(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String], rects: &mut Vec<(&'static str, egui::Rect)>) -> Option<&'static str> {
     let mut chosen = None;
     let lang = crate::i18n::current();
     let color = |tool: &ToolInfo| if active == tool.id { t.flyout_active } else { t.text_strong };
@@ -618,6 +626,7 @@ fn tool_rows(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String]) -> Option<
     for (tool, (name, shortcut)) in rows {
         let is_active = active == tool.id;
         let (r, resp) = ui.allocate_exact_size(vec2(w, 30.0), Sense::click());
+        rects.push((tool.id, r));
         if resp.hovered() {
             ui.painter().rect_filled(r, 0.0, t.hover);
         }
@@ -672,10 +681,11 @@ fn grab_id(key: &str) -> egui::Id {
 
 /// One icon button per tool, the active one lit, with its name and shortcut on hover. Returns the
 /// tool clicked.
-fn tool_strip(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String]) -> Option<&'static str> {
+fn tool_strip(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String], rects: &mut Vec<(&'static str, egui::Rect)>) -> Option<&'static str> {
     let mut chosen = None;
     for tool in tools.iter().filter_map(|id| tool_info(id)) {
         let (r, resp) = ui.allocate_exact_size(STRIP_BUTTON, Sense::click());
+        rects.push((tool.id, r));
         let well = r.shrink(1.0);
         if active == tool.id {
             ui.painter().rect_filled(well, CornerRadius::same(1), t.tool_active);
@@ -724,6 +734,14 @@ fn flyout(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // Dragging the bar tears the flyout off, and so does releasing a press over it (a click, or the
     // end of the long press that opened the flyout): it floats where the pointer is.
     let at = ctx.input(|i| i.pointer.interact_pos());
+    // A press held elsewhere (the long press that opened the flyout, or a drag onto it) picks the
+    // row under its release, as a click would.
+    if input.chosen.is_none()
+        && ctx.input(|i| i.pointer.primary_released())
+        && let Some(at) = at
+    {
+        input.chosen = input.rows.iter().rev().find(|(_, r)| r.contains(at)).map(|(id, _)| *id);
+    }
     let released_on_bar = input.bar.as_ref().is_some_and(|b| ctx.input(|i| i.pointer.primary_released()) && at.is_some_and(|p| b.rect.contains(p)));
     let dragged_off = input.bar.as_ref().is_some_and(egui::Response::dragged) && press_travel(ctx).is_some_and(|d| d.length() > TEAR);
     if released_on_bar || dragged_off {
@@ -791,6 +809,13 @@ fn floating(app: &mut VectorcraftApp, ctx: &egui::Context) {
         }
         if input.close {
             closed = Some(k);
+        }
+        // A press held elsewhere picks the button under its release, as a click would.
+        if input.chosen.is_none()
+            && ctx.input(|i| i.pointer.primary_released())
+            && let Some(at) = ctx.input(|i| i.pointer.interact_pos())
+        {
+            input.chosen = input.rows.iter().rev().find(|(_, r)| r.contains(at)).map(|(id, _)| *id);
         }
         chosen = chosen.or(input.chosen);
     }
@@ -1168,6 +1193,26 @@ pub(crate) mod tests {
         frame(&mut app, &ctx, 8.0 + LONG_PRESS + 0.01, vec![]);
         assert!(app.ui.flyout.is_some(), "a long press on the active tool opens it");
         assert_eq!(app.session.tool_id(), "rectangle");
+    }
+
+    /// Pressing a tool button, holding past the long press and dragging onto the flyout picks the
+    /// row under the release, in one gesture.
+    #[test]
+    fn dragging_from_a_held_button_picks_the_row_under_the_release() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let ctx = egui::Context::default();
+        let at = shapes_button(&mut app, &ctx).center();
+        let p = |pos, pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Default::default() };
+        frame(&mut app, &ctx, 1.0, vec![Event::PointerMoved(at), p(at, true)]);
+        frame(&mut app, &ctx, 1.0 + LONG_PRESS + 0.01, vec![]);
+        assert!(app.ui.flyout.is_some(), "the long press opens the flyout");
+        // Drag onto the flyout's second row (Rounded Rectangle) and release there.
+        let menu = ctx.memory(|m| m.area_rect(egui::Id::new("tool-flyout"))).unwrap();
+        let row = egui::pos2(menu.left() + 60.0, menu.top() + 45.0);
+        frame(&mut app, &ctx, 1.4, vec![Event::PointerMoved(row)]);
+        frame(&mut app, &ctx, 1.5, vec![p(row, false)]);
+        frame(&mut app, &ctx, 1.55, vec![]);
+        assert_eq!((app.session.tool_id(), app.ui.flyout), ("roundedRectangle", None), "the release picks the row and closes the flyout");
     }
 
     #[test]
