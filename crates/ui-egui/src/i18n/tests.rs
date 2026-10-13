@@ -110,7 +110,7 @@ fn lookups_fall_back_to_english() {
 
 #[test]
 fn catalog_kinds_are_parsed_and_looked_up() {
-    let c = Catalog::parse("# c\n\tHello\t你好\n@id\tfile.save\t儲存\nmenu\tWindows\t視窗們\n@plural\t{n} file|{n} files\t{n} 個檔案\n\n");
+    let c = Catalog::parse("# c\n\tHello\t你好\n@id\tfile.save\t儲存\nmenu\tWindows\t視窗們\n@plural\t{n} file|{n} files\t{n} 個檔案\n\n", false);
     assert_eq!(c.plain("Hello"), Some("你好"));
     assert_eq!(c.id("file.save"), Some("儲存"));
     assert_eq!(c.contextual("menu", "Windows"), Some("視窗們"));
@@ -1064,7 +1064,7 @@ fn messages_translate_by_template_and_their_parts() {
         "@msg\tcommand `{0}` is not available right now: {1}\tel comando `{0}` no está disponible ahora: {1}\n",
         "@msg\t{a}{b}\tnever\n",
         "@msg\t{n} of {total}\t{total} contiene {n}\n",
-    ));
+    ), false);
     assert_eq!(c.message("nothing selected").map(|m| m.0), Some("nada seleccionado"));
     // The template with the most literal text wins over the generic `{path}: {e}`.
     let (tr, caps) = c.message("Couldn't open a: b.svg: damaged").unwrap();
@@ -1379,7 +1379,8 @@ fn arabic_plurals_follow_cldr_counts() {
         assert_eq!(forms.len(), 6, "{src}");
         let (one, other) = src.split_once('|').unwrap();
         for (n, form) in [(0, 0), (1, 1), (2, 2), (3, 3), (11, 4), (100, 5), (103, 3), (111, 4)] {
-            assert_eq!(trn(ar(), n, one, other), forms[form].replace("{n}", &n.to_string()), "{src}: {n}");
+            // The stored form is in visual order like every Arabic string (bidi.rs).
+            assert_eq!(trn(ar(), n, one, other), super::bidi::visual_rtl(forms[form]).replace("{n}", &n.to_string()), "{src}: {n}");
         }
     }
     assert!(count >= 13, "Arabic plural rows missing");
@@ -1393,19 +1394,52 @@ fn arabic_reads_as_arabic() {
     for tag in ["ar", "ar-SA", "ar-EG", "ar_AE.UTF-8", "AR-ye"] {
         assert_eq!(lang_from_tag(tag), Some(ar()), "{tag}");
     }
+    // The Arabic catalog is stored in visual order (bidi.rs): a label's first word is the one
+    // egui draws rightmost, so "أداة لوحة الرسم" comes back with its runs left to right — the
+    // order a right-to-left reader meets them in. Single words, and labels with nothing Arabic
+    // in them, come back as they are.
     for (en, want) in [
         ("File", "ملف"),
-        ("Artboard Tool", "أداة لوحة الرسم"),
-        ("Swatches", "عينات الألوان"),
-        ("Pathfinder", "كاشف المسارات"),
+        ("Artboard Tool", "الرسم لوحة أداة"),
+        ("Swatches", "الألوان عينات"),
+        ("Pathfinder", "المسارات كاشف"),
         ("Stroke", "حد"),
         ("Fill", "تعبئة"),
-        ("Workspace", "مساحة العمل"),
+        ("Workspace", "العمل مساحة"),
     ] {
         assert_eq!(tr(ar(), en), want);
     }
     for (n, word) in [(0, "عنصر"), (1, "عنصر"), (2, "عنصران"), (3, "عناصر"), (11, "عنصراً"), (100, "عنصر"), (103, "عناصر")] {
-        assert_eq!(trn(ar(), n, "{n} item", "{n} items"), format!("{n} {word}"));
+        assert_eq!(trn(ar(), n, "{n} item", "{n} items"), super::bidi::visual_rtl(&format!("{{n}} {word}")).replace("{n}", &n.to_string()));
     }
     assert_eq!(tr_ctx(ar(), "axis", "Both"), "كلاهما");
+}
+
+/// egui lays a label out run by run, left to right, and the bidi pass (`bidi.rs`) orders an
+/// Arabic label's runs for it. This is that combination on a real egui layout, headless: after
+/// the pass the first word of a sentence sits rightmost, and a left-to-right island inside it
+/// keeps its own order — the pass and the shaper must not reverse each other's work (#1202).
+#[test]
+fn arabic_labels_lay_out_right_to_left() {
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let font = egui::FontId::new(13.0, egui::FontFamily::Name(crate::theme::FONT_UI.into()));
+        for (label, first, second) in [("ملف جديد", "ملف", "جديد"), ("حفظ كـ PDF…", "حفظ", "PDF")] {
+            let job = egui::text::LayoutJob::single_section(
+                super::bidi::visual_rtl(label),
+                egui::TextFormat { font_id: font.clone(), ..Default::default() },
+            );
+            let galley = ui.painter().layout_job(job);
+            let glyphs = &galley.rows[0].row.glyphs;
+            let x_of = |word: &str| glyphs.iter().filter(|g| word.contains(g.chr)).map(|g| g.pos.x).collect::<Vec<f32>>();
+            let (a, b) = (x_of(first), x_of(second));
+            assert!(!a.is_empty() && !b.is_empty(), "{label}: no glyphs for `{first}`/`{second}`");
+            assert!(
+                a.iter().all(|&x| b.iter().all(|&y| x > y)),
+                "`{label}`: `{first}` must sit right of `{second}` after the pass"
+            );
+        }
+    });
+    output.textures_delta.clear();
 }
