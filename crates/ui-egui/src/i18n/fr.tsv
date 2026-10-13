@@ -1246,6 +1246,7 @@
 	Identify Objects By	Identifier les objets par
 	Ignore	Ignorer
 	Ignore Artboards (all the art as one page)	Ignorer les plans de travail (toute l’illustration sur une page)
+	Auto Grouping	Groupement automatique
 	Ignore Color	Ignorer la couleur
 	Ignore White	Ignorer le blanc
 	Palette:	Palette :
@@ -3437,6 +3438,7 @@ axis	Both	Les deux
 @msg	No saved selections (Select → Save Selection…)	Aucune sélection enregistrée (Sélection → Enregistrer la sélection…)
 @msg	No saved views (View → New View…)	Aucune vue enregistrée (Affichage → Nouvelle vue…)
 @msg	Offset Path: select paths	Décalage : sélectionnez des tracés
+@msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	Décalage : le décalage ne laisse rien des tracés sélectionnés (un décalage vers l’intérieur plus grand que les formes)
 @msg	Opened with {_1} note(s): {_2}	Ouvert avec {_1} remarque(s) : {_2}
 @msg	Opened {url}	{url} ouvert
 @msg	Outline Stroke: no stroked paths selected	Vectoriser le contour : aucun tracé avec contour sélectionné
