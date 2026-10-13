@@ -126,6 +126,19 @@ impl Server {
             }
             return Some(error(id.unwrap_or(Value::Null), INVALID_REQUEST, "missing `method`"));
         };
+        // JSON-RPC 2.0: the envelope must carry `jsonrpc: "2.0"` before anything is
+        // dispatched (#1728). A request gets an Invalid Request error and never reaches
+        // the backend; a notification is dropped silently, so a malformed
+        // `notifications/initialized` cannot change server state.
+        if o.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
+            return match &id {
+                Some(id) if id.is_string() || id.is_number() => {
+                    Some(error(id.clone(), INVALID_REQUEST, "missing or invalid `jsonrpc`: must be \"2.0\""))
+                }
+                Some(_) => Some(error(Value::Null, INVALID_REQUEST, "missing or invalid `jsonrpc`: must be \"2.0\"")),
+                None => None,
+            };
+        }
         let params = o.get("params").cloned().unwrap_or(Value::Null);
         let Some(id) = id else {
             self.notification(method, &params);

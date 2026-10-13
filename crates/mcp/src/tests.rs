@@ -66,6 +66,47 @@ fn framing_basics() {
 }
 
 #[test]
+fn jsonrpc_version_is_required_before_dispatch() {
+    let mut s = server();
+    // Missing, wrong, and non-string versions are all Invalid Request (-32600),
+    // with the request id echoed, and the request is never dispatched.
+    for line in [
+        r#"{"id":1,"method":"ping"}"#,
+        r#"{"jsonrpc":"1.0","id":2,"method":"ping"}"#,
+        r#"{"jsonrpc":2.0,"id":3,"method":"ping"}"#,
+        r#"{"jsonrpc":"2.0 ","id":4,"method":"ping"}"#,
+    ] {
+        let v: Value = serde_json::from_str(&s.handle_line(line).unwrap()).unwrap();
+        assert_eq!(v["error"]["code"], -32600, "{line}");
+        assert!(v.get("result").is_none(), "{line}");
+    }
+    // A mutating tools/call with a bad version must not reach the backend:
+    // the document still holds only the objects a fresh document starts with.
+    let before = call(&mut s, 10, "inspect_document", json!({}));
+    let v: Value = serde_json::from_str(
+        &s.handle_line(r#"{"jsonrpc":"1.0","id":11,"method":"tools/call","params":{"name":"draw_shape","arguments":{"shape":"rectangle","x":0,"y":0,"width":10,"height":10}}}"#).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(v["error"]["code"], -32600);
+    assert_eq!(call(&mut s, 12, "inspect_document", json!({})), before);
+    // Malformed `notifications/initialized` (missing / wrong version) is dropped
+    // and must not mark the server initialized; the well-formed one still does.
+    assert_eq!(s.handle_line(r#"{"method":"notifications/initialized"}"#), None);
+    assert_eq!(s.handle_line(r#"{"jsonrpc":"1.0","method":"notifications/initialized"}"#), None);
+    assert!(!s.is_initialized());
+    assert_eq!(s.handle_line(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#), None);
+    assert!(s.is_initialized());
+    // Inside a batch, a bad-version element is answered with the error while a
+    // well-formed sibling is still dispatched.
+    let v: Value = serde_json::from_str(&s.handle_line(r#"[{"id":20,"method":"ping"},{"jsonrpc":"2.0","id":21,"method":"ping"}]"#).unwrap()).unwrap();
+    let replies = v.as_array().unwrap();
+    assert_eq!(replies.len(), 2);
+    assert_eq!(replies[0]["error"]["code"], -32600);
+    assert_eq!(replies[0]["id"], 20);
+    assert_eq!(replies[1]["result"], json!({}));
+}
+
+#[test]
 fn serve_loop_writes_one_line_per_request() {
     let mut s = server();
     let input = [
