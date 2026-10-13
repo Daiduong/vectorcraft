@@ -414,7 +414,7 @@ impl Tool for SelectionTool {
                 vec![]
             }
             (PointerKind::Drag, State::Corner(mut c)) => {
-                let out = c.drag(cx, p);
+                let out = c.drag(cx, p, ev.mods);
                 self.state = State::Corner(c);
                 out
             }

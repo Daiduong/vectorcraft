@@ -214,6 +214,8 @@ impl Session {
             snap_tolerance: self.prefs.snap_to_point_tolerance,
             handles_multiple: self.prefs.show_handles_multiple_anchors,
             corner_widget_max_angle: self.prefs.hide_corner_widget_above,
+            corner_drag_all: self.prefs.corner_drag_all,
+            corner_switch_key: vectorcraft_tools::HoldKey::from_name(&self.prefs.corner_switch_key),
             move_locked_with_artboard: self.prefs.move_locked_with_artboard,
             pen_rubber_band: self.prefs.pen_rubber_band,
             curvature_rubber_band: self.prefs.curvature_rubber_band,

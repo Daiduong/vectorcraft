@@ -4254,3 +4254,12 @@ lighting	Light	Свет
 @msg	unknown parameter `{key}`; the command takes: {keys}	неизвестный параметр `{key}`; команда принимает: {keys}
 	Load EPS into Clipboard	Загрузить EPS в буфер обмена
 @msg	an image of {w} × {h} pixels is too large to draw	изображение размером {w} × {h} пикселей слишком велико для отрисовки
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Единый радиус углов
+	Corner Widget Drag Rounds All Corners	Перетаскивание углового виджета скругляет все углы
+	Hold to Switch One or All Corners	Удерживайте для переключения: один или все углы
+	Top Left:	Вверху слева:
+	Top Right:	Вверху справа:
+	Bottom Left:	Внизу слева:
+	Bottom Right:	Внизу справа:

@@ -4238,3 +4238,12 @@ lighting	Light	Світло
 @msg	unknown parameter `{key}`; the command takes: {keys}	невідомий параметр `{key}`; команда приймає: {keys}
 	Load EPS into Clipboard	Завантажити EPS у буфер обміну
 @msg	an image of {w} × {h} pixels is too large to draw	зображення розміром {w} × {h} пікселів завелике для відображення
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Єдиний радіус кутів
+	Corner Widget Drag Rounds All Corners	Перетягування кутового віджета заокруглює всі кути
+	Hold to Switch One or All Corners	Утримуйте для перемикання: один або всі кути
+	Top Left:	Вгорі ліворуч:
+	Top Right:	Вгорі праворуч:
+	Bottom Left:	Внизу ліворуч:
+	Bottom Right:	Внизу праворуч:

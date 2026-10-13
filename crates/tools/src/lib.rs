@@ -60,6 +60,37 @@ pub struct Mods {
     pub space: bool,
 }
 
+/// A modifier key a preference picks for a tool to watch while it drags.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HoldKey {
+    /// Option on macOS.
+    #[default]
+    Alt,
+    Ctrl,
+    Shift,
+}
+
+impl HoldKey {
+    /// The key a preference names ("alt", "ctrl", "shift"); Alt for any other name.
+    pub fn from_name(name: &str) -> Self {
+        match name {
+            "ctrl" => Self::Ctrl,
+            "shift" => Self::Shift,
+            _ => Self::Alt,
+        }
+    }
+
+    /// Is the key down in `m`?
+    pub fn held(self, m: Mods) -> bool {
+        match self {
+            Self::Alt => m.alt,
+            Self::Ctrl => m.ctrl,
+            Self::Shift => m.shift,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PointerKind {
@@ -302,6 +333,12 @@ pub struct ToolContext<'a> {
     /// Selection & Anchor Display → Hide Corner Widget for angles greater than (degrees): corners
     /// wider than this show no Live Corners widget.
     pub corner_widget_max_angle: f64,
+    /// Selection & Anchor Display → Corner Widget Drag Rounds All Corners: off (the default), a
+    /// drag on a corner widget rounds that corner alone; on, every corner whose widget shows.
+    pub corner_drag_all: bool,
+    /// Selection & Anchor Display → Corner Widget Switch Key: held while dragging a corner widget,
+    /// it switches between one corner and all corners.
+    pub corner_switch_key: HoldKey,
     /// Selection & Anchor Display → Move Locked and Hidden Artwork with Artboard.
     pub move_locked_with_artboard: bool,
     /// Selection & Anchor Display → Enable Rubber Band for Pen Tool: the Pen previews the next
@@ -719,6 +756,8 @@ pub(crate) mod testutil {
             snap_tolerance: 2.0,
             handles_multiple: true,
             corner_widget_max_angle: 177.0,
+            corner_drag_all: false,
+            corner_switch_key: HoldKey::Alt,
             move_locked_with_artboard: false,
             pen_rubber_band: true,
             curvature_rubber_band: true,

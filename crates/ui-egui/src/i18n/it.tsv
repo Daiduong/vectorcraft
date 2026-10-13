@@ -4258,3 +4258,12 @@ lighting	Light	Luce
 @msg	unknown parameter `{key}`; the command takes: {keys}	parametro sconosciuto `{key}`; il comando accetta: {keys}
 	Load EPS into Clipboard	Carica EPS negli appunti
 @msg	an image of {w} × {h} pixels is too large to draw	un'immagine di {w} × {h} pixel è troppo grande per essere disegnata
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Raggio angolo unico
+	Corner Widget Drag Rounds All Corners	Il trascinamento del widget angolo arrotonda tutti gli angoli
+	Hold to Switch One or All Corners	Tieni premuto per passare tra uno o tutti gli angoli
+	Top Left:	In alto a sinistra:
+	Top Right:	In alto a destra:
+	Bottom Left:	In basso a sinistra:
+	Bottom Right:	In basso a destra:

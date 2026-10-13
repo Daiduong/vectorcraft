@@ -648,6 +648,11 @@ pub struct Prefs {
     pub highlight_anchors_on_hover: bool,
     pub show_handles_multiple_anchors: bool,
     pub hide_corner_widget_above: f64,
+    /// A drag on a corner widget rounds every corner whose widget shows (off: that corner alone).
+    pub corner_drag_all: bool,
+    /// The key ("alt", "ctrl", "shift") that, held while dragging a corner widget, switches
+    /// between one corner and all corners.
+    pub corner_switch_key: String,
     pub pen_rubber_band: bool,
     pub curvature_rubber_band: bool,
     // Type
@@ -830,6 +835,8 @@ pub struct Prefs {
     /// the Properties panel and the Control bar (their size fields pass `proportional` to
     /// `object.setBounds`).
     pub constrain_proportions: bool,
+    /// One Corner Radius field sets every corner of a live rectangle (off: a field per corner).
+    pub single_corner_radius: bool,
     /// The tools' persistent options by store (a tool id, or a store a family shares: `liquify`
     /// holds the Liquify tools' Global Brush Dimensions), see [`vectorcraft_tools::settings`]:
     /// kept across tool switches and saved with the preferences. Not a Preferences dialog field:
@@ -885,6 +892,8 @@ impl Default for Prefs {
             highlight_anchors_on_hover: true,
             show_handles_multiple_anchors: true,
             hide_corner_widget_above: 177.0,
+            corner_drag_all: false,
+            corner_switch_key: s("alt"),
             pen_rubber_band: true,
             curvature_rubber_band: true,
             type_size_increment: 2.0,
@@ -990,6 +999,7 @@ impl Default for Prefs {
             web_export_settings: None,
             print_presets: vec![],
             constrain_proportions: false,
+            single_corner_radius: true,
             tool_settings: Default::default(),
             perspective_presets: vec![],
             blend_options: None,

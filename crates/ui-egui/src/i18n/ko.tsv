@@ -4222,3 +4222,12 @@ lighting	Light	광원
 @msg	unknown parameter `{key}`; the command takes: {keys}	알 수 없는 매개변수 `{key}`: 이 명령이 받는 매개변수: {keys}
 	Load EPS into Clipboard	EPS를 클립보드로 불러오기
 @msg	an image of {w} × {h} pixels is too large to draw	{w} × {h}픽셀 이미지는 너무 커서 그릴 수 없습니다
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	단일 모퉁이 반지름
+	Corner Widget Drag Rounds All Corners	모퉁이 위젯을 드래그하면 모든 모퉁이를 둥글게 처리
+	Hold to Switch One or All Corners	누르고 있으면 한 모퉁이와 모든 모퉁이 전환
+	Top Left:	왼쪽 위:
+	Top Right:	오른쪽 위:
+	Bottom Left:	왼쪽 아래:
+	Bottom Right:	오른쪽 아래:

@@ -4630,3 +4630,12 @@ mark-style	Japanese	Japonesas
 @msg	unknown parameter `{key}`; the command takes: {keys}	parámetro desconocido `{key}`; el comando acepta: {keys}
 	Load EPS into Clipboard	Cargar EPS en el portapapeles
 @msg	an image of {w} × {h} pixels is too large to draw	una imagen de {w} × {h} píxeles es demasiado grande para dibujarse
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Radio de esquina único
+	Corner Widget Drag Rounds All Corners	Arrastrar el widget de esquina redondea todas las esquinas
+	Hold to Switch One or All Corners	Mantener para cambiar entre una o todas las esquinas
+	Top Left:	Arriba a la izquierda:
+	Top Right:	Arriba a la derecha:
+	Bottom Left:	Abajo a la izquierda:
+	Bottom Right:	Abajo a la derecha:

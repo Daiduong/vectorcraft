@@ -4533,3 +4533,12 @@ mark-style	Japanese	Japońskie
 @msg	unknown parameter `{key}`; the command takes: {keys}	nieznany parametr `{key}`; polecenie przyjmuje: {keys}
 	Load EPS into Clipboard	Wczytaj EPS do schowka
 @msg	an image of {w} × {h} pixels is too large to draw	obraz o wymiarach {w} × {h} pikseli jest zbyt duży, aby go narysować
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Jeden promień narożników
+	Corner Widget Drag Rounds All Corners	Przeciąganie widżetu narożnika zaokrągla wszystkie narożniki
+	Hold to Switch One or All Corners	Przytrzymaj, aby przełączyć jeden lub wszystkie narożniki
+	Top Left:	Lewy górny:
+	Top Right:	Prawy górny:
+	Bottom Left:	Lewy dolny:
+	Bottom Right:	Prawy dolny:

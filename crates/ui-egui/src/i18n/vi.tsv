@@ -4240,3 +4240,12 @@ theme	Appearance	Giao diện
 @msg	{tool} isn't in a toolbar group of several tools	{tool} không nằm trong nhóm thanh công cụ có nhiều công cụ
 	Load EPS into Clipboard	Tải EPS vào bảng tạm
 @msg	an image of {w} × {h} pixels is too large to draw	ảnh {w} × {h} điểm ảnh quá lớn nên không thể vẽ
+
+# Live Corners: one or all corners (#1512).
+	Single Corner Radius	Một bán kính góc
+	Corner Widget Drag Rounds All Corners	Kéo tiện ích góc sẽ bo tròn tất cả các góc
+	Hold to Switch One or All Corners	Giữ để chuyển giữa một góc và tất cả các góc
+	Top Left:	Trên cùng bên trái:
+	Top Right:	Trên cùng bên phải:
+	Bottom Left:	Dưới cùng bên trái:
+	Bottom Right:	Dưới cùng bên phải:
