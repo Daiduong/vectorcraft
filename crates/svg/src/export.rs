@@ -989,14 +989,39 @@ fn primitive_tag(path: &PathData, xf: Affine, mut num: impl FnMut(f64) -> String
 
 fn upright_rect(path: &PathData) -> Option<Rect> {
     let ([sp], Some(b)) = (path.subpaths.as_slice(), path.bounds()) else { return None };
-    let corner = |p: Point| ((p.x - b.x0).abs() < 1e-3 || (p.x - b.x1).abs() < 1e-3) && ((p.y - b.y0).abs() < 1e-3 || (p.y - b.y1).abs() < 1e-3);
-    (sp.closed
-        && sp.anchors.len() == 4
-        && (0..sp.segment_count()).all(|i| sp.segment_is_line(i))
-        && sp.anchors.iter().all(|a| corner(a.p))
-        && b.width() > 0.0
-        && b.height() > 0.0)
-        .then_some(b)
+    if !sp.closed || sp.anchors.len() != 4 || b.width() <= 0.0 || b.height() <= 0.0 {
+        return None;
+    }
+    if (0..4).any(|i| !sp.segment_is_line(i)) {
+        return None;
+    }
+    let pts: [Point; 4] = std::array::from_fn(|i| sp.anchors[i].p);
+    // Four distinct corners. A repeated corner (a triangle stored as four anchors) is not a rect.
+    for i in 0..4 {
+        for j in (i + 1)..4 {
+            if pts[i].distance(pts[j]) <= 1e-3 {
+                return None;
+            }
+        }
+    }
+    let on = |a: f64, b: f64| (a - b).abs() <= 1e-3;
+    let mut horizontal = [false; 4];
+    for i in 0..4 {
+        let (a, c) = (pts[i], pts[(i + 1) % 4]);
+        let h = on(a.y, c.y) && !on(a.x, c.x);
+        let v = on(a.x, c.x) && !on(a.y, c.y);
+        if h == v {
+            // Diagonal, or a zero-length edge. A bowtie's crossing edges fail here.
+            return None;
+        }
+        horizontal[i] = h;
+    }
+    // Edges alternate horizontal and vertical, so the outline is the bounds, not a zigzag.
+    if (0..4).any(|i| horizontal[i] == horizontal[(i + 1) % 4]) {
+        return None;
+    }
+    let corner = |p: Point| (on(p.x, b.x0) || on(p.x, b.x1)) && (on(p.y, b.y0) || on(p.y, b.y1));
+    pts.iter().all(|p| corner(*p)).then_some(b)
 }
 
 /// A closed four-cubic ellipse whose anchors sit on the cardinal points.
@@ -1011,11 +1036,12 @@ fn axis_ellipse(path: &PathData) -> Option<(f64, f64, f64, f64)> {
         return None;
     }
     let card = [Point::new(cx + rx, cy), Point::new(cx, cy + ry), Point::new(cx - rx, cy), Point::new(cx, cy - ry)];
-    let tol = 0.02 * rx.max(ry);
+    // Tight against the radii. A fixed 0.75 pt floor turned a 1 pt circle with bad handles into a circle.
+    let tol = 1e-3 * rx.max(ry);
     let mut used = [false; 4];
     let mut order = [0usize; 4];
     for (i, a) in sp.anchors.iter().enumerate() {
-        let j = card.iter().position(|c| c.distance(a.p) <= tol.max(0.05))?;
+        let j = card.iter().position(|c| c.distance(a.p) <= tol)?;
         if used[j] {
             return None;
         }
@@ -1043,7 +1069,7 @@ fn axis_ellipse(path: &PathData) -> Option<(f64, f64, f64, f64)> {
             };
             Point::new(card[order[i]].x + ox, card[order[i]].y + oy)
         };
-        if a.h_out.distance(toward(order[(i + 1) % 4])) > tol.max(0.75) || a.h_in.distance(toward(order[(i + 3) % 4])) > tol.max(0.75) {
+        if a.h_out.distance(toward(order[(i + 1) % 4])) > tol || a.h_in.distance(toward(order[(i + 3) % 4])) > tol {
             return None;
         }
     }
