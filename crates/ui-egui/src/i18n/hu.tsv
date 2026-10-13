@@ -4724,3 +4724,15 @@ imageTrace	Outline	Körvonal
 	Softness	Lágyság
 	Ambient Light	Környezeti fény
 	Light behind the object	Fény az objektum mögött
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	VÉGTELEN VÁSZON
+	Infinite Canvas	Végtelen vászon
+	Infinite Canvas (Print)	Végtelen vászon (nyomtatás)
+	Canvas:	Vászon:
+	Standard	Normál
+	Infinite	Végtelen
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Végtelen lap rajztáblák nélkül. Később adjon hozzá rajztáblákat egy rész exportálásához vagy nyomtatásához.
+	No artboards	Nincsenek rajztáblák
+	This infinite canvas has no artboards. Add one to export or print part of it.	Ennek a végtelen vászonnak nincs rajztáblája. Adjon hozzá egyet egy rész exportálásához vagy nyomtatásához.
+@msg	center must be a point within ±{limit} pt	a középpontnak ±{limit} pt-on belüli pontnak kell lennie

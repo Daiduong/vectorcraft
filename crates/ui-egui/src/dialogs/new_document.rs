@@ -11,7 +11,7 @@
 //! fields from that preset; changing any of them afterwards makes the settings custom.
 
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::Unit;
+use vectorcraft_doc::{CanvasKind, Unit};
 use vectorcraft_engine::cmd::newdoc::{self, ArtboardLayout, DocSettings, MAX_ARTBOARDS, PreviewMode, RASTER_PPI};
 
 use super::{DialogSpec, form};
@@ -27,7 +27,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec::window(show, confirm);
 pub(super) const MORE_SPEC: DialogSpec = DialogSpec::window(show_more, confirm);
 
 /// The fields `file.new` takes.
-const PARAMS: [&str; 12] = [
+const PARAMS: [&str; 13] = [
     "preset",
     "name",
     "width",
@@ -40,6 +40,7 @@ const PARAMS: [&str; 12] = [
     "colorMode",
     "rasterEffectsPpi",
     "previewMode",
+    "canvas",
 ];
 /// The preset the fields were last filled from (its fields as `apply` set them).
 const APPLIED: &str = "__applied";
@@ -220,6 +221,8 @@ fn presets(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         tl!("RECENT")
     } else if cat == 1 {
         tl!("SAVED")
+    } else if names.get(cat) == Some(&newdoc::INFINITE) {
+        tl!("INFINITE CANVAS")
     } else {
         tl!("BLANK DOCUMENT PRESETS")
     };
@@ -251,7 +254,15 @@ fn presets(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 /// Is `name` a built-in preset's? Those are ours (translated); Recent and Saved hold the names of
 /// the user's documents and presets, shown as they are.
 fn is_builtin_preset(name: &str) -> bool {
-    newdoc::CATEGORIES.iter().any(|(_, _, _, presets)| presets.iter().any(|(n, ..)| *n == name))
+    newdoc::CATEGORIES.iter().any(|(_, _, _, presets)| presets.iter().any(|(n, ..)| *n == name)) || INFINITE_PRESETS.contains(&name)
+}
+
+/// The names of the built-in infinite-canvas presets (translated as the others are).
+const INFINITE_PRESETS: [&str; 2] = [newdoc::INFINITE, "Infinite Canvas (Print)"];
+
+/// Is the dialog set to an infinite canvas (#1087)?
+fn is_infinite(d: &Dialog) -> bool {
+    d.str("canvas") == CanvasKind::Infinite.key()
 }
 
 /// A preset's name as shown: a built-in one translated, the user's as it is.
@@ -270,13 +281,29 @@ pub fn preset_card(ui: &mut egui::Ui, s: &DocSettings, selected: bool) -> egui::
     if selected {
         p.rect_stroke(r, egui::CornerRadius::same(6), egui::Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
     }
-    let k = (60.0 / s.width.max(s.height).max(1e-9)) as f32;
-    let page = egui::Rect::from_center_size(
-        r.center_top() + egui::vec2(0.0, 48.0),
-        egui::vec2((s.width as f32 * k).max(4.0), (s.height as f32 * k).max(4.0)),
-    );
-    p.rect_filled(page.translate(egui::vec2(2.0, 2.0)), 0.0, egui::Color32::from_black_alpha(80));
-    p.rect_filled(page, 0.0, egui::Color32::WHITE);
+    if s.canvas.is_infinite() {
+        // An endless sheet: paper across the card with a dot grid running off its edges.
+        let sheet = egui::Rect::from_min_max(r.left_top() + egui::vec2(8.0, 10.0), r.right_top() + egui::vec2(-8.0, 86.0));
+        p.rect_filled(sheet, egui::CornerRadius::same(3), egui::Color32::WHITE);
+        let dot = egui::Color32::from_gray(170);
+        let mut y = sheet.top() + 6.0;
+        while y < sheet.bottom() - 2.0 {
+            let mut x = sheet.left() + 6.0;
+            while x < sheet.right() - 2.0 {
+                p.circle_filled(egui::pos2(x, y), 1.0, dot);
+                x += 9.0;
+            }
+            y += 9.0;
+        }
+    } else {
+        let k = (60.0 / s.width.max(s.height).max(1e-9)) as f32;
+        let page = egui::Rect::from_center_size(
+            r.center_top() + egui::vec2(0.0, 48.0),
+            egui::vec2((s.width as f32 * k).max(4.0), (s.height as f32 * k).max(4.0)),
+        );
+        p.rect_filled(page.translate(egui::vec2(2.0, 2.0)), 0.0, egui::Color32::from_black_alpha(80));
+        p.rect_filled(page, 0.0, egui::Color32::WHITE);
+    }
     // The name on up to two lines, then the size.
     let mut job = egui::text::LayoutJob::single_section(
         label.to_string(),
@@ -314,7 +341,42 @@ fn details(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, b: &mut 
         save_row(app, ui, d);
     }
     ui.add_space(8.0);
+    form::caption(ui, tl!("Canvas"));
+    canvas_choice(ui, d);
+    ui.add_space(8.0);
     let unit = unit(d);
+    if is_infinite(d) {
+        // No artboards: size, orientation, artboards and bleed don't apply (#1087).
+        form::caption(ui, tl!("Units"));
+        units_dropdown(ui, d, DETAILS - 34.0);
+        ui.add_space(6.0);
+        ui.label(
+            egui::RichText::new(tl!("An endless sheet with no artboards. Add artboards later to export or print part of it.")).color(t.text_dim),
+        );
+    } else {
+        size_rows(ui, d, unit);
+    }
+    ui.add_space(8.0);
+    form::caption(ui, tl!("Background Contents"));
+    background(ui, d, DETAILS - 34.0);
+    ui.add_space(8.0);
+    advanced(ui, d, 110.0, DETAILS - 116.0);
+    ui.add_space(12.0);
+    if widgets::flat_button(ui, tl!("More Settings"), DETAILS).clicked() {
+        d.kind = MORE.into();
+    }
+    // Close and Create at the bottom right.
+    ui.add_space((HEIGHT - (ui.cursor().top() - top) - 28.0).max(12.0));
+    ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 28.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        b.create |= widgets::primary_button(ui, tl!("Create")).clicked();
+        ui.add_space(8.0);
+        b.close = widgets::secondary_button(ui, tl!("Close")).clicked();
+    });
+}
+
+/// Width (with the units), height, orientation, artboards and bleed: the settings of a standard
+/// canvas.
+fn size_rows(ui: &mut egui::Ui, d: &mut Dialog, unit: Unit) {
     form::caption(ui, tl!("Width"));
     ui.horizontal(|ui| {
         form::length(ui, d, "width", unit, DETAILS - 124.0);
@@ -340,21 +402,18 @@ fn details(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, b: &mut 
     ui.add_space(8.0);
     form::caption(ui, tl!("Bleed"));
     form::bleed(ui, d, unit, 52.0);
-    ui.add_space(8.0);
-    form::caption(ui, tl!("Background Contents"));
-    background(ui, d, DETAILS - 34.0);
-    ui.add_space(8.0);
-    advanced(ui, d, 110.0, DETAILS - 116.0);
-    ui.add_space(12.0);
-    if widgets::flat_button(ui, tl!("More Settings"), DETAILS).clicked() {
-        d.kind = MORE.into();
-    }
-    // Close and Create at the bottom right.
-    ui.add_space((HEIGHT - (ui.cursor().top() - top) - 28.0).max(12.0));
-    ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 28.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        b.create |= widgets::primary_button(ui, tl!("Create")).clicked();
-        ui.add_space(8.0);
-        b.close = widgets::secondary_button(ui, tl!("Close")).clicked();
+}
+
+/// Canvas: Standard (artboards) or Infinite (an endless sheet, #1087).
+fn canvas_choice(ui: &mut egui::Ui, d: &mut Dialog) {
+    let infinite = is_infinite(d);
+    ui.horizontal(|ui| {
+        for (kind, label) in [(CanvasKind::Standard, tl!("Standard")), (CanvasKind::Infinite, tl!("Infinite"))] {
+            if widgets::radio(ui, label, infinite == kind.is_infinite(), true) {
+                d.fields.insert("canvas".into(), json!(kind.key()));
+            }
+            ui.add_space(10.0);
+        }
     });
 }
 
@@ -484,7 +543,7 @@ fn show_more(app: &mut VectorcraftApp, ctx: &egui::Context) {
             form::text(ui, &mut d, "name", 300.0);
         });
         // Profile: the preset categories (the tabs); Size: the profile's presets.
-        let profiles: Vec<&str> = newdoc::CATEGORIES.iter().map(|c| c.0).collect();
+        let profiles: Vec<&str> = std::iter::once(newdoc::INFINITE).chain(newdoc::CATEGORIES.iter().map(|c| c.0)).collect();
         let profile = profiles.iter().find(|p| p.eq_ignore_ascii_case(&d.str("category"))).copied().unwrap_or("[Custom]");
         widgets::label_row(ui, tl!("Profile:"), L, |ui| {
             if let Some(p) = widgets::dropdown(ui, "newdoc-profile", profile, &profiles, 220.0).and_then(|i| profiles.get(i)) {
@@ -494,69 +553,74 @@ fn show_more(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 }
             }
         });
+        widgets::label_row(ui, tl!("Canvas:"), L, |ui| canvas_choice(ui, &mut d));
         ui.add_space(6.0);
-        let (lay, cols, spacing, rtl) = layout(&d);
-        let n = d.f64("artboards", 1.0);
-        let several = n > 1.0;
-        widgets::label_row(ui, tl!("Number of Artboards:"), L, |ui| {
-            artboards(ui, &mut d, 76.0);
-            ui.add_space(10.0);
-            for (l, icon) in [
-                (ArtboardLayout::GridByRow, "dc-grid-view"),
-                (ArtboardLayout::GridByColumn, "grid-3x3"),
-                (ArtboardLayout::Row, "arrow-left-right"),
-                (ArtboardLayout::Column, "arrow-up-down"),
-            ] {
-                if widgets::icon_button_enabled(ui, icon, l.label(), lay == l, several, 26.0).clicked() {
-                    set_layout(&mut d, "layout", json!(l.id()));
-                }
-            }
-            ui.add_space(6.0);
-            if widgets::icon_button_enabled(ui, "chevrons-left", tl!("Change to Right-to-Left Layout"), rtl, several, 26.0).clicked() {
-                set_layout(&mut d, "rightToLeft", json!(!rtl));
-            }
-        });
-        ui.add_enabled_ui(several, |ui| {
-            widgets::label_row(ui, tl!("Spacing:"), L, |ui| {
-                if let Some(v) = widgets::num_field(ui, "newdoc-spacing", Some(spacing), unit(&d), 100.0) {
-                    set_layout(&mut d, "spacing", json!(v.max(0.0)));
-                }
-                ui.add_space(20.0);
-                widgets::field_label(ui, egui::RichText::new(tl!("Columns:")).color(t.text));
-                let grid = matches!(lay, ArtboardLayout::GridByRow | ArtboardLayout::GridByColumn);
-                ui.add_enabled_ui(grid, |ui| {
-                    if let Some(v) = widgets::spin_plain(ui, "newdoc-columns", cols as f64, "", 0, 76.0, 1.0, 1.0, &[]) {
-                        set_layout(&mut d, "columns", json!(v.round().clamp(1.0, n) as u64));
+        // An infinite canvas has no artboards: their number, layout, size and bleed don't apply.
+        let infinite = is_infinite(&d);
+        ui.add_enabled_ui(!infinite, |ui| {
+            let (lay, cols, spacing, rtl) = layout(&d);
+            let n = d.f64("artboards", 1.0);
+            let several = n > 1.0;
+            widgets::label_row(ui, tl!("Number of Artboards:"), L, |ui| {
+                artboards(ui, &mut d, 76.0);
+                ui.add_space(10.0);
+                for (l, icon) in [
+                    (ArtboardLayout::GridByRow, "dc-grid-view"),
+                    (ArtboardLayout::GridByColumn, "grid-3x3"),
+                    (ArtboardLayout::Row, "arrow-left-right"),
+                    (ArtboardLayout::Column, "arrow-up-down"),
+                ] {
+                    if widgets::icon_button_enabled(ui, icon, l.label(), lay == l, several, 26.0).clicked() {
+                        set_layout(&mut d, "layout", json!(l.id()));
                     }
+                }
+                ui.add_space(6.0);
+                if widgets::icon_button_enabled(ui, "chevrons-left", tl!("Change to Right-to-Left Layout"), rtl, several, 26.0).clicked() {
+                    set_layout(&mut d, "rightToLeft", json!(!rtl));
+                }
+            });
+            ui.add_enabled_ui(several, |ui| {
+                widgets::label_row(ui, tl!("Spacing:"), L, |ui| {
+                    if let Some(v) = widgets::num_field(ui, "newdoc-spacing", Some(spacing), unit(&d), 100.0) {
+                        set_layout(&mut d, "spacing", json!(v.max(0.0)));
+                    }
+                    ui.add_space(20.0);
+                    widgets::field_label(ui, egui::RichText::new(tl!("Columns:")).color(t.text));
+                    let grid = matches!(lay, ArtboardLayout::GridByRow | ArtboardLayout::GridByColumn);
+                    ui.add_enabled_ui(grid, |ui| {
+                        if let Some(v) = widgets::spin_plain(ui, "newdoc-columns", cols as f64, "", 0, 76.0, 1.0, 1.0, &[]) {
+                            set_layout(&mut d, "columns", json!(v.round().clamp(1.0, n) as u64));
+                        }
+                    });
                 });
             });
+            ui.add_space(6.0);
+            let sizes = newdoc::category(&app.session, profile).unwrap_or_default();
+            let size_names: Vec<&str> = sizes.iter().map(|s| s.name.as_str()).collect();
+            let preset = d.str("preset");
+            widgets::label_row(ui, tl!("Size:"), L, |ui| {
+                // The profile's sizes are built in; the preset may be one the user saved.
+                let shown = if preset.is_empty() { tl!("Custom") } else { preset_name(&preset) };
+                if let Some(s) = super::mixed_dropdown(ui, "newdoc-size", shown, &size_names, 220.0, |_| true).and_then(|i| sizes.get(i)) {
+                    apply(&mut d, s);
+                }
+            });
+            let unit = unit(&d);
+            widgets::label_row(ui, tl!("Width:"), L, |ui| {
+                form::length(ui, &mut d, "width", unit, 120.0);
+                ui.add_space(20.0);
+                ui.label(egui::RichText::new(tl!("Units:")).color(t.text));
+                units_dropdown(ui, &mut d, 120.0);
+            });
+            widgets::label_row(ui, tl!("Height:"), L, |ui| {
+                form::length(ui, &mut d, "height", unit, 120.0);
+                ui.add_space(20.0);
+                ui.label(egui::RichText::new(tl!("Orientation:")).color(t.text));
+                orientation(ui, &mut d);
+            });
+            ui.add_space(4.0);
+            widgets::label_row(ui, tl!("Bleed:"), L, |ui| form::bleed(ui, &mut d, unit, 64.0));
         });
-        ui.add_space(6.0);
-        let sizes = newdoc::category(&app.session, profile).unwrap_or_default();
-        let size_names: Vec<&str> = sizes.iter().map(|s| s.name.as_str()).collect();
-        let preset = d.str("preset");
-        widgets::label_row(ui, tl!("Size:"), L, |ui| {
-            // The profile's sizes are built in; the preset may be one the user saved.
-            let shown = if preset.is_empty() { tl!("Custom") } else { preset_name(&preset) };
-            if let Some(s) = super::mixed_dropdown(ui, "newdoc-size", shown, &size_names, 220.0, |_| true).and_then(|i| sizes.get(i)) {
-                apply(&mut d, s);
-            }
-        });
-        let unit = unit(&d);
-        widgets::label_row(ui, tl!("Width:"), L, |ui| {
-            form::length(ui, &mut d, "width", unit, 120.0);
-            ui.add_space(20.0);
-            ui.label(egui::RichText::new(tl!("Units:")).color(t.text));
-            units_dropdown(ui, &mut d, 120.0);
-        });
-        widgets::label_row(ui, tl!("Height:"), L, |ui| {
-            form::length(ui, &mut d, "height", unit, 120.0);
-            ui.add_space(20.0);
-            ui.label(egui::RichText::new(tl!("Orientation:")).color(t.text));
-            orientation(ui, &mut d);
-        });
-        ui.add_space(4.0);
-        widgets::label_row(ui, tl!("Bleed:"), L, |ui| form::bleed(ui, &mut d, unit, 64.0));
         ui.add_space(4.0);
         widgets::label_row(ui, tl!("Background Contents:"), L, |ui| background(ui, &mut d, 220.0));
         ui.add_space(8.0);
@@ -691,6 +755,63 @@ mod tests {
         app.run("file.newDialog", json!({})).unwrap();
         assert_eq!((field(&app, "category"), field(&app, "name")), (json!("Recent"), json!("Untitled-2")));
         frame(&mut app);
+    }
+
+    /// The texts the dialog draws once it has settled (a few frames on one context: a new
+    /// window's first frame only measures it).
+    fn texts(app: &mut VectorcraftApp) -> Vec<String> {
+        fn walk(s: &egui::Shape, out: &mut Vec<String>) {
+            match s {
+                egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, out)),
+                _ => {}
+            }
+        }
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        crate::theme::apply(&ctx, Default::default());
+        let mut out = vec![];
+        for _ in 0..3 {
+            let raw =
+                egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1400.0, 1000.0))), ..Default::default() };
+            let mut shown = ctx.run_ui(raw, |ui| crate::dialogs::show(app, ui.ctx()));
+            shown.textures_delta.clear();
+            out.clear();
+            shown.shapes.iter().for_each(|c| walk(&c.shape, &mut out));
+        }
+        out
+    }
+
+    /// #1087: the Infinite Canvas preset sets the canvas to infinite; the details then show the
+    /// units and a note in place of the size, artboards and bleed; Create makes an infinite
+    /// document with no artboards. Standard brings the size fields back.
+    #[test]
+    fn an_infinite_canvas_preset_makes_an_endless_sheet() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.newDialog", json!({})).unwrap();
+        set(&mut app, "category", json!("Infinite Canvas"));
+        set(&mut app, "preset", json!("Infinite Canvas"));
+        let shown = texts(&mut app);
+        assert_eq!(field(&app, "canvas"), json!("infinite"));
+        let note = "An endless sheet with no artboards. Add artboards later to export or print part of it.";
+        assert!(shown.iter().any(|t| t == note), "{shown:?}");
+        assert!(shown.iter().any(|t| t == "INFINITE CANVAS (2)") && shown.iter().any(|t| t == "Infinite"), "{shown:?}");
+        for hidden in ["Width", "Height", "Orientation", "Bleed"] {
+            assert!(!shown.iter().any(|t| t == hidden), "{hidden} hides: {shown:?}");
+        }
+        // Standard brings the size back; Infinite again and Create.
+        set(&mut app, "canvas", json!("standard"));
+        assert!(texts(&mut app).iter().any(|t| t == "Width"));
+        set(&mut app, "canvas", json!("infinite"));
+        frame(&mut app);
+        crate::dialogs::confirm(&mut app).unwrap();
+        let d = &app.session.active().unwrap().doc;
+        assert_eq!((d.canvas, d.artboards.len()), (vectorcraft_doc::CanvasKind::Infinite, 0));
+        // More Settings draws with the canvas choice too.
+        app.run("file.newDialog", json!({})).unwrap();
+        set(&mut app, "canvas", json!("infinite"));
+        app.ui.dialog.as_mut().unwrap().kind = super::MORE.into();
+        assert!(texts(&mut app).iter().any(|t| t == "Canvas:"));
     }
 
     #[test]

@@ -544,7 +544,8 @@ impl Session {
 
 /// The region an export covers and its pixels per point.
 pub fn region(doc: &Document, s: &WebSettings) -> std::result::Result<(Rect, f64), String> {
-    let r = if s.clip_to_artboard {
+    // Without artboards (an infinite canvas, #1087) the export takes the art and the slices.
+    let r = if s.clip_to_artboard && !doc.artboards.is_empty() {
         let i = s.artboard.unwrap_or(0);
         doc.artboards.get(i).map(|a| a.rect).ok_or_else(|| format!("no artboard {i} (0-based; the document has {})", doc.artboards.len()))?
     } else {

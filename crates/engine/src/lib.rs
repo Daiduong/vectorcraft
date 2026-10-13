@@ -532,8 +532,26 @@ impl DocState {
     }
 }
 
-/// Coordinates beyond this (points) are rejected: ~1,400 m, far past Illustrator's large canvas.
-pub const MAX_COORD: f64 = 4.0e6;
+/// Coordinates of a standard canvas beyond this (points) are rejected: ~1,400 m. A document's own
+/// limit is [`vectorcraft_doc::Document::coord_limit`] (an infinite canvas reaches
+/// [`MAX_COORD_HARD`]).
+pub const MAX_COORD: f64 = vectorcraft_doc::MAX_COORD_STANDARD;
+
+/// No document's coordinates go beyond this (points): the limit of an infinite canvas (#1087), for
+/// checks made without a document. [`doc_sane`] then applies the document's own limit.
+pub const MAX_COORD_HARD: f64 = vectorcraft_doc::MAX_COORD_INFINITE;
+
+thread_local! {
+    /// The coordinate limit of the document an edit is changing ([`Session::edit`] sets it).
+    static COORD_LIMIT: std::cell::Cell<f64> = const { std::cell::Cell::new(MAX_COORD) };
+}
+
+/// The coordinate limit for helpers that get no document (type frames, built shapes): the
+/// document's own during an edit (an infinite canvas reaches further, #1087), else a standard
+/// canvas's.
+pub(crate) fn coord_limit() -> f64 {
+    COORD_LIMIT.with(std::cell::Cell::get)
+}
 
 /// The commands that act on the active artboard (#693), which the app passes as their `artboard`:
 /// Paste in Place, in Front and in Back paste onto it, Align to Artboard aligns to it, and All on
@@ -584,14 +602,16 @@ pub(crate) fn is_guide_path(d: &Document, id: NodeId) -> bool {
 }
 
 /// Cheap sanity check after an edit: artboards and the objects just touched (the selection) must
-/// have finite, in-range geometry, so saved files always reload and renderers never see NaN/∞.
+/// have finite geometry within the document's limit (an infinite canvas reaches further, #1087), so
+/// saved files always reload and renderers never see NaN/∞.
 fn doc_sane(d: &Document, sel: &Selection) -> bool {
-    let ok = |r: vectorcraft_geom::Rect| [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD);
+    let limit = d.coord_limit();
+    let ok = |r: vectorcraft_geom::Rect| [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite() && v.abs() <= limit);
     d.ruler_origin.is_finite()
-        && d.ruler_origin.x.abs() <= MAX_COORD
-        && d.ruler_origin.y.abs() <= MAX_COORD
+        && d.ruler_origin.x.abs() <= limit
+        && d.ruler_origin.y.abs() <= limit
         && d.artboards.iter().all(|a| ok(a.rect))
-        && d.guides.iter().all(|g| g.pos.is_finite() && g.pos.abs() <= MAX_COORD)
+        && d.guides.iter().all(|g| g.pos.is_finite() && g.pos.abs() <= limit)
         && {
             let paths = d.index_paths(sel.objects.iter().copied());
             sel.objects.iter().all(|id| paths.get(id).and_then(|p| d.node_at(p)).and_then(|n| n.geometric_bounds()).is_none_or(ok))
@@ -1452,7 +1472,11 @@ impl Session {
         let before = st.doc.clone();
         let before_sel = st.selection.clone();
         let doc = Arc::make_mut(&mut st.doc);
-        let result = match f(doc, &mut st.selection) {
+        // Helpers without the document check coordinates against its limit (#1087).
+        let outer = COORD_LIMIT.with(|c| c.replace(doc.coord_limit()));
+        let applied = f(doc, &mut st.selection);
+        COORD_LIMIT.with(|c| c.set(outer));
+        let result = match applied {
             Ok(v) => match cmd::shaper::refresh(&before, Arc::make_mut(&mut st.doc)) {
                 Err(e) => Err(e),
                 Ok(()) => {
@@ -1797,6 +1821,8 @@ mod tests_halftone;
 mod tests_history_mem;
 #[cfg(test)]
 mod tests_ids_without_selection;
+#[cfg(test)]
+mod tests_infinite;
 #[cfg(test)]
 mod tests_inline;
 #[cfg(test)]

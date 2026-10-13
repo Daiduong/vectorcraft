@@ -16,7 +16,7 @@ use vectorcraft_geom::{FillRule, PathData, Point, Rect};
 use crate::{Error, Result};
 
 /// Coordinates a plug-in may return, in points (the document's own canvas limit).
-pub const MAX_COORD: f64 = 4.0e6;
+pub const MAX_COORD: f64 = vectorcraft_doc::MAX_COORD_INFINITE;
 /// Most objects one output may hold.
 pub const MAX_OBJECTS: usize = 100_000;
 /// Most anchor points one output may hold, over all objects.

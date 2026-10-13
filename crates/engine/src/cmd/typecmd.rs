@@ -132,7 +132,7 @@ fn auto_height(t: &mut TextObject) -> bool {
     let Some(b) = auto_height_frame(t) else { return false };
     let db = vectorcraft_text::FontDb::global();
     // Lay out in a frame as tall as the canvas allows: everything the width lets through flows.
-    let tall = (crate::MAX_COORD - b.y0).min(1.0e5);
+    let tall = (crate::coord_limit() - b.y0).min(1.0e5);
     if tall <= 1.0 {
         return false;
     }
@@ -182,7 +182,7 @@ fn auto_height(t: &mut TextObject) -> bool {
     let vectorcraft_doc::TextKind::Area { frame } = &mut t.kind else { return false };
     let mut next = frame.clone();
     next.transform(a);
-    if next.bounds().is_none_or(|nb| ![nb.x0, nb.y0, nb.x1, nb.y1].iter().all(|v| v.is_finite() && v.abs() <= crate::MAX_COORD)) {
+    if next.bounds().is_none_or(|nb| ![nb.x0, nb.y0, nb.x1, nb.y1].iter().all(|v| v.is_finite() && v.abs() <= crate::coord_limit())) {
         return false;
     }
     *frame = next;
@@ -522,12 +522,12 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Reshape area type's frame with `f` ([`TextObject::transform_area`],
 /// [`TextObject::move_area_anchors`]) and lay its text out again. False, changing nothing, when
-/// `f` fails or the frame would reach past [`crate::MAX_COORD`] (the text flows over its height).
+/// `f` fails or the frame would reach past the document's limit ([`crate::coord_limit`]) (the text flows over its height).
 pub(crate) fn reshape_area_with(t: &mut TextObject, f: impl FnOnce(&mut TextObject) -> bool) -> bool {
     let before = t.kind.clone();
     let within = |t: &TextObject| match &t.kind {
         vectorcraft_doc::TextKind::Area { frame } => {
-            frame.bounds().is_some_and(|b| [b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.abs() <= crate::MAX_COORD))
+            frame.bounds().is_some_and(|b| [b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.abs() <= crate::coord_limit()))
         }
         _ => false,
     };

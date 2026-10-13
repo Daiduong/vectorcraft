@@ -3911,3 +3911,14 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	环境光
 	Light behind the object	光源位于对象后方
+# Infinite canvas (#1087).
+	INFINITE CANVAS	无限画布
+	Infinite Canvas	无限画布
+	Infinite Canvas (Print)	无限画布（印刷）
+	Canvas:	画布：
+	Standard	标准
+	Infinite	无限
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	没有画板的无尽画纸。之后添加画板即可导出或打印其中一部分。
+	No artboards	无画板
+	This infinite canvas has no artboards. Add one to export or print part of it.	此无限画布没有画板。添加一个画板即可导出或打印其中一部分。
+@msg	center must be a point within ±{limit} pt	中心必须是 ±{limit} pt 范围内的点

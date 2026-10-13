@@ -789,8 +789,11 @@ fn rect_from(p: &Value, default: Rect) -> Rect {
 
 fn artboard_new(s: &mut Session, p: &Value) -> Result<Value> {
     let d0 = &s.doc()?.doc;
-    let last = d0.artboards.last().map(|a| a.rect).unwrap_or(Rect::new(0.0, 0.0, 612.0, 792.0));
-    let def = Rect::new(last.x1 + 20.0, last.y0, last.x1 + 20.0 + last.width(), last.y1);
+    // Right of the last artboard; the first one (an infinite canvas has none, #1087) at the origin.
+    let def = match d0.artboards.last().map(|a| a.rect) {
+        Some(last) => Rect::new(last.x1 + 20.0, last.y0, last.x1 + 20.0 + last.width(), last.y1),
+        None => Rect::new(0.0, 0.0, 612.0, 792.0),
+    };
     let r = rect_from(p, def);
     let idx = s.edit("New Artboard", |d, _| {
         let id = d.next_artboard_id();
@@ -804,7 +807,8 @@ fn artboard_new(s: &mut Session, p: &Value) -> Result<Value> {
 fn artboard_delete(s: &mut Session, p: &Value) -> Result<Value> {
     let indices = super::panelcmds::artboard_indices(&s.doc()?.doc, p, "artboard.delete")?;
     s.edit("Delete Artboard", |d, sel| {
-        if indices.len() >= d.artboards.len() {
+        // An infinite canvas (#1087) may do without artboards; a standard one needs one.
+        if indices.len() >= d.artboards.len() && !d.canvas.is_infinite() {
             return Err(EngineError::Other("a document needs at least one artboard".into()));
         }
         // The last first, so the others keep their places; their guides go with them.

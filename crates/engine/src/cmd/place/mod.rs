@@ -39,7 +39,7 @@ use vectorcraft_pdf::CropTo;
 
 use super::fileio::{self, Format, RasterImage};
 use super::*;
-use crate::{EngineError, MAX_COORD};
+use crate::EngineError;
 
 const PLACE: &str = "file.place";
 const QUEUE: &str = "file.place.queue";
@@ -363,7 +363,8 @@ fn place(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(PLACE, "replace keeps the replaced object's place and transform: drop template, at and rect"));
     }
     let corners = [at, rect.map(|r| r.origin()), rect.map(|r| Point::new(r.x1, r.y1))];
-    if corners.iter().flatten().any(|c| !(c.x.abs() <= MAX_COORD && c.y.abs() <= MAX_COORD)) {
+    let limit = s.doc()?.doc.coord_limit();
+    if corners.iter().flatten().any(|c| !(c.x.abs() <= limit && c.y.abs() <= limit)) {
         return Err(bad(PLACE, "at/rect lie outside the canvas"));
     }
     let st = s.doc()?;

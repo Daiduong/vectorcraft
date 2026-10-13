@@ -1004,13 +1004,19 @@ fn render_preview(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
         None => 1024,
         Some(v) => v.as_u64().filter(|v| (1..=4096).contains(v)).ok_or("`max_side` must be an integer in 1..4096")?,
     };
-    let index = match a.get("artboard") {
-        None => 0,
-        Some(v) => v.as_u64().ok_or("`artboard` must be a 0-based artboard index")?,
+    let asked = match a.get("artboard") {
+        None => None,
+        Some(v) => Some(v.as_u64().ok_or("`artboard` must be a 0-based artboard index")?),
     };
+    let index = asked.unwrap_or(0);
     let doc = b.call("document.inspect", json!({"depth":0}))?;
-    let board =
-        doc.get("artboards").and_then(Value::as_array).and_then(|v| v.get(usize::try_from(index).ok()?)).ok_or(format!("no artboard {index}"))?;
+    let boards = doc.get("artboards").and_then(Value::as_array);
+    // No artboards (an infinite canvas, #1087) and none asked for: the art's bounds.
+    let art = (asked.is_none() && boards.is_none_or(|v| v.is_empty())).then(|| doc.get("artBounds").filter(|v| !v.is_null())).flatten();
+    let board = match art {
+        Some(bounds) => bounds,
+        None => boards.and_then(|v| v.get(usize::try_from(index).ok()?)).ok_or(format!("no artboard {index}"))?,
+    };
     let width = board.get("width").and_then(Value::as_f64).ok_or("artboard has no width")?;
     let height = board.get("height").and_then(Value::as_f64).ok_or("artboard has no height")?;
     if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
@@ -1022,7 +1028,8 @@ fn render_preview(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     if width.max(height) * scale > 4096.0 {
         return Err("artboard is too large for a bounded preview".into());
     }
-    let r = b.call("ui.render", json!({"scale":scale, "artboard": index}))?;
+    let r =
+        if art.is_some() { b.call("ui.render", json!({"scale": scale}))? } else { b.call("ui.render", json!({"scale": scale, "artboard": index}))? };
     let encoded = r.get("pngBase64").and_then(Value::as_str).ok_or("renderer returned no image")?;
     let png = vectorcraft_format::base64_decode(encoded).ok_or("renderer returned bad base64")?;
     let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png).map_err(|e| format!("read preview: {e}"))?;

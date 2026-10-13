@@ -109,11 +109,15 @@ fn art_bounds(doc: &Document) -> Option<Rect> {
 pub(crate) fn regions(doc: &Document, set: &PrintSettings) -> Result<Vec<(Option<usize>, Rect)>, PdfError> {
     let count = doc.artboards.len();
     let picked: Vec<usize> = match set.artboards {
+        // No artboards (an infinite canvas, #1087) prints the art, as Ignore Artboards does.
+        _ if count == 0 => {
+            let r = art_bounds(doc).ok_or_else(|| PdfError::BadSetting("nothing to print: the document has no art that prints".into()))?;
+            return Ok(vec![(None, r)]);
+        }
         PrintArtboards::Ignore => {
             let r = art_bounds(doc).ok_or_else(|| PdfError::BadSetting("nothing to print: the document has no art that prints".into()))?;
             return Ok(vec![(None, r)]);
         }
-        _ if count == 0 => return Err(PdfError::NoArtboards),
         PrintArtboards::All => (0..count).collect(),
         PrintArtboards::Range => parse_range(&set.range, count).map_err(PdfError::BadSetting)?,
     };

@@ -3,7 +3,9 @@
 
 use serde_json::{Map, Value, json};
 use vectorcraft_doc::setup::{DEFAULT_FLATTENER, GRID_COLOR_PRESETS, LANGUAGES, MAX_BLEED};
-use vectorcraft_doc::{Background, CharPosition, CharStyle, DocSetup, Document, ExportText, GridSize, NodeKind, Quotes, ScriptMetrics};
+use vectorcraft_doc::{
+    Artboard, Background, CanvasKind, CharPosition, CharStyle, DocSetup, Document, ExportText, GridSize, NodeKind, Quotes, ScriptMetrics,
+};
 
 use super::flatten::{FlattenOptions, FlattenerPreset};
 
@@ -17,7 +19,7 @@ pub fn specs() -> Vec<CommandSpec> {
         "Document Setup",
         [],
         None,
-        "{units?: \"Points\"|\"Inches\"|\"Millimeters\"|…, bleed?: pt (all sides)|[top, bottom, left, right]|{top?, bottom?, left?, right?} (0–72 pt), outlineImages?: bool (show images in Outline mode), highlightSubstitutedFonts?: bool, highlightSubstitutedGlyphs?: bool, gridSize?: \"small\"|\"medium\"|\"large\", gridColors?: \"Light\"|\"Medium\"|\"Dark\"|\"Red\"|\"Orange\"|\"Green\"|\"Blue\"|\"Purple\"|[colour, colour] (transparency grid; the first is also the paper colour), simulatePaper?: bool, flattenerPreset?: \"High Resolution\"|\"Medium Resolution\"|\"Low Resolution\"|a saved preset (flattener.presets.list), discardWhiteOverprint?: bool, language?: \"English: USA\"|\"German\"|\"French\"|… (also picks its quotes), quotes?: {double?: \"“”\", single?: \"‘’\"} (beside a language: only if they differ from the current ones), typographersQuotes?: bool (typed straight quotes become the document's quotes), superscript?: {size?: %, position?: %}, subscript?: {size?: %, position?: %}, smallCapsSize?: %, exportText?: \"editable\"|\"appearance\" (SVG text as text or as outlines), backgroundContents?: \"transparent\"|\"white\" (white: raster exports are white behind the art), …the keys of its own reply (it can be passed back; the values it only reports are ignored)} change the document setup in one undo step; no params → the current setup",
+        "{units?: \"Points\"|\"Inches\"|\"Millimeters\"|…, bleed?: pt (all sides)|[top, bottom, left, right]|{top?, bottom?, left?, right?} (0–72 pt), outlineImages?: bool (show images in Outline mode), highlightSubstitutedFonts?: bool, highlightSubstitutedGlyphs?: bool, gridSize?: \"small\"|\"medium\"|\"large\", gridColors?: \"Light\"|\"Medium\"|\"Dark\"|\"Red\"|\"Orange\"|\"Green\"|\"Blue\"|\"Purple\"|[colour, colour] (transparency grid; the first is also the paper colour), simulatePaper?: bool, flattenerPreset?: \"High Resolution\"|\"Medium Resolution\"|\"Low Resolution\"|a saved preset (flattener.presets.list), discardWhiteOverprint?: bool, language?: \"English: USA\"|\"German\"|\"French\"|… (also picks its quotes), quotes?: {double?: \"“”\", single?: \"‘’\"} (beside a language: only if they differ from the current ones), typographersQuotes?: bool (typed straight quotes become the document's quotes), superscript?: {size?: %, position?: %}, subscript?: {size?: %, position?: %}, smallCapsSize?: %, exportText?: \"editable\"|\"appearance\" (SVG text as text or as outlines), backgroundContents?: \"transparent\"|\"white\" (white: raster exports are white behind the art), canvas?: \"standard\"|\"infinite\" (#1087: infinite is an endless sheet that keeps its artboards; standard needs all art, guides, slices and the ruler origin within ±4,000,000 pt, and adds an artboard around the art when there is none), …the keys of its own reply (it can be passed back; the values it only reports are ignored)} change the document setup in one undo step; no params → the current setup",
         has_doc,
         setup
     )]
@@ -47,6 +49,7 @@ pub(crate) fn setup_json(d: &Document) -> Value {
         "smallCapsSize": s.small_caps_size,
         "exportText": s.export_text.id(),
         "backgroundContents": s.background.id(),
+        "canvas": d.canvas.key(),
     })
 }
 
@@ -63,9 +66,16 @@ fn setup(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let mut new = st.doc.setup.clone();
     let mut units = st.doc.units;
+    let canvas = match o.get("canvas").filter(|v| !v.is_null()) {
+        None => st.doc.canvas,
+        Some(v) => v.as_str().and_then(CanvasKind::from_key).ok_or_else(|| bad(C, format!("canvas must be standard or infinite, not {v}")))?,
+    };
+    if canvas != st.doc.canvas && !canvas.is_infinite() {
+        to_standard_check(&st.doc)?;
+    }
     // The language goes first: it picks its quotes, which `quotes` may then override.
     let current = st.doc.setup.quotes;
-    for (k, v) in o.iter().filter(|(k, _)| *k == "language").chain(o.iter().filter(|(k, _)| *k != "language")) {
+    for (k, v) in o.iter().filter(|(k, _)| *k == "language").chain(o.iter().filter(|(k, _)| *k != "language" && *k != "canvas")) {
         // With a language, unchanged quotes (a report fed back) don't undo the language's quotes.
         if k == "quotes" && o.contains_key("language") && quotes_param(v, current)? == current {
             continue;
@@ -73,10 +83,18 @@ fn setup(s: &mut Session, p: &Value) -> Result<Value> {
         apply(&mut new, &mut units, k, v, &s.prefs.flattener_presets)?;
     }
     let st = s.doc()?;
-    if new == st.doc.setup && units == st.doc.units {
+    if new == st.doc.setup && units == st.doc.units && canvas == st.doc.canvas {
         return Ok(setup_json(&st.doc));
     }
     s.edit("Document Setup", |d, _| {
+        if canvas != d.canvas {
+            d.canvas = canvas;
+            // A standard canvas is laid out on artboards: one goes around the art.
+            if !canvas.is_infinite() && d.artboards.is_empty() {
+                let rect = d.art_bounds().unwrap_or(vectorcraft_geom::Rect::new(0.0, 0.0, 612.0, 792.0));
+                d.artboards.push(Artboard { id: 1, name: "Artboard 1".into(), rect, show_center_mark: false, show_cross_hairs: false });
+            }
+        }
         let scripts_changed =
             (new.superscript, new.subscript, new.small_caps_size) != (d.setup.superscript, d.setup.subscript, d.setup.small_caps_size);
         d.setup = new;
@@ -87,6 +105,26 @@ fn setup(s: &mut Session, p: &Value) -> Result<Value> {
         Ok(())
     })?;
     Ok(setup_json(&s.doc()?.doc))
+}
+
+/// Can `d` become a standard canvas? Its art, guides, slices and rulers' zero point must lie within
+/// the standard limit (an infinite canvas reaches further, #1087).
+fn to_standard_check(d: &Document) -> Result<()> {
+    let limit = vectorcraft_doc::MAX_COORD_STANDARD;
+    let within = |r: vectorcraft_geom::Rect| [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.abs() <= limit);
+    let far = d.art_bounds().is_some_and(|r| !within(r))
+        || d.guides.iter().any(|g| g.pos.abs() > limit)
+        || d.slices.iter().any(|sl| !within(sl.rect))
+        || d.artboards.iter().any(|a| !within(a.rect))
+        || d.ruler_origin.x.abs() > limit
+        || d.ruler_origin.y.abs() > limit;
+    if far {
+        return Err(bad(
+            C,
+            "art, guides, slices or the rulers' zero point lie beyond the standard canvas (±4,000,000 pt): move them nearer the origin first",
+        ));
+    }
+    Ok(())
 }
 
 fn flag(k: &str, v: &Value) -> Result<bool> {

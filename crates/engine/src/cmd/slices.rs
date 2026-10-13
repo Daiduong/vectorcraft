@@ -241,9 +241,10 @@ fn object_slice_ids(d: &Document) -> Vec<NodeId> {
     ids
 }
 
-/// A rectangle a slice can have: a size, and coordinates on the canvas.
-pub(crate) fn slice_rect_ok(r: Rect) -> bool {
-    valid_rect(r) && [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.abs() <= crate::MAX_COORD)
+/// A rectangle a slice can have: a size, and coordinates within `limit` (the document's
+/// [`vectorcraft_doc::Document::coord_limit`]; the edit check doesn't look at slices).
+pub(crate) fn slice_rect_ok(r: Rect, limit: f64) -> bool {
+    valid_rect(r) && [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.abs() <= limit)
 }
 
 /// A new user slice over `rect` with `options`.
@@ -351,7 +352,8 @@ fn from_guides(s: &mut Session, _: &Value) -> Result<Value> {
 
 fn from_selection(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
-    let r = s.doc()?.doc.bounds_of(&ids, true).filter(|r| slice_rect_ok(*r));
+    let doc = &s.doc()?.doc;
+    let r = doc.bounds_of(&ids, true).filter(|r| slice_rect_ok(*r, doc.coord_limit()));
     let r = r.ok_or_else(|| EngineError::Other("Create from Selection: the selection has no area".into()))?;
     let id = s.edit("Create Slice from Selection", |d, sel| {
         let id = add_slice(d, r, SliceOptions::default());
@@ -369,7 +371,7 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
         for id in &targets {
             let (Some(r), Some(o)) = (d.slice_bounds(*id), d.slice_options(*id).cloned()) else { continue };
             let r = r + vectorcraft_geom::Vec2::new(dx, dy);
-            if !slice_rect_ok(r) {
+            if !slice_rect_ok(r, d.coord_limit()) {
                 return Err(bad("object.slice.duplicate", "the copy would leave the canvas"));
             }
             out.push(add_slice(d, r, o));
@@ -626,14 +628,14 @@ fn select_all(s: &mut Session, _: &Value) -> Result<Value> {
 // ---------- the Slice and Slice Selection tools ----------
 
 /// `{x, y, width, height}` as a rectangle a slice can have.
-fn rect_param(p: &Value, cmd: &str) -> Result<Rect> {
+fn rect_param(s: &Session, p: &Value, cmd: &str) -> Result<Rect> {
     let (x, y) = (f64_req(p, "x", cmd)?, f64_req(p, "y", cmd)?);
     let r = Rect::new(x, y, x + f64_req(p, "width", cmd)?, y + f64_req(p, "height", cmd)?).abs();
-    if slice_rect_ok(r) { Ok(r) } else { Err(bad(cmd, "the rectangle needs a size and must lie on the canvas")) }
+    if slice_rect_ok(r, s.doc()?.doc.coord_limit()) { Ok(r) } else { Err(bad(cmd, "the rectangle needs a size and must lie on the canvas")) }
 }
 
 fn create(s: &mut Session, p: &Value) -> Result<Value> {
-    let r = rect_param(p, "object.slice.create")?;
+    let r = rect_param(s, p, "object.slice.create")?;
     let id = s.edit("Slice", |d, sel| {
         let id = add_slice(d, r, SliceOptions::default());
         sel.set_slices([id]);
@@ -645,7 +647,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
 fn set_rect(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.slice.setRect";
     let id = id_param(p, "id").ok_or_else(|| bad(C, "missing `id`"))?;
-    let r = rect_param(p, C)?;
+    let r = rect_param(s, p, C)?;
     let d = &s.doc()?.doc;
     if d.slice(id).is_none() {
         return Err(bad(C, if d.is_slice(id) { format!("{id} is an object slice: it follows its object") } else { format!("{id} is not a slice") }));
@@ -667,9 +669,10 @@ fn move_slices(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(C, "dx and dy must be numbers"));
     }
     s.edit("Move Slice", |d, _| {
+        let limit = d.coord_limit();
         for id in &targets {
             match d.slice_mut(*id) {
-                Some(sl) if slice_rect_ok(sl.rect + v) => sl.rect = sl.rect + v,
+                Some(sl) if slice_rect_ok(sl.rect + v, limit) => sl.rect = sl.rect + v,
                 Some(_) => return Err(bad(C, "the slice would leave the canvas")),
                 None => {
                     if let Some(n) = d.node_mut(*id) {

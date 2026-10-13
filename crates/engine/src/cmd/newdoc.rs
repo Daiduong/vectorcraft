@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Artboard, Background, ColorMode, Document, Unit};
+use vectorcraft_doc::{Artboard, Background, CanvasKind, ColorMode, Document, Unit};
 use vectorcraft_geom::{Point, Rect};
 
 use super::*;
@@ -16,7 +16,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "New Document Presets",
             [],
             None,
-            "{category?: \"Recent\"|\"Saved\"|\"Mobile\"|\"Web\"|\"Print\"|\"Film & Video\"|\"Art & Illustration\"|\"Branding\"|\"Social\"} the New Document presets by category (Recent: the last sizes used; Saved: the user's presets) → {categories: [{name, presets: [{name, size: \"1920 × 1080 px\", width: pt, height: pt, units, orientation, artboards, artboardLayout: {layout, columns, spacing, rightToLeft}, bleed, backgroundContents, colorMode, rasterEffectsPpi, previewMode}]}]}; file.new {preset: name} starts from one",
+            "{category?: \"Recent\"|\"Saved\"|\"Infinite Canvas\"|\"Mobile\"|\"Web\"|\"Print\"|\"Film & Video\"|\"Art & Illustration\"|\"Branding\"|\"Social\"} the New Document presets by category (Recent: the last sizes used; Saved: the user's presets) → {categories: [{name, presets: [{name, size: \"1920 × 1080 px\", width: pt, height: pt, units, orientation, artboards, artboardLayout: {layout, columns, spacing, rightToLeft}, bleed, backgroundContents, colorMode, rasterEffectsPpi, previewMode, canvas: \"standard\"|\"infinite\"}]}]}; file.new {preset: name} starts from one",
             always,
             list
         ),
@@ -127,6 +127,9 @@ pub struct DocSettings {
     pub color_mode: ColorMode,
     pub raster_effects_ppi: f64,
     pub preview_mode: PreviewMode,
+    /// A standard canvas, or an infinite one (#1087): no artboards, so the size, orientation,
+    /// artboard and bleed settings don't apply.
+    pub canvas: CanvasKind,
 }
 
 impl Default for DocSettings {
@@ -146,6 +149,7 @@ impl Default for DocSettings {
             color_mode: ColorMode::Rgb,
             raster_effects_ppi: 72.0,
             preview_mode: PreviewMode::Default,
+            canvas: CanvasKind::Standard,
         }
     }
 }
@@ -174,6 +178,9 @@ impl DocSettings {
 
     /// The size as New Document shows it, e.g. "1920 × 1080 px".
     pub fn size_label(&self) -> String {
+        if self.canvas.is_infinite() {
+            return "Infinite".into();
+        }
         let u = self.units;
         format!("{} × {} {}", u.number(self.width), u.number(self.height), u.suffix())
     }
@@ -194,11 +201,17 @@ impl DocSettings {
             "colorMode": color_mode_id(self.color_mode),
             "rasterEffectsPpi": self.raster_effects_ppi,
             "previewMode": self.preview_mode.id(),
+            "canvas": self.canvas.key(),
         })
     }
 
     /// These settings with `p`'s changes (the params of `file.new`) → validated.
     pub fn with_params(mut self, p: &Value, cmd: &str) -> Result<Self> {
+        if let Some(c) = p.get("canvas").filter(|v| !v.is_null()) {
+            self.canvas =
+                c.as_str().and_then(CanvasKind::from_key).ok_or_else(|| bad(cmd, format!("canvas must be standard or infinite, not {c}")))?;
+        }
+        let infinite = self.canvas.is_infinite();
         if let Some(u) = p.get("units").filter(|v| !v.is_null()) {
             let u = u.as_str().unwrap_or("");
             self.units = Unit::named(u).ok_or_else(|| bad(cmd, format!("unknown units `{u}`")))?;
@@ -218,7 +231,8 @@ impl DocSettings {
         if let Some(h) = length("height", self.units)? {
             self.height = h;
         }
-        if !(self.width > 0.0 && self.height > 0.0) || self.width > MAX_SIDE || self.height > MAX_SIDE {
+        // An infinite canvas has no artboards: its size settings are kept for a later switch.
+        if !infinite && (!(self.width > 0.0 && self.height > 0.0) || self.width > MAX_SIDE || self.height > MAX_SIDE) {
             return Err(bad(cmd, "width/height must be positive and within the canvas"));
         }
         match p.get("orientation").and_then(Value::as_str) {
@@ -257,7 +271,7 @@ impl DocSettings {
             self.preview_mode = m.as_str().and_then(PreviewMode::parse).ok_or_else(|| bad(cmd, "previewMode must be default, pixel or overprint"))?;
         }
         let extent = self.boards().iter().fold(Rect::ZERO, |a, r| a.union(*r));
-        if extent.width().max(extent.height()) + self.bleed.iter().fold(0.0f64, |a, b| a.max(*b)) * 2.0 > crate::MAX_COORD {
+        if !infinite && extent.width().max(extent.height()) + self.bleed.iter().fold(0.0f64, |a, b| a.max(*b)) * 2.0 > crate::MAX_COORD {
             return Err(bad(cmd, "the artboards don't fit on the canvas: fewer artboards, less spacing or a smaller size"));
         }
         Ok(self)
@@ -308,6 +322,13 @@ impl DocSettings {
 
     /// The new document (title and swatches set by `file.new`).
     pub fn document(&self) -> Document {
+        if self.canvas.is_infinite() {
+            let mut d = Document::new_infinite(self.color_mode);
+            d.units = self.units;
+            d.raster_effects_ppi = self.raster_effects_ppi;
+            d.setup.background = self.background;
+            return d;
+        }
         let mut d = Document::new_with_mode(self.width, self.height, self.color_mode);
         d.units = self.units;
         d.raster_effects_ppi = self.raster_effects_ppi;
@@ -498,9 +519,26 @@ pub const CATEGORIES: &[Category] = &[
     ),
 ];
 
-/// The category tabs in order: Recent, Saved, then the built-in categories.
+/// The category of infinite-canvas presets (#1087), a special canvas listed after Recent and
+/// Saved.
+pub const INFINITE: &str = "Infinite Canvas";
+
+/// The category tabs in order: Recent, Saved, Infinite Canvas, then the built-in categories.
 pub fn category_names() -> impl Iterator<Item = &'static str> {
-    ["Recent", "Saved"].into_iter().chain(CATEGORIES.iter().map(|c| c.0))
+    ["Recent", "Saved", INFINITE].into_iter().chain(CATEGORIES.iter().map(|c| c.0))
+}
+
+/// The infinite-canvas presets: a screen sheet in pixels and a print sheet in `general` units.
+fn infinite_presets(general: Unit) -> Vec<DocSettings> {
+    let sheet = |name: &str, units, color_mode, raster_effects_ppi| DocSettings {
+        name: name.into(),
+        units,
+        color_mode,
+        raster_effects_ppi,
+        canvas: CanvasKind::Infinite,
+        ..DocSettings::default()
+    };
+    vec![sheet(INFINITE, Unit::Pixels, ColorMode::Rgb, 72.0), sheet("Infinite Canvas (Print)", general, ColorMode::Cmyk, 300.0)]
 }
 
 /// The built-in presets of one category: screen sizes in pixels, the others in `general`
@@ -526,6 +564,9 @@ pub fn category(s: &Session, name: &str) -> Option<Vec<DocSettings>> {
     if name.eq_ignore_ascii_case("Saved") {
         return Some(s.prefs.new_doc_presets.clone());
     }
+    if name.eq_ignore_ascii_case(INFINITE) {
+        return Some(infinite_presets(s.default_units()));
+    }
     CATEGORIES.iter().find(|c| c.0.eq_ignore_ascii_case(name)).map(|c| builtin(c, s.default_units()).collect())
 }
 
@@ -537,6 +578,7 @@ pub fn find(s: &Session, name: &str) -> Option<DocSettings> {
         .iter()
         .find(|p| p.name.eq_ignore_ascii_case(name))
         .cloned()
+        .or_else(|| infinite_presets(s.default_units()).into_iter().find(|p| p.name.eq_ignore_ascii_case(name)))
         .or_else(|| CATEGORIES.iter().flat_map(|c| builtin(c, s.default_units())).find(|p| p.name.eq_ignore_ascii_case(name)))
 }
 
@@ -558,7 +600,7 @@ pub(crate) fn file_new(s: &mut Session, p: &Value) -> Result<Value> {
         None => s.default_settings(),
     };
     // A preset keeps its name in Recent unless its size changed (turning it doesn't count).
-    let sorted = |d: &DocSettings| (d.width.min(d.height), d.width.max(d.height), d.units);
+    let sorted = |d: &DocSettings| (d.width.min(d.height), d.width.max(d.height), d.units, d.canvas);
     let size = str_param(p, "preset").map(|_| sorted(&base));
     let mut settings = base.with_params(p, C)?;
     if size != Some(sorted(&settings)) {
@@ -583,10 +625,12 @@ pub(crate) fn file_new(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "index": i, "previewMode": settings.preview_mode.id() }))
 }
 
-/// Put `settings` first in Recent (one entry per size and units).
+/// Put `settings` first in Recent (one entry per size, units and canvas; one for an infinite
+/// canvas in each units).
 fn remember(s: &mut Session, settings: &DocSettings) {
+    let key = |d: &DocSettings| if d.canvas.is_infinite() { (0.0, 0.0, d.units, d.canvas) } else { (d.width, d.height, d.units, d.canvas) };
     let recent = &mut s.prefs.recent_new_docs;
-    recent.retain(|r| (r.width, r.height, r.units) != (settings.width, settings.height, settings.units));
+    recent.retain(|r| key(r) != key(settings));
     recent.insert(0, settings.clone());
     recent.truncate(RECENT);
 }

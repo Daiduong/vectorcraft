@@ -12,7 +12,7 @@ use vectorcraft_engine::cmd::fileio::SaveMode;
 use crate::VectorcraftApp;
 use crate::io;
 use crate::panels::character::Face;
-use crate::state::{DockTab, next_zoom};
+use crate::state::{DockTab, next_zoom_in};
 use crate::theme::{Brightness, Tokens};
 use crate::widgets;
 
@@ -1045,10 +1045,11 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             let n: usize = id["view.goto".len()..].parse().unwrap_or(0);
             let saved = app.session.active().and_then(|d| n.checked_sub(1).and_then(|i| d.doc.views.get(i)).cloned());
             match (saved, app.view_mut()) {
-                (Some(sv), Some(v)) => {
+                // A saved view from a file is untrusted: only finite values, the zoom within range.
+                (Some(sv), Some(v)) if sv.center.is_finite() => {
                     v.center = sv.center;
-                    v.zoom = sv.zoom;
-                    v.rotation = sv.rotation;
+                    v.zoom = v.clamp_zoom(sv.zoom);
+                    v.rotation = if sv.rotation.is_finite() { sv.rotation } else { 0.0 };
                     Ok(json!({ "name": sv.name }))
                 }
                 _ => Err("no such view".into()),
@@ -1118,7 +1119,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             let focus = if app.session.prefs.zoom_to_selection { app.selection_box().map(|b| b.center()) } else { None };
             match app.view_mut() {
                 Some(v) => {
-                    v.zoom = next_zoom(v.zoom, up);
+                    v.zoom = next_zoom_in(v.zoom, up, v.zoom_range());
                     if let Some(c) = focus {
                         v.center = c;
                     }
@@ -1131,13 +1132,19 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             let z = p.get("zoom").and_then(Value::as_f64).unwrap_or(100.0) / 100.0;
             let center =
                 p.get("center").and_then(Value::as_array).and_then(|a| Some(vectorcraft_geom::Point::new(a.first()?.as_f64()?, a.get(1)?.as_f64()?)));
+            // A centre must be a point on the canvas (an infinite one reaches far further, #1087).
+            let limit = app.session.active().map_or(vectorcraft_doc::MAX_COORD_STANDARD, |st| st.doc.coord_limit());
+            if center.is_some_and(|c| !(c.is_finite() && c.x.abs() <= limit && c.y.abs() <= limit)) {
+                return Some(Err(format!("center must be a point within ±{limit} pt")));
+            }
             match app.view_mut() {
                 Some(v) => {
-                    v.zoom = z.clamp(0.0313, 640.0);
                     v.fitted = true;
                     if let Some(c) = center {
                         v.center = c;
                     }
+                    // The range depends on the centre (precision far from the origin).
+                    v.zoom = v.clamp_zoom(z);
                     Ok(Value::Null)
                 }
                 None => Err("no document".into()),
@@ -1477,7 +1484,11 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
 /// the current one) active, synchronizing the Artboard tool when in use, and fit it in the window.
 fn go_to_artboard(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     let n = app.session.active().map(|d| d.doc.artboards.len()).ok_or("no document open")?;
-    let last = n.checked_sub(1).ok_or("the document has no artboards")?;
+    // No artboards (an infinite canvas, #1087): show all the art instead.
+    let Some(last) = n.checked_sub(1) else {
+        crate::canvas::fit(app, "view.fitAll");
+        return Ok(Value::Null);
+    };
     let current = app.view().map_or(0, |v| v.artboard).min(last);
     let to = match p.get("index") {
         Some(Value::String(s)) => match s.as_str() {

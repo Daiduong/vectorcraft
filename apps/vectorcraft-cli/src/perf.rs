@@ -164,6 +164,51 @@ fn deep(n: usize) -> Result<(), String> {
         }
     };
     note("start");
+    // An infinite canvas (#1087): the synthetic art moved 900,000,000 pt from the origin, drawn as
+    // the tile cache draws it (one 6 × 6 region of 512 px tiles) at a zoom of 1,000 near it, and a
+    // shape far larger than the view seen at a zoom of a million (the guard band cuts it).
+    {
+        let mut far = synthetic(n / 10)?;
+        far.canvas = vectorcraft_doc::CanvasKind::Infinite;
+        far.artboards.clear();
+        let shift = Affine::translate((9.0e8, 9.0e8));
+        let mut moved = far.clone();
+        moved.layers = far
+            .layers
+            .iter()
+            .map(|l| {
+                let mut l = (**l).clone();
+                if let Some(children) = l.children_mut() {
+                    for c in children.iter_mut() {
+                        std::sync::Arc::make_mut(c).transform(shift, false);
+                    }
+                }
+                std::sync::Arc::new(l)
+            })
+            .collect();
+        let opts = RenderOptions::default();
+        let mut r = Renderer::new();
+        let tiles = Affine::scale(1000.0) * Affine::translate((-9.0e8 - 800.0, -9.0e8 - 600.0));
+        r.render(&moved, 3072, 3072, tiles, &opts);
+        rows.push((
+            format!("infinite canvas: 6 × 6 tiles at zoom 1000, art at 9e8 pt ({} paths)", n / 10),
+            median_ms(3, || drop(r.render(&moved, 3072, 3072, tiles, &opts))),
+        ));
+        let mut huge = vectorcraft_doc::Document::new_infinite(vectorcraft_doc::ColorMode::Rgb);
+        let id = huge.alloc_id();
+        let layer = huge.layers.first().map(|l| l.id);
+        let shape = Node::path(
+            id,
+            shapes::ellipse(Rect::new(-1.0e9, -1.0e9, 1.0e9, 1.0e9)),
+            Appearance::basic(Paint::solid(Color::BLACK), Paint::solid(Color::BLACK), 1.0),
+        );
+        huge.insert(layer, 0, shape).map_err(|e| e.to_string())?;
+        let deep_view = Affine::scale(1.0e6) * Affine::translate((-1.0e9 + 1e-3, -1e-3));
+        rows.push((
+            "infinite canvas: a 2e9 pt circle's edge at zoom 1e6, 2880×1800".into(),
+            median_ms(5, || drop(r.render(&huge, 2880, 1800, deep_view, &opts))),
+        ));
+    }
     // Editing every object of an n-path document.
     let mut s = vectorcraft_engine::Session::new();
     s.add_document(synthetic(n)?, None);

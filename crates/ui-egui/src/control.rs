@@ -386,7 +386,9 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
             let doc = st.doc.clone();
             // The artboard asked for (0-based, as headless), else the first.
             let index = p.get("artboard").and_then(Value::as_u64).map_or(Some(0), |i| usize::try_from(i).ok());
-            let Some(r) = index.and_then(|i| doc.artboards.get(i)).map(|a| a.rect) else { return err("no such artboard") };
+            // No artboards (an infinite canvas, #1087) and none asked for: the art.
+            let fallback = (doc.artboards.is_empty() && p.get("artboard").is_none()).then(|| vectorcraft_render::encode::art_bounds(&doc)).flatten();
+            let Some(r) = index.and_then(|i| doc.artboards.get(i)).map(|a| a.rect).or(fallback) else { return err("no such artboard") };
             let scale = p.get("scale").and_then(Value::as_f64).unwrap_or(1.0);
             if let Err(e) = vectorcraft_render::raster_size(r, scale) {
                 return err(e);

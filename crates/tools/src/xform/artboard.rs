@@ -382,11 +382,13 @@ impl Tool for ArtboardTool {
         match key {
             ToolKey::Delete | ToolKey::Backspace => {
                 let mut sel = self.selected(cx);
-                if self.drag.is_some() || cx.doc.artboards.len() <= 1 || self.active >= cx.doc.artboards.len() {
+                // An infinite canvas (#1087) may delete its last artboard; a standard one keeps one.
+                let infinite = cx.doc.canvas.is_infinite();
+                if self.drag.is_some() || (cx.doc.artboards.len() <= 1 && !infinite) || self.active >= cx.doc.artboards.len() {
                     return vec![];
                 }
                 // With every artboard selected, keep the first one in the current order.
-                if sel.len() == cx.doc.artboards.len() {
+                if sel.len() == cx.doc.artboards.len() && !infinite {
                     sel.retain(|i| *i != 0);
                 }
                 self.active = sel.first().copied().unwrap_or(0).saturating_sub(1);

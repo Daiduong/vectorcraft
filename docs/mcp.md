@@ -2027,8 +2027,17 @@ kept in the preferences by `file.newPresets.save` and removed by `file.newPreset
 passed straight back to `file.new`. Print presets and sizes without `units` start in `unitsGeneral`; screen presets
 (mobile, web, video, social) in Pixels.
 
+`canvas: "infinite"` (or a preset of the Infinite Canvas category) makes an infinite canvas (#1087): an endless sheet
+with no artboards. Coordinates can go to ±1,000,000,000 pt, and the zoom has no fixed stops (only the precision of
+the coordinates at the view centre limits it). `width`, `height`, `orientation`, `artboards`, `artboardLayout` and
+`bleed` do not apply. `document.setup {canvas}` changes the canvas of an open document; a change to `"standard"`
+needs all art, guides, slices and the ruler origin within ±4,000,000 pt, and adds an artboard around the art when
+there is none. `document.inspect` reports `canvas`, and `artBounds` when there are no artboards. Without artboards,
+exports, print and `render_preview` use the bounds of the art.
+
 ```json
 {"name":"run_command","arguments":{"command":"file.new","params":{"preset":"A4","orientation":"landscape","artboards":4,"artboardLayout":{"columns":2},"bleed":9}}}
+{"name":"run_command","arguments":{"command":"file.new","params":{"canvas":"infinite","units":"Pixels"}}}
 ```
 
 ## Place

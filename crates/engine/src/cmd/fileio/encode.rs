@@ -408,6 +408,12 @@ fn encode_files(doc: &Document, f: &Format, p: &Value) -> Result<Encoded> {
     let n = doc.artboards.len();
     // SVG reads its own `useArtboards` (an SVG option).
     let use_artboards = if f.raster || matches!(f.id, "pdf" | "ai" | "dxf" | "emf" | "wmf") { use_artboards(p)? } else { None };
+    // A document without artboards (an infinite canvas, #1087) exports its art's bounds.
+    let use_artboards = if n == 0 && use_artboards.is_none() && (f.raster || matches!(f.id, "pdf" | "ai" | "dxf" | "emf" | "wmf")) {
+        Some(false)
+    } else {
+        use_artboards
+    };
     if use_artboards == Some(false) {
         let bounds = vectorcraft_render::encode::art_bounds(doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
         let mut q = super::export::without_artboards(p);

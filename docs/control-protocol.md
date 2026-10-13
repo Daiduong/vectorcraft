@@ -435,8 +435,8 @@ stays open.
 
 New Document: File → New… (`file.newDialog`, Cmd+N) opens the `newDocument` dialog. Its fields are `file.new`'s params
 (`preset`, `name`, `width` and `height` in pt, `units`, `artboards`, `artboardLayout`, `bleed`, `backgroundContents`,
-`colorMode`, `rasterEffectsPpi`, `previewMode`) plus `category` (the tab: Recent, Saved, Mobile, Web, Print, Film &
-Video, Art & Illustration, Branding, Social), `advanced` (Advanced Options open), `bleedLinked` and `presetName`
+`colorMode`, `rasterEffectsPpi`, `previewMode`, `canvas`: `standard` or `infinite`) plus `category` (the tab: Recent,
+Saved, Infinite Canvas, Mobile, Web, Print, Film & Video, Art & Illustration, Branding, Social), `advanced` (Advanced Options open), `bleedLinked` and `presetName`
 (Save Preset's name). Setting `preset` to a name from `file.newPresets` fills the other fields from that preset;
 changing a field afterwards makes the settings custom (`preset` becomes ""). More Settings is the `newDocumentMore`
 dialog over the same fields (its Profile is `category`). `ui.dialog.confirm` runs `file.new` with the fields (with

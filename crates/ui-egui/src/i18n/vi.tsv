@@ -4308,3 +4308,15 @@ theme	Appearance	Giao diện
 	Softness	Độ mềm
 	Ambient Light	Ánh sáng môi trường
 	Light behind the object	Ánh sáng phía sau đối tượng
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	CANVAS VÔ HẠN
+	Infinite Canvas	Canvas vô hạn
+	Infinite Canvas (Print)	Canvas vô hạn (In)
+	Canvas:	Canvas:
+	Standard	Chuẩn
+	Infinite	Vô hạn
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Một trang vô tận không có bảng vẽ. Thêm bảng vẽ sau để xuất hoặc in một phần của trang.
+	No artboards	Không có bảng vẽ
+	This infinite canvas has no artboards. Add one to export or print part of it.	Canvas vô hạn này không có bảng vẽ. Thêm một bảng vẽ để xuất hoặc in một phần của nó.
+@msg	center must be a point within ±{limit} pt	tâm phải là một điểm trong phạm vi ±{limit} pt

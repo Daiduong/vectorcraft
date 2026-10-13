@@ -259,6 +259,16 @@ pub fn encode(cmd: &str, doc: &Document, p: &Value) -> Result<(Vec<u8>, Vec<Stri
 /// [`encode`] the pages of `doc`, carrying `native()` as the editing data (a `.ai` file: the
 /// native document with its save options, whose pages may be left blank).
 pub(super) fn encode_carrying(cmd: &str, doc: &Document, p: &Value, native: impl FnOnce() -> Result<Vec<u8>>) -> Result<(Vec<u8>, Vec<String>)> {
+    // No artboards (an infinite canvas, #1087): one page around the art. The editing data keeps
+    // the document as it is.
+    let paged;
+    let doc = if doc.artboards.is_empty() {
+        let bounds = vectorcraft_render::encode::art_bounds(doc).ok_or_else(|| bad(cmd, "nothing to export: the document has no visible art"))?;
+        paged = super::encode::single_artboard(doc, bounds, "Art");
+        &paged
+    } else {
+        doc
+    };
     let mut opts = options(cmd, doc, p)?;
     if opts.settings.thumbnails {
         opts.thumbnails = thumbnails(doc, &opts).map_err(|e| pdf_error(cmd, e))?;

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use vectorcraft_doc::CanvasKind;
 use vectorcraft_geom::Point;
 
 use crate::theme::Brightness;
@@ -21,27 +22,46 @@ pub struct View {
     /// Size show it.
     #[serde(default)]
     pub artboard: usize,
+    /// The document's canvas (#1087), which sets the zoom range; kept in step with the document
+    /// each frame, never saved.
+    #[serde(skip)]
+    pub canvas: CanvasKind,
 }
 
 impl Default for View {
     fn default() -> Self {
-        Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, rotation: 0.0, artboard: 0 }
+        Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, rotation: 0.0, artboard: 0, canvas: CanvasKind::Standard }
     }
 }
 
 impl View {
     /// The view a document opens at: the one it was saved with, else fitted on first display.
     pub fn of(st: &vectorcraft_engine::DocState) -> Self {
+        let canvas = st.doc.canvas;
         match &st.view {
             Some(v) if v.zoom.is_finite() && v.zoom > 0.0 && v.center.x.is_finite() && v.center.y.is_finite() => Self {
-                zoom: v.zoom.clamp(0.0313, 640.0),
+                zoom: canvas.clamp_zoom(v.zoom, (v.center.x, v.center.y), 0.0),
                 center: v.center,
                 fitted: true,
                 rotation: if v.rotation.is_finite() { v.rotation } else { 0.0 },
                 artboard: 0,
+                canvas,
             },
+            // An infinite canvas starts at the origin; a standard one fits its artboard.
+            _ if canvas.is_infinite() => Self { center: Point::ZERO, canvas, ..Self::default() },
             _ => Self::default(),
         }
+    }
+
+    /// The zoom range here: 3.13% to 64,000% on a standard canvas; on an infinite canvas as far as
+    /// the precision of the coordinates at the view's centre allows ([`CanvasKind::zoom_range`]).
+    pub fn zoom_range(&self) -> (f64, f64) {
+        self.canvas.zoom_range((self.center.x, self.center.y), 0.0)
+    }
+
+    /// `zoom` within [`Self::zoom_range`] (1 when it isn't a number).
+    pub fn clamp_zoom(&self, zoom: f64) -> f64 {
+        self.canvas.clamp_zoom(zoom, (self.center.x, self.center.y), 0.0)
     }
 }
 
@@ -51,14 +71,21 @@ pub const ZOOM_STOPS: [f64; 26] = [
     4800.0, 6400.0, 12800.0, 25600.0, 64000.0,
 ];
 
+/// Zoom In / Zoom Out from `z` on a standard canvas: the next preset stop.
 pub fn next_zoom(z: f64, up: bool) -> f64 {
+    next_zoom_in(z, up, vectorcraft_doc::canvas::ZOOM_STANDARD)
+}
+
+/// Zoom In / Zoom Out from `z` within `range`: the next preset stop, then on past the stops
+/// (an infinite canvas, #1087) twice or half as far each step, never past `range`.
+pub fn next_zoom_in(z: f64, up: bool, range: (f64, f64)) -> f64 {
     let pct = z * 100.0;
     let stop = if up {
-        ZOOM_STOPS.iter().find(|s| **s > pct + 0.01).copied().unwrap_or(64000.0)
+        ZOOM_STOPS.iter().find(|s| **s > pct + 0.01).map(|s| s / 100.0).unwrap_or(z * 2.0)
     } else {
-        ZOOM_STOPS.iter().rev().find(|s| **s < pct - 0.01).copied().unwrap_or(3.13)
+        ZOOM_STOPS.iter().rev().find(|s| **s < pct - 0.01).map(|s| s / 100.0).unwrap_or(z / 2.0)
     };
-    stop / 100.0
+    if stop.is_finite() { stop.clamp(range.0, range.1) } else { z.clamp(range.0, range.1) }
 }
 
 /// Format like Illustrator's tab/zoom field: up to 2 decimals, no trailing zeros.
@@ -689,6 +716,14 @@ mod tests {
         assert_eq!(next_zoom(1.0, true), 1.5);
         assert!((next_zoom(1.0, false) - 0.6667).abs() < 1e-9);
         assert_eq!(next_zoom(640.0, true), 640.0);
+        assert_eq!(next_zoom(0.0313, false), 0.0313);
+        // Past the stops an infinite canvas doubles or halves, within its range.
+        let inf = vectorcraft_doc::CanvasKind::Infinite.zoom_range((0.0, 0.0), 0.0);
+        assert_eq!(next_zoom_in(640.0, true, inf), 1280.0);
+        assert_eq!(next_zoom_in(0.0313, false, inf), 0.01565);
+        assert_eq!(next_zoom_in(inf.1, true, inf), inf.1);
+        assert_eq!(next_zoom_in(inf.0, false, inf), inf.0);
+        assert_eq!(next_zoom_in(1.0, true, inf), 1.5, "the stops first");
         assert_eq!(zoom_label(0.6667), "66.67%");
         assert_eq!(zoom_label(1.0), "100%");
         assert_eq!(zoom_label(0.125), "12.5%");

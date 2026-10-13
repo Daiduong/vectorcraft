@@ -141,6 +141,10 @@ pub fn document_opts(s: &Session, opts: SummaryOpts) -> Value {
         "revision": st.revision,
         "units": d.units.label(),
         "colorMode": format!("{:?}", d.color_mode),
+        // "standard" or "infinite" (#1087).
+        "canvas": d.canvas.key(),
+        // With no artboards (an infinite canvas), the bounds of the art, which stand in for them.
+        "artBounds": d.artboards.is_empty().then(|| d.art_bounds()).flatten().map(|r| json!({"x": r.x0, "y": r.y0, "width": r.width(), "height": r.height()})),
         "artboards": d.artboards.iter().map(|a| json!({"name": a.name, "x": a.rect.x0, "y": a.rect.y0, "width": a.rect.width(), "height": a.rect.height()})).collect::<Vec<_>>(),
         // Top of the stack first, like the Layers panel.
         "layers": d.layers.iter().rev().map(|l| node_summary_opts(l, opts, &symbols)).collect::<Vec<_>>(),

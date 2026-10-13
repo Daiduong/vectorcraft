@@ -122,7 +122,7 @@ pub(crate) fn artboard_copy(s: &mut Session, p: &Value, cut: bool) -> Result<Val
     let (i, art) = board_and_art(s, p);
     let art = artboard_art(s, i, art)?;
     let st = s.doc()?;
-    if cut && st.doc.artboards.len() <= 1 {
+    if cut && st.doc.artboards.len() <= 1 && !st.doc.canvas.is_infinite() {
         return Err(EngineError::Other("a document needs at least one artboard".into()));
     }
     let board = st.doc.artboards.get(i).cloned().ok_or_else(|| EngineError::Other("no such artboard".into()))?;

@@ -11,6 +11,7 @@ pub mod encode;
 mod freeform;
 mod fx;
 mod group;
+pub mod guard;
 mod images;
 mod ink;
 mod live;
@@ -1388,14 +1389,31 @@ impl Renderer {
     }
 
     fn draw_shape(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, bp: &BezPath, rule: FillRule) {
-        if !drawable(bp, f.view, n) {
+        // A shape reaching far past the view (deep zoom, an infinite canvas, #1087) is cut to the
+        // guard band in f64 first: the parts that show, at a fraction of a pixel.
+        let original = bp;
+        // A shape beyond any canvas comes from a malformed file: it stays undrawn.
+        if guard::beyond_any_canvas(bp) {
+            return;
+        }
+        let cut = (!fx::has_fx(n) && guard::needs_clip(bp, f.view)).then(|| {
+            let scale = f.view.determinant().abs().sqrt().max(1e-300);
+            let band = guard::band(f.visible, widest_stroke(n) * 4.0);
+            let tol = 0.05 / scale;
+            (guard::clip_fill(bp, band, tol), guard::clip_stroke(bp, band, tol))
+        });
+        let (fill_bp, stroke_bp) = match &cut {
+            Some((fl, st)) => (fl, st),
+            None => (bp, bp),
+        };
+        if !drawable(stroke_bp, f.view, n) && !drawable(fill_bp, f.view, n) {
             return;
         }
         if fx::has_fx(n) {
             return self.draw_shape_fx(ctx, f, n, bp, rule);
         }
         if f.opts.outline {
-            self.hairline(ctx, f, bp, [0, 0, 0, 255]);
+            self.hairline(ctx, f, stroke_bp, [0, 0, 0, 255]);
             return;
         }
         // Bounds only matter to gradients and patterns (their geometry is relative to the object).
@@ -1404,7 +1422,8 @@ impl Renderer {
             AppearanceItem::Fill(fl) => !solid(&fl.paint),
             AppearanceItem::Stroke(st) => !solid(&st.paint),
         });
-        let bounds = if needs_bounds { bp.bounding_box() } else { Rect::ZERO };
+        // Paint geometry is relative to the whole object, also when it was cut.
+        let bounds = if needs_bounds { original.bounding_box() } else { Rect::ZERO };
         for item in &n.appearance.items {
             match item {
                 AppearanceItem::Fill(fl) => {
@@ -1420,7 +1439,7 @@ impl Renderer {
                     if paint::set_paint(ctx, &fl.paint, bounds, f) {
                         self.fold_alpha(ctx, f.ink, &fl.paint);
                         ctx.set_fill_rule(fill_rule(rule));
-                        ctx.fill_path(bp);
+                        ctx.fill_path(fill_bp);
                     }
                     if layered {
                         ctx.pop_layer();
@@ -1430,10 +1449,10 @@ impl Renderer {
                     if !st.visible || st.paint.is_none() || st.width <= 0.0 {
                         continue;
                     }
-                    if st.brush.is_some() && self.draw_brush(ctx, f, n, bp, st) {
+                    if st.brush.is_some() && self.draw_brush(ctx, f, n, original, st) {
                         continue;
                     }
-                    self.draw_stroke(ctx, f, Affine::IDENTITY, bp, rule, st, bounds);
+                    self.draw_stroke(ctx, f, Affine::IDENTITY, stroke_bp, rule, st, bounds);
                 }
             }
         }
@@ -2008,12 +2027,17 @@ fn mask_value(r: u8, g: u8, b: u8, a: u8, clip: bool, invert: bool) -> u8 {
 /// for more memory than there is, either of which ends the app: it is left undrawn.
 const MAX_DEVICE: f64 = 1e10;
 
+/// The widest stroke of `n` (document units; 0 without one).
+fn widest_stroke(n: &Node) -> f64 {
+    n.appearance.items.iter().filter_map(|i| if let AppearanceItem::Stroke(st) = i { Some(st.width) } else { None }).fold(0.0, f64::max)
+}
+
 /// Can shape `bp` of `n` be drawn through `view`: its control points (finite) within
 /// [`MAX_DEVICE`] pixels, and its visible strokes no wider?
 fn drawable(bp: &BezPath, view: Affine, n: &Node) -> bool {
     let b = view.transform_rect_bbox(bp.control_box());
     let scale = view.determinant().abs().sqrt();
-    let widest = n.appearance.items.iter().filter_map(|i| if let AppearanceItem::Stroke(st) = i { Some(st.width) } else { None }).fold(0.0, f64::max);
+    let widest = widest_stroke(n);
     [b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_DEVICE) && (widest * scale).is_finite() && widest * scale <= MAX_DEVICE
 }
 
@@ -2307,6 +2331,8 @@ mod tests_clip;
 mod tests_cmykblend;
 #[cfg(test)]
 mod tests_container;
+#[cfg(test)]
+mod tests_deepzoom;
 #[cfg(test)]
 mod tests_fontchange;
 #[cfg(test)]

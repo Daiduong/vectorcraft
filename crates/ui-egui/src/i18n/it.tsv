@@ -4326,3 +4326,15 @@ lighting	Light	Luce
 	Softness	Morbidezza
 	Ambient Light	Luce ambientale
 	Light behind the object	Luce dietro l'oggetto
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	TELA INFINITA
+	Infinite Canvas	Tela infinita
+	Infinite Canvas (Print)	Tela infinita (stampa)
+	Canvas:	Tela:
+	Standard	Standard
+	Infinite	Infinita
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Un foglio senza fine e senza tavole da disegno. Aggiungi tavole da disegno in seguito per esportarne o stamparne una parte.
+	No artboards	Nessuna tavola da disegno
+	This infinite canvas has no artboards. Add one to export or print part of it.	Questa tela infinita non ha tavole da disegno. Aggiungine una per esportarne o stamparne una parte.
+@msg	center must be a point within ±{limit} pt	il centro deve essere un punto entro ±{limit} pt
