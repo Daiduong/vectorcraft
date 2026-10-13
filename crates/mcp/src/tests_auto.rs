@@ -1,8 +1,12 @@
-//! The backend the server uses with no mode flag: the app when one answers, an in-process
-//! headless session while none does — including an app that starts after the session has (#1470).
+//! The backend the server uses with no mode flag: the app while one answers and the session
+//! may leave where it is, an in-process headless session otherwise. A working session is never
+//! swapped mid-way: a headless session with unsaved edits stays put, and an app that goes away
+//! errors instead of falling back silent-headless (#1470).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
@@ -158,22 +162,115 @@ fn an_app_started_later_is_reached() {
 }
 
 #[test]
-fn an_app_that_goes_away_leaves_the_next_call_to_the_headless_session() {
+fn an_app_that_goes_away_errors_until_it_restarts() {
     let _turn = crate::logging::test_turn();
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap().to_string();
-    let app = spawn_app(listener, 1, Some(1));
-    let mut a = auto(addr);
+    let (port, held) = hold_port();
+    let addr = format!("127.0.0.1:{port}");
+    // The app answers once and then goes away for good, taking its listener with it.
+    let app1 = spawn_app(take_over(held, port), 1, Some(1));
+    let mut a = auto(addr.clone());
     assert_eq!(a.call("document.inspect", json!({})).unwrap()["from"], "app");
     assert!(a.on_app());
     let lost = a.call("document.inspect", json!({}));
     assert!(lost.is_err(), "the closed connection is reported: {lost:?}");
-    assert!(!a.on_app(), "the app is gone");
-    let r = a.call("document.inspect", json!({})).unwrap();
-    assert!(r.get("from").is_none(), "the headless session answered: {r}");
-    assert!(!a.has_ui());
+    // Every further call errors loudly instead of succeeding against a headless document nobody
+    // sees — until the app is back.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        match a.call("document.inspect", json!({})) {
+            Err(e) if e.contains("went away") => break,
+            Err(_) => {
+                assert!(Instant::now() < deadline, "the app stayed gone without the went-away error");
+                std::thread::sleep(PROBE);
+            }
+            Ok(r) => panic!("must not succeed headless while the app was in use: {r}"),
+        }
+    }
+    assert!(a.on_app(), "the app — not a fresh headless document — is still retried");
+    app1.join().unwrap();
+    // The app restarts on its port: the next calls reach it again, with nothing rebuilt.
+    let app2 = spawn_app(TcpListener::bind(&addr).unwrap(), 1, None);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let mut answered = None;
+    while Instant::now() < deadline {
+        match a.call("document.inspect", json!({})) {
+            Ok(r) if a.on_app() => {
+                answered = Some(r);
+                break;
+            }
+            _ => std::thread::sleep(PROBE),
+        }
+    }
+    let r = answered.expect("the restarted app was never reached");
+    assert_eq!(r["from"], "app", "{r}");
     drop(a);
-    app.join().unwrap();
+    app2.join().unwrap();
+}
+
+#[test]
+fn a_headless_session_with_edits_is_not_left_for_a_late_app() {
+    let _turn = crate::logging::test_turn();
+    let (port, held) = hold_port();
+    let addr = format!("127.0.0.1:{port}");
+    let mut s = Server::new(Box::new(auto(addr.clone())));
+    // Build something headless first: the session now holds unsaved edits.
+    let r = rpc(&mut s, 1, "tools/call", json!({"name": "draw_shape", "arguments": {"shape": "rectangle", "x": 1, "y": 1, "width": 5, "height": 5}}));
+    assert_eq!(r["result"]["isError"], false, "{r}");
+    // The user opens VectorCraft mid-session: the working session stays put. The app answers
+    // every request it gets; the pinned server's probes, which disconnect empty, are fine.
+    let stop = Arc::new(AtomicBool::new(false));
+    let stopper = stop.clone();
+    let app = std::thread::spawn(move || {
+        let probe_listener = take_over(held, port);
+        probe_listener.set_nonblocking(true).unwrap();
+        let (mut conns, mut requests) = (0usize, 0usize);
+        while !stopper.load(Ordering::Relaxed) {
+            let stream = match probe_listener.accept() {
+                Ok((stream, _)) => stream,
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+                Err(e) => panic!("accept failed: {e}"),
+            };
+            conns += 1;
+            stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
+            let mut out = stream.try_clone().unwrap();
+            let mut reader = BufReader::new(stream);
+            loop {
+                let mut line = String::new();
+                if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                    break;
+                }
+                let Ok(msg) = serde_json::from_str::<Value>(&line) else { break };
+                requests += 1;
+                let reply = json!({"ok": true, "result": {"from": "app"}, "id": msg.get("id").cloned().unwrap_or(Value::Null)});
+                if writeln!(out, "{reply}").and_then(|()| out.flush()).is_err() {
+                    break;
+                }
+            }
+        }
+        (conns, requests)
+    });
+    for id in 2..20u64 {
+        let r = tool(&mut s, id, "doc_inspect");
+        assert_eq!(r["isError"], false, "{r}");
+        let text = r["content"][0]["text"].as_str().unwrap_or_default();
+        assert!(!text.contains("\"from\":\"app\""), "the app must not take over: {text}");
+        std::thread::sleep(PROBE);
+    }
+    // The UI-only tool names the way out instead of the generic "start the app".
+    let r = tool(&mut s, 100, "inspect_ui");
+    assert_eq!(r["isError"], true, "{r}");
+    let text = r["content"][0]["text"].as_str().unwrap_or_default();
+    assert!(text.contains("--connect"), "{text}");
+    assert!(text.contains("unsaved edits"), "{text}");
+    drop(s);
+    // The app ran throughout (its probes connected) but never served a request.
+    stop.store(true, Ordering::Relaxed);
+    let (conns, requests) = app.join().unwrap();
+    assert!(conns > 0, "the app ran while the session was pinned");
+    assert_eq!(requests, 0, "the pinned session never used the app");
 }
 
 #[test]
@@ -206,35 +303,41 @@ fn a_ui_tool_reaches_an_app_that_started_after_the_server() {
 }
 
 #[test]
-fn a_switch_of_backend_is_reported_to_a_client_that_asked_for_logs() {
+fn a_switch_to_a_late_app_is_reported_to_a_client_that_asked_for_logs() {
     let _turn = crate::logging::test_turn();
     crate::logging::install();
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap().to_string();
-    // The app answers one request and then goes away for good, taking its listener with it.
-    let app = spawn_app(listener, 1, Some(1));
+    let (port, held) = hold_port();
+    let addr = format!("127.0.0.1:{port}");
     let mut s = Server::new(Box::new(auto(addr.clone())));
     assert_eq!(tool(&mut s, 1, "doc_inspect")["isError"], false);
     assert_eq!(crate::logging::level(), None, "records are silent until a client asks");
     assert!(notes(&mut s).is_empty(), "{:?}", notes(&mut s));
 
+    // Ask for records the way a client does, so the server sends what it queued. Still no app:
+    // staying headless is not a switch, so nothing is reported.
     rpc(&mut s, 0, "logging/setLevel", json!({"level": "info"}));
     assert_eq!(crate::logging::level(), Some("info"));
-    let _ = tool(&mut s, 2, "doc_inspect");
+    assert_eq!(tool(&mut s, 2, "doc_inspect")["isError"], false);
+    assert!(notes(&mut s).is_empty(), "{:?}", notes(&mut s));
+
+    // The app starts: the silent switch to it is reported.
+    let listener = take_over(held, port);
+    let app = spawn_app(listener, 1, None);
+    let deadline = Instant::now() + Duration::from_secs(30);
     let mut reported = Vec::new();
-    for id in 3..100u64 {
-        let _ = tool(&mut s, id, "doc_inspect");
+    for id in 3..300u64 {
+        let r = tool(&mut s, id, "doc_inspect");
+        assert_eq!(r["isError"], false, "{r}");
         reported = notes(&mut s);
         if !reported.is_empty() {
             break;
         }
+        assert!(Instant::now() < deadline, "the switch was never reported to the client");
+        std::thread::sleep(PROBE);
     }
-    assert!(!reported.is_empty(), "the switch was never reported to the client");
     assert!(
-        reported
-            .iter()
-            .any(|n| n["method"] == "notifications/message"
-                && n["params"]["data"].as_str().is_some_and(|d| d.contains(&addr) && d.contains("headless"))),
+        reported.iter().any(|n| n["method"] == "notifications/message"
+            && n["params"]["data"].as_str().is_some_and(|d| d.contains(&addr) && d.contains("VectorCraft app at"))),
         "{reported:?}"
     );
     crate::logging::set_level(None).ok();

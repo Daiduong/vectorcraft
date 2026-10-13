@@ -480,6 +480,8 @@ fn need_ui(b: &mut dyn Backend, tool: &str) -> Result<(), String> {
     b.refresh();
     if b.has_ui() {
         Ok(())
+    } else if let Some(why) = b.ui_holdup() {
+        Err(format!("`{tool}` needs the desktop app: {why}"))
     } else {
         // Without --connect or --headless the server uses an app as soon as one is running, so
         // starting it is the whole fix; only a pinned mode needs a change.

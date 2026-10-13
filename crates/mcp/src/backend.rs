@@ -17,6 +17,11 @@ pub trait Backend {
     fn has_ui(&self) -> bool;
     /// Short human description ("headless", "remote 127.0.0.1:7979").
     fn describe(&self) -> String;
+    /// Why UI-only tools fail right now, when [`has_ui`](Self::has_ui) is false for a reason
+    /// beyond "no app is running". `None` means the generic "start the app" advice applies.
+    fn ui_holdup(&self) -> Option<String> {
+        None
+    }
     /// Reconsider where calls go before a UI-only tool reads [`has_ui`](Self::has_ui). Most
     /// backends already know; one that follows a running app looks again here, so a tool gated on
     /// the UI answers from a live routing rather than from the last call's.
@@ -73,6 +78,10 @@ impl Remote {
         }
         self.reconnect().is_ok()
     }
+
+    /// Drop the connection without contacting the app: the next call starts fresh.
+    fn disconnect(&mut self) {
+        self.conn = None;
     }
 
     fn reconnect(&mut self) -> std::io::Result<()> {
@@ -185,21 +194,33 @@ impl Backend for Remote {
 /// user opens during the session should be picked up while they wait for the next reply.
 const PROBE_INTERVAL: Duration = Duration::from_secs(1);
 
-/// The server without a mode flag: the running app when one answers, an in-process headless
-/// session otherwise.
+/// Where [`Auto`] sends the next call.
+enum Route {
+    /// An app answers: the call goes there.
+    App,
+    /// No app answers: the call goes to the in-process headless session.
+    Headless,
+    /// The app that was in use went away: the call fails loudly rather than succeeding against a
+    /// headless document nobody sees. The app is retried, throttled, on later calls.
+    Gone,
+}
+
+/// The server without a mode flag: the running app when one answers and the session may leave
+/// where it is, an in-process headless session otherwise.
 ///
 /// An MCP client starts its server when a session begins, which is normally before the user opens
 /// VectorCraft. Deciding the backend once — the way `--connect` does, by choice — would leave that
-/// app unreachable for the server's whole lifetime: the UI-only tools would keep asking for the
-/// desktop app and everything else would edit a headless document nobody can see (#1470). So this
-/// backend holds both halves, sends each call to the app whenever one answers, and says so when the
-/// routing changes (a log record, which a client that sent `logging/setLevel` receives as a
-/// `notifications/message`).
+/// app unreachable for the server's whole lifetime (#1470). But a working session is never swapped
+/// mid-way: once the headless session holds unsaved edits it stays put however long an app runs,
+/// and once an app was in use its going away errors instead of falling back to a fresh headless
+/// document. Each switch that does happen is a log record, which a client that sent
+/// `logging/setLevel` receives as a `notifications/message`.
 pub struct Auto {
     remote: Remote,
     /// Built on first use: a session served by an app never needs the document.
     headless: Option<Headless>,
-    /// Whether calls currently go to the app.
+    /// Whether calls go to the app. Stays true through an outage, so the app — not a fresh
+    /// headless document — is retried.
     on_app: bool,
     /// The earliest time to look for the app again, after the last attempt found nothing.
     probe_after: Option<Instant>,
@@ -222,6 +243,12 @@ impl Auto {
         self.on_app
     }
 
+    /// Whether the headless session may be left for an app that starts answering: it holds no
+    /// unsaved edits, so nothing built so far drops out of view.
+    fn headless_untouched(&self) -> bool {
+        self.headless.as_ref().is_none_or(|h| h.session.doc().is_ok_and(|d| !d.is_dirty()))
+    }
+
     /// Record where calls go, saying so when it changed (a log record, which a client that
     /// sent `logging/setLevel` receives as a `notifications/message`).
     fn set_routing(&mut self, app: bool) {
@@ -236,20 +263,33 @@ impl Auto {
     }
 
     /// Decide where the next call goes, looking for the app again when it wasn't there recently.
-    fn route(&mut self) -> bool {
-        let app = if self.remote.is_connected() {
-            true
-        } else if let Some(after) = self.probe_after
+    fn route(&mut self) -> Route {
+        if self.remote.is_connected() {
+            self.set_routing(true);
+            return Route::App;
+        }
+        if let Some(after) = self.probe_after
             && Instant::now() < after
         {
-            false
-        } else {
-            let app = self.remote.ensure_connected();
-            self.probe_after = if app { None } else { Some(Instant::now() + self.re_probe) };
-            app
-        };
-        self.set_routing(app);
-        app
+            // A recent attempt found nothing: don't pay another connect timeout yet.
+            return if self.on_app { Route::Gone } else { Route::Headless };
+        }
+        if self.remote.ensure_connected() {
+            self.probe_after = None;
+            if self.on_app || self.headless_untouched() {
+                self.set_routing(true);
+                return Route::App;
+            }
+            // The headless session holds unsaved edits: it stays put, however long the app runs.
+            // The just-opened connection is dropped, or the next call would take it for a live
+            // routing; UI-only tools say so through `ui_holdup`, everything else keeps working
+            // headless. Retried, throttled: saving the session lets a later probe switch.
+            self.remote.disconnect();
+            self.probe_after = Some(Instant::now() + self.re_probe);
+            return Route::Headless;
+        }
+        self.probe_after = Some(Instant::now() + self.re_probe);
+        if self.on_app { Route::Gone } else { Route::Headless }
     }
 
     fn session(&mut self) -> &mut Headless {
@@ -259,15 +299,13 @@ impl Auto {
 
 impl Backend for Auto {
     fn call(&mut self, method: &str, params: Value) -> Result<Value, String> {
-        if self.route() {
-            let replied = self.remote.call(method, params);
-            if replied.is_err() {
-                // The call is over either way; report the routing as it now stands.
-                self.set_routing(self.remote.is_connected());
-            }
-            replied
-        } else {
-            self.session().call(method, params)
+        match self.route() {
+            Route::App => self.remote.call(method, params),
+            Route::Headless => self.session().call(method, params),
+            Route::Gone => Err(format!(
+                "the VectorCraft app at {} went away: restart it to keep working in it, or restart this server with `--headless` for an in-process session",
+                self.remote.addr()
+            )),
         }
     }
 
@@ -279,7 +317,24 @@ impl Backend for Auto {
         self.route();
     }
 
+    /// Why UI-only tools fail right now, when `has_ui` is false for a reason beyond "no app is
+    /// running": the session is pinned to a headless document with unsaved edits.
+    fn ui_holdup(&self) -> Option<String> {
+        (!self.on_app && !self.headless_untouched()).then(|| {
+            format!(
+                "this server keeps its headless session, which holds unsaved edits; restart it with `--connect {}` to work in the app",
+                self.remote.addr()
+            )
+        })
+    }
+
     fn describe(&self) -> String {
-        if self.on_app { self.remote.describe() } else { format!("headless (an app at {} takes over when one runs)", self.remote.addr()) }
+        if self.on_app {
+            self.remote.describe()
+        } else if self.headless_untouched() {
+            format!("headless (an app at {} takes over while this session holds no edits)", self.remote.addr())
+        } else {
+            format!("headless (holding edits; restart with `--connect {}` to work in the app)", self.remote.addr())
+        }
     }
 }
