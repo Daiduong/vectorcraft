@@ -2,7 +2,7 @@
 title: Export your artwork
 description: Save your work as a VectorCraft file, export SVG or PNG, and export artboards in several sizes and formats with Export for Screens.
 order: 40
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 Use **File** › **Save** to keep your work in VectorCraft's own format, and **File** › **Export** to make SVG, PNG and other files for use elsewhere.

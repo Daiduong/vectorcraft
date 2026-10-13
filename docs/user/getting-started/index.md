@@ -2,7 +2,7 @@
 title: Getting started
 description: Install VectorCraft on Windows 11, then open or create your first document.
 order: 10
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 Install VectorCraft, then start a document or open an existing file.

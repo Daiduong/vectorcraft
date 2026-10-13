@@ -2,7 +2,7 @@
 title: Draw a path with the Pen Tool
 description: Draw straight and curved paths with the Pen Tool, close or end them, and adjust the anchor points with the Direct Selection Tool.
 order: 20
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 Pick the **Pen Tool** (shortcut P), click for a corner point, click and drag for a curve, and click the first point to close the path.

@@ -2,7 +2,7 @@
 title: Open a file
 description: Open SVG, PDF, Illustrator (.ai), Affinity and VectorCraft files with File > Open, or add one to the current document with File > Place.
 order: 10
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 Choose **File** › **Open…**, pick the file, and open it. To add a file to the document you already have open, use **File** › **Place…** instead.

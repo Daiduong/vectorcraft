@@ -2,7 +2,7 @@
 title: Combine shapes with Pathfinder
 description: Unite, cut, intersect and split overlapping shapes with the Pathfinder panel.
 order: 30
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 Select two or more overlapping shapes, open **Window** › **Pathfinder**, and click the operation you want.
@@ -25,7 +25,7 @@ The result depends on which shape is in front.
 | Minus Front | The back-most shape minus everything in front of it.                               |
 | Intersect   | Only the area covered by all the shapes.                                           |
 | Exclude     | The area covered by an odd number of shapes.                                       |
-| Divide      | Splits the shapes into every non-overlapping piece.                                |
+| Divide      | Splits the shapes into every non-overlapping piece. An open path splits the filled shapes it crosses. |
 | Trim        | Removes the hidden parts. Each shape that stays visible remains its own object.    |
 | Merge       | Trims, then merges touching or overlapping visible parts that share the same look. |
 | Crop        | Keeps the parts of the lower shapes that lie inside the front-most shape.          |

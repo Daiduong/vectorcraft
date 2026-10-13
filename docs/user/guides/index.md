@@ -2,7 +2,7 @@
 title: Guides
 description: Step-by-step guides for the most common VectorCraft tasks.
 order: 20
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 - [Open a file](open-a-file.md)

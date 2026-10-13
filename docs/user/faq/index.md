@@ -2,7 +2,7 @@
 title: FAQ
 description: Short answers about VectorCraft: price, Illustrator and Affinity files, and languages.
 order: 40
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 - [Is VectorCraft free?](is-vectorcraft-free.md)

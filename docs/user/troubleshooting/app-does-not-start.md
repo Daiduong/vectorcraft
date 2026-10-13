@@ -2,7 +2,7 @@
 title: VectorCraft does not start
 description: Fix a VectorCraft window that never appears, flashes and closes, or leaves vectorcraft.exe running in the background on Windows 11.
 order: 10
-verified: 0.9.0
+verified: 0.10.0
 ---
 
 Install the latest release first. If that does not help, start VectorCraft once on a different graphics processor, then set **Graphics Processor** to **Automatic**.
@@ -34,7 +34,7 @@ Do not use `VECTORCRAFT_NO_PREFS=1` to get past this problem. It starts VectorCr
 
 On a laptop or a PC with two graphics processors, VectorCraft can pick one that does not drive your display. The window then never shows. Faulty graphics drivers can also stop the app before its window appears.
 
-In 0.9.0, a stray `dxcompiler.dll` can make VectorCraft fall back to OpenGL, so it starts but runs slower ([issue 1194](https://github.com/storytold/vectorcraft/issues/1194)). The fix came after 0.9.0 and is not in a release yet.
+In 0.9.0, a stray `dxcompiler.dll` could make VectorCraft fall back to OpenGL, so it started but ran slower ([issue 1194](https://github.com/storytold/vectorcraft/issues/1194)). VectorCraft 0.10.0 compiles its Direct3D 12 shaders with the compiler that comes with Windows, so that file no longer matters.
 
 ## Still stuck?
 
