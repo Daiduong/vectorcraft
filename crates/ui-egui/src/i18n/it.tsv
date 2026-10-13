@@ -4326,3 +4326,6 @@ lighting	Light	Luce
 	Softness	Morbidezza
 	Ambient Light	Luce ambientale
 	Light behind the object	Luce dietro l'oggetto
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Appunti

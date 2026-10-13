@@ -330,7 +330,7 @@ impl DocSettings {
 }
 
 /// Largest artboard side `file.new` accepts, points.
-const MAX_SIDE: f64 = 16383.0 * 10.0;
+pub const MAX_SIDE: f64 = 16383.0 * 10.0;
 /// Largest artboard spacing, points.
 const MAX_SPACING: f64 = 1.0e5;
 

@@ -4320,3 +4320,6 @@ lighting	Light	ライト
 	Softness	柔らかさ
 	Ambient Light	環境光
 	Light behind the object	オブジェクトの背後のライト
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	クリップボード

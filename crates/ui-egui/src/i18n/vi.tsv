@@ -4308,3 +4308,6 @@ theme	Appearance	Giao diện
 	Softness	Độ mềm
 	Ambient Light	Ánh sáng môi trường
 	Light behind the object	Ánh sáng phía sau đối tượng
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Bảng nhớ tạm

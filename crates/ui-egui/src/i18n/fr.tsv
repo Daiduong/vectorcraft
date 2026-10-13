@@ -4757,3 +4757,6 @@ theme	Appearance	Apparence
 	Softness	Douceur
 	Ambient Light	Lumière ambiante
 	Light behind the object	Lumière derrière l'objet
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Presse-papiers

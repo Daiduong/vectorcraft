@@ -3758,3 +3758,6 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	Área de transferência

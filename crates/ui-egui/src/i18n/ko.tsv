@@ -4290,3 +4290,6 @@ lighting	Light	광원
 	Softness	부드러움
 	Ambient Light	주변광
 	Light behind the object	개체 뒤의 조명
+
+# New Document: the Clipboard preset (photocraft#2034).
+	Clipboard	클립보드
