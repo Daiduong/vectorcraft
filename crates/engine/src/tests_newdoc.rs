@@ -148,7 +148,7 @@ fn categories_list_generated_presets_with_neutral_names() {
     let mut s = Session::new();
     let r = s.execute("file.newPresets", &json!({})).unwrap();
     let names: Vec<&str> = r["categories"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["Recent", "Saved", "Mobile", "Web", "Print", "Film & Video", "Art & Illustration", "Branding", "Social"]);
+    assert_eq!(names, ["Recent", "Saved", "Infinite Canvas", "Mobile", "Web", "Print", "Film & Video", "Art & Illustration", "Branding", "Social"]);
     let print = presets(&mut s, "print");
     let letter = print.iter().find(|p| p["name"] == "Letter").unwrap();
     assert_eq!(

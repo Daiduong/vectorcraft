@@ -4320,3 +4320,15 @@ lighting	Light	ライト
 	Softness	柔らかさ
 	Ambient Light	環境光
 	Light behind the object	オブジェクトの背後のライト
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	無限キャンバス
+	Infinite Canvas	無限キャンバス
+	Infinite Canvas (Print)	無限キャンバス（印刷）
+	Canvas:	キャンバス:
+	Standard	標準
+	Infinite	無限
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	アートボードのない無限のシートです。一部を書き出しまたは印刷するには、後でアートボードを追加します。
+	No artboards	アートボードなし
+	This infinite canvas has no artboards. Add one to export or print part of it.	この無限キャンバスにはアートボードがありません。一部を書き出しまたは印刷するには、アートボードを追加します。
+@msg	center must be a point within ±{limit} pt	中心は ±{limit} pt 以内の点である必要があります

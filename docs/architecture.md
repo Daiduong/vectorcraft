@@ -45,6 +45,12 @@ and per effect; the GPU (wgpu: Metal, DX12, Vulkan/GL; WebGPU/WebGL2 on the web)
 effects are rendered offscreen per object and cached while panning. See
 [hardware-parity.md](hardware-parity.md).
 
+An infinite canvas (#1087, `Document::canvas`) draws its art from a tile cache (`ui-egui/src/tiles.rs`): 512 px tiles
+fixed to the document, one grid per zoom level, rendered on their own thread and kept. Panning, zooming back and
+selection changes reuse the tiles; an edit makes them stale, and stale tiles and the tiles of other zoom levels stand
+in until new ones arrive. The renderer cuts a shape that reaches far past the view to a guard band in `f64` before it
+draws (`render/src/guard.rs`), so deep zoom keeps sub-pixel precision and never flattens the whole shape.
+
 ## Files
 
 The native `.vectorcraft` format is versioned, compressed JSON with embedded images, saved atomically, readable

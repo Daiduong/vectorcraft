@@ -119,6 +119,44 @@ pub fn mods(m: egui::Modifiers, space: bool) -> Mods {
     Mods { shift: m.shift, alt: m.alt, cmd: m.command, ctrl: m.ctrl, space }
 }
 
+/// The options the canvas renders its art with (the single raster, and the tiles of an infinite
+/// canvas, #1087).
+fn art_opts(
+    app: &VectorcraftApp,
+    key: &CacheKey,
+    mask_view: Option<vectorcraft_doc::NodeId>,
+    smooth_images: bool,
+) -> vectorcraft_render::RenderOptions {
+    let opts = vectorcraft_render::RenderOptions { outline: app.ui.view.outline, background: None, artboards: false, ..Default::default() };
+    vectorcraft_render::RenderOptions {
+        proof: vectorcraft_render::proof::active_proof(),
+        overprint_preview: vectorcraft_render::proof::overprint_preview_on(),
+        trim: app.ui.view.trim_view,
+        tile_edge: vectorcraft_color::Color::from_hex(&app.session.prefs.pattern_tile_edge_color).map_or(opts.tile_edge, |c| {
+            let [r, g, b, _] = c.to_rgba8(1.0);
+            [r, g, b]
+        }),
+        guide: key.guide,
+        mask_view,
+        highlight_substitutions: true,
+        // General › Anti-aliased Artwork: off, edges are hard on screen (raster effects and
+        // pattern tiles stay smooth), as in Illustrator.
+        anti_alias: if app.session.prefs.anti_aliased_artwork { vectorcraft_render::AntiAlias::Art } else { vectorcraft_render::AntiAlias::None },
+        progressive_placed: true,
+        trace_views: true,
+        smooth_images,
+        // Isolation mode: the art around the isolated group or layer is dimmed (#833).
+        isolated: key.isolated.map(vectorcraft_doc::NodeId),
+        // Images far smaller on screen than they are sample their mip levels (#1244).
+        image_mips: true,
+        // During a drag or a dialog's preview, objects that only moved draw their raster
+        // effects from the cached rasters of an earlier frame (#1257).
+        interacting: key.interacting,
+        rich_black: key.rich_black,
+        ..opts
+    }
+}
+
 /// Fit the view (View → Fit Artboard / Fit All / Actual Size).
 pub fn fit(app: &mut VectorcraftApp, how: &str) {
     let Some(rect) = app.canvas_rect else {
@@ -129,25 +167,33 @@ pub fn fit(app: &mut VectorcraftApp, how: &str) {
     };
     let current = app.view().map_or(0, |v| v.artboard);
     let Some(st) = app.session.active() else { return };
+    let canvas = st.doc.canvas;
     let target = match how {
         "view.fitAll" => {
             st.doc.art_bounds().map(|a| st.doc.artboards.iter().fold(a, |r, ab| r.union(ab.rect))).or(st.doc.artboards.first().map(|a| a.rect))
         }
-        // The navigator's artboard (the first if it has gone).
-        _ => st.doc.artboards.get(current).or(st.doc.artboards.first()).map(|a| a.rect),
+        // The navigator's artboard (the first if it has gone); with none (an infinite canvas,
+        // #1087), the art.
+        _ => st.doc.artboards.get(current).or(st.doc.artboards.first()).map(|a| a.rect).or_else(|| st.doc.art_bounds()),
     };
-    let Some(target) = target else { return };
-    let zoom = if how == "view.actualSize" {
-        actual_size_zoom(app.session.prefs.display_print_size)
+    let actual = actual_size_zoom(app.session.prefs.display_print_size);
+    let Some(v) = app.view_mut() else { return };
+    v.canvas = canvas;
+    v.fitted = true;
+    // Nothing to fit (an empty infinite canvas): the origin at actual size.
+    let Some(target) = target else {
+        v.center = Point::ZERO;
+        v.zoom = v.clamp_zoom(actual);
+        return;
+    };
+    v.center = target.center();
+    v.zoom = if how == "view.actualSize" {
+        v.clamp_zoom(actual)
     } else {
         let zx = (rect.width() as f64 - 60.0) / target.width().max(1.0);
         let zy = (rect.height() as f64 - 60.0) / target.height().max(1.0);
-        zx.min(zy).clamp(0.0313, 640.0)
+        v.clamp_zoom(zx.min(zy))
     };
-    let Some(v) = app.view_mut() else { return };
-    v.center = target.center();
-    v.fitted = true;
-    v.zoom = zoom;
 }
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
@@ -168,6 +214,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     let rect = if app.ui.view.rulers && app.ui.screen_mode < 3 { egui::Rect::from_min_max(full.min + vec2(RULER, RULER), full.max) } else { full };
     app.canvas_rect = Some(rect);
+    // The view follows the document's canvas (Document Setup can switch it, #1087).
+    let canvas = app.session.active().map(|st| st.doc.canvas).unwrap_or_default();
+    if let Some(v) = app.view_mut().filter(|v| v.canvas != canvas) {
+        v.canvas = canvas;
+        v.zoom = v.clamp_zoom(v.zoom);
+    }
     let fitted = app.view().is_some_and(|v| v.fitted);
     if !fitted {
         fit(app, "view.fitArtboard");
@@ -200,7 +252,24 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         let setup = &doc.setup;
         let grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
         let paper = if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE };
-        for ab in &doc.artboards {
+        if doc.canvas.is_infinite() {
+            // An infinite canvas (#1087) is paper everywhere: no pasteboard, no page shadows.
+            match &grid {
+                Some((tex, cell)) => {
+                    let corners = [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom()].map(|c| xf.to_doc(c));
+                    let view = corners.iter().skip(1).fold(vectorcraft_geom::Rect::from_points(corners[0], corners[0]), |r, p| r.union_pt(*p));
+                    // Snapped to whole texture repeats, so the checks stay put while the view pans.
+                    let per = (2.0 * *cell as f64 / xf.zoom).max(1e-9);
+                    let snap = |v: f64, up: bool| if up { (v / per).ceil() * per } else { (v / per).floor() * per };
+                    let view = vectorcraft_geom::Rect::new(snap(view.x0, false), snap(view.y0, false), snap(view.x1, true), snap(view.y1, true));
+                    checker(&painter, &xf.quad(view), view, xf.zoom, tex.id(), *cell);
+                }
+                None => {
+                    painter.rect_filled(rect, 0.0, paper);
+                }
+            }
+        }
+        for ab in doc.artboards.iter().filter(|_| !doc.canvas.is_infinite()) {
             let q = xf.quad(ab.rect);
             // Hard 2 pt drop shadow, right and bottom (measured: #4d4d4d then #565656 on #606060).
             let shift = |d: f32| q.iter().map(|p| *p + vec2(d, d)).collect::<Vec<_>>();
@@ -214,6 +283,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             }
         }
     } else if app.ui.view.outline {
+        if doc.canvas.is_infinite() {
+            painter.rect_filled(rect, 0.0, Color32::WHITE);
+        }
         for ab in &doc.artboards {
             painter.add(Shape::convex_polygon(xf.quad(ab.rect), Color32::WHITE, Stroke::NONE));
         }
@@ -222,7 +294,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let grid_look = app.ui.view.grid.then(|| LineLook::grid(&app.session.prefs));
     let grids_in_back = app.session.prefs.grids_in_back;
     if let Some(look) = grid_look.filter(|_| grids_in_back) {
-        grid(&painter, &xf, doc.grid.spacing, doc.grid.subdivisions, look);
+        grid(&painter, &xf, doc.grid.spacing, doc.grid.subdivisions, look, doc.canvas.is_infinite());
     }
 
     // Artwork raster.
@@ -279,98 +351,92 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         app.canvas.last_ms = done.ms;
         app.canvas.moved = done.moved > 0;
     }
-    if app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none() {
-        let (w, h, view) = match pixel {
-            Some([x0, y0, x1, y1]) => ((x1 - x0) as u32, (y1 - y0) as u32, Affine::translate((-x0 as f64, -y0 as f64))),
-            None => (
-                w,
-                h,
-                Affine::translate((w as f64 / 2.0, h as f64 / 2.0))
-                    * Affine::rotate(v.rotation.to_radians())
-                    * Affine::scale(v.zoom * ppp as f64)
-                    * Affine::translate(-v.center.to_vec2()),
-            ),
+    // An infinite canvas draws its art from tiles (#1087): only what the view newly reaches is
+    // rendered. Drags, Pixel Preview and the mask view keep the single raster below.
+    let tiled =
+        doc.canvas.is_infinite() && pixel.is_none() && mask_view.is_none() && !key.interacting && std::env::var_os("VECTORCRAFT_NO_TILES").is_none();
+    if !doc.canvas.is_infinite() && !app.canvas.tiles.is_empty() {
+        app.canvas.tiles.clear();
+    }
+    if tiled {
+        let opts = art_opts(app, &key, mask_view, smooth_images);
+        let content = crate::tiles::Content {
+            uid: key.doc as u64,
+            doc: std::sync::Arc::as_ptr(&doc) as *const u8 as usize,
+            opts: crate::tiles::opts_fingerprint(&opts),
         };
-        let opts = vectorcraft_render::RenderOptions { outline: app.ui.view.outline, background: None, artboards: false, ..Default::default() };
-        let opts = vectorcraft_render::RenderOptions {
-            proof: vectorcraft_render::proof::active_proof(),
-            overprint_preview: vectorcraft_render::proof::overprint_preview_on(),
-            trim: app.ui.view.trim_view,
-            tile_edge: vectorcraft_color::Color::from_hex(&app.session.prefs.pattern_tile_edge_color).map_or(opts.tile_edge, |c| {
-                let [r, g, b, _] = c.to_rgba8(1.0);
-                [r, g, b]
-            }),
-            guide: key.guide,
-            mask_view,
-            highlight_substitutions: true,
-            // General › Anti-aliased Artwork: off, edges are hard on screen (raster effects and
-            // pattern tiles stay smooth), as in Illustrator.
-            anti_alias: if app.session.prefs.anti_aliased_artwork { vectorcraft_render::AntiAlias::Art } else { vectorcraft_render::AntiAlias::None },
-            progressive_placed: true,
-            trace_views: true,
-            smooth_images,
-            // Isolation mode: the art around the isolated group or layer is dimmed (#833).
-            isolated: key.isolated.map(vectorcraft_doc::NodeId),
-            // Images far smaller on screen than they are sample their mip levels (#1244).
-            image_mips: true,
-            // During a drag or a dialog's preview, objects that only moved draw their raster
-            // effects from the cached rasters of an earlier frame (#1257).
-            interacting: key.interacting,
-            rich_black: key.rich_black,
-            ..opts
-        };
-        // Light documents render synchronously (no lag vs overlays); heavy ones go to the worker.
-        // A document switch renders synchronously so another document's frame is never shown.
-        // The first frame after an interaction, when the frame shown drew moved rasters, also goes
-        // to the worker.
-        let same_doc = app.canvas.key.as_ref().is_some_and(|k| k.doc == key.doc);
-        let settling = app.canvas.moved && !key.interacting;
-        let heavy = (app.canvas.last_ms > 8.0 || settling) && app.canvas.texture.is_some() && same_doc;
-        match (&mut app.canvas.worker, heavy) {
-            (Some(worker), true) => worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts }),
-            _ => {
-                let t0 = now_ms();
-                let img = app.canvas.renderer.render(&doc, w, h, view, &opts);
-                upload(app, ui.ctx(), &img, pixel.is_some());
-                app.canvas.key = Some(key.clone());
-                app.perf.render_ms = now_ms() - t0;
-                app.canvas.last_ms = app.perf.render_ms;
-                app.canvas.moved = app.canvas.renderer.stats.moved > 0;
+        let r = xf.rect;
+        let view_r = crate::tiles::view_rect([r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom()].map(|c| xf.to_doc(c)));
+        let quad = |q: Rect| xf.quad(q);
+        let ctx = ui.ctx().clone();
+        app.canvas.tiles.draw(&ctx, &painter, &quad, view_r, v.zoom * ppp as f64, content, &doc, &opts);
+    } else {
+        if app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none() {
+            let (w, h, view) = match pixel {
+                Some([x0, y0, x1, y1]) => ((x1 - x0) as u32, (y1 - y0) as u32, Affine::translate((-x0 as f64, -y0 as f64))),
+                None => (
+                    w,
+                    h,
+                    Affine::translate((w as f64 / 2.0, h as f64 / 2.0))
+                        * Affine::rotate(v.rotation.to_radians())
+                        * Affine::scale(v.zoom * ppp as f64)
+                        * Affine::translate(-v.center.to_vec2()),
+                ),
+            };
+            let opts = art_opts(app, &key, mask_view, smooth_images);
+            // Light documents render synchronously (no lag vs overlays); heavy ones go to the worker.
+            // A document switch renders synchronously so another document's frame is never shown.
+            // The first frame after an interaction, when the frame shown drew moved rasters, also goes
+            // to the worker.
+            let same_doc = app.canvas.key.as_ref().is_some_and(|k| k.doc == key.doc);
+            let settling = app.canvas.moved && !key.interacting;
+            let heavy = (app.canvas.last_ms > 8.0 || settling) && app.canvas.texture.is_some() && same_doc;
+            match (&mut app.canvas.worker, heavy) {
+                (Some(worker), true) => worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts }),
+                _ => {
+                    let t0 = now_ms();
+                    let img = app.canvas.renderer.render(&doc, w, h, view, &opts);
+                    upload(app, ui.ctx(), &img, pixel.is_some());
+                    app.canvas.key = Some(key.clone());
+                    app.perf.render_ms = now_ms() - t0;
+                    app.canvas.last_ms = app.perf.render_ms;
+                    app.canvas.moved = app.canvas.renderer.stats.moved > 0;
+                }
             }
         }
-    }
-    if let (Some(tex), Some(k)) = (&app.canvas.texture, &app.canvas.key)
-        && k.doc == key.doc
-    {
-        match k.pixel {
-            // Document pixels: placed over the document rect they cover, turning with the view.
-            Some([x0, y0, x1, y1]) => {
-                textured_quad(&painter, tex.id(), &xf.quad(Rect::new(x0 as f64, y0 as f64, x1 as f64, y1 as f64)), (1.0, 1.0));
-            }
-            None if (k.rot - v.rotation).abs() < 1e-9 => {
-                // Reproject the last frame if it was rendered for a different view.
-                let old = Xf { rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: xf.rot };
-                let a = xf.to_screen(old.to_doc(rect.min));
-                let b = xf.to_screen(old.to_doc(rect.max));
-                painter.image(tex.id(), egui::Rect::from_min_max(a, b), egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-            }
-            // The view turned after the last frame was rendered, and the worker renders the frame at
-            // the new angle. Until it arrives, the last frame is drawn turned into this view: each
-            // corner goes where this view puts the document point that the corner showed.
-            None => {
-                let old = Xf { rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: k.rot.to_radians() };
-                let q = [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom()].map(|c| xf.to_screen(old.to_doc(c)));
-                textured_quad(&painter, tex.id(), &q, (1.0, 1.0));
+        if let (Some(tex), Some(k)) = (&app.canvas.texture, &app.canvas.key)
+            && k.doc == key.doc
+        {
+            match k.pixel {
+                // Document pixels: placed over the document rect they cover, turning with the view.
+                Some([x0, y0, x1, y1]) => {
+                    textured_quad(&painter, tex.id(), &xf.quad(Rect::new(x0 as f64, y0 as f64, x1 as f64, y1 as f64)), (1.0, 1.0));
+                }
+                None if (k.rot - v.rotation).abs() < 1e-9 => {
+                    // Reproject the last frame if it was rendered for a different view.
+                    let old = Xf { rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: xf.rot };
+                    let a = xf.to_screen(old.to_doc(rect.min));
+                    let b = xf.to_screen(old.to_doc(rect.max));
+                    painter.image(tex.id(), egui::Rect::from_min_max(a, b), egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                }
+                // The view turned after the last frame was rendered, and the worker renders the frame at
+                // the new angle. Until it arrives, the last frame is drawn turned into this view: each
+                // corner goes where this view puts the document point that the corner showed.
+                None => {
+                    let old = Xf { rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: k.rot.to_radians() };
+                    let q = [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom()].map(|c| xf.to_screen(old.to_doc(c)));
+                    textured_quad(&painter, tex.id(), &q, (1.0, 1.0));
+                }
             }
         }
     }
     if let Some(look) = grid_look.filter(|_| !grids_in_back) {
-        grid(&painter, &xf, doc.grid.spacing, doc.grid.subdivisions, look);
+        grid(&painter, &xf, doc.grid.spacing, doc.grid.subdivisions, look, doc.canvas.is_infinite());
     }
     // The pixel grid (Guides & Grid › Show Pixel Grid (Above 600% Zoom)): in Pixel Preview from
     // 600% zoom, a line at every document pixel over the art, so the pixels it rasterizes to show.
     if app.ui.view.pixel_preview && v.zoom >= PIXEL_GRID_ZOOM && app.session.prefs.show_pixel_grid {
-        grid(&painter, &xf, 1.0, 1, LineLook { color: PIXEL_GRID, dots: false });
+        grid(&painter, &xf, 1.0, 1, LineLook { color: PIXEL_GRID, dots: false }, false);
     }
     // Artboard edges and names. The Artboard tool labels its active artboard itself (following
     // a move or resize): that one isn't named twice.
@@ -702,16 +768,16 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                             let a = xf.to_doc(r.min);
                             let b = xf.to_doc(r.max);
                             vm.center = Point::new((a.x + b.x) / 2.0, (a.y + b.y) / 2.0);
-                            vm.zoom = (rect.width() as f64 / (b.x - a.x)).min(rect.height() as f64 / (b.y - a.y)).clamp(0.0313, 640.0);
+                            vm.zoom = vm.clamp_zoom((rect.width() as f64 / (b.x - a.x)).min(rect.height() as f64 / (b.y - a.y)));
                         } else {
-                            zoom_about(vm, rect, p, crate::state::next_zoom(vm.zoom, !m.alt));
+                            zoom_about(vm, rect, p, crate::state::next_zoom_in(vm.zoom, !m.alt, vm.zoom_range()));
                         }
                     }
                 }
                 // A click (not held, not dragged) steps the zoom as with the marquee.
                 Drag::ZoomScrub { held, moved: false, .. } if held <= HOLD_DELAY => {
                     if let Some(vm) = app.view_mut() {
-                        zoom_about(vm, rect, p, crate::state::next_zoom(vm.zoom, !m.alt));
+                        zoom_about(vm, rect, p, crate::state::next_zoom_in(vm.zoom, !m.alt, vm.zoom_range()));
                     }
                 }
                 Drag::ZoomScrub { .. } => {}
@@ -789,7 +855,7 @@ pub(crate) fn actual_size_zoom(display_print_size: bool) -> f64 {
 /// point under screen point `p` where it is.
 fn zoom_about(vm: &mut View, rect: egui::Rect, p: Pos2, zoom: f64) {
     let before = Xf::new(rect, vm).to_doc(p);
-    vm.zoom = zoom.clamp(0.0313, 640.0);
+    vm.zoom = vm.clamp_zoom(zoom);
     vm.center += before - Xf::new(rect, vm).to_doc(p);
 }
 
@@ -1041,7 +1107,29 @@ fn pref_color(hex: &str, fallback: Color32) -> Color32 {
 /// The grid (View → Show Grid): a gridline every `spacing` and `subdiv` lighter lines between
 /// (left out when they would crowd). In the Dots style, a dot where gridlines cross the
 /// subdivisions instead.
-fn grid(p: &egui::Painter, xf: &Xf, spacing: f64, subdiv: u32, look: LineLook) {
+/// The grid spacing an infinite canvas shows at `zoom` (#1087): `spacing` grown or shrunk by
+/// whole steps of the subdivisions (powers of ten without any), so major lines stay 40 to
+/// 400 screen points apart at any zoom.
+fn adaptive_spacing(spacing: f64, subdiv: u32, zoom: f64) -> f64 {
+    let base = if subdiv >= 2 { f64::from(subdiv) } else { 10.0 };
+    let mut sp = spacing;
+    if !(sp.is_finite() && sp > 0.0 && zoom.is_finite() && zoom > 0.0) {
+        return spacing;
+    }
+    for _ in 0..64 {
+        if sp * zoom < 40.0 {
+            sp *= base;
+        } else if sp * zoom > 400.0 {
+            sp /= base;
+        } else {
+            break;
+        }
+    }
+    sp
+}
+
+fn grid(p: &egui::Painter, xf: &Xf, spacing: f64, subdiv: u32, look: LineLook, adaptive: bool) {
+    let spacing = if adaptive { adaptive_spacing(spacing, subdiv, xf.zoom) } else { spacing };
     let r = xf.rect;
     // The view in document space: the box round the canvas's corners (the view may be rotated;
     // the painter clips to the canvas).
@@ -1082,7 +1170,8 @@ fn grid(p: &egui::Painter, xf: &Xf, spacing: f64, subdiv: u32, look: LineLook) {
 /// A ruler label for `v` (in the ruler's unit) on a ruler whose labels are `step` apart: whole
 /// numbers, or as many decimals as the step has.
 pub(crate) fn ruler_label(v: f64, step: f64) -> String {
-    let decimals = if step >= 1.0 { 0 } else { (-step.log10()).ceil() as usize };
+    // At most 12 decimals, however deep an infinite canvas zooms (#1087).
+    let decimals = if step >= 1.0 { 0 } else { ((-step.log10()).ceil() as usize).min(12) };
     let s = format!("{v:.decimals$}");
     if s.trim_start_matches('-').chars().all(|c| c == '0' || c == '.') { "0".into() } else { s }
 }
@@ -1202,10 +1291,16 @@ fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, unit: Unit, 
     let ticks = |from: Pos2, to: Pos2, axis: vectorcraft_geom::Vec2, draw: &mut dyn FnMut(f32, f64)| {
         let along = |s: Pos2| (xf.to_doc(s) - origin).dot(axis);
         let (a, b) = (along(from), along(to));
-        let mut v = (a / per / minor).floor() * minor;
-        while v * per <= b {
+        // Counted by tick index, not by adding `minor` (far from the origin a tiny step would no
+        // longer move the sum, #1087), and never more ticks than a ruler can show.
+        let (first, last) = ((a / per / minor).floor(), (b / per / minor).floor());
+        if !(first.is_finite() && last.is_finite()) {
+            return;
+        }
+        let count = (last - first).clamp(0.0, 10_000.0) as u32;
+        for i in 0..=count {
+            let v = (first + f64::from(i)) * minor;
             draw(((v * per - a) * xf.zoom) as f32, v);
-            v += minor;
         }
     };
     // The canvas's directions along the screen's x and y.
@@ -1246,6 +1341,19 @@ fn to_screen_path(bp: &BezPath, xf: &Xf) -> Vec<Vec<Pos2>> {
     // Flatten for drawing: a polyline per subpath (tolerance ~0.25 screen px).
     let mut out: Vec<Vec<Pos2>> = vec![];
     let a = xf.affine();
+    // A path reaching far past the view (deep zoom, an infinite canvas, #1087) is cut to the part
+    // near it first, in f64: egui draws in f32, and flattening all of it would take millions of
+    // points.
+    let cut;
+    let bp = if vectorcraft_render::guard::needs_clip(bp, a) {
+        let r = xf.rect;
+        let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom()].map(|c| xf.to_doc(c));
+        let view = corners.iter().fold(Rect::from_points(corners[0], corners[0]), |b, c| b.union_pt(*c));
+        cut = vectorcraft_render::guard::clip_stroke(bp, vectorcraft_render::guard::band(view, 0.0), 0.25 / xf.zoom.max(1e-300));
+        &cut
+    } else {
+        bp
+    };
     let mut t = bp.clone();
     t.apply_affine(a);
     let mut cur: Vec<Pos2> = vec![];
@@ -2039,7 +2147,8 @@ fn home(app: &mut VectorcraftApp, ui: &mut Ui, rect: egui::Rect) {
     ui.label(egui::RichText::new(tl!("Quickly start a new file")).font(theme::semibold(14.0)).color(t.text));
     ui.add_space(10.0);
     // A few of New Document's presets (`file.newPresets`), as its cards.
-    let presets = ["Letter", "A4", "Web 1920×1080", "Phone 390×844", "Postcard", "Social Square Post 1080×1080"];
+    // The Infinite Canvas is a canvas of its own (#1087): its card comes with them.
+    let presets = ["Letter", "A4", "Web 1920×1080", "Phone 390×844", "Postcard", "Social Square Post 1080×1080", "Infinite Canvas"];
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(14.0, 14.0);
         let cards: Vec<_> = presets.iter().filter_map(|name| vectorcraft_engine::cmd::newdoc::find(&app.session, name)).collect();
@@ -4580,5 +4689,20 @@ mod tests {
         assert!(!app.ui.task_bar_place.pinned);
         near(select(&mut app, &a), under_a);
         near(select(&mut app, &b), under_b);
+    }
+
+    /// #1087: an infinite canvas's grid keeps its major lines 40 to 400 screen points apart at any
+    /// zoom, in whole steps of its subdivisions (72 pt with 8 subdivisions: 9, 72, 576…).
+    #[test]
+    fn the_grid_of_an_infinite_canvas_adapts_to_the_zoom() {
+        for zoom in [1e-6, 1e-3, 0.0313, 1.0, 640.0, 1e5, 1e9] {
+            let sp = super::adaptive_spacing(72.0, 8, zoom);
+            assert!((40.0..=400.0).contains(&(sp * zoom)), "zoom {zoom}: {sp} pt is {} px", sp * zoom);
+            let steps = (sp / 72.0).ln() / 8f64.ln();
+            assert!((steps - steps.round()).abs() < 1e-9, "zoom {zoom}: {sp} is 72 × 8^n");
+        }
+        assert_eq!(super::adaptive_spacing(72.0, 8, 1.0), 72.0, "already in range");
+        assert_eq!(super::adaptive_spacing(72.0, 1, 0.01), 7200.0, "powers of ten without subdivisions");
+        assert_eq!(super::adaptive_spacing(72.0, 8, f64::NAN), 72.0);
     }
 }

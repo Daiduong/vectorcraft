@@ -74,8 +74,11 @@ impl Cache {
         {
             return r;
         }
-        let mut region = doc.artboards.iter().map(|a| a.rect).reduce(|a, b| a.union(b)).unwrap_or(DRect::new(0.0, 0.0, 612.0, 792.0));
-        if !artboard_only && let Some(b) = doc.art_bounds() {
+        let boards = doc.artboards.iter().map(|a| a.rect).reduce(|a, b| a.union(b));
+        let art = if artboard_only && boards.is_some() { None } else { doc.art_bounds() };
+        // No artboards (an infinite canvas, #1087): the art alone, not a page at the origin too.
+        let mut region = boards.or(art).unwrap_or(DRect::new(0.0, 0.0, 612.0, 792.0));
+        if let Some(b) = art {
             region = region.union(b);
         }
         let region = region.inflate(region.width() * 0.04 + 4.0, region.height() * 0.04 + 4.0);
@@ -159,10 +162,22 @@ pub fn thumb_to_doc(region: DRect, thumb: Rect, p: egui::Pos2) -> Point {
 
 /// Slider position (0..1) ↔ zoom percent on Illustrator's log range 3.13 %–64 000 %.
 pub fn zoom_to_slider(z: f64) -> f64 {
-    ((z.clamp(3.13, 64000.0)).ln() - 3.13f64.ln()) / (64000f64.ln() - 3.13f64.ln())
+    zoom_to_slider_in(z, (3.13, 64000.0))
 }
 pub fn slider_to_zoom(t: f64) -> f64 {
-    (3.13f64.ln() + t.clamp(0.0, 1.0) * (64000f64.ln() - 3.13f64.ln())).exp()
+    slider_to_zoom_in(t, (3.13, 64000.0))
+}
+
+/// [`zoom_to_slider`] over the log range `range` (percent): an infinite canvas's is far wider
+/// (#1087).
+pub fn zoom_to_slider_in(z: f64, (lo, hi): (f64, f64)) -> f64 {
+    let span = (hi.ln() - lo.ln()).max(1e-12);
+    (z.clamp(lo, hi).ln() - lo.ln()) / span
+}
+
+/// [`slider_to_zoom`] over the log range `range` (percent).
+pub fn slider_to_zoom_in(t: f64, (lo, hi): (f64, f64)) -> f64 {
+    (lo.ln() + t.clamp(0.0, 1.0) * (hi.ln() - lo.ln())).exp()
 }
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
@@ -232,17 +247,21 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.run("view.zoomOut", json!({})).ok();
         }
         let sw = (ui.available_width() - 30.0).max(40.0);
+        let range = app.view().map_or((3.13, 64000.0), |v| {
+            let (lo, hi) = v.zoom_range();
+            (lo * 100.0, hi * 100.0)
+        });
         let track = |_: f32| t.input_border;
-        if let (Some(v), phase) = widgets::color_slider(ui, "nav-slider", zoom_to_slider(zoom) as f32, sw, &track)
+        if let (Some(v), phase) = widgets::color_slider(ui, "nav-slider", zoom_to_slider_in(zoom, range) as f32, sw, &track)
             && phase != widgets::Live::Idle
         {
-            z = Some(slider_to_zoom(v as f64));
+            z = Some(slider_to_zoom_in(v as f64, range));
         }
         if widgets::icon_button(ui, "dc-zoom-large", tl!("Zoom In"), false, 22.0).clicked() {
             app.run("view.zoomIn", json!({})).ok();
         }
         if let Some(z) = z {
-            app.run("view.setZoom", json!({"zoom": z.clamp(3.13, 64000.0)})).ok();
+            app.run("view.setZoom", json!({"zoom": z.clamp(range.0, range.1)})).ok();
         }
     });
 }

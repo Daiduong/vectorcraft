@@ -337,7 +337,11 @@ pub(super) fn export_for_screens(s: &mut Session, p: &Value) -> Result<Value> {
 /// with `assets` each asset's art alone, cropped to it. Artboards (assets) that share a name get
 /// `-2`, `-3`… instead of overwriting.
 pub(crate) fn export(s: &mut Session, p: &Value) -> Result<Value> {
-    let o = ScreenParams::of(p)?;
+    let mut o = ScreenParams::of(p)?;
+    // Without artboards (an infinite canvas, #1087) the screens are of the whole document.
+    if doc_has_no_artboards(s) && o.assets.is_none() {
+        o.full_document = true;
+    }
     let rows = rows_of(s, p, o.preset.as_deref())?;
     if o.full_document && o.assets.is_some() {
         return Err(bad(C, "give assets or fullDocument, not both"));
@@ -475,4 +479,9 @@ pub(crate) fn store_settings(s: &mut Session, settings: Map<String, Value>) -> R
 /// `document.exportSettings`: the Export for Screens settings the document last exported with.
 pub(super) fn export_settings(s: &mut Session, _: &Value) -> Result<Value> {
     Ok(json!({ "settings": s.doc()?.doc.export_settings }))
+}
+
+/// Has the active document no artboards (an infinite canvas, #1087)?
+fn doc_has_no_artboards(s: &Session) -> bool {
+    s.doc().is_ok_and(|st| st.doc.artboards.is_empty())
 }

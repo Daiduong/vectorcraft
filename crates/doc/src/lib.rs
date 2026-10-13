@@ -8,6 +8,7 @@
 pub mod appearance;
 pub mod assets;
 pub mod blend;
+pub mod canvas;
 pub mod clipnest;
 pub mod cmyk;
 pub mod corners;
@@ -17,6 +18,7 @@ mod id_index;
 pub mod inks;
 mod inline;
 pub mod shared;
+pub use canvas::{CanvasKind, MAX_COORD_INFINITE, MAX_COORD_STANDARD};
 pub use inline::{SYMBOL_HALF, SYMBOL_SIZES};
 pub use shared::Shared;
 pub mod links;
@@ -200,7 +202,17 @@ impl Unit {
     pub fn ruler_step(self, zoom: f64) -> f64 {
         const STEPS: [f64; 19] =
             [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0];
-        STEPS.iter().copied().find(|s| s * self.points() * zoom >= 50.0).unwrap_or(10000.0)
+        // The units that make 50 screen points.
+        let target = 50.0 / (self.points() * zoom);
+        if !(target.is_finite() && target > 0.0) {
+            return 10000.0;
+        }
+        if (STEPS[0]..=STEPS[STEPS.len() - 1]).contains(&target) {
+            return STEPS.iter().copied().find(|s| *s >= target).unwrap_or(10000.0);
+        }
+        // Past the table (the zoom of an infinite canvas, #1087): 1, 2, 5 in each power of ten.
+        let decade = 10f64.powf(target.log10().floor());
+        [1.0, 2.0, 5.0, 10.0].into_iter().map(|m| m * decade).find(|s| *s >= target).unwrap_or(10.0 * decade)
     }
     /// `v` (points) on the nearest ruler tick at `zoom` ([`Self::ruler_step`]).
     pub fn snap_to_ruler_tick(self, v: f64, zoom: f64) -> f64 {
@@ -559,6 +571,10 @@ pub struct Document {
     pub ruler_origin: Point,
     #[serde(default)]
     pub color_mode: ColorMode,
+    /// A standard canvas or an infinite one (#1087). Not written for a standard canvas, so those
+    /// files stay as they were; an older version keeps the key it doesn't know (`extra`).
+    #[serde(default, skip_serializing_if = "skip::is_default")]
+    pub canvas: CanvasKind,
     pub artboards: Vec<Artboard>,
     /// Top-level layers, bottom first.
     pub layers: Vec<Arc<Node>>,
@@ -718,6 +734,7 @@ impl Document {
             units: Unit::Points,
             ruler_origin: Point::ZERO,
             color_mode: mode,
+            canvas: CanvasKind::Standard,
             artboards: vec![Artboard {
                 id: 1,
                 name: "Artboard 1".into(),
@@ -768,6 +785,20 @@ impl Document {
         let id = d.alloc_id();
         d.layers.push(Arc::new(Node::layer(id, "Layer 1", LayerColor::Preset(0))));
         d
+    }
+
+    /// A new infinite-canvas document (#1087) in colour `mode`: no artboards, one layer, the
+    /// rulers' zero point at the origin.
+    pub fn new_infinite(mode: ColorMode) -> Self {
+        let mut d = Self::new_with_mode(1.0, 1.0, mode);
+        d.canvas = CanvasKind::Infinite;
+        d.artboards.clear();
+        d
+    }
+
+    /// How far from the origin this document's coordinates may lie (points).
+    pub fn coord_limit(&self) -> f64 {
+        self.canvas.coord_limit()
     }
 
     /// Allocate a fresh node id.

@@ -4599,3 +4599,15 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	NIESKOŃCZONE PŁÓTNO
+	Infinite Canvas	Nieskończone płótno
+	Infinite Canvas (Print)	Nieskończone płótno (druk)
+	Canvas:	Płótno:
+	Standard	Standardowe
+	Infinite	Nieskończone
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Nieskończony arkusz bez obszarów roboczych. Dodaj obszary robocze później, aby wyeksportować lub wydrukować jego część.
+	No artboards	Brak obszarów roboczych
+	This infinite canvas has no artboards. Add one to export or print part of it.	To nieskończone płótno nie ma obszarów roboczych. Dodaj jeden, aby wyeksportować lub wydrukować jego część.
+@msg	center must be a point within ±{limit} pt	środek musi być punktem w zakresie ±{limit} pt

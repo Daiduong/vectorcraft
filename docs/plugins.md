@@ -180,7 +180,7 @@ For an **object filter**, the output is the new state of the input objects:
 - Input objects missing from the output are deleted. The order of the input objects themselves doesn't change.
 - `type` turns a path into a compound path (one member per subpath) or back; `name: ""` clears the name.
 
-The host validates everything before the document changes: coordinates must be finite and within ±4,000,000 pt, at
+The host validates everything before the document changes: coordinates must be finite and within the document's canvas (±4,000,000 pt; an infinite canvas ±1,000,000,000 pt), at
 most 100,000 objects and 4,000,000 anchors, 256 fills, strokes or gradient stops; colours, opacities and offsets are
 clamped into range, stroke weights to 0–1,000 pt; a pattern must exist in the document. A paint returned unchanged
 keeps its swatch link; any other paint is unlinked.

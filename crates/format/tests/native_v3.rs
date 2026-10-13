@@ -307,3 +307,29 @@ fn inline_graphics_in_text_round_trip() {
     assert_eq!(doc_json(&back), doc_json(&d));
     check_native_roundtrip(&d).unwrap();
 }
+
+/// #1087: an infinite canvas saves its kind and reads it back at every version, art far from the
+/// origin included; a standard canvas writes no `canvas` key, so its files are as before.
+#[test]
+fn the_canvas_kind_round_trips() {
+    use vectorcraft_doc::{CanvasKind, ColorMode};
+    let standard = json_of(&save(&rich_doc(), false));
+    assert!(standard["document"].get("canvas").is_none(), "no key for a standard canvas");
+    let mut d = Document::new_infinite(ColorMode::Rgb);
+    let far = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(
+        &[vectorcraft_geom::Point::new(9.0e8, -9.0e8), vectorcraft_geom::Point::new(9.0e8 + 0.125, -9.0e8)],
+        false,
+    ));
+    let id = d.alloc_id();
+    let layer = d.layers[0].id;
+    d.insert(Some(layer), 0, Node::path(id, far, Default::default())).unwrap();
+    for version in vectorcraft_format::MIN_VERSION..=VERSION {
+        let bytes = save_with(&d, &SaveOptions { version, ..SaveOptions::default() }).unwrap();
+        assert_eq!(json_of(&bytes)["document"]["canvas"], json!("infinite"), "v{version}");
+        let back = load(&bytes).unwrap();
+        assert_eq!((back.canvas, back.artboards.len()), (CanvasKind::Infinite, 0), "v{version}");
+        let NodeKind::Path { path, .. } = &back.node(id).unwrap().kind else { panic!("not a path") };
+        assert_eq!(path.subpaths[0].anchors[1].p.x, 9.0e8 + 0.125, "far coordinates keep their precision");
+    }
+    check_native_roundtrip(&d).unwrap();
+}

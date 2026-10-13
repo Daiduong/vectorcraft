@@ -52,7 +52,7 @@ pub fn select(s: &mut Session, ids: &[NodeId]) {
     exec(s, "select.set", json!({"ids": ids.iter().map(|i| i.0).collect::<Vec<_>>()}));
 }
 
-/// The three standard fixture states for sweeping commands.
+/// The standard fixture states for sweeping commands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fixture {
     /// A new document with nothing in it.
@@ -61,15 +61,24 @@ pub enum Fixture {
     Single,
     /// Several overlapping objects of different kinds (paths, live shapes, text, a group), three selected.
     Multi,
+    /// An infinite canvas (#1087) with no artboards: a rectangle near the origin and one 5,000,000 pt
+    /// away (past a standard canvas), both selected.
+    Infinite,
 }
 
 impl Fixture {
-    pub const ALL: [Fixture; 3] = [Fixture::Empty, Fixture::Single, Fixture::Multi];
+    pub const ALL: [Fixture; 4] = [Fixture::Empty, Fixture::Single, Fixture::Multi, Fixture::Infinite];
 
     pub fn session(self) -> Session {
         let mut s = session();
         match self {
             Fixture::Empty => {}
+            Fixture::Infinite => {
+                exec(&mut s, "file.new", json!({"canvas": "infinite"}));
+                let a = rect(&mut s, 50.0, 50.0, 100.0, 60.0);
+                let b = rect(&mut s, 5.0e6, -5.0e6, 100.0, 60.0);
+                select(&mut s, &[a, b]);
+            }
             Fixture::Single => {
                 rect(&mut s, 50.0, 50.0, 100.0, 60.0);
             }

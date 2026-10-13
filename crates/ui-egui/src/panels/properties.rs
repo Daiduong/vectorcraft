@@ -234,10 +234,14 @@ fn artboard_sections(app: &mut VectorcraftApp, ui: &mut Ui) {
     ui.add_space(4.0);
     let w = (ui.available_width() - 6.0) / 2.0;
     ui.horizontal(|ui| {
-        if widgets::flat_button(ui, tl!("New Artboard"), w).clicked() && app.run("artboard.new", json!({})).is_ok() {
+        if widgets::flat_button(ui, tl!("New Artboard"), w).clicked() && app.run("artboard.new", super::artboards::new_artboard_params(app)).is_ok() {
             super::artboards::select(app, n);
         }
-        if ui.add_enabled_ui(n > 1, |ui| widgets::flat_button(ui, tl!("Delete Artboard"), w)).inner.clicked() {
+        if ui
+            .add_enabled_ui(n > 1 || (n > 0 && super::artboards::may_delete_all(app)), |ui| widgets::flat_button(ui, tl!("Delete Artboard"), w))
+            .inner
+            .clicked()
+        {
             super::artboards::delete_selected(app);
         }
     });
@@ -270,10 +274,10 @@ fn artboard_size_row(app: &mut VectorcraftApp, ui: &mut Ui, i: usize, w: f64, h:
         let (pw, ph) = turned(s.width, s.height);
         (pw - w).abs() < 0.01 && (ph - h).abs() < 0.01
     };
-    // Recent holds documents made, not presets.
+    // Recent holds documents made, not presets; infinite canvases have no artboard size (#1087).
     let cats: Vec<(&str, Vec<newdoc::DocSettings>)> = newdoc::category_names()
         .filter(|c| !c.eq_ignore_ascii_case("Recent"))
-        .filter_map(|c| Some((c, newdoc::category(&app.session, c)?)))
+        .filter_map(|c| Some((c, newdoc::category(&app.session, c)?.into_iter().filter(|s| !s.canvas.is_infinite()).collect::<Vec<_>>())))
         .filter(|(_, l)| !l.is_empty())
         .collect();
     let current = cats.iter().flat_map(|(_, l)| l).find(|s| same(s)).map_or(tl!("Custom"), |s| crate::dialogs::preset_name(&s.name)).to_string();

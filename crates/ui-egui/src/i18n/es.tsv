@@ -4698,3 +4698,15 @@ mark-style	Japanese	Japonesas
 	Softness	Suavidad
 	Ambient Light	Luz ambiental
 	Light behind the object	Luz detrás del objeto
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	LIENZO INFINITO
+	Infinite Canvas	Lienzo infinito
+	Infinite Canvas (Print)	Lienzo infinito (impresión)
+	Canvas:	Lienzo:
+	Standard	Estándar
+	Infinite	Infinito
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Una hoja sin fin y sin mesas de trabajo. Añada mesas de trabajo más tarde para exportar o imprimir una parte.
+	No artboards	No hay mesas de trabajo
+	This infinite canvas has no artboards. Add one to export or print part of it.	Este lienzo infinito no tiene mesas de trabajo. Añada una para exportar o imprimir una parte.
+@msg	center must be a point within ±{limit} pt	el centro debe ser un punto dentro de ±{limit} pt

@@ -316,8 +316,9 @@ fn transform_each(s: &mut Session, p: &Value) -> Result<Value> {
     // Bounded so coordinates stay finite (and the document stays serializable).
     let sh = f64_or(p, "scaleH", 100.0).clamp(-100_000.0, 100_000.0);
     let sv = f64_or(p, "scaleV", 100.0).clamp(-100_000.0, 100_000.0);
-    let mh = f64_or(p, "moveH", 0.0).clamp(-1.0e7, 1.0e7);
-    let mv = f64_or(p, "moveV", 0.0).clamp(-1.0e7, 1.0e7);
+    let far = 2.0 * crate::MAX_COORD_HARD;
+    let mh = f64_or(p, "moveH", 0.0).clamp(-far, far);
+    let mv = f64_or(p, "moveV", 0.0).clamp(-far, far);
     let rot = f64_or(p, "rotate", 0.0);
     let rx = bool_or(p, "reflectX", false);
     let ry = bool_or(p, "reflectY", false);

@@ -53,6 +53,7 @@ pub mod state;
 pub mod sysclip;
 pub mod theme;
 pub mod thumb_worker;
+pub mod tiles;
 pub mod titlebar;
 pub mod toolbar;
 mod touch;
@@ -268,6 +269,8 @@ pub struct Services {
 
 /// Cached canvas raster.
 pub struct CanvasCache {
+    /// The tiles an infinite canvas draws its art from (#1087).
+    pub tiles: tiles::Tiles,
     pub renderer: vectorcraft_render::Renderer,
     pub texture: Option<egui::TextureHandle>,
     pub key: Option<CacheKey>,
@@ -466,6 +469,7 @@ impl VectorcraftApp {
             views,
             services,
             canvas: CanvasCache {
+                tiles: Default::default(),
                 renderer: vectorcraft_render::Renderer::new(),
                 texture: None,
                 key: None,
@@ -596,13 +600,10 @@ impl VectorcraftApp {
 
     /// The zero point shown by rulers and position fields; command coordinates stay absolute.
     pub(crate) fn ruler_origin(&self) -> vectorcraft_geom::Point {
-        let origin = self.session.active().map_or(vectorcraft_geom::Point::ZERO, |d| d.doc.ruler_origin);
+        let Some(st) = self.session.active() else { return vectorcraft_geom::Point::ZERO };
+        let (origin, limit) = (st.doc.ruler_origin, st.doc.coord_limit());
         // An untrusted file cannot make the ruler's tick loop or position fields overflow.
-        if origin.is_finite() && origin.x.abs() <= vectorcraft_engine::MAX_COORD && origin.y.abs() <= vectorcraft_engine::MAX_COORD {
-            origin
-        } else {
-            vectorcraft_geom::Point::ZERO
-        }
+        if origin.is_finite() && origin.x.abs() <= limit && origin.y.abs() <= limit { origin } else { vectorcraft_geom::Point::ZERO }
     }
     pub fn view_mut(&mut self) -> Option<&mut View> {
         self.sync_views();

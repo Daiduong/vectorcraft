@@ -4306,3 +4306,15 @@ lighting	Light	Світло
 	Softness	М'якість
 	Ambient Light	Навколишнє світло
 	Light behind the object	Світло позаду об'єкта
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	НЕСКІНЧЕННЕ ПОЛОТНО
+	Infinite Canvas	Нескінченне полотно
+	Infinite Canvas (Print)	Нескінченне полотно (друк)
+	Canvas:	Полотно:
+	Standard	Стандартне
+	Infinite	Нескінченне
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Нескінченний аркуш без монтажних областей. Додайте монтажні області пізніше, щоб експортувати або надрукувати його частину.
+	No artboards	Немає монтажних областей
+	This infinite canvas has no artboards. Add one to export or print part of it.	Це нескінченне полотно не має монтажних областей. Додайте одну, щоб експортувати або надрукувати його частину.
+@msg	center must be a point within ±{limit} pt	центр має бути точкою в межах ±{limit} pt

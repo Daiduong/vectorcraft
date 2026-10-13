@@ -204,7 +204,7 @@ fn ids_json(ids: &[NodeId]) -> Value {
 }
 
 fn finite(p: Point) -> bool {
-    p.x.is_finite() && p.y.is_finite() && p.x.abs() <= crate::MAX_COORD && p.y.abs() <= crate::MAX_COORD
+    p.x.is_finite() && p.y.is_finite() && p.x.abs() <= crate::coord_limit() && p.y.abs() <= crate::coord_limit()
 }
 
 fn fill_only(paint: Paint) -> Appearance {

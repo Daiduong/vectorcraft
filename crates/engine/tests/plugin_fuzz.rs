@@ -73,6 +73,9 @@ fn arb_num() -> impl Strategy<Value = Value> {
         1 => Just(json!(-1e308)),
         1 => Just(json!(4.0e6)),
         1 => Just(json!(4.000001e6)),
+        // The edge of an infinite canvas (#1087).
+        1 => Just(json!(1.0e9)),
+        1 => Just(json!(1.000001e9)),
         1 => Just(json!(1e-308)),
         1 => Just(json!(u64::MAX)),
         1 => Just(json!(i64::MIN)),

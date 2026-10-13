@@ -4290,3 +4290,15 @@ lighting	Light	광원
 	Softness	부드러움
 	Ambient Light	주변광
 	Light behind the object	개체 뒤의 조명
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	무한 캔버스
+	Infinite Canvas	무한 캔버스
+	Infinite Canvas (Print)	무한 캔버스(인쇄)
+	Canvas:	캔버스:
+	Standard	표준
+	Infinite	무한
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	대지가 없는 끝없는 시트입니다. 일부를 내보내거나 인쇄하려면 나중에 대지를 추가하세요.
+	No artboards	대지 없음
+	This infinite canvas has no artboards. Add one to export or print part of it.	이 무한 캔버스에는 대지가 없습니다. 일부를 내보내거나 인쇄하려면 대지를 추가하세요.
+@msg	center must be a point within ±{limit} pt	중심은 ±{limit} pt 이내의 점이어야 합니다

@@ -64,11 +64,13 @@ pub(crate) fn picked(app: &VectorcraftApp, n: usize) -> Vec<usize> {
 pub(crate) fn delete_selected(app: &mut VectorcraftApp) {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     let mut all = picked(app, n);
-    if n > 1 && all.len() == n {
+    // An infinite canvas (#1087) may delete them all; a standard one keeps one.
+    let infinite = may_delete_all(app);
+    if n > 1 && all.len() == n && !infinite {
         // Deleting all artboards keeps artboard 1 (the public Delete artboards guide).
         all.retain(|i| *i != 0);
     }
-    if n > all.len() && app.run("artboard.delete", json!({ "indices": all })).is_ok() {
+    if !all.is_empty() && (n > all.len() || infinite) && app.run("artboard.delete", json!({ "indices": all })).is_ok() {
         select(app, all.first().copied().unwrap_or(0).saturating_sub(1));
     }
 }
@@ -117,11 +119,44 @@ fn duplicate(app: &mut VectorcraftApp, i: usize) {
     }
 }
 
+/// `artboard.new` params: a first artboard goes at the centre of the view (an infinite canvas has
+/// none, #1087); later ones right of the last, as the engine places them.
+pub(crate) fn new_artboard_params(app: &VectorcraftApp) -> serde_json::Value {
+    let none = app.session.active().is_some_and(|d| d.doc.artboards.is_empty());
+    match app.view().filter(|_| none) {
+        Some(v) => json!({"x": v.center.x - 306.0, "y": v.center.y - 396.0, "width": 612.0, "height": 792.0}),
+        None => json!({}),
+    }
+}
+
+/// Can the last artboard go? An infinite canvas may do without artboards (#1087).
+pub(crate) fn may_delete_all(app: &VectorcraftApp) -> bool {
+    app.session.active().is_some_and(|d| d.doc.canvas.is_infinite())
+}
+
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let abs: Vec<String> = app.session.active().map(|d| d.doc.artboards.iter().map(|a| a.name.clone()).collect()).unwrap_or_default();
-    if abs.is_empty() {
+    if app.session.active().is_none() {
         super::empty_state(ui, "dc-artboards", tl!("No document"), tl!("Open a document to see its artboards."));
+        return;
+    }
+    if abs.is_empty() {
+        super::empty_state(
+            ui,
+            "dc-artboards",
+            tl!("No artboards"),
+            tl!("This infinite canvas has no artboards. Add one to export or print part of it."),
+        );
+        widgets::bottom_bar(ui, |ui| {
+            ui.add_space((ui.available_width() - 28.0).max(0.0));
+            if widgets::icon_button(ui, "dc-new-item", tl!("New Artboard"), false, 24.0).clicked() {
+                let p = new_artboard_params(app);
+                if app.run("artboard.new", p).is_ok() {
+                    select(app, 0);
+                }
+            }
+        });
         return;
     }
     let sel = selected(app, abs.len());
@@ -213,10 +248,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         if let Some(row) = new.dnd_release_payload::<RowDrag>() {
             duplicate(app, row.0);
-        } else if new.clicked() && app.run("artboard.new", json!({})).is_ok() {
+        } else if new.clicked() && app.run("artboard.new", new_artboard_params(app)).is_ok() {
             select(app, n);
         }
-        if widgets::icon_button_enabled(ui, "trash-2", tl!("Delete Artboard"), false, n > 1, 24.0).clicked() {
+        if widgets::icon_button_enabled(ui, "trash-2", tl!("Delete Artboard"), false, n > 1 || (n > 0 && may_delete_all(app)), 24.0).clicked() {
             delete_selected(app);
         }
     });
@@ -230,13 +265,14 @@ pub(crate) fn open_rearrange(app: &mut VectorcraftApp) {
 pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let n = app.session.active().map(|d| d.doc.artboards.len()).unwrap_or(0);
     let sel = selected(app, n);
-    if menu_item(ui, tl!("New Artboard"), n > 0, false) {
-        app.run("artboard.new", json!({})).ok();
+    if menu_item(ui, tl!("New Artboard"), app.session.active().is_some(), false) {
+        let p = new_artboard_params(app);
+        app.run("artboard.new", p).ok();
     }
     if menu_item(ui, tl!("Duplicate Artboards"), n > 0, false) {
         duplicate(app, sel);
     }
-    if menu_item(ui, tl!("Delete Artboards"), n > 1, false) {
+    if menu_item(ui, tl!("Delete Artboards"), n > 1 || (n > 0 && may_delete_all(app)), false) {
         delete_selected(app);
     }
     if menu_item(ui, tl!("Rename"), n > 0, false) {

@@ -3692,3 +3692,14 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	環境光
 	Light behind the object	光源位於物件後方
+# Infinite canvas (#1087).
+	INFINITE CANVAS	無限畫布
+	Infinite Canvas	無限畫布
+	Infinite Canvas (Print)	無限畫布（印刷）
+	Canvas:	畫布：
+	Standard	標準
+	Infinite	無限
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	沒有工作區域的無盡畫紙。之後加入工作區域即可轉存或列印其中一部分。
+	No artboards	無工作區域
+	This infinite canvas has no artboards. Add one to export or print part of it.	此無限畫布沒有工作區域。加入一個工作區域即可轉存或列印其中一部分。
+@msg	center must be a point within ±{limit} pt	中心必須是 ±{limit} pt 範圍內的點

@@ -4322,3 +4322,15 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+
+# Infinite canvas (#1087).
+	INFINITE CANVAS	БЕСКОНЕЧНЫЙ ХОЛСТ
+	Infinite Canvas	Бесконечный холст
+	Infinite Canvas (Print)	Бесконечный холст (печать)
+	Canvas:	Холст:
+	Standard	Стандартный
+	Infinite	Бесконечный
+	An endless sheet with no artboards. Add artboards later to export or print part of it.	Бесконечный лист без монтажных областей. Добавьте монтажные области позже, чтобы экспортировать или напечатать его часть.
+	No artboards	Нет монтажных областей
+	This infinite canvas has no artboards. Add one to export or print part of it.	У этого бесконечного холста нет монтажных областей. Добавьте одну, чтобы экспортировать или напечатать его часть.
+@msg	center must be a point within ±{limit} pt	центр должен быть точкой в пределах ±{limit} pt

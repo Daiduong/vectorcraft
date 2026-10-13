@@ -251,7 +251,8 @@ pub(crate) fn grid_preset(s: &mut Session, p: &Value) -> Result<Value> {
         _ => return Err(bad(C, "kind must be 1, 2 or 3, or give a preset `name` (see perspective.presets.list)")),
     };
     let old = grid_of(&s.doc()?.doc);
-    let ab = s.doc()?.doc.artboards.first().map(|a| a.rect).ok_or_else(|| EngineError::Other("no artboard".into()))?;
+    // The first artboard's frame; with none (an infinite canvas, #1087), a Letter page at the origin.
+    let ab = s.doc()?.doc.artboards.first().map_or(vectorcraft_geom::Rect::new(0.0, 0.0, 612.0, 792.0), |a| a.rect);
     let g = s.perspective_preset_grid(&name, ab).ok_or_else(|| bad(C, format!("no perspective grid preset named `{name}`")))?;
     // The objects stay attached and the view options stay as they were.
     let g = PerspectiveGrid { attached: old.attached, locked: old.locked, lock_station: old.lock_station, snap: old.snap, rulers: old.rulers, ..g };

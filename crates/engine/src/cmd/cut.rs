@@ -50,7 +50,7 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 /// Largest coordinate the cut commands accept (keeps the half-plane polygons finite).
-const MAX_COORD: f64 = 1e7;
+const MAX_COORD: f64 = 2.5 * crate::MAX_COORD_HARD;
 /// How close an open path's end must be to the axis to be joined to its reflection.
 const AXIS_TOL: f64 = 1e-3;
 

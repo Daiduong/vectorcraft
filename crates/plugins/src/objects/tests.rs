@@ -134,7 +134,7 @@ fn changed_paints_lose_swatch_links_and_patterns_must_exist() {
 fn bad_outputs_are_refused() {
     let (d, ids, _) = doc();
     let a = ids[0].0;
-    let far = PathData::single(SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(1e9, 0.0)], false));
+    let far = PathData::single(SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(2e9, 0.0)], false));
     for bad in [
         json!([]),
         json!({"objects": 3}),
