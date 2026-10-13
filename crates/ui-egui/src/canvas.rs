@@ -2004,8 +2004,10 @@ fn recent(app: &mut VectorcraftApp, ui: &mut Ui) {
         let folder = p.parent().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
         ui.horizontal(|ui| {
             crate::icons::icon(ui, "history", 16.0, t.icon);
-            let r = ui.add(egui::Button::new(egui::RichText::new(&name).color(t.accent).size(13.0)).frame(false)).on_hover_text(&path);
-            ui.add(egui::Label::new(egui::RichText::new(&folder).size(12.0).color(t.text_dim)).truncate());
+            let r = ui
+                .add(egui::Button::new(egui::RichText::new(crate::bidi::visual(&name).as_ref()).color(t.accent).size(13.0)).frame(false))
+                .on_hover_text(&path);
+            ui.add(egui::Label::new(egui::RichText::new(crate::bidi::visual(&folder).as_ref()).size(12.0).color(t.text_dim)).truncate());
             if r.clicked() {
                 // A failure is reported to the user there.
                 let _ = crate::io::open_reporting(app, &path);

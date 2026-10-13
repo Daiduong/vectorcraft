@@ -1,0 +1,452 @@
+# Arabic (ar) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
+#
+# Clean-room: written from the meaning of VectorCraft's English labels in Modern Standard Arabic,
+# using the feature names Arabic-speaking users of vector illustration software know (لوحة رسم,
+# عينات ألوان, حد, تعبئة, مسار, نقطة ارتساء, أداة تحديد مباشر, Pathfinder, نقشة, مسبقة, طبقة, تدرج,
+# عتامة, قناع قص). No other application's Arabic localisation resource, string table or product UI
+# was consulted or copied; add entries the same way.
+#
+# Conventions: menu commands are written as verbal nouns or imperatives as Arabic UI style dictates
+# (فتح, حفظ, إظهار); key names stay as the menus show shortcuts (Shift, Ctrl, Alt, Esc); product and
+# technology names stay in Latin script (VectorCraft, Pathfinder, PDF, RGB, CMYK, CSS, SVG, OpenType).
+# Digits are Western (0-9). Catalog rows are stored in logical (typing) order; the labels are put in
+# display order when the catalog loads (`LangInfo::rtl`), so nothing here is pre-reversed.
+#
+# Coverage: the menus and the most-used panel and dialog strings so far — a growing catalog
+# (`complete_menus` is off). Every `ar-*` locale (`ar-SA`, `ar-EG`, `ar-001` …) resolves here.
+	1 Color Job…	مهمة لون واحد…
+	2 Color Job…	مهمة لونين…
+	3 Color Job…	مهمة ثلاثة ألوان…
+	About VectorCraft	حول VectorCraft
+	Actions	إجراءات
+	Actual Size	الحجم الفعلي
+	Add Anchor Points	إضافة نقاط ارتساء
+	Adjust Color Balance…	ضبط توازن الألوان…
+	Advanced	متقدم
+	Align	محاذاة
+	All	الكل
+	All Artwork Above	كل العمل الفني أعلاه
+	All Text Objects	كل كائنات النص
+	All on Active Artboard	الكل على لوحة الرسم النشطة
+	All on Same Layers	الكل على الطبقات نفسها
+	Appearance	المظهر
+	Appearance Attribute	سمة المظهر
+	Apply Last Effect	تطبيق آخر تأثير
+	Area Text Objects	كائنات النص المساحي
+	Area Type Options…	خيارات النص المساحي…
+	Arrange	ترتيب
+	ArtCraft Website	موقع ArtCraft
+	Artboards	لوحات الرسم
+	As Multiple Assets	كأصول متعددة
+	As Single Asset	كأصل واحد
+	Asset Export	تصدير الأصول
+	Assign Profile…	تعيين ملف تعريف…
+	Attach to Active Plane	إرفاق بالمستوى النشط
+	Attributes	سمات
+	Average…	حساب المتوسط…
+	Blend	مزج
+	Blend Front to Back	مزج من الأمام إلى الخلف
+	Blend Horizontally	مزج أفقيًا
+	Blend Options…	خيارات المزج…
+	Blend Vertically	مزج عموديًا
+	Blending Mode	نمط المزج
+	Bold	غامق
+	Bring All to Front	إحضار الكل إلى المقدمة
+	Bring Forward	تقديم خطوة إلى الأمام
+	Bring to Front	إحضار إلى المقدمة
+	Bristle Brush Strokes	ضربات فرشاة الشعر
+	Brush Libraries	مكتبات الفرش
+	Brush Strokes	ضربات الفرشاة
+	Brushes	الفرش
+	CMYK Color	لون CMYK
+	CSS Properties	خصائص CSS
+	Change Case	تغيير حالة الأحرف
+	Change to Global Rulers	التغيير إلى مساطر عامة
+	Character	حرف
+	Character Styles	أنماط الحروف
+	Check Script…	فحص البرنامج النصي…
+	Check Spelling…	تدقيق إملائي…
+	Clean Up…	تنظيف…
+	Clear	مسح
+	Clear Guides	مسح الأدلة
+	Clear Recent Files	مسح الملفات المفتوحة مؤخرًا
+	Clip to Artboard	قص إلى لوحة الرسم
+	Clipping Mask	قناع قص
+	Clipping Masks	أقنعة قص
+	Close	إغلاق
+	Close All	إغلاق الكل
+	Collect for Export	تجميع للتصدير
+	Color	لون
+	Color Guide	دليل الألوان
+	Color Library…	مكتبة ألوان…
+	Color Settings…	إعدادات الألوان…
+	Color Themes	سمات الألوان
+	Color blindness – Deuteranopia-type	عمى الألوان – من النوع الديوتيرانوبي
+	Color blindness – Protanopia-type	عمى الألوان – من النوع البروتانوبي
+	Combine Slices	دمج الشرائح
+	Compound Path	مسار مركب
+	Contextual Task Bar	شريط المهام السياقي
+	Control	لوحة التحكم
+	Convert To Area Type	التحويل إلى نص مساحي
+	Convert To Point Type	التحويل إلى نص نقطي
+	Convert to Artboards	التحويل إلى لوحات رسم
+	Convert to CMYK	التحويل إلى CMYK
+	Convert to Grayscale	التحويل إلى تدرج الرمادي
+	Convert to RGB	التحويل إلى RGB
+	Convert to Shape	التحويل إلى شكل
+	Copy	نسخ
+	Create	إنشاء
+	Create Gradient Mesh…	إنشاء شبكة تدرج…
+	Create Object Mosaic…	إنشاء فسيفساء كائنات…
+	Create Outlines	تحويل إلى مخططات
+	Create Trim Marks	إنشاء علامات قص
+	Create from Guides	إنشاء من الأدلة
+	Create from Selection	إنشاء من التحديد
+	Crop Image	اقتصاص الصورة
+	Customize…	تخصيص…
+	Cut	قص
+	Cut Path at Selected Anchor Points	قطع المسار عند نقاط الارتساء المحددة
+	Data…	بيانات…
+	Define Grid…	تعريف الشبكة…
+	Delete All	حذف الكل
+	Deselect	إلغاء التحديد
+	Design…	تصميم…
+	Direction Handles	مقابض الاتجاه
+	Divide Objects Below	تقسيم الكائنات الأدنى
+	Divide Slices…	تقسيم الشرائح…
+	Document Color Mode	نمط ألوان المستند
+	Document Info	معلومات المستند
+	Document Raster Effects Settings…	إعدادات تأثيرات البكسل للمستند…
+	Document Setup…	إعداد المستند…
+	Double Column	عمودان
+	Duplicate Slice	تكرار الشريحة
+	Edit Clipping Path	تحرير مسار القص
+	Edit Colors	تحرير الألوان
+	Edit Contents	تحرير المحتوى
+	Edit Envelope	تحرير الغلاف
+	Edit Original	تحرير الأصل
+	Edit Pattern	تحرير النقشة
+	Edit Selection…	تحرير التحديد…
+	Edit Text	تحرير النص
+	Edit Views…	تحرير المشاهد…
+	Envelope Distort	تشويه الغلاف
+	Envelope Options…	خيارات الغلاف…
+	Exit	خروج
+	Exit Isolation Mode	إنهاء نمط العزل
+	Expand	توسيع
+	Expand Appearance	توسيع المظهر
+	Expand Shape	توسيع الشكل
+	Expand…	توسيع…
+	Export	تصدير
+	Export As PNG…	تصدير بتنسيق PNG…
+	Export As SVG…	تصدير بتنسيق SVG…
+	Export As…	تصدير بتنسيق…
+	Export Selection…	تصدير التحديد…
+	Export for Screens…	تصدير للشاشات…
+	File Info…	معلومات الملف…
+	Fill & Stroke	التعبئة والحد
+	Fill Color	لون التعبئة
+	Fill with Placeholder Text	التعبئة بنص نائب
+	Find Font…	البحث عن خط…
+	Find Next	البحث عن التالي
+	Find and Replace…	بحث واستبدال…
+	Fit All in Window	ملاءمة الكل في النافذة
+	Fit Artboard in Window	ملاءمة لوحة الرسم في النافذة
+	Fit Headline	ملاءمة العنوان
+	Fit to Artwork Bounds	ملاءمة حدود العمل الفني
+	Fit to Selected Art	ملاءمة العمل الفني المحدد
+	Flatten Transparency…	تسطيح الشفافية…
+	Flattener Preview	معاينة التسطيح
+	Font	الخط
+	Font Family	عائلة الخط
+	Font Family & Style	عائلة الخط ونمطه
+	Font Family, Style & Size	عائلة الخط ونمطه وحجمه
+	Font Size	حجم الخط
+	Full Screen Mode	نمط ملء الشاشة
+	Full Screen Mode with Menu Bar	نمط ملء الشاشة مع شريط القوائم
+	Glyphs	الحروف الرسومية
+	Gradient	تدرج
+	Graph	رسم بياني
+	Graphic Style	نمط رسومي
+	Graphic Style Libraries	مكتبات الأنماط الرسومية
+	Graphic Styles	الأنماط الرسومية
+	Grid	شبكة
+	Group	تجميع
+	Guides	أدلة
+	Hide	إخفاء
+	Hide Artboards	إخفاء لوحات الرسم
+	Hide Bounding Box	إخفاء مربع الإحاطة
+	Hide Corner Widget	إخفاء أداة الزوايا
+	Hide Edges	إخفاء الحواف
+	Hide Gradient Annotator	إخفاء محرر التدرج
+	Hide Grid	إخفاء الشبكة
+	Hide Guides	إخفاء الأدلة
+	Hide Hidden Characters	إخفاء الأحرف المخفية
+	Hide Others	إخفاء الأخرى
+	Hide Print Tiling	إخفاء تقسيم الطباعة
+	Hide Rulers	إخفاء المساطر
+	Hide Slices	إخفاء الشرائح
+	Hide Text Threads	إخفاء تسلسلات النص
+	Hide Transparency Grid	إخفاء شبكة الشفافية
+	Hide VectorCraft	إخفاء VectorCraft
+	History	المحفوظات
+	Horizontal	أفقي
+	Horizontal & Vertical Align Center	محاذاة أفقية وعمودية إلى المنتصف
+	Horizontal Align Center	محاذاة أفقية إلى المنتصف
+	Horizontal Align Left	محاذاة أفقية إلى اليسار
+	Horizontal Align Right	محاذاة أفقية إلى اليمين
+	Image Trace	تتبع الصورة
+	Info	معلومات
+	Insert Break Character	إدراج حرف فاصل
+	Insert Inline Symbol	إدراج رمز مضمّن
+	Insert Special Character	إدراج حرف خاص
+	Insert Whitespace Character	إدراج حرف مسافة
+	Internet Standard RGB (sRGB)	RGB القياسي للإنترنت (sRGB)
+	Inverse	عكس التحديد
+	Invert Colors	عكس الألوان
+	Isolate Selected Group	عزل المجموعة المحددة
+	Italic	مائل
+	Join	دمج
+	Join Our Discord	انضم إلى Discord الخاص بنا
+	Keyboard Shortcuts…	اختصارات لوحة المفاتيح…
+	Last Effect…	آخر تأثير…
+	Layers	الطبقات
+	Legacy Macintosh RGB (Gamma 1.8)	RGB القديم لـ Macintosh (غاما 1.8)
+	Libraries	المكتبات
+	Links	الروابط
+	Live Paint	طلاء تفاعلي
+	Lock	قفل
+	Lock Grid	قفل الشبكة
+	Lock Guides	قفل الأدلة
+	Lock Slices	قفل الشرائح
+	Lock Station Point	قفل نقطة الوقوف
+	Magic Wand	العصا السحرية
+	Make	إنشاء
+	Make Clipping Mask	إنشاء قناع قص
+	Make Compound Path	إنشاء مسار مركب
+	Make Guides	إنشاء أدلة
+	Make Pixel Perfect	جعله بدقة بكسل
+	Make and Expand	إنشاء وتوسيع
+	Make with Mesh…	إنشاء بشبكة…
+	Make with Top Object	إنشاء بالكائن العلوي
+	Make with Warp…	إنشاء بتشويه…
+	Marker…	علامة…
+	Merge	دمج
+	Minimize	تصغير
+	Mirror	عكس
+	Monitor RGB	RGB الشاشة
+	Move Plane to Match Object	نقل المستوى لمطابقة الكائن
+	Move…	نقل…
+	Navigator	المستكشف
+	New View…	مشهد جديد…
+	New Window	نافذة جديدة
+	New from Template…	جديد من قالب…
+	New…	جديد…
+	Next Object Above	الكائن التالي أعلاه
+	Next Object Below	الكائن التالي أدناه
+	Normal Screen Mode	نمط الشاشة العادي
+	Object	كائن
+	Offset Path…	إزاحة المسار…
+	One Point Perspective	منظور بنقطة واحدة
+	Opacity	العتامة
+	Open Paths	المسارات المفتوحة
+	Open Recent Files	الملفات المفتوحة مؤخرًا
+	Open…	فتح…
+	Options…	خيارات…
+	Other Layers	طبقات أخرى
+	Other Script…	برنامج نصي آخر…
+	Outline	عرض المخطط
+	Outline Stroke	حد المخطط
+	Overprint Black…	طبع فائض للأسود…
+	Overprint Preview	معاينة الطبع الفائض
+	PDF Presets…	مسبقات PDF…
+	Package…	حزمة…
+	Paragraph	فقرة
+	Paragraph Styles	أنماط الفقرات
+	Paste	لصق
+	Paste in Back	لصق في الخلف
+	Paste in Front	لصق في الأمام
+	Paste in Place	لصق في المكان نفسه
+	Paste on All Artboards	لصق على كل لوحات الرسم
+	Paste without Formatting	لصق دون تنسيق
+	Path	مسار
+	Pathfinder	Pathfinder
+	Pattern	نقشة
+	Pattern Options	خيارات النقشة
+	Perspective	المنظور
+	Perspective Grid	شبكة المنظور
+	Perspective Grid Presets…	مسبقات شبكة المنظور…
+	Pixel Preview	معاينة البكسل
+	Place…	وضع…
+	Plug-ins	الوظائف الإضافية
+	Point Text Objects	كائنات النص النقطي
+	Preferences…	التفضيلات…
+	Presentation Mode	نمط العرض التقديمي
+	Preview	معاينة
+	Print Presets…	مسبقات الطباعة…
+	Print…	طباعة…
+	Proof Colors	إثبات الألوان
+	Proof Setup	إعداد الإثبات
+	Properties	الخصائص
+	RGB Color	لون RGB
+	Radial	شعاعي
+	Rasterize…	تحويل إلى بكسل…
+	Rearrange All Artboards…	إعادة ترتيب كل لوحات الرسم…
+	Recent Fonts	خطوط مستخدمة مؤخرًا
+	Recolor Artwork…	إعادة تلوين العمل الفني…
+	Recolor with Preset	إعادة التلوين بمسبقة
+	Redo	إعادة
+	Reflect…	انعكاس…
+	Release	إرجاع
+	Release Clipping Mask	إرجاع قناع القص
+	Release Compound Path	إرجاع المسار المركب
+	Release Guides	إرجاع الأدلة
+	Release Selection	إرجاع التحديد
+	Release with Perspective	إرجاع بالمنظور
+	Remove Anchor Points	إزالة نقاط الارتساء
+	Remove Threading	إزالة التسلسل
+	Repeat	تكرار
+	Replace Spine	استبدال العمود
+	Reselect	إعادة التحديد
+	Reset Bounding Box	إعادة تعيين مربع الإحاطة
+	Reset Rotate View	إعادة تعيين تدوير المشهد
+	Reset with Mesh…	إعادة التعيين بشبكة…
+	Reset with Warp…	إعادة التعيين بتشويه…
+	Reverse Front to Back	عكس من الأمام إلى الخلف
+	Reverse Path Direction	عكس اتجاه المسار
+	Reverse Spine	عكس العمود
+	Revert	العودة إلى آخر إصدار
+	Rotate…	تدوير…
+	Rulers	المساطر
+	Same	نفس
+	Saturate…	تشبيع…
+	Save	حفظ
+	Save As…	حفظ باسم…
+	Save Grid as Preset…	حفظ الشبكة كمسبقة…
+	Save Selection…	حفظ التحديد…
+	Save a Copy…	حفظ نسخة…
+	Save as PDF…	حفظ بتنسيق PDF…
+	Save as Template…	حفظ كقالب…
+	Save for Office Documents…	حفظ لمستندات Office…
+	Save for Web (Legacy)…	حفظ للويب (قديم)…
+	Saved View 1	مشهد محفوظ 1
+	Saved View 10	مشهد محفوظ 10
+	Saved View 2	مشهد محفوظ 2
+	Saved View 3	مشهد محفوظ 3
+	Saved View 4	مشهد محفوظ 4
+	Saved View 5	مشهد محفوظ 5
+	Saved View 6	مشهد محفوظ 6
+	Saved View 7	مشهد محفوظ 7
+	Saved View 8	مشهد محفوظ 8
+	Saved View 9	مشهد محفوظ 9
+	Scale…	تغيير الحجم…
+	Screen Mode	نمط الشاشة
+	Scripts	البرامج النصية
+	Search Commands…	البحث في الأوامر…
+	Select	تحديد
+	Select All	تحديد الكل
+	Selection	التحديد
+	Send Backward	إرجاع خطوة إلى الخلف
+	Send to Back	إرسال إلى الخلف
+	Send to Current Layer	إرسال إلى الطبقة الحالية
+	Sentence case	كتابة أول الحرف كبيرًا
+	Separations Preview	معاينة الفصل اللوني
+	Services	الخدمات
+	Settings	الإعدادات
+	Shape	شكل
+	Shear…	قص مائل…
+	Show All	إظهار الكل
+	Show Artboards	إظهار لوحات الرسم
+	Show Bounding Box	إظهار مربع الإحاطة
+	Show Corner Widget	إظهار أداة الزوايا
+	Show Edges	إظهار الحواف
+	Show Gradient Annotator	إظهار محرر التدرج
+	Show Grid	إظهار الشبكة
+	Show Guides	إظهار الأدلة
+	Show Hidden Characters	إظهار الأحرف المخفية
+	Show Print Tiling	إظهار تقسيم الطباعة
+	Show Rulers	إظهار المساطر
+	Show Slices	إظهار الشرائح
+	Show Text Threads	إظهار تسلسلات النص
+	Show Transparency Grid	إظهار شبكة الشفافية
+	Show in Folder	إظهار في المجلد
+	Simplify…	تبسيط…
+	Size	الحجم
+	Slice	شريحة
+	Slice Options…	خيارات الشريحة…
+	Slices	الشرائح
+	Smart Guides	الأدلة الذكية
+	Smart Punctuation…	علامات الترقيم الذكية…
+	Snap to Grid	محاذاة إلى الشبكة
+	Snap to Pixel	محاذاة إلى البكسل
+	Snap to Point	محاذاة إلى النقطة
+	Spelling	التدقيق الإملائي
+	Split Into Grid…	التقسيم إلى شبكة…
+	Stray Points	نقاط الارتساء الشاردة
+	Stroke	الحد
+	Stroke Color	لون الحد
+	Stroke Weight	سماكة الحد
+	Swatch Libraries	مكتبات عينات الألوان
+	Swatches	عينات الألوان
+	Symbol Instance	مثيل رمز
+	Symbol Libraries	مكتبات الرموز
+	Symbols	الرموز
+	Tabs	علامات الجدولة
+	Text Fill Color	لون تعبئة النص
+	Text Stroke Color	لون حد النص
+	Text Wrap	التفاف النص
+	Text Wrap Options…	خيارات التفاف النص…
+	Threaded Text	نص متسلسل
+	Three Point Perspective	منظور بثلاث نقاط
+	Tile Edge Color…	لون حافة التجانب…
+	Title Case	كتابة أوائل الكلمات كبيرة
+	Toolbars	أشرطة الأدوات
+	Tools	الأدوات
+	Transform	تحويل
+	Transform Again	إعادة التحويل
+	Transform Each…	تحويل كل عنصر…
+	Transparency	الشفافية
+	Transparency Flattener Presets…	مسبقات تسطيح الشفافية…
+	Trim View	عرض القص
+	Two Point Perspective	منظور بنقطتين
+	Type	نص
+	Type Orientation	اتجاه النص
+	Type on a Path	نص على مسار
+	Type on a Path Options…	خيارات النص على مسار…
+	Type…	نص…
+	UPPERCASE	أحرف كبيرة
+	Undo	تراجع
+	Ungroup	إلغاء التجميع
+	Unlock All	إلغاء قفل الكل
+	Unlock Grid	إلغاء قفل الشبكة
+	Unlock Guides	إلغاء قفل الأدلة
+	Variables	المتغيرات
+	Vector Halftone…	نصف تون متجهي…
+	VectorCraft Help…	تعليمات VectorCraft…
+	VectorCraft on GitHub	VectorCraft على GitHub
+	VectorCraft on getartcraft.com	VectorCraft على getartcraft.com
+	Vertical	عمودي
+	Vertical Align Bottom	محاذاة عمودية إلى الأسفل
+	Vertical Align Center	محاذاة عمودية إلى المنتصف
+	Vertical Align Top	محاذاة عمودية إلى الأعلى
+	Working CMYK	حيز عمل CMYK
+	Workspace	مساحة العمل
+	Zoom	تكبير/تصغير
+	Zoom In	تكبير
+	Zoom Out	تصغير
+	lowercase	أحرف صغيرة
+# Plural messages: six Arabic forms per row — zero|one|two|few|many|other (CLDR `ar`).
+@plural	{n} item|{n} items	{n} عنصر|{n} عنصر|{n} عنصران|{n} عناصر|{n} عنصرًا|{n} عنصر
+@plural	Color Table ({n} color)|Color Table ({n} colors)	جدول ألوان ({n} لون)|جدول ألوان ({n} لون)|جدول ألوان ({n} لونان)|جدول ألوان ({n} ألوان)|جدول ألوان ({n} لونًا)|جدول ألوان ({n} لون)
+@plural	Delete this {n} graphic style?|Delete these {n} graphic styles?	حذف {n} نمط رسومي؟|حذف {n} نمط رسومي؟|حذف {n} نمطين رسوميين؟|حذف {n} أنماط رسومية؟|حذف {n} نمطًا رسوميًا؟|حذف {n} نمط رسومي؟
+@plural	{n} Layer|{n} Layers	{n} طبقة|{n} طبقة|{n} طبقتان|{n} طبقات|{n} طبقة|{n} طبقة
+@plural	{n} Object|{n} Objects	{n} كائن|{n} كائن|{n} كائنان|{n} كائنات|{n} كائنًا|{n} كائن
+@plural	{n} area highlighted|{n} areas highlighted	تم تمييز {n} منطقة|تم تمييز منطقة واحدة ({n})|تم تمييز منطقتين ({n})|تم تمييز {n} مناطق|تم تمييز {n} منطقة|تم تمييز {n} منطقة
+@plural	{n} color|{n} colors	{n} لون|{n} لون|{n} لونان|{n} ألوان|{n} لونًا|{n} لون
+@plural	{n} fill|{n} fills	{n} تعبئة|{n} تعبئة|{n} تعبئتان|{n} تعبئات|{n} تعبئة|{n} تعبئة
+@plural	{n} glyph|{n} glyphs	{n} حرف رسومي|{n} حرف رسومي|{n} حرفان رسوميان|{n} أحرف رسومية|{n} حرفًا رسوميًا|{n} حرف رسومي
+@plural	{n} object highlighted|{n} objects highlighted	تم تمييز {n} كائن|تم تمييز كائن واحد ({n})|تم تمييز كائنان ({n})|تم تمييز {n} كائنات|تم تمييز {n} كائنًا|تم تمييز {n} كائن
+@plural	{n} star|{n} stars	{n} نجمة|{n} نجمة|{n} نجمتان|{n} نجوم|{n} نجمة|{n} نجمة
+@plural	{n} step|{n} steps	{n} خطوة|{n} خطوة|{n} خطوتان|{n} خطوات|{n} خطوة|{n} خطوة
+@plural	{n} stroke|{n} strokes	{n} حد|{n} حد|{n} حدان|{n} حدود|{n} حدًا|{n} حد

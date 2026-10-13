@@ -14,6 +14,7 @@ macro_rules! tl {
 }
 
 pub mod background;
+mod bidi;
 mod brand;
 pub mod canvas;
 pub mod chrome;

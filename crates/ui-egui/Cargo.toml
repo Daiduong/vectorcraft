@@ -32,6 +32,8 @@ image = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
+# Right-to-left names and labels in the chrome (egui shapes but does not reorder).
+unicode-bidi = "0.3"
 
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
