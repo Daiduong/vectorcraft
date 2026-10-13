@@ -24,6 +24,7 @@ mod css;
 mod files;
 mod fx;
 mod spread;
+mod symbol_units;
 mod text;
 mod vector_effect;
 
@@ -464,6 +465,8 @@ impl Edits {
 /// * undisplayed objects (`display: none`, as Save writes hidden layers) are shown and recorded,
 ///   to come back hidden; one something links to (a `<use>` template) stays as it is;
 /// * shapes with a non-scaling stroke get an id when they have none, recorded ([`vector_effect`]);
+/// * percentage lengths in a `<symbol>` with a `viewBox` become numbers in its units
+///   ([`symbol_units`]);
 /// * linked files are read ([`files`]).
 fn prepass<'s>(svg: &'s str, opts: &ImportOptions) -> (Cow<'s, str>, Found) {
     let mut found = Found::default();
@@ -505,6 +508,9 @@ fn prepass<'s>(svg: &'s str, opts: &ImportOptions) -> (Cow<'s, str>, Found) {
         if non_scaling {
             vector_effect::find(svg, &xml, &css, &mut edits, &mut found.non_scaling, &mut found.warnings);
         }
+    }
+    if svg.contains("symbol") && svg.contains('%') {
+        symbol_units::resolve(svg, &xml, &mut edits);
     }
     found.files = files::Files::read(svg, &xml, opts, &mut edits, &mut found.warnings);
     (edits.apply(svg), found)

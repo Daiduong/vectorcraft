@@ -132,3 +132,69 @@ fn absolute_lengths_in_a_pixel_document_keep_their_size() {
     assert!(close_rect(n.geometric_bounds().unwrap(), Rect::new(0.0, 0.0, 72.0, 720.0 / 25.4)), "{:?}", n.geometric_bounds());
     assert!(close(n.appearance.stroke_width(), 2.0));
 }
+
+/// #1561: the issue's fixture, a `<symbol>` with a 100×100 viewBox drawn by a 260×180 `<use>`.
+fn symbol_fixture(rect_w: &str, rect_h: &str, cx: &str, cy: &str, r: &str, view_box: &str) -> String {
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="440" height="300" viewBox="0 0 440 300">
+        <rect width="440" height="300" fill="#fff2cc"/>
+        <defs>
+          <symbol id="icon"{view_box}>
+            <rect width="{rect_w}" height="{rect_h}" fill="#e63946"/>
+            <circle cx="{cx}" cy="{cy}" r="{r}" fill="#457b9d"/>
+          </symbol>
+        </defs>
+        <use xlink:href="#icon" x="50" y="40" width="260" height="180"/>
+        </svg>"##
+    )
+}
+
+fn pixel(img: &vectorcraft_testkit::raster::Image, x: u32, y: u32) -> [u8; 3] {
+    let i = ((y * img.width + x) * 4) as usize;
+    [img.rgba[i], img.rgba[i + 1], img.rgba[i + 2]]
+}
+
+/// #1561: percentages in a `<symbol>` with a viewBox resolve against the viewBox, not the
+/// `<use>` element's size, so they import like the same numbers in viewBox units.
+#[test]
+fn symbol_percentages_resolve_against_the_symbol_view_box() {
+    use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+    let vb = r#" viewBox="0 0 100 100""#;
+    let percent = import(&symbol_fixture("100%", "100%", "50%", "50%", "35%", vb)).unwrap();
+    let numbers = import(&symbol_fixture("100", "100", "50", "50", "35", vb)).unwrap();
+    let (p, n) = (render_artboard(&percent), render_artboard(&numbers));
+    assert_similar(&p, &n, 8.0, 0.001);
+    // `xMidYMid meet` puts a red 180×180 square at (90, 40) with the blue circle at its centre
+    // (180, 130), radius 63; the background shows beside it, inside the `<use>` viewport.
+    assert_eq!(pixel(&p, 180, 130), [0x45, 0x7b, 0x9d], "the circle's centre");
+    assert_eq!(pixel(&p, 100, 50), [0xe6, 0x39, 0x46], "the square's corner");
+    assert_eq!(pixel(&p, 290, 100), [0xff, 0xf2, 0xcc], "right of the square, inside the viewport");
+}
+
+/// A symbol without a viewBox has no coordinate system of its own: its percentages still
+/// resolve against the `<use>` element's width and height.
+#[test]
+fn symbol_percentages_without_a_view_box_use_the_use_size() {
+    use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+    let percent = import(&symbol_fixture("50%", "50%", "50%", "50%", "10%", "")).unwrap();
+    let r = 0.1 * ((260.0f64 * 260.0 + 180.0 * 180.0) / 2.0).sqrt();
+    let numbers = import(&symbol_fixture("130", "90", "130", "90", &r.to_string(), "")).unwrap();
+    assert_similar(&render_artboard(&percent), &render_artboard(&numbers), 8.0, 0.001);
+}
+
+/// Shapes in a viewport nested in the symbol resolve against that viewport, so they're left as
+/// they are.
+#[test]
+fn symbol_percentages_in_a_nested_svg_are_left_alone() {
+    use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+    let fixture = |w: &str| {
+        format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200" viewBox="0 0 200 200">
+            <defs><symbol id="s" viewBox="0 0 100 100"><svg width="50" height="50"><rect width="{w}" height="{w}" fill="red"/></svg></symbol></defs>
+            <use xlink:href="#s" width="200" height="200"/></svg>"##
+        )
+    };
+    let percent = import(&fixture("50%")).unwrap();
+    let numbers = import(&fixture("25")).unwrap();
+    assert_similar(&render_artboard(&percent), &render_artboard(&numbers), 8.0, 0.001);
+}
