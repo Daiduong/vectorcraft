@@ -56,6 +56,7 @@ pub struct Tokens {
     pub tool_active: Color32,
     pub accent: Color32,
     pub accent_strong: Color32,
+    pub on_accent: Color32,
     pub row_selected: Color32,
     pub pasteboard: Color32,
     pub ruler: Color32,
@@ -115,6 +116,7 @@ impl Tokens {
             tool_active: hex(0x1d1d1d),
             accent: hex(0x378ef0),
             accent_strong: hex(0x1473e6),
+            on_accent: Color32::WHITE,
             row_selected: hex(0x484b50),
             pasteboard: hex(0x1e1e1e),
             ruler: hex(0x2f2f2f),
@@ -142,7 +144,32 @@ impl Tokens {
             axis_z: hex(0x378ef0),
         };
         match b {
-            Brightness::Dark => base,
+            // ArtCraft's first-party dark UI roles. Keep the measured brightness presets
+            // inheriting the original base below, so their colors stay independent.
+            Brightness::Dark => Tokens {
+                app_bar: hex(0x0a0a0c),
+                panel: hex(0x101014),
+                panel_darker: hex(0x121316),
+                input: hex(0x060607),
+                input_border: hex(0x36373a),
+                border: hex(0x36373a),
+                divider: hex(0x36373a),
+                text: hex(0xf2f1ee),
+                text_dim: hex(0xa6a6a8),
+                text_disabled: hex(0x717176),
+                icon: hex(0xf2f1ee),
+                hover: hex(0x323337),
+                tool_active: hex(0x414246),
+                accent: hex(0x2d81ff),
+                accent_strong: hex(0x59a7ff),
+                on_accent: hex(0x060607),
+                row_selected: hex(0x203b65),
+                button: hex(0x1e1f22),
+                text_strong: hex(0xffffff),
+                tab_strip: hex(0x0a0a0c),
+                button_border: hex(0x77787c),
+                ..base
+            },
             // Measured from Illustrator 2026 (plan/illustrator/10-observed-ui.md §1).
             Brightness::MediumDark => Tokens {
                 app_bar: hex(0x535353),
@@ -222,7 +249,7 @@ impl Tokens {
     }
 
     pub fn get(ctx: &egui::Context) -> Tokens {
-        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::NULL)).unwrap_or_else(|| Tokens::for_brightness(Brightness::MediumDark))
+        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::NULL)).unwrap_or_else(|| Tokens::for_brightness(Brightness::Dark))
     }
     pub fn cr(&self) -> CornerRadius {
         CornerRadius::same(self.radius)
@@ -303,8 +330,8 @@ pub fn apply(ctx: &egui::Context, b: Brightness) {
     v.window_stroke = Stroke::new(1.0, t.border);
     v.window_corner_radius = CornerRadius::same(6);
     v.menu_corner_radius = CornerRadius::same(6);
-    v.selection.bg_fill = t.accent.gamma_multiply(0.55);
-    v.selection.stroke = Stroke::new(1.0, t.accent);
+    v.selection.bg_fill = if b == Brightness::Dark { t.row_selected } else { t.accent.gamma_multiply(0.55) };
+    v.selection.stroke = Stroke::new(1.0, if b == Brightness::Dark { t.text } else { t.accent });
     v.hyperlink_color = t.accent;
     v.override_text_color = Some(t.text);
     v.popup_shadow = egui::epaint::Shadow { offset: [0, 4], blur: 14, spread: 0, color: Color32::from_black_alpha(if t.dark { 120 } else { 60 }) };
@@ -318,7 +345,7 @@ pub fn apply(ctx: &egui::Context, b: Brightness) {
     w.noninteractive.bg_stroke = Stroke::new(1.0, t.divider);
     w.inactive.bg_stroke = Stroke::NONE;
     w.hovered.bg_stroke = Stroke::new(1.0, t.input_border);
-    w.active.bg_stroke = Stroke::new(1.0, t.accent);
+    w.active.bg_stroke = Stroke::new(1.0, if b == Brightness::Dark { Color32::from_rgb(116, 170, 255) } else { t.accent });
     ctx.set_visuals(v);
     ctx.global_style_mut(|s| {
         s.spacing.item_spacing = egui::vec2(6.0, 5.0);
@@ -341,6 +368,21 @@ pub fn apply(ctx: &egui::Context, b: Brightness) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standard_dark_uses_artcraft_roles_without_recoloring_medium_dark() {
+        let dark = Tokens::for_brightness(Brightness::Dark);
+        assert_eq!(dark.app_bar, Color32::from_rgb(10, 10, 12));
+        assert_eq!(dark.panel, Color32::from_rgb(16, 16, 20));
+        assert_eq!(dark.input, Color32::from_rgb(6, 6, 7));
+        assert_eq!(dark.text, Color32::from_rgb(242, 241, 238));
+        assert_eq!(dark.accent, Color32::from_rgb(45, 129, 255));
+        assert_eq!(dark.on_accent, Color32::from_rgb(6, 6, 7));
+        assert_eq!(dark.row_selected, Color32::from_rgb(32, 59, 101));
+        assert_eq!(Tokens::for_brightness(Brightness::MediumDark).panel, Color32::from_rgb(83, 83, 83));
+        assert_eq!(Tokens::for_brightness(Brightness::MediumDark).on_accent, Color32::WHITE);
+        assert_eq!(crate::state::UiState::default().brightness, Brightness::Dark);
+    }
 
     #[test]
     fn brightness_roundtrip() {
