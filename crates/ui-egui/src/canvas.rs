@@ -194,28 +194,44 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let mask_view = st.shown_mask();
 
     // Pasteboard, artboard shadows and paper (Document Setup: the transparency grid's look, the
-    // simulated paper colour; a white Background Contents hides the grid).
-    painter.rect_filled(rect, 0.0, t.pasteboard);
-    if app.ui.view.artboards && !app.ui.view.outline {
-        let setup = &doc.setup;
-        let grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
-        let paper = if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE };
-        for ab in &doc.artboards {
-            let q = xf.quad(ab.rect);
-            // Hard 2 pt drop shadow, right and bottom (measured: #4d4d4d then #565656 on #606060).
-            let shift = |d: f32| q.iter().map(|p| *p + vec2(d, d)).collect::<Vec<_>>();
-            painter.add(Shape::convex_polygon(shift(2.0), Color32::from_black_alpha(26), Stroke::NONE));
-            painter.add(Shape::convex_polygon(shift(1.0), Color32::from_black_alpha(52), Stroke::NONE));
-            match &grid {
-                Some((tex, cell)) => checker(&painter, &q, ab.rect, xf.zoom, tex.id(), *cell),
-                None => {
-                    painter.add(Shape::convex_polygon(q, paper, Stroke::NONE));
-                }
+    // simulated paper colour; a white Background Contents hides the grid). Hide Artboards turns the
+    // whole workspace into one sheet of the paper colour, with no artboard marks of its own.
+    let setup = &doc.setup;
+    let paper_grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
+    let paper = if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE };
+    let hidden = !app.ui.view.artboards;
+    if hidden {
+        match &paper_grid {
+            Some((tex, cell)) => {
+                let a = xf.to_doc(rect.left_top());
+                let b = xf.to_doc(rect.right_bottom());
+                let view = Rect::from_points(a, b);
+                checker(&painter, &xf.quad(view), view, xf.zoom, tex.id(), *cell);
+            }
+            None => {
+                painter.rect_filled(rect, 0.0, paper);
             }
         }
-    } else if app.ui.view.outline {
-        for ab in &doc.artboards {
-            painter.add(Shape::convex_polygon(xf.quad(ab.rect), Color32::WHITE, Stroke::NONE));
+    } else {
+        painter.rect_filled(rect, 0.0, t.pasteboard);
+        if !app.ui.view.outline {
+            for ab in &doc.artboards {
+                let q = xf.quad(ab.rect);
+                // Hard 2 pt drop shadow, right and bottom (measured: #4d4d4d then #565656 on #606060).
+                let shift = |d: f32| q.iter().map(|p| *p + vec2(d, d)).collect::<Vec<_>>();
+                painter.add(Shape::convex_polygon(shift(2.0), Color32::from_black_alpha(26), Stroke::NONE));
+                painter.add(Shape::convex_polygon(shift(1.0), Color32::from_black_alpha(52), Stroke::NONE));
+                match &paper_grid {
+                    Some((tex, cell)) => checker(&painter, &q, ab.rect, xf.zoom, tex.id(), *cell),
+                    None => {
+                        painter.add(Shape::convex_polygon(q, paper, Stroke::NONE));
+                    }
+                }
+            }
+        } else {
+            for ab in &doc.artboards {
+                painter.add(Shape::convex_polygon(xf.quad(ab.rect), Color32::WHITE, Stroke::NONE));
+            }
         }
     }
     // The grid behind the art (Guides & Grid › Grids In Back), else over it below.
@@ -372,23 +388,26 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     if app.ui.view.pixel_preview && v.zoom >= PIXEL_GRID_ZOOM && app.session.prefs.show_pixel_grid {
         grid(&painter, &xf, 1.0, 1, LineLook { color: PIXEL_GRID, dots: false });
     }
-    // Artboard edges and names. The Artboard tool labels its active artboard itself (following
-    // a move or resize): that one isn't named twice.
+    // Artboard edges and names, unless Hide Artboards is on (the Artboard tool still needs them).
+    // The Artboard tool labels its active artboard itself (following a move or resize): that one
+    // isn't named twice.
     let active_ab = 0;
     let artboard_tool = app.session.tool_id() == "artboard";
     let tool_labelled = artboard_tool.then(|| app.session.tool_options()["active"].as_u64()).flatten();
-    for (i, ab) in doc.artboards.iter().enumerate() {
-        let c = if i == active_ab { Color32::from_gray(0) } else { Color32::from_gray(120) };
-        painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(if i == active_ab { 1.0 } else { 0.6 }, c)));
-        // The bleed (Document Setup) as a red outline around the artboard.
-        if doc.setup.has_bleed() {
-            painter.add(Shape::closed_line(xf.quad(doc.setup.bleed_rect(ab.rect)), Stroke::new(1.0, t.bleed)));
-        }
-        if (artboard_tool || doc.artboards.len() > 1) && tool_labelled != u64::try_from(i).ok() {
-            // At the artboard's own top-left corner, which a rotated view turns away from its
-            // bounding box's (#1095).
-            let corner = xf.to_screen(Point::new(ab.rect.x0, ab.rect.y0));
-            artboard_label(&painter, corner, (ab.rect.width() * xf.zoom) as f32, &format!("{:02} - {}", i + 1, ab.name), t.text_dim);
+    if !hidden || artboard_tool {
+        for (i, ab) in doc.artboards.iter().enumerate() {
+            let c = if i == active_ab { Color32::from_gray(0) } else { Color32::from_gray(120) };
+            painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(if i == active_ab { 1.0 } else { 0.6 }, c)));
+            // The bleed (Document Setup) as a red outline around the artboard.
+            if doc.setup.has_bleed() {
+                painter.add(Shape::closed_line(xf.quad(doc.setup.bleed_rect(ab.rect)), Stroke::new(1.0, t.bleed)));
+            }
+            if (artboard_tool || doc.artboards.len() > 1) && tool_labelled != u64::try_from(i).ok() {
+                // At the artboard's own top-left corner, which a rotated view turns away from its
+                // bounding box's (#1095).
+                let corner = xf.to_screen(Point::new(ab.rect.x0, ab.rect.y0));
+                artboard_label(&painter, corner, (ab.rect.width() * xf.zoom) as f32, &format!("{:02} - {}", i + 1, ab.name), t.text_dim);
+            }
         }
     }
     if app.ui.view.guides {
@@ -2208,6 +2227,56 @@ mod tests {
     use super::*;
     use vectorcraft_engine::Session;
     use vectorcraft_geom::Shape as _;
+
+    /// View › Hide Artboards: the whole workspace becomes one sheet of the paper colour with no
+    /// artboard edges or names (the Artboard tool keeps its own); Show Artboards brings the grey
+    /// pasteboard and the edges back.
+    #[test]
+    fn hide_artboards_whitens_the_whole_workspace() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400.0, "height": 300.0})).unwrap();
+        let pasteboard = Tokens::get(&{
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            ctx
+        })
+        .pasteboard;
+        let frame = |app: &mut VectorcraftApp| {
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            // The canvas' texture is larger than a context without a renderer allows by default.
+            let input = egui::RawInput { max_texture_side: Some(16_384), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| super::show(app, ui));
+            out.textures_delta.clear();
+            (out.shapes, app.canvas_rect)
+        };
+        // The painted sheets of the window: is one of the colour `c` over the middle of it?
+        let sheet = |shapes: &[egui::epaint::ClippedShape], full: egui::Rect, c: egui::Color32| {
+            shapes.iter().any(|s| matches!(&s.shape, egui::Shape::Rect(r) if r.fill == c && r.rect.width() > 100.0 && r.rect.contains(full.center())))
+        };
+        // An artboard's edge: the thin grey closed outline of the canvas' own painting.
+        let edge = |shapes: &[egui::epaint::ClippedShape]| {
+            shapes.iter().any(|s| {
+                matches!(
+                    &s.shape,
+                    egui::Shape::Path(p) if p.stroke.width <= 1.0
+                        && matches!(p.stroke.color, egui::epaint::ColorMode::Solid(c) if c == Color32::from_gray(0) || c == Color32::from_gray(120))
+                )
+            })
+        };
+        let (shapes, full) = frame(&mut app);
+        let full = full.expect("the canvas has a rect");
+        assert!(sheet(&shapes, full, pasteboard) && edge(&shapes), "artboards shown: pasteboard and edges");
+        app.run("view.artboards", json!({})).unwrap();
+        let (shapes, full) = frame(&mut app);
+        let full = full.unwrap();
+        assert!(!sheet(&shapes, full, pasteboard), "no pasteboard");
+        assert!(sheet(&shapes, full, Color32::WHITE), "one white sheet");
+        assert!(!edge(&shapes), "no artboard edges");
+        app.run("view.artboards", json!({})).unwrap();
+        let (shapes, full) = frame(&mut app);
+        assert!(sheet(&shapes, full.unwrap(), pasteboard) && edge(&shapes), "shown again");
+    }
 
     /// #826: in a turned view each ruler still has ticks along its whole length; at 0° the top one
     /// reads x where the canvas has it.
