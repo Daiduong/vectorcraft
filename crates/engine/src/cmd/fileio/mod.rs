@@ -674,7 +674,7 @@ fn format_filters() -> impl Iterator<Item = (&'static str, &'static [&'static st
 
 /// Open-dialog filters: "All readable files" first, then one per readable format, then swatch
 /// libraries (which open in the library panel), Libraries panel libraries, flattener, PDF and print
-/// presets (imported).
+/// presets (imported), scripts (checked without running them) and plug-ins (installed).
 pub fn open_filters() -> impl Iterator<Item = (&'static str, &'static [&'static str])> {
     std::iter::once(("All readable files", OPEN_EXTS))
         .chain(format_filters())
@@ -683,6 +683,7 @@ pub fn open_filters() -> impl Iterator<Item = (&'static str, &'static [&'static 
         .chain(std::iter::once(("Flattener presets", super::flatten::PRESET_EXTS)))
         .chain(std::iter::once(("PDF presets", super::pdfcmds::PRESET_EXTS)))
         .chain(std::iter::once(("Print presets", super::printpresets::PRESET_EXTS)))
+        .chain(std::iter::once(("Scripts", super::scripts::EXTS)))
         .chain(std::iter::once(("Plug-ins", super::plugin::EXTS)))
 }
 
@@ -766,6 +767,20 @@ pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
     std::fs::read(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 
+/// The first `max` bytes of the file at `path` (all of it when it is shorter). Anything but a
+/// regular file (a folder, a pipe, a device) is refused, also through a link.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn read_file_head(path: &str, max: usize) -> Result<Vec<u8>> {
+    use std::io::Read;
+    may_read(path)?;
+    if !std::fs::metadata(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?.is_file() {
+        return Err(EngineError::Other(format!("{path}: not a file")));
+    }
+    let mut out = vec![];
+    std::fs::File::open(path).and_then(|f| f.take(max as u64).read_to_end(&mut out)).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    Ok(out)
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
     may_write(path)?;
@@ -794,7 +809,7 @@ pub(crate) fn write_new_file(path: &str, bytes: &[u8]) -> Result<()> {
     may_write(path)?;
     let err = |e: std::io::Error| EngineError::Other(format!("{path}: {e}"));
     let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(path).map_err(err)?;
-    let written = f.write_all(bytes).and_then(|()| f.sync_all());
+    let written = f.write_all(bytes).and_then(|()| vectorcraft_format::sync_file(&f));
     drop(f);
     written.map_err(|e| {
         // Best effort: the partly written file is all there is to clean up.
@@ -941,6 +956,11 @@ fn no_fs(path: &str) -> EngineError {
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
+    Err(no_fs(path))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn read_file_head(path: &str, _: usize) -> Result<Vec<u8>> {
     Err(no_fs(path))
 }
 

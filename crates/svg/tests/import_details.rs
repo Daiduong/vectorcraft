@@ -216,3 +216,44 @@ fn percentages_in_a_symbol_are_of_its_view_box() {
     };
     assert_similar(&drawing("100%", "100%", "25%", "50%"), &drawing("100", "50", "25", "25"), 24.0, 0.001);
 }
+
+/// #1598: an unsupported filter's warning names the filter, its primitives and the object, and
+/// says it is drawn without it (not "a group": usvg wraps the element in one).
+#[test]
+fn unsupported_filters_are_named_in_the_warning() {
+    let body = r#"<filter id="f"><feColorMatrix type="saturate" values="0"/></filter><filter id="t"><feTurbulence baseFrequency="0.05"/></filter>
+        <rect x="20" y="20" width="60" height="60" fill="red" filter="url(#f)"/>
+        <rect id="r" x="100" y="20" width="60" height="60" fill="blue" filter="url(#t)"/>"#;
+    let (d, w) = import_with_report(&svg(body)).unwrap();
+    assert!(w.iter().any(|w| w == "filter 'f' (feColorMatrix) on an object isn't supported; drawn without it"), "{w:?}");
+    assert!(w.iter().any(|w| w == "filter 't' (feTurbulence) on 'r' isn't supported; drawn without it"), "{w:?}");
+    assert_eq!(art(&d).iter().filter(|n| n.path_data().is_some()).count(), 2, "both drawn");
+}
+
+/// #1601: Inkscape's pages become artboards, at their places (through the viewBox) and with their
+/// labels.
+#[test]
+fn inkscape_pages_become_artboards() {
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" width="200" height="200" viewBox="0 0 100 100">
+        <sodipodi:namedview><inkscape:page x="0" y="0" width="100" height="100" inkscape:label="Front"/><inkscape:page x="120" y="0" width="60" height="150"/><inkscape:page x="0" y="0" width="0" height="10"/></sodipodi:namedview>
+        <rect x="10" y="10" width="80" height="80" fill="red"/></svg>"#;
+    let d = import_with(svg, &ImportOptions::default()).unwrap().0;
+    let b: Vec<(String, Rect)> = d.artboards.iter().map(|a| (a.name.clone(), a.rect)).collect();
+    assert_eq!(b, vec![("Front".to_string(), Rect::new(0.0, 0.0, 200.0, 200.0)), ("Artboard 2".to_string(), Rect::new(240.0, 0.0, 360.0, 300.0))]);
+    // Hostile boxes (too large to add up, not numbers, negative) are no pages, and at most 1,000 are read.
+    let pages = r#"<inkscape:page x="1e308" y="0" width="1e308" height="10"/><inkscape:page x="NaN" y="0" width="10" height="10"/><inkscape:page width="inf" height="10"/><inkscape:page width="-5" height="10"/>"#.to_string()
+        + &r#"<inkscape:page width="10" height="10"/>"#.repeat(1500);
+    let hostile = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="50" height="50"><g>{pages}</g></svg>"#
+    );
+    let d = import_with(&hostile, &ImportOptions::default()).unwrap().0;
+    assert_eq!(d.artboards.len(), 1000);
+    assert!(d.artboards.iter().all(|a| a.rect == Rect::new(0.0, 0.0, 10.0, 10.0)), "{:?}", d.artboards.first());
+    // A file without pages keeps its one artboard.
+    let d = import_with(&svg_doc(), &ImportOptions::default()).unwrap().0;
+    assert_eq!(d.artboards.len(), 1);
+}
+
+fn svg_doc() -> String {
+    svg(r#"<rect x="10" y="10" width="20" height="20"/>"#)
+}

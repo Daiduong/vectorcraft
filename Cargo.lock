@@ -3640,9 +3640,9 @@ dependencies = [
 
 [[package]]
 name = "ruzstd"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a252f5e20f038fe7b4ea53e073e65398d652c864cc162fc77c56c2f13717b888"
+checksum = "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5"
 dependencies = [
  "twox-hash",
 ]
@@ -4654,6 +4654,7 @@ dependencies = [
  "vectorcraft-pdf",
  "vectorcraft-plugins",
  "vectorcraft-render",
+ "vectorcraft-scriptcheck",
  "vectorcraft-svg",
  "vectorcraft-testkit",
  "vectorcraft-text",
@@ -4689,6 +4690,7 @@ version = "0.10.0"
 dependencies = [
  "flate2",
  "proptest",
+ "rustix 1.1.5",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -4820,6 +4822,13 @@ dependencies = [
  "vello_common 0.2.0",
  "vello_cpu 0.2.0",
  "weezl",
+]
+
+[[package]]
+name = "vectorcraft-scriptcheck"
+version = "0.10.0"
+dependencies = [
+ "proptest",
 ]
 
 [[package]]

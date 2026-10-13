@@ -83,6 +83,9 @@ pub(crate) fn import(svg: &str, opts: &ImportOptions) -> Result<(Document, Vec<S
         base *= aff(g.transform());
         top = g;
     }
+    if let Some(boards) = inkscape_pages(&xml, base) {
+        im.doc.artboards = boards;
+    }
 
     // Top-level `<g id>` elements become layers (as in the reference app), named from their
     // labels (`data-name`…) else their ids; otherwise all art goes into "Layer 1". A clip path on
@@ -245,6 +248,70 @@ impl RootUnits {
     }
 }
 
+/// `'id' (feA, feB)` for each filter: its id and the primitives it uses, for warnings.
+fn filter_names(filters: &[Arc<usvg::filter::Filter>]) -> String {
+    use usvg::filter::Kind as K;
+    let names: Vec<String> = filters
+        .iter()
+        .map(|f| {
+            let mut kinds: Vec<&str> = Vec::new();
+            for p in f.primitives() {
+                let k = match p.kind() {
+                    K::Blend(_) => "feBlend",
+                    K::ColorMatrix(_) => "feColorMatrix",
+                    K::ComponentTransfer(_) => "feComponentTransfer",
+                    K::Composite(_) => "feComposite",
+                    K::ConvolveMatrix(_) => "feConvolveMatrix",
+                    K::DiffuseLighting(_) => "feDiffuseLighting",
+                    K::DisplacementMap(_) => "feDisplacementMap",
+                    K::DropShadow(_) => "feDropShadow",
+                    K::Flood(_) => "feFlood",
+                    K::GaussianBlur(_) => "feGaussianBlur",
+                    K::Image(_) => "feImage",
+                    K::Merge(_) => "feMerge",
+                    K::Morphology(_) => "feMorphology",
+                    K::Offset(_) => "feOffset",
+                    K::SpecularLighting(_) => "feSpecularLighting",
+                    K::Tile(_) => "feTile",
+                    K::Turbulence(_) => "feTurbulence",
+                };
+                if !kinds.contains(&k) {
+                    kinds.push(k);
+                }
+            }
+            let id = if f.id().is_empty() || made_up(f.id()) { String::new() } else { format!("'{}' ", f.id()) };
+            format!("{id}({})", kinds.join(", "))
+        })
+        .collect();
+    names.join(", ")
+}
+
+/// Inkscape's pages (`<inkscape:page>` in its `<sodipodi:namedview>`, in user units) as artboards
+/// through `user` (user units → document points), named by their labels; `None` without any.
+fn inkscape_pages(xml: &roxmltree::Document, user: Affine) -> Option<Vec<vectorcraft_doc::Artboard>> {
+    let num = |n: roxmltree::Node, a: &str| n.attribute(a).and_then(|v| v.trim().parse::<f64>().ok()).filter(|v| v.is_finite());
+    let pages: Vec<vectorcraft_doc::Artboard> = xml
+        .descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "page" && n.tag_name().namespace() == Some(INKSCAPE))
+        .filter_map(|p| {
+            let (w, h) = (num(p, "width")?, num(p, "height")?);
+            let (x, y) = (num(p, "x").unwrap_or(0.0), num(p, "y").unwrap_or(0.0));
+            // A box too large to add up or to place (1e308 wide) is no page.
+            let r = user.transform_rect_bbox(Rect::new(x, y, x + w, y + h));
+            (w > 0.0 && h > 0.0 && r.is_finite()).then_some((p, r))
+        })
+        .take(1000)
+        .enumerate()
+        .map(|(i, (p, r))| vectorcraft_doc::Artboard {
+            id: i as u32 + 1,
+            name: p.attribute((INKSCAPE, "label")).filter(|l| !l.trim().is_empty()).map_or_else(|| format!("Artboard {}", i + 1), str::to_string),
+            rect: r,
+            show_center_mark: false,
+            show_cross_hairs: false,
+        })
+        .collect();
+    (!pages.is_empty()).then_some(pages)
+}
 /// How many clip paths deep (`<clipPath clip-path>`) an object's clip is read.
 const MAX_CLIP_NEST: usize = 16;
 
@@ -902,7 +969,19 @@ impl Importer {
         let effects = match g.filters() {
             [] => vec![],
             filters => fx::effects(filters, ts, &self.blends).unwrap_or_else(|| {
-                self.warn(format!("filter on {label} ignored"));
+                // usvg wraps a filtered element in a group of its own: name the element then.
+                let on = match g.children() {
+                    [usvg::Node::Group(_)] | [] => label.clone(),
+                    [one] if made_up(g.id()) || g.id().is_empty() => {
+                        if one.id().is_empty() || made_up(one.id()) {
+                            "an object".to_string()
+                        } else {
+                            format!("'{}'", one.id())
+                        }
+                    }
+                    _ => label.clone(),
+                };
+                self.warn(format!("filter {} on {on} isn't supported; drawn without it", filter_names(filters)));
                 vec![]
             }),
         };
