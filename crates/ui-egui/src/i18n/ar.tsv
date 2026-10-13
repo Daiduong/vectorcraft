@@ -4,7 +4,8 @@
 # نقشة، رمز، تعبئة، حد…). No proprietary localisation resource was consulted. Product and
 # technology names (VectorCraft, ArtCraft, SVG, OpenType, CMYK, Lab…) and paper sizes (Letter,
 # Tabloid) stay in Latin letters; the trailing "…" of dialog commands and {placeholders} are kept.
-# العربية تقرأ من اليمين إلى اليسار: الواجهة تعكس اتجاهها مع هذه اللغة.
+# العربية تقرأ من اليمين إلى اليسار: تُخزَّن نصوصها بالترتيب البصري الذي يرسم به egui
+# مساراتها (i18n/bidi.rs)؛ أما انعكاس تنسيق الواجهة نفسه فخطوة لاحقة أكبر.
 	Glowing Edges…	حواف متوهجة…
 	Glowing Edges	حواف متوهجة
 	Edge Width	عرض الحافة
@@ -2921,6 +2922,9 @@
 @msg	Updated {_1} linked file(s) changed on disk	حُدّث {_1} ملفاً مرتبطاً تغيّر على القرص
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	الصور المرتبطة تعرض المعاينة منخفضة الدقة المحفوظة في الملف حتى تُوجد ملفاتها: أعد ربطها في لوحة الارتباطات
 @msg	area type in frames too short for a line of the font it shows in got taller frames ({_1}): their type wouldn't show otherwise	النص المنطقي في أُطر أقصر من سطر خطه صارت أُطرها أعلى ({_1}): وإلا ما ظهر نصها
+@msg	Copied the script report	نُسخ تقرير السكربت
+@msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	مسار مزاح: لا تُبقي الإزاحة شيئاً من المسارات المحددة (إزاحة داخلية أكبر من الأشكال)
+@msg	{path}: not a file	{path}: ليس ملفاً
 	Update Modified Links	تحديث الارتباطات المعدلة
 	Updated {} image(s)	حُدّثت {} صورة
 	UPPERCASE	أحرف كبيرة
@@ -3788,3 +3792,59 @@ lighting	Light	ضوء
 	Use Outside Rectangle As Frame	استخدام المستطيل الخارجي كإطار
 	Create Compound Path From Ellipses	إنشاء مسار مركب من قطوع ناقصة
 	Fill Grid	تعبئة الشبكة
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+	Check Script	فحص السكربت
+	Check Script…	فحص السكربت…
+	Copy Report	نسخ التقرير
+	VectorCraft read this script without running it.	قرأ VectorCraft هذا السكربت دون تشغيله.
+	Needs nothing beyond plain JavaScript	لا يتطلب شيئاً خارج JavaScript العادية
+	Needs the script language's own objects or directives	يتطلب كائنات لغة السكربت أو توجيهاتها الخاصة
+	Needs the document model	يتطلب نموذج المستند
+	Needs files	يتطلب ملفات
+	Needs menu commands	يتطلب أوامر القوائم
+	Needs dialogs	يتطلب حوارات
+	Needs features only the reference app has	يتطلب ميزات لا يوفرها إلا التطبيق المرجعي
+	Outside the document	خارج المستند
+	Writes, moves or deletes files	يكتب ملفات أو ينقلها أو يحذفها
+	Opens files in other apps	يفتح ملفات في تطبيقات أخرى
+	Opens network connections	يفتح اتصالات شبكة
+	Loads native code	يحمّل شيفرة أصلية
+	Sends messages to other apps	يرسل رسائل إلى تطبيقات أخرى
+	Reads or sets environment variables	يقرأ متغيرات البيئة أو يعيّنها
+	Runs code the checker can't read	يشغّل شيفرة لا يستطيع الفاحص قراءتها
+	Changes the reference app's preferences	يغيّر تفضيلات التطبيق المرجعي
+	Menu commands	أوامر القوائم
+	Names the script builds as it runs: {count}	أسماء ينشئها السكربت أثناء تشغيله: {count}
+	Document model	نموذج المستند
+	Object types: {names}	أنواع الكائنات: {names}
+	Directives	التوجيهات
+	Includes	التضمينات
+	Checked	تم فحصه
+	Not followed: outside the script's folder	لم يُتابَع: خارج مجلد السكربت
+	Includes itself	يتضمن نفسه
+	Not read	لم يُقرأ
+	Not read: a limit was reached	لم يُقرأ: بُلغ أحد الحدود
+	Compiled or not text	مُجمَّع أو ليس نصاً
+	Problems	المشكلات
+	String not closed	سلسلة غير مغلقة
+	Comment not closed	تعليق غير مغلق
+	Regular expression not closed	تعبير نمطي غير مغلق
+	Template literal not closed	قالب نصي غير مغلق
+	XML literal not closed	نص XML غير مغلق
+	Bracket never closed	قوس لم يُغلق قط
+	Closing bracket with no opening one	قوس إغلاق بلا قوس فتح
+	Syntax newer than ES3	بناء جملة أحدث من ES3
+	Unknown directive	توجيه غير معروف
+	Not valid UTF-8: unreadable bytes were replaced	ليس UTF-8 صالحاً: استُبدلت البايتات غير القابلة للقراءة
+	Mixed line endings	نهايات أسطر مختلطة
+	Nesting too deep to follow	تداخل أعمق من أن يُتابَع
+	line {line}	سطر {line}
+	lines {lines}	أسطر {lines}
+	{file}, line {line}	{file}، سطر {line}
+	Compiled script: ask its author for the .jsx file	سكربت مُجمَّع: اطلب من مؤلفه ملف .jsx
+	Too large to check	أكبر من أن يُفحص
+	Not a script for the reference app	ليس سكربتاً للتطبيق المرجعي
+	Some lists were cut short at their limit.	قُصّت بعض القوائم عند حدها.
+# Image Trace's Auto Grouping, and the EPS clipboard command that had been left untranslated.
+	Auto Grouping	تجميع تلقائي
+	Load EPS into Clipboard	تحميل EPS إلى الحافظة
