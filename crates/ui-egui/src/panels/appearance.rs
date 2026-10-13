@@ -454,7 +454,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
         if let AppearanceItem::Stroke(st) = it {
             let fr = Rect::from_min_size(pos2(r.left() + EYE_W + 104.0, r.center().y - 12.0), vec2(56.0, 24.0));
             let mut child = ui.new_child(egui::UiBuilder::new().max_rect(fr).layout(egui::Layout::left_to_right(egui::Align::Center)));
-            if let Some(w) = widgets::num_field(&mut child, ("ap-w", i), Some(st.width), app.session.stroke_unit(), 56.0) {
+            if let Some(w) = widgets::num_field_fine(&mut child, ("ap-w", i), Some(st.width), app.session.stroke_unit(), 56.0, 0.25) {
                 app.run("appearance.setItem", json!({"index": i, "weight": w})).ok();
             }
             stroke_notes(ui, Rect::from_min_max(pos2(fr.right() + 6.0, r.top()), pos2(r.right() - 4.0, r.bottom())), st);

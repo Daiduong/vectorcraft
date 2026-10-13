@@ -193,6 +193,23 @@ pub(crate) fn typed_unit(ctx: &egui::Context, unit: Unit) -> Unit {
 /// without a unit is in `unit` ([`typed_unit`]: in points in a picas field with Numbers Without
 /// Units Are Points on).
 pub fn num_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<f64>, unit: Unit, width: f32) -> Option<f64> {
+    num_field_opt(ui, id, value, unit, width, None)
+}
+
+/// [`num_field`] whose plain steps shrink once the value is at or below 1 pt (a stroke weight's
+/// quarters): `fine` in points.
+pub fn num_field_fine(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<f64>, unit: Unit, width: f32, fine: f64) -> Option<f64> {
+    num_field_opt(ui, id, value, unit, width, Some(fine))
+}
+
+fn num_field_opt(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: Option<f64>,
+    unit: Unit,
+    width: f32,
+    fine: Option<f64>,
+) -> Option<f64> {
     let id = ui.id().with(id);
     let shown = value.map(|v| unit.format(v)).unwrap_or_default();
     take_dialog_focus(ui, id, &shown);
@@ -200,11 +217,18 @@ pub fn num_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step in the field's unit; a drag on its label scrubs it.
     let read = typed_unit(ui.ctx(), unit);
-    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)));
+    let fine = fine.map(|f| (unit.from_pt(1.0), unit.from_pt(f)));
+    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)), fine);
     let scrubbed = scrub::field(ui, id, rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS);
     let commit = resp.lost_focus() && buf != shown;
     ui.data_mut(|d| d.insert_temp(id, buf.clone()));
     if commit { read.parse(&buf) } else { stepped.or(scrubbed).map(|v| unit.to_pt(v)) }
+}
+
+/// A stroke weight's plain step: whole points, but quarters of a point once the value is at or
+/// below 1 pt, so thin weights tune down to 0 (the wheel, ↑/↓ and the spinner arrows alike).
+pub fn fine_step(v: f64) -> f64 {
+    if v <= 1.0 { 0.25 } else { 1.0 }
 }
 
 /// The places a stepped value in a unit field keeps (no 12.300000001).
@@ -222,16 +246,26 @@ const STEPS: [(egui::Modifiers, f64); 3] = [(egui::Modifiers::SHIFT, 10.0), (egu
 
 /// ↑/↓ in focused numeric field `resp`, or the mouse wheel turned over it, step the number `buf`
 /// shows (`read` parses it, `show` formats it) by one per press or wheel notch ([`STEPS`]: Shift
-/// ten, Ctrl/Cmd a tenth), applied at once as in Illustrator's panels and dialogs. The new text
-/// replaces `buf`, all selected so typing replaces it. Returns the new number when a step was
-/// taken. While the pointer is over the focused field the wheel is the field's (the panel under it
-/// doesn't scroll); an unfocused field leaves the wheel to the panel and the canvas.
-fn step_value(ui: &Ui, resp: &Response, buf: &mut String, read: impl Fn(&str) -> Option<f64>, show: impl Fn(f64) -> String) -> Option<f64> {
+/// ten, Ctrl/Cmd a tenth), applied at once as in Illustrator's panels and dialogs. `fine`, in the
+/// field's display units, shrinks the plain step while the value is at or below its first number.
+/// The new text replaces `buf`, all selected so typing replaces it. Returns the new number when a
+/// step was taken. While the pointer is over the focused field the wheel is the field's (the panel
+/// under it doesn't scroll); an unfocused field leaves the wheel to the panel and the canvas.
+fn step_value(
+    ui: &Ui,
+    resp: &Response,
+    buf: &mut String,
+    read: impl Fn(&str) -> Option<f64>,
+    show: impl Fn(f64) -> String,
+    fine: Option<(f64, f64)>,
+) -> Option<f64> {
     // Memory focus, as the field's highlight and its typing use: `Response::has_focus` also needs the
     // window to report keyboard focus.
     if !ui.memory(|m| m.has_focus(resp.id)) {
         return None;
     }
+    // A fine plain step for small values (a stroke weight at or below 1 pt steps a quarter).
+    let plain = fine.filter(|(at, _)| read(buf).is_some_and(|v| v.abs() <= *at)).map_or(1.0, |(_, f)| f);
     use egui::{Event, Key, MouseWheelUnit};
     let wheel = resp.contains_pointer();
     // Wheel turns in notches: a line each, or `line` points of a trackpad or a fine wheel; what is
@@ -241,6 +275,7 @@ fn step_value(ui: &Ui, resp: &Response, buf: &mut String, read: impl Fn(&str) ->
     let mut steps = 0.0;
     ui.input_mut(|i| {
         for (mods, size) in STEPS {
+            let size = if mods.matches_logically(egui::Modifiers::NONE) { plain } else { size };
             let up = i.count_and_consume_key(mods, Key::ArrowUp) as f64;
             let down = i.count_and_consume_key(mods, Key::ArrowDown) as f64;
             steps += size * (up - down);
@@ -251,6 +286,7 @@ fn step_value(ui: &Ui, resp: &Response, buf: &mut String, read: impl Fn(&str) ->
         i.events.retain(|e| {
             let Event::MouseWheel { unit, delta, modifiers, .. } = e else { return true };
             let Some((_, size)) = STEPS.iter().find(|(m, _)| modifiers.matches_logically(*m)) else { return true };
+            let size = if modifiers.matches_logically(egui::Modifiers::NONE) { plain } else { *size };
             // Shift may turn the wheel sideways (the Mac does).
             let d = if modifiers.shift { delta.x + delta.y } else { delta.y };
             notches += match unit {
@@ -467,7 +503,7 @@ pub fn mixed_field(
     // ↑/↓ and the wheel step at the field's precision (a count ignores Ctrl/Cmd's tenth); a drag on
     // its label scrubs it.
     let decimals = decimals.min(6) as i32;
-    let stepped = step_value(ui, &resp, &mut buf, read, show).map(|v| round_to(v, decimals));
+    let stepped = step_value(ui, &resp, &mut buf, read, show, None).map(|v| round_to(v, decimals));
     let scrubbed = scrub::field(ui, id, rect, &buf, value, decimals);
     if resp.lost_focus() && buf != shown { read(&buf) } else { stepped.or(scrubbed).filter(|&v| Some(v) != value) }
 }
@@ -1120,6 +1156,24 @@ pub fn spin_field(
     spin_field_auto(ui, id, value, None, unit, width, step, min, presets).and_then(SpinPick::value)
 }
 
+/// [`spin_field`] whose field also takes the fine plain steps of [`num_field_fine`] (`fine` in
+/// points): the weight field, whose `step` is [`fine_step`] of the value it shows.
+#[allow(clippy::too_many_arguments)]
+pub fn spin_field_fine(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug + Copy,
+    value: Option<f64>,
+    unit: Unit,
+    width: f32,
+    step: f64,
+    min: f64,
+    presets: &[f64],
+    fine: f64,
+) -> Option<f64> {
+    spin_generic(ui, value, None, width, step, min, presets, &|v| unit.format(v), &mut |ui, fw| num_field_fine(ui, id, value, unit, fw, fine))
+        .and_then(SpinPick::value)
+}
+
 /// What a [`spin_field_auto`] returns: a value (points), or its Auto entry.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SpinPick {
@@ -1511,7 +1565,7 @@ pub fn opt_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     let resp = framed.inner;
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step a value (an empty field stays empty); a drag on its label scrubs it.
-    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)));
+    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)), None);
     let scrubbed = scrub::field(ui, id, framed.response.rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS);
     ui.data_mut(|d| d.insert_temp(id, buf.clone()));
     if resp.lost_focus() && buf != shown {
@@ -1897,5 +1951,17 @@ mod spinner_modifier_tests {
         assert_eq!(spinner_step(14.0, 1.0, 0.0, true, egui::Modifiers::NONE), 15.0);
         assert_eq!(spinner_step(14.0, 1.0, 0.0, false, egui::Modifiers::COMMAND), 13.9);
         assert_eq!(spinner_step(0.0, 1.0, 0.0, false, egui::Modifiers::SHIFT), 0.0);
+    }
+
+    /// A stroke weight's plain step: whole points above 1 pt, quarters of a point at and below it.
+    #[test]
+    fn thin_stroke_weights_step_by_a_quarter_point() {
+        assert_eq!(fine_step(14.0), 1.0);
+        assert_eq!(fine_step(1.0), 0.25);
+        assert_eq!(fine_step(0.75), 0.25);
+        // The spinner arrows follow it: 1 pt steps down to 0.75, and back up.
+        assert_eq!(spinner_step(1.0, fine_step(1.0), 0.0, false, egui::Modifiers::NONE), 0.75);
+        assert_eq!(spinner_step(0.75, fine_step(0.75), 0.0, true, egui::Modifiers::NONE), 1.0);
+        assert_eq!(spinner_step(2.0, fine_step(2.0), 0.0, false, egui::Modifiers::NONE), 1.0);
     }
 }

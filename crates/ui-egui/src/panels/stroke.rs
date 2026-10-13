@@ -112,9 +112,11 @@ pub(crate) fn shown_weight(app: &VectorcraftApp, st: Option<&StrokeLayer>, mixed
 }
 
 /// The weight spinner (Stroke panel, Control bar): Units > Stroke, presets, blank when mixed.
+/// Whole points down to 1 pt, then quarters of a point to 0 (wheel, ↑/↓ and the arrows alike).
 pub(crate) fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, weight: Option<f64>, width: f32) {
     let unit = app.session.stroke_unit();
-    if let Some(w) = widgets::spin_field(ui, id, weight, unit, width, 1.0, 0.0, &weight_presets(unit)) {
+    let step = weight.map_or(1.0, widgets::fine_step);
+    if let Some(w) = widgets::spin_field_fine(ui, id, weight, unit, width, step, 0.0, &weight_presets(unit), 0.25) {
         set(app, json!({"weight": w}));
     }
 }
