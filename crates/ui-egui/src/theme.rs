@@ -289,7 +289,9 @@ fn add_craft_fonts(fonts: &mut FontDefinitions) {
         let bold = *family == FontFamily::Name(FONT_UI_SEMIBOLD.into());
         stack.extend(vectorcraft_text::craft_fonts::japanese_ui_fonts(bold).into_iter().map(craft_font_name));
         // العربية: the Arabic UI faces (Noto Sans Arabic) after the Japanese ones — their letters
-        // are in no other UI font, and the interface mirrors right-to-left for the `ar` language.
+        // are in no other UI font. Their labels read right to left (i18n::bidi stores the
+        // catalog's translations in the visual order egui draws); a mirrored layout of the chrome
+        // is a separate, larger step.
         stack.extend(vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.is_arabic()).map(craft_font_name));
     }
 }
