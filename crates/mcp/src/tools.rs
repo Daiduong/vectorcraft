@@ -374,6 +374,22 @@ pub fn tool_definitions() -> Vec<Value> {
             false,
         ),
         tool(
+            "add_math",
+            "Add equation",
+            "Typeset a LaTeX math equation as a group of outline paths, selected, centred on (x, y) (default the centre of the first artboard). It keeps its `latex`, so `run_command math.edit {id, source, size, display}` typesets it again in place. Returns {id, bounds: [x0, y0, x1, y1]}; fails with the parser's message on invalid LaTeX.",
+            obj(
+                json!({
+                    "latex": string("LaTeX math source, e.g. \"\\frac{a}{b} = \\sqrt{x^2 + 1}\" (no $ delimiters)"),
+                    "size": num("Base font size in pt, 0.5 to 2000 (default 24)"),
+                    "display": {"type": "boolean", "description": "Display style (default true); false sets it inline, with smaller fractions and limits"},
+                    "x": num("Centre x (default the centre of the first artboard)"),
+                    "y": num("Centre y (default the centre of the first artboard)"),
+                }),
+                &["latex"],
+            ),
+            false,
+        ),
+        tool(
             "apply_effect",
             "Apply live effect",
             "Append a live effect (Effect menu) to the selection or `ids`. Omit `effect` to get the catalogue (ids, parameters, defaults). Examples: stylize.dropShadow {x, y, blur, opacity}, distort.roughen, warp.arc {bend}, path.offsetPath {offset}, pathfinder.add (on groups), blur.gaussian {radius}.",
@@ -858,6 +874,15 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
             j(exec(b, cmd, Value::Object(params))?)
         }
         "add_text" => j(add_text(b, a)?),
+        "add_math" => {
+            let mut p = json!({"source": req_str(a, "latex")?});
+            for k in ["size", "display", "x", "y"] {
+                if let Some(v) = a.get(k).filter(|v| !v.is_null()) {
+                    p[k] = v.clone();
+                }
+            }
+            j(exec(b, "math.create", p)?)
+        }
         "apply_effect" => {
             let Some(effect) = a.get("effect").and_then(Value::as_str) else {
                 let all = exec(b, "effect.list", json!({}))?;

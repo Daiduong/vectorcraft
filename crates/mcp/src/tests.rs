@@ -328,6 +328,24 @@ fn add_text_on_or_in_a_path_takes_its_color() {
     }
 }
 
+/// add_math typesets `latex` as an equation group at (x, y), and rejects empty or invalid source.
+#[test]
+fn add_math_makes_an_equation_and_reports_bad_latex() {
+    let mut s = server();
+    let r = call(&mut s, 2, "add_math", json!({"latex": "\\frac{a}{b}", "size": 40, "x": 300, "y": 200}));
+    if r["isError"] == true && text_of(&r).contains("No math font") {
+        eprintln!("skipped: no font with a MATH table");
+    } else {
+        assert_eq!(r["isError"], false, "{r}");
+        let v: Value = serde_json::from_str(&text_of(&r)).unwrap();
+        let b = &v["bounds"];
+        assert!(v["id"].is_u64() && (b[0].as_f64().unwrap() + b[2].as_f64().unwrap()) / 2.0 - 300.0 < 1.0, "{v}");
+    }
+    for bad in [json!({"latex": ""}), json!({"latex": "\\frac{"}), json!({})] {
+        assert_eq!(call(&mut s, 3, "add_math", bad.clone())["isError"], true, "{bad}");
+    }
+}
+
 /// #1748: add_text's `justify` centres point type on (x, y) or ends it there.
 #[test]
 fn add_text_justify_anchors_point_type_on_x() {
