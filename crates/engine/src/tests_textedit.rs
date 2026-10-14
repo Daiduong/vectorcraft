@@ -174,6 +174,27 @@ fn a_cmd_drag_while_typing_moves_the_type_and_keeps_the_typing() {
     assert!((after.x0 - moved.x0).abs() < 1e-6, "and stays where it was moved: {after:?}");
 }
 
+/// #1950: a colour preview while typing (the Color panel and the Color Picker begin an
+/// interaction and preview the paint in it) keeps what was typed: the typing is committed as its
+/// own step before the new interaction begins, instead of the preview starting from the document
+/// before the typing, which put the placeholder text back.
+#[test]
+fn a_colour_preview_while_typing_keeps_the_typing() {
+    let mut s = session();
+    let v = ViewInfo::default();
+    s.select_tool("type", v).unwrap();
+    click(&mut s, 200.0, 200.0);
+    let id = s.doc().unwrap().selection.objects[0];
+    s.tool_text("abc", v).unwrap();
+    assert_eq!(obj(&s, id).plain_text(), "abc");
+    // What the Color panel does on every frame the colour changes.
+    s.begin_interaction("Fill Color").unwrap();
+    s.preview("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    assert_eq!(obj(&s, id).plain_text(), "abc", "the typing is kept, not the placeholder");
+    s.commit_interaction().unwrap();
+    assert_eq!(obj(&s, id).plain_text(), "abc");
+}
+
 #[test]
 fn undo_during_a_drag_takes_back_only_the_drag() {
     let mut s = session();

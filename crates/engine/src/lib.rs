@@ -1554,10 +1554,17 @@ impl Session {
     // ---------- interactions (live drags) ----------
 
     pub fn begin_interaction(&mut self, label: &str) -> Result<()> {
-        let st = self.doc_mut()?;
-        if st.interaction.is_some() {
-            return Ok(());
+        // An interaction already open is joined by the next one (a live drag's previews stack).
+        // A typing session is not: it is a step of its own, committed here first, or the new
+        // interaction's preview resets the document to the typing session's snapshot — the
+        // document from before what was typed — putting the placeholder back (#1950).
+        if self.active().is_some_and(|d| d.interaction.is_some()) {
+            if !cmd::typing_in_progress(self) {
+                return Ok(());
+            }
+            cmd::settle_interaction(self)?;
         }
+        let st = self.doc_mut()?;
         st.interaction = Some(Interaction {
             label: label.to_string(),
             doc: st.doc.clone(),
