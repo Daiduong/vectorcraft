@@ -265,7 +265,6 @@ fn is_cjk(c: char) -> bool {
 /// the craft-fonts build input, which is optional: without it they are left to the installed
 /// fonts, and with it the Japanese catalog is checked against BIZ UDPGothic (the Traditional
 /// Chinese one waits for a Traditional Chinese UI font in craft-fonts).
-
 /// The Traditional Chinese catalog holds no Simplified-only characters (a translation written
 /// in the wrong script would read as a typo to every user).
 #[test]
