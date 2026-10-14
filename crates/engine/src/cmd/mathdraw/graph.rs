@@ -29,7 +29,7 @@ const MAX_PIECES: usize = 8;
 /// The band a function's graph is drawn in when `yClip` isn't given.
 const DEFAULT_CLIP: (f64, f64) = (-10.0, 10.0);
 /// The note answered for a label left out for want of a math font.
-const NO_FONT: &str = "skipped (no math font)";
+pub(super) const NO_FONT: &str = "skipped (no math font)";
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -185,7 +185,7 @@ pub(super) fn pairs(pts: &[Point]) -> Value {
 }
 
 /// Whether a math font is there to set labels with.
-fn have_math_font() -> bool {
+pub(super) fn have_math_font() -> bool {
     vectorcraft_math::find_math_face(vectorcraft_text::FontDb::global()).is_some()
 }
 
@@ -195,7 +195,7 @@ fn latex(src: &str) -> String {
 }
 
 /// An expression parameter, read in the variables `vars`.
-fn expr_param(p: &Value, key: &str, vars: &[&str], cmd: &str) -> Result<(String, Expr)> {
+pub(super) fn expr_param(p: &Value, key: &str, vars: &[&str], cmd: &str) -> Result<(String, Expr)> {
     let src = text_param(p, key, cmd)?.ok_or_else(|| bad(cmd, format!("missing `{key}`: an expression in {}", vars.join(", "))))?;
     let e = parse_expr(src, vars).map_err(|e| bad(cmd, format!("`{key}`: {e}")))?;
     Ok((src.to_string(), e))
@@ -273,6 +273,56 @@ fn arrowhead(kind: u8, tip: Point, dir: Vec2, w: f64) -> (PathData, bool, f64) {
     }
 }
 
+/// An axis from `from` to `tip` (document points) drawn with `line`, and the arrowhead at its tip
+/// (the style's arrow type, its size the line's weight times the arrow ratio): the axis stops
+/// short of a filled arrowhead's tip.
+pub(super) fn axis_with_arrow(
+    d: &mut Document,
+    style: &MathDrawStyle,
+    from: Point,
+    tip: Point,
+    line: LineRef,
+    color: Color,
+    cmd: &str,
+) -> Result<(Node, Node)> {
+    let (width, _) = style.stroke(line);
+    let w = width * style.arrow_ratio;
+    let len = (tip - from).hypot();
+    if len.is_nan() || len <= 1e-9 {
+        return Err(bad(cmd, "an axis has no length"));
+    }
+    let dir = (tip - from) / len;
+    let (head, filled, inset) = arrowhead(style.arrow_type, tip, dir, w);
+    let axis = stroked(d, shapes::line(from, tip - dir * inset.min(len)), style, line, color);
+    let mut a = shape_node(d, head, None);
+    a.appearance = if filled {
+        Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::solid(color)))], ..Appearance::default() }
+    } else {
+        let mut st = StrokeLayer::new(Paint::solid(color), w);
+        st.cap = LineCap::Round;
+        st.join = LineJoin::Round;
+        Appearance { items: vec![AppearanceItem::Stroke(st)], ..Appearance::default() }
+    }
+    .into();
+    Ok((axis, a))
+}
+
+/// An axis label `text` set in the math font at the style's label size, italic (math italic) or
+/// roman, its baseline starting at document point `at`, named `text`.
+pub(super) fn axis_label(d: &mut Document, style: &MathDrawStyle, text: &str, italic: bool, at: Point, color: Color, cmd: &str) -> Result<Node> {
+    let source = if italic { text.to_string() } else { format!("\\mathrm{{{text}}}") };
+    let mut l = crate::cmd::math::equation_on_baseline(d, &source, style.label_size, at, color, cmd)?;
+    l.name = Some(text.to_string());
+    Ok(l)
+}
+
+/// Where the baseline of a `kind` axis label starts for an anchor `at` (an axis's tip, or the
+/// origin): the style's offset (y up) from it.
+pub(super) fn label_at(style: &MathDrawStyle, kind: AxisLabelKind, at: Point) -> Point {
+    let (ox, oy) = style.label_offset(kind);
+    at + Vec2::new(ox, -oy)
+}
+
 /// The coordinate axes over math ranges `x` and `y`, drawn with `line`: a group named "Axes" of
 /// the two axes, their arrowheads and the labels x, y and O (left out without a math font), and
 /// what it holds.
@@ -285,29 +335,12 @@ fn build_axes(
     color: Color,
     cmd: &str,
 ) -> Result<(Node, Map<String, Value>)> {
-    let (width, _) = style.stroke(line);
-    let w = width * style.arrow_ratio;
     let (mut axes, mut arrows, mut labels) = (vec![], vec![], vec![]);
     let ends = [(frame.to_doc(x.0, 0.0), frame.to_doc(x.1, 0.0)), (frame.to_doc(0.0, y.0), frame.to_doc(0.0, y.1))];
     for (from, tip) in ends {
-        let len = (tip - from).hypot();
-        if len.is_nan() || len <= 1e-9 {
-            return Err(bad(cmd, "an axis has no length"));
-        }
-        let dir = (tip - from) / len;
-        let (head, filled, inset) = arrowhead(style.arrow_type, tip, dir, w);
-        axes.push(stroked(d, shapes::line(from, tip - dir * inset.min(len)), style, line, color));
-        let mut a = shape_node(d, head, None);
-        a.appearance = if filled {
-            Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::solid(color)))], ..Appearance::default() }
-        } else {
-            let mut st = StrokeLayer::new(Paint::solid(color), w);
-            st.cap = LineCap::Round;
-            st.join = LineJoin::Round;
-            Appearance { items: vec![AppearanceItem::Stroke(st)], ..Appearance::default() }
-        }
-        .into();
-        arrows.push(a);
+        let (axis, arrow) = axis_with_arrow(d, style, from, tip, line, color, cmd)?;
+        axes.push(axis);
+        arrows.push(arrow);
     }
     let mut out = Map::new();
     out.insert("axes".into(), ids(&axes));
@@ -315,12 +348,7 @@ fn build_axes(
     if have_math_font() {
         let at = [(AxisLabelKind::X, ends[0].1, "x"), (AxisLabelKind::Y, ends[1].1, "y"), (AxisLabelKind::Origin, frame.to_doc(0.0, 0.0), "O")];
         for (kind, anchor, text) in at {
-            let source = if style.label(kind).italic { text.to_string() } else { format!("\\mathrm{{{text}}}") };
-            // Offsets are y up.
-            let (ox, oy) = style.label_offset(kind);
-            let mut l = crate::cmd::math::equation_on_baseline(d, &source, style.label_size, anchor + Vec2::new(ox, -oy), color, cmd)?;
-            l.name = Some(text.to_string());
-            labels.push(l);
+            labels.push(axis_label(d, style, text, style.label(kind).italic, label_at(style, kind, anchor), color, cmd)?);
         }
         out.insert("labels".into(), ids(&labels));
     } else {

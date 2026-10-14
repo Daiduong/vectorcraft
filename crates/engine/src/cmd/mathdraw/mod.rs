@@ -15,10 +15,13 @@
 //! - `graph`: coordinate axes and graphs of functions.
 //! - `plane`: marks on segments and plane constructions (triangles, circles, fractals, clipping).
 //! - `general`: colours, transforms about a reference point, and math labels.
+//! - `space`: space coordinates (3D) in a parallel projection given by a 3D reference object
+//!   ([`space::Frame3`]): axes, points, parametric curves and circles with their shadows.
 
 mod general;
 mod graph;
 mod plane;
+pub(crate) mod space;
 mod style;
 
 use serde_json::Value;
@@ -36,6 +39,7 @@ pub fn specs() -> Vec<CommandSpec> {
     v.extend(graph::specs());
     v.extend(plane::specs());
     v.extend(general::specs());
+    v.extend(space::specs());
     v
 }
 

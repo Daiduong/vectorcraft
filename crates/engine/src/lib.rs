@@ -1878,6 +1878,8 @@ mod tests_mathdraw_graph;
 #[cfg(test)]
 mod tests_mathdraw_plane;
 #[cfg(test)]
+mod tests_mathdraw_space;
+#[cfg(test)]
 mod tests_menucmds;
 #[cfg(test)]
 mod tests_nativefile;

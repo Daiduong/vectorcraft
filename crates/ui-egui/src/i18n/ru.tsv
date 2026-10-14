@@ -4407,3 +4407,7 @@ lighting	Light	Свет
 	Change Color Tone	Изменить цветовой тон
 	Transform about Reference Point	Трансформировать относительно опорной точки
 	Math Label	Математическая подпись
+	Space Coordinate Axes	Пространственные оси координат
+	Points by Space Coordinates	Точки по пространственным координатам
+	Space Parametric Curve	Пространственная параметрическая кривая
+	Space Circle	Окружность в пространстве

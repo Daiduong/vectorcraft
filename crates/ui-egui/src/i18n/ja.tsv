@@ -4405,3 +4405,7 @@ lighting	Light	ライト
 	Change Color Tone	色調を変更
 	Transform about Reference Point	基準点を中心に変形
 	Math Label	数式ラベル
+	Space Coordinate Axes	空間座標軸
+	Points by Space Coordinates	空間座標で点を打つ
+	Space Parametric Curve	空間の媒介変数曲線
+	Space Circle	空間の円

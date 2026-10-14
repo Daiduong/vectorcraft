@@ -4806,3 +4806,7 @@ imageTrace	Outline	Körvonal
 	Change Color Tone	Színárnyalat módosítása
 	Transform about Reference Point	Átalakítás a referenciapont körül
 	Math Label	Matematikai címke
+	Space Coordinate Axes	Térbeli koordinátatengelyek
+	Points by Space Coordinates	Pontok térbeli koordináták alapján
+	Space Parametric Curve	Térbeli paraméteres görbe
+	Space Circle	Kör a térben
