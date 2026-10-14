@@ -96,6 +96,8 @@ pub struct RenderOptions {
     pub highlight_substitutions: bool,
     /// Edge smoothing (raster export option).
     pub anti_alias: AntiAlias,
+    /// Container node ID where clipping mask is deactivated during isolation/editing.
+    pub unclipped_isolation: Option<NodeId>,
 }
 
 /// How edges are rasterized (raster export option).
@@ -160,6 +162,7 @@ impl Default for RenderOptions {
             mask_view: None,
             highlight_substitutions: false,
             anti_alias: AntiAlias::Art,
+            unclipped_isolation: None,
         }
     }
 }
@@ -330,6 +333,12 @@ pub struct Renderer {
     /// The keys and sizes of the recoloured images colour adjustments made in `images`, oldest
     /// first (see [`Self::adjusted_image`]).
     adjusted: std::collections::VecDeque<(String, usize)>,
+    /// Current dimming factor (e.g. 0.3 for outside objects when in isolation mode, 1.0 normally).
+    current_dim: f32,
+    /// Whether we are inside a dimmed container/layer.
+    dimmed: bool,
+    /// Whether we are inside the isolated container subtree.
+    inside_isolation: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -358,6 +367,8 @@ struct Frame<'a> {
     opts: &'a RenderOptions,
     /// What colours paint as: screen colours, or one ink plane of a CMYK document (see [`ink`]).
     ink: Ink,
+    /// Ancestor chain of the isolated PowerClip container (so ancestors are not dimmed as a whole).
+    isolation_ancestry: Option<&'a [NodeId]>,
 }
 
 impl Frame<'_> {
@@ -406,6 +417,9 @@ impl Renderer {
             ink_images: Default::default(),
             stroke_slices: PtrMap::default(),
             adjusted: Default::default(),
+            current_dim: 1.0,
+            dimmed: false,
+            inside_isolation: false,
         }
     }
 
@@ -429,7 +443,17 @@ impl Renderer {
         let inv = view.inverse();
         let visible = inv.transform_rect_bbox(Rect::new(0.0, 0.0, w as f64, h as f64));
         let px = 1.0 / view.determinant().abs().sqrt().max(1e-12);
-        let frame = Frame { mt: threads > 0, doc, view, visible, px, opts, ink: Ink::Display };
+        let isolation_ancestry = opts.unclipped_isolation.and_then(|id| doc.ancestry(id));
+        let frame = Frame {
+            mt: threads > 0,
+            doc,
+            view,
+            visible,
+            px,
+            opts,
+            ink: Ink::Display,
+            isolation_ancestry: isolation_ancestry.as_deref(),
+        };
         self.stamp += 1;
         // View Opacity Mask: the mask's coverage in greyscale instead of the artwork.
         if let Some(m) = opts.mask_view.and_then(|id| doc.node(id)).and_then(|n| n.mask.as_deref()) {
@@ -496,6 +520,9 @@ impl Renderer {
         }
         (self.nested, self.backdrop) = (0, None);
         self.clip_paths.clear();
+        self.current_dim = 1.0;
+        self.dimmed = false;
+        self.inside_isolation = false;
         if opts.trim && !f.doc.artboards.is_empty() {
             let mut clip = BezPath::new();
             for ab in &f.doc.artboards {
@@ -535,6 +562,18 @@ impl Renderer {
             r.knockout = knockout;
             r.draw_children(c, fr, &layers, knockout);
             r.knockout = false;
+            // When editing a PowerClip in isolation mode, draw it in foreground focus
+            // on top of all dimmed outside objects so outside objects never overlap,
+            // cover, or dim the PowerClip contents.
+            if let Some(iso_id) = fr.opts.unclipped_isolation
+                && let Some(iso_node) = fr.doc.node_arc(iso_id)
+            {
+                r.inside_isolation = true;
+                r.current_dim = 1.0;
+                r.dimmed = false;
+                r.draw_arc(c, fr, iso_node);
+                r.inside_isolation = false;
+            }
         };
         if page_group {
             let blends = self.children_blend(&layers);
@@ -585,7 +624,16 @@ impl Renderer {
             ctx.set_paint(peniko::Color::from_rgba8(bg[0], bg[1], bg[2], bg[3]));
             ctx.fill_rect(&kurbo::Rect::new(0.0, 0.0, w as f64, w as f64));
         }
-        let frame = Frame { mt: false, doc, view, visible: b.inflate(1.0, 1.0), px: 1.0 / s, opts: &RenderOptions::default(), ink: Ink::Display };
+        let frame = Frame {
+            mt: false,
+            doc,
+            view,
+            visible: b.inflate(1.0, 1.0),
+            px: 1.0 / s,
+            opts: &RenderOptions::default(),
+            ink: Ink::Display,
+            isolation_ancestry: None,
+        };
         (self.knockout, self.nested, self.backdrop) = (false, 0, None);
         self.clip_paths.clear();
         self.draw_node(&mut ctx, &frame, n, true);
@@ -693,6 +741,35 @@ impl Renderer {
         if self.skipped(f, a) {
             return;
         }
+        let saved_dim = self.current_dim;
+        let saved_dimmed = self.dimmed;
+        let saved_inside = self.inside_isolation;
+
+        if let Some(iso_id) = f.opts.unclipped_isolation {
+            if self.inside_isolation {
+                self.current_dim = 1.0;
+            } else if a.id == iso_id {
+                // When editing a PowerClip, skip drawing it in normal layer order.
+                // It is drawn in foreground focus on top of all outside objects afterwards
+                // so that outside objects never overlap, cover, or dim the PowerClip contents.
+                return;
+            } else if f.isolation_ancestry.is_some_and(|anc| anc.contains(&a.id)) {
+                // Ancestor of the isolated container: do not dim the container itself,
+                // so that children can be evaluated individually.
+                self.current_dim = 1.0;
+                self.dimmed = false;
+            } else if self.dimmed {
+                // Already inside a dimmed group/layer: keep current_dim = 1.0 so children
+                // don't get multiplied a second time.
+                self.current_dim = 1.0;
+            } else {
+                // Top-level object or container outside the isolated PowerClip:
+                // dim it to 30% opacity (CorelDRAW-like focus).
+                self.current_dim = 0.3;
+                self.dimmed = true;
+            }
+        }
+
         if let Some(m) = a.mask.as_deref()
             && !m.disabled
             && !f.opts.outline
@@ -703,9 +780,15 @@ impl Renderer {
             let blends = a.blend != vectorcraft_color::BlendMode::Normal || (!a.isolate && self.blends_through(a));
             let bounds = if blends { self.bounds_of(a) } else { None };
             self.group(ctx, f, Composite { mask, blends, bounds, ..Default::default() }, &mut |r, c, fr| r.draw_arc_body(c, fr, a));
+            self.current_dim = saved_dim;
+            self.dimmed = saved_dimmed;
+            self.inside_isolation = saved_inside;
             return;
         }
         self.draw_arc_body(ctx, f, a);
+        self.current_dim = saved_dim;
+        self.dimmed = saved_dimmed;
+        self.inside_isolation = saved_inside;
     }
 
     /// Render an opacity mask's art offscreen and turn its luminance into a coverage mask.
@@ -827,6 +910,9 @@ impl Renderer {
                 }
             }
             NodeKind::Group { children, clip: true } | NodeKind::Layer { children, clip: true, .. } => {
+                // When editing a PowerClip in isolation mode, de-activate the clipping mask so that
+                // artwork outside the container bounds can be viewed, transformed, and edited.
+                let unclipped = f.opts.unclipped_isolation == Some(n.id);
                 // Nothing to clip by hides the clipped art (as in the SVG and PDF output). A clip
                 // group doesn't isolate: blending inside it reaches the art below. The clipping
                 // path's fill paints behind the clipped art and its stroke over it, unclipped.
@@ -834,6 +920,13 @@ impl Renderer {
                     && let Some(region) = self.clip_of(clip)
                 {
                     let (fill, stroke) = self.clip_paint_of(clip);
+                    if unclipped {
+                        // When editing PowerClip contents, draw children unclipped and turn the
+                        // container wrapper shape into an active blue wireframe indicator.
+                        self.draw_children(ctx, f, rest, knockout);
+                        self.hairline(ctx, f, &region.0, [0x00, 0x88, 0xff, 255]);
+                        return;
+                    }
                     // An image inside its own frame painted straight into the clipping path, without
                     // a clip layer (envelopes cut distorted images into many such pieces).
                     if let ([image], None, None) = (rest, &fill, &stroke)
@@ -933,7 +1026,7 @@ impl Renderer {
 
     /// The object opacity `n` is drawn with (full while it is drawn as its knockout shape).
     pub(crate) fn opacity_of(&self, n: &Node) -> f32 {
-        if self.is_shape(n) { 1.0 } else { n.opacity }
+        if self.is_shape(n) { 1.0 } else { n.opacity * self.current_dim }
     }
 
     fn hairline(&mut self, ctx: &mut RenderContext, f: &Frame, bp: &BezPath, rgba: [u8; 4]) {
@@ -950,7 +1043,8 @@ impl Renderer {
             return self.draw_shape_fx(ctx, f, n, bp, rule);
         }
         if f.opts.outline {
-            self.hairline(ctx, f, bp, [0, 0, 0, 255]);
+            let color = if self.current_dim < 1.0 || self.dimmed { [180, 180, 180, 255] } else { [0, 0, 0, 255] };
+            self.hairline(ctx, f, bp, color);
             return;
         }
         // Bounds only matter to gradients and patterns (their geometry is relative to the object).
@@ -1182,7 +1276,8 @@ impl Renderer {
             p.apply_affine(xf);
             ctx.set_transform(Affine::IDENTITY);
             ctx.set_stroke(kurbo::Stroke::new(1.0));
-            ctx.set_paint(peniko::Color::BLACK);
+            let color = if self.current_dim < 1.0 || self.dimmed { peniko::Color::from_rgba8(180, 180, 180, 255) } else { peniko::Color::BLACK };
+            ctx.set_paint(color);
             ctx.stroke_path(&p);
             return;
         }
@@ -1313,7 +1408,8 @@ impl Renderer {
         if outline {
             let mut p = rect.to_path(0.1);
             p.apply_affine(im.xf);
-            self.hairline(ctx, f, &p, [0, 0, 0, 255]);
+            let color = if self.current_dim < 1.0 || self.dimmed { [180, 180, 180, 255] } else { [0, 0, 0, 255] };
+            self.hairline(ctx, f, &p, color);
         }
     }
 

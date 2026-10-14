@@ -25,6 +25,10 @@ pub struct Workspace {
     pub dock_tab: DockTab,
     pub open_panel: Option<String>,
     pub status_bar: bool,
+    #[serde(default = "crate::state::yes")]
+    pub page_bar: bool,
+    #[serde(default)]
+    pub single_page_view: bool,
 }
 
 impl Default for Workspace {
@@ -117,6 +121,8 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
         dock_tab: ui.dock_tab,
         open_panel: ui.open_panel.clone(),
         status_bar: ui.status_bar,
+        page_bar: ui.page_bar,
+        single_page_view: ui.single_page_view,
     }
 }
 
@@ -132,6 +138,8 @@ pub fn apply(ui: &mut UiState, w: &Workspace) {
     ui.dock_tab = w.dock_tab;
     ui.open_panel = w.open_panel.clone();
     ui.status_bar = w.status_bar;
+    ui.page_bar = w.page_bar;
+    ui.single_page_view = w.single_page_view;
     ui.flyout = None;
     ui.workspace = w.name.clone();
 }

@@ -294,7 +294,8 @@ fn artboard_new(s: &mut Session, p: &Value) -> Result<Value> {
     let idx = s.edit("New Artboard", |d, _| {
         let id = d.next_artboard_id();
         let name = str_param(p, "name").map(str::to_string).unwrap_or_else(|| format!("Artboard {}", d.artboards.len() + 1));
-        d.artboards.push(Artboard { id, name, rect: r, show_center_mark: false, show_cross_hairs: false });
+        let page = p.get("page").and_then(Value::as_u64).unwrap_or(0) as u32;
+        d.artboards.push(Artboard { id, name, rect: r, show_center_mark: false, show_cross_hairs: false, page });
         Ok(d.artboards.len() - 1)
     })?;
     Ok(json!({ "index": idx }))
@@ -322,6 +323,9 @@ fn artboard_set(s: &mut Session, p: &Value) -> Result<Value> {
         a.rect = rect_from(p, a.rect);
         if let Some(n) = str_param(p, "name") {
             a.name = n.to_string();
+        }
+        if let Some(pg) = p.get("page").and_then(Value::as_u64) {
+            a.page = pg as u32;
         }
         Ok(())
     })?;

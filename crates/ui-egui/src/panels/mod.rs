@@ -4,6 +4,7 @@
 //! Every icon panel has a body (`show_icon_panel`) and a panel (≡) menu (`panel_menu`).
 
 pub mod actions;
+pub mod my_new_panel;
 pub mod align;
 pub mod appearance;
 pub mod artboards;
@@ -65,6 +66,7 @@ pub(crate) fn selection_len(app: &VectorcraftApp) -> usize {
 pub fn show_icon_panel(app: &mut VectorcraftApp, ui: &mut Ui, id: &str) {
     match id {
         "swatches" => swatches::show(app, ui),
+        "my_new_panel" => my_new_panel::show(app, ui),
         "color" => color::show(app, ui),
         "colorGuide" => color_guide::show(app, ui),
         "stroke" => stroke::show(app, ui),
@@ -110,6 +112,11 @@ pub fn show_icon_panel(app: &mut VectorcraftApp, ui: &mut Ui, id: &str) {
 pub fn panel_menu_items(app: &mut VectorcraftApp, ui: &mut Ui, id: &str) {
     match id {
         "swatches" => swatches::menu(app, ui),
+        "my_new_panel" => {
+            if ui.button("My New Panel").clicked() {
+                // No specific command, just placeholder
+            }
+        },
         "color" => color::menu(app, ui),
         "colorGuide" => color_guide::menu(app, ui),
         "stroke" => stroke::menu(app, ui),

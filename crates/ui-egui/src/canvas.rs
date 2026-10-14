@@ -177,18 +177,24 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     panel_drop(app, ui, &resp, &xf);
     context_menu(app, &resp, &xf);
     let painter = ui.painter_at(rect);
-    let Some(st) = app.session.active() else { return };
-    let doc = st.doc.clone();
-    let mask_view = st.shown_mask();
+    let (doc, mask_view, isolation, doc_uid, revision, transparency_grid) = {
+        let Some(st) = app.session.active() else { return };
+        (st.doc.clone(), st.shown_mask(), st.isolation, st.uid as usize, st.revision, st.transparency_grid)
+    };
 
     // Pasteboard, artboard shadows and paper (Document Setup: the transparency grid's look, the
     // simulated paper colour; a white Background Contents hides the grid).
     painter.rect_filled(rect, 0.0, t.pasteboard);
     if app.ui.view.artboards && !app.ui.view.outline {
         let setup = &doc.setup;
-        let grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
+        let grid = (transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
+        let pages = doc.pages();
+        let cur_page_idx = app.view().map_or(0, |v| v.page).min(pages.len().saturating_sub(1));
+        let cur_page_id = pages.get(cur_page_idx).map(|p| p.id).unwrap_or(0);
+        let ab_matches_page = |ab: &vectorcraft_doc::Artboard| !app.ui.single_page_view || ab.page == cur_page_id;
+
         let paper = if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE };
-        for ab in &doc.artboards {
+        for ab in doc.artboards.iter().filter(|ab| ab_matches_page(ab)) {
             let q = xf.quad(ab.rect);
             // Hard 2 pt drop shadow, right and bottom (measured: #4d4d4d then #565656 on #606060).
             let shift = |d: f32| q.iter().map(|p| *p + vec2(d, d)).collect::<Vec<_>>();
@@ -202,7 +208,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             }
         }
     } else if app.ui.view.outline {
-        for ab in &doc.artboards {
+        let pages = doc.pages();
+        let cur_page_idx = app.view().map_or(0, |v| v.page).min(pages.len().saturating_sub(1));
+        let cur_page_id = pages.get(cur_page_idx).map(|p| p.id).unwrap_or(0);
+        let ab_matches_page = |ab: &vectorcraft_doc::Artboard| !app.ui.single_page_view || ab.page == cur_page_id;
+
+        for ab in doc.artboards.iter().filter(|ab| ab_matches_page(ab)) {
             painter.add(Shape::convex_polygon(xf.quad(ab.rect), Color32::WHITE, Stroke::NONE));
         }
     }
@@ -214,8 +225,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let ppp = ui.ctx().pixels_per_point();
     let (w, h) = ((rect.width() * ppp).round().max(1.0) as u32, (rect.height() * ppp).round().max(1.0) as u32);
     let key = CacheKey {
-        doc: st.uid as usize,
-        revision: st.revision,
+        doc: doc_uid,
+        revision,
         zoom: v.zoom,
         cx: v.center.x,
         cy: v.center.y,
@@ -226,6 +237,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         ppp,
         hidden: vec![],
         rot: v.rotation,
+        isolation,
     };
     if !app.canvas.worker_started {
         app.canvas.worker_started = true;
@@ -247,7 +259,13 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             * Affine::rotate(v.rotation.to_radians())
             * Affine::scale(v.zoom * ppp as f64)
             * Affine::translate(-v.center.to_vec2());
-        let opts = vectorcraft_render::RenderOptions { outline: app.ui.view.outline, background: None, artboards: false, ..Default::default() };
+        let opts = vectorcraft_render::RenderOptions {
+            outline: app.ui.view.outline,
+            background: None,
+            artboards: false,
+            unclipped_isolation: isolation,
+            ..Default::default()
+        };
         let opts = vectorcraft_render::RenderOptions {
             proof: vectorcraft_render::proof::active_proof(),
             overprint_preview: vectorcraft_render::proof::overprint_preview_on(),
@@ -288,8 +306,16 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         painter.image(tex.id(), egui::Rect::from_min_max(a, b), egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
     }
     // Artboard edges and names.
+    let pages = doc.pages();
+    let cur_page_idx = app.view().map_or(0, |v| v.page).min(pages.len().saturating_sub(1));
+    let cur_page_id = pages.get(cur_page_idx).map(|p| p.id).unwrap_or(0);
+    let ab_matches_page = |ab: &vectorcraft_doc::Artboard| !app.ui.single_page_view || ab.page == cur_page_id;
+
     let active_ab = 0;
     for (i, ab) in doc.artboards.iter().enumerate() {
+        if !ab_matches_page(ab) {
+            continue;
+        }
         let r = xf.rect_to_screen(ab.rect);
         let c = if i == active_ab { Color32::from_gray(0) } else { Color32::from_gray(120) };
         painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(if i == active_ab { 1.0 } else { 0.6 }, c)));
@@ -298,10 +324,16 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             painter.add(Shape::closed_line(xf.quad(doc.setup.bleed_rect(ab.rect)), Stroke::new(1.0, t.bleed)));
         }
         if app.session.tool_id() == "artboard" || doc.artboards.len() > 1 {
+            let page_str = if pages.len() > 1 {
+                let page_name = pages.iter().find(|p| p.id == ab.page).map(|p| p.name.as_str()).unwrap_or("Page");
+                format!(" ({})", page_name)
+            } else {
+                String::new()
+            };
             painter.text(
                 r.left_top() - vec2(0.0, 4.0),
                 egui::Align2::LEFT_BOTTOM,
-                format!("{:02} - {}", i + 1, ab.name),
+                format!("{:02} - {}{}", i + 1, ab.name, page_str),
                 egui::FontId::proportional(11.0),
                 t.text_dim,
             );
@@ -338,6 +370,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             hidden_chars_overlay(app, &painter, &xf);
         }
     }
+    powerclip_container_overlay(app, &painter, &xf);
     let view_info = app.view_info();
     // View → Hide Gradient Annotator hides the Gradient tool's annotator.
     if app.session.tool_id() != "gradient" || app.ui.view.gradient_annotator {
@@ -889,8 +922,14 @@ fn walk_drawn<'a>(n: &'a Node, f: &mut impl FnMut(&'a Node)) {
 
 /// The topmost editable object under document point `p` at `zoom` (3 px tolerance).
 fn hit_at(app: &VectorcraftApp, p: Point, zoom: f64) -> Option<vectorcraft_doc::hit::Hit> {
-    let opt = vectorcraft_doc::hit::HitOptions { tol: 3.0 / zoom, outline: app.ui.view.outline, path_only: false };
-    vectorcraft_doc::hit::hit_test(&app.session.active()?.doc, p, opt)
+    let st = app.session.active()?;
+    let opt = vectorcraft_doc::hit::HitOptions {
+        tol: 3.0 / zoom,
+        outline: app.ui.view.outline,
+        path_only: false,
+        unclipped: st.isolation,
+    };
+    vectorcraft_doc::hit::hit_test(&st.doc, p, opt)
 }
 
 /// Right-click: the object under the pointer is selected first unless it already is, then the
@@ -1036,6 +1075,42 @@ fn hidden_chars_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
             }
         }
     });
+}
+
+/// When editing a PowerClip in isolation mode, render its container wrapper shape as an active
+/// blue wireframe with a badge so it is clear which shape is the container/wrapper.
+fn powerclip_container_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+    let Some(st) = app.session.active() else { return };
+    let Some(iso_id) = st.isolation else { return };
+    let Some(iso_node) = st.doc.node(iso_id) else { return };
+    let children = match &iso_node.kind {
+        NodeKind::Group { clip: true, children } | NodeKind::Layer { clip: true, children, .. } => children,
+        _ => return,
+    };
+    let Some(container) = children.first() else { return };
+    let outline = node_outline(container);
+    if outline.is_empty() {
+        return;
+    }
+    let blue = Color32::from_rgb(0, 136, 255);
+
+    // Draw active blue wireframe outline
+    stroke_path(p, &outline, xf, Stroke::new(1.8, blue));
+
+    // Active container indicator badge at the top of the container shape
+    if let Some(bounds) = container.geometric_bounds() {
+        let screen_rect = xf.rect_to_screen(bounds);
+        if screen_rect.intersects(xf.rect) {
+            let font = egui::FontId::proportional(11.0);
+            let label = "PowerClip Container";
+            let galley = p.layout_no_wrap(label.to_string(), font, Color32::WHITE);
+            let bx = screen_rect.min.x.clamp(xf.rect.left() + 4.0, (xf.rect.right() - galley.size().x - 14.0).max(xf.rect.left() + 4.0));
+            let by = (screen_rect.min.y - 18.0).clamp(xf.rect.top() + 4.0, (xf.rect.bottom() - 22.0).max(xf.rect.top() + 4.0));
+            let badge_rect = egui::Rect::from_min_size(egui::pos2(bx, by), galley.size() + vec2(10.0, 4.0));
+            p.rect_filled(badge_rect, CornerRadius::same(3), blue);
+            p.galley(badge_rect.min + vec2(5.0, 2.0), galley, Color32::WHITE);
+        }
+    }
 }
 
 /// Text threads of the selected frames: a line from each frame's out port (bottom right) to the

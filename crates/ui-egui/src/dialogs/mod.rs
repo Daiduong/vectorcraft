@@ -50,6 +50,7 @@ pub mod place;
 pub mod placement_options;
 pub mod plugin;
 mod png_options;
+pub mod powerclip;
 pub mod print;
 pub mod print_presets;
 mod psd_options;
@@ -267,6 +268,7 @@ registry! {
     PerspectiveGridOptions: [perspective_options::KIND] => perspective_options::SPEC,
     BlendOptions: [blend_options::KIND] => blend_options::SPEC,
     PerspectivePlane: [perspective_plane::KIND] => perspective_plane::SPEC,
+    PowerClipOptions: [powerclip::KIND] => powerclip::SPEC,
 }
 
 /// The button labels the shared dialog frame can show (OK, discard and the fixed Cancel/Close),

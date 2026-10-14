@@ -274,6 +274,20 @@ fn main() -> eframe::Result {
             .with_title_shown(false)
             .with_icon(app_icon())
             .with_app_id("ai.storyteller.vectorcraft"),
+        wgpu_options: {
+            let mut opts = eframe::egui_wgpu::WgpuConfiguration::default();
+            if let eframe::egui_wgpu::WgpuSetup::CreateNew(ref mut setup) = opts.wgpu_setup {
+                #[cfg(target_os = "windows")]
+                {
+                    // By default, wgpu on Windows includes Vulkan, which crashes in buggy Intel
+                    // Vulkan ICD drivers (igvk64.dll). Prefer DX12 unless overridden by env.
+                    if std::env::var_os("WGPU_BACKEND").is_none() {
+                        setup.instance_descriptor.backends = eframe::egui_wgpu::wgpu::Backends::DX12;
+                    }
+                }
+            }
+            opts
+        },
         ..Default::default()
     };
     eframe::run_native(

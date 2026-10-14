@@ -81,6 +81,7 @@ fn rasterize(r: &mut Renderer, doc: &Document, def: &PatternDef, region: Rect, w
             px: 1.0 / v.determinant().abs().sqrt().max(1e-12),
             opts: &opts,
             ink,
+            isolation_ancestry: None,
         };
         for a in &def.art {
             r.draw_arc(&mut ctx, &frame, a);

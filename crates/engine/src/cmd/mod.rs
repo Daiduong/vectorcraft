@@ -49,6 +49,8 @@ pub mod pdfcmds;
 pub mod perspgrid;
 mod place;
 pub mod plugin;
+pub(crate) mod page;
+pub(crate) mod powerclip;
 pub mod prefscmds;
 pub mod print;
 pub(crate) mod printadvanced;
@@ -178,6 +180,8 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(fileio::specs());
         v.extend(create::specs());
         v.extend(object::specs());
+        v.extend(powerclip::specs());
+        v.extend(page::specs());
         v.extend(path::specs());
         v.extend(select::specs());
         v.extend(wand::specs());
@@ -349,6 +353,12 @@ pub(crate) fn leaf_targets(s: &Session, ids: &[NodeId]) -> Result<Vec<NodeId>> {
     for id in ids {
         let Some(n) = d.node(*id) else { continue };
         match &n.kind {
+            NodeKind::Group { clip: true, children } => {
+                // For a clipping / PowerClip group, paint commands target the container frame only (children[0])
+                if let Some(first) = children.first() {
+                    out.push(first.id);
+                }
+            }
             NodeKind::Group { .. } | NodeKind::Layer { .. } => n.walk(&mut |c| {
                 if !c.is_container() || matches!(c.kind, NodeKind::Compound { .. }) {
                     out.push(c.id)

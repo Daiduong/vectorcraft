@@ -21,11 +21,14 @@ pub struct View {
     /// Size show it.
     #[serde(default)]
     pub artboard: usize,
+    /// Active page index (CorelDRAW-class page pagination).
+    #[serde(default)]
+    pub page: usize,
 }
 
 impl Default for View {
     fn default() -> Self {
-        Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, rotation: 0.0, artboard: 0 }
+        Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, rotation: 0.0, artboard: 0, page: 0 }
     }
 }
 
@@ -39,6 +42,7 @@ impl View {
                 fitted: true,
                 rotation: if v.rotation.is_finite() { v.rotation } else { 0.0 },
                 artboard: 0,
+                page: 0,
             },
             _ => Self::default(),
         }
@@ -233,6 +237,11 @@ pub struct UiState {
     #[serde(default)]
     pub slot_tool: std::collections::BTreeMap<String, String>,
     pub status_bar: bool,
+    #[serde(default = "yes")]
+    pub page_bar: bool,
+    /// Single page view: display only artboards on the currently active page.
+    #[serde(default)]
+    pub single_page_view: bool,
     pub dock: bool,
     pub view: ViewFlags,
     pub dialog: Option<Dialog>,
@@ -311,6 +320,9 @@ pub struct UiState {
     /// never used).
     #[serde(default)]
     pub dxf_import: Value,
+    /// PowerClip placement options (auto_center, fit_mode, suppress_dialog).
+    #[serde(default = "default_powerclip_options")]
+    pub powerclip_options: Value,
     /// The Home screen is shown over the open documents (`app.home`): the active document's uid
     /// and the document count when it opened. Choosing a tab, or a document opening, closing or
     /// becoming active, leaves it.
@@ -366,6 +378,8 @@ impl Default for UiState {
             task_bar: true,
             slot_tool: Default::default(),
             status_bar: true,
+            page_bar: true,
+            single_page_view: false,
             dock: true,
             view: ViewFlags::default(),
             dialog: None,
@@ -397,13 +411,22 @@ impl Default for UiState {
             dxf_options: Value::Null,
             eps_options: Value::Null,
             dxf_import: Value::Null,
+            powerclip_options: default_powerclip_options(),
             home: None,
             window: None,
         }
     }
 }
 
-fn yes() -> bool {
+fn default_powerclip_options() -> Value {
+    serde_json::json!({
+        "auto_center": true,
+        "fit_mode": "none",
+        "suppress_dialog": false,
+    })
+}
+
+pub(crate) fn yes() -> bool {
     true
 }
 

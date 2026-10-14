@@ -153,6 +153,13 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "",
         "{index: 0-based number | \"first\" | \"previous\" | \"next\" | \"last\"} make that artboard the status bar navigator's (the one Fit Artboard in Window and Actual Size show) and fit it in the window → {index}",
     ),
+    (
+        "view.goToPage",
+        "Go to Page",
+        "",
+        "{index: 0-based number | \"first\" | \"previous\" | \"next\" | \"last\"} switch active page and fit its artboards in the window → {page, page_id}",
+    ),
+    ("view.singlePageView", "Single Page View", "", "{} toggle single page view (display only current page's artboards)"),
     ("view.edges", "Hide Edges", "Cmd+H", "{}"),
     ("view.artboards", "Hide Artboards", "Cmd+Shift+H", "{}"),
     ("view.rulers", "Show Rulers", "Cmd+R", "{}"),
@@ -679,6 +686,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "",
         "{plane?: left|right|ground (default: the active plane)} open the plane's options, as double-clicking its plane widget does (dialog `perspectivePlane`: location (pt along the plane's normal), objects: none|move|copy): OK runs perspective.plane.move",
     ),
+    (
+        "object.powerclip.options",
+        "PowerClip Options…",
+        "",
+        "{} open PowerClip Options dialog to configure auto-center, fit mode, and dialog suppression preferences",
+    ),
 ];
 
 /// Handle a UI command. `None` = not a UI command (the engine handles it).
@@ -866,6 +879,8 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             Ok(Value::Null)
         }
         "view.goToArtboard" => go_to_artboard(app, p),
+        "view.goToPage" => go_to_page(app, p),
+        "view.singlePageView" => flag(&mut app.ui.single_page_view),
         "view.presentation" => {
             app.ui.screen_mode = if app.ui.screen_mode == 3 { 0 } else { 3 };
             Ok(json!(app.ui.screen_mode))
@@ -1120,6 +1135,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         },
         "ui.blendOptions" => crate::dialogs::blend_options::open(app),
         "ui.perspectivePlane" => crate::dialogs::perspective_plane::open(app, p),
+        "object.powerclip.options" => crate::dialogs::powerclip::open_options(app),
         _ => return None,
     };
     Some(r)
@@ -1148,6 +1164,51 @@ fn go_to_artboard(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> 
     }
     crate::canvas::fit(app, "view.fitArtboard");
     Ok(json!({ "index": to }))
+}
+
+/// `view.goToPage`: switch active page to `index` (number, or first / previous / next / last),
+/// fit the page's artboard(s) in the window, and set active artboard to the page's first artboard.
+fn go_to_page(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+    let doc = app.session.active().map(|d| d.doc.clone()).ok_or("no document open")?;
+    let pages = doc.pages();
+    let n = pages.len();
+    let last = n.checked_sub(1).ok_or("the document has no pages")?;
+    let current = app.view().map_or(0, |v| v.page).min(last);
+    let to = match p.get("index") {
+        Some(Value::String(s)) => match s.as_str() {
+            "first" => 0,
+            "previous" => current.saturating_sub(1),
+            "next" => current + 1,
+            "last" => last,
+            other => return Err(format!("index must be a number or first, previous, next or last, not `{other}`")),
+        },
+        Some(v) => v.as_u64().and_then(|i| usize::try_from(i).ok()).ok_or("index must be a number or first, previous, next or last")?,
+        None => return Err("missing index".into()),
+    }
+    .min(last);
+
+    let target_page_id = pages.get(to).map(|p| p.id).unwrap_or(0);
+    let page_abs: Vec<&vectorcraft_doc::Artboard> = doc.artboards.iter().filter(|a| a.page == target_page_id).collect();
+
+    if let Some(v) = app.view_mut() {
+        v.page = to;
+        if let Some((first_idx, _)) = doc.artboards.iter().enumerate().find(|(_, a)| a.page == target_page_id) {
+            v.artboard = first_idx;
+        }
+    }
+
+    if let Some(rect) = app.canvas_rect
+        && let Some(union_rect) = page_abs.iter().map(|a| a.rect).reduce(|a, b| a.union(b))
+        && let Some(v) = app.view_mut()
+    {
+        v.center = union_rect.center();
+        v.fitted = true;
+        let zx = (rect.width() as f64 - 60.0) / union_rect.width().max(1.0);
+        let zy = (rect.height() as f64 - 60.0) / union_rect.height().max(1.0);
+        v.zoom = zx.min(zy).clamp(0.0313, 640.0);
+    }
+
+    Ok(json!({ "page": to, "page_id": target_page_id }))
 }
 
 /// Checked state for toggle items.
@@ -1186,6 +1247,7 @@ pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
         }
         "view.smartGuides" => v.smart_guides,
         "view.grid" => v.grid,
+        "view.singlePageView" => app.ui.single_page_view,
         "view.snapToGrid" => v.snap_to_grid,
         "view.snapToPoint" => v.snap_to_point,
         "view.rulers" => v.rulers,
@@ -1875,6 +1937,24 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<Item>)> {
                         c("Edit Clipping Path", "object.clippingMask.editMask"),
                     ],
                 ),
+                sub(
+                    "PowerClip",
+                    vec![
+                        c("PowerClip Inside", "object.powerclip.placeInside"),
+                        c("Extract PowerClip Contents", "object.powerclip.extract"),
+                        c("Select PowerClip Contents", "object.powerclip.selectContents"),
+                        Sep,
+                        c("Center Contents", "object.powerclip.center"),
+                        cp("Fit Proportionally", "object.powerclip.fit", json!({"mode": "fitProportional"})),
+                        cp("Fill Frame Proportionally", "object.powerclip.fit", json!({"mode": "fillFrame"})),
+                        cp("Stretch to Fill", "object.powerclip.fit", json!({"mode": "stretch"})),
+                        Sep,
+                        c("Edit PowerClip", "object.powerclip.editContents"),
+                        c("Finish Editing PowerClip", "object.powerclip.finishEdit"),
+                        Sep,
+                        c("PowerClip Options…", "object.powerclip.options"),
+                    ],
+                ),
                 sub("Compound Path", vec![c("Make", "object.compoundPath.make"), c("Release", "object.compoundPath.release")]),
                 sub(
                     "Artboards",
@@ -2058,6 +2138,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<Item>)> {
                 Sep,
                 c("Hide Edges", "view.edges"),
                 c("Hide Artboards", "view.artboards"),
+                c("Single Page View", "view.singlePageView"),
                 c("Show Print Tiling", "view.printTiling"),
                 c("Hide Slices", "view.slices.hide"),
                 c("Lock Slices", "view.slices.lock"),
@@ -2276,8 +2357,13 @@ pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
         if several {
             v.push(c("Make Clipping Mask", "object.clippingMask.make"));
         }
+        v.push(c("PowerClip Inside", "object.powerclip.placeInside"));
         if any(|k| matches!(k, NodeKind::Group { clip: true, .. })) {
             v.push(c("Release Clipping Mask", "object.clippingMask.release"));
+            v.push(c("Extract PowerClip Contents", "object.powerclip.extract"));
+            v.push(c("Select PowerClip Contents", "object.powerclip.selectContents"));
+            v.push(c("Center PowerClip Contents", "object.powerclip.center"));
+            v.push(c("Edit PowerClip", "object.powerclip.editContents"));
         }
         if several && paths {
             v.push(c("Make Compound Path", "object.compoundPath.make"));
@@ -2438,7 +2524,7 @@ fn label_of(it: &Item) -> &'static str {
 pub fn click_target(label: &str, id: &str, p: &Value) -> (String, Value) {
     let dialog = label.ends_with('…')
         && p.as_object().is_some_and(|o| !o.is_empty())
-        && !matches!(id, "effect.dialog" | "window.panel" | "window.brightness" | "view.screenMode" | "plugin.dialog");
+        && !matches!(id, "effect.dialog" | "window.panel" | "window.brightness" | "view.screenMode" | "plugin.dialog" | "tool.select");
     if dialog {
         return ("ui.paramDialog".into(), json!({"command": id, "label": label.trim_end_matches('…'), "params": p}));
     }
@@ -2573,6 +2659,24 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
     // Help links: the command returns the URL; a menu click opens it (agents just get the URL).
     if matches!(id, "help.discord" | "help.website" | "help.appPage" | "help.github") {
         app.open_link(id);
+        return;
+    }
+    // PowerClip Options…: opens standalone options dialog to configure defaults.
+    if id == "object.powerclip.options" {
+        if let Err(e) = crate::dialogs::powerclip::open_options(app) {
+            app.status(e);
+        }
+        return;
+    }
+    // Place Inside (PowerClip): prompts for options or applies directly if suppressed.
+    if id == "object.powerclip.placeInside" && p.get("center").is_none() && p.get("fit").is_none() {
+        let container = p.get("container").and_then(Value::as_u64);
+        let contents = p.get("contents").and_then(Value::as_array).map(|arr| {
+            arr.iter().filter_map(Value::as_u64).collect::<Vec<_>>()
+        }).unwrap_or_default();
+        if let Err(e) = crate::dialogs::powerclip::prompt_or_place(app, container, contents) {
+            app.status(e);
+        }
         return;
     }
     if let Err(e) = app.run(id, p) {

@@ -590,7 +590,7 @@ fn mesh_hit_test_inside() {
     s.execute("object.mesh.create", &json!({"rows": 2, "cols": 2})).unwrap();
     let d = &s.doc().unwrap().doc;
     let h =
-        vectorcraft_doc::hit::hit_test(d, Point::new(50.0, 30.0), vectorcraft_doc::hit::HitOptions { tol: 1.0, outline: false, path_only: false });
+        vectorcraft_doc::hit::hit_test(d, Point::new(50.0, 30.0), vectorcraft_doc::hit::HitOptions { tol: 1.0, outline: false, path_only: false, ..Default::default() });
     assert_eq!(h.map(|h| h.leaf), Some(a));
 }
 

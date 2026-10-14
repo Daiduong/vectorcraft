@@ -22,6 +22,7 @@ pub mod meshedit;
 pub mod params;
 pub mod pen;
 pub mod place;
+pub mod powerclip;
 pub mod printtiling;
 pub mod select;
 pub mod settings;
@@ -274,7 +275,7 @@ impl ToolContext<'_> {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))
     }
     pub fn hit_options(&self) -> vectorcraft_doc::hit::HitOptions {
-        vectorcraft_doc::hit::HitOptions { tol: self.tol(3.0), outline: self.outline, path_only: false }
+        vectorcraft_doc::hit::HitOptions { tol: self.tol(3.0), outline: self.outline, path_only: false, unclipped: self.isolation }
     }
 }
 
@@ -433,6 +434,7 @@ pub fn create(id: &str) -> Box<dyn Tool> {
         "rectangle" | "roundedRectangle" | "ellipse" | "polygon" | "star" | "lineSegment" => Box::new(shape::ShapeTool::new(id)),
         // Not in the toolbar: `file.place.queue` loads it.
         "place" => Box::new(place::PlaceTool::default()),
+        "powerclip" => Box::new(powerclip::PowerClipTool::default()),
         other => symbolism::create(other)
             .or_else(|| builder::create(other))
             .or_else(|| draw2::create(other))

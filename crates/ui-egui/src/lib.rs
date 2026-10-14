@@ -242,6 +242,7 @@ pub struct CacheKey {
     pub ppp: f32,
     pub hidden: Vec<u64>,
     pub rot: f64,
+    pub isolation: Option<vectorcraft_doc::NodeId>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -831,6 +832,9 @@ impl VectorcraftApp {
         }
         if self.ui.status_bar && self.ui.screen_mode < 3 {
             chrome::status_bar(self, ui);
+            if self.ui.page_bar {
+                chrome::page_bar(self, ui);
+            }
             chrome::hint_bar(self, ui);
         }
         if self.ui.toolbar && self.ui.screen_mode < 3 {
