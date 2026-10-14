@@ -1740,9 +1740,15 @@ impl VectorcraftApp {
         let dialog_was_open = self.ui.dialog.is_some();
         let lang = self.ui_language();
         i18n::set_current(lang);
+        // Han ideographs follow the interface language: Simplified and Traditional Chinese share
+        // their code points and differ only in the glyph forms, so the language - not the character -
+        // picks the face, and a Japanese interface keeps the Japanese kanji forms. A language with no
+        // Han script leaves the database's order alone.
+        let cjk = vectorcraft_text::CjkPreference::for_language(lang.code());
         // The engine gives new type the Japanese defaults while the UI is in Japanese.
         if self.session.ui_language.as_deref() != Some(lang.code()) {
             self.session.ui_language = Some(lang.code().to_string());
+            vectorcraft_text::FontDb::global().set_cjk_preference(cjk);
         }
         self.install_injected_settle_hook(ctx);
         self.advance_geometry_epoch(ctx);
@@ -1908,6 +1914,9 @@ impl VectorcraftApp {
         if !self.fonts_ready {
             // `set_fonts` applies at once only while no text was laid out in this pass; when it
             // defers, the next pass applies it and this leaves input and drawing to that pass.
+            // Before the first font set, so the preference decides which system face is loaded.
+            let cjk = vectorcraft_text::CjkPreference::for_language(self.ui_language().code());
+            vectorcraft_text::FontDb::global().set_cjk_preference(cjk);
             let fonts = theme::interface_fonts();
             ctx.set_fonts(fonts.clone());
             self.fonts_ready = ctx.fonts(|applied| applied.definitions() == &fonts);
