@@ -47,6 +47,18 @@ pub const OPTIONS: &[FormatOption] = &[
     },
     FormatOption { name: "decimals", ty: "integer", default: "3", description: "coordinate precision, 1–7 decimal places" },
     FormatOption { name: "minify", ty: "boolean", default: "false", description: "no XML declaration, indentation or line breaks" },
+    FormatOption {
+        name: "optimize",
+        ty: "boolean",
+        default: "false",
+        description: "rewrite the markup with oxvg (an SVGO port): shorter path data, numbers and colours, unused definitions, namespaces and attributes dropped, one line; ids (layerNames, unique), <metadata>, internal CSS, hidden layers and decimals (at most 5) are kept; not with entities styling (written as is, with a warning)",
+    },
+    FormatOption {
+        name: "flatten",
+        ty: "boolean",
+        default: "false",
+        description: "with optimize: merge paths of one appearance and dissolve groups (objects and layers lose their identity)",
+    },
     FormatOption { name: "responsive", ty: "boolean", default: "false", description: "no width/height: the SVG scales to its container" },
     FormatOption {
         name: "preserveEditing",

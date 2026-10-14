@@ -16,7 +16,7 @@ use vectorcraft_text::{FontDb, FontFace};
 
 use crate::{
     EDITING_NS, Encoding, ExportOptions, ImageMode, LinkedImage, ObjectIds, Output, Profile, Styling, base64_encode, body_hash, fmt_num, fnv1a,
-    xml_escape,
+    optimize, xml_escape,
 };
 
 use crate::css::{self, Props, blend_css, css_string, font_descriptor};
@@ -143,22 +143,69 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         out.push_str(&format!("<desc>{}</desc>{nl}", xml_escape(&doc.metadata.description)));
     }
     let latin1 = encoding == Encoding::Latin1;
+    let mut body = std::mem::take(&mut w.body);
+    // Optimize rewrites the markup: before the Latin-1 references (it would read them back as
+    // characters) and before the editing data takes its hash of the markup around it.
+    if opts.optimize {
+        if opts.styling == Styling::StyleEntities {
+            w.warn("Optimize doesn't apply with Style Attributes (Entity References): the SVG was written as is");
+        } else {
+            match optimize::optimize(&format!("{out}{body}</svg>{nl}"), opts).and_then(|s| split_root(&s)) {
+                Ok((head, rest)) => {
+                    out = String::new();
+                    // oxvg writes no XML declaration; the file keeps the one the options ask for.
+                    if !opts.minify || latin1 {
+                        out.push_str(&format!("<?xml version=\"1.0\" encoding=\"{}\"?>{nl}", encoding.xml_name()));
+                    }
+                    out.push_str(&head);
+                    body = rest;
+                }
+                Err(e) => w.warn(&format!("Optimize failed ({e}): the SVG was written as is")),
+            }
+        }
+    }
     if latin1 {
         latin1_refs(&mut out);
-        latin1_refs(&mut w.body);
+        latin1_refs(&mut body);
     }
     // The editing data carries a hash of the markup around its `<metadata>`.
-    let native = native.filter(|_| opts.preserve_editing).map(|bytes| (bytes, body_hash(&[&out, &w.body, "</svg>", nl])));
+    let native = native.filter(|_| opts.preserve_editing).map(|bytes| (bytes, body_hash(&[&out, &body, "</svg>", nl])));
     let mut meta = String::new();
     w.metadata(&mut meta, native);
     if latin1 {
         latin1_refs(&mut meta);
     }
     out.push_str(&meta);
-    out.push_str(&w.body);
+    out.push_str(&body);
     out.push_str("</svg>");
     out.push_str(nl);
     Output { svg: out, linked: w.linked, warnings: w.warnings, encoding }
+}
+
+/// An optimized file split into its `<svg …>` start tag (with what precedes it) and the content
+/// up to its `</svg>`, so `<metadata>` can go between them. An error when the markup isn't shaped
+/// like that.
+fn split_root(svg: &str) -> Result<(String, String), String> {
+    let unexpected = || "unexpected output".to_string();
+    let start = svg.find("<svg").ok_or_else(unexpected)?;
+    // The end of the start tag: the first `>` outside quotes.
+    let mut quote = None;
+    let mut end = None;
+    for (i, c) in svg.get(start..).ok_or_else(unexpected)?.char_indices() {
+        match (quote, c) {
+            (None, '"' | '\'') => quote = Some(c),
+            (Some(q), c) if q == c => quote = None,
+            (None, '>') => {
+                end = Some(start + i + 1);
+                break;
+            }
+            _ => {}
+        }
+    }
+    let end = end.ok_or_else(unexpected)?;
+    let head = svg.get(..end).ok_or_else(unexpected)?;
+    let rest = svg.get(end..).ok_or_else(unexpected)?.trim_end().strip_suffix("</svg>").ok_or_else(unexpected)?;
+    Ok((head.to_string(), rest.to_string()))
 }
 
 /// XML 1.0 literal attribute whitespace is normalized to spaces; references retain the value.

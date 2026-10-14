@@ -353,6 +353,8 @@
 	Check Script	Verificar Script
 	Check Script…	Verificar Script…
 	Copy Report	Copiar Relatório
+	Flatten Structure	Achatar estrutura
+	Optimize	Otimizar
 	VectorCraft read this script without running it.	O VectorCraft leu este script sem executá-lo.
 	Needs nothing beyond plain JavaScript	Precisa apenas de JavaScript simples
 	Needs the script language's own objects or directives	Precisa de objetos ou diretivas próprios da linguagem do script

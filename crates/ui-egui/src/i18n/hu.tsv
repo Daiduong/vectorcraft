@@ -1822,6 +1822,7 @@
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	Be nem olvasott fájlrész: {n}
 @msg	This shortcut file is in a form VectorCraft can't read.	Ez a billentyűparancsfájl olyan formátumú, amelyet a VectorCraft nem tud beolvasni.
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	nem billentyűparancs-készlet: a szöveg nem perjeles névvel és nyitó kapcsos zárójellel kezdődik
+	Flatten Structure	Szerkezet összevonása
 	Keywords:	Kulcsszavak:
 	Kind	Típus
 	Kinsoku Set	Kinsoku-készlet
@@ -2382,6 +2383,7 @@
 	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Megnyitáskor kimaradt, amit a VectorCraft még nem tud beolvasni ({what}), ezért a fájl felülírásával ez végleg elvész. A megtartásához mentsd más néven.
 	Open…	Megnyitás…
 	Optical Margin Alignment	Optikai margóigazítás
+	Optimize	Optimalizálás
 	Optimize for fast web view	Optimalizálás gyors webes megtekintéshez
 	Optimized	Optimalizált
 	Options	Beállítások
@@ -4258,6 +4260,7 @@ imageTrace	Outline	Körvonal
 @msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	belső hiba (`{cmd}`): {msg} (a dokumentum változatlan maradt; kérjük, jelentsd ezt a hibát)
 @msg	Internal error: {msg} (please report this bug)	Belső hiba: {msg} (kérjük, jelentsd ezt a hibát)
 @msg	internal error: {msg} (please report this bug)	belső hiba: {msg} (kérjük, jelentsd ezt a hibát)
+@msg	internal error in the optimiser	belső hiba az optimalizálóban
 @msg	invalid image data for `{0}`	érvénytelen képadatok: `{0}`
 @msg	invalid native panel set	érvénytelen natív panelkészlet
 @msg	Invalid panel layout; restored the default dock	Érvénytelen panelelrendezés; az alapértelmezett dokk visszaállítva

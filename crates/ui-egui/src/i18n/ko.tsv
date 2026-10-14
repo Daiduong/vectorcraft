@@ -1593,6 +1593,7 @@
 	Forget Import Matches	가져오기 대응 지우기
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	기본 단축키 {n}개와 일치|기본 단축키 {n}개와 일치
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	읽지 않은 파일 부분 {n}개|읽지 않은 파일 부분 {n}개
+	Flatten Structure	구조 병합
 	Import Transparency Flattener Presets	투명도 병합 프리셋 가져오기
 	Import…	가져오기…
 	In Tangent Handles	안쪽 접선 핸들
@@ -1801,6 +1802,7 @@
 	Move Rows	행 이동
 	Move Slices	슬라이스 이동
 	Move Spine Point	스파인 포인트 이동
+	Optimize	최적화
 	Reshape Spine Segment	스파인 세그먼트 모양 변경
 	Move Swatch	견본 이동
 	Move Up	위로 이동
@@ -3866,6 +3868,7 @@ theme	Appearance	외관
 @msg	this isn't a flat-colour logo ({_1}% of its solid areas match a few flat colours), so Flat Logo mode would turn its gradients into patches: use Color mode instead	단색 로고가 아닙니다(단색 영역의 {_1}%만 몇 가지 단색과 일치): 단색 로고 모드는 그레이디언트를 패치로 바꾸므로 색상 모드를 사용하세요
 @msg	this trace would make more than {max} anchor points, more than the document can show smoothly: raise Noise, lower Paths or Colors, or pick a lower-fidelity preset	이 추적은 앵커 포인트가 {max}개를 넘게 만들어 문서가 매끄럽게 표시할 수 있는 한도를 넘습니다: 노이즈를 높이거나 패스 또는 색상 수를 낮추거나 정밀도가 낮은 프리셋을 선택하세요
 @msg	internal error: {msg} (please report this bug)	내부 오류: {msg}(이 버그를 신고해 주세요)
+@msg	internal error in the optimiser	최적화 도구 내부 오류
 @msg	the background worker stopped	백그라운드 작업이 중지되었습니다
 @msg	{_1} failed: {e}	{_1} 실패: {e}
 @msg	{label}…	{label}…

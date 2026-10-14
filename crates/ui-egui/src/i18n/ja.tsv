@@ -1641,6 +1641,7 @@
 	Forget Import Matches	読み込み時の対応付けを消去
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	{n} 個の初期設定ショートカットと一致
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	ファイルの {n} 箇所を読み込めませんでした
+	Flatten Structure	構造をフラット化
 	Keywords:	キーワード:
 	Knife	ナイフ
 	Knockout Group	グループの抜き
@@ -1806,6 +1807,7 @@
 	Move Rows	行を移動
 	Move Slices	スライスを移動
 	Move Spine Point	スパインポイントを移動
+	Optimize	最適化
 	Reshape Spine Segment	スパインセグメントをシェイプ変形
 	Move Swatch	スウォッチを移動
 	Move Up	上へ移動
@@ -3888,6 +3890,7 @@ theme	Appearance	外観
 @msg	this isn't a flat-colour logo ({_1}% of its solid areas match a few flat colours), so Flat Logo mode would turn its gradients into patches: use Color mode instead	フラットカラーのロゴではないため (ベタ塗り部分のうち少数の単色に一致するのは {_1}% のみ)、フラットロゴモードではグラデーションがまだらになります: 代わりにカラーモードを使用してください
 @msg	this trace would make more than {max} anchor points, more than the document can show smoothly: raise Noise, lower Paths or Colors, or pick a lower-fidelity preset	このトレースではアンカーポイントが {max} 個を超え、ドキュメントを滑らかに表示できなくなります: 「ノイズ」を上げる、「パス」か「カラー」を下げる、または精度の低いプリセットを選択してください
 @msg	internal error: {msg} (please report this bug)	内部エラー: {msg} (このバグを報告してください)
+@msg	internal error in the optimiser	最適化処理の内部エラー
 @msg	the background worker stopped	バックグラウンド処理が停止しました
 @msg	{_1} failed: {e}	{_1} に失敗しました: {e}
 @msg	{label}…	{label}…

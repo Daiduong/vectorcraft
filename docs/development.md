@@ -21,6 +21,11 @@ craft-fonts checkout adds the fonts the site serves beside the wasm: Trunk's `po
 `CRAFT_FONTS_DIR`, and skips with a warning any listed face an older checkout lacks). See
 [Arabic fonts and the web build](#arabic-fonts-and-the-web-build).
 
+`.cargo/config.toml` passes `--cfg getrandom_backend="wasm_js"` to every wasm32 build (`trunk`, `cargo xtask wasm`):
+oxvg (SVG Options → Optimize) hashes with ahash, which seeds itself from getrandom, and on the web getrandom
+reads the browser's crypto only through that backend (`crates/svg` enables its `wasm_js` feature). Without the
+flag the wasm check fails inside getrandom.
+
 Any static file server works for `dist/web`, for example `python3 -m http.server 8766` inside that directory. The release `.wasm` is about 17.5 MB, or 7.1 MB gzipped, so serve it with compression.
 
 URL flag: `?webgl` forces the WebGL2 backend.

@@ -1,2 +1,7 @@
 [alias]
 xtask = "run --package xtask --"
+
+# The web build (and `cargo xtask wasm`): getrandom's browser backend, for oxvg's hasher seeds
+# (crates/svg/Cargo.toml).
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
