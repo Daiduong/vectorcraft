@@ -178,7 +178,7 @@ fn bend(sharp: bool) -> BezPath {
 
 fn uniform(join: LineJoin, miter_limit: f64) -> StrokeLayer {
     stroke(20.0, |s| {
-        s.profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] });
+        s.profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]));
         s.join = join;
         s.miter_limit = miter_limit;
     })
@@ -215,7 +215,7 @@ fn smooth_points_of_curves_stay_smooth_with_any_join() {
     let want = 2.0 * std::f64::consts::PI * 50.0 * 10.0;
     for join in [LineJoin::Miter, LineJoin::Round, LineJoin::Bevel] {
         let st = stroke(10.0, |s| {
-            s.profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] });
+            s.profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]));
             s.join = join;
         });
         let a = line_outline(&c, &st, 10.0, 1e-3).area().abs();

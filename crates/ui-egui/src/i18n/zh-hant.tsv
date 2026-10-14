@@ -3710,3 +3710,7 @@ lighting	Light	光源
 	Reset Profile	重設描述檔
 	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	寬度描述檔：拖曳點可變更其寬度或位置，按一下可新增點，按兩下可刪除點
 	Click Adds Width Points	按一下新增寬度點
+	Smooth Widths	平滑寬度
+	Save Profile…	儲存描述檔…
+	The width goes along a smooth curve through the points, not in straight lines	寬度沿穿過各點的平滑曲線變化，而非直線
+	Add this width profile to the Profile list, to use it on other strokes	將此寬度描述檔加入描述檔清單，以用於其他筆畫

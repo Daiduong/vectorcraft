@@ -2,15 +2,17 @@
 //!
 //! Art coordinates `(x, y)` map to the path point at arc length `s(x)` offset by
 //! `(y - centre) × cross` along the path's left normal. Art outlines are flattened and
-//! subdivided first so long straight edges bend with the path instead of cutting chords.
+//! subdivided first so long straight edges bend with the path instead of cutting chords. A
+//! stroke's width profile scales the offset: the left side's factor above the path, the right
+//! side's below.
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{Node, NodeKind, PressureProfile};
+use vectorcraft_doc::{Node, NodeKind, PressureProfile, WidthProfile};
 use vectorcraft_geom::{Affine, BezPath, PathData, PathEl, Point, Rect, SubPath};
 
 use crate::track::{Rng, Track, seed_of, tracks};
-use crate::{ArtBrush, ArtScale, Direction, PatternBrush, PatternFit, Scatter, Variation, tolerance};
+use crate::{ArtBrush, ArtScale, Direction, PatternBrush, PatternFit, Scatter, Variation, tolerance, widest, widths};
 
 /// Longest mapped segment (points in document space).
 const MAX_SEG: f64 = 1.5;
@@ -144,17 +146,24 @@ impl AlongMap {
     }
 }
 
-/// Bend `art` (already oriented, bounds `b`) along `t` using `along` and cross scale `cross`.
-fn bend(t: &Track, art: &Node, b: Rect, along: AlongMap, cross: f64) -> Option<Node> {
+/// Bend `art` (already oriented, bounds `b`) along `t` using `along` and cross scale `cross`,
+/// scaled across by the width profile `prof` where the art sits along the track.
+fn bend(t: &Track, art: &Node, b: Rect, along: AlongMap, cross: f64, prof: Option<&WidthProfile>) -> Option<Node> {
     let cy = b.center().y;
     let x0 = b.x0;
-    let f = move |p: Point| t.map(along.at(p.x - x0), (p.y - cy) * cross);
-    let scale = along.max_scale().max(cross.abs()).max(1e-6);
+    let len = t.len().max(1e-12);
+    let f = move |p: Point| {
+        let s = along.at(p.x - x0);
+        let off = (p.y - cy) * cross;
+        let (l, r) = widths(prof, s / len);
+        t.map(s, off * if off >= 0.0 { l } else { r })
+    };
+    let scale = along.max_scale().max(cross.abs() * widest(prof)).max(1e-6);
     let flat_tol = tolerance(b.height().max(b.width()) * scale) / scale;
     warp_node(art, &f, flat_tol, MAX_SEG / along.max_scale(), cross.abs())
 }
 
-pub(crate) fn art(a: &ArtBrush, bp: &BezPath, weight: f64) -> Vec<Node> {
+pub(crate) fn art(a: &ArtBrush, bp: &BezPath, weight: f64, prof: Option<&WidthProfile>) -> Vec<Node> {
     let Some((art, b)) = oriented(&a.art, a.direction, a.flip_along, a.flip_across) else { return vec![] };
     let cross = weight * a.width / 100.0;
     let mut out = vec![];
@@ -181,7 +190,7 @@ pub(crate) fn art(a: &ArtBrush, bp: &BezPath, weight: f64) -> Vec<Node> {
                 }
             }
         };
-        if let Some(n) = bend(&t, &art, b, along, cross) {
+        if let Some(n) = bend(&t, &art, b, along, cross, prof) {
             out.push(n);
         }
     }
@@ -200,7 +209,14 @@ fn vary(rng: &mut Rng, (a, b): (f64, f64), mode: Variation, pressure: f64) -> f6
     }
 }
 
-pub(crate) fn scatter(sc: &Scatter, bp: &BezPath, weight: f64, pressure: Option<&PressureProfile>, name: &str) -> Vec<Node> {
+pub(crate) fn scatter(
+    sc: &Scatter,
+    bp: &BezPath,
+    weight: f64,
+    pressure: Option<&PressureProfile>,
+    prof: Option<&WidthProfile>,
+    name: &str,
+) -> Vec<Node> {
     let Some(b) = sc.art.geometric_bounds() else { return vec![] };
     let (aw, ah) = (b.width().max(1e-3), b.height().max(1e-3));
     let mut rng = Rng::new(seed_of(bp, name));
@@ -233,6 +249,11 @@ pub(crate) fn scatter(sc: &Scatter, bp: &BezPath, weight: f64, pressure: Option<
             let p = pressure_at(pos);
             let off = vary(&mut rng, sc.scatter, scatter_mode, p) / 100.0 * ah * size;
             let rot = vary(&mut rng, sc.rotation, rotation_mode, p).to_radians();
+            // The width profile there: the copy's size, and how far it scatters to each side.
+            let (wl, wr) = widths(prof, if l > 1e-9 { pos / l } else { 0.0 });
+            let fit = (wl + wr) / 2.0;
+            let off = off * if off >= 0.0 { wl } else { wr };
+            let size = size * fit;
             let (p, tg) = t.frame(pos);
             let place = p + crate::track::normal(tg) * off;
             // Page rotation is counter-clockwise on screen (y-down), like the calligraphic angle.
@@ -246,12 +267,12 @@ pub(crate) fn scatter(sc: &Scatter, bp: &BezPath, weight: f64, pressure: Option<
     out
 }
 
-/// A tile placed on [s0, s1] of the track (stretched along, `cross` across).
-fn tile_on(t: &Track, tile: &(Node, Rect), s0: f64, s1: f64, cross: f64) -> Option<Node> {
-    bend(t, &tile.0, tile.1, AlongMap::linear(tile.1.width(), s0, s1), cross)
+/// A tile placed on [s0, s1] of the track (stretched along, `cross` across, by the width profile).
+fn tile_on(t: &Track, tile: &(Node, Rect), s0: f64, s1: f64, cross: f64, prof: Option<&WidthProfile>) -> Option<Node> {
+    bend(t, &tile.0, tile.1, AlongMap::linear(tile.1.width(), s0, s1), cross, prof)
 }
 
-pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node> {
+pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64, prof: Option<&WidthProfile>) -> Vec<Node> {
     let orient = |n: &Node| oriented(n, Direction::LeftToRight, pb.flip_along, pb.flip_across);
     let Some(side) = orient(&pb.side) else { return vec![] };
     let k = weight * pb.scale.max(1.0) / 100.0;
@@ -270,7 +291,7 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
         let corners = t.corner_positions();
         // Corner tiles, centred on the corner and turned to the bisector.
         let mut corner_half = 0.0_f64;
-        for &(i, _) in &corners {
+        for &(i, at) in &corners {
             let (a, b) = t.in_out(i);
             // Turning towards the left normal puts the tile's +y side on the inside.
             let tile = if a.cross(b) > 0.0 { inner.as_ref().or(outer.as_ref()) } else { outer.as_ref().or(inner.as_ref()) };
@@ -278,9 +299,11 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
             corner_half = corner_half.max(bb.width() * k / 2.0);
             let bis = a + b;
             let bis = if bis.hypot() < 1e-9 { a } else { bis / bis.hypot() };
+            // Across the bisector, the width profile at the corner.
+            let (wl, wr) = widths(prof, at / l);
             let xf = Affine::translate(t.verts[i].to_vec2())
                 * Affine::rotate(bis.y.atan2(bis.x))
-                * Affine::scale(k)
+                * Affine::scale_non_uniform(k, k * (wl + wr) / 2.0)
                 * Affine::translate(-bb.center().to_vec2());
             let mut n = art.clone();
             n.transform(xf, true);
@@ -316,7 +339,7 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
             {
                 let w = st.1.width() * k;
                 if b - a > w {
-                    out.extend(tile_on(&t, st, a, a + w, k));
+                    out.extend(tile_on(&t, st, a, a + w, k, prof));
                     a += w;
                 }
             }
@@ -326,7 +349,7 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
             {
                 let w = en.1.width() * k;
                 if b - a > w {
-                    out.extend(tile_on(&t, en, b - w, b, k));
+                    out.extend(tile_on(&t, en, b - w, b, k, prof));
                     b -= w;
                 }
             }
@@ -342,7 +365,7 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
                     let (w, g) = (tw * f, gap * f);
                     for i in 0..n.min(20000) {
                         let s0 = a + i as f64 * (w + g);
-                        out.extend(tile_on(&t, &side, s0, s0 + w, k));
+                        out.extend(tile_on(&t, &side, s0, s0 + w, k, prof));
                     }
                 }
                 PatternFit::AddSpace => {
@@ -351,7 +374,7 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
                     let lead = if n == 1 { (avail - tw) / 2.0 } else { 0.0 };
                     for i in 0..n.min(20000) {
                         let s0 = a + lead + i as f64 * (tw + g.max(0.0));
-                        out.extend(tile_on(&t, &side, s0, s0 + tw, k));
+                        out.extend(tile_on(&t, &side, s0, s0 + tw, k, prof));
                     }
                 }
                 PatternFit::Approximate => {
@@ -360,7 +383,7 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
                     let lead = (avail - used) / 2.0;
                     for i in 0..n.min(20000) {
                         let s0 = a + lead + i as f64 * unit;
-                        out.extend(tile_on(&t, &side, s0, s0 + tw, k));
+                        out.extend(tile_on(&t, &side, s0, s0 + tw, k, prof));
                     }
                 }
             }

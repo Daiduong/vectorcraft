@@ -193,7 +193,7 @@ fn lerp_profile(x: Option<&WidthProfile>, y: Option<&WidthProfile>, t: f64) -> O
     if x.is_none() && y.is_none() {
         return None;
     }
-    let uniform = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
+    let uniform = WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]);
     let (x, y) = (x.unwrap_or(&uniform), y.unwrap_or(&uniform));
     let mut at: Vec<f64> = x.points.iter().chain(&y.points).map(|p| p.0).filter(|p| p.is_finite()).collect();
     at.sort_by(f64::total_cmp);
@@ -205,7 +205,8 @@ fn lerp_profile(x: Option<&WidthProfile>, y: Option<&WidthProfile>, t: f64) -> O
             (p, lerp_f64(l1, l2, t), lerp_f64(r1, r2, t))
         })
         .collect();
-    Some(WidthProfile { points })
+    // Smooth when either end is: the steps between keep the curve.
+    Some(WidthProfile { points, smooth: x.smooth || y.smooth })
 }
 
 /// Interpolate a stroke's paint, weight, opacity, miter limit, dashes, arrowhead scale and width

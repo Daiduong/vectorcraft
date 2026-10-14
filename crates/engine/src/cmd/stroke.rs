@@ -322,7 +322,7 @@ pub(crate) fn flip_profile(p: &WidthProfile, along: bool) -> WidthProfile {
     let mut pts: Vec<(f64, f64, f64)> =
         if along { p.points.iter().rev().map(|&(t, l, r)| (1.0 - t, l, r)).collect() } else { p.points.iter().map(|&(t, l, r)| (t, r, l)).collect() };
     pts.sort_by(|a, b| a.0.total_cmp(&b.0));
-    WidthProfile { points: pts }
+    WidthProfile { points: pts, smooth: p.smooth }
 }
 
 fn stroke_advanced(s: &mut Session, p: &Value) -> Result<Value> {
@@ -390,6 +390,8 @@ pub struct ProfileEntry<'a> {
     pub id: &'a str,
     pub label: &'a str,
     pub points: &'a [(f64, f64, f64)],
+    /// The width goes along a smooth curve ([`WidthProfile::smooth`]).
+    pub smooth: bool,
     pub built_in: bool,
 }
 
@@ -398,7 +400,7 @@ impl ProfileEntry<'_> {
     pub fn matches(&self, p: Option<&WidthProfile>) -> bool {
         match p {
             None => self.built_in && self.id == "uniform",
-            Some(p) => p.points == self.points,
+            Some(p) => p.points == self.points && p.smooth == self.smooth,
         }
     }
 }
@@ -406,9 +408,15 @@ impl ProfileEntry<'_> {
 impl Session {
     /// The Profile list: the built-in profiles, then the saved ones.
     pub fn profile_entries(&self) -> impl Iterator<Item = ProfileEntry<'_>> {
-        let built_in = WidthProfile::PRESETS.iter().map(|p| ProfileEntry { id: p.id, label: p.label, points: p.points, built_in: true });
-        let saved =
-            self.prefs.width_profiles.iter().map(|p| ProfileEntry { id: &p.name, label: &p.name, points: &p.profile.points, built_in: false });
+        let built_in =
+            WidthProfile::PRESETS.iter().map(|p| ProfileEntry { id: p.id, label: p.label, points: p.points, smooth: false, built_in: true });
+        let saved = self.prefs.width_profiles.iter().map(|p| ProfileEntry {
+            id: &p.name,
+            label: &p.name,
+            points: &p.profile.points,
+            smooth: p.profile.smooth,
+            built_in: false,
+        });
         built_in.chain(saved)
     }
 
@@ -421,7 +429,7 @@ impl Session {
     /// stroke), else a built-in's id or a saved profile's name; `None` when nothing is called `key`.
     pub fn resolve_profile(&self, key: &str) -> Option<Option<WidthProfile>> {
         let e = self.profile_entries().find(|e| e.id == key)?;
-        Some((!e.matches(None)).then(|| WidthProfile { points: e.points.to_vec() }))
+        Some((!e.matches(None)).then(|| WidthProfile { points: e.points.to_vec(), smooth: e.smooth }))
     }
 
     /// The name Add to Profiles suggests: the first free "Width Profile N".

@@ -595,7 +595,7 @@ mod tests {
     fn doc_three_points() -> (Document, NodeId) {
         let (mut d, id) = doc_line();
         let points = vec![(0.0, 1.0, 1.0), (0.25, 1.0, 1.0), (0.5, 1.0, 1.0), (0.75, 1.0, 1.0), (1.0, 1.0, 1.0)];
-        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile = Some(WidthProfile { points });
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile = Some(WidthProfile::new(points));
         (d, id)
     }
 
@@ -630,7 +630,7 @@ mod tests {
     fn alt_drag_changes_one_side_and_move_slides() {
         let (mut d, id) = doc_line();
         let n = d.node_mut(id).unwrap();
-        n.appearance.stroke_mut().unwrap().profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)] });
+        n.appearance.stroke_mut().unwrap().profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)]));
         let (s, p) = (Selection::default(), paint());
         let c = cx(&d, &s, &p);
         let mut t = WidthTool::default();
@@ -728,7 +728,7 @@ mod tests {
         comp.appearance = Appearance::default_art().into();
         let st = comp.appearance.stroke_mut().unwrap();
         st.width = 10.0;
-        st.profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (1.0, 1.0, 1.0)] });
+        st.profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (1.0, 1.0, 1.0)]));
         d.insert(Some(l), 0, comp).unwrap();
         (d, c, b)
     }
@@ -777,7 +777,7 @@ mod tests {
         if let NodeKind::Path { path, .. } = &mut n.kind {
             path.subpaths.push(SubPath::polyline(&[Point::new(100.0, 260.0), Point::new(300.0, 260.0)], false));
         }
-        n.appearance.stroke_mut().unwrap().profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)] });
+        n.appearance.stroke_mut().unwrap().profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)]));
         let s2 = Selection { objects: vec![id], ..Default::default() };
         let cx2 = crate::testutil::cx(&d2, &s2, &p);
         let mut t = WidthTool::default();
@@ -898,7 +898,7 @@ mod tests {
         let st = ap.stroke_mut().unwrap();
         st.width = 10.0;
         // A point at t = 0.3 that is 8 pt wide either side (factor 1.6 of the 5 pt half weight).
-        st.profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.3, 1.6, 1.6), (1.0, 1.0, 1.0)] });
+        st.profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (0.3, 1.6, 1.6), (1.0, 1.0, 1.0)]));
         let path = PathData::single(SubPath::polyline(&[Point::new(100.0, 200.0), Point::new(200.0, 200.0), Point::new(300.0, 200.0)], false));
         d.insert(Some(l), 0, Node::path(id, path, ap)).unwrap();
         let (s, p) = (Selection::default(), paint());

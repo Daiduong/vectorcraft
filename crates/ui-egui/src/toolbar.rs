@@ -426,12 +426,21 @@ fn width_options(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.run("tool.setOption", json!({ "key": key, "value": !on })).ok();
         }
     }
-    let profiled = app.session.active().is_some_and(|st| {
-        st.selection.objects.iter().any(|id| st.doc.node(*id).and_then(|n| n.appearance.stroke()).is_some_and(|s| s.profile.is_some()))
+    // The selected strokes' profiles: Smooth Widths is on when every one of them is smooth.
+    let profiles: Vec<bool> = app.session.active().map_or_else(Vec::new, |st| {
+        st.selection.objects.iter().filter_map(|id| st.doc.node(*id)?.appearance.stroke()?.profile.as_ref().map(|p| p.smooth)).collect()
     });
+    let profiled = !profiles.is_empty();
+    let smooth = profiled && profiles.iter().all(|s| *s);
+    // Mixed (some smooth, some not) shows as a dash.
+    let shown = if smooth || !profiles.contains(&true) { Some(smooth) } else { None };
+    if widgets::check3(ui, tl!("Smooth Widths"), shown, profiled) {
+        app.run("stroke.widthProfile.set", json!({ "smooth": !smooth })).ok();
+    }
     if ui.add_enabled(profiled, egui::Button::new(tl!("Reset Profile"))).clicked() {
         app.run("stroke.widthProfile.set", json!({ "points": null })).ok();
     }
+    crate::panels::stroke::save_profile_button(app, ui);
     ui.separator();
 }
 

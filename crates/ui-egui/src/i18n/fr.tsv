@@ -4777,3 +4777,7 @@ theme	Appearance	Apparence
 	Reset Profile	Réinitialiser le profil
 	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	Profil de largeur : faites glisser un point pour changer sa largeur ou sa position, cliquez pour en ajouter un, double-cliquez pour le supprimer
 	Click Adds Width Points	Un clic ajoute des points de largeur
+	Smooth Widths	Largeurs lissées
+	Save Profile…	Enregistrer le profil…
+	The width goes along a smooth curve through the points, not in straight lines	La largeur suit une courbe lisse passant par les points, et non des lignes droites
+	Add this width profile to the Profile list, to use it on other strokes	Ajouter ce profil de largeur à la liste des profils pour l’utiliser sur d’autres contours

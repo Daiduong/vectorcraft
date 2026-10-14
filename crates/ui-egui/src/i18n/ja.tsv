@@ -4341,3 +4341,7 @@ lighting	Light	ライト
 	Reset Profile	プロファイルをリセット
 	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	線幅プロファイル：ポイントをドラッグすると幅や位置が変わります。クリックで追加、ダブルクリックで削除します
 	Click Adds Width Points	クリックで線幅ポイントを追加
+	Smooth Widths	線幅を滑らかに
+	Save Profile…	プロファイルを保存…
+	The width goes along a smooth curve through the points, not in straight lines	線幅を直線ではなく、ポイントを通る滑らかな曲線でつなぎます
+	Add this width profile to the Profile list, to use it on other strokes	この線幅プロファイルをプロファイルリストに追加して、他の線に使用します

@@ -271,7 +271,7 @@ fn width_profile(arrays: &HashMap<String, Vec<f64>>) -> Option<WidthProfile> {
         .collect();
     points.sort_by(|a, b| a.0.total_cmp(&b.0));
     let uniform = points.iter().all(|(_, l, r)| (l - 1.0).abs() < 1e-9 && (r - 1.0).abs() < 1e-9);
-    (!uniform).then_some(WidthProfile { points })
+    (!uniform).then_some(WidthProfile::new(points))
 }
 
 fn style(filters: &[Filter]) -> ArtStyle {

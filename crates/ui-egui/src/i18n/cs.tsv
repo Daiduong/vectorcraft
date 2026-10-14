@@ -4777,3 +4777,7 @@ mark-style	Japanese	Japonské
 	Reset Profile	Obnovit profil
 	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	Profil šířky: tažením bodu změníte jeho šířku nebo polohu, kliknutím bod přidáte, poklepáním jej odstraníte
 	Click Adds Width Points	Kliknutím přidat body šířky
+	Smooth Widths	Hladké šířky
+	Save Profile…	Uložit profil…
+	The width goes along a smooth curve through the points, not in straight lines	Šířka vede po hladké křivce skrz body, ne po přímkách
+	Add this width profile to the Profile list, to use it on other strokes	Přidat tento profil šířky do seznamu profilů a použít ho na jiné tahy

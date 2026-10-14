@@ -385,7 +385,7 @@ mod tests {
         assert!(lens.hits(&l, FillRule::NonZero, Point::new(50.0, 4.8), 0.1), "the lens's widest point");
         assert!(!lens.hits(&l, FillRule::NonZero, Point::new(5.0, 4.8), 0.1), "its thin end");
         // A profile wider than the weight on one side.
-        let wide = stroke(10.0, |s| s.profile = Some(WidthProfile { points: vec![(0.0, 3.0, 1.0), (1.0, 3.0, 1.0)] }));
+        let wide = stroke(10.0, |s| s.profile = Some(WidthProfile::new(vec![(0.0, 3.0, 1.0), (1.0, 3.0, 1.0)])));
         // Left of travel (+x, y down) is −y.
         assert!(wide.hits(&l, FillRule::NonZero, Point::new(50.0, -14.0), 0.1));
         assert!(!wide.hits(&l, FillRule::NonZero, Point::new(50.0, 14.0), 0.1));

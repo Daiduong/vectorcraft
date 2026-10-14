@@ -70,7 +70,7 @@ fn dashes_of_a_lens_stroke_widen_towards_the_middle() {
 fn a_round_join_on_a_profile_stroke_has_no_spike() {
     let l = SubPath::polyline(&[Point::new(20.0, 40.0), Point::new(100.0, 40.0), Point::new(100.0, 110.0)], false);
     let img = render(&doc(PathData::single(l), 20.0, |s| {
-        s.profile = Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] });
+        s.profile = Some(WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]));
         s.join = LineJoin::Round;
     }));
     assert!(dark(&img, 106.0, 34.0), "the round join covers the corner");

@@ -209,6 +209,10 @@ pub enum ArrowAlign {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct WidthProfile {
     pub points: Vec<(f64, f64, f64)>,
+    /// The width goes along a smooth curve through the points (monotone cubic: it never goes
+    /// past the widths either side), not in straight lines between them.
+    #[serde(default, skip_serializing_if = "crate::skip::is_default")]
+    pub smooth: bool,
 }
 
 /// A built-in width profile (the Stroke panel's Profile list).
@@ -223,9 +227,62 @@ pub struct ProfilePreset {
 }
 
 impl WidthProfile {
-    /// (left, right) width factors at `t`, linear between points.
+    /// A profile with these points, linear between them.
+    pub fn new(points: Vec<(f64, f64, f64)>) -> Self {
+        Self { points, smooth: false }
+    }
+    /// (left, right) width factors at `t`: linear between points, or along a smooth curve when
+    /// [`Self::smooth`] is on.
     pub fn at(&self, t: f64) -> (f64, f64) {
-        Self::at_points(&self.points, t)
+        if self.smooth { Self::at_points_smooth(&self.points, t) } else { Self::at_points(&self.points, t) }
+    }
+    /// [`Self::at`] of points with `smooth` set as given.
+    pub fn at_points_with(p: &[(f64, f64, f64)], smooth: bool, t: f64) -> (f64, f64) {
+        if smooth { Self::at_points_smooth(p, t) } else { Self::at_points(p, t) }
+    }
+    /// [`Self::at_points`] along a monotone cubic (Fritsch–Carlson) through the points: flat at a
+    /// point that is wider or narrower than both its neighbours, never past the widths either side
+    /// of a span. A discontinuous point (two points at one place) breaks the curve there.
+    pub fn at_points_smooth(p: &[(f64, f64, f64)], t: f64) -> (f64, f64) {
+        let Some(first) = p.first() else { return (1.0, 1.0) };
+        if t <= first.0 {
+            return (first.1, first.2);
+        }
+        let Some(i) = p.windows(2).position(|w| t <= w[1].0) else {
+            return p.last().map_or((1.0, 1.0), |l| (l.1, l.2));
+        };
+        let (a, b) = (p[i], p[i + 1]);
+        let h = b.0 - a.0;
+        if h <= 1e-9 {
+            return (b.1, b.2);
+        }
+        // The slope of span `j` of one side (`None` off the ends or across a discontinuous point).
+        let slope = |j: usize, side: fn(&(f64, f64, f64)) -> f64| -> Option<f64> {
+            let (x, y) = (p.get(j)?, p.get(j + 1)?);
+            let h = y.0 - x.0;
+            (h > 1e-9).then(|| (side(y) - side(x)) / h)
+        };
+        // The tangent at point `k`, between span `k - 1` and span `k`.
+        let tangent = |k: usize, side: fn(&(f64, f64, f64)) -> f64| -> f64 {
+            let before = k.checked_sub(1).and_then(|j| slope(j, side));
+            match (before, slope(k, side)) {
+                (Some(d0), Some(d1)) if d0 * d1 > 0.0 => 2.0 / (1.0 / d0 + 1.0 / d1),
+                (Some(_), Some(_)) => 0.0,
+                // An end: the slope of the one span, so a straight run stays straight.
+                (Some(d), None) | (None, Some(d)) => d,
+                (None, None) => 0.0,
+            }
+        };
+        let u = ((t - a.0) / h).clamp(0.0, 1.0);
+        let (u2, u3) = (u * u, u * u * u);
+        let (h00, h10, h01, h11) = (2.0 * u3 - 3.0 * u2 + 1.0, u3 - 2.0 * u2 + u, -2.0 * u3 + 3.0 * u2, u3 - u2);
+        let side = |f: fn(&(f64, f64, f64)) -> f64| {
+            let (y0, y1) = (f(&a), f(&b));
+            let v = h00 * y0 + h10 * h * tangent(i, f) + h01 * y1 + h11 * h * tangent(i + 1, f);
+            // Rounding only: the curve stays between the two widths.
+            v.clamp(y0.min(y1), y0.max(y1))
+        };
+        (side(|q| q.1), side(|q| q.2))
     }
     /// [`Self::at`] of a profile's points (a preset's or a saved profile's).
     pub fn at_points(p: &[(f64, f64, f64)], t: f64) -> (f64, f64) {
@@ -258,10 +315,13 @@ impl WidthProfile {
     ];
     /// The built-in profile with this id.
     pub fn preset(id: &str) -> Option<Self> {
-        Self::PRESETS.iter().find(|p| p.id == id).map(|p| Self { points: p.points.to_vec() })
+        Self::PRESETS.iter().find(|p| p.id == id).map(|p| Self::new(p.points.to_vec()))
     }
     /// The id of the built-in profile these points match, if any.
     pub fn preset_id(&self) -> Option<&'static str> {
+        if self.smooth {
+            return None;
+        }
         Self::PRESETS.iter().find(|p| p.points == self.points.as_slice()).map(|p| p.id)
     }
     /// The id of a stroke's profile: "uniform" without one, "custom" when it matches no preset.
@@ -1302,6 +1362,40 @@ mod tests {
     }
 
     #[test]
+    fn a_smooth_profile_curves_through_its_points_without_overshoot() {
+        let mut p = WidthProfile::lens();
+        p.smooth = true;
+        // Through the points, and flat at the widest one (a linear lens has a sharp peak).
+        assert_eq!(p.at(0.0), (0.0, 0.0));
+        assert_eq!(p.at(0.5), (1.0, 1.0));
+        assert!(p.at(0.45).0 > 0.95 && p.at(0.45).0 < 1.0, "{:?}", p.at(0.45));
+        assert!(p.at(0.25).0 > WidthProfile::lens().at(0.25).0);
+        // Never past the widths either side of a span.
+        let wave = WidthProfile { smooth: true, ..WidthProfile::preset("wave").unwrap() };
+        for k in 0..=200 {
+            let (l, r) = wave.at(k as f64 / 200.0);
+            assert!((0.3 - 1e-12..=1.0 + 1e-12).contains(&l) && l == r, "{k}: {l}");
+        }
+        // A straight run stays straight, and a discontinuous point is still a step.
+        let ramp = WidthProfile { points: vec![(0.0, 0.0, 0.0), (0.5, 0.5, 0.5), (1.0, 1.0, 1.0)], smooth: true };
+        assert!((ramp.at(0.3).0 - 0.3).abs() < 1e-12);
+        let step = WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 2.0, 2.0)], smooth: true };
+        assert_eq!(step.around(0.5), ((1.0, 1.0), (2.0, 2.0)));
+        // A smooth profile is not the built-in it was made from.
+        assert_eq!(WidthProfile::id_of(Some(&p)), "custom");
+    }
+
+    #[test]
+    fn smooth_is_written_only_when_on() {
+        let linear = serde_json::to_value(WidthProfile::lens()).unwrap();
+        assert!(linear.get("smooth").is_none(), "{linear}");
+        let smooth = WidthProfile { smooth: true, ..WidthProfile::lens() };
+        let v = serde_json::to_value(&smooth).unwrap();
+        assert_eq!(v["smooth"], true);
+        assert_eq!(serde_json::from_value::<WidthProfile>(v).unwrap(), smooth);
+    }
+
+    #[test]
     fn profile_presets_round_trip_their_ids() {
         for p in WidthProfile::PRESETS {
             let prof = WidthProfile::preset(p.id).unwrap();
@@ -1309,7 +1403,7 @@ mod tests {
             assert_eq!(WidthProfile::id_of(Some(&prof)), p.id);
         }
         assert_eq!(WidthProfile::id_of(None), "uniform");
-        assert_eq!(WidthProfile::id_of(Some(&WidthProfile { points: vec![(0.0, 0.3, 0.3)] })), "custom");
+        assert_eq!(WidthProfile::id_of(Some(&WidthProfile::new(vec![(0.0, 0.3, 0.3)]))), "custom");
         assert!(WidthProfile::preset("nope").is_none());
         assert_eq!(WidthProfile::lens().points, vec![(0.0, 0.0, 0.0), (0.5, 1.0, 1.0), (1.0, 0.0, 0.0)]);
     }
@@ -1422,7 +1516,7 @@ mod tests {
         assert!((a.outset() - std::f64::consts::SQRT_2).abs() < 1e-12, "a projecting cap's corner");
         let st = a.stroke_mut().unwrap();
         st.cap = LineCap::Round;
-        st.profile = Some(WidthProfile { points: vec![(0.0, 0.5, 2.5), (1.0, 1.0, 1.0)] });
+        st.profile = Some(WidthProfile::new(vec![(0.0, 0.5, 2.5), (1.0, 1.0, 1.0)]));
         assert_eq!(st.profile_max(), 2.5);
         assert_eq!(a.outset(), 2.5);
         a.stroke_mut().unwrap().paint = Paint::None;

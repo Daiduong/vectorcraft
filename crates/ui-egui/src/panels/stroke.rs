@@ -326,6 +326,7 @@ type ChartHandle = (usize, bool);
 fn profile_chart(app: &mut VectorcraftApp, ui: &mut Ui, profile: Option<&WidthProfile>) {
     let t = Tokens::get(ui.ctx());
     let mut points: Vec<(f64, f64, f64)> = profile.map_or_else(|| vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)], |p| p.points.clone());
+    let smooth = profile.is_some_and(|p| p.smooth);
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width().max(80.0), 64.0), Sense::click_and_drag());
     let p = ui.painter_at(rect);
     p.rect_filled(rect, 3.0, t.input);
@@ -335,13 +336,25 @@ fn profile_chart(app: &mut VectorcraftApp, ui: &mut Ui, profile: Option<&WidthPr
     let half = inner.height() / 2.0;
     let x_of = |t: f64| inner.left() + t as f32 * inner.width();
     let y_of = |w: f64, left: bool| if left { mid - (w / top) as f32 * half } else { mid + (w / top) as f32 * half };
-    // The width as a filled outline.
+    // The width as a filled outline: the points, and a smooth profile's curve between them.
+    let mut samples = vec![];
+    for (i, q) in points.iter().enumerate() {
+        samples.push(*q);
+        if let Some(next) = points.get(i + 1).filter(|_| smooth) {
+            let steps = 24;
+            samples.extend((1..steps).map(|k| {
+                let at = q.0 + (next.0 - q.0) * f64::from(k) / f64::from(steps);
+                let (l, r) = WidthProfile::at_points_smooth(&points, at);
+                (at, l, r)
+            }));
+        }
+    }
     let outline: Vec<egui::Pos2> =
-        points.iter().map(|q| pos2(x_of(q.0), y_of(q.1, true))).chain(points.iter().rev().map(|q| pos2(x_of(q.0), y_of(q.2, false)))).collect();
-    // Filled piece by piece: each span between two points is a trapezoid (convex), while the whole
+        samples.iter().map(|q| pos2(x_of(q.0), y_of(q.1, true))).chain(samples.iter().rev().map(|q| pos2(x_of(q.0), y_of(q.2, false)))).collect();
+    // Filled piece by piece: each span between two samples is a trapezoid (convex), while the whole
     // outline often isn't.
     let fill = t.accent.gamma_multiply(0.25);
-    for w in points.windows(2) {
+    for w in samples.windows(2) {
         let (Some(a), Some(b)) = (w.first(), w.get(1)) else { continue };
         let quad = vec![
             pos2(x_of(a.0), y_of(a.1, true)),
@@ -424,13 +437,36 @@ fn profile_chart(app: &mut VectorcraftApp, ui: &mut Ui, profile: Option<&WidthPr
         let pos = f64::from((at.x - inner.left()) / inner.width()).clamp(0.0, 1.0);
         // A frame egui runs twice sees the click twice: a point already there isn't added again.
         if points.iter().all(|q| (q.0 - pos).abs() > 1e-6) {
-            let (l, r) = WidthProfile::at_points(&points, pos);
+            let (l, r) = WidthProfile::at_points_with(&points, smooth, pos);
             points.push((pos, l, r));
             points.sort_by(|a, b| a.0.total_cmp(&b.0));
             run(app, &points, None);
         }
     }
     resp.on_hover_text(tl!("Width profile: drag a point to change its width or place, click to add one, double-click one to remove it"));
+    ui.horizontal(|ui| {
+        let tip = tl!("The width goes along a smooth curve through the points, not in straight lines");
+        if widgets::check_tip(ui, "Smooth", smooth, profile.is_some(), tip) {
+            app.run("stroke.widthProfile.set", json!({ "smooth": !smooth })).ok();
+        }
+        save_profile_button(app, ui);
+    });
+}
+
+/// "Save Profile…": names the selected stroke's profile and adds it to the Profile list (the ≡
+/// menu's Add to Profiles…).
+pub(crate) fn save_profile_button(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let enabled = crate::menus::enabled(app, "stroke.widthProfile.add");
+    let r = ui.add_enabled(enabled, egui::Button::new(tl!("Save Profile…")));
+    if r.on_hover_text(tl!("Add this width profile to the Profile list, to use it on other strokes")).clicked() {
+        add_profile_dialog(app);
+    }
+}
+
+fn add_profile_dialog(app: &mut VectorcraftApp) {
+    let name = app.session.next_profile_name();
+    let p = json!({"command": "stroke.widthProfile.add", "label": "Variable Width Profile", "params": {"name": name}});
+    app.run("ui.paramDialog", p).ok();
 }
 
 /// The document an arrowhead preview renders: a `w`×`h` pt line with head `a` at its left
@@ -506,9 +542,15 @@ fn arrow_dropdown(ui: &mut Ui, id: &str, cur: Option<Arrowhead>, start: bool) ->
 /// with the Width tool can be many times the stroke's weight: the silhouette is scaled to fit `r`
 /// by its widest point, and clipped to it (#909).
 pub fn paint_profile(ui: &Ui, r: Rect, points: Option<&[(f64, f64, f64)]>, color: Color32) {
+    paint_profile_with(ui, r, points, false, color);
+}
+
+/// [`paint_profile`] of a profile that may be smooth ([`WidthProfile::smooth`]).
+pub fn paint_profile_with(ui: &Ui, r: Rect, points: Option<&[(f64, f64, f64)]>, smooth: bool, color: Color32) {
     let n = 32;
     let half = r.height() / 2.0 - 1.0;
-    let widths: Vec<(f64, f64)> = (0..=n).map(|i| points.map_or((0.35, 0.35), |p| WidthProfile::at_points(p, i as f64 / n as f64))).collect();
+    let widths: Vec<(f64, f64)> =
+        (0..=n).map(|i| points.map_or((0.35, 0.35), |p| WidthProfile::at_points_with(p, smooth, i as f64 / n as f64))).collect();
     let widest = widths.iter().map(|(l, rr)| l.max(*rr)).filter(|w| w.is_finite()).fold(1.0, f64::max);
     let mut top = vec![];
     let mut bot = vec![];
@@ -540,7 +582,7 @@ pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&W
     ui.painter().rect_filled(r, 2, t.input);
     ui.painter().rect_stroke(r, 2, Stroke::new(1.0, if resp.hovered() { t.text } else { t.input_border }), StrokeKind::Inside);
     let body = Rect::from_min_max(r.min + vec2(6.0, 5.0), pos2(r.right() - 20.0, r.bottom() - 5.0));
-    paint_profile(ui, body, cur.and_then(|p| silhouette(&p.points)), t.text_strong);
+    paint_profile_with(ui, body, cur.and_then(|p| silhouette(&p.points)), cur.is_some_and(|p| p.smooth), t.text_strong);
     icons::paint(ui, "chevron-down", Rect::from_center_size(pos2(r.right() - 9.0, r.center().y), vec2(10.0, 10.0)), t.icon);
     let resp = resp.on_hover_text(tl!("Variable Width Profile"));
     let mut out = None;
@@ -558,7 +600,13 @@ pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&W
                 } else if rr.hovered() {
                     ui.painter().rect_filled(row, 0.0, t.hover);
                 }
-                paint_profile(ui, Rect::from_min_size(row.min + vec2(6.0, 6.0), vec2(70.0, 14.0)), silhouette(e.points), t.text_strong);
+                paint_profile_with(
+                    ui,
+                    Rect::from_min_size(row.min + vec2(6.0, 6.0), vec2(70.0, 14.0)),
+                    silhouette(e.points),
+                    e.smooth,
+                    t.text_strong,
+                );
                 ui.painter().text(
                     row.left_center() + vec2(84.0, 0.0),
                     egui::Align2::LEFT_CENTER,
@@ -584,9 +632,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     ui.separator();
     if menu_item(ui, tl!("Add to Profiles…"), crate::menus::enabled(app, "stroke.widthProfile.add"), false) {
-        let name = app.session.next_profile_name();
-        let p = json!({"command": "stroke.widthProfile.add", "label": "Variable Width Profile", "params": {"name": name}});
-        app.run("ui.paramDialog", p).ok();
+        add_profile_dialog(app);
     }
     // Deletes the selected stroke's saved profile.
     let shown = current_stroke(app).and_then(|s| s.profile);

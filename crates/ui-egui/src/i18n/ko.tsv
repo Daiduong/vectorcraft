@@ -4311,3 +4311,7 @@ lighting	Light	광원
 	Reset Profile	프로필 재설정
 	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	폭 프로필: 점을 드래그하면 폭이나 위치가 바뀌고, 클릭하면 점이 추가되며, 두 번 클릭하면 제거됩니다
 	Click Adds Width Points	클릭하여 폭 점 추가
+	Smooth Widths	너비 부드럽게
+	Save Profile…	프로필 저장…
+	The width goes along a smooth curve through the points, not in straight lines	너비가 직선이 아니라 점을 지나는 부드러운 곡선을 따릅니다
+	Add this width profile to the Profile list, to use it on other strokes	이 너비 프로필을 프로필 목록에 추가하여 다른 선에 사용합니다
