@@ -84,7 +84,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 | View & navigation | 3 | 70% | New View/Edit Views, multiple windows and Arrange, Snap to Glyph | 9–14 | estimated |
 | Guides, grids, smart guides, snapping, rulers | 3 | 80% | 30.0's tangent and perpendicular snapping and its snapping panel, "intersect" smart guides for a moved selection's anchors (drawn points and dragged anchors snap to intersections, #1658), global/artboard ruler mode switch and video rulers, distance readouts while drawing | 4–7 | estimated (lowered from 85%: target moved); new ruler-guide Alt orientation implemented |
 | File formats | 6 | 75% | `.ai` files open with a flattened or wrong layer structure in real cases (#951), guides lost (#779), no writing of Illustrator's editing data (#868), FreeHand/CorelDRAW/DWG/HEIC/JPEG 2000 import, 3D export; see [file-format-parity.md](file-format-parity.md) | 10–20 | estimated (lowered from 85%: open issues); DXF control-point SPLINE import closure regression-tested (#1299 follow-up after #1320) |
-| Export for Screens, Asset Export, slices, Save for Web | 3 | 85% | anti-aliasing ghost borders (#983); TIFF choices and settings are implemented | 2–4 | estimated |
+| Export for Screens, Asset Export, slices, Save for Web | 3 | 90% | Art Optimized exports supersample so abutting shapes leave no seam (#983 / #1037); TIFF choices and settings are implemented | 1–2 | estimated |
 | Print, colour management, separations, flattener | 3 | 80% | print preview fidelity | 2–4 | estimated |
 | Automation (Actions, Variables, scripting, batch) | 3 | 60% | a scripting surface (Illustrator: JavaScript/ExtendScript), Batch, image and graph variables, dataset import/export | 8–14 | estimated |
 | UI chrome (panels, Properties, workspaces, preferences) | 6 | 80% | Properties per context, ~16 Preferences options stored but unused (#394), panels outside the window, SVG Interactivity, context menus beyond the canvas, accessibility | 13–20 | estimated; macOS save Format menu implemented (#866), score and hours unchanged; Eyedropper cursor and precise setting checked (#1269), OS visual QA unverified; numeric-field focus and normal text drags regression-tested (#1326, in part); movements below the click threshold still select all; artboard navigation synchronizes the tool selection before destructive actions |
@@ -196,7 +196,7 @@ Depth here is "does the basic use work", not the area's full score.
 | Shape Builder | 5 | 70% | beginners lean on it; region detection fails in some files (#937) |
 | Pathfinder | 4 | 95% | exact booleans |
 | Place images, Image Trace | 4 | 85% | 13 trace presets |
-| Export PNG/JPG/SVG/PDF, print | 8 | 88% | ghost borders in some Asset Export output (#983) |
+| Export PNG/JPG/SVG/PDF, print | 8 | 92% | Art Optimized supersample closes Asset Export ghost borders (#983 / #1037) |
 | Undo and redo | 4 | 100% | unlimited, property-tested |
 | Zoom, pan, fit | 4 | 95% | |
 | Artboards, basic | 4 | 88% | |
