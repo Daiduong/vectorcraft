@@ -21,6 +21,7 @@ vectorcraft-pathops = { path = "crates/pathops" }
 vectorcraft-brush = { path = "crates/brush" }
 vectorcraft-trace = { path = "crates/trace" }
 vectorcraft-text = { path = "crates/text" }
+vectorcraft-math = { path = "crates/math" }
 vectorcraft-effects = { path = "crates/effects" }
 vectorcraft-three-d = { path = "crates/three-d" }
 vectorcraft-render = { path = "crates/render" }

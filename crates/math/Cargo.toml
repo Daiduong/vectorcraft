@@ -1,0 +1,15 @@
+[package]
+name = "vectorcraft-math"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "VectorCraft math: a pure-Rust LaTeX math typesetter on OpenType MATH tables, producing glyph outline layouts"
+
+[lints]
+workspace = true
+
+[dependencies]
+vectorcraft-geom = { workspace = true }
+vectorcraft-text = { workspace = true }
+skrifa = { workspace = true }
+thiserror = { workspace = true }

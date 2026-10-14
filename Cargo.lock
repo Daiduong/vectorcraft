@@ -4666,6 +4666,7 @@ dependencies = [
  "vectorcraft-eps",
  "vectorcraft-format",
  "vectorcraft-geom",
+ "vectorcraft-math",
  "vectorcraft-metafile",
  "vectorcraft-pathops",
  "vectorcraft-pdf",
@@ -4726,6 +4727,16 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "vectorcraft-testkit",
+]
+
+[[package]]
+name = "vectorcraft-math"
+version = "0.10.0"
+dependencies = [
+ "skrifa 0.47.0",
+ "thiserror 2.0.21",
+ "vectorcraft-geom",
+ "vectorcraft-text",
 ]
 
 [[package]]
@@ -4967,6 +4978,7 @@ dependencies = [
  "vectorcraft-eps",
  "vectorcraft-format",
  "vectorcraft-geom",
+ "vectorcraft-math",
  "vectorcraft-pdf",
  "vectorcraft-plugins",
  "vectorcraft-render",

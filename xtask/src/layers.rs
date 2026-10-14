@@ -63,6 +63,7 @@ pub const TABLE: &[(&str, Class)] = &[
     ("plugins", Class::Layer(2)),
     ("affinity", Class::Standalone),
     ("scriptcheck", Class::Standalone),
+    ("math", Class::Layer(2)),
 ];
 
 /// Explicit orderings *within* a layer (earlier may be used by later).
@@ -75,6 +76,8 @@ pub const INTRA_LAYER_ORDER: &[&[&str]] = &[
     &["pathops", "effects"],
     &["pathops", "trace"],
     &["text", "effects"],
+    // Equations are typeset with the font database and its glyph outlines.
+    &["text", "math"],
     &["render", "eps"],
     &["metafile", "eps"],
     // Non-native art in Illustrator editing data is a PDF, drawn by the PDF importer.
