@@ -24,7 +24,7 @@
 //!   rows hold whole messages or templates such as `Couldn't open {name}: {e}`, and the values in
 //!   the placeholders are translated in turn (the reason after `: {e}` is often a message too).
 
-mod bidi;
+pub(crate) mod bidi;
 mod catalog;
 
 use std::sync::OnceLock;
@@ -353,6 +353,12 @@ impl Lang {
     /// Does this language's catalog claim to cover every menu string and `tl!` literal?
     pub fn complete_menus(self) -> bool {
         self.0.complete_menus
+    }
+
+    /// Do this language's labels read right to left? (Their translations are stored in the
+    /// visual order [`bidi`] hands egui; what a user types keeps its logical order.)
+    pub fn rtl(self) -> bool {
+        self.0.rtl
     }
 
     fn catalog(self) -> &'static Catalog {

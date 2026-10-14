@@ -34,6 +34,11 @@ serde_json = { workspace = true }
 log = { workspace = true }
 unicode-bidi = "0.3.18"
 
+# Craft AI's model-runtime bridge: the loopback HTTP client. Native only — the web build draws
+# the panel's note instead, and ureq's TLS stack does not build for wasm32.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "2", features = ["json"] }
+
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 vectorcraft-testkit = { workspace = true }

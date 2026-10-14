@@ -3750,3 +3750,51 @@ axis	Both	Ambos
 @msg	unknown parameter `{key}`; the command takes no parameters	parâmetro desconhecido `{key}`; o comando não tem parâmetros
 @msg	unknown parameter `{key}`; the command takes: {keys}	parâmetro desconhecido `{key}`; o comando aceita: {keys}
 	Load EPS into Clipboard	Carregar EPS na Área de Transferência
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	O Craft AI roda no aplicativo nativo — ele precisa de um runtime de modelos local.
+	Assistant	Assistente
+	Looking for a local model runtime…	Procurando um runtime de modelos local…
+	No local model runtime found.	Nenhum runtime de modelos local encontrado.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	O Craft AI conversa com um runtime de modelos nesta máquina — Ollama, LM Studio ou o servidor do llama.cpp — e nunca com um serviço de nuvem. Inicie um deles e clique em Atualizar.
+	Runtime	Runtime
+	Task	Tarefa
+	No model installed yet — see the Models tab.	Nenhum modelo instalado ainda — veja a aba Modelos.
+	Ask	Perguntar
+	Thinking… {s}s	Pensando… {s} s
+	This machine: {ram} GB RAM, {disk} GB free	Esta máquina: {ram} GB de RAM, {disk} GB livres
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	Um único download serve todos os aplicativos ArtCraft: o modelo vai para uma pasta compartilhada que todos leem.
+	Disk {size}	Disco {size}
+	RAM {gb} GB	RAM {gb} GB
+	Fits this machine	Cabe nesta máquina
+	Needs {ram} GB of RAM	Precisa de {ram} GB de RAM
+	Needs {disk} GB of disk	Precisa de {disk} GB de disco
+	Download with Ollama	Baixar com o Ollama
+	Save model file	Salvar o arquivo do modelo
+	Delete file	Excluir arquivo
+	Downloading… {pct}% — {note}	Baixando… {pct}% — {note}
+	Saving… {pct}%	Salvando… {pct}%
+	Saved in the shared folder	Salvo na pasta compartilhada
+	Local and private	Local e privado
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	O Craft AI roda um modelo Gemma local nesta máquina. Nada do que você escrever aqui sai dela: sem conta, sem serviço de nuvem, sem telemetria — o painel conversa com um runtime de modelos em 127.0.0.1.
+	Limits	Limites
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	Um modelo local não é um modelo de nuvem de ponta: ele pode errar, e uma resposta longa demora na CPU. Confira tudo o que for crítico e observe o tamanho do modelo diante desta máquina antes de baixar.
+	The shared folder:	A pasta compartilhada:
+	Craft AI	Craft AI
+	Ask anything	Pergunte qualquer coisa
+	Explain a path or shape	Explicar um caminho ou forma
+	Describe artwork (alt text)	Descrever a arte (texto alternativo)
+	Name this artwork	Nomear esta arte
+	How do I…	Como fazer…
+	Export advice	Conselho de exportação
+	Ask in any language	Pergunte em qualquer idioma
+	Paste or describe the path, shapes or Pathfinder steps	Cole ou descreva o caminho, as formas ou os passos do Pathfinder
+	Describe the artwork for someone who cannot see it	Descreva a arte para quem não pode vê-la
+	What's in the file, for names	O que há no arquivo, para nomear
+	What you want to achieve	O que você quer alcançar
+	Where the artwork is going (web, print, other apps)	Para onde a arte vai (web, impressão, outros aplicativos)
+	Best for: everyday help on the lightest machines	Melhor para: ajuda do dia a dia nas máquinas mais leves
+	Best for: a step up in quality, still light	Melhor para: um degrau a mais de qualidade, ainda leve
+	Best for: balanced everyday and technical work	Melhor para: equilibrar o cotidiano e o técnico
+	Best for: near-flagship answers at MoE speed	Melhor para: respostas quase topo de linha na velocidade do MoE
+	Best for: the deepest reasoning this family has	Melhor para: o raciocínio mais profundo que esta família tem

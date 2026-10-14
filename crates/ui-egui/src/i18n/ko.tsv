@@ -4279,3 +4279,51 @@ lighting	Light	광원
 @msg	unknown parameter `{key}`; the command takes: {keys}	알 수 없는 매개변수 `{key}`: 이 명령이 받는 매개변수: {keys}
 	Load EPS into Clipboard	EPS를 클립보드로 불러오기
 @msg	an image of {w} × {h} pixels is too large to draw	{w} × {h}픽셀 이미지는 너무 커서 그릴 수 없습니다
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI는 네이티브 앱에서 실행됩니다 — 로컬 모델 런타임이 필요합니다.
+	Assistant	어시스턴트
+	Looking for a local model runtime…	로컬 모델 런타임을 찾는 중…
+	No local model runtime found.	로컬 모델 런타임이 없습니다.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI는 이 컴퓨터의 모델 런타임(Ollama, LM Studio, llama.cpp 서버)과만 통신하며 클라우드 서비스와는 절대 통신하지 않습니다. 하나를 실행한 뒤 새로 고침하세요.
+	Runtime	런타임
+	Task	작업
+	No model installed yet — see the Models tab.	설치된 모델이 아직 없습니다 — 모델 탭을 참고하세요.
+	Ask	묻기
+	Thinking… {s}s	생각 중… {s}초
+	This machine: {ram} GB RAM, {disk} GB free	이 컴퓨터: RAM {ram} GB, 여유 {disk} GB
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	한 번 내려받으면 모든 ArtCraft 앱에서 씁니다. 모델은 모든 앱이 읽는 공유 폴더에 저장됩니다.
+	Disk {size}	디스크 {size}
+	RAM {gb} GB	RAM {gb} GB
+	Fits this machine	이 컴퓨터에 적합합니다
+	Needs {ram} GB of RAM	RAM {ram} GB가 필요합니다
+	Needs {disk} GB of disk	디스크 {disk} GB가 필요합니다
+	Download with Ollama	Ollama로 내려받기
+	Save model file	모델 파일 저장
+	Delete file	파일 삭제
+	Downloading… {pct}% — {note}	내려받는 중… {pct}% — {note}
+	Saving… {pct}%	저장하는 중… {pct}%
+	Saved in the shared folder	공유 폴더에 저장됨
+	Local and private	로컬이며 비공개
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI는 이 컴퓨터에서 로컬 Gemma 모델을 실행합니다. 여기에 쓴 내용은 밖으로 나가지 않습니다. 계정도, 클라우드 서비스도, 텔레메트리도 없으며 패널은 127.0.0.1의 모델 런타임과만 통신합니다.
+	Limits	한계
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	로컬 모델은 최첨단 클라우드 모델이 아닙니다. 틀릴 수 있고 긴 답변은 CPU에서 시간이 걸립니다. 중요한 내용은 반드시 확인하고, 내려받기 전에 모델 크기를 이 컴퓨터와 비교하세요.
+	The shared folder:	공유 폴더:
+	Craft AI	Craft AI
+	Ask anything	무엇이든 물어보기
+	Explain a path or shape	패스나 모양 설명
+	Describe artwork (alt text)	아트워크 설명(대체 텍스트)
+	Name this artwork	이 아트워크 이름 짓기
+	How do I…	어떻게 하나요…
+	Export advice	내보내기 조언
+	Ask in any language	어느 언어로든 물어보세요
+	Paste or describe the path, shapes or Pathfinder steps	패스·모양·Pathfinder 단계를 붙여넣거나 설명해 주세요
+	Describe the artwork for someone who cannot see it	볼 수 없는 사람을 위해 아트워크를 설명해 주세요
+	What's in the file, for names	이름에 쓸 내용을 알려 주세요
+	What you want to achieve	이루고 싶은 것을 적어 주세요
+	Where the artwork is going (web, print, other apps)	아트워크가 쓰일 곳(웹, 인쇄, 다른 앱)
+	Best for: everyday help on the lightest machines	이런 용도에 최적: 가장 가벼운 컴퓨터에서의 일상적인 도움
+	Best for: a step up in quality, still light	이런 용도에 최적: 한 단계 나은 품질, 여전히 가벼움
+	Best for: balanced everyday and technical work	이런 용도에 최적: 일상과 기술 작업의 균형
+	Best for: near-flagship answers at MoE speed	이런 용도에 최적: MoE 속도로 기함급에 가까운 답변
+	Best for: the deepest reasoning this family has	이런 용도에 최적: 이 패밀리에서 가장 깊은 추론
