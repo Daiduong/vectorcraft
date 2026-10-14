@@ -23,6 +23,7 @@ pub use shared::Shared;
 pub mod links;
 pub mod live;
 pub mod marks;
+pub mod math;
 mod mem;
 pub mod metadata;
 pub mod node;
@@ -89,6 +90,7 @@ pub use graph::{
 pub use hit::{Hit, HitKind};
 pub use links::{LinkInfo, PlacementOptions};
 pub use live::{BlendOrientation, BlendSpacing, BlendSpec, EnvelopeKind, GradientMesh, MeshPoint};
+pub use math::MathSpec;
 pub use metadata::{CopyrightStatus, DocMetadata};
 pub use node::Knockout;
 pub use node::Scaling;

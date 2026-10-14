@@ -540,6 +540,8 @@ pub struct NodeExtras {
     pub wrap: Option<crate::text::TextWrap>,
     /// Graph object: the group's children are generated from this spec (Object → Graph).
     pub graph: Option<Box<crate::graph::GraphSpec>>,
+    /// Equation: the group's children are the outlines of this LaTeX formula (Object → Insert Equation).
+    pub math: Option<Box<crate::math::MathSpec>>,
     /// Index of the graph series this generated group belongs to. Axes, the legend and other
     /// children leave it unset, so a series named "Legend" or "Axes" is not mistaken for them.
     pub series_index: Option<u32>,
@@ -563,6 +565,7 @@ static NO_EXTRAS: NodeExtras = NodeExtras {
     trace: None,
     wrap: None,
     graph: None,
+    math: None,
     series_index: None,
     shaper: None,
     graphic_style: None,
@@ -691,6 +694,7 @@ impl Serialize for Node {
             e.trace.is_none(),
             e.wrap.is_none(),
             e.graph.is_none(),
+            e.math.is_none(),
             e.series_index.is_none(),
             e.shaper.is_none(),
             false,
@@ -725,6 +729,7 @@ impl Serialize for Node {
         field!("trace", &e.trace);
         field!("wrap", &e.wrap);
         field!("graph", &e.graph);
+        field!("math", &e.math);
         field!("series_index", &e.series_index);
         field!("shaper", &e.shaper);
         field!("kind", &self.kind);
@@ -770,6 +775,8 @@ struct NodeWire {
     #[serde(default)]
     graph: Option<Box<crate::graph::GraphSpec>>,
     #[serde(default)]
+    math: Option<Box<crate::math::MathSpec>>,
+    #[serde(default)]
     series_index: Option<u32>,
     #[serde(default)]
     shaper: Option<Box<crate::shaper::ShaperSpec>>,
@@ -793,6 +800,7 @@ impl From<NodeWire> for Node {
             trace: w.trace,
             wrap: w.wrap,
             graph: w.graph,
+            math: w.math,
             series_index: w.series_index,
             shaper: w.shaper,
             graphic_style: w.graphic_style,
@@ -1922,6 +1930,7 @@ mod tests {
             let mut e = n.extras_mut();
             e.mask = Some(Box::new(OpacityMask::new(Node::group(NodeId(8), vec![]), true)));
             e.trace = Some(Box::new(serde_json::json!({"preset": "p"})));
+            e.math = Some(Box::new(crate::math::MathSpec { source: "x^2".into(), ..Default::default() }));
             e.series_index = Some(2);
             e.graphic_style = Some(3);
             e.attrs = Some(Box::default());
@@ -1960,6 +1969,7 @@ mod tests {
             "appearance",
             "mask",
             "trace",
+            "math",
             "series_index",
             "kind",
             "graphic_style",

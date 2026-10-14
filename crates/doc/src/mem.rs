@@ -249,7 +249,8 @@ fn node_bytes(n: &Node, other: Option<&Node>) -> usize {
     }
     if let Some(e) = n.extras_box() {
         b += ALLOC + size_of::<NodeExtras>();
-        b += boxed(&e.mask) + boxed(&e.graph) + boxed(&e.shaper) + boxed(&e.attrs) + boxed(&e.slice) + boxed(&e.perspective);
+        b += boxed(&e.mask) + boxed(&e.graph) + boxed(&e.math) + boxed(&e.shaper) + boxed(&e.attrs) + boxed(&e.slice) + boxed(&e.perspective);
+        b += e.math.as_ref().map_or(0, |m| m.source.capacity());
         b += e.trace.as_ref().map_or(0, |t| ALLOC + size_of::<Value>() + json_bytes(t));
     }
     b += match &n.kind {

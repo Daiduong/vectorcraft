@@ -4,15 +4,27 @@
 
 use proptest::prelude::*;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeId, NodeKind};
+use vectorcraft_doc::{Document, ImageBlob, ImageObject, MathSpec, Node, NodeId, NodeKind};
 use vectorcraft_format::{SaveOptions, base64_decode, base64_encode, load, load_file, pdf_content, preview, save, save_with, sniff};
-use vectorcraft_geom::Affine;
+use vectorcraft_geom::{Affine, Rect, shapes};
 use vectorcraft_testkit::fixtures;
 use vectorcraft_testkit::invariants::{check_document, check_native_roundtrip, check_native_roundtrip_exact, doc_json, json_approx_eq};
 use vectorcraft_testkit::strategies::arb_ops;
 
 fn rich_doc() -> Document {
     (*fixtures::rich_session().doc().unwrap().doc).clone()
+}
+
+/// A document whose first layer holds an equation group (a rectangle standing for its outlines) with `spec`.
+fn doc_with_math(spec: MathSpec) -> (Document, NodeId) {
+    let mut d = Document::new(200.0, 100.0);
+    let l = d.layers[0].id;
+    let (gid, pid) = (d.alloc_id(), d.alloc_id());
+    let art = Node::path(pid, shapes::rectangle(spec.bounds), vectorcraft_doc::Appearance::default_art());
+    let mut g = Node::group(gid, vec![std::sync::Arc::new(art)]);
+    g.extras_mut().math = Some(Box::new(spec));
+    d.insert(Some(l), 0, g).unwrap();
+    (d, gid)
 }
 
 proptest! {
@@ -26,6 +38,23 @@ proptest! {
         // Whitespace is ignored.
         let spaced: String = s.chars().flat_map(|c| [c, '\n']).collect();
         prop_assert_eq!(base64_decode(&spaced), Some(data));
+    }
+
+    /// An equation's spec (any source text, size, style and bounds) survives save → load, bit for bit.
+    #[test]
+    fn math_specs_roundtrip(
+        source in ".{0,80}",
+        size in 0.5f64..2000.0,
+        display in any::<bool>(),
+        (x, y, w, h) in (-1e5f64..1e5, -1e5f64..1e5, 0.0f64..1e4, 0.0f64..1e4),
+    ) {
+        let spec = MathSpec { source, size, display, bounds: Rect::new(x, y, x + w, y + h) };
+        let (d, id) = doc_with_math(spec.clone());
+        check_native_roundtrip_exact(&d).map_err(TestCaseError::fail)?;
+        for compress in [false, true] {
+            let back = load(&save(&d, compress)).unwrap();
+            prop_assert_eq!(back.node(id).unwrap().extras().math.as_deref(), Some(&spec));
+        }
     }
 
     #[test]
@@ -144,6 +173,65 @@ fn rich_document_roundtrips() {
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(v["format"], "vectorcraft");
     assert_eq!(v["version"], vectorcraft_format::VERSION);
+}
+
+/// An equation is written as the `math` field of its group, in every version that keeps the node's
+/// fields; files without it (every file before equations) read as plain groups, and an old file's
+/// partial spec reads with the defaults for what it lacks.
+#[test]
+fn equation_spec_is_a_node_field_and_old_files_read() {
+    let spec = MathSpec { source: r"\frac{a}{b}".into(), size: 18.0, display: false, bounds: Rect::new(1.0, 2.0, 31.0, 22.0) };
+    let (d, id) = doc_with_math(spec.clone());
+    for version in [3, 4] {
+        let bytes = save_with(&d, &SaveOptions { version, ..SaveOptions::default() }).unwrap();
+        let v: Value = serde_json::from_slice(&bytes).unwrap();
+        let mut found = None;
+        fn find(v: &Value, id: u64, out: &mut Option<Value>) {
+            match v {
+                Value::Object(m) => {
+                    if m.get("id") == Some(&json!(id)) && m.contains_key("math") {
+                        *out = m.get("math").cloned();
+                    }
+                    m.values().for_each(|c| find(c, id, out));
+                }
+                Value::Array(a) => a.iter().for_each(|c| find(c, id, out)),
+                _ => {}
+            }
+        }
+        find(&v, id.0, &mut found);
+        let m = found.expect("the group has a math field");
+        assert_eq!(m["source"], json!(r"\frac{a}{b}"));
+        assert_eq!((m["size"].as_f64(), m["display"].as_bool()), (Some(18.0), Some(false)));
+        assert!(m.get("bounds").is_some());
+        assert_eq!(load(&bytes).unwrap().node(id).unwrap().extras().math.as_deref(), Some(&spec));
+    }
+    // A group with no equation writes no field, and its extras stay unallocated.
+    let (plain, pid) = doc_with_math(spec);
+    let mut plain = plain;
+    plain.node_mut(pid).unwrap().extras_mut().math = None;
+    assert!(!String::from_utf8_lossy(&save(&plain, false)).contains("\"math\""));
+    assert!(load(&save(&plain, false)).unwrap().node(pid).unwrap().extras().math.is_none());
+    // A spec from a file with fields missing (or an unknown one) still reads.
+    let (mut d, id) = doc_with_math(MathSpec::default());
+    d.node_mut(id).unwrap().extras_mut().math = Some(Box::new(MathSpec { source: "x".into(), ..MathSpec::default() }));
+    let mut v: Value = serde_json::from_slice(&save(&d, false)).unwrap();
+    fn strip(v: &mut Value) {
+        match v {
+            Value::Object(m) => {
+                if let Some(Value::Object(spec)) = m.get_mut("math") {
+                    spec.retain(|k, _| k == "source");
+                    spec.insert("future".into(), json!(1));
+                }
+                m.values_mut().for_each(strip);
+            }
+            Value::Array(a) => a.iter_mut().for_each(strip),
+            _ => {}
+        }
+    }
+    strip(&mut v);
+    let back = load(&serde_json::to_vec(&v).unwrap()).unwrap();
+    let got = back.node(id).unwrap().extras().math.as_deref().cloned().unwrap();
+    assert_eq!((got.source.as_str(), got.size, got.display), ("x", MathSpec::default().size, MathSpec::default().display));
 }
 
 #[test]
