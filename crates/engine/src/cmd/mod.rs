@@ -41,6 +41,7 @@ pub mod links;
 mod live;
 pub(crate) mod maskedit;
 pub(crate) mod math;
+pub(crate) mod mathdraw;
 pub(crate) mod menucmds;
 pub(crate) mod newart;
 pub mod newdoc;
@@ -238,6 +239,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(textwrap::specs());
         v.extend(graph::specs());
         v.extend(math::specs());
+        v.extend(mathdraw::specs());
         v.extend(rasterfx::specs());
         v.extend(views::specs());
         v.extend(maskedit::specs());

@@ -1872,6 +1872,8 @@ mod tests_maskview;
 #[cfg(test)]
 mod tests_math;
 #[cfg(test)]
+mod tests_mathdraw;
+#[cfg(test)]
 mod tests_menucmds;
 #[cfg(test)]
 mod tests_nativefile;

@@ -4,7 +4,7 @@
 
 use proptest::prelude::*;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, MathSpec, Node, NodeId, NodeKind};
+use vectorcraft_doc::{Document, ImageBlob, ImageObject, LineRef, MathDrawStyle, MathSpec, Node, NodeId, NodeKind};
 use vectorcraft_format::{SaveOptions, base64_decode, base64_encode, load, load_file, pdf_content, preview, save, save_with, sniff};
 use vectorcraft_geom::{Affine, Rect, shapes};
 use vectorcraft_testkit::fixtures;
@@ -54,6 +54,32 @@ proptest! {
         for compress in [false, true] {
             let back = load(&save(&d, compress)).unwrap();
             prop_assert_eq!(back.node(id).unwrap().extras().math.as_deref(), Some(&spec));
+        }
+    }
+
+    /// A document's math drawing style (any valid values) survives save → load in every version,
+    /// bit for bit.
+    #[test]
+    fn math_draw_styles_roundtrip(
+        widths in prop::array::uniform5(0.01f64..1000.0),
+        (width, dash, gap) in (0.01f64..1000.0, 0.0f64..10_000.0, 0.01f64..10_000.0),
+        (dot, hit, size, ratio, std) in (0.1f64..1000.0, 0.0f64..1000.0, 0.5f64..2000.0, 0.01f64..100.0, 0.01f64..100_000.0),
+        offset in (-1e5f64..1e5, -1e5f64..1e5),
+        (italic, arrow, line) in (any::<bool>(), 1u8..=3, 1u8..=5),
+    ) {
+        let mut d = Document::new(200.0, 100.0);
+        let mut style = MathDrawStyle { solid: widths, dot_size: dot, hit_tolerance: hit, label_size: size, arrow_type: arrow, arrow_ratio: ratio, std_length: std, ..MathDrawStyle::default() };
+        style.dashed[line as usize - 1] = vectorcraft_doc::mathdraw::DashedLine { width, dash, gap };
+        style.label_o = vectorcraft_doc::mathdraw::AxisLabel { offset, italic };
+        style.axis_line = LineRef::Dashed(line);
+        style.dot_border = LineRef::Solid(line);
+        d.math_draw = style.clone();
+        check_native_roundtrip_exact(&d).map_err(TestCaseError::fail)?;
+        for version in 1..=vectorcraft_format::VERSION {
+            for compress in [false, true] {
+                let Ok(bytes) = save_with(&d, &SaveOptions { version, compress, ..SaveOptions::default() }) else { continue };
+                prop_assert_eq!(&load(&bytes).unwrap().math_draw, &style, "version {} compress {}", version, compress);
+            }
         }
     }
 
@@ -232,6 +258,30 @@ fn equation_spec_is_a_node_field_and_old_files_read() {
     let back = load(&serde_json::to_vec(&v).unwrap()).unwrap();
     let got = back.node(id).unwrap().extras().math.as_deref().cloned().unwrap();
     assert_eq!((got.source.as_str(), got.size, got.display), ("x", MathSpec::default().size, MathSpec::default().display));
+}
+
+/// The math drawing style is the document's `math_draw` field, written only when it isn't the
+/// default (so files without it, every file before it, read as the default), in v3 and v4 alike;
+/// a value out of range in a file reads as its default rather than failing the file.
+#[test]
+fn math_draw_style_is_a_document_field_and_old_files_read() {
+    let mut d = Document::new(200.0, 100.0);
+    assert!(!String::from_utf8_lossy(&save(&d, false)).contains("math_draw"));
+    d.math_draw.patch(&json!({"stdLength": 120, "axisLine": "solid1", "labelX": {"italic": false}})).unwrap();
+    for version in [3, 4] {
+        let bytes = save_with(&d, &SaveOptions { version, ..SaveOptions::default() }).unwrap();
+        let v: Value = serde_json::from_slice(&bytes).unwrap();
+        let m = &v["document"]["math_draw"];
+        assert_eq!((m["stdLength"].as_f64(), m["axisLine"].as_str(), m["labelX"]["italic"].as_bool()), (Some(120.0), Some("solid1"), Some(false)));
+        assert_eq!(load(&bytes).unwrap().math_draw, d.math_draw);
+    }
+    let mut v: Value = serde_json::from_slice(&save(&d, false)).unwrap();
+    v["document"]["math_draw"]["dotSize"] = json!(-4);
+    v["document"]["math_draw"]["future"] = json!({"a": 1});
+    let back = load(&serde_json::to_vec(&v).unwrap()).unwrap();
+    assert_eq!((back.math_draw.dot_size, back.math_draw.std_length), (MathDrawStyle::default().dot_size, 120.0));
+    v["document"].as_object_mut().unwrap().remove("math_draw");
+    assert!(load(&serde_json::to_vec(&v).unwrap()).unwrap().math_draw.is_default());
 }
 
 #[test]

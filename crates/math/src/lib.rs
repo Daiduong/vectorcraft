@@ -12,11 +12,16 @@
 //! let paths = layout.to_paths(db);
 //! ```
 //!
+//! [`eval`] and [`fit`] are the numeric side, for math drawing: a small LaTeX-flavoured expression
+//! language with symbolic derivatives, and cubic Bézier curves fitted to graphs of it.
+//!
 //! The source is untrusted: its length ([`parser::MAX_SOURCE_CHARS`]), nesting
 //! ([`parser::MAX_DEPTH`]) and glyph count ([`layout::MAX_GLYPHS`]) are bounded, and nothing in
 //! the crate panics.
 #![forbid(unsafe_code)]
 
+pub mod eval;
+pub mod fit;
 pub mod layout;
 pub mod mathfont;
 pub mod output;
@@ -24,10 +29,16 @@ pub mod parser;
 mod symbols;
 
 #[cfg(test)]
+mod tests_eval;
+#[cfg(test)]
+mod tests_fit;
+#[cfg(test)]
 mod tests_layout;
 #[cfg(test)]
 mod tests_parser;
 
+pub use eval::{EvalError, Expr, parse_expr};
+pub use fit::{FitOptions, fit_function, fit_parametric, fit_samples};
 pub use mathfont::find_math_face;
 pub use output::{MathItem, MathLayout};
 pub use parser::{Node, parse};

@@ -24,6 +24,7 @@ pub mod links;
 pub mod live;
 pub mod marks;
 pub mod math;
+pub mod mathdraw;
 mod mem;
 pub mod metadata;
 pub mod node;
@@ -91,6 +92,7 @@ pub use hit::{Hit, HitKind};
 pub use links::{LinkInfo, PlacementOptions};
 pub use live::{BlendOrientation, BlendSpacing, BlendSpec, EnvelopeKind, GradientMesh, MeshPoint};
 pub use math::MathSpec;
+pub use mathdraw::{LineRef, MathDrawStyle};
 pub use metadata::{CopyrightStatus, DocMetadata};
 pub use node::Knockout;
 pub use node::Scaling;
@@ -684,6 +686,10 @@ pub struct Document {
     /// export settings are Export for Screens' ([`Document::export_settings`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub assets: Vec<ExportAsset>,
+    /// The math drawing commands' style (`mathdraw.*`: line weights, dashes, dots, axes); not
+    /// written while it is the default.
+    #[serde(default, skip_serializing_if = "MathDrawStyle::is_default")]
+    pub math_draw: MathDrawStyle,
     /// Puppet Warp pins on the selected artwork while the tool edits it ([`PuppetPins`]): editing
     /// state, never saved.
     #[serde(skip)]
@@ -767,6 +773,7 @@ impl Document {
             slices_clip_to_artboard: true,
             print_setup: None,
             assets: vec![],
+            math_draw: MathDrawStyle::default(),
             puppet: None,
             index: Default::default(),
         };
@@ -1774,6 +1781,8 @@ mod tests {
 
 #[cfg(test)]
 mod tests_lookups;
+#[cfg(test)]
+mod tests_mathdraw;
 #[cfg(test)]
 mod tests_slices;
 #[cfg(test)]
