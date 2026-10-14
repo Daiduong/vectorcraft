@@ -218,7 +218,7 @@ fn num_field_opt(
     // ↑/↓ and the wheel step in the field's unit; a drag on its label scrubs it.
     let read = typed_unit(ui.ctx(), unit);
     let fine = fine.map(|f| (unit.from_pt(1.0), unit.from_pt(f)));
-    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)), fine);
+    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)), fine, false);
     let scrubbed = scrub::field(ui, id, rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS);
     let commit = resp.lost_focus() && buf != shown;
     ui.data_mut(|d| d.insert_temp(id, buf.clone()));
@@ -248,7 +248,8 @@ const STEPS: [(egui::Modifiers, f64); 3] = [(egui::Modifiers::SHIFT, 10.0), (egu
 /// shows (`read` parses it, `show` formats it) by one per press or wheel notch ([`STEPS`]: Shift
 /// ten, Ctrl/Cmd a tenth), applied at once as in Illustrator's panels and dialogs. `fine`, in the
 /// field's display units, shrinks the plain step while the value is at or below its first number.
-/// The new text replaces `buf`, all selected so typing replaces it. Returns the new number when a
+/// With `hover`, the wheel also steps while the pointer is merely over the field; ↑/↓ always need
+/// the focus. The new text replaces `buf`, all selected so typing replaces it. Returns the new number when a
 /// step was taken. While the pointer is over the focused field the wheel is the field's (the panel
 /// under it doesn't scroll); an unfocused field leaves the wheel to the panel and the canvas.
 fn step_value(
@@ -258,27 +259,31 @@ fn step_value(
     read: impl Fn(&str) -> Option<f64>,
     show: impl Fn(f64) -> String,
     fine: Option<(f64, f64)>,
+    hover: bool,
 ) -> Option<f64> {
     // Memory focus, as the field's highlight and its typing use: `Response::has_focus` also needs the
     // window to report keyboard focus.
-    if !ui.memory(|m| m.has_focus(resp.id)) {
+    let focused = ui.memory(|m| m.has_focus(resp.id));
+    if !focused && !hover {
         return None;
     }
     // A fine plain step for small values (a stroke weight at or below 1 pt steps a quarter).
     let plain = fine.filter(|(at, _)| read(buf).is_some_and(|v| v.abs() <= *at)).map_or(1.0, |(_, f)| f);
     use egui::{Event, Key, MouseWheelUnit};
-    let wheel = resp.contains_pointer();
+    let wheel = resp.contains_pointer() && (focused || hover);
     // Wheel turns in notches: a line each, or `line` points of a trackpad or a fine wheel; what is
     // left of a notch carries over to the next turn.
     let (line, notch_id) = (ui.ctx().options(|o| o.input_options.line_scroll_speed), resp.id.with("wheel"));
     let mut notches: f32 = if wheel { ui.data(|d| d.get_temp(notch_id)).unwrap_or(0.0) } else { 0.0 };
     let mut steps = 0.0;
     ui.input_mut(|i| {
-        for (mods, size) in STEPS {
-            let size = if mods.matches_logically(egui::Modifiers::NONE) { plain } else { size };
-            let up = i.count_and_consume_key(mods, Key::ArrowUp) as f64;
-            let down = i.count_and_consume_key(mods, Key::ArrowDown) as f64;
-            steps += size * (up - down);
+        if focused {
+            for (mods, size) in STEPS {
+                let size = if mods == egui::Modifiers::NONE { plain } else { size };
+                let up = i.count_and_consume_key(mods, Key::ArrowUp) as f64;
+                let down = i.count_and_consume_key(mods, Key::ArrowDown) as f64;
+                steps += size * (up - down);
+            }
         }
         if !wheel {
             return;
@@ -286,7 +291,7 @@ fn step_value(
         i.events.retain(|e| {
             let Event::MouseWheel { unit, delta, modifiers, .. } = e else { return true };
             let Some((_, size)) = STEPS.iter().find(|(m, _)| modifiers.matches_logically(*m)) else { return true };
-            let size = if modifiers.matches_logically(egui::Modifiers::NONE) { plain } else { *size };
+            let size = if *modifiers == egui::Modifiers::NONE { plain } else { *size };
             // Shift may turn the wheel sideways (the Mac does).
             let d = if modifiers.shift { delta.x + delta.y } else { delta.y };
             notches += match unit {
@@ -456,7 +461,21 @@ pub fn label_row(ui: &mut Ui, label: &str, label_width: f32, add: impl FnOnce(&m
 
 /// A plain number field (percent, degrees, counts) with optional suffix.
 pub fn plain_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: f64, suffix: &str, decimals: usize, width: f32) -> Option<f64> {
-    mixed_field(ui, id, Some(value), suffix, decimals, width)
+    mixed_field_opt(ui, id, Some(value), suffix, decimals, width, false)
+}
+
+/// [`plain_field`] whose mouse wheel also turns while the field merely has the pointer over it
+/// (Split Into Grid's row and column counts): the wheel is the field's, and the panel under it
+/// doesn't scroll. ↑/↓ still need the focus, as anywhere.
+pub fn hover_plain_field(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: f64,
+    suffix: &str,
+    decimals: usize,
+    width: f32,
+) -> Option<f64> {
+    mixed_field_opt(ui, id, Some(value), suffix, decimals, width, true)
 }
 
 /// [`plain_field`] for a number kept within `range` (the values of dialogs and preferences): what is
@@ -476,6 +495,7 @@ pub fn range_field(
 }
 
 /// [`plain_field`] for a value the selected objects may not share: `None` shows a blank field.
+/// [`mixed_field`], whose wheel also turns while the pointer is merely over it when `hover`.
 pub fn mixed_field(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -483,6 +503,18 @@ pub fn mixed_field(
     suffix: &str,
     decimals: usize,
     width: f32,
+) -> Option<f64> {
+    mixed_field_opt(ui, id, value, suffix, decimals, width, false)
+}
+
+fn mixed_field_opt(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: Option<f64>,
+    suffix: &str,
+    decimals: usize,
+    width: f32,
+    hover: bool,
 ) -> Option<f64> {
     let id = ui.id().with(id);
     let show = |value: f64| {
@@ -503,7 +535,7 @@ pub fn mixed_field(
     // ↑/↓ and the wheel step at the field's precision (a count ignores Ctrl/Cmd's tenth); a drag on
     // its label scrubs it.
     let decimals = decimals.min(6) as i32;
-    let stepped = step_value(ui, &resp, &mut buf, read, show, None).map(|v| round_to(v, decimals));
+    let stepped = step_value(ui, &resp, &mut buf, read, show, None, hover).map(|v| round_to(v, decimals));
     let scrubbed = scrub::field(ui, id, rect, &buf, value, decimals);
     if resp.lost_focus() && buf != shown { read(&buf) } else { stepped.or(scrubbed).filter(|&v| Some(v) != value) }
 }
@@ -1565,7 +1597,7 @@ pub fn opt_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     let resp = framed.inner;
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step a value (an empty field stays empty); a drag on its label scrubs it.
-    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)), None);
+    let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)), None, false);
     let scrubbed = scrub::field(ui, id, framed.response.rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS);
     ui.data_mut(|d| d.insert_temp(id, buf.clone()));
     if resp.lost_focus() && buf != shown {
@@ -1963,5 +1995,40 @@ mod spinner_modifier_tests {
         assert_eq!(spinner_step(1.0, fine_step(1.0), 0.0, false, egui::Modifiers::NONE), 0.75);
         assert_eq!(spinner_step(0.75, fine_step(0.75), 0.0, true, egui::Modifiers::NONE), 1.0);
         assert_eq!(spinner_step(2.0, fine_step(2.0), 0.0, false, egui::Modifiers::NONE), 1.0);
+    }
+
+    /// A wheel notch over a hover-stepping count field steps it without a click to focus first.
+    #[test]
+    fn a_hover_count_field_steps_on_the_wheel() {
+        let ctx = egui::Context::default();
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(200.0, 100.0));
+        let mut got = None;
+        let run = |ctx: &egui::Context, events: Vec<egui::Event>, got: &mut Option<f64>| {
+            let input = egui::RawInput { time: Some(1.0), events, screen_rect: Some(screen), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| {
+                *got = hover_plain_field(ui, "t", 2.0, "", 0, 84.0);
+            });
+            out.textures_delta.clear();
+        };
+        run(&ctx, vec![], &mut got);
+        assert_eq!(got, None);
+        let field = ctx
+            .viewport(|vp| vp.prev_pass.widgets.layers().flat_map(|(_, w)| w.iter()).map(|w| w.rect).find(|r| r.width() == 84.0))
+            .expect("the field has a rect");
+        let at = field.center();
+        run(
+            &ctx,
+            vec![
+                egui::Event::PointerMoved(at),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Line,
+                    delta: egui::vec2(0.0, 1.0),
+                    phase: egui::TouchPhase::Move,
+                    modifiers: Default::default(),
+                },
+            ],
+            &mut got,
+        );
+        assert_eq!(got, Some(3.0), "a notch over the field steps it");
     }
 }
