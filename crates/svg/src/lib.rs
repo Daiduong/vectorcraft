@@ -82,6 +82,7 @@
 mod css;
 mod export;
 mod import;
+mod optimize;
 
 pub use css::{CssOptions, CssRule, CssSheet, CssUnits, css_rules};
 
@@ -197,6 +198,16 @@ pub struct ExportOptions {
     pub images: ImageMode,
     /// No indentation or newlines, no XML declaration.
     pub minify: bool,
+    /// Rewrite the markup with oxvg (a port of SVGO): shorter path data, numbers and colours,
+    /// unused definitions, namespaces and attributes dropped, written on one line. The other
+    /// options are kept: Layer Names and Unique keep every id (Minimal lets them shrink), Include
+    /// Metadata and Preserve Editing keep `<metadata>`, Internal CSS stays a style sheet, hidden
+    /// layers stay, and numbers keep `decimals` places (at most 5). Style Entities can't be
+    /// optimized (the entities would be expanded): the SVG is written as is, with a warning.
+    pub optimize: bool,
+    /// With `optimize`: merge paths of one appearance and dissolve groups, so objects and layers
+    /// lose their identity (smaller; for art that won't be edited again).
+    pub flatten: bool,
     /// Omit `width`/`height` so the SVG scales to its container.
     pub responsive: bool,
     /// Fonts → Convert to Outlines: text becomes paths (portable, no font needed to view it).
@@ -230,6 +241,8 @@ impl Default for ExportOptions {
             object_ids: ObjectIds::LayerNames,
             images: ImageMode::Embed,
             minify: false,
+            optimize: false,
+            flatten: false,
             responsive: false,
             outline_text: false,
             preserve_editing: false,

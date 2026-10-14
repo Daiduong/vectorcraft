@@ -23,6 +23,12 @@ fn all_options() -> Vec<ExportOptions> {
         }
     }
     v.push(ExportOptions { artboard: None, ..Default::default() });
+    // Optimize (oxvg) over every styling, with and without Flatten.
+    for styling in [Styling::PresentationAttributes, Styling::InlineStyle, Styling::StyleEntities, Styling::InternalCss] {
+        for flatten in [false, true] {
+            v.push(ExportOptions { artboard: Some(0), styling, optimize: true, flatten, ..Default::default() });
+        }
+    }
     v
 }
 

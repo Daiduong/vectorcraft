@@ -1433,6 +1433,7 @@
 	Forget Import Matches	Забыть сопоставления импорта
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	совпадает с {n} сочетанием по умолчанию|совпадает с {n} сочетаниями по умолчанию|совпадает с {n} сочетаниями по умолчанию
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	не прочитана {n} часть файла|не прочитаны {n} части файла|не прочитано {n} частей файла
+	Flatten Structure	Свести структуру
 	Keywords:	Ключевые слова:
 	Knife	Нож
 	Knockout Group	Группа с вырезанием
@@ -1455,6 +1456,7 @@
 	Last Effect…	Последний эффект…
 	Last Page	Последняя страница
 	Latin	Латиница
+	Optimize	Оптимизировать
 	Thai	Тайская
 	Latin Extended	Расширенная латиница
 	Latin-1 Supplement	Дополнение Latin-1
@@ -3683,6 +3685,7 @@ axis	Both	Оба
 @msg	installing from a path is not available on the web; pass the module as `dataBase64`	установка из пути недоступна в web; передайте модуль как `dataBase64`
 @msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	внутренняя ошибка в `{cmd}`: {msg} (документ оставлен в прежнем состоянии; пожалуйста, сообщите об этой ошибке)
 @msg	internal error: {msg} (please report this bug)	внутренняя ошибка: {msg} (пожалуйста, сообщите об этой ошибке)
+@msg	internal error in the optimiser	внутренняя ошибка оптимизатора
 @msg	invalid PDF setting: {0}	недопустимый параметр PDF: {0}
 @msg	invalid image data for `{0}`	недопустимые данные изображения для `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	недопустимые параметры для `{cmd}`: {msg}

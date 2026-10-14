@@ -1,6 +1,6 @@
 //! SVG Options (Export As SVG, Save As / Save a Copy to .svg): profile, styling, fonts, images,
-//! object ids, decimals, encoding, minify, responsive, embedded fonts, artboards (export) or
-//! editing data (save), and a read-only view of the code. OK remembers the choices for next time and runs the export or save command with
+//! object ids, decimals, encoding, minify, responsive, optimize (oxvg) and flatten, embedded fonts,
+//! artboards (export) or editing data (save), and a read-only view of the code. OK remembers the choices for next time and runs the export or save command with
 //! them as `svg: {…}`.
 
 use std::sync::Arc;
@@ -192,8 +192,8 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-/// The SVG options: styling, fonts, images, object ids, decimals, minify, responsive, `<tspan>`s
-/// and metadata. `screens` (Export for Screens' Format Settings) leaves out Images: a linked
+/// The SVG options: styling, fonts, images, object ids, decimals, minify, responsive, optimize
+/// and flatten, `<tspan>`s and metadata. `screens` (Export for Screens' Format Settings) leaves out Images: a linked
 /// image is another file.
 pub(super) fn option_fields(ui: &mut egui::Ui, d: &mut Dialog, screens: bool) {
     let t = Tokens::get(ui.ctx());
@@ -221,6 +221,13 @@ pub(super) fn option_fields(ui: &mut egui::Ui, d: &mut Dialog, screens: bool) {
         check(ui, d, "minify", tl!("Minify"), true);
         ui.add_space(12.0);
         check(ui, d, "responsive", tl!("Responsive"), true);
+    });
+    // Optimize (oxvg) can't keep style entities (they would be expanded); Flatten needs it.
+    let entities = d.str("styling") == "entities" && !tiny;
+    ui.horizontal(|ui| {
+        check(ui, d, "optimize", tl!("Optimize"), !entities);
+        ui.add_space(12.0);
+        check(ui, d, "flatten", tl!("Flatten Structure"), !entities && d.bool("optimize"));
     });
     check(ui, d, "embedFonts", tl!("Embed Fonts (Glyphs Used)"), !d.bool("outlineText") && !tiny);
     check(ui, d, "fewerTspans", tl!("Fewer <tspan> Elements"), !d.bool("outlineText"));
@@ -376,6 +383,21 @@ mod tests {
         // Next time the dialog starts from these choices.
         app.run("file.export.svg", Value::Null).unwrap();
         assert_eq!(app.ui.dialog.as_ref().unwrap().f64("decimals", 0.0), 1.0);
+    }
+
+    #[test]
+    fn optimize_rewrites_the_file_and_keeps_the_layer_ids() {
+        let (mut app, written) = app("/tmp/opt.svg");
+        app.run("file.export.svg", Value::Null).unwrap();
+        let f = &mut app.ui.dialog.as_mut().unwrap().fields;
+        f.insert("optimize".into(), json!(true));
+        f.insert("allArtboards".into(), json!(false));
+        f.insert("range".into(), json!("1"));
+        frame(&mut app);
+        super::super::confirm(&mut app).unwrap();
+        let svg = text(&written, 0);
+        assert!(!svg.contains("xlink") && svg.contains("id=\"Layer_1\"") && svg.contains("<style>"), "{svg}");
+        assert_eq!(app.ui.svg_options["optimize"], true);
     }
 
     #[test]

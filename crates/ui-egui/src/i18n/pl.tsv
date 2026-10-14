@@ -740,7 +740,9 @@
 	Drag rings to rotate. Shift snaps to 15°.	Przeciągaj pierścienie, aby obracać. Shift przyciąga co 15°.
 	Drag the light, or its rings. Shift snaps to 15°.	Przeciągaj światło lub jego pierścienie. Shift przyciąga co 15°.
 lighting	Light	Światło
+	Flatten Structure	Spłaszcz strukturę
 	Keep visible surfaces only when expanding	Przy rozszerzaniu zachowaj tylko widoczne powierzchnie
+	Optimize	Optymalizuj
 	Trim covered geometry on Expand Appearance. Live preview keeps the full surface. Transparent paints and surfaces exceeding visibility limits retain all faces.	Przy rozszerzaniu wyglądu przycina zakrytą geometrię. Podgląd na żywo zachowuje całą powierzchnię. Przezroczyste farby i powierzchnie przekraczające limity widoczności zachowują wszystkie ściany.
 	Left	Lewo
 	Right	Prawo
@@ -3809,6 +3811,7 @@ imageTrace	Outline	Kontur
 @msg	installing from a path is not available on the web; pass the module as `dataBase64`	instalacja ze ścieżki nie jest dostępna w wersji webowej; przekaż moduł jako `dataBase64`
 @msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	błąd wewnętrzny w `{cmd}`: {msg} (dokument pozostał bez zmian; zgłoś ten błąd)
 @msg	internal error: {msg} (please report this bug)	błąd wewnętrzny: {msg} (zgłoś ten błąd)
+@msg	internal error in the optimiser	błąd wewnętrzny optymalizatora
 @msg	invalid PDF setting: {0}	nieprawidłowe ustawienie PDF: {0}
 @msg	invalid image data for `{0}`	nieprawidłowe dane obrazu dla `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	nieprawidłowe parametry dla `{cmd}`: {msg}

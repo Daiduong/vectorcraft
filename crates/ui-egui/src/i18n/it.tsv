@@ -1435,6 +1435,7 @@
 	Forget Import Matches	Dimentica abbinamenti di importazione
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	concorda con {n} scelta rapida predefinita|concorda con {n} scelte rapide predefinite
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	{n} parte del file non è stata letta|{n} parti del file non sono state lette
+	Flatten Structure	Appiattisci struttura
 	Keywords:	Parole chiave:
 	Knife	Coltello
 	Knockout Group	Gruppo con foratura
@@ -1457,6 +1458,7 @@
 	Last Effect…	Ultimo effetto…
 	Last Page	Ultima pagina
 	Latin	Latino
+	Optimize	Ottimizza
 	Thai	Thailandese
 	Latin Extended	Latino esteso
 	Latin-1 Supplement	Supplemento Latino-1
@@ -3687,6 +3689,7 @@ axis	Both	Entrambi
 @msg	installing from a path is not available on the web; pass the module as `dataBase64`	l'installazione da un percorso non è disponibile sul web; passa il modulo come `dataBase64`
 @msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	errore interno in `{cmd}`: {msg} (il documento è rimasto com'era; segnala questo bug)
 @msg	internal error: {msg} (please report this bug)	errore interno: {msg} (segnala questo bug)
+@msg	internal error in the optimiser	errore interno nell’ottimizzatore
 @msg	invalid PDF setting: {0}	impostazione PDF non valida: {0}
 @msg	invalid image data for `{0}`	dati immagine non validi per `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	parametri non validi per `{cmd}`: {msg}

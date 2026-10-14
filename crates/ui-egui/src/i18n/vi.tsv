@@ -1553,6 +1553,7 @@
 	Forget Import Matches	Quên cặp ghép khi nhập
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	khớp với {n} phím tắt mặc định
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	{n} phần của tệp chưa được đọc
+	Flatten Structure	Làm phẳng cấu trúc
 	Import Transparency Flattener Presets	Nhập thiết lập sẵn làm phẳng trong suốt
 	Imported {what}: {}	Đã nhập {what}: {}
 	Import…	Nhập…
@@ -2179,6 +2180,7 @@
 	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Khi mở, những phần VectorCraft chưa đọc được ({what}) đã bị bỏ qua, nên thay thế sẽ mất chúng vĩnh viễn. Hãy lưu với tên khác để giữ lại.
 	Open…	Mở…
 	Optical Margin Alignment	Căn lề quang học
+	Optimize	Tối ưu hóa
 	Optimize for fast web view	Tối ưu để xem web nhanh
 	Optimized	Đã tối ưu
 	Options	Tùy chọn
@@ -3885,6 +3887,7 @@ theme	Appearance	Giao diện
 @msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	lỗi nội bộ trong `{cmd}`: {msg} (tài liệu được giữ nguyên; vui lòng báo cáo lỗi này)
 @msg	Internal error: {msg} (please report this bug)	Lỗi nội bộ: {msg} (vui lòng báo cáo lỗi này)
 @msg	internal error: {msg} (please report this bug)	lỗi nội bộ: {msg} (vui lòng báo cáo lỗi này)
+@msg	internal error in the optimiser	lỗi nội bộ trong trình tối ưu hóa
 @msg	invalid image data for `{0}`	dữ liệu ảnh không hợp lệ cho `{0}`
 @msg	invalid native panel set	bộ bảng gốc không hợp lệ
 @msg	Invalid panel layout; restored the default dock	Bố cục bảng không hợp lệ; đã phục hồi dock mặc định

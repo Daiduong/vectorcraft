@@ -334,6 +334,8 @@
 	Check Script	检查脚本
 	Check Script…	检查脚本…
 	Copy Report	复制报告
+	Flatten Structure	展平结构
+	Optimize	优化
 	VectorCraft read this script without running it.	VectorCraft 读取了此脚本，但没有运行它。
 	Needs nothing beyond plain JavaScript	只需要普通的 JavaScript
 	Needs the script language's own objects or directives	需要脚本语言自身的对象或指令

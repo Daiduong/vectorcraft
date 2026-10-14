@@ -61,6 +61,12 @@ wat = "1.228"
 vello_cpu = { version = "0.2", features = ["f32_pipeline"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "tiff", "bmp"] }
 usvg = "0.48"
+# SVG Options → Optimize: oxvg, a Rust port of SVGO (MIT), rewrites exported SVG (shorter path data,
+# numbers and colours, unused definitions and attributes dropped). Without `serde` (its JSON config is
+# not used: the jobs are set in code). On wasm32 it needs getrandom's `wasm_js` backend (see
+# `.cargo/config.toml` and crates/svg/Cargo.toml).
+oxvg_optimiser = { version = "0.0.9", default-features = false }
+oxvg_ast = { version = "0.0.9", features = ["roxmltree"] }
 # Without `simple-text` (its text shaping, the only user of rustybuzz and ttf-parser, which are
 # unmaintained, #1730): the PDF writer places glyphs itself. A test of the PDF crate turns it on.
 krilla = { version = "0.8", default-features = false, features = ["raster-images"] }

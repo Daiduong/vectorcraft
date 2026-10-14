@@ -1417,6 +1417,7 @@
 	Forget Import Matches	Import-Zuordnungen vergessen
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	stimmt mit {n} Standard-Tastaturbefehl überein|stimmt mit {n} Standard-Tastaturbefehlen überein
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	{n} Teil der Datei wurde nicht gelesen|{n} Teile der Datei wurden nicht gelesen
+	Flatten Structure	Struktur reduzieren
 	Keywords:	Stichwörter:
 	Knife	Messer
 	Knockout Group	Aussparungsgruppe
@@ -1439,6 +1440,7 @@
 	Last Effect…	Letzter Effekt…
 	Last Page	Letzte Seite
 	Latin	Lateinisch
+	Optimize	Optimieren
 	Thai	Thai
 	Latin Extended	Lateinisch, erweitert
 	Latin-1 Supplement	Lateinisch-1, Ergänzung
@@ -3587,6 +3589,7 @@ theme	Appearance	Erscheinungsbild
 @msg	installing from a path is not available on the web; pass the module as `dataBase64`	die Installation aus einem Pfad ist im Web nicht verfügbar; übergeben Sie das Modul als `dataBase64`
 @msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	interner Fehler in `{cmd}`: {msg} (das Dokument wurde im vorherigen Zustand belassen; bitte melden Sie diesen Fehler)
 @msg	internal error: {msg} (please report this bug)	interner Fehler: {msg} (bitte melden Sie diesen Fehler)
+@msg	internal error in the optimiser	interner Fehler im Optimierer
 @msg	invalid PDF setting: {0}	ungültige PDF-Einstellung: {0}
 @msg	invalid image data for `{0}`	ungültige Bilddaten für `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	ungültige Parameter für `{cmd}`: {msg}

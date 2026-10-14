@@ -1410,6 +1410,7 @@
 	Forget Import Matches	清除匯入對應
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	與 {n} 個預設快速鍵一致
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	檔案中有 {n} 個部分未讀取
+	Flatten Structure	平面化結構
 	Keywords:	關鍵字：
 	Knife	美工刀
 	Knockout Group	去底群組
@@ -1432,6 +1433,7 @@
 	Last Effect…	最後一次效果…
 	Last Page	最後一頁
 	Latin	拉丁文
+	Optimize	最佳化
 	Thai	泰文
 	Latin Extended	拉丁文擴充
 	Latin-1 Supplement	拉丁文-1 補充
