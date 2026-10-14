@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use craft_ui::theme::SuiteDarkPalette;
+use craft_ui::theme::SuitePalette;
 use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Stroke, TextStyle, Visuals};
 use serde::{Deserialize, Serialize};
 
@@ -100,7 +100,7 @@ pub struct Tokens {
 impl Tokens {
     /// Canvas editing cues keep their original colour independently of suite UI chrome.
     pub(crate) fn editing_accent(&self) -> Color32 {
-        if self.accent == SuiteDarkPalette::ARTCRAFT.accent { Color32::from_rgb(55, 142, 240) } else { self.accent }
+        if self.accent == SuitePalette::ARTCRAFT_DARK.accent { Color32::from_rgb(55, 142, 240) } else { self.accent }
     }
     pub fn for_brightness(b: Brightness) -> Self {
         let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
@@ -148,7 +148,7 @@ impl Tokens {
             axis_y: hex(0x45af63),
             axis_z: hex(0x378ef0),
         };
-        let suite = SuiteDarkPalette::ARTCRAFT;
+        let suite = SuitePalette::ARTCRAFT_DARK;
         match b {
             // ArtCraft's first-party dark UI roles. Keep the measured brightness presets
             // inheriting the original base below, so their colors stay independent.
@@ -327,7 +327,7 @@ fn add_craft_fonts(fonts: &mut FontDefinitions) {
 /// Apply tokens to egui's global style.
 pub fn apply(ctx: &egui::Context, b: Brightness) {
     let t = Tokens::for_brightness(b);
-    let suite = SuiteDarkPalette::ARTCRAFT;
+    let suite = SuitePalette::ARTCRAFT_DARK;
     ctx.data_mut(|d| d.insert_temp(egui::Id::NULL, t));
     let mut v = if t.dark { Visuals::dark() } else { Visuals::light() };
     v.panel_fill = t.panel;
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn standard_dark_maps_shared_ui_roles_and_preserves_artwork() {
-        let suite = SuiteDarkPalette::ARTCRAFT;
+        let suite = SuitePalette::ARTCRAFT_DARK;
         let dark = Tokens::for_brightness(Brightness::Dark);
         for (actual, expected) in [
             (dark.app_bar, suite.chrome),
