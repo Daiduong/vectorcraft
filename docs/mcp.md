@@ -858,11 +858,13 @@ All three commands return `{count, ids}` for the resulting selection, in selecti
 An empty array clears the selection for `select.set` and leaves it alone for Add and Toggle.
 
 `select.key {id}` makes `id` the key object that Align aligns to and Distribute Spacing spaces from (`object.align` without `to`, `object.distributeSpacing` with `spacing`), and `select.key {}` cancels it.
-The id must name a selected top-level object.
-Layers, compound-path members and objects inside another selected object are not top-level objects.
-Any other id is an error naming that value, and the key is left unchanged.
+The id must name a selected object with every anchor selected, that is not a layer and not inside another selected object.
+A direct-selected component of an unselected group or compound path counts when that component is selected whole.
+A path with only some anchors selected does not.
+With anchor points selected, Align to the key object moves those points to the key object's edge.
+A layer, an object that is not selected, or an object inside another selected object is an error naming that value, and the key is left unchanged.
 A null `id` is an error too.
-A click with the Selection tool on a selected top-level object, while two or more objects are selected, runs `select.key {id}`, and a click on the key object again runs `select.key {}`.
+A click with the Selection tool on that whole component, or on another object selected whole, while two or more objects are selected, runs `select.key {id}` for the component or object. It does not select the group or compound path around it. A click on a path with only some anchors selected does not. A click on the key object again runs `select.key {}`.
 On a single selected object, or on a group selected with only its own members, `select.key` sets no key.
 It returns `{key}`, the key object's id or null.
 `document.inspect` (the `inspect_document` tool) reports the key object as `key`, null without one.

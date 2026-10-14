@@ -346,7 +346,9 @@ impl Tool for SelectionTool {
                 }
                 match hit_test(cx.doc, p, cx.hit_options()) {
                     Some(h) => {
-                        let top = h.top_object(cx.isolation);
+                        // A direct-selected component of a group or compound stays that component:
+                        // the click can make it the key object instead of selecting the container.
+                        let top = click_target(cx, &h, p);
                         let mut out = vec![];
                         let (mut deselect, mut key) = (None, None);
                         if m.shift {
@@ -533,7 +535,7 @@ impl Tool for SelectionTool {
             return Cursor::ArrowHollow;
         }
         if let Some(h) = hit_test(cx.doc, p, cx.hit_options()) {
-            if cx.selection.contains(h.top_object(cx.isolation)) || m.alt {
+            if cx.selection.contains(click_target(cx, &h, p)) || m.alt {
                 return Cursor::Move;
             }
             return Cursor::Arrow;
@@ -550,15 +552,55 @@ fn object_behind(cx: &ToolContext, p: Point) -> Option<NodeId> {
     stack.get(next).or(stack.first()).copied()
 }
 
-/// Can a click make `id` the key object? `select.key` takes only a selected top-level object. In
-/// isolation mode a click can pick a sublayer (inside an isolated layer), a compound-path member
-/// (inside an isolated compound path) or an object inside another selected object (inside an
-/// isolated group that is also selected), and `select.key` returns an error for all three.
+/// The object a Selection-tool click acts on. That is the direct-selected component under the
+/// pointer when one is selected inside a group or compound path, and otherwise the top-level object.
+fn click_target(cx: &ToolContext, h: &vectorcraft_doc::hit::Hit, p: Point) -> NodeId {
+    let top = h.top_object(cx.isolation);
+    // Ancestry is layer-first, so the last selected id at or inside `top` is the deepest.
+    let mut at_top = false;
+    let mut found = None;
+    for id in &h.ancestry {
+        if *id == top {
+            at_top = true;
+        }
+        if at_top && cx.selection.contains(*id) {
+            found = Some(*id);
+        }
+    }
+    if let Some(id) = found {
+        return id;
+    }
+    // A compound path hits as one object, so a direct-selected member is not in the ancestry.
+    compound_member_at(cx, top, p).unwrap_or(top)
+}
+
+/// The member of compound path `top` under `p`, when that member is the frontmost one there and it
+/// is direct-selected. A selected member behind an unselected one is not the click.
+fn compound_member_at(cx: &ToolContext, top: NodeId, p: Point) -> Option<NodeId> {
+    let n = cx.doc.node(top)?;
+    let vectorcraft_doc::NodeKind::Compound { children, rule } = &n.kind else { return None };
+    let tol = cx.hit_options().tol;
+    let front = children.iter().rev().find(|c| member_hit(c, p, tol, *rule))?;
+    cx.selection.contains(front.id).then_some(front.id)
+}
+
+/// Does `p` lie in `n`'s fill, or within `tol` of its outline? A compound member keeps no paint of
+/// its own, so this uses the compound's fill rule and the member's geometry.
+fn member_hit(n: &vectorcraft_doc::Node, p: Point, tol: f64, rule: vectorcraft_geom::FillRule) -> bool {
+    let Some(path) = n.path_data() else {
+        return n.geometric_bounds().is_some_and(|b| b.inflate(tol, tol).contains(p));
+    };
+    let bp = path.to_bezpath();
+    vectorcraft_geom::hit::fill_contains(&bp, rule, p) || vectorcraft_geom::hit::stroke_contains(&bp, 0.0, tol, p)
+}
+
+/// Can a click make `id` the key object? It must be selected with every anchor, not a layer, and
+/// not inside another selected object. A direct-selected component of an unselected group or
+/// compound path can. A subset of its anchors cannot. In isolation mode a click can still land on
+/// a sublayer or on an object inside a selected group, and `select.key` returns an error for those.
 fn can_be_key(cx: &ToolContext, id: NodeId) -> bool {
     let inside_selected = cx.doc.ancestry(id).unwrap_or_default().iter().any(|a| *a != id && cx.selection.contains(*a));
-    // `paint_owner` returns a compound-path member's compound path.
-    let member = crate::xform::paint_owner(cx.doc, id) != id;
-    cx.doc.node(id).is_some_and(|n| !n.is_layer()) && !inside_selected && !member
+    cx.selection.selected_whole(cx.doc, id) && cx.doc.node(id).is_some_and(|n| !n.is_layer()) && !inside_selected
 }
 
 /// Is `n` area type (text in a frame) whose frame the tools reshape? Type in perspective isn't:
@@ -900,10 +942,11 @@ mod tests {
         assert!(click(&one, 150.0, 150.0).is_empty());
     }
 
-    /// In isolation mode a click makes only a selected top-level object the key, as `select.key`
-    /// takes no other: a click on a sublayer's art inside an isolated layer picks the sublayer,
-    /// a click inside an isolated group that is also selected picks an object inside it, and a
-    /// click inside an isolated compound path picks a member.
+    /// In isolation mode a click makes an object the key only when `select.key` accepts it. A click
+    /// on a sublayer's art inside an isolated layer picks the sublayer, which is not a key. A click
+    /// inside an isolated group that is also selected picks an object inside that group, which is
+    /// not a key; with the group not selected, that object is. A click inside an isolated compound
+    /// path picks a member, and that member is the key.
     #[test]
     fn a_click_makes_only_a_selected_top_level_object_the_key() {
         use vectorcraft_doc::{Appearance, Document, LayerColor, Node, NodeKind};
@@ -947,7 +990,7 @@ mod tests {
         s.add(b);
         assert_eq!(click(&d, &s, g), vec![Action::Exec("select.key".into(), json!({"id": a.0}))]);
         // An isolated compound path. Make Compound Path clears its members' appearance, so these
-        // members have none, and the click is on a's outline.
+        // members have none, and the click is on a's outline. The member is the key, not the compound.
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let (c, a, b) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
@@ -959,7 +1002,99 @@ mod tests {
         let mut s = Selection::default();
         s.add(a);
         s.add(b);
-        assert!(click(&d, &s, c).is_empty(), "a compound-path member is not a key object");
+        assert_eq!(click(&d, &s, c), vec![Action::Exec("select.key".into(), json!({"id": a.0}))]);
+    }
+
+    /// Outside isolation mode, a click on a direct-selected component of a group or compound path
+    /// makes that component the key object. It does not select the container.
+    #[test]
+    fn a_click_keeps_a_direct_selected_component_as_the_key() {
+        use vectorcraft_doc::{Appearance, Document, Node, NodeKind};
+        use vectorcraft_geom::shapes;
+        let p = paint();
+        let click = |d: &Document, s: &Selection, x, y| {
+            let c = cx(d, s, &p);
+            let mut t = SelectionTool::default();
+            let down = t.pointer(&c, &ev(PointerKind::Down, x, y));
+            let up = t.pointer(&c, &ev(PointerKind::Up, x, y));
+            (down, up)
+        };
+        let path = |id: NodeId, r: Rect| Node::path(id, shapes::rectangle(r), Appearance::default_art());
+        let (under, beside) = (Rect::new(100.0, 100.0, 200.0, 200.0), Rect::new(300.0, 300.0, 340.0, 340.0));
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        let (g, a, b) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
+        d.insert(Some(l), 0, Node::group(g, vec![])).unwrap();
+        d.insert(Some(g), 0, path(a, under)).unwrap();
+        d.insert(Some(l), 1, path(b, beside)).unwrap();
+        let mut s = Selection::default();
+        s.add(a);
+        s.add(b);
+        let (down, up) = click(&d, &s, 150.0, 150.0);
+        assert!(down.is_empty(), "the group is not selected: {down:?}");
+        assert_eq!(up, vec![Action::Exec("select.key".into(), json!({"id": a.0}))]);
+
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        let (c, a, m, b) = (d.alloc_id(), d.alloc_id(), d.alloc_id(), d.alloc_id());
+        let member = |id: NodeId, r: Rect| std::sync::Arc::new(Node::path(id, shapes::rectangle(r), Appearance::default()));
+        let children = vec![member(a, Rect::new(150.0, 100.0, 250.0, 200.0)), member(m, beside)];
+        let mut compound = Node::new(c, NodeKind::Compound { children, rule: Default::default() });
+        compound.appearance = Appearance::default_art().into();
+        d.insert(Some(l), 0, compound).unwrap();
+        d.insert(Some(l), 1, path(b, Rect::new(400.0, 100.0, 440.0, 140.0))).unwrap();
+        let mut s = Selection::default();
+        s.add(a);
+        s.add(b);
+        // Inside member a, not on its edge: a compound path hits as the compound.
+        let (down, up) = click(&d, &s, 200.0, 150.0);
+        assert!(down.is_empty(), "the compound path is not selected: {down:?}");
+        assert_eq!(up, vec![Action::Exec("select.key".into(), json!({"id": a.0}))]);
+
+        // The same point also lies in a selected member behind an unselected one. The click
+        // selects the compound; it does not make the member behind the key.
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        let (c, back, front, b) = (d.alloc_id(), d.alloc_id(), d.alloc_id(), d.alloc_id());
+        let overlap = Rect::new(100.0, 100.0, 200.0, 200.0);
+        let children = vec![member(back, overlap), member(front, Rect::new(120.0, 120.0, 220.0, 220.0))];
+        let mut compound = Node::new(c, NodeKind::Compound { children, rule: Default::default() });
+        compound.appearance = Appearance::default_art().into();
+        d.insert(Some(l), 0, compound).unwrap();
+        d.insert(Some(l), 1, path(b, Rect::new(400.0, 100.0, 440.0, 140.0))).unwrap();
+        let mut s = Selection::default();
+        s.add(back);
+        s.add(b);
+        let (down, up) = click(&d, &s, 150.0, 150.0);
+        assert_eq!(down, vec![Action::Exec("select.set".into(), json!({"ids": [c.0]}))], "the front member is not selected");
+        assert!(up.is_empty(), "a member behind it is not the key: {up:?}");
+    }
+
+    /// A click sets the key only when every anchor of that object is selected.
+    #[test]
+    fn a_click_on_a_partly_selected_path_does_not_make_it_the_key() {
+        use std::collections::BTreeSet;
+        use vectorcraft_doc::{Appearance, Document, Node};
+        use vectorcraft_geom::shapes;
+        let mut d = Document::new(400.0, 200.0);
+        let l = d.layers[0].id;
+        let (a, b) = (d.alloc_id(), d.alloc_id());
+        let path = |id, r| Node::path(id, shapes::rectangle(r), Appearance::default_art());
+        d.insert(Some(l), 0, path(a, Rect::new(10.0, 10.0, 50.0, 50.0))).unwrap();
+        d.insert(Some(l), 1, path(b, Rect::new(80.0, 10.0, 120.0, 50.0))).unwrap();
+        let mut s = Selection::default();
+        s.add(a);
+        s.add(b);
+        s.anchors.insert(a, BTreeSet::from([(0, 0)]));
+        let p = paint();
+        let click = |s: &Selection, x| {
+            let c = cx(&d, s, &p);
+            let mut t = SelectionTool::default();
+            assert!(t.pointer(&c, &ev(PointerKind::Down, x, 30.0)).is_empty());
+            t.pointer(&c, &ev(PointerKind::Up, x, 30.0))
+        };
+        assert!(click(&s, 30.0).is_empty(), "some anchors of a path are not a key object");
+        assert_eq!(click(&s, 100.0), vec![Action::Exec("select.key".into(), json!({"id": b.0}))]);
     }
 
     #[test]

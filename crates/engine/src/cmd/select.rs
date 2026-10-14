@@ -66,7 +66,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Cancel Key Object",
             [],
             None,
-            "{id?: a selected top-level object (not a layer, a compound-path member or an object inside another selected object); one of two or more (the Selection tool: a click on one object of a selection of several; on the key again: no id)} the key object Align aligns to and Distribute Spacing spaces from; without `id` it cancels the key, as does a selection that holds only the key and objects inside it (one object, or a group key and its own members); any other id is an error that leaves the key as it was → {key} (the resulting key object, or null)",
+            "{id?: a selected object with every anchor selected (not a layer, not inside another selected object; a direct-selected component of an unselected group or compound path counts; a subset of its anchors does not); one of two or more (the Selection tool: a click on one whole object of a selection of several; on the key again: no id)} the key object Align aligns to and Distribute Spacing spaces from; without `id` it cancels the key, as does a selection that holds only the key and objects inside it (one object, or a group key and its own members); any other id is an error that leaves the key as it was → {key} (the resulting key object, or null)",
             has_doc,
             key
         ),
@@ -354,10 +354,13 @@ fn key(s: &mut Session, p: &Value) -> Result<Value> {
     let id = p.get("id").map(|value| checked_id(s, value, "select.key")).transpose()?;
     if let Some(id) = id {
         let st = s.doc()?;
-        // A selected top-level object is the only top-level object among the selected ones of
-        // itself and its ancestors.
-        let selected = st.doc.ancestry(id).unwrap_or_default().into_iter().filter(|a| st.selection.contains(*a)).collect();
-        if super::edit::roots_of(&st.doc, selected) != [id] {
+        // The object is selected with every anchor, and no group or compound around it is selected
+        // with it. A direct-selected component of an unselected container is the key on its own.
+        // A subset of its anchors is not.
+        let ancestry = st.doc.ancestry(id).unwrap_or_default();
+        let inside_selected = ancestry.iter().any(|a| *a != id && st.selection.contains(*a));
+        let layer = st.doc.node(id).is_some_and(|n| n.is_layer());
+        if !st.selection.selected_whole(&st.doc, id) || inside_selected || layer {
             return Err(bad("select.key", format!("object {id} is not a selected top-level object")));
         }
     }
