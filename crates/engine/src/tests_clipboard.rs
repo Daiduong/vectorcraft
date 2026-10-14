@@ -571,6 +571,30 @@ fn in_place_pastes_go_onto_the_artboard_named() {
     }
 }
 
+/// #1924: art copied from no artboard pastes in place where it was, whatever artboard is active:
+/// its source artboard is none, not artboard 1, which shifted it by the active artboard's offset.
+#[test]
+fn in_place_paste_of_art_from_no_artboard_stays_where_it_was() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
+    let boards: Vec<Rect> = doc(&s).artboards.iter().map(|a| a.rect).collect();
+    // Below every artboard, in the gap.
+    let bottom = boards.iter().map(|b| b.y1).fold(f64::MIN, f64::max);
+    let (x, y) = (boards[0].x0 + 10.0, bottom + 40.0);
+    let r = rect(&mut s, x, y, 20.0, 20.0);
+    copy(&mut s, &[r]);
+    assert_eq!(s.clipboard.source_artboard, None, "no source artboard for art on none");
+    let ids = ids_of(&s.execute("edit.pasteInPlace", &json!({"artboard": 2})).unwrap());
+    assert_eq!(doc(&s).bounds_of(&ids, false).unwrap().origin(), Point::new(x, y), "in place, on the active artboard");
+    // Paste on All Artboards keeps its artboard-1 fallback for it.
+    let ids = ids_of(&s.execute("edit.pasteOnAllArtboards", &json!({})).unwrap());
+    assert_eq!(ids.len(), 3);
+    let dy = bottom - boards[0].y0 + 40.0;
+    for (id, b) in ids.iter().zip(&boards) {
+        assert_eq!(doc(&s).bounds_of(&[*id], false).unwrap().origin(), Point::new(b.x0 + 10.0, b.y0 + dy));
+    }
+}
+
 #[test]
 fn paste_remembers_layers_restores_the_source_layers() {
     let mut s = session();

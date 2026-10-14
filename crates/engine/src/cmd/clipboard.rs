@@ -109,8 +109,10 @@ impl Clipboard {
             source_layers.push(anc.iter().rev().skip(1).find_map(|a| d.node(*a).filter(|l| l.is_layer())).and_then(|l| l.name.clone()));
         }
         let bounds = nodes.iter().filter_map(Node::visual_bounds).reduce(|a, b| a.union(b));
-        let board = bounds.and_then(|b| d.artboard_at(b.center())).unwrap_or(0);
-        Self { source_artboard: d.artboards.get(board).map(|a| a.rect), source_layers, source_doc: Some(st.uid), ..Self::gather(d, nodes) }
+        // Art on no artboard has no source artboard: Paste in Place pastes it where it was.
+        // (Paste on All Artboards keeps its own artboard-1 fallback for it, in `paste_clip`.)
+        let board = bounds.and_then(|b| d.artboard_at(b.center())).and_then(|i| d.artboards.get(i));
+        Self { source_artboard: board.map(|a| a.rect), source_layers, source_doc: Some(st.uid), ..Self::gather(d, nodes) }
     }
 
     /// Every object of `src` (each top-level layer's contents) with its resources, for Place and
