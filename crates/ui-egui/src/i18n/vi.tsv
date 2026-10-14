@@ -4362,3 +4362,9 @@ theme	Appearance	Giao diện
 	Softness	Độ mềm
 	Ambient Light	Ánh sáng môi trường
 	Light behind the object	Ánh sáng phía sau đối tượng
+	Insert Equation	Chèn phương trình
+	Edit Equation	Sửa phương trình
+@msg	No math font available	Không có phông chữ toán học
+	Insert Equation…	Chèn phương trình…
+	LaTeX:	LaTeX:
+	Display style	Kiểu hiển thị

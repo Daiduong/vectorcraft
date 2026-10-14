@@ -279,6 +279,11 @@ impl Tool for SelectionTool {
                     if cx.doc.node(top).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Text(_))) {
                         return vec![Action::SwitchTool("type".into())];
                     }
+                    // An equation (a group generated from its LaTeX source): its source is what
+                    // there is to edit, so Edit Equation opens rather than the group isolating.
+                    if cx.doc.node(top).is_some_and(|n| n.extras().math.is_some()) {
+                        return vec![Action::Dialog("math".into(), json!({ "id": top.0 }))];
+                    }
                     // A group, a compound path or a single path, image, mesh or placed file, not
                     // the one already isolated. Blends, envelopes, repeats and symbol instances
                     // aren't: they have editing modes of their own.
@@ -710,6 +715,22 @@ mod tests {
         assert!(!t.busy());
         // A double-click there doesn't go through to the art.
         assert!(t.pointer(&cx, &ev(PointerKind::DoubleClick, 160.0, 150.0)).is_empty());
+    }
+
+    /// A double-click on an equation opens Edit Equation on it (not the group's isolation mode).
+    #[test]
+    fn double_clicking_an_equation_opens_its_dialog() {
+        let (mut d, id) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let mut t = SelectionTool::default();
+        let plain = t.pointer(&cx(&d, &s, &p), &ev(PointerKind::DoubleClick, 150.0, 150.0));
+        assert!(!plain.iter().any(|a| matches!(a, Action::Dialog(..))), "{plain:?}");
+        if let Some(n) = d.node_mut(id) {
+            n.extras_mut().math = Some(Box::default());
+        }
+        let a = t.pointer(&cx(&d, &s, &p), &ev(PointerKind::DoubleClick, 150.0, 150.0));
+        assert_eq!(a, vec![Action::Dialog("math".into(), json!({"id": id.0}))]);
     }
 
     /// Just outside each corner of the box the rotate cursor bows toward that corner, its arc

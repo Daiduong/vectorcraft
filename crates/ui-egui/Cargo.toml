@@ -16,6 +16,7 @@ vectorcraft-doc = { workspace = true }
 vectorcraft-brush = { workspace = true }
 vectorcraft-render = { workspace = true }
 vectorcraft-text = { workspace = true }
+vectorcraft-math = { workspace = true }
 vectorcraft-tools = { workspace = true }
 vectorcraft-engine = { workspace = true }
 vectorcraft-svg = { workspace = true }

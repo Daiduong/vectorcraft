@@ -4335,3 +4335,9 @@ theme	Appearance	Erscheinungsbild
 	Softness	Weichheit
 	Ambient Light	Umgebungslicht
 	Light behind the object	Licht hinter dem Objekt
+	Insert Equation	Formel einfügen
+	Edit Equation	Formel bearbeiten
+@msg	No math font available	Keine Mathematikschrift verfügbar
+	Insert Equation…	Formel einfügen…
+	LaTeX:	LaTeX:
+	Display style	Anzeigestil

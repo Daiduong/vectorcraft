@@ -4749,3 +4749,9 @@ mark-style	Japanese	Japonesas
 	Softness	Suavidad
 	Ambient Light	Luz ambiental
 	Light behind the object	Luz detrás del objeto
+	Insert Equation	Insertar ecuación
+	Edit Equation	Editar ecuación
+@msg	No math font available	No hay ninguna fuente matemática disponible
+	Insert Equation…	Insertar ecuación…
+	LaTeX:	LaTeX:
+	Display style	Estilo de visualización

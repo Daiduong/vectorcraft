@@ -4775,3 +4775,9 @@ imageTrace	Outline	Körvonal
 	Softness	Lágyság
 	Ambient Light	Környezeti fény
 	Light behind the object	Fény az objektum mögött
+	Insert Equation	Egyenlet beszúrása
+	Edit Equation	Egyenlet szerkesztése
+@msg	No math font available	Nincs elérhető matematikai betűtípus
+	Insert Equation…	Egyenlet beszúrása…
+	LaTeX:	LaTeX:
+	Display style	Kiemelt stílus

@@ -4808,3 +4808,9 @@ mark-style	Japanese	Japonské
 	Softness	Měkkost
 	Ambient Light	Okolní světlo
 	Light behind the object	Světlo za objektem
+	Insert Equation	Vložit rovnici
+	Edit Equation	Upravit rovnici
+@msg	No math font available	Není k dispozici žádné matematické písmo
+	Insert Equation…	Vložit rovnici…
+	LaTeX:	LaTeX:
+	Display style	Zobrazovací styl

@@ -44,6 +44,7 @@ pub mod import_pdf;
 pub mod layer_options;
 pub mod layers_panel_options;
 pub mod liquify;
+pub mod math;
 pub mod missing_fonts;
 pub mod missing_links;
 pub(crate) mod modal;
@@ -306,6 +307,7 @@ registry! {
     LayerOptions: [layer_options::KIND] => layer_options::SPEC,
     LayersPanelOptions: [layers_panel_options::KIND] => layers_panel_options::SPEC,
     RearrangeArtboards: [rearrange_artboards::KIND] => rearrange_artboards::SPEC,
+    Math: [math::KIND] => math::SPEC,
     ShortcutImport: [shortcut_import::KIND] => DialogSpec::window(shortcut_import::show, shortcut_import::confirm),
 }
 

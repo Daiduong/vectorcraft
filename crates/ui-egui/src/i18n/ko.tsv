@@ -4344,3 +4344,9 @@ lighting	Light	광원
 	Softness	부드러움
 	Ambient Light	주변광
 	Light behind the object	개체 뒤의 조명
+	Insert Equation	수식 삽입
+	Edit Equation	수식 편집
+@msg	No math font available	사용할 수 있는 수식 글꼴이 없습니다
+	Insert Equation…	수식 삽입…
+	LaTeX:	LaTeX:
+	Display style	디스플레이 스타일

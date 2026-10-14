@@ -2469,6 +2469,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 Sep,
                 c("Fill with Placeholder Text", "type.fillPlaceholder"),
                 c("Insert Inline Symbol", "text.insertInline"),
+                c("Insert Equation…", "math.create"),
                 Sep,
                 c("Show Hidden Characters", "type.hiddenCharacters"),
                 sub("Type Orientation", vec![c("Horizontal", "type.orientation.horizontal"), c("Vertical", "type.orientation.vertical")]),
@@ -3182,6 +3183,14 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
     // Object → Graph → Type… / Data…: dialogs with the selected graph's current values.
     if matches!(id, "graph.setType" | "graph.setData") && p.as_object().is_none_or(|o| o.is_empty()) {
         if let Err(e) = graph_dialog(app, id) {
+            app.status(e);
+        }
+        return;
+    }
+    // Type → Insert Equation…, and Edit Equation with nothing asked: their dialog.
+    if matches!(id, "math.create" | "math.edit") && p.as_object().is_none_or(|o| o.is_empty()) {
+        let r = if id == "math.create" { crate::dialogs::math::open_create(app) } else { crate::dialogs::math::open_edit(app, None) };
+        if let Err(e) = r {
             app.status(e);
         }
         return;

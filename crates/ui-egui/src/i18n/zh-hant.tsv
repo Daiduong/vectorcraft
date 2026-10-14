@@ -3741,3 +3741,9 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	環境光
 	Light behind the object	光源位於物件後方
+	Insert Equation	插入公式
+	Edit Equation	編輯公式
+@msg	No math font available	沒有可用的數學字型
+	Insert Equation…	插入公式…
+	LaTeX:	LaTeX：
+	Display style	展示樣式

@@ -3763,3 +3763,9 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+	Insert Equation	Inserir equação
+	Edit Equation	Editar equação
+@msg	No math font available	Nenhuma fonte matemática disponível
+	Insert Equation…	Inserir equação…
+	LaTeX:	LaTeX:
+	Display style	Estilo de exibição

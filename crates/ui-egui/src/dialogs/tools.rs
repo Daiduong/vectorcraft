@@ -72,6 +72,13 @@ pub fn open_tool_dialog(app: &mut VectorcraftApp, kind: &str, p: Value) {
             }
             return;
         }
+        // Double-clicking an equation with the Selection tool: Edit Equation.
+        super::math::KIND => {
+            if let Err(e) = super::math::open(app, &p) {
+                app.status(e);
+            }
+            return;
+        }
         // Double-clicking a plane widget of the perspective grid: that plane's options.
         super::perspective_plane::KIND => {
             if let Err(e) = super::perspective_plane::open(app, &p) {

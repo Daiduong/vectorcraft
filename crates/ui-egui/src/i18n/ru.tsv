@@ -4376,3 +4376,9 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+	Insert Equation	Вставить уравнение
+	Edit Equation	Изменить уравнение
+@msg	No math font available	Нет доступного математического шрифта
+	Insert Equation…	Вставить уравнение…
+	LaTeX:	LaTeX:
+	Display style	Выключной стиль
