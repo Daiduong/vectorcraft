@@ -524,7 +524,8 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         _ => None,
     };
     // A photo is traced from a copy with its noise smoothed away (see `smooth`).
-    let smoothed = (params.mode != Mode::BlackAndWhite && quantize::continuous_tone(img)).then(|| smooth::smoothed(img));
+    let photo = params.mode != Mode::BlackAndWhite && quantize::continuous_tone(img);
+    let smoothed = photo.then(|| smooth::smoothed(img));
     let img = smoothed.as_ref().unwrap_or(img);
     // Gradients are found first and kept out of the palette: no colour is spent on bands of them.
     let found = (params.gradients && params.mode != Mode::BlackAndWhite).then(|| gradient::detect(img)).filter(|f| !f.1.is_empty());
@@ -537,7 +538,7 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         }
         rest
     });
-    let mut q = quantize(without.as_ref().unwrap_or(img), params);
+    let mut q = quantize::quantize_as(without.as_ref().unwrap_or(img), params, photo);
     drop(without);
     // Each gradient is a palette entry of its own (its colour: the gradient's middle).
     let mut gradients: Vec<Option<TracedGradient>> = vec![None; q.palette.len()];

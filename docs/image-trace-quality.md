@@ -1,6 +1,6 @@
 # Image Trace quality
 
-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (Gradients: grown over noise and soft rims)
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (Palette: blends wider than two pixels settled)
 
 What Image Trace (`crates/trace`) makes of images whose right answer is known, measured by a harness and
 compared with the numbers before each change. Nothing here is a judgement by eye, and nothing is compared
@@ -88,17 +88,17 @@ Each preset on the inputs it is meant for, all sizes and variants.
 | Technical Drawing | polygons, star, letter A, lines, askew shapes and lines | 2.73 | 13.67 | 0.210 | 1.43 | 105.76 | 4.7 | 31 | 2.01 | 100 | 9 | 85 | 5.9 | – | – | – | – | 0.1 | 0.0 | – | – | – |
 | Flat Logo | two touching halves, four-colour badge | 0.43 | 3.53 | 3.106 | 88.50 | 0.78 | 69.9 | 352 | 38.92 | 38 | 10 | 80 | 237.0 | 0.0 | 0 | 13.8 | – | 59.1 | 0.2 | – | – | – |
 
-### Now (with gradients grown over noise and soft rims)
+### Now (with blends wider than two pixels settled)
 
 | preset | inputs | ΔE | edge ΔE | off mean | off max | missed max | paths | anchors | × art | lines % | upright % | corners % | kinks | odd colours | odd px | gap px | overlap px | specks | outside px | centre off | width off | anchors a stroke | shapes % | false shapes | grouped % | gradient paths | found % | angle off | ramp off |
 |:--|:--|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | Default | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.60 | 10.05 | 0.091 | 1.02 | 2.18 | 1.9 | 17 | 1.73 | 30 | 6 | 76 | 0.4 | – | – | 0.3 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| Auto Color | two touching halves, four-colour badge | 0.55 | 4.99 | 0.141 | 1.33 | 1.21 | 4.0 | 51 | 3.19 | 39 | 16 | 91 | 6.0 | 0.0 | 0 | 1.5 | 1.2 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| Auto Color | two touching halves, four-colour badge | 0.54 | 4.88 | 0.101 | 1.00 | 1.21 | 3.0 | 31 | 2.18 | 37 | 16 | 91 | 0.0 | 0.0 | 0 | 2.2 | 1.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | gradient, photo-like | 1.75 | 1.98 | – | – | – | 120.7 | 9929 | – | 38 | 36 | – | – | – | – | 0.0 | – | 10.1 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | Low Fidelity Photo | gradient, photo-like | 2.45 | 2.69 | – | – | – | 37.1 | 2134 | – | 43 | 37 | – | – | – | – | 0.0 | – | 0.0 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | 3 Colors | two touching halves | 0.42 | 3.98 | 0.104 | 0.91 | 0.91 | 2.0 | 11 | 1.81 | 39 | 6 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 6 Colors | two touching halves, four-colour badge | 0.55 | 4.99 | 0.140 | 1.34 | 1.19 | 4.0 | 49 | 3.07 | 39 | 16 | 91 | 6.1 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 16 Colors | two touching halves, four-colour badge | 0.55 | 4.91 | 0.142 | 1.31 | 1.19 | 4.2 | 63 | 3.87 | 40 | 16 | 91 | 7.7 | 0.0 | 0 | 0.5 | 0.6 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 6 Colors | two touching halves, four-colour badge | 0.55 | 4.89 | 0.101 | 1.00 | 1.19 | 3.0 | 31 | 2.19 | 37 | 16 | 91 | 0.0 | 0.0 | 0 | 1.0 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 16 Colors | two touching halves, four-colour badge | 0.54 | 4.79 | 0.100 | 1.00 | 1.19 | 3.0 | 33 | 2.35 | 38 | 17 | 91 | 0.0 | 0.0 | 0 | 1.0 | 1.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Shades of Gray | gradient, photo-like | 9.26 | 9.06 | – | – | – | 16.6 | 700 | – | 51 | 40 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | Black and White Logo | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.59 | 9.46 | 0.064 | 1.02 | 2.17 | 1.4 | 27 | 2.68 | 42 | 11 | 76 | 0.3 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Sketched Art | circle, ellipses, badge with a hole, letter D, lines | 2.71 | 12.02 | 0.185 | 1.00 | 105.61 | 1.8 | 16 | 1.42 | 19 | 8 | 100 | 0.0 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
@@ -109,7 +109,7 @@ Each preset on the inputs it is meant for, all sizes and variants.
 | Flat Logo | two touching halves, four-colour badge | 0.48 | 3.47 | 0.090 | 0.82 | 0.78 | 3.9 | 49 | 3.85 | 40 | 10 | 80 | 2.6 | 0.0 | 0 | 10.6 | – | 0.9 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Default with Shapes | plain shapes | 3.16 | 9.22 | 0.085 | 0.90 | 0.90 | 6.0 | 30 | 1.01 | 65 | 40 | – | – | – | – | 0.5 | 0.0 | 0.0 | 0.0 | – | – | – | 98 | 0.00 | – | 0.0 | – | – | – |
 | 6 Colors with Shapes | plain shapes | 0.90 | 6.64 | 0.077 | 0.60 | 0.60 | 6.0 | 30 | 1.00 | 67 | 39 | – | – | 0.0 | 0 | 2.1 | 1.3 | 0.0 | 0.0 | – | – | – | 100 | 0.00 | – | 0.0 | – | – | – |
-| 6 Colors with Auto Grouping | two touching halves, four-colour badge | 0.55 | 4.99 | 0.140 | 1.34 | 1.19 | 4.0 | 49 | 3.07 | 39 | 16 | 91 | 6.1 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
+| 6 Colors with Auto Grouping | two touching halves, four-colour badge | 0.55 | 4.89 | 0.101 | 1.00 | 1.19 | 3.0 | 31 | 2.19 | 37 | 16 | 91 | 0.0 | 0.0 | 0 | 1.0 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Shades of Gray with Auto Grouping | gradient, photo-like | 9.26 | 9.06 | – | – | – | 16.6 | 700 | – | 51 | 40 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | 47 | 0.0 | – | – | – |
 | High Fidelity Photo with Auto Grouping | gradient, photo-like | 1.75 | 1.98 | – | – | – | 120.7 | 9929 | – | 38 | 36 | – | – | – | – | 0.0 | – | 10.1 | 0.0 | – | – | – | – | – | 69 | 0.0 | – | – | – |
 | 6 Colors, no Gradients | two-stop gradient, three-stop gradient in a disc | 2.12 | 3.04 | – | – | – | 6.4 | 469 | – | 21 | 14 | – | – | – | – | 3.9 | 12.7 | 0.0 | 0.0 | – | – | – | – | – | – | 0.0 | 0 | – | – |
@@ -117,12 +117,12 @@ Each preset on the inputs it is meant for, all sizes and variants.
 | High Fidelity Photo, no Gradients | two-stop gradient, three-stop gradient in a disc | 0.79 | 2.98 | – | – | – | 38.1 | 3827 | – | 31 | 30 | – | – | – | – | 0.0 | – | 1.1 | 0.0 | – | – | – | – | – | – | 0.0 | 0 | – | – |
 | High Fidelity Photo with Gradients | two-stop gradient, three-stop gradient in a disc | 0.46 | 1.29 | – | – | – | 8.2 | 545 | – | 1 | 0 | – | – | – | – | 0.0 | – | 0.8 | 0.0 | – | – | – | – | – | – | 0.9 | 86 | 1.5 | 21 |
 | Default, enhanced | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.60 | 9.88 | 0.083 | 1.00 | 2.18 | 1.9 | 16 | 1.59 | 36 | 6 | 83 | 0.4 | – | – | 0.3 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.02 | 14 | 0.0 | – | – | – |
-| Auto Color, enhanced | two touching halves, four-colour badge | 0.55 | 5.00 | 0.139 | 1.33 | 1.00 | 4.0 | 48 | 3.03 | 41 | 16 | 100 | 6.0 | 0.0 | 0 | 1.3 | 1.1 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
+| Auto Color, enhanced | two touching halves, four-colour badge | 0.55 | 4.89 | 0.099 | 1.00 | 1.00 | 3.0 | 28 | 2.02 | 40 | 17 | 100 | 0.0 | 0.0 | 0 | 2.1 | 1.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | gradient, photo-like | 1.75 | 1.98 | – | – | – | 120.7 | 9929 | – | 38 | 36 | – | – | – | – | 0.0 | – | 10.1 | 0.0 | – | – | – | – | – | 69 | 0.0 | – | – | – |
 | Low Fidelity Photo, enhanced | gradient, photo-like | 2.45 | 2.69 | – | – | – | 37.1 | 2134 | – | 43 | 37 | – | – | – | – | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 63 | 0.0 | – | – | – |
 | 3 Colors, enhanced | two touching halves | 0.42 | 3.98 | 0.104 | 0.91 | 0.91 | 2.0 | 11 | 1.81 | 39 | 6 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
-| 6 Colors, enhanced | two touching halves, four-colour badge | 0.55 | 4.99 | 0.139 | 1.34 | 1.00 | 4.0 | 45 | 2.91 | 41 | 16 | 100 | 6.1 | 0.0 | 0 | 0.2 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
-| 16 Colors, enhanced | two touching halves, four-colour badge | 0.55 | 4.91 | 0.141 | 1.31 | 1.00 | 4.2 | 59 | 3.68 | 42 | 17 | 100 | 7.7 | 0.0 | 0 | 0.4 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | 28 | 0.0 | – | – | – |
+| 6 Colors, enhanced | two touching halves, four-colour badge | 0.55 | 4.89 | 0.099 | 1.00 | 1.00 | 3.0 | 28 | 2.03 | 40 | 17 | 100 | 0.0 | 0.0 | 0 | 0.9 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
+| 16 Colors, enhanced | two touching halves, four-colour badge | 0.54 | 4.79 | 0.099 | 1.00 | 1.00 | 3.0 | 29 | 2.16 | 40 | 17 | 100 | 0.0 | 0.0 | 0 | 0.9 | 1.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Shades of Gray, enhanced | gradient, photo-like | 9.26 | 9.06 | – | – | – | 16.6 | 700 | – | 51 | 40 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | 0.00 | 47 | 0.0 | – | – | – |
 | Black and White Logo, enhanced | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.59 | 9.49 | 0.065 | 1.00 | 2.17 | 1.4 | 21 | 2.14 | 46 | 11 | 83 | 0.3 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.02 | 0 | 0.0 | – | – | – |
 | Sketched Art, enhanced | circle, ellipses, badge with a hole, letter D, lines | 2.71 | 11.80 | 0.178 | 1.00 | 105.61 | 1.8 | 15 | 1.32 | 19 | 8 | 100 | 0.0 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.03 | 0 | 0.0 | – | – | – |
@@ -131,7 +131,7 @@ Each preset on the inputs it is meant for, all sizes and variants.
 | Technical Drawing, enhanced | polygons, star, letter A, lines, askew shapes and lines | 2.65 | 10.93 | 0.128 | 1.46 | 105.64 | 4.7 | 34 | 2.26 | 86 | 19 | 86 | 0.8 | – | – | – | – | 0.5 | 0.0 | – | – | – | – | 0.09 | 0 | 0.0 | – | – | – |
 | Outline, enhanced | lines | 2.61 | 9.39 | 0.050 | 0.88 | 105.74 | 5.0 | 10 | 0.52 | 99 | 4 | – | – | – | – | – | – | 0.0 | 0.0 | 0.039 | 0.02 | 2.0 | – | 0.00 | 0 | 0.0 | – | – | – |
 
-The sections below are the numbers now (with gradients grown over noise and soft rims).
+The sections below are the numbers now (with blends wider than two pixels settled).
 
 ## 1. Each preset on the inputs it is meant for
 
@@ -140,12 +140,12 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | preset | inputs | ΔE | edge ΔE | off mean | off max | missed max | paths | anchors | × art | lines % | upright % | corners % | kinks | odd colours | odd px | gap px | overlap px | specks | outside px | centre off | width off | anchors a stroke | shapes % | false shapes | grouped % | gradient paths | found % | angle off | ramp off |
 |:--|:--|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | Default | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.60 | 10.05 | 0.091 | 1.02 | 2.18 | 1.9 | 17 | 1.73 | 30 | 6 | 76 | 0.4 | – | – | 0.3 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| Auto Color | two touching halves, four-colour badge | 0.55 | 4.99 | 0.141 | 1.33 | 1.21 | 4.0 | 51 | 3.19 | 39 | 16 | 91 | 6.0 | 0.0 | 0 | 1.5 | 1.2 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| Auto Color | two touching halves, four-colour badge | 0.54 | 4.88 | 0.101 | 1.00 | 1.21 | 3.0 | 31 | 2.18 | 37 | 16 | 91 | 0.0 | 0.0 | 0 | 2.2 | 1.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | gradient, photo-like | 1.75 | 1.98 | – | – | – | 120.7 | 9929 | – | 38 | 36 | – | – | – | – | 0.0 | – | 10.1 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | Low Fidelity Photo | gradient, photo-like | 2.45 | 2.69 | – | – | – | 37.1 | 2134 | – | 43 | 37 | – | – | – | – | 0.0 | – | 0.0 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | 3 Colors | two touching halves | 0.42 | 3.98 | 0.104 | 0.91 | 0.91 | 2.0 | 11 | 1.81 | 39 | 6 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 6 Colors | two touching halves, four-colour badge | 0.55 | 4.99 | 0.140 | 1.34 | 1.19 | 4.0 | 49 | 3.07 | 39 | 16 | 91 | 6.1 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 16 Colors | two touching halves, four-colour badge | 0.55 | 4.91 | 0.142 | 1.31 | 1.19 | 4.2 | 63 | 3.87 | 40 | 16 | 91 | 7.7 | 0.0 | 0 | 0.5 | 0.6 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 6 Colors | two touching halves, four-colour badge | 0.55 | 4.89 | 0.101 | 1.00 | 1.19 | 3.0 | 31 | 2.19 | 37 | 16 | 91 | 0.0 | 0.0 | 0 | 1.0 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 16 Colors | two touching halves, four-colour badge | 0.54 | 4.79 | 0.100 | 1.00 | 1.19 | 3.0 | 33 | 2.35 | 38 | 17 | 91 | 0.0 | 0.0 | 0 | 1.0 | 1.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Shades of Gray | gradient, photo-like | 9.26 | 9.06 | – | – | – | 16.6 | 700 | – | 51 | 40 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | Black and White Logo | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.59 | 9.46 | 0.064 | 1.02 | 2.17 | 1.4 | 27 | 2.68 | 42 | 11 | 76 | 0.3 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Sketched Art | circle, ellipses, badge with a hole, letter D, lines | 2.71 | 12.02 | 0.185 | 1.00 | 105.61 | 1.8 | 16 | 1.42 | 19 | 8 | 100 | 0.0 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
@@ -156,7 +156,7 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | Flat Logo | two touching halves, four-colour badge | 0.48 | 3.47 | 0.090 | 0.82 | 0.78 | 3.9 | 49 | 3.85 | 40 | 10 | 80 | 2.6 | 0.0 | 0 | 10.6 | – | 0.9 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Default with Shapes | plain shapes | 3.16 | 9.22 | 0.085 | 0.90 | 0.90 | 6.0 | 30 | 1.01 | 65 | 40 | – | – | – | – | 0.5 | 0.0 | 0.0 | 0.0 | – | – | – | 98 | 0.00 | – | 0.0 | – | – | – |
 | 6 Colors with Shapes | plain shapes | 0.90 | 6.64 | 0.077 | 0.60 | 0.60 | 6.0 | 30 | 1.00 | 67 | 39 | – | – | 0.0 | 0 | 2.1 | 1.3 | 0.0 | 0.0 | – | – | – | 100 | 0.00 | – | 0.0 | – | – | – |
-| 6 Colors with Auto Grouping | two touching halves, four-colour badge | 0.55 | 4.99 | 0.140 | 1.34 | 1.19 | 4.0 | 49 | 3.07 | 39 | 16 | 91 | 6.1 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
+| 6 Colors with Auto Grouping | two touching halves, four-colour badge | 0.55 | 4.89 | 0.101 | 1.00 | 1.19 | 3.0 | 31 | 2.19 | 37 | 16 | 91 | 0.0 | 0.0 | 0 | 1.0 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Shades of Gray with Auto Grouping | gradient, photo-like | 9.26 | 9.06 | – | – | – | 16.6 | 700 | – | 51 | 40 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | 47 | 0.0 | – | – | – |
 | High Fidelity Photo with Auto Grouping | gradient, photo-like | 1.75 | 1.98 | – | – | – | 120.7 | 9929 | – | 38 | 36 | – | – | – | – | 0.0 | – | 10.1 | 0.0 | – | – | – | – | – | 69 | 0.0 | – | – | – |
 | 6 Colors, no Gradients | two-stop gradient, three-stop gradient in a disc | 2.12 | 3.04 | – | – | – | 6.4 | 469 | – | 21 | 14 | – | – | – | – | 3.9 | 12.7 | 0.0 | 0.0 | – | – | – | – | – | – | 0.0 | 0 | – | – |
@@ -164,12 +164,12 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | High Fidelity Photo, no Gradients | two-stop gradient, three-stop gradient in a disc | 0.79 | 2.98 | – | – | – | 38.1 | 3827 | – | 31 | 30 | – | – | – | – | 0.0 | – | 1.1 | 0.0 | – | – | – | – | – | – | 0.0 | 0 | – | – |
 | High Fidelity Photo with Gradients | two-stop gradient, three-stop gradient in a disc | 0.46 | 1.29 | – | – | – | 8.2 | 545 | – | 1 | 0 | – | – | – | – | 0.0 | – | 0.8 | 0.0 | – | – | – | – | – | – | 0.9 | 86 | 1.5 | 21 |
 | Default, enhanced | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.60 | 9.88 | 0.083 | 1.00 | 2.18 | 1.9 | 16 | 1.59 | 36 | 6 | 83 | 0.4 | – | – | 0.3 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.02 | 14 | 0.0 | – | – | – |
-| Auto Color, enhanced | two touching halves, four-colour badge | 0.55 | 5.00 | 0.139 | 1.33 | 1.00 | 4.0 | 48 | 3.03 | 41 | 16 | 100 | 6.0 | 0.0 | 0 | 1.3 | 1.1 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
+| Auto Color, enhanced | two touching halves, four-colour badge | 0.55 | 4.89 | 0.099 | 1.00 | 1.00 | 3.0 | 28 | 2.02 | 40 | 17 | 100 | 0.0 | 0.0 | 0 | 2.1 | 1.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | gradient, photo-like | 1.75 | 1.98 | – | – | – | 120.7 | 9929 | – | 38 | 36 | – | – | – | – | 0.0 | – | 10.1 | 0.0 | – | – | – | – | – | 69 | 0.0 | – | – | – |
 | Low Fidelity Photo, enhanced | gradient, photo-like | 2.45 | 2.69 | – | – | – | 37.1 | 2134 | – | 43 | 37 | – | – | – | – | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 63 | 0.0 | – | – | – |
 | 3 Colors, enhanced | two touching halves | 0.42 | 3.98 | 0.104 | 0.91 | 0.91 | 2.0 | 11 | 1.81 | 39 | 6 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
-| 6 Colors, enhanced | two touching halves, four-colour badge | 0.55 | 4.99 | 0.139 | 1.34 | 1.00 | 4.0 | 45 | 2.91 | 41 | 16 | 100 | 6.1 | 0.0 | 0 | 0.2 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
-| 16 Colors, enhanced | two touching halves, four-colour badge | 0.55 | 4.91 | 0.141 | 1.31 | 1.00 | 4.2 | 59 | 3.68 | 42 | 17 | 100 | 7.7 | 0.0 | 0 | 0.4 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | 28 | 0.0 | – | – | – |
+| 6 Colors, enhanced | two touching halves, four-colour badge | 0.55 | 4.89 | 0.099 | 1.00 | 1.00 | 3.0 | 28 | 2.03 | 40 | 17 | 100 | 0.0 | 0.0 | 0 | 0.9 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
+| 16 Colors, enhanced | two touching halves, four-colour badge | 0.54 | 4.79 | 0.099 | 1.00 | 1.00 | 3.0 | 29 | 2.16 | 40 | 17 | 100 | 0.0 | 0.0 | 0 | 0.9 | 1.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Shades of Gray, enhanced | gradient, photo-like | 9.26 | 9.06 | – | – | – | 16.6 | 700 | – | 51 | 40 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | 0.00 | 47 | 0.0 | – | – | – |
 | Black and White Logo, enhanced | circle, ellipses, badge with a hole, letter D, polygons, star, letter A | 2.59 | 9.49 | 0.065 | 1.00 | 2.17 | 1.4 | 21 | 2.14 | 46 | 11 | 83 | 0.3 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.02 | 0 | 0.0 | – | – | – |
 | Sketched Art, enhanced | circle, ellipses, badge with a hole, letter D, lines | 2.71 | 11.80 | 0.178 | 1.00 | 105.61 | 1.8 | 15 | 1.32 | 19 | 8 | 100 | 0.0 | – | – | – | – | 0.0 | 0.0 | – | – | – | – | 0.03 | 0 | 0.0 | – | – | – |
@@ -200,7 +200,7 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | Auto Color | linear gradients | 1.02 | 1.74 | – | – | – | 15.7 | 1272 | – | 12 | 8 | – | – | – | – | 9.1 | 7.4 | 0.0 | 0.0 | – | – | – | – | – | – | 0.0 | 0 | – | – |
 | High Fidelity Photo | curved shapes | 0.04 | 1.63 | 0.026 | 0.15 | 0.15 | 1.2 | 19 | 2.11 | 21 | 21 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | polygons | 0.06 | 2.33 | 0.039 | 0.50 | 1.32 | 1.7 | 17 | 1.47 | 88 | 7 | 93 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| High Fidelity Photo | thin lines | 0.35 | 6.05 | 0.085 | 0.90 | 4.35 | 40.3 | 348 | 17.42 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| High Fidelity Photo | thin lines | 0.35 | 6.05 | 0.084 | 0.90 | 4.35 | 40.3 | 350 | 17.52 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | askew shapes | 0.17 | 3.97 | 0.100 | 0.94 | 1.73 | 8.7 | 157 | 6.54 | 71 | 5 | – | – | 4.3 | 3998 | 0.0 | – | 1.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | plain shapes | 0.08 | 1.66 | 0.035 | 0.25 | 0.28 | 6.0 | 50 | 1.68 | 62 | 51 | – | – | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | 0 | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | flat colour art | 0.14 | 4.16 | 0.029 | 0.20 | 0.20 | 3.5 | 73 | 4.59 | 35 | 34 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
@@ -336,7 +336,7 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | Shades of Gray with Auto Grouping | linear gradients | 5.25 | 8.40 | – | – | – | 9.0 | 477 | – | 31 | 31 | – | – | – | – | 0.0 | – | 0.0 | 0.0 | – | – | – | – | – | 68 | 0.0 | 0 | – | – |
 | High Fidelity Photo with Auto Grouping | curved shapes | 0.04 | 1.63 | 0.026 | 0.15 | 0.15 | 1.2 | 19 | 2.11 | 21 | 21 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
 | High Fidelity Photo with Auto Grouping | polygons | 0.06 | 2.33 | 0.039 | 0.50 | 1.32 | 1.7 | 17 | 1.47 | 88 | 7 | 93 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
-| High Fidelity Photo with Auto Grouping | thin lines | 0.35 | 6.05 | 0.085 | 0.90 | 4.35 | 40.3 | 348 | 17.42 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
+| High Fidelity Photo with Auto Grouping | thin lines | 0.35 | 6.05 | 0.084 | 0.90 | 4.35 | 40.3 | 350 | 17.52 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
 | High Fidelity Photo with Auto Grouping | askew shapes | 0.17 | 3.97 | 0.100 | 0.94 | 1.73 | 8.7 | 157 | 6.54 | 71 | 5 | – | – | 4.3 | 3998 | 0.0 | – | 1.0 | 0.0 | – | – | – | – | 0.00 | 18 | 0.0 | – | – | – |
 | High Fidelity Photo with Auto Grouping | plain shapes | 0.08 | 1.66 | 0.035 | 0.25 | 0.28 | 6.0 | 50 | 1.68 | 62 | 51 | – | – | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | 0 | 0.00 | 0 | 0.0 | – | – | – |
 | High Fidelity Photo with Auto Grouping | flat colour art | 0.14 | 4.16 | 0.029 | 0.20 | 0.20 | 3.5 | 73 | 4.59 | 35 | 34 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 25 | 0.0 | – | – | – |
@@ -360,7 +360,7 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | 6 Colors with Gradients | linear gradients | 0.40 | 1.09 | – | – | – | 1.3 | 39 | – | 0 | 0 | – | – | – | – | 0.5 | 1.1 | 0.0 | 0.0 | – | – | – | – | – | – | 0.8 | 83 | 0.2 | 5 |
 | High Fidelity Photo, no Gradients | curved shapes | 0.04 | 1.63 | 0.026 | 0.15 | 0.15 | 1.2 | 19 | 2.11 | 21 | 21 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo, no Gradients | polygons | 0.06 | 2.33 | 0.039 | 0.50 | 1.32 | 1.7 | 17 | 1.47 | 88 | 7 | 93 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| High Fidelity Photo, no Gradients | thin lines | 0.35 | 6.05 | 0.085 | 0.90 | 4.35 | 40.3 | 348 | 17.42 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| High Fidelity Photo, no Gradients | thin lines | 0.35 | 6.05 | 0.084 | 0.90 | 4.35 | 40.3 | 350 | 17.52 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo, no Gradients | askew shapes | 0.17 | 3.97 | 0.100 | 0.94 | 1.73 | 8.7 | 157 | 6.54 | 71 | 5 | – | – | 4.3 | 3998 | 0.0 | – | 1.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo, no Gradients | plain shapes | 0.08 | 1.66 | 0.035 | 0.25 | 0.28 | 6.0 | 50 | 1.68 | 62 | 51 | – | – | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | 0 | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo, no Gradients | flat colour art | 0.14 | 4.16 | 0.029 | 0.20 | 0.20 | 3.5 | 73 | 4.59 | 35 | 34 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
@@ -368,7 +368,7 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | High Fidelity Photo, no Gradients | linear gradients | 0.64 | 3.29 | – | – | – | 34.5 | 4318 | – | 32 | 31 | – | – | – | – | 0.0 | – | 0.0 | 0.0 | – | – | – | – | – | – | 0.0 | 0 | – | – |
 | High Fidelity Photo with Gradients | curved shapes | 0.04 | 1.63 | 0.026 | 0.15 | 0.15 | 1.2 | 19 | 2.11 | 21 | 21 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo with Gradients | polygons | 0.06 | 2.33 | 0.039 | 0.50 | 1.32 | 1.7 | 17 | 1.47 | 88 | 7 | 93 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| High Fidelity Photo with Gradients | thin lines | 0.35 | 6.05 | 0.085 | 0.90 | 4.35 | 40.3 | 348 | 17.42 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| High Fidelity Photo with Gradients | thin lines | 0.35 | 6.05 | 0.084 | 0.90 | 4.35 | 40.3 | 350 | 17.52 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo with Gradients | askew shapes | 0.17 | 3.97 | 0.100 | 0.94 | 1.73 | 8.7 | 157 | 6.54 | 71 | 5 | – | – | 4.3 | 3998 | 0.0 | – | 1.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo with Gradients | plain shapes | 0.08 | 1.66 | 0.035 | 0.25 | 0.28 | 6.0 | 50 | 1.68 | 62 | 51 | – | – | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | 0 | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo with Gradients | flat colour art | 0.14 | 4.16 | 0.029 | 0.20 | 0.20 | 3.5 | 73 | 4.59 | 35 | 34 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
@@ -392,7 +392,7 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | Auto Color, enhanced | linear gradients | 1.02 | 1.74 | – | – | – | 15.7 | 1272 | – | 12 | 8 | – | – | – | – | 9.1 | 7.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | 0 | – | – |
 | High Fidelity Photo, enhanced | curved shapes | 0.04 | 1.63 | 0.026 | 0.15 | 0.15 | 1.2 | 19 | 2.11 | 21 | 21 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | polygons | 0.06 | 2.33 | 0.039 | 0.50 | 1.32 | 1.7 | 17 | 1.47 | 88 | 7 | 93 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
-| High Fidelity Photo, enhanced | thin lines | 0.35 | 6.05 | 0.085 | 0.90 | 4.35 | 40.3 | 348 | 17.42 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
+| High Fidelity Photo, enhanced | thin lines | 0.35 | 6.05 | 0.084 | 0.90 | 4.35 | 40.3 | 350 | 17.52 | 35 | 9 | – | – | 27.3 | 4505 | 0.0 | – | 19.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | askew shapes | 0.17 | 3.97 | 0.100 | 0.94 | 1.73 | 8.7 | 157 | 6.54 | 71 | 5 | – | – | 4.3 | 3998 | 0.0 | – | 1.0 | 0.0 | – | – | – | – | 0.00 | 18 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | plain shapes | 0.08 | 1.66 | 0.035 | 0.25 | 0.28 | 6.0 | 50 | 1.68 | 62 | 51 | – | – | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | 0 | 0.00 | 0 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | flat colour art | 0.14 | 4.16 | 0.029 | 0.20 | 0.20 | 3.5 | 73 | 4.59 | 35 | 34 | 100 | 0.0 | 0.0 | 0 | 0.0 | – | 0.0 | 0.0 | – | – | – | – | 0.00 | 25 | 0.0 | – | – | – |
@@ -498,9 +498,9 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | Default | scanned | 15.06 | 20.16 | 0.118 | 0.74 | 2.14 | 1.9 | 25 | 2.49 | 3 | 0 | 30 | 1.3 | – | – | 1.0 | 3.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Auto Color | clean | 0.13 | 2.72 | 0.057 | 0.31 | 0.30 | 3.0 | 28 | 2.00 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Auto Color | aliased | 0.29 | 10.43 | 0.298 | 1.00 | 1.00 | 3.0 | 27 | 2.05 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| Auto Color | blurred | 0.61 | 9.30 | 0.211 | 1.33 | 1.21 | 6.0 | 118 | 6.51 | 41 | 11 | 50 | 21.0 | 0.0 | 0 | 0.2 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| Auto Color | blurred | 0.58 | 8.77 | 0.071 | 0.93 | 1.21 | 3.0 | 33 | 2.23 | 34 | 15 | 50 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Auto Color | noisy | 0.85 | 2.62 | 0.075 | 0.32 | 0.32 | 3.0 | 28 | 2.04 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 0.3 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| Auto Color | scanned | 1.73 | 4.43 | 0.230 | 1.20 | 0.94 | 7.0 | 102 | 5.72 | 30 | 0 | 88 | 21.0 | 0.0 | 0 | 9.6 | 7.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| Auto Color | scanned | 1.71 | 4.22 | 0.093 | 0.72 | 0.94 | 3.0 | 46 | 2.94 | 21 | 0 | 88 | 0.0 | 0.0 | 0 | 15.3 | 9.2 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | High Fidelity Photo | clean | 1.80 | 2.05 | – | – | – | 134.7 | 11212 | – | 39 | 37 | – | – | – | – | 0.0 | – | 7.3 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | High Fidelity Photo | aliased | 1.78 | 2.01 | – | – | – | 73.0 | 8021 | – | 40 | 38 | – | – | – | – | 0.0 | – | 5.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | High Fidelity Photo | blurred | 1.59 | 1.95 | – | – | – | 72.0 | 7450 | – | 40 | 39 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
@@ -518,14 +518,14 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | 3 Colors | scanned | 1.57 | 3.22 | 0.089 | 0.30 | 0.30 | 2.0 | 12 | 2.00 | 39 | 0 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | 6 Colors | clean | 0.13 | 2.72 | 0.057 | 0.31 | 0.30 | 3.0 | 28 | 2.00 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | 6 Colors | aliased | 0.29 | 10.43 | 0.298 | 1.00 | 1.00 | 3.0 | 27 | 2.05 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 6 Colors | blurred | 0.62 | 9.31 | 0.208 | 1.34 | 1.19 | 6.0 | 100 | 5.61 | 41 | 11 | 50 | 21.5 | 0.0 | 0 | 0.8 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 6 Colors | blurred | 0.59 | 8.82 | 0.071 | 0.90 | 1.19 | 3.0 | 33 | 2.23 | 34 | 15 | 50 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | 6 Colors | noisy | 0.85 | 2.59 | 0.075 | 0.32 | 0.32 | 3.0 | 28 | 2.04 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 6 Colors | scanned | 1.74 | 4.42 | 0.229 | 1.20 | 0.94 | 7.0 | 102 | 5.80 | 30 | 0 | 88 | 21.0 | 0.0 | 0 | 0.8 | 1.6 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 6 Colors | scanned | 1.72 | 4.22 | 0.092 | 0.72 | 0.94 | 3.0 | 46 | 3.02 | 21 | 0 | 88 | 0.0 | 0.0 | 0 | 6.5 | 3.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | 16 Colors | clean | 0.12 | 2.53 | 0.051 | 0.31 | 0.30 | 3.0 | 28 | 2.11 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | 16 Colors | aliased | 0.29 | 10.38 | 0.290 | 1.00 | 1.00 | 3.0 | 31 | 2.25 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 16 Colors | blurred | 0.62 | 9.36 | 0.216 | 1.31 | 1.19 | 7.0 | 139 | 7.53 | 44 | 13 | 50 | 25.5 | 0.0 | 0 | 0.2 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 16 Colors | blurred | 0.59 | 8.81 | 0.069 | 0.91 | 1.19 | 3.0 | 34 | 2.26 | 37 | 17 | 50 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | 16 Colors | noisy | 0.85 | 2.57 | 0.074 | 0.32 | 0.32 | 3.0 | 29 | 2.15 | 34 | 0 | 100 | 0.0 | 0.0 | 0 | 0.2 | 0.2 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
-| 16 Colors | scanned | 1.72 | 4.44 | 0.257 | 1.09 | 0.96 | 7.5 | 158 | 8.81 | 32 | 0 | 88 | 28.5 | 0.0 | 0 | 3.4 | 3.6 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
+| 16 Colors | scanned | 1.69 | 4.15 | 0.113 | 0.73 | 0.96 | 3.0 | 50 | 3.46 | 21 | 0 | 88 | 0.0 | 0.0 | 0 | 6.7 | 9.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | – | 0.0 | – | – | – |
 | Shades of Gray | clean | 9.71 | 9.55 | – | – | – | 18.3 | 753 | – | 51 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | Shades of Gray | aliased | 9.71 | 9.52 | – | – | – | 11.0 | 647 | – | 57 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
 | Shades of Gray | blurred | 9.66 | 9.32 | – | – | – | 11.5 | 585 | – | 55 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | – | 0.0 | – | – | – |
@@ -578,9 +578,9 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | 6 Colors with Shapes | scanned | 2.10 | 6.74 | 0.085 | 0.30 | 0.24 | 6.0 | 30 | 1.00 | 67 | 0 | – | – | 0.0 | 0 | 14.7 | 8.7 | 0.0 | 0.0 | – | – | – | 100 | 0.00 | – | 0.0 | – | – | – |
 | 6 Colors with Auto Grouping | clean | 0.13 | 2.72 | 0.057 | 0.31 | 0.30 | 3.0 | 28 | 2.00 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 6 Colors with Auto Grouping | aliased | 0.29 | 10.43 | 0.298 | 1.00 | 1.00 | 3.0 | 27 | 2.05 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| 6 Colors with Auto Grouping | blurred | 0.62 | 9.31 | 0.208 | 1.34 | 1.19 | 6.0 | 100 | 5.61 | 41 | 11 | 50 | 21.5 | 0.0 | 0 | 0.8 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
+| 6 Colors with Auto Grouping | blurred | 0.59 | 8.82 | 0.071 | 0.90 | 1.19 | 3.0 | 33 | 2.23 | 34 | 15 | 50 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 6 Colors with Auto Grouping | noisy | 0.85 | 2.59 | 0.075 | 0.32 | 0.32 | 3.0 | 28 | 2.04 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| 6 Colors with Auto Grouping | scanned | 1.74 | 4.42 | 0.229 | 1.20 | 0.94 | 7.0 | 102 | 5.80 | 30 | 0 | 88 | 21.0 | 0.0 | 0 | 0.8 | 1.6 | 0.0 | 0.0 | – | – | – | – | 0.00 | 15 | 0.0 | – | – | – |
+| 6 Colors with Auto Grouping | scanned | 1.72 | 4.22 | 0.092 | 0.72 | 0.94 | 3.0 | 46 | 3.02 | 21 | 0 | 88 | 0.0 | 0.0 | 0 | 6.5 | 3.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Shades of Gray with Auto Grouping | clean | 9.71 | 9.55 | – | – | – | 18.3 | 753 | – | 51 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | 53 | 0.0 | – | – | – |
 | Shades of Gray with Auto Grouping | aliased | 9.71 | 9.52 | – | – | – | 11.0 | 647 | – | 57 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | 54 | 0.0 | – | – | – |
 | Shades of Gray with Auto Grouping | blurred | 9.66 | 9.32 | – | – | – | 11.5 | 585 | – | 55 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | 47 | 0.0 | – | – | – |
@@ -618,9 +618,9 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | Default, enhanced | scanned | 15.06 | 20.14 | 0.111 | 0.74 | 2.14 | 1.9 | 22 | 2.23 | 13 | 0 | 43 | 1.3 | – | – | 1.0 | 3.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 14 | 0.0 | – | – | – |
 | Auto Color, enhanced | clean | 0.13 | 2.72 | 0.057 | 0.31 | 0.30 | 3.0 | 28 | 2.00 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Auto Color, enhanced | aliased | 0.29 | 10.42 | 0.293 | 1.00 | 1.00 | 3.0 | 29 | 2.15 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| Auto Color, enhanced | blurred | 0.62 | 9.36 | 0.208 | 1.33 | 0.72 | 6.0 | 112 | 6.21 | 46 | 16 | 100 | 21.0 | 0.0 | 0 | 0.2 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
+| Auto Color, enhanced | blurred | 0.59 | 8.84 | 0.066 | 0.27 | 0.26 | 3.0 | 27 | 1.93 | 42 | 22 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Auto Color, enhanced | noisy | 0.85 | 2.62 | 0.073 | 0.32 | 0.32 | 3.0 | 27 | 1.99 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 0.3 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| Auto Color, enhanced | scanned | 1.73 | 4.43 | 0.229 | 1.20 | 0.68 | 7.0 | 84 | 4.87 | 39 | 0 | 100 | 21.0 | 0.0 | 0 | 8.9 | 6.9 | 0.0 | 0.0 | – | – | – | – | 0.00 | 15 | 0.0 | – | – | – |
+| Auto Color, enhanced | scanned | 1.71 | 4.22 | 0.091 | 0.34 | 0.34 | 3.0 | 29 | 2.09 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 14.6 | 8.6 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | clean | 1.80 | 2.05 | – | – | – | 134.7 | 11212 | – | 39 | 37 | – | – | – | – | 0.0 | – | 7.3 | 0.0 | – | – | – | – | – | 69 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | aliased | 1.78 | 2.01 | – | – | – | 73.0 | 8021 | – | 40 | 38 | – | – | – | – | 0.0 | – | 5.5 | 0.0 | – | – | – | – | – | 65 | 0.0 | – | – | – |
 | High Fidelity Photo, enhanced | blurred | 1.59 | 1.95 | – | – | – | 72.0 | 7450 | – | 40 | 39 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | – | 65 | 0.0 | – | – | – |
@@ -638,14 +638,14 @@ All sizes and variants (clean, aliased, blurred, noisy, scanned) of those inputs
 | 3 Colors, enhanced | scanned | 1.57 | 3.22 | 0.089 | 0.30 | 0.30 | 2.0 | 12 | 2.00 | 39 | 0 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 0 | 0.0 | – | – | – |
 | 6 Colors, enhanced | clean | 0.13 | 2.72 | 0.057 | 0.31 | 0.30 | 3.0 | 28 | 2.00 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 6 Colors, enhanced | aliased | 0.29 | 10.42 | 0.293 | 1.00 | 1.00 | 3.0 | 29 | 2.15 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| 6 Colors, enhanced | blurred | 0.62 | 9.33 | 0.205 | 1.34 | 0.68 | 6.0 | 94 | 5.31 | 46 | 16 | 100 | 21.5 | 0.0 | 0 | 0.8 | 0.4 | 0.0 | 0.0 | – | – | – | – | 0.00 | 23 | 0.0 | – | – | – |
+| 6 Colors, enhanced | blurred | 0.59 | 8.83 | 0.066 | 0.27 | 0.26 | 3.0 | 27 | 1.93 | 42 | 22 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 6 Colors, enhanced | noisy | 0.85 | 2.59 | 0.073 | 0.32 | 0.32 | 3.0 | 27 | 1.99 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 0.3 | 0.3 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| 6 Colors, enhanced | scanned | 1.74 | 4.42 | 0.228 | 1.20 | 0.68 | 7.0 | 85 | 4.95 | 39 | 0 | 100 | 21.0 | 0.0 | 0 | 0.0 | 1.1 | 0.0 | 0.0 | – | – | – | – | 0.00 | 15 | 0.0 | – | – | – |
+| 6 Colors, enhanced | scanned | 1.72 | 4.22 | 0.090 | 0.34 | 0.34 | 3.0 | 30 | 2.17 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 5.7 | 2.8 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 16 Colors, enhanced | clean | 0.12 | 2.53 | 0.052 | 0.31 | 0.30 | 3.0 | 28 | 2.11 | 43 | 19 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 16 Colors, enhanced | aliased | 0.29 | 10.38 | 0.289 | 1.00 | 1.00 | 3.0 | 30 | 2.20 | 43 | 43 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| 16 Colors, enhanced | blurred | 0.62 | 9.37 | 0.213 | 1.31 | 0.74 | 7.0 | 133 | 7.23 | 48 | 17 | 100 | 25.5 | 0.0 | 0 | 0.2 | 0.5 | 0.0 | 0.0 | – | – | – | – | 0.00 | 27 | 0.0 | – | – | – |
+| 16 Colors, enhanced | blurred | 0.59 | 8.82 | 0.063 | 0.24 | 0.24 | 3.0 | 28 | 1.96 | 42 | 22 | 100 | 0.0 | 0.0 | 0 | 0.0 | 0.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | 16 Colors, enhanced | noisy | 0.85 | 2.57 | 0.072 | 0.32 | 0.32 | 3.0 | 28 | 2.10 | 34 | 0 | 100 | 0.0 | 0.0 | 0 | 0.2 | 0.2 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
-| 16 Colors, enhanced | scanned | 1.72 | 4.44 | 0.257 | 1.09 | 0.80 | 7.5 | 140 | 7.91 | 41 | 0 | 100 | 28.5 | 0.0 | 0 | 2.6 | 3.0 | 0.0 | 0.0 | – | – | – | – | 0.00 | 18 | 0.0 | – | – | – |
+| 16 Colors, enhanced | scanned | 1.69 | 4.15 | 0.111 | 0.48 | 0.48 | 3.0 | 32 | 2.56 | 35 | 0 | 100 | 0.0 | 0.0 | 0 | 6.0 | 8.9 | 0.0 | 0.0 | – | – | – | – | 0.00 | 30 | 0.0 | – | – | – |
 | Shades of Gray, enhanced | clean | 9.71 | 9.55 | – | – | – | 18.3 | 753 | – | 51 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | 0.00 | 53 | 0.0 | – | – | – |
 | Shades of Gray, enhanced | aliased | 9.71 | 9.52 | – | – | – | 11.0 | 647 | – | 57 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | 0.00 | 54 | 0.0 | – | – | – |
 | Shades of Gray, enhanced | blurred | 9.66 | 9.32 | – | – | – | 11.5 | 585 | – | 55 | 41 | – | – | – | – | 0.0 | – | 0.5 | 0.0 | – | – | – | – | 0.00 | 47 | 0.0 | – | – | – |
@@ -955,6 +955,7 @@ One trace at a time on this machine (all cores); memory is the peak allocated ab
 
 | date | change |
 |:--|:--|
+| 2026-10-14 | Palette: a blend pixel of flat art that blur spread wider than two pixels takes a side of the edge it lies on, found at the two ends of its ramp, instead of a third colour of the palette (blurred and scanned flat-colour art: a sliver of the green along every edge of the four-colour badge, 6 to 7.5 paths down to 3 and 100 to 158 anchors down to 33 to 50 with 6 and 16 Colors; outlines 0.21 to 0.26 px off on average down to 0.07 to 0.11). Photos are left as they were |
 | 2026-10-14 | Gradients: a gradient that noise or a soft rim broke into pieces is found in its largest piece and grown over the rest (blurred and noisy linear gradients: 3 to 11 paths beside the gradient down to 0.5 with 6 Colors, 24 to 56 down to 0.5 to 1.5 with High Fidelity Photo) |
 | 2026-10-14 | Enhanced versions of the presets (Auto Grouping, and Shapes in all but High Fidelity Photo; Flat Logo has none), each measured beside its preset; a hole that one colour fills is the same shape as what fills it, rectangles are sized by where their sides lie, and a group keeps its paths in the order they were traced in (grouped, a letter with a counter was painted with a light seam: Default with Auto Grouping, edge ΔE 10.24 to 9.88) |
 | 2026-10-14 | Create: Strokes: a line whose ink is cut square at its ends gets square caps, and a wide line whose skeleton hooks towards a corner of its end ends on the line it was following (Outline: largest distance 2.94 px to 0.88; aliased lines 0.88 to 0.81) |

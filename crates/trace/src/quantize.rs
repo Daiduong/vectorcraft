@@ -20,6 +20,12 @@ fn luma(p: [u8; 4]) -> u8 {
 
 /// Reduce `img` to a palette according to `params.mode`.
 pub fn quantize(img: &Raster, params: &TraceParams) -> Quantized {
+    quantize_as(img, params, params.mode != Mode::BlackAndWhite && continuous_tone(img))
+}
+
+/// [`quantize`], told whether `img` is continuous tone (see [`continuous_tone`]), as the tracer
+/// already knows.
+pub(crate) fn quantize_as(img: &Raster, params: &TraceParams, photo: bool) -> Quantized {
     let px = img.rgba.as_chunks::<4>().0.iter().map(|c| [c[0], c[1], c[2], c[3]]);
     match params.mode {
         Mode::BlackAndWhite => {
@@ -60,7 +66,7 @@ pub fn quantize(img: &Raster, params: &TraceParams) -> Quantized {
                 let g = l.round().clamp(0.0, 255.0) as u8;
                 [g, g, g]
             });
-            settled(merge_mixed(compact(labels, palette.collect()), img.width as usize, img.height as usize), img, &own)
+            settled(merge_mixed(compact(labels, palette.collect()), img.width as usize, img.height as usize), img, &own, !photo)
         }
         // Logo mode traces without quantising; asked directly, it quantises like Color.
         Mode::Color | Mode::Logo => {
@@ -104,7 +110,7 @@ pub fn quantize(img: &Raster, params: &TraceParams) -> Quantized {
                 }
             };
             let q = reduce(params.colors);
-            settled(q, img, &own)
+            settled(q, img, &own, !photo)
         }
     }
 }
@@ -249,8 +255,9 @@ fn merge_mixed(q: Quantized, w: usize, h: usize) -> Quantized {
 /// the edge. A blend pixel (see [`own_colours`]) whose colour is none of those of the picture's
 /// own pixels within two pixels of it takes the side it is nearer to of the pair of those colours
 /// it is best a blend of, when that explains it twice as well as its own colour does. With one
-/// colour around it, it keeps its own.
-fn settled(mut q: Quantized, img: &Raster, own: &[bool]) -> Quantized {
+/// colour around it, it keeps its own. In `flat` art (not a photo) blurred wider than that, the
+/// pair are the colours at the two ends of the ramp it lies on (see [`ramp_ends`]).
+fn settled(mut q: Quantized, img: &Raster, own: &[bool], flat: bool) -> Quantized {
     let (w, h) = (img.width as usize, img.height as usize);
     if q.labels.len() != w * h || own.len() != w * h {
         return q;
@@ -279,6 +286,12 @@ fn settled(mut q: Quantized, img: &Raster, own: &[bool]) -> Quantized {
         else {
             continue;
         };
+        // Blur spreads an edge of flat art wider than two pixels: then its two sides are the
+        // colours of the picture's own pixels at the two ends of the ramp the pixel lies on. (A
+        // photo's tones are no blends of two flat colours.)
+        if flat && near.len() < 2 && !own_within(own, &before, mine_l, x, y, w, h) {
+            near = ramp_ends(img, own, &before, x, y);
+        }
         if near.len() < 2 || near.contains(&mine_l) {
             continue;
         }
@@ -303,6 +316,69 @@ fn settled(mut q: Quantized, img: &Raster, own: &[bool]) -> Quantized {
         }
     }
     if changed { compact(q.labels, q.palette) } else { q }
+}
+
+/// How far (px) [`ramp_ends`] follows a ramp from a blend pixel to each of its sides.
+const RAMP_REACH: isize = 4;
+
+/// Whether a pixel of the picture's own of colour `l` lies within [`RAMP_REACH`] pixels of (`x`,
+/// `y`): where three colours meet, a blend may be of its own colour too.
+fn own_within(own: &[bool], labels: &[u16], l: u16, x: usize, y: usize, w: usize, h: usize) -> bool {
+    let r = RAMP_REACH as usize;
+    (y.saturating_sub(r)..=(y + r).min(h - 1))
+        .any(|yy| (x.saturating_sub(r)..=(x + r).min(w - 1)).any(|xx| own.get(yy * w + xx) == Some(&true) && labels.get(yy * w + xx) == Some(&l)))
+}
+
+/// The labels of the picture's own pixels at the two ends of the steepest ramp through the blend
+/// pixel at (`x`, `y`), walking out along it at most [`RAMP_REACH`] pixels each way while the
+/// colour keeps changing the same way; empty unless both ends are found and differ.
+fn ramp_ends(img: &Raster, own: &[bool], labels: &[u16], x: usize, y: usize) -> Vec<u16> {
+    let (w, h) = (img.width as isize, img.height as isize);
+    let at = |x: isize, y: isize| -> Option<(usize, [f64; 3])> {
+        if x < 0 || y < 0 || x >= w || y >= h {
+            return None;
+        }
+        let i = (y * w + x) as usize;
+        let p = img.rgba.get(i * 4..i * 4 + 3)?;
+        Some((i, [f64::from(p[0]), f64::from(p[1]), f64::from(p[2])]))
+    };
+    let (x, y) = (x as isize, y as isize);
+    // The direction across which the colour changes most.
+    let mut steepest: Option<(f64, (isize, isize), [f64; 3])> = None;
+    for (dx, dy) in [(1, 0), (0, 1), (1, 1), (1, -1)] {
+        let (Some((_, a)), Some((_, b))) = (at(x - dx, y - dy), at(x + dx, y + dy)) else { continue };
+        let d = [0, 1, 2].map(|k| b[k] - a[k]);
+        let len2: f64 = d.iter().map(|v| v * v).sum();
+        if steepest.is_none_or(|s| len2 > s.0) {
+            steepest = Some((len2, (dx, dy), d));
+        }
+    }
+    let Some((len2, (dx, dy), d)) = steepest else { return Vec::new() };
+    if len2 <= 400.0 {
+        return Vec::new();
+    }
+    let Some((_, start)) = at(x, y) else { return Vec::new() };
+    let mut ends = Vec::new();
+    for sign in [-1, 1] {
+        let mut last = start;
+        for step in 1..=RAMP_REACH {
+            let Some((j, c)) = at(x + sign * step * dx, y + sign * step * dy) else { break };
+            if own.get(j).copied().unwrap_or(false) {
+                if let Some(&l) = labels.get(j).filter(|&&l| l != TRANSPARENT) {
+                    ends.push(l);
+                }
+                break;
+            }
+            // Going the ramp's way (down it on one side, up it on the other), or stopping: along
+            // a seam where three colours meet the colour stays put.
+            let along = (0..3).map(|k| (c[k] - last[k]) * d[k]).sum::<f64>() * sign as f64;
+            if along < 0.03 * len2 {
+                break;
+            }
+            last = c;
+        }
+    }
+    if ends.len() == 2 && ends[0] != ends[1] { ends } else { Vec::new() }
 }
 
 /// Whether `img` is continuous tone (a photo, a gradient) rather than flat art, however noisy
