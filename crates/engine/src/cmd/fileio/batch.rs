@@ -6,7 +6,7 @@ use vectorcraft_doc::NodeId;
 use vectorcraft_tools::PaintDefaults;
 
 use super::super::*;
-use crate::{Clipboard, DocState, DrawMode, EngineError, History};
+use crate::{Clipboard, DocState, DrawMode, EngineError};
 
 /// A batch under way ([`Session::begin_batch`]): what it labels its undo steps and what an error
 /// rolls back to.
@@ -17,10 +17,10 @@ pub struct BatchRun {
     /// Session-level state a step may change (paint defaults, drawing mode, clipboard, the
     /// Untitled-N count).
     saved: (PaintDefaults, bool, DrawMode, Option<NodeId>, Clipboard, u32),
-    /// The open documents' uids in order, and the active one, before the batch.
-    start: Vec<u64>,
-    /// Their undo histories (a step may undo or redo).
-    histories: Vec<(u64, History)>,
+    /// The open documents as they were before the batch, whole, and the active one: what a failed
+    /// step brings back. Their art, history, file, format and saved state share their data with the
+    /// open ones until a step changes them.
+    start: Vec<DocState>,
     active: Option<usize>,
     /// The command depth before the batch: 0 when it runs outside a command (a script), 1 inside
     /// `command.batch`.
@@ -44,20 +44,16 @@ impl Session {
             return Err(bad("command.batch", "batches cannot nest"));
         }
         // Typing (or a drag) still in progress is kept as its own step first, as Undo does: the
-        // batch is then a step of its own, and rolling it back leaves the typing.
-        if self.in_interaction() {
-            let typing = crate::cmd::edit::typing_in_progress(self);
-            self.commit_interaction()?;
-            if typing {
-                self.set_tool_option("endTyping", &Value::Bool(true));
-            }
+        // batch is then a step of its own, and rolling it back leaves the typing. The steps would
+        // otherwise run inside it and take its baseline as theirs (#1697).
+        if self.active().is_some() {
+            crate::cmd::settle_interaction(self)?;
         }
         let run = BatchRun {
             label: label.to_string(),
             artboard,
             saved: (self.paint.clone(), self.fill_active, self.draw_mode, self.draw_inside, self.clipboard.clone(), self.untitled_counter),
-            start: self.docs.iter().map(|d| d.uid).collect(),
-            histories: self.docs.iter().map(|d| (d.uid, d.history.clone())).collect(),
+            start: self.docs.clone(),
             active: self.active,
             depth: self.depth,
             steps: 0,
@@ -116,15 +112,10 @@ impl Session {
     }
 
     /// Undo everything `run` did: the documents it opened close, the ones it closed or replaced
-    /// come back, each one's edits are undone, and the session-level state is restored.
+    /// come back, each one is as it was before the batch, and the session-level state is restored.
     pub fn roll_back_batch(&mut self, run: BatchRun) {
         let stash = self.batch_stash.take().unwrap_or_default();
-        roll_back(self, &run.start, stash);
-        for (uid, history) in run.histories {
-            if let Some(st) = self.docs.iter_mut().find(|d| d.uid == uid) {
-                st.history = history;
-            }
-        }
+        roll_back(self, run.start, &stash);
         self.active = run.active;
         (self.paint, self.fill_active, self.draw_mode, self.draw_inside, self.clipboard, self.untitled_counter) = run.saved;
         self.pending_paint = None;
@@ -174,22 +165,17 @@ pub(super) fn batch(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "results": results }))
 }
 
-/// The documents as they were before the batch (`start`: their uids in order): the ones it opened
-/// close, the ones it closed or replaced (`stash`) come back, and each one's interaction is undone.
-fn roll_back(s: &mut Session, start: &[u64], mut stash: Vec<DocState>) {
-    let mut open = std::mem::take(&mut s.docs);
-    for &uid in start {
-        // The newest revision the document reached, so the restored one redraws.
-        let newest = open.iter().chain(&stash).filter(|d| d.uid == uid).map(|d| d.revision).max().unwrap_or_default();
-        // Its state before the batch: the first one a step closed or replaced, else the open one.
-        let st = match stash.iter().position(|d| d.uid == uid) {
-            Some(i) => Some(stash.remove(i)),
-            None => open.iter().position(|d| d.uid == uid).map(|i| open.remove(i)),
-        };
-        if let Some(mut st) = st {
-            st.undo_interaction();
-            st.revision = newest.saturating_add(1);
-            s.docs.push(st);
-        }
+/// The documents as they were before the batch (`start`), whatever the steps did to them: opened
+/// ones close, closed or replaced ones (`stash`) come back, and each has its art, selection,
+/// history, file, format and saved state again (#1697: undoing the batch's interaction alone left
+/// a Save As step's new file and an Undo step's history in place). Files the steps wrote stay
+/// written.
+fn roll_back(s: &mut Session, start: Vec<DocState>, stash: &[DocState]) {
+    let open = std::mem::take(&mut s.docs);
+    s.docs = start;
+    for st in &mut s.docs {
+        // Past the newest revision the document reached, so the restored one redraws.
+        let newest = open.iter().chain(stash).filter(|d| d.uid == st.uid).map(|d| d.revision).max().unwrap_or(st.revision);
+        st.revision = newest.saturating_add(1);
     }
 }
