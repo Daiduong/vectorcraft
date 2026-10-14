@@ -3759,3 +3759,16 @@ lighting	Light	光源
 	Derivative Graph	導數圖形
 	Graph Arithmetic	圖形四則運算
 	Piecewise Function Graph	分段函數圖形
+	Mark Segment Length	標註線段長度
+	Mark Angles	標註角
+	Mark Equal Lengths	標註等長
+	Mark Parallel Segments	標註平行線段
+	Triangle by Sides and Angles	依邊與角繪製三角形
+	Dots at Anchor Points	在錨點處打點
+	Circle from Segment	由線段畫圓
+	Fractal Figure	碎形圖形
+	Keep Inside Rectangle	僅保留矩形內部
+	Convert to Black	轉換為黑色
+	Change Color Tone	變更色調
+	Transform about Reference Point	繞參考點變形
+	Math Label	數學標籤

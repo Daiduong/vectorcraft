@@ -4362,3 +4362,16 @@ lighting	Light	광원
 	Derivative Graph	미분 그래프
 	Graph Arithmetic	사칙 연산 그래프
 	Piecewise Function Graph	조각함수 그래프
+	Mark Segment Length	선분의 길이 표시
+	Mark Angles	각 표시
+	Mark Equal Lengths	길이가 같음을 표시
+	Mark Parallel Segments	선분이 평행함을 표시
+	Triangle by Sides and Angles	변과 각으로 삼각형 그리기
+	Dots at Anchor Points	앵커 포인트에 점 찍기
+	Circle from Segment	선분으로 원 그리기
+	Fractal Figure	프랙탈 도형 그리기
+	Keep Inside Rectangle	직사각형 안쪽만 남기기
+	Convert to Black	검은 색으로 변환
+	Change Color Tone	색조 변경
+	Transform about Reference Point	기준점으로 변환
+	Math Label	수식 레이블

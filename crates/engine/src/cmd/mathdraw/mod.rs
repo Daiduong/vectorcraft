@@ -11,8 +11,14 @@
 //! [`MathDrawStyle`] (`mathdraw.style`, `mathdraw.setStyle`). A command that draws several things
 //! puts them in one group ([`insert_output`]); the selection is kept, with a reference segment it
 //! drew added to it, so the next command draws in the same frame.
+//!
+//! - `graph`: coordinate axes and graphs of functions.
+//! - `plane`: marks on segments and plane constructions (triangles, circles, fractals, clipping).
+//! - `general`: colours, transforms about a reference point, and math labels.
 
+mod general;
 mod graph;
+mod plane;
 mod style;
 
 use serde_json::Value;
@@ -28,6 +34,8 @@ use super::*;
 pub fn specs() -> Vec<CommandSpec> {
     let mut v = style::specs();
     v.extend(graph::specs());
+    v.extend(plane::specs());
+    v.extend(general::specs());
     v
 }
 
@@ -181,9 +189,14 @@ pub(crate) fn resolve_frame(s: &Session, p: &Value, cmd: &str) -> Result<FramePl
     Ok(FramePlan { frame, source: FrameSource::Artboard, recolor: None, make_reference })
 }
 
-/// The bounds of `n` when it is a straight segment: an open path of two anchors whose handles
-/// (if any) lie on the line between them.
+/// The bounds of `n` when it is a straight segment ([`segment_ends`]).
 fn straight_segment(n: &Node) -> Option<Rect> {
+    segment_ends(n).map(|(a, b)| Rect::from_points(a, b))
+}
+
+/// The start and end of `n` when it is a straight segment: an open path of two anchors whose
+/// handles (if any) lie on the line between them.
+pub(crate) fn segment_ends(n: &Node) -> Option<(Point, Point)> {
     let NodeKind::Path { path, .. } = &n.kind else { return None };
     let [sp] = path.subpaths.as_slice() else { return None };
     let [a, b] = sp.anchors.as_slice() else { return None };
@@ -196,13 +209,17 @@ fn straight_segment(n: &Node) -> Option<Rect> {
         return None;
     }
     let on_line = |h: Point| (h - a.p).cross(chord).abs() <= 1e-6 * len2;
-    (on_line(a.h_out) && on_line(b.h_in)).then(|| Rect::from_points(a.p, b.p))
+    (on_line(a.h_out) && on_line(b.h_in)).then_some((a.p, b.p))
 }
 
 /// Whether `n`'s stroke is magenta (#ff00ff, or CMYK 0/100/0/0).
 fn is_magenta(n: &Node) -> bool {
-    let Some(s) = n.appearance.stroke().filter(|s| s.visible) else { return false };
-    let Paint::Solid { color, .. } = &s.paint else { return false };
+    n.appearance.stroke().filter(|s| s.visible).is_some_and(|s| paint_is_magenta(&s.paint))
+}
+
+/// Whether `paint` is solid magenta (#ff00ff, or CMYK 0/100/0/0).
+fn paint_is_magenta(paint: &Paint) -> bool {
+    let Paint::Solid { color, .. } = paint else { return false };
     let [r, g, b] = color.to_rgb_uncalibrated();
     (r - 1.0).abs() < 0.02 && g.abs() < 0.02 && (b - 1.0).abs() < 0.02
 }

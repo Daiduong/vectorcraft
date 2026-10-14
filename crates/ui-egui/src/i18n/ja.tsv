@@ -4392,3 +4392,16 @@ lighting	Light	ライト
 	Derivative Graph	微分のグラフ
 	Graph Arithmetic	グラフの四則演算
 	Piecewise Function Graph	区分関数のグラフ
+	Mark Segment Length	線分の長さを表示
+	Mark Angles	角を表示
+	Mark Equal Lengths	長さが等しいことを表示
+	Mark Parallel Segments	線分が平行であることを表示
+	Triangle by Sides and Angles	辺と角から三角形を描く
+	Dots at Anchor Points	アンカーポイントに点を打つ
+	Circle from Segment	線分から円を描く
+	Fractal Figure	フラクタル図形を描く
+	Keep Inside Rectangle	長方形の内側だけを残す
+	Convert to Black	黒に変換
+	Change Color Tone	色調を変更
+	Transform about Reference Point	基準点を中心に変形
+	Math Label	数式ラベル

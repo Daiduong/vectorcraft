@@ -3975,3 +3975,16 @@ lighting	Light	光源
 	Derivative Graph	导数图像
 	Graph Arithmetic	图像四则运算
 	Piecewise Function Graph	分段函数图像
+	Mark Segment Length	标注线段长度
+	Mark Angles	标注角
+	Mark Equal Lengths	标注等长
+	Mark Parallel Segments	标注平行线段
+	Triangle by Sides and Angles	按边和角绘制三角形
+	Dots at Anchor Points	在锚点处打点
+	Circle from Segment	由线段画圆
+	Fractal Figure	分形图形
+	Keep Inside Rectangle	仅保留矩形内部
+	Convert to Black	转换为黑色
+	Change Color Tone	更改色调
+	Transform about Reference Point	绕参考点变换
+	Math Label	数学标签

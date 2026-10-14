@@ -129,15 +129,15 @@ pub fn specs() -> Vec<CommandSpec> {
 // ---------- shared ----------
 
 /// What every drawing command takes besides its own parameters.
-struct Common {
-    plan: FramePlan,
-    line: Option<LineRef>,
-    color: Color,
-    style: MathDrawStyle,
-    parent: Option<NodeId>,
+pub(super) struct Common {
+    pub plan: FramePlan,
+    pub line: Option<LineRef>,
+    pub color: Color,
+    pub style: MathDrawStyle,
+    pub parent: Option<NodeId>,
 }
 
-fn common(s: &Session, p: &Value, cmd: &str) -> Result<Common> {
+pub(super) fn common(s: &Session, p: &Value, cmd: &str) -> Result<Common> {
     if !p.is_object() && !p.is_null() {
         return Err(bad(cmd, "the parameters must be an object"));
     }
@@ -152,7 +152,7 @@ fn common(s: &Session, p: &Value, cmd: &str) -> Result<Common> {
 /// `build` draws, inserted on top as one object ([`insert_output`], a group named `name`). A
 /// reference segment drawn is added to the selection. Answers what `build` answers with the `id`
 /// of what was inserted and the `reference` segment's.
-fn draw(
+pub(super) fn draw(
     s: &mut Session,
     c: &Common,
     label: &str,
@@ -176,11 +176,11 @@ fn draw(
     })
 }
 
-fn ids(nodes: &[Node]) -> Value {
+pub(super) fn ids(nodes: &[Node]) -> Value {
     json!(nodes.iter().map(|n| n.id.0).collect::<Vec<_>>())
 }
 
-fn pairs(pts: &[Point]) -> Value {
+pub(super) fn pairs(pts: &[Point]) -> Value {
     json!(pts.iter().map(|p| [p.x, p.y]).collect::<Vec<_>>())
 }
 

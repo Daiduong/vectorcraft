@@ -4793,3 +4793,16 @@ imageTrace	Outline	Körvonal
 	Derivative Graph	Deriváltgrafikon
 	Graph Arithmetic	Műveletek grafikonokkal
 	Piecewise Function Graph	Szakaszonként megadott függvény grafikonja
+	Mark Segment Length	Szakaszhossz jelölése
+	Mark Angles	Szögek jelölése
+	Mark Equal Lengths	Egyenlő hosszak jelölése
+	Mark Parallel Segments	Párhuzamos szakaszok jelölése
+	Triangle by Sides and Angles	Háromszög oldalakból és szögekből
+	Dots at Anchor Points	Pontok a horgonypontokon
+	Circle from Segment	Kör szakaszból
+	Fractal Figure	Fraktálalakzat
+	Keep Inside Rectangle	Csak a téglalap belsejének megtartása
+	Convert to Black	Átalakítás feketére
+	Change Color Tone	Színárnyalat módosítása
+	Transform about Reference Point	Átalakítás a referenciapont körül
+	Math Label	Matematikai címke
