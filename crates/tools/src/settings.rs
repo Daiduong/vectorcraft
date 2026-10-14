@@ -31,6 +31,8 @@ const ROWS: &[Row] = &[
     (&["polarGrid"], None, &["concentric", "radial", "concentricSkew", "radialSkew", "compound", "fill"]),
     (&["pencil", "paintbrush"], None, &["fidelity", "fill", "editWithin", "closeWithin"]),
     (&["smooth"], None, &["fidelity"]),
+    // The Width tool's locks and snaps (#1854).
+    (&["width"], None, &["clickAdds", "lockWeight", "lockOrder", "snapNodes", "snapWidths"]),
     (&["blobBrush", "eraser"], None, &["size"]),
     (&["polygon"], None, &["sides"]),
     (&["star"], None, &["points"]),

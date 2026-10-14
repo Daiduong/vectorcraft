@@ -18,7 +18,7 @@ fn profile(s: &Session, id: NodeId) -> Option<WidthProfile> {
 }
 
 fn custom() -> WidthProfile {
-    WidthProfile { points: vec![(0.0, 0.2, 0.2), (0.3, 1.6, 0.8), (1.0, 0.5, 0.5)] }
+    WidthProfile::new(vec![(0.0, 0.2, 0.2), (0.3, 1.6, 0.8), (1.0, 0.5, 0.5)])
 }
 
 /// Give the line `p` as its variable width (as the Width tool would).
@@ -75,7 +75,7 @@ fn add_list_apply_delete_reset() {
 
     // Reset removes every saved profile.
     s.execute("stroke.widthProfile.add", &json!({"name": " Ribbon "})).unwrap();
-    set_profile(&mut s, other, WidthProfile { points: vec![(0.0, 1.0, 0.0), (1.0, 0.0, 1.0)] });
+    set_profile(&mut s, other, WidthProfile::new(vec![(0.0, 1.0, 0.0), (1.0, 0.0, 1.0)]));
     s.execute("stroke.widthProfile.add", &json!({"name": "Twist"})).unwrap();
     assert_eq!(s.prefs.width_profiles.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["Ribbon", "Twist"]);
     assert_eq!(s.execute("stroke.widthProfile.reset", &json!({})).unwrap()["removed"], 2);
@@ -137,4 +137,35 @@ fn every_built_in_applies_and_the_params_doc_names_them() {
         assert_eq!(s.execute("stroke.widthProfile.list", &json!({})).unwrap()["current"], p.id);
         assert_eq!(profile(&s, id).map(|w| w.points), (p.id != "uniform").then(|| p.points.to_vec()));
     }
+}
+
+#[test]
+fn smooth_widths_keep_the_points_and_save_with_the_profile() {
+    let (mut s, id) = session_with_line();
+    set_profile(&mut s, id, custom());
+    let undo = s.doc().unwrap().history.undo.len();
+    s.execute("stroke.widthProfile.set", &json!({"smooth": true})).unwrap();
+    let p = profile(&s, id).unwrap();
+    assert!(p.smooth);
+    assert_eq!(p.points, custom().points);
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
+    // Again: nothing changes, and no undo step.
+    s.execute("stroke.widthProfile.set", &json!({"smooth": true})).unwrap();
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1);
+    // New points keep it on; flipping keeps it on.
+    s.execute("stroke.widthProfile.set", &json!({"points": [[0, 1, 1], [0.5, 2, 2], [1, 1, 1]]})).unwrap();
+    assert!(profile(&s, id).unwrap().smooth);
+    s.execute("stroke.setAdvanced", &json!({"flipProfile": "along"})).unwrap();
+    assert!(profile(&s, id).unwrap().smooth);
+    // Saved, it comes back smooth; the same points, linear, are not that saved profile.
+    s.execute("stroke.widthProfile.add", &json!({"name": "Soft"})).unwrap();
+    assert!(s.prefs.width_profiles[0].profile.smooth);
+    s.execute("stroke.widthProfile.set", &json!({"smooth": false})).unwrap();
+    assert_ne!(s.execute("stroke.widthProfile.list", &json!({})).unwrap()["current"], "Soft");
+    s.execute("stroke.set", &json!({"profile": "Soft"})).unwrap();
+    assert!(profile(&s, id).unwrap().smooth);
+    assert_eq!(s.execute("stroke.widthProfile.list", &json!({})).unwrap()["current"], "Soft");
+    // Bad input is refused.
+    assert!(s.execute("stroke.widthProfile.set", &json!({"smooth": "yes"})).is_err());
+    assert!(s.execute("stroke.widthProfile.set", &json!({})).is_err());
 }

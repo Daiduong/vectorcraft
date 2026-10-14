@@ -389,6 +389,9 @@ pub fn control_bar_options(app: &mut VectorcraftApp, ui: &mut Ui) {
         ui.separator();
         return;
     }
+    if app.session.tool_id() == "width" {
+        return width_options(app, ui);
+    }
     if app.session.tool_id() != "mirrorCut" {
         return;
     }
@@ -403,6 +406,41 @@ pub fn control_bar_options(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.run("tool.setOption", json!({ "key": key, "value": value })).ok();
         }
     }
+    ui.separator();
+}
+
+/// The Width tool's options (#1854): its locks and snaps (`tool.setOption`) and Reset Profile,
+/// which gives the selected strokes one width again.
+fn width_options(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let options = [
+        ("clickAdds", tl!("Click Adds Width Points")),
+        ("lockWeight", tl!("Lock Line Weight")),
+        ("lockOrder", tl!("Lock Point Reordering")),
+        ("snapNodes", tl!("Snap to Curve Nodes")),
+        ("snapWidths", tl!("Snap to Widths on Same Curve")),
+    ];
+    let opts = app.session.tool_options();
+    for (key, label) in options {
+        let on = opts[key].as_bool().unwrap_or(false);
+        if widgets::check(ui, label, on, true) {
+            app.run("tool.setOption", json!({ "key": key, "value": !on })).ok();
+        }
+    }
+    // The selected strokes' profiles: Smooth Widths is on when every one of them is smooth.
+    let profiles: Vec<bool> = app.session.active().map_or_else(Vec::new, |st| {
+        st.selection.objects.iter().filter_map(|id| st.doc.node(*id)?.appearance.stroke()?.profile.as_ref().map(|p| p.smooth)).collect()
+    });
+    let profiled = !profiles.is_empty();
+    let smooth = profiled && profiles.iter().all(|s| *s);
+    // Mixed (some smooth, some not) shows as a dash.
+    let shown = if smooth || !profiles.contains(&true) { Some(smooth) } else { None };
+    if widgets::check3(ui, tl!("Smooth Widths"), shown, profiled) {
+        app.run("stroke.widthProfile.set", json!({ "smooth": !smooth })).ok();
+    }
+    if ui.add_enabled(profiled, egui::Button::new(tl!("Reset Profile"))).clicked() {
+        app.run("stroke.widthProfile.set", json!({ "points": null })).ok();
+    }
+    crate::panels::stroke::save_profile_button(app, ui);
     ui.separator();
 }
 

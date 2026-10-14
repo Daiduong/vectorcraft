@@ -4611,3 +4611,16 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+
+# Width tool options and the width profile chart (#1854).
+	Lock Line Weight	Zablokuj grubość linii
+	Lock Point Reordering	Zablokuj kolejność punktów
+	Snap to Curve Nodes	Przyciągaj do węzłów krzywej
+	Snap to Widths on Same Curve	Przyciągaj do szerokości tej samej krzywej
+	Reset Profile	Resetuj profil
+	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	Profil szerokości: przeciągnij punkt, aby zmienić jego szerokość lub położenie, kliknij, aby dodać punkt, kliknij dwukrotnie, aby go usunąć
+	Click Adds Width Points	Kliknięcie dodaje punkty szerokości
+	Smooth Widths	Gładkie szerokości
+	Save Profile…	Zapisz profil…
+	The width goes along a smooth curve through the points, not in straight lines	Szerokość biegnie gładką krzywą przez punkty, a nie liniami prostymi
+	Add this width profile to the Profile list, to use it on other strokes	Dodaj ten profil szerokości do listy profili, aby użyć go w innych obrysach

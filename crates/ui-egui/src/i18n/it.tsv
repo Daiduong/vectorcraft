@@ -4338,3 +4338,16 @@ lighting	Light	Luce
 	Softness	Morbidezza
 	Ambient Light	Luce ambientale
 	Light behind the object	Luce dietro l'oggetto
+
+# Width tool options and the width profile chart (#1854).
+	Lock Line Weight	Blocca spessore linea
+	Lock Point Reordering	Blocca ordine dei punti
+	Snap to Curve Nodes	Aggancia ai nodi della curva
+	Snap to Widths on Same Curve	Aggancia alle larghezze della stessa curva
+	Reset Profile	Ripristina profilo
+	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	Profilo di larghezza: trascina un punto per cambiarne larghezza o posizione, fai clic per aggiungerne uno, doppio clic per rimuoverlo
+	Click Adds Width Points	Il clic aggiunge punti di larghezza
+	Smooth Widths	Larghezze morbide
+	Save Profile…	Salva profilo…
+	The width goes along a smooth curve through the points, not in straight lines	La larghezza segue una curva morbida attraverso i punti, non linee rette
+	Add this width profile to the Profile list, to use it on other strokes	Aggiungi questo profilo di larghezza all’elenco dei profili per usarlo su altri tracciati

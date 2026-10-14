@@ -51,7 +51,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Width Profile",
             [],
             None,
-            "{ids?|id?, points: [[t, left, right]…] (width factors, 1 = the stroke weight) | null = uniform}",
+            "{ids?|id?, points?: [[t, left, right]…] (width factors, 1 = the stroke weight) | null = uniform, smooth?: bool (the width goes along a smooth curve through the points, not in straight lines; omitted: each stroke keeps its own)} One of points or smooth is needed",
             has_doc,
             width_profile_set
         ),
@@ -197,7 +197,7 @@ pub fn specs() -> Vec<CommandSpec> {
 // ---------- width points ----------
 
 fn uniform() -> WidthProfile {
-    WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] }
+    WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)])
 }
 
 /// Width points closer than this (in t) are at the same place: a discontinuous point.
@@ -375,10 +375,16 @@ fn width_point_remove(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn width_profile_set(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "stroke.widthProfile.set";
+    let smooth = match p.get("smooth") {
+        None => None,
+        Some(v) => Some(v.as_bool().ok_or_else(|| bad(C, "smooth must be true or false"))?),
+    };
+    // `None`: each stroke keeps its points (only `smooth` changes).
     let profile = match p.get("points") {
+        None if smooth.is_some() => None,
         None => return Err(bad(C, "missing points")),
-        Some(Value::Null) => None,
-        Some(Value::Array(a)) if a.is_empty() => None,
+        Some(Value::Null) => Some(None),
+        Some(Value::Array(a)) if a.is_empty() => Some(None),
         Some(Value::Array(a)) => {
             let mut pts = vec![];
             for q in a {
@@ -389,7 +395,7 @@ fn width_profile_set(s: &mut Session, p: &Value) -> Result<Value> {
                 pts.push((v[0].clamp(0.0, 1.0), v[1], v[2]));
             }
             pts.sort_by(|a, b| a.0.total_cmp(&b.0));
-            Some(WidthProfile { points: pts })
+            Some(Some(WidthProfile::new(pts)))
         }
         _ => return Err(bad(C, "points must be an array or null")),
     };
@@ -399,14 +405,24 @@ fn width_profile_set(s: &mut Session, p: &Value) -> Result<Value> {
     ids.dedup();
     // When every stroke has the profile already, or there is no stroke, the document and its undo
     // history stay as they are.
-    if ids.iter().all(|id| doc.node(*id).is_some_and(|n| n.appearance.stroke().is_none_or(|st| st.profile == profile))) {
+    // The profile a stroke gets: the new points (or its own) with `smooth` as given, else as it was.
+    let new_profile = |old: &Option<WidthProfile>| -> Option<WidthProfile> {
+        let mut out = match &profile {
+            Some(new) => new.clone(),
+            None => old.clone(),
+        }?;
+        out.smooth = smooth.unwrap_or_else(|| old.as_ref().is_some_and(|o| o.smooth));
+        Some(out)
+    };
+    if ids.iter().all(|id| doc.node(*id).is_some_and(|n| n.appearance.stroke().is_none_or(|st| st.profile == new_profile(&st.profile)))) {
         return ok();
     }
-    s.edit("Width Profile", |d, _| {
+    let label = if profile.is_none() { "Smooth Widths" } else { "Width Profile" };
+    s.edit(label, |d, _| {
         for id in &ids {
             let n = d.node_mut(*id).ok_or(EngineError::NoNode(*id))?;
             if let Some(st) = n.appearance.stroke_mut() {
-                st.profile = profile.clone();
+                st.profile = new_profile(&st.profile);
             }
         }
         Ok(())

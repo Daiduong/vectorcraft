@@ -4735,3 +4735,16 @@ imageTrace	Outline	Körvonal
 	Softness	Lágyság
 	Ambient Light	Környezeti fény
 	Light behind the object	Fény az objektum mögött
+
+# Width tool options and the width profile chart (#1854).
+	Lock Line Weight	Vonalvastagság zárolása
+	Lock Point Reordering	Pontsorrend zárolása
+	Snap to Curve Nodes	Illesztés a görbe csomópontjaihoz
+	Snap to Widths on Same Curve	Illesztés az azonos görbe szélességeihez
+	Reset Profile	Profil visszaállítása
+	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	Szélességprofil: húzzon egy pontot a szélesség vagy a hely módosításához, kattintson egy új pont hozzáadásához, kattintson duplán egy pont eltávolításához
+	Click Adds Width Points	Kattintás szélességpontot ad hozzá
+	Smooth Widths	Sima szélességek
+	Save Profile…	Profil mentése…
+	The width goes along a smooth curve through the points, not in straight lines	A szélesség sima görbén halad a pontokon át, nem egyenes vonalakon
+	Add this width profile to the Profile list, to use it on other strokes	Szélességprofil hozzáadása a profillistához, hogy más vonalakon is használható legyen

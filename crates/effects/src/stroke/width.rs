@@ -84,6 +84,12 @@ pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> (Vec<Point>, 
     (pts, corner)
 }
 
+/// How many pieces a smooth profile's span is drawn in (see [`densify`]).
+const SMOOTH_STEPS: usize = 32;
+/// The most samples a smooth profile adds to one subpath (a profile with many points gets fewer
+/// per span).
+const MAX_SMOOTH_MARKS: usize = 8192;
+
 /// Insert samples where the profile has width points (so the piecewise-linear profile is exact
 /// along straight runs; the two points of a discontinuous point share one sample). `span` maps the
 /// subpath onto the profile (see [`outline_spans`]).
@@ -94,7 +100,19 @@ fn densify(pts: &[Point], corner: &[bool], closed: bool, profile: &WidthProfile,
         return (pts.to_vec(), corner.to_vec());
     }
     // Where the profile's points fall along this piece (a span past 1 wraps round a closed path).
-    let marks: Vec<f64> = profile.points.iter().flat_map(|p| [p.0, p.0 + 1.0]).map(|t| (t - span.0) / range * total).collect();
+    let mut at: Vec<f64> = profile.points.iter().map(|p| p.0).collect();
+    if profile.smooth {
+        // A smooth profile curves between its points: samples inside each span follow the curve.
+        let mut inner = vec![];
+        for w in profile.points.windows(2) {
+            let (a, b) = (w[0].0, w[1].0);
+            let n = SMOOTH_STEPS.min(MAX_SMOOTH_MARKS.saturating_sub(inner.len()));
+            inner.extend((1..n).map(|k| a + (b - a) * k as f64 / n as f64));
+        }
+        at.extend(inner);
+    }
+    let marks: Vec<f64> =
+        at.into_iter().flat_map(|t| [t, t + 1.0]).map(|t| (t - span.0) / range * total).filter(|d| *d > 0.0 && *d < total).collect();
     split_at(pts, corner, closed, &marks)
 }
 
@@ -306,8 +324,29 @@ mod tests {
     }
 
     #[test]
+    fn a_smooth_profile_draws_a_curve_between_its_points() {
+        let linear = WidthProfile::lens();
+        let smooth = WidthProfile { smooth: true, ..WidthProfile::lens() };
+        let st = capped(LineCap::Butt);
+        let (a, b) = (area(&width_outline(&line(), 10.0, &linear, &st, 0.01)), area(&width_outline(&line(), 10.0, &smooth, &st, 0.01)));
+        // The linear lens is two triangles (500); the smooth one swells out to its flat middle.
+        assert!((a - 500.0).abs() < 1e-6, "{a}");
+        assert!(b > 550.0 && b < 1000.0, "{b}");
+        // The outline follows the curve: its half-width a quarter of the way along is the profile's.
+        let out = width_outline(&line(), 10.0, &smooth, &st, 0.01);
+        let top = out
+            .elements()
+            .iter()
+            .filter_map(|e| if let PathEl::LineTo(p) = e { Some(*p) } else { None })
+            .filter(|p| (p.x - 25.0).abs() < 2.0)
+            .map(|p| p.y.abs())
+            .fold(0.0, f64::max);
+        assert!((top - 5.0 * smooth.at(0.25).0).abs() < 0.2, "{top}");
+    }
+
+    #[test]
     fn uniform_profile_matches_a_plain_stroke() {
-        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
+        let p = WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]);
         assert!((area(&width_outline(&line(), 10.0, &p, &capped(LineCap::Butt), 0.01)) - 1000.0).abs() < 1e-6);
         let round = area(&width_outline(&line(), 10.0, &p, &capped(LineCap::Round), 0.01));
         let want = 1000.0 + std::f64::consts::PI * 25.0;
@@ -319,7 +358,7 @@ mod tests {
     fn lens_profile_is_a_diamond_and_one_sided_profiles_stay_on_their_side() {
         let a = area(&width_outline(&line(), 10.0, &WidthProfile::lens(), &capped(LineCap::Butt), 0.01));
         assert!((a - 500.0).abs() < 1e-6, "{a}");
-        let one = WidthProfile { points: vec![(0.0, 1.0, 0.0), (1.0, 1.0, 0.0)] };
+        let one = WidthProfile::new(vec![(0.0, 1.0, 0.0), (1.0, 1.0, 0.0)]);
         let o = width_outline(&line(), 10.0, &one, &capped(LineCap::Butt), 0.01);
         assert!((area(&o) - 500.0).abs() < 1e-6);
         let bb = o.bounding_box();
@@ -330,7 +369,7 @@ mod tests {
     #[test]
     fn a_discontinuous_point_steps_the_width() {
         // 5 pt either side for the first half, 10 pt for the second: a step at the middle.
-        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 2.0, 2.0)] };
+        let p = WidthProfile::new(vec![(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 2.0, 2.0)]);
         let o = width_outline(&line(), 10.0, &p, &capped(LineCap::Butt), 0.01);
         assert!((area(&o) - 1500.0).abs() < 1e-6, "{}", area(&o));
         // No ramp: just before the middle the outline is still 5 pt from the line.
@@ -350,7 +389,7 @@ mod tests {
         sq.line_to((100.0, 100.0));
         sq.line_to((0.0, 100.0));
         sq.close_path();
-        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
+        let p = WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]);
         let a = area(&width_outline(&sq, 10.0, &p, &capped(LineCap::Butt), 0.01));
         assert!((a - (110.0 * 110.0 - 90.0 * 90.0)).abs() < 1e-6, "{a}");
     }
@@ -359,7 +398,7 @@ mod tests {
     fn curves_are_offset_by_the_profile() {
         // A circle of radius 50 with a uniform 10 pt stroke: ring area 2π·50·10.
         let c = kurbo::Circle::new((0.0, 0.0), 50.0).to_path(1e-4);
-        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
+        let p = WidthProfile::new(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]);
         let a = area(&width_outline(&c, 10.0, &p, &capped(LineCap::Butt), 0.001));
         let want = 2.0 * std::f64::consts::PI * 50.0 * 10.0;
         assert!((a - want).abs() / want < 0.01, "{a} vs {want}");

@@ -521,3 +521,47 @@ fn art_colors_list_the_most_used_first() {
     assert_eq!(b.art().len(), 3, "the side and both corner tiles");
     assert!(calli(0.0, 100.0, 3.0).art().is_empty());
 }
+
+/// The widest the pieces reach from the line y = 0 between x0 and x1.
+fn spread(nodes: &[Node], x0: f64, x1: f64) -> f64 {
+    let mut pts = vec![];
+    for n in nodes {
+        all_points(n, &mut pts);
+    }
+    pts.iter().filter(|p| p.x >= x0 && p.x <= x1).map(|p| p.y.abs()).fold(0.0, f64::max)
+}
+
+/// A stroke's width profile (the Width tool's) shapes every kind of brush: a taper from nothing
+/// at the start to the full width at the end makes each brush thin at the start.
+#[test]
+fn every_brush_follows_the_width_profile() {
+    let p = line(0.0, 0.0, 200.0, 0.0);
+    let mut tapered = stroke(1.0);
+    tapered.profile = Some(vectorcraft_doc::WidthProfile::taper_start());
+    let brushes = [
+        calli(90.0, 100.0, 10.0),
+        art_brush(rect_art(10.0, 4.0), ArtScale::Stretch),
+        scatter_brush(100.0),
+        pattern_brush(PatternFit::Stretch, false),
+        Brush { name: "b".into(), kind: BrushKind::Bristle(Bristle::default()) },
+    ];
+    for b in &brushes {
+        let plain = stroke_pieces(b, &p, &stroke(1.0));
+        let out = stroke_pieces(b, &p, &tapered);
+        let (start, end) = (spread(&out, 0.0, 20.0), spread(&out, 180.0, 200.0));
+        let full = spread(&plain, 180.0, 200.0);
+        assert!(start < full * 0.3, "{}: start {start} vs {full}", b.kind.label());
+        assert!(end > full * 0.75, "{}: end {end} vs {full}", b.kind.label());
+    }
+}
+
+/// Only the left side wide: an art brush's art stays on that side of the path.
+#[test]
+fn an_art_brush_takes_each_side_of_the_profile() {
+    let mut one_side = stroke(1.0);
+    one_side.profile = Some(vectorcraft_doc::WidthProfile::new(vec![(0.0, 1.0, 0.0), (1.0, 1.0, 0.0)]));
+    let out = stroke_pieces(&art_brush(rect_art(10.0, 4.0), ArtScale::Stretch), &line(0.0, 0.0, 200.0, 0.0), &one_side);
+    let b = bounds(&out);
+    assert!(near(b.height(), 2.0, 1e-6), "{b:?}");
+    assert!(near(b.y0.max(-b.y1), 0.0, 1e-6) || near(b.y1.min(-b.y0), 0.0, 1e-6), "one side of y = 0: {b:?}");
+}

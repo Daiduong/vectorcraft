@@ -15,7 +15,7 @@ fn app_with_line() -> VectorcraftApp {
 }
 
 fn custom() -> WidthProfile {
-    WidthProfile { points: vec![(0.0, 0.3, 0.3), (0.6, 1.4, 1.4), (1.0, 0.0, 0.0)] }
+    WidthProfile::new(vec![(0.0, 0.3, 0.3), (0.6, 1.4, 1.4), (1.0, 0.0, 0.0)])
 }
 
 /// Give the selected line `p` as its variable width.
@@ -117,4 +117,47 @@ fn arrowhead_dropdown_offers_the_new_heads() {
     let t = frame_events(&ctx, &mut app, vec![], stroke::show);
     click(&ctx, &mut app, text_rect(&t, "Barbed").center(), stroke::show);
     assert_eq!(current_stroke(&app).and_then(|s| s.end_arrow), Some(vectorcraft_doc::Arrowhead::Barbed));
+}
+
+/// #1854: the Stroke panel's width profile chart. A click on it adds one width point at the
+/// width the stroke has there (a uniform stroke gets its third point), as one undo step.
+#[test]
+fn the_profile_chart_adds_a_width_point_on_a_click() {
+    let ctx = egui::Context::default();
+    let mut app = app_with_line();
+    let texts = frame_events(&ctx, &mut app, vec![], stroke::show);
+    let label = text_rect(&texts, "Profile:");
+    let undo = app.session.doc().unwrap().history.undo.len();
+    // The chart sits under the Profile row, 64 points tall, across the panel.
+    click(&ctx, &mut app, egui::pos2(label.left() + 100.0, label.bottom() + 40.0), stroke::show);
+    let pts = profile_points(&app).expect("a profile after the click");
+    assert_eq!(pts.len(), 3, "{pts:?}");
+    assert!(pts.iter().all(|p| (p.1 - 1.0).abs() < 1e-9 && (p.2 - 1.0).abs() < 1e-9), "the stroke's width: {pts:?}");
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
+}
+
+/// Under the chart: Smooth curves the profile between its points (one undo step), and Save
+/// Profile… names it and adds it to the Profile list, smooth as it is.
+#[test]
+fn smooth_and_save_profile_under_the_chart() {
+    let ctx = egui::Context::default();
+    let mut app = app_with_line();
+    set_profile(&mut app, custom());
+    let undo = app.session.doc().unwrap().history.undo.len();
+    let t = frame_events(&ctx, &mut app, vec![], stroke::show);
+    click(&ctx, &mut app, text_rect(&t, "Smooth").center(), stroke::show);
+    let p = current_stroke(&app).and_then(|s| s.profile).unwrap();
+    assert!(p.smooth);
+    assert_eq!(p.points, custom().points, "the points stay");
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
+
+    let t = frame_events(&ctx, &mut app, vec![], stroke::show);
+    click(&ctx, &mut app, text_rect(&t, "Save Profile…").center(), stroke::show);
+    let d = app.ui.dialog.clone().expect("name dialog");
+    assert_eq!(d.str("__command"), "stroke.widthProfile.add");
+    app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Soft"));
+    crate::dialogs::confirm(&mut app).unwrap();
+    let saved = &app.session.prefs.width_profiles[0];
+    assert_eq!(saved.name, "Soft");
+    assert!(saved.profile.smooth);
 }

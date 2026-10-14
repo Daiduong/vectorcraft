@@ -58,7 +58,7 @@ fn check(bp: &BezPath, st: &StrokeLayer, what: &str) {
 
 #[test]
 fn bounds_and_clicks_cover_what_every_stroke_paints() {
-    let profiles = [None, Some(WidthProfile::lens()), Some(WidthProfile { points: vec![(0.0, 2.0, 0.5), (0.6, 0.8, 1.6), (1.0, 1.2, 0.3)] })];
+    let profiles = [None, Some(WidthProfile::lens()), Some(WidthProfile::new(vec![(0.0, 2.0, 0.5), (0.6, 0.8, 1.6), (1.0, 1.2, 0.3)]))];
     for (pi, bp) in paths().iter().enumerate() {
         for align in [StrokeAlign::Center, StrokeAlign::Inside, StrokeAlign::Outside] {
             for cap in [LineCap::Butt, LineCap::Round, LineCap::Square] {

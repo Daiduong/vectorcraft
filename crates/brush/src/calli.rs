@@ -7,14 +7,15 @@
 //!
 //! A Calligraphic brush with Pressure variation changes its nib along the stroke with the pen
 //! pressure recorded on it (`StrokeLayer::pressure`): the sweep is sampled densely and each
-//! sample takes the nib for the pressure there.
+//! sample takes the nib for the pressure there. A stroke's width profile (the Width tool's)
+//! scales the sweep's left and right edges, and a bristle brush's strands, the same way.
 
 use vectorcraft_color::Paint;
-use vectorcraft_doc::{Node, PressureProfile, StrokeLayer};
+use vectorcraft_doc::{Node, PressureProfile, StrokeLayer, WidthProfile};
 use vectorcraft_geom::{BezPath, PathData, Point, SubPath, Vec2};
 
 use crate::track::{Rng, Track, normal, seed_of, tracks};
-use crate::{Bristle, BristleShape, Calligraphic, Variation, filled, tolerance};
+use crate::{Bristle, BristleShape, Calligraphic, Variation, filled, tolerance, widest, widths};
 
 /// The most pieces a varying nib cuts one segment of a subpath into, and about how many samples
 /// it takes along a whole subpath.
@@ -86,21 +87,25 @@ fn samples(t: &Track, step: Option<f64>) -> Vec<(Point, Vec2, f64)> {
 }
 
 /// The swept outline along `t` of the nib `nib(f)` (`f`: the fraction of the track's length) as
-/// closed subpaths. `step`: how often a varying nib is sampled (None: a constant nib).
-pub(crate) fn sweep(t: &Track, nib: &dyn Fn(f64) -> Nib, step: Option<f64>) -> Vec<SubPath> {
+/// closed subpaths, its left and right edges scaled by `side(f)` (a width profile's factors).
+/// `step`: how often a varying nib is sampled (None: a constant nib).
+pub(crate) fn sweep(t: &Track, nib: &dyn Fn(f64) -> Nib, side: &dyn Fn(f64) -> (f64, f64), step: Option<f64>) -> Vec<SubPath> {
     let s = samples(t, step);
-    let left: Vec<Point> = s.iter().map(|(p, tg, f)| *p + nib(*f).support(normal(*tg))).collect();
-    let right: Vec<Point> = s.iter().map(|(p, tg, f)| *p + nib(*f).support(-normal(*tg))).collect();
+    let left: Vec<Point> = s.iter().map(|(p, tg, f)| *p + nib(*f).support(normal(*tg)) * side(*f).0).collect();
+    let right: Vec<Point> = s.iter().map(|(p, tg, f)| *p + nib(*f).support(-normal(*tg)) * side(*f).1).collect();
     if t.closed {
         let mut r = right;
         r.reverse();
         return vec![SubPath::polyline(&left, true), SubPath::polyline(&r, true)];
     }
     let cap = |(p, tg, f): (Point, Vec2, f64), from: f64, to: f64, out: &mut Vec<Point>| {
-        let (steps, nib) = (16, nib(f));
+        let (steps, nib, (l, r)) = (16, nib(f), side(f));
         for k in 1..steps {
             let ang = from + (to - from) * k as f64 / steps as f64;
-            out.push(p + nib.support(rot(tg, ang)));
+            let d = rot(tg, ang);
+            // From the left edge's scale to the right edge's, round the cap.
+            let k = r + (l - r) * (d.dot(normal(tg)) + 1.0) / 2.0;
+            out.push(p + nib.support(d) * k);
         }
     };
     let half = std::f64::consts::FRAC_PI_2;
@@ -147,6 +152,10 @@ fn pressured(c: &Calligraphic, base: [f64; 3], p: f64) -> [f64; 3] {
 pub(crate) fn calligraphic(c: &Calligraphic, bp: &BezPath, weight: f64, stroke: &StrokeLayer, name: &str) -> Vec<Node> {
     let mut rng = Rng::new(seed_of(bp, name));
     let base = randomized(c, &mut rng);
+    let prof = stroke.profile.as_ref();
+    let side = |f: f64| widths(prof, f);
+    // A varying nib, or a width profile, is sampled along the track.
+    let step = |t: &Track| (t.len() / MAX_STEPS).max(0.25);
     let subs: Vec<SubPath> = if c.uses_pressure() {
         let pressure = stroke.pressure.as_ref();
         let nib = |f: f64| {
@@ -154,12 +163,13 @@ pub(crate) fn calligraphic(c: &Calligraphic, bp: &BezPath, weight: f64, stroke: 
             Nib::new(angle, round / 100.0, size * weight)
         };
         // Flattened for the largest nib the pressure gives.
-        let size = pressured(c, base, 0.0)[2].max(pressured(c, base, 1.0)[2]) * weight;
-        tracks(bp, tolerance(size)).iter().flat_map(|t| sweep(t, &nib, Some((t.len() / MAX_STEPS).max(0.25)))).collect()
+        let size = pressured(c, base, 0.0)[2].max(pressured(c, base, 1.0)[2]) * weight * widest(prof);
+        tracks(bp, tolerance(size)).iter().flat_map(|t| sweep(t, &nib, &side, Some(step(t)))).collect()
     } else {
         let [angle, round, size] = base;
         let nib = Nib::new(angle, round / 100.0, size * weight);
-        tracks(bp, tolerance(size * weight)).iter().flat_map(|t| sweep(t, &|_| nib, None)).collect()
+        let tol = tolerance(size * weight * widest(prof));
+        tracks(bp, tol).iter().flat_map(|t| sweep(t, &|_| nib, &side, prof.map(|_| step(t)))).collect()
     };
     if subs.is_empty() {
         return vec![];
@@ -167,8 +177,10 @@ pub(crate) fn calligraphic(c: &Calligraphic, bp: &BezPath, weight: f64, stroke: 
     vec![filled(PathData::new(subs), &stroke.paint)]
 }
 
-/// Offset a track sideways by `d` (a polyline following it).
-fn offset_track(t: &Track, d: f64, trim0: f64, trim1: f64) -> Option<BezPath> {
+/// Offset a track sideways by `d` (a polyline following it), scaled by the width profile `prof`
+/// (the left side's factor for a positive `d`, the right side's for a negative one). With a
+/// profile, segments are cut so the offset follows it between the track's points.
+fn offset_track(t: &Track, d: f64, trim0: f64, trim1: f64, prof: Option<&WidthProfile>) -> Option<BezPath> {
     let l = t.len();
     let (s0, s1) = (trim0.clamp(0.0, l), (l - trim1).clamp(0.0, l));
     if s1 - s0 < 1e-6 {
@@ -184,20 +196,35 @@ fn offset_track(t: &Track, d: f64, trim0: f64, trim1: f64) -> Option<BezPath> {
             bp.line_to(p);
         }
     };
-    push(t.map(s0, d), &mut bp);
+    let off = |s: f64| {
+        let (wl, wr) = widths(prof, s / l.max(1e-12));
+        d * if d >= 0.0 { wl } else { wr }
+    };
+    let step = prof.map(|_| (l / MAX_STEPS).max(0.25));
+    push(t.map(s0, off(s0)), &mut bp);
     for (i, c) in t.cum.iter().enumerate() {
+        // Samples between the previous point and this one (a profile can change in between).
+        if let (Some(step), Some(&prev)) = (step, i.checked_sub(1).and_then(|j| t.cum.get(j))) {
+            let pieces = ((c - prev) / step).ceil().clamp(1.0, MAX_STEPS) as usize;
+            for k in 1..pieces {
+                let s = prev + (c - prev) * k as f64 / pieces as f64;
+                if s > s0 && s < s1 {
+                    push(t.map(s, off(s)), &mut bp);
+                }
+            }
+        }
         if *c > s0 && *c < s1 {
-            push(t.verts[i] + normal(t.tangents[i]) * d, &mut bp);
+            push(t.verts[i] + normal(t.tangents[i]) * off(*c), &mut bp);
         }
     }
-    push(t.map(s1, d), &mut bp);
+    push(t.map(s1, off(s1)), &mut bp);
     if t.closed && trim0 <= 0.0 && trim1 <= 0.0 {
         bp.close_path();
     }
     Some(bp)
 }
 
-pub(crate) fn bristle(b: &Bristle, bp: &BezPath, weight: f64, paint: &Paint, name: &str) -> Vec<Node> {
+pub(crate) fn bristle(b: &Bristle, bp: &BezPath, weight: f64, paint: &Paint, name: &str, prof: Option<&WidthProfile>) -> Vec<Node> {
     let mut rng = Rng::new(seed_of(bp, name));
     let size = b.size.max(0.1) * weight;
     let strands = (3.0 + b.density.clamp(1.0, 100.0) / 100.0 * 13.0).round() as usize;
@@ -219,10 +246,10 @@ pub(crate) fn bristle(b: &Bristle, bp: &BezPath, weight: f64, paint: &Paint, nam
             let edge = 1.0 - lane.abs();
             let trim = |r: &mut Rng| r.unit() * ragged * size * (1.2 - edge) * 0.8;
             let (t0, t1) = (trim(&mut rng), trim(&mut rng));
-            let Some(sp) = offset_track(&t, off, t0.min(l * 0.3), t1.min(l * 0.3)) else { continue };
+            let Some(sp) = offset_track(&t, off, t0.min(l * 0.3), t1.min(l * 0.3), prof) else { continue };
             let w = thick * (0.6 + 0.4 * edge) * rng.range(0.8, 1.2);
             let nib = Nib::new(0.0, 1.0, w);
-            let subs: Vec<SubPath> = tracks(&sp, tolerance(w)).iter().flat_map(|tt| sweep(tt, &|_| nib, None)).collect();
+            let subs: Vec<SubPath> = tracks(&sp, tolerance(w)).iter().flat_map(|tt| sweep(tt, &|_| nib, &|_| (1.0, 1.0), None)).collect();
             if subs.is_empty() {
                 continue;
             }

@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use vectorcraft_color::Paint;
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, StrokeLayer};
+use vectorcraft_doc::{Appearance, AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, StrokeLayer, WidthProfile};
 use vectorcraft_geom::{BezPath, Rect};
 
 pub use colorize::{art_colors, colorize, instance_art, stain, tint_node};
@@ -557,17 +557,41 @@ fn tolerance(scale: f64) -> f64 {
     (0.02 * scale).clamp(0.01, 0.25)
 }
 
+/// The (left, right) factors of a stroke's width profile (the Width tool's) at `f`, the fraction
+/// of the subpath's length (past 1 wraps round a closed one): (1, 1) without a profile. Brushes
+/// scale their width across the path by them.
+pub(crate) fn widths(p: Option<&WidthProfile>, f: f64) -> (f64, f64) {
+    let Some(p) = p else { return (1.0, 1.0) };
+    let f = if !f.is_finite() {
+        0.0
+    } else if f > 1.0 {
+        f.rem_euclid(1.0)
+    } else {
+        f.max(0.0)
+    };
+    let (l, r) = p.at(f);
+    let ok = |w: f64| if w.is_finite() { w.max(0.0) } else { 1.0 };
+    (ok(l), ok(r))
+}
+
+/// The widest factor of a stroke's width profile (1 without one, or when it is narrower).
+pub(crate) fn widest(p: Option<&WidthProfile>) -> f64 {
+    p.map_or(1.0, |p| p.points.iter().map(|q| q.1.max(q.2)).filter(|w| w.is_finite()).fold(1.0, f64::max))
+}
+
 /// Filled art for one brushed stroke along `bp`. Pieces are in document space with id 0; their
 /// appearances carry no brushes (so they never recurse). Stroke-level opacity/blend are the
 /// caller's job (`StrokeLayer::opacity`).
 pub fn stroke_pieces(brush: &Brush, bp: &BezPath, stroke: &StrokeLayer) -> Vec<Node> {
     let w = if stroke.width > 0.0 { stroke.width } else { 1.0 };
+    // The stroke's width profile (the Width tool's points) shapes every kind of brush.
+    let prof = stroke.profile.as_ref();
     let mut out = match &brush.kind {
         BrushKind::Calligraphic(c) => calli::calligraphic(c, bp, w, stroke, &brush.name),
-        BrushKind::Bristle(b) => calli::bristle(b, bp, w, &stroke.paint, &brush.name),
-        BrushKind::Art(a) => warp::art(a, bp, w),
-        BrushKind::Scatter(s) => warp::scatter(s, bp, w, stroke.pressure.as_ref(), &brush.name),
-        BrushKind::Pattern(p) => warp::pattern(p, bp, w),
+        BrushKind::Bristle(b) => calli::bristle(b, bp, w, &stroke.paint, &brush.name, prof),
+        BrushKind::Art(a) => warp::art(a, bp, w, prof),
+        BrushKind::Scatter(s) => warp::scatter(s, bp, w, stroke.pressure.as_ref(), prof, &brush.name),
+        BrushKind::Pattern(p) => warp::pattern(p, bp, w, prof),
     };
     let colorization = brush.kind.colorization();
     for n in &mut out {

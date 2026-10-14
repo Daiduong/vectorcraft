@@ -3761,3 +3761,16 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+
+# Width tool options and the width profile chart (#1854).
+	Lock Line Weight	Bloquear Espessura da Linha
+	Lock Point Reordering	Bloquear Ordem dos Pontos
+	Snap to Curve Nodes	Ajustar aos Nós da Curva
+	Snap to Widths on Same Curve	Ajustar às Larguras da Mesma Curva
+	Reset Profile	Redefinir Perfil
+	Width profile: drag a point to change its width or place, click to add one, double-click one to remove it	Perfil de largura: arraste um ponto para mudar sua largura ou posição, clique para adicionar um, clique duas vezes para removê-lo
+	Click Adds Width Points	Clique Adiciona Pontos de Largura
+	Smooth Widths	Larguras suaves
+	Save Profile…	Salvar perfil…
+	The width goes along a smooth curve through the points, not in straight lines	A largura segue uma curva suave pelos pontos, não linhas retas
+	Add this width profile to the Profile list, to use it on other strokes	Adicionar este perfil de largura à lista de perfis para usá-lo em outros traçados
