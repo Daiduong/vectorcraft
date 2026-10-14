@@ -4783,3 +4783,13 @@ imageTrace	Outline	Körvonal
 	Display style	Kiemelt stílus
 	Math Drawing Style	Matematikai rajzstílus
 	Set Math Drawing Style	Matematikai rajzstílus beállítása
+	Coordinate Axes	Koordinátatengelyek
+	Points by Coordinates	Pontok koordináták alapján
+	Graph of a Function	Függvénygrafikon
+	Parametric Curve	Paraméteres görbe
+	Circles by Center	Körök középpont alapján
+	Mark Maxima and Minima	Maximumok és minimumok jelölése
+	Integral Graph	Integrálgrafikon
+	Derivative Graph	Deriváltgrafikon
+	Graph Arithmetic	Műveletek grafikonokkal
+	Piecewise Function Graph	Szakaszonként megadott függvény grafikonja

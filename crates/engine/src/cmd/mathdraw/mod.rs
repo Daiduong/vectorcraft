@@ -8,11 +8,11 @@
 //! length as the unit, where a magenta reference segment is drawn too ([`resolve_frame`]).
 //!
 //! What the commands draw are plain paths and groups, painted from the document's
-//! [`MathDrawStyle`] (`mathdraw.style`, `mathdraw.setStyle`).
-// The frame and drawing helpers below are for the drawing commands (axes, graphs, marks), which
-// come next; until they do, only the tests use them.
-#![cfg_attr(not(test), expect(dead_code, reason = "helpers for the mathdraw drawing commands"))]
+//! [`MathDrawStyle`] (`mathdraw.style`, `mathdraw.setStyle`). A command that draws several things
+//! puts them in one group ([`insert_output`]); the selection is kept, with a reference segment it
+//! drew added to it, so the next command draws in the same frame.
 
+mod graph;
 mod style;
 
 use serde_json::Value;
@@ -20,17 +20,22 @@ use vectorcraft_color::{Color, Paint};
 use vectorcraft_doc::{
     Appearance, AppearanceItem, ColorMode, Dash, Document, FillLayer, LineRef, MathDrawStyle, Node, NodeId, NodeKind, StrokeLayer,
 };
-use vectorcraft_geom::{Affine, BezPath, CubicBez, PathData, Point, Rect, shapes};
+use vectorcraft_geom::{Affine, BezPath, CubicBez, ParamCurve, PathData, Point, Rect, shapes};
 
 use super::pathops::shape_node;
 use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
-    style::specs()
+    let mut v = style::specs();
+    v.extend(graph::specs());
+    v
 }
 
 /// The longest unit (points per math unit) a frame takes.
 const MAX_UNIT: f64 = vectorcraft_doc::mathdraw::limits::STD_LENGTH.1;
+
+/// The largest math coordinate a parameter takes (the drawing must also stay on the canvas).
+pub(crate) const MAX_MATH: f64 = 1.0e6;
 
 /// A math coordinate frame on the page: math `(u, v)` (y up) sits at
 /// `(origin.x + u·unit, origin.y − v·unit)` in the document (y down).
@@ -228,7 +233,8 @@ pub(crate) fn stroked(d: &mut Document, path: PathData, style: &MathDrawStyle, l
 }
 
 /// A dot at `at`: a circle of the style's dot size filled with `fill`, with a `border` coloured
-/// border drawn with the style's dot border line.
+/// border drawn with the style's dot border line. The standard dot is black with a white border;
+/// a hollow one (an open end) white with a black border.
 pub(crate) fn dot(d: &mut Document, at: Point, style: &MathDrawStyle, fill: Color, border: Color) -> Node {
     let r = style.dot_size / 2.0;
     let path = shapes::ellipse(Rect::new(at.x - r, at.y - r, at.x + r, at.y + r));
@@ -237,11 +243,6 @@ pub(crate) fn dot(d: &mut Document, at: Point, style: &MathDrawStyle, fill: Colo
     look.items.insert(0, AppearanceItem::Fill(FillLayer::new(Paint::solid(fill))));
     n.appearance = look.into();
     n
-}
-
-/// The standard dot: black with a white border.
-pub(crate) fn black_dot(d: &mut Document, at: Point, style: &MathDrawStyle) -> Node {
-    dot(d, at, style, Color::BLACK, Color::WHITE)
 }
 
 /// Curves fitted in math coordinates (`vectorcraft_math::fit`), on the page: a subpath per run.
@@ -268,5 +269,328 @@ pub(crate) fn line_param(p: &Value, key: &str, cmd: &str) -> Result<Option<LineR
             .and_then(LineRef::parse)
             .map(Some)
             .ok_or_else(|| bad(cmd, format!("`{key}` must be a line, \"solid1\"…\"solid5\" or \"dashed1\"…\"dashed5\""))),
+    }
+}
+
+// ---------- parameters ----------
+
+/// An optional flag parameter.
+pub(crate) fn flag_param(p: &Value, key: &str, cmd: &str) -> Result<Option<bool>> {
+    match p.get(key).filter(|v| !v.is_null()) {
+        None => Ok(None),
+        Some(v) => v.as_bool().map(Some).ok_or_else(|| bad(cmd, format!("`{key}` must be true or false"))),
+    }
+}
+
+/// An optional finite number parameter.
+pub(crate) fn number_param(p: &Value, key: &str, cmd: &str) -> Result<Option<f64>> {
+    match p.get(key).filter(|v| !v.is_null()) {
+        None => Ok(None),
+        Some(v) => v.as_f64().filter(|n| n.is_finite()).map(Some).ok_or_else(|| bad(cmd, format!("`{key}` must be a number"))),
+    }
+}
+
+/// An optional text parameter.
+pub(crate) fn text_param<'a>(p: &'a Value, key: &str, cmd: &str) -> Result<Option<&'a str>> {
+    match p.get(key).filter(|v| !v.is_null()) {
+        None => Ok(None),
+        Some(v) => v.as_str().map(Some).ok_or_else(|| bad(cmd, format!("`{key}` must be text"))),
+    }
+}
+
+/// An optional range `[a, b]` of math coordinates, `a < b`.
+pub(crate) fn range_param(p: &Value, key: &str, cmd: &str) -> Result<Option<(f64, f64)>> {
+    match p.get(key).filter(|v| !v.is_null()) {
+        None => Ok(None),
+        Some(v) => range_value(v).map(Some).ok_or_else(|| bad(cmd, format!("`{key}` must be [low, high] with low < high, within ±{MAX_MATH}"))),
+    }
+}
+
+fn range_value(v: &Value) -> Option<(f64, f64)> {
+    finite_numbers::<2>(v).filter(|[a, b]| a < b && a.abs() <= MAX_MATH && b.abs() <= MAX_MATH).map(|[a, b]| (a, b))
+}
+
+/// An optional count parameter (a whole number), clamped into `range`.
+pub(crate) fn count_param(p: &Value, key: &str, default: usize, range: std::ops::RangeInclusive<usize>, cmd: &str) -> Result<usize> {
+    match p.get(key).filter(|v| !v.is_null()) {
+        None => Ok(default),
+        Some(v) => v
+            .as_u64()
+            .map(|n| usize::try_from(n).unwrap_or(usize::MAX).clamp(*range.start(), *range.end()))
+            .ok_or_else(|| bad(cmd, format!("`{key}` must be a whole number from {} to {}", range.start(), range.end()))),
+    }
+}
+
+/// An optional list of math points `[[u, v], …]` (at most `max`).
+pub(crate) fn points_param(p: &Value, key: &str, max: usize, cmd: &str) -> Result<Option<Vec<(f64, f64)>>> {
+    let Some(v) = p.get(key).filter(|v| !v.is_null()) else { return Ok(None) };
+    let err = || bad(cmd, format!("`{key}` must be a list of [u, v] points within ±{MAX_MATH} (at most {max})"));
+    let a = v.as_array().filter(|a| a.len() <= max).ok_or_else(err)?;
+    a.iter()
+        .map(|e| finite_numbers::<2>(e).filter(|[u, v]| u.abs() <= MAX_MATH && v.abs() <= MAX_MATH).map(|[u, v]| (u, v)).ok_or_else(err))
+        .collect::<Result<Vec<_>>>()
+        .map(Some)
+}
+
+// ---------- output ----------
+
+/// Put what a command drew into the document, on top in `parent`: one node as it is, several in a
+/// group named `name`. Fails, changing nothing, when the drawing would reach off the canvas.
+/// Returns the id of the node inserted.
+pub(crate) fn insert_output(d: &mut Document, parent: Option<NodeId>, name: &str, mut nodes: Vec<Node>, cmd: &str) -> Result<NodeId> {
+    let limit = crate::MAX_COORD;
+    for n in &nodes {
+        if let Some(b) = n.geometric_bounds()
+            && ![b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite() && v.abs() <= limit)
+        {
+            return Err(bad(cmd, format!("the drawing would reach off the canvas (beyond ±{limit} pt): use a smaller range or unit")));
+        }
+    }
+    let node = match nodes.len() {
+        0 => return Err(bad(cmd, "there is nothing to draw")),
+        1 => nodes.pop().ok_or_else(|| bad(cmd, "there is nothing to draw"))?,
+        _ => {
+            let mut g = Node::group(d.alloc_id(), nodes.into_iter().map(std::sync::Arc::new).collect());
+            g.name = Some(name.to_string());
+            g
+        }
+    };
+    Ok(d.insert(parent, usize::MAX, node)?)
+}
+
+// ---------- paths read as functions ----------
+
+/// Most samples a path is read with ([`PathFunction`]).
+const MAX_PATH_SAMPLES: usize = 40_000;
+
+/// A sample of a path read as a function: its math point and where on which segment it lies.
+#[derive(Clone, Copy, Debug)]
+struct Sample {
+    x: f64,
+    y: f64,
+    seg: usize,
+    t: f64,
+}
+
+/// Whether a local extremum is a maximum or a minimum.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Extremum {
+    Max,
+    Min,
+}
+
+/// A path read as the graph of a function `y(x)` in a frame's math coordinates: how the
+/// extremum, integral, derivative and combined graphs read the curves they are given.
+///
+/// Each segment of each subpath is sampled at evenly spaced parameters, and each subpath is one
+/// *piece* with its samples in order of x: as drawn when x only grows (or only shrinks: then
+/// reversed), else sorted (which reads a curve that turns back on itself, not a function, as well
+/// as it can be read). Between two samples the value is the drawn segment's own, its x solved by
+/// bisection, so a curve `mathdraw.graph` drew reads back exactly (between samples of different
+/// segments that don't meet, linearly). Where no piece reaches, as across a vertical asymptote
+/// that split a graph, there is no value.
+#[derive(Clone, Debug)]
+pub(crate) struct PathFunction {
+    /// The segments, in math coordinates.
+    segs: Vec<CubicBez>,
+    /// Each piece's samples, by increasing x (no two at the same x).
+    pieces: Vec<Vec<Sample>>,
+}
+
+impl PathFunction {
+    /// `n` (a path or a compound path) read in `frame`; `None` for another object, or a path with
+    /// no extent in x.
+    pub fn from_node(n: &Node, frame: &Frame) -> Option<Self> {
+        let paths: Vec<&PathData> = match &n.kind {
+            NodeKind::Path { path, .. } => vec![path],
+            NodeKind::Compound { children, .. } => children.iter().filter_map(|c| c.path_data()).collect(),
+            _ => return None,
+        };
+        Self::from_paths(&paths, frame)
+    }
+
+    /// The subpaths of `paths` (document coordinates) read in `frame`.
+    pub fn from_paths(paths: &[&PathData], frame: &Frame) -> Option<Self> {
+        let to_math = |p: Point| {
+            let (u, v) = frame.to_math(p);
+            Point::new(u, v)
+        };
+        let total: usize = paths.iter().flat_map(|p| &p.subpaths).map(|sp| sp.segment_count()).sum();
+        // Samples per segment: dense for a few segments, at least the ends for very many.
+        let per = (MAX_PATH_SAMPLES / total.max(1)).clamp(1, 64);
+        let mut segs = vec![];
+        let mut pieces = vec![];
+        for sp in paths.iter().flat_map(|p| &p.subpaths) {
+            let mut samples = vec![];
+            for i in 0..sp.segment_count() {
+                let c = sp.segment(i);
+                let c = CubicBez::new(to_math(c.p0), to_math(c.p1), to_math(c.p2), to_math(c.p3));
+                let seg = segs.len();
+                segs.push(c);
+                for j in 0..=per {
+                    let t = j as f64 / per as f64;
+                    let q = c.eval(t);
+                    if q.x.is_finite() && q.y.is_finite() {
+                        samples.push(Sample { x: q.x, y: q.y, seg, t });
+                    }
+                }
+            }
+            let rising = samples.windows(2).all(|w| matches!(w, [a, b] if b.x >= a.x));
+            let falling = samples.windows(2).all(|w| matches!(w, [a, b] if b.x <= a.x));
+            if falling && !rising {
+                samples.reverse();
+            } else if !rising {
+                samples.sort_by(|a, b| a.x.total_cmp(&b.x));
+            }
+            samples.dedup_by(|b, a| b.x == a.x);
+            if samples.len() >= 2 {
+                pieces.push(samples);
+            }
+        }
+        (!pieces.is_empty()).then_some(Self { segs, pieces })
+    }
+
+    /// The x range the path covers, `(low, high)`.
+    pub fn range(&self) -> (f64, f64) {
+        let lo = self.pieces.iter().filter_map(|p| p.first()).map(|s| s.x).fold(f64::INFINITY, f64::min);
+        let hi = self.pieces.iter().filter_map(|p| p.last()).map(|s| s.x).fold(f64::NEG_INFINITY, f64::max);
+        (lo, hi)
+    }
+
+    /// The value at `x` (from the first piece that covers it), NaN where none does.
+    pub fn at(&self, x: f64) -> f64 {
+        for p in &self.pieces {
+            let (Some(first), Some(last)) = (p.first(), p.last()) else { continue };
+            if !(x >= first.x && x <= last.x) {
+                continue;
+            }
+            let i = p.partition_point(|s| s.x < x);
+            let Some(b) = p.get(i) else { continue };
+            if b.x == x {
+                return b.y;
+            }
+            let Some(a) = i.checked_sub(1).and_then(|i| p.get(i)) else { continue };
+            return self.between(a, b, x);
+        }
+        f64::NAN
+    }
+
+    /// The value at `x` between neighbouring samples `a` and `b` (`a.x < x < b.x`).
+    fn between(&self, a: &Sample, b: &Sample, x: f64) -> f64 {
+        // The segment the two lie on, or one of them reaching the other at its end (a joint).
+        let mut on = None;
+        if a.seg == b.seg {
+            on = Some((a.seg, a.t, b.t));
+        } else {
+            'find: for (s, o) in [(a, b), (b, a)] {
+                let Some(c) = self.segs.get(s.seg) else { continue };
+                for end in [0.0, 1.0] {
+                    let q = c.eval(end);
+                    if (q.x - o.x).abs() <= 1e-12 * (1.0 + o.x.abs()) && (q.y - o.y).abs() <= 1e-12 * (1.0 + o.y.abs()) {
+                        on = Some(if s.seg == a.seg { (s.seg, a.t, end) } else { (s.seg, end, b.t) });
+                        break 'find;
+                    }
+                }
+            }
+        }
+        if let Some(y) = on.and_then(|(seg, t0, t1)| self.solve(seg, t0, t1, x)) {
+            return y;
+        }
+        a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x)
+    }
+
+    /// The y of segment `seg` where its x is `x`, between parameters `t0` (x below) and `t1`.
+    fn solve(&self, seg: usize, mut t0: f64, mut t1: f64, x: f64) -> Option<f64> {
+        let c = self.segs.get(seg)?;
+        let f = |t: f64| c.eval(t).x - x;
+        if f(t0) > 0.0 || f(t1) < 0.0 {
+            return None;
+        }
+        for _ in 0..60 {
+            let m = 0.5 * (t0 + t1);
+            if m == t0 || m == t1 {
+                break;
+            }
+            if f(m) < 0.0 {
+                t0 = m;
+            } else {
+                t1 = m;
+            }
+        }
+        let y = c.eval(0.5 * (t0 + t1)).y;
+        y.is_finite().then_some(y)
+    }
+
+    /// The local maxima and minima, `(x, y)` with their kind, by increasing x within each piece:
+    /// where the change between samples turns from rising to falling or back (a flat stretch
+    /// between is skipped), refined by a golden-section search on the curve.
+    pub fn extrema(&self) -> Vec<(Point, Extremum)> {
+        let mut out: Vec<(Point, Extremum)> = vec![];
+        for p in &self.pieces {
+            let scale = p.iter().map(|s| s.y.abs()).fold(1.0, f64::max);
+            let eps = 1e-12 * scale;
+            // The sign of the last change that wasn't flat, and the index where it ended.
+            let mut last: Option<(i8, usize)> = None;
+            for i in 1..p.len() {
+                let (Some(a), Some(b)) = (p.get(i - 1), p.get(i)) else { continue };
+                let d = b.y - a.y;
+                let sign = if d > eps {
+                    1
+                } else if d < -eps {
+                    -1
+                } else {
+                    continue;
+                };
+                if let Some((was, end)) = last
+                    && was != sign
+                    && let Some(lo) = end.checked_sub(1).and_then(|j| p.get(j))
+                {
+                    let kind = if was > 0 { Extremum::Max } else { Extremum::Min };
+                    let x = self.golden(lo.x, b.x, kind);
+                    let y = self.at(x);
+                    if y.is_finite() && !out.iter().any(|(q, _)| (q.x - x).abs() <= 1e-9 * (1.0 + x.abs())) {
+                        out.push((Point::new(x, y), kind));
+                    }
+                }
+                last = Some((sign, i));
+            }
+        }
+        out
+    }
+
+    /// Where the curve is highest (or lowest) between `a` and `b`.
+    fn golden(&self, mut a: f64, mut b: f64, kind: Extremum) -> f64 {
+        const R: f64 = 0.618_033_988_749_894_9;
+        let better = |u: f64, v: f64| match kind {
+            Extremum::Max => u > v,
+            Extremum::Min => u < v,
+        };
+        let value = |x: f64| {
+            let y = self.at(x);
+            if y.is_finite() {
+                y
+            } else if kind == Extremum::Max {
+                f64::NEG_INFINITY
+            } else {
+                f64::INFINITY
+            }
+        };
+        let (mut c, mut d) = (b - R * (b - a), a + R * (b - a));
+        let (mut fc, mut fd) = (value(c), value(d));
+        for _ in 0..80 {
+            if (b - a).abs() <= 1e-12 * (1.0 + a.abs().max(b.abs())) {
+                break;
+            }
+            if better(fc, fd) {
+                (b, d, fd) = (d, c, fc);
+                c = b - R * (b - a);
+                fc = value(c);
+            } else {
+                (a, c, fc) = (c, d, fd);
+                d = a + R * (b - a);
+                fd = value(d);
+            }
+        }
+        0.5 * (a + b)
     }
 }

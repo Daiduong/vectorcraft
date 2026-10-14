@@ -3749,3 +3749,13 @@ lighting	Light	光源
 	Display style	展示樣式
 	Math Drawing Style	數學作圖樣式
 	Set Math Drawing Style	設定數學作圖樣式
+	Coordinate Axes	座標軸
+	Points by Coordinates	依座標描點
+	Graph of a Function	函數圖形
+	Parametric Curve	參數曲線
+	Circles by Center	依圓心畫圓
+	Mark Maxima and Minima	標記極大值與極小值
+	Integral Graph	積分圖形
+	Derivative Graph	導數圖形
+	Graph Arithmetic	圖形四則運算
+	Piecewise Function Graph	分段函數圖形

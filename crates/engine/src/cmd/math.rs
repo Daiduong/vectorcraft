@@ -85,8 +85,16 @@ fn coord_param(p: &Value, key: &str, cmd: &str) -> Result<Option<f64>> {
     }
 }
 
-/// Typeset `spec`: its outlines in layout space (y down, the top of the ink at 0) with the ink's bounds.
-fn typeset_spec(spec: &MathSpec, cmd: &str) -> Result<(Vec<vectorcraft_geom::BezPath>, Rect)> {
+/// A typeset formula: its outlines in layout space (y down, the top of the ink at 0), the ink's
+/// bounds and the baseline's y.
+struct Typeset {
+    paths: Vec<vectorcraft_geom::BezPath>,
+    ink: Rect,
+    baseline: f64,
+}
+
+/// Typeset `spec`.
+fn typeset_spec(spec: &MathSpec, cmd: &str) -> Result<Typeset> {
     let db = FontDb::global();
     let face = find_math_face(db).ok_or_else(|| EngineError::Other("No math font available".into()))?;
     let layout = typeset(db, &face, &spec.source, MathOptions { size_pt: spec.size, display: spec.display }).map_err(|e| match e {
@@ -97,12 +105,17 @@ fn typeset_spec(spec: &MathSpec, cmd: &str) -> Result<(Vec<vectorcraft_geom::Bez
     if ![b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite()) {
         return Err(bad(cmd, "the equation has no usable size"));
     }
-    Ok((layout.to_paths(db), b))
+    Ok(Typeset { paths: layout.to_paths(db), ink: b, baseline: layout.baseline })
 }
 
 /// What a new equation's shapes look like: filled black, no stroke.
 fn default_look() -> Appearance {
-    Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::solid(Color::BLACK)))], ..Appearance::default() }
+    fill_look(Color::BLACK)
+}
+
+/// Filled with `color`, no stroke.
+fn fill_look(color: Color) -> Appearance {
+    Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::solid(color)))], ..Appearance::default() }
 }
 
 /// The nodes for `paths`, each moved by `xf`, painted as `look`.
@@ -128,25 +141,48 @@ fn children_bounds(children: &[Arc<Node>]) -> Option<Rect> {
 /// Generate the children of equation group `id` from `spec`, centred on `at` and scaled by `scale`
 /// (its x and y factors), and record where they ended up in the spec.
 fn generate(d: &mut Document, id: NodeId, mut spec: MathSpec, at: Option<Point>, scale: (f64, f64), cmd: &str) -> Result<()> {
-    let (paths, ink) = typeset_spec(&spec, cmd)?;
+    let set = typeset_spec(&spec, cmd)?;
     let n = d.node(id).ok_or(EngineError::NoNode(id))?;
     // A recoloured equation stays recoloured: the first shape's paints are every shape's.
     let look = n.children().and_then(|c| c.first()).map_or_else(default_look, |c| (*c.appearance).clone());
     let at = at.or_else(|| n.children().and_then(|c| children_bounds(c)).map(|b| b.center())).unwrap_or(Point::ZERO);
-    let xf = Affine::translate(at.to_vec2()) * Affine::scale_non_uniform(scale.0, scale.1) * Affine::translate(-ink.center().to_vec2());
-    let children = shapes(d, &paths, xf, &look);
-    if children.is_empty() {
-        return Err(bad(cmd, "the equation draws nothing"));
-    }
-    // The ink box at the unscaled size, where the group stands: its size against the group's later
-    // size is the scale the user has applied, however many times the formula has been set since.
-    spec.bounds = Rect::from_center_size(at, (ink.width(), ink.height()));
+    let children = place(d, &mut spec, &set, at, scale, &look, cmd)?;
     let n = d.node_mut(id).ok_or(EngineError::NoNode(id))?;
     if let Some(ch) = n.children_mut() {
         *ch = children;
     }
     n.extras_mut().math = Some(Box::new(spec));
     Ok(())
+}
+
+/// The shapes of the typeset formula `set`, its ink centred on `at` and scaled by `scale`, painted
+/// as `look`; records where they stand in `spec`.
+fn place(d: &mut Document, spec: &mut MathSpec, set: &Typeset, at: Point, scale: (f64, f64), look: &Appearance, cmd: &str) -> Result<Vec<Arc<Node>>> {
+    let ink = set.ink;
+    let xf = Affine::translate(at.to_vec2()) * Affine::scale_non_uniform(scale.0, scale.1) * Affine::translate(-ink.center().to_vec2());
+    let children = shapes(d, &set.paths, xf, look);
+    if children.is_empty() {
+        return Err(bad(cmd, "the equation draws nothing"));
+    }
+    // The ink box at the unscaled size, where the group stands: its size against the group's later
+    // size is the scale the user has applied, however many times the formula has been set since.
+    spec.bounds = Rect::from_center_size(at, (ink.width(), ink.height()));
+    Ok(children)
+}
+
+/// A new equation (a group as Insert Equation makes it, keeping its source for Edit Equation) of
+/// `source` set inline at `size` pt, filled with `color`, placed so that the start of the
+/// formula's baseline is at `origin`. Not in the document yet.
+pub(crate) fn equation_on_baseline(d: &mut Document, source: &str, size: f64, origin: Point, color: Color, cmd: &str) -> Result<Node> {
+    let mut spec = MathSpec { source: source.to_string(), size, display: false, ..MathSpec::default() };
+    let set = typeset_spec(&spec, cmd)?;
+    // The layout's (0, baseline) goes to `origin`.
+    let at = origin + (set.ink.center() - Point::new(0.0, set.baseline));
+    let children = place(d, &mut spec, &set, at, (1.0, 1.0), &fill_look(color), cmd)?;
+    let mut g = Node::group(d.alloc_id(), children);
+    g.name = Some("Equation".into());
+    g.extras_mut().math = Some(Box::new(spec));
+    Ok(g)
 }
 
 fn create(s: &mut Session, p: &Value) -> Result<Value> {

@@ -4382,3 +4382,13 @@ lighting	Light	ライト
 	Display style	ディスプレイスタイル
 	Math Drawing Style	数学作図スタイル
 	Set Math Drawing Style	数学作図スタイルを設定
+	Coordinate Axes	座標軸
+	Points by Coordinates	座標で点を打つ
+	Graph of a Function	関数のグラフ
+	Parametric Curve	媒介変数曲線
+	Circles by Center	中心を指定して円を描く
+	Mark Maxima and Minima	極大・極小に点を打つ
+	Integral Graph	積分のグラフ
+	Derivative Graph	微分のグラフ
+	Graph Arithmetic	グラフの四則演算
+	Piecewise Function Graph	区分関数のグラフ

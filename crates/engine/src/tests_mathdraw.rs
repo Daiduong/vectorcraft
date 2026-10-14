@@ -2,7 +2,7 @@
 //! artboard) and the drawing helpers.
 
 use super::*;
-use crate::cmd::mathdraw::{Frame, FrameSource, black_dot, color_param, curve_path, line_look, line_param, resolve_frame, stroked};
+use crate::cmd::mathdraw::{Frame, FrameSource, color_param, curve_path, dot, line_look, line_param, resolve_frame, stroked};
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
 use vectorcraft_doc::{AppearanceItem, LineRef, MathDrawStyle, Node, NodeKind};
@@ -301,14 +301,14 @@ fn lines_are_stroked_from_the_style() {
 fn a_dot_is_black_with_a_white_border() {
     let mut style = MathDrawStyle::default();
     let mut d = vectorcraft_doc::Document::new(100.0, 100.0);
-    let n = black_dot(&mut d, Point::new(50.0, 40.0), &style);
+    let n = dot(&mut d, Point::new(50.0, 40.0), &style, Color::BLACK, Color::WHITE);
     assert_eq!(n.geometric_bounds().unwrap(), Rect::new(43.0, 33.0, 57.0, 47.0));
     assert_eq!(n.appearance.fill().unwrap().paint, Paint::solid(Color::BLACK));
     let border = n.appearance.stroke().unwrap();
     assert_eq!((border.paint.clone(), border.width), (Paint::solid(Color::WHITE), 2.0));
     assert!(matches!(n.appearance.items.as_slice(), [AppearanceItem::Fill(_), AppearanceItem::Stroke(_)]), "the border over the fill");
     style.patch(&json!({"dotSize": 8, "dotBorder": "solid5"})).unwrap();
-    let n = black_dot(&mut d, Point::ZERO, &style);
+    let n = dot(&mut d, Point::ZERO, &style, Color::BLACK, Color::WHITE);
     assert_eq!((n.geometric_bounds().unwrap().width(), n.appearance.stroke().unwrap().width), (8.0, 0.5));
 }
 

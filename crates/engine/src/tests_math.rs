@@ -10,7 +10,7 @@ use vectorcraft_geom::Rect;
 use vectorcraft_text::FontDb;
 
 /// Whether the global font database has a math font, after adding the one the environment names.
-fn math_font() -> bool {
+pub(crate) fn math_font() -> bool {
     static ADD: std::sync::Once = std::sync::Once::new();
     ADD.call_once(|| {
         if let Some(bytes) = std::env::var_os("VECTORCRAFT_MATH_TEST_FONT").and_then(|p| std::fs::read(p).ok()) {

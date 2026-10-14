@@ -1874,6 +1874,8 @@ mod tests_math;
 #[cfg(test)]
 mod tests_mathdraw;
 #[cfg(test)]
+mod tests_mathdraw_graph;
+#[cfg(test)]
 mod tests_menucmds;
 #[cfg(test)]
 mod tests_nativefile;

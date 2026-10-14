@@ -3965,3 +3965,13 @@ lighting	Light	光源
 	Display style	展示样式
 	Math Drawing Style	数学作图样式
 	Set Math Drawing Style	设置数学作图样式
+	Coordinate Axes	坐标轴
+	Points by Coordinates	按坐标描点
+	Graph of a Function	函数图像
+	Parametric Curve	参数曲线
+	Circles by Center	按圆心画圆
+	Mark Maxima and Minima	标记极大值和极小值
+	Integral Graph	积分图像
+	Derivative Graph	导数图像
+	Graph Arithmetic	图像四则运算
+	Piecewise Function Graph	分段函数图像
