@@ -4725,3 +4725,13 @@ mark-style	Japanese	Japońskie
 @msg	Select dimensions to update (at most 1000)	Zaznacz wymiary do aktualizacji (najwyżej 1000)
 @msg	Select one or more paths first	Najpierw zaznacz co najmniej jedną ścieżkę
 @msg	Select only dimension groups	Zaznacz tylko grupy wymiarów
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Edytuj tekst wymiaru
+	Edit Dimension Text…	Edytuj tekst wymiaru…
+	Select a dimension	Zaznacz wymiar
+	Measured:	Zmierzono:
+	Text:	Tekst:
+	Shows:	Wyświetla:
+	<> stands for the measured value. Leave empty to show the measurement.	<> oznacza zmierzoną wartość. Zostaw puste, aby pokazać pomiar.
+	Use Measured Value	Użyj zmierzonej wartości
+@msg	Dimension text must be one line of at most 256 characters	Tekst wymiaru musi być jednym wierszem o długości najwyżej 256 znaków

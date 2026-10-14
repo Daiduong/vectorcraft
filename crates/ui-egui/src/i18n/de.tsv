@@ -4376,3 +4376,13 @@ theme	Appearance	Erscheinungsbild
 @msg	Unknown dimension mode	Unbekannter Bemaßungsmodus
 @msg	Unknown dimension style	Unbekannter Bemaßungsstil
 @msg	Unknown unit	Unbekannte Einheit
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Bemaßungstext bearbeiten
+	Edit Dimension Text…	Bemaßungstext bearbeiten…
+	Select a dimension	Wählen Sie eine Bemaßung aus
+	Measured:	Gemessen:
+	Text:	Text:
+	Shows:	Anzeige:
+	<> stands for the measured value. Leave empty to show the measurement.	<> steht für den gemessenen Wert. Leer lassen, um die Messung anzuzeigen.
+	Use Measured Value	Gemessenen Wert verwenden
+@msg	Dimension text must be one line of at most 256 characters	Der Bemaßungstext muss eine Zeile mit höchstens 256 Zeichen sein

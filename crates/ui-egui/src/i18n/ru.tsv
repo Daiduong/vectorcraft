@@ -4417,3 +4417,13 @@ lighting	Light	Свет
 @msg	Unknown dimension mode	Неизвестный режим размера
 @msg	Unknown dimension style	Неизвестный стиль размера
 @msg	Unknown unit	Неизвестная единица
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Изменить текст размера
+	Edit Dimension Text…	Изменить текст размера…
+	Select a dimension	Выберите размер
+	Measured:	Измерено:
+	Text:	Текст:
+	Shows:	Показывает:
+	<> stands for the measured value. Leave empty to show the measurement.	<> обозначает измеренное значение. Оставьте пустым, чтобы показать измерение.
+	Use Measured Value	Использовать измеренное значение
+@msg	Dimension text must be one line of at most 256 characters	Текст размера должен быть одной строкой не длиннее 256 символов

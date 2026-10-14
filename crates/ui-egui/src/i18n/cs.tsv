@@ -4848,3 +4848,13 @@ mark-style	Japanese	Japonské
 @msg	Unknown dimension mode	Neznámý režim kóty
 @msg	Unknown dimension style	Neznámý styl kóty
 @msg	Unknown unit	Neznámá jednotka
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Upravit text kóty
+	Edit Dimension Text…	Upravit text kóty…
+	Select a dimension	Vyberte kótu
+	Measured:	Naměřeno:
+	Text:	Text:
+	Shows:	Zobrazí:
+	<> stands for the measured value. Leave empty to show the measurement.	<> zastupuje naměřenou hodnotu. Ponechte prázdné pro zobrazení měření.
+	Use Measured Value	Použít naměřenou hodnotu
+@msg	Dimension text must be one line of at most 256 characters	Text kóty musí být jeden řádek s nejvýše 256 znaky

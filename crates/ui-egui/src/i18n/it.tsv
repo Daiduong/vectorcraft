@@ -4421,3 +4421,13 @@ lighting	Light	Luce
 @msg	Unknown dimension mode	Modalità di quota sconosciuta
 @msg	Unknown dimension style	Stile di quota sconosciuto
 @msg	Unknown unit	Unità sconosciuta
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Modifica testo quota
+	Edit Dimension Text…	Modifica testo quota…
+	Select a dimension	Seleziona una quota
+	Measured:	Misurato:
+	Text:	Testo:
+	Shows:	Mostra:
+	<> stands for the measured value. Leave empty to show the measurement.	<> indica il valore misurato. Lascia vuoto per mostrare la misura.
+	Use Measured Value	Usa valore misurato
+@msg	Dimension text must be one line of at most 256 characters	Il testo della quota deve essere una riga di al massimo 256 caratteri

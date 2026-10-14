@@ -4814,3 +4814,13 @@ imageTrace	Outline	Körvonal
 @msg	Unknown dimension mode	Ismeretlen méretezési mód
 @msg	Unknown dimension style	Ismeretlen méretezési stílus
 @msg	Unknown unit	Ismeretlen mértékegység
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Méretszöveg szerkesztése
+	Edit Dimension Text…	Méretszöveg szerkesztése…
+	Select a dimension	Jelöljön ki egy méretet
+	Measured:	Mért érték:
+	Text:	Szöveg:
+	Shows:	Megjelenik:
+	<> stands for the measured value. Leave empty to show the measurement.	A <> a mért értéket jelenti. Hagyja üresen a mérés megjelenítéséhez.
+	Use Measured Value	Mért érték használata
+@msg	Dimension text must be one line of at most 256 characters	A méretszöveg legfeljebb 256 karakteres egyetlen sor lehet

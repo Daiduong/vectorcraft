@@ -3974,3 +3974,12 @@ lighting	Light	光源
 	Display	显示
 
 # Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	编辑尺寸文本
+	Edit Dimension Text…	编辑尺寸文本…
+	Select a dimension	请选择一个尺寸标注
+	Measured:	测量值：
+	Text:	文本：
+	Shows:	显示：
+	<> stands for the measured value. Leave empty to show the measurement.	<> 代表测量值。留空则显示测量值。
+	Use Measured Value	使用测量值

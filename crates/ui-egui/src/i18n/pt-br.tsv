@@ -3768,3 +3768,12 @@ axis	Both	Ambos
 	Dimension Tool	Ferramenta Cota
 	Create Dimension	Criar Cota
 	Update Dimensions	Atualizar Cotas
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Editar texto da cota
+	Edit Dimension Text…	Editar texto da cota…
+	Select a dimension	Selecione uma cota
+	Measured:	Medido:
+	Text:	Texto:
+	Shows:	Mostra:
+	<> stands for the measured value. Leave empty to show the measurement.	<> representa o valor medido. Deixe vazio para mostrar a medida.
+	Use Measured Value	Usar valor medido

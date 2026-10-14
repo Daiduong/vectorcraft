@@ -4401,3 +4401,13 @@ lighting	Light	Світло
 @msg	Unknown dimension mode	Невідомий режим розміру
 @msg	Unknown dimension style	Невідомий стиль розміру
 @msg	Unknown unit	Невідома одиниця
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Змінити текст розміру
+	Edit Dimension Text…	Змінити текст розміру…
+	Select a dimension	Виберіть розмір
+	Measured:	Виміряно:
+	Text:	Текст:
+	Shows:	Показує:
+	<> stands for the measured value. Leave empty to show the measurement.	<> означає виміряне значення. Залиште порожнім, щоб показати вимірювання.
+	Use Measured Value	Використати виміряне значення
+@msg	Dimension text must be one line of at most 256 characters	Текст розміру має бути одним рядком не довшим за 256 символів

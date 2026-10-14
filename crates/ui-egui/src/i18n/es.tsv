@@ -4789,3 +4789,13 @@ mark-style	Japanese	Japonesas
 @msg	Unknown dimension mode	Modo de cota desconocido
 @msg	Unknown dimension style	Estilo de cota desconocido
 @msg	Unknown unit	Unidad desconocida
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	Editar texto de cota
+	Edit Dimension Text…	Editar texto de cota…
+	Select a dimension	Seleccione una cota
+	Measured:	Medido:
+	Text:	Texto:
+	Shows:	Muestra:
+	<> stands for the measured value. Leave empty to show the measurement.	<> representa el valor medido. Déjelo vacío para mostrar la medida.
+	Use Measured Value	Usar valor medido
+@msg	Dimension text must be one line of at most 256 characters	El texto de la cota debe ser una línea de 256 caracteres como máximo

@@ -4416,3 +4416,13 @@ lighting	Light	ライト
 @msg	Unknown dimension mode	寸法のモードが不明です
 @msg	Unknown dimension style	寸法のスタイルが不明です
 @msg	Unknown unit	単位が不明です
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	寸法テキストを編集
+	Edit Dimension Text…	寸法テキストを編集…
+	Select a dimension	寸法を選択してください
+	Measured:	測定値：
+	Text:	テキスト：
+	Shows:	表示：
+	<> stands for the measured value. Leave empty to show the measurement.	<> は測定値を表します。空欄にすると測定値を表示します。
+	Use Measured Value	測定値を使用
+@msg	Dimension text must be one line of at most 256 characters	寸法テキストは 256 文字以内の 1 行にしてください
