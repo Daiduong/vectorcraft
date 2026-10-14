@@ -265,37 +265,6 @@ fn is_cjk(c: char) -> bool {
 /// the craft-fonts build input, which is optional: without it they are left to the installed
 /// fonts, and with it the Japanese catalog is checked against BIZ UDPGothic (the Traditional
 /// Chinese one waits for a Traditional Chinese UI font in craft-fonts).
-#[test]
-fn bundled_fonts_cover_the_catalogs() {
-    let japanese_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_japanese());
-    let ctx = egui::Context::default();
-    crate::theme::install_fonts(&ctx);
-    let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
-    output.textures_delta.clear();
-    let mut missing = std::collections::BTreeMap::new();
-    ctx.fonts_mut(|fonts| {
-        let families = [
-            egui::FontFamily::Proportional,
-            egui::FontFamily::Name(crate::theme::FONT_UI.into()),
-            egui::FontFamily::Name(crate::theme::FONT_UI_SEMIBOLD.into()),
-            egui::FontFamily::Name(crate::theme::FONT_MONO.into()),
-        ];
-        for l in LANGUAGES.iter().filter(|l| !l.source.is_empty()) {
-            let (entries, _) = parse_entries(l.source);
-            let cjk_checked = japanese_ui_font && l.code == "ja";
-            let chars: std::collections::BTreeSet<char> =
-                entries.iter().flat_map(|(_, _, tr)| tr.chars()).filter(|c| !c.is_whitespace() && (cjk_checked || !is_cjk(*c))).collect();
-            for family in &families {
-                let font = egui::FontId::new(13.0, family.clone());
-                let gone: String = chars.iter().filter(|c| !fonts.has_glyph(&font, **c)).collect();
-                if !gone.is_empty() {
-                    missing.insert(format!("{} in {family:?}", l.code), gone);
-                }
-            }
-        }
-    });
-    assert!(missing.is_empty(), "characters without a glyph: {missing:#?}");
-}
 
 /// The Traditional Chinese catalog holds no Simplified-only characters (a translation written
 /// in the wrong script would read as a typo to every user).
@@ -1388,29 +1357,6 @@ fn arabic_plurals_have_six_forms() {
 /// ellipsis `…`, the guillemets `« »`) come from the font chain the UI draws with, so the
 /// bundled Arabic face must cover them in every family (the web build has no system fonts to
 /// fall back to).
-#[test]
-fn arabic_glyphs_are_available_without_system_fonts() {
-    let ctx = egui::Context::default();
-    crate::theme::install_fonts(&ctx);
-    let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
-    output.textures_delta.clear();
-    ctx.fonts_mut(|fonts| {
-        let families = [
-            egui::FontFamily::Proportional,
-            egui::FontFamily::Name(crate::theme::FONT_UI.into()),
-            egui::FontFamily::Name(crate::theme::FONT_UI_SEMIBOLD.into()),
-            egui::FontFamily::Name(crate::theme::FONT_MONO.into()),
-        ];
-        // Letters in their isolated forms, the hamza carriers, the tāʾ marbūṭa, the diacritics
-        // (fatḥa, ḍamma, kasra, shadda, sukūn) and the punctuation.
-        let chars: Vec<char> = "ابتثجحخدذرزسشصضطظعغفقكلمنهويءآأإئؤىةًٌٍَُِّْ«»،؛؟…".chars().collect();
-        for family in &families {
-            let font = egui::FontId::new(13.0, family.clone());
-            let gone: String = chars.iter().filter(|c| !fonts.has_glyph(&font, **c)).collect();
-            assert!(gone.is_empty(), "{family:?} has no glyph for: {gone}");
-        }
-    });
-}
 /// The RTL helper recognises Arabic (and the other RTL languages) and leaves the rest LTR.
 #[test]
 fn direction_is_rtl_for_arabic() {

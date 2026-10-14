@@ -256,23 +256,18 @@ pub fn install_fonts(ctx: &egui::Context) {
     add(&mut fonts, "SourceSans3", include_bytes!("../../../assets/fonts/SourceSans3-Regular.ttf"));
     add(&mut fonts, "SourceSans3-Semibold", include_bytes!("../../../assets/fonts/SourceSans3-Semibold.ttf"));
     add(&mut fonts, "JetBrainsMono", include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf"));
-    add(&mut fonts, "NotoSansArabic", include_bytes!("../../../assets/fonts/NotoSansArabic-Regular.ttf"));
     let fallback: Vec<String> = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
     let mut prop = vec!["SourceSans3".to_string()];
     prop.extend(fallback.clone());
-    prop.push("NotoSansArabic".to_string());
     fonts.families.insert(FontFamily::Proportional, prop);
     let mut semi = vec!["SourceSans3-Semibold".to_string()];
     semi.extend(fallback.clone());
-    semi.push("NotoSansArabic".to_string());
     fonts.families.insert(FontFamily::Name(FONT_UI_SEMIBOLD.into()), semi);
     let mut ui = vec!["SourceSans3".to_string()];
     ui.extend(fallback.clone());
-    ui.push("NotoSansArabic".to_string());
     fonts.families.insert(FontFamily::Name(FONT_UI.into()), ui);
     let mut mono = vec!["JetBrainsMono".to_string()];
     mono.extend(fallback);
-    mono.push("NotoSansArabic".to_string());
     fonts.families.insert(FontFamily::Name(FONT_MONO.into()), mono);
     add_craft_fonts(&mut fonts);
     ctx.set_fonts(fonts);
@@ -287,12 +282,17 @@ pub(crate) fn craft_font_name(f: &vectorcraft_text::CraftFont) -> String {
 /// every family, after the app's own fonts and before the installed fonts `ui_fonts` adds: BIZ
 /// UDPGothic first (bold first in the semibold family), then the Mincho faces.
 fn add_craft_fonts(fonts: &mut FontDefinitions) {
-    for f in vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.is_japanese()) {
+    for f in vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.is_japanese() || f.is_arabic()) {
         fonts.font_data.insert(craft_font_name(f), Arc::new(FontData::from_static(f.bytes)));
     }
     for (family, stack) in fonts.families.iter_mut() {
         let bold = *family == FontFamily::Name(FONT_UI_SEMIBOLD.into());
         stack.extend(vectorcraft_text::craft_fonts::japanese_ui_fonts(bold).into_iter().map(craft_font_name));
+        // العربية: the Arabic UI faces (Noto Sans Arabic) after the Japanese ones — their
+        // letters are in no other UI font. Their labels read right to left (i18n::bidi stores
+        // the catalog's translations in the visual order egui draws); a mirrored layout of the
+        // chrome is a separate, larger step.
+        stack.extend(vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.is_arabic()).map(craft_font_name));
     }
 }
 
