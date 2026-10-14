@@ -259,6 +259,13 @@ impl Session {
         }
     }
 
+    /// The object and colour an Eyedropper click would read at `p`, on the same [`ToolContext`] a
+    /// click builds. `editable` is a reverse click (Alt, not Shift, not a gradient-stop sample):
+    /// that click writes onto the object.
+    pub fn eyedropper_at(&mut self, view: ViewInfo, p: Point, editable: bool) -> Option<vectorcraft_tools::xform::EyedropperHit> {
+        self.with_tool_cx(view, |_, cx| vectorcraft_tools::xform::read_at(cx, p, editable))
+    }
+
     /// The error of a tool that panicked in the last [`Self::with_tool_cx`] call, if any.
     fn take_tool_panic(&mut self) -> Result<()> {
         self.tool_panic.take().map_or(Ok(()), Err)
