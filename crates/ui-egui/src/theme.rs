@@ -98,6 +98,10 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    /// Canvas editing cues keep their original colour independently of suite UI chrome.
+    pub(crate) fn editing_accent(&self) -> Color32 {
+        if self.accent == SuiteDarkPalette::ARTCRAFT.accent { Color32::from_rgb(55, 142, 240) } else { self.accent }
+    }
     pub fn for_brightness(b: Brightness) -> Self {
         let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
         let base = Tokens {
@@ -421,6 +425,7 @@ mod tests {
             assert_eq!(actual, hex(expected));
         }
         assert_eq!(dark.measure_bg, Color32::from_rgba_unmultiplied(92, 92, 92, 235));
+        assert_eq!(dark.editing_accent(), hex(0x378ef0));
         assert_eq!(crate::state::UiState::default().brightness, Brightness::Dark);
         let ctx = egui::Context::default();
         apply(&ctx, Brightness::Dark);
@@ -447,6 +452,7 @@ mod tests {
             assert_eq!(t.input, hex(input), "{brightness:?}");
             assert_eq!(t.text, hex(text), "{brightness:?}");
             assert_eq!(t.accent, hex(0x378ef0), "{brightness:?}");
+            assert_eq!(t.editing_accent(), t.accent, "{brightness:?}");
             assert_eq!(t.on_accent, Color32::WHITE, "{brightness:?}");
             let ctx = egui::Context::default();
             apply(&ctx, brightness);
