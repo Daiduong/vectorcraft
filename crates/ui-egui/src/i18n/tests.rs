@@ -290,7 +290,9 @@ fn bundled_fonts_cover_the_catalogs() {
             let (entries, _) = parse_entries(l.source);
             let cjk_checked = japanese_ui_font && l.code == "ja";
             let arabic_checked = arabic_ui_font && l.code == "ar";
-            let chars: std::collections::BTreeSet<char> = entries.iter().flat_map(|(_, _, tr)| tr.chars())
+            let chars: std::collections::BTreeSet<char> = entries
+                .iter()
+                .flat_map(|(_, _, tr)| tr.chars())
                 .filter(|c| !c.is_whitespace() && (cjk_checked || arabic_checked || (!is_cjk(*c) && !is_arabic(*c))))
                 .collect();
             for family in &families {
@@ -1057,14 +1059,17 @@ fn a_language_saved_by_an_older_version_carries_over() {
 
 #[test]
 fn messages_translate_by_template_and_their_parts() {
-    let c = Catalog::parse(concat!(
-        "@msg\tnothing selected\tnada seleccionado\n",
-        "@msg\t{path}: {e}\t{path}: {e}\n",
-        "@msg\tCouldn't open {name}: {e}\tNo se pudo abrir {name}: {e}\n",
-        "@msg\tcommand `{0}` is not available right now: {1}\tel comando `{0}` no está disponible ahora: {1}\n",
-        "@msg\t{a}{b}\tnever\n",
-        "@msg\t{n} of {total}\t{total} contiene {n}\n",
-    ), false);
+    let c = Catalog::parse(
+        concat!(
+            "@msg\tnothing selected\tnada seleccionado\n",
+            "@msg\t{path}: {e}\t{path}: {e}\n",
+            "@msg\tCouldn't open {name}: {e}\tNo se pudo abrir {name}: {e}\n",
+            "@msg\tcommand `{0}` is not available right now: {1}\tel comando `{0}` no está disponible ahora: {1}\n",
+            "@msg\t{a}{b}\tnever\n",
+            "@msg\t{n} of {total}\t{total} contiene {n}\n",
+        ),
+        false,
+    );
     assert_eq!(c.message("nothing selected").map(|m| m.0), Some("nada seleccionado"));
     // The template with the most literal text wins over the generic `{path}: {e}`.
     let (tr, caps) = c.message("Couldn't open a: b.svg: damaged").unwrap();
@@ -1409,7 +1414,8 @@ fn arabic_reads_as_arabic() {
     ] {
         assert_eq!(tr(ar(), en), want);
     }
-    for (n, word) in [(0, "عنصر"), (1, "عنصر"), (2, "عنصران"), (3, "عناصر"), (11, "عنصراً"), (100, "عنصر"), (103, "عناصر")] {
+    for (n, word) in [(0, "عنصر"), (1, "عنصر"), (2, "عنصران"), (3, "عناصر"), (11, "عنصراً"), (100, "عنصر"), (103, "عناصر")]
+    {
         assert_eq!(trn(ar(), n, "{n} item", "{n} items"), super::bidi::visual_rtl(&format!("{{n}} {word}")).replace("{n}", &n.to_string()));
     }
     assert_eq!(tr_ctx(ar(), "axis", "Both"), "كلاهما");
@@ -1435,10 +1441,7 @@ fn arabic_labels_lay_out_right_to_left() {
             let x_of = |word: &str| glyphs.iter().filter(|g| word.contains(g.chr)).map(|g| g.pos.x).collect::<Vec<f32>>();
             let (a, b) = (x_of(first), x_of(second));
             assert!(!a.is_empty() && !b.is_empty(), "{label}: no glyphs for `{first}`/`{second}`");
-            assert!(
-                a.iter().all(|&x| b.iter().all(|&y| x > y)),
-                "`{label}`: `{first}` must sit right of `{second}` after the pass"
-            );
+            assert!(a.iter().all(|&x| b.iter().all(|&y| x > y)), "`{label}`: `{first}` must sit right of `{second}` after the pass");
         }
     });
     output.textures_delta.clear();
