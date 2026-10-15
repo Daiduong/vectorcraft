@@ -1435,6 +1435,8 @@ lighting	Light	Światło
 	No matches.	Brak dopasowań.
 	Other Libraries	Inne biblioteki
 	Previous Library	Poprzednia biblioteka
+	Remove from Other Libraries	Usuń z innych bibliotek
+	{name} (missing)	{name} (brak)
 	Swatch exchange files keep solid colors only.	Pliki wymiany próbek przechowują tylko kolory jednolite.
 	This library is empty.	Ta biblioteka jest pusta.
 	Color Space	Przestrzeń kolorów
@@ -3868,6 +3870,7 @@ imageTrace	Outline	Kontur
 @msg	no interaction in progress	brak trwającej interakcji
 @msg	no key object	brak obiektu kluczowego
 @msg	no library `{key}` (see {list})	brak biblioteki `{key}` (patrz {list})
+@msg	library `{name}` is missing: {path} can't be read	brak biblioteki `{name}`: nie można odczytać {path}
 @msg	no native format	brak formatu natywnego
 @msg	no pages	brak stron
 @msg	no pattern `{name}`	brak wzorka `{name}`

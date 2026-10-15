@@ -533,8 +533,8 @@ pub(crate) fn poll_restore(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
-/// Wait for [`restore_files`]'s worker and list the libraries it read. The control channel calls
-/// it before each request.
+/// Wait for [`restore_files`]'s worker and list the libraries it read (tests).
+#[cfg(test)]
 pub(crate) fn wait_restore(app: &mut VectorcraftApp) {
     let Some(r) = &app.library_restore else { return };
     let read = r.read.recv().ok();
@@ -944,7 +944,8 @@ mod tests {
             std::thread::yield_now();
         }
         assert!(listed(&app) && app.library_restore.is_none(), "listed by the app's frames");
-        // A control request sent before the library is listed gets the library in its reply.
+        // A control request sent before the library is listed waits in the queue, without the
+        // frame waiting for the worker, and a later frame answers it with the library.
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = VectorcraftApp::new(Session::new(), Default::default()).with_control(rx);
         app.ui.swatch_library_files = vec![gpl.clone()];
@@ -953,7 +954,15 @@ mod tests {
         let (req, reply) = crate::control::ControlRequest::new("engine.execute", get);
         tx.send(req).unwrap();
         app.drain_control(&ctx);
-        let r = reply.try_recv().unwrap();
+        assert!(reply.try_recv().is_err() && app.library_restore.is_some(), "queued until the library is listed");
+        let t0 = std::time::Instant::now();
+        let mut answer = reply.try_recv();
+        while answer.is_err() && t0.elapsed().as_secs() < 30 {
+            ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).textures_delta.clear();
+            std::thread::yield_now();
+            answer = reply.try_recv();
+        }
+        let r = answer.unwrap();
         assert_eq!((r["result"]["name"].as_str(), r["result"]["swatches"].as_array().map(Vec::len)), (Some("Later"), Some(1)), "{r}");
         let _ = std::fs::remove_dir_all(dir);
     }

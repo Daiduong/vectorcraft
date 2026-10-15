@@ -772,13 +772,15 @@ impl VectorcraftApp {
     }
 
     fn drain_control(&mut self, ctx: &egui::Context) {
+        // Requests stay queued until the libraries opened from files before the last quit are
+        // listed ([`panels::library_panel::poll_restore`] asks for frames until then).
+        if self.library_restore.is_some() {
+            return;
+        }
         let Some(rx) = self.control_rx.take() else { return };
         let mut handled = 0;
         while handled < control::MAX_CONTROL_REQUESTS_PER_FRAME {
             let Ok(req) = rx.try_recv() else { break };
-            // The libraries opened from files before the last quit are listed before the
-            // request runs.
-            panels::library_panel::wait_restore(self);
             // Its caller stopped waiting (the app was busy or its window not drawn for too long)
             // and was told it won't run: an edit applied now would come from nowhere (#1725).
             if !req.claim() {

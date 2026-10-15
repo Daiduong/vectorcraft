@@ -2324,6 +2324,7 @@
 	Remove blank lines between paragraphs	Премахване на празни редове между абзаците
 	Remove Brush Stroke	Премахване на щрих на четка
 	Remove Effect	Премахване на ефект
+	Remove from Other Libraries	Премахване от други библиотеки
 	Remove Guide	Премахване на водач
 	Remove Item	Премахване на елемент
 	Remove Plug-in	Премахване на добавка
@@ -3303,6 +3304,7 @@
 	{kind} Gradient	{kind} градиент
 	{kind} Style Options…	Опции за стил {kind}…
 	{kind}, {model}	{kind}, {model}
+	{name} (missing)	{name} (липсва)
 	{name} (spot)	{name} (спот)
 	{pages} in all, {count} per copy	{pages} общо, {count} на копие
 	{page} of {count}	{page} от {count}

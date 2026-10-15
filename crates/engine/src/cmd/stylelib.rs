@@ -72,7 +72,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Remove from Other Libraries",
             ["Window", "Graphic Style Libraries"],
             None,
-            "{library: id or name of a loaded library (category \"loaded\", graphicStyle.loadLibrary), missing or not} take it off the Graphic Style Libraries menus; the desktop app no longer lists it when it starts. Its file is left as it is → {library: id, name}",
+            "{library: id or name of a loaded library (category \"loaded\", graphicStyle.loadLibrary)} take it off the Graphic Style Libraries menus, missing or not; the desktop app no longer lists it when it starts. Its file is left as it is → {library: id, name}",
             always,
             remove
         ),
