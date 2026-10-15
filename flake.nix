@@ -23,18 +23,16 @@
 
         commonDeps = with pkgs; [
           pkg-config
-          openssl
           libxkbcommon
           libx11
           libxcursor
           libxrandr
           libxi
           libxcb
+          libgcc
           libGL
           vulkan-loader
-          mesa
           wayland
-          wayland-protocols
           fontconfig
           freetype
           alsa-lib
@@ -45,16 +43,27 @@
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             rust
-            cmake
-            ninja
             libclang
           ];
           buildInputs = commonDeps;
 
           shellHook = ''
             export LIBCLANG_PATH="${pkgs.libclang.lib}/lib"
-            export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig:$PKG_CONFIG_PATH"
           '';
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
+            # Graphic APIs
+            libGL
+            vulkan-loader
+            # Wayland support
+            wayland
+            libxkbcommon
+            # X11 support
+            libx11
+            libxcursor
+            libxrandr
+            libxi
+            libxcb
+          ]);
         };
 
         packages.default = pkgs.rustPlatform.buildRustPackage {
@@ -63,20 +72,31 @@
           src = ./.;
           cargoLock = {
             lockFile = ./Cargo.lock;
+            # Used purely because some libs don't have a hash in Cargo.lock
+            # Better remove it later and add hash to all custom libs
             allowBuiltinFetchGit = true;
           };
           nativeBuildInputs = with pkgs; [
             pkg-config
             libclang
+            # Hooks runtime dependencies to RPATH 
             autoPatchelfHook
           ];
           buildInputs = commonDeps;
 
           runtimeDependencies = with pkgs; [
-            wayland
-            libxkbcommon
+            # Graphic APIs
             libGL
             vulkan-loader
+            # Wayland support
+            wayland
+            libxkbcommon
+            # X11 support
+            libx11
+            libxcursor
+            libxrandr
+            libxi
+            libxcb
           ];
 
           doCheck = false;
