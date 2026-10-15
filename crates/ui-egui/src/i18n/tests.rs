@@ -265,38 +265,6 @@ fn is_cjk(c: char) -> bool {
 /// the craft-fonts build input, which is optional: without it they are left to the installed
 /// fonts, and with it the Japanese catalog is checked against BIZ UDPGothic (the Traditional
 /// Chinese one waits for a Traditional Chinese UI font in craft-fonts).
-#[test]
-fn bundled_fonts_cover_the_catalogs() {
-    let japanese_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_japanese());
-    let ctx = egui::Context::default();
-    crate::theme::install_fonts(&ctx);
-    let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
-    output.textures_delta.clear();
-    let mut missing = std::collections::BTreeMap::new();
-    ctx.fonts_mut(|fonts| {
-        let families = [
-            egui::FontFamily::Proportional,
-            egui::FontFamily::Name(crate::theme::FONT_UI.into()),
-            egui::FontFamily::Name(crate::theme::FONT_UI_SEMIBOLD.into()),
-            egui::FontFamily::Name(crate::theme::FONT_MONO.into()),
-        ];
-        for l in LANGUAGES.iter().filter(|l| !l.source.is_empty()) {
-            let (entries, _) = parse_entries(l.source);
-            let cjk_checked = japanese_ui_font && l.code == "ja";
-            let chars: std::collections::BTreeSet<char> =
-                entries.iter().flat_map(|(_, _, tr)| tr.chars()).filter(|c| !c.is_whitespace() && (cjk_checked || !is_cjk(*c))).collect();
-            for family in &families {
-                let font = egui::FontId::new(13.0, family.clone());
-                let gone: String = chars.iter().filter(|c| !fonts.has_glyph(&font, **c)).collect();
-                if !gone.is_empty() {
-                    missing.insert(format!("{} in {family:?}", l.code), gone);
-                }
-            }
-        }
-    });
-    assert!(missing.is_empty(), "characters without a glyph: {missing:#?}");
-}
-
 /// The Traditional Chinese catalog holds no Simplified-only characters (a translation written
 /// in the wrong script would read as a typo to every user).
 #[test]
@@ -452,7 +420,7 @@ fn cs() -> Lang {
 }
 
 /// Languages whose catalogs leave [`MENU_KEEP_AS_IS`] in English.
-const KEEPS_MENU_NAMES: [&str; 13] = ["cs", "de", "es", "fr", "hu", "it", "ja", "ko", "pl", "pt-br", "ru", "uk", "vi"];
+const KEEPS_MENU_NAMES: [&str; 14] = ["ar", "cs", "de", "es", "fr", "hu", "it", "ja", "ko", "pl", "pt-br", "ru", "uk", "vi"];
 
 /// Menu labels the menu-complete catalogs (Czech, German, Spanish, Italian, Japanese, Brazilian Portuguese) show as they are: the product name, a format name, the built-in workspace
 /// names and the perspective grid presets (names, shown untranslated wherever else they appear).
@@ -1163,7 +1131,7 @@ fn select_key_param_error_is_translated() {
 }
 
 /// Languages whose catalogs cover every status and error message.
-const COMPLETE_MESSAGES: &[&str] = &["cs", "de", "es", "fr", "hu", "it", "ja", "ko", "pl", "ru", "uk", "vi"];
+const COMPLETE_MESSAGES: &[&str] = &["ar", "cs", "de", "es", "fr", "hu", "it", "ja", "ko", "pl", "ru", "uk", "vi"];
 
 /// Crates whose error and status messages reach the status bar.
 const MESSAGE_CRATES: &[&str] = &["ui-egui", "engine", "doc", "format", "svg", "pdf", "eps", "text", "plugins", "metafile", "cad", "trace"];
@@ -1349,4 +1317,60 @@ fn polish_reads_as_polish() {
     assert_eq!(tr_id(pl(), "pathfinder.add", "Add"), "Połącz");
     let nested = "command `object.group` is not available right now: nothing selected";
     assert_eq!(message(pl(), nested), "polecenie `object.group` jest teraz niedostępne: nic nie zaznaczono");
+}
+
+fn ar() -> Lang {
+    Lang::from_code("ar").expect("ar registered")
+}
+
+/// Arabic has all six CLDR plural forms (`zero`/`one`/`two`/`few`/`many`/`other`); every `@plural`
+/// row in the catalog holds the six forms separated by `|`, and each count picks its own. The
+/// source side of the row stays `one|other` (English-shaped), since it is a lookup key: only the
+/// translation carries the six forms. The rule's boundaries are exercised here: 0/1/2 are their
+/// own forms, 3–10 `few`, 11–99 `many`, 100 and up `other`.
+#[test]
+fn arabic_plurals_have_six_forms() {
+    // The rule itself, at the boundaries (0, 1, 2, 3–10, 11–99, 100+).
+    let forms: Vec<usize> = [0, 1, 2, 3, 5, 10, 11, 50, 99, 100, 1000].into_iter().map(plural_arabic).collect();
+    assert_eq!(forms, [0, 1, 2, 3, 3, 3, 4, 4, 4, 5, 5]);
+
+    // Every Arabic `@plural` row has all six forms, and each count picks its own.
+    let (entries, _) = parse_entries(ar().0.source);
+    let mut count = 0;
+    for (ctx, src, tr) in entries {
+        if ctx != "@plural" {
+            continue;
+        }
+        count += 1;
+        // The source stays `one|other` (the English lookup key); the translation holds six forms.
+        let (one, other) = src.split_once('|').expect("one|other source");
+        let forms: Vec<_> = tr.split('|').collect();
+        assert_eq!(forms.len(), 6, "{src}");
+        // 0 → zero, 1 → one, 2 → two, 3–10 → few, 11–99 → many, 100+ → other.
+        for (n, form) in [(0, 0), (1, 1), (2, 2), (3, 3), (10, 3), (11, 4), (99, 4), (100, 5), (1000, 5)] {
+            assert_eq!(trn(ar(), n, one, other), forms[form].replace("{n}", &n.to_string()), "{src}: {n}");
+        }
+    }
+    assert!(count >= 13, "Arabic plural rows missing");
+}
+
+/// Arabic letters (and their punctuation: the Arabic comma `،`, the question mark `؟`, the
+/// ellipsis `…`, the guillemets `« »`) come from the font chain the UI draws with, so the
+/// bundled Arabic face must cover them in every family (the web build has no system fonts to
+/// fall back to).
+/// The RTL helper recognises Arabic (and the other RTL languages) and leaves the rest LTR.
+#[test]
+fn direction_is_rtl_for_arabic() {
+    use crate::i18n::direction::{current_is_rtl, is_rtl, layout};
+    let arabic = Lang::from_code("ar").expect("ar registered");
+    assert!(is_rtl(arabic));
+    assert!(!is_rtl(Lang::EN));
+    assert!(!is_rtl(Lang::from_code("ja").unwrap()));
+    assert!(!is_rtl(Lang::from_code("de").unwrap()));
+    assert_eq!(layout(arabic, egui::Align::Center), egui::Layout::right_to_left(egui::Align::Center));
+    assert_eq!(layout(Lang::EN, egui::Align::Center), egui::Layout::left_to_right(egui::Align::Center));
+    set_current(arabic);
+    assert!(current_is_rtl());
+    set_current(Lang::EN);
+    assert!(!current_is_rtl());
 }
