@@ -117,9 +117,12 @@ fn has_key(app: &VectorcraftApp) -> bool {
     app.session.active().is_some_and(|st| st.selection.key.is_some())
 }
 
-/// The topmost selected object, the last in paint order.
+/// The topmost selected object that is selected whole, the last such one in paint order.
+/// A path with only some anchors selected is not a key object.
 fn topmost(app: &VectorcraftApp) -> Option<vectorcraft_doc::NodeId> {
-    app.session.active().and_then(|st| st.selection.in_paint_order(&st.doc).last().copied())
+    app.session
+        .active()
+        .and_then(|st| st.selection.in_paint_order(&st.doc).iter().rev().copied().find(|id| st.selection.selected_whole(&st.doc, *id)))
 }
 
 /// What Align aligns to: the key object while there is one (a click on an object of the

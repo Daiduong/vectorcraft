@@ -90,8 +90,7 @@ fn select_key_rejects_ids_it_cannot_use_and_keeps_the_key() {
     // c is a member of a compound path, and e is in a group inside the selected group.
     s.execute("select.set", &json!({"ids": [b.0, a.0, c.0, group.0, e.0]})).unwrap();
     s.execute("select.key", &json!({"id": b.0})).unwrap();
-    let invalid_ids =
-        [json!(999), json!("x"), json!(-1), json!(2.5), Value::Null, json!(true), json!(u64::MAX), json!(unselected.0), json!(c.0), json!(e.0)];
+    let invalid_ids = [json!(999), json!("x"), json!(-1), json!(2.5), Value::Null, json!(true), json!(u64::MAX), json!(unselected.0), json!(e.0)];
     for invalid in invalid_ids {
         let selection = s.active().unwrap().selection.clone();
         let revision = s.active().unwrap().revision;
@@ -104,6 +103,11 @@ fn select_key_rejects_ids_it_cannot_use_and_keeps_the_key() {
         assert_eq!(s.active().unwrap().revision, revision);
         assert_eq!(s.journal, journal);
     }
+    assert_eq!(
+        s.execute("select.key", &json!({"id": c.0})).unwrap(),
+        json!({"key": c.0}),
+        "a selected compound member whose compound is not selected"
+    );
     assert_eq!(s.execute("select.key", &json!({"id": group.0})).unwrap(), json!({"key": group.0}), "the group is top-level");
     // A selected layer is not a top-level object.
     let layer = s.active().unwrap().doc.layers[0].id;
@@ -116,6 +120,23 @@ fn select_key_rejects_ids_it_cannot_use_and_keeps_the_key() {
     s.execute("object.isolate", &json!({"id": group.0})).unwrap();
     s.execute("select.set", &json!({"ids": [inner.0, f.0]})).unwrap();
     assert_eq!(s.execute("select.key", &json!({"id": f.0})).unwrap(), json!({"key": f.0}), "an object in an unselected group");
+}
+
+/// A key object is selected with every anchor. Some anchors of a path are not enough, and
+/// choosing them lets an existing key go. Every anchor listed counts as the whole path.
+#[test]
+fn select_key_requires_the_whole_object() {
+    let (mut s, a, b) = session();
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0]], "mode": "set"})).unwrap();
+    s.execute("select.add", &json!({"ids": [b.0]})).unwrap();
+    s.execute("select.key", &json!({"id": b.0})).unwrap();
+    let error = s.execute("select.key", &json!({"id": a.0})).unwrap_err();
+    assert!(matches!(error, EngineError::BadParams { .. }), "{error}");
+    assert_eq!(s.active().unwrap().selection.key, Some(b), "the key stays");
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0], [0, 1], [0, 2], [0, 3]], "mode": "add"})).unwrap();
+    assert_eq!(s.execute("select.key", &json!({"id": a.0})).unwrap(), json!({"key": a.0}), "every anchor is the whole object");
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 3]], "mode": "toggle"})).unwrap();
+    assert_eq!(s.active().unwrap().selection.key, None, "dropping an anchor lets the key go");
 }
 
 #[test]

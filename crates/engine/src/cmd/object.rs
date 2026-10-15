@@ -1174,8 +1174,23 @@ fn key_root(s: &Session, ids: &[NodeId]) -> Option<NodeId> {
     ids.iter().copied().find(|id| ancestry.contains(id))
 }
 
+/// Selected objects Align moves. A direct-selected component of an unselected group or compound
+/// path moves on its own; an object inside another selected object does not.
+fn align_objects(s: &Session) -> Result<Vec<NodeId>> {
+    let st = s.doc()?;
+    Ok(st
+        .selection
+        .in_paint_order(&st.doc)
+        .into_iter()
+        .filter(|id| {
+            let inside = st.doc.ancestry(*id).unwrap_or_default().iter().any(|a| *a != *id && st.selection.contains(*a));
+            !inside && st.doc.node(*id).is_some_and(|n| !n.is_layer())
+        })
+        .collect())
+}
+
 fn align(s: &mut Session, p: &Value) -> Result<Value> {
-    let ids = selected_roots(s)?;
+    let ids = align_objects(s)?;
     let preview = preview_bounds(s, p, "object.align")?;
     let (h, v) = direction(p, "object.align")?;
     choice(p, "object.align", "to", &["selection", "artboard", "key"])?;
@@ -1184,7 +1199,7 @@ fn align(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Anchor points selected with Direct Selection align themselves, as in Illustrator (#1180).
     if !s.doc()?.selection.anchors.is_empty() {
-        return align_anchors(s, p, &ids, (h, v));
+        return align_anchors(s, p, &ids, (h, v), preview);
     }
     let r = reference_rect(s, p, &ids, preview)?;
     let key = key_root(s, &ids);
@@ -1214,8 +1229,9 @@ fn align(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 /// [`align`] of the selected anchor points (whole paths among them give all theirs): each point
-/// moves to the edge or centre of the points' bounds, or of the artboard with Align To Artboard.
-fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&str>, Option<&str>)) -> Result<Value> {
+/// moves to the edge or centre of the points' bounds, of the key object's edge when there is one,
+/// or of the artboard with Align To Artboard.
+fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&str>, Option<&str>), preview: bool) -> Result<Value> {
     let targets = super::path::anchor_targets(s)?;
     let d = &s.doc()?.doc;
     let pts: Vec<Point> = targets
@@ -1225,8 +1241,13 @@ fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&st
     let Some(bounds) = pts.iter().skip(1).fold(pts.first().map(|q| Rect::from_points(*q, *q)), |b, q| b.map(|b| b.union_pt(*q))) else {
         return ok();
     };
-    // shortcut: no key anchor yet, so Align To Key Object aligns to the points' bounds as Selection does.
-    let r = if align_to(s, p) == Some("artboard") { reference_rect(s, p, ids, false)? } else { bounds };
+    // Align To Key Object uses the key object's edge, including when the selected points lie past
+    // it. The key's own anchors are not moved, so it keeps its shape.
+    let r = match align_to(s, p) {
+        Some("artboard") => reference_rect(s, p, ids, false)?,
+        Some("key") => reference_rect(s, p, ids, preview)?,
+        _ => bounds,
+    };
     let target = |q: Point| {
         let x = match h {
             Some("left") => r.x0,
@@ -1242,14 +1263,24 @@ fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&st
         };
         Point::new(x, y)
     };
-    if pts.iter().all(|q| {
-        let dv = target(*q) - *q;
+    let key = s.doc()?.selection.key;
+    let stays = |doc: &vectorcraft_doc::Document, id: NodeId| key.is_some_and(|k| doc.ancestry(id).is_some_and(|anc| anc.contains(&k)));
+    let moving = |q: Point| {
+        let dv = target(q) - q;
         dv.x.abs() <= 1e-9 && dv.y.abs() <= 1e-9
-    }) {
+    };
+    let mut already = targets
+        .iter()
+        .filter(|(id, _)| !stays(d, *id))
+        .flat_map(|(id, refs)| refs.iter().filter_map(move |(si, ai)| d.node(*id)?.path_data()?.subpaths.get(*si)?.anchors.get(*ai).map(|a| a.p)));
+    if already.all(moving) {
         return ok();
     }
     s.edit("Align", |d, _| {
         for (id, refs) in &targets {
+            if stays(d, *id) {
+                continue;
+            }
             let path = super::path::path_mut(d, *id)?;
             for &(si, ai) in refs {
                 if let Some(a) = path.anchor_mut(si, ai) {

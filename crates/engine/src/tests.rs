@@ -465,6 +465,67 @@ fn align_and_distribute_reject_bad_params_without_changing_state() {
     assert_eq!(bounds(&s).iter().map(|b| b.x0).collect::<Vec<_>>(), [0.0, 100.0, 200.0], "equal horizontal gaps");
 }
 
+/// A direct-selected compound member aligns on its own when another object is the key.
+/// The member that was not selected stays where it is.
+#[test]
+fn a_direct_selected_compound_member_aligns_on_its_own() {
+    let mut s = session();
+    let member = rect(&mut s, 40.0, 0.0, 10.0, 10.0);
+    let other = rect(&mut s, 80.0, 0.0, 10.0, 10.0);
+    s.execute("select.set", &json!({"ids": [member.0, other.0]})).unwrap();
+    s.execute("object.compoundPath.make", &json!({})).unwrap();
+    let beside = rect(&mut s, 0.0, 0.0, 10.0, 10.0);
+    s.execute("select.set", &json!({"ids": [member.0, beside.0]})).unwrap();
+    s.execute("select.key", &json!({"id": beside.0})).unwrap();
+    let x0 = |s: &Session, id| s.doc().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
+    s.execute("object.align", &json!({"horizontal": "left", "bounds": "geometric"})).unwrap();
+    assert_eq!(x0(&s, member), 0.0, "the selected member moves to the key");
+    assert_eq!(x0(&s, other), 80.0, "the member that was not selected stays");
+    assert_eq!(x0(&s, beside), 0.0, "the key stays");
+}
+
+/// Some anchors of one path and a fully selected key object: the anchors align, and the key
+/// object's corners stay where they are.
+#[test]
+fn aligning_anchors_to_a_key_object_does_not_distort_it() {
+    let mut s = session();
+    let key = rect(&mut s, 0.0, 0.0, 20.0, 20.0);
+    let path = rect(&mut s, 80.0, 0.0, 10.0, 10.0);
+    let corners =
+        |s: &Session, id| s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect::<Vec<_>>();
+    let before = corners(&s, key);
+    s.execute("select.anchors", &json!({"id": path.0, "anchors": [[0, 0]], "mode": "set"})).unwrap();
+    s.execute("select.add", &json!({"ids": [key.0]})).unwrap();
+    s.execute("select.key", &json!({"id": key.0})).unwrap();
+    s.execute("object.align", &json!({"horizontal": "left"})).unwrap();
+    assert_eq!(corners(&s, key), before, "the key object keeps its shape");
+    let moved = corners(&s, path);
+    assert_eq!(moved[0].0, 0.0, "the selected anchor moves to the key's left");
+    assert_eq!(moved[1].0, 90.0, "an unselected anchor of that path stays");
+}
+
+/// Anchor points past the key object's edge align to that edge, not to their own.
+#[test]
+fn aligning_anchors_uses_the_key_objects_edge() {
+    let mut s = session();
+    let key = rect(&mut s, 100.0, 0.0, 20.0, 20.0);
+    let path = rect(&mut s, 0.0, 0.0, 10.0, 10.0);
+    let x = |s: &Session| s.doc().unwrap().doc.node(path).unwrap().path_data().unwrap().anchors().next().unwrap().2.p.x;
+    let key_corners =
+        |s: &Session| s.doc().unwrap().doc.node(key).unwrap().path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect::<Vec<_>>();
+    let before = key_corners(&s);
+    s.execute("select.anchors", &json!({"id": path.0, "anchors": [[0, 0]], "mode": "set"})).unwrap();
+    s.execute("select.add", &json!({"ids": [key.0]})).unwrap();
+    s.execute("select.key", &json!({"id": key.0})).unwrap();
+    s.execute("object.align", &json!({"horizontal": "left", "bounds": "geometric"})).unwrap();
+    assert_eq!(x(&s), 100.0, "a point left of the key moves to the key's left");
+    assert_eq!(key_corners(&s), before, "the key keeps its shape");
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("object.align", &json!({"horizontal": "right", "bounds": "geometric"})).unwrap();
+    assert_eq!(x(&s), 120.0, "a point left of the key moves to the key's right");
+    assert_eq!(key_corners(&s), before);
+}
+
 #[test]
 fn align_left() {
     let mut s = session();

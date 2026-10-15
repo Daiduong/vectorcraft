@@ -125,6 +125,26 @@ impl Selection {
     pub fn partial(&self, id: NodeId) -> Option<&BTreeSet<AnchorRef>> {
         self.anchors.get(&id)
     }
+    /// Is `id` selected with every one of its anchors? A path with no anchor entry is fully
+    /// selected. An entry that lists every anchor is too. A subset of the anchors is not, so it
+    /// cannot be the key object.
+    pub fn selected_whole(&self, doc: &Document, id: NodeId) -> bool {
+        if !self.contains(id) {
+            return false;
+        }
+        let Some(set) = self.anchors.get(&id) else {
+            return !self.segments.contains_key(&id);
+        };
+        let Some(path) = doc.node(id).and_then(|n| n.path_data()) else { return false };
+        let mut n = 0usize;
+        for (s, i, _) in path.anchors() {
+            if !set.contains(&(s, i)) {
+                return false;
+            }
+            n += 1;
+        }
+        n > 0
+    }
     /// The objects selected whole: those with no direct-selected anchors.
     pub fn whole(&self) -> Vec<NodeId> {
         self.objects.iter().copied().filter(|id| !self.anchors.contains_key(id)).collect()
@@ -162,14 +182,15 @@ impl Selection {
             refs.retain(|&(si, seg)| path.subpaths.get(si).is_some_and(|sp| seg < sp.segment_count()));
             !refs.is_empty() && self.objects.contains(id) && self.anchors.contains_key(id)
         });
-        // The key object stays while another selected object lies outside it.
-        let keep = self.key.and_then(|k| found.get(&k)).and_then(|p| doc.node_at(p)).is_some_and(|n| {
-            let mut inside = BTreeSet::new();
-            n.walk(&mut |c| {
-                inside.insert(c.id);
+        // The key object stays while it is selected whole and another selected object lies outside it.
+        let keep = self.key.is_some_and(|k| self.selected_whole(doc, k))
+            && self.key.and_then(|k| found.get(&k)).and_then(|p| doc.node_at(p)).is_some_and(|n| {
+                let mut inside = BTreeSet::new();
+                n.walk(&mut |c| {
+                    inside.insert(c.id);
+                });
+                self.objects.iter().any(|o| !inside.contains(o))
             });
-            self.objects.iter().any(|o| !inside.contains(o))
-        });
         if !keep {
             self.key = None;
         }
