@@ -209,6 +209,10 @@ pub struct TextStyle {
     pub outline: Option<Pen>,
     /// Left, first-line and right indents in inches.
     pub indents: Option<(f64, f64, f64)>,
+    /// Space added between characters, as a fraction of the width of a space.
+    pub char_spacing: Option<f64>,
+    /// Line spacing as a fraction of the default (1 = the font's own).
+    pub line_spacing: Option<f64>,
 }
 
 impl TextStyle {
@@ -229,6 +233,8 @@ impl TextStyle {
         set(&mut self.fill, &over.fill);
         set(&mut self.outline, &over.outline);
         set(&mut self.indents, &over.indents);
+        set(&mut self.char_spacing, &over.char_spacing);
+        set(&mut self.line_spacing, &over.line_spacing);
     }
 }
 
@@ -603,15 +609,30 @@ fn parse_color_depth(s: &str, depth: u8) -> Option<CorelColor> {
     Some(CorelColor { model, palette, value })
 }
 
+/// A JSON style value: CorelDRAW X7 writes numbers as strings (`"size": "17300"`), the synthetic
+/// files as numbers; either is read.
+fn num(v: Option<&serde_json::Value>) -> Option<f64> {
+    let v = v?;
+    let n = v.as_f64().or_else(|| v.as_str().and_then(|s| s.trim().parse::<f64>().ok()))?;
+    n.is_finite().then_some(n)
+}
+
+/// A non-negative whole JSON style value (see [`num`]).
+fn whole<T: TryFrom<u64>>(v: Option<&serde_json::Value>) -> Option<T> {
+    num(v).filter(|n| *n >= 0.0 && n.fract() == 0.0 && *n <= u64::MAX as f64).and_then(|n| T::try_from(n as u64).ok())
+}
+
 /// A version 16+ JSON style (libcdr's `_readX6StyleString`): font, character set, size, fill,
-/// outline and justification. Anything unreadable is left unset.
+/// outline and justification, and the paragraph's character and line spacing (millionths:
+/// `interCharSpacing` of a space's width, `interLineSpacing` of the default). Anything unreadable
+/// is left unset.
 pub fn style_from_json(json: &str) -> TextStyle {
     let mut s = TextStyle::default();
     let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else { return s };
     if let Some(c) = v.get("character") {
         let latin = c.get("latin");
         let font = latin.and_then(|l| l.get("font")).and_then(|f| f.as_str());
-        let cs = latin.and_then(|l| l.get("charset")).and_then(serde_json::Value::as_u64).and_then(|c| u16::try_from(c).ok());
+        let cs: Option<u16> = whole(latin.and_then(|l| l.get("charset")));
         if let Some(f) = font {
             let (name, charset) = name_script(f.to_owned(), cs.unwrap_or(0));
             s.font = Some(name);
@@ -619,15 +640,15 @@ pub fn style_from_json(json: &str) -> TextStyle {
         } else if let Some(cs) = cs.filter(|&c| c != 0) {
             s.charset = Some(cs);
         }
-        s.size = latin.and_then(|l| l.get("size")).and_then(serde_json::Value::as_u64).map(|v| v as f64 / 254_000.0);
+        s.size = whole::<u64>(latin.and_then(|l| l.get("size"))).map(|v| v as f64 / 254_000.0);
         if let Some(o) = c.get("outline") {
-            let width = o.get("width").and_then(serde_json::Value::as_u64).map_or(0.0, |w| w as f64 / 254_000.0);
+            let width = whole::<u64>(o.get("width")).map_or(0.0, |w| w as f64 / 254_000.0);
             if let Some(color) = o.get("color").and_then(|c| c.as_str()).and_then(parse_color) {
                 s.outline = Some(Pen::Line { width, color });
             }
         }
         if let Some(f) = c.get("fill") {
-            let kind = f.get("type").and_then(serde_json::Value::as_u64);
+            let kind: Option<u64> = whole(f.get("type"));
             let color = f.get("primaryColor").and_then(|c| c.as_str()).and_then(parse_color);
             s.fill = match (kind, color) {
                 (Some(0), _) => Some(Ink::None),
@@ -636,7 +657,11 @@ pub fn style_from_json(json: &str) -> TextStyle {
             };
         }
     }
-    s.align = v.get("paragraph").and_then(|p| p.get("justify")).and_then(serde_json::Value::as_u64).and_then(|a| u32::try_from(a).ok());
+    if let Some(p) = v.get("paragraph") {
+        s.align = whole(p.get("justify"));
+        s.char_spacing = num(p.get("interCharSpacing")).map(|v| (v / 1e6).clamp(-1.0, 20.0));
+        s.line_spacing = num(p.get("interLineSpacing")).map(|v| v / 1e6).filter(|v| *v > 0.0).map(|v| v.min(20.0));
+    }
     s
 }
 
@@ -1055,6 +1080,14 @@ mod tests {
         assert_eq!(s.fill, Some(Ink::Color(CorelColor { model: 5, palette: 5, value: 0x00ff0000 })));
         assert!(matches!(s.outline, Some(Pen::Line { width, .. }) if (width - 0.01).abs() < 1e-12));
         assert_eq!(style_from_json(r#"{"character":{"fill":{"type":0}}}"#).fill, Some(Ink::None));
+        // CorelDRAW X7 writes the numbers as strings; spacing is in millionths.
+        let x7 = style_from_json(
+            r#"{"character":{"latin":{"font":"Arial","size":"127000","charset":"0"},"fill":{"type":"0"}},"paragraph":{"justify":"2","interCharSpacing":"250000","interLineSpacing":"1500000"}}"#,
+        );
+        assert_eq!((x7.size, x7.align, x7.fill), (Some(0.5), Some(2), Some(Ink::None)));
+        assert_eq!((x7.char_spacing, x7.line_spacing), (Some(0.25), Some(1.5)));
+        let bad = style_from_json(r#"{"character":{"latin":{"size":"-3"}},"paragraph":{"justify":"x","interLineSpacing":"0"}}"#);
+        assert_eq!((bad.size, bad.align, bad.line_spacing), (None, None, None));
         assert_eq!(style_from_json("not json"), TextStyle::default());
         assert_eq!(style_from_json(&"[".repeat(10_000)), TextStyle::default());
     }

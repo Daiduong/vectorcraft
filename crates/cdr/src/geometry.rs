@@ -1296,9 +1296,10 @@ pub struct Fountain {
     /// (offset 0..1, colour).
     pub stops: Vec<(f64, CorelColor)>,
     /// Where the ramp lies on the object's box (version 17), `[cx, cy, ux, uy, vx, vy]` in units of
-    /// the box's size: its centre's offset from the box centre (y up), and its axis (y down) from
-    /// the first stop to the last, edge pad included. Older files lay a fountain out from its
-    /// angle and pad alone.
+    /// the box's size: its centre's offset from the box centre (y up), and its axes (y down),
+    /// edge pad included: a linear ramp runs along `u` from the first stop to the last, a radial
+    /// one has `u` and `v` as its ellipse's diameters. Older files lay a fountain out from its
+    /// angle, centre offset and pad alone.
     pub frame: Option<[f64; 6]>,
 }
 
@@ -1458,11 +1459,29 @@ impl Fountain {
         paint.angle = if angle.is_finite() { angle } else { 0.0 };
         if let Some(b) = bounds {
             let mut g = self.geom(kind, b, paint.angle);
-            if kind == GradientKind::Linear
-                && let Some((ends, (lb, to_doc))) = self.frame.zip(local).and_then(|(f, l)| Some((Self::frame_ends(f, l.0)?, l)))
-                && lb.width() > 0.0
-            {
-                (g.start, g.end) = (to_doc * ends.0, to_doc * ends.1);
+            if let Some((frame, (lb, to_doc))) = self.frame.zip(local).filter(|(_, (lb, _))| lb.width() > 0.0 && lb.height() > 0.0) {
+                match kind {
+                    GradientKind::Linear => {
+                        if let Some((a, b)) = Self::frame_ends(frame, lb) {
+                            (g.start, g.end) = (to_doc * a, to_doc * b);
+                        }
+                    }
+                    _ => {
+                        // A radial's frame axes are its diameters (measured against CorelDRAW's
+                        // previews: half of them gave the closest radius).
+                        let [cx, cy, ux, uy, vx, vy] = frame;
+                        let c = lb.center() + Vec2::new(cx * lb.width(), cy * lb.height());
+                        let along = |d: Vec2| to_doc * (c + d) - to_doc * c;
+                        let u = along(Vec2::new(ux * lb.width(), -uy * lb.height()) / 2.0);
+                        let v = along(Vec2::new(vx * lb.width(), -vy * lb.height()) / 2.0);
+                        if u.hypot() > 0.0 && v.hypot() > 0.0 && u.hypot().is_finite() && v.hypot().is_finite() {
+                            g.start = to_doc * c;
+                            g.end = g.start + u;
+                            g.aspect = (v.hypot() / u.hypot()).clamp(1e-3, 1e3);
+                            g.focal = None;
+                        }
+                    }
+                }
             }
             paint.geom = Some(g);
         }
@@ -2211,9 +2230,21 @@ impl Ctx<'_, '_> {
             c.stroke = paint;
             c.stroke_width = width;
         }
+        // Character spacing is a fraction of a space's width, taken as a quarter em (the width that
+        // matched CorelDRAW's previews of the user's samples best); line spacing scales the
+        // default leading (120 % of the size).
+        if let Some(cs) = s.char_spacing.filter(|v| *v != 0.0) {
+            c.tracking = cs * SPACE_EM * 1000.0;
+        }
+        if let Some(ls) = s.line_spacing.filter(|v| (*v - 1.0).abs() > 1e-6) {
+            c.leading = Some(c.size * 1.2 * ls);
+        }
         c
     }
 }
+
+/// A space's width in ems, for CorelDRAW's character spacing.
+const SPACE_EM: f64 = 0.25;
 
 /// Paragraph attributes of a style: alignment and indents (CorelDRAW's first-line indent is from
 /// the frame's edge, VectorCraft's from the left indent).
@@ -2708,6 +2739,31 @@ mod tests {
         assert_eq!(inner[0].path().unwrap().bounds().map(|b| (b.x0, b.x1)), Some((36.0, 108.0)));
         assert_eq!(page.shapes().len(), 8);
         assert_eq!(page.leaves().len(), 5);
+    }
+
+    #[test]
+    fn version_17_radial_fountains_are_ellipses_on_their_frame() {
+        let f = Fountain {
+            kind: 2,
+            edge_pad: 0,
+            angle: 0.0,
+            center: (0, 0),
+            mode: 0,
+            midpoint: 0.5,
+            stops: vec![(0.0, CorelColor { model: 5, palette: 0, value: 0 }), (1.0, CorelColor { model: 5, palette: 0, value: 0xff })],
+            // Centred a quarter box right, as wide as the box and half as tall.
+            frame: Some([0.25, 0.0, 1.0, 0.0, 0.0, 0.5]),
+        };
+        let local = Rect::new(-1.0, -1.0, 1.0, 1.0);
+        let to_doc = PageSpace { width_in: 2.0, height_in: 2.0 }.to_document();
+        let mut notes = Vec::new();
+        let paint = CorelFill::Fountain(f).to_fill_on(Some(to_doc.transform_rect_bbox(local)), Some((local, to_doc)), &mut notes).map(|l| l.paint);
+        let Some(Paint::Gradient(g)) = paint else { panic!("{paint:?}") };
+        let geom = g.geom.unwrap();
+        assert_eq!((geom.start, geom.end, geom.aspect), (Point::new(108.0, 72.0), Point::new(180.0, 72.0), 0.5));
+        // CorelDRAW's first stop (black) is at the rim, its last (blue) at the centre.
+        assert_eq!((g.gradient.stops[0].offset, g.gradient.stops[0].color), (0.0, Color::rgb8(0, 0, 255)));
+        assert_eq!(g.gradient.stops[1].color, Color::rgb8(0, 0, 0));
     }
 
     #[test]

@@ -16,9 +16,11 @@
 //! laid out left to right, and one layer holding every page's translated paths, type and images
 //! (embedded as PNG), bottom first.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use vectorcraft_doc::ColorProfiles;
 use vectorcraft_doc::appearance::{Appearance, AppearanceItem, FillLayer};
 use vectorcraft_doc::{Artboard, ColorMode, Document, ImageBlob, ImageObject, LayerColor, Node, NodeKind, OpacityMask};
 use vectorcraft_geom::{Affine, Rect};
@@ -86,6 +88,10 @@ pub struct Imported {
     pub translation: Translation,
     /// What the document leaves out or approximates, each line once.
     pub warnings: Vec<String>,
+    /// The colour profiles the package carries for the document's RGB and CMYK spaces, by the
+    /// names [`Document::color_profiles`] gives them (ICC files; sRGB is never listed, it is
+    /// VectorCraft's own working space). The caller makes them available before using the names.
+    pub profiles: BTreeMap<String, Vec<u8>>,
 }
 
 /// Import a `.cdr` file held in memory.
@@ -114,7 +120,11 @@ pub fn import(bytes: &[u8], limits: Limits) -> Result<Imported, Error> {
                 _ => None,
             };
             let source = Source::Package { entry: riff_root.path, kind: riff_root.kind };
-            Ok(assemble(r, source, tree.version, doc.metadata, translation, layer))
+            let (names, profiles) = package_profiles(&mut package);
+            let mut imported = assemble(r, source, tree.version, doc.metadata, translation, layer);
+            imported.document.color_profiles = names;
+            imported.profiles = profiles;
+            Ok(imported)
         }
         Route::Riff(_) => {
             let tree = riff::parse(bytes, &limits)?;
@@ -122,6 +132,37 @@ pub fn import(bytes: &[u8], limits: Limits) -> Result<Imported, Error> {
             Ok(assemble(r, Source::Riff, tree.version, None, translation, None))
         }
     }
+}
+
+/// Largest colour profile read from a package.
+const MAX_PROFILE_BYTES: u64 = 4 << 20;
+
+/// The document's RGB and CMYK profiles: their names from `color/color.xml`
+/// (`<ColorProfile id="Cmyk">ISO Coated v2 (ECI)</ColorProfile>`) and their ICC files from
+/// `color/profiles/rgb/` and `color/profiles/cmyk/`. sRGB, and a profile without its file, are left
+/// to VectorCraft's working space.
+fn package_profiles(package: &mut Package<'_>) -> (ColorProfiles, BTreeMap<String, Vec<u8>>) {
+    let mut names = ColorProfiles::default();
+    let mut files = BTreeMap::new();
+    let Ok(xml) = package.read_xml("color/color.xml") else { return (names, files) };
+    for (id, dir) in [("Rgb", "rgb"), ("Cmyk", "cmyk")] {
+        let open = format!("<ColorProfile id=\"{id}\">");
+        let Some(name) = xml.split_once(&open).and_then(|(_, rest)| rest.split_once("</ColorProfile>")).map(|(n, _)| n.trim().to_owned()) else {
+            continue;
+        };
+        if name.is_empty() || name.len() > 200 || (id == "Rgb" && name.to_ascii_lowercase().starts_with("srgb")) {
+            continue;
+        }
+        let prefix = format!("color/profiles/{dir}/");
+        let Some(entry) = package.entries().iter().find(|e| e.starts_with(&prefix) && e.len() > prefix.len()).cloned() else { continue };
+        let Ok(icc) = package.read_capped(&entry, MAX_PROFILE_BYTES) else { continue };
+        match id {
+            "Rgb" => names.rgb = Some(name.clone()),
+            _ => names.cmyk = Some(name.clone()),
+        }
+        files.insert(name, icc);
+    }
+    (names, files)
 }
 
 fn assemble(
@@ -212,7 +253,7 @@ fn assemble(
         }
         doc.layers.push(Arc::new(node));
     }
-    Imported { document: doc, route, source, version, metadata, translation, warnings }
+    Imported { document: doc, route, source, version, metadata, translation, warnings, profiles: BTreeMap::new() }
 }
 
 fn warn(warnings: &mut Vec<String>, w: String) {
@@ -334,6 +375,26 @@ mod tests {
         // A uniform transparency stays the node's opacity.
         let plain = geometry::Shape { fade: None, ..shape };
         assert_eq!(build(&mut doc, &plain, Affine::IDENTITY, &mut warnings).unwrap().opacity, 0.5);
+    }
+
+    #[test]
+    fn package_colour_profiles_by_name() {
+        let xml = br#"<Color><ColorContext><ColorProfile id="Rgb">sRGB IEC61966-2.1</ColorProfile><ColorProfile id="Cmyk">Press Coated</ColorProfile><ColorProfile id="Grayscale">Gray Gamma 2.2</ColorProfile></ColorContext></Color>"#;
+        let riff = build::triangle_riff();
+        let file = build::package_with(
+            &riff,
+            "t",
+            &[("color/color.xml", xml), ("color/profiles/cmyk/press.icc", b"ICC"), ("color/profiles/rgb/srgb.icm", b"RGB")],
+        );
+        let i = import(&file, Limits::default()).unwrap();
+        // sRGB is the working space already; the CMYK profile is named as the settings name it.
+        assert_eq!(i.document.color_profiles, ColorProfiles { rgb: None, cmyk: Some("Press Coated".into()) });
+        assert_eq!(i.profiles.into_iter().collect::<Vec<_>>(), [("Press Coated".to_owned(), b"ICC".to_vec())]);
+        // A named profile without its file is left out.
+        let file = build::package_with(&riff, "t", &[("color/color.xml", xml)]);
+        let i = import(&file, Limits::default()).unwrap();
+        assert!(i.document.color_profiles.is_empty() && i.profiles.is_empty());
+        assert!(import(&build::package(&riff, "t"), Limits::default()).unwrap().profiles.is_empty());
     }
 
     #[test]

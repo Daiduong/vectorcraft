@@ -579,6 +579,7 @@ Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a featur
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-14 | minor | File formats: CorelDRAW elliptical fountains on their placement, character and line spacing, and the package's colour profiles; see file-format-parity.md. Score unchanged (estimated) |
 | 2026-10-14 | minor | File formats: CorelDRAW layers, groups, PowerClips, transparency (fades as opacity masks), bitmap transparency, version 17 fountain placement and palette/spot colours (libcdr's tables, MPL 2.0) open; see file-format-parity.md. Score unchanged (estimated) |
 | 2026-10-14 | minor | File formats: CorelDRAW polygons, splines, bitmaps, arrowheads and X6+ files and text open; see file-format-parity.md. Score unchanged (estimated) |
 | 2026-10-14 | minor | File formats: CorelDRAW rectangles, ellipses and text (versions 5–15) open; see file-format-parity.md. Score unchanged (estimated) |

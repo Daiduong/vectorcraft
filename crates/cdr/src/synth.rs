@@ -115,6 +115,11 @@ pub fn triangle_riff() -> Vec<u8> {
 /// An X4-style package: `riff` as `content/riffData.cdr`, and `metadata.xml` giving `title` and
 /// a 4 × 3 in page.
 pub fn package(riff: &[u8], title: &str) -> Vec<u8> {
+    package_with(riff, title, &[])
+}
+
+/// [`package`] with `extra` entries (colour settings and profiles, say).
+pub fn package_with(riff: &[u8], title: &str, extra: &[(&str, &[u8])]) -> Vec<u8> {
     let ns = "adobe:ns:meta/"; // brand-ok: the XMP packet's namespace, fixed by the XMP specification
     let meta = format!(
         r#"<x:xmpmeta xmlns:x="{ns}"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -123,7 +128,7 @@ pub fn package(riff: &[u8], title: &str) -> Vec<u8> {
     );
     let mut w = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-    for (name, data) in [("content/riffData.cdr", riff), ("metadata/metadata.xml", meta.as_bytes())] {
+    for (name, data) in [("content/riffData.cdr", riff), ("metadata/metadata.xml", meta.as_bytes())].into_iter().chain(extra.iter().copied()) {
         w.start_file(name, opts).unwrap();
         w.write_all(data).unwrap();
     }

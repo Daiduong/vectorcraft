@@ -144,3 +144,21 @@ fn polygons_splines_bitmaps_and_x6_packages_open() {
     let kids = s.doc().unwrap().doc.layers[0].children().unwrap().clone();
     assert!(kids.iter().any(|n| matches!(&n.kind, vectorcraft_doc::NodeKind::Text(t) if t.plain_text() == "Ünïcode")));
 }
+
+#[test]
+fn a_package_carries_its_cmyk_profile() {
+    use vectorcraft_color::cms;
+    let xml = |name: &str| format!(r#"<Color><ColorContext><ColorProfile id="Cmyk">{name}</ColorProfile></ColorContext></Color>"#);
+    let icc = cms::icc_bytes(cms::GENERIC_CMYK).unwrap();
+    let ok = xml("CorelDRAW Test Press");
+    let file = cdr::synth::package_with(&riff(), "t", &[("color/color.xml", ok.as_bytes()), ("color/profiles/cmyk/press.icc", &icc)]);
+    let l = load("press.cdr", &file).unwrap();
+    assert_eq!(l.doc.color_profiles.cmyk.as_deref(), Some("CorelDRAW Test Press"));
+    assert_eq!(cms::profile("CorelDRAW Test Press").map(|p| p.kind), Some(cms::ProfileKind::Cmyk));
+    // A profile that can't be used: said, and the document keeps the working space.
+    let bad = xml("CorelDRAW Broken Press");
+    let file = cdr::synth::package_with(&riff(), "t", &[("color/color.xml", bad.as_bytes()), ("color/profiles/cmyk/broken.icc", b"not a profile")]);
+    let l = load("broken.cdr", &file).unwrap();
+    assert_eq!(l.doc.color_profiles.cmyk, None);
+    assert!(l.warnings.iter().any(|w| w.contains("CorelDRAW Broken Press")), "{:?}", l.warnings);
+}
