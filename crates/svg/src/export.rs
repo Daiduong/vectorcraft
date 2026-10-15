@@ -166,6 +166,20 @@ fn xml_attr_escape(s: &str) -> String {
     xml_escape(s).replace('\t', "&#9;").replace('\n', "&#10;").replace('\r', "&#13;")
 }
 
+/// Escape type for XML content. Characters XML 1.0 does not allow are dropped, except the line
+/// and page breaks (U+000B, U+000C) other apps paste, which become spaces.
+fn xml_text(s: &str) -> String {
+    let s: String = s
+        .chars()
+        .filter_map(|c| match c {
+            '\u{b}' | '\u{c}' => Some(' '),
+            c if valid_xml_value(c.encode_utf8(&mut [0; 4])) => Some(c),
+            _ => None,
+        })
+        .collect();
+    xml_escape(&s)
+}
+
 fn valid_xml_value(s: &str) -> bool {
     s.chars().all(|c| matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}'))
 }
@@ -917,7 +931,7 @@ impl Writer<'_> {
         let doc = self.doc;
         let brushes = self.brushes.get_or_insert_with(|| vectorcraft_brush::library(doc));
         match st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) {
-            Some(b) => StrokePlan::Brush(vectorcraft_brush::stroke_pieces(b, bp, st)),
+            Some(b) => StrokePlan::Brush(vectorcraft_brush::stroke_pieces(doc, b, bp, st)),
             None => StrokePlan::Written(stroke::for_writer(bp, st)),
         }
     }
@@ -1589,7 +1603,7 @@ impl Writer<'_> {
             }
             return 0;
         }
-        let bounds = n.visual_bounds();
+        let bounds = n.visual_bounds_with(&self.doc.symbol_boxes());
         let reach: f64 = fx.iter().map(|f| f.outset(bounds.unwrap_or_default())).sum::<f64>() + 2.0;
         let region = bounds.map(|b| self.xf.transform_rect_bbox(b).inflate(reach, reach));
         let mut opened = 0;
@@ -1905,7 +1919,7 @@ impl Writer<'_> {
             }
             let diff = run_diff(&base.props, self.char_props(st, base.space));
             attrs.push_str(&self.attrs(&diff));
-            let text = xml_escape(&seg.text);
+            let text = xml_text(&seg.text);
             if attrs.is_empty() && fewer {
                 s.push_str(&text);
             } else {
@@ -2010,7 +2024,7 @@ impl Writer<'_> {
         for run in &t.runs {
             let diff = run_diff(&base, self.char_props(&run.style, space));
             let a = self.attrs(&diff);
-            s.push_str(&format!("<tspan{a}>{}</tspan>", xml_escape(&run.text.replace('\n', " "))));
+            s.push_str(&format!("<tspan{a}>{}</tspan>", xml_text(&run.text.replace('\n', " "))));
         }
         s.push_str("</textPath></text>");
         self.line(&s);

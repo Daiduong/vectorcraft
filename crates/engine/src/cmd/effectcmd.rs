@@ -311,8 +311,8 @@ fn set_params(s: &mut Session, p: &Value) -> Result<Value> {
             && visible != Some(false)
         {
             let mut prospective = effects::merged_params(&e.id, &e.params);
-            if let (Some(cur), Some(new)) = (prospective.as_object_mut(), params.as_object()) {
-                cur.extend(new.clone());
+            if let (Some(cur), Value::Object(new)) = (prospective.as_object_mut(), effects::upgrade_params(&e.id, &params)) {
+                cur.extend(new);
             }
             if e.id == effects::REVOLVE {
                 effects::validate_revolve(n, &prospective).map_err(|e| bad(C, e))?;
@@ -323,14 +323,15 @@ fn set_params(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let ids = edit_effects(s, p, item, C, "Effect Options", &format!("{C}: no effect at index {index}"), |fx| {
         let Some(e) = fx.get_mut(index) else { return false };
-        if let (Value::Object(new), cur) = (&params, &mut e.params) {
+        if let (Value::Object(new), cur) = (effects::upgrade_params(&e.id, &params), &mut e.params) {
             if !cur.is_object() {
                 *cur = effects::merged_params(&e.id, &Value::Null);
             }
+            // Earlier parameters (a Perspective strength, a light by azimuth and elevation) take
+            // their current form first, so the new values replace them and the rest is kept.
+            *cur = effects::upgrade_params(&e.id, cur);
             if let Value::Object(m) = cur {
-                for (k, v) in new {
-                    m.insert(k.clone(), v.clone());
-                }
+                m.extend(new);
             }
         }
         if let Some(v) = visible {
@@ -406,7 +407,7 @@ fn expand_pieces(d: &mut Document, m: &mut Node, all: bool, stroke_art: effects:
 /// Expand Appearance of `id` (and, recursively, of a group's or layer's members): every fill and
 /// stroke becomes an object of its own (strokes outlined, brushes as their art), geometry effects
 /// are baked, raster effects become an embedded image, and the object keeps its transparency.
-fn expand_node(d: &mut Document, id: NodeId, brushes: &[vectorcraft_brush::Brush], out: &mut Vec<NodeId>) {
+pub(crate) fn expand_node(d: &mut Document, id: NodeId, brushes: &[vectorcraft_brush::Brush], out: &mut Vec<NodeId>) {
     let Some(mut n) = d.node(id).cloned() else { return };
     if !expandable(&n) {
         return;
@@ -602,8 +603,122 @@ mod tests {
         assert!(err.to_string().contains("requires a path"), "{err}");
     }
 
+    /// Scripts from before the Perspective angle give `perspective` as a 0–100 % strength: it is
+    /// stored as the angle that shows the same view, and a later angle replaces an earlier strength.
+    #[test]
+    fn an_earlier_perspective_strength_is_set_as_its_angle() {
+        let (mut s, id) = session_with_rect();
+        s.execute("effect.apply", &json!({"effect": effects::EXTRUDE, "ids": [id.0], "item": null, "params": {"perspective": 60}})).unwrap();
+        let params = |s: &Session| node(s, id).appearance.effects[0].params.clone();
+        let angle_of = |pct: f64| effects::merged_params(effects::EXTRUDE, &json!({"perspective": pct}))["perspectiveAngle"].as_f64().unwrap();
+        let angle = angle_of(60.0);
+        assert!((angle - 30.12).abs() < 0.01, "{angle}");
+        assert!(
+            params(&s).get("perspective").is_none() && (params(&s)["perspectiveAngle"].as_f64().unwrap() - angle).abs() < 1e-12,
+            "{}",
+            params(&s)
+        );
+        s.execute("effect.setParams", &json!({"index": 0, "params": {"perspective": 100}, "ids": [id.0], "item": null})).unwrap();
+        assert!((params(&s)["perspectiveAngle"].as_f64().unwrap() - angle_of(100.0)).abs() < 1e-12);
+        // A file of then: the strength stored; setting an angle replaces it.
+        std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(id).unwrap().appearance.effects[0].params =
+            json!({"depth": 50, "perspective": 60});
+        s.execute("effect.setParams", &json!({"index": 0, "params": {"perspectiveAngle": 120}, "ids": [id.0], "item": null})).unwrap();
+        assert_eq!(params(&s), json!({"depth": 50, "perspectiveAngle": 120}));
+    }
+
+    /// Scripts from before Rotation and Height give the light by `lightAzimuth` and
+    /// `lightElevation`: stored as the same light; a later Height keeps that light's Rotation.
+    #[test]
+    fn an_earlier_light_direction_is_set_as_rotation_and_height() {
+        let (mut s, id) = session_with_rect();
+        s.execute(
+            "effect.apply",
+            &json!({"effect": effects::ROTATE, "ids": [id.0], "item": null, "params": {"lightAzimuth": 180, "lightElevation": 0}}),
+        )
+        .unwrap();
+        let params = |s: &Session| node(s, id).appearance.effects[0].params.clone();
+        // Straight from behind the object, level with it.
+        assert!(params(&s).get("lightAzimuth").is_none() && params(&s).get("lightElevation").is_none(), "{}", params(&s));
+        assert_eq!((params(&s)["lightHeight"].as_f64().unwrap().round(), &params(&s)["lightBehind"]), (90.0, &json!(true)));
+        std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(id).unwrap().appearance.effects[0].params =
+            json!({"lightAzimuth": 90, "lightElevation": 0});
+        s.execute("effect.setParams", &json!({"index": 0, "params": {"lightHeight": 60}, "ids": [id.0], "item": null})).unwrap();
+        assert_eq!(params(&s), json!({"lightRotation": 0.0, "lightHeight": 60, "lightBehind": false}));
+    }
+
     fn effects_for_test(s: &Session, id: NodeId) -> vectorcraft_doc::Node {
         effects::revolve_art(&node(s, id)).unwrap()
+    }
+
+    #[test]
+    fn smooth_revolve_commands_validate_save_expand_and_undo() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width":300,"height":300})).unwrap();
+        let r = s.execute("path.create", &json!({"d":"M150 40 C190 60 190 140 150 160"})).unwrap();
+        let id = NodeId(r["id"].as_u64().unwrap());
+        s.execute("effect.apply", &json!({"effect":"threeD.revolve","ids":[id.0],"item":null,"params":{"offset":20,"segments":16}})).unwrap();
+        let initial = node(&s, id);
+        let source = initial.path_data().unwrap().clone();
+        assert!(!initial.appearance.effects[0].params.as_object().unwrap().contains_key("smoothShading"));
+        assert!(initial.appearance.effects[0].params["cap"].as_bool().unwrap());
+        let mut gradients = 0;
+        effects_for_test(&s, id).walk(&mut |face| {
+            gradients += face.appearance.items.iter().filter(|item| {
+                matches!(item, vectorcraft_doc::AppearanceItem::Fill(fill) if matches!(fill.paint, vectorcraft_doc::color::Paint::Gradient(_)))
+            }).count();
+        });
+        assert!(gradients > 0, "commands use smooth vector shading by default");
+        s.execute("effect.setParams", &json!({"index":0,"ids":[id.0],"item":null,"params":{"lightAzimuth":30}})).unwrap();
+        let smooth = node(&s, id);
+        assert_eq!(smooth.path_data(), Some(&source));
+        assert_ne!(effects_for_test(&s, id), effects::revolve_art(&initial).unwrap());
+        let restored = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        assert_eq!(effects::revolve_art(restored.node(id).unwrap()), Some(effects_for_test(&s, id)));
+        s.execute("effect.expandAppearance", &json!({"ids":[id.0]})).unwrap();
+        assert!(!effects::has_revolve(&node(&s, id)));
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(node(&s, id), smooth);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(node(&s, id), initial);
+    }
+
+    #[test]
+    fn revolve_caps_save_export_expand_and_undo_without_changing_the_source() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width":300,"height":300})).unwrap();
+        let r = s.execute("path.create", &json!({"d":"M150 40 L150 160"})).unwrap();
+        let id = NodeId(r["id"].as_u64().unwrap());
+        let source = node(&s, id).path_data().unwrap().clone();
+        s.execute(
+            "effect.apply",
+            &json!({"effect":"threeD.revolve","ids":[id.0],"item":null,
+            "params":{"offset":30,"rotationX":-35,"segments":16,"expandVisibleOnly":false,"cap":false}}),
+        )
+        .unwrap();
+        let uncapped = node(&s, id);
+        assert_eq!(uncapped.appearance.effects[0].params["cap"], json!(false));
+        let count = |n: &vectorcraft_doc::Node| n.children().unwrap()[0].children().unwrap().len();
+        let open_count = count(&effects_for_test(&s, id));
+        s.execute("effect.setParams", &json!({"index":0,"ids":[id.0],"item":null,"params":{"cap":true}})).unwrap();
+        let capped = node(&s, id);
+        let art = effects_for_test(&s, id);
+        assert_eq!(count(&art), open_count + 2, "each endpoint adds one continuous vector cap");
+        assert_eq!(capped.path_data(), Some(&source));
+        assert!(s.execute("effect.setParams", &json!({"index":0,"ids":[id.0],"item":null,"params":{"cap":"yes"}})).is_err());
+        assert_eq!(node(&s, id), capped, "a bad boolean does not mutate the document");
+        let restored = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        assert_eq!(restored.node(id).unwrap().appearance.effects[0].params["cap"], json!(true));
+        assert_eq!(effects::revolve_art(restored.node(id).unwrap()), Some(art.clone()));
+        let pdf = s.execute("document.serialize", &json!({"format":"pdf"})).unwrap();
+        assert!(vectorcraft_format::base64_decode(pdf["dataBase64"].as_str().unwrap()).unwrap().starts_with(b"%PDF"));
+        s.execute("effect.expandAppearance", &json!({"ids":[id.0]})).unwrap();
+        assert_eq!(count(&node(&s, id)), count(&art));
+        assert!(!effects::has_revolve(&node(&s, id)));
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(node(&s, id), capped);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(node(&s, id), uncapped);
     }
 
     #[test]

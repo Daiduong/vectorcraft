@@ -766,6 +766,8 @@
 	Do Not Move	Не перемещать
 	Do you want to save the changes you made to “{name}”?	Сохранить изменения, внесённые в «{name}»?
 	Can't open “{name}”.	Не удаётся открыть «{name}».
+	Can't save “{name}”.	Не удаётся сохранить «{name}».
+	Can't export “{name}”.	Не удаётся экспортировать «{name}».
 	Document	Документ
 	Document Color Mode	Цветовой режим документа
 	Document Info	Сведения о документе
@@ -1091,8 +1093,6 @@
 	Flattener Preview	Предварительный просмотр объединения
 	Flip Across	Отразить поперёк
 	Flip Along	Отразить вдоль
-	Flip Along Horizontal Axis	Отразить по горизонтальной оси
-	Flip Along Vertical Axis	Отразить по вертикальной оси
 	Flip Horizontal	Отразить по горизонтали
 	Flip Row Order	Изменить порядок строк
 	Flip Vertical	Отразить по вертикали
@@ -1298,6 +1298,7 @@
 	Ignore	Игнорировать
 	Ignore Artboards (all the art as one page)	Игнорировать монтажные области (весь рисунок как одна страница)
 	Auto Grouping	Автогруппировка
+	Enhanced	Улучшенный
 	Ignore Color	Игнорировать цвет
 	Ignore White	Игнорировать белый
 	Palette:	Палитра:
@@ -1392,6 +1393,44 @@
 	Keyboard Shortcut Conflicts	Конфликты сочетаний клавиш
 	Keyboard Shortcut Set	Набор сочетаний клавиш
 	Keyboard Shortcuts…	Сочетания клавиш…
+# Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
+	Import Shortcut Set	Импорт набора сочетаний клавиш
+	Import Shortcut Set…	Импортировать набор сочетаний клавиш…
+	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Каждая запись файла сопоставляется с инструментом, командой или панелью VectorCraft. Проверьте сопоставления и ответьте на оставшиеся вопросы.
+	Keys	Клавиши
+	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Файл записывает клавиши и модификаторы в виде кодов. Проверьте предложенные значения и укажите коды, которые ещё неизвестны.
+	Click, then press the key this code stands for (Esc cancels)	Щёлкните, затем нажмите клавишу, которую обозначает этот код (Esc отменяет)
+	Press a key…	Нажмите клавишу…
+	from your earlier imports	по вашим прошлым импортам
+	from the format's public description	по общедоступному описанию формата
+	not known yet	пока неизвестно
+	Shortcuts	Сочетания клавиш
+	Shortcut	Сочетание клавиш
+	In the File	В файле
+	In VectorCraft	В VectorCraft
+	Needs Attention Only	Только требующие внимания
+	Ready	Готово
+	Needs a choice	Нужен выбор
+	Needs a key	Нужна клавиша
+	No equivalent	Нет соответствия
+	Tools take a single key (optionally with Shift)	Инструментам назначается одна клавиша (можно с Shift)
+	A later row takes this shortcut	Это сочетание забирает строка ниже
+	Same item as a later row	Тот же элемент, что и в строке ниже
+	Start from VectorCraft Defaults	Начать со значений VectorCraft по умолчанию
+	Add to the Current Shortcuts	Добавить к текущим сочетаниям клавиш
+	Remember My Choices	Запомнить мой выбор
+	{ready} of {total} ready	Готово: {ready} из {total}
+	The file is too large to read in full, so only its first part is listed.	Файл слишком большой, чтобы прочитать его целиком, поэтому показана только его первая часть.
+	Report copied	Отчёт скопирован
+	Line {line}	Строка {line}
+	Line {line}: {name}: {status}	Строка {line}: {name}: {status}
+	Imported. Press OK to keep the imported set.	Импортировано. Нажмите «ОК», чтобы сохранить импортированный набор.
+	Read Shortcut Set File	Прочитать файл набора сочетаний клавиш
+	Import Matches	Сопоставления импорта
+	Remember Import Matches	Запомнить сопоставления импорта
+	Forget Import Matches	Забыть сопоставления импорта
+@plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	совпадает с {n} сочетанием по умолчанию|совпадает с {n} сочетаниями по умолчанию|совпадает с {n} сочетаниями по умолчанию
+@plural	{n} part of the file wasn't read|{n} parts of the file weren't read	не прочитана {n} часть файла|не прочитаны {n} части файла|не прочитано {n} частей файла
 	Keywords:	Ключевые слова:
 	Knife	Нож
 	Knockout Group	Группа с вырезанием
@@ -1436,6 +1475,20 @@
 	Left:	Слева:
 	Legacy Macintosh RGB (Gamma 1.8)	Устаревший Macintosh RGB (гамма 1.8)
 	Legacy vector clipboard	Устаревший векторный буфер обмена
+	Legacy (version 7)	Устаревший (версия 7)
+	Transparent Images:	Прозрачные изображения:
+	Flatten	Объединить
+	Omit	Пропустить
+	Legacy .ai Options	Параметры устаревшего .ai
+	A legacy .ai file holds one artboard: each artboard you check is saved as a separate file.	Устаревший файл .ai содержит одну монтажную область: каждая отмеченная монтажная область сохраняется в отдельный файл.
+	{count} of {total} artboards	{count} из {total} монтажных областей
+	Check an artboard to save.	Отметьте монтажную область для сохранения.
+	Hidden Objects:	Скрытые объекты:
+	Hidden Layer	Скрытый слой
+	Make Visible	Сделать видимыми
+	Text:	Текст:
+	Editable	Редактируемый
+	PDF-compatible	Совместимый с PDF
 	Legacy vector clipboard (no transparency)	Устаревший векторный буфер обмена (без прозрачности)
 	Less	Меньше
 	Letter	Letter
@@ -2770,6 +2823,7 @@
 	Snap to Glyph	Привязать к глифу
 	Snap to Grid	Привязать к сетке
 	Snap to Pixel	Привязать к пикселю
+	Precise Cursors	Точные курсоры
 	Snap to Point	Привязать к точке
 	Snapping Tolerance	Допуск привязки
 	Social Square Post 1080×1080	Квадратный пост для соцсетей 1080×1080
@@ -3519,6 +3573,7 @@ axis	Both	Оба
 @msg	Split Into Grid: select paths large enough for the grid	Разделение на сетку: выделите контуры, достаточно большие для сетки
 @msg	Targa files are RGB: colorModel rgb	файлы Targa являются RGB: colorModel rgb
 @msg	Text Wrap: select a wrap object	Обтекание текстом: выделите объект обтекания
+@msg	This shortcut file is in a form VectorCraft can't read.	Этот файл сочетаний клавиш записан в формате, который VectorCraft не может прочитать.
 @msg	`aspect` must be a number (%)	`aspect` должно быть числом (%)
 @msg	`at` must be [x, y]	`at` должно быть [x, y]
 @msg	`color` must be a colour	`color` должно быть цветом
@@ -3752,6 +3807,7 @@ axis	Both	Оба
 @msg	not a VectorCraft file: {0}	не является файлом VectorCraft: {0}
 @msg	not a VectorCraft shortcut set (missing `overrides`)	не является набором сочетаний клавиш VectorCraft (отсутствует `overrides`)
 @msg	not a graphic style library (format `{_1}`)	не является библиотекой графических стилей (формат `{_1}`)
+@msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	это не набор сочетаний клавиш: текст не начинается с имени с косой чертой и открывающей фигурной скобки
 @msg	not a stored central record	не является сохранённой центральной записью
 @msg	not a valid plug-in module: {0}	не является допустимым модулем: {0}
 @msg	not an EMF or WMF file	не является файлом EMF или WMF
@@ -3799,6 +3855,8 @@ axis	Both	Оба
 @msg	recovery copy `{file}`: {e}	копия восстановления `{file}`: {e}
 @msg	resolutions must be between 1 and 2400 ppi	разрешения должны быть от 1 до 2400 ppi
 @msg	result would exceed the canvas (coordinates out of range)	результат превысил бы холст (координаты вне диапазона)
+@msg	objects can't be nested more than 32 deep	объекты нельзя вкладывать глубже 32 уровней
+@msg	the SVG's elements are nested more than {0} deep	элементы SVG вложены глубже {0} уровней
 @msg	scale must be a number from {_1} to {_2}, not {_3}	масштаб должен быть числом от {_1} до {_2}, а не {_3}
 @msg	scale must be a number from {_1} to {_2}, not {s}	масштаб должен быть числом от {_1} до {_2}, а не {s}
 @msg	select (or target) objects whose appearance isn't basic	выделите (или укажите как объект) объекты, оформление которых не является основным
@@ -4198,9 +4256,6 @@ axis	Both	Оба
 	Rotation Y	Поворот Y
 	Rotation Z	Поворот Z
 	Shading	Затенение
-	Direction	Направление
-	Elevation	Высота
-	Ambient	Фоновое освещение
 	Segments	Сегменты
 	Show axis	Показать ось
 	Reset all	Сбросить всё
@@ -4312,3 +4367,76 @@ lighting	Light	Свет
 @msg	unknown parameter `{key}`; the command takes: {keys}	неизвестный параметр `{key}`; команда принимает: {keys}
 	Load EPS into Clipboard	Загрузить EPS в буфер обмена
 @msg	an image of {w} × {h} pixels is too large to draw	изображение размером {w} × {h} пикселей слишком велико для отрисовки
+	Basic	Базовый
+	Fill and Stroke Controls	Элементы управления заливкой и обводкой
+	Coloring Controls	Элементы управления цветом
+	Draw Mode Controls	Элементы управления режимом рисования
+	Screen Mode Controls	Элементы управления режимом экрана
+	Drawer menu	Меню ящика
+	Toolbar: Show Controls	Панель инструментов: Показать элементы управления
+@msg	control must be fillStroke, coloring, drawMode or screenMode	control должен быть fillStroke, coloring, drawMode или screenMode
+@msg	unknown control `{name}`: fillStroke, coloring, drawMode or screenMode	неизвестный элемент управления `{name}`: fillStroke, coloring, drawMode или screenMode
+@msg	give a fraction `t` from 0 to 1	укажите значение `t` от 0 до 1
+@msg	give the path `id`	укажите `id` контура
+@msg	invalid stroke widths	недопустимые значения ширины обводки
+@msg	object has no weighted stroke	у объекта нет обводки с допустимой положительной толщиной
+# Corner Radius: a field per corner of a live rectangle.
+	Single Corner Radius	Единый радиус углов
+	Top Left:	Вверху слева:
+	Top Right:	Вверху справа:
+	Bottom Left:	Внизу слева:
+	Bottom Right:	Внизу справа:
+	Softness	Мягкость
+	Ambient Light	Окружающий свет
+	Light behind the object	Свет позади объекта
+
+# Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
+	Dimension	Размер
+	Drawing : real size — 1:10 labels 1 unit on the page as 10.	Чертёж : реальный размер — при 1:10 1 единица на странице подписывается как 10.
+	Preview (1 inch on the page)	Просмотр (1 дюйм на странице)
+	Set as Default	Установить по умолчанию
+	 out from a highlighted edge to place its dimension  |  	 наружу от подсвеченного края, чтобы разместить его размер  |  
+	 cancels  |  Double-click the tool for options	 отменяет  |  Двойной щелчок по инструменту открывает параметры
+	Linear	Линейный
+	Angular	Угловой
+	Away from the Line	Вдали от линии
+	Between Line and Object	Между линией и объектом
+	Drag out from a segment, or click two points, then click to place.	Перетащите наружу от сегмента или щёлкните две точки, затем щёлкните, чтобы разместить.
+	Drag out from a corner, or click two straight lines, then click to place.	Перетащите наружу от угла или щёлкните две прямые линии, затем щёлкните, чтобы разместить.
+	Drag out from a circle or arc for its radius, inwards for its diameter.	Перетащите от окружности или дуги наружу — радиус, внутрь — диаметр.
+@msg	Choose a circle or a perfect arc	Выберите окружность или правильную дугу
+@msg	Choose a precision from 0 to 6	Выберите точность от 0 до 6
+	Create Dimension	Создать размер
+	Dimension Tool	Инструмент «Размер»
+	Dimension Tool Options	Параметры инструмента «Размер»
+	Display	Отображение
+	Font Family:	Семейство шрифтов:
+	Font Style:	Начертание:
+	Precision:	Точность:
+	Update Dimensions	Обновить размеры
+	X:	X:
+	Y:	Y:
+@msg	Angles require two straight segments	Для угла нужны два прямых сегмента
+@msg	Choose two different points	Выберите две разные точки
+@msg	Choose two non-parallel straight segments	Выберите два непараллельных прямых сегмента
+@msg	Choose two nonzero angle arms	Выберите две стороны угла ненулевой длины
+@msg	Dimension point is outside the canvas	Точка размера находится за пределами холста
+@msg	Dimension size is outside its supported range	Размер выходит за поддерживаемые пределы
+@msg	First measured segment no longer exists	Первый измеряемый сегмент больше не существует
+@msg	Invalid dimension distance	Недопустимое расстояние размера
+@msg	Invalid dimension font name	Недопустимое имя шрифта размера
+@msg	Invalid drawing scale	Недопустимый масштаб чертежа
+@msg	Invalid real scale	Недопустимый реальный масштаб
+@msg	Measured anchor no longer exists	Измеряемая опорная точка больше не существует
+@msg	Measured segment no longer exists	Измеряемый сегмент больше не существует
+@msg	Non-finite dimension	Размер не является конечным числом
+@msg	Scale must be drawing:real, for example 1:10	Масштаб должен быть в виде чертёж:реальность, например 1:10
+@msg	Scale ratio must be between 1:1000000 and 1000000:1	Соотношение масштаба должно быть от 1:1000000 до 1000000:1
+@msg	Second measured segment no longer exists	Второй измеряемый сегмент больше не существует
+@msg	Unknown dimension mode	Неизвестный режим размера
+@msg	Unknown dimension option {k}	Неизвестный параметр размера {k}
+@msg	Unknown dimension style	Неизвестный стиль размера
+@msg	Unknown unit	Неизвестная единица
+# Revolve cap description
+	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Закрывает круглые торцы открытых профилей. При неполном вращении боковые срезы остаются открытыми.
+	Distance	Расстояние

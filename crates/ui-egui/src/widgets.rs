@@ -89,13 +89,26 @@ fn flat_fill(ui: &Ui, rect: Rect, resp: &Response) {
 
 /// Blue call-to-action pill (dialog OK/Create).
 pub fn primary_button(ui: &mut Ui, text: &str) -> Response {
+    primary_button_enabled(ui, text, true)
+}
+
+/// [`primary_button`], greyed out and not clickable unless `enabled`.
+pub fn primary_button_enabled(ui: &mut Ui, text: &str, enabled: bool) -> Response {
     let t = Tokens::get(ui.ctx());
-    let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), Color32::WHITE);
+    let fg = if enabled { Color32::WHITE } else { t.text_disabled };
+    let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), fg);
     let w = galley.size().x + 32.0;
-    let (rect, resp) = ui.allocate_exact_size(vec2(w.max(72.0), 28.0), Sense::click());
-    let bg = if resp.hovered() { t.accent } else { t.accent_strong };
+    let (rect, resp) = ui.allocate_exact_size(vec2(w.max(72.0), 28.0), if enabled { Sense::click() } else { Sense::hover() });
+    let bg = match (enabled, resp.hovered()) {
+        (false, _) => t.input,
+        (true, true) => t.accent,
+        (true, false) => t.accent_strong,
+    };
     ui.painter().rect_filled(rect, CornerRadius::same(14), bg);
-    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, Color32::WHITE);
+    if !enabled {
+        ui.painter().rect_stroke(rect, CornerRadius::same(14), egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
+    }
+    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, fg);
     resp
 }
 
@@ -311,25 +324,43 @@ fn select_all(ui: &Ui, id: egui::Id, text: &str) {
 }
 
 /// Numeric fields select the whole text on keyboard focus, a completed focus click or a
-/// double-click. A pointer press keeps its caret so dragging selects from the pressed position.
+/// double-click. A pointer press keeps its caret so dragging selects from the pressed position,
+/// and a short drag the toolkit still counts as a click keeps it too (#1326): only a tap
+/// releases into select-all.
 fn select_all_on_focus(ui: &Ui, resp: &Response, text: &str) {
     let pending = resp.id.with("select-all-on-focus-click");
-    let (pressed, released) =
-        ui.input(|i| (i.pointer.button_pressed(egui::PointerButton::Primary), i.pointer.button_released(egui::PointerButton::Primary)));
+    let press_pos = resp.id.with("select-all-on-focus-press");
+    let (pressed, released, at_press) = ui.input(|i| {
+        (i.pointer.button_pressed(egui::PointerButton::Primary), i.pointer.button_released(egui::PointerButton::Primary), i.pointer.interact_pos())
+    });
     if resp.gained_focus() {
         ui.data_mut(|d| {
             if pressed {
                 d.insert_temp(pending, true);
+                if let Some(p) = at_press {
+                    d.insert_temp(press_pos, p);
+                }
             } else {
                 d.remove_temp::<bool>(pending);
+                d.remove_temp::<egui::Pos2>(press_pos);
             }
         });
     }
     let clicked_focus = released && ui.data_mut(|d| d.remove_temp::<bool>(pending)).unwrap_or(false) && resp.clicked_by(egui::PointerButton::Primary);
+    // A press released a few points away is a short drag, not a tap. egui still reports a
+    // click, and a release inside one character leaves no text selection, so select-all on
+    // release would replace the drag the user just made (#1326).
+    let dragged = clicked_focus
+        && ui
+            .data_mut(|d| d.remove_temp::<egui::Pos2>(press_pos))
+            .is_some_and(|p0| ui.input(|i| i.pointer.interact_pos()).is_some_and(|p1| (p1 - p0).length() > 3.0));
     if resp.lost_focus() {
-        ui.data_mut(|d| d.remove_temp::<bool>(pending));
+        ui.data_mut(|d| {
+            d.remove_temp::<bool>(pending);
+            d.remove_temp::<egui::Pos2>(press_pos);
+        });
     }
-    if !(resp.gained_focus() && !pressed || resp.double_clicked() || clicked_focus) {
+    if !(resp.gained_focus() && !pressed || resp.double_clicked() || clicked_focus && !dragged) {
         return;
     }
     if let Some(st) = egui::TextEdit::load_state(ui.ctx(), resp.id) {
@@ -348,13 +379,27 @@ fn select_all_on_focus(ui: &Ui, resp: &Response, text: &str) {
 fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize) -> (String, Response, Rect) {
     let t = Tokens::get(ui.ctx());
     let editing = ui.memory(|m| m.has_focus(id));
+    // A press outside the field ends its editing in this frame, so the text typed is committed
+    // before the press acts: the canvas, drawn after the panels, may select another object, and a
+    // frame later the text would be committed to that one.
+    if editing
+        && let Some(at) = ui.input(|i| i.pointer.primary_pressed().then(|| i.pointer.interact_pos()).flatten())
+        && ui.ctx().read_response(id).is_some_and(|r| !r.rect.contains(at))
+    {
+        ui.memory_mut(|m| m.surrender_focus(id));
+    }
     // When the value changes under a focused field (the slider beside it, a preview, another
     // field's edit), its text follows: the text typed for the old value would otherwise go back in
     // on the next Enter, Tab or arrow key (#1457).
     let shown_id = id.with("shown");
     let followed = ui.data_mut(|d| d.get_temp::<String>(shown_id)).is_none_or(|before| before == shown);
     ui.data_mut(|d| d.insert_temp(shown_id, shown.to_string()));
-    let typed = if editing && followed { ui.data_mut(|d| d.get_temp::<String>(id)) } else { None };
+    // A press elsewhere can end the focus outside this field's own drawing (a field drawn before it
+    // takes it, the canvas ends text input), so `editing` is already false on the frame it reports
+    // `lost_focus`: the text typed is still taken then, to be committed (#1637). Escape drops it.
+    let focus_id = id.with("had-focus");
+    let had_focus = ui.data_mut(|d| d.get_temp::<bool>(focus_id)).unwrap_or(false) && !ui.input(|i| i.key_pressed(egui::Key::Escape));
+    let typed = if (editing || had_focus) && followed { ui.data_mut(|d| d.get_temp::<String>(id)) } else { None };
     let mut buf: String = typed.unwrap_or_else(|| shown.to_string());
     // The box is exactly as tall as the other controls of a row (26 points a line), its text
     // centred in it: a frame around the text came out a point taller and stood out next to
@@ -385,7 +430,11 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
             (rect, resp)
         })
         .inner;
-    ui.data_mut(|d| d.insert_temp(id, buf.clone()));
+    let focused = ui.memory(|m| m.has_focus(id));
+    ui.data_mut(|d| {
+        d.insert_temp(id, buf.clone());
+        d.insert_temp(focus_id, focused);
+    });
     (buf, resp, rect)
 }
 
@@ -791,17 +840,33 @@ pub fn popover<R>(resp: &Response, toggle: bool, content: impl FnOnce(&mut Ui) -
     inner
 }
 
-/// The body of a menu or popup list: as tall as its items up to the bottom of the window, and
-/// scrolling only past that, so long menus (Window, Effect, a panel's menu) stay reachable on
-/// small windows.
-pub fn menu_scroll<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-    // Room left below the popup's first item, less the popup frame and a small gap.
+/// Records where the bottom bars (status and hint bars) start this frame, so menus can stop above
+/// them (#2086). Without bars it is the bottom of the window.
+pub fn set_menu_floor(ctx: &egui::Context, y: f32) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::new("menu_floor"), y));
+}
+
+/// The height a menu list may take: from `top` down to `floor` less a small gap, at least 120 pt.
+pub fn menu_room(floor: f32, top: f32) -> f32 {
     const BOTTOM_GAP: f32 = 12.0;
     const MIN_HEIGHT: f32 = 120.0;
-    let room = (ui.ctx().content_rect().bottom() - ui.next_widget_position().y - BOTTOM_GAP).max(MIN_HEIGHT);
-    // The minimum lets the list grow past a popup's default 400 pt size; it still shrinks to
-    // its items when they need less.
-    egui::ScrollArea::vertical().max_height(room).min_scrolled_height(room).show(ui, add_contents).inner
+    (floor - top - BOTTOM_GAP).max(MIN_HEIGHT)
+}
+
+/// The body of a menu or popup list: as tall as its items up to the bottom bars of the window, and
+/// scrolling only past that, so long menus (Window, Effect, a panel's menu) stay reachable on
+/// small windows. Its scroll bar has a column of its own, so it never covers the shortcuts or the
+/// submenu arrows (#2086).
+pub fn menu_scroll<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    let floor = ui.ctx().data(|d| d.get_temp::<f32>(egui::Id::new("menu_floor"))).unwrap_or_else(|| ui.ctx().content_rect().bottom());
+    let room = menu_room(floor, ui.next_widget_position().y);
+    ui.scope(|ui| {
+        ui.spacing_mut().scroll = egui::style::ScrollStyle { bar_width: 6.0, bar_inner_margin: 2.0, ..egui::style::ScrollStyle::solid() };
+        // The minimum lets the list grow past a popup's default 400 pt size; it still shrinks to
+        // its items when they need less.
+        egui::ScrollArea::vertical().max_height(room).min_scrolled_height(room).show(ui, add_contents).inner
+    })
+    .inner
 }
 
 /// A column of tool or panel buttons (the toolbar, the dock's icon column) that scrolls when the
@@ -996,7 +1061,9 @@ pub fn slider(ui: &mut Ui, slider: egui::Slider<'_>) -> Response {
     let t = Tokens::get(ui.ctx());
     ui.scope(|ui| {
         let v = ui.visuals_mut();
-        v.widgets.inactive.bg_fill = t.input_border;
+        // The buttons' border shows against the panel in every brightness; the fields' border
+        // all but vanished on Medium Dark's panel (#1662).
+        v.widgets.inactive.bg_fill = t.button_border;
         v.selection.bg_fill = t.accent;
         ui.add(slider.trailing_fill(true))
     })
@@ -1897,5 +1964,21 @@ mod spinner_modifier_tests {
         assert_eq!(spinner_step(14.0, 1.0, 0.0, true, egui::Modifiers::NONE), 15.0);
         assert_eq!(spinner_step(14.0, 1.0, 0.0, false, egui::Modifiers::COMMAND), 13.9);
         assert_eq!(spinner_step(0.0, 1.0, 0.0, false, egui::Modifiers::SHIFT), 0.0);
+    }
+}
+
+#[cfg(test)]
+mod menu_room_tests {
+    use super::*;
+
+    #[test]
+    fn menu_stops_above_the_bottom_bars() {
+        // Window 1000 pt tall, bars start at 948: a menu opening at y = 100 gets 836 pt, not 888.
+        assert_eq!(menu_room(948.0, 100.0), 836.0);
+    }
+
+    #[test]
+    fn menu_keeps_a_minimum_height() {
+        assert_eq!(menu_room(300.0, 290.0), 120.0);
     }
 }

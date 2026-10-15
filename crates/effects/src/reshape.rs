@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind};
-use vectorcraft_geom::{FillRule, PathData, Rect, shapes};
+use vectorcraft_geom::{Affine, FillRule, PathData, Rect, shapes};
 
 use crate::{GeomContext, apply_one, is_geometry, merged_params};
 
@@ -86,7 +86,7 @@ pub fn outline_art(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
         _ if vectorcraft_doc::live::is_live(n) => vectorcraft_doc::live::expand_deep(n, Some(hook)),
         _ => return None,
     };
-    outline_nested_text(&mut art);
+    outline_nested_text(&mut art, false);
     art.opacity = 1.0;
     art.blend = Default::default();
     art.isolate = false;
@@ -97,22 +97,33 @@ pub fn outline_art(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     Some(art)
 }
 
-/// Replace type anywhere inside `n` by its outlines.
-fn outline_nested_text(n: &mut Node) {
+/// Replace type anywhere inside `n` by its outlines, as art that keeps the type's look
+/// ([`as_art`]). Type in a clip group's clipping path (all of `n` when `clipping` is set) becomes
+/// its plain outlines ([`outline_text`]) with its visibility, which is what
+/// [`crate::clip_outline`] clips by.
+fn outline_nested_text(n: &mut Node, clipping: bool) {
+    let clips = n.clips();
     let Some(ch) = n.children_mut() else { return };
-    for c in ch.iter_mut() {
-        if let Some(o) = outline_text(c) {
+    for (i, c) in ch.iter_mut().enumerate() {
+        let clipping = clipping || (clips && i == 0);
+        let art = match &c.kind {
+            NodeKind::Text(_) if clipping => outline_text(c).map(|o| Node { visible: c.visible, ..o }),
+            NodeKind::Text(_) => as_art(c, None),
+            _ => None,
+        };
+        if let Some(o) = art {
             *c = Arc::new(o);
         } else if c.children().is_some() {
-            outline_nested_text(Arc::make_mut(c));
+            outline_nested_text(Arc::make_mut(c), clipping);
         }
     }
 }
 
-/// `n` (see [`needs_outline`]) with its object-level geometry effects applied: its [`outline_art`]
-/// reshaped as one piece, or for an image the image clipped by its reshaped frame. The result is
-/// a group with `n`'s id, name, transparency, opacity mask and remaining (raster) effects; `None`
-/// when `n` has no visible geometry effect or no art (a symbol instance without `symbol_art`).
+/// `n` (see [`needs_outline`]) with its object-level geometry effects and its perspective applied:
+/// its [`outline_art`] reshaped as one piece, or for an image the image clipped by its reshaped
+/// frame. The result is a group with `n`'s id, name, visibility, transparency, opacity mask and
+/// remaining (raster) effects; `None` when `n` has neither a visible geometry effect nor a
+/// perspective, or has no art (a symbol instance without `symbol_art`).
 pub fn reshape(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     if (geometry_effects(n).is_empty() && n.projection().is_none()) || !needs_outline(n) {
         return None;
@@ -154,11 +165,13 @@ pub(crate) fn as_art(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     // The art is a group with `n`'s id (a clip group for an image).
     let mut out = art;
     out.name = n.name.clone();
+    out.visible = n.visible;
     out.opacity = n.opacity;
     out.blend = n.blend;
     out.isolate = n.isolate;
     // One element: its pieces never knock each other out.
     out.knockout = vectorcraft_doc::Knockout::Off;
+    out.knockout_shape = n.knockout_shape;
     out.extras_mut().mask = n.extras().mask.clone();
     out.appearance.effects = n.appearance.effects.iter().filter(|e| !is_geometry(&e.id)).cloned().collect();
     Some(out)
@@ -197,7 +210,9 @@ pub(crate) fn geometry_effects(n: &Node) -> Vec<&Effect> {
 }
 
 /// Apply `fx` to every path under `art` as one piece: each effect takes the whole art's bounds as
-/// its reference box and the art's seed (a random Transform moves the pieces together).
+/// its reference box and the art's seed (a random Transform moves the pieces together). Images
+/// follow a Transform effect the same way ([`transform_images`]); other geometry effects leave
+/// them as they are (a raster follows a non-affine map only as a mesh warp).
 pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
     let seed = art.id.0;
     for e in fx {
@@ -208,7 +223,70 @@ pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
             let out = apply_one(&e.id, &params, &path, bounds, &GeomContext { seed, ..GeomContext::of(leaf) });
             set_geometry(leaf, out, rule);
         });
+        if e.id == "distort.transform" {
+            let (m, copies) = crate::distort::transform_map(bounds, &params, seed);
+            transform_images(art, m, copies);
+        }
     }
+}
+
+/// Apply the Transform effect's map `m` to every image under `n`, as [`for_each_leaf`] does to
+/// paths: the map goes into the image's placement (pixel space → document), and `copies` more
+/// images follow, each mapped once more than the last. Without copies the image itself takes the
+/// map, as a path does.
+fn transform_images(n: &mut Node, m: Affine, copies: usize) {
+    transform_images_within(n, m, copies, crate::distort::MAX_COPY_IMAGES)
+}
+
+/// [`transform_images`] whose copies make at most `max` image nodes of the art, the originals
+/// included: each copy adds the image once more, and a Transform after this one copies the lot
+/// again, so copies stop where the result would pass `max` (#2042).
+pub(crate) fn transform_images_within(n: &mut Node, m: Affine, copies: usize, max: usize) {
+    let mut room = max.saturating_sub(image_count(n));
+    copy_images(n, m, copies, &mut room);
+}
+
+/// The walk of [`transform_images`]: the map and its copies go to each image in document order,
+/// each copy taking one from `room` (what the art can still grow by), until the budget is full.
+fn copy_images(n: &mut Node, m: Affine, copies: usize, room: &mut usize) {
+    let Some(children) = n.children_mut() else { return };
+    for c in children.iter_mut() {
+        if !matches!(c.kind, NodeKind::Image(_)) {
+            copy_images(Arc::make_mut(c), m, copies, room);
+            continue;
+        }
+        let src = (**c).clone();
+        let placed = |xf: Affine| {
+            let mut one = src.clone();
+            if let NodeKind::Image(im) = &mut one.kind {
+                im.xf = xf * im.xf;
+            }
+            one
+        };
+        if copies == 0 {
+            *c = Arc::new(placed(m));
+            continue;
+        }
+        let made = copies.min(*room);
+        *room -= made;
+        // The copies become image nodes of their own, under a group with the image's id, name and
+        // place in the art (as the runs an outlined text gets).
+        let mut images: Vec<Arc<Node>> = Vec::with_capacity(made + 1);
+        images.push(Arc::new(placed(Affine::IDENTITY)));
+        let mut xf = Affine::IDENTITY;
+        for _ in 0..made {
+            xf *= m;
+            images.push(Arc::new(placed(xf)));
+        }
+        let mut g = Node::group(src.id, images);
+        g.name = src.name.clone();
+        *c = Arc::new(g);
+    }
+}
+
+/// How many image nodes `n` holds below itself.
+fn image_count(n: &Node) -> usize {
+    n.children().into_iter().flatten().map(|c| usize::from(matches!(c.kind, NodeKind::Image(_))) + image_count(c)).sum()
 }
 
 /// `n` with type anywhere inside it outlined and live objects evaluated, so geometry effects on
@@ -216,7 +294,7 @@ pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
 pub(crate) fn outlined_members(n: &Node) -> Node {
     let hook: &dyn Fn(&Node) -> Option<Node> = &outline_text;
     let mut art = vectorcraft_doc::live::expand_deep(n, Some(hook));
-    outline_nested_text(&mut art);
+    outline_nested_text(&mut art, false);
     art
 }
 

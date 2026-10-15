@@ -191,7 +191,6 @@
 	Alt	Alt
 	Alt:	Alt:
 	Alter Paths for Appearance	Sửa đường dẫn cho diện mạo
-	Ambient	Ánh sáng môi trường
 	Amount	Mức độ
 	Amount:	Mức độ:
 	Anchor Point	Điểm neo
@@ -402,6 +401,8 @@
 	Calligraphic	Thư pháp
 	Calligraphic Brush Options	Tùy chọn cọ thư pháp
 	Can't open “{name}”.	Không thể mở “{name}”.
+	Can't save “{name}”.	Không thể lưu “{name}”.
+	Can't export “{name}”.	Không thể xuất “{name}”.
 	Can't print these settings: see the Summary	Không thể in các cài đặt này: xem Tóm tắt
 	Cancel	Hủy
 	Cancel Key Object	Hủy đối tượng chính
@@ -864,7 +865,6 @@
 	Dim Images to:	Làm mờ ảnh đến:
 	Dimensions	Kích thước
 	Direct Selection Tool	Công cụ Chọn trực tiếp
-	Direction	Hướng
 	Direction Balance	Cân bằng hướng
 	Direction Handles	Tay nắm hướng
 	Direction:	Hướng:
@@ -1035,7 +1035,6 @@
 	Effective PPI	PPI hiệu dụng
 	Effects	Hiệu ứng
 	Effect…	Hiệu ứng…
-	Elevation	Độ cao
 	Eliminate	Loại bỏ
 	Ellipse	Hình elip
 	Ellipse Properties:	Thuộc tính hình elip:
@@ -1262,8 +1261,6 @@
 	Flip	Lật
 	Flip Across	Lật qua
 	Flip Along	Lật theo
-	Flip Along Horizontal Axis	Lật theo trục ngang
-	Flip Along Vertical Axis	Lật theo trục dọc
 	Flip Horizontal	Lật ngang
 	Flip Row Order	Đảo thứ tự hàng
 	Flip Vertical	Lật dọc
@@ -1494,6 +1491,7 @@
 	Ignore	Bỏ qua
 	Ignore Artboards (all the art as one page)	Bỏ qua bảng vẽ (toàn bộ bản vẽ thành một trang)
 	Auto Grouping	Tự động nhóm
+	Enhanced	Nâng cao
 	Ignore Color	Bỏ qua màu
 	Ignore White	Bỏ qua màu trắng
 	Image	Hình ảnh
@@ -1515,6 +1513,44 @@
 	Import PDF Presets	Nhập thiết lập sẵn PDF
 	Import Perspective Grid Presets	Nhập thiết lập sẵn lưới phối cảnh
 	Import Print Presets	Nhập thiết lập sẵn in
+# Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
+	Import Shortcut Set	Nhập bộ phím tắt
+	Import Shortcut Set…	Nhập bộ phím tắt…
+	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Mỗi mục trong tệp được ghép với một công cụ, lệnh hoặc bảng của VectorCraft. Hãy kiểm tra các cặp ghép và trả lời những mục còn lại.
+	Keys	Phím
+	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Tệp ghi phím và phím bổ trợ dưới dạng mã. Hãy kiểm tra các nghĩa được đề xuất và trả lời những mã chưa biết.
+	Click, then press the key this code stands for (Esc cancels)	Bấm, rồi nhấn phím mà mã này biểu thị (Esc để hủy)
+	Press a key…	Nhấn một phím…
+	from your earlier imports	từ các lần nhập trước của bạn
+	from the format's public description	từ mô tả công khai của định dạng
+	not known yet	chưa biết
+	Shortcuts	Phím tắt
+	Shortcut	Phím tắt
+	In the File	Trong tệp
+	In VectorCraft	Trong VectorCraft
+	Needs Attention Only	Chỉ mục cần chú ý
+	Ready	Sẵn sàng
+	Needs a choice	Cần chọn
+	Needs a key	Cần một phím
+	No equivalent	Không có tương đương
+	Tools take a single key (optionally with Shift)	Công cụ chỉ nhận một phím đơn (tùy chọn với Shift)
+	A later row takes this shortcut	Một hàng phía sau dùng phím tắt này
+	Same item as a later row	Cùng mục với một hàng phía sau
+	Start from VectorCraft Defaults	Bắt đầu từ mặc định VectorCraft
+	Add to the Current Shortcuts	Thêm vào phím tắt hiện tại
+	Remember My Choices	Ghi nhớ lựa chọn của tôi
+	{ready} of {total} ready	Sẵn sàng {ready} trong {total}
+	The file is too large to read in full, so only its first part is listed.	Tệp quá lớn để đọc hết, nên chỉ phần đầu được liệt kê.
+	Report copied	Đã sao chép báo cáo
+	Line {line}	Dòng {line}
+	Line {line}: {name}: {status}	Dòng {line}: {name}: {status}
+	Imported. Press OK to keep the imported set.	Đã nhập. Nhấn OK để giữ bộ đã nhập.
+	Read Shortcut Set File	Đọc tệp bộ phím tắt
+	Import Matches	Cặp ghép khi nhập
+	Remember Import Matches	Ghi nhớ cặp ghép khi nhập
+	Forget Import Matches	Quên cặp ghép khi nhập
+@plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	khớp với {n} phím tắt mặc định
+@plural	{n} part of the file wasn't read|{n} parts of the file weren't read	{n} phần của tệp chưa được đọc
 	Import Transparency Flattener Presets	Nhập thiết lập sẵn làm phẳng trong suốt
 	Imported {what}: {}	Đã nhập {what}: {}
 	Import…	Nhập…
@@ -1656,6 +1692,20 @@
 	Left-Justified Tab	Tab căn trái
 	Left-to-Right Paragraph Direction	Đoạn văn từ trái sang phải
 	Left:	Trái:
+	Legacy (version 7)	Cũ (phiên bản 7)
+	Transparent Images:	Ảnh trong suốt:
+	Flatten	Làm phẳng
+	Omit	Bỏ qua
+	Legacy .ai Options	Tùy chọn .ai cũ
+	A legacy .ai file holds one artboard: each artboard you check is saved as a separate file.	Một tệp .ai cũ chỉ chứa một bảng vẽ: mỗi bảng vẽ bạn chọn được lưu thành một tệp riêng.
+	{count} of {total} artboards	{count} trên {total} bảng vẽ
+	Check an artboard to save.	Hãy chọn một bảng vẽ để lưu.
+	Hidden Objects:	Đối tượng ẩn:
+	Hidden Layer	Lớp ẩn
+	Make Visible	Hiện ra
+	Text:	Văn bản:
+	Editable	Có thể chỉnh sửa
+	PDF-compatible	Tương thích PDF
 	Legacy Macintosh RGB (Gamma 1.8)	RGB Macintosh cũ (Gamma 1.8)
 	Legacy vector clipboard	Bảng tạm vector cũ
 	Legacy vector clipboard (no transparency)	Bảng tạm vector cũ (không có trong suốt)
@@ -3075,6 +3125,7 @@
 	Snap to Glyph	Hút vào glyph
 	Snap to Grid	Hút vào lưới
 	Snap to Pixel	Hút vào pixel
+	Precise Cursors	Con trỏ chính xác
 	Snap to Point	Hút vào điểm
 	Snapping Tolerance	Dung sai hút
 	Social Square Post 1080×1080	Bài đăng vuông mạng xã hội 1080×1080
@@ -4002,6 +4053,8 @@ theme	Appearance	Giao diện
 @msg	not a valid plug-in module: {0}	không phải mô-đun plug-in hợp lệ: {0}
 @msg	not a VectorCraft file: {0}	không phải tệp VectorCraft: {0}
 @msg	not a VectorCraft shortcut set (missing `overrides`)	không phải bộ phím tắt VectorCraft (thiếu `overrides`)
+@msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	không phải bộ phím tắt: văn bản không bắt đầu bằng một tên có dấu gạch chéo và một dấu ngoặc nhọn mở
+@msg	This shortcut file is in a form VectorCraft can't read.	Tệp phím tắt này có dạng mà VectorCraft không đọc được.
 @msg	not an EMF or WMF file	không phải tệp EMF hoặc WMF
 @msg	not found	không tìm thấy
 @msg	not in pattern editing mode	không ở chế độ chỉnh sửa họa tiết
@@ -4073,6 +4126,8 @@ theme	Appearance	Giao diện
 @msg	resolutions must be between 1 and 2400 ppi	độ phân giải phải nằm trong khoảng 1 đến 2400 ppi
 @msg	Restored {_1} recovered document(s): save them to keep them	Đã phục hồi {_1} tài liệu: hãy lưu để giữ lại
 @msg	result would exceed the canvas (coordinates out of range)	kết quả sẽ vượt quá vùng vẽ (tọa độ ngoài phạm vi)
+@msg	objects can't be nested more than 32 deep	không thể lồng các đối tượng sâu quá 32 cấp
+@msg	the SVG's elements are nested more than {0} deep	các phần tử SVG lồng nhau sâu quá {0} cấp
 @msg	Save for Web: the image is empty	Lưu cho Web: ảnh trống
 @msg	Save writes {_1}, not {_2}: use document.export for other formats	Lưu ghi {_1}, không phải {_2}: dùng document.export cho các định dạng khác
 @msg	saved panel layout is invalid; reset the workspace first	bố cục bảng đã lưu không hợp lệ; hãy đặt lại không gian làm việc trước
@@ -4298,3 +4353,73 @@ theme	Appearance	Giao diện
 @msg	{tool} isn't in a toolbar group of several tools	{tool} không nằm trong nhóm thanh công cụ có nhiều công cụ
 	Load EPS into Clipboard	Tải EPS vào bảng tạm
 @msg	an image of {w} × {h} pixels is too large to draw	ảnh {w} × {h} điểm ảnh quá lớn nên không thể vẽ
+	Basic	Cơ bản
+	Fill and Stroke Controls	Điều khiển tô và nét
+	Coloring Controls	Điều khiển màu
+	Draw Mode Controls	Điều khiển chế độ vẽ
+	Screen Mode Controls	Điều khiển chế độ màn hình
+	Drawer menu	Menu ngăn kéo
+	Toolbar: Show Controls	Thanh công cụ: Hiện điều khiển
+@msg	control must be fillStroke, coloring, drawMode or screenMode	control phải là fillStroke, coloring, drawMode hoặc screenMode
+@msg	unknown control `{name}`: fillStroke, coloring, drawMode or screenMode	điều khiển không xác định `{name}`: fillStroke, coloring, drawMode hoặc screenMode
+@msg	give a fraction `t` from 0 to 1	hãy cung cấp giá trị `t` từ 0 đến 1
+@msg	give the path `id`	hãy cung cấp `id` đường dẫn
+@msg	invalid stroke widths	chiều rộng nét không hợp lệ
+@msg	object has no weighted stroke	đối tượng không có nét với độ dày dương hợp lệ
+# Corner Radius: a field per corner of a live rectangle.
+	Single Corner Radius	Một bán kính góc
+	Top Left:	Trên cùng bên trái:
+	Top Right:	Trên cùng bên phải:
+	Bottom Left:	Dưới cùng bên trái:
+	Bottom Right:	Dưới cùng bên phải:
+	Softness	Độ mềm
+	Ambient Light	Ánh sáng môi trường
+	Light behind the object	Ánh sáng phía sau đối tượng
+# Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
+	Dimension	Kích thước
+	Drawing : real size — 1:10 labels 1 unit on the page as 10.	Bản vẽ : kích thước thực — 1:10 ghi 1 đơn vị trên trang thành 10.
+	Preview (1 inch on the page)	Xem trước (1 inch trên trang)
+	Set as Default	Đặt làm mặc định
+	 out from a highlighted edge to place its dimension  |  	 ra ngoài từ một cạnh được tô sáng để đặt kích thước của nó  |  
+	 cancels  |  Double-click the tool for options	 để hủy  |  Nhấp đúp vào công cụ để mở tùy chọn
+	Linear	Tuyến tính
+	Angular	Góc
+	Away from the Line	Cách xa đường
+	Between Line and Object	Giữa đường và đối tượng
+	Drag out from a segment, or click two points, then click to place.	Kéo ra ngoài từ một đoạn, hoặc nhấp hai điểm, rồi nhấp để đặt.
+	Drag out from a corner, or click two straight lines, then click to place.	Kéo ra ngoài từ một góc, hoặc nhấp hai đường thẳng, rồi nhấp để đặt.
+	Drag out from a circle or arc for its radius, inwards for its diameter.	Kéo từ đường tròn hoặc cung ra ngoài để lấy bán kính, vào trong để lấy đường kính.
+@msg	Choose a circle or a perfect arc	Hãy chọn một đường tròn hoặc một cung hoàn hảo
+@msg	Choose a precision from 0 to 6	Hãy chọn độ chính xác từ 0 đến 6
+	Create Dimension	Tạo kích thước
+	Dimension Tool	Công cụ Kích thước
+	Dimension Tool Options	Tùy chọn công cụ Kích thước
+	Display	Hiển thị
+	Font Family:	Họ phông chữ:
+	Font Style:	Kiểu phông chữ:
+	Precision:	Độ chính xác:
+	Update Dimensions	Cập nhật kích thước
+@msg	Angles require two straight segments	Góc cần hai đoạn thẳng
+@msg	Choose two different points	Hãy chọn hai điểm khác nhau
+@msg	Choose two non-parallel straight segments	Hãy chọn hai đoạn thẳng không song song
+@msg	Choose two nonzero angle arms	Hãy chọn hai cạnh góc có độ dài khác 0
+@msg	Dimension point is outside the canvas	Điểm kích thước nằm ngoài vùng vẽ
+@msg	Dimension size is outside its supported range	Kích thước nằm ngoài phạm vi được hỗ trợ
+@msg	First measured segment no longer exists	Đoạn được đo thứ nhất không còn tồn tại
+@msg	Invalid dimension distance	Khoảng cách kích thước không hợp lệ
+@msg	Invalid dimension font name	Tên phông chữ của kích thước không hợp lệ
+@msg	Invalid drawing scale	Tỷ lệ bản vẽ không hợp lệ
+@msg	Invalid real scale	Tỷ lệ thực không hợp lệ
+@msg	Measured anchor no longer exists	Điểm neo được đo không còn tồn tại
+@msg	Measured segment no longer exists	Đoạn được đo không còn tồn tại
+@msg	Non-finite dimension	Kích thước không phải là số hữu hạn
+@msg	Scale must be drawing:real, for example 1:10	Tỷ lệ phải có dạng bản vẽ:thực tế, ví dụ 1:10
+@msg	Scale ratio must be between 1:1000000 and 1000000:1	Tỷ lệ phải nằm trong khoảng 1:1000000 đến 1000000:1
+@msg	Second measured segment no longer exists	Đoạn được đo thứ hai không còn tồn tại
+@msg	Unknown dimension mode	Chế độ kích thước không xác định
+@msg	Unknown dimension option {k}	Tùy chọn kích thước không xác định {k}
+@msg	Unknown dimension style	Kiểu kích thước không xác định
+@msg	Unknown unit	Đơn vị không xác định
+# Revolve cap description
+	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Đóng các đầu tròn của biên dạng mở. Khi xoay một phần, các mặt cắt bên vẫn mở.
+	Distance	Khoảng cách
