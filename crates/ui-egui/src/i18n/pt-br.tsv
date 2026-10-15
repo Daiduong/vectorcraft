@@ -3763,3 +3763,8 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+
+# Pattern image resource commands
+	Pattern Images	Imagens em padrões
+	Export Pattern Image	Exportar imagem do padrão
+	Replace Pattern Image	Substituir imagem do padrão

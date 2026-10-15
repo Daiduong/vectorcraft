@@ -3741,3 +3741,8 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	環境光
 	Light behind the object	光源位於物件後方
+
+# Pattern image resource commands
+	Pattern Images	圖樣中的影像
+	Export Pattern Image	匯出圖樣影像
+	Replace Pattern Image	取代圖樣影像

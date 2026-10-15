@@ -4775,3 +4775,8 @@ imageTrace	Outline	Körvonal
 	Softness	Lágyság
 	Ambient Light	Környezeti fény
 	Light behind the object	Fény az objektum mögött
+
+# Pattern image resource commands
+	Pattern Images	Képek a mintázatokban
+	Export Pattern Image	Mintázat képének exportálása
+	Replace Pattern Image	Mintázat képének cseréje

@@ -4360,3 +4360,8 @@ lighting	Light	Світло
 	Softness	М'якість
 	Ambient Light	Навколишнє світло
 	Light behind the object	Світло позаду об'єкта
+
+# Pattern image resource commands
+	Pattern Images	Зображення у візерунках
+	Export Pattern Image	Експорт зображення візерунка
+	Replace Pattern Image	Замінити зображення візерунка

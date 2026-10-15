@@ -4344,3 +4344,8 @@ lighting	Light	광원
 	Softness	부드러움
 	Ambient Light	주변광
 	Light behind the object	개체 뒤의 조명
+
+# Pattern image resource commands
+	Pattern Images	패턴 이미지
+	Export Pattern Image	패턴 이미지 내보내기
+	Replace Pattern Image	패턴 이미지 바꾸기

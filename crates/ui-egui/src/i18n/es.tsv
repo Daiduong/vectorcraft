@@ -4749,3 +4749,8 @@ mark-style	Japanese	Japonesas
 	Softness	Suavidad
 	Ambient Light	Luz ambiental
 	Light behind the object	Luz detrás del objeto
+
+# Pattern image resource commands
+	Pattern Images	Imágenes de motivos
+	Export Pattern Image	Exportar imagen de motivo
+	Replace Pattern Image	Reemplazar imagen de motivo

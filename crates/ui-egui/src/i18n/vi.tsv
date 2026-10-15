@@ -4362,3 +4362,8 @@ theme	Appearance	Giao diện
 	Softness	Độ mềm
 	Ambient Light	Ánh sáng môi trường
 	Light behind the object	Ánh sáng phía sau đối tượng
+
+# Pattern image resource commands
+	Pattern Images	Hình ảnh trong họa tiết
+	Export Pattern Image	Xuất hình ảnh trong họa tiết
+	Replace Pattern Image	Thay thế hình ảnh trong họa tiết

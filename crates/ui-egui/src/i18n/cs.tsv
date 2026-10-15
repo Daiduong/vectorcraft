@@ -4808,3 +4808,8 @@ mark-style	Japanese	Japonské
 	Softness	Měkkost
 	Ambient Light	Okolní světlo
 	Light behind the object	Světlo za objektem
+
+# Pattern image resource commands
+	Pattern Images	Obrazy ve vzorcích
+	Export Pattern Image	Exportovat obraz ze vzorku
+	Replace Pattern Image	Nahradit obraz ve vzorku

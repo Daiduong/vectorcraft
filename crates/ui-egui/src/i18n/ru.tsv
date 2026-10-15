@@ -4376,3 +4376,8 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+
+# Pattern image resource commands
+	Pattern Images	Изображения в узорах
+	Export Pattern Image	Экспорт изображения узора
+	Replace Pattern Image	Заменить изображение узора
