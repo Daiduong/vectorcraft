@@ -1,5 +1,7 @@
 //! Path editing commands (used by the Pen and Direct Selection tools and Object → Path).
 
+mod average_join;
+
 use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
@@ -76,6 +78,15 @@ pub fn specs() -> Vec<CommandSpec> {
             "{axis?: \"horizontal\"|\"vertical\"|\"both\"}",
             has_selection,
             average
+        ),
+        cmd!(
+            "path.averageJoin",
+            "Average and Join…",
+            ["Object", "Path"],
+            Some("Cmd+Alt+Shift+J"),
+            "{kind?: \"corner\"|\"smooth\" (default corner)} average exactly two direct-selected open-path endpoints in both axes and merge as one undo step; the two ends of one open subpath close it, or two open subpaths join. Interior and closed-path anchors are excluded. Corner retains the surviving handles; Smooth uses the neighboring anchors. The first selected path keeps its appearance; other subpaths remain. → {id, subpath, anchor}",
+            average_join::enabled,
+            average_join::run
         ),
         cmd!(
             "path.convertAnchors",
