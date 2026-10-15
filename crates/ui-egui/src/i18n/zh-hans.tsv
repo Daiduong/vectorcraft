@@ -3957,3 +3957,29 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	环境光
 	Light behind the object	光源位于对象后方
+# Dimension tool (linked dimension annotations)
+	 a highlighted edge, then click to place its dimension | 	高亮显示的边缘，然后单击以放置尺寸标注 | 
+	 cancels | Double-click the tool for options	以取消 | 双击工具以打开选项
+	All selected edges	所有选定的边缘
+	Create Dimension	创建尺寸标注
+	Dimension Selected Paths	为选定路径标注尺寸
+	Dimension Tool	尺寸标注工具
+	Dimension Tool Options	尺寸标注工具选项
+	Drawing : real size — 1:10 means 1 cm on the page represents 10 cm.	图纸 : 实际尺寸 — 1:10 表示页面上的 1 cm 代表实际的 10 cm。
+	Font Family:	字体系列：
+	Font Style:	字体样式：
+	Precision:	精度：
+	Preview (1 cm on page)	预览（页面上的 1 cm）
+	Update Dimensions	更新尺寸标注
+	Display	显示
+
+# Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
+# Edit Dimension Text (double-click a dimension).
+	Edit Dimension Text	编辑尺寸文本
+	Edit Dimension Text…	编辑尺寸文本…
+	Select a dimension	请选择一个尺寸标注
+	Measured:	测量值：
+	Text:	文本：
+	Shows:	显示：
+	<> stands for the measured value. Leave empty to show the measurement.	<> 代表测量值。留空则显示测量值。
+	Use Measured Value	使用测量值
