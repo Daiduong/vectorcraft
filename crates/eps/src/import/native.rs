@@ -871,8 +871,10 @@ struct Frame<'a> {
 /// (a `.ai` saved without its PDF part), its type is made from the file's text document alone and
 /// nothing is compared. `outlined`: the page's type was read as outlines, so it has none to put in
 /// the text objects.
-fn build(data: &[u8], visible: Option<&Document>, page: Page, outlined: bool) -> Result<(Document, Vec<String>), String> {
-    let Structure { mut doc, to_doc, bbox, artboard, template, hidden_unread, slot_names, warnings } = ai::read(data)?;
+fn build(data: &[u8], visible: Option<&Document>, page: Page, outlined: bool, trust: bool) -> Result<(Document, Vec<String>), String> {
+    // An EPS (its page is its art) draws a Large Canvas page at full size; a `.ai` keeps its art
+    // space, as its PDF part may (#2031).
+    let Structure { mut doc, to_doc, bbox, artboard, template, hidden_unread, slot_names, warnings } = ai::read(data, matches!(page, Page::Art))?;
     let (mut shown, mut hidden) = (vec![], vec![]);
     let mut frame = None;
     if let Some(visible) = visible {
@@ -881,11 +883,13 @@ fn build(data: &[u8], visible: Option<&Document>, page: Page, outlined: bool) ->
             Page::Artboard => artboard.ok_or("its editing data doesn't say where its artboard is")?,
         };
         let page_rect = visible.artboards.first().map(|a| a.rect).ok_or("it has no page")?;
-        if (art_box.width() - page_rect.width()).abs() > 0.5 || (art_box.height() - page_rect.height()).abs() > 0.5 {
+        // The layers' art in the document's terms: a Large Canvas editing copy is written at 1/N
+        // scale, which `to_doc` carries, so its art and the page reach the same size (#2031).
+        let rect = to_doc.transform_rect_bbox(art_box);
+        if (rect.width() - page_rect.width()).abs() > 0.5 || (rect.height() - page_rect.height()).abs() > 0.5 {
             return Err("its editing data is for a different page".into());
         }
         // The page's area in the layers' document, and the page's type moved there.
-        let rect = to_doc.transform_rect_bbox(art_box);
         let shift = Affine::translate(Vec2::new(rect.x0 - page_rect.x0, rect.y0 - page_rect.y0));
         for l in &visible.layers {
             if let Some(c) = l.children() {
@@ -985,10 +989,15 @@ fn build(data: &[u8], visible: Option<&Document>, page: Page, outlined: bool) ->
             if unseen > 0 {
                 notes.push(format!("{unseen} {UNSEEN_TEXT}"));
             }
-            notes.extend(compare(&frame, &mut view, &doc)?);
+            match compare(&frame, &mut view, &doc) {
+                Ok(note) => notes.extend(note),
+                Err(why) if trust => notes.push(format!("{why}: they come from its editing data all the same")),
+                Err(why) => return Err(why),
+            }
         }
         None => unmark(&mut doc.layers, true, &mut vec![]),
     }
+    doc.limit_depth_noting(&mut notes);
     Ok((doc, notes))
 }
 
@@ -1112,7 +1121,7 @@ fn compare(frame: &Frame<'_>, view: &mut PageView, layered: &Document) -> Result
 /// has one that can't be used, `visible` with a warning that says why.
 pub(super) fn layered(ps: &[u8], visible: Imported) -> Imported {
     let Some(data) = editing_copy(ps) else { return visible };
-    let result = data.and_then(|data| build(&data, Some(&visible.document), Page::Art, false));
+    let result = data.and_then(|data| build(&data, Some(&visible.document), Page::Art, false, false));
     match result {
         Ok((document, mut warnings)) => {
             for w in &visible.warnings {
@@ -1138,12 +1147,13 @@ pub(super) fn layered(ps: &[u8], visible: Imported) -> Imported {
 /// The flag returned is `true` when the document is the one read from the layers; else the document
 /// is `visible`, its pages moved by `place_pages` when the layers can't be read. `outlined`: the
 /// PDF part's type was read as outlines (a file whose type shows then comes in as its PDF part).
-pub fn layered_ai(private: &[u8], visible: Document, warnings: Vec<String>, outlined: bool) -> (Document, Vec<String>, bool) {
+/// `trust`: layers that draw differently from the PDF part are used all the same, with a warning.
+pub fn layered_ai(private: &[u8], visible: Document, warnings: Vec<String>, outlined: bool, trust: bool) -> (Document, Vec<String>, bool) {
     let Ok(data) = ai::decode_private(private) else { return (visible, warnings, false) };
     if !has_layers(&data) {
         return (visible, warnings, false);
     }
-    match build(&data, Some(&visible), Page::Artboard, outlined) {
+    match build(&data, Some(&visible), Page::Artboard, outlined, trust) {
         Ok((mut done, notes)) => {
             done.setup.bleed = visible.setup.bleed;
             let mut all = warnings;
@@ -1160,19 +1170,25 @@ pub fn layered_ai(private: &[u8], visible: Document, warnings: Vec<String>, outl
     }
 }
 
-/// The pages of `doc` (a `.ai` read as its PDF part: a page per artboard, in a row) moved, with
-/// the art on each, to where `boards` (the artboards of its editing data, in art space) are, so
-/// the artboards keep their layout when the layers can't be read (#1068). Left as they are unless
-/// there are as many artboards as pages, of the same sizes.
-fn place_pages(boards: &[Rect], doc: &mut Document) {
-    let (Some(first), true) = (boards.first(), boards.len() == doc.artboards.len() && boards.len() > 1) else { return };
-    if boards.iter().zip(&doc.artboards).any(|(b, a)| (b.width() - a.rect.width()).abs() > 0.5 || (b.height() - a.rect.height()).abs() > 0.5) {
+/// The pages of `doc` (a `.ai` read as its PDF part: a page per artboard, in a row) named as
+/// `boards` (the artboards of its editing data, in art space) name them, and moved, with the art on
+/// each, to where they are, so the artboards keep their names and layout when the layers can't be
+/// read (#1068). Left as they are unless there are as many artboards as pages, of the same sizes.
+fn place_pages(boards: &[(String, Rect)], doc: &mut Document) {
+    if boards.is_empty() || boards.len() != doc.artboards.len() {
         return;
     }
+    if boards.iter().zip(&doc.artboards).any(|((_, b), a)| (b.width() - a.rect.width()).abs() > 0.5 || (b.height() - a.rect.height()).abs() > 0.5) {
+        return;
+    }
+    for ((name, _), a) in boards.iter().zip(&mut doc.artboards) {
+        a.name.clone_from(name);
+    }
+    let [(_, first), _, ..] = boards else { return };
     // Art space (y up) → the document, the first artboard's top left at the origin, as `read` has it.
     let to_doc = Affine::new([1.0, 0.0, 0.0, -1.0, -first.x0, first.y1]);
     let pages: Vec<Rect> = doc.artboards.iter().map(|a| a.rect).collect();
-    let moves: Vec<Vec2> = boards.iter().zip(&pages).map(|(b, page)| to_doc.transform_rect_bbox(*b).origin() - page.origin()).collect();
+    let moves: Vec<Vec2> = boards.iter().zip(&pages).map(|((_, b), page)| to_doc.transform_rect_bbox(*b).origin() - page.origin()).collect();
     for layer in &mut doc.layers {
         place_art(Arc::make_mut(layer), &pages, &moves);
     }
@@ -1204,7 +1220,7 @@ fn place_art(layer: &mut Node, pages: &[Rect], moves: &[Vec2]) {
 /// alone (`private`, the joined `AIPrivateData` streams) → the document and the import's notes.
 pub fn ai_alone(private: &[u8]) -> Result<(Document, Vec<String>), String> {
     let data = ai::decode_private(private)?;
-    build(&data, None, Page::Artboard, false)
+    build(&data, None, Page::Artboard, false, false)
 }
 
 /// Does the editing data (or a program in the legacy format) have layers?
@@ -1225,7 +1241,7 @@ fn editing_copy(ps: &[u8]) -> Option<Result<Cow<'_, [u8]>, String>> {
 /// prolog without including it) from its layers alone (`ps`: its program, which has them) → the
 /// document and the import's notes. `None` when the layers aren't in the program.
 pub(super) fn program_alone(ps: &[u8]) -> Option<Result<(Document, Vec<String>), String>> {
-    (!ai::has_eps_data(ps) && has_layers(ps)).then(|| build(ps, None, Page::Art, false))
+    (!ai::has_eps_data(ps) && has_layers(ps)).then(|| build(ps, None, Page::Art, false, false))
 }
 
 #[cfg(test)]

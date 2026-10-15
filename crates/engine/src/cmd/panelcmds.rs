@@ -136,10 +136,7 @@ pub(crate) fn artboard_copy(s: &mut Session, p: &Value, cut: bool) -> Result<Val
             // Its guides go with it.
             let gone = d.artboards.remove(i).id;
             d.retain_guides(sel, |_, g| g.artboard != Some(gone));
-            for id in &art {
-                // Always there: none of the art is inside another of it.
-                let _ = d.remove(*id);
-            }
+            d.remove_many(&art)?;
             sel.prune(d);
             Ok(())
         })?;
@@ -161,13 +158,7 @@ pub(crate) fn copy_artboard(d: &mut vectorcraft_doc::Document, i: usize, dv: Vec
     if let Some(id) = d.artboards.get(index).map(|a| a.id) {
         d.copy_artboard_guides(src.id, id, dv);
     }
-    let mut copies = Vec::with_capacity(art.len());
-    for id in art {
-        let (Some((parent, at, _)), Some(n)) = (d.position(*id), d.node(*id).cloned()) else { continue };
-        let mut c = d.reid(&n);
-        c.transform(Affine::translate(dv), sc);
-        copies.push(d.insert(parent, at + 1, c)?);
-    }
+    let copies = super::edit::copy_above(d, art, |_, _, c| c.transform(Affine::translate(dv), sc))?;
     Ok((index, copies))
 }
 
@@ -175,7 +166,7 @@ pub(crate) fn copy_artboard(d: &mut vectorcraft_doc::Document, i: usize, dv: Vec
 /// (`<name> copy 2`…) when that is taken → its index.
 pub(crate) fn push_artboard_copy(d: &mut vectorcraft_doc::Document, src: &vectorcraft_doc::Artboard, rect: Rect) -> usize {
     let mut a = src.clone();
-    a.id = d.artboards.iter().map(|a| a.id).max().unwrap_or(0).saturating_add(1);
+    a.id = d.next_artboard_id();
     let taken = |name: &str| d.artboards.iter().any(|a| a.name == name);
     a.name = [src.name.clone(), format!("{} copy", src.name)]
         .into_iter()

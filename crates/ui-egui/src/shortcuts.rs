@@ -173,18 +173,26 @@ pub(crate) fn keep_marked_text(app: &mut VectorcraftApp) {
     }
 }
 
+/// Cmd/Ctrl chords are shortcuts (Create Outlines, Bold, …): their letter is never typed into the
+/// text if a host still emits `Text` for them (#2094). Alt is left to type: Option+key on macOS
+/// and AltGr (Ctrl+Alt) on Windows keyboards type characters such as é, ø and @.
+fn is_shortcut_chord(m: egui::Modifiers) -> bool {
+    (m.command || m.ctrl) && !m.alt
+}
+
 /// Typed text and IME events, in the order they came, to the Type tool.
 fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let view = app.view_info();
     // Switching apps mid-composition needs nothing: the macOS IME keeps its marked text and goes
     // on with it when the window comes back (measured with Kotoeri), as the tool does.
+    let shortcut_mods = ctx.input(|i| is_shortcut_chord(i.modifiers));
     let events: Vec<egui::Event> =
         ctx.input(|i| i.events.iter().filter(|e| matches!(e, egui::Event::Text(_) | egui::Event::Ime(_))).cloned().collect());
     for e in events {
         // Errors are already reported by the engine's interaction (a failed preview keeps it).
         let _ = match e {
             // Keys the IME passed through come as text only when nothing is marked.
-            egui::Event::Text(t) if !app.session.tool_composing() => app.session.tool_text(&t, view),
+            egui::Event::Text(t) if !app.session.tool_composing() && !shortcut_mods => app.session.tool_text(&t, view),
             egui::Event::Ime(egui::ImeEvent::Preedit { text, active_range_chars }) => {
                 app.ime_marked = Some(text.clone()).filter(|t| !t.is_empty());
                 app.session.tool_preedit(&text, active_range_chars, view)
@@ -365,6 +373,16 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     ] {
         if ctx.input(|i| i.key_pressed(k)) && app.session.tool_claims_key(tk, view) && ctx.input_mut(|i| i.consume_key(m, k)) {
             let r = app.session.tool_key(tk, crate::canvas::mods(m, false), view);
+            // Keyboard actions can change the Artboard tool's active board too. Keep the
+            // navigator aligned with its valid survivor, as pointer dispatch does.
+            if r.is_ok()
+                && app.session.tool_id() == "artboard"
+                && let Some(i) = app.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok())
+                && app.session.active().is_some_and(|d| i < d.doc.artboards.len())
+                && let Some(v) = app.view_mut()
+            {
+                v.artboard = i;
+            }
             crate::canvas::apply_requests(app, r);
             return;
         }
@@ -389,6 +407,38 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 crate::canvas::apply_requests(app, r);
                 return;
             }
+        }
+    }
+    // `[` and `]` the active tool takes (the Blob Brush's and the Eraser's size, the Symbolism
+    // tools' diameter, with Shift their intensity). Read as typed, so
+    // layouts where a bracket takes Option or AltGr count too; `{` and `}` are Shift's.
+    if !(m.command || m.ctrl) {
+        let typed: Vec<(String, ToolKey, bool)> = ctx.input(|i| {
+            i.events
+                .iter()
+                .filter_map(|e| match e {
+                    egui::Event::Text(t) => match t.as_str() {
+                        "[" => Some((t.clone(), ToolKey::BracketLeft, false)),
+                        "]" => Some((t.clone(), ToolKey::BracketRight, false)),
+                        "{" => Some((t.clone(), ToolKey::BracketLeft, true)),
+                        "}" => Some((t.clone(), ToolKey::BracketRight, true)),
+                        _ => None,
+                    },
+                    _ => None,
+                })
+                .collect()
+        });
+        let mut taken = false;
+        for (text, key, shift) in typed {
+            if app.session.tool_claims_key(key, view) {
+                ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Text(t) if *t == text)));
+                let r = app.session.tool_key(key, Mods { shift, ..Mods::default() }, view);
+                crate::canvas::apply_requests(app, r);
+                taken = true;
+            }
+        }
+        if taken {
+            return;
         }
     }
     // Command shortcuts.
@@ -488,6 +538,58 @@ mod tests {
         });
         out.textures_delta.clear();
         out
+    }
+
+    #[test]
+    fn option_and_altgr_still_type_but_cmd_and_ctrl_chords_do_not() {
+        use egui::Modifiers as M;
+        assert!(is_shortcut_chord(M::COMMAND | M::SHIFT));
+        assert!(is_shortcut_chord(M::CTRL));
+        assert!(!is_shortcut_chord(M::NONE));
+        assert!(!is_shortcut_chord(M::SHIFT));
+        assert!(!is_shortcut_chord(M::ALT), "Option+key types é, ø on macOS");
+        assert!(!is_shortcut_chord(M::CTRL | M::ALT), "AltGr types @ on a German keyboard");
+    }
+
+    /// #2094: Cmd+Shift+O is Type › Create Outlines (not File › Open's Cmd+O, not the Artboard
+    /// tool's Shift+O), with the Selection tool or while the Type tool edits the text.
+    #[test]
+    fn cmd_shift_o_creates_outlines() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+        assert_eq!(crate::menus::shortcut_of("type.createOutlines"), Some("Cmd+Shift+O"));
+        let open = parse("Cmd+O").unwrap();
+        let outlines = parse("Cmd+Shift+O").unwrap();
+        let pos = |want: egui::KeyboardShortcut, id: &str| super::all_shortcuts().iter().position(|(sc, i, _)| *i == id && *sc == want);
+        assert!(pos(outlines, "type.createOutlines").unwrap() < pos(open, "file.open").unwrap(), "more modifiers win so Open does not eat the chord");
+        let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
+        let chord = egui::Event::Key { key: Key::O, physical_key: None, pressed: true, repeat: false, modifiers: cmd_shift };
+        let is_text = |app: &VectorcraftApp, id: u64| {
+            matches!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).map(|n| &n.kind), Some(vectorcraft_doc::NodeKind::Text(_)))
+        };
+        let group_kids = |app: &VectorcraftApp| -> usize {
+            let id = app.session.active().unwrap().selection.objects.first().copied().unwrap();
+            match &app.session.doc().unwrap().doc.node(id).unwrap().kind {
+                vectorcraft_doc::NodeKind::Group { children, .. } => children.len(),
+                _ => 0,
+            }
+        };
+        let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
+        assert!(is_text(&app, id));
+        frame(&mut app, vec![chord.clone()]);
+        assert!(!is_text(&app, id), "Selection tool: the chord outlines the text");
+        assert_eq!(group_kids(&app), 2, "H and i");
+        assert_ne!(app.session.tool_id(), "artboard", "not the Artboard tool's Shift+O");
+        assert!(app.ui.dialog.is_none(), "not File › Open");
+        // While the Type tool edits, the same chord outlines; a Text event with Cmd held must not type.
+        let id = app.session.execute("text.create", &json!({"x": 20, "y": 80, "text": "Yo"})).unwrap()["id"].as_u64().unwrap();
+        app.select_tool("type");
+        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        assert!(app.session.tool_wants_text());
+        frame(&mut app, vec![egui::Event::ModifiersChanged(cmd_shift), chord, egui::Event::Text("o".into())]);
+        assert!(!is_text(&app, id), "Type tool: the chord outlines the text being edited");
+        assert_eq!(group_kids(&app), 2, "Yo only: the stray Text with Cmd was not typed");
+        assert!(app.ui.dialog.is_none(), "not File › Open while typing");
     }
 
     /// Cmd+Shift+B while the Type tool edits text is Type › Bold, not Hide Bounding Box (#724).
@@ -697,6 +799,33 @@ mod tests {
         app.select_tool("rectangle");
         frame(&mut app, vec![enter()]);
         assert_eq!(kind(&app), None, "another tool has its own Enter");
+    }
+
+    /// #1661: typed `[` and `]` reach the tool that takes them: the Blob Brush's and the Eraser's
+    /// size (Option or AltGr brackets too), the stroke weight left as it is; other tools leave them
+    /// alone.
+    #[test]
+    fn brackets_size_the_blob_brush_and_the_eraser() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+        app.session.execute("stroke.set", &json!({"weight": 3})).unwrap();
+        let size = |app: &mut VectorcraftApp| app.session.tool_options()["size"].as_f64().unwrap();
+        let text = |t: &str| egui::Event::Text(t.into());
+        for tool in ["blobBrush", "eraser"] {
+            app.select_tool(tool);
+            let before = size(&mut app);
+            frame(&mut app, vec![text("]")]);
+            frame(&mut app, vec![text("]")]);
+            assert_eq!(size(&mut app), before + 2.0, "{tool}");
+            // Option-8 types `[` on a Turkish Mac keyboard.
+            let option_8 = egui::Event::Key { key: Key::Num8, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::ALT };
+            frame(&mut app, vec![option_8, text("[")]);
+            assert_eq!(size(&mut app), before + 1.0, "{tool}: a bracket typed with Option");
+        }
+        assert_eq!(app.session.paint.stroke_width, 3.0, "the stroke weight stays");
+        app.select_tool("rectangle");
+        frame(&mut app, vec![text("[")]);
+        assert_eq!(app.session.paint.stroke_width, 3.0);
     }
 
     #[test]

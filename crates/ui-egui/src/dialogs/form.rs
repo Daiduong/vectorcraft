@@ -23,7 +23,7 @@ pub(super) fn field_w(ui: &mut egui::Ui, d: &mut Dialog, key: &str, label: &str,
 }
 
 /// The label cell of a grid row.
-fn row_label(ui: &mut egui::Ui, label: &str) {
+pub(super) fn row_label(ui: &mut egui::Ui, label: &str) {
     let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new(tl!(label)).color(t.text_dim));
 }
@@ -48,7 +48,7 @@ pub(super) fn length(ui: &mut egui::Ui, d: &mut Dialog, key: &str, unit: Unit, w
 /// The fields of the form dialogs ([`grid`]) that are distances, by dialog kind.
 fn lengths(kind: &str) -> &'static [&'static str] {
     match kind {
-        "move" => &["dx", "dy"],
+        "move" => &["dx", "dy", "distance"],
         "rectangle" | "ellipse" | "rectangularGrid" | "polarGrid" | "artboardOptions" => &["width", "height"],
         "roundedRectangle" => &["width", "height", "radius"],
         "polygon" => &["radius"],
@@ -56,8 +56,17 @@ fn lengths(kind: &str) -> &'static [&'static str] {
         "lineSegment" => &["length"],
         "offsetPath" => &["offset"],
         "simplify" => &["tolerance"],
-        "splitIntoGrid" => &["gutter"],
         _ => &[],
+    }
+}
+
+/// The fields of the form dialogs ([`grid`]) that are angles or percentages, with what follows the
+/// number: fields that ↑/↓ step by one (Shift: ten) and that do math, as the distances do.
+fn suffix(kind: &str, key: &str) -> Option<&'static str> {
+    match (kind, key) {
+        ("rotate" | "shear" | "reflect" | "move", "angle") => Some("°"),
+        ("scale", "sx" | "sy") => Some("%"),
+        _ => None,
     }
 }
 
@@ -65,8 +74,8 @@ fn lengths(kind: &str) -> &'static [&'static str] {
 /// name).
 fn order(kind: &str) -> &'static [&'static str] {
     match kind {
+        "move" => &["dx", "dy", "distance", "angle"],
         "offsetPath" => &["offset", "joins", "miterLimit"],
-        "splitIntoGrid" => &["rows", "columns", "gutter"],
         "rectangularGrid" => &["width", "height", "rows", "rowSkew", "columns", "columnSkew"],
         "polarGrid" => &["width", "height", "concentric", "concentricSkew", "radial", "radialSkew"],
         "artboardOptions" => &["name", "width", "height"],
@@ -95,7 +104,8 @@ fn choices(kind: &str, key: &str) -> Vec<(&'static str, &'static str)> {
     match (kind, key) {
         ("offsetPath", "joins") => vec![("miter", tl!("Miter")), ("round", tl!("Round")), ("bevel", tl!("Bevel"))],
         ("average", "axis") => vec![axis("horizontal", "Horizontal"), axis("vertical", "Vertical"), axis("both", "Both")],
-        ("reflect" | "shear", "axis") => vec![axis("horizontal", "Horizontal"), axis("vertical", "Vertical")],
+        ("reflect", "axis") => vec![axis("horizontal", "Horizontal"), axis("vertical", "Vertical"), axis("angle", "Angle")],
+        ("shear", "axis") => vec![axis("horizontal", "Horizontal"), axis("vertical", "Vertical")],
         _ => vec![],
     }
 }
@@ -116,7 +126,10 @@ pub(super) fn text_edit(ui: &mut egui::Ui, d: &mut Dialog, key: &str, width: f32
         .stroke(egui::Stroke::new(1.0, t.input_border))
         .corner_radius(egui::CornerRadius::same(3))
         .inner_margin(egui::Margin::symmetric(6, 3))
-        .show(ui, |ui| ui.add(egui::TextEdit::singleline(&mut s).id(id).frame(egui::Frame::NONE).desired_width(width)));
+        .show(ui, |ui| {
+            crate::theme::strong_selected_text(ui);
+            ui.add(egui::TextEdit::singleline(&mut s).id(id).frame(egui::Frame::NONE).desired_width(width))
+        });
     if r.inner.changed() {
         d.fields.insert(key.into(), Value::String(s));
     }
@@ -133,7 +146,10 @@ pub(super) fn text_area(ui: &mut egui::Ui, d: &mut Dialog, key: &str, width: f32
         .stroke(egui::Stroke::new(1.0, t.input_border))
         .corner_radius(egui::CornerRadius::same(3))
         .inner_margin(egui::Margin::symmetric(6, 3))
-        .show(ui, |ui| ui.add(egui::TextEdit::multiline(&mut s).frame(egui::Frame::NONE).desired_width(width).desired_rows(rows)));
+        .show(ui, |ui| {
+            crate::theme::strong_selected_text(ui);
+            ui.add(egui::TextEdit::multiline(&mut s).frame(egui::Frame::NONE).desired_width(width).desired_rows(rows))
+        });
     if r.inner.changed() {
         d.fields.insert(key.into(), Value::String(s));
     }
@@ -193,6 +209,12 @@ pub(super) fn grid(ui: &mut egui::Ui, d: &mut Dialog, unit: Unit) {
             let options = choices(&d.kind, &k);
             if lengths.contains(&k.as_str()) {
                 length_field(ui, d, &k, &humanized(&k), unit);
+            } else if let Some(suffix) = suffix(&d.kind, &k) {
+                row_label(ui, &humanized(&k));
+                if let Some(v) = crate::widgets::plain_field(ui, ("dlg-num", &k), d.f64(&k, 0.0), suffix, 3, FIELD_W) {
+                    d.fields.insert(k, json!(v));
+                }
+                ui.end_row();
             } else if let Some(ends) = skew_ends(&d.kind, &k) {
                 let max = vectorcraft_geom::shapes::GRID_SKEW_MAX;
                 row_label(ui, tl!("Skew:"));
@@ -415,7 +437,7 @@ pub(super) fn humanize(k: &str) -> String {
 }
 
 /// [`humanize`] translated where it is painted: the ":" stays outside the translated text.
-fn humanized(k: &str) -> String {
+pub(super) fn humanized(k: &str) -> String {
     let h = humanize(k);
     match h.strip_suffix(':') {
         Some(base) => format!("{}:", tl!(base)),

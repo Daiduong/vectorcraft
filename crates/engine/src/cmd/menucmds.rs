@@ -2,6 +2,7 @@
 //! Bounding Box, Rasterize, Crop Image, Mask (an image), Create Trim Marks, Convert to Shape and
 //! Artboards → Convert / Rearrange. (Live blends are in `live.rs`.)
 
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -75,7 +76,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Transform Each…",
             ["Object", "Transform"],
             Some("Cmd+Alt+Shift+D"),
-            "{scaleH?: % (100), scaleV?: % (100), moveH?: pt, moveV?: pt (down = +), rotate?: deg (counter-clockwise), reflectX?: bool (flip vertically), reflectY?: bool (flip horizontally), random?: bool, seed?: n, reference?: 0..8 (9-point grid, 4 = centre), copy?: bool, strokes?: bool (Scale Strokes & Effects), corners?: bool (Scale Corners; both default to the preferences), patterns?: bool (Transform Patterns; default: prefs transformPatternTiles)} transform every selected object about its own reference point → {ids}",
+            "{scaleH?: % (100), scaleV?: % (100), moveH?: pt, moveV?: pt (down = +), rotate?: deg (counter-clockwise), reflectX?: bool (flip left-right, as Reflect X in the Transform Each dialog), reflectY?: bool (flip top-bottom, as Reflect Y), random?: bool, seed?: n, reference?: 0..8 (9-point grid, 4 = centre), copy?: bool, strokes?: bool (Scale Strokes & Effects), corners?: bool (Scale Corners; both default to the preferences), objects?: bool (Transform Objects, default true; false: the art stays and, with patterns, only its pattern tiles transform), patterns?: bool (Transform Patterns; default: prefs transformPatternTiles)} transform every selected object about its own reference point → {ids}",
             has_selection,
             transform_each
         ),
@@ -156,7 +157,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Rearrange All Artboards…",
             ["Object", "Artboards"],
             None,
-            "{layout?: gridByRow|gridByColumn|row|column (gridByRow; byColumn?: true is gridByColumn), order?: leftToRight|rightToLeft (leftToRight: right-to-left mirrors the order along the rows), columns?: n (2; the rows for gridByColumn; row and column ignore it), spacing?: pt (20), moveArtwork?: true (locked and hidden art only with prefs moveLockedWithArtboard), patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} lay the artboards out in their order, the grid's top-left at the first artboard's → {artboards, rows, columns}",
+            "{layout?: gridByRow|gridByColumn|row|column (gridByRow; byColumn?: true is gridByColumn), order?: leftToRight|rightToLeft (leftToRight: right-to-left mirrors the order along the rows), columns?: n (2; the rows for gridByColumn; row and column ignore it), spacing?: pt (20), moveArtwork?: true (locked and hidden art only with prefs moveLockedWithArtboard), patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles), byColumn?: bool (an older way to ask for layout gridByColumn)} lay the artboards out in their order, the grid's top-left at the first artboard's → {artboards, rows, columns}",
             has_doc,
             rearrange_artboards
         ),
@@ -209,7 +210,9 @@ fn reset_bounding_box(s: &mut Session, _: &Value) -> Result<Value> {
 fn above(s: &mut Session, lock: bool) -> Result<Value> {
     let roots = selected_roots(s)?;
     let d = &s.doc()?.doc;
-    let mut hits: Vec<NodeId> = vec![];
+    // `selected` holds each selected object's visual bounds, by layer, with the index there of its
+    // ancestor directly inside the layer.
+    let mut selected: BTreeMap<NodeId, Vec<(usize, Rect)>> = BTreeMap::new();
     for id in &roots {
         let Some(layer) = d.layer_of(*id) else { continue };
         // The selected object's ancestor directly inside the layer.
@@ -218,12 +221,26 @@ fn above(s: &mut Session, lock: bool) -> Result<Value> {
         let top = anc.get(pos + 1).copied().unwrap_or(*id);
         let Some(b) = d.node(*id).and_then(|n| n.visual_bounds()) else { continue };
         let Some((_, idx, _)) = d.position(top) else { continue };
-        for n in d.children(Some(layer)).into_iter().flatten().skip(idx + 1) {
-            if roots.contains(&n.id) || hits.contains(&n.id) {
+        selected.entry(layer).or_default().push((idx, b));
+    }
+    // The loop walks up each layer once. Each object that is not selected and overlaps a selected
+    // object below it is locked (Lock) or hidden (Hide).
+    let roots: HashSet<NodeId> = roots.into_iter().collect();
+    let mut hits: BTreeSet<NodeId> = BTreeSet::new();
+    for (layer, mut below) in selected {
+        below.sort_by_key(|(idx, _)| *idx);
+        let mut below = below.into_iter().peekable();
+        // `under` holds the bounds of the selected objects below the object at `i`.
+        let mut under: Vec<Rect> = vec![];
+        for (i, n) in d.children(Some(layer)).into_iter().flatten().enumerate() {
+            while let Some((_, b)) = below.next_if(|(idx, _)| *idx < i) {
+                under.push(b);
+            }
+            if under.is_empty() || roots.contains(&n.id) {
                 continue;
             }
-            if n.visual_bounds().is_some_and(|nb| nb.intersect(b).area() > 0.0 || nb.contains(b.center())) {
-                hits.push(n.id);
+            if n.visual_bounds().is_some_and(|nb| under.iter().any(|b| nb.intersect(*b).area() > 0.0 || nb.contains(b.center()))) {
+                hits.insert(n.id);
             }
         }
     }
@@ -295,6 +312,19 @@ fn about(o: Point, a: Affine) -> Affine {
 }
 
 fn transform_each(s: &mut Session, p: &Value) -> Result<Value> {
+    transform_each_as(s, p, "Transform Each")
+}
+
+/// Object → Transform → Transform Again (⌘D) repeating a Transform Each: the same per-object
+/// transform again (or another copy), run as the command so each object turns about its own
+/// bounds (see [`transform_again`](super::object::transform_again)).
+pub(crate) fn transform_each_again(s: &mut Session, p: &Value) -> Result<Value> {
+    transform_each_as(s, p, "Transform Again")
+}
+
+/// [`transform_each`] under an undo label. Outside an interaction it records what Transform Again
+/// repeats; a dialog's preview records it as it commits (`Session::commit_interaction`).
+fn transform_each_as(s: &mut Session, p: &Value, label: &str) -> Result<Value> {
     let roots = selected_roots(s)?;
     // Bounded so coordinates stay finite (and the document stays serializable).
     let sh = f64_or(p, "scaleH", 100.0).clamp(-100_000.0, 100_000.0);
@@ -307,6 +337,7 @@ fn transform_each(s: &mut Session, p: &Value) -> Result<Value> {
     let random = bool_or(p, "random", false);
     let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4).min(8) as usize;
     let copy = bool_or(p, "copy", false);
+    let objects = super::object::transforms_objects(p);
     if sh == 0.0 || sv == 0.0 {
         return Err(bad("object.transformEach", "scale must be non-zero"));
     }
@@ -319,7 +350,7 @@ fn transform_each(s: &mut Session, p: &Value) -> Result<Value> {
     if roots.is_empty() || (!copy && sh == 100.0 && sv == 100.0 && mh == 0.0 && mv == 0.0 && rot == 0.0 && !rx && !ry) {
         return Ok(ids_json(&roots));
     }
-    let ids = s.edit("Transform Each", |d, sel| {
+    let ids = s.edit(label, |d, sel| {
         let targets = if copy { duplicate_in(d, sel, &roots, Affine::IDENTITY)? } else { roots.clone() };
         for id in &targets {
             let Some(b) = d.node(*id).and_then(|n| n.geometric_bounds()) else { continue };
@@ -332,15 +363,22 @@ fn transform_each(s: &mut Session, p: &Value) -> Result<Value> {
                 k_rot = rot * (rng.next() * 2.0 - 1.0);
             }
             let o = vectorcraft_geom::reference_point(b, refi);
-            let refl = Affine::scale_non_uniform(if ry { -1.0 } else { 1.0 }, if rx { -1.0 } else { 1.0 });
+            // Reflect X / Reflect Y match Object › Transform › Transform Each and Effect › Distort › Transform:
+            // Reflect X flips left-right (negate x), Reflect Y flips top-bottom (negate y).
+            let refl = Affine::scale_non_uniform(if rx { -1.0 } else { 1.0 }, if ry { -1.0 } else { 1.0 });
             let m = Affine::translate((k_mh, k_mv))
                 * about(o, Affine::rotate(-k_rot.to_radians()) * refl * Affine::scale_non_uniform(k_sh / 100.0, k_sv / 100.0));
             if let Some(n) = d.node_mut(*id) {
-                n.transform(m, sc);
+                super::object::transform_node(n, m, sc, objects);
             }
         }
         Ok(targets)
     })?;
+    let st = s.doc_mut()?;
+    if st.interaction.is_none() {
+        st.last_transform = Some(crate::LastTransform::Each(p.clone()));
+        st.last_perspective = None;
+    }
     Ok(ids_json(&ids))
 }
 
@@ -442,9 +480,10 @@ fn rasterize(s: &mut Session, p: &Value) -> Result<Value> {
         .map(|(bp, rule)| (PathData::from_bezpath(&bp), rule));
     let tmp = isolated_doc(&st.doc, nodes);
     let (png, w, h) = render_png(&tmp, region, scale, &raster.render_options(RasterFormat::Png), look.color_model)?;
-    let top = *roots.last().ok_or_else(|| bad(C, "nothing selected"))?;
+    if roots.is_empty() {
+        return Err(bad(C, "nothing selected"));
+    }
     let id = s.edit("Rasterize", |d, sel| {
-        let (par, idx, _) = d.position(top).ok_or(EngineError::NoNode(top))?;
         let key = unique_key(d, "raster");
         d.images.insert(key.clone(), vectorcraft_doc::ImageBlob::new("image/png", png));
         let id = d.alloc_id();
@@ -454,11 +493,7 @@ fn rasterize(s: &mut Session, p: &Value) -> Result<Value> {
         if let Some((path, rule)) = clip {
             node = super::rasterfx::clip_group(d, path, rule, node);
         }
-        let id = node.id;
-        d.insert(par, idx + 1, node)?;
-        for r in &roots {
-            d.remove(*r)?;
-        }
+        let id = d.wrap(&roots, |_| node)?;
         sel.set([id]);
         Ok(id)
     })?;
@@ -624,7 +659,18 @@ fn trim_image(s: &mut Session, id: NodeId, im: ImageObject) -> Result<Value> {
     const C: &str = "object.cropImage";
     let st = s.doc()?;
     let blob = st.doc.images.get(&im.key).ok_or_else(|| bad(C, "the image's pixels are missing"))?;
-    let px = image::load_from_memory(&blob.bytes).map_err(|_| bad(C, "the image's pixels can't be read"))?.to_rgba8();
+    // A CMYK image (kept as its ink amounts) has no alpha: nothing to cut.
+    if blob.is_cmyk() {
+        return Ok(json!({ "id": id.0, "width": im.width, "height": im.height, "trimmed": false }));
+    }
+    // Print rasters run to gigabytes decoded: the same allowance opening them has.
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(blob.bytes.as_slice()))
+        .with_guessed_format()
+        .map_err(|_| bad(C, "the image's pixels can't be read"))?;
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(crate::cmd::fileio::MAX_RASTER_ALLOC);
+    reader.limits(limits);
+    let px = reader.decode().map_err(|e| bad(C, format!("the image's pixels can't be read: {e}")))?.to_rgba8();
     let (w, h) = px.dimensions();
     let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0, 0);
     for (x, y, p) in px.enumerate_pixels() {
@@ -817,7 +863,7 @@ fn convert_to_shape(s: &mut Session, _: &Value) -> Result<Value> {
 fn convert_to_artboards(s: &mut Session, _: &Value) -> Result<Value> {
     let roots = selected_roots(s)?;
     let n = s.edit("Convert to Artboards", |d, sel| {
-        let mut n = 0;
+        let mut converted = vec![];
         for id in &roots {
             let Some(b) = d.node(*id).and_then(|n| n.geometric_bounds()) else { continue };
             if b.width() <= 0.0 || b.height() <= 0.0 {
@@ -831,14 +877,14 @@ fn convert_to_artboards(s: &mut Session, _: &Value) -> Result<Value> {
                 show_center_mark: false,
                 show_cross_hairs: false,
             });
-            d.remove(*id)?;
-            n += 1;
+            converted.push(*id);
         }
-        if n == 0 {
+        if converted.is_empty() {
             return Err(EngineError::Other("Convert to Artboards: selection has no area".into()));
         }
+        d.remove_many(&converted)?;
         sel.clear();
-        Ok(n)
+        Ok(converted.len())
     })?;
     Ok(json!({ "artboards": n }))
 }

@@ -451,8 +451,10 @@ fn align_and_distribute_reject_bad_params_without_changing_state() {
         ("object.distribute", json!({"horizontal": "middle"}), h),
         ("object.distribute", json!({"vertical": "centre"}), v),
         ("object.distribute", json!({"horizontal": "left", "vertical": "middle"}), v),
+        ("object.distribute", json!({"horizontal": "left", "to": "page"}), to),
         ("object.distributeSpacing", json!({"axis": "diagonal"}), "`axis` must be one of horizontal, vertical"),
         ("object.distributeSpacing", json!({"axis": "vertical", "spacing": "5"}), "`spacing` must be a number"),
+        ("object.distributeSpacing", json!({"axis": "vertical", "to": 0}), to),
     ] {
         let e = s.execute(cmd, &p).expect_err(&format!("{cmd} {p}"));
         assert_eq!(e.to_string(), format!("invalid parameters for `{cmd}`: {msg}"));
@@ -504,6 +506,97 @@ fn align_to_artboard_uses_the_artboard_named() {
     s.execute("select.set", &json!({"ids": [c.0]})).unwrap();
     s.execute("object.align", &json!({"horizontal": "left", "to": "artboard"})).unwrap();
     assert_eq!(x0(&s, c), boards[0].x0, "off every artboard: the first");
+}
+
+/// Rectangles `(x, width)`, 20 pt tall at y 10, selected → their ids. `vertical`: the same
+/// numbers on the other axis, `(y, height)` of rectangles 20 pt wide at x 10.
+fn selected_row(s: &mut Session, row: &[(f64, f64)], vertical: bool) -> Vec<NodeId> {
+    let ids: Vec<NodeId> =
+        row.iter().map(|&(at, size)| if vertical { rect(s, 10.0, at, 20.0, size) } else { rect(s, at, 10.0, size, 20.0) }).collect();
+    s.execute("select.set", &json!({"ids": ids.iter().map(|id| id.0).collect::<Vec<_>>()})).unwrap();
+    ids
+}
+
+/// The left edges of `ids`, or with `vertical` their top edges.
+fn starts(s: &Session, ids: &[NodeId], vertical: bool) -> Vec<f64> {
+    let b = |id| s.doc().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap();
+    ids.iter().map(|id| if vertical { b(*id).y0 } else { b(*id).x0 }).collect()
+}
+
+/// With Align to Artboard, Distribute moves the first object until its left edge is on the
+/// artboard's left edge, and it moves the last one until its right edge is on the artboard's right
+/// edge. It spaces the left edges evenly between them, and two objects are enough. With Align to
+/// Selection or to the key object, the first and last objects stay put, and two objects don't move.
+/// `artboard` names the artboard.
+#[test]
+fn distribute_to_artboard_puts_the_outermost_objects_on_its_edges() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400, "artboards": 2})).unwrap();
+    let boards: Vec<_> = s.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
+    let ids = selected_row(&mut s, &[(100.0, 20.0), (150.0, 20.0), (260.0, 20.0)], false);
+    s.execute("object.distribute", &json!({"horizontal": "left", "to": "artboard"})).unwrap();
+    assert_eq!(starts(&s, &ids, false), [0.0, 190.0, 380.0], "on artboard 0's edges");
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("object.distribute", &json!({"horizontal": "left", "to": "artboard", "artboard": 1})).unwrap();
+    let x0 = boards[1].x0;
+    assert_eq!(starts(&s, &ids, false), [x0, x0 + 190.0, x0 + 380.0], "on artboard 1's edges");
+    for p in [json!({"horizontal": "left", "to": "selection"}), json!({"horizontal": "left", "to": "key"}), json!({"horizontal": "left"})] {
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("object.distribute", &p).unwrap();
+        assert_eq!(starts(&s, &ids, false), [100.0, 180.0, 260.0], "{p}");
+    }
+    let pair = selected_row(&mut s, &[(100.0, 20.0), (260.0, 40.0)], false);
+    s.execute("object.distribute", &json!({"horizontal": "left", "to": "selection"})).unwrap();
+    assert_eq!(starts(&s, &pair, false), [100.0, 260.0], "two objects stay put");
+    s.execute("object.distribute", &json!({"horizontal": "left", "to": "artboard"})).unwrap();
+    assert_eq!(starts(&s, &pair, false), [0.0, 360.0], "two objects on the artboard's edges");
+}
+
+/// With Align to Artboard, each Distribute button spaces its own line between the first and last
+/// objects (20, 60 and 40 pt wide or tall), which go to the artboard's edges: left edges, centers
+/// or right edges, and top edges, centers or bottom edges.
+#[test]
+fn distribute_to_artboard_spaces_the_line_of_each_button() {
+    for vertical in [false, true] {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let ids = selected_row(&mut s, &[(100.0, 20.0), (150.0, 60.0), (300.0, 40.0)], vertical);
+        let (axis, lines) = if vertical { ("vertical", ["top", "center", "bottom"]) } else { ("horizontal", ["left", "center", "right"]) };
+        for (line, middle) in lines.into_iter().zip([180.0, 165.0, 150.0]) {
+            s.execute("object.distribute", &json!({axis: line, "to": "artboard"})).unwrap();
+            assert_eq!(starts(&s, &ids, vertical), [0.0, middle, 360.0], "{axis} {line}");
+            s.execute("edit.undo", &json!({})).unwrap();
+        }
+    }
+}
+
+/// With Align to Artboard and no spacing, Distribute Spacing puts the first object's left (top)
+/// edge on the artboard's left (top) edge, and it puts the last one's right (bottom) edge on the
+/// artboard's right (bottom) edge, with equal gaps between the objects; two objects are enough.
+/// Without Align to Artboard the outermost edges stay put, and with a spacing the key object stays
+/// put, with Align to Artboard too.
+#[test]
+fn distribute_spacing_to_artboard_spans_it_with_equal_gaps() {
+    for vertical in [false, true] {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let ids = selected_row(&mut s, &[(100.0, 20.0), (150.0, 60.0), (300.0, 40.0)], vertical);
+        let axis = if vertical { "vertical" } else { "horizontal" };
+        // The objects are 120 pt wide (tall) together, which leaves 280 pt for the gaps on the
+        // artboard and 120 pt between the outermost edges.
+        s.execute("object.distributeSpacing", &json!({"axis": axis, "to": "artboard"})).unwrap();
+        assert_eq!(starts(&s, &ids, vertical), [0.0, 160.0, 360.0], "{axis}: 140 pt gaps");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("object.distributeSpacing", &json!({"axis": axis, "to": "selection"})).unwrap();
+        assert_eq!(starts(&s, &ids, vertical), [100.0, 180.0, 300.0], "{axis}: 60 pt gaps");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.select(|_, sel| sel.key = Some(ids[1])).unwrap();
+        s.execute("object.distributeSpacing", &json!({"axis": axis, "spacing": 10, "to": "artboard"})).unwrap();
+        assert_eq!(starts(&s, &ids, vertical), [120.0, 150.0, 220.0], "{axis}: 10 pt from the key");
+        let pair = selected_row(&mut s, &[(100.0, 20.0), (260.0, 40.0)], vertical);
+        s.execute("object.distributeSpacing", &json!({"axis": axis, "to": "artboard"})).unwrap();
+        assert_eq!(starts(&s, &pair, vertical), [0.0, 360.0], "{axis}: two objects");
+    }
 }
 
 #[test]
@@ -712,7 +805,10 @@ fn a_transform_that_moves_nothing_records_no_undo_step() {
         assert_eq!(history(&s), before, "{id} {p}");
         assert_eq!(s.journal.last().unwrap(), &(id.to_string(), p));
     }
-    assert_eq!(s.doc().unwrap().last_transform, Some((Affine::IDENTITY, json!({"copy": false, "typeAreas": false, "patterns": false}))));
+    assert_eq!(
+        s.doc().unwrap().last_transform,
+        Some(LastTransform::Matrix(Affine::IDENTITY, json!({"copy": false, "typeAreas": false, "patterns": false, "objects": true})))
+    );
     // A Nudge of 0 with an anchor of the rectangle direct-selected keeps it a live shape.
     let is_live = |s: &Session| matches!(s.doc().unwrap().doc.node(a).unwrap().kind, NodeKind::Path { live: Some(_), .. });
     assert!(is_live(&s), "a rectangle is a live shape");
@@ -762,6 +858,86 @@ fn a_transform_that_moves_nothing_records_no_undo_step() {
     s.execute("object.move", &json!({"dx": 0, "dy": 0, "copy": true})).unwrap();
     assert_eq!(history(&s), (before.0 + 1, 0, true));
     assert_eq!(count(&s), n + 1);
+}
+
+/// #1408: with anchors selected with Direct Selection, the Transform commands and tools transform
+/// those anchors alone, about the centre of their own box; a copy still copies the whole object.
+#[test]
+fn transforms_act_on_direct_selected_anchors() {
+    let mut s = session();
+    let square = json!({"anchors": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 100, "y": 100}, {"x": 0, "y": 100}], "closed": true});
+    let id = NodeId(s.execute("path.create", &square).unwrap()["id"].as_u64().unwrap());
+    let points = |s: &Session| -> Vec<(f64, f64)> {
+        let NodeKind::Path { path, .. } = &s.doc().unwrap().doc.node(id).unwrap().kind else { panic!("a path") };
+        path.subpaths[0].anchors.iter().map(|a| (a.p.x.round(), a.p.y.round())).collect()
+    };
+    let top = json!({"id": id.0, "anchors": [[0, 0], [0, 1]]});
+    s.execute("select.anchors", &top).unwrap();
+    let cases = [
+        ("object.scale", json!({"sx": 50}), [(25.0, 0.0), (75.0, 0.0)]),
+        ("object.scale", json!({"sx": 50, "origin": [0, 100]}), [(0.0, 50.0), (50.0, 50.0)]),
+        ("object.rotate", json!({"angle": 90}), [(50.0, 50.0), (50.0, -50.0)]),
+        ("object.reflect", json!({"axis": "vertical"}), [(100.0, 0.0), (0.0, 0.0)]),
+        ("object.shear", json!({"angle": 45, "axis": "vertical", "origin": [0, 0]}), [(0.0, 0.0), (100.0, 100.0)]),
+        ("object.move", json!({"dx": 10, "dy": -10}), [(10.0, -10.0), (110.0, -10.0)]),
+        ("object.transform", json!({"matrix": [1, 0, 0, 1, 5, 5], "anchors": true}), [(5.0, 5.0), (105.0, 5.0)]),
+    ];
+    for (cmd, p, [a, b]) in cases {
+        s.execute(cmd, &p).unwrap();
+        assert_eq!(points(&s), [a, b, (100.0, 100.0), (0.0, 100.0)], "{cmd} {p}");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("select.anchors", &top).unwrap();
+    }
+    // Transform Again repeats it on the anchors.
+    s.execute("object.move", &json!({"dx": 10, "dy": 0})).unwrap();
+    s.execute("object.transformAgain", &json!({})).unwrap();
+    assert_eq!(points(&s), [(20.0, 0.0), (120.0, 0.0), (100.0, 100.0), (0.0, 100.0)]);
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("select.anchors", &top).unwrap();
+    // Without `anchors`, object.transform (the Selection tool's) takes the whole path, and so does a copy.
+    s.execute("object.transform", &json!({"matrix": [1, 0, 0, 1, 5, 5]})).unwrap();
+    assert_eq!(points(&s), [(5.0, 5.0), (105.0, 5.0), (105.0, 105.0), (5.0, 105.0)]);
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("select.anchors", &top).unwrap();
+    let copies = s.execute("object.scale", &json!({"sx": 50, "copy": true})).unwrap();
+    assert_eq!(copies["ids"].as_array().unwrap().len(), 1);
+    assert_eq!(points(&s), [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], "the original stays");
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("select.anchors", &top).unwrap();
+    // The Scale tool: a drag from (100, 50) to (75, 50) halves the top edge about its centre (50, 0).
+    let v = ViewInfo::default();
+    s.select_tool("scale", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 75.0, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Up, 75.0, 50.0), v).unwrap();
+    assert_eq!(points(&s), [(25.0, 0.0), (75.0, 0.0), (100.0, 100.0), (0.0, 100.0)]);
+}
+
+/// #1824: with anchors selected with Direct Selection, the Transform panel's X/Y/W/H
+/// (`object.setBounds`) are the box around those anchors, and only they move or scale.
+#[test]
+fn set_bounds_acts_on_direct_selected_anchors() {
+    let mut s = session();
+    let square = json!({"anchors": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 100, "y": 100}, {"x": 0, "y": 100}], "closed": true});
+    let id = NodeId(s.execute("path.create", &square).unwrap()["id"].as_u64().unwrap());
+    let points = |s: &Session| -> Vec<(f64, f64)> {
+        let NodeKind::Path { path, .. } = &s.doc().unwrap().doc.node(id).unwrap().kind else { panic!("a path") };
+        path.subpaths[0].anchors.iter().map(|a| (a.p.x.round(), a.p.y.round())).collect()
+    };
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 1]]})).unwrap();
+    s.execute("object.setBounds", &json!({"x": 130, "reference": 0})).unwrap();
+    assert_eq!(points(&s), [(0.0, 0.0), (130.0, 0.0), (100.0, 100.0), (0.0, 100.0)], "only the selected anchor moves");
+    s.execute("object.setBounds", &json!({"y": 20, "reference": 4})).unwrap();
+    assert_eq!(points(&s), [(0.0, 0.0), (130.0, 20.0), (100.0, 100.0), (0.0, 100.0)]);
+    // Two anchors: W scales their box about the reference point, the others stay.
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 2], [0, 3]]})).unwrap();
+    s.execute("object.setBounds", &json!({"width": 50, "reference": 3})).unwrap();
+    assert_eq!(points(&s), [(0.0, 0.0), (130.0, 20.0), (50.0, 100.0), (0.0, 100.0)]);
+    // The path selected whole moves as a whole.
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.execute("object.setBounds", &json!({"x": 10, "reference": 0})).unwrap();
+    assert_eq!(points(&s), [(10.0, 0.0), (140.0, 20.0), (60.0, 100.0), (10.0, 100.0)]);
 }
 
 /// Arrange commands that leave the stacking order as it is record no undo step: Bring to Front and
@@ -1423,6 +1599,26 @@ fn direct_selection_moves_one_anchor() {
     assert_eq!(p.subpaths[0].anchors[1].p, vectorcraft_geom::Point::new(200.0, 100.0));
 }
 
+/// #1816: with Snap to Grid on, a dragged anchor lands on the grid's subdivisions, not on whole
+/// points, even with Snap to Pixel left on too.
+#[test]
+fn direct_selection_snaps_anchors_to_the_grid() {
+    let mut s = session();
+    let a = rect(&mut s, 101.0, 101.0, 100.0, 100.0);
+    s.execute("select.none", &json!({})).unwrap();
+    let step = s.doc().unwrap().doc.grid.spacing / f64::from(s.doc().unwrap().doc.grid.subdivisions.max(1));
+    let on_grid = |v: f64| (v / step - (v / step).round()).abs() < 1e-9;
+    let v = ViewInfo { snap_to_grid: true, snap_to_pixel: true, ..ViewInfo::default() };
+    s.select_tool("directSelection", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 101.0, 101.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 131.0, 113.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Up, 131.0, 113.0), v).unwrap();
+    let p = s.doc().unwrap().doc.node(a).unwrap().path_data().unwrap().clone();
+    let moved = p.subpaths[0].anchors[0].p;
+    assert!(on_grid(moved.x) && on_grid(moved.y), "anchor at {moved:?}, grid step {step}");
+    assert_eq!(p.subpaths[0].anchors[1].p, vectorcraft_geom::Point::new(201.0, 101.0));
+}
+
 /// Follow-up to #1254: toggling or adding anchors of a path selected as a whole starts from all
 /// its anchors, so toggling one deselects it alone and adding one keeps them all.
 #[test]
@@ -1539,6 +1735,59 @@ fn inspect_reports_compound_paint_and_blend() {
     assert!(plain.get("blend").is_none(), "Normal is omitted: {plain}");
 }
 
+/// A compound path made of a group (outlined type is one) takes the paint of the backmost path in
+/// it, not the group's own (none): it drew nothing. A compound path in the group gives the paint
+/// that painted its paths.
+#[test]
+fn compound_of_a_group_takes_its_backmost_paths_paint() {
+    let paint = |s: &Session, id: u64| (*s.doc().unwrap().doc.node(NodeId(id)).unwrap().appearance).clone();
+    let made = |s: &mut Session, cmd: &str| s.execute(cmd, &json!({})).unwrap()["id"].as_u64().unwrap();
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 40.0, 40.0);
+    s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    let b = rect(&mut s, 10.0, 10.0, 10.0, 10.0);
+    s.execute("paint.setFill", &json!({"color": "#0000ff"})).unwrap();
+    let red = paint(&s, a.0);
+    assert_ne!(red, paint(&s, b.0));
+    assert_ne!(red, Default::default());
+    s.execute("select.set", &json!({"ids": [a.0, b.0]})).unwrap();
+    made(&mut s, "object.group");
+    let c = made(&mut s, "object.compoundPath.make");
+    assert_eq!(paint(&s, c), red, "the backmost path's paint");
+    // Grouped again and joined with a path in front: the paint the compound path gave its paths.
+    let g = made(&mut s, "object.group");
+    let front = rect(&mut s, 20.0, 20.0, 5.0, 5.0);
+    s.execute("paint.setFill", &json!({"color": "#00ff00"})).unwrap();
+    s.execute("select.set", &json!({"ids": [g, front.0]})).unwrap();
+    let c = made(&mut s, "object.compoundPath.make");
+    assert_eq!(paint(&s, c), red);
+    assert_eq!(s.doc().unwrap().doc.node(NodeId(c)).unwrap().children().unwrap().len(), 3);
+}
+/// Compound paths joined into one keep their own holes: each one's paths turn together, so the
+/// counters of outlined letters stay open (they filled in when every path was turned alone).
+#[test]
+fn joined_compound_paths_keep_their_holes() {
+    let made = |s: &mut Session, cmd: &str| s.execute(cmd, &json!({})).unwrap()["id"].as_u64().unwrap();
+    let mut s = session();
+    let mut rings = vec![];
+    for x in [0.0, 100.0, 200.0] {
+        let (outer, inner) = (rect(&mut s, x, 0.0, 40.0, 40.0), rect(&mut s, x + 10.0, 10.0, 10.0, 10.0));
+        s.execute("select.set", &json!({"ids": [outer.0, inner.0]})).unwrap();
+        rings.push(made(&mut s, "object.compoundPath.make"));
+    }
+    s.execute("select.set", &json!({"ids": rings})).unwrap();
+    made(&mut s, "object.group");
+    let c = made(&mut s, "object.compoundPath.make");
+    let d = &s.doc().unwrap().doc;
+    let turns: Vec<f64> =
+        d.node(NodeId(c)).unwrap().children().unwrap().iter().map(|p| p.path_data().unwrap().subpaths[0].signed_area().signum()).collect();
+    assert_eq!(turns.len(), 6);
+    for ring in turns.chunks(2) {
+        assert_eq!(ring[0], -ring[1], "a hole runs against its outline: {turns:?}");
+    }
+    // The rings in front run against the backmost one (#1197).
+    assert_eq!((turns[2], turns[4]), (-turns[0], -turns[0]), "{turns:?}");
+}
 /// `document.node {summary: true}` answers the `document.inspect` shape for one node:
 /// the same fields the full-tree summary carries, without serializing the whole tree.
 #[test]
@@ -2192,6 +2441,63 @@ fn align_moves_selected_anchor_points() {
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.execute("object.align", &json!({"vertical": "top", "to": "artboard"})).unwrap();
     assert_eq!(anchors(&s)[2].1 - anchors(&s)[0].1, 120.0, "its shape kept");
+}
+
+/// #1636: with anchor points selected, the Distribute commands space those points, on one path
+/// or across paths, and leave the other points and the paths' objects where they are.
+#[test]
+fn distribute_spaces_selected_anchor_points() {
+    let mut s = session();
+    let new = |s: &mut Session, d: &str| NodeId(s.execute("path.create", &json!({"d": d})).unwrap()["id"].as_u64().unwrap());
+    let a = new(&mut s, "M10 10 L20 50 L100 30 L60 90");
+    let pts = |s: &Session, id: NodeId| -> Vec<(f64, f64)> {
+        s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect()
+    };
+    // One path selected whole is one object: nothing to distribute.
+    assert!(s.execute("object.distribute", &json!({"horizontal": "center"})).is_err());
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0], [0, 1], [0, 2]], "mode": "set"})).unwrap();
+    for h in ["left", "center", "right"] {
+        s.execute("object.distribute", &json!({"horizontal": h})).unwrap();
+        assert_eq!(pts(&s, a), [(10.0, 10.0), (55.0, 50.0), (100.0, 30.0), (60.0, 90.0)], "{h}: a point has no width");
+    }
+    let steps = history(&s);
+    s.execute("object.distribute", &json!({"horizontal": "left"})).unwrap();
+    assert_eq!(history(&s), steps, "already distributed: no undo step");
+    s.execute("object.distribute", &json!({"vertical": "top"})).unwrap();
+    assert_eq!(pts(&s, a), [(10.0, 10.0), (55.0, 50.0), (100.0, 30.0), (60.0, 90.0)], "10, 30, 50 are even already");
+    s.execute("object.distributeSpacing", &json!({"axis": "vertical", "spacing": 5})).unwrap();
+    assert_eq!(pts(&s, a), [(10.0, 10.0), (55.0, 20.0), (100.0, 15.0), (60.0, 90.0)], "5 apart from the first, in order");
+    assert!(s.execute("object.distribute", &json!({})).is_err());
+    // Across paths: the points of both, with the second path's unselected point left alone.
+    let b = new(&mut s, "M40 200 L400 300");
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0], [0, 2]], "mode": "set"})).unwrap();
+    s.execute("select.anchors", &json!({"id": b.0, "anchors": [[0, 0]], "mode": "add"})).unwrap();
+    s.execute("object.distributeSpacing", &json!({"axis": "horizontal"})).unwrap();
+    assert_eq!((pts(&s, a)[0].0, pts(&s, b), pts(&s, a)[2].0), (10.0, vec![(55.0, 200.0), (400.0, 300.0)], 100.0));
+}
+
+/// With anchor points selected, the Distribute commands space the points among themselves and
+/// don't use `to: "artboard"` or `artboard`. A `to` outside the three values is an error for them
+/// too, and nothing moves.
+#[test]
+fn distribute_spaces_anchor_points_among_themselves_with_to_artboard() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400, "artboards": 2})).unwrap();
+    let id = NodeId(s.execute("path.create", &json!({"d": "M10 10 L20 50 L100 20 L60 90"})).unwrap()["id"].as_u64().unwrap());
+    let pts = |s: &Session| -> Vec<(f64, f64)> {
+        s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect()
+    };
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 0], [0, 1], [0, 2]], "mode": "set"})).unwrap();
+    let to = "`to` must be one of selection, artboard, key";
+    for (cmd, p) in [("object.distribute", json!({"horizontal": "left", "to": "page"})), ("object.distributeSpacing", json!({"to": 0}))] {
+        let e = s.execute(cmd, &p).expect_err(&format!("{cmd} {p}"));
+        assert_eq!(e.to_string(), format!("invalid parameters for `{cmd}`: {to}"));
+    }
+    assert_eq!(pts(&s), [(10.0, 10.0), (20.0, 50.0), (100.0, 20.0), (60.0, 90.0)], "nothing moved");
+    s.execute("object.distribute", &json!({"horizontal": "left", "to": "artboard", "artboard": 1})).unwrap();
+    assert_eq!(pts(&s), [(10.0, 10.0), (55.0, 50.0), (100.0, 20.0), (60.0, 90.0)], "between the first and the last point");
+    s.execute("object.distributeSpacing", &json!({"axis": "vertical", "to": "artboard"})).unwrap();
+    assert_eq!(pts(&s), [(10.0, 10.0), (55.0, 50.0), (100.0, 30.0), (60.0, 90.0)], "equal gaps between 10 and 50");
 }
 
 /// Repeating anchor Align must leave one Undo for the move that actually changed the path.

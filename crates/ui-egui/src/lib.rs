@@ -55,7 +55,7 @@ pub mod theme;
 pub mod thumb_worker;
 pub mod titlebar;
 pub mod toolbar;
-mod touch;
+pub mod touch;
 mod ui_fonts;
 pub mod unsaved;
 pub mod widgets;
@@ -130,6 +130,8 @@ mod tests_saveext;
 #[cfg(test)]
 mod tests_screenmode;
 #[cfg(test)]
+mod tests_script_check;
+#[cfg(test)]
 mod tests_scrub;
 #[cfg(test)]
 mod tests_selectall;
@@ -160,7 +162,7 @@ use vectorcraft_engine::cmd::fileio;
 use vectorcraft_engine::file_access::{self, AutomationRoots};
 use vectorcraft_engine::{Session, ViewInfo};
 
-pub use control::{ControlRequest, ControlResponse};
+pub use control::{ControlRequest, ControlResponse, Ticket as ControlTicket};
 pub use state::{UiState, View};
 pub use sysclip::{ClipboardProbeFactory, SystemClipboard};
 
@@ -186,7 +188,9 @@ pub type PickSave = Box<dyn FnMut(&FilePick) -> Option<String>>;
 pub type ReadFn = Box<dyn Fn(&str) -> Result<Vec<u8>, String>>;
 pub type WriteFn = Box<dyn FnMut(&str, &[u8]) -> Result<(), String>>;
 pub type Inbox = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
-pub type DownloadFn = Box<dyn FnMut(&str, &[u8])>;
+/// Starts a browser download of the bytes under a file name; an error when it couldn't be started
+/// (the save or export then fails as a refused write does: #1693).
+pub type DownloadFn = Box<dyn FnMut(&str, &[u8]) -> Result<(), String>>;
 
 /// Opens a URL in the system browser.
 pub type OpenUrlFn = Box<dyn FnMut(&str)>;
@@ -259,6 +263,9 @@ pub struct Services {
     /// [`Self::start_pick`]'s dialogs are sheets on the window (macOS): while one is open the app
     /// neither quits nor closes documents, as under the modal dialog before.
     pub dialogs_are_sheets: bool,
+    /// The window is on Wayland: the tool cursors are painted into it instead of handed to the
+    /// compositor as bitmaps ([`cursors::os_cursors`]).
+    pub wayland: bool,
 }
 
 /// Cached canvas raster.
@@ -277,6 +284,9 @@ pub struct CanvasCache {
     pub slices: Option<SliceCache>,
     /// The print tiling's pages for (document uid, revision) (View → Show Print Tiling).
     pub print_tiling: Option<PrintTilingCache>,
+    /// The marks Type → Show Hidden Characters drew on each text object in the last frame. A frame
+    /// that does not draw them drops them ([`canvas::show`]).
+    pub hidden_chars: canvas::HiddenChars,
     /// [`VectorcraftApp::selection_box`] for (document uid, revision, Use Preview Bounds).
     pub selection_box: Option<((u64, u64, bool), Option<vectorcraft_doc::OrientedBox>)>,
     /// [`VectorcraftApp::selection_bounds`] for (document uid, revision).
@@ -321,6 +331,8 @@ pub struct CacheKey {
     /// Appearance of Black › On Screen › Display All Blacks as Rich Black
     /// ([`vectorcraft_render::RenderOptions::rich_black`]).
     pub rich_black: bool,
+    /// Colour and style of guide paths ([`vectorcraft_render::RenderOptions::guide`]).
+    pub guide: ([u8; 3], bool),
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -418,6 +430,8 @@ pub struct VectorcraftApp {
     pub(crate) ime_marked: Option<String>,
     /// The IME must drop its marked text (see [`Self::take_ime_discard`]).
     pub(crate) ime_discard: bool,
+    /// Preferences were confirmed (see [`Self::take_prefs_changed`]).
+    pub(crate) prefs_changed: bool,
     /// A numeric field is being scrubbed: the document's edits meanwhile are one undo step
     /// ([`scrub::begin_frame`]).
     scrub_group: bool,
@@ -468,6 +482,7 @@ impl VectorcraftApp {
                 worker_started: false,
                 slices: None,
                 print_tiling: None,
+                hidden_chars: Default::default(),
                 selection_box: None,
                 selection_bounds: None,
                 cursors: Default::default(),
@@ -511,6 +526,7 @@ impl VectorcraftApp {
             synthetic_modifiers: false,
             ime_marked: None,
             ime_discard: false,
+            prefs_changed: false,
             scrub_group: false,
             automation_roots: None,
             synthetic_frame: false,
@@ -559,6 +575,28 @@ impl VectorcraftApp {
         let docs = self.session.documents();
         self.views.truncate(docs.len());
         self.views.extend(docs.iter().skip(self.views.len()).map(View::of));
+        for (view, doc) in self.views.iter_mut().zip(docs) {
+            view.artboard = view.artboard.min(doc.doc.artboards.len().saturating_sub(1));
+        }
+        // Undo can remove the Artboard tool's active or additionally selected boards. Repair only
+        // invalid indices: valid multiselection, drag state and tool options must survive history.
+        if self.session.tool_id() != "artboard" || self.session.tool_busy() {
+            return;
+        }
+        let Some(n) = self.session.active().map(|d| d.doc.artboards.len()).filter(|n| *n > 0) else { return };
+        let Some(view) = self.session.active_index().and_then(|i| self.views.get_mut(i)) else { return };
+        let options = self.session.tool_options();
+        let Some(selected) = options["selected"].as_array() else { return };
+        let mut valid: Vec<usize> = selected.iter().filter_map(Value::as_u64).filter_map(|i| usize::try_from(i).ok()).filter(|i| *i < n).collect();
+        if valid.len() != selected.len() {
+            if valid.is_empty() {
+                valid.push(view.artboard);
+            }
+            if let Some(active) = valid.first() {
+                view.artboard = *active;
+            }
+            self.session.set_tool_option("selected", &serde_json::json!(valid));
+        }
     }
 
     pub fn view(&self) -> Option<&View> {
@@ -622,12 +660,18 @@ impl VectorcraftApp {
     /// [`Self::run`] it, inside what asks for file dialogs.
     fn run_now(&mut self, id: &str, params: Value) -> Result<Value, String> {
         self.run_count = self.run_count.wrapping_add(1);
+        // In debug builds the app's own calls are held to the params descriptions too (#1442): a
+        // panel passing a key its command doesn't read shows up in the tests.
+        if cfg!(debug_assertions) {
+            menus::check_params(&self.session, id, &params)?;
+        }
         if let Some(r) = menus::run_ui_command(self, id, &params) {
             return r;
         }
         let mut params = params;
-        // Paste in place, in front, in back (#693), Select › All on Active Artboard (#1006) and Align to
-        // Artboard: onto, on or to the active artboard, the view's. A batch passes it on to those steps.
+        // Paste in place, in front and in back (#693), Select › All on Active Artboard (#1006), and Align,
+        // Distribute Objects and Distribute Spacing with Align to Artboard act on the active artboard, the
+        // view's, which the app passes as `artboard`. A batch passes it on to those steps.
         if (vectorcraft_engine::ON_ACTIVE_ARTBOARD.contains(&id) || id == "command.batch")
             && params.get("artboard").is_none()
             && self.view().is_some()
@@ -729,14 +773,25 @@ impl VectorcraftApp {
 
     fn drain_control(&mut self, ctx: &egui::Context) {
         let Some(rx) = self.control_rx.take() else { return };
-        while let Ok(req) = rx.try_recv() {
+        let mut handled = 0;
+        while handled < control::MAX_CONTROL_REQUESTS_PER_FRAME {
+            let Ok(req) = rx.try_recv() else { break };
             // The libraries opened from files before the last quit are listed before the
             // request runs.
             panels::library_panel::wait_restore(self);
+            // Its caller stopped waiting (the app was busy or its window not drawn for too long)
+            // and was told it won't run: an edit applied now would come from nowhere (#1725).
+            if !req.claim() {
+                continue;
+            }
+            handled += 1;
             let reply = req.reply.clone();
             // Guarded per request: a panic must not drop the channel (taken out of `self` above).
             let roots = self.automation_roots.clone();
-            let outcome = match file_access::confine(roots.as_ref(), || vectorcraft_engine::guard::catch_panic(|| control::handle(self, ctx, &req))) {
+            self.ui.answering_control = true;
+            let answer = file_access::confine(roots.as_ref(), || vectorcraft_engine::guard::catch_panic(|| control::handle(self, ctx, &req)));
+            self.ui.answering_control = false;
+            let outcome = match answer {
                 Ok(outcome) => outcome,
                 Err(msg) => {
                     self.picks.recover();
@@ -755,6 +810,10 @@ impl VectorcraftApp {
                     self.pending_screenshots.push(PendingScreenshot { token, path, data, reply, deadline: now_ms() + settle + 8000.0 });
                 }
             }
+        }
+        if handled == control::MAX_CONTROL_REQUESTS_PER_FRAME {
+            // Leave later requests on the channel and schedule another frame to serve them.
+            ctx.request_repaint();
         }
         self.control_rx = Some(rx);
     }
@@ -817,6 +876,12 @@ impl VectorcraftApp {
     /// keeps the marked text and types it again into the next composition: the host discards it.
     pub fn take_ime_discard(&mut self) -> bool {
         std::mem::take(&mut self.ime_discard)
+    }
+
+    /// Was Preferences confirmed since the last call? The host then writes the preferences file,
+    /// so what the user just set survives a session that doesn't end with a normal quit (#1747).
+    pub fn take_prefs_changed(&mut self) -> bool {
+        std::mem::take(&mut self.prefs_changed)
     }
 
     /// Linked files another app changed while their document is open: every two seconds, and as
@@ -907,6 +972,8 @@ impl VectorcraftApp {
     }
 }
 
+/// Returns the milliseconds since the Unix epoch, or in the web build the milliseconds since the
+/// first call, read from the page's `performance.now()`.
 pub fn now_ms() -> f64 {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -915,7 +982,10 @@ pub fn now_ms() -> f64 {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        0.0
+        use std::sync::LazyLock;
+        use web_time::Instant;
+        static START: LazyLock<Instant> = LazyLock::new(Instant::now);
+        START.elapsed().as_secs_f64() * 1000.0
     }
 }
 
@@ -930,8 +1000,10 @@ impl VectorcraftApp {
         self.ui.recent_fonts.get(..n).unwrap_or(&self.ui.recent_fonts)
     }
 
-    /// The selection's bounding box, rotated with rotated objects ([`Session::transform_box`]). The
-    /// canvas and the transform fields read it every frame: it is measured once per revision.
+    /// The selection's bounding box, rotated with rotated objects ([`Session::transform_box`]); with
+    /// anchors selected with Direct Selection, the box around them square to the page, which
+    /// `object.setBounds` then edits (#1824). The canvas and the transform fields read it every
+    /// frame: it is measured once per revision.
     pub fn selection_box(&mut self) -> Option<vectorcraft_doc::OrientedBox> {
         let st = self.session.active()?;
         let key = (st.uid, st.revision, self.session.prefs.use_preview_bounds);
@@ -940,7 +1012,10 @@ impl VectorcraftApp {
         {
             return b;
         }
-        let b = self.session.transform_box(&st.selection.objects);
+        let b = match st.selection.anchor_bounds(&st.doc, self.session.prefs.use_preview_bounds) {
+            Some(r) => Some(vectorcraft_doc::OrientedBox::aligned(r)),
+            None => self.session.transform_box(&st.selection.objects),
+        };
         self.canvas.selection_box = Some((key, b));
         b
     }
@@ -1082,8 +1157,8 @@ impl VectorcraftApp {
         self.take_dropped_files(ctx);
     }
 
-    /// Files dropped on the window: documents, libraries, presets and plug-ins opened, pictures
-    /// and text placed on the canvas ([`Self::drop_target`]).
+    /// Files dropped on the window: documents, libraries, presets, plug-ins and shortcut sets
+    /// opened, pictures and text placed on the canvas ([`Self::drop_target`]).
     #[cfg(not(target_arch = "wasm32"))]
     fn take_dropped_files(&mut self, ctx: &egui::Context) {
         let (dropped, shift) = ctx.input(|i| (i.raw.dropped_files.clone(), i.modifiers.shift));
@@ -1243,6 +1318,9 @@ impl VectorcraftApp {
         if self.ui.status_bar && self.ui.screen_mode < 3 {
             chrome::status_bar(self, ui);
             chrome::hint_bar(self, ui);
+        } else {
+            // Keeps the previous frame's value valid for menus drawn above, before the bars.
+            widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());
         }
         if self.ui.toolbar && self.ui.screen_mode < 3 {
             toolbar::show(self, ui);

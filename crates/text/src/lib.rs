@@ -14,6 +14,7 @@ pub mod craft_fonts;
 pub mod edit;
 pub mod embed;
 mod features;
+mod fontconfig;
 mod fontdb;
 pub mod hyphen;
 mod layout;
@@ -25,14 +26,14 @@ pub mod test_fonts;
 pub mod thread;
 
 pub use craft_fonts::{CRAFT_FONTS, CraftFont, WEB_FONTS, WebFont};
-pub use features::{LIGATURE_TRACKING_LIMITS, OtFeatures, explicit_ligatures, ligatures_suppressed_by};
+pub use features::{EXTRA_FEATURES, LIGATURE_TRACKING_LIMITS, OtFeatures, explicit_ligatures, ligatures_suppressed_by};
 pub use fontdb::{
     FALLBACK_FAMILY, FontClass, FontDb, FontFace, FontMatch, FontTraits, IcfMargins, PlatformFontFiles, WantedFont, WantedFonts, app_font_dir,
     is_font_file, is_suitcase, set_app_font_dir, set_platform_font_files, set_user_font_dirs, style_weight, system_font_dirs, user_font_dirs,
 };
 pub use hyphen::{hyphenation_exceptions, set_hyphenation_exceptions};
 use kurbo::{Affine, BezPath, Point, Rect, Vec2};
-pub use layout::{decorations, layout, layout_with};
+pub use layout::{decorations, fit_first_line, layout, layout_with};
 pub use vectorcraft_doc::TextObject;
 
 pub use vectorcraft_doc::{AreaFit, FirstBaseline, VerticalAlign};
@@ -44,7 +45,8 @@ pub use vectorcraft_doc::Composer;
 /// composer, OpenType features). [`layout`] takes rows/columns/inset/first baseline from the object.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LayoutOptions {
-    /// Area type rows and columns (text flows down each column, then across).
+    /// Area type rows and columns (text flows down each column, then across). Layout clamps each
+    /// count to 1..=[`vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS`].
     pub rows: usize,
     pub columns: usize,
     /// Gutter between rows/columns in points.

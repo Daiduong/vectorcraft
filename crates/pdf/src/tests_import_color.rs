@@ -195,7 +195,7 @@ fn ink_names_never_clash_with_the_document_swatches() {
 
 #[test]
 fn colour_spaces_are_read_from_the_interpreters_debug_form() {
-    let pdf = hayro_syntax::Pdf::new(pdf(&[PdfPage::new(10.0, 10.0, "")], None)).unwrap();
+    let pdf = craft_pdf::syntax::Pdf::new(pdf(&[PdfPage::new(10.0, 10.0, "")], None)).unwrap();
     let mut c = Colors::new(&pdf, vec![]);
     for (text, n, want) in [
         ("ColorSpace(DeviceCmyk)", 4, Space::Cmyk),
@@ -214,6 +214,27 @@ fn colour_spaces_are_read_from_the_interpreters_debug_form() {
     let (space, comps) = crate::import_color::split_color(t).unwrap();
     assert_eq!((space, comps), ("ColorSpace(DeviceCmyk)", vec![0.101960786, 0.2, 0.3, 0.4]));
     assert_eq!(crate::import_color::split_color("Color { color_space: X, components: [NaN], opacity: 1.0 }"), None);
+}
+
+/// A dictionary value the reader can't parse (a name with a broken `#` escape, a number with a
+/// stray `-`) is left out when the file's ink spaces are looked for, and the inks after it are found.
+#[test]
+fn inks_are_found_past_dictionary_values_the_reader_cannot_parse() {
+    use craft_pdf::interpret::Function;
+    use craft_pdf::syntax::object::{FromBytes, Object};
+    let tint = "<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [0 0 1 0] /N 1 >>";
+    let key = format!("{:?}", Function::new(&Object::from_bytes(tint.as_bytes()).unwrap()).unwrap());
+    for junk in ["/#zz", "12-.5"] {
+        let page = page_with(&format!("/A {junk} /CS0 [/Separation /Gold /DeviceCMYK {tint}]"), &[("CS0", "1")]);
+        // Opened by the reader alone, without the checks of `pages::open`.
+        let pdf = craft_pdf::syntax::Pdf::new(pdf(&[page], None)).unwrap();
+        let mut c = Colors::new(&pdf, vec![]);
+        let space = c.space_of(&format!("ColorSpace(Separation(Separation {{ tint_transform: {key} }}))"), 1);
+        assert_eq!(space, Space::Inks(0), "{junk}");
+        let gold = c.native(space, &[1.0]).unwrap();
+        assert_eq!(gold.link, Some(("Gold".to_string(), 1.0)), "{junk}");
+        assert!(near(gold.color, Color::cmyk(0.0, 0.0, 1.0, 0.0)), "{junk}: {:?}", gold.color);
+    }
 }
 
 /// Spot colours defined in Lab can have an ICC Lab profile as their alternate space, `[/ICCBased
@@ -244,4 +265,21 @@ fn spot_colours_with_an_icc_lab_alternate_keep_their_lab_values() {
     assert!(near(d.swatch("Sky").unwrap().paint.color().unwrap(), Color::lab(51.0, -26.0, -45.0)), "{:?}", d.swatch("Sky"));
     // An RGB profile stays RGB.
     assert!(near(d.swatch("Leafy").unwrap().paint.color().unwrap(), Color::rgb(0.5, 0.9, 0.1)), "{:?}", d.swatch("Leafy"));
+}
+
+#[test]
+fn rgb_numbers_stand_in_editor_documents_only() {
+    // GUARDS: an editor's document keeps its `ICCBased` RGB numbers; a PDF's profile stands.
+    let f = first_extra(1);
+    let icc = vectorcraft_color::cms::icc_bytes(vectorcraft_color::cms::PROPHOTO_RGB).unwrap();
+    let hex: String = icc.iter().map(|b| format!("{b:02x}")).collect();
+    let profile = format!("<< /N 3 /Filter /ASCIIHexDecode /Length {} >>\nstream\n{hex}>\nendstream", hex.len() + 1);
+    let mut page = page_with(&format!("/CS0 [/ICCBased {f} 0 R]"), &[("CS0", "0.2 0.6 0.4")]);
+    page.entries = "/PieceInfo << /Illustrator << /Private << /AIPrivateData1 7 /NumBlock 1 >> >> >>".into();
+    let bytes = pdf_with(&[page], &[&profile], None);
+    let color = |uncalibrated_rgb| {
+        solid(&fills(&import_with_report(&bytes, &ImportOptions { uncalibrated_rgb, ..Default::default() }).unwrap().document)[0]).0
+    };
+    assert!(near(color(true), Color::rgb(0.2, 0.6, 0.4)), "{:?}", color(true));
+    assert!(!near(color(false), Color::rgb(0.2, 0.6, 0.4)), "{:?}", color(false));
 }
