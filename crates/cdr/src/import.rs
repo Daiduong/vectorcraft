@@ -13,16 +13,17 @@
 //! produce the same document from the same RIFF stream. CorelDRAW 1–2 files (`WL`) are refused.
 //!
 //! The document has one artboard per CorelDRAW page (the master page is left out, as libcdr does),
-//! laid out left to right, and one layer holding every page's translated paths, bottom first.
+//! laid out left to right, and one layer holding every page's translated paths, type and images
+//! (embedded as PNG), bottom first.
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{Artboard, ColorMode, Document, LayerColor, Node, NodeKind};
+use vectorcraft_doc::{Artboard, ColorMode, Document, ImageBlob, ImageObject, LayerColor, Node, NodeKind};
 use vectorcraft_geom::{Affine, Rect};
 
-use crate::geometry::{self, PageSpace, Translation};
+use crate::geometry::{self, Content, PageSpace, Translation};
 use crate::riff::{self, CdrVersion, FileKind};
-use crate::{Error, Limits, Metadata, Package, RiffKind};
+use crate::{Error, Layout, Limits, Metadata, Package, RiffKind};
 
 /// Gap between artboards laid out side by side, in points.
 pub const ARTBOARD_GAP: f64 = 36.0;
@@ -46,6 +47,17 @@ pub fn route(bytes: &[u8]) -> Result<Route, Error> {
         Some(FileKind::Waldo) => Err(Error::Riff("CorelDRAW 1–2 (WL) files are not supported".into())),
         Some(FileKind::OtherRiff(t)) => Err(Error::Riff(format!("RIFF form type {t} is not CorelDRAW"))),
         None => Err(Error::NotCdr),
+    }
+}
+
+/// Is `bytes` a CorelDRAW file this reader routes: a bare `RIFF….CDR?` stream, or a ZIP package
+/// holding `content/riffData.cdr` or `content/root.dat`? Other ZIP archives (Office documents,
+/// fonts, plain archives) are not, so a caller can sniff by content before the extension.
+pub fn is_cdr(bytes: &[u8]) -> bool {
+    match route(bytes) {
+        Ok(Route::Riff(_)) => true,
+        Ok(Route::Package) => Package::open(bytes, Limits::default()).and_then(|mut p| p.layout()).is_ok_and(|l| l.riff.is_some()),
+        Err(_) => false,
     }
 }
 
@@ -81,10 +93,20 @@ pub fn import(bytes: &[u8], limits: Limits) -> Result<Imported, Error> {
         Route::Package => {
             let doc = crate::Document::open(bytes, limits)?;
             let riff_root = doc.layout.riff.clone().ok_or(Error::NotCdr)?;
-            let stream = Package::open(bytes, limits)?.read_capped(&riff_root.path, limits.max_inflated_bytes)?;
+            let mut package = Package::open(bytes, limits)?;
+            let stream = package.read_capped(&riff_root.path, limits.max_inflated_bytes)?;
+            // X6+: records too large for root.dat live in content/data files, which stubs name by
+            // their place in the list (a file that can't be read leaves its records unread).
+            let mut budget = limits.max_inflated_bytes;
+            let mut streams = Vec::with_capacity(doc.layout.data_files.len());
+            for name in &doc.layout.data_files {
+                let bytes = package.read_capped(&Layout::data_file_path(name), budget).unwrap_or_default();
+                budget = budget.saturating_sub(bytes.len() as u64);
+                streams.push(bytes);
+            }
             let tree = riff::parse(&stream, &limits)?;
             let page = doc.metadata.as_ref().and_then(|m| m.page.as_ref()).map(PageSpace::from_metadata);
-            let translation = geometry::translate(&tree, page);
+            let translation = geometry::translate_with(&tree, page, &streams);
             let layer = match doc.layer_names() {
                 [one] => Some(one.clone()),
                 _ => None,
@@ -146,12 +168,44 @@ fn assemble(
         let shift = Affine::translate((x, 0.0));
         for s in &p.shapes {
             let id = doc.alloc_id();
-            let mut node = Node::path(id, s.path.transformed(shift), s.appearance.clone());
-            if let NodeKind::Path { rule, .. } = &mut node.kind {
-                *rule = s.rule;
-            }
-            children.push(Arc::new(node));
             s.notes.iter().for_each(|n| warn(n.clone()));
+            let node = match &s.content {
+                // Nothing to draw (a bitmap that wasn't found: its note says so).
+                Content::Path { path, .. } if path.is_empty() => continue,
+                Content::Image { bitmap, xf } => match bitmap.to_png() {
+                    Ok(png) => {
+                        let blob = ImageBlob::new("image/png", png);
+                        let key = blob.content_key();
+                        doc.images.insert(key.clone(), blob);
+                        let image = ImageObject {
+                            key,
+                            width: bitmap.width,
+                            height: bitmap.height,
+                            xf: shift * *xf,
+                            link: None,
+                            placement: Default::default(),
+                        };
+                        Node::new(id, NodeKind::Image(Box::new(image)))
+                    }
+                    Err(e) => {
+                        warn(format!("a bitmap could not be stored: {e}"));
+                        continue;
+                    }
+                },
+                Content::Path { path, rule } => {
+                    let mut node = Node::path(id, path.transformed(shift), s.appearance.clone());
+                    if let NodeKind::Path { rule: r, .. } = &mut node.kind {
+                        *r = *rule;
+                    }
+                    node
+                }
+                Content::Text(t) => {
+                    let mut t = t.as_ref().clone();
+                    t.xf = shift * t.xf;
+                    Node::new(id, NodeKind::Text(Box::new(t)))
+                }
+            };
+            children.push(Arc::new(node));
         }
         x += w + ARTBOARD_GAP;
     }
@@ -197,7 +251,7 @@ fn finite_side(v: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::riff::build;
+    use crate::synth as build;
     use crate::test_zip;
 
     #[test]
@@ -231,6 +285,35 @@ mod tests {
         assert_eq!(legacy.translation, modern.translation);
         assert_eq!(legacy.document.artboards, modern.document.artboards);
         assert_eq!(legacy.document.artboards[0].rect, Rect::new(0.0, 0.0, 144.0, 216.0));
+    }
+
+    #[test]
+    fn sniffs_only_corel_containers() {
+        let riff = crate::synth::triangle_riff();
+        assert!(is_cdr(&riff) && is_cdr(&crate::synth::package(&riff, "t")));
+        assert!(!is_cdr(&test_zip::build(&[("word/document.xml", b"<w/>")])));
+        assert!(!is_cdr(b"RIFF\x04\x00\x00\x00WEBP") && !is_cdr(b"WL\x01\x02") && !is_cdr(b"PK\x03\x04 broken"));
+    }
+
+    #[test]
+    fn x6_records_are_followed_into_their_data_files() {
+        let i = import(&crate::synth::x6_package(), Limits::default()).unwrap();
+        assert_eq!((i.version, &i.source), (CdrVersion(1600), &Source::Package { entry: "content/root.dat".into(), kind: RiffKind::Root }));
+        assert!(i.translation.errors.is_empty(), "{:?}", i.translation.errors);
+        let shapes = &i.translation.pages[0].shapes;
+        assert_eq!(shapes.len(), 2);
+        let text = shapes[0].text().unwrap();
+        assert_eq!(text.plain_text(), "Ünïcode");
+        assert_eq!((text.runs[0].style.font_family.as_str(), text.runs[0].style.size.round()), ("Verdana", 72.0));
+        assert_eq!(shapes[1].path().unwrap().anchor_count(), 3);
+        assert_eq!(shapes[1].appearance.fill_paint(), vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(255, 0, 0)));
+        // Without its data file, the stubs can't be read, and say so.
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(crate::synth::x6_package())).unwrap();
+        let root = std::io::Read::bytes(z.by_name("content/root.dat").unwrap()).map(Result::unwrap).collect::<Vec<u8>>();
+        let without = test_zip::build(&[("content/root.dat", &root), ("content/dataFileList.dat", b"a.dat\n")]);
+        let i = import(&without, Limits::default()).unwrap();
+        assert!(i.translation.errors.iter().any(|e| e.contains("data file 0")), "{:?}", i.translation.errors);
+        assert!(i.translation.pages[0].shapes.iter().all(|s| s.path().is_none()), "only the text object, without its text");
     }
 
     #[test]

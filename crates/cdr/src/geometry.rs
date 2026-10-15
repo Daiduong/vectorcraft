@@ -22,17 +22,23 @@
 //! [`Shape::notes`]: conical fountains become linear and square ones radial (as libcdr does),
 //! palette and spot colours (models `0x19` and `0x0e`) need CorelDRAW's palette tables and fall
 //! back to black, and a stretched (calligraphic) nib scales the width as libcdr does. Pattern,
-//! bitmap, texture and PostScript fills are not translated. Rectangles, ellipses, polygons, text and
-//! bitmaps are other record kinds and are counted in [`Translation::skipped`], not translated.
+//! bitmap, texture and PostScript fills are not translated. Polygons, bitmaps and other record
+//! kinds are counted in [`Translation::skipped`], not translated.
+//!
+//! Rectangles (with their corner radii) and ellipses (also arcs and pies) become paths. Artistic
+//! text becomes point type anchored at its record's point, paragraph text area type in its frame;
+//! the characters, fonts, sizes, fills and alignment come from [`crate::text`].
 
 use std::collections::BTreeMap;
 
 use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::appearance::{Appearance, AppearanceItem, Dash, FillLayer, LineCap, LineJoin, StrokeLayer};
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect};
+use vectorcraft_doc::appearance::{Appearance, AppearanceItem, Arrowhead, Dash, FillLayer, LineCap, LineJoin, StrokeLayer};
+use vectorcraft_doc::text::{CharStyle, Justify, ParaStyle, TextKind, TextObject, TextRun};
+use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2};
 
 use crate::Error;
 use crate::riff::{CdrVersion, Chunk, FourCc, List, Riff};
+use crate::text::{self, Font, Ink, Paragraph, Pen, Styles, TextStyle};
 
 /// Points per inch.
 const PT_PER_IN: f64 = 72.0;
@@ -141,6 +147,37 @@ impl<'a> Reader<'a> {
 /// follow (libcdr's `_redirectX6Chunk`).
 fn redirected(data: &[u8], version: CdrVersion) -> bool {
     version >= CdrVersion(1600) && data.len() == 0x10
+}
+
+/// Where record data comes from: the RIFF stream, or for an X6+ stub (a 16-byte record of
+/// `{data file, length, offset}`, libcdr's `_redirectX6Chunk`) the `content/data` file it names,
+/// in `content/dataFileList.dat` order.
+#[derive(Clone, Copy)]
+pub struct Records<'a, 'r> {
+    pub riff: &'a Riff<'r>,
+    pub streams: &'a [Vec<u8>],
+}
+
+impl<'a> Records<'a, '_> {
+    /// A decoded record's data, followed into its data file when it is a stub.
+    pub fn data(&self, rec: &crate::riff::Record) -> Result<&'a [u8], Error> {
+        let missing = |m: String| Error::Record { record: "data file", message: m };
+        let d = self.riff.data(rec).ok_or_else(|| missing("record outside its stream".into()))?;
+        if !redirected(d, self.riff.version) {
+            return Ok(d);
+        }
+        let u = |i: usize| d.get(i..i + 4).map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+        let (stream, len, offset) = (u(0), u(4) as usize, u(8) as usize);
+        // libcdr reads on from the stub itself for this stream number.
+        if stream == u32::MAX {
+            return Ok(d.get(8..).unwrap_or_default());
+        }
+        let file = self
+            .streams
+            .get(stream as usize)
+            .ok_or_else(|| missing(format!("a {} record is in data file {stream}, which the package doesn't have", rec.kind)))?;
+        file.get(offset..offset.saturating_add(len)).ok_or_else(|| missing(format!("a {} record runs past the end of data file {stream}", rec.kind)))
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -264,9 +301,6 @@ fn color_or_black(c: &CorelColor, notes: &mut Vec<String>) -> Color {
 /// The `trfd` matrices of an object, in CorelDRAW space (inches, y up), in the order the file
 /// gives them. libcdr applies them first to last.
 pub fn decode_trfd(data: &[u8], version: CdrVersion) -> Result<Vec<Affine>, Error> {
-    if redirected(data, version) {
-        return Err(Error::Record { record: "trfd", message: "X6 record stored in content/data is not followed".into() });
-    }
     let mut r = Reader::new(data, "trfd", version);
     let _chunk_length = r.unsigned()?;
     let count = r.unsigned()? as usize;
@@ -371,6 +405,8 @@ pub enum ShapeKind {
     Bitmap,
     ParagraphText,
     Polygon,
+    /// A B-spline; its points are in the object's `ppdt` record.
+    Spline,
     Other(u32),
 }
 
@@ -386,6 +422,7 @@ impl ShapeKind {
             (0x06, true) | (0x05, false) => Self::ParagraphText,
             (0x25, _) => Self::Path,
             (0x14, _) => Self::Polygon,
+            (0x26, _) => Self::Spline,
             (t, _) => Self::Other(t),
         }
     }
@@ -406,13 +443,12 @@ pub struct Loda {
     pub style_id: Option<u32>,
     /// A page size argument (in the page's own `loda`).
     pub page: Option<PageSpace>,
+    /// A polygon's rotational symmetry (argument 0x2af8).
+    pub polygon: Option<PolygonXf>,
 }
 
 /// Read a `loda` (or `lobj`) record's argument table.
 pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
-    if redirected(data, version) {
-        return Err(Error::Record { record: "loda", message: "X6 record stored in content/data is not followed".into() });
-    }
     let mut r = Reader::new(data, "loda", version);
     let _chunk_length = r.unsigned()?;
     let count = (r.unsigned()? as usize).min(MAX_LIST);
@@ -431,7 +467,7 @@ pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
         types.push(r.unsigned()?);
     }
     types.reverse();
-    let mut loda = Loda { kind, coords: None, fill_id: None, outline_id: None, style_id: None, page: None };
+    let mut loda = Loda { kind, coords: None, fill_id: None, outline_id: None, style_id: None, page: None, polygon: None };
     let modern = version >= CdrVersion(400);
     for (&off, &ty) in offsets.iter().zip(&types) {
         r.seek(off)?;
@@ -442,6 +478,7 @@ pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
             0x0a if modern => loda.outline_id = Some(r.u32()?).filter(|&id| id != 0),
             0xc8 => loda.style_id = Some(r.unsigned()?).filter(|&id| id != 0),
             0x4aba => loda.page = Some(PageSpace { width_in: r.coord()?, height_in: r.coord()? }),
+            0x2af8 => loda.polygon = Some(PolygonXf::read(&mut r)?),
             _ => {}
         }
     }
@@ -553,6 +590,434 @@ impl CorelPath {
     }
 }
 
+/// Points per inch in a type's text space, which is in points.
+const TEXT_SCALE: f64 = 1.0 / PT_PER_IN;
+/// Curve flattening tolerance for arcs, in inches.
+const ARC_TOLERANCE: f64 = 1e-4;
+/// The cubic handle length of a quarter circle, as a fraction of its radius.
+const KAPPA: f64 = 0.552_284_749_830_793_4;
+
+/// A rectangle record's coordinates argument (libcdr's `readRectangle`): the rectangle from the
+/// origin to its corner, with the corners rounded (type 0), scalloped (1) or chamfered (2).
+pub fn decode_rectangle(data: &[u8], offset: usize, version: CdrVersion) -> Result<BezPath, Error> {
+    let mut r = Reader::new(data, "rectangle", version);
+    r.seek(offset)?;
+    let doubles = version >= CdrVersion(1500);
+    let coord = |r: &mut Reader<'_>| if doubles { r.f64().map(|v| v / 254_000.0) } else { r.coord() };
+    let (x0, y0) = (coord(&mut r)?, coord(&mut r)?);
+    let (mut sx, mut sy, mut corner) = (1.0, 1.0, 0u8);
+    let radii = if !doubles {
+        let r3 = r.coord()?;
+        if version < CdrVersion(900) { [r3; 4] } else { [r3, r.coord()?, r.coord()?, r.coord()?] }
+    } else {
+        let nonzero = |v: f64| if v.abs() > 1e-9 { v } else { 1.0 };
+        sx = nonzero(r.f64()?);
+        sy = nonzero(r.f64()?);
+        let relative = r.u8()? == 0;
+        r.skip(7)?;
+        let read = |r: &mut Reader<'_>| if relative { r.f64() } else { coord(r) };
+        let r3 = read(&mut r)?;
+        corner = r.u8()?;
+        r.skip(15)?;
+        let r2 = read(&mut r)?;
+        r.skip(16)?;
+        let r1 = read(&mut r)?;
+        r.skip(16)?;
+        let r0 = read(&mut r)?;
+        // Relative radii are fractions of the shorter half-side.
+        let k = if relative { (x0 * sx / 2.0).abs().min((y0 * sy / 2.0).abs()) } else { 1.0 };
+        [r3 * k, r2 * k, r1 * k, r0 * k]
+    };
+    Ok(rectangle(x0, y0, radii, corner, (sx, sy)))
+}
+
+/// libcdr's rectangle outline: from the origin corner round to `(x0, y0)` and back, radii
+/// `[r3, r2, r1, r0]` (by its naming), corners rounded with circular arcs where libcdr draws a
+/// quadratic curve.
+fn rectangle(x0: f64, y0: f64, [r3, r2, r1, r0]: [f64; 4], corner: u8, (sx, sy): (f64, f64)) -> BezPath {
+    let p = |x: f64, y: f64| Point::new(x, y);
+    let mut bp = BezPath::new();
+    // From the point on one edge, round the corner `c`, to the point on the next edge.
+    let turn = |bp: &mut BezPath, a: Point, c: Point, b: Point| match corner {
+        1 => bp.quad_to(a + (b - c), b),
+        2 => bp.line_to(b),
+        _ => bp.curve_to(a + (c - a) * KAPPA, b + (c - b) * KAPPA, b),
+    };
+    bp.move_to(if r0 > 0.0 { p(0.0, -r0 / sy) } else { p(0.0, 0.0) });
+    if r1 > 0.0 {
+        let a = p(0.0, y0 + r1 / sy);
+        bp.line_to(a);
+        turn(&mut bp, a, p(0.0, y0), p(r1 / sx, y0));
+    } else {
+        bp.line_to(p(0.0, y0));
+    }
+    if r2 > 0.0 {
+        let a = p(x0 - r2 / sx, y0);
+        bp.line_to(a);
+        turn(&mut bp, a, p(x0, y0), p(x0, y0 + r2 / sy));
+    } else {
+        bp.line_to(p(x0, y0));
+    }
+    if r3 > 0.0 {
+        let a = p(x0, -r3 / sy);
+        bp.line_to(a);
+        turn(&mut bp, a, p(x0, 0.0), p(x0 - r3 / sx, 0.0));
+    } else {
+        bp.line_to(p(x0, 0.0));
+    }
+    if r0 > 0.0 {
+        let a = p(r0 / sx, 0.0);
+        bp.line_to(a);
+        turn(&mut bp, a, p(0.0, 0.0), p(0.0, -r0 / sy));
+    } else {
+        bp.line_to(p(0.0, 0.0));
+    }
+    bp.close_path();
+    bp
+}
+
+/// An ellipse record's coordinates argument (libcdr's `readEllipse`): the ellipse in the box from
+/// the origin to `(x, y)`; with two different angles an arc from the first to the second, closed
+/// through the centre for a pie.
+pub fn decode_ellipse(data: &[u8], offset: usize, version: CdrVersion) -> Result<BezPath, Error> {
+    let mut r = Reader::new(data, "ellipse", version);
+    r.seek(offset)?;
+    let (x, y) = (r.coord()?, r.coord()?);
+    let (a1, a2) = (r.angle()?, r.angle()?);
+    let pie = r.unsigned()? != 0;
+    Ok(ellipse(x, y, a1, a2, pie))
+}
+
+fn ellipse(x: f64, y: f64, a1: f64, a2: f64, pie: bool) -> BezPath {
+    let tau = std::f64::consts::TAU;
+    let (cx, cy) = (x / 2.0, y / 2.0);
+    let radii = Vec2::new(cx.abs(), cy.abs());
+    let (a1, mut a2) = (a1.rem_euclid(tau), a2.rem_euclid(tau));
+    // libcdr's parametrisation (the minus sign included): the arc runs with sweep off.
+    let at = |a: f64| Point::new(cx + radii.x * a.cos(), cy - radii.y * a.sin());
+    let mut bp = BezPath::new();
+    let arc = |bp: &mut BezPath, from: Point, to: Point, large: bool| {
+        let svg = vectorcraft_geom::kurbo::SvgArc { from, to, radii, x_rotation: 0.0, large_arc: large, sweep: false };
+        match vectorcraft_geom::kurbo::Arc::from_svg_arc(&svg) {
+            Some(a) => a.to_cubic_beziers(ARC_TOLERANCE, |c1, c2, p| bp.curve_to(c1, c2, p)),
+            None => bp.line_to(to),
+        }
+    };
+    if (a1 - a2).abs() > 1e-9 {
+        if a2 < a1 {
+            a2 += tau;
+        }
+        let (p0, p1) = (at(a1), at(a2));
+        bp.move_to(p0);
+        arc(&mut bp, p0, p1, a2 - a1 > std::f64::consts::PI);
+        if pie {
+            bp.line_to(Point::new(cx, cy));
+            bp.close_path();
+        }
+    } else {
+        let (p0, p1) = (at(a1), at(a2 + tau / 4.0));
+        bp.move_to(p0);
+        arc(&mut bp, p0, p1, false);
+        arc(&mut bp, p1, p0, true);
+        bp.close_path();
+    }
+    bp
+}
+
+/// A polygon's symmetry (libcdr's `readPolygonTransform` and `CDRPolygon`): the record's path is
+/// one corner's outline, repeated `angles` times round the origin, `next` corners at a step (a
+/// star when it doesn't divide `angles`), then scaled by (`rx`, `ry`) and moved to (`cx`, `cy`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PolygonXf {
+    pub angles: u32,
+    pub next: u32,
+    pub rx: f64,
+    pub ry: f64,
+    pub cx: f64,
+    pub cy: f64,
+}
+
+/// Most corners a polygon is expanded to (libcdr caps the elements, too).
+const MAX_POLYGON_ANGLES: u32 = 1000;
+
+impl PolygonXf {
+    fn read(r: &mut Reader<'_>) -> Result<Self, Error> {
+        let x3 = r.version >= CdrVersion(1300);
+        if !x3 {
+            r.skip(4)?;
+        }
+        let angles = r.u32()?;
+        let mut next = r.u32()?;
+        if next <= 1 {
+            next = r.u32()?;
+        } else {
+            r.skip(4)?;
+        }
+        if x3 {
+            r.skip(4)?;
+        }
+        Ok(Self { angles, next, rx: r.f64()?, ry: r.f64()?, cx: r.coord()?, cy: r.coord()? })
+    }
+
+    /// Expand one corner's `path` into the whole polygon.
+    pub fn create(&self, path: &BezPath) -> BezPath {
+        let n = self.angles.min(MAX_POLYGON_ANGLES);
+        if n == 0 || path.elements().is_empty() {
+            return path.clone();
+        }
+        let step = std::f64::consts::TAU / f64::from(n);
+        // libcdr's CDRTransform(cos, sin, 0, -sin, cos, 0): a turn clockwise (y up) by `a`.
+        let turn = |a: f64| corel_matrix([a.cos(), a.sin(), 0.0, -a.sin(), a.cos(), 0.0]);
+        let mut out = path.clone();
+        let mut copy = path.clone();
+        let next = self.next % n.max(1);
+        if next != 0 && !n.is_multiple_of(next) {
+            let t = turn(f64::from(next) * step);
+            for _ in 1..n {
+                copy.apply_affine(t);
+                append_joined(&mut out, &copy);
+            }
+        } else {
+            let next = next.max(1);
+            let (t, shift) = (turn(f64::from(next) * step), turn(step));
+            for i in 0..next {
+                if i > 0 {
+                    copy.apply_affine(shift);
+                    append_joined(&mut out, &copy);
+                }
+                for _ in 1..n / next {
+                    copy.apply_affine(t);
+                    append_joined(&mut out, &copy);
+                }
+                close_snapped(&mut out);
+            }
+        }
+        close_snapped(&mut out);
+        out.apply_affine(corel_matrix([self.rx, 0.0, self.cx, 0.0, self.ry, self.cy]));
+        out
+    }
+}
+
+/// Close the last subpath, its end moved onto its start when within the file's precision (so the
+/// closing corner isn't doubled), unless it is already closed.
+fn close_snapped(bp: &mut BezPath) {
+    use vectorcraft_geom::PathEl;
+    if matches!(bp.elements().last(), Some(PathEl::ClosePath) | None) {
+        return;
+    }
+    let start = bp.elements().iter().rev().find_map(|e| if let PathEl::MoveTo(p) = e { Some(*p) } else { None });
+    if let (Some(start), Some(last)) = (start, bp.elements_mut().last_mut()) {
+        match last {
+            PathEl::LineTo(p) | PathEl::QuadTo(_, p) | PathEl::CurveTo(_, _, p) if p.distance(start) < 1e-5 => *p = start,
+            _ => {}
+        }
+    }
+    bp.close_path();
+}
+
+/// Append `src` to `dst`, continuing the outline where `src` starts at `dst`'s end (libcdr's
+/// collector drops such a move, which is how a polygon's corners join into one outline).
+fn append_joined(dst: &mut BezPath, src: &BezPath) {
+    let end = dst.elements().iter().rev().find_map(|e| match e {
+        vectorcraft_geom::PathEl::MoveTo(p) | vectorcraft_geom::PathEl::LineTo(p) => Some(*p),
+        vectorcraft_geom::PathEl::QuadTo(_, p) | vectorcraft_geom::PathEl::CurveTo(_, _, p) => Some(*p),
+        vectorcraft_geom::PathEl::ClosePath => None,
+    });
+    let closed = matches!(dst.elements().last(), Some(vectorcraft_geom::PathEl::ClosePath));
+    for (i, e) in src.elements().iter().enumerate() {
+        match (i, e, end) {
+            // Within two units of the file's precision (1/254000 in): rotated copies of stored
+            // corners don't meet exactly.
+            (0, vectorcraft_geom::PathEl::MoveTo(p), Some(q)) if !closed && p.distance(q) < 1e-5 => {}
+            _ => dst.push(*e),
+        }
+    }
+}
+
+/// A `ppdt` record: a spline's points and knot flags (libcdr's `readPpdt`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SplineData {
+    pub points: Vec<Point>,
+    pub knots: Vec<u32>,
+}
+
+impl SplineData {
+    pub fn decode(data: &[u8], version: CdrVersion) -> Result<Self, Error> {
+        let mut r = Reader::new(data, "ppdt", version);
+        let point_size = if r.wide() { 12 } else { 8 };
+        let n = usize::from(r.u16()?);
+        r.skip(4)?;
+        let n = n.min(r.remaining() / point_size).min(MAX_POINTS);
+        let mut points = Vec::with_capacity(n);
+        for _ in 0..n {
+            points.push(Point::new(r.coord()?, r.coord()?));
+        }
+        let mut knots = Vec::with_capacity(n);
+        for _ in 0..n {
+            knots.push(r.u32()?);
+        }
+        Ok(Self { points, knots })
+    }
+
+    /// The spline as Béziers (libcdr's `CDRSplineData::create`): a flagged point ends a piece; a
+    /// piece of two points is a line, of three a quadratic curve, of more a clamped uniform cubic
+    /// B-spline.
+    pub fn to_bezpath(&self) -> BezPath {
+        let mut bp = BezPath::new();
+        let (Some(&first), true) = (self.points.first(), !self.knots.is_empty()) else { return bp };
+        bp.move_to(first);
+        let mut piece = vec![first];
+        let flush = |bp: &mut BezPath, piece: &[Point]| match piece {
+            [_, b] => bp.line_to(*b),
+            [_, b, c] => bp.quad_to(*b, *c),
+            p if p.len() > 3 => bspline_to(bp, p),
+            _ => {}
+        };
+        for (i, &p) in self.points.iter().enumerate().skip(1).take(self.knots.len().saturating_sub(1)) {
+            piece.push(p);
+            if self.knots.get(i).is_some_and(|&k| k != 0) {
+                flush(&mut bp, &piece);
+                piece = vec![p];
+            }
+        }
+        flush(&mut bp, &piece);
+        bp
+    }
+}
+
+/// Append the clamped uniform cubic B-spline with control points `p` (at least 4) as Bézier
+/// segments, by inserting each interior knot until it has multiplicity 3 (Boehm's algorithm).
+fn bspline_to(bp: &mut BezPath, p: &[Point]) {
+    let n = p.len();
+    // Knots 0,0,0,0,1,…,n-4,n-3,n-3,n-3,n-3 (libcdr's `CDRSplineToElement::knot`).
+    let mut knots: Vec<f64> = (0..n + 4).map(|i| (i.saturating_sub(3)).min(n - 3) as f64).collect();
+    let mut ctrl: Vec<Point> = p.to_vec();
+    for u in 1..n - 3 {
+        let u = u as f64;
+        for _ in 1..3 {
+            // Insert `u` once (it is in span k: knots[k] <= u < knots[k+1]).
+            let Some(k) = (0..knots.len() - 1).rfind(|&i| knots[i] <= u && u < knots[i + 1]) else { break };
+            let mut next = Vec::with_capacity(ctrl.len() + 1);
+            for i in 0..=ctrl.len() {
+                let point = if i + 3 <= k {
+                    ctrl[i]
+                } else if i > k {
+                    ctrl[i - 1]
+                } else {
+                    let span = knots[i + 3] - knots[i];
+                    let a = if span.abs() < 1e-12 { 0.0 } else { (u - knots[i]) / span };
+                    ctrl[i - 1].lerp(ctrl[i], a)
+                };
+                next.push(point);
+            }
+            ctrl = next;
+            knots.insert(k + 1, u);
+        }
+    }
+    // Every interior knot now has multiplicity 3: control points 3i..3i+3 are segment i.
+    for seg in ctrl.windows(4).step_by(3) {
+        if let [_, c1, c2, end] = seg {
+            bp.curve_to(*c1, *c2, *end);
+        }
+    }
+}
+
+/// Where a bitmap object puts its image (libcdr's `readBitmap`): image `id` in the rectangle
+/// between (`x1`, `y1`) and (`x2`, `y2`), inches in object space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BitmapPlacement {
+    pub id: u32,
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
+}
+
+pub fn decode_bitmap_object(data: &[u8], offset: usize, version: CdrVersion) -> Result<BitmapPlacement, Error> {
+    let mut r = Reader::new(data, "bitmap", version);
+    r.seek(offset)?;
+    if version < CdrVersion(600) {
+        let (x1, y1) = (r.coord()?, r.coord()?);
+        if version < CdrVersion(400) {
+            r.skip(2)?;
+        }
+        r.skip(8)?;
+        return Ok(BitmapPlacement { id: r.unsigned()?, x1, y1, x2: 0.0, y2: 0.0 });
+    }
+    let (x1, y1, x2, y2) = (r.coord()?, r.coord()?, r.coord()?, r.coord()?);
+    r.skip(32)?;
+    Ok(BitmapPlacement { id: r.unsigned()?, x1, y1, x2, y2 })
+}
+
+impl BitmapPlacement {
+    /// Pixel space (`w` × `h`, y down) to object space: the image upright in its rectangle, top
+    /// left at the corner with the smaller x and larger y (y is up). `None` for an empty one.
+    pub fn pixels_to_object(&self, w: u32, h: u32) -> Option<Affine> {
+        let (left, right) = (self.x1.min(self.x2), self.x1.max(self.x2));
+        let (bottom, top) = (self.y1.min(self.y2), self.y1.max(self.y2));
+        let (wi, hi) = (right - left, top - bottom);
+        let ok = |v: f64| v.is_finite() && v > 1e-9;
+        (ok(wi) && ok(hi) && w > 0 && h > 0)
+            .then(|| Affine::translate((left, top)) * Affine::scale_non_uniform(wi / f64::from(w), -hi / f64::from(h)))
+    }
+}
+
+/// Where a text record puts its type.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TextFrame {
+    /// Artistic text: point type whose first baseline starts at the object's origin, which its
+    /// `trfd` places. (The record's coordinates argument is not a point: in the X4 sample its first
+    /// four bytes are zero and the next four an id; libcdr reads them as one and never uses it.
+    /// Each object's `bbox` reaches from the transform's origin by the font's ascent and descent.)
+    Artistic,
+    /// Paragraph text: area type in a frame from the origin, `width` right and `height` down.
+    Paragraph { width: f64, height: f64 },
+}
+
+/// The coordinates argument of an artistic or paragraph text record (libcdr's
+/// `readArtisticText`, `readParagraphText`).
+pub fn decode_text_frame(data: &[u8], offset: usize, kind: ShapeKind, version: CdrVersion) -> Result<TextFrame, Error> {
+    let mut r = Reader::new(data, "text", version);
+    r.seek(offset)?;
+    match kind {
+        ShapeKind::ArtisticText => Ok(TextFrame::Artistic),
+        ShapeKind::ParagraphText => {
+            r.skip(4)?;
+            Ok(TextFrame::Paragraph { width: r.coord()?.abs(), height: r.coord()?.abs() })
+        }
+        other => Err(Error::Record { record: "text", message: format!("{other:?} is not text") }),
+    }
+}
+
+/// An `arrw` record (libcdr's `readArrw`, version 6+): an arrowhead's id and outline, its points
+/// stored y before x.
+pub fn decode_arrw(data: &[u8], version: CdrVersion) -> Result<(u32, BezPath), Error> {
+    let mut r = Reader::new(data, "arrw", version);
+    let id = r.u32()?;
+    r.skip(4)?;
+    let point_size = if r.wide() { 9 } else { 5 };
+    let n = usize::from(r.u16()?);
+    r.skip(4)?;
+    let n = n.min(r.remaining().saturating_sub(1) / point_size).min(MAX_POINTS);
+    let mut types = Vec::with_capacity(n);
+    for _ in 0..n {
+        types.push(r.u8()?);
+    }
+    r.skip(1)?;
+    let mut points = Vec::with_capacity(n);
+    for _ in 0..n {
+        let (y, x) = (r.coord()?, r.coord()?);
+        points.push(Point::new(x, y));
+    }
+    Ok((id, CorelPath { points, types }.to_bezpath()))
+}
+
+/// The preset VectorCraft draws for a CorelDRAW arrowhead: a filled triangle for a closed outline,
+/// an open arrow for lines. (VectorCraft strokes take preset arrowheads, not arbitrary shapes.)
+pub fn arrowhead_for(outline: &BezPath) -> Arrowhead {
+    if outline.elements().iter().any(|e| matches!(e, vectorcraft_geom::PathEl::ClosePath)) { Arrowhead::Triangle } else { Arrowhead::ArrowOpen }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Outlines
 
@@ -577,6 +1042,8 @@ pub struct Outline {
     pub dashes: Vec<u16>,
     pub start_arrow: u32,
     pub end_arrow: u32,
+    /// Version 13+: the ids at libcdr's offset, in case those are the arrows (see [`Self::arrows`]).
+    pub alt_arrows: Option<(u32, u32)>,
 }
 
 impl Outline {
@@ -584,10 +1051,16 @@ impl Outline {
     pub const DASHED: u16 = 0x04;
     pub const SCALE_WITH_OBJECT: u16 = 0x20;
 
-    pub fn decode(data: &[u8], version: CdrVersion) -> Result<Self, Error> {
-        if redirected(data, version) {
-            return Err(Error::Record { record: "outl", message: "X6 record stored in content/data is not followed".into() });
+    /// The (start, end) arrowhead ids: the pair whose ids all name arrow records (`known`).
+    pub fn arrows(&self, known: impl Fn(u32) -> bool) -> (u32, u32) {
+        let names = |(a, b): (u32, u32)| (a != 0 || b != 0) && [a, b].iter().all(|&i| i == 0 || known(i));
+        match self.alt_arrows {
+            Some(alt) if !names((self.start_arrow, self.end_arrow)) && names(alt) => alt,
+            _ => (self.start_arrow, self.end_arrow),
         }
+    }
+
+    pub fn decode(data: &[u8], version: CdrVersion) -> Result<Self, Error> {
         let mut r = Reader::new(data, "outl", version);
         let id = r.u32()?;
         if version >= CdrVersion(1300) {
@@ -627,9 +1100,27 @@ impl Outline {
         for _ in 0..n {
             dashes.push(r.u16()?);
         }
-        r.seek(dash_at + if version < CdrVersion(600) { 20 } else { 22 })?;
-        let (start_arrow, end_arrow) = (r.u32()?, r.u32()?);
-        Ok(Self { id, line_type, cap, join, width_in, stretch, angle, color, dashes, start_arrow, end_arrow })
+        // The arrowhead ids follow the dashes: 20 bytes on before version 6, 22 after (libcdr). In
+        // the X4 sample they are 24 bytes on; from X3's outline layout both are kept and the pair
+        // that names arrow records is used ([`Outline::arrows`]).
+        let at = |r: &mut Reader<'_>, gap: usize| -> Result<(u32, u32), Error> {
+            r.seek(dash_at + gap)?;
+            Ok((r.u32()?, r.u32()?))
+        };
+        let x3 = version >= CdrVersion(1300);
+        let (start_arrow, end_arrow) = at(
+            &mut r,
+            if version < CdrVersion(600) {
+                20
+            } else if x3 {
+                24
+            } else {
+                22
+            },
+        )
+        .or_else(|e| if x3 { at(&mut r, 22) } else { Err(e) })?;
+        let alt_arrows = if x3 { at(&mut r, 22).ok() } else { None };
+        Ok(Self { id, line_type, cap, join, width_in, stretch, angle, color, dashes, start_arrow, end_arrow, alt_arrows })
     }
 
     /// The stroke this outline draws, or `None` for no outline. `object` is the object's
@@ -671,9 +1162,6 @@ impl Outline {
                 stroke.dash = Some(Dash { pattern, offset: 0.0, align_corners: false });
             }
         }
-        if self.start_arrow != 0 || self.end_arrow != 0 {
-            notes.push("arrowheads not translated".into());
-        }
         Some(stroke)
     }
 }
@@ -712,9 +1200,6 @@ pub enum CorelFill {
 impl CorelFill {
     /// Decode a `fild` record: its id and fill.
     pub fn decode(data: &[u8], version: CdrVersion) -> Result<(u32, Self), Error> {
-        if redirected(data, version) {
-            return Err(Error::Record { record: "fild", message: "X6 record stored in content/data is not followed".into() });
-        }
         let x3 = version >= CdrVersion(1300);
         let mut r = Reader::new(data, "fild", version);
         let id = r.u32()?;
@@ -867,14 +1352,41 @@ impl Fountain {
 /// One translated object.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
-    /// The path in document space (points, y down).
-    pub path: PathData,
-    /// CorelDRAW fills paths even-odd (libcdr writes `svg:fill-rule="evenodd"`).
-    pub rule: FillRule,
-    /// Fill below stroke, as CorelDRAW draws them.
+    pub content: Content,
+    /// Fill below stroke, as CorelDRAW draws them (empty for type, whose characters carry theirs).
     pub appearance: Appearance,
     /// What was approximated or left out.
     pub notes: Vec<String>,
+}
+
+/// What a translated object is.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Content {
+    /// A path in document space (points, y down). CorelDRAW fills paths even-odd (libcdr writes
+    /// `svg:fill-rule="evenodd"`).
+    Path { path: PathData, rule: FillRule },
+    /// Point or area type, its `xf` mapping text space to the document.
+    Text(Box<TextObject>),
+    /// A bitmap, `xf` mapping its pixels (0..width, 0..height, y down) to the document.
+    Image { bitmap: std::sync::Arc<crate::bitmap::Bitmap>, xf: Affine },
+}
+
+impl Shape {
+    /// The path, for a path object.
+    pub fn path(&self) -> Option<&PathData> {
+        match &self.content {
+            Content::Path { path, .. } => Some(path),
+            _ => None,
+        }
+    }
+
+    /// The type, for a text object.
+    pub fn text(&self) -> Option<&TextObject> {
+        match &self.content {
+            Content::Text(t) => Some(t),
+            _ => None,
+        }
+    }
 }
 
 /// The translated objects of one page, bottom first.
@@ -902,15 +1414,34 @@ pub struct Translation {
 /// Translate every Bézier path object of a RIFF tree. `default_page` is used until the file gives
 /// a page size (an `mcfg` record or a page's own size argument).
 pub fn translate(riff: &Riff<'_>, default_page: Option<PageSpace>) -> Translation {
+    translate_with(riff, default_page, &[])
+}
+
+/// [`translate`] an X6+ drawing whose records may live in `content/data` files: `streams` are
+/// their bytes, in `content/dataFileList.dat` order.
+pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams: &[Vec<u8>]) -> Translation {
+    let src = Records { riff, streams };
     let version = riff.version;
     let mut t = Translation::default();
     let mut fills = BTreeMap::new();
     let mut outlines = BTreeMap::new();
+    let mut fonts: BTreeMap<u16, Font> = BTreeMap::new();
+    let mut bitmaps = BTreeMap::new();
+    let mut arrows = BTreeMap::new();
     let mut page = default_page;
     // Styles come before the objects that use them; collect them first, as libcdr's styles pass.
     for (_, c) in riff.walk() {
         let Chunk::Record(rec) = c else { continue };
-        let Some(data) = riff.data(rec) else { continue };
+        if !matches!(&rec.kind.0, b"fild" | b"fill" | b"outl" | b"mcfg" | b"bmp " | b"font" | b"arrw") {
+            continue;
+        }
+        let data = match src.data(rec) {
+            Ok(d) => d,
+            Err(e) => {
+                t.errors.push(e.to_string());
+                continue;
+            }
+        };
         match &rec.kind.0 {
             b"fild" | b"fill" => match CorelFill::decode(data, version) {
                 Ok((id, f)) => {
@@ -925,10 +1456,62 @@ pub fn translate(riff: &Riff<'_>, default_page: Option<PageSpace>) -> Translatio
                 Err(e) => t.errors.push(e.to_string()),
             },
             b"mcfg" if page.is_none() => page = decode_mcfg(data, version).ok(),
+            b"arrw" if version >= CdrVersion(600) => match decode_arrw(data, version) {
+                Ok((id, path)) => {
+                    arrows.insert(id, arrowhead_for(&path));
+                }
+                Err(e) => t.errors.push(e.to_string()),
+            },
+            b"bmp " => match crate::bitmap::decode_bmp(data, version) {
+                Ok((id, b)) => {
+                    bitmaps.insert(id, std::sync::Arc::new(b));
+                }
+                Err(e) => t.errors.push(e.to_string()),
+            },
+            // The first font with an id is the one used; later ones are substitutes (libcdr).
+            b"font" => match text::decode_font(data, version) {
+                Ok((id, f)) => {
+                    fonts.entry(id).or_insert(f);
+                }
+                Err(e) => t.errors.push(e.to_string()),
+            },
             _ => {}
         }
     }
-    let ctx = Ctx { riff, version, fills: &fills, outlines: &outlines };
+    // Text styles and text name fonts, which the first walk collected.
+    let mut styles = Styles::default();
+    let mut texts: BTreeMap<u32, Vec<Paragraph>> = BTreeMap::new();
+    for (_, c) in riff.walk() {
+        let Chunk::Record(rec) = c else { continue };
+        if !matches!(&rec.kind.0, b"stlt" | b"txsm" | b"styd") {
+            continue;
+        }
+        let data = match src.data(rec) {
+            Ok(d) => d,
+            Err(e) => {
+                t.errors.push(e.to_string());
+                continue;
+            }
+        };
+        match &rec.kind.0 {
+            b"stlt" if version >= CdrVersion(700) => match Styles::decode(data, version, &fonts) {
+                Ok(s) => styles.styles.extend(s.styles),
+                Err(e) => t.errors.push(e.to_string()),
+            },
+            b"styd" if version >= CdrVersion(500) && version < CdrVersion(700) => match text::decode_styd(data, version, &fonts) {
+                Ok((id, parent, s)) => {
+                    styles.styles.insert(id, (parent, s));
+                }
+                Err(e) => t.errors.push(e.to_string()),
+            },
+            b"txsm" if version >= CdrVersion(500) => match text::decode_txsm(data, version, &fonts) {
+                Ok((id, paras)) => texts.entry(id).or_default().extend(paras),
+                Err(e) => t.errors.push(e.to_string()),
+            },
+            _ => {}
+        }
+    }
+    let ctx = Ctx { src, version, fills: &fills, outlines: &outlines, styles: &styles, texts: &texts, bitmaps: &bitmaps, arrows: &arrows };
     let mut index = 0;
     for chunk in &riff.chunks {
         ctx.pages(chunk, &mut page, &mut index, &mut t);
@@ -937,19 +1520,34 @@ pub fn translate(riff: &Riff<'_>, default_page: Option<PageSpace>) -> Translatio
 }
 
 struct Ctx<'a, 'r> {
-    riff: &'a Riff<'r>,
+    src: Records<'a, 'r>,
     version: CdrVersion,
     fills: &'a BTreeMap<u32, CorelFill>,
     outlines: &'a BTreeMap<u32, Outline>,
+    styles: &'a Styles,
+    texts: &'a BTreeMap<u32, Vec<Paragraph>>,
+    bitmaps: &'a BTreeMap<u32, std::sync::Arc<crate::bitmap::Bitmap>>,
+    arrows: &'a BTreeMap<u32, Arrowhead>,
 }
 
 /// Raw object before page placement (the page's size may come later in its list).
 struct Pending {
-    path: CorelPath,
+    geometry: Geometry,
     object: Affine,
     fill: Option<u32>,
     outline: Option<u32>,
     style: Option<u32>,
+}
+
+enum Geometry {
+    /// A path in CorelDRAW space (inches, y up), before the object's transform.
+    Path(BezPath),
+    /// Type, its text found by the object's `spnd`.
+    Text {
+        frame: TextFrame,
+        spnd: Option<u32>,
+    },
+    Image(BitmapPlacement),
 }
 
 impl Ctx<'_, '_> {
@@ -971,7 +1569,7 @@ impl Ctx<'_, '_> {
         // CorelDRAW writes objects front to back; VectorCraft stacks them bottom first.
         let shapes = pending.into_iter().rev().map(|p| self.shape(p, &space)).collect();
         let flags = list.children.iter().find_map(|c| match c {
-            Chunk::Record(r) if r.kind.0 == *b"flgs" => self.riff.data(r).and_then(|d| d.get(..4)),
+            Chunk::Record(r) if r.kind.0 == *b"flgs" => self.src.data(r).ok().and_then(|d| d.get(..4)),
             _ => None,
         });
         let master = self.version >= CdrVersion(400) && flags.is_some_and(|f| u32::from_le_bytes([f[0], f[1], f[2], f[3]]) & 0x00ff_0000 != 0);
@@ -988,7 +1586,7 @@ impl Ctx<'_, '_> {
                 Chunk::List(l) => self.objects(l, out, own_size, t),
                 Chunk::Record(r) if matches!(&r.kind.0, b"loda" | b"lobj") => {
                     // A page's own record, outside any object: it may carry the page size.
-                    if let Some(Ok(l)) = self.riff.data(r).map(|d| decode_loda(d, self.version)) {
+                    if let Ok(Ok(l)) = self.src.data(r).map(|d| decode_loda(d, self.version)) {
                         *own_size = l.page.or(*own_size);
                     }
                 }
@@ -999,6 +1597,8 @@ impl Ctx<'_, '_> {
 
     fn object(&self, obj: &List, out: &mut Vec<Pending>, t: &mut Translation) {
         let mut loda = None;
+        let mut spnd = None;
+        let mut ppdt = None;
         let mut matrices = Vec::new();
         let mut stack: Vec<&Chunk> = obj.children.iter().rev().collect();
         while let Some(c) = stack.pop() {
@@ -1006,9 +1606,20 @@ impl Ctx<'_, '_> {
                 Chunk::List(l) if l.list_type != FourCc::OBJECT => stack.extend(l.children.iter().rev()),
                 Chunk::List(_) => {}
                 Chunk::Record(r) => {
-                    let Some(data) = self.riff.data(r) else { continue };
+                    if !matches!(&r.kind.0, b"loda" | b"lobj" | b"spnd" | b"ppdt" | b"trfd") {
+                        continue;
+                    }
+                    let data = match self.src.data(r) {
+                        Ok(d) => d,
+                        Err(e) => {
+                            t.errors.push(e.to_string());
+                            continue;
+                        }
+                    };
                     match &r.kind.0 {
                         b"loda" | b"lobj" if loda.is_none() => loda = Some(data),
+                        b"spnd" => spnd = Reader::new(data, "spnd", self.version).unsigned().ok(),
+                        b"ppdt" => ppdt = Some(data),
                         // The last trfd wins, as in libcdr's collectTransform.
                         b"trfd" => match decode_trfd(data, self.version) {
                             Ok(m) => matrices = m,
@@ -1024,19 +1635,69 @@ impl Ctx<'_, '_> {
             Ok(l) => l,
             Err(e) => return t.errors.push(e.to_string()),
         };
-        let Some(offset) = l.coords.filter(|_| l.kind.is_bezier()) else {
-            *t.skipped.entry(format!("{:?}", l.kind)).or_default() += 1;
-            return;
+        let v = self.version;
+        let geometry = match (l.kind, l.coords) {
+            (ShapeKind::Curve | ShapeKind::Path, Some(at)) => CorelPath::decode(data, at, l.kind, v).map(|p| Geometry::Path(p.to_bezpath())),
+            // A polygon's coordinates are laid out as a curve's: one corner, then its symmetry.
+            (ShapeKind::Polygon, Some(at)) => CorelPath::decode(data, at, ShapeKind::Curve, v).map(|p| {
+                let corner = p.to_bezpath();
+                Geometry::Path(l.polygon.map_or(corner.clone(), |x| x.create(&corner)))
+            }),
+            (ShapeKind::Bitmap, Some(at)) => decode_bitmap_object(data, at, v).map(Geometry::Image),
+            (ShapeKind::Spline, _) => match ppdt {
+                Some(d) => SplineData::decode(d, v).map(|s| Geometry::Path(s.to_bezpath())),
+                None => Err(Error::Record { record: "ppdt", message: "missing from a spline object".into() }),
+            },
+            (ShapeKind::Rectangle, Some(at)) => decode_rectangle(data, at, v).map(Geometry::Path),
+            (ShapeKind::Ellipse, Some(at)) => decode_ellipse(data, at, v).map(Geometry::Path),
+            (ShapeKind::ArtisticText | ShapeKind::ParagraphText, Some(at)) => {
+                decode_text_frame(data, at, l.kind, v).map(|frame| Geometry::Text { frame, spnd })
+            }
+            (kind, _) => {
+                *t.skipped.entry(format!("{kind:?}")).or_default() += 1;
+                return;
+            }
         };
-        match CorelPath::decode(data, offset, l.kind, self.version) {
-            Ok(path) => out.push(Pending { path, object: compose(&matrices), fill: l.fill_id, outline: l.outline_id, style: l.style_id }),
+        match geometry {
+            Ok(geometry) => out.push(Pending { geometry, object: compose(&matrices), fill: l.fill_id, outline: l.outline_id, style: l.style_id }),
             Err(e) => t.errors.push(e.to_string()),
         }
     }
 
     fn shape(&self, p: Pending, page: &PageSpace) -> Shape {
-        let path = p.path.to_path_data(p.object, page);
         let mut notes = Vec::new();
+        let bp = match p.geometry {
+            Geometry::Path(bp) => bp,
+            Geometry::Image(place) => {
+                let Some(bitmap) = self.bitmaps.get(&place.id) else {
+                    notes.push(format!("bitmap {} not found", place.id));
+                    return Shape {
+                        content: Content::Path { path: PathData::default(), rule: FillRule::EvenOdd },
+                        appearance: Appearance::default(),
+                        notes,
+                    };
+                };
+                let Some(px) = place.pixels_to_object(bitmap.width, bitmap.height) else {
+                    notes.push("a bitmap with an empty frame".into());
+                    return Shape {
+                        content: Content::Path { path: PathData::default(), rule: FillRule::EvenOdd },
+                        appearance: Appearance::default(),
+                        notes,
+                    };
+                };
+                let xf = page.to_document() * p.object * px;
+                return Shape { content: Content::Image { bitmap: bitmap.clone(), xf }, appearance: Appearance::default(), notes };
+            }
+            Geometry::Text { frame, spnd } => {
+                let t = self.text_object(frame, spnd, page.to_document() * p.object, p.object, &mut notes);
+                return Shape { content: Content::Text(Box::new(t)), appearance: Appearance::default(), notes };
+            }
+        };
+        let path = PathData::from_bezpath(&{
+            let mut bp = bp;
+            bp.apply_affine(page.to_document() * p.object);
+            bp
+        });
         let mut items = Vec::new();
         match p.fill.and_then(|id| self.fills.get(&id).map(|f| (id, f))) {
             Some((_, f)) => items.extend(f.to_fill(path.bounds(), &mut notes).map(AppearanceItem::Fill)),
@@ -1046,18 +1707,135 @@ impl Ctx<'_, '_> {
             None => {}
         }
         match p.outline.and_then(|id| self.outlines.get(&id)) {
-            Some(o) => items.extend(o.to_stroke(p.object, &mut notes).map(AppearanceItem::Stroke)),
+            Some(o) => items.extend(o.to_stroke(p.object, &mut notes).map(|mut st| {
+                let (start, end) = o.arrows(|id| self.arrows.contains_key(&id));
+                let ends = [start, end].map(|id| (id != 0).then(|| self.arrows.get(&id).copied()));
+                if ends.iter().any(|e| matches!(e, Some(None))) {
+                    notes.push("an arrowhead was not found".into());
+                }
+                [st.start_arrow, st.end_arrow] = ends.map(Option::flatten);
+                if st.start_arrow.is_some() || st.end_arrow.is_some() {
+                    notes.push("arrowheads drawn as VectorCraft's nearest preset".into());
+                }
+                AppearanceItem::Stroke(st)
+            })),
             None if p.outline.is_some() => notes.push(format!("outline {} not found", p.outline.unwrap_or_default())),
             None => {}
         }
-        Shape { path, rule: FillRule::EvenOdd, appearance: Appearance { items, ..Appearance::default() }, notes }
+        Shape { content: Content::Path { path, rule: FillRule::EvenOdd }, appearance: Appearance { items, ..Appearance::default() }, notes }
     }
+
+    /// Type for a text record: its paragraphs (by `spnd`), each run's style its paragraph's `stlt`
+    /// style with the run's own settings over it. `to_doc` maps the object's space to the
+    /// document; `object` is the object's own transform (for outline widths that scale with it).
+    fn text_object(&self, frame: TextFrame, spnd: Option<u32>, to_doc: Affine, object: Affine, notes: &mut Vec<String>) -> TextObject {
+        let paras: &[Paragraph] = spnd.and_then(|id| self.texts.get(&id)).map_or(&[], Vec::as_slice);
+        if paras.is_empty() {
+            notes.push("the text of a text object was not found".into());
+        }
+        let mut runs: Vec<TextRun> = Vec::new();
+        // One style per VectorCraft paragraph: each CorelDRAW paragraph's lines share its style.
+        let mut para_styles = Vec::new();
+        let mut no_size = false;
+        for (i, p) in paras.iter().enumerate() {
+            let base = self.styles.resolve(p.style);
+            let ps = para_style(&base);
+            if i > 0 {
+                runs.push(TextRun::new("\n", self.char_style(&base, object, &mut no_size, notes)));
+            }
+            para_styles.push(ps.clone());
+            for run in &p.runs {
+                let mut s = base.clone();
+                s.apply(&run.style);
+                // Line breaks start a new line; VectorCraft breaks lines at paragraphs.
+                let chars: String = run.decoded(&s).chars().map(|c| if matches!(c, '\r' | '\u{b}') { '\n' } else { c }).collect();
+                para_styles.extend(std::iter::repeat_n(ps.clone(), chars.matches('\n').count()));
+                runs.push(TextRun::new(chars, self.char_style(&s, object, &mut no_size, notes)));
+            }
+        }
+        if no_size {
+            notes.push("text without a font size set at 12 pt".into());
+        }
+        let (kind, origin) = match frame {
+            TextFrame::Artistic => (TextKind::Point, Point::ZERO),
+            TextFrame::Paragraph { width, height } => {
+                let (w, h) = (width * PT_PER_IN, height * PT_PER_IN);
+                let corners = [Point::ZERO, Point::new(w, 0.0), Point::new(w, h), Point::new(0.0, h)];
+                (TextKind::Area { frame: PathData::single(vectorcraft_geom::SubPath::polyline(&corners, true)) }, Point::ZERO)
+            }
+        };
+        let mut t = TextObject::point(Point::ZERO, "", CharStyle::default());
+        t.kind = kind;
+        // Text space is points with y down; CorelDRAW's is inches with y up.
+        t.xf = to_doc * Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(TEXT_SCALE, -TEXT_SCALE);
+        runs.retain(|r| !r.text.is_empty());
+        if !runs.is_empty() {
+            t.runs = runs;
+        }
+        para_styles.truncate(t.plain_text().matches('\n').count() + 1);
+        if let Some(first) = para_styles.first() {
+            t.para = first.clone();
+        }
+        t.paras = para_styles;
+        t.normalize_paras();
+        t
+    }
+
+    fn char_style(&self, s: &TextStyle, object: Affine, no_size: &mut bool, notes: &mut Vec<String>) -> CharStyle {
+        let mut c = CharStyle::default();
+        if let Some(f) = s.font.as_ref().filter(|f| !f.trim().is_empty()) {
+            c.font_family = f.trim().to_owned();
+        }
+        match s.size.map(|v| v * PT_PER_IN).filter(|v| v.is_finite() && *v > 0.0) {
+            Some(pt) => c.size = pt.min(16_000.0),
+            None => *no_size = true,
+        }
+        match s.fill {
+            Some(Ink::Record(id)) => {
+                if let Some(f) = self.fills.get(&id) {
+                    c.fill = f.to_fill(None, notes).map_or(Paint::None, |l| l.paint);
+                }
+            }
+            Some(Ink::Color(color)) => c.fill = Paint::solid(color_or_black(&color, notes)),
+            Some(Ink::None) => c.fill = Paint::None,
+            None => {}
+        }
+        let stroke = match s.outline {
+            Some(Pen::Record(id)) => self.outlines.get(&id).and_then(|o| o.to_stroke(object, notes)).map(|st| (st.paint, st.width)),
+            Some(Pen::Line { width, color }) => {
+                Some((Paint::solid(color_or_black(&color, notes)), width * PT_PER_IN)).filter(|(_, w)| w.is_finite() && *w > 0.0)
+            }
+            None => None,
+        };
+        if let Some((paint, width)) = stroke {
+            c.stroke = paint;
+            c.stroke_width = width;
+        }
+        c
+    }
+}
+
+/// Paragraph attributes of a style: alignment and indents (CorelDRAW's first-line indent is from
+/// the frame's edge, VectorCraft's from the left indent).
+fn para_style(s: &TextStyle) -> ParaStyle {
+    let justify = match s.align.unwrap_or(0) {
+        2 => Justify::Center,
+        3 => Justify::Right,
+        4 => Justify::JustifyLeft,
+        5 => Justify::JustifyAll,
+        _ => Justify::Left,
+    };
+    let (left, first, right) = s
+        .indents
+        .filter(|(a, b, c)| a.is_finite() && b.is_finite() && c.is_finite())
+        .map_or((0.0, 0.0, 0.0), |(l, f, r)| (l * PT_PER_IN, (f - l) * PT_PER_IN, r * PT_PER_IN));
+    ParaStyle { justify, left_indent: left, first_line_indent: first, right_indent: right, ..ParaStyle::default() }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::riff::build;
+    use crate::synth as build;
 
     const V9: CdrVersion = CdrVersion(900);
     const V5: CdrVersion = CdrVersion(500);
@@ -1413,17 +2191,283 @@ mod tests {
         let p0 = &t.pages[1];
         assert_eq!(p0.page.size_pt(), (144.0, 144.0));
         // Bottom first: the second object in the file (moved 1 in left) is the first shape.
-        let b0 = p0.shapes[0].path.bounds().unwrap();
-        let b1 = p0.shapes[1].path.bounds().unwrap();
+        let b0 = p0.shapes[0].path().unwrap().bounds().unwrap();
+        let b1 = p0.shapes[1].path().unwrap().bounds().unwrap();
         assert_eq!((b0.x0, b0.y0, b0.x1, b0.y1), (0.0, 0.0, 72.0, 72.0));
         assert_eq!((b1.x0, b1.y0, b1.x1, b1.y1), (72.0, 0.0, 144.0, 72.0));
-        assert!(p0.shapes[0].path.subpaths[0].closed);
+        assert!(p0.shapes[0].path().unwrap().subpaths[0].closed);
         assert_eq!(p0.shapes[0].appearance.fill_paint(), Paint::solid(Color::rgb8(255, 0, 0)));
-        assert_eq!(p0.shapes[0].rule, FillRule::EvenOdd);
+        assert!(matches!(p0.shapes[0].content, Content::Path { rule: FillRule::EvenOdd, .. }));
         assert!(p0.shapes[0].appearance.stroke().is_none());
         // The second page keeps the size and counts its rectangle as skipped.
         assert_eq!(t.pages[2].page.size_pt(), (144.0, 144.0));
         assert_eq!(t.skipped.get("Rectangle"), Some(&1));
+    }
+
+    #[test]
+    fn rectangles_round_scallop_and_chamfer_their_corners() {
+        let b = |bp: &BezPath| vectorcraft_geom::Shape::bounding_box(bp);
+        // A 2 × 1 in rectangle drawn downwards (y up), radius 0.25 at each corner.
+        for corner in [0, 1, 2] {
+            let bp = rectangle(2.0, -1.0, [0.25; 4], corner, (1.0, 1.0));
+            let r = b(&bp);
+            assert!((r.x0, r.x1, r.y0, r.y1) == (0.0, 2.0, -1.0, 0.0), "{corner}: {r:?}");
+            // Round and chamfered corners cut the corner point off; scalloped ones bite inwards.
+            assert!(!vectorcraft_geom::Shape::contains(&bp, Point::new(0.01, -0.01)), "{corner}");
+        }
+        let round = rectangle(2.0, -1.0, [0.25; 4], 0, (1.0, 1.0));
+        let along = round.elements().iter().filter(|e| matches!(e, vectorcraft_geom::PathEl::CurveTo(..))).count();
+        assert_eq!(along, 4, "round corners are circular cubics");
+        let square = rectangle(2.0, -1.0, [0.0; 4], 0, (1.0, 1.0));
+        assert!((vectorcraft_geom::Shape::area(&square).abs() - 2.0).abs() < 1e-12);
+        // Version 9 stores four radii; version 15 doubles, here radii relative to the half-side.
+        let mut v9 = Vec::new();
+        for x in [IN, -IN, 0, IN / 10, 0, 0] {
+            v9.extend_from_slice(&x.to_le_bytes());
+        }
+        let r = b(&decode_rectangle(&v9, 0, V9).unwrap());
+        assert!((r.width() - 1.0).abs() < 1e-9 && (r.height() - 1.0).abs() < 1e-9);
+        let mut v15 = Vec::new();
+        for d in [254_000.0f64, -127_000.0, 1.0, 1.0] {
+            v15.extend_from_slice(&d.to_le_bytes());
+        }
+        v15.extend_from_slice(&[0; 8]);
+        for r in [0.5f64, 0.5, 0.5, 0.5] {
+            v15.extend_from_slice(&r.to_le_bytes());
+            v15.extend_from_slice(&[0; 16]);
+        }
+        let rect = decode_rectangle(&v15, 0, CdrVersion(1500)).unwrap();
+        // Radius 0.5 × the shorter half-side (0.25 in): the curve starts 0.125 in down the edge.
+        assert!(rect.elements().iter().any(|e| matches!(e, vectorcraft_geom::PathEl::MoveTo(p) if (p.y + 0.125).abs() < 1e-9)), "{rect:?}");
+        assert!(decode_rectangle(&v15[..40], 0, CdrVersion(1500)).is_err());
+    }
+
+    #[test]
+    fn ellipses_arcs_and_pies() {
+        let b = |bp: &BezPath| vectorcraft_geom::Shape::bounding_box(bp);
+        let full = ellipse(2.0, -1.0, 0.0, 0.0, false);
+        let r = b(&full);
+        // Within the arc flattening tolerance (1e-4 in, under 0.01 pt).
+        assert!((r.x0.abs() + (r.x1 - 2.0).abs() + (r.y0 + 1.0).abs() + r.y1.abs()) < ARC_TOLERANCE, "{r:?}");
+        let area = vectorcraft_geom::Shape::area(&full).abs();
+        assert!((area - std::f64::consts::PI * 0.5).abs() < 1e-3, "{area}");
+        // Three quarters of a circle, closed through the centre.
+        let pie = ellipse(1.0, 1.0, 0.0, 1.5 * std::f64::consts::PI, true);
+        assert!((vectorcraft_geom::Shape::area(&pie).abs() - 0.75 * std::f64::consts::PI * 0.25).abs() < 1e-3);
+        assert!(matches!(pie.elements().last(), Some(vectorcraft_geom::PathEl::ClosePath)));
+        let arc = ellipse(1.0, 1.0, 0.0, 0.5 * std::f64::consts::PI, false);
+        assert!(!matches!(arc.elements().last(), Some(vectorcraft_geom::PathEl::ClosePath)), "an arc stays open");
+        let mut rec = Vec::new();
+        for x in [IN, IN, 0, 90_000_000, 1] {
+            rec.extend_from_slice(&x.to_le_bytes());
+        }
+        assert!(decode_ellipse(&rec, 0, V9).is_ok() && decode_ellipse(&rec[..12], 0, V9).is_err());
+    }
+
+    #[test]
+    fn rectangles_ellipses_and_type_translate_onto_the_page() {
+        let bytes = crate::synth::shapes_riff();
+        let riff = crate::riff::parse(&bytes, &crate::Limits::default()).unwrap();
+        let t = translate(&riff, None);
+        assert!(t.errors.is_empty() && t.skipped.is_empty(), "{:?} {:?}", t.errors, t.skipped);
+        let shapes = &t.pages[0].shapes;
+        // Bottom first: paragraph text, artistic text, pie, rectangle.
+        assert_eq!(shapes.len(), 4);
+        let para = shapes[0].text().unwrap();
+        let art = shapes[1].text().unwrap();
+        let pie = shapes[2].path().unwrap();
+        let rect = shapes[3].path().unwrap();
+
+        let r = rect.bounds().unwrap();
+        assert!((r.x0.abs() + r.y0.abs() + (r.x1 - 144.0).abs() + (r.y1 - 72.0).abs()) < 1e-6, "{r:?}");
+        assert_eq!(shapes[3].appearance.fill_paint(), Paint::solid(Color::rgb8(255, 0, 0)));
+        let p = pie.bounds().unwrap();
+        assert!((p.x0 - 144.0).abs() < 1e-6 && (p.y1 - 108.0).abs() < 1e-6, "the pie's box starts at the page centre: {p:?}");
+        assert!(pie.is_closed());
+
+        // Artistic text: point type whose baseline starts at the page centre, its style inherited
+        // and overridden run by run.
+        assert!(matches!(art.kind, TextKind::Point));
+        assert_eq!(art.xf * Point::ZERO, Point::new(144.0, 108.0));
+        assert_eq!(art.xf.as_coeffs()[..4], [1.0, 0.0, 0.0, 1.0], "upright, in points");
+        assert_eq!(art.plain_text(), "Hello wörld");
+        let sizes: Vec<_> = art.runs.iter().map(|r| (r.text.as_str(), (r.style.size * 100.0).round() / 100.0)).collect();
+        assert_eq!(sizes, [("Hello ", 24.0), ("wörld", 12.0)]);
+        assert!(art.runs.iter().all(|r| r.style.font_family == "Arial" && r.style.fill == Paint::solid(Color::rgb8(255, 0, 0))));
+        assert_eq!(art.para.justify, Justify::Center);
+
+        // Paragraph text: area type in its 1.5 × 0.5 in frame, from the object's origin.
+        let TextKind::Area { frame } = &para.kind else { panic!("area type") };
+        let f = frame.bounds().unwrap();
+        assert!((f.width() - 108.0).abs() < 1e-6 && (f.height() - 36.0).abs() < 1e-6, "{f:?}");
+        assert_eq!(para.xf * Point::ZERO, Point::new(180.0, 144.0));
+        assert_eq!((para.plain_text().as_str(), para.para.justify), ("Para", Justify::Left));
+        assert_eq!(para.runs[0].style.size.round(), 24.0, "inherited from the parent style");
+        assert!(shapes.iter().all(|s| s.notes.is_empty()), "{:?}", shapes.iter().map(|s| &s.notes).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn line_breaks_become_paragraphs_with_the_same_style() {
+        let paras = vec![Paragraph {
+            style: 1,
+            runs: vec![crate::text::Run { chars: crate::text::Chars::Bytes(b"a\rb".to_vec()), style: TextStyle::default() }],
+        }];
+        let styles = Styles { styles: BTreeMap::from([(1, (0, TextStyle { align: Some(3), size: Some(0.25), ..TextStyle::default() }))]) };
+        let texts = BTreeMap::from([(5, paras.clone()), (6, [paras.clone(), paras].concat())]);
+        let riff_bytes = crate::synth::list(b"RIFF", b"CDR9", &[]);
+        let riff = crate::riff::parse(&riff_bytes, &crate::Limits::default()).unwrap();
+        let empty = BTreeMap::new();
+        let no_bitmaps = BTreeMap::new();
+        let ctx = Ctx {
+            src: Records { riff: &riff, streams: &[] },
+            version: V9,
+            fills: &empty,
+            outlines: &BTreeMap::new(),
+            styles: &styles,
+            texts: &texts,
+            bitmaps: &no_bitmaps,
+            arrows: &BTreeMap::new(),
+        };
+        let mut notes = Vec::new();
+        let t = ctx.text_object(TextFrame::Artistic, Some(5), Affine::IDENTITY, Affine::IDENTITY, &mut notes);
+        assert_eq!((t.plain_text().as_str(), t.para.justify), ("a\nb", Justify::Right));
+        let two = ctx.text_object(TextFrame::Artistic, Some(6), Affine::IDENTITY, Affine::IDENTITY, &mut notes);
+        assert_eq!(two.plain_text(), "a\nb\na\nb");
+        assert!(notes.is_empty());
+        let none = ctx.text_object(TextFrame::Artistic, Some(9), Affine::IDENTITY, Affine::IDENTITY, &mut notes);
+        assert!(none.plain_text().is_empty() && notes.iter().any(|n| n.contains("not found")));
+    }
+
+    /// A point of the clamped uniform cubic B-spline on `p` at `u` (Cox–de Boor, for reference).
+    fn de_boor(p: &[Point], u: f64) -> Point {
+        let n = p.len();
+        let t: Vec<f64> = (0..n + 4).map(|i| (i.saturating_sub(3)).min(n - 3) as f64).collect();
+        fn basis(t: &[f64], i: usize, k: usize, u: f64, last: bool) -> f64 {
+            if k == 0 {
+                return if (t[i] <= u && u < t[i + 1]) || (last && u == t[i + 1] && t[i] < t[i + 1] && t[i + 1] == *t.last().unwrap()) {
+                    1.0
+                } else {
+                    0.0
+                };
+            }
+            let a = if t[i + k] > t[i] { (u - t[i]) / (t[i + k] - t[i]) * basis(t, i, k - 1, u, last) } else { 0.0 };
+            let b = if t[i + k + 1] > t[i + 1] { (t[i + k + 1] - u) / (t[i + k + 1] - t[i + 1]) * basis(t, i + 1, k - 1, u, last) } else { 0.0 };
+            a + b
+        }
+        let last = u >= t[n];
+        p.iter().enumerate().fold(Point::ZERO, |acc, (i, q)| acc + q.to_vec2() * basis(&t, i, 3, u, last))
+    }
+
+    #[test]
+    fn b_splines_become_the_same_curve_in_beziers() {
+        use vectorcraft_geom::ParamCurve;
+        let pts: Vec<Point> = [(0.0, 0.0), (1.0, 2.0), (3.0, 3.0), (4.0, 0.0), (6.0, -1.0), (7.0, 2.0)].map(|(x, y)| Point::new(x, y)).to_vec();
+        for n in 4..=pts.len() {
+            let p = &pts[..n];
+            let mut bp = BezPath::new();
+            bp.move_to(p[0]);
+            bspline_to(&mut bp, p);
+            let segs: Vec<_> = bp.segments().collect();
+            assert_eq!(segs.len(), n - 3);
+            for (i, seg) in segs.iter().enumerate() {
+                for k in 0..=4 {
+                    let local = f64::from(k) / 4.0;
+                    let want = de_boor(p, i as f64 + local);
+                    assert!(seg.eval(local).distance(want) < 1e-9, "n={n} seg {i} t={local}: {:?} vs {want:?}", seg.eval(local));
+                }
+            }
+        }
+        // ppdt: knot flags split the spline into a line, a quadratic and a B-spline.
+        let mut rec = 7u16.to_le_bytes().to_vec();
+        rec.extend_from_slice(&[0; 4]);
+        for (x, y) in [(0, 0), (1, 0), (2, 1), (3, 0), (4, 1), (5, 0), (6, 1)] {
+            rec.extend_from_slice(&le32(&[x * IN, y * IN]));
+        }
+        rec.extend_from_slice(&le32(&[1, 1, 0, 1, 0, 0, 0]));
+        let sp = SplineData::decode(&rec, V9).unwrap();
+        use vectorcraft_geom::PathEl::*;
+        let kinds: Vec<_> = sp
+            .to_bezpath()
+            .elements()
+            .iter()
+            .map(|e| match e {
+                MoveTo(_) => 'M',
+                LineTo(_) => 'L',
+                QuadTo(..) => 'Q',
+                CurveTo(..) => 'C',
+                ClosePath => 'Z',
+            })
+            .collect();
+        assert_eq!(kinds.iter().collect::<String>(), "MLQC");
+        assert!(SplineData::decode(&rec[..10], V9).unwrap().points.len() <= 1);
+    }
+
+    #[test]
+    fn polygons_and_stars_from_one_corner() {
+        use vectorcraft_geom::PathEl;
+        let step = std::f64::consts::TAU / 5.0;
+        // Corner k, clockwise from the top (y up), the way libcdr's turns go.
+        let corner = |k: f64| Point::new((k * step).sin(), (k * step).cos());
+        let edge = |to: f64| {
+            let mut bp = BezPath::new();
+            bp.move_to(Point::new(0.0, 1.0));
+            bp.line_to(corner(to));
+            bp
+        };
+        // A pentagon: five joined edges, one closed outline, every corner on the circle.
+        let x = PolygonXf { angles: 5, next: 1, rx: 2.0, ry: 2.0, cx: 1.0, cy: 0.0 };
+        let penta = x.create(&edge(1.0));
+        let moves = penta.elements().iter().filter(|e| matches!(e, PathEl::MoveTo(_))).count();
+        assert_eq!(moves, 1, "{penta:?}");
+        assert!(matches!(penta.elements().last(), Some(PathEl::ClosePath)));
+        let ends: Vec<Point> = penta
+            .elements()
+            .iter()
+            .filter_map(|e| match e {
+                PathEl::LineTo(p) => Some(*p),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ends.len(), 5);
+        assert!(ends.iter().all(|p| (p.distance(Point::new(1.0, 0.0)) - 2.0).abs() < 1e-9));
+        let area = vectorcraft_geom::Shape::area(&penta).abs();
+        assert!((area - 4.0 * 2.5 * step.sin()).abs() < 1e-9, "{area}");
+        // A five-pointed star: edges jump two corners at a time.
+        let star = PolygonXf { angles: 5, next: 2, rx: 1.0, ry: 1.0, cx: 0.0, cy: 0.0 }.create(&edge(2.0));
+        assert_eq!(star.elements().iter().filter(|e| matches!(e, PathEl::LineTo(_))).count(), 5);
+        assert_eq!(star.elements().iter().filter(|e| matches!(e, PathEl::MoveTo(_))).count(), 1);
+        // No angles: the corner as it is.
+        assert_eq!(PolygonXf { angles: 0, ..x }.create(&edge(1.0)), edge(1.0));
+    }
+
+    #[test]
+    fn polygons_splines_bitmaps_and_arrowheads_translate() {
+        let bytes = crate::synth::more_shapes_riff();
+        let riff = crate::riff::parse(&bytes, &crate::Limits::default()).unwrap();
+        let t = translate(&riff, None);
+        assert!(t.errors.is_empty() && t.skipped.is_empty(), "{:?} {:?}", t.errors, t.skipped);
+        let shapes = &t.pages[0].shapes;
+        assert_eq!(shapes.len(), 3);
+        // Bottom first: bitmap, spline, pentagon.
+        let Content::Image { bitmap, xf } = &shapes[0].content else { panic!("{:?}", shapes[0].content) };
+        assert_eq!((bitmap.width, bitmap.height), (2, 2));
+        assert_eq!(bitmap.rgba[..8], [0, 0, 255, 255, 255, 255, 255, 255], "the top row");
+        assert_eq!(*xf * Point::ZERO, Point::new(108.0, 72.0), "top left of the 1 in square at the centre");
+        assert_eq!(*xf * Point::new(2.0, 2.0), Point::new(180.0, 144.0));
+
+        let spline = shapes[1].path().unwrap();
+        assert!(!spline.is_closed());
+        assert_eq!(spline.anchor_count(), 2, "one cubic piece");
+        let stroke = shapes[1].appearance.stroke().unwrap();
+        assert_eq!((stroke.start_arrow, stroke.end_arrow), (None, Some(Arrowhead::Triangle)));
+        assert_eq!(shapes[1].notes, ["arrowheads drawn as VectorCraft's nearest preset"]);
+
+        let penta = shapes[2].path().unwrap();
+        assert!(penta.is_closed());
+        assert_eq!(penta.anchor_count(), 5);
+        let b = penta.bounds().unwrap();
+        // Radius 1 in round the page centre (144, 108): the top corner 72 pt above it.
+        assert!((b.y0 - 36.0).abs() < 1e-3 && (b.center().x - 144.0).abs() < 1e-3, "{b:?}");
     }
 
     #[test]
@@ -1444,7 +2488,6 @@ mod tests {
                 let _ = CorelPath::decode(&l[..n], off, d.kind, V9);
             }
         }
-        assert!(redirected(&[0; 16], CdrVersion(1600)));
-        assert!(decode_loda(&[0; 16], CdrVersion(1600)).is_err());
+        assert!(redirected(&[0; 16], CdrVersion(1600)) && !redirected(&[0; 16], CdrVersion(1500)));
     }
 }

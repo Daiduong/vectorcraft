@@ -8,7 +8,7 @@
 //! - the native JSON loads back with `vectorcraft_format::load`;
 //! - saving what loaded gives the same bytes (nothing lost on the round trip);
 //! - there is at least one artboard, and every artboard and path coordinate is finite;
-//! - the document holds one path node per translated shape.
+//! - the document holds one path, type or image node per translated object.
 //!
 //! Exit status: 0 when the document validates, 1 when the file can't be read or a check fails,
 //! 2 for a usage error.
@@ -112,8 +112,10 @@ fn report(i: &Imported) {
         eprintln!("saved by: {p}");
     }
     let pages: Vec<_> = i.translation.pages.iter().filter(|p| !p.master).collect();
-    let shapes: usize = pages.iter().map(|p| p.shapes.len()).sum();
-    eprintln!("pages: {}, paths: {shapes}", pages.len());
+    let shapes = pages.iter().flat_map(|p| &p.shapes);
+    let text = shapes.clone().filter(|s| s.text().is_some()).count();
+    let images = shapes.clone().filter(|s| matches!(s.content, cdr::geometry::Content::Image { .. })).count();
+    eprintln!("pages: {}, paths: {}, text: {text}, images: {images}", pages.len(), shapes.count() - text - images);
     for w in &i.warnings {
         eprintln!("warning: {w}");
     }
@@ -140,30 +142,40 @@ fn validate(i: &Imported, json: &[u8], pretty: bool) -> Result<Vec<String>, Stri
         return Err(format!("artboard {} has an invalid rectangle {:?}", a.name, a.rect));
     }
     ok.push(format!("{} artboard(s) with finite, non-empty rectangles", loaded.artboards.len()));
-    let mut paths = 0;
-    let mut finite = true;
-    count_paths(&loaded, &mut paths, &mut finite);
+    let (mut objects, mut finite) = (0, true);
+    count_objects(&loaded, &mut objects, &mut finite);
     if !finite {
-        return Err("a path has a non-finite coordinate".into());
+        return Err("a path, type or image placement has a non-finite coordinate".into());
     }
     let expected: usize = i.translation.pages.iter().filter(|p| !p.master).map(|p| p.shapes.len()).sum();
-    if paths != expected {
-        return Err(format!("{paths} path node(s) in the document, {expected} translated"));
+    if objects != expected {
+        return Err(format!("{objects} path, type and image node(s) in the document, {expected} translated"));
     }
-    ok.push(format!("{paths} path node(s), all coordinates finite"));
+    ok.push(format!("{objects} path, type and image node(s), all coordinates finite"));
     Ok(ok)
 }
 
-fn count_paths(doc: &Document, paths: &mut usize, finite: &mut bool) {
-    fn walk(n: &Arc<Node>, paths: &mut usize, finite: &mut bool) {
-        if let NodeKind::Path { path, .. } = &n.kind {
-            *paths += 1;
-            let ok = |p: vectorcraft_geom::Point| p.x.is_finite() && p.y.is_finite();
-            *finite &= path.subpaths.iter().flat_map(|s| &s.anchors).all(|a| ok(a.p) && ok(a.h_in) && ok(a.h_out));
+fn count_objects(doc: &Document, objects: &mut usize, finite: &mut bool) {
+    fn walk(n: &Arc<Node>, objects: &mut usize, finite: &mut bool) {
+        let ok = |p: vectorcraft_geom::Point| p.x.is_finite() && p.y.is_finite();
+        match &n.kind {
+            NodeKind::Path { path, .. } => {
+                *objects += 1;
+                *finite &= path.subpaths.iter().flat_map(|s| &s.anchors).all(|a| ok(a.p) && ok(a.h_in) && ok(a.h_out));
+            }
+            NodeKind::Text(t) => {
+                *objects += 1;
+                *finite &= t.xf.as_coeffs().iter().all(|v| v.is_finite());
+            }
+            NodeKind::Image(i) => {
+                *objects += 1;
+                *finite &= i.xf.as_coeffs().iter().all(|v| v.is_finite());
+            }
+            _ => {}
         }
         for c in n.children().into_iter().flatten() {
-            walk(c, paths, finite);
+            walk(c, objects, finite);
         }
     }
-    doc.layers.iter().for_each(|l| walk(l, paths, finite));
+    doc.layers.iter().for_each(|l| walk(l, objects, finite));
 }

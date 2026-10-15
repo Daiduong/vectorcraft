@@ -438,53 +438,9 @@ impl Walker<'_> {
 }
 
 #[cfg(test)]
-pub(crate) mod build {
-    //! Writers for synthetic RIFF streams, laid out the way [`super::parse`] reads them.
-    use std::io::Write;
-
-    pub fn chunk(id: &[u8; 4], data: &[u8]) -> Vec<u8> {
-        let mut v = id.to_vec();
-        v.extend_from_slice(&u32::try_from(data.len()).unwrap().to_le_bytes());
-        v.extend_from_slice(data);
-        if data.len() % 2 == 1 {
-            v.push(0);
-        }
-        v
-    }
-
-    pub fn list(id: &[u8; 4], list_type: &[u8; 4], children: &[Vec<u8>]) -> Vec<u8> {
-        let mut body = list_type.to_vec();
-        children.iter().for_each(|c| body.extend_from_slice(c));
-        chunk(id, &body)
-    }
-
-    pub fn zlib(data: &[u8]) -> Vec<u8> {
-        let mut e = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
-        e.write_all(data).unwrap();
-        e.finish().unwrap()
-    }
-
-    /// A `cmpr` list holding `inner` (already-built chunks) and a block table.
-    pub fn cmpr(inner: &[u8], blocks: &[u32]) -> Vec<u8> {
-        let data = zlib(inner);
-        let table = zlib(&blocks.iter().flat_map(|b| b.to_le_bytes()).collect::<Vec<_>>());
-        let cpng = b"CPng\x01\x00\x04\x00";
-        let mut body = b"cmpr".to_vec();
-        for n in [data.len() + 8, inner.len(), table.len() + 8, blocks.len() * 4] {
-            body.extend_from_slice(&u32::try_from(n).unwrap().to_le_bytes());
-        }
-        body.extend_from_slice(cpng);
-        body.extend_from_slice(&data);
-        body.extend_from_slice(cpng);
-        body.extend_from_slice(&table);
-        chunk(b"LIST", &body)
-    }
-}
-
-#[cfg(test)]
 mod tests {
-    use super::build::*;
     use super::*;
+    use crate::synth::*;
 
     fn kinds(riff: &Riff<'_>) -> Vec<(usize, String)> {
         riff.walk().map(|(d, c)| (d, c.kind().as_text())).collect()

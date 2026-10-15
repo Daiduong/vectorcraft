@@ -143,9 +143,11 @@ fn x4_sample_riff_truncations_fail_cleanly() {
 #[test]
 fn x4_sample_geometry() {
     use cdr::geometry::{self, PageSpace};
+    use vectorcraft_color::{Color, Paint};
     use vectorcraft_doc::appearance::{LineCap, LineJoin};
     let Some(bytes) = sample() else { return };
-    let meta = Document::open(&bytes, Limits::default()).unwrap().metadata.unwrap();
+    let doc = Document::open(&bytes, Limits::default()).unwrap();
+    let meta = doc.metadata.unwrap();
     let mut package = Package::open(&bytes, Limits::default()).unwrap();
     let stream = package.read_capped("content/riffData.cdr", 64 << 20).unwrap();
     let tree = riff::parse(&stream, &Limits::default()).unwrap();
@@ -153,48 +155,89 @@ fn x4_sample_geometry() {
     let t = geometry::translate(&tree, page);
     assert!(t.errors.is_empty(), "{:?}", t.errors);
 
-    // Every object is accounted for: the Bézier ones translated, the rest counted by kind,
-    // matching metadata.xml's counts.
+    // Every object is accounted for, matching metadata.xml's counts: curves and rectangles are
+    // paths, artistic text is type, and the bitmap is the only object left.
     let count = |k: &str| meta.object_counts.get(k).copied().unwrap() as usize;
-    let skipped = |k: &str| t.skipped.get(k).copied().unwrap_or(0);
-    assert_eq!(skipped("Rectangle"), count("Rect"));
-    assert_eq!(skipped("ArtisticText"), count("Text"));
-    assert_eq!(skipped("Bitmap"), count("Bitmap"));
+    assert_eq!(t.skipped.iter().map(|(k, n)| (k.as_str(), *n)).collect::<Vec<_>>(), []);
     let shapes: Vec<_> = t.pages.iter().flat_map(|p| &p.shapes).collect();
-    assert_eq!(shapes.len(), count("Curve"));
+    let paths: Vec<_> = shapes.iter().filter_map(|s| s.path()).collect();
+    let texts: Vec<_> = shapes.iter().filter_map(|s| s.text()).collect();
+    assert_eq!((paths.len(), texts.len()), (count("Curve") + count("Rect"), count("Text")));
 
     // A master page with no objects, then the Letter page.
-    assert_eq!(t.pages.iter().map(|p| (p.index, p.shapes.len())).collect::<Vec<_>>(), [(0, 0), (1, 2)]);
+    assert_eq!(t.pages.iter().map(|p| (p.index, p.shapes.len())).collect::<Vec<_>>(), [(0, 0), (1, 17)]);
     assert_eq!(t.pages[1].page.size_pt(), (612.0, 792.0));
 
-    // Nodes: the curves' anchors plus four per rectangle are CurveInfo/Nodes.
-    let anchors: Vec<usize> = shapes.iter().map(|s| s.path.anchor_count()).collect();
-    assert_eq!(anchors, [4, 2]);
+    // The bitmap: 600 × 608 pixels at half scale, where the thumbnail shows the screenshot.
+    let images: Vec<_> = shapes
+        .iter()
+        .filter_map(|s| match &s.content {
+            cdr::geometry::Content::Image { bitmap, xf } => Some((bitmap, *xf)),
+            _ => None,
+        })
+        .collect();
+    let [(bitmap, xf)] = images.as_slice() else { panic!("{} images", images.len()) };
+    assert_eq!((bitmap.width, bitmap.height), (600, 608));
+    let top_left = *xf * vectorcraft_geom::Point::ZERO;
+    let bottom_right = *xf * vectorcraft_geom::Point::new(600.0, 608.0);
+    assert!((top_left.x - 261.9).abs() < 0.5 && (top_left.y - 39.4).abs() < 0.5, "{top_left:?}");
+    assert!((bottom_right.x - top_left.x - 300.0).abs() < 0.5 && (bottom_right.y - top_left.y - 304.0).abs() < 0.5, "{bottom_right:?}");
+
+    // Nodes: the curves' anchors and the rectangles' four corners are CurveInfo/Nodes.
     let nodes: usize = meta.fields.get("CurveInfo/Nodes").unwrap().parse().unwrap();
-    assert_eq!(anchors.iter().sum::<usize>() + 4 * count("Rect"), nodes);
+    assert_eq!(paths.iter().map(|p| p.anchor_count()).sum::<usize>(), nodes);
+    let rects = paths.iter().filter(|p| p.is_closed()).count();
+    assert_eq!(rects, count("Rect"));
 
     // Placement: inside the drawing's extent (ClipRect, in 0.1 µm, y up from the page centre), and
-    // where CorelDRAW's own page thumbnail shows the two arrows.
+    // where CorelDRAW's own page thumbnail shows the arrows.
     let [left, top, right, bottom] = meta.clip_rect.unwrap().map(|v| v as f64 * 72.0 / 254_000.0);
     let (w, h) = (612.0, 792.0);
-    let extent = vectorcraft_geom::Rect::new(left + w / 2.0, h / 2.0 - top, right + w / 2.0, h / 2.0 - bottom);
-    let near = |a: f64, b: f64| (a - b).abs() < 0.1;
-    let b0 = shapes[0].path.bounds().unwrap();
-    let b1 = shapes[1].path.bounds().unwrap();
-    for b in [b0, b1] {
+    let extent = vectorcraft_geom::Rect::new(left + w / 2.0, h / 2.0 - top, right + w / 2.0, h / 2.0 - bottom).inflate(0.5, 0.5);
+    for b in paths.iter().map(|p| p.bounds().unwrap()) {
         assert!(extent.contains(b.origin()) && extent.contains(vectorcraft_geom::Point::new(b.x1, b.y1)), "{b:?} outside {extent:?}");
     }
+    let near = |a: f64, b: f64| (a - b).abs() < 0.1;
+    let arrows: Vec<_> = paths.iter().filter(|p| !p.is_closed()).map(|p| p.bounds().unwrap()).collect();
+    let [b0, b1] = arrows.as_slice() else { panic!("{arrows:?}") };
     assert!(near(b0.x0, 199.9) && near(b0.y0, 390.9) && near(b0.x1, 300.9) && near(b0.y1, 547.1), "{b0:?}");
     assert!(near(b1.x0, 348.4) && near(b1.x1, 431.6) && near(b1.y0, b1.y1), "{b1:?}");
 
-    // Both are open, unfilled, 2 pt black (CMYK) lines with arrowheads.
-    for s in &shapes {
-        assert!(!s.path.is_closed() && s.appearance.fill().is_none());
+    // The arrows are 2 pt black (CMYK) lines; their arrowheads aren't translated.
+    for s in shapes.iter().filter(|s| s.path().is_some_and(|p| !p.is_closed())) {
+        assert!(s.appearance.fill().is_none());
         let stroke = s.appearance.stroke().unwrap();
         // 2 pt is 7055.6 units of 1/254000 in; the file stores 7056.
         assert!((stroke.width - 2.0).abs() < 1e-3, "{}", stroke.width);
         assert_eq!((stroke.cap, stroke.join), (LineCap::Butt, LineJoin::Miter));
-        assert_eq!(stroke.paint, vectorcraft_color::Paint::solid(vectorcraft_color::Color::cmyk(0.0, 0.0, 0.0, 1.0)));
-        assert_eq!(s.notes, ["arrowheads not translated"]);
+        assert_eq!(stroke.paint, Paint::solid(Color::cmyk(0.0, 0.0, 0.0, 1.0)));
+        assert_eq!(s.notes, ["arrowheads drawn as VectorCraft's nearest preset"]);
     }
+    // The rectangles' fills: the thumbnail's grey, teal and orange blocks, two unfilled outlines.
+    let fills: Vec<_> = shapes.iter().filter(|s| s.path().is_some_and(|p| p.is_closed())).map(|s| s.appearance.fill_paint()).collect();
+    assert_eq!(fills.iter().filter(|f| **f == Paint::solid(Color::cmyk(0.0, 0.0, 0.0, 0.2))).count(), 2);
+    assert_eq!(fills.iter().filter(|f| **f == Paint::None).count(), 2);
+    assert!(fills.contains(&Paint::solid(Color::rgb8(0xfe, 0xc2, 0x2d))));
+
+    // The type reads as CorelDRAW's own plain-text copy (textinfo.xml) says, line by line (that
+    // copy leaves out empty lines), in the order CorelDRAW lists it.
+    let saved: Vec<String> =
+        doc.text_info.unwrap().text_streams.iter().map(|s| s.runs.iter().map(|r| r.text.clone()).collect::<Vec<_>>().join("\n")).collect();
+    let mut ours: Vec<String> = texts.iter().map(|t| t.plain_text().split('\n').filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n")).collect();
+    let mut sorted = saved.clone();
+    sorted.sort();
+    ours.sort();
+    assert_eq!(ours, sorted);
+    // Arial 24 pt, point type, upright, its first baseline inside the drawing; coloured labels
+    // keep their colour.
+    for t in &texts {
+        assert!(matches!(t.kind, vectorcraft_doc::text::TextKind::Point));
+        assert_eq!(t.xf.as_coeffs()[..4], [1.0, 0.0, 0.0, 1.0]);
+        assert!(extent.contains(t.xf * vectorcraft_geom::Point::ZERO));
+        assert!(t.runs.iter().all(|r| r.style.font_family == "Arial" && (r.style.size - 24.0).abs() < 1e-3));
+    }
+    let label = |s: &str| texts.iter().find(|t| t.plain_text() == s).unwrap();
+    assert_eq!(label("Meadful Things").runs[0].style.fill, Paint::solid(Color::rgb8(0x0c, 0x95, 0x87)));
+    let traffic = label("Traffic Flow").xf * vectorcraft_geom::Point::ZERO;
+    assert!(near(traffic.x, b1.x0) && traffic.y < b1.y0, "the label sits on its arrow: {traffic:?}");
 }

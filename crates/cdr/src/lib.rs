@@ -20,11 +20,15 @@
 
 use std::fmt;
 
+pub mod bitmap;
 pub mod geometry;
 pub mod import;
 pub mod metadata;
 pub mod package;
 pub mod riff;
+#[cfg(any(test, feature = "synth"))]
+pub mod synth;
+pub mod text;
 mod xmp;
 
 pub use metadata::{Break, Metadata, PageInfo, TextInfo, TextRun, TextStream};

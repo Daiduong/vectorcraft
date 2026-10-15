@@ -217,7 +217,7 @@ fn x4_sample_validates() {
     let (out, err) = run_file(&path);
     assert!(out.status.success(), "{err}");
     assert!(err.contains("route: package (content/riffData.cdr, X4/X5 riffData)"), "{err}");
-    assert!(err.contains("version: 1400") && err.contains("pages: 1, paths: 2"), "{err}");
+    assert!(err.contains("version: 1400") && err.contains("pages: 1, paths: 9, text: 7"), "{err}");
     let doc = vectorcraft_format::load(&out.stdout).unwrap();
     assert_eq!(doc.artboards[0].rect, vectorcraft_geom::Rect::new(0.0, 0.0, 612.0, 792.0));
     assert_eq!(doc.color_mode, vectorcraft_doc::ColorMode::Cmyk);
