@@ -32,6 +32,8 @@ image = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
+# Right-to-left names and labels in the chrome (egui shapes but does not reorder).
+unicode-bidi = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # `now_ms` (src/lib.rs) reads the page's `performance.now()` with this crate in the web build. It is

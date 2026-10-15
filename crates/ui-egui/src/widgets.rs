@@ -181,10 +181,10 @@ pub fn field_label(ui: &mut Ui, text: impl Into<egui::WidgetText>) -> Response {
 }
 
 /// [`dim_label`] for a name that is user or file data (a swatch, style, artboard or font name):
-/// shown as it is, never translated.
+/// shown as it is, never translated; right-to-left names are put in display order.
 pub fn dim_name(ui: &mut Ui, text: &str) -> Response {
     let t = Tokens::get(ui.ctx());
-    ui.label(egui::RichText::new(text).color(t.text).size(12.5))
+    ui.label(egui::RichText::new(crate::bidi::visual(text).as_ref()).color(t.text).size(12.5))
 }
 
 /// Preferences › Units › Numbers Without Units Are Points (#394; on until set): the app sets it
@@ -690,13 +690,14 @@ pub fn dropdown(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, current
 }
 
 /// [`dropdown`] of names that are user, file or system data (font styles, artboards, presets the
-/// user saved, printers, profiles), shown as they are, never translated. For a list that mixes
-/// built-in labels with such names, translate the built-in ones (`tl!`) before passing them.
+/// user saved, printers, profiles), shown as they are, never translated; right-to-left names are
+/// put in display order. For a list that mixes built-in labels with such names, translate the
+/// built-in ones (`tl!`) before passing them.
 pub fn dropdown_names(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, current: &str, options: &[&str], width: f32) -> Option<usize> {
-    combo(ui, id, current, width, false, |ui| {
+    combo(ui, id, crate::bidi::visual(current).as_ref(), width, false, |ui| {
         let mut chosen = None;
         for (i, o) in options.iter().enumerate() {
-            if ui.add(egui::Button::selectable(*o == current, *o)).clicked() {
+            if ui.add(egui::Button::selectable(*o == current, crate::bidi::visual(o).as_ref())).clicked() {
                 chosen = Some(i);
             }
         }
@@ -1528,10 +1529,11 @@ pub fn menu_item(ui: &mut Ui, label: &str, enabled: bool, checked: bool) -> bool
     menu_item_name(ui, tl!(label), enabled, checked)
 }
 
-/// [`menu_item`] for a name that is user or file data (a library, a recent URL), never translated.
+/// [`menu_item`] for a name that is user or file data (a library, a recent URL), never translated;
+/// right-to-left names are put in display order.
 pub fn menu_item_name(ui: &mut Ui, label: &str, enabled: bool, checked: bool) -> bool {
     let text = if checked { format!("✓ {label}") } else { format!("   {label}") };
-    ui.add_enabled(enabled, egui::Button::new(egui::RichText::new(text).size(12.5)).frame(false)).clicked()
+    ui.add_enabled(enabled, egui::Button::new(egui::RichText::new(crate::bidi::visual(&text).as_ref()).size(12.5)).frame(false)).clicked()
 }
 
 /// A number field that may be empty (Stroke dash/gap): `value` (points) shows in `unit` without

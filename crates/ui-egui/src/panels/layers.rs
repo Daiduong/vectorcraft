@@ -194,13 +194,14 @@ impl Place {
 
 /// The name painted for a row in `lang`: a generated `<Kind>` name is translated, anything else is
 /// user data (an unnamed text object shows its text, which can look like `<Path>`; only an empty
-/// one is called `<Text>`).
+/// one is called `<Text>`). User names go to display order for painting; the stored name keeps
+/// its logical order.
 fn painted_name(n: &Node, name: &str, lang: crate::i18n::Lang) -> String {
     let generated = n.name.is_none() && !matches!(&n.kind, NodeKind::Text(t) if t.runs.iter().any(|r| !r.text.is_empty()));
     if generated && let Some(inner) = name.strip_prefix('<').and_then(|s| s.strip_suffix('>')) {
         return format!("<{}>", crate::i18n::tr(lang, inner));
     }
-    name.to_string()
+    crate::bidi::visual(name).into_owned()
 }
 
 /// Whether `n` gets rows for what it holds (a compound path's paths are one object).

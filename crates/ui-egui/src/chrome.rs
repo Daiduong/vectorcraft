@@ -383,8 +383,9 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
         .map(|(i, d)| {
             let zoom = app.views.get(i).map(|v| v.zoom).unwrap_or(1.0);
             let title = tab_title(d, zoom, app.ui.view.outline);
+            let shown = crate::bidi::visual(&title).into_owned();
             let color = if Some(i) == active { t.text_strong } else { t.text_dim };
-            (title.clone(), ui.painter().layout_no_wrap(title, theme::semibold(title_size), color))
+            (title.clone(), ui.painter().layout_no_wrap(shown, theme::semibold(title_size), color))
         })
         .collect();
     let widths: Vec<f32> = tabs.iter().map(|(_, g)| g.size().x + 50.0).collect();

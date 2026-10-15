@@ -421,7 +421,13 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
                 Row::Style(_, style) => style.clone(),
                 Row::Family(f) => db.family_display_name(f, look.english_names),
             };
-            ui.painter_at(name_rect).text(name_rect.left_center(), egui::Align2::LEFT_CENTER, name, egui::FontId::proportional(12.0), t.text);
+            ui.painter_at(name_rect).text(
+                name_rect.left_center(),
+                egui::Align2::LEFT_CENTER,
+                crate::bidi::visual(&name).as_ref(),
+                egui::FontId::proportional(12.0),
+                t.text,
+            );
             let sample_rect = egui::Rect::from_min_max(rect.min + vec2(name_w, 2.0), rect.max - vec2(STAR + 2.0, 2.0));
             if !look.samples {
             } else if let Some(tex) = sample_texture(ui.ctx(), row.family(), row.style(), sample, sample_rect.height()) {

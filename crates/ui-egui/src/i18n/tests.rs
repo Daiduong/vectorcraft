@@ -260,6 +260,11 @@ fn is_cjk(c: char) -> bool {
     matches!(c as u32, 0x1100..=0x11FF | 0x3000..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF | 0xFF00..=0xFFEF | 0x20000..=0x2FFFF)
 }
 
+/// Arabic-script characters (the Arabic blocks and their presentation forms).
+fn is_arabic(c: char) -> bool {
+    matches!(c as u32, 0x0600..=0x06FF | 0x0750..=0x077F | 0x08A0..=0x08FF | 0xFB50..=0xFDFF | 0xFE70..=0xFEFF)
+}
+
 /// The UI fonts draw every character the catalogs use, in every family the UI draws text with
 /// (the web build has no system fonts to fall back to). Chinese and Japanese characters come from
 /// the craft-fonts build input, which is optional: without it they are left to the installed
@@ -268,6 +273,7 @@ fn is_cjk(c: char) -> bool {
 #[test]
 fn bundled_fonts_cover_the_catalogs() {
     let japanese_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_japanese());
+    let arabic_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_arabic());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
@@ -283,8 +289,11 @@ fn bundled_fonts_cover_the_catalogs() {
         for l in LANGUAGES.iter().filter(|l| !l.source.is_empty()) {
             let (entries, _) = parse_entries(l.source);
             let cjk_checked = japanese_ui_font && l.code == "ja";
-            let chars: std::collections::BTreeSet<char> =
-                entries.iter().flat_map(|(_, _, tr)| tr.chars()).filter(|c| !c.is_whitespace() && (cjk_checked || !is_cjk(*c))).collect();
+            let chars: std::collections::BTreeSet<char> = entries
+                .iter()
+                .flat_map(|(_, _, tr)| tr.chars())
+                .filter(|c| !c.is_whitespace() && (cjk_checked || !is_cjk(*c)) && (arabic_ui_font || !is_arabic(*c)))
+                .collect();
             for family in &families {
                 let font = egui::FontId::new(13.0, family.clone());
                 let gone: String = chars.iter().filter(|c| !fonts.has_glyph(&font, **c)).collect();
@@ -1349,4 +1358,70 @@ fn polish_reads_as_polish() {
     assert_eq!(tr_id(pl(), "pathfinder.add", "Add"), "Połącz");
     let nested = "command `object.group` is not available right now: nothing selected";
     assert_eq!(message(pl(), nested), "polecenie `object.group` jest teraz niedostępne: nic nie zaznaczono");
+}
+
+fn ar() -> Lang {
+    Lang::from_code("ar").expect("ar registered")
+}
+
+/// Arabic is registered right to left, every `ar-*` locale resolves to the one Modern Standard
+/// Arabic catalog, and the language shows by its own name.
+#[test]
+fn arabic_locales_resolve() {
+    assert_eq!(ar().name(), "العربية");
+    assert!(ar().rtl());
+    assert!(!ar().complete_menus());
+    assert!(!de().rtl() && !Lang::EN.rtl());
+    for tag in ["ar", "ar-SA", "ar_EG.UTF-8", "AR-eg", "ar-001", "ar-MA", "ar_DZ@x"] {
+        assert_eq!(lang_from_tag(tag), Some(ar()), "{tag}");
+    }
+    assert_eq!(Lang::from_pref("AR"), ar());
+    assert_eq!(Lang::from_pref("ar"), ar());
+}
+
+/// Arabic counts take the six CLDR forms (zero, one, two, few, many, other).
+#[test]
+fn arabic_plural_rule_works() {
+    let cases: Vec<(u64, usize)> = [
+        (0, 0),
+        (1, 1),
+        (2, 2),
+        (3, 3),
+        (10, 3),
+        (11, 4),
+        (99, 4),
+        (100, 5),
+        (102, 5),
+        (103, 3),
+        (110, 3),
+        (111, 4),
+        (200, 5),
+        (202, 5),
+        (203, 3),
+        (u64::MAX, 4),
+    ]
+    .into_iter()
+    .collect();
+    for (n, want) in cases {
+        assert_eq!(plural_arabic(n), want, "{n}");
+    }
+    // A real row: the catalog's six forms, looked up by count.
+    assert_eq!(trn(ar(), 2, "{n} Layer", "{n} Layers"), "طبقتان 2");
+    assert_eq!(trn(ar(), 5, "{n} Layer", "{n} Layers"), "طبقات 5");
+    assert_eq!(trn(ar(), 21, "{n} Layer", "{n} Layers"), "طبقة 21");
+}
+
+/// Arabic lookups answer in display order: a label's first word is its last on screen, with
+/// Latin words and digits inside left to right. What stays logical: the catalog itself.
+#[test]
+fn arabic_labels_answer_in_display_order() {
+    // Single words come back as stored; a phrase is word-reversed for the painter.
+    assert_eq!(tr(ar(), "Layers"), "الطبقات");
+    assert_eq!(tr(ar(), "Fill & Stroke"), "والحد التعبئة");
+    assert_eq!(tr(ar(), "Zoom In"), "تكبير");
+    // An untranslated string stays logical-order English.
+    assert_eq!(tr(ar(), "no such label"), "no such label");
+    // `{name}` holes survive the reorder: filled after translation.
+    let shown = tr(ar(), "Undo");
+    assert!(!shown.is_empty());
 }

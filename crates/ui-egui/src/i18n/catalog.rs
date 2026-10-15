@@ -177,6 +177,24 @@ impl Catalog {
         c
     }
 
+    /// Rewrite every translation with `f` (a right-to-left catalog's entries go to display
+    /// order). Sources and keys stay as they are.
+    pub fn map_translations(&mut self, f: impl Fn(&str) -> String) {
+        for translation in self
+            .plain
+            .values_mut()
+            .chain(self.contextual.values_mut())
+            .chain(self.ids.values_mut())
+            .chain(self.plurals.values_mut().flatten())
+            .chain(self.messages.values_mut())
+        {
+            *translation = f(translation);
+        }
+        for template in &mut self.templates {
+            template.translation = f(&template.translation);
+        }
+    }
+
     pub fn plain(&self, s: &str) -> Option<&str> {
         self.plain.get(s).map(String::as_str)
     }
