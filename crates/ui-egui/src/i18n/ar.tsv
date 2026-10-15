@@ -3896,3 +3896,68 @@ lighting	Light	ضوء
 	Best for: balanced everyday and technical work	الأفضل لـ: التوازن بين العمل اليومي والعمل التقني
 	Best for: near-flagship answers at MoE speed	الأفضل لـ: إجابات قريبة من الرائدة بسرعة خليط الخبراء (MoE)
 	Best for: the deepest reasoning this family has	الأفضل لـ: أعمق استدلال تملكه هذه العائلة
+
+# Shortcut-set import, corner radius and toolbar controls: the strings that landed on main after the last sync.
+	A later row takes this shortcut	صفّ لاحق يأخذ هذا الاختصار
+	Add to the Current Shortcuts	إضافة إلى الاختصارات الحالية
+	Ambient Light	إضاءة محيطية
+	Bottom Left:	أسفل اليسار:
+	Bottom Right:	أسفل اليمين:
+	Can't export “{name}”.	لا يمكن تصدير «{name}».
+	Can't save “{name}”.	لا يمكن حفظ «{name}».
+	Click, then press the key this code stands for (Esc cancels)	انقر، ثم اضغط المفتاح الذي يمثّله هذا الرمز (يُلغي Esc)
+	Coloring Controls	عناصر تحكم التلوين
+	Draw Mode Controls	عناصر تحكم وضع الرسم
+	Drawer menu	قائمة درج الأدوات
+	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	يُطابَق كل إدخال في الملف مع أداة أو أمر أو لوحة في VectorCraft. تحقّق من المطابقات وأجب عمّا تبقّى.
+	Enhanced	موسّع
+	Fill and Stroke Controls	عناصر تحكم التعبئة والحدّ
+	Forget Import Matches	نسيان مطابقات الاستيراد
+	Import Matches	مطابقات الاستيراد
+	Import Shortcut Set	استيراد مجموعة اختصارات
+	Import Shortcut Set…	استيراد مجموعة اختصارات…
+	In VectorCraft	في VectorCraft
+	In the File	في الملف
+	Keys	المفاتيح
+	Light behind the object	ضوء خلف الكائن
+	Line {line}	سطر {line}
+	Line {line}: {name}: {status}	سطر {line}: {name}: {status}
+	Needs Attention Only	ما يحتاج انتباهًا فقط
+	Needs a choice	يحتاج اختيارًا
+	Needs a key	يحتاج مفتاحًا
+	No equivalent	لا مقابل له
+	Precise Cursors	مؤشرات دقيقة
+	Press a key…	اضغط مفتاحًا…
+	Read Shortcut Set File	قراءة ملف مجموعة الاختصارات
+	Ready	جاهز
+	Remember Import Matches	تذكّر مطابقات الاستيراد
+	Remember My Choices	تذكّر اختياراتي
+	Report copied	نُسخ التقرير
+	Same item as a later row	العنصر نفسه كصفّ لاحق
+	Screen Mode Controls	عناصر تحكم وضع الشاشة
+	Shortcuts	الاختصارات
+	Single Corner Radius	نصف قطر ركن واحد
+	Softness	الليونة
+	Start from VectorCraft Defaults	البدء من الإعدادات الافتراضية لـ VectorCraft
+	The file is too large to read in full, so only its first part is listed.	الملف أكبر من أن يُقرأ كاملًا، لذا يُدرَج جزؤه الأول فقط.
+	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	يكتب الملف المفاتيح والمعدِّلات في صورة رموز. تحقّق من المعاني المقترحة وأجب عن الرموز التي لم تُعرَف بعد.
+	Toolbar: Show Controls	شريط الأدوات: إظهار عناصر التحكم
+	Tools take a single key (optionally with Shift)	تأخذ الأدوات مفتاحًا واحدًا (مع Shift اختياريًا)
+	Top Left:	أعلى اليسار:
+	Top Right:	أعلى اليمين:
+	from the format's public description	من الوصف العلني للتنسيق
+	from your earlier imports	من عمليات استيرادك السابقة
+	not known yet	غير معروف بعد
+	{ready} of {total} ready	{ready} من {total} جاهزة
+@msg	This shortcut file is in a form VectorCraft can't read.	ملف الاختصارات هذا بصيغة لا يستطيع VectorCraft قراءتها.
+@msg	control must be fillStroke, coloring, drawMode or screenMode	يجب أن يكون control بقيمة fillStroke أو coloring أو drawMode أو screenMode
+@msg	give a fraction `t` from 0 to 1	أعطِ كسرًا `t` من 0 إلى 1
+@msg	give the path `id`	أعطِ `id` المسار
+@msg	invalid stroke widths	عرضُ حدٍّ غير صالح
+@msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	ليست مجموعة اختصارات: لا يبدأ النص باسم مسبوق بشرطة مائلة وقوس فتح
+@msg	object has no weighted stroke	لا يحمل الكائن حدًّا موزون العرض
+@msg	objects can't be nested more than 32 deep	لا يمكن أن تتداخل الكائنات أكثر من 32 مستوى
+@msg	the SVG's elements are nested more than {0} deep	عناصر SVG متداخلة أكثر من {0} مستوى
+@msg	unknown control `{name}`: fillStroke, coloring, drawMode or screenMode	عنصر تحكم غير معروف `{name}`: fillStroke أو coloring أو drawMode أو screenMode
+@plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	يطابق اختصارًا افتراضيًا واحدًا|يطابق اختصارًا افتراضيًا واحدًا|يطابق اختصارين افتراضيين|يطابق {n} اختصارات افتراضية|يطابق {n} اختصارًا افتراضيًا|يطابق {n} اختصار افتراضي
+@plural	{n} part of the file wasn't read|{n} parts of the file weren't read	لم يُقرأ جزء واحد من الملف|لم يُقرأ جزء واحد من الملف|لم يُقرأ جزءان من الملف|لم تُقرأ {n} أجزاء من الملف|لم يُقرأ {n} جزءًا من الملف|لم يُقرأ {n} جزء من الملف
