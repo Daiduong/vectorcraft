@@ -18,7 +18,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{Artboard, ColorMode, Document, ImageBlob, ImageObject, LayerColor, Node, NodeKind};
+use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use vectorcraft_doc::appearance::{Appearance, AppearanceItem, FillLayer};
+use vectorcraft_doc::{Artboard, ColorMode, Document, ImageBlob, ImageObject, LayerColor, Node, NodeKind, OpacityMask};
 use vectorcraft_geom::{Affine, Rect};
 
 use crate::geometry::{self, Content, PageSpace, Translation};
@@ -131,15 +133,10 @@ fn assemble(
     layer: Option<String>,
 ) -> Imported {
     let mut warnings: Vec<String> = Vec::new();
-    let mut warn = |w: String| {
-        if !warnings.contains(&w) {
-            warnings.push(w);
-        }
-    };
     let pages: Vec<_> = translation.pages.iter().filter(|p| !p.master).collect();
     let cmyk = pages
         .iter()
-        .flat_map(|p| &p.shapes)
+        .flat_map(|p| p.shapes())
         .flat_map(|s| &s.appearance.items)
         .any(|i| matches!(i.paint(), vectorcraft_color::Paint::Solid { color: vectorcraft_color::Color::Cmyk { .. }, .. }));
     let mut doc = Document::new_with_mode(1.0, 1.0, if cmyk { ColorMode::Cmyk } else { ColorMode::Rgb });
@@ -153,7 +150,10 @@ fn assemble(
             doc.metadata.author = a.clone();
         }
     }
-    let mut children = Vec::new();
+    // VectorCraft layers by CorelDRAW layer name, bottom first; each page's layer of a name adds to
+    // the same one (CorelDRAW layers span the pages).
+    let mut layers: Vec<(String, Vec<Arc<Node>>)> = Vec::new();
+    let fallback = layer.unwrap_or_else(|| "Layer 1".into());
     let mut x = 0.0;
     for (n, p) in pages.iter().enumerate() {
         let (w, h) = p.page.size_pt();
@@ -166,46 +166,16 @@ fn assemble(
             show_cross_hairs: false,
         });
         let shift = Affine::translate((x, 0.0));
-        for s in &p.shapes {
-            let id = doc.alloc_id();
-            s.notes.iter().for_each(|n| warn(n.clone()));
-            let node = match &s.content {
-                // Nothing to draw (a bitmap that wasn't found: its note says so).
-                Content::Path { path, .. } if path.is_empty() => continue,
-                Content::Image { bitmap, xf } => match bitmap.to_png() {
-                    Ok(png) => {
-                        let blob = ImageBlob::new("image/png", png);
-                        let key = blob.content_key();
-                        doc.images.insert(key.clone(), blob);
-                        let image = ImageObject {
-                            key,
-                            width: bitmap.width,
-                            height: bitmap.height,
-                            xf: shift * *xf,
-                            link: None,
-                            placement: Default::default(),
-                        };
-                        Node::new(id, NodeKind::Image(Box::new(image)))
-                    }
-                    Err(e) => {
-                        warn(format!("a bitmap could not be stored: {e}"));
-                        continue;
-                    }
-                },
-                Content::Path { path, rule } => {
-                    let mut node = Node::path(id, path.transformed(shift), s.appearance.clone());
-                    if let NodeKind::Path { rule: r, .. } = &mut node.kind {
-                        *r = *rule;
-                    }
-                    node
-                }
-                Content::Text(t) => {
-                    let mut t = t.as_ref().clone();
-                    t.xf = shift * t.xf;
-                    Node::new(id, NodeKind::Text(Box::new(t)))
-                }
-            };
-            children.push(Arc::new(node));
+        for l in p.layers.iter().filter(|l| l.kind.is_art()) {
+            let name = l.name.clone().unwrap_or_else(|| fallback.clone());
+            let nodes: Vec<Arc<Node>> = l.shapes.iter().filter_map(|s| build(&mut doc, s, shift, &mut warnings)).map(Arc::new).collect();
+            if nodes.is_empty() {
+                continue;
+            }
+            match layers.iter_mut().find(|(n, _)| *n == name) {
+                Some((_, children)) => children.extend(nodes),
+                None => layers.push((name, nodes)),
+            }
         }
         x += w + ARTBOARD_GAP;
     }
@@ -219,28 +189,109 @@ fn assemble(
             show_center_mark: false,
             show_cross_hairs: false,
         });
-        warn("the file has no pages".into());
+        warn(&mut warnings, "the file has no pages".into());
     }
-    let master_shapes: usize = translation.pages.iter().filter(|p| p.master).map(|p| p.shapes.len()).sum();
+    let master_shapes = translation.pages.iter().filter(|p| p.master).map(|p| p.leaves().len()).sum::<usize>();
     if master_shapes > 0 {
-        warn(format!("{master_shapes} object(s) on the master page left out"));
+        warn(&mut warnings, format!("{master_shapes} object(s) on the master page left out"));
     }
     for (kind, n) in &translation.skipped {
-        warn(format!("{n} {kind} object(s) not translated yet"));
+        warn(&mut warnings, format!("{n} {kind} object(s) not translated yet"));
     }
     for e in &translation.errors {
-        warn(format!("unreadable record: {e}"));
+        warn(&mut warnings, format!("unreadable record: {e}"));
     }
-    if pages.len() > 1 {
-        warn("CorelDRAW layers are merged into one layer".into());
+    if layers.is_empty() {
+        layers.push((fallback, Vec::new()));
     }
-    let id = doc.alloc_id();
-    let mut node = Node::layer(id, layer.as_deref().unwrap_or("Layer 1"), LayerColor::Preset(0));
-    if let Some(c) = node.children_mut() {
-        *c = children;
+    for (i, (name, children)) in layers.into_iter().enumerate() {
+        let id = doc.alloc_id();
+        let mut node = Node::layer(id, &name, LayerColor::Preset(u8::try_from(i % 27).unwrap_or(0)));
+        if let Some(c) = node.children_mut() {
+            *c = children;
+        }
+        doc.layers.push(Arc::new(node));
     }
-    doc.layers.push(Arc::new(node));
     Imported { document: doc, route, source, version, metadata, translation, warnings }
+}
+
+fn warn(warnings: &mut Vec<String>, w: String) {
+    if !warnings.contains(&w) {
+        warnings.push(w);
+    }
+}
+
+/// The document node for a translated shape (`None` when it draws nothing), moved by `shift`
+/// onto its artboard.
+fn build(doc: &mut Document, s: &geometry::Shape, shift: Affine, warnings: &mut Vec<String>) -> Option<Node> {
+    s.notes.iter().for_each(|n| warn(warnings, n.clone()));
+    let id = doc.alloc_id();
+    let mut node = match &s.content {
+        // Nothing to draw (a bitmap that wasn't found: its note says so).
+        Content::Path { path, .. } if path.is_empty() => return None,
+        Content::Image { bitmap, xf } => match bitmap.to_png() {
+            Ok(png) => {
+                let blob = ImageBlob::new("image/png", png);
+                let key = blob.content_key();
+                doc.images.insert(key.clone(), blob);
+                let image =
+                    ImageObject { key, width: bitmap.width, height: bitmap.height, xf: shift * *xf, link: None, placement: Default::default() };
+                Node::new(id, NodeKind::Image(Box::new(image)))
+            }
+            Err(e) => {
+                warn(warnings, format!("a bitmap could not be stored: {e}"));
+                return None;
+            }
+        },
+        Content::Path { path, rule } => {
+            let mut node = Node::path(id, path.transformed(shift), s.appearance.clone());
+            if let NodeKind::Path { rule: r, .. } = &mut node.kind {
+                *r = *rule;
+            }
+            node
+        }
+        Content::Text(t) => {
+            let mut t = t.as_ref().clone();
+            t.xf = shift * t.xf;
+            Node::new(id, NodeKind::Text(Box::new(t)))
+        }
+        Content::Group { children, clip } => {
+            let kids: Vec<Arc<Node>> = children.iter().filter_map(|c| build(doc, c, shift, warnings)).map(Arc::new).collect();
+            // A clip group needs its clipping path and something to clip.
+            if kids.is_empty() || (*clip && kids.len() < 2) {
+                return None;
+            }
+            let mut g = Node::group(id, kids);
+            if let NodeKind::Group { clip: c, .. } = &mut g.kind {
+                *c = *clip;
+            }
+            g
+        }
+    };
+    node.opacity = s.opacity.clamp(0.0, 1.0);
+    node.name = s.name.clone();
+    // A fading transparency becomes an opacity mask: a box over the object with a grey ramp,
+    // instead of the fade's average opacity.
+    if let Some(mask) = s.fade.and_then(|f| fade_mask(doc, f.transformed(shift), &node)) {
+        node.opacity = 1.0;
+        node = node.with_mask(Some(Box::new(mask)));
+    }
+    Some(node)
+}
+
+/// An opacity mask for `fade` over `node`: a rectangle a little larger than the node, filled
+/// with a linear ramp from the fade's first opacity (as grey) to its last.
+fn fade_mask(doc: &mut Document, fade: geometry::Fade, node: &Node) -> Option<OpacityMask> {
+    let b = node.visual_bounds()?;
+    let pad = 1.0 + 0.01 * b.width().max(b.height());
+    let b = Rect::new(b.x0 - pad, b.y0 - pad, b.x1 + pad, b.y1 + pad);
+    let grey = |o: f32| Color::gray(o.clamp(0.0, 1.0));
+    let stops = vec![GradientStop::new(0.0, grey(fade.opacity.0)), GradientStop::new(1.0, grey(fade.opacity.1))];
+    let mut paint = GradientPaint::new(Gradient { kind: GradientKind::Linear, stops });
+    paint.geom = Some(GradientGeom { start: fade.from, end: fade.to, aspect: 1.0, focal: None });
+    let fill = Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::Gradient(Box::new(paint))))], ..Appearance::default() };
+    let art = Node::path(doc.alloc_id(), vectorcraft_geom::shapes::rectangle(b), fill);
+    Some(OpacityMask::new(art, true))
 }
 
 /// A page side in points VectorCraft accepts: finite and at least 1 pt.
@@ -253,6 +304,37 @@ mod tests {
     use super::*;
     use crate::synth as build;
     use crate::test_zip;
+
+    #[test]
+    fn fades_become_opacity_masks() {
+        let mut doc = Document::new_with_mode(1.0, 1.0, ColorMode::Rgb);
+        let path = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
+        let fill = Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::solid(Color::BLACK)))], ..Appearance::default() };
+        let fade = geometry::Fade { from: vectorcraft_geom::Point::new(0.0, 0.0), to: vectorcraft_geom::Point::new(10.0, 0.0), opacity: (1.0, 0.0) };
+        let shape = geometry::Shape {
+            content: Content::Path { path, rule: vectorcraft_geom::FillRule::EvenOdd },
+            opacity: 0.5,
+            name: None,
+            fade: Some(fade),
+            appearance: fill,
+            notes: Vec::new(),
+        };
+        let mut warnings = Vec::new();
+        let node = build(&mut doc, &shape, Affine::translate((5.0, 0.0)), &mut warnings).unwrap();
+        // The mask replaces the fade's average opacity.
+        assert_eq!(node.opacity, 1.0);
+        let mask = node.extras().mask.as_deref().unwrap();
+        assert!(mask.clip && !mask.invert);
+        let bounds = mask.art.geometric_bounds().unwrap();
+        assert!(bounds.x0 < 5.0 && bounds.x1 > 15.0, "{bounds:?}");
+        let Paint::Gradient(g) = mask.art.appearance.fill_paint() else { panic!() };
+        let geom = g.geom.unwrap();
+        assert_eq!((geom.start.x, geom.end.x), (5.0, 15.0), "moved with the object");
+        assert_eq!(g.gradient.stops.iter().map(|s| s.color).collect::<Vec<_>>(), [Color::gray(1.0), Color::gray(0.0)]);
+        // A uniform transparency stays the node's opacity.
+        let plain = geometry::Shape { fade: None, ..shape };
+        assert_eq!(build(&mut doc, &plain, Affine::IDENTITY, &mut warnings).unwrap().opacity, 0.5);
+    }
 
     #[test]
     fn routes_by_signature() {
@@ -300,7 +382,7 @@ mod tests {
         let i = import(&crate::synth::x6_package(), Limits::default()).unwrap();
         assert_eq!((i.version, &i.source), (CdrVersion(1600), &Source::Package { entry: "content/root.dat".into(), kind: RiffKind::Root }));
         assert!(i.translation.errors.is_empty(), "{:?}", i.translation.errors);
-        let shapes = &i.translation.pages[0].shapes;
+        let shapes = i.translation.pages[0].leaves();
         assert_eq!(shapes.len(), 2);
         let text = shapes[0].text().unwrap();
         assert_eq!(text.plain_text(), "Ünïcode");
@@ -313,7 +395,7 @@ mod tests {
         let without = test_zip::build(&[("content/root.dat", &root), ("content/dataFileList.dat", b"a.dat\n")]);
         let i = import(&without, Limits::default()).unwrap();
         assert!(i.translation.errors.iter().any(|e| e.contains("data file 0")), "{:?}", i.translation.errors);
-        assert!(i.translation.pages[0].shapes.iter().all(|s| s.path().is_none()), "only the text object, without its text");
+        assert!(i.translation.pages[0].leaves().into_iter().all(|s| s.path().is_none()), "only the text object, without its text");
     }
 
     #[test]

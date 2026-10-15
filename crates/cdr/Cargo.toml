@@ -3,7 +3,8 @@ name = "cdr"
 description = "Reader for CorelDRAW documents: the X4+ ZIP package, its metadata XML and the RIFF chunk tree"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+# src/palettes.rs is ported from libcdr under the MPL 2.0 (LICENSE-MPL-2.0); the rest is the workspace licence.
+license = "(MIT OR Apache-2.0) AND MPL-2.0"
 rust-version.workspace = true
 
 [lints]

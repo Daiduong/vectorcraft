@@ -115,8 +115,9 @@ pub fn triangle_riff() -> Vec<u8> {
 /// An X4-style package: `riff` as `content/riffData.cdr`, and `metadata.xml` giving `title` and
 /// a 4 × 3 in page.
 pub fn package(riff: &[u8], title: &str) -> Vec<u8> {
+    let ns = "adobe:ns:meta/"; // brand-ok: the XMP packet's namespace, fixed by the XMP specification
     let meta = format!(
-        r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+        r#"<x:xmpmeta xmlns:x="{ns}"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
 <rdf:Description rdf:about=""><Title>{title}</Title><ProductName>synth</ProductName>
 <PageWidth>1016000</PageWidth><PageHeight>762000</PageHeight></rdf:Description></rdf:RDF></x:xmpmeta>"#
     );

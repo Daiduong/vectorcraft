@@ -20,8 +20,8 @@
 //!
 //! Anything VectorCraft cannot show exactly is translated to the nearest equivalent and noted in
 //! [`Shape::notes`]: conical fountains become linear and square ones radial (as libcdr does),
-//! palette and spot colours (models `0x19` and `0x0e`) need CorelDRAW's palette tables and fall
-//! back to black, and a stretched (calligraphic) nib scales the width as libcdr does. Pattern,
+//! palette and spot colours (models `0x19` and `0x0e`) outside CorelDRAW's built-in palettes
+//! ([`crate::palettes`]) fall back to black, and a stretched (calligraphic) nib scales the width as libcdr does. Pattern,
 //! bitmap, texture and PostScript fills are not translated. Polygons, bitmaps and other record
 //! kinds are counted in [`Translation::skipped`], not translated.
 //!
@@ -37,6 +37,7 @@ use vectorcraft_doc::text::{CharStyle, Justify, ParaStyle, TextKind, TextObject,
 use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2};
 
 use crate::Error;
+use crate::palettes::Resolved;
 use crate::riff::{CdrVersion, Chunk, FourCc, List, Riff};
 use crate::text::{self, Font, Ink, Paragraph, Pen, Styles, TextStyle};
 
@@ -218,7 +219,8 @@ impl CorelColor {
     }
 
     /// The colour in its own model where VectorCraft has one (CMYK, RGB, grey, Lab), else as RGB.
-    /// Palette and spot colours need CorelDRAW's palette tables and are `Err` with the reason.
+    /// Palette and spot colours are looked up in CorelDRAW's built-in palettes
+    /// ([`crate::palettes`]); one that isn't there is `Err` with the reason.
     pub fn to_color(&self) -> Result<Color, String> {
         let [c0, c1, c2, c3] = self.value.to_le_bytes();
         let f = |b: u8, max: f32| f32::from(b) / max;
@@ -243,9 +245,22 @@ impl CorelColor {
                 let t = f(c0, 100.0).min(1.0);
                 Color::cmyk(t, t, t, t)
             }
-            0x19 | 0x0e => {
-                return Err(format!("palette colour (model {:#x}, palette {:#x}) needs CorelDRAW's palette tables", self.model, self.palette));
-            }
+            // Palette and spot colours: an entry of one of CorelDRAW's built-in palettes.
+            0x19 | 0x0e => match crate::palettes::resolve(self.model, self.palette, self.value) {
+                Some(Resolved::Cmyk([c, m, y, k])) => {
+                    Color::cmyk(f(c, 100.0).min(1.0), f(m, 100.0).min(1.0), f(y, 100.0).min(1.0), f(k, 100.0).min(1.0))
+                }
+                Some(Resolved::Rgb([r, g, b])) => Color::rgb8(r, g, b),
+                Some(Resolved::Lab([l, a, b])) => Color::lab(f(l, 255.0) * 100.0, f32::from(a) - 128.0, f32::from(b) - 128.0),
+                None => {
+                    return Err(format!(
+                        "palette colour (model {:#x}, palette {:#x}, entry {}) is not in CorelDRAW's built-in palettes",
+                        self.model,
+                        self.palette,
+                        self.value & 0xffff
+                    ));
+                }
+            },
             m => return Err(format!("unknown colour model {m:#x}")),
         })
     }
@@ -445,6 +460,30 @@ pub struct Loda {
     pub page: Option<PageSpace>,
     /// A polygon's rotational symmetry (argument 0x2af8).
     pub polygon: Option<PolygonXf>,
+    /// The object's (or layer's) name (argument 1000).
+    pub name: Option<String>,
+    /// PowerClip contents: the `spnd` id of a group in the document's `clpt` list (argument 8005).
+    pub clip: Option<u32>,
+    /// Opacity from the object's transparency (argument 8000), 0..1.
+    pub opacity: Option<f32>,
+    /// A linear fading transparency (argument 8000), in object space.
+    pub fade: Option<Fade>,
+}
+
+/// A transparency that fades along a line: opacity `opacity.0` at its first end to `opacity.1` at
+/// its second, held beyond both.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Fade {
+    pub from: Point,
+    pub to: Point,
+    pub opacity: (f32, f32),
+}
+
+impl Fade {
+    /// The fade in another space.
+    pub fn transformed(self, xf: Affine) -> Self {
+        Self { from: xf * self.from, to: xf * self.to, ..self }
+    }
 }
 
 /// Read a `loda` (or `lobj`) record's argument table.
@@ -467,7 +506,19 @@ pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
         types.push(r.unsigned()?);
     }
     types.reverse();
-    let mut loda = Loda { kind, coords: None, fill_id: None, outline_id: None, style_id: None, page: None, polygon: None };
+    let mut loda = Loda {
+        kind,
+        coords: None,
+        fill_id: None,
+        outline_id: None,
+        style_id: None,
+        page: None,
+        polygon: None,
+        name: None,
+        clip: None,
+        opacity: None,
+        fade: None,
+    };
     let modern = version >= CdrVersion(400);
     for (&off, &ty) in offsets.iter().zip(&types) {
         r.seek(off)?;
@@ -479,10 +530,69 @@ pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
             0xc8 => loda.style_id = Some(r.unsigned()?).filter(|&id| id != 0),
             0x4aba => loda.page = Some(PageSpace { width_in: r.coord()?, height_in: r.coord()? }),
             0x2af8 => loda.polygon = Some(PolygonXf::read(&mut r)?),
+            1000 => loda.name = read_name(&mut r),
+            8005 => loda.clip = Some(r.u32()?).filter(|&id| id != 0),
+            8000 => {
+                let arg = r.data.get(off..).unwrap_or_default();
+                loda.opacity = transparency(arg);
+                loda.fade = fade(arg);
+            }
             _ => {}
         }
     }
     Ok(loda)
+}
+
+/// A name argument: UTF-16 from version 12, else eight-bit; up to its terminating zero.
+fn read_name(r: &mut Reader<'_>) -> Option<String> {
+    let rest = r.data.get(r.pos..)?;
+    let name = if r.version >= CdrVersion(1200) {
+        let len = rest.chunks_exact(2).position(|c| c == [0, 0]).unwrap_or(rest.len() / 2).min(1024);
+        crate::text::decode_utf16(rest.get(..len * 2)?)
+    } else {
+        let len = rest.iter().position(|&b| b == 0).unwrap_or(rest.len()).min(1024);
+        crate::text::decode_8bit(rest.get(..len)?, crate::text::charset::ANSI)
+    };
+    Some(name).filter(|n| !n.trim().is_empty())
+}
+
+/// An object's transparency (argument 8000) as opacity. Read from the user's version 17 samples (no
+/// published layout): a block tagged `0x514`, the transparency in percent as a double at byte 69
+/// and, for a fading transparency, its other end at byte 77 (0 when uniform). A fade is taken at its
+/// average, as VectorCraft has no gradient opacity on an object.
+pub fn transparency(arg: &[u8]) -> Option<f32> {
+    let tag = arg.get(0..4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))?;
+    let dbl = |i: usize| arg.get(i..i + 8).map(|b| f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]));
+    let (start, end) = (dbl(69)?, dbl(77)?);
+    let ok = |v: f64| v.is_finite() && (0.0..=100.0).contains(&v);
+    if tag != 0x514 || !ok(start) || !ok(end) {
+        return None;
+    }
+    let percent = if end > 0.0 { (start + end) / 2.0 } else { start };
+    Some((1.0 - percent / 100.0) as f32)
+}
+
+/// A linear fading transparency (argument 8000), when the block places one: fountain type 1 (a
+/// little-endian u32 at byte 45) and the line's two ends as four 32-bit coordinates from byte 49,
+/// in object space, the double at byte 77 at the first end and the one at byte 69 at the second.
+/// Read from the user's version 17 samples; a fade without ends, or of another
+/// type, is left at [`transparency`]'s average.
+pub fn fade(arg: &[u8]) -> Option<Fade> {
+    let u32_at = |i: usize| arg.get(i..i + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+    let dbl = |i: usize| arg.get(i..i + 8).map(|b| f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]));
+    if u32_at(0)? != 0x514 {
+        return None;
+    }
+    let c = |i: usize| u32_at(i).map(|v| f64::from(v as i32) / 254_000.0);
+    let (from, to) = (Point::new(c(49)?, c(53)?), Point::new(c(57)?, c(61)?));
+    let (start, end) = (dbl(69)?, dbl(77)?);
+    let ok = |v: f64| v.is_finite() && (0.0..=100.0).contains(&v);
+    if !ok(start) || !ok(end) || end == 0.0 {
+        return None;
+    }
+    let opacity = |pct: f64| (1.0 - pct / 100.0) as f32;
+    // The first percentage is the line's far end's (measured against CorelDRAW's previews).
+    (u32_at(45)? == 1 && from != to).then_some(Fade { from, to, opacity: (opacity(end), opacity(start)) })
 }
 
 /// A Bézier path record: points (inches, CorelDRAW space) and one node-type byte each.
@@ -1185,6 +1295,11 @@ pub struct Fountain {
     pub midpoint: f64,
     /// (offset 0..1, colour).
     pub stops: Vec<(f64, CorelColor)>,
+    /// Where the ramp lies on the object's box (version 17), `[cx, cy, ux, uy, vx, vy]` in units of
+    /// the box's size: its centre's offset from the box centre (y up), and its axis (y down) from
+    /// the first stop to the last, edge pad included. Older files lay a fountain out from its
+    /// angle and pad alone.
+    pub frame: Option<[f64; 6]>,
 }
 
 /// A `fild` record.
@@ -1259,16 +1374,36 @@ impl CorelFill {
             }
             stops.push((offset, color));
         }
-        Ok(Fountain { kind, edge_pad, angle, center, mode, midpoint, stops })
+        let frame = if v >= CdrVersion(1700) { Self::fountain_frame(r) } else { None };
+        Ok(Fountain { kind, edge_pad, angle, center, mode, midpoint, stops, frame })
+    }
+
+    /// The placement after a version 17 fountain's stops: 3 bytes, then eight doubles, the fifth
+    /// and eighth of them zero. Anything else is left to the angle and pad.
+    fn fountain_frame(r: &mut Reader<'_>) -> Option<[f64; 6]> {
+        r.skip(3).ok()?;
+        let mut d = [0.0; 8];
+        for x in &mut d {
+            *x = r.f64().ok()?;
+        }
+        let [cx, cy, ux, uy, z0, vx, vy, z1] = d;
+        let frame = [cx, cy, ux, uy, vx, vy];
+        (z0 == 0.0 && z1 == 0.0 && frame.iter().all(|x| x.is_finite() && x.abs() < 1e6) && (ux != 0.0 || uy != 0.0)).then_some(frame)
     }
 
     /// The fill layer, or `None` for no fill. `bounds` is the object's box in document space,
     /// which a fountain is laid out on.
     pub fn to_fill(&self, bounds: Option<Rect>, notes: &mut Vec<String>) -> Option<FillLayer> {
+        self.to_fill_on(bounds, None, notes)
+    }
+
+    /// [`Self::to_fill`] for an object whose own box (`local`, in object space) and transform to
+    /// document space are known, which a version 17 fountain's frame is measured on.
+    pub fn to_fill_on(&self, bounds: Option<Rect>, local: Option<(Rect, Affine)>, notes: &mut Vec<String>) -> Option<FillLayer> {
         match self {
             Self::None => None,
             Self::Solid(c) => Some(FillLayer::new(Paint::solid(color_or_black(c, notes)))),
-            Self::Fountain(f) => f.to_paint(bounds, notes).map(FillLayer::new),
+            Self::Fountain(f) => f.to_paint(bounds, local, notes).map(FillLayer::new),
             Self::Unsupported(t) => {
                 notes.push(format!("fill type {t} (pattern, bitmap, texture or PostScript) not translated"));
                 None
@@ -1278,7 +1413,7 @@ impl CorelFill {
 }
 
 impl Fountain {
-    fn to_paint(&self, bounds: Option<Rect>, notes: &mut Vec<String>) -> Option<Paint> {
+    fn to_paint(&self, bounds: Option<Rect>, local: Option<(Rect, Affine)>, notes: &mut Vec<String>) -> Option<Paint> {
         let (first, rest) = self.stops.split_first()?;
         if rest.is_empty() {
             return Some(Paint::solid(color_or_black(&first.1, notes)));
@@ -1322,9 +1457,24 @@ impl Fountain {
         let mut paint = GradientPaint::new(Gradient { kind, stops });
         paint.angle = if angle.is_finite() { angle } else { 0.0 };
         if let Some(b) = bounds {
-            paint.geom = Some(self.geom(kind, b, paint.angle));
+            let mut g = self.geom(kind, b, paint.angle);
+            if kind == GradientKind::Linear
+                && let Some((ends, (lb, to_doc))) = self.frame.zip(local).and_then(|(f, l)| Some((Self::frame_ends(f, l.0)?, l)))
+                && lb.width() > 0.0
+            {
+                (g.start, g.end) = (to_doc * ends.0, to_doc * ends.1);
+            }
+            paint.geom = Some(g);
         }
         Some(Paint::Gradient(Box::new(paint)))
+    }
+
+    /// A version 17 linear fountain's first and last stop on the object's own box (y up).
+    fn frame_ends(f: [f64; 6], b: Rect) -> Option<(Point, Point)> {
+        let [cx, cy, ux, uy, ..] = f;
+        let c = b.center() + Vec2::new(cx * b.width(), cy * b.height());
+        let half = Vec2::new(ux * b.width(), -uy * b.height()) / 2.0;
+        (half.hypot() > 0.0).then_some((c - half, c + half))
     }
 
     /// Placement on the object's box: the edge pad shortens the ramp at both ends, and a radial
@@ -1333,10 +1483,21 @@ impl Fountain {
         let pad = (f64::from(self.edge_pad) / 100.0).clamp(0.0, 0.49);
         let mut g = GradientGeom::fit(kind, b, angle);
         if kind == GradientKind::Radial {
+            // The centre moves by its offset (percent of the half-size, y up), and the ramp reaches
+            // the box's farthest corner from it, so it covers the whole shape. Measured on the
+            // user's version 17 samples against CorelDRAW's own previews (radial bows and badges
+            // with off-centre fountains): the closest of the radius rules tried.
             let shift =
                 vectorcraft_geom::Vec2::new(f64::from(self.center.0) / 100.0 * b.width() / 2.0, -f64::from(self.center.1) / 100.0 * b.height() / 2.0);
-            g.start += shift;
-            g.end = g.start + (g.end - (g.start - shift)) * (1.0 - pad);
+            let c = b.center() + shift;
+            let r = [b.origin(), Point::new(b.x1, b.y0), Point::new(b.x0, b.y1), Point::new(b.x1, b.y1)]
+                .iter()
+                .map(|p| p.distance(c))
+                .fold(0.0, f64::max);
+            let dir = (g.end - g.start).normalize();
+            let dir = if dir.x.is_finite() && dir.y.is_finite() { dir } else { vectorcraft_geom::Vec2::new(1.0, 0.0) };
+            g.start = c;
+            g.end = c + dir * r * (1.0 - pad);
         } else {
             let span = g.end - g.start;
             g.start += span * pad;
@@ -1353,6 +1514,12 @@ impl Fountain {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
     pub content: Content,
+    /// The object's opacity (its transparency), 1 when opaque.
+    pub opacity: f32,
+    /// The object's name in CorelDRAW, if it has one.
+    pub name: Option<String>,
+    /// A fading transparency, in document space, over [`Self::opacity`].
+    pub fade: Option<Fade>,
     /// Fill below stroke, as CorelDRAW draws them (empty for type, whose characters carry theirs).
     pub appearance: Appearance,
     /// What was approximated or left out.
@@ -1369,6 +1536,9 @@ pub enum Content {
     Text(Box<TextObject>),
     /// A bitmap, `xf` mapping its pixels (0..width, 0..height, y down) to the document.
     Image { bitmap: std::sync::Arc<crate::bitmap::Bitmap>, xf: Affine },
+    /// A group, bottom first. With `clip`, the first child's path clips the others (a PowerClip:
+    /// the container's outline clipping its contents).
+    Group { children: Vec<Shape>, clip: bool },
 }
 
 impl Shape {
@@ -1387,6 +1557,57 @@ impl Shape {
             _ => None,
         }
     }
+
+    fn of(content: Content, notes: Vec<String>) -> Self {
+        Self { content, opacity: 1.0, name: None, fade: None, appearance: Appearance::default(), notes }
+    }
+
+    /// This shape and, for a group, everything in it, bottom first (a group before its members).
+    pub fn walk(&self) -> Vec<&Shape> {
+        let mut out = vec![self];
+        if let Content::Group { children, .. } = &self.content {
+            out.extend(children.iter().flat_map(Shape::walk));
+        }
+        out
+    }
+}
+
+/// What a CorelDRAW layer is for (its object kind).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerKind {
+    /// A layer of art (kind 0).
+    Drawing,
+    /// Guidelines (kind 12), not printed.
+    Guides,
+    /// The desktop around the pages (kind 17).
+    Desktop,
+    /// The document grid (kind 11), not printed.
+    Grid,
+}
+
+impl LayerKind {
+    fn from_kind(kind: ShapeKind) -> Self {
+        match kind {
+            ShapeKind::Other(11) => Self::Grid,
+            ShapeKind::Other(12) => Self::Guides,
+            ShapeKind::Other(17) => Self::Desktop,
+            _ => Self::Drawing,
+        }
+    }
+
+    /// Art that prints (guides and the grid don't).
+    pub fn is_art(self) -> bool {
+        matches!(self, Self::Drawing | Self::Desktop)
+    }
+}
+
+/// One CorelDRAW layer of a page.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayerShapes {
+    pub name: Option<String>,
+    pub kind: LayerKind,
+    /// Bottom first.
+    pub shapes: Vec<Shape>,
 }
 
 /// The translated objects of one page, bottom first.
@@ -1398,7 +1619,20 @@ pub struct PageShapes {
     /// `flgs` record has a bit of `0x00ff0000` set (`CDRContentCollector::collectFlags`).
     pub master: bool,
     pub page: PageSpace,
-    pub shapes: Vec<Shape>,
+    /// The page's layers, bottom first (objects outside any layer make an unnamed one).
+    pub layers: Vec<LayerShapes>,
+}
+
+impl PageShapes {
+    /// Every shape on the page's art layers, groups and their members alike, bottom first.
+    pub fn shapes(&self) -> Vec<&Shape> {
+        self.layers.iter().filter(|l| l.kind.is_art()).flat_map(|l| l.shapes.iter()).flat_map(Shape::walk).collect()
+    }
+
+    /// The shapes that draw something (no groups), bottom first.
+    pub fn leaves(&self) -> Vec<&Shape> {
+        self.shapes().into_iter().filter(|s| !matches!(s.content, Content::Group { .. })).collect()
+    }
 }
 
 /// Every page's Bézier objects.
@@ -1511,7 +1745,33 @@ pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams:
             _ => {}
         }
     }
-    let ctx = Ctx { src, version, fills: &fills, outlines: &outlines, styles: &styles, texts: &texts, bitmaps: &bitmaps, arrows: &arrows };
+    let mut ctx = Ctx {
+        src,
+        version,
+        fills: &fills,
+        outlines: &outlines,
+        styles: &styles,
+        texts: &texts,
+        bitmaps: &bitmaps,
+        arrows: &arrows,
+        clips: BTreeMap::new(),
+    };
+    // PowerClip contents: the groups (or objects) of the document's `clpt` lists, by their `spnd`.
+    let mut clips = BTreeMap::new();
+    for list in riff.lists(FourCc(*b"clpt")) {
+        for c in &list.children {
+            let Chunk::List(l) = c else { continue };
+            let id = l.children.iter().find_map(|k| match k {
+                Chunk::Record(r) if r.kind.0 == *b"spnd" => ctx.src.data(r).ok().and_then(|d| Reader::new(d, "spnd", version).unsigned().ok()),
+                _ => None,
+            });
+            let Some(id) = id else { continue };
+            let mut items = Vec::new();
+            ctx.items(c, &mut items, &mut Vec::new(), &mut None, &mut t);
+            clips.insert(id, items);
+        }
+    }
+    ctx.clips = clips;
     let mut index = 0;
     for chunk in &riff.chunks {
         ctx.pages(chunk, &mut page, &mut index, &mut t);
@@ -1528,17 +1788,41 @@ struct Ctx<'a, 'r> {
     texts: &'a BTreeMap<u32, Vec<Paragraph>>,
     bitmaps: &'a BTreeMap<u32, std::sync::Arc<crate::bitmap::Bitmap>>,
     arrows: &'a BTreeMap<u32, Arrowhead>,
+    clips: BTreeMap<u32, Vec<Item>>,
 }
 
 /// Raw object before page placement (the page's size may come later in its list).
+#[derive(Clone)]
 struct Pending {
     geometry: Geometry,
     object: Affine,
     fill: Option<u32>,
     outline: Option<u32>,
     style: Option<u32>,
+    name: Option<String>,
+    clip: Option<u32>,
+    opacity: Option<f32>,
+    fade: Option<Fade>,
 }
 
+/// An object or a group of them, front first as CorelDRAW writes them.
+#[derive(Clone)]
+enum Item {
+    Object(Box<Pending>),
+    Group(Vec<Item>),
+}
+
+/// A layer's objects as read.
+struct LayerItems {
+    name: Option<String>,
+    kind: LayerKind,
+    items: Vec<Item>,
+}
+
+/// Deepest PowerClip nesting followed.
+const MAX_CLIP_DEPTH: usize = 8;
+
+#[derive(Clone)]
 enum Geometry {
     /// A path in CorelDRAW space (inches, y up), before the object's transform.
     Path(BezPath),
@@ -1559,43 +1843,140 @@ impl Ctx<'_, '_> {
             }
             return;
         }
-        let mut pending = Vec::new();
+        let mut loose = Vec::new();
+        let mut layers = Vec::new();
         let mut own_size = None;
-        self.objects(list, &mut pending, &mut own_size, t);
+        for c in &list.children {
+            self.items(c, &mut loose, &mut layers, &mut own_size, t);
+        }
         if own_size.is_some() {
             *page = own_size;
         }
+        if !loose.is_empty() {
+            layers.push(LayerItems { name: None, kind: LayerKind::Drawing, items: loose });
+        }
         let space = page.unwrap_or(PageSpace { width_in: 0.0, height_in: 0.0 });
-        // CorelDRAW writes objects front to back; VectorCraft stacks them bottom first.
-        let shapes = pending.into_iter().rev().map(|p| self.shape(p, &space)).collect();
+        // CorelDRAW writes layers and objects front to back; VectorCraft stacks them bottom first.
+        let layers = layers.into_iter().rev().map(|l| LayerShapes { name: l.name, kind: l.kind, shapes: self.shapes(l.items, &space, 0) }).collect();
         let flags = list.children.iter().find_map(|c| match c {
             Chunk::Record(r) if r.kind.0 == *b"flgs" => self.src.data(r).ok().and_then(|d| d.get(..4)),
             _ => None,
         });
         let master = self.version >= CdrVersion(400) && flags.is_some_and(|f| u32::from_le_bytes([f[0], f[1], f[2], f[3]]) & 0x00ff_0000 != 0);
-        t.pages.push(PageShapes { index: *index, master, page: space, shapes });
+        t.pages.push(PageShapes { index: *index, master, page: space, layers });
         *index += 1;
     }
 
-    fn objects(&self, list: &List, out: &mut Vec<Pending>, own_size: &mut Option<PageSpace>, t: &mut Translation) {
-        for c in &list.children {
-            match c {
-                // Pattern and clip definitions, not page content.
-                Chunk::List(l) if matches!(&l.list_type.0, b"vect" | b"clpt") => {}
-                Chunk::List(l) if l.list_type == FourCc::OBJECT => self.object(l, out, t),
-                Chunk::List(l) => self.objects(l, out, own_size, t),
-                Chunk::Record(r) if matches!(&r.kind.0, b"loda" | b"lobj") => {
-                    // A page's own record, outside any object: it may carry the page size.
-                    if let Ok(Ok(l)) = self.src.data(r).map(|d| decode_loda(d, self.version)) {
-                        *own_size = l.page.or(*own_size);
-                    }
+    /// The objects under `chunk`, in file order: an object list is an object, a group list a
+    /// group, a layer list a new layer (named by its own record); other lists are looked through.
+    fn items(&self, chunk: &Chunk, out: &mut Vec<Item>, layers: &mut Vec<LayerItems>, own_size: &mut Option<PageSpace>, t: &mut Translation) {
+        match chunk {
+            // Pattern definitions and PowerClip contents, which objects use by reference.
+            Chunk::List(l) if matches!(&l.list_type.0, b"vect" | b"clpt") => {}
+            Chunk::List(l) if l.list_type == FourCc::OBJECT => self.object(l, out, t),
+            Chunk::List(l) if l.list_type == FourCc::LAYER => {
+                let own = self.own_record(l);
+                let mut items = Vec::new();
+                for c in &l.children {
+                    self.items(c, &mut items, layers, own_size, t);
                 }
-                Chunk::Record(_) => {}
+                let (name, kind) = own.map_or((None, LayerKind::Drawing), |o| (o.name, LayerKind::from_kind(o.kind)));
+                // Unnamed special layers (a page's own Desktop, say) take their kind's name.
+                let name = name.or_else(|| match kind {
+                    LayerKind::Desktop => Some("Desktop".into()),
+                    LayerKind::Guides => Some("Guides".into()),
+                    LayerKind::Grid => Some("Document Grid".into()),
+                    LayerKind::Drawing => None,
+                });
+                layers.push(LayerItems { name, kind, items });
             }
+            Chunk::List(l) if matches!(&l.list_type.0, b"grp " | b"lnkg") => {
+                let mut items = Vec::new();
+                for c in &l.children {
+                    self.items(c, &mut items, layers, own_size, t);
+                }
+                if !items.is_empty() {
+                    out.push(Item::Group(items));
+                }
+            }
+            Chunk::List(l) => {
+                for c in &l.children {
+                    self.items(c, out, layers, own_size, t);
+                }
+            }
+            Chunk::Record(r) if matches!(&r.kind.0, b"loda" | b"lobj") => {
+                // A page's (or group's, or layer's) own record: it may carry the page size.
+                if let Ok(Ok(l)) = self.src.data(r).map(|d| decode_loda(d, self.version)) {
+                    *own_size = l.page.or(*own_size);
+                }
+            }
+            Chunk::Record(_) => {}
         }
     }
 
-    fn object(&self, obj: &List, out: &mut Vec<Pending>, t: &mut Translation) {
+    /// A layer's or group's own `loda` (directly in it, or in its `lgob` list).
+    fn own_record(&self, l: &List) -> Option<Loda> {
+        let find = |children: &[Chunk]| {
+            children.iter().find_map(|c| match c {
+                Chunk::Record(r) if matches!(&r.kind.0, b"loda" | b"lobj") => self.src.data(r).ok().and_then(|d| decode_loda(d, self.version).ok()),
+                _ => None,
+            })
+        };
+        find(&l.children).or_else(|| {
+            l.children.iter().find_map(|c| match c {
+                Chunk::List(g) if g.list_type.0 == *b"lgob" => find(&g.children),
+                _ => None,
+            })
+        })
+    }
+
+    /// Shapes for `items` (front first), bottom first.
+    fn shapes(&self, items: Vec<Item>, page: &PageSpace, depth: usize) -> Vec<Shape> {
+        let mut out = Vec::new();
+        for item in items.into_iter().rev() {
+            match item {
+                Item::Object(p) => out.extend(self.object_shapes(*p, page, depth)),
+                Item::Group(children) => {
+                    let children = self.shapes(children, page, depth);
+                    if !children.is_empty() {
+                        out.push(Shape::of(Content::Group { children, clip: false }, Vec::new()));
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// An object's shapes: itself, or for a PowerClip container its fill, its contents clipped to
+    /// its outline, and its stroke over them (as CorelDRAW draws them).
+    fn object_shapes(&self, p: Pending, page: &PageSpace, depth: usize) -> Vec<Shape> {
+        let contents = p.clip.and_then(|id| self.clips.get(&id)).filter(|_| depth < MAX_CLIP_DEPTH).cloned();
+        let mut shape = self.shape(p, page);
+        let Some(contents) = contents else { return vec![shape] };
+        let inside = self.shapes(contents, page, depth + 1);
+        let Content::Path { path, .. } = &shape.content else {
+            // Only paths clip: other containers show their contents unclipped.
+            shape.notes.push("PowerClip contents of a non-path container are not clipped".into());
+            let mut all = vec![shape];
+            all.extend(inside);
+            return all;
+        };
+        let clip_path = Shape::of(Content::Path { path: path.clone(), rule: FillRule::EvenOdd }, Vec::new());
+        let (fills, strokes): (Vec<_>, Vec<_>) = shape.appearance.items.drain(..).partition(AppearanceItem::is_fill);
+        let mut stroke = shape.clone();
+        shape.appearance.items = fills;
+        stroke.appearance.items = strokes;
+        stroke.notes.clear();
+        let mut children = vec![clip_path];
+        children.extend(inside);
+        let mut out = vec![shape, Shape::of(Content::Group { children, clip: true }, Vec::new())];
+        if !stroke.appearance.items.is_empty() {
+            out.push(stroke);
+        }
+        out
+    }
+
+    fn object(&self, obj: &List, out: &mut Vec<Item>, t: &mut Translation) {
         let mut loda = None;
         let mut spnd = None;
         let mut ppdt = None;
@@ -1659,48 +2040,60 @@ impl Ctx<'_, '_> {
             }
         };
         match geometry {
-            Ok(geometry) => out.push(Pending { geometry, object: compose(&matrices), fill: l.fill_id, outline: l.outline_id, style: l.style_id }),
+            Ok(geometry) => out.push(Item::Object(Box::new(Pending {
+                geometry,
+                object: compose(&matrices),
+                fill: l.fill_id,
+                outline: l.outline_id,
+                style: l.style_id,
+                name: l.name,
+                clip: l.clip,
+                opacity: l.opacity,
+                fade: l.fade,
+            }))),
             Err(e) => t.errors.push(e.to_string()),
         }
     }
 
     fn shape(&self, p: Pending, page: &PageSpace) -> Shape {
         let mut notes = Vec::new();
+        let fade = p.fade.map(|f| f.transformed(page.to_document() * p.object));
         let bp = match p.geometry {
             Geometry::Path(bp) => bp,
             Geometry::Image(place) => {
                 let Some(bitmap) = self.bitmaps.get(&place.id) else {
                     notes.push(format!("bitmap {} not found", place.id));
-                    return Shape {
-                        content: Content::Path { path: PathData::default(), rule: FillRule::EvenOdd },
-                        appearance: Appearance::default(),
-                        notes,
-                    };
+                    return Shape::of(Content::Path { path: PathData::default(), rule: FillRule::EvenOdd }, notes);
                 };
                 let Some(px) = place.pixels_to_object(bitmap.width, bitmap.height) else {
                     notes.push("a bitmap with an empty frame".into());
-                    return Shape {
-                        content: Content::Path { path: PathData::default(), rule: FillRule::EvenOdd },
-                        appearance: Appearance::default(),
-                        notes,
-                    };
+                    return Shape::of(Content::Path { path: PathData::default(), rule: FillRule::EvenOdd }, notes);
                 };
                 let xf = page.to_document() * p.object * px;
-                return Shape { content: Content::Image { bitmap: bitmap.clone(), xf }, appearance: Appearance::default(), notes };
+                return Shape {
+                    opacity: p.opacity.unwrap_or(1.0),
+                    name: p.name,
+                    fade,
+                    ..Shape::of(Content::Image { bitmap: bitmap.clone(), xf }, notes)
+                };
             }
             Geometry::Text { frame, spnd } => {
                 let t = self.text_object(frame, spnd, page.to_document() * p.object, p.object, &mut notes);
-                return Shape { content: Content::Text(Box::new(t)), appearance: Appearance::default(), notes };
+                return Shape { opacity: p.opacity.unwrap_or(1.0), name: p.name, fade, ..Shape::of(Content::Text(Box::new(t)), notes) };
             }
         };
         let path = PathData::from_bezpath(&{
-            let mut bp = bp;
+            let mut bp = bp.clone();
             bp.apply_affine(page.to_document() * p.object);
             bp
         });
         let mut items = Vec::new();
         match p.fill.and_then(|id| self.fills.get(&id).map(|f| (id, f))) {
-            Some((_, f)) => items.extend(f.to_fill(path.bounds(), &mut notes).map(AppearanceItem::Fill)),
+            Some((_, f)) => {
+                let local = PathData::from_bezpath(&bp).bounds().filter(|b| b.width() > 0.0 || b.height() > 0.0);
+                let to_doc = page.to_document() * p.object;
+                items.extend(f.to_fill_on(path.bounds(), local.map(|b| (b, to_doc)), &mut notes).map(AppearanceItem::Fill));
+            }
             None if p.fill.is_some() => notes.push(format!("fill {} not found", p.fill.unwrap_or_default())),
             // Open paths are not filled, so only a closed one misses its style's fill.
             None if p.style.is_some() && path.is_closed() => notes.push("fill from a graphic style not translated".into()),
@@ -1722,7 +2115,14 @@ impl Ctx<'_, '_> {
             None if p.outline.is_some() => notes.push(format!("outline {} not found", p.outline.unwrap_or_default())),
             None => {}
         }
-        Shape { content: Content::Path { path, rule: FillRule::EvenOdd }, appearance: Appearance { items, ..Appearance::default() }, notes }
+        Shape {
+            content: Content::Path { path, rule: FillRule::EvenOdd },
+            opacity: p.opacity.unwrap_or(1.0),
+            name: p.name,
+            fade,
+            appearance: Appearance { items, ..Appearance::default() },
+            notes,
+        }
     }
 
     /// Type for a text record: its paragraphs (by `spnd`), each run's style its paragraph's `stlt`
@@ -2005,6 +2405,11 @@ mod tests {
         assert_eq!(c(0x06, u32::from_le_bytes([120, 0, 255, 255])), Ok(Color::rgb(0.0, 1.0, 0.0)));
         assert_eq!(c(0x07, u32::from_le_bytes([0, 0, 128, 255])).map(|c| matches!(c, Color::Rgb { r, .. } if r > 0.99)), Ok(true));
         assert!(c(0x19, 5).is_err() && c(0x77, 0).is_err());
+        // Palette colours come from CorelDRAW's built-in palettes, tinted.
+        let pal = |model, palette, value| CorelColor { model, palette, value }.to_color();
+        assert_eq!(pal(0x19, 0x1e, 100 << 16 | 1), Ok(Color::rgb8(132, 118, 77)));
+        assert_eq!(pal(0x19, 0x1a, 100 << 16 | 1), Ok(Color::cmyk(0.05, 0.0, 1.0, 0.0)));
+        assert_eq!(pal(0x0e, 0x0c, 1), Ok(Color::lab(231.0 / 255.0 * 100.0, -1.0, 99.0)));
     }
 
     #[test]
@@ -2191,17 +2596,146 @@ mod tests {
         let p0 = &t.pages[1];
         assert_eq!(p0.page.size_pt(), (144.0, 144.0));
         // Bottom first: the second object in the file (moved 1 in left) is the first shape.
-        let b0 = p0.shapes[0].path().unwrap().bounds().unwrap();
-        let b1 = p0.shapes[1].path().unwrap().bounds().unwrap();
+        let b0 = p0.leaves()[0].path().unwrap().bounds().unwrap();
+        let b1 = p0.leaves()[1].path().unwrap().bounds().unwrap();
         assert_eq!((b0.x0, b0.y0, b0.x1, b0.y1), (0.0, 0.0, 72.0, 72.0));
         assert_eq!((b1.x0, b1.y0, b1.x1, b1.y1), (72.0, 0.0, 144.0, 72.0));
-        assert!(p0.shapes[0].path().unwrap().subpaths[0].closed);
-        assert_eq!(p0.shapes[0].appearance.fill_paint(), Paint::solid(Color::rgb8(255, 0, 0)));
-        assert!(matches!(p0.shapes[0].content, Content::Path { rule: FillRule::EvenOdd, .. }));
-        assert!(p0.shapes[0].appearance.stroke().is_none());
+        assert!(p0.leaves()[0].path().unwrap().subpaths[0].closed);
+        assert_eq!(p0.leaves()[0].appearance.fill_paint(), Paint::solid(Color::rgb8(255, 0, 0)));
+        assert!(matches!(p0.leaves()[0].content, Content::Path { rule: FillRule::EvenOdd, .. }));
+        assert!(p0.leaves()[0].appearance.stroke().is_none());
         // The second page keeps the size and counts its rectangle as skipped.
         assert_eq!(t.pages[2].page.size_pt(), (144.0, 144.0));
         assert_eq!(t.skipped.get("Rectangle"), Some(&1));
+    }
+
+    /// A transparency block (argument 8000) as the version 17 samples write it: `start` and `end`
+    /// percent, fading along `line` (object space, 1/254000 in) when one is given.
+    fn transparency_block(start: f64, end: f64, line: Option<[i32; 4]>) -> Vec<u8> {
+        let mut b = vec![0u8; 125];
+        b[0..4].copy_from_slice(&0x514u32.to_le_bytes());
+        b[4..8].copy_from_slice(&125u32.to_le_bytes());
+        if let Some(l) = line {
+            b[45..49].copy_from_slice(&1u32.to_le_bytes());
+            b[49..65].copy_from_slice(&le32(&l));
+        }
+        b[69..77].copy_from_slice(&start.to_le_bytes());
+        b[77..85].copy_from_slice(&end.to_le_bytes());
+        b
+    }
+
+    #[test]
+    fn transparencies_uniform_and_fading() {
+        assert_eq!(transparency(&transparency_block(40.0, 0.0, None)), Some(0.6));
+        // A fade is averaged for the object's opacity …
+        let fading = transparency_block(0.0, 100.0, Some([0, 0, IN, 0]));
+        assert_eq!(transparency(&fading), Some(0.5));
+        // … and kept as a line: the first percentage belongs to the line's far end.
+        assert_eq!(fade(&fading), Some(Fade { from: Point::ORIGIN, to: Point::new(1.0, 0.0), opacity: (0.0, 1.0) }));
+        assert_eq!(fade(&transparency_block(40.0, 0.0, Some([0, 0, IN, 0]))), None, "uniform");
+        assert_eq!(fade(&transparency_block(0.0, 100.0, None)), None, "a fade without ends");
+        let mut other = fading.clone();
+        other[0] = 0;
+        assert_eq!((transparency(&other), fade(&other)), (None, None));
+        assert_eq!(fade(&fading[..70]), None);
+    }
+
+    #[test]
+    fn layers_groups_and_powerclips_keep_their_structure() {
+        let mut fill = 4u32.to_le_bytes().to_vec();
+        fill.extend_from_slice(&1u16.to_le_bytes());
+        fill.extend_from_slice(&[0, 0]);
+        fill.extend_from_slice(&color9(0x05, [0, 0, 255, 0]));
+        let mut page_size = le32(&[2 * IN, 2 * IN]);
+        page_size.truncate(8);
+        let tri = |dx: i32| curve32(&[(dx, 0, node::MOVE), (dx + IN, 0, node::LINE), (dx, IN, node::LINE | node::CLOSED)]);
+        let obj = |args: Vec<(u32, Vec<u8>)>| build::list(b"LIST", b"obj ", &[build::chunk(b"loda", &loda32(0x03, &args))]);
+        let filled = |dx: i32| vec![(0x14, 4u32.to_le_bytes().to_vec()), (0x1e, tri(dx))];
+        let mut container = filled(-IN);
+        container.push((8005, [7u32, 1, 0, 1].iter().flat_map(|v| v.to_le_bytes()).collect()));
+        container.push((8000, transparency_block(0.0, 100.0, Some([-IN, 0, 0, 0]))));
+        container.push((1000, b"Frame\0".to_vec()));
+        let file = build::list(
+            b"RIFF",
+            b"CDR9",
+            &[
+                build::list(b"LIST", b"filt", &[build::chunk(b"fild", &fill)]),
+                // The PowerClip's contents, by `spnd` id 7.
+                build::list(b"LIST", b"clpt", &[build::list(b"LIST", b"grp ", &[build::chunk(b"spnd", &7u32.to_le_bytes()), obj(filled(-IN / 2))])]),
+                build::list(b"LIST", b"page", &[build::chunk(b"flgs", &0x0098_0000u32.to_le_bytes())]),
+                build::list(
+                    b"LIST",
+                    b"page",
+                    &[
+                        build::chunk(b"flgs", &0u32.to_le_bytes()),
+                        build::chunk(b"loda", &loda32(0x00, &[(0x4aba, page_size)])),
+                        build::list(
+                            b"LIST",
+                            b"layr",
+                            &[
+                                build::chunk(b"loda", &loda32(0x00, &[(1000, b"Art\0".to_vec())])),
+                                // Front first: the container, then a group of two triangles.
+                                obj(container),
+                                build::list(b"LIST", b"grp ", &[obj(filled(0)), obj(filled(-IN))]),
+                            ],
+                        ),
+                        build::list(b"LIST", b"layr", &[build::chunk(b"loda", &loda32(0x11, &[]))]),
+                    ],
+                ),
+            ],
+        );
+        let riff = crate::riff::parse(&file, &crate::Limits::default()).unwrap();
+        let t = translate(&riff, None);
+        assert!(t.errors.is_empty(), "{:?}", t.errors);
+        let page = &t.pages[1];
+        let layers: Vec<_> = page.layers.iter().map(|l| (l.name.as_deref(), l.kind)).collect();
+        assert_eq!(layers, [(Some("Desktop"), LayerKind::Desktop), (Some("Art"), LayerKind::Drawing)], "bottom first");
+        let art = &page.layers[1].shapes;
+        assert_eq!(art.len(), 3, "the group, then the container's fill and its clipped contents");
+        let Content::Group { children, clip: false } = &art[0].content else { panic!("{:?}", art[0].content) };
+        assert_eq!(children.len(), 2);
+        // The container: its fill, faded (opacity mask) with its average opacity and its name.
+        assert_eq!((art[1].opacity, art[1].name.as_deref()), (0.5, Some("Frame")));
+        let f = art[1].fade.unwrap();
+        assert_eq!((f.from, f.to, f.opacity), (Point::new(0.0, 72.0), Point::new(72.0, 72.0), (0.0, 1.0)));
+        assert!(art[1].appearance.stroke().is_none());
+        // Then a clip group: the container's outline, then the `clpt` contents.
+        let Content::Group { children, clip: true } = &art[2].content else { panic!("{:?}", art[2].content) };
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0].path().unwrap().bounds(), art[1].path().unwrap().bounds());
+        assert!(children[0].appearance.items.is_empty());
+        let Content::Group { children: inner, clip: false } = &children[1].content else { panic!("{:?}", children[1].content) };
+        assert_eq!(inner[0].path().unwrap().bounds().map(|b| (b.x0, b.x1)), Some((36.0, 108.0)));
+        assert_eq!(page.shapes().len(), 8);
+        assert_eq!(page.leaves().len(), 5);
+    }
+
+    #[test]
+    fn version_17_fountains_lie_on_their_frame() {
+        let f = Fountain {
+            kind: 1,
+            edge_pad: 10,
+            angle: -std::f64::consts::FRAC_PI_2,
+            center: (0, 0),
+            mode: 0,
+            midpoint: 0.5,
+            stops: vec![(0.0, CorelColor { model: 5, palette: 0, value: 0 }), (1.0, CorelColor { model: 5, palette: 0, value: 0xff })],
+            // Centre half a box below the box's, the ramp twice the box's height, downwards.
+            frame: Some([0.0, -0.5, 0.0, 2.0, -1.0, 0.0]),
+        };
+        let local = Rect::new(0.0, 0.0, 1.0, 1.0);
+        assert_eq!(Fountain::frame_ends(f.frame.unwrap(), local), Some((Point::new(0.5, 1.0), Point::new(0.5, -1.0))));
+        let to_doc = PageSpace { width_in: 2.0, height_in: 2.0 }.to_document();
+        let doc = to_doc.transform_rect_bbox(local);
+        let mut notes = Vec::new();
+        let paint = CorelFill::Fountain(f.clone()).to_fill_on(Some(doc), Some((local, to_doc)), &mut notes).map(|l| l.paint);
+        let Some(Paint::Gradient(g)) = paint else { panic!("{paint:?}") };
+        let g = g.geom.unwrap();
+        assert_eq!((g.start, g.end), (Point::new(108.0, 0.0), Point::new(108.0, 144.0)), "the frame, not the pad");
+        // Without the object's own box, the angle and pad lay it out.
+        let paint = CorelFill::Fountain(f).to_fill(Some(doc), &mut notes).map(|l| l.paint);
+        let Some(Paint::Gradient(g)) = paint else { panic!() };
+        assert_eq!(g.geom.unwrap().start.y, 7.2);
     }
 
     #[test]
@@ -2270,7 +2804,7 @@ mod tests {
         let riff = crate::riff::parse(&bytes, &crate::Limits::default()).unwrap();
         let t = translate(&riff, None);
         assert!(t.errors.is_empty() && t.skipped.is_empty(), "{:?} {:?}", t.errors, t.skipped);
-        let shapes = &t.pages[0].shapes;
+        let shapes = t.pages[0].leaves();
         // Bottom first: paragraph text, artistic text, pie, rectangle.
         assert_eq!(shapes.len(), 4);
         let para = shapes[0].text().unwrap();
@@ -2327,6 +2861,7 @@ mod tests {
             texts: &texts,
             bitmaps: &no_bitmaps,
             arrows: &BTreeMap::new(),
+            clips: BTreeMap::new(),
         };
         let mut notes = Vec::new();
         let t = ctx.text_object(TextFrame::Artistic, Some(5), Affine::IDENTITY, Affine::IDENTITY, &mut notes);
@@ -2446,7 +2981,7 @@ mod tests {
         let riff = crate::riff::parse(&bytes, &crate::Limits::default()).unwrap();
         let t = translate(&riff, None);
         assert!(t.errors.is_empty() && t.skipped.is_empty(), "{:?} {:?}", t.errors, t.skipped);
-        let shapes = &t.pages[0].shapes;
+        let shapes = t.pages[0].leaves();
         assert_eq!(shapes.len(), 3);
         // Bottom first: bitmap, spline, pentagon.
         let Content::Image { bitmap, xf } = &shapes[0].content else { panic!("{:?}", shapes[0].content) };

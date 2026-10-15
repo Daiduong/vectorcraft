@@ -112,10 +112,14 @@ fn report(i: &Imported) {
         eprintln!("saved by: {p}");
     }
     let pages: Vec<_> = i.translation.pages.iter().filter(|p| !p.master).collect();
-    let shapes = pages.iter().flat_map(|p| &p.shapes);
-    let text = shapes.clone().filter(|s| s.text().is_some()).count();
-    let images = shapes.clone().filter(|s| matches!(s.content, cdr::geometry::Content::Image { .. })).count();
-    eprintln!("pages: {}, paths: {}, text: {text}, images: {images}", pages.len(), shapes.count() - text - images);
+    let leaves: Vec<_> = pages.iter().flat_map(|p| p.leaves()).collect();
+    let text = leaves.iter().filter(|s| s.text().is_some()).count();
+    let images = leaves.iter().filter(|s| matches!(s.content, cdr::geometry::Content::Image { .. })).count();
+    let groups = pages.iter().flat_map(|p| p.shapes()).filter(|s| matches!(s.content, cdr::geometry::Content::Group { .. })).count();
+    let layers: Vec<String> =
+        pages.iter().flat_map(|p| &p.layers).filter(|l| l.kind.is_art()).map(|l| l.name.clone().unwrap_or_else(|| "(unnamed)".into())).collect();
+    eprintln!("pages: {}, paths: {}, text: {text}, images: {images}, groups: {groups}", pages.len(), leaves.len() - text - images);
+    eprintln!("layers: {}", layers.join(", "));
     for w in &i.warnings {
         eprintln!("warning: {w}");
     }
@@ -147,7 +151,8 @@ fn validate(i: &Imported, json: &[u8], pretty: bool) -> Result<Vec<String>, Stri
     if !finite {
         return Err("a path, type or image placement has a non-finite coordinate".into());
     }
-    let expected: usize = i.translation.pages.iter().filter(|p| !p.master).map(|p| p.shapes.len()).sum();
+    let expected: usize =
+        i.translation.pages.iter().filter(|p| !p.master).flat_map(|p| &p.layers).filter(|l| l.kind.is_art()).flat_map(|l| &l.shapes).map(kept).sum();
     if objects != expected {
         return Err(format!("{objects} path, type and image node(s) in the document, {expected} translated"));
     }
@@ -178,4 +183,18 @@ fn count_objects(doc: &Document, objects: &mut usize, finite: &mut bool) {
         }
     }
     doc.layers.iter().for_each(|l| walk(l, objects, finite));
+}
+
+/// How many path, type and image nodes the import makes of a shape (as `cdr::import` keeps them:
+/// empty paths and clip groups with nothing to clip are left out).
+fn kept(s: &cdr::geometry::Shape) -> usize {
+    use cdr::geometry::Content;
+    match &s.content {
+        Content::Path { path, .. } if path.is_empty() => 0,
+        Content::Group { children, clip } => {
+            let direct = children.iter().filter(|c| kept(c) > 0).count();
+            if direct == 0 || (*clip && direct < 2) { 0 } else { children.iter().map(kept).sum() }
+        }
+        _ => 1,
+    }
 }

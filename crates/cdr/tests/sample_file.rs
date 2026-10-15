@@ -159,13 +159,13 @@ fn x4_sample_geometry() {
     // paths, artistic text is type, and the bitmap is the only object left.
     let count = |k: &str| meta.object_counts.get(k).copied().unwrap() as usize;
     assert_eq!(t.skipped.iter().map(|(k, n)| (k.as_str(), *n)).collect::<Vec<_>>(), []);
-    let shapes: Vec<_> = t.pages.iter().flat_map(|p| &p.shapes).collect();
+    let shapes: Vec<_> = t.pages.iter().flat_map(|p| p.leaves()).collect();
     let paths: Vec<_> = shapes.iter().filter_map(|s| s.path()).collect();
     let texts: Vec<_> = shapes.iter().filter_map(|s| s.text()).collect();
     assert_eq!((paths.len(), texts.len()), (count("Curve") + count("Rect"), count("Text")));
 
     // A master page with no objects, then the Letter page.
-    assert_eq!(t.pages.iter().map(|p| (p.index, p.shapes.len())).collect::<Vec<_>>(), [(0, 0), (1, 17)]);
+    assert_eq!(t.pages.iter().map(|p| (p.index, p.leaves().len())).collect::<Vec<_>>(), [(0, 0), (1, 17)]);
     assert_eq!(t.pages[1].page.size_pt(), (612.0, 792.0));
 
     // The bitmap: 600 × 608 pixels at half scale, where the thumbnail shows the screenshot.

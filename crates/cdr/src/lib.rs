@@ -25,6 +25,7 @@ pub mod geometry;
 pub mod import;
 pub mod metadata;
 pub mod package;
+pub mod palettes;
 pub mod riff;
 #[cfg(any(test, feature = "synth"))]
 pub mod synth;

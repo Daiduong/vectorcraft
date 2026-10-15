@@ -57,7 +57,8 @@ pub fn decode_bmp(data: &[u8], version: CdrVersion) -> Result<(u32, Bitmap), Err
     let size = u32_at(data, at + 28)? as usize;
     at += 64;
     let mut palette = Vec::new();
-    if bpp < 24 && model != 5 && model != 6 {
+    // Model 99 (8-bit, no palette) is how version 17+ files store masks and greyscale images.
+    if bpp < 24 && model != 5 && model != 6 && model != 99 {
         let n = data.get(at + 2..at + 4).map(|b| usize::from(u16::from_le_bytes([b[0], b[1]]))).ok_or_else(|| short(at, data.len()))?;
         at += 4;
         let n = n.min(data.len().saturating_sub(at) / 3);
@@ -69,7 +70,37 @@ pub fn decode_bmp(data: &[u8], version: CdrVersion) -> Result<(u32, Bitmap), Err
         at += 3 * n;
     }
     let pixels = data.get(at..at.saturating_add(size)).ok_or_else(|| short(at, data.len()))?;
-    Ok((id, decode_pixels(model, width, height, bpp, &palette, pixels)?))
+    let mut bitmap = decode_pixels(model, width, height, bpp, &palette, pixels)?;
+    // Version 17+ (read from the user's samples): an alpha channel may follow the pixels, an image
+    // record of its own (`RI`, model 99, 8 bits a pixel, the same size) whose data starts 78 bytes
+    // in; 0 is transparent and 255 opaque.
+    if let Some(alpha) = data.get(at.saturating_add(size)..).and_then(|rest| alpha_block(rest, width, height)) {
+        for (px, a) in bitmap.rgba.chunks_exact_mut(4).zip(alpha) {
+            px[3] = a;
+        }
+    }
+    Ok((id, bitmap))
+}
+
+/// An alpha channel after an image's pixels: top row first, `width` × `height` bytes.
+fn alpha_block(rest: &[u8], width: u32, height: u32) -> Option<Vec<u8>> {
+    if rest.get(0..2) != Some(b"RI") {
+        return None;
+    }
+    let (model, w, h, bpp) = (u32_at(rest, 14).ok()?, u32_at(rest, 22).ok()?, u32_at(rest, 26).ok()?, u32_at(rest, 34).ok()?);
+    let (line, size) = (u32_at(rest, 38).ok()? as usize, u32_at(rest, 42).ok()? as usize);
+    if model != 99 || bpp != 8 || w != width || h != height || line < w as usize {
+        return None;
+    }
+    let data = rest.get(78..78usize.checked_add(size)?)?;
+    let (w, h) = (w as usize, h as usize);
+    let mut out = vec![255u8; w * h];
+    // Rows bottom first, as the image's.
+    for j in 0..h {
+        let row = data.get(j * line..j * line + w)?;
+        out.get_mut((h - 1 - j) * w..(h - j) * w)?.copy_from_slice(row);
+    }
+    Some(out)
 }
 
 fn from_bmp_file(file: &[u8]) -> Result<Bitmap, Error> {
@@ -131,6 +162,8 @@ pub fn decode_pixels(model: u32, width: u32, height: u32, bpp: u32, palette: &[u
                 }
             }
             (5, _) => row.iter().take(w).enumerate().for_each(|(k, &c)| put(k, rgba(u32::from(c)))),
+            // An 8-bit mask or grey image (version 17+): 0 black, 255 white.
+            (99, 8) => row.iter().take(w).enumerate().for_each(|(k, &c)| put(k, [c, c, c, 255])),
             _ if !palette.is_empty() => {
                 for (k, &c) in row.iter().take(w).enumerate() {
                     let entry = palette.get(usize::from(c)).or(palette.last()).copied().unwrap_or(0);
@@ -193,6 +226,8 @@ mod tests {
         assert!(decode_pixels(1, 0, 1, 24, &[], &[]).is_err());
         assert!(decode_pixels(1, u32::MAX, u32::MAX, 24, &[], &[]).is_err());
         assert!(decode_pixels(1, 1, 1, 16, &[], &[0, 0]).is_err());
+        let mask = decode_pixels(99, 2, 1, 8, &[], &[0, 255, 0, 0]).unwrap();
+        assert_eq!(mask.rgba, [0, 0, 0, 255, 255, 255, 255, 255]);
     }
 
     #[test]
@@ -212,6 +247,18 @@ mod tests {
         for n in 0..rec.len() {
             let _ = decode_bmp(&rec[..n], CdrVersion(900));
         }
+        // Version 17: an alpha block after the pixels (an image record of model 99).
+        let mut with_alpha = rec.clone();
+        with_alpha.extend_from_slice(b"RI");
+        with_alpha.extend_from_slice(&[0; 12]);
+        for (at, v) in [(14usize, 99u32), (22, 1), (26, 1), (34, 8), (38, 4), (42, 4)] {
+            with_alpha.resize(with_alpha.len().max(rec.len() + at + 4), 0);
+            with_alpha[rec.len() + at..rec.len() + at + 4].copy_from_slice(&v.to_le_bytes());
+        }
+        with_alpha.resize(rec.len() + 78, 0);
+        with_alpha.extend_from_slice(&[128, 0, 0, 0]);
+        let (_, b) = decode_bmp(&with_alpha, CdrVersion(1700)).unwrap();
+        assert_eq!(b.rgba, [30, 20, 10, 128]);
         // Version 4: a whole BMP file after a 16-bit id.
         let mut file = Vec::new();
         image::RgbaImage::from_pixel(2, 1, image::Rgba([1, 2, 3, 255]))
