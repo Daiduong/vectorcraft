@@ -3113,6 +3113,53 @@
 	{warning}: click to correct to the closest color ({hex})	{warning}: انقر للتصحيح إلى أقرب لون ({hex})
 	“{file}” is protected by a password.	«{file}» محمي بكلمة سر.
 	● Recording	● جارٍ التسجيل
+# The shortcut-set import dialog, the precise cursors preference, the 3D lighting and the
+# save/export errors that landed on main after this catalog's last pass.
+	A later row takes this shortcut	صف لاحق يأخذ هذا الاختصار
+	Add to the Current Shortcuts	إضافة إلى الاختصارات الحالية
+	Ambient Light	إضاءة محيطة
+	Bottom Left:	أسفل اليسار:
+	Bottom Right:	أسفل اليمين:
+	Can't export “{name}”.	لا يمكن تصدير «{name}».
+	Can't save “{name}”.	لا يمكن حفظ «{name}».
+	Click, then press the key this code stands for (Esc cancels)	انقر ثم اضغط المفتاح الذي يمثله هذا الرمز (Esc للإلغاء)
+	Drawer menu	قائمة الدرج
+	Enhanced	محسّن
+	Forget Import Matches	نسيان تطابقات الاستيراد
+	Import Matches	تطابقات الاستيراد
+	Import Shortcut Set	استيراد طقم اختصارات
+	Import Shortcut Set…	استيراد طقم اختصارات…
+	In VectorCraft	في VectorCraft
+	In the File	في الملف
+	Keys	المفاتيح
+	Light behind the object	ضوء خلف الكائن
+	Line {line}	سطر {line}
+	Line {line}: {name}: {status}	سطر {line}: {name}: {status}
+	Needs Attention Only	يحتاج انتباهاً فقط
+	Needs a choice	يحتاج إلى اختيار
+	Needs a key	يحتاج إلى مفتاح
+	No equivalent	لا مقابل
+	Precise Cursors	مؤشرات دقيقة
+	Press a key…	اضغط مفتاحاً…
+	Read Shortcut Set File	قراءة ملف طقم الاختصارات
+	Ready	جاهز
+	Remember Import Matches	تذكّر تطابقات الاستيراد
+	Remember My Choices	تذكّر اختياراتي
+	Report copied	نُسخ التقرير
+	Same item as a later row	العنصر نفسه في صف لاحق
+	Shortcuts	الاختصارات
+	Single Corner Radius	نصف قطر واحد للزوايا
+	Softness	نعومة
+	Start from VectorCraft Defaults	البدء من افتراضيات VectorCraft
+	Toolbar: Show Controls	شريط الأدوات: إظهار عناصر التحكم
+	The file is too large to read in full, so only its first part is listed.	الملف أكبر من أن يُقرأ كاملاً، لذلك لا يُعرض إلا جزؤه الأول.
+	Tools take a single key (optionally with Shift)	تأخذ الأدوات مفتاحاً واحداً (مع Shift اختيارياً)
+	Top Left:	أعلى اليسار:
+	Top Right:	أعلى اليمين:
+	from the format's public description	من الوصف العام للتنسيق
+	from your earlier imports	من عمليات استيرادك السابقة
+	not known yet	غير معروف بعد
+	{ready} of {total} ready	{ready} من {total} جاهزة
 @plural	{n} item|{n} items	{n} عنصر|{n} عنصر|{n} عنصران|{n} عناصر|{n} عنصراً|{n} عنصر
 @plural	Color Table ({n} color)|Color Table ({n} colors)	جدول الألوان ({n} لون)|جدول الألوان ({n} لون)|جدول الألوان ({n} لونان)|جدول الألوان ({n} ألوان)|جدول الألوان ({n} لوناً)|جدول الألوان ({n} لون)
 @plural	Delete this {n} graphic style?|Delete these {n} graphic styles?	حذف نمط الرسوم ذي {n}؟|حذف نمط الرسوم ذي {n}؟|{n} حذف نمطي الرسوم؟|حذف {n} أنماط رسوم؟|حذف {n} نمط رسوم؟|حذف {n} نمط رسوم؟
