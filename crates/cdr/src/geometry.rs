@@ -1320,7 +1320,15 @@ impl CorelFill {
         let mut r = Reader::new(data, "fild", version);
         let id = r.u32()?;
         if x3 {
-            r.skip(8)?;
+            // The fill's own block header (8 bytes, tagged 0x514); CorelDRAW 2025 (version 29)
+            // puts a 16-byte identifier block (0x960) before it.
+            loop {
+                let (tag, len) = (r.u32()?, r.u32()? as usize);
+                if tag != 0x960 {
+                    break;
+                }
+                r.skip(len)?;
+            }
         }
         let fill = match r.u16()? {
             0 => Self::None,
@@ -2653,6 +2661,26 @@ mod tests {
         b[69..77].copy_from_slice(&start.to_le_bytes());
         b[77..85].copy_from_slice(&end.to_le_bytes());
         b
+    }
+
+    #[test]
+    fn version_29_fills_skip_their_identifier_block() {
+        // CorelDRAW 2025: the id, a 0x960 block holding a 16-byte identifier, then the fill's own
+        // 0x514 block as before.
+        let mut rec = 1u32.to_le_bytes().to_vec();
+        rec.extend_from_slice(&0x960u32.to_le_bytes());
+        rec.extend_from_slice(&16u32.to_le_bytes());
+        rec.extend_from_slice(&[0xab; 16]);
+        rec.extend_from_slice(&0x514u32.to_le_bytes());
+        rec.extend_from_slice(&0x4du32.to_le_bytes());
+        rec.extend_from_slice(&1u16.to_le_bytes());
+        rec.extend_from_slice(&[0; 13]);
+        rec.extend_from_slice(&color9(0x05, [0xde, 0xc3, 0x33, 0]));
+        let mut notes = Vec::new();
+        let (id, fill) = CorelFill::decode(&rec, CdrVersion(2900)).unwrap();
+        assert_eq!((id, fill.to_fill(None, &mut notes).map(|l| l.paint)), (1, Some(Paint::solid(Color::rgb8(0x33, 0xc3, 0xde)))));
+        // A record whose blocks run out is an error, not a panic.
+        assert!(CorelFill::decode(&rec[..30], CdrVersion(2900)).is_err());
     }
 
     #[test]
