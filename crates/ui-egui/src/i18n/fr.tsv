@@ -4808,3 +4808,92 @@ theme	Appearance	Apparence
 	Softness	Douceur
 	Ambient Light	Lumière ambiante
 	Light behind the object	Lumière derrière l'objet
+# French (fr) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
+#
+# Clean-room: written from the meaning of VectorCraft's English labels in standard French, using the
+# feature names French-speaking users of vector illustration software know (Plan de travail, Nuancier,
+# Contour, Fond, Tracé, Point d'ancrage, Plume, Sélection directe, Pathfinder, Motif, Paramètre
+# prédéfini, Calque). No other application's French localisation was copied. Labels use sentence case
+# (only the first word capitalised); commands use the infinitive (Ouvrir, Enregistrer, Afficher) and
+# sentences address the user as "vous". French typography: a no-break space before : ; ? ! and inside
+# « », the typographic apostrophe ’. Shortcut keys use their French key-cap names (Maj, Ctrl, Alt, Échap).
+#
+# Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
+# tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
+# names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
+# Photoshop-style raster effects (Effect menu, their dialogs).
+
+# Status and error messages too (`@msg` rows at the end, `COMPLETE_MESSAGES` in the tests).
+# A native speaker's review is welcome: keep the placeholders ({name}), the trailing "…" and the
+# leading/trailing spaces of fragments exactly as they are.
+
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+# Rectangular Grid click dialog.
+
+# Leading model (Paragraph panel menu, East Asian options).
+
+# About › Contributors / Models (credits.rs)
+
+# Status and error messages (`@msg`), translated where the status bar shows them; the message itself
+# stays English for agents and tests. `{_1}`, `{_2}` … stand for the `{}` of the format string, in order
+# (`complete_languages_translate_every_message` lists any that are missing). Command ids, parameter
+# names and values in backticks or code (`colorModel rgb`, `document.export`) stay as they are.
+
+# The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
+# Shared panel docking
+
+# Interactive Revolve controls.
+	Direction	Direction
+	Elevation	Élévation
+	Ambient	Lumière ambiante
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI fonctionne dans l'application native — il lui faut un moteur de modèles local.
+	Assistant	Assistant
+	Looking for a local model runtime…	Recherche d'un moteur de modèles local…
+	No local model runtime found.	Aucun moteur de modèles local trouvé.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI parle à un moteur de modèles sur cette machine — Ollama, LM Studio ou le serveur de llama.cpp — et jamais à un service cloud. Lancez-en un, puis Actualisez.
+	Runtime	Moteur
+	Task	Tâche
+	No model installed yet — see the Models tab.	Aucun modèle installé pour l'instant — voir l'onglet Modèles.
+	Ask	Demander
+	Thinking… {s}s	Réflexion… {s} s
+	This machine: {ram} GB RAM, {disk} GB free	Cette machine : {ram} Go de RAM, {disk} Go libres
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	Un seul téléchargement sert toutes les applications ArtCraft : le modèle arrive dans un dossier partagé qu'elles lisent toutes.
+	Disk {size}	Disque {size}
+	RAM {gb} GB	RAM {gb} Go
+	Fits this machine	Convient à cette machine
+	Needs {ram} GB of RAM	Exige {ram} Go de RAM
+	Needs {disk} GB of disk	Exige {disk} Go de disque
+	Download with Ollama	Télécharger avec Ollama
+	Save model file	Enregistrer le fichier du modèle
+	Delete file	Supprimer le fichier
+	Downloading… {pct}% — {note}	Téléchargement… {pct} % — {note}
+	Saving… {pct}%	Enregistrement… {pct} %
+	Saved in the shared folder	Enregistré dans le dossier partagé
+	Local and private	Local et privé
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI exécute un modèle Gemma local sur cette machine. Rien de ce que vous écrivez ici n'en sort : pas de compte, pas de service cloud, pas de télémétrie — le panneau parle à un moteur de modèles sur 127.0.0.1.
+	Limits	Limites
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	Un modèle local n'est pas un modèle de pointe du cloud : il peut se tromper, et une longue réponse prend son temps sur le processeur. Vérifiez tout ce qui est critique, et pesez la taille du modèle face à cette machine avant de le télécharger.
+	The shared folder:	Le dossier partagé :
+	Craft AI	Craft AI
+	Ask anything	Posez n'importe quelle question
+	Explain a path or shape	Expliquer un tracé ou une forme
+	Describe artwork (alt text)	Décrire l'illustration (texte alternatif)
+	Name this artwork	Nommer cette illustration
+	How do I…	Comment faire pour…
+	Export advice	Conseil d'exportation
+	Ask in any language	Posez vos questions dans n'importe quelle langue
+	Paste or describe the path, shapes or Pathfinder steps	Collez ou décrivez le tracé, les formes ou les étapes du Pathfinder
+	Describe the artwork for someone who cannot see it	Décrivez l'illustration pour quelqu'un qui ne la voit pas
+	What's in the file, for names	Ce que contient le fichier, pour le nommer
+	What you want to achieve	Ce que vous voulez obtenir
+	Where the artwork is going (web, print, other apps)	Où va l'illustration (web, impression, autres applications)
+	Best for: everyday help on the lightest machines	Idéal pour : l'aide quotidienne sur les machines les plus légères
+	Best for: a step up in quality, still light	Idéal pour : un cran de plus en qualité, toujours léger
+	Best for: balanced everyday and technical work	Idéal pour : l'équilibre du quotidien et du technique
+	Best for: near-flagship answers at MoE speed	Idéal pour : des réponses presque de pointe à la vitesse MoE
+	Best for: the deepest reasoning this family has	Idéal pour : le raisonnement le plus profond de cette famille

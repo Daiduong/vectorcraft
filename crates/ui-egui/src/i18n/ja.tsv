@@ -4374,3 +4374,94 @@ lighting	Light	ライト
 	Softness	柔らかさ
 	Ambient Light	環境光
 	Light behind the object	オブジェクトの背後のライト
+# Japanese (ja) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
+#
+# Clean-room: menu and feature names follow the names Japanese users of vector illustration
+# software know, written from the meaning of VectorCraft's English labels; no other application's
+# Japanese localisation was copied. Toggles read as their action (「…を表示」「…を隠す」).
+#
+# Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
+# tested) — and the status and error messages (`@msg` rows at the end, `COMPLETE_MESSAGES`, tested).
+# Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
+# names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
+
+# Panels, dialogs, tooltips, the hint bar and document tabs (from issue #217): written from the
+# meaning of the English labels in the vocabulary Japanese users of vector illustration software know.
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+# Rectangular Grid click dialog.
+# Built at run time (status messages, counts, section lists).
+
+# Strings added on main since the catalog was written (Layers panel, saved selections, Delete Anchor Points).
+
+# About › Contributors / Models (credits.rs)
+
+# The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
+
+# Photoshop-style raster effects (Effect menu, their dialogs).
+
+# Status and error messages (`@msg`), translated where the status bar shows them; the message itself
+# stays English for agents and tests. `{_1}`, `{_2}` … stand for the `{}` of the format string, in order
+# (`complete_languages_translate_every_message` lists any that are missing). Command ids, parameter
+# names and values in backticks or code (`colorModel rgb`, `document.export`) stay as they are.
+# Japanese: no final 。 (these are status lines, and reasons that follow a colon), unless the English ends
+# with a period; a space between Japanese text and an adjacent Latin word, number or {placeholder}.
+# tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
+# Shared panel docking
+
+# Revolve profile guidance.
+
+# Interactive Revolve controls.
+	Direction	方向
+	Elevation	仰角
+	Ambient	環境光
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI はネイティブアプリで動作します — ローカルのモデルランタイムが必要です。
+	Assistant	アシスタント
+	Looking for a local model runtime…	ローカルのモデルランタイムを探しています…
+	No local model runtime found.	ローカルのモデルランタイムが見つかりません。
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI はこのマシン上のモデルランタイム（Ollama、LM Studio、llama.cpp のサーバー）とだけ通信し、クラウドサービスとは決して通信しません。どれかを起動してから「更新」してください。
+	Runtime	ランタイム
+	Task	タスク
+	No model installed yet — see the Models tab.	モデルがまだインストールされていません — 「モデル」タブを参照してください。
+	Ask	質問
+	Thinking… {s}s	考えています… {s}秒
+	This machine: {ram} GB RAM, {disk} GB free	このマシン: RAM {ram} GB、空き {disk} GB
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	1 回のダウンロードで ArtCraft アプリすべてに対応します。モデルは共有フォルダーに置かれ、どのアプリからも読めます。
+	Disk {size}	ディスク {size}
+	RAM {gb} GB	RAM {gb} GB
+	Fits this machine	このマシンで動作します
+	Needs {ram} GB of RAM	RAM が {ram} GB 必要です
+	Needs {disk} GB of disk	ディスクが {disk} GB 必要です
+	Download with Ollama	Ollama でダウンロード
+	Save model file	モデルファイルを保存
+	Delete file	ファイルを削除
+	Downloading… {pct}% — {note}	ダウンロード中… {pct}% — {note}
+	Saving… {pct}%	保存中… {pct}%
+	Saved in the shared folder	共有フォルダーに保存済み
+	Local and private	ローカルでプライベート
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI はこのマシン上でローカルの Gemma モデルを実行します。ここに書いた内容が外に出ることはありません。アカウントもクラウドサービスもテレメトリーもなく、パネルは 127.0.0.1 のモデルランタイムとだけ通信します。
+	Limits	制限
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	ローカルモデルは最先端のクラウドモデルではありません。間違うことがあり、長い回答には CPU で時間がかかります。重要な事柄は必ず確認し、ダウンロード前にモデルのサイズをこのマシンと比べてください。
+	The shared folder:	共有フォルダー:
+	Craft AI	Craft AI
+	Ask anything	何でも質問
+	Explain a path or shape	パスやシェイプを説明
+	Describe artwork (alt text)	アートワークを説明（代替テキスト）
+	Name this artwork	このアートワークに名前を
+	How do I…	やりたいことは…
+	Export advice	書き出しの助言
+	Ask in any language	どの言語でも質問できます
+	Paste or describe the path, shapes or Pathfinder steps	パス・シェイプ・Pathfinder の手順を貼り付けるか説明してください
+	Describe the artwork for someone who cannot see it	見えない人のためにアートワークを説明してください
+	What's in the file, for names	名前に使う内容を教えてください
+	What you want to achieve	実現したいことを書いてください
+	Where the artwork is going (web, print, other apps)	アートワークの行き先（ウェブ、印刷、他のアプリ）
+	Best for: everyday help on the lightest machines	最適な用途: 最も軽いマシンでの日常的な助け
+	Best for: a step up in quality, still light	最適な用途: 品質を一段上げたいが、軽さはそのまま
+	Best for: balanced everyday and technical work	最適な用途: 日常と技術的な作業のバランス
+	Best for: near-flagship answers at MoE speed	最適な用途: MoE の速さで旗艦に迫る回答
+	Best for: the deepest reasoning this family has	最適な用途: このファミリーで最も深い推論

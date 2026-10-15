@@ -4651,3 +4651,78 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+# Polish (pl) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|few|many" forms).
+#
+# Clean-room: every entry is written from the meaning of VectorCraft's English label, following
+# common Polish desktop-software conventions (commands in the imperative: "Otwórz…", "Zapisz";
+# menus and panels as nouns); no other application's Polish localisation was consulted or copied.
+# Drafted with AI assistance (Claude) from the English meaning; not yet fully reviewed by a native
+# speaker.
+#
+# Vocabulary: obszar kompozycji (artboard), obszar roboczy (workspace), kompozycja (artwork),
+# ścieżka (path), punkt kontrolny (anchor point), uchwyt (handle), obrys (stroke), wypełnienie
+# (fill), gradient, próbki / próbka (Swatches panel, a swatch), wzorek (pattern), krycie
+# (opacity), przejście (blend), tryb mieszania (blending mode), ustawienie (preset), rozszerz
+# (expand), uwolnij (release), obrys obrazu (Image Trace), linie pomocnicze (guides), tekst
+# akapitowy / punktowy (area / point type), światło (tracking), interlinia (leading).
+# Tools are "Narzędzie <Name>" ("Narzędzie Pióro"). Counts without a plural row read "Label: {n}".
+#
+# Plurals: one (1), few (2–4, 22–24, … but not 12–14), many (0, 5–21, 25–31, …).
+#
+# Coverage: every menu string, tl! literal, plural, status and error message (enforced in tests:
+# `complete_menus` and `COMPLETE_MESSAGES`). Left in English on purpose (`MENU_KEEP_AS_IS` in the
+# tests): the product name, language names, OpenType, the built-in workspace names and the
+# bracketed perspective grid preset names. Keep placeholders, ellipses and the leading/trailing
+# spaces of fragments when editing.
+	Direction	Kierunek
+	Elevation	Wysokość
+	Ambient	Otoczenie
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI działa w aplikacji natywnej — potrzebuje lokalnego środowiska modeli.
+	Assistant	Asystent
+	Looking for a local model runtime…	Szukanie lokalnego środowiska modeli…
+	No local model runtime found.	Nie znaleziono lokalnego środowiska modeli.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI rozmawia ze środowiskiem modeli na tym komputerze — Ollama, LM Studio lub serwerem llama.cpp — i nigdy z usługą chmurową. Uruchom jedno i kliknij Odśwież.
+	Runtime	Środowisko
+	Task	Zadanie
+	No model installed yet — see the Models tab.	Nie ma jeszcze zainstalowanego modelu — zobacz kartę Modele.
+	Ask	Zapytaj
+	Thinking… {s}s	Myśli… {s} s
+	This machine: {ram} GB RAM, {disk} GB free	Ten komputer: {ram} GB RAM, wolne {disk} GB
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	Jedno pobranie obsługuje wszystkie aplikacje ArtCraft: model trafia do folderu współdzielonego, który wszystkie czytają.
+	Disk {size}	Dysk {size}
+	RAM {gb} GB	RAM {gb} GB
+	Fits this machine	Pasuje do tego komputera
+	Needs {ram} GB of RAM	Potrzebuje {ram} GB RAM
+	Needs {disk} GB of disk	Potrzebuje {disk} GB na dysku
+	Download with Ollama	Pobierz przez Ollama
+	Save model file	Zapisz plik modelu
+	Delete file	Usuń plik
+	Downloading… {pct}% — {note}	Pobieranie… {pct}% — {note}
+	Saving… {pct}%	Zapisywanie… {pct}%
+	Saved in the shared folder	Zapisano w folderze współdzielonym
+	Local and private	Lokalnie i prywatnie
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI uruchamia lokalny model Gemma na tym komputerze. Nic, co tu napiszesz, nie opuszcza tej maszyny: bez konta, bez usługi chmurowej, bez telemetrii — panel rozmawia ze środowiskiem modeli na 127.0.0.1.
+	Limits	Ograniczenia
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	Lokalny model to nie czołowy model z chmury: może się mylić, a długa odpowiedź na procesorze zajmuje chwilkę. Sprawdzaj wszystko krytyczne i przed pobraniem porównaj rozmiar modelu z tym komputerem.
+	The shared folder:	Folder współdzielony:
+	Craft AI	Craft AI
+	Ask anything	Zapytaj o cokolwiek
+	Explain a path or shape	Wyjaśnij ścieżkę lub kształt
+	Describe artwork (alt text)	Opisz grafikę (tekst alternatywny)
+	Name this artwork	Nazwij tę grafikę
+	How do I…	Jak zrobić…
+	Export advice	Rada o eksporcie
+	Ask in any language	Pytaj w dowolnym języku
+	Paste or describe the path, shapes or Pathfinder steps	Wklej lub opisz ścieżkę, kształty albo kroki Pathfinder
+	Describe the artwork for someone who cannot see it	Opisz grafikę dla osoby, która jej nie widzi
+	What's in the file, for names	Co jest w pliku, do nadania nazwy
+	What you want to achieve	Co chcesz osiągnąć
+	Where the artwork is going (web, print, other apps)	Dokąd pójdzie grafika (sieć, druk, inne aplikacje)
+	Best for: everyday help on the lightest machines	Najlepszy do: codziennej pomocy na najlżejszych maszynach
+	Best for: a step up in quality, still light	Najlepszy do: o stopień lepszej jakości, wciąż lekki
+	Best for: balanced everyday and technical work	Najlepszy do: równowagi codziennej i technicznej pracy
+	Best for: near-flagship answers at MoE speed	Najlepszy do: odpowiedzi blisko flagowych z prędkością MoE
+	Best for: the deepest reasoning this family has	Najlepszy do: najgłębszego rozumowania w tej rodzinie

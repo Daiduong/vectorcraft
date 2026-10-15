@@ -4362,3 +4362,65 @@ theme	Appearance	Giao diện
 	Softness	Độ mềm
 	Ambient Light	Ánh sáng môi trường
 	Light behind the object	Ánh sáng phía sau đối tượng
+# Vietnamese (vi) catalog. Same format as zh-hant.tsv: context <TAB> source <TAB> translation
+# (empty context = plain UI; `@id` = command id; `@plural` = plural forms;
+# other contexts = `tr_ctx`; `@msg` = status/error messages).
+#
+# Clean-room: translated from VectorCraft's English source using ordinary Vietnamese software
+# and vector-graphics vocabulary; no proprietary localisation resource was copied.
+# AI-assisted; native review welcome.
+#
+# Product/technology names, shortcut key names and intentional English menu names remain
+# untranslated where appropriate; the tests pin intentional keep-as-is entries.
+	Ambient	Ánh sáng môi trường
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+	Direction	Hướng
+	Elevation	Độ cao
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI chạy trong ứng dụng bản gốc — cần một trình chạy mô hình cục bộ.
+	Assistant	Trợ lý
+	Looking for a local model runtime…	Đang tìm trình chạy mô hình cục bộ…
+	No local model runtime found.	Không tìm thấy trình chạy mô hình cục bộ.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI chỉ nói chuyện với trình chạy mô hình trên máy này — Ollama, LM Studio hay máy chủ llama.cpp — và không bao giờ dùng dịch vụ đám mây. Hãy khởi chạy một trình rồi bấm Làm mới.
+	Runtime	Trình chạy
+	Task	Tác vụ
+	No model installed yet — see the Models tab.	Chưa có mô hình nào được cài — xem thẻ Mô hình.
+	Ask	Hỏi
+	Thinking… {s}s	Đang suy nghĩ… {s} giây
+	This machine: {ram} GB RAM, {disk} GB free	Máy này: RAM {ram} GB, còn trống {disk} GB
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	Tải một lần là dùng cho mọi ứng dụng ArtCraft: mô hình nằm trong một thư mục chung mà tất cả cùng đọc.
+	Disk {size}	Đĩa {size}
+	RAM {gb} GB	RAM {gb} GB
+	Fits this machine	Phù hợp máy này
+	Needs {ram} GB of RAM	Cần {ram} GB RAM
+	Needs {disk} GB of disk	Cần {disk} GB đĩa
+	Download with Ollama	Tải bằng Ollama
+	Save model file	Lưu tệp mô hình
+	Delete file	Xóa tệp
+	Downloading… {pct}% — {note}	Đang tải… {pct}% — {note}
+	Saving… {pct}%	Đang lưu… {pct}%
+	Saved in the shared folder	Đã lưu trong thư mục chung
+	Local and private	Cục bộ và riêng tư
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI chạy một mô hình Gemma cục bộ ngay trên máy này. Không gì bạn viết ở đây rời khỏi máy: không tài khoản, không dịch vụ đám mây, không đo đạc từ xa — bảng này chỉ nói chuyện với trình chạy mô hình trên 127.0.0.1.
+	Limits	Giới hạn
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	Mô hình cục bộ không phải mô hình đám mây tối thượng: nó có thể sai, và câu trả lời dài cần thời gian trên CPU. Hãy kiểm tra mọi thứ quan trọng, và cân nhắc kích thước mô hình với máy này trước khi tải.
+	The shared folder:	Thư mục chung:
+	Craft AI	Craft AI
+	Ask anything	Hỏi bất cứ điều gì
+	Explain a path or shape	Giải thích một đường nét hay hình
+	Describe artwork (alt text)	Mô tả tác phẩm (văn bản thay thế)
+	Name this artwork	Đặt tên cho tác phẩm này
+	How do I…	Làm thế nào để…
+	Export advice	Tư vấn xuất bản
+	Ask in any language	Hỏi bằng bất kỳ ngôn ngữ nào
+	Paste or describe the path, shapes or Pathfinder steps	Dán hoặc mô tả đường nét, hình và các bước Pathfinder
+	Describe the artwork for someone who cannot see it	Mô tả tác phẩm cho người không nhìn thấy được
+	What's in the file, for names	Trong tệp có gì, để đặt tên
+	What you want to achieve	Bạn muốn đạt được điều gì
+	Where the artwork is going (web, print, other apps)	Tác phẩm sẽ dùng ở đâu (web, in ấn, ứng dụng khác)
+	Best for: everyday help on the lightest machines	Phù hợp nhất: trợ giúp hằng ngày trên những máy nhẹ nhất
+	Best for: a step up in quality, still light	Phù hợp nhất: chất lượng nhích thêm một bậc, vẫn nhẹ
+	Best for: balanced everyday and technical work	Phù hợp nhất: cân bằng việc hằng ngày và việc kỹ thuật
+	Best for: near-flagship answers at MoE speed	Phù hợp nhất: câu trả lời gần hàng đầu với tốc độ MoE
+	Best for: the deepest reasoning this family has	Phù hợp nhất: suy luận sâu nhất mà dòng này có

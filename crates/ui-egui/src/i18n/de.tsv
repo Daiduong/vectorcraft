@@ -4335,3 +4335,104 @@ theme	Appearance	Erscheinungsbild
 	Softness	Weichheit
 	Ambient Light	Umgebungslicht
 	Light behind the object	Licht hinter dem Objekt
+# German (de) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
+#
+# Clean-room: written from the meaning of VectorCraft's English labels in standard German, using the
+# feature names German-speaking users of vector illustration software know (Zeichenfläche, Farbfelder,
+# Kontur, Fläche, Pfad, Ankerpunkt, Zeichenstift, Direktauswahl, Pathfinder, Muster, Vorgabe, Ebene,
+# Verlauf, Deckkraft, Schnittmaske, Verzerrungshülle). No other application's German localisation
+# resource, string table or product UI was consulted or copied; add entries the same way.
+#
+# Conventions: commands use the infinitive (Öffnen, Speichern, Einblenden) and sentences address the
+# user as "Sie"; nouns are capitalised as German requires, the rest of a label is not title-cased.
+# Tools are "<Name>-Werkzeug", dialogs "Dialogfeld „…“", panels "Bedienfeld „…“". Quotation marks are
+# „ “, the dash is –, prose uses the decimal comma and a space before % ("100 %"). Key names stay as
+# the menus show shortcuts (Shift, Ctrl, Alt, Esc), so a hint and its shortcut read alike. Status and
+# error messages keep the case of their English first word, as they are often shown after "…: ".
+#
+# Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
+# tested) — and the status and error messages. Left in English on purpose (`MENU_KEEP_AS_IS` in the
+# tests): the product name, language names, OpenType, the built-in workspace names and the bracketed
+# perspective grid preset names; `de-DE`, `de-AT`, `de-CH` and every other `de-*` locale resolve here.
+# Photoshop-style raster effects (Effect menu, their dialogs).
+
+# Status and error messages too (`@msg` rows at the end, `COMPLETE_MESSAGES` in the tests).
+# A native speaker's review is welcome: keep the placeholders ({name}), the trailing "…" and the
+# leading/trailing spaces of fragments exactly as they are.
+
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+# Rectangular Grid click dialog.
+
+# Leading model (Paragraph panel menu, East Asian options).
+
+# About › Contributors / Models (credits.rs)
+
+# Status and error messages (`@msg`), translated where the status bar shows them; the message itself
+# stays English for agents and tests. `{_1}`, `{_2}` … stand for the `{}` of the format string, in order
+# (`complete_languages_translate_every_message` lists any that are missing). Command ids, parameter
+# names and values in backticks or code (`colorModel rgb`, `document.export`) stay as they are.
+
+# The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
+# Added on landing: strings from features that landed after the catalog was written.
+# Raster effects: Pixelate, Texture, Video (Effect menu, their dialogs).
+# Libraries: groups, search, import and export.
+# Linked files changed on disk.
+# Window: the system's title bar (Windows, Linux).
+# Brush Options: Scatter, Art and Pattern brushes.
+# PSD files (opened and placed as their merged image).
+
+# 3D and Materials › Revolve: its options dialog and gizmos.
+	Ambient	Umgebungslicht
+	Direction	Richtung
+	Elevation	Höhe
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI läuft in der nativen App — es braucht eine lokale Modell-Laufzeit.
+	Assistant	Assistent
+	Looking for a local model runtime…	Suche nach einer lokalen Modell-Laufzeit…
+	No local model runtime found.	Keine lokale Modell-Laufzeit gefunden.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI spricht mit einer Modell-Laufzeit auf diesem Rechner — Ollama, LM Studio oder llama.cpps Server — und nie mit einem Cloud-Dienst. Starten Sie eine und klicken Sie auf „Neu laden“.
+	Runtime	Laufzeit
+	Task	Aufgabe
+	No model installed yet — see the Models tab.	Noch kein Modell installiert — siehe Reiter „Modelle“.
+	Ask	Fragen
+	Thinking… {s}s	Denkt nach… {s} s
+	This machine: {ram} GB RAM, {disk} GB free	Dieser Rechner: {ram} GB RAM, {disk} GB frei
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	Ein Download reicht für alle ArtCraft-Apps: Das Modell landet in einem gemeinsamen Ordner, den alle lesen.
+	Disk {size}	Speicher {size}
+	RAM {gb} GB	RAM {gb} GB
+	Fits this machine	Passt auf diesen Rechner
+	Needs {ram} GB of RAM	Braucht {ram} GB RAM
+	Needs {disk} GB of disk	Braucht {disk} GB Speicher
+	Download with Ollama	Mit Ollama laden
+	Save model file	Modelldatei speichern
+	Delete file	Datei löschen
+	Downloading… {pct}% — {note}	Wird geladen… {pct} % — {note}
+	Saving… {pct}%	Wird gespeichert… {pct} %
+	Saved in the shared folder	Im gemeinsamen Ordner gespeichert
+	Local and private	Lokal und privat
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI führt ein lokales Gemma-Modell auf diesem Rechner aus. Nichts, was Sie hier schreiben, verlässt ihn: kein Konto, kein Cloud-Dienst, keine Telemetrie — das Panel spricht mit einer Modell-Laufzeit auf 127.0.0.1.
+	Limits	Grenzen
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	Ein lokales Modell ist kein Spitzengroßmodell aus der Cloud: Es kann sich irren, und lange Antworten brauchen auf der CPU ihre Zeit. Prüfen Sie alles Entscheidende und bedenken Sie die Modellgröße gegen diesen Rechner vor dem Download.
+	The shared folder:	Der gemeinsame Ordner:
+	Craft AI	Craft AI
+	Ask anything	Fragen Sie alles
+	Explain a path or shape	Einen Pfad oder eine Form erklären
+	Describe artwork (alt text)	Grafik beschreiben (Alternativtext)
+	Name this artwork	Diese Grafik benennen
+	How do I…	Wie funktioniert…
+	Export advice	Export-Beratung
+	Ask in any language	Fragen Sie in jeder Sprache
+	Paste or describe the path, shapes or Pathfinder steps	Fügen Sie den Pfad, die Formen oder die Pathfinder-Schritte ein oder beschreiben Sie sie
+	Describe the artwork for someone who cannot see it	Beschreiben Sie die Grafik für jemanden, der sie nicht sehen kann
+	What's in the file, for names	Was in der Datei steckt, für Namen
+	What you want to achieve	Was Sie erreichen möchten
+	Where the artwork is going (web, print, other apps)	Wohin die Grafik geht (Web, Druck, andere Apps)
+	Best for: everyday help on the lightest machines	Am besten für: alltägliche Hilfe auf den leichtesten Rechnern
+	Best for: a step up in quality, still light	Am besten für: eine Stufe mehr Qualität, weiterhin leicht
+	Best for: balanced everyday and technical work	Am besten für: die Balance aus Alltäglichem und Technischem
+	Best for: near-flagship answers at MoE speed	Am besten für: Antworten nahe der Spitzenklasse, mit MoE-Tempo
+	Best for: the deepest reasoning this family has	Am besten für: das tiefste Abwägen, das diese Familie hat

@@ -4376,3 +4376,91 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+# Russian (ru) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
+#
+# Clean-room: written from the meaning of VectorCraft's English labels in neutral, international
+# Russian, using the feature names Russian-speaking users of vector illustration software know
+# (Монтажная область, Образцы, Обводка, Заливка, Обработка контуров, Узор, Набор, Опорная точка,
+# Перо, Прямое выделение). Shortcut keys keep their key-cap names (Shift, Alt, Ctrl, Esc).
+#
+# Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
+# tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
+# names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
+# Photoshop-style raster effects (Effect menu, their dialogs).
+
+# Status and error messages too (`@msg` rows at the end, `COMPLETE_MESSAGES` in the tests).
+# A native speaker's review is welcome: keep the placeholders ({name}), the trailing "…" and the
+# leading/trailing spaces of fragments exactly as they are.
+
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+# Rectangular Grid click dialog.
+
+# Leading model (Paragraph panel menu, East Asian options).
+
+# About › Contributors / Models (credits.rs)
+
+# Status and error messages (`@msg`), translated where the status bar shows them; the message itself
+# stays English for agents and tests. `{_1}`, `{_2}` … stand for the `{}` of the format string, in order
+# (`complete_languages_translate_every_message` lists any that are missing). Command ids, parameter
+# names and values in backticks or code (`colorModel rgb`, `document.export`) stay as they are.
+
+# The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
+# Shared panel docking
+
+# Revolve profile guidance.
+
+# Interactive Revolve controls.
+	Direction	Направление
+	Elevation	Высота
+	Ambient	Фоновое освещение
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI работает в нативном приложении — ему нужна локальная среда запуска моделей.
+	Assistant	Ассистент
+	Looking for a local model runtime…	Идёт поиск локальной среды запуска моделей…
+	No local model runtime found.	Локальная среда запуска моделей не найдена.
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI говорит со средой запуска моделей на этой машине — Ollama, LM Studio или сервером llama.cpp — и никогда с облачным сервисом. Запустите одну из них и нажмите «Обновить».
+	Runtime	Среда
+	Task	Задача
+	No model installed yet — see the Models tab.	Модель ещё не установлена — см. вкладку «Модели».
+	Ask	Спросить
+	Thinking… {s}s	Думает… {s} с
+	This machine: {ram} GB RAM, {disk} GB free	Эта машина: ОЗУ {ram} ГБ, свободно {disk} ГБ
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	Одна загрузка обслуживает все приложения ArtCraft: модель попадает в общую папку, которую читают все.
+	Disk {size}	Диск {size}
+	RAM {gb} GB	ОЗУ {gb} ГБ
+	Fits this machine	Подходит этой машине
+	Needs {ram} GB of RAM	Нужно {ram} ГБ ОЗУ
+	Needs {disk} GB of disk	Нужно {disk} ГБ на диске
+	Download with Ollama	Скачать через Ollama
+	Save model file	Сохранить файл модели
+	Delete file	Удалить файл
+	Downloading… {pct}% — {note}	Скачивание… {pct}% — {note}
+	Saving… {pct}%	Сохранение… {pct}%
+	Saved in the shared folder	Сохранено в общей папке
+	Local and private	Локально и приватно
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI запускает локальную модель Gemma прямо на этой машине. Написанное здесь никуда не уходит: ни аккаунта, ни облачного сервиса, ни телеметрии — панель говорит со средой запуска моделей на 127.0.0.1.
+	Limits	Ограничения
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	Локальная модель — не передовая облачная: она может ошибаться, и длинный ответ на процессоре занимает время. Проверяйте всё важное и соотносите размер модели с этой машиной до загрузки.
+	The shared folder:	Общая папка:
+	Craft AI	Craft AI
+	Ask anything	Спросите о чём угодно
+	Explain a path or shape	Объяснить контур или фигуру
+	Describe artwork (alt text)	Описать иллюстрацию (альтернативный текст)
+	Name this artwork	Назвать эту иллюстрацию
+	How do I…	Как сделать…
+	Export advice	Совет по экспорту
+	Ask in any language	Спрашивайте на любом языке
+	Paste or describe the path, shapes or Pathfinder steps	Вставьте или опишите контур, фигуры или шаги Pathfinder
+	Describe the artwork for someone who cannot see it	Опишите иллюстрацию для того, кто её не видит
+	What's in the file, for names	Что в файле — для названия
+	What you want to achieve	Чего вы хотите добиться
+	Where the artwork is going (web, print, other apps)	Куда пойдёт иллюстрация (веб, печать, другие приложения)
+	Best for: everyday help on the lightest machines	Лучше всего для: повседневной помощи на самых слабых машинах
+	Best for: a step up in quality, still light	Лучше всего для: качество на ступень выше, по-прежнему лёгкий
+	Best for: balanced everyday and technical work	Лучше всего для: баланса повседневных и технических задач
+	Best for: near-flagship answers at MoE speed	Лучше всего для: ответов почти флагманского уровня на скорости MoE
+	Best for: the deepest reasoning this family has	Лучше всего для: самого глубокого рассуждения в этом семействе

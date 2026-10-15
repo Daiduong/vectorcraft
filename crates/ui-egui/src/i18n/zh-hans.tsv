@@ -3957,3 +3957,85 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	环境光
 	Light behind the object	光源位于对象后方
+# Simplified Chinese (zh-hans) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
+# (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms, Chinese
+# has one). `{name}` placeholders must appear in both columns; the trailing "…" is kept.
+#
+# Vocabulary: the terms used in mainland China (文档, 画板, 描边, 色板, 蒙版, 首选项, 快捷键, 默认,
+# 撤销 ...), never Taiwan's (档案, 工作区域, 笔画, 色票, 遮色片, 偏好设定 ...; tested by
+# `zh_hans_is_simplified_and_mainland`), and a row and a column are 行 and 列. Many rows started from
+# this project's own zh-hant catalog. Clean-room: translate from the meaning of the English text; no
+# proprietary localisation resource, string table or product UI may be copied. Product and
+# technology names stay in Latin letters. Full-width punctuation (，。：“”) in sentences, half-width
+# parentheses.
+
+# Check Script (File › Scripts) and the report it shows on a script written for the reference app.
+# Rectangular Grid click dialog.
+
+# The Layers panel, the graphics processor preference and the font menu's filters.
+
+# Anchor points, saved selections, paragraph direction and mojikumi (landed alongside the catalog).
+
+# About › Contributors / Models (credits.rs)
+
+# The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
+
+# Photoshop-style raster effects (Effect menu, their dialogs).
+# Shared panel docking
+
+# Revolve profile guidance.
+
+# Interactive Revolve controls.
+	Direction	方向
+	Elevation	仰角
+	Ambient	环境光
+# Grid tool options (the Rectangular Grid and Polar Grid click dialogs).
+# 3D and Materials › Extrude & Bevel, Inflate and Rotate: options, Position presets and bevel shapes.
+
+# Craft AI: the built-in local assistant panel, its models and tasks.
+	Craft AI runs in the native app — it needs a local model runtime.	Craft AI 在原生应用中运行 — 需要本地模型运行环境。
+	Assistant	助手
+	Looking for a local model runtime…	正在寻找本地模型运行环境…
+	No local model runtime found.	找不到本地模型运行环境。
+	Craft AI talks to a model runtime on this machine — Ollama, LM Studio or llama.cpp's server — and never to a cloud service. Start one, then Refresh.	Craft AI 只与这台机器上的模型运行环境通信 — Ollama、LM Studio 或 llama.cpp 的服务器 — 绝不与云端服务通信。启动其中一个后点击“刷新”。
+	Runtime	运行环境
+	Task	任务
+	No model installed yet — see the Models tab.	尚未安装模型 — 见“模型”标签页。
+	Ask	询问
+	Thinking… {s}s	思考中… {s} 秒
+	This machine: {ram} GB RAM, {disk} GB free	这台机器：{ram} GB 内存、{disk} GB 可用
+	One download serves every ArtCraft app: the model lands in a shared folder all of them read.	下载一次即可供所有 ArtCraft 应用使用：模型放在所有应用共同读取的共享文件夹。
+	Disk {size}	磁盘 {size}
+	RAM {gb} GB	内存 {gb} GB
+	Fits this machine	适合这台机器
+	Needs {ram} GB of RAM	需要 {ram} GB 内存
+	Needs {disk} GB of disk	需要 {disk} GB 磁盘
+	Download with Ollama	用 Ollama 下载
+	Save model file	保存模型文件
+	Delete file	删除文件
+	Downloading… {pct}% — {note}	下载中… {pct}% — {note}
+	Saving… {pct}%	保存中… {pct}%
+	Saved in the shared folder	已存入共享文件夹
+	Local and private	本地且私有
+	Craft AI runs a local Gemma model on this machine. Nothing you write here leaves it: no account, no cloud service, no telemetry — the panel talks to a model runtime on 127.0.0.1.	Craft AI 在这台机器上运行本地 Gemma 模型。你在这里写的任何内容都不会离开这台机器：没有账户、没有云端服务、没有遥测 — 面板只与 127.0.0.1 上的模型运行环境通信。
+	Limits	局限
+	A local model is not a frontier cloud model: it can be wrong, and a long answer takes its time on CPU. Check anything critical, and mind a model's size against this machine before downloading it.	本地模型不是最先进的云端模型：它可能出错，较长的回答在处理器上需要时间。重要事项请务必核实，下载前也请留意模型大小与这台机器是否匹配。
+	The shared folder:	共享文件夹：
+	Craft AI	Craft AI
+	Ask anything	什么都可以问
+	Explain a path or shape	解释路径或形状
+	Describe artwork (alt text)	描述图稿（替代文字）
+	Name this artwork	为这幅图稿命名
+	How do I…	要怎么做…
+	Export advice	导出建议
+	Ask in any language	可以用任何语言提问
+	Paste or describe the path, shapes or Pathfinder steps	粘贴或描述路径、形状或 Pathfinder 步骤
+	Describe the artwork for someone who cannot see it	为看不见的人描述这幅图稿
+	What's in the file, for names	文件里有什么，用来命名
+	What you want to achieve	你想实现什么
+	Where the artwork is going (web, print, other apps)	图稿用在哪里（网页、印刷、其他应用）
+	Best for: everyday help on the lightest machines	最适合：在最轻量的机器上处理日常事务
+	Best for: a step up in quality, still light	最适合：品质再上一阶，依然轻巧
+	Best for: balanced everyday and technical work	最适合：日常与技术工作并重
+	Best for: near-flagship answers at MoE speed	最适合：以 MoE 速度给出接近旗舰级的回答
+	Best for: the deepest reasoning this family has	最适合：这个系列中最深入的推理
