@@ -161,7 +161,17 @@ pub fn fit(app: &mut VectorcraftApp, how: &str) {
     let Some(st) = app.session.active() else { return };
     let target = match how {
         "view.fitAll" => {
-            st.doc.art_bounds().map(|a| st.doc.artboards.iter().fold(a, |r, ab| r.union(ab.rect))).or(st.doc.artboards.first().map(|a| a.rect))
+            let da = st.doc.drawing_area();
+            let all_artboards = st.doc.artboards.first().map(|a| st.doc.artboards.iter().fold(a.rect, |r, ab| r.union(ab.rect)));
+            let art = st.doc.art_bounds().filter(|b| !st.doc.falls_off_drawing_area(*b));
+            let combined = match (all_artboards, art) {
+                (Some(abs), Some(art)) => abs.union(art),
+                (Some(abs), None) => abs,
+                (None, Some(art)) => art,
+                (None, None) => da,
+            };
+            let clamped = combined.intersect(da);
+            Some(if clamped.width() > 0.0 && clamped.height() > 0.0 { clamped } else { da })
         }
         // The navigator's artboard (the first if it has gone).
         _ => st.doc.artboards.get(current).or(st.doc.artboards.first()).map(|a| a.rect),
@@ -172,7 +182,8 @@ pub fn fit(app: &mut VectorcraftApp, how: &str) {
     } else {
         let zx = (rect.width() as f64 - 60.0) / target.width().max(1.0);
         let zy = (rect.height() as f64 - 60.0) / target.height().max(1.0);
-        zx.min(zy).clamp(0.0313, 640.0)
+        let min_z = if st.doc.is_large_canvas() { 0.00313 } else { 0.0313 };
+        zx.min(zy).clamp(min_z, 640.0)
     };
     let Some(v) = app.view_mut() else { return };
     v.center = target.center();
@@ -436,16 +447,27 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         // Guides on a hidden layer hide with it.
         for (i, g) in doc.guides.iter().enumerate().filter(|(_, g)| doc.guide_shown(g)) {
             let at = |along: f64| xf.to_screen(if g.vertical { Point::new(g.pos, along) } else { Point::new(along, g.pos) });
-            // An artboard guide runs across its artboard, a canvas guide across the window.
+            // An artboard guide runs across its artboard, a canvas guide across the drawing area.
             let (a, b) = match doc.guide_span(g) {
                 Some((from, to)) => (at(from), at(to)),
-                None if g.vertical => {
-                    let x = at(0.0).x;
-                    (pos2(x, rect.top()), pos2(x, rect.bottom()))
-                }
                 None => {
-                    let y = at(0.0).y;
-                    (pos2(rect.left(), y), pos2(rect.right(), y))
+                    let gb = doc.guide_bounds(g);
+                    if xf.rot.abs() < 1e-6 {
+                        if g.vertical {
+                            let x = at(0.0).x;
+                            let y0 = at(gb.y0).y.max(rect.top());
+                            let y1 = at(gb.y1).y.min(rect.bottom());
+                            (pos2(x, y0), pos2(x, y1))
+                        } else {
+                            let y = at(0.0).y;
+                            let x0 = at(gb.x0).x.max(rect.left());
+                            let x1 = at(gb.x1).x.min(rect.right());
+                            (pos2(x0, y), pos2(x1, y))
+                        }
+                    } else {
+                        let (from, to) = if g.vertical { (gb.y0, gb.y1) } else { (gb.x0, gb.x1) };
+                        (at(from), at(to))
+                    }
                 }
             };
             if selected.contains(&i) { picked } else { look }.guide(&painter, a, b);
@@ -5017,5 +5039,30 @@ mod tests {
         assert!(!app.ui.task_bar_place.pinned);
         near(select(&mut app, &a), under_a);
         near(select(&mut app, &b), under_b);
+    }
+
+    #[test]
+    fn fit_all_bounds_to_drawing_area_and_does_not_strand_in_void() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
+        let ctx = egui::Context::default();
+        let screen = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 800.0))), ..Default::default() };
+        let mut out = ctx.run_ui(screen, |ui| show(&mut app, ui));
+        out.textures_delta.clear();
+
+        // 1. Normal fitAll fits the 800x600 artboard:
+        app.run("view.fitAll", json!({})).unwrap();
+        let v = app.view().unwrap();
+        assert_eq!(v.center, Point::new(400.0, 300.0));
+        assert!(v.zoom > 0.5, "zoom was {}", v.zoom);
+
+        // 2. An object placed far away (e.g. 1.4 million pt):
+        // Previously this would expand fitAll to 1.4M pt and clamp zoom to 0.0313 at center 700k pt (blank canvas).
+        app.session.execute("shape.rectangle", &json!({"x": 1_400_000.0, "y": 0.0, "width": 100.0, "height": 100.0})).unwrap();
+        app.run("view.fitAll", json!({})).unwrap();
+        let v2 = app.view().unwrap();
+        let da = app.session.active().unwrap().doc.drawing_area();
+        assert!(da.contains(v2.center), "center {:?} must be within drawing area {:?}", v2.center, da);
+        assert!(v2.zoom > 0.05, "zoom was {}, not collapsed to min zoom", v2.zoom);
     }
 }
