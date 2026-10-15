@@ -213,6 +213,12 @@ pub struct TextStyle {
     pub char_spacing: Option<f64>,
     /// Line spacing as a fraction of the default (1 = the font's own).
     pub line_spacing: Option<f64>,
+    /// A character's own rotation, degrees counter-clockwise.
+    pub rotation: Option<f64>,
+    /// A character's vertical shift, ems (up).
+    pub rise: Option<f64>,
+    /// A character's horizontal shift, ems (right).
+    pub shift: Option<f64>,
 }
 
 impl TextStyle {
@@ -235,6 +241,9 @@ impl TextStyle {
         set(&mut self.indents, &over.indents);
         set(&mut self.char_spacing, &over.char_spacing);
         set(&mut self.line_spacing, &over.line_spacing);
+        set(&mut self.rotation, &over.rotation);
+        set(&mut self.rise, &over.rise);
+        set(&mut self.shift, &over.shift);
     }
 }
 
@@ -478,8 +487,11 @@ pub fn decode_txsm(data: &[u8], version: CdrVersion, fonts: &BTreeMap<u16, Font>
     for _ in 0..r.count()? {
         let style = r.u32()?;
         r.skip(1)?;
-        if v(1201) && frame_flag != 0 {
-            r.skip(1)?;
+        // Artistic text whose characters were moved one by one (rotated or shifted with the Shape
+        // tool) carries a 64-byte block here: a count, a value, a transform and 8 more bytes.
+        // Read from a user's version 14 file; libcdr skips only the flag.
+        if v(1201) && frame_flag != 0 && r.u8()? != 0 {
+            r.skip(64)?;
         }
         let mut overrides = BTreeMap::new();
         for i in 0..r.count()? {
@@ -496,10 +508,16 @@ pub fn decode_txsm(data: &[u8], version: CdrVersion, fonts: &BTreeMap<u16, Font>
             if fl2 & 0x04 != 0 {
                 s.size = Some(r.coord()?);
             }
-            for bit in [0x08, 0x10, 0x20] {
-                if fl2 & bit != 0 {
-                    r.skip(4)?;
-                }
+            // A character's rotation (millionths of a degree) and its horizontal and vertical
+            // shift (percent of the size). Measured against a user's version 14 file and its PDF.
+            if fl2 & 0x08 != 0 {
+                s.rotation = Some(f64::from(r.u32()? as i32) / 1e6).filter(|a| a.is_finite() && *a != 0.0);
+            }
+            if fl2 & 0x10 != 0 {
+                s.shift = Some(f64::from(r.u32()? as i32) / 100.0).filter(|x| *x != 0.0);
+            }
+            if fl2 & 0x20 != 0 {
+                s.rise = Some(f64::from(r.u32()? as i32) / 100.0).filter(|y| *y != 0.0);
             }
             if fl2 & 0x40 != 0 {
                 s.fill = Some(Ink::Record(r.u32()?));
@@ -1068,6 +1086,41 @@ mod tests {
         assert_eq!(parse_color(&spot), Some(CorelColor { model: 5, palette: 5, value: 0x0000_00ff }));
         assert_eq!(parse_color("RGB255,USER,1,2,3"), None, "no id");
         assert_eq!(parse_color(""), None);
+    }
+
+    #[test]
+    fn version_14_characters_moved_one_by_one() {
+        // Artistic text (frame flag set), one frame, one paragraph whose flag byte announces the
+        // 64-byte block, then a run style and a per-character style: rotation, shift and rise.
+        let le = |v: u32| v.to_le_bytes().to_vec();
+        let mut d = le(0xffff_ffff);
+        d.extend_from_slice(&[0; 0x20]);
+        d.extend(le(1)); // frames
+        d.extend(le(7)); // text id
+        d.extend_from_slice(&[0; 48]);
+        d.extend(le(0)); // not on a path
+        d.extend(le(1)); // paragraphs
+        d.extend(le(3)); // style
+        d.extend_from_slice(&[0, 1]);
+        d.extend_from_slice(&[0; 64]);
+        d.extend(le(2)); // styles
+        d.extend_from_slice(&[1, 0, 0, 0]); // the run's own: nothing set
+        d.extend_from_slice(&[1, 0, 0x38, 0]);
+        d.extend(le((-18_000_000i32) as u32));
+        d.extend(le(181));
+        d.extend(le((-72i32) as u32));
+        d.extend(le(2)); // characters, 8 bytes each: the second uses style 1 (key 2)
+        d.extend_from_slice(&[0; 8]);
+        d.extend_from_slice(&(2u64 << 16).to_le_bytes());
+        d.extend(le(2));
+        d.extend_from_slice(b"TA\0");
+        let (id, paras) = decode_txsm(&d, CdrVersion(1400), &BTreeMap::new()).unwrap();
+        assert_eq!((id, paras.len()), (7, 1));
+        let moved = paras[0].runs.iter().find(|r| r.style.rotation.is_some()).unwrap();
+        assert_eq!((moved.style.rotation, moved.style.shift, moved.style.rise), (Some(-18.0), Some(1.81), Some(-0.72)));
+        assert_eq!(moved.decoded(&TextStyle::default()), "A");
+        // Without its block the record is short: an error, not a panic.
+        assert!(decode_txsm(&d[..150], CdrVersion(1400), &BTreeMap::new()).is_err());
     }
 
     #[test]

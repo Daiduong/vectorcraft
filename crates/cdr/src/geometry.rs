@@ -595,6 +595,21 @@ pub fn fade(arg: &[u8]) -> Option<Fade> {
     (u32_at(45)? == 1 && from != to).then_some(Fade { from, to, opacity: (opacity(end), opacity(start)) })
 }
 
+/// A fill transform (`ftil`): six doubles, its translation in 1/254000 inch (libcdr's
+/// `readFtil`). `None` for anything not finite, flat or huge.
+pub fn decode_ftil(data: &[u8]) -> Option<Affine> {
+    let mut d = [0.0f64; 6];
+    for (i, x) in d.iter_mut().enumerate() {
+        let b = data.get(i * 8..i * 8 + 8)?;
+        *x = f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]);
+    }
+    // x' = v0 x + v1 y + v2, y' = v3 x + v4 y + v5.
+    let [v0, v1, v2, v3, v4, v5] = d;
+    let det = v0 * v4 - v1 * v3;
+    (d.iter().all(|v| v.is_finite()) && det.abs() > 1e-9 && [v0, v1, v3, v4].iter().all(|v| v.abs() < 1e4))
+        .then(|| Affine::new([v0, v3, v1, v4, v2 / 254_000.0, v5 / 254_000.0]))
+}
+
 /// A Bézier path record: points (inches, CorelDRAW space) and one node-type byte each.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CorelPath {
@@ -1309,8 +1324,32 @@ pub enum CorelFill {
     None,
     Solid(CorelColor),
     Fountain(Fountain),
-    /// Pattern (7), bitmap (9), full-colour (10), texture (11), PostScript and others.
+    /// A bitmap (9) or texture (11) fill: a bitmap of the file tiled over the object.
+    Tiled(TiledFill),
+    /// Pattern (7), full-colour (10), PostScript and others.
     Unsupported(u16),
+}
+
+/// A bitmap or texture fill: the `bmp ` record it tiles and the size of one tile.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TiledFill {
+    pub bitmap: u32,
+    pub width_in: f64,
+    pub height_in: f64,
+}
+
+/// A bitmap tiled by fills: the pattern a tiled fill is drawn with ([`tile_name`]).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tile {
+    pub bitmap: std::sync::Arc<crate::bitmap::Bitmap>,
+    /// One tile's size in points.
+    pub width_pt: f64,
+    pub height_pt: f64,
+}
+
+/// The name of the pattern drawn for fill `id` (a bitmap or texture fill).
+pub fn tile_name(id: u32) -> String {
+    format!("CorelDRAW fill {id}")
 }
 
 impl CorelFill {
@@ -1337,6 +1376,7 @@ impl CorelFill {
                 Self::Solid(CorelColor::read(&mut r)?)
             }
             2 => Self::Fountain(Self::fountain(&mut r)?),
+            t @ (9 | 11) => Self::tiled(&mut r).map_or(Self::Unsupported(t), Self::Tiled),
             t => Self::Unsupported(t),
         };
         Ok((id, fill))
@@ -1387,6 +1427,60 @@ impl CorelFill {
         Ok(Fountain { kind, edge_pad, angle, center, mode, midpoint, stops, frame })
     }
 
+    /// A bitmap or texture fill's bitmap and tile size, or `None` for a layout not read.
+    ///
+    /// Versions 13 and later: optional blocks (0x514 headers, 0x640 blocks) as libcdr skips them,
+    /// then the tile's width and height at bytes 20 and 24 and the bitmap's id at byte 32,
+    /// measured on a user's version 14 file whose four texture fills each name their own
+    /// bitmap. Before: libcdr's layout.
+    fn tiled(r: &mut Reader<'_>) -> Option<TiledFill> {
+        let v = r.version;
+        let size = |w: u32, h: u32| {
+            let (w, h) = (f64::from(w as i32) / 254_000.0, f64::from(h as i32) / 254_000.0);
+            (w > 0.0 && h > 0.0 && w < 1000.0 && h < 1000.0).then_some((w, h))
+        };
+        if v >= CdrVersion(1300) {
+            loop {
+                let at = r.pos;
+                match r.u32().ok()? {
+                    0x514 => {
+                        r.skip(4).ok()?;
+                    }
+                    0x640 => {
+                        let len = r.u32().ok()? as usize;
+                        r.skip(len).ok()?;
+                    }
+                    _ => {
+                        r.pos = at;
+                        break;
+                    }
+                }
+            }
+            let start = r.pos;
+            r.skip(20).ok()?;
+            let (w, h) = size(r.u32().ok()?, r.u32().ok()?)?;
+            r.pos = start + 32;
+            let bitmap = r.u32().ok()?;
+            return Some(TiledFill { bitmap, width_in: w, height_in: h });
+        }
+        if v < CdrVersion(600) {
+            return None;
+        }
+        r.skip(2).ok()?;
+        r.unsigned().ok()?;
+        let (w, h) = (r.unsigned().ok()?, r.unsigned().ok()?);
+        r.skip(4).ok()?; // tile offsets
+        r.skip(2).ok()?; // row or column offset
+        let flags = r.u8().ok()?;
+        if flags & 0x04 != 0 && v < CdrVersion(900) {
+            return None; // sized relative to the object: not read
+        }
+        r.skip(21).ok()?;
+        let bitmap = r.unsigned().ok()?;
+        let (w, h) = size(w, h)?;
+        Some(TiledFill { bitmap, width_in: w, height_in: h })
+    }
+
     /// The placement after a version 17 fountain's stops: 3 bytes, then eight doubles, the fifth
     /// and eighth of them zero. Anything else is left to the angle and pad.
     fn fountain_frame(r: &mut Reader<'_>) -> Option<[f64; 6]> {
@@ -1413,8 +1507,12 @@ impl CorelFill {
             Self::None => None,
             Self::Solid(c) => Some(FillLayer::new(Paint::solid(color_or_black(c, notes)))),
             Self::Fountain(f) => f.to_paint(bounds, local, notes).map(FillLayer::new),
+            Self::Tiled(_) => {
+                notes.push("a bitmap or texture fill on type is not translated".into());
+                None
+            }
             Self::Unsupported(t) => {
-                notes.push(format!("fill type {t} (pattern, bitmap, texture or PostScript) not translated"));
+                notes.push(format!("fill type {t} (pattern, full-colour or PostScript) not translated"));
                 None
             }
         }
@@ -1670,6 +1768,8 @@ pub struct Translation {
     pub skipped: BTreeMap<String, usize>,
     /// Records that could not be decoded (kind and reason).
     pub errors: Vec<String>,
+    /// The bitmaps that bitmap and texture fills tile, by pattern name ([`tile_name`]).
+    pub tiles: BTreeMap<String, Tile>,
 }
 
 /// Translate every Bézier path object of a RIFF tree. `default_page` is used until the file gives
@@ -1737,6 +1837,16 @@ pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams:
                 Err(e) => t.errors.push(e.to_string()),
             },
             _ => {}
+        }
+    }
+    for (id, f) in &fills {
+        if let CorelFill::Tiled(tf) = f
+            && let Some(b) = bitmaps.get(&tf.bitmap)
+        {
+            t.tiles.insert(
+                tile_name(*id),
+                Tile { bitmap: std::sync::Arc::clone(b), width_pt: tf.width_in * PT_PER_IN, height_pt: tf.height_in * PT_PER_IN },
+            );
         }
     }
     // Text styles and text name fonts, which the first walk collected.
@@ -1830,6 +1940,8 @@ struct Pending {
     clip: Option<u32>,
     opacity: Option<f32>,
     fade: Option<Fade>,
+    /// The fill's own transform (`ftil`), which bitmap and texture tiles follow.
+    fill_xf: Option<Affine>,
 }
 
 /// An object or a group of them, front first as CorelDRAW writes them.
@@ -2007,6 +2119,7 @@ impl Ctx<'_, '_> {
         let mut loda = None;
         let mut spnd = None;
         let mut ppdt = None;
+        let mut fill_xf = None;
         let mut matrices = Vec::new();
         let mut stack: Vec<&Chunk> = obj.children.iter().rev().collect();
         while let Some(c) = stack.pop() {
@@ -2014,7 +2127,7 @@ impl Ctx<'_, '_> {
                 Chunk::List(l) if l.list_type != FourCc::OBJECT => stack.extend(l.children.iter().rev()),
                 Chunk::List(_) => {}
                 Chunk::Record(r) => {
-                    if !matches!(&r.kind.0, b"loda" | b"lobj" | b"spnd" | b"ppdt" | b"trfd") {
+                    if !matches!(&r.kind.0, b"loda" | b"lobj" | b"spnd" | b"ppdt" | b"trfd" | b"ftil") {
                         continue;
                     }
                     let data = match self.src.data(r) {
@@ -2028,6 +2141,7 @@ impl Ctx<'_, '_> {
                         b"loda" | b"lobj" if loda.is_none() => loda = Some(data),
                         b"spnd" => spnd = Reader::new(data, "spnd", self.version).unsigned().ok(),
                         b"ppdt" => ppdt = Some(data),
+                        b"ftil" => fill_xf = decode_ftil(data),
                         // The last trfd wins, as in libcdr's collectTransform.
                         b"trfd" => match decode_trfd(data, self.version) {
                             Ok(m) => matrices = m,
@@ -2077,6 +2191,7 @@ impl Ctx<'_, '_> {
                 clip: l.clip,
                 opacity: l.opacity,
                 fade: l.fade,
+                fill_xf,
             }))),
             Err(e) => t.errors.push(e.to_string()),
         }
@@ -2116,6 +2231,17 @@ impl Ctx<'_, '_> {
         });
         let mut items = Vec::new();
         match p.fill.and_then(|id| self.fills.get(&id).map(|f| (id, f))) {
+            Some((id, CorelFill::Tiled(tf))) => match (self.bitmaps.contains_key(&tf.bitmap), path.bounds()) {
+                // Tiles start at the object's top-left corner, scaled and skewed by the fill's own
+                // transform (y up in CorelDRAW, so its off-diagonal terms change sign).
+                (true, Some(b)) => {
+                    let [a, bb, c, d, _, _] = p.fill_xf.unwrap_or(Affine::IDENTITY).as_coeffs();
+                    let xf = Affine::translate(b.origin().to_vec2()) * Affine::new([a, -bb, -c, d, 0.0, 0.0]);
+                    items.push(AppearanceItem::Fill(FillLayer::new(Paint::Pattern { pattern: tile_name(id), xf })));
+                }
+                (true, None) => {}
+                (false, _) => notes.push(format!("the bitmap of a bitmap or texture fill (bitmap {}) was not found", tf.bitmap)),
+            },
             Some((_, f)) => {
                 let local = PathData::from_bezpath(&bp).bounds().filter(|b| b.width() > 0.0 || b.height() > 0.0);
                 let to_doc = page.to_document() * p.object;
@@ -2161,6 +2287,8 @@ impl Ctx<'_, '_> {
             notes.push("the text of a text object was not found".into());
         }
         let mut runs: Vec<TextRun> = Vec::new();
+        // Each run's horizontal shift, ems (characters moved one by one).
+        let mut shifts: Vec<f64> = Vec::new();
         // One style per VectorCraft paragraph: each CorelDRAW paragraph's lines share its style.
         let mut para_styles = Vec::new();
         let mut no_size = false;
@@ -2169,6 +2297,7 @@ impl Ctx<'_, '_> {
             let ps = para_style(&base);
             if i > 0 {
                 runs.push(TextRun::new("\n", self.char_style(&base, object, &mut no_size, notes)));
+                shifts.push(0.0);
             }
             para_styles.push(ps.clone());
             for run in &p.runs {
@@ -2178,6 +2307,7 @@ impl Ctx<'_, '_> {
                 let chars: String = run.decoded(&s).chars().map(|c| if matches!(c, '\r' | '\u{b}') { '\n' } else { c }).collect();
                 para_styles.extend(std::iter::repeat_n(ps.clone(), chars.matches('\n').count()));
                 runs.push(TextRun::new(chars, self.char_style(&s, object, &mut no_size, notes)));
+                shifts.push(s.shift.unwrap_or(0.0));
             }
         }
         if no_size {
@@ -2194,7 +2324,8 @@ impl Ctx<'_, '_> {
         let mut t = TextObject::point(Point::ZERO, "", CharStyle::default());
         t.kind = kind;
         // Text space is points with y down; CorelDRAW's is inches with y up.
-        t.xf = to_doc * Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(TEXT_SCALE, -TEXT_SCALE);
+        let lead = shift_characters(&mut runs, &shifts, notes);
+        t.xf = to_doc * Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(TEXT_SCALE, -TEXT_SCALE) * Affine::translate((lead, 0.0));
         runs.retain(|r| !r.text.is_empty());
         if !runs.is_empty() {
             t.runs = runs;
@@ -2247,8 +2378,49 @@ impl Ctx<'_, '_> {
         if let Some(ls) = s.line_spacing.filter(|v| (*v - 1.0).abs() > 1e-6) {
             c.leading = Some(c.size * 1.2 * ls);
         }
+        if let Some(a) = s.rotation {
+            c.rotation = a.rem_euclid(360.0);
+        }
+        if let Some(rise) = s.rise {
+            c.baseline_shift = (rise * c.size).clamp(-c.size * 10.0, c.size * 10.0);
+        }
         c
     }
+}
+
+/// Characters moved one by one along the line: each single-character run's horizontal shift
+/// (`shifts`, ems) becomes manual kerning on the character before it, and the first character's
+/// is returned (points) for the text's origin. Shifts of longer runs, or after a line break, are
+/// left out with a note.
+fn shift_characters(runs: &mut [TextRun], shifts: &[f64], notes: &mut Vec<String>) -> f64 {
+    if shifts.iter().all(|s| *s == 0.0) || shifts.len() != runs.len() {
+        return 0.0;
+    }
+    let pts: Vec<f64> = runs.iter().zip(shifts).map(|(r, s)| s * r.style.size).collect();
+    let single = |r: &TextRun| r.text.chars().count() == 1 && r.text != "\n";
+    let mut kept = true;
+    let mut lead = 0.0;
+    for i in 0..runs.len() {
+        if pts[i] == 0.0 && (i == 0 || pts[i - 1] == 0.0) {
+            continue;
+        }
+        if !single(&runs[i]) || runs.get(..i).is_some_and(|before| before.iter().any(|r| r.text.contains('\n'))) {
+            kept = false;
+            continue;
+        }
+        match i.checked_sub(1) {
+            None => lead = pts[0],
+            Some(p) if single(&runs[p]) && runs[p].style.size > 0.0 => {
+                let k = (pts[i] - pts[p]) / runs[p].style.size * 1000.0;
+                runs[p].style.kerning = Some(runs[p].style.kerning.unwrap_or(0.0) + k);
+            }
+            Some(_) => kept = false,
+        }
+    }
+    if !kept {
+        notes.push("characters shifted one by one in a longer run or on a later line are drawn unshifted".into());
+    }
+    if lead.is_finite() { lead } else { 0.0 }
 }
 
 /// A space's width in ems, for CorelDRAW's character spacing.
@@ -2661,6 +2833,58 @@ mod tests {
         b[69..77].copy_from_slice(&start.to_le_bytes());
         b[77..85].copy_from_slice(&end.to_le_bytes());
         b
+    }
+
+    #[test]
+    fn texture_fills_tile_their_bitmap() {
+        // Version 14: the fill's 0x514 headers, then its parameters with the tile size at bytes
+        // 20 and 24 and the bitmap at byte 32.
+        let mut rec = 9u32.to_le_bytes().to_vec();
+        for v in [0x514u32, 0x17e] {
+            rec.extend_from_slice(&v.to_le_bytes());
+        }
+        rec.extend_from_slice(&11u16.to_le_bytes());
+        for v in [0x514u32, 0x16c, 0x514, 0x2c] {
+            rec.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut params = vec![0u8; 44];
+        params[20..24].copy_from_slice(&(IN as u32).to_le_bytes());
+        params[24..28].copy_from_slice(&(2 * IN as u32).to_le_bytes());
+        params[32..36].copy_from_slice(&3u32.to_le_bytes());
+        rec.extend_from_slice(&params);
+        let (id, fill) = CorelFill::decode(&rec, CdrVersion(1400)).unwrap();
+        assert_eq!((id, fill), (9, CorelFill::Tiled(TiledFill { bitmap: 3, width_in: 1.0, height_in: 2.0 })));
+        // Cut short, or with an empty tile: not read, reported as the fill type.
+        assert_eq!(CorelFill::decode(&rec[..40], CdrVersion(1400)).unwrap().1, CorelFill::Unsupported(11));
+        let mut flat = rec.clone();
+        flat[30 + 20..30 + 24].copy_from_slice(&0u32.to_le_bytes());
+        assert_eq!(CorelFill::decode(&flat, CdrVersion(1400)).unwrap().1, CorelFill::Unsupported(11));
+    }
+
+    #[test]
+    fn fill_transforms() {
+        let rec: Vec<u8> = [1.0f64, 0.5, 254_000.0, 0.0, 2.0, -508_000.0].iter().flat_map(|v| v.to_le_bytes()).collect();
+        // x' = x + 0.5 y + 1 in, y' = 2 y - 2 in.
+        assert_eq!(decode_ftil(&rec), Some(Affine::new([1.0, 0.0, 0.5, 2.0, 1.0, -2.0])));
+        assert_eq!(decode_ftil(&rec[..40]), None);
+        let flat: Vec<u8> = [1.0f64, 0.0, 0.0, 0.0, 0.0, 0.0].iter().flat_map(|v| v.to_le_bytes()).collect();
+        assert_eq!(decode_ftil(&flat), None);
+    }
+
+    #[test]
+    fn shifted_characters_become_kerning() {
+        let run = |t: &str| TextRun::new(t, CharStyle { size: 10.0, ..CharStyle::default() });
+        let mut runs = vec![run("T"), run("A"), run("N")];
+        let mut notes = Vec::new();
+        // Shifted 1, 1.5 and 1 em: the text starts 10 pt in, T's advance grows 0.5 em, A's shrinks.
+        let lead = shift_characters(&mut runs, &[1.0, 1.5, 1.0], &mut notes);
+        assert_eq!(lead, 10.0);
+        assert_eq!(runs.iter().map(|r| r.style.kerning).collect::<Vec<_>>(), [Some(500.0), Some(-500.0), None]);
+        assert!(notes.is_empty());
+        // A shifted run of several characters can't be: noted, left alone.
+        let mut runs = vec![run("TA"), run("N")];
+        assert_eq!(shift_characters(&mut runs, &[1.0, 0.0], &mut notes), 0.0);
+        assert!(runs.iter().all(|r| r.style.kerning.is_none()) && notes.len() == 1);
     }
 
     #[test]

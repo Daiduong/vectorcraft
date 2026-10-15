@@ -245,6 +245,7 @@ fn assemble(
     if layers.is_empty() {
         layers.push((fallback, Vec::new()));
     }
+    add_tile_patterns(&mut doc, &translation, &layers, &mut warnings);
     for (i, (name, children)) in layers.into_iter().enumerate() {
         let id = doc.alloc_id();
         let mut node = Node::layer(id, &name, LayerColor::Preset(u8::try_from(i % 27).unwrap_or(0)));
@@ -254,6 +255,47 @@ fn assemble(
         doc.layers.push(Arc::new(node));
     }
     Imported { document: doc, route, source, version, metadata, translation, warnings, profiles: BTreeMap::new() }
+}
+
+/// A pattern swatch for each bitmap or texture fill the art uses: one tile, the fill's bitmap at
+/// the tile's size.
+fn add_tile_patterns(doc: &mut Document, translation: &Translation, layers: &[(String, Vec<Arc<Node>>)], warnings: &mut Vec<String>) {
+    fn used(n: &Node, out: &mut std::collections::BTreeSet<String>) {
+        for item in &n.appearance.items {
+            if let AppearanceItem::Fill(f) = item
+                && let Paint::Pattern { pattern, .. } = &f.paint
+            {
+                out.insert(pattern.clone());
+            }
+        }
+        for c in n.children().into_iter().flatten() {
+            used(c, out);
+        }
+    }
+    let mut names = std::collections::BTreeSet::new();
+    for n in layers.iter().flat_map(|(_, nodes)| nodes) {
+        used(n, &mut names);
+    }
+    for name in names {
+        let Some(tile) = translation.tiles.get(&name) else { continue };
+        let png = match tile.bitmap.to_png() {
+            Ok(png) => png,
+            Err(e) => {
+                warn(warnings, format!("a bitmap could not be stored: {e}"));
+                continue;
+            }
+        };
+        let (w, h) = (tile.bitmap.width.max(1), tile.bitmap.height.max(1));
+        let blob = ImageBlob::new("image/png", png);
+        let key = blob.content_key();
+        doc.images.insert(key.clone(), blob);
+        let xf = Affine::scale_non_uniform(tile.width_pt / f64::from(w), tile.height_pt / f64::from(h));
+        let image = ImageObject { key, width: w, height: h, xf, link: None, placement: Default::default() };
+        let art = Node::new(doc.alloc_id(), NodeKind::Image(Box::new(image)));
+        let mut def = vectorcraft_doc::pattern::PatternDef::new(&name, vec![Arc::new(art)]);
+        def.tile = Rect::new(0.0, 0.0, tile.width_pt, tile.height_pt);
+        doc.patterns.push(def);
+    }
 }
 
 fn warn(warnings: &mut Vec<String>, w: String) {
@@ -289,6 +331,8 @@ fn build(doc: &mut Document, s: &geometry::Shape, shift: Affine, warnings: &mut 
             if let NodeKind::Path { rule: r, .. } = &mut node.kind {
                 *r = *rule;
             }
+            // Bitmap and texture fills: their tiles move with the art.
+            vectorcraft_doc::pattern::transform_pattern_paints(&mut node, shift);
             node
         }
         Content::Text(t) => {
@@ -345,6 +389,30 @@ mod tests {
     use super::*;
     use crate::synth as build;
     use crate::test_zip;
+
+    #[test]
+    fn tiled_fills_become_pattern_swatches() {
+        let mut doc = Document::new_with_mode(1.0, 1.0, ColorMode::Rgb);
+        let mut translation = Translation::default();
+        let bitmap = std::sync::Arc::new(crate::bitmap::Bitmap { width: 2, height: 2, rgba: vec![255; 16] });
+        translation.tiles.insert(geometry::tile_name(5), geometry::Tile { bitmap: bitmap.clone(), width_pt: 36.0, height_pt: 18.0 });
+        translation.tiles.insert(geometry::tile_name(6), geometry::Tile { bitmap, width_pt: 9.0, height_pt: 9.0 });
+        let fill = Appearance {
+            items: vec![AppearanceItem::Fill(FillLayer::new(Paint::Pattern { pattern: geometry::tile_name(5), xf: Affine::IDENTITY }))],
+            ..Appearance::default()
+        };
+        let node = Node::path(doc.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), fill);
+        let group = Node::group(doc.alloc_id(), vec![Arc::new(node)]);
+        let mut warnings = Vec::new();
+        add_tile_patterns(&mut doc, &translation, &[("Layer".into(), vec![Arc::new(group)])], &mut warnings);
+        // Only the pattern the art uses (also inside a group): its tile, and its bitmap at that size.
+        assert_eq!(doc.patterns.len(), 1);
+        let p = &doc.patterns[0];
+        assert_eq!((p.name.as_str(), p.tile), ("CorelDRAW fill 5", Rect::new(0.0, 0.0, 36.0, 18.0)));
+        let NodeKind::Image(img) = &p.art[0].kind else { panic!() };
+        assert_eq!((img.width, img.height, img.xf), (2, 2, Affine::scale_non_uniform(18.0, 9.0)));
+        assert!(doc.images.contains_key(&img.key) && warnings.is_empty());
+    }
 
     #[test]
     fn fades_become_opacity_masks() {
