@@ -20,7 +20,7 @@ Placing the first annotation automatically creates a top-level **Dimensions** la
 
 ## Change appearance
 
-The options dialog includes measurement units, 0–6 decimal places, hidden unit suffixes and drawing scale (1:n means one drawing unit represents n real units). Scale affects lengths, not angles. Dimension lines and extension lines have independent weights, solid/dashed/dotted styles and colours. Arrowheads can be closed, open, ticks or absent and have their own scale. Extension lines have a gap, overrun and hide switch.
+The options dialog includes measurement units, 0–6 decimal places shown as format examples (`0`, `0.0`, `0.00`, `0.000`, etc.), hidden unit suffixes and drawing scale (1:n means one drawing unit represents n real units). Scale affects lengths, not angles. Dimension lines and extension lines have independent weights, solid/dashed/dotted styles and colours. Arrowheads can be closed, open, ticks or absent and have their own scale. Extension lines have a gap, overrun and hide switch.
 
 The compact options window uses four bordered groups, paired fields, stroke and arrow previews, and Reset/Save/Cancel actions. Five text-placement buttons choose outside/inside (relative to the measured object) and start/centre/end alignment. Right-click a placement button for the additional On Line option. Text settings include installed font family/style menus, text size with a display-unit menu, colour and offset. Length fields accept units such as `5 mm` as well as points. Generic font defaults resolve to a concrete available face in generated text, avoiding a spurious missing-font highlight. Available glyphs depend on the installed fonts; no proprietary fonts are bundled.
 

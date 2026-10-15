@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use vectorcraft_doc::{Unit, dimension::DimensionOptions};
 
 pub const KIND: &str = "dimensionOptions";
+const PRECISION_FORMATS: [&str; 7] = ["0", "0.0", "0.00", "0.000", "0.0000", "0.00000", "0.000000"];
 pub(super) const SPEC: DialogSpec = DialogSpec {
     window: Some(show),
     heading: |_| tl!("Dimension Tool Options").into(),
@@ -211,12 +212,11 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             },
             |ui| {
                 label(ui, tl!("Precision:"), 56.0);
-                let values = ["0", "1", "2", "3", "4", "5", "6"];
                 if let Some(i) = crate::widgets::dropdown_names(
                     ui,
                     "dimension-precision",
-                    values.get(usize::from(o.precision)).copied().unwrap_or("1"),
-                    &values,
+                    PRECISION_FORMATS.get(usize::from(o.precision)).copied().unwrap_or("0.0"),
+                    &PRECISION_FORMATS,
                     108.0,
                 ) {
                     o.precision = i.min(6) as u8;
@@ -512,6 +512,21 @@ mod tests {
         assert_eq!(app.session.tool_options_of("dimension"), before);
         app.run("edit.undo", json!({})).unwrap();
         assert_eq!(app.run("dimension.inspect", json!({})).unwrap()["spec"]["options"]["precision"], 1);
+    }
+
+    #[test]
+    fn dimension_precision_shows_decimal_format_instead_of_digit_count() {
+        let mut app = app();
+        app.run("dimension.create", json!({"kind":"linear","points":[[20,60],[92,60]],"placement":[50,30]})).unwrap();
+        for (precision, format, expected) in [(0, "0", "25 mm"), (1, "0.0", "25.4 mm"), (2, "0.00", "25.40 mm"), (3, "0.000", "25.400 mm")] {
+            open(&mut app);
+            let mut d = app.ui.dialog.clone().unwrap();
+            d.fields.insert("style".into(), json!(DimensionOptions { precision, ..Default::default() }));
+            app.ui.dialog = Some(d.clone());
+            let text = crate::tests_labels::painted_text(&mut app, |app, ui| super::super::show(app, ui.ctx()));
+            assert!(text.lines().any(|line| line == format), "precision {precision} missing {format}: {text}");
+            assert_eq!(confirm(&mut app, &d).unwrap()["label"], expected);
+        }
     }
 
     #[test]
