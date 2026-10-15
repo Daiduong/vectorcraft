@@ -921,6 +921,51 @@ fn a_blend_of_two_colours_is_no_sliver_of_a_third() {
     assert!(b.y0 > 89.0 && b.y1 < 110.0, "{b:?}");
 }
 
+/// `img` blurred by the 1-4-6-4-1 kernel across and down: an edge spreads over about five pixels.
+fn blurred(img: &Raster) -> Raster {
+    const K: [f64; 5] = [1.0, 4.0, 6.0, 4.0, 1.0];
+    let (w, h) = (img.width as i64, img.height as i64);
+    let pass = |src: &Raster, dx: i64, dy: i64| {
+        Raster::from_fn(src.width, src.height, |x, y| {
+            let mut s = [0.0; 3];
+            for (k, wt) in K.iter().enumerate() {
+                let o = k as i64 - 2;
+                let p = src.pixel((i64::from(x) + o * dx).clamp(0, w - 1) as u32, (i64::from(y) + o * dy).clamp(0, h - 1) as u32);
+                for ch in 0..3 {
+                    s[ch] += f64::from(p[ch]) * wt / 16.0;
+                }
+            }
+            [s[0].round() as u8, s[1].round() as u8, s[2].round() as u8, 255]
+        })
+    };
+    pass(&pass(img, 1, 0), 0, 1)
+}
+
+#[test]
+fn a_blend_wider_than_two_pixels_is_no_sliver_of_a_third() {
+    let is_green = |p: &&TracedPath| p.color[1] > p.color[0] && p.color[1] > p.color[2];
+    // Blurred, the olive between navy and yellow is too far from either for the pixels around it.
+    let res = trace(&blurred(&three_colour_art(0.0)), &TraceParams { colors: 3, noise: 0, ..sixteen_colors() });
+    let green: Vec<&TracedPath> = res.paths.iter().filter(is_green).collect();
+    assert_eq!(green.len(), 1, "the bar, and nothing around the disc");
+    let b = green[0].path.bounds().unwrap();
+    assert!(b.y0 > 87.0 && b.y1 < 112.0, "{b:?}");
+    // A navy square on white, and a green bar apart: halfway from navy to white is nearer to green.
+    let img = blurred(&Raster::from_fn(120, 120, |x, y| {
+        if (20..100).contains(&x) && (20..80).contains(&y) {
+            [20, 40, 90, 255]
+        } else if (20..100).contains(&x) && (95..105).contains(&y) {
+            [40, 160, 90, 255]
+        } else {
+            WHITE
+        }
+    }));
+    let res = trace(&img, &TraceParams { colors: 3, noise: 0, ..sixteen_colors() });
+    let green: Vec<&TracedPath> = res.paths.iter().filter(is_green).collect();
+    assert_eq!(green.len(), 1, "the bar, and nothing around the square: {:?}", green.iter().map(|p| p.path.bounds()).collect::<Vec<_>>());
+    assert_eq!(res.paths.len(), 3);
+}
+
 #[test]
 fn hairlines_keep_their_colour_in_color_mode() {
     // Black lines one pixel wide on white: every black pixel is on an edge, none is a blend.
