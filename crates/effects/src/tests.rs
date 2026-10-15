@@ -664,3 +664,17 @@ fn bench_catalog_lookup() {
     }
     eprintln!("10k lookups: {:?} ({n})", t.elapsed());
 }
+
+#[test]
+fn round_corners_keeps_where_a_closed_path_starts() {
+    // The square starts at its first corner; the rounded one starts where that corner's cut
+    // begins, on the side coming from the last corner, as before curved sides were rounded.
+    let sq = square();
+    let (first, last) = (sq.subpaths[0].anchors[0].p, sq.subpaths[0].anchors[3].p);
+    let out = stylize::round_corners(&sq, 10.0);
+    let start = out.subpaths[0].anchors[0].p;
+    assert!((start.distance(first) - 10.0).abs() < 1e-9 && (start.distance(last) - (first.distance(last) - 10.0)).abs() < 1e-9, "{start:?}");
+    // An infinite radius rounds as much as fits.
+    assert_eq!(stylize::round_corners(&sq, f64::INFINITY), stylize::round_corners(&sq, 1e9));
+    assert_eq!(stylize::round_corners(&sq, f64::NAN), sq);
+}

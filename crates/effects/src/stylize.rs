@@ -29,9 +29,10 @@ pub fn convert_to_shape(id: &str, b: Rect, p: &Value) -> PathData {
 /// and trims a curved side to what is left of it. The cut is Live Corners' round cut
 /// ([`corners::cut_corners`], #1144); `radius` keeps this effect's meaning, the cut's reach along
 /// the sides, so the arc's own radius follows from the angle (equal to `radius` at a right angle).
-/// A cut reaches at most halfway along the shorter side.
+/// A cut reaches at most halfway along the shorter side, so an infinite `radius` rounds as much
+/// as fits. A closed subpath keeps starting where it did: at the start of its first anchor's cut.
 pub fn round_corners(path: &PathData, radius: f64) -> PathData {
-    if !(radius > 0.0 && radius.is_finite()) {
+    if radius.is_nan() || radius <= 0.0 {
         return path.clone();
     }
     let mut radii = vec![0.0; path.anchor_count()];
@@ -41,7 +42,16 @@ pub fn round_corners(path: &PathData, radius: f64) -> PathData {
             *r = radius * c.sin() / (1.0 + c.cos());
         }
     }
-    corners::cut_corners(path, &radii, &[]).0
+    let (mut out, sources) = corners::cut_corners(path, &radii, &[]);
+    // `cut_corners` starts a closed subpath at the end of its first cut and closes it with the
+    // cut's start; start at that start instead, as this effect always did, so what depends on where
+    // a path starts (dashes, arrowheads after the effect) doesn't move.
+    for (sp, from) in out.subpaths.iter_mut().zip(&sources) {
+        if sp.closed && sp.anchors.len() > 1 && from.first() == from.last() {
+            sp.anchors.rotate_right(1);
+        }
+    }
+    out
 }
 
 fn flatten(path: &PathData) -> Vec<Vec<Point>> {
