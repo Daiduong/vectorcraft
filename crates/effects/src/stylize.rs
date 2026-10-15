@@ -2,8 +2,8 @@
 
 use serde_json::Value;
 use vectorcraft_geom::kurbo;
-use vectorcraft_geom::shapes::{self, KAPPA};
-use vectorcraft_geom::{Affine, Anchor, PathData, Point, Rect, SubPath};
+use vectorcraft_geom::shapes;
+use vectorcraft_geom::{Affine, PathData, Point, Rect, SubPath, corners};
 
 use crate::util::*;
 
@@ -24,53 +24,24 @@ pub fn convert_to_shape(id: &str, b: Rect, p: &Value) -> PathData {
     }
 }
 
-/// Round Corners: every sharp, handle-less corner becomes a circular-ish arc of `radius`.
+/// Round Corners: every corner (an anchor that isn't smooth, between straight or curved sides)
+/// becomes a circular arc that meets each side `radius` from the corner, measured along the side,
+/// and trims a curved side to what is left of it. The cut is Live Corners' round cut
+/// ([`corners::cut_corners`], #1144); `radius` keeps this effect's meaning, the cut's reach along
+/// the sides, so the arc's own radius follows from the angle (equal to `radius` at a right angle).
+/// A cut reaches at most halfway along the shorter side.
 pub fn round_corners(path: &PathData, radius: f64) -> PathData {
-    if radius <= 0.0 {
+    if !(radius > 0.0 && radius.is_finite()) {
         return path.clone();
     }
-    let mut subs = vec![];
-    for sp in &path.subpaths {
-        let n = sp.anchors.len();
-        if n < 3 && (n != 2 || sp.closed) {
-            subs.push(sp.clone());
-            continue;
+    let mut radii = vec![0.0; path.anchor_count()];
+    for c in corners::path_corners(path) {
+        // setback = r · (1 + cos) / sin, solved for r.
+        if let Some(r) = radii.get_mut(c.index) {
+            *r = radius * c.sin() / (1.0 + c.cos());
         }
-        let mut out: Vec<Anchor> = vec![];
-        for i in 0..n {
-            let a = sp.anchors[i];
-            let interior = sp.closed || (i > 0 && i + 1 < n);
-            if !interior || a.has_in() || a.has_out() {
-                out.push(a);
-                continue;
-            }
-            let prev = &sp.anchors[(i + n - 1) % n];
-            let next = &sp.anchors[(i + 1) % n];
-            // Tangent directions toward the neighbours (their handles if the segments curve).
-            let tp = if prev.has_out() { prev.h_out } else { prev.p };
-            let tn = if next.has_in() { next.h_in } else { next.p };
-            let (vp, vn) = (tp - a.p, tn - a.p);
-            let (lp, ln) = (vp.hypot(), vn.hypot());
-            if lp < 1e-9 || ln < 1e-9 {
-                out.push(a);
-                continue;
-            }
-            let (up, un) = (vp / lp, vn / ln);
-            // Nearly straight: nothing to round.
-            if up.dot(un) < -0.9999 {
-                out.push(a);
-                continue;
-            }
-            let d = radius.min(prev.p.distance(a.p) / 2.0).min(next.p.distance(a.p) / 2.0);
-            let pa = a.p + up * d;
-            let pb = a.p + un * d;
-            let k = d * KAPPA;
-            out.push(Anchor::with_handles(pa, pa, pa - up * k));
-            out.push(Anchor::with_handles(pb, pb - un * k, pb));
-        }
-        subs.push(SubPath::new(out, sp.closed));
     }
-    PathData::new(subs)
+    corners::cut_corners(path, &radii, &[]).0
 }
 
 fn flatten(path: &PathData) -> Vec<Vec<Point>> {

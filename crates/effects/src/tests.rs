@@ -503,6 +503,56 @@ fn round_corners_replaces_corners() {
     assert_eq!(run("stylize.roundCorners", json!({}), &el), el);
 }
 
+/// A D: a straight back, a curved bowl, and two corners where the bowl meets the straight
+/// sides (the anchors there carry the bowl's handles).
+fn d_shape() -> PathData {
+    use vectorcraft_geom::Anchor;
+    let p = Point::new;
+    PathData::new(vec![SubPath::new(
+        vec![
+            Anchor::corner(p(0.0, 0.0)),
+            Anchor::with_handles(p(50.0, 0.0), p(50.0, 0.0), p(80.0, 20.0)),
+            Anchor::with_handles(p(50.0, 100.0), p(80.0, 80.0), p(50.0, 100.0)),
+            Anchor::corner(p(0.0, 100.0)),
+        ],
+        true,
+    )])
+}
+
+#[test]
+fn round_corners_also_rounds_where_a_curve_meets_a_line() {
+    let d = d_shape();
+    let out = run("stylize.roundCorners", json!({"radius": 8}), &d);
+    // All four corners are cut, the two curve-line ones too: two anchors each.
+    assert_eq!(out.anchor_count(), 8);
+    assert!(all_finite(&out));
+    // Every cut leaves both sides smoothly: no corner is left anywhere.
+    assert!(vectorcraft_geom::corners::path_corners(&out).is_empty(), "{out:?}");
+    let (before, after) = (d.to_bezpath().area().abs(), out.to_bezpath().area().abs());
+    assert!(after < before && after > before - 4.0 * 8.0 * 8.0, "{before} -> {after}");
+}
+
+#[test]
+fn round_corners_radius_is_how_far_the_cut_reaches_along_each_side() {
+    // An acute corner: the cut still meets each straight side `radius` from the corner, as the
+    // effect always did, whatever the arc's own radius.
+    let p = Point::new;
+    let tri = PathData::new(vec![SubPath::new(
+        vec![
+            vectorcraft_geom::Anchor::corner(p(0.0, 0.0)),
+            vectorcraft_geom::Anchor::corner(p(100.0, 20.0)),
+            vectorcraft_geom::Anchor::corner(p(0.0, 40.0)),
+        ],
+        true,
+    )]);
+    let out = run("stylize.roundCorners", json!({"radius": 10}), &tri);
+    assert_eq!(out.anchor_count(), 6);
+    let tip = p(100.0, 20.0);
+    let near_tip: Vec<f64> = out.subpaths[0].anchors.iter().map(|a| a.p.distance(tip)).filter(|d| *d < 20.0).collect();
+    assert_eq!(near_tip.len(), 2, "{near_tip:?}");
+    assert!(near_tip.iter().all(|d| close(*d, 10.0, 1e-6)), "{near_tip:?}");
+}
+
 #[test]
 fn twist_fixes_the_outer_circle_and_rotates_inside() {
     let out = run("distort.twist", json!({"angle": 0}), &square());
