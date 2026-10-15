@@ -1096,7 +1096,8 @@ mod tests {
         let mut t = SelectionTool::default();
         let ctrl = Mods { ctrl: true, cmd: true, ..Mods::default() };
         let at = |kind| ev(kind, 200.0, 200.0).with_mods(ctrl);
-        assert_eq!(t.cursor(&cx, Point::new(200.0, 200.0), ctrl), Cursor::Move);
+        // Snap to Point marks the anchor a press will grab. The scale cursor is what Ctrl removes.
+        assert_eq!(t.cursor(&cx, Point::new(200.0, 200.0), ctrl), Cursor::ArrowHollow);
         assert!(t.pointer(&cx, &at(PointerKind::Down)).is_empty(), "the object stays selected");
         let drag = t.pointer(&cx, &ev(PointerKind::Drag, 220.0, 220.0).with_mods(ctrl));
         assert!(matches!(drag.first(), Some(Action::Begin(label)) if label == "Move"), "{drag:?}");
