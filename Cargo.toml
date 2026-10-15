@@ -17,6 +17,7 @@ craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "5c874d51eeb
 vectorcraft-geom = { path = "crates/geom" }
 vectorcraft-color = { path = "crates/color" }
 vectorcraft-doc = { path = "crates/doc" }
+vectorcraft-hub = { path = "crates/hub" }
 vectorcraft-pathops = { path = "crates/pathops" }
 vectorcraft-brush = { path = "crates/brush" }
 vectorcraft-trace = { path = "crates/trace" }
