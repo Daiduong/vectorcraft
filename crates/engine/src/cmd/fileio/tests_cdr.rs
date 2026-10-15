@@ -162,3 +162,28 @@ fn a_package_carries_its_cmyk_profile() {
     assert_eq!(l.doc.color_profiles.cmyk, None);
     assert!(l.warnings.iter().any(|w| w.contains("CorelDRAW Broken Press")), "{:?}", l.warnings);
 }
+
+#[test]
+fn enveloped_type_fits_its_ink_to_the_envelope() {
+    use vectorcraft_doc::live::{EnvelopeKind, EnvelopeOptions};
+    use vectorcraft_doc::text::{CharStyle, TextObject};
+    use vectorcraft_doc::{Node, NodeId, NodeKind};
+    use vectorcraft_geom::{Point, Rect};
+    let t = TextObject::point(Point::new(0.0, 100.0), "Moloko", CharStyle { size: 48.0, ..CharStyle::default() });
+    let outline = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 200.0, 50.0));
+    let kind = NodeKind::Envelope {
+        content: vec![std::sync::Arc::new(Node::new(NodeId(2), NodeKind::Text(Box::new(t))))],
+        kind: Box::new(EnvelopeKind::TopObject { path: outline.clone() }),
+        fidelity: vectorcraft_doc::live::default_fidelity(),
+        editing: false,
+        options: EnvelopeOptions::NEW,
+        frame: Box::new(vectorcraft_geom::Affine::IDENTITY),
+    };
+    let mut n = Node::new(NodeId(1), kind);
+    super::coreldraw::fit_envelopes_to_ink(&mut n);
+    let NodeKind::Envelope { kind, .. } = &n.kind else { panic!() };
+    let EnvelopeKind::TopObject { path } = kind.as_ref() else { panic!() };
+    let (before, after) = (outline.bounds().unwrap(), path.bounds().unwrap());
+    // The layout box holds the letters' ink with room around it: the outline grows to match.
+    assert!(after.contains_rect(before) && after.height() > before.height(), "{before:?} → {after:?}");
+}

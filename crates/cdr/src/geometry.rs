@@ -595,6 +595,42 @@ pub fn fade(arg: &[u8]) -> Option<Fade> {
     (u32_at(45)? == 1 && from != to).then_some(Fade { from, to, opacity: (opacity(end), opacity(start)) })
 }
 
+/// An envelope (`envd`): the outline an object's box is fitted to, in the space after the
+/// object's first transform (measured on a user's file: its corner is that transform's offset,
+/// and the remaining transforms take it to the object's box on the page). Read from a
+/// user's version 14 file (libcdr skips the record): a `loda`-style table of two arguments, one
+/// byte of node type per point and the points themselves (as a curve's), told apart by their
+/// lengths. `None` for anything else.
+pub fn decode_envd(data: &[u8], version: CdrVersion) -> Option<BezPath> {
+    let mut r = Reader::new(data, "envd", version);
+    let len = (r.unsigned().ok()? as usize).min(data.len());
+    let n = r.unsigned().ok()? as usize;
+    let start_args = r.unsigned().ok()? as usize;
+    if n != 2 {
+        return None;
+    }
+    r.seek(start_args).ok()?;
+    let (a, b) = (r.unsigned().ok()? as usize, r.unsigned().ok()? as usize);
+    let (first, second) = (a.min(b), a.max(b));
+    let (first_len, second_len) = (second.checked_sub(first)?, len.checked_sub(second)?);
+    let point_size = if r.wide() { 8 } else { 4 };
+    // The node types are the shorter argument, one byte per point.
+    let ((types_at, count), points_at) =
+        if first_len * point_size <= second_len { ((first, first_len), second) } else { ((second, second_len), first) };
+    let count = count.min(MAX_POINTS);
+    if count < 2 {
+        return None;
+    }
+    let types = data.get(types_at..types_at + count)?.to_vec();
+    r.seek(points_at).ok()?;
+    let mut points = Vec::with_capacity(count);
+    for _ in 0..count {
+        points.push(Point::new(r.coord().ok()?, r.coord().ok()?));
+    }
+    let path = CorelPath { points, types }.to_bezpath();
+    (path.elements().len() > 2).then_some(path)
+}
+
 /// A fill transform (`ftil`): six doubles, its translation in 1/254000 inch (libcdr's
 /// `readFtil`). `None` for anything not finite, flat or huge.
 pub fn decode_ftil(data: &[u8]) -> Option<Affine> {
@@ -1336,6 +1372,8 @@ pub struct TiledFill {
     pub bitmap: u32,
     pub width_in: f64,
     pub height_in: f64,
+    /// A texture's resolution (its bitmap's pixels per inch), which sizes its tile.
+    pub dpi: Option<f64>,
 }
 
 /// A bitmap tiled by fills: the pattern a tiled fill is drawn with ([`tile_name`]).
@@ -1461,7 +1499,11 @@ impl CorelFill {
             let (w, h) = size(r.u32().ok()?, r.u32().ok()?)?;
             r.pos = start + 32;
             let bitmap = r.u32().ok()?;
-            return Some(TiledFill { bitmap, width_in: w, height_in: h });
+            // A texture's resolution at byte 48 (300 in the user's files: their 419 to 1880 pixel
+            // textures then tile as CorelDRAW draws them).
+            r.pos = start + 48;
+            let dpi = r.u16().ok().map(f64::from).filter(|d| (30.0..=4800.0).contains(d));
+            return Some(TiledFill { bitmap, width_in: w, height_in: h, dpi });
         }
         if v < CdrVersion(600) {
             return None;
@@ -1478,7 +1520,7 @@ impl CorelFill {
         r.skip(21).ok()?;
         let bitmap = r.unsigned().ok()?;
         let (w, h) = size(w, h)?;
-        Some(TiledFill { bitmap, width_in: w, height_in: h })
+        Some(TiledFill { bitmap, width_in: w, height_in: h, dpi: None })
     }
 
     /// The placement after a version 17 fountain's stops: 3 bytes, then eight doubles, the fifth
@@ -1645,6 +1687,8 @@ pub struct Shape {
     pub name: Option<String>,
     /// A fading transparency, in document space, over [`Self::opacity`].
     pub fade: Option<Fade>,
+    /// An envelope the shape is fitted to (its box mapped onto this outline), document space.
+    pub envelope: Option<PathData>,
     /// Fill below stroke, as CorelDRAW draws them (empty for type, whose characters carry theirs).
     pub appearance: Appearance,
     /// What was approximated or left out.
@@ -1675,6 +1719,12 @@ impl Shape {
         }
     }
 
+    /// A shape holding type `t` (tests).
+    #[cfg(test)]
+    pub(crate) fn text_for_tests(t: TextObject) -> Self {
+        Self::of(Content::Text(Box::new(t)), Vec::new())
+    }
+
     /// The type, for a text object.
     pub fn text(&self) -> Option<&TextObject> {
         match &self.content {
@@ -1684,7 +1734,7 @@ impl Shape {
     }
 
     fn of(content: Content, notes: Vec<String>) -> Self {
-        Self { content, opacity: 1.0, name: None, fade: None, appearance: Appearance::default(), notes }
+        Self { content, opacity: 1.0, name: None, fade: None, envelope: None, appearance: Appearance::default(), notes }
     }
 
     /// This shape and, for a group, everything in it, bottom first (a group before its members).
@@ -1843,10 +1893,12 @@ pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams:
         if let CorelFill::Tiled(tf) = f
             && let Some(b) = bitmaps.get(&tf.bitmap)
         {
-            t.tiles.insert(
-                tile_name(*id),
-                Tile { bitmap: std::sync::Arc::clone(b), width_pt: tf.width_in * PT_PER_IN, height_pt: tf.height_in * PT_PER_IN },
-            );
+            // A texture's bitmap tiles at the resolution it was made at, when the fill gives one.
+            let (w, h) = match tf.dpi {
+                Some(dpi) => (f64::from(b.width) / dpi, f64::from(b.height) / dpi),
+                None => (tf.width_in, tf.height_in),
+            };
+            t.tiles.insert(tile_name(*id), Tile { bitmap: std::sync::Arc::clone(b), width_pt: w * PT_PER_IN, height_pt: h * PT_PER_IN });
         }
     }
     // Text styles and text name fonts, which the first walk collected.
@@ -1942,6 +1994,8 @@ struct Pending {
     fade: Option<Fade>,
     /// The fill's own transform (`ftil`), which bitmap and texture tiles follow.
     fill_xf: Option<Affine>,
+    /// An envelope (`envd`): the outline the object's box is fitted to, page space.
+    envelope: Option<BezPath>,
 }
 
 /// An object or a group of them, front first as CorelDRAW writes them.
@@ -2120,6 +2174,7 @@ impl Ctx<'_, '_> {
         let mut spnd = None;
         let mut ppdt = None;
         let mut fill_xf = None;
+        let mut envelope = None;
         let mut matrices = Vec::new();
         let mut stack: Vec<&Chunk> = obj.children.iter().rev().collect();
         while let Some(c) = stack.pop() {
@@ -2127,7 +2182,7 @@ impl Ctx<'_, '_> {
                 Chunk::List(l) if l.list_type != FourCc::OBJECT => stack.extend(l.children.iter().rev()),
                 Chunk::List(_) => {}
                 Chunk::Record(r) => {
-                    if !matches!(&r.kind.0, b"loda" | b"lobj" | b"spnd" | b"ppdt" | b"trfd" | b"ftil") {
+                    if !matches!(&r.kind.0, b"loda" | b"lobj" | b"spnd" | b"ppdt" | b"trfd" | b"ftil" | b"envd") {
                         continue;
                     }
                     let data = match self.src.data(r) {
@@ -2142,6 +2197,7 @@ impl Ctx<'_, '_> {
                         b"spnd" => spnd = Reader::new(data, "spnd", self.version).unsigned().ok(),
                         b"ppdt" => ppdt = Some(data),
                         b"ftil" => fill_xf = decode_ftil(data),
+                        b"envd" => envelope = decode_envd(data, self.version),
                         // The last trfd wins, as in libcdr's collectTransform.
                         b"trfd" => match decode_trfd(data, self.version) {
                             Ok(m) => matrices = m,
@@ -2192,6 +2248,11 @@ impl Ctx<'_, '_> {
                 opacity: l.opacity,
                 fade: l.fade,
                 fill_xf,
+                // The envelope is drawn after the object's first transform: only the others place it.
+                envelope: envelope.map(|mut e| {
+                    e.apply_affine(compose(matrices.get(1..).unwrap_or_default()));
+                    e
+                }),
             }))),
             Err(e) => t.errors.push(e.to_string()),
         }
@@ -2221,7 +2282,12 @@ impl Ctx<'_, '_> {
             }
             Geometry::Text { frame, spnd } => {
                 let t = self.text_object(frame, spnd, page.to_document() * p.object, p.object, &mut notes);
-                return Shape { opacity: p.opacity.unwrap_or(1.0), name: p.name, fade, ..Shape::of(Content::Text(Box::new(t)), notes) };
+                // Type keeps its text under an envelope (the distorted letters aren't stored).
+                let envelope = p.envelope.map(|mut e| {
+                    e.apply_affine(page.to_document());
+                    PathData::from_bezpath(&e)
+                });
+                return Shape { opacity: p.opacity.unwrap_or(1.0), name: p.name, fade, envelope, ..Shape::of(Content::Text(Box::new(t)), notes) };
             }
         };
         let path = PathData::from_bezpath(&{
@@ -2273,6 +2339,8 @@ impl Ctx<'_, '_> {
             opacity: p.opacity.unwrap_or(1.0),
             name: p.name,
             fade,
+            // A curve's points are stored already fitted to its envelope.
+            envelope: None,
             appearance: Appearance { items, ..Appearance::default() },
             notes,
         }
@@ -2326,6 +2394,13 @@ impl Ctx<'_, '_> {
         // Text space is points with y down; CorelDRAW's is inches with y up.
         let lead = shift_characters(&mut runs, &shifts, notes);
         t.xf = to_doc * Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(TEXT_SCALE, -TEXT_SCALE) * Affine::translate((lead, 0.0));
+        // Bitmap and texture fills on type: tiles start at the text's origin.
+        let anchor = Affine::translate((t.xf * Point::ZERO).to_vec2());
+        for r in &mut runs {
+            if let Paint::Pattern { xf, .. } = &mut r.style.fill {
+                *xf = anchor;
+            }
+        }
         runs.retain(|r| !r.text.is_empty());
         if !runs.is_empty() {
             t.runs = runs;
@@ -2349,11 +2424,14 @@ impl Ctx<'_, '_> {
             None => *no_size = true,
         }
         match s.fill {
-            Some(Ink::Record(id)) => {
-                if let Some(f) = self.fills.get(&id) {
-                    c.fill = f.to_fill(None, notes).map_or(Paint::None, |l| l.paint);
+            Some(Ink::Record(id)) => match self.fills.get(&id) {
+                // A bitmap or texture fill: its pattern, placed by the text object.
+                Some(CorelFill::Tiled(tf)) if self.bitmaps.contains_key(&tf.bitmap) => {
+                    c.fill = Paint::Pattern { pattern: tile_name(id), xf: Affine::IDENTITY };
                 }
-            }
+                Some(f) => c.fill = f.to_fill(None, notes).map_or(Paint::None, |l| l.paint),
+                None => {}
+            },
             Some(Ink::Color(color)) => c.fill = Paint::solid(color_or_black(&color, notes)),
             Some(Ink::None) => c.fill = Paint::None,
             None => {}
@@ -2847,18 +2925,49 @@ mod tests {
         for v in [0x514u32, 0x16c, 0x514, 0x2c] {
             rec.extend_from_slice(&v.to_le_bytes());
         }
-        let mut params = vec![0u8; 44];
+        let mut params = vec![0u8; 52];
         params[20..24].copy_from_slice(&(IN as u32).to_le_bytes());
         params[24..28].copy_from_slice(&(2 * IN as u32).to_le_bytes());
         params[32..36].copy_from_slice(&3u32.to_le_bytes());
+        params[48..50].copy_from_slice(&300u16.to_le_bytes());
         rec.extend_from_slice(&params);
         let (id, fill) = CorelFill::decode(&rec, CdrVersion(1400)).unwrap();
-        assert_eq!((id, fill), (9, CorelFill::Tiled(TiledFill { bitmap: 3, width_in: 1.0, height_in: 2.0 })));
+        assert_eq!((id, fill), (9, CorelFill::Tiled(TiledFill { bitmap: 3, width_in: 1.0, height_in: 2.0, dpi: Some(300.0) })));
         // Cut short, or with an empty tile: not read, reported as the fill type.
         assert_eq!(CorelFill::decode(&rec[..40], CdrVersion(1400)).unwrap().1, CorelFill::Unsupported(11));
         let mut flat = rec.clone();
         flat[30 + 20..30 + 24].copy_from_slice(&0u32.to_le_bytes());
         assert_eq!(CorelFill::decode(&flat, CdrVersion(1400)).unwrap().1, CorelFill::Unsupported(11));
+    }
+
+    #[test]
+    fn envelopes_decode_as_curves() {
+        // A table of two arguments: node types (one byte per point) and the points, a closed
+        // square of lines from (0, 0) to (1 in, 1 in).
+        let types = [node::MOVE, node::LINE, node::LINE, node::LINE | node::CLOSED];
+        let points = [(0, 0), (IN, 0), (IN, IN), (0, IN)];
+        let (types_at, points_at) = (32u32, 36u32);
+        let len = points_at as usize + points.len() * 8;
+        let mut rec = Vec::new();
+        for v in [len as u32, 2, 16, 24, 25, 0, 0, 0] {
+            rec.extend_from_slice(&v.to_le_bytes());
+        }
+        rec[16..20].copy_from_slice(&types_at.to_le_bytes());
+        rec[20..24].copy_from_slice(&points_at.to_le_bytes());
+        rec.truncate(32);
+        rec.extend_from_slice(&types);
+        for (x, y) in points {
+            rec.extend_from_slice(&le32(&[x, y]));
+        }
+        let e = decode_envd(&rec, CdrVersion(1400)).unwrap();
+        let b = PathData::from_bezpath(&e).bounds().unwrap();
+        assert_eq!((b.x0, b.y0, b.x1, b.y1), (0.0, 0.0, 1.0, 1.0));
+        assert!(PathData::from_bezpath(&e).subpaths[0].closed);
+        // Anything shorter or of another shape: no envelope.
+        assert!(decode_envd(&rec[..40], CdrVersion(1400)).is_none());
+        let mut three = rec.clone();
+        three[4] = 3;
+        assert!(decode_envd(&three, CdrVersion(1400)).is_none());
     }
 
     #[test]

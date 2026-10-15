@@ -257,8 +257,8 @@ fn assemble(
     Imported { document: doc, route, source, version, metadata, translation, warnings, profiles: BTreeMap::new() }
 }
 
-/// A pattern swatch for each bitmap or texture fill the art uses: one tile, the fill's bitmap at
-/// the tile's size.
+/// A pattern swatch for each bitmap or texture fill the art (or its type) uses: one tile, the
+/// fill's bitmap at the tile's size.
 fn add_tile_patterns(doc: &mut Document, translation: &Translation, layers: &[(String, Vec<Arc<Node>>)], warnings: &mut Vec<String>) {
     fn used(n: &Node, out: &mut std::collections::BTreeSet<String>) {
         for item in &n.appearance.items {
@@ -266,6 +266,13 @@ fn add_tile_patterns(doc: &mut Document, translation: &Translation, layers: &[(S
                 && let Paint::Pattern { pattern, .. } = &f.paint
             {
                 out.insert(pattern.clone());
+            }
+        }
+        if let NodeKind::Text(t) = &n.kind {
+            for r in &t.runs {
+                if let Paint::Pattern { pattern, .. } = &r.style.fill {
+                    out.insert(pattern.clone());
+                }
             }
         }
         for c in n.children().into_iter().flatten() {
@@ -355,6 +362,19 @@ fn build(doc: &mut Document, s: &geometry::Shape, shift: Affine, warnings: &mut 
     };
     node.opacity = s.opacity.clamp(0.0, 1.0);
     node.name = s.name.clone();
+    // Type under an envelope: a live envelope whose shape is CorelDRAW's outline, the type inside
+    // it as stored (undistorted).
+    if let Some(path) = &s.envelope {
+        let envelope = NodeKind::Envelope {
+            content: vec![Arc::new(node)],
+            kind: Box::new(vectorcraft_doc::live::EnvelopeKind::TopObject { path: path.transformed(shift) }),
+            fidelity: vectorcraft_doc::live::default_fidelity(),
+            editing: false,
+            options: vectorcraft_doc::live::EnvelopeOptions::NEW,
+            frame: Box::new(Affine::IDENTITY),
+        };
+        node = Node::new(doc.alloc_id(), envelope);
+    }
     // A fading transparency becomes an opacity mask: a box over the object with a grey ramp,
     // instead of the fade's average opacity.
     if let Some(mask) = s.fade.and_then(|f| fade_mask(doc, f.transformed(shift), &node)) {
@@ -391,6 +411,20 @@ mod tests {
     use crate::test_zip;
 
     #[test]
+    fn enveloped_type_becomes_a_live_envelope() {
+        let mut doc = Document::new_with_mode(1.0, 1.0, ColorMode::Rgb);
+        let t = vectorcraft_doc::text::TextObject::point(vectorcraft_geom::Point::ZERO, "Moloko", vectorcraft_doc::text::CharStyle::default());
+        let outline = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 40.0));
+        let shape = geometry::Shape { envelope: Some(outline.clone()), ..geometry::Shape::text_for_tests(t) };
+        let mut warnings = Vec::new();
+        let node = build(&mut doc, &shape, Affine::translate((5.0, 0.0)), &mut warnings).unwrap();
+        let NodeKind::Envelope { content, kind, .. } = &node.kind else { panic!("{:?}", node.kind) };
+        assert!(matches!(content[0].kind, NodeKind::Text(_)));
+        let vectorcraft_doc::live::EnvelopeKind::TopObject { path } = kind.as_ref() else { panic!() };
+        assert_eq!(path.bounds(), outline.transformed(Affine::translate((5.0, 0.0))).bounds(), "moved with the art");
+    }
+
+    #[test]
     fn tiled_fills_become_pattern_swatches() {
         let mut doc = Document::new_with_mode(1.0, 1.0, ColorMode::Rgb);
         let mut translation = Translation::default();
@@ -425,6 +459,7 @@ mod tests {
             opacity: 0.5,
             name: None,
             fade: Some(fade),
+            envelope: None,
             appearance: fill,
             notes: Vec::new(),
         };
