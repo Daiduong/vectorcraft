@@ -1,0 +1,26 @@
+[package]
+name = "cdr"
+description = "Reader for CorelDRAW documents: the X4+ ZIP package, its metadata XML and the RIFF chunk tree"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vectorcraft-geom = { workspace = true }
+vectorcraft-color = { workspace = true }
+vectorcraft-doc = { workspace = true }
+# The native format the `test_cdr` harness writes and validates against.
+vectorcraft-format = { workspace = true }
+# Pure-Rust inflate (the workspace's flate2 `rust_backend`) keeps the crate building for wasm.
+flate2 = { workspace = true }
+nom = "8"
+quick-xml = "0.41"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
