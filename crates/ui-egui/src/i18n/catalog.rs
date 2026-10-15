@@ -147,18 +147,27 @@ pub fn parse_entries(text: &str) -> (Vec<Entry>, Vec<String>) {
 }
 
 impl Catalog {
-    pub fn parse(text: &str) -> Catalog {
+    /// Parse a catalog. A right-to-left language's translations are stored in visual order —
+    /// the order egui draws its runs in (`bidi.rs`) — so the lookups read right to left.
+    pub fn parse(text: &str, rtl: bool) -> Catalog {
         let mut c = Catalog::default();
         for (ctx, src, tr) in parse_entries(text).0 {
+            // The plural forms are order-significant (`zero|one|two|few|many|other`), so the
+            // visual pass runs per form, never over the whole joined row: a pipe is a neutral
+            // character, and over the joined row the pass would reorder the forms themselves —
+            // exactly what the Arabic plural suite catches.
+            if ctx == "@plural" {
+                let forms = tr.split('|').map(|f| if rtl { super::bidi::visual_rtl(f) } else { f.to_string() }).collect();
+                c.plurals.insert(src, forms);
+                continue;
+            }
+            let tr = if rtl { super::bidi::visual_rtl(&tr) } else { tr };
             match ctx.as_str() {
                 "" => {
                     c.plain.insert(src, tr);
                 }
                 "@id" => {
                     c.ids.insert(src, tr);
-                }
-                "@plural" => {
-                    c.plurals.insert(src, tr.split('|').map(str::to_string).collect());
                 }
                 "@msg" => {
                     if src.contains('{') {
