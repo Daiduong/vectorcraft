@@ -361,6 +361,9 @@ fn build(doc: &mut Document, s: &geometry::Shape, shift: Affine, warnings: &mut 
         }
     };
     node.opacity = s.opacity.clamp(0.0, 1.0);
+    if let Some(b) = s.blend {
+        node.blend = b;
+    }
     node.name = s.name.clone();
     // Type under an envelope: a live envelope whose shape is CorelDRAW's outline, the type inside
     // it as stored (undistorted).
@@ -390,10 +393,24 @@ fn fade_mask(doc: &mut Document, fade: geometry::Fade, node: &Node) -> Option<Op
     let b = node.visual_bounds()?;
     let pad = 1.0 + 0.01 * b.width().max(b.height());
     let b = Rect::new(b.x0 - pad, b.y0 - pad, b.x1 + pad, b.y1 + pad);
-    let grey = |o: f32| Color::gray(o.clamp(0.0, 1.0));
+    // A mask's lightness is opacity; VectorCraft's grey is ink.
+    let grey = |o: f32| Color::gray(1.0 - o.clamp(0.0, 1.0));
     let stops = vec![GradientStop::new(0.0, grey(fade.opacity.0)), GradientStop::new(1.0, grey(fade.opacity.1))];
-    let mut paint = GradientPaint::new(Gradient { kind: GradientKind::Linear, stops });
-    paint.geom = Some(GradientGeom { start: fade.from, end: fade.to, aspect: 1.0, focal: None });
+    let (kind, geom) = if fade.elliptical {
+        let o = node.visual_bounds()?;
+        let c = o.center();
+        let half = (o.width() / 2.0).max(1e-6);
+        (
+            GradientKind::Radial,
+            GradientGeom { start: c, end: c + vectorcraft_geom::Vec2::new(half, 0.0), aspect: o.height() / 2.0 / half, focal: None },
+        )
+    } else if fade.radial {
+        (GradientKind::Radial, GradientGeom { start: fade.from, end: fade.to, aspect: 1.0, focal: None })
+    } else {
+        (GradientKind::Linear, GradientGeom { start: fade.from, end: fade.to, aspect: 1.0, focal: None })
+    };
+    let mut paint = GradientPaint::new(Gradient { kind, stops });
+    paint.geom = Some(geom);
     let fill = Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::Gradient(Box::new(paint))))], ..Appearance::default() };
     let art = Node::path(doc.alloc_id(), vectorcraft_geom::shapes::rectangle(b), fill);
     Some(OpacityMask::new(art, true))
@@ -453,12 +470,19 @@ mod tests {
         let mut doc = Document::new_with_mode(1.0, 1.0, ColorMode::Rgb);
         let path = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
         let fill = Appearance { items: vec![AppearanceItem::Fill(FillLayer::new(Paint::solid(Color::BLACK)))], ..Appearance::default() };
-        let fade = geometry::Fade { from: vectorcraft_geom::Point::new(0.0, 0.0), to: vectorcraft_geom::Point::new(10.0, 0.0), opacity: (1.0, 0.0) };
+        let fade = geometry::Fade {
+            from: vectorcraft_geom::Point::new(0.0, 0.0),
+            to: vectorcraft_geom::Point::new(10.0, 0.0),
+            opacity: (1.0, 0.0),
+            elliptical: false,
+            radial: false,
+        };
         let shape = geometry::Shape {
             content: Content::Path { path, rule: vectorcraft_geom::FillRule::EvenOdd },
             opacity: 0.5,
             name: None,
             fade: Some(fade),
+            blend: None,
             envelope: None,
             appearance: fill,
             notes: Vec::new(),
@@ -474,7 +498,8 @@ mod tests {
         let Paint::Gradient(g) = mask.art.appearance.fill_paint() else { panic!() };
         let geom = g.geom.unwrap();
         assert_eq!((geom.start.x, geom.end.x), (5.0, 15.0), "moved with the object");
-        assert_eq!(g.gradient.stops.iter().map(|s| s.color).collect::<Vec<_>>(), [Color::gray(1.0), Color::gray(0.0)]);
+        // Opaque is white (no ink), clear black.
+        assert_eq!(g.gradient.stops.iter().map(|s| s.color).collect::<Vec<_>>(), [Color::gray(0.0), Color::gray(1.0)]);
         // A uniform transparency stays the node's opacity.
         let plain = geometry::Shape { fade: None, ..shape };
         assert_eq!(build(&mut doc, &plain, Affine::IDENTITY, &mut warnings).unwrap().opacity, 0.5);

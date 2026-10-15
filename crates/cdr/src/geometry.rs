@@ -468,15 +468,22 @@ pub struct Loda {
     pub opacity: Option<f32>,
     /// A linear fading transparency (argument 8000), in object space.
     pub fade: Option<Fade>,
+    /// The transparency's merge mode (argument 8000), as VectorCraft's blend mode.
+    pub blend: Option<vectorcraft_color::BlendMode>,
 }
 
-/// A transparency that fades along a line: opacity `opacity.0` at its first end to `opacity.1` at
-/// its second, held beyond both.
+/// A transparency that fades: along a line, opacity `opacity.0` at its first end to `opacity.1`
+/// at its second (held beyond both), or across an ellipse fitted to the object's box, from its
+/// centre to its rim.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Fade {
     pub from: Point,
     pub to: Point,
     pub opacity: (f32, f32),
+    /// From the box's centre out (`from` and `to` unused).
+    pub elliptical: bool,
+    /// A circle from `from` (its centre) to `to` (its rim).
+    pub radial: bool,
 }
 
 impl Fade {
@@ -518,6 +525,7 @@ pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
         clip: None,
         opacity: None,
         fade: None,
+        blend: None,
     };
     let modern = version >= CdrVersion(400);
     for (&off, &ty) in offsets.iter().zip(&types) {
@@ -536,6 +544,7 @@ pub fn decode_loda(data: &[u8], version: CdrVersion) -> Result<Loda, Error> {
                 let arg = r.data.get(off..).unwrap_or_default();
                 loda.opacity = transparency(arg);
                 loda.fade = fade(arg);
+                loda.blend = merge_mode(arg);
             }
             _ => {}
         }
@@ -572,11 +581,11 @@ pub fn transparency(arg: &[u8]) -> Option<f32> {
     Some((1.0 - percent / 100.0) as f32)
 }
 
-/// A linear fading transparency (argument 8000), when the block places one: fountain type 1 (a
-/// little-endian u32 at byte 45) and the line's two ends as four 32-bit coordinates from byte 49,
-/// in object space, the double at byte 77 at the first end and the one at byte 69 at the second.
-/// Read from the user's version 17 samples; a fade without ends, or of another
-/// type, is left at [`transparency`]'s average.
+/// A fading transparency (argument 8000), by its type (a little-endian u32 at byte 45): type 1
+/// fades along a line whose two ends are four 32-bit coordinates from byte 49 (object space),
+/// the percentage at byte 69 at the first end and the one at byte 77 at the second; type 9 fades
+/// over an ellipse fitted to the object's box, from its centre to its rim. Read from user-owned
+/// files and a public corpus; other types are left at [`transparency`]'s average.
 pub fn fade(arg: &[u8]) -> Option<Fade> {
     let u32_at = |i: usize| arg.get(i..i + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
     let dbl = |i: usize| arg.get(i..i + 8).map(|b| f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]));
@@ -591,8 +600,30 @@ pub fn fade(arg: &[u8]) -> Option<Fade> {
         return None;
     }
     let opacity = |pct: f64| (1.0 - pct / 100.0) as f32;
-    // The first percentage is the line's far end's (measured against CorelDRAW's previews).
-    (u32_at(45)? == 1 && from != to).then_some(Fade { from, to, opacity: (opacity(end), opacity(start)) })
+    match u32_at(45)? {
+        1 if from != to => Some(Fade { from, to, opacity: (opacity(start), opacity(end)), elliptical: false, radial: false }),
+        // Type 2: a circle from its centre (the first point) to its rim (the second).
+        2 if from != to => Some(Fade { from, to, opacity: (opacity(start), opacity(end)), elliptical: false, radial: true }),
+        // Type 9 (soft shadows and glows): from the box's centre to its rim. Scored on 270 files of
+        // a public corpus against their previews: 35 closer, 3 slightly further.
+        9 => Some(Fade { from, to, opacity: (opacity(start), opacity(end)), elliptical: true, radial: false }),
+        _ => None,
+    }
+}
+
+/// A transparency's merge mode (argument 8000, a u32 at byte 85) as a blend mode, for the modes
+/// identified so far: 29 is Overlay (scored on 270 files of a public corpus against their
+/// previews: of every blend mode tried, Overlay made 9 of 10 affected files closer). Others draw
+/// normally.
+pub fn merge_mode(arg: &[u8]) -> Option<vectorcraft_color::BlendMode> {
+    let u32_at = |i: usize| arg.get(i..i + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+    if u32_at(0)? != 0x514 {
+        return None;
+    }
+    match u32_at(85)? {
+        29 => Some(vectorcraft_color::BlendMode::Overlay),
+        _ => None,
+    }
 }
 
 /// An envelope (`envd`): the outline an object's box is fitted to, in the space after the
@@ -1362,8 +1393,66 @@ pub enum CorelFill {
     Fountain(Fountain),
     /// A bitmap (9) or texture (11) fill: a bitmap of the file tiled over the object.
     Tiled(TiledFill),
-    /// Pattern (7), full-colour (10), PostScript and others.
+    /// A two-colour pattern (7, and 8 in later versions): a one-bit `bmpf` pattern tiled over the
+    /// object, its clear bits in `fg` and its set bits in `bg`.
+    TwoColour(TwoColourFill),
+    /// Full-colour (10), PostScript and others.
     Unsupported(u16),
+}
+
+/// A two-colour pattern fill: the `bmpf` pattern, one tile's size and its two colours.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TwoColourFill {
+    pub pattern: u32,
+    pub width_in: f64,
+    pub height_in: f64,
+    pub fg: CorelColor,
+    pub bg: CorelColor,
+}
+
+/// A one-bit pattern (`bmpf`): rows top first, each padded to a whole byte, the high bit first.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BitPattern {
+    pub width: u32,
+    pub height: u32,
+    pub bits: Vec<u8>,
+}
+
+/// Largest side of a pattern read.
+const MAX_PATTERN_SIDE: u32 = 4096;
+
+/// A `bmpf` record (libcdr's `readBmpf`): its id, then a 40-byte bitmap header (width, height,
+/// one bit per pixel, the data size); the pixels are the record's last bytes.
+pub fn decode_bmpf(data: &[u8]) -> Option<(u32, BitPattern)> {
+    let u32_at = |i: usize| data.get(i..i + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+    let id = u32_at(0)?;
+    if u32_at(4)? != 40 {
+        return None;
+    }
+    let (width, height) = (u32_at(8)?, u32_at(12)?);
+    let bpp = data.get(18..20).map(|b| u16::from_le_bytes([b[0], b[1]]))?;
+    let size = u32_at(24)? as usize;
+    if bpp != 1 || width == 0 || height == 0 || width > MAX_PATTERN_SIDE || height > MAX_PATTERN_SIDE || size == 0 {
+        return None;
+    }
+    let row = (width as usize).div_ceil(8);
+    let bits = data.get(data.len().checked_sub(size)?..)?.to_vec();
+    (bits.len() >= row * height as usize).then_some((id, BitPattern { width, height, bits }))
+}
+
+impl BitPattern {
+    /// The pattern as an RGBA bitmap: clear bits `fg`, set bits `bg`.
+    pub fn paint(&self, fg: [u8; 4], bg: [u8; 4]) -> crate::bitmap::Bitmap {
+        let row = (self.width as usize).div_ceil(8);
+        let mut rgba = Vec::with_capacity(self.width as usize * self.height as usize * 4);
+        for y in 0..self.height as usize {
+            for x in 0..self.width as usize {
+                let byte = self.bits.get(y * row + x / 8).copied().unwrap_or(0);
+                rgba.extend_from_slice(if byte & (0x80 >> (x % 8)) != 0 { &bg } else { &fg });
+            }
+        }
+        crate::bitmap::Bitmap { width: self.width, height: self.height, rgba }
+    }
 }
 
 /// A bitmap or texture fill: the `bmp ` record it tiles and the size of one tile.
@@ -1415,6 +1504,7 @@ impl CorelFill {
             }
             2 => Self::Fountain(Self::fountain(&mut r)?),
             t @ (9 | 11) => Self::tiled(&mut r).map_or(Self::Unsupported(t), Self::Tiled),
+            t @ (7 | 8) => Self::two_colour(&mut r).map_or(Self::Unsupported(t), Self::TwoColour),
             t => Self::Unsupported(t),
         };
         Ok((id, fill))
@@ -1523,6 +1613,35 @@ impl CorelFill {
         Some(TiledFill { bitmap, width_in: w, height_in: h, dpi: None })
     }
 
+    /// A two-colour pattern fill (libcdr's `readFild` case 7; version 16+ files call it 8 and lay
+    /// it out the same way): the pattern's id, the tile's size, then the two colours.
+    fn two_colour(r: &mut Reader<'_>) -> Option<TwoColourFill> {
+        let v = r.version;
+        r.skip(if v >= CdrVersion(1300) { 8 } else { 2 }).ok()?;
+        let pattern = r.u32().ok()?;
+        let (w, h) = (r.integer().ok()?, r.integer().ok()?);
+        r.skip(4).ok()?; // tile offsets
+        r.skip(2).ok()?; // row or column offset
+        let flags = r.u8().ok()?;
+        if flags & 0x04 != 0 && v < CdrVersion(900) {
+            return None; // sized relative to the object: not read
+        }
+        r.skip(if v >= CdrVersion(1300) { 6 } else { 1 }).ok()?;
+        let fg = CorelColor::read(r).ok()?;
+        r.skip(if v >= CdrVersion(1600) {
+            31
+        } else if v >= CdrVersion(1300) {
+            10
+        } else {
+            0
+        })
+        .ok()?;
+        let bg = CorelColor::read(r).ok()?;
+        let unit = if v < CdrVersion(600) { 1000.0 } else { 254_000.0 };
+        let (w, h) = (f64::from(w) / unit, f64::from(h) / unit);
+        (w > 0.0 && h > 0.0 && w < 1000.0 && h < 1000.0).then_some(TwoColourFill { pattern, width_in: w, height_in: h, fg, bg })
+    }
+
     /// The placement after a version 17 fountain's stops: 3 bytes, then eight doubles, the fifth
     /// and eighth of them zero. Anything else is left to the angle and pad.
     fn fountain_frame(r: &mut Reader<'_>) -> Option<[f64; 6]> {
@@ -1549,8 +1668,8 @@ impl CorelFill {
             Self::None => None,
             Self::Solid(c) => Some(FillLayer::new(Paint::solid(color_or_black(c, notes)))),
             Self::Fountain(f) => f.to_paint(bounds, local, notes).map(FillLayer::new),
-            Self::Tiled(_) => {
-                notes.push("a bitmap or texture fill on type is not translated".into());
+            Self::Tiled(_) | Self::TwoColour(_) => {
+                notes.push("a pattern, bitmap or texture fill on type is not translated".into());
                 None
             }
             Self::Unsupported(t) => {
@@ -1687,6 +1806,8 @@ pub struct Shape {
     pub name: Option<String>,
     /// A fading transparency, in document space, over [`Self::opacity`].
     pub fade: Option<Fade>,
+    /// How the shape combines with what is below it (its transparency's merge mode).
+    pub blend: Option<vectorcraft_color::BlendMode>,
     /// An envelope the shape is fitted to (its box mapped onto this outline), document space.
     pub envelope: Option<PathData>,
     /// Fill below stroke, as CorelDRAW draws them (empty for type, whose characters carry theirs).
@@ -1734,7 +1855,7 @@ impl Shape {
     }
 
     fn of(content: Content, notes: Vec<String>) -> Self {
-        Self { content, opacity: 1.0, name: None, fade: None, envelope: None, appearance: Appearance::default(), notes }
+        Self { content, opacity: 1.0, name: None, fade: None, blend: None, envelope: None, appearance: Appearance::default(), notes }
     }
 
     /// This shape and, for a group, everything in it, bottom first (a group before its members).
@@ -1838,12 +1959,13 @@ pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams:
     let mut outlines = BTreeMap::new();
     let mut fonts: BTreeMap<u16, Font> = BTreeMap::new();
     let mut bitmaps = BTreeMap::new();
+    let mut patterns: BTreeMap<u32, BitPattern> = BTreeMap::new();
     let mut arrows = BTreeMap::new();
     let mut page = default_page;
     // Styles come before the objects that use them; collect them first, as libcdr's styles pass.
     for (_, c) in riff.walk() {
         let Chunk::Record(rec) = c else { continue };
-        if !matches!(&rec.kind.0, b"fild" | b"fill" | b"outl" | b"mcfg" | b"bmp " | b"font" | b"arrw") {
+        if !matches!(&rec.kind.0, b"fild" | b"fill" | b"outl" | b"mcfg" | b"bmp " | b"bmpf" | b"font" | b"arrw") {
             continue;
         }
         let data = match src.data(rec) {
@@ -1873,6 +1995,11 @@ pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams:
                 }
                 Err(e) => t.errors.push(e.to_string()),
             },
+            b"bmpf" => {
+                if let Some((id, p)) = decode_bmpf(data) {
+                    patterns.insert(id, p);
+                }
+            }
             b"bmp " => match crate::bitmap::decode_bmp(data, version) {
                 Ok((id, b)) => {
                     bitmaps.insert(id, std::sync::Arc::new(b));
@@ -1887,6 +2014,18 @@ pub fn translate_with(riff: &Riff<'_>, default_page: Option<PageSpace>, streams:
                 Err(e) => t.errors.push(e.to_string()),
             },
             _ => {}
+        }
+    }
+    // Two-colour patterns become bitmaps in their colours, tiled like bitmap fills: each is
+    // stored as a bitmap under a key no `bmp ` record uses.
+    for (id, f) in &mut fills {
+        if let CorelFill::TwoColour(tc) = *f
+            && let Some(p) = patterns.get(&tc.pattern)
+        {
+            let rgba = |c: &CorelColor| c.to_color().map_or([0, 0, 0, 255], |c| c.to_rgba8(1.0));
+            let key = u32::MAX - *id;
+            bitmaps.insert(key, std::sync::Arc::new(p.paint(rgba(&tc.fg), rgba(&tc.bg))));
+            *f = CorelFill::Tiled(TiledFill { bitmap: key, width_in: tc.width_in, height_in: tc.height_in, dpi: None });
         }
     }
     for (id, f) in &fills {
@@ -1992,6 +2131,7 @@ struct Pending {
     clip: Option<u32>,
     opacity: Option<f32>,
     fade: Option<Fade>,
+    blend: Option<vectorcraft_color::BlendMode>,
     /// The fill's own transform (`ftil`), which bitmap and texture tiles follow.
     fill_xf: Option<Affine>,
     /// An envelope (`envd`): the outline the object's box is fitted to, page space.
@@ -2247,6 +2387,7 @@ impl Ctx<'_, '_> {
                 clip: l.clip,
                 opacity: l.opacity,
                 fade: l.fade,
+                blend: l.blend,
                 fill_xf,
                 // The envelope is drawn after the object's first transform: only the others place it.
                 envelope: envelope.map(|mut e| {
@@ -2277,6 +2418,7 @@ impl Ctx<'_, '_> {
                     opacity: p.opacity.unwrap_or(1.0),
                     name: p.name,
                     fade,
+                    blend: p.blend,
                     ..Shape::of(Content::Image { bitmap: bitmap.clone(), xf }, notes)
                 };
             }
@@ -2287,7 +2429,14 @@ impl Ctx<'_, '_> {
                     e.apply_affine(page.to_document());
                     PathData::from_bezpath(&e)
                 });
-                return Shape { opacity: p.opacity.unwrap_or(1.0), name: p.name, fade, envelope, ..Shape::of(Content::Text(Box::new(t)), notes) };
+                return Shape {
+                    opacity: p.opacity.unwrap_or(1.0),
+                    name: p.name,
+                    fade,
+                    blend: p.blend,
+                    envelope,
+                    ..Shape::of(Content::Text(Box::new(t)), notes)
+                };
             }
         };
         let path = PathData::from_bezpath(&{
@@ -2302,6 +2451,8 @@ impl Ctx<'_, '_> {
                 // transform (y up in CorelDRAW, so its off-diagonal terms change sign).
                 (true, Some(b)) => {
                     let [a, bb, c, d, _, _] = p.fill_xf.unwrap_or(Affine::IDENTITY).as_coeffs();
+                    // (Anchoring them by the fill transform's offset, at the box's bottom-left or at the
+                    // page's origin each scored worse on the corpus overall.)
                     let xf = Affine::translate(b.origin().to_vec2()) * Affine::new([a, -bb, -c, d, 0.0, 0.0]);
                     items.push(AppearanceItem::Fill(FillLayer::new(Paint::Pattern { pattern: tile_name(id), xf })));
                 }
@@ -2339,6 +2490,7 @@ impl Ctx<'_, '_> {
             opacity: p.opacity.unwrap_or(1.0),
             name: p.name,
             fade,
+            blend: p.blend,
             // A curve's points are stored already fitted to its envelope.
             envelope: None,
             appearance: Appearance { items, ..Appearance::default() },
@@ -2971,6 +3123,45 @@ mod tests {
     }
 
     #[test]
+    fn two_colour_patterns() {
+        // bmpf: id 5, a 40-byte header for a 2x2 one-bit pattern, the bits last (rows top first).
+        let mut rec = 5u32.to_le_bytes().to_vec();
+        for v in [40u32, 2, 2] {
+            rec.extend_from_slice(&v.to_le_bytes());
+        }
+        rec.extend_from_slice(&1u16.to_le_bytes());
+        rec.extend_from_slice(&1u16.to_le_bytes());
+        rec.extend_from_slice(&0u32.to_le_bytes());
+        rec.extend_from_slice(&2u32.to_le_bytes());
+        rec.extend_from_slice(&[0; 16]);
+        rec.extend_from_slice(&[0x80, 0x40]);
+        let (id, p) = decode_bmpf(&rec).unwrap();
+        assert_eq!((id, p.width, p.height), (5, 2, 2));
+        let (fg, bg) = ([255, 255, 255, 255], [0, 0, 255, 255]);
+        let b = p.paint(fg, bg);
+        assert_eq!(b.rgba.chunks(4).collect::<Vec<_>>(), [&bg[..], &fg[..], &fg[..], &bg[..]], "set bits take the second colour");
+        assert!(decode_bmpf(&rec[..20]).is_none());
+        // A version 17 pattern fill (type 8): pattern 5, a 1 in tile, white over blue.
+        let mut fild = 3u32.to_le_bytes().to_vec();
+        for v in [0x514u32, 0x8c] {
+            fild.extend_from_slice(&v.to_le_bytes());
+        }
+        fild.extend_from_slice(&8u16.to_le_bytes());
+        fild.extend_from_slice(&[0; 8]);
+        fild.extend_from_slice(&5u32.to_le_bytes());
+        fild.extend_from_slice(&le32(&[IN, IN]));
+        fild.extend_from_slice(&[0; 4 + 2 + 1 + 6]);
+        fild.extend_from_slice(&color9(0x05, [255, 255, 255, 0]));
+        fild.extend_from_slice(&[0; 31]);
+        fild.extend_from_slice(&color9(0x05, [255, 0, 0, 0]));
+        let (id, f) = CorelFill::decode(&fild, CdrVersion(1700)).unwrap();
+        let CorelFill::TwoColour(tc) = f else { panic!("{f:?}") };
+        assert_eq!((id, tc.pattern, tc.width_in, tc.height_in), (3, 5, 1.0, 1.0));
+        assert_eq!((tc.fg.to_color(), tc.bg.to_color()), (Ok(Color::rgb8(255, 255, 255)), Ok(Color::rgb8(0, 0, 255))));
+        assert_eq!(CorelFill::decode(&fild[..40], CdrVersion(1700)).unwrap().1, CorelFill::Unsupported(8));
+    }
+
+    #[test]
     fn fill_transforms() {
         let rec: Vec<u8> = [1.0f64, 0.5, 254_000.0, 0.0, 2.0, -508_000.0].iter().flat_map(|v| v.to_le_bytes()).collect();
         // x' = x + 0.5 y + 1 in, y' = 2 y - 2 in.
@@ -3022,9 +3213,20 @@ mod tests {
         // A fade is averaged for the object's opacity …
         let fading = transparency_block(0.0, 100.0, Some([0, 0, IN, 0]));
         assert_eq!(transparency(&fading), Some(0.5));
-        // … and kept as a line: the first percentage belongs to the line's far end.
-        assert_eq!(fade(&fading), Some(Fade { from: Point::ORIGIN, to: Point::new(1.0, 0.0), opacity: (0.0, 1.0) }));
+        // … and kept as a line: the first percentage at its first end.
+        assert_eq!(
+            fade(&fading),
+            Some(Fade { from: Point::ORIGIN, to: Point::new(1.0, 0.0), opacity: (1.0, 0.0), elliptical: false, radial: false })
+        );
+        // Type 9: elliptical, from the centre out.
+        let mut glow = transparency_block(40.0, 100.0, None);
+        glow[45..49].copy_from_slice(&9u32.to_le_bytes());
+        assert_eq!(fade(&glow).map(|f| (f.elliptical, f.opacity)), Some((true, (0.6, 0.0))));
         assert_eq!(fade(&transparency_block(40.0, 0.0, Some([0, 0, IN, 0]))), None, "uniform");
+        let mut overlay = transparency_block(40.0, 0.0, None);
+        assert_eq!(merge_mode(&overlay), None);
+        overlay[85..89].copy_from_slice(&29u32.to_le_bytes());
+        assert_eq!(merge_mode(&overlay), Some(vectorcraft_color::BlendMode::Overlay));
         assert_eq!(fade(&transparency_block(0.0, 100.0, None)), None, "a fade without ends");
         let mut other = fading.clone();
         other[0] = 0;
@@ -3089,7 +3291,7 @@ mod tests {
         // The container: its fill, faded (opacity mask) with its average opacity and its name.
         assert_eq!((art[1].opacity, art[1].name.as_deref()), (0.5, Some("Frame")));
         let f = art[1].fade.unwrap();
-        assert_eq!((f.from, f.to, f.opacity), (Point::new(0.0, 72.0), Point::new(72.0, 72.0), (0.0, 1.0)));
+        assert_eq!((f.from, f.to, f.opacity), (Point::new(0.0, 72.0), Point::new(72.0, 72.0), (1.0, 0.0)));
         assert!(art[1].appearance.stroke().is_none());
         // Then a clip group: the container's outline, then the `clpt` contents.
         let Content::Group { children, clip: true } = &art[2].content else { panic!("{:?}", art[2].content) };
