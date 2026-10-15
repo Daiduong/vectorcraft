@@ -11,12 +11,19 @@ workspace = true
 
 [features]
 default = ["wgpu", "accessibility"]
+# The CraftHub v3 client path (spec §18.4 row 5): default off, flipped only after the
+# simulation suite runs green in CI for a full week.
+crafthub = ["dep:vectorcraft-hub"]
 wgpu = ["eframe/wgpu", "dep:winsafe"]
 accessibility = ["eframe/accesskit"]
 # Build with --no-default-features --features windows7 and the win7 Rust target.
 windows7 = ["eframe/glow"]
 
 [dependencies]
+# The CraftHub v3 client path (default off): the adapter contract; the session wiring lands
+# behind this flag in the pilot follow-up. Nothing changes until it is switched on.
+vectorcraft-hub = { workspace = true, optional = true }
+
 vectorcraft-engine = { workspace = true }
 vectorcraft-ui-egui = { workspace = true }
 vectorcraft-text = { workspace = true }
