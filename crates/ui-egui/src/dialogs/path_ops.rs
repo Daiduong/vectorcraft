@@ -1,4 +1,4 @@
-//! Path dialogs: Average, and Offset Path, Simplify and Split Into Grid with Preview.
+//! Path dialogs: Average, Average and Join, and Offset Path, Simplify and Split Into Grid with Preview.
 
 use serde_json::{Value, json};
 use vectorcraft_doc::Unit;
@@ -12,6 +12,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec { heading: |d| title(&d.kind).int
 fn title(kind: &str) -> &'static str {
     match kind {
         "average" => tl!("Average"),
+        "averageJoin" => tl!("Average and Join"),
         "offsetPath" => tl!("Offset Path"),
         "simplify" => tl!("Simplify"),
         _ => tl!("Split Into Grid"),
@@ -22,6 +23,7 @@ fn title(kind: &str) -> &'static str {
 fn command(d: &Dialog) -> (&'static str, Value) {
     match d.kind.as_str() {
         "average" => ("path.average", json!({"axis": d.str("axis")})),
+        "averageJoin" => ("path.averageJoin", json!({"kind": d.str("kind")})),
         "offsetPath" => {
             ("object.path.offsetPath", json!({"offset": d.f64("offset", 10.0), "joins": d.str("joins"), "miterLimit": d.f64("miterLimit", 4.0)}))
         }
@@ -30,7 +32,7 @@ fn command(d: &Dialog) -> (&'static str, Value) {
     }
 }
 
-/// The undo label of the dialogs that preview on the canvas (all but Average).
+/// The undo label of the dialogs that preview on the canvas (neither Average command does).
 fn previewed(kind: &str) -> Option<&'static str> {
     match kind {
         "offsetPath" => Some("Offset Path"),
