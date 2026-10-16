@@ -151,6 +151,7 @@ pub const ICON_PANELS: &[(&str, &str, &str)] = &[
     ("magicWand", "Magic Wand", "wand-sparkles"),
     (crate::panels::flattener_preview::ID, "Flattener Preview", "eye"),
     ("attributes", "Attributes", "settings"),
+    (crate::panels::barcode::ID, "Barcode", "scan-barcode"),
     ("colorThemes", "Color Themes", "sun"),
     (crate::panels::links::ID, "Links", "link"),
     (crate::panels::asset_export::ID, "Asset Export", "share-2"),
@@ -172,7 +173,7 @@ pub const ICON_PANEL_GROUPS: &[&[&str]] = &[
     &["transform", "align", "pathfinder"],
     &["character", "paragraph", "glyphs"],
     &["history", "actions", "info", "navigator"],
-    &["variables"],
+    &["barcode", "variables"],
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -263,6 +264,11 @@ impl Dialog {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiState {
+    /// The Barcode panel's fields before they are applied: the symbology, the data and the sizing
+    /// a new symbol is drawn with. Kept here so that switching panels or documents does not lose
+    /// what was typed. A barcode object selected on the canvas is edited from its own spec instead.
+    #[serde(default)]
+    pub barcode: vectorcraft_barcode::BarcodeSpec,
     /// The interface language older versions saved here (`ja`, `cs`…). It now lives in the
     /// `interfaceLanguage` preference, which [`crate::prefs_dialog::restore`] carries it over to;
     /// it is never written back.
@@ -696,6 +702,10 @@ impl UiState {
 impl Default for UiState {
     fn default() -> Self {
         Self {
+            barcode: vectorcraft_barcode::BarcodeSpec {
+                data: vectorcraft_barcode::Symbology::Ean13.sample_data().to_string(),
+                ..vectorcraft_barcode::BarcodeSpec::default()
+            },
             legacy_language: None,
             brightness: Brightness::MediumDark,
             dock_tab: DockTab::Properties,

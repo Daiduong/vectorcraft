@@ -4849,3 +4849,16 @@ mark-style	Japanese	Japonesas
 	Color Panel Options	Opções do Painel Cor
 @msg	`mode` must be grayscale, rgb, hsb, cmyk or websafe	`mode` deve ser grayscale, rgb, hsb, cmyk ou websafe
 @msg	the image can't be read as a texture	a imagem não pode ser lida como textura
+	Barcode	Código de barras
+	Barcode Options	Opções do código de barras
+	Data:	Dados:
+	Document Default	Padrão do documento
+	Error Correction:	Correção de erros:
+	Human Readable Line	Linha legível
+	Install OCR-B for the standard digits.	Instale a OCR-B para os dígitos padrão.
+	Magnification:	Ampliação:
+	Mask:	Máscara:
+	Module:	Módulo:
+	Quiet Zone:	Zona de silêncio:
+	Update	Atualizar
+	Width Ratio:	Proporção de largura:

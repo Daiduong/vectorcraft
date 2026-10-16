@@ -4549,3 +4549,16 @@ lighting	Light	ライト
 @msg	choose a source folder	ソースフォルダーを選択してください
 @msg	open a document with data sets	データセットのあるドキュメントを開いてください
 @msg	the action has no steps	アクションにステップがありません
+	Barcode	バーコード
+	Barcode Options	バーコードオプション
+	Data:	データ:
+	Document Default	ドキュメントのデフォルト
+	Error Correction:	誤り訂正:
+	Human Readable Line	人間が読めるテキスト
+	Install OCR-B for the standard digits.	標準の数字には OCR-B をインストールしてください。
+	Magnification:	倍率:
+	Mask:	マスク:
+	Module:	モジュール:
+	Quiet Zone:	余白:
+	Update	更新
+	Width Ratio:	幅の比率:

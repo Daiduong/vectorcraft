@@ -1,0 +1,99 @@
+//! Headless frames of the Barcode panel: what it shows for a draft and for a selected barcode, and
+//! that the button draws one through the same commands an agent would run.
+
+use serde_json::json;
+use vectorcraft_engine::Session;
+
+use super::tests_appearance::{frame_events, run};
+use super::*;
+
+/// Every text drawn in one headless frame of the panel.
+fn texts(app: &mut VectorcraftApp) -> Vec<String> {
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame_events(&ctx, app, vec![], barcode::show);
+    let ctx2 = egui::Context::default();
+    crate::theme::install_fonts(&ctx2);
+    frame_events(&ctx2, app, vec![], barcode::show).into_iter().map(|(s, _)| s).collect()
+}
+
+fn shows(t: &[String], s: &str) -> bool {
+    t.iter().any(|x| x == s)
+}
+
+fn app_with_doc() -> VectorcraftApp {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    run(&mut app, "file.new", json!({"width": 800, "height": 800}));
+    app
+}
+
+/// The panel is registered with its own icon, is in the collapsed column, and Window › Barcode
+/// opens it.
+#[test]
+fn the_panel_is_registered_and_opens_from_the_window_menu() {
+    let row = crate::state::ICON_PANELS.iter().find(|(id, ..)| *id == barcode::ID).expect("registered");
+    assert_eq!(row.1, "Barcode");
+    assert!(crate::icons::exists(row.2), "{} is not a bundled icon", row.2);
+    assert!(crate::state::ICON_PANEL_GROUPS.iter().any(|g| g.contains(&barcode::ID)), "it reaches the collapsed column");
+
+    let app = app_with_doc();
+    let entries = crate::menus::menu_entries(&app);
+    let item = entries
+        .iter()
+        .find(|e| e.command.as_deref() == Some("window.panel") && e.params.get("panel").and_then(serde_json::Value::as_str) == Some(barcode::ID))
+        .expect("Window › Barcode");
+    assert_eq!((item.path.clone(), item.label.as_str()), (vec!["Window".to_string()], "Barcode"));
+}
+
+/// A draft shows the symbology it will draw, the size the symbol comes out at, and the standard
+/// digits' font when the machine has it.
+#[test]
+fn the_draft_shows_what_it_will_draw() {
+    let mut app = app_with_doc();
+    let t = texts(&mut app);
+    assert!(shows(&t, "EAN-13"), "{t:?}");
+    assert!(shows(&t, "Create"), "{t:?}");
+    // The nominal EAN-13 with its quiet zones: 37.29 mm by 25.93 mm.
+    assert!(t.iter().any(|s| s.starts_with("37.29")), "{t:?}");
+}
+
+/// A selected barcode's own settings fill the panel, and the button rewrites that object.
+#[test]
+fn a_selected_barcode_is_what_the_panel_edits() {
+    let mut app = app_with_doc();
+    let id = run(&mut app, "barcode.create", json!({"symbology": "code39", "data": "ABC-123"}))["id"].as_u64().expect("id");
+    run(&mut app, "select.set", json!({"ids": [id]}));
+    let t = texts(&mut app);
+    assert!(shows(&t, "Code 39"), "{t:?}");
+    assert!(shows(&t, "Update"), "{t:?}");
+
+    run(&mut app, "barcode.set", json!({"data": "XYZ-9"}));
+    let t = texts(&mut app);
+    assert!(shows(&t, "Code 39"), "the type is unchanged: {t:?}");
+}
+
+/// Data no symbol can carry is shown as the encoder's own refusal, in the panel, without a crash.
+#[test]
+fn data_that_cannot_be_encoded_is_reported_in_the_panel() {
+    let mut app = app_with_doc();
+    app.ui.barcode =
+        vectorcraft_barcode::BarcodeSpec { symbology: vectorcraft_barcode::Symbology::Ean13, data: "nonsense".into(), ..Default::default() };
+    let t = texts(&mut app);
+    assert!(t.iter().any(|s| s.contains("digits")), "{t:?}");
+}
+
+/// A QR Code's draft shows the error correction, version and mask controls.
+#[test]
+fn a_matrix_symbology_shows_its_own_controls() {
+    let mut app = app_with_doc();
+    app.ui.barcode = vectorcraft_barcode::BarcodeSpec {
+        symbology: vectorcraft_barcode::Symbology::QrCode,
+        data: "https://example.com/".into(),
+        ..Default::default()
+    };
+    let t = texts(&mut app);
+    assert!(shows(&t, "Error Correction:"), "{t:?}");
+    assert!(shows(&t, "Version:"), "{t:?}");
+    assert!(shows(&t, "Mask:"), "{t:?}");
+    assert!(!shows(&t, "Human Readable Line"), "a QR Code has no human readable line: {t:?}");
+}

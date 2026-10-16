@@ -4504,3 +4504,16 @@ lighting	Light	Свет
 @msg	choose a source folder	выберите исходную папку
 @msg	open a document with data sets	откройте документ с наборами данных
 @msg	the action has no steps	в действии нет шагов
+	Barcode	Штрихкод
+	Barcode Options	Параметры штрихкода
+	Data:	Данные:
+	Document Default	По умолчанию в документе
+	Error Correction:	Исправление ошибок:
+	Human Readable Line	Читаемая строка
+	Install OCR-B for the standard digits.	Установите OCR-B для стандартных цифр.
+	Magnification:	Масштаб:
+	Mask:	Маска:
+	Module:	Модуль:
+	Quiet Zone:	Свободная зона:
+	Update	Обновить
+	Width Ratio:	Соотношение ширины:

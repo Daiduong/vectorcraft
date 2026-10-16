@@ -4914,3 +4914,16 @@ theme	Appearance	Външен вид
 # View › Hide Template / Show Template
 	Hide Template	Скриване на шаблона
 	Show Template	Показване на шаблона
+	Barcode	Баркод
+	Barcode Options	Опции за баркод
+	Data:	Данни:
+	Document Default	По подразбиране в документа
+	Error Correction:	Корекция на грешки:
+	Human Readable Line	Четив текст
+	Install OCR-B for the standard digits.	Инсталирайте OCR-B за стандартните цифри.
+	Magnification:	Увеличение:
+	Mask:	Маска:
+	Module:	Модул:
+	Quiet Zone:	Тиха зона:
+	Update	Обновяване
+	Width Ratio:	Съотношение на ширината:

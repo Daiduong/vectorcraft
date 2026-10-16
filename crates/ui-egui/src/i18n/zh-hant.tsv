@@ -3827,3 +3827,16 @@ lighting	Light	光源
 	Destination Folder:	目的地資料夾：
 	Overrides	覆寫
 	Uses every data set of the open document.	使用開啟文件的每個資料集。
+	Barcode	條碼
+	Barcode Options	條碼選項
+	Data:	資料:
+	Document Default	文件預設
+	Error Correction:	錯誤修正:
+	Human Readable Line	可讀文字
+	Install OCR-B for the standard digits.	請安裝 OCR-B 以使用標準數字。
+	Magnification:	放大倍率:
+	Mask:	遮罩:
+	Module:	模組:
+	Quiet Zone:	靜區:
+	Update	更新
+	Width Ratio:	寬度比:

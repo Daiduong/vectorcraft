@@ -4472,3 +4472,16 @@ lighting	Light	광원
 @msg	choose a source folder	소스 폴더를 선택하세요
 @msg	open a document with data sets	데이터 세트가 있는 문서를 여세요
 @msg	the action has no steps	액션에 단계가 없습니다
+	Barcode	바코드
+	Barcode Options	바코드 옵션
+	Data:	데이터:
+	Document Default	문서 기본값
+	Error Correction:	오류 정정:
+	Human Readable Line	판독용 텍스트
+	Install OCR-B for the standard digits.	표준 숫자를 표시하려면 OCR-B를 설치하십시오.
+	Magnification:	배율:
+	Mask:	마스크:
+	Module:	모듈:
+	Quiet Zone:	여백:
+	Update	업데이트
+	Width Ratio:	너비 비율:

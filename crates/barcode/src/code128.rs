@@ -1,0 +1,351 @@
+//! Code 128 (ISO/IEC 15417) and its GS1 form, GS1-128.
+//!
+//! Every symbol character is eleven modules wide — six elements, three bars and three spaces,
+//! whose widths run from one to four modules — except the stop, which is thirteen. That leaves
+//! 107 values: 0 to 102 for data and the control characters, and 103 to 106 for the three start
+//! characters and the stop.
+//!
+//! The code sets decide what a value means. A and B each carry 96 characters (A has the control
+//! characters and upper case, B has both cases), C carries two digits to a value, and the control
+//! characters switch between them: a symbol may start in any set and change set as it goes, which
+//! is how a twelve-digit article number takes six characters instead of twelve.
+//!
+//! [`encode`] picks the sets itself; the `Code128A`, `Code128B` and `Code128C` symbologies hold
+//! the data to one set instead, which is what a system expecting a fixed set wants.
+
+use crate::linear::Linear;
+use crate::{BarcodeSpec, Error, HriAlign, HriPart, Result, Symbol, Symbology, finish_linear};
+
+/// Every symbol character, as the six widths of its elements, bar first. The last entry is the
+/// stop character, which has a seventh element: the two-module bar that ends the symbol.
+const PATTERNS: [&str; 107] = [
+    "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213", "221312", "231212", "112232", "122132",
+    "122231", "113222", "123122", "123221", "223211", "221132", "221231", "213212", "223112", "312131", "311222", "321122", "321221", "312212",
+    "322112", "322211", "212123", "212321", "232121", "111323", "131123", "131321", "112313", "132113", "132311", "211313", "231113", "231311",
+    "112133", "112331", "132131", "113123", "113321", "133121", "313121", "211331", "231131", "213113", "213311", "213131", "311123", "311321",
+    "331121", "312113", "312311", "332111", "314111", "221411", "431111", "111224", "111422", "121124", "121421", "141122", "141221", "112214",
+    "112412", "122114", "122411", "142112", "142211", "241211", "221114", "413111", "241112", "134111", "111242", "121142", "121241", "114212",
+    "124112", "124211", "411212", "421112", "421211", "212141", "214121", "412121", "111143", "111341", "131141", "114113", "114311", "411113",
+    "411311", "113141", "114131", "311141", "411131", "211412", "211214", "211232", "2331112",
+];
+
+/// The three start characters.
+const START_A: u8 = 103;
+const START_B: u8 = 104;
+const START_C: u8 = 105;
+/// The stop character.
+const STOP: u8 = 106;
+/// The values that are control characters rather than data in sets A and B.
+const CODE_C: u8 = 99;
+const CODE_B: u8 = 100;
+const CODE_A: u8 = 101;
+const FNC1: u8 = 102;
+const SHIFT: u8 = 98;
+
+/// Which of the three code sets a Code 128 symbol is working in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CodeSet {
+    A,
+    B,
+    C,
+}
+
+impl CodeSet {
+    fn start(self) -> u8 {
+        match self {
+            CodeSet::A => START_A,
+            CodeSet::B => START_B,
+            CodeSet::C => START_C,
+        }
+    }
+
+    fn switch_to(self) -> u8 {
+        match self {
+            CodeSet::A => CODE_A,
+            CodeSet::B => CODE_B,
+            CodeSet::C => CODE_C,
+        }
+    }
+
+    /// The value that carries `c` in this set, or None when the set has no room for it.
+    fn value_of(self, c: char) -> Option<u8> {
+        let n = c as u32;
+        match self {
+            CodeSet::A => match n {
+                32..=95 => Some((n - 32) as u8),
+                0..=31 => Some((n + 64) as u8),
+                _ => None,
+            },
+            CodeSet::B => {
+                if (32..=127).contains(&n) {
+                    Some((n - 32) as u8)
+                } else {
+                    None
+                }
+            }
+            // Set C carries digit pairs, which the caller forms.
+            CodeSet::C => None,
+        }
+    }
+
+    /// Whether the set can carry `c` at all, which is what decides a shift or a switch.
+    fn holds(self, c: char) -> bool {
+        self.value_of(c).is_some()
+    }
+}
+
+/// How many digits run from `from`.
+fn digit_run(chars: &[char], from: usize) -> usize {
+    chars.iter().skip(from).take_while(|c| c.is_ascii_digit()).count()
+}
+
+/// How many characters from `from` the set `set` holds before one it does not.
+fn run_in(chars: &[char], from: usize, set: CodeSet) -> usize {
+    chars.iter().skip(from).take_while(|c| set.holds(**c)).count()
+}
+
+/// The data characters of a symbol, as code values, together with the set it starts in.
+///
+/// `fixed` pins the whole symbol to one set, which is what the three Code 128 variants do; `gs1`
+/// puts an FNC1 in the first position, which is what makes a symbol a GS1-128.
+fn values(data: &str, fixed: Option<CodeSet>, gs1: bool) -> Result<(CodeSet, Vec<u8>)> {
+    // GS1 writes its application identifiers in brackets for people to read; the symbol carries
+    // the bare digits and the FNC1s that separate them.
+    let data = &if gs1 { data.replace(['(', ')'], "") } else { data.to_string() };
+    if !data.is_ascii() {
+        return Err(Error::Data("Code 128 carries ASCII only".into()));
+    }
+    let chars: Vec<char> = data.chars().collect();
+    let mut out = Vec::new();
+    if gs1 {
+        // The first FNC1 is what marks a symbol as GS1-128; it is not a data character, so it
+        // comes before the start character's position in the checksum's weight order.
+        out.push(FNC1);
+    }
+    if let Some(set) = fixed {
+        if set == CodeSet::C {
+            if !chars.len().is_multiple_of(2) || chars.is_empty() {
+                return Err(Error::Data("Code 128 C carries digit pairs, so it needs an even number of digits".into()));
+            }
+            for pair in chars.chunks(2) {
+                out.push(digit_pair(pair)?);
+            }
+        } else {
+            for &c in &chars {
+                out.push(set.value_of(c).ok_or_else(|| {
+                    Error::Data(format!("{} cannot carry {}", if set == CodeSet::A { "Code 128 A" } else { "Code 128 B" }, c.escape_debug()))
+                })?);
+            }
+        }
+        return Ok((set, out));
+    }
+
+    // The set the symbol starts in: C for a leading run of digits, else A when the first
+    // character needs it, else B (ISO/IEC 15417 Annex B's recommendation).
+    let lead = digit_run(&chars, 0);
+    let mut set = if lead >= 4 && lead.is_multiple_of(2) {
+        CodeSet::C
+    } else if chars.first().is_some_and(|c| !CodeSet::B.holds(*c)) {
+        CodeSet::A
+    } else {
+        CodeSet::B
+    };
+    if lead >= 4 && !lead.is_multiple_of(2) {
+        // An odd leading run: one digit in set B, then the rest as pairs in C.
+        set = CodeSet::B;
+    }
+    let start_set = set;
+    let mut i = 0;
+    while i < chars.len() {
+        let digits = digit_run(&chars, i);
+        // Six digits are worth a switch in the middle of a symbol; four at the end, where there is
+        // no later data to amortise the switch against.
+        let worth_switching = digits >= 6 || (digits >= 4 && i + digits == chars.len());
+        if set != CodeSet::C && worth_switching {
+            if set != start_set || !out.is_empty() {
+                out.push(CodeSet::C.switch_to());
+            }
+            set = CodeSet::C;
+            continue;
+        }
+        if set == CodeSet::C {
+            if digits >= 2 {
+                let pair = chars.get(i..i + 2).unwrap_or(&[]);
+                out.push(digit_pair(pair)?);
+                i += 2;
+            } else {
+                // Fewer than two digits left: leave C for the set that can carry what remains.
+                let next = chars.get(i).copied().unwrap_or(' ');
+                let to = if CodeSet::B.holds(next) { CodeSet::B } else { CodeSet::A };
+                out.push(to.switch_to());
+                set = to;
+            }
+            continue;
+        }
+        let c = chars.get(i).copied().unwrap_or(' ');
+        if let Some(v) = set.value_of(c) {
+            out.push(v);
+            i += 1;
+            continue;
+        }
+        let other = if set == CodeSet::A { CodeSet::B } else { CodeSet::A };
+        if other.holds(c) {
+            // One character out of place: the Shift character carries it without leaving the set.
+            let run = run_in(&chars, i, other);
+            if run == 1 {
+                out.push(SHIFT);
+                out.push(other.value_of(c).unwrap_or(0));
+                i += 1;
+            } else {
+                out.push(other.switch_to());
+                set = other;
+            }
+            continue;
+        }
+        return Err(Error::Data(format!("Code 128 cannot carry {}", c.escape_debug())));
+    }
+    Ok((start_set, out))
+}
+
+/// The value of a two-digit pair in set C.
+fn digit_pair(pair: &[char]) -> Result<u8> {
+    let a = pair.first().and_then(|c| c.to_digit(10));
+    let b = pair.get(1).and_then(|c| c.to_digit(10));
+    match (a, b) {
+        (Some(a), Some(b)) => Ok((a * 10 + b) as u8),
+        _ => Err(Error::Data("Code 128 C carries digits only".into())),
+    }
+}
+
+/// The mod-103 check character: the start value plus every value times its position, counting
+/// from one (ISO/IEC 15417).
+fn check_value(start: u8, values: &[u8]) -> u8 {
+    let sum: u32 = u32::from(start) + values.iter().enumerate().map(|(i, v)| u32::from(*v) * (i as u32 + 1)).sum::<u32>();
+    (sum % 103) as u8
+}
+
+/// Encode a Code 128 symbol.
+pub fn encode(spec: &BarcodeSpec, data: &str) -> Result<Symbol> {
+    let gs1 = spec.symbology == Symbology::Ean128;
+    let fixed = match spec.symbology {
+        Symbology::Code128A => Some(CodeSet::A),
+        Symbology::Code128B => Some(CodeSet::B),
+        Symbology::Code128C => Some(CodeSet::C),
+        _ => None,
+    };
+    let (start_set, coded) = values(data, fixed, gs1)?;
+    let shown = if gs1 { data.replace(['(', ')'], "") } else { data.to_string() };
+    let start = start_set.start();
+    let check = check_value(start, &coded);
+
+    let height = spec.resolved_height_mm();
+    let mut l = Linear::new();
+    write_value(&mut l, start, height);
+    for v in coded.iter().chain(std::iter::once(&check)) {
+        write_value(&mut l, *v, height);
+    }
+    write_value(&mut l, STOP, height);
+    let modules = l.width_modules();
+    Ok(finish_linear(spec, l, centred(&shown, modules)))
+}
+
+/// Write one symbol character's six, or for the stop seven, elements.
+fn write_value(l: &mut Linear, value: u8, height: f64) {
+    let Some(runs) = PATTERNS.get(usize::from(value)) else { return };
+    for (i, ch) in runs.chars().enumerate() {
+        let width = ch.to_digit(10).map_or(1.0, f64::from);
+        match i % 2 {
+            0 => l.bar(width, 0.0, height),
+            _ => l.gap(width),
+        }
+    }
+}
+
+/// The human readable line of a symbol whose digits run the width of the bar pattern.
+fn centred(data: &str, modules: f64) -> Vec<HriPart> {
+    vec![HriPart { text: data.to_string(), at_mm: modules / 2.0, align: HriAlign::Center, width_mm: modules, full_size: true }]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn modules(data: &str, symbology: Symbology) -> String {
+        crate::testutil::module_row(&crate::testutil::linear(symbology, data))
+    }
+
+    /// The pattern table is the one ISO/IEC 15417 prints: 107 entries, six elements each except
+    /// the stop's seven, and every element one to four modules.
+    #[test]
+    fn the_pattern_table_is_the_standard_one() {
+        assert_eq!(PATTERNS.len(), 107);
+        for (i, p) in PATTERNS.iter().enumerate() {
+            let expect = if i == usize::from(STOP) { 7 } else { 6 };
+            assert_eq!(p.len(), expect, "entry {i}");
+            assert!(p.chars().all(|c| matches!(c, '1'..='4')), "entry {i}");
+            let total: u32 = p.chars().filter_map(|c| c.to_digit(10)).sum();
+            let want = if i == usize::from(STOP) { 13 } else { 11 };
+            assert_eq!(total, want, "entry {i}");
+        }
+    }
+
+    /// A symbol is 11 modules a character plus the 13-module stop, and the quiet zones are 10X.
+    #[test]
+    fn the_symbol_is_the_width_the_standard_gives() {
+        // Start B, "A", "B" and the check character: four eleven-module characters, then the
+        // thirteen-module stop.
+        assert_eq!(modules("AB", Symbology::Code128).len(), 4 * 11 + 13);
+        // Six digits in set C: start C, three pairs, the check character and the stop.
+        assert_eq!(modules("123456", Symbology::Code128).len(), 5 * 11 + 13);
+    }
+
+    /// The check character is the start value plus each value times its position, mod 103.
+    #[test]
+    fn the_check_character_is_mod_103() {
+        // "123456" is three values in set C: 105 + 12×1 + 34×2 + 56×3 = 353, and 353 mod 103
+        // is 44.
+        let (start_set, coded) = values("123456", None, false).expect("encodes");
+        assert_eq!(start_set, CodeSet::C);
+        assert_eq!(coded, vec![12, 34, 56]);
+        assert_eq!(check_value(START_C, &coded), 44);
+        // "AIM1234" is seven values in set B: 104 + 33×1 + 41×2 + 45×3 + 17×4 + 18×5 + 19×6
+        // + 20×7 = 766, and 766 mod 103 is 45.
+        let (start_set, coded) = values("AIM1234", Some(CodeSet::B), false).expect("encodes");
+        assert_eq!(start_set, CodeSet::B);
+        assert_eq!(check_value(START_B, &coded), 45);
+    }
+
+    /// A long digit run switches to set C, and a short one does not.
+    #[test]
+    fn set_c_is_used_where_it_is_worth_it() {
+        let (_, v) = values("AB123456", None, false).expect("encodes");
+        assert!(v.contains(&CODE_C), "{v:?}");
+        let (_, v) = values("AB123", None, false).expect("encodes");
+        assert!(!v.contains(&CODE_C), "a run of three digits is not worth a switch: {v:?}");
+    }
+
+    /// One character outside the set a symbol is working in costs a Shift, not a switch.
+    #[test]
+    fn a_single_odd_character_is_shifted() {
+        let (_, v) = values("abcd\te", None, false).expect("encodes");
+        assert!(v.contains(&SHIFT), "{v:?}");
+        assert!(!v.contains(&CODE_A), "{v:?}");
+    }
+
+    #[test]
+    fn a_gs1_symbol_starts_with_fnc1_and_drops_the_brackets() {
+        let (_, bracketed) = values("(01)12345678901231", None, true).expect("encodes");
+        assert_eq!(bracketed.first(), Some(&FNC1), "a GS1-128 starts with FNC1");
+        // The brackets are only for people: the digits themselves reach the symbol.
+        let digits: Vec<u8> = "0112345678901231".bytes().map(|b| b - b'0').collect();
+        assert!(digits.chunks(2).all(|pair| bracketed.contains(&(pair[0] * 10 + pair[1]))), "{bracketed:?}");
+    }
+
+    #[test]
+    fn the_fixed_sets_refuse_what_they_cannot_carry() {
+        assert!(values("abc", Some(CodeSet::A), false).is_err());
+        assert!(values("ABC", Some(CodeSet::C), false).is_err());
+        assert!(values("123", Some(CodeSet::C), false).is_err());
+        assert!(values("ABC", Some(CodeSet::B), false).is_ok());
+    }
+}

@@ -4931,3 +4931,16 @@ theme	Appearance	Apparence
 @msg	choose a source folder	choisissez un dossier source
 @msg	open a document with data sets	ouvrez un document avec des jeux de données
 @msg	the action has no steps	l'action n'a aucune étape
+	Barcode	Code-barres
+	Barcode Options	Options du code-barres
+	Data:	Données :
+	Document Default	Par défaut du document
+	Error Correction:	Correction d'erreur :
+	Human Readable Line	Ligne lisible
+	Install OCR-B for the standard digits.	Installez OCR-B pour les chiffres normalisés.
+	Magnification:	Agrandissement :
+	Mask:	Masque :
+	Module:	Module :
+	Quiet Zone:	Zone de silence :
+	Update	Mettre à jour
+	Width Ratio:	Rapport de largeur :

@@ -4488,3 +4488,16 @@ theme	Appearance	Giao diện
 @msg	choose a source folder	hãy chọn thư mục nguồn
 @msg	open a document with data sets	hãy mở một tài liệu có tập dữ liệu
 @msg	the action has no steps	hành động không có bước nào
+	Barcode	Mã vạch
+	Barcode Options	Tùy chọn mã vạch
+	Data:	Dữ liệu:
+	Document Default	Mặc định của tài liệu
+	Error Correction:	Sửa lỗi:
+	Human Readable Line	Dòng chữ đọc được
+	Install OCR-B for the standard digits.	Cài đặt OCR-B để có chữ số chuẩn.
+	Magnification:	Độ phóng đại:
+	Mask:	Mặt nạ:
+	Module:	Mô-đun:
+	Quiet Zone:	Vùng trống:
+	Update	Cập nhật
+	Width Ratio:	Tỷ lệ chiều rộng:

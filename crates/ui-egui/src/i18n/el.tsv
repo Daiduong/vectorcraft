@@ -4884,3 +4884,16 @@ effect	Points	Σημεία
 @msg	this is a PostScript file (an .ai saved in an older format or without PDF compatibility, or an EPS file), not a PDF: File › Open and File › Place read it as EPS	αυτό είναι αρχείο PostScript (ένα .ai αποθηκευμένο σε παλαιότερη μορφή ή χωρίς συμβατότητα PDF, ή αρχείο EPS), όχι PDF: οι εντολές Αρχείο › Άνοιγμα και Αρχείο › Τοποθέτηση το διαβάζουν ως EPS
 @msg	this system has no screen color sampler	αυτό το σύστημα δεν έχει δειγματοληψία χρώματος από την οθόνη
 @msg	the image can't be read as a texture	η εικόνα δεν μπορεί να διαβαστεί ως υφή
+	Barcode	Γραμμωτός κώδικας
+	Barcode Options	Επιλογές γραμμωτού κώδικα
+	Data:	Δεδομένα:
+	Document Default	Προεπιλογή εγγράφου
+	Error Correction:	Διόρθωση σφαλμάτων:
+	Human Readable Line	Αναγνώσιμη γραμμή
+	Install OCR-B for the standard digits.	Εγκαταστήστε τη γραμματοσειρά OCR-B για τα τυπικά ψηφία.
+	Magnification:	Μεγέθυνση:
+	Mask:	Μάσκα:
+	Module:	Μονάδα:
+	Quiet Zone:	Περιθώριο ησυχίας:
+	Update	Ενημέρωση
+	Width Ratio:	Αναλογία πλάτους:

@@ -4776,3 +4776,16 @@ mark-style	Japanese	Japońskie
 @msg	choose a source folder	wybierz folder źródłowy
 @msg	open a document with data sets	otwórz dokument z zestawami danych
 @msg	the action has no steps	operacja nie ma kroków
+	Barcode	Kod kreskowy
+	Barcode Options	Opcje kodu kreskowego
+	Data:	Dane:
+	Document Default	Domyślna w dokumencie
+	Error Correction:	Korekcja błędów:
+	Human Readable Line	Wiersz czytelny
+	Install OCR-B for the standard digits.	Zainstaluj OCR-B, aby uzyskać standardowe cyfry.
+	Magnification:	Powiększenie:
+	Mask:	Maska:
+	Module:	Moduł:
+	Quiet Zone:	Strefa ciszy:
+	Update	Aktualizuj
+	Width Ratio:	Proporcja szerokości:

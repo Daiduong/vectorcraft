@@ -4899,3 +4899,16 @@ imageTrace	Outline	Körvonal
 @msg	choose a source folder	válasszon forrásmappát
 @msg	open a document with data sets	nyisson meg egy adatkészleteket tartalmazó dokumentumot
 @msg	the action has no steps	a műveletnek nincsenek lépései
+	Barcode	Vonalkód
+	Barcode Options	Vonalkód beállításai
+	Data:	Adatok:
+	Document Default	Dokumentum alapértelmezése
+	Error Correction:	Hibajavítás:
+	Human Readable Line	Olvasható sor
+	Install OCR-B for the standard digits.	Telepítse az OCR-B betűtípust a szabványos számjegyekhez.
+	Magnification:	Nagyítás:
+	Mask:	Maszk:
+	Module:	Modul:
+	Quiet Zone:	Csendes zóna:
+	Update	Frissítés
+	Width Ratio:	Szélességarány:

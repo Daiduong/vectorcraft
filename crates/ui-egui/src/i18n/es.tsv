@@ -4874,3 +4874,16 @@ mark-style	Japanese	Japonesas
 @msg	choose a source folder	elija una carpeta de origen
 @msg	open a document with data sets	abra un documento con conjuntos de datos
 @msg	the action has no steps	la acción no tiene pasos
+	Barcode	Código de barras
+	Barcode Options	Opciones de código de barras
+	Data:	Datos:
+	Document Default	Predeterminada del documento
+	Error Correction:	Corrección de errores:
+	Human Readable Line	Línea legible
+	Install OCR-B for the standard digits.	Instale OCR-B para los dígitos normalizados.
+	Magnification:	Ampliación:
+	Mask:	Máscara:
+	Module:	Módulo:
+	Quiet Zone:	Zona tranquila:
+	Update	Actualizar
+	Width Ratio:	Proporción de anchura:

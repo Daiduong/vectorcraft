@@ -187,7 +187,8 @@ panel-menu commands such as Break Link to Symbol), so they can be given shortcut
 | Pathfinder panel: a group selected alone counts its nested shapes, so an expanded stroked object keeps the Shape Modes enabled | done | #1642 (#1635) |
 | Object › Expand on radial, grid and mirror repeats makes groups of their instances | done | #1765 (#1756) |
 | Select › Same matches type on its characters' fill and stroke | done | #1746 (#1737) |
-| ~40 panels with ≡ menus; dock, icon column, collapse, tabs | done | 51 panel modules incl. tests |
+| ~40 panels with ≡ menus; dock, icon column, collapse, tabs | done | 40 panel modules, each with its test module |
+| Barcode panel: symbology, data, magnification, module, height, quiet zone, the wide-to-narrow ratio, the human readable line's font, and a QR Code's error correction, version and mask | done | beyond Illustrator, which has no barcode tool: `panels/barcode.rs` and `panels/tests_barcode.rs`; every field ends in `barcode.create` / `barcode.set` |
 | Panels float inside the window, stack, dock back | done | #495 |
 | Floating groups stack into sets; sets dock as extra dock columns (a multi-column dock); groups drop anywhere in a set or column, or onto its tabs; a column taller than the window scrolls | done | `window.panel.float {below, above}`, `window.panel.dock {column}` |
 | Panels outside the app window (another monitor) | missing | single OS window |

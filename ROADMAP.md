@@ -9,7 +9,7 @@
 
 **Stage: alpha** · next: beta, ~13 points (ready for real work ~62% → ~75%, and reliable `.ai` exchange) and ~170–270 h away
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-16 · **Change:** minor (about 160 community PRs of 2026-10-15/16: PDF import crash fixes, Dimension tool, legacy `.ai` save, Intertwine, web pen input, Image Trace fixes, `.ai`/EPS/PDF import fidelity, Bulgarian, Greek, Swedish and Finnish catalogs; headline numbers unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-16 · **Change:** minor (barcodes and QR Codes: a Barcode panel and the `vectorcraft-barcode` crate, a feature beyond Illustrator, so no parity score moves; earlier the same day, about 160 community PRs of 2026-10-15/16: PDF import crash fixes, Dimension tool, legacy `.ai` save, Intertwine, web pen input, Image Trace fixes, `.ai`/EPS/PDF import fidelity, Bulgarian, Greek, Swedish and Finnish catalogs; headline numbers unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
 
 VectorCraft is a clean-room, open-source, pure-Rust reimplementation of the Adobe Illustrator workflow. It runs
 on macOS, Windows, Linux, FreeBSD and the web (WASM), and agents can drive all of it over MCP, the CLI and a JSON
@@ -62,6 +62,7 @@ everything is measured from our code against Illustrator's public documentation.
 | Ecosystem and plug-ins | 15% | 30–60 | [gaps.md › G17](docs/gaps.md#g17-ecosystem-third-party-plug-ins) |
 | AI features (generative) | 0% | 30–60 + owner decision | [gaps.md › G18](docs/gaps.md#g18-generative-ai-features) |
 | Agent automation | beyond Illustrator | — | [mcp.md](docs/mcp.md) |
+| Barcodes and QR Codes | beyond Illustrator | — | [target-app-parity.md](docs/target-app-parity.md) |
 
 The dimension hours overlap (feature rows hold some UI, format and AI work), so they don't add up to the total.
 
@@ -128,12 +129,15 @@ Ranked; detail in [docs/roadmap.md](docs/roadmap.md) and [docs/gaps.md](docs/gap
 
 ## Progress log
 
+- 2026-10-16: Barcodes and QR Codes: a Barcode panel and `barcode.create` / `barcode.set` draw EAN-13, EAN-8, UPC-A, UPC-E, GS1-128, Code 128 (A and B and C), Code 39, Code 93, ITF-14 and ITF-25 and QR Codes, at the sizes their standards give (a new `vectorcraft-barcode` crate), with the human readable line in OCR-B when the machine has it. Beyond Illustrator, which needs a third-party plug-in for this: no parity score moves. Headline scores and estimates are unchanged.
+
 - 2026-10-14: Document fonts register every explicitly supplied craft-fonts family after the existing Japanese, Arabic and Thai prefix; optional empty input remains supported. Headline scores and estimates are unchanged.
 
 - 2026-10-13: PngSuite downloads use pinned HTTPS files and a SHA-256 manifest; no archive extraction (#1729).
 
 | Date | What landed |
 |---|---|
+| 2026-10-16 | Barcodes and QR Codes: a Barcode panel and `barcode.create` / `barcode.set` draw EAN-13, EAN-8, UPC-A, UPC-E, GS1-128, Code 128 (A and B and C), Code 39, Code 93, ITF-14 and ITF-25 and QR Codes, at the sizes their standards give (a new `vectorcraft-barcode` crate), with the human readable line in OCR-B when the machine has it. Beyond Illustrator, which needs a third-party plug-in for this: no parity score moves. |
 | 2026-10-16 | About 160 community PRs landed, each through the full gate. Crashes and hostile files: damaged PDF dictionaries and arrays no longer crash import (#2133, #2240, #2244, #2271), area type with huge row or column counts opens (#2109), hostile mesh edges are bounded (#2051). New: Dimension tool (#1788), legacy version 7 `.ai` save (#1794), Object › Intertwine (#2095), Apple Pencil and touch input on the web (#1740), Sample Color from Screen (#2257), Drop Shadow Darkness (#2252), Smart Blur edge modes (#2154), Scribble variations (#2180), Free Distort corners in its dialog (#2134), Rotate View presets (#2106), tritanopia proofing (#2234), Layers panel filters (#2087), Hide Template (#2117), File › Automate Batch through the Actions panel (#1938), dataset and graph CSV (#1929, #1941), Reset Tracking and Kerning (#2274), Alt+Enter copies in Transform fields (#2236), Shift+Tab panels (#2254), Control bar isolation, Recolor and image Replace (#2258, #2079, #2081). Revolve renders smooth with Cap on by default (#1193); Image Trace keeps tiny parts, thin outlines and shared corners, and Grayscale gradients are grey (#2012, #2025, #2263, #2264, #2265, #1879). Import: many `.ai`, EPS and PDF fidelity fixes (#2014–#2016, #2029, #2030, #2044, #2046, #2050–#2052, #2058, #2129, #2199, #2202, #2218), images up to 1 GB decoded (#2060), `.ai`/`.ait`/`.svgz` files paste from a file manager (#2148, #2201). Fixes across fields (arithmetic #2069, #2209, #2022; caret #1403), New Document (#2158, #2176), menus (#2232), shortcuts (#2235, #2146), Transform Each axes (#2227), Paste in Place (#1926), Color Picker tab order (#1937, #1939) and more. Languages: Bulgarian, Greek, Swedish and Finnish complete under the tests, pt-br completed. Details per PR in the PRs; headline numbers unchanged (estimated). |
 | 2026-10-14 | Brazilian Portuguese (`pt-br`) covers the whole interface and status/error messages under the completeness tests (#1914); Localization 71% → 74% (measured), hours 55–90 → 50–85. |
 | 2026-10-14 | Direct Selection: deleting an interior anchor of an open path leaves separate surviving runs. Delete/Backspace and history regressions cover the gap; explicit Remove Anchors remains connected. Headline numbers unchanged. |
@@ -176,6 +180,7 @@ The full pre-standard record of what landed is kept in [docs/roadmap.md](docs/ro
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-16 | minor | Barcodes and QR Codes: a Barcode panel and `barcode.create` / `barcode.set` draw EAN-13, EAN-8, UPC-A, UPC-E, GS1-128, Code 128 (A and B and C), Code 39, Code 93, ITF-14 and ITF-25 and QR Codes, at the sizes their standards give (a new `vectorcraft-barcode` crate), with the human readable line in OCR-B when the machine has it. Beyond Illustrator, which needs a third-party plug-in for this: no parity score moves. |
 | 2026-10-14 | minor | G11: open-path anchor Delete removes adjoining segments without bridging the gap; explicit Remove Anchors keeps its reconnect/refit behavior. Scores and hours unchanged. |
 | 2026-10-14 | minor | Document fonts register every explicitly supplied craft-fonts family after the existing Japanese, Arabic and Thai prefix; optional empty input remains supported. Headline scores and estimates are unchanged. |
 | 2026-10-14 | minor | Progress log rows for the later merges of 2026-10-14 (#1630–#1875 as listed there); headline numbers unchanged. |
