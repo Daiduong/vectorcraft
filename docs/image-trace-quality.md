@@ -1,11 +1,29 @@
 # Image Trace quality
 
-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (Gradients: grown over noise and soft rims)
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-16 · **Change:** minor (Image Trace: an edge's sub-pixel shift is the same from either side)
 
 What Image Trace (`crates/trace`) makes of images whose right answer is known, measured by a harness and
 compared with the numbers before each change. Nothing here is a judgement by eye, and nothing is compared
 with any other product except the open tracer named under [Yardstick](#4-yardstick).
 
+
+## Same sub-pixel shift from either side of an edge
+
+Each crack between two regions is moved by a sub-pixel shift read from the image. The reading
+looked for a thin run (one to three pixels) on the crack's inside before one on its outside, so where
+both sides were thin (a one- or two-pixel sliver beside another, as in soft gradients and noisy
+scans) the two regions of the crack got different shifts, their shared piece different points, and
+the abutting curves left slivers that no path covers. `Layers::shift` now averages the reading from
+either side, `(s(c) - s(c flipped)) / 2`, which is exactly antisymmetric in floating point, so both
+regions get the same points.
+
+Tests on code-drawn images: `a_crack_between_thin_slivers_has_the_same_shift_from_either_side` (a
+noisy ripple of 1–2 px columns at three thresholds: every crack's shift is the exact negative of its
+flipped crack's, and the image does have cracks the one-sided reading gets wrong) and, in
+`tests/shared_boundaries.rs`, `thin_slivers_on_both_sides_of_an_edge_leave_nothing_uncovered` (a
+48 px noisy ripple in Black and White at thresholds 140, 157, 170 and Paths 0, 50, 100, sampled on
+the 4 × 4 grid per pixel the shared-boundary check uses). With the one-sided reading 482–1,228
+sample points per trace were uncovered; now none are. The crate's other tests pass unchanged.
 
 ## Noise threshold stability (local development, 2026-10-14)
 
@@ -1010,6 +1028,7 @@ One trace at a time on this machine (all cores); memory is the peak allocated ab
 
 | date | change |
 |:--|:--|
+| 2026-10-16 | Image Trace: a crack's sub-pixel shift is the mean of the readings from its two sides, exactly antisymmetric, so abutting regions get the same points on thin slivers (a code-drawn noisy ripple went from 482–1,228 uncovered sample points per trace to 0). |
 | 2026-10-14 | Closed fitting retains the positioned boundary when straightening collapses a nonzero-area loop; four generated regressions; preset scores unchanged |
 | 2026-10-14 | Tiny closed fits retain their positioned outlines instead of losing islands/holes; three generated regression tests; quality-harness baseline unchanged |
 | 2026-10-14 | Gradients: a gradient that noise or a soft rim broke into pieces is found in its largest piece and grown over the rest (blurred and noisy linear gradients: 3 to 11 paths beside the gradient down to 0.5 with 6 Colors, 24 to 56 down to 0.5 to 1.5 with High Fidelity Photo) |
