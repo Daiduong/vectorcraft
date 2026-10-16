@@ -1,11 +1,28 @@
 # Image Trace quality
 
-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (Gradients: grown over noise and soft rims)
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-16 · **Change:** minor (Image Trace: the notch rule reads only its own piece)
 
 What Image Trace (`crates/trace`) makes of images whose right answer is known, measured by a harness and
 compared with the numbers before each change. Nothing here is a judgement by eye, and nothing is compared
 with any other product except the open tracer named under [Yardstick](#4-yardstick).
 
+
+## Notches read only their own piece
+
+Where the pixel at a sharp corner falls to the other colour, the outline cuts the corner in two
+one-pixel steps, and between two straight edges of three cracks or more those two steps become one
+point, where the two edges meet (a notch). Whether the edges were long enough was measured on the
+whole loop. An edge can run on past a junction in one region's loop while the region across it,
+whose loop turns at that junction, sees a shorter edge: one side made the notch and the other did
+not, the shared piece got different points on each side, and the abutting curves left a gap. The
+rule in `subpixel::outline` now also requires the three cracks of each edge next to the notch to lie
+in the piece (no junction among them), as the corner-pixel correction above it already did.
+
+Test on code-drawn images: `noisy_colour_images_leave_no_sample_uncovered` (20 seeded 36 px images
+of soft overlapping blobs in four colours plus pixel noise; Color, 5 colours, Noise 1 and 2, Paths
+0, 50 and 100; five sample points per pixel must each lie in some path). Without the condition 93
+sample points were uncovered (seeds 9, 11 and 13); with it none are. The crate's other tests pass
+unchanged.
 
 ## Noise threshold stability (local development, 2026-10-14)
 
@@ -1010,6 +1027,7 @@ One trace at a time on this machine (all cores); memory is the peak allocated ab
 
 | date | change |
 |:--|:--|
+| 2026-10-16 | Image Trace: a notch corner is cut only when the straight edges beside it lie in the shared piece, so both regions of the piece get the same points (code-drawn noisy colour images: 93 uncovered sample points to 0). |
 | 2026-10-14 | Closed fitting retains the positioned boundary when straightening collapses a nonzero-area loop; four generated regressions; preset scores unchanged |
 | 2026-10-14 | Tiny closed fits retain their positioned outlines instead of losing islands/holes; three generated regression tests; quality-harness baseline unchanged |
 | 2026-10-14 | Gradients: a gradient that noise or a soft rim broke into pieces is found in its largest piece and grown over the rest (blurred and noisy linear gradients: 3 to 11 paths beside the gradient down to 0.5 with 6 Colors, 24 to 56 down to 0.5 to 1.5 with High Fidelity Photo) |
