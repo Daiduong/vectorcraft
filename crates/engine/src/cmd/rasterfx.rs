@@ -535,9 +535,6 @@ fn flatten(doc: &Document, report: &mut FlattenReport) -> Option<Document> {
     Some(out)
 }
 
-/// The lowest resolution (ppi) of the raster effect images in a PDF.
-pub(crate) const PDF_MIN_EFFECTS_PPI: f64 = 150.0;
-
 /// PDF bytes for `doc`, with raster effects rendered as images.
 pub fn export_pdf(doc: &Document, opts: &vectorcraft_pdf::PdfOptions) -> std::result::Result<Vec<u8>, vectorcraft_pdf::PdfError> {
     export_pdf_with_report(doc, opts).map(|r| r.bytes)
@@ -549,15 +546,15 @@ pub fn export_pdf_with_report(
     doc: &Document,
     opts: &vectorcraft_pdf::PdfOptions,
 ) -> std::result::Result<vectorcraft_pdf::ExportReport, vectorcraft_pdf::PdfError> {
-    // A PDF is zoomed and printed: the effect images get at least `PDF_MIN_EFFECTS_PPI`, even when
+    // A PDF is zoomed and printed: the effect images get at least `vectorcraft_pdf::MIN_RASTER_PPI`, even when
     // the document's raster effects resolution is the 72 ppi screen default (soft edges look
     // blurry when zoomed). The 64 Mpx cap per image still holds.
     let raised;
-    let doc = if doc.raster_effects_ppi.is_finite() && doc.raster_effects_ppi >= PDF_MIN_EFFECTS_PPI {
+    let doc = if vectorcraft_pdf::pdf_raster_ppi(doc.raster_effects_ppi) == doc.raster_effects_ppi {
         doc
     } else {
         let mut d = doc.clone();
-        d.raster_effects_ppi = PDF_MIN_EFFECTS_PPI;
+        d.raster_effects_ppi = vectorcraft_pdf::pdf_raster_ppi(doc.raster_effects_ppi);
         raised = d;
         &raised
     };
