@@ -15,6 +15,7 @@ mod images;
 mod ink;
 mod live;
 mod lru;
+mod nine_slice;
 mod paint;
 pub use paint::decode_failures;
 mod pattern;
@@ -1308,10 +1309,18 @@ impl Renderer {
             NodeKind::Image(im) => self.draw_image(ctx, f, im),
             NodeKind::SymbolInstance { symbol, xf } => {
                 if let Some(sym) = f.doc.symbols.iter().find(|s| &s.name == symbol) {
-                    let (art, kept) = self.placed_art(&sym.art, *xf, false, Some(n));
-                    let outer = std::mem::replace(&mut self.made_again, !kept);
-                    self.draw_node(ctx, f, &art, true);
-                    self.made_again = outer;
+                    let ns = f.doc.symbol_nine_slice(symbol);
+                    if ns.enabled {
+                        let art = nine_slice::place_nine_slice(&sym.art, *xf, ns, f.doc.symbol_natural_xf(symbol), Some(n));
+                        let outer = std::mem::replace(&mut self.made_again, true);
+                        self.draw_node(ctx, f, &art, true);
+                        self.made_again = outer;
+                    } else {
+                        let (art, kept) = self.placed_art(&sym.art, *xf, false, Some(n));
+                        let outer = std::mem::replace(&mut self.made_again, !kept);
+                        self.draw_node(ctx, f, &art, true);
+                        self.made_again = outer;
+                    }
                 }
             }
             NodeKind::Blend { .. }

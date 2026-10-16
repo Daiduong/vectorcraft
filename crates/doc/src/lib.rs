@@ -21,10 +21,14 @@ mod inline;
 pub mod intertwine;
 pub mod shared;
 mod symbol_export_type;
+mod symbol_nine_slice;
 mod symbol_registration;
 pub use inline::{SYMBOL_HALF, SYMBOL_SIZES};
 pub use shared::Shared;
 pub use symbol_export_type::{SYMBOL_EXPORT_TYPE, SymbolExportType};
+pub use symbol_nine_slice::{
+    DEFAULT_NINE_SLICE_INSET, NineSliceCell, SYMBOL_NINE_SLICE, SymbolNineSlice, decompose_trs, guide_lines, map_rect, scale_cells,
+};
 pub use symbol_registration::{SYMBOL_REGISTRATION, SymbolRegistration};
 pub mod links;
 pub mod live;
@@ -1625,6 +1629,46 @@ impl Document {
         let kind = self.symbol_export_type(from);
         self.clear_symbol_export_type(from);
         self.set_symbol_export_type(to, kind);
+    }
+
+    /// Symbol Options › Enable Guides for 9-Slice Scaling for `name` (default: off, 25% insets).
+    pub fn symbol_nine_slice(&self, name: &str) -> SymbolNineSlice {
+        self.unknown
+            .get(SYMBOL_NINE_SLICE)
+            .and_then(|m| m.get(name))
+            .and_then(SymbolNineSlice::from_value)
+            .unwrap_or_default()
+    }
+
+    /// Set or clear (when disabled) the 9-slice guides stored for `name`.
+    pub fn set_symbol_nine_slice(&mut self, name: &str, ns: SymbolNineSlice) {
+        if ns.is_default() {
+            self.clear_symbol_nine_slice(name);
+            return;
+        }
+        let m = self.unknown.entry(SYMBOL_NINE_SLICE.to_string()).or_insert_with(|| serde_json::json!({}));
+        let Some(o) = m.as_object_mut() else { return };
+        o.insert(name.into(), ns.clamped().to_value());
+    }
+
+    /// Drop any stored 9-slice guides for `name`.
+    pub fn clear_symbol_nine_slice(&mut self, name: &str) {
+        let Some(m) = self.unknown.get_mut(SYMBOL_NINE_SLICE) else { return };
+        let Some(o) = m.as_object_mut() else { return };
+        o.remove(name);
+        if o.is_empty() {
+            self.unknown.remove(SYMBOL_NINE_SLICE);
+        }
+    }
+
+    /// Move the stored 9-slice guides when a symbol is renamed.
+    pub fn rename_symbol_nine_slice(&mut self, from: &str, to: &str) {
+        if from == to {
+            return;
+        }
+        let ns = self.symbol_nine_slice(from);
+        self.clear_symbol_nine_slice(from);
+        self.set_symbol_nine_slice(to, ns);
     }
 }
 

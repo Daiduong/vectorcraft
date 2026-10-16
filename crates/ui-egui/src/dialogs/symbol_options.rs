@@ -1,10 +1,11 @@
-//! Symbol Options: name, Export Type (Graphic or Movie Clip) and Registration for a new symbol
-//! from the selection (`symbol.new`), or for the current symbol in the Symbols panel
-//! (`symbol.options`).
+//! Symbol Options: name, Export Type (Graphic or Movie Clip), Registration and Enable Guides for
+//! 9-Slice Scaling for a new symbol from the selection (`symbol.new`), or for the current symbol
+//! in the Symbols panel (`symbol.options`).
 //!
 //! Fields: `name`, `exportType` (`movieClip` | `graphic`), `registration` (0..8, the 9-point grid;
-//! 4 = centre), `__edit` (true when editing an existing symbol). Help:
-//! <https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/create-and-place-symbols.html>.
+//! 4 = centre), `nineSliceGuides` (bool), `__edit` (true when editing an existing symbol). Help:
+//! <https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/create-and-place-symbols.html>,
+//! <https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/maintain-proportions-while-scaling-symbols.html>.
 
 use serde_json::{Value, json};
 
@@ -29,7 +30,16 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
         return Err("nothing selected".into());
     }
     let name = st.doc.unique_symbol_name("New Symbol");
-    app.ui.dialog = Some(Dialog::new(KIND, json!({ "name": name, "exportType": "movieClip", "registration": 4, "__edit": false })));
+    app.ui.dialog = Some(Dialog::new(
+        KIND,
+        json!({
+            "name": name,
+            "exportType": "movieClip",
+            "registration": 4,
+            "nineSliceGuides": false,
+            "__edit": false,
+        }),
+    ));
     Ok(Value::Null)
 }
 
@@ -51,12 +61,14 @@ pub fn open_edit(app: &mut VectorcraftApp, name: Option<&str>) -> Result<Value, 
     };
     let export = st.doc.symbol_export_type(&name).id();
     let registration = st.doc.symbol_registration(&name).0;
+    let nine = st.doc.symbol_nine_slice(&name).enabled;
     app.ui.dialog = Some(Dialog::new(
         KIND,
         json!({
             "name": name,
             "exportType": export,
             "registration": registration,
+            "nineSliceGuides": nine,
             "__edit": true,
             "__from": name,
         }),
@@ -84,10 +96,11 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         }
         ui.end_row();
     });
+    form::check(ui, d, "nineSliceGuides", tl!("Enable Guides for 9-Slice Scaling"));
     false
 }
 
-/// OK: make a new symbol, or apply name / Export Type / Registration on an existing one.
+/// OK: make a new symbol, or apply Symbol Options on an existing one.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let name = d.str("name");
     let name = name.trim();
@@ -96,16 +109,30 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     }
     let export = d.str("exportType");
     let registration = d.fields.get("registration").and_then(Value::as_u64).unwrap_or(4);
+    let nine = d.fields.get("nineSliceGuides").and_then(Value::as_bool).unwrap_or(false);
     let edit = d.fields.get("__edit").and_then(Value::as_bool).unwrap_or(false);
     let r = if edit {
         let from = d.fields.get("__from").and_then(Value::as_str).unwrap_or(name);
-        let mut params = json!({ "name": from, "exportType": export, "registration": registration });
+        let mut params = json!({
+            "name": from,
+            "exportType": export,
+            "registration": registration,
+            "nineSliceGuides": nine,
+        });
         if from != name {
             params["newName"] = json!(name);
         }
         app.run("symbol.options", params)
     } else {
-        app.run("symbol.new", json!({ "name": name, "exportType": export, "registration": registration }))
+        app.run(
+            "symbol.new",
+            json!({
+                "name": name,
+                "exportType": export,
+                "registration": registration,
+                "nineSliceGuides": nine,
+            }),
+        )
     };
     if r.is_ok() {
         app.ui.dialog = None;

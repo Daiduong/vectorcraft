@@ -241,10 +241,12 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 - **Done:** Symbol Options › Registration (9-point; stored and used by `symbol.place`); Symbol Options ›
   Export Type (Graphic or Movie Clip; default Movie Clip; `symbol.new` / `symbol.options` / Symbols panel;
-  canvas placement unchanged; Animate / Flash handoff metadata).
+  canvas placement unchanged; Animate / Flash handoff metadata); Symbol Options › Enable Guides for 9-Slice
+  Scaling (default 25% insets; `nineSliceGuides` / `nineSlice` on `symbol.new` / `symbol.options` / `symbol.list`;
+  axis-aligned instance scales keep corners; guide dragging in isolation remains open).
 - **Missing:** the Art brush's Overlap, auto-generated Pattern brush corners, new tile art in Pattern Brush
   Options, the Key Color eyedropper; original brush, symbol and graphic-style libraries generated in code (never
-  Adobe's); dynamic symbols; Start Global Edit; Symbol Options 9-slice guides.
+  Adobe's); dynamic symbols; Start Global Edit; dragging 9-slice guides in symbol isolation.
 - **Estimate:** 15–26 h.
 
 ## G3 3D and Materials
@@ -330,6 +332,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-16 | minor | G5: Symbol Options › Enable Guides for 9-Slice Scaling (`nineSliceGuides` / insets; axis-aligned instance scales keep corners); isolation guide dragging remains; estimates unchanged |
 | 2026-10-16 | minor | Batch exporting in Export for Screens (#1935): a file name pattern (document and item names, a counter, the date), folders per format, item or both, Layers and Selection tabs with thumbnails, EPS, AI and VectorCraft rows, a PDF row with printer's marks, and export presets (built-in Logo Package and Print-Ready PDF, saved ones); scores and hours unchanged (estimated) |
 | 2026-10-16 | minor | G2: Effect › Sketch › Halftone Pattern (Size, Contrast, Pattern Type Circle, Dot or Line; black ink on white paper, Size in points at any Document Raster Effects resolution); measured Photoshop filters 30/57, 27 remaining (22–38 h). |
 | 2026-10-16 | minor | G1: Smart Guides line extension for a dragged end of a straight segment, at any angle (#2120); estimate unchanged |

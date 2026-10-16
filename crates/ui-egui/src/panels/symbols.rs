@@ -272,27 +272,34 @@ mod tests {
         assert!(symbols(&mut app).is_empty(), "no symbol before OK");
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("name"), "New Symbol");
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("exportType"), "movieClip");
+        assert_eq!(app.ui.dialog.as_ref().unwrap().fields.get("nineSliceGuides").and_then(|v| v.as_bool()), Some(false));
         crate::dialogs::confirm(&mut app).unwrap();
         assert!(app.ui.dialog.is_none());
         let list = app.run("symbol.list", json!({})).unwrap();
         assert_eq!(list["symbols"][0]["exportType"], "movieClip");
-        // The next one is offered a name no symbol has, and OK keeps the name typed and Export Type.
+        assert_eq!(list["symbols"][0]["nineSliceGuides"], false);
+        // The next one is offered a name no symbol has, and OK keeps the name typed, Export Type and 9-slice.
         app.run("shape.rectangle", json!({"x": 60, "y": 10, "width": 30, "height": 20})).unwrap();
         app.run("ui.symbolOptions", json!({})).unwrap();
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("name"), "New Symbol 2");
         app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Badge"));
         app.ui.dialog.as_mut().unwrap().fields.insert("exportType".into(), json!("graphic"));
+        app.ui.dialog.as_mut().unwrap().fields.insert("nineSliceGuides".into(), json!(true));
         crate::dialogs::confirm(&mut app).unwrap();
         assert_eq!(symbols(&mut app), ["New Symbol", "Badge"]);
         let list = app.run("symbol.list", json!({})).unwrap();
         assert_eq!(list["symbols"][1]["exportType"], "graphic");
-        // Symbol Options on the current symbol renames and keeps Export Type.
+        assert_eq!(list["symbols"][1]["nineSliceGuides"], true);
+        // Symbol Options on the current symbol renames and keeps Export Type and 9-slice.
         app.run("ui.symbolOptions", json!({"edit": true, "name": "Badge"})).unwrap();
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("exportType"), "graphic");
+        assert_eq!(app.ui.dialog.as_ref().unwrap().fields.get("nineSliceGuides").and_then(|v| v.as_bool()), Some(true));
         app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Mark"));
         crate::dialogs::confirm(&mut app).unwrap();
         assert_eq!(symbols(&mut app), ["New Symbol", "Mark"]);
-        assert_eq!(app.run("symbol.list", json!({})).unwrap()["symbols"][1]["exportType"], "graphic");
+        let list = app.run("symbol.list", json!({})).unwrap();
+        assert_eq!(list["symbols"][1]["exportType"], "graphic");
+        assert_eq!(list["symbols"][1]["nineSliceGuides"], true);
     }
 
     #[test]

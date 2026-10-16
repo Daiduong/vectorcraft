@@ -11,7 +11,9 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use vectorcraft_brush::{self as brush, Brush};
 use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, Symbol, SymbolExportType, SymbolRegistration};
+use vectorcraft_doc::{
+    AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, Symbol, SymbolExportType, SymbolNineSlice, SymbolRegistration,
+};
 use vectorcraft_geom::{Affine, Point, Vec2};
 
 use super::edit::{outermost, selected_roots};
@@ -95,13 +97,13 @@ pub fn specs() -> Vec<CommandSpec> {
             brush_freehand
         ),
         // ----- symbols -----
-        cmd!(query "symbol.list", "Symbols", [], None, "{} → {symbols: [{name, instances, size: [w,h], registration: 0..8, exportType: movieClip|graphic}], current}", has_doc, symbol_list),
+        cmd!(query "symbol.list", "Symbols", [], None, "{} → {symbols: [{name, instances, size: [w,h], registration: 0..8, exportType: movieClip|graphic, nineSliceGuides: bool, nineSlice?: {left,right,top,bottom}}], current}", has_doc, symbol_list),
         cmd!(
             "symbol.new",
             "New Symbol…",
             [],
             None,
-            "{name?, ids?|id?, registration?: 0..8 (9-point grid, 4 = centre; Symbol Options › Registration), exportType?: movieClip (default)|graphic} make a symbol from the selection and replace it with an instance → {name, id, registration, exportType}",
+            "{name?, ids?|id?, registration?: 0..8 (9-point grid, 4 = centre; Symbol Options › Registration), exportType?: movieClip (default)|graphic, nineSliceGuides?: bool, nineSlice?: {left,right,top,bottom} insets 0..0.5} make a symbol from the selection and replace it with an instance → {name, id, registration, exportType, nineSliceGuides, nineSlice?}",
             has_selection,
             symbol_new
         ),
@@ -110,7 +112,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Symbol Options…",
             [],
             None,
-            "{name?, newName?, registration?: 0..8, exportType?: movieClip|graphic} rename a symbol and/or set Symbol Options › Registration and Export Type (default name: current) → {name, registration, exportType}",
+            "{name?, newName?, registration?: 0..8, exportType?: movieClip|graphic, nineSliceGuides?: bool, nineSlice?: {left,right,top,bottom}} rename a symbol and/or set Symbol Options › Registration, Export Type and 9-slice guides (default name: current) → {name, registration, exportType, nineSliceGuides, nineSlice?}",
             has_doc,
             symbol_options
         ),
@@ -540,6 +542,59 @@ fn export_type_param(p: &Value, cmd: &str) -> Result<Option<SymbolExportType>> {
     }
 }
 
+fn nine_slice_json(ns: SymbolNineSlice) -> Value {
+    if ns.enabled {
+        json!({
+            "nineSliceGuides": true,
+            "nineSlice": {
+                "left": ns.left,
+                "right": ns.right,
+                "top": ns.top,
+                "bottom": ns.bottom,
+            },
+        })
+    } else {
+        json!({ "nineSliceGuides": false })
+    }
+}
+
+/// Parse `nineSliceGuides` / `nineSlice` into an optional override. Absent keys leave `None`.
+fn nine_slice_param(p: &Value, cmd: &str) -> Result<Option<SymbolNineSlice>> {
+    let has_guides = p.get("nineSliceGuides").is_some();
+    let has_insets = p.get("nineSlice").is_some();
+    if !has_guides && !has_insets {
+        return Ok(None);
+    }
+    let enabled = match p.get("nineSliceGuides") {
+        None => true, // insets alone imply enabling
+        Some(v) => v.as_bool().ok_or_else(|| bad(cmd, "nineSliceGuides must be a boolean"))?,
+    };
+    if !enabled {
+        return Ok(Some(SymbolNineSlice::default()));
+    }
+    let mut ns = SymbolNineSlice::enabled_default();
+    if let Some(o) = p.get("nineSlice") {
+        let obj = o.as_object().ok_or_else(|| bad(cmd, "nineSlice must be an object {left,right,top,bottom}"))?;
+        let read = |k: &str, cur: f64| -> Result<f64> {
+            match obj.get(k) {
+                None => Ok(cur),
+                Some(v) => {
+                    let n = v.as_f64().ok_or_else(|| bad(cmd, format!("nineSlice.{k} must be a number")))?;
+                    if !n.is_finite() || n <= 0.0 || n >= 0.5 {
+                        return Err(bad(cmd, format!("nineSlice.{k} must be in (0, 0.5)")));
+                    }
+                    Ok(n)
+                }
+            }
+        };
+        ns.left = read("left", ns.left)?;
+        ns.right = read("right", ns.right)?;
+        ns.top = read("top", ns.top)?;
+        ns.bottom = read("bottom", ns.bottom)?;
+    }
+    Ok(Some(ns.clamped()))
+}
+
 fn rename_natural_size(d: &mut Document, from: &str, to: &str) {
     if from == to {
         return;
@@ -590,13 +645,20 @@ fn symbol_list(s: &mut Session, _: &Value) -> Result<Value> {
         .iter()
         .map(|sym| {
             let (w, h) = natural_size(d, &sym.name);
-            json!({
+            let ns = d.symbol_nine_slice(&sym.name);
+            let mut row = json!({
                 "name": sym.name,
                 "instances": instances_of(d, Some(&sym.name)).len(),
                 "size": [w, h],
                 "registration": d.symbol_registration(&sym.name).0,
                 "exportType": d.symbol_export_type(&sym.name).id(),
-            })
+            });
+            if let Some(o) = row.as_object_mut() {
+                for (k, v) in nine_slice_json(ns).as_object().into_iter().flatten() {
+                    o.insert(k.clone(), v.clone());
+                }
+            }
+            row
         })
         .collect();
     Ok(json!({ "symbols": list, "current": current_symbol(d).or_else(|| symbol_names(d).into_iter().next()) }))
@@ -626,6 +688,7 @@ fn symbol_new(s: &mut Session, p: &Value) -> Result<Value> {
     let name = s.doc()?.doc.unique_symbol_name(str_param(p, "name").filter(|n| !n.trim().is_empty()).unwrap_or("New Symbol"));
     let reg = registration_param(p, C)?.unwrap_or(SymbolRegistration::CENTER);
     let export = export_type_param(p, C)?.unwrap_or_default();
+    let nine = nine_slice_param(p, C)?.unwrap_or_default();
     // Keep the art where it was: the geometric centre stays at `c`, whatever the registration is.
     let place = place_xf(c + reg.offset_from_center(size.0, size.1), size, reg);
     let id = s.edit("New Symbol", |d, sel| {
@@ -634,12 +697,19 @@ fn symbol_new(s: &mut Session, p: &Value) -> Result<Value> {
         set_natural_size(d, &name, Some(size));
         d.set_symbol_registration(&name, reg);
         d.set_symbol_export_type(&name, export);
+        d.set_symbol_nine_slice(&name, nine);
         d.unknown.insert(CURRENT_SYMBOL.into(), json!(name));
         let id = replace_with_instance(d, &ids, &name, place)?;
         sel.set([id]);
         Ok(id)
     })?;
-    Ok(json!({ "name": name, "id": id.0, "registration": reg.0, "exportType": export.id() }))
+    let mut out = json!({ "name": name, "id": id.0, "registration": reg.0, "exportType": export.id() });
+    if let Some(o) = out.as_object_mut() {
+        for (k, v) in nine_slice_json(nine).as_object().into_iter().flatten() {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+    Ok(out)
 }
 
 fn symbol_options(s: &mut Session, p: &Value) -> Result<Value> {
@@ -647,9 +717,10 @@ fn symbol_options(s: &mut Session, p: &Value) -> Result<Value> {
     let name = resolve_symbol(&s.doc()?.doc, p, C)?;
     let export = export_type_param(p, C)?;
     let reg = registration_param(p, C)?;
+    let nine = nine_slice_param(p, C)?;
     let new_name = str_param(p, "newName").map(str::trim).filter(|n| !n.is_empty()).map(str::to_string);
-    if new_name.is_none() && export.is_none() && reg.is_none() {
-        return Err(bad(C, "pass newName, registration and/or exportType"));
+    if new_name.is_none() && export.is_none() && reg.is_none() && nine.is_none() {
+        return Err(bad(C, "pass newName, registration, exportType and/or nineSliceGuides"));
     }
     if let Some(ref n) = new_name
         && n != &name
@@ -673,6 +744,7 @@ fn symbol_options(s: &mut Session, p: &Value) -> Result<Value> {
             rename_natural_size(d, &name, n);
             d.rename_symbol_registration(&name, n);
             d.rename_symbol_export_type(&name, n);
+            d.rename_symbol_nine_slice(&name, n);
             if d.unknown.get(CURRENT_SYMBOL).and_then(Value::as_str) == Some(name.as_str()) {
                 d.unknown.insert(CURRENT_SYMBOL.into(), json!(n));
             }
@@ -683,14 +755,24 @@ fn symbol_options(s: &mut Session, p: &Value) -> Result<Value> {
         if let Some(kind) = export {
             d.set_symbol_export_type(&final_name, kind);
         }
+        if let Some(ns) = nine {
+            d.set_symbol_nine_slice(&final_name, ns);
+        }
         Ok(())
     })?;
     let d = &s.doc()?.doc;
-    Ok(json!({
+    let ns = d.symbol_nine_slice(&final_name);
+    let mut out = json!({
         "name": final_name,
         "registration": d.symbol_registration(&final_name).0,
         "exportType": d.symbol_export_type(&final_name).id(),
-    }))
+    });
+    if let Some(o) = out.as_object_mut() {
+        for (k, v) in nine_slice_json(ns).as_object().into_iter().flatten() {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+    Ok(out)
 }
 
 fn resolve_symbol(d: &Document, p: &Value, cmd: &str) -> Result<String> {
@@ -848,6 +930,7 @@ fn symbol_delete(s: &mut Session, p: &Value) -> Result<Value> {
         set_natural_size(d, &name, None);
         d.set_symbol_registration(&name, SymbolRegistration::CENTER);
         d.clear_symbol_export_type(&name);
+        d.clear_symbol_nine_slice(&name);
         if d.unknown.get(CURRENT_SYMBOL).and_then(Value::as_str) == Some(name.as_str()) {
             d.unknown.remove(CURRENT_SYMBOL);
         }
@@ -865,15 +948,23 @@ fn symbol_duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     let size = natural_size(d, &name);
     let reg = d.symbol_registration(&name);
     let export = d.symbol_export_type(&name);
+    let nine = d.symbol_nine_slice(&name);
     s.edit("Duplicate Symbol", |d, _| {
         let art = d.reid(&sym.art);
         d.symbols.push(Symbol { name: new.clone(), art: Arc::new(art) });
         set_natural_size(d, &new, Some(size));
         d.set_symbol_registration(&new, reg);
         d.set_symbol_export_type(&new, export);
+        d.set_symbol_nine_slice(&new, nine);
         Ok(())
     })?;
-    Ok(json!({ "name": new, "registration": reg.0, "exportType": export.id() }))
+    let mut out = json!({ "name": new, "registration": reg.0, "exportType": export.id() });
+    if let Some(o) = out.as_object_mut() {
+        for (k, v) in nine_slice_json(nine).as_object().into_iter().flatten() {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+    Ok(out)
 }
 
 fn symbol_replace(s: &mut Session, p: &Value) -> Result<Value> {

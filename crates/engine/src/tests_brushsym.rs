@@ -533,6 +533,36 @@ fn symbol_export_type_defaults_to_movie_clip_and_round_trips() {
 }
 
 #[test]
+fn symbol_nine_slice_guides_round_trip() {
+    let mut s = session();
+    let (_, name, _) = make_symbol(&mut s);
+    let list = s.execute("symbol.list", &json!({})).unwrap();
+    assert_eq!(list["symbols"][0]["nineSliceGuides"], false);
+    assert!(s.doc().unwrap().doc.unknown.get(vectorcraft_doc::SYMBOL_NINE_SLICE).is_none());
+    s.execute("symbol.options", &json!({"name": name, "nineSliceGuides": true})).unwrap();
+    let row = &s.execute("symbol.list", &json!({})).unwrap()["symbols"][0];
+    assert_eq!(row["nineSliceGuides"], true);
+    assert_eq!(row["nineSlice"]["left"], 0.25);
+    assert!(s.doc().unwrap().doc.unknown.get(vectorcraft_doc::SYMBOL_NINE_SLICE).is_some());
+    let copy = s.execute("symbol.duplicate", &json!({"name": name})).unwrap();
+    assert_eq!(copy["nineSliceGuides"], true);
+    s.execute(
+        "symbol.options",
+        &json!({"name": name, "nineSlice": {"left": 0.1, "right": 0.2, "top": 0.15, "bottom": 0.3}}),
+    )
+    .unwrap();
+    let row = &s.execute("symbol.list", &json!({})).unwrap()["symbols"][0];
+    assert_eq!(row["nineSlice"]["left"], 0.1);
+    assert_eq!(row["nineSlice"]["right"], 0.2);
+    s.execute("symbol.options", &json!({"name": name, "nineSliceGuides": false})).unwrap();
+    assert_eq!(s.execute("symbol.list", &json!({})).unwrap()["symbols"][0]["nineSliceGuides"], false);
+    s.execute("symbol.delete", &json!({"name": "Box copy"})).unwrap();
+    // Only the disabled original remains in the map sense: cleared when off.
+    assert!(s.doc().unwrap().doc.unknown.get(vectorcraft_doc::SYMBOL_NINE_SLICE).is_none());
+    assert!(s.execute("symbol.options", &json!({"name": name, "nineSlice": {"left": 0.6}})).is_err());
+}
+
+#[test]
 fn sprayer_command_creates_a_symbol_set_and_alt_removes() {
     let mut s = session();
     make_symbol(&mut s);
