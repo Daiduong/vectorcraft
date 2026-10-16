@@ -241,12 +241,13 @@ impl Writer {
         }
         // Page Isolated Blending / Page Knockout Group: the page content is one group (the PDF
         // writer has no page group attributes; a flat PDF 1.3 file has none). In CMYK, transparency
-        // at the top of a page is put in a non-isolated group of its own, whose blending space
-        // `cmyk_blending` rewrites.
+        // at the top of a page is put in a group of its own, whose blending space `cmyk_blending`
+        // rewrites: non-isolated only when blending on the page reaches the paper, since some
+        // readers (CoreGraphics) drop most of a page in a non-isolated group (#2156).
         let doc = ex.doc;
         let page_group = fits && !self.pdf13 && (doc.page_isolate || doc.page_knockout);
         let cmyk_page_group = fits && self.cmyk && !page_group && ex.shows_transparency();
-        if page_group {
+        if page_group || (cmyk_page_group && !Node::children_blend(&doc.layers, &mut |c| c.blends_through())) {
             s.push_isolated();
         } else if cmyk_page_group {
             let all = constant_mask(&mut s, r, 1.0);
@@ -1049,7 +1050,12 @@ impl Exporter<'_> {
                 }
             }
             // Live blends/envelopes/meshes export their evaluated (expanded) form.
-            NodeKind::Blend { .. } | NodeKind::Envelope { .. } | NodeKind::Mesh(_) | NodeKind::Repeat(_) | NodeKind::PlacedDocument(_) => {
+            NodeKind::Blend { .. }
+            | NodeKind::Envelope { .. }
+            | NodeKind::Mesh(_)
+            | NodeKind::Repeat(_)
+            | NodeKind::PlacedDocument(_)
+            | NodeKind::Intertwine { .. } => {
                 let g = vectorcraft_effects::expand_live_deep(Some(self.doc), n);
                 for c in g.children().into_iter().flatten() {
                     self.node(s, c, page, false);
