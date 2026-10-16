@@ -15,6 +15,29 @@ evenly than the abutting 16 Colors result. The print's grain becomes posterized 
 branches soften. This is a trace interpretation, not a facsimile. The layout and editable type
 were made with VectorCraft commands. The fonts are referenced by name, not included.
 
+## Trace posters
+
+Four public-domain images, each traced once in VectorCraft and laid out with VectorCraft commands.
+Each poster shows the raster input beside the vector result at the same crop and scale, then
+one detail three ways: the real pixels enlarged nearest-neighbour, the traced colour shapes, and
+the actual path outlines. The path counts are the ones VectorCraft reported, and the traced
+artwork is not retouched.
+
+![Four traces](posters/family-poster.jpg)
+
+| Poster | Preset and settings | Paths |
+|---|---|---:|
+| [Grand Canyon (WPA)](posters/wpa-poster.jpg) | Low Fidelity Photo: Color, Colors 20 (10 used), Paths 60, Corners 50, Noise 12, Overlapping | 314 |
+| [Hiroshige](posters/hiroshige-poster.jpg) | Low Fidelity Photo: Colors 20 (18 used), otherwise as above | 4,620 |
+| [Haeckel](posters/haeckel-poster.jpg) | Low Fidelity Photo: Colors 20 (20 used), otherwise as above | 10,829 |
+| [Leonardo](posters/leonardo-poster.jpg) | Line Art with Threshold 165: Black and White, Ignore White, Paths 80, Corners 70, Noise 10, Abutting | 188 |
+
+Known limitations, visible on the posters:
+- **Grand Canyon:** thin pale bands follow some shadow and cliff edges, from the scan's soft edges.
+- **Hiroshige:** the paper grain becomes flecks, and the finest twigs thicken or break.
+- **Haeckel:** pale pink halos follow the tentacles, and the plate number breaks up.
+- **Leonardo:** most light hatching is lost or dashed, and the ink blots fill solid.
+
 ## Settings sheets
 
 Each sheet shows the source first, then one trace per preset. Each trace is captioned with its
