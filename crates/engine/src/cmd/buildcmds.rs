@@ -15,7 +15,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
 use vectorcraft_doc::appearance::{AppearanceItem, FillLayer, LineCap, LineJoin, StrokeLayer};
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, Selection, TraceView};
+use vectorcraft_doc::{Appearance, Document, LiveShape, Node, NodeId, NodeKind, Selection, TraceView};
 use vectorcraft_geom::{FillRule, PathData, Point, Rect, SubPath};
 use vectorcraft_pathops as po;
 use vectorcraft_tools::builder::{
@@ -24,7 +24,7 @@ use vectorcraft_tools::builder::{
 };
 use vectorcraft_trace as tr;
 
-use super::edit::selected_roots;
+use super::edit::{outermost, selected_roots};
 use super::paint::paint_from;
 use super::pathops::{Beside, shape_node};
 use super::*;
@@ -120,7 +120,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Make",
             ["Object", "Image Trace"],
             None,
-            "{id?: image or Image Trace group (default: selection), preset?: name (imageTrace.presets), params?: {mode: \"blackAndWhite\"|\"grayscale\"|\"color\"|\"logo\", threshold: 0-255, palette: \"limited\"|\"fullTone\"|\"automatic\"|\"documentLibrary\" (color mode; limited: the `colors` best colours, fullTone: as many as the tones need, more with colorDetail, automatic: flat art with its own colours, else fullTone, documentLibrary: at most `colors` of the library's colours, as they are), colors: 2-256, colorDetail: 0-100 (fullTone, automatic), library: \"document\" (the document's swatches) or a swatch library id or name (swatch.library.list; documentLibrary), paths: 0-100, corners: 0-100, noise: px, method: \"abutting\"|\"overlapping\", ignoreWhite, snapCurvesToLines, fills: true, strokes: false (Create: lines up to strokeWidth wide become stroked centre lines; without fills, wider areas become stroked outlines), strokeWidth: px (10), logoColors?: [\"#rrggbb\"…] (mode logo: flat-colour logos only; colours found automatically or named here, white is always its own colour, at most ten; noise = areas under noise/10 px ignored; edges to a fraction of a pixel, sharp corners restored, lines and circles snapped; enclosed transparent areas are painted white unless ignoreWhite makes them holes; fills/strokes are ignored; gradients and photos are refused)}, view?: as imageTrace.setView (default: the traced object's own, else tracingResult), ids?: [id…] (instead of id)} → {id, paths, anchors, colors}",
+            "{id?: image or Image Trace group (default: selection), preset?: name (imageTrace.presets), enhanced?: false (the preset's enhanced version: with Auto Grouping, and with Shapes in all but High Fidelity Photo; Flat Logo has none and is traced as it is), params?: {mode: \"blackAndWhite\"|\"grayscale\"|\"color\"|\"logo\", threshold: 0-255, palette: \"limited\"|\"fullTone\"|\"automatic\"|\"documentLibrary\" (color mode; limited: the `colors` best colours, fullTone: as many as the tones need, more with colorDetail, automatic: flat art with its own colours, else fullTone, documentLibrary: at most `colors` of the library's colours, as they are), colors: 2-256, colorDetail: 0-100 (fullTone, automatic), library: \"document\" (the document's swatches) or a swatch library id or name (swatch.library.list; documentLibrary), paths: 0-100, corners: 0-100, noise: px, method: \"abutting\"|\"overlapping\", ignoreWhite (leave out white areas), ignoreColor?: \"#rrggbb\" (with ignoreWhite: the colour left out instead of white), snapCurvesToLines, shapes: false (filled outlines that are a circle, an ellipse, a rectangle or a regular polygon come out as that live shape), autoGrouping: false (each path that has others inside it is grouped with them), gradients: false (grayscale and color: an area whose colour changes evenly along one direction is one path with a linear gradient fill), fills: true, strokes: false (Create: lines up to strokeWidth wide become stroked centre lines; without fills, wider areas become stroked outlines), strokeWidth: px (10), logoColors?: [\"#rrggbb\"…] (mode logo: flat-colour logos only; colours found automatically or named here, white is always its own colour, at most ten; noise = areas under noise/10 px ignored; edges to a fraction of a pixel, sharp corners restored, lines and circles snapped; enclosed transparent areas are painted white unless ignoreWhite makes them holes; fills/strokes are ignored; gradients and photos are refused)}, view?: as imageTrace.setView (default: the traced object's own, else tracingResult), ids?: [id…] (instead of id)} → {id, paths, anchors, colors}",
             has_selection_or_ids,
             |s, p| trace_make(s, p, false)
         ),
@@ -160,8 +160,8 @@ pub fn specs() -> Vec<CommandSpec> {
             has_selection_or_ids,
             trace_set_view
         ),
-        cmd!(query "imageTrace.presets", "Image Trace Presets", [], None, "{} → {presets: [{name, params}]}", always, |_, _| {
-            Ok(json!({ "presets": tr::presets().into_iter().map(|(n, p)| json!({ "name": n, "params": p })).collect::<Vec<_>>() }))
+        cmd!(query "imageTrace.presets", "Image Trace Presets", [], None, "{} → {presets: [{name, params, enhanced: the params of the preset's enhanced version, null if it has none}]}", always, |_, _| {
+            Ok(json!({ "presets": tr::presets().into_iter().map(|(n, p)| json!({ "name": n, "params": p, "enhanced": tr::enhanced_preset(n) })).collect::<Vec<_>>() }))
         }),
     ]
 }
@@ -192,7 +192,7 @@ fn root_ids(s: &Session, p: &Value) -> Result<Vec<NodeId>> {
     if ids.is_empty() {
         return Err(EngineError::Other("select objects, not layers".into()));
     }
-    Ok(sorted_roots(d, &ids))
+    Ok(outermost(d, sorted_roots(d, &ids)))
 }
 
 fn points_param(p: &Value, key: &str) -> Option<Vec<Point>> {
@@ -657,7 +657,10 @@ fn view_param(cmd: &str, p: &Value) -> Result<Option<TraceView>> {
 
 fn trace_params(p: &Value) -> Result<tr::TraceParams> {
     let name = str_param(p, "preset").unwrap_or("Default");
-    let base = tr::preset(name).ok_or_else(|| bad("imageTrace.make", format!("unknown preset `{name}` (see imageTrace.presets)")))?;
+    let enhanced = p.get("enhanced").and_then(Value::as_bool).unwrap_or(false);
+    // (A preset without an enhanced version is traced as it is.)
+    let base = enhanced.then(|| tr::enhanced_preset(name)).flatten().or_else(|| tr::preset(name));
+    let base = base.ok_or_else(|| bad("imageTrace.make", format!("unknown preset `{name}` (see imageTrace.presets)")))?;
     let Some(over) = p.get("params").filter(|v| !v.is_null()) else { return Ok(base) };
     let mut v = serde_json::to_value(&base).map_err(|e| EngineError::Other(e.to_string()))?;
     let (Some(o), Some(src)) = (v.as_object_mut(), over.as_object()) else { return Err(bad("imageTrace.make", "params must be an object")) };
@@ -703,17 +706,93 @@ fn trace_library(s: &Session, params: &mut tr::TraceParams) -> Result<Vec<([u8; 
 /// refused with advice instead (#525).
 pub const MAX_TRACE_ANCHORS: usize = 2_000_000;
 
+/// The live shape for a shape the tracer found (in the image's pixels), placed in the document by `xf`.
+fn traced_shape(shape: tr::TracedShape, xf: vectorcraft_geom::Affine) -> LiveShape {
+    use vectorcraft_geom::Affine;
+    let about = |c: Point, deg: f64| Affine::translate(c.to_vec2()) * Affine::rotate(deg.to_radians());
+    let mut live = match shape {
+        tr::TracedShape::Rectangle { center, width, height, radius, rotation } => LiveShape::Rectangle {
+            w: width,
+            h: height,
+            radii: [radius; 4],
+            kinds: Default::default(),
+            xf: about(center, rotation) * Affine::translate((-width / 2.0, -height / 2.0)),
+        },
+        tr::TracedShape::Ellipse { center, rx, ry, rotation } => {
+            LiveShape::Ellipse { w: 2.0 * rx, h: 2.0 * ry, pie: (0.0, 360.0), xf: about(center, rotation) * Affine::translate((-rx, -ry)) }
+        }
+        tr::TracedShape::Polygon { center, radius, sides, rotation } => {
+            LiveShape::Polygon { radius, sides, xf: about(center, rotation), radii: vec![], kinds: vec![] }
+        }
+    };
+    // (Whether the move changed the shape's own numbers does not matter: its path is made from them next.)
+    let _ = live.transform(xf);
+    live
+}
+
+/// The gradient fill for a linear gradient the tracer found (in the image's pixels), placed in the
+/// document by `xf`.
+fn traced_gradient(g: &tr::TracedGradient, xf: vectorcraft_geom::Affine) -> Paint {
+    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    let stops = g.stops.iter().map(|&(at, c)| GradientStop::new(at as f32, Color::rgb8(c[0], c[1], c[2]))).collect();
+    let mut paint = GradientPaint::new(Gradient { kind: GradientKind::Linear, stops });
+    paint.geom = Some(GradientGeom { start: xf * g.start, end: xf * g.end, aspect: 1.0, focal: None });
+    Paint::Gradient(Box::new(paint))
+}
+
+/// Auto Grouping: `nodes` (one per traced path, bottom-most first) with each path that has others
+/// inside it (`parents`, as the tracer gives them) in a group with them, in the order they had:
+/// abutting paths painted in another order would show a seam where they meet. Without parents,
+/// the nodes as they are.
+fn grouped(d: &mut Document, nodes: Vec<Node>, parents: &[Option<usize>]) -> Vec<Arc<Node>> {
+    let n = nodes.len();
+    let mut inside: Vec<Vec<usize>> = vec![vec![]; n];
+    let mut roots = vec![];
+    for i in 0..n {
+        match parents.get(i).copied().flatten().and_then(|p| inside.get_mut(p).filter(|_| p != i)) {
+            Some(of) => of.push(i),
+            None => roots.push(i),
+        }
+    }
+    // Outermost first, so that backwards each path comes after those inside it.
+    let mut order = roots.clone();
+    let mut at = 0;
+    while let Some(&i) = order.get(at) {
+        order.extend(inside.get(i).into_iter().flatten());
+        at += 1;
+    }
+    let mut nodes: Vec<Option<Node>> = nodes.into_iter().map(Some).collect();
+    let mut built: Vec<Option<Arc<Node>>> = vec![None; n];
+    for &i in order.iter().rev() {
+        let Some(node) = nodes.get_mut(i).and_then(Option::take) else { continue };
+        let mut within: Vec<(usize, Arc<Node>)> = inside.get(i).into_iter().flatten().filter_map(|&c| Some((c, built.get_mut(c)?.take()?))).collect();
+        let made = if within.is_empty() {
+            node
+        } else {
+            within.push((i, Arc::new(node)));
+            within.sort_by_key(|m| m.0);
+            Node::group(d.alloc_id(), within.into_iter().map(|m| m.1).collect())
+        };
+        if let Some(slot) = built.get_mut(i) {
+            *slot = Some(Arc::new(made));
+        }
+    }
+    // (Paths that are inside each other in a ring are reached from no root: the tracer makes none,
+    // and they are kept all the same.)
+    let ring = nodes.into_iter().flatten().map(Arc::new).collect::<Vec<_>>();
+    roots.iter().filter_map(|&r| built.get_mut(r)?.take()).chain(ring).collect()
+}
+
 fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
     const C: &str = "imageTrace.make";
     let mut params = trace_params(p)?;
     let view = view_param(C, p)?;
     let params_json = serde_json::to_value(&params).map_err(|e| EngineError::Other(e.to_string()))?;
-    // The preset's name if the parameters are exactly that preset's, else "Custom".
+    // The preset's name if the parameters are exactly that preset's or its enhanced version's,
+    // else "Custom".
     let named = str_param(p, "preset").unwrap_or("Default");
-    let preset_label = match tr::preset(named) {
-        Some(b) if serde_json::to_value(&b).ok().as_ref() == Some(&params_json) => named.to_string(),
-        _ => "Custom".to_string(),
-    };
+    let is = |b: Option<tr::TraceParams>| b.and_then(|b| serde_json::to_value(&b).ok()).as_ref() == Some(&params_json);
+    let preset_label = if is(tr::preset(named)) || is(tr::enhanced_preset(named)) { named.to_string() } else { "Custom".to_string() };
     let roots = root_ids(s, p)?;
     // The image (inside a trace group, or selected directly).
     let (target, img) = {
@@ -763,17 +842,25 @@ fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
             hidden.visible = false;
             children.push(Arc::new(hidden));
         }
+        let mut traced = Vec::with_capacity(res.paths.len());
         for tp in res.paths {
             let path = tp.path.transformed(xf);
             let mut n = shape_node(d, path, None);
+            // Shapes: a path the tracer found to be a shape is that live shape.
+            if let (Some(shape), NodeKind::Path { path, live, .. }) = (tp.shape, &mut n.kind) {
+                let shape = traced_shape(shape, xf);
+                *path = shape.to_path();
+                *live = Some(Box::new(shape));
+            }
             // A library colour fills with the swatch's own colour (its model kept).
             let color = library.iter().find(|(rgb, _)| *rgb == tp.color).map_or_else(|| Color::rgb8(tp.color[0], tp.color[1], tp.color[2]), |l| l.1);
-            let paint = Paint::solid(color);
+            // Gradients: a path the tracer found to be a linear gradient is filled with it.
+            let paint = tp.gradient.as_ref().map_or_else(|| Paint::solid(color), |g| traced_gradient(g, xf));
             n.appearance = match tp.stroke {
-                // Traced lines: round ends and corners, as drawn lines have.
+                // Traced lines: round corners, and ends round or square as the tracer found them.
                 Some(width) => Appearance {
                     items: vec![AppearanceItem::Stroke(StrokeLayer {
-                        cap: LineCap::Round,
+                        cap: if tp.square_caps { LineCap::Square } else { LineCap::Round },
                         join: LineJoin::Round,
                         ..StrokeLayer::new(paint, width * unit)
                     })],
@@ -782,8 +869,9 @@ fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
                 .into(),
                 None => fill_only(paint).into(),
             };
-            children.push(Arc::new(n));
+            traced.push(n);
         }
+        children.extend(grouped(d, traced, &res.parents));
         let gid = d.alloc_id();
         let mut g = Node::group(gid, children);
         g.name = if expand { None } else { Some(TRACE_NAME.into()) };

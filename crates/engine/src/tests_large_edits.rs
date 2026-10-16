@@ -22,13 +22,13 @@ fn square_at(k: usize) -> Rect {
 }
 
 /// Square `k` ([`square_at`]) as a path with a new id.
-fn square(d: &mut Document, k: usize) -> Node {
+pub(crate) fn square(d: &mut Document, k: usize) -> Node {
     Node::path(d.alloc_id(), shapes::rectangle(square_at(k)), Appearance::default_art())
 }
 
 /// A session whose document holds `make(d, k)` for each `k` below `n` on its one layer, all of it
 /// selected.
-fn session(n: usize, mut make: impl FnMut(&mut Document, usize) -> Node) -> Session {
+pub(crate) fn session(n: usize, mut make: impl FnMut(&mut Document, usize) -> Node) -> Session {
     let mut d = Document::new(ROW as f64 * 20.0, (n / ROW + 1) as f64 * 20.0);
     let art: Vec<Arc<Node>> = (0..n).map(|k| Arc::new(make(&mut d, k))).collect();
     if let Some(ch) = Arc::make_mut(&mut d.layers[0]).children_mut() {
@@ -46,7 +46,7 @@ fn ids_of(n: &Node) -> Vec<NodeId> {
 }
 
 /// The ids of the objects on layer `i`.
-fn layer(s: &Session, i: usize) -> Vec<NodeId> {
+pub(crate) fn layer(s: &Session, i: usize) -> Vec<NodeId> {
     ids_of(&s.doc().unwrap().doc.layers[i])
 }
 
@@ -66,7 +66,7 @@ fn in_turn(a: &[NodeId], b: &[NodeId]) -> Vec<NodeId> {
 }
 
 /// Runs `f` on `s` on a thread of its own and fails the test when it takes more than 20 s.
-fn soon<T: Send + 'static>(mut s: Session, what: &'static str, f: impl FnOnce(&mut Session) -> T + Send + 'static) -> (Session, T) {
+pub(crate) fn soon<T: Send + 'static>(mut s: Session, what: &'static str, f: impl FnOnce(&mut Session) -> T + Send + 'static) -> (Session, T) {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let r = f(&mut s);
@@ -76,7 +76,7 @@ fn soon<T: Send + 'static>(mut s: Session, what: &'static str, f: impl FnOnce(&m
 }
 
 /// Runs command `cmd` with `params` through [`soon`] and returns its result.
-fn run_soon(s: Session, cmd: &'static str, params: Value) -> (Session, Value) {
+pub(crate) fn run_soon(s: Session, cmd: &'static str, params: Value) -> (Session, Value) {
     let (s, r) = soon(s, cmd, move |s| s.execute(cmd, &params));
     (s, r.unwrap())
 }
@@ -87,7 +87,7 @@ fn ids_in(r: &Value) -> Vec<NodeId> {
 }
 
 /// Runs Undo and checks that it gives back `before`.
-fn undo_gives_back(s: &mut Session, before: &Document) {
+pub(crate) fn undo_gives_back(s: &mut Session, before: &Document) {
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(*s.doc().unwrap().doc == *before, "Undo gives back the document");
 }
@@ -630,9 +630,9 @@ fn path_commands_across_layers_and_inside_a_group_keep_order_and_ids() {
     undo_gives_back(&mut s, &before);
 }
 
-/// `object.transform` copies ids listed twice, and an object listed before a group around it.
-/// Each copy goes directly above its original, a later copy of the same object goes below an
-/// earlier one, and the copy of the group holds a copy of the copy made inside the group before it.
+/// `object.transform` copies ids listed twice, and copies an object listed before a group around it
+/// only with the group, as it does with the two selected. Each copy goes directly above its
+/// original, and a later copy of the same object goes below an earlier one.
 #[test]
 fn copies_of_ids_listed_twice_or_inside_another_listed_id_keep_their_order_and_ids() {
     let (mut s, [a, b, c, d, e, f, g, h, group]) = two_layers();
@@ -640,9 +640,9 @@ fn copies_of_ids_listed_twice_or_inside_another_listed_id_keep_their_order_and_i
     let n = before.peek_next_id();
 
     let r = s.execute("object.transform", &json!({"matrix": [1, 0, 0, 1, 5, 0], "copy": true, "ids": [e, group]})).unwrap();
-    assert_eq!(r["ids"], json!([n, n + 1]));
-    let copied = json!([n + 1, n + 2, n + 3, n + 4, n + 5]);
-    assert_eq!(layers(&s), [json!([a, b, c, [group, d, e, n, f], copied]), json!([g, h])]);
+    assert_eq!(r["ids"], json!([n]));
+    let copied = json!([n, n + 1, n + 2, n + 3]);
+    assert_eq!(layers(&s), [json!([a, b, c, [group, d, e, f], copied]), json!([g, h])]);
     undo_gives_back(&mut s, &before);
 
     let r = s.execute("object.transform", &json!({"matrix": [1, 0, 0, 1, 5, 0], "copy": true, "ids": [a, a]})).unwrap();

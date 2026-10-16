@@ -124,6 +124,15 @@ fn auto_height_frame(t: &TextObject) -> Option<vectorcraft_geom::Rect> {
     (finite && b.height() > 1e-6 && b.width() > 1e-6 && (area - b.area()).abs() <= b.area() * 1e-6).then_some(b)
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Tests: how many times [`auto_height`] laid out text in its columns on this thread.
+    pub(crate) static COLUMN_LAYOUTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    /// Tests: when set, [`auto_height`] lays out the columns at every step of its bisection on
+    /// this thread.
+    pub(crate) static FULL_SEARCH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// Auto Size: move the bottom of a rectangular area type frame to just below its last line (plus
 /// the inset), so the frame's height follows the text. Text in several columns gets the least
 /// height (to 0.01 pt) at which it fits. True when the frame changed.
@@ -158,21 +167,30 @@ fn auto_height(t: &mut TextObject) -> bool {
         // The least height (to 0.01 pt) at which the columns hold the text.
         probe.area.columns = cols;
         let fits = |probe: &mut TextObject, h: f64| {
+            #[cfg(test)]
+            COLUMN_LAYOUTS.with(|c| c.set(c.get() + 1));
             with_size(probe, b.width(), h);
             !vectorcraft_text::layout(db, probe).overflow
         };
-        if !fits(&mut probe, h) {
-            return false;
-        }
-        let (mut lo, mut hi) = (1.0, h);
-        for _ in 0..24 {
-            if hi - lo <= 0.01 {
-                break;
+        // The bisection runs on the one column's lines as `columns_hold` places them in the columns.
+        // The columns are then laid out at the upper height it ends on and, when they hold the text
+        // there, at the lower one, unless that is the 1 pt it starts from. When the one column
+        // overflows, when text wraps around other objects, or when the columns don't hold the text
+        // at the upper height or do hold it at the lower one, the columns are laid out at every step
+        // of the bisection.
+        let quick = !lay.overflow && t.wrap.is_empty();
+        #[cfg(test)]
+        let quick = quick && !FULL_SEARCH.with(std::cell::Cell::get);
+        let ends = quick.then(|| least_height(1.0, h, |x| columns_hold(&lay.lines, cols, b.y0, inset, x)));
+        h = match ends {
+            Some((lo, hi)) if fits(&mut probe, hi) && (lo <= 1.0 || !fits(&mut probe, lo)) => hi,
+            _ => {
+                if !fits(&mut probe, h) {
+                    return false;
+                }
+                least_height(1.0, h, |x| fits(&mut probe, x)).1
             }
-            let mid = (lo + hi) * 0.5;
-            if fits(&mut probe, mid) { hi = mid } else { lo = mid }
-        }
-        h = hi;
+        };
     }
     if (h - b.height()).abs() <= 1e-6 {
         return false;
@@ -187,6 +205,38 @@ fn auto_height(t: &mut TextObject) -> bool {
     }
     *frame = next;
     true
+}
+
+/// The bisection [`auto_height`] runs for text in columns, from `lo` (taken not to fit) and `hi`
+/// (where it fits): at most 24 halvings, until they are at most 0.01 pt apart → (lo, hi).
+fn least_height(mut lo: f64, mut hi: f64, mut fits: impl FnMut(f64) -> bool) -> (f64, f64) {
+    for _ in 0..24 {
+        if hi - lo <= 0.01 {
+            break;
+        }
+        let mid = (lo + hi) * 0.5;
+        if fits(mid) { hi = mid } else { lo = mid }
+    }
+    (lo, hi)
+}
+
+/// Do `cols` columns of a frame `h` tall (its top at `y0`, the text `inset` inside it) hold
+/// `lines`, the text's lines laid out in one column as wide as each of them from the same top?
+/// Each column takes the next lines while they end within its bottom, as layout tests them
+/// (`baseline + descent <= bottom + 0.01`). A column's first line sits its
+/// [`first_baseline`](vectorcraft_text::LineInfo::first_baseline) below `y0 + inset`, and the
+/// lines after it keep their distances from it. A last line with no characters (after a return
+/// that ends the text) may be left out, as layout leaves it out without overflowing.
+fn columns_hold(lines: &[vectorcraft_text::LineInfo], cols: usize, y0: f64, inset: f64, h: f64) -> bool {
+    let Some(first) = lines.first() else { return true };
+    let bottom = y0 + h - inset + 0.01;
+    let mut next = 0;
+    for _ in 0..cols {
+        let Some(start) = lines.get(next) else { break };
+        let up = (start.baseline - start.first_baseline) - (first.baseline - first.first_baseline);
+        next += lines.iter().skip(next).take_while(|l| l.baseline + l.descent - up <= bottom).count();
+    }
+    next >= lines.len() || (next + 1 == lines.len() && lines.last().is_some_and(|l| l.start == l.end))
 }
 
 /// Recompute the layout bounds cache for the text among `ids` (and their descendants) that lacks
@@ -217,6 +267,23 @@ pub(crate) fn with_overflow(s: &Session, ids: &[NodeId], mut result: Value) -> V
         result["overflow"] = json!(over);
     }
     result
+}
+
+/// The warning that Print gives for `ids`, area type and type on a path whose text doesn't fit
+/// (as [`with_overflow`] finds it): the text past the end of their frames doesn't print. It names
+/// the first 20 ids and counts the rest; `None` when `ids` is empty.
+pub(crate) fn overflow_warning(ids: &[NodeId]) -> Option<String> {
+    const NAMED: usize = 20;
+    let (named, rest) = ids.split_at(ids.len().min(NAMED));
+    let mut list = named.iter().map(|i| i.0.to_string()).collect::<Vec<_>>().join(", ");
+    if !rest.is_empty() {
+        list = format!("{list} and {} more", rest.len());
+    }
+    match ids {
+        [] => None,
+        [_] => Some(format!("1 text object doesn't fit its frame: the text past the end of the frame doesn't print (id {list})")),
+        _ => Some(format!("{} text objects don't fit their frames: the text past the end of each frame doesn't print (ids {list})", ids.len())),
+    }
 }
 
 /// Text objects among `ids` and their descendants.
@@ -392,7 +459,7 @@ fn set_text(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(with_overflow(s, &ids, json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>() })))
 }
 
-fn justify_param(v: &str) -> Option<Justify> {
+pub(crate) fn justify_param(v: &str) -> Option<Justify> {
     Some(match v.to_ascii_lowercase().as_str() {
         "auto" => Justify::Auto,
         "left" => Justify::Left,
@@ -662,8 +729,8 @@ fn area_options(s: &mut Session, p: &Value) -> Result<Value> {
         return options(s);
     }
     let mut opts: vectorcraft_doc::AreaOptions = serde_json::from_value(v).map_err(|e| bad(C, e.to_string()))?;
-    opts.rows = opts.rows.clamp(1, 100);
-    opts.columns = opts.columns.clamp(1, 100);
+    opts.rows = opts.rows.clamp(1, vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS);
+    opts.columns = opts.columns.clamp(1, vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS);
     let finite = |x: f64| if x.is_finite() { x } else { 0.0 };
     opts.gutter = finite(opts.gutter).clamp(0.0, 10_000.0);
     opts.inset = finite(opts.inset).clamp(0.0, 10_000.0);
@@ -715,6 +782,51 @@ fn reshape_area(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod area_tests {
     use super::*;
+
+    /// #1748: `text.create` takes `justify`; point type then lines up on its point (centred on
+    /// it, or ending there), and `text.setStyle` moves it the same way afterwards.
+    #[test]
+    fn text_create_justify_anchors_point_type_on_its_point() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 600, "height": 400})).unwrap();
+        let bounds = |s: &Session, id: &Value| {
+            let id = NodeId(id.as_u64().unwrap());
+            let st = s.doc().unwrap();
+            st.doc.bounds_of(&[id], false).unwrap()
+        };
+        let make = |s: &mut Session, extra: Value| {
+            let mut p = json!({"x": 300, "y": 100, "text": "Centred title", "size": 24});
+            for (k, v) in extra.as_object().unwrap() {
+                p[k] = v.clone();
+            }
+            s.execute("text.create", &p).unwrap()["id"].clone()
+        };
+        let id = make(&mut s, json!({}));
+        let left = bounds(&s, &id);
+        assert!(left.width() > 10.0, "{left:?}");
+        assert!((left.x0 - 300.0).abs() < 1.0, "left (the default) starts at x: {left:?}");
+        let id = make(&mut s, json!({"justify": "center"}));
+        let centre = bounds(&s, &id);
+        assert!((centre.center().x - 300.0).abs() < 0.5, "centred on x: {centre:?}");
+        assert!((centre.width() - left.width()).abs() < 0.5);
+        let right = make(&mut s, json!({"justify": "right"}));
+        let r = bounds(&s, &right);
+        assert!((r.x1 - 300.0).abs() < 1.0, "ends at x: {r:?}");
+        let got = |s: &Session, id: &Value| match &s.doc().unwrap().doc.node(NodeId(id.as_u64().unwrap())).unwrap().kind {
+            NodeKind::Text(t) => t.para.justify,
+            _ => panic!("not text"),
+        };
+        assert_eq!(got(&s, &right), Justify::Right);
+        // Changed afterwards, it moves to the same place as made centred.
+        s.execute("text.setStyle", &json!({"id": right, "justify": "center"})).unwrap();
+        let moved = bounds(&s, &right);
+        assert!((moved.center().x - 300.0).abs() < 0.5, "{moved:?}");
+        assert!(s.execute("text.create", &json!({"x": 0, "y": 0, "text": "a", "justify": "middle"})).is_err());
+        // Type in or on a path takes it too.
+        let path = s.execute("path.create", &json!({"d": "M50 300 L550 300"})).unwrap()["id"].clone();
+        let on = s.execute("text.createInPath", &json!({"path": path, "mode": "onPath", "text": "On a path", "justify": "center"})).unwrap();
+        assert_eq!(got(&s, &on["id"]), Justify::Center);
+    }
 
     #[test]
     fn kinsoku_set_is_set_per_paragraph_and_saved_only_when_not_hard() {
@@ -774,6 +886,48 @@ mod area_tests {
         assert_eq!(para(&s).burasagari, Burasagari::Standard);
         let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
         assert_eq!(old.burasagari, Burasagari::None);
+    }
+
+    /// Paragraph panel menu › Hyphenation…: `text.setFormat` sets each paragraph's hyphenation
+    /// options, rounded and clamped, in one undo step; they are saved only when not the defaults,
+    /// and paragraph styles carry them.
+    #[test]
+    fn hyphenation_options_are_set_per_paragraph_and_saved_only_when_not_default() {
+        use vectorcraft_doc::HyphenationOptions;
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo", "area": {"width": 200, "height": 100}})).unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        let paras = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => (t.para_at(0).clone(), t.para_at(1).clone()),
+            _ => panic!("text"),
+        };
+        assert_eq!(paras(&s).0.hyphenation, HyphenationOptions::default());
+        assert!(serde_json::to_value(paras(&s).0).unwrap().get("hyphenation").is_none());
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        s.execute(
+            "text.setFormat",
+            &json!({"wordsLongerThan": 7.6, "afterFirst": 0, "beforeLast": 40, "hyphenLimit": 2, "hyphenationZone": 18, "hyphenateCapitalized": false, "start": 5, "end": 5}),
+        )
+        .unwrap();
+        let want = HyphenationOptions { words_longer_than: 8, after_first: 1, before_last: 15, hyphen_limit: 2, zone: 18.0, capitalized: false };
+        let (first, second) = paras(&s);
+        assert_eq!((first.hyphenation, &second.hyphenation), (HyphenationOptions::default(), &want), "only the paragraph the caret is in");
+        assert_eq!(serde_json::to_value(&second).unwrap()["hyphenation"]["hyphen_limit"], 2);
+        let back: vectorcraft_doc::ParaStyle = serde_json::from_value(serde_json::to_value(&second).unwrap()).unwrap();
+        assert_eq!(back.hyphenation, want);
+        s.execute("text.setFormat", &json!({"hyphenLimit": -3, "hyphenationZone": 5000})).unwrap();
+        assert_eq!((paras(&s).0.hyphenation.hyphen_limit, paras(&s).1.hyphenation.zone), (0, 1296.0));
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(paras(&s).1.hyphenation, HyphenationOptions::default());
+        // A paragraph style carries them; an older file's paragraph reads the defaults.
+        s.execute("paraStyle.new", &json!({"name": "Loose", "attrs": {"hyphenation": {"words_longer_than": 9}}})).unwrap();
+        s.execute("paraStyle.apply", &json!({"name": "Loose", "id": id})).unwrap();
+        assert_eq!(paras(&s).0.hyphenation, HyphenationOptions { words_longer_than: 9, ..HyphenationOptions::default() });
+        let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left", "hyphenate": true})).unwrap();
+        assert_eq!(old.hyphenation, HyphenationOptions::default());
     }
 
     /// #432: while the interface is in Japanese, new type (text.create, text.createInPath) starts

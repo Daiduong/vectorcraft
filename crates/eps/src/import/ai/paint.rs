@@ -158,8 +158,11 @@ impl GradientDef {
         if self.gradient.stops.is_empty() {
             return None;
         }
-        // Stops come last first: reversed, stops sharing a ramp point keep their order.
-        self.gradient.stops.reverse();
+        // Stops are listed along the ramp from either end: listed downwards they're reversed, so
+        // stops sharing a ramp point keep their order (and each its midpoint, to the next stop).
+        if self.gradient.stops.first().zip(self.gradient.stops.last()).is_some_and(|(first, last)| first.offset > last.offset) {
+            self.gradient.stops.reverse();
+        }
         self.gradient.stops.sort_by(|a, b| a.offset.total_cmp(&b.offset));
         Some((self.name, self.gradient))
     }
@@ -233,6 +236,11 @@ impl Instance {
         if let [x, y, ..] = n.as_slice() {
             self.hilight = Vec2::new(*x, *y);
         }
+    }
+
+    /// Does it carry a matrix of its own (`Xm` or `Bm`) rather than only `Bg`'s numbers?
+    pub fn has_matrix(&self) -> bool {
+        self.xm.is_some() || self.bm.is_some()
     }
 
     /// The paint, through `to_doc` (art space → the document), when the gradient is defined.

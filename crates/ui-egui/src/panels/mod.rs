@@ -82,12 +82,44 @@ pub(crate) fn field_width(ui: &Ui) -> f32 {
 }
 
 /// The Corner Radius field of a live rectangle's properties: [`corner_radius`], which a new value
-/// sets on those corners.
+/// sets on those corners. The link behind it is the `singleCornerRadius` preference: off, a field
+/// for each of the four corners follows, each setting its own corner.
 pub(crate) fn corner_radius_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, id: &str) {
     let fw = field_width(ui);
+    let single = app.session.prefs.single_corner_radius;
     ui.horizontal(|ui| {
         dim_label(ui, tl!("Corner Radius:"));
-        corner_radius_field(app, ui, n, id, fw);
+        if single {
+            corner_radius_field(app, ui, n, id, fw);
+        }
+        let tip = tl!("Single Corner Radius");
+        if crate::widgets::icon_button(ui, if single { "link" } else { "link-2-off" }, tip, single, 22.0).clicked() {
+            transform::set_pref(app, "singleCornerRadius", !single);
+        }
+    });
+    if !single {
+        corner_fields(app, ui, n, id, fw);
+    }
+}
+
+/// The corners of a live rectangle in the order their fields show, with their labels.
+fn rectangle_corners() -> [(usize, &'static str); 4] {
+    [(0, tl!("Top Left:")), (1, tl!("Top Right:")), (2, tl!("Bottom Right:")), (3, tl!("Bottom Left:"))]
+}
+
+/// One Corner Radius field per corner of a live rectangle, each on its own row with its label,
+/// the fields in line.
+fn corner_fields(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, id: &str, width: f32) {
+    let Some(lc) = LiveCorners::of(n) else { return };
+    let unit = app.session.general_unit();
+    egui::Grid::new((id, "corners")).num_columns(2).spacing(vec2(6.0, 4.0)).show(ui, |ui| {
+        for (k, label) in rectangle_corners() {
+            dim_label(ui, label);
+            if let Some(v) = crate::widgets::num_field(ui, (id, "corner", k), Some(lc.radius(k)), unit, width) {
+                app.run("object.setLiveShape", json!({"radius": v, "corners": [k]})).ok();
+            }
+            ui.end_row();
+        }
     });
 }
 
@@ -190,6 +222,7 @@ pub fn panel_menu_items(app: &mut VectorcraftApp, ui: &mut Ui, id: &str) -> bool
         asset_export::ID => asset_export::menu(app, ui),
         css_properties::ID => css_properties::menu(app, ui),
         variables::ID => variables::menu(app, ui),
+        "actions" => actions::menu(app, ui),
         _ => return false,
     }
     true
@@ -286,9 +319,12 @@ pub(crate) fn current_stroke(app: &VectorcraftApp) -> Option<StrokeLayer> {
 
 /// Which Stroke panel values the selection doesn't share and whether Align Stroke applies
 /// ([`vectorcraft_engine::DocState::stroke_mixed`]), cached per document revision. While the Type
-/// tool edits text, the selected characters' stroke shows as it is.
+/// tool edits text, the selected characters' stroke shows as it is, and aligns to their glyphs.
 pub(crate) fn stroke_mixed(app: &VectorcraftApp, ctx: &egui::Context) -> StrokeMixed {
-    let Some(st) = app.session.active().filter(|_| character::text_editing(app).is_none()) else { return StrokeMixed::default() };
+    if character::text_editing(app).is_some() {
+        return StrokeMixed { can_align: true, ..Default::default() };
+    }
+    let Some(st) = app.session.active() else { return StrokeMixed::default() };
     let key = (st.uid, st.revision);
     match pstate::<Option<((u64, u64), StrokeMixed)>>(ctx, "stroke-mixed") {
         Some((k, mixed)) if k == key => mixed,

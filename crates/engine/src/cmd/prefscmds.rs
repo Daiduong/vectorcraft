@@ -265,6 +265,14 @@ pub const PREF_SPECS: &[PrefSpec] = &[
         "Brightness",
         choice(&[("dark", "Dark"), ("mediumDark", "Medium Dark"), ("mediumLight", "Medium Light"), ("light", "Light")])
     ),
+    p!("uiColorScheme", "User Interface", "", "Color Scheme", choice(&[("modern", "Modern"), ("classic", "Classic")])),
+    p!(
+        "uiAccent",
+        "User Interface",
+        "",
+        "Accent Color",
+        choice(&[("coral", "Coral"), ("blue", "Blue"), ("violet", "Violet"), ("green", "Green"), ("amber", "Amber"), ("pink", "Pink")])
+    ),
     p!(
         "canvasColor",
         "User Interface",
@@ -351,6 +359,7 @@ pub const PREF_SPECS: &[PrefSpec] = &[
     p!("useCompression", "File Handling", "Files", "Use Compression", bool),
     // The W/H link of the Transform panel, the Properties panel and the Control bar
     p!("constrainProportions", "General", "Transform Panel", "Constrain Width and Height Proportions", bool),
+    p!("singleCornerRadius", "General", "Transform Panel", "Single Corner Radius", bool),
 ];
 
 pub fn spec(key: &str) -> Option<&'static PrefSpec> {

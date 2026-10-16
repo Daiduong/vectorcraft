@@ -255,7 +255,7 @@ fn snap_curves_to_lines_straightens_near_lines() {
 
 #[test]
 fn presets_resolve() {
-    assert_eq!(presets().len(), 13);
+    assert_eq!(presets().len(), 15);
     for n in PRESET_NAMES {
         assert!(preset(n).is_some(), "{n}");
     }
@@ -608,7 +608,7 @@ fn create_strokes_survives_noise_and_tiny_images() {
             for noise in [0, 1, 4] {
                 let p = TraceParams { strokes: true, fills, stroke_width: width, noise, ..TraceParams::default() };
                 for t in trace(&img, &p).paths {
-                    assert!(t.stroke.is_none_or(|w| w.is_finite() && w >= 1.0), "{:?}", t.stroke);
+                    assert!(t.stroke.is_none_or(|w| w.is_finite() && w >= 0.25), "{:?}", t.stroke);
                 }
             }
         }
@@ -651,10 +651,11 @@ fn components(labels: &[u16], w: usize, h: usize) -> Vec<(usize, bool)> {
 /// island of the small region's old label.
 #[test]
 fn denoise_leaves_no_island_behind_a_merged_region() {
-    // One row: a 1-pixel speck, a 2-pixel region, then a large one; nothing under 3 pixels may stay.
+    // The speck joins the 2-pixel region, which now meets the strict 3-pixel threshold.
+    // Its pixels must stay together rather than forcing a merge based on the old area.
     let mut labels = vec![0, 1, 1, 2, 2, 2, 2, 2];
     denoise(&mut labels, 8, 1, 3);
-    assert_eq!(labels, vec![2; 8]);
+    assert_eq!(labels, vec![1, 1, 1, 2, 2, 2, 2, 2]);
 }
 
 /// On noise, Remove Noise leaves no region under the minimum that could be merged, and a larger
@@ -985,4 +986,427 @@ fn stacked_layers_go_by_lightness_and_leave_ignored_white_alone() {
         let b = p.path.bounds().unwrap();
         assert!(b.x1 <= 20.5 || b.x0 >= 39.5, "a {} layer covers the white stripe: {b:?}", p.color[0]);
     }
+}
+
+/// The cubic pieces of a path: (from, handle, handle, to).
+fn pieces_of(p: &vectorcraft_geom::PathData) -> Vec<[Point; 4]> {
+    p.subpaths
+        .iter()
+        .flat_map(|sp| {
+            (0..sp.segment_count()).map(move |i| {
+                let c = sp.segment(i);
+                [c.p0, c.p1, c.p2, c.p3]
+            })
+        })
+        .collect()
+}
+
+#[test]
+fn abutting_regions_share_one_curve_along_their_edge() {
+    // A disc of two halves on a field: three colours, two junctions where all three meet.
+    let color = |x: f64, y: f64| {
+        if Point::new(x, y).distance(Point::new(50.3, 49.6)) > 35.2 {
+            [255.0, 255.0, 255.0]
+        } else if x < 50.3 + 0.2 * (y - 50.0) {
+            [200.0, 40.0, 50.0]
+        } else {
+            [30.0, 90.0, 200.0]
+        }
+    };
+    let img = Raster::from_fn(100, 100, |x, y| {
+        let mut sum = [0.0f64; 3];
+        for i in 0..16 {
+            let c = color(f64::from(x) + (f64::from(i % 4) + 0.5) / 4.0, f64::from(y) + (f64::from(i / 4) + 0.5) / 4.0);
+            for k in 0..3 {
+                sum[k] += c[k] / 16.0;
+            }
+        }
+        [sum[0].round() as u8, sum[1].round() as u8, sum[2].round() as u8, 255]
+    });
+    let res = trace(&img, &TraceParams { mode: Mode::Color, colors: 3, ..TraceParams::default() });
+    assert_eq!(res.paths.len(), 3);
+    let all: Vec<Vec<[Point; 4]>> = res.paths.iter().map(|p| pieces_of(&p.path)).collect();
+    // Every curve that is not on the image's border is another path's curve too, run the other way.
+    let inner = |c: &[Point; 4]| c.iter().all(|p| p.x > 0.5 && p.x < 99.5 && p.y > 0.5 && p.y < 99.5);
+    let mut shared = 0;
+    for (i, path) in all.iter().enumerate() {
+        for c in path.iter().filter(|c| inner(c)) {
+            let back = [c[3], c[2], c[1], c[0]];
+            assert!(all.iter().enumerate().any(|(j, other)| j != i && other.contains(&back)), "path {i} has an edge of its own: {c:?}");
+            shared += 1;
+        }
+    }
+    assert!(shared >= 12, "{shared} shared curves");
+}
+
+#[test]
+fn layers_traced_a_few_at_a_time_come_out_the_same() {
+    let items: Vec<usize> = (0..40).collect();
+    for at_a_time in [1, 3, usize::MAX] {
+        assert_eq!(parallel_map_at_most(at_a_time, &items, |i| i * i), items.iter().map(|i| i * i).collect::<Vec<_>>());
+    }
+    // A layer is traced within the box of its pixels: a shape far from the image's origin stays there.
+    let img = Raster::from_fn(90, 70, |x, y| if (60..80).contains(&x) && (40..60).contains(&y) { BLACK } else { WHITE });
+    let b = trace(&img, &bw()).paths[0].path.bounds().unwrap();
+    assert!([(b.x0, 60.0), (b.y0, 40.0), (b.x1, 80.0), (b.y1, 60.0)].iter().all(|(got, want)| (got - want).abs() < 0.01), "{b:?}");
+}
+
+#[test]
+fn a_blurred_thin_line_on_unevenly_lit_paper_is_a_few_anchors() {
+    // A line 2 px wide a little off the pixel rows, blurred over three pixels, on paper that is a
+    // quarter darker at one end than at the other: nowhere is its ink pure black, or the paper white.
+    let img = Raster::from_fn(160, 40, |x, y| {
+        let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+        let paper = 235.0 - 55.0 * fx / 160.0;
+        let centre = 17.3 + 0.06 * fx;
+        // The share of ink in the pixel, the line's edges blurred linearly over 1.5 px either way.
+        let ink = if (10.0..150.0).contains(&fx) { ((1.0 + 1.5 - (fy - centre).abs()) / 3.0).clamp(0.0, 1.0) } else { 0.0 };
+        let v = (paper * (1.0 - ink) + 40.0 * ink).round() as u8;
+        [v, v, v, 255]
+    });
+    let res = trace(&img, &preset("Line Art").unwrap());
+    assert_eq!(res.paths.len(), 1);
+    let path = &res.paths[0].path;
+    // Its two long edges are smooth: a ripple would take an anchor every few pixels.
+    assert!(path.anchor_count() <= 10, "{} anchors", path.anchor_count());
+    // And it lies along the line's middle, about as wide as its ink.
+    let off = along(path).iter().filter(|p| p.x > 14.0 && p.x < 146.0).map(|p| ((p.y - (17.3 + 0.06 * p.x)).abs() - 1.0).abs()).fold(0.0, f64::max);
+    assert!(off < 0.5, "edges {off} px from where the ink's width puts them");
+}
+
+#[test]
+fn ignore_color_leaves_out_the_colour_picked() {
+    // Navy field, yellow disc, green bar.
+    let img = three_colour_art(0.0);
+    let params = TraceParams { colors: 3, ignore_white: true, ..sixteen_colors() };
+    // White by default: nothing here is white.
+    assert_eq!(trace(&img, &params).paths.len(), 3);
+    // The navy picked a little off: the field goes, the disc and the bar stay.
+    let res = trace(&img, &TraceParams { ignore_color: Some("#18263c".replace("3c", "5e")), ..params.clone() });
+    assert_eq!(res.paths.len(), 2);
+    assert!(res.paths.iter().all(|p| p.color != [20, 40, 90]));
+    // Not ticked, the colour is not left out; and a colour that is none is refused.
+    assert_eq!(trace(&img, &TraceParams { ignore_white: false, ignore_color: Some("#14285a".into()), ..params.clone() }).paths.len(), 3);
+    let bad = trace_within(&img, &TraceParams { ignore_color: Some("navy".into()), ..params.clone() }, usize::MAX);
+    assert!(matches!(bad, Err(TraceError::BadPalette(_))));
+    // Old documents have no such setting: white.
+    let old: TraceParams = serde_json::from_str(r#"{"mode":"color","ignoreWhite":true}"#).unwrap();
+    assert_eq!(old.ignore_color, None);
+    assert_eq!(serde_json::to_value(&params).unwrap()["ignoreColor"], serde_json::Value::Null);
+}
+
+#[test]
+fn snap_curves_to_lines_levels_a_rectangle_a_degree_askew() {
+    // 120 × 60, turned 1.5° about its centre.
+    let (c, t) = (Point::new(100.3, 60.6), 1.5f64.to_radians());
+    let img = soft(200, 120, |x, y| {
+        let (dx, dy) = (x - c.x, y - c.y);
+        (dx * t.cos() + dy * t.sin()).abs() <= 60.0 && (dy * t.cos() - dx * t.sin()).abs() <= 30.0
+    });
+    let sides = |snap: bool| {
+        let res = trace(&img, &TraceParams { snap_curves_to_lines: snap, ..bw() });
+        let sp = res.paths[0].path.subpaths[0].clone();
+        assert_eq!(sp.anchors.len(), 4, "{sp:?}");
+        (0..4).map(|i| sp.segment(i)).map(|s| ((s.p3.x - s.p0.x).abs(), (s.p3.y - s.p0.y).abs())).collect::<Vec<_>>()
+    };
+    // Snapped, every side is exactly level or upright; left alone, it keeps its 1.5°.
+    assert!(sides(true).iter().all(|(dx, dy)| *dx == 0.0 || *dy == 0.0), "{:?}", sides(true));
+    assert!(sides(false).iter().all(|(dx, dy)| dx.min(*dy) > 0.5), "{:?}", sides(false));
+    // And it is still the rectangle: 120 by 60 about the same centre.
+    let b = trace(&img, &TraceParams { snap_curves_to_lines: true, ..bw() }).paths[0].path.bounds().unwrap();
+    assert!((b.width() - 120.0).abs() < 1.0 && (b.height() - 60.0).abs() < 1.0 && (b.center().x - c.x).abs() < 0.3, "{b:?}");
+    // A side 5° off is no slip of the scanner: it stays.
+    let t = 5f64.to_radians();
+    let img = soft(200, 120, |x, y| {
+        let (dx, dy) = (x - c.x, y - c.y);
+        (dx * t.cos() + dy * t.sin()).abs() <= 60.0 && (dy * t.cos() - dx * t.sin()).abs() <= 30.0
+    });
+    let sp = trace(&img, &TraceParams { snap_curves_to_lines: true, ..bw() }).paths[0].path.subpaths[0].clone();
+    assert!(
+        (0..sp.segment_count())
+            .all(|i| (sp.segment(i).p3.y - sp.segment(i).p0.y).abs() > 1.0 && (sp.segment(i).p3.x - sp.segment(i).p0.x).abs() > 1.0)
+    );
+}
+
+#[test]
+fn a_straight_anti_aliased_line_is_two_anchors_in_its_middle_as_wide_as_its_ink() {
+    // 2.6 px wide, from (20.3, 30.7) to (170.6, 52.2): a little off the pixel rows.
+    let (a, b) = (Point::new(20.3, 30.7), Point::new(170.6, 52.2));
+    let along_line = |p: Point| ((p - a).dot(b - a) / (b - a).hypot2()).clamp(0.0, 1.0);
+    let img = soft(190, 80, |x, y| {
+        let p = Point::new(x, y);
+        p.distance(a + (b - a) * along_line(p)) <= 1.3
+    });
+    for noisy in [false, true] {
+        // (With grain of ±6 levels too: the line stays two anchors.)
+        let img = Raster::from_fn(190, 80, |x, y| {
+            let v = f64::from(img.pixel(x, y)[0]) + if noisy { 6.0 * jitter(x, y, 3) } else { 0.0 };
+            let v = v.round().clamp(0.0, 255.0) as u8;
+            [v, v, v, 255]
+        });
+        let res = trace(&img, &preset("Outline").unwrap());
+        assert_eq!(res.paths.len(), 1);
+        let (path, width) = (&res.paths[0].path, res.paths[0].stroke.unwrap());
+        assert_eq!(path.anchor_count(), 2, "noisy {noisy}: {path:?}");
+        assert!((width - 2.6).abs() < 0.15, "noisy {noisy}: {width} px wide");
+        for end in [path.subpaths[0].anchors[0].p, path.subpaths[0].anchors[1].p] {
+            // On the line through the true ends, to a tenth of a pixel.
+            let off = (end - a).cross(b - a).abs() / (b - a).hypot();
+            assert!(off < 0.1, "noisy {noisy}: an end {off} px off the line's middle");
+            // And where the ink ends, less the half width its round cap adds (the line here has round ends).
+            assert!(end.distance(a).min(end.distance(b)) < 0.6, "noisy {noisy}: an end at {end:?}");
+        }
+    }
+}
+
+#[test]
+fn a_stroke_is_as_wide_as_its_ink_not_a_whole_number_of_pixels() {
+    // (Lines with a pixel that is all ink somewhere: a thinner one's ink is read against its own
+    // darkest pixel, and comes out a little wide.)
+    for want in [1.7, 2.4, 3.4] {
+        let img = soft(120, 40, |x, y| (10.0..110.0).contains(&x) && (y - 20.3).abs() <= want / 2.0);
+        let res = trace(&img, &preset("Outline").unwrap());
+        let width = res.paths[0].stroke.unwrap();
+        assert!((width - want).abs() < 0.08, "{width} for a line {want} px wide");
+    }
+}
+
+#[test]
+fn an_anti_aliased_rectangle_along_the_pixel_grid_is_four_anchors() {
+    // Its sides lie between pixel columns and rows: its corner pixels are part of two sides each.
+    let img = soft(140, 90, |x, y| (20.4..120.7).contains(&x) && (15.3..70.6).contains(&y));
+    let res = trace(&img, &bw());
+    let sp = &res.paths[0].path.subpaths[0];
+    assert_eq!(sp.anchors.len(), 4, "{sp:?}");
+    assert!((0..4).all(|i| sp.segment_is_line(i)));
+    let b = res.paths[0].path.bounds().unwrap();
+    // (To the eighth of a pixel the test picture is drawn to.)
+    assert!((b.x0 - 20.4).abs() < 0.07 && (b.x1 - 120.7).abs() < 0.07 && (b.y0 - 15.3).abs() < 0.07 && (b.y1 - 70.6).abs() < 0.07, "{b:?}");
+}
+
+#[test]
+fn shapes_come_out_as_shapes_when_asked_for() {
+    // A disc, a square along the pixel grid and a rectangle turned 20°, anti-aliased.
+    let turn = 20f64.to_radians();
+    let turned = |x: f64, y: f64| {
+        let (dx, dy) = (x - 180.4, y - 45.3);
+        (dx * turn.cos() + dy * turn.sin()).abs() <= 30.0 && (dy * turn.cos() - dx * turn.sin()).abs() <= 18.0
+    };
+    let img = soft(220, 90, |x, y| {
+        Point::new(x, y).distance(Point::new(40.3, 44.6)) <= 25.0 || ((80.4..130.7).contains(&x) && (20.3..70.6).contains(&y)) || turned(x, y)
+    });
+    let plain = trace(&img, &bw());
+    assert!(plain.paths.iter().all(|p| p.shape.is_none()));
+    let res = trace(&img, &TraceParams { shapes: true, ..bw() });
+    assert_eq!(res.paths.len(), 3);
+    let mut found = (false, false, false);
+    for p in &res.paths {
+        // The path is the shape's own outline.
+        assert_eq!(Some(&p.path), p.shape.map(|s| s.path()).as_ref());
+        match p.shape {
+            Some(TracedShape::Ellipse { center, rx, ry, .. }) => {
+                found.0 = center.distance(Point::new(40.3, 44.6)) < 0.15 && (rx - 25.0).abs() < 0.15 && rx == ry
+            }
+            Some(TracedShape::Rectangle { center, width, height, radius: 0.0, rotation }) if center.x < 150.0 => {
+                found.1 = center.distance(Point::new(105.55, 45.45)) < 0.15
+                    && (width - 50.3).abs() < 0.25
+                    && (height - 50.3).abs() < 0.25
+                    && rotation.abs() < 0.3
+            }
+            Some(TracedShape::Rectangle { center, width, height, radius: 0.0, rotation }) => {
+                found.2 = center.distance(Point::new(180.4, 45.3)) < 0.2
+                    && (width - 60.0).abs() < 0.3
+                    && (height - 36.0).abs() < 0.3
+                    && (rotation - 20.0).abs() < 0.3
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+    assert_eq!(found, (true, true, true));
+    // A letter is no shape, and a ring is not a disc.
+    let ring = soft(100, 100, |x, y| (20.0..40.0).contains(&Point::new(x, y).distance(Point::new(50.0, 50.0))));
+    assert!(trace(&ring, &TraceParams { shapes: true, ..bw() }).paths.iter().all(|p| p.shape.is_none()));
+}
+
+#[test]
+fn a_corner_whose_pixel_is_mostly_outside_is_still_a_corner() {
+    // Each corner pixel is under half covered (0.6 × 0.7 and less) and traces as outside.
+    let img = soft(140, 90, |x, y| (20.4..120.6).contains(&x) && (15.3..70.7).contains(&y));
+    let res = trace(&img, &bw());
+    let sp = &res.paths[0].path.subpaths[0];
+    assert_eq!(sp.anchors.len(), 4, "{sp:?}");
+    assert!((0..4).all(|i| sp.segment_is_line(i)));
+    let b = res.paths[0].path.bounds().unwrap();
+    assert!((b.x0 - 20.4).abs() < 0.07 && (b.x1 - 120.6).abs() < 0.07 && (b.y0 - 15.3).abs() < 0.07 && (b.y1 - 70.7).abs() < 0.07, "{b:?}");
+}
+
+/// A circle without anti-aliasing is still a circle, not an ellipse a little wider than tall.
+#[test]
+fn a_hard_edged_circle_is_a_circle() {
+    let img = Raster::from_fn(100, 100, |x, y| {
+        let (dx, dy) = (x as f64 + 0.5 - 50.0, y as f64 + 0.5 - 50.0);
+        if dx * dx + dy * dy <= 900.0 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }
+    });
+    let res = trace(&img, &TraceParams { shapes: true, ignore_white: true, ..Default::default() });
+    let [TracedPath { shape: Some(TracedShape::Ellipse { center, rx, ry, .. }), .. }] = res.paths.as_slice() else { panic!("{:?}", res.paths) };
+    assert!(rx == ry && (rx - 30.0).abs() < 0.3 && center.distance(Point::new(50.0, 50.0)) < 0.1, "{center:?} {rx} {ry}");
+}
+
+/// Levelling moves no end far: a long line two degrees off level stays where the image has it.
+#[test]
+fn a_long_line_two_degrees_askew_is_not_levelled() {
+    let slope = 2f64.to_radians().tan();
+    let img = Raster::from_fn(240, 40, |x, y| {
+        let top = 12.0 + slope * (f64::from(x) - 20.0);
+        let inside = (20..220).contains(&x) && (f64::from(y) + 0.5 - top - 4.0).abs() <= 4.0;
+        if inside { [0, 0, 0, 255] } else { [255, 255, 255, 255] }
+    });
+    let res = trace(&img, &TraceParams { ignore_white: true, snap_curves_to_lines: true, ..Default::default() });
+    let b = res.paths[0].path.bounds().unwrap();
+    // 200 px at 2° rises 7 px: levelled, the bar would be 8 px tall, not 15.
+    assert!(b.height() > 13.0, "{b:?}");
+}
+
+/// Create Strokes: a line cut square at its ends is stroked with square caps, a line with round
+/// ends with round ones, and either ends where its ink does.
+#[test]
+fn stroke_caps_are_square_or_round_as_the_ink_is() {
+    let line = |square: bool| {
+        let img = Raster::from_fn(140, 40, |x, y| {
+            // Anti-aliased by 4 × 4 samples: a bar 8 px thick from x = 20 to 110.
+            let mut inside = 0;
+            for sy in 0..4 {
+                for sx in 0..4 {
+                    let (px, py) = (f64::from(x) + (f64::from(sx) + 0.5) / 4.0, f64::from(y) + (f64::from(sy) + 0.5) / 4.0);
+                    let d = if square { (py - 20.3).abs().max((px - 65.0).abs() - 41.0) } else { (px.clamp(24.0, 106.0) - px).hypot(py - 20.3) };
+                    inside += u32::from(d <= 4.0);
+                }
+            }
+            let v = (255 - inside * 255 / 16) as u8;
+            [v, v, v, 255]
+        });
+        let res = trace(&img, &crate::preset("Outline").unwrap());
+        let [only] = res.paths.as_slice() else { panic!("{:?}", res.paths) };
+        let (a, b) = (only.path.subpaths[0].anchors[0].p, only.path.subpaths[0].anchors.last().unwrap().p);
+        // Either cap goes half the width past the path's end: the path runs from 24 to 106.
+        assert!((a.x.min(b.x) - 24.0).abs() < 0.6 && (a.x.max(b.x) - 106.0).abs() < 0.6, "{a:?} {b:?}");
+        assert!((only.stroke.unwrap() - 8.0).abs() < 0.4);
+        only.square_caps
+    };
+    assert!(line(true));
+    assert!(!line(false));
+}
+
+// Return the actual 4-connected regions, independent of the denoiser's bookkeeping.
+fn noise_regions(labels: &[u16], w: usize, h: usize) -> Vec<Vec<usize>> {
+    let mut seen = vec![false; labels.len()];
+    let mut result = Vec::new();
+    for start in 0..labels.len() {
+        if seen[start] || labels[start] == TRANSPARENT {
+            continue;
+        }
+        let mut region = vec![start];
+        seen[start] = true;
+        let mut cursor = 0;
+        while cursor < region.len() {
+            let i = region[cursor];
+            let (x, y) = (i % w, i / w);
+            for j in [(x > 0).then(|| i - 1), (x + 1 < w).then(|| i + 1), (y > 0).then(|| i - w), (y + 1 < h).then(|| i + w)].into_iter().flatten() {
+                if !seen[j] && labels[j] == labels[start] {
+                    seen[j] = true;
+                    region.push(j);
+                }
+            }
+            cursor += 1;
+        }
+        result.push(region);
+    }
+    result
+}
+
+#[test]
+fn raising_noise_only_merges_whole_regions() {
+    // Multicolour islands and transparent barriers exercise the stale-visited-pixel bug.
+    // Check the partition, not only the count: no region at a lower Noise may be split.
+    let mut seed = 819u64;
+    for case in 0..64 {
+        let original: Vec<u16> = (0..49)
+            .map(|_| {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                match (seed >> 32) % 5 {
+                    4 => TRANSPARENT,
+                    colour => colour as u16,
+                }
+            })
+            .collect();
+        let mut previous = noise_regions(&original, 7, 7);
+        for noise in 0..=24 {
+            let mut labels = original.clone();
+            denoise(&mut labels, 7, 7, noise);
+            for region in &previous {
+                assert!(region.iter().all(|&i| labels[i] == labels[region[0]]), "case {case}, noise {noise}: split {region:?}");
+            }
+            for (before, after) in original.iter().zip(&labels) {
+                assert_eq!(*before == TRANSPARENT, *after == TRANSPARENT);
+            }
+            let current = noise_regions(&labels, 7, 7);
+            assert!(current.len() <= previous.len(), "case {case}, noise {noise}: {} -> {}", previous.len(), current.len());
+            previous = current;
+        }
+    }
+}
+
+#[test]
+fn noise_threshold_is_strict_and_transparent_islands_survive() {
+    let original = vec![0, 0, 1, 1, 1, TRANSPARENT, 2];
+    let mut labels = original.clone();
+    denoise(&mut labels, 7, 1, 2);
+    assert_eq!(labels, original, "regions equal to Noise are retained");
+    denoise(&mut labels, 7, 1, 3);
+    assert_eq!(labels, [1, 1, 1, 1, 1, TRANSPARENT, 2]);
+    denoise(&mut labels, 7, 1, 100);
+    assert_eq!(labels, [1, 1, 1, 1, 1, TRANSPARENT, 2]);
+}
+
+#[test]
+fn denoise_invalid_grid_is_left_unchanged() {
+    let original = vec![0, 1, 1];
+    for (w, h) in [(0, 3), (3, 0), (2, 2), (usize::MAX, 2), (1, 2)] {
+        let mut labels = original.clone();
+        denoise(&mut labels, w, h, 10);
+        assert_eq!(labels, original);
+    }
+}
+
+/// A blue-to-orange sky over flat colours, and a green-to-magenta ramp in a rectangle on them.
+fn sky_and_ramp() -> Raster {
+    Raster::from_fn(240, 160, |x, y| {
+        let (fx, fy) = (f64::from(x), f64::from(y));
+        let mix = |a: [f64; 3], b: [f64; 3], t: f64| [0, 1, 2].map(|k| (a[k] + (b[k] - a[k]) * t).round() as u8);
+        if (20..100).contains(&x) && (100..150).contains(&y) {
+            let [r, g, b] = mix([40.0, 200.0, 60.0], [220.0, 40.0, 200.0], (fx - 20.0) / 80.0);
+            [r, g, b, 255]
+        } else if y >= 90 {
+            if x >= 140 { [200, 30, 40, 255] } else { [30, 120, 50, 255] }
+        } else {
+            let [r, g, b] = mix([30.0, 60.0, 200.0], [250.0, 140.0, 30.0], fy / 90.0);
+            [r, g, b, 255]
+        }
+    })
+}
+
+#[test]
+fn grayscale_gradients_are_grey() {
+    let img = sky_and_ramp();
+    let params = TraceParams { mode: Mode::Grayscale, colors: 4, gradients: true, ..TraceParams::default() };
+    let res = trace(&img, &params);
+    let grey = |c: [u8; 3]| c[0] == c[1] && c[1] == c[2];
+    assert!(res.paths.iter().any(|p| p.gradient.is_some()), "a gradient is still found");
+    for p in &res.paths {
+        assert!(grey(p.color), "{:?}", p.color);
+        for stop in p.gradient.iter().flat_map(|g| &g.stops) {
+            assert!(grey(stop.1), "{:?}", p.gradient);
+        }
+    }
+    assert!(res.palette.iter().all(|&c| grey(c)), "{:?}", res.palette);
 }

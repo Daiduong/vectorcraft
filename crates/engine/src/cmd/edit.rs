@@ -128,11 +128,19 @@ pub fn specs() -> Vec<CommandSpec> {
             "Clear",
             ["Edit"],
             Some("Delete"),
-            "{ids?} delete the objects `ids`, else the selection (direct-selected anchors, else objects, else ruler guides)",
+            "{ids?} delete the objects `ids`, else the selection (fully selected objects and direct-selected anchors together, else ruler guides)",
             has_selection_or_guides,
             clear
         ),
-        cmd!("edit.duplicate", "Duplicate", [], None, "{dx?, dy?} duplicate the selection in place (offset optional)", has_selection, duplicate),
+        cmd!(
+            "edit.duplicate",
+            "Duplicate",
+            ["Edit"],
+            None,
+            "{ids?: [id…] (selected first; default: the selection), dx?, dy?} duplicate the selection in place (offset optional)",
+            has_selection,
+            duplicate
+        ),
     ]
 }
 
@@ -161,7 +169,7 @@ fn doc_node(s: &mut Session, p: &Value) -> Result<Value> {
     let doc = &s.doc()?.doc;
     let n = doc.node(id).ok_or(EngineError::NoNode(id))?;
     opts.compound_member = doc.parent_of(id).and_then(|p| doc.node(p)).is_some_and(|p| matches!(p.kind, vectorcraft_doc::NodeKind::Compound { .. }));
-    if summary { Ok(inspect::node_summary_opts(n, opts)) } else { Ok(serde_json::to_value(n).unwrap_or(Value::Null)) }
+    if summary { Ok(inspect::node_summary_opts(n, opts, &doc.symbol_boxes())) } else { Ok(serde_json::to_value(n).unwrap_or(Value::Null)) }
 }
 
 /// `depth` / `childLimit` for a summary read: absent (or null) means no limit.
@@ -251,16 +259,23 @@ fn undo_group_end(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
-fn undo(s: &mut Session, _: &Value) -> Result<Value> {
-    // What is still in progress (typing, a drag) is the step to undo: keep it first, so Undo takes
-    // back only that and Redo brings it back, instead of dropping it and undoing the step before.
-    // A typing session also ends in the Type tool, whose caret and marked text (IME) must follow
-    // the document.
+/// What is still in progress (typing, a drag) is a step of its own: keep it before the history
+/// moves, so Undo takes back only that and Redo brings it back, instead of dropping it and undoing
+/// the step before. As any new edit it ends the steps to redo, so Redo never swaps the document
+/// under an interaction that would then preview on, or cancel to, the document from before (#1719).
+/// A typing session also ends in the Type tool, whose caret and marked text (IME) must follow the
+/// document.
+pub(crate) fn settle_interaction(s: &mut Session) -> Result<()> {
     let typing = typing_in_progress(s);
     s.commit_interaction()?;
     if typing {
         s.set_tool_option("endTyping", &Value::Bool(true));
     }
+    Ok(())
+}
+
+fn undo(s: &mut Session, _: &Value) -> Result<Value> {
+    settle_interaction(s)?;
     let st = s.doc_mut()?;
     let e = st.history.undo.pop().ok_or_else(|| EngineError::Other("nothing to undo".into()))?;
     let label = e.label.clone();
@@ -278,6 +293,7 @@ fn undo(s: &mut Session, _: &Value) -> Result<Value> {
 }
 
 fn redo(s: &mut Session, _: &Value) -> Result<Value> {
+    settle_interaction(s)?;
     let st = s.doc_mut()?;
     let e = st.history.redo.pop().ok_or_else(|| EngineError::Other("nothing to redo".into()))?;
     let label = e.label.clone();
@@ -308,9 +324,22 @@ pub(crate) fn selected_roots(s: &Session) -> Result<Vec<NodeId>> {
     Ok(roots_of(&st.doc, st.selection.in_paint_order(&st.doc)))
 }
 
+/// [`selected_roots`] for the commands that move or reshape the art (Move, Transform, Rotate…): in
+/// an isolated compound path its paths are objects of their own, so the hole of a ring moves
+/// without the ring. Paint and the rest still go to the compound path, which holds the paint.
+pub(crate) fn selected_roots_to_transform(s: &Session) -> Result<Vec<NodeId>> {
+    let st = s.doc()?;
+    Ok(roots_within(&st.doc, st.selection.in_paint_order(&st.doc), st.isolation))
+}
+
 /// The top-level objects among `ids` (in paint order): compound-path members stand for their
 /// compound, and ids whose ancestor is also listed, and layers, are dropped.
 pub(crate) fn roots_of(doc: &Document, ids: Vec<NodeId>) -> Vec<NodeId> {
+    roots_within(doc, ids, None)
+}
+
+/// [`roots_of`], less the swap for the members of `isolation` when it is a compound path.
+fn roots_within(doc: &Document, ids: Vec<NodeId>, isolation: Option<NodeId>) -> Vec<NodeId> {
     // Every id's place in the tree, found in one walk (a lookup per id is a walk per id).
     let paths = doc.index_paths(ids.iter().copied());
     // A compound-path member acts as its compound (compounds are one object).
@@ -320,21 +349,35 @@ pub(crate) fn roots_of(doc: &Document, ids: Vec<NodeId>) -> Vec<NodeId> {
             let path = paths.get(&id);
             let parent = path.and_then(|p| p.split_last()).map(|(_, up)| up).filter(|up| !up.is_empty());
             match parent.and_then(|up| doc.node_at(up).map(|n| (up, n))) {
-                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) => (n.id, Some(up.to_vec())),
+                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) && Some(n.id) != isolation => (n.id, Some(up.to_vec())),
                 _ => (id, path.cloned()),
             }
         })
         .collect();
     sel.dedup_by_key(|(id, _)| *id);
-    let listed: std::collections::HashSet<NodeId> = sel.iter().map(|(id, _)| *id).collect();
-    sel.iter()
-        .filter(|(_, path)| {
-            let anc = path.as_deref().and_then(|p| doc.ancestry_at(p)).unwrap_or_default();
-            !anc[..anc.len().saturating_sub(1)].iter().any(|a| listed.contains(a))
-        })
+    without_inner(doc, sel)
         .filter(|(_, path)| path.as_deref().and_then(|p| doc.node_at(p)).is_some_and(|n| !n.is_layer()))
-        .map(|(id, _)| *id)
+        .map(|(id, _)| id)
         .collect()
+}
+
+/// `ids` in the order given, less those whose ancestor is also listed: an object listed with a
+/// group that holds it is dropped, as [`roots_of`] drops it from a selection. Nothing else is
+/// dropped or replaced: unlike `roots_of`, it keeps layers, ids that aren't in the document and
+/// compound-path members.
+pub(crate) fn outermost(doc: &Document, ids: Vec<NodeId>) -> Vec<NodeId> {
+    let paths = doc.index_paths(ids.iter().copied());
+    let placed = ids.into_iter().map(|id| (id, paths.get(&id).cloned())).collect();
+    without_inner(doc, placed).map(|(id, _)| id).collect()
+}
+
+/// The entries of `placed` (ids with their index paths) whose id has no ancestor among its ids.
+fn without_inner(doc: &Document, placed: Vec<(NodeId, Option<Vec<usize>>)>) -> impl Iterator<Item = (NodeId, Option<Vec<usize>>)> + '_ {
+    let listed: std::collections::HashSet<NodeId> = placed.iter().map(|(id, _)| *id).collect();
+    placed.into_iter().filter(move |(_, path)| {
+        let anc = path.as_deref().and_then(|p| doc.ancestry_at(p)).unwrap_or_default();
+        !anc[..anc.len().saturating_sub(1)].iter().any(|a| listed.contains(a))
+    })
 }
 
 fn copy(s: &mut Session, _: &Value) -> Result<Value> {
@@ -360,7 +403,7 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn clear(s: &mut Session, p: &Value) -> Result<Value> {
     let explicit = if p.get("ids").is_some() { Some(checked_ids_param(s, p, "ids", "edit.clear")?) } else { None };
-    // Direct-selected anchors or segments: remove those components instead of whole objects.
+    // Direct-selected anchors or segments: remove those, and any objects selected whole with them.
     if explicit.is_none() && !s.doc()?.selection.anchors.is_empty() {
         return super::path::delete_anchors(s, p);
     }

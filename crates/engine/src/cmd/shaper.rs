@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Select Shaper Face",
             [],
             None,
-            "{point: [x,y], source?: bool} click selects a group, then a face; source enters construction isolation and selects an original → {id}",
+            "{point: [x,y], source?: bool} click selects a group, then a face; source enters construction isolation and selects an original; while a group's originals are isolated, it selects one of that group's originals → {id}",
             has_doc,
             select
         ),
@@ -90,9 +90,13 @@ fn map_of(src: &[Arc<Node>]) -> Result<BuilderMap> {
     }
     let arrangement = po::shape_builder(&shapes, true);
     let bounded = |pieces: Vec<po::Shape>| pieces.into_iter().filter_map(|p| p.path.bounds().map(|b| (p, b))).collect();
+    // A Shaper Group's faces are what its shapes fill and what its open paths enclose: the gaps
+    // closed paths enclose are the Shape Builder's only.
+    let open = po::has_open_path(&shapes);
     let regions = arrangement
         .regions
         .into_iter()
+        .filter(|r| open || !r.sources.is_empty())
         .filter_map(|r| {
             let bounds = r.path.bounds()?;
             let path = r.path.to_bezpath();
@@ -683,10 +687,13 @@ fn scribble(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"id": id.0, "regions": touched.len(), "strokes": strokes}))
 }
 
-fn group_at(d: &Document, point: Point, construction: bool) -> Option<NodeId> {
+/// The topmost editable Shaper Group at `point`, measured by its source shapes in `construction`.
+/// When `within` is given, only that group is considered.
+fn group_at(d: &Document, point: Point, construction: bool, within: Option<NodeId>) -> Option<NodeId> {
     let mut groups = vec![];
     d.walk(|n| {
         if n.extras().shaper.is_some()
+            && within.is_none_or(|g| g == n.id)
             && d.is_editable(n.id)
             && (if construction { source_group(n).and_then(Node::geometric_bounds) } else { n.geometric_bounds() })
                 .is_some_and(|b| b.inflate(6.0, 6.0).contains(point))
@@ -700,7 +707,10 @@ fn select(s: &mut Session, p: &Value) -> Result<Value> {
     let point = point_param(p, "point").filter(|p| finite(*p)).ok_or_else(|| bad("shaper.select", "missing point"))?;
     let st = s.doc()?;
     let source = bool_or(p, "source", false);
-    let Some(group) = group_at(&st.doc, point, source) else { return Ok(json!({"id": null})) };
+    // In Construction mode a source pick stays in the group whose source shapes are isolated.
+    let isolated =
+        st.isolation.and_then(|i| st.doc.parent_of(i)).filter(|g| st.doc.node(*g).and_then(source_group).is_some_and(|s| st.isolation == Some(s.id)));
+    let Some(group) = group_at(&st.doc, point, source, isolated.filter(|_| source)) else { return Ok(json!({"id": null})) };
     let node = st.doc.node(group).ok_or(EngineError::NoNode(group))?;
     let target = if source {
         sources(node)

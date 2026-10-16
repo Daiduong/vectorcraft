@@ -22,7 +22,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Unite",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Unite)
         ),
@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Minus Front",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::MinusFront)
         ),
@@ -40,7 +40,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Intersect",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Intersect)
         ),
@@ -49,7 +49,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Exclude",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Exclude)
         ),
@@ -58,7 +58,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Divide",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Divide)
         ),
@@ -67,7 +67,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Trim",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Trim)
         ),
@@ -76,7 +76,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Merge",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Merge)
         ),
@@ -85,7 +85,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Crop",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_multi,
             |s, _| run_pf(s, PathfinderOp::Crop)
         ),
@@ -94,7 +94,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Outline",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::Outline)
         ),
@@ -103,7 +103,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Minus Back",
             ["Window", "Pathfinder"],
             None,
-            "{} operate on the selected objects (back → front) → {ids}",
+            "{ids?: [id…] (selected first; default: the selection)} operate on the selected objects (back → front) → {ids}",
             has_selection,
             |s, _| run_pf(s, PathfinderOp::MinusBack)
         ),
@@ -246,16 +246,30 @@ fn style_of(n: &Node) -> Style {
 /// Leaf shapes (paths, compound paths, text) of a subtree in paint order; guides and clipping
 /// paths are skipped.
 fn leaves(n: &Node, out: &mut Vec<Node>) {
+    each_leaf(n, &mut |l| out.push(l.clone()));
+}
+
+/// Calls `f` with each leaf shape of [`leaves`], in its order.
+fn each_leaf(n: &Node, f: &mut impl FnMut(&Node)) {
     match &n.kind {
         NodeKind::Path { guide: true, .. } | NodeKind::Path { clipping: true, .. } => {}
-        NodeKind::Path { .. } | NodeKind::Compound { .. } | NodeKind::Text(_) => out.push(n.clone()),
+        NodeKind::Path { .. } | NodeKind::Compound { .. } | NodeKind::Text(_) => f(n),
         NodeKind::Group { children, .. } | NodeKind::Layer { children, .. } => {
             for c in children {
-                leaves(c, out);
+                each_leaf(c, f);
             }
         }
         _ => {}
     }
+}
+
+/// How many shapes a Pathfinder operation takes from `n` selected alone: its leaf shapes, however
+/// deep its groups nest (an expanded stroke is a group inside the group, #1635).
+pub fn shape_count(n: &Node) -> usize {
+    // Counted without copying the shapes: the panel asks every frame.
+    let mut count = 0;
+    each_leaf(n, &mut |_| count += 1);
+    count
 }
 
 /// A node for `path`: a plain path for one subpath, else a compound path.
@@ -383,9 +397,14 @@ fn run_pf(s: &mut Session, op: PathfinderOp) -> Result<Value> {
         let mut styles: Vec<Style> = vec![];
         let mut shapes: Vec<po::Shape> = vec![];
         let mut names: Vec<Option<String>> = vec![];
-        let mut push = |mut path: PathData, rule: FillRule, st: Style, name: Option<String>| {
+        let mut push = |mut path: PathData, rule: FillRule, mut st: Style, name: Option<String>| {
             if path.is_empty() {
                 return;
+            }
+            // Trim, Merge and Crop remove any strokes (and Merge then merges by fill alone), as the
+            // public Pathfinder documentation describes.
+            if matches!(op, PathfinderOp::Trim | PathfinderOp::Merge | PathfinderOp::Crop) {
+                st.appearance.items.retain(|i| !matches!(i, AppearanceItem::Stroke(_)));
             }
             if op == PathfinderOp::Divide && st.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Fill(f) if !f.paint.is_none())) {
                 // Filled open contours keep their implicit closing edge. A zero-area line
@@ -498,6 +517,7 @@ fn offset_path(s: &mut Session, p: &Value) -> Result<Value> {
     let roots = selected_roots(s)?;
     let ids = s.edit("Offset Path", |d, sel| {
         let (mut out, mut above) = (vec![], vec![]);
+        let mut paths = false;
         for id in &roots {
             let Some(n) = d.node(*id).cloned() else { continue };
             let mut lv = vec![];
@@ -505,6 +525,7 @@ fn offset_path(s: &mut Session, p: &Value) -> Result<Value> {
             let mut made = vec![];
             for l in lv.iter().filter(|l| !matches!(l.kind, NodeKind::Text(_))) {
                 let Some((path, rule)) = node_path(l) else { continue };
+                paths = true;
                 let base = if matches!(l.kind, NodeKind::Compound { .. }) && path.is_closed() { po::normalize(&path, rule) } else { path };
                 let off = po::offset_path(&base, delta, join, miter);
                 if off.is_empty() {
@@ -526,6 +547,9 @@ fn offset_path(s: &mut Session, p: &Value) -> Result<Value> {
             };
             out.push(new.id);
             above.push((*id, vec![new]));
+        }
+        if out.is_empty() && paths {
+            return Err(EngineError::Other("Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)".into()));
         }
         if out.is_empty() {
             return Err(EngineError::Other("Offset Path: select paths".into()));
@@ -570,7 +594,7 @@ pub(crate) fn outlined_stroke(
     st: &StrokeLayer,
 ) -> Option<Node> {
     if let Some(b) = st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) {
-        let mut pieces = vectorcraft_brush::stroke_pieces(b, &path.to_bezpath(), st);
+        let mut pieces = vectorcraft_brush::stroke_pieces(d, b, &path.to_bezpath(), st);
         let art = match pieces.len() {
             0 => return None,
             1 => pieces.remove(0),

@@ -1,9 +1,10 @@
 //! Commands backing the drawing tools (pencil, curvature, anchor tools, scissors, knife, eraser,
 //! blob brush, smooth, path eraser, join).
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use kurbo::{ParamCurve, ParamCurveNearest};
+use kurbo::{CubicBez, ParamCurve, ParamCurveNearest};
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
 use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, PressureProfile, Selection};
@@ -12,7 +13,8 @@ use vectorcraft_geom::{Anchor, AnchorKind, BezPath, FillRule, PathData, Point, R
 use vectorcraft_pathops as po;
 use vectorcraft_pathops::{BoolOp, Cap, Join, SimplifyOptions};
 
-use super::create::{add_look, add_node};
+use super::create::{add_look, insert_look};
+use super::newart::NewArt;
 use super::pathops::{Beside, remove_each};
 use super::*;
 use crate::EngineError;
@@ -24,7 +26,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Pencil",
             [],
             None,
-            "{points: [[x,y]…] or [[x,y,pressure]…] (pen pressure 0..1: the stroke keeps it, for Calligraphic brushes with Pressure variation; a point without one presses fully), fidelity?: pt (1.5), closed?, style?: \"pencil\"|\"brush\", fill?: bool, extend?: {id, end: \"start\"|\"end\"}} fit a freehand stroke → {id}",
+            "{points: [[x,y]…] or [[x,y,pressure]…] (pen pressure 0..1: the stroke keeps it, for Calligraphic brushes with Pressure variation; a point without one presses fully), fidelity?: pt (1.5), closed?, style?: \"pencil\"|\"brush\", fill?: bool, keepSelected?: bool (true: the drawn or continued path is selected; false: it is not, and the rest of the selection stays), extend?: {id, end: \"start\"|\"end\"}} fit a freehand stroke → {id}",
             has_doc,
             freehand
         ),
@@ -42,7 +44,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Curvature",
             [],
             None,
-            "{id, subpath?, op: \"move\"|\"insert\"|\"extend\"|\"close\", anchor?, segment?, t?, end?: \"start\"|\"end\", from?: \"keep\"|\"smooth\"|\"corner\", x?, y?} edit a path as the Curvature tool does, its shape kept elsewhere; the anchor edited becomes the direct-selected one → {anchor}. move: anchor to x, y, re-curving only its two segments; insert: a smooth anchor at t on segment, the shape unchanged (with x, y: then moved there); extend: an open subpath goes on from its end (default) or start to a new end at x, y; close: an open subpath closes from that end. The old end bends into the new segment as from says: keep its curve (default), smooth through its neighbours, or a corner",
+            "{id, subpath?, op: \"move\"|\"insert\"|\"extend\"|\"close\", anchor?, segment?, t?, end?: \"start\"|\"end\", from?: \"keep\"|\"smooth\"|\"corner\", corner?, x?, y?} edit a path as the Curvature tool does, its shape kept elsewhere; the anchor edited becomes the direct-selected one → {anchor}. move: anchor to x, y, re-curving only its two segments (a smooth anchor takes the Curvature tool's handles, along the circle through it and its neighbours); insert: a smooth anchor at t on segment, the shape unchanged (with x, y: then moved there); extend: an open subpath goes on from its end (default) or start to a new end at x, y, curving into it unless corner is true; close: an open subpath closes from that end. The old end bends into the new segment as from says: keep its curve (default), smooth through its neighbours, or a corner",
             has_doc,
             curvature_edit
         ),
@@ -60,7 +62,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Remove Anchor Points",
             ["Object", "Path"],
             None,
-            "{} remove the direct-selected anchors without opening their paths, refitting the curve round each → {removedObjects}",
+            "{} remove the direct-selected anchors without opening their paths, refitting the curve round each; the anchor after each removed one is selected, so running it again goes on along the path → {removedObjects}",
             has_anchors,
             remove_anchors
         ),
@@ -69,7 +71,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Convert Anchor Point",
             [],
             None,
-            "{id, subpath, anchor, to: \"corner\"|\"smooth\", x?, y?} (smooth with x/y: out handle there, in handle mirrored)",
+            "{id, subpath, anchor, to: \"corner\"|\"smooth\", x?, y?} (smooth with x/y: out handle there, in handle mirrored; without: as the Curvature tool curves a point, along the circle through it and its neighbours, or at an open end one handle into the curve)",
             has_doc,
             convert_anchor
         ),
@@ -141,7 +143,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Blob Brush",
             [],
             None,
-            "{points: [[x,y]…], size?: pt (10), merge?: true} filled brush shape, merged with touching same-colour blobs → {id}",
+            "{points: [[x,y]…], size?: pt (10), merge?: true, mergeOnlySelection?: bool (false: merge with any touching same-color blob; true: only with selected ones), keepSelected?: bool (false: the drawn or merged path is not selected, and the rest of the selection stays; true: it is selected)} filled brush shape, merged with touching same-colour blobs → {id}",
             has_doc,
             blob
         ),
@@ -544,6 +546,7 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
     let tol = f64_or(p, "fidelity", 1.5).clamp(0.05, 100.0);
     let closed = bool_or(p, "closed", false);
     let brush = str_param(p, "style") == Some("brush");
+    let keep_selected = bool_or(p, "keepSelected", true);
     if let Some(ext) = p.get("extend").filter(|v| !v.is_null()) {
         let id = id_param(ext, "id").ok_or_else(|| bad(C, "extend needs id"))?;
         let at_start = str_param(ext, "end") == Some("start");
@@ -605,7 +608,11 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
             {
                 st.pressure = if reverse { joined.map(|p| p.reversed()) } else { joined };
             }
-            sel.set([id]);
+            if keep_selected {
+                sel.set([id]);
+            } else {
+                sel.remove(id);
+            }
             Ok(())
         })?;
         return Ok(json!({ "id": id.0 }));
@@ -615,11 +622,14 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let sp = fit_freehand(&pts, tol, closed);
     let fill = if bool_or(p, "fill", false) { s.paint.fill.clone() } else { Paint::None };
-    let mut look = s.new_art_look(fill, stroke_paint(s), s.paint.stroke_width.max(0.1));
+    // A pencil path with a fill keeps a stroke of None (#1679); only one that would show nothing
+    // gets black. A brush is its stroke.
+    let stroke = if brush || fill.is_none() { stroke_paint(s) } else { s.paint.stroke.clone() };
+    let mut look = s.new_art_look(fill, stroke, s.paint.stroke_width.max(0.1));
     if let Some(st) = look.appearance.stroke_mut() {
         st.pressure = pressure;
     }
-    add_look(s, if brush { "Paintbrush" } else { "Pencil" }, path_kind(PathData::single(sp)), look, None)
+    insert_look(s, if brush { "Paintbrush" } else { "Pencil" }, path_kind(PathData::single(sp)), look, None, keep_selected)
 }
 
 // ---------- Curvature ----------
@@ -640,7 +650,7 @@ fn curvature(s: &mut Session, p: &Value) -> Result<Value> {
     if pts.is_empty() {
         return Err(bad(C, "need at least one point"));
     }
-    let sp = vectorcraft_tools::draw2::catmull_rom(&pts, bool_or(p, "closed", false));
+    let sp = vectorcraft_tools::draw2::curvature_spline(&pts, bool_or(p, "closed", false));
     if let Some(id) = id_param(p, "id") {
         s.edit("Curvature", |d, sel| {
             *path_mut(d, id)? = PathData::single(sp);
@@ -685,6 +695,7 @@ fn curvature_edit(s: &mut Session, p: &Value) -> Result<Value> {
         None => EndCurve::Keep,
         Some(f) => EndCurve::parse(f).ok_or_else(|| bad(C, format!("unknown from {f:?}")))?,
     };
+    let corner = bool_or(p, "corner", false);
     let op = match str_param(p, "op") {
         Some("move") => CurvatureOp::Move(usize_req(p, "anchor", C)?, to()?),
         Some("insert") => CurvatureOp::Insert(usize_req(p, "segment", C)?, f64_or(p, "t", 0.5), at),
@@ -709,7 +720,7 @@ fn curvature_edit(s: &mut Session, p: &Value) -> Result<Value> {
                 ai
             }
             CurvatureOp::Extend(q) => {
-                curvature_extend(sp, start, q, how);
+                curvature_extend(sp, start, q, how, corner);
                 if start { 0 } else { sp.anchors.len() - 1 }
             }
             CurvatureOp::Close => {
@@ -763,12 +774,45 @@ fn remove_anchors(s: &mut Session, _: &Value) -> Result<Value> {
         let mut removed = 0;
         let mut emptied = Beside::replacing(d, &jobs.iter().map(|(id, _)| *id).collect::<Vec<_>>());
         for (id, anchors) in jobs {
-            removed += usize::from(remove_anchors_of(d, sel, &mut emptied, id, anchors)?);
+            let shape: Vec<(usize, bool)> =
+                d.node(id).and_then(Node::path_data).map(|p| p.subpaths.iter().map(|sp| (sp.anchors.len(), sp.closed)).collect()).unwrap_or_default();
+            let next = following_anchors(&shape, &anchors);
+            if remove_anchors_of(d, sel, &mut emptied, id, anchors)? {
+                removed += 1;
+            } else if !next.is_empty() {
+                // The next anchor along is selected, so the next Remove Anchor Points goes on from
+                // there without picking it first (#2241).
+                sel.anchors.insert(id, next);
+            }
         }
         emptied.finish(d)?;
         Ok(removed)
     })?;
     Ok(json!({ "removedObjects": removed }))
+}
+
+/// Where the selection goes once Remove Anchor Points takes `removed` (subpath, anchor) out of a
+/// path whose subpaths have `shape` (anchor count, closed): in each subpath, the anchor after its
+/// last removed one, round the end of a closed subpath, or the one before it at an open subpath's
+/// end. Indexes are those after the removal, without the subpaths left with fewer than two anchors.
+fn following_anchors(shape: &[(usize, bool)], removed: &[(usize, usize)]) -> BTreeSet<(usize, usize)> {
+    let mut next = BTreeSet::new();
+    let mut kept = 0;
+    for (si, &(n, closed)) in shape.iter().enumerate() {
+        let gone: BTreeSet<usize> = removed.iter().filter(|&&(s, a)| s == si && a < n).map(|&(_, a)| a).collect();
+        if n - gone.len() < 2 {
+            continue;
+        }
+        if let Some(&last) = gone.last() {
+            let wrap = if closed { 0..last } else { 0..0 };
+            let after = (last + 1..n).chain(wrap).find(|a| !gone.contains(a));
+            if let Some(a) = after.or_else(|| (0..last).rev().find(|a| !gone.contains(a))) {
+                next.insert((kept, a - gone.range(..a).count()));
+            }
+        }
+        kept += 1;
+    }
+    next
 }
 
 /// Remove `anchors` (subpath, anchor) of path `id` without opening it, refitting the curve round
@@ -816,14 +860,19 @@ fn convert_anchor(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Convert Anchor Point", |d, _| {
         let path = path_mut(d, id)?;
         let sp = path.subpaths.get_mut(si).ok_or_else(|| EngineError::Other("no such subpath".into()))?;
+        if smooth && target.is_none() {
+            if ai >= sp.anchors.len() {
+                return Err(EngineError::Other("no such anchor".into()));
+            }
+            // Without a handle position the anchor curves as the Curvature tool curves a point; one
+            // with no direction to take stays as it is.
+            vectorcraft_tools::draw2::curvature_smooth(sp, ai);
+            return Ok(());
+        }
         let a = sp.anchors.get_mut(ai).ok_or_else(|| EngineError::Other("no such anchor".into()))?;
         match target {
-            _ if !smooth => a.retract(),
-            Some(t) if t.distance(a.p) > 1e-9 => *a = Anchor::smooth(a.p, t),
-            Some(_) => a.retract(),
-            None => {
-                sp.smooth_anchor(ai);
-            }
+            Some(t) if smooth && t.distance(a.p) > 1e-9 => *a = Anchor::smooth(a.p, t),
+            _ => a.retract(),
         }
         Ok(())
     })?;
@@ -1048,17 +1097,46 @@ fn smooth_subpath(sp: &SubPath, near: &dyn Fn(Point) -> bool, tol: f64) -> Optio
         open.anchors.push(open.anchors[0]);
         m.push(false);
         open.closed = false;
-        let mut res = smooth_open(&open.anchors, &m, tol);
+        let mut res = smooth_open(&open.anchors, &m, near, tol);
         let l = res.pop()?;
         if let Some(r0) = res.first_mut() {
             r0.h_in = l.h_in;
         }
         return Some(SubPath::new(res, true));
     }
-    Some(SubPath::new(smooth_open(&sp.anchors, &marked, tol), false))
+    Some(SubPath::new(smooth_open(&sp.anchors, &marked, near, tol), false))
 }
 
-fn smooth_open(anchors: &[Anchor], marked: &[bool], tol: f64) -> Vec<Anchor> {
+/// The segment `c`, which ends in the drag's reach (`near`) and starts outside it, split where it
+/// enters the reach: the part outside, then the part in reach. `None` when no more than a sliver
+/// is outside.
+fn split_at_reach(c: CubicBez, near: &dyn Fn(Point) -> bool) -> Option<(CubicBez, CubicBez)> {
+    const STEPS: u32 = 32;
+    let step = 1.0 / f64::from(STEPS);
+    // Back from the end in reach to the first sample outside, then halving to the crossing.
+    let outside = (1..=STEPS).map(|i| 1.0 - f64::from(i) * step).find(|t| !near(c.eval(*t)))?;
+    let (mut lo, mut hi) = (outside, outside + step);
+    for _ in 0..20 {
+        let mid = (lo + hi) / 2.0;
+        if near(c.eval(mid)) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    // A straight segment's parts stay straight, their handles on their ends.
+    let straight = c.p1 == c.p0 && c.p2 == c.p3;
+    let part = |range| {
+        let s = c.subsegment(range);
+        if straight { CubicBez::new(s.p0, s.p0, s.p3, s.p3) } else { s }
+    };
+    (hi > 0.02).then(|| (part(0.0..hi), part(hi..1.0)))
+}
+
+/// `anchors` with each run of `marked` ones refitted, together with the stretch of the segments
+/// leading into the run that is in the drag's reach (`near`): a short drag smooths what is under
+/// it, and the rest of a long segment next to it stays as it was (#1512).
+fn smooth_open(anchors: &[Anchor], marked: &[bool], near: &dyn Fn(Point) -> bool, tol: f64) -> Vec<Anchor> {
     let n = anchors.len();
     let mut runs = vec![];
     let mut i = 0;
@@ -1079,8 +1157,27 @@ fn smooth_open(anchors: &[Anchor], marked: &[bool], tol: f64) -> Vec<Anchor> {
         if hi - lo < 2 {
             continue;
         }
-        let new = refit_run(&out[lo..=hi], tol);
-        out.splice(lo..=hi, new);
+        let mut piece = out[lo..=hi].to_vec();
+        // The anchors outside the reach, kept with the part of their segment that is outside.
+        let (mut head, mut tail) = (None, None);
+        if hi > b
+            && let [.., inner, outer] = piece.as_mut_slice()
+            && let Some((far, reach)) = split_at_reach(CubicBez::new(outer.p, outer.h_in, inner.h_out, inner.p), near)
+        {
+            inner.h_out = reach.p2;
+            tail = Some(Anchor { h_in: far.p1, ..*outer });
+            *outer = Anchor::with_handles(far.p3, reach.p1, far.p2);
+        }
+        if lo < a
+            && let [outer, inner, ..] = piece.as_mut_slice()
+            && let Some((far, reach)) = split_at_reach(CubicBez::new(outer.p, outer.h_out, inner.h_in, inner.p), near)
+        {
+            inner.h_in = reach.p2;
+            head = Some(Anchor { h_out: far.p1, ..*outer });
+            *outer = Anchor::with_handles(far.p3, far.p2, reach.p1);
+        }
+        let new = refit_run(&piece, tol);
+        out.splice(lo..=hi, head.into_iter().chain(new).chain(tail));
     }
     out
 }
@@ -1250,11 +1347,14 @@ fn blob(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         Paint::solid(Color::BLACK)
     };
+    let keep_selected = bool_or(p, "keepSelected", false);
+    let only_selection = bool_or(p, "mergeOnlySelection", false);
     let st = s.doc()?;
     let mut merge_ids = vec![];
-    if bool_or(p, "merge", true) {
+    if bool_or(p, "merge", true) && !(only_selection && st.selection.is_empty()) {
         let all = Selection::default();
-        for id in target_paths(&st.doc, &all, poly_bounds(&pts, size)) {
+        let from = if only_selection { &st.selection } else { &all };
+        for id in target_paths(&st.doc, from, poly_bounds(&pts, size)) {
             let Some(n) = st.doc.node(id) else { continue };
             if n.appearance.fill_paint() != paint || !n.appearance.stroke_paint().is_none() {
                 continue;
@@ -1265,20 +1365,26 @@ fn blob(s: &mut Session, p: &Value) -> Result<Value> {
             }
         }
     }
-    let ap = Appearance::basic(paint, Paint::None, 1.0);
+    let ap = NewArt::plain(Appearance::basic(paint, Paint::None, 1.0));
     if merge_ids.is_empty() {
-        return add_node(s, "Blob Brush", path_kind(region), ap, None);
+        return insert_look(s, "Blob Brush", path_kind(region), ap, None, keep_selected);
     }
     let mut inputs: Vec<(&PathData, FillRule)> = vec![(&region, FillRule::NonZero)];
     inputs.extend(merge_ids.iter().map(|(_, pd, r)| (pd, *r)));
     let merged = po::unite_all(&inputs);
-    let Some(((keep, _, _), rest)) = merge_ids.split_last() else { return add_node(s, "Blob Brush", path_kind(region), ap, None) };
+    let Some(((keep, _, _), rest)) = merge_ids.split_last() else {
+        return insert_look(s, "Blob Brush", path_kind(region), ap, None, keep_selected);
+    };
     let keep = *keep;
     let others: Vec<NodeId> = rest.iter().map(|m| m.0).collect();
     s.edit("Blob Brush", |d, sel| {
         *path_mut(d, keep)? = merged;
         remove_each(d, &others)?;
-        sel.set([keep]);
+        if keep_selected {
+            sel.set([keep]);
+        } else {
+            sel.remove(keep);
+        }
         Ok(())
     })?;
     Ok(json!({ "id": keep.0 }))
