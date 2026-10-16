@@ -10,10 +10,20 @@
 # Coverage: every menu string, tl! literal, plural, status and error message (enforced in tests).
 # Product, language, built-in workspace and perspective preset names follow MENU_KEEP_AS_IS.
 # Keep placeholders, ellipses and leading/trailing spaces of fragments when editing.
+	Barcodes	Штрихкоди
+	Check	Перевірити
+	Check Barcode	Перевірити штрихкод
+	Codes:	Коди:
+	Create Batch	Створити партію
+	Drawn:	Намальовано:
+	Gap:	Проміжок:
 	Glowing Edges…	Сяйливі краї…
 	Glowing Edges	Сяйливі краї
 	Edge Width	Ширина краю
 	Edge Brightness	Яскравість краю
+	Max per Row:	Макс. у рядку:
+	No fonts are installed.	Шрифти не встановлено.
+	Outline the digits	Перетворити цифри на контури
 	Smoothness	Згладжування
 
 	Radial Blur…	Радіальне розмиття…
@@ -370,6 +380,7 @@
 	Check Script	Перевірити сценарій
 	Check Script…	Перевірити сценарій…
 	Copy Report	Копіювати звіт
+	Valid:	Дійсний:
 	VectorCraft read this script without running it.	VectorCraft прочитав цей сценарій, не запускаючи його.
 	Needs nothing beyond plain JavaScript	Потрібен лише звичайний JavaScript
 	Needs the script language's own objects or directives	Потрібні власні об’єкти або директиви мови сценаріїв
@@ -379,6 +390,7 @@
 	Needs dialogs	Потрібні діалогові вікна
 	Needs features only the reference app has	Потрібні функції, які має лише еталонна програма
 	Outside the document	Поза документом
+	White background box	Біла підкладка
 	Writes, moves or deletes files	Записує, переміщує або видаляє файли
 	Opens files in other apps	Відкриває файли в інших програмах
 	Opens network connections	Відкриває мережеві з’єднання

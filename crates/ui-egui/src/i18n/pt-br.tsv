@@ -23,6 +23,13 @@
 # English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language names, OpenType,
 # the built-in workspace names and the bracketed perspective grid preset names.
 #
+	Barcodes	Códigos de barras
+	Check	Verificar
+	Check Barcode	Verificar código de barras
+	Codes:	Códigos:
+	Create Batch	Criar lote
+	Drawn:	Desenhados:
+	Gap:	Espaçamento:
 	Glowing Edges…	Bordas brilhantes…
 	  — missing	  — falha
 	  — substituted by {style}	  — substituído por {style}
@@ -253,6 +260,9 @@
 	Auto Size New Area Type	Dimensionar Automaticamente Novo Texto de Área
 	Auto Spell Check	Verificação Ortográfica Automática
 	Auto-Collapse Iconic Panels	Recolher Automaticamente Painéis Icônicos
+	Max per Row:	Máx. por linha:
+	No fonts are installed.	Nenhuma fonte instalada.
+	Outline the digits	Converter os dígitos em contornos
 	Show Tool Group Labels	Mostrar Rótulos dos Grupos de Ferramentas
 	Auto-Rotate (turn the paper to each artboard)	Girar Automaticamente (gire o papel para cada mesa de trabalho)
 	Automatic	Automático
@@ -352,6 +362,7 @@
 	Check Script	Verificar Script
 	Check Script…	Verificar Script…
 	Copy Report	Copiar Relatório
+	Valid:	Válido:
 	VectorCraft read this script without running it.	O VectorCraft leu este script sem executá-lo.
 	Needs nothing beyond plain JavaScript	Precisa apenas de JavaScript simples
 	Needs the script language's own objects or directives	Precisa de objetos ou diretivas próprios da linguagem do script
@@ -361,6 +372,7 @@
 	Needs dialogs	Precisa de caixas de diálogo
 	Needs features only the reference app has	Precisa de recursos que só o aplicativo de referência tem
 	Outside the document	Fora do documento
+	White background box	Caixa branca de fundo
 	Writes, moves or deletes files	Grava, move ou exclui arquivos
 	Opens files in other apps	Abre arquivos em outros aplicativos
 	Opens network connections	Abre conexões de rede

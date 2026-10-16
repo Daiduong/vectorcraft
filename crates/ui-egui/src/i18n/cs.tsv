@@ -18,8 +18,18 @@
 # tests): the product name, language names, OpenType, the built-in workspace names and the
 # bracketed perspective grid preset names. Keep placeholders, ellipses and the leading/trailing
 # spaces of fragments when editing.
+	Barcodes	Čárové kódy
+	Check	Zkontrolovat
+	Check Barcode	Zkontrolovat čárový kód
+	Codes:	Kódy:
+	Create Batch	Vytvořit dávku
+	Drawn:	Vytvořeno:
+	Gap:	Mezera:
+	Max per Row:	Max. na řádek:
 	New Design	Nový návrh
 	Delete Design	Odstranit návrh
+	No fonts are installed.	Nejsou nainstalovány žádné fonty.
+	Outline the digits	Obrysovat číslice
 	Paste Design	Vložit návrh
 	Select Unused	Vybrat nepoužité
 	Glowing Edges…	Zářící okraje…
@@ -138,6 +148,8 @@
 	Start from VectorCraft Defaults	Vycházet z výchozích zkratek VectorCraftu
 	Add to the Current Shortcuts	Přidat k aktuálním zkratkám
 	Remember My Choices	Zapamatovat si moje volby
+	Valid:	Platné:
+	White background box	Bílé pozadí
 	{ready} of {total} ready	Připraveno {ready} z {total}
 	The file is too large to read in full, so only its first part is listed.	Soubor je příliš velký na úplné přečtení, proto je uvedena jen jeho první část.
 	Report copied	Zpráva zkopírována

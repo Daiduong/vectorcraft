@@ -4,10 +4,20 @@
 # Clean-room: menu and feature names follow the names Japanese users of vector illustration
 # software know, written from the meaning of VectorCraft's English labels; no other application's
 # Japanese localisation was copied. Toggles read as their action (「…を表示」「…を隠す」).
+	Barcodes	バーコード
+	Check	検査
+	Check Barcode	バーコードを検査
+	Codes:	コード:
+	Create Batch	一括作成
+	Drawn:	作成:
+	Gap:	間隔:
 	Glowing Edges…	エッジの光彩…
 	Glowing Edges	エッジの光彩
 	Edge Width	エッジの幅
 	Edge Brightness	エッジの明るさ
+	Max per Row:	1行の最大数:
+	No fonts are installed.	フォントがインストールされていません。
+	Outline the digits	数字をアウトライン化
 	Smoothness	滑らかさ
 #
 # Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
@@ -171,6 +181,7 @@
 	Horizontal Align Left	水平方向左に整列
 	Horizontal Align Center	水平方向中央に整列
 	Horizontal Align Right	水平方向右に整列
+	Valid:	有効:
 	Vertical Align Top	垂直方向上に整列
 	Vertical Align Center	垂直方向中央に整列
 	Horizontal & Vertical Align Center	水平方向および垂直方向中央に整列
@@ -422,6 +433,7 @@
 	Transform…	変形…
 	Tweak…	ランダム・ひねり…
 	Twist…	旋回…
+	White background box	白い背景枠
 	Zig Zag…	ジグザグ…
 	Pathfinder	パスファインダー
 	Add	追加

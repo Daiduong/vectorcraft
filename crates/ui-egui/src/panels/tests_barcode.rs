@@ -21,6 +21,12 @@ fn shows(t: &[String], s: &str) -> bool {
     t.iter().any(|x| x == s)
 }
 
+/// Whether a text starting with `s` was drawn: the panel's pickers read "EAN-13 · GS1 · GB 12904",
+/// naming the standard beside the symbology.
+fn starts(t: &[String], s: &str) -> bool {
+    t.iter().any(|x| x.starts_with(s))
+}
+
 fn app_with_doc() -> VectorcraftApp {
     let mut app = VectorcraftApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 800, "height": 800}));
@@ -45,16 +51,24 @@ fn the_panel_is_registered_and_opens_from_the_window_menu() {
     assert_eq!((item.path.clone(), item.label.as_str()), (vec!["Window".to_string()], "Barcode"));
 }
 
-/// A draft shows the symbology it will draw, the size the symbol comes out at, and the standard
-/// digits' font when the machine has it.
+/// A draft shows the symbology it will draw with the standard it belongs to, an example value, the
+/// size the symbol comes out at, and the batch that makes many at once.
 #[test]
 fn the_draft_shows_what_it_will_draw() {
     let mut app = app_with_doc();
     let t = texts(&mut app);
-    assert!(shows(&t, "EAN-13"), "{t:?}");
+    assert!(starts(&t, "EAN-13 · "), "{t:?}");
+    // The standard the selected type belongs to, in full.
+    assert!(t.iter().any(|s| s.contains("ISO/IEC 15420") && s.contains("GB 12904")), "{t:?}");
+    // The example value a fresh EAN-13 comes with, so the panel never sits on an empty field.
+    assert!(shows(&t, "6907045517163"), "{t:?}");
     assert!(shows(&t, "Create"), "{t:?}");
     // The nominal EAN-13 with its quiet zones: 37.29 mm by 25.93 mm.
     assert!(t.iter().any(|s| s.starts_with("37.29")), "{t:?}");
+    // The batch section, which draws new codes rather than editing one.
+    assert!(shows(&t, "Batch"), "{t:?}");
+    assert!(shows(&t, "Max per Row:"), "{t:?}");
+    assert!(shows(&t, "Create Batch"), "{t:?}");
 }
 
 /// A selected barcode's own settings fill the panel, and the button rewrites that object.
@@ -64,12 +78,64 @@ fn a_selected_barcode_is_what_the_panel_edits() {
     let id = run(&mut app, "barcode.create", json!({"symbology": "code39", "data": "ABC-123"}))["id"].as_u64().expect("id");
     run(&mut app, "select.set", json!({"ids": [id]}));
     let t = texts(&mut app);
-    assert!(shows(&t, "Code 39"), "{t:?}");
+    assert!(starts(&t, "Code 39 · "), "{t:?}");
     assert!(shows(&t, "Update"), "{t:?}");
 
     run(&mut app, "barcode.set", json!({"data": "XYZ-9"}));
     let t = texts(&mut app);
-    assert!(shows(&t, "Code 39"), "the type is unchanged: {t:?}");
+    assert!(starts(&t, "Code 39 · "), "the type is unchanged: {t:?}");
+    // A batch makes new codes, so it belongs to the draft and not to the object being edited.
+    assert!(!shows(&t, "Create Batch"), "{t:?}");
+}
+
+/// Check asks the encoder about the value in the field and reports what it says, drawing nothing —
+/// so a wrong check digit is caught before a print run rather than on the carton.
+#[test]
+fn the_check_button_reports_what_the_encoder_says() {
+    let mut app = app_with_doc();
+    app.ui.barcode =
+        vectorcraft_barcode::BarcodeSpec { symbology: vectorcraft_barcode::Symbology::Ean13, data: "6907045517161".into(), ..Default::default() };
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    let press = |ctx: &egui::Context, app: &mut VectorcraftApp| {
+        let t = frame_events(ctx, app, vec![], barcode::show);
+        let at = t.iter().find(|(s, _)| s == "Check").map(|(_, r)| r.center()).expect("the Check button");
+        super::tests_appearance::click(ctx, app, at, barcode::show);
+    };
+    let before = app.session.doc().unwrap().doc.node_count();
+    press(&ctx, &mut app);
+    assert_eq!(app.session.doc().unwrap().doc.node_count(), before, "checking draws nothing");
+    assert!(app.ui.barcode_note.contains('3'), "the right check digit is named: {}", app.ui.barcode_note);
+
+    // A value the symbology accepts comes back with the digits the symbol would carry, which for
+    // twelve typed digits includes the thirteenth the encoder worked out.
+    app.ui.barcode.data = "690704551716".into();
+    press(&ctx, &mut app);
+    assert!(app.ui.barcode_note.contains("6907045517163"), "{}", app.ui.barcode_note);
+    assert_eq!(app.session.doc().unwrap().doc.node_count(), before);
+}
+
+/// The batch draws one code a line through the same command an agent would run, counts what was
+/// pasted in, and reports the lines the symbology cannot carry instead of drawing them.
+#[test]
+fn the_batch_button_draws_what_was_pasted_in() {
+    let mut app = app_with_doc();
+    app.ui.barcode_batch.data = "4006381333931\n5012345678900\nnonsense".into();
+    let barcodes = |app: &VectorcraftApp| {
+        let mut n = 0;
+        app.session.doc().unwrap().doc.walk(|c| n += usize::from(c.extras().barcode.is_some()));
+        n
+    };
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    let t = frame_events(&ctx, &mut app, vec![], barcode::show);
+    assert!(t.iter().any(|(s, _)| s == "Codes: 3"), "the lines pasted in are counted");
+    assert_eq!(barcodes(&app), 0, "nothing is drawn until the button is pressed");
+
+    let at = t.iter().find(|(s, _)| s == "Create Batch").map(|(_, r)| r.center()).expect("the Create Batch button");
+    super::tests_appearance::click(&ctx, &mut app, at, barcode::show);
+    assert_eq!(barcodes(&app), 2, "the two codes that encode, and not the third");
+    assert!(app.ui.barcode_batch_note.starts_with("Drawn: 2, 1"), "the refused line is reported: {}", app.ui.barcode_batch_note);
 }
 
 /// Data no symbol can carry is shown as the encoder's own refusal, in the panel, without a crash.

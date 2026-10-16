@@ -111,6 +111,24 @@ impl DockTab {
     }
 }
 
+/// What the Barcode panel's batch section holds between frames: the codes pasted in, and how many
+/// fit across a row with how much space between them.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BarcodeBatch {
+    /// One code to a line.
+    pub data: String,
+    /// How many before the next row starts.
+    pub columns: u32,
+    /// The space between two symbols, in millimetres.
+    pub gap: f64,
+}
+
+impl Default for BarcodeBatch {
+    fn default() -> Self {
+        Self { data: String::new(), columns: 10, gap: 5.0 }
+    }
+}
+
 /// Every panel `window.panel` shows, as (id, English label): the dock tabs, then the icon panels.
 pub fn all_panels() -> impl Iterator<Item = (&'static str, &'static str)> {
     let tabs = DockTab::ALL.into_iter().map(|t| (t.info().0, t.info().1));
@@ -269,6 +287,16 @@ pub struct UiState {
     /// what was typed. A barcode object selected on the canvas is edited from its own spec instead.
     #[serde(default)]
     pub barcode: vectorcraft_barcode::BarcodeSpec,
+    /// The Barcode panel's batch fields: a list of codes and how they are laid out.
+    #[serde(default)]
+    pub barcode_batch: BarcodeBatch,
+    /// What the Barcode panel's Check button last said about the value in the field. Not saved — it
+    /// answers the value that was there when it was pressed, and a stale answer is worse than none.
+    #[serde(skip)]
+    pub barcode_note: String,
+    /// What the Barcode panel's batch last reported. Not saved, for the same reason.
+    #[serde(skip)]
+    pub barcode_batch_note: String,
     /// The interface language older versions saved here (`ja`, `cs`…). It now lives in the
     /// `interfaceLanguage` preference, which [`crate::prefs_dialog::restore`] carries it over to;
     /// it is never written back.
@@ -706,6 +734,9 @@ impl Default for UiState {
                 data: vectorcraft_barcode::Symbology::Ean13.sample_data().to_string(),
                 ..vectorcraft_barcode::BarcodeSpec::default()
             },
+            barcode_batch: BarcodeBatch::default(),
+            barcode_note: String::new(),
+            barcode_batch_note: String::new(),
             legacy_language: None,
             brightness: Brightness::MediumDark,
             dock_tab: DockTab::Properties,

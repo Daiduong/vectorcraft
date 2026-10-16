@@ -194,6 +194,24 @@ fn the_qr_symbologies_match_the_reference_implementation() {
     }
 }
 
+/// The example value every symbology offers — what the Barcode panel starts a fresh one on, and
+/// what it puts in the field when the type is changed — is one the symbology can carry. A default
+/// that the encoder refuses would be the first thing a user sees, and the last thing they'd expect.
+#[test]
+fn every_symbology_has_an_example_it_can_carry() {
+    for symbology in Symbology::all() {
+        let example = symbology.sample_data();
+        assert!(!example.is_empty(), "{symbology:?} has no example");
+        let code = encode(&BarcodeSpec::new(symbology, example)).unwrap_or_else(|e| panic!("{symbology:?} {example:?}: {e}"));
+        let (w, h) = code.size_mm();
+        assert!(w > 0.0 && h > 0.0, "{symbology:?} is {w} x {h} mm");
+        // And every one of them names the standard it belongs to, which the panel shows beside the
+        // type and under it.
+        assert!(symbology.standard().contains("ISO") || symbology.standard().contains("GS1"), "{symbology:?}");
+        assert!(!symbology.origin().is_empty(), "{symbology:?}");
+    }
+}
+
 /// Every symbology refuses what it cannot carry, and says why.
 #[test]
 fn data_that_does_not_fit_is_refused() {

@@ -9,10 +9,20 @@
 # and no proprietary localisation was translated from or copied. Labels use sentence case, commands
 # are imperatives; product, format and key-cap names keep their spelling.
 
+	Barcodes	Streckkoder
+	Check	Kontrollera
+	Check Barcode	Kontrollera streckkod
+	Codes:	Koder:
+	Create Batch	Skapa sats
+	Drawn:	Ritade:
+	Gap:	Avstånd:
 	Glowing Edges…	Glödande kanter…
 	Glowing Edges	Glödande kanter
 	Edge Width	Kantbredd
 	Edge Brightness	Kantljusstyrka
+	Max per Row:	Max per rad:
+	No fonts are installed.	Inga teckensnitt är installerade.
+	Outline the digits	Gör siffrorna till konturer
 	Smoothness	Mjukhet
 	Radial Blur…	Radiell oskärpa…
 	Smart Blur…	Smart oskärpa…
@@ -364,6 +374,7 @@
 	Check Script	Kontrollera skript
 	Check Script…	Kontrollera skript…
 	Copy Report	Kopiera rapport
+	Valid:	Giltig:
 	VectorCraft read this script without running it.	VectorCraft läste skriptet utan att köra det.
 	Needs nothing beyond plain JavaScript	Kräver inget utöver vanlig JavaScript
 	Needs the script language's own objects or directives	Kräver skriptspråkets egna objekt eller direktiv
@@ -373,6 +384,7 @@
 	Needs dialogs	Kräver dialogrutor
 	Needs features only the reference app has	Kräver funktioner som bara referensappen har
 	Outside the document	Utanför dokumentet
+	White background box	Vit bakgrundsruta
 	Writes, moves or deletes files	Skriver, flyttar eller raderar filer
 	Opens files in other apps	Öppnar filer i andra appar
 	Opens network connections	Öppnar nätverksanslutningar

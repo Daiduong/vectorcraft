@@ -188,7 +188,7 @@ panel-menu commands such as Break Link to Symbol), so they can be given shortcut
 | Object › Expand on radial, grid and mirror repeats makes groups of their instances | done | #1765 (#1756) |
 | Select › Same matches type on its characters' fill and stroke | done | #1746 (#1737) |
 | ~40 panels with ≡ menus; dock, icon column, collapse, tabs | done | 40 panel modules, each with its test module |
-| Barcode panel: symbology, data, magnification, module, height, quiet zone, the wide-to-narrow ratio, the human readable line's font, and a QR Code's error correction, version and mask | done | beyond Illustrator, which has no barcode tool: `panels/barcode.rs` and `panels/tests_barcode.rs`; every field ends in `barcode.create` / `barcode.set` |
+| Barcode panel: the symbology with the standard it belongs to and an example value for it, data with a Check button that asks the encoder before anything is drawn, magnification, module, height, quiet zone, the wide-to-narrow ratio, the digits' font and whether they are outlined, the white box, and a QR Code's error correction, version and mask; a Batch section draws one code a line as a grid | done | beyond Illustrator, which has no barcode tool: `panels/barcode.rs` and `panels/tests_barcode.rs`; every field ends in `barcode.create`, `barcode.set`, `barcode.check` or `barcode.createBatch` |
 | Panels float inside the window, stack, dock back | done | #495 |
 | Floating groups stack into sets; sets dock as extra dock columns (a multi-column dock); groups drop anywhere in a set or column, or onto its tabs; a column taller than the window scrolls | done | `window.panel.float {below, above}`, `window.panel.dock {column}` |
 | Panels outside the app window (another monitor) | missing | single OS window |

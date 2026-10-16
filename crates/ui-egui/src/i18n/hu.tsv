@@ -379,6 +379,7 @@
 	Bar	Vonal
 	Bar Graph Tool	Sávdiagram
 	Barbed	Szakállas
+	Barcodes	Vonalkódok
 	Baseline	Alapvonal
 	Baseline (Standard)	Alapvonali (szabványos)
 	Baseline Optimized	Alapvonali, optimalizált
@@ -531,11 +532,21 @@
 	Character Style Options	Karakterstílus beállításai
 	Character Styles	Karakterstílusok
 	Character:	Karakter:
+	Check	Ellenőrzés
+	Check Barcode	Vonalkód ellenőrzése
 	Check Links	Csatolások ellenőrzése
 # Check Script (File › Scripts) and the report it shows on a script written for the reference app.
 	Check Script	Szkript ellenőrzése
 	Check Script…	Szkript ellenőrzése…
+	Codes:	Kódok:
 	Copy Report	Jelentés másolása
+	Create Batch	Köteg létrehozása
+	Drawn:	Megrajzolva:
+	Gap:	Távolság:
+	Max per Row:	Max. soronként:
+	No fonts are installed.	Nincsenek telepített betűkészletek.
+	Outline the digits	Számjegyek körvonalazása
+	Valid:	Érvényes:
 	VectorCraft read this script without running it.	A VectorCraft futtatás nélkül olvasta be ezt a szkriptet.
 	Needs nothing beyond plain JavaScript	Csak egyszerű JavaScript kell hozzá
 	Needs the script language's own objects or directives	A szkriptnyelv saját objektumai vagy direktívái kellenek hozzá
@@ -545,6 +556,7 @@
 	Needs dialogs	Párbeszédablakok kellenek hozzá
 	Needs features only the reference app has	Olyan funkciók kellenek hozzá, amelyek csak a referenciaalkalmazásban vannak
 	Outside the document	A dokumentumon kívül
+	White background box	Fehér háttérkeret
 	Writes, moves or deletes files	Fájlokat ír, áthelyez vagy töröl
 	Opens files in other apps	Fájlokat nyit meg más alkalmazásokban
 	Opens network connections	Hálózati kapcsolatokat nyit

@@ -9,10 +9,20 @@
 # proprietary localisation resource, string table or product UI may be copied. Product and
 # technology names stay in Latin letters. Full-width punctuation (，。：“”) in sentences, half-width
 # parentheses.
+	Barcodes	条形码
+	Check	检查
+	Check Barcode	检查条形码
+	Codes:	条码数:
+	Create Batch	批量生成
+	Drawn:	已生成:
+	Gap:	间距:
 	Glowing Edges…	发光边缘…
 	Glowing Edges	发光边缘
 	Edge Width	边缘宽度
 	Edge Brightness	边缘亮度
+	Max per Row:	每行最多:
+	No fonts are installed.	未安装任何字体。
+	Outline the digits	数字转曲
 	Smoothness	平滑度
 
 	  — missing	  — 缺失
@@ -333,6 +343,7 @@
 	Check Script	检查脚本
 	Check Script…	检查脚本…
 	Copy Report	复制报告
+	Valid:	校验通过:
 	VectorCraft read this script without running it.	VectorCraft 读取了此脚本，但没有运行它。
 	Needs nothing beyond plain JavaScript	只需要普通的 JavaScript
 	Needs the script language's own objects or directives	需要脚本语言自身的对象或指令
@@ -342,6 +353,7 @@
 	Needs dialogs	需要对话框
 	Needs features only the reference app has	需要只有参考应用才有的功能
 	Outside the document	文档之外
+	White background box	白色底框
 	Writes, moves or deletes files	写入、移动或删除文件
 	Opens files in other apps	在其他应用中打开文件
 	Opens network connections	打开网络连接

@@ -304,6 +304,7 @@
 	Backspace	Backspace
 	Balance	Cân bằng
 	Bar Graph Tool	Công cụ Biểu đồ thanh
+	Barcodes	Mã vạch
 	Baseline	Đường cơ sở
 	Baseline Shift	Dịch chuyển đường cơ sở
 	Basic Latin	Latin cơ bản
@@ -446,11 +447,21 @@
 	Character Style Options	Tùy chọn kiểu ký tự
 	Character Styles	Các kiểu ký tự
 	Character:	Ký tự:
+	Check	Kiểm tra
+	Check Barcode	Kiểm tra mã vạch
 	Check Links	Kiểm tra liên kết
 # Check Script (File › Scripts) and the report it shows on a script written for the reference app.
 	Check Script	Kiểm tra script
 	Check Script…	Kiểm tra script…
+	Codes:	Mã:
 	Copy Report	Sao chép báo cáo
+	Create Batch	Tạo hàng loạt
+	Drawn:	Đã tạo:
+	Gap:	Khoảng cách:
+	Max per Row:	Tối đa mỗi hàng:
+	No fonts are installed.	Chưa cài đặt phông chữ nào.
+	Outline the digits	Chuyển số thành đường viền
+	Valid:	Hợp lệ:
 	VectorCraft read this script without running it.	VectorCraft đã đọc script này mà không chạy nó.
 	Needs nothing beyond plain JavaScript	Chỉ cần JavaScript thông thường
 	Needs the script language's own objects or directives	Cần các đối tượng hoặc chỉ thị riêng của ngôn ngữ script
@@ -460,6 +471,7 @@
 	Needs dialogs	Cần hộp thoại
 	Needs features only the reference app has	Cần tính năng mà chỉ ứng dụng tham chiếu có
 	Outside the document	Bên ngoài tài liệu
+	White background box	Khung nền trắng
 	Writes, moves or deletes files	Ghi, di chuyển hoặc xóa tệp
 	Opens files in other apps	Mở tệp trong ứng dụng khác
 	Opens network connections	Mở kết nối mạng

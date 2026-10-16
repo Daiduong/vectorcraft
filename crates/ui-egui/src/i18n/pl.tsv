@@ -22,8 +22,18 @@
 # tests): the product name, language names, OpenType, the built-in workspace names and the
 # bracketed perspective grid preset names. Keep placeholders, ellipses and the leading/trailing
 # spaces of fragments when editing.
+	Barcodes	Kody kreskowe
+	Check	Sprawdź
+	Check Barcode	Sprawdź kod kreskowy
+	Codes:	Kody:
+	Create Batch	Utwórz partię
+	Drawn:	Narysowano:
+	Gap:	Odstęp:
+	Max per Row:	Maks. w wierszu:
 	New Design	Nowy projekt
 	Delete Design	Usuń projekt
+	No fonts are installed.	Brak zainstalowanych czcionek.
+	Outline the digits	Zamień cyfry na kontury
 	Paste Design	Wklej projekt
 	Select Unused	Zaznacz nieużywane
 	Glowing Edges…	Świecące krawędzie…
@@ -137,6 +147,7 @@
 	Horizontal Align Left	Wyrównaj poziomo do lewej
 	Horizontal Align Center	Wyrównaj poziomo do środka
 	Horizontal Align Right	Wyrównaj poziomo do prawej
+	Valid:	Poprawny:
 	Vertical Align Top	Wyrównaj pionowo do góry
 	Vertical Align Center	Wyrównaj pionowo do środka
 	Horizontal & Vertical Align Center	Wyrównaj do środka w poziomie i pionie
@@ -380,6 +391,7 @@
 	Transform…	Przekształć…
 	Tweak…	Poprawianie…
 	Twist…	Skręcenie…
+	White background box	Białe tło
 	Zig Zag…	Zygzak…
 	Pathfinder	Odnajdywanie ścieżek
 	Add	Dodaj

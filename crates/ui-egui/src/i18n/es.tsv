@@ -12,10 +12,20 @@
 # tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
 # names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
 # Photoshop-style raster effects (Effect menu, their dialogs).
+	Barcodes	Códigos de barras
+	Check	Comprobar
+	Check Barcode	Comprobar código de barras
+	Codes:	Códigos:
+	Create Batch	Crear lote
+	Drawn:	Dibujados:
+	Gap:	Separación:
 	Glowing Edges…	Bordes resplandecientes…
 	Glowing Edges	Bordes resplandecientes
 	Edge Width	Ancho del borde
 	Edge Brightness	Brillo del borde
+	Max per Row:	Máx. por fila:
+	No fonts are installed.	No hay fuentes instaladas.
+	Outline the digits	Convertir los dígitos en contornos
 	Smoothness	Suavizado
 	Radial Blur…	Desenfoque radial…
 	Smart Blur…	Desenfoque inteligente…
@@ -376,6 +386,7 @@
 	Check Script	Comprobar script
 	Check Script…	Comprobar script…
 	Copy Report	Copiar informe
+	Valid:	Válido:
 	VectorCraft read this script without running it.	VectorCraft leyó este script sin ejecutarlo.
 	Needs nothing beyond plain JavaScript	Solo necesita JavaScript simple
 	Needs the script language's own objects or directives	Necesita objetos o directivas propios del lenguaje del script
@@ -385,6 +396,7 @@
 	Needs dialogs	Necesita cuadros de diálogo
 	Needs features only the reference app has	Necesita funciones que solo tiene la aplicación de referencia
 	Outside the document	Fuera del documento
+	White background box	Recuadro blanco de fondo
 	Writes, moves or deletes files	Escribe, mueve o elimina archivos
 	Opens files in other apps	Abre archivos en otras aplicaciones
 	Opens network connections	Abre conexiones de red

@@ -37,16 +37,34 @@ pub fn specs() -> Vec<CommandSpec> {
             "Barcode",
             [],
             None,
-            "{symbology: ean13|ean8|upcA|upcE|ean128|code128|code128A|code128B|code128C|code39|code93|itf14|itf25|qrCode, data, x?, y? (default: the centre of the first artboard), magnification?: the module size multiplier, 1 = the standard one, moduleMm?, heightMm?, ratio?: the wide-to-narrow ratio of Code 39 and Interleaved 2 of 5, text?: the human readable line, quietExtra?: extra quiet zone in modules, bearer?: an ITF-14's bearer bars, ecc?: low|medium|quartile|high, version?: 1-40, mask?: 0-7, font?, fontStyle?} → {id, data: the digits the symbol carries, with the check digit when it was added}",
+            "{symbology: ean13|ean8|upcA|upcE|ean128|code128|code128A|code128B|code128C|code39|code93|itf14|itf25|qrCode, data, x?, y? (default: the centre of the first artboard), magnification?: the module size multiplier, 1 = the standard one, moduleMm?, heightMm?, ratio?: the wide-to-narrow ratio of Code 39 and Interleaved 2 of 5, text?: the human readable line, outlineText?: draw its digits as outlines (default: true), background?: a white box of the symbol's standard size behind it (default: true), quietExtra?: extra quiet zone in modules, bearer?: an ITF-14's bearer bars, ecc?: low|medium|quartile|high, version?: 1-40, mask?: 0-7, font?, fontStyle?} → {id, data: the digits the symbol carries, with the check digit when it was added}",
             has_doc,
             create
+        ),
+        cmd!(
+            "barcode.check",
+            "Check Barcode",
+            [],
+            None,
+            "{id?, …as barcode.create} → {ok: bool, data: the digits the symbol would carry, widthMm, heightMm, message: what is wrong when it is not ok}; asks the encoder rather than drawing anything",
+            has_doc,
+            check
+        ),
+        cmd!(
+            "barcode.createBatch",
+            "Barcodes",
+            [],
+            None,
+            "{data: one code to a line, columns?: how many before the next row (10), gapX?: millimetres between the codes of a row (5), gapY?: millimetres between rows (5), x?, y? (default: the top-left corner of the first artboard), …as barcode.create} → {ids: [..], count, skipped: [{data, message}]}",
+            has_doc,
+            create_batch
         ),
         cmd!(
             "barcode.set",
             "Barcode Options",
             [],
             None,
-            "{id?, any option `barcode.create` takes} change the selected barcode and draw it again; no options → {id, data, symbology, …the current ones}",
+            "{id?, …as barcode.create} change the selected barcode and draw it again; no options → {id, data, symbology, …the current ones}",
             has_selection,
             set
         ),
@@ -123,6 +141,12 @@ fn read_spec(spec: &mut BarcodeSpec, p: &Value, what: &str) -> Result<()> {
     if p.get("fontStyle").is_some() {
         spec.font_style = str_param(p, "fontStyle").map(str::to_string);
     }
+    if let Some(v) = opt_bool(p, "outlineText") {
+        spec.outline_text = v;
+    }
+    if let Some(v) = opt_bool(p, "background") {
+        spec.background = v;
+    }
     Ok(())
 }
 
@@ -162,13 +186,9 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
                 Point::new(centre.x - w / 2.0, centre.y - h / 2.0)
             }
         };
-        let gid = d.alloc_id();
-        let mut g = Node::group(gid, Vec::new());
-        g.name = Some(format!("{} {}", spec.symbology.label(), data));
-        d.insert(parent, usize::MAX, g)?;
-        draw(d, gid, &spec, &code, origin, style.clone())?;
-        sel.set([gid]);
-        Ok(gid)
+        let id = place(d, parent, &spec, &code, &data, origin, &style)?;
+        sel.set([id]);
+        Ok(id)
     })?;
     Ok(json!({ "id": id.0, "data": data }))
 }
@@ -177,8 +197,11 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
 /// in this document gets.
 fn s_style(s: &Session, spec: &BarcodeSpec) -> CharStyle {
     let mut style = new_type_style(s, &json!({}));
-    if let Some(font) = &spec.font {
-        style.font_family = font.clone();
+    // The human readable line is set in the face the standards name for it — the machine's OCR-B —
+    // unless the caller asked for another one, and in whatever the document is set to when there is
+    // no OCR-B to be had.
+    if let Some(font) = spec.font.clone().or_else(|| vectorcraft_text::FontDb::global().ocr_b()) {
+        style.font_family = font;
     }
     if let Some(face) = &spec.font_style {
         style.font_style = face.clone();
@@ -246,7 +269,11 @@ fn draw(d: &mut Document, id: NodeId, spec: &BarcodeSpec, code: &Code, origin: P
             if !bars.is_empty() {
                 children.push(Arc::new(Node::path(d.alloc_id(), bars, Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0))));
             }
-            children.extend(hri_nodes(d, symbol.human_readable.as_ref(), origin, &style));
+            children.extend(hri_nodes(d, symbol.human_readable.as_ref(), origin, &style, spec.outline_text));
+            if spec.background {
+                let (w, h) = box_mm(&children, origin, symbol.width_mm, symbol.height_mm);
+                children.insert(0, white_box(d, origin, w, h));
+            }
         }
         Code::Matrix(matrix) => {
             let quiet = matrix.quiet as f64 * matrix.module_mm;
@@ -263,6 +290,11 @@ fn draw(d: &mut Document, id: NodeId, spec: &BarcodeSpec, code: &Code, origin: P
                 PathData::from_bezpath(&bp),
                 Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
             )));
+            if spec.background {
+                let side = matrix.width_mm();
+                let (w, h) = box_mm(&children, origin, side, side);
+                children.insert(0, white_box(d, origin, w, h));
+            }
         }
     }
     let node = d.node_mut(id).ok_or(EngineError::NoNode(id))?;
@@ -287,6 +319,29 @@ fn bars_path(bars: &[Bar], origin: Point) -> PathData {
     PathData::from_bezpath(&bp)
 }
 
+/// The size of the white box: the size the standard gives the symbol, grown when the art reaches
+/// past it. The digits' outlines can sit a few hundredths of a millimetre below the nominal
+/// baseline in a font whose figures are not exactly cap height, and a box that leaves the ink
+/// outside it would not be doing its job.
+fn box_mm(art: &[Arc<Node>], origin: Point, width_mm: f64, height_mm: f64) -> (f64, f64) {
+    let (mut right, mut bottom) = (origin.x + width_mm * PT_PER_MM, origin.y + height_mm * PT_PER_MM);
+    for n in art {
+        if let Some(b) = n.geometric_bounds().filter(|b| b.width() > 0.0 && b.height() > 0.0) {
+            right = right.max(b.x1);
+            bottom = bottom.max(b.y1);
+        }
+    }
+    (((right - origin.x) / PT_PER_MM).max(width_mm), ((bottom - origin.y) / PT_PER_MM).max(height_mm))
+}
+
+/// The white box the standard puts round the symbol: its full size, quiet zones and human readable
+/// line included, which is what keeps the quiet zones clear over a photograph or a coloured carton.
+fn white_box(d: &mut Document, origin: Point, width_mm: f64, height_mm: f64) -> Arc<Node> {
+    let mut bp = BezPath::new();
+    rectangle(&mut bp, origin.x, origin.y, origin.x + width_mm * PT_PER_MM, origin.y + height_mm * PT_PER_MM);
+    Arc::new(Node::path(d.alloc_id(), PathData::from_bezpath(&bp), Appearance::basic(Paint::solid(Color::WHITE), Paint::None, 0.0)))
+}
+
 fn rectangle(bp: &mut BezPath, x0: f64, y0: f64, x1: f64, y1: f64) {
     if !(x1 > x0 && y1 > y0) {
         return;
@@ -303,7 +358,7 @@ fn rectangle(bp: &mut BezPath, x0: f64, y0: f64, x1: f64, y1: f64) {
 /// Each part is set at the size its height asks for and shrunk when the font it lands in would run
 /// past the character cells the digits sit under; the anchor is the edge `at_mm` gave, so a digit
 /// printed outside the symbol keeps its distance from the guard bars whatever the font.
-fn hri_nodes(d: &mut Document, hri: Option<&vectorcraft_barcode::HumanReadable>, origin: Point, style: &CharStyle) -> Vec<Arc<Node>> {
+fn hri_nodes(d: &mut Document, hri: Option<&vectorcraft_barcode::HumanReadable>, origin: Point, style: &CharStyle, outline: bool) -> Vec<Arc<Node>> {
     let Some(hri) = hri else { return Vec::new() };
     let baseline = origin.y + (hri.top_mm + hri.height_mm) * PT_PER_MM;
     let mut out = Vec::new();
@@ -326,7 +381,15 @@ fn hri_nodes(d: &mut Document, hri: Option<&vectorcraft_barcode::HumanReadable>,
                 HriAlign::Right => width,
             };
         laid.xf = Affine::translate(Point::new(x, baseline).to_vec2());
-        out.push(Arc::new(Node::new(d.alloc_id(), NodeKind::Text(Box::new(laid)))));
+        let node = Node::new(d.alloc_id(), NodeKind::Text(Box::new(laid)));
+        // Outlines carry no font dependency, so the art prints the same where the font is missing,
+        // which is what a packaging shop sending the file on to a printer wants by default.
+        match outline.then(|| vectorcraft_render::effects::outline_text(&node)).flatten() {
+            // The outlined group carries the id of the type it came from, and so does every path
+            // inside it: re-number the tree or the art collides with its own ancestors.
+            Some(glyphs) => out.push(Arc::new(d.reid(&glyphs))),
+            None => out.push(Arc::new(node)),
+        }
     }
     out
 }
@@ -341,9 +404,110 @@ fn layout_part(part: &vectorcraft_barcode::HriPart, style: &CharStyle, size: f64
     t
 }
 
+/// Ask the encoder whether a spec draws anything, without drawing it: what the panel's Check
+/// button and an agent about to place a batch both want.
+fn check(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "barcode.check";
+    let mut spec = BarcodeSpec::default();
+    // Without a symbology of its own, check what is on the canvas: the panel asks this way.
+    if p.get("symbology").is_none()
+        && let Ok(id) = target(s, p, C)
+        && let Some(selected) = s.doc()?.doc.node(id).and_then(|n| n.extras().barcode.as_deref())
+    {
+        spec = selected.clone();
+    }
+    read_spec(&mut spec, p, C)?;
+    match encoded(&spec) {
+        Ok((code, data)) => {
+            let (w, h) = code.size_mm();
+            Ok(json!({
+                "ok": true,
+                "symbology": spec.symbology.id(),
+                "data": data,
+                "widthMm": w,
+                "heightMm": h,
+            }))
+        }
+        Err(e) => Ok(json!({ "ok": false, "symbology": spec.symbology.id(), "message": e.to_string() })),
+    }
+}
+
+/// Draw one barcode object: a group carrying its spec, with the art under it.
+fn place(d: &mut Document, parent: Option<NodeId>, spec: &BarcodeSpec, code: &Code, data: &str, origin: Point, style: &CharStyle) -> Result<NodeId> {
+    let id = d.alloc_id();
+    let mut group = Node::group(id, Vec::new());
+    group.name = Some(format!("{} {}", spec.symbology.label(), data));
+    d.insert(parent, usize::MAX, group)?;
+    draw(d, id, spec, code, origin, style.clone())?;
+    Ok(id)
+}
+
+/// Draw one code a line as a grid: left to right from the artboard's top-left corner, wrapping
+/// after `columns` of them, so a list pasted in from a spreadsheet lands as art rather than as a
+/// pile.
+fn create_batch(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "barcode.createBatch";
+    let mut spec = BarcodeSpec::default();
+    read_spec(&mut spec, p, C)?;
+    let codes: Vec<String> = str_param(p, "data").unwrap_or("").lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_string).collect();
+    if codes.is_empty() {
+        return Err(bad(C, "no codes to draw"));
+    }
+    let columns = opt_u8(p, "columns").map_or(10usize, |c| usize::from(c).clamp(1, 200));
+    let (gap_x, gap_y) = (opt_f64(p, "gapX").unwrap_or(5.0).clamp(0.0, 1000.0), opt_f64(p, "gapY").unwrap_or(5.0).clamp(0.0, 1000.0));
+
+    // Encode every line first: one the symbology cannot carry is reported rather than drawn, and
+    // the rest still land.
+    let mut drawn: Vec<(BarcodeSpec, Code, String, f64, f64)> = Vec::new();
+    let mut skipped: Vec<Value> = Vec::new();
+    for data in codes {
+        let one = BarcodeSpec { data: data.clone(), ..spec.clone() };
+        match encoded(&one) {
+            Ok((code, carried)) => {
+                let (w, h) = code.size_mm();
+                drawn.push((one, code, carried, w * PT_PER_MM, h * PT_PER_MM));
+            }
+            Err(e) => skipped.push(json!({ "data": data, "message": e.to_string() })),
+        }
+    }
+    if drawn.is_empty() {
+        return Err(bad(C, "no line in the data is a code this symbology can carry"));
+    }
+
+    let parent = s.doc()?.target_parent()?;
+    let style = s_style(s, &spec);
+    let corner = s.doc()?.doc.artboards.first().map_or(Point::ZERO, |a| Point::new(a.rect.x0, a.rect.y0));
+    let (left, top) = (opt_f64(p, "x").unwrap_or(corner.x), opt_f64(p, "y").unwrap_or(corner.y));
+    let ids = s.edit("Barcodes", |d, sel| {
+        let (mut x, mut y, mut row_height) = (left, top, 0.0);
+        let mut column = 0usize;
+        let mut ids = Vec::with_capacity(drawn.len());
+        for (one, code, carried, width, height) in &drawn {
+            if column == columns {
+                column = 0;
+                x = left;
+                y += row_height + gap_y;
+                row_height = 0.0;
+            }
+            ids.push(place(d, parent, one, code, carried, Point::new(x, y), &style)?);
+            x += width + gap_x;
+            row_height = row_height.max(*height);
+            column += 1;
+        }
+        sel.set(ids.iter().copied());
+        Ok(ids)
+    })?;
+    Ok(json!({
+        "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>(),
+        "count": ids.len(),
+        "skipped": skipped,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use vectorcraft_color::Paint;
     use vectorcraft_doc::NodeKind;
 
     use crate::{NodeId, Session};
@@ -364,11 +528,12 @@ mod tests {
     }
 
     /// A barcode is one group carrying its spec, with every bar in a single path and the human
-    /// readable line as type.
+    /// readable line as type. Asked for as type and without the box, which is what this test is
+    /// about; the defaults are the subject of the two tests below.
     #[test]
     fn a_barcode_is_a_group_with_its_spec() {
         let mut s = new_doc();
-        let (id, made) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931"}));
+        let (id, made) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931", "background": false, "outlineText": false}));
         assert_eq!(made["data"], "4006381333931");
         let node = s.doc().unwrap().doc.node(id).unwrap().clone();
         let spec = node.extras().barcode.as_deref().expect("the spec is kept");
@@ -387,7 +552,7 @@ mod tests {
     #[test]
     fn a_symbol_is_the_size_its_standard_gives() {
         let mut s = new_doc();
-        let (id, _) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931"}));
+        let (id, _) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931", "background": false, "outlineText": false}));
         let kids = children(&s, id);
         let doc = &s.doc().unwrap().doc;
         let bars = kids.iter().find(|n| matches!(n.kind, NodeKind::Path { .. })).expect("the bars");
@@ -438,14 +603,131 @@ mod tests {
         assert!(out["widthMm"].as_f64().is_some_and(|w| w > 0.0));
     }
 
+    /// The digits come out as outlines by default, so the art carries no font and prints the same
+    /// on a machine that has neither the face nor the document.
+    #[test]
+    fn the_digits_are_outlines_by_default() {
+        let mut s = new_doc();
+        let (id, _) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931"}));
+        assert_eq!(children(&s, id).iter().filter(|n| matches!(n.kind, NodeKind::Text(_))).count(), 0, "no live type");
+        let (edit, _) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931", "outlineText": false}));
+        assert_eq!(children(&s, edit).iter().filter(|n| matches!(n.kind, NodeKind::Text(_))).count(), 13);
+    }
+
+    /// The white box is the size its standard gives the symbol — quiet zones and the human readable
+    /// line included — and the whole barcode sits inside it, so the quiet zones stay clear over a
+    /// photograph or a coloured carton.
+    #[test]
+    fn a_white_box_the_size_of_the_standard() {
+        let mut s = new_doc();
+        let (id, _) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931"}));
+        let doc = &s.doc().unwrap().doc;
+        let box_ = children(&s, id).first().cloned().expect("the box is first");
+        let NodeKind::Path { .. } = &box_.kind else { panic!("the box is a path") };
+        assert!(
+            box_.appearance.fill().is_some_and(|f| matches!(f.paint, Paint::Solid { color, .. } if color == vectorcraft_color::Color::WHITE)),
+            "the box is white"
+        );
+        let r = doc.bounds_of(&[box_.id], false).expect("bounds");
+        let mm = |v: f64| v / (72.0 / 25.4);
+        assert!((mm(r.width()) - 37.29).abs() < 0.05, "{}", mm(r.width()));
+        // The nominal symbol height measured to the digits' baseline, give or take the hundredth of
+        // a millimetre the font's own figures reach below it.
+        assert!((mm(r.height()) - 25.93).abs() < 0.1, "{}", mm(r.height()));
+        let whole = doc.bounds_of(&[id], false).expect("bounds");
+        assert!(
+            whole.x0 >= r.x0 - 0.01 && whole.y0 >= r.y0 - 0.01 && whole.x1 <= r.x1 + 0.01 && whole.y1 <= r.y1 + 0.01,
+            "the art {whole:?} sits inside the box {r:?}"
+        );
+        // Off is off.
+        let (bare, _) = make(&mut s, json!({"symbology": "ean13", "data": "4006381333931", "background": false}));
+        let no_box = s.doc().unwrap().doc.bounds_of(&[bare], false).expect("bounds");
+        assert!((no_box.width() - r.width()).abs() > 1.0, "without the box the art is the bars alone");
+    }
+
+    /// Check answers without drawing: a wrong check digit is reported, and the art is untouched.
+    #[test]
+    fn check_reports_without_drawing() {
+        let mut s = new_doc();
+        let before = s.doc().unwrap().doc.node_count();
+        let out = s.execute("barcode.check", &json!({"symbology": "ean13", "data": "690704551716"})).expect("check");
+        assert_eq!(out["ok"], true);
+        assert_eq!(out["data"], "6907045517163");
+        assert!(out["widthMm"].as_f64().is_some_and(|w| w > 0.0));
+        let bad = s.execute("barcode.check", &json!({"symbology": "ean13", "data": "6907045517161"})).expect("check");
+        assert_eq!(bad["ok"], false);
+        let message = bad["message"].as_str().unwrap_or("");
+        assert!(message.contains('3'), "the message names the right check digit: {message}");
+        // Nothing was added to the document: a check is a question, not an edit.
+        assert_eq!(s.doc().unwrap().doc.node_count(), before, "check drew nothing");
+    }
+
+    /// A batch is a grid: left to right from the artboard's top-left corner, `columns` of them to a
+    /// row and the next row below the tallest of the last, with nothing overlapping.
+    #[test]
+    fn a_batch_lays_the_codes_out_in_rows() {
+        let mut s = new_doc();
+        // Twelve digits a line, so the encoder works the thirteenth out: a thirteen-digit line with
+        // a made-up check digit is one the symbology refuses.
+        let data: String = (0..23).map(|i| format!("6907045517{i:02}\n")).collect();
+        let out =
+            s.execute("barcode.createBatch", &json!({"symbology": "ean13", "data": data, "columns": 10, "gapX": 5.0, "gapY": 5.0})).expect("batch");
+        assert_eq!(out["count"], 23);
+        assert_eq!(out["skipped"].as_array().map(Vec::len), Some(0));
+        let ids: Vec<NodeId> = out["ids"].as_array().expect("ids").iter().filter_map(|v| v.as_u64()).map(NodeId).collect();
+        assert_eq!(ids.len(), 23);
+        let doc = &s.doc().unwrap().doc;
+        let rect = |id: NodeId| doc.bounds_of(&[id], false).expect("bounds");
+        let corner = doc.artboards.first().map(|a| a.rect).expect("an artboard");
+        let first = rect(ids[0]);
+        assert!((first.x0 - corner.x0).abs() < 0.01 && (first.y0 - corner.y0).abs() < 0.01, "the first code is at the corner");
+        // The eleventh wraps: back to the left edge, below the first row.
+        let eleventh = rect(ids[10]);
+        assert!((eleventh.x0 - first.x0).abs() < 0.01, "a new row starts at the left");
+        assert!(eleventh.y0 > first.y1 + 4.0, "the new row is {} below the first", eleventh.y0 - first.y1);
+        // In a row, each code starts after the one before it ends, by the gap.
+        for i in 1..10 {
+            let (a, b) = (rect(ids[i - 1]), rect(ids[i]));
+            assert!(b.x0 >= a.x1 + 4.0, "code {i} overlaps the one before it");
+        }
+        // And no two of the twenty-three overlap.
+        for i in 0..ids.len() {
+            for j in i + 1..ids.len() {
+                let (a, b) = (rect(ids[i]), rect(ids[j]));
+                let apart = a.x1 <= b.x0 + 0.01 || b.x1 <= a.x0 + 0.01 || a.y1 <= b.y0 + 0.01 || b.y1 <= a.y0 + 0.01;
+                assert!(apart, "codes {i} and {j} overlap");
+            }
+        }
+    }
+
+    /// A line the symbology cannot carry is reported, and the rest of the batch still lands.
+    #[test]
+    fn a_batch_skips_what_it_cannot_carry() {
+        let mut s = new_doc();
+        let after = s.doc().unwrap().doc.node_count();
+        let out =
+            s.execute("barcode.createBatch", &json!({"symbology": "ean13", "data": "4006381333931\nnonsense\n\n5012345678900"})).expect("batch");
+        assert_eq!(out["count"], 2);
+        let skipped = out["skipped"].as_array().expect("skipped");
+        assert_eq!(skipped.len(), 1);
+        assert_eq!(skipped[0]["data"], "nonsense");
+        assert!(skipped[0]["message"].as_str().is_some_and(|m| !m.is_empty()));
+        // Nothing to draw at all is an error rather than an empty edit.
+        assert!(s.execute("barcode.createBatch", &json!({"symbology": "ean13", "data": "  \n\n"})).is_err());
+        assert!(s.execute("barcode.createBatch", &json!({"symbology": "ean13", "data": "nope"})).is_err());
+        // One undo takes the whole batch back: it is one edit, however many codes it drew.
+        s.execute("edit.undo", &json!({})).expect("undo");
+        assert_eq!(s.doc().unwrap().doc.node_count(), after, "the batch is gone");
+    }
+
     /// A QR Code is one path of module runs, and carries no human readable line.
     #[test]
     fn a_qr_code_is_modules_and_no_type() {
         let mut s = new_doc();
         let (id, _) = make(&mut s, json!({"symbology": "qrCode", "data": "https://example.com/", "ecc": "quartile"}));
         let kids = children(&s, id);
-        assert_eq!(kids.len(), 1, "one path");
-        assert!(matches!(kids[0].kind, NodeKind::Path { .. }));
+        assert_eq!(kids.len(), 2, "the box and one path of modules");
+        assert!(matches!(kids[1].kind, NodeKind::Path { .. }));
         let spec = s.doc().unwrap().doc.node(id).unwrap().extras().barcode.as_deref().unwrap().clone();
         assert_eq!(spec.ecc, vectorcraft_barcode::Ecc::Quartile);
     }
@@ -474,6 +756,26 @@ mod tests {
             let r = s.doc().unwrap().doc.bounds_of(&[id], false).expect("bounds");
             assert!(r.width() > 1.0 && r.height() > 1.0, "{symbology} is {}", r.width());
         }
+    }
+
+    /// What the panel writes into a request is what the description says the command takes: the
+    /// two are written apart and drift silently, so a key the panel sends and nobody listed is
+    /// refused as unknown the moment an agent sends the same one.
+    #[test]
+    fn the_options_a_caller_sends_are_the_ones_the_command_takes() {
+        use crate::cmd::params::check_params;
+        let spec =
+            vectorcraft_barcode::BarcodeSpec { symbology: vectorcraft_barcode::Symbology::Ean13, data: "6907045517163".into(), ..Default::default() };
+        // As the panel sends it: the whole spec, serialised.
+        let mut p = serde_json::to_value(&spec).expect("spec");
+        p["columns"] = json!(10);
+        p["gapX"] = json!(5.0);
+        p["gapY"] = json!(5.0);
+        for id in ["barcode.create", "barcode.check", "barcode.createBatch"] {
+            check_params(id, &p).unwrap_or_else(|e| panic!("{id}: {e}"));
+        }
+        p["id"] = json!(1);
+        check_params("barcode.set", &p).unwrap_or_else(|e| panic!("barcode.set: {e}"));
     }
 
     /// What a caller asks for that no symbol can do comes back as an error, not a broken object.

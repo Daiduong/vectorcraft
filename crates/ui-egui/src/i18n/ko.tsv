@@ -5,10 +5,20 @@
 # vocabulary; no other application's Korean localisation was copied. AI-drafted; native review welcome.
 # Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language names,
 # OpenType, the built-in workspace names and the bracketed perspective grid preset names.
+	Barcodes	바코드
+	Check	검사
+	Check Barcode	바코드 검사
+	Codes:	코드:
+	Create Batch	일괄 생성
+	Drawn:	그린 개수:
+	Gap:	간격:
 	Glowing Edges…	네온 가장자리…
 	Glowing Edges	네온 가장자리
 	Edge Width	가장자리 너비
 	Edge Brightness	가장자리 밝기
+	Max per Row:	줄당 최대:
+	No fonts are installed.	설치된 글꼴이 없습니다.
+	Outline the digits	숫자 외곽선화
 	Smoothness	부드러움
 	About VectorCraft	VectorCraft 정보
 	All Scripts	모든 스크립트
@@ -167,6 +177,7 @@
 	Horizontal Align Left	가로 왼쪽 정렬
 	Horizontal Align Center	가로 가운데 정렬
 	Horizontal Align Right	가로 오른쪽 정렬
+	Valid:	유효:
 	Vertical Align Top	세로 위쪽 정렬
 	Vertical Align Center	세로 가운데 정렬
 	Horizontal & Vertical Align Center	가로·세로 가운데 정렬
@@ -418,6 +429,7 @@
 	Transform…	변형…
 	Tweak…	비틀기…
 	Twist…	뒤틀기…
+	White background box	흰색 배경 상자
 	Zig Zag…	지그재그…
 	Pathfinder	패스파인더
 	Add	더하기

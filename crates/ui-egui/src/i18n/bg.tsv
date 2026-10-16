@@ -7,10 +7,20 @@
 # дръжка…); no Illustrator (or any other application's) Bulgarian UI, string table or localisation
 # resource was consulted or copied. Drafted with AI assistance (Gemini) from the English meaning;
 # not yet reviewed by a native speaker.
+	Barcodes	Баркодове
+	Check	Проверка
+	Check Barcode	Проверка на баркод
+	Codes:	Кодове:
+	Create Batch	Създаване на партида
+	Drawn:	Начертани:
+	Gap:	Отстояние:
 	Glowing Edges…	Сияйни ръбове…
 	Glowing Edges	Сияйни ръбове
 	Edge Width	Ширина на ръба
 	Edge Brightness	Яркост на ръба
+	Max per Row:	Максимум на ред:
+	No fonts are installed.	Няма инсталирани шрифтове.
+	Outline the digits	Очертаване на цифрите
 	Smoothness	Гладкост
 	Radial Blur…	Лъчезарно размазване…
 	Smart Blur…	Интелигентно размазване…
@@ -362,6 +372,7 @@
 	Check Script	Проверка на скрипт
 	Check Script…	Проверка на скрипт…
 	Copy Report	Копиране на отчет
+	Valid:	Валиден:
 	VectorCraft read this script without running it.	VectorCraft прочете този скрипт, без да го изпълнява.
 	Needs nothing beyond plain JavaScript	Не изисква нищо извън обикновения JavaScript
 	Needs the script language's own objects or directives	Изисква собствени обекти или директиви на езика за скриптове
@@ -371,6 +382,7 @@
 	Needs dialogs	Изисква диалогови прозорци
 	Needs features only the reference app has	Изисква функции, които притежава само референтната програма
 	Outside the document	Извън документа
+	White background box	Бяла рамка на фона
 	Writes, moves or deletes files	Записва, премества или изтрива файлове
 	Opens files in other apps	Отваря файлове в други приложения
 	Opens network connections	Отваря мрежови връзки

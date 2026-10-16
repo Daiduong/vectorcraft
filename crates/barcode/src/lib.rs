@@ -144,6 +144,44 @@ impl Symbology {
         }
     }
 
+    /// Where the symbology comes from: the standard a reader can check this encoder against.
+    ///
+    /// The EAN/UPC family is ISO/IEC 15420, which GS1 publishes as its own General Specifications
+    /// §5.2 — and China's GB 12904, the United States' UPC, Japan's JAN and others are the same
+    /// symbol under a national number. ITF-14 is ISO/IEC 16390 with GS1's bearer bars on top.
+    pub const fn standard(self) -> &'static str {
+        match self {
+            Symbology::Ean13 => "GS1 General Specifications §5.2 · ISO/IEC 15420 · GB 12904 (China) · JAN (Japan)",
+            Symbology::Ean8 => "GS1 General Specifications §5.2 · ISO/IEC 15420",
+            Symbology::UpcA => "GS1 General Specifications §5.2 · ISO/IEC 15420 · UPC (US and Canada)",
+            Symbology::UpcE => "GS1 General Specifications §5.2 · ISO/IEC 15420 · UPC (US and Canada)",
+            Symbology::Ean128 => "GS1 General Specifications §5.4.7 · ISO/IEC 15417 (Code 128)",
+            Symbology::Code128 | Symbology::Code128A | Symbology::Code128B | Symbology::Code128C => "ISO/IEC 15417",
+            Symbology::Code39 => "ISO/IEC 16388",
+            Symbology::Code93 => "AIM/ISO 93",
+            Symbology::Itf14 => "GS1 General Specifications §5.3 · ISO/IEC 16390",
+            Symbology::Itf25 => "ISO/IEC 16390",
+            Symbology::QrCode => "ISO/IEC 18004",
+        }
+    }
+
+    /// Where the symbology is used, in two or three words: what the picker's rows say beside the
+    /// name, as the barcode tools a packaging shop already uses do.
+    pub const fn origin(self) -> &'static str {
+        match self {
+            Symbology::Ean13 => "GS1 · GB 12904",
+            Symbology::Ean8 => "GS1",
+            Symbology::UpcA | Symbology::UpcE => "GS1 · UPC",
+            Symbology::Ean128 => "GS1-128",
+            Symbology::Code128 | Symbology::Code128A | Symbology::Code128B | Symbology::Code128C => "ISO/IEC 15417",
+            Symbology::Code39 => "ISO/IEC 16388",
+            Symbology::Code93 => "AIM/ISO 93",
+            Symbology::Itf14 => "GS1 · ISO/IEC 16390",
+            Symbology::Itf25 => "ISO/IEC 16390",
+            Symbology::QrCode => "ISO/IEC 18004",
+        }
+    }
+
     /// The name a menu or a label shows.
     pub const fn label(self) -> &'static str {
         match self {
@@ -197,7 +235,7 @@ impl Symbology {
     /// its type: the GTIN-13 is GS1's own worked example.
     pub const fn sample_data(self) -> &'static str {
         match self {
-            Symbology::Ean13 => "4006381333931",
+            Symbology::Ean13 => "6907045517163",
             Symbology::Ean8 => "96385074",
             Symbology::UpcA => "036000291452",
             Symbology::UpcE => "01234565",
@@ -493,6 +531,12 @@ pub struct BarcodeSpec {
     pub font: Option<String>,
     /// The font style for the human readable line.
     pub font_style: Option<String>,
+    /// Draw the human readable digits as outlines rather than as type, so that the art carries no
+    /// font dependency and prints the same on a machine that has neither the font nor the document.
+    pub outline_text: bool,
+    /// Draw the white box the standard puts round the symbol, which is what keeps the quiet zones
+    /// clear when the art is laid over a photograph or a coloured carton.
+    pub background: bool,
 }
 
 impl Default for BarcodeSpec {
@@ -512,6 +556,8 @@ impl Default for BarcodeSpec {
             mask: None,
             font: None,
             font_style: None,
+            outline_text: true,
+            background: true,
         }
     }
 }
