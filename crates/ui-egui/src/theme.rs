@@ -93,6 +93,9 @@ pub struct Tokens {
     pub axis_x: Color32,
     pub axis_y: Color32,
     pub axis_z: Color32,
+    /// Bounded drawing area outline and tint.
+    pub drawing_area_border: Color32,
+    pub drawing_area_tint: Color32,
 }
 
 impl Tokens {
@@ -140,6 +143,8 @@ impl Tokens {
             axis_x: hex(0xef6058),
             axis_y: hex(0x45af63),
             axis_z: hex(0x378ef0),
+            drawing_area_border: Color32::from_black_alpha(140),
+            drawing_area_tint: Color32::from_black_alpha(24),
         };
         match b {
             Brightness::Dark => base,
@@ -191,6 +196,8 @@ impl Tokens {
                 ruler: hex(0xc2c2c2),
                 ruler_tick: hex(0x4a4a4a),
                 button: hex(0xcacaca),
+                drawing_area_border: Color32::from_black_alpha(90),
+                drawing_area_tint: Color32::from_black_alpha(18),
                 ..base
             },
             Brightness::Light => Tokens {
@@ -216,6 +223,8 @@ impl Tokens {
                 ruler: hex(0xeaeaea),
                 ruler_tick: hex(0x5a5a5a),
                 button: hex(0xe0e0e0),
+                drawing_area_border: Color32::from_black_alpha(90),
+                drawing_area_tint: Color32::from_black_alpha(18),
                 ..base
             },
         }

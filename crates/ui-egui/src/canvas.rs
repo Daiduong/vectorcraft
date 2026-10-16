@@ -244,9 +244,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     painter.rect_filled(rect, 0.0, t.pasteboard);
     let da = doc.drawing_area();
     let da_quad = xf.quad(da);
-    let da_tint = if t.dark { Color32::from_black_alpha(24) } else { Color32::from_black_alpha(18) };
-    let da_border = if t.dark { Color32::from_black_alpha(140) } else { Color32::from_black_alpha(90) };
-    painter.add(Shape::convex_polygon(da_quad, da_tint, Stroke::new(1.0, da_border)));
+    painter.add(Shape::convex_polygon(da_quad, t.drawing_area_tint, Stroke::new(1.0, t.drawing_area_border)));
     if app.ui.view.artboards && !app.ui.view.outline {
         let setup = &doc.setup;
         let grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
