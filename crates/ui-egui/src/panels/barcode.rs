@@ -113,9 +113,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
     });
 
+    // Always, not only with nothing selected: a batch leaves the codes it drew selected, and the
+    // section vanishing under the pointer after the first run would read as the feature going away.
+    ui.separator();
+    batch_rows(app, ui, &spec, width);
+
     if target.is_none() {
-        ui.separator();
-        batch_rows(app, ui, &spec, width);
         // The draft the panel keeps is what was typed, once every row has had its say.
         app.ui.barcode = spec;
     }
@@ -281,8 +284,9 @@ fn hri_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
 /// Many codes at once: a list pasted in from a spreadsheet, drawn as a grid across the artboard so
 /// that a run of cartons is one gesture rather than one per carton.
 ///
-/// Its own section, and only in draft mode: a batch makes new objects rather than editing the one
-/// on the canvas, so it does not belong beside the button that rewrites the selection.
+/// Its own section: a batch makes new objects rather than editing the one on the canvas, so it does
+/// not belong beside the button that rewrites the selection — and it stays where it is whatever is
+/// selected, since a batch leaves the codes it drew selected.
 fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: f32) {
     widgets::dim_label(ui, tl!("Batch"));
     let mut batch = app.ui.barcode_batch.clone();

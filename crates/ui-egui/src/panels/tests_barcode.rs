@@ -84,8 +84,9 @@ fn a_selected_barcode_is_what_the_panel_edits() {
     run(&mut app, "barcode.set", json!({"data": "XYZ-9"}));
     let t = texts(&mut app);
     assert!(starts(&t, "Code 39 · "), "the type is unchanged: {t:?}");
-    // A batch makes new codes, so it belongs to the draft and not to the object being edited.
-    assert!(!shows(&t, "Create Batch"), "{t:?}");
+    // The batch stays where it is: it leaves the codes it drew selected, and a section that
+    // vanished under the pointer after the first run would read as the feature going away.
+    assert!(shows(&t, "Create Batch"), "{t:?}");
 }
 
 /// Check asks the encoder about the value in the field and reports what it says, drawing nothing —
