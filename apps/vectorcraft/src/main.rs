@@ -27,6 +27,7 @@ mod clipboard;
 #[cfg(feature = "wgpu")]
 mod compositor_gpu;
 mod control_server;
+mod dev_build;
 #[cfg(feature = "wgpu")]
 mod gpu;
 mod logging;
@@ -645,6 +646,12 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
   vectorcraft-cli --help
 ";
 
+/// Held exclusively by tests that start a child process, and shared by tests that lock a file. A
+/// child holds a copy of every open file until it runs its program, and with it any `flock` lock,
+/// so a lock a test just let go of could still look held to the next test.
+#[cfg(test)]
+static CHILD_PROCESSES: std::sync::RwLock<()> = std::sync::RwLock::new(());
+
 fn main() -> std::process::ExitCode {
     // Validate roots before logging, font scans, preferences or the window: a missing value
     // must not clear an environment root and start the control channel without confinement.
@@ -771,6 +778,10 @@ fn main() -> std::process::ExitCode {
     };
     #[cfg(feature = "wgpu")]
     let crash = left_out.crash.clone();
+    let dev_build = dev_build::detect();
+    if let Some(b) = &dev_build {
+        log::info!("development build from {} ({:?} {:?}, changes: {})", b.checkout, b.branch, b.commit, b.changes);
+    }
     let custom_titlebar = custom_titlebar(saved.as_ref());
     let options = native_options(custom_titlebar);
     // winit picks Wayland whenever `WAYLAND_DISPLAY` is set; Preferences › Performance › Linux
@@ -901,6 +912,7 @@ fn main() -> std::process::ExitCode {
                     app.graphics_adapter = Some("OpenGL (Windows 7 compatibility)".into());
                 }
                 app.custom_titlebar = custom_titlebar;
+                app.dev_build = dev_build;
                 if let Some(port) = control_port {
                     let rx = control_server::start(port, cc.egui_ctx.clone());
                     app = app.with_control(rx).with_automation_roots(roots.clone());
