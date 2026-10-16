@@ -61,6 +61,11 @@
 
 ## A look around
 
+<p align="center">
+  <a href="examples/image-trace-showcase/README.md"><img src="examples/image-trace-showcase/hiroshige-exhibition-poster.jpg" alt="Hiroshige exhibition poster: cream paper, green type and traced leaves over a waterfall" width="480"></a>
+  <br><sub><b>Hiroshige, The Moon over a Waterfall</b>: public-domain artwork traced and composed in VectorCraft. <a href="examples/image-trace-showcase/README.md">Settings sheets and notes.</a></sub>
+</p>
+
 <table>
 <tr>
 <td width="50%" valign="top">
