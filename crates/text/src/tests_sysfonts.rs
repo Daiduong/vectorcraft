@@ -828,3 +828,26 @@ fn missing_font_story_layout_timing() {
         println!("{extra} fonts added, {} families loaded: median {:.1} ms; samples {ms:.1?}", db.family_list().len(), ms[3]);
     }
 }
+
+/// A family that is not installed is drawn in an installed one with its metrics (Arial in a Nimbus
+/// Sans L, #2492), in the style asked for, and reported as a substitute, not missing. Without such a
+/// font it stays missing, and an installed Arial is never replaced.
+#[test]
+fn a_metric_compatible_font_stands_in_for_a_missing_family() {
+    const NIMBUS: &str = "Nimbus Sans L";
+    let dir = std::env::temp_dir().join(format!("vc-sysfonts-{}-metric", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("Nimbus-Regular.ttf"), renamed_to("SourceSans3-Regular.ttf", NIMBUS)).unwrap();
+    std::fs::write(dir.join("Nimbus-Bold.ttf"), renamed_to("SourceSans3-Bold.ttf", NIMBUS)).unwrap();
+    let db = FontDb::with_font_dirs(vec![dir]);
+    let (face, m) = db.resolve("Arial", "Bold").unwrap();
+    assert_eq!((face.family.as_str(), face.style.as_str(), m), (NIMBUS, "Bold", FontMatch::Style));
+    assert_eq!(db.face("helvetica", "Regular").unwrap().family, NIMBUS);
+    let (face, m) = db.resolve("Calibri", "Regular").unwrap();
+    assert_eq!((face.family.as_str(), m), (FALLBACK_FAMILY, FontMatch::Missing), "no Carlito installed");
+    // A font added under the name itself wins over the substitute.
+    assert_eq!(db.add_font(renamed_to("SourceSans3-Regular.ttf", "Arial        ")), 1);
+    let (face, m) = db.resolve("Arial", "Regular").unwrap();
+    assert_eq!((face.family.as_str(), m), ("Arial        ", FontMatch::Exact));
+}

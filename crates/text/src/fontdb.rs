@@ -513,6 +513,28 @@ fn script_families(c: char) -> &'static [&'static str] {
     }
 }
 
+/// Installed families that stand in for a common family that is not installed, because they share
+/// its glyph widths (fontconfig's `30-metric-aliases.conf` lists the same pairs): Carlito for
+/// Calibri, Liberation Serif for Times New Roman. Keyed by [`norm`]alised family name, the
+/// substitutes in order of preference (#2492).
+const METRIC_SUBSTITUTES: &[(&str, &[&str])] = &[
+    ("calibri", &["Carlito"]),
+    ("cambria", &["Caladea"]),
+    ("arial", &["Liberation Sans", "Arimo", "Nimbus Sans", "Nimbus Sans L", "TeX Gyre Heros"]),
+    ("helvetica", &["Liberation Sans", "Arimo", "Nimbus Sans", "Nimbus Sans L", "TeX Gyre Heros"]),
+    ("arialnarrow", &["Liberation Sans Narrow", "Nimbus Sans Narrow"]),
+    ("timesnewroman", &["Liberation Serif", "Tinos", "Nimbus Roman", "TeX Gyre Termes"]),
+    ("times", &["Liberation Serif", "Tinos", "Nimbus Roman", "TeX Gyre Termes"]),
+    ("couriernew", &["Liberation Mono", "Cousine", "Nimbus Mono PS", "TeX Gyre Cursor"]),
+    ("courier", &["Liberation Mono", "Cousine", "Nimbus Mono PS", "TeX Gyre Cursor"]),
+];
+
+/// The families that stand in for `family` by metrics ([`METRIC_SUBSTITUTES`]); none for any other.
+fn metric_substitutes(family: &str) -> &'static [&'static str] {
+    let key = norm(family);
+    METRIC_SUBSTITUTES.iter().find(|(k, _)| *k == key).map_or(&[], |(_, v)| v)
+}
+
 /// Families tried (when installed) for characters the loaded fonts lack: CJK, symbols, emoji.
 #[cfg(not(target_arch = "wasm32"))]
 const SYSTEM_FALLBACKS: &[&str] = &[
@@ -1944,7 +1966,12 @@ impl FontDb {
         }
         match found.first() {
             Some(a) => (a.family.clone(), style.to_string()),
-            None => (family.to_string(), style.to_string()),
+            None => {
+                match metric_substitutes(family).iter().find(|s| self.is_loaded(s) || self.read_catalog().contains_key(&s.to_ascii_lowercase())) {
+                    Some(s) => ((*s).to_string(), style.to_string()),
+                    None => (family.to_string(), style.to_string()),
+                }
+            }
         }
     }
 
@@ -1960,10 +1987,14 @@ impl FontDb {
     /// [`face`](Self::face) by any of the family's names ([`canonical`](Self::canonical)), and how
     /// it matched.
     pub fn resolve(&self, family: &str, style: &str) -> Option<(Arc<FontFace>, FontMatch)> {
+        let asked = family;
         let (family, style) = self.canonical(family, style);
         let f = self.face(&family, &style)?;
         let m = if !f.family.eq_ignore_ascii_case(&family) {
             FontMatch::Missing
+        } else if !f.family.eq_ignore_ascii_case(asked) && metric_substitutes(asked).iter().any(|s| s.eq_ignore_ascii_case(&f.family)) {
+            // Not the font asked for, but one with its metrics: shown, and reported as a substitute.
+            FontMatch::Style
         } else if norm(&f.style) == norm(&style) || f.keys.styles.contains(&norm(&style)) {
             FontMatch::Exact
         } else {
