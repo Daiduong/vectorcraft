@@ -646,6 +646,12 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
   vectorcraft-cli --help
 ";
 
+/// Held exclusively by tests that start a child process, and shared by tests that lock a file. A
+/// child holds a copy of every open file until it runs its program, and with it any `flock` lock,
+/// so a lock a test just let go of could still look held to the next test.
+#[cfg(test)]
+static CHILD_PROCESSES: std::sync::RwLock<()> = std::sync::RwLock::new(());
+
 fn main() -> std::process::ExitCode {
     // Validate roots before logging, font scans, preferences or the window: a missing value
     // must not clear an environment root and start the control channel without confinement.
