@@ -170,6 +170,30 @@ fn form_dialog_axes_are_dropdowns() {
     }
 }
 
+/// The Average and Join dialog presents Points choice (Corner, Smooth) and OK applies it.
+#[test]
+fn average_and_join_dialog_point_choice_and_confirm() {
+    let (ctx, mut app) = (ctx(), app_with_selection());
+    let id = app.session.doc().unwrap().selection.objects[0];
+    app.run("select.anchors", json!({"id": id.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    crate::menus::invoke(&mut app, "path.averageAndJoin", json!({}));
+    settle(&ctx, &mut app);
+    let texts = frame(&ctx, &mut app, vec![]);
+    assert!(texts.iter().any(|(t, _)| t == "Join"), "dialog heading is Join: {texts:?}");
+    assert!(texts.iter().any(|(t, _)| t == "Points:"), "field label is Points: {texts:?}");
+    assert!(texts.iter().any(|(t, _)| t == "Corner"), "default choice is Corner: {texts:?}");
+    // Switch to smooth and confirm
+    app.ui.dialog.as_mut().unwrap().fields.insert("point".into(), json!("smooth"));
+    confirm(&mut app).unwrap();
+    assert!(app.ui.dialog.is_none());
+    let doc = &app.session.doc().unwrap().doc;
+    let n = doc.node(id).unwrap();
+    if let vectorcraft_doc::NodeKind::Path { path, .. } = &n.kind {
+        assert_eq!(path.subpaths[0].anchors.len(), 3);
+        assert_eq!(path.subpaths[0].anchors[0].kind, vectorcraft_geom::AnchorKind::Smooth);
+    }
+}
+
 /// The axis choices are translated in the "axis" context: in Japanese the plain Horizontal and
 /// Vertical are the type orientations (horizontal and vertical writing).
 #[test]

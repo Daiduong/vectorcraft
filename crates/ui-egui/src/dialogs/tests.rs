@@ -443,7 +443,15 @@ fn split_into_grid_opens_at_the_selections_size_and_previews() {
 #[test]
 fn menu_parameter_dialogs_are_compact() {
     // #292: Object › Path › Simplify (and its neighbours) spanned the whole window.
-    for id in ["object.path.simplify", "object.path.offsetPath", "object.move", "object.rotate", "object.path.splitIntoGrid", "path.average"] {
+    for id in [
+        "object.path.simplify",
+        "object.path.offsetPath",
+        "object.move",
+        "object.rotate",
+        "object.path.splitIntoGrid",
+        "path.average",
+        "path.averageAndJoin",
+    ] {
         let mut app = app();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
         app.run("select.all", json!({})).unwrap();

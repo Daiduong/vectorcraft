@@ -1523,6 +1523,81 @@ fn join_takes_the_paths_and_the_ends_to_join() {
     }
 }
 
+/// Average and Join in one step with corner or smooth choice (Gap 1).
+#[test]
+fn average_and_join_merges_selected_anchors_with_corner_and_smooth_choice() {
+    let mut s = session();
+    let r = rect(&mut s, 100.0, 100.0, 100.0, 80.0);
+    let pts = |s: &Session| path(s, r).subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect::<Vec<_>>();
+    s.execute("select.anchors", &json!({"id": r.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    // In one step, average and join with corner point (the default).
+    s.execute("path.averageAndJoin", &json!({"point": "corner"})).unwrap();
+    assert_eq!(pts(&s), [(150.0, 100.0), (200.0, 180.0), (100.0, 180.0)]);
+    assert_eq!(path(&s, r).subpaths[0].anchors[0].kind, vectorcraft_geom::AnchorKind::Corner);
+    assert!(path(&s, r).subpaths[0].closed);
+    // Undo restores the 4 rectangle points.
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(pts(&s).len(), 4);
+    // Redo merges them again.
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(pts(&s).len(), 3);
+    s.execute("edit.undo", &json!({})).unwrap();
+
+    // Now with smooth point: the joined anchor is smoothed with collinear handles.
+    s.execute("select.anchors", &json!({"id": r.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    s.execute("path.averageAndJoin", &json!({"point": "smooth"})).unwrap();
+    assert_eq!(pts(&s), [(150.0, 100.0), (200.0, 180.0), (100.0, 180.0)]);
+    let a0 = path(&s, r).subpaths[0].anchors[0];
+    assert_eq!(a0.kind, vectorcraft_geom::AnchorKind::Smooth);
+    let (u, v) = (a0.h_in - a0.p, a0.h_out - a0.p);
+    assert!(u.cross(v).abs() <= 1e-4 && u.dot(v) <= 0.0, "handles must be smooth and in line: in={:?}, out={:?}", a0.h_in, a0.h_out);
+}
+
+#[test]
+fn average_and_join_joins_two_separate_open_lines_and_closes_single_path() {
+    let mut s = session();
+    let a = line(&mut s, 0.0, 0.0, 100.0, 0.0);
+    let b = line(&mut s, 110.0, 20.0, 200.0, 20.0);
+    s.execute("select.all", &json!({})).unwrap();
+    // Average and join joins nearest endpoints (100, 0) and (110, 20) at midpoint (105, 10).
+    s.execute("path.averageAndJoin", &json!({"point": "smooth"})).unwrap();
+    let pa = path(&s, a);
+    let pts: Vec<(f64, f64)> = pa.subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect();
+    assert_eq!(pts, [(0.0, 0.0), (105.0, 10.0), (200.0, 20.0)]);
+    assert!(!pa.subpaths[0].closed);
+    assert_eq!(pa.subpaths[0].anchors[1].kind, vectorcraft_geom::AnchorKind::Smooth);
+    // Undo restores both paths.
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().doc.node(a).is_some() && s.doc().unwrap().doc.node(b).is_some());
+
+    // Closing a single open path:
+    s.execute("select.all", &json!({})).unwrap();
+    s.execute("edit.clear", &json!({})).unwrap();
+    let c =
+        s.execute("path.create", &json!({"anchors": [{"x": 10, "y": 20}, {"x": 50, "y": 80}, {"x": 90, "y": 20}]})).unwrap()["id"].as_u64().unwrap();
+    let cid = NodeId(c);
+    s.execute("select.all", &json!({})).unwrap();
+    s.execute("path.averageAndJoin", &json!({"point": "corner"})).unwrap();
+    let pc = path(&s, cid);
+    assert!(pc.subpaths[0].closed);
+    // First and last anchors (10, 20) and (90, 20) averaged to (50, 20).
+    let pts_c: Vec<(f64, f64)> = pc.subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect();
+    assert_eq!(pts_c, [(50.0, 20.0), (50.0, 80.0)]);
+}
+
+#[test]
+fn path_join_supports_smooth_point_option() {
+    let mut s = session();
+    let a = line(&mut s, 0.0, 0.0, 100.0, 0.0);
+    let _b = line(&mut s, 100.0, 0.0, 200.0, 50.0);
+    s.execute("select.all", &json!({})).unwrap();
+    s.execute("path.join", &json!({"point": "smooth"})).unwrap();
+    let pa = path(&s, a);
+    let pts: Vec<(f64, f64)> = pa.subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect();
+    assert_eq!(pts, [(0.0, 0.0), (100.0, 0.0), (200.0, 50.0)]);
+    assert_eq!(pa.subpaths[0].anchors[1].kind, vectorcraft_geom::AnchorKind::Smooth);
+}
+
 #[test]
 fn pen_with_alt_converts_the_anchors_of_a_path_in_a_selected_group() {
     // #1273: a selected group (or compound path) shows its paths' anchors, so Alt with the Pen

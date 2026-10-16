@@ -64,9 +64,18 @@ pub fn specs() -> Vec<CommandSpec> {
             "Join",
             ["Object", "Path"],
             Some("Cmd+J"),
-            "{ids?: [path, path] (default: the selected paths), ends?: [\"first\"|\"last\", \"first\"|\"last\"] (which end of each path to join, as the Pen joins them; default: the nearest pair)} join two open paths into one (the first keeps its id, selected), or close a single open path; without ids, direct-selected anchors lying on one another along a path merge into one anchor instead",
+            "{ids?: [path, path] (default: the selected paths), ends?: [\"first\"|\"last\", \"first\"|\"last\"] (which end of each path to join, as the Pen joins them; default: the nearest pair), point?: \"corner\"|\"smooth\" (default: \"corner\")} join two open paths into one (the first keeps its id, selected), or close a single open path; without ids, direct-selected anchors lying on one another along a path merge into one anchor instead",
             has_selection,
             join
+        ),
+        cmd!(
+            "path.averageAndJoin",
+            "Average and Join…",
+            ["Object", "Path"],
+            Some("Cmd+Alt+Shift+J"),
+            "{point?: \"corner\"|\"smooth\" (default: \"corner\"), axis?: \"both\"|\"horizontal\"|\"vertical\" (default: \"both\"), ids?: [path, path], ends?: [\"first\"|\"last\", \"first\"|\"last\"]} average the selected anchors or endpoints together and join them into one anchor (corner or smooth) as one undo step",
+            has_selection,
+            average_and_join
         ),
         cmd!(
             "path.average",
@@ -313,7 +322,7 @@ fn end_points(sp: &SubPath) -> Option<(Point, Point)> {
 /// Merge each run of `picked` neighbours of `sp` that lie on one another into one anchor, which
 /// keeps the first one's incoming handle and the last one's outgoing handle. Returns how many
 /// anchors went.
-fn merge_coincident(sp: &mut SubPath, picked: impl Fn(usize) -> bool) -> usize {
+fn merge_coincident(sp: &mut SubPath, picked: impl Fn(usize) -> bool, smooth: bool) -> usize {
     let same = |a: &Anchor, b: &Anchor| a.p.distance(b.p) < 1e-6;
     let before = sp.anchors.len();
     // The closing pair of a closed path first: taking the last anchor moves no other index.
@@ -325,7 +334,11 @@ fn merge_coincident(sp: &mut SubPath, picked: impl Fn(usize) -> bool) -> usize {
         && same(first, last)
     {
         first.h_in = last.h_in;
+        first.kind = AnchorKind::Corner;
         sp.anchors.pop();
+        if smooth {
+            sp.smooth_anchor(0);
+        }
     }
     // Back to front, so the indices `picked` knows stay true for the anchors still to visit.
     for i in (1..sp.anchors.len()).rev() {
@@ -335,19 +348,37 @@ fn merge_coincident(sp: &mut SubPath, picked: impl Fn(usize) -> bool) -> usize {
             && same(a, b)
         {
             a.h_out = b.h_out;
+            a.kind = AnchorKind::Corner;
             sp.anchors.remove(i);
+            if smooth {
+                sp.smooth_anchor(i - 1);
+            }
         }
     }
     before - sp.anchors.len()
 }
 
 fn join(s: &mut Session, p: &Value) -> Result<Value> {
-    const C: &str = "path.join";
+    join_impl(s, p, false, "path.join")
+}
+
+fn average_and_join(s: &mut Session, p: &Value) -> Result<Value> {
+    join_impl(s, p, true, "path.averageAndJoin")
+}
+
+fn join_impl(s: &mut Session, p: &Value, average: bool, cmd: &str) -> Result<Value> {
+    let label = if average { "Average and Join" } else { "Join" };
+    let smooth = match str_param(p, "point").or_else(|| str_param(p, "points")).or_else(|| str_param(p, "to")).unwrap_or("corner") {
+        "smooth" => true,
+        "corner" => false,
+        other => return Err(bad(cmd, format!("`point` must be \"corner\" or \"smooth\", not {other:?}"))),
+    };
+    let axis = str_param(p, "axis").unwrap_or("both");
     let ids = match ids_param(p, "ids") {
         Some(ids) => {
             let st = s.doc()?;
             if let Some(id) = ids.iter().find(|id| !matches!(st.doc.node(**id).map(|n| &n.kind), Some(NodeKind::Path { .. }))) {
-                return Err(bad(C, format!("{} isn't a path", id.0)));
+                return Err(bad(cmd, format!("{} isn't a path", id.0)));
             }
             ids
         }
@@ -357,25 +388,72 @@ fn join(s: &mut Session, p: &Value) -> Result<Value> {
     // Average) become one anchor; the paths themselves are joined only when there are none.
     if p.get("ids").is_none() {
         let st = s.doc()?;
-        let mut merged = vec![];
-        for (id, picked) in &st.selection.anchors {
-            let Some(mut path) = st.doc.node(*id).and_then(|n| n.path_data()).cloned() else { continue };
-            let n: usize = path.subpaths.iter_mut().enumerate().map(|(si, sp)| merge_coincident(sp, |ai| picked.contains(&(si, ai)))).sum();
-            if n > 0 {
-                merged.push((*id, path));
-            }
-        }
-        if !merged.is_empty() {
-            let objects = st.selection.objects.clone();
-            s.edit("Join", |d, sel| {
-                for (id, path) in merged {
-                    *path_mut(d, id)? = path;
+        if average && !st.selection.anchors.is_empty() {
+            let pts: Vec<Point> = st
+                .selection
+                .anchors
+                .iter()
+                .filter_map(|(id, picked)| {
+                    let path = st.doc.node(*id).and_then(|n| n.path_data())?;
+                    Some(picked.iter().filter_map(|&(si, ai)| path.subpaths.get(si)?.anchors.get(ai).map(|a| a.p)).collect::<Vec<_>>())
+                })
+                .flatten()
+                .collect();
+            if pts.len() >= 2 {
+                let (sx, sy) = (pts.iter().map(|p| p.x).sum::<f64>() / pts.len() as f64, pts.iter().map(|p| p.y).sum::<f64>() / pts.len() as f64);
+                let c = Point::new(sx, sy);
+                let mut merged = vec![];
+                for (id, picked) in &st.selection.anchors {
+                    let Some(mut path) = st.doc.node(*id).and_then(|n| n.path_data()).cloned() else { continue };
+                    for &(si, ai) in picked {
+                        if let Some(a) = path.anchor_mut(si, ai) {
+                            let target = match axis {
+                                "horizontal" => Point::new(a.p.x, c.y),
+                                "vertical" => Point::new(c.x, a.p.y),
+                                _ => c,
+                            };
+                            a.translate(target - a.p);
+                        }
+                    }
+                    let n: usize =
+                        path.subpaths.iter_mut().enumerate().map(|(si, sp)| merge_coincident(sp, |ai| picked.contains(&(si, ai)), smooth)).sum();
+                    if n > 0 {
+                        merged.push((*id, path));
+                    }
                 }
-                // The anchor indices changed: the paths stay selected, whole.
-                sel.set(objects);
-                Ok(())
-            })?;
-            return ok();
+                if !merged.is_empty() {
+                    let objects = st.selection.objects.clone();
+                    s.edit(label, |d, sel| {
+                        for (id, path) in merged {
+                            *path_mut(d, id)? = path;
+                        }
+                        sel.set(objects);
+                        Ok(())
+                    })?;
+                    return ok();
+                }
+            }
+        } else {
+            let mut merged = vec![];
+            for (id, picked) in &st.selection.anchors {
+                let Some(mut path) = st.doc.node(*id).and_then(|n| n.path_data()).cloned() else { continue };
+                let n: usize =
+                    path.subpaths.iter_mut().enumerate().map(|(si, sp)| merge_coincident(sp, |ai| picked.contains(&(si, ai)), smooth)).sum();
+                if n > 0 {
+                    merged.push((*id, path));
+                }
+            }
+            if !merged.is_empty() {
+                let objects = st.selection.objects.clone();
+                s.edit(label, |d, sel| {
+                    for (id, path) in merged {
+                        *path_mut(d, id)? = path;
+                    }
+                    sel.set(objects);
+                    Ok(())
+                })?;
+                return ok();
+            }
         }
     }
     // The ends to join, as (reverse the first path, reverse the second): the first path's end
@@ -384,15 +462,32 @@ fn join(s: &mut Session, p: &Value) -> Result<Value> {
         None => None,
         Some(e) => match e.as_array().map(|a| a.iter().map(Value::as_str).collect::<Vec<_>>()).as_deref() {
             Some([Some(a @ ("first" | "last")), Some(b @ ("first" | "last"))]) => Some((*a == "first", *b == "last")),
-            _ => return Err(bad(C, "ends must be two of \"first\" and \"last\"")),
+            _ => return Err(bad(cmd, "ends must be two of \"first\" and \"last\"")),
         },
     };
+    let st_sel = s.doc()?.selection.clone();
     match ids.as_slice() {
         [one] => {
             let id = *one;
-            s.edit("Join", |d, _| {
+            s.edit(label, |d, _| {
                 let path = path_mut(d, id)?;
                 let sp = path.subpaths.iter_mut().find(|s| !s.closed).ok_or_else(|| EngineError::Other("path is already closed".into()))?;
+                if average && sp.anchors.len() > 1 {
+                    let (Some(first), Some(last)) = (sp.anchors.first().map(|a| a.p), sp.anchors.last().map(|a| a.p)) else {
+                        return Err(EngineError::Other("path has no anchors".into()));
+                    };
+                    let c = match axis {
+                        "horizontal" => Point::new(first.x, (first.y + last.y) / 2.0),
+                        "vertical" => Point::new((first.x + last.x) / 2.0, first.y),
+                        _ => Point::new((first.x + last.x) / 2.0, (first.y + last.y) / 2.0),
+                    };
+                    if let Some(f) = sp.anchors.first_mut() {
+                        f.translate(c - f.p);
+                    }
+                    if let Some(l) = sp.anchors.last_mut() {
+                        l.translate(c - l.p);
+                    }
+                }
                 // Merge coincident end points.
                 if sp.anchors.len() > 2
                     && end_points(sp).is_some_and(|(f, l)| f.distance(l) < 1e-6)
@@ -400,17 +495,21 @@ fn join(s: &mut Session, p: &Value) -> Result<Value> {
                     && let Some(first) = sp.anchors.first_mut()
                 {
                     first.h_in = last.h_in;
+                    first.kind = AnchorKind::Corner;
                 }
                 sp.closed = true;
+                if smooth {
+                    sp.smooth_anchor(0);
+                }
                 Ok(())
             })?;
         }
         [a, b, ..] => {
             let (a, b) = (*a, *b);
             if a == b {
-                return Err(bad(C, "join two different paths"));
+                return Err(bad(cmd, "join two different paths"));
             }
-            s.edit("Join", |d, sel| {
+            s.edit(label, |d, sel| {
                 let pb = d.node(b).and_then(|n| n.path_data()).cloned().ok_or(EngineError::NoNode(b))?;
                 let pa = path_mut(d, a)?;
                 let (Some(sa), Some(sb)) = (pa.subpaths.iter().position(|s| !s.closed), pb.subpaths.iter().position(|s| !s.closed)) else {
@@ -421,26 +520,69 @@ fn join(s: &mut Session, p: &Value) -> Result<Value> {
                 let (Some((xf, xl)), Some((yf, yl))) = (end_points(&x), end_points(&y)) else {
                     return Err(EngineError::Other("join needs open paths".into()));
                 };
+                let picked_ends = if ends.is_none() {
+                    let a_ends = st_sel.anchors.get(&a);
+                    let b_ends = st_sel.anchors.get(&b);
+                    let a_end = match (
+                        a_ends.is_some_and(|s| s.contains(&(sa, 0))),
+                        a_ends.is_some_and(|s| s.contains(&(sa, x.anchors.len().saturating_sub(1)))),
+                    ) {
+                        (true, false) => Some(true),
+                        (false, true) => Some(false),
+                        _ => None,
+                    };
+                    let b_end = match (
+                        b_ends.is_some_and(|s| s.contains(&(sb, 0))),
+                        b_ends.is_some_and(|s| s.contains(&(sb, y.anchors.len().saturating_sub(1)))),
+                    ) {
+                        (true, false) => Some(false),
+                        (false, true) => Some(true),
+                        _ => None,
+                    };
+                    if let (Some(rx), Some(ry)) = (a_end, b_end) { Some((rx, ry)) } else { None }
+                } else {
+                    None
+                };
                 // The ends asked for, else the closest pair.
                 let cands =
                     [(xl.distance(yf), false, false), (xl.distance(yl), false, true), (xf.distance(yf), true, false), (xf.distance(yl), true, true)];
-                let (rx, ry) =
-                    ends.unwrap_or_else(|| cands.into_iter().min_by(|p, q| p.0.total_cmp(&q.0)).map_or((false, false), |(_, rx, ry)| (rx, ry)));
+                let (rx, ry) = ends
+                    .or(picked_ends)
+                    .unwrap_or_else(|| cands.into_iter().min_by(|p, q| p.0.total_cmp(&q.0)).map_or((false, false), |(_, rx, ry)| (rx, ry)));
                 if rx {
                     x.reverse();
                 }
                 if ry {
                     y.reverse();
                 }
-                if let (Some(xe), Some(ys)) = (x.anchors.last().map(|a| a.p), y.anchors.first().map(|a| a.p))
+                if average && let (Some(last), Some(first)) = (x.anchors.last_mut(), y.anchors.first_mut()) {
+                    let c = match axis {
+                        "horizontal" => Point::new(last.p.x, (last.p.y + first.p.y) / 2.0),
+                        "vertical" => Point::new((last.p.x + first.p.x) / 2.0, last.p.y),
+                        _ => Point::new((last.p.x + first.p.x) / 2.0, (last.p.y + first.p.y) / 2.0),
+                    };
+                    let dl = c - last.p;
+                    last.translate(dl);
+                    let df = c - first.p;
+                    first.translate(df);
+                }
+                let coincided = if let (Some(xe), Some(ys)) = (x.anchors.last().map(|a| a.p), y.anchors.first().map(|a| a.p))
                     && xe.distance(ys) < 1e-6
                 {
                     let first = y.anchors.remove(0);
                     if let Some(l) = x.anchors.last_mut() {
                         l.h_out = first.h_out;
+                        l.kind = AnchorKind::Corner;
                     }
-                }
+                    true
+                } else {
+                    false
+                };
+                let joint_idx = x.anchors.len().saturating_sub(1);
                 x.anchors.extend(y.anchors);
+                if smooth && (coincided || average) {
+                    x.smooth_anchor(joint_idx);
+                }
                 pa.subpaths[sa] = x;
                 d.remove(b)?;
                 sel.set([a]);
