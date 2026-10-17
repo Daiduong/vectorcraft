@@ -290,6 +290,10 @@ pub struct UiState {
     /// The Barcode panel's batch fields: a list of codes and how they are laid out.
     #[serde(default)]
     pub barcode_batch: BarcodeBatch,
+    /// Whether the Barcode panel's batch section is unfolded. Folded to start with: most visits to
+    /// the panel draw one code, and the section takes half the panel.
+    #[serde(default)]
+    pub barcode_batch_open: bool,
     /// What the Barcode panel's Check button last said about the value in the field. Not saved — it
     /// answers the value that was there when it was pressed, and a stale answer is worse than none.
     #[serde(skip)]
@@ -735,6 +739,7 @@ impl Default for UiState {
                 ..vectorcraft_barcode::BarcodeSpec::default()
             },
             barcode_batch: BarcodeBatch::default(),
+            barcode_batch_open: false,
             barcode_note: String::new(),
             barcode_batch_note: String::new(),
             legacy_language: None,

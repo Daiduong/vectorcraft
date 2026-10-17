@@ -65,10 +65,9 @@ fn the_draft_shows_what_it_will_draw() {
     assert!(shows(&t, "Create"), "{t:?}");
     // The nominal EAN-13 with its quiet zones: 37.29 mm by 25.93 mm.
     assert!(t.iter().any(|s| s.starts_with("37.29")), "{t:?}");
-    // The batch section, which draws new codes rather than editing one.
+    // The batch is there but folded: most visits draw one code, and the section is tall.
     assert!(shows(&t, "Batch"), "{t:?}");
-    assert!(shows(&t, "Max per Row:"), "{t:?}");
-    assert!(shows(&t, "Create Batch"), "{t:?}");
+    assert!(!shows(&t, "Create Batch"), "the batch starts folded: {t:?}");
 }
 
 /// A selected barcode's own settings fill the panel, and the button rewrites that object.
@@ -86,7 +85,7 @@ fn a_selected_barcode_is_what_the_panel_edits() {
     assert!(starts(&t, "Code 39 · "), "the type is unchanged: {t:?}");
     // The batch stays where it is: it leaves the codes it drew selected, and a section that
     // vanished under the pointer after the first run would read as the feature going away.
-    assert!(shows(&t, "Create Batch"), "{t:?}");
+    assert!(shows(&t, "Batch"), "{t:?}");
 }
 
 /// Check asks the encoder about the value in the field and reports what it says, drawing nothing —
@@ -121,6 +120,7 @@ fn the_check_button_reports_what_the_encoder_says() {
 #[test]
 fn the_batch_button_draws_what_was_pasted_in() {
     let mut app = app_with_doc();
+    app.ui.barcode_batch_open = true;
     app.ui.barcode_batch.data = "4006381333931\n5012345678900\nnonsense".into();
     let barcodes = |app: &VectorcraftApp| {
         let mut n = 0;

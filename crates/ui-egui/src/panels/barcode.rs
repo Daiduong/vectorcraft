@@ -113,10 +113,17 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
     });
 
-    // Always, not only with nothing selected: a batch leaves the codes it drew selected, and the
-    // section vanishing under the pointer after the first run would read as the feature going away.
-    ui.separator();
-    batch_rows(app, ui, &spec, width);
+    // Folded to start with, and left where it was left: most visits draw one code, and the section
+    // is tall. It stays wherever the selection is, since a batch makes new codes rather than editing
+    // the selected one.
+    ui.add_space(4.0);
+    let open = app.ui.barcode_batch_open;
+    if widgets::section_toggle(ui, "Batch", open) {
+        app.ui.barcode_batch_open = !open;
+    }
+    if open {
+        batch_rows(app, ui, &spec, width);
+    }
 
     if target.is_none() {
         // The draft the panel keeps is what was typed, once every row has had its say.
@@ -140,9 +147,9 @@ fn symbology_row(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
         {
             spec.symbology = *s;
         }
-        // Changing the type brings that type's own example data along, so the panel does not sit
-        // on a number the new symbology cannot carry.
-        if spec.symbology != before && spec.data == before.sample_data() {
+        // Changing the type brings that type's own example data along, so the panel starts on a
+        // value the new symbology can carry instead of on the one the last type was working with.
+        if spec.symbology != before {
             spec.data = spec.symbology.sample_data().to_string();
         }
     });
@@ -173,7 +180,7 @@ fn data_row(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width
     if !app.ui.barcode_note.is_empty() {
         let t = crate::theme::Tokens::get(ui.ctx());
         let ok = app.ui.barcode_note.starts_with(tl!("Valid:"));
-        ui.colored_label(if ok { t.text } else { t.error }, app.ui.barcode_note.clone());
+        ui.colored_label(if ok { t.success } else { t.error }, app.ui.barcode_note.clone());
     }
 }
 
@@ -288,7 +295,6 @@ fn hri_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
 /// not belong beside the button that rewrites the selection — and it stays where it is whatever is
 /// selected, since a batch leaves the codes it drew selected.
 fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: f32) {
-    widgets::dim_label(ui, tl!("Batch"));
     let mut batch = app.ui.barcode_batch.clone();
     if let Some(v) = widgets::text_field(ui, "barcode-batch-data", Some(batch.data.as_str()), width, 5) {
         batch.data = v;
@@ -336,7 +342,7 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
     if !app.ui.barcode_batch_note.is_empty() {
         let t = crate::theme::Tokens::get(ui.ctx());
         let ok = app.ui.barcode_batch_note.starts_with(tl!("Drawn:"));
-        ui.colored_label(if ok { t.text } else { t.error }, app.ui.barcode_batch_note.clone());
+        ui.colored_label(if ok { t.success } else { t.error }, app.ui.barcode_batch_note.clone());
     }
     app.ui.barcode_batch = batch;
 }

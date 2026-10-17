@@ -89,6 +89,8 @@ pub struct Tokens {
     pub error: Color32,
     /// Warning marks (a modified linked file).
     pub warning: Color32,
+    /// A check that passed: the value an encoder accepted, a barcode a batch drew.
+    pub success: Color32,
     /// Rotation gizmo axes, also labelled X, Y and Z.
     pub axis_x: Color32,
     pub axis_y: Color32,
@@ -137,6 +139,7 @@ impl Tokens {
             bleed: hex(0xf03030),
             error: hex(0xe34850),
             warning: hex(0xf0a330),
+            success: hex(0x45af63),
             axis_x: hex(0xef6058),
             axis_y: hex(0x45af63),
             axis_z: hex(0x378ef0),
@@ -191,6 +194,7 @@ impl Tokens {
                 ruler: hex(0xc2c2c2),
                 ruler_tick: hex(0x4a4a4a),
                 button: hex(0xcacaca),
+                success: hex(0x1e7d3c),
                 ..base
             },
             Brightness::Light => Tokens {
@@ -216,6 +220,7 @@ impl Tokens {
                 ruler: hex(0xeaeaea),
                 ruler_tick: hex(0x5a5a5a),
                 button: hex(0xe0e0e0),
+                success: hex(0x1e7d3c),
                 ..base
             },
         }
