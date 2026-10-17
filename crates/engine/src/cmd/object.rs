@@ -709,14 +709,22 @@ fn ungroup(s: &mut Session, _: &Value) -> Result<Value> {
     let ids = selected_roots(s)?;
     // With no group selected, the document, the selection and the undo history stay as they are.
     let d = &s.doc()?.doc;
-    if !ids.iter().any(|id| d.node(*id).is_some_and(|n| matches!(n.kind, NodeKind::Group { .. }))) {
+    if !ids.iter().any(|id| d.node(*id).is_some_and(|n| matches!(n.kind, NodeKind::Group { .. } | NodeKind::Intertwine { .. }))) {
         return ok();
     }
     s.edit("Ungroup", |d, sel| {
         let mut new_sel = vec![];
         let mut ungrouped = vec![];
         for id in &ids {
-            let Some(n) = d.node(*id) else { continue };
+            // An Intertwine group ungroups as the plain group it draws (#2540): its members, then
+            // the clipped copies that keep them passing over and under each other.
+            let n = match super::intertwine::expanded(d, *id) {
+                Some(g) => g,
+                None => match d.node(*id) {
+                    Some(n) => n.clone(),
+                    None => continue,
+                },
+            };
             let NodeKind::Group { children, clip } = &n.kind else {
                 new_sel.push(*id);
                 continue;

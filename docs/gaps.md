@@ -214,7 +214,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 - **Done:** TIFF choices and format settings in Export for Screens and Asset Export (30.2), using the existing encoder; UI-to-file regressions cover selection, scaling, options and persistence.
 
-- **Done:** Object › Intertwine (#1763): Make, Edit and Release; the Intertwine tool highlights the overlap area under
+- **Done:** Object › Intertwine (#1763): Make, Edit and Release; Object › Expand and Ungroup turn the group into plain art that keeps the weave (#2540); the Intertwine tool highlights the overlap area under
   the pointer, a click swaps which object is on top there, and a path (Shift: a rectangle) drawn around overlaps
   arranges each one inside it; `object.intertwine.arrange` also brings an object to the front or sends it to the back
   where three or more overlap. The group renders, saves and exports through its live expansion. Still missing: the

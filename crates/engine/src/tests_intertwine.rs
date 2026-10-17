@@ -151,6 +151,44 @@ fn release_gives_the_objects_back_as_they_were() {
     assert!(red(&render(&s), 50, 30));
 }
 
+/// #2540: Expand and Ungroup did nothing on an Intertwine group. Both now give plain art that
+/// still passes over and under (red over blue at the top crossing, blue over red at the bottom),
+/// with no Intertwine left, and one Undo brings the group back. (Expand keeps the rings' strokes
+/// here: outlining them would give the members new ids.)
+#[test]
+fn expand_and_ungroup_give_plain_art_that_keeps_the_weave() {
+    for cmd in ["object.expand", "object.ungroup"] {
+        let mut s = session();
+        let (g, a, b) = intertwined(&mut s);
+        arrange(&mut s, json!({"at": [50, 30]}));
+        select(&mut s, &[g]);
+        let params = if cmd == "object.expand" { json!({"stroke": false}) } else { json!({}) };
+        s.execute(cmd, &params).unwrap_or_else(|e| panic!("{cmd}: {e}"));
+        let d = &s.doc().unwrap().doc;
+        let mut intertwines = 0;
+        for l in &d.layers {
+            l.walk(&mut |n| intertwines += usize::from(matches!(n.kind, NodeKind::Intertwine { .. })));
+        }
+        assert_eq!(intertwines, 0, "{cmd}");
+        // The rings keep their ids and let go of their areas.
+        for m in [a, b] {
+            assert!(d.node(m).unwrap_or_else(|| panic!("{cmd}: member {m:?}")).extras().intertwine.is_none(), "{cmd}");
+        }
+        let mut ids = std::collections::HashSet::new();
+        for l in &d.layers {
+            l.walk(&mut |n| assert!(n.id.0 != 0 && ids.insert(n.id), "{cmd}: id {:?} reused or zero", n.id));
+        }
+        let r = render(&s);
+        assert!(red(&r, 50, 30) && blue(&r, 50, 70), "{cmd} keeps the weave");
+        match cmd {
+            "object.expand" => assert!(matches!(d.node(g).unwrap().kind, NodeKind::Group { clip: false, .. })),
+            _ => assert!(d.node(g).is_none() && s.doc().unwrap().selection.objects.contains(&a)),
+        }
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert!(matches!(s.doc().unwrap().doc.node(g).unwrap().kind, NodeKind::Intertwine { .. }), "{cmd} undone");
+    }
+}
+
 #[test]
 fn the_arranged_areas_move_with_the_group() {
     let mut s = session();

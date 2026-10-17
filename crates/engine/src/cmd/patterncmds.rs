@@ -694,7 +694,7 @@ fn repeat_release(s: &mut Session, _: &Value) -> Result<Value> {
     Ok(ids_json(&ids))
 }
 
-fn fix_ids(d: &mut Document, n: &mut Node) {
+pub(crate) fn fix_ids(d: &mut Document, n: &mut Node) {
     if n.id == NodeId(0) {
         n.id = d.alloc_id();
     }

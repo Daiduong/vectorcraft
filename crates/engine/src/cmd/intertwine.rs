@@ -186,6 +186,43 @@ fn release(s: &mut Session, _: &Value) -> Result<Value> {
     Ok(json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>() }))
 }
 
+/// The Intertwine group `g` as plain art, keeping its id and look: a group of its members (ids
+/// kept, their over areas let go), then, for each member drawn over the others somewhere, a clip
+/// group of that area around a copy of it with fresh ids (`vectorcraft_doc::intertwine::expand`).
+/// `None` when `g` is no Intertwine group.
+pub(crate) fn expanded(d: &mut Document, g: NodeId) -> Option<Node> {
+    let n = d.node(g).filter(|n| matches!(n.kind, NodeKind::Intertwine { .. }))?.clone();
+    let mut out = vectorcraft_doc::live::expanded_group(&n, None);
+    if let Some(ch) = out.children_mut() {
+        for c in ch.iter_mut() {
+            super::patterncmds::fix_ids(d, Arc::make_mut(c));
+        }
+    }
+    Some(out)
+}
+
+/// Object › Expand (#2540): every Intertwine group in the subtrees of `roots` becomes a plain group
+/// of what it draws ([`expanded`]), inner ones first. Returns how many.
+pub(crate) fn expand_intertwines(d: &mut Document, roots: &[NodeId]) -> Result<usize> {
+    let mut groups = vec![];
+    for r in roots {
+        if let Some(n) = d.node(*r) {
+            n.walk(&mut |c| {
+                if matches!(c.kind, NodeKind::Intertwine { .. }) {
+                    groups.push(c.id);
+                }
+            });
+        }
+    }
+    for g in groups.iter().rev() {
+        let Some(plain) = expanded(d, *g) else { continue };
+        let (par, idx, _) = d.position(*g).ok_or(EngineError::NoNode(*g))?;
+        d.remove(*g)?;
+        d.insert(par, idx, plain)?;
+    }
+    Ok(groups.len())
+}
+
 // ---------- Arrange ----------
 
 #[derive(Clone, Copy, PartialEq)]
