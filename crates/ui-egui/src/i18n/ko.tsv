@@ -5,11 +5,21 @@
 # vocabulary; no other application's Korean localisation was copied. AI-drafted; native review welcome.
 # Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language names,
 # OpenType, the built-in workspace names and the bracketed perspective grid preset names.
+	11 or 12 digits	11자리 또는 12자리
+	12 or 13 digits	12자리 또는 13자리
+	6 or 8 digits	6자리 또는 8자리
+	7 or 8 digits	7자리 또는 8자리
+	an even number of digits	짝수 자리 숫자
+	any text	임의의 텍스트
+	ASCII	ASCII
 	Barcodes	바코드
 	Check	검사
 	Check Barcode	바코드 검사
 	Codes:	코드:
+	Content	내용
 	Create Batch	일괄 생성
+	digits, A–Z and - . $ / + % and space	숫자, A–Z, - . $ / + % 및 공백
+	digits, with or without the (01) application identifier	숫자 ((01) 응용 식별자 포함 또는 생략)
 	Drawn:	그린 개수:
 	Gap:	간격:
 	Glowing Edges…	네온 가장자리…
@@ -18,7 +28,12 @@
 	Edge Brightness	가장자리 밝기
 	Max per Row:	줄당 최대:
 	No fonts are installed.	설치된 글꼴이 없습니다.
+	No line in the box is a code this type can carry.	입력란의 어느 줄도 이 유형이 담을 수 있는 코드가 아닙니다.
+	One code a line, each a whole value of the type above.	한 줄에 코드 하나, 각각 위 유형의 완전한 값.
 	Outline the digits	숫자 외곽선화
+	printable ASCII	인쇄 가능한 ASCII
+	printable ASCII, upper case and control characters	인쇄 가능한 ASCII, 대문자 및 제어 문자
+	QR Code	QR 코드
 	Smoothness	부드러움
 	About VectorCraft	VectorCraft 정보
 	All Scripts	모든 스크립트

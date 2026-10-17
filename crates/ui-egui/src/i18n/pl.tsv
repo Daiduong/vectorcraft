@@ -22,19 +22,34 @@
 # tests): the product name, language names, OpenType, the built-in workspace names and the
 # bracketed perspective grid preset names. Keep placeholders, ellipses and the leading/trailing
 # spaces of fragments when editing.
+	11 or 12 digits	11 lub 12 cyfr
+	12 or 13 digits	12 lub 13 cyfr
+	6 or 8 digits	6 lub 8 cyfr
+	7 or 8 digits	7 lub 8 cyfr
+	an even number of digits	parzysta liczba cyfr
+	any text	dowolny tekst
+	ASCII	ASCII
 	Barcodes	Kody kreskowe
 	Check	Sprawdź
 	Check Barcode	Sprawdź kod kreskowy
 	Codes:	Kody:
+	Content	Treść
 	Create Batch	Utwórz partię
+	digits, A–Z and - . $ / + % and space	cyfry, A–Z oraz - . $ / + % i spacja
+	digits, with or without the (01) application identifier	cyfry, z identyfikatorem zastosowania (01) lub bez
 	Drawn:	Narysowano:
 	Gap:	Odstęp:
 	Max per Row:	Maks. w wierszu:
 	New Design	Nowy projekt
 	Delete Design	Usuń projekt
 	No fonts are installed.	Brak zainstalowanych czcionek.
+	No line in the box is a code this type can carry.	Żaden wiersz w polu nie jest kodem, który ten typ może przenieść.
+	One code a line, each a whole value of the type above.	Jeden kod w wierszu, każdy pełną wartością wybranego typu.
 	Outline the digits	Zamień cyfry na kontury
 	Paste Design	Wklej projekt
+	printable ASCII	drukowalne ASCII
+	printable ASCII, upper case and control characters	drukowalne ASCII, wielkie litery i znaki sterujące
+	QR Code	Kod QR
 	Select Unused	Zaznacz nieużywane
 	Glowing Edges…	Świecące krawędzie…
 	About VectorCraft	O programie VectorCraft

@@ -10,11 +10,21 @@
 # Coverage: every menu string, tl! literal, plural, status and error message (enforced in tests).
 # Product, language, built-in workspace and perspective preset names follow MENU_KEEP_AS_IS.
 # Keep placeholders, ellipses and leading/trailing spaces of fragments when editing.
+	11 or 12 digits	11 або 12 цифр
+	12 or 13 digits	12 або 13 цифр
+	6 or 8 digits	6 або 8 цифр
+	7 or 8 digits	7 або 8 цифр
+	an even number of digits	парна кількість цифр
+	any text	будь-який текст
+	ASCII	ASCII
 	Barcodes	Штрихкоди
 	Check	Перевірити
 	Check Barcode	Перевірити штрихкод
 	Codes:	Коди:
+	Content	Вміст
 	Create Batch	Створити партію
+	digits, A–Z and - . $ / + % and space	цифри, A–Z та - . $ / + % і пробіл
+	digits, with or without the (01) application identifier	цифри, з ідентифікатором застосування (01) або без нього
 	Drawn:	Намальовано:
 	Gap:	Проміжок:
 	Glowing Edges…	Сяйливі краї…
@@ -23,7 +33,12 @@
 	Edge Brightness	Яскравість краю
 	Max per Row:	Макс. у рядку:
 	No fonts are installed.	Шрифти не встановлено.
+	No line in the box is a code this type can carry.	Жоден рядок у полі не є кодом, який може нести цей тип.
+	One code a line, each a whole value of the type above.	Один код у рядку, кожен — повне значення обраного вище типу.
 	Outline the digits	Перетворити цифри на контури
+	printable ASCII	друковані символи ASCII
+	printable ASCII, upper case and control characters	друковані символи ASCII, великі літери та керівні символи
+	QR Code	QR-код
 	Smoothness	Згладжування
 
 	Radial Blur…	Радіальне розмиття…

@@ -19,11 +19,21 @@
 # tests): the product name, language names, OpenType, the built-in workspace names and the bracketed
 # perspective grid preset names; `de-DE`, `de-AT`, `de-CH` and every other `de-*` locale resolve here.
 # Photoshop-style raster effects (Effect menu, their dialogs).
+	11 or 12 digits	11 oder 12 Ziffern
+	12 or 13 digits	12 oder 13 Ziffern
+	6 or 8 digits	6 oder 8 Ziffern
+	7 or 8 digits	7 oder 8 Ziffern
+	an even number of digits	eine gerade Anzahl Ziffern
+	any text	beliebiger Text
+	ASCII	ASCII
 	Barcodes	Barcodes
 	Check	Prüfen
 	Check Barcode	Barcode prüfen
 	Codes:	Codes:
+	Content	Inhalt
 	Create Batch	Charge erstellen
+	digits, A–Z and - . $ / + % and space	Ziffern, A–Z und - . $ / + % und Leerzeichen
+	digits, with or without the (01) application identifier	Ziffern, mit oder ohne die Anwendungskennung (01)
 	Drawn:	Gezeichnet:
 	Gap:	Abstand:
 	Glowing Edges…	Leuchtende Konturen…
@@ -32,7 +42,12 @@
 	Edge Brightness	Kantenhelligkeit
 	Max per Row:	Max. pro Zeile:
 	No fonts are installed.	Es sind keine Schriften installiert.
+	No line in the box is a code this type can carry.	Keine Zeile im Feld ist ein Code, den dieser Typ tragen kann.
+	One code a line, each a whole value of the type above.	Ein Code pro Zeile, jeder ein vollständiger Wert des Typs oben.
 	Outline the digits	Ziffern in Pfade wandeln
+	printable ASCII	druckbare ASCII-Zeichen
+	printable ASCII, upper case and control characters	druckbare ASCII-Zeichen, Großbuchstaben und Steuerzeichen
+	QR Code	QR-Code
 	Smoothness	Glättung
 	Radial Blur…	Radialer Weichzeichner…
 	Smart Blur…	Selektiver Weichzeichner…

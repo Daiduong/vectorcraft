@@ -10,11 +10,21 @@
 # tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
 # names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
 # Photoshop-style raster effects (Effect menu, their dialogs).
+	11 or 12 digits	11 или 12 цифр
+	12 or 13 digits	12 или 13 цифр
+	6 or 8 digits	6 или 8 цифр
+	7 or 8 digits	7 или 8 цифр
+	an even number of digits	чётное число цифр
+	any text	любой текст
+	ASCII	ASCII
 	Barcodes	Штрихкоды
 	Check	Проверить
 	Check Barcode	Проверить штрихкод
 	Codes:	Коды:
+	Content	Содержимое
 	Create Batch	Создать партию
+	digits, A–Z and - . $ / + % and space	цифры, A–Z и - . $ / + % и пробел
+	digits, with or without the (01) application identifier	цифры, с идентификатором применения (01) или без него
 	Drawn:	Нарисовано:
 	Gap:	Промежуток:
 	Glowing Edges…	Светящиеся края…
@@ -23,7 +33,12 @@
 	Edge Brightness	Яркость края
 	Max per Row:	Макс. в строке:
 	No fonts are installed.	Шрифты не установлены.
+	No line in the box is a code this type can carry.	Ни одна строка в поле не является кодом, который может нести этот тип.
+	One code a line, each a whole value of the type above.	Один код в строке, каждый — полное значение выбранного выше типа.
 	Outline the digits	Преобразовать цифры в контуры
+	printable ASCII	печатные символы ASCII
+	printable ASCII, upper case and control characters	печатные символы ASCII, заглавные буквы и управляющие символы
+	QR Code	QR-код
 	Smoothness	Сглаживание
 	Radial Blur…	Радиальное размытие…
 	Smart Blur…	Умное размытие…

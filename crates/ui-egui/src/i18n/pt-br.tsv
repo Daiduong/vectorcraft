@@ -23,11 +23,21 @@
 # English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language names, OpenType,
 # the built-in workspace names and the bracketed perspective grid preset names.
 #
+	11 or 12 digits	11 ou 12 dígitos
+	12 or 13 digits	12 ou 13 dígitos
+	6 or 8 digits	6 ou 8 dígitos
+	7 or 8 digits	7 ou 8 dígitos
+	an even number of digits	um número par de dígitos
+	any text	qualquer texto
+	ASCII	ASCII
 	Barcodes	Códigos de barras
 	Check	Verificar
 	Check Barcode	Verificar código de barras
 	Codes:	Códigos:
+	Content	Conteúdo
 	Create Batch	Criar lote
+	digits, A–Z and - . $ / + % and space	dígitos, A–Z e - . $ / + % e espaço
+	digits, with or without the (01) application identifier	dígitos, com ou sem o identificador de aplicação (01)
 	Drawn:	Desenhados:
 	Gap:	Espaçamento:
 	Glowing Edges…	Bordas brilhantes…
@@ -262,7 +272,12 @@
 	Auto-Collapse Iconic Panels	Recolher Automaticamente Painéis Icônicos
 	Max per Row:	Máx. por linha:
 	No fonts are installed.	Nenhuma fonte instalada.
+	No line in the box is a code this type can carry.	Nenhuma linha da caixa é um código que este tipo possa carregar.
+	One code a line, each a whole value of the type above.	Um código por linha, cada um um valor completo do tipo acima.
 	Outline the digits	Converter os dígitos em contornos
+	printable ASCII	ASCII imprimível
+	printable ASCII, upper case and control characters	ASCII imprimível, maiúsculas e caracteres de controle
+	QR Code	Código QR
 	Show Tool Group Labels	Mostrar Rótulos dos Grupos de Ferramentas
 	Auto-Rotate (turn the paper to each artboard)	Girar Automaticamente (gire o papel para cada mesa de trabalho)
 	Automatic	Automático

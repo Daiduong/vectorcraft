@@ -18,19 +18,34 @@
 # tests): the product name, language names, OpenType, the built-in workspace names and the
 # bracketed perspective grid preset names. Keep placeholders, ellipses and the leading/trailing
 # spaces of fragments when editing.
+	11 or 12 digits	11 nebo 12 číslic
+	12 or 13 digits	12 nebo 13 číslic
+	6 or 8 digits	6 nebo 8 číslic
+	7 or 8 digits	7 nebo 8 číslic
+	an even number of digits	sudý počet číslic
+	any text	libovolný text
+	ASCII	ASCII
 	Barcodes	Čárové kódy
 	Check	Zkontrolovat
 	Check Barcode	Zkontrolovat čárový kód
 	Codes:	Kódy:
+	Content	Obsah
 	Create Batch	Vytvořit dávku
+	digits, A–Z and - . $ / + % and space	číslice, A–Z a - . $ / + % a mezera
+	digits, with or without the (01) application identifier	číslice, s identifikátorem použití (01) nebo bez něj
 	Drawn:	Vytvořeno:
 	Gap:	Mezera:
 	Max per Row:	Max. na řádek:
 	New Design	Nový návrh
 	Delete Design	Odstranit návrh
 	No fonts are installed.	Nejsou nainstalovány žádné fonty.
+	No line in the box is a code this type can carry.	Žádný řádek v poli není kód, který tento typ unese.
+	One code a line, each a whole value of the type above.	Jeden kód na řádek, každý celá hodnota výše zvoleného typu.
 	Outline the digits	Obrysovat číslice
 	Paste Design	Vložit návrh
+	printable ASCII	tisknutelné ASCII
+	printable ASCII, upper case and control characters	tisknutelné ASCII, velká písmena a řídicí znaky
+	QR Code	QR kód
 	Select Unused	Vybrat nepoužité
 	Glowing Edges…	Zářící okraje…
 	About VectorCraft	O aplikaci VectorCraft

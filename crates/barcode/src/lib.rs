@@ -151,11 +151,10 @@ impl Symbology {
     /// symbol under a national number. ITF-14 is ISO/IEC 16390 with GS1's bearer bars on top.
     pub const fn standard(self) -> &'static str {
         match self {
-            Symbology::Ean13 => "GS1 General Specifications §5.2 · ISO/IEC 15420 · GB 12904 (China) · JAN (Japan)",
-            Symbology::Ean8 => "GS1 General Specifications §5.2 · ISO/IEC 15420",
-            Symbology::UpcA => "GS1 General Specifications §5.2 · ISO/IEC 15420 · UPC (US and Canada)",
-            Symbology::UpcE => "GS1 General Specifications §5.2 · ISO/IEC 15420 · UPC (US and Canada)",
-            Symbology::Ean128 => "GS1 General Specifications §5.4.7 · ISO/IEC 15417 (Code 128)",
+            Symbology::Ean13 => "GS1 §5.2 · ISO/IEC 15420 · GB 12904 · JAN",
+            Symbology::Ean8 => "GS1 §5.2 · ISO/IEC 15420",
+            Symbology::UpcA | Symbology::UpcE => "GS1 §5.2 · ISO/IEC 15420 · UPC",
+            Symbology::Ean128 => "GS1 §5.4.7 · ISO/IEC 15417",
             Symbology::Code128 | Symbology::Code128A | Symbology::Code128B | Symbology::Code128C => "ISO/IEC 15417",
             Symbology::Code39 => "ISO/IEC 16388",
             Symbology::Code93 => "AIM/ISO 93",

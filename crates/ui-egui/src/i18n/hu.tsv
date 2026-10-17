@@ -91,6 +91,8 @@
 	1 Color Job…	1 színes munka…
 	1 Layer	1 réteg
 	1 {unit} on the artboard stands for {real} {unit} in the scene.	A rajztáblán 1 {unit} a jelenetben {real} {unit} távolságnak felel meg.
+	11 or 12 digits	11 vagy 12 számjegy
+	12 or 13 digits	12 vagy 13 számjegy
 	16 bit	16 bit
 	16 bits/pixel	16 bit/pixel
 	16 Colors	16 szín
@@ -119,7 +121,9 @@
 	4up	4 nézet
 	5 x 5 Average	5 x 5 átlag
 	6 Colors	6 szín
+	6 or 8 digits	6 vagy 8 számjegy
 	60° Angles	60°-os szögek
+	7 or 8 digits	7 vagy 8 számjegy
 	8 bit	8 bit
 	8 Colors	8 szín
 	8K UHD	8K UHD
@@ -254,6 +258,7 @@
 	Alter Paths for Appearance	Útvonalak módosítása a megjelenés szerint
 	Amount	Mérték
 	Amount:	Mérték:
+	an even number of digits	páros számú számjegy
 	Analogous	Analóg
 	Analogous 2	Analóg 2
 	Anchor Point	Horgonypont
@@ -276,6 +281,7 @@
 	Anti-aliasing:	Élsimítás:
 	Any except extracting pages	Bármi, kivéve az oldalak kinyerését
 	Any Kind	Bármilyen típus
+	any text	bármilyen szöveg
 	Appearance	Megjelenés
 	Appearance Attribute	Megjelenési attribútum
 	Appearance Item	Megjelenési elem
@@ -340,6 +346,7 @@
 	As Single Asset	Egy elemként
 	Ascender	Felnyúló szár
 	Ascent	Felnyúlás
+	ASCII	ASCII
 	Ask When Modified	Kérdés módosításkor
 	Aspect Ratio	Méretarány
 	Asset Export	Elemexportálás
@@ -539,13 +546,21 @@
 	Check Script	Szkript ellenőrzése
 	Check Script…	Szkript ellenőrzése…
 	Codes:	Kódok:
+	Content	Tartalom
 	Copy Report	Jelentés másolása
 	Create Batch	Köteg létrehozása
+	digits, A–Z and - . $ / + % and space	számjegyek, A–Z és - . $ / + % és szóköz
+	digits, with or without the (01) application identifier	számjegyek, a (01) alkalmazásazonosítóval vagy anélkül
 	Drawn:	Megrajzolva:
 	Gap:	Távolság:
 	Max per Row:	Max. soronként:
 	No fonts are installed.	Nincsenek telepített betűkészletek.
+	No line in the box is a code this type can carry.	Egyetlen sor sem olyan kód a mezőben, amelyet ez a típus hordozhat.
+	One code a line, each a whole value of the type above.	Soronként egy kód, mindegyik a fenti típus teljes értéke.
 	Outline the digits	Számjegyek körvonalazása
+	printable ASCII	nyomtatható ASCII
+	printable ASCII, upper case and control characters	nyomtatható ASCII, nagybetűk és vezérlőkarakterek
+	QR Code	QR-kód
 	Valid:	Érvényes:
 	VectorCraft read this script without running it.	A VectorCraft futtatás nélkül olvasta be ezt a szkriptet.
 	Needs nothing beyond plain JavaScript	Csak egyszerű JavaScript kell hozzá

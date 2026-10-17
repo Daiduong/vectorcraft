@@ -13,11 +13,21 @@
 # tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
 # names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
 # Photoshop-style raster effects (Effect menu, their dialogs).
+	11 or 12 digits	11 ou 12 chiffres
+	12 or 13 digits	12 ou 13 chiffres
+	6 or 8 digits	6 ou 8 chiffres
+	7 or 8 digits	7 ou 8 chiffres
+	an even number of digits	un nombre pair de chiffres
+	any text	n'importe quel texte
+	ASCII	ASCII
 	Barcodes	Codes-barres
 	Check	Vérifier
 	Check Barcode	Vérifier le code-barres
 	Codes:	Codes :
+	Content	Contenu
 	Create Batch	Créer un lot
+	digits, A–Z and - . $ / + % and space	chiffres, A–Z et - . $ / + % et espace
+	digits, with or without the (01) application identifier	chiffres, avec ou sans l'identifiant d'application (01)
 	Drawn:	Dessinés :
 	Gap:	Espacement :
 	Glowing Edges…	Contour lumineux…
@@ -26,7 +36,12 @@
 	Edge Brightness	Luminosité du bord
 	Max per Row:	Max. par ligne :
 	No fonts are installed.	Aucune police n'est installée.
+	No line in the box is a code this type can carry.	Aucune ligne du champ n'est un code que ce type peut porter.
+	One code a line, each a whole value of the type above.	Un code par ligne, chacun une valeur complète du type ci-dessus.
 	Outline the digits	Convertir les chiffres en contours
+	printable ASCII	ASCII imprimable
+	printable ASCII, upper case and control characters	ASCII imprimable, majuscules et caractères de contrôle
+	QR Code	Code QR
 	Smoothness	Lissage
 	Radial Blur…	Flou radial…
 	Smart Blur…	Flou optimisé…

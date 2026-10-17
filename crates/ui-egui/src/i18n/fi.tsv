@@ -16,19 +16,34 @@
 # OpenType, the built-in workspace names and the bracketed perspective grid preset names.
 # Every `fi-*` locale resolves here. Keep the placeholders ({name}), the trailing "…" and the
 # leading/trailing spaces of fragments exactly as they are.
+	11 or 12 digits	11 tai 12 numeroa
+	12 or 13 digits	12 tai 13 numeroa
+	6 or 8 digits	6 tai 8 numeroa
+	7 or 8 digits	7 tai 8 numeroa
+	an even number of digits	parillinen määrä numeroita
+	any text	mikä tahansa teksti
+	ASCII	ASCII
 	Barcodes	Viivakoodit
 	Check	Tarkista
 	Check Barcode	Tarkista viivakoodi
 	Codes:	Koodit:
+	Content	Sisältö
 	Create Batch	Luo erä
+	digits, A–Z and - . $ / + % and space	numeroita, A–Z sekä - . $ / + % ja välilyönti
+	digits, with or without the (01) application identifier	numeroita, sovellustunnisteella (01) tai ilman
 	Drawn:	Piirretty:
 	Gap:	Väli:
 	Max per Row:	Enintään riville:
 	New Design	Uusi malli
 	Delete Design	Poista malli
 	No fonts are installed.	Kirjasimia ei ole asennettu.
+	No line in the box is a code this type can carry.	Mikään laatikon rivi ei ole koodi, jonka tämä tyyppi voi sisältää.
+	One code a line, each a whole value of the type above.	Yksi koodi riville, kukin yllä olevan tyypin täysi arvo.
 	Outline the digits	Muunna numerot ääriviivoiksi
 	Paste Design	Liitä malli
+	printable ASCII	tulostettavat ASCII-merkit
+	printable ASCII, upper case and control characters	tulostettavat ASCII-merkit, isot kirjaimet ja ohjausmerkit
+	QR Code	QR-koodi
 	Select Unused	Valitse käyttämättömät
 	Glowing Edges…	Hehkuvat reunat…
 	About VectorCraft	Tietoja VectorCraftista

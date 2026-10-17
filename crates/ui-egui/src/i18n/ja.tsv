@@ -4,11 +4,21 @@
 # Clean-room: menu and feature names follow the names Japanese users of vector illustration
 # software know, written from the meaning of VectorCraft's English labels; no other application's
 # Japanese localisation was copied. Toggles read as their action (「…を表示」「…を隠す」).
+	11 or 12 digits	11 桁または 12 桁
+	12 or 13 digits	12 桁または 13 桁
+	6 or 8 digits	6 桁または 8 桁
+	7 or 8 digits	7 桁または 8 桁
+	an even number of digits	偶数桁の数字
+	any text	任意のテキスト
+	ASCII	ASCII
 	Barcodes	バーコード
 	Check	検査
 	Check Barcode	バーコードを検査
 	Codes:	コード:
+	Content	内容
 	Create Batch	一括作成
+	digits, A–Z and - . $ / + % and space	数字、A–Z、- . $ / + % および空白
+	digits, with or without the (01) application identifier	数字（(01) アプリケーション識別子は省略可）
 	Drawn:	作成:
 	Gap:	間隔:
 	Glowing Edges…	エッジの光彩…
@@ -17,7 +27,12 @@
 	Edge Brightness	エッジの明るさ
 	Max per Row:	1行の最大数:
 	No fonts are installed.	フォントがインストールされていません。
+	No line in the box is a code this type can carry.	入力欄のどの行も、この種類が扱えるコードではありません。
+	One code a line, each a whole value of the type above.	1 行に 1 コード、それぞれ上で選んだ型の完全な値。
 	Outline the digits	数字をアウトライン化
+	printable ASCII	印刷可能な ASCII
+	printable ASCII, upper case and control characters	印刷可能な ASCII、大文字と制御文字
+	QR Code	QR コード
 	Smoothness	滑らかさ
 #
 # Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,

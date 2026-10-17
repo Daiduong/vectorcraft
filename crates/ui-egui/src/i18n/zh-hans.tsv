@@ -9,11 +9,21 @@
 # proprietary localisation resource, string table or product UI may be copied. Product and
 # technology names stay in Latin letters. Full-width punctuation (，。：“”) in sentences, half-width
 # parentheses.
+	11 or 12 digits	11 位或 12 位数字
+	12 or 13 digits	12 位或 13 位数字
+	6 or 8 digits	6 位或 8 位数字
+	7 or 8 digits	7 位或 8 位数字
+	an even number of digits	偶数位数字
+	any text	任意文本
+	ASCII	ASCII
 	Barcodes	条形码
 	Check	检查
 	Check Barcode	检查条形码
 	Codes:	条码数:
+	Content	内容
 	Create Batch	批量生成
+	digits, A–Z and - . $ / + % and space	数字、A–Z 以及 - . $ / + % 和空格
+	digits, with or without the (01) application identifier	数字，可带或不带 (01) 应用标识符
 	Drawn:	已生成:
 	Gap:	间距:
 	Glowing Edges…	发光边缘…
@@ -22,7 +32,12 @@
 	Edge Brightness	边缘亮度
 	Max per Row:	每行最多:
 	No fonts are installed.	未安装任何字体。
+	No line in the box is a code this type can carry.	框里没有任何一行是该类型能编码的条码。
+	One code a line, each a whole value of the type above.	一行一个条码，每行是该类型的完整值。
 	Outline the digits	数字转曲
+	printable ASCII	可打印 ASCII 字符
+	printable ASCII, upper case and control characters	可打印 ASCII 字符、大写字母和控制字符
+	QR Code	二维码
 	Smoothness	平滑度
 
 	  — missing	  — 缺失

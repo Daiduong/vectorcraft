@@ -9,11 +9,21 @@
 # and no proprietary localisation was translated from or copied. Labels use sentence case, commands
 # are imperatives; product, format and key-cap names keep their spelling.
 
+	11 or 12 digits	11 eller 12 siffror
+	12 or 13 digits	12 eller 13 siffror
+	6 or 8 digits	6 eller 8 siffror
+	7 or 8 digits	7 eller 8 siffror
+	an even number of digits	ett jämnt antal siffror
+	any text	valfri text
+	ASCII	ASCII
 	Barcodes	Streckkoder
 	Check	Kontrollera
 	Check Barcode	Kontrollera streckkod
 	Codes:	Koder:
+	Content	Innehåll
 	Create Batch	Skapa sats
+	digits, A–Z and - . $ / + % and space	siffror, A–Z samt - . $ / + % och mellanslag
+	digits, with or without the (01) application identifier	siffror, med eller utan applikationsidentifieraren (01)
 	Drawn:	Ritade:
 	Gap:	Avstånd:
 	Glowing Edges…	Glödande kanter…
@@ -22,7 +32,12 @@
 	Edge Brightness	Kantljusstyrka
 	Max per Row:	Max per rad:
 	No fonts are installed.	Inga teckensnitt är installerade.
+	No line in the box is a code this type can carry.	Ingen rad i rutan är en kod som den här typen kan bära.
+	One code a line, each a whole value of the type above.	En kod per rad, var och en ett fullständigt värde av typen ovan.
 	Outline the digits	Gör siffrorna till konturer
+	printable ASCII	utskrivbara ASCII-tecken
+	printable ASCII, upper case and control characters	utskrivbara ASCII-tecken, versaler och styrtecken
+	QR Code	QR-kod
 	Smoothness	Mjukhet
 	Radial Blur…	Radiell oskärpa…
 	Smart Blur…	Smart oskärpa…

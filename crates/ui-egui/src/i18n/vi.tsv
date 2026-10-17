@@ -75,6 +75,8 @@
 	1 Color Job	1 màu in
 	1 Color Job…	In 1 màu…
 	1 {unit} on the artboard stands for {real} {unit} in the scene.	1 {unit} trên bảng vẽ tương đương {real} {unit} trong cảnh.
+	11 or 12 digits	11 hoặc 12 chữ số
+	12 or 13 digits	12 hoặc 13 chữ số
 	2 Color Job	2 màu in
 	2 Color Job…	In 2 màu…
 	3 Color Job	3 màu in
@@ -85,7 +87,9 @@
 	3D Ribbon	Dải 3D
 	45° Angles	Góc 45°
 	5 x 5 Average	Trung bình 5 x 5
+	6 or 8 digits	6 hoặc 8 chữ số
 	60° Angles	Góc 60°
+	7 or 8 digits	7 hoặc 8 chữ số
 	90° & 45° & 30° Angles	Góc 90° & 45° & 30°
 	90° & 45° Angles	Góc 90° & 45°
 	90° Angles	Góc 90°
@@ -193,6 +197,7 @@
 	Alter Paths for Appearance	Sửa đường dẫn cho diện mạo
 	Amount	Mức độ
 	Amount:	Mức độ:
+	an even number of digits	số chữ số chẵn
 	Anchor Point	Điểm neo
 	Anchor Point Tool	Công cụ Điểm neo
 	Anchor Points	Các điểm neo
@@ -211,6 +216,7 @@
 	Anti-aliased Artwork	Tác phẩm khử răng cưa
 	Anti-aliasing:	Khử răng cưa:
 	Any Kind	Bất kỳ loại
+	any text	văn bản bất kỳ
 	Appearance	Diện mạo
 	Appearance Attribute	Thuộc tính diện mạo
 	Appearance Item	Mục diện mạo
@@ -269,6 +275,7 @@
 	As Multiple Assets	Thành nhiều asset
 	As Single Asset	Thành một asset
 	Ascender	Nét chân chữ trên
+	ASCII	ASCII
 	Ask When Modified	Hỏi khi đã sửa đổi
 	Aspect Ratio	Tỷ lệ khung hình
 	Asset Export	Xuất asset
@@ -454,13 +461,21 @@
 	Check Script	Kiểm tra script
 	Check Script…	Kiểm tra script…
 	Codes:	Mã:
+	Content	Nội dung
 	Copy Report	Sao chép báo cáo
 	Create Batch	Tạo hàng loạt
+	digits, A–Z and - . $ / + % and space	chữ số, A–Z và - . $ / + % và dấu cách
+	digits, with or without the (01) application identifier	chữ số, có hoặc không có mã nhận dạng ứng dụng (01)
 	Drawn:	Đã tạo:
 	Gap:	Khoảng cách:
 	Max per Row:	Tối đa mỗi hàng:
 	No fonts are installed.	Chưa cài đặt phông chữ nào.
+	No line in the box is a code this type can carry.	Không dòng nào trong ô là mã mà kiểu này có thể mang.
+	One code a line, each a whole value of the type above.	Mỗi dòng một mã, mỗi mã là giá trị đầy đủ của kiểu ở trên.
 	Outline the digits	Chuyển số thành đường viền
+	printable ASCII	ký tự ASCII in được
+	printable ASCII, upper case and control characters	ký tự ASCII in được, chữ in hoa và ký tự điều khiển
+	QR Code	Mã QR
 	Valid:	Hợp lệ:
 	VectorCraft read this script without running it.	VectorCraft đã đọc script này mà không chạy nó.
 	Needs nothing beyond plain JavaScript	Chỉ cần JavaScript thông thường

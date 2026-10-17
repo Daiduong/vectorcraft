@@ -1,10 +1,14 @@
 //! Barcode panel: the symbology, the data and the sizing of a barcode, and the button that draws
 //! one.
 //!
-//! Every field here ends in `barcode.create` or `barcode.set`, so the panel and an agent driving
-//! the same document over MCP take exactly the same path. A barcode object selected on the canvas
-//! is what the panel edits — the fields show its settings and the button rewrites it — and with
-//! nothing barcode-shaped selected the fields are a draft and the button draws a new one.
+//! Every field here ends in `barcode.create`, `barcode.set` or `barcode.createBatch`, so the panel
+//! and an agent driving the same document over MCP take exactly the same path. A barcode object
+//! selected on the canvas is what the panel edits — the fields show its settings and every option
+//! redraws it at once — and Create draws a new one from the same fields at any time.
+//!
+//! The panel is laid out the way a packaging shop reads it: what the code is at the top, then what
+//! goes in it, then how big it comes out, then how it is drawn. Everything is in labelled columns
+//! so the numbers line up and the labels can be scanned rather than read.
 
 use egui::Ui;
 use serde_json::json;
@@ -37,6 +41,25 @@ pub(crate) fn standard_font() -> Option<String> {
     vectorcraft_text::FontDb::global().ocr_b()
 }
 
+/// What the symbology takes, in the interface's language — the crate's own `hint` is the English
+/// source these catalogs are keyed on, and a packaging shop reading the panel should not have to
+/// read it in English.
+pub(super) fn hint(s: Symbology) -> &'static str {
+    match s {
+        Symbology::Ean13 => tl!("12 or 13 digits"),
+        Symbology::Ean8 => tl!("7 or 8 digits"),
+        Symbology::UpcA => tl!("11 or 12 digits"),
+        Symbology::UpcE => tl!("6 or 8 digits"),
+        Symbology::Ean128 => tl!("digits, with or without the (01) application identifier"),
+        Symbology::Code128 | Symbology::Code128B => tl!("printable ASCII"),
+        Symbology::Code128A => tl!("printable ASCII, upper case and control characters"),
+        Symbology::Code128C | Symbology::Itf14 | Symbology::Itf25 => tl!("an even number of digits"),
+        Symbology::Code39 => tl!("digits, A–Z and - . $ / + % and space"),
+        Symbology::Code93 => tl!("ASCII"),
+        Symbology::QrCode => tl!("any text"),
+    }
+}
+
 /// The barcode object the selection names, or the one the selection is inside.
 fn selected(app: &VectorcraftApp) -> Option<(NodeId, BarcodeSpec)> {
     let st = app.session.active()?;
@@ -53,7 +76,7 @@ fn selected(app: &VectorcraftApp) -> Option<(NodeId, BarcodeSpec)> {
 }
 
 /// Whether this frame's edits are drawn on the selected object at once rather than waiting for
-/// [Update].
+/// Update.
 ///
 /// Everything but the value itself is: a type, a size, a checkbox drawn only when the button is
 /// pressed reads as a broken control. A value being typed is not — a half-typed number would redraw
@@ -80,69 +103,31 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // What the object holds before this frame's controls are drawn: the rows edit `spec`, and the
     // difference is what the selected object is redrawn from below.
     let before = spec.clone();
-
     let width = ui.available_width();
-    symbology_row(ui, &mut spec, width);
-    data_row(app, ui, &mut spec, width);
-    match vectorcraft_barcode::encode(&spec) {
-        Ok(code) => {
-            let (w, h) = code.size_mm();
-            let note = format!("{w:.2} × {h:.2} mm");
-            widgets::dim_label(ui, &note);
-        }
-        Err(e) => {
-            ui.colored_label(crate::theme::Tokens::get(ui.ctx()).error, format!("{e}"));
-        }
-    }
-    ui.separator();
-    size_rows(ui, &mut spec, width);
-    ui.separator();
+
+    symbology_rows(ui, &mut spec, width);
+    ui.add_space(6.0);
+    widgets::divider(ui);
+    content_rows(app, ui, &mut spec, width);
+    ui.add_space(2.0);
     if spec.symbology.is_matrix() {
+        widgets::divider(ui);
         matrix_rows(ui, &mut spec, width);
-        ui.separator();
     }
-    hri_rows(ui, &mut spec, width);
-
-    ui.separator();
-    ui.horizontal(|ui| {
-        let label = if target.is_some() { tl!("Update") } else { tl!("Create") };
-        if ui.button(label).clicked() {
-            let params = serde_json::to_value(&spec).unwrap_or(json!({}));
-            match &target {
-                Some((id, _)) => {
-                    let mut p = params;
-                    p["id"] = json!(id.0);
-                    app.run("barcode.set", p).ok();
-                }
-                None => {
-                    app.run("barcode.create", params).ok();
-                }
-            }
-        }
-        if target.is_some() && ui.button(tl!("New")).clicked() {
-            app.ui.barcode = draft(spec.symbology);
-        }
-        if ui.button(tl!("Reset")).clicked() {
-            app.ui.barcode = draft(DEFAULT_SYMBOLOGY);
-        }
-    });
-
-    // Folded to start with, and left where it was left: most visits draw one code, and the section
-    // is tall. It stays wherever the selection is, since a batch makes new codes rather than editing
-    // the selected one.
-    ui.add_space(4.0);
-    let open = app.ui.barcode_batch_open;
-    if widgets::section_toggle(ui, "Batch", open) {
-        app.ui.barcode_batch_open = !open;
-    }
-    if open {
-        batch_rows(app, ui, &spec, width);
-    }
+    ui.add_space(2.0);
+    widgets::divider(ui);
+    size_rows(ui, &mut spec);
+    ui.add_space(2.0);
+    widgets::divider(ui);
+    appearance_rows(ui, &mut spec, width);
+    ui.add_space(6.0);
+    action_row(app, ui, &spec, &target);
+    batch_section(app, ui, &spec, width);
 
     // The selected object follows the panel as it is edited. A control that looks live but leaves
-    // the art alone reads as broken, and [Update] then has nothing left to do. Everything but the
+    // the art alone reads as broken, and Update then has nothing left to do. Everything but the
     // value itself is drawn at once — one edit for the undo stack, the same as the draft is — while
-    // a value being typed waits for [Update] or the field's Enter, so a half-typed number never
+    // a value being typed waits for Update or the field's Enter, so a half-typed number never
     // redraws the object.
     if let Some((id, _)) = &target
         && applies_at_once(&spec, &before)
@@ -158,7 +143,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
 }
 
-fn symbology_row(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
+/// The type, with the standard it belongs to beside the name and under it.
+fn symbology_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
     // The rows name the standard each symbology belongs to, the way the barcode tools a packaging
     // shop already uses do: "EAN-13" alone does not say whether it is the Chinese, Japanese or
     // American number.
@@ -167,7 +153,7 @@ fn symbology_row(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
     let shown = format!("{} · {}", spec.symbology.label(), spec.symbology.origin());
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Type:"));
-        let rest = width - 46.0;
+        let rest = (width - 46.0).max(80.0);
         let before = spec.symbology;
         if let Some(i) = widgets::dropdown_names(ui, "barcode-type", &shown, &labels, rest)
             && let Some(s) = Symbology::all().get(i)
@@ -183,11 +169,13 @@ fn symbology_row(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
     widgets::dim_label(ui, spec.symbology.standard());
 }
 
-fn data_row(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
+/// What goes into the code, the check that says whether it will, and how big it comes out.
+fn content_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
+    widgets::section_header(ui, "Content");
     let mut asked = false;
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Data:"));
-        let field = (width - 46.0 - 56.0).max(60.0);
+        let field = (width - 46.0 - 58.0).max(80.0);
         if let Some(v) = widgets::text_field(ui, "barcode-data", Some(spec.data.as_str()), field, 1) {
             spec.data = v;
             // A new value is a new question: the last answer no longer applies to it.
@@ -195,7 +183,7 @@ fn data_row(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width
         }
         asked = ui.button(tl!("Check")).clicked();
     });
-    widgets::dim_label(ui, spec.symbology.hint());
+    widgets::dim_label(ui, hint(spec.symbology));
     if asked {
         let params = serde_json::to_value(&*spec).unwrap_or(json!({}));
         app.ui.barcode_note = match app.run("barcode.check", params) {
@@ -209,59 +197,75 @@ fn data_row(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width
         let ok = app.ui.barcode_note.starts_with(tl!("Valid:"));
         ui.colored_label(if ok { t.success } else { t.error }, app.ui.barcode_note.clone());
     }
+    match vectorcraft_barcode::encode(spec) {
+        Ok(code) => {
+            let (w, h) = code.size_mm();
+            widgets::dim_label(ui, &format!("{w:.2} × {h:.2} mm"));
+        }
+        Err(e) => {
+            ui.colored_label(crate::theme::Tokens::get(ui.ctx()).error, format!("{e}"));
+        }
+    }
 }
 
-fn size_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
-    let field = (width - 96.0).clamp(50.0, 120.0);
-    ui.horizontal(|ui| {
+/// The two columns of numbers: a label and its field, twice a row.
+fn size_rows(ui: &mut Ui, spec: &mut BarcodeSpec) {
+    widgets::section_header(ui, "Size");
+    let field = 76.0;
+    egui::Grid::new("barcode-size").num_columns(4).spacing([8.0, 6.0]).show(ui, |ui| {
         widgets::dim_label(ui, tl!("Magnification:"));
         if let Some(v) = widgets::mixed_field(ui, "barcode-magnification", Some(spec.magnification * 100.0), "%", 0, field) {
             spec.magnification = (v / 100.0).clamp(0.25, 10.0);
         }
-    });
-    ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Module:"));
         let shown = spec.module_mm.unwrap_or_else(|| spec.symbology.nominal_module_mm());
         if let Some(v) = widgets::mixed_field(ui, "barcode-module", Some(shown), " mm", 3, field) {
             spec.module_mm = (v.is_finite() && v > 0.0).then_some(v);
         }
-    });
-    ui.horizontal(|ui| {
-        widgets::dim_label(ui, tl!("Height:"));
-        let shown = spec.height_mm.unwrap_or_else(|| spec.symbology.nominal_height_mm());
-        if let Some(v) = widgets::mixed_field(ui, "barcode-height", Some(shown), " mm", 2, field) {
-            spec.height_mm = (v.is_finite() && v > 0.0).then_some(v);
+        ui.end_row();
+
+        if !spec.symbology.is_matrix() {
+            widgets::dim_label(ui, tl!("Height:"));
+            let shown = spec.height_mm.unwrap_or_else(|| spec.symbology.nominal_height_mm());
+            if let Some(v) = widgets::mixed_field(ui, "barcode-height", Some(shown), " mm", 2, field) {
+                spec.height_mm = (v.is_finite() && v > 0.0).then_some(v);
+            }
+        } else {
+            ui.label("");
         }
-    });
-    ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Quiet Zone:"));
         if let Some(v) = widgets::mixed_field(ui, "barcode-quiet", Some(spec.quiet_extra), "", 0, field) {
             spec.quiet_extra = v.clamp(0.0, 100.0);
         }
-    });
-    if matches!(spec.symbology, Symbology::Code39 | Symbology::Itf14 | Symbology::Itf25) {
-        ui.horizontal(|ui| {
+        ui.end_row();
+
+        if matches!(spec.symbology, Symbology::Code39 | Symbology::Itf14 | Symbology::Itf25) {
             widgets::dim_label(ui, tl!("Width Ratio:"));
             let nominal = spec.ratio.unwrap_or(if spec.symbology == Symbology::Code39 { 3.0 } else { 2.5 });
             if let Some(v) = widgets::mixed_field(ui, "barcode-ratio", Some(nominal), "", 2, field) {
                 spec.ratio = Some(v.clamp(2.0, 3.0));
             }
-        });
-    }
+            ui.label("");
+            ui.label("");
+            ui.end_row();
+        }
+    });
 }
 
-fn matrix_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
-    let field = (width - 96.0).clamp(50.0, 120.0);
-    let levels: Vec<&str> = Ecc::all().iter().map(|e| e.label()).collect();
-    ui.horizontal(|ui| {
+/// A QR Code's error correction, version and mask.
+fn matrix_rows(ui: &mut Ui, spec: &mut BarcodeSpec, _width: f32) {
+    widgets::section_header(ui, "QR Code");
+    let field = 86.0;
+    egui::Grid::new("barcode-matrix").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+        let levels: Vec<&str> = Ecc::all().iter().map(|e| e.label()).collect();
         widgets::dim_label(ui, tl!("Error Correction:"));
         if let Some(i) = widgets::dropdown_names(ui, "barcode-ecc", spec.ecc.label(), &levels, field)
             && let Some(e) = Ecc::all().get(i)
         {
             spec.ecc = *e;
         }
-    });
-    ui.horizontal(|ui| {
+        ui.end_row();
+
         widgets::dim_label(ui, tl!("Version:"));
         let shown = spec.version.map_or_else(|| tl!("Automatic").to_string(), |v| v.to_string());
         let options: Vec<String> = std::iter::once(tl!("Automatic").to_string()).chain((1..=40).map(|v| v.to_string())).collect();
@@ -269,8 +273,8 @@ fn matrix_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
         if let Some(i) = widgets::dropdown_names(ui, "barcode-version", &shown, &refs, field) {
             spec.version = (i > 0).then_some(i as u8);
         }
-    });
-    ui.horizontal(|ui| {
+        ui.end_row();
+
         widgets::dim_label(ui, tl!("Mask:"));
         let shown = spec.mask.map_or_else(|| tl!("Automatic").to_string(), |v| v.to_string());
         let options: Vec<String> = std::iter::once(tl!("Automatic").to_string()).chain((0..8).map(|v| v.to_string())).collect();
@@ -278,21 +282,28 @@ fn matrix_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
         if let Some(i) = widgets::dropdown_names(ui, "barcode-mask", &shown, &refs, field) {
             spec.mask = (i > 0).then_some((i - 1) as u8);
         }
+        ui.end_row();
     });
 }
 
-fn hri_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
-    if spec.symbology.is_matrix() {
-        return;
-    }
-    if widgets::check(ui, tl!("Human Readable Line"), spec.text, true) {
-        spec.text = !spec.text;
-    }
-    if widgets::check(ui, tl!("Outline the digits"), spec.outline_text, spec.text) {
-        spec.outline_text = !spec.outline_text;
+/// How the code is drawn: the human readable line and its face, and the white box behind it.
+fn appearance_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
+    widgets::section_header(ui, "Appearance");
+    if !spec.symbology.is_matrix() {
+        ui.horizontal(|ui| {
+            if widgets::check(ui, tl!("Human Readable Line"), spec.text, true) {
+                spec.text = !spec.text;
+            }
+            if widgets::check(ui, tl!("Outline the digits"), spec.outline_text, spec.text) {
+                spec.outline_text = !spec.outline_text;
+            }
+        });
     }
     if widgets::check(ui, tl!("White background box"), spec.background, true) {
         spec.background = !spec.background;
+    }
+    if spec.symbology.is_matrix() {
+        return;
     }
     let families = vectorcraft_text::FontDb::global().families();
     // The first entry names the face the engine will actually set the digits in when the spec does
@@ -304,7 +315,7 @@ fn hri_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
     let refs: Vec<&str> = options.iter().map(String::as_str).collect();
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Font:"));
-        if let Some(i) = widgets::dropdown_names(ui, "barcode-font", &shown, &refs, width - 46.0) {
+        if let Some(i) = widgets::dropdown_names(ui, "barcode-font", &shown, &refs, (width - 46.0).max(80.0)) {
             spec.font = (i > 0).then(|| options.get(i).cloned().unwrap_or_default());
         }
     });
@@ -315,18 +326,55 @@ fn hri_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
     }
 }
 
-/// Many codes at once: a list pasted in from a spreadsheet, drawn as a grid across the artboard so
-/// that a run of cartons is one gesture rather than one per carton.
-///
-/// Its own section: a batch makes new objects rather than editing the one on the canvas, so it does
-/// not belong beside the button that rewrites the selection — and it stays where it is whatever is
-/// selected, since a batch leaves the codes it drew selected.
+/// The one row that changes the document.
+fn action_row(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, target: &Option<(NodeId, BarcodeSpec)>) {
+    ui.horizontal(|ui| {
+        // Create is here whatever is selected: picking another type and making another code is what
+        // the panel is mostly for, and it used to be reachable only with nothing selected — so
+        // choosing a type after drawing one changed that barcode instead of making a new one.
+        if ui.button(tl!("Create")).clicked() {
+            let params = serde_json::to_value(spec).unwrap_or(json!({}));
+            app.run("barcode.create", params).ok();
+        }
+        if let Some((id, _)) = target
+            && ui.button(tl!("Update")).clicked()
+        {
+            let mut p = serde_json::to_value(spec).unwrap_or(json!({}));
+            p["id"] = json!(id.0);
+            app.run("barcode.set", p).ok();
+        }
+        if target.is_some() && ui.button(tl!("New")).clicked() {
+            // Back to making one: until something else is selected the panel keeps editing what is
+            // on the canvas, which is what made a second code impossible to start.
+            app.run("select.none", json!({})).ok();
+            app.ui.barcode = draft(spec.symbology);
+        }
+        if ui.button(tl!("Reset")).clicked() {
+            app.ui.barcode = draft(DEFAULT_SYMBOLOGY);
+        }
+    });
+}
+
+/// The folded batch section: many codes at once, one a line, laid out as a grid.
+fn batch_section(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: f32) {
+    ui.add_space(4.0);
+    let open = app.ui.barcode_batch_open;
+    if widgets::section_toggle(ui, "Batch", open) {
+        app.ui.barcode_batch_open = !open;
+    }
+    if open {
+        batch_rows(app, ui, spec, width);
+    }
+}
+
 fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: f32) {
     let mut batch = app.ui.barcode_batch.clone();
     if let Some(v) = widgets::text_field(ui, "barcode-batch-data", Some(batch.data.as_str()), width, 5) {
         batch.data = v;
     }
-    let field = (width - 132.0).clamp(40.0, 90.0);
+    // What goes in the box, since an empty multi-line field says nothing about it.
+    widgets::dim_label(ui, tl!("One code a line, each a whole value of the type above."));
+    let field = ((width - 132.0) / 2.0).clamp(40.0, 90.0);
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Max per Row:"));
         if let Some(v) = widgets::mixed_field(ui, "barcode-batch-columns", Some(f64::from(batch.columns)), "", 0, field) {
@@ -337,7 +385,7 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
             batch.gap = v.clamp(0.0, 1000.0);
         }
     });
-    let count = batch.data.lines().filter(|l| !l.trim().is_empty()).count();
+    let count = batch_entries(&batch.data).len();
     widgets::dim_label(ui, &format!("{} {count}", tl!("Codes:")));
     let mut run = false;
     ui.horizontal(|ui| {
@@ -348,7 +396,7 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
     });
     if run {
         let mut p = serde_json::to_value(spec).unwrap_or(json!({}));
-        p["data"] = json!(batch.data);
+        p["data"] = json!(batch_entries(&batch.data).join("\n"));
         p["columns"] = json!(batch.columns);
         p["gapX"] = json!(batch.gap);
         p["gapY"] = json!(batch.gap);
@@ -363,7 +411,7 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
                     format!("{} {drawn}, {skipped} — {first}", tl!("Drawn:"))
                 }
             }
-            Err(e) => e,
+            Err(_) => tl!("No line in the box is a code this type can carry.").to_string(),
         };
     }
     if !app.ui.barcode_batch_note.is_empty() {
@@ -372,6 +420,13 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
         ui.colored_label(if ok { t.success } else { t.error }, app.ui.barcode_batch_note.clone());
     }
     app.ui.barcode_batch = batch;
+}
+
+/// The codes pasted into the batch box, one per line — and one per comma too, when the whole paste
+/// is on one line, since that is how a spreadsheet column and a CSV row arrive.
+fn batch_entries(text: &str) -> Vec<String> {
+    let sep = if text.contains('\n') { '\n' } else { ',' };
+    text.split(sep).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
 }
 
 /// Items of the panel's (≡) menu.

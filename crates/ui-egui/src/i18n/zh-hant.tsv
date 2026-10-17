@@ -17,11 +17,21 @@
 # commands is kept. Full-width punctuation (，。：) inside sentences; half-width parentheses and
 # the " · " separators as in the English. Terms shared with PhotoCraft use the same words as its
 # zh-hant catalog (圖層, 選取, 偏好設定, 混合模式 ...), so the two apps read alike.
+	11 or 12 digits	11 位或 12 位數字
+	12 or 13 digits	12 位或 13 位數字
+	6 or 8 digits	6 位或 8 位數字
+	7 or 8 digits	7 位或 8 位數字
+	an even number of digits	偶數位數字
+	any text	任意文字
+	ASCII	ASCII
 	Barcodes	條碼
 	Check	檢查
 	Check Barcode	檢查條碼
 	Codes:	條碼數:
+	Content	內容
 	Create Batch	批次產生
+	digits, A–Z and - . $ / + % and space	數字、A–Z 以及 - . $ / + % 與空格
+	digits, with or without the (01) application identifier	數字，可帶或不帶 (01) 應用識別碼
 	Drawn:	已產生:
 	Gap:	間距:
 	Glowing Edges…	發光邊緣…
@@ -30,7 +40,12 @@
 	Edge Brightness	邊緣亮度
 	Max per Row:	每行最多:
 	No fonts are installed.	未安裝任何字型。
+	No line in the box is a code this type can carry.	框裡沒有任何一行是該類型能編碼的條碼。
+	One code a line, each a whole value of the type above.	一行一個條碼，每行是該類型的完整值。
 	Outline the digits	數字轉外框
+	printable ASCII	可列印 ASCII 字元
+	printable ASCII, upper case and control characters	可列印 ASCII 字元、大寫字母與控制字元
+	QR Code	二維條碼
 	Smoothness	平滑度
 
 	  — missing	  — 遺失
