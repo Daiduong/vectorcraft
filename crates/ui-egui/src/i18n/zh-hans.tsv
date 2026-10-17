@@ -4073,6 +4073,7 @@ imageTrace	Outline	轮廓
 @msg	Select text or click into text with the Type tool to insert glyphs	请选择文字，或用文字工具在文字中单击，以插入字形
 @msg	`library` is a library id or name (see {list})	`library` 是库 id 或名称 (请参阅 {list})
 @msg	no library `{key}` (see {list})	没有库 `{key}` (请参阅 {list})
+@msg	library `{name}` is missing: {path} can't be read	库 `{name}` 缺失：无法读取 {path}
 @msg	select a linked image: an embedded one has no file	请选择链接的图像：嵌入的图像没有文件
 @msg	{path} can't be found: relink it first	找不到 {path}：请先重新链接
 @msg	Embedded {n} image(s); {missing} missing: relink them first	已嵌入 {n} 张图像；缺少 {missing} 张：请先重新链接
