@@ -51,6 +51,58 @@ fn the_panel_is_registered_and_opens_from_the_window_menu() {
     assert_eq!((item.path.clone(), item.label.as_str()), (vec!["Window".to_string()], "Barcode"));
 }
 
+/// Picking another type in the menu redraws the selected barcode straight away. The panel used to
+/// read the old settings back off the object on the next frame, so the menu looked dead: the art
+/// kept the type it was made with however many times the row was changed.
+#[test]
+fn choosing_a_type_redraws_the_selected_barcode() {
+    let mut app = app_with_doc();
+    let id = run(&mut app, "barcode.create", json!({"symbology": "ean13", "data": "6907045517163"}))["id"].as_u64().expect("id");
+    run(&mut app, "select.set", json!({"ids": [id]}));
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+
+    let t = frame_events(&ctx, &mut app, vec![], barcode::show);
+    let at = t.iter().find(|(s, _)| s.starts_with("EAN-13 · ")).map(|(_, r)| r.center()).expect("the type row");
+    super::tests_appearance::click(&ctx, &mut app, at, barcode::show);
+
+    let t = frame_events(&ctx, &mut app, vec![], barcode::show);
+    let Some(at) = t.iter().find(|(s, _)| s.starts_with("UPC-A · ")).map(|(_, r)| r.center()) else {
+        panic!("the menu lists UPC-A: {:?}", t.iter().map(|(s, _)| s).collect::<Vec<_>>())
+    };
+    super::tests_appearance::click(&ctx, &mut app, at, barcode::show);
+
+    let spec = app
+        .session
+        .doc()
+        .unwrap()
+        .doc
+        .node(vectorcraft_doc::NodeId(id))
+        .and_then(|n| n.extras().barcode.as_deref())
+        .cloned()
+        .expect("the spec is still there");
+    assert_eq!(spec.symbology, vectorcraft_barcode::Symbology::UpcA, "the object took the new type");
+    assert_eq!(spec.data, "036000291452", "and the new type's example value");
+}
+
+/// What the panel draws on the selected object at once, and what waits for Update: a type or a
+/// size is one act, a value being typed is not. Without this the panel shows a new type while the
+/// art keeps the old one, which reads as the dropdown not working.
+#[test]
+fn options_apply_at_once_but_a_typed_value_waits() {
+    use vectorcraft_barcode::{BarcodeSpec, Symbology};
+    let base = BarcodeSpec { symbology: Symbology::Ean13, data: "6907045517163".into(), ..Default::default() };
+    assert!(!barcode::applies_at_once(&base, &base), "nothing changed");
+    // A size, a checkbox, a font: drawn at once.
+    assert!(barcode::applies_at_once(&BarcodeSpec { height_mm: Some(30.0), ..base.clone() }, &base));
+    assert!(barcode::applies_at_once(&BarcodeSpec { background: false, ..base.clone() }, &base));
+    assert!(barcode::applies_at_once(&BarcodeSpec { outline_text: false, ..base.clone() }, &base));
+    // A new type comes with its own example value, and is drawn at once.
+    assert!(barcode::applies_at_once(&BarcodeSpec { symbology: Symbology::UpcA, data: "036000291452".into(), ..base.clone() }, &base));
+    // A value being typed waits for Update.
+    assert!(!barcode::applies_at_once(&BarcodeSpec { data: "690704551716".into(), ..base.clone() }, &base));
+}
+
 /// A draft shows the symbology it will draw with the standard it belongs to, an example value, the
 /// size the symbol comes out at, and the batch that makes many at once.
 #[test]

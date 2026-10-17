@@ -52,6 +52,17 @@ fn selected(app: &VectorcraftApp) -> Option<(NodeId, BarcodeSpec)> {
     None
 }
 
+/// Whether this frame's edits are drawn on the selected object at once rather than waiting for
+/// [Update].
+///
+/// Everything but the value itself is: a type, a size, a checkbox drawn only when the button is
+/// pressed reads as a broken control. A value being typed is not — a half-typed number would redraw
+/// the object on every keystroke and leave the canvas carrying the last one that happened to encode
+/// — so it waits, except when the type changed and brought its own example value along with it.
+pub(super) fn applies_at_once(spec: &BarcodeSpec, before: &BarcodeSpec) -> bool {
+    spec.symbology != before.symbology || (spec != before && spec.data == before.data)
+}
+
 /// A draft for `symbology`: the example data that type is usually shown with, and the standard
 /// font for its digits.
 fn draft(symbology: Symbology) -> BarcodeSpec {
@@ -66,6 +77,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         Some((_, spec)) => spec.clone(),
         None => app.ui.barcode.clone(),
     };
+    // What the object holds before this frame's controls are drawn: the rows edit `spec`, and the
+    // difference is what the selected object is redrawn from below.
+    let before = spec.clone();
 
     let width = ui.available_width();
     symbology_row(ui, &mut spec, width);
@@ -123,6 +137,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     if open {
         batch_rows(app, ui, &spec, width);
+    }
+
+    // The selected object follows the panel as it is edited. A control that looks live but leaves
+    // the art alone reads as broken, and [Update] then has nothing left to do. Everything but the
+    // value itself is drawn at once — one edit for the undo stack, the same as the draft is — while
+    // a value being typed waits for [Update] or the field's Enter, so a half-typed number never
+    // redraws the object.
+    if let Some((id, _)) = &target
+        && applies_at_once(&spec, &before)
+    {
+        let mut p = serde_json::to_value(&spec).unwrap_or(json!({}));
+        p["id"] = json!(id.0);
+        app.run("barcode.set", p).ok();
     }
 
     if target.is_none() {
