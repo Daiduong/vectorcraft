@@ -534,6 +534,7 @@ impl Session {
         let tile_edge_changed = p.pattern_tile_edge_color != self.prefs.pattern_tile_edge_color;
         let fonts_folder_changed = p.fonts_folder != self.prefs.fonts_folder;
         let hyphen_exceptions_changed = p.hyphenation_exceptions != self.prefs.hyphenation_exceptions;
+        let hyphen_language_changed = p.hyphenation_language != self.prefs.hyphenation_language;
         self.prefs = p;
         if fonts_folder_changed {
             let folder = self.prefs.fonts_folder.trim();
@@ -548,6 +549,10 @@ impl Session {
         if hyphen_exceptions_changed {
             // Preferences › Hyphenation › Exceptions (#394): the layout reads the process-wide list.
             vectorcraft_text::set_hyphenation_exceptions(&self.prefs.hyphenation_exceptions);
+        }
+        if hyphen_language_changed {
+            // Preferences › Hyphenation › Default Language (#394): the layout reads the process-wide language.
+            vectorcraft_text::set_hyphenation_language(&self.prefs.hyphenation_language);
         }
         vectorcraft_render::set_default_threads(u16::try_from(self.prefs.render_threads).ok());
         for st in &mut self.docs {
@@ -564,8 +569,8 @@ impl Session {
                 d.grid = self.prefs.grid();
                 st.revision += 1;
             }
-            // Hyphenation exceptions change every text object's line breaks.
-            if hyphen_exceptions_changed {
+            // Hyphenation exceptions and Default Language change every text object's line breaks.
+            if hyphen_exceptions_changed || hyphen_language_changed {
                 st.revision += 1;
             }
         }
