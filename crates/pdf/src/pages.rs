@@ -10,19 +10,20 @@ use craft_pdf::syntax::{DecryptionError, LoadPdfError, Pdf};
 use kurbo::{Affine, Rect};
 use vectorcraft_doc::setup::MAX_BLEED;
 
-use crate::import_color::{direct, values};
+use crate::import_color::{direct, items, readable, values};
 use crate::{Choice, CropTo, ImportOptions, PdfError};
 
 /// What `info` tells about one page.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PageInfo {
-    /// The page's size in points as viewers show it (its crop box, rotated).
+    /// The page's size in points as viewers show it (its crop box, rotated, times the `UserUnit`
+    /// the PDF reader applies to the page).
     pub width: f64,
     pub height: f64,
     /// The page's rotation in degrees (0, 90, 180 or 270).
     pub rotation: u16,
-    /// Every box but Bounding, in PDF user space (y up), clipped to the media box. A missing
-    /// bleed, trim or art box is the crop box.
+    /// Every box but Bounding, in PDF user space (y up), clipped to the media box, times the same
+    /// `UserUnit` (in points, as the size). A missing bleed, trim or art box is the crop box.
     pub boxes: Vec<(CropTo, Rect)>,
 }
 
@@ -52,7 +53,7 @@ const MAX_PROCEDURES: usize = 64;
 fn links<'a>(o: &Object<'a>, xref: &'a XRef) -> Vec<MaybeRef<Object<'a>>> {
     const SPACES: [&[u8]; 6] = [b"Indexed", b"I", b"Separation", b"DeviceN", b"Pattern", b"ICCBased"];
     if let Object::Array(a) = o {
-        let mut items = a.raw_iter();
+        let mut items = items(a);
         let kind = match items.next() {
             Some(MaybeRef::NotRef(Object::Name(n))) => Some(n),
             Some(MaybeRef::Ref(r)) => xref.get::<Name<'a>>(r.into()),
@@ -61,7 +62,7 @@ fn links<'a>(o: &Object<'a>, xref: &'a XRef) -> Vec<MaybeRef<Object<'a>>> {
         return if kind.is_some_and(|n| SPACES.contains(&n.as_ref())) { items.collect() } else { vec![] };
     }
     let Some((d, _)) = dict_or_stream(o) else { return vec![] };
-    let functions = d.get::<Array<'a>>(b"Functions").map(|a| a.raw_iter().collect::<Vec<_>>()).unwrap_or_default();
+    let functions = d.get::<Array<'a>>(b"Functions").map(|a| items(&a).collect::<Vec<_>>()).unwrap_or_default();
     functions.into_iter().chain(d.get_raw::<Object<'a>>(b"Alternate")).collect()
 }
 
@@ -121,6 +122,9 @@ const STREAM_NOTE: &str = "a stream in it would decode to more than 256 MB, or i
 /// (or on themselves), or a calculator function nested past [`MAX_PROCEDURES`].
 const NESTED_NOTE: &str = "its functions or colour spaces are built on one another without end";
 
+/// The error of a file with an array whose items can't all be read (a damaged file).
+const UNREADABLE_NOTE: &str = "an array in it is damaged and can't be read";
+
 /// Why `pdf` is refused, if it is: a stream the reader would fail on ([`STREAM_NOTE`]), or
 /// functions, color spaces or calculator procedures nested too deep ([`NESTED_NOTE`]). Every
 /// object is looked at, and every array, dictionary and stream written inside one, wherever it
@@ -140,7 +144,10 @@ fn hostile(pdf: &Pdf) -> Option<&'static str> {
             return Some(NESTED_NOTE);
         }
         match &o {
-            Object::Array(a) => pending.extend(a.raw_iter().filter_map(direct)),
+            // An array with an item that can't be read can't be looked at whole, and the
+            // interpreter would still read its leading items: the file is refused.
+            Object::Array(a) if !readable(a) => return Some(UNREADABLE_NOTE),
+            Object::Array(a) => pending.extend(items(a).filter_map(direct)),
             _ => pending.extend(dict_or_stream(&o).into_iter().flat_map(|(d, _)| values(d)).filter_map(direct)),
         }
     }
@@ -215,7 +222,8 @@ pub fn info(bytes: &[u8], password: Option<&str>) -> Result<PdfInfo, PdfError> {
                 craft_pdf::syntax::page::Rotation::Flipped => 180,
                 craft_pdf::syntax::page::Rotation::FlippedHorizontal => 270,
             };
-            let boxes = CropTo::ALL.iter().filter(|c| **c != CropTo::Bounding).map(|c| (*c, page_box(page, *c))).collect();
+            let unit = f64::from(page.user_unit());
+            let boxes = CropTo::ALL.iter().filter(|c| **c != CropTo::Bounding).map(|c| (*c, page_box(page, *c).scale_from_origin(unit))).collect();
             PageInfo { width: w as f64, height: h as f64, rotation, boxes }
         })
         .collect();
