@@ -24,6 +24,7 @@ pub mod proof;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use vectorcraft_doc::text::TypeAntiAlias;
 use vectorcraft_doc::{AppearanceItem, Document, Node, NodeId, NodeKind, StrokeAlign, StrokeLayer, SymbolBoxes, TextObject, TraceView};
 use vectorcraft_geom::{Affine, BezPath, FillRule, Rect, Shape};
 use vello_cpu::kurbo;
@@ -580,11 +581,16 @@ struct Frame<'a> {
     view: Affine,
     /// Visible region in document coordinates (for culling).
     visible: Rect,
-    /// Size of one output pixel in document units.
+    /// Size of one of this frame's pixels in document units.
     px: f64,
     opts: &'a RenderOptions,
     /// What colours paint as: screen colours, or one ink plane of a CMYK document (see [`ink`]).
     ink: Ink,
+    /// Document → pixels of the output being drawn: `view` itself, except while an export draws
+    /// its art at several times its size (the export's own pixels) and in offscreen layers (the
+    /// pixels they are placed back on). Type with an anti-aliasing method other than Sharp is
+    /// drawn on these pixels ([`Renderer::draw_type_edges`]).
+    output: Affine,
 }
 
 impl Frame<'_> {
@@ -652,18 +658,21 @@ impl Renderer {
 
     /// Render `doc` into a `width`×`height` image using `view` (document → pixel transform).
     pub fn render(&mut self, doc: &Document, width: u32, height: u32, view: Affine, opts: &RenderOptions) -> Rendered {
-        self.render_as(doc, width, height, view, opts, false)
+        self.render_as(doc, width, height, view, opts, false, 1)
     }
 
     /// [`Self::render`], or with `inks` the ink amounts in the working CMYK space instead of
-    /// screen colours (4 bytes a pixel, see [`Self::render_region_inks`]).
-    fn render_as(&mut self, doc: &Document, width: u32, height: u32, view: Affine, opts: &RenderOptions, inks: bool) -> Rendered {
+    /// screen colours (4 bytes a pixel, see [`Self::render_region_inks`]). `cell` is the side of a
+    /// pixel of the output in pixels of this render: the supersampling factor while an export
+    /// draws its art at several times its size, else 1 ([`Frame::output`]).
+    #[allow(clippy::too_many_arguments)]
+    fn render_as(&mut self, doc: &Document, width: u32, height: u32, view: Affine, opts: &RenderOptions, inks: bool, cell: u32) -> Rendered {
         let start = now();
         if opts.supersample && opts.anti_alias == AntiAlias::Art && opts.mask_view.is_none() {
             let (w, h) = (width.clamp(1, u16::MAX as u32), height.clamp(1, u16::MAX as u32));
             if let Some(k) = supersample_factor(w, h) {
                 let hard = RenderOptions { anti_alias: AntiAlias::None, supersample: false, ..opts.clone() };
-                let big = self.render_as(doc, w * k, h * k, Affine::scale(f64::from(k)) * view, &hard, inks);
+                let big = self.render_as(doc, w * k, h * k, Affine::scale(f64::from(k)) * view, &hard, inks, k);
                 let pixels = downsample(&big.pixels, big.width as usize, big.height as usize, k as usize);
                 self.stats.micros = now().saturating_sub(start);
                 return Rendered { width: w, height: h, pixels };
@@ -685,7 +694,8 @@ impl Renderer {
         let px = 1.0 / view.determinant().abs().sqrt().max(1e-12);
         let screen = if opts.rich_black { Ink::RichBlack } else { Ink::Display };
         let symbols = doc.symbol_boxes().quick();
-        let frame = Frame { mt: threads > 0, doc, symbols: &symbols, view, visible, px, opts, ink: screen };
+        let output = Affine::scale(1.0 / f64::from(cell.max(1))) * view;
+        let frame = Frame { mt: threads > 0, doc, symbols: &symbols, view, visible, px, opts, ink: screen, output };
         self.begin_frame();
         // View Opacity Mask: the mask's coverage in greyscale instead of the artwork.
         if let Some(m) = opts.mask_view.and_then(|id| doc.node(id)).and_then(|n| n.extras().mask.as_deref()) {
@@ -850,7 +860,7 @@ impl Renderer {
     pub fn render_region_inks(&mut self, doc: &Document, region: Rect, scale: f64, opts: &RenderOptions) -> Vec<u8> {
         let (w, h) = region_pixels(region, scale);
         let view = Affine::scale(scale) * Affine::translate((-region.x0, -region.y0));
-        self.render_as(doc, w, h, view, opts, true).pixels
+        self.render_as(doc, w, h, view, opts, true, 1).pixels
     }
 
     /// Render a single node (thumbnails, previews) fitted into `size`×`size` pixels.
@@ -868,7 +878,7 @@ impl Renderer {
         let mut ctx = single_threaded_context(w, h);
         let opts = RenderOptions::default();
         let symbols = doc.symbol_boxes().quick();
-        let frame = Frame { mt: false, doc, symbols: &symbols, view, visible, px, opts: &opts, ink: Ink::Display };
+        let frame = Frame { mt: false, doc, symbols: &symbols, view, visible, px, opts: &opts, ink: Ink::Display, output: view };
         self.begin_frame();
         (self.knockout, self.nested, self.backdrop, self.picture) = (false, 0, None, None);
         self.clip_paths.clear();
@@ -911,7 +921,8 @@ impl Renderer {
             ctx.fill_rect(&kurbo::Rect::new(0.0, 0.0, w as f64, w as f64));
         }
         let symbols = doc.symbol_boxes().quick();
-        let frame = Frame { mt: false, doc, symbols: &symbols, view, visible: b.inflate(1.0, 1.0), px: 1.0 / s, opts, ink: Ink::Display };
+        let frame =
+            Frame { mt: false, doc, symbols: &symbols, view, visible: b.inflate(1.0, 1.0), px: 1.0 / s, opts, ink: Ink::Display, output: view };
         self.begin_frame();
         (self.knockout, self.nested, self.backdrop, self.picture) = (false, 0, None, None);
         self.clip_paths.clear();
@@ -1800,6 +1811,9 @@ impl Renderer {
             self.draw_inlines(ctx, f, t, g);
             return;
         }
+        if t.anti_alias != TypeAntiAlias::Sharp && self.draw_type_edges(ctx, f, n, t, g) {
+            return;
+        }
         let tb = t.xf.transform_rect_bbox(g.bounds);
         // Overprinting characters darken per draw, like overprinting fills and strokes
         // ([`proof`]); the object blend mode is Normal here or applied by an enclosing layer.
@@ -1859,6 +1873,119 @@ impl Renderer {
         if let Some(all) = &all {
             self.draw_text_items(ctx, f, n, above, all, tb);
         }
+    }
+
+    /// Draw type `t` of node `n` (laid out in `g`) with its anti-aliasing method, None, Crisp or
+    /// Strong, on the pixels of the output ([`Frame::output`]): the type is drawn offscreen on those
+    /// pixels and placed back pixel for pixel. With None it is drawn with hard edges, so a pixel
+    /// takes the type's color where the type covers at least half of it. With Crisp and Strong it
+    /// is drawn as Sharp draws it, and again with the characters and the object's own fills and
+    /// strokes in opaque black, which gives the share `c` of each pixel they cover; the pixel's
+    /// color and opacity are then scaled by [`edge_coverage`] of `c` divided by `c`, so the opacity
+    /// of the paints is kept. Where the output's pixels would number more than the frame's there
+    /// and more than [`fx::PIXEL_BUDGET`] (a frame drawn coarser than the output), the frame's own
+    /// pixels are used.
+    ///
+    /// Returns false, having drawn nothing, for type that is drawn as Sharp draws it: type with
+    /// inline graphics, type whose own fills or strokes include a brush stroke or a blend mode
+    /// other than Normal, type that overprints while Overprint Preview is on, and type that shows a
+    /// substitution highlight on screen. Drawn offscreen, those would blend with nothing or take
+    /// the method on art that is not the characters'.
+    fn draw_type_edges(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, t: &TextObject, g: &TextGeom) -> bool {
+        if proof::overprints(f.opts) && t.runs.iter().any(|r| r.style.overprint_fill || r.style.overprint_stroke) {
+            return false;
+        }
+        let normal = vectorcraft_color::BlendMode::Normal;
+        let brush = |i: &AppearanceItem| matches!(i, AppearanceItem::Stroke(st) if st.brush.is_some());
+        if t.runs.iter().any(|r| r.inline.is_some()) || n.appearance.items.iter().any(|i| i.visible() && (i.blend() != normal || brush(i))) {
+            return false;
+        }
+        let setup = &f.doc.setup;
+        let highlights = [
+            (setup.highlight_substituted_fonts, &g.substituted_fonts),
+            (setup.highlight_substituted_glyphs, &g.substituted_glyphs),
+            (f.opts.highlight_alternate_glyphs, &g.alternate_glyphs),
+        ];
+        if f.opts.highlight_substitutions && highlights.iter().any(|(on, path)| *on && !path.elements().is_empty()) {
+            return false;
+        }
+        // Where the type draws: its glyphs, grown by the farthest its strokes reach, besides its
+        // bounds (an area type frame's, or a point type estimate before it is laid out).
+        let glyphs = type_reach(n, t, g);
+        let reach = fx::cull_bounds(f.symbols, n).map_or(glyphs, |b| b.union(glyphs));
+        // This frame's pixels to the output's: a scale and an offset (a supersampled export's
+        // factor, an offscreen layer's crop).
+        let grid = f.output * f.view.inverse();
+        let [sx, _, _, sy, _, _] = grid.as_coeffs();
+        let reach = reach.inflate(2.0 * f.px / sx.abs().min(1.0), 2.0 * f.px / sy.abs().min(1.0));
+        let on = f.view.transform_rect_bbox(reach).intersect(Rect::new(0.0, 0.0, f64::from(ctx.width()), f64::from(ctx.height())));
+        if !on.is_finite() {
+            return false;
+        }
+        if on.width() <= 0.0 || on.height() <= 0.0 {
+            return true;
+        }
+        let grid = edge_grid(on, grid);
+        let output = grid * f.view;
+        let [sx, _, _, sy, _, _] = grid.as_coeffs();
+        let on = grid.transform_rect_bbox(on);
+        // Whole pixels of the output.
+        let (x0, y0) = (on.x0.floor(), on.y0.floor());
+        let (Ok(w), Ok(h)) = (u16::try_from((on.x1 - x0).ceil() as u64), u16::try_from((on.y1 - y0).ceil() as u64)) else { return false };
+        let view = Affine::translate((-x0, -y0)) * output;
+        let visible = view.inverse().transform_rect_bbox(Rect::new(0.0, 0.0, f64::from(w), f64::from(h)));
+        let px = 1.0 / view.determinant().abs().sqrt().max(1e-12);
+        let frame = Frame { mt: false, view, visible, px, output: view, ..*f };
+        let threshold = match t.anti_alias {
+            TypeAntiAlias::None => AntiAlias::None.threshold(),
+            // The frame's pixels are smaller than the output's in a supersampled export, whose art
+            // is smooth on the output's pixels (Art Optimized).
+            _ if sx.abs() < 0.999 || sy.abs() < 0.999 => None,
+            _ => f.opts.anti_alias.threshold(),
+        };
+        let draw = |r: &mut Self, frame: &Frame, n: &Node, t: &TextObject| {
+            let mut off = single_threaded_context(w, h);
+            off.set_aliasing_threshold(threshold);
+            r.inside_layer(|r| r.draw_text_geom(&mut off, frame, n, t, g));
+            off.flush();
+            let mut pm = Pixmap::new(w, h);
+            off.render(&mut pm, &mut r.resources);
+            pm
+        };
+        let sharp = TextObject { anti_alias: TypeAntiAlias::Sharp, ..t.clone() };
+        let mut pm = draw(self, &frame, n, &sharp);
+        if t.anti_alias != TypeAntiAlias::None {
+            let black = |p: &mut vectorcraft_color::Paint| {
+                if !p.is_none() {
+                    *p = vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK);
+                }
+            };
+            let mut ink = sharp;
+            for r in &mut ink.runs {
+                black(&mut r.style.fill);
+                black(&mut r.style.stroke);
+            }
+            let mut inked = n.clone();
+            for item in &mut inked.appearance.items {
+                black(item.paint_mut());
+                match item {
+                    AppearanceItem::Fill(fl) => fl.opacity = 1.0,
+                    AppearanceItem::Stroke(st) => st.opacity = 1.0,
+                }
+            }
+            let covered = draw(self, &frame, &inked, &ink);
+            for (p, c) in pm.data_mut().iter_mut().zip(covered.data()) {
+                *p = edge_pixel(*p, c.a, t.anti_alias);
+            }
+        }
+        ctx.set_transform(grid.inverse() * Affine::translate((x0, y0)));
+        // The pixmap maps onto the rect pixel for pixel, each one on a pixel of the output.
+        ctx.reset_paint_transform();
+        let sampler = peniko::ImageSampler { quality: peniko::ImageQuality::Low, ..Default::default() };
+        ctx.set_paint(vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(Arc::new(pm)), sampler });
+        ctx.fill_rect(&Rect::new(0.0, 0.0, f64::from(w), f64::from(h)));
+        ctx.set_transform(Affine::IDENTITY);
+        true
     }
 
     /// Paint some of type `n`'s own fills and strokes (`items`) on its glyph outlines `all`
@@ -2113,6 +2240,58 @@ fn drawable(bp: &BezPath, view: Affine, n: &Node) -> bool {
 /// multithreaded dispatcher, which panics on filter effects (glows, shadows, blur).
 pub(crate) fn single_threaded_context(w: u16, h: u16) -> RenderContext {
     RenderContext::new_with(w, h, vello_cpu::RenderSettings { num_threads: 0, ..Default::default() })
+}
+
+/// How much of a pixel (out of 255) type that covers `c` of it shows with anti-aliasing method
+/// `m`: `c` with Sharp; all of it from half coverage (127) up, else none, with None; `2c - 0.5`
+/// with Crisp; and `2c` with Strong; each kept between 0 and all.
+pub(crate) fn edge_coverage(m: TypeAntiAlias, c: u8) -> u8 {
+    let c = i32::from(c);
+    let shown = match m {
+        TypeAntiAlias::None => {
+            if c >= 127 {
+                255
+            } else {
+                0
+            }
+        }
+        TypeAntiAlias::Sharp => c,
+        TypeAntiAlias::Crisp => 2 * c - 128,
+        TypeAntiAlias::Strong => 2 * c,
+    };
+    shown.clamp(0, 255) as u8
+}
+
+/// Where (document space) type `t` of node `n`, laid out in `g`, paints: its glyphs grown by the
+/// farthest the characters' strokes reach in text space, transformed as the type is, then grown by
+/// the farthest the object's own strokes reach in document space. A stroke's reach takes in its
+/// miter spikes and square caps ([`StrokeLayer::reach`]).
+fn type_reach(n: &Node, t: &TextObject, g: &TextGeom) -> Rect {
+    let chars = t.runs.iter().filter(|r| r.style.has_stroke()).map(|r| r.style.stroke_layer().reach()).fold(0.0, f64::max);
+    let own = n.appearance.outset();
+    t.xf.transform_rect_bbox(g.bounds.inflate(chars, chars)).inflate(own, own)
+}
+
+/// The map from a frame's pixels to the pixels [`Renderer::draw_type_edges`] draws type on, for
+/// the region `on` of the frame's pixels: `grid`, which maps them to the output's, unless the
+/// output's pixels there would number more than the frame's and more than [`fx::PIXEL_BUDGET`],
+/// and then the frame's own pixels (the identity).
+fn edge_grid(on: Rect, grid: Affine) -> Affine {
+    let area = |r: Rect| r.width() * r.height();
+    if area(grid.transform_rect_bbox(on)) > area(on).max(fx::PIXEL_BUDGET) { Affine::IDENTITY } else { grid }
+}
+
+/// Pixel `p` of type the anti-aliasing method `m` draws, where the type covers `c` (out of 255) of
+/// the pixel: its color and opacity scaled by [`edge_coverage`] of `c` divided by `c`. A pixel the
+/// type covers wholly or not at all is kept.
+fn edge_pixel(p: vello_cpu::color::PremulRgba8, c: u8, m: TypeAntiAlias) -> vello_cpu::color::PremulRgba8 {
+    if c == 0 || c == 255 {
+        return p;
+    }
+    let (to, c) = (u32::from(edge_coverage(m, c)), u32::from(c));
+    let scale = |v: u8| ((u32::from(v) * to + c / 2) / c).min(255) as u8;
+    let a = scale(p.a);
+    vello_cpu::color::PremulRgba8 { r: scale(p.r).min(a), g: scale(p.g).min(a), b: scale(p.b).min(a), a }
 }
 
 /// Exactly one visible painted item, a fill with its own Normal blend and full opacity (one
@@ -2459,3 +2638,5 @@ mod tests_setup;
 mod tests_strokegradient;
 #[cfg(test)]
 mod tests_tileedge;
+#[cfg(test)]
+mod tests_typeedges;

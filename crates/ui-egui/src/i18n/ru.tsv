@@ -183,6 +183,10 @@
 	Anti-Alias	Сглаживание
 	Anti-alias Rasters	Сглаживать растровые изображения
 	Anti-aliased Artwork	Сглаженный рисунок
+	Anti-aliasing Method	Метод сглаживания
+	Sharp	Резкое
+	Crisp	Чёткое
+	Strong	Сильное
 	Anti-aliasing:	Сглаживание:
 	Any Kind	Любой тип
 	Appearance	Оформление

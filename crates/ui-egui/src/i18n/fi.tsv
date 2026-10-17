@@ -2468,6 +2468,10 @@ lighting	Light	Valo
 	< 1 sec	< 1 s
 	[Unnamed]	[Nimetön]
 	Amount:	Määrä:
+	Anti-aliasing Method	Reunanpehmennystapa
+	Sharp	Terävä
+	Crisp	Selkeä
+	Strong	Vahva
 	Anti-aliasing:	Reunanpehmennys:
 	Artboard:	Piirtoalusta:
 	Color Table	Väritaulukko

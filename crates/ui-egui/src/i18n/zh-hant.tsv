@@ -150,6 +150,10 @@
 	Anti-Alias	消除鋸齒
 	Anti-alias Rasters	點陣影像消除鋸齒
 	Anti-aliased Artwork	消除鋸齒的圖稿
+	Anti-aliasing Method	消除鋸齒方法
+	Sharp	銳利
+	Crisp	清晰
+	Strong	強
 	Anti-aliasing:	消除鋸齒：
 	Any Kind	所有類型
 	Appearance	外觀

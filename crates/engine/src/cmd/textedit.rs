@@ -839,6 +839,7 @@ fn create_in_path(s: &mut Session, p: &Value) -> Result<Value> {
         path_spacing: 0.0,
         wrap: Vec::new(),
         optical_margin: false,
+        anti_alias: Default::default(),
         cached_bounds: None,
         cached_baselines: Vec::new(),
     };
@@ -1059,6 +1060,7 @@ fn headline_tracking(t: &TextObject, target: f64) -> Option<f64> {
             path_spacing: 0.0,
             wrap: Vec::new(),
             optical_margin: false,
+            anti_alias: Default::default(),
             cached_bounds: None,
             cached_baselines: Vec::new(),
         };

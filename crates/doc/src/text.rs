@@ -1150,6 +1150,44 @@ fn reverse_from_end(path: &mut PathData) {
     }
 }
 
+/// The anti-aliasing method of a type object (Character panel › Anti-aliasing Method): how the
+/// edges of its characters are drawn when the type is drawn as pixels (the canvas, raster exports,
+/// rasterizing). SVG, PDF and EPS export ignore it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TypeAntiAlias {
+    /// Hard edges: a pixel takes the type's color where the type covers at least half of it, and
+    /// nothing elsewhere.
+    None,
+    /// Each edge pixel shows the share of it the type covers.
+    #[default]
+    Sharp,
+    /// An edge pixel covered by a share `c` shows `2c - 0.5`, between 0 and 1: edges about half as
+    /// wide as Sharp's.
+    Crisp,
+    /// An edge pixel covered by a share `c` shows `2c`, at most 1: heavier type.
+    Strong,
+}
+
+impl TypeAntiAlias {
+    pub const ALL: [Self; 4] = [Self::None, Self::Sharp, Self::Crisp, Self::Strong];
+
+    /// The id used in command params and files (`none`, `sharp`, `crisp`, `strong`).
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Sharp => "sharp",
+            Self::Crisp => "crisp",
+            Self::Strong => "strong",
+        }
+    }
+
+    /// The method an id names.
+    pub fn from_id(id: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|a| a.id() == id)
+    }
+}
+
 /// A text object. `runs` split into paragraphs at `\n`.
 ///
 /// Paragraph attributes: `para` is paragraph 0's (and, while `paras` is empty, every
@@ -1193,6 +1231,11 @@ pub struct TextObject {
     /// for new type and for documents from before it, and saved only when on.
     #[serde(default, rename = "opticalMarginAlignment", skip_serializing_if = "crate::skip::is_default")]
     pub optical_margin: bool,
+    /// Character panel › Anti-aliasing Method: how the type's edges are drawn as pixels. Every
+    /// frame of a thread has the same method. Sharp for new type and for documents from before it,
+    /// and saved only when it is another method.
+    #[serde(default, rename = "antiAlias", skip_serializing_if = "crate::skip::is_default")]
+    pub anti_alias: TypeAntiAlias,
     /// Cached layout bounds in text space, filled in by the layout engine (not serialized).
     #[serde(skip)]
     pub cached_bounds: Option<Rect>,
@@ -1259,6 +1302,7 @@ impl TextObject {
             path_spacing: 0.0,
             wrap: Vec::new(),
             optical_margin: false,
+            anti_alias: TypeAntiAlias::Sharp,
             cached_bounds: None,
             cached_baselines: Vec::new(),
         }
