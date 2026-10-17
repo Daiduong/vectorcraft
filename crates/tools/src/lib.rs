@@ -492,6 +492,9 @@ pub enum Cursor {
     ZoomIn,
     ZoomOut,
     Eyedropper,
+    /// The Eyedropper over type, where a click samples the type's attributes: the pipette with a
+    /// small T.
+    EyedropperType,
     NotAllowed,
     /// Over the gradient annotator's bar: a click adds a stop.
     AddStop,
@@ -577,6 +580,9 @@ pub enum Cursor {
     ScissorsNotAllowed,
     /// The Mesh tool off a mesh point: a click adds one.
     MeshAdd,
+    /// The Mesh tool where a click adds nothing: over a mesh point or handle (a drag moves it) and
+    /// away from any mesh or path. The Mesh pointer without MeshAdd's plus.
+    Mesh,
     /// Puppet Warp over the selection's mesh where a pin can go: a click adds one.
     PuppetPin,
 }
@@ -634,6 +640,7 @@ impl Cursor {
             | Cursor::AnchorPoint
             | Cursor::Curvature
             | Cursor::Eyedropper
+            | Cursor::EyedropperType
             | Cursor::Slice
             | Cursor::Blend
             | Cursor::BlendObject
@@ -664,15 +671,16 @@ impl Cursor {
             | Cursor::SymbolStyler
             | Cursor::Scissors
             | Cursor::MeshAdd
+            | Cursor::Mesh
             | Cursor::PuppetPin => Cursor::Crosshair,
             c => c,
         }
     }
 
-    /// The cursor this one borrows until it's drawn: the generic crosshair for the
-    /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh tool and Puppet
-    /// Warp, not-allowed for the Scissors away from a path. `None` for a cursor with a look of
-    /// its own.
+    /// The cursor this one borrows until nibcraft draws it: the generic crosshair for the
+    /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh
+    /// tool's plus and Puppet Warp, the pipette for the Eyedropper over type, not-allowed for the
+    /// Scissors away from a path. `None` for a cursor with a look of its own.
     pub fn stand_in(self) -> Option<Self> {
         match self {
             Cursor::Lasso
@@ -697,8 +705,11 @@ impl Cursor {
             | Cursor::SymbolStainer
             | Cursor::SymbolScreener
             | Cursor::SymbolStyler
-            | Cursor::Scissors => Some(Cursor::Crosshair),
+            | Cursor::Scissors
+            | Cursor::Mesh => Some(Cursor::Crosshair),
+            Cursor::EyedropperType => Some(Cursor::Eyedropper),
             Cursor::TypeVertical | Cursor::LoadedText => Some(Cursor::Text),
+            Cursor::PenDrawing => Some(Cursor::Pen),
             Cursor::MeshAdd | Cursor::PuppetPin => Some(Cursor::PenAdd),
             Cursor::ScissorsNotAllowed => Some(Cursor::NotAllowed),
             _ => None,
@@ -975,11 +986,11 @@ mod cursor_tests {
             ("symbolStainer", Cursor::SymbolStainer),
             ("symbolScreener", Cursor::SymbolScreener),
             ("symbolStyler", Cursor::SymbolStyler),
-            ("mesh", Cursor::MeshAdd),
+            ("mesh", Cursor::Mesh),
         ] {
             assert_eq!(cursor_at(id, &d, away), c, "{id}");
             assert_eq!(c.precise(), Cursor::Crosshair, "{id}");
-            assert_eq!(c.stand_in(), Some(if id == "mesh" { Cursor::PenAdd } else { Cursor::Crosshair }), "{id}");
+            assert_eq!(c.stand_in(), Some(Cursor::Crosshair), "{id}");
         }
     }
 
