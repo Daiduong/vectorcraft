@@ -93,6 +93,7 @@ the app's own editing copy of a file (an EPS after its `%%EOF`, a `.ai`'s `AIPri
 | PSB | open | yes (merged image) | no | |
 | PNG / JPEG / GIF / BMP / TIFF / Targa | open, export | yes (Targa: export only) | yes; TIFF is also selectable in Export for Screens and Asset Export with its existing options | Targa import missing; TIFF: grayscale with an alpha channel or other extra channels reads (#1466 in part), CCITT Group 3 and planar files with extra channels don't; the ICC profiles embedded in JPEG and TIFF have 4-byte aligned tags (#1584) |
 | WebP | export (Export for Screens) | yes | yes (lossless only; lossy written lossless with a warning) | |
+| JPEG XL `.jxl` | — | yes (first frame; 16-bit and floating-point samples as 8 bits, alpha kept; CMYK refused) | no | decoded with jxl-oxide; the size is checked from the header before decoding; tests in `crates/engine/src/cmd/fileio/tests_jxlread.rs` and `crates/engine/tests/import_fuzz.rs` |
 | HEIC / HEIF | open, place | no | no | |
 | JPEG 2000 | open, place | no | no | |
 | PICT, PCX, Pixar PXR | open, place (legacy) | no | no | rarely used |

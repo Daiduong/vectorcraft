@@ -30,6 +30,7 @@ mod encode;
 pub mod eps;
 mod export;
 pub(crate) mod imagemap;
+pub mod jxlread;
 mod legacy_ai;
 mod load;
 pub(crate) use load::{MAX_RASTER_ALLOC, too_large_note};
@@ -641,6 +642,8 @@ pub const FORMATS: &[Format] = &[
     reader("affinity", "Affinity", &["af", "afdesign", "afpub"], "application/vnd.affinity", false),
     // Photoshop's large document format: read like a PSD (its merged image), never written.
     reader("psb", "PSB", &["psb"], "image/x-psb", true),
+    // jxl-oxide reads a JPEG XL file's first frame, which is stored as PNG. Exports don't write it.
+    reader("jxl", "JPEG XL", &["jxl"], "image/jxl", true),
 ];
 
 /// Every extension `document.open` reads (the "All readable files" filter of open dialogs).
@@ -662,6 +665,7 @@ pub const OPEN_EXTS: &[&str] = &[
     "bmp",
     "psd",
     "psb",
+    "jxl",
     "vctemplate",
     "dxf",
     "emf",
@@ -674,8 +678,9 @@ pub const OPEN_EXTS: &[&str] = &[
 
 /// Extensions in [`OPEN_EXTS`] the desktop packaging doesn't associate with VectorCraft: Photoshop
 /// documents belong to raster editors, so Finder and file managers don't offer a vector app for
-/// them (File › Open and Place still read them).
-pub const UNASSOCIATED_EXTS: &[&str] = &["psd", "psb"];
+/// them. The macOS bundle doesn't declare JPEG XL images either. File › Open and Place read them
+/// all.
+pub const UNASSOCIATED_EXTS: &[&str] = &["psd", "psb", "jxl"];
 
 /// The extension that picks each writable format when exporting (the format's first; PNG-8 shares
 /// `.png` with PNG, so `.png` comes once), in [`FORMATS`] order.
@@ -711,6 +716,7 @@ pub const PLACE_EXTS: &[&str] = &[
     "bmp",
     "psd",
     "psb",
+    "jxl",
     "vctemplate",
     "dxf",
     "emf",
@@ -1205,6 +1211,8 @@ mod tests_pdfoutput;
 #[cfg(test)]
 mod tests_tiffbmp;
 
+#[cfg(test)]
+mod tests_jxlread;
 #[cfg(test)]
 mod tests_pdfx;
 #[cfg(test)]
