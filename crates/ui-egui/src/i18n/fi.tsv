@@ -5140,3 +5140,45 @@ mark-style	Japanese	Japanilainen
 @msg	too many library panels were opened in this session	tässä istunnossa on avattu liian monta kirjastopaneelia
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Kuva on {_1} × {_2} kuvapistettä, yhdeltä sivultaan yli {LARGE_TRACE_SIDE}: se jäljitetään, mutta hitaammin. Pienemmän tarkkuuden esiasetus tai kuvan pienempi kopio jäljittyy nopeammin.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Kuva jäljitettiin kokoon {_1} × {_2} kuvapistettä pienennettynä koosta {_3} × {_4} (enintään {_5} megapikseliä).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Nimeä tasot tekoälyllä
+	Layer Naming Candidates	Tasojen nimeämisehdokkaat
+	Apply Layer Names	Käytä tasojen nimiä
+	Apply Names	Käytä nimiä
+	Server URL	Palvelimen URL
+	Vision model	Kuvia tukeva malli
+	Name language	Nimien kieli
+	Scope	Laajuus
+	Whole document	Koko asiakirja
+	Highlighted rows or selection	Korostetut rivit tai valinta
+	Group depth	Ryhmien syvyys
+	Generate Names	Ehdota nimiä
+	Previews are sent to the configured Ollama server.	Esikatselut lähetetään määritettyyn Ollama-palvelimeen.
+	Analyzing groups…	Analysoidaan ryhmiä…
+	Review and edit names before applying.	Tarkista ja muokkaa nimet ennen käyttöä.
+	Name Layers with AI…	Nimeä tasot tekoälyllä…
+@msg	AI layer naming currently requires the desktop app and Ollama	Tasojen tekoälynimet edellyttävät työpöytäsovellusta ja Ollamaa
+@msg	Cancelled	Peruutettu
+@msg	Cannot render group {id}	Ryhmää {id} ei voi piirtää
+@msg	Enter a vision model and name language	Anna kuvia tukeva malli ja nimien kieli
+@msg	Generate names first	Luo nimet ensin
+@msg	Invalid artwork bounds	Virheelliset piirroksen rajat
+@msg	Invalid candidate id	Virheellinen ehdokkaan tunniste
+@msg	Invalid thumbnail	Virheellinen pikkukuva
+@msg	Model did not name every requested group; try again	Malli ei nimennyt kaikkia ryhmiä; yritä uudelleen
+@msg	Model returned an invalid name	Malli palautti virheellisen nimen
+@msg	Model returned duplicate or unknown IDs	Malli palautti toistuvia tai tuntemattomia tunnisteita
+@msg	Model returned no names array	Malli ei palauttanut nimitaulukkoa
+@msg	No artwork in the selected groups	Valituissa ryhmissä ei ole piirrosta
+@msg	No candidates	Ei ehdokkaita
+@msg	No document	Ei asiakirjaa
+@msg	No request pipe	Ei pyyntökanavaa
+@msg	No response pipe	Ei vastauskanavaa
+@msg	No visible artwork to analyze	Ei näkyvää piirrosta analysoitavaksi
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama-pyyntö epäonnistui tai vastaus ylitti 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-pyyntö epäonnistui. Tarkista palvelimen URL, asennettu kuvamalli ja curl; aikaraja on 120 sekuntia.
+@msg	Ollama returned no message content	Ollama ei palauttanut viestin sisältöä
+@msg	Server URL must start with http:// or https://	Palvelimen URL-osoitteen on alettava http:// tai https://
+@msg	Unable to render naming previews	Nimeämisen esikatseluja ei voi piirtää
+@msg	Wait for generation to finish	Odota luonnin valmistumista

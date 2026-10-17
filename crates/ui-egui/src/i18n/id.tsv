@@ -5165,3 +5165,21 @@ swatch	Bright Violet	Violet cerah
 	Typing	Mengetik
 	Persistent	Persisten
 	Library Panel Options	Opsi panel pustaka
+
+# AI-assisted layer naming.
+	Name Layers with AI	Beri Nama Lapisan dengan AI
+	Layer Naming Candidates	Kandidat Penamaan Lapisan
+	Apply Layer Names	Terapkan Nama Lapisan
+	Apply Names	Terapkan Nama
+	Server URL	URL server
+	Vision model	Model dengan dukungan gambar
+	Name language	Bahasa nama
+	Scope	Cakupan
+	Whole document	Seluruh dokumen
+	Highlighted rows or selection	Baris yang disorot atau seleksi
+	Group depth	Kedalaman grup
+	Generate Names	Usulkan Nama
+	Previews are sent to the configured Ollama server.	Pratinjau dikirim ke server Ollama yang dikonfigurasi.
+	Analyzing groups…	Menganalisis grup…
+	Review and edit names before applying.	Tinjau dan edit nama sebelum menerapkan.
+	Name Layers with AI…	Beri Nama Lapisan dengan AI…

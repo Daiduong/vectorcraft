@@ -5093,3 +5093,45 @@ mark-style	Japanese	Japonesas
 @msg	too many library panels were opened in this session	foram abertos painéis de biblioteca demais nesta sessão
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A imagem tem {_1} × {_2} pixels, mais de {LARGE_TRACE_SIDE} em um lado: ela é traçada, mas mais devagar. Uma predefinição de menor fidelidade ou uma cópia menor da imagem traça mais rápido.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A imagem foi traçada em {_1} × {_2} pixels, reduzida de {_3} × {_4} (no máximo {_5} megapixels).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Nomear camadas com IA
+	Layer Naming Candidates	Candidatos a nomes de camadas
+	Apply Layer Names	Aplicar nomes de camadas
+	Apply Names	Aplicar nomes
+	Server URL	URL do servidor
+	Vision model	Modelo com suporte a imagens
+	Name language	Idioma dos nomes
+	Scope	Escopo
+	Whole document	Documento inteiro
+	Highlighted rows or selection	Linhas destacadas ou seleção
+	Group depth	Profundidade dos grupos
+	Generate Names	Sugerir nomes
+	Previews are sent to the configured Ollama server.	As prévias são enviadas ao servidor Ollama configurado.
+	Analyzing groups…	Analisando grupos…
+	Review and edit names before applying.	Revise e edite os nomes antes de aplicá-los.
+	Name Layers with AI…	Nomear camadas com IA…
+@msg	AI layer naming currently requires the desktop app and Ollama	Os nomes de camadas com IA exigem o aplicativo de desktop e Ollama
+@msg	Cancelled	Cancelado
+@msg	Cannot render group {id}	Não foi possível renderizar o grupo {id}
+@msg	Enter a vision model and name language	Informe um modelo com imagens e o idioma dos nomes
+@msg	Generate names first	Gere os nomes primeiro
+@msg	Invalid artwork bounds	Limites da arte inválidos
+@msg	Invalid candidate id	ID de candidato inválido
+@msg	Invalid thumbnail	Miniatura inválida
+@msg	Model did not name every requested group; try again	O modelo não nomeou todos os grupos; tente novamente
+@msg	Model returned an invalid name	O modelo retornou um nome inválido
+@msg	Model returned duplicate or unknown IDs	O modelo retornou IDs duplicados ou desconhecidos
+@msg	Model returned no names array	O modelo não retornou uma matriz de nomes
+@msg	No artwork in the selected groups	Não há arte nos grupos selecionados
+@msg	No candidates	Nenhum candidato
+@msg	No document	Nenhum documento
+@msg	No request pipe	Sem canal de solicitação
+@msg	No response pipe	Sem canal de resposta
+@msg	No visible artwork to analyze	Não há arte visível para analisar
+@msg	Ollama request failed or response exceeded 1 MiB	A solicitação ao Ollama falhou ou a resposta excedeu 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	A solicitação ao Ollama falhou. Verifique a URL do servidor, o modelo com imagens instalado e curl; o limite é de 120 segundos.
+@msg	Ollama returned no message content	Ollama não retornou conteúdo de mensagem
+@msg	Server URL must start with http:// or https://	A URL do servidor deve começar com http:// ou https://
+@msg	Unable to render naming previews	Não foi possível renderizar as prévias de nomes
+@msg	Wait for generation to finish	Aguarde a conclusão da geração

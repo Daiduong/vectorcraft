@@ -5128,3 +5128,45 @@ effect	Points	Σημεία
 @msg	too many library panels were opened in this session	άνοιξαν πάρα πολλοί πίνακες βιβλιοθηκών σε αυτή τη συνεδρία
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Η εικόνα είναι {_1} × {_2} εικονοστοιχεία, πάνω από {LARGE_TRACE_SIDE} σε μία πλευρά: ανιχνεύεται, αλλά πιο αργά. Μια προρύθμιση χαμηλότερης πιστότητας ή ένα μικρότερο αντίγραφο της εικόνας ανιχνεύεται γρηγορότερα.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Η εικόνα ανιχνεύτηκε σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη από {_3} × {_4} (το πολύ {_5} megapixel).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Ονομασία επιπέδων με ΤΝ
+	Layer Naming Candidates	Υποψήφια επίπεδα για ονομασία
+	Apply Layer Names	Εφαρμογή ονομάτων επιπέδων
+	Apply Names	Εφαρμογή ονομάτων
+	Server URL	URL διακομιστή
+	Vision model	Μοντέλο με υποστήριξη εικόνων
+	Name language	Γλώσσα ονομάτων
+	Scope	Εμβέλεια
+	Whole document	Ολόκληρο έγγραφο
+	Highlighted rows or selection	Επισημασμένες γραμμές ή επιλογή
+	Group depth	Βάθος ομάδων
+	Generate Names	Πρόταση ονομάτων
+	Previews are sent to the configured Ollama server.	Οι προεπισκοπήσεις αποστέλλονται στον ρυθμισμένο διακομιστή Ollama.
+	Analyzing groups…	Ανάλυση ομάδων…
+	Review and edit names before applying.	Ελέγξτε και επεξεργαστείτε τα ονόματα πριν την εφαρμογή.
+	Name Layers with AI…	Ονομασία επιπέδων με ΤΝ…
+@msg	AI layer naming currently requires the desktop app and Ollama	Η ονομασία επιπέδων με ΤΝ απαιτεί την εφαρμογή υπολογιστή και το Ollama
+@msg	Cancelled	Ακυρώθηκε
+@msg	Cannot render group {id}	Αδυναμία απόδοσης της ομάδας {id}
+@msg	Enter a vision model and name language	Εισαγάγετε μοντέλο εικόνων και γλώσσα ονομάτων
+@msg	Generate names first	Δημιουργήστε πρώτα ονόματα
+@msg	Invalid artwork bounds	Μη έγκυρα όρια γραφικών
+@msg	Invalid candidate id	Μη έγκυρο ID υποψηφίου
+@msg	Invalid thumbnail	Μη έγκυρη μικρογραφία
+@msg	Model did not name every requested group; try again	Το μοντέλο δεν ονόμασε όλες τις ομάδες· δοκιμάστε ξανά
+@msg	Model returned an invalid name	Το μοντέλο επέστρεψε μη έγκυρο όνομα
+@msg	Model returned duplicate or unknown IDs	Το μοντέλο επέστρεψε διπλά ή άγνωστα ID
+@msg	Model returned no names array	Το μοντέλο δεν επέστρεψε πίνακα ονομάτων
+@msg	No artwork in the selected groups	Δεν υπάρχουν γραφικά στις επιλεγμένες ομάδες
+@msg	No candidates	Δεν υπάρχουν υποψήφιοι
+@msg	No document	Δεν υπάρχει έγγραφο
+@msg	No request pipe	Δεν υπάρχει κανάλι αιτήματος
+@msg	No response pipe	Δεν υπάρχει κανάλι απόκρισης
+@msg	No visible artwork to analyze	Δεν υπάρχουν ορατά γραφικά για ανάλυση
+@msg	Ollama request failed or response exceeded 1 MiB	Το αίτημα Ollama απέτυχε ή η απόκριση υπερέβη το 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Το αίτημα Ollama απέτυχε. Ελέγξτε το URL του διακομιστή, το εγκατεστημένο μοντέλο εικόνων και το curl· το όριο είναι 120 δευτερόλεπτα.
+@msg	Ollama returned no message content	Το Ollama δεν επέστρεψε περιεχόμενο μηνύματος
+@msg	Server URL must start with http:// or https://	Το URL του διακομιστή πρέπει να αρχίζει με http:// ή https://
+@msg	Unable to render naming previews	Αδυναμία απόδοσης προεπισκοπήσεων ονομασίας
+@msg	Wait for generation to finish	Περιμένετε να ολοκληρωθεί η δημιουργία

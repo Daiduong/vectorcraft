@@ -4769,3 +4769,45 @@ theme	Appearance	Giao diện
 @msg	too many library panels were opened in this session	đã mở quá nhiều bảng thư viện trong phiên này
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Ảnh có kích thước {_1} × {_2} điểm ảnh, hơn {LARGE_TRACE_SIDE} ở một cạnh: ảnh vẫn được dò, nhưng chậm hơn. Một thiết lập sẵn có độ trung thực thấp hơn hoặc một bản sao nhỏ hơn của ảnh sẽ dò nhanh hơn.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Ảnh đã được dò ở {_1} × {_2} điểm ảnh, thu nhỏ từ {_3} × {_4} (tối đa {_5} megapixel).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Đặt tên lớp bằng AI
+	Layer Naming Candidates	Các lớp cần đặt tên
+	Apply Layer Names	Áp dụng tên lớp
+	Apply Names	Áp dụng tên
+	Server URL	URL máy chủ
+	Vision model	Mô hình hỗ trợ hình ảnh
+	Name language	Ngôn ngữ tên
+	Scope	Phạm vi
+	Whole document	Toàn bộ tài liệu
+	Highlighted rows or selection	Các hàng tô sáng hoặc vùng chọn
+	Group depth	Độ sâu nhóm
+	Generate Names	Đề xuất tên
+	Previews are sent to the configured Ollama server.	Bản xem trước được gửi đến máy chủ Ollama đã cấu hình.
+	Analyzing groups…	Đang phân tích nhóm…
+	Review and edit names before applying.	Xem lại và chỉnh sửa tên trước khi áp dụng.
+	Name Layers with AI…	Đặt tên lớp bằng AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Đặt tên lớp bằng AI cần ứng dụng máy tính và Ollama
+@msg	Cancelled	Đã hủy
+@msg	Cannot render group {id}	Không thể kết xuất nhóm {id}
+@msg	Enter a vision model and name language	Nhập mô hình hỗ trợ hình ảnh và ngôn ngữ tên
+@msg	Generate names first	Hãy tạo tên trước
+@msg	Invalid artwork bounds	Giới hạn đồ họa không hợp lệ
+@msg	Invalid candidate id	ID ứng viên không hợp lệ
+@msg	Invalid thumbnail	Ảnh thu nhỏ không hợp lệ
+@msg	Model did not name every requested group; try again	Mô hình chưa đặt tên cho mọi nhóm; hãy thử lại
+@msg	Model returned an invalid name	Mô hình trả về tên không hợp lệ
+@msg	Model returned duplicate or unknown IDs	Mô hình trả về ID trùng lặp hoặc không xác định
+@msg	Model returned no names array	Mô hình không trả về mảng tên
+@msg	No artwork in the selected groups	Không có đồ họa trong các nhóm đã chọn
+@msg	No candidates	Không có ứng viên
+@msg	No document	Không có tài liệu
+@msg	No request pipe	Không có kênh yêu cầu
+@msg	No response pipe	Không có kênh phản hồi
+@msg	No visible artwork to analyze	Không có đồ họa hiển thị để phân tích
+@msg	Ollama request failed or response exceeded 1 MiB	Yêu cầu Ollama thất bại hoặc phản hồi vượt quá 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Yêu cầu Ollama thất bại. Kiểm tra URL máy chủ, mô hình hình ảnh đã cài và curl; thời gian chờ là 120 giây.
+@msg	Ollama returned no message content	Ollama không trả về nội dung tin nhắn
+@msg	Server URL must start with http:// or https://	URL máy chủ phải bắt đầu bằng http:// hoặc https://
+@msg	Unable to render naming previews	Không thể kết xuất bản xem trước để đặt tên
+@msg	Wait for generation to finish	Chờ quá trình tạo hoàn tất

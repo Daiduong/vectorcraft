@@ -4751,3 +4751,45 @@ effect	Regular	Regelmäßig
 @msg	too many library panels were opened in this session	in dieser Sitzung wurden zu viele Bibliotheksbedienfelder geöffnet
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Das Bild hat {_1} × {_2} Pixel, mehr als {LARGE_TRACE_SIDE} auf einer Seite: Es wird nachgezeichnet, aber langsamer. Eine Vorgabe mit geringerer Detailtreue oder eine kleinere Kopie des Bildes geht schneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Das Bild wurde mit {_1} × {_2} Pixeln nachgezeichnet, verkleinert von {_3} × {_4} (höchstens {_5} Megapixel).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Ebenen mit KI benennen
+	Layer Naming Candidates	Kandidaten für Ebenennamen
+	Apply Layer Names	Ebenennamen anwenden
+	Apply Names	Namen anwenden
+	Server URL	Server-URL
+	Vision model	Modell mit Bildunterstützung
+	Name language	Sprache der Namen
+	Scope	Bereich
+	Whole document	Gesamtes Dokument
+	Highlighted rows or selection	Markierte Zeilen oder Auswahl
+	Group depth	Gruppentiefe
+	Generate Names	Namen vorschlagen
+	Previews are sent to the configured Ollama server.	Vorschauen werden an den konfigurierten Ollama-Server gesendet.
+	Analyzing groups…	Gruppen werden analysiert…
+	Review and edit names before applying.	Namen vor dem Anwenden prüfen und bearbeiten.
+	Name Layers with AI…	Ebenen mit KI benennen…
+@msg	AI layer naming currently requires the desktop app and Ollama	KI-Ebenennamen erfordern die Desktop-App und Ollama
+@msg	Cancelled	Abgebrochen
+@msg	Cannot render group {id}	Gruppe {id} kann nicht gerendert werden
+@msg	Enter a vision model and name language	Bildfähiges Modell und Sprache der Namen eingeben
+@msg	Generate names first	Zuerst Namen generieren
+@msg	Invalid artwork bounds	Ungültige Grafikgrenzen
+@msg	Invalid candidate id	Ungültige Kandidaten-ID
+@msg	Invalid thumbnail	Ungültige Miniatur
+@msg	Model did not name every requested group; try again	Das Modell hat nicht alle Gruppen benannt; erneut versuchen
+@msg	Model returned an invalid name	Das Modell hat einen ungültigen Namen geliefert
+@msg	Model returned duplicate or unknown IDs	Das Modell hat doppelte oder unbekannte IDs geliefert
+@msg	Model returned no names array	Das Modell hat kein Namensarray geliefert
+@msg	No artwork in the selected groups	Keine Grafik in den ausgewählten Gruppen
+@msg	No candidates	Keine Kandidaten
+@msg	No document	Kein Dokument
+@msg	No request pipe	Kein Anforderungskanal
+@msg	No response pipe	Kein Antwortkanal
+@msg	No visible artwork to analyze	Keine sichtbare Grafik zur Analyse
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama-Anforderung fehlgeschlagen oder Antwort größer als 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-Anforderung fehlgeschlagen. Server-URL, installiertes bildfähiges Modell und curl prüfen; Zeitlimit: 120 Sekunden.
+@msg	Ollama returned no message content	Ollama hat keinen Nachrichteninhalt geliefert
+@msg	Server URL must start with http:// or https://	Die Server-URL muss mit http:// oder https:// beginnen
+@msg	Unable to render naming previews	Namensvorschauen können nicht gerendert werden
+@msg	Wait for generation to finish	Warten, bis die Generierung abgeschlossen ist

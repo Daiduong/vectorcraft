@@ -5146,3 +5146,21 @@ theme	Appearance	Външен вид
 	Enable Guides for 9-Slice Scaling	Включване на водачи за 9-slice мащабиране
 	Persistent	Постоянна
 	Library Panel Options	Опции на панела с библиотека
+
+# AI-assisted layer naming.
+	Name Layers with AI	Именуване на слоеве с ИИ
+	Layer Naming Candidates	Кандидати за именуване на слоеве
+	Apply Layer Names	Прилагане на имената на слоевете
+	Apply Names	Прилагане на имената
+	Server URL	Адрес на сървъра
+	Vision model	Модел с поддръжка на изображения
+	Name language	Език на имената
+	Scope	Обхват
+	Whole document	Целият документ
+	Highlighted rows or selection	Маркирани редове или селекция
+	Group depth	Дълбочина на групите
+	Generate Names	Предлагане на имена
+	Previews are sent to the configured Ollama server.	Прегледите се изпращат до зададения сървър Ollama.
+	Analyzing groups…	Анализиране на групи…
+	Review and edit names before applying.	Проверете и редактирайте имената преди прилагане.
+	Name Layers with AI…	Именуване на слоеве с ИИ…

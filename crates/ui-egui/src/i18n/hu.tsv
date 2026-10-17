@@ -5162,3 +5162,45 @@ imageTrace	Outline	Körvonal
 @msg	too many library panels were opened in this session	ebben a munkamenetben túl sok könyvtárpanel nyílt meg
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kép {_1} × {_2} képpont, egyik oldalán több mint {LARGE_TRACE_SIDE}: a vektorizálás megtörténik, de lassabban. Kisebb hűségű előbeállítással vagy a kép kisebb másolatával gyorsabb.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A kép vektorizálása {_1} × {_2} képponton történt, {_3} × {_4} méretről kicsinyítve (legfeljebb {_5} megapixel).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Rétegek elnevezése MI-vel
+	Layer Naming Candidates	Elnevezendő rétegek
+	Apply Layer Names	Rétegnevek alkalmazása
+	Apply Names	Nevek alkalmazása
+	Server URL	Kiszolgáló URL-je
+	Vision model	Képeket támogató modell
+	Name language	Nevek nyelve
+	Scope	Hatókör
+	Whole document	Teljes dokumentum
+	Highlighted rows or selection	Kiemelt sorok vagy kijelölés
+	Group depth	Csoportmélység
+	Generate Names	Nevek javaslata
+	Previews are sent to the configured Ollama server.	Az előnézetek a beállított Ollama-kiszolgálóra kerülnek.
+	Analyzing groups…	Csoportok elemzése…
+	Review and edit names before applying.	Alkalmazás előtt ellenőrizze és szerkessze a neveket.
+	Name Layers with AI…	Rétegek elnevezése MI-vel…
+@msg	AI layer naming currently requires the desktop app and Ollama	Az MI-alapú rétegnevekhez az asztali alkalmazás és az Ollama szükséges
+@msg	Cancelled	Megszakítva
+@msg	Cannot render group {id}	A(z) {id} csoport nem rajzolható ki
+@msg	Enter a vision model and name language	Adjon meg képeket támogató modellt és a nevek nyelvét
+@msg	Generate names first	Először generáljon neveket
+@msg	Invalid artwork bounds	Érvénytelen rajzhatárok
+@msg	Invalid candidate id	Érvénytelen jelöltazonosító
+@msg	Invalid thumbnail	Érvénytelen bélyegkép
+@msg	Model did not name every requested group; try again	A modell nem nevezett el minden csoportot; próbálja újra
+@msg	Model returned an invalid name	A modell érvénytelen nevet adott vissza
+@msg	Model returned duplicate or unknown IDs	A modell ismétlődő vagy ismeretlen azonosítókat adott vissza
+@msg	Model returned no names array	A modell nem adott vissza névtömböt
+@msg	No artwork in the selected groups	Nincs rajz a kijelölt csoportokban
+@msg	No candidates	Nincsenek jelöltek
+@msg	No document	Nincs dokumentum
+@msg	No request pipe	Nincs kéréscsatorna
+@msg	No response pipe	Nincs válaszcsatorna
+@msg	No visible artwork to analyze	Nincs elemezhető látható rajz
+@msg	Ollama request failed or response exceeded 1 MiB	Az Ollama-kérés sikertelen, vagy a válasz nagyobb 1 MiB-nál
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Az Ollama-kérés sikertelen. Ellenőrizze a kiszolgáló URL-jét, a telepített képfeldolgozó modellt és a curl programot; az időkorlát 120 másodperc.
+@msg	Ollama returned no message content	Az Ollama nem adott vissza üzenettartalmat
+@msg	Server URL must start with http:// or https://	A kiszolgáló URL-jének http:// vagy https:// kezdetűnek kell lennie
+@msg	Unable to render naming previews	A névadási előnézetek nem rajzolhatók ki
+@msg	Wait for generation to finish	Várja meg a generálás befejezését

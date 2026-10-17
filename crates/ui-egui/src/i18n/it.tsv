@@ -4789,3 +4789,45 @@ lighting	Light	Luce
 @msg	too many library panels were opened in this session	in questa sessione sono stati aperti troppi pannelli libreria
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’immagine è di {_1} × {_2} pixel, più di {LARGE_TRACE_SIDE} su un lato: viene vettorializzata, ma più lentamente. Un predefinito a fedeltà più bassa o una copia più piccola dell’immagine è più veloce.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’immagine è stata vettorializzata a {_1} × {_2} pixel, ridotta da {_3} × {_4} (al massimo {_5} megapixel).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Denomina livelli con IA
+	Layer Naming Candidates	Candidati per i nomi dei livelli
+	Apply Layer Names	Applica nomi dei livelli
+	Apply Names	Applica nomi
+	Server URL	URL del server
+	Vision model	Modello con supporto immagini
+	Name language	Lingua dei nomi
+	Scope	Ambito
+	Whole document	Intero documento
+	Highlighted rows or selection	Righe evidenziate o selezione
+	Group depth	Profondità dei gruppi
+	Generate Names	Proponi nomi
+	Previews are sent to the configured Ollama server.	Le anteprime vengono inviate al server Ollama configurato.
+	Analyzing groups…	Analisi dei gruppi…
+	Review and edit names before applying.	Verifica e modifica i nomi prima di applicarli.
+	Name Layers with AI…	Denomina livelli con IA…
+@msg	AI layer naming currently requires the desktop app and Ollama	La denominazione dei livelli con IA richiede l’app desktop e Ollama
+@msg	Cancelled	Annullato
+@msg	Cannot render group {id}	Impossibile renderizzare il gruppo {id}
+@msg	Enter a vision model and name language	Inserisci un modello con supporto immagini e la lingua dei nomi
+@msg	Generate names first	Genera prima i nomi
+@msg	Invalid artwork bounds	Limiti della grafica non validi
+@msg	Invalid candidate id	ID candidato non valido
+@msg	Invalid thumbnail	Miniatura non valida
+@msg	Model did not name every requested group; try again	Il modello non ha denominato tutti i gruppi; riprova
+@msg	Model returned an invalid name	Il modello ha restituito un nome non valido
+@msg	Model returned duplicate or unknown IDs	Il modello ha restituito ID duplicati o sconosciuti
+@msg	Model returned no names array	Il modello non ha restituito un array di nomi
+@msg	No artwork in the selected groups	Nessuna grafica nei gruppi selezionati
+@msg	No candidates	Nessun candidato
+@msg	No document	Nessun documento
+@msg	No request pipe	Nessun canale di richiesta
+@msg	No response pipe	Nessun canale di risposta
+@msg	No visible artwork to analyze	Nessuna grafica visibile da analizzare
+@msg	Ollama request failed or response exceeded 1 MiB	Richiesta Ollama non riuscita o risposta oltre 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Richiesta Ollama non riuscita. Verifica URL del server, modello immagini installato e curl; il limite è di 120 secondi.
+@msg	Ollama returned no message content	Ollama non ha restituito contenuto del messaggio
+@msg	Server URL must start with http:// or https://	L’URL del server deve iniziare con http:// o https://
+@msg	Unable to render naming previews	Impossibile renderizzare le anteprime di denominazione
+@msg	Wait for generation to finish	Attendi il completamento della generazione

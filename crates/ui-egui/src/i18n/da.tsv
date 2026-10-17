@@ -5165,3 +5165,21 @@ swatch	Bright Violet	Kraftig violet
 	Typing	Indtastning
 	Persistent	Vedvarende
 	Library Panel Options	Indstillinger for bibliotekspanel
+
+# AI-assisted layer naming.
+	Name Layers with AI	Navngiv lag med AI
+	Layer Naming Candidates	Kandidater til lagnavne
+	Apply Layer Names	Anvend lagnavne
+	Apply Names	Anvend navne
+	Server URL	Server-URL
+	Vision model	Model med billedstøtte
+	Name language	Navnenes sprog
+	Scope	Omfang
+	Whole document	Hele dokumentet
+	Highlighted rows or selection	Fremhævede rækker eller markering
+	Group depth	Gruppedybde
+	Generate Names	Foreslå navne
+	Previews are sent to the configured Ollama server.	Forhåndsvisninger sendes til den konfigurerede Ollama-server.
+	Analyzing groups…	Analyserer grupper…
+	Review and edit names before applying.	Gennemse og rediger navne før anvendelse.
+	Name Layers with AI…	Navngiv lag med AI…

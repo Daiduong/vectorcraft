@@ -5012,3 +5012,45 @@ lighting	Light	光源
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	浏览器中只会打开 http、https 和 mailto 的 URL，不会打开 “{url}”
 @msg	{id} opens another app: only the person at the keyboard can run it	{id} 会打开其他应用程序：只有使用键盘的人才能运行它
 @msg	“{name}” is not a file	“{name}” 不是文件
+
+# AI-assisted layer naming.
+	Name Layers with AI	使用 AI 命名图层
+	Layer Naming Candidates	图层命名候选项
+	Apply Layer Names	应用图层名称
+	Apply Names	应用名称
+	Server URL	服务器 URL
+	Vision model	支持图像的模型
+	Name language	名称语言
+	Scope	范围
+	Whole document	整个文档
+	Highlighted rows or selection	高亮行或选区
+	Group depth	组深度
+	Generate Names	建议名称
+	Previews are sent to the configured Ollama server.	预览将发送到配置的 Ollama 服务器。
+	Analyzing groups…	正在分析组…
+	Review and edit names before applying.	应用前请检查并编辑名称。
+	Name Layers with AI…	使用 AI 命名图层…
+@msg	AI layer naming currently requires the desktop app and Ollama	AI 图层命名需要桌面应用和 Ollama
+@msg	Cancelled	已取消
+@msg	Cannot render group {id}	无法渲染组 {id}
+@msg	Enter a vision model and name language	请输入支持图像的模型和名称语言
+@msg	Generate names first	请先生成名称
+@msg	Invalid artwork bounds	图稿边界无效
+@msg	Invalid candidate id	候选项 ID 无效
+@msg	Invalid thumbnail	缩略图无效
+@msg	Model did not name every requested group; try again	模型未命名所有请求的组，请重试
+@msg	Model returned an invalid name	模型返回了无效名称
+@msg	Model returned duplicate or unknown IDs	模型返回了重复或未知 ID
+@msg	Model returned no names array	模型未返回名称数组
+@msg	No artwork in the selected groups	所选组中没有图稿
+@msg	No candidates	没有候选项
+@msg	No document	没有文档
+@msg	No request pipe	没有请求管道
+@msg	No response pipe	没有响应管道
+@msg	No visible artwork to analyze	没有可分析的可见图稿
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama 请求失败或响应超过 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama 请求失败。请检查服务器 URL、已安装的图像模型和 curl；超时为 120 秒。
+@msg	Ollama returned no message content	Ollama 未返回消息内容
+@msg	Server URL must start with http:// or https://	服务器 URL 必须以 http:// 或 https:// 开头
+@msg	Unable to render naming previews	无法渲染命名预览
+@msg	Wait for generation to finish	请等待生成完成

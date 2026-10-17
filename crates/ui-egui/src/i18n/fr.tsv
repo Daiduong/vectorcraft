@@ -5175,3 +5175,45 @@ theme	Appearance	Apparence
 @msg	too many library panels were opened in this session	trop de panneaux de bibliothèque ont été ouverts dans cette session
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’image fait {_1} × {_2} pixels, plus de {LARGE_TRACE_SIDE} sur un côté : elle est vectorisée, mais plus lentement. Un paramètre prédéfini moins fidèle ou une copie plus petite de l’image se vectorise plus vite.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’image a été vectorisée à {_1} × {_2} pixels, réduite de {_3} × {_4} ({_5} mégapixels au plus).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Nommer les calques avec l’IA
+	Layer Naming Candidates	Candidats au nommage des calques
+	Apply Layer Names	Appliquer les noms des calques
+	Apply Names	Appliquer les noms
+	Server URL	URL du serveur
+	Vision model	Modèle prenant en charge les images
+	Name language	Langue des noms
+	Scope	Portée
+	Whole document	Document entier
+	Highlighted rows or selection	Lignes surlignées ou sélection
+	Group depth	Profondeur des groupes
+	Generate Names	Proposer des noms
+	Previews are sent to the configured Ollama server.	Les aperçus sont envoyés au serveur Ollama configuré.
+	Analyzing groups…	Analyse des groupes…
+	Review and edit names before applying.	Vérifiez et modifiez les noms avant de les appliquer.
+	Name Layers with AI…	Nommer les calques avec l’IA…
+@msg	AI layer naming currently requires the desktop app and Ollama	Le nommage des calques par IA nécessite l’application de bureau et Ollama
+@msg	Cancelled	Annulé
+@msg	Cannot render group {id}	Impossible de rendre le groupe {id}
+@msg	Enter a vision model and name language	Indiquez un modèle prenant en charge les images et la langue des noms
+@msg	Generate names first	Générez d’abord les noms
+@msg	Invalid artwork bounds	Limites de l’illustration non valides
+@msg	Invalid candidate id	ID de candidat non valide
+@msg	Invalid thumbnail	Miniature non valide
+@msg	Model did not name every requested group; try again	Le modèle n’a pas nommé tous les groupes ; réessayez
+@msg	Model returned an invalid name	Le modèle a renvoyé un nom non valide
+@msg	Model returned duplicate or unknown IDs	Le modèle a renvoyé des ID en double ou inconnus
+@msg	Model returned no names array	Le modèle n’a renvoyé aucun tableau de noms
+@msg	No artwork in the selected groups	Aucune illustration dans les groupes sélectionnés
+@msg	No candidates	Aucun candidat
+@msg	No document	Aucun document
+@msg	No request pipe	Aucun canal de requête
+@msg	No response pipe	Aucun canal de réponse
+@msg	No visible artwork to analyze	Aucune illustration visible à analyser
+@msg	Ollama request failed or response exceeded 1 MiB	La requête Ollama a échoué ou la réponse dépasse 1 Mio
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	La requête Ollama a échoué. Vérifiez l’URL du serveur, le modèle d’images installé et curl ; délai maximal : 120 secondes.
+@msg	Ollama returned no message content	Ollama n’a renvoyé aucun contenu de message
+@msg	Server URL must start with http:// or https://	L’URL du serveur doit commencer par http:// ou https://
+@msg	Unable to render naming previews	Impossible de rendre les aperçus de nommage
+@msg	Wait for generation to finish	Attendez la fin de la génération

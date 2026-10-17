@@ -4785,3 +4785,45 @@ lighting	Light	Свет
 @msg	too many library panels were opened in this session	в этом сеансе открыто слишком много панелей библиотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Изображение {_1} × {_2} пикселей, больше {LARGE_TRACE_SIDE} по одной стороне: трассировка выполняется, но медленнее. Стиль с меньшей точностью или уменьшенная копия изображения трассируются быстрее.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Изображение трассировано в размере {_1} × {_2} пикселей, уменьшенное с {_3} × {_4} (не более {_5} мегапикселей).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Назвать слои с помощью ИИ
+	Layer Naming Candidates	Кандидаты для именования слоёв
+	Apply Layer Names	Применить названия слоёв
+	Apply Names	Применить названия
+	Server URL	Адрес сервера
+	Vision model	Модель с поддержкой изображений
+	Name language	Язык названий
+	Scope	Область
+	Whole document	Весь документ
+	Highlighted rows or selection	Отмеченные строки или выделение
+	Group depth	Глубина групп
+	Generate Names	Предложить названия
+	Previews are sent to the configured Ollama server.	Предпросмотры отправляются на указанный сервер Ollama.
+	Analyzing groups…	Анализ групп…
+	Review and edit names before applying.	Проверьте и исправьте названия перед применением.
+	Name Layers with AI…	Назвать слои с помощью ИИ…
+@msg	AI layer naming currently requires the desktop app and Ollama	Для именования слоёв с ИИ нужны настольное приложение и Ollama
+@msg	Cancelled	Отменено
+@msg	Cannot render group {id}	Не удалось отрисовать группу {id}
+@msg	Enter a vision model and name language	Укажите модель с поддержкой изображений и язык названий
+@msg	Generate names first	Сначала запросите названия
+@msg	Invalid artwork bounds	Некорректные границы рисунка
+@msg	Invalid candidate id	Некорректный ID кандидата
+@msg	Invalid thumbnail	Некорректная миниатюра
+@msg	Model did not name every requested group; try again	Модель назвала не все группы; повторите попытку
+@msg	Model returned an invalid name	Модель вернула некорректное название
+@msg	Model returned duplicate or unknown IDs	Модель вернула повторяющиеся или неизвестные ID
+@msg	Model returned no names array	Модель не вернула массив названий
+@msg	No artwork in the selected groups	В выбранных группах нет рисунка
+@msg	No candidates	Нет кандидатов
+@msg	No document	Нет документа
+@msg	No request pipe	Нет канала запроса
+@msg	No response pipe	Нет канала ответа
+@msg	No visible artwork to analyze	Нет видимого рисунка для анализа
+@msg	Ollama request failed or response exceeded 1 MiB	Запрос Ollama не удался или ответ превысил 1 МиБ
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Запрос Ollama не удался. Проверьте адрес сервера, установленную модель с поддержкой изображений и curl; время ожидания — 120 секунд.
+@msg	Ollama returned no message content	Ollama не вернула содержимое сообщения
+@msg	Server URL must start with http:// or https://	Адрес сервера должен начинаться с http:// или https://
+@msg	Unable to render naming previews	Не удалось отрисовать предпросмотры для именования
+@msg	Wait for generation to finish	Дождитесь завершения генерации

@@ -5176,3 +5176,45 @@ mark-style	Japanese	Japonské
 @msg	too many library panels were opened in this session	v této relaci bylo otevřeno příliš mnoho panelů knihoven
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz má {_1} × {_2} pixelů, na jedné straně více než {LARGE_TRACE_SIDE}: vektorizuje se, ale pomaleji. Rychleji se vektorizuje s předvolbou nižší věrnosti nebo menší kopie obrazu.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz byl vektorizován v rozlišení {_1} × {_2} pixelů, zmenšený z {_3} × {_4} (nejvýše {_5} megapixelů).
+
+# AI-assisted layer naming.
+	Name Layers with AI	Pojmenovat vrstvy pomocí AI
+	Layer Naming Candidates	Kandidáti na pojmenování vrstev
+	Apply Layer Names	Použít názvy vrstev
+	Apply Names	Použít názvy
+	Server URL	URL serveru
+	Vision model	Model s podporou obrázků
+	Name language	Jazyk názvů
+	Scope	Rozsah
+	Whole document	Celý dokument
+	Highlighted rows or selection	Označené řádky nebo výběr
+	Group depth	Hloubka skupin
+	Generate Names	Navrhnout názvy
+	Previews are sent to the configured Ollama server.	Náhledy se odesílají na nastavený server Ollama.
+	Analyzing groups…	Analýza skupin…
+	Review and edit names before applying.	Před použitím názvy zkontrolujte a upravte.
+	Name Layers with AI…	Pojmenovat vrstvy pomocí AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Pojmenování vrstev pomocí AI vyžaduje desktopovou aplikaci a Ollama
+@msg	Cancelled	Zrušeno
+@msg	Cannot render group {id}	Nelze vykreslit skupinu {id}
+@msg	Enter a vision model and name language	Zadejte model s podporou obrázků a jazyk názvů
+@msg	Generate names first	Nejprve vygenerujte názvy
+@msg	Invalid artwork bounds	Neplatné hranice kresby
+@msg	Invalid candidate id	Neplatné ID kandidáta
+@msg	Invalid thumbnail	Neplatný náhled
+@msg	Model did not name every requested group; try again	Model nepojmenoval všechny skupiny; zkuste to znovu
+@msg	Model returned an invalid name	Model vrátil neplatný název
+@msg	Model returned duplicate or unknown IDs	Model vrátil duplicitní nebo neznámá ID
+@msg	Model returned no names array	Model nevrátil pole názvů
+@msg	No artwork in the selected groups	Ve vybraných skupinách není kresba
+@msg	No candidates	Žádní kandidáti
+@msg	No document	Žádný dokument
+@msg	No request pipe	Chybí kanál požadavku
+@msg	No response pipe	Chybí kanál odpovědi
+@msg	No visible artwork to analyze	Žádná viditelná kresba k analýze
+@msg	Ollama request failed or response exceeded 1 MiB	Požadavek Ollama selhal nebo odpověď přesáhla 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Požadavek Ollama selhal. Zkontrolujte URL serveru, nainstalovaný model s podporou obrázků a curl; časový limit je 120 sekund.
+@msg	Ollama returned no message content	Ollama nevrátila obsah zprávy
+@msg	Server URL must start with http:// or https://	URL serveru musí začínat http:// nebo https://
+@msg	Unable to render naming previews	Nelze vykreslit náhledy pro pojmenování
+@msg	Wait for generation to finish	Počkejte na dokončení generování

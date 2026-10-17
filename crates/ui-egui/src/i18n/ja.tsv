@@ -4830,3 +4830,45 @@ lighting	Light	ライト
 @msg	too many library panels were opened in this session	このセッションで開いたライブラリパネルが多すぎます
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	画像は {_1} × {_2} ピクセルで、一辺が {LARGE_TRACE_SIDE} を超えています。トレースはできますが、時間がかかります。忠実度の低いプリセットや画像の小さいコピーを使うと速くなります。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	画像は {_3} × {_4} から縮小した {_1} × {_2} ピクセルでトレースされました (最大 {_5} メガピクセル)。
+
+# AI-assisted layer naming.
+	Name Layers with AI	AIでレイヤーに名前を付ける
+	Layer Naming Candidates	レイヤー命名候補
+	Apply Layer Names	レイヤー名を適用
+	Apply Names	名前を適用
+	Server URL	サーバーURL
+	Vision model	画像対応モデル
+	Name language	名前の言語
+	Scope	範囲
+	Whole document	ドキュメント全体
+	Highlighted rows or selection	ハイライトした行または選択範囲
+	Group depth	グループの深さ
+	Generate Names	名前を提案
+	Previews are sent to the configured Ollama server.	プレビューは設定されたOllamaサーバーに送信されます。
+	Analyzing groups…	グループを分析中…
+	Review and edit names before applying.	適用する前に名前を確認して編集してください。
+	Name Layers with AI…	AIでレイヤーに名前を付ける…
+@msg	AI layer naming currently requires the desktop app and Ollama	AIによるレイヤー命名にはデスクトップアプリとOllamaが必要です
+@msg	Cancelled	キャンセルしました
+@msg	Cannot render group {id}	グループ {id} を描画できません
+@msg	Enter a vision model and name language	画像対応モデルと名前の言語を入力してください
+@msg	Generate names first	先に名前を生成してください
+@msg	Invalid artwork bounds	アートワークの境界が無効です
+@msg	Invalid candidate id	候補IDが無効です
+@msg	Invalid thumbnail	サムネイルが無効です
+@msg	Model did not name every requested group; try again	すべてのグループに名前が付いていません。再試行してください
+@msg	Model returned an invalid name	モデルが無効な名前を返しました
+@msg	Model returned duplicate or unknown IDs	モデルが重複または不明なIDを返しました
+@msg	Model returned no names array	モデルが名前の配列を返しませんでした
+@msg	No artwork in the selected groups	選択したグループにアートワークがありません
+@msg	No candidates	候補がありません
+@msg	No document	ドキュメントがありません
+@msg	No request pipe	リクエスト用パイプがありません
+@msg	No response pipe	応答用パイプがありません
+@msg	No visible artwork to analyze	分析する表示可能なアートワークがありません
+@msg	Ollama request failed or response exceeded 1 MiB	Ollamaのリクエストが失敗したか、応答が1 MiBを超えました
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollamaのリクエストが失敗しました。サーバーURL、インストール済みの画像対応モデル、curlを確認してください。制限時間は120秒です。
+@msg	Ollama returned no message content	Ollamaがメッセージ内容を返しませんでした
+@msg	Server URL must start with http:// or https://	サーバーURLはhttp://またはhttps://で始まる必要があります
+@msg	Unable to render naming previews	命名用プレビューを描画できません
+@msg	Wait for generation to finish	生成が完了するまでお待ちください

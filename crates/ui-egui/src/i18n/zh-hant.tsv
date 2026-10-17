@@ -4074,3 +4074,21 @@ lighting	Light	光源
 	Enable Guides for 9-Slice Scaling	啟用 9-slice 縮放參考線
 	Persistent	持久
 	Library Panel Options	資料庫面板選項
+
+# AI-assisted layer naming.
+	Name Layers with AI	使用 AI 命名圖層
+	Layer Naming Candidates	圖層命名候選項
+	Apply Layer Names	套用圖層名稱
+	Apply Names	套用名稱
+	Server URL	伺服器 URL
+	Vision model	支援影像的模型
+	Name language	名稱語言
+	Scope	範圍
+	Whole document	整份文件
+	Highlighted rows or selection	反白列或選取範圍
+	Group depth	群組深度
+	Generate Names	建議名稱
+	Previews are sent to the configured Ollama server.	預覽將傳送至設定的 Ollama 伺服器。
+	Analyzing groups…	正在分析群組…
+	Review and edit names before applying.	套用前請檢查並編輯名稱。
+	Name Layers with AI…	使用 AI 命名圖層…

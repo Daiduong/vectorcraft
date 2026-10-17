@@ -46,6 +46,7 @@ pub mod halftone;
 pub mod hyphenation;
 pub mod import_pdf;
 pub mod javascript_files;
+pub mod layer_names;
 pub mod layer_options;
 pub mod layers_panel_options;
 pub mod liquify;
@@ -223,6 +224,7 @@ macro_rules! registry {
 }
 
 registry! {
+    LayerNames: [layer_names::KIND] => layer_names::SPEC,
     DimensionOptions: [dimension::KIND] => dimension::SPEC,
     NewDocument: [new_document::KIND] => new_document::SPEC,
     Shape: ["rectangle", "roundedRectangle", "ellipse", "polygon", "star", "lineSegment", "rectangularGrid", "polarGrid"] => shapes::SPEC,
@@ -390,6 +392,9 @@ pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
 /// that dialog is gone, and with no dialog open the next document's Missing Fonts dialog opens
 /// (one dialog at a time).
 pub(crate) fn settle(app: &mut VectorcraftApp) {
+    if app.ui.dialog.as_ref().is_none_or(|d| d.kind != layer_names::KIND) {
+        app.naming_job = None;
+    }
     missing_fonts::requeue_replaced(app);
     missing_fonts::stop_when_closed(app);
     find_links::stop_when_closed(app);
