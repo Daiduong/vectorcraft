@@ -538,6 +538,36 @@ fn image_roundtrip() {
     assert_eq!(decoded.get_pixel(3, 0).0, [0, 0, 0, 255]);
 }
 
+/// #2023: a group's Transform effect copies an image among its members as it does the paths: the
+/// PDF draws the image three times, where the effect put it.
+#[test]
+fn a_group_transform_effect_exports_its_image_copies() {
+    let mut d = doc(200.0, 100.0);
+    d.images.insert("img1".into(), ImageBlob::new("image/png", tiny_png()));
+    let im = ImageObject {
+        key: "img1".into(),
+        width: 4,
+        height: 2,
+        xf: Affine::translate((20.0, 30.0)) * Affine::scale(5.0),
+        link: None,
+        placement: Default::default(),
+    };
+    let image = Arc::new(Node::new(d.alloc_id(), NodeKind::Image(Box::new(im))));
+    let mut square = rect_node(Rect::new(20.0, 60.0, 30.0, 70.0), Color::BLACK);
+    square.id = d.alloc_id();
+    let mut g = Node::group(NodeId(0), vec![Arc::new(square), image]);
+    g.appearance.effects.push(vectorcraft_doc::Effect {
+        id: "distort.transform".into(),
+        params: serde_json::json!({"moveH": 50, "copies": 2}),
+        visible: true,
+    });
+    add(&mut d, g);
+    let out = roundtrip(&d);
+    let lefts: Vec<f64> =
+        leaves(&out).iter().filter(|n| matches!(n.kind, NodeKind::Image(_))).filter_map(|n| n.geometric_bounds()).map(|b| b.x0.round()).collect();
+    assert_eq!(lefts, [20.0, 70.0, 120.0]);
+}
+
 /// Build a PDF with a correct xref table from object bodies.
 fn handmade_pdf(content: &str, media: &str) -> Vec<u8> {
     let objs = [
@@ -806,10 +836,16 @@ fn functions_and_colour_spaces_built_on_themselves_are_refused() {
         ("procedures in procedures", &shaded, vec![calculator(&format!("{}{}", "{".repeat(100), "}".repeat(100)))]),
         ("a colour space on itself", &filled, vec![indexed(&me)]),
         ("two colour spaces on each other", &filled, vec![indexed(&next), indexed(&me)]),
+        // Its leading items are read by the interpreter all the same: an item that can't be read
+        // (a stream of an external file) after them doesn't hide them.
+        ("a function stitching itself, then an item that can't be read", &shaded, vec![stitch(&format!("{me} << /F (x) >> stream"))]),
+        ("a colour space on itself, then an item that can't be read", &filled, vec![format!("[/Indexed {me} 1 <000000ffffff> << /F (x) >> stream]")]),
     ] {
         let objects: Vec<&str> = objects.iter().map(String::as_str).collect();
         let e = import(&pdf_with(std::slice::from_ref(page), &objects, None)).err().map(|e| e.to_string());
-        assert!(e.as_deref().is_some_and(|e| e.contains("built on one another without end")), "{what}: {e:?}");
+        // A damaged array is refused as damaged: what it holds can't be looked at whole.
+        let refused = |e: &str| e.contains("built on one another without end") || e.contains("is damaged and can't be read");
+        assert!(e.as_deref().is_some_and(refused), "{what}: {e:?}");
     }
     for (what, page, objects) in [
         ("a function stitching one", &shaded, vec![stitch(&next), ramp.to_string()]),

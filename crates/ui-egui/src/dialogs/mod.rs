@@ -7,6 +7,7 @@
 //! Shortcuts, Workspaces, Find Font) draw their own window.
 
 mod about;
+pub mod action_batch;
 pub mod artboard_options;
 pub mod blend_options;
 mod brush_art_options;
@@ -35,12 +36,14 @@ pub mod flare_options;
 pub mod flatten;
 pub mod flattener_presets;
 mod form;
+pub(crate) mod free_distort;
 pub mod freehand;
 mod gradient_stop;
 pub mod graph_data;
 pub mod graph_design;
 pub mod graphic_style_options;
 pub mod halftone;
+pub mod hyphenation;
 pub mod import_pdf;
 pub mod layer_options;
 pub mod layers_panel_options;
@@ -97,14 +100,15 @@ mod tools;
 mod transform;
 pub mod transform_each;
 pub mod variables;
+mod warp_effect;
 pub mod width_point;
 
 use serde_json::{Value, json};
 
 pub use color_picker::open as open_color_picker;
 pub use document_setup::open as open_document_setup;
-pub(crate) use effect::FILM_GRAIN_FIELDS;
 pub use effect::open as open_effect_dialog;
+pub(crate) use effect::{FILM_GRAIN_FIELDS, SHADES};
 pub use export_as::open as open_export_as;
 pub use export_for_screens::open as open_export_for_screens;
 pub(crate) use export_for_screens::{
@@ -259,6 +263,7 @@ registry! {
     TransformEach: [transform_each::KIND] => transform_each::SPEC,
     WidthPoint: [width_point::KIND] => width_point::SPEC,
     Corners: [corners::KIND] => corners::SPEC,
+    Hyphenation: [hyphenation::KIND] => hyphenation::SPEC,
     SavePdf: [save_pdf::KIND] => save_pdf::SPEC,
     SvgOptions: [svg_options::KIND] => svg_options::SPEC,
     NewDocumentMore: [new_document::MORE] => new_document::MORE_SPEC,
@@ -281,6 +286,7 @@ registry! {
     DxfOptions: [dxf_options::KIND] => dxf_options::SPEC,
     PlacementOptions: [placement_options::KIND] => placement_options::SPEC,
     Package: [package::KIND] => package::SPEC,
+    ActionBatch: [action_batch::KIND] => action_batch::SPEC,
     SliceOptions: [slices::OPTIONS] => slices::OPTIONS_SPEC,
     DivideSlices: [slices::DIVIDE] => slices::DIVIDE_SPEC,
     EpsOptions: [eps_options::KIND] => eps_options::SPEC,
@@ -575,3 +581,6 @@ mod tests_rectangular_grid;
 
 #[cfg(test)]
 mod tests_shortcut_import;
+
+#[cfg(test)]
+mod tests_warp;
