@@ -1966,13 +1966,20 @@ impl FontDb {
         }
         match found.first() {
             Some(a) => (a.family.clone(), style.to_string()),
-            None => {
-                match metric_substitutes(family).iter().find(|s| self.is_loaded(s) || self.read_catalog().contains_key(&s.to_ascii_lowercase())) {
-                    Some(s) => ((*s).to_string(), style.to_string()),
-                    None => (family.to_string(), style.to_string()),
-                }
-            }
+            None => (family.to_string(), style.to_string()),
         }
+    }
+
+    /// The installed family that stands in for `family` by metrics ([`METRIC_SUBSTITUTES`], the
+    /// first installed one), when `family` itself is neither loaded nor installed. Used where a face
+    /// is found for drawing ([`FontDb::face`], [`FontDb::resolve`]); [`FontDb::canonical`] and
+    /// [`FontDb::has_family`] never apply it, so a missing font still reads as missing.
+    fn metric_stand_in(&self, family: &str) -> Option<&'static str> {
+        let installed = |f: &str| self.is_loaded(f) || self.read_catalog().contains_key(&f.to_ascii_lowercase());
+        if installed(family) {
+            return None;
+        }
+        metric_substitutes(family).iter().copied().find(|s| installed(s))
     }
 
     /// The kind of `family` (whether it sets Japanese, its class), for font menu filters: from a
@@ -1987,14 +1994,13 @@ impl FontDb {
     /// [`face`](Self::face) by any of the family's names ([`canonical`](Self::canonical)), and how
     /// it matched.
     pub fn resolve(&self, family: &str, style: &str) -> Option<(Arc<FontFace>, FontMatch)> {
-        let asked = family;
         let (family, style) = self.canonical(family, style);
         let f = self.face(&family, &style)?;
-        let m = if !f.family.eq_ignore_ascii_case(&family) {
-            FontMatch::Missing
-        } else if !f.family.eq_ignore_ascii_case(asked) && metric_substitutes(asked).iter().any(|s| s.eq_ignore_ascii_case(&f.family)) {
+        let m = if self.metric_stand_in(&family).is_some_and(|s| s.eq_ignore_ascii_case(&f.family)) {
             // Not the font asked for, but one with its metrics: shown, and reported as a substitute.
             FontMatch::Style
+        } else if !f.family.eq_ignore_ascii_case(&family) {
+            FontMatch::Missing
         } else if norm(&f.style) == norm(&style) || f.keys.styles.contains(&norm(&style)) {
             FontMatch::Exact
         } else {
@@ -2053,6 +2059,7 @@ impl FontDb {
     /// the `bundled-fonts` feature and none was added), in which case text has no glyphs.
     pub fn face(&self, family: &str, style: &str) -> Option<Arc<FontFace>> {
         let (family, style) = self.canonical(family, style);
+        let family = self.metric_stand_in(&family).map_or(family, str::to_string);
         let (family, style) = (family.as_str(), style.as_str());
         let found = self.find(family, style);
         if found.as_ref().is_some_and(|f| norm(&f.style) == norm(style)) {

@@ -32,7 +32,7 @@ against Illustrator's public documentation; **estimated** unless noted.
 | Missing glyphs set in an installed font made for their script (Thai, Lao, Khmer, Myanmar first; then any font that has them) | done | Thai: Leelawadee UI, Tahoma, Thonburi, Sukhumvit Set, Noto Sans Thai, TLWG |
 | Full font-name matching (OpenType name ID 4) | done | #1258: loaded/cataloged faces and Missing Fonts searches; localized names and variable default faces; Windows font-service QA pending |
 | Variable fonts | partial | named instances as styles; Character panel › Variable Font sets each axis (`fontAxes`); the font menu's Variable filter is missing |
-| Metric-compatible stand-ins for missing Calibri, Cambria, Arial, Helvetica, Times (New Roman), Courier (New) | done | #2492: Carlito, Caladea, Liberation, Arimo, Tinos, Cousine and the Nimbus/TeX Gyre families when installed; reported as a substitute, not missing; fontconfig `<alias>` rules still not read |
+| Metric-compatible stand-ins for missing Calibri, Cambria, Arial, Helvetica, Times (New Roman), Courier (New) | done | #2492: Carlito, Caladea, Liberation, Arimo, Tinos, Cousine and the Nimbus/TeX Gyre families when installed; applied only where a face is drawn or resolved (`has_family` and `canonical` still name the requested font) and reported as a substitute, not missing; fontconfig `<alias>` rules still not read |
 | Colour fonts (OpenType SVG / COLR) | partial | |
 | Every-line and Single-line composers | done | tuned by eye, never compared side by side |
 | Optical Margin Alignment | done | Type › Optical Margin Alignment, `type.opticalMarginAlignment`: per type object, in point and area type of left-to-right paragraphs; type on a path and right-to-left paragraphs do not hang |

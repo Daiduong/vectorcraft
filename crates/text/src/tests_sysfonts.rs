@@ -851,3 +851,25 @@ fn a_metric_compatible_font_stands_in_for_a_missing_family() {
     let (face, m) = db.resolve("Arial", "Regular").unwrap();
     assert_eq!((face.family.as_str(), m), ("Arial        ", FontMatch::Exact));
 }
+
+/// A missing Arial keeps reading as missing although a Nimbus Sans L is installed: `canonical`, `has_family`
+/// and the family lists name the requested family, and only drawing (`face`, `resolve`) falls back to
+/// the metric-compatible stand-in (#2492).
+#[test]
+fn a_metric_stand_in_is_used_for_drawing_only() {
+    const NIMBUS: &str = "Nimbus Sans L";
+    let dir = std::env::temp_dir().join(format!("vc-sysfonts-{}-standin", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("Nimbus-Regular.ttf"), renamed_to("SourceSans3-Regular.ttf", NIMBUS)).unwrap();
+    let db = FontDb::with_font_dirs(vec![dir]);
+    assert!(db.has_family(NIMBUS));
+    assert!(!db.has_family("Arial"), "a missing font reads as missing");
+    assert_eq!(db.canonical("Arial", "Bold"), ("Arial".to_string(), "Bold".to_string()));
+    assert!(!db.family_list().iter().any(|f| f.eq_ignore_ascii_case("Arial")));
+    let face = db.face("Arial", "Regular").unwrap();
+    assert_eq!(face.family, NIMBUS, "drawn in the stand-in");
+    let (face, m) = db.resolve("Arial", "Regular").unwrap();
+    assert_eq!((face.family.as_str(), m), (NIMBUS, FontMatch::Style), "reported as a substitute");
+    assert!(!db.has_family("Arial"), "still missing after it was drawn");
+}
