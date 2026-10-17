@@ -1,10 +1,41 @@
 # Image Trace quality
 
-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (Gradients: grown over noise and soft rims)
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-17 · **Change:** minor (Image Trace: High and Low Fidelity Photo in Full Tone; earlier: Gradients: grown over noise and soft rims)
 
 What Image Trace (`crates/trace`) makes of images whose right answer is known, measured by a harness and
 compared with the numbers before each change. Nothing here is a judgement by eye, and nothing is compared
 with any other product except the open tracer named under [Yardstick](#4-yardstick).
+
+
+## Photo presets in Full Tone
+
+High Fidelity Photo and Low Fidelity Photo used the Limited palette with 64 and 20 colours. They now
+use Full Tone at Colors 85 and 20 (see [image-trace-adjustments.md](image-trace-adjustments.md)), with
+the same Paths, Corners, Noise and Method. Full Tone ignores the colour count: the colours follow the
+image's tones. Before → after, on code-drawn photo-like inputs; the tables further down are from before
+this change.
+
+Two 1000 × 1000 pictures (a two-way gradient with a soft glow and sensor noise; soft-edged shaded
+objects on a gradient backdrop with texture and noise), release build, 4 cores, best of 7:
+
+| image | preset | colours | paths | anchors | time |
+|:--|:--|--:|--:|--:|--:|
+| gradient with glow | High Fidelity Photo | 64 → 138 | 2833 → 6541 | 100266 → 212325 | 621 → 953 ms |
+| gradient with glow | Low Fidelity Photo | 20 → 12 | 233 → 101 | 15887 → 8513 | 268 → 224 ms |
+| photo-like | High Fidelity Photo | 58 → 112 | 2031 → 4175 | 141681 → 290192 | 733 → 1248 ms |
+| photo-like | Low Fidelity Photo | 20 → 28 | 228 → 475 | 20947 → 35850 | 317 → 405 ms |
+
+The quality harness (section 1's gradient and photo-like inputs, all sizes and variants; section 5's cost):
+
+| preset | ΔE | edge ΔE | paths | anchors | photo-like 1 MP | photo-like 4 MP |
+|:--|--:|--:|--:|--:|--:|--:|
+| High Fidelity Photo | 1.74 → 1.66 | 1.96 → 1.88 | 121.0 → 203.6 | 9931 → 16752 | 0.66 → 1.24 s, 116245 → 267193 anchors | 2.47 → 5.91 s, 334305 → 1074267 anchors, 136 → 137 MB |
+| Low Fidelity Photo | 2.44 → 3.43 | 2.68 → 3.64 | 37.1 → 18.8 | 2141 → 1214 | 0.40 → 0.31 s, 23061 → 18066 anchors | 1.32 → 1.31 s, 61753 → 72386 anchors, 136 → 135 MB |
+
+High Fidelity Photo follows the tones more closely (ΔE 1.74 to 1.66) at about twice the anchors and
+time; Low Fidelity Photo is coarser on smooth gradients (fewer colours where the tones are close, ΔE
+2.44 to 3.43) and keeps more colours where they are far apart. Flat art traced with either preset is
+unchanged on curved, plain and askew shapes, with slightly fewer anchors on polygons (17 to 16) and thin lines (348 to 320).
 
 
 ## Noise threshold stability (local development, 2026-10-14)
@@ -1010,6 +1041,7 @@ One trace at a time on this machine (all cores); memory is the peak allocated ab
 
 | date | change |
 |:--|:--|
+| 2026-10-17 | High Fidelity Photo and Low Fidelity Photo use Full Tone at Colors 85 and 20 instead of Limited 64 and 20 colours; before and after on code-drawn photo-like inputs |
 | 2026-10-14 | Closed fitting retains the positioned boundary when straightening collapses a nonzero-area loop; four generated regressions; preset scores unchanged |
 | 2026-10-14 | Tiny closed fits retain their positioned outlines instead of losing islands/holes; three generated regression tests; quality-harness baseline unchanged |
 | 2026-10-14 | Gradients: a gradient that noise or a soft rim broke into pieces is found in its largest piece and grown over the rest (blurred and noisy linear gradients: 3 to 11 paths beside the gradient down to 0.5 with 6 Colors, 24 to 56 down to 0.5 to 1.5 with High Fidelity Photo) |

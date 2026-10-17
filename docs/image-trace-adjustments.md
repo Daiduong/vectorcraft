@@ -26,6 +26,17 @@ so Undo also restores the panel values before its next frame. View can show the 
 Use **Expand** when finished to turn the result into ordinary editable vector objects;
 after expanding, the tracing settings are no longer available. **Release** restores the source.
 
+**Photo presets.** High Fidelity Photo and Low Fidelity Photo trace in Color with the Full Tone
+palette (as many colours as the image's tones need) at Colors 85 and 20, with Paths 90 / 60,
+Corners 25 / 50, Noise 4 / 12 and Overlapping. Full Tone's Colors slider sets how much pixel
+variability counts as one colour (the [Image Trace panel options](https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/image-trace-panel-options.html)
+describe it so); in VectorCraft no colour box spans more than `96 − 88 × Colors/100` levels of a channel
+(about 21 at 85, 78 at 20). Preset values are not published by Adobe: these follow public tutorial
+descriptions of the two presets as "Colors 85" and "Colors 20"
+([designbuckle.com](https://www.designbuckle.com/how-to-trace-an-image-in-illustrator/)), which
+matches Full Tone's 0–100 slider rather than a fixed colour count. They are VectorCraft's own
+choices and do not claim to match another application's output.
+
 These controls use VectorCraft's existing tracing algorithm. Parameter effects follow its
 implementation; they do not claim pixel-identical results with another application.
 The terminology and general control behavior are described in the
