@@ -365,6 +365,12 @@ fn looks_around(fx: &RasterFx) -> Option<f64> {
     }
 }
 
+/// Does `area` hold all of `needed` (device pixels; a pixel of rounding either way)?
+fn covers(area: Rect, needed: Rect) -> bool {
+    let a = area.inflate(1.0, 1.0);
+    a.x0 <= needed.x0 && a.y0 <= needed.y0 && a.x1 >= needed.x1 && a.y1 >= needed.y1
+}
+
 /// The content of an object with Photoshop-style effects as filtered pixels, drawn at
 /// (`anchor`'s view position + `rel`) scaled by 1 / `k` (see [`Renderer::pixel_content`]).
 pub(crate) struct PixelEntry {
@@ -373,6 +379,9 @@ pub(crate) struct PixelEntry {
     anchor: vectorcraft_geom::Point,
     rel: (f64, f64),
     k: f64,
+    /// Where its pixels are right, in device pixels from `anchor`'s view position: the whole
+    /// raster, less the effects' reach on the sides where it was cropped to the view (#2558).
+    valid: Rect,
     image: std::sync::Arc<vello_cpu::Pixmap>,
     made: Made,
     /// What the content read when the raster was made, with the channels the effects ran on and,
@@ -1174,7 +1183,8 @@ impl Renderer {
     /// Photoshop-style filters) in stack order on its pixels: rendered offscreen over all it can
     /// reach, filtered on the CPU and drawn back. The raster holds at most [`PIXEL_BUDGET`] pixels:
     /// larger content is cropped to the view when every effect only looks nearby, else rendered
-    /// at a lower resolution. A whole raster at full resolution is cached while the object, the
+    /// at a lower resolution. A raster of the whole content (at full resolution, or scaled down
+    /// when the effects look anywhere) is cached while the object, the
     /// zoom and what the content reads ([`Inputs`]) stay the same (panning only moves it), and
     /// while interacting after the content only moved ([`Self::move_pixel_content`]).
     fn pixel_content(
@@ -1199,18 +1209,38 @@ impl Renderer {
         let fits = full.area() <= PIXEL_BUDGET;
         // Device pixels from a pixel to the content deciding it (`None`: anywhere).
         let margin = chain.iter().try_fold(2.0, |m, fx| looks_around(fx).map(|d| m + d / f.px));
-        let region = match margin {
-            Some(m) if !fits => full.intersect(Rect::new(0.0, 0.0, sw, sh).inflate(m, m)),
-            _ => full,
+        let screen = Rect::new(0.0, 0.0, sw, sh);
+        // What this frame shows of the result: a raster drawn for it must be right there.
+        let needed = full.intersect(screen);
+        // Content cropped to the view is rendered a quarter view wider while interacting, so its
+        // raster still covers the view after the object moved a little (#2558: zoomed in, a
+        // textured object larger than the budget was filtered again on every drag frame).
+        let slack = if f.opts.interacting { 0.25 * sw.max(sh) } else { 0.0 };
+        let (region, valid) = match margin {
+            Some(m) if !fits => {
+                let region = full.intersect(screen.inflate(m + slack, m + slack));
+                // Pixels within the effects' reach of a cropped side read content left out.
+                let side = |cropped: bool, edge: f64, inward: f64| if cropped { edge + inward } else { edge };
+                let valid = Rect::new(
+                    side(region.x0 > full.x0, region.x0, m),
+                    side(region.y0 > full.y0, region.y0, m),
+                    side(region.x1 < full.x1, region.x1, -m),
+                    side(region.y1 < full.y1, region.y1, -m),
+                );
+                (region, valid)
+            }
+            _ => (full, full),
         };
         let (x0, y0) = (region.x0.floor(), region.y0.floor());
         let (rw, rh) = ((region.x1 - x0).max(1.0), (region.y1 - y0).max(1.0));
         let side = u16::MAX as f64;
         let k = (PIXEL_BUDGET / (rw * rh)).sqrt().min(side / rw).min(side / rh).min(1.0);
         let (w, h) = ((rw * k).ceil().clamp(1.0, side), (rh * k).ceil().clamp(1.0, side));
-        // The cached raster, when the whole content was rendered at full size at this zoom.
+        // The cached raster: of the whole content at this zoom (at full size, or scaled down to
+        // the budget when its effects look anywhere), or of the part around the view, used while
+        // it still covers what the frame shows.
         let linear = linear_key(f.view);
-        let key = content.cache.filter(|_| fits && k >= 1.0).map(|slot| (content.node as *const Node as usize, slot, f.ink));
+        let key = content.cache.map(|slot| (content.node as *const Node as usize, slot, f.ink));
         let stamp = self.stamp;
         let channels = match f.ink {
             Ink::Cmy => effects::pixel::Channels::CmyPlane,
@@ -1228,13 +1258,19 @@ impl Renderer {
             self.raster_inputs(f, content.node, reads).with((std::mem::discriminant(&channels), interlaced.then_some(ppi.to_bits())))
         });
         let interacting = f.opts.interacting;
-        let exact = |e: &PixelEntry| e.linear == linear && e.node.is(content.node) && Some(&e.inputs) == inputs.as_ref() && (interacting || !e.moved);
+        let exact = |e: &PixelEntry| {
+            e.linear == linear
+                && e.node.is(content.node)
+                && Some(&e.inputs) == inputs.as_ref()
+                && (interacting || !e.moved)
+                && covers(e.valid + (f.view * e.anchor).to_vec2(), needed)
+        };
         if interacting
             && let Some(key) = key
             && let Some(inputs) = &inputs
             && !self.pixel_fx.get(&key).is_some_and(exact)
         {
-            self.move_pixel_content(f, content, key, &chain, channels, inputs, paint);
+            self.move_pixel_content(f, content, key, &chain, channels, inputs, needed, paint);
         }
         if let Some(e) = key.and_then(|key| self.pixel_fx.get_mut(&key)).filter(|e| exact(e)) {
             e.stamp = stamp;
@@ -1288,19 +1324,21 @@ impl Renderer {
             let rel = (x0 - p.x, y0 - p.y);
             let owner = content.owner.cloned().or_else(|| self.fx_owner.clone().filter(|o| std::ptr::eq(&**o, content.node)));
             let node = Drawn::of(content.node, owner.as_ref());
-            self.pixel_fx.insert(key, PixelEntry { node, linear, anchor, rel, k, image: image.clone(), made, inputs, moved, stamp });
+            let valid = valid - p.to_vec2();
+            self.pixel_fx.insert(key, PixelEntry { node, linear, anchor, rel, k, valid, image: image.clone(), made, inputs, moved, stamp });
             self.trim_fx_rasters(FX_RASTER_BUDGET);
         }
         draw_scaled(ctx, image, (x0, y0), k);
     }
 
     /// While interacting, give `content` (cache key `key`) the filtered raster an earlier frame
-    /// made at full size for its object (the same id, slot and ink, at this zoom and rotation, with
+    /// made for its object (the same id, slot and ink, at this zoom and rotation, with
     /// the same `inputs`) when only the content's place changed after that frame: made by the same
     /// effects `chain`, told of the same `channels`, from content whose bounds have the same size
     /// (and the same Feather outline against its anchor), and whose pixels are the pixels of
     /// `content` drawn into a raster placed as that one was against its anchor. The raster is kept
-    /// as `content`'s, marked moved, and is drawn at the nearest whole pixel. Content under
+    /// as `content`'s, marked moved, and is drawn at the nearest whole pixel, when it still covers
+    /// `needed` (what the frame shows of the result; a raster cropped to the view may not). Content under
     /// De-Interlace takes none.
     #[allow(clippy::too_many_arguments)]
     fn move_pixel_content(
@@ -1311,31 +1349,33 @@ impl Renderer {
         chain: &[&RasterFx],
         channels: Channels,
         inputs: &Inputs,
+        needed: Rect,
         paint: &mut dyn FnMut(&mut Self, &mut RenderContext, &Frame),
     ) {
         if chain.iter().any(|fx| matches!(fx, RasterFx::Pixel(PixelFx::DeInterlace { .. }))) {
             return;
         }
         let (linear, stamp, anchor) = (linear_key(f.view), self.stamp, content.reach.origin());
+        let p = f.view * anchor;
         let outline = feather_outline(chain, content, anchor);
         let fits = |k: &(usize, usize, Ink), e: &PixelEntry| {
             (k.1, k.2) == (key.1, key.2)
                 && e.stamp < stamp
                 && e.linear == linear
-                && e.k >= 1.0
                 && e.node.id() == content.node.id
                 && e.inputs == *inputs
                 && e.made.fits(chain, content.reach.size(), Some(channels), outline.as_ref())
+                && covers(e.valid + p.to_vec2(), needed)
         };
-        let Some((old, rel, w, h)) = self.pixel_fx.iter().find(|(k, e)| fits(k, e)).map(|(k, e)| (*k, e.rel, e.image.width(), e.image.height()))
+        let Some((old, rel, scale, w, h)) =
+            self.pixel_fx.iter().find(|(k, e)| fits(k, e)).map(|(k, e)| (*k, e.rel, e.k, e.image.width(), e.image.height()))
         else {
             return;
         };
-        // The content drawn where the old content lies in its raster.
-        let p = f.view * anchor;
-        let view = Affine::translate((-(p.x + rel.0), -(p.y + rel.1))) * f.view;
+        // The content drawn where the old content lies in its raster, at the raster's scale.
+        let view = Affine::scale(scale) * Affine::translate((-(p.x + rel.0), -(p.y + rel.1))) * f.view;
         let visible = view.inverse().transform_rect_bbox(Rect::new(0.0, 0.0, f64::from(w), f64::from(h)));
-        let frame = Frame { mt: false, view, visible, ..*f };
+        let frame = Frame { mt: false, view, visible, px: f.px / scale, ..*f };
         let mut off = f.offscreen_context(w, h);
         self.inside_layer(|r| paint(r, &mut off, &frame));
         off.flush();
@@ -2043,6 +2083,38 @@ mod tests {
         assert!(after != last, "6.3 is not on a whole pixel");
     }
 
+    /// #2558: zoomed in until a textured object is larger than the pixel budget, its effects (which
+    /// only look nearby) are filtered over the part around the view. While interacting that part
+    /// is a quarter view wider, and its raster moves with the object while it still covers the
+    /// view, instead of the object being filtered again on every drag frame. A move past that
+    /// filters again, and the frame after the drag runs the effects again.
+    #[test]
+    fn a_textured_object_larger_than_the_budget_moves_its_raster_while_interacting() {
+        let base = doc_with(Rect::new(20.0, 20.0, 50.0, 46.0), Color::rgb(0.9, 0.4, 0.1), vec![("texture.craquelure", json!({"crackSpacing": 6}))]);
+        let id = base.layers[0].children().unwrap()[0].id;
+        // 120×: the object covers 3600 × 3120 px (over the budget) around the 200 × 200 view.
+        let view = Affine::translate((100.0, 100.0)) * Affine::scale(120.0) * Affine::translate((-35.0, -33.0));
+        assert!(view.transform_rect_bbox(Rect::new(20.0, 20.0, 50.0, 46.0)).area() > PIXEL_BUDGET);
+        let still = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+        let live = RenderOptions { interacting: true, ..still.clone() };
+        let fresh = |d: &Document| Renderer::new().render(d, 200, 200, view, &still).pixels;
+        let mut r = Renderer::new();
+        assert!(r.render(&base, 200, 200, view, &still).pixels == fresh(&base));
+        let mut d = base.clone();
+        // The first drag frame filters the wider part; the next ones (24 px at most, under the
+        // 50 px of slack) move it; one 120 px away filters again.
+        for (dx, moved) in [(0.02, 0), (0.05, 1), (0.11, 1), (0.2, 1), (1.2, 0), (1.25, 1)] {
+            d = base.clone();
+            d.node_mut(id).unwrap().transform(Affine::translate((dx, dx / 2.0)), false);
+            let frame = r.render(&d, 200, 200, view, &live);
+            assert_eq!(r.stats.moved, moved, "moved by {dx}");
+            assert!(frame.pixels.chunks(4).all(|p| p[3] == 255) && frame.pixel(100, 100) != [255, 255, 255, 255], "drawn over the view at {dx}");
+        }
+        let after = r.render(&d, 200, 200, view, &still).pixels;
+        assert_eq!(r.stats.moved, 0);
+        assert!(after == fresh(&d), "the frame after the drag");
+    }
+
     /// While interacting, a group holding a symbol instance whose art lies outside the 20 × 20
     /// square around the origin draws its drop shadow from the raster of an earlier frame. The
     /// shadow is made from the instance's art, which the renderer measures the group's content by.
@@ -2259,6 +2331,43 @@ mod tests {
                 "{effect}: moved CMYK rounded rectangle at 190.07%, DPI 1.5, 1800x1500: median {:.2} ms; samples {ms:?}; the frame after the drag {after:.2} ms, that frame again {again:.2} ms",
                 (ms[3] + ms[4]) * 0.5
             );
+        }
+    }
+
+    /// #2558: drag frames of a textured rectangle as the zoom grows, the 1800 × 1500 view centred
+    /// on it (past the pixel budget, at 1600 %, only the part around the view is filtered).
+    /// Run with `cargo test -p vectorcraft-render texture_drag_zoom_sweep -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "manual timing probe; wall-clock performance depends on machine load"]
+    fn texture_drag_zoom_sweep() {
+        for effect in ["texture.craquelure", "texture.grain", "stylize.dropShadow"] {
+            let mut base = Document::new(600.0, 500.0);
+            let (layer, id) = (base.layers[0].id, base.alloc_id());
+            let mut n = Node::path(
+                id,
+                shapes::rectangle(Rect::new(100.0, 100.0, 309.298, 370.938)),
+                Appearance::basic(Paint::solid(Color::rgb(1.0, 0.2, 0.2)), Paint::solid(Color::BLACK), 1.0),
+            );
+            n.appearance.effects = vec![Effect { id: effect.into(), params: json!({}), visible: true }];
+            base.insert(Some(layer), 0, n).unwrap();
+            let opts = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+            let live = RenderOptions { interacting: true, ..opts.clone() };
+            for zoom in [1.9, 4.0, 8.0, 16.0] {
+                let view = Affine::translate((900.0, 750.0)) * Affine::scale(zoom) * Affine::translate((-205.0, -235.0));
+                let mut r = Renderer::new();
+                r.threads = crate::default_threads();
+                let _ = r.render(&base, 1800, 1500, view, &opts);
+                let mut ms = vec![];
+                for frame in 0..9 {
+                    let mut doc = base.clone();
+                    doc.node_mut(id).unwrap().transform(Affine::translate((3.0 + f64::from(frame) * 0.75, f64::from(frame) * 0.5)), false);
+                    let start = std::time::Instant::now();
+                    std::hint::black_box(r.render(&doc, 1800, 1500, view, &live));
+                    ms.push(start.elapsed().as_secs_f64() * 1000.0);
+                }
+                ms.sort_by(f64::total_cmp);
+                println!("{effect} at {:.0}%: drag frame median {:.1} ms, max {:.1} ms", zoom * 100.0, ms[4], ms[8]);
+            }
         }
     }
 
