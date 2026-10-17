@@ -129,3 +129,8 @@ sync_github_name = true
 
 [people.makesomethingshit]
 sync_github_name = true
+
+[people.Ronfo2013]
+real_name = "Angelo Bernardini"
+display_name = "Angelo Bernardini"
+sync_github_name = false
