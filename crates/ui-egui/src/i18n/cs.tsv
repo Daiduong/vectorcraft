@@ -188,6 +188,7 @@
 	Expand…	Rozložit…
 	Expand Appearance	Rozložit vzhled
 	Crop Image	Oříznout obraz
+	Edit Path	Upravit cestu
 	Mask	Maska
 	Rasterize…	Rastrovat…
 	Create Gradient Mesh…	Vytvořit přechodovou síť…
@@ -1513,6 +1514,9 @@ lighting	Light	Světlo
 	Use Text for Previews	Náhledy na textu
 	{percent}% opacity	krytí {percent} %
 	History Options…	Možnosti historie…
+	Step Backward	Krok zpět
+	Step Forward	Krok vpřed
+	Set History Limit…	Nastavit limit historie…
 	Open a document to see its history.	Otevřete dokument, abyste viděli jeho historii.
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Použít sadu dat
@@ -3603,6 +3607,8 @@ axis	Both	Obě
 	Star	Hvězda
 	Power Saving (integrated)	Úsporný režim (integrovaná)
 	Target	Cíl
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) při připojeném peru
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Pokud pero grafického tabletu nekreslí, zvolte možnost X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Print as Bitmap	Tisknout jako bitmapu
 	Draft	Koncept
@@ -5057,6 +5063,11 @@ mark-style	Japanese	Japonské
 	Softness	Měkkost
 	Ambient Light	Okolní světlo
 	Light behind the object	Světlo za objektem
+# 3D light management.
+	Lights	Světla
+	Add Light	Přidat světlo
+	Delete Light	Odstranit světlo
+3d	Light	Světlo
 	Registration:	Registrace:
 # Dimension tool (linked dimension annotations)
 	Display	Zobrazení
@@ -5145,6 +5156,11 @@ mark-style	Japanese	Japonské
 	Movie Clip	Filmový klip
 @msg	name is empty	název je prázdný
 @msg	no symbol named `{n}`	žádný symbol s názvem `{n}`
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	Upravit originál otevírá pouze soubory obrázků a dokumentů; „{name}“ mezi ně nepatří
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	v prohlížeči se otevírají pouze adresy URL http, https a mailto, ne „{url}“
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} otevírá jinou aplikaci: spustit ho může pouze člověk u klávesnice
+@msg	“{name}” is not a file	„{name}“ není soubor
 	Enable Guides for 9-Slice Scaling	Povolit vodítka pro 9-slice škálování
 @msg	a mask has more than one art block	maska má více než jeden blok kresby
 @msg	mask art ends outside a mask dictionary	kresba masky končí mimo slovník masky

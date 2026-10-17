@@ -184,6 +184,7 @@
 	Expand…	확장…
 	Expand Appearance	모양새 확장
 	Crop Image	이미지 자르기
+	Edit Path	패스 편집
 	Mask	마스크
 	Rasterize…	래스터화…
 	Create Gradient Mesh…	그레이디언트 메시 만들기…
@@ -1595,6 +1596,9 @@
 	Highlight Substituted Glyphs	대체된 글리프 강조 표시
 	Highlight anchors on mouse over	마우스를 올리면 앵커 강조 표시
 	History Options…	히스토리 옵션…
+	Step Backward	한 단계 뒤로
+	Step Forward	한 단계 앞으로
+	Set History Limit…	히스토리 한도 설정…
 	History States	히스토리 상태
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	데이터 세트 적용
@@ -4532,6 +4536,8 @@ lighting	Light	광원
 @msg	missing panel layout	패널 레이아웃이 없습니다
 @msg	unsupported native docking operation	지원되지 않는 기본 도킹 작업
 	Linux Display Server	Linux 디스플레이 서버
+	X11 (XWayland) When a Pen Is Attached	펜 연결 시 X11 (XWayland)
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	드로잉 태블릿의 펜으로 그려지지 않으면 X11 (XWayland) 옵션을 선택하세요.
 	X11 (XWayland)	X11 (XWayland)
 	Artistic	예술 효과
 	Film Grain…	필름 그레인…
@@ -4630,6 +4636,11 @@ lighting	Light	광원
 	Softness	부드러움
 	Ambient Light	주변광
 	Light behind the object	개체 뒤의 조명
+# 3D light management.
+	Lights	광원 목록
+	Add Light	광원 추가
+	Delete Light	광원 삭제
+3d	Light	광원
 	Registration:	기준점:
 # Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
 	Dimension	치수
@@ -4722,6 +4733,11 @@ lighting	Light	광원
 	Movie Clip	무비 클립
 @msg	name is empty	이름이 비어 있습니다
 @msg	no symbol named `{n}`	이름이 `{n}`인 심볼이 없습니다
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	원본 편집은 이미지 및 문서 파일만 엽니다. “{name}”은(는) 해당하지 않습니다
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	브라우저에서는 http, https, mailto URL만 열립니다. “{url}”은(는) 열 수 없습니다
+@msg	{id} opens another app: only the person at the keyboard can run it	{id}은(는) 다른 앱을 엽니다. 키보드 앞에 있는 사용자만 실행할 수 있습니다
+@msg	“{name}” is not a file	“{name}”은(는) 파일이 아닙니다
 	Enable Guides for 9-Slice Scaling	9-슬라이스 크기 조절용 안내선 사용
 @msg	a mask has more than one art block	마스크에 아트 블록이 두 개 이상 있습니다
 @msg	mask art ends outside a mask dictionary	마스크 아트가 마스크 사전 밖에서 끝납니다

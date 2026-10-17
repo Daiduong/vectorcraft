@@ -642,6 +642,7 @@
 	Created:	Creado:
 	Crop	Recortar
 	Crop Image	Recortar imagen
+	Edit Path	Editar trazado
 	Mask	Máscara
 	Crop Marks	Marcas de corte
 	Crop To	Recortar a
@@ -1346,6 +1347,9 @@
 	Highlight Substituted Glyphs	Resaltar glifos sustituidos
 	History	Historial
 	History Options…	Opciones de historial…
+	Step Backward	Paso atrás
+	Step Forward	Paso adelante
+	Set History Limit…	Definir límite de historial…
 	History States	Estados de historial
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Aplicar conjunto de datos
@@ -4525,6 +4529,8 @@ lighting	Light	Luz
 @msg	missing panel layout	Falta la distribución de paneles
 @msg	unsupported native docking operation	Operación nativa de anclaje no admitida
 	Linux Display Server	Servidor de pantalla de Linux
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) cuando hay un lápiz conectado
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Si el lápiz de una tableta digitalizadora no dibuja, elige una opción X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	Origen de las reglas
 	Reset Ruler Origin	Restablecer el origen de las reglas
@@ -4998,6 +5004,11 @@ mark-style	Japanese	Japonesas
 	Softness	Suavidad
 	Ambient Light	Luz ambiental
 	Light behind the object	Luz detrás del objeto
+# 3D light management.
+	Lights	Luces
+	Add Light	Añadir luz
+	Delete Light	Eliminar luz
+3d	Light	Luz
 	Registration:	Registro:
 # Dimension tool (linked dimension annotations)
 	Create Dimension	Crear cota
@@ -5087,6 +5098,11 @@ mark-style	Japanese	Japonesas
 	Movie Clip	Clip de película
 @msg	name is empty	el nombre está vacío
 @msg	no symbol named `{n}`	no hay ningún símbolo llamado `{n}`
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	Editar original solo abre archivos de imagen y de documento; “{name}” no lo es
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	solo se abren en el navegador las URL http, https y mailto, no “{url}”
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} abre otra aplicación: solo puede ejecutarlo la persona que está frente al teclado
+@msg	“{name}” is not a file	“{name}” no es un archivo
 	Enable Guides for 9-Slice Scaling	Activar guías para escalado de 9 sectores
 @msg	a mask has more than one art block	una máscara tiene más de un bloque de ilustración
 @msg	mask art ends outside a mask dictionary	la ilustración de la máscara termina fuera de un diccionario de máscara

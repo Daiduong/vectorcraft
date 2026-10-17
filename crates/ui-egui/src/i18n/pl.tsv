@@ -153,6 +153,7 @@
 	Expand…	Rozszerz…
 	Expand Appearance	Rozszerz wygląd
 	Crop Image	Kadruj obraz
+	Edit Path	Edytuj ścieżkę
 	Mask	Maska
 	Rasterize…	Rasteryzuj…
 	Create Gradient Mesh…	Utwórz siatkę gradientową…
@@ -1427,6 +1428,9 @@ lighting	Light	Światło
 	Use Text for Previews	Użyj tekstu w podglądach
 	{percent}% opacity	Krycie {percent}%
 	History Options…	Opcje historii…
+	Step Backward	Krok wstecz
+	Step Forward	Krok naprzód
+	Set History Limit…	Ustaw limit historii…
 	Open a document to see its history.	Otwórz dokument, aby zobaczyć jego historię.
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Zastosuj zestaw danych
@@ -3445,6 +3449,8 @@ axis	Both	Obie
 	Star	Gwiazda
 	Power Saving (integrated)	Oszczędzanie energii (zintegrowany)
 	Target	Cel
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland), gdy podłączone jest pióro
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Jeśli pióro tabletu graficznego nie rysuje, wybierz opcję X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Print as Bitmap	Drukuj jako bitmapę
 	Draft	Robocza
@@ -4894,6 +4900,11 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+# 3D light management.
+	Lights	Światła
+	Add Light	Dodaj światło
+	Delete Light	Usuń światło
+3d	Light	Światło
 	Registration:	Punkt rejestracji:
 	Legacy (version 7)	Starsza (wersja 7)
 	Transparent Images:	Przezroczyste obrazy:
@@ -4997,6 +5008,11 @@ mark-style	Japanese	Japońskie
 	Movie Clip	Klip filmowy
 @msg	name is empty	nazwa jest pusta
 @msg	no symbol named `{n}`	brak symbolu o nazwie `{n}`
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	Edytuj oryginał otwiera tylko pliki obrazów i dokumentów; „{name}” do nich nie należy
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	w przeglądarce otwierają się tylko adresy URL http, https i mailto, a nie „{url}”
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} otwiera inną aplikację: uruchomić to polecenie może tylko osoba przy klawiaturze
+@msg	“{name}” is not a file	„{name}” nie jest plikiem
 	Enable Guides for 9-Slice Scaling	Włącz prowadnice skalowania 9-slice
 @msg	a mask has more than one art block	maska ma więcej niż jeden blok grafiki
 @msg	mask art ends outside a mask dictionary	grafika maski kończy się poza słownikiem maski

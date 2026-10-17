@@ -644,6 +644,7 @@
 	Created:	Création :
 	Crop	Recadrer
 	Crop Image	Recadrer l’image
+	Edit Path	Modifier le tracé
 	Mask	Masque
 	Crop Marks	Traits de coupe
 	Crop To	Recadrer selon
@@ -1345,6 +1346,9 @@
 	Highlight Substituted Glyphs	Surligner les glyphes remplacés
 	History	Historique
 	History Options…	Options d’historique…
+	Step Backward	Pas en arrière
+	Step Forward	Pas en avant
+	Set History Limit…	Définir la limite de l’historique…
 	History States	États de l’historique
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Appliquer le jeu de données
@@ -4535,6 +4539,8 @@ lighting	Light	Lumière
 @msg	missing panel layout	Disposition des panneaux manquante
 @msg	unsupported native docking operation	Opération native d’ancrage non prise en charge
 	Linux Display Server	Serveur d’affichage Linux
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) quand un stylet est branché
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Si le stylet d’une tablette graphique ne dessine pas, choisissez une option X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	Origine des règles
 	Reset Ruler Origin	Réinitialiser l’origine des règles
@@ -5057,6 +5063,11 @@ theme	Appearance	Apparence
 	Softness	Douceur
 	Ambient Light	Lumière ambiante
 	Light behind the object	Lumière derrière l'objet
+# 3D light management.
+	Lights	Lumières
+	Add Light	Ajouter une lumière
+	Delete Light	Supprimer la lumière
+3d	Light	Lumière
 	Registration:	Repère d'alignement :
 # Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
 	Dimension	Cote
@@ -5144,6 +5155,11 @@ theme	Appearance	Apparence
 	Movie Clip	Clip
 @msg	name is empty	le nom est vide
 @msg	no symbol named `{n}`	aucun symbole nommé `{n}`
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	Modifier l’original n’ouvre que les fichiers d’image et de document ; « {name} » n’en est pas un
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	seules les URL http, https et mailto s’ouvrent dans le navigateur, pas « {url} »
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} ouvre une autre application : seule la personne devant le clavier peut l’exécuter
+@msg	“{name}” is not a file	« {name} » n’est pas un fichier
 	Enable Guides for 9-Slice Scaling	Activer les repères pour la mise à l’échelle 9-slice
 @msg	a mask has more than one art block	un masque contient plusieurs blocs graphiques
 @msg	mask art ends outside a mask dictionary	les éléments graphiques du masque se terminent en dehors d’un dictionnaire de masque

@@ -630,6 +630,7 @@
 	Created:	Skapad:
 	Crop	Beskär
 	Crop Image	Beskär bild
+	Edit Path	Redigera bana
 	Mask	Maskera
 	Crop Marks	Skärmärken
 	Crop To	Beskär till
@@ -1322,6 +1323,9 @@
 	Highlight Substituted Glyphs	Framhäv ersatta glyfer
 	History	Historik
 	History Options…	Historikalternativ…
+	Step Backward	Stega bakåt
+	Step Forward	Stega framåt
+	Set History Limit…	Ange historikgräns…
 	History States	Historiktillstånd
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Använd datauppsättning
@@ -4457,6 +4461,8 @@ lighting	Light	Ljus
 @msg	missing panel layout	panellayout saknas
 @msg	unsupported native docking operation	inbyggd dockningsåtgärd som inte stöds
 	Linux Display Server	Linux-skärmserver
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) när en penna är ansluten
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Om ritplattans penna inte ritar väljer du ett X11 (XWayland)-alternativ.
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	Linjalens origo
 	Reset Ruler Origin	Återställ linjalens origo
@@ -4975,6 +4981,11 @@ theme	Appearance	Utseende
 	Softness	Mjukhet
 	Ambient Light	Omgivande ljus
 	Light behind the object	Ljus bakom objektet
+# 3D light management.
+	Lights	Ljuskällor
+	Add Light	Lägg till ljus
+	Delete Light	Ta bort ljus
+3d	Light	Ljus
 	 cancels  |  Double-click the tool for options	 avbryter  |  Dubbelklicka på verktyget för alternativ
 	 out from a highlighted edge to place its dimension  |  	 utåt från en framhävd kant för att placera dess mått  |  
 	A legacy .ai file holds one artboard: each artboard you check is saved as a separate file.	En äldre .ai-fil rymmer en rityta: varje rityta du markerar sparas som en separat fil.
@@ -5101,6 +5112,11 @@ theme	Appearance	Utseende
 	Movie Clip	Filmklipp
 @msg	name is empty	namnet är tomt
 @msg	no symbol named `{n}`	ingen symbol med namnet `{n}`
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	Redigera original öppnar bara bild- och dokumentfiler; ”{name}” är ingen sådan
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	bara http-, https- och mailto-URL:er öppnas i webbläsaren, inte ”{url}”
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} öppnar en annan app: bara personen vid tangentbordet kan köra kommandot
+@msg	“{name}” is not a file	”{name}” är inte en fil
 	Enable Guides for 9-Slice Scaling	Aktivera hjälplinjer för 9-slice-skalning
 @msg	a mask has more than one art block	en mask innehåller mer än ett grafikblock
 @msg	mask art ends outside a mask dictionary	maskens grafik slutar utanför en maskordlista

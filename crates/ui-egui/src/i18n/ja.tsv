@@ -188,6 +188,7 @@
 	Expand…	分割・拡張…
 	Expand Appearance	アピアランスを分割
 	Crop Image	画像の切り抜き
+	Edit Path	パスを編集
 	Mask	マスク
 	Rasterize…	ラスタライズ…
 	Create Gradient Mesh…	グラデーションメッシュを作成…
@@ -1600,6 +1601,9 @@
 	Highlight Substituted Glyphs	置換字形をハイライト
 	Highlight anchors on mouse over	マウスオーバー時にアンカーをハイライト
 	History Options…	ヒストリーオプション…
+	Step Backward	一段階戻る
+	Step Forward	一段階進む
+	Set History Limit…	ヒストリーの上限を設定…
 	History States	ヒストリー数
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	データセットを適用
@@ -4606,6 +4610,8 @@ lighting	Light	ライト
 @msg	missing panel layout	パネル配置がありません
 @msg	unsupported native docking operation	ネイティブドッキング操作は未対応です
 	Linux Display Server	Linux ディスプレイサーバー
+	X11 (XWayland) When a Pen Is Attached	ペン接続時は X11 (XWayland)
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	ペンタブレットのペンで描画できない場合は、X11 (XWayland) のいずれかを選択してください。
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	定規の原点
 	Reset Ruler Origin	定規の原点をリセット
@@ -4706,6 +4712,11 @@ lighting	Light	ライト
 	Softness	柔らかさ
 	Ambient Light	環境光
 	Light behind the object	オブジェクトの背後のライト
+# 3D light management.
+	Lights	ライト一覧
+	Add Light	ライトを追加
+	Delete Light	ライトを削除
+3d	Light	ライト
 	Registration:	基準点:
 # Dimension tool (linked dimension annotations)
 	Create Dimension	寸法を作成
@@ -4799,6 +4810,11 @@ lighting	Light	ライト
 	Movie Clip	ムービークリップ
 @msg	name is empty	名前が空です
 @msg	no symbol named `{n}`	`{n}` という名前のシンボルはありません
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	「オリジナルを編集」で開けるのは画像ファイルとドキュメントファイルだけです: 「{name}」はどちらでもありません
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	ブラウザーで開けるのは http、https、mailto の URL だけです: 「{url}」は開けません
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} は別のアプリを開きます: 実行できるのはキーボードの前にいるユーザーだけです
+@msg	“{name}” is not a file	「{name}」はファイルではありません
 	Enable Guides for 9-Slice Scaling	9スライス拡大・縮小用ガイドを有効にする
 @msg	a mask has more than one art block	マスクに複数のアートブロックがあります
 @msg	mask art ends outside a mask dictionary	マスクのアートがマスク辞書の外で終わっています

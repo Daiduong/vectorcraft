@@ -640,6 +640,7 @@
 	Created:	Создано:
 	Crop	Обрезать
 	Crop Image	Обрезать изображение
+	Edit Path	Редактировать контур
 	Mask	Маска
 	Crop Marks	Метки обрезки
 	Crop To	Обрезать до
@@ -1353,6 +1354,9 @@ file-filter	Templates	Шаблоны
 	Highlight Substituted Glyphs	Выделять заменённые глифы
 	History	История
 	History Options…	Параметры истории…
+	Step Backward	Шаг назад
+	Step Forward	Шаг вперёд
+	Set History Limit…	Задать предел истории…
 	History States	Состояния истории
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Применить набор данных
@@ -4562,6 +4566,8 @@ lighting	Light	Свет
 @msg	missing panel layout	Отсутствует расположение панелей
 @msg	unsupported native docking operation	Неподдерживаемая собственная операция прикрепления
 	Linux Display Server	Дисплейный сервер Linux
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) при подключенном пере
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Если перо графического планшета не рисует, выберите вариант X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	Начало координат линеек
 	Reset Ruler Origin	Сбросить начало координат линеек
@@ -4662,6 +4668,11 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+# 3D light management.
+	Lights	Источники света
+	Add Light	Добавить свет
+	Delete Light	Удалить свет
+3d	Light	Свет
 	Registration:	Регистрация:
 # Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
 	Dimension	Размер
@@ -4754,6 +4765,11 @@ lighting	Light	Свет
 	Movie Clip	Видеоклип
 @msg	name is empty	имя пустое
 @msg	no symbol named `{n}`	нет символа с именем `{n}`
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	«Редактировать оригинал» открывает только файлы изображений и документов; «{name}» к ним не относится
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	в браузере открываются только URL с http, https и mailto, а не «{url}»
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} открывает другое приложение: выполнить эту команду может только человек за клавиатурой
+@msg	“{name}” is not a file	«{name}» не является файлом
 	Enable Guides for 9-Slice Scaling	Включить направляющие для 9-slice масштабирования
 @msg	a mask has more than one art block	маска содержит более одного блока графики
 @msg	mask art ends outside a mask dictionary	графика маски заканчивается за пределами словаря маски
