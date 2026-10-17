@@ -409,7 +409,7 @@ fn magnifier(p: &mut Ink, o: Pos2, out: bool) {
 
 /// Every cursor with a glyph: its own, drawn here, or the one it borrows.
 #[cfg(test)]
-const GLYPHS: [Cursor; 74] = [
+const GLYPHS: [Cursor; 75] = [
     Cursor::Hand,
     Cursor::HandGrab,
     Cursor::ZoomIn,
@@ -456,6 +456,7 @@ const GLYPHS: [Cursor; 74] = [
     Cursor::BlendAnchor,
     Cursor::PathBracket,
     Cursor::TypeWidget,
+    Cursor::LoadedText,
     Cursor::ShapeBuilder,
     Cursor::ShapeBuilderErase,
     Cursor::Lasso,
@@ -579,6 +580,13 @@ pub const OS_CURSORS: bool = !cfg!(any(target_os = "macos", target_arch = "wasm3
 /// and PdfCraft do.
 pub fn os_cursors(build: bool, wayland: bool) -> bool {
     build && !wayland
+}
+
+/// Does the canvas hide the system pointer to show a painted tool glyph alone? Not when there is no
+/// cursor theme on Wayland ([`crate::Services::no_cursor_theme`]): winit sets no pointer then, and a
+/// hidden one would not come back over the panels (#2450). The system pointer stays beside the glyph.
+pub fn hide_system_pointer(no_cursor_theme: bool) -> bool {
+    !no_cursor_theme
 }
 
 /// Does the window hide the pointer only while it is the key window? macOS does: winit hides it with
@@ -925,6 +933,22 @@ mod tests {
         let out = frame(&mut app, &ctx, vec![egui::Event::PointerMoved(over)]);
         assert!(out.platform_output.cursor_image.is_none());
         assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::None);
+    }
+
+    /// Without a cursor theme the canvas keeps the system pointer visible (#2450).
+    #[test]
+    fn no_cursor_theme_keeps_the_system_pointer() {
+        assert!(!hide_system_pointer(true));
+        assert!(hide_system_pointer(false));
+        let mut app = VectorcraftApp::new(Session::new(), crate::Services { wayland: true, no_cursor_theme: true, ..Default::default() });
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        let ctx = egui::Context::default();
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let over = app.canvas_rect.unwrap().center();
+        let out = frame(&mut app, &ctx, vec![egui::Event::PointerMoved(over)]);
+        assert_ne!(out.platform_output.cursor_icon, egui::CursorIcon::None);
     }
 
     /// On macOS a window without the focus shows the system pointer over the canvas, and the glyph
