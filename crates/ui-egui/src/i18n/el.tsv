@@ -2909,6 +2909,7 @@ theme	Appearance	Εμφάνιση
 	Remove blank lines between paragraphs	Αφαίρεση κενών γραμμών μεταξύ παραγράφων
 	Remove Brush Stroke	Αφαίρεση περιγράμματος πινέλου
 	Remove Effect	Αφαίρεση εφέ
+	Remove from Other Libraries	Αφαίρεση από τις άλλες βιβλιοθήκες
 	Remove Guide	Αφαίρεση οδηγού
 	Remove Item	Αφαίρεση στοιχείου
 	Remove Plug-in	Αφαίρεση προσθέτου
@@ -3621,6 +3622,7 @@ theme	Appearance	Εμφάνιση
 	{kind} Gradient	Ντεγκραντέ {kind}
 	{kind} Style Options…	Επιλογές στυλ {kind}…
 	{kind}, {model}	{kind}, {model}
+	{name} (missing)	{name} (λείπει)
 	{name} (spot)	{name} (πλακάτο)
 	{pages} in all, {count} per copy	{pages} συνολικά, {count} ανά αντίγραφο
 	{page} of {count}	{page} από {count}
@@ -3804,6 +3806,7 @@ theme	Appearance	Εμφάνιση
 @msg	no interaction in progress	δεν υπάρχει αλληλεπίδραση σε εξέλιξη
 @msg	no key object	δεν υπάρχει βασικό αντικείμενο
 @msg	no library `{key}` (see {list})	δεν υπάρχει βιβλιοθήκη `{key}` (δείτε {list})
+@msg	library `{name}` is missing: {path} can't be read	η βιβλιοθήκη `{name}` λείπει: το {path} δεν μπορεί να διαβαστεί
 @msg	no native format	δεν υπάρχει εγγενής μορφή
 @msg	no pages	δεν υπάρχουν σελίδες
 @msg	no pattern `{name}`	δεν υπάρχει μοτίβο `{name}`

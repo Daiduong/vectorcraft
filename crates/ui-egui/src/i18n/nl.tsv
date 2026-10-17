@@ -1493,6 +1493,7 @@ lighting	Light	Licht
 	No matches.	Geen overeenkomsten.
 	Other Libraries	Andere bibliotheken
 	Previous Library	Vorige bibliotheek
+	Remove from Other Libraries	Verwijderen uit andere bibliotheken
 	Swatch exchange files keep solid colors only.	Uitwisselingsbestanden voor stalen bevatten alleen effen kleuren.
 	This library is empty.	Deze bibliotheek is leeg.
 	Color Space	Kleurruimte
@@ -1644,6 +1645,7 @@ lighting	Light	Licht
 	Use Black Point Compensation	Zwartpuntcompensatie gebruiken
 	Working CMYK (don't tag)	Werk-CMYK (niet taggen)
 	{name} (spot)	{name} (spotkleur)
+	{name} (missing)	{name} (ontbreekt)
 	Add to Profiles…	Toevoegen aan profielen…
 	Align Stroke to Center	Lijn in het midden uitlijnen
 	Align Stroke to Inside	Lijn aan de binnenkant uitlijnen
@@ -4004,6 +4006,7 @@ imageTrace	Outline	Contour
 @msg	no interaction in progress	geen interactie gaande
 @msg	no key object	geen sleutelobject
 @msg	no library `{key}` (see {list})	geen bibliotheek `{key}` (zie {list})
+@msg	library `{name}` is missing: {path} can't be read	bibliotheek `{name}` ontbreekt: {path} kan niet worden gelezen
 @msg	no native format	geen eigen indeling
 @msg	no pages	geen pagina's
 @msg	no pattern `{name}`	geen patroon `{name}`

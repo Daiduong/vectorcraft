@@ -1493,6 +1493,7 @@ lighting	Light	Cahaya
 	No matches.	Tidak ada yang cocok.
 	Other Libraries	Pustaka lain
 	Previous Library	Pustaka sebelumnya
+	Remove from Other Libraries	Hapus dari pustaka lain
 	Swatch exchange files keep solid colors only.	File pertukaran swatch hanya menyimpan warna solid.
 	This library is empty.	Pustaka ini kosong.
 	Color Space	Ruang warna
@@ -1644,6 +1645,7 @@ lighting	Light	Cahaya
 	Use Black Point Compensation	Gunakan kompensasi titik hitam
 	Working CMYK (don't tag)	CMYK kerja (tanpa tag)
 	{name} (spot)	{name} (spot)
+	{name} (missing)	{name} (hilang)
 	Add to Profiles…	Tambahkan ke profil…
 	Align Stroke to Center	Ratakan stroke ke tengah
 	Align Stroke to Inside	Ratakan stroke ke dalam
@@ -4004,6 +4006,7 @@ imageTrace	Outline	Kontur
 @msg	no interaction in progress	tidak ada interaksi yang berlangsung
 @msg	no key object	tidak ada objek kunci
 @msg	no library `{key}` (see {list})	tidak ada pustaka `{key}` (lihat {list})
+@msg	library `{name}` is missing: {path} can't be read	pustaka `{name}` tidak ada: {path} tidak dapat dibaca
 @msg	no native format	tidak ada format asli
 @msg	no pages	tidak ada halaman
 @msg	no pattern `{name}`	tidak ada pola `{name}`

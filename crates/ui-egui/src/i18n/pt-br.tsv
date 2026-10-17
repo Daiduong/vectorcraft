@@ -3435,6 +3435,7 @@ axis	Both	Ambos
 @msg	no interaction in progress	nenhuma interação em andamento
 @msg	no key object	nenhum objeto-chave
 @msg	no library `{key}` (see {list})	nenhuma biblioteca `{key}` (veja {list})
+@msg	library `{name}` is missing: {path} can't be read	a biblioteca `{name}` está ausente: não foi possível ler {path}
 @msg	no native format	sem formato nativo
 @msg	no pages	sem páginas
 @msg	no pattern `{name}`	nenhum padrão `{name}`

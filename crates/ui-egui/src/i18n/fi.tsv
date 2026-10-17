@@ -1508,6 +1508,7 @@ lighting	Light	Valo
 	No matches.	Ei osumia.
 	Other Libraries	Muut kirjastot
 	Previous Library	Edellinen kirjasto
+	Remove from Other Libraries	Poista muista kirjastoista
 	Swatch exchange files keep solid colors only.	Värimallien vaihtotiedostoihin tallentuvat vain tasavärit.
 	This library is empty.	Tämä kirjasto on tyhjä.
 	Color Space	Väriavaruus
@@ -1670,6 +1671,7 @@ lighting	Light	Valo
 	Use Black Point Compensation	Käytä mustan pisteen kompensointia
 	Working CMYK (don't tag)	Työ-CMYK (ei tunnistetta)
 	{name} (spot)	{name} (spottiväri)
+	{name} (missing)	{name} (puuttuu)
 	Add to Profiles…	Lisää profiileihin…
 	Align Stroke to Center	Tasaa viiva keskelle
 	Align Stroke to Inside	Tasaa viiva sisäpuolelle
@@ -4063,6 +4065,7 @@ imageTrace	Outline	Ääriviiva
 @msg	no interaction in progress	mikään vuorovaikutus ei ole käynnissä
 @msg	no key object	ei avainobjektia
 @msg	no library `{key}` (see {list})	ei kirjastoa `{key}` (ks. {list})
+@msg	library `{name}` is missing: {path} can't be read	kirjasto `{name}` puuttuu: tiedostoa {path} ei voi lukea
 @msg	no native format	ei omaa tiedostomuotoa
 @msg	no pages	ei sivuja
 @msg	no pattern `{name}`	ei kuviota `{name}`

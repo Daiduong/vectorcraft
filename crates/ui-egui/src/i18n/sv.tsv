@@ -2367,6 +2367,7 @@
 	Remove blank lines between paragraphs	Ta bort tomma rader mellan stycken
 	Remove Brush Stroke	Ta bort penseldrag
 	Remove Effect	Ta bort effekt
+	Remove from Other Libraries	Ta bort från andra bibliotek
 	Remove Guide	Ta bort stödlinje
 	Remove Item	Ta bort objekt
 	Remove Plug-in	Ta bort insticksprogram
@@ -3349,6 +3350,7 @@
 	{kind} Gradient	{kind} gradient
 	{kind} Style Options…	Stilalternativ för {kind}…
 	{kind}, {model}	{kind}, {model}
+	{name} (missing)	{name} (saknas)
 	{name} (spot)	{name} (dekor)
 	{pages} in all, {count} per copy	{pages} totalt, {count} per exemplar
 	{page} of {count}	{page} av {count}
@@ -3766,6 +3768,7 @@ axis	Both	Båda
 @msg	no interaction in progress	ingen interaktion pågår
 @msg	no key object	inget nyckelobjekt
 @msg	no library `{key}` (see {list})	inget bibliotek `{key}` (se {list})
+@msg	library `{name}` is missing: {path} can't be read	biblioteket `{name}` saknas: {path} kan inte läsas
 @msg	no native format	inget eget format
 @msg	no pages	inga sidor
 @msg	no pattern `{name}`	inget mönster `{name}`

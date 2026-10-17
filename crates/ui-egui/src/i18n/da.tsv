@@ -1493,6 +1493,7 @@ lighting	Light	Lys
 	No matches.	Ingen match.
 	Other Libraries	Andre biblioteker
 	Previous Library	Forrige bibliotek
+	Remove from Other Libraries	Fjern fra andre biblioteker
 	Swatch exchange files keep solid colors only.	Farveudvekslingsfiler kan kun indeholde flade farver.
 	This library is empty.	Dette bibliotek er tomt.
 	Color Space	Farverum
@@ -1644,6 +1645,7 @@ lighting	Light	Lys
 	Use Black Point Compensation	Brug sortpunktskompensation
 	Working CMYK (don't tag)	Arbejds-CMYK (mærk ikke)
 	{name} (spot)	{name} (spotfarve)
+	{name} (missing)	{name} (mangler)
 	Add to Profiles…	Tilføj til profiler…
 	Align Stroke to Center	Justér kontur til midten
 	Align Stroke to Inside	Justér kontur til indersiden
@@ -4004,6 +4006,7 @@ imageTrace	Outline	Kontur
 @msg	no interaction in progress	ingen interaktion i gang
 @msg	no key object	intet nøgleobjekt
 @msg	no library `{key}` (see {list})	intet bibliotek `{key}` (se {list})
+@msg	library `{name}` is missing: {path} can't be read	biblioteket `{name}` mangler: {path} kan ikke læses
 @msg	no native format	intet indbygget format
 @msg	no pages	ingen sider
 @msg	no pattern `{name}`	intet mønster `{name}`
