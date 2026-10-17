@@ -2045,7 +2045,8 @@ fn hidden_chars_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
     let mut last = std::mem::take(&mut kept.marks);
     // The inputs are read before any layout: when fonts load during this frame, the next frame
     // lays all type out again.
-    let inputs = (vectorcraft_text::FontDb::global().generation(), vectorcraft_text::hyphenation_exceptions());
+    let inputs =
+        (vectorcraft_text::FontDb::global().generation(), vectorcraft_text::hyphenation_exceptions(), vectorcraft_text::hyphenation_language());
     if kept.inputs != inputs {
         last.clear();
         kept.inputs = inputs;
@@ -2087,8 +2088,8 @@ fn hidden_chars_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
 #[derive(Default)]
 pub struct HiddenChars {
     /// The fonts' generation ([`vectorcraft_text::FontDb::generation`]) and the hyphenation
-    /// exceptions the marks were laid out with.
-    inputs: (u64, String),
+    /// exceptions and the Default Language the marks were laid out with.
+    inputs: (u64, String, String),
     /// Each text object drawn, by id: the node it was laid out from and its marks.
     marks: std::collections::HashMap<vectorcraft_doc::NodeId, (std::sync::Arc<Node>, std::sync::Arc<HiddenMarks>)>,
 }

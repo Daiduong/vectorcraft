@@ -597,6 +597,22 @@ fn hyphenation_exceptions_keep_listed_words_whole_in_layout() {
     );
 }
 
+/// Preferences › Hyphenation › Default Language (#394): German has no hyphenator yet, so layout adds no soft hyphens.
+#[test]
+fn german_default_language_adds_no_soft_hyphens_in_layout() {
+    let text = "Extraordinarily comprehensive typographical considerations notwithstanding everything.";
+    let mut t = area(text, style(14.0), Rect::new(0.0, 0.0, 120.0, 600.0), Justify::Left);
+    t.para.hyphenate = true;
+    let with_breaks = layout(db(), &t);
+    let hyphens = |l: &TextLayout| l.glyphs.iter().filter(|g| g.len == 0).count();
+    assert!(hyphens(&with_breaks) > 0, "English produces soft hyphens");
+    hyphen::with_hyphenation_language_for_test("German", || {
+        let german = layout(db(), &t);
+        assert_eq!(hyphens(&german), 0, "German: no soft hyphens");
+        assert!(german.lines.len() >= with_breaks.lines.len(), "without hyphens the text needs at least as many lines");
+    });
+}
+
 /// The width of the frame [`the_language`] makes: "The lan-" and "language" fit, and "The
 /// language" does not.
 fn the_language_width() -> f64 {

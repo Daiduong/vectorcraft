@@ -64,6 +64,58 @@ pub fn hyphenation_exceptions() -> String {
     store().source.clone()
 }
 
+/// Which hyphenator Preferences › Hyphenation › Default Language picks (#394): the English heuristic,
+/// or none for languages that don't have their own patterns yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Hyphenator {
+    English,
+    Off,
+}
+
+/// What Preferences › Hyphenation › Default Language was last set to (#394).
+struct Language {
+    name: String,
+    hyphenator: Hyphenator,
+}
+
+impl Hyphenator {
+    /// The hyphenator for a Default Language name: English for any English variant, none otherwise.
+    fn from_name(name: &str) -> Self {
+        if name.trim().to_lowercase().starts_with("english") { Hyphenator::English } else { Hyphenator::Off }
+    }
+}
+
+fn language_store() -> MutexGuard<'static, Language> {
+    static LOCK: OnceLock<Mutex<Language>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(Language { name: "English: USA".to_string(), hyphenator: Hyphenator::English }))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Preferences › Hyphenation › Default Language (#394): English names keep the English hyphenator;
+/// any other language is not hyphenated until it has its own patterns.
+pub fn set_hyphenation_language(name: &str) {
+    *language_store() = Language { name: name.to_string(), hyphenator: Hyphenator::from_name(name) };
+}
+
+/// The last name passed to [`set_hyphenation_language`] ("English: USA" before any).
+pub fn hyphenation_language() -> String {
+    language_store().name.clone()
+}
+
+/// The hyphenator Default Language picks, read under the preferences lock.
+#[cfg(not(test))]
+fn active_hyphenator() -> Hyphenator {
+    language_store().hyphenator
+}
+
+/// Unit tests read only their own thread's language: tests running in parallel set the
+/// process-wide one.
+#[cfg(test)]
+fn active_hyphenator() -> Hyphenator {
+    TEST_LANGUAGE.with(|c| c.get())
+}
+
 fn parse_exception(entry: &str) -> (String, Exception) {
     // Illustrator: bare word = never break; hyphens mark the only allowed breaks. No other syntax.
     if !entry.contains('-') {
@@ -135,13 +187,17 @@ pub fn hyphen_points(word: &str) -> Vec<usize> {
 /// After First letters before the hyphen and Before Last after it (at least 1 each), and no word
 /// that starts with a capital when Hyphenate Capitalized Words is off. Words containing non-letters
 /// (other than a trailing apostrophe) are not hyphenated. Preferences exceptions override the
-/// pattern and these options for a matching word.
+/// pattern and these options for a matching word. A Default Language without its own hyphenator
+/// gives no break points.
 pub fn hyphen_points_with(word: &str, opts: &HyphenationOptions) -> Vec<usize> {
     if let Some(ex) = exception_for(word) {
         return match ex {
             Exception::Never => vec![],
             Exception::Only(pts) => pts,
         };
+    }
+    if active_hyphenator() == Hyphenator::Off {
+        return vec![];
     }
     let c: Vec<char> = word.chars().collect();
     let n = c.len();
@@ -205,6 +261,20 @@ pub(crate) fn with_hyphenation_exceptions_for_test(source: &str, f: impl FnOnce(
     TEST_OVERRIDE.with(|c| *c.borrow_mut() = Some(parse_list(source)));
     f();
     TEST_OVERRIDE.with(|c| *c.borrow_mut() = None);
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Per-thread Default Language so unit tests don't race the process-wide preferences store.
+    static TEST_LANGUAGE: std::cell::Cell<Hyphenator> = const { std::cell::Cell::new(Hyphenator::English) };
+}
+
+/// Run `f` with Preferences › Hyphenation › Default Language set on this thread only (tests).
+#[cfg(test)]
+pub(crate) fn with_hyphenation_language_for_test(name: &str, f: impl FnOnce()) {
+    TEST_LANGUAGE.with(|c| c.set(Hyphenator::from_name(name)));
+    f();
+    TEST_LANGUAGE.with(|c| c.set(Hyphenator::English));
 }
 
 #[cfg(test)]
@@ -287,5 +357,66 @@ mod tests {
         assert_eq!(hyphenation_exceptions(), "typography, hap-pen");
         set_hyphenation_exceptions("");
         assert!(hyphenation_exceptions().is_empty());
+    }
+
+    /// #394 Preferences › Hyphenation › Default Language: only English uses the English heuristic.
+    #[test]
+    fn default_language_without_a_hyphenator_does_not_hyphenate() {
+        // Baseline: the English heuristic breaks this German word wrongly ("beo-bachten"; German:
+        // be-ob-ach-ten), so the empty result under German comes from the language, not the word.
+        assert_eq!(hyphenate_word("beobachten"), "beo-bachten", "English heuristic splits German");
+        with_hyphenation_language_for_test("German", || {
+            assert!(hyphen_points("beobachten").is_empty(), "German has no hyphenator yet");
+        });
+    }
+
+    /// #394 Preferences › Hyphenation › Default Language: a name with no hyphenator (unknown, or empty)
+    /// gives no break points.
+    #[test]
+    fn unknown_default_language_does_not_hyphenate() {
+        for name in ["Unknown", ""] {
+            with_hyphenation_language_for_test(name, || {
+                assert!(hyphen_points("typography").is_empty(), "{name:?} has no hyphenator");
+            });
+        }
+    }
+
+    /// #394 Preferences › Hyphenation › Default Language: English variants keep the English heuristic.
+    #[test]
+    fn english_default_languages_keep_the_heuristic() {
+        with_hyphenation_language_for_test("English: UK", || {
+            assert_eq!(hyphen_points("typography"), vec![4, 7], "English: UK keeps the English heuristic");
+        });
+        with_hyphenation_language_for_test("English: USA", || {
+            assert_eq!(hyphen_points("typography"), vec![4, 7], "English: USA keeps the English heuristic");
+        });
+        assert_eq!(hyphen_points("typography"), vec![4, 7], "English is back after the helper");
+    }
+
+    /// #394 Preferences › Hyphenation › Exceptions: a listed word breaks at its marked hyphens whatever the
+    /// Default Language.
+    #[test]
+    fn hyphenation_exceptions_apply_in_every_language() {
+        with_hyphenation_language_for_test("German", || {
+            with_hyphenation_exceptions_for_test("hap-pen", || {
+                assert_eq!(hyphen_points("happen"), vec![3], "exceptions apply under German, which has no hyphenator");
+            })
+        });
+        with_hyphenation_language_for_test("English: UK", || {
+            with_hyphenation_exceptions_for_test("hap-pen", || {
+                assert_eq!(hyphen_points("happen"), vec![3], "exceptions apply under English too");
+            })
+        });
+    }
+
+    /// Default Language's process-wide store, used by prefs.set / restore.
+    #[test]
+    fn set_hyphenation_language_round_trips_the_name() {
+        // Ends on the default, so the process-wide store is left as it started.
+        for (name, hyphenator) in [("German", Hyphenator::Off), ("English: UK", Hyphenator::English), ("English: USA", Hyphenator::English)] {
+            set_hyphenation_language(name);
+            assert_eq!(hyphenation_language(), name, "the name round-trips");
+            assert_eq!(language_store().hyphenator, hyphenator, "{name:?}: the setter stores the hyphenator, not just the name");
+        }
     }
 }
