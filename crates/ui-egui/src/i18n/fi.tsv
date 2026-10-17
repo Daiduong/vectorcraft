@@ -1384,6 +1384,12 @@ lighting	Light	Valo
 	Axis	Akseli
 	ICF Top/Right	ICF ylä/oikea
 	ICF Bottom/Left	ICF ala/vasen
+	Show Font Height Options	Näytä fontin korkeuden asetukset
+	Hide Font Height Options	Piilota fontin korkeuden asetukset
+	Set Font Height Reference	Aseta fontin korkeuden viite
+	Em Box	Em-laatikko
+	x-Height	x-korkeus
+	ICF Box	ICF-laatikko
 	Copy Color Value (Hex)	Kopioi väriarvo (heksa)
 	Create New Swatch…	Luo uusi värimalli…
 	Name 40%	Nimi 40%

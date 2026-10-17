@@ -454,14 +454,15 @@ fn cell(ui: &mut Ui, label: &str, tip: &str, add: impl FnOnce(&mut Ui)) {
 
 /// The Character panel's grid of numeric fields, `w` wide: Font Size, Leading, Kerning and
 /// Tracking, then with `more` the scales, Baseline Shift and Character Rotation (`s`: the style
-/// shown). The Properties panel shows its first rows.
+/// shown). With Show Font Height Options on, a row under Font Size holds the Set Font Height
+/// Reference dropdown. The Properties panel shows its first rows.
 pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &CharStyle, w: f32, more: bool) {
     let fw = ((w - 66.0) / 2.0).clamp(60.0, 100.0);
     let unit = app.session.type_unit();
     egui::Grid::new(id).num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
         cell(ui, "T", tl!("Font Size"), |ui| size_field(app, ui, "ch-size", fw));
         cell(ui, "A↕", tl!("Leading"), |ui| {
-            let leading = shared_effective(app, CharStyle::effective_leading);
+            let leading = shown_leading(app);
             let auto = shared(app, |s| s.leading.is_none()) == Some(true);
             match widgets::spin_field_auto(ui, "ch-lead", leading, Some(auto), unit, fw, 1.0, 0.1, &SIZE_PRESETS) {
                 Some(SpinPick::Value(v)) => style(app, json!({"leading": v})),
@@ -470,6 +471,10 @@ pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &
             }
         });
         ui.end_row();
+        if pstate::<bool>(ui.ctx(), FONT_HEIGHT_OPTIONS) {
+            cell(ui, "T↕", tl!("Set Font Height Reference"), |ui| font_height_reference(app, ui, fw));
+            ui.end_row();
+        }
         cell(ui, "VA", tl!("Kerning (0 = Auto)"), |ui| {
             let kerning = shared(app, |s| s.kerning.unwrap_or(0.0));
             if let Some(v) = widgets::spin_plain(ui, "ch-kern", kerning, "", 0, fw, 10.0, -1000.0, &TRACKING_PRESETS) {
@@ -516,6 +521,42 @@ pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width:
     let size = shared_effective(app, |s| s.size);
     if let Some(v) = widgets::spin_field(ui, id, size, app.session.type_unit(), width, 1.0, 0.1, &SIZE_PRESETS) {
         style(app, json!({"size": v}));
+    }
+}
+
+/// The Leading field's value, in document points: the explicit leading, or the Auto leading the
+/// characters are set with, which follows the em size their font height reference gives them
+/// ([`vectorcraft_text::FontDb::em_size`]); `None` where the characters differ.
+fn shown_leading(app: &VectorcraftApp) -> Option<f64> {
+    let db = vectorcraft_text::FontDb::global();
+    shared_styles(app, |t, style| {
+        let s = t.effective_char_style(style)?;
+        Some(Metric(CharStyle { size: db.em_size(&s, t.vertical), ..s }.effective_leading()))
+    })
+    .map(|v| v.0)
+}
+
+/// The panel state of the Character panel menu's Show Font Height Options.
+const FONT_HEIGHT_OPTIONS: &str = "ch-font-height-options";
+
+/// The font height references the Set Font Height Reference dropdown lists, with their
+/// `text.setFormat` values.
+const FONT_HEIGHT_REFERENCES: [(vectorcraft_doc::FontHeightReference, &str); 4] = [
+    (vectorcraft_doc::FontHeightReference::EmBox, "emBox"),
+    (vectorcraft_doc::FontHeightReference::CapHeight, "capHeight"),
+    (vectorcraft_doc::FontHeightReference::XHeight, "xHeight"),
+    (vectorcraft_doc::FontHeightReference::IcfBox, "icfBox"),
+];
+
+/// The Set Font Height Reference dropdown, `width` wide: the height of the font that the Font Size
+/// measures, blank where the characters the panel acts on differ.
+fn font_height_reference(app: &mut VectorcraftApp, ui: &mut Ui, width: f32) {
+    // The labels of [`FONT_HEIGHT_REFERENCES`], in its order.
+    let labels = [tl!("Em Box"), tl!("Cap Height"), tl!("x-Height"), tl!("ICF Box")];
+    let current = shared(app, |s| s.font_height_reference);
+    let shown = FONT_HEIGHT_REFERENCES.iter().zip(labels).find(|(r, _)| Some(r.0) == current).map_or("", |(_, l)| l);
+    if let Some((_, key)) = widgets::dropdown_names(ui, "ch-font-height", shown, &labels, width).and_then(|i| FONT_HEIGHT_REFERENCES.get(i)) {
+        format(app, json!({"fontHeightReference": key}));
     }
 }
 
@@ -716,6 +757,11 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     if menu_item(ui, if hidden { tl!("Show Options") } else { tl!("Hide Options") }, true, false) {
         set_pstate(ui.ctx(), "ch-hide-options", !hidden);
     }
+    // Show Font Height Options shows the Set Font Height Reference dropdown under Font Size.
+    let heights: bool = pstate(ui.ctx(), FONT_HEIGHT_OPTIONS);
+    if menu_item(ui, if heights { tl!("Hide Font Height Options") } else { tl!("Show Font Height Options") }, true, false) {
+        set_pstate(ui.ctx(), FONT_HEIGHT_OPTIONS, !heights);
+    }
     ui.separator();
     let s = st.map(|x| x.0);
     for (label, key, on) in [
@@ -808,8 +854,9 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// Reset Panel: the characters the panel acts on ([`char_cmd`]) take tracking 0, Auto leading and
 /// kerning, no baseline shift, 100% scales, no rotation, no underline or strikethrough, All Caps
 /// and Small Caps off, the normal position (neither superscript nor subscript), Roman Baseline
-/// character alignment, Proportional Metrics off and the Default digits, whether or not Show
-/// East Asian Options and Show Indic Options are on.
+/// character alignment, Proportional Metrics off, the Default digits and the Em Box font height
+/// reference, whether or not Show East Asian Options, Show Indic Options and Show Font Height
+/// Options are on.
 fn reset_panel(app: &mut VectorcraftApp) {
     let d = CharStyle::default();
     style(app, json!({"tracking": 0, "leading": "auto"}));
@@ -818,7 +865,7 @@ fn reset_panel(app: &mut VectorcraftApp) {
         json!({
             "kerning": "auto", "baselineShift": 0, "hScale": 100, "vScale": 100, "rotation": 0, "underline": false, "strikethrough": false,
             "allCaps": false, "smallCaps": d.small_caps.is_some(), "position": d.position.id(), "charAlign": d.char_align,
-            "proportionalMetrics": d.proportional_metrics, "digits": d.digits
+            "proportionalMetrics": d.proportional_metrics, "digits": d.digits, "fontHeightReference": d.font_height_reference
         }),
     );
 }
@@ -884,6 +931,26 @@ mod tests {
         assert_eq!(shared_effective(&app, |s| s.size), Some(10.0));
         app.run("text.setFormat", json!({"hScale": 100})).unwrap();
         assert_eq!(shared_effective(&app, |s| s.h_scale), Some(100.0));
+    }
+
+    /// The Leading field shows the Auto leading the characters are set with, 120% of their em
+    /// size: 20 pt type measuring a 0.7 em cap height is set at 20 / 0.7 pt. An explicit leading
+    /// shows as it is.
+    #[test]
+    fn leading_shows_the_auto_leading_of_the_em_size() {
+        use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
+        vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let near = |l: Option<f64>, want: f64| l.is_some_and(|l| (l - want).abs() < 1e-9);
+        assert!(near(shown_leading(&app), 24.0), "{:?}", shown_leading(&app));
+        app.run("text.setFormat", json!({"fontHeightReference": "capHeight"})).unwrap();
+        let cap = f64::from(HEIGHT_CAP) / 1000.0;
+        assert!(near(shown_leading(&app), 1.2 * 20.0 / cap), "{:?}", shown_leading(&app));
+        app.run("text.setStyle", json!({"leading": 30})).unwrap();
+        assert!(near(shown_leading(&app), 30.0), "{:?}", shown_leading(&app));
     }
 
     #[test]
@@ -1143,6 +1210,49 @@ mod tests {
         assert_eq!(shown(&mut app), (true, true));
     }
 
+    /// The panel menu's Show Font Height Options shows the Set Font Height Reference dropdown,
+    /// which shows the selected type's reference and sets the one picked (one undo step); Hide
+    /// Font Height Options hides it again.
+    #[test]
+    fn show_font_height_options_shows_the_font_height_reference() {
+        use super::super::tests_appearance::{click, frame_events, text_rect};
+        use vectorcraft_doc::FontHeightReference as R;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 12})).unwrap()["id"].as_u64().unwrap();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let reference = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => t.runs.iter().map(|r| r.style.font_height_reference).collect::<Vec<_>>(),
+            _ => panic!("text"),
+        };
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let texts = |ctx: &egui::Context, app: &mut VectorcraftApp, f: fn(&mut VectorcraftApp, &mut Ui)| {
+            frame_events(ctx, app, vec![], f);
+            frame_events(ctx, app, vec![], f)
+        };
+        // A menu item's label is drawn after its check column (a check mark or spaces).
+        let item =
+            |texts: &[(String, egui::Rect)], s: &str| texts.iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == s).map(|(_, r)| r.center());
+        assert!(item(&texts(&ctx, &mut app, show), "Em Box").is_none());
+        let at = item(&texts(&ctx, &mut app, menu), "Show Font Height Options").unwrap();
+        click(&ctx, &mut app, at, menu);
+        assert!(item(&texts(&ctx, &mut app, menu), "Hide Font Height Options").is_some());
+        let panel = texts(&ctx, &mut app, show);
+        assert!(item(&panel, "Em Box").is_some(), "{panel:?}");
+        // Pick Cap Height from the dropdown.
+        click(&ctx, &mut app, text_rect(&panel, "Em Box").center(), show);
+        let undo = app.session.active().unwrap().history.undo.len();
+        let open = texts(&ctx, &mut app, show);
+        click(&ctx, &mut app, text_rect(&open, "Cap Height").center(), show);
+        assert_eq!(reference(&app), [R::CapHeight]);
+        assert_eq!(app.session.active().unwrap().history.undo.len(), undo + 1);
+        assert!(item(&texts(&ctx, &mut app, show), "Cap Height").is_some());
+        let at = item(&texts(&ctx, &mut app, menu), "Hide Font Height Options").unwrap();
+        click(&ctx, &mut app, at, menu);
+        assert!(item(&texts(&ctx, &mut app, show), "Cap Height").is_none());
+    }
+
     /// Digits is in the panel menu with the Middle Eastern (Indic) options only, as Paragraph
     /// Direction is in the Paragraph panel.
     #[test]
@@ -1159,8 +1269,8 @@ mod tests {
 
     /// Reset Panel sets every character attribute the panel shows, except the font family, style
     /// and size, back to its default (Small Caps, the position, Character Alignment, Proportional
-    /// Metrics and Digits included), in the selected type and in the text the Type tool has
-    /// selected while it edits.
+    /// Metrics, Digits and the font height reference included), in the selected type and in the
+    /// text the Type tool has selected while it edits.
     #[test]
     fn reset_panel_resets_every_attribute_but_the_font() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -1187,6 +1297,7 @@ mod tests {
                 s.char_align != d.char_align,
                 s.proportional_metrics != d.proportional_metrics,
                 s.digits != d.digits,
+                s.font_height_reference != d.font_height_reference,
             ]
         };
         let custom = |app: &mut VectorcraftApp| {
@@ -1195,16 +1306,16 @@ mod tests {
                 json!({
                     "id": id, "tracking": 50, "leading": 30, "kerning": 20, "baselineShift": 3, "hScale": 120, "vScale": 90, "rotation": 15,
                     "underline": true, "strikethrough": true, "allCaps": true, "smallCaps": true, "position": "superscript",
-                    "charAlign": "emBoxCenter", "proportionalMetrics": true, "digits": "hindi"
+                    "charAlign": "emBoxCenter", "proportionalMetrics": true, "digits": "hindi", "fontHeightReference": "capHeight"
                 }),
             )
             .unwrap();
         };
         let plain = runs(&app)[0].1.clone();
-        assert_eq!(differs(&plain, &CharStyle::default()), [false; 15]);
+        assert_eq!(differs(&plain, &CharStyle::default()), [false; 16]);
         custom(&mut app);
         let styled = runs(&app)[0].1.clone();
-        assert_eq!(differs(&styled, &CharStyle::default()), [true; 15]);
+        assert_eq!(differs(&styled, &CharStyle::default()), [true; 16]);
         app.run("select.set", json!({"ids": [id]})).unwrap();
         reset_panel(&mut app);
         assert_eq!(runs(&app), [("One 12".to_string(), plain.clone())]);

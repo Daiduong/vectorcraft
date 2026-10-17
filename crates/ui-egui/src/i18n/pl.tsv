@@ -1324,6 +1324,12 @@ lighting	Light	Światło
 	Axis	Oś
 	ICF Top/Right	ICF góra/prawo
 	ICF Bottom/Left	ICF dół/lewo
+	Show Font Height Options	Pokaż opcje wysokości czcionki
+	Hide Font Height Options	Ukryj opcje wysokości czcionki
+	Set Font Height Reference	Ustaw odniesienie wysokości czcionki
+	Em Box	Ramka firetowa
+	x-Height	Wysokość x
+	ICF Box	Ramka ICF
 	Copy Color Value (Hex)	Kopiuj wartość koloru (hex)
 	Create New Swatch…	Utwórz nową próbkę…
 	Name 40%	Nazwa 40%

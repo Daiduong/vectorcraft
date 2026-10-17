@@ -1062,11 +1062,15 @@ impl<'a> Writer<'a> {
 
     // ---------- type ----------
 
-    /// Type: a text object when the format can hold it as text, else its outlines.
+    /// Type: a text object when the format can hold it as text, else its outlines. A run whose
+    /// font size measures a height other than the em box is written at the em size it is drawn
+    /// at ([`vectorcraft_text::FontDb::font_heights_resolved`]).
     fn text(&mut self, t: &TextObject) {
         if !invertible(t.xf) {
             return;
         }
+        let resolved = vectorcraft_text::FontDb::global().font_heights_resolved(t);
+        let t = &*resolved;
         if !self.outline_text {
             if writable(t) {
                 return self.text_object(t);

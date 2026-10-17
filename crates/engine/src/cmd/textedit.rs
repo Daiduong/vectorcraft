@@ -27,7 +27,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Character",
             [],
             None,
-            "{id? (default: the one selected type object), start?: byte, end?: byte (default: all text), font?, style?, size?: pt, leading?: pt|\"auto\", tracking?, kerning?: 1/1000 em|\"auto\", baselineShift?: pt, hScale?: %, vScale?: %, rotation?: deg, fill?: colour|\"none\", stroke?: colour|\"none\", strokeWidth?: pt, strokeOptions?: {weight?, cap?, join?, miterLimit?, align?, dash?, dashOffset?, alignDashes?} (as stroke.set: the character stroke), underline?, strikethrough?, allCaps?: bool, smallCaps?: bool, position?: \"normal\"|\"superscript\"|\"subscript\" (sizes from Document Setup), features?: [\"dlig\", \"-liga\", …], charAlign?: \"romanBaseline\"|\"emBoxTop\"|\"emBoxCenter\"|\"emBoxBottom\"|\"icfTop\"|\"icfBottom\", proportionalMetrics?: bool (full-width glyphs on the font's proportional widths: `palt` in horizontal type, `vpal` in vertical type), digits?: \"default\"|\"arabic\"|\"hindi\"|\"farsi\" (Character panel menu › Digits: the numeral system every digit is drawn in, whatever was typed), fontAxes?: {\"wght\": 650, …} (Character panel › Variable Font: the setting of each variation axis named, in the axis's units and clamped to its range; null: back to the style's own setting; other axes keep theirs; tags the font has no axis for are left out; a font or style change clears them; text.fontList {family, style} lists the axes)} style a character range (size/leading/baselineShift are document points and hScale includes the object transform; runs are split at the range ends) → {id, runs}",
+            "{id? (default: the one selected type object), start?: byte, end?: byte (default: all text), font?, style?, size?: pt, leading?: pt|\"auto\", tracking?, kerning?: 1/1000 em|\"auto\", baselineShift?: pt, hScale?: %, vScale?: %, rotation?: deg, fill?: colour|\"none\", stroke?: colour|\"none\", strokeWidth?: pt, strokeOptions?: {weight?, cap?, join?, miterLimit?, align?, dash?, dashOffset?, alignDashes?} (as stroke.set: the character stroke), underline?, strikethrough?, allCaps?: bool, smallCaps?: bool, position?: \"normal\"|\"superscript\"|\"subscript\" (sizes from Document Setup), features?: [\"dlig\", \"-liga\", …], charAlign?: \"romanBaseline\"|\"emBoxTop\"|\"emBoxCenter\"|\"emBoxBottom\"|\"icfTop\"|\"icfBottom\", proportionalMetrics?: bool (full-width glyphs on the font's proportional widths: `palt` in horizontal type, `vpal` in vertical type), digits?: \"default\"|\"arabic\"|\"hindi\"|\"farsi\" (Character panel menu › Digits: the numeral system every digit is drawn in, whatever was typed), fontHeightReference?: \"emBox\"|\"capHeight\"|\"xHeight\"|\"icfBox\" (Character panel › Set Font Height Reference: the height of the font that size measures, the em box by default; with a font that has no such height, the em box), fontAxes?: {\"wght\": 650, …} (Character panel › Variable Font: the setting of each variation axis named, in the axis's units and clamped to its range; null: back to the style's own setting; other axes keep theirs; tags the font has no axis for are left out; a font or style change clears them; text.fontList {family, style} lists the axes)} style a character range (size/leading/baselineShift are document points and hScale includes the object transform; runs are split at the range ends) → {id, runs}",
             has_doc,
             set_range_style
         ),
@@ -256,6 +256,7 @@ pub(crate) struct CharChange {
     proportional_metrics: Option<bool>,
     digits: Option<vectorcraft_doc::Digits>,
     font_axes: Option<AxisChange>,
+    font_height_reference: Option<vectorcraft_doc::FontHeightReference>,
 }
 
 /// `digits: "default"|"arabic"|"hindi"|"farsi"` → the numeral system the digits are drawn in.
@@ -360,6 +361,20 @@ pub(crate) fn char_align_param(p: &Value, cmd: &str) -> Result<Option<vectorcraf
     }))
 }
 
+/// `fontHeightReference: "emBox"|"capHeight"|"xHeight"|"icfBox"` (Character panel › Set Font Height
+/// Reference): the height of the font that the font size measures.
+pub(crate) fn font_height_reference_param(p: &Value, cmd: &str) -> Result<Option<vectorcraft_doc::FontHeightReference>> {
+    use vectorcraft_doc::FontHeightReference;
+    let Some(v) = p.get("fontHeightReference").filter(|v| !v.is_null()) else { return Ok(None) };
+    Ok(Some(match v.as_str() {
+        Some("emBox") => FontHeightReference::EmBox,
+        Some("capHeight") => FontHeightReference::CapHeight,
+        Some("xHeight") => FontHeightReference::XHeight,
+        Some("icfBox") => FontHeightReference::IcfBox,
+        _ => return Err(bad(cmd, "`fontHeightReference` must be \"emBox\", \"capHeight\", \"xHeight\" or \"icfBox\"")),
+    }))
+}
+
 fn paint_param(p: &Value, k: &str, cmd: &str) -> Result<Option<Paint>> {
     match p.get(k) {
         None | Some(Value::Null) => Ok(None),
@@ -414,6 +429,7 @@ impl CharChange {
             proportional_metrics: flag("proportionalMetrics"),
             digits: digits_param(p, cmd)?,
             font_axes: font_axes_param(p, cmd)?,
+            font_height_reference: font_height_reference_param(p, cmd)?,
         };
         if c.size.is_some_and(|v| v <= 0.0) {
             return Err(bad(cmd, "size must be positive"));
@@ -445,6 +461,7 @@ impl CharChange {
             && self.proportional_metrics.is_none()
             && self.digits.is_none()
             && self.font_axes.is_none()
+            && self.font_height_reference.is_none()
     }
 
     fn localize(&mut self, t: &TextObject, cmd: &str) -> Result<()> {
@@ -540,6 +557,9 @@ impl CharChange {
         }
         if let Some(v) = self.digits {
             st.digits = v;
+        }
+        if let Some(v) = self.font_height_reference {
+            st.font_height_reference = v;
         }
     }
 }
@@ -975,7 +995,11 @@ fn type_step(s: &mut Session, p: &Value) -> Result<Value> {
                     match step {
                         Step::Size => st.size = super::typecmd::local_type_value(t, st.size * points + inc, (0.1, 1296.0), false, C)?,
                         Step::Leading => {
-                            st.leading = Some(super::typecmd::local_type_value(t, st.effective_leading() * points + inc, (0.1, 5000.0), false, C)?);
+                            // With Auto leading the step starts from the leading the lines are set with,
+                            // 120% of the em size the font height reference gives the characters.
+                            let em = vectorcraft_text::FontDb::global().em_size(st, t.vertical);
+                            let leading = CharStyle { size: em, ..st.clone() }.effective_leading();
+                            st.leading = Some(super::typecmd::local_type_value(t, leading * points + inc, (0.1, 5000.0), false, C)?);
                         }
                         Step::Tracking => st.tracking = (st.tracking + inc).clamp(-1000.0, 10000.0),
                         Step::Kerning => st.kerning = Some((st.kerning.unwrap_or(0.0) + inc).clamp(-1000.0, 10000.0)),

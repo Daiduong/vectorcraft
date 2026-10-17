@@ -38,6 +38,13 @@
 	Em Box Top/Right	仮想ボディの上 / 右
 	ICF Top/Right	平均字面の上 / 右
 	ICF Bottom/Left	平均字面の下 / 左
+	Show Font Height Options	フォントの高さオプションを表示
+	Hide Font Height Options	フォントの高さオプションを隠す
+	Set Font Height Reference	フォントの高さの基準を設定
+	Em Box	仮想ボディ
+	Cap Height	キャップハイト
+	x-Height	x ハイト
+	ICF Box	平均字面
 	Proportional Metrics	プロポーショナルメトリクス
 	Digits	数字
 	Arabic	アラビア数字

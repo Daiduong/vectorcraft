@@ -1288,6 +1288,52 @@ mod area_tests {
         assert_eq!(set, [("صفحة ".to_string(), Digits::Default), ("12".to_string(), Digits::Farsi)]);
     }
 
+    /// Font height reference (Character panel › Set Font Height Reference): a character attribute,
+    /// saved only when not the em box; the type is laid out again at the em size it gives, so 20 pt
+    /// type measuring a 0.7 em cap height grows by 1 / 0.7, and a leading step from Auto starts at
+    /// 120% of that em size.
+    #[test]
+    fn font_height_reference_is_a_character_attribute_saved_only_when_not_the_em_box() {
+        use vectorcraft_doc::FontHeightReference as R;
+        use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
+        vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let id =
+            s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Hx Hx", "font": HEIGHT_FAMILY, "size": 20})).unwrap()["id"].as_u64().unwrap();
+        let text = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => t.clone(),
+            _ => panic!("text"),
+        };
+        let height = |s: &Session| text(s).cached_bounds.unwrap().height();
+        let em_box = height(&s);
+        assert_eq!(text(&s).runs[0].style.font_height_reference, R::EmBox);
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        for (key, want) in [("capHeight", R::CapHeight), ("xHeight", R::XHeight), ("icfBox", R::IcfBox), ("emBox", R::EmBox)] {
+            s.execute("text.setFormat", &json!({"fontHeightReference": key})).unwrap();
+            assert!(text(&s).runs.iter().all(|r| r.style.font_height_reference == want && r.style.size == 20.0));
+            let saved = serde_json::to_value(&text(&s).runs[0].style).unwrap();
+            assert_eq!(saved.get("fontHeightReference").and_then(|v| v.as_str()), (want != R::EmBox).then_some(key));
+        }
+        s.execute("text.setFormat", &json!({"fontHeightReference": "capHeight"})).unwrap();
+        let grown = height(&s) / em_box;
+        assert!((grown - 1000.0 / f64::from(HEIGHT_CAP)).abs() < 1e-6, "{grown}");
+        // A leading step from Auto starts at the leading the lines are set with: 120% of the em size.
+        s.execute("type.step", &json!({"attribute": "leading"})).unwrap();
+        let stepped = text(&s).runs[0].style.leading.unwrap();
+        assert!((stepped - (1.2 * 20.0 * 1000.0 / f64::from(HEIGHT_CAP) + 2.0)).abs() < 1e-9, "{stepped}");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(text(&s).runs[0].style.font_height_reference, R::EmBox);
+        assert!((height(&s) - em_box).abs() < 1e-9);
+        let err = s.execute("text.setFormat", &json!({"fontHeightReference": "baseline"})).unwrap_err().to_string();
+        assert!(err.contains("`fontHeightReference` must be"), "{err}");
+        // Characters selected with the Type tool: only the range takes it.
+        s.execute("text.setRangeStyle", &json!({"id": id, "start": 3, "end": 5, "fontHeightReference": "xHeight"})).unwrap();
+        let set: Vec<_> = text(&s).runs.iter().map(|r| (r.text.clone(), r.style.font_height_reference)).collect();
+        assert_eq!(set, [("Hx ".to_string(), R::EmBox), ("Hx".to_string(), R::XHeight)]);
+    }
+
     /// Variable Font settings (Character panel › Variable Font): a character attribute, saved only
     /// when set, each value clamped to its axis's range, and cleared by another font or style.
     #[test]

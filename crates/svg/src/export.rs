@@ -1776,11 +1776,14 @@ impl Writer<'_> {
     /// instances of their symbols (a `<use>` of the symbol's def where it can be shared), all in
     /// one group carrying the object's transparency. The live text skips their characters and
     /// places the text after each one; type on a path with inline graphics is written as outlines
-    /// (a `<textPath>` couldn't leave room for the art).
+    /// (a `<textPath>` couldn't leave room for the art). A run whose font size measures a height
+    /// other than the em box is written at the em size it is drawn at
+    /// ([`vectorcraft_text::FontDb::font_heights_resolved`]).
     fn text_node(&mut self, n: &Node, t: &TextObject) {
         let doc = self.doc;
         let resolved = doc.inline_resolved(t);
-        let t = &*resolved;
+        let heights = vectorcraft_text::FontDb::global().font_heights_resolved(&resolved);
+        let t = &*heights;
         let inline = t.runs.iter().any(|r| r.inline.is_some());
         let outlined = self.opts.outline_text || t.vertical || (inline && matches!(t.kind, TextKind::OnPath { .. }));
         let chars = |w: &mut Self, n: &Node| if outlined { w.text_outlines(n, t) } else { w.text(n, t) };

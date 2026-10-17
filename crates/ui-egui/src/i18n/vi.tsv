@@ -1674,6 +1674,13 @@ file-filter	Templates	Mẫu
 	Hyphenate Capitalized Words	Gạch nối từ viết hoa chữ đầu
 	ICC Profile	Hồ sơ ICC
 	ICF Bottom/Left	ICF Dưới/Trái
+	Show Font Height Options	Hiện tùy chọn chiều cao phông chữ
+	Hide Font Height Options	Ẩn tùy chọn chiều cao phông chữ
+	Set Font Height Reference	Đặt tham chiếu chiều cao phông chữ
+	Em Box	Ô em
+	Cap Height	Chiều cao chữ hoa
+	x-Height	Chiều cao chữ x
+	ICF Box	Ô ICF
 	ICF Top/Right	ICF Trên/Phải
 	Identify Objects By	Nhận diện đối tượng theo
 	Ignore	Bỏ qua

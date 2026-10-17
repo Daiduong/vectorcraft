@@ -4269,6 +4269,12 @@ axis	Both	Båda
 	Insert Inline Symbol	Infoga symbol i texten
 	ICF Top/Right	ICF överkant/höger
 	ICF Bottom/Left	ICF nederkant/vänster
+	Show Font Height Options	Visa alternativ för teckenhöjd
+	Hide Font Height Options	Dölj alternativ för teckenhöjd
+	Set Font Height Reference	Ange referens för teckenhöjd
+	Em Box	Em-ruta
+	x-Height	x-höjd
+	ICF Box	ICF-ruta
 @msg	`id` is the step reference {r}, which only `run` and `command_batch` resolve	`id` är stegreferensen {r}, som bara `run` och `command_batch` löser upp
 @msg	`ids` must be an array of object ids, not {v}	`ids` måste vara en array med objekt-id:n, inte {v}
 @msg	`corners` must be an array of anchor indices, not {v}	`corners` måste vara en array med index för ankarpunkter, inte {v}

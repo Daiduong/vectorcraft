@@ -4284,6 +4284,13 @@ theme	Appearance	Erscheinungsbild
 	Insert Inline Symbol	Inline-Symbol einfügen
 	ICF Top/Right	ICF oben/rechts
 	ICF Bottom/Left	ICF unten/links
+	Show Font Height Options	Optionen für Schrifthöhe einblenden
+	Hide Font Height Options	Optionen für Schrifthöhe ausblenden
+	Set Font Height Reference	Bezugsgröße der Schrifthöhe festlegen
+	Em Box	Geviert
+	Cap Height	Versalhöhe
+	x-Height	x-Höhe
+	ICF Box	ICF-Rahmen
 @msg	`id` is the step reference {r}, which only `run` and `command_batch` resolve	`id` ist der Schrittverweis {r}, den nur `run` und `command_batch` auflösen
 @msg	`ids` must be an array of object ids, not {v}	`ids` muss ein Array von Objekt-IDs sein, nicht {v}
 @msg	`corners` must be an array of anchor indices, not {v}	`corners` muss ein Array von Ankerpunkt-Indizes sein, nicht {v}
