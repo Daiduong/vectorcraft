@@ -1,6 +1,6 @@
 # Image Trace quality
 
-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-16 · **Change:** minor (Image Trace: a higher Paths never gives fewer segments on collapsed loops)
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-17 · **Change:** minor (Image Trace: Paths and Corners aligned with the documented behaviour of the controls; Image Trace: a higher Paths never gives fewer segments on collapsed loops)
 > **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-16 · **Change:** minor (Image Trace: the notch rule reads only its own piece)
 > **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-16 · **Change:** minor (Image Trace: an edge's sub-pixel shift is the same from either side)
 > **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-16 · **Change:** minor (Image Trace: a simpler contour walk with no precomputed direction table)
@@ -8,6 +8,50 @@
 What Image Trace (`crates/trace`) makes of images whose right answer is known, measured by a harness and
 compared with the numbers before each change. Nothing here is a judgement by eye, and nothing is compared
 with any other product except the open tracer named under [Yardstick](#4-yardstick).
+
+
+## Paths and Corners as documented
+
+Paths and Corners now map to the fit so that each documented property of the controls holds
+([image-trace-adjustments.md](image-trace-adjustments.md#paths-corners-and-noise-documented-meaning-and-vectorcrafts-mapping)):
+the tolerance runs 0.495 px (Paths 0), 0.31 px (50), 0.08 px (100, the tightest, as before) instead of
+0.78 / 0.33 / 0.08 px, and the corner angle 99.2° (Corners 0), 57.9° (75), 35° (100) instead of
+90° / 48.75° / 35°. Every trace changes slightly. Measured on code-drawn art only; the tables further
+down are from before this change.
+
+Six shapes (a disc, a wavy and a bumpy blob, a five-pointed rounded star, a rounded heptagon with
+turns of different sizes, a turned quadrilateral), each at 64 and 128 px, drawn with 8 × 8 samples
+a pixel and again hard-edged, Black and White, Noise 4, Corners 75: mean distance (px) between the
+traced outline and the drawn one, both ways, and segments (sum over the 12 images), before → after.
+
+| Paths | anti-aliased: mean px | anti-aliased: segments | hard-edged: mean px | hard-edged: segments |
+|--:|--:|--:|--:|--:|
+| 0 | 0.127 → 0.101 | 125 → 128 | 0.352 → 0.326 | 135 → 99 |
+| 25 | 0.109 → 0.091 | 126 → 136 | 0.321 → 0.282 | 113 → 104 |
+| 50 | 0.076 → 0.073 | 141 → 143 | 0.243 → 0.238 | 112 → 113 |
+| 75 | 0.048 → 0.056 | 191 → 168 | 0.203 → 0.211 | 148 → 131 |
+| 100 | 0.038 → 0.038 | 233 → 233 | 0.164 → 0.164 | 259 → 259 |
+
+Before, the hard-edged shapes had more segments at Paths 0 than at Paths 25 or 50 (135, 113, 112);
+after, segments rise with Paths in this table at both edge kinds. Paths 75 is a little looser than
+before (fewer segments, slightly farther from the outline); Paths 100 is unchanged.
+
+The quality harness (section 1's inputs, all sizes and variants, before → after; `TRACE_QUALITY_MP=1`):
+
+| preset | edge ΔE | off mean | off max | anchors | kinks |
+|:--|--:|--:|--:|--:|--:|
+| Default | 10.06 → 9.89 | 0.091 → 0.086 | 1.02 → 1.02 | 17 → 18 | 0.4 → 0.3 |
+| 6 Colors | 5.06 → 5.11 | 0.143 → 0.146 | 1.34 → 1.31 | 55 → 50 | 6.4 → 5.6 |
+| 16 Colors | 4.97 → 5.07 | 0.145 → 0.148 | 1.31 → 1.34 | 66 → 62 | 11.0 → 6.4 |
+| Black and White Logo | 9.46 → 9.52 | 0.064 → 0.066 | 1.02 → 1.02 | 27 → 23 | 0.3 → 0.3 |
+| Silhouettes | 19.29 → 19.08 | 0.523 → 0.517 | 2.13 → 2.13 | 13 → 15 | 0.4 → 0.2 |
+| Technical Drawing | 10.88 → 10.89 | 0.126 → 0.127 | 1.46 → 1.46 | 39 → 35 | 0.8 → 0.8 |
+| High Fidelity Photo | 1.96 → 1.96 | – | – | 9929 → 8689 | – |
+| 6 Colors with Shapes | 6.64 → 6.74 | 0.076 → 0.080 | 0.60 → 0.88 | 30 → 30 | – |
+
+Corners % is unchanged for every preset; Flat Logo and Outline are unchanged (they do not use this
+mapping). Colour presets lose a few anchors and fewer kinks for about 0.003 px of mean distance;
+6 Colors with Shapes has one shape fitted 0.3 px farther at its worst point.
 
 
 ## Collapsed loops keep few segments
@@ -1074,6 +1118,7 @@ One trace at a time on this machine (all cores); memory is the peak allocated ab
 
 | date | change |
 |:--|:--|
+| 2026-10-17 | Paths and Corners aligned with the documented behaviour of the controls: tolerance 0.495 / 0.31 / 0.08 px at Paths 0 / 50 / 100 (was 0.78 / 0.33 / 0.08), corner angle 99.2° / 57.9° / 35° at Corners 0 / 75 / 100 (was 90° / 48.75° / 35°); code-drawn shapes before and after; property tests over every value 0–100 |
 | 2026-10-16 | Image Trace: a loop or junction-returning piece whose fit collapsed to one cubic keeps the fewest segments that hold its area and course instead of every positioned point, so a higher Paths no longer gives fewer segments on code-drawn noisy images (six falling runs to none; one other cause remains). |
 | 2026-10-16 | Image Trace: a notch corner is cut only when the straight edges beside it lie in the shared piece, so both regions of the piece get the same points (code-drawn noisy colour images: 93 uncovered sample points to 0). |
 | 2026-10-16 | Image Trace: a crack's sub-pixel shift is the mean of the readings from its two sides, exactly antisymmetric, so abutting regions get the same points on thin slivers (a code-drawn noisy ripple went from 482–1,228 uncovered sample points per trace to 0). |
