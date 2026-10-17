@@ -27,7 +27,7 @@ artwork is not retouched.
 
 | Poster | Preset and settings | Paths |
 |---|---|---:|
-| [Grand Canyon (WPA)](posters/wpa-poster.jpg) | Low Fidelity Photo: Color, Colors 20 (10 used), Paths 60, Corners 50, Noise 12, Overlapping | 314 |
+| [Grand Canyon (WPA poster designed by C. Don Powell, ca. 1938)](posters/wpa-poster.jpg) | Low Fidelity Photo: Color, Colors 20 (10 used), Paths 60, Corners 50, Noise 12, Overlapping | 314 |
 | [Hiroshige](posters/hiroshige-poster.jpg) | Low Fidelity Photo: Colors 20 (18 used), otherwise as above | 4,620 |
 | [Haeckel](posters/haeckel-poster.jpg) | Low Fidelity Photo: Colors 20 (20 used), otherwise as above | 10,829 |
 | [Leonardo](posters/leonardo-poster.jpg) | Line Art with Threshold 165: Black and White, Ignore White, Paths 80, Corners 70, Noise 10, Abutting | 188 |
