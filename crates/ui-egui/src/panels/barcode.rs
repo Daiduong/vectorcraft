@@ -102,10 +102,16 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let before = spec.clone();
     let width = ui.available_width();
 
+    // Changing the type replaces the value, so a value the encoder refused for the old type has
+    // nothing left to correct.
+    let type_before = spec.symbology;
     symbology_rows(ui, &mut spec, width);
+    if spec.symbology != type_before {
+        app.ui.barcode_rejected = None;
+    }
     ui.add_space(6.0);
     widgets::divider(ui);
-    content_rows(app, ui, &mut spec, width);
+    content_rows(app, ui, &mut spec, width, target.as_ref().map(|(id, _)| *id));
     ui.add_space(2.0);
     if spec.symbology.is_matrix() {
         widgets::divider(ui);
@@ -131,10 +137,13 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     {
         let mut p = serde_json::to_value(&spec).unwrap_or(json!({}));
         p["id"] = json!(id.0);
-        // A value the symbology cannot carry leaves the art as it was, and says why rather than
-        // reverting under the pointer in silence.
+        // A value the symbology cannot carry leaves the art as it was, says why, and stays in the
+        // field so it can be corrected rather than typed again from the stored value.
         if let Err(e) = app.run("barcode.set", p) {
             app.ui.barcode_note = e;
+            app.ui.barcode_rejected = Some((id.0, spec.data.clone()));
+        } else {
+            app.ui.barcode_rejected = None;
         }
     }
 
@@ -171,13 +180,17 @@ fn symbology_rows(ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
 }
 
 /// What goes into the code, the check that says whether it will, and how big it comes out.
-fn content_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width: f32) {
+fn content_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &mut BarcodeSpec, width: f32, target: Option<NodeId>) {
     widgets::section_header(ui, "Content");
+    // A value the encoder refused is what the field shows, so it can be corrected in place rather
+    // than reverting to the stored value while the pointer is still in the box.
+    let rejected = app.ui.barcode_rejected.as_ref().filter(|(id, _)| target.is_some_and(|t| t.0 == *id)).map(|(_, value)| value.clone());
+    let shown = rejected.unwrap_or_else(|| spec.data.clone());
     let mut asked = false;
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Data:"));
         let field = (width - 46.0 - 58.0).max(80.0);
-        if let Some(v) = widgets::text_field(ui, "barcode-data", Some(spec.data.as_str()), field, 1) {
+        if let Some(v) = widgets::text_field(ui, "barcode-data", Some(shown.as_str()), field, 1) {
             spec.data = v;
             // A new value is a new question: the last answer no longer applies to it.
             app.ui.barcode_note.clear();

@@ -303,6 +303,10 @@ pub struct UiState {
     /// What the Barcode panel's batch last reported. Not saved, for the same reason.
     #[serde(skip)]
     pub barcode_batch_note: String,
+    /// A value the encoder refused, with the barcode it was typed into: the field keeps showing
+    /// it so it can be corrected, instead of reverting to the stored value under the pointer.
+    #[serde(skip)]
+    pub barcode_rejected: Option<(u64, String)>,
     /// The interface language older versions saved here (`ja`, `cs`…). It now lives in the
     /// `interfaceLanguage` preference, which [`crate::prefs_dialog::restore`] carries it over to;
     /// it is never written back.
@@ -768,6 +772,7 @@ impl Default for UiState {
             barcode_batch_open: false,
             barcode_note: String::new(),
             barcode_batch_note: String::new(),
+            barcode_rejected: None,
             legacy_language: None,
             brightness: Brightness::MediumDark,
             dock_tab: DockTab::Properties,
