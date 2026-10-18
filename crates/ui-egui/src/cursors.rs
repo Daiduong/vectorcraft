@@ -6,9 +6,6 @@
 //! while a cursor painted into the window follows the pointer a few frames late (#444).
 
 mod glyphs;
-mod seeds;
-
-pub use seeds::seed_svgs;
 
 use egui::epaint::{Mesh, TessellationOptions, Tessellator, Vertex};
 use egui::{Color32, CustomCursorImage, Painter, Pos2, Shape, Stroke, Vec2, pos2, vec2};
@@ -413,6 +410,7 @@ fn magnifier(p: &mut Ink, o: Pos2, out: bool) {
 }
 
 /// Every cursor with a glyph: its own, generated or drawn here, or the one it borrows.
+#[cfg(test)]
 const GLYPHS: [Cursor; 77] = [
     Cursor::Hand,
     Cursor::HandGrab,
@@ -493,7 +491,7 @@ const GLYPHS: [Cursor; 77] = [
     Cursor::PuppetPin,
 ];
 
-/// The octant of [`Cursor::RotateToward`] nibcraft draws (the top-right corner); the other seven
+/// The octant of [`Cursor::RotateToward`] that is drawn (the top-right corner); the other seven
 /// are that glyph turned.
 const ROTATE_TOWARD_DRAWN: u8 = 1;
 
@@ -735,7 +733,7 @@ mod tests {
     use crate::VectorcraftApp;
 
     /// Every cursor's bitmap at 1× and 2× as `<dir>/<Cursor>@<n>.png`, to look at the cursors after
-    /// `cargo xtask cursors`: `CURSOR_SHEET_DIR=/abs/dir cargo test -p vectorcraft-ui-egui --lib write_cursor_pngs -- --ignored`.
+    /// regenerating their glyphs: `CURSOR_SHEET_DIR=/abs/dir cargo test -p vectorcraft-ui-egui --lib write_cursor_pngs -- --ignored`.
     #[test]
     #[ignore = "writes files; run by hand to look at the cursors"]
     fn write_cursor_pngs() {

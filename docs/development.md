@@ -245,13 +245,9 @@ other `sv-*` locale resolve to it), Czech (`cs`, every menu label) and Brazilian
   system font; the glyph test checks Latin and Cyrillic catalogs always and the CJK ones only with craft-fonts.
   A Traditional Chinese UI font is still to be added to craft-fonts for the web build.
 
-## Cursors: VectorCraft's list, nibcraft's drawings
+## Cursors
 
-VectorCraft decides which cursors exist; designers draw them in [nibcraft](https://github.com/bobtherobot/nibcraft). `crates/tools/src/cursors.toml` lists every `Cursor` value: when it shows, in plain behaviour terms, and where its hotspot is, so designers know what each one is for without reading the tools (CLAUDE.md › Adding a cursor). `cargo xtask cursors` (part of `cargo xtask ci`) warns about a `Cursor` value with no entry, an entry with no `Cursor` value, a repeated id or a missing field; it never fails the build.
-
-Designers `pull` that list into nibcraft, which shows them what's left to draw. To bring their drawings in, run `cargo xtask cursors PATH/TO/NIBCRAFT`: it asks nibcraft for each listed cursor by id, rewrites the generated part of `crates/ui-egui/src/cursors/glyphs.rs`, and prints what changed and the designers' notes. Look at the result (`write_cursor_pngs` in `cursors.rs` writes every cursor's bitmap), run `cargo xtask ci` and commit. A generated glyph edited by hand fails a test: redraw it in nibcraft instead. A cursor nobody has drawn yet keeps its glyph drawn in code or borrows another's look (`Cursor::stand_in`).
-
-For a designer's starting point, `pull` runs `vectorcraft --cursor-seeds DIR`, which writes each cursor that has a look of its own (drawn in code, or from a designer's earlier drawing) as `DIR/<id>.svg` on nibcraft's canvas, without the white halos nibcraft adds itself (`crates/ui-egui/src/cursors/seeds.rs`).
+`crates/tools/src/cursors.toml` lists every `Cursor` value: when it shows, in plain behaviour terms, and where its hotspot is, so whoever draws the cursors knows what each one is for without reading the tools (CLAUDE.md › Adding a cursor). `cargo xtask cursors` (part of `cargo xtask ci`) warns about a `Cursor` value with no entry, an entry with no `Cursor` value, a repeated id or a missing field; it never fails the build. Most cursors are drawn from original SVG drawings, generated into `crates/ui-egui/src/cursors/glyphs.rs` by cursor id (author and licence in ASSETS.md); change the drawing and regenerate rather than editing the numbers. The rest are drawn in code in `cursors.rs`, and a cursor not drawn yet borrows another's look (`Cursor::stand_in`).
 
 ## Vendor names gate
 
