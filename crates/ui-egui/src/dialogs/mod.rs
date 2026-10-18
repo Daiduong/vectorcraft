@@ -33,6 +33,7 @@ pub mod eyedropper;
 pub mod file_info;
 pub mod find_links;
 pub mod flare_options;
+pub mod grid_options;
 pub mod flatten;
 pub mod flattener_presets;
 mod form;
@@ -314,6 +315,7 @@ registry! {
     LiquifyOptions: [liquify::KIND] => liquify::SPEC,
     FreehandOptions: [freehand::KIND] => freehand::SPEC,
     FlareOptions: [flare_options::KIND] => flare_options::SPEC,
+    GridOptions: [grid_options::KIND] => grid_options::SPEC,
     SymbolOptions: [symbol_options::KIND] => symbol_options::SPEC,
     SymbolismOptions: [symbolism_options::KIND] => symbolism_options::SPEC,
     PerspectiveGridPresets: [perspective_presets::KIND] => perspective_presets::SPEC,

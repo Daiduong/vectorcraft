@@ -360,6 +360,8 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
         }
         // The Flare tool: its options, which draw the next flare (OK draws none).
         "flare" => Ok(crate::dialogs::flare_options::open(app, None)),
+        // Rectangular Grid and Polar Grid: divider counts, skews and switches for the next grid.
+        "rectangularGrid" | "polarGrid" => crate::dialogs::grid_options::open(app, tool),
         // A double click on the Print Tiling tool puts the pages back where the placement puts them.
         "printTiling" => app.run("print.tiling.set", json!({ "reset": true })),
         // The Liquify tools: their Tool Options (the Global Brush Dimensions and the tool's own).
