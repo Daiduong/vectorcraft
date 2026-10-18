@@ -14,6 +14,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
     ..DialogSpec::FORM
 };
 
+/// Open the naming dialog, restoring the shared Ollama connection and any session checkpoint.
 pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     if app.session.active().is_none() {
         return Err("No document".into());
@@ -44,6 +45,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
+/// Draw the connection form, the player, and the names completed so far.
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if let Some(job) = &app.naming_job
         && let Err(e) = sync(d, job)
@@ -178,10 +180,12 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
+/// Whether a naming job is running and not paused.
 fn naming_active(d: &Dialog) -> bool {
     d.bool("busy") && !d.bool("complete") && (!d.bool("paused") || d.bool("inFlight"))
 }
 
+/// Play or pause control for the naming queue.
 fn player_button(ui: &mut egui::Ui, label: &str, enabled: bool, play: bool) -> egui::Response {
     let response = ui.add_enabled(enabled, egui::Button::new("").min_size(egui::vec2(32.0, 28.0)));
     let r = response.rect.shrink(8.0);
@@ -202,6 +206,7 @@ fn player_button(ui: &mut egui::Ui, label: &str, enabled: bool, play: bool) -> e
     response.on_hover_text(label)
 }
 
+/// Apply the ready names, or refuse while a request is still running.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     if d.bool("busy") && !d.bool("paused") {
         return Err("Wait for generation to finish".into());
@@ -217,6 +222,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     Ok(result)
 }
 
+/// Keep names the user edited when a new candidate list arrives.
 fn merge_names(d: &mut Dialog, rows: &[Value]) {
     let field = d.fields.entry("names".to_string()).or_insert_with(|| json!([]));
     if let Some(names) = field.as_array_mut() {
@@ -233,6 +239,7 @@ fn fail_job(d: &mut Dialog, job: &Job, error: String) {
     d.fields.insert("error".into(), json!(error));
     d.fields.insert("busy".into(), json!(false));
 }
+/// Copy names the worker has finished into the dialog.
 fn sync(d: &mut Dialog, job: &Job) -> Result<(), String> {
     let ready = job.progress.names.lock().map_err(|_| "Naming worker stopped. Try again.")?;
     let from = d.fields.get("syncedCount").and_then(Value::as_u64).unwrap_or(0) as usize;
@@ -244,6 +251,7 @@ fn sync(d: &mut Dialog, job: &Job) -> Result<(), String> {
     d.fields.insert("inFlight".into(), json!(job.progress.in_flight.load(std::sync::atomic::Ordering::Relaxed)));
     Ok(())
 }
+/// Cancel the worker and drop the job after keeping its finished names.
 fn stop(app: &mut VectorcraftApp, d: &mut Dialog) {
     if let Some(job) = app.naming_job.take()
         && let Err(e) = sync(d, &job)
@@ -283,17 +291,20 @@ pub(crate) struct Job {
     cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl Drop for Job {
+    /// Cancel the in-flight request when the job is dropped.
     fn drop(&mut self) {
         self.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
 #[cfg(target_arch = "wasm32")]
+/// Report that naming needs the desktop app.
 fn start(_: &mut VectorcraftApp, _: &mut Dialog) -> Result<(), String> {
     Err("AI layer naming currently requires the desktop app and Ollama".into())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// Check the endpoint and start a worker for the groups that still need names.
 fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     let endpoint = d.str("endpoint");
     crate::ollama::endpoint_kind(&endpoint)?;
@@ -356,6 +367,7 @@ fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// Ask Ollama for one name per group and record each answer as it arrives.
 fn generate(
     doc: &vectorcraft_doc::Document,
     rows: &[Value],
@@ -457,6 +469,7 @@ fn validate(content: &str, rows: &[Value]) -> Result<Vec<Value>, String> {
 mod tests {
     use super::*;
     #[test]
+    /// A failed run keeps the name completed before the error.
     fn a_failed_run_keeps_the_name_completed_before_the_error() {
         let progress = std::sync::Arc::new(Progress::default());
         progress.names.lock().unwrap().push(json!({"id": 7, "name": "Coin Counter"}));
@@ -469,6 +482,7 @@ mod tests {
         assert_eq!(d.fields["busy"], false);
     }
     #[test]
+    /// Review cancel apply and stale document.
     fn review_cancel_apply_and_stale_document() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -500,6 +514,7 @@ mod tests {
     }
 
     #[test]
+    /// Pause apply partial and reopen keeps checkpoint and edits.
     fn pause_apply_partial_and_reopen_keeps_checkpoint_and_edits() {
         use std::sync::{Arc, atomic::Ordering, mpsc};
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
@@ -547,6 +562,7 @@ mod tests {
         assert!(app.ui.dialog.as_ref().unwrap().fields.get("names").is_none(), "stale checkpoint must not target changed artwork");
     }
     #[test]
+    /// Closing in flight job retains latest completed batch.
     fn closing_in_flight_job_retains_latest_completed_batch() {
         use std::sync::{Arc, atomic::Ordering, mpsc};
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
@@ -573,6 +589,7 @@ mod tests {
     }
 
     #[test]
+    /// Naming dialog draws without changing document.
     fn naming_dialog_draws_without_changing_document() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -660,6 +677,7 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
+    /// Renders previews and uses ollama protocol.
     fn renders_previews_and_uses_ollama_protocol() {
         use std::io::{Read, Write};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -719,6 +737,7 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
+    /// Pause finishes current request and resume skips ready groups.
     fn pause_finishes_current_request_and_resume_skips_ready_groups() {
         use std::io::{Read, Write};
         use std::sync::{atomic::Ordering, mpsc};
@@ -837,6 +856,7 @@ mod tests {
     }
 
     #[test]
+    /// Model cannot inject targets or invalid names.
     fn model_cannot_inject_targets_or_invalid_names() {
         let rows = vec![json!({"id": 4}), json!({"id": 7})];
         for content in [

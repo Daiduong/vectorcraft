@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 const LIMIT: usize = 1000;
 
+/// Register the naming-candidate and apply-names commands.
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
@@ -28,6 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
+/// List layers and groups in the requested scope and depth, without editing the document.
 fn candidates(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "layer.namingCandidates";
     let st = s.doc()?;
@@ -51,6 +53,7 @@ fn candidates(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let roots = super::layer::row_roots(&st.doc, &roots);
     let mut rows = Vec::new();
+    /// Record one layer or group, then walk its children until the depth or the row cap.
     fn visit(n: &vectorcraft_doc::Node, parent: Option<NodeId>, depth: u64, rows: &mut Vec<Value>) {
         if depth == 0 || rows.len() > LIMIT {
             return;
@@ -78,6 +81,7 @@ fn candidates(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"uid": st.uid, "revision": st.revision, "rows": rows}))
 }
 
+/// Apply every reviewed name in one undo step after the document and id checks.
 fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "layer.applyNames";
     let st = s.doc()?;
@@ -129,6 +133,7 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
 mod tests {
     use super::*;
     #[test]
+    /// Scope depth and svg names preserve artwork.
     fn scope_depth_and_svg_names_preserve_artwork() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
@@ -166,6 +171,7 @@ mod tests {
     }
 
     #[test]
+    /// Naming is atomic guarded and undoable.
     fn naming_is_atomic_guarded_and_undoable() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
