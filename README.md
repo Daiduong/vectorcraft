@@ -265,6 +265,41 @@ Agent and contributor rules (clean-room, the asset policy, no panics in shipped 
 explains how VectorCraft avoids crashing, and [`docs/releasing.md`](docs/releasing.md) how releases are built,
 signed and published. Every bundled asset is listed with its licence in [`ASSETS.md`](ASSETS.md).
 
+## Build dan paket rilis
+
+Panduan ini menghasilkan artefak lokal. Tanda tangan ad-hoc hanya untuk pengujian pada Mac pembuat; gunakan sertifikat pengembang sendiri sebelum membagikan aplikasi.
+
+### macOS
+
+Gunakan macOS 11 atau lebih baru, Xcode Command Line Tools, dan Rust stable. Untuk paket universal, pasang kedua target Rust lalu jalankan skrip paket:
+
+```sh
+xcode-select --install
+rustup toolchain install stable
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+git clone https://github.com/storytold/vectorcraft
+cd vectorcraft
+./packaging/macos/package.sh --arch universal
+```
+
+DMG dan ZIP CLI berada di `dist/release/`. Gunakan `--arch aarch64` untuk Apple silicon atau `--arch x86_64` untuk Intel. Untuk tanda tangan dan notarization Apple, atur `MACOS_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, dan `APPLE_TEAM_ID` sebelum menjalankan skrip.
+
+### Windows: MSI installer
+
+Jalankan langkah ini pada Windows dengan Visual Studio Build Tools (workload **Desktop development with C++**), Windows SDK, Rust stable MSVC, PowerShell 7, serta .NET SDK. Pasang WiX 5 lalu buat installer:
+
+```powershell
+rustup toolchain install stable-x86_64-pc-windows-msvc
+rustup target add x86_64-pc-windows-msvc
+dotnet tool install --global wix --version 5.0.2
+wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
+git clone https://github.com/storytold/vectorcraft
+Set-Location vectorcraft
+pwsh ./packaging/windows/package.ps1 -Arch x64
+```
+
+Hasilnya adalah `dist/release/vectorcraft-<versi>-windows-x64.msi` beserta ZIP portabel. `-Arch arm64` dan `-Arch x86` juga tersedia setelah target Rust dan build tools arsitektur tersebut dipasang. Paket tanpa sertifikat tetap dibuat, tetapi tidak ditandatangani; lihat `packaging/windows/sign.ps1` untuk konfigurasi signing.
+
 ## Downloads
 
 **New to VectorCraft?** Download it from the [VectorCraft page on getartcraft.com](https://getartcraft.com/apps/vectorcraft). That's the easiest way to install it.

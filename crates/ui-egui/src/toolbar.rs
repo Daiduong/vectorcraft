@@ -171,6 +171,20 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, cols: usize, floating: Option<egu
     let grip_tip = if floating.is_some() { tl!("Drag to the window's left edge to dock") } else { tl!("Drag to float the toolbar") };
     gresp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), grip_tip));
     gresp.on_hover_cursor(egui::CursorIcon::Grab).on_hover_text(grip_tip);
+    if app.services.local_ai.is_some() {
+        let visible = app.ui.ai_studio;
+        if ui
+            .add_sized(
+                vec2(30.0, 30.0),
+                egui::Button::new(egui::RichText::new("AI").size(11.0)).wrap_mode(egui::TextWrapMode::Extend).selected(visible),
+            )
+            .on_hover_text(if visible { "Sembunyikan AI Studio" } else { "Tampilkan AI Studio" })
+            .clicked()
+        {
+            app.ui.ai_studio = !visible;
+            ui.ctx().request_repaint();
+        }
+    }
     // The tools and the controls under them scroll in a window too short for them.
     widgets::strip_scroll(ui, "toolbar", |ui| {
         let active = app.session.tool_id();

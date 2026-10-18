@@ -265,6 +265,7 @@ impl Dialog {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiState {
+    pub ai_studio: bool,
     /// The interface language older versions saved here (`ja`, `cs`…). It now lives in the
     /// `interfaceLanguage` preference, which [`crate::prefs_dialog::restore`] carries it over to;
     /// it is never written back.
@@ -728,6 +729,7 @@ impl Default for UiState {
             dock_collapsed: false,
             open_panel: None,
             control_bar: false,
+            ai_studio: true,
             toolbar: true,
             toolbar_double: false,
             toolbar_advanced: false,

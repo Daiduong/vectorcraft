@@ -35,6 +35,7 @@ pub mod i18n;
 pub mod icon_data;
 pub mod icons;
 pub mod io;
+pub mod local_ai;
 pub mod menus;
 pub mod native_menu;
 pub mod opening;
@@ -222,6 +223,7 @@ pub type RevealFn = Box<dyn FnMut(&str) -> Result<(), String>>;
 /// Platform services injected by the host app (desktop or web).
 #[derive(Default)]
 pub struct Services {
+    pub local_ai: Option<local_ai::Service>,
     /// Show an open dialog; returns a path.
     pub pick_open: Option<PickOpen>,
     /// Show a save dialog (suggested name, folder, file types); returns a path.
@@ -384,6 +386,7 @@ pub struct Perf {
 }
 
 pub struct VectorcraftApp {
+    pub local_ai: local_ai::State,
     pub session: Session,
     pub ui: UiState,
     pub views: Vec<View>,
@@ -511,6 +514,7 @@ impl VectorcraftApp {
         let views = session.documents().iter().map(View::of).collect();
         Self {
             session,
+            local_ai: Default::default(),
             ui: UiState::default(),
             views,
             services,
@@ -1406,6 +1410,7 @@ impl VectorcraftApp {
             ctx.request_repaint();
             return;
         }
+        local_ai::tick(self, &ctx);
         let t0 = now_ms();
         widgets::set_dialog_open(&ctx, self.ui.dialog.is_some());
         scrub::begin_frame(self, &ctx);
@@ -1424,6 +1429,9 @@ impl VectorcraftApp {
         } else {
             // Keeps the previous frame's value valid for menus drawn above, before the bars.
             widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());
+        }
+        if self.ui.ai_studio && self.ui.screen_mode < 3 && self.services.local_ai.is_some() {
+            local_ai::panel(self, ui);
         }
         if self.ui.toolbar && self.ui.screen_mode < 3 {
             toolbar::show(self, ui);

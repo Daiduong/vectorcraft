@@ -42,6 +42,7 @@ pub mod library;
 pub mod linkfiles;
 pub mod links;
 mod live;
+pub mod local_ai;
 pub(crate) mod maskedit;
 pub(crate) mod menucmds;
 pub(crate) mod newart;
@@ -204,6 +205,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
     static SPECS: std::sync::OnceLock<Vec<CommandSpec>> = std::sync::OnceLock::new();
     SPECS.get_or_init(|| {
         let mut v = Vec::new();
+        v.extend(local_ai::specs());
         v.extend(edit::specs());
         v.extend(clipboard::specs());
         v.extend(recolor::specs());
