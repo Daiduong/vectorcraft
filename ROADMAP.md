@@ -128,6 +128,8 @@ Ranked; detail in [docs/roadmap.md](docs/roadmap.md) and [docs/gaps.md](docs/gap
 
 ## Progress log
 
+- 2026-10-18: CorelDRAW `.cdr` documents open and place (versions 3–26) and export (versions 7–22) through `crates/cdr`, with post-export validation and a feature matrix ([cdr-compatibility.md](docs/cdr-compatibility.md)). Headline scores unchanged.
+
 - 2026-10-14: Document fonts register every explicitly supplied craft-fonts family after the existing Japanese, Arabic and Thai prefix; optional empty input remains supported. Headline scores and estimates are unchanged.
 
 - 2026-10-13: PngSuite downloads use pinned HTTPS files and a SHA-256 manifest; no archive extraction (#1729).
