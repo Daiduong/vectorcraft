@@ -794,6 +794,7 @@ Evidence for the shared light Color: geometry tests in `tests_lighting`, effect 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-17 | minor | AI layer naming: enforce the response JSON schema (names array, count, allowed IDs and bounded strings), repeat it in the prompt and use deterministic sampling; ordinary JSON mode was insufficient. Process one isolated group per image with a visible processed/total counter to avoid small-model contact-sheet misassignment. Scores and estimates unchanged. |
 | 2026-10-17 | minor | AI-assisted layer naming: desktop Ollama vision previews, editable review, guarded atomic application and Undo/Redo; generative-art parity scores and estimates unchanged. |
 | 2026-10-17 | minor | Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged. Windows native canvas checks and screenshots reviewed in PR #2643. |
 | 2026-10-17 | minor | Evidence: Artboard Options has X and Y beside a reference point locator, counted from the ruler origin (#1876); scores unchanged |

@@ -14,15 +14,21 @@ A remote server receives the same previews. There is no API-key setting.
 
 Empty containers are skipped and keep their existing names.
 
-Each request contains the whole-artwork preview plus a 4-column contact sheet of up to 12 groups,
-and a JSON list of their IDs, parents and existing names. The server is asked for names in the
-chosen language. The implementation follows the [Ollama chat API](https://docs.ollama.com/api/chat):
-base64 PNG images, `stream: false`, `format: "json"`, response in `message.content`.
+Each request contains one 512-pixel preview of one target group, fitted on white, and its numeric ID. This avoids small vision models
+assigning button text from the overview or another contact-sheet tile to an unrelated group.
+Existing names stay in the review UI and are omitted from the model prompt to prevent copying
+technical placeholders. The dialog shows processed/total groups while generation runs.
+
+The implementation follows the [Ollama chat API](https://docs.ollama.com/api/chat): base64 PNG,
+`stream: false`, a strict JSON schema in `format`, response in `message.content`. The schema requires
+a `names` array with exactly one bounded name and the exact target ID. The prompt repeats the schema,
+temperature is zero and the context window is 8192 tokens. Ordinary JSON mode alone cannot guarantee
+this structure; see [structured outputs](https://docs.ollama.com/capabilities/structured-outputs).
 
 Output is untrusted. The app requires exactly one bounded, nonblank name for every requested ID;
 malformed JSON, extra/duplicate IDs, missing names and control characters are rejected. Requests time
 out after 120 seconds (10 seconds to connect), responses are limited to 1 MiB, and candidate lists
-to 1000 groups. Narrow the scope or depth for larger documents. Cancel stops further batches;
+to 1000 groups. Narrow the scope or depth for larger documents. Cancel stops further requests;
 an in-flight request may finish before its timeout, and its result is discarded.
 
 Applying names checks the document UID and revision captured before generation. If the document
@@ -45,3 +51,15 @@ Validation on 2026-10-17: all ten `cargo xtask ci` steps passed (fmt, Clippy, wo
 no-bundled-fonts, PDF dependencies, assets, brands, cursors, layering and WASM). Settings and review
 screens were rendered and inspected with the egui test harness. Real-model semantic quality remains
 unmeasured.
+
+Ollama compatibility regression (2026-10-17): ordinary JSON mode allowed responses without `names`,
+and small models copied supplied placeholder names or confused targets in a contact sheet. Strict
+schema decoding, one isolated image per request and omission of existing names address those cases.
+The opt-in `real_ollama_returns_the_required_names_array` test passed with local `qwen2.5vl:3b`
+on four groups from a user-provided SVG (used locally only); the proposals were inspected. This is a
+limited live compatibility check, not a semantic accuracy benchmark. Set `VECTORCRAFT_NAMING_SVG`
+to a local SVG to repeat it, or omit that variable to use synthetic rectangles:
+
+```sh
+VECTORCRAFT_NAMING_OLLAMA_MODEL=qwen2.5vl:3b cargo test -p vectorcraft-ui-egui real_ollama_returns_the_required_names_array --lib -- --ignored --nocapture
+```

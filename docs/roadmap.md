@@ -87,6 +87,7 @@ M3 follow-up (#1968): native saves retain the per-document transparency grid set
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-17 | minor | AI layer naming: enforce the response JSON schema (names array, count, allowed IDs and bounded strings), repeat it in the prompt and use deterministic sampling; ordinary JSON mode was insufficient. Process one isolated group per image with a visible processed/total counter to avoid small-model contact-sheet misassignment. Scores and estimates unchanged. |
 | 2026-10-17 | minor | AI-assisted layer naming: desktop Ollama vision previews, editable review, guarded atomic application and Undo/Redo; generative-art parity scores and estimates unchanged. |
 | 2026-10-17 | minor | Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged. Windows native canvas checks and screenshots reviewed in PR #2643. |
 | 2026-10-17 | minor | Image Trace: Auto Color keeps rare but distinct colours drawn as regions of their own (stems, highlights, near-white on pale backgrounds), at most six, protected from mixed-colour merging and Noise: every key colour on 66 of 66 flat test logos (was 39); scans unchanged. Scores and hours unchanged. |

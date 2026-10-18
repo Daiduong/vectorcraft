@@ -180,6 +180,7 @@ The full pre-standard record of what landed is kept in [docs/roadmap.md](docs/ro
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-17 | minor | AI layer naming: enforce the response JSON schema (names array, count, allowed IDs and bounded strings), repeat it in the prompt and use deterministic sampling; ordinary JSON mode was insufficient. Process one isolated group per image with a visible processed/total counter to avoid small-model contact-sheet misassignment. Scores and estimates unchanged. |
 | 2026-10-17 | minor | AI-assisted layer naming: desktop Ollama vision previews, editable review, guarded atomic application and Undo/Redo; generative-art parity scores and estimates unchanged. |
 | 2026-10-17 | minor | Colored Inflate: shared membrane normals and smooth RGB vector ramps replace flat polygon bands; channel groups are batched per solid-fill surface. White-light Inflate retains its original polygons, paint composition and seam joins; the 0.05 seam minimum is restored. Scores and hour estimates unchanged. |
 | 2026-10-16 | minor | 3D lighting: one to ten directional lights, a selectable light list, Add Light and Delete Light, independent settings and artboard gestures; ambient applied once and smooth RGB vector export; scores and hour estimates unchanged |
