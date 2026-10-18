@@ -245,7 +245,15 @@ fn gs1_data(data: &str) -> Result<String> {
         }
         let after = &body[close + 1..];
         let end = after.find('(').unwrap_or(after.len());
-        elements.push((ai, &after[..end]));
+        let value = &after[..end];
+        // A fixed-length identifier is delimited by its own length, so a value of another length
+        // is data no scanner can read back as written: refuse it rather than print it.
+        if let Some(n) = gs1_fixed_length(ai)
+            && value.chars().count() != n
+        {
+            return Err(Error::Data(format!("({ai}) carries {n} characters, not {}", value.chars().count())));
+        }
+        elements.push((ai, value));
         rest = &after[end..];
     }
     if !rest.is_empty() {
@@ -455,5 +463,18 @@ mod tests {
         assert!(values("(10", None, true).is_err());
         assert!(values("10)LOT", None, true).is_ok(), "no bracket at the start is bare data");
         assert!(values("(1x)LOT", None, true).is_err());
+    }
+
+    /// A fixed-length identifier carries exactly its own number of characters: `(01)` is a
+    /// GTIN-14, and a shorter one would leave a scanner reading the next field as its digits.
+    #[test]
+    fn a_fixed_length_field_of_the_wrong_length_is_refused() {
+        assert!(values("(01)12345678901231(10)AB", None, true).is_ok());
+        let err = values("(01)123(10)AB", None, true).expect_err("13 digits short");
+        assert!(err.to_string().contains("14"), "{err}");
+        assert!(values("(11)260101(10)AB", None, true).is_ok(), "a date is six characters");
+        assert!(values("(11)2601(10)AB", None, true).is_err());
+        // A variable-length field takes what it is given.
+        assert!(values("(10)1(21)2", None, true).is_ok());
     }
 }
