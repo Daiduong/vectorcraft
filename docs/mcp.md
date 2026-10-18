@@ -3771,7 +3771,8 @@ tall is set at about 28.6 pt, and its font size stays 20 pt. With a font that ha
 em, the size measures the em box. Auto leading, tracking and kerning follow the em size the characters are set at (the
 Character panel's Leading field shows that Auto leading, and `type.step {attribute: "leading"}` starts from it);
 explicit leading and baseline shift stay in points, and an inline graphic keeps its size.
-SVG, PDF, legacy `.ai` and DXF export and the CSS Properties rules write the em size.
+SVG, PDF and legacy `.ai` export and the CSS Properties rules write the em size. DXF export writes 0.7 times the em
+size as each TEXT entity's height (group 40, the height of its capitals).
 Saved only when not `emBox`. One undo step.
 
 ```json

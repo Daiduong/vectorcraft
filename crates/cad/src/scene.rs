@@ -678,8 +678,8 @@ impl<'a> Scene<'a> {
     }
 
     /// Type: glyph outlines (Preserve Appearance, Outline Text, type on a path), else one text
-    /// entity per run of each line, each sized by the em size its run is drawn at
-    /// ([`vectorcraft_text::FontDb::font_heights_resolved`]).
+    /// entity per run of each line, whose height (group 40) is [`CAP_HEIGHT`] times the em size its
+    /// run is drawn at ([`vectorcraft_text::FontDb::font_heights_resolved`]).
     fn text(&mut self, n: &Node, t: &TextObject) {
         let outline = self.o.preserve == Preserve::Appearance || self.o.outline_text || matches!(t.kind, TextKind::OnPath { .. });
         if outline {
