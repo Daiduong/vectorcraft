@@ -2,7 +2,7 @@
 
 use serde_json::{Value, json};
 use vectorcraft_doc::{Appearance, CharStyle, LiveShape, Node, NodeKind, TextObject};
-use vectorcraft_geom::{Affine, Anchor, AnchorKind, FillRule, PathData, Point, Rect, SubPath, shapes};
+use vectorcraft_geom::{Affine, Anchor, AnchorKind, FillRule, PathData, Point, Rect, SubPath, shapes::{self, CornerKind}};
 
 use super::newart::NewArt;
 use super::*;
@@ -14,7 +14,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Rectangle",
             [],
             None,
-            "{x, y, width, height, radius?: pt, rotation?: deg (about centre)} → {id}",
+            "{x, y, width, height, radius?: pt, kind?: round|invertedRound|chamfer (all corners), rotation?: deg (about centre)} → {id}",
             has_doc,
             rectangle
         ),
@@ -209,11 +209,20 @@ fn rect_transform(r: Rect, p: &Value, cmd: &str) -> Result<Affine> {
 fn rectangle(s: &mut Session, p: &Value) -> Result<Value> {
     let r = rect_of(p, "shape.rectangle")?;
     let radius = f64_or(p, "radius", 0.0).max(0.0);
+    let kind = p
+        .get("kind")
+        .filter(|v| !v.is_null())
+        .map(|v| {
+            serde_json::from_value::<CornerKind>(v.clone())
+                .map_err(|_| bad("shape.rectangle", format!("`kind` must be \"round\", \"invertedRound\" or \"chamfer\", not {v}")))
+        })
+        .transpose()?
+        .unwrap_or_default();
     let live = LiveShape::Rectangle {
         w: r.width(),
         h: r.height(),
         radii: [radius; 4],
-        kinds: Default::default(),
+        kinds: [kind; 4],
         xf: rect_transform(r, p, "shape.rectangle")?,
     };
     let label = if radius > 0.0 { "Rounded Rectangle" } else { "Rectangle" };
