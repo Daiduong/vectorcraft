@@ -24,6 +24,7 @@ use vectorcraft_geom::{Point, Vec2};
 
 use super::pathutil::{eval_fraction, left_normal, nearest_fraction};
 use super::{BLUE, diamond};
+use crate::guides::Targets;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 /// Width points closer than this (in t) are at the same place (the two sides of a discontinuous
@@ -103,6 +104,8 @@ pub struct WidthTool {
     drag: Option<Drag>,
     /// Selected width points: the stroke's owner and their positions t.
     selected: Option<(NodeId, Vec<f64>)>,
+    /// Smart Guides at a path crossing while a width point slides (#1602).
+    intersect_guides: Vec<Overlay>,
 }
 
 /// The object whose stroke path `id` draws with: its compound path, if it is a member of one.
@@ -359,7 +362,17 @@ impl Tool for WidthTool {
                     Mode::Move | Mode::Copy => {
                         let Some(NodeKind::Path { path, .. }) = cx.doc.node(d.spot.id).map(|n| &n.kind) else { return vec![] };
                         let Some(sp) = path.subpaths.get(d.spot.sub) else { return vec![] };
-                        let Some((_, t, q, tan, _)) = nearest_fraction(&vectorcraft_geom::PathData::single(sp.clone()), p) else { return vec![] };
+                        self.intersect_guides.clear();
+                        let at = if cx.smart_guides {
+                            let exclude = paths_of(cx.doc, d.spot.owner);
+                            let targets = Targets::for_intersections(cx, &exclude);
+                            let (q, guides) = targets.snap_intersection(p, cx.snap_tol());
+                            self.intersect_guides = guides;
+                            q
+                        } else {
+                            p
+                        };
+                        let Some((_, t, q, tan, _)) = nearest_fraction(&vectorcraft_geom::PathData::single(sp.clone()), at) else { return vec![] };
                         (d.t, d.spot.p, d.spot.n) = (t, q, left_normal(tan));
                         // Dropped onto another width point (a single point only): it lands exactly
                         // there, making a discontinuous point.
@@ -375,6 +388,7 @@ impl Tool for WidthTool {
             }
             PointerKind::Up => match self.drag.take() {
                 Some(d) => {
+                    self.intersect_guides.clear();
                     let dt = d.t - d.spot.t;
                     self.selected = match (d.group.is_some(), d.moved, self.selected.take()) {
                         // A click on one of several selected points selects just that one.
@@ -440,6 +454,7 @@ impl Tool for WidthTool {
             out.push(Overlay::Line { a: h.p + h.n * h.left, b: h.p - h.n * h.right, color: BLUE, dashed: true });
             out.push(Overlay::Path { path: diamond(h.p, r), color: BLUE, width: 1.0, dashed: false });
         }
+        out.extend(self.intersect_guides.iter().cloned());
         out
     }
     fn cursor(&self, cx: &ToolContext, p: Point, _mods: Mods) -> Cursor {

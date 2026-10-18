@@ -172,6 +172,14 @@ impl MoveSnap {
                 guides = ov;
             }
         }
+        if let Some(t) = targets {
+            let grab = start + d;
+            let (q, ov) = t.snap_intersection(grab, cx.snap_tol());
+            if q != grab {
+                d = q - start;
+                guides = ov;
+            }
+        }
         if cx.snap_to_pixel
             && let Some(b) = self.bounds
         {

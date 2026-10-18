@@ -191,10 +191,37 @@ impl Targets {
     /// Spacing Guides the objects it spaces itself evenly with ([`Self::snap_rect`]).
     pub fn for_move(cx: &ToolContext, exclude: &[NodeId]) -> Self {
         let mut t = Self::collect(cx.doc, exclude, None).styled(cx);
+        t.append_path_segments(cx.doc, exclude);
         if cx.spacing_guides {
             t.boxes = object_boxes(cx.doc, &cx.selection.objects);
         }
         t
+    }
+
+    /// Path segments of the art in `doc` that [`Self::collect_inner`] left out (`exclude`), for
+    /// intersection snapping while that art moves (#1602).
+    fn append_path_segments(&mut self, doc: &Document, ids: &[NodeId]) {
+        let mut budget = BUDGET.saturating_sub(self.segments.len());
+        for id in ids {
+            if let Some(NodeKind::Path { path, guide: false, .. }) = doc.node(*id).map(|n| &n.kind) {
+                for sp in &path.subpaths {
+                    self.push_segments(sp, |_| false, &mut budget);
+                }
+            }
+        }
+    }
+
+    /// Targets for intersection snapping near `p`: the other art's path segments and ruler guides.
+    pub fn for_intersections(cx: &ToolContext, exclude: &[NodeId]) -> Self {
+        Self::collect_inner(cx.doc, exclude, None, None, Gather::Segments).styled(cx).with_rulers(cx)
+    }
+
+    /// When a path crossing is within `tol` of `p`, land there with an "intersect" label.
+    pub(crate) fn snap_intersection(&self, p: Point, tol: f64) -> (Point, Vec<Overlay>) {
+        if let Some(q) = self.crossing(p, tol) {
+            return (q, self.label(q, "intersect").into_iter().collect());
+        }
+        (p, vec![])
     }
 
     /// Targets for a drawn point: the art in `visible` (all of it for None) but `exclude`, its
@@ -1731,6 +1758,47 @@ mod tests {
         // An anchor in reach wins, and a path alone is still "path".
         assert_eq!(labels(&t.snap_from(Point::new(146.0, 91.0), None, 4.0).1), ["anchor"]);
         assert_eq!(labels(&t.snap_from(Point::new(170.0, 201.0), None, 4.0).1), ["path"]);
+    }
+
+    /// #1602: a moved selection's grab point lands on a crossing of two of its own paths.
+    #[test]
+    fn a_move_snaps_to_intersections_of_selected_paths() {
+        use vectorcraft_doc::{Appearance, Node};
+        use vectorcraft_geom::shapes;
+        let (mut d, _) = doc_with_rect();
+        let l = d.layers[0].id;
+        let (a, b) = (d.alloc_id(), d.alloc_id());
+        d.insert(Some(l), 1, Node::path(a, shapes::line(Point::new(100.0, 200.0), Point::new(300.0, 200.0)), Appearance::default_art())).unwrap();
+        d.insert(Some(l), 2, Node::path(b, shapes::line(Point::new(200.0, 100.0), Point::new(200.0, 300.0)), Appearance::default_art())).unwrap();
+        let s = Selection { objects: vec![a, b], ..Selection::default() };
+        let p = paint();
+        let c = ToolContext { smart_guides: true, ..cx(&d, &s, &p) };
+        let t = Targets::for_move(&c, &s.objects);
+        let (q, ov) = t.snap_intersection(Point::new(202.0, 198.0), c.snap_tol());
+        assert!((q - Point::new(200.0, 200.0)).hypot() < 1e-9, "{q:?}");
+        assert_eq!(labels(&ov), ["intersect"]);
+        let t2 = Targets::for_intersections(&c, &[a]);
+        let (q2, ov2) = t2.snap_intersection(Point::new(202.0, 198.0), c.snap_tol());
+        assert!((q2 - Point::new(200.0, 200.0)).hypot() < 1e-9);
+        assert_eq!(labels(&ov2), ["intersect"]);
+    }
+
+    /// [`Targets::for_intersections`]: the art being edited is left out; crossings with the rest
+    /// still snap (Width tool slides along the excluded path).
+    #[test]
+    fn intersection_targets_exclude_the_edited_path() {
+        use vectorcraft_doc::{Appearance, Node};
+        use vectorcraft_geom::shapes;
+        let (mut d, _) = doc_with_rect();
+        let l = d.layers[0].id;
+        let (h, v) = (d.alloc_id(), d.alloc_id());
+        d.insert(Some(l), 1, Node::path(h, shapes::line(Point::new(100.0, 200.0), Point::new(300.0, 200.0)), Appearance::default_art())).unwrap();
+        d.insert(Some(l), 2, Node::path(v, shapes::line(Point::new(200.0, 100.0), Point::new(200.0, 300.0)), Appearance::default_art())).unwrap();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let (q, ov) = Targets::for_intersections(&c, &[h]).snap_intersection(Point::new(202.0, 198.0), c.snap_tol());
+        assert!((q - Point::new(200.0, 200.0)).hypot() < 1e-9);
+        assert_eq!(labels(&ov), ["intersect"]);
     }
 
     /// The angle sets of Preferences › Smart Guides › Construction Guides.
