@@ -1249,6 +1249,12 @@ lighting	Light	სინათლე
 	Axis	ღერძი
 	ICF Top/Right	ICF ზედა/მარჯვენა
 	ICF Bottom/Left	ICF ქვედა/მარცხენა
+	Show Font Height Options	შრიფტის სიმაღლის პარამეტრების ჩვენება
+	Hide Font Height Options	შრიფტის სიმაღლის პარამეტრების დამალვა
+	Set Font Height Reference	შრიფტის სიმაღლის საზომის დაყენება
+	Em Box	Em-ბლოკი
+	x-Height	x-სიმაღლე
+	ICF Box	ICF-ბლოკი
 	Copy Color Value (Hex)	ფერის მნიშვნელობის კოპირება (Hex)
 	Create New Swatch…	ახალი ფერის ნიმუშის შექმნა…
 	Name 40%	სახელი 40%
