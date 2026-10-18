@@ -120,8 +120,8 @@ codesign --verify --strict --deep --verbose=2 "$APP"
 if [ "$NOTARIZE" = 1 ]; then
   ditto -c -k --keepParent "$APP" "$WORK/VectorCraft-notarize.zip"
   notarize "$WORK/VectorCraft-notarize.zip"
-  xcrun stapler staple "$APP"
-  xcrun stapler validate "$APP"
+  retry xcrun stapler staple "$APP"
+  retry xcrun stapler validate "$APP"
   spctl --assess --type execute -vvv "$APP"
 fi
 
@@ -170,8 +170,8 @@ fi
 hdiutil_retry detach detach "$MOUNT" >/dev/null
 if [ "$NOTARIZE" = 1 ]; then
   notarize "$DMG"
-  xcrun stapler staple "$DMG"
-  xcrun stapler validate "$DMG"
+  retry xcrun stapler staple "$DMG"
+  retry xcrun stapler validate "$DMG"
   spctl --assess --type open --context context:primary-signature -vvv "$DMG"
 fi
 
