@@ -2,13 +2,15 @@
 //!
 //! Hovering a stroked path shows a hollow width-point diamond with the stroke's width at that
 //! spot. Dragging outward from the path creates (or, on an existing width point's handle end,
-//! edits) a width point — symmetric by default, Alt changes only the side being dragged. Dragging
-//! a width point's centre slides it along the path; Alt-dragging the centre slides a copy; dropping
-//! either onto another width point makes a discontinuous point (the width steps there). Shift-click
-//! adds width points to the selection (or takes them out), and dragging one of several selected
-//! points moves or widens them all. Double-clicking a stroke opens Width Point Edit (the
-//! `widthPoint` dialog), editing a hit point or creating one on confirmation. Delete/Backspace
-//! removes the selected width points.
+//! edits) a width point, scaling both sides together and keeping their ratio. Alt, held at any
+//! time during the drag, frees the side under the pointer while the other side holds the width it
+//! had when Alt went down; letting Alt go makes the point even again. Dragging a width point's
+//! centre slides it along the path; Alt-dragging the centre slides a copy; dropping either onto
+//! another width point makes a discontinuous point (the width steps there). Shift-click adds width
+//! points to the selection (or takes them out), and dragging one of several selected points moves
+//! or widens them all. Double-clicking a stroke opens Width Point Edit (the `widthPoint` dialog),
+//! editing a hit point or creating one on confirmation. Delete/Backspace removes the selected
+//! width points.
 //!
 //! Gestures preview `stroke.widthPoint.set {id, t, left, right, index?}` (side widths in points),
 //! `stroke.widthPoint.copy {id, index, t}` or, for several points, `stroke.widthProfile.set {ids,
@@ -95,6 +97,13 @@ struct Drag {
     /// The other width points of the subpath when the drag began, which a slid point snaps onto.
     others: Vec<WPoint>,
     moved: bool,
+    /// The side the pointer is on (`true` = left).
+    side: bool,
+    /// The two sides the ratio counts from, which a plain drag scales together (re-based when the
+    /// pointer crosses the path).
+    base: (f64, f64),
+    /// Alt held during the drag: the opposite side's held width, from when Alt went down.
+    held: Option<f64>,
 }
 
 #[derive(Default)]
@@ -328,13 +337,39 @@ impl Tool for WidthTool {
                         let others = Self::points_of(cx, spot.owner, spot.id, spot.sub).into_iter().filter(|o| o.index != w.index).collect();
                         let group = self.group(cx, spot.owner, mode);
                         let spot = Spot { t: w.t, p: w.p, n: w.n, left: w.left, right: w.right, ..spot };
-                        Drag { spot, index: Some(w.index), mode, left: w.left, right: w.right, t: w.t, group, others, moved: false }
+                        Drag {
+                            spot,
+                            index: Some(w.index),
+                            mode,
+                            left: w.left,
+                            right: w.right,
+                            t: w.t,
+                            group,
+                            others,
+                            moved: false,
+                            side: part.unwrap_or(true),
+                            base: (w.left, w.right),
+                            held: None,
+                        }
                     }
                     None => {
                         let side = (p - spot.p).dot(spot.n) >= 0.0;
                         self.selected = Some((spot.owner, vec![spot.t]));
                         let mode = Mode::Width(ev.mods.alt.then_some(side));
-                        Drag { spot, index: None, mode, left: spot.left, right: spot.right, t: spot.t, group: None, others: vec![], moved: false }
+                        Drag {
+                            spot,
+                            index: None,
+                            mode,
+                            left: spot.left,
+                            right: spot.right,
+                            t: spot.t,
+                            group: None,
+                            others: vec![],
+                            moved: false,
+                            side,
+                            base: (spot.left, spot.right),
+                            held: None,
+                        }
                     }
                 };
                 let label = if drag.mode == Mode::Copy { "Copy Width Point" } else { "Width Point" };
@@ -345,6 +380,41 @@ impl Tool for WidthTool {
                 let Some(d) = &mut self.drag else { return vec![] };
                 d.moved = true;
                 match d.mode {
+                    Mode::Width(_) if d.group.is_none() => {
+                        // The pointer along the left normal: + on the left side, - on the right.
+                        let off = (p - d.spot.p).dot(d.spot.n);
+                        let mag = off.abs();
+                        let side_now = off >= 0.0;
+                        // Crossing the path hands the drag to the other side; the ratio counts from
+                        // there, so the change is smooth.
+                        if side_now != d.side {
+                            d.base = (d.left.max(0.0), d.right.max(0.0));
+                            d.side = side_now;
+                        }
+                        if ev.mods.alt {
+                            // Alt: the opposite side holds the width it had when Alt went down.
+                            let other = if d.side { d.right } else { d.left };
+                            let held = *d.held.get_or_insert(other);
+                            if d.side {
+                                (d.left, d.right) = (mag, held);
+                            } else {
+                                (d.right, d.left) = (mag, held);
+                            }
+                        } else {
+                            // Letting Alt go makes the point even again, at the pointer's width.
+                            if d.held.take().is_some() {
+                                d.base = (mag, mag);
+                            }
+                            // The side under the pointer follows it; the other keeps their ratio.
+                            let (base, other) = if d.side { (d.base.0, d.base.1) } else { (d.base.1, d.base.0) };
+                            let other = (other * if base > 1e-9 { mag / base } else { 1.0 }).max(0.0);
+                            if d.side {
+                                (d.left, d.right) = (mag, other);
+                            } else {
+                                (d.right, d.left) = (mag, other);
+                            }
+                        }
+                    }
                     Mode::Width(side) => {
                         let off = (p - d.spot.p).dot(d.spot.n);
                         match side {
@@ -542,6 +612,48 @@ mod tests {
         assert!((v["t"].as_f64().unwrap() - 0.75).abs() < 1e-3);
         t.pointer(&c, &PointerEvent::new(PointerKind::Up, 250.0, 205.0));
         assert!(t.selected.as_ref().is_some_and(|(_, ts)| (ts[0] - 0.75).abs() < 1e-3), "the moved point stays selected");
+    }
+
+    #[test]
+    fn live_alt_frees_one_side_mid_drag_and_returns_to_even() {
+        let (mut d, id) = doc_line();
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile =
+            Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)] });
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let alt = Mods { alt: true, ..Default::default() };
+        // A plain drag out of the left handle end widens both sides evenly.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 190.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 170.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 30.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6, "{v}");
+        // Holding Alt partway through freezes the other side at the width it had.
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 160.0, alt));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 40.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6, "{v}");
+        // Letting Alt go makes the point even again, at the pointer's width.
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 150.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 50.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 50.0).abs() < 1e-6, "{v}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 150.0, Mods::default()));
+    }
+
+    #[test]
+    fn a_plain_drag_scales_both_sides_keeping_their_ratio() {
+        let (mut d, id) = doc_line();
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile =
+            Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 1.0, 3.0), (1.0, 1.0, 1.0)] });
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        // The point at t = 0.5 is 5 pt one side and 15 the other; dragging its left handle end out
+        // to 15 keeps the ratio, so the other side grows to 45 rather than resetting even.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 195.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 185.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 15.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 45.0).abs() < 1e-6, "{v}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 185.0, Mods::default()));
     }
 
     #[test]
