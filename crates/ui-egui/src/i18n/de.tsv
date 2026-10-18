@@ -4820,6 +4820,7 @@ effect	Regular	Regelmäßig
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-Anforderung fehlgeschlagen. Server-URL, installiertes bildfähiges Modell und curl prüfen; Zeitlimit: 120 Sekunden.
 @msg	Ollama returned no message content	Ollama hat keinen Nachrichteninhalt geliefert
 @msg	Server URL must start with http:// or https://	Die Server-URL muss mit http:// oder https:// beginnen
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Unverschlüsseltes http:// ist nur für localhost erlaubt; für einen entfernten Server https:// verwenden
 @msg	Unable to render naming previews	Namensvorschauen können nicht gerendert werden
 @msg	Wait for generation to finish	Warten, bis die Generierung abgeschlossen ist
 

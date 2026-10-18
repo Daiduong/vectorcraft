@@ -37,6 +37,7 @@ pub mod icons;
 pub mod io;
 pub mod menus;
 pub mod native_menu;
+mod ollama;
 pub mod opening;
 pub mod palette;
 mod panel_docking;

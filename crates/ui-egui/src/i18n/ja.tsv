@@ -4898,6 +4898,7 @@ lighting	Light	ライト
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollamaのリクエストが失敗しました。サーバーURL、インストール済みの画像対応モデル、curlを確認してください。制限時間は120秒です。
 @msg	Ollama returned no message content	Ollamaがメッセージ内容を返しませんでした
 @msg	Server URL must start with http:// or https://	サーバーURLはhttp://またはhttps://で始まる必要があります
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	平文の http:// は localhost のみです。遠隔サーバーには https:// を使ってください
 @msg	Unable to render naming previews	命名用プレビューを描画できません
 @msg	Wait for generation to finish	生成が完了するまでお待ちください
 

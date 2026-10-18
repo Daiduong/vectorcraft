@@ -32,8 +32,10 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
         }
         app.naming_checkpoint = None;
     }
-    let mut settings = json!({"endpoint": "http://localhost:11434/api/chat", "model": "", "language": "English", "scope": "all", "depth": 3});
-    for key in ["endpoint", "model", "language", "scope", "depth"] {
+    let saved = if app.ui.ollama_settings.is_null() { &app.ui.layer_naming_settings } else { &app.ui.ollama_settings };
+    let (endpoint, model, language) = crate::ollama::connection(saved);
+    let mut settings = json!({"endpoint": endpoint, "model": model, "language": language, "scope": "all", "depth": 3});
+    for key in ["scope", "depth"] {
         if let Some(value) = app.ui.layer_naming_settings.get(key) {
             settings[key] = value.clone();
         }
@@ -57,13 +59,11 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
                 app.naming_job = None;
             }
             Ok(Err(e)) => {
-                d.fields.insert("error".into(), json!(e));
-                d.fields.insert("busy".into(), json!(false));
+                fail_job(d, job, e);
                 app.naming_job = None;
             }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                d.fields.insert("error".into(), json!("Naming worker stopped. Try again."));
-                d.fields.insert("busy".into(), json!(false));
+                fail_job(d, job, "Naming worker stopped. Try again.".into());
                 app.naming_job = None;
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
@@ -104,29 +104,39 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         });
     });
     ui.horizontal(|ui| {
-        let running=d.bool("busy");let paused=d.bool("paused");
-        if player_button(ui,tl!("Play or continue naming"),!running || paused,true).clicked() {
-            if let Some(job)=&app.naming_job {job.progress.paused.store(false,std::sync::atomic::Ordering::Relaxed);d.fields.insert("paused".into(),json!(false));}
-            else {
+        let running = d.bool("busy");
+        let paused = d.bool("paused");
+        if player_button(ui, tl!("Play or continue naming"), !running || paused, true).clicked() {
+            if let Some(job) = &app.naming_job {
+                job.progress.paused.store(false, std::sync::atomic::Ordering::Relaxed);
+                d.fields.insert("paused".into(), json!(false));
+            } else {
                 d.fields.remove("error");
-                app.ui.layer_naming_settings=json!({"endpoint":d.str("endpoint"),"model":d.str("model"),"language":d.str("language"),"scope":d.str("scope"),"depth":d.fields.get("depth")});
-                if let Err(e)=start(app,d) {d.fields.insert("error".into(),json!(e));}
+                crate::ollama::store_connection(&mut app.ui.ollama_settings, &d.str("endpoint"), &d.str("model"), &d.str("language"));
+                app.ui.layer_naming_settings = json!({"scope": d.str("scope"), "depth": d.fields.get("depth")});
+                if let Err(e) = start(app, d) {
+                    d.fields.insert("error".into(), json!(e));
+                }
             }
         }
-        if player_button(ui,tl!("Pause after the current group"),running && !paused,false).clicked() {
-            if let Some(job)=&app.naming_job {job.progress.paused.store(true,std::sync::atomic::Ordering::Relaxed);}
-            d.fields.insert("paused".into(),json!(true));
+        if player_button(ui, tl!("Pause after the current group"), running && !paused, false).clicked() {
+            if let Some(job) = &app.naming_job {
+                job.progress.paused.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            d.fields.insert("paused".into(), json!(true));
         }
-        if ui.add_enabled(!running || paused,egui::Button::new(tl!("Start Over"))).clicked() {
-            stop(app,d);
-            for key in ["names","candidates","uid","revision","complete","done","total","error","syncedCount"] {d.fields.remove(key);}
-            app.naming_checkpoint=None;
+        if ui.add_enabled(!running || paused, egui::Button::new(tl!("Start Over"))).clicked() {
+            stop(app, d);
+            for key in ["names", "candidates", "uid", "revision", "complete", "done", "total", "error", "syncedCount"] {
+                d.fields.remove(key);
+            }
+            app.naming_checkpoint = None;
         }
-        let done=d.fields.get("names").and_then(Value::as_array).map_or(0,Vec::len);
-        let total=d.fields.get("total").and_then(Value::as_u64).unwrap_or(0) as usize;
-        if total>0 {
+        let done = d.fields.get("names").and_then(Value::as_array).map_or(0, Vec::len);
+        let total = d.fields.get("total").and_then(Value::as_u64).unwrap_or(0) as usize;
+        if total > 0 {
             ui.label(format!("{done} / {total}"));
-            crate::widgets::ai_progress(ui, done as f32/total.max(1) as f32, 300.0, naming_active(d));
+            crate::widgets::ai_progress(ui, done as f32 / total.max(1) as f32, 300.0, naming_active(d));
         }
     });
     if d.bool("complete") {
@@ -217,6 +227,12 @@ fn merge_names(d: &mut Dialog, rows: &[Value]) {
         }
     }
 }
+/// Keep names that finished before a failed or disconnected worker is dropped.
+fn fail_job(d: &mut Dialog, job: &Job, error: String) {
+    let _ = sync(d, job);
+    d.fields.insert("error".into(), json!(error));
+    d.fields.insert("busy".into(), json!(false));
+}
 fn sync(d: &mut Dialog, job: &Job) -> Result<(), String> {
     let ready = job.progress.names.lock().map_err(|_| "Naming worker stopped. Try again.")?;
     let from = d.fields.get("syncedCount").and_then(Value::as_u64).unwrap_or(0) as usize;
@@ -280,9 +296,7 @@ fn start(_: &mut VectorcraftApp, _: &mut Dialog) -> Result<(), String> {
 #[cfg(not(target_arch = "wasm32"))]
 fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     let endpoint = d.str("endpoint");
-    if !(endpoint.starts_with("http://") || endpoint.starts_with("https://")) || endpoint.chars().any(char::is_control) {
-        return Err("Server URL must start with http:// or https://".into());
-    }
+    crate::ollama::endpoint_kind(&endpoint)?;
     let model = d.str("model");
     let language = d.str("language");
     if model.trim().is_empty() || language.trim().is_empty() {
@@ -401,7 +415,7 @@ fn generate(
             return Err("Cancelled".into());
         }
         progress.in_flight.store(true, std::sync::atomic::Ordering::Relaxed);
-        let response = post(endpoint, &request)?;
+        let response = crate::ollama::post(endpoint, &request)?;
         let content = response.pointer("/message/content").and_then(Value::as_str).ok_or("Ollama returned no message content")?;
         let named = validate(content, batch)?;
         progress.names.lock().map_err(|_| "Naming worker stopped. Try again.")?.extend(named.iter().cloned());
@@ -439,63 +453,21 @@ fn validate(content: &str, rows: &[Value]) -> Result<Vec<Value>, String> {
     Ok(result)
 }
 
-/// curl supplies OS TLS support without coupling the engine or wasm build to networking.
-#[cfg(not(target_arch = "wasm32"))]
-fn post(endpoint: &str, request: &Value) -> Result<Value, String> {
-    use std::io::{Read, Write};
-    use std::process::{Command, Stdio};
-    let mut child = Command::new("curl")
-        .args([
-            "--disable",
-            "--silent",
-            "--show-error",
-            "--fail",
-            "--max-time",
-            "120",
-            "--connect-timeout",
-            "10",
-            "--proto",
-            "=http,https",
-            "--header",
-            "Content-Type: application/json",
-            "--data-binary",
-            "@-",
-            "--url",
-            endpoint,
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Cannot run curl (required for Ollama): {e}"))?;
-    let data = serde_json::to_vec(request).map_err(|e| e.to_string())?;
-    let write_result = child
-        .stdin
-        .take()
-        .ok_or_else(|| "No request pipe".to_string())
-        .and_then(|mut stdin| stdin.write_all(&data).map_err(|e| format!("Cannot send request: {e}")));
-    let mut bytes = Vec::new();
-    let read_result = child
-        .stdout
-        .take()
-        .ok_or_else(|| "No response pipe".to_string())
-        .and_then(|stdout| stdout.take(1_048_577).read_to_end(&mut bytes).map_err(|e| e.to_string()));
-    if bytes.len() > 1_048_576 || write_result.is_err() || read_result.is_err() {
-        // Close both pipes and reap the child on errors or oversized responses.
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err("Ollama request failed or response exceeded 1 MiB".into());
-    }
-    let status = child.wait().map_err(|e| e.to_string())?;
-    if !status.success() {
-        return Err("Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.".into());
-    }
-    serde_json::from_slice(&bytes).map_err(|e| format!("Invalid Ollama response: {e}"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_failed_run_keeps_the_name_completed_before_the_error() {
+        let progress = std::sync::Arc::new(Progress::default());
+        progress.names.lock().unwrap().push(json!({"id": 7, "name": "Coin Counter"}));
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let job = Job { base: 0, progress, rx, cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) };
+        let mut d = Dialog::new(KIND, json!({}));
+        fail_job(&mut d, &job, "curl failed".into());
+        assert_eq!(d.fields["names"][0]["name"], "Coin Counter");
+        assert_eq!(d.fields["error"], "curl failed");
+        assert_eq!(d.fields["busy"], false);
+    }
     #[test]
     fn review_cancel_apply_and_stale_document() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());

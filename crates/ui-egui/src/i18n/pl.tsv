@@ -5096,6 +5096,7 @@ mark-style	Japanese	Japońskie
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Żądanie Ollama nie powiodło się. Sprawdź adres serwera, zainstalowany model obrazów i curl; limit czasu to 120 sekund.
 @msg	Ollama returned no message content	Ollama nie zwróciła treści wiadomości
 @msg	Server URL must start with http:// or https://	Adres serwera musi zaczynać się od http:// lub https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Zwykłe http:// jest dozwolone tylko dla localhost; dla zdalnego serwera użyj https://
 @msg	Unable to render naming previews	Nie można wyrenderować podglądów nazw
 @msg	Wait for generation to finish	Poczekaj na zakończenie generowania
 

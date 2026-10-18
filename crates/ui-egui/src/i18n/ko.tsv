@@ -4821,6 +4821,7 @@ lighting	Light	광원
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama 요청이 실패했습니다. 서버 URL, 설치된 이미지 지원 모델과 curl을 확인하세요. 제한 시간은 120초입니다.
 @msg	Ollama returned no message content	Ollama가 메시지 내용을 반환하지 않았습니다
 @msg	Server URL must start with http:// or https://	서버 URL은 http:// 또는 https://로 시작해야 합니다
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	일반 http://는 localhost에만 허용됩니다. 원격 서버에는 https://를 사용하세요
 @msg	Unable to render naming previews	이름 지정 미리 보기를 렌더링할 수 없습니다
 @msg	Wait for generation to finish	생성이 끝날 때까지 기다리세요
 

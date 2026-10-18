@@ -4858,6 +4858,7 @@ lighting	Light	Luce
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Richiesta Ollama non riuscita. Verifica URL del server, modello immagini installato e curl; il limite è di 120 secondi.
 @msg	Ollama returned no message content	Ollama non ha restituito contenuto del messaggio
 @msg	Server URL must start with http:// or https://	L’URL del server deve iniziare con http:// o https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// in chiaro è consentito solo per localhost; per un server remoto usare https://
 @msg	Unable to render naming previews	Impossibile renderizzare le anteprime di denominazione
 @msg	Wait for generation to finish	Attendi il completamento della generazione
 

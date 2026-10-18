@@ -5200,6 +5200,7 @@ theme	Appearance	Utseende
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-begäran misslyckades. Kontrollera server-URL, installerad bildmodell och curl; tidsgränsen är 120 sekunder.
 @msg	Ollama returned no message content	Ollama returnerade inget meddelandeinnehåll
 @msg	Server URL must start with http:// or https://	Server-URL måste börja med http:// eller https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Okrypterat http:// tillåts bara för localhost; använd https:// för en fjärrserver
 @msg	Unable to render naming previews	Kan inte rendera förhandsvisningar för namngivning
 @msg	Wait for generation to finish	Vänta tills genereringen är klar
 

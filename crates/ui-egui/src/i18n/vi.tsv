@@ -4838,6 +4838,7 @@ theme	Appearance	Giao diện
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Yêu cầu Ollama thất bại. Kiểm tra URL máy chủ, mô hình hình ảnh đã cài và curl; thời gian chờ là 120 giây.
 @msg	Ollama returned no message content	Ollama không trả về nội dung tin nhắn
 @msg	Server URL must start with http:// or https://	URL máy chủ phải bắt đầu bằng http:// hoặc https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// không mã hóa chỉ được phép với localhost; hãy dùng https:// cho máy chủ từ xa
 @msg	Unable to render naming previews	Không thể kết xuất bản xem trước để đặt tên
 @msg	Wait for generation to finish	Chờ quá trình tạo hoàn tất
 

@@ -5243,6 +5243,7 @@ theme	Appearance	Apparence
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	La requête Ollama a échoué. Vérifiez l’URL du serveur, le modèle d’images installé et curl ; délai maximal : 120 secondes.
 @msg	Ollama returned no message content	Ollama n’a renvoyé aucun contenu de message
 @msg	Server URL must start with http:// or https://	L’URL du serveur doit commencer par http:// ou https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// en clair n’est autorisé que pour localhost ; utilisez https:// pour un serveur distant
 @msg	Unable to render naming previews	Impossible de rendre les aperçus de nommage
 @msg	Wait for generation to finish	Attendez la fin de la génération
 

@@ -470,8 +470,12 @@ pub struct UiState {
     /// Layers panel › Panel Options… (row size, thumbnails, Show Layers Only).
     #[serde(default)]
     pub layers_panel: crate::panels::layers::PanelOptions,
-    /// Last AI layer naming settings (no credentials).
+    /// Last AI layer naming settings other than the shared Ollama connection (scope and depth).
+    #[serde(default)]
     pub layer_naming_settings: Value,
+    /// Ollama server, vision model and name language, shared by the AI dialogs.
+    #[serde(default)]
+    pub ollama_settings: Value,
     /// The Layers panel's Filter (`ui.layersFilter`). It is not saved and lasts the session, as the
     /// Search All text does.
     #[serde(skip)]
@@ -794,6 +798,7 @@ impl Default for UiState {
             home: None,
             layers_panel: Default::default(),
             layer_naming_settings: Value::Null,
+            ollama_settings: Value::Null,
             layers_filter: Default::default(),
             image_trace_advanced: true,
             glyphs_preview: 0,

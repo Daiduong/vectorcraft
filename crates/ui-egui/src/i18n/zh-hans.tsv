@@ -5080,6 +5080,7 @@ lighting	Light	光源
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama 请求失败。请检查服务器 URL、已安装的图像模型和 curl；超时为 120 秒。
 @msg	Ollama returned no message content	Ollama 未返回消息内容
 @msg	Server URL must start with http:// or https://	服务器 URL 必须以 http:// 或 https:// 开头
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	明文 http:// 仅允许用于 localhost；远程服务器请使用 https://
 @msg	Unable to render naming previews	无法渲染命名预览
 @msg	Wait for generation to finish	请等待生成完成
 
