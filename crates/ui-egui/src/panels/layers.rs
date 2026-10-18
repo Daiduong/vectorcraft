@@ -1513,6 +1513,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
         Some(("New Sublayer…", "ui.newLayer", json!({"sublayer": true}), current.is_some(), false)),
         Some(("Duplicate Selection", "layer.duplicate", json!({}), !targets.is_empty(), false)),
         Some(("Delete Selection", "layer.delete", json!({}), !targets.is_empty(), false)),
+        Some(("Name Layers with AI…", "ui.nameLayers", json!({}), true, false)),
         Some(("Slice Artwork with AI…", "ui.sliceWithAI", json!({}), true, false)),
         Some(("Options for Selection…", "ui.layerOptions", json!({}), !targets.is_empty(), false)),
         None,

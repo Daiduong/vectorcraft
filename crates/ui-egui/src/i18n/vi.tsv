@@ -4821,6 +4821,33 @@ theme	Appearance	Giao diện
 @msg	No document	Không có tài liệu
 @msg	No request pipe	Không có kênh yêu cầu
 @msg	No response pipe	Không có kênh phản hồi
+# AI-assisted layer naming.
+	Name Layers with AI	Đặt tên lớp bằng AI
+	Layer Naming Candidates	Các lớp cần đặt tên
+	Apply Layer Names	Áp dụng tên lớp
+	Apply Names	Áp dụng tên
+	Scope	Phạm vi
+	Whole document	Toàn bộ tài liệu
+	Highlighted rows or selection	Các hàng tô sáng hoặc vùng chọn
+	Group depth	Độ sâu nhóm
+	Generate Names	Đề xuất tên
+	Previews are sent to the configured Ollama server.	Bản xem trước được gửi đến máy chủ Ollama đã cấu hình.
+	Analyzing groups…	Đang phân tích nhóm…
+	Review and edit names before applying.	Xem lại và chỉnh sửa tên trước khi áp dụng.
+	Name Layers with AI…	Đặt tên lớp bằng AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Đặt tên lớp bằng AI cần ứng dụng máy tính và Ollama
+@msg	Cannot render group {id}	Không thể kết xuất nhóm {id}
+@msg	Generate names first	Hãy tạo tên trước
+@msg	Invalid artwork bounds	Giới hạn đồ họa không hợp lệ
+@msg	Invalid candidate id	ID ứng viên không hợp lệ
+@msg	Invalid thumbnail	Ảnh thu nhỏ không hợp lệ
+@msg	Model did not name every requested group; try again	Mô hình chưa đặt tên cho mọi nhóm; hãy thử lại
+@msg	Model returned an invalid name	Mô hình trả về tên không hợp lệ
+@msg	Model returned duplicate or unknown IDs	Mô hình trả về ID trùng lặp hoặc không xác định
+@msg	Model returned no names array	Mô hình không trả về mảng tên
+@msg	No artwork in the selected groups	Không có đồ họa trong các nhóm đã chọn
+@msg	No candidates	Không có ứng viên
+@msg	No visible artwork to analyze	Không có đồ họa hiển thị để phân tích
 @msg	Ollama request failed or response exceeded 1 MiB	Yêu cầu Ollama thất bại hoặc phản hồi vượt quá 1 MiB
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Yêu cầu Ollama thất bại. Kiểm tra URL máy chủ, mô hình hình ảnh đã cài và curl; thời gian chờ là 120 giây.
 @msg	Ollama returned no message content	Ollama không trả về nội dung tin nhắn
@@ -4859,3 +4886,17 @@ theme	Appearance	Giao diện
 @msg	Selected regions were already exported to this destination and format.	Các vùng đã chọn đã được xuất tới đích và định dạng này.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Thư mục xuất chưa có. Bật tạo thư mục hoặc chọn thư mục có sẵn.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG chứa ảnh kết xuất khớp bản xem trước VectorCraft.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// không mã hóa chỉ được phép với localhost; hãy dùng https:// cho máy chủ từ xa
+@msg	Unable to render naming previews	Không thể kết xuất bản xem trước để đặt tên
+@msg	Wait for generation to finish	Chờ quá trình tạo hoàn tất
+
+# AI naming player and partial results.
+	Apply Ready Names	Áp dụng tên đã hoàn tất
+	Play or continue naming	Bắt đầu hoặc tiếp tục đặt tên
+	Pause after the current group	Tạm dừng sau nhóm hiện tại
+	Paused; ready names are kept.	Đã tạm dừng; các tên đã hoàn tất được giữ lại.
+	Finishing current group…	Đang hoàn tất nhóm hiện tại…
+@msg	Naming scope changed. Start over to use the new scope.	Phạm vi đặt tên đã thay đổi. Bắt đầu lại để dùng phạm vi mới.
+@msg	the document changed; generate names again	tài liệu đã thay đổi; hãy tạo lại tên
+	Naming in progress…	Đang đặt tên…
+	Naming complete.	Đã đặt tên xong.

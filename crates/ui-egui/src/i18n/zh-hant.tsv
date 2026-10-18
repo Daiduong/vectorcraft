@@ -4138,3 +4138,26 @@ lighting	Light	光源
 @msg	Selected regions were already exported to this destination and format.	所選區域已匯出至此目標與格式。
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	匯出資料夾不存在。請啟用建立資料夾或選擇現有資料夾。
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG包含與VectorCraft預覽一致的算繪影像。
+# AI-assisted layer naming.
+	Name Layers with AI	使用 AI 命名圖層
+	Layer Naming Candidates	圖層命名候選項
+	Apply Layer Names	套用圖層名稱
+	Apply Names	套用名稱
+	Scope	範圍
+	Whole document	整份文件
+	Highlighted rows or selection	反白列或選取範圍
+	Group depth	群組深度
+	Generate Names	建議名稱
+	Previews are sent to the configured Ollama server.	預覽將傳送至設定的 Ollama 伺服器。
+	Analyzing groups…	正在分析群組…
+	Review and edit names before applying.	套用前請檢查並編輯名稱。
+	Name Layers with AI…	使用 AI 命名圖層…
+
+# AI naming player and partial results.
+	Apply Ready Names	套用已完成的名稱
+	Play or continue naming	開始或繼續命名
+	Pause after the current group	目前群組完成後暫停
+	Paused; ready names are kept.	已暫停，已完成的名稱會保留。
+	Finishing current group…	正在完成目前群組…
+	Naming in progress…	正在命名…
+	Naming complete.	命名完成。

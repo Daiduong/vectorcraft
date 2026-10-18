@@ -5213,6 +5213,33 @@ imageTrace	Outline	Körvonal
 @msg	No document	Nincs dokumentum
 @msg	No request pipe	Nincs kéréscsatorna
 @msg	No response pipe	Nincs válaszcsatorna
+# AI-assisted layer naming.
+	Name Layers with AI	Rétegek elnevezése MI-vel
+	Layer Naming Candidates	Elnevezendő rétegek
+	Apply Layer Names	Rétegnevek alkalmazása
+	Apply Names	Nevek alkalmazása
+	Scope	Hatókör
+	Whole document	Teljes dokumentum
+	Highlighted rows or selection	Kiemelt sorok vagy kijelölés
+	Group depth	Csoportmélység
+	Generate Names	Nevek javaslata
+	Previews are sent to the configured Ollama server.	Az előnézetek a beállított Ollama-kiszolgálóra kerülnek.
+	Analyzing groups…	Csoportok elemzése…
+	Review and edit names before applying.	Alkalmazás előtt ellenőrizze és szerkessze a neveket.
+	Name Layers with AI…	Rétegek elnevezése MI-vel…
+@msg	AI layer naming currently requires the desktop app and Ollama	Az MI-alapú rétegnevekhez az asztali alkalmazás és az Ollama szükséges
+@msg	Cannot render group {id}	A(z) {id} csoport nem rajzolható ki
+@msg	Generate names first	Először generáljon neveket
+@msg	Invalid artwork bounds	Érvénytelen rajzhatárok
+@msg	Invalid candidate id	Érvénytelen jelöltazonosító
+@msg	Invalid thumbnail	Érvénytelen bélyegkép
+@msg	Model did not name every requested group; try again	A modell nem nevezett el minden csoportot; próbálja újra
+@msg	Model returned an invalid name	A modell érvénytelen nevet adott vissza
+@msg	Model returned duplicate or unknown IDs	A modell ismétlődő vagy ismeretlen azonosítókat adott vissza
+@msg	Model returned no names array	A modell nem adott vissza névtömböt
+@msg	No artwork in the selected groups	Nincs rajz a kijelölt csoportokban
+@msg	No candidates	Nincsenek jelöltek
+@msg	No visible artwork to analyze	Nincs elemezhető látható rajz
 @msg	Ollama request failed or response exceeded 1 MiB	Az Ollama-kérés sikertelen, vagy a válasz nagyobb 1 MiB-nál
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Az Ollama-kérés sikertelen. Ellenőrizze a kiszolgáló URL-jét, a telepített képfeldolgozó modellt és a curl programot; az időkorlát 120 másodperc.
 @msg	Ollama returned no message content	Az Ollama nem adott vissza üzenettartalmat
@@ -5251,3 +5278,17 @@ imageTrace	Outline	Körvonal
 @msg	Selected regions were already exported to this destination and format.	A kijelölt területek már exportálva lettek ide és ebben a formátumban.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Az exportmappa hiányzik. Engedélyezze a létrehozást vagy válasszon meglévőt.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	Az SVG a VectorCraft előnézetével egyező renderelt képet tartalmaz.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	A sima http:// csak a localhost számára engedélyezett; távoli szerverhez használjon https:// címet
+@msg	Unable to render naming previews	A névadási előnézetek nem rajzolhatók ki
+@msg	Wait for generation to finish	Várja meg a generálás befejezését
+
+# AI naming player and partial results.
+	Apply Ready Names	Elkészült nevek alkalmazása
+	Play or continue naming	Elnevezés indítása vagy folytatása
+	Pause after the current group	Szünet az aktuális csoport után
+	Paused; ready names are kept.	Szünetel; az elkészült nevek megmaradnak.
+	Finishing current group…	Aktuális csoport befejezése…
+@msg	Naming scope changed. Start over to use the new scope.	Az elnevezés hatóköre megváltozott. Az új hatókörhöz kezdje újra.
+@msg	the document changed; generate names again	a dokumentum megváltozott; hozza létre újra a neveket
+	Naming in progress…	Elnevezés folyamatban…
+	Naming complete.	Elnevezés kész.

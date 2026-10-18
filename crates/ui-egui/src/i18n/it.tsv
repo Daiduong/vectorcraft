@@ -4841,6 +4841,33 @@ lighting	Light	Luce
 @msg	No document	Nessun documento
 @msg	No request pipe	Nessun canale di richiesta
 @msg	No response pipe	Nessun canale di risposta
+# AI-assisted layer naming.
+	Name Layers with AI	Denomina livelli con IA
+	Layer Naming Candidates	Candidati per i nomi dei livelli
+	Apply Layer Names	Applica nomi dei livelli
+	Apply Names	Applica nomi
+	Scope	Ambito
+	Whole document	Intero documento
+	Highlighted rows or selection	Righe evidenziate o selezione
+	Group depth	Profondità dei gruppi
+	Generate Names	Proponi nomi
+	Previews are sent to the configured Ollama server.	Le anteprime vengono inviate al server Ollama configurato.
+	Analyzing groups…	Analisi dei gruppi…
+	Review and edit names before applying.	Verifica e modifica i nomi prima di applicarli.
+	Name Layers with AI…	Denomina livelli con IA…
+@msg	AI layer naming currently requires the desktop app and Ollama	La denominazione dei livelli con IA richiede l’app desktop e Ollama
+@msg	Cannot render group {id}	Impossibile renderizzare il gruppo {id}
+@msg	Generate names first	Genera prima i nomi
+@msg	Invalid artwork bounds	Limiti della grafica non validi
+@msg	Invalid candidate id	ID candidato non valido
+@msg	Invalid thumbnail	Miniatura non valida
+@msg	Model did not name every requested group; try again	Il modello non ha denominato tutti i gruppi; riprova
+@msg	Model returned an invalid name	Il modello ha restituito un nome non valido
+@msg	Model returned duplicate or unknown IDs	Il modello ha restituito ID duplicati o sconosciuti
+@msg	Model returned no names array	Il modello non ha restituito un array di nomi
+@msg	No artwork in the selected groups	Nessuna grafica nei gruppi selezionati
+@msg	No candidates	Nessun candidato
+@msg	No visible artwork to analyze	Nessuna grafica visibile da analizzare
 @msg	Ollama request failed or response exceeded 1 MiB	Richiesta Ollama non riuscita o risposta oltre 1 MiB
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Richiesta Ollama non riuscita. Verifica URL del server, modello immagini installato e curl; il limite è di 120 secondi.
 @msg	Ollama returned no message content	Ollama non ha restituito contenuto del messaggio
@@ -4879,3 +4906,17 @@ lighting	Light	Luce
 @msg	Selected regions were already exported to this destination and format.	Le aree selezionate sono già state esportate in questa destinazione e formato.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	La cartella non esiste. Abilita la creazione o scegli una cartella esistente.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	L’SVG contiene un’immagine renderizzata conforme all’anteprima VectorCraft.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// in chiaro è consentito solo per localhost; per un server remoto usare https://
+@msg	Unable to render naming previews	Impossibile renderizzare le anteprime di denominazione
+@msg	Wait for generation to finish	Attendi il completamento della generazione
+
+# AI naming player and partial results.
+	Apply Ready Names	Applica nomi pronti
+	Play or continue naming	Avvia o riprendi la denominazione
+	Pause after the current group	Pausa dopo il gruppo corrente
+	Paused; ready names are kept.	In pausa; i nomi pronti sono conservati.
+	Finishing current group…	Completamento del gruppo corrente…
+@msg	Naming scope changed. Start over to use the new scope.	L’ambito della denominazione è cambiato. Ricominciare per usare il nuovo ambito.
+@msg	the document changed; generate names again	il documento è cambiato; generare di nuovo i nomi
+	Naming in progress…	Assegnazione dei nomi in corso…
+	Naming complete.	Assegnazione dei nomi completata.

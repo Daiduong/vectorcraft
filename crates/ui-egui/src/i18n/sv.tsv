@@ -5183,6 +5183,33 @@ theme	Appearance	Utseende
 @msg	No document	Inget dokument
 @msg	No request pipe	Ingen begärandekanal
 @msg	No response pipe	Ingen svarskanal
+# AI-assisted layer naming.
+	Name Layers with AI	Namnge lager med AI
+	Layer Naming Candidates	Kandidater för lagernamn
+	Apply Layer Names	Tillämpa lagernamn
+	Apply Names	Tillämpa namn
+	Scope	Omfattning
+	Whole document	Hela dokumentet
+	Highlighted rows or selection	Markerade rader eller markering
+	Group depth	Gruppdjup
+	Generate Names	Föreslå namn
+	Previews are sent to the configured Ollama server.	Förhandsvisningar skickas till den inställda Ollama-servern.
+	Analyzing groups…	Analyserar grupper…
+	Review and edit names before applying.	Granska och redigera namnen innan de tillämpas.
+	Name Layers with AI…	Namnge lager med AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	AI-namn på lager kräver skrivbordsappen och Ollama
+@msg	Cannot render group {id}	Kan inte rendera grupp {id}
+@msg	Generate names first	Generera namn först
+@msg	Invalid artwork bounds	Ogiltiga grafikgränser
+@msg	Invalid candidate id	Ogiltigt kandidat-ID
+@msg	Invalid thumbnail	Ogiltig miniatyr
+@msg	Model did not name every requested group; try again	Modellen namngav inte alla grupper; försök igen
+@msg	Model returned an invalid name	Modellen returnerade ett ogiltigt namn
+@msg	Model returned duplicate or unknown IDs	Modellen returnerade dubbla eller okända ID:n
+@msg	Model returned no names array	Modellen returnerade ingen namnmatris
+@msg	No artwork in the selected groups	Ingen grafik i de valda grupperna
+@msg	No candidates	Inga kandidater
+@msg	No visible artwork to analyze	Ingen synlig grafik att analysera
 @msg	Ollama request failed or response exceeded 1 MiB	Ollama-begäran misslyckades eller svaret översteg 1 MiB
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-begäran misslyckades. Kontrollera server-URL, installerad bildmodell och curl; tidsgränsen är 120 sekunder.
 @msg	Ollama returned no message content	Ollama returnerade inget meddelandeinnehåll
@@ -5221,3 +5248,17 @@ theme	Appearance	Utseende
 @msg	Selected regions were already exported to this destination and format.	Valda områden har redan exporterats till detta mål och format.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Exportmappen saknas. Aktivera skapande eller välj en befintlig mapp.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG innehåller en renderad bild som matchar VectorCrafts förhandsvisning.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Okrypterat http:// tillåts bara för localhost; använd https:// för en fjärrserver
+@msg	Unable to render naming previews	Kan inte rendera förhandsvisningar för namngivning
+@msg	Wait for generation to finish	Vänta tills genereringen är klar
+
+# AI naming player and partial results.
+	Apply Ready Names	Använd färdiga namn
+	Play or continue naming	Starta eller fortsätt namngivningen
+	Pause after the current group	Pausa efter aktuell grupp
+	Paused; ready names are kept.	Pausat; färdiga namn sparas.
+	Finishing current group…	Slutför aktuell grupp…
+@msg	Naming scope changed. Start over to use the new scope.	Namngivningens omfattning har ändrats. Börja om för den nya omfattningen.
+@msg	the document changed; generate names again	dokumentet har ändrats; generera namnen igen
+	Naming in progress…	Namngivning pågår…
+	Naming complete.	Namngivning klar.

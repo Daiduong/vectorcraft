@@ -5191,6 +5191,33 @@ mark-style	Japanese	Japanilainen
 @msg	No document	Ei asiakirjaa
 @msg	No request pipe	Ei pyyntökanavaa
 @msg	No response pipe	Ei vastauskanavaa
+# AI-assisted layer naming.
+	Name Layers with AI	Nimeä tasot tekoälyllä
+	Layer Naming Candidates	Tasojen nimeämisehdokkaat
+	Apply Layer Names	Käytä tasojen nimiä
+	Apply Names	Käytä nimiä
+	Scope	Laajuus
+	Whole document	Koko asiakirja
+	Highlighted rows or selection	Korostetut rivit tai valinta
+	Group depth	Ryhmien syvyys
+	Generate Names	Ehdota nimiä
+	Previews are sent to the configured Ollama server.	Esikatselut lähetetään määritettyyn Ollama-palvelimeen.
+	Analyzing groups…	Analysoidaan ryhmiä…
+	Review and edit names before applying.	Tarkista ja muokkaa nimet ennen käyttöä.
+	Name Layers with AI…	Nimeä tasot tekoälyllä…
+@msg	AI layer naming currently requires the desktop app and Ollama	Tasojen tekoälynimet edellyttävät työpöytäsovellusta ja Ollamaa
+@msg	Cannot render group {id}	Ryhmää {id} ei voi piirtää
+@msg	Generate names first	Luo nimet ensin
+@msg	Invalid artwork bounds	Virheelliset piirroksen rajat
+@msg	Invalid candidate id	Virheellinen ehdokkaan tunniste
+@msg	Invalid thumbnail	Virheellinen pikkukuva
+@msg	Model did not name every requested group; try again	Malli ei nimennyt kaikkia ryhmiä; yritä uudelleen
+@msg	Model returned an invalid name	Malli palautti virheellisen nimen
+@msg	Model returned duplicate or unknown IDs	Malli palautti toistuvia tai tuntemattomia tunnisteita
+@msg	Model returned no names array	Malli ei palauttanut nimitaulukkoa
+@msg	No artwork in the selected groups	Valituissa ryhmissä ei ole piirrosta
+@msg	No candidates	Ei ehdokkaita
+@msg	No visible artwork to analyze	Ei näkyvää piirrosta analysoitavaksi
 @msg	Ollama request failed or response exceeded 1 MiB	Ollama-pyyntö epäonnistui tai vastaus ylitti 1 MiB
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-pyyntö epäonnistui. Tarkista palvelimen URL, asennettu kuvamalli ja curl; aikaraja on 120 sekuntia.
 @msg	Ollama returned no message content	Ollama ei palauttanut viestin sisältöä
@@ -5229,3 +5256,17 @@ mark-style	Japanese	Japanilainen
 @msg	Selected regions were already exported to this destination and format.	Valitut alueet on jo viety tähän kohteeseen ja muotoon.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Vientikansio puuttuu. Ota luonti käyttöön tai valitse olemassa oleva kansio.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG sisältää VectorCraftin esikatselua vastaavan renderöidyn kuvan.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Salaamaton http:// sallitaan vain localhostille; etäpalvelimelle käytä https://
+@msg	Unable to render naming previews	Nimeämisen esikatseluja ei voi piirtää
+@msg	Wait for generation to finish	Odota luonnin valmistumista
+
+# AI naming player and partial results.
+	Apply Ready Names	Käytä valmiita nimiä
+	Play or continue naming	Aloita tai jatka nimeämistä
+	Pause after the current group	Keskeytä nykyisen ryhmän jälkeen
+	Paused; ready names are kept.	Keskeytetty; valmiit nimet säilyvät.
+	Finishing current group…	Viimeistellään nykyistä ryhmää…
+@msg	Naming scope changed. Start over to use the new scope.	Nimeämisen laajuus muuttui. Aloita alusta uuden laajuuden käyttämiseksi.
+@msg	the document changed; generate names again	asiakirja muuttui; luo nimet uudelleen
+	Naming in progress…	Nimeäminen käynnissä…
+	Naming complete.	Nimeäminen valmis.

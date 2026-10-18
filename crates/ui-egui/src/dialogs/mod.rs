@@ -48,6 +48,7 @@ pub mod hyphenation;
 pub mod import_pdf;
 pub mod javascript_files;
 pub mod justification;
+pub mod layer_names;
 pub mod layer_options;
 pub mod layers_panel_options;
 pub mod liquify;
@@ -226,6 +227,7 @@ macro_rules! registry {
 
 registry! {
     AISlices: [ai_slices::KIND] => ai_slices::SPEC,
+    LayerNames: [layer_names::KIND] => layer_names::SPEC,
     DimensionOptions: [dimension::KIND] => dimension::SPEC,
     NewDocument: [new_document::KIND] => new_document::SPEC,
     Shape: ["rectangle", "roundedRectangle", "ellipse", "polygon", "star", "lineSegment", "rectangularGrid", "polarGrid"] => shapes::SPEC,
@@ -396,6 +398,9 @@ pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
 pub(crate) fn settle(app: &mut VectorcraftApp) {
     if app.ui.dialog.as_ref().is_none_or(|d| d.kind != ai_slices::KIND) {
         ai_slices::close(app);
+    }
+    if app.ui.dialog.as_ref().is_none_or(|d| d.kind != layer_names::KIND) {
+        layer_names::close(app);
     }
     missing_fonts::requeue_replaced(app);
     missing_fonts::stop_when_closed(app);

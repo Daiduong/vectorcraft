@@ -5275,3 +5275,26 @@ swatch	Bright Violet	Felviolet
 @msg	Selected regions were already exported to this destination and format.	De geselecteerde gebieden zijn al naar dit doel en formaat geëxporteerd.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	De exportmap ontbreekt. Schakel aanmaken in of kies een bestaande map.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG bevat een gerenderde afbeelding zoals het VectorCraft-voorbeeld.
+# AI-assisted layer naming.
+	Name Layers with AI	Lagen benoemen met AI
+	Layer Naming Candidates	Kandidaten voor laagnamen
+	Apply Layer Names	Laagnamen toepassen
+	Apply Names	Namen toepassen
+	Scope	Bereik
+	Whole document	Hele document
+	Highlighted rows or selection	Gemarkeerde rijen of selectie
+	Group depth	Groepsdiepte
+	Generate Names	Namen voorstellen
+	Previews are sent to the configured Ollama server.	Voorbeelden worden naar de ingestelde Ollama-server verzonden.
+	Analyzing groups…	Groepen analyseren…
+	Review and edit names before applying.	Controleer en bewerk namen voordat u ze toepast.
+	Name Layers with AI…	Lagen benoemen met AI…
+
+# AI naming player and partial results.
+	Apply Ready Names	Gereedstaande namen toepassen
+	Play or continue naming	Naamgeving starten of hervatten
+	Pause after the current group	Pauzeren na de huidige groep
+	Paused; ready names are kept.	Gepauzeerd; gereedstaande namen blijven bewaard.
+	Finishing current group…	Huidige groep afronden…
+	Naming in progress…	Naamgeving bezig…
+	Naming complete.	Naamgeving voltooid.

@@ -5232,3 +5232,26 @@ swatch	Bright Violet	Violet cerah
 @msg	Selected regions were already exported to this destination and format.	Area terpilih sudah diekspor ke tujuan dan format ini.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Folder ekspor tidak ada. Aktifkan pembuatan atau pilih folder yang ada.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG berisi gambar hasil render yang sesuai pratinjau VectorCraft.
+# AI-assisted layer naming.
+	Name Layers with AI	Beri Nama Lapisan dengan AI
+	Layer Naming Candidates	Kandidat Penamaan Lapisan
+	Apply Layer Names	Terapkan Nama Lapisan
+	Apply Names	Terapkan Nama
+	Scope	Cakupan
+	Whole document	Seluruh dokumen
+	Highlighted rows or selection	Baris yang disorot atau seleksi
+	Group depth	Kedalaman grup
+	Generate Names	Usulkan Nama
+	Previews are sent to the configured Ollama server.	Pratinjau dikirim ke server Ollama yang dikonfigurasi.
+	Analyzing groups…	Menganalisis grup…
+	Review and edit names before applying.	Tinjau dan edit nama sebelum menerapkan.
+	Name Layers with AI…	Beri Nama Lapisan dengan AI…
+
+# AI naming player and partial results.
+	Apply Ready Names	Terapkan nama yang selesai
+	Play or continue naming	Mulai atau lanjutkan penamaan
+	Pause after the current group	Jeda setelah grup saat ini
+	Paused; ready names are kept.	Dijeda; nama yang selesai tetap disimpan.
+	Finishing current group…	Menyelesaikan grup saat ini…
+	Naming in progress…	Penamaan berlangsung…
+	Naming complete.	Penamaan selesai.

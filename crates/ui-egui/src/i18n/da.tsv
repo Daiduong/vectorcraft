@@ -5232,3 +5232,26 @@ swatch	Bright Violet	Kraftig violet
 @msg	Selected regions were already exported to this destination and format.	Valgte områder er allerede eksporteret til dette mål og format.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Eksportmappen mangler. Aktivér oprettelse eller vælg en eksisterende mappe.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG indeholder et gengivet billede som VectorCrafts forhåndsvisning.
+# AI-assisted layer naming.
+	Name Layers with AI	Navngiv lag med AI
+	Layer Naming Candidates	Kandidater til lagnavne
+	Apply Layer Names	Anvend lagnavne
+	Apply Names	Anvend navne
+	Scope	Omfang
+	Whole document	Hele dokumentet
+	Highlighted rows or selection	Fremhævede rækker eller markering
+	Group depth	Gruppedybde
+	Generate Names	Foreslå navne
+	Previews are sent to the configured Ollama server.	Forhåndsvisninger sendes til den konfigurerede Ollama-server.
+	Analyzing groups…	Analyserer grupper…
+	Review and edit names before applying.	Gennemse og rediger navne før anvendelse.
+	Name Layers with AI…	Navngiv lag med AI…
+
+# AI naming player and partial results.
+	Apply Ready Names	Anvend færdige navne
+	Play or continue naming	Start eller fortsæt navngivning
+	Pause after the current group	Pause efter den aktuelle gruppe
+	Paused; ready names are kept.	Sat på pause; færdige navne bevares.
+	Finishing current group…	Afslutter den aktuelle gruppe…
+	Naming in progress…	Navngivning i gang…
+	Naming complete.	Navngivning fuldført.

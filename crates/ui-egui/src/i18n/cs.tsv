@@ -5227,6 +5227,33 @@ mark-style	Japanese	Japonské
 @msg	No document	Žádný dokument
 @msg	No request pipe	Chybí kanál požadavku
 @msg	No response pipe	Chybí kanál odpovědi
+# AI-assisted layer naming.
+	Name Layers with AI	Pojmenovat vrstvy pomocí AI
+	Layer Naming Candidates	Kandidáti na pojmenování vrstev
+	Apply Layer Names	Použít názvy vrstev
+	Apply Names	Použít názvy
+	Scope	Rozsah
+	Whole document	Celý dokument
+	Highlighted rows or selection	Označené řádky nebo výběr
+	Group depth	Hloubka skupin
+	Generate Names	Navrhnout názvy
+	Previews are sent to the configured Ollama server.	Náhledy se odesílají na nastavený server Ollama.
+	Analyzing groups…	Analýza skupin…
+	Review and edit names before applying.	Před použitím názvy zkontrolujte a upravte.
+	Name Layers with AI…	Pojmenovat vrstvy pomocí AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Pojmenování vrstev pomocí AI vyžaduje desktopovou aplikaci a Ollama
+@msg	Cannot render group {id}	Nelze vykreslit skupinu {id}
+@msg	Generate names first	Nejprve vygenerujte názvy
+@msg	Invalid artwork bounds	Neplatné hranice kresby
+@msg	Invalid candidate id	Neplatné ID kandidáta
+@msg	Invalid thumbnail	Neplatný náhled
+@msg	Model did not name every requested group; try again	Model nepojmenoval všechny skupiny; zkuste to znovu
+@msg	Model returned an invalid name	Model vrátil neplatný název
+@msg	Model returned duplicate or unknown IDs	Model vrátil duplicitní nebo neznámá ID
+@msg	Model returned no names array	Model nevrátil pole názvů
+@msg	No artwork in the selected groups	Ve vybraných skupinách není kresba
+@msg	No candidates	Žádní kandidáti
+@msg	No visible artwork to analyze	Žádná viditelná kresba k analýze
 @msg	Ollama request failed or response exceeded 1 MiB	Požadavek Ollama selhal nebo odpověď přesáhla 1 MiB
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Požadavek Ollama selhal. Zkontrolujte URL serveru, nainstalovaný model s podporou obrázků a curl; časový limit je 120 sekund.
 @msg	Ollama returned no message content	Ollama nevrátila obsah zprávy
@@ -5265,3 +5292,17 @@ mark-style	Japanese	Japonské
 @msg	Selected regions were already exported to this destination and format.	Vybrané oblasti již byly exportovány do tohoto umístění a formátu.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Složka exportu neexistuje. Povolte vytvoření nebo vyberte existující složku.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG obsahuje vykreslený obrázek odpovídající náhledu VectorCraft.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Prosté http:// je povoleno jen pro localhost; pro vzdálený server použijte https://
+@msg	Unable to render naming previews	Nelze vykreslit náhledy pro pojmenování
+@msg	Wait for generation to finish	Počkejte na dokončení generování
+
+# AI naming player and partial results.
+	Apply Ready Names	Použít hotové názvy
+	Play or continue naming	Spustit nebo pokračovat v pojmenování
+	Pause after the current group	Pozastavit po aktuální skupině
+	Paused; ready names are kept.	Pozastaveno; hotové názvy zůstávají.
+	Finishing current group…	Dokončování aktuální skupiny…
+@msg	Naming scope changed. Start over to use the new scope.	Rozsah pojmenování se změnil. Pro nový rozsah začněte znovu.
+@msg	the document changed; generate names again	dokument se změnil; vygenerujte názvy znovu
+	Naming in progress…	Probíhá pojmenování…
+	Naming complete.	Pojmenování dokončeno.

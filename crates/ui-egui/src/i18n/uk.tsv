@@ -4821,6 +4821,33 @@ lighting	Light	Світло
 @msg	No document	Немає документа
 @msg	No request pipe	Немає каналу запиту
 @msg	No response pipe	Немає каналу відповіді
+# AI-assisted layer naming.
+	Name Layers with AI	Назвати шари за допомогою ШІ
+	Layer Naming Candidates	Кандидати для найменування шарів
+	Apply Layer Names	Застосувати назви шарів
+	Apply Names	Застосувати назви
+	Scope	Область
+	Whole document	Увесь документ
+	Highlighted rows or selection	Позначені рядки або виділення
+	Group depth	Глибина груп
+	Generate Names	Запропонувати назви
+	Previews are sent to the configured Ollama server.	Перегляди надсилаються на вказаний сервер Ollama.
+	Analyzing groups…	Аналіз груп…
+	Review and edit names before applying.	Перевірте та виправте назви перед застосуванням.
+	Name Layers with AI…	Назвати шари за допомогою ШІ…
+@msg	AI layer naming currently requires the desktop app and Ollama	Для найменування шарів із ШІ потрібні настільний застосунок і Ollama
+@msg	Cannot render group {id}	Не вдалося відтворити групу {id}
+@msg	Generate names first	Спочатку запитайте назви
+@msg	Invalid artwork bounds	Некоректні межі малюнка
+@msg	Invalid candidate id	Некоректний ID кандидата
+@msg	Invalid thumbnail	Некоректна мініатюра
+@msg	Model did not name every requested group; try again	Модель назвала не всі групи; спробуйте ще раз
+@msg	Model returned an invalid name	Модель повернула некоректну назву
+@msg	Model returned duplicate or unknown IDs	Модель повернула повторювані або невідомі ID
+@msg	Model returned no names array	Модель не повернула масив назв
+@msg	No artwork in the selected groups	У вибраних групах немає малюнка
+@msg	No candidates	Немає кандидатів
+@msg	No visible artwork to analyze	Немає видимого малюнка для аналізу
 @msg	Ollama request failed or response exceeded 1 MiB	Запит Ollama не вдався або відповідь перевищила 1 МіБ
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Запит Ollama не вдався. Перевірте адресу сервера, установлену модель із підтримкою зображень і curl; час очікування — 120 секунд.
 @msg	Ollama returned no message content	Ollama не повернула вміст повідомлення
@@ -4859,3 +4886,17 @@ lighting	Light	Світло
 @msg	Selected regions were already exported to this destination and format.	Вибрані області вже експортовано до цієї папки та формату.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Папка експорту відсутня. Увімкніть створення папки або виберіть наявну.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG містить растрове зображення для відповідності перегляду VectorCraft.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Відкритий http:// дозволений лише для localhost; для віддаленого сервера використовуйте https://
+@msg	Unable to render naming previews	Не вдалося відтворити перегляди для найменування
+@msg	Wait for generation to finish	Дочекайтеся завершення генерації
+
+# AI naming player and partial results.
+	Apply Ready Names	Застосувати готові назви
+	Play or continue naming	Почати або продовжити іменування
+	Pause after the current group	Пауза після поточної групи
+	Paused; ready names are kept.	Пауза; готові назви збережено.
+	Finishing current group…	Завершення поточної групи…
+@msg	Naming scope changed. Start over to use the new scope.	Область іменування змінилася. Почніть заново для нової області.
+@msg	the document changed; generate names again	документ змінився; створіть назви заново
+	Naming in progress…	Триває іменування…
+	Naming complete.	Іменування завершено.

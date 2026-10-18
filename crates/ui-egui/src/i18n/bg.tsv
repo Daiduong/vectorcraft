@@ -5213,3 +5213,26 @@ theme	Appearance	Външен вид
 @msg	Selected regions were already exported to this destination and format.	Избраните области вече са експортирани в тази папка и формат.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Папката липсва. Включете създаване или изберете съществуваща папка.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG съдържа рендерирано изображение като прегледа на VectorCraft.
+# AI-assisted layer naming.
+	Name Layers with AI	Именуване на слоеве с ИИ
+	Layer Naming Candidates	Кандидати за именуване на слоеве
+	Apply Layer Names	Прилагане на имената на слоевете
+	Apply Names	Прилагане на имената
+	Scope	Обхват
+	Whole document	Целият документ
+	Highlighted rows or selection	Маркирани редове или селекция
+	Group depth	Дълбочина на групите
+	Generate Names	Предлагане на имена
+	Previews are sent to the configured Ollama server.	Прегледите се изпращат до зададения сървър Ollama.
+	Analyzing groups…	Анализиране на групи…
+	Review and edit names before applying.	Проверете и редактирайте имената преди прилагане.
+	Name Layers with AI…	Именуване на слоеве с ИИ…
+
+# AI naming player and partial results.
+	Apply Ready Names	Прилагане на готовите имена
+	Play or continue naming	Начало или продължаване на именуването
+	Pause after the current group	Пауза след текущата група
+	Paused; ready names are kept.	Пауза; готовите имена се запазват.
+	Finishing current group…	Завършване на текущата група…
+	Naming in progress…	Именуването е в ход…
+	Naming complete.	Именуването завърши.

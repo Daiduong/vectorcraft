@@ -5079,6 +5079,33 @@ mark-style	Japanese	Japońskie
 @msg	No document	Brak dokumentu
 @msg	No request pipe	Brak kanału żądania
 @msg	No response pipe	Brak kanału odpowiedzi
+# AI-assisted layer naming.
+	Name Layers with AI	Nazwij warstwy za pomocą AI
+	Layer Naming Candidates	Kandydaci do nazwania warstw
+	Apply Layer Names	Zastosuj nazwy warstw
+	Apply Names	Zastosuj nazwy
+	Scope	Zakres
+	Whole document	Cały dokument
+	Highlighted rows or selection	Podświetlone wiersze lub zaznaczenie
+	Group depth	Głębokość grup
+	Generate Names	Zaproponuj nazwy
+	Previews are sent to the configured Ollama server.	Podglądy są wysyłane do skonfigurowanego serwera Ollama.
+	Analyzing groups…	Analizowanie grup…
+	Review and edit names before applying.	Sprawdź i edytuj nazwy przed zastosowaniem.
+	Name Layers with AI…	Nazwij warstwy za pomocą AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Nazwy warstw z AI wymagają aplikacji komputerowej i Ollama
+@msg	Cannot render group {id}	Nie można wyrenderować grupy {id}
+@msg	Generate names first	Najpierw wygeneruj nazwy
+@msg	Invalid artwork bounds	Nieprawidłowe granice grafiki
+@msg	Invalid candidate id	Nieprawidłowy ID kandydata
+@msg	Invalid thumbnail	Nieprawidłowa miniatura
+@msg	Model did not name every requested group; try again	Model nie nazwał wszystkich grup; spróbuj ponownie
+@msg	Model returned an invalid name	Model zwrócił nieprawidłową nazwę
+@msg	Model returned duplicate or unknown IDs	Model zwrócił powtórzone lub nieznane ID
+@msg	Model returned no names array	Model nie zwrócił tablicy nazw
+@msg	No artwork in the selected groups	Brak grafiki w wybranych grupach
+@msg	No candidates	Brak kandydatów
+@msg	No visible artwork to analyze	Brak widocznej grafiki do analizy
 @msg	Ollama request failed or response exceeded 1 MiB	Żądanie Ollama nie powiodło się lub odpowiedź przekroczyła 1 MiB
 @msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Żądanie Ollama nie powiodło się. Sprawdź adres serwera, zainstalowany model obrazów i curl; limit czasu to 120 sekund.
 @msg	Ollama returned no message content	Ollama nie zwróciła treści wiadomości
@@ -5117,3 +5144,17 @@ mark-style	Japanese	Japońskie
 @msg	Selected regions were already exported to this destination and format.	Wybrane obszary już wyeksportowano do tego miejsca i formatu.
 @msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Folder eksportu nie istnieje. Włącz tworzenie folderu lub wybierz istniejący.
 @msg	SVG contains a rendered image to match the VectorCraft preview.	SVG zawiera renderowany obraz zgodny z podglądem VectorCraft.
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Zwykłe http:// jest dozwolone tylko dla localhost; dla zdalnego serwera użyj https://
+@msg	Unable to render naming previews	Nie można wyrenderować podglądów nazw
+@msg	Wait for generation to finish	Poczekaj na zakończenie generowania
+
+# AI naming player and partial results.
+	Apply Ready Names	Zastosuj gotowe nazwy
+	Play or continue naming	Rozpocznij lub wznów nazywanie
+	Pause after the current group	Wstrzymaj po bieżącej grupie
+	Paused; ready names are kept.	Wstrzymano; gotowe nazwy zachowano.
+	Finishing current group…	Kończenie bieżącej grupy…
+@msg	Naming scope changed. Start over to use the new scope.	Zakres nazywania zmienił się. Zacznij od nowa, aby użyć nowego zakresu.
+@msg	the document changed; generate names again	dokument zmienił się; wygeneruj nazwy ponownie
+	Naming in progress…	Nadawanie nazw…
+	Naming complete.	Nadawanie nazw zakończone.

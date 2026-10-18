@@ -535,7 +535,13 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "ui.sliceWithAI",
         "Slice Artwork with AI…",
         "",
-        "{} open AI region detection and review (aiSlices): configurable Ollama endpoint/model/language, selectionOnly, editable regions, SVG/PNG export and one-step slice creation",
+        "{} open AI region detection and review (aiSlices): shared Ollama connection, selectionOnly, editable regions, SVG/PNG export and one-step slice creation",
+    ),
+    (
+        "ui.nameLayers",
+        "Name Layers with AI…",
+        "",
+        "{} open AI naming settings and editable review; Generate sends group previews to the configured Ollama server; Apply uses layer.applyNames in one undo step",
     ),
     (
         "ui.layerOptions",
@@ -1561,6 +1567,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         }
         "ui.tileEdgeColor" => crate::dialogs::tile_edge_color::open(app),
         "ui.sliceWithAI" => crate::dialogs::ai_slices::open(app),
+        "ui.nameLayers" => crate::dialogs::layer_names::open(app),
         "ui.layerOptions" => crate::dialogs::layer_options::open(app, p),
         "ui.newLayer" => crate::dialogs::layer_options::open_new(app, p),
         "ui.newArtboard" => crate::dialogs::artboard_options::open_new(app),

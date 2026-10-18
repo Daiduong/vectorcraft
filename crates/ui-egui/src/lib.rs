@@ -37,6 +37,7 @@ pub mod icons;
 pub mod io;
 pub mod menus;
 pub mod native_menu;
+mod ollama;
 pub mod opening;
 pub mod palette;
 mod panel_docking;
@@ -457,6 +458,8 @@ pub struct VectorcraftApp {
     /// The look for fonts installed or removed while the app was in the background, running
     /// ([`Self::refresh_installed_fonts`]): whether they were.
     font_check: Option<std::sync::mpsc::Receiver<bool>>,
+    pub(crate) naming_checkpoint: Option<state::Dialog>,
+    pub(crate) naming_job: Option<dialogs::layer_names::Job>,
     /// Keyboard pastes of something other than text (see [`shortcuts::PasteChord`]).
     pub(crate) paste_chord: shortcuts::PasteChord,
     /// Saves and exports running in the background (Preferences → File Handling).
@@ -566,6 +569,8 @@ impl VectorcraftApp {
             ai_slices_job: None,
             screen_sampler: None,
             font_check: None,
+            naming_job: None,
+            naming_checkpoint: None,
             paste_chord: Default::default(),
             background: Default::default(),
             opening: Default::default(),
