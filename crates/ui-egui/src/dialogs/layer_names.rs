@@ -126,7 +126,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         let total=d.fields.get("total").and_then(Value::as_u64).unwrap_or(0) as usize;
         if total>0 {
             ui.label(format!("{done} / {total}"));
-            ui.add(egui::ProgressBar::new(done as f32/total.max(1) as f32).desired_width(300.0).animate(naming_active(d)));
+            crate::widgets::ai_progress(ui, done as f32/total.max(1) as f32, 300.0, naming_active(d));
         }
     });
     if d.bool("complete") {
@@ -643,8 +643,15 @@ mod tests {
             let app = harness.state_mut();
             app.ui.dialog.as_mut().unwrap().fields.insert("busy".into(), json!(true));
             app.naming_job = Some(Job { base: 0, progress, rx, cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) });
-            harness.run_steps(3);
+            harness.run_steps(12);
             harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-paused.png")).unwrap();
+            harness.run_steps(12);
+            harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-paused-next.png")).unwrap();
+            assert!(
+                std::fs::read(std::path::Path::new(&dir).join("layer-naming-paused.png")).unwrap()
+                    == std::fs::read(std::path::Path::new(&dir).join("layer-naming-paused-next.png")).unwrap(),
+                "paused stripes must remain stationary"
+            );
             let app = harness.state_mut();
             let job = app.naming_job.as_ref().unwrap();
             job.progress.paused.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -653,11 +660,21 @@ mod tests {
             harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-running.png")).unwrap();
             harness.run_steps(12);
             harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-running-next.png")).unwrap();
-            assert_ne!(
-                std::fs::read(std::path::Path::new(&dir).join("layer-naming-running.png")).unwrap(),
-                std::fs::read(std::path::Path::new(&dir).join("layer-naming-running-next.png")).unwrap(),
+            assert!(
+                std::fs::read(std::path::Path::new(&dir).join("layer-naming-running.png")).unwrap()
+                    != std::fs::read(std::path::Path::new(&dir).join("layer-naming-running-next.png")).unwrap(),
                 "the zero-progress bar must visibly animate while waiting for the first response"
             );
+            harness
+                .state_mut()
+                .ui
+                .dialog
+                .as_mut()
+                .unwrap()
+                .fields
+                .insert("names".into(), json!([{"id":1,"name":"Coin Counter"},{"id":2,"name":"Settings Button"}]));
+            harness.run_steps(3);
+            harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-striped.png")).unwrap();
             let app = harness.state_mut();
             app.naming_job = None;
             let fields = &mut app.ui.dialog.as_mut().unwrap().fields;

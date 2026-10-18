@@ -1,5 +1,8 @@
 //! Shared widgets. Colours come from theme tokens.
 
+mod ai_progress;
+pub(crate) use ai_progress::ai_progress;
+
 use egui::{Color32, CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
 use vectorcraft_color::{BlendMode, Color, Paint};
 use vectorcraft_doc::Unit;
