@@ -341,6 +341,7 @@ pub(crate) fn transform_each_again(s: &mut Session, p: &Value) -> Result<Value> 
 /// repeats; a dialog's preview records it as it commits (`Session::commit_interaction`).
 fn transform_each_as(s: &mut Session, p: &Value, label: &str) -> Result<Value> {
     let roots = selected_roots(s)?;
+    check_numbers(p, &["scaleH", "scaleV", "moveH", "moveV", "rotate"], "object.transformEach")?;
     // Bounded so coordinates stay finite (and the document stays serializable).
     let sh = f64_or(p, "scaleH", 100.0).clamp(-100_000.0, 100_000.0);
     let sv = f64_or(p, "scaleV", 100.0).clamp(-100_000.0, 100_000.0);
@@ -446,21 +447,52 @@ fn render_png(
     Ok((img.to_png().map_err(EngineError::Other)?, img.width, img.height, warning))
 }
 
-fn rasterize(s: &mut Session, p: &Value) -> Result<Value> {
-    const C: &str = "object.rasterize";
-    let roots = selected_roots(s)?;
-    let st = s.doc()?;
-    let ppi = f64_or(p, "ppi", st.doc.raster_effects_ppi);
+/// The image Object › Rasterize makes of some art, before it goes in a document
+/// ([`rasterize_art`]).
+pub(crate) struct Rasterized {
+    png: Vec<u8>,
+    width: u32,
+    height: u32,
+    /// Image pixels → document.
+    xf: Affine,
+    /// The art's outline, with Create Clipping Mask.
+    clip: Option<(PathData, vectorcraft_geom::FillRule)>,
+    /// The note that an image in the art couldn't be decoded ([`render_png`]).
+    warning: Option<&'static str>,
+}
+
+impl Rasterized {
+    /// The image as a new object of `d` (its pixels in `d.images`), in a clip group with the art's
+    /// outline when it has one.
+    pub(crate) fn into_node(self, d: &mut vectorcraft_doc::Document) -> Node {
+        let key = unique_key(d, "raster");
+        d.images.insert(key.clone(), vectorcraft_doc::ImageBlob::new("image/png", self.png));
+        let id = d.alloc_id();
+        let image = ImageObject { key, width: self.width, height: self.height, xf: self.xf, link: None, placement: Default::default() };
+        let node = Node::new(id, NodeKind::Image(Box::new(image)));
+        match self.clip {
+            Some((path, rule)) => super::rasterfx::clip_group(d, path, rule, node),
+            None => node,
+        }
+    }
+}
+
+/// Object › Rasterize's image of `nodes` (drawn also where hidden) with the params `p` of command
+/// `cmd`, each defaulting to `doc`'s raster effects settings: over the bounds of what the art draws
+/// ([`vectorcraft_render::drawn_bounds`]) and the room around them, in whole pixels.
+pub(crate) fn rasterize_art(doc: &vectorcraft_doc::Document, nodes: Vec<Node>, p: &Value, cmd: &str) -> Result<Rasterized> {
+    check_numbers(p, &["ppi"], cmd)?;
+    let ppi = f64_or(p, "ppi", doc.raster_effects_ppi);
     if !(1.0..=2400.0).contains(&ppi) {
-        return Err(bad(C, "ppi must be between 1 and 2400"));
+        return Err(bad(cmd, "ppi must be between 1 and 2400"));
     }
     // The document's raster effects settings, changed by the params.
-    let mut look = st.doc.raster_effects.clone();
+    let mut look = doc.raster_effects.clone();
     let mut background = (look.background == vectorcraft_doc::Background::White).then_some([255; 3]);
     let mut anti_alias = if look.anti_alias { AntiAlias::Art } else { AntiAlias::None };
     for (k, v) in p.as_object().into_iter().flatten().filter(|(_, v)| !v.is_null()) {
         match k.as_str() {
-            "background" => background = fileio::background(v).map_err(|e| bad(C, e))?,
+            "background" => background = fileio::background(v).map_err(|e| bad(cmd, e))?,
             "antiAlias" => {
                 anti_alias = match v {
                     Value::Bool(b) => {
@@ -470,50 +502,65 @@ fn rasterize(s: &mut Session, p: &Value) -> Result<Value> {
                             AntiAlias::None
                         }
                     }
-                    v => fileio::anti_alias(v.as_str().unwrap_or_default()).map_err(|e| bad(C, e))?,
+                    v => fileio::anti_alias(v.as_str().unwrap_or_default()).map_err(|e| bad(cmd, e))?,
                 }
             }
-            "padding" | "addAround" => look.add_around = super::rasterfx::add_around(v, C, k)?,
-            "colorModel" => look.color_model = super::rasterfx::color_model(v, st.doc.color_mode, C)?,
-            "clippingMask" => look.clipping_mask = v.as_bool().ok_or_else(|| bad(C, "clippingMask must be true or false"))?,
+            "padding" | "addAround" => look.add_around = super::rasterfx::add_around(v, cmd, k)?,
+            "colorModel" => look.color_model = super::rasterfx::color_model(v, doc.color_mode, cmd)?,
+            "clippingMask" => look.clipping_mask = v.as_bool().ok_or_else(|| bad(cmd, "clippingMask must be true or false"))?,
             _ => {}
         }
     }
     let raster = RasterExportOptions { ppi, background, anti_alias, ..Default::default() };
     let pad = look.add_around;
-    let b = st.doc.bounds_of(&roots, true).ok_or_else(|| bad(C, "selection has no bounds"))?.inflate(pad, pad);
-    let scale = ppi / 72.0;
-    // Snap to whole pixels.
-    let region = Rect::new(b.x0, b.y0, b.x0 + (b.width() * scale).ceil().max(1.0) / scale, b.y0 + (b.height() * scale).ceil().max(1.0) / scale);
-    let nodes: Vec<Node> = roots
-        .iter()
-        .filter_map(|id| st.doc.node(*id).cloned())
+    let nodes: Vec<Node> = nodes
+        .into_iter()
         .map(|mut n| {
             n.visible = true;
             n
         })
         .collect();
-    // Create Clipping Mask: the image is clipped to the art's outline.
+    // What the art draws, its geometry effects applied.
+    let b = nodes.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, vectorcraft_render::drawn_bounds(doc, n)));
+    let b = b.ok_or_else(|| bad(cmd, "selection has no bounds"))?.inflate(pad, pad);
+    let scale = ppi / 72.0;
+    // Snap to whole pixels.
+    let region = Rect::new(b.x0, b.y0, b.x0 + (b.width() * scale).ceil().max(1.0) / scale, b.y0 + (b.height() * scale).ceil().max(1.0) / scale);
+    // Create Clipping Mask: the image is clipped to the art's outline with its geometry effects
+    // applied, as on the canvas.
     let clip = look
         .clipping_mask
-        .then(|| vectorcraft_render::effects::clip_outline(&Node::group(NodeId(u64::MAX), nodes.iter().cloned().map(Arc::new).collect())))
+        .then(|| {
+            let outlines = nodes.iter().filter_map(|n| {
+                let (bp, rule) = vectorcraft_render::drawn_outline(doc, n)?;
+                let mut p = Node::path(n.id, PathData::from_bezpath(&bp), Appearance::default());
+                if let NodeKind::Path { rule: r, .. } = &mut p.kind {
+                    *r = rule;
+                }
+                Some(Arc::new(p))
+            });
+            vectorcraft_render::effects::clip_outline(&Node::group(NodeId(u64::MAX), outlines.collect()))
+        })
         .flatten()
         .map(|(bp, rule)| (PathData::from_bezpath(&bp), rule));
-    let tmp = isolated_doc(&st.doc, nodes);
-    let (png, w, h, warning) = render_png(&tmp, region, scale, &raster.render_options(RasterFormat::Png), look.color_model)?;
+    let tmp = isolated_doc(doc, nodes);
+    let (png, width, height, warning) = render_png(&tmp, region, scale, &raster.render_options(RasterFormat::Png), look.color_model)?;
+    let xf = Affine::translate(region.origin().to_vec2()) * Affine::scale(1.0 / scale);
+    Ok(Rasterized { png, width, height, xf, clip, warning })
+}
+
+fn rasterize(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "object.rasterize";
+    let roots = selected_roots(s)?;
+    let st = s.doc()?;
+    let nodes: Vec<Node> = roots.iter().filter_map(|id| st.doc.node(*id).cloned()).collect();
+    let image = rasterize_art(&st.doc, nodes, p, C)?;
+    let (w, h, warning) = (image.width, image.height, image.warning);
     if roots.is_empty() {
         return Err(bad(C, "nothing selected"));
     }
     let id = s.edit("Rasterize", |d, sel| {
-        let key = unique_key(d, "raster");
-        d.images.insert(key.clone(), vectorcraft_doc::ImageBlob::new("image/png", png));
-        let id = d.alloc_id();
-        let xf = Affine::translate(region.origin().to_vec2()) * Affine::scale(1.0 / scale);
-        let mut node =
-            Node::new(id, NodeKind::Image(Box::new(ImageObject { key, width: w, height: h, xf, link: None, placement: Default::default() })));
-        if let Some((path, rule)) = clip {
-            node = super::rasterfx::clip_group(d, path, rule, node);
-        }
+        let node = image.into_node(d);
         let id = d.wrap(&roots, |_| node)?;
         sel.set([id]);
         Ok(id)
@@ -555,6 +602,7 @@ fn object_mosaic(s: &mut Session, p: &Value) -> Result<Value> {
     let colors = vectorcraft_trace::mosaic(&raster, cols, rows);
     // Tiles in image space, placed by the image transform (scaled to a new size if asked).
     let b = node.geometric_bounds().ok_or_else(|| bad(C, "image has no bounds"))?;
+    check_numbers(p, &["width", "height", "spacingX", "spacingY"], C)?;
     let (nw, nh) = (f64_or(p, "width", b.width()).max(0.1), f64_or(p, "height", b.height()).max(0.1));
     let resize = Affine::translate(b.origin().to_vec2())
         * Affine::scale_non_uniform(nw / b.width().max(1e-9), nh / b.height().max(1e-9))
@@ -626,8 +674,8 @@ fn crop_image(s: &mut Session, p: &Value) -> Result<Value> {
         return trim_image(s, id, (**im).clone());
     }
     let ib = node.geometric_bounds().ok_or_else(|| bad(C, "image has no bounds"))?;
-    let rect = match p.get("rect").and_then(Value::as_array) {
-        Some(a) if a.len() == 4 => {
+    let rect = match p.get("rect").filter(|v| !v.is_null()) {
+        Some(Value::Array(a)) if a.len() == 4 => {
             let v: Vec<f64> = a.iter().filter_map(Value::as_f64).collect();
             if v.len() != 4 {
                 return Err(bad(C, "rect must be [x, y, width, height]"));
@@ -787,6 +835,7 @@ impl Session {
 
 fn trim_marks(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.createTrimMarks";
+    check_numbers(p, &["offset", "length", "bleed", "weight"], C)?;
     let style = match str_param(p, "style") {
         Some(v) => MarkStyle::parse(v).ok_or_else(|| bad(C, "`style` must be roman or japanese"))?,
         None => s.crop_mark_style(),
@@ -956,6 +1005,7 @@ fn rearrange_artboards(s: &mut Session, p: &Value) -> Result<Value> {
         L::Row => (1, n_ab),
         L::Column => (n_ab, 1),
     };
+    check_numbers(p, &["spacing"], CMD)?;
     let spacing = f64_or(p, "spacing", 20.0).clamp(-1.0e5, 1.0e5);
     let move_art = bool_or(p, "moveArtwork", true);
     let locked_and_hidden = s.prefs.move_locked_with_artboard;

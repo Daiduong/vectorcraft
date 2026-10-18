@@ -329,11 +329,13 @@ struct Writer<'a> {
 }
 
 /// The characters type uses from one face, under one `@font-face` description: the family the
-/// type names and the weight and italic its style asks for.
+/// type names and the weight, italic and width its style asks for.
 struct FontUse {
     family: String,
     weight: u16,
     italic: bool,
+    /// The `font-stretch` percentage ([`css::font_stretch`]), as bits; `None` for the normal width.
+    stretch: Option<u64>,
     face: Arc<FontFace>,
     chars: BTreeSet<char>,
 }
@@ -689,12 +691,13 @@ impl Writer<'_> {
         match styling {
             Styling::PresentationAttributes => {
                 // CSS-only properties go in a style attribute (SVG Tiny has none: left out).
-                let (style, attrs): (Vec<_>, Vec<_>) =
-                    props.iter().partition(|(k, _)| matches!(*k, "mix-blend-mode" | "isolation" | "font-feature-settings" | "font-kerning"));
+                let (style, attrs): (Vec<_>, Vec<_>) = props.iter().partition(|(k, _)| {
+                    matches!(*k, "mix-blend-mode" | "isolation" | "font-feature-settings" | "font-variation-settings" | "font-kerning")
+                });
                 let mut s: String = attrs.iter().map(|(k, v)| format!(" {k}=\"{}\"", xml_escape(v))).collect();
                 if !style.is_empty() {
                     if self.tiny() {
-                        self.warn("SVG Tiny 1.2 has no style sheets: blend modes, isolation and font features are left out");
+                        self.warn("SVG Tiny 1.2 has no style sheets: blend modes, isolation, font features and font variation settings are left out");
                     } else {
                         s.push_str(&format!(" style=\"{}\"", xml_escape(&css::declarations(style))));
                     }
@@ -1648,11 +1651,15 @@ impl Writer<'_> {
             return 0;
         }
         let bounds = n.visual_bounds_with(&self.doc.symbol_boxes());
-        let reach: f64 = fx.iter().map(|f| f.outset(bounds.unwrap_or_default())).sum::<f64>() + 2.0;
+        // An Outer Glow's silhouette grows by a quarter of a pixel of the document's raster grid first.
+        let grow = 18.0 / self.doc.raster_ppi();
+        let reach: f64 =
+            fx.iter().map(|f| f.outset(bounds.unwrap_or_default()) + if matches!(f, RasterFx::OuterGlow { .. }) { grow } else { 0.0 }).sum::<f64>()
+                + 2.0;
         let region = bounds.map(|b| self.xf.transform_rect_bbox(b).inflate(reach, reach));
         let mut opened = 0;
         for f in fx.iter().rev() {
-            if matches!(f, RasterFx::Pixel(_)) {
+            if matches!(f, RasterFx::Pixel(_) | RasterFx::Rasterize(_)) {
                 self.warn("SVG has no pixel effects such as Radial Blur, Smart Blur or Unsharp Mask: they are left out");
                 continue;
             }
@@ -1688,8 +1695,10 @@ impl Writer<'_> {
                     self.num(*dy),
                     flood(color, *opacity)
                 ),
+                // The glow blurs a solid silhouette (alpha × 255 makes any alpha full) grown by a quarter raster pixel.
                 RasterFx::OuterGlow { opacity, blur, color, .. } => format!(
-                    "<feGaussianBlur in=\"SourceAlpha\" stdDeviation=\"{}\" result=\"glow\"/>{}<feComposite in2=\"glow\" operator=\"in\" result=\"paint\"/><feMerge><feMergeNode in=\"paint\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>",
+                    "<feComponentTransfer in=\"SourceAlpha\"><feFuncA type=\"linear\" slope=\"255\"/></feComponentTransfer><feMorphology operator=\"dilate\" radius=\"{}\"/><feGaussianBlur stdDeviation=\"{}\" result=\"glow\"/>{}<feComposite in2=\"glow\" operator=\"in\" result=\"paint\"/><feMerge><feMergeNode in=\"paint\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>",
+                    fmt_num(grow, 3),
                     sd(*blur),
                     flood(color, *opacity)
                 ),
@@ -1713,7 +1722,7 @@ impl Writer<'_> {
                     sd(*radius)
                 ),
                 RasterFx::GaussianBlur { radius } => format!("<feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"{}\"/>", sd(*radius)),
-                RasterFx::Pixel(_) => continue,
+                RasterFx::Pixel(_) | RasterFx::Rasterize(_) => continue,
             };
             // Filters composite normally: a shadow's or glow's other blend mode is recorded for import.
             let mode = match f {
@@ -2004,8 +2013,8 @@ impl Writer<'_> {
             // After a tab, an inline graphic or a justified word space, and before a character that a
             // reader would draw elsewhere, the next segment is placed.
             place = seg.brk || (!fewer && !base.anchored && positioned);
-            if (st.h_scale - st.v_scale).abs() > 1e-9 {
-                attrs.push_str(&format!(" textLength=\"{}\" lengthAdjust=\"spacingAndGlyphs\"", self.num(seg.advance)));
+            if (st.h_scale - st.v_scale).abs() > 1e-9 || seg.scale != 1.0 {
+                attrs.push_str(&format!(" textLength=\"{}\" lengthAdjust=\"spacingAndGlyphs\"", self.num(seg.advance * seg.scale)));
             }
             if st.rotation != 0.0 {
                 attrs.push_str(&format!(" rotate=\"{}\"", self.num(-st.rotation)));
@@ -2043,10 +2052,14 @@ impl Writer<'_> {
             }
             let Some(f) = &face else { continue };
             let (weight, italic) = font_descriptor(st);
-            let at = self.fonts.iter().position(|u| u.face.id() == f.id() && (u.weight, u.italic) == (weight, italic) && u.family == st.font_family);
+            let stretch = css::font_stretch(st).map(f64::to_bits);
+            let at = self
+                .fonts
+                .iter()
+                .position(|u| u.face.id() == f.id() && (u.weight, u.italic, u.stretch) == (weight, italic, stretch) && u.family == st.font_family);
             let at = at.unwrap_or_else(|| {
                 let family = st.font_family.clone();
-                self.fonts.push(FontUse { family, weight, italic, face: f.clone(), chars: BTreeSet::new() });
+                self.fonts.push(FontUse { family, weight, italic, stretch, face: f.clone(), chars: BTreeSet::new() });
                 self.fonts.len() - 1
             });
             let Some(chars) = self.fonts.get_mut(at).map(|u| &mut u.chars) else { continue };
@@ -2065,10 +2078,30 @@ impl Writer<'_> {
     /// The `@font-face` rules of the faces type uses ([`ExportOptions::embed_fonts`]): each face
     /// subset to its characters (whole when its licence forbids subsetting, left out with a
     /// warning when it forbids embedding). Faces sharing a description cover their own
-    /// characters (`unicode-range`).
+    /// characters (`unicode-range`); where two of them share characters as well, a warning says
+    /// that browsers draw those in one of the faces.
     fn font_faces(&mut self) -> Vec<String> {
         let uses = std::mem::take(&mut self.fonts);
         let mut rules = Vec::new();
+        fn described(u: &FontUse) -> (&str, u16, bool, Option<u64>) {
+            (&u.family, u.weight, u.italic, u.stretch)
+        }
+        let mut clashing: Vec<&String> = vec![];
+        for (i, u) in uses.iter().enumerate() {
+            let clash = uses
+                .get(..i)
+                .unwrap_or_default()
+                .iter()
+                .any(|o| described(o) == described(u) && o.face.id() != u.face.id() && !o.chars.is_disjoint(&u.chars));
+            if clash && !clashing.contains(&&u.family) {
+                clashing.push(&u.family);
+            }
+        }
+        for family in clashing {
+            self.warn(&format!(
+                "type in {family} uses faces of one weight, style and width that share characters: browsers draw those characters in one of the embedded faces"
+            ));
+        }
         for u in &uses {
             let chars: Vec<char> = u.chars.iter().copied().collect();
             let name = format!("{} {}", u.face.family, u.face.style);
@@ -2079,11 +2112,12 @@ impl Writer<'_> {
             if !font.subset {
                 self.warn(&format!("the font {name} is embedded whole: its licence doesn't allow subsetting"));
             }
-            let shared = uses.iter().filter(|o| (&o.family, o.weight, o.italic) == (&u.family, u.weight, u.italic)).count() > 1;
+            let shared = uses.iter().filter(|o| described(o) == described(u)).count() > 1;
             let range = if shared { format!(";unicode-range:{}", unicode_range(&u.chars)) } else { String::new() };
+            let stretch = u.stretch.map(|w| format!(";font-stretch:{}%", fmt_num(f64::from_bits(w), 3))).unwrap_or_default();
             let (mime, format) = if font.cff { ("font/otf", "opentype") } else { ("font/ttf", "truetype") };
             rules.push(format!(
-                "@font-face{{font-family:{};font-weight:{};font-style:{};src:url(data:{mime};base64,{}) format(\"{format}\"){range}}}",
+                "@font-face{{font-family:{};font-weight:{};font-style:{}{stretch};src:url(data:{mime};base64,{}) format(\"{format}\"){range}}}",
                 css_string(&u.family),
                 u.weight,
                 if u.italic { "italic" } else { "normal" },
@@ -2142,7 +2176,7 @@ fn run_diff(base: &Props, run: Props) -> Props {
 /// on a `<tspan>`).
 fn initial_value(k: &str) -> Option<&'static str> {
     Some(match k {
-        "font-weight" | "font-style" | "font-feature-settings" => "normal",
+        "font-weight" | "font-style" | "font-stretch" | "font-feature-settings" | "font-variation-settings" => "normal",
         "stroke" | "stroke-dasharray" => "none",
         "stroke-width" | "stroke-opacity" => "1",
         "stroke-linecap" => "butt",
@@ -2212,6 +2246,9 @@ struct Segment {
     /// The next segment needs its own position (after a tab, a word space of a justified line, or
     /// the next segment starts with a character the layout draws elsewhere than a reader would).
     brk: bool,
+    /// Glyph Scaling of the segment's one glyph (Justification…), which a reader stretches it to
+    /// (`textLength`); 1 for other segments.
+    scale: f64,
 }
 
 /// How far a reader may draw a character from where the layout draws it before the character is
@@ -2234,7 +2271,10 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
         let style = t.para_at(para);
         let split_words = !fewer && !matches!(style.justify, Justify::Auto | Justify::Left | Justify::Center | Justify::Right);
         // Each cluster's advance and drawing offset as a reader gives them, by its byte offset.
-        let reader = if split_words || (!fewer && !style.mojikumi.is_none()) {
+        // Justification…'s Desired word and letter spacing and glyph scaling move characters from
+        // where a reader draws them, on every line.
+        let spaced = !fewer && !style.justification.desired_is_default();
+        let reader = if split_words || spaced || (!fewer && !style.mojikumi.is_none()) {
             Some(&*kerned.get_or_insert_with(|| reader_advances(t, lay, true)))
         } else {
             None
@@ -2287,7 +2327,9 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
             let src: String = source(g).chars().filter(|c| *c != '\u{ad}').map(|c| run.style.digits.map(c)).collect();
             let piece = if run.style.all_caps { src.to_uppercase() } else { src };
             let brk = piece == "\t" || (split_words && !piece.is_empty() && piece.chars().all(char::is_whitespace));
-            let fresh = std::mem::take(&mut after_inline);
+            // A glyph Glyph Scaling widens or narrows is a segment of its own, stretched to its width.
+            let scale = if reader.is_some() && (g.scale - 1.0).abs() > 1e-9 && g.scale.is_finite() { g.scale } else { 1.0 };
+            let fresh = std::mem::take(&mut after_inline) || scale != 1.0 || segs.last().is_some_and(|last| last.scale != 1.0);
             // The layout draws the character elsewhere than a reader continuing the line would.
             let moved = reader.is_some()
                 && segs.last().is_some_and(|last| (x - pen).abs() > PLACE_TOLERANCE || (g.origin.y - last.y).abs() > PLACE_TOLERANCE);
@@ -2303,7 +2345,7 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
                         last.brk |= moved;
                         end_segment(last, tail, t, lay, &mut unkerned);
                     }
-                    segs.push(Segment { run: g.run, x, y: g.origin.y, text: piece, advance, brk });
+                    segs.push(Segment { run: g.run, x, y: g.origin.y, text: piece, advance, brk, scale });
                 }
             }
             tail = set.map(|_| (g.byte, advance));
@@ -2319,7 +2361,7 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
     lines
 }
 
-/// Ends segment `seg` of horizontally scaled type, which a reader stretches to its width
+/// Ends segment `seg` of horizontally scaled type (or a glyph Glyph Scaling scales), which a reader stretches to its width
 /// (`textLength`): its last cluster (`tail`: byte offset and reader's advance) takes the advance
 /// a reader gives it at the end of a `<tspan>`, without the font's kerning against the character
 /// after it. `unkerned` holds [`reader_advances`] without kerning once a segment needs them.
@@ -2331,7 +2373,7 @@ fn end_segment(
     unkerned: &mut Option<HashMap<usize, (f64, f64)>>,
 ) {
     let Some((byte, advance)) = tail else { return };
-    if t.runs.get(seg.run).is_none_or(|r| (r.style.h_scale - r.style.v_scale).abs() <= 1e-9) {
+    if seg.scale == 1.0 && t.runs.get(seg.run).is_none_or(|r| (r.style.h_scale - r.style.v_scale).abs() <= 1e-9) {
         return;
     }
     if let Some(&(alone, _)) = unkerned.get_or_insert_with(|| reader_advances(t, lay, false)).get(&byte) {
@@ -2348,6 +2390,8 @@ fn reader_advances(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: 
     let mut set = TextObject { kind: TextKind::Point, ..t.clone() };
     for p in std::iter::once(&mut set.para).chain(set.paras.iter_mut()) {
         p.mojikumi = vectorcraft_doc::Mojikumi::None;
+        // A reader spaces words and letters as the font does.
+        p.justification = vectorcraft_doc::JustificationOptions::default();
     }
     if !kerning {
         for r in &mut set.runs {
