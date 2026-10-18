@@ -5223,3 +5223,16 @@ theme	Appearance	Apparence
 	Processing…	Traitement…
 	Paused	En pause
 	Completed	Terminé
+	Connection and scope	Connexion et portée
+	Slice created	Tranche créée
+	Create folder if missing	Créer le dossier si absent
+	Export keeps your selection. Slice creation and exports are tracked separately.	L’export conserve la sélection. Création de tranches et exports sont suivis séparément.
+	Match preview (SVG embeds an image)	Comme l’aperçu (image intégrée au SVG)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Le SVG rendu préserve l’apparence ; augmentez l’échelle pour plus de résolution.
+	Editable vectors may look different in other SVG viewers.	Les vecteurs modifiables peuvent différer dans d’autres lecteurs SVG.
+	Selected regions were already exported to this destination and format.	Les zones sélectionnées ont déjà été exportées vers cette destination et ce format.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Le dossier d’export manque. Activez sa création ou choisissez un dossier existant.
+	SVG contains a rendered image to match the VectorCraft preview.	Le SVG contient une image rendue correspondant à l’aperçu VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Les zones sélectionnées ont déjà été exportées vers cette destination et ce format.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Le dossier d’export manque. Activez sa création ou choisissez un dossier existant.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	Le SVG contient une image rendue correspondant à l’aperçu VectorCraft.

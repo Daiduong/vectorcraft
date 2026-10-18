@@ -21,7 +21,7 @@ pub fn specs() -> Vec<CommandSpec> {
             apply
         ),
         cmd!(query "slice.exportAI", "Export AI Slices", [], None,
-            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name,x,y,width,height,sourceIds?: [id…],candidateIndex?: 0..63 (stable export number)}], ignoreBackground?: true, ignoreShadows?: true (omit narrowly recognized rear shadows), format?: svg|png, scale?: 1, folder?} crop visible artwork to each reviewed region. No folder → {files:[{name,dataBase64}],warnings}; folder → {files:[path],warnings}; refuses existing files. SVG preserves vectors and clipping; PNG preserves transparency. Up to 64 regions and 16 million raster pixels per batch", has_doc, export),
+            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name,x,y,width,height,sourceIds?: [id…],candidateIndex?: 0..63 (stable export number)}], ignoreBackground?: true, ignoreShadows?: true (omit narrowly recognized rear shadows), format?: svg|png, matchPreview?: false (SVG embeds a transparent rendered image), scale?: 1, folder?, createFolder?: true} crop visible artwork to each reviewed region. No folder → {files:[{name,dataBase64}],warnings}; folder → {files:[path],warnings}; refuses existing files. Editable SVG preserves vectors and clipping; matchPreview SVG embeds a transparent rendered image at scale. PNG preserves transparency. Up to 64 regions and 16 million raster pixels per batch", has_doc, export),
     ]
 }
 
@@ -34,6 +34,19 @@ fn guard(s: &Session, p: &Value) -> Result<()> {
         return Err(bad(C, "the selection changed; detect elements again"));
     }
     Ok(())
+}
+
+/// A bounded, portable single folder component for document/AI collection titles.
+pub fn safe_collection_folder(name: &str) -> String {
+    let mut short = String::new();
+    for c in name.trim_matches(['.', ' ']).chars() {
+        if short.len() + c.len_utf8() > 160 {
+            break;
+        }
+        short.push(c);
+    }
+    let safe = fileio::safe_file_name(&short);
+    if safe.is_empty() { "Assets".into() } else { safe }
 }
 
 /// Prepare a disposable export copy. Only a bottommost, plain rectangular sheet-sized
@@ -466,7 +479,7 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(C, "scale must be greater than zero and at most 16"));
     }
     let mut pixels = 0u64;
-    if format == "png" {
+    if format == "png" || bool_or(p, "matchPreview", false) {
         for (_, r) in &regions {
             let (w, h) = vectorcraft_render::raster_size(*r, scale).map_err(|e| bad(C, e))?;
             pixels = pixels.saturating_add(u64::from(w) * u64::from(h));
@@ -497,7 +510,15 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
         }
         let number = p["regions"].get(i).and_then(|row| row["candidateIndex"].as_u64()).filter(|n| *n < 64).map_or(i + 1, |n| n as usize + 1);
         let filename = format!("{number:02}-{stem}.{format}");
-        let bytes = if format == "svg" {
+        let bytes = if format == "svg" && bool_or(p, "matchPreview", false) {
+            let image = renderer.render_region(&source, *r, scale, false);
+            let width = f64::from(image.width) / scale;
+            let height = f64::from(image.height) / scale;
+            let png = image.to_png().map_err(EngineError::Other)?;
+            let data = vectorcraft_svg::base64_encode(&png);
+            warnings.push("SVG contains a rendered image to match the VectorCraft preview.".into());
+            format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" overflow="hidden" width="{}" height="{}" viewBox="0 0 {} {}"><image width="{}" height="{}" preserveAspectRatio="none" xlink:href="data:image/png;base64,{}"/></svg>"#,r.width(),r.height(),r.width(),r.height(),width,height,data).into_bytes()
+        } else if format == "svg" {
             let mut cropped = fileio::art_over(&source, *r);
             cropped.artboards = vec![Artboard { id: 1, name: name.clone(), rect: *r, show_center_mark: false, show_cross_hairs: false }];
             let (svg, notes) = vectorcraft_svg::export_with_report(&cropped, &vectorcraft_svg::ExportOptions::default());
@@ -520,7 +541,11 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
         if paths.iter().any(|path| std::path::Path::new(path).exists()) {
             return Err(bad(C, "an output file already exists; choose an empty folder"));
         }
-        fileio::create_dir(folder)?;
+        if bool_or(p, "createFolder", true) {
+            fileio::create_dir(folder)?;
+        } else if !std::path::Path::new(folder).is_dir() {
+            return Err(bad(C, "The export folder does not exist. Enable Create folder if missing or choose an existing folder."));
+        }
         let mut written = Vec::new();
         for ((_, bytes), path) in files.iter().zip(&paths) {
             if let Err(e) = fileio::write_new_file(path, bytes) {
@@ -621,11 +646,81 @@ mod tests {
                 std::fs::write(std::path::Path::new(&folder).join(format!("screen-{}.{format}", i + 1)), bytes).unwrap();
             }
         }
+        for i in [0, 1, 18, 20] {
+            let mut row = snapshot["regions"][i].clone();
+            row["name"] = json!(format!("Asset {}", i + 1));
+            for format in ["svg", "png"] {
+                let out = session
+                    .execute(
+                        "slice.exportAI",
+                        &json!({"uid":snapshot["uid"],"revision":snapshot["revision"],"regions":[row],"format":format,"matchPreview":true,"scale":2}),
+                    )
+                    .unwrap();
+                let bytes = vectorcraft_format::base64_decode(out["files"][0]["dataBase64"].as_str().unwrap()).unwrap();
+                std::fs::write(std::path::Path::new(&folder).join(format!("preview-{}.{format}", i + 1)), bytes).unwrap();
+            }
+        }
         assert!(std::sync::Arc::ptr_eq(&before, &session.doc().unwrap().doc));
+    }
+    #[test]
+    fn preview_svg_embeds_native_pixels_and_enforces_raster_limits() {
+        let (mut s, mut p) = fixture();
+        p["matchPreview"] = json!(true);
+        p["scale"] = json!(2.0);
+        let before = s.doc().unwrap().doc.clone();
+        let result = s.execute("slice.exportAI", &p).unwrap();
+        let svg = String::from_utf8(vectorcraft_format::base64_decode(result["files"][0]["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
+        assert!(svg.contains("viewBox=\"0 0 44 24\""));
+        let png = svg.split("base64,").nth(1).unwrap().split('"').next().unwrap();
+        let pixels = image::load_from_memory(&vectorcraft_format::base64_decode(png).unwrap()).unwrap().to_rgba8();
+        let native = vectorcraft_render::Renderer::new().render_region(
+            &prepare_source_with_options((*before).clone(), true, true),
+            Rect::new(8., 8., 52., 32.),
+            2.,
+            false,
+        );
+        let decoded = image::load_from_memory(&native.to_png().unwrap()).unwrap().to_rgba8();
+        assert_eq!(pixels, decoded);
+        assert!(std::sync::Arc::ptr_eq(&before, &s.doc().unwrap().doc));
+        p["regions"] = json!([{"name":"Huge","x":0,"y":0,"width":5000,"height":5000}]);
+        assert!(s.execute("slice.exportAI", &p).is_err());
+        p["matchPreview"] = json!(false);
+        assert!(s.execute("slice.exportAI", &p).is_ok(), "editable vectors do not allocate raster pixels");
+    }
+    #[test]
+    fn folder_creation_is_explicit_and_collection_component_is_safe() {
+        let (mut s, mut p) = fixture();
+        let folder = std::env::temp_dir().join(format!("vectorcraft-no-mkdir-{}", std::process::id())).join("nested");
+        if let Some(parent) = folder.parent()
+            && parent.exists()
+        {
+            std::fs::remove_dir_all(parent).unwrap();
+        }
+        p["folder"] = json!(folder.to_str().unwrap());
+        p["createFolder"] = json!(false);
+        assert!(s.execute("slice.exportAI", &p).is_err());
+        assert!(!folder.exists());
+        assert!(!folder.parent().unwrap().exists());
+        p["createFolder"] = json!(true);
+        s.execute("slice.exportAI", &p).unwrap();
+        assert!(folder.is_dir());
+        std::fs::remove_dir_all(folder.parent().unwrap()).unwrap();
+        let long = "🎨".repeat(80);
+        for name in ["..", "../outside", "CON", "NUL.", "two/parts\\name", long.as_str()] {
+            let safe = safe_collection_folder(name);
+            assert!(!safe.is_empty());
+            assert!(safe.len() <= 161);
+            assert_eq!(std::path::Path::new(&safe).components().count(), 1);
+            assert!(!safe.contains('/'));
+            assert!(!safe.contains('\\'));
+            assert_ne!(safe, "..");
+        }
     }
     #[test]
     fn player_parameters_are_advertised() {
         super::super::params::check_params("slice.aiSnapshot", &json!({"ignoreShadows":true})).unwrap();
+        super::super::params::check_params("slice.exportAI", &json!({"uid":1,"revision":0,"createFolder":false,"matchPreview":true,"regions":[]}))
+            .unwrap();
         super::super::params::check_params("slice.exportAI", &json!({"uid":1,"revision":0,"ignoreShadows":false,"regions":[]})).unwrap();
         super::super::params::check_params("slice.applyAI", &serde_json::json!({"uid":1,"revision":0,"preserveSelection":true,"regions":[]}))
             .unwrap();

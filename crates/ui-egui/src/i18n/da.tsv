@@ -5196,3 +5196,16 @@ swatch	Bright Violet	Kraftig violet
 	Processing…	Behandler…
 	Paused	På pause
 	Completed	Fuldført
+	Connection and scope	Forbindelse og omfang
+	Slice created	Udsnit oprettet
+	Create folder if missing	Opret mappe hvis den mangler
+	Export keeps your selection. Slice creation and exports are tracked separately.	Eksport bevarer valget. Oprettelse af udsnit og eksport spores separat.
+	Match preview (SVG embeds an image)	Som forhåndsvisning (SVG med billede)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Gengivet SVG bevarer udseendet; øg skalaen for højere opløsning.
+	Editable vectors may look different in other SVG viewers.	Redigerbare vektorer kan se anderledes ud i andre SVG-visere.
+	Selected regions were already exported to this destination and format.	Valgte områder er allerede eksporteret til dette mål og format.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Eksportmappen mangler. Aktivér oprettelse eller vælg en eksisterende mappe.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG indeholder et gengivet billede som VectorCrafts forhåndsvisning.
+@msg	Selected regions were already exported to this destination and format.	Valgte områder er allerede eksporteret til dette mål og format.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Eksportmappen mangler. Aktivér oprettelse eller vælg en eksisterende mappe.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG indeholder et gengivet billede som VectorCrafts forhåndsvisning.

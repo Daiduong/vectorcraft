@@ -5239,3 +5239,16 @@ swatch	Bright Violet	Felviolet
 	Processing…	Verwerken…
 	Paused	Gepauzeerd
 	Completed	Voltooid
+	Connection and scope	Verbinding en bereik
+	Slice created	Segment gemaakt
+	Create folder if missing	Map maken indien afwezig
+	Export keeps your selection. Slice creation and exports are tracked separately.	Export behoudt de selectie. Segmenten maken en exporteren worden apart bijgehouden.
+	Match preview (SVG embeds an image)	Zoals voorbeeld (SVG bevat afbeelding)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Gerenderde SVG behoudt het uiterlijk; verhoog de schaal voor meer resolutie.
+	Editable vectors may look different in other SVG viewers.	Bewerkbare vectoren kunnen in andere SVG-viewers anders ogen.
+	Selected regions were already exported to this destination and format.	De geselecteerde gebieden zijn al naar dit doel en formaat geëxporteerd.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	De exportmap ontbreekt. Schakel aanmaken in of kies een bestaande map.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG bevat een gerenderde afbeelding zoals het VectorCraft-voorbeeld.
+@msg	Selected regions were already exported to this destination and format.	De geselecteerde gebieden zijn al naar dit doel en formaat geëxporteerd.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	De exportmap ontbreekt. Schakel aanmaken in of kies een bestaande map.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG bevat een gerenderde afbeelding zoals het VectorCraft-voorbeeld.

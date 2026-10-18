@@ -4833,3 +4833,16 @@ lighting	Light	Свет
 	Processing…	Обработка…
 	Paused	Приостановлено
 	Completed	Завершено
+	Connection and scope	Подключение и область
+	Slice created	Срез создан
+	Create folder if missing	Создать папку, если отсутствует
+	Export keeps your selection. Slice creation and exports are tracked separately.	Экспорт сохраняет выбор. Создание срезов и экспорт учитываются отдельно.
+	Match preview (SVG embeds an image)	Как в превью (изображение внутри SVG)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Растровый SVG сохраняет внешний вид; увеличьте масштаб для лучшего разрешения.
+	Editable vectors may look different in other SVG viewers.	Редактируемые векторы могут выглядеть иначе в других просмотрщиках SVG.
+	Selected regions were already exported to this destination and format.	Выбранные области уже экспортированы в эту папку и формат.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Папка экспорта отсутствует. Включите создание папки или выберите существующую.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG содержит растровое изображение для совпадения с превью VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Выбранные области уже экспортированы в эту папку и формат.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Папка экспорта отсутствует. Включите создание папки или выберите существующую.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG содержит растровое изображение для совпадения с превью VectorCraft.

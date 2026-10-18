@@ -4837,3 +4837,16 @@ lighting	Light	Luce
 	Processing…	Elaborazione…
 	Paused	In pausa
 	Completed	Completato
+	Connection and scope	Connessione e ambito
+	Slice created	Sezione creata
+	Create folder if missing	Crea cartella se assente
+	Export keeps your selection. Slice creation and exports are tracked separately.	L’esportazione conserva la selezione. Creazione di sezioni ed esportazioni sono registrate separatamente.
+	Match preview (SVG embeds an image)	Come l’anteprima (SVG con immagine)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	L’SVG renderizzato conserva l’aspetto; aumenta la scala per maggiore risoluzione.
+	Editable vectors may look different in other SVG viewers.	I vettori modificabili possono apparire diversi in altri visualizzatori SVG.
+	Selected regions were already exported to this destination and format.	Le aree selezionate sono già state esportate in questa destinazione e formato.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	La cartella non esiste. Abilita la creazione o scegli una cartella esistente.
+	SVG contains a rendered image to match the VectorCraft preview.	L’SVG contiene un’immagine renderizzata conforme all’anteprima VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Le aree selezionate sono già state esportate in questa destinazione e formato.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	La cartella non esiste. Abilita la creazione o scegli una cartella esistente.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	L’SVG contiene un’immagine renderizzata conforme all’anteprima VectorCraft.

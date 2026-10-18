@@ -5180,3 +5180,16 @@ theme	Appearance	Utseende
 	Processing…	Bearbetar…
 	Paused	Pausad
 	Completed	Slutfört
+	Connection and scope	Anslutning och omfång
+	Slice created	Utsnitt skapat
+	Create folder if missing	Skapa mapp om den saknas
+	Export keeps your selection. Slice creation and exports are tracked separately.	Export behåller urvalet. Skapande av utsnitt och export spåras separat.
+	Match preview (SVG embeds an image)	Som förhandsvisning (SVG med bild)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Renderad SVG bevarar utseendet; öka skalan för högre upplösning.
+	Editable vectors may look different in other SVG viewers.	Redigerbara vektorer kan se annorlunda ut i andra SVG-visare.
+	Selected regions were already exported to this destination and format.	Valda områden har redan exporterats till detta mål och format.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Exportmappen saknas. Aktivera skapande eller välj en befintlig mapp.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG innehåller en renderad bild som matchar VectorCrafts förhandsvisning.
+@msg	Selected regions were already exported to this destination and format.	Valda områden har redan exporterats till detta mål och format.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Exportmappen saknas. Aktivera skapande eller välj en befintlig mapp.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG innehåller en renderad bild som matchar VectorCrafts förhandsvisning.

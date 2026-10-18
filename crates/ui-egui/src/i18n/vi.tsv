@@ -4817,3 +4817,16 @@ theme	Appearance	Giao diện
 	Processing…	Đang xử lý…
 	Paused	Đã tạm dừng
 	Completed	Hoàn tất
+	Connection and scope	Kết nối và phạm vi
+	Slice created	Đã tạo lát
+	Create folder if missing	Tạo thư mục nếu chưa có
+	Export keeps your selection. Slice creation and exports are tracked separately.	Xuất giữ nguyên lựa chọn. Tạo lát và xuất được theo dõi riêng.
+	Match preview (SVG embeds an image)	Như bản xem trước (SVG nhúng ảnh)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	SVG kết xuất giữ nguyên hình thức; tăng tỷ lệ để có độ phân giải cao hơn.
+	Editable vectors may look different in other SVG viewers.	Vectơ chỉnh sửa được có thể khác trong trình xem SVG khác.
+	Selected regions were already exported to this destination and format.	Các vùng đã chọn đã được xuất tới đích và định dạng này.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Thư mục xuất chưa có. Bật tạo thư mục hoặc chọn thư mục có sẵn.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG chứa ảnh kết xuất khớp bản xem trước VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Các vùng đã chọn đã được xuất tới đích và định dạng này.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Thư mục xuất chưa có. Bật tạo thư mục hoặc chọn thư mục có sẵn.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG chứa ảnh kết xuất khớp bản xem trước VectorCraft.

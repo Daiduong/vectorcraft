@@ -5166,3 +5166,16 @@ mark-style	Japanese	Japonesas
 	Processing…	Procesando…
 	Paused	En pausa
 	Completed	Completado
+	Connection and scope	Conexión y alcance
+	Slice created	Sector creado
+	Create folder if missing	Crear carpeta si no existe
+	Export keeps your selection. Slice creation and exports are tracked separately.	Exportar conserva la selección. La creación de sectores y las exportaciones se registran por separado.
+	Match preview (SVG embeds an image)	Como la vista previa (SVG con imagen)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	El SVG renderizado conserva el aspecto; aumente la escala para mayor resolución.
+	Editable vectors may look different in other SVG viewers.	Los vectores editables pueden verse distintos en otros visores SVG.
+	Selected regions were already exported to this destination and format.	Las regiones seleccionadas ya se exportaron a este destino y formato.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	La carpeta no existe. Active su creación o elija una carpeta existente.
+	SVG contains a rendered image to match the VectorCraft preview.	El SVG contiene una imagen renderizada igual a la vista previa de VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Las regiones seleccionadas ya se exportaron a este destino y formato.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	La carpeta no existe. Active su creación o elija una carpeta existente.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	El SVG contiene una imagen renderizada igual a la vista previa de VectorCraft.

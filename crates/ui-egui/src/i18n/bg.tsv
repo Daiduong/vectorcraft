@@ -5177,3 +5177,16 @@ theme	Appearance	Външен вид
 	Processing…	Обработка…
 	Paused	На пауза
 	Completed	Завършено
+	Connection and scope	Връзка и обхват
+	Slice created	Отрязъкът е създаден
+	Create folder if missing	Създаване на липсваща папка
+	Export keeps your selection. Slice creation and exports are tracked separately.	Експортът запазва избора. Създаването на отрязъци и експортът се следят отделно.
+	Match preview (SVG embeds an image)	Като прегледа (SVG съдържа изображение)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Рендерираният SVG запазва вида; увеличете мащаба за по-висока резолюция.
+	Editable vectors may look different in other SVG viewers.	Редактируемите вектори може да изглеждат различно в други SVG визуализатори.
+	Selected regions were already exported to this destination and format.	Избраните области вече са експортирани в тази папка и формат.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Папката липсва. Включете създаване или изберете съществуваща папка.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG съдържа рендерирано изображение като прегледа на VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Избраните области вече са експортирани в тази папка и формат.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Папката липсва. Включете създаване или изберете съществуваща папка.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG съдържа рендерирано изображение като прегледа на VectorCraft.

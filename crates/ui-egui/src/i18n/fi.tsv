@@ -5188,3 +5188,16 @@ mark-style	Japanese	Japanilainen
 	Processing…	Käsitellään…
 	Paused	Keskeytetty
 	Completed	Valmis
+	Connection and scope	Yhteys ja alue
+	Slice created	Viipale luotu
+	Create folder if missing	Luo puuttuva kansio
+	Export keeps your selection. Slice creation and exports are tracked separately.	Vienti säilyttää valinnan. Viipaleiden luontia ja vientiä seurataan erikseen.
+	Match preview (SVG embeds an image)	Kuten esikatselu (SVG sisältää kuvan)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Renderöity SVG säilyttää ulkoasun; suurempi skaala lisää tarkkuutta.
+	Editable vectors may look different in other SVG viewers.	Muokattavat vektorit voivat näyttää erilaisilta muissa SVG-katselimissa.
+	Selected regions were already exported to this destination and format.	Valitut alueet on jo viety tähän kohteeseen ja muotoon.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Vientikansio puuttuu. Ota luonti käyttöön tai valitse olemassa oleva kansio.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG sisältää VectorCraftin esikatselua vastaavan renderöidyn kuvan.
+@msg	Selected regions were already exported to this destination and format.	Valitut alueet on jo viety tähän kohteeseen ja muotoon.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Vientikansio puuttuu. Ota luonti käyttöön tai valitse olemassa oleva kansio.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG sisältää VectorCraftin esikatselua vastaavan renderöidyn kuvan.

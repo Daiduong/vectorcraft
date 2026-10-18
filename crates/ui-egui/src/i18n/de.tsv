@@ -4799,3 +4799,16 @@ effect	Regular	Regelmäßig
 	Processing…	Verarbeitung…
 	Paused	Pausiert
 	Completed	Abgeschlossen
+	Connection and scope	Verbindung und Bereich
+	Slice created	Slice erstellt
+	Create folder if missing	Fehlenden Ordner erstellen
+	Export keeps your selection. Slice creation and exports are tracked separately.	Export behält die Auswahl. Slice-Erstellung und Exporte werden getrennt verfolgt.
+	Match preview (SVG embeds an image)	Wie Vorschau (SVG enthält ein Bild)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Gerendertes SVG bewahrt das Aussehen; höhere Skalierung erhöht die Auflösung.
+	Editable vectors may look different in other SVG viewers.	Editierbare Vektoren können in anderen SVG-Anzeigen anders aussehen.
+	Selected regions were already exported to this destination and format.	Die ausgewählten Bereiche wurden bereits in dieses Ziel und Format exportiert.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Der Exportordner fehlt. Ordnererstellung aktivieren oder vorhandenen Ordner wählen.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG enthält ein gerendertes Bild entsprechend der VectorCraft-Vorschau.
+@msg	Selected regions were already exported to this destination and format.	Die ausgewählten Bereiche wurden bereits in dieses Ziel und Format exportiert.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Der Exportordner fehlt. Ordnererstellung aktivieren oder vorhandenen Ordner wählen.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG enthält ein gerendertes Bild entsprechend der VectorCraft-Vorschau.

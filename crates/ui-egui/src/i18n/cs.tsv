@@ -5224,3 +5224,16 @@ mark-style	Japanese	Japonské
 	Processing…	Zpracování…
 	Paused	Pozastaveno
 	Completed	Dokončeno
+	Connection and scope	Připojení a rozsah
+	Slice created	Výřez vytvořen
+	Create folder if missing	Vytvořit chybějící složku
+	Export keeps your selection. Slice creation and exports are tracked separately.	Export zachová výběr. Vytváření výřezů a exporty se sledují odděleně.
+	Match preview (SVG embeds an image)	Jako náhled (SVG obsahuje obrázek)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Vykreslené SVG zachová vzhled; vyšší měřítko zvýší rozlišení.
+	Editable vectors may look different in other SVG viewers.	Upravitelné vektory mohou v jiných prohlížečích SVG vypadat jinak.
+	Selected regions were already exported to this destination and format.	Vybrané oblasti již byly exportovány do tohoto umístění a formátu.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Složka exportu neexistuje. Povolte vytvoření nebo vyberte existující složku.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG obsahuje vykreslený obrázek odpovídající náhledu VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Vybrané oblasti již byly exportovány do tohoto umístění a formátu.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Složka exportu neexistuje. Povolte vytvoření nebo vyberte existující složku.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG obsahuje vykreslený obrázek odpovídající náhledu VectorCraft.

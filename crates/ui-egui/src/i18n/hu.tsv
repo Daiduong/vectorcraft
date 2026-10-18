@@ -5210,3 +5210,16 @@ imageTrace	Outline	Körvonal
 	Processing…	Feldolgozás…
 	Paused	Szüneteltetve
 	Completed	Befejezve
+	Connection and scope	Kapcsolat és hatókör
+	Slice created	Szelet létrehozva
+	Create folder if missing	Hiányzó mappa létrehozása
+	Export keeps your selection. Slice creation and exports are tracked separately.	Az export megőrzi a kijelölést. A szeletkészítés és az export külön követett.
+	Match preview (SVG embeds an image)	Mint az előnézet (SVG beágyazott képpel)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	A renderelt SVG megőrzi a megjelenést; nagyobb skála jobb felbontást ad.
+	Editable vectors may look different in other SVG viewers.	A szerkeszthető vektorok más SVG-megjelenítőkben eltérhetnek.
+	Selected regions were already exported to this destination and format.	A kijelölt területek már exportálva lettek ide és ebben a formátumban.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Az exportmappa hiányzik. Engedélyezze a létrehozást vagy válasszon meglévőt.
+	SVG contains a rendered image to match the VectorCraft preview.	Az SVG a VectorCraft előnézetével egyező renderelt képet tartalmaz.
+@msg	Selected regions were already exported to this destination and format.	A kijelölt területek már exportálva lettek ide és ebben a formátumban.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Az exportmappa hiányzik. Engedélyezze a létrehozást vagy válasszon meglévőt.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	Az SVG a VectorCraft előnézetével egyező renderelt képet tartalmaz.

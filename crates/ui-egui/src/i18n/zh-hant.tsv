@@ -4105,3 +4105,16 @@ lighting	Light	光源
 	Processing…	正在處理…
 	Paused	已暫停
 	Completed	已完成
+	Connection and scope	連線與範圍
+	Slice created	切片已建立
+	Create folder if missing	建立不存在的資料夾
+	Export keeps your selection. Slice creation and exports are tracked separately.	匯出保留選取。切片建立和匯出分別記錄。
+	Match preview (SVG embeds an image)	符合預覽（SVG嵌入影像）
+	Rendered SVG preserves appearance; increase scale for higher resolution.	算繪的SVG保留外觀；增加倍率可提高解析度。
+	Editable vectors may look different in other SVG viewers.	可編輯向量在其他SVG檢視器中可能顯示不同。
+	Selected regions were already exported to this destination and format.	所選區域已匯出至此目標與格式。
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	匯出資料夾不存在。請啟用建立資料夾或選擇現有資料夾。
+	SVG contains a rendered image to match the VectorCraft preview.	SVG包含與VectorCraft預覽一致的算繪影像。
+@msg	Selected regions were already exported to this destination and format.	所選區域已匯出至此目標與格式。
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	匯出資料夾不存在。請啟用建立資料夾或選擇現有資料夾。
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG包含與VectorCraft預覽一致的算繪影像。

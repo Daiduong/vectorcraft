@@ -4878,3 +4878,16 @@ lighting	Light	ライト
 	Processing…	処理中…
 	Paused	一時停止中
 	Completed	完了
+	Connection and scope	接続と対象範囲
+	Slice created	スライス作成済み
+	Create folder if missing	フォルダーがなければ作成
+	Export keeps your selection. Slice creation and exports are tracked separately.	書き出し後も選択は維持されます。スライス作成と書き出しは個別に記録します。
+	Match preview (SVG embeds an image)	プレビューに合わせる（SVGに画像を埋め込み）
+	Rendered SVG preserves appearance; increase scale for higher resolution.	描画済みSVGは外観を保ちます。高解像度には倍率を上げてください。
+	Editable vectors may look different in other SVG viewers.	編集可能なベクターは他のSVGビューアーで表示が異なる場合があります。
+	Selected regions were already exported to this destination and format.	選択領域はこの保存先と形式に書き出し済みです。
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	保存先フォルダーがありません。フォルダー作成を有効にするか既存のフォルダーを選択してください。
+	SVG contains a rendered image to match the VectorCraft preview.	SVGにはVectorCraftのプレビューに合わせた描画済み画像が含まれます。
+@msg	Selected regions were already exported to this destination and format.	選択領域はこの保存先と形式に書き出し済みです。
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	保存先フォルダーがありません。フォルダー作成を有効にするか既存のフォルダーを選択してください。
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVGにはVectorCraftのプレビューに合わせた描画済み画像が含まれます。

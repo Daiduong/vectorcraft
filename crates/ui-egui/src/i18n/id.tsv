@@ -5196,3 +5196,16 @@ swatch	Bright Violet	Violet cerah
 	Processing…	Memproses…
 	Paused	Dijeda
 	Completed	Selesai
+	Connection and scope	Koneksi dan cakupan
+	Slice created	Irisan dibuat
+	Create folder if missing	Buat folder jika belum ada
+	Export keeps your selection. Slice creation and exports are tracked separately.	Ekspor mempertahankan pilihan. Pembuatan irisan dan ekspor dilacak terpisah.
+	Match preview (SVG embeds an image)	Seperti pratinjau (SVG berisi gambar)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	SVG yang dirender menjaga tampilan; naikkan skala untuk resolusi lebih tinggi.
+	Editable vectors may look different in other SVG viewers.	Vektor yang dapat diedit mungkin berbeda di penampil SVG lain.
+	Selected regions were already exported to this destination and format.	Area terpilih sudah diekspor ke tujuan dan format ini.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Folder ekspor tidak ada. Aktifkan pembuatan atau pilih folder yang ada.
+	SVG contains a rendered image to match the VectorCraft preview.	SVG berisi gambar hasil render yang sesuai pratinjau VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Area terpilih sudah diekspor ke tujuan dan format ini.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Folder ekspor tidak ada. Aktifkan pembuatan atau pilih folder yang ada.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	SVG berisi gambar hasil render yang sesuai pratinjau VectorCraft.

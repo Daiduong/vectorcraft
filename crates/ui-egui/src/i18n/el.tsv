@@ -5176,3 +5176,16 @@ effect	Points	Σημεία
 	Processing…	Επεξεργασία…
 	Paused	Σε παύση
 	Completed	Ολοκληρώθηκε
+	Connection and scope	Σύνδεση και εύρος
+	Slice created	Δημιουργήθηκε φέτα
+	Create folder if missing	Δημιουργία φακέλου αν λείπει
+	Export keeps your selection. Slice creation and exports are tracked separately.	Η εξαγωγή διατηρεί την επιλογή. Η δημιουργία φετών και οι εξαγωγές καταγράφονται χωριστά.
+	Match preview (SVG embeds an image)	Όπως η προεπισκόπηση (SVG με εικόνα)
+	Rendered SVG preserves appearance; increase scale for higher resolution.	Το αποδοσμένο SVG διατηρεί την εμφάνιση· αυξήστε την κλίμακα για μεγαλύτερη ανάλυση.
+	Editable vectors may look different in other SVG viewers.	Τα επεξεργάσιμα διανύσματα μπορεί να διαφέρουν σε άλλους προβολείς SVG.
+	Selected regions were already exported to this destination and format.	Οι επιλεγμένες περιοχές έχουν ήδη εξαχθεί σε αυτόν τον προορισμό και μορφή.
+	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Ο φάκελος λείπει. Ενεργοποιήστε τη δημιουργία ή επιλέξτε υπάρχοντα φάκελο.
+	SVG contains a rendered image to match the VectorCraft preview.	Το SVG περιέχει αποδοσμένη εικόνα όπως η προεπισκόπηση του VectorCraft.
+@msg	Selected regions were already exported to this destination and format.	Οι επιλεγμένες περιοχές έχουν ήδη εξαχθεί σε αυτόν τον προορισμό και μορφή.
+@msg	The export folder does not exist. Enable Create folder if missing or choose an existing folder.	Ο φάκελος λείπει. Ενεργοποιήστε τη δημιουργία ή επιλέξτε υπάρχοντα φάκελο.
+@msg	SVG contains a rendered image to match the VectorCraft preview.	Το SVG περιέχει αποδοσμένη εικόνα όπως η προεπισκόπηση του VectorCraft.
