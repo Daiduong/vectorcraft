@@ -12,15 +12,12 @@ repository = "https://github.com/storytold/vectorcraft"
 
 [workspace.dependencies]
 craft-pdf = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d", default-features = false, features = ["interpret", "write"] }
-<<<<<<< HEAD
 craft-docpath = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "82a24b006eefa036b43c09a67fb9a3fbd17ffe63" }
-=======
 # Shared print backends and registry (spooler, WS-Print, IPP, tracked jobs): craft-libs#116 until it merges;
 # then pin an immutable revision. The `wsd`/`ipp` features are chosen by vectorcraft-print's `network-print`
 # feature, so a build without it keeps the spooler only. craft-ui's `printing::network` destination is #112.
 craft-print = { git = "https://github.com/storytold/craft-libs", rev = "refs/pull/116/head", default-features = false }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "refs/pull/112/head", features = ["serde"] }
->>>>>>> cc1b42f3 (Print: a network printer destination (WS-Print and IPP) in the Print dialog)
 # internal
 vectorcraft-geom = { path = "crates/geom" }
 vectorcraft-color = { path = "crates/color" }
