@@ -4874,3 +4874,7 @@ lighting	Light	ライト
 @msg	Pause before using ready elements	完了した要素を使用する前に一時停止してください
 @msg	Slicing scope changed. Start over to use the new scope.	切り抜き範囲が変更されました。新しい範囲でやり直してください。
 @msg	The document changed. Start over to detect elements again.	ドキュメントが変更されました。要素の検出をやり直してください。
+	Ignore external shadows	外側の影を無視
+	Processing…	処理中…
+	Paused	一時停止中
+	Completed	完了

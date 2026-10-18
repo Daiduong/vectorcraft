@@ -5219,3 +5219,7 @@ theme	Appearance	Apparence
 @msg	Pause before using ready elements	Mettez en pause avant d’utiliser les éléments prêts
 @msg	Slicing scope changed. Start over to use the new scope.	La portée de découpe a changé. Recommencez avec la nouvelle portée.
 @msg	The document changed. Start over to detect elements again.	Le document a changé. Relancez la détection des éléments.
+	Ignore external shadows	Ignorer les ombres extérieures
+	Processing…	Traitement…
+	Paused	En pause
+	Completed	Terminé

@@ -4795,3 +4795,7 @@ effect	Regular	Regelmäßig
 @msg	Pause before using ready elements	Vor dem Verwenden fertiger Elemente pausieren
 @msg	Slicing scope changed. Start over to use the new scope.	Der Zuschnittbereich hat sich geändert. Beginnen Sie mit dem neuen Bereich neu.
 @msg	The document changed. Start over to detect elements again.	Das Dokument hat sich geändert. Starten Sie die Elementerkennung neu.
+	Ignore external shadows	Äußere Schatten ignorieren
+	Processing…	Verarbeitung…
+	Paused	Pausiert
+	Completed	Abgeschlossen

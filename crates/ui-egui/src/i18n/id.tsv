@@ -5192,3 +5192,7 @@ swatch	Bright Violet	Violet cerah
 @msg	Pause before using ready elements	Jeda sebelum menggunakan elemen yang siap
 @msg	Slicing scope changed. Start over to use the new scope.	Cakupan pemotongan berubah. Mulai ulang dengan cakupan baru.
 @msg	The document changed. Start over to detect elements again.	Dokumen berubah. Mulai ulang pendeteksian elemen.
+	Ignore external shadows	Abaikan bayangan luar
+	Processing…	Memproses…
+	Paused	Dijeda
+	Completed	Selesai

@@ -5235,3 +5235,7 @@ swatch	Bright Violet	Felviolet
 @msg	Pause before using ready elements	Pauzeer voordat u gereedstaande elementen gebruikt
 @msg	Slicing scope changed. Start over to use the new scope.	Het uitsnijbereik is gewijzigd. Begin opnieuw met het nieuwe bereik.
 @msg	The document changed. Start over to detect elements again.	Het document is gewijzigd. Start de elementdetectie opnieuw.
+	Ignore external shadows	Externe schaduwen negeren
+	Processing…	Verwerken…
+	Paused	Gepauzeerd
+	Completed	Voltooid

@@ -5206,3 +5206,7 @@ imageTrace	Outline	Körvonal
 @msg	Pause before using ready elements	Szüneteltesse a kész elemek használata előtt
 @msg	Slicing scope changed. Start over to use the new scope.	A kivágás hatóköre megváltozott. Kezdje újra az új hatókörrel.
 @msg	The document changed. Start over to detect elements again.	A dokumentum megváltozott. Indítsa újra az elemek felismerését.
+	Ignore external shadows	Külső árnyékok figyelmen kívül hagyása
+	Processing…	Feldolgozás…
+	Paused	Szüneteltetve
+	Completed	Befejezve

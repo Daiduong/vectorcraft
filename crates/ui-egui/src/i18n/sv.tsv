@@ -5176,3 +5176,7 @@ theme	Appearance	Utseende
 @msg	Pause before using ready elements	Pausa innan du använder färdiga element
 @msg	Slicing scope changed. Start over to use the new scope.	Beskärningsområdet ändrades. Börja om med det nya området.
 @msg	The document changed. Start over to detect elements again.	Dokumentet ändrades. Starta elementidentifieringen på nytt.
+	Ignore external shadows	Ignorera yttre skuggor
+	Processing…	Bearbetar…
+	Paused	Pausad
+	Completed	Slutfört

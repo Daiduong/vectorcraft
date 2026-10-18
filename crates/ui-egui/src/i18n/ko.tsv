@@ -4797,3 +4797,7 @@ lighting	Light	광원
 @msg	Pause before using ready elements	완료된 요소를 사용하기 전에 일시 정지하세요
 @msg	Slicing scope changed. Start over to use the new scope.	분할 범위가 변경되었습니다. 새 범위로 다시 시작하세요.
 @msg	The document changed. Start over to detect elements again.	문서가 변경되었습니다. 요소 감지를 다시 시작하세요.
+	Ignore external shadows	외부 그림자 무시
+	Processing…	처리 중…
+	Paused	일시 정지됨
+	Completed	완료

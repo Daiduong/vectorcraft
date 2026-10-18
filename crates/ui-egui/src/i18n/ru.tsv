@@ -4829,3 +4829,7 @@ lighting	Light	Свет
 @msg	Pause before using ready elements	Приостановите обработку перед использованием готовых элементов
 @msg	Slicing scope changed. Start over to use the new scope.	Область нарезки изменилась. Начните заново с новой областью.
 @msg	The document changed. Start over to detect elements again.	Документ изменился. Начните обнаружение элементов заново.
+	Ignore external shadows	Игнорировать внешние тени
+	Processing…	Обработка…
+	Paused	Приостановлено
+	Completed	Завершено

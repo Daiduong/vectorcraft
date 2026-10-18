@@ -4833,3 +4833,7 @@ lighting	Light	Luce
 @msg	Pause before using ready elements	Metti in pausa prima di usare gli elementi pronti
 @msg	Slicing scope changed. Start over to use the new scope.	L’ambito di ritaglio è cambiato. Ricomincia con il nuovo ambito.
 @msg	The document changed. Start over to detect elements again.	Il documento è cambiato. Riavvia il rilevamento degli elementi.
+	Ignore external shadows	Ignora ombre esterne
+	Processing…	Elaborazione…
+	Paused	In pausa
+	Completed	Completato

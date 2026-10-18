@@ -5056,3 +5056,7 @@ lighting	Light	光源
 @msg	Pause before using ready elements	使用已完成的元素前请先暂停
 @msg	Slicing scope changed. Start over to use the new scope.	切片范围已更改。请使用新范围重新开始。
 @msg	The document changed. Start over to detect elements again.	文档已更改。请重新检测元素。
+	Ignore external shadows	忽略外部阴影
+	Processing…	正在处理…
+	Paused	已暂停
+	Completed	已完成

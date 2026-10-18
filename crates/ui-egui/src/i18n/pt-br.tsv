@@ -5137,3 +5137,7 @@ mark-style	Japanese	Japonesas
 @msg	Pause before using ready elements	Pause antes de usar os elementos prontos
 @msg	Slicing scope changed. Start over to use the new scope.	O escopo de recorte mudou. Recomece com o novo escopo.
 @msg	The document changed. Start over to detect elements again.	O documento mudou. Reinicie a detecção de elementos.
+	Ignore external shadows	Ignorar sombras externas
+	Processing…	Processando…
+	Paused	Pausado
+	Completed	Concluído

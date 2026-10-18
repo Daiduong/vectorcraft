@@ -5184,3 +5184,7 @@ mark-style	Japanese	Japanilainen
 @msg	Pause before using ready elements	Keskeytä ennen valmiiden kohteiden käyttöä
 @msg	Slicing scope changed. Start over to use the new scope.	Leikkausalue muuttui. Aloita alusta uudella alueella.
 @msg	The document changed. Start over to detect elements again.	Asiakirja muuttui. Aloita kohteiden tunnistus uudelleen.
+	Ignore external shadows	Ohita ulkoiset varjot
+	Processing…	Käsitellään…
+	Paused	Keskeytetty
+	Completed	Valmis

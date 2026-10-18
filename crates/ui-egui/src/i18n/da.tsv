@@ -5192,3 +5192,7 @@ swatch	Bright Violet	Kraftig violet
 @msg	Pause before using ready elements	Sæt på pause før brug af færdige elementer
 @msg	Slicing scope changed. Start over to use the new scope.	Beskæringsområdet er ændret. Start forfra med det nye område.
 @msg	The document changed. Start over to detect elements again.	Dokumentet er ændret. Start elementregistreringen forfra.
+	Ignore external shadows	Ignorer ydre skygger
+	Processing…	Behandler…
+	Paused	På pause
+	Completed	Fuldført

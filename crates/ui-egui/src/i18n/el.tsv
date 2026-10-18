@@ -5172,3 +5172,7 @@ effect	Points	Σημεία
 @msg	Pause before using ready elements	Κάντε παύση πριν χρησιμοποιήσετε τα έτοιμα στοιχεία
 @msg	Slicing scope changed. Start over to use the new scope.	Το πεδίο τεμαχισμού άλλαξε. Ξεκινήστε ξανά με το νέο πεδίο.
 @msg	The document changed. Start over to detect elements again.	Το έγγραφο άλλαξε. Ξεκινήστε ξανά την ανίχνευση στοιχείων.
+	Ignore external shadows	Αγνόηση εξωτερικών σκιών
+	Processing…	Επεξεργασία…
+	Paused	Σε παύση
+	Completed	Ολοκληρώθηκε

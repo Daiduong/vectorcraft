@@ -37,8 +37,8 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
         app.ai_slices_job = None;
     }
     app.ai_slices_job = None;
-    let mut fields = json!({"endpoint":"http://localhost:11434/api/chat","model":"qwen2.5vl:3b","language":"English","selectionOnly":false,"ignoreBackground":true,"format":"svg","scale":1,"folder":""});
-    for key in ["endpoint", "model", "language", "ignoreBackground"] {
+    let mut fields = json!({"endpoint":"http://localhost:11434/api/chat","model":"qwen2.5vl:3b","language":"English","selectionOnly":false,"ignoreBackground":true,"ignoreShadows":true,"format":"svg","scale":1,"folder":""});
+    for key in ["endpoint", "model", "language", "ignoreBackground", "ignoreShadows"] {
         if let Some(v) = app.ui.ai_slice_settings.get(key) {
             fields[key] = v.clone();
         }
@@ -75,6 +75,7 @@ fn guard(app: &VectorcraftApp, d: &Dialog) -> Result<(), String> {
     }
     if d.bool("selectionOnly") != d.bool("__selectionOnly")
         || d.bool("ignoreBackground") != d.bool("__ignoreBackground")
+        || d.bool("ignoreShadows") != d.bool("__ignoreShadows")
         || (d.bool("__selectionOnly") && d.fields.get("selectionIds") != Some(&json!(st.selection.objects.iter().map(|id| id.0).collect::<Vec<_>>())))
     {
         return Err("Slicing scope changed. Start over to use the new scope.".into());
@@ -195,12 +196,13 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         });
         form::check(ui, d, "selectionOnly", tl!("Selection Only"));
         form::check(ui, d, "ignoreBackground", tl!("Ignore sheet background"));
+        form::check(ui, d, "ignoreShadows", tl!("Ignore external shadows"));
     });
     ui.horizontal(|ui| {
         let can_play = !d.bool("stale") && !d.bool("complete") && (!d.bool("busy") || d.bool("paused"));
         if player_button(ui,tl!("Play or continue slicing"),can_play,true).clicked() {
             d.fields.remove("error");
-            app.ui.ai_slice_settings = json!({"endpoint":d.str("endpoint"),"model":d.str("model"),"language":d.str("language"),"ignoreBackground":d.bool("ignoreBackground")});
+            app.ui.ai_slice_settings = json!({"endpoint":d.str("endpoint"),"model":d.str("model"),"language":d.str("language"),"ignoreBackground":d.bool("ignoreBackground"),"ignoreShadows":d.bool("ignoreShadows")});
             let live = app.ai_slices_job.as_ref().is_some_and(|j| j.rx.is_some());
             if live {
                 if let Some(job) = &app.ai_slices_job && let Ok(mut state) = job.progress.lock() { state.paused = false; }
@@ -218,7 +220,23 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let done = d.fields.get("done").and_then(Value::as_u64).unwrap_or(0);
     let total = d.fields.get("total").and_then(Value::as_u64).unwrap_or(0);
     if total > 0 {
-        ui.add(egui::ProgressBar::new(done as f32 / total as f32).desired_width(660.0).text(format!("{done} / {total}")));
+        let active = !d.bool("stale") && d.bool("busy") && (!d.bool("paused") || d.bool("inFlight"));
+        let status = if d.bool("stale") || (!d.bool("complete") && !active && !d.str("error").is_empty()) {
+            tl!("Error")
+        } else if d.bool("complete") {
+            tl!("Completed")
+        } else if d.bool("paused") && d.bool("inFlight") {
+            tl!("Finishing current element…")
+        } else if active {
+            tl!("Processing…")
+        } else {
+            tl!("Paused")
+        };
+        ui.label(format!("{status} {done} / {total}"));
+        ui.add(egui::ProgressBar::new(done as f32 / total as f32).desired_width(660.0).animate(active));
+        if active {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(40));
+        }
     }
     ui.label(tl!("Creating or exporting unchecks processed regions; ready names are kept."));
     preview(app, ui, d);
@@ -361,6 +379,7 @@ fn export_ready(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<Value, Strin
     p["folder"] = json!(d.str("folder"));
     p["format"] = json!(d.str("format"));
     p["ignoreBackground"] = json!(d.bool("__ignoreBackground"));
+    p["ignoreShadows"] = json!(d.bool("__ignoreShadows"));
     p["scale"] = json!(d.f64("scale", 1.0));
     let result = app.run("slice.exportAI", p)?;
     if let Some(rows) = d.fields.get_mut("regions").and_then(Value::as_array_mut) {
@@ -412,17 +431,22 @@ fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     if d.fields.contains_key("candidates") {
         guard(app, d)?;
     }
-    let snapshot = app.run("slice.aiSnapshot", json!({"selectionOnly":d.bool("selectionOnly"),"ignoreBackground":d.bool("ignoreBackground")}))?;
+    let snapshot = app.run(
+        "slice.aiSnapshot",
+        json!({"selectionOnly":d.bool("selectionOnly"),"ignoreBackground":d.bool("ignoreBackground"),"ignoreShadows":d.bool("ignoreShadows")}),
+    )?;
     let st = app.session.active().ok_or("No document")?;
-    let doc = vectorcraft_engine::cmd::aislices::prepare_source(
+    let doc = vectorcraft_engine::cmd::aislices::prepare_source_with_options(
         vectorcraft_engine::cmd::fileio::export_source(st, &json!({"selectedOnly":d.bool("selectionOnly")})).map_err(|e| e.to_string())?.into_owned(),
         d.bool("ignoreBackground"),
+        d.bool("ignoreShadows"),
     );
     for k in ["uid", "revision", "rect", "selectionIds"] {
         d.fields.insert(k.into(), snapshot[k].clone());
     }
     d.fields.insert("__selectionOnly".into(), json!(d.bool("selectionOnly")));
     d.fields.insert("__ignoreBackground".into(), json!(d.bool("ignoreBackground")));
+    d.fields.insert("__ignoreShadows".into(), json!(d.bool("ignoreShadows")));
     let region = rect(d);
     let mut rows = snapshot["regions"].as_array().cloned().ok_or("Invalid region coordinates")?;
     for (i, row) in rows.iter_mut().enumerate() {
@@ -711,8 +735,15 @@ mod tests {
             d.fields.insert(key.into(), snap[key].clone());
         }
         d.fields.insert("__ignoreBackground".into(), json!(true));
+        d.fields.insert("__ignoreShadows".into(), json!(true));
         assert!(guard(&app, &d).is_ok());
-        for (key, value) in [("uid", json!(9999)), ("revision", json!(9999)), ("selectionOnly", json!(true)), ("ignoreBackground", json!(false))] {
+        for (key, value) in [
+            ("uid", json!(9999)),
+            ("revision", json!(9999)),
+            ("selectionOnly", json!(true)),
+            ("ignoreBackground", json!(false)),
+            ("ignoreShadows", json!(false)),
+        ] {
             let mut changed = d.clone();
             changed.fields.insert(key.into(), value);
             assert!(guard(&app, &changed).is_err());
@@ -742,6 +773,7 @@ mod tests {
         d.fields.insert("selectionOnly".into(), json!(true));
         d.fields.insert("__selectionOnly".into(), json!(true));
         d.fields.insert("__ignoreBackground".into(), json!(true));
+        d.fields.insert("__ignoreShadows".into(), json!(true));
         d.fields.insert("candidates".into(), snapshot["regions"].clone());
         let mut first = snapshot["regions"][0].clone();
         first["candidateIndex"] = json!(0);
@@ -811,6 +843,7 @@ mod tests {
         open(&mut app).unwrap();
         let mut d = app.ui.dialog.clone().unwrap();
         d.fields.insert("__ignoreBackground".into(), json!(true));
+        d.fields.insert("__ignoreShadows".into(), json!(true));
         for k in ["uid", "revision", "rect", "selectionIds"] {
             d.fields.insert(k.into(), snap[k].clone());
         }
@@ -924,7 +957,7 @@ mod tests {
         job.rx = Some(rx);
         {
             let mut state = job.progress.lock().unwrap();
-            state.rows = rows;
+            state.rows = rows.clone();
             state.in_flight = true;
         }
         harness.run_steps(4);
@@ -932,6 +965,41 @@ mod tests {
         pause(harness.state_mut());
         harness.run_steps(4);
         harness.render().unwrap().save(std::path::Path::new(&dir).join("ai-slices-paused.png")).unwrap();
+        {
+            let app = harness.state_mut();
+            app.ai_slices_job.as_mut().unwrap().progress.lock().unwrap().in_flight = false;
+        }
+        harness.run_steps(4);
+        harness.render().unwrap().save(std::path::Path::new(&dir).join("ai-slices-paused-idle.png")).unwrap();
+        let app = harness.state_mut();
+        {
+            let job = app.ai_slices_job.as_mut().unwrap();
+            let mut state = job.progress.lock().unwrap();
+            state.rows.clear();
+            state.paused = false;
+            state.in_flight = true;
+        }
+        app.ui.dialog.as_mut().unwrap().fields.insert("regions".into(), json!([]));
+        harness.run_steps(4);
+        harness.render().unwrap().save(std::path::Path::new(&dir).join("ai-slices-processing-zero.png")).unwrap();
+        harness.run_steps(12);
+        harness.render().unwrap().save(std::path::Path::new(&dir).join("ai-slices-processing-zero-next.png")).unwrap();
+        assert_ne!(
+            std::fs::read(std::path::Path::new(&dir).join("ai-slices-processing-zero.png")).unwrap(),
+            std::fs::read(std::path::Path::new(&dir).join("ai-slices-processing-zero-next.png")).unwrap(),
+            "zero-progress waiting indicator must animate"
+        );
+        {
+            let app = harness.state_mut();
+            let job = app.ai_slices_job.as_mut().unwrap();
+            job.total = 1;
+            job.rx = None;
+            let mut state = job.progress.lock().unwrap();
+            state.rows = rows;
+            state.in_flight = false;
+        }
+        harness.run_steps(4);
+        harness.render().unwrap().save(std::path::Path::new(&dir).join("ai-slices-completed.png")).unwrap();
     }
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
@@ -961,7 +1029,7 @@ mod tests {
             a[0].as_f64().unwrap() + a[2].as_f64().unwrap(),
             a[1].as_f64().unwrap() + a[3].as_f64().unwrap(),
         );
-        let prepared = vectorcraft_engine::cmd::aislices::prepare_source((*session.active().unwrap().doc).clone(), true);
+        let prepared = vectorcraft_engine::cmd::aislices::prepare_source_with_options((*session.active().unwrap().doc).clone(), true, true);
         let (regions, image) = detect(
             &prepared,
             r,
@@ -998,6 +1066,7 @@ mod tests {
                 d.fields.insert(key.into(), snapshot[key].clone());
             }
             d.fields.insert("__ignoreBackground".into(), json!(true));
+            d.fields.insert("__ignoreShadows".into(), json!(true));
             let (tx, rx) = mpsc::channel();
             tx.send(Ok((json!(review), image))).unwrap();
             app.ai_slices_job = Some(Job {

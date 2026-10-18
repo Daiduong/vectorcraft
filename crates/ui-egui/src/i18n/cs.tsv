@@ -5220,3 +5220,7 @@ mark-style	Japanese	Japonské
 @msg	Pause before using ready elements	Před použitím hotových prvků pozastavte zpracování
 @msg	Slicing scope changed. Start over to use the new scope.	Rozsah dělení se změnil. Začněte znovu s novým rozsahem.
 @msg	The document changed. Start over to detect elements again.	Dokument se změnil. Spusťte zjišťování prvků znovu.
+	Ignore external shadows	Ignorovat vnější stíny
+	Processing…	Zpracování…
+	Paused	Pozastaveno
+	Completed	Dokončeno

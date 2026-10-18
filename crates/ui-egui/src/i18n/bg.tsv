@@ -5173,3 +5173,7 @@ theme	Appearance	Външен вид
 @msg	Pause before using ready elements	Поставете на пауза преди използване на готовите елементи
 @msg	Slicing scope changed. Start over to use the new scope.	Обхватът на изрязване се промени. Започнете отначало с новия обхват.
 @msg	The document changed. Start over to detect elements again.	Документът се промени. Започнете откриването на елементи отначало.
+	Ignore external shadows	Игнориране на външни сенки
+	Processing…	Обработка…
+	Paused	На пауза
+	Completed	Завършено

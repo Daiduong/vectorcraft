@@ -4813,3 +4813,7 @@ theme	Appearance	Giao diện
 @msg	Pause before using ready elements	Tạm dừng trước khi dùng các phần tử sẵn sàng
 @msg	Slicing scope changed. Start over to use the new scope.	Phạm vi cắt đã thay đổi. Bắt đầu lại với phạm vi mới.
 @msg	The document changed. Start over to detect elements again.	Tài liệu đã thay đổi. Bắt đầu phát hiện phần tử lại.
+	Ignore external shadows	Bỏ qua bóng bên ngoài
+	Processing…	Đang xử lý…
+	Paused	Đã tạm dừng
+	Completed	Hoàn tất

@@ -10,7 +10,7 @@ const C: &str = "slice.applyAI";
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(query "slice.aiSnapshot", "AI Slice Snapshot", [], None,
-            "{selectionOnly?: false, ignoreBackground?: true} read the visible artwork bounds and document guard → {uid, revision, rect: [x,y,width,height], regions: spatially separated artwork bounds (up to 64), selectionIds}", has_doc, snapshot),
+            "{selectionOnly?: false, ignoreBackground?: true, ignoreShadows?: true} read the visible artwork bounds and document guard → {uid, revision, rect: [x,y,width,height], regions: spatially separated artwork bounds (up to 64), selectionIds}", has_doc, snapshot),
         cmd!(
             "slice.applyAI",
             "Create AI Slices",
@@ -21,7 +21,7 @@ pub fn specs() -> Vec<CommandSpec> {
             apply
         ),
         cmd!(query "slice.exportAI", "Export AI Slices", [], None,
-            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name,x,y,width,height,sourceIds?: [id…],candidateIndex?: 0..63 (stable export number)}], ignoreBackground?: true, format?: svg|png, scale?: 1, folder?} crop visible artwork to each reviewed region. No folder → {files:[{name,dataBase64}],warnings}; folder → {files:[path],warnings}; refuses existing files. SVG preserves vectors and clipping; PNG preserves transparency. Up to 64 regions and 16 million raster pixels per batch", has_doc, export),
+            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name,x,y,width,height,sourceIds?: [id…],candidateIndex?: 0..63 (stable export number)}], ignoreBackground?: true, ignoreShadows?: true (omit narrowly recognized rear shadows), format?: svg|png, scale?: 1, folder?} crop visible artwork to each reviewed region. No folder → {files:[{name,dataBase64}],warnings}; folder → {files:[path],warnings}; refuses existing files. SVG preserves vectors and clipping; PNG preserves transparency. Up to 64 regions and 16 million raster pixels per batch", has_doc, export),
     ]
 }
 
@@ -38,7 +38,11 @@ fn guard(s: &Session, p: &Value) -> Result<()> {
 
 /// Prepare a disposable export copy. Only a bottommost, plain rectangular sheet-sized
 /// backdrop is eligible; clipped/styled containers and the original document stay intact.
-pub fn prepare_source(mut doc: Document, ignore_background: bool) -> Document {
+pub fn prepare_source(doc: Document, ignore_background: bool) -> Document {
+    prepare_source_with_options(doc, ignore_background, false)
+}
+/// Prepare previews and exports with the same explicit background/shadow crop policies.
+pub fn prepare_source_with_options(mut doc: Document, ignore_background: bool, ignore_shadows: bool) -> Document {
     use std::sync::Arc;
     use vectorcraft_doc::{Node, NodeKind};
     fn visit(doc: &Document, node: &mut Arc<Node>, depth: usize) {
@@ -111,6 +115,94 @@ pub fn prepare_source(mut doc: Document, ignore_background: bool) -> Document {
             visit(&reference, layer, 0);
         }
     }
+    if ignore_shadows {
+        doc = trim_external_shadows(doc);
+    }
+    doc
+}
+
+/// Optional crop policy: only a thin, neutral, translucent Multiply footprint behind a
+/// substantially taller body is a shadow. Never inspect inside clipped/styled containers.
+fn trim_external_shadows(mut doc: Document) -> Document {
+    use std::sync::Arc;
+    use vectorcraft_color::{BlendMode, Color, Paint};
+    use vectorcraft_doc::{Knockout, Node, NodeKind};
+    fn neutral(color: &Color) -> bool {
+        let [r, g, b] = color.to_rgb();
+        r.is_finite() && g.is_finite() && b.is_finite() && r.max(g).max(b) - r.min(g).min(b) <= 0.025
+    }
+    fn neutral_art(node: &Node, depth: usize) -> bool {
+        if depth >= 32
+            || node.extras().mask.is_some()
+            || node.isolate
+            || node.knockout != Knockout::Neutral
+            || node.knockout_shape
+            || !node.appearance.effects.is_empty()
+            || !matches!(node.kind, NodeKind::Path { clipping: false, guide: false, .. } | NodeKind::Compound { .. })
+        {
+            return false;
+        }
+        if node.appearance.items.iter().any(|item| {
+            !item.effects().is_empty()
+                || match item.paint() {
+                    Paint::None => false,
+                    Paint::Solid { color, .. } => !neutral(color),
+                    Paint::Gradient(p) => p.freeform.is_some() || p.gradient.stops.is_empty() || !p.gradient.stops.iter().all(|s| neutral(&s.color)),
+                    _ => true,
+                }
+        }) {
+            return false;
+        }
+        node.children().is_none_or(|children| children.len() <= 4096 && children.iter().all(|child| neutral_art(child, depth + 1)))
+    }
+    fn visit(reference: &Document, node: &mut Arc<Node>, depth: usize) {
+        if depth >= 32
+            || !node.visible
+            || !node.has_default_transparency()
+            || !node.appearance.items.is_empty()
+            || !node.appearance.effects.is_empty()
+            || !matches!(node.kind, NodeKind::Group { clip: false, .. } | NodeKind::Layer { clip: false, .. })
+        {
+            return;
+        }
+        let Some(children) = node.children() else { return };
+        let visible: Vec<_> = children.iter().filter(|n| n.visible && !n.is_template()).collect();
+        let remove = visible.first().filter(|_| visible.len() >= 2 && visible.len() <= 4096).and_then(|shadow| {
+            if shadow.blend != BlendMode::Multiply || !(shadow.opacity > 0.0 && shadow.opacity < 1.0) || !neutral_art(shadow, 0) {
+                return None;
+            }
+            let body = visible.iter().skip(1).filter_map(|n| vectorcraft_render::painted_bounds(reference, n)).reduce(|a, b| a.union(b))?;
+            let s = vectorcraft_render::painted_bounds(reference, shadow)?;
+            let overlap_x = (s.x1.min(body.x1) - s.x0.max(body.x0)).max(0.0);
+            let anchored = (s.x0 - body.x0).abs().min((s.x1 - body.x1).abs()) <= body.width() * 0.1;
+            if !slices::slice_rect_ok(body)
+                || !slices::slice_rect_ok(s)
+                || !anchored
+                || overlap_x < body.width() * 0.5
+                || s.width() <= body.width() * 1.25
+                || s.height() > body.height() * 0.2
+                || s.area() > body.area() * 0.25
+                || s.y0 < body.y0 + body.height() * 0.8
+                || s.y0 > body.y1
+                || s.y1 > body.y1 + body.height() * 0.12
+            {
+                return None;
+            }
+            Some(shadow.id)
+        });
+        if let Some(children) = Arc::make_mut(node).children_mut() {
+            if let Some(id) = remove {
+                children.retain(|n| n.id != id);
+            }
+            for child in children {
+                visit(reference, child, depth + 1);
+            }
+        }
+    }
+    let reference = doc.clone();
+    for layer in &mut doc.layers {
+        visit(&reference, layer, 0);
+    }
     doc
 }
 
@@ -140,9 +232,10 @@ pub fn region_source(doc: &Document, row: &Value) -> Result<Document> {
 
 fn snapshot(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
-    let doc = prepare_source(
+    let doc = prepare_source_with_options(
         fileio::export_source(st, &json!({"selectedOnly":bool_or(p,"selectionOnly",false)}))?.into_owned(),
         bool_or(p, "ignoreBackground", true),
+        bool_or(p, "ignoreShadows", true),
     );
     let r = doc
         .layers
@@ -382,9 +475,10 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
             return Err(bad(C, "batch exceeds 16 million pixels; reduce scale or export fewer regions"));
         }
     }
-    let doc = prepare_source(
+    let doc = prepare_source_with_options(
         fileio::export_source(s.doc()?, &json!({"selectedOnly":bool_or(p,"selectionOnly",false)}))?.into_owned(),
         bool_or(p, "ignoreBackground", true),
+        bool_or(p, "ignoreShadows", true),
     );
     let mut files = Vec::new();
     let mut warnings = Vec::new();
@@ -450,7 +544,89 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn external_shadows_are_optional_and_do_not_change_body_or_source() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="240" height="220"><g><path d="M10 180H190V200H10Z" opacity=".65" style="mix-blend-mode:multiply" fill="#333"/><g><rect x="10" y="10" width="100" height="180" fill="#f80"/><circle cx="60" cy="50" r="15" fill="#00f"/></g></g></svg>"##;
+        let doc = vectorcraft_svg::import(svg).unwrap();
+        let before = serde_json::to_value(&doc).unwrap();
+        let full = Rect::new(0.0, 0.0, 240.0, 220.0);
+        let original = vectorcraft_render::Renderer::new().render_region(&doc, full, 1.0, false);
+        let prepared = prepare_source_with_options(doc.clone(), false, true);
+        let body = asset_regions(&prepared).unwrap();
+        assert_eq!(body.len(), 1);
+        assert_eq!(body[0].rect.width(), 100.0);
+        assert_eq!(body[0].rect.height(), 180.0);
+        assert_eq!(asset_regions(&prepare_source_with_options(doc.clone(), false, false)).unwrap()[0].rect.width(), 180.0);
+        assert_eq!(serde_json::to_value(&doc).unwrap(), before);
+        let rendered = vectorcraft_render::Renderer::new().render_region(&prepared, full, 1.0, false);
+        assert_ne!(original.pixels, rendered.pixels);
+        let mut session = Session::new();
+        session.add_document(doc, None);
+        let snapshot = session.execute("slice.aiSnapshot", &json!({})).unwrap();
+        assert_eq!(snapshot["regions"][0]["width"], 100.0);
+        for format in ["svg", "png"] {
+            // A deliberately wide manual crop verifies removal from the source copy itself,
+            // not merely clipping the shadow with a smaller viewport.
+            let out=session.execute("slice.exportAI",&json!({"uid":snapshot["uid"],"revision":snapshot["revision"],"format":format,"regions":[{"name":"Screen","x":0,"y":0,"width":240,"height":220}]})).unwrap();
+            let bytes = vectorcraft_format::base64_decode(out["files"][0]["dataBase64"].as_str().unwrap()).unwrap();
+            if format == "png" {
+                assert_eq!(image::load_from_memory(&bytes).unwrap().to_rgba8().get_pixel(150, 195).0[3], 0);
+            } else {
+                let exported = vectorcraft_svg::import(&String::from_utf8(bytes).unwrap()).unwrap();
+                let png = vectorcraft_render::Renderer::new().render_region(&exported, full, 1.0, false);
+                assert_eq!(png.pixels.len(), rendered.pixels.len());
+                let max_error = png.pixels.iter().zip(&rendered.pixels).map(|(a, b)| a.abs_diff(*b)).max().unwrap_or(0);
+                assert!(max_error <= 1, "SVG coordinate rounding may differ by at most one channel level, got {max_error}");
+            }
+        }
+        for (old, new) in [
+            ("H190", "H115"),                              // ordinary small shadow
+            ("#333", "#f00"),                              // coloured Multiply artwork
+            ("opacity=\".65\"", "opacity=\"1\""),          // opaque rear artwork
+            ("M10 180H190V200H10Z", "M10 80H190V200H10Z"), // broad translucent panel
+            ("mix-blend-mode:multiply", "mix-blend-mode:normal"),
+            ("M10 180H190V200H10Z", "M40 180H220V200H40Z"), // detached, not anchored to body
+        ] {
+            let fixture = vectorcraft_svg::import(&svg.replace(old, new)).unwrap();
+            assert_eq!(
+                serde_json::to_value(prepare_source_with_options(fixture.clone(), false, true)).unwrap(),
+                serde_json::to_value(&fixture).unwrap(),
+                "must preserve safeguard {old} -> {new}"
+            );
+        }
+        let scaled = vectorcraft_svg::import(&svg.replacen("<g>", "<g transform=\"scale(2)\">", 1)).unwrap();
+        // The criterion scales with the artwork, not with fixed document units.
+        assert_eq!(asset_regions(&prepare_source_with_options(scaled, false, true)).unwrap()[0].rect.width(), 200.0);
+    }
+    #[test]
+    fn optional_local_shadow_crop_review() {
+        let (Ok(path), Ok(folder)) = (std::env::var("VECTORCRAFT_SLICING_SVG"), std::env::var("VECTORCRAFT_SLICING_QA_DIR")) else { return };
+        std::fs::create_dir_all(&folder).unwrap();
+        let doc = vectorcraft_svg::import(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let mut session = Session::new();
+        session.add_document(doc, None);
+        let before = session.doc().unwrap().doc.clone();
+        let snapshot = session.execute("slice.aiSnapshot", &json!({})).unwrap();
+        let original = session.execute("slice.aiSnapshot", &json!({"ignoreShadows":false})).unwrap();
+        assert_eq!(snapshot["regions"].as_array().unwrap().len(), 28);
+        for i in 0..2 {
+            let mut row = snapshot["regions"][i].clone();
+            row["name"] = json!(format!("Screen {}", i + 1));
+            eprintln!("Screen {} before={} after={} row={row}", i + 1, original["regions"][i]["width"], row["width"]);
+            assert!((210.0..220.0).contains(&row["width"].as_f64().unwrap()));
+            for format in ["svg", "png"] {
+                let out = session
+                    .execute("slice.exportAI", &json!({"uid":snapshot["uid"],"revision":snapshot["revision"],"regions":[row],"format":format}))
+                    .unwrap();
+                let bytes = vectorcraft_format::base64_decode(out["files"][0]["dataBase64"].as_str().unwrap()).unwrap();
+                std::fs::write(std::path::Path::new(&folder).join(format!("screen-{}.{format}", i + 1)), bytes).unwrap();
+            }
+        }
+        assert!(std::sync::Arc::ptr_eq(&before, &session.doc().unwrap().doc));
+    }
+    #[test]
     fn player_parameters_are_advertised() {
+        super::super::params::check_params("slice.aiSnapshot", &json!({"ignoreShadows":true})).unwrap();
+        super::super::params::check_params("slice.exportAI", &json!({"uid":1,"revision":0,"ignoreShadows":false,"regions":[]})).unwrap();
         super::super::params::check_params("slice.applyAI", &serde_json::json!({"uid":1,"revision":0,"preserveSelection":true,"regions":[]}))
             .unwrap();
         super::super::params::check_params("slice.exportAI", &serde_json::json!({"uid":1,"revision":0,"regions":[{"candidateIndex":3}]})).unwrap();
