@@ -4751,3 +4751,38 @@ effect	Regular	Regelmäßig
 @msg	too many library panels were opened in this session	in dieser Sitzung wurden zu viele Bibliotheksbedienfelder geöffnet
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Das Bild hat {_1} × {_2} Pixel, mehr als {LARGE_TRACE_SIDE} auf einer Seite: Es wird nachgezeichnet, aber langsamer. Eine Vorgabe mit geringerer Detailtreue oder eine kleinere Kopie des Bildes geht schneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Das Bild wurde mit {_1} × {_2} Pixeln nachgezeichnet, verkleinert von {_3} × {_4} (höchstens {_5} Megapixel).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Grafik mit KI aufteilen
+	Create Slices	Slices erstellen
+	AI Slice Snapshot	KI-Slice-Momentaufnahme
+	Create AI Slices	KI-Slices erstellen
+	Export AI Slices	KI-Slices exportieren
+	Send preview to Ollama	Vorschau an Ollama senden
+	Detect Elements	Elemente erkennen
+	Detecting elements…	Elemente werden erkannt…
+	Review names and bounds	Namen und Grenzen prüfen
+	Export Regions	Bereiche exportieren
+	Exported files	Exportierte Dateien
+	Slice Artwork with AI…	Grafik mit KI aufteilen…
+	Server URL	Server-URL
+	Vision model	Modell mit Bildunterstützung
+	Name language	Sprache der Namen
+
+@msg	Cancelled	Abgebrochen
+@msg	Enter a vision model and name language	Bildfähiges Modell und Sprache der Namen eingeben
+@msg	No document	Kein Dokument
+@msg	No request pipe	Kein Anforderungskanal
+@msg	No response pipe	Kein Antwortkanal
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama-Anforderung fehlgeschlagen oder Antwort größer als 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-Anforderung fehlgeschlagen. Server-URL, installiertes bildfähiges Modell und curl prüfen; Zeitlimit: 120 Sekunden.
+@msg	Ollama returned no message content	Ollama hat keinen Nachrichteninhalt geliefert
+@msg	Server URL must start with http:// or https://	Die Server-URL muss mit http:// oder https:// beginnen
+@msg	AI slicing requires the desktop app and Ollama	KI-Aufteilung erfordert die Desktop-App und Ollama
+@msg	Invalid region coordinates	Ungültige Bereichskoordinaten
+@msg	Invalid region name	Ungültiger Bereichsname
+@msg	Unable to detect elements	Elemente konnten nicht erkannt werden
+@msg	Wait for detection to finish	Warten Sie auf das Ende der Erkennung
+@msg	AI worker stopped; try again	KI-Verarbeitung angehalten; erneut versuchen
+@msg	Invalid model JSON: {e}	Ungültiges Modell-JSON: {e}
+	Ignore sheet background	Blatthintergrund ignorieren

@@ -5028,3 +5028,38 @@ mark-style	Japanese	Japońskie
 @msg	too many library panels were opened in this session	w tej sesji otwarto zbyt wiele paneli bibliotek
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz ma {_1} × {_2} pikseli, ponad {LARGE_TRACE_SIDE} na jednym boku: zostanie obrysowany, ale wolniej. Ustawienie wstępne o niższej wierności lub mniejsza kopia obrazu obrysuje się szybciej.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz obrysowano w rozdzielczości {_1} × {_2} pikseli, po zmniejszeniu z {_3} × {_4} (najwyżej {_5} megapikseli).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Podziel grafikę za pomocą AI
+	Create Slices	Utwórz plasterki
+	AI Slice Snapshot	Migawka plasterków AI
+	Create AI Slices	Utwórz plasterki AI
+	Export AI Slices	Eksportuj plasterki AI
+	Send preview to Ollama	Wyślij podgląd do Ollama
+	Detect Elements	Wykryj elementy
+	Detecting elements…	Wykrywanie elementów…
+	Review names and bounds	Sprawdź nazwy i granice
+	Export Regions	Eksportuj obszary
+	Exported files	Wyeksportowane pliki
+	Slice Artwork with AI…	Podziel grafikę za pomocą AI…
+	Server URL	Adres serwera
+	Vision model	Model obsługujący obrazy
+	Name language	Język nazw
+
+@msg	Cancelled	Anulowano
+@msg	Enter a vision model and name language	Podaj model obsługujący obrazy i język nazw
+@msg	No document	Brak dokumentu
+@msg	No request pipe	Brak kanału żądania
+@msg	No response pipe	Brak kanału odpowiedzi
+@msg	Ollama request failed or response exceeded 1 MiB	Żądanie Ollama nie powiodło się lub odpowiedź przekroczyła 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Żądanie Ollama nie powiodło się. Sprawdź adres serwera, zainstalowany model obrazów i curl; limit czasu to 120 sekund.
+@msg	Ollama returned no message content	Ollama nie zwróciła treści wiadomości
+@msg	Server URL must start with http:// or https://	Adres serwera musi zaczynać się od http:// lub https://
+@msg	AI slicing requires the desktop app and Ollama	Podział AI wymaga aplikacji komputerowej i Ollama
+@msg	Invalid region coordinates	Nieprawidłowe współrzędne obszaru
+@msg	Invalid region name	Nieprawidłowa nazwa obszaru
+@msg	Unable to detect elements	Nie można wykryć elementów
+@msg	Wait for detection to finish	Poczekaj na zakończenie wykrywania
+@msg	AI worker stopped; try again	Przetwarzanie AI zatrzymane; spróbuj ponownie
+@msg	Invalid model JSON: {e}	Nieprawidłowy JSON modelu: {e}
+	Ignore sheet background	Ignoruj tło arkusza

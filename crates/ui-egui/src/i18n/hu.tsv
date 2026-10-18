@@ -5162,3 +5162,38 @@ imageTrace	Outline	Körvonal
 @msg	too many library panels were opened in this session	ebben a munkamenetben túl sok könyvtárpanel nyílt meg
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kép {_1} × {_2} képpont, egyik oldalán több mint {LARGE_TRACE_SIDE}: a vektorizálás megtörténik, de lassabban. Kisebb hűségű előbeállítással vagy a kép kisebb másolatával gyorsabb.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A kép vektorizálása {_1} × {_2} képponton történt, {_3} × {_4} méretről kicsinyítve (legfeljebb {_5} megapixel).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Grafika felosztása MI-vel
+	Create Slices	Szeletek létrehozása
+	AI Slice Snapshot	MI-szeletelési pillanatkép
+	Create AI Slices	MI-szeletek létrehozása
+	Export AI Slices	MI-szeletek exportálása
+	Send preview to Ollama	Előnézet küldése az Ollamának
+	Detect Elements	Elemek felismerése
+	Detecting elements…	Elemek felismerése…
+	Review names and bounds	Nevek és határok ellenőrzése
+	Export Regions	Területek exportálása
+	Exported files	Exportált fájlok
+	Slice Artwork with AI…	Grafika felosztása MI-vel…
+	Server URL	Kiszolgáló URL-je
+	Vision model	Képeket támogató modell
+	Name language	Nevek nyelve
+
+@msg	Cancelled	Megszakítva
+@msg	Enter a vision model and name language	Adjon meg képeket támogató modellt és a nevek nyelvét
+@msg	No document	Nincs dokumentum
+@msg	No request pipe	Nincs kéréscsatorna
+@msg	No response pipe	Nincs válaszcsatorna
+@msg	Ollama request failed or response exceeded 1 MiB	Az Ollama-kérés sikertelen, vagy a válasz nagyobb 1 MiB-nál
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Az Ollama-kérés sikertelen. Ellenőrizze a kiszolgáló URL-jét, a telepített képfeldolgozó modellt és a curl programot; az időkorlát 120 másodperc.
+@msg	Ollama returned no message content	Az Ollama nem adott vissza üzenettartalmat
+@msg	Server URL must start with http:// or https://	A kiszolgáló URL-jének http:// vagy https:// kezdetűnek kell lennie
+@msg	AI slicing requires the desktop app and Ollama	Az MI-szeleteléshez az asztali alkalmazás és az Ollama szükséges
+@msg	Invalid region coordinates	Érvénytelen területkoordináták
+@msg	Invalid region name	Érvénytelen területnév
+@msg	Unable to detect elements	Az elemek nem ismerhetők fel
+@msg	Wait for detection to finish	Várja meg a felismerés végét
+@msg	AI worker stopped; try again	Az MI-feldolgozás leállt; próbálja újra
+@msg	Invalid model JSON: {e}	Érvénytelen modell-JSON: {e}
+	Ignore sheet background	Lap hátterének figyelmen kívül hagyása

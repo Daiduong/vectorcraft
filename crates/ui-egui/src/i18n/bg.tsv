@@ -5146,3 +5146,21 @@ theme	Appearance	Външен вид
 	Enable Guides for 9-Slice Scaling	Включване на водачи за 9-slice мащабиране
 	Persistent	Постоянна
 	Library Panel Options	Опции на панела с библиотека
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Нарязване на рисунка с ИИ
+	Create Slices	Създаване на срезове
+	AI Slice Snapshot	Снимка за срезове с ИИ
+	Create AI Slices	Създаване на срезове с ИИ
+	Export AI Slices	Експорт на срезове с ИИ
+	Send preview to Ollama	Изпращане на преглед към Ollama
+	Detect Elements	Откриване на елементи
+	Detecting elements…	Откриване на елементи…
+	Review names and bounds	Проверете имената и границите
+	Export Regions	Експорт на области
+	Exported files	Експортирани файлове
+	Slice Artwork with AI…	Нарязване на рисунка с ИИ…
+	Server URL	Адрес на сървъра
+	Vision model	Модел с поддръжка на изображения
+	Name language	Език на имената
+	Ignore sheet background	Игнориране на фона на листа

@@ -5165,3 +5165,21 @@ swatch	Bright Violet	Violet cerah
 	Typing	Mengetik
 	Persistent	Persisten
 	Library Panel Options	Opsi panel pustaka
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Potong gambar dengan AI
+	Create Slices	Buat irisan
+	AI Slice Snapshot	Cuplikan irisan AI
+	Create AI Slices	Buat irisan AI
+	Export AI Slices	Ekspor irisan AI
+	Send preview to Ollama	Kirim pratinjau ke Ollama
+	Detect Elements	Deteksi elemen
+	Detecting elements…	Mendeteksi elemen…
+	Review names and bounds	Periksa nama dan batas
+	Export Regions	Ekspor wilayah
+	Exported files	Berkas yang diekspor
+	Slice Artwork with AI…	Potong gambar dengan AI…
+	Server URL	URL server
+	Vision model	Model dengan dukungan gambar
+	Name language	Bahasa nama
+	Ignore sheet background	Abaikan latar lembar

@@ -532,6 +532,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{names: [two or more styles]} open Graphic Style Options (dialog `graphicStyleOptions`, field `name`) to name the style OK merges from them (graphicStyle.merge)",
     ),
     (
+        "ui.sliceWithAI",
+        "Slice Artwork with AI…",
+        "",
+        "{} open AI region detection and review (aiSlices): configurable Ollama endpoint/model/language, selectionOnly, editable regions, SVG/PNG export and one-step slice creation",
+    ),
+    (
         "ui.layerOptions",
         "Options for Selection…",
         "",
@@ -1534,6 +1540,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             crate::dialogs::graphic_style_options::open_merge(app, names.unwrap_or_default())
         }
         "ui.tileEdgeColor" => crate::dialogs::tile_edge_color::open(app),
+        "ui.sliceWithAI" => crate::dialogs::ai_slices::open(app),
         "ui.layerOptions" => crate::dialogs::layer_options::open(app, p),
         "ui.newLayer" => crate::dialogs::layer_options::open_new(app, p),
         "ui.newArtboard" => crate::dialogs::artboard_options::open_new(app),

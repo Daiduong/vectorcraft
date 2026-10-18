@@ -5093,3 +5093,38 @@ mark-style	Japanese	Japonesas
 @msg	too many library panels were opened in this session	foram abertos painéis de biblioteca demais nesta sessão
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A imagem tem {_1} × {_2} pixels, mais de {LARGE_TRACE_SIDE} em um lado: ela é traçada, mas mais devagar. Uma predefinição de menor fidelidade ou uma cópia menor da imagem traça mais rápido.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A imagem foi traçada em {_1} × {_2} pixels, reduzida de {_3} × {_4} (no máximo {_5} megapixels).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Dividir arte com IA
+	Create Slices	Criar fatias
+	AI Slice Snapshot	Instantâneo de fatias IA
+	Create AI Slices	Criar fatias com IA
+	Export AI Slices	Exportar fatias IA
+	Send preview to Ollama	Enviar prévia ao Ollama
+	Detect Elements	Detectar elementos
+	Detecting elements…	Detectando elementos…
+	Review names and bounds	Revisar nomes e limites
+	Export Regions	Exportar regiões
+	Exported files	Arquivos exportados
+	Slice Artwork with AI…	Dividir arte com IA…
+	Server URL	URL do servidor
+	Vision model	Modelo com suporte a imagens
+	Name language	Idioma dos nomes
+
+@msg	Cancelled	Cancelado
+@msg	Enter a vision model and name language	Informe um modelo com imagens e o idioma dos nomes
+@msg	No document	Nenhum documento
+@msg	No request pipe	Sem canal de solicitação
+@msg	No response pipe	Sem canal de resposta
+@msg	Ollama request failed or response exceeded 1 MiB	A solicitação ao Ollama falhou ou a resposta excedeu 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	A solicitação ao Ollama falhou. Verifique a URL do servidor, o modelo com imagens instalado e curl; o limite é de 120 segundos.
+@msg	Ollama returned no message content	Ollama não retornou conteúdo de mensagem
+@msg	Server URL must start with http:// or https://	A URL do servidor deve começar com http:// ou https://
+@msg	AI slicing requires the desktop app and Ollama	A divisão com IA requer o aplicativo de desktop e o Ollama
+@msg	Invalid region coordinates	Coordenadas de região inválidas
+@msg	Invalid region name	Nome de região inválido
+@msg	Unable to detect elements	Não foi possível detectar os elementos
+@msg	Wait for detection to finish	Aguarde o fim da detecção
+@msg	AI worker stopped; try again	O processamento de IA parou; tente novamente
+@msg	Invalid model JSON: {e}	JSON do modelo inválido: {e}
+	Ignore sheet background	Ignorar o fundo da folha

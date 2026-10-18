@@ -5176,3 +5176,38 @@ mark-style	Japanese	Japonské
 @msg	too many library panels were opened in this session	v této relaci bylo otevřeno příliš mnoho panelů knihoven
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz má {_1} × {_2} pixelů, na jedné straně více než {LARGE_TRACE_SIDE}: vektorizuje se, ale pomaleji. Rychleji se vektorizuje s předvolbou nižší věrnosti nebo menší kopie obrazu.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz byl vektorizován v rozlišení {_1} × {_2} pixelů, zmenšený z {_3} × {_4} (nejvýše {_5} megapixelů).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Rozdělit kresbu pomocí AI
+	Create Slices	Vytvořit řezy
+	AI Slice Snapshot	Snímek pro řezy AI
+	Create AI Slices	Vytvořit řezy AI
+	Export AI Slices	Exportovat řezy AI
+	Send preview to Ollama	Odeslat náhled do Ollama
+	Detect Elements	Rozpoznat prvky
+	Detecting elements…	Rozpoznávání prvků…
+	Review names and bounds	Zkontrolovat názvy a hranice
+	Export Regions	Exportovat oblasti
+	Exported files	Exportované soubory
+	Slice Artwork with AI…	Rozdělit kresbu pomocí AI…
+	Server URL	URL serveru
+	Vision model	Model s podporou obrázků
+	Name language	Jazyk názvů
+
+@msg	Cancelled	Zrušeno
+@msg	Enter a vision model and name language	Zadejte model s podporou obrázků a jazyk názvů
+@msg	No document	Žádný dokument
+@msg	No request pipe	Chybí kanál požadavku
+@msg	No response pipe	Chybí kanál odpovědi
+@msg	Ollama request failed or response exceeded 1 MiB	Požadavek Ollama selhal nebo odpověď přesáhla 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Požadavek Ollama selhal. Zkontrolujte URL serveru, nainstalovaný model s podporou obrázků a curl; časový limit je 120 sekund.
+@msg	Ollama returned no message content	Ollama nevrátila obsah zprávy
+@msg	Server URL must start with http:// or https://	URL serveru musí začínat http:// nebo https://
+@msg	AI slicing requires the desktop app and Ollama	Řezání pomocí AI vyžaduje desktopovou aplikaci a Ollama
+@msg	Invalid region coordinates	Neplatné souřadnice oblasti
+@msg	Invalid region name	Neplatný název oblasti
+@msg	Unable to detect elements	Nelze rozpoznat prvky
+@msg	Wait for detection to finish	Počkejte na dokončení rozpoznávání
+@msg	AI worker stopped; try again	Zpracování AI se zastavilo; zkuste to znovu
+@msg	Invalid model JSON: {e}	Neplatný JSON modelu: {e}
+	Ignore sheet background	Ignorovat pozadí listu

@@ -5140,3 +5140,38 @@ mark-style	Japanese	Japanilainen
 @msg	too many library panels were opened in this session	tässä istunnossa on avattu liian monta kirjastopaneelia
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Kuva on {_1} × {_2} kuvapistettä, yhdeltä sivultaan yli {LARGE_TRACE_SIDE}: se jäljitetään, mutta hitaammin. Pienemmän tarkkuuden esiasetus tai kuvan pienempi kopio jäljittyy nopeammin.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Kuva jäljitettiin kokoon {_1} × {_2} kuvapistettä pienennettynä koosta {_3} × {_4} (enintään {_5} megapikseliä).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Jaa kuva tekoälyllä
+	Create Slices	Luo ositteet
+	AI Slice Snapshot	Tekoälyosituksen tilannekuva
+	Create AI Slices	Luo tekoälyositteet
+	Export AI Slices	Vie tekoälyositteet
+	Send preview to Ollama	Lähetä esikatselu Ollamaan
+	Detect Elements	Tunnista elementit
+	Detecting elements…	Tunnistetaan elementtejä…
+	Review names and bounds	Tarkista nimet ja rajat
+	Export Regions	Vie alueet
+	Exported files	Viedyt tiedostot
+	Slice Artwork with AI…	Jaa kuva tekoälyllä…
+	Server URL	Palvelimen URL
+	Vision model	Kuvia tukeva malli
+	Name language	Nimien kieli
+
+@msg	Cancelled	Peruutettu
+@msg	Enter a vision model and name language	Anna kuvia tukeva malli ja nimien kieli
+@msg	No document	Ei asiakirjaa
+@msg	No request pipe	Ei pyyntökanavaa
+@msg	No response pipe	Ei vastauskanavaa
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama-pyyntö epäonnistui tai vastaus ylitti 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-pyyntö epäonnistui. Tarkista palvelimen URL, asennettu kuvamalli ja curl; aikaraja on 120 sekuntia.
+@msg	Ollama returned no message content	Ollama ei palauttanut viestin sisältöä
+@msg	Server URL must start with http:// or https://	Palvelimen URL-osoitteen on alettava http:// tai https://
+@msg	AI slicing requires the desktop app and Ollama	Tekoälyositus vaatii työpöytäsovelluksen ja Ollaman
+@msg	Invalid region coordinates	Virheelliset alueen koordinaatit
+@msg	Invalid region name	Virheellinen alueen nimi
+@msg	Unable to detect elements	Elementtejä ei voitu tunnistaa
+@msg	Wait for detection to finish	Odota tunnistuksen valmistumista
+@msg	AI worker stopped; try again	Tekoälykäsittely pysähtyi; yritä uudelleen
+@msg	Invalid model JSON: {e}	Virheellinen mallin JSON: {e}
+	Ignore sheet background	Ohita arkin tausta

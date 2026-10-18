@@ -5208,3 +5208,21 @@ swatch	Bright Violet	Felviolet
 @msg	too many library panels were opened in this session	er zijn in deze sessie te veel bibliotheekpanelen geopend
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	De afbeelding is {_1} × {_2} pixels, meer dan {LARGE_TRACE_SIDE} aan één zijde: ze wordt getraceerd, maar langzamer. Een voorinstelling met minder detail of een kleinere kopie van de afbeelding traceert sneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	De afbeelding is getraceerd op {_1} × {_2} pixels, verkleind van {_3} × {_4} (maximaal {_5} megapixels).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Illustratie opdelen met AI
+	Create Slices	Segmenten maken
+	AI Slice Snapshot	Momentopname AI-segmenten
+	Create AI Slices	AI-segmenten maken
+	Export AI Slices	AI-segmenten exporteren
+	Send preview to Ollama	Voorbeeld naar Ollama verzenden
+	Detect Elements	Elementen detecteren
+	Detecting elements…	Elementen detecteren…
+	Review names and bounds	Namen en grenzen controleren
+	Export Regions	Gebieden exporteren
+	Exported files	Geëxporteerde bestanden
+	Slice Artwork with AI…	Illustratie opdelen met AI…
+	Server URL	Server-URL
+	Vision model	Model met beeldondersteuning
+	Name language	Taal van namen
+	Ignore sheet background	Bladachtergrond negeren

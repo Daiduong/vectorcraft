@@ -4830,3 +4830,38 @@ lighting	Light	ライト
 @msg	too many library panels were opened in this session	このセッションで開いたライブラリパネルが多すぎます
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	画像は {_1} × {_2} ピクセルで、一辺が {LARGE_TRACE_SIDE} を超えています。トレースはできますが、時間がかかります。忠実度の低いプリセットや画像の小さいコピーを使うと速くなります。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	画像は {_3} × {_4} から縮小した {_1} × {_2} ピクセルでトレースされました (最大 {_5} メガピクセル)。
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	AIでアートワークを分割
+	Create Slices	スライスを作成
+	AI Slice Snapshot	AIスライスのスナップショット
+	Create AI Slices	AIスライスを作成
+	Export AI Slices	AIスライスを書き出し
+	Send preview to Ollama	プレビューをOllamaに送信
+	Detect Elements	要素を検出
+	Detecting elements…	要素を検出中…
+	Review names and bounds	名前と境界を確認
+	Export Regions	領域を書き出し
+	Exported files	書き出したファイル
+	Slice Artwork with AI…	AIでアートワークを分割…
+	Server URL	サーバーURL
+	Vision model	画像対応モデル
+	Name language	名前の言語
+
+@msg	Cancelled	キャンセルしました
+@msg	Enter a vision model and name language	画像対応モデルと名前の言語を入力してください
+@msg	No document	ドキュメントがありません
+@msg	No request pipe	リクエスト用パイプがありません
+@msg	No response pipe	応答用パイプがありません
+@msg	Ollama request failed or response exceeded 1 MiB	Ollamaのリクエストが失敗したか、応答が1 MiBを超えました
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollamaのリクエストが失敗しました。サーバーURL、インストール済みの画像対応モデル、curlを確認してください。制限時間は120秒です。
+@msg	Ollama returned no message content	Ollamaがメッセージ内容を返しませんでした
+@msg	Server URL must start with http:// or https://	サーバーURLはhttp://またはhttps://で始まる必要があります
+@msg	AI slicing requires the desktop app and Ollama	AI分割にはデスクトップアプリとOllamaが必要です
+@msg	Invalid region coordinates	領域の座標が無効です
+@msg	Invalid region name	領域の名前が無効です
+@msg	Unable to detect elements	要素を検出できませんでした
+@msg	Wait for detection to finish	検出が完了するまでお待ちください
+@msg	AI worker stopped; try again	AI処理が停止しました。再試行してください
+@msg	Invalid model JSON: {e}	モデルのJSONが無効です: {e}
+	Ignore sheet background	シートの背景を無視

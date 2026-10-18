@@ -1,5 +1,6 @@
 //! The command registry. Ids follow Illustrator's menu structure.
 
+pub mod aislices;
 pub(crate) mod appearance;
 mod assets;
 mod attributes;
@@ -278,6 +279,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(fileio::eps::specs());
         v.extend(package::specs());
         v.extend(slices::specs());
+        v.extend(aislices::specs());
         v.extend(print::specs());
         v.extend(recovery::specs());
         v.extend(fileio::dxfimport::specs());

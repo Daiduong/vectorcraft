@@ -5012,3 +5012,38 @@ lighting	Light	光源
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	浏览器中只会打开 http、https 和 mailto 的 URL，不会打开 “{url}”
 @msg	{id} opens another app: only the person at the keyboard can run it	{id} 会打开其他应用程序：只有使用键盘的人才能运行它
 @msg	“{name}” is not a file	“{name}” 不是文件
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	使用 AI 切分图稿
+	Create Slices	创建切片
+	AI Slice Snapshot	AI 切片快照
+	Create AI Slices	创建 AI 切片
+	Export AI Slices	导出 AI 切片
+	Send preview to Ollama	将预览发送至 Ollama
+	Detect Elements	检测元素
+	Detecting elements…	正在检测元素…
+	Review names and bounds	检查名称和边界
+	Export Regions	导出区域
+	Exported files	已导出的文件
+	Slice Artwork with AI…	使用 AI 切分图稿…
+	Server URL	服务器 URL
+	Vision model	支持图像的模型
+	Name language	名称语言
+
+@msg	Cancelled	已取消
+@msg	Enter a vision model and name language	请输入支持图像的模型和名称语言
+@msg	No document	没有文档
+@msg	No request pipe	没有请求管道
+@msg	No response pipe	没有响应管道
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama 请求失败或响应超过 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama 请求失败。请检查服务器 URL、已安装的图像模型和 curl；超时为 120 秒。
+@msg	Ollama returned no message content	Ollama 未返回消息内容
+@msg	Server URL must start with http:// or https://	服务器 URL 必须以 http:// 或 https:// 开头
+@msg	AI slicing requires the desktop app and Ollama	AI 切分需要桌面应用和 Ollama
+@msg	Invalid region coordinates	区域坐标无效
+@msg	Invalid region name	区域名称无效
+@msg	Unable to detect elements	无法检测元素
+@msg	Wait for detection to finish	请等待检测完成
+@msg	AI worker stopped; try again	AI 处理已停止，请重试
+@msg	Invalid model JSON: {e}	模型 JSON 无效：{e}
+	Ignore sheet background	忽略画板背景

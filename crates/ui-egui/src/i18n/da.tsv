@@ -5165,3 +5165,21 @@ swatch	Bright Violet	Kraftig violet
 	Typing	Indtastning
 	Persistent	Vedvarende
 	Library Panel Options	Indstillinger for bibliotekspanel
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Opdel illustration med AI
+	Create Slices	Opret udsnit
+	AI Slice Snapshot	Øjebliksbillede af AI-udsnit
+	Create AI Slices	Opret AI-udsnit
+	Export AI Slices	Eksportér AI-udsnit
+	Send preview to Ollama	Send forhåndsvisning til Ollama
+	Detect Elements	Find elementer
+	Detecting elements…	Finder elementer…
+	Review names and bounds	Kontrollér navne og grænser
+	Export Regions	Eksportér områder
+	Exported files	Eksporterede filer
+	Slice Artwork with AI…	Opdel illustration med AI…
+	Server URL	Server-URL
+	Vision model	Model med billedstøtte
+	Name language	Navnenes sprog
+	Ignore sheet background	Ignorer arkets baggrund

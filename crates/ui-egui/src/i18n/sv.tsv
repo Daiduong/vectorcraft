@@ -5132,3 +5132,38 @@ theme	Appearance	Utseende
 @msg	too many library panels were opened in this session	för många bibliotekspaneler har öppnats i den här sessionen
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Bilden är {_1} × {_2} pixlar, mer än {LARGE_TRACE_SIDE} på en sida: den vektoriseras, men långsammare. En förinställning med lägre återgivning eller en mindre kopia av bilden går snabbare.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Bilden vektoriserades vid {_1} × {_2} pixlar, nedskalad från {_3} × {_4} (högst {_5} megapixlar).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Dela upp bild med AI
+	Create Slices	Skapa segment
+	AI Slice Snapshot	Ögonblicksbild för AI-segment
+	Create AI Slices	Skapa AI-segment
+	Export AI Slices	Exportera AI-segment
+	Send preview to Ollama	Skicka förhandsvisning till Ollama
+	Detect Elements	Identifiera element
+	Detecting elements…	Identifierar element…
+	Review names and bounds	Granska namn och gränser
+	Export Regions	Exportera områden
+	Exported files	Exporterade filer
+	Slice Artwork with AI…	Dela upp bild med AI…
+	Server URL	Server-URL
+	Vision model	Modell med bildstöd
+	Name language	Namnens språk
+
+@msg	Cancelled	Avbrutet
+@msg	Enter a vision model and name language	Ange en bildmodell och namnens språk
+@msg	No document	Inget dokument
+@msg	No request pipe	Ingen begärandekanal
+@msg	No response pipe	Ingen svarskanal
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama-begäran misslyckades eller svaret översteg 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-begäran misslyckades. Kontrollera server-URL, installerad bildmodell och curl; tidsgränsen är 120 sekunder.
+@msg	Ollama returned no message content	Ollama returnerade inget meddelandeinnehåll
+@msg	Server URL must start with http:// or https://	Server-URL måste börja med http:// eller https://
+@msg	AI slicing requires the desktop app and Ollama	AI-uppdelning kräver skrivbordsappen och Ollama
+@msg	Invalid region coordinates	Ogiltiga områdeskoordinater
+@msg	Invalid region name	Ogiltigt områdesnamn
+@msg	Unable to detect elements	Det gick inte att identifiera element
+@msg	Wait for detection to finish	Vänta tills identifieringen är klar
+@msg	AI worker stopped; try again	AI-bearbetningen stoppades; försök igen
+@msg	Invalid model JSON: {e}	Ogiltig modell-JSON: {e}
+	Ignore sheet background	Ignorera arkets bakgrund

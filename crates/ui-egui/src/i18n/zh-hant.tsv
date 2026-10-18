@@ -4074,3 +4074,21 @@ lighting	Light	光源
 	Enable Guides for 9-Slice Scaling	啟用 9-slice 縮放參考線
 	Persistent	持久
 	Library Panel Options	資料庫面板選項
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	使用 AI 切分圖稿
+	Create Slices	建立切片
+	AI Slice Snapshot	AI 切片快照
+	Create AI Slices	建立 AI 切片
+	Export AI Slices	匯出 AI 切片
+	Send preview to Ollama	將預覽傳送至 Ollama
+	Detect Elements	偵測元素
+	Detecting elements…	正在偵測元素…
+	Review names and bounds	檢查名稱和邊界
+	Export Regions	匯出區域
+	Exported files	已匯出的檔案
+	Slice Artwork with AI…	使用 AI 切分圖稿…
+	Server URL	伺服器 URL
+	Vision model	支援影像的模型
+	Name language	名稱語言
+	Ignore sheet background	忽略畫板背景

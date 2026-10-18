@@ -4769,3 +4769,38 @@ lighting	Light	Світло
 @msg	too many library panels were opened in this session	у цьому сеансі відкрито забагато панелей бібліотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Зображення {_1} × {_2} пікселів, понад {LARGE_TRACE_SIDE} з одного боку: трасування виконується, але повільніше. Стиль із нижчою точністю або менша копія зображення трасуються швидше.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Зображення трасовано в розмірі {_1} × {_2} пікселів, зменшене з {_3} × {_4} (щонайбільше {_5} мегапікселів).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Розрізати малюнок за допомогою ШІ
+	Create Slices	Створити фрагменти
+	AI Slice Snapshot	Знімок для нарізання ШІ
+	Create AI Slices	Створити фрагменти за допомогою ШІ
+	Export AI Slices	Експорт фрагментів ШІ
+	Send preview to Ollama	Надіслати перегляд до Ollama
+	Detect Elements	Знайти елементи
+	Detecting elements…	Пошук елементів…
+	Review names and bounds	Перевірте назви та межі
+	Export Regions	Експорт областей
+	Exported files	Експортовано файлів
+	Slice Artwork with AI…	Розрізати малюнок за допомогою ШІ…
+	Server URL	Адреса сервера
+	Vision model	Модель із підтримкою зображень
+	Name language	Мова назв
+
+@msg	Cancelled	Скасовано
+@msg	Enter a vision model and name language	Укажіть модель із підтримкою зображень і мову назв
+@msg	No document	Немає документа
+@msg	No request pipe	Немає каналу запиту
+@msg	No response pipe	Немає каналу відповіді
+@msg	Ollama request failed or response exceeded 1 MiB	Запит Ollama не вдався або відповідь перевищила 1 МіБ
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Запит Ollama не вдався. Перевірте адресу сервера, установлену модель із підтримкою зображень і curl; час очікування — 120 секунд.
+@msg	Ollama returned no message content	Ollama не повернула вміст повідомлення
+@msg	Server URL must start with http:// or https://	Адреса сервера має починатися з http:// або https://
+@msg	AI slicing requires the desktop app and Ollama	Для нарізання ШІ потрібні настільна програма та Ollama
+@msg	Invalid region coordinates	Некоректні координати області
+@msg	Invalid region name	Некоректна назва області
+@msg	Unable to detect elements	Не вдалося знайти елементи
+@msg	Wait for detection to finish	Дочекайтеся завершення пошуку
+@msg	AI worker stopped; try again	Обробка ШІ зупинилася; спробуйте ще раз
+@msg	Invalid model JSON: {e}	Некоректний JSON моделі: {e}
+	Ignore sheet background	Ігнорувати фон аркуша

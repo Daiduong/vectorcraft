@@ -8,6 +8,7 @@
 
 mod about;
 pub mod action_batch;
+pub mod ai_slices;
 pub mod artboard_options;
 pub mod blend_options;
 mod brush_art_options;
@@ -223,6 +224,7 @@ macro_rules! registry {
 }
 
 registry! {
+    AISlices: [ai_slices::KIND] => ai_slices::SPEC,
     DimensionOptions: [dimension::KIND] => dimension::SPEC,
     NewDocument: [new_document::KIND] => new_document::SPEC,
     Shape: ["rectangle", "roundedRectangle", "ellipse", "polygon", "star", "lineSegment", "rectangularGrid", "polarGrid"] => shapes::SPEC,
@@ -390,6 +392,9 @@ pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
 /// that dialog is gone, and with no dialog open the next document's Missing Fonts dialog opens
 /// (one dialog at a time).
 pub(crate) fn settle(app: &mut VectorcraftApp) {
+    if app.ui.dialog.as_ref().is_none_or(|d| d.kind != ai_slices::KIND) {
+        app.ai_slices_job = None;
+    }
     missing_fonts::requeue_replaced(app);
     missing_fonts::stop_when_closed(app);
     find_links::stop_when_closed(app);

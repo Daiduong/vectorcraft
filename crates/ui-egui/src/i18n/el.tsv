@@ -5128,3 +5128,38 @@ effect	Points	Σημεία
 @msg	too many library panels were opened in this session	άνοιξαν πάρα πολλοί πίνακες βιβλιοθηκών σε αυτή τη συνεδρία
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Η εικόνα είναι {_1} × {_2} εικονοστοιχεία, πάνω από {LARGE_TRACE_SIDE} σε μία πλευρά: ανιχνεύεται, αλλά πιο αργά. Μια προρύθμιση χαμηλότερης πιστότητας ή ένα μικρότερο αντίγραφο της εικόνας ανιχνεύεται γρηγορότερα.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Η εικόνα ανιχνεύτηκε σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη από {_3} × {_4} (το πολύ {_5} megapixel).
+
+# Reviewed AI asset slicing.
+	Slice Artwork with AI	Διαχωρισμός γραφικών με ΤΝ
+	Create Slices	Δημιουργία τομών
+	AI Slice Snapshot	Στιγμιότυπο τομών ΤΝ
+	Create AI Slices	Δημιουργία τομών ΤΝ
+	Export AI Slices	Εξαγωγή τομών ΤΝ
+	Send preview to Ollama	Αποστολή προεπισκόπησης στο Ollama
+	Detect Elements	Εντοπισμός στοιχείων
+	Detecting elements…	Εντοπισμός στοιχείων…
+	Review names and bounds	Έλεγχος ονομάτων και ορίων
+	Export Regions	Εξαγωγή περιοχών
+	Exported files	Εξαγόμενα αρχεία
+	Slice Artwork with AI…	Διαχωρισμός γραφικών με ΤΝ…
+	Server URL	URL διακομιστή
+	Vision model	Μοντέλο με υποστήριξη εικόνων
+	Name language	Γλώσσα ονομάτων
+
+@msg	Cancelled	Ακυρώθηκε
+@msg	Enter a vision model and name language	Εισαγάγετε μοντέλο εικόνων και γλώσσα ονομάτων
+@msg	No document	Δεν υπάρχει έγγραφο
+@msg	No request pipe	Δεν υπάρχει κανάλι αιτήματος
+@msg	No response pipe	Δεν υπάρχει κανάλι απόκρισης
+@msg	Ollama request failed or response exceeded 1 MiB	Το αίτημα Ollama απέτυχε ή η απόκριση υπερέβη το 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Το αίτημα Ollama απέτυχε. Ελέγξτε το URL του διακομιστή, το εγκατεστημένο μοντέλο εικόνων και το curl· το όριο είναι 120 δευτερόλεπτα.
+@msg	Ollama returned no message content	Το Ollama δεν επέστρεψε περιεχόμενο μηνύματος
+@msg	Server URL must start with http:// or https://	Το URL του διακομιστή πρέπει να αρχίζει με http:// ή https://
+@msg	AI slicing requires the desktop app and Ollama	Ο διαχωρισμός με ΤΝ απαιτεί την εφαρμογή υπολογιστή και το Ollama
+@msg	Invalid region coordinates	Μη έγκυρες συντεταγμένες περιοχής
+@msg	Invalid region name	Μη έγκυρο όνομα περιοχής
+@msg	Unable to detect elements	Δεν ήταν δυνατός ο εντοπισμός στοιχείων
+@msg	Wait for detection to finish	Περιμένετε να ολοκληρωθεί ο εντοπισμός
+@msg	AI worker stopped; try again	Η επεξεργασία ΤΝ σταμάτησε· δοκιμάστε ξανά
+@msg	Invalid model JSON: {e}	Μη έγκυρο JSON μοντέλου: {e}
+	Ignore sheet background	Παράβλεψη φόντου φύλλου

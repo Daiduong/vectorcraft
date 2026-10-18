@@ -74,7 +74,7 @@ pub fn export_source<'a>(st: &'a DocState, p: &Value) -> Result<Cow<'a, Document
 }
 
 /// `n` with only the parts in `keep` (whole, with everything inside them), `None` when none is.
-fn selected_part(n: &Node, keep: &HashSet<NodeId>) -> Option<Node> {
+pub(crate) fn selected_part(n: &Node, keep: &HashSet<NodeId>) -> Option<Node> {
     if keep.contains(&n.id) {
         return Some(n.clone());
     }
@@ -102,7 +102,7 @@ fn selected_part(n: &Node, keep: &HashSet<NodeId>) -> Option<Node> {
 /// ([`vectorcraft_render::painted_bounds`]: the effects in the symbols' art and its own effects). A
 /// clipping layer keeps every object, its clipping path among them. An artboard's file then holds
 /// its own art, not a whole document of artboards.
-pub(super) fn art_over(doc: &Document, rect: vectorcraft_geom::Rect) -> Document {
+pub(crate) fn art_over(doc: &Document, rect: vectorcraft_geom::Rect) -> Document {
     fn kept(n: &Arc<Node>, doc: &Document, symbols: &SymbolBoxes, rect: vectorcraft_geom::Rect) -> Option<Arc<Node>> {
         if matches!(n.kind, NodeKind::Layer { clip: false, .. }) {
             let mut layer = Node::clone(n);
