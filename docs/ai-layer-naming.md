@@ -3,7 +3,7 @@
 Desktop: open the Layers panel menu → **Name Layers with AI…**. Enter the name of an installed
 Ollama vision model and choose the output language, whole document or highlighted rows/selection,
 and group depth (1–16). Use **Play** to start or continue and **Pause** to suspend the queue after the
-current group. Ready names appear as each request completes; the progress bar shows completed/total.
+current group. Ready names appear as each request completes; the progress bar shows completed/total and animates while requests are running, including the first request. Explicit running, paused and complete labels distinguish the job state.
 Review/edit them and choose **Apply Ready Names** to apply the completed portion in one undo step.
 There is no Stop button. **Start Over** discards the current suggestions and checkpoint, without
 undoing names already applied. Settings are retained with UI preferences.

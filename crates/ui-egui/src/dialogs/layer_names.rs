@@ -124,15 +124,22 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         }
         let done=d.fields.get("names").and_then(Value::as_array).map_or(0,Vec::len);
         let total=d.fields.get("total").and_then(Value::as_u64).unwrap_or(0) as usize;
-        if total>0 {ui.add(egui::ProgressBar::new(done as f32/total.max(1) as f32).text(format!("{done} / {total}")));}
-    });
-    if d.bool("busy") {
-        if d.bool("paused") {
-            ui.label(if d.bool("inFlight") { tl!("Finishing current group…") } else { tl!("Paused; ready names are kept.") });
-        } else {
-            ui.spinner();
+        if total>0 {
+            ui.label(format!("{done} / {total}"));
+            ui.add(egui::ProgressBar::new(done as f32/total.max(1) as f32).desired_width(300.0).animate(naming_active(d)));
         }
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+    });
+    if d.bool("complete") {
+        ui.label(tl!("Naming complete."));
+    } else if d.bool("busy") && d.bool("paused") && d.bool("inFlight") {
+        ui.label(tl!("Finishing current group…"));
+    } else if naming_active(d) {
+        ui.label(tl!("Naming in progress…"));
+    } else if d.bool("paused") || (d.fields.contains_key("candidates") && !d.fields.contains_key("error")) {
+        ui.label(tl!("Paused; ready names are kept."));
+    }
+    if naming_active(d) {
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
     }
     if let Some(e) = d.fields.get("error").and_then(Value::as_str) {
         ui.label(crate::i18n::msg(e));
@@ -159,6 +166,10 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         app.naming_checkpoint = Some(d.clone());
     }
     false
+}
+
+fn naming_active(d: &Dialog) -> bool {
+    d.bool("busy") && !d.bool("complete") && (!d.bool("paused") || d.bool("inFlight"))
 }
 
 fn player_button(ui: &mut egui::Ui, label: &str, enabled: bool, play: bool) -> egui::Response {
@@ -634,6 +645,27 @@ mod tests {
             app.naming_job = Some(Job { base: 0, progress, rx, cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) });
             harness.run_steps(3);
             harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-paused.png")).unwrap();
+            let app = harness.state_mut();
+            let job = app.naming_job.as_ref().unwrap();
+            job.progress.paused.store(false, std::sync::atomic::Ordering::Relaxed);
+            app.ui.dialog.as_mut().unwrap().fields.insert("names".into(), json!([]));
+            harness.run_steps(3);
+            harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-running.png")).unwrap();
+            harness.run_steps(12);
+            harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-running-next.png")).unwrap();
+            assert_ne!(
+                std::fs::read(std::path::Path::new(&dir).join("layer-naming-running.png")).unwrap(),
+                std::fs::read(std::path::Path::new(&dir).join("layer-naming-running-next.png")).unwrap(),
+                "the zero-progress bar must visibly animate while waiting for the first response"
+            );
+            let app = harness.state_mut();
+            app.naming_job = None;
+            let fields = &mut app.ui.dialog.as_mut().unwrap().fields;
+            fields.insert("complete".into(), json!(true));
+            fields.insert("names".into(), json!([{"id":1,"name":"Coin Counter"},{"id":2,"name":"Settings Button"}]));
+            fields.insert("total".into(), json!(2));
+            harness.run_steps(3);
+            harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-complete.png")).unwrap();
         }
     }
 
