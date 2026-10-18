@@ -31,7 +31,25 @@ pub struct Opening {
 /// Is a long operation running that should show the busy cursor and status spinner (background
 /// save/export with a label, or a file opening off the UI thread)?
 pub fn long_operation_busy(app: &VectorcraftApp) -> bool {
-    app.background.jobs.iter().any(|j| !j.label.is_empty() && !j.cancelled()) || !app.opening.pending.is_empty()
+    app.ui.heavy_effect_preview
+        || slow_raster_effect_preview(app)
+        || app.background.jobs.iter().any(|j| !j.label.is_empty() && !j.cancelled())
+        || !app.opening.pending.is_empty()
+}
+
+/// A live effect dialog is previewing a raster effect and the last preview was slow.
+fn slow_raster_effect_preview(app: &VectorcraftApp) -> bool {
+    if !app.ui.raster_effect_preview_slow || !app.session.in_interaction() {
+        return false;
+    }
+    let Some(d) = app.ui.dialog.as_ref() else {
+        return false;
+    };
+    if !d.bool("preview") {
+        return false;
+    }
+    let effect = d.fields.get("__effect").and_then(Value::as_str).unwrap_or("");
+    vectorcraft_effects::is_raster(effect)
 }
 
 /// Does opening happen off the UI thread here? Not on wasm (no threads), in unit tests (they look
@@ -119,6 +137,28 @@ mod tests {
 
     use super::*;
     use crate::Services;
+
+    #[test]
+    fn long_operation_busy_during_a_heavy_raster_effect_preview() {
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        assert!(!long_operation_busy(&app));
+        app.ui.heavy_effect_preview = true;
+        assert!(long_operation_busy(&app));
+        app.ui.heavy_effect_preview = false;
+        app.ui.raster_effect_preview_slow = true;
+        assert!(!long_operation_busy(&app), "slow alone, without an open effect dialog");
+        app.ui.dialog = Some(crate::state::Dialog {
+            kind: "effect".into(),
+            fields: serde_json::Map::from_iter([
+                ("preview".into(), json!(true)),
+                ("__effect".into(), json!("blur.gaussian")),
+            ]),
+        });
+        app.run("file.new", json!({})).unwrap();
+        app.session.begin_interaction("test").unwrap();
+        assert!(long_operation_busy(&app));
+        let _ = app.session.cancel_interaction();
+    }
 
     #[test]
     fn long_operation_busy_while_a_file_opens_or_a_background_save_runs() {

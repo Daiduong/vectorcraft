@@ -60,6 +60,7 @@ pub(super) const EXISTS_SPEC: DialogSpec = DialogSpec {
 /// object's effects; omitted: the active item's, else the object's) prefilled with its values,
 /// or add `effect`, first asking when that list already has it.
 pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+    form::clear_raster_effect_preview_busy(app);
     let id = p.get("effect").and_then(Value::as_str).unwrap_or_default();
     let info = vectorcraft_effects::effect_info(id).ok_or_else(|| format!("unknown effect `{id}`"))?;
     // The list the effect goes to: `item` as given, else the active item's (the object's without

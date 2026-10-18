@@ -372,6 +372,14 @@ pub struct UiState {
     pub tab_hid: Option<TabHid>,
     pub view: ViewFlags,
     pub dialog: Option<Dialog>,
+    /// A live raster effect preview is running synchronously on the UI thread
+    /// ([`crate::dialogs::form::preview_result`]).
+    #[serde(skip)]
+    pub heavy_effect_preview: bool,
+    /// The open effect dialog's last raster preview was slow enough to show the busy cursor
+    /// ([`crate::opening::long_operation_busy`]).
+    #[serde(skip)]
+    pub raster_effect_preview_slow: bool,
     /// Messages to show in a dialog once the open one is closed (`dialogs::confirm::tell`), in
     /// the order they came.
     #[serde(skip)]
@@ -786,6 +794,8 @@ impl Default for UiState {
             tab_hid: None,
             view: ViewFlags::default(),
             dialog: None,
+            heavy_effect_preview: false,
+            raster_effect_preview_slow: false,
             told: vec![],
             answering_control: false,
             flyout: None,

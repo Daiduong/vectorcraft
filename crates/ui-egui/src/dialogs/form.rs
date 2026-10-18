@@ -581,6 +581,24 @@ fn rail_ends(ui: &mut egui::Ui, (left, right): (&str, &str)) {
 /// The field where [`preview`] keeps the parameters it last previewed.
 pub(super) const PREVIEWED: &str = "__previewed";
 
+/// Raster effect previews that take at least this long show the busy cursor on later drags.
+const SLOW_RASTER_PREVIEW: std::time::Duration = std::time::Duration::from_millis(120);
+
+/// Clears the slow-raster preview flag (preview off, Cancel, or the dialog closed).
+pub(super) fn clear_raster_effect_preview_busy(app: &mut crate::VectorcraftApp) {
+    app.ui.heavy_effect_preview = false;
+    app.ui.raster_effect_preview_slow = false;
+}
+
+fn raster_effect_preview(cmd: &str, d: &Dialog, params: &Value) -> bool {
+    let id = match cmd {
+        "effect.apply" => params.get("effect").and_then(Value::as_str),
+        "effect.setParams" => d.fields.get("__effect").and_then(Value::as_str),
+        _ => None,
+    };
+    id.is_some_and(vectorcraft_effects::is_raster)
+}
+
 /// The Preview checkbox of a dialog that previews `cmd` on the canvas: while it is on, `params` run
 /// again on the interaction's snapshot whenever they differ from the last preview (whether a widget
 /// or `ui.dialog.set` changed them); turning it off rolls back.
@@ -609,14 +627,26 @@ pub(super) fn preview_result(
         if d.fields.remove(LAST).is_some() {
             let _ = app.session.cancel_interaction();
         }
+        clear_raster_effect_preview_busy(app);
         return None;
     }
     let mut result = None;
     if d.fields.get(LAST) != Some(&params) || !app.session.in_interaction() {
+        let raster = raster_effect_preview(cmd, d, &params);
         let _ = app.session.begin_interaction(label);
+        if raster {
+            app.ui.heavy_effect_preview = true;
+        }
+        let t0 = std::time::Instant::now();
         match app.session.preview(cmd, &params) {
             Ok(r) => result = Some(r),
             Err(e) => app.status(e.to_string()),
+        }
+        if raster {
+            app.ui.heavy_effect_preview = false;
+            if t0.elapsed() >= SLOW_RASTER_PREVIEW {
+                app.ui.raster_effect_preview_slow = true;
+            }
         }
         d.fields.insert(LAST.into(), params);
     }
@@ -644,6 +674,7 @@ pub(super) fn commit_preview(app: &mut crate::VectorcraftApp, cmd: &str, params:
         app.run(cmd, params)
     };
     if r.is_ok() {
+        clear_raster_effect_preview_busy(app);
         app.ui.dialog = None;
     }
     r
