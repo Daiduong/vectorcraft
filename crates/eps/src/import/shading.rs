@@ -316,8 +316,10 @@ impl Interp<'_> {
     /// one input, the nearest one for more.
     pub(super) fn sampled(&mut self, f: &DictRef, x: &[f64]) -> Res<Vec<f64>> {
         let get = |k: &str| f.borrow().get(&Key::name(k)).cloned();
-        let nums =
-            |k: &str| -> Vec<f64> { get(k).and_then(|o| o.items().map(|i| i.borrow().iter().filter_map(Obj::as_num).collect())).unwrap_or_default() };
+        // Finite numbers only: `clamp` panics on a NaN bound.
+        let nums = |k: &str| -> Vec<f64> {
+            get(k).and_then(|o| o.items().map(|i| i.borrow().iter().filter_map(Obj::as_num).filter(|v| v.is_finite()).collect())).unwrap_or_default()
+        };
         let (domain, range, size) = (nums("Domain"), nums("Range"), nums("Size"));
         let m = domain.len() / 2;
         let outs = range.len() / 2;

@@ -1090,7 +1090,7 @@ impl Interp<'_> {
         }
         let space = self.space_of(&get("ColorSpace").ok_or(PsError::Ps("undefined", "ColorSpace".into()))?, 0)?;
         let nums = |o: Option<Obj>| -> Vec<f64> {
-            o.and_then(|o| o.items().map(|i| i.borrow().iter().filter_map(Obj::as_num).collect())).unwrap_or_default()
+            o.and_then(|o| o.items().map(|i| i.borrow().iter().filter_map(Obj::as_num).filter(|v| v.is_finite()).collect())).unwrap_or_default()
         };
         let coords = nums(get("Coords"));
         let domain = nums(get("Domain"));
@@ -1186,8 +1186,9 @@ impl Interp<'_> {
             _ => return ps_err("typecheck", "Function"),
         };
         let get = |k: &str| d.borrow().get(&Key::name(k)).cloned();
+        // Finite numbers only: `clamp` panics on a NaN bound.
         let nums = |o: Option<Obj>| -> Vec<f64> {
-            o.and_then(|o| o.items().map(|i| i.borrow().iter().filter_map(Obj::as_num).collect())).unwrap_or_default()
+            o.and_then(|o| o.items().map(|i| i.borrow().iter().filter_map(Obj::as_num).filter(|v| v.is_finite()).collect())).unwrap_or_default()
         };
         let domain = nums(get("Domain"));
         let t = x.first().copied().unwrap_or(0.0);

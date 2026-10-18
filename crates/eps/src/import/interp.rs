@@ -567,11 +567,18 @@ impl<'a> Interp<'a> {
                     None => {
                         let (x, y) =
                             (a.as_num().ok_or(PsError::Ps("typecheck", String::new()))?, b.as_num().ok_or(PsError::Ps("typecheck", String::new()))?);
-                        Obj::Real(match op {
+                        let v = match op {
                             Add => x + y,
                             Sub => x - y,
                             _ => x * y,
-                        })
+                        };
+                        // A sum or product past the largest real (or infinity less infinity)
+                        // would leave an infinity or a NaN where every later reader expects a
+                        // number.
+                        if !v.is_finite() {
+                            return ps_err("undefinedresult", "");
+                        }
+                        Obj::Real(v)
                     }
                 };
                 self.push(r)?;

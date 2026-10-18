@@ -633,6 +633,29 @@ pub(super) fn check(cond: &str) {
     blue(&format!("{cond} {{ 0 0 1 setrgbcolor }} {{ 1 0 0 setrgbcolor }} ifelse"));
 }
 
+/// A real sum, difference or product past the largest real is `undefinedresult` (PLRM 3rd ed.,
+/// `add`, `sub`, `mul`), not an infinity or a NaN; and a function's Domain, Range, Encode or
+/// Decode that holds one anyway (from a matrix that overflowed) is read without it: `clamp`
+/// panics on a NaN bound, which aborts the web app.
+#[test]
+fn non_finite_reals_are_refused_or_left_out() {
+    check("{ 1e308 10 mul } stopped");
+    check("{ 1e308 neg 1e308 sub } stopped");
+    check("{ 1e308 1e308 add } stopped");
+    check("1e300 2 mul 2e300 eq");
+    // `n` is a NaN: two concatenations overflow the matrix's scale to infinity, and a third
+    // multiplies that infinity by 0.
+    let nan = "[1e300 0 0 1e300 0 0] concat [1e300 0 0 1e300 0 0] concat [0 1 1 0 0 0] concat \
+               /n matrix currentmatrix 0 get def initmatrix";
+    for function in [
+        "<< /FunctionType 2 /Domain [n n] /C0 [0] /C1 [1] /N 1 >>",
+        "<< /FunctionType 0 /Domain [n n] /Range [n n] /Size [2] /BitsPerSample 8 /DataSource <00ff> >>",
+    ] {
+        let body = format!("{nan} << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 100 0] /Function {function} >> shfill");
+        let _ = import(&eps(&body));
+    }
+}
+
 #[test]
 fn the_generic_category_defines_new_categories() {
     // #234: the reference app's prolog.
