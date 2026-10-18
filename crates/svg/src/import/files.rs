@@ -203,7 +203,9 @@ impl Files {
         let data = ImageHrefResolver::default_data_resolver();
         ImageHrefResolver {
             resolve_data: Box::new(move |mime, bytes, opts| {
-                if mime == "image/svg+xml" {
+                // usvg reads an SVG image from `text/plain` data too (the type of a data URL that
+                // names none) when it isn't a PNG, JPEG, GIF or WebP image.
+                if matches!(mime, "image/svg+xml" | "text/plain") {
                     if nested_too_deep(&bytes) {
                         return None;
                     }
@@ -223,15 +225,31 @@ impl Files {
     }
 }
 
-/// Is the SVG image `bytes` nested too deep for usvg to read (as the SVG holding it would be)?
-/// It is then left out, as an image usvg can't read.
+/// Is the SVG image `bytes` nested too deep for usvg to read (as the SVG holding it would be), or
+/// gzipped past what [`crate::text_of`] unpacks (usvg would unpack it with no limit)? It is then
+/// left out, as an image usvg can't read. Other bytes that aren't text (a PNG in `text/plain`
+/// data) are usvg's to read.
 fn nested_too_deep(bytes: &[u8]) -> bool {
-    crate::text_of(bytes).is_ok_and(|text| super::xml_too_deep(&text))
+    match crate::text_of(bytes) {
+        Ok(text) => super::xml_too_deep(&text),
+        Err(_) => crate::is_svgz(bytes),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Gzipped data that doesn't unpack within `text_of`'s limit is refused rather than handed to
+    /// usvg, which unpacks it with none; a damaged gzip stands in for one past the limit. Other
+    /// bytes that aren't text are left to usvg.
+    #[test]
+    fn svg_images_that_dont_unpack_are_refused() {
+        assert!(nested_too_deep(&[0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff, 1, 2, 3]));
+        assert!(!nested_too_deep(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR"));
+        assert!(!nested_too_deep(br#"<svg xmlns="http://www.w3.org/2000/svg"/>"#));
+        assert!(nested_too_deep(format!("<svg>{}</svg>", "<g>".repeat(super::super::MAX_ELEMENT_DEPTH + 1)).as_bytes()));
+    }
 
     #[test]
     fn hrefs_resolve_against_the_folder() {

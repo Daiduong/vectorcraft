@@ -147,6 +147,28 @@ fn svgz_images_import_as_vector_art() {
     assert!((boxes[1].x0 - 100.0).abs() < 1e-6 && (boxes[1].height() - 20.0).abs() < 1e-6, "{boxes:?}");
 }
 
+/// usvg reads an SVG image from `text/plain` data too (the type of a data URL that names none).
+/// One nested past the limit is left out as an `image/svg+xml` one is, before usvg's XML reader
+/// recurses through it and overflows the stack (which aborts the app); a shallow one is art.
+#[test]
+fn svg_images_in_text_data_are_checked_like_svg_data() {
+    let deep = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">{}<rect width="5" height="5"/>{}</svg>"#,
+        "<g>".repeat(100_000),
+        "</g>".repeat(100_000)
+    );
+    let shallow = r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"><rect width="10" height="10"/></svg>"#;
+    for mime in ["text/plain", "image/svg+xml"] {
+        let image = |inner: &str| {
+            svg(&format!(r#"<image href="data:{mime};base64,{}" width="40" height="20"/>"#, vectorcraft_svg::base64_encode(inner.as_bytes())))
+        };
+        let (d, _) = import_with_report(&image(&deep)).unwrap();
+        assert!(art(&d).iter().all(|n| n.path_data().is_none()), "{mime}: {:?}", art(&d));
+        let (d, _) = import_with_report(&image(shallow)).unwrap();
+        assert_eq!(art(&d).iter().filter(|n| n.path_data().is_some()).count(), 1, "{mime}: {:?}", art(&d));
+    }
+}
+
 #[test]
 fn nested_clips_intersect() {
     let body = r##"<defs><clipPath id="inner"><rect x="60" y="0" width="200" height="200"/></clipPath>
