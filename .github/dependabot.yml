@@ -2,7 +2,10 @@ version: 2
 updates:
   # Maintain Rust / Cargo dependencies
   - package-ecosystem: "cargo"
-    directory: "/"
+    directories:
+      - "/"
+      - "/crates/affinity/fuzz"
+      - "/crates/plugins/example"
     schedule:
       interval: "daily"
       time: "06:00"
