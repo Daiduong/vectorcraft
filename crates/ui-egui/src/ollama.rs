@@ -123,6 +123,7 @@ fn curl_args(endpoint: &str) -> Result<Vec<String>, String> {
     Ok(args)
 }
 
+/// Host of an http(s) URL, rejecting userinfo tricks and a non-numeric port.
 fn host_of(rest: &str) -> Option<String> {
     if rest.is_empty() {
         return None;
@@ -161,6 +162,7 @@ fn host_of(rest: &str) -> Option<String> {
     Some(host.to_ascii_lowercase())
 }
 
+/// Whether the host is localhost or an IPv4 or IPv6 loopback address.
 fn is_loopback(host: &str) -> bool {
     if host == "localhost" {
         return true;
@@ -179,6 +181,7 @@ mod tests {
     use super::*;
 
     #[test]
+    /// One connection supplies the model.
     fn one_connection_supplies_the_model() {
         let (endpoint, model, language) = connection(&serde_json::Value::Null);
         assert_eq!((endpoint.as_str(), model.as_str(), language.as_str()), (DEFAULT_ENDPOINT, DEFAULT_MODEL, DEFAULT_LANGUAGE));
@@ -188,6 +191,7 @@ mod tests {
     }
 
     #[test]
+    /// Plain http is loopback only.
     fn plain_http_is_loopback_only() {
         assert!(matches!(endpoint_kind("http://localhost:11434/api/chat"), Ok(EndpointKind::Loopback)));
         assert!(matches!(endpoint_kind("http://127.0.0.1:9/api/chat"), Ok(EndpointKind::Loopback)));
@@ -212,6 +216,7 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
+    /// Loopback bypasses the proxy.
     fn loopback_bypasses_the_proxy() {
         let local = curl_args("http://127.0.0.1:11434/api/chat").unwrap();
         let remote = curl_args("https://models.example/api/chat").unwrap();

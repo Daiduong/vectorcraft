@@ -24,6 +24,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
     ..DialogSpec::FORM
 };
 
+/// Open the slicing dialog on the shared Ollama connection and any session checkpoint.
 pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     if app.session.active().is_none() {
         return Err("No document".into());
@@ -75,10 +76,12 @@ pub(crate) struct Job {
     base: usize,
 }
 impl Drop for Job {
+    /// Cancel detection when the job is dropped.
     fn drop(&mut self) {
         self.cancel.store(true, Ordering::Relaxed);
     }
 }
+/// Refuse export or creation when the document, scope, or selection changed.
 fn guard(app: &VectorcraftApp, d: &Dialog) -> Result<(), String> {
     let st = app.session.active().ok_or("No document")?;
     if d.fields.get("uid") != Some(&json!(st.uid)) || d.fields.get("revision") != Some(&json!(st.revision)) {
@@ -93,6 +96,7 @@ fn guard(app: &VectorcraftApp, d: &Dialog) -> Result<(), String> {
     }
     Ok(())
 }
+/// Keep edited names, bounds, and exclusions when new regions arrive.
 fn merge(d: &mut Dialog, rows: &[Value]) {
     let field = d.fields.entry("regions".to_string()).or_insert_with(|| json!([]));
     if let Some(ready) = field.as_array_mut() {
@@ -106,6 +110,7 @@ fn merge(d: &mut Dialog, rows: &[Value]) {
         }
     }
 }
+/// Copy regions the worker has finished into the dialog.
 fn sync(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     let Some(job) = &mut app.ai_slices_job else { return Ok(()) };
     let state = job.progress.lock().map_err(|_| "AI worker stopped; try again")?;
@@ -154,6 +159,7 @@ fn sync(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     }
     Ok(())
 }
+/// Let the current request finish and start no further one.
 fn pause(app: &mut VectorcraftApp) {
     if let Some(job) = &app.ai_slices_job
         && let Ok(mut state) = job.progress.lock()
@@ -171,6 +177,7 @@ pub(crate) fn close(app: &mut VectorcraftApp) {
         app.ai_slices_checkpoint = Some(d);
     }
 }
+/// Draw the dialog and poll the detection worker.
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     egui::ScrollArea::vertical()
         .id_salt("ai-slices-body")
@@ -179,6 +186,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         .show(ui, |ui| body_contents(app, ui, d))
         .inner
 }
+/// Settings, player, review rows, and export controls.
 fn body_contents(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if let Err(e) = sync(app, d) {
         d.fields.insert("error".into(), json!(e));
@@ -397,6 +405,7 @@ fn body_contents(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) ->
     false
 }
 
+/// Play or pause control for the detection queue.
 fn player_button(ui: &mut egui::Ui, label: &str, enabled: bool, play: bool) -> egui::Response {
     let response = ui.add_enabled(enabled, egui::Button::new("").min_size(egui::vec2(32.0, 28.0)));
     let r = response.rect.shrink(8.0);
@@ -417,6 +426,7 @@ fn player_button(ui: &mut egui::Ui, label: &str, enabled: bool, play: bool) -> e
     response.on_hover_text(label)
 }
 
+/// Draw the numbered region boxes over the artwork preview.
 fn preview(app: &VectorcraftApp, ui: &mut egui::Ui, d: &Dialog) {
     let Some(texture) = app.ai_slices_job.as_ref().and_then(|job| job.texture.as_ref()) else { return };
     let r = rect(d);
@@ -441,11 +451,13 @@ fn preview(app: &VectorcraftApp, ui: &mut egui::Ui, d: &Dialog) {
         }
     }
 }
+/// Rectangle of the region row currently shown.
 fn rect(d: &Dialog) -> Rect {
     let a = d.fields.get("rect");
     let v = |i| a.and_then(|a| a.get(i)).and_then(Value::as_f64).unwrap_or(1.0);
     Rect::new(v(0), v(1), v(0) + v(2), v(1) + v(3))
 }
+/// Export folder name derived from the document title.
 fn default_folder(name: &str) -> String {
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
@@ -454,6 +466,7 @@ fn default_folder(name: &str) -> String {
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     home.join("Pictures").join("VectorCraft").join(vectorcraft_engine::cmd::aislices::safe_collection_folder(name)).to_string_lossy().into_owned()
 }
+/// Keep the automatic collection folder in step with the document name.
 fn update_collection_folder(d: &mut Dialog, name: &str) {
     if d.fields.contains_key("collectionName") {
         return;
@@ -465,6 +478,7 @@ fn update_collection_folder(d: &mut Dialog, name: &str) {
         d.fields.insert("autoFolderValue".into(), json!(folder));
     }
 }
+/// Stable key for one export folder.
 fn folder_key(folder: &str) -> String {
     let path = std::path::PathBuf::from(folder);
     let absolute = if path.is_absolute() { path } else { std::env::current_dir().unwrap_or_default().join(path) };
@@ -484,12 +498,15 @@ fn folder_key(folder: &str) -> String {
     }
     normalized.to_string_lossy().into_owned()
 }
+/// Identity of one region export so a later batch does not repeat it.
 fn export_key(d: &Dialog, row: &Value) -> Value {
     export_key_at(d, row, &folder_key(&d.str("folder")))
 }
+/// Export identity of one region at an explicit folder.
 fn export_key_at(d: &Dialog, row: &Value, folder: &str) -> Value {
     json!({"folder":folder,"format":d.str("format"),"matchPreview":d.str("format")=="svg" && d.bool("matchPreview"),"scale":if d.str("format")=="png" || d.bool("matchPreview"){Some(d.f64("scale",1.0))}else{None},"candidateIndex":row.get("candidateIndex"),"name":row["name"].as_str().unwrap_or_default().trim(),"x":row["x"].as_f64(),"y":row["y"].as_f64(),"width":row["width"].as_f64(),"height":row["height"].as_f64(),"sourceIds":row.get("sourceIds"),"ignoreBackground":d.bool("__ignoreBackground"),"ignoreShadows":d.bool("__ignoreShadows")})
 }
+/// Checked regions that have not been written yet.
 fn pending_exports(d: &Dialog) -> Vec<Value> {
     let folder = folder_key(&d.str("folder"));
     d.fields
@@ -501,10 +518,12 @@ fn pending_exports(d: &Dialog) -> Vec<Value> {
         .cloned()
         .collect()
 }
+/// Engine parameters for the regions currently under review.
 fn params(d: &Dialog) -> Value {
     let regions: Vec<_> = d.fields.get("regions").and_then(Value::as_array).into_iter().flatten().filter(|r| r["keep"] != false).cloned().collect();
     json!({"uid":d.fields.get("uid"),"revision":d.fields.get("revision"),"selectionOnly":d.bool("__selectionOnly"),"selectionIds":d.fields.get("selectionIds"),"regions":regions})
 }
+/// Export the checked regions and uncheck the ones that succeeded.
 fn export_ready(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<Value, String> {
     sync(app, d)?;
     if d.bool("busy") && !d.bool("paused") {
@@ -539,6 +558,7 @@ fn export_ready(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<Value, Strin
     d.fields.insert("folderFrozen".into(), json!(true));
     Ok(result)
 }
+/// Create editable slices for the checked regions.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let mut d = d.clone();
     sync(app, &mut d)?;
@@ -565,10 +585,12 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     Ok(v)
 }
 #[cfg(target_arch = "wasm32")]
+/// Report that slicing needs the desktop app.
 fn start(_: &mut VectorcraftApp, _: &mut Dialog) -> Result<(), String> {
     Err("AI slicing requires the desktop app and Ollama".into())
 }
 #[cfg(not(target_arch = "wasm32"))]
+/// Validate the endpoint and start detection for regions that are not ready.
 fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     let endpoint = d.str("endpoint");
     let model = d.str("model");
@@ -639,6 +661,7 @@ fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
 }
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::too_many_arguments)]
+/// Ask Ollama to name each region from its own preview.
 fn detect(
     doc: &vectorcraft_doc::Document,
     region: Rect,
@@ -716,6 +739,7 @@ fn detect(
     Ok((json!(out), image))
 }
 #[cfg(any(not(target_arch = "wasm32"), test))]
+/// Accept one bounded name and reject coordinates supplied by the model.
 fn validate(content: &str) -> Result<String, String> {
     let data: Value = serde_json::from_str(content).map_err(|e| format!("Invalid model JSON: {e}"))?;
     let name = data["name"]
@@ -734,6 +758,7 @@ mod tests {
     use super::*;
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
+    /// Pause close resume partial exports and creation keep edits.
     fn pause_close_resume_partial_exports_and_creation_keep_edits() {
         use std::io::{Read, Write};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -845,6 +870,7 @@ mod tests {
         std::fs::remove_dir_all(folder).unwrap();
     }
     #[test]
+    /// Export create png and destinations are independent.
     fn export_create_png_and_destinations_are_independent() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -904,6 +930,7 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
+    /// Automatic collection folder respects manual paths and exports.
     fn automatic_collection_folder_respects_manual_paths_and_exports() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -936,6 +963,7 @@ mod tests {
         assert_eq!(frozen.str("folder"), chosen);
     }
     #[test]
+    /// Checkpoint guards revision scope background and selection.
     fn checkpoint_guards_revision_scope_background_and_selection() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -969,6 +997,7 @@ mod tests {
         assert!(!app.ui.dialog.as_ref().unwrap().fields.contains_key("uid"));
     }
     #[test]
+    /// Partial apply while request finishes retains late region.
     fn partial_apply_while_request_finishes_retains_late_region() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -1026,6 +1055,7 @@ mod tests {
         assert_eq!(app.session.active().unwrap().doc.slices.len(), 2);
     }
     #[test]
+    /// Final worker sync does not duplicate edited geometry.
     fn final_worker_sync_does_not_duplicate_edited_geometry() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         let original = json!({"candidateIndex":0,"x":10,"y":10,"width":40,"height":20,"name":"Button","keep":true});
@@ -1047,6 +1077,7 @@ mod tests {
         assert_eq!(d.fields["regions"][0], json!({"candidateIndex":0,"x":12,"y":13,"width":39,"height":19,"name":"Edited","keep":false}));
     }
     #[test]
+    /// Rejects invalid names without accepting model coordinates.
     fn rejects_invalid_names_without_accepting_model_coordinates() {
         assert_eq!(validate(r#"{"name":"Play Button","x":999999}"#).unwrap(), "Play Button");
         for content in ["not JSON", r#"{"regions":[]}"#, r#"{"name":" "}"#, r#"{"name":"Group"}"#, r#"{"name":123}"#] {
@@ -1054,6 +1085,7 @@ mod tests {
         }
     }
     #[test]
+    /// Review cancel apply and stale document.
     fn review_cancel_apply_and_stale_document() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({})).unwrap();
@@ -1083,6 +1115,7 @@ mod tests {
     }
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
+    /// Sends preview and requires region schema.
     fn sends_preview_and_requires_region_schema() {
         use std::io::{Read, Write};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -1130,6 +1163,7 @@ mod tests {
         assert!(detect(doc, r, &rows, &endpoint, "test-vision", "English", &AtomicBool::new(true), &done).is_err());
     }
     #[test]
+    /// Optional dialog screenshot.
     fn optional_dialog_screenshot() {
         let Ok(dir) = std::env::var("CRAFT_AI_SLICES_SHOT") else { return };
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
@@ -1263,6 +1297,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     #[ignore = "requires a local Ollama vision model; optionally VECTORCRAFT_SLICING_SVG"]
+    /// Real ollama detects elements.
     fn real_ollama_detects_elements() {
         let doc = if let Ok(path) = std::env::var("VECTORCRAFT_SLICING_SVG") {
             vectorcraft_svg::import(&std::fs::read_to_string(path).unwrap()).unwrap()

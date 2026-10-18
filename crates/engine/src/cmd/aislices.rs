@@ -7,6 +7,7 @@ use vectorcraft_geom::Rect;
 const LIMIT: usize = 64;
 const C: &str = "slice.applyAI";
 
+/// Register the snapshot, apply, and export commands for AI slicing.
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(query "slice.aiSnapshot", "AI Slice Snapshot", [], None,
@@ -25,6 +26,7 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
+/// Reject a stale document, selection, or scope before a slice edit.
 fn guard(s: &Session, p: &Value) -> Result<()> {
     let st = s.doc()?;
     if p.get("uid").and_then(Value::as_u64) != Some(st.uid) || p.get("revision").and_then(Value::as_u64) != Some(st.revision) {
@@ -58,6 +60,7 @@ pub fn prepare_source(doc: Document, ignore_background: bool) -> Document {
 pub fn prepare_source_with_options(mut doc: Document, ignore_background: bool, ignore_shadows: bool) -> Document {
     use std::sync::Arc;
     use vectorcraft_doc::{Node, NodeKind};
+    /// Remove a plain sheet background when that option is on.
     fn visit(doc: &Document, node: &mut Arc<Node>, depth: usize) {
         if depth >= 32
             || !node.visible
@@ -140,10 +143,12 @@ fn trim_external_shadows(mut doc: Document) -> Document {
     use std::sync::Arc;
     use vectorcraft_color::{BlendMode, Color, Paint};
     use vectorcraft_doc::{Knockout, Node, NodeKind};
+    /// Whether a colour is the neutral grey this shadow policy removes.
     fn neutral(color: &Color) -> bool {
         let [r, g, b] = color.to_rgb();
         r.is_finite() && g.is_finite() && b.is_finite() && r.max(g).max(b) - r.min(g).min(b) <= 0.025
     }
+    /// Whether a node is only the narrow neutral shadow behind a taller body.
     fn neutral_art(node: &Node, depth: usize) -> bool {
         if depth >= 32
             || node.extras().mask.is_some()
@@ -168,6 +173,7 @@ fn trim_external_shadows(mut doc: Document) -> Document {
         }
         node.children().is_none_or(|children| children.len() <= 4096 && children.iter().all(|child| neutral_art(child, depth + 1)))
     }
+    /// Drop a recognized external shadow and keep every other node.
     fn visit(reference: &Document, node: &mut Arc<Node>, depth: usize) {
         if depth >= 32
             || !node.visible
@@ -243,6 +249,7 @@ pub fn region_source(doc: &Document, row: &Value) -> Result<Document> {
     Ok(isolated)
 }
 
+/// Build the temporary preview copy and the regions detected in it.
 fn snapshot(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     let doc = prepare_source_with_options(
@@ -281,12 +288,15 @@ struct AssetRegion {
     source_ids: Vec<u64>,
 }
 
+/// Find spatial islands from painted bounds.
 fn asset_regions(doc: &Document) -> Result<Vec<AssetRegion>> {
     use vectorcraft_doc::{Node, NodeKind};
+    /// One spatial island owned by a single painted node.
     fn owned(rect: Rect, node: &Node) -> AssetRegion {
         let source_ids = if node.id.0 == 0 { node.children().into_iter().flatten().map(|n| n.id.0).collect() } else { vec![node.id.0] };
         AssetRegion { rect, source_ids }
     }
+    /// Split sibling artwork into islands without opening clipped containers.
     fn visit(doc: &Document, node: &Node, depth: usize, out: &mut Vec<AssetRegion>) -> Result<()> {
         if !node.visible || node.is_template() {
             return Ok(());
@@ -427,6 +437,7 @@ fn asset_regions(doc: &Document) -> Result<Vec<AssetRegion>> {
     Ok(out)
 }
 
+/// Read reviewed region names and rectangles from the command parameters.
 fn regions(p: &Value) -> Result<Vec<(String, Rect)>> {
     let rows = p
         .get("regions")
@@ -454,6 +465,7 @@ fn regions(p: &Value) -> Result<Vec<(String, Rect)>> {
         .collect()
 }
 
+/// Create the reviewed slices in one undo step.
 fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     guard(s, p)?;
     let regions = regions(p)?;
@@ -467,6 +479,7 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"ids":ids.iter().map(|id| id.0).collect::<Vec<_>>()}))
 }
 
+/// Write each selected region to its own SVG or PNG file.
 fn export(s: &mut Session, p: &Value) -> Result<Value> {
     guard(s, p)?;
     let regions = regions(p)?;
@@ -569,6 +582,7 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     #[test]
+    /// External shadows are optional and do not change body or source.
     fn external_shadows_are_optional_and_do_not_change_body_or_source() {
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="240" height="220"><g><path d="M10 180H190V200H10Z" opacity=".65" style="mix-blend-mode:multiply" fill="#333"/><g><rect x="10" y="10" width="100" height="180" fill="#f80"/><circle cx="60" cy="50" r="15" fill="#00f"/></g></g></svg>"##;
         let doc = vectorcraft_svg::import(svg).unwrap();
@@ -623,6 +637,7 @@ mod tests {
         assert_eq!(asset_regions(&prepare_source_with_options(scaled, false, true)).unwrap()[0].rect.width(), 200.0);
     }
     #[test]
+    /// Optional local shadow crop review.
     fn optional_local_shadow_crop_review() {
         let (Ok(path), Ok(folder)) = (std::env::var("VECTORCRAFT_SLICING_SVG"), std::env::var("VECTORCRAFT_SLICING_QA_DIR")) else { return };
         std::fs::create_dir_all(&folder).unwrap();
@@ -663,6 +678,7 @@ mod tests {
         assert!(std::sync::Arc::ptr_eq(&before, &session.doc().unwrap().doc));
     }
     #[test]
+    /// Preview svg embeds native pixels and enforces raster limits.
     fn preview_svg_embeds_native_pixels_and_enforces_raster_limits() {
         let (mut s, mut p) = fixture();
         p["matchPreview"] = json!(true);
@@ -688,6 +704,7 @@ mod tests {
         assert!(s.execute("slice.exportAI", &p).is_ok(), "editable vectors do not allocate raster pixels");
     }
     #[test]
+    /// Folder creation is explicit and collection component is safe.
     fn folder_creation_is_explicit_and_collection_component_is_safe() {
         let (mut s, mut p) = fixture();
         let folder = std::env::temp_dir().join(format!("vectorcraft-no-mkdir-{}", std::process::id())).join("nested");
@@ -717,6 +734,7 @@ mod tests {
         }
     }
     #[test]
+    /// Player parameters are advertised.
     fn player_parameters_are_advertised() {
         super::super::params::check_params("slice.aiSnapshot", &json!({"ignoreShadows":true})).unwrap();
         super::super::params::check_params("slice.exportAI", &json!({"uid":1,"revision":0,"createFolder":false,"matchPreview":true,"regions":[]}))
@@ -729,6 +747,7 @@ mod tests {
 
     use super::*;
     use serde_json::json;
+    /// Session and parameters shared by the slicing command tests.
     fn fixture() -> (Session, Value) {
         let mut s = Session::new();
         s.execute("file.new", &json!({"width":200,"height":100})).unwrap();
@@ -739,6 +758,7 @@ mod tests {
         (s, p)
     }
     #[test]
+    /// Spatial islands keep overlapping and clipped parts together.
     fn spatial_islands_keep_overlapping_and_clipped_parts_together() {
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80"><g><g><rect x="5" y="5" width="60" height="40" fill="#000"/><circle cx="35" cy="25" r="10" fill="#f00"/></g><g><rect x="100" y="5" width="60" height="40" fill="#000"/><circle cx="130" cy="25" r="10" fill="#f00"/></g></g></svg>"##;
         let doc = vectorcraft_svg::import(svg).unwrap();
@@ -771,6 +791,7 @@ mod tests {
         }
     }
     #[test]
+    /// Sheet background is optional and only removed in export copy.
     fn sheet_background_is_optional_and_only_removed_in_export_copy() {
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><g><rect width="200" height="100" fill="#fff"/><rect x="10" y="10" width="40" height="20" fill="#f00"/><rect x="100" y="10" width="40" height="20" fill="#00f"/></g></svg>"##;
         let doc = vectorcraft_svg::import(svg).unwrap();
@@ -801,6 +822,7 @@ mod tests {
         );
     }
     #[test]
+    /// Regions are atomic guarded and undoable without changing art.
     fn regions_are_atomic_guarded_and_undoable_without_changing_art() {
         let (mut s, p) = fixture();
         let doc = s.doc().unwrap().doc.clone();
@@ -822,6 +844,7 @@ mod tests {
         assert_eq!(s.doc().unwrap().doc.slices.len(), 2);
     }
     #[test]
+    /// Exports separate vector and transparent pixel crops.
     fn exports_separate_vector_and_transparent_pixel_crops() {
         let (mut s, mut p) = fixture();
         let revision = s.doc().unwrap().revision;
@@ -851,6 +874,7 @@ mod tests {
         assert!(s.execute("slice.exportAI", &p).is_err());
     }
     #[test]
+    /// Vector crops keep clipping and group opacity.
     fn vector_crops_keep_clipping_and_group_opacity() {
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><defs><clipPath id="clip"><circle cx="30" cy="30" r="20"/></clipPath></defs><g clip-path="url(#clip)" opacity="0.6"><rect width="70" height="60" fill="#ff0000"/></g><rect x="90" y="10" width="20" height="20" fill="#0000ff"/></svg>"##;
         let doc = vectorcraft_svg::import(svg).unwrap();
@@ -868,6 +892,7 @@ mod tests {
         assert_eq!(actual.pixels, expected.pixels);
     }
     #[test]
+    /// Detected sources exclude neighbours and preserve ancestor opacity.
     fn detected_sources_exclude_neighbours_and_preserve_ancestor_opacity() {
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><g opacity="0.6"><rect x="10" y="10" width="40" height="20" fill="#f00"/></g><rect x="100" y="10" width="40" height="20" fill="#00f"/></svg>"##;
         let mut session = Session::new();
@@ -893,6 +918,7 @@ mod tests {
         assert!(session.execute("slice.exportAI", &json!({"uid":snap["uid"],"revision":snap["revision"],"regions":[row]})).is_err());
     }
     #[test]
+    /// Source isolation keeps every ungrouped component member.
     fn source_isolation_keeps_every_ungrouped_component_member() {
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><g><rect x="10" y="10" width="40" height="20" fill="#f00"/></g><circle cx="30" cy="20" r="5" fill="#00f"/><rect x="100" y="10" width="30" height="20" fill="#0f0"/></svg>"##;
         let mut session = Session::new();
@@ -915,6 +941,7 @@ mod tests {
         assert_eq!(pixels.get_pixel(105, 15).0[3], 0, "unrelated green control stays outside this source component");
     }
     #[test]
+    /// Changed selection is rejected and filenames stay in folder.
     fn changed_selection_is_rejected_and_filenames_stay_in_folder() {
         let (mut s, mut p) = fixture();
         let snap = s.execute("slice.aiSnapshot", &json!({"selectionOnly":true})).unwrap();
@@ -931,6 +958,7 @@ mod tests {
     }
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
+    /// Never overwrites existing exports.
     fn never_overwrites_existing_exports() {
         let (mut s, mut p) = fixture();
         let folder = std::env::temp_dir().join(format!("vectorcraft-ai-slices-{}", std::process::id()));
