@@ -85,6 +85,18 @@ fn choosing_a_type_redraws_the_selected_barcode() {
     assert_eq!(spec.data, "036000291452", "and the new type's example value");
 }
 
+/// A comma separates codes only where the data cannot carry one: a spreadsheet column pasted as one
+/// line splits for EAN-13, and stays whole for Code 39's Full ASCII, Code 128 and a QR Code.
+#[test]
+fn a_comma_splits_only_where_it_cannot_be_data() {
+    use vectorcraft_barcode::Symbology;
+    assert_eq!(barcode::batch_entries("4006381333931,5012345678900", Symbology::Ean13).len(), 2);
+    assert_eq!(barcode::batch_entries("4006381333931\n5012345678900", Symbology::Ean13).len(), 2);
+    assert_eq!(barcode::batch_entries("ABC,DEF", Symbology::Code39), vec!["ABC,DEF".to_string()]);
+    assert_eq!(barcode::batch_entries("https://x/?a=1,2", Symbology::QrCode), vec!["https://x/?a=1,2".to_string()]);
+    assert_eq!(barcode::batch_entries("A,B\nC", Symbology::Code128).len(), 2, "a line still ends a code");
+}
+
 /// Every committed change draws on the selected object at once. The text fields commit on Enter or
 /// when the focus leaves them, so a value being typed never redraws the object halfway through.
 #[test]

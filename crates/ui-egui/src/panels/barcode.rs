@@ -437,20 +437,13 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
 }
 
 /// The codes pasted into the batch box, one per line — and one per comma too, when the whole paste
-/// is on one line, since that is how a spreadsheet column and a CSV row arrive. A comma is data in
-/// Code 128, Code 93 and a QR Code, though: a URL with one in it is one code, not two.
-fn batch_entries(text: &str, symbology: Symbology) -> Vec<String> {
-    let comma_separates = !matches!(
-        symbology,
-        Symbology::Ean128
-            | Symbology::Code128
-            | Symbology::Code128A
-            | Symbology::Code128B
-            | Symbology::Code128C
-            | Symbology::Code93
-            | Symbology::QrCode
-    );
-    let sep = if text.contains('\n') || !comma_separates { '\n' } else { ',' };
+/// is on one line, since that is how a spreadsheet column and a CSV row arrive. Only the numeric
+/// sets, which carry digits alone, can take a comma as a separator: Code 39's Full ASCII, Code 128,
+/// Code 93 and a QR Code all carry one as data, so a value with one in it is one code, not two.
+pub(super) fn batch_entries(text: &str, symbology: Symbology) -> Vec<String> {
+    let digits_only =
+        matches!(symbology, Symbology::Ean13 | Symbology::Ean8 | Symbology::UpcA | Symbology::UpcE | Symbology::Itf14 | Symbology::Itf25);
+    let sep = if text.contains('\n') || !digits_only { '\n' } else { ',' };
     text.split(sep).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
 }
 
