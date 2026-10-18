@@ -5259,3 +5259,4 @@ mark-style	Japanese	Japonské
 @msg	the document changed; generate names again	dokument se změnil; vygenerujte názvy znovu
 	Naming in progress…	Probíhá pojmenování…
 	Naming complete.	Pojmenování dokončeno.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	proměnné a sady dat souboru nebyly načteny (proměnné: {variables}, sady dat: {data_sets}): panel Proměnné je nezobrazuje

@@ -4836,3 +4836,4 @@ lighting	Light	광원
 @msg	the document changed; generate names again	문서가 변경되었습니다. 이름을 다시 생성하세요
 	Naming in progress…	이름 지정 중…
 	Naming complete.	이름 지정 완료.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	파일의 변수와 데이터 세트를 읽지 않았습니다(변수: {variables}, 데이터 세트: {data_sets}). 변수 패널에 표시되지 않습니다

@@ -4869,3 +4869,4 @@ lighting	Light	Свет
 @msg	the document changed; generate names again	документ изменился; создайте названия заново
 	Naming in progress…	Идёт именование…
 	Naming complete.	Именование завершено.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	переменные и наборы данных файла не прочитаны (переменных: {variables}, наборов данных: {data_sets}): панель «Переменные» их не показывает

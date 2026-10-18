@@ -4913,3 +4913,4 @@ lighting	Light	ライト
 @msg	the document changed; generate names again	ドキュメントが変更されました。名前を再生成してください
 	Naming in progress…	名前を生成中…
 	Naming complete.	名前の生成が完了しました。
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	ファイルの変数とデータセットは読み込まれませんでした (変数: {variables}、データセット: {data_sets})。変数パネルには表示されません

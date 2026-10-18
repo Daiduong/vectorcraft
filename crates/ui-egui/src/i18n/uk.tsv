@@ -4853,3 +4853,4 @@ lighting	Light	Світло
 @msg	the document changed; generate names again	документ змінився; створіть назви заново
 	Naming in progress…	Триває іменування…
 	Naming complete.	Іменування завершено.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	змінні та набори даних файлу не прочитано (змінних: {variables}, наборів даних: {data_sets}): панель «Змінні» їх не показує

@@ -5215,3 +5215,4 @@ theme	Appearance	Utseende
 @msg	the document changed; generate names again	dokumentet har ändrats; generera namnen igen
 	Naming in progress…	Namngivning pågår…
 	Naming complete.	Namngivning klar.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	filens variabler och datauppsättningar lästes inte (variabler: {variables}, datauppsättningar: {data_sets}): panelen Variabler visar dem inte
