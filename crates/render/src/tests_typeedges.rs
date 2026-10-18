@@ -314,3 +314,71 @@ fn type_outside_its_frame_is_drawn() {
     assert!(outside(&page(TypeAntiAlias::Sharp)) > 20, "the opening quotation mark hangs outside the frame");
     assert!(outside(&page(TypeAntiAlias::None)) > 20, "None type draws it there too");
 }
+
+/// A frame draws Crisp type from the pixels an earlier frame kept when the view only moved by
+/// whole pixels, and they are the pixels a new renderer draws. Another zoom, another method, a pan
+/// that brings more of the type into view, a pan by part of a pixel and other edge smoothing draw
+/// the type again.
+#[test]
+fn a_pan_draws_the_type_from_the_kept_pixels() {
+    let opts = RenderOptions::default();
+    let fonts = || vectorcraft_text::FontDb::global().generation();
+    // How many type objects a renderer drew offscreen for `b` in `second` after drawing `a` in
+    // `first`. The second frame's pixels are a new renderer's, each channel within `near`. The
+    // frames are drawn again while the fonts change between them (other tests load fonts, and the
+    // type is then drawn again).
+    let drawn = |(a, first): (&Document, Affine), (b, second): (&Document, Affine), near: u8| {
+        for _ in 0..5 {
+            let before = fonts();
+            let mut r = Renderer::new();
+            r.render(a, W, H, first, &opts);
+            assert_eq!(r.stats.type_edges, 1, "{first:?}");
+            let pixels = r.render(b, W, H, second, &opts).pixels;
+            if fonts() != before {
+                continue;
+            }
+            let want = Renderer::new().render(b, W, H, second, &opts).pixels;
+            let differ: Vec<_> = pixels
+                .chunks(4)
+                .zip(want.chunks(4))
+                .enumerate()
+                .filter(|(_, (p, q))| p.iter().zip(*q).any(|(p, q)| p.abs_diff(*q) > near))
+                .map(|(i, (p, q))| (i as u32 % W, i as u32 / W, p[3], q[3]))
+                .collect();
+            assert!(
+                differ.is_empty(),
+                "{second:?}: {} pixels differ from a new renderer's, first (x, y, alpha, new alpha) {:?}",
+                differ.len(),
+                &differ[..differ.len().min(8)]
+            );
+            return r.stats.type_edges;
+        }
+        panic!("the fonts changed in every try");
+    };
+    let (crisp, strong) = (page(TypeAntiAlias::Crisp, None), page(TypeAntiAlias::Strong, None));
+    let at = |d, (x, y): (f64, f64)| (d, Affine::translate((x, y)));
+    for pan in [(7.0, -3.0), (2.0, 5.0), (-4.0, -1.0)] {
+        assert_eq!(drawn(at(&crisp, (0.0, 0.0)), at(&crisp, pan), 0), 0, "a pan by {pan:?}");
+    }
+    assert_eq!(drawn(at(&crisp, (0.0, 0.0)), (&crisp, Affine::scale(1.5)), 0), 1, "another zoom");
+    assert_eq!(drawn(at(&crisp, (0.0, 0.0)), at(&strong, (0.0, 0.0)), 0), 1, "another method");
+    assert_eq!(drawn(at(&crisp, (0.0, 0.0)), at(&crisp, (0.5, 0.0)), 0), 1, "a pan by half a pixel");
+    // At 400% the type fills the view, so the pixels kept hold every pixel of the next frame.
+    let zoomed = Affine::translate((-200.0, -150.0)) * Affine::scale(4.0);
+    let nudged = Affine::translate((0.3, 0.0)) * zoomed;
+    assert_eq!(drawn((&crisp, zoomed), (&crisp, nudged), 0), 1, "a pan by part of a pixel at 400%");
+    assert_eq!(drawn(at(&strong, (-120.0, 0.0)), at(&strong, (0.0, 0.0)), 0), 1, "a pan that brings the rest into view");
+    // Type the view cuts is drawn offscreen from the view's edge, and its coverage there can round
+    // a step the other way: Strong doubles the step, and the color takes a step of rounding.
+    assert_eq!(drawn(at(&strong, (0.0, 0.0)), at(&strong, (-120.0, 0.0)), 3), 0, "a pan that takes half of it out of view");
+    // With hard edges (Anti-aliased Artwork off) and with type snapped to pixels (an export's Type
+    // Optimized), the frame draws the type again.
+    for smoothing in [AntiAlias::None, AntiAlias::Type] {
+        let other = RenderOptions { anti_alias: smoothing, ..Default::default() };
+        let mut r = Renderer::new();
+        r.render(&crisp, W, H, Affine::IDENTITY, &opts);
+        let pixels = r.render(&crisp, W, H, Affine::IDENTITY, &other).pixels;
+        assert_eq!(r.stats.type_edges, 1, "{smoothing:?}");
+        assert!(pixels == Renderer::new().render(&crisp, W, H, Affine::IDENTITY, &other).pixels, "{smoothing:?}");
+    }
+}

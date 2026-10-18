@@ -430,6 +430,26 @@ struct PlacedEntry {
     fonts: Option<u64>,
 }
 
+/// Type drawn with an anti-aliasing method other than Sharp, as [`Renderer::draw_type_edges`] drew
+/// it offscreen on the pixels of the output ([`Frame::output`]).
+struct TypeEdgeEntry {
+    /// A copy of the type's object: the pixels are drawn again only for an object equal to it.
+    node: Node,
+    /// The output's zoom and rotation ([`fx::linear_key`]).
+    linear: [u64; 4],
+    /// The method, the edge threshold, the frame's edge smoothing, whether the frame composites
+    /// precisely, and the opacity folded into the paints.
+    settings: (TypeAntiAlias, Option<u8>, AntiAlias, bool, u32),
+    /// What the type read from the document and the color settings ([`Renderer::raster_inputs`]).
+    inputs: fx::Inputs,
+    /// The output's offset: a frame whose offset differs from it by whole pixels draws the pixels
+    /// moved by them.
+    shift: kurbo::Vec2,
+    /// The output pixel at the image's top-left corner.
+    origin: (f64, f64),
+    image: Arc<Pixmap>,
+}
+
 /// Reusable renderer (keeps the render context, geometry and glyph caches between frames; decoded
 /// images are shared by all renderers, see [`set_image_cache_budget`]).
 pub struct Renderer {
@@ -485,6 +505,9 @@ pub struct Renderer {
     /// Objects' content run through Photoshop-style effects, per object and content slot (see
     /// `fx`): kept only while drawn.
     pixel_fx: PtrMap<(usize, usize, Ink), fx::PixelEntry>,
+    /// Type drawn with an anti-aliasing method other than Sharp, per object and ink (see
+    /// [`Self::draw_type_edges`]).
+    type_edges: FrameCache<(usize, Ink), TypeEdgeEntry>,
     /// What the contents of those rasters read from the document, and the color settings, as last
     /// found for a frame (`stamp`) and document (address) (see [`Self::doc_inputs`]).
     doc_inputs: Option<((u64, usize), Arc<fx::DocInputs>)>,
@@ -562,6 +585,10 @@ pub struct FrameStats {
     /// How many threads composed the frame from its two ink planes, in a CMYK document that shows
     /// transparency; 0 for other frames.
     pub ink_threads: usize,
+    /// The type objects the frame drew offscreen with an anti-aliasing method other than Sharp
+    /// ([`Renderer::draw_type_edges`]). Type drawn from the pixels an earlier frame kept is not
+    /// counted.
+    pub type_edges: usize,
     pub micros: u64,
 }
 
@@ -632,6 +659,7 @@ impl Renderer {
             brushes: Default::default(),
             shadows: PtrMap::default(),
             pixel_fx: PtrMap::default(),
+            type_edges: FrameCache::new(lru::TYPE_EDGE_BUDGET, 0),
             doc_inputs: None,
             transparency: None,
             live: live::LiveCache::default(),
@@ -754,6 +782,7 @@ impl Renderer {
         }
         // Filtered rasters are large: only those of the last frame stay.
         self.pixel_fx.retain(|_, e| e.stamp == g);
+        self.type_edges.sweep(g);
         self.texts.sweep(g);
         self.clips.sweep(g);
         self.clip_paints.sweep(g);
@@ -1888,6 +1917,12 @@ impl Renderer {
     /// and more than [`fx::PIXEL_BUDGET`] (a frame drawn coarser than the output), the frame's own
     /// pixels are used.
     ///
+    /// The pixels are kept (`type_edges`). A later frame draws them again, without drawing the
+    /// type offscreen, while the object, the output's zoom and rotation, the method and edge
+    /// smoothing and what the type reads ([`Self::raster_inputs`]) are unchanged, the output has
+    /// moved by whole pixels, and the kept pixels hold every pixel the frame needs: a pan moves
+    /// them, and a pan that brings more of the type into view draws it again.
+    ///
     /// Returns false, having drawn nothing, for type that is drawn as Sharp draws it: type with
     /// inline graphics, type whose own fills or strokes include a brush stroke or a blend mode
     /// other than Normal, type that overprints while Overprint Preview is on, and type that shows a
@@ -1947,6 +1982,53 @@ impl Renderer {
             _ if sx.abs() < 0.999 || sy.abs() < 0.999 => None,
             _ => f.opts.anti_alias.threshold(),
         };
+        // Pixels kept from an earlier frame, for the type of the node itself (not a copy of its
+        // text): drawn on output pixels of the same size, rotation and phase, holding those needed.
+        let own = matches!(&n.kind, NodeKind::Text(o) if std::ptr::eq(&**o, t));
+        let key = (std::ptr::from_ref(n) as usize, f.ink);
+        let linear = fx::linear_key(output);
+        let shift = output.translation();
+        let settings = (t.anti_alias, threshold, f.opts.anti_alias, f.opts.precise, self.alpha.to_bits());
+        let inputs = own.then(|| self.raster_inputs(f, n, fx::Reads::of(n)));
+        let whole = |v: f64| (v - v.round()).abs() < 1e-6;
+        let kept = inputs.as_ref().and_then(|inputs| {
+            let e = self.type_edges.get(&key, self.stamp)?;
+            let d = shift - e.shift;
+            let (ox, oy) = (e.origin.0 + d.x.round(), e.origin.1 + d.y.round());
+            let (iw, ih) = (f64::from(e.image.width()), f64::from(e.image.height()));
+            let holds = ox <= x0 && oy <= y0 && ox + iw >= x0 + f64::from(w) && oy + ih >= y0 + f64::from(h);
+            let fits = e.linear == linear && e.settings == settings && whole(d.x) && whole(d.y) && holds && e.inputs == *inputs && e.node == *n;
+            fits.then(|| (e.image.clone(), ox, oy))
+        });
+        let (image, ox, oy) = match kept {
+            Some(kept) => kept,
+            None => {
+                let pm = self.draw_type_pixels(&frame, n, t, g, (w, h), threshold);
+                self.stats.type_edges += 1;
+                let image = Arc::new(pm);
+                if let Some(inputs) = inputs {
+                    let bytes = usize::from(w) * usize::from(h) * 4 + lru::node_bytes(n);
+                    let e = TypeEdgeEntry { node: n.clone(), linear, settings, inputs, shift, origin: (x0, y0), image: image.clone() };
+                    self.type_edges.insert(key, e, bytes, self.stamp);
+                }
+                (image, x0, y0)
+            }
+        };
+        ctx.set_transform(grid.inverse() * Affine::translate((ox, oy)));
+        // The pixmap maps onto the rect pixel for pixel, each one on a pixel of the output.
+        ctx.reset_paint_transform();
+        let sampler = peniko::ImageSampler { quality: peniko::ImageQuality::Low, ..Default::default() };
+        let (iw, ih) = (f64::from(image.width()), f64::from(image.height()));
+        ctx.set_paint(vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(image), sampler });
+        ctx.fill_rect(&Rect::new(0.0, 0.0, iw, ih));
+        ctx.set_transform(Affine::IDENTITY);
+        true
+    }
+
+    /// The pixels of type `t` of node `n` (laid out in `g`) with its anti-aliasing method, drawn
+    /// offscreen in `frame` on `w` × `h` pixels with edge threshold `threshold`
+    /// ([`Self::draw_type_edges`]).
+    fn draw_type_pixels(&mut self, frame: &Frame, n: &Node, t: &TextObject, g: &TextGeom, (w, h): (u16, u16), threshold: Option<u8>) -> Pixmap {
         let draw = |r: &mut Self, frame: &Frame, n: &Node, t: &TextObject| {
             let mut off = single_threaded_context(w, h);
             off.set_aliasing_threshold(threshold);
@@ -1957,7 +2039,7 @@ impl Renderer {
             pm
         };
         let sharp = TextObject { anti_alias: TypeAntiAlias::Sharp, ..t.clone() };
-        let mut pm = draw(self, &frame, n, &sharp);
+        let mut pm = draw(self, frame, n, &sharp);
         if t.anti_alias != TypeAntiAlias::None {
             let black = |p: &mut vectorcraft_color::Paint| {
                 if !p.is_none() {
@@ -1977,19 +2059,12 @@ impl Renderer {
                     AppearanceItem::Stroke(st) => st.opacity = 1.0,
                 }
             }
-            let covered = draw(self, &frame, &inked, &ink);
+            let covered = draw(self, frame, &inked, &ink);
             for (p, c) in pm.data_mut().iter_mut().zip(covered.data()) {
                 *p = edge_pixel(*p, c.a, t.anti_alias);
             }
         }
-        ctx.set_transform(grid.inverse() * Affine::translate((x0, y0)));
-        // The pixmap maps onto the rect pixel for pixel, each one on a pixel of the output.
-        ctx.reset_paint_transform();
-        let sampler = peniko::ImageSampler { quality: peniko::ImageQuality::Low, ..Default::default() };
-        ctx.set_paint(vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(Arc::new(pm)), sampler });
-        ctx.fill_rect(&Rect::new(0.0, 0.0, f64::from(w), f64::from(h)));
-        ctx.set_transform(Affine::IDENTITY);
-        true
+        pm
     }
 
     /// Paint some of type `n`'s own fills and strokes (`items`) on its glyph outlines `all`

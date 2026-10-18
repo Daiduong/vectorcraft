@@ -644,7 +644,7 @@ impl PixelEntry {
 }
 
 /// The four linear coefficients of `view` (zoom and rotation, not the pan), as cache keys.
-fn linear_key(view: Affine) -> [u64; 4] {
+pub(crate) fn linear_key(view: Affine) -> [u64; 4] {
     let c = view.as_coeffs();
     [c[0].to_bits(), c[1].to_bits(), c[2].to_bits(), c[3].to_bits()]
 }

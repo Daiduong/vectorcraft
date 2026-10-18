@@ -43,6 +43,8 @@ pub(crate) const MESH_BUDGET: usize = 32 << 20;
 pub(crate) const PATTERN_BUDGET: usize = 128 << 20;
 /// Freeform gradient grids, per thread (`freeform::set_freeform_paint`).
 pub(crate) const FREEFORM_BUDGET: usize = 32 << 20;
+/// Type drawn with an anti-aliasing method other than Sharp, as pixels (`Renderer::draw_type_edges`).
+pub(crate) const TYPE_EDGE_BUDGET: usize = 128 << 20;
 
 /// Frames an entry may go unused before [`FrameCache::sweep`] drops it.
 const AGE: u64 = 3;
