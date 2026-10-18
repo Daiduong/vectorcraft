@@ -4251,6 +4251,7 @@ axis	Both	Les deux
 @msg	the PDF is password-protected: give its password	le PDF est protégé par un mot de passe : indiquez-le
 @msg	the PDF password is wrong	le mot de passe du PDF est incorrect
 @msg	the Save PDF dialog didn't open	la boîte de dialogue Enregistrer au format PDF ne s’est pas ouverte
+@msg	the EPS Options dialog didn't open	la boîte de dialogue Options EPS ne s’est pas ouverte
 @msg	the WMF header is damaged	l’en-tête WMF est endommagé
 @msg	the art could not be sampled	impossible d’échantillonner l’illustration
 @msg	the art has no bounds	l’illustration n’a pas de limites

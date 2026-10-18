@@ -4290,6 +4290,7 @@ axis	Both	Оба
 @msg	the PDF is password-protected: give its password	PDF защищён паролем: укажите его пароль
 @msg	the PDF password is wrong	неверный пароль PDF
 @msg	the Save PDF dialog didn't open	диалоговое окно «Сохранить PDF» не открылось
+@msg	the EPS Options dialog didn't open	диалоговое окно «Параметры EPS» не открылось
 @msg	the WMF header is damaged	заголовок WMF повреждён
 @msg	the art could not be sampled	не удалось взять образец рисунка
 @msg	the art has no bounds	у рисунка нет границ

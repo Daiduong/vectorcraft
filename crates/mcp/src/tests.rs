@@ -455,7 +455,7 @@ fn add_text_sets_writing_direction_for_every_kind() {
 fn save_file_describes_the_formats_it_writes() {
     let tools = tool_definitions();
     let d = tools.iter().find(|t| t["name"] == "save_file").and_then(|t| t["description"].as_str()).unwrap();
-    for ext in [".vectorcraft", ".vctemplate", ".pdf", ".svg", ".svgz", ".ai"] {
+    for ext in [".vectorcraft", ".vctemplate", ".pdf", ".svg", ".svgz", ".ai", ".eps"] {
         assert!(d.contains(ext), "{ext}: {d}");
     }
     assert!(d.contains("its own format"), "{d}");

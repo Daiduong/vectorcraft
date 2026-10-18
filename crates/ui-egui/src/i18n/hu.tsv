@@ -5034,6 +5034,7 @@ imageTrace	Outline	Körvonal
 @msg	the PSD file's image data uses an unknown compression ({m})	a PSD-fájl képadatai ismeretlen tömörítést használnak ({m})
 @msg	the PSD image is too large to read ({_1} × {_2} pixels)	a PSD-kép túl nagy a beolvasáshoz ({_1} × {_2} pixel)
 @msg	the Save PDF dialog didn't open	a PDF mentése párbeszédablak nem nyílt meg
+@msg	the EPS Options dialog didn't open	az EPS-beállítások párbeszédablak nem nyílt meg
 @msg	the scale is not a usable number	a méretarány nem használható szám
 @msg	the search couldn't start: try again in a moment	a keresés nem indult el: próbáld újra egy kicsit később
 @msg	the selected stroke's profile is already listed as {_1}	a kijelölt körvonal profilja már szerepel a listán: {_1}

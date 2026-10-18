@@ -4424,6 +4424,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	no file manager here	この環境にはファイルマネージャーがありません
 @msg	no revert command	「保存済みの状態に戻す」コマンドがありません
 @msg	the Save PDF dialog didn't open	PDF 保存ダイアログが開きませんでした
+@msg	the EPS Options dialog didn't open	EPS オプションダイアログが開きませんでした
 @msg	the document has never been saved	ドキュメントはまだ一度も保存されていません
 @msg	the export returned unreadable data	書き出し処理から読み取れないデータが返されました
 @msg	{status} ({e})	{status} ({e})

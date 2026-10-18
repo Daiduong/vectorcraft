@@ -640,10 +640,11 @@ fn has_options(p: &Value) -> bool {
 }
 
 /// Ask for format `f`'s options before a save (`mode`) to `path`: SVG Options for SVG, the Save
-/// PDF dialog for PDF, else the save options dialog. OK finishes the save.
+/// PDF dialog for PDF, EPS Options for EPS, else the save options dialog. OK finishes the save.
 pub fn ask_format_options(app: &mut VectorcraftApp, mode: SaveMode, f: &Format, path: &str) -> Result<Value, String> {
     match f.id {
         "pdf" => ask_pdf_options(app, mode, path),
+        "eps" => ask_eps_options(app, mode, path),
         "svg" | "svgz" => {
             let m = if mode == SaveMode::Copy { svg_options::Mode::SaveCopy } else { svg_options::Mode::Save };
             svg_options::open(app, m, Some(path));
@@ -660,6 +661,17 @@ pub fn ask_pdf_options(app: &mut VectorcraftApp, mode: SaveMode, path: &str) -> 
     p["path"] = json!(path);
     dialogs::open_save_pdf(app, &p)?;
     let d = app.ui.dialog.as_mut().ok_or("the Save PDF dialog didn't open")?;
+    d.fields.insert("__save".into(), json!(mode.command()));
+    Ok(json!({ "pending": d.kind }))
+}
+
+/// A save as EPS asks with EPS Options, filled with the EPS options the document was last saved
+/// with (else those used last); its OK finishes the save.
+fn ask_eps_options(app: &mut VectorcraftApp, mode: SaveMode, path: &str) -> Result<Value, String> {
+    let mut p = Value::Object(plan(app, mode, &json!({ "path": path, "format": "eps" }))?.options);
+    p["path"] = json!(path);
+    dialogs::eps_options::open(app, &p);
+    let d = app.ui.dialog.as_mut().ok_or("the EPS Options dialog didn't open")?;
     d.fields.insert("__save".into(), json!(mode.command()));
     Ok(json!({ "pending": d.kind }))
 }

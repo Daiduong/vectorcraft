@@ -68,6 +68,36 @@ fn eps_options_take_saved_flattener_presets_and_refuse_bad_ones() {
 }
 
 #[test]
+fn save_as_eps_asks_with_eps_options_and_save_reuses_them() {
+    let (mut app, written) = app(1);
+    assert_eq!(app.run("file.saveAs", json!({"format": "eps"})).unwrap()["pending"], "epsOptions");
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!((d.str("path"), d.str("__save")), ("/out/Untitled-1.eps".into(), "file.saveAs".into()));
+    frame(&mut app);
+    set(&mut app, "previewFormat", json!("none"));
+    set(&mut app, "level", json!("2"));
+    confirm(&mut app).unwrap();
+    assert!(app.ui.dialog.is_none());
+    assert_eq!(names(&written), ["/out/Untitled-1.eps"]);
+    assert!(written.borrow()[0].1.starts_with(b"%!PS-Adobe-3.0 EPSF-3.0"), "no preview: plain PostScript");
+    let st = app.session.active().unwrap();
+    assert_eq!((st.path.as_deref(), st.format, st.is_dirty()), (Some("/out/Untitled-1.eps"), "eps", false));
+    assert_eq!((st.save_options["previewFormat"].clone(), st.save_options["level"].clone()), (json!("none"), json!("2")));
+    assert!(vectorcraft_eps::has_native(&written.borrow()[0].1), "the file carries the document");
+    // Save writes EPS again with those options, without asking.
+    app.run("shape.rectangle", json!({"x": 40, "y": 5, "width": 10, "height": 10})).unwrap();
+    app.run("file.save", json!({})).unwrap();
+    assert!(app.ui.dialog.is_none());
+    assert_eq!(names(&written), ["/out/Untitled-1.eps", "/out/Untitled-1.eps"]);
+    assert!(String::from_utf8_lossy(&written.borrow()[1].1).contains("%%LanguageLevel: 2"));
+    // Save a Copy as EPS starts from them, and its OK reads OK, not Export.
+    app.run("file.saveCopy", json!({"format": "eps"})).unwrap();
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!((d.str("__save"), d.str("previewFormat")), ("file.saveCopy".into(), "none".into()));
+    assert_eq!(super::spec("epsOptions").ok_label.map(|f| f(&app)), Some("OK"));
+}
+
+#[test]
 fn the_eps_options_dialog_needs_a_document() {
     let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
     assert!(app.run("ui.epsOptionsDialog", json!({})).is_err());

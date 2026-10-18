@@ -5,9 +5,11 @@
 //!
 //! Fields: `document.export` params (`format: eps`, `path?`, the artboard choice) and the EPS
 //! options of `document.exportEps`. OK remembers the options for next time and writes the file
-//! (asking where when there is no path); bad options keep the dialog open.
+//! (asking where when there is no path); bad options keep the dialog open. File → Save As and Save a
+//! Copy in EPS ask with it too (`__save`: the save command), and its OK then saves the file.
 
 use serde_json::{Map, Value, json};
+use vectorcraft_engine::cmd::fileio::SaveMode;
 use vectorcraft_engine::cmd::{FlattenOptions, fileio};
 use vectorcraft_eps::{Level, Overprint, Preview};
 
@@ -23,6 +25,8 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
     body,
     confirm,
     ok: Some("Export"),
+    // OK when it finishes a Save As or Save a Copy.
+    ok_label: Some(|app| if app.ui.dialog.as_ref().is_some_and(saving) { "OK" } else { "Export" }),
     min_width: 420.0,
     max_width: Some(460.0),
     ..DialogSpec::FORM
@@ -121,16 +125,29 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-/// Check the options, remember them, and write the file(s).
+/// Does the dialog finish a save (Save As or Save a Copy in EPS) rather than an export?
+fn saving(d: &Dialog) -> bool {
+    SaveMode::of(&d.str("__save")).is_some()
+}
+
+/// Check the options, remember them, and write the file(s): an export, or the save `__save` names
+/// (the document's own EPS file, which carries the whole document; the export's artboard choice
+/// doesn't apply).
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let params = fileio::eps::resolve(&super::form::params(d), &app.session.prefs.flattener_presets)?;
+    let save = SaveMode::of(&d.str("__save"));
     // Nothing selected keeps the dialog open too.
-    if let Some(st) = app.session.active() {
+    if let (Some(st), None) = (app.session.active(), save) {
         fileio::export_source(st, &params).map_err(|e| e.to_string())?;
     }
     app.ui.eps_options =
         Value::Object(d.fields.iter().filter(|(k, _)| !PER_EXPORT.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect());
     app.ui.dialog = None;
     let path = d.fields.get("path").and_then(Value::as_str).map(str::to_string);
-    io::export(app, Some("eps"), path, &params)
+    let Some(mode) = save else { return io::export(app, Some("eps"), path, &params) };
+    let options: Map<String, Value> = params
+        .as_object()
+        .map(|o| o.iter().filter(|(k, _)| !PER_EXPORT.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default();
+    io::save(app, mode, &json!({ "path": path, "format": "eps", "options": options }), false)
 }

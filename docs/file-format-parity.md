@@ -18,7 +18,7 @@ from the public specifications, and users' own `.ai` files are used locally only
 | | Illustrator | VectorCraft | Notes |
 |---|---:|---:|---|
 | Formats opened or placed | ~30 | 25 | missing: FreeHand, CorelDRAW, DWG, HEIC/HEIF, JPEG 2000, PICT, PCX, Pixar, Word `.doc`, PS |
-| Formats saved (Save As) | 6 (AI, AIT, PDF, EPS, SVG, SVGZ) | 6 + native | `.ai` written PDF-compatible (no Illustrator editing data) or as legacy version 7 (layers and groups, one artboard per file) |
+| Formats saved (Save As) | 6 (AI, AIT, PDF, EPS, SVG, SVGZ) | 6 + native | `.ai` written PDF-compatible (no Illustrator editing data) or as legacy version 7 (layers and groups, one artboard per file); EPS saved with EPS Options, carrying the native document (reopens exactly) |
 | Formats exported | ~16 | 17 | missing: DWG, 3D (OBJ/USDA/glTF); extra: GIF/PNG-8 palette export, DXF up to 2018, layered PSD |
 | **Overall (weighted by use)** | | **~75%** | `.ai` and PDF dominate the weighting |
 
@@ -130,6 +130,7 @@ the app's own editing copy of a file (an EPS after its `%%EOF`, a `.ai`'s `AIPri
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-18 | minor | EPS joins Save As and Save a Copy: EPS Options ask first, the file carries the native document, and Save writes it back |
 | 2026-10-24 | minor | `.ai` import: an image larger than the editing data's reader takes (2^25 pixels, a halftone texture at print resolution) no longer leaves its layer blank: the file comes in as its PDF part, which reads larger images, with a note saying why (#1479). Own-fixture test; scores and hours unchanged |
 | 2026-10-24 | minor | PDF export: a pattern fill or stroke is written as a PDF tiling pattern (ISO 32000-1, 8.7.3.1) of one period of the tiling, as the canvas repeats it, so grid, brick and hex tilings and overlapping tiles keep their look in a few kilobytes, and PDF import reads it back as one object with a pattern swatch instead of hundreds of tile paths (#3849). Patterns nested more than four deep, or with tiles beyond a billion points, are still written as their tiles, now with a warning. Tests: the issue's hatch round trip, a brick tiling read back against the canvas, the nesting warning; scores and hours unchanged |
 | 2026-10-23 | minor | SVG: type written as outlines stacks each run's colour glyphs (bitmap images, COLR and SVG art) under the run's paint, as the canvas does, so a plain character set over a colour one stays on top; scores unchanged |
