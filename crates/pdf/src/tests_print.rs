@@ -417,3 +417,28 @@ fn separations_use_the_cmyk_profile_assigned_to_the_document() {
     d.color_profiles.cmyk = Some(vectorcraft_color::cms::DEVICE_CMYK.into());
     assert_eq!(cyan(&d), 0.0, "Device CMYK puts a neutral grey on the black plate only");
 }
+
+/// N-up imposition lays two artboards on one sheet without duplicating objects (#2551).
+#[test]
+fn n_up_puts_two_artboards_on_one_sheet() {
+    let mut d = doc(100.0, 100.0, &[]);
+    d.artboards = vec![artboard(1, 0.0), artboard(2, 200.0)];
+    let layer = d.default_layer().unwrap();
+    for (ab, color) in [(0, rgb(1.0, 0.0, 0.0)), (1, rgb(0.0, 0.0, 1.0))] {
+        let r = d.artboards[ab].rect;
+        let id = d.alloc_id();
+        d.insert(Some(layer), 0, Node::path(id, shapes::rectangle(r), Appearance::basic(color, Paint::None, 0.0))).unwrap();
+    }
+    let set = json!({"imposition": {"mode": "nUp", "columns": 2, "rows": 1, "gap": 0}, "scaling": "fit"});
+    let pv = preview(&d, &settings(set.clone())).unwrap();
+    assert_eq!(pv.pages, 1, "two artboards share one physical sheet");
+    assert_eq!(pv.sheets.len(), 2, "preview still lists each artboard");
+    let left = pv.sheets[0].trim[0];
+    let right = pv.sheets[1].trim[0];
+    assert!(right > left + 200.0, "the blue artboard sits to the right of the red one: {left} vs {right}");
+    let r = job(&d, set);
+    assert_eq!(r.pages, 1);
+    let p = pages(&r.bytes);
+    assert_eq!(p.len(), 1);
+    assert_eq!(p[0].1.len(), 2, "both squares appear on the one PDF page");
+}

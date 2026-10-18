@@ -9,6 +9,19 @@ use crate::settings::{choice, within};
 use crate::{BleedSettings, MarkSettings, PdfError};
 
 choice! {
+    /// How pages are imposed on each sheet of paper.
+    ImpositionMode {
+        /// One artboard (or tile) per sheet, as before.
+        None = "none", "None";
+        /// A grid of artboards on each sheet ([`ImpositionSettings::columns`] ×
+        /// [`ImpositionSettings::rows`], with [`ImpositionSettings::gap`] between cells).
+        NUp = "nUp", "N-Up";
+        /// Saddle-stitch booklet ordering (not implemented yet).
+        Booklet = "booklet", "Booklet";
+    } default None
+}
+
+choice! {
     /// Which artboards print.
     PrintArtboards {
         All = "all", "All";
@@ -171,6 +184,25 @@ choice! {
     } default Subset
 }
 
+/// N-up and booklet imposition (General section).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ImpositionSettings {
+    pub mode: ImpositionMode,
+    /// Columns across the sheet (1–12).
+    pub columns: u32,
+    /// Rows down the sheet (1–12).
+    pub rows: u32,
+    /// Space between cells (pt).
+    pub gap: f64,
+}
+
+impl Default for ImpositionSettings {
+    fn default() -> Self {
+        Self { mode: ImpositionMode::None, columns: 2, rows: 1, gap: 12.0 }
+    }
+}
+
 /// File → Print settings (the dialog's sections; what [`vectorcraft_doc::Document::print_setup`]
 /// stores).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -216,6 +248,7 @@ pub struct PrintSettings {
     pub color: PrintColor,
     /// Where the Print Tiling tool put the pages.
     pub tile_origin: TileOrigin,
+    pub imposition: ImpositionSettings,
     // Advanced.
     pub advanced: PrintAdvanced,
 }
@@ -249,6 +282,7 @@ impl Default for PrintSettings {
             graphics: PrintGraphics::default(),
             color: PrintColor::default(),
             tile_origin: TileOrigin::default(),
+            imposition: ImpositionSettings::default(),
             advanced: PrintAdvanced::default(),
         }
     }
@@ -449,6 +483,20 @@ impl PrintSettings {
             }
             if let Some(a) = ink.angle {
                 within(&format!("output.inks[{}].angle", ink.name), a, -360.0, 360.0, "°")?;
+            }
+        }
+        if self.imposition.mode != ImpositionMode::None {
+            within("imposition.columns", self.imposition.columns as f64, 1.0, 12.0, "")?;
+            within("imposition.rows", self.imposition.rows as f64, 1.0, 12.0, "")?;
+            within("imposition.gap", self.imposition.gap, 0.0, 720.0, " pt")?;
+            if self.imposition.mode == ImpositionMode::Booklet {
+                return Err(PdfError::BadSetting("imposition.mode: booklet imposition is not supported yet".into()));
+            }
+            if self.scaling.tiles() {
+                return Err(PdfError::BadSetting("imposition: tiling and imposition can't be used together".into()));
+            }
+            if self.output.mode == OutputMode::Separations {
+                return Err(PdfError::BadSetting("imposition: separations and imposition can't be used together yet".into()));
             }
         }
         Ok(())

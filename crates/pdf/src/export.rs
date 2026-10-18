@@ -321,74 +321,28 @@ impl Writer {
 
     /// Draw one page: the art of `ex`'s document placed as `sheet` says, then its marks.
     pub(crate) fn page(&mut self, ex: &mut Exporter, sheet: &Sheet) -> Result<(), PdfError> {
-        let (w, h) = sheet.size;
-        let least = 1.0 / sheet.unit;
+        self.page_layers(ex, std::slice::from_ref(sheet))
+    }
+
+    /// One PDF page with several art regions (N-up imposition).
+    pub(crate) fn page_layers(&mut self, ex: &mut Exporter, layers: &[Sheet]) -> Result<(), PdfError> {
+        let Some(first) = layers.first() else { return Ok(()); };
+        let (w, h) = first.size;
+        let least = 1.0 / first.unit;
         let size = Size::from_wh(w.max(least) as f32, h.max(least) as f32).ok_or_else(|| PdfError::BadSetting(format!("page size {w} × {h}")))?;
         let at = |b: Rect| krilla::geom::Rect::from_ltrb(b.x0 as f32, b.y0 as f32, b.x1 as f32, b.y1 as f32);
-        let mut page = self.pdf.document_mut().start_page_with(PageSettings::new(size).with_trim_box(at(sheet.trim)).with_bleed_box(at(sheet.bleed)));
+        let mut page = self.pdf.document_mut().start_page_with(PageSettings::new(size).with_trim_box(at(first.trim)).with_bleed_box(at(first.bleed)));
         let mut s = page.surface();
         let paper = Rect::new(0.0, 0.0, w, h);
-        if sheet.negative {
+        if first.negative {
             cover(&mut s, paper, 255, 1.0);
         }
-        // A page whose art or marks would be placed beyond [`MAX_COORD`] is left blank.
-        let fits = writable(&s, sheet.view, Rect::ZERO) && writable(&s, sheet.view * sheet.place, Rect::ZERO);
-        s.push_transform(&xf(sheet.view));
-        let window = sheet.window.and_then(|r| to_path(&s, &r.to_path(0.1)));
-        if let Some(clip) = &window {
-            s.push_clip_path(clip, &krilla::paint::FillRule::NonZero);
+        let pdf13 = self.pdf13;
+        let cmyk = self.cmyk;
+        for sheet in layers {
+            draw_print_layer(pdf13, cmyk, &mut s, ex, sheet, paper)?;
         }
-        let placed = sheet.place != Affine::IDENTITY;
-        if placed {
-            s.push_transform(&xf(sheet.place));
-        }
-        let r = sheet.area;
-        let clip = sheet.clip.then(|| to_path(&s, &r.to_path(0.1))).flatten();
-        if let Some(clip) = &clip {
-            s.push_clip_path(clip, &krilla::paint::FillRule::NonZero);
-        }
-        // Page Isolated Blending / Page Knockout Group: the page content is one group (the PDF
-        // writer has no page group attributes; a flat PDF 1.3 file has none). In CMYK, transparency
-        // at the top of a page is put in a group of its own, whose blending space `cmyk_blending`
-        // rewrites: non-isolated only when blending on the page reaches the paper, since some
-        // readers (CoreGraphics) drop most of a page in a non-isolated group (#2156).
-        let doc = ex.doc;
-        let page_group = fits && !self.pdf13 && (doc.page_isolate || doc.page_knockout);
-        let cmyk_page_group = fits && self.cmyk && !page_group && ex.shows_transparency();
-        if page_group || (cmyk_page_group && !Node::children_blend(&doc.layers, &mut |c| c.blends_through())) {
-            s.push_isolated();
-        } else if cmyk_page_group {
-            let all = constant_mask(&mut s, r, 1.0);
-            s.push_mask(all);
-        }
-        if fits {
-            ex.children(&mut s, &doc.layers, r);
-        }
-        if page_group || cmyk_page_group {
-            s.pop();
-        }
-        if clip.is_some() {
-            s.pop();
-        }
-        if placed {
-            s.pop();
-        }
-        if fits && let Some(art) = sheet.marks {
-            // The drawing space the page shows (the marks' area).
-            let shown = sheet.view.inverse().transform_rect_bbox(paper);
-            let knockout = std::mem::replace(&mut ex.knockout, false);
-            // Marks keep their inks: they aren't converted to the destination. The page
-            // information is drawn as glyph shapes, like the other marks, not as text.
-            let convert = std::mem::replace(&mut ex.convert, false);
-            let outline = std::mem::replace(&mut ex.outline_text, true);
-            ex.node(&mut s, art, sheet.window.map_or(shown, |r| r.intersect(shown)), true);
-            (ex.knockout, ex.convert, ex.outline_text) = (knockout, convert, outline);
-        }
-        if window.is_some() {
-            s.pop();
-        }
-        s.pop();
-        if sheet.negative {
+        if first.negative {
             s.push_blend_mode(krilla::blend::BlendMode::Difference);
             cover(&mut s, paper, 255, 1.0);
             s.pop();
@@ -443,6 +397,65 @@ impl Writer {
         self.warnings.extend(self.rgb_in_cmyk.warning());
         Ok((crate::pdfx::finish(bytes, self.out.standard, self.pdf13)?, self.warnings))
     }
+}
+
+fn draw_print_layer(
+    pdf13: bool,
+    cmyk: bool,
+    s: &mut krilla::surface::Surface,
+    ex: &mut Exporter,
+    sheet: &Sheet,
+    paper: Rect,
+) -> Result<(), PdfError> {
+    let fits = writable(s, sheet.view, Rect::ZERO) && writable(s, sheet.view * sheet.place, Rect::ZERO);
+    s.push_transform(&xf(sheet.view));
+    let window = sheet.window.and_then(|r| to_path(s, &r.to_path(0.1)));
+    if let Some(clip) = &window {
+        s.push_clip_path(clip, &krilla::paint::FillRule::NonZero);
+    }
+    let placed = sheet.place != Affine::IDENTITY;
+    if placed {
+        s.push_transform(&xf(sheet.place));
+    }
+    let r = sheet.area;
+    let clip = sheet.clip.then(|| to_path(s, &r.to_path(0.1))).flatten();
+    if let Some(clip) = &clip {
+        s.push_clip_path(clip, &krilla::paint::FillRule::NonZero);
+    }
+    let doc = ex.doc;
+    let page_group = fits && !pdf13 && (doc.page_isolate || doc.page_knockout);
+    let cmyk_page_group = fits && cmyk && !page_group && ex.shows_transparency();
+    if page_group || (cmyk_page_group && !Node::children_blend(&doc.layers, &mut |c| c.blends_through())) {
+        s.push_isolated();
+    } else if cmyk_page_group {
+        let all = constant_mask(s, r, 1.0);
+        s.push_mask(all);
+    }
+    if fits {
+        ex.children(s, &doc.layers, r);
+    }
+    if page_group || cmyk_page_group {
+        s.pop();
+    }
+    if clip.is_some() {
+        s.pop();
+    }
+    if placed {
+        s.pop();
+    }
+    if fits && let Some(art) = sheet.marks {
+        let shown = sheet.view.inverse().transform_rect_bbox(paper);
+        let knockout = std::mem::replace(&mut ex.knockout, false);
+        let convert = std::mem::replace(&mut ex.convert, false);
+        let outline = std::mem::replace(&mut ex.outline_text, true);
+        ex.node(s, art, sheet.window.map_or(shown, |r| r.intersect(shown)), true);
+        (ex.knockout, ex.convert, ex.outline_text) = (knockout, convert, outline);
+    }
+    if window.is_some() {
+        s.pop();
+    }
+    s.pop();
+    Ok(())
 }
 
 /// Make the transparency groups of `pdf` blend in CMYK. The PDF writer gives every group RGB as

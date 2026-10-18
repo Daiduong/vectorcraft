@@ -46,6 +46,8 @@ pub(crate) struct Layout {
     /// The TrimBox and BleedBox in page space.
     pub page_trim: Rect,
     pub page_bleed: Rect,
+    /// Which physical sheet of paper this layout shares (0-based; several layouts can share one).
+    pub physical: usize,
 }
 
 /// The tiles of one artboard (`print.preview`).
@@ -244,6 +246,7 @@ pub(crate) fn layout(doc: &Document, set: &PrintSettings, warnings: &mut Vec<Str
             bleed: bleed_s,
             page_trim,
             page_bleed,
+            physical: 0,
         };
         if !set.scaling.tiles() {
             // The printed area's top-left corner: where the tile origin puts it, else the placement.
@@ -309,5 +312,6 @@ pub(crate) fn layout(doc: &Document, set: &PrintSettings, warnings: &mut Vec<Str
     if pages.is_empty() {
         return Err(PdfError::BadSetting("nothing to print".into()));
     }
+    super::imposition::apply(&mut pages, set)?;
     Ok((pages, grids))
 }
