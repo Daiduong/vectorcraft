@@ -792,6 +792,21 @@ fn hostile_executable_files_and_type_loops_are_refused() {
     blue("currentfile cvx exec currentfile flushfile 0 0 1 setrgbcolor");
 }
 
+/// An operator run by `exec` or `if` can run the next operator on the stack in turn: a stack of
+/// them nests like procedures and stops at the same limit, before the thread's stack overflows
+/// (which no error handling survives).
+#[test]
+fn operators_run_from_the_stack_nest_only_so_deep() {
+    let refused = |body: &str| {
+        let e = import(&eps(body)).err().unwrap_or_default();
+        assert!(e.contains("too deeply"), "{body}: {e}");
+    };
+    refused("/exec load 99990 { dup } repeat exec");
+    refused("40000 { true /if load } repeat if");
+    // One operator run through `exec` still runs.
+    check("1 2 /add load exec 3 eq");
+}
+
 /// Reads `body` as [`read`] does, on a thread of its own, and fails the test when reading takes
 /// more than 20 s.
 fn read_soon(body: &str) -> crate::Imported {

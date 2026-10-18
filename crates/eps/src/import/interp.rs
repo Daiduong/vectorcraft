@@ -381,7 +381,14 @@ impl<'a> Interp<'a> {
                 None => Ok(()),
             },
             Obj::ExecStr(s) => self.run_program(&s.to_vec()),
-            Obj::Op(op) => self.op(op),
+            // An operator run this way (`/exec load … exec`, `if` given `/if load`) can run the
+            // next one off the stack in turn: it nests like a procedure.
+            Obj::Op(op) => {
+                self.enter()?;
+                let r = self.op(op);
+                self.depth -= 1;
+                r
+            }
             Obj::Exec(name) => {
                 self.enter()?;
                 let r = match self.lookup(&name) {
