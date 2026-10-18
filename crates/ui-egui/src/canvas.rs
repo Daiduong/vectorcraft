@@ -8,6 +8,7 @@ use vectorcraft_doc::{Node, NodeKind, SymbolBoxes, Unit};
 use vectorcraft_geom::{Affine, BezPath, PathEl, Point, Rect};
 use vectorcraft_tools::{Cursor, Mods, Overlay, PointerEvent, PointerKind};
 
+use crate::opening;
 use crate::state::View;
 use crate::theme::{self, Tokens};
 use crate::{CacheKey, VectorcraftApp, now_ms, widgets};
@@ -536,6 +537,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     artboard_name_editor(app, ui, &xf);
     // Cursor.
     if resp.hovered() {
+        if opening::long_operation_busy(app) {
+            ui.ctx().set_cursor_icon(cursor_icon(Cursor::Busy));
+            return;
+        }
         let m = ui.input(|i| i.modifiers);
         let space = ui.input(|i| i.key_down(egui::Key::Space));
         let drag = ui.data(|d| d.get_temp::<Drag>(drag_id()));
@@ -638,6 +643,7 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
         Cursor::ZoomOut => C::ZoomOut,
         Cursor::Eyedropper => C::Crosshair,
         Cursor::NotAllowed => C::NotAllowed,
+        Cursor::Busy => C::Progress,
         Cursor::AddStop => C::Copy,
         Cursor::RemoveStop => C::NotAllowed,
         Cursor::Slice => C::Crosshair,
@@ -6711,11 +6717,12 @@ mod tests {
     fn clicking_away_mid_composition_keeps_the_text_and_interrupts_the_ime() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let other = app.session.execute("text.create", &json!({"x": 300, "y": 250, "text": "Other", "size": 24})).unwrap()["id"].as_u64().unwrap();
         let ctx = egui::Context::default();
         typing_frame(&mut app, &ctx, vec![]);
         app.select_tool("type");
         let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
-        let (a, b) = (xf.to_screen(Point::new(100.0, 100.0)), xf.to_screen(Point::new(300.0, 250.0)));
+        let (a, b) = (xf.to_screen(Point::new(100.0, 100.0)), xf.to_screen(Point::new(310.0, 245.0)));
         let click =
             |p: Pos2, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(a), click(a, true)]);
@@ -6723,17 +6730,29 @@ mod tests {
         let id = app.session.active().unwrap().selection.objects[0].0;
         typing_frame(&mut app, &ctx, vec![preedit("しょうこ", 4)]);
         // macOS sends nothing for a click away; the tool keeps the marked text and the IME is
-        // told to drop its composition.
-        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(b), click(b, true)]);
-        let ime = typing_frame(&mut app, &ctx, vec![click(b, false)]);
+        // told to drop its composition. A press on other type edits that type at once.
+        let ime = typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(b), click(b, true)]);
         assert_eq!(plain(&app, id), "しょうこ");
         assert!(!app.session.tool_composing());
-        assert!(ime.expect("editing the new text").should_interrupt_composition);
+        assert_eq!(app.session.active().unwrap().selection.objects, vec![vectorcraft_doc::NodeId(other)]);
+        assert!(ime.expect("editing the other text").should_interrupt_composition);
         assert!(app.ime_marked.is_none());
         assert!(app.take_ime_discard(), "the host tells the system IME to drop its marked text");
+        typing_frame(&mut app, &ctx, vec![click(b, false)]);
         // Interrupted once, not every frame.
         assert!(!typing_frame(&mut app, &ctx, vec![]).unwrap().should_interrupt_composition);
         assert!(!app.take_ime_discard());
+        // A click on blank canvas ends the editing (#2871): the marked text stays, the frame asks
+        // for no IME, and the host tells the system IME to drop its composition.
+        let blank = xf.to_screen(Point::new(150.0, 200.0));
+        typing_frame(&mut app, &ctx, vec![preedit("が", 1)]);
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(blank), click(blank, true)]);
+        let ime = typing_frame(&mut app, &ctx, vec![click(blank, false)]);
+        assert!(plain(&app, other).contains('が'), "{}", plain(&app, other));
+        assert!(!app.session.tool_composing() && !app.session.tool_wants_text());
+        assert!(ime.is_none());
+        assert!(app.ime_marked.is_none());
+        assert!(app.take_ime_discard());
     }
 
     #[test]

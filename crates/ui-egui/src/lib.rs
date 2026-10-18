@@ -717,6 +717,7 @@ impl VectorcraftApp {
 
     /// [`Self::run`] it, inside what asks for file dialogs.
     fn run_now(&mut self, id: &str, params: Value) -> Result<Value, String> {
+        crate::state::sync_zoom_stops_display_print_size(self.session.prefs.display_print_size);
         self.run_count = self.run_count.wrapping_add(1);
         // In debug builds the app's own calls are held to the params descriptions too (#1442): a
         // panel passing a key its command doesn't read shows up in the tests.
@@ -1429,6 +1430,7 @@ impl VectorcraftApp {
     }
 
     fn ui_frame(&mut self, ui: &mut egui::Ui) {
+        crate::state::sync_zoom_stops_display_print_size(self.session.prefs.display_print_size);
         let ctx = ui.ctx().clone();
         if !self.fonts_ready {
             ctx.request_repaint();
@@ -1478,6 +1480,9 @@ impl VectorcraftApp {
         scrub::end_frame(self, &ctx);
         native_menu::sync(self, &ctx);
         self.drop_formats_after_egui_copy(&ctx);
+        if opening::long_operation_busy(self) {
+            ctx.set_cursor_icon(egui::CursorIcon::Progress);
+        }
         self.perf.frame_ms = now_ms() - t0;
         let _ = json!(null);
     }
