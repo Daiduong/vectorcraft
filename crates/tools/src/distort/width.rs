@@ -102,8 +102,9 @@ struct Drag {
     /// The two sides the ratio counts from, which a plain drag scales together (re-based when the
     /// pointer crosses the path).
     base: (f64, f64),
-    /// Alt held during the drag: the opposite side's held width, from when Alt went down.
-    held: Option<f64>,
+    /// Alt held during the drag: both sides' widths from when Alt went down, so the side the
+    /// pointer is not on keeps its own width (crossing the path swaps which side that is).
+    held: Option<(f64, f64)>,
 }
 
 #[derive(Default)]
@@ -392,13 +393,14 @@ impl Tool for WidthTool {
                             d.side = side_now;
                         }
                         if ev.mods.alt {
-                            // Alt: the opposite side holds the width it had when Alt went down.
-                            let other = if d.side { d.right } else { d.left };
-                            let held = *d.held.get_or_insert(other);
+                            // Alt: the side under the pointer follows it, the other holds the width
+                            // it had when Alt went down. Both sides are captured, so crossing the
+                            // path hands the drag over without swapping their widths.
+                            let (l0, r0) = *d.held.get_or_insert((d.left, d.right));
                             if d.side {
-                                (d.left, d.right) = (mag, held);
+                                (d.left, d.right) = (mag, r0);
                             } else {
-                                (d.right, d.left) = (mag, held);
+                                (d.right, d.left) = (mag, l0);
                             }
                         } else {
                             // Letting Alt go makes the point even again, at the pointer's width.
@@ -444,7 +446,15 @@ impl Tool for WidthTool {
                 vec![Self::preview(d)]
             }
             PointerKind::Up => match self.drag.take() {
-                Some(d) => {
+                Some(mut d) => {
+                    let mut acts = vec![];
+                    // Alt let go with no move since (the canvas only sends a drag when the pointer
+                    // moves): the point still evens off, at the pointer's width, before committing.
+                    if !ev.mods.alt && d.held.take().is_some() {
+                        let mag = (p - d.spot.p).dot(d.spot.n).abs();
+                        (d.left, d.right) = (mag, mag);
+                        acts.push(Self::preview(&d));
+                    }
                     let dt = d.t - d.spot.t;
                     self.selected = match (d.group.is_some(), d.moved, self.selected.take()) {
                         // A click on one of several selected points selects just that one.
@@ -454,7 +464,8 @@ impl Tool for WidthTool {
                         (true, _, sel) => sel,
                         (false, _, _) => Some((d.spot.owner, vec![d.t])),
                     };
-                    vec![Action::Commit]
+                    acts.push(Action::Commit);
+                    acts
                 }
                 None => vec![],
             },
@@ -637,6 +648,57 @@ mod tests {
         let (_, v) = preview(&acts);
         assert!((v["left"].as_f64().unwrap() - 50.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 50.0).abs() < 1e-6, "{v}");
         t.pointer(&c, &ev(PointerKind::Up, 200.0, 150.0, Mods::default()));
+    }
+
+    #[test]
+    fn releasing_alt_without_a_move_still_evens_the_point() {
+        let (mut d, id) = doc_line();
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile =
+            Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)] });
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let alt = Mods { alt: true, ..Default::default() };
+        // Widen both sides evenly, then Alt-drag the left one out: the right side freezes at 30.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 190.0, Mods::default()));
+        t.pointer(&c, &ev(PointerKind::Drag, 200.0, 170.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 160.0, alt));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 40.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6, "{v}");
+        // Alt and the mouse go up together, with no drag in between: the point still evens off.
+        let acts = t.pointer(&c, &ev(PointerKind::Up, 200.0, 160.0, Mods::default()));
+        assert_eq!(acts.len(), 2, "{acts:?}");
+        assert!(
+            matches!(&acts[0], Action::Preview(_, v) if (v["left"].as_f64().unwrap() - 40.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 40.0).abs() < 1e-6),
+            "{acts:?}"
+        );
+        assert_eq!(acts[1], Action::Commit);
+    }
+
+    #[test]
+    fn alt_drag_across_the_path_holds_each_side_at_its_own_width() {
+        let (mut d, id) = doc_line();
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile =
+            Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 1.0, 3.0), (1.0, 1.0, 1.0)] });
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let alt = Mods { alt: true, ..Default::default() };
+        // The point is 5 pt left, 15 pt right; a plain drag out to 10 scales both (10 and 30).
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 195.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 190.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 10.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6, "{v}");
+        // Alt: the left goes out to 15, the right holds the 30 it had.
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 185.0, alt));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 15.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6, "{v}");
+        // Crossing the path drags the right side; the left goes back to the 10 it had when Alt
+        // went down (rather than taking the right's 30, as a single held value would).
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 205.0, alt));
+        let (_, v) = preview(&acts);
+        assert!((v["right"].as_f64().unwrap() - 5.0).abs() < 1e-6 && (v["left"].as_f64().unwrap() - 10.0).abs() < 1e-6, "{v}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 205.0, alt));
     }
 
     #[test]
