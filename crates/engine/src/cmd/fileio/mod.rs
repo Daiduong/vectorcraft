@@ -40,6 +40,7 @@ pub mod pdf;
 mod pdfimport;
 pub mod pngtext;
 pub mod ppi;
+pub mod progress;
 pub mod psdread;
 mod save;
 mod screens;
@@ -75,7 +76,7 @@ pub use save::{
 };
 pub use screens::{
     PRESET_KEYS as SCREEN_EXPORT_PRESET_KEYS, PRESETS as SCREEN_PRESETS, ScreenExportPreset, ScreenSize,
-    builtin_presets as screen_export_builtin_presets, preset_rows as screen_preset_rows,
+    builtin_presets as screen_export_builtin_presets, first_file as screen_first_file, preset_rows as screen_preset_rows,
 };
 pub(crate) use screens::{
     SHARED_KEYS as SCREEN_SETTINGS_KEYS, check_settings as check_screen_settings, export as export_screens, safe_file_name,
@@ -115,7 +116,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Serialize Document",
             [],
             None,
-            "{format?: vectorcraft (default)|template|svg|svgz|pdf|ai|png|jpg|webp|gif|png8|txt|dxf|eps|emf|wmf|tiff|bmp|tga|psd, …the format's options (see document.formats; SVG ones also as svg: {…}), selectedOnly?: false (the selected objects alone, in their layers)} → {text, warnings} for svg (plus dataBase64, the file, when its encoding isn't UTF-8), else {dataBase64, warnings}; an SVG of several artboards also gives files: [{name, text}], linked images linked: [{name, dataBase64}]",
+            "{format?: vectorcraft (default)|template|svg|svgz|pdf|ai|png|jpg|webp|gif|png8|txt|dxf|eps|emf|wmf|tiff|bmp|tga|psd (ait, a .ait template, is written by file.saveAsTemplate), …the format's options (see document.formats; SVG ones also as svg: {…}), selectedOnly?: false (the selected objects alone, in their layers)} → {text, warnings} for svg (plus dataBase64, the file, when its encoding isn't UTF-8), else {dataBase64, warnings}; an SVG of several artboards also gives files: [{name, text}], linked images linked: [{name, dataBase64}]",
             has_doc,
             export::serialize
         ),
@@ -124,7 +125,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Export Document",
             [],
             None,
-            "{path?, format?: svg|svgz|pdf|ai|png|jpg|webp|gif|png8|txt|dxf|eps|emf|wmf|tiff|bmp|tga|psd|vectorcraft|template (default: from the path's extension, else png; png8 writes an indexed .png), selectedOnly?: false (the selected objects alone, in their layers), artboard?: 0, artboards?: [i…], rect?: [x, y, width, height] (raster formats: that area of the page in points, y down, instead of an artboard; not with artboard, artboards, range or useArtboards), range?: \"1-3, 5\" | \"all\" (1-based; PDF and .ai write one page per artboard, default all; SVG writes one file per artboard, {stem}-{artboard}.svg; raster formats write one artboard), useArtboards?: true (raster: one file per chosen artboard, default all, {stem}-{artboard}.{ext}; pdf/ai: every page) | false (pdf/ai/raster: the bounds of the visible art; SVG has it as an SVG option), ppi?: 72 (raster formats: pixels per inch, stored in the file; wins over scale), scale?: 1 (pixels per point), background?: transparent|white|black|\"#rrggbb\" (jpg: white when transparent), antiAlias?: none|art (default)|type (text snapped to pixels), interlaced?: false (png, Adam7), embedIcc?: true (png: an sRGB chunk marks the colours as sRGB), quality?: 90 (jpg: 0–100), colorModel?: rgb|cmyk|gray (jpg), method?: baseline|optimized|progressive, scans?: 3 (3–5, progressive), embedIcc?: true, imageMap?: none|client|server (an HTML or NCSA map of the objects with a URL, written as <stem>.html / <stem>.map), colors?: 256 (gif/png8: 2–256), reduction?: perceptual|selective (default)|adaptive|web|blackWhite|gray, dither?: none|diffusion (default)|pattern|noise, ditherAmount?: 100, transparency?: true, matte?: white|\"#rrggbb\"|none, interlaced?, lossless?: true (webp: lossy WebP isn't available yet: written lossless, with a warning), encoding?: utf8|utf16 (txt: the stories in stacking order, back to front, a thread once; utf16 with a byte order mark), lineEndings?: lf|crlf, selectionOnly?: false, svg?: {styling, outlineText, images, objectIds, decimals, minify, responsive, useArtboards, preserveEditing, metadata, fewerTspans, hiddenLayers, encoding, profile, embedFonts} (see document.formats), …the SVG options given flat instead, …the PDF options of document.exportPdf, …the DXF options of document.exportDxf (useArtboards: one drawing per artboard), …the EPS options of document.exportEps (useArtboards: one file per artboard, {stem}_{artboard}.eps; else the visible art), …emf and wmf write one picture of the artboard (useArtboards: true one file per chosen artboard, false the bounds of the visible art; EMF keeps curves, clipping, transparent images and gradients as images clipped to their shape; WMF flattens curves into polygons behind a placeable header; what a format leaves out comes back in warnings), colorModel?: rgb|cmyk|gray (tiff: rgb keeps transparency as an alpha channel), lzw?: true, byteOrder?: little|big, embedIcc?: true, colorModel?: rgb|gray (bmp), depth?: 24 (bmp: 1 black and white, 4|8 a palette by reduction and dither, 16, 24, 32 with alpha), fileFormat?: windows|os2 (1, 4, 8 or 24 bits), rle?: false (4 and 8 bits, windows), flipRows?: false (top-down rows), depth?: 24 (tga: 16 one-bit alpha, 24, 32 with alpha), colorModel?: rgb|cmyk|gray (psd), layers?: true (each top-level layer a pixel layer with its opacity and blend mode; a background colour is a Background layer; false: one flat image, on white), maxEditability?: false (layers and sublayers become groups, each object a layer named as in the Layers panel, text by its text; clipping, masked or knockout layers stay one layer), hiddenLayers?: false (hidden layers and objects written hidden instead of left out), embedIcc?: true (at most 30000 pixels a side; formats without alpha are flattened on white)} → {path, format, bytes, warnings, files?: [path…] (several), linked?: [path…] (linked images, image maps)}; no path → {dataBase64, format, bytes, warnings, files?: [{name, dataBase64}], linked?: [{name, dataBase64}]}. Never changes the document's path",
+            "{path?, format?: svg|svgz|pdf|ai|png|jpg|webp|gif|png8|txt|dxf|eps|emf|wmf|tiff|bmp|tga|psd|vectorcraft|template (default: from the path's extension, else png; png8 writes an indexed .png; ait, a .ait template, is written by file.saveAsTemplate), selectedOnly?: false (the selected objects alone, in their layers), artboard?: 0, artboards?: [i…], rect?: [x, y, width, height] (raster formats: that area of the page in points, y down, instead of an artboard; not with artboard, artboards, range or useArtboards), range?: \"1-3, 5\" | \"all\" (1-based; PDF and .ai write one page per artboard, default all; SVG writes one file per artboard, {stem}-{artboard}.svg; raster formats write one artboard), useArtboards?: true (raster: one file per chosen artboard, default all, {stem}-{artboard}.{ext}; pdf/ai: every page) | false (pdf/ai/raster: the bounds of the visible art; SVG has it as an SVG option), ppi?: 72 (raster formats: pixels per inch, stored in the file; wins over scale), scale?: 1 (pixels per point), background?: transparent|white|black|\"#rrggbb\" (jpg: white when transparent), antiAlias?: none|art (default)|type (text snapped to pixels), interlaced?: false (png, Adam7), embedIcc?: true (png: an sRGB chunk marks the colours as sRGB), quality?: 90 (jpg: 0–100), colorModel?: rgb|cmyk|gray (jpg), method?: baseline|optimized|progressive, scans?: 3 (3–5, progressive), embedIcc?: true, imageMap?: none|client|server (an HTML or NCSA map of the objects with a URL, written as <stem>.html / <stem>.map), colors?: 256 (gif/png8: 2–256), reduction?: perceptual|selective (default)|adaptive|web|blackWhite|gray, dither?: none|diffusion (default)|pattern|noise, ditherAmount?: 100, transparency?: true, matte?: white|\"#rrggbb\"|none, interlaced?, lossless?: true (webp: lossy WebP isn't available yet: written lossless, with a warning), encoding?: utf8|utf16 (txt: the stories in stacking order, back to front, a thread once; utf16 with a byte order mark), lineEndings?: lf|crlf, selectionOnly?: false, svg?: {styling, outlineText, images, objectIds, decimals, minify, responsive, useArtboards, preserveEditing, metadata, fewerTspans, hiddenLayers, encoding, profile, embedFonts} (see document.formats), …the SVG options given flat instead, …the PDF options of document.exportPdf, …the DXF options of document.exportDxf (useArtboards: one drawing per artboard), …the EPS options of document.exportEps (useArtboards: one file per artboard, {stem}_{artboard}.eps; else the visible art), …emf and wmf write one picture of the artboard (useArtboards: true one file per chosen artboard, false the bounds of the visible art; EMF keeps curves, clipping, transparent images and gradients as images clipped to their shape; WMF flattens curves into polygons behind a placeable header; what a format leaves out comes back in warnings), colorModel?: rgb|cmyk|gray (tiff: rgb keeps transparency as an alpha channel), lzw?: true, byteOrder?: little|big, embedIcc?: true, colorModel?: rgb|gray (bmp), depth?: 24 (bmp: 1 black and white, 4|8 a palette by reduction and dither, 16, 24, 32 with alpha), fileFormat?: windows|os2 (1, 4, 8 or 24 bits), rle?: false (4 and 8 bits, windows), flipRows?: false (top-down rows), depth?: 24 (tga: 16 one-bit alpha, 24, 32 with alpha), colorModel?: rgb|cmyk|gray (psd), layers?: true (each top-level layer a pixel layer with its opacity and blend mode; a background colour is a Background layer; false: one flat image, on white), maxEditability?: false (layers and sublayers become groups, each object a layer named as in the Layers panel, text by its text; clipping, masked or knockout layers stay one layer), hiddenLayers?: false (hidden layers and objects written hidden instead of left out), embedIcc?: true (at most 30000 pixels a side; formats without alpha are flattened on white)} → {path, format, bytes, warnings, files?: [path…] (several), linked?: [path…] (linked images, image maps)}; no path → {dataBase64, format, bytes, warnings, files?: [{name, dataBase64}], linked?: [{name, dataBase64}]}. Never changes the document's path",
             has_doc,
             export::export
         ),
@@ -813,7 +814,8 @@ pub fn format_for_name(name: &str) -> Option<&'static Format> {
     Some(extension(name)).filter(|e| !e.is_empty()).and_then(|e| format(&e))
 }
 
-/// The format to write: `format` (an id or extension), else the path's extension, else PNG.
+/// The format to write: `format` (an id or extension), else the path's extension, else PNG. For a
+/// `.ait` template it returns an error that names `file.saveAsTemplate`, which writes it.
 pub fn writable_format(format_param: Option<&str>, path: Option<&str>) -> std::result::Result<&'static Format, String> {
     // Formats that can't be written say what to use instead.
     let unknown = |what: String, key: &str| unsupported(key).map_or(what, |u| u.hint.to_string());
@@ -822,7 +824,13 @@ pub fn writable_format(format_param: Option<&str>, path: Option<&str>) -> std::r
         (None, Some(e)) => format(&e).ok_or_else(|| unknown(format!("unknown extension `.{e}`: pass `format` (see document.formats)"), &e))?,
         (None, None) => format("png").ok_or("no PNG encoder")?,
     };
-    if f.write { Ok(f) } else { Err(format!("{} files can be opened but not written (see document.formats)", f.label)) }
+    if f.write {
+        Ok(f)
+    } else if TEMPLATE_FORMATS.contains(&f.id) {
+        Err(format!("{} files are written by file.saveAsTemplate", f.label))
+    } else {
+        Err(format!("{} files can be opened but not written (see document.formats)", f.label))
+    }
 }
 
 /// [`writable_format`] for command `cmd`.
@@ -850,7 +858,34 @@ fn formats(_: &mut Session, _: &Value) -> Result<Value> {
 /// `path` checked for reading against the automation roots in force.
 #[cfg(not(target_arch = "wasm32"))]
 fn may_read(path: &str) -> Result<()> {
+    #[cfg(test)]
+    touch(path);
     crate::file_access::check_read(path).map_err(EngineError::Other)
+}
+
+/// Paths read while [`touched`] runs, on any thread (the SVG importer reads on one of its own).
+#[cfg(test)]
+static TOUCHED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+#[cfg(test)]
+static RECORDING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
+fn touch(path: &str) {
+    if RECORDING.load(std::sync::atomic::Ordering::SeqCst) > 0 {
+        TOUCHED.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(path.to_string());
+    }
+}
+
+/// Run `f` and list the paths read through this module meanwhile (by any test running then).
+#[cfg(test)]
+pub(crate) fn touched<T>(f: impl FnOnce() -> T) -> (T, Vec<String>) {
+    use std::sync::atomic::Ordering::SeqCst;
+    let start = TOUCHED.lock().unwrap_or_else(std::sync::PoisonError::into_inner).len();
+    RECORDING.fetch_add(1, SeqCst);
+    let out = f();
+    RECORDING.fetch_sub(1, SeqCst);
+    let seen = TOUCHED.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(start..).unwrap_or_default().to_vec();
+    (out, seen)
 }
 
 /// `path` checked for writing against the automation roots in force.
@@ -1010,8 +1045,7 @@ fn list_dir(_: &str, _: usize) -> Result<(Vec<Value>, bool)> {
 /// keeps one); `None` when there is no file at `path` (or automation may not read it).
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn file_stamp(path: &str) -> Option<(u64, Option<u64>)> {
-    may_read(path).ok()?;
-    let m = std::fs::metadata(path).ok().filter(std::fs::Metadata::is_file)?;
+    let m = file_metadata(path).filter(std::fs::Metadata::is_file)?;
     let modified = m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as u64);
     Some((m.len(), modified))
 }
@@ -1020,9 +1054,15 @@ pub(crate) fn file_stamp(path: &str) -> Option<(u64, Option<u64>)> {
 /// (and automation may read it).
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn file_created(path: &str) -> Option<u64> {
-    may_read(path).ok()?;
-    let t = std::fs::metadata(path).ok()?.created().ok()?;
+    let t = file_metadata(path)?.created().ok()?;
     t.duration_since(std::time::UNIX_EPOCH).ok().map(|d| d.as_millis() as u64)
+}
+
+/// The file system's metadata of `path`, following links (when automation may read it).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn file_metadata(path: &str) -> Option<std::fs::Metadata> {
+    may_read(path).ok()?;
+    std::fs::metadata(path).ok()
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1038,6 +1078,21 @@ pub(crate) fn absolute_path(path: &str) -> String {
         return path.to_string();
     }
     std::path::absolute(path).map_or_else(|_| path.to_string(), |p| p.to_string_lossy().into_owned())
+}
+
+/// The file to open for `stored`, a path or `file:` URL stored in a document (a linked file, an
+/// SVG image's href), or why it is not followed. `document` is the path of the document it is
+/// stored in, when it has one: a relative path is taken from its folder. Only files on this
+/// computer, or on the network share the document is on, are followed (see `craft_docpath`); a
+/// path that is still relative (no document) is refused, as the working directory isn't the
+/// document's choice. Every stored path reaches the file system through this.
+pub(crate) fn document_path(stored: &str, document: Option<&str>) -> std::result::Result<String, craft_docpath::Refused> {
+    let document = document.map(absolute_path);
+    let path = craft_docpath::resolve(stored, document.as_deref().map(std::path::Path::new))?;
+    if !path.is_absolute() {
+        return Err(craft_docpath::Refused::Invalid);
+    }
+    path.into_os_string().into_string().map_err(|_| craft_docpath::Refused::Invalid)
 }
 
 #[cfg(target_arch = "wasm32")]

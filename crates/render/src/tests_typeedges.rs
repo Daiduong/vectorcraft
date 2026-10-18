@@ -227,6 +227,31 @@ fn type_with_a_substitution_highlight_is_drawn_as_sharp() {
     assert_ne!(draw(TypeAntiAlias::Strong, false), draw(TypeAntiAlias::Sharp, false));
 }
 
+/// On screen, type with a ligature draws as Sharp draws it while Preferences › Type › Highlight
+/// Alternate Glyphs is on, and with its method while it is off.
+#[test]
+fn type_with_an_alternate_glyph_highlight_is_drawn_as_sharp() {
+    // Source Serif 4 (bundled with vectorcraft-text's `bundled-fonts`) ligates "fi".
+    if vectorcraft_text::FontDb::global().face("Source Serif 4", "Regular").is_none() {
+        eprintln!("SKIPPED: type_with_an_alternate_glyph_highlight_is_drawn_as_sharp; no Source Serif 4");
+        return;
+    }
+    let draw = |m: TypeAntiAlias, alternates: bool| {
+        let mut d = Document::new(f64::from(W), f64::from(H));
+        d.setup.highlight_substituted_fonts = false;
+        d.setup.highlight_substituted_glyphs = false;
+        let style = CharStyle { size: 40.0, font_family: "Source Serif 4".into(), ..Default::default() };
+        let mut t = TextObject::point(Point::new(10.3, 60.4), "fish", style);
+        t.anti_alias = m;
+        let n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
+        let l = d.layers[0].id;
+        d.insert(Some(l), 0, n).unwrap();
+        alphas(&d, &RenderOptions { highlight_substitutions: true, highlight_alternate_glyphs: alternates, ..Default::default() })
+    };
+    assert_eq!(draw(TypeAntiAlias::Strong, true), draw(TypeAntiAlias::Sharp, true));
+    assert_ne!(draw(TypeAntiAlias::Strong, false), draw(TypeAntiAlias::Sharp, false));
+}
+
 /// The type is drawn on the output's pixels unless, in a frame coarser than the output, they
 /// would number more than the frame's there and more than the effects' pixel budget.
 #[test]
