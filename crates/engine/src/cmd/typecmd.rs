@@ -1373,7 +1373,8 @@ mod area_tests {
         s.execute("text.setFormat", &json!({"fontHeightReference": "capHeight"})).unwrap();
         let grown = height(&s) / em_box;
         assert!((grown - 1000.0 / f64::from(HEIGHT_CAP)).abs() < 1e-6, "{grown}");
-        // A leading step from Auto starts at the leading the lines are set with: 120% of the em size.
+        // A leading step from Auto starts at the leading the lines are set with: 120% of the em size
+        // (the paragraph's Auto Leading).
         s.execute("type.step", &json!({"attribute": "leading"})).unwrap();
         let stepped = text(&s).runs[0].style.leading.unwrap();
         assert!((stepped - (1.2 * 20.0 * 1000.0 / f64::from(HEIGHT_CAP) + 2.0)).abs() < 1e-9, "{stepped}");
@@ -1387,6 +1388,24 @@ mod area_tests {
         s.execute("text.setRangeStyle", &json!({"id": id, "start": 3, "end": 5, "fontHeightReference": "xHeight"})).unwrap();
         let set: Vec<_> = text(&s).runs.iter().map(|r| (r.text.clone(), r.style.font_height_reference)).collect();
         assert_eq!(set, [("Hx ".to_string(), R::EmBox), ("Hx".to_string(), R::XHeight)]);
+    }
+
+    /// A leading step from Auto starts at the leading each paragraph's lines are set with, its
+    /// Auto Leading share of the em size: 20 pt type in paragraphs at 120% and 150% steps from 24 pt
+    /// and from 30 pt.
+    #[test]
+    fn a_leading_step_from_auto_starts_at_each_paragraphs_auto_leading() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab\nCd", "size": 20})).unwrap()["id"].as_u64().unwrap();
+        s.execute("text.setFormat", &json!({"id": id, "start": 3, "end": 5, "autoLeading": 150})).unwrap();
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        s.execute("type.step", &json!({"attribute": "leading"})).unwrap();
+        let NodeKind::Text(t) = &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind else {
+            panic!("text");
+        };
+        let leading: Vec<_> = t.runs.iter().map(|r| (r.text.as_str(), r.style.leading)).collect();
+        assert_eq!(leading, [("Ab\n", Some(26.0)), ("Cd", Some(32.0))]);
     }
 
     /// Variable Font settings (Character panel › Variable Font): a character attribute, saved only

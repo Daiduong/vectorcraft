@@ -791,6 +791,19 @@ fn a_font_height_reference_is_written_as_the_size_drawn() {
     assert!((size - 20.0).abs() < 1e-6, "{size}");
 }
 
+/// Characters with Auto leading are written with their paragraph's Auto Leading share of the
+/// size: 18 pt type in paragraphs at 150% is written with 27 pt leading.
+#[test]
+fn auto_leading_is_written_at_the_paragraphs_share() {
+    let mut doc = typed();
+    let id = texts(&doc)[0].0.id;
+    if let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind) {
+        t.edit_paras(None, |p| p.justification.auto_leading = 150.0);
+    }
+    let text = String::from_utf8(write(&doc).bytes).unwrap();
+    assert!(text.contains("\n27 0 Tl\n"), "{text}");
+}
+
 #[test]
 fn type_reads_back_as_text() {
     use vectorcraft_doc::{Justify, TextKind};

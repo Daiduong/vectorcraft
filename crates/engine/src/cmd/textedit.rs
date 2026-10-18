@@ -1001,15 +1001,28 @@ fn type_step(s: &mut Session, p: &Value) -> Result<Value> {
                     1.0
                 };
                 let mut runs = edit::slice_runs(&t.runs, a, b);
+                // Each paragraph has its own Auto Leading, so a leading step cuts the runs where a
+                // paragraph ends.
+                if step == Step::Leading {
+                    runs = runs
+                        .into_iter()
+                        .flat_map(|r| {
+                            let pieces = r.text.split_inclusive('\n');
+                            pieces.map(|s| TextRun { text: s.to_string(), style: r.style.clone(), inline: r.inline.clone() }).collect::<Vec<_>>()
+                        })
+                        .collect();
+                }
+                let mut para = t.paragraphs_in(a, a).start;
                 for run in &mut runs {
                     let st = &mut run.style;
                     match step {
                         Step::Size => st.size = super::typecmd::local_type_value(t, st.size * points + inc, (0.1, 1296.0), false, C)?,
                         Step::Leading => {
-                            // With Auto leading the step starts from the leading the lines are set with,
-                            // 120% of the em size the font height reference gives the characters.
+                            // With Auto leading the step starts from the leading the lines are set with:
+                            // the paragraph's Auto Leading share of the em size the font height reference
+                            // gives the characters.
                             let em = vectorcraft_text::FontDb::global().em_size(st, t.vertical);
-                            let leading = CharStyle { size: em, ..st.clone() }.effective_leading();
+                            let leading = st.leading.unwrap_or_else(|| t.para_at(para).justification.auto_leading_for(em));
                             st.leading = Some(super::typecmd::local_type_value(t, leading * points + inc, (0.1, 5000.0), false, C)?);
                         }
                         Step::Tracking => st.tracking = (st.tracking + inc).clamp(-1000.0, 10000.0),
@@ -1017,6 +1030,9 @@ fn type_step(s: &mut Session, p: &Value) -> Result<Value> {
                         Step::BaselineShift => {
                             st.baseline_shift = super::typecmd::local_type_value(t, st.baseline_shift * points + inc, (-1296.0, 1296.0), false, C)?;
                         }
+                    }
+                    if run.text.ends_with('\n') {
+                        para += 1;
                     }
                 }
                 edit::replace_range_styled(&mut t.runs, a, b, &runs);

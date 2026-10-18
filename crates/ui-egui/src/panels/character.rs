@@ -108,6 +108,57 @@ fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc
     acc.value().flatten()
 }
 
+/// As [`shared_styles`], with the attributes of the paragraph each character is in: `f` sees a run
+/// that spans paragraphs once for each of them.
+fn shared_para_styles<T: PartialEq>(
+    app: &VectorcraftApp,
+    f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle, &vectorcraft_doc::ParaStyle) -> Option<T>,
+) -> Option<T> {
+    let st = app.session.active()?;
+    let breaks = |s: &[u8]| s.iter().filter(|&&c| c == b'\n').count();
+    // The paragraphs bytes `lo..hi` of a run are in, from `para`, the paragraph its first byte is in.
+    let paras = |text: &str, para: usize, lo: usize, hi: usize| {
+        let bytes = text.as_bytes();
+        let first = para + bytes.get(..lo).map_or(0, breaks);
+        first..=first + bytes.get(lo..hi.saturating_sub(1).max(lo)).map_or(0, breaks)
+    };
+    let mut acc = Shared::None;
+    if let Some((id, a, b)) = text_editing(app) {
+        let Some(NodeKind::Text(t)) = st.doc.node(id).map(|n| &n.kind) else {
+            return None;
+        };
+        if b <= a {
+            return f(t, &vectorcraft_text::edit::insertion_style(&t.runs, a, b), t.para_at(t.paragraphs_in(a, a).start));
+        }
+        let (mut end, mut para) = (0, 0);
+        for r in &t.runs {
+            let start = end;
+            end += r.text.len();
+            if start < b && end > a {
+                for i in paras(&r.text, para, a.max(start) - start, b.min(end) - start) {
+                    acc.add(f(t, &r.style, t.para_at(i)));
+                }
+            }
+            para += breaks(r.text.as_bytes());
+        }
+    } else {
+        for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
+            n.walk(&mut |c| {
+                if let NodeKind::Text(t) = &c.kind {
+                    let mut para = 0;
+                    for r in &t.runs {
+                        for i in paras(&r.text, para, 0, r.text.len()) {
+                            acc.add(f(t, &r.style, t.para_at(i)));
+                        }
+                        para += breaks(r.text.as_bytes());
+                    }
+                }
+            });
+        }
+    }
+    acc.value().flatten()
+}
+
 /// The value a run of styles share so far ([`shared`]).
 enum Shared<T> {
     None,
@@ -525,13 +576,13 @@ pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width:
 }
 
 /// The Leading field's value, in document points: the explicit leading, or the Auto leading the
-/// characters are set with, which follows the em size their font height reference gives them
-/// ([`vectorcraft_text::FontDb::em_size`]); `None` where the characters differ.
+/// characters are set with, their paragraph's Auto Leading share of the em size their font height
+/// reference gives them ([`vectorcraft_text::FontDb::em_size`]); `None` where the characters differ.
 fn shown_leading(app: &VectorcraftApp) -> Option<f64> {
     let db = vectorcraft_text::FontDb::global();
-    shared_styles(app, |t, style| {
+    shared_para_styles(app, |t, style, para| {
         let s = t.effective_char_style(style)?;
-        Some(Metric(CharStyle { size: db.em_size(&s, t.vertical), ..s }.effective_leading()))
+        Some(Metric(s.leading.unwrap_or_else(|| para.justification.auto_leading_for(db.em_size(&s, t.vertical)))))
     })
     .map(|v| v.0)
 }
@@ -936,9 +987,10 @@ mod tests {
         assert_eq!(shared_effective(&app, |s| s.h_scale), Some(100.0));
     }
 
-    /// The Leading field shows the Auto leading the characters are set with, 120% of their em
-    /// size: 20 pt type measuring a 0.7 em cap height is set at 20 / 0.7 pt. An explicit leading
-    /// shows as it is.
+    /// The Leading field shows the Auto leading the characters are set with, their paragraph's Auto
+    /// Leading share (120% by default) of their em size: 20 pt type measuring a 0.7 em cap height
+    /// is set at 20 / 0.7 pt. Paragraphs whose Auto leading differs show a blank field, and an
+    /// explicit leading shows as it is.
     #[test]
     fn leading_shows_the_auto_leading_of_the_em_size() {
         use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
@@ -952,8 +1004,39 @@ mod tests {
         app.run("text.setFormat", json!({"fontHeightReference": "capHeight"})).unwrap();
         let cap = f64::from(HEIGHT_CAP) / 1000.0;
         assert!(near(shown_leading(&app), 1.2 * 20.0 / cap), "{:?}", shown_leading(&app));
+        app.run("text.setFormat", json!({"autoLeading": 150})).unwrap();
+        assert!(near(shown_leading(&app), 1.5 * 20.0 / cap), "{:?}", shown_leading(&app));
+        // The second paragraph ends in a two-byte character.
+        let two = app.run("text.create", json!({"x": 20, "y": 120, "text": "Hx\nHé", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [two]})).unwrap();
+        assert!(near(shown_leading(&app), 24.0), "{:?}", shown_leading(&app));
+        app.run("text.setFormat", json!({"id": two, "start": 3, "end": 6, "autoLeading": 150})).unwrap();
+        assert_eq!(shown_leading(&app), None, "the second paragraph's Auto leading is 30 pt");
+        app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run("text.setStyle", json!({"leading": 30})).unwrap();
         assert!(near(shown_leading(&app), 30.0), "{:?}", shown_leading(&app));
+    }
+
+    /// With the Type tool, the Leading field shows the Auto leading of the paragraphs the selection
+    /// covers (a line break belongs to the paragraph it ends), and at a caret that of the caret's
+    /// paragraph.
+    #[test]
+    fn leading_follows_the_paragraphs_the_type_tool_selection_covers() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        app.session.select_tool("type", Default::default()).unwrap();
+        // é is two bytes, 4..6.
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Ab\nCé", "size": 20})).unwrap()["id"].clone();
+        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.run("text.setFormat", json!({"id": id, "start": 3, "end": 6, "autoLeading": 150})).unwrap();
+        let ranges = [((0, 2), Some(24.0)), ((0, 3), Some(24.0)), ((3, 6), Some(30.0)), ((1, 4), None), ((1, 6), None), ((4, 4), Some(30.0))];
+        for ((start, end), want) in ranges {
+            app.session.set_tool_option("select", &json!({"start": start, "end": end}));
+            assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((start, end)));
+            let shown = shown_leading(&app);
+            assert_eq!(shown.is_some(), want.is_some(), "{start}..{end}: {shown:?}");
+            assert!(shown.zip(want).is_none_or(|(l, w)| (l - w).abs() < 1e-9), "{start}..{end}: {shown:?}");
+        }
     }
 
     #[test]

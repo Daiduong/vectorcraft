@@ -1191,7 +1191,8 @@ impl<'a> Writer<'a> {
         ps::push_num(&mut self.body, finite(st.tracking, 0.0));
         self.line(" Tt");
         self.line(if st.kerning.is_none() { "1 TA" } else { "0 TA" });
-        ps::push_nums(&mut self.body, &[finite(st.effective_leading(), size * 1.2), finite(p.space_before, 0.0)]);
+        let leading = st.leading.unwrap_or_else(|| p.justification.auto_leading_for(st.size));
+        ps::push_nums(&mut self.body, &[finite(leading, size * 1.2), finite(p.space_before, 0.0)]);
         self.line("Tl");
     }
 
