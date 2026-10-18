@@ -76,14 +76,11 @@ fn selected(app: &VectorcraftApp) -> Option<(NodeId, BarcodeSpec)> {
 }
 
 /// Whether this frame's edits are drawn on the selected object at once rather than waiting for
-/// Update.
-///
-/// Everything but the value itself is: a type, a size, a checkbox drawn only when the button is
-/// pressed reads as a broken control. A value being typed is not — a half-typed number would redraw
-/// the object on every keystroke and leave the canvas carrying the last one that happened to encode
-/// — so it waits, except when the type changed and brought its own example value along with it.
+/// Update: everything is. A control that looks live but leaves the art alone reads as broken, and
+/// the text fields commit only on Enter or when the focus leaves them — never per keystroke — so
+/// nothing redraws halfway through a value being typed.
 pub(super) fn applies_at_once(spec: &BarcodeSpec, before: &BarcodeSpec) -> bool {
-    spec.symbology != before.symbology || (spec != before && spec.data == before.data)
+    spec != before
 }
 
 /// A draft for `symbology`: the example data that type is usually shown with, and the standard
@@ -134,7 +131,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     {
         let mut p = serde_json::to_value(&spec).unwrap_or(json!({}));
         p["id"] = json!(id.0);
-        app.run("barcode.set", p).ok();
+        // A value the symbology cannot carry leaves the art as it was, and says why rather than
+        // reverting under the pointer in silence.
+        if let Err(e) = app.run("barcode.set", p) {
+            app.ui.barcode_note = e;
+        }
     }
 
     if target.is_none() {
@@ -385,7 +386,7 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
             batch.gap = v.clamp(0.0, 1000.0);
         }
     });
-    let count = batch_entries(&batch.data).len();
+    let count = batch_entries(&batch.data, spec.symbology).len();
     widgets::dim_label(ui, &format!("{} {count}", tl!("Codes:")));
     let mut run = false;
     ui.horizontal(|ui| {
@@ -396,7 +397,7 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
     });
     if run {
         let mut p = serde_json::to_value(spec).unwrap_or(json!({}));
-        p["data"] = json!(batch_entries(&batch.data).join("\n"));
+        p["data"] = json!(batch_entries(&batch.data, spec.symbology).join("\n"));
         p["columns"] = json!(batch.columns);
         p["gapX"] = json!(batch.gap);
         p["gapY"] = json!(batch.gap);
@@ -423,9 +424,20 @@ fn batch_rows(app: &mut VectorcraftApp, ui: &mut Ui, spec: &BarcodeSpec, width: 
 }
 
 /// The codes pasted into the batch box, one per line — and one per comma too, when the whole paste
-/// is on one line, since that is how a spreadsheet column and a CSV row arrive.
-fn batch_entries(text: &str) -> Vec<String> {
-    let sep = if text.contains('\n') { '\n' } else { ',' };
+/// is on one line, since that is how a spreadsheet column and a CSV row arrive. A comma is data in
+/// Code 128, Code 93 and a QR Code, though: a URL with one in it is one code, not two.
+fn batch_entries(text: &str, symbology: Symbology) -> Vec<String> {
+    let comma_separates = !matches!(
+        symbology,
+        Symbology::Ean128
+            | Symbology::Code128
+            | Symbology::Code128A
+            | Symbology::Code128B
+            | Symbology::Code128C
+            | Symbology::Code93
+            | Symbology::QrCode
+    );
+    let sep = if text.contains('\n') || !comma_separates { '\n' } else { ',' };
     text.split(sep).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
 }
 

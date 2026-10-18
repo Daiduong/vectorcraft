@@ -50,6 +50,19 @@ fn char_at(v: usize) -> char {
     CHARS.chars().nth(v).unwrap_or('0')
 }
 
+/// The character a check value of 43 to 46 stands for: the four shift characters, which sit past
+/// the data set in [`ENCS`] and so are not in [`CHARS`]. Pushing `'0'` for them — what `char_at`
+/// falls back to — would make K cover a value the symbol does not carry.
+fn check_char(v: usize) -> char {
+    match v {
+        43 => SHIFT_CONTROL,
+        44 => SHIFT_PERCENT,
+        45 => SHIFT_SLASH,
+        46 => SHIFT_PLUS,
+        _ => char_at(v),
+    }
+}
+
 /// The Code 93 characters that carry `text`: the data set directly when the text stays inside it,
 /// else the shift sequences of the Code 93 Extended convention.
 ///
@@ -103,7 +116,7 @@ pub fn encode(spec: &BarcodeSpec, data: &str) -> Result<Symbol> {
     // C over the data, then K over the data and C, both mod 47 with the weights running 1, 2, 3 …
     // from the right and cycling at 20 and 15 (AIM/ISO 93).
     let c = checksum(&text, 20, 0);
-    text.push(char_at(c));
+    text.push(check_char(c));
     let k = checksum(&text, 15, 0) % 47;
     write_character(&mut l, c, height);
     write_character(&mut l, k, height);
@@ -217,5 +230,32 @@ mod tests {
         // The four characters that look like shift characters are encoded as themselves.
         assert_eq!(extended("$%+/", "Code 93").map(|v| v.len()), Ok(4));
         assert!(extended("é", "Code 93").is_err());
+    }
+
+    /// The check characters run over the data and, for K, over C. A C of 43 to 46 is one of the
+    /// four shift characters — which are not in the data set — and pushing `'0'` for it, what
+    /// `char_at` falls back to, makes K cover a value the symbol does not carry.
+    #[test]
+    fn a_check_character_past_the_data_set_keeps_its_value() {
+        assert_eq!(check_char(0), '0');
+        assert_eq!(check_char(42), '%');
+        assert_eq!((check_char(43), check_char(44), check_char(45), check_char(46)), (SHIFT_CONTROL, SHIFT_PERCENT, SHIFT_SLASH, SHIFT_PLUS));
+        // A data value whose C is 43: its K is computed with the shift character's value.
+        let text: Vec<char> = (0..5000)
+            .map(|n| n.to_string())
+            .find(|d| {
+                let t: Vec<char> = d.chars().collect();
+                checksum(&t, 20, 0) == 43
+            })
+            .expect("some short number gives C = 43")
+            .chars()
+            .collect();
+        let mut with_c = text.clone();
+        with_c.push(check_char(43));
+        let mut wrongly = text.clone();
+        wrongly.push(char_at(43));
+        assert_ne!(checksum(&with_c, 15, 0) % 47, checksum(&wrongly, 15, 0) % 47, "K must see the shift's value (43), not '0'");
+        let data: String = text.iter().collect();
+        assert!(crate::encode(&BarcodeSpec::new(crate::Symbology::Code93, &data)).is_ok());
     }
 }

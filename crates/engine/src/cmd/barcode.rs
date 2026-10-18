@@ -248,9 +248,16 @@ fn set(s: &mut Session, p: &Value) -> Result<Value> {
     }
     read_spec(&mut spec, p, C)?;
     let (code, data) = encoded(&spec)?;
-    let origin = top_left(s, id);
+    // The bounds start at the old art's own top-left, which without the white box is a quiet zone
+    // (or a digit) inside the symbol: subtract that to get back to the origin the art started at.
+    let old = s.doc()?.doc.node(id).and_then(|n| n.extras().barcode.as_deref().cloned()).ok_or(EngineError::NoNode(id))?;
+    let corner = top_left(s, id);
     let style = s_style(s, &spec);
-    s.edit("Barcode Options", |d, _| draw(d, id, &spec, &code, origin, style.clone()))?;
+    let old_style = s_style(s, &old);
+    s.edit("Barcode Options", |d, _| {
+        let (dx, dy) = art_offset(d, &old, &old_style)?;
+        draw(d, id, &spec, &code, Point::new(corner.x - dx, corner.y - dy), style.clone())
+    })?;
     Ok(json!({ "id": id.0, "data": data }))
 }
 
@@ -262,6 +269,17 @@ fn top_left(s: &Session, id: NodeId) -> Point {
 
 /// Draw `code` into the barcode object `id`, from its top-left corner.
 fn draw(d: &mut Document, id: NodeId, spec: &BarcodeSpec, code: &Code, origin: Point, style: CharStyle) -> Result<()> {
+    let children = art_children(d, spec, code, origin, &style);
+    let node = d.node_mut(id).ok_or(EngineError::NoNode(id))?;
+    if let Some(slot) = node.children_mut() {
+        *slot = children;
+    }
+    node.extras_mut().barcode = Some(Box::new(spec.clone()));
+    Ok(())
+}
+
+/// The art of `code`, as a barcode object whose origin is `origin` draws it.
+fn art_children(d: &mut Document, spec: &BarcodeSpec, code: &Code, origin: Point, style: &CharStyle) -> Vec<Arc<Node>> {
     let mut children: Vec<Arc<Node>> = Vec::new();
     match code {
         Code::Linear(symbol) => {
@@ -269,7 +287,7 @@ fn draw(d: &mut Document, id: NodeId, spec: &BarcodeSpec, code: &Code, origin: P
             if !bars.is_empty() {
                 children.push(Arc::new(Node::path(d.alloc_id(), bars, Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0))));
             }
-            children.extend(hri_nodes(d, symbol.human_readable.as_ref(), origin, &style, spec.outline_text));
+            children.extend(hri_nodes(d, symbol.human_readable.as_ref(), origin, style, spec.outline_text));
             if spec.background {
                 let (w, h) = box_mm(&children, origin, symbol.width_mm, symbol.height_mm);
                 children.insert(0, white_box(d, origin, w, h));
@@ -297,12 +315,29 @@ fn draw(d: &mut Document, id: NodeId, spec: &BarcodeSpec, code: &Code, origin: P
             }
         }
     }
-    let node = d.node_mut(id).ok_or(EngineError::NoNode(id))?;
-    if let Some(slot) = node.children_mut() {
-        *slot = children;
+    children
+}
+
+/// How far the art `spec` draws starts from the object's origin: nothing with the white box, which
+/// starts exactly there, and otherwise the quiet zone — or the digits standing left of the first
+/// bar (UPC-A and UPC-E). Redrawing at the bounds rather than at the origin would move the symbol
+/// one offset across the artboard on every edit.
+///
+/// The nodes are built and thrown away; `d` only lends its id counter.
+fn art_offset(d: &mut Document, spec: &BarcodeSpec, style: &CharStyle) -> Result<(f64, f64)> {
+    if spec.background {
+        return Ok((0.0, 0.0));
     }
-    node.extras_mut().barcode = Some(Box::new(spec.clone()));
-    Ok(())
+    let (code, _) = encoded(spec)?;
+    let art = art_children(d, spec, &code, Point::ZERO, style);
+    let (mut left, mut top) = (f64::INFINITY, f64::INFINITY);
+    for n in &art {
+        if let Some(b) = n.geometric_bounds().filter(|b| b.width() > 0.0 && b.height() > 0.0) {
+            left = left.min(b.x0);
+            top = top.min(b.y0);
+        }
+    }
+    Ok(if left.is_finite() { (left, top) } else { (0.0, 0.0) })
 }
 
 /// One path holding every bar, so that a symbol is one object a caller can fill, move or recolour
@@ -454,7 +489,9 @@ fn create_batch(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(C, "no codes to draw"));
     }
     let columns = opt_u8(p, "columns").map_or(10usize, |c| usize::from(c).clamp(1, 200));
-    let (gap_x, gap_y) = (opt_f64(p, "gapX").unwrap_or(5.0).clamp(0.0, 1000.0), opt_f64(p, "gapY").unwrap_or(5.0).clamp(0.0, 1000.0));
+    // Millimetres in the description and the panel, points in the layout, which is in points.
+    let (gap_x, gap_y) =
+        (opt_f64(p, "gapX").unwrap_or(5.0).clamp(0.0, 1000.0) * PT_PER_MM, opt_f64(p, "gapY").unwrap_or(5.0).clamp(0.0, 1000.0) * PT_PER_MM);
 
     // Encode every line first: one the symbology cannot carry is reported rather than drawn, and
     // the rest still land.
@@ -592,6 +629,21 @@ mod tests {
         assert_eq!(s.doc().unwrap().doc.node(id).unwrap().extras().barcode.as_deref().unwrap().data, "4006381333931");
     }
 
+    /// Redrawing a barcode without its white box leaves it where it was: the bounds start a quiet
+    /// zone inside the origin, and measuring from them would walk the symbol across the artboard.
+    #[test]
+    fn redrawing_without_the_white_box_keeps_the_place() {
+        let mut s = new_doc();
+        let (id, _) = make(&mut s, json!({"symbology": "ean13", "data": "6907045517163", "background": false}));
+        let before = s.doc().unwrap().doc.bounds_of(&[id], false).expect("bounds");
+        for height in [22.85, 30.0, 18.0, 24.0] {
+            s.execute("barcode.set", &json!({ "heightMm": height })).expect("set");
+        }
+        let after = s.doc().unwrap().doc.bounds_of(&[id], false).expect("bounds");
+        assert!((after.x0 - before.x0).abs() < 0.01, "{before:?} -> {after:?}");
+        assert!((after.y0 - before.y0).abs() < 0.01, "{before:?} -> {after:?}");
+    }
+
     /// `barcode.set` with no options is the query: the spec and what the raw data resolves to.
     #[test]
     fn asking_for_the_options_gives_them_back() {
@@ -684,11 +736,15 @@ mod tests {
         // The eleventh wraps: back to the left edge, below the first row.
         let eleventh = rect(ids[10]);
         assert!((eleventh.x0 - first.x0).abs() < 0.01, "a new row starts at the left");
-        assert!(eleventh.y0 > first.y1 + 4.0, "the new row is {} below the first", eleventh.y0 - first.y1);
-        // In a row, each code starts after the one before it ends, by the gap.
+        // The gaps are millimetres, as the command says: 5 mm is 14.17 pt. The pitch is exact —
+        // the layout advances by the symbol's nominal size — while the art can reach a hair past
+        // it where the digits sit below the nominal height.
+        let gap = 5.0 * (72.0 / 25.4);
+        assert!((eleventh.y0 - first.y0 - (first.height() + gap)).abs() < 0.2, "the new row starts {} below the first", eleventh.y0 - first.y0);
+        // In a row, each code starts one symbol and one gap after the one before it.
         for i in 1..10 {
             let (a, b) = (rect(ids[i - 1]), rect(ids[i]));
-            assert!(b.x0 >= a.x1 + 4.0, "code {i} overlaps the one before it");
+            assert!((b.x0 - a.x0 - (a.width() + gap)).abs() < 0.01, "code {i} sits {} pt after the one before it", b.x0 - a.x0);
         }
         // And no two of the twenty-three overlap.
         for i in 0..ids.len() {

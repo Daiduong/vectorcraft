@@ -42,6 +42,10 @@ const CODE_A: u8 = 101;
 const FNC1: u8 = 102;
 const SHIFT: u8 = 98;
 
+/// Where a GS1 element string needs an FNC1: after a variable-length field and before the next
+/// one. A character no caller can type, so the symbol's own data can never be mistaken for one.
+const GS1_SEPARATOR: char = '\u{1D}';
+
 /// Which of the three code sets a Code 128 symbol is working in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CodeSet {
@@ -111,7 +115,7 @@ fn run_in(chars: &[char], from: usize, set: CodeSet) -> usize {
 fn values(data: &str, fixed: Option<CodeSet>, gs1: bool) -> Result<(CodeSet, Vec<u8>)> {
     // GS1 writes its application identifiers in brackets for people to read; the symbol carries
     // the bare digits and the FNC1s that separate them.
-    let data = &if gs1 { data.replace(['(', ')'], "") } else { data.to_string() };
+    let data = &if gs1 { gs1_data(data)? } else { data.to_string() };
     if !data.is_ascii() {
         return Err(Error::Data("Code 128 carries ASCII only".into()));
     }
@@ -132,6 +136,10 @@ fn values(data: &str, fixed: Option<CodeSet>, gs1: bool) -> Result<(CodeSet, Vec
             }
         } else {
             for &c in &chars {
+                if c == GS1_SEPARATOR {
+                    out.push(FNC1);
+                    continue;
+                }
                 out.push(set.value_of(c).ok_or_else(|| {
                     Error::Data(format!("{} cannot carry {}", if set == CodeSet::A { "Code 128 A" } else { "Code 128 B" }, c.escape_debug()))
                 })?);
@@ -157,14 +165,27 @@ fn values(data: &str, fixed: Option<CodeSet>, gs1: bool) -> Result<(CodeSet, Vec
     let start_set = set;
     let mut i = 0;
     while i < chars.len() {
+        // An FNC1 costs one value and ends a run of digits, so set C can carry one and go on with
+        // the pairs after it.
+        if chars.get(i) == Some(&GS1_SEPARATOR) {
+            out.push(FNC1);
+            i += 1;
+            continue;
+        }
         let digits = digit_run(&chars, i);
         // Six digits are worth a switch in the middle of a symbol; four at the end, where there is
         // no later data to amortise the switch against.
         let worth_switching = digits >= 6 || (digits >= 4 && i + digits == chars.len());
         if set != CodeSet::C && worth_switching {
-            if set != start_set || !out.is_empty() {
-                out.push(CodeSet::C.switch_to());
+            if !digits.is_multiple_of(2) {
+                // An odd run: its first digit goes in the set the symbol is in, the rest as pairs.
+                // Switching without it would leave a Start B followed by set-C values, which reads
+                // as other characters.
+                let c = chars.get(i).copied().unwrap_or(' ');
+                out.push(set.value_of(c).ok_or_else(|| Error::Data(format!("Code 128 cannot carry {}", c.escape_debug())))?);
+                i += 1;
             }
+            out.push(CodeSet::C.switch_to());
             set = CodeSet::C;
             continue;
         }
@@ -205,6 +226,58 @@ fn values(data: &str, fixed: Option<CodeSet>, gs1: bool) -> Result<(CodeSet, Vec
         return Err(Error::Data(format!("Code 128 cannot carry {}", c.escape_debug())));
     }
     Ok((start_set, out))
+}
+
+/// The characters a GS1-128 carries for `data` written as application identifiers in brackets: the
+/// identifiers and their data, with an FNC1 between a variable-length field and the field after it
+/// (GS1 General Specifications §7.8.4). Text with no brackets is taken as the bare data.
+fn gs1_data(data: &str) -> Result<String> {
+    if !data.contains('(') {
+        return Ok(data.to_string());
+    }
+    let mut elements: Vec<(&str, &str)> = Vec::new();
+    let mut rest = data;
+    while let Some(body) = rest.strip_prefix('(') {
+        let close = body.find(')').ok_or_else(|| Error::Data("a GS1 application identifier is written (…)".into()))?;
+        let ai = &body[..close];
+        if !(2..=4).contains(&ai.len()) || !ai.chars().all(|c| c.is_ascii_digit()) {
+            return Err(Error::Data(format!("`({ai})` is not an application identifier")));
+        }
+        let after = &body[close + 1..];
+        let end = after.find('(').unwrap_or(after.len());
+        elements.push((ai, &after[..end]));
+        rest = &after[end..];
+    }
+    if !rest.is_empty() {
+        return Err(Error::Data(format!("`{rest}` is outside an application identifier")));
+    }
+    let mut out = String::new();
+    for (n, (ai, value)) in elements.iter().enumerate() {
+        out.push_str(ai);
+        out.push_str(value);
+        // A fixed-length field is delimited by its own length; a variable-length one is not, and
+        // needs the separator before whatever follows it.
+        if n + 1 < elements.len() && gs1_fixed_length(ai).is_none() {
+            out.push(GS1_SEPARATOR);
+        }
+    }
+    Ok(out)
+}
+
+/// The data length a GS1 application identifier fixes, or `None` for a variable-length one — the
+/// identifiers packaging uses, from GS1 General Specifications Table 7.8.4-1.
+fn gs1_fixed_length(ai: &str) -> Option<usize> {
+    match ai {
+        "00" => Some(18),
+        "01" | "02" | "03" => Some(14),
+        "04" => Some(16),
+        "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" => Some(6),
+        "20" => Some(2),
+        "41" => Some(16),
+        // 310n to 369n: a measure whose last identifier digit is its number of decimals.
+        _ if ai.len() == 4 && matches!(&ai[..2], "31" | "32" | "33" | "34" | "35" | "36") => Some(6),
+        _ => None,
+    }
 }
 
 /// The value of a two-digit pair in set C.
@@ -347,5 +420,40 @@ mod tests {
         assert!(values("ABC", Some(CodeSet::C), false).is_err());
         assert!(values("123", Some(CodeSet::C), false).is_err());
         assert!(values("ABC", Some(CodeSet::B), false).is_ok());
+    }
+
+    /// An odd run of digits carries its first digit in the set the symbol is in: switching to C
+    /// without it leaves a Start B followed by pair values, which reads as other characters.
+    #[test]
+    fn an_odd_run_of_digits_keeps_its_first_digit() {
+        let (set, v) = values("12345", None, false).expect("encodes");
+        assert_eq!(set, CodeSet::B);
+        assert_eq!(v, vec![17, CodeSet::C.switch_to(), 23, 45]);
+        // The same in the middle of a symbol: seven digits carry the first, then pair the rest.
+        let (_, v) = values("AB1234567CD", None, false).expect("encodes");
+        assert_eq!(&v[..7], &[33, 34, 17, CodeSet::C.switch_to(), 23, 45, 67], "{v:?}");
+    }
+
+    /// A GS1 element string puts FNC1 after a variable-length field and before the next one, so a
+    /// scanner knows where the lot number ends (GS1 General Specifications §7.8.4).
+    #[test]
+    fn gs1_separates_a_variable_field_from_the_next() {
+        let (_, v) = values("(10)LOT1(21)SER9", None, true).expect("encodes");
+        assert_eq!(v.first(), Some(&FNC1));
+        assert_eq!(v.iter().filter(|&&x| x == FNC1).count(), 2, "the leading one and the separator: {v:?}");
+        // A fixed-length field is delimited by its own length: no FNC1 after it.
+        let (_, v) = values("(01)12345678901231(10)AB", None, true).expect("encodes");
+        assert_eq!(v.iter().filter(|&&x| x == FNC1).count(), 1, "{v:?}");
+        // Text with no brackets is the bare data, FNC1-marked as before.
+        let (_, v) = values("0112345678901231", None, true).expect("encodes");
+        assert_eq!(v.iter().filter(|&&x| x == FNC1).count(), 1, "{v:?}");
+    }
+
+    #[test]
+    fn an_element_outside_its_brackets_is_refused() {
+        assert!(values("(10)LOT", None, true).is_ok());
+        assert!(values("(10", None, true).is_err());
+        assert!(values("10)LOT", None, true).is_ok(), "no bracket at the start is bare data");
+        assert!(values("(1x)LOT", None, true).is_err());
     }
 }

@@ -85,11 +85,10 @@ fn choosing_a_type_redraws_the_selected_barcode() {
     assert_eq!(spec.data, "036000291452", "and the new type's example value");
 }
 
-/// What the panel draws on the selected object at once, and what waits for Update: a type or a
-/// size is one act, a value being typed is not. Without this the panel shows a new type while the
-/// art keeps the old one, which reads as the dropdown not working.
+/// Every committed change draws on the selected object at once. The text fields commit on Enter or
+/// when the focus leaves them, so a value being typed never redraws the object halfway through.
 #[test]
-fn options_apply_at_once_but_a_typed_value_waits() {
+fn every_committed_change_applies_at_once() {
     use vectorcraft_barcode::{BarcodeSpec, Symbology};
     let base = BarcodeSpec { symbology: Symbology::Ean13, data: "6907045517163".into(), ..Default::default() };
     assert!(!barcode::applies_at_once(&base, &base), "nothing changed");
@@ -99,8 +98,8 @@ fn options_apply_at_once_but_a_typed_value_waits() {
     assert!(barcode::applies_at_once(&BarcodeSpec { outline_text: false, ..base.clone() }, &base));
     // A new type comes with its own example value, and is drawn at once.
     assert!(barcode::applies_at_once(&BarcodeSpec { symbology: Symbology::UpcA, data: "036000291452".into(), ..base.clone() }, &base));
-    // A value being typed waits for Update.
-    assert!(!barcode::applies_at_once(&BarcodeSpec { data: "690704551716".into(), ..base.clone() }, &base));
+    // So is a value the field committed.
+    assert!(barcode::applies_at_once(&BarcodeSpec { data: "690704551716".into(), ..base.clone() }, &base));
 }
 
 /// A draft shows the symbology it will draw with the standard it belongs to, an example value, the
