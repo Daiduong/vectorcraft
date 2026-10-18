@@ -16,12 +16,12 @@ pub fn specs() -> Vec<CommandSpec> {
             "Create AI Slices",
             [],
             None,
-            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name, x,y,width,height}]} add 1..64 reviewed regions as named user slices in one undo step; never moves artwork → {ids}",
+            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), preserveSelection?: false (keep object selection), regions: [{name, x,y,width,height}]} add 1..64 reviewed regions as named user slices in one undo step; never moves artwork → {ids}",
             has_doc,
             apply
         ),
         cmd!(query "slice.exportAI", "Export AI Slices", [], None,
-            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name,x,y,width,height,sourceIds?: [id…]}], ignoreBackground?: true, format?: svg|png, scale?: 1, folder?} crop visible artwork to each reviewed region. No folder → {files:[{name,dataBase64}],warnings}; folder → {files:[path],warnings}; refuses existing files. SVG preserves vectors and clipping; PNG preserves transparency. Up to 64 regions and 16 million raster pixels per batch", has_doc, export),
+            "{uid, revision, selectionOnly?: false, selectionIds?: [id…] (required with selectionOnly), regions: [{name,x,y,width,height,sourceIds?: [id…],candidateIndex?: 0..63 (stable export number)}], ignoreBackground?: true, format?: svg|png, scale?: 1, folder?} crop visible artwork to each reviewed region. No folder → {files:[{name,dataBase64}],warnings}; folder → {files:[path],warnings}; refuses existing files. SVG preserves vectors and clipping; PNG preserves transparency. Up to 64 regions and 16 million raster pixels per batch", has_doc, export),
     ]
 }
 
@@ -353,7 +353,9 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     let regions = regions(p)?;
     let ids = s.edit("Create AI Slices", |doc, sel| {
         let ids: Vec<_> = regions.into_iter().map(|(name, rect)| slices::add_slice(doc, rect, SliceOptions { name, ..Default::default() })).collect();
-        sel.set_slices(ids.iter().copied());
+        if !bool_or(p, "preserveSelection", false) {
+            sel.set_slices(ids.iter().copied());
+        }
         Ok(ids)
     })?;
     Ok(json!({"ids":ids.iter().map(|id| id.0).collect::<Vec<_>>()}))
@@ -399,7 +401,8 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
             }
             stem.push(c);
         }
-        let filename = format!("{:02}-{stem}.{format}", i + 1);
+        let number = p["regions"].get(i).and_then(|row| row["candidateIndex"].as_u64()).filter(|n| *n < 64).map_or(i + 1, |n| n as usize + 1);
+        let filename = format!("{number:02}-{stem}.{format}");
         let bytes = if format == "svg" {
             let mut cropped = fileio::art_over(&source, *r);
             cropped.artboards = vec![Artboard { id: 1, name: name.clone(), rect: *r, show_center_mark: false, show_cross_hairs: false }];
@@ -446,6 +449,13 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn player_parameters_are_advertised() {
+        super::super::params::check_params("slice.applyAI", &serde_json::json!({"uid":1,"revision":0,"preserveSelection":true,"regions":[]}))
+            .unwrap();
+        super::super::params::check_params("slice.exportAI", &serde_json::json!({"uid":1,"revision":0,"regions":[{"candidateIndex":3}]})).unwrap();
+    }
+
     use super::*;
     use serde_json::json;
     fn fixture() -> (Session, Value) {

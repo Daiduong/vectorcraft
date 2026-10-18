@@ -4788,3 +4788,12 @@ lighting	Light	광원
 @msg	AI worker stopped; try again	AI 처리가 중지되었습니다. 다시 시도하세요
 @msg	Invalid model JSON: {e}	잘못된 모델 JSON: {e}
 	Ignore sheet background	시트 배경 무시
+	Play or continue slicing	분할 시작 또는 계속
+	Pause after the current element	현재 요소 후 일시 정지
+	Paused; ready regions are kept.	일시 정지됨; 완료된 영역은 유지됩니다.
+	Finishing current element…	현재 요소 마무리 중…
+	Start Over	처음부터 시작
+	Creating or exporting unchecks processed regions; ready names are kept.	생성 또는 내보내기 후 처리된 영역의 선택이 해제되며 이름은 유지됩니다.
+@msg	Pause before using ready elements	완료된 요소를 사용하기 전에 일시 정지하세요
+@msg	Slicing scope changed. Start over to use the new scope.	분할 범위가 변경되었습니다. 새 범위로 다시 시작하세요.
+@msg	The document changed. Start over to detect elements again.	문서가 변경되었습니다. 요소 감지를 다시 시작하세요.

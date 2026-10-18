@@ -4824,3 +4824,12 @@ lighting	Light	Luce
 @msg	AI worker stopped; try again	L’elaborazione IA si è interrotta; riprovare
 @msg	Invalid model JSON: {e}	JSON del modello non valido: {e}
 	Ignore sheet background	Ignora lo sfondo del foglio
+	Play or continue slicing	Avvia o riprendi il ritaglio
+	Pause after the current element	Pausa dopo l’elemento corrente
+	Paused; ready regions are kept.	In pausa; le aree pronte sono conservate.
+	Finishing current element…	Completamento dell’elemento corrente…
+	Start Over	Ricomincia
+	Creating or exporting unchecks processed regions; ready names are kept.	Creare o esportare deseleziona le aree elaborate; i nomi pronti sono conservati.
+@msg	Pause before using ready elements	Metti in pausa prima di usare gli elementi pronti
+@msg	Slicing scope changed. Start over to use the new scope.	L’ambito di ritaglio è cambiato. Ricomincia con il nuovo ambito.
+@msg	The document changed. Start over to detect elements again.	Il documento è cambiato. Riavvia il rilevamento degli elementi.

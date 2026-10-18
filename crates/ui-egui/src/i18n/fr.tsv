@@ -5210,3 +5210,12 @@ theme	Appearance	Apparence
 @msg	AI worker stopped; try again	Le traitement IA s’est arrêté ; réessayez
 @msg	Invalid model JSON: {e}	JSON du modèle non valide : {e}
 	Ignore sheet background	Ignorer le fond de la feuille
+	Play or continue slicing	Démarrer ou reprendre la découpe
+	Pause after the current element	Pause après l’élément actuel
+	Paused; ready regions are kept.	En pause ; les zones prêtes sont conservées.
+	Finishing current element…	Finalisation de l’élément actuel…
+	Start Over	Recommencer
+	Creating or exporting unchecks processed regions; ready names are kept.	Créer ou exporter décoche les zones traitées ; les noms prêts sont conservés.
+@msg	Pause before using ready elements	Mettez en pause avant d’utiliser les éléments prêts
+@msg	Slicing scope changed. Start over to use the new scope.	La portée de découpe a changé. Recommencez avec la nouvelle portée.
+@msg	The document changed. Start over to detect elements again.	Le document a changé. Relancez la détection des éléments.

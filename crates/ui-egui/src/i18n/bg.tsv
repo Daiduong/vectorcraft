@@ -5164,3 +5164,12 @@ theme	Appearance	Външен вид
 	Vision model	Модел с поддръжка на изображения
 	Name language	Език на имената
 	Ignore sheet background	Игнориране на фона на листа
+	Play or continue slicing	Стартиране или продължаване на изрязването
+	Pause after the current element	Пауза след текущия елемент
+	Paused; ready regions are kept.	На пауза; готовите области са запазени.
+	Finishing current element…	Завършване на текущия елемент…
+	Start Over	Започване отначало
+	Creating or exporting unchecks processed regions; ready names are kept.	Създаването или експортирането отменя избора на обработените области; готовите имена се запазват.
+@msg	Pause before using ready elements	Поставете на пауза преди използване на готовите елементи
+@msg	Slicing scope changed. Start over to use the new scope.	Обхватът на изрязване се промени. Започнете отначало с новия обхват.
+@msg	The document changed. Start over to detect elements again.	Документът се промени. Започнете откриването на елементи отначало.

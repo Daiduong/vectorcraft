@@ -5153,3 +5153,12 @@ mark-style	Japanese	Japonesas
 @msg	AI worker stopped; try again	El proceso de IA se detuvo; inténtelo de nuevo
 @msg	Invalid model JSON: {e}	JSON del modelo no válido: {e}
 	Ignore sheet background	Ignorar el fondo de la hoja
+	Play or continue slicing	Iniciar o continuar el recorte
+	Pause after the current element	Pausar tras el elemento actual
+	Paused; ready regions are kept.	En pausa; se conservan las regiones listas.
+	Finishing current element…	Finalizando el elemento actual…
+	Start Over	Empezar de nuevo
+	Creating or exporting unchecks processed regions; ready names are kept.	Crear o exportar desmarca las regiones procesadas; se conservan los nombres listos.
+@msg	Pause before using ready elements	Pause antes de usar los elementos listos
+@msg	Slicing scope changed. Start over to use the new scope.	El ámbito de recorte cambió. Empiece de nuevo con el nuevo ámbito.
+@msg	The document changed. Start over to detect elements again.	El documento cambió. Reinicie la detección de elementos.

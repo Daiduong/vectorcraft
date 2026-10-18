@@ -449,6 +449,7 @@ pub struct VectorcraftApp {
     clipboard_probe: Option<clipboard_probe::Probe>,
     /// File dialogs shown off the UI thread and what runs again with their answers.
     pub(crate) picks: picks::Picks,
+    pub(crate) ai_slices_checkpoint: Option<state::Dialog>,
     pub(crate) ai_slices_job: Option<dialogs::ai_slices::Job>,
     /// The screen color sampler shown and not answered yet, and where its color goes.
     pub(crate) screen_sampler: Option<screen_color::Waiting>,
@@ -560,6 +561,7 @@ impl VectorcraftApp {
             system_paste_at: f64::NEG_INFINITY,
             clipboard_probe: None,
             picks: picks::Picks::default(),
+            ai_slices_checkpoint: None,
             ai_slices_job: None,
             screen_sampler: None,
             font_check: None,

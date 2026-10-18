@@ -5226,3 +5226,12 @@ swatch	Bright Violet	Felviolet
 	Vision model	Model met beeldondersteuning
 	Name language	Taal van namen
 	Ignore sheet background	Bladachtergrond negeren
+	Play or continue slicing	Uitsnijden starten of hervatten
+	Pause after the current element	Pauzeren na het huidige element
+	Paused; ready regions are kept.	Gepauzeerd; gereedstaande gebieden blijven bewaard.
+	Finishing current element…	Huidig element afronden…
+	Start Over	Opnieuw beginnen
+	Creating or exporting unchecks processed regions; ready names are kept.	Maken of exporteren deselecteert verwerkte gebieden; gereedstaande namen blijven bewaard.
+@msg	Pause before using ready elements	Pauzeer voordat u gereedstaande elementen gebruikt
+@msg	Slicing scope changed. Start over to use the new scope.	Het uitsnijbereik is gewijzigd. Begin opnieuw met het nieuwe bereik.
+@msg	The document changed. Start over to detect elements again.	Het document is gewijzigd. Start de elementdetectie opnieuw.

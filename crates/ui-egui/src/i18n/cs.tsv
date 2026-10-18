@@ -5211,3 +5211,12 @@ mark-style	Japanese	Japonské
 @msg	AI worker stopped; try again	Zpracování AI se zastavilo; zkuste to znovu
 @msg	Invalid model JSON: {e}	Neplatný JSON modelu: {e}
 	Ignore sheet background	Ignorovat pozadí listu
+	Play or continue slicing	Spustit nebo pokračovat v dělení
+	Pause after the current element	Pozastavit po aktuálním prvku
+	Paused; ready regions are kept.	Pozastaveno; hotové oblasti jsou zachovány.
+	Finishing current element…	Dokončování aktuálního prvku…
+	Start Over	Začít znovu
+	Creating or exporting unchecks processed regions; ready names are kept.	Vytvoření nebo export zruší výběr zpracovaných oblastí; hotové názvy zůstanou zachovány.
+@msg	Pause before using ready elements	Před použitím hotových prvků pozastavte zpracování
+@msg	Slicing scope changed. Start over to use the new scope.	Rozsah dělení se změnil. Začněte znovu s novým rozsahem.
+@msg	The document changed. Start over to detect elements again.	Dokument se změnil. Spusťte zjišťování prvků znovu.

@@ -4865,3 +4865,12 @@ lighting	Light	ライト
 @msg	AI worker stopped; try again	AI処理が停止しました。再試行してください
 @msg	Invalid model JSON: {e}	モデルのJSONが無効です: {e}
 	Ignore sheet background	シートの背景を無視
+	Play or continue slicing	切り抜きを開始・再開
+	Pause after the current element	現在の要素の後に一時停止
+	Paused; ready regions are kept.	一時停止中。完了した領域は保持されます。
+	Finishing current element…	現在の要素を完了中…
+	Start Over	最初からやり直す
+	Creating or exporting unchecks processed regions; ready names are kept.	作成または書き出し後、処理済み領域の選択を解除します。名前は保持されます。
+@msg	Pause before using ready elements	完了した要素を使用する前に一時停止してください
+@msg	Slicing scope changed. Start over to use the new scope.	切り抜き範囲が変更されました。新しい範囲でやり直してください。
+@msg	The document changed. Start over to detect elements again.	ドキュメントが変更されました。要素の検出をやり直してください。

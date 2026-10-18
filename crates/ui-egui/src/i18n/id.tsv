@@ -5183,3 +5183,12 @@ swatch	Bright Violet	Violet cerah
 	Vision model	Model dengan dukungan gambar
 	Name language	Bahasa nama
 	Ignore sheet background	Abaikan latar lembar
+	Play or continue slicing	Mulai atau lanjutkan pemotongan
+	Pause after the current element	Jeda setelah elemen saat ini
+	Paused; ready regions are kept.	Dijeda; area yang siap tetap disimpan.
+	Finishing current element…	Menyelesaikan elemen saat ini…
+	Start Over	Mulai Ulang
+	Creating or exporting unchecks processed regions; ready names are kept.	Pembuatan atau ekspor membatalkan pilihan area yang diproses; nama yang siap tetap disimpan.
+@msg	Pause before using ready elements	Jeda sebelum menggunakan elemen yang siap
+@msg	Slicing scope changed. Start over to use the new scope.	Cakupan pemotongan berubah. Mulai ulang dengan cakupan baru.
+@msg	The document changed. Start over to detect elements again.	Dokumen berubah. Mulai ulang pendeteksian elemen.

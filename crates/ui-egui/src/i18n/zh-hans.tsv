@@ -5047,3 +5047,12 @@ lighting	Light	光源
 @msg	AI worker stopped; try again	AI 处理已停止，请重试
 @msg	Invalid model JSON: {e}	模型 JSON 无效：{e}
 	Ignore sheet background	忽略画板背景
+	Play or continue slicing	开始或继续切片
+	Pause after the current element	当前元素完成后暂停
+	Paused; ready regions are kept.	已暂停；保留已完成的区域。
+	Finishing current element…	正在完成当前元素…
+	Start Over	重新开始
+	Creating or exporting unchecks processed regions; ready names are kept.	创建或导出后取消勾选已处理的区域；保留已有名称。
+@msg	Pause before using ready elements	使用已完成的元素前请先暂停
+@msg	Slicing scope changed. Start over to use the new scope.	切片范围已更改。请使用新范围重新开始。
+@msg	The document changed. Start over to detect elements again.	文档已更改。请重新检测元素。

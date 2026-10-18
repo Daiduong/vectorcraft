@@ -4804,3 +4804,12 @@ theme	Appearance	Giao diện
 @msg	AI worker stopped; try again	Tiến trình AI đã dừng; hãy thử lại
 @msg	Invalid model JSON: {e}	JSON của mô hình không hợp lệ: {e}
 	Ignore sheet background	Bỏ qua nền trang
+	Play or continue slicing	Bắt đầu hoặc tiếp tục cắt
+	Pause after the current element	Tạm dừng sau phần tử hiện tại
+	Paused; ready regions are kept.	Đã tạm dừng; các vùng sẵn sàng được giữ lại.
+	Finishing current element…	Đang hoàn tất phần tử hiện tại…
+	Start Over	Bắt đầu lại
+	Creating or exporting unchecks processed regions; ready names are kept.	Tạo hoặc xuất sẽ bỏ chọn các vùng đã xử lý; tên sẵn sàng được giữ lại.
+@msg	Pause before using ready elements	Tạm dừng trước khi dùng các phần tử sẵn sàng
+@msg	Slicing scope changed. Start over to use the new scope.	Phạm vi cắt đã thay đổi. Bắt đầu lại với phạm vi mới.
+@msg	The document changed. Start over to detect elements again.	Tài liệu đã thay đổi. Bắt đầu phát hiện phần tử lại.

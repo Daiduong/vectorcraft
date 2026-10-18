@@ -4092,3 +4092,12 @@ lighting	Light	光源
 	Vision model	支援影像的模型
 	Name language	名稱語言
 	Ignore sheet background	忽略畫板背景
+	Play or continue slicing	開始或繼續切片
+	Pause after the current element	目前元素完成後暫停
+	Paused; ready regions are kept.	已暫停；保留已完成的區域。
+	Finishing current element…	正在完成目前元素…
+	Start Over	重新開始
+	Creating or exporting unchecks processed regions; ready names are kept.	建立或匯出後取消勾選已處理的區域；保留已有名稱。
+@msg	Pause before using ready elements	使用已完成的元素前請先暫停
+@msg	Slicing scope changed. Start over to use the new scope.	切片範圍已變更。請使用新範圍重新開始。
+@msg	The document changed. Start over to detect elements again.	文件已變更。請重新偵測元素。

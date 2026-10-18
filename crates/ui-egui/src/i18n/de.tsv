@@ -4786,3 +4786,12 @@ effect	Regular	Regelmäßig
 @msg	AI worker stopped; try again	KI-Verarbeitung angehalten; erneut versuchen
 @msg	Invalid model JSON: {e}	Ungültiges Modell-JSON: {e}
 	Ignore sheet background	Blatthintergrund ignorieren
+	Play or continue slicing	Zuschnitt starten oder fortsetzen
+	Pause after the current element	Nach dem aktuellen Element pausieren
+	Paused; ready regions are kept.	Pausiert; fertige Bereiche bleiben erhalten.
+	Finishing current element…	Aktuelles Element wird abgeschlossen…
+	Start Over	Neu beginnen
+	Creating or exporting unchecks processed regions; ready names are kept.	Erstellen oder Exportieren wählt verarbeitete Bereiche ab; fertige Namen bleiben erhalten.
+@msg	Pause before using ready elements	Vor dem Verwenden fertiger Elemente pausieren
+@msg	Slicing scope changed. Start over to use the new scope.	Der Zuschnittbereich hat sich geändert. Beginnen Sie mit dem neuen Bereich neu.
+@msg	The document changed. Start over to detect elements again.	Das Dokument hat sich geändert. Starten Sie die Elementerkennung neu.

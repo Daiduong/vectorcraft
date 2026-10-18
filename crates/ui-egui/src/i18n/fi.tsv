@@ -5175,3 +5175,12 @@ mark-style	Japanese	Japanilainen
 @msg	AI worker stopped; try again	Tekoälykäsittely pysähtyi; yritä uudelleen
 @msg	Invalid model JSON: {e}	Virheellinen mallin JSON: {e}
 	Ignore sheet background	Ohita arkin tausta
+	Play or continue slicing	Aloita tai jatka leikkausta
+	Pause after the current element	Keskeytä nykyisen kohteen jälkeen
+	Paused; ready regions are kept.	Keskeytetty; valmiit alueet säilytetään.
+	Finishing current element…	Viimeistellään nykyistä kohdetta…
+	Start Over	Aloita alusta
+	Creating or exporting unchecks processed regions; ready names are kept.	Luonti tai vienti poistaa käsiteltyjen alueiden valinnan; valmiit nimet säilyvät.
+@msg	Pause before using ready elements	Keskeytä ennen valmiiden kohteiden käyttöä
+@msg	Slicing scope changed. Start over to use the new scope.	Leikkausalue muuttui. Aloita alusta uudella alueella.
+@msg	The document changed. Start over to detect elements again.	Asiakirja muuttui. Aloita kohteiden tunnistus uudelleen.

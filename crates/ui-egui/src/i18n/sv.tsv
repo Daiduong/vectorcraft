@@ -5167,3 +5167,12 @@ theme	Appearance	Utseende
 @msg	AI worker stopped; try again	AI-bearbetningen stoppades; försök igen
 @msg	Invalid model JSON: {e}	Ogiltig modell-JSON: {e}
 	Ignore sheet background	Ignorera arkets bakgrund
+	Play or continue slicing	Starta eller fortsätt beskärning
+	Pause after the current element	Pausa efter aktuellt element
+	Paused; ready regions are kept.	Pausad; färdiga områden behålls.
+	Finishing current element…	Slutför aktuellt element…
+	Start Over	Börja om
+	Creating or exporting unchecks processed regions; ready names are kept.	Skapa eller exportera avmarkerar bearbetade områden; färdiga namn behålls.
+@msg	Pause before using ready elements	Pausa innan du använder färdiga element
+@msg	Slicing scope changed. Start over to use the new scope.	Beskärningsområdet ändrades. Börja om med det nya området.
+@msg	The document changed. Start over to detect elements again.	Dokumentet ändrades. Starta elementidentifieringen på nytt.

@@ -4804,3 +4804,12 @@ lighting	Light	Світло
 @msg	AI worker stopped; try again	Обробка ШІ зупинилася; спробуйте ще раз
 @msg	Invalid model JSON: {e}	Некоректний JSON моделі: {e}
 	Ignore sheet background	Ігнорувати фон аркуша
+	Play or continue slicing	Почати або продовжити нарізання
+	Pause after the current element	Пауза після поточного елемента
+	Paused; ready regions are kept.	Пауза; готові області збережено.
+	Finishing current element…	Завершення поточного елемента…
+	Start Over	Почати заново
+	Creating or exporting unchecks processed regions; ready names are kept.	Створення або експорт знімає позначки оброблених областей; готові назви збережено.
+@msg	Pause before using ready elements	Призупиніть обробку перед використанням готових елементів
+@msg	Slicing scope changed. Start over to use the new scope.	Область нарізання змінилася. Почніть заново з новою областю.
+@msg	The document changed. Start over to detect elements again.	Документ змінився. Почніть виявлення елементів заново.

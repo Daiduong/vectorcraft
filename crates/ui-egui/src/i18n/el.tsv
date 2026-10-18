@@ -5163,3 +5163,12 @@ effect	Points	Σημεία
 @msg	AI worker stopped; try again	Η επεξεργασία ΤΝ σταμάτησε· δοκιμάστε ξανά
 @msg	Invalid model JSON: {e}	Μη έγκυρο JSON μοντέλου: {e}
 	Ignore sheet background	Παράβλεψη φόντου φύλλου
+	Play or continue slicing	Έναρξη ή συνέχιση τεμαχισμού
+	Pause after the current element	Παύση μετά το τρέχον στοιχείο
+	Paused; ready regions are kept.	Σε παύση· οι έτοιμες περιοχές διατηρούνται.
+	Finishing current element…	Ολοκλήρωση τρέχοντος στοιχείου…
+	Start Over	Έναρξη από την αρχή
+	Creating or exporting unchecks processed regions; ready names are kept.	Η δημιουργία ή εξαγωγή αποεπιλέγει τις επεξεργασμένες περιοχές· τα έτοιμα ονόματα διατηρούνται.
+@msg	Pause before using ready elements	Κάντε παύση πριν χρησιμοποιήσετε τα έτοιμα στοιχεία
+@msg	Slicing scope changed. Start over to use the new scope.	Το πεδίο τεμαχισμού άλλαξε. Ξεκινήστε ξανά με το νέο πεδίο.
+@msg	The document changed. Start over to detect elements again.	Το έγγραφο άλλαξε. Ξεκινήστε ξανά την ανίχνευση στοιχείων.

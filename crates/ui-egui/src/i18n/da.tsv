@@ -5183,3 +5183,12 @@ swatch	Bright Violet	Kraftig violet
 	Vision model	Model med billedstøtte
 	Name language	Navnenes sprog
 	Ignore sheet background	Ignorer arkets baggrund
+	Play or continue slicing	Start eller fortsæt beskæring
+	Pause after the current element	Pause efter det aktuelle element
+	Paused; ready regions are kept.	På pause; færdige områder bevares.
+	Finishing current element…	Afslutter det aktuelle element…
+	Start Over	Start forfra
+	Creating or exporting unchecks processed regions; ready names are kept.	Oprettelse eller eksport fravælger behandlede områder; færdige navne bevares.
+@msg	Pause before using ready elements	Sæt på pause før brug af færdige elementer
+@msg	Slicing scope changed. Start over to use the new scope.	Beskæringsområdet er ændret. Start forfra med det nye område.
+@msg	The document changed. Start over to detect elements again.	Dokumentet er ændret. Start elementregistreringen forfra.

@@ -5197,3 +5197,12 @@ imageTrace	Outline	Körvonal
 @msg	AI worker stopped; try again	Az MI-feldolgozás leállt; próbálja újra
 @msg	Invalid model JSON: {e}	Érvénytelen modell-JSON: {e}
 	Ignore sheet background	Lap hátterének figyelmen kívül hagyása
+	Play or continue slicing	Kivágás indítása vagy folytatása
+	Pause after the current element	Szünet az aktuális elem után
+	Paused; ready regions are kept.	Szüneteltetve; a kész területek megmaradnak.
+	Finishing current element…	Aktuális elem befejezése…
+	Start Over	Újrakezdés
+	Creating or exporting unchecks processed regions; ready names are kept.	Létrehozás vagy exportálás törli a feldolgozott területek kijelölését; a kész nevek megmaradnak.
+@msg	Pause before using ready elements	Szüneteltesse a kész elemek használata előtt
+@msg	Slicing scope changed. Start over to use the new scope.	A kivágás hatóköre megváltozott. Kezdje újra az új hatókörrel.
+@msg	The document changed. Start over to detect elements again.	A dokumentum megváltozott. Indítsa újra az elemek felismerését.
