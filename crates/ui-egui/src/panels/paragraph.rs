@@ -371,8 +371,10 @@ fn reset_panel(app: &mut VectorcraftApp) {
         }),
     );
     para_cmd(app, "text.tabs.clear", json!({}));
-    if !open {
-        app.session.end_undo_group(false);
+    // Closes the active document's undo group only, so an undo group open in another document
+    // stays open.
+    if !open && let Some(st) = app.session.active_mut() {
+        st.undo_group = None;
     }
 }
 
@@ -692,5 +694,31 @@ mod tests {
         app.run("text.setFormat", json!({"id": id, "mojikumi": "none"})).unwrap();
         app.run("edit.undoGroup.end", json!({})).unwrap();
         assert_eq!((steps(&app), last_step(&app)), (before + 1, Some("Batch".to_string())));
+    }
+
+    /// Reset Panel closes only the undo group it opens: an undo group open in another document
+    /// stays open, and that document's later edits stay part of its step.
+    #[test]
+    fn reset_panel_leaves_an_undo_group_open_in_another_document() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
+        let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "A"})).unwrap()["id"].clone();
+        app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
+        app.run("text.setFormat", json!({"id": a, "mojikumi": "none"})).unwrap();
+        let steps = |st: &vectorcraft_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
+        let a_steps = steps(&app.session.documents()[0]);
+        assert_eq!(a_steps.1, Some("Batch".to_string()));
+        app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
+        assert_eq!(app.session.active_index(), Some(1));
+        app.run("text.create", json!({"x": 20, "y": 50, "text": "B"})).unwrap();
+        let b_steps = steps(app.session.active().unwrap()).0;
+        reset_panel(&mut app);
+        assert_eq!(steps(app.session.active().unwrap()), (b_steps + 1, Some("Reset Panel".to_string())));
+        assert!(app.session.active().unwrap().undo_group.is_none());
+        assert!(app.session.documents()[0].undo_group.is_some(), "the other document's undo group stays open");
+        app.session.set_active(0);
+        app.run("text.setFormat", json!({"id": a, "mojikumi": "lineEndHalf"})).unwrap();
+        app.run("edit.undoGroup.end", json!({})).unwrap();
+        assert_eq!(steps(app.session.active().unwrap()), a_steps, "the later edit is part of the Batch step");
     }
 }
