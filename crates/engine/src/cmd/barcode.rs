@@ -37,7 +37,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Barcode",
             [],
             None,
-            "{symbology: ean13|ean8|upcA|upcE|ean128|code128|code128A|code128B|code128C|code39|code93|itf14|itf25|qrCode, data, x?, y? (default: the centre of the first artboard), magnification?: the module size multiplier, 1 = the standard one, moduleMm?, heightMm?, ratio?: the wide-to-narrow ratio of Code 39 and Interleaved 2 of 5, text?: the human readable line, outlineText?: draw its digits as outlines (default: true), background?: a white box of the symbol's standard size behind it (default: true), quietExtra?: extra quiet zone in modules, bearer?: an ITF-14's bearer bars, ecc?: low|medium|quartile|high, version?: 1-40, mask?: 0-7, font?, fontStyle?} → {id, data: the digits the symbol carries, with the check digit when it was added}",
+            "{symbology: ean13|ean8|upcA|upcE|ean128|code128|code128A|code128B|code128C|code39|code93|itf14|itf25|qrCode, data, x?, y? (default: the centre of the first artboard), magnification?: the module size multiplier (1 is the standard one), moduleMm?, heightMm?, ratio?: the wide-to-narrow ratio of Code 39 and Interleaved 2 of 5, text?: the human readable line, outlineText?: draw its digits as outlines (default: true), background?: a white box of the symbol's standard size behind it (default: true), quietExtra?: extra quiet zone in modules, bearer?: an ITF-14's bearer bars, ecc?: low|medium|quartile|high, version?: 1-40, mask?: 0-7, font?, fontStyle?} → {id, data: the digits the symbol carries, with the check digit when it was added}",
             has_doc,
             create
         ),
@@ -768,12 +768,15 @@ mod tests {
             vectorcraft_barcode::BarcodeSpec { symbology: vectorcraft_barcode::Symbology::Ean13, data: "6907045517163".into(), ..Default::default() };
         // As the panel sends it: the whole spec, serialised.
         let mut p = serde_json::to_value(&spec).expect("spec");
-        p["columns"] = json!(10);
-        p["gapX"] = json!(5.0);
-        p["gapY"] = json!(5.0);
-        for id in ["barcode.create", "barcode.check", "barcode.createBatch"] {
+        for id in ["barcode.create", "barcode.check"] {
             check_params(id, &p).unwrap_or_else(|e| panic!("{id}: {e}"));
         }
+        // The batch adds its own four, and takes everything above too.
+        let mut batch = p.clone();
+        batch["columns"] = json!(10);
+        batch["gapX"] = json!(5.0);
+        batch["gapY"] = json!(5.0);
+        check_params("barcode.createBatch", &batch).unwrap_or_else(|e| panic!("barcode.createBatch: {e}"));
         p["id"] = json!(1);
         check_params("barcode.set", &p).unwrap_or_else(|e| panic!("barcode.set: {e}"));
     }
