@@ -3806,7 +3806,7 @@ axis	Both	Entrambi
 	Drag to float the panel group	Trascina per rendere mobile il gruppo di pannelli
 	Put back in the dock	Riporta nell'area dei pannelli
 	Drag to float the toolbar	Trascina per rendere mobile la barra degli strumenti
-	Drag to the window's left edge to dock	Trascina sul bordo sinistro della finestra per ancorare
+	Drag to the window's left or right edge to dock	Trascina sul bordo sinistro o destro della finestra per ancorare
 	Float Tool Group	Rendi mobile gruppo strumenti
 
 # Status and error messages (`@msg`), translated where the status bar shows them; the message itself
@@ -5150,3 +5150,4 @@ axis	Y Axis	Asse Y
 	Rectangular Grid Tool Options	Opzioni strumento Griglia rettangolare
 	Polar Grid Tool Options	Opzioni strumento Griglia polare
 	Fill Line	Riempi linea
+@msg	side is left or right, not `{s}`	side è left o right, non `{s}`

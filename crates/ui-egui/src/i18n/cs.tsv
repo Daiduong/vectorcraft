@@ -1192,7 +1192,7 @@ lighting	Light	Světlo
 	X:	X:
 	Y:	Y:
 	Drag to float the toolbar	Přetažením vytvoříte plovoucí panel nástrojů
-	Drag to the window's left edge to dock	Přetažením k levému okraji okna panel ukotvíte
+	Drag to the window's left or right edge to dock	Přetažením k levému nebo pravému okraji okna panel ukotvíte
 
 # Tools
 	Crystallize	Krystalizace
@@ -5534,3 +5534,4 @@ axis	Y Axis	osa Y
 	Rectangular Grid Tool Options	Možnosti nástroje Obdélníková mřížka
 	Polar Grid Tool Options	Možnosti nástroje Polární mřížka
 	Fill Line	Výplň úsečky
+@msg	side is left or right, not `{s}`	side je left nebo right, ne `{s}`

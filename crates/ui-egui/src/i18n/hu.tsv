@@ -1102,7 +1102,7 @@ font-technology	Variable	Változó
 	Drag to float the toolbar	Húzd el az eszköztár lebegtetéséhez
 	Drag to move	Húzással áthelyezhető
 	Drag to move out of the set	Húzással kivehető a csoportból
-	Drag to the window's left edge to dock	Dokkoláshoz húzd az ablak bal szélére
+	Drag to the window's left or right edge to dock	Dokkoláshoz húzd az ablak bal vagy jobb szélére
 	Step up or down	Léptetés fel vagy le
 	Drag values or labels. Double-click a value to type.	Húzd az értékeket vagy a címkéket. Gépeléshez kattints duplán egy értékre.
 	Draw	Rajzolás
@@ -5520,3 +5520,4 @@ axis	Y Axis	Y tengely
 	Rectangular Grid Tool Options	Téglalaprács beállításai
 	Polar Grid Tool Options	Polárrács beállításai
 	Fill Line	Szakasz kitöltése
+@msg	side is left or right, not `{s}`	a side értéke left vagy right lehet, nem `{s}`

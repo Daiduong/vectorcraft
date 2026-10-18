@@ -3894,7 +3894,7 @@ theme	Appearance	Εμφάνιση
 	Drag to float the panel group	Σύρετε για αποδέσμευση της ομάδας πινάκων
 	Put back in the dock	Επαναφορά στην περιοχή σύνδεσης
 	Drag to float the toolbar	Σύρετε για αποδέσμευση της γραμμής εργαλείων
-	Drag to the window's left edge to dock	Σύρετε στο αριστερό άκρο του παραθύρου για σύνδεση
+	Drag to the window's left or right edge to dock	Σύρετε στο αριστερό ή στο δεξί άκρο του παραθύρου για σύνδεση
 	Float Tool Group	Αποδέσμευση ομάδας εργαλείων
 @msg	a PostScript error ({name} in `{op}`)	σφάλμα PostScript ({name} στην εντολή `{op}`)
 @msg	a PostScript error ({name} in `{op}`), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`), στις διαδικασίες {procs}
@@ -5486,3 +5486,4 @@ axis	Y Axis	Άξονας Y
 	Polar Grid Tool Options	Επιλογές εργαλείου πολικού πλέγματος
 	Fill Line	Γέμισμα γραμμής
 @msg	the EPS Options dialog didn't open	δεν άνοιξε το παράθυρο Επιλογές EPS
+@msg	side is left or right, not `{s}`	το side είναι left ή right, όχι `{s}`

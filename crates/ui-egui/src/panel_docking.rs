@@ -829,7 +829,8 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
 fn drop_command(panel: &str, target: crate::floating::Drop, whole_group: bool) -> (&'static str, Value) {
     use crate::floating::Drop;
     match target {
-        Drop::Dock => ("window.panel.dock", json!({"panel": panel, "group": whole_group})),
+        // Only the Tools panel docks on the right; a panel dropped there docks as usual.
+        Drop::Dock | Drop::DockRight => ("window.panel.dock", json!({"panel": panel, "group": whole_group})),
         Drop::Stack(onto) => ("window.panel.float", json!({"panel": panel, "group": whole_group, "onto": onto})),
         Drop::Below(onto) => ("window.panel.float", json!({"panel": panel, "group": whole_group, "below": onto})),
         Drop::Above(onto) => ("window.panel.float", json!({"panel": panel, "group": whole_group, "above": onto})),
