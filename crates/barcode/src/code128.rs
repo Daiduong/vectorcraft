@@ -246,12 +246,17 @@ fn gs1_data(data: &str) -> Result<String> {
         let after = &body[close + 1..];
         let end = after.find('(').unwrap_or(after.len());
         let value = &after[..end];
-        // A fixed-length identifier is delimited by its own length, so a value of another length
-        // is data no scanner can read back as written: refuse it rather than print it.
-        if let Some(n) = gs1_fixed_length(ai)
-            && value.chars().count() != n
-        {
-            return Err(Error::Data(format!("({ai}) carries {n} characters, not {}", value.chars().count())));
+        // A fixed-length identifier is delimited by its own length, so a value of another length,
+        // or one that is not digits, is data no scanner can read back as written: refuse it rather
+        // than print it.
+        if let Some(n) = gs1_fixed_length(ai) {
+            let length = value.chars().count();
+            if length != n {
+                return Err(Error::Data(format!("({ai}) carries {n} characters, not {length}")));
+            }
+            if !value.chars().all(|c| c.is_ascii_digit()) {
+                return Err(Error::Data(format!("({ai}) carries digits")));
+            }
         }
         elements.push((ai, value));
         rest = &after[end..];
@@ -273,17 +278,24 @@ fn gs1_data(data: &str) -> Result<String> {
 }
 
 /// The data length a GS1 application identifier fixes, or `None` for a variable-length one — the
-/// identifiers packaging uses, from GS1 General Specifications Table 7.8.4-1.
+/// identifiers packaging uses, from GS1 General Specifications Table 7.8.4-1. Every one of them
+/// carries digits.
 fn gs1_fixed_length(ai: &str) -> Option<usize> {
     match ai {
         "00" => Some(18),
-        "01" | "02" | "03" => Some(14),
-        "04" => Some(16),
-        "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" => Some(6),
+        "01" | "02" => Some(14),
+        "11" | "12" | "13" | "15" | "16" | "17" => Some(6),
         "20" => Some(2),
-        "41" => Some(16),
         // 310n to 369n: a measure whose last identifier digit is its number of decimals.
         _ if ai.len() == 4 && matches!(&ai[..2], "31" | "32" | "33" | "34" | "35" | "36") => Some(6),
+        // 410 to 417: a GLN. Matched by their three digits, not by the `41` prefix, which is no
+        // identifier of its own.
+        "410" | "411" | "412" | "413" | "414" | "415" | "416" | "417" => Some(13),
+        "422" => Some(3),
+        "7001" => Some(13),
+        "7003" => Some(10),
+        "7006" => Some(6),
+        "7040" => Some(4),
         _ => None,
     }
 }
@@ -465,8 +477,8 @@ mod tests {
         assert!(values("(1x)LOT", None, true).is_err());
     }
 
-    /// A fixed-length identifier carries exactly its own number of characters: `(01)` is a
-    /// GTIN-14, and a shorter one would leave a scanner reading the next field as its digits.
+    /// A fixed-length identifier carries exactly its own number of digits: `(01)` is a GTIN-14,
+    /// and a shorter one would leave a scanner reading the next field as its digits.
     #[test]
     fn a_fixed_length_field_of_the_wrong_length_is_refused() {
         assert!(values("(01)12345678901231(10)AB", None, true).is_ok());
@@ -474,6 +486,14 @@ mod tests {
         assert!(err.to_string().contains("14"), "{err}");
         assert!(values("(11)260101(10)AB", None, true).is_ok(), "a date is six characters");
         assert!(values("(11)2601(10)AB", None, true).is_err());
+        // A fixed-length field carries digits: a letter is data no scanner can read back.
+        assert!(values("(01)1234567890123A", None, true).is_err());
+        assert!(values("(01)1234-678901231", None, true).is_err());
+        // 410 to 417 are GLNs, matched by three digits rather than by a `41` prefix.
+        assert!(values("(410)1234567890123", None, true).is_ok());
+        let (_, v) = values("(410)1234567890123(10)AB", None, true).expect("a GLN, then a lot");
+        assert_eq!(v.iter().filter(|&&x| x == FNC1).count(), 1, "a fixed-length field needs no separator: {v:?}");
+        assert!(values("(410)123", None, true).is_err());
         // A variable-length field takes what it is given.
         assert!(values("(10)1(21)2", None, true).is_ok());
     }
