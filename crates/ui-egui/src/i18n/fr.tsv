@@ -5305,3 +5305,4 @@ theme	Appearance	Apparence
 @msg	the document changed; generate names again	le document a changé ; générez à nouveau les noms
 	Naming in progress…	Attribution des noms en cours…
 	Naming complete.	Attribution des noms terminée.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	les variables et jeux de données du fichier n’ont pas été lus (variables : {variables}, jeux de données : {data_sets}) : le panneau Variables ne les affiche pas

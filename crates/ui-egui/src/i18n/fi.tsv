@@ -5270,3 +5270,4 @@ mark-style	Japanese	Japanilainen
 @msg	the document changed; generate names again	asiakirja muuttui; luo nimet uudelleen
 	Naming in progress…	Nimeäminen käynnissä…
 	Naming complete.	Nimeäminen valmis.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	tiedoston muuttujia ja tietojoukkoja ei luettu (muuttujia: {variables}, tietojoukkoja: {data_sets}): Muuttujat-paneeli ei näytä niitä

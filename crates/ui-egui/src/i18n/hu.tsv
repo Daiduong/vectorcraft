@@ -5292,3 +5292,4 @@ imageTrace	Outline	Körvonal
 @msg	the document changed; generate names again	a dokumentum megváltozott; hozza létre újra a neveket
 	Naming in progress…	Elnevezés folyamatban…
 	Naming complete.	Elnevezés kész.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	a fájl változói és adatkészletei nem lettek beolvasva (változók: {variables}, adatkészletek: {data_sets}): a Változók panel nem listázza őket

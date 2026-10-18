@@ -4900,3 +4900,4 @@ theme	Appearance	Giao diện
 @msg	the document changed; generate names again	tài liệu đã thay đổi; hãy tạo lại tên
 	Naming in progress…	Đang đặt tên…
 	Naming complete.	Đã đặt tên xong.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	các biến và tập dữ liệu của tệp chưa được đọc (biến: {variables}, tập dữ liệu: {data_sets}): bảng Biến không liệt kê chúng

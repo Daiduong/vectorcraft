@@ -4882,3 +4882,4 @@ effect	Regular	Regelmäßig
 @msg	the document changed; generate names again	das Dokument wurde geändert; Namen erneut erzeugen
 	Naming in progress…	Benennung läuft…
 	Naming complete.	Benennung abgeschlossen.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	die Variablen und Datensätze der Datei wurden nicht gelesen (Variablen: {variables}, Datensätze: {data_sets}): Das Bedienfeld „Variablen“ listet sie nicht auf

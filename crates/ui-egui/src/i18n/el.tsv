@@ -5258,3 +5258,4 @@ effect	Points	Σημεία
 @msg	the document changed; generate names again	το έγγραφο άλλαξε· δημιουργήστε ξανά ονόματα
 	Naming in progress…	Ονοματοδοσία σε εξέλιξη…
 	Naming complete.	Η ονοματοδοσία ολοκληρώθηκε.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	οι μεταβλητές και τα σύνολα δεδομένων του αρχείου δεν διαβάστηκαν (μεταβλητές: {variables}, σύνολα δεδομένων: {data_sets}): ο πίνακας Μεταβλητές δεν τα εμφανίζει

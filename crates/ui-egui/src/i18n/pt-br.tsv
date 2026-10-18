@@ -5223,3 +5223,4 @@ mark-style	Japanese	Japonesas
 @msg	the document changed; generate names again	o documento mudou; gere os nomes novamente
 	Naming in progress…	Nomeação em andamento…
 	Naming complete.	Nomeação concluída.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	as variáveis e os conjuntos de dados do arquivo não foram lidos (variáveis: {variables}, conjuntos de dados: {data_sets}): o painel Variáveis não os lista
