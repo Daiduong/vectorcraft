@@ -289,6 +289,28 @@ fn hand_built_wmf_plays_like_gdi() {
     assert_eq!(fill_rgb(&p[1]), Some([0, 255, 0]), "the new brush took the freed slot");
 }
 
+/// A WMF puts each object it creates in the lowest free slot of its table (65536 slots). A file
+/// that keeps the table full, freeing the first and the last slot and filling them again, used to
+/// have each create search the table from the slot after the last one filled: 65535 slots a
+/// record, quadratic in the file. The freed slot is still the one taken.
+#[test]
+fn a_full_object_table_hands_out_freed_slots_without_searching_it() {
+    let brush = |colorref: u32| (0x02FC, [le16(&[0]), colorref.to_le_bytes().to_vec(), le16(&[0])].concat());
+    let mut records = vec![brush(0x0000_00ff); 1 << 16];
+    for _ in 0..300_000 {
+        // Slots 0 and 65535 (-1 as the record's 16 bits) freed, then filled again.
+        records.extend([(0x01F0, le16(&[0])), (0x01F0, le16(&[-1])), brush(0x0000_00ff), brush(0x0000_00ff)]);
+    }
+    // A blue brush takes freed slot 7; a rectangle drawn with it is blue.
+    records.extend([(0x01F0, le16(&[7])), brush(0x00ff_0000), (0x012D, le16(&[7])), (0x041B, le16(&[720, 1440, 0, 0]))]);
+    let start = std::time::Instant::now();
+    let back = import(&hand_wmf(1440, 1440, &records)).unwrap();
+    assert!(start.elapsed() < std::time::Duration::from_secs(5), "{:?}", start.elapsed());
+    let p = paths(&back.document);
+    assert_eq!(p.len(), 1);
+    assert_eq!(fill_rgb(&p[0]), Some([0, 0, 255]));
+}
+
 #[test]
 fn wmf_window_is_mapped_onto_the_placeable_box() {
     // The box is 1000 × 500 units at 1440 an inch: 50 × 25 pt.

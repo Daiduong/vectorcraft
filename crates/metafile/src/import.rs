@@ -10,6 +10,7 @@
 mod emf;
 mod wmf;
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use vectorcraft_color::{Color, Paint};
@@ -178,8 +179,9 @@ pub(crate) struct Player {
     dc: Dc,
     saved: Vec<Dc>,
     objects: Vec<Option<Obj>>,
-    /// The lowest object slot that may be free (WMF numbering).
-    free_hint: usize,
+    /// The empty slots of `objects`, lowest first: WMF puts each object it creates in the lowest
+    /// one. A set, so a table kept nearly full by a file isn't searched slot by slot each time.
+    free: BTreeSet<usize>,
     /// The path being recorded (document space), whether a figure is open in it and where that
     /// figure started (logical).
     path: Option<BezPath>,
@@ -268,7 +270,7 @@ impl Player {
             dc: Dc::default(),
             saved: vec![],
             objects: vec![],
-            free_hint: 0,
+            free: BTreeSet::new(),
             path: None,
             figure: false,
             figure_start: Point::ZERO,
@@ -413,17 +415,18 @@ impl Player {
             return;
         }
         if self.objects.len() <= i {
+            self.free.extend(self.objects.len()..i);
             self.objects.resize(i + 1, None);
         }
         if let Some(s) = self.objects.get_mut(i) {
             *s = Some(obj);
+            self.free.remove(&i);
         }
     }
 
     /// Put `obj` in the lowest free slot (WMF).
     pub fn create(&mut self, obj: Obj) {
-        let start = self.free_hint.min(self.objects.len());
-        let i = self.objects.iter().skip(start).position(Option::is_none).map_or(self.objects.len(), |p| p + start);
+        let i = self.free.pop_first().unwrap_or(self.objects.len());
         if i > u16::MAX as usize {
             return;
         }
@@ -433,13 +436,13 @@ impl Player {
         if let Some(s) = self.objects.get_mut(i) {
             *s = Some(obj);
         }
-        self.free_hint = i + 1;
     }
 
     pub fn delete(&mut self, index: u32) {
-        if let Some(s) = self.objects.get_mut(index as usize) {
+        let i = index as usize;
+        if let Some(s) = self.objects.get_mut(i) {
             *s = None;
-            self.free_hint = self.free_hint.min(index as usize);
+            self.free.insert(i);
         }
     }
 
