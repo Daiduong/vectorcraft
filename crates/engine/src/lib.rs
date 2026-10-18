@@ -2321,6 +2321,8 @@ mod tests_tints;
 #[cfg(test)]
 mod tests_toolsettings;
 #[cfg(test)]
+mod tests_transformfx;
+#[cfg(test)]
 mod tests_transparencygrid;
 #[cfg(test)]
 mod tests_typearea;
