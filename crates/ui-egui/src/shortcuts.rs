@@ -318,14 +318,18 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 // the others, the Hand's fit, the Zoom's 100%, the Print Tiling's reset. A tool that
                 // acted on Enter itself keeps it (a finished path, Crop Image's Apply, a transform
                 // dialog), and a tool with no options opens nothing.
-                if !acted && app.ui.dialog.is_none() {
+                let opened = if !acted && app.ui.dialog.is_none() {
                     let tool = app.session.tool_id();
                     // Nothing selected (or nothing to open): it fails and nothing opens (the menu
                     // item is disabled then too).
-                    let _ = crate::toolbar::open_options(app, tool);
-                }
-                // The Enter that opened a dialog isn't also its OK: dialogs take Enter, this frame too.
-                if app.ui.dialog.is_some() {
+                    crate::toolbar::open_options(app, tool).is_ok()
+                } else {
+                    false
+                };
+                // The Enter that opened the options is theirs, and isn't also a command's or a
+                // dialog's OK: a panel or an action (the Hand's fit, the Zoom's 100%) opens no
+                // dialog to take the Enter, so it is taken here.
+                if opened || app.ui.dialog.is_some() {
                     ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 }
             }
@@ -1269,6 +1273,42 @@ mod tests {
         app.select_tool("zoom");
         frame(&mut app, vec![enter()]);
         assert_eq!(app.view().unwrap().zoom, 1.0, "Zoom: Enter shows 100%");
+    }
+
+    /// The Enter that opened a tool's options is the options': with plain Enter also assigned to a
+    /// command, the command doesn't run in the same frame. A panel or an action (the Hand's fit, the
+    /// Zoom's 100%) opens no dialog to take the Enter, so the shortcut loop would otherwise see it.
+    #[test]
+    fn enter_that_opens_the_options_is_not_also_a_command() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
+        app.ui.shortcut_overrides.insert("view.grid".into(), "Enter".into());
+        crate::shortcut_editor::sync(&app.ui);
+        let ctx = egui::Context::default();
+        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
+            let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            });
+            out.textures_delta.clear();
+        };
+        let enter = || egui::Event::Key { key: Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
+        frame(&mut app, vec![]);
+        app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(660.0, 460.0)));
+        app.run("view.setZoom", json!({"zoom": 333, "center": [10, 10]})).unwrap();
+        // An action tool: Enter runs the action, and not also the command Enter holds.
+        app.select_tool("zoom");
+        frame(&mut app, vec![enter()]);
+        assert_eq!(app.view().unwrap().zoom, 1.0, "Enter shows 100%");
+        assert!(!app.ui.view.grid, "the Zoom's Enter is not also Show Grid, the command it holds");
+        // A tool with no options opens nothing, so it leaves Enter to that command.
+        app.select_tool("width");
+        frame(&mut app, vec![]);
+        frame(&mut app, vec![enter()]);
+        assert!(app.ui.view.grid, "a tool with no options leaves Enter to the command");
+        app.ui.shortcut_overrides.clear();
+        crate::shortcut_editor::sync(&app.ui);
     }
 
     /// A drag with the Selection tool, then Enter: the Move dialog opens on the drag's offset, and
