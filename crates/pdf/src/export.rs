@@ -1308,7 +1308,8 @@ impl Exporter<'_> {
         let doc = self.doc;
         match p {
             Paint::Pattern { pattern, xf } => {
-                for inst in doc.pattern(pattern).map(|def| def.instances_in(*xf, area)).unwrap_or_default() {
+                for mut inst in doc.pattern(pattern).map(|def| def.instances_in(*xf, area)).unwrap_or_default() {
+                    overlap_seams(&mut inst);
                     self.node(s, &inst, area, true);
                 }
             }
@@ -1850,9 +1851,92 @@ fn embed(blob: &vectorcraft_doc::ImageBlob, interpolate: bool) -> Option<Image> 
     })
 }
 
+/// Width of the edge paint [`overlap_seams`] adds, in points.
+const SEAM_OVERLAP: f64 = 0.5;
+
+/// Give each opaque, solid-filled, stroke-less shape of the pattern tile art `n` a hairline stroke
+/// in its own colour. PDF viewers antialias every shape alone, so where two tiles or shapes meet
+/// along an edge, both cover that pixel partly and the page shows through as a light seam. The
+/// edge paint makes neighbours overlap by a fraction of a point (the canvas and raster export
+/// paint the tile as one image, so they never show seams).
+fn overlap_seams(n: &mut Node) {
+    if matches!(n.kind, NodeKind::Group { .. } | NodeKind::Layer { .. }) {
+        if let Some(children) = n.children_mut() {
+            for c in children {
+                overlap_seams(Arc::make_mut(c));
+            }
+        }
+        return;
+    }
+    let shape = match &n.kind {
+        NodeKind::Path { clipping, guide, .. } => !*clipping && !*guide,
+        NodeKind::Compound { .. } => true,
+        _ => false,
+    };
+    let plain = n.opacity >= 1.0 && n.blend == BlendMode::Normal && n.appearance.effects.is_empty();
+    if !shape || !plain || n.appearance.items.iter().any(|i| !i.is_fill()) {
+        return;
+    }
+    let mut edges = vec![];
+    for item in &n.appearance.items {
+        let AppearanceItem::Fill(f) = item else { return };
+        if !f.visible {
+            continue;
+        }
+        if !matches!(f.paint, Paint::Solid { .. }) || f.opacity < 1.0 || f.blend != BlendMode::Normal || !f.effects.is_empty() {
+            return;
+        }
+        let mut edge = StrokeLayer::new(f.paint.clone(), SEAM_OVERLAP);
+        edge.join = LineJoin::Round;
+        edges.push(AppearanceItem::Stroke(edge));
+    }
+    // Only the topmost fill needs the edge: it is what meets the neighbour.
+    if let Some(top) = edges.pop() {
+        n.appearance.items.push(top);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tile_shape(fill: Paint) -> Node {
+        let rect = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
+        let items = vec![AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(fill))];
+        Node::path(vectorcraft_doc::NodeId(0), rect, vectorcraft_doc::Appearance { items, ..Default::default() })
+    }
+
+    #[test]
+    fn solid_tile_shapes_get_an_edge_in_their_colour_so_neighbours_overlap() {
+        let red = Paint::solid(Color::Rgb { r: 1.0, g: 0.0, b: 0.0 });
+        let mut n = tile_shape(red.clone());
+        overlap_seams(&mut n);
+        assert_eq!(n.appearance.items.len(), 2);
+        let AppearanceItem::Stroke(edge) = &n.appearance.items[1] else { panic!("no edge") };
+        assert_eq!(edge.paint, red);
+        assert_eq!(edge.width, SEAM_OVERLAP);
+        // Reached through a group, and a shape with its own stroke stays as drawn.
+        let mut g = Node::group(vectorcraft_doc::NodeId(0), vec![Arc::new(tile_shape(red.clone()))]);
+        overlap_seams(&mut g);
+        assert_eq!(g.children().map(|c| c[0].appearance.items.len()), Some(2));
+        let mut stroked = tile_shape(red.clone());
+        stroked.appearance.items.push(AppearanceItem::Stroke(StrokeLayer::new(Paint::solid(Color::BLACK), 2.0)));
+        overlap_seams(&mut stroked);
+        assert_eq!(stroked.appearance.items.len(), 2);
+    }
+
+    #[test]
+    fn translucent_and_unpainted_tile_shapes_are_left_alone() {
+        let mut n = tile_shape(Paint::solid(Color::BLACK));
+        if let AppearanceItem::Fill(f) = &mut n.appearance.items[0] {
+            f.opacity = 0.5;
+        }
+        overlap_seams(&mut n);
+        assert_eq!(n.appearance.items.len(), 1);
+        let mut none = tile_shape(Paint::None);
+        overlap_seams(&mut none);
+        assert_eq!(none.appearance.items.len(), 1);
+    }
 
     #[test]
     fn writable_bounds_values_the_transform_and_values_through_it() {
