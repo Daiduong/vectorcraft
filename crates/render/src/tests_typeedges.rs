@@ -253,7 +253,8 @@ fn type_with_an_alternate_glyph_highlight_is_drawn_as_sharp() {
 }
 
 /// The type is drawn on the output's pixels unless, in a frame coarser than the output, they
-/// would number more than the frame's there and more than the effects' pixel budget.
+/// would number more than the frame's there and more than the effects' pixel budget, or be more
+/// than `MAX_RASTER_SIDE` a side.
 #[test]
 fn type_edges_are_drawn_on_at_most_the_budgets_pixels() {
     let finer = Affine::scale(0.25);
@@ -261,6 +262,20 @@ fn type_edges_are_drawn_on_at_most_the_budgets_pixels() {
     let coarser = Affine::scale(4.0);
     assert_eq!(edge_grid(Rect::new(0.0, 0.0, 100.0, 100.0), coarser), coarser, "160,000 pixels");
     assert_eq!(edge_grid(Rect::new(0.0, 0.0, 1000.0, 1000.0), coarser), Affine::IDENTITY, "16 million pixels");
+    assert_eq!(edge_grid(Rect::new(0.0, 0.0, 10_000.0, 1.0), coarser), Affine::IDENTITY, "40,000 pixels a side");
+}
+
+/// Type whose offscreen drawing would be more than `MAX_RASTER_SIDE` pixels a side is drawn as
+/// Sharp type is.
+#[test]
+fn type_wider_than_the_raster_limit_is_drawn_as_sharp() {
+    // "Hamburg" at 25,000%, about 37,000 pixels wide, on four rows through its letters.
+    let view = Affine::translate((-2_000.0, -12_500.0)) * Affine::scale(250.0);
+    let draw = |m| Renderer::new().render(&page(m, None), 40_000, 4, view, &RenderOptions::default()).pixels;
+    let sharp = draw(TypeAntiAlias::Sharp);
+    let a: Vec<u8> = sharp.chunks(4).map(|p| p[3]).collect();
+    assert!(partial(&a) > 0, "the rows cross the edges of the letters");
+    assert!(draw(TypeAntiAlias::None) == sharp, "None type is drawn as Sharp");
 }
 
 /// The offscreen drawing takes in the farthest a stroke reaches: a mitered character stroke's

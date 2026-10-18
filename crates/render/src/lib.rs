@@ -1914,8 +1914,8 @@ impl Renderer {
     /// strokes in opaque black, which gives the share `c` of each pixel they cover; the pixel's
     /// color and opacity are then scaled by [`edge_coverage`] of `c` divided by `c`, so the opacity
     /// of the paints is kept. Where the output's pixels would number more than the frame's there
-    /// and more than [`fx::PIXEL_BUDGET`] (a frame drawn coarser than the output), the frame's own
-    /// pixels are used.
+    /// and more than [`fx::PIXEL_BUDGET`], or be more than [`MAX_RASTER_SIDE`] a side (a frame
+    /// drawn coarser than the output), the frame's own pixels are used.
     ///
     /// The pixels are kept (`type_edges`). In a later frame they are placed without drawing the
     /// type offscreen while the object, the output's zoom and rotation, the method and edge
@@ -1928,7 +1928,8 @@ impl Renderer {
     /// inline graphics, type whose own fills or strokes include a brush stroke or a blend mode
     /// other than Normal, type that overprints while Overprint Preview is on, and type that shows a
     /// substitution highlight on screen. Drawn offscreen, those would blend with nothing or take
-    /// the method on art that is not the characters'.
+    /// the method on art that is not the characters'. It also returns false for type whose
+    /// offscreen drawing would be more than [`MAX_RASTER_SIDE`] pixels a side.
     fn draw_type_edges(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, t: &TextObject, g: &TextGeom) -> bool {
         if proof::overprints(f.opts) && t.runs.iter().any(|r| r.style.overprint_fill || r.style.overprint_stroke) {
             return false;
@@ -1972,6 +1973,10 @@ impl Renderer {
         // Whole pixels of the output.
         let (x0, y0) = (on.x0.floor(), on.y0.floor());
         let (Ok(w), Ok(h)) = (u16::try_from((on.x1 - x0).ceil() as u64), u16::try_from((on.y1 - y0).ceil() as u64)) else { return false };
+        // (vello_cpu panics drawing near `u16::MAX` pixels a side.)
+        if u32::from(w) > MAX_RASTER_SIDE || u32::from(h) > MAX_RASTER_SIDE {
+            return false;
+        }
         let view = Affine::translate((-x0, -y0)) * output;
         let visible = view.inverse().transform_rect_bbox(Rect::new(0.0, 0.0, f64::from(w), f64::from(h)));
         let px = 1.0 / view.determinant().abs().sqrt().max(1e-12);
@@ -2355,10 +2360,11 @@ fn type_reach(n: &Node, t: &TextObject, g: &TextGeom) -> Rect {
 /// The map from a frame's pixels to the pixels [`Renderer::draw_type_edges`] draws type on, for
 /// the region `on` of the frame's pixels: `grid`, which maps them to the output's, unless the
 /// output's pixels there would number more than the frame's and more than [`fx::PIXEL_BUDGET`],
-/// and then the frame's own pixels (the identity).
+/// or be more than [`MAX_RASTER_SIDE`] a side, and then the frame's own pixels (the identity).
 fn edge_grid(on: Rect, grid: Affine) -> Affine {
     let area = |r: Rect| r.width() * r.height();
-    if area(grid.transform_rect_bbox(on)) > area(on).max(fx::PIXEL_BUDGET) { Affine::IDENTITY } else { grid }
+    let (out, side) = (grid.transform_rect_bbox(on), f64::from(MAX_RASTER_SIDE));
+    if area(out) > area(on).max(fx::PIXEL_BUDGET) || out.width() > side || out.height() > side { Affine::IDENTITY } else { grid }
 }
 
 /// Pixel `p` of type the anti-aliasing method `m` draws, where the type covers `c` (out of 255) of
