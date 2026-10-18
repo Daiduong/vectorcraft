@@ -127,10 +127,23 @@ fn an_image_too_large_is_refused_from_its_header() {
     let mut s = Session::new();
     let e = s.execute("document.open", &json!({"name": "huge.jxl", "dataBase64": b64(&huge)})).unwrap_err().to_string();
     assert!(e.contains("too large to draw"), "{e}");
-    // The allowance counts RGBA bytes: 3 × 2 pixels take 24 (the decoder's own buffers then need more).
+    // The allowance counts RGBA bytes: 3 × 2 pixels take 24.
     assert!(decode(&rgba8(), 23).unwrap_err().contains("too large"));
-    assert!(!decode(&rgba8(), 24).unwrap_err().contains("too large"));
     assert!(decode(&rgba8(), 1 << 20).is_ok());
+}
+
+/// The decoder's buffers take more than the image as RGBA. When they need more than the allowance,
+/// the image is too large to draw, as when its size alone is.
+#[test]
+fn an_image_whose_decoder_buffers_pass_the_allowance_is_too_large() {
+    assert_eq!(decode(&rgba8(), 24).unwrap_err(), "an image of 3 × 2 pixels is too large to draw");
+    let gray: Vec<u8> = (0..64 * 64).map(|i| (i % 251) as u8).collect();
+    let f = container(&jxl(64, 64, ColorSpace::Luma, BitDepth::Eight, &gray));
+    assert_eq!(decode(&f, 64 * 64 * 4).unwrap_err(), "an image of 64 × 64 pixels is too large to draw");
+    assert!(decode(&f, 1 << 20).is_ok());
+    // A file cut short is still reported as cut short or unreadable.
+    let e = decode(&f[..f.len() - 3], 1 << 20).unwrap_err();
+    assert!(!e.contains("too large"), "{e}");
 }
 
 /// Premultiplied colors are divided by their alpha before they are converted to sRGB: a linear

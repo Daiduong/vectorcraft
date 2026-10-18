@@ -39,16 +39,17 @@ pub fn is_jxl(bytes: &[u8]) -> bool {
 }
 
 /// The first frame of a JPEG XL image as straight RGBA. Fails, without decoding the pixels, when
-/// the image would take more than `max_alloc` bytes as RGBA.
+/// the image would take more than `max_alloc` bytes as RGBA. The image is also too large to draw
+/// when the decoder's buffers for its pixels need more than they are allowed.
 pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, String> {
     let pixel_boxes = pixel_boxes(bytes);
     let bytes = pixel_boxes.as_deref().unwrap_or(bytes);
     // The decoder reads the header first, with buffers for the header alone.
-    let (head, _) = header(bytes, HEADER_BUFFERS)?;
+    let (head, _) = header(bytes, HEADER_BUFFERS, None)?;
     let (w, h) = (head.width(), head.height());
     let rgba = u64::from(w) * u64::from(h) * 4;
     if rgba > max_alloc {
-        return Err(format!("an image of {w} × {h} pixels is too large to draw"));
+        return Err(too_large(w, h));
     }
     if head.pixel_format().has_black() {
         return Err("CMYK JPEG XL images can't be read".into());
@@ -56,14 +57,15 @@ pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, String> 
     // Then it reads the file again until the first frame is loaded, with buffers for the pixels.
     let budget = rgba.saturating_mul(DECODER_BUFFERS).saturating_add(HEADER_BUFFERS as u64).min(max_alloc);
     let budget = usize::try_from(budget).unwrap_or(usize::MAX);
-    let (mut image, mut at) = header(bytes, budget)?;
+    let size = Some((w, h));
+    let (mut image, mut at) = header(bytes, budget, size)?;
     let mut end = at;
     while image.num_loaded_keyframes() == 0 {
         if end == bytes.len() {
             return Err(TRUNCATED.into());
         }
         end = end.saturating_mul(2).max(HEAD).min(bytes.len());
-        at += image.feed_bytes(&bytes[at..end]).map_err(unreadable)?;
+        at += image.feed_bytes(&bytes[at..end]).map_err(|e| failed(e, size))?;
     }
     let metadata = &image.image_header().metadata;
     let associated = metadata.alpha().and_then(|i| metadata.ec_info.get(i)).and_then(|ec| ec.alpha_associated()) == Some(true);
@@ -92,7 +94,7 @@ pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, String> 
     if let Some(encoding) = request {
         image.request_color_encoding(encoding);
     }
-    let render = image.render_frame(0).map_err(unreadable)?;
+    let render = image.render_frame(0).map_err(|e| failed(e, size))?;
     let mut stream = render.stream();
     let channels = stream.channels() as usize;
     if !(1..=4).contains(&channels) {
@@ -191,14 +193,15 @@ fn pixel_boxes(bytes: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// A decoder whose buffers may take `buffers` bytes, given as few of `bytes` as it needs to read
-/// the header → (the decoder, how many bytes it took).
-fn header(bytes: &[u8], buffers: usize) -> Result<(JxlImage, usize), String> {
+/// the header → (the decoder, how many bytes it took). `size` is the image's size when it is
+/// known, for the error when the buffers need more ([`failed`]).
+fn header(bytes: &[u8], buffers: usize, size: Option<(u32, u32)>) -> Result<(JxlImage, usize), String> {
     let mut uninit = JxlImage::builder().alloc_tracker(AllocTracker::with_limit(buffers)).build_uninit();
     let (mut at, mut end) = (0, 0usize);
     loop {
         end = end.saturating_mul(2).max(HEAD).min(bytes.len());
-        at += uninit.feed_bytes(&bytes[at..end]).map_err(unreadable)?;
-        match uninit.try_init().map_err(unreadable)? {
+        at += uninit.feed_bytes(&bytes[at..end]).map_err(|e| failed(e, size))?;
+        match uninit.try_init().map_err(|e| failed(e, size))? {
             InitializeResult::Initialized(image) => return Ok((image, at)),
             InitializeResult::NeedMoreData(_) if end == bytes.len() => return Err(TRUNCATED.into()),
             InitializeResult::NeedMoreData(more) => uninit = more,
@@ -211,6 +214,22 @@ fn header(bytes: &[u8], buffers: usize) -> Result<(JxlImage, usize), String> {
 /// describes one of those.
 fn to_srgb_without_cms(xyb: bool, icc: Option<&[u8]>) -> bool {
     xyb || icc.is_none_or(|icc| ColorEncodingWithProfile::with_icc(icc).is_ok_and(|p| p.icc_profile().is_empty()))
+}
+
+/// The decoder's error `e` as a message. When the decoder's buffers needed more than they were
+/// allowed and the image's `size` is known, the image is too large to draw. Otherwise the file
+/// can't be read.
+fn failed(e: Box<dyn std::error::Error + Send + Sync>, size: Option<(u32, u32)>) -> String {
+    let first: &(dyn std::error::Error + 'static) = &*e;
+    let out_of_memory = std::iter::successors(Some(first), |c| c.source()).any(|c| c.is::<jxl_grid::OutOfMemory>());
+    match size {
+        Some((w, h)) if out_of_memory => too_large(w, h),
+        _ => unreadable(e),
+    }
+}
+
+fn too_large(w: u32, h: u32) -> String {
+    format!("an image of {w} × {h} pixels is too large to draw")
 }
 
 fn unreadable(e: impl std::fmt::Display) -> String {

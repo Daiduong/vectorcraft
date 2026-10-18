@@ -4839,6 +4839,7 @@ dependencies = [
  "flate2",
  "image",
  "jxl-color",
+ "jxl-grid",
  "jxl-oxide",
  "kurbo 0.13.1",
  "log",

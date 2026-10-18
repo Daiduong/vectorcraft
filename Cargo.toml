@@ -94,6 +94,8 @@ zune-jpeg = "0.5"
 jxl-oxide = { version = "0.12.6", default-features = false }
 # jxl-oxide's color conversions, run on colors after their alpha is divided out.
 jxl-color = "0.11.0"
+# jxl-oxide's buffer allocation error, told apart from other decoding errors.
+jxl-grid = "0.6.2"
 # Tests: a lossless JPEG XL encoder (pure Rust, MIT OR Apache-2.0 OR Zlib) for the `.jxl` test files.
 zune-jpegxl = { version = "0.5.2", default-features = false, features = ["std"] }
 zune-core = "0.5"

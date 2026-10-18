@@ -38,6 +38,7 @@ vectorcraft-scriptcheck = { workspace = true }
 image = { workspace = true }
 jxl-oxide = { workspace = true }
 jxl-color = { workspace = true }
+jxl-grid = { workspace = true }
 flate2 = { workspace = true }
 # The XML parts of Word documents placed as type (place/docx.rs).
 roxmltree = "0.21"
