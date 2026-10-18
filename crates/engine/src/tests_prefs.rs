@@ -1435,3 +1435,13 @@ fn snap_to_point_cues_anchors_and_lands_pen_clicks_on_them() {
         s.execute("select.none", &json!({})).unwrap();
     }
 }
+
+#[test]
+fn open_documents_as_tabs_roundtrips_through_prefs_set() {
+    let mut s = Session::new();
+    assert!(s.prefs.open_documents_as_tabs);
+    set_pref(&mut s, "openDocumentsAsTabs", json!(false));
+    assert!(!s.prefs.open_documents_as_tabs);
+    set_pref(&mut s, "openDocumentsAsTabs", json!(true));
+    assert!(s.prefs.open_documents_as_tabs);
+}

@@ -383,6 +383,14 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("window.workspace.rename", "Rename Workspace", "", "{name, to}"),
     ("window.workspace.list", "List Workspaces", "", "{}"),
     ("window.newWindow", "New Window", "", "{}"),
+    ("window.openDocument1", "Open Document 1", "", "{}"),
+    ("window.openDocument2", "Open Document 2", "", "{}"),
+    ("window.openDocument3", "Open Document 3", "", "{}"),
+    ("window.openDocument4", "Open Document 4", "", "{}"),
+    ("window.openDocument5", "Open Document 5", "", "{}"),
+    ("window.openDocument6", "Open Document 6", "", "{}"),
+    ("window.openDocument7", "Open Document 7", "", "{}"),
+    ("window.openDocument8", "Open Document 8", "", "{}"),
     ("tool.select", "Select Tool", "", "{tool: id} (see tools)"),
     (
         "tool.setOption",
@@ -1456,6 +1464,13 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             }
             None => Err("brightness must be dark|mediumDark|mediumLight|light".into()),
         },
+        id if open_document_slot(id).is_some() => {
+            let i = open_document_slot(id).unwrap_or(0);
+            if i < app.session.documents().len() {
+                crate::chrome::activate_document(app, i);
+            }
+            Ok(Value::Null)
+        }
         "window.newWindow" => Err("multiple windows land with M11.5".into()),
         "tool.select" => match s("tool") {
             Some(t) if vectorcraft_tools::tool_info(&t).is_some() => {
@@ -1870,6 +1885,10 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
         id if id.starts_with("file.openRecent") => recent_slot(app, id)
             .map(|p| std::path::Path::new(p).file_name().map_or(p.clone(), |f| f.to_string_lossy().to_string()))
             .unwrap_or_else(|| "—".into()),
+        id if open_document_slot(id).is_some() => open_document_slot(id)
+            .and_then(|i| app.session.documents().get(i))
+            .map(|d| d.title())
+            .unwrap_or_else(|| "—".into()),
         // Edit Contents reads Edit Envelope while an envelope's contents are being edited.
         "object.envelope.editContents" => {
             let editing = app.session.active().is_some_and(|st| {
@@ -1904,8 +1923,9 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
 /// plug-in? Such names are shown as they are, never translated (a workspace the user calls
 /// "Layers" stays "Layers").
 fn shows_a_name(id: &str, label: &str) -> bool {
-    const SLOTS: [&str; 6] = [
+    const SLOTS: [&str; 7] = [
         "file.openRecent",
+        "window.openDocument",
         "view.goto",
         "type.recentFont",
         crate::panels::swatches::USER_SLOT,
@@ -2043,6 +2063,28 @@ const RECENT_IDS: [&str; io::MAX_RECENT_FILES] = [
     "file.openRecent30",
 ];
 
+/// Window › Documents slots when Preferences › Open Documents As Tabs is off.
+const OPEN_DOCUMENT_COUNT: usize = 8;
+const OPEN_DOCUMENT_IDS: [&str; OPEN_DOCUMENT_COUNT] = [
+    "window.openDocument1",
+    "window.openDocument2",
+    "window.openDocument3",
+    "window.openDocument4",
+    "window.openDocument5",
+    "window.openDocument6",
+    "window.openDocument7",
+    "window.openDocument8",
+];
+
+/// Zero-based index of `window.openDocumentN`, if `id` names one.
+fn open_document_slot(id: &str) -> Option<usize> {
+    const PREFIX: &str = "window.openDocument";
+    if !id.starts_with(PREFIX) {
+        return None;
+    }
+    id[PREFIX.len()..].parse::<usize>().ok().and_then(|n| n.checked_sub(1))
+}
+
 /// The saved selection a `select.recallN` slot names (none past the document's last).
 fn saved_selection_name(app: &VectorcraftApp, id: &str) -> Option<String> {
     let n = saved_selection_slot(id)?.checked_sub(1)?;
@@ -2059,6 +2101,12 @@ fn recent_slot<'a>(app: &'a VectorcraftApp, id: &str) -> Option<&'a String> {
 /// or off), or `None` while they leave it out: an empty slot ([`hidden_when_disabled`]) or an item
 /// another stands in for ([`swapped_out`]).
 pub fn shown_state(app: &VectorcraftApp, id: &str, p: &Value) -> Option<(bool, Option<bool>)> {
+    if let Some(i) = open_document_slot(id) {
+        if app.session.prefs.open_documents_as_tabs || i >= app.session.documents().len() {
+            return None;
+        }
+        return Some((true, Some(app.session.active_index() == Some(i))));
+    }
     let en = enabled(app, id);
     if (!en && hidden_when_disabled(id)) || swapped_out(app, id) {
         return None;
@@ -2105,7 +2153,8 @@ pub fn entry<'a>(app: &VectorcraftApp, it: &'a Item) -> Option<Entry<'a>> {
     Some(match it {
         Item::Sep => Entry::Sep,
         Item::Header(h) => Entry::Header(t(h)),
-        Item::Sub(label, children) => Entry::Sub(t(label), children),
+        Item::Sub(label, children) if children.iter().any(|ch| entry(app, ch).is_some()) => Entry::Sub(t(label), children),
+        Item::Sub(_, _) => return None,
         Item::Todo(label, sc) => Entry::Item(Row {
             command: None,
             source: label,
@@ -2917,6 +2966,10 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
             "Window",
             vec![
                 c("New Window", "window.newWindow"),
+                sub(
+                    "Documents",
+                    OPEN_DOCUMENT_IDS.iter().map(|id| c("Document", id)).collect(),
+                ),
                 sub("Arrange", vec![todo("Cascade"), todo("Tile"), todo("Float in Window"), todo("Consolidate All Windows")]),
                 sub("Workspace", crate::workspaces::menu_items()),
                 Sep,

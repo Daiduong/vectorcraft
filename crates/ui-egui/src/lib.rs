@@ -1454,7 +1454,7 @@ impl VectorcraftApp {
             dock::show(self, ui);
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.pasteboard)).show(ui, |ui| {
-            if self.ui.screen_mode < 3 {
+            if self.ui.screen_mode < 3 && self.session.prefs.open_documents_as_tabs {
                 chrome::doc_tabs(self, ui);
             }
             canvas::show(self, ui);
