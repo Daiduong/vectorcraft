@@ -551,6 +551,7 @@ mod tests_appearance;
 mod tests_asset_export;
 #[cfg(test)]
 mod tests_barcode;
+#[cfg(test)]
 mod tests_blend;
 #[cfg(test)]
 mod tests_constrain;
