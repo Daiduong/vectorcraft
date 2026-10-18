@@ -19,7 +19,8 @@ If a request fails, ready suggestions remain available to apply or continue.
 The server defaults to `http://localhost:11434/api/chat` and the vision model to `qwen2.5vl:3b`.
 The server URL, model and name language are one shared Ollama connection, so every AI dialog opens
 on the same model. Plain `http://` is accepted only for a loopback host (`localhost`, `127.0.0.0/8`,
-or `::1`). A remote server must use `https://`. Ollama and an image-capable model must be installed
+or `::1`). A remote server must use `https://`. A loopback request passes curl `--noproxy *`, so an
+`http_proxy` cannot carry the preview off the machine. Ollama and an image-capable model must be installed
 separately; VectorCraft does not download a model.
 Desktop networking uses `curl` from PATH and reports an actionable error if it is absent. Web
 builds display an unsupported message. A generation sends artwork previews to the configured

@@ -56,29 +56,9 @@ pub(crate) fn endpoint_kind(endpoint: &str) -> Result<EndpointKind, String> {
 pub(crate) fn post(endpoint: &str, request: &Value) -> Result<Value, String> {
     use std::io::{Read, Write};
     use std::process::{Command, Stdio};
-    let proto = match endpoint_kind(endpoint)? {
-        EndpointKind::Loopback => "=http,https",
-        EndpointKind::RemoteHttps => "=https",
-    };
+    let args = curl_args(endpoint)?;
     let mut child = Command::new("curl")
-        .args([
-            "--disable",
-            "--silent",
-            "--show-error",
-            "--fail",
-            "--max-time",
-            "120",
-            "--connect-timeout",
-            "10",
-            "--proto",
-            proto,
-            "--header",
-            "Content-Type: application/json",
-            "--data-binary",
-            "@-",
-            "--url",
-            endpoint,
-        ])
+        .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -107,6 +87,40 @@ pub(crate) fn post(endpoint: &str, request: &Value) -> Result<Value, String> {
         return Err("Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.".into());
     }
     serde_json::from_slice(&bytes).map_err(|e| format!("Invalid Ollama response: {e}"))
+}
+
+/// Arguments for one Ollama POST. Loopback skips any configured proxy so the preview stays on this machine.
+#[cfg(not(target_arch = "wasm32"))]
+fn curl_args(endpoint: &str) -> Result<Vec<String>, String> {
+    let kind = endpoint_kind(endpoint)?;
+    let proto = match kind {
+        EndpointKind::Loopback => "=http,https",
+        EndpointKind::RemoteHttps => "=https",
+    };
+    let mut args = vec![
+        "--disable".into(),
+        "--silent".into(),
+        "--show-error".into(),
+        "--fail".into(),
+        "--max-time".into(),
+        "120".into(),
+        "--connect-timeout".into(),
+        "10".into(),
+    ];
+    if matches!(kind, EndpointKind::Loopback) {
+        args.extend(["--noproxy".into(), "*".into()]);
+    }
+    args.extend([
+        "--proto".into(),
+        proto.into(),
+        "--header".into(),
+        "Content-Type: application/json".into(),
+        "--data-binary".into(),
+        "@-".into(),
+        "--url".into(),
+        endpoint.into(),
+    ]);
+    Ok(args)
 }
 
 fn host_of(rest: &str) -> Option<String> {
@@ -194,5 +208,16 @@ mod tests {
         );
         assert_eq!(endpoint_kind("ftp://localhost/api/chat").unwrap_err(), "Server URL must start with http:// or https://");
         assert_eq!(endpoint_kind("http://localhost\n/api/chat").unwrap_err(), "Server URL must start with http:// or https://");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn loopback_bypasses_the_proxy() {
+        let local = curl_args("http://127.0.0.1:11434/api/chat").unwrap();
+        let remote = curl_args("https://models.example/api/chat").unwrap();
+        assert!(local.windows(2).any(|pair| pair[0] == "--noproxy" && pair[1] == "*"));
+        assert!(remote.windows(2).all(|pair| pair[0] != "--noproxy"));
+        assert!(local.windows(2).any(|pair| pair[0] == "--proto" && pair[1] == "=http,https"));
+        assert!(remote.windows(2).any(|pair| pair[0] == "--proto" && pair[1] == "=https"));
     }
 }
