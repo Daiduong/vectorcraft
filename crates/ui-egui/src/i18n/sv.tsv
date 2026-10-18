@@ -5174,3 +5174,13 @@ theme	Appearance	Utseende
 @msg	Server URL must start with http:// or https://	Server-URL måste börja med http:// eller https://
 @msg	Unable to render naming previews	Kan inte rendera förhandsvisningar för namngivning
 @msg	Wait for generation to finish	Vänta tills genereringen är klar
+
+# AI naming player and partial results.
+	Apply Ready Names	Använd färdiga namn
+	Play or continue naming	Starta eller fortsätt namngivningen
+	Pause after the current group	Pausa efter aktuell grupp
+	Paused; ready names are kept.	Pausat; färdiga namn sparas.
+	Start Over	Börja om
+	Finishing current group…	Slutför aktuell grupp…
+@msg	Naming scope changed. Start over to use the new scope.	Namngivningens omfattning har ändrats. Börja om för den nya omfattningen.
+@msg	the document changed; generate names again	dokumentet har ändrats; generera namnen igen

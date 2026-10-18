@@ -5217,3 +5217,13 @@ theme	Appearance	Apparence
 @msg	Server URL must start with http:// or https://	L’URL du serveur doit commencer par http:// ou https://
 @msg	Unable to render naming previews	Impossible de rendre les aperçus de nommage
 @msg	Wait for generation to finish	Attendez la fin de la génération
+
+# AI naming player and partial results.
+	Apply Ready Names	Appliquer les noms prêts
+	Play or continue naming	Lancer ou reprendre le nommage
+	Pause after the current group	Pause après le groupe actuel
+	Paused; ready names are kept.	En pause ; les noms prêts sont conservés.
+	Start Over	Recommencer
+	Finishing current group…	Finalisation du groupe actuel…
+@msg	Naming scope changed. Start over to use the new scope.	La portée du nommage a changé. Recommencez pour utiliser la nouvelle portée.
+@msg	the document changed; generate names again	le document a changé ; générez à nouveau les noms

@@ -4092,3 +4092,11 @@ lighting	Light	光源
 	Analyzing groups…	正在分析群組…
 	Review and edit names before applying.	套用前請檢查並編輯名稱。
 	Name Layers with AI…	使用 AI 命名圖層…
+
+# AI naming player and partial results.
+	Apply Ready Names	套用已完成的名稱
+	Play or continue naming	開始或繼續命名
+	Pause after the current group	目前群組完成後暫停
+	Paused; ready names are kept.	已暫停，已完成的名稱會保留。
+	Start Over	重新開始
+	Finishing current group…	正在完成目前群組…

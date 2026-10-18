@@ -9,8 +9,8 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
     body,
     confirm,
     min_width: 560.0,
-    ok: Some("Apply Names"),
-    ok_enabled: Some(|_, d| d.fields.get("names").and_then(Value::as_array).is_some_and(|a| !a.is_empty()) && !d.bool("busy")),
+    ok: Some("Apply Ready Names"),
+    ok_enabled: Some(|_, d| d.fields.get("names").and_then(Value::as_array).is_some_and(|a| !a.is_empty()) && (!d.bool("busy") || d.bool("paused"))),
     ..DialogSpec::FORM
 };
 
@@ -18,7 +18,20 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     if app.session.active().is_none() {
         return Err("No document".into());
     }
-    app.naming_job = None;
+    close(app);
+    if let Some(mut saved) = app.naming_checkpoint.clone() {
+        let st = app.session.active().ok_or("No document")?;
+        if saved.fields.get("uid").and_then(Value::as_u64) == Some(st.uid)
+            && saved.fields.get("revision").and_then(Value::as_u64) == Some(st.revision)
+        {
+            saved.fields.insert("busy".into(), json!(false));
+            saved.fields.insert("paused".into(), json!(false));
+            saved.fields.insert("inFlight".into(), json!(false));
+            app.ui.dialog = Some(saved);
+            return Ok(Value::Null);
+        }
+        app.naming_checkpoint = None;
+    }
     let mut settings = json!({"endpoint": "http://localhost:11434/api/chat", "model": "", "language": "English", "scope": "all", "depth": 3});
     for key in ["endpoint", "model", "language", "scope", "depth"] {
         if let Some(value) = app.ui.layer_naming_settings.get(key) {
@@ -30,10 +43,16 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
 }
 
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+    if let Some(job) = &app.naming_job
+        && let Err(e) = sync(d, job)
+    {
+        d.fields.insert("error".into(), json!(e));
+    }
     if let Some(job) = &app.naming_job {
         match job.rx.try_recv() {
             Ok(Ok(names)) => {
-                d.fields.insert("names".into(), names);
+                merge_names(d, names.as_array().map_or(&[], Vec::as_slice));
+                d.fields.insert("complete".into(), json!(true));
                 d.fields.insert("busy".into(), json!(false));
                 app.naming_job = None;
             }
@@ -52,20 +71,29 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             }
         }
     }
+    if app.naming_job.is_none() {
+        d.fields.insert("busy".into(), json!(false));
+        d.fields.insert("paused".into(), json!(false));
+        d.fields.insert("inFlight".into(), json!(false));
+    }
     ui.label(tl!("Previews are sent to the configured Ollama server."));
     ui.add_enabled_ui(!d.bool("busy"), |ui| {
         egui::Grid::new("naming-settings").show(ui, |ui| {
             for (label, key) in [("Server URL", "endpoint"), ("Vision model", "model"), ("Name language", "language")] {
                 ui.label(crate::i18n::t(label));
-                ui.allocate_ui(egui::vec2(370.0, 22.0), |ui| { form::text(ui, d, key, 350.0); });
+                ui.allocate_ui(egui::vec2(370.0, 22.0), |ui| {
+                    form::text(ui, d, key, 350.0);
+                });
                 ui.end_row();
             }
             ui.label(tl!("Scope"));
             let mut scope = d.str("scope");
-            egui::ComboBox::from_id_salt("naming-scope").selected_text(crate::i18n::t(if scope == "all" { "Whole document" } else { "Highlighted rows or selection" })).show_ui(ui, |ui| {
-                ui.selectable_value(&mut scope, "all".into(), tl!("Whole document"));
-                ui.selectable_value(&mut scope, "selection".into(), tl!("Highlighted rows or selection"));
-            });
+            egui::ComboBox::from_id_salt("naming-scope")
+                .selected_text(crate::i18n::t(if scope == "all" { "Whole document" } else { "Highlighted rows or selection" }))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut scope, "all".into(), tl!("Whole document"));
+                    ui.selectable_value(&mut scope, "selection".into(), tl!("Highlighted rows or selection"));
+                });
             d.fields.insert("scope".into(), json!(scope));
             ui.end_row();
             ui.label(tl!("Group depth"));
@@ -74,28 +102,37 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             d.fields.insert("depth".into(), json!(depth));
             ui.end_row();
         });
-        if ui.button(tl!("Generate Names")).clicked() {
-            d.fields.remove("names");
-            d.fields.remove("error");
-            app.ui.layer_naming_settings = json!({"endpoint":d.str("endpoint"), "model":d.str("model"), "language":d.str("language"), "scope":d.str("scope"), "depth":d.fields.get("depth")});
-            let result = start(app, d);
-            if let Err(e) = result {
-                d.fields.insert("error".into(), json!(e));
+    });
+    ui.horizontal(|ui| {
+        let running=d.bool("busy");let paused=d.bool("paused");
+        if player_button(ui,tl!("Play or continue naming"),!running || paused,true).clicked() {
+            if let Some(job)=&app.naming_job {job.progress.paused.store(false,std::sync::atomic::Ordering::Relaxed);d.fields.insert("paused".into(),json!(false));}
+            else {
+                d.fields.remove("error");
+                app.ui.layer_naming_settings=json!({"endpoint":d.str("endpoint"),"model":d.str("model"),"language":d.str("language"),"scope":d.str("scope"),"depth":d.fields.get("depth")});
+                if let Err(e)=start(app,d) {d.fields.insert("error".into(),json!(e));}
             }
         }
+        if player_button(ui,tl!("Pause after the current group"),running && !paused,false).clicked() {
+            if let Some(job)=&app.naming_job {job.progress.paused.store(true,std::sync::atomic::Ordering::Relaxed);}
+            d.fields.insert("paused".into(),json!(true));
+        }
+        if ui.add_enabled(!running || paused,egui::Button::new(tl!("Start Over"))).clicked() {
+            stop(app,d);
+            for key in ["names","candidates","uid","revision","complete","done","total","error","syncedCount"] {d.fields.remove(key);}
+            app.naming_checkpoint=None;
+        }
+        let done=d.fields.get("names").and_then(Value::as_array).map_or(0,Vec::len);
+        let total=d.fields.get("total").and_then(Value::as_u64).unwrap_or(0) as usize;
+        if total>0 {ui.add(egui::ProgressBar::new(done as f32/total.max(1) as f32).text(format!("{done} / {total}")));}
     });
     if d.bool("busy") {
-        ui.horizontal(|ui| {
+        if d.bool("paused") {
+            ui.label(if d.bool("inFlight") { tl!("Finishing current group…") } else { tl!("Paused; ready names are kept.") });
+        } else {
             ui.spinner();
-            ui.label(tl!("Analyzing groups…"));
-            if let Some(job) = &app.naming_job {
-                ui.label(format!(
-                    "{} / {}",
-                    job.progress.done.load(std::sync::atomic::Ordering::Relaxed),
-                    job.progress.total.load(std::sync::atomic::Ordering::Relaxed)
-                ));
-            }
-        });
+        }
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
     }
     if let Some(e) = d.fields.get("error").and_then(Value::as_str) {
         ui.label(crate::i18n::msg(e));
@@ -105,6 +142,9 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         ui.label(tl!("Review and edit names before applying."));
         egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
             for row in names {
+                if !row.is_object() {
+                    continue;
+                }
                 let old = rows.iter().find(|r| r["id"] == row["id"]).and_then(|r| r["name"].as_str()).unwrap_or("<Group>");
                 ui.horizontal(|ui| {
                     ui.add_sized([210.0, 22.0], egui::Label::new(format!("#{} {old}", row["id"])).truncate());
@@ -115,27 +155,102 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             }
         });
     }
+    if d.fields.contains_key("candidates") {
+        app.naming_checkpoint = Some(d.clone());
+    }
     false
 }
 
+fn player_button(ui: &mut egui::Ui, label: &str, enabled: bool, play: bool) -> egui::Response {
+    let response = ui.add_enabled(enabled, egui::Button::new("").min_size(egui::vec2(32.0, 28.0)));
+    let r = response.rect.shrink(8.0);
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let color = if enabled { t.text } else { t.text_disabled };
+    if play {
+        ui.painter().add(egui::Shape::convex_polygon(
+            vec![r.left_top(), egui::pos2(r.right(), r.center().y), r.left_bottom()],
+            color,
+            egui::Stroke::NONE,
+        ));
+    } else {
+        for (x0, x1) in [(r.left(), r.center().x - 2.0), (r.center().x + 2.0, r.right())] {
+            ui.painter().rect_filled(egui::Rect::from_min_max(egui::pos2(x0, r.top()), egui::pos2(x1, r.bottom())), 0.0, color);
+        }
+    }
+    response.widget_info(|| crate::widgets::icon_button_info(enabled, false, label));
+    response.on_hover_text(label)
+}
+
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
-    if d.bool("busy") {
+    if d.bool("busy") && !d.bool("paused") {
         return Err("Wait for generation to finish".into());
     }
+    let mut d = d.clone();
+    stop(app, &mut d);
     let names = d.fields.get("names").ok_or("Generate names first")?;
-    let result = app.run("layer.applyNames", json!({"uid": d.fields.get("uid"), "revision": d.fields.get("revision"), "names": names}))?;
+    let result = app.run("layer.applyNames", json!({"uid":d.fields.get("uid"),"revision":d.fields.get("revision"),"names":names}))?;
+    let st = app.session.active().ok_or("No document")?;
+    d.fields.insert("revision".into(), json!(st.revision));
+    app.naming_checkpoint = if d.bool("complete") { None } else { Some(d) };
     app.ui.dialog = None;
-    app.naming_job = None;
     Ok(result)
+}
+
+fn merge_names(d: &mut Dialog, rows: &[Value]) {
+    let field = d.fields.entry("names".to_string()).or_insert_with(|| json!([]));
+    if let Some(names) = field.as_array_mut() {
+        for row in rows {
+            if !names.iter().any(|n| n["id"] == row["id"]) {
+                names.push(row.clone());
+            }
+        }
+    }
+}
+fn sync(d: &mut Dialog, job: &Job) -> Result<(), String> {
+    let ready = job.progress.names.lock().map_err(|_| "Naming worker stopped. Try again.")?;
+    let from = d.fields.get("syncedCount").and_then(Value::as_u64).unwrap_or(0) as usize;
+    merge_names(d, ready.get(from.min(ready.len())..).unwrap_or(&[]));
+    d.fields.insert("syncedCount".into(), json!(ready.len()));
+    d.fields.insert("done".into(), json!(job.base + job.progress.done.load(std::sync::atomic::Ordering::Relaxed)));
+    d.fields.insert("total".into(), json!(job.base + job.progress.total.load(std::sync::atomic::Ordering::Relaxed)));
+    d.fields.insert("paused".into(), json!(job.progress.paused.load(std::sync::atomic::Ordering::Relaxed)));
+    d.fields.insert("inFlight".into(), json!(job.progress.in_flight.load(std::sync::atomic::Ordering::Relaxed)));
+    Ok(())
+}
+fn stop(app: &mut VectorcraftApp, d: &mut Dialog) {
+    if let Some(job) = app.naming_job.take()
+        && let Err(e) = sync(d, &job)
+    {
+        d.fields.insert("error".into(), json!(e));
+    }
+    d.fields.insert("busy".into(), json!(false));
+    d.fields.insert("paused".into(), json!(false));
+    d.fields.insert("inFlight".into(), json!(false));
+    app.naming_checkpoint = Some(d.clone());
+}
+/// Closing the dialog keeps completed work in memory for this document, including the last batch.
+pub(crate) fn close(app: &mut VectorcraftApp) {
+    if app.naming_job.is_none() {
+        return;
+    }
+    if let Some(mut d) = app.naming_checkpoint.take() {
+        stop(app, &mut d);
+    } else {
+        app.naming_job = None;
+    }
 }
 
 #[derive(Default)]
 struct Progress {
     done: std::sync::atomic::AtomicUsize,
     total: std::sync::atomic::AtomicUsize,
+    paused: std::sync::atomic::AtomicBool,
+    in_flight: std::sync::atomic::AtomicBool,
+    names: std::sync::Mutex<Vec<Value>>,
 }
 
 pub(crate) struct Job {
+    base: usize,
     progress: std::sync::Arc<Progress>,
     rx: std::sync::mpsc::Receiver<Result<Value, String>>,
     cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -164,7 +279,28 @@ fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     }
     let snapshot = app.run("layer.namingCandidates", json!({"scope": d.str("scope"), "depth": d.fields.get("depth")}))?;
     let doc = app.session.active().ok_or("No document")?.doc.clone();
-    let rows = snapshot["rows"].as_array().cloned().ok_or("No candidates")?;
+    let mut rows = snapshot["rows"].as_array().cloned().ok_or("No candidates")?;
+    let ready = d.fields.get("names").and_then(Value::as_array).cloned().unwrap_or_default();
+    if !ready.is_empty() {
+        if d.fields.get("uid") != Some(&snapshot["uid"]) || d.fields.get("revision") != Some(&snapshot["revision"]) {
+            return Err("the document changed; generate names again".into());
+        }
+        let old: Vec<_> = d.fields.get("candidates").and_then(Value::as_array).into_iter().flatten().map(|r| r["id"].clone()).collect();
+        if old != rows.iter().map(|r| r["id"].clone()).collect::<Vec<_>>() {
+            return Err("Naming scope changed. Start over to use the new scope.".into());
+        }
+    }
+    let symbols = doc.symbol_boxes();
+    rows.retain(|row| {
+        row["id"].as_u64().and_then(|id| doc.node(vectorcraft_doc::NodeId(id))).is_some_and(|n| n.visual_bounds_with(&symbols).is_some())
+            && !ready.iter().any(|n| n["id"] == row["id"])
+    });
+    let base = ready.len();
+    d.fields.insert("total".into(), json!(base + rows.len()));
+    if rows.is_empty() && base > 0 {
+        d.fields.insert("complete".into(), json!(true));
+        return Ok(());
+    }
     let (tx, rx) = std::sync::mpsc::channel();
     let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let flag = cancel.clone();
@@ -181,12 +317,16 @@ fn start(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
             let _ = tx.send(result);
         })
         .map_err(|e| format!("Cannot start naming worker: {e}"))?;
-    app.naming_job = Some(Job { rx, cancel, progress });
+    app.naming_job = Some(Job { rx, cancel, progress, base });
     for key in ["uid", "revision"] {
         d.fields.insert(key.into(), snapshot[key].clone());
     }
     d.fields.insert("candidates".into(), snapshot["rows"].clone());
     d.fields.insert("busy".into(), json!(true));
+    d.fields.insert("complete".into(), json!(false));
+    d.fields.insert("syncedCount".into(), json!(0));
+    d.fields.insert("paused".into(), json!(false));
+    d.fields.insert("inFlight".into(), json!(false));
     Ok(())
 }
 
@@ -217,6 +357,12 @@ fn generate(
     let mut renderer = Renderer::new();
     let mut names: Vec<Value> = Vec::new();
     for row in &rows {
+        while progress.paused.load(std::sync::atomic::Ordering::Relaxed) {
+            if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+                return Err("Cancelled".into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
             return Err("Cancelled".into());
         }
@@ -243,9 +389,13 @@ fn generate(
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
             return Err("Cancelled".into());
         }
+        progress.in_flight.store(true, std::sync::atomic::Ordering::Relaxed);
         let response = post(endpoint, &request)?;
         let content = response.pointer("/message/content").and_then(Value::as_str).ok_or("Ollama returned no message content")?;
-        names.extend(validate(content, batch)?);
+        let named = validate(content, batch)?;
+        progress.names.lock().map_err(|_| "Naming worker stopped. Try again.")?.extend(named.iter().cloned());
+        names.extend(named);
+        progress.in_flight.store(false, std::sync::atomic::Ordering::Relaxed);
         progress.done.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     Ok(json!(names))
@@ -353,9 +503,90 @@ mod tests {
         assert!(app.ui.dialog.is_none());
         app.run("edit.undo", json!({})).unwrap();
         assert_eq!(app.run("layer.namingCandidates", json!({})).unwrap()["rows"], before["rows"]);
+        d.fields.insert("busy".into(), json!(true));
+        d.fields.insert("paused".into(), json!(true));
         app.ui.dialog = Some(d.clone());
         assert!(confirm(&mut app, &d).is_err());
         assert!(app.ui.dialog.is_some());
+        let mut output = egui::Context::default().run_ui(egui::RawInput::default(), |ui| {
+            body(&mut app, ui, &mut d);
+        });
+        assert!(!output.shapes.is_empty());
+        output.textures_delta.clear();
+        assert!(!d.bool("busy"), "a rejected partial apply must allow Start Over");
+    }
+
+    #[test]
+    fn pause_apply_partial_and_reopen_keeps_checkpoint_and_edits() {
+        use std::sync::{Arc, atomic::Ordering, mpsc};
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({})).unwrap();
+        for x in [10, 100] {
+            app.run("shape.rectangle", json!({"x":x,"y":10,"width":40,"height":20})).unwrap();
+            app.run("object.group", json!({})).unwrap();
+        }
+        let snapshot = app.run("layer.namingCandidates", json!({"depth":16})).unwrap();
+        let rows = snapshot["rows"].as_array().unwrap();
+        assert!(rows.len() >= 3);
+        open(&mut app).unwrap();
+        let mut d = app.ui.dialog.clone().unwrap();
+        for key in ["uid", "revision"] {
+            d.fields.insert(key.into(), snapshot[key].clone());
+        }
+        d.fields.insert("candidates".into(), snapshot["rows"].clone());
+        d.fields.insert("names".into(), json!([{"id":rows[0]["id"],"name":"Edited collection name"}]));
+        d.fields.insert("busy".into(), json!(true));
+        let progress = Arc::new(Progress::default());
+        progress.total.store(rows.len() - 1, Ordering::Relaxed);
+        progress.done.store(1, Ordering::Relaxed);
+        progress.paused.store(true, Ordering::Relaxed);
+        progress.in_flight.store(true, Ordering::Relaxed);
+        progress.names.lock().unwrap().push(json!({"id":rows[1]["id"],"name":"Play Button"}));
+        let (_tx, rx) = mpsc::channel();
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        app.naming_job = Some(Job { rx, cancel: cancel.clone(), progress: progress.clone(), base: 1 });
+        sync(&mut d, app.naming_job.as_ref().unwrap()).unwrap();
+        assert_eq!(d.fields["names"].as_array().unwrap().len(), 2);
+        assert_eq!(d.fields["total"], rows.len());
+        assert_eq!(d.fields["names"][0]["name"], "Edited collection name");
+        assert!(SPEC.ok_enabled.unwrap()(&app, &d));
+        confirm(&mut app, &d).unwrap();
+        assert!(cancel.load(Ordering::Relaxed));
+        open(&mut app).unwrap();
+        let saved = app.ui.dialog.as_ref().unwrap();
+        assert_eq!(saved.fields["names"].as_array().unwrap().len(), 2);
+        assert!(!saved.bool("busy"));
+        assert_eq!(saved.fields["revision"], app.session.active().unwrap().revision);
+        let fresh = app.run("layer.namingCandidates", json!({"depth":16})).unwrap();
+        assert_eq!(fresh["rows"][0]["name"], "Edited collection name");
+        app.run("shape.rectangle", json!({"x":200,"y":10,"width":10,"height":10})).unwrap();
+        open(&mut app).unwrap();
+        assert!(app.ui.dialog.as_ref().unwrap().fields.get("names").is_none(), "stale checkpoint must not target changed artwork");
+    }
+    #[test]
+    fn closing_in_flight_job_retains_latest_completed_batch() {
+        use std::sync::{Arc, atomic::Ordering, mpsc};
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({})).unwrap();
+        open(&mut app).unwrap();
+        let snapshot = app.run("layer.namingCandidates", json!({})).unwrap();
+        let mut d = app.ui.dialog.clone().unwrap();
+        for key in ["uid", "revision"] {
+            d.fields.insert(key.into(), snapshot[key].clone());
+        }
+        d.fields.insert("candidates".into(), snapshot["rows"].clone());
+        let progress = Arc::new(Progress::default());
+        progress.total.store(1, Ordering::Relaxed);
+        progress.names.lock().unwrap().push(json!({"id":snapshot["rows"][0]["id"],"name":"Ready collection"}));
+        let (_tx, rx) = mpsc::channel();
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        app.naming_checkpoint = Some(d);
+        app.naming_job = Some(Job { rx, cancel: cancel.clone(), progress, base: 0 });
+        super::super::cancel(&mut app);
+        close(&mut app);
+        assert!(cancel.load(Ordering::Relaxed));
+        open(&mut app).unwrap();
+        assert_eq!(app.ui.dialog.as_ref().unwrap().fields["names"][0]["name"], "Ready collection");
     }
 
     #[test]
@@ -394,6 +625,15 @@ mod tests {
             fields.insert("names".into(), json!([{"id":1,"name":"Coin Counter"},{"id":2,"name":"Settings Button"}]));
             harness.run_steps(3);
             harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-review.png")).unwrap();
+            let (_tx, rx) = std::sync::mpsc::channel();
+            let progress = std::sync::Arc::new(Progress::default());
+            progress.paused.store(true, std::sync::atomic::Ordering::Relaxed);
+            progress.total.store(5, std::sync::atomic::Ordering::Relaxed);
+            let app = harness.state_mut();
+            app.ui.dialog.as_mut().unwrap().fields.insert("busy".into(), json!(true));
+            app.naming_job = Some(Job { base: 0, progress, rx, cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) });
+            harness.run_steps(3);
+            harness.render().unwrap().save(std::path::Path::new(&dir).join("layer-naming-paused.png")).unwrap();
         }
     }
 
@@ -454,6 +694,82 @@ mod tests {
         assert_eq!(progress.done.load(std::sync::atomic::Ordering::Relaxed), 1);
         server.join().unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn pause_finishes_current_request_and_resume_skips_ready_groups() {
+        use std::io::{Read, Write};
+        use std::sync::{atomic::Ordering, mpsc};
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({})).unwrap();
+        for x in [10, 100] {
+            app.run("shape.rectangle", json!({"x":x,"y":10,"width":40,"height":20})).unwrap();
+            app.run("object.group", json!({})).unwrap();
+        }
+        let snapshot = app.run("layer.namingCandidates", json!({"depth":16})).unwrap();
+        let rows = snapshot["rows"].as_array().unwrap();
+        assert_eq!(rows.len(), 3);
+        let expected: Vec<_> = rows.iter().skip(1).map(|r| r["id"].clone()).collect();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!("http://{}/api/chat", listener.local_addr().unwrap());
+        let (requests, seen) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
+        let server = std::thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream.set_read_timeout(Some(std::time::Duration::from_secs(30))).unwrap();
+                let mut header = Vec::new();
+                while !header.ends_with(b"\r\n\r\n") {
+                    let mut b = [0];
+                    stream.read_exact(&mut b).unwrap();
+                    header.extend(b);
+                }
+                let header = String::from_utf8(header).unwrap();
+                let len: usize =
+                    header.lines().find_map(|l| l.to_ascii_lowercase().strip_prefix("content-length:").map(|n| n.trim().parse().unwrap())).unwrap();
+                let mut body = vec![0; len];
+                stream.read_exact(&mut body).unwrap();
+                let request: Value = serde_json::from_slice(&body).unwrap();
+                let id = request["format"]["properties"]["names"]["items"]["properties"]["id"]["enum"][0].clone();
+                requests.send(id.clone()).unwrap();
+                gate.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+                let reply = json!({"message":{"content":json!({"names":[{"id":id,"name":"Ready Button"}]}).to_string()}}).to_string();
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", reply.len(), reply).unwrap();
+            }
+        });
+        open(&mut app).unwrap();
+        let mut d = app.ui.dialog.take().unwrap();
+        for key in ["uid", "revision"] {
+            d.fields.insert(key.into(), snapshot[key].clone());
+        }
+        d.fields.insert("candidates".into(), snapshot["rows"].clone());
+        d.fields.insert("names".into(), json!([{"id":rows[0]["id"],"name":"Already completed"}]));
+        d.fields.insert("endpoint".into(), json!(endpoint));
+        d.fields.insert("model".into(), json!("test-vision"));
+        d.fields.insert("depth".into(), json!(16));
+        start(&mut app, &mut d).unwrap();
+        let job = app.naming_job.as_ref().unwrap();
+        assert_eq!(seen.recv_timeout(std::time::Duration::from_secs(30)).unwrap(), expected[0]);
+        job.progress.paused.store(true, Ordering::Relaxed);
+        release.send(()).unwrap();
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while job.progress.done.load(Ordering::Relaxed) < 1 {
+            assert!(std::time::Instant::now() < until);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        sync(&mut d, job).unwrap();
+        assert_eq!(d.fields["names"].as_array().unwrap().len(), 2);
+        assert!(seen.recv_timeout(std::time::Duration::from_millis(100)).is_err(), "pause must not request the next group");
+        job.progress.paused.store(false, Ordering::Relaxed);
+        assert_eq!(seen.recv_timeout(std::time::Duration::from_secs(30)).unwrap(), expected[1]);
+        release.send(()).unwrap();
+        let result = job.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
+        assert_eq!(result.as_array().unwrap().len(), 2);
+        sync(&mut d, job).unwrap();
+        assert_eq!(d.fields["names"].as_array().unwrap().len(), 3);
+        assert_eq!(d.fields["names"][0]["name"], "Already completed");
+        server.join().unwrap();
     }
 
     /// Opt-in real-model check; normal CI uses the deterministic local HTTP fixture above.

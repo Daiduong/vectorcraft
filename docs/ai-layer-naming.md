@@ -2,14 +2,24 @@
 
 Desktop: open the Layers panel menu → **Name Layers with AI…**. Enter the name of an installed
 Ollama vision model and choose the output language, whole document or highlighted rows/selection,
-and group depth (1–16). Click **Generate Names**, review/edit the proposals, then **Apply Names**.
-Settings are retained with UI preferences. Existing names are replaced only after Apply; Cancel
-leaves the document unchanged. One Undo restores all names together.
+and group depth (1–16). Use **Play** to start or continue and **Pause** to suspend the queue after the
+current group. Ready names appear as each request completes; the progress bar shows completed/total.
+Review/edit them and choose **Apply Ready Names** to apply the completed portion in one undo step.
+There is no Stop button. **Start Over** discards the current suggestions and checkpoint, without
+undoing names already applied. Settings are retained with UI preferences.
+
+Pausing retains ready names. Closing the dialog also keeps completed work in memory for the current
+document during this app session; it does not apply any uncommitted names. Reopen the dialog and
+press Play to skip completed groups. Applying a partial batch updates the checkpoint revision, so
+Play can continue from the first unfinished group after applying, for example, 100 of 500 names.
+Each applied batch has its own undo step. Checkpoints do not survive an app restart. Editing the
+document invalidates its checkpoint; changing the naming scope or depth requires Start Over.
+If a request fails, ready suggestions remain available to apply or continue.
 
 The server defaults to `http://localhost:11434/api/chat`. Ollama and an image-capable model must be
 installed separately; VectorCraft does not download a model. Desktop networking uses `curl` from
 PATH and reports an actionable error if it is absent. Web builds display an unsupported message.
-A generation sends artwork previews to the configured server, only after Generate is clicked.
+A generation sends artwork previews to the configured server, only after Play is clicked.
 A remote server receives the same previews. There is no API-key setting.
 
 Empty containers are skipped and keep their existing names.
@@ -28,8 +38,9 @@ this structure; see [structured outputs](https://docs.ollama.com/capabilities/st
 Output is untrusted. The app requires exactly one bounded, nonblank name for every requested ID;
 malformed JSON, extra/duplicate IDs, missing names and control characters are rejected. Requests time
 out after 120 seconds (10 seconds to connect), responses are limited to 1 MiB, and candidate lists
-to 1000 groups. Narrow the scope or depth for larger documents. Cancel stops further requests;
-an in-flight request may finish before its timeout, and its result is discarded.
+to 1000 groups. Narrow the scope or depth for larger documents. Closing the dialog or choosing Start Over stops further requests; an in-flight request may finish
+before its timeout, and its later result is discarded. Pausing lets that request finish and keeps
+its result, then sends no further requests until Play.
 
 Applying names checks the document UID and revision captured before generation. If the document
 changed, generate again. It modifies only the internal layer/group names: tree order, node IDs,
@@ -47,10 +58,16 @@ selection/depth, unchanged rendered pixels, SVG name round trips, malformed mode
 mock Ollama HTTP exchange including real rendered previews, and headless dialog layout. A real
 model is required separately to assess semantic naming quality; protocol tests do not measure it.
 
-Validation on 2026-10-17: all ten `cargo xtask ci` steps passed (fmt, Clippy, workspace tests,
+Initial implementation validation on 2026-10-17: all ten `cargo xtask ci` steps passed (fmt, Clippy, workspace tests,
 no-bundled-fonts, PDF dependencies, assets, brands, cursors, layering and WASM). Settings and review
 screens were rendered and inspected with the egui test harness. Real-model semantic quality remains
 unmeasured.
+
+Play/Pause follow-up (2026-10-17): seven focused UI tests passed, including a controlled HTTP
+request paused in flight, no subsequent request while paused, continuation skipping completed IDs,
+partial apply/reopen, preservation of user edits, close/reopen with the latest completed batch,
+and stale-document recovery. Settings, ready-name review and paused-player screenshots were rendered
+and inspected with the headless egui GPU harness.
 
 Ollama compatibility regression (2026-10-17): ordinary JSON mode allowed responses without `names`,
 and small models copied supplied placeholder names or confused targets in a contact sheet. Strict

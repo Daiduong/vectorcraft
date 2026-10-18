@@ -4831,3 +4831,13 @@ lighting	Light	Luce
 @msg	Server URL must start with http:// or https://	L’URL del server deve iniziare con http:// o https://
 @msg	Unable to render naming previews	Impossibile renderizzare le anteprime di denominazione
 @msg	Wait for generation to finish	Attendi il completamento della generazione
+
+# AI naming player and partial results.
+	Apply Ready Names	Applica nomi pronti
+	Play or continue naming	Avvia o riprendi la denominazione
+	Pause after the current group	Pausa dopo il gruppo corrente
+	Paused; ready names are kept.	In pausa; i nomi pronti sono conservati.
+	Start Over	Ricomincia
+	Finishing current group…	Completamento del gruppo corrente…
+@msg	Naming scope changed. Start over to use the new scope.	L’ambito della denominazione è cambiato. Ricominciare per usare il nuovo ambito.
+@msg	the document changed; generate names again	il documento è cambiato; generare di nuovo i nomi

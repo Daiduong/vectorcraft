@@ -5164,3 +5164,11 @@ theme	Appearance	Външен вид
 	Analyzing groups…	Анализиране на групи…
 	Review and edit names before applying.	Проверете и редактирайте имената преди прилагане.
 	Name Layers with AI…	Именуване на слоеве с ИИ…
+
+# AI naming player and partial results.
+	Apply Ready Names	Прилагане на готовите имена
+	Play or continue naming	Начало или продължаване на именуването
+	Pause after the current group	Пауза след текущата група
+	Paused; ready names are kept.	Пауза; готовите имена се запазват.
+	Start Over	Начало отначало
+	Finishing current group…	Завършване на текущата група…

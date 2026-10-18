@@ -4811,3 +4811,13 @@ lighting	Light	Світло
 @msg	Server URL must start with http:// or https://	Адреса сервера має починатися з http:// або https://
 @msg	Unable to render naming previews	Не вдалося відтворити перегляди для найменування
 @msg	Wait for generation to finish	Дочекайтеся завершення генерації
+
+# AI naming player and partial results.
+	Apply Ready Names	Застосувати готові назви
+	Play or continue naming	Почати або продовжити іменування
+	Pause after the current group	Пауза після поточної групи
+	Paused; ready names are kept.	Пауза; готові назви збережено.
+	Start Over	Почати заново
+	Finishing current group…	Завершення поточної групи…
+@msg	Naming scope changed. Start over to use the new scope.	Область іменування змінилася. Почніть заново для нової області.
+@msg	the document changed; generate names again	документ змінився; створіть назви заново

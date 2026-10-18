@@ -4872,3 +4872,13 @@ lighting	Light	ライト
 @msg	Server URL must start with http:// or https://	サーバーURLはhttp://またはhttps://で始まる必要があります
 @msg	Unable to render naming previews	命名用プレビューを描画できません
 @msg	Wait for generation to finish	生成が完了するまでお待ちください
+
+# AI naming player and partial results.
+	Apply Ready Names	完了した名前を適用
+	Play or continue naming	名前付けを開始または再開
+	Pause after the current group	現在のグループの後で一時停止
+	Paused; ready names are kept.	一時停止中。完了した名前は保持されます。
+	Start Over	最初からやり直す
+	Finishing current group…	現在のグループを完了中…
+@msg	Naming scope changed. Start over to use the new scope.	名前付けの範囲が変わりました。新しい範囲で最初からやり直してください。
+@msg	the document changed; generate names again	ドキュメントが変更されました。名前を再生成してください

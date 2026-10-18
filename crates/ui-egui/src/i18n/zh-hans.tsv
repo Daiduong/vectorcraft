@@ -5054,3 +5054,13 @@ lighting	Light	光源
 @msg	Server URL must start with http:// or https://	服务器 URL 必须以 http:// 或 https:// 开头
 @msg	Unable to render naming previews	无法渲染命名预览
 @msg	Wait for generation to finish	请等待生成完成
+
+# AI naming player and partial results.
+	Apply Ready Names	应用已完成的名称
+	Play or continue naming	开始或继续命名
+	Pause after the current group	当前组完成后暂停
+	Paused; ready names are kept.	已暂停，已完成的名称会保留。
+	Start Over	重新开始
+	Finishing current group…	正在完成当前组…
+@msg	Naming scope changed. Start over to use the new scope.	命名范围已更改。请重新开始以使用新范围。
+@msg	the document changed; generate names again	文档已更改，请重新生成名称

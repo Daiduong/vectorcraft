@@ -393,7 +393,7 @@ pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
 /// (one dialog at a time).
 pub(crate) fn settle(app: &mut VectorcraftApp) {
     if app.ui.dialog.as_ref().is_none_or(|d| d.kind != layer_names::KIND) {
-        app.naming_job = None;
+        layer_names::close(app);
     }
     missing_fonts::requeue_replaced(app);
     missing_fonts::stop_when_closed(app);

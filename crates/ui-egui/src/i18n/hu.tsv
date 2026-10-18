@@ -5204,3 +5204,13 @@ imageTrace	Outline	Körvonal
 @msg	Server URL must start with http:// or https://	A kiszolgáló URL-jének http:// vagy https:// kezdetűnek kell lennie
 @msg	Unable to render naming previews	A névadási előnézetek nem rajzolhatók ki
 @msg	Wait for generation to finish	Várja meg a generálás befejezését
+
+# AI naming player and partial results.
+	Apply Ready Names	Elkészült nevek alkalmazása
+	Play or continue naming	Elnevezés indítása vagy folytatása
+	Pause after the current group	Szünet az aktuális csoport után
+	Paused; ready names are kept.	Szünetel; az elkészült nevek megmaradnak.
+	Start Over	Újrakezdés
+	Finishing current group…	Aktuális csoport befejezése…
+@msg	Naming scope changed. Start over to use the new scope.	Az elnevezés hatóköre megváltozott. Az új hatókörhöz kezdje újra.
+@msg	the document changed; generate names again	a dokumentum megváltozott; hozza létre újra a neveket

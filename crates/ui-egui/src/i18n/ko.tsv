@@ -4795,3 +4795,13 @@ lighting	Light	광원
 @msg	Server URL must start with http:// or https://	서버 URL은 http:// 또는 https://로 시작해야 합니다
 @msg	Unable to render naming previews	이름 지정 미리 보기를 렌더링할 수 없습니다
 @msg	Wait for generation to finish	생성이 끝날 때까지 기다리세요
+
+# AI naming player and partial results.
+	Apply Ready Names	완료된 이름 적용
+	Play or continue naming	이름 지정 시작 또는 계속
+	Pause after the current group	현재 그룹 이후 일시 중지
+	Paused; ready names are kept.	일시 중지됨. 완료된 이름은 유지됩니다.
+	Start Over	처음부터 시작
+	Finishing current group…	현재 그룹 마무리 중…
+@msg	Naming scope changed. Start over to use the new scope.	이름 지정 범위가 변경되었습니다. 새 범위를 사용하려면 처음부터 시작하세요.
+@msg	the document changed; generate names again	문서가 변경되었습니다. 이름을 다시 생성하세요

@@ -4811,3 +4811,13 @@ theme	Appearance	Giao diện
 @msg	Server URL must start with http:// or https://	URL máy chủ phải bắt đầu bằng http:// hoặc https://
 @msg	Unable to render naming previews	Không thể kết xuất bản xem trước để đặt tên
 @msg	Wait for generation to finish	Chờ quá trình tạo hoàn tất
+
+# AI naming player and partial results.
+	Apply Ready Names	Áp dụng tên đã hoàn tất
+	Play or continue naming	Bắt đầu hoặc tiếp tục đặt tên
+	Pause after the current group	Tạm dừng sau nhóm hiện tại
+	Paused; ready names are kept.	Đã tạm dừng; các tên đã hoàn tất được giữ lại.
+	Start Over	Bắt đầu lại
+	Finishing current group…	Đang hoàn tất nhóm hiện tại…
+@msg	Naming scope changed. Start over to use the new scope.	Phạm vi đặt tên đã thay đổi. Bắt đầu lại để dùng phạm vi mới.
+@msg	the document changed; generate names again	tài liệu đã thay đổi; hãy tạo lại tên

@@ -5070,3 +5070,13 @@ mark-style	Japanese	Japońskie
 @msg	Server URL must start with http:// or https://	Adres serwera musi zaczynać się od http:// lub https://
 @msg	Unable to render naming previews	Nie można wyrenderować podglądów nazw
 @msg	Wait for generation to finish	Poczekaj na zakończenie generowania
+
+# AI naming player and partial results.
+	Apply Ready Names	Zastosuj gotowe nazwy
+	Play or continue naming	Rozpocznij lub wznów nazywanie
+	Pause after the current group	Wstrzymaj po bieżącej grupie
+	Paused; ready names are kept.	Wstrzymano; gotowe nazwy zachowano.
+	Start Over	Zacznij od nowa
+	Finishing current group…	Kończenie bieżącej grupy…
+@msg	Naming scope changed. Start over to use the new scope.	Zakres nazywania zmienił się. Zacznij od nowa, aby użyć nowego zakresu.
+@msg	the document changed; generate names again	dokument zmienił się; wygeneruj nazwy ponownie

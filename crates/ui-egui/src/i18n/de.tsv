@@ -4793,3 +4793,13 @@ effect	Regular	Regelmäßig
 @msg	Server URL must start with http:// or https://	Die Server-URL muss mit http:// oder https:// beginnen
 @msg	Unable to render naming previews	Namensvorschauen können nicht gerendert werden
 @msg	Wait for generation to finish	Warten, bis die Generierung abgeschlossen ist
+
+# AI naming player and partial results.
+	Apply Ready Names	Fertige Namen anwenden
+	Play or continue naming	Benennung starten oder fortsetzen
+	Pause after the current group	Nach der aktuellen Gruppe pausieren
+	Paused; ready names are kept.	Pausiert; fertige Namen bleiben erhalten.
+	Start Over	Neu beginnen
+	Finishing current group…	Aktuelle Gruppe wird abgeschlossen…
+@msg	Naming scope changed. Start over to use the new scope.	Der Benennungsbereich hat sich geändert. Für den neuen Bereich neu beginnen.
+@msg	the document changed; generate names again	das Dokument wurde geändert; Namen erneut erzeugen

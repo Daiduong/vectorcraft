@@ -5218,3 +5218,13 @@ mark-style	Japanese	Japonské
 @msg	Server URL must start with http:// or https://	URL serveru musí začínat http:// nebo https://
 @msg	Unable to render naming previews	Nelze vykreslit náhledy pro pojmenování
 @msg	Wait for generation to finish	Počkejte na dokončení generování
+
+# AI naming player and partial results.
+	Apply Ready Names	Použít hotové názvy
+	Play or continue naming	Spustit nebo pokračovat v pojmenování
+	Pause after the current group	Pozastavit po aktuální skupině
+	Paused; ready names are kept.	Pozastaveno; hotové názvy zůstávají.
+	Start Over	Začít znovu
+	Finishing current group…	Dokončování aktuální skupiny…
+@msg	Naming scope changed. Start over to use the new scope.	Rozsah pojmenování se změnil. Pro nový rozsah začněte znovu.
+@msg	the document changed; generate names again	dokument se změnil; vygenerujte názvy znovu

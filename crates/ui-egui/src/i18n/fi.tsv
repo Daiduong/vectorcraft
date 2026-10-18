@@ -5182,3 +5182,13 @@ mark-style	Japanese	Japanilainen
 @msg	Server URL must start with http:// or https://	Palvelimen URL-osoitteen on alettava http:// tai https://
 @msg	Unable to render naming previews	Nimeämisen esikatseluja ei voi piirtää
 @msg	Wait for generation to finish	Odota luonnin valmistumista
+
+# AI naming player and partial results.
+	Apply Ready Names	Käytä valmiita nimiä
+	Play or continue naming	Aloita tai jatka nimeämistä
+	Pause after the current group	Keskeytä nykyisen ryhmän jälkeen
+	Paused; ready names are kept.	Keskeytetty; valmiit nimet säilyvät.
+	Start Over	Aloita alusta
+	Finishing current group…	Viimeistellään nykyistä ryhmää…
+@msg	Naming scope changed. Start over to use the new scope.	Nimeämisen laajuus muuttui. Aloita alusta uuden laajuuden käyttämiseksi.
+@msg	the document changed; generate names again	asiakirja muuttui; luo nimet uudelleen
