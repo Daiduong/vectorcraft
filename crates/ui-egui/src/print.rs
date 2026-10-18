@@ -174,8 +174,10 @@ pub(crate) fn with_grayscale(settings: &Value, gray: bool) -> Value {
 ///
 /// Copies: a printer that takes a copies setting makes them itself (the PDF is one copy); one that
 /// doesn't (or hasn't been queried to say) gets them in the PDF, so the sheets are what was asked for.
+///
+/// `paper_chosen`: the person picked the paper (the dialog says so), so it is sent as the media.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_network(app: &mut VectorcraftApp, settings: &Value) -> Result<Value, String> {
+pub fn run_network(app: &mut VectorcraftApp, settings: &Value, paper_chosen: bool) -> Result<Value, String> {
     use craft_ui::printing::network::Block;
     let sheets_ok =
         app.session.execute("print.preview", &json!({ "settings": settings })).is_ok_and(|v| v["sheets"].as_array().is_some_and(|s| !s.is_empty()));
@@ -204,7 +206,9 @@ pub fn run_network(app: &mut VectorcraftApp, settings: &Value) -> Result<Value, 
     let pdf = data.as_ref().and_then(Value::as_str).and_then(vectorcraft_format::base64_decode).ok_or("the print job has no data")?;
     let title = app.session.active().map(|d| d.title()).unwrap_or_default();
     let pages = v["pages"].as_u64().map_or(0, |n| n as usize);
-    let paper = settings["media"].as_str().and_then(crate::network_glue::media_for_paper);
+    // The paper goes to the printer only when the person chose it; otherwise `media` is the document's
+    // own default (Letter) and the printer's own paper stands, as for a local queue.
+    let paper = paper_chosen.then(|| settings["media"].as_str().and_then(crate::network_glue::media_for_paper)).flatten();
     if !app.print_net.send(None, &title, pdf, pages, paper) {
         return Err(tl!("Couldn't reach the printer").into());
     }

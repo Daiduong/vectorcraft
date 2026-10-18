@@ -213,7 +213,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     #[cfg(not(target_arch = "wasm32"))]
     if d.bool("network") {
         // A network printer: the job runs in the background and the dialog stays open to show it.
-        return crate::print::run_network(app, &settings);
+        return crate::print::run_network(app, &settings, paper_chosen(&d));
     }
     let job = json!({ "settings": settings, "printer": d.str("printer"), "toFile": d.bool("toFile"), "paperChosen": paper_chosen(&d) });
     let r = crate::print::run(app, &job)?;
