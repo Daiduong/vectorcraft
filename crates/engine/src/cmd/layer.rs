@@ -152,7 +152,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Fit to Artwork Bounds",
             ["Object", "Artboards"],
             None,
-            "{index?: n (0-based; the app passes the active artboard; default: the first)} the artboard fits the art that shows (with its strokes and effects; hidden objects and layers, guides and template layers don't count)",
+            "{index?: n | indices?: [n…] (0-based; the app passes the selected artboards: the Artboard tool's, else the active one; default: the first)} each artboard fits the art on it that shows (with its strokes and effects; hidden objects and layers, guides and template layers don't count), in one undo step: an object counts for every artboard its bounds overlap, and a group or clipping layer counts as one object; an artboard with no art stays as it is, and the command fails when no artboard it names has art",
             has_doc,
             artboard_fit_art
         ),
@@ -161,7 +161,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Fit to Selected Art",
             ["Object", "Artboards"],
             None,
-            "{index?: n (0-based; the app passes the active artboard; default: the first)}",
+            "{index?: n (0-based; the app passes the active artboard; default: the first)} the artboard fits the selected art (with its strokes)",
             has_selection,
             artboard_fit_sel
         ),
@@ -286,7 +286,7 @@ pub(crate) fn make_layer(d: &mut Document, name: Option<&str>) -> Node {
 }
 
 /// A layer colour: a preset index (0–26), `#rrggbb` or a preset's name (any case).
-fn layer_color_param(v: &Value) -> std::result::Result<LayerColor, String> {
+pub(super) fn layer_color_param(v: &Value) -> std::result::Result<LayerColor, String> {
     match v {
         Value::Number(n) => match n.as_u64() {
             Some(i) if (i as usize) < LAYER_COLORS.len() => Ok(LayerColor::Preset(i as u8)),
@@ -411,6 +411,9 @@ fn target(s: &mut Session, p: &Value) -> Result<Value> {
     let n = st.doc.node(id).ok_or(EngineError::NoNode(id))?;
     if !st.doc.is_editable(id) {
         return Err(bad(C, "the object is hidden or locked"));
+    }
+    if !in_isolation(&st.doc, st.isolation, id) {
+        return Err(bad(C, "the object is outside the isolated group"));
     }
     let layer = n.is_layer();
     let rows = st.layer_rows.clone();
@@ -645,6 +648,11 @@ fn collect(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "id": lid.0 }))
 }
 
+/// Whether `id` lies inside the isolated group or layer (always, outside isolation mode).
+fn in_isolation(doc: &Document, isolation: Option<NodeId>, id: NodeId) -> bool {
+    isolation.is_none_or(|iso| iso != id && doc.ancestry(id).is_some_and(|a| a.contains(&iso)))
+}
+
 /// The selection column: select a row's art.
 fn select_art(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "layer.selectAll";
@@ -652,7 +660,7 @@ fn select_art(s: &mut Session, p: &Value) -> Result<Value> {
     let add = bool_or(p, "add", false);
     let st = s.doc()?;
     let n = st.doc.node(id).ok_or(EngineError::NoNode(id))?;
-    let ids: Vec<NodeId> = if !st.doc.is_editable(id) {
+    let ids: Vec<NodeId> = if !st.doc.is_editable(id) || !in_isolation(&st.doc, st.isolation, id) {
         vec![]
     } else if n.is_layer() {
         n.layer_art(true)
@@ -802,7 +810,8 @@ fn artboard_new(s: &mut Session, p: &Value) -> Result<Value> {
     let r = rect_from(p, def);
     let idx = s.edit("New Artboard", |d, _| {
         let id = d.next_artboard_id();
-        let name = str_param(p, "name").map(str::to_string).unwrap_or_else(|| format!("Artboard {}", d.artboards.len() + 1));
+        let given = str_param(p, "name").map(str::trim).filter(|n| !n.is_empty());
+        let name = given.map_or_else(|| format!("Artboard {}", d.artboards.len() + 1), str::to_string);
         d.artboards.push(Artboard { id, name, rect: r, show_center_mark: false, show_cross_hairs: false });
         Ok(d.artboards.len() - 1)
     })?;
@@ -826,7 +835,7 @@ fn artboard_delete(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn artboard_set(s: &mut Session, p: &Value) -> Result<Value> {
-    let i = p.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
+    let i = super::panelcmds::artboard_index(&s.doc()?.doc, p, "artboard.setProps")?;
     let was = s.doc()?.doc.artboards.get(i).map(|a| a.rect).ok_or_else(|| EngineError::Other("no such artboard".into()))?;
     let now = rect_from(p, was);
     let resized = (now.width() - was.width()).abs() > 1e-6 || (now.height() - was.height()).abs() > 1e-6;
@@ -856,8 +865,9 @@ fn artboard_set(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Artboard Options", |d, _| {
         let a = d.artboards.get_mut(i).ok_or_else(|| EngineError::Other("no such artboard".into()))?;
         a.rect = now;
-        if let Some(n) = str_param(p, "name") {
-            a.name = n.to_string();
+        if let Some(n) = str_param(p, "name").map(str::trim) {
+            // A blank name gives the artboard its default name, Artboard N for the Nth artboard.
+            a.name = if n.is_empty() { format!("Artboard {}", i + 1) } else { n.to_string() };
         }
         let id = a.id;
         if let Some(xf) = transform {
@@ -890,17 +900,43 @@ fn rect_map(from: Rect, to: Rect) -> Option<Affine> {
     xf.is_finite().then_some(xf)
 }
 
-/// The artboard fits the art that exports draw: hidden objects and layers, guides and template
-/// layers don't count.
+/// Each artboard of `index` or `indices` (default: the first) fits the art on it that exports
+/// draw ([`vectorcraft_render::encode::art_bounds_on`]): hidden objects and layers, guides and
+/// template layers don't count. An artboard with no art on it stays as it is, and the command
+/// fails when none has art. The fits are one undo step named Artboard Options.
 fn artboard_fit_art(s: &mut Session, p: &Value) -> Result<Value> {
-    let i = p.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
-    let b = vectorcraft_render::encode::art_bounds(&s.doc()?.doc).ok_or_else(|| EngineError::Other("no artwork".into()))?;
-    s.execute("artboard.setProps", &json!({"index": i, "x": b.x0, "y": b.y0, "width": b.width(), "height": b.height()}))
+    let d = &s.doc()?.doc;
+    let indices =
+        if p.get("index").is_none() && p.get("indices").is_none() { vec![0] } else { super::panelcmds::artboard_indices(d, p, "artboard.fitToArt")? };
+    let mut fits = vec![];
+    for i in indices {
+        let was = d.artboards.get(i).map(|a| a.rect).ok_or_else(|| EngineError::Other("no such artboard".into()))?;
+        if let Some(b) = vectorcraft_render::encode::art_bounds_on(d, was) {
+            // At least 1 pt a side, as `rect_from` makes Artboard Options' sizes.
+            fits.push((i, was, Rect::new(b.x0, b.y0, b.x0 + b.width().max(1.0), b.y0 + b.height().max(1.0))));
+        }
+    }
+    if fits.is_empty() {
+        return Err(EngineError::Other("no artwork".into()));
+    }
+    s.edit("Artboard Options", |d, _| {
+        for &(i, was, now) in &fits {
+            let a = d.artboards.get_mut(i).ok_or_else(|| EngineError::Other("no such artboard".into()))?;
+            a.rect = now;
+            let id = a.id;
+            // Moved and not resized, it takes its guides along, as in Artboard Options.
+            if (now.width() - was.width()).abs() <= 1e-6 && (now.height() - was.height()).abs() <= 1e-6 {
+                d.move_artboard_guides(id, now.origin() - was.origin());
+            }
+        }
+        Ok(())
+    })?;
+    ok()
 }
 
 fn artboard_fit_sel(s: &mut Session, p: &Value) -> Result<Value> {
-    let i = p.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
     let st = s.doc()?;
+    let i = if p.get("index").is_none() { 0 } else { super::panelcmds::artboard_index(&st.doc, p, "artboard.fitToSelection")? };
     let b = st.doc.bounds_of(&st.selection.objects, true).ok_or_else(|| EngineError::Other("no selection bounds".into()))?;
     s.execute("artboard.setProps", &json!({"index": i, "x": b.x0, "y": b.y0, "width": b.width(), "height": b.height()}))
 }

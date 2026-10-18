@@ -14,6 +14,7 @@ pub mod journal;
 pub mod link_watch;
 pub mod namematch;
 pub mod steps;
+pub mod store;
 mod tooling;
 pub mod units;
 
@@ -34,6 +35,7 @@ pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
 pub use journal::Journal;
 pub use tooling::{UiRequest, ViewInfo};
 pub use vectorcraft_doc as doc;
+pub use vectorcraft_doc::cancel;
 pub use vectorcraft_tools as tools;
 
 #[derive(Debug, thiserror::Error)]
@@ -50,9 +52,18 @@ pub enum EngineError {
     NoNode(NodeId),
     #[error("{0}")]
     Other(String),
+    /// The caller asked for the command to stop ([`cancel`]). It changed nothing.
+    #[error("cancelled; nothing was changed")]
+    Cancelled,
     /// A bug: the command panicked. The document was rolled back to its state before the command.
     #[error("internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)")]
     Internal { cmd: String, msg: String },
+}
+
+impl From<cancel::Cancelled> for EngineError {
+    fn from(_: cancel::Cancelled) -> Self {
+        EngineError::Cancelled
+    }
 }
 
 impl From<vectorcraft_doc::DocError> for EngineError {
@@ -276,6 +287,8 @@ pub struct DocState {
     /// The document as last saved (or opened). Structural sharing makes "unchanged" a pointer
     /// comparison, and undoing back to the saved state counts as clean.
     saved_doc: Arc<Document>,
+    /// The documents that changes that are not edits to save replaced ([`DocState::same_content`]).
+    unsaved_changes: SameContent,
     /// The layer new art goes into (the "current layer" in the Layers panel).
     pub active_layer: Option<NodeId>,
     /// The rows highlighted in the Layers panel (layers, sublayers, groups or objects, in the order
@@ -300,12 +313,15 @@ pub struct DocState {
     /// What Select → Reselect repeats: the last selection command, its params and the objects
     /// selected when it ran (a Same command's reference objects).
     pub last_selection_cmd: Option<(String, Value, Vec<NodeId>)>,
+    /// The saved selection last recalled (`select.recall`), which Select → Update Selection
+    /// changes. It is not saved with the file, and a recall is not an undo step.
+    pub recalled_selection: RecalledSelection,
     /// Process-unique id of this open document (tab indices shift when tabs close).
     pub uid: u64,
     /// View Opacity Mask (Alt-click the mask thumbnail): the masked object whose mask the canvas
     /// shows alone, in greyscale, while that mask is edited (see [`DocState::shown_mask`]).
     pub mask_view: Option<NodeId>,
-    /// View → Show Transparency Grid, per document (view state: not saved, not undoable).
+    /// View → Show Transparency Grid, per document (saved view state, not undoable).
     pub transparency_grid: bool,
     /// The format Save writes ([`cmd::fileio::SAVE_FORMATS`]): the one the document was opened
     /// from or last saved as.
@@ -342,7 +358,7 @@ static NEXT_DOC_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64
 
 /// The rows open in the Layers panel: the layers, sublayers and groups that show what they hold.
 /// A document opens with the ones it was saved with ([`Document::layers_open`]), else with only
-/// its top-level layers open.
+/// its top-level layers open (a `.ai` another app wrote opens with none open).
 #[derive(Clone, Debug, Default)]
 pub struct OpenRows {
     ids: std::collections::HashSet<NodeId>,
@@ -387,17 +403,99 @@ impl OpenRows {
     }
 }
 
+/// The saved selection last recalled, which Select → Update Selection changes. The Select commands
+/// give each saved selection an id for the session and keep the ids for every version of the
+/// document's saved selections they make or read, so the recalled one is found again after Edit
+/// Selection…, Undo and Redo. A version that nothing holds any more (neither the document nor its
+/// undo history) is dropped the next time a version is added.
+#[derive(Clone, Debug, Default)]
+pub struct RecalledSelection {
+    /// The recalled saved selection's id.
+    id: Option<u64>,
+    /// Each version of the saved selections (identified by its allocation), with the id of each saved
+    /// selection in it.
+    versions: Vec<(std::sync::Weak<Vec<vectorcraft_doc::SavedSelection>>, Vec<u64>)>,
+    /// The last id given.
+    last: u64,
+}
+
+impl RecalledSelection {
+    /// The ids of `list`'s saved selections; a version not met before gets new ones.
+    pub(crate) fn ids(&mut self, list: &vectorcraft_doc::Shared<Vec<vectorcraft_doc::SavedSelection>>) -> Vec<u64> {
+        let version = vectorcraft_doc::Shared::downgrade(list);
+        if let Some((_, ids)) = self.versions.iter().find(|(v, _)| v.ptr_eq(&version)) {
+            return ids.clone();
+        }
+        let ids: Vec<u64> = (0..list.len()).map(|_| self.new_id()).collect();
+        self.remember(list, ids.clone());
+        ids
+    }
+    /// An id no saved selection has had.
+    pub(crate) fn new_id(&mut self) -> u64 {
+        self.last += 1;
+        self.last
+    }
+    /// Keep `ids` as those of `list`'s saved selections, dropping versions nothing holds any more.
+    pub(crate) fn remember(&mut self, list: &vectorcraft_doc::Shared<Vec<vectorcraft_doc::SavedSelection>>, ids: Vec<u64>) {
+        let version = vectorcraft_doc::Shared::downgrade(list);
+        self.versions.retain(|(v, _)| v.strong_count() > 0 && !v.ptr_eq(&version));
+        self.versions.push((version, ids));
+    }
+    /// Recall the saved selection at `index` in `list`.
+    pub(crate) fn recall(&mut self, list: &vectorcraft_doc::Shared<Vec<vectorcraft_doc::SavedSelection>>, index: usize) {
+        self.id = self.ids(list).get(index).copied();
+    }
+    /// Where the recalled saved selection is in `list`, if `list` holds it.
+    pub fn index_in(&self, list: &vectorcraft_doc::Shared<Vec<vectorcraft_doc::SavedSelection>>) -> Option<usize> {
+        let id = self.id?;
+        let version = vectorcraft_doc::Shared::downgrade(list);
+        let (_, ids) = self.versions.iter().find(|(v, _)| v.ptr_eq(&version))?;
+        ids.iter().position(|&x| x == id).filter(|&i| i < list.len())
+    }
+}
+
+/// The documents that changes that are not edits to save (Puppet Warp pins dropped, Edit Text ended,
+/// type laid out again after a font scan) replaced, each counted as having the content of the
+/// document it was replaced by ([`DocState::change_unsaved`]). A document that nothing holds any
+/// more is dropped the next time one is added.
+#[derive(Clone, Debug, Default)]
+struct SameContent {
+    /// The document the last such change made.
+    now: std::sync::Weak<Document>,
+    /// The documents with its content that such changes replaced, oldest first.
+    before: Vec<std::sync::Weak<Document>>,
+}
+
+impl SameContent {
+    /// Note that `now` replaced `before` without a change to its content.
+    fn replaced(&mut self, before: std::sync::Weak<Document>, now: &Arc<Document>) {
+        if !self.now.ptr_eq(&before) {
+            self.before.clear();
+        }
+        self.before.retain(|d| d.strong_count() > 0);
+        if before.strong_count() > 0 {
+            self.before.push(before);
+        }
+        self.now = Arc::downgrade(now);
+    }
+    /// Whether `doc` is one of the documents with the content of `now`.
+    fn holds(&self, now: &Arc<Document>, doc: &Arc<Document>) -> bool {
+        std::ptr::eq(self.now.as_ptr(), Arc::as_ptr(now)) && self.before.iter().any(|d| std::ptr::eq(d.as_ptr(), Arc::as_ptr(doc)))
+    }
+}
+
 impl DocState {
     pub fn new(mut doc: Document, path: Option<String>) -> Self {
         let active_layer = doc.default_layer();
-        // The saved view and open Layers rows live here while the document is open (saves write
-        // them back).
+        // Saved view state lives here while the document is open (saves write it back).
         let view = doc.last_view.take();
+        let transparency_grid = std::mem::take(&mut doc.transparency_grid);
         let saved_open = doc.layers_open.take();
         let layers_open = OpenRows::new(&doc, saved_open);
         let doc = Arc::new(doc);
         Self {
             saved_doc: doc.clone(),
+            unsaved_changes: SameContent::default(),
             doc,
             selection: Selection::default(),
             history: History { limit: 500, ..Default::default() },
@@ -411,9 +509,10 @@ impl DocState {
             undo_group: None,
             last_transform: None,
             last_selection_cmd: None,
+            recalled_selection: RecalledSelection::default(),
             uid: NEXT_DOC_UID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             mask_view: None,
-            transparency_grid: false,
+            transparency_grid,
             format: "vectorcraft",
             save_options: Default::default(),
             converted: false,
@@ -427,9 +526,10 @@ impl DocState {
             last_perspective: None,
         }
     }
-    /// Unsaved changes: the document differs from the saved one (selection changes don't count).
+    /// Unsaved changes: the document differs from the saved one (selection changes and changes that
+    /// are not edits to save don't count, [`DocState::same_content`]).
     pub fn is_dirty(&self) -> bool {
-        !Arc::ptr_eq(&self.doc, &self.saved_doc)
+        !self.same_content(&self.saved_doc)
     }
     /// Record the current document as saved.
     pub fn mark_saved(&mut self) {
@@ -439,6 +539,26 @@ impl DocState {
     /// keep the document modified.
     pub fn mark_saved_as(&mut self, snapshot: &Arc<Document>) {
         self.saved_doc = snapshot.clone();
+    }
+    /// Whether `doc` counts as having the content of the document now: it is the document, or one
+    /// that changes that are not edits to save replaced since ([`DocState::change_unsaved`]).
+    pub fn same_content(&self, doc: &Arc<Document>) -> bool {
+        Arc::ptr_eq(&self.doc, doc) || self.unsaved_changes.holds(&self.doc, doc)
+    }
+    /// Make a change that is not an edit to save with `f`, without an undo step: editing state that
+    /// is never saved, or type laid out again after a font scan (which can also refit the frame of
+    /// Auto Size area type). A saved document stays saved, and a save or recovery copy taken of the
+    /// document before counts as having its content ([`DocState::same_content`]).
+    pub(crate) fn change_unsaved(&mut self, f: impl FnOnce(&mut Arc<Document>)) {
+        let saved = !self.is_dirty();
+        let before = Arc::downgrade(&self.doc);
+        f(&mut self.doc);
+        if !std::ptr::eq(before.as_ptr(), Arc::as_ptr(&self.doc)) {
+            self.unsaved_changes.replaced(before, &self.doc);
+        }
+        if saved {
+            self.mark_saved();
+        }
     }
     /// Keep what interaction `it` (taken from this document) changed, as one undo step.
     pub(crate) fn keep_interaction(&mut self, it: Interaction) {
@@ -563,16 +683,17 @@ pub const ON_ACTIVE_ARTBOARD: [&str; 7] = [
     "select.allOnArtboard",
 ];
 
-/// The commands that resize the active artboard, which the app passes as their `index`: Fit to
-/// Artwork Bounds and Fit to Selected Art (Object › Artboards). A `command.batch` given `artboard`
-/// passes it on, as `index`, to each of their steps that names none.
+/// The commands that resize the artboards the app passes (Object › Artboards): the app passes the
+/// selected artboards to Fit to Artwork Bounds as its `indices`, and the active artboard to Fit to
+/// Selected Art as its `index`. A `command.batch` given `artboard` passes it on, as `index`, to
+/// each of their steps that names none.
 pub const FIT_ACTIVE_ARTBOARD: [&str; 2] = ["artboard.fitToArt", "artboard.fitToSelection"];
 
 /// `(command, param)` pairs the journal records only so a replay reproduces the original run
-/// (dates from the clock: `cmd::clock_date`; the active artboard the app passes to the
+/// (dates from the clock: `cmd::clock_date`; the artboards the app passes to the
 /// [`ON_ACTIVE_ARTBOARD`] and [`FIT_ACTIVE_ARTBOARD`] commands and to a batch); an action leaves
 /// them out ([`Session::journal_for_action`]).
-const REPLAY_ONLY: [(&str, &str); 13] = [
+const REPLAY_ONLY: [(&str, &str); 14] = [
     ("file.new", "created"),
     ("document.save", "modified"),
     ("file.saveAs", "modified"),
@@ -583,6 +704,7 @@ const REPLAY_ONLY: [(&str, &str); 13] = [
     ("object.distribute", "artboard"),
     ("object.distributeSpacing", "artboard"),
     ("artboard.fitToArt", "index"),
+    ("artboard.fitToArt", "indices"),
     ("artboard.fitToSelection", "index"),
     ("select.allOnArtboard", "artboard"),
     ("command.batch", "artboard"),
@@ -612,6 +734,18 @@ fn strip_replay_only(id: &str, p: &mut Value) {
 /// Is `id` a path made into a guide (View → Guides → Make Guides)?
 pub(crate) fn is_guide_path(d: &Document, id: NodeId) -> bool {
     d.node(id).is_some_and(|n| matches!(n.kind, NodeKind::Path { guide: true, .. }))
+}
+
+/// Deselect the ruler guides and the paths made into guides: while View → Guides → Lock Guides is
+/// on, they can't be selected (#1534), whatever selects them. → whether any was selected.
+pub(crate) fn deselect_guides(d: &Document, sel: &mut Selection) -> bool {
+    let paths: Vec<NodeId> = sel.objects.iter().copied().filter(|id| is_guide_path(d, *id)).collect();
+    let any = !paths.is_empty() || !sel.guides.is_empty();
+    for id in paths {
+        sel.remove(id);
+    }
+    sel.guides.clear();
+    any
 }
 
 /// The error of an edit that would nest objects deeper than [`vectorcraft_doc::MAX_DEPTH`].
@@ -669,6 +803,8 @@ pub struct Prefs {
     pub zoom_with_mouse_wheel: bool,
     /// A horizontal drag on a numeric field or its label steps its value (#400).
     pub scrub_numeric_fields: bool,
+    /// A two-finger rotation on a Mac trackpad turns the view about the pointer once it reaches 5°.
+    pub trackpad_rotate_view: bool,
     /// Offset for Paste / duplicate (Illustrator pastes to the view centre; we offset by this).
     pub paste_offset: f64,
     // Selection & Anchor Display
@@ -744,6 +880,11 @@ pub struct Prefs {
     pub scratch_secondary: String,
     // User Interface
     pub ui_brightness: String,
+    /// User Interface › Accent Color: the colour of what is on, chosen or focused.
+    pub ui_accent: String,
+    /// User Interface › Color Scheme: "modern" (with the accent above) or "classic" (neutral
+    /// greys and a blue accent).
+    pub ui_color_scheme: String,
     pub canvas_color: String,
     pub auto_collapse_icon_panels: bool,
     /// User Interface › Show Tool Group Labels: the toolbar's group names (Select, Shapes, Draw…);
@@ -777,7 +918,8 @@ pub struct Prefs {
     /// Rasterizer worker threads; -1 = automatic.
     pub render_threads: i32,
     /// Linux: `automatic` opens the window on the session's display server; `x11` opens it through
-    /// XWayland on a Wayland session, where dropped files arrive (#1151). Read when the app starts.
+    /// XWayland on a Wayland session, where dropped files arrive (#1151); `x11WithPen` opens it
+    /// through XWayland only when a pen is attached (#2028). Read when the app starts.
     pub linux_display_server: String,
     // File Handling
     pub background_save: bool,
@@ -842,6 +984,10 @@ pub struct Prefs {
     /// not a Preferences dialog field: resetting the preferences keeps it; `pdf.preset.*` edit it.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub pdf_presets: Vec<vectorcraft_pdf::PdfPreset>,
+    /// File → Export for Screens: the user's batch export presets (`document.exportPresets.*`;
+    /// the built-in ones aren't stored). A local library, not a Preferences dialog field.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub screen_export_presets: Vec<cmd::fileio::ScreenExportPreset>,
     // File Handling (continued)
     /// Where Save as Template and New from Template start ("" = `Documents/VectorCraft Templates`).
     pub templates_folder: String,
@@ -915,6 +1061,7 @@ impl Default for Prefs {
             scale_strokes: false,
             zoom_with_mouse_wheel: false,
             scrub_numeric_fields: true,
+            trackpad_rotate_view: true,
             paste_offset: 10.0,
             selection_tolerance: 3.0,
             object_selection_by_path_only: false,
@@ -941,7 +1088,7 @@ impl Default for Prefs {
             font_preview_size: s("medium"),
             recent_fonts_count: 10,
             missing_glyph_protection: true,
-            highlight_alternate_glyphs: true,
+            highlight_alternate_glyphs: false,
             placeholder_text: true,
             units_general: s("points"),
             units_stroke: s("points"),
@@ -976,6 +1123,8 @@ impl Default for Prefs {
             scratch_primary: s("Startup"),
             scratch_secondary: s("None"),
             ui_brightness: s("mediumDark"),
+            ui_accent: s("coral"),
+            ui_color_scheme: s("modern"),
             canvas_color: s("matchUi"),
             auto_collapse_icon_panels: false,
             tool_group_labels: false,
@@ -1025,6 +1174,7 @@ impl Default for Prefs {
             new_doc_presets: vec![],
             recent_new_docs: vec![],
             pdf_presets: vec![],
+            screen_export_presets: vec![],
             templates_folder: String::new(),
             append_converted: true,
             use_compression: false,
@@ -1097,6 +1247,15 @@ pub struct Session {
     pub style_libraries: cmd::stylelib::Libraries,
     /// The Libraries panel's libraries of graphics, colours and text styles (`library.*`).
     pub libraries: cmd::library::Libraries,
+    /// Where the saved PDF presets are kept, one file each; `None`: only for the session
+    /// ([`Session::attach_pdf_preset_store`]).
+    pdf_preset_dir: Option<std::path::PathBuf>,
+    /// Where the ICC profiles `color.loadProfile` loads are kept; `None`: only for the process
+    /// ([`Session::attach_profile_store`]).
+    profile_dir: Option<std::path::PathBuf>,
+    /// Where the plug-ins `plugin.install` installs are kept; `None`: only for the process
+    /// ([`Session::attach_plugin_store`]).
+    plugin_dir: Option<std::path::PathBuf>,
     /// URLs recently given in the Attributes panel (`attributes.set {url}`), newest first; not saved.
     pub recent_urls: Vec<String>,
     /// The language the UI is drawn in (a language code, never `auto`), set by the UI each frame;
@@ -1129,6 +1288,8 @@ pub struct Session {
     pub(crate) plane_widget_press: bool,
     /// A guide being dragged out of a ruler ([`Session::ruler_guide`]).
     pub(crate) ruler_guide: Option<vectorcraft_tools::rulerguide::NewGuide>,
+    /// Which selected type overflows its frame, for the markers every tool but the Type tools shows.
+    pub(crate) overflow_marks: vectorcraft_tools::text::OverflowMarks,
     /// The last search for the files of missing fonts (`text.findFontFiles`), until another
     /// starts; dropping it stops it.
     pub(crate) font_search: Option<cmd::fontfiles::FontSearch>,
@@ -1187,6 +1348,9 @@ impl Session {
             freeform_point: None,
             style_libraries: Default::default(),
             libraries: Default::default(),
+            pdf_preset_dir: None,
+            profile_dir: None,
+            plugin_dir: None,
             recent_urls: vec![],
             ui_language: None,
             journal_note: Default::default(),
@@ -1199,6 +1363,7 @@ impl Session {
             liquify_stroke: None,
             plane_widget_press: false,
             ruler_guide: None,
+            overflow_marks: Default::default(),
             font_search: None,
             link_search: None,
             search_rules: None,
@@ -1504,6 +1669,7 @@ impl Session {
         if !self.previewing && cmd::typing_in_progress(self) {
             cmd::settle_interaction(self)?;
         }
+        let guides_locked = self.menu.guides_locked;
         let st = self.doc_mut()?;
         let before = st.doc.clone();
         let before_sel = st.selection.clone();
@@ -1551,6 +1717,10 @@ impl Session {
         match result {
             Ok(v) => {
                 st.selection.prune(&st.doc);
+                // An edit that selects what it unlocks, shows or pastes leaves locked guides out.
+                if guides_locked {
+                    deselect_guides(&st.doc, &mut st.selection);
+                }
                 st.revision += 1;
                 if st.interaction.is_none() {
                     let selection = match st.history.undo.last() {
@@ -1579,10 +1749,7 @@ impl Session {
         st.selection.prune(&st.doc);
         // Lock Guides locks the paths made into guides too (#1534), whatever selects them.
         if guides_locked {
-            let locked: Vec<NodeId> = st.selection.objects.iter().copied().filter(|id| is_guide_path(&st.doc, *id)).collect();
-            for id in locked {
-                st.selection.remove(id);
-            }
+            deselect_guides(&st.doc, &mut st.selection);
         }
         // Selecting art makes its layer (or sublayer) the current one, as in the Layers panel of
         // the reference app: new art then goes beside it.
@@ -1713,7 +1880,13 @@ impl Session {
 
     pub fn cancel_interaction(&mut self) -> Result<()> {
         self.pending_paint = None;
-        self.doc_mut()?.undo_interaction();
+        let guides_locked = self.menu.guides_locked;
+        let st = self.doc_mut()?;
+        st.undo_interaction();
+        // Guides locked during the interaction stay deselected.
+        if guides_locked {
+            deselect_guides(&st.doc, &mut st.selection);
+        }
         Ok(())
     }
 
@@ -1755,6 +1928,9 @@ impl Session {
             {
                 st.doc = e.doc;
                 st.selection = Arc::unwrap_or_clone(e.selection);
+                if self.menu.guides_locked {
+                    deselect_guides(&st.doc, &mut st.selection);
+                }
                 st.revision += 1;
                 journal = Some(g.journal);
             }
@@ -1819,6 +1995,8 @@ mod tests_blendspine;
 mod tests_brushsym;
 #[cfg(test)]
 mod tests_build;
+#[cfg(test)]
+mod tests_cancel;
 #[cfg(test)]
 mod tests_charstroke;
 #[cfg(test)]
@@ -1904,6 +2082,8 @@ mod tests_ids_without_selection;
 #[cfg(test)]
 mod tests_inline;
 #[cfg(test)]
+mod tests_interactivity;
+#[cfg(test)]
 mod tests_intertwine;
 #[cfg(test)]
 mod tests_journal;
@@ -1921,6 +2101,8 @@ mod tests_layers;
 mod tests_legacy_ai;
 #[cfg(test)]
 mod tests_library;
+#[cfg(test)]
+mod tests_link_paths;
 #[cfg(test)]
 mod tests_linked_stops;
 #[cfg(test)]
@@ -1951,6 +2133,8 @@ mod tests_newdoc;
 mod tests_objexpand;
 #[cfg(test)]
 mod tests_opacitymask;
+#[cfg(test)]
+mod tests_outlineobject;
 #[cfg(test)]
 mod tests_outlinestroke;
 #[cfg(test)]
@@ -2043,6 +2227,8 @@ mod tests_shortcutset;
 mod tests_slices;
 #[cfg(test)]
 mod tests_smartguides;
+#[cfg(test)]
+mod tests_store;
 #[cfg(test)]
 mod tests_strokegeom;
 #[cfg(test)]

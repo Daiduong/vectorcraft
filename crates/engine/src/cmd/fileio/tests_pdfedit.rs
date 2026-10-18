@@ -139,6 +139,27 @@ fn exports_write_ai_as_save_as_does() {
     assert!(b64(&r).starts_with(b"%PDF"));
 }
 
+/// A `.ai` with an artboard larger than 14,400 pt has its PDF page written with a `UserUnit`,
+/// and reopens at its size from its editing data and from its PDF part.
+#[test]
+fn an_ai_with_an_artboard_past_14400_pt_reopens_at_its_size() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 20000, "height": 10000})).unwrap();
+    s.execute("shape.rectangle", &json!({"x": 1000, "y": 1000, "width": 5000, "height": 3000})).unwrap();
+    let ai = b64(&s.execute("document.export", &json!({"format": "ai", "compress": false})).unwrap());
+    assert!(String::from_utf8_lossy(&ai).contains("/UserUnit 1.389"), "20,000 / 14,400 rounded up to the next thousandth");
+    let size = |s: &Session| {
+        let r = s.doc().unwrap().doc.artboards[0].rect;
+        (r.width().round(), r.height().round())
+    };
+    assert_eq!(open(&mut s, "big.ai", &ai)["restored"], true);
+    assert_eq!(size(&s), (20_000.0, 10_000.0));
+    // Picking its page opens the PDF part.
+    let r = s.execute("document.open", &json!({"name": "big.ai", "dataBase64": vectorcraft_format::base64_encode(&ai), "pages": "1"})).unwrap();
+    assert_eq!(r["restored"], false, "{r}");
+    assert_eq!(size(&s), (20_000.0, 10_000.0));
+}
+
 #[test]
 fn ait_templates_open_their_document_untitled() {
     let mut s = rich();
@@ -178,6 +199,37 @@ fn save_as_template_writes_an_ait_that_new_from_template_opens_untitled() {
     assert_eq!(r["format"], "ait", "{r}");
     assert!(r["name"].as_str().is_some_and(|n| n.ends_with(" template.ait")), "{r}");
     assert!(vectorcraft_pdf::editing(&b64(&r)).is_some_and(|e| e.intact));
+}
+
+/// Save as Template writes a file named with its template format's extension: another format's
+/// extension is replaced and a name without one gets it; Save and Save As name the command that
+/// writes a `.ait`.
+#[test]
+fn save_as_template_names_its_file_after_the_template_format() {
+    let mut s = rich();
+    for (name, format, saved) in [
+        ("card.png", None, "card.vctemplate"),
+        ("card.vectorcraft", None, "card.vctemplate"),
+        ("card.ait", Some("template"), "card.vctemplate"),
+        ("card.pdf", Some("ait"), "card.ait"),
+        ("card v1.2", None, "card v1.2.vctemplate"),
+    ] {
+        let (typed, want) = (tmp(&format!("named/{name}")), tmp(&format!("named/{saved}")));
+        let _ = std::fs::create_dir_all(std::path::Path::new(&typed).parent().unwrap());
+        let _ = std::fs::remove_file(&typed);
+        let _ = std::fs::remove_file(&want);
+        let r = s.execute("file.saveAsTemplate", &json!({"path": typed, "format": format})).unwrap();
+        assert_eq!(r["path"], want.as_str(), "{name}: {r}");
+        let bytes = std::fs::read(&want).unwrap_or_else(|e| panic!("{name}: {saved} not written: {e}"));
+        let ait = saved.ends_with(".ait");
+        assert_eq!(bytes.starts_with(b"%PDF"), ait, "{name}");
+        assert!(ait || vectorcraft_format::load(&bytes).is_ok_and(|d| d.template), "{name}: a native template");
+        assert!(!std::path::Path::new(&typed).exists(), "{name}: nothing written under the typed name");
+    }
+    for (cmd, p) in [("file.saveAs", json!({"format": "ait"})), ("document.save", json!({"path": tmp("card.ait")}))] {
+        let e = s.execute(cmd, &p).unwrap_err().to_string();
+        assert!(e.contains("file.saveAsTemplate") && !e.contains("document.export"), "{cmd}: {e}");
+    }
 }
 
 #[test]

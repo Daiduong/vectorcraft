@@ -211,7 +211,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             }
             ui.add_space(6.0);
             let track = |z: f32| c32(&Picked::of(slider_color(channel, z, x, y)).snapped(web).color);
-            if let (Some(z), _) = widgets::channel_slider(ui, "cp-slider", z, vec2(22.0, FIELD), &track) {
+            if let (Some(z), _) = widgets::channel_slider_named(ui, "cp-slider", tl!(channel.label()), z, vec2(22.0, FIELD), &track) {
                 pick = Some(field_pick(channel, z, x, y));
             }
         }
@@ -364,7 +364,7 @@ fn value_fields(ui: &mut Ui, p: &Picked, channel: Channel) -> (Option<Picked>, O
                 };
                 // The hex field is taller than a value field. K's row takes the height of the hex
                 // field's row beside it.
-                let height = if i == 6 { left.response.rect.bottom() - ui.cursor().top() } else { ui.spacing().interact_size.y };
+                let height = if i == 6 { (left.response.rect.bottom() - ui.cursor().top()).round() } else { ui.spacing().interact_size.y };
                 let size = vec2(ui.available_size_before_wrap().x, height);
                 ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.add_space(12.0);

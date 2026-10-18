@@ -47,7 +47,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Font List",
             [],
             None,
-            "{family?} → {families: [names]} sorted: the bundled fonts, fonts added and the fonts installed on the system (none on the web), each the family's English (canonical) name for `text.setStyle` and documents (without the system's hidden families, whose names start with a dot; they still resolve by name). Preferences › Type › Show Font Names in English only changes the UI menu labels, not this list; with family: {family, styles: [names]} (upright styles by weight, then italics; an error when the family isn't available)",
+            "{family?, style?} → {families: [names]} sorted: the bundled fonts, fonts added and the fonts installed on the system (none on the web), each the family's English (canonical) name for `text.setStyle` and documents (without the system's hidden families, whose names start with a dot; they still resolve by name). Preferences › Type › Show Font Names in English only changes the UI menu labels, not this list; with family: {family, styles: [names] (upright styles by weight, then italics; an error when the family isn't available), axes: [{tag, name, min, default, max, value, hidden}] (a variable font's variation axes, the Character panel's Variable Font sliders, with `value` the setting of `style`, else of the first style; empty for a static font; `hidden`: the font asks for the axis not to be shown)}",
             always,
             font_list
         ),
@@ -114,9 +114,12 @@ pub(super) fn used_fonts(d: &Document) -> BTreeSet<UsedFont> {
     fonts
 }
 
-/// The fonts (family, style, version) of the type of `d` that prints on pages showing `areas`
-/// (document space): visible type on `layers` (the layers that print) but not on a template layer
-/// (of area type and type on a path that don't fit, the runs that their layout draws),
+/// The type of `d` that prints on pages showing `areas` (document space): the fonts (family, style,
+/// version) it is set in, and the ids of the area type and type on a path among the objects of the
+/// document whose text doesn't fit (not those in the art of symbols, opacity masks, patterns,
+/// brushes or placed documents).
+/// The type that prints is visible type on `layers` (the layers that print) but not on a template
+/// layer (of area type and type on a path that don't fit, the runs that their layout draws),
 /// where what it paints ([`vectorcraft_render::painted_bounds`], its effects applied) meets an area
 /// inside the clipping paths around it, the type in the opacity masks and patterns of the objects
 /// that print and in the pieces their brushes draw, and the type of the symbols that their
@@ -125,27 +128,45 @@ pub(super) fn used_fonts(d: &Document) -> BTreeSet<UsedFont> {
 /// fills or strokes of its own, are taken with it when what it paints meets an area, and so is the
 /// art of a placed document (`d` as [`Document::with_placed_art`] gives it, for that art's
 /// resources).
-pub(super) fn printed_fonts(d: &Document, layers: &[Arc<Node>], areas: &[Rect]) -> BTreeSet<UsedFont> {
-    let mut walk = Printed { d, fonts: BTreeSet::new(), symbols: BTreeSet::new(), patterns: BTreeSet::new() };
+pub(super) fn printed_type(d: &Document, layers: &[Arc<Node>], areas: &[Rect]) -> (BTreeSet<UsedFont>, BTreeSet<NodeId>) {
+    let mut walk = Printed { d, own: true, fonts: BTreeSet::new(), overflow: BTreeSet::new(), symbols: BTreeSet::new(), patterns: BTreeSet::new() };
     for l in layers {
         walk.node(l, Some(areas));
     }
-    walk.fonts
+    (walk.fonts, walk.overflow)
 }
 
-/// The walk of [`printed_fonts`].
+/// The warning of an export that draws `layers` of `d` over `areas` (document space; `None`: the
+/// whole of them) about the area type and type on a path that it draws and whose text doesn't fit,
+/// found as [`printed_type`] finds them for Print: visible objects of the document that aren't on
+/// a template layer.
+pub(super) fn export_overflow_warning(d: &Document, layers: &[Arc<Node>], areas: Option<&[Rect]>) -> Option<String> {
+    let mut walk = Printed { d, own: true, fonts: BTreeSet::new(), overflow: BTreeSet::new(), symbols: BTreeSet::new(), patterns: BTreeSet::new() };
+    for l in layers {
+        walk.node(l, areas);
+    }
+    let overflow: Vec<NodeId> = walk.overflow.into_iter().collect();
+    super::typecmd::export_overflow_warning(&overflow)
+}
+
+/// The walk of [`printed_type`].
 struct Printed<'a> {
     d: &'a Document,
+    /// Whether the walk is among the objects of the document, not in art drawn for one.
+    own: bool,
     fonts: BTreeSet<UsedFont>,
+    /// The objects of the document whose text doesn't fit.
+    overflow: BTreeSet<NodeId>,
     /// The symbols and patterns whose art was walked.
     symbols: BTreeSet<String>,
     patterns: BTreeSet<String>,
 }
 
 impl Printed<'_> {
-    /// Adds the fonts of `n` and its descendants that print: those whose bounds meet one of `areas`,
-    /// or with `None` (in the art of a symbol, opacity mask, pattern or placed document, in brush
-    /// pieces, or in a live object) all of them but those outside the clipping path of a clip group.
+    /// Adds the fonts of `n` and its descendants that print, and the ids of those that don't fit
+    /// while [`Printed::own`] is set: those whose bounds meet one of `areas`, or with `None` (in the
+    /// art of a symbol, opacity mask, pattern or placed document, in brush pieces, or in a live
+    /// object) all of them but those outside the clipping path of a clip group.
     fn node(&mut self, n: &Node, areas: Option<&[Rect]>) {
         if !n.visible || matches!(n.kind, NodeKind::Layer { template: true, .. }) {
             return;
@@ -162,9 +183,9 @@ impl Printed<'_> {
         }
         // The art that its opacity mask, pattern paints and brushed strokes draw.
         let mask = n.extras().mask.as_deref().filter(|m| !m.disabled);
-        let runs = match &n.kind {
+        let (runs, overflows) = match &n.kind {
             NodeKind::Text(t) => drawn_runs(t),
-            _ => vec![],
+            _ => (vec![], false),
         };
         let items: Vec<&AppearanceItem> =
             n.appearance.items.iter().filter(|i| i.visible() && !matches!(i, AppearanceItem::Stroke(s) if s.width <= 0.0)).collect();
@@ -180,7 +201,7 @@ impl Printed<'_> {
         let brushed = vectorcraft_brush::has_brush(n);
         if (mask.is_some() || !patterns.is_empty() || brushed) && areas.is_none_or(|a| !open || self.meets(n, a)) {
             if let Some(m) = mask {
-                self.node(&m.art, None);
+                self.art(&m.art);
             }
             let d = self.d;
             for name in patterns {
@@ -188,19 +209,22 @@ impl Printed<'_> {
                     && let Some(p) = d.pattern(name)
                 {
                     for art in &p.art {
-                        self.node(art, None);
+                        self.art(art);
                     }
                 }
             }
             // The pieces its brushes draw along the path (art and pattern brushes leave type out).
             if brushed {
                 for piece in vectorcraft_brush::node_pieces(d, n).unwrap_or_default() {
-                    self.node(&piece, None);
+                    self.art(&piece);
                 }
             }
         }
         match &n.kind {
             NodeKind::Text(_) => {
+                if overflows && self.own {
+                    self.overflow.insert(n.id);
+                }
                 for r in runs {
                     self.fonts.insert((r.style.font_family.clone(), r.style.font_style.clone(), r.style.font_version.clone()));
                     // Inline graphics draw their symbols' art.
@@ -212,7 +236,7 @@ impl Printed<'_> {
             NodeKind::SymbolInstance { symbol, .. } => self.symbol(symbol),
             NodeKind::PlacedDocument(p) => {
                 for art in p.art(n) {
-                    self.node(&art, None);
+                    self.art(&art);
                 }
             }
             NodeKind::Layer { children, clip, .. } | NodeKind::Group { children, clip } if !moved => {
@@ -240,8 +264,17 @@ impl Printed<'_> {
         if self.symbols.insert(name.to_string())
             && let Some(s) = d.symbols.iter().find(|s| s.name == name)
         {
-            self.node(&s.art, None);
+            self.art(&s.art);
         }
+    }
+
+    /// Adds the fonts of `art`, drawn for an object of the document but not one of its objects (the
+    /// art of a symbol, opacity mask, pattern or placed document, or a brush piece), with
+    /// [`Printed::node`]'s `None`.
+    fn art(&mut self, art: &Node) {
+        let own = std::mem::replace(&mut self.own, false);
+        self.node(art, None);
+        self.own = own;
     }
 
     /// Whether what `n` paints, its effects applied, meets one of `areas`.
@@ -256,14 +289,15 @@ impl Printed<'_> {
     }
 }
 
-/// The runs of `t` that print: all of them, or of area type and type on a path that don't fit, the
-/// runs that their layout draws glyphs or inline graphics of.
-fn drawn_runs(t: &vectorcraft_doc::TextObject) -> Vec<&TextRun> {
+/// The runs of `t` that print, and whether its text doesn't fit: all of them, or of area type and
+/// type on a path that don't fit, the runs that their layout draws glyphs or inline graphics of.
+fn drawn_runs(t: &vectorcraft_doc::TextObject) -> (Vec<&TextRun>, bool) {
     let drawn: Option<BTreeSet<usize>> = (!matches!(t.kind, TextKind::Point))
         .then(|| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t))
         .filter(|lay| lay.overflow)
         .map(|lay| lay.glyphs.iter().map(|g| g.run).chain(lay.inlines.iter().map(|i| i.run)).collect());
-    t.runs.iter().enumerate().filter(|(i, _)| drawn.as_ref().is_none_or(|d| d.contains(i))).map(|(_, r)| r).collect()
+    let runs = t.runs.iter().enumerate().filter(|(i, _)| drawn.as_ref().is_none_or(|d| d.contains(i))).map(|(_, r)| r).collect();
+    (runs, drawn.is_some())
 }
 
 /// What an export that draws type (as outlines, embedded fonts or pixels) says when `d` uses font
@@ -374,8 +408,9 @@ fn replace(s: &mut Session, p: &Value) -> Result<Value> {
                         .unwrap_or_else(|| r.style.font_style.clone());
                     r.style.font_family = tf.clone();
                     r.style.font_style = style;
-                    // Another font: none of the old one's versions.
+                    // Another font: none of the old one's versions or Variable Font settings.
                     r.style.font_version = None;
+                    r.style.font_axes.clear();
                     changed = true;
                     n += 1;
                 }
@@ -419,7 +454,23 @@ fn font_list(_: &mut Session, p: &Value) -> Result<Value> {
             }
             // The name as the font spells it.
             let name = db.family_list().iter().find(|f| f.eq_ignore_ascii_case(family)).cloned().unwrap_or_else(|| family.to_string());
-            Ok(json!({ "family": name, "styles": db.styles(family) }))
+            let styles = db.styles(family);
+            let style = str_param(p, "style").map(str::to_string).or_else(|| styles.first().cloned()).unwrap_or_else(|| "Regular".into());
+            let axes: Vec<Value> = db
+                .face(family, &style)
+                .map(|face| {
+                    let axes = face.axes();
+                    axes.iter()
+                        .map(|a| {
+                            json!({
+                                "tag": String::from_utf8_lossy(&a.tag), "name": a.name, "min": a.min, "default": a.default, "max": a.max,
+                                "value": face.axis_value(a.tag).unwrap_or(a.default), "hidden": a.hidden,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            Ok(json!({ "family": name, "styles": styles, "axes": axes }))
         }
         None => Ok(json!({ "families": *db.menu_family_list() })),
     }
@@ -441,16 +492,14 @@ pub(crate) fn rescan(s: &mut Session, _: &Value) -> Result<Value> {
             }
         });
         if !texts.is_empty() {
-            let saved = !d.is_dirty();
-            let doc = std::sync::Arc::make_mut(&mut d.doc);
-            for id in texts {
-                if let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind) {
-                    refresh_bounds(t);
+            d.change_unsaved(|doc| {
+                let doc = std::sync::Arc::make_mut(doc);
+                for id in texts {
+                    if let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind) {
+                        refresh_bounds(t);
+                    }
                 }
-            }
-            if saved {
-                d.mark_saved();
-            }
+            });
         }
         d.revision += 1;
     }

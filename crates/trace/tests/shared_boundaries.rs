@@ -195,20 +195,26 @@ fn check(res: &TraceResult, w: u32, h: u32, colours: &[[u8; 3]]) -> Seams {
         }
     }
     let area = res.paths.iter().map(|p| p.path.subpaths.iter().map(|s| s.area()).sum::<f64>()).sum::<f64>() - wf * hf;
-    let beziers: Vec<BezPath> = res.paths.iter().map(|p| p.path.to_bezpath()).collect();
+    let (uncovered, doubled) = coverage(res, w, h);
+    Seams { faces, gap, at, area, uncovered, doubled }
+}
+
+/// Points of a 4 × 4 grid per pixel that no path covers, and that more than one path covers.
+fn coverage(res: &TraceResult, w: u32, h: u32) -> (usize, usize) {
+    let beziers: Vec<(BezPath, Rect)> = res.paths.iter().map(|p| p.path.to_bezpath()).map(|b| (b.clone(), b.bounding_box())).collect();
     let (mut uncovered, mut doubled) = (0, 0);
     for yi in 0..h * 4 {
         for xi in 0..w * 4 {
             // (Off the half and quarter pixels, where hard edges lie.)
             let p = Point::new(0.1093 + f64::from(xi) * 0.25, 0.1371 + f64::from(yi) * 0.25);
-            match beziers.iter().filter(|b| b.winding(p) != 0).count() {
+            match beziers.iter().filter(|(b, r)| r.contains(p) && b.winding(p) != 0).count() {
                 0 => uncovered += 1,
                 1 => {}
                 _ => doubled += 1,
             }
         }
     }
-    Seams { faces, gap, at, area, uncovered, doubled }
+    (uncovered, doubled)
 }
 
 /// One trace of `art` checked: a line for the record, and what is wrong (empty when nothing is).
@@ -460,7 +466,6 @@ fn an_outline_returning_to_its_junction_is_shared() {
 /// and its neighbour keeps a single curve from the junction back to itself, so a hole the size of
 /// the region is left uncovered (1 to 6.7 px wide here, 0.3 to 108 px²).
 #[test]
-#[ignore = "a piece returning to its own junction collapses at Paths 0 / Corners 0 (fit.rs fit_piece and fit_loop): the region is dropped and its area left uncovered; draft #2205 (retain pieces returning to a junction) fixes it"]
 fn an_outline_returning_to_its_junction_survives_the_loosest_fit() {
     let mut wrong = vec![];
     for art in returning_arts() {
@@ -535,4 +540,32 @@ fn the_check_finds_a_hairline_gap_and_an_overlap() {
     let stacked = TraceParams { method: Method::Overlapping, ..color(2, 1) };
     let s = check(&trace(&art.hard(colours), &stacked), art.w, art.h, colours);
     assert!(s.doubled > 0 && s.area > 100.0, "{s:?}");
+}
+
+/// A noisy ripple of one- and two-pixel slivers, light and dark, read in Black and White at a
+/// threshold: both sides of many edges are thin. Read from one side only, such an edge had a
+/// different sub-pixel shift for each of its two regions, so their curves left slivers between
+/// them that no path covers. (Coverage only: on noise this fine, curves fitted to neighbouring
+/// pieces may still cross, which the full check counts as overlaps.)
+#[test]
+fn thin_slivers_on_both_sides_of_an_edge_leave_nothing_uncovered() {
+    let (w, h) = (48, 48);
+    let rnd = |x: u32, y: u32| (x.wrapping_mul(83_492_791) ^ y.wrapping_mul(19_349_663)).wrapping_mul(2_654_435_761) >> 26;
+    let img = Raster::from_fn(w, h, |x, y| {
+        let base = [118u32, 168, 176, 122, 160, 116, 174, 171][(x as usize + y as usize / 5) % 8];
+        let v = (base + rnd(x, y) * ((x + y) % 2)).min(255) as u8;
+        [v, v, v, 255]
+    });
+    let mut wrong = vec![];
+    for threshold in [140u8, 157, 170] {
+        for paths in [0.0, 50.0, 100.0] {
+            let params = TraceParams { threshold, paths, ..black_and_white(0) };
+            let (uncovered, _) = coverage(&trace(&img, &params), w, h);
+            println!("threshold {threshold} paths {paths}: uncovered {uncovered}");
+            if uncovered > 0 {
+                wrong.push(format!("threshold {threshold} paths {paths}: {uncovered} points uncovered"));
+            }
+        }
+    }
+    assert_none(wrong);
 }

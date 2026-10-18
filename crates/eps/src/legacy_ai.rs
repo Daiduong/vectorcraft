@@ -80,11 +80,12 @@ const HEX_LINE: usize = 64;
 
 pub const SUBLAYERS: &str = "sublayers are written as groups in their top-level layer (legacy .ai files have no sublayers)";
 pub const TYPE: &str = "type a legacy .ai can't hold as text (characters outside Windows Latin-1, vertical type, inline graphics, gradient or pattern fills) is written as outlines";
-pub const TYPE_ATTRIBUTES: &str = "type attributes legacy .ai files don't have (underline, strikethrough, small caps, superscript and subscript, character rotation, OpenType features, area type options, type on a path effects, space after paragraphs, tabs) are left out";
+pub const TYPE_ATTRIBUTES: &str = "type attributes legacy .ai files don't have (underline, strikethrough, small caps, superscript and subscript, character rotation, OpenType features, Variable Font settings, area type options, type on a path effects, space after paragraphs, tabs) are left out";
 pub const HIDDEN: &str = "hidden objects are left out (hidden layers are kept, hidden)";
 pub const HIDDEN_LAYER: &str = "hidden objects are moved to a hidden layer above their own (legacy .ai files can hide only layers)";
 pub const HIDDEN_SHOWN: &str = "hidden objects are written visible (legacy .ai files can hide only layers)";
 pub const TRANSPARENCY: &str = "transparency (opacity, blending modes, opacity masks) is written opaque: legacy .ai files have none";
+pub const LAYER_NAME: &str = "characters outside Windows Latin-1 in layer names are written as ? (legacy .ai files can't hold them)";
 pub const NAMES: &str = "object names are left out (legacy .ai files name only layers)";
 const PATTERNS: &str = "pattern fills are written as their tiles, clipped to the shape";
 const FREEFORM: &str = "freeform gradients are written as their average colour";
@@ -313,7 +314,7 @@ VCLegacy begin
 /_row {{currentfile _l readline not {exit} if dup length 1 gt {exit} if pop} loop
  dup length 1 gt {dup length 1 sub 1 exch getinterval /ASCIIHexDecode filter _s readstring pop} {pop ()} ifelse} bd
 /XI {pop pop pop pop /_ic exch def /_ib exch def /_ih exch def /_iw exch def pop pop pop pop
- aload pop neg 6 array astore [1 0 0 -1 0 0] matrix concatmatrix
+ [1 0 0 -1 0 0] exch matrix concatmatrix
  _on {gsave concat _iw _ih _ib [1 0 0 1 0 0] /_row load false _ic 1 eq {1} {_ic} ifelse colorimage grestore} {pop} ifelse} bd
 % Type (15) is set by the app that reads the file: its operators take their operands and mark
 % nothing; encodings (3.3) are skipped.
@@ -452,6 +453,25 @@ impl<'a> Writer<'a> {
 
     // ---------- layers and objects ----------
 
+    /// A layer's name as a PostScript string in Windows-1252, like the type; a character outside it
+    /// is written as `?`, with a warning.
+    fn layer_name(&mut self, name: &str) -> String {
+        let mut lost = false;
+        let bytes: Vec<u8> = name
+            .chars()
+            .map(|c| {
+                latin::encode(c).unwrap_or_else(|| {
+                    lost = true;
+                    b'?'
+                })
+            })
+            .collect();
+        if lost {
+            self.warn(LAYER_NAME);
+        }
+        ps::bytes(&bytes)
+    }
+
     /// A top-level layer. False when it isn't a layer.
     fn layer(&mut self, n: &Node) -> bool {
         let NodeKind::Layer { color, template, printable, children, clip, preview, dim_images } = &n.kind else { return false };
@@ -464,6 +484,7 @@ impl<'a> Writer<'a> {
             _ => -1,
         };
         let flag = |b: bool| u8::from(b);
+        let name = self.layer_name(n.name.as_deref().unwrap_or("Layer"));
         // A template layer doesn't print and shows dimmed.
         let _ = writeln!(
             self.body,
@@ -473,7 +494,7 @@ impl<'a> Writer<'a> {
             flag(!n.locked),
             flag(*printable && !*template),
             flag(dim_images.is_some() || *template),
-            ps::string(n.name.as_deref().unwrap_or("Layer")),
+            name,
         );
         self.locked = false;
         self.line("0 A");
@@ -501,13 +522,14 @@ impl<'a> Writer<'a> {
             _ => -1,
         };
         let name = format!("{} (hidden)", n.name.as_deref().unwrap_or("Layer"));
+        let name = self.layer_name(&name);
         let _ = writeln!(
             self.body,
             "%AI5_BeginLayer\n0 1 {} {} {} 0 {index} {r} {g} {b} Lb\n{} Ln",
             u8::from(!n.locked),
             u8::from(*printable && !*template),
             u8::from(*template),
-            ps::string(&name),
+            name,
         );
         self.locked = false;
         self.line("0 A");
@@ -1201,11 +1223,12 @@ impl<'a> Writer<'a> {
 
     // ---------- images ----------
 
-    /// An image (§8): `%AI5_BeginRaster`, its matrix (pixels, y down, → art space with y flipped)
-    /// and operands with `XI`, its RGB samples in hex on comment lines, `%AI5_EndRaster`.
+    /// An image (§8): `%AI5_BeginRaster`, its matrix (an art-space matrix applied to the pixels
+    /// with their rows running downwards, `(u, -v)`) and operands with `XI`, its RGB samples in hex
+    /// on comment lines, `%AI5_EndRaster`.
     fn image(&mut self, im: &ImageObject) {
         let flip = Affine::new([1.0, 0.0, 0.0, -1.0, 0.0, 0.0]);
-        let m = flip * self.to_art * im.xf;
+        let m = self.to_art * im.xf * flip;
         if !invertible(m) {
             return;
         }
@@ -1220,7 +1243,7 @@ impl<'a> Writer<'a> {
         }
         // The object places the image's own pixel grid (its width × height) wherever the file's is.
         let fit = Affine::scale_non_uniform(f64::from(im.width.max(1)) / f64::from(w), f64::from(im.height.max(1)) / f64::from(h));
-        let m = flip * self.to_art * im.xf * fit;
+        let m = self.to_art * im.xf * fit * flip;
         let rgba = img.to_rgba8();
         let mut hex = String::with_capacity(rgba.len() / 4 * 7);
         hex.push('%');
@@ -1253,7 +1276,7 @@ impl<'a> Writer<'a> {
         let [a, b, c, d, e, f] = m.as_coeffs();
         let s = &mut self.body;
         s.push_str("%AI5_File:\n%AI5_BeginRaster\n[");
-        ps::push_nums(s, &[a, b, c, d, e, -f]);
+        ps::push_nums(s, &[a, b, c, d, e, f]);
         s.pop();
         let _ = writeln!(s, "] 0 0 {w} {h} {w} {h} 8 3 0 0 0 0 XI");
         s.push_str(&hex);
@@ -1278,7 +1301,13 @@ fn writable(t: &TextObject) -> bool {
 /// Has type `t` attributes a legacy `.ai` text object can't hold (lost when it's written as text)?
 fn lost_attributes(t: &TextObject) -> bool {
     let run_lost = |s: &CharStyle| {
-        s.underline || s.strikethrough || s.small_caps.is_some() || s.position != CharPosition::Normal || s.rotation != 0.0 || !s.features.is_empty()
+        s.underline
+            || s.strikethrough
+            || s.small_caps.is_some()
+            || s.position != CharPosition::Normal
+            || s.rotation != 0.0
+            || !s.features.is_empty()
+            || !s.font_axes.is_empty()
     };
     let para_lost = |p: &ParaStyle| p.space_after != 0.0 || !p.tabs.is_empty();
     t.runs.iter().any(|r| run_lost(&r.style))

@@ -250,6 +250,43 @@ fn the_web_downloads_one_zip_or_the_file() {
 }
 
 #[test]
+fn the_status_bar_says_when_an_image_could_not_be_decoded() {
+    const NOTE: &str = "with 1 note(s): an image couldn't be decoded and is missing from the picture";
+    // A PNG whose header reads but whose pixel data is cut short: the renderer draws nothing for it.
+    let mut png = Vec::new();
+    image::RgbaImage::from_pixel(64, 32, image::Rgba([200, 30, 30, 255]))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let idat = png.windows(4).position(|w| w == b"IDAT").unwrap();
+    png.truncate(idat + 8);
+    let place = |app: &mut VectorcraftApp| {
+        app.run("file.place", json!({"name": "cut.png", "dataBase64": vectorcraft_format::base64_encode(&png), "at": [10, 10]})).unwrap()
+    };
+    let rows = json!([{"format": "png", "scale": "1x", "suffix": ""}, {"format": "jpg", "scale": "2x", "suffix": "@2x"}]);
+    let dir = temp_folder("undecoded");
+    let folder = dir.to_string_lossy().replace('\\', "/");
+    let (mut desktop, log) = app(1, false);
+    desktop.run("file.exportForScreens", json!({"folder": folder, "formats": rows})).unwrap();
+    assert_eq!(desktop.ui.status, format!("Exported 2 file(s) to {folder}"));
+    place(&mut desktop);
+    desktop.run("file.exportForScreens", json!({"folder": folder, "formats": rows, "openLocation": true})).unwrap();
+    assert_eq!(desktop.ui.status, format!("Saved {folder} {NOTE}"));
+    assert_eq!(log.borrow().len(), 1, "Open Location still shows the first file");
+    let r = desktop.run("file.exportForScreens", json!({"folder": folder, "formats": rows, "zip": true})).unwrap();
+    assert_eq!(desktop.ui.status, format!("Saved {} {NOTE}", r["path"].as_str().unwrap()));
+    // The Asset Export panel's export goes the same way.
+    desktop.run("select.all", json!({})).unwrap();
+    desktop.run("assets.add", json!({"multiple": false})).unwrap();
+    crate::io::export_files(&mut desktop, "assets.export", json!({"folder": folder, "formats": rows})).unwrap();
+    assert_eq!(desktop.ui.status, format!("Saved {folder} {NOTE}"), "assets.export");
+    let (mut web, _) = app(1, true);
+    place(&mut web);
+    web.run("file.exportForScreens", json!({"zip": true, "formats": rows})).unwrap();
+    assert_eq!(web.ui.status, format!("Saved Untitled-1.zip {NOTE}"));
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
 fn a_preset_export_reopens_on_its_rows() {
     let (mut app, _) = app(1, true);
     app.run("file.exportForScreens", json!({"preset": "density", "fullDocument": true})).unwrap();
@@ -528,4 +565,100 @@ fn tiff_dropdown_exports_scaled_artboards_with_options_and_reopens() {
     assert_eq!(field(&app, "formats")[0]["format"], "svg");
     h.choose(&mut app, "SVG", "PNG");
     assert_eq!(field(&app, "formats")[0]["format"], "png");
+}
+
+/// Batch exporting (#1935): a file name pattern and a folder per format, the Layers and Selection
+/// tabs, and export presets applied and saved from the dialog.
+#[test]
+fn batch_naming_folders_layers_selection_and_presets() {
+    let (mut app, _) = app(3, false);
+    let dir = temp_folder("batch");
+    let _ = std::fs::remove_dir_all(&dir);
+    let folder = dir.to_string_lossy().to_string();
+    open(&mut app);
+    assert_eq!(field(&app, "folders"), json!("none"));
+    // Every tab draws; the OK button says what is exported.
+    for (tab, ok) in [("layers", "Export Layer"), ("selection", "Export Selection"), ("assets", "Export Asset"), ("artboards", "Export Artboard")] {
+        set(&mut app, "tab", json!(tab));
+        frame(&mut app);
+        assert_eq!((spec(export_for_screens::KIND).ok_label.unwrap())(&app), ok);
+    }
+    // Artboards 1–2 as SVG and print PDF, named by pattern, a folder per format.
+    set(&mut app, "folder", json!(folder));
+    set(&mut app, "select", json!("range"));
+    set(&mut app, "range", json!("1-2"));
+    set(&mut app, "name", json!("ACME-<name>-##"));
+    set(&mut app, "folders", json!("format"));
+    set(
+        &mut app,
+        "formats",
+        json!([{"format": "svg", "scale": "1x", "suffix": ""}, {"format": "pdf", "scale": "1x", "suffix": "-print", "marks": {"trim": true}}]),
+    );
+    frame(&mut app);
+    {
+        let d = app.ui.dialog.as_ref().unwrap();
+        assert_eq!(export_for_screens::example_name(&app, d), "svg/ACME-Artboard 1-01.svg");
+    }
+    let r = confirm(&mut app).unwrap();
+    let files: Vec<String> = r["files"].as_array().unwrap().iter().map(|f| f.as_str().unwrap().to_string()).collect();
+    assert_eq!(
+        files,
+        [
+            format!("{folder}/svg/ACME-Artboard 1-01.svg"),
+            format!("{folder}/pdf/ACME-Artboard 1-01-print.pdf"),
+            format!("{folder}/svg/ACME-Artboard 2-02.svg"),
+            format!("{folder}/pdf/ACME-Artboard 2-02-print.pdf")
+        ]
+    );
+    // It reopens on the pattern and the folders.
+    open(&mut app);
+    assert_eq!((field(&app, "name"), field(&app, "folders")), (json!("ACME-<name>-##"), json!("format")));
+
+    // The Layers tab: one file of a layer's art.
+    let layer = app.session.active().unwrap().doc.layers[0].id.0;
+    set(&mut app, "folder", json!(folder));
+    set(&mut app, "tab", json!("layers"));
+    set(&mut app, "layers", json!([layer]));
+    set(&mut app, "name", json!(""));
+    set(&mut app, "folders", json!("none"));
+    set(&mut app, "formats", json!([{"format": "png", "scale": "1x", "suffix": ""}]));
+    let r = confirm(&mut app).unwrap();
+    assert_eq!(r["files"][0], json!(format!("{folder}/Layer-1.png")));
+
+    // The Selection tab: nothing selected keeps the dialog open; a file per selected object.
+    open(&mut app);
+    app.run("select.none", json!({})).unwrap();
+    set(&mut app, "folder", json!(folder));
+    set(&mut app, "tab", json!("selection"));
+    frame(&mut app);
+    assert!(confirm(&mut app).is_err());
+    app.run("select.all", json!({})).unwrap();
+    set(&mut app, "selectionMode", json!("each"));
+    set(&mut app, "name", json!("piece-#"));
+    set(&mut app, "formats", json!([{"format": "svg", "scale": "1x", "suffix": ""}]));
+    frame(&mut app);
+    let r = confirm(&mut app).unwrap();
+    assert_eq!(r["files"][0], json!(format!("{folder}/piece-1.svg")));
+
+    // Presets: the Logo Package sets the formats, naming and folders; the dialog saves its own.
+    open(&mut app);
+    let presets = field(&app, "__exportPresets");
+    let logo = presets.as_array().unwrap().iter().find(|p| p["name"] == "Logo Package").unwrap().clone();
+    export_for_screens::apply_preset(app.ui.dialog.as_mut().unwrap(), &logo);
+    assert_eq!(field(&app, "formats").as_array().unwrap().len(), 5);
+    assert_eq!(
+        (field(&app, "folders"), field(&app, "name"), field(&app, "exportPreset")),
+        (json!("format"), json!("<filename>-<name>"), json!("Logo Package"))
+    );
+    frame(&mut app);
+    set(&mut app, "folder", json!(folder));
+    set(&mut app, "__savePreset", json!("Client Pack"));
+    frame(&mut app);
+    let saved = app
+        .run("document.exportPresets.save", json!({"name": "Client Pack", "settings": {"formats": field(&app, "formats"), "folders": "item"}}))
+        .unwrap();
+    assert_eq!(saved["name"], "Client Pack");
+    let list = export_for_screens::export_presets(&mut app);
+    assert!(list.as_array().unwrap().iter().any(|p| p["name"] == "Client Pack" && p["builtIn"] == false));
+    let _ = std::fs::remove_dir_all(&dir);
 }

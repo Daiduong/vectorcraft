@@ -36,6 +36,20 @@ fn num(desc: &str) -> Value {
 fn string(desc: &str) -> Value {
     json!({"type": "string", "description": desc})
 }
+/// The arguments `doc_inspect` / `inspect_document` pass on to `document.inspect`.
+const INSPECT_KEYS: [&str; 6] = ["depth", "childLimit", "ids", "kind", "limit", "offset"];
+
+/// Their schema.
+fn inspect_props() -> Value {
+    json!({
+        "depth": {"type": "integer", "minimum": 0, "description": "Child levels of the layer tree to include (default all; 0 = top layers with counts)"},
+        "childLimit": {"type": "integer", "minimum": 0, "description": "Children shown per node (default all; a level that shows fewer reports childCount)"},
+        "ids": {"type": "array", "maxItems": 10000, "items": {"type": "integer", "minimum": 0}, "description": "List just these nodes (any level) as `nodes` instead of the whole layer tree; an unknown id is an error"},
+        "kind": {"type": "string", "description": "List every node of this panel label (Layer, Group, Path, Type, Image, ...; ignores case) as `nodes`, each with its ancestor `path`; searches the subtrees of `ids` when given"},
+        "limit": {"type": "integer", "minimum": 0, "description": "At most this many layers or nodes (the reply adds `total`)"},
+        "offset": {"type": "integer", "minimum": 0, "description": "Layers or nodes skipped first (default 0)"}
+    })
+}
 fn paint_schema(what: &str) -> Value {
     json!({
         "description": format!("{what}: \"#rrggbb\", \"none\", [r,g,b] (0..1), {{\"c\",\"m\",\"y\",\"k\"}}, {{\"gray\"}}, or a full paint.setFill params object ({{\"gradient\":…}} / {{\"swatch\":name}})"),
@@ -102,8 +116,11 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "command_list",
             "List commands",
-            "Discover command ids, labels, parameter descriptions and enabled state. Returns an array.",
-            obj(json!({"filter": string("Case-insensitive id, label or menu substring"), "enabled_only": {"type":"boolean"}}), &[]),
+            "Discover command ids, labels, parameter descriptions and enabled state. Returns an array. The whole catalogue is large: narrow it with filter (or query), menu, and brief.",
+            obj(
+                json!({"filter": string("Case-insensitive id, label or menu substring"), "query": string("Same as filter"), "menu": string(MENU_FILTER), "enabled_only": {"type":"boolean"}, "brief": {"type":"boolean", "description": BRIEF}}),
+                &[],
+            ),
             true,
         ),
         tool(
@@ -126,8 +143,8 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "doc_inspect",
             "Inspect document",
-            "Summary of the active document, including artboards, layer tree, selection and history.",
-            obj(json!({"depth":{"type":"integer", "minimum":0},"childLimit":{"type":"integer", "minimum":0}}), &[]),
+            "Summary of the active document, including artboards, layer tree, selection and history. On a large document scope it: depth 0 for the layer skeleton, ids for just those nodes, kind for every node of one kind, limit/offset to page.",
+            obj(inspect_props(), &[]),
             true,
         ),
         tool(
@@ -153,7 +170,7 @@ pub fn tool_definitions() -> Vec<Value> {
             "List commands",
             "List VectorCraft commands (id, label, menu path, shortcut, parameter description, enabled state). Every editing action is a command; run any of them with run_command. Coordinates are points in document space, y down, origin at the first artboard's top-left.",
             obj(
-                json!({"filter": string("Case-insensitive substring matched against id, label and menu path (e.g. \"align\", \"Object\")"), "enabledOnly": {"type": "boolean", "description": "Only commands that can run right now"}}),
+                json!({"filter": string("Case-insensitive substring matched against id, label and menu path (e.g. \"align\", \"Object\")"), "query": string("Same as filter"), "menu": string(MENU_FILTER), "enabledOnly": {"type": "boolean", "description": "Only commands that can run right now"}, "brief": {"type": "boolean", "description": BRIEF}}),
                 &[],
             ),
             true,
@@ -172,13 +189,7 @@ pub fn tool_definitions() -> Vec<Value> {
             "inspect_document",
             "Inspect document",
             "Summary of the active document: artboards, layer tree (ids, names, kinds, bounds, fill/stroke), selection, undo history, current tool and default paint. On a large document pass depth: 0 for the layer skeleton (truncated levels report childCount), then locate objects with run_command document.find and read them with document.node.",
-            obj(
-                json!({
-                    "depth": {"type": "integer", "minimum": 0, "description": "Child levels of the layer tree to include (default all; 0 = top layers with counts)"},
-                    "childLimit": {"type": "integer", "minimum": 0, "description": "Children shown per node (default all; a level that shows fewer reports childCount)"}
-                }),
-                &[],
-            ),
+            obj(inspect_props(), &[]),
             true,
         ),
         tool(
@@ -838,25 +849,52 @@ fn image_result(png: &[u8], info: Value) -> ToolResult {
     }
 }
 
+/// The `menu` argument of the command listings.
+const MENU_FILTER: &str = "Case-insensitive substring of the menu path, its levels joined with \" > \" (e.g. \"Object\", \"Object > Path\")";
+/// The `brief` argument of the command listings.
+const BRIEF: &str = "Leave out each command's params description (the bulk of the catalogue); run command_list with the id as filter to read it";
+
+/// The command catalogue narrowed by the listing tools' arguments: `filter` (or `query`) on the
+/// id, label and menu path, `menu` on the menu path, `enabledOnly`, and `brief` (no `params`
+/// text: the full catalogue is too large for many clients, #2173).
 fn filter_commands(all: Value, a: &Args) -> Value {
-    let needle = a.get("filter").and_then(Value::as_str).map(str::to_lowercase).filter(|s| !s.is_empty());
+    let text = |k: &str| a.get(k).and_then(Value::as_str).map(str::to_lowercase).filter(|s| !s.is_empty());
+    let needle = text("filter").or_else(|| text("query"));
+    let in_menu = text("menu");
     let enabled_only = a.get("enabledOnly").and_then(Value::as_bool).unwrap_or(false);
+    let brief = a.get("brief").and_then(Value::as_bool).unwrap_or(false);
     let Value::Array(list) = all else { return all };
+    let menu_path = |c: &Value, sep: &str| {
+        c.get("menu")
+            .and_then(Value::as_array)
+            .map(|m| m.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(sep))
+            .unwrap_or_default()
+            .to_lowercase()
+    };
     let hit = |c: &Value| {
         if enabled_only && c.get("enabled").and_then(Value::as_bool) == Some(false) {
             return false;
         }
+        if let Some(m) = &in_menu
+            && !menu_path(c, " > ").contains(m.as_str())
+        {
+            return false;
+        }
         let Some(n) = &needle else { return true };
         let field = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("").to_lowercase();
-        let menu = c
-            .get("menu")
-            .and_then(Value::as_array)
-            .map(|m| m.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(" "))
-            .unwrap_or_default()
-            .to_lowercase();
-        field("id").contains(n) || field("label").contains(n) || menu.contains(n)
+        field("id").contains(n.as_str()) || field("label").contains(n.as_str()) || menu_path(c, " ").contains(n.as_str())
     };
-    Value::Array(list.into_iter().filter(hit).collect())
+    Value::Array(
+        list.into_iter()
+            .filter(hit)
+            .map(|mut c| {
+                if brief && let Some(o) = c.as_object_mut() {
+                    o.remove("params");
+                }
+                c
+            })
+            .collect(),
+    )
 }
 
 fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, String> {
@@ -889,9 +927,9 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
             j(b.call(method, json!({"command": cmd, "params": params}))?)
         }
         "doc_inspect" | "inspect_document" => {
-            // Only the slicing options reach the command, which validates them.
+            // Only the slicing and scope options reach the command, which validates them.
             let slice: Map<String, Value> =
-                a.iter().filter(|(k, _)| matches!(k.as_str(), "depth" | "childLimit")).map(|(k, v)| (k.clone(), v.clone())).collect();
+                a.iter().filter(|(k, _)| INSPECT_KEYS.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect();
             j(b.call("document.inspect", Value::Object(slice))?)
         }
         "ui_inspect" | "inspect_ui" => {

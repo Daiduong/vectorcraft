@@ -228,6 +228,45 @@ fn writes_the_documented_operators() {
     assert!(text.contains("] 0 0 2 1 2 1 8 3 0 0 0 0 XI\n%FF00000000FF\n%AI5_EndRaster\n"), "{text}");
 }
 
+/// An image's matrix (§8) is an art-space matrix applied to its pixels with their rows running
+/// downwards, `(u, -v)`: a rotated image is written with the matrix the reader and other apps
+/// place it by, prints where it is, and reads back where it was (#2269).
+#[test]
+fn a_rotated_image_keeps_its_place() {
+    let mut doc = Document::new(200.0, 100.0);
+    let mut png = vec![];
+    image::RgbaImage::from_raw(2, 1, vec![255, 0, 0, 255, 0, 0, 255, 255])
+        .unwrap()
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let blob = ImageBlob::new("image/png", png);
+    let key = blob.content_key();
+    doc.images.insert(key.clone(), blob);
+    // Turned 90° clockwise on the page: the pixel rows run down, the next row is to the left.
+    let xf = Affine::new([0.0, 10.0, -10.0, 0.0, 100.0, 40.0]);
+    let im =
+        Node::new(doc.alloc_id(), NodeKind::Image(Box::new(ImageObject { key, width: 2, height: 1, xf, link: None, placement: Default::default() })));
+    doc.layers.clear();
+    let layer = doc.add_layer(Some("Art"));
+    doc.insert(Some(layer), usize::MAX, im).unwrap();
+    let out = write(&doc);
+    let text = String::from_utf8(out.bytes.clone()).unwrap();
+    // In art space (y up) the rows run down, (0, -10) a pixel, and the next row is to the left,
+    // (-10, 0): [a b] = (0, -10) and [c d] = (10, 0), as the matrix takes (u, -v).
+    let line = text.lines().find(|l| l.ends_with(" XI")).unwrap();
+    let m: Vec<f64> = line.trim_start_matches('[').split(']').next().unwrap().split_whitespace().map(|v| v.parse().unwrap()).collect();
+    assert_eq!(m[..4], [0.0, -10.0, 10.0, 0.0], "{line}");
+    let read = crate::import(&out.bytes).unwrap().document;
+    let mut found = None;
+    read.walk(|n| {
+        if let NodeKind::Image(im) = &n.kind {
+            found = Some(im.xf);
+        }
+    });
+    let back = found.unwrap();
+    assert!(back.as_coeffs().iter().zip(xf.as_coeffs()).all(|(a, b)| (a - b).abs() < 1e-6), "{back:?}");
+}
+
 #[test]
 fn a_gradient_fill_and_its_stroke_are_one_object() {
     let mut doc = Document::new(100.0, 100.0);
@@ -477,6 +516,21 @@ fn type_is_written_as_text_objects() {
     assert!(!out.warnings.iter().any(|w| w == TYPE), "{:?}", out.warnings);
 }
 
+/// A legacy `.ai` text object names a font, not a setting of its variation axes: type with
+/// Variable Font settings is written in the font's style, with the warning that they are left out.
+#[test]
+fn variable_font_settings_are_warned_as_left_out() {
+    let mut doc = typed();
+    assert!(!write(&doc).warnings.iter().any(|w| w == TYPE_ATTRIBUTES));
+    let id = texts(&doc)[0].0.id;
+    if let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind) {
+        t.runs[0].style.font_axes.insert("wght".into(), 650.0);
+    }
+    let out = write(&doc);
+    assert!(out.warnings.iter().any(|w| w == TYPE_ATTRIBUTES), "{:?}", out.warnings);
+    assert!(String::from_utf8(out.bytes).unwrap().contains("(H\\351llo \\2005\\r) Tx\n"), "still written as text");
+}
+
 #[test]
 fn type_reads_back_as_text() {
     use vectorcraft_doc::{Justify, TextKind};
@@ -587,4 +641,27 @@ fn hidden_objects_can_be_left_out_or_shown() {
     let pair = children(&children(&doc.layers[0])[0]);
     assert_eq!(pair.len(), 2);
     assert!(pair.iter().all(|n| n.visible));
+}
+
+#[test]
+fn layer_names_outside_latin_1_are_replaced_and_warned() {
+    let layered = |name: &str| {
+        let mut doc = Document::new(100.0, 100.0);
+        doc.layers.clear();
+        let layer = doc.add_layer(Some(name));
+        let n = shape(&mut doc, shapes::rectangle(Rect::new(10.0, 10.0, 40.0, 40.0)), red(), Paint::None);
+        doc.insert(Some(layer), usize::MAX, n).unwrap();
+        // A hidden object, so the layer also gets a hidden layer named after it.
+        let mut hidden = shape(&mut doc, shapes::rectangle(Rect::new(50.0, 10.0, 80.0, 40.0)), red(), Paint::None);
+        hidden.visible = false;
+        doc.insert(Some(layer), usize::MAX, hidden).unwrap();
+        write(&doc)
+    };
+    let out = layered("\u{b808}\u{c774}\u{c5b4} 1 Caf\u{e9}");
+    let text = String::from_utf8_lossy(&out.bytes);
+    assert!(text.contains("(??? 1 Caf\\351) Ln"), "{text}");
+    assert!(text.contains("(??? 1 Caf\\351 \\(hidden\\)) Ln"), "{text}");
+    assert!(out.warnings.iter().any(|w| w == LAYER_NAME), "{:?}", out.warnings);
+    // A name Latin-1 can hold is written as it is, with no warning.
+    assert!(!layered("Caf\u{e9}").warnings.iter().any(|w| w == LAYER_NAME));
 }

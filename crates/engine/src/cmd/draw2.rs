@@ -1,6 +1,7 @@
 //! Commands backing the drawing tools (pencil, curvature, anchor tools, scissors, knife, eraser,
 //! blob brush, smooth, path eraser, join).
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveNearest};
@@ -12,7 +13,8 @@ use vectorcraft_geom::{Anchor, AnchorKind, BezPath, FillRule, PathData, Point, R
 use vectorcraft_pathops as po;
 use vectorcraft_pathops::{BoolOp, Cap, Join, SimplifyOptions};
 
-use super::create::{add_look, add_node, insert_look};
+use super::create::{add_look, insert_look};
+use super::newart::NewArt;
 use super::pathops::{Beside, remove_each};
 use super::*;
 use crate::EngineError;
@@ -60,7 +62,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Remove Anchor Points",
             ["Object", "Path"],
             None,
-            "{} remove the direct-selected anchors without opening their paths, refitting the curve round each → {removedObjects}",
+            "{} remove the direct-selected anchors without opening their paths, refitting the curve round each; the anchor after each removed one is selected, so running it again goes on along the path → {removedObjects}",
             has_anchors,
             remove_anchors
         ),
@@ -78,7 +80,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Reshape Segment",
             [],
             None,
-            "{id, subpath, segment, t, dx, dy} bend a segment so the point at t moves by (dx, dy)",
+            "{id, subpath, segment, t, dx, dy, perpendicular?: bool} bend a segment so the point at t moves by (dx, dy); with perpendicular (Shift), both handles stand at right angles to the line between its anchors at one length, and the point at t lies as far from that line as the moved point does",
             has_doc,
             reshape_segment
         ),
@@ -141,7 +143,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Blob Brush",
             [],
             None,
-            "{points: [[x,y]…], size?: pt (10), merge?: true} filled brush shape, merged with touching same-colour blobs → {id}",
+            "{points: [[x,y]…], size?: pt (10), merge?: true, mergeOnlySelection?: bool (false: merge with any touching same-color blob; true: only with selected ones), keepSelected?: bool (false: the drawn or merged path is not selected, and the rest of the selection stays; true: it is selected)} filled brush shape, merged with touching same-colour blobs → {id}",
             has_doc,
             blob
         ),
@@ -197,6 +199,16 @@ fn stroke_pressure(samples: &[(Point, Option<f64>)]) -> Option<PressureProfile> 
 fn subpath_len(sp: &SubPath) -> f64 {
     use kurbo::ParamCurveArclen;
     PathData::single(sp.clone()).to_bezpath().segments().map(|s| s.arclen(0.01)).sum()
+}
+
+/// The bound, in points, on the length of a `path.reshapeSegment` delta and on the x and y of a
+/// point given to `path.convertAnchor` or `path.freehand`. The blend spine commands set the same
+/// bound (`object.blend.spine.reshapeSegment`, `object.blend.spine.moveAnchor`).
+const MAX_INPUT: f64 = 1e9;
+
+/// Whether `q` is finite and its x and y are each smaller than [`MAX_INPUT`] in size.
+fn within_input_bound(q: Point) -> bool {
+    q.x.is_finite() && q.y.is_finite() && q.x.abs() < MAX_INPUT && q.y.abs() < MAX_INPUT
 }
 
 fn usize_req(p: &Value, key: &str, cmd: &str) -> Result<usize> {
@@ -539,6 +551,9 @@ fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
 fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "path.freehand";
     let samples = samples_param(p, "points", C)?;
+    if samples.iter().any(|(q, _)| !within_input_bound(*q)) {
+        return Err(bad(C, "x and y must be finite"));
+    }
     let pressure = stroke_pressure(&samples);
     let mut pts: Vec<Point> = samples.into_iter().map(|(pt, _)| pt).collect();
     let tol = f64_or(p, "fidelity", 1.5).clamp(0.05, 100.0);
@@ -772,12 +787,45 @@ fn remove_anchors(s: &mut Session, _: &Value) -> Result<Value> {
         let mut removed = 0;
         let mut emptied = Beside::replacing(d, &jobs.iter().map(|(id, _)| *id).collect::<Vec<_>>());
         for (id, anchors) in jobs {
-            removed += usize::from(remove_anchors_of(d, sel, &mut emptied, id, anchors)?);
+            let shape: Vec<(usize, bool)> =
+                d.node(id).and_then(Node::path_data).map(|p| p.subpaths.iter().map(|sp| (sp.anchors.len(), sp.closed)).collect()).unwrap_or_default();
+            let next = following_anchors(&shape, &anchors);
+            if remove_anchors_of(d, sel, &mut emptied, id, anchors)? {
+                removed += 1;
+            } else if !next.is_empty() {
+                // The next anchor along is selected, so the next Remove Anchor Points goes on from
+                // there without picking it first (#2241).
+                sel.anchors.insert(id, next);
+            }
         }
         emptied.finish(d)?;
         Ok(removed)
     })?;
     Ok(json!({ "removedObjects": removed }))
+}
+
+/// Where the selection goes once Remove Anchor Points takes `removed` (subpath, anchor) out of a
+/// path whose subpaths have `shape` (anchor count, closed): in each subpath, the anchor after its
+/// last removed one, round the end of a closed subpath, or the one before it at an open subpath's
+/// end. Indexes are those after the removal, without the subpaths left with fewer than two anchors.
+fn following_anchors(shape: &[(usize, bool)], removed: &[(usize, usize)]) -> BTreeSet<(usize, usize)> {
+    let mut next = BTreeSet::new();
+    let mut kept = 0;
+    for (si, &(n, closed)) in shape.iter().enumerate() {
+        let gone: BTreeSet<usize> = removed.iter().filter(|&&(s, a)| s == si && a < n).map(|&(_, a)| a).collect();
+        if n - gone.len() < 2 {
+            continue;
+        }
+        if let Some(&last) = gone.last() {
+            let wrap = if closed { 0..last } else { 0..0 };
+            let after = (last + 1..n).chain(wrap).find(|a| !gone.contains(a));
+            if let Some(a) = after.or_else(|| (0..last).rev().find(|a| !gone.contains(a))) {
+                next.insert((kept, a - gone.range(..a).count()));
+            }
+        }
+        kept += 1;
+    }
+    next
 }
 
 /// Remove `anchors` (subpath, anchor) of path `id` without opening it, refitting the curve round
@@ -822,6 +870,9 @@ fn convert_anchor(s: &mut Session, p: &Value) -> Result<Value> {
         (Some(x), Some(y)) => Some(Point::new(x, y)),
         _ => None,
     };
+    if target.is_some_and(|q| !within_input_bound(q)) {
+        return Err(bad(C, "x and y must be finite"));
+    }
     s.edit("Convert Anchor Point", |d, _| {
         let path = path_mut(d, id)?;
         let sp = path.subpaths.get_mut(si).ok_or_else(|| EngineError::Other("no such subpath".into()))?;
@@ -851,13 +902,15 @@ fn reshape_segment(s: &mut Session, p: &Value) -> Result<Value> {
     let seg = usize_req(p, "segment", C)?;
     let t = f64_or(p, "t", 0.5).clamp(0.05, 0.95);
     let dv = Vec2::new(f64_or(p, "dx", 0.0), f64_or(p, "dy", 0.0));
-    if !(dv.x.is_finite() && dv.y.is_finite()) {
+    if !(dv.x.is_finite() && dv.y.is_finite() && dv.hypot() < MAX_INPUT) {
         return Err(bad(C, "invalid delta"));
     }
+    let perpendicular = bool_or(p, "perpendicular", false);
     s.edit("Reshape", |d, _| {
         let path = path_mut(d, id)?;
         let sp = path.subpaths.get_mut(si).ok_or_else(|| EngineError::Other("no such subpath".into()))?;
-        if !sp.bend_segment(seg, t, dv) {
+        let bent = if perpendicular { sp.bend_segment_perpendicular(seg, t, dv) } else { sp.bend_segment(seg, t, dv) };
+        if !bent {
             return Err(EngineError::Other("no such segment".into()));
         }
         Ok(())
@@ -1312,11 +1365,14 @@ fn blob(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         Paint::solid(Color::BLACK)
     };
+    let keep_selected = bool_or(p, "keepSelected", false);
+    let only_selection = bool_or(p, "mergeOnlySelection", false);
     let st = s.doc()?;
     let mut merge_ids = vec![];
-    if bool_or(p, "merge", true) {
+    if bool_or(p, "merge", true) && !(only_selection && st.selection.is_empty()) {
         let all = Selection::default();
-        for id in target_paths(&st.doc, &all, poly_bounds(&pts, size)) {
+        let from = if only_selection { &st.selection } else { &all };
+        for id in target_paths(&st.doc, from, poly_bounds(&pts, size)) {
             let Some(n) = st.doc.node(id) else { continue };
             if n.appearance.fill_paint() != paint || !n.appearance.stroke_paint().is_none() {
                 continue;
@@ -1327,20 +1383,26 @@ fn blob(s: &mut Session, p: &Value) -> Result<Value> {
             }
         }
     }
-    let ap = Appearance::basic(paint, Paint::None, 1.0);
+    let ap = NewArt::plain(Appearance::basic(paint, Paint::None, 1.0));
     if merge_ids.is_empty() {
-        return add_node(s, "Blob Brush", path_kind(region), ap, None);
+        return insert_look(s, "Blob Brush", path_kind(region), ap, None, keep_selected);
     }
     let mut inputs: Vec<(&PathData, FillRule)> = vec![(&region, FillRule::NonZero)];
     inputs.extend(merge_ids.iter().map(|(_, pd, r)| (pd, *r)));
     let merged = po::unite_all(&inputs);
-    let Some(((keep, _, _), rest)) = merge_ids.split_last() else { return add_node(s, "Blob Brush", path_kind(region), ap, None) };
+    let Some(((keep, _, _), rest)) = merge_ids.split_last() else {
+        return insert_look(s, "Blob Brush", path_kind(region), ap, None, keep_selected);
+    };
     let keep = *keep;
     let others: Vec<NodeId> = rest.iter().map(|m| m.0).collect();
     s.edit("Blob Brush", |d, sel| {
         *path_mut(d, keep)? = merged;
         remove_each(d, &others)?;
-        sel.set([keep]);
+        if keep_selected {
+            sel.set([keep]);
+        } else {
+            sel.remove(keep);
+        }
         Ok(())
     })?;
     Ok(json!({ "id": keep.0 }))

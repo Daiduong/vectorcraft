@@ -279,10 +279,10 @@ fn rearrange_button(app: &mut VectorcraftApp, ui: &mut Ui, artboards: usize, w: 
 }
 
 /// Artboard `i`'s size preset (New Document's saved and built-in presets, by category, either way
-/// round; Custom when its `w` × `h` points match none) and its orientation. A preset sizes it in its
-/// current orientation; the other orientation swaps its width and height. Its top-left corner stays
-/// put either way.
-fn artboard_size_row(app: &mut VectorcraftApp, ui: &mut Ui, i: usize, w: f64, h: f64) {
+/// round; Custom when its `w` × `h` points match none) and its orientation, here and in the Control
+/// bar. A preset sizes it in its current orientation; the other orientation swaps its width and
+/// height. Its top-left corner stays put either way.
+pub(crate) fn artboard_size_row(app: &mut VectorcraftApp, ui: &mut Ui, i: usize, w: f64, h: f64) {
     let landscape = w > h;
     // A preset `pw` × `ph` turned to the artboard's orientation.
     let turned = |pw: f64, ph: f64| if (pw > ph) == landscape || pw == ph { (pw, ph) } else { (ph, pw) };
@@ -436,14 +436,14 @@ pub fn transform_section(app: &mut VectorcraftApp, ui: &mut Ui) {
             ui.data_mut(|d| d.insert_temp(egui::Id::new("refpt"), i));
         }
         ui.add_space(6.0);
-        let link = app.session.prefs.constrain_proportions;
+        let link = super::transform::proportional(app, ui);
         egui::Grid::new("xf-grid").num_columns(4).spacing([4.0, 6.0]).min_col_width(0.0).show(ui, |ui| {
             dim_label(ui, "X:");
             if let Some(v) = widgets::num_field(ui, "tx", Some(rp.x - origin.x), units, fw) {
                 app.run("object.setBounds", json!({"x": v + origin.x, "reference": refi, "copy": copy})).ok();
             }
             dim_label(ui, "W:");
-            if let Some(v) = widgets::num_field(ui, "tw", Some(b.width()), units, fw) {
+            if let Some(v) = widgets::size_field(ui, "tw", Some(b.width()), units, fw) {
                 app.run("object.setBounds", json!({"width": v, "reference": refi, "proportional": link, "copy": copy})).ok();
             }
             ui.end_row();
@@ -452,7 +452,7 @@ pub fn transform_section(app: &mut VectorcraftApp, ui: &mut Ui) {
                 app.run("object.setBounds", json!({"y": v + origin.y, "reference": refi, "copy": copy})).ok();
             }
             dim_label(ui, "H:");
-            if let Some(v) = widgets::num_field(ui, "th", Some(b.height()), units, fw) {
+            if let Some(v) = widgets::size_field(ui, "th", Some(b.height()), units, fw) {
                 app.run("object.setBounds", json!({"height": v, "reference": refi, "proportional": link, "copy": copy})).ok();
             }
             ui.end_row();
@@ -971,7 +971,7 @@ mod tests {
 
     fn select_artboard_rows(app: &mut VectorcraftApp, ctx: &egui::Context, indices: &[usize]) {
         for (at, i) in indices.iter().enumerate() {
-            let modifiers = if at == 0 { egui::Modifiers::NONE } else { egui::Modifiers::SHIFT };
+            let modifiers = if at == 0 { egui::Modifiers::NONE } else { egui::Modifiers::COMMAND };
             artboard_deletion_click(app, ctx, super::super::artboards::show, Some(&format!("Artboard {}", i + 1)), modifiers);
         }
         let count = app.session.doc().unwrap().doc.artboards.len();
@@ -1227,7 +1227,7 @@ mod tests {
             artboard_history_new(&mut app, &ctx);
             let created = app.session.doc().unwrap().doc.clone();
             for (at, i) in order.into_iter().enumerate() {
-                let modifiers = if at == 0 { egui::Modifiers::NONE } else { egui::Modifiers::SHIFT };
+                let modifiers = if at == 0 { egui::Modifiers::NONE } else { egui::Modifiers::COMMAND };
                 artboard_deletion_click(&mut app, &ctx, super::super::artboards::show, Some(&format!("Artboard {}", i + 1)), modifiers);
             }
             let options = app.session.tool_options();

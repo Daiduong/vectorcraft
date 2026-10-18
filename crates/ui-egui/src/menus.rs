@@ -264,6 +264,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "",
         "{angle: degrees, clockwise on screen as the status bar shows it} turn the view to that angle about the center of the canvas; returns {angle}, normalized to (-180, 180]",
     ),
+    (
+        "view.rotateToSelection",
+        "Rotate View to Selection",
+        "",
+        "{} turn the view about the center of the canvas to the angle the selected objects share (selectionRotation in document.inspect, 0 when they differ), so their bounding box is square to the window; returns {angle}",
+    ),
     ("view.rotateReset", "Reset Rotate View", "Cmd+Shift+1", "{}"),
     ("window.control", "Control", "", "{}"),
     ("window.toolbar", "Tools", "", "{}"),
@@ -318,14 +324,24 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{pinned?: bool} keep the Contextual Task Bar where it is instead of following the selection (true), let it follow the selection again from where it is (false) or toggle (omitted), as the bar's More Options menu does; returns the new state",
     ),
     ("window.taskBar.reset", "Reset Bar Position", "", "{} unpin the Contextual Task Bar and put it back under the selection"),
-    ("window.dock", "Panels", "Tab", "{} show/hide all panels"),
+    (
+        "window.dock",
+        "Panels",
+        "Tab",
+        "{} hide the panels, the toolbar and the Control bar, or show again the ones the last Tab hid (all three when none of them shows and Tab hid none); returns whether it showed them",
+    ),
     (
         "window.panels",
         "Panels Except Tools and Control",
         "Shift+Tab",
         "{} show/hide the dock and the floating panels (hiding them closes a panel popped out of the icon column), leaving the toolbar and the Control bar as they are; returns whether the panels show",
     ),
-    ("window.panel", "Show Panel", "", "{panel: id} e.g. layers, swatches, stroke (case-insensitive; display labels like \"Layers\" work too)"),
+    (
+        "window.panel",
+        "Show Panel",
+        "",
+        "{panel: id, toggle?: bool} e.g. layers, swatches, stroke (case-insensitive; display labels like \"Layers\" work too); toggle (the Window menu) hides a panel that shows, and shows it again where it was",
+    ),
     (
         "window.panel.layout",
         "Change Panel Layout",
@@ -449,13 +465,13 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "ui.symbolOptions",
         "Symbol Options…",
         "",
-        "{} open Symbol Options for a new symbol made from the selection, what the Symbols panel's New Symbol opens (dialog `symbolOptions`, fields `name` and `registration` 0..8 on the 9-point grid, default centre; default name the first free \"New Symbol\"/\"New Symbol N\"); OK runs symbol.new {name, registration}",
+        "{name?} open Symbol Options (dialog `symbolOptions`, fields `name`, `exportType`: movieClip|graphic, `registration` 0..8). Without `name` and with a selection: New Symbol (default name the first free \"New Symbol\"/\"New Symbol N\", Export Type Movie Clip, Registration centre); OK runs symbol.new {name, exportType, registration}. With `edit: true` or `name`: edit that symbol; OK runs symbol.options {name, newName?, exportType, registration}",
     ),
     (
         "tool.options",
         "Tool Options…",
         "",
-        "{tool: id} what double-clicking a tool button opens: hand → fits the artboard in the window (view.fitArtboard), zoom → 100% (view.actualSize), rotate|scale|reflect|shear → that Object › Transform dialog (dialog `rotate`, `scale`, `reflect` or `shear`; error `nothing selected` without a selection), selection|directSelection|groupSelection → the Move dialog (dialog `move`; the same error), gradient|magicWand → the Gradient or Magic Wand panel (window.panel), artboard → Artboard Options of the active artboard (dialog `artboardOptions`, fields index, name, x, y, width, height; OK runs artboard.setProps), flare → Flare Tool Options (dialog `flareOptions`, fields diameter and pathLength (pt), opacity, brightness, growth, fuzziness, longest, rayFuzziness, largest (%), rays, rings, direction (°), raysOn, ringsOn; OK runs tool.setOption {tool: \"flare\", values}: the next flare dragged out uses them, and a Flare click's dialog, which also has x and y, draws one there with them), columnGraph|stackedColumnGraph|barGraph|stackedBarGraph|lineGraph|areaGraph|scatterGraph|pieGraph|radarGraph → Graph Type for the selected graph (dialog `command` running graph.setType; an error without one), symbolSprayer|symbolShifter|symbolScruncher|symbolSizer|symbolSpinner|symbolStainer|symbolScreener|symbolStyler → Symbolism Tools Options (dialog `symbolismOptions`, fields tool, diameter (pt), intensity and density (1–10), shared by the eight tools; OK runs tool.setOption {tool, values}), blend → Blend Options, perspectiveGrid → Perspective Grid Options, eyedropper → Eyedropper Options (dialog `eyedropperOptions`, fields sampleSize, pickUp, apply; OK runs eyedropper.setOptions), printTiling → resets the print tiling (print.tiling.set {reset: true}), warp|twirl|pucker|bloat|scallop|crystallize|wrinkle → that tool's Tool Options (dialog `liquifyOptions`, fields tool, width, height, angle, intensity %, usePressure, detail, simplify, simplifyOn, rate, complexity, horizontal %, vertical %, affectAnchors, affectIn, affectOut, showBrush; OK runs tool.setOption {tool, values}), pencil|paintbrush|smooth|blobBrush|eraser → that tool's Tool Options (dialog `freehandOptions`, fields tool and the options the tool keeps: fidelity (pt), fill, keepSelected, closeWithin and editWithin (px, 0 is off), size (pt); OK runs tool.setOption {tool, values})",
+        "{tool: id} what double-clicking a tool button opens: hand → fits the artboard in the window (view.fitArtboard), zoom → 100% (view.actualSize), rotate|scale|reflect|shear → that Object › Transform dialog (dialog `rotate`, `scale`, `reflect` or `shear`; error `nothing selected` without a selection), selection|directSelection|groupSelection → the Move dialog (dialog `move`; the same error), gradient|magicWand → the Gradient or Magic Wand panel (window.panel), artboard → Artboard Options of the active artboard (dialog `artboardOptions`, fields index, name, x, y, width, height; OK runs artboard.setProps), flare → Flare Tool Options (dialog `flareOptions`, fields diameter and pathLength (pt), opacity, brightness, growth, fuzziness, longest, rayFuzziness, largest (%), rays, rings, direction (°), raysOn, ringsOn; OK runs tool.setOption {tool: \"flare\", values}: the next flare dragged out uses them, and a Flare click's dialog, which also has x and y, draws one there with them), columnGraph|stackedColumnGraph|barGraph|stackedBarGraph|lineGraph|areaGraph|scatterGraph|pieGraph|radarGraph → Graph Type for the selected graph (dialog `command` running graph.setType; an error without one), symbolSprayer|symbolShifter|symbolScruncher|symbolSizer|symbolSpinner|symbolStainer|symbolScreener|symbolStyler → Symbolism Tools Options (dialog `symbolismOptions`, fields tool, diameter (pt), intensity and density (1–10), shared by the eight tools; OK runs tool.setOption {tool, values}), blend → Blend Options, perspectiveGrid → Perspective Grid Options, eyedropper → Eyedropper Options (dialog `eyedropperOptions`, fields sampleSize, pickUp, apply; OK runs eyedropper.setOptions), printTiling → resets the print tiling (print.tiling.set {reset: true}), warp|twirl|pucker|bloat|scallop|crystallize|wrinkle → that tool's Tool Options (dialog `liquifyOptions`, fields tool, width, height, angle, intensity %, usePressure, detail, simplify, simplifyOn, rate, complexity, horizontal %, vertical %, affectAnchors, affectIn, affectOut, showBrush; OK runs tool.setOption {tool, values}), pencil|paintbrush|smooth|blobBrush|eraser → that tool's Tool Options (dialog `freehandOptions`, fields tool and the options the tool keeps: fidelity (pt), fill, keepSelected (on for pencil and paintbrush, off for blobBrush), mergeOnlySelection (off), closeWithin and editWithin (px, 0 is off), size (pt); OK runs tool.setOption {tool, values})",
     ),
     (
         "ui.colorGuideOptions",
@@ -479,13 +495,19 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.swatchLibrary",
         "Swatch Library",
         "",
-        "{library: id or name (see swatch.library.list) | null (close)} open the read-only library panel on a swatch library (UI state `library_panel`); clicking a swatch there runs swatch.library.add with apply → {open, name, count}",
+        "{library: id or name (see swatch.library.list) | null (close every swatch library panel)} open the swatch library in a read-only panel of its own, floating (panel id `library:swatches:<id>`, which window.panel.* moves, docks and closes), or bring its panel forward when it is open; clicking a swatch there runs swatch.library.add with apply. ui.libraryPanel sets its view, find field and Persistent (ui.inspect: ui.library_panels) → {open: id, panel, name, count}",
     ),
     (
         "window.swatchLibrary.other",
         "Other Library…",
         "",
-        "{path?} (default: pick a file) load a .vcswatches, .gpl, .ase or .acb (color book) library, or another document's swatches (engine: swatch.library.load), and open it in the library panel",
+        "{path?} (default: pick a file) load a .vcswatches, .gpl, .ase or .acb (color book) library, or another document's swatches (engine: swatch.library.load), and open it in its library panel",
+    ),
+    (
+        "ui.libraryPanel",
+        "Library Panel Options",
+        "",
+        "{panel: a library panel's id (`library:swatches:pastels`, as window.swatchLibrary answers), library?: id or name of another library of its kind to show in the panel (Previous / Next Library; one open in a panel of its own is brought forward instead), view?: smallThumb|mediumThumb|largeThumb|smallList|largeList, showFind?: bool, persistent?: bool (reopen the panel when the app starts)} set an open library panel, or a closed persistent one's view, Show Find Field and Persistent; kept with the preferences (ui.inspect: ui.library_panels) → {panel, kind, library, view, showFind, persistent, open}",
     ),
     (
         "ui.saveSwatchLibrary",
@@ -520,6 +542,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "New Layer Options…",
         "",
         "{sublayer?: bool} open Layer Options for a new layer (or a sublayer of the current layer), named and coloured as it would be: dialog `layerOptions` with mode new|newSublayer; OK runs layer.new or layer.newSublayer with the fields",
+    ),
+    (
+        "ui.newArtboard",
+        "New Artboard Options…",
+        "",
+        "{} open Artboard Options for a new artboard, filled in as artboard.new {} would make it (Artboard N, the last artboard's size, 20 pt to its right): dialog `artboardOptions` with new: true, fields name, x, y, width, height; OK runs artboard.new with the fields and makes the new artboard the active one; Cancel adds nothing",
     ),
     (
         "ui.layersPanelOptions",
@@ -567,13 +595,13 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.graphicStyleLibrary",
         "Graphic Style Library",
         "",
-        "{library: id or name (see graphicStyle.libraries) | null (close)} open the read-only library panel on a graphic style library (UI state `library_panel`, kind graphicStyles); clicking a style there runs graphicStyle.addFromLibrary with apply (Alt: add) → {open, name, count}",
+        "{library: id or name (see graphicStyle.libraries) | null (close every graphic style library panel)} open the graphic style library in a read-only panel of its own, floating (panel id `library:graphicStyles:<id>`), or bring its panel forward when it is open; clicking a style there runs graphicStyle.addFromLibrary with apply (Alt: add). ui.libraryPanel sets its view, find field and Persistent → {open: id, panel, name, count}",
     ),
     (
         "window.graphicStyleLibrary.other",
         "Other Library…",
         "",
-        "{path?} (default: pick a file) load a .vcstyles library, or another document's graphic styles (engine: graphicStyle.loadLibrary), and open it in the library panel",
+        "{path?} (default: pick a file) load a .vcstyles library, or another document's graphic styles (engine: graphicStyle.loadLibrary), and open it in its library panel",
     ),
     (
         "ui.saveGraphicStyleLibrary",
@@ -606,7 +634,13 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "attributes.openUrl",
         "Browser",
         "",
-        "{url?} open url, else the selection's URL (attributes.info), in the web browser (the Attributes panel's Browser button) → {url}",
+        "{url?} open url, else the selection's URL (attributes.info), in the web browser (the Attributes panel's Browser button; http, https and mailto URLs only; not over the control channel or MCP) → {url}",
+    ),
+    (
+        "ui.javascriptFilesDialog",
+        "Link JavaScript Files…",
+        "",
+        "{} open JavaScript Files for the active document (dialog `javascriptFiles`, fields `file`: a path or URL and `selected`: a linked file; the SVG Interactivity panel's Link JavaScript Files button): its list shows svgInteractivity.info's files, Add runs svgInteractivity.addFile with file and Remove runs svgInteractivity.removeFile with selected",
     ),
     (
         "ui.spotColors",
@@ -631,6 +665,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "Corners…",
         "",
         "{id?, corners?: [i…]} open Corners for path `id` (default: the selected one) and its corners (anchor indices of the path with its corners uncut, as object.setLiveShape takes them: a rectangle's 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left; default: the Direct-Selected corners, else every corner) (dialog `corners`: kind (round|invertedRound|chamfer), radius (pt); double-clicking a corner widget opens it too): OK runs object.setLiveShape",
+    ),
+    (
+        "ui.hyphenation",
+        "Hyphenation…",
+        "",
+        "{} open Hyphenation (the Paragraph panel menu's Hyphenation…) on the paragraphs the Paragraph panel acts on, filled in with the values it shows (dialog `hyphenation`: hyphenate, wordsLongerThan 1..25, afterFirst 1..15, beforeLast 1..15, hyphenLimit 0..25 (0: no limit), hyphenationZone (pt), hyphenateCapitalized): OK runs text.setFormat with the values that changed, as one undo step; an error with no type selected",
     ),
     (
         "ui.colorGuideLimit",
@@ -711,7 +751,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "links.editOriginal",
         "Edit Original",
         "",
-        "{id?} open the file of linked image `id` (default: the selected linked image) in the system's default app for its type (Links panel, Edit › Edit Original); a placed document's file opens here in a new tab, and saving it updates the documents placing it → {path}; edits saved elsewhere show after links.update",
+        "{id?} open the file of linked image `id` (default: the selected linked image) in the system's default app for its type (Links panel, Edit › Edit Original; only a regular file with the extension of a format document.open reads, and not over the control channel or MCP); a placed document's file opens here in a new tab, and saving it updates the documents placing it → {path}; edits saved elsewhere show after links.update",
     ),
     (
         "links.reveal",
@@ -784,13 +824,13 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "css.exportFile",
         "Export CSS…",
         "",
-        "{path?, scope?: selection|all (default selection), …css.selection options} css.export written to path, else a picked file (the web downloads it), with the pictures of rasterized art next to it (CSS Properties panel: Export Selected CSS…, Export All…) → {path, rules, images: [path…]}",
+        "{path?, scope?: selection|all (default selection), …css.selection options} css.export written to path, else a picked file (the web downloads it), with the pictures of rasterized art next to it (CSS Properties panel: Export Selected CSS…, Export All…) → {path, rules, images: [path…], warnings (css.export's; the status bar shows the first)}",
     ),
     (
         "file.print",
         "Print…",
         "Cmd+P",
-        "{} open the Print dialog (dialog `print`: the print.setup settings, preset (setting it loads that print preset; Save Preset… saves them as one), printer, toFile; Print keeps the settings with the document and prints, Done (discard: true) only keeps them); with params {settings? (over the document's), printer? (print.printers name; \"\" the default), toFile?, path?, format?: pdf|postscript, level?, flattenerPreset? (as engine file.print)} print without it: the print-ready PDF (engine file.print) goes to the printer → {pages, printer, printed: true, warnings}; with toFile, a path or no printing here (no print service) it is saved as a PDF at path (else a picked file, the web downloads it) → {path, pages, printed: false, warnings}; a PostScript file (format postscript, or a .ps path) is always saved that way",
+        "{} open the Print dialog (dialog `print`: the print.setup settings, preset (setting it loads that print preset; Save Preset… saves them as one), printer, toFile; Print keeps the settings with the document and prints, Done (discard: true) only keeps them); with params {preset? (a print preset's name: its settings instead of the document's), settings? (over the document's or the preset's), printer? (print.printers name; \"\" the default), toFile?, path?, format?: pdf|postscript, level?, flattenerPreset? (as engine file.print)} print without it: the print-ready PDF (engine file.print) goes to the printer → {pages, printer, printed: true, warnings}; with toFile, a path or no printing here (no print service) it is saved as a PDF at path (else a picked file, the web downloads it) → {path, pages, printed: false, warnings}; a PostScript file (format postscript, or a .ps path) is always saved that way",
     ),
     (
         "print.printers",
@@ -944,6 +984,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{} open Blend Options (Object › Blend › Blend Options…, the Blend tool's double-click, Alt-click and toolbar button; dialog `blendOptions`: spacing smooth|steps|distance, steps, distance (pt), orientation page|path, preview) on the selected blend's options, previewed live: OK runs object.blend.options as one undo step; with no blend selected it sets what new blends start with",
     ),
     (
+        "ui.livePaintGapOptions",
+        "Gap Options…",
+        "",
+        "{} open Gap Options (Object › Live Paint › Gap Options…; dialog `livePaintGapOptions`: detect, size small|medium|large|custom, custom (pt), color (#rrggbb or a layer color's name), closeGaps, preview) on the selected Live Paint groups, filled in from the first; with preview on, the options apply live and the gaps found draw on the canvas in the preview color: OK runs livePaint.gapOptions as one undo step",
+    ),
+    (
         "ui.perspectivePlane",
         "Perspective Plane Options…",
         "",
@@ -952,10 +998,14 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
 ];
 
 /// Canonical panel id for `window.panel`: a dock tab's or an icon panel's id or display label,
-/// matched case-insensitively (`"Layers"`, `"swatches"`, `"Color Guide"`).
+/// matched case-insensitively (`"Layers"`, `"swatches"`, `"Color Guide"`), or a library panel's id
+/// as it is (`library:swatches:pastels`).
 pub(crate) fn normalize_panel(input: &str) -> Option<&'static str> {
     let name = input.trim();
-    crate::state::all_panels().find(|(id, label)| name.eq_ignore_ascii_case(id) || name.eq_ignore_ascii_case(label)).map(|(id, _)| id)
+    crate::state::all_panels()
+        .find(|(id, label)| name.eq_ignore_ascii_case(id) || name.eq_ignore_ascii_case(label))
+        .map(|(id, _)| id)
+        .or_else(|| crate::panels::library_panel::intern(input))
 }
 
 /// An optional `{key?: bool}` param: none when it is omitted or null (the commands then toggle).
@@ -979,6 +1029,16 @@ pub fn check_params(session: &vectorcraft_engine::Session, id: &str, params: &Va
 }
 
 pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
+    // The Window menu's panel items toggle like its other checked items (#2361); the panel's
+    // other ways in (shortcuts, Show Properties Panel, a tool's double-click) only show it.
+    if id == "window.panel" && p.get("toggle").and_then(Value::as_bool) == Some(true) && checked(app, id, p) == Some(true) {
+        let panel = p.get("panel").and_then(Value::as_str).and_then(normalize_panel).unwrap_or_default();
+        if app.ui.open_panel.as_deref() == Some(panel) {
+            app.ui.open_panel = None;
+            return Some(Ok(json!({"open": null})));
+        }
+        return Some(app.run("window.panel.close", json!({"panel": panel})));
+    }
     if let Some(result) = crate::panel_docking::command(app, id, p) {
         return Some(result);
     }
@@ -1210,8 +1270,8 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "view.screenMode" => {
             app.ui.screen_mode = match p.get("mode").and_then(Value::as_u64) {
                 Some(m) => m.min(3) as u8,
-                // F cycles the three screen modes; from Presentation Mode (not in the cycle) it
-                // goes back to Normal.
+                // F cycles the three screen modes. Without a mode, the command also goes from
+                // Presentation Mode (not in the cycle) back to Normal.
                 None if app.ui.screen_mode >= 2 => 0,
                 None => app.ui.screen_mode + 1,
             };
@@ -1228,6 +1288,22 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
                 Some(v) => {
                     v.rotation = vectorcraft_geom::normalize_deg(angle);
                     Ok(json!({ "angle": v.rotation }))
+                }
+                None => Err("no document".into()),
+            }
+        }
+        // View › Rotate View to Selection: the view turns about the center of the canvas to the angle
+        // of the selection's bounding box, so the box is square to the window.
+        "view.rotateToSelection" => {
+            let Some(st) = app.session.active() else { return Some(Err("no document".into())) };
+            if st.selection.objects.is_empty() {
+                return Some(Err("nothing selected".into()));
+            }
+            let angle = vectorcraft_geom::normalize_deg(st.doc.bbox_angle(&st.selection.objects));
+            match app.view_mut() {
+                Some(v) => {
+                    v.rotation = angle;
+                    Ok(json!({ "angle": angle }))
                 }
                 None => Err("no document".into()),
             }
@@ -1273,13 +1349,29 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             Ok(Value::Null)
         }
         "window.dock" => {
-            let on = !(app.ui.dock && app.ui.toolbar);
-            app.ui.dock = on;
-            app.ui.toolbar = on;
-            app.ui.control_bar = on;
-            if !on {
-                app.ui.open_panel = None;
-            }
+            let ui = &mut app.ui;
+            // The bars the last Tab hid show again, unless the toolbar or the Control bar was shown
+            // another way since then (Window › Tools, Window › Control). Panels shown with Shift+Tab
+            // in between stay shown. Switching workspaces clears the record (`workspaces::apply`).
+            let hid = ui.tab_hid.take().filter(|h| (h.dock || h.toolbar || h.control_bar) && !ui.toolbar && !ui.control_bar);
+            let on = if let Some(h) = hid {
+                ui.dock |= h.dock;
+                ui.toolbar = h.toolbar;
+                ui.control_bar = h.control_bar;
+                true
+            } else if ui.dock || ui.toolbar || ui.control_bar {
+                ui.tab_hid = Some(crate::state::TabHid { dock: ui.dock, toolbar: ui.toolbar, control_bar: ui.control_bar });
+                ui.dock = false;
+                ui.toolbar = false;
+                ui.control_bar = false;
+                ui.open_panel = None;
+                false
+            } else {
+                ui.dock = true;
+                ui.toolbar = true;
+                ui.control_bar = true;
+                true
+            };
             Ok(json!(on))
         }
         "window.panels" => {
@@ -1323,6 +1415,8 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
                     app.ui.dock_tab = tab;
                     Ok(Value::Null)
                 }
+                // A library panel isn't in the icon column: it floats.
+                (Some(p), None) if crate::panels::library_panel::parse(p).is_some() => crate::panels::library_panel::float(app, p),
                 (Some(p), None) => {
                     app.ui.open_panel = if app.ui.open_panel.as_deref() == Some(p) { None } else { Some(p.to_string()) };
                     app.ui.dock = true;
@@ -1402,7 +1496,15 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "ui.colorPicker" => crate::dialogs::open_color_picker(app, p),
         "ui.sampleScreenColor" => crate::screen_color::start(app, p),
         "ui.graphicStyleOptions" => crate::dialogs::graphic_style_options::open(app, s("name").as_deref()),
-        "ui.symbolOptions" => crate::dialogs::symbol_options::open(app),
+        "ui.symbolOptions" => {
+            let name = s("name");
+            let edit = p.get("edit").and_then(Value::as_bool).unwrap_or(false);
+            if edit || name.is_some() {
+                crate::dialogs::symbol_options::open_edit(app, name.as_deref())
+            } else {
+                crate::dialogs::symbol_options::open(app)
+            }
+        }
         "ui.brushOptions" => crate::dialogs::brush_options::open(app, s("name").as_deref()),
         "tool.options" => crate::toolbar::open_options(app, &s("tool").unwrap_or_default()),
         "ui.colorGuideOptions" => {
@@ -1434,6 +1536,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "ui.tileEdgeColor" => crate::dialogs::tile_edge_color::open(app),
         "ui.layerOptions" => crate::dialogs::layer_options::open(app, p),
         "ui.newLayer" => crate::dialogs::layer_options::open_new(app, p),
+        "ui.newArtboard" => crate::dialogs::artboard_options::open_new(app),
         "ui.layersPanelOptions" => crate::dialogs::layers_panel_options::open(app),
         "ui.layersExpand" => crate::panels::layers::expand(app, p),
         "ui.layersFilter" => crate::panels::layers::set_filter(app, p),
@@ -1447,6 +1550,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         }
         "ui.flattenerPreview" => crate::panels::flattener_preview::command(app, p),
         "window.graphicStyleLibrary" => crate::panels::graphic_styles::open_library(app, p),
+        "ui.libraryPanel" => crate::panels::library_panel::command(app, p),
         "window.graphicStyleLibrary.other" => crate::panels::graphic_styles::other_library(app, s("path")),
         "ui.saveGraphicStyleLibrary" => {
             let names = p.get("names").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
@@ -1458,6 +1562,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         },
         "ui.expandDialog" => crate::dialogs::expand::open(app),
         "attributes.openUrl" => crate::panels::attributes::open_url(app, p),
+        "ui.javascriptFilesDialog" => crate::panels::svg_interactivity::files_dialog(app, p),
         "ui.spotColors" => crate::dialogs::spot_colors::open(app),
         "ui.menuDialog" => match s("command").as_deref() {
             Some(c) if crate::dialogs::envelope::opens(c) => crate::dialogs::envelope::open(app, c),
@@ -1471,6 +1576,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         },
         "ui.widthPointEdit" => crate::dialogs::width_point::open(app, p),
         "ui.corners" => crate::dialogs::corners::open(app, p),
+        "ui.hyphenation" => crate::dialogs::hyphenation::open(app),
         "ui.colorGuideLimit" => crate::panels::color_guide::set_limit(app, p),
         "ui.colorPanel" => crate::panels::color::command(app, p),
         "ui.savePdfDialog" => crate::dialogs::open_save_pdf(app, p),
@@ -1560,6 +1666,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             None => Err("no such perspective grid preset".into()),
         },
         "ui.blendOptions" => crate::dialogs::blend_options::open(app),
+        "ui.livePaintGapOptions" => crate::dialogs::live_paint_gaps::open(app),
         "ui.perspectivePlane" => crate::dialogs::perspective_plane::open(app, p),
         _ => return None,
     };
@@ -1603,19 +1710,32 @@ pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
     let v = &app.ui.view;
     // An item that can be on or off is `Some` whatever the document and selection (off with none):
     // the macOS menu bar can't change an item's kind without rebuilding.
+    // The first type object (of type on a path, with `onpath`) among the selected objects and the
+    // objects inside them, in the order the type commands act on them.
     let selected_text = |onpath: bool| {
         let st = app.session.active()?;
-        st.selection.objects.iter().find_map(|id| match st.doc.node(*id).map(|n| &n.kind) {
-            Some(vectorcraft_engine::doc::NodeKind::Text(t)) if !onpath || matches!(t.kind, vectorcraft_engine::doc::TextKind::OnPath { .. }) => {
-                Some(t)
+        let mut found = None;
+        for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
+            n.walk(&mut |c| {
+                if found.is_none()
+                    && let vectorcraft_engine::doc::NodeKind::Text(t) = &c.kind
+                    && (!onpath || matches!(t.kind, vectorcraft_engine::doc::TextKind::OnPath { .. }))
+                {
+                    found = Some(t);
+                }
+            });
+            if found.is_some() {
+                break;
             }
-            _ => None,
-        })
+        }
+        found
     };
     Some(match id {
         "type.orientation.vertical" | "type.orientation.horizontal" => {
             selected_text(false).is_some_and(|t| t.vertical == (id == "type.orientation.vertical"))
         }
+        // Checked when the first type object `selected_text` finds has it on.
+        "type.opticalMarginAlignment" => selected_text(false).is_some_and(|t| t.optical_margin),
         "view.outline" => v.outline,
         "view.pixelPreview" => v.pixel_preview,
         "view.trimView" => v.trim_view,
@@ -1709,6 +1829,12 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
         id if saved_selection_slot(id).is_some() => saved_selection_name(app, id).unwrap_or_else(|| "—".into()),
         "view.artboards" => if v.artboards { "Hide Artboards" } else { "Show Artboards" }.into(),
         "view.rulers" => if v.rulers { "Hide Rulers" } else { "Show Rulers" }.into(),
+        "view.globalRulers" => if app.session.active().is_some_and(|d| d.doc.rulers == vectorcraft_doc::RulerMode::Global) {
+            "Change to Artboard Rulers"
+        } else {
+            "Change to Global Rulers"
+        }
+        .into(),
         "view.boundingBox" => if v.bounding_box { "Hide Bounding Box" } else { "Show Bounding Box" }.into(),
         "view.transparencyGrid" => {
             if app.session.active().is_some_and(|d| d.transparency_grid) { "Hide Transparency Grid" } else { "Show Transparency Grid" }.into()
@@ -1780,9 +1906,11 @@ pub fn display_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
     match id {
         "edit.undo" | "edit.redo" => {
             let last = app.session.active().and_then(|d| if id == "edit.undo" { d.history.undo.last() } else { d.history.redo.last() });
+            // The step's name as the History panel lists it.
+            let name = crate::panels::history::shown;
             match last {
-                Some(h) if id == "edit.undo" => fmt(tl!("Undo {name}"), &[("name", tl!(&h.label))]),
-                Some(h) => fmt(tl!("Redo {name}"), &[("name", tl!(&h.label))]),
+                Some(h) if id == "edit.undo" => fmt(tl!("Undo {name}"), &[("name", &name(&h.label))]),
+                Some(h) => fmt(tl!("Redo {name}"), &[("name", &name(&h.label))]),
                 None => tl!(if id == "edit.undo" { "Undo" } else { "Redo" }).to_string(),
             }
         }
@@ -1815,6 +1943,18 @@ fn effect_item_label(id: &str, p: &Value) -> Option<String> {
     let effect = p.get("effect")?.as_str()?;
     let shown = crate::i18n::tr_id(crate::i18n::current(), effect, "");
     (!shown.is_empty()).then(|| shown.to_string())
+}
+
+/// The label of an item of the canvas context menu's Unlock submenu (`layer.setProps` with one id
+/// and `locked: false`): the object's name as the Layers panel shows it in `lang`
+/// ([`crate::panels::layers::shown_name`]). `None` for any other item, or when the object is gone.
+fn unlock_item_label(app: &VectorcraftApp, id: &str, p: &Value, lang: crate::i18n::Lang) -> Option<String> {
+    if id != "layer.setProps" || p.get("locked") != Some(&Value::Bool(false)) {
+        return None;
+    }
+    let [one] = p.get("ids")?.as_array()?.as_slice() else { return None };
+    let n = app.session.active()?.doc.node(vectorcraft_doc::NodeId(one.as_u64()?))?;
+    Some(crate::panels::layers::shown_name(app, n, lang))
 }
 
 /// Menu slots that are left out while they have nothing to show (unused saved views, recent files,
@@ -1949,7 +2089,10 @@ pub fn entry<'a>(app: &VectorcraftApp, it: &'a Item) -> Option<Entry<'a>> {
             Entry::Item(Row {
                 command: Some((id, p)),
                 source: label,
-                label: effect_item_label(id, p).unwrap_or_else(|| display_label(app, id, label)).into(),
+                label: effect_item_label(id, p)
+                    .or_else(|| unlock_item_label(app, id, p, crate::i18n::current()))
+                    .unwrap_or_else(|| display_label(app, id, label))
+                    .into(),
                 shortcut: item_shortcut(id, p),
                 enabled,
                 checked,
@@ -2085,6 +2228,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         | "view.fitAll"
         | "view.actualSize"
         | "view.rotate" => app.session.active().is_some(),
+        "view.rotateToSelection" => app.session.active().is_some_and(|d| !d.selection.objects.is_empty()),
         id if id.starts_with("file.openRecent") => recent_slot(app, id).is_some(),
         "file.clearRecent" => !app.ui.recent_files.is_empty(),
         id if id.starts_with("type.recentFont") => {
@@ -2102,8 +2246,10 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         "ui.findFontsInFolder" => crate::picks::can(app, &crate::picks::PickRequest::Folder) && app.session.active().is_some(),
         "ui.swatchOptions" | "ui.newSwatch" | "ui.newColorGroup" => app.session.active().is_some(),
         "ui.graphicStyleOptions" => app.session.active().is_some(),
+        "ui.newArtboard" => app.session.active().is_some(),
         "ui.sampleScreenColor" => crate::screen_color::available(app),
         "ui.brushOptions" => crate::dialogs::brush_options::available(app),
+        "ui.hyphenation" => crate::panels::character::text_style(app).is_some(),
         "ui.colorBalanceDialog" | "ui.saturateDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
         "ui.saveSwatchLibrary" => app.session.active().is_some(),
         id if id.starts_with(crate::panels::swatches::USER_SLOT) => crate::panels::swatches::user_library(app, id).is_some(),
@@ -2157,7 +2303,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<Item>)> {
 }
 
 pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
-    let panel = |label: &'static str, id: &'static str| cp(label, "window.panel", json!({ "panel": id }));
+    let panel = |label: &'static str, id: &'static str| cp(label, "window.panel", json!({ "panel": id, "toggle": true }));
     vec![
         (
             // The application menu: About and Discord only. The in-window bar never shows it (File
@@ -2441,7 +2587,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                         c("Merge", "livePaint.merge"),
                         c("Release", "livePaint.release"),
                         Sep,
-                        todo("Gap Options…"),
+                        c("Gap Options…", "ui.livePaintGapOptions"),
                         Sep,
                         c("Expand", "livePaint.expand"),
                     ],
@@ -2493,7 +2639,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                         c("Type…", "graph.setType"),
                         c("Data…", "graph.setData"),
                         c("Design…", "graph.design"),
-                        todo("Column…"),
+                        c("Column…", "graph.column"),
                         c("Marker…", "graph.marker"),
                     ],
                 ),
@@ -2556,7 +2702,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 cp("Smart Punctuation…", "type.smartPunctuation", json!({"quotes": true, "dashes": true, "ellipsis": true, "scope": "selection"})),
                 Sep,
                 c("Create Outlines", "type.createOutlines"),
-                todo("Optical Margin Alignment"),
+                c("Optical Margin Alignment", "type.opticalMarginAlignment"),
                 Sep,
                 c("Fill with Placeholder Text", "type.fillPlaceholder"),
                 c("Insert Inline Symbol", "text.insertInline"),
@@ -2621,6 +2767,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 todo("Start Global Edit"),
                 Sep,
                 c("Save Selection…", "select.save"),
+                c("Update Selection", "select.update"),
                 c("Edit Selection…", "select.editSaved"),
                 Sep,
             ];
@@ -2667,6 +2814,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 c("Actual Size", "view.actualSize"),
                 Sep,
                 sub("Rotate View", crate::state::ROTATE_VIEW_ANGLES.iter().map(|(l, a)| cp(l, "view.rotate", json!({ "angle": a }))).collect()),
+                c("Rotate View to Selection", "view.rotateToSelection"),
                 c("Reset Rotate View", "view.rotateReset"),
                 Sep,
                 c("Hide Edges", "view.edges"),
@@ -2676,7 +2824,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 c("Lock Slices", "view.slices.lock"),
                 c("Hide Template", "view.template"),
                 Sep,
-                sub("Rulers", vec![c("Show Rulers", "view.rulers"), todos("Change to Global Rulers", "Cmd+Alt+R"), todo("Show Video Rulers")]),
+                sub("Rulers", vec![c("Show Rulers", "view.rulers"), c("Change to Global Rulers", "view.globalRulers"), todo("Show Video Rulers")]),
                 c("Hide Bounding Box", "view.boundingBox"),
                 c("Show Transparency Grid", "view.transparencyGrid"),
                 c("Hide Text Threads", "view.textThreads"),
@@ -2751,6 +2899,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 panel("Asset Export", crate::panels::asset_export::ID),
                 panel("Attributes", "attributes"),
                 panel("Barcode", crate::panels::barcode::ID),
+                panel("Blend", crate::panels::blend::ID),
                 panel("Brushes", "brushes"),
                 panel("Color", "color"),
                 panel("Color Guide", "colorGuide"),
@@ -2773,7 +2922,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 panel("Properties", "properties"),
                 panel("Separations Preview", "separations"),
                 panel("Stroke", "stroke"),
-                todo("SVG Interactivity"),
+                panel("SVG Interactivity", crate::panels::svg_interactivity::ID),
                 panel("Swatches", "swatches"),
                 panel("Symbols", "symbols"),
                 panel("Transform", "transform"),
@@ -2855,6 +3004,20 @@ pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
     let mut v = vec![c("Undo", "edit.undo"), c("Redo", "edit.redo"), Sep];
     if st.isolation.is_some() {
         v.extend([c("Exit Isolation Mode", "object.exitIsolation"), Sep]);
+    }
+    // The locked objects under the pointer at the right-click, each unlocked as the Layers panel's
+    // lock column does. `unlock_item_label` shows each object's name.
+    let unlock: Vec<Item> = app
+        .ui
+        .context_locked
+        .iter()
+        .filter(|(uid, _)| *uid == st.uid)
+        .flat_map(|(_, ids)| ids)
+        .filter(|id| st.doc.node(**id).is_some_and(|n| n.locked))
+        .map(|id| cp("Unlock", "layer.setProps", json!({ "ids": [id.0], "locked": false })))
+        .collect();
+    if !unlock.is_empty() {
+        v.extend([sub("Unlock", unlock), Sep]);
     }
     if roots.is_empty() {
         v.extend([
@@ -3158,7 +3321,8 @@ fn queried_dialog(id: &str) -> Option<(&'static str, &'static [&'static str])> {
 /// The dialog (kind, fields) the menu item of command `id` opens, as the reference app's does.
 fn menu_dialog(app: &VectorcraftApp, id: &str) -> Option<(&'static str, Value)> {
     Some(match id {
-        "object.move" => ("move", json!({"dx": "0 pt", "dy": "0 pt"})),
+        // Move opens on the offset moved last and the checkboxes it was last confirmed with.
+        "object.move" => ("move", crate::dialogs::transform::move_fields(app)),
         "object.rotate" => ("rotate", json!({"angle": 0})),
         "object.scale" => ("scale", json!({"sx": 100, "sy": 100, "uniform": true})),
         "object.transformEach" => (crate::dialogs::transform_each::KIND, crate::dialogs::transform_each::fields()),
@@ -3168,7 +3332,10 @@ fn menu_dialog(app: &VectorcraftApp, id: &str) -> Option<(&'static str, Value)> 
         // Offset Path opens on the values it was last confirmed with.
         "object.path.offsetPath" if app.ui.offset_path.is_object() => ("offsetPath", app.ui.offset_path.clone()),
         "object.path.offsetPath" => ("offsetPath", json!({"offset": "10 pt", "joins": "miter", "miterLimit": 4})),
-        "object.path.simplify" => ("simplify", json!({"tolerance": "1 pt", "preview": true})),
+        "object.path.simplify" => (
+            "simplify",
+            json!({"tolerance": "1 pt", "angleThreshold": crate::dialogs::path_ops::ANGLE_THRESHOLD, "straightLines": false, "showOriginal": false, "preview": true}),
+        ),
         "object.path.splitIntoGrid" => {
             // The grid starts at the size of the selection.
             let size =
@@ -3195,11 +3362,13 @@ fn field_event(app: &mut VectorcraftApp, id: &str) -> Option<egui::Event> {
 
 /// Invoke an item clicked in the system menu bar (macOS; its key equivalents come back to egui as
 /// key presses, see [`crate::native_menu`]). While a text field has the keyboard, Select All, Cut,
-/// Copy and Paste act on the field's text, as their keys do; everything else (and those commands
-/// with no field focused) goes to [`invoke`].
+/// Copy and Paste act on the field's text, as their keys do. While its keys select every artboard
+/// ([`crate::panels::artboards::selects_all`]), Select All does too. Everything else (and those
+/// commands with no field focused) goes to [`invoke`].
 pub fn invoke_from_system_menu(app: &mut VectorcraftApp, ctx: &egui::Context, id: &str, p: Value) {
     match focused_text_field(ctx).and_then(|f| Some((f, field_event(app, id)?))) {
         Some((field, e)) => to_field(ctx, field, e),
+        None if id == "select.all" && crate::panels::artboards::selects_all(app, ctx) => crate::panels::artboards::select_all(app),
         None => invoke(app, id, p),
     }
 }
@@ -3232,8 +3401,9 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
     if waits_for_ime(app, id) {
         return;
     }
-    if let Some((kind, fields)) = menu_dialog(app, id)
-        && p.as_object().is_none_or(|o| o.is_empty())
+    // Params first: some dialogs' fields take a look through the session (Move's last move).
+    if p.as_object().is_none_or(|o| o.is_empty())
+        && let Some((kind, fields)) = menu_dialog(app, id)
     {
         app.ui.dialog = Some(crate::state::Dialog::new(kind, fields));
         return;
@@ -3281,9 +3451,13 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
         }
         return;
     }
-    // Object → Graph → Design… / Marker…: the document's graph designs.
-    if matches!(id, "graph.design" | "graph.marker") && p.as_object().is_none_or(|o| o.is_empty()) {
-        let r = if id == "graph.design" { crate::dialogs::graph_design::open_design(app) } else { crate::dialogs::graph_design::open_marker(app) };
+    // Object → Graph → Design… / Column… / Marker…: the document's graph designs.
+    if matches!(id, "graph.design" | "graph.column" | "graph.marker") && p.as_object().is_none_or(|o| o.is_empty()) {
+        let r = match id {
+            "graph.design" => crate::dialogs::graph_design::open_design(app),
+            "graph.column" => crate::dialogs::graph_design::open_column(app),
+            _ => crate::dialogs::graph_design::open_marker(app),
+        };
         if let Err(e) = r {
             app.status(e);
         }
@@ -3454,7 +3628,7 @@ fn flatten(app: &VectorcraftApp, path: Vec<String>, items: &[Item], out: &mut Ve
                 let Some((enabled, _)) = shown_state(app, id, p) else { continue };
                 out.push(MenuEntry {
                     path: path.clone(),
-                    label: dynamic_label(app, id, l),
+                    label: unlock_item_label(app, id, p, crate::i18n::Lang::EN).unwrap_or_else(|| dynamic_label(app, id, l)),
                     command: Some(id.to_string()),
                     params: p.clone(),
                     enabled,
@@ -3583,13 +3757,14 @@ fn font_items(english_names: bool) -> Vec<Item> {
 /// vector effects): (submenu, the catalogue's menu path of its effects).
 /// The raster Stylize submenu shares its path with the vector one and lists only the effects at
 /// that path that [`vectorcraft_effects::PIXEL_EFFECTS`] names.
-const RASTER_MENUS: [(&str, &[&str]); 9] = [
+const RASTER_MENUS: [(&str, &[&str]); 10] = [
     ("Artistic", &["Effect", "Artistic"]),
     ("Blur", &["Effect", "Blur"]),
     ("Brush Strokes", &["Effect", "Brush Strokes"]),
     ("Distort", &["Effect", "Distort"]),
     ("Pixelate", &["Effect", "Pixelate"]),
     ("Sharpen", &["Effect", "Sharpen"]),
+    ("Sketch", &["Effect", "Sketch"]),
     ("Stylize", &["Effect", "Stylize"]),
     ("Texture", &["Effect", "Texture"]),
     ("Video", &["Effect", "Video"]),
@@ -3606,7 +3781,7 @@ fn effect_menu() -> Vec<Item> {
         Sep,
         Item::Header("Vector Effects"),
     ];
-    // Submenus (and Crop Marks, an item of its own) in the reference app's order.
+    // Submenus (and Crop Marks and Rasterize…, items of their own) in the reference app's order.
     let order = [
         "3D and Materials",
         "Color Adjustments",
@@ -3615,6 +3790,7 @@ fn effect_menu() -> Vec<Item> {
         "Distort & Transform",
         "Path",
         "Pathfinder",
+        "Rasterize…",
         "Stylize",
         "SVG Filters",
         "Warp",
@@ -3625,21 +3801,18 @@ fn effect_menu() -> Vec<Item> {
     // Glowing Edges).
     let in_vector_menu =
         |e: &vectorcraft_effects::EffectInfo| order.iter().any(|s| e.menu == ["Effect", *s]) && !vectorcraft_effects::PIXEL_EFFECTS.contains(&e.id);
+    let item = |e: &vectorcraft_effects::EffectInfo| match e.defaults.as_object().is_some_and(|o| o.is_empty()) {
+        // No options (Effect → Pathfinder, Crop Marks): apply directly, like Illustrator.
+        true => Item::Cmd(e.label, "effect.apply", json!({ "effect": e.id })),
+        false => Item::Cmd(e.label, "effect.dialog", json!({ "effect": e.id })),
+    };
     // The effects whose catalogue menu path is `path`.
     // `vector` picks the ones for the vector submenu or the ones for the raster submenu.
-    let items_at = |path: &[&str], vector: bool| -> Vec<Item> {
-        cat.iter()
-            .filter(|e| e.menu == path && in_vector_menu(e) == vector)
-            .map(|e| match e.defaults.as_object().is_some_and(|o| o.is_empty()) {
-                // No options (Effect → Pathfinder): apply directly, like Illustrator.
-                true => Item::Cmd(e.label, "effect.apply", json!({ "effect": e.id })),
-                false => Item::Cmd(e.label, "effect.dialog", json!({ "effect": e.id })),
-            })
-            .collect()
-    };
+    let items_at =
+        |path: &[&str], vector: bool| -> Vec<Item> { cat.iter().filter(|e| e.menu == path && in_vector_menu(e) == vector).map(item).collect() };
     for sub_name in order {
         if let Some(e) = cat.iter().find(|e| top_level(e) && e.label == sub_name) {
-            out.push(Item::Cmd(e.label, "effect.apply", json!({ "effect": e.id })));
+            out.push(item(e));
             continue;
         }
         let items = items_at(&["Effect", sub_name], true);
@@ -3701,6 +3874,7 @@ pub fn item_shortcut(id: &str, p: &Value) -> Option<&'static str> {
 pub const CONTEXT_LABELS: &[&str] = &[
     "Isolate Selected Group",
     "Exit Isolation Mode",
+    "Unlock",
     "Make Clipping Mask",
     "Release Clipping Mask",
     "Make Compound Path",
@@ -3727,6 +3901,8 @@ pub const DYNAMIC_LABELS: &[&str] = &[
     "Show Artboards",
     "Hide Rulers",
     "Show Rulers",
+    "Change to Global Rulers",
+    "Change to Artboard Rulers",
     "Hide Bounding Box",
     "Show Bounding Box",
     "Hide Transparency Grid",
@@ -4003,6 +4179,68 @@ mod tests {
         }
     }
 
+    /// Edit › Undo and Edit › Redo name the step in the UI language as the History panel lists it
+    /// (`panels::history::step_name`), including a step named after an effect whose catalog holds
+    /// only the effect's menu row with an ellipsis, as Japanese does for Feather.
+    #[test]
+    fn undo_and_redo_name_the_step_as_the_history_panel_does() {
+        let ja = crate::i18n::Lang::from_code("ja").expect("ja registered");
+        crate::i18n::set_current(ja);
+        let mut app = app_with_a_rectangle();
+        app.run("effect.apply", json!({"effect": "stylize.feather"})).unwrap();
+        assert_eq!(app.session.active().unwrap().history.undo.last().map(|h| h.label.as_str()), Some("Feather"));
+        let shown = |app: &VectorcraftApp, id: &'static str| {
+            let item = c(if id == "edit.undo" { "Undo" } else { "Redo" }, id);
+            match entry(app, &item) {
+                Some(Entry::Item(row)) => row.label.to_string(),
+                _ => panic!("{id} is not a menu item"),
+            }
+        };
+        assert_eq!(shown(&app, "edit.undo"), "ぼかしを取り消す");
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(shown(&app, "edit.redo"), "ぼかしをやり直す");
+        assert_eq!(shown(&app, "edit.undo"), "長方形を取り消す", "a step with a plain row");
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        assert_eq!(shown(&app, "edit.redo"), "Redo Feather");
+    }
+
+    /// Type › Optical Margin Alignment runs `type.opticalMarginAlignment`, needs a selection, and
+    /// is checked while the selected type has it on. Its check, and Type Orientation's, read the
+    /// type inside a selected group too.
+    #[test]
+    fn optical_margin_alignment_is_a_checked_type_menu_item() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({})).unwrap();
+        let ids: Vec<&str> = menu_tree()
+            .into_iter()
+            .filter(|(menu, _)| *menu == "Type")
+            .flat_map(|(_, items)| items)
+            .filter_map(|item| match item {
+                Item::Cmd("Optical Margin Alignment", id, _) => Some(id),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ids, ["type.opticalMarginAlignment"]);
+        let id = "type.opticalMarginAlignment";
+        assert_eq!(checked(&app, id, &Value::Null), Some(false));
+        assert!(!enabled(&app, id));
+        let text = app.run("text.create", json!({"x": 10, "y": 10, "text": "“Hi”"})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [text]})).unwrap();
+        assert!(enabled(&app, id));
+        assert_eq!(checked(&app, id, &Value::Null), Some(false));
+        app.run(id, json!({})).unwrap();
+        assert_eq!(checked(&app, id, &Value::Null), Some(true));
+        app.run(id, json!({})).unwrap();
+        assert_eq!(checked(&app, id, &Value::Null), Some(false));
+        // With the type in a selected group, the checks show the type the commands change.
+        app.run("object.group", json!({})).unwrap();
+        app.run(id, json!({})).unwrap();
+        assert_eq!(checked(&app, id, &Value::Null), Some(true));
+        app.run("type.orientation.vertical", json!({})).unwrap();
+        assert_eq!(checked(&app, "type.orientation.vertical", &Value::Null), Some(true));
+        assert_eq!(checked(&app, "type.orientation.horizontal", &Value::Null), Some(false));
+    }
+
     #[test]
     fn panel_ids_are_case_insensitive_and_labels_work() {
         assert_eq!(normalize_panel("layers"), Some("layers"));
@@ -4105,6 +4343,23 @@ mod tests {
         assert!(!enabled(&app, "select.recall2"));
         assert!(shown_state(&app, "select.recall2", &Value::Null).is_none());
         assert!(shown_state(&app, "select.recall1", &Value::Null).is_some());
+    }
+
+    #[test]
+    fn update_selection_follows_save_selection_and_needs_a_recall() {
+        let mut app = app_with_a_rectangle();
+        let entries = menu_entries(&app);
+        let at = |id: &str| entries.iter().position(|e| e.command.as_deref() == Some(id));
+        assert_eq!(at("select.update").map(|i| i - 1), at("select.save"));
+        app.run("select.save", json!({"name": "Box"})).unwrap();
+        assert!(!enabled(&app, "select.update"));
+        app.run("shape.ellipse", json!({"x": 40, "y": 0, "width": 10, "height": 10})).unwrap();
+        app.run("select.recall1", json!({})).unwrap();
+        assert!(enabled(&app, "select.update"));
+        app.run("select.all", json!({})).unwrap();
+        invoke(&mut app, "select.update", json!({}));
+        app.run("select.none", json!({})).unwrap();
+        assert_eq!(app.run("select.recall1", json!({})).unwrap()["count"], 2);
     }
 
     #[test]

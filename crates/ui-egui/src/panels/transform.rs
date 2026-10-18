@@ -50,26 +50,42 @@ pub fn artboard_rect(r: Rect, refi: usize, x: Option<f64>, y: Option<f64>, w: Op
     Rect::new(x0, y0, x0 + nw, y0 + nh)
 }
 
+/// The reference point the Transform panel and the Control bar share (0 to 8, the center by default).
+pub fn reference_index(ui: &Ui) -> usize {
+    ui.data(|d| d.get_temp(egui::Id::new("refpt"))).unwrap_or(4)
+}
+
+/// The shared reference point's locator; a click on it chooses another point.
+pub fn reference_locator(ui: &mut Ui, refi: usize) {
+    if let Some(i) = widgets::reference_point(ui, refi) {
+        ui.data_mut(|d| d.insert_temp(egui::Id::new("refpt"), i));
+    }
+}
+
+/// Set artboard `index` (now at `r`) to a new X, Y, W or H from reference point `refi`
+/// ([`artboard_rect`]) with `artboard.setProps`, passing the Artboard tool's Move and Scale Artwork
+/// with Artboard options as `moveArt` and `scaleArt`; an error is shown in the status bar.
+pub fn set_artboard(app: &mut VectorcraftApp, index: usize, r: Rect, refi: usize, xywh: [Option<f64>; 4], link: bool) {
+    let [x, y, w, h] = xywh;
+    let n = artboard_rect(r, refi, x, y, w, h, link);
+    let scale_art = crate::panels::artboards::scale_art(app);
+    let move_art = crate::panels::artboards::move_art(app);
+    let p = json!({"index": index, "x": n.x0, "y": n.y0, "width": n.width(), "height": n.height(), "scaleArt": scale_art, "moveArt": move_art});
+    if let Err(e) = app.run("artboard.setProps", p) {
+        app.status(e);
+    }
+}
+
 /// The Artboard tool's view of the panel: the active artboard's position and size.
 fn artboard_fields(app: &mut VectorcraftApp, ui: &mut Ui, index: usize, r: Rect) {
     let units = app.session.general_unit();
     let origin = app.ruler_origin();
-    let refi: usize = ui.data(|d| d.get_temp(egui::Id::new("refpt"))).unwrap_or(4);
-    let link = app.session.prefs.constrain_proportions;
+    let refi = reference_index(ui);
+    let link = proportional(app, ui);
     let rp = vectorcraft_geom::reference_point(r, refi);
-    let set = |app: &mut VectorcraftApp, x, y, w, h| {
-        let n = artboard_rect(r, refi, x, y, w, h, link);
-        let scale_art = crate::panels::artboards::scale_art(app);
-        let move_art = crate::panels::artboards::move_art(app);
-        let p = json!({"index": index, "x": n.x0, "y": n.y0, "width": n.width(), "height": n.height(), "scaleArt": scale_art, "moveArt": move_art});
-        if let Err(e) = app.run("artboard.setProps", p) {
-            app.status(e);
-        }
-    };
+    let set = |app: &mut VectorcraftApp, x, y, w, h| set_artboard(app, index, r, refi, [x, y, w, h], link);
     ui.horizontal(|ui| {
-        if let Some(i) = widgets::reference_point(ui, refi) {
-            ui.data_mut(|d| d.insert_temp(egui::Id::new("refpt"), i));
-        }
+        reference_locator(ui, refi);
         ui.add_space(4.0);
         egui::Grid::new("xfp-ab-grid").num_columns(4).spacing([4.0, 6.0]).min_col_width(0.0).show(ui, |ui| {
             widgets::dim_label(ui, "X:");
@@ -77,7 +93,7 @@ fn artboard_fields(app: &mut VectorcraftApp, ui: &mut Ui, index: usize, r: Rect)
                 set(app, Some(v + origin.x), None, None, None);
             }
             widgets::dim_label(ui, "W:");
-            if let Some(v) = widgets::num_field(ui, "xfp-ab-w", Some(r.width()), units, 80.0) {
+            if let Some(v) = widgets::size_field(ui, "xfp-ab-w", Some(r.width()), units, 80.0) {
                 set(app, None, None, Some(v), None);
             }
             ui.end_row();
@@ -86,7 +102,7 @@ fn artboard_fields(app: &mut VectorcraftApp, ui: &mut Ui, index: usize, r: Rect)
                 set(app, None, Some(v + origin.y), None, None);
             }
             widgets::dim_label(ui, "H:");
-            if let Some(v) = widgets::num_field(ui, "xfp-ab-h", Some(r.height()), units, 80.0) {
+            if let Some(v) = widgets::size_field(ui, "xfp-ab-h", Some(r.height()), units, 80.0) {
                 set(app, None, None, None, Some(v));
             }
             ui.end_row();
@@ -149,7 +165,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let bx = app.selection_box();
     let bounds = bx.map(|b| b.rect);
     let refi: usize = ui.data(|d| d.get_temp(egui::Id::new("refpt"))).unwrap_or(4);
-    let link = app.session.prefs.constrain_proportions;
+    let link = proportional(app, ui);
     let copy = alt_enter_copies(app, ui);
     let has = bounds.is_some();
     let rp = bx.map(|b| b.reference_point(refi));
@@ -165,7 +181,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                     app.run("object.setBounds", json!({"x": v + origin.x, "reference": refi, "copy": copy})).ok();
                 }
                 widgets::dim_label(ui, "W:");
-                if let Some(v) = widgets::num_field(ui, "xfp-w", bounds.map(|b| b.width()), units, 80.0) {
+                if let Some(v) = widgets::size_field(ui, "xfp-w", bounds.map(|b| b.width()), units, 80.0) {
                     app.run("object.setBounds", json!({"width": v, "reference": refi, "proportional": link, "copy": copy})).ok();
                 }
                 ui.end_row();
@@ -174,7 +190,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                     app.run("object.setBounds", json!({"y": v + origin.y, "reference": refi, "copy": copy})).ok();
                 }
                 widgets::dim_label(ui, "H:");
-                if let Some(v) = widgets::num_field(ui, "xfp-h", bounds.map(|b| b.height()), units, 80.0) {
+                if let Some(v) = widgets::size_field(ui, "xfp-h", bounds.map(|b| b.height()), units, 80.0) {
                     app.run("object.setBounds", json!({"height": v, "reference": refi, "proportional": link, "copy": copy})).ok();
                 }
                 ui.end_row();
@@ -348,6 +364,13 @@ pub fn alt_enter_copies(app: &VectorcraftApp, ui: &Ui) -> bool {
     widgets::enter_modifiers(ui).is_some_and(|m| m.alt) && app.session.active().is_some_and(|st| st.selection.anchors.is_empty())
 }
 
+/// The `proportional` param of the W and H fields of the Transform panel (the artboard's too), the
+/// Properties panel's Transform section and the Control bar: the Constrain Width and Height
+/// Proportions link, or true when Ctrl/Cmd+Enter applied the value.
+pub fn proportional(app: &VectorcraftApp, ui: &Ui) -> bool {
+    app.session.prefs.constrain_proportions || widgets::enter_modifiers(ui).is_some_and(|m| m.command)
+}
+
 /// Toggle a boolean preference (through `prefs.set`, as agents do).
 pub fn set_pref(app: &mut VectorcraftApp, key: &str, on: bool) {
     if let Err(e) = app.run("prefs.set", json!({ "key": key, "value": on })) {
@@ -358,15 +381,18 @@ pub fn set_pref(app: &mut VectorcraftApp, key: &str, on: bool) {
 pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let hidden: bool = pstate(ui.ctx(), "xf-hide-options");
     let has = super::selection_len(app) > 0;
+    // The flips mirror across the panel's reference point, as its flip buttons do.
+    let refi: usize = ui.data(|d| d.get_temp(egui::Id::new("refpt"))).unwrap_or(4);
+    let origin = app.selection_box().map(|b| b.reference_point(refi)).map(|p| json!([p.x, p.y]));
     if menu_item(ui, if hidden { tl!("Show Options") } else { tl!("Hide Options") }, true, false) {
         set_pstate(ui.ctx(), "xf-hide-options", !hidden);
     }
     ui.separator();
     if menu_item(ui, tl!("Flip Horizontal"), has, false) {
-        app.run("object.reflect", json!({"axis": "vertical"})).ok();
+        app.run("object.reflect", json!({"axis": "vertical", "origin": origin})).ok();
     }
     if menu_item(ui, tl!("Flip Vertical"), has, false) {
-        app.run("object.reflect", json!({"axis": "horizontal"})).ok();
+        app.run("object.reflect", json!({"axis": "horizontal", "origin": origin})).ok();
     }
     ui.separator();
     let ss = app.session.prefs.scale_strokes;
@@ -515,6 +541,28 @@ mod tests {
         let Some(path) = n.path_data() else { panic!("a path") };
         let xs: Vec<f64> = path.subpaths[0].anchors.iter().map(|a| a.p.x).collect();
         assert_eq!(xs, [20.0, 150.0, 120.0, 20.0]);
+    }
+
+    /// #2398: the panel menu's Flip Horizontal and Flip Vertical mirror the selection across the
+    /// reference point, as the panel's flip buttons do, not across its centre.
+    #[test]
+    fn menu_flips_keep_the_reference_point() {
+        use crate::panels::tests_appearance::{click, frame_events};
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 20, "y": 30, "width": 100, "height": 50})).unwrap();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        // Top-right reference point: (120, 30).
+        ctx.data_mut(|d| d.insert_temp(egui::Id::new("refpt"), 2usize));
+        let flip = |app: &mut VectorcraftApp, item: &str| {
+            let texts = frame_events(&ctx, app, vec![], menu);
+            let r = texts.iter().find(|(t, _)| t.trim_start() == item).unwrap_or_else(|| panic!("{item} in {texts:?}")).1;
+            click(&ctx, app, r.center(), menu);
+            app.selection_box().unwrap().rect
+        };
+        assert_eq!(flip(&mut app, "Flip Horizontal"), Rect::new(120.0, 30.0, 220.0, 80.0));
+        assert_eq!(flip(&mut app, "Flip Vertical"), Rect::new(120.0, -20.0, 220.0, 30.0));
     }
 
     #[test]

@@ -152,6 +152,7 @@ pub const ICON_PANELS: &[(&str, &str, &str)] = &[
     ("transform", "Transform", "dc-transform-panel"),
     ("align", "Align", "dc-align"),
     ("pathfinder", "Pathfinder", "dc-pathfinder"),
+    (crate::panels::blend::ID, "Blend", "dc-blend"),
     ("character", "Character", "type"),
     ("paragraph", "Paragraph", "pilcrow"),
     ("glyphs", "Glyphs", "text-cursor-input"),
@@ -170,6 +171,7 @@ pub const ICON_PANELS: &[(&str, &str, &str)] = &[
     (crate::panels::flattener_preview::ID, "Flattener Preview", "eye"),
     ("attributes", "Attributes", "settings"),
     (crate::panels::barcode::ID, "Barcode", "scan-barcode"),
+    (crate::panels::svg_interactivity::ID, "SVG Interactivity", "spline-pointer"),
     ("colorThemes", "Color Themes", "sun"),
     (crate::panels::links::ID, "Links", "link"),
     (crate::panels::asset_export::ID, "Asset Export", "share-2"),
@@ -327,6 +329,11 @@ pub struct UiState {
     /// starts under the selection at every launch.
     #[serde(skip)]
     pub task_bar_place: TaskBarPlace,
+    /// The locked objects under the pointer at the last right-click on the canvas, with the
+    /// document's `uid`: the context menu's Unlock submenu lists them while the menu is open. Not
+    /// saved.
+    #[serde(skip)]
+    pub context_locked: Option<(u64, Vec<vectorcraft_doc::NodeId>)>,
     /// Last tool shown in each toolbar slot (keyed by the slot's first tool id).
     #[serde(default)]
     pub slot_tool: std::collections::BTreeMap<String, String>,
@@ -363,6 +370,10 @@ pub struct UiState {
     pub toolbar_pos: Option<[f32; 2]>,
     pub status_bar: bool,
     pub dock: bool,
+    /// The bars that Tab (`window.dock`) hid, which the next Tab shows again; none when Tab has not
+    /// hidden them since it last showed them, or a workspace was applied since.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tab_hid: Option<TabHid>,
     pub view: ViewFlags,
     pub dialog: Option<Dialog>,
     /// Messages to show in a dialog once the open one is closed (`dialogs::confirm::tell`), in
@@ -421,9 +432,11 @@ pub struct UiState {
     /// Color Guide panel: variation kind, steps and amount (Color Guide Options).
     #[serde(default)]
     pub color_guide: vectorcraft_color::harmony::GuideOptions,
-    /// The library open in the library panel (Window → Swatch Libraries).
+    /// The library panels' settings (Window → Swatch Libraries, Graphic Style Libraries): of each
+    /// library opened, and of the persistent ones, which reopen at startup, also once closed
+    /// ([`crate::panels::library_panel`], `ui.libraryPanel`).
     #[serde(default)]
-    pub library_panel: Option<crate::panels::library_panel::OpenLibrary>,
+    pub library_panels: Vec<crate::panels::library_panel::LibraryPanel>,
     /// Flattener Preview panel: highlight, overprints, preset and options (`ui.flattenerPreview`).
     #[serde(default)]
     pub flattener_preview: crate::panels::flattener_preview::Settings,
@@ -479,6 +492,10 @@ pub struct UiState {
     /// dialog opens on them (#1152).
     #[serde(default)]
     pub offset_path: Value,
+    /// The Move dialog's checkboxes as it was last confirmed with (copy, objects, preview; null:
+    /// never used): it opens with them.
+    #[serde(default)]
+    pub move_options: Value,
     /// The DXF Import Options chosen last (fit, scaleLineweights, center, mergeLayers; null:
     /// never used).
     #[serde(default)]
@@ -619,6 +636,15 @@ pub struct TaskBarPlace {
     pub offset: Option<(u64, egui::Vec2)>,
 }
 
+/// Which of the panels, the toolbar and the Control bar showed when Tab (`window.dock`) hid them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TabHid {
+    pub dock: bool,
+    pub toolbar: bool,
+    pub control_bar: bool,
+}
+
 /// A group of panels dragged out of the dock: it floats as a stack of tabs, one panel shown.
 ///
 /// Groups sharing a `column` float as one set, stacked top to bottom in list order, like the panel
@@ -656,7 +682,7 @@ impl FloatingPanels {
     pub fn sanitize(groups: &mut Vec<FloatingPanels>, toolbar_pos: &mut Option<[f32; 2]>) {
         let mut seen = std::collections::BTreeSet::new();
         groups.retain_mut(|g| {
-            g.panels.retain(|id| all_panels().any(|(p, _)| p == id) && seen.insert(id.clone()));
+            g.panels.retain(|id| crate::menus::normalize_panel(id) == Some(id.as_str()) && seen.insert(id.clone()));
             g.active = g.active.min(g.panels.len().saturating_sub(1));
             !g.panels.is_empty()
         });
@@ -753,6 +779,7 @@ impl Default for UiState {
             toolbar_advanced: false,
             task_bar: true,
             task_bar_place: TaskBarPlace::default(),
+            context_locked: None,
             slot_tool: Default::default(),
             floating_flyouts: vec![],
             toolbar_edits: ToolbarEdits::default(),
@@ -766,6 +793,7 @@ impl Default for UiState {
             toolbar_pos: None,
             status_bar: true,
             dock: true,
+            tab_hid: None,
             view: ViewFlags::default(),
             dialog: None,
             told: vec![],
@@ -789,7 +817,7 @@ impl Default for UiState {
             favorite_fonts: vec![],
             engine_prefs: Value::Null,
             color_guide: Default::default(),
-            library_panel: None,
+            library_panels: vec![],
             flattener_preview: Default::default(),
             color_guide_limit: String::new(),
             align_to: Default::default(),
@@ -805,6 +833,7 @@ impl Default for UiState {
             dxf_options: Value::Null,
             eps_options: Value::Null,
             offset_path: Value::Null,
+            move_options: Value::Null,
             dxf_import: Value::Null,
             home: None,
             layers_panel: Default::default(),

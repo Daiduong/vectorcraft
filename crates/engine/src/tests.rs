@@ -113,6 +113,25 @@ fn a_selected_group_that_contains_the_key_object_stays_in_place() {
     }
 }
 
+/// With a spacing, Distribute moves a compound path or selected group that contains the key object
+/// as one object and keeps it in place: the other object's left (top) edge goes that far from its
+/// left (top) edge.
+#[test]
+fn distribute_with_a_spacing_keeps_what_contains_the_key_object_in_place() {
+    for (make, add) in [(&["object.compoundPath.make"][..], false), (&["object.group"], true), (&["object.group", "object.group"], true)] {
+        let (mut s, key, outer, r) = key_inside(make);
+        if add {
+            s.execute("select.add", &json!({"ids": [outer.0]})).unwrap();
+        }
+        assert_eq!(s.doc().unwrap().selection.key, Some(key), "{make:?}");
+        s.execute("object.distribute", &json!({"horizontal": "left", "spacing": 5, "bounds": "geometric"})).unwrap();
+        assert_eq!(starts(&s, &[outer, r], false), [0.0, 5.0], "{make:?}: 5 pt right of it, it stays");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("object.distribute", &json!({"vertical": "top", "spacing": 5, "bounds": "geometric"})).unwrap();
+        assert_eq!(starts(&s, &[outer, r], true), [90.0, 85.0], "{make:?}: 5 pt above it, it stays");
+    }
+}
+
 #[test]
 fn arrange_order() {
     let mut s = session();
@@ -452,6 +471,7 @@ fn align_and_distribute_reject_bad_params_without_changing_state() {
         ("object.distribute", json!({"vertical": "centre"}), v),
         ("object.distribute", json!({"horizontal": "left", "vertical": "middle"}), v),
         ("object.distribute", json!({"horizontal": "left", "to": "page"}), to),
+        ("object.distribute", json!({"horizontal": "left", "spacing": "5"}), "`spacing` must be a number"),
         ("object.distributeSpacing", json!({"axis": "diagonal"}), "`axis` must be one of horizontal, vertical"),
         ("object.distributeSpacing", json!({"axis": "vertical", "spacing": "5"}), "`spacing` must be a number"),
         ("object.distributeSpacing", json!({"axis": "vertical", "to": 0}), to),
@@ -596,6 +616,39 @@ fn distribute_spacing_to_artboard_spans_it_with_equal_gaps() {
         let pair = selected_row(&mut s, &[(100.0, 20.0), (260.0, 40.0)], vertical);
         s.execute("object.distributeSpacing", &json!({"axis": axis, "to": "artboard"})).unwrap();
         assert_eq!(starts(&s, &pair, vertical), [0.0, 360.0], "{axis}: two objects");
+    }
+}
+
+/// With a spacing and a key object, each Distribute button keeps the key object (20, 60 and 40 pt
+/// wide or tall, the key in the middle) in place and places the left edges, centers or right edges
+/// (top edges, centers or bottom edges) that far apart, outward from the key's, in their order on
+/// that line. A spacing of 0 puts them all on the key's line, and two objects are enough.
+/// Without a key object the spacing is not used, and with one it is used with Align to Artboard too.
+#[test]
+fn distribute_with_a_spacing_spaces_the_objects_from_the_key_object() {
+    for vertical in [false, true] {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let ids = selected_row(&mut s, &[(100.0, 20.0), (150.0, 60.0), (260.0, 40.0)], vertical);
+        let (axis, lines) = if vertical { ("vertical", ["top", "center", "bottom"]) } else { ("horizontal", ["left", "center", "right"]) };
+        s.execute("object.distribute", &json!({axis: lines[0], "spacing": 10})).unwrap();
+        assert_eq!(starts(&s, &ids, vertical), [100.0, 180.0, 260.0], "{axis}: no key object, evenly between the outermost");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.select(|_, sel| sel.key = Some(ids[1])).unwrap();
+        for (line, at) in lines.into_iter().zip([[140.0, 150.0, 160.0], [160.0, 150.0, 170.0], [180.0, 150.0, 180.0]]) {
+            for to in [json!("key"), json!("artboard"), json!(null)] {
+                s.execute("object.distribute", &json!({axis: line, "spacing": 10, "to": to})).unwrap();
+                assert_eq!(starts(&s, &ids, vertical), at, "{axis} {line} to {to}: 10 pt from the key");
+                s.execute("edit.undo", &json!({})).unwrap();
+            }
+        }
+        s.execute("object.distribute", &json!({axis: lines[0], "spacing": 0, "to": "key"})).unwrap();
+        assert_eq!(starts(&s, &ids, vertical), [150.0; 3], "{axis}: on the key's line");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("select.set", &json!({"ids": [ids[0].0, ids[2].0]})).unwrap();
+        s.select(|_, sel| sel.key = Some(ids[2])).unwrap();
+        s.execute("object.distribute", &json!({axis: lines[0], "spacing": 30, "to": "key"})).unwrap();
+        assert_eq!(starts(&s, &[ids[0], ids[2]], vertical), [230.0, 260.0], "{axis}: two objects");
     }
 }
 
@@ -1655,6 +1708,27 @@ fn direct_selection_snaps_anchors_to_the_grid() {
     assert_eq!(p.subpaths[0].anchors[1].p, vectorcraft_geom::Point::new(201.0, 101.0));
 }
 
+/// #2054: with Snap to Grid on, a bounding-box handle dragged with the Selection tool or the Free
+/// Transform tool lands the corner it moves on the grid, even with Snap to Pixel left on too; the
+/// opposite corner stays put.
+#[test]
+fn bounding_box_handles_snap_to_the_grid() {
+    for tool in ["selection", "freeTransform"] {
+        let mut s = session();
+        let a = rect(&mut s, 101.0, 101.0, 100.0, 100.0);
+        let step = s.doc().unwrap().doc.grid.spacing / f64::from(s.doc().unwrap().doc.grid.subdivisions.max(1));
+        let on_grid = |v: f64| (v / step - (v / step).round()).abs() < 1e-9;
+        let v = ViewInfo { snap_to_grid: true, snap_to_pixel: true, ..ViewInfo::default() };
+        s.select_tool(tool, v).unwrap();
+        s.pointer(&PointerEvent::new(PointerKind::Down, 201.0, 201.0), v).unwrap();
+        s.pointer(&PointerEvent::new(PointerKind::Drag, 230.0, 214.0), v).unwrap();
+        s.pointer(&PointerEvent::new(PointerKind::Up, 230.0, 214.0), v).unwrap();
+        let b = s.doc().unwrap().doc.node(a).unwrap().geometric_bounds().unwrap();
+        assert!(on_grid(b.x1) && on_grid(b.y1), "{tool}: {b:?}, grid step {step}");
+        assert!((b.x0 - 101.0).abs() < 1e-9 && (b.y0 - 101.0).abs() < 1e-9, "{tool}: {b:?}");
+    }
+}
+
 /// Follow-up to #1254: toggling or adding anchors of a path selected as a whole starts from all
 /// its anchors, so toggling one deselects it alone and adding one keeps them all.
 #[test]
@@ -1888,6 +1962,38 @@ fn isolating_an_object_that_doesnt_exist_says_so() {
     assert!(!e.to_string().contains("type"), "{e}");
 }
 
+/// A ring (a compound path with a hole) and its isolated paths.
+fn isolated_ring(s: &mut Session) -> (NodeId, NodeId, NodeId) {
+    let outer = rect(s, 0.0, 0.0, 40.0, 40.0);
+    let hole = rect(s, 10.0, 10.0, 10.0, 10.0);
+    s.execute("select.set", &json!({"ids": [outer.0, hole.0]})).unwrap();
+    let c = NodeId(s.execute("object.compoundPath.make", &json!({})).unwrap()["id"].as_u64().unwrap());
+    s.execute("object.isolate", &json!({"id": c.0})).unwrap();
+    s.execute("select.set", &json!({"ids": [hole.0]})).unwrap();
+    (c, outer, hole)
+}
+
+/// A path of a compound path selected alone is an object of its own for the transforms: the hole
+/// of a ring moves without the ring around it, in the isolated compound path and outside it, where
+/// Group Selection selects it (#2441). Selecting the compound path moves the whole ring.
+#[test]
+fn an_isolated_compound_paths_member_moves_alone() {
+    let x0 = |s: &Session, id: NodeId| s.doc().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
+    let mut s = session();
+    let (c, outer, hole) = isolated_ring(&mut s);
+    s.execute("object.transform", &json!({"matrix": [1, 0, 0, 1, 30, 0]})).unwrap();
+    assert_eq!((x0(&s, outer), x0(&s, hole)), (0.0, 40.0), "only the hole moved");
+    s.execute("object.move", &json!({"dx": 5, "dy": 0})).unwrap();
+    assert_eq!((x0(&s, outer), x0(&s, hole)), (0.0, 45.0), "Move: only the hole");
+    s.execute("object.exitIsolation", &json!({})).unwrap();
+    s.execute("select.set", &json!({"ids": [hole.0]})).unwrap();
+    s.execute("object.transform", &json!({"matrix": [1, 0, 0, 1, 5, 0]})).unwrap();
+    assert_eq!((x0(&s, outer), x0(&s, hole)), (0.0, 50.0), "not isolated: still only the hole");
+    s.execute("select.set", &json!({"ids": [c.0]})).unwrap();
+    s.execute("object.move", &json!({"dx": 5, "dy": 0})).unwrap();
+    assert_eq!((x0(&s, outer), x0(&s, hole)), (5.0, 55.0), "the compound path selected: the whole ring");
+}
+
 /// `depth` and `childLimit` slice a summary read; a level that shows fewer children
 /// than it has reports `childCount`, and invalid values are rejected, not reinterpreted.
 #[test]
@@ -1959,6 +2065,65 @@ fn document_inspect_slices_the_layer_tree() {
     assert_eq!(one["layers"][0]["children"], json!([]));
     assert_eq!(one["layers"][0]["childCount"], 1);
     assert!(s.execute("document.inspect", &json!({"depth": "deep"})).is_err());
+}
+
+/// `document.inspect` scoped by `ids`, `kind`, `limit` and `offset`: each entry is the node as
+/// the full tree lists it, bad input is an error, and the unscoped reply keeps its shape.
+#[test]
+fn document_inspect_scopes_by_ids_kind_and_page() {
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 10.0, 10.0).0;
+    let b = rect(&mut s, 20.0, 0.0, 10.0, 10.0).0;
+    s.execute("select.all", &json!({})).unwrap();
+    let group = s.execute("object.group", &json!({})).unwrap()["id"].as_u64().unwrap();
+    let c = rect(&mut s, 40.0, 0.0, 10.0, 10.0).0;
+    let mut ins = |p: Value| s.execute("document.inspect", &p).unwrap();
+
+    let full = ins(json!({}));
+    assert!(full.get("nodes").is_none() && full.get("total").is_none(), "{full}");
+    let layer = full["layers"][0].clone();
+    let layer_id = layer["id"].as_u64().unwrap();
+    let find = |tree: &Value, id: u64| -> Value {
+        fn walk(n: &Value, id: u64) -> Option<Value> {
+            if n["id"] == id {
+                return Some(n.clone());
+            }
+            n["children"].as_array()?.iter().find_map(|c| walk(c, id))
+        }
+        walk(tree, id).unwrap()
+    };
+
+    // ids: just those nodes, in the order given, equal to their part of the full tree.
+    let some = ins(json!({"ids": [c, group]}));
+    assert!(some.get("layers").is_none());
+    assert_eq!(some["nodes"], json!([find(&layer, c), find(&layer, group)]));
+    assert_eq!(some["total"], 2);
+    assert_eq!(some["artboards"], full["artboards"]);
+    assert_eq!(ins(json!({"ids": [group], "depth": 0}))["nodes"][0].get("children"), None);
+
+    // kind: every match with its ancestor path, top of the stack first; paged.
+    let paths = ins(json!({"kind": "rectangle"}));
+    let ids: Vec<u64> = paths["nodes"].as_array().unwrap().iter().map(|n| n["id"].as_u64().unwrap()).collect();
+    assert_eq!(ids, [c, b, a]);
+    assert_eq!(paths["nodes"][1]["path"], json!([layer_id, group]));
+    assert_eq!(paths["total"], 3);
+    let page = ins(json!({"kind": "Rectangle", "offset": 1, "limit": 1}));
+    assert_eq!(page["nodes"].as_array().map(Vec::len), Some(1));
+    assert_eq!(page["nodes"][0]["id"], b);
+    assert_eq!(page["total"], 3);
+    assert_eq!(ins(json!({"kind": "Rectangle", "offset": 99}))["nodes"], json!([]));
+    assert_eq!(ins(json!({"kind": "Rectangle", "ids": [group]}))["total"], 2);
+
+    // limit/offset alone page the top layers.
+    let paged = ins(json!({"limit": 0}));
+    assert_eq!(paged["layers"], json!([]));
+    assert_eq!(paged["total"], 1);
+
+    for bad in
+        [json!({"ids": [999_999]}), json!({"ids": "all"}), json!({"ids": [-1]}), json!({"kind": 3}), json!({"limit": -1}), json!({"offset": 1.5})]
+    {
+        assert!(s.execute("document.inspect", &bad).is_err(), "{bad}");
+    }
 }
 
 /// `document.find` searches names, kinds and type content across the whole tree and
@@ -2166,6 +2331,29 @@ fn object_mosaic_tiles_follow_the_image_colours() {
     // 4 pt spacing: each 50 pt tile shrinks to 46 pt; the image is gone.
     assert!((tiles[0].geometric_bounds().unwrap().width() - 46.0).abs() < 1e-6);
     assert!(!st.doc.layers[0].children().unwrap().iter().any(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))));
+}
+
+/// Columns and rows that are not whole numbers (a fraction, a negative number, a string or another value) are an
+/// error naming the key, and no mosaic is made; 2.0 columns are two columns.
+#[test]
+fn object_mosaic_refuses_columns_and_rows_that_are_not_whole_numbers() {
+    let mut s = session();
+    rect(&mut s, 0.0, 0.0, 100.0, 50.0);
+    s.execute("object.rasterize", &json!({"ppi": 72})).unwrap();
+    let undo = |s: &Session| s.doc().unwrap().history.undo.len();
+    let before = undo(&s);
+    for (p, msg) in [
+        (json!({"columns": 2.5}), "`columns` must be a whole number"),
+        (json!({"rows": -1}), "`rows` must be a whole number"),
+        (json!({"columns": "4"}), "`columns` must be a number, not \"4\""),
+        (json!({"rows": true}), "`rows` must be a number, not true"),
+    ] {
+        let r = s.execute("object.createObjectMosaic", &p);
+        assert!(matches!(&r, Err(EngineError::BadParams { msg: m, .. }) if m == msg), "{p}: {r:?}");
+        assert_eq!(undo(&s), before, "{p}");
+    }
+    let r = s.execute("object.createObjectMosaic", &json!({"columns": 2.0, "rows": 1.0})).unwrap();
+    assert_eq!(r["tiles"], json!(2));
 }
 
 #[test]

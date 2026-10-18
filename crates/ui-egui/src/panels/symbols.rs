@@ -172,11 +172,12 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let has_sel = app.session.active().is_some_and(|d| !d.selection.is_empty());
     let inst = has_instances_selected(app);
     let name = json!({"name": sel});
-    let items: [(&str, bool, &str, Value); 9] = [
+    let items: [(&str, bool, &str, Value); 10] = [
         (tl!("New Symbol…"), has_sel, "ui.symbolOptions", json!({})),
         (tl!("Redefine Symbol"), has_sel && sel.is_some(), "symbol.update", name.clone()),
         (tl!("Duplicate Symbol"), sel.is_some(), "symbol.duplicate", name.clone()),
         (tl!("Delete Symbol"), sel.is_some(), "symbol.delete", name.clone()),
+        (tl!("Symbol Options…"), sel.is_some(), "ui.symbolOptions", json!({"edit": true, "name": sel})),
         (tl!("Edit Symbol"), inst, "symbol.edit", json!({})),
         (tl!("Place Symbol Instance"), sel.is_some(), "symbol.place", name.clone()),
         (tl!("Replace Symbol"), inst && sel.is_some(), "symbol.replace", name.clone()),
@@ -270,15 +271,40 @@ mod tests {
         assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some("symbolOptions"));
         assert!(symbols(&mut app).is_empty(), "no symbol before OK");
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("name"), "New Symbol");
+        assert_eq!(app.ui.dialog.as_ref().unwrap().str("exportType"), "movieClip");
         crate::dialogs::confirm(&mut app).unwrap();
         assert!(app.ui.dialog.is_none());
-        // The next one is offered a name no symbol has, and OK keeps the name typed.
+        let list = app.run("symbol.list", json!({})).unwrap();
+        assert_eq!(list["symbols"][0]["exportType"], "movieClip");
+        // The next one is offered a name no symbol has, and OK keeps the name typed and Export Type.
         app.run("shape.rectangle", json!({"x": 60, "y": 10, "width": 30, "height": 20})).unwrap();
         app.run("ui.symbolOptions", json!({})).unwrap();
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("name"), "New Symbol 2");
         app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Badge"));
+        app.ui.dialog.as_mut().unwrap().fields.insert("exportType".into(), json!("graphic"));
         crate::dialogs::confirm(&mut app).unwrap();
         assert_eq!(symbols(&mut app), ["New Symbol", "Badge"]);
+        let list = app.run("symbol.list", json!({})).unwrap();
+        assert_eq!(list["symbols"][1]["exportType"], "graphic");
+        // Symbol Options on the current symbol renames and keeps Export Type.
+        app.run("ui.symbolOptions", json!({"edit": true, "name": "Badge"})).unwrap();
+        assert_eq!(app.ui.dialog.as_ref().unwrap().str("exportType"), "graphic");
+        app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Mark"));
+        crate::dialogs::confirm(&mut app).unwrap();
+        assert_eq!(symbols(&mut app), ["New Symbol", "Mark"]);
+        assert_eq!(app.run("symbol.list", json!({})).unwrap()["symbols"][1]["exportType"], "graphic");
+        // Enable Guides for 9-Slice Scaling stores the guides (percent in the dialog) and reopens as set.
+        assert!(app.run("symbol.list", json!({})).unwrap()["symbols"][1]["nineSlice"].is_null());
+        app.run("ui.symbolOptions", json!({"edit": true, "name": "Mark"})).unwrap();
+        let dialog = app.ui.dialog.as_mut().unwrap();
+        dialog.fields.insert("nineSlice".into(), json!(true));
+        dialog.fields.insert("sliceLeft".into(), json!(20.0));
+        crate::dialogs::confirm(&mut app).unwrap();
+        let nine = app.run("symbol.list", json!({})).unwrap()["symbols"][1]["nineSlice"].clone();
+        assert_eq!(nine[0], json!(0.2));
+        app.run("ui.symbolOptions", json!({"edit": true, "name": "Mark"})).unwrap();
+        assert!(app.ui.dialog.as_ref().unwrap().bool("nineSlice"));
+        assert_eq!(app.ui.dialog.as_ref().unwrap().f64("sliceLeft", 0.0), 20.0);
     }
 
     #[test]
