@@ -2324,6 +2324,32 @@ fn rotate_view_dial(p: &egui::Painter, c: Pos2, rotation: f64, t: &Tokens) {
     p.text(c + vec2(0.0, 8.0), egui::Align2::CENTER_TOP, format!("{rotation:.0}°"), egui::FontId::proportional(11.0), t.text);
 }
 
+/// The four 9-slice guides of a symbol instance: fractions of the symbol art box, drawn in guide
+/// colour (Preferences › Guides & Grid) and transformed with the instance.
+fn symbol_nine_slice_guides(p: &egui::Painter, xf: &Xf, inst: Affine, art: Rect, guides: vectorcraft_doc::SymbolNineSlice, look: LineLook) {
+    let (w, h) = (art.width(), art.height());
+    if !(w > 0.0 && h > 0.0) {
+        return;
+    }
+    let xl = art.x0 + guides.left * w;
+    let xr = art.x1 - guides.right * w;
+    let yt = art.y0 + guides.top * h;
+    let yb = art.y1 - guides.bottom * h;
+    let map = |pt: Point| xf.to_screen(inst * pt);
+    let stroke = Stroke::new(1.0, look.color);
+    let line = |a: Point, b: Point| {
+        if look.dots {
+            look.guide(p, map(a), map(b));
+        } else {
+            p.extend(Shape::dashed_line(&[map(a), map(b)], stroke, 4.0, 3.0));
+        }
+    };
+    line(Point::new(xl, art.y0), Point::new(xl, art.y1));
+    line(Point::new(xr, art.y0), Point::new(xr, art.y1));
+    line(Point::new(art.x0, yt), Point::new(art.x1, yt));
+    line(Point::new(art.x0, yb), Point::new(art.x1, yb));
+}
+
 fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
     // The Selection tool's bounding box (rotated with the objects after a rotation). It hides while
     // a drag moves or resizes the selection, so only the art is seen going with the pointer (#712).
@@ -2371,6 +2397,13 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
         let partial = st.selection.partial(*id);
         // Path outlines.
         stroke_path(p, &node_outline(n, &symbols), xf, Stroke::new(1.0, color));
+        if let NodeKind::SymbolInstance { symbol, xf: inst } = &n.kind
+            && let Some(guides) = st.doc.symbol_nine_slice(symbol)
+            && let Some(art) = st.doc.symbols.iter().find(|s| s.name == *symbol).and_then(|s| s.art.geometric_bounds())
+        {
+            let look = LineLook::guides(&app.session.prefs, &Tokens::get(p.ctx()));
+            symbol_nine_slice_guides(p, xf, *inst, art, guides, look);
+        }
         // Anchors (and handles for selected anchors in direct mode); a gradient mesh's or a mesh
         // envelope's points.
         walk_drawn(n, &mut |c| {
@@ -7648,5 +7681,29 @@ mod tests {
             let want = if k == 0 { before - vec2(30.0, 0.0) } else { before - vec2(0.0, 30.0) };
             assert!((after - want).length() < 0.5, "bar {k}: {before:?} -> {after:?}, want {want:?}");
         }
+    }
+
+    /// G5: a selected symbol instance with 9-slice scaling shows its four guides on the canvas.
+    #[test]
+    fn nine_slice_guides_show_on_a_selected_symbol_instance() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 60, "height": 40})).unwrap();
+        let name = app.run("symbol.new", json!({})).unwrap()["name"].as_str().unwrap().to_string();
+        app.run(
+            "symbol.options",
+            json!({"name": name, "nineSlice": true, "nineSliceGuides": [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0]}),
+        )
+        .unwrap();
+        let id = app.run("symbol.place", json!({"name": name, "x": 100, "y": 80})).unwrap()["id"].as_u64().unwrap();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let ctx = egui::Context::default();
+        let line_segments = |app: &mut VectorcraftApp| shapes(app, &ctx).into_iter().filter(|s| matches!(s, Shape::LineSegment { .. })).count();
+        frame(&mut app, &ctx, vec![]);
+        let with_guides = line_segments(&mut app);
+        app.run("symbol.options", json!({"name": name, "nineSlice": false})).unwrap();
+        frame(&mut app, &ctx, vec![]);
+        let without = line_segments(&mut app);
+        assert!(with_guides > without + 8, "four dashed guides add segments: {with_guides} vs {without}");
     }
 }
