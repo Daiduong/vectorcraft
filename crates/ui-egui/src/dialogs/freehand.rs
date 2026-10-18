@@ -5,7 +5,7 @@
 //! Fields: `tool`; `fidelity` (points; Pencil, Paintbrush and Smooth), `fill` (Pencil and
 //! Paintbrush), `keepSelected` (Pencil, Paintbrush and Blob Brush), `mergeOnlySelection` (Blob
 //! Brush), `closeWithin` and `editWithin` (screen pixels, 0 turns it off; Pencil and Paintbrush) and
-//! `size` (points; Blob Brush and Eraser).
+//! `size` (points; Paintbrush, Blob Brush and Eraser).
 
 use serde_json::{Map, Value, json};
 
