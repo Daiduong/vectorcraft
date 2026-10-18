@@ -2618,8 +2618,7 @@ mod combo_keyboard_tests {
                 *picked = Some(i);
             }
         });
-        // Nothing renders here, and epaint panics when a texture atlas it handed out is dropped
-        // unapplied.
+        // No renderer takes the font atlas updates in a test; dropping them unapplied panics.
         out.textures_delta.clear();
     }
 
