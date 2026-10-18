@@ -433,7 +433,7 @@ struct PlacedEntry {
 /// Type drawn with an anti-aliasing method other than Sharp, as [`Renderer::draw_type_edges`] drew
 /// it offscreen on the pixels of the output ([`Frame::output`]).
 struct TypeEdgeEntry {
-    /// A copy of the type's object: the pixels are drawn again only for an object equal to it.
+    /// A copy of the type's object: the kept pixels are used only for an object equal to it.
     node: Node,
     /// The output's zoom and rotation ([`fx::linear_key`]).
     linear: [u64; 4],
@@ -442,8 +442,8 @@ struct TypeEdgeEntry {
     settings: (TypeAntiAlias, Option<u8>, AntiAlias, bool, u32),
     /// What the type read from the document and the color settings ([`Renderer::raster_inputs`]).
     inputs: fx::Inputs,
-    /// The output's offset: a frame whose offset differs from it by whole pixels draws the pixels
-    /// moved by them.
+    /// The output's offset: in a frame whose offset differs from it by whole pixels, the pixels are
+    /// placed moved by them.
     shift: kurbo::Vec2,
     /// The output pixel at the image's top-left corner.
     origin: (f64, f64),
@@ -1917,11 +1917,12 @@ impl Renderer {
     /// and more than [`fx::PIXEL_BUDGET`] (a frame drawn coarser than the output), the frame's own
     /// pixels are used.
     ///
-    /// The pixels are kept (`type_edges`). A later frame draws them again, without drawing the
-    /// type offscreen, while the object, the output's zoom and rotation, the method and edge
+    /// The pixels are kept (`type_edges`). In a later frame they are placed without drawing the
+    /// type offscreen while the object, the output's zoom and rotation, the method and edge
     /// smoothing and what the type reads ([`Self::raster_inputs`]) are unchanged, the output has
-    /// moved by whole pixels, and the kept pixels hold every pixel the frame needs: a pan moves
-    /// them, and a pan that brings more of the type into view draws it again.
+    /// moved by whole pixels, and the kept pixels hold every pixel the frame needs. After a pan,
+    /// the kept pixels are placed moved by it; after a pan that brings more of the type into view,
+    /// the type is drawn offscreen again.
     ///
     /// Returns false, having drawn nothing, for type that is drawn as Sharp draws it: type with
     /// inline graphics, type whose own fills or strokes include a brush stroke or a blend mode
