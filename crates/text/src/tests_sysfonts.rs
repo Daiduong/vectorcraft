@@ -332,18 +332,30 @@ fn service_font() -> PathBuf {
 }
 
 /// The fonts a font service (Adobe Fonts on Windows, through DirectWrite) loads in place are
-/// cataloged: named by the platform's lister, read whatever their file is called (#579).
+/// cataloged: named by the platform's lister, read whatever their file is called (#579), and one it
+/// activates after a scan is picked up by the next check (#2576). One test: the lister is set once
+/// per process, so two tests changing what it lists would race.
 #[test]
 fn fonts_the_platform_lists_outside_the_font_folders_are_cataloged() {
+    use std::sync::Mutex;
+    static FILES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+    let list = |files: Vec<String>| *FILES.lock().unwrap_or_else(|e| e.into_inner()) = files;
+    set_platform_font_files(|| FILES.lock().unwrap_or_else(|e| e.into_inner()).clone());
     let file = service_font();
     std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    let _ = std::fs::remove_file(&file);
+    // Nothing listed at the first scan; then a font service activates a font.
+    let db = FontDb::for_system_scan_test();
+    assert!(!db.installed_fonts_changed());
+    db.load_system_fonts();
+    assert!(!db.has_family("Service Sans3"));
     std::fs::write(&file, renamed_to("SourceSans3-Regular.ttf", "Service Sans3")).unwrap();
-    // The lister's files outside the font folders are scanned with them, each once (a collection
-    // lists its file once per face).
-    fn lister() -> Vec<String> {
-        vec![service_font().to_string_lossy().into_owned(); 2]
-    }
-    set_platform_font_files(lister);
+    // A collection lists its file once per face.
+    list(vec![file.to_string_lossy().into_owned(); 2]);
+    assert!(db.installed_fonts_changed(), "a font a font service activated since the scan");
+    db.load_system_fonts();
+    assert!(db.has_family("Service Sans3"));
+    // The lister's files outside the font folders are scanned with them, each once.
     let dirs = system_font_dirs();
     assert_eq!(dirs.iter().filter(|d| **d == file).count(), 1, "{dirs:?}");
     // A file named by itself is read without a font's extension, one in a folder isn't.
@@ -830,7 +842,7 @@ fn missing_font_story_layout_timing() {
 }
 
 /// A family that is not installed is drawn in an installed one with its metrics (Arial in a Nimbus
-/// Sans L, #2492), in the style asked for, and reported as a substitute, not missing. Without such a
+/// Sans L, #2492), in the style asked for, while `resolve` still reports it as missing. Without such a
 /// font it stays missing, and an installed Arial is never replaced.
 #[test]
 fn a_metric_compatible_font_stands_in_for_a_missing_family() {
@@ -842,7 +854,7 @@ fn a_metric_compatible_font_stands_in_for_a_missing_family() {
     std::fs::write(dir.join("Nimbus-Bold.ttf"), renamed_to("SourceSans3-Bold.ttf", NIMBUS)).unwrap();
     let db = FontDb::with_font_dirs(vec![dir]);
     let (face, m) = db.resolve("Arial", "Bold").unwrap();
-    assert_eq!((face.family.as_str(), face.style.as_str(), m), (NIMBUS, "Bold", FontMatch::Style));
+    assert_eq!((face.family.as_str(), face.style.as_str(), m), (NIMBUS, "Bold", FontMatch::Missing));
     assert_eq!(db.face("helvetica", "Regular").unwrap().family, NIMBUS);
     let (face, m) = db.resolve("Calibri", "Regular").unwrap();
     assert_eq!((face.family.as_str(), m), (FALLBACK_FAMILY, FontMatch::Missing), "no Carlito installed");
@@ -870,6 +882,6 @@ fn a_metric_stand_in_is_used_for_drawing_only() {
     let face = db.face("Arial", "Regular").unwrap();
     assert_eq!(face.family, NIMBUS, "drawn in the stand-in");
     let (face, m) = db.resolve("Arial", "Regular").unwrap();
-    assert_eq!((face.family.as_str(), m), (NIMBUS, FontMatch::Style), "reported as a substitute");
+    assert_eq!((face.family.as_str(), m), (NIMBUS, FontMatch::Missing), "still reported as missing");
     assert!(!db.has_family("Arial"), "still missing after it was drawn");
 }
