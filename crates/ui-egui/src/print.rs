@@ -141,12 +141,18 @@ pub fn run(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 }
 
 /// What a local-queue job asks of the driver, beside the PDF: `(grayscale, paper chosen)`. Gray is
-/// the merged settings' Grayscale (composite output); the paper is chosen when the caller says so
+/// the Grayscale of the settings `file.print` resolves (the print preset `preset` names, else the
+/// document's, with `settings` over them; composite output); the paper is chosen when the caller says so
 /// (`paperChosen`, the dialog) or names a standard paper in `settings.media`. A Custom size, or no
 /// paper named, is the document's own page size, which the queue may not list.
 fn job_hints(app: &mut VectorcraftApp, p: &Value) -> (bool, bool) {
     let settings = p.get("settings").filter(|v| v.is_object()).cloned().unwrap_or_else(|| json!({}));
-    let merged = app.session.execute("print.preview", &json!({ "settings": settings })).ok().map(|v| v["settings"].clone());
+    // The same `preset` and `settings` as `file.print` gets, so the hint is about the job printed.
+    let mut query = json!({ "settings": settings });
+    if let Some(preset) = p.get("preset").filter(|v| !v.is_null()) {
+        query["preset"] = preset.clone();
+    }
+    let merged = app.session.execute("print.preview", &query).ok().map(|v| v["settings"].clone());
     let gray = merged.as_ref().is_some_and(|m| m["color"]["grayscale"] == true && m["output"]["mode"] != "separations");
     let named = |v: &Value| v["media"].as_str().is_some_and(|m| m != "custom");
     let chosen = p.get("paperChosen").and_then(Value::as_bool).unwrap_or_else(|| named(&settings));
@@ -215,4 +221,43 @@ pub fn run_network(app: &mut VectorcraftApp, settings: &Value, paper_chosen: boo
     v["printed"] = json!(false);
     v["network"] = json!(true);
     Ok(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::job_hints;
+    use crate::VectorcraftApp;
+    use serde_json::json;
+    use vectorcraft_engine::Session;
+
+    fn app_with_gray_preset() -> VectorcraftApp {
+        let mut session = Session::new();
+        session.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
+        session.execute("print.presets.save", &json!({"name": "Mono", "settings": {"color": {"grayscale": true}}})).unwrap();
+        VectorcraftApp::new(session, Default::default())
+    }
+
+    /// The hint reads the preset `file.print` will resolve, not only the document's settings.
+    #[test]
+    fn a_grayscale_preset_makes_the_job_gray() {
+        let mut app = app_with_gray_preset();
+        assert_eq!(job_hints(&mut app, &json!({"preset": "Mono"})), (true, false));
+        assert_eq!(job_hints(&mut app, &json!({"preset": "mono"})).0, true, "any case, as the engine takes it");
+        assert!(!job_hints(&mut app, &json!({})).0, "no preset: the document's settings, which are in colour");
+        assert!(!job_hints(&mut app, &json!({"preset": null})).0);
+        assert!(job_hints(&mut app, &json!({"settings": {"color": {"grayscale": true}}})).0, "explicit settings still apply");
+        assert!(!job_hints(&mut app, &json!({"preset": "Mono", "settings": {"color": {"grayscale": false}}})).0, "settings stand over the preset's");
+    }
+
+    /// Without a preset or explicit media the queue's own paper stands, though the merged media is Letter.
+    #[test]
+    fn no_preset_and_no_media_does_not_choose_the_paper() {
+        let mut app = app_with_gray_preset();
+        assert_eq!(job_hints(&mut app, &json!({})), (false, false));
+        assert!(!job_hints(&mut app, &json!({"preset": "Mono"})).1, "a preset's saved Letter is not a choice");
+        assert!(!job_hints(&mut app, &json!({"settings": {"media": "custom"}})).1);
+        assert!(job_hints(&mut app, &json!({"settings": {"media": "a4"}})).1, "named media is a choice");
+        assert!(job_hints(&mut app, &json!({"paperChosen": true})).1, "so is the dialog saying so");
+        assert!(!job_hints(&mut app, &json!({"paperChosen": false, "settings": {"media": "a4"}})).1);
+    }
 }
