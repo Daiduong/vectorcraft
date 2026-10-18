@@ -2228,6 +2228,10 @@ lighting	Light	სინათლე
 	< 1 sec	< 1 წმ
 	[Unnamed]	[უსახელო]
 	Amount:	რაოდენობა:
+	Anti-aliasing Method	ანტიალიასინგის მეთოდი
+	Sharp	მკვეთრი
+	Crisp	მკაფიო
+	Strong	ძლიერი
 	Anti-aliasing:	ანტიალიასინგი:
 	Artboard:	სამუშაო დაფა:
 	Color Table	ფერების ცხრილი
