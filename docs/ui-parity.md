@@ -74,7 +74,7 @@ tools, never checked side by side) isn't captured row by row.
 | Align selected anchors to their bounds or the artboard; repeating an alignment that moves nothing keeps Undo, Redo and saved state | done | #1180 follow-up; engine regressions include rounding-only moves and unchanged handles; #1641 (fixes #1636): Align and Distribute act on the anchors selected with Direct Selection, the points of one path aligning to each other and Distribute spacing them |
 | Align selected anchors to a key anchor | missing | #1636 |
 | A marquee selects the objects whose paths it touches (anchors or segments): drawn inside a filled shape, over a background, it leaves that shape (Preview and Outline) | done | #1103 |
-| Preferences › Marquee Selection by Drag Direction (off by default): a marquee dragged right takes only the objects inside it, left the objects it touches; beyond-parity convenience, no score claim | done | #2449 |
+| Preferences › Marquee Selection by Drag Direction (off by default), Selection tool only (Direct Selection marquees are unchanged): a marquee dragged right takes only the objects inside it, left the objects it touches; beyond-parity convenience, no score claim | done | #2449 |
 | Click a segment independently of its endpoint anchors; only its direction handles show | done | #1278: hollow endpoint squares, selected edge emphasized; headless egui checked |
 | Drag a curved segment to bend it, a straight one to move its anchors | done | |
 | Drag by an anchor of a path selected whole moves the whole path; Alt-drag by an anchor or a segment copies it, Alt toggles the copy during the drag, and the copy snaps by the anchor pressed, onto the original too | done | #1104 |
