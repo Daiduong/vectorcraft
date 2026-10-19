@@ -156,6 +156,38 @@ pub fn mods(m: egui::Modifiers, space: bool) -> Mods {
     Mods { shift: m.shift, alt: m.alt, cmd: m.command, ctrl: m.ctrl, space }
 }
 
+/// What screen readers announce for the drawing canvas: active artboard, selection and tool.
+pub(crate) fn canvas_accessibility_description(app: &VectorcraftApp) -> String {
+    let Some(st) = app.session.active() else {
+        return "Canvas".into();
+    };
+    let nab = st.doc.artboards.len();
+    let cur = crate::panels::artboards::selected(app, nab);
+    let board = st
+        .doc
+        .artboards
+        .get(cur)
+        .map(|a| format!("{} {}", cur + 1, a.name))
+        .unwrap_or_else(|| "?".into());
+    let selection = match st.selection.len() {
+        0 => "nothing selected".into(),
+        1 => {
+            let id = st.selection.objects[0];
+            let name = st
+                .doc
+                .node(id)
+                .and_then(|n| n.name.clone().filter(|s| !s.is_empty()))
+                .unwrap_or_else(|| format!("object {}", id.0));
+            format!("1 object selected: {name}")
+        }
+        n => format!("{n} objects selected"),
+    };
+    let tool = vectorcraft_tools::tool_info(app.session.tool_id())
+        .map(|t| t.label)
+        .unwrap_or_else(|| app.session.tool_id());
+    format!("Canvas, artboard {board}, {selection}, {tool}")
+}
+
 /// Fit the view (View → Fit Artboard / Fit All / Actual Size).
 pub fn fit(app: &mut VectorcraftApp, how: &str) {
     let Some(rect) = app.canvas_rect else {
@@ -227,6 +259,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         scroll_bars(app, ui, rect, outer, &t);
     }
     let resp = ui.interact(rect, egui::Id::new("canvas"), Sense::click_and_drag());
+    let a11y = canvas_accessibility_description(app);
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, &a11y));
+    ui.ctx().accesskit_node_builder(resp.id, |node| {
+        node.set_role(egui::accesskit::Role::Canvas);
+    });
     // A press on the canvas while the context menu is open only closes it (a drag too, which egui
     // alone would leave open); the tool doesn't get it.
     if app.ui.dialog.as_ref().is_some_and(crate::dialogs::revolve_gizmo::active) {
@@ -7621,6 +7658,40 @@ mod tests {
         let after = on_screen(&app, p);
         assert!((after.x - (before.x - page)).abs() < 0.5 && (after.y - before.y).abs() < 0.5, "{before:?} -> {after:?}, page {page}");
         assert_eq!(app.session.active().unwrap().doc.art_bounds(), None, "the Rectangle tool drew nothing");
+    }
+
+    /// The canvas is a single AccessKit node named with the active artboard, selection and tool.
+    #[test]
+    fn canvas_accessibility_names_artboard_and_selection() {
+        use crate::widgets::accessibility_tests::tree;
+        use egui::accesskit::Role;
+
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        app.run("artboard.setProps", json!({"index": 0, "name": "Cover"})).unwrap();
+        app.ui.task_bar = false;
+        app.ui.view.rulers = false;
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let label = canvas_accessibility_description(&app);
+        assert!(label.contains("artboard 1 Cover") && label.contains("nothing selected"), "{label}");
+        let nodes = tree(|ui| show(&mut app, ui));
+        let node = nodes.iter().find(|n| n.role() == Role::Canvas).expect("canvas node");
+        assert_eq!(node.label(), Some(label.as_str()));
+        let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 20})).unwrap()["id"].as_u64().unwrap();
+        app.run("object.setProps", json!({"ids": [id], "name": "Logo"})).unwrap();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let label = canvas_accessibility_description(&app);
+        assert!(label.contains("1 object selected: Logo"), "{label}");
+        let nodes = tree(|ui| show(&mut app, ui));
+        assert_eq!(
+            nodes.iter().find(|n| n.role() == Role::Canvas).and_then(|n| n.label()),
+            Some(label.as_str())
+        );
+        let other = app.run("shape.rectangle", json!({"x": 60, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
+        app.run("select.set", json!({"ids": [id, other]})).unwrap();
+        let label = canvas_accessibility_description(&app);
+        assert!(label.contains("2 objects selected"), "{label}");
     }
 
     /// #2322: the wheel over the horizontal bar scrolls sideways, over the vertical one up and
