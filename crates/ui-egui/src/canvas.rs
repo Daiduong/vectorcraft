@@ -335,7 +335,6 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.canvas.worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
         }
     }
-    // A completed immediate render is newer than any still-running worker result.
     // Upload finished background renders.
     if let Some(done) = app.canvas.worker.as_mut().and_then(|w| w.poll())
         && done.key.doc == key.doc
@@ -347,6 +346,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         app.perf.render_ms = done.ms;
         app.canvas.last_ms = done.ms;
         app.canvas.moved = done.moved > 0;
+        app.canvas.from_worker = true;
     }
     if app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none() {
         let (w, h, view) = match pixel {
@@ -394,17 +394,18 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             rich_black: key.rich_black,
             ..opts
         };
-        // Light documents render synchronously (no lag vs overlays). Heavy ones use the worker
-        // when the cached raster covers the current view; uncovered areas render immediately.
-        // Document switches also render immediately so another document's frame is never shown.
-        // After an interaction drew moved rasters, its settled frame uses the worker when covered.
+        // Light documents render synchronously (no lag vs overlays); heavy ones go to the worker.
+        // A document switch renders synchronously so another document's frame is never shown.
+        // The first frame after an interaction, when the frame shown drew moved rasters, also goes
+        // to the worker. An interaction's frames stay on the worker once it drew the frame shown:
+        // its renderer keeps the rasters of the art's effects that make those frames fast, and this
+        // thread's renderer has none, so a frame fast on the worker would be slow here.
         let same_doc = app.canvas.key.as_ref().is_some_and(|k| k.doc == key.doc);
         let settling = app.canvas.moved && !key.interacting;
-        // A viewport-only raster has no pixels for newly exposed artwork. Render immediately
-        // in that case, retaining the worker when the old image covers the whole new view.
-        // This can pause navigation on heavy art, as the synchronous-render override does.
+        let staying = key.interacting && app.canvas.from_worker;
+        // Keep the upstream worker affinity for effect rasters, but never show an uncovered view.
         let covered = app.canvas.key.as_ref().is_some_and(|k| cached_frame_covers_view(k, &xf, ppp));
-        let heavy = (app.canvas.last_ms > 8.0 || settling) && app.canvas.texture.is_some() && same_doc && covered;
+        let heavy = (app.canvas.last_ms > 8.0 || settling || staying) && app.canvas.texture.is_some() && same_doc && covered;
         match (&mut app.canvas.worker, heavy) {
             (Some(worker), true) => worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts }),
             _ => {
@@ -415,6 +416,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 app.perf.render_ms = now_ms() - t0;
                 app.canvas.last_ms = app.perf.render_ms;
                 app.canvas.moved = app.canvas.renderer.stats.moved > 0;
+                app.canvas.from_worker = false;
             }
         }
     }
@@ -701,6 +703,7 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
         | Cursor::SymbolStainer
         | Cursor::SymbolScreener
         | Cursor::SymbolStyler
+        | Cursor::ObjectsOnPath
         | Cursor::Scissors
         | Cursor::ScissorsNotAllowed
         | Cursor::MeshAdd
@@ -1901,6 +1904,7 @@ fn hit_with<T>(
         path_only: prefs.object_selection_by_path_only,
         type_path_only: prefs.type_selection_by_path_only,
         scope: app.session.active().and_then(|st| st.isolation),
+        ..Default::default()
     };
     test(&app.session.active()?.doc, p, opt)
 }
@@ -2002,8 +2006,8 @@ fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, xf: &Xf)
 
 fn hover_highlight(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
     let Some(h) = app.hover_doc else { return };
-    // Smart Guides › Object Highlighting: a Smart Guides display option, so it needs them on.
-    if !app.ui.view.smart_guides || !app.session.prefs.object_highlighting {
+    // Smart Guides › Object Highlighting: a Smart Guides display option, so it needs them on and Snap to Grid and Pixel Preview off.
+    if !app.ui.view.smart_guides || !app.session.prefs.object_highlighting || app.ui.view.snap_to_grid || app.ui.view.pixel_preview {
         return;
     }
     if app.session.tool_busy() || !matches!(app.session.tool_id(), "selection" | "directSelection" | "groupSelection") {
@@ -4794,6 +4798,107 @@ mod tests {
         assert_eq!(app.canvas.renderer.stats.previewed, 0);
     }
 
+    /// Dragging a small square over an A4 page filled by a rectangle blurred by 500 pt, at 200%:
+    /// the blur reaches far past the raster budget, so the still frame keeps the backdrop's raster
+    /// cropped to the view, and each frame of a Selection tool drag draws it from there instead of
+    /// previewing it at the drag's lower resolution: on this thread, and on the worker, where the
+    /// frames of a heavy document render.
+    #[test]
+    fn a_drag_over_a_wide_blur_draws_the_blur_from_the_still_frame() {
+        for on_worker in [false, true] {
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.session.execute("file.new", &json!({"width": 595, "height": 842})).unwrap();
+            app.canvas.worker_started = true; // no worker unless `on_worker`
+            let back = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 595, "height": 842})).unwrap()["id"].clone();
+            app.run("paint.setFill", json!({"ids": [back], "color": "#1a4ce6"})).unwrap();
+            app.run("effect.apply", json!({"effect": "blur.gaussian", "params": {"radius": 500}, "ids": [back]})).unwrap();
+            let square = app.run("shape.rectangle", json!({"x": 260, "y": 380, "width": 60, "height": 60})).unwrap()["id"].clone();
+            app.run("select.set", json!({"ids": [square]})).unwrap();
+            app.select_tool("selection");
+            let ctx = egui::Context::default();
+            // One headless frame with `events`, then, on the worker, frames until the frame it renders
+            // for them is shown.
+            let run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+                let frame = |app: &mut VectorcraftApp, events| {
+                    let raw = egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(1440.0, 870.0))),
+                        events,
+                        ..Default::default()
+                    };
+                    let mut out = ctx.run_ui(raw, |ui| show(app, ui));
+                    out.textures_delta.clear();
+                };
+                frame(app, events);
+                let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
+                while app.canvas.worker.as_ref().is_some_and(|w| w.pending.is_some()) && std::time::Instant::now() < until {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    frame(app, vec![]);
+                }
+            };
+            let moved = |app: &VectorcraftApp| if on_worker { app.canvas.moved } else { app.canvas.renderer.stats.moved > 0 };
+            run(&mut app, vec![]);
+            if let Some(vm) = app.view_mut() {
+                (vm.zoom, vm.center) = (2.0, Point::new(290.0, 410.0));
+            }
+            if on_worker {
+                app.canvas.worker = crate::render_worker::Worker::spawn(ctx.clone());
+                app.canvas.last_ms = 50.0;
+            }
+            run(&mut app, vec![]);
+            assert_eq!(app.canvas.from_worker, on_worker);
+            assert!(!moved(&app), "a still frame, on the worker: {on_worker}");
+            let at = app.canvas_rect.unwrap().center();
+            let button =
+                |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+            run(&mut app, vec![egui::Event::PointerMoved(at)]);
+            run(&mut app, vec![button(at, true)]);
+            for step in [1.0, 2.0, 3.0] {
+                run(&mut app, vec![egui::Event::PointerMoved(at + vec2(13.0, 7.0) * step)]);
+                assert!(app.canvas.key.as_ref().is_some_and(|k| k.interacting && k.dragging), "step {step}, on the worker: {on_worker}");
+                assert_eq!(app.canvas.from_worker, on_worker, "step {step}");
+                assert!(
+                    !moved(&app),
+                    "the blur drawn from the still frame's raster, step {step}, on the worker: {on_worker} ({} ms)",
+                    app.perf.render_ms
+                );
+            }
+            run(&mut app, vec![button(at + vec2(39.0, 21.0), false)]);
+            let info = app.run("document.inspect", json!({})).unwrap();
+            let children = info["layers"][0]["children"].as_array().unwrap().clone();
+            let x0 = |id: &serde_json::Value| children.iter().find(|c| c["id"] == *id).unwrap()["bounds"]["x"].as_f64().unwrap();
+            assert!(x0(&square) > 270.0 && x0(&back) == 0.0, "the square moved, the backdrop did not");
+            app.canvas.worker = None;
+        }
+    }
+
+    /// An interaction's frames stay on the worker once it drew the frame shown, however fast that
+    /// frame was: the worker's renderer keeps the effect rasters that made it fast, and this
+    /// thread's renderer, without them, would draw the next frame slowly. Without a frame from the
+    /// worker, a fast frame renders on this thread as before.
+    #[test]
+    fn an_interaction_stays_on_the_worker_that_drew_the_frame_shown() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 100, "y": 50, "width": 200, "height": 200})).unwrap();
+        app.canvas.worker_started = true; // the first frame renders on this thread
+        let ctx = egui::Context::default();
+        shapes(&mut app, &ctx);
+        for from_worker in [true, false] {
+            app.canvas.worker = crate::render_worker::Worker::spawn(ctx.clone());
+            (app.canvas.from_worker, app.canvas.last_ms) = (from_worker, 1.0);
+            app.session.begin_interaction("Preview").unwrap();
+            shapes(&mut app, &ctx);
+            let pending = app.canvas.worker.as_ref().and_then(|w| w.pending.as_ref()).is_some_and(|k| k.interacting);
+            assert_eq!(pending, from_worker, "sent to the worker: {from_worker}");
+            if !from_worker {
+                assert!(app.canvas.key.as_ref().is_some_and(|k| k.interacting), "rendered on this thread");
+            }
+            app.session.cancel_interaction().unwrap();
+            app.canvas.worker = None;
+            shapes(&mut app, &ctx);
+        }
+    }
+
     /// The frame after an interaction renders without `interacting` also when the interaction
     /// leaves the document as it was (#1257): here a drag back to where it started.
     #[test]
@@ -5009,6 +5114,41 @@ mod tests {
         let out = navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
         assert_eq!(app.canvas.key.as_ref(), Some(&expected), "the current covered result is accepted");
         assert!(out.contains(&app.canvas.texture.as_ref().unwrap().id()));
+    }
+
+    /// Cache metadata, worker requests and view transforms use the renderer's bounded raster size.
+    /// Keep the worker controlled so huge virtual viewports never allocate huge test images.
+    #[test]
+    fn canvas_render_jobs_use_renderer_limited_dimensions() {
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.canvas.worker_started = true;
+        app.ui.view.rulers = false;
+        let frame = |app: &mut VectorcraftApp, size, ppp| {
+            let mut input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(pos2(0.0, 0.0), size)), ..Default::default() };
+            input.viewports.get_mut(&egui::ViewportId::ROOT).unwrap().native_pixels_per_point = Some(ppp);
+            let mut output = ctx.run_ui(input, |ui| show(app, ui));
+            output.textures_delta.clear();
+        };
+        frame(&mut app, vec2(400.0, 300.0), 1.0);
+        // Keep even the large virtual view covered in document space while the worker waits.
+        app.view_mut().unwrap().zoom = 400.0;
+        let (worker, jobs, _completed) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        app.canvas.last_ms = 50.0;
+        for (size, ppp, wide) in [(vec2(70000.25, 32.0), 1.0, true), (vec2(32.0, 70000.25), 1.0, false), (vec2(40000.25, 32.0), 2.0, true)] {
+            frame(&mut app, size, ppp);
+            let job = jobs.try_recv().expect("oversized viewport queued on controlled worker");
+            assert_eq!((job.key.w, job.key.h), (job.w, job.h));
+            assert_eq!(if wide { job.w } else { job.h }, u32::from(u16::MAX));
+            assert!((1..=u32::from(u16::MAX)).contains(&job.w));
+            assert!((1..=u32::from(u16::MAX)).contains(&job.h));
+            let center = job.view * Point::new(job.key.cx, job.key.cy);
+            assert!((center.x - f64::from(job.w) / 2.0).abs() < 0.001);
+            assert!((center.y - f64::from(job.h) / 2.0).abs() < 0.001);
+        }
     }
 
     /// A cached texture keeps the renderer's document mapping when the viewport changes. The
@@ -5628,6 +5768,37 @@ mod tests {
         assert!(dots(&mut app).is_empty(), "off: none for two anchors");
         select(&mut app, json!([[0, 1]]));
         assert_eq!(dots(&mut app).len(), 2, "one anchor still shows them");
+    }
+
+    /// Smart Guides › Object Highlighting (#394): the outline of the object under the pointer does not
+    /// show with View › Snap to Grid or View › Pixel Preview on, even with Smart Guides and the option on.
+    #[test]
+    fn snap_to_grid_and_pixel_preview_hide_the_hover_outline() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let id = app.session.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
+        app.session.execute("select.none", &json!({})).unwrap();
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let rect = app.canvas_rect.unwrap();
+        let over = Xf::new(rect, app.view().unwrap()).to_screen(Point::new(150.0, 150.0));
+        let layer = egui::epaint::ColorMode::Solid(c32(app.session.active().unwrap().doc.layer_color(vectorcraft_doc::NodeId(id))));
+        let outlines = |app: &mut VectorcraftApp| {
+            frame(app, &ctx, vec![egui::Event::PointerMoved(over)]);
+            shapes(app, &ctx).iter().filter(|s| matches!(s, Shape::Path(ps) if ps.stroke.width == 1.5 && ps.stroke.color == layer)).count()
+        };
+        assert!(app.ui.view.smart_guides && app.session.prefs.object_highlighting);
+        assert!(outlines(&mut app) > 0, "highlighted with Snap to Grid and Pixel Preview off");
+        app.run("view.snapToGrid", json!({})).unwrap();
+        assert!(app.ui.view.snap_to_grid);
+        assert_eq!(outlines(&mut app), 0, "Snap to Grid on");
+        app.run("view.snapToGrid", json!({})).unwrap();
+        assert!(outlines(&mut app) > 0, "Snap to Grid off again");
+        app.run("view.pixelPreview", json!({})).unwrap();
+        assert!(app.ui.view.pixel_preview);
+        assert_eq!(outlines(&mut app), 0, "Pixel Preview on");
+        app.run("view.pixelPreview", json!({})).unwrap();
+        assert!(outlines(&mut app) > 0, "Pixel Preview off again");
     }
 
     /// Smart Guides › Object Highlighting (#394): the outline of the object under the pointer
