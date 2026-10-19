@@ -16,6 +16,9 @@ use crate::state::{DockTab, next_zoom};
 use crate::theme::{Brightness, Tokens};
 use crate::widgets;
 
+pub(crate) const SETTINGS_SHORTCUT: &str = if cfg!(target_os = "macos") { "Cmd+," } else { "Cmd+K" };
+pub(crate) const EDGES_SHORTCUT: &str = if cfg!(target_os = "macos") { "Ctrl+Cmd+H" } else { "Cmd+H" };
+
 #[derive(Clone, Debug)]
 pub enum Item {
     /// (label, command id, params)
@@ -167,7 +170,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("file.documentSetup", "Document Setup…", "Cmd+Alt+P", "{}"),
     ("file.newDialog", "New…", "Cmd+N", "{} opens the New Document dialog"),
     ("app.home", "Home", "", "{} shows the Home screen (new file presets, Open) over the open documents; choosing a document tab returns to it"),
-    ("edit.preferences", "Preferences…", "Cmd+K", "{category?} open Preferences (engine: prefs.get / prefs.set / prefs.list)"),
+    ("edit.preferences", "Preferences…", SETTINGS_SHORTCUT, "{category?} open Preferences (engine: prefs.get / prefs.set / prefs.list)"),
     ("edit.keyboardShortcuts", "Keyboard Shortcuts…", "Cmd+Alt+Shift+K", "{}"),
     ("shortcuts.set", "Set Keyboard Shortcut", "", "{id: command id or tool:<id>, shortcut: \"Cmd+Shift+K\" | \"\" (none) | null (default), force?}"),
     ("shortcuts.list", "List Keyboard Shortcuts", "", "{query?} → [{id, label, group, shortcut, default, overridden}]"),
@@ -242,7 +245,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "",
         "{index: 0-based number | \"first\" | \"previous\" | \"next\" | \"last\"} make that artboard the status bar navigator's (the one Fit Artboard in Window and Actual Size show) and fit it in the window → {index}",
     ),
-    ("view.edges", "Hide Edges", "Cmd+H", "{}"),
+    ("view.edges", "Hide Edges", EDGES_SHORTCUT, "{}"),
     ("view.artboards", "Hide Artboards", "Cmd+Shift+H", "{}"),
     (
         "view.template",
