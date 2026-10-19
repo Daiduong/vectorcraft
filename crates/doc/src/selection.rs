@@ -28,8 +28,8 @@ pub struct Selection {
     /// selected or when the key is a group selected with only its own members.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key: Option<NodeId>,
-    /// Key anchor for Align when anchor points are direct-selected: the others align to this
-    /// point’s coordinates with Align to Key Object, as the key object does for whole objects.
+    /// Key anchor while anchor points are direct-selected: `object.align` without `to` moves the
+    /// other selected anchors to this point and leaves it fixed, as [`Self::key`] does for objects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_anchor: Option<(NodeId, AnchorRef)>,
     /// The object, group or layer targeted through its target circle in the Layers panel, which

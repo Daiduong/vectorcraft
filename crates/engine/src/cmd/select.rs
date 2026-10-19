@@ -75,7 +75,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Cancel Key Anchor",
             [],
             None,
-            "{id?, subpath?, anchor?} with all three: a direct-selected anchor of `id` becomes the key anchor Align aligns the other selected anchors to (the Direct Selection tool: a click on one anchor of several; on the key again: no fields); without them it cancels the key anchor → {keyAnchor: [id, subpath, anchor] or null}",
+            "{id?, subpath?, anchor?} with all three: that direct-selected anchor of `id` becomes the key anchor `object.align` aligns the other selected anchors to while no `to` is given; without them it cancels the key anchor → {keyAnchor: [id, subpath, anchor] or null}",
             has_doc,
             key_anchor
         ),
