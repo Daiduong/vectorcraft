@@ -1,6 +1,6 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-16 · **Change:** minor (Bulgarian (`bg`) and Greek (`el`) catalogs complete under the tests, #1909, #2076; Finnish (`fi`) catalog added, complete under the tests; Swedish (`sv`) catalog added, complete under the tests; scores and estimates unchanged; Brazilian Portuguese (`pt-br`) catalog completed under the tests: menus, `tl!` literals and messages; 12-language score 71% → 74%; #1914) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-19 · **Change:** minor (Width tool hint bar names the Shift+Drag gestures; Bulgarian (`bg`) and Greek (`el`) catalogs complete under the tests, #1909, #2076; Finnish (`fi`) catalog added, complete under the tests; Swedish (`sv`) catalog added, complete under the tests; scores and estimates unchanged; Brazilian Portuguese (`pt-br`) catalog completed under the tests: menus, `tl!` literals and messages; 12-language score 71% → 74%; #1914) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Per-language status of VectorCraft's interface. How the catalogs work and how to add a language:
 [`development.md` › Localisation](development.md#localisation). Part of
@@ -86,6 +86,7 @@ font for the web build.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | The Width tool's hint bar gains a `Shift+Drag` hint (drag a point to move the profile, a handle to scale its run): one new string in the English source and one row in each complete catalog; the reference is now 3,417 interface strings + 604 messages |
 | 2026-10-16 | minor | Bulgarian (`bg`, #1909) and Greek (`el`, #2076) catalogs added, complete under the tests; Swedish (#2139) and Finnish (#1994) rows for strings added since; eighteen non-English catalogs |
 | 2026-10-16 | minor | Finnish (`fi`) catalog added, complete under the tests (menus, literals, messages; one/other plurals); AI-assisted, native proofreading pending |
 | 2026-10-15 | minor | Swedish (`sv`) catalog added, complete under the tests (menus, literals, messages; one/other plurals); every `sv-*` locale resolves to it; AI-drafted, native review welcome; scores and estimates unchanged |

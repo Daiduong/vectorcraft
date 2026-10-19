@@ -1111,6 +1111,7 @@ lighting	Light	Valo
 	 on the canvas to create one	 kankaalla luodaksesi uuden
 	 a stroke to add a width point  |  	 viivaa lisätäksesi leveyspisteen  |  
 	 to change one side  |  	 muuttaaksesi yhtä puolta  |  
+	 a point to move the profile, a handle to scale it  |  	 pisteestä profiilin siirtoon, kahvasta sen skaalaamiseen  |  
 	 to select more points  |  	 valitaksesi lisää pisteitä  |  
 	 a point to edit it  |  	 pistettä muokataksesi sitä  |  
 	 to remove points	 poistaaksesi pisteitä

@@ -866,6 +866,8 @@ fn hint_for(tool: &str) -> Option<&'static [(&'static str, bool)]> {
             (" a stroke to add a width point  |  ", false),
             ("Alt+Drag", true),
             (" to change one side  |  ", false),
+            ("Shift+Drag", true),
+            (" a point to move the profile, a handle to scale it  |  ", false),
             ("Shift+Click", true),
             (" to select more points  |  ", false),
             ("Double-click", true),

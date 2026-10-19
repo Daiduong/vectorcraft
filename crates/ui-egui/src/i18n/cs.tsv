@@ -1133,6 +1133,7 @@ lighting	Light	Světlo
 	 on the canvas to create one	 na plátně vytvoří novou
 	 a stroke to add a width point  |  	 tahu přidá bod šířky  |  
 	 to change one side  |  	 změní jednu stranu  |  
+	 a point to move the profile, a handle to scale it  |  	 bod pro posun profilu, úchyt pro změnu jeho měřítka  |  
 	 to select more points  |  	 vybere další body  |  
 	 a point to edit it  |  	 na bod jej upraví  |  
 	 to remove points	 odstraní body

@@ -3483,6 +3483,7 @@ imageTrace	Outline	轮廓
 	 on the canvas to create one	在画布上以创建画板
 	 a stroke to add a width point  |  	描边可添加宽度点  |  
 	 to change one side  |  	可只更改单侧  |  
+	 a point to move the profile, a handle to scale it  |  	 拖拽点以移动轮廓，拖拽手柄以缩放  |  
 	 to select more points  |  	可选择更多点  |  
 	 a point to edit it  |  	宽度点可编辑  |  
 	 to remove points	可移除点

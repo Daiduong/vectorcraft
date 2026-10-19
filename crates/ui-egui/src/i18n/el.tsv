@@ -4773,6 +4773,7 @@ theme	Appearance	Εμφάνιση
 	 on the canvas to create one	 στον καμβά για δημιουργία ενός
 	 a stroke to add a width point  |  	 περίγραμμα για προσθήκη σημείου πλάτους  |  
 	 to change one side  |  	 για αλλαγή μίας πλευράς  |  
+	 a point to move the profile, a handle to scale it  |  	 ένα σημείο για μετακίνηση του προφίλ, μια λαβή για αλλαγή μεγέθους του  |  
 	 to select more points  |  	 για επιλογή περισσότερων σημείων  |  
 	 a point to edit it  |  	 σημείο για επεξεργασία  |  
 	 to remove points	 για αφαίρεση σημείων

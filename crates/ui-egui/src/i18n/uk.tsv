@@ -3621,6 +3621,7 @@ imageTrace	Outline	Контур
 	 on the canvas to create one	 на полотні для створення однієї
 	 a stroke to add a width point  |  	 обведення для додавання точки ширини  |  
 	 to change one side  |  	 для зміни однієї сторони  |  
+	 a point to move the profile, a handle to scale it  |  	 точку для переміщення профілю, маркер для його масштабування  |  
 	 to select more points  |  	 для виділення інших точок  |  
 	 a point to edit it  |  	 точку, щоб редагувати її  |  
 	 to remove points	 для видалення точок

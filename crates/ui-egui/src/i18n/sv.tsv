@@ -3534,6 +3534,7 @@ imageTrace	Outline	Disposition
 	 on the canvas to create one	 på arbetsytan för att skapa en
 	 a stroke to add a width point  |  	 en kontur för att lägga till en breddpunkt  |  
 	 to change one side  |  	 för att ändra en sida  |  
+	 a point to move the profile, a handle to scale it  |  	 en punkt för att flytta profilen, ett handtag för att skala den  |  
 	 to select more points  |  	 för att markera fler punkter  |  
 	 a point to edit it  |  	 en punkt för att redigera den  |  
 	 to remove points	 för att ta bort punkter

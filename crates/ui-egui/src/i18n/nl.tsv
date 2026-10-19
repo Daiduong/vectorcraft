@@ -1072,6 +1072,7 @@ lighting	Light	Licht
 	 on the canvas to create one	 op het canvas om er een te maken
 	 a stroke to add a width point  |  	 op een lijn om een breedtepunt toe te voegen  |  
 	 to change one side  |  	 om één kant te wijzigen  |  
+	 a point to move the profile, a handle to scale it  |  	 een punt om het profiel te verplaatsen, een greep om het te schalen  |  
 	 to select more points  |  	 om meer punten te selecteren  |  
 	 a point to edit it  |  	 op een punt om het te bewerken  |  
 	 to remove points	 om punten te verwijderen

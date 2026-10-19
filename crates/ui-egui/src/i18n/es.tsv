@@ -3593,6 +3593,7 @@ imageTrace	Outline	Contorno
 	 on the canvas to create one	 en el lienzo para crear una
 	 a stroke to add a width point  |  	 un trazo para agregar un punto de anchura  |  
 	 to change one side  |  	 para cambiar un solo lado  |  
+	 a point to move the profile, a handle to scale it  |  	 un punto para mover el perfil, un tirador para escalarlo  |  
 	 to select more points  |  	 para seleccionar más puntos  |  
 	 a point to edit it  |  	 en un punto para editarlo  |  
 	 to remove points	 para quitar puntos

@@ -3534,6 +3534,7 @@ imageTrace	Outline	Контур
 	 on the canvas to create one	 върху платното за създаване на такава
 	 a stroke to add a width point  |  	 щрих за добавяне на точка за дебелина  |  
 	 to change one side  |  	 за промяна на една страна  |  
+	 a point to move the profile, a handle to scale it  |  	 точка за преместване на профила, дръжка за мащабирането му  |  
 	 to select more points  |  	 за избор на още точки  |  
 	 a point to edit it  |  	 точка за редактирането ѝ  |  
 	 to remove points	 за премахване на точки

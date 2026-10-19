@@ -3525,6 +3525,7 @@ imageTrace	Outline	Kontur
 	 on the canvas to create one	 auf der Arbeitsfläche erstellt eine neue
 	 a stroke to add a width point  |  	 an einer Kontur fügt einen Breitenpunkt hinzu  |  
 	 to change one side  |  	 ändert nur eine Seite  |  
+	 a point to move the profile, a handle to scale it  |  	 verschiebt das Profil an einem Punkt, skaliert es an einem Griff  |  
 	 to select more points  |  	 wählt weitere Punkte aus  |  
 	 a point to edit it  |  	 auf einen Punkt bearbeitet ihn  |  
 	 to remove points	 entfernt Punkte
