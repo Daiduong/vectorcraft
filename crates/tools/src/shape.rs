@@ -4,7 +4,9 @@
 //! the shape being drawn); a click without a drag asks the UI for the size dialog (like
 //! Illustrator). ↑/↓ during a polygon/star drag change the side/point count; during a star drag,
 //! Ctrl/Cmd keeps the inner radius where it is while the outer one follows the pointer, and Alt
-//! keeps the star's shoulders straight (#812). The start point and
+//! keeps the star's shoulders straight (#812). While dragging a polygon or star, measurement labels
+//! show the centre-to-pointer segment (distance, angle and offset) like the Measure tool
+//! (<https://helpx.adobe.com/illustrator/using/measure-distance-and-area.html>). The start point and
 //! the dragged corner snap to Smart Guides ([`DrawSnap`]), hovering before the press too.
 
 use serde_json::{Value, json};
@@ -252,7 +254,7 @@ impl Tool for ShapeTool {
         let mut o = self.snap.guides().to_vec();
         if let Some(s) = self.start.filter(|_| self.began && cx.measurement_labels) {
             let text = match self.id {
-                "polygon" | "star" => cx.draw_measure_label(s, self.last),
+                "polygon" | "star" => cx.segment_measure_label(s, self.last),
                 "lineSegment" => {
                     let (w, h) = ((self.last - s).x.abs(), (self.last - s).y.abs());
                     cx.size_label(w, h)
@@ -367,7 +369,7 @@ mod tests {
         let s = Selection::default();
         let p = paint();
         let cx = cx(&d, &s, &p);
-        let want = cx.draw_measure_label(Point::new(10.0, 10.0), Point::new(40.0, -20.0));
+        let want = cx.segment_measure_label(Point::new(10.0, 10.0), Point::new(40.0, -20.0));
         for id in ["polygon", "star"] {
             let mut t = ShapeTool::new(id);
             t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
