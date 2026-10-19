@@ -1272,22 +1272,23 @@ mod tests {
         assert_eq!(a, vec![Action::Exec("select.anchors".into(), json!({"id": id.0, "anchors": [[0, 0]], "mode": "toggle"}))]);
     }
 
-    /// A click (no drag) on an anchor that is selected with others, whether the whole path is or
-    /// some of its anchors, selects that anchor alone, as in Illustrator: a press keeps the
-    /// selection so a drag moves it all, the release without a drag narrows it. Shift still
+    /// A click (no drag) on an anchor that is selected with others: with the whole path selected
+    /// the release narrows to that anchor alone; with several anchor points direct-selected it sets
+    /// the key anchor for Align (a press keeps the selection so a drag moves it all). Shift still
     /// toggles, and a click on a path's only selected anchor changes nothing visible.
     #[test]
     fn a_click_on_a_selected_anchor_selects_it_alone() {
         let (d, id) = doc_with_rect();
         let p = paint();
         let alone = vec![Action::Exec("select.anchors".into(), json!({"id": id.0, "anchors": [[0, 0]], "mode": "set"}))];
+        let key = vec![Action::Exec("select.keyAnchor".into(), json!({"id": id.0, "subpath": 0, "anchor": 0}))];
         let mut whole = Selection::default();
         whole.set([id]);
-        for s in [whole, anchors_of(id, &[(0, 0), (0, 1)])] {
+        for (s, release) in [(whole, alone.as_slice()), (anchors_of(id, &[(0, 0), (0, 1)]), key.as_slice())] {
             let cx = cx(&d, &s, &p);
             let mut t = DirectSelectionTool::new(false);
             assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0)).is_empty(), "{s:?}");
-            assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 100.0, 100.0)), alone, "{s:?}");
+            assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 100.0, 100.0)), release, "{s:?}");
             // Dragged instead: moved, selection kept.
             assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0)).is_empty());
             t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 120.0, 100.0));
