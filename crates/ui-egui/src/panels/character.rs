@@ -867,11 +867,15 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// kerning, no baseline shift, 100% scales, no rotation, no underline or strikethrough, All Caps
 /// and Small Caps off, the normal position (neither superscript nor subscript), Roman Baseline
 /// character alignment, Proportional Metrics off and the Default digits, whether or not Show
-/// East Asian Options and Show Indic Options are on.
+/// East Asian Options and Show Indic Options are on. Inside an undo group that is already open,
+/// the reset is part of that group's step.
 fn reset_panel(app: &mut VectorcraftApp) {
     // Typing in progress stays an undo step of its own.
     end_typing(app);
-    app.session.begin_named_undo_group(Some("Reset Panel".into()));
+    let open = app.session.active().is_some_and(|st| st.undo_group.is_some());
+    if !open {
+        app.session.begin_named_undo_group(Some("Reset Panel".into()));
+    }
     let d = CharStyle::default();
     style(app, json!({"tracking": 0, "leading": "auto"}));
     format(
@@ -883,7 +887,11 @@ fn reset_panel(app: &mut VectorcraftApp) {
         }),
     );
     set_anti_alias(app, TypeAntiAlias::Sharp);
-    app.session.end_undo_group(false);
+    // Closes the active document's undo group only, so an undo group open in another document
+    // stays open.
+    if !open && let Some(st) = app.session.active_mut() {
+        st.undo_group = None;
+    }
 }
 
 #[cfg(test)]
@@ -1245,6 +1253,43 @@ mod tests {
         assert_eq!((method(&app, a), tracking(&app)), (TypeAntiAlias::Sharp, Some(0.0)));
         app.run("edit.undo", json!({})).unwrap();
         assert_eq!((method(&app, a), tracking(&app)), (TypeAntiAlias::Strong, Some(50.0)), "one undo step");
+    }
+
+    /// Reset Panel closes only the undo group it opens: in an undo group that is already open,
+    /// the reset is part of that group's step, and an undo group open in another document stays
+    /// open, with that document's later edits part of its step.
+    #[test]
+    fn reset_panel_closes_only_its_own_undo_group() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "A"})).unwrap()["id"].clone();
+        let steps = |st: &vectorcraft_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
+        // An undo group open in the same document (MCP `command_batch` with `atomic`).
+        app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
+        app.run("text.setFormat", json!({"id": a, "antiAlias": "crisp"})).unwrap();
+        reset_panel(&mut app);
+        assert!(app.session.active().unwrap().undo_group.is_some(), "the batch's undo group stays open");
+        app.run("text.setFormat", json!({"id": a, "antiAlias": "strong"})).unwrap();
+        app.run("edit.undoGroup.end", json!({})).unwrap();
+        let a_steps = steps(app.session.active().unwrap());
+        assert_eq!(a_steps.1, Some("Batch".to_string()), "the reset is part of the Batch step");
+        // An undo group open in another document.
+        app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
+        app.run("text.setFormat", json!({"id": a, "antiAlias": "none"})).unwrap();
+        let a_steps = steps(app.session.active().unwrap());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        assert_eq!(app.session.active_index(), Some(1));
+        let b = app.run("text.create", json!({"x": 20, "y": 50, "text": "B"})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [b]})).unwrap();
+        let b_steps = steps(app.session.active().unwrap()).0;
+        reset_panel(&mut app);
+        assert_eq!(steps(app.session.active().unwrap()), (b_steps + 1, Some("Reset Panel".to_string())));
+        assert!(app.session.active().unwrap().undo_group.is_none());
+        assert!(app.session.documents()[0].undo_group.is_some(), "the other document's undo group stays open");
+        app.session.set_active(0);
+        app.run("text.setFormat", json!({"id": a, "antiAlias": "crisp"})).unwrap();
+        app.run("edit.undoGroup.end", json!({})).unwrap();
+        assert_eq!(steps(app.session.active().unwrap()), a_steps, "the later edit is part of the Batch step");
     }
 
     /// Character Alignment and Proportional Metrics are in the panel menu with the East Asian
