@@ -29,15 +29,16 @@ pub(crate) struct Bitmap {
 }
 
 /// Cumulative decoding allowances for one import, shared by all image resources.
-/// Pixel allowance is charged before allocation; failed decodes do not refund it.
-#[derive(Debug)]
+/// Pixel allowance is charged before allocation; failed or distinct equivalent
+/// decodes do not refund it. Identical raw resource aliases are skipped by the caller.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BitmapBudget {
     remaining_pixels: u64,
     remaining_encoded_bytes: usize,
 }
 
 impl Default for BitmapBudget {
-    /// Allow at most 32 million decoded pixels and 128 MiB of retained PNG bytes.
+    /// Allow at most 32 million decoded pixels and 128 MiB of generated PNG bytes.
     fn default() -> Self {
         Self { remaining_pixels: 32_000_000, remaining_encoded_bytes: 128 * 1024 * 1024 }
     }

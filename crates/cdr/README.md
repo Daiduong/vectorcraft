@@ -62,7 +62,11 @@ budget. Other bounds: 64 nested lists, 200,000 records, 4,096 ZIP entries/stream
 1,000 pages, 20,000 styles, 1,000,000 geometry points and 250,000 materialized
 gradient stops/dash values (both style definitions and object copies count).
 Bitmap decoding additionally limits each side to 32,768 pixels, the cumulative
-pixel count to 32 million and retained encoded PNGs to 128 MiB. Row strides,
+pixel count to 32 million and generated encoded PNGs to 128 MiB. Exact raw bitmap
+aliases are skipped before decoding and consume no additional image quota. A
+different encoding with the same identifier is decoded and accepted only when
+its dimensions and complete PNG bytes agree; this actual decoding work remains
+charged even when the final image is shared. Conflicting images fail. Row strides,
 palette indices, RI bounds and separate alpha dimensions/overlaps are checked
 before the RGBA allocation.
 Malformed, encrypted, split and ZIP64 archives fail with an error. These are
@@ -80,7 +84,8 @@ routes Waldo input to its explicit unsupported-version diagnostic.
 compressed RIFF, stored/deflated ZIP prefix recognition, header/CRC mismatch,
 legacy-extension detection, every truncated prefix,
 decompression/copy/traversal limits and property-based random/mutated input.
-Original generated bitmap records check crop geometry, bottom-up rows, BGR,
+Original generated bitmap records check resource aliases, conflicting identifiers,
+crop geometry, bottom-up rows, BGR,
 CMYK, palettes, continuous alpha, image quotas and native save/reopen/place.
 `CDR_FIXTURE_DIR` optionally points to the locally generated CorelDRAW fixture
 directory. It runs the native-file assertions without committing binary fixtures.

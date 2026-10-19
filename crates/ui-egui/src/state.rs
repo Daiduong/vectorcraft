@@ -28,6 +28,7 @@ pub struct View {
 }
 
 impl Default for View {
+    /// Start at 100% with a pending first-display fit and no imported-artwork hint.
     fn default() -> Self {
         Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, initial_target: None, rotation: 0.0, artboard: 0 }
     }

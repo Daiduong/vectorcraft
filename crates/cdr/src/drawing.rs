@@ -15,21 +15,9 @@ const MAX_COORD: f64 = 1e6;
 
 /// Build editable pages in points from native records, retaining omission warnings.
 pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String> {
-    let mut d = Drawing {
-        version,
-        fills: BTreeMap::new(),
-        strokes: BTreeMap::new(),
-        warnings: BTreeSet::new(),
-        points: 0,
-        next_id: 1,
-        objects_seen: 0,
-        objects_imported: 0,
-        paint_values: 0,
-        bitmaps: BTreeMap::new(),
-        bitmap_budget: bitmap::BitmapBudget::default(),
-    };
+    let mut d = Drawing::new(version);
     let mut size = (612.0 / 72.0, 792.0 / 72.0);
-    d.styles(chunks, &mut size)?;
+    d.styles(chunks, &mut size, &mut BTreeSet::new())?;
     let mut pages = Vec::new();
     find_lists(chunks, b"page", &mut pages);
     if pages.is_empty() {
@@ -88,6 +76,94 @@ pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String>
     let mut warnings = d.warnings.into_iter().collect();
     document.limit_depth_noting(&mut warnings);
     Ok(Imported { document, version, warnings })
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+
+    /// Extract the original generated native bitmap without using a producer fixture.
+    fn bitmap_data() -> Vec<u8> {
+        let (chunks, _) = crate::container::load(&crate::synth::clipped_bitmap()).unwrap();
+        chunks.into_iter().find(|c| c.id == *b"bmp ").unwrap().data
+    }
+
+    /// Materialize a bitmap leaf as the container reader does for an external alias.
+    fn bitmap_chunk(data: Vec<u8>) -> Chunk {
+        Chunk { id: *b"bmp ", list: None, data, children: Vec::new() }
+    }
+
+    /// Repeated resource aliases inside nested lists must neither decode nor charge twice.
+    #[test]
+    fn exact_bitmap_aliases_share_decode_and_budget() {
+        let data = bitmap_data();
+        let records = [
+            bitmap_chunk(data.clone()),
+            Chunk { id: *b"LIST", list: Some(*b"grp "), data: Vec::new(), children: vec![bitmap_chunk(data.clone()), bitmap_chunk(data)] },
+        ];
+        let mut drawing = Drawing::new(1200);
+        let mut seen = BTreeSet::new();
+        let mut size = (1.0, 1.0);
+        drawing.styles(&records[..1], &mut size, &mut seen).unwrap();
+        let budget = drawing.bitmap_budget.clone();
+        drawing.styles(&records[1..], &mut size, &mut seen).unwrap();
+        assert_eq!(drawing.bitmaps.len(), 1);
+        assert_eq!(seen.len(), 1);
+        assert_eq!(drawing.bitmap_budget, budget);
+    }
+
+    /// Nonpixel metadata may vary; distinct decoding work stays charged, exact repeats do not.
+    #[test]
+    fn equivalent_bitmap_metadata_keeps_first_image_and_bounds_work() {
+        let data = bitmap_data();
+        let mut variant = data.clone();
+        variant[16] ^= 1; // Outer resource metadata is not part of the RI pixel header.
+        let records = [bitmap_chunk(data), bitmap_chunk(variant.clone()), bitmap_chunk(variant)];
+        let mut drawing = Drawing::new(1200);
+        let mut seen = BTreeSet::new();
+        let mut size = (1.0, 1.0);
+        drawing.styles(&records[..1], &mut size, &mut seen).unwrap();
+        let first = drawing.bitmaps.get(&7).unwrap().blob.bytes.clone();
+        let budget = drawing.bitmap_budget.clone();
+        drawing.styles(&records[1..2], &mut size, &mut seen).unwrap();
+        assert_ne!(drawing.bitmap_budget, budget);
+        let budget = drawing.bitmap_budget.clone();
+        drawing.styles(&records[2..], &mut size, &mut seen).unwrap();
+        assert_eq!(drawing.bitmaps.len(), 1);
+        assert_eq!(drawing.bitmaps.get(&7).unwrap().blob.bytes, first);
+        assert_eq!(drawing.bitmap_budget, budget);
+        assert_eq!(seen.len(), 2);
+    }
+
+    /// A changed actual pixel under the same resource identifier is an error, not a replacement.
+    #[test]
+    fn conflicting_bitmap_pixels_reject_without_replacing_first() {
+        let data = bitmap_data();
+        let mut variant = data.clone();
+        variant[40 + 78] ^= 255; // First BGR pixel after the native RI header.
+        let records = [bitmap_chunk(data), bitmap_chunk(variant)];
+        let mut drawing = Drawing::new(1200);
+        let mut seen = BTreeSet::new();
+        let mut size = (1.0, 1.0);
+        drawing.styles(&records[..1], &mut size, &mut seen).unwrap();
+        let first = drawing.bitmaps.get(&7).unwrap().blob.bytes.clone();
+        let error = drawing.styles(&records[1..], &mut size, &mut seen).unwrap_err();
+        assert!(error.contains("conflicting CDR bitmap resource identifier"));
+        assert_eq!(drawing.bitmaps.len(), 1);
+        assert_eq!(drawing.bitmaps.get(&7).unwrap().blob.bytes, first);
+    }
+
+    /// A complete native drawing still opens when an external list repeats its bitmap definition.
+    #[test]
+    fn drawing_import_accepts_nested_bitmap_alias() {
+        let (mut chunks, version) = crate::container::load(&crate::synth::clipped_bitmap()).unwrap();
+        chunks.push(Chunk { id: *b"LIST", list: Some(*b"bmpf"), data: Vec::new(), children: vec![bitmap_chunk(bitmap_data())] });
+        let imported = import(&chunks, version).unwrap();
+        assert_eq!(imported.document.images.len(), 1);
+        assert!(!imported.document.layers.is_empty());
+    }
 }
 
 /// Detect object records even inside containers whose artwork is unsupported.
@@ -230,6 +306,22 @@ impl Fill {
     }
 }
 impl Drawing {
+    /// Start one import with independent resource maps and cumulative work budgets.
+    fn new(version: u32) -> Self {
+        Self {
+            version,
+            fills: BTreeMap::new(),
+            strokes: BTreeMap::new(),
+            warnings: BTreeSet::new(),
+            points: 0,
+            next_id: 1,
+            objects_seen: 0,
+            objects_imported: 0,
+            paint_values: 0,
+            bitmaps: BTreeMap::new(),
+            bitmap_budget: bitmap::BitmapBudget::default(),
+        }
+    }
     /// Retain at most 100 distinct warnings about omitted or approximated features.
     fn warn(&mut self, text: &str) {
         if self.warnings.len() < 100 {
@@ -243,7 +335,7 @@ impl Drawing {
         NodeId(id)
     }
     /// Collect fill/outline definitions and page defaults before resolving objects.
-    fn styles(&mut self, chunks: &[Chunk], size: &mut (f64, f64)) -> Result<(), String> {
+    fn styles<'a>(&mut self, chunks: &'a [Chunk], size: &mut (f64, f64), bitmap_sources: &mut BTreeSet<&'a [u8]>) -> Result<(), String> {
         for c in chunks {
             if self.fills.len() + self.strokes.len() > 20_000 {
                 return Err("CDR style count limit exceeded".into());
@@ -272,12 +364,27 @@ impl Drawing {
                 }
                 b"txsm" => self.warn("Text objects are omitted; convert text to curves in CorelDRAW for editable outlines"),
                 b"bmp " => {
+                    // External LIST aliases materialize identical leaves. Compare borrowed bytes
+                    // before decoding so those aliases consume neither image quota nor another PNG.
+                    if !bitmap_sources.insert(c.data.as_slice()) {
+                        continue;
+                    }
                     if let Some(bitmap) = bitmap::decode(&c.data, &mut self.bitmap_budget)? {
                         if bitmap.cmyk_converted {
                             self.warn("CMYK bitmap colours are approximated in RGB without the embedded colour profile");
                         }
-                        if self.bitmaps.insert(bitmap.id, bitmap).is_some() {
-                            return Err("duplicate CDR bitmap resource identifier".into());
+                        if let Some(first) = self.bitmaps.get(&bitmap.id) {
+                            // Different metadata/padding may encode the same pixels. Compare the
+                            // full deterministic PNG, never just its content-derived key. This
+                            // distinct decode remains charged to bound actual conversion work.
+                            if first.width != bitmap.width
+                                || first.height != bitmap.height
+                                || first.blob.bytes.as_slice() != bitmap.blob.bytes.as_slice()
+                            {
+                                return Err("conflicting CDR bitmap resource identifier".into());
+                            }
+                        } else {
+                            self.bitmaps.insert(bitmap.id, bitmap);
                         }
                     } else {
                         self.warn("An unsupported CDR bitmap encoding was omitted");
@@ -287,7 +394,7 @@ impl Drawing {
                 b"iccd" => self.warn("Embedded colour profiles are not imported; numeric colours are preserved"),
                 _ => {}
             }
-            self.styles(&c.children, size)?;
+            self.styles(&c.children, size, bitmap_sources)?;
         }
         Ok(())
     }
