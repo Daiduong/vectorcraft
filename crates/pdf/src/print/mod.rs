@@ -24,7 +24,6 @@
 //! writers (PostScript), which can write screens and flatness themselves; [`tiling`] turns the
 //! layout into the pages in document space (View → Show Print Tiling).
 
-mod imposition;
 mod layout;
 mod plates;
 mod settings;
@@ -121,19 +120,6 @@ pub struct PrintPreview {
     pub warnings: Vec<String>,
 }
 
-/// Layout indices grouped by [`Layout::physical`], in artboard order.
-fn physical_groups(layouts: &[Layout]) -> Vec<Vec<usize>> {
-    if layouts.is_empty() {
-        return vec![];
-    }
-    let max = layouts.iter().map(|l| l.physical).max().unwrap_or(0);
-    let mut groups = vec![vec![]; max + 1];
-    for (i, l) in layouts.iter().enumerate() {
-        groups[l.physical].push(i);
-    }
-    groups
-}
-
 /// A laid-out job.
 struct Job<'a> {
     /// The document as it prints: live effects applied, the layers that print.
@@ -144,10 +130,8 @@ struct Job<'a> {
     inks: Vec<PrintInk>,
     /// The inks that print (indices into `inks`): each a plate.
     plates: Vec<usize>,
-    /// One copy's physical sheets: (physical sheet index, plate).
+    /// One copy's pages: (layout, plate).
     sheets: Vec<(usize, Option<usize>)>,
-    /// Layout indices on each physical sheet, in print order.
-    groups: Vec<Vec<usize>>,
     warnings: Vec<String>,
 }
 
@@ -237,8 +221,7 @@ impl<'a> Job<'a> {
         if printed.is_empty() {
             return Err(PdfError::BadSetting("output.inks: no ink is set to print".into()));
         }
-        let groups = physical_groups(&layouts);
-        let sheets: Vec<(usize, Option<usize>)> = groups.iter().enumerate().flat_map(|(p, _)| printed.iter().map(move |i| (p, *i))).collect();
+        let sheets: Vec<(usize, Option<usize>)> = (0..layouts.len()).flat_map(|l| printed.iter().map(move |i| (l, *i))).collect();
         if sheets.len().saturating_mul(set.copies as usize) > MAX_PAGES {
             return Err(PdfError::BadSetting(format!("the job would print more than {MAX_PAGES} pages")));
         }
@@ -257,7 +240,7 @@ impl<'a> Job<'a> {
         if !postscript && !set.graphics.auto_flatness {
             warnings.push("a fixed flatness is not written yet: the output device flattens curves".into());
         }
-        Ok(Self { doc, layouts, tiles, inks, plates, sheets, groups, warnings })
+        Ok(Self { doc, layouts, tiles, inks, plates, sheets, warnings })
     }
 
     /// The ink of plate `plate` (`None`: composite).
@@ -282,48 +265,31 @@ impl<'a> Job<'a> {
 }
 
 /// What printing `doc` with `set` makes: pages, tiles, inks and warnings.
-fn page_summary(l: &Layout, ink: Option<String>) -> PageSummary {
-    PageSummary {
-        artboard: l.artboard,
-        tile: l.tile.map(|t| t.0 + 1),
-        ink,
-        width: l.size.0,
-        height: l.size.1,
-        orientation: l.orientation,
-        scale: [l.scale.0 * 100.0, l.scale.1 * 100.0],
-        transform: (l.view * l.place).as_coeffs(),
-        area: [l.area.x0, l.area.y0, l.area.x1, l.area.y1],
-        trim: [l.page_trim.x0, l.page_trim.y0, l.page_trim.x1, l.page_trim.y1],
-    }
-}
-
 pub fn preview(doc: &Document, set: &PrintSettings) -> Result<PrintPreview, PdfError> {
     let job = Job::new(doc, set, false)?;
-    let sheets = if set.output.mode == OutputMode::Separations {
-        job.sheets
-            .iter()
-            .filter_map(|(phys, plate)| {
-                let l = job.groups.get(*phys)?.first().and_then(|i| job.layouts.get(*i))?;
-                Some(page_summary(l, job.ink(*plate).map(|i| i.name.clone())))
+    let sheets = job
+        .sheets
+        .iter()
+        .filter_map(|(l, plate)| {
+            let l = job.layouts.get(*l)?;
+            Some(PageSummary {
+                artboard: l.artboard,
+                tile: l.tile.map(|t| t.0 + 1),
+                ink: job.ink(*plate).map(|i| i.name.clone()),
+                width: l.size.0,
+                height: l.size.1,
+                orientation: l.orientation,
+                scale: [l.scale.0 * 100.0, l.scale.1 * 100.0],
+                transform: (l.view * l.place).as_coeffs(),
+                area: [l.area.x0, l.area.y0, l.area.x1, l.area.y1],
+                trim: [l.page_trim.x0, l.page_trim.y0, l.page_trim.x1, l.page_trim.y1],
             })
-            .collect()
-    } else {
-        job.layouts.iter().map(|l| page_summary(l, None)).collect()
-    };
+        })
+        .collect();
     Ok(PrintPreview { pages: job.sheets.len() * set.copies.max(1) as usize, sheets, tiles: job.tiles, inks: job.inks, warnings: job.warnings })
 }
 
-/// One art region on a printed sheet (document placement and optional marks).
-#[derive(Clone, Debug)]
-pub struct PlannedRegion {
-    pub view: Affine,
-    pub window: Option<Rect>,
-    pub place: Affine,
-    pub area: Rect,
-    pub marks: Option<Node>,
-}
-
-/// One physical sheet of a laid-out job, ready for a writer (PDF here, PostScript in the EPS writer).
+/// One sheet of a laid-out job, ready for a writer (PDF here, PostScript in the EPS writer).
 #[derive(Clone, Debug)]
 pub struct PlannedSheet {
     /// The page size in points.
@@ -331,8 +297,16 @@ pub struct PlannedSheet {
     /// The TrimBox and BleedBox, in page space (y down from the top-left corner).
     pub trim: Rect,
     pub bleed: Rect,
-    /// Every art region on this sheet (one when not imposing).
-    pub regions: Vec<PlannedRegion>,
+    /// Drawing space → page space.
+    pub view: Affine,
+    /// The part of the drawing space that shows (a tile): art and marks are clipped to it.
+    pub window: Option<Rect>,
+    /// Document space → drawing space.
+    pub place: Affine,
+    /// The art drawn, in document space (the bleed box): what lies outside it is left out.
+    pub area: Rect,
+    /// Printer's marks, in drawing space (separated for the sheet's ink).
+    pub marks: Option<Node>,
     /// Invert the page: paper black, ink clear (a film negative).
     pub negative: bool,
     /// The plate the sheet prints ([`PrintPlan::plates`]); `None`: composite.
@@ -342,20 +316,20 @@ pub struct PlannedSheet {
 }
 
 impl PlannedSheet {
-    fn sheet_layers(&self) -> Vec<Sheet<'_>> {
-        self.regions.iter().map(|r| Sheet {
+    fn sheet(&self) -> Sheet<'_> {
+        Sheet {
             size: self.size,
             unit: 1.0,
             trim: self.trim,
             bleed: self.bleed,
-            view: r.view,
-            window: r.window,
-            place: r.place,
-            area: r.area,
+            view: self.view,
+            window: self.window,
+            place: self.place,
+            area: self.area,
             clip: true,
-            marks: r.marks.as_ref(),
+            marks: self.marks.as_ref(),
             negative: self.negative,
-        }).collect()
+        }
     }
 }
 
@@ -388,34 +362,24 @@ pub fn plan<'a>(doc: &'a Document, opts: &PrintOptions) -> Result<PrintPlan<'a>,
     let sheets = job
         .sheets
         .iter()
-        .filter_map(|(phys, plate)| {
-            let indices = job.groups.get(*phys)?;
-            let first = indices.first().and_then(|i| job.layouts.get(*i))?;
+        .filter_map(|(l, plate)| {
+            let l = job.layouts.get(*l)?;
             let ink = job.ink(*plate);
-            let regions = indices
-                .iter()
-                .filter_map(|i| job.layouts.get(*i))
-                .map(|l| {
-                    let art = marks_art(&job.doc, &marks, l, ink, &title, created).map(|mut art| {
-                        if let Some(ink) = ink {
-                            sep.node(&ink.name, &mut art);
-                        }
-                        art
-                    });
-                    PlannedRegion { view: l.view, window: l.window, place: l.place, area: l.area, marks: art }
-                })
-                .collect::<Vec<PlannedRegion>>();
-            let (trim, bleed) = if regions.len() == 1 {
-                (first.page_trim, first.page_bleed)
-            } else {
-                let page = Rect::new(0.0, 0.0, first.size.0, first.size.1);
-                (page, page)
-            };
+            let art = marks_art(&job.doc, &marks, l, ink, &title, created).map(|mut art| {
+                if let Some(ink) = ink {
+                    sep.node(&ink.name, &mut art);
+                }
+                art
+            });
             Some(PlannedSheet {
-                size: first.size,
-                trim,
-                bleed,
-                regions,
+                size: l.size,
+                trim: l.page_trim,
+                bleed: l.page_bleed,
+                view: l.view,
+                window: l.window,
+                place: l.place,
+                area: l.area,
+                marks: art,
                 negative: set.output.image == PrintImage::Negative,
                 plate: *plate,
                 ink: ink.cloned(),
@@ -455,12 +419,7 @@ fn print_inner(doc: &Document, opts: &PrintOptions, left_out: &mut HashSet<Strin
     for &i in &plan.order {
         let Some(s) = plan.sheets.get(i) else { continue };
         let Some(ex) = exporters.get_mut(s.plate.unwrap_or(0)) else { continue };
-        let layers = s.sheet_layers();
-        if layers.len() == 1 {
-            w.page(ex, &layers[0])?;
-        } else {
-            w.page_layers(ex, &layers)?;
-        }
+        w.page(ex, &s.sheet())?;
     }
     let overprinted = exporters.iter().any(|ex| ex.overprinted);
     for ex in exporters {
