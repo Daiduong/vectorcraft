@@ -190,6 +190,7 @@ pub fn fit(app: &mut VectorcraftApp, how: &str) {
     v.zoom = zoom;
 }
 
+/// Paint the document canvas, complete or cached artwork, navigation and tool overlays.
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let full = ui.available_rect_before_wrap();
@@ -330,9 +331,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.canvas.worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
         }
     }
+    // A completed immediate render is newer than any still-running worker result.
     // Upload finished background renders.
     if let Some(done) = app.canvas.worker.as_mut().and_then(|w| w.poll())
         && done.key.doc == key.doc
+        && cached_frame_covers_view(&done.key, &xf, ppp)
+        && (app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none())
     {
         upload(app, ui.ctx(), &done.img, done.key.pixel.is_some());
         app.canvas.key = Some(done.key);
@@ -386,13 +390,17 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             rich_black: key.rich_black,
             ..opts
         };
-        // Light documents render synchronously (no lag vs overlays); heavy ones go to the worker.
-        // A document switch renders synchronously so another document's frame is never shown.
-        // The first frame after an interaction, when the frame shown drew moved rasters, also goes
-        // to the worker.
+        // Light documents render synchronously (no lag vs overlays). Heavy ones use the worker
+        // when the cached raster covers the current view; uncovered areas render immediately.
+        // Document switches also render immediately so another document's frame is never shown.
+        // After an interaction drew moved rasters, its settled frame uses the worker when covered.
         let same_doc = app.canvas.key.as_ref().is_some_and(|k| k.doc == key.doc);
         let settling = app.canvas.moved && !key.interacting;
-        let heavy = (app.canvas.last_ms > 8.0 || settling) && app.canvas.texture.is_some() && same_doc;
+        // A viewport-only raster has no pixels for newly exposed artwork. Render immediately
+        // in that case, retaining the worker when the old image covers the whole new view.
+        // This can pause navigation on heavy art, as the synchronous-render override does.
+        let covered = app.canvas.key.as_ref().is_some_and(|k| cached_frame_covers_view(k, &xf, ppp));
+        let heavy = (app.canvas.last_ms > 8.0 || settling) && app.canvas.texture.is_some() && same_doc && covered;
         match (&mut app.canvas.worker, heavy) {
             (Some(worker), true) => worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts }),
             _ => {
@@ -2853,6 +2861,54 @@ fn kurbo_flatten(p: &BezPath, tol: f64, f: &mut impl FnMut(PathEl)) {
     vectorcraft_geom::kurbo::flatten(p.elements().iter().copied(), tol, f);
 }
 
+/// Whether the cached raster covers every corner of the current canvas. Background rendering
+/// can reproject those pixels, but cannot fill document areas outside its last viewport.
+fn cached_frame_covers_view(cached: &CacheKey, xf: &Xf, ppp: f32) -> bool {
+    let scale = xf.zoom * f64::from(ppp);
+    if xf.zoom <= 0.0
+        || ppp <= 0.0
+        || scale <= 0.0
+        || !scale.is_finite()
+        || ![xf.center.x, xf.center.y, xf.rot].iter().all(|v| v.is_finite())
+        || !xf.rect.is_finite()
+        || cached.w == 0
+        || cached.h == 0
+    {
+        return false;
+    }
+    let corners = [xf.rect.left_top(), xf.rect.right_top(), xf.rect.right_bottom(), xf.rect.left_bottom()].map(|p| xf.to_doc(p));
+    let (bounds, view, margin) = match cached.pixel {
+        // Pixel Preview caches document pixels, independently of the screen's DPI or angle.
+        Some([x0, y0, x1, y1]) => (Rect::new(x0 as f64, y0 as f64, x1 as f64, y1 as f64), Affine::IDENTITY, 0.5 / scale),
+        None => {
+            let old_scale = cached.zoom * f64::from(cached.ppp);
+            if cached.zoom <= 0.0
+                || cached.ppp <= 0.0
+                || old_scale <= 0.0
+                || !old_scale.is_finite()
+                || ![cached.cx, cached.cy, cached.rot].iter().all(|v| v.is_finite())
+            {
+                return false;
+            }
+            let view = Affine::translate((f64::from(cached.w) / 2.0, f64::from(cached.h) / 2.0))
+                * Affine::rotate(cached.rot.to_radians())
+                * Affine::scale(old_scale)
+                * Affine::translate((-cached.cx, -cached.cy));
+            (Rect::new(0.0, 0.0, f64::from(cached.w), f64::from(cached.h)), view, 0.5 * old_scale / scale)
+        }
+    };
+    // Canvas dimensions round to raster pixels. Permit at most half a *current* screen pixel
+    // at an edge, including after zooming in; a tolerance in old pixels could hide a large gap.
+    if bounds.width() <= 0.0 || bounds.height() <= 0.0 || !margin.is_finite() {
+        return false;
+    }
+    let bounds = bounds.inflate(margin + f64::EPSILON, margin + f64::EPSILON);
+    corners.into_iter().all(|p| {
+        let p = view * p;
+        p.x.is_finite() && p.y.is_finite() && bounds.contains(p)
+    })
+}
+
 /// Upload the art's raster; Pixel Preview's document pixels keep hard edges when magnified.
 fn upload(app: &mut VectorcraftApp, ctx: &egui::Context, img: &vectorcraft_render::Rendered, pixel: bool) {
     let color = egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels);
@@ -4753,6 +4809,195 @@ mod tests {
         assert!(!app.canvas.moved);
     }
 
+    /// Draw a frame at real viewport DPI, recording uploaded texture IDs before clearing deltas.
+    fn navigation_frame(app: &mut VectorcraftApp, ctx: &egui::Context, size: Vec2, ppp: f32) -> Vec<egui::TextureId> {
+        let mut raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(pos2(31.25, 19.5), size)), ..Default::default() };
+        raw.viewports.get_mut(&egui::ViewportId::ROOT).unwrap().native_pixels_per_point = Some(ppp);
+        let mut out = ctx.run_ui(raw, |ui| show(app, ui));
+        let uploads = out.textures_delta.set.keys().copied().collect();
+        out.textures_delta.clear();
+        uploads
+    }
+
+    /// Start with an actual rendered viewport; a controlled worker will hold later renders.
+    fn navigation_fixture(rotation: f64, pixel: bool) -> (VectorcraftApp, egui::Context) {
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 4000, "height": 3000})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 4000, "height": 3000})).unwrap();
+        app.canvas.worker_started = true;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        app.ui.view.pixel_preview = pixel;
+        let v = app.view_mut().unwrap();
+        v.zoom = if pixel { 2.0 } else { 1.0 };
+        v.center = Point::new(2000.0, 1500.0);
+        v.rotation = rotation;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        (app, ctx)
+    }
+
+    /// Panning, zooming out, turning or enlarging a viewport must not expose uncached pixels.
+    #[test]
+    fn navigation_renders_uncovered_views_before_displaying_them() {
+        for (name, old_rot, pixel, pan, scale, new_rot, size, ppp) in [
+            ("pan", 0.0, false, 300.0, 1.0, 0.0, vec2(800.25, 600.35), 1.25),
+            ("rotated pan", 30.0, false, 300.0, 1.0, 30.0, vec2(800.25, 600.35), 1.25),
+            ("zoom out", 0.0, false, 0.0, 0.5, 0.0, vec2(800.25, 600.35), 1.25),
+            ("turn", 0.0, false, 0.0, 1.0, 30.0, vec2(800.25, 600.35), 1.25),
+            ("enlarge", 0.0, false, 0.0, 1.0, 0.0, vec2(1100.25, 600.35), 1.25),
+            ("resize and DPI", 30.0, false, 0.0, 1.0, 30.0, vec2(800.25, 900.35), 2.0),
+            ("pixel pan", 0.0, true, 300.0, 1.0, 0.0, vec2(800.25, 600.35), 1.25),
+            ("pixel zoom out", 30.0, true, 0.0, 0.5, 30.0, vec2(800.25, 600.35), 1.25),
+            ("pixel turn", 0.0, true, 0.0, 1.0, 30.0, vec2(800.25, 600.35), 1.25),
+        ] {
+            let (mut app, ctx) = navigation_fixture(old_rot, pixel);
+            let old = app.canvas.key.clone().unwrap();
+            let (worker, jobs, _) = crate::render_worker::Worker::test_channel();
+            app.canvas.worker = Some(worker);
+            app.canvas.last_ms = 50.0;
+            let v = app.view_mut().unwrap();
+            v.center.x += pan;
+            v.zoom *= scale;
+            v.rotation = new_rot;
+            let out = navigation_frame(&mut app, &ctx, size, ppp);
+            let shown = app.canvas.key.as_ref().unwrap();
+            let v = app.view().unwrap();
+            assert_ne!(shown, &old, "{name}: the old frame leaves an uncovered area");
+            assert_eq!((shown.cx, shown.cy, shown.zoom, shown.rot, shown.ppp), (v.center.x, v.center.y, v.zoom, v.rotation, ppp), "{name}");
+            let rect = app.canvas_rect.unwrap();
+            assert_eq!((shown.w, shown.h), ((rect.width() * ppp).round() as u32, (rect.height() * ppp).round() as u32), "{name}");
+            assert!(jobs.try_recv().is_err(), "{name}: no background-only replacement");
+            let tex = app.canvas.texture.as_ref().unwrap().id();
+            assert!(out.contains(&tex), "{name}: the actual raster was uploaded");
+        }
+    }
+
+    /// Keep background rendering when the cached image already contains the new viewport.
+    #[test]
+    fn navigation_keeps_covered_views_on_the_worker() {
+        for (name, old_rot, pixel, pan, scale, new_rot, size, ppp) in [
+            ("zoom in", 0.0, false, 0.0, 2.0, 0.0, vec2(800.25, 600.35), 1.25),
+            ("zoom in and pan", 0.0, false, 100.0, 2.0, 0.0, vec2(800.25, 600.35), 1.25),
+            ("zoom in and turn", 0.0, false, 0.0, 2.0, 30.0, vec2(800.25, 600.35), 1.25),
+            ("shrink", 30.0, false, 0.0, 1.0, 30.0, vec2(600.25, 400.35), 1.25),
+            ("higher DPI", 30.0, false, 0.0, 1.0, 30.0, vec2(800.25, 600.35), 2.0),
+            ("pixel zoom in", 0.0, true, 0.0, 2.0, 0.0, vec2(800.25, 600.35), 1.25),
+            ("pixel zoom and turn", 0.0, true, 0.0, 2.0, 30.0, vec2(800.25, 600.35), 1.25),
+        ] {
+            let (mut app, ctx) = navigation_fixture(old_rot, pixel);
+            let old = app.canvas.key.clone().unwrap();
+            let (worker, jobs, _) = crate::render_worker::Worker::test_channel();
+            app.canvas.worker = Some(worker);
+            app.canvas.last_ms = 50.0;
+            let v = app.view_mut().unwrap();
+            v.center.x += pan;
+            v.zoom *= scale;
+            v.rotation = new_rot;
+            let out = navigation_frame(&mut app, &ctx, size, ppp);
+            assert_eq!(app.canvas.key.as_ref(), Some(&old), "{name}: cached coverage is sufficient");
+            let job = jobs.try_recv().expect(name);
+            let v = app.view().unwrap();
+            assert_eq!((job.key.cx, job.key.zoom, job.key.rot, job.key.ppp), (v.center.x, v.zoom, v.rotation, ppp), "{name}");
+            let tex = app.canvas.texture.as_ref().unwrap().id();
+            assert!(!out.contains(&tex), "{name}: no synchronous raster");
+        }
+    }
+
+    /// A worker result overtaken by an immediate render must not replace the complete frame.
+    #[test]
+    fn navigation_ignores_late_worker_frames_after_a_complete_render() {
+        let (mut app, ctx) = navigation_fixture(0.0, false);
+        let (worker, jobs, completed) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        app.canvas.last_ms = 50.0;
+        app.view_mut().unwrap().zoom = 2.0;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        let old_job = jobs.try_recv().expect("covered zoom-in queued on the worker");
+        // A cheaper frame can complete immediately while an older heavy render is in flight.
+        // Its viewport is contained in the old job's, so coverage alone cannot reject that job.
+        app.canvas.last_ms = 0.0;
+        app.view_mut().unwrap().zoom = 4.0;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        let current = app.canvas.key.clone().unwrap();
+        assert_eq!(current.zoom, 4.0, "the light frame was rendered immediately");
+        let img = app.canvas.renderer.render(&old_job.doc, old_job.w, old_job.h, old_job.view, &old_job.opts);
+        completed.send(crate::render_worker::Done { key: old_job.key, img, ms: 50.0, moved: 0 }).unwrap();
+        let out = navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        assert_eq!(app.canvas.key.as_ref(), Some(&current));
+        let tex = app.canvas.texture.as_ref().unwrap().id();
+        assert!(!out.contains(&tex), "no stale upload or redundant immediate render");
+    }
+
+    /// Rounding tolerance must not grow into a visible gap when the cached image is magnified.
+    #[test]
+    fn navigation_renders_a_visible_gap_at_high_magnification() {
+        let (mut app, ctx) = navigation_fixture(0.0, false);
+        let old = app.canvas.key.clone().unwrap();
+        let rect = app.canvas_rect.unwrap();
+        let right = old.cx + f64::from(old.w) / (2.0 * old.zoom * f64::from(old.ppp));
+        let (worker, jobs, _) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        app.canvas.last_ms = 50.0;
+        let v = app.view_mut().unwrap();
+        v.zoom = 100.0;
+        // Expose two current screen pixels beyond the cached image's actual right edge.
+        v.center.x = right - f64::from(rect.width()) / (2.0 * v.zoom) + 2.0 / (v.zoom * 1.25);
+        let out = navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        assert_eq!(app.canvas.key.as_ref().unwrap().cx, app.view().unwrap().center.x);
+        assert!(jobs.try_recv().is_err());
+        assert!(out.contains(&app.canvas.texture.as_ref().unwrap().id()));
+    }
+
+    /// Editing a document with unchanged viewport coverage keeps its existing async behavior.
+    #[test]
+    fn navigation_keeps_edits_on_the_worker_when_the_view_is_covered() {
+        let (mut app, ctx) = navigation_fixture(30.0, false);
+        let old = app.canvas.key.clone().unwrap();
+        let (worker, jobs, _) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        app.canvas.last_ms = 50.0;
+        app.session.execute("shape.rectangle", &json!({"x": 1950, "y": 1450, "width": 100, "height": 100})).unwrap();
+        let out = navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        assert_eq!(app.canvas.key.as_ref(), Some(&old));
+        let job = jobs.try_recv().expect("the edited document is sent to the worker");
+        assert!(job.key.revision > old.revision);
+        assert!(!out.contains(&app.canvas.texture.as_ref().unwrap().id()));
+    }
+
+    /// Keep the covering cache when an earlier, non-covering worker result arrives mid-zoom.
+    #[test]
+    fn navigation_keeps_covering_pixels_when_an_older_partial_frame_arrives() {
+        let (mut app, ctx) = navigation_fixture(0.0, false);
+        let (worker, jobs, completed) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        app.canvas.last_ms = 50.0;
+        app.view_mut().unwrap().zoom = 2.0;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        let old_job = jobs.try_recv().expect("first covered zoom");
+        app.view_mut().unwrap().center.x += 1000.0;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        let covering = app.canvas.key.clone().unwrap();
+        assert_eq!(covering.cx, 3000.0);
+        app.canvas.last_ms = 50.0;
+        app.view_mut().unwrap().zoom = 4.0;
+        navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        let current_job = jobs.try_recv().expect("second zoom is covered by the immediate frame");
+        assert_eq!(app.canvas.key.as_ref(), Some(&covering));
+        let img = app.canvas.renderer.render(&old_job.doc, old_job.w, old_job.h, old_job.view, &old_job.opts);
+        completed.send(crate::render_worker::Done { key: old_job.key, img, ms: 50.0, moved: 0 }).unwrap();
+        let out = navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        assert_eq!(app.canvas.key.as_ref(), Some(&covering), "the old partial result did not displace covering pixels");
+        assert!(!out.contains(&app.canvas.texture.as_ref().unwrap().id()));
+        assert!(jobs.try_recv().is_err(), "the current worker job is still pending, without a redundant job");
+        let img = app.canvas.renderer.render(&current_job.doc, current_job.w, current_job.h, current_job.view, &current_job.opts);
+        let expected = current_job.key.clone();
+        completed.send(crate::render_worker::Done { key: current_job.key, img, ms: 50.0, moved: 0 }).unwrap();
+        let out = navigation_frame(&mut app, &ctx, vec2(800.25, 600.35), 1.25);
+        assert_eq!(app.canvas.key.as_ref(), Some(&expected), "the current covered result is accepted");
+        assert!(out.contains(&app.canvas.texture.as_ref().unwrap().id()));
+    }
+
     /// When the view turns while the worker renders the frame at the new angle (Reset Rotate View on
     /// a heavy document), the canvas draws the last frame turned until that frame arrives: each
     /// corner goes where the new view puts the document point that the corner showed. The new frame
@@ -4782,6 +5027,8 @@ mod tests {
         // With a worker and a last frame that took 50 ms, the next frame renders on the worker.
         app.canvas.worker = crate::render_worker::Worker::spawn(ctx.clone());
         app.canvas.last_ms = 50.0;
+        // Zoom into the cached area so turning does not expose uncached corners.
+        app.view_mut().unwrap().zoom *= 2.0;
         app.run("view.rotateReset", json!({})).unwrap();
         let mesh = art(&mut app).expect("the last frame, turned");
         assert!(app.canvas.worker.as_ref().and_then(|w| w.pending.as_ref()).is_some_and(|k| k.rot == 0.0), "sent to the worker");
@@ -4814,6 +5061,7 @@ mod tests {
         let [x0, y0, ..] = app.canvas.key.as_ref().and_then(|k| k.pixel).expect("the pixels rendered");
         app.canvas.worker = crate::render_worker::Worker::spawn(ctx.clone());
         app.canvas.last_ms = 50.0;
+        app.view_mut().unwrap().zoom *= 2.0;
         app.view_mut().unwrap().rotation = 30.0;
         let mesh = art(&mut app).expect("the last frame's pixels");
         let at = Xf::new(rect, app.view().unwrap()).to_screen(Point::new(x0 as f64, y0 as f64));
