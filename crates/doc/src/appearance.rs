@@ -232,9 +232,10 @@ impl WidthProfile {
     /// The width runs as a cubic Hermite curve through the points, its slope at each one the
     /// weighted harmonic mean of the secants either side (Fritsch–Carlson). That is C1
     /// continuous and monotone between points, so it never overshoots them, a point eases into
-    /// its neighbours instead of making a corner, and moving one only reshapes the two segments
-    /// beside it. The ends are flat, where the width is constant outside the profile. Two points
-    /// at one `t` are still a step: the runs either side are independent and flat there.
+    /// its neighbours instead of making a corner, and moving one reshapes the curve as far as its
+    /// neighbours' neighbours (their slopes depend on it). The ends are flat, where the width is
+    /// constant outside the profile. Two points at one `t` are still a step: the runs either side
+    /// are independent and flat there.
     pub fn at_points(p: &[(f64, f64, f64)], t: f64) -> (f64, f64) {
         let (Some(first), Some(last)) = (p.first(), p.last()) else { return (1.0, 1.0) };
         if t <= first.0 {
@@ -1392,14 +1393,18 @@ mod tests {
 
     /// Moving a point only reshapes the segments beside it (local influence), not the whole path.
     #[test]
-    fn profile_points_only_affect_their_neighbouring_segments() {
-        let a = [(0.0, 0.0, 0.0), (0.25, 1.0, 1.0), (0.5, 0.5, 0.5), (0.75, 1.0, 1.0), (1.0, 0.0, 0.0)];
+    fn profile_points_only_affect_the_curve_around_them() {
+        // A monotone run, so no neighbouring slope is held flat by a local extremum.
+        let a = [(0.0, 0.0, 0.0), (0.25, 0.3, 0.3), (0.5, 0.5, 0.5), (0.75, 0.7, 0.7), (1.0, 1.0, 1.0)];
         let mut b = a;
-        b[3] = (0.75, 0.8, 0.8);
-        for k in 0..=50 {
+        b[3] = (0.75, 0.9, 0.9);
+        // Moving p[3] changes the slopes at p[2] and p[3], so p[1] and p[4] also shape the
+        // curve: nothing before p[1] may move.
+        for k in 0..=24 {
             let t = k as f64 / 100.0;
             assert_eq!(WidthProfile::at_points(&a, t), WidthProfile::at_points(&b, t), "at {t}");
         }
+        assert_ne!(WidthProfile::at_points(&a, 0.3), WidthProfile::at_points(&b, 0.3));
     }
 
     #[test]
