@@ -640,6 +640,17 @@ fn sp_bounds(sp: &SubPath) -> Option<Rect> {
 
 // ---------- the tool ----------
 
+/// Measurement label for a liquify brush (`D:` when round, else `W:` / `H:`) in the stroke unit.
+fn brush_measure_label(cx: &ToolContext, width: f64, height: f64) -> String {
+    let w = cx.stroke_unit.readout(width);
+    let h = cx.stroke_unit.readout(height);
+    if (width - height).abs() < 1e-9 {
+        format!("D: {w}")
+    } else {
+        format!("W: {w}\nH: {h}")
+    }
+}
+
 /// Holding the brush still repeats the stroke's last sample this often (seconds): Twirl, Pucker
 /// and Bloat keep applying, scaled by the time held.
 pub const HOLD_EVERY: f64 = 0.1;
@@ -750,14 +761,22 @@ impl Tool for LiquifyTool {
             _ => vec![],
         }
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
-        let Some(c) = self.hover.filter(|_| self.show_brush || self.sizing.is_some()) else { return vec![] };
-        vec![Overlay::Path {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        let mut o = vec![];
+        let at = self.hover.or_else(|| self.points.last().map(|(p, _)| *p));
+        if cx.measurement_labels && (self.active || self.sizing.is_some()) {
+            if let Some(p) = at {
+                o.push(Overlay::Measure { p, text: brush_measure_label(cx, self.params.width, self.params.height) });
+            }
+        }
+        let Some(c) = self.hover.filter(|_| self.show_brush || self.sizing.is_some()) else { return o };
+        o.push(Overlay::Path {
             path: ellipse_path(c, self.params.width / 2.0, self.params.height / 2.0, self.params.angle),
             color: [0x80, 0x80, 0x80],
             width: 1.0,
             dashed: false,
-        }]
+        });
+        o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _mods: Mods) -> Cursor {
         Cursor::Crosshair
@@ -912,6 +931,35 @@ mod tests {
             assert_eq!(a, b, "{kind:?}");
             assert_ne!(a, square());
         }
+    }
+
+    #[test]
+    fn measure_label_while_dragging() {
+        use crate::testutil::*;
+        use vectorcraft_doc::Selection;
+
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = LiquifyTool::new("warp");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 10.0));
+        assert!(
+            t.overlays(&cx)
+                .iter()
+                .any(|o| matches!(o, Overlay::Measure { text, .. } if text == "D: 100.00 pt")),
+            "default 100 pt round brush"
+        );
+        let quiet = ToolContext { measurement_labels: false, ..cx };
+        assert!(!t.overlays(&quiet).iter().any(|o| matches!(o, Overlay::Measure { .. })));
+        t.params.width = 80.0;
+        t.params.height = 40.0;
+        assert!(
+            t.overlays(&cx)
+                .iter()
+                .any(|o| matches!(o, Overlay::Measure { text, .. } if text == "W: 80.00 pt\nH: 40.00 pt")),
+        );
     }
 
     #[test]
