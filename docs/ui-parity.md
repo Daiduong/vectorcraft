@@ -72,7 +72,7 @@ tools, never checked side by side) isn't captured row by row.
 |---|---|---|
 | Click/Shift-click anchors; marquee toggles with Shift | done | #483 |
 | Align selected anchors to their bounds or the artboard; repeating an alignment that moves nothing keeps Undo, Redo and saved state | done | #1180 follow-up; engine regressions include rounding-only moves and unchanged handles; #1641 (fixes #1636): Align and Distribute act on the anchors selected with Direct Selection, the points of one path aligning to each other and Distribute spacing them |
-| Align selected anchors to a key anchor | done | Direct Selection click sets `select.keyAnchor`; Align to Key Object (`align_direct_selected_anchors_to_a_key_anchor`) |
+| Align selected anchors to a key anchor | missing | #1636 |
 | A marquee selects the objects whose paths it touches (anchors or segments): drawn inside a filled shape, over a background, it leaves that shape (Preview and Outline) | done | #1103 |
 | Click a segment independently of its endpoint anchors; only its direction handles show | done | #1278: hollow endpoint squares, selected edge emphasized; headless egui checked |
 | Drag a curved segment to bend it, a straight one to move its anchors | done | |
