@@ -91,18 +91,19 @@ pub fn scale_for_drag(r: Rect, handle: Handle, p: Point, proportional: bool, fro
     Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(clamp(sx), clamp(sy)) * Affine::translate(-origin.to_vec2())
 }
 
-/// Rotation about `center` taking `from` to `to`; `snap` constrains the pointer direction to 45°
-/// steps from `base_deg` (Preferences › General › Constrain Angle).
+/// Rotation about `center` taking `from` to `to`, and its readout in degrees (counter-clockwise as
+/// seen on the y-down page). `snap` (Shift) constrains the angle turned, as Illustrator does, to 45°
+/// steps from `base_deg` (Preferences › General › Constrain Angle): the rotation lands on
+/// `base_deg + k·45°` wherever the drag started, not on the pointer's direction.
 pub fn rotate_for_drag(center: Point, from: Point, to: Point, snap: bool, base_deg: f64) -> (Affine, f64) {
     let a0 = (from - center).atan2();
-    let dir = if snap {
-        vectorcraft_geom::constrain_angle_from(to - center, 45.0, base_deg)
-    } else {
-        to - center
-    };
-    let a1 = dir.y.atan2(dir.x);
-    let a = a1 - a0;
-    (Affine::translate(center.to_vec2()) * Affine::rotate(a) * Affine::translate(-center.to_vec2()), -a.to_degrees())
+    let a1 = (to - center).atan2();
+    let mut deg = -(a1 - a0).to_degrees();
+    if snap {
+        deg = base_deg + ((deg - base_deg) / 45.0).round() * 45.0;
+    }
+    let a = -deg.to_radians();
+    (Affine::translate(center.to_vec2()) * Affine::rotate(a) * Affine::translate(-center.to_vec2()), deg)
 }
 
 /// Move constrained to 45° multiples when `shift`.
@@ -147,8 +148,28 @@ mod tests {
         let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true, 0.0);
         assert!((deg + 45.0).abs() < 1e-9);
         let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true, 30.0);
-        assert!((deg + 60.0).abs() < 1e-9, "pointer direction snaps to 60° from a 30° Constrain Angle");
+        assert!((deg + 60.0).abs() < 1e-9, "the angle turned snaps to -60° (30° - 2·45°) from a 30° Constrain Angle");
         assert!(in_rotate_zone(R, Point::new(-8.0, -8.0), 4.0, 20.0).is_some());
         assert!(in_rotate_zone(R, Point::new(5.0, 5.0), 4.0, 20.0).is_none());
+    }
+
+    #[test]
+    fn rotate_snap_steps_the_angle_turned_from_a_drag_started_off_a_snap_line() {
+        // The drag starts at 20° (not on a 45° line) and turns 42°: Shift lands the rotation on 45°,
+        // not on the pointer's 45° direction (which would have been a 25° turn).
+        let at = |deg: f64| {
+            let r = deg.to_radians();
+            Point::new(10.0 * r.cos(), 10.0 * r.sin())
+        };
+        let (a, deg) = rotate_for_drag(Point::ZERO, at(20.0), at(62.0), true, 0.0);
+        assert!((deg + 45.0).abs() < 1e-9, "{deg}");
+        assert!((a * at(20.0)).distance(at(65.0)) < 1e-9, "the grabbed point turns by exactly 45°");
+        let (_, deg) = rotate_for_drag(Point::ZERO, at(20.0), at(62.0), true, 30.0);
+        assert!((deg + 60.0).abs() < 1e-9, "multiples of 45° offset by a 30° Constrain Angle: {deg}");
+        let (_, deg) = rotate_for_drag(Point::ZERO, at(20.0), at(62.0), false, 30.0);
+        assert!((deg + 42.0).abs() < 1e-9, "without Shift the turn is free: {deg}");
+        // A 40° turn across the ±180° seam still lands on a 45° step (-45° ≡ 315°).
+        let (_, deg) = rotate_for_drag(Point::ZERO, at(170.0), at(-150.0), true, 0.0);
+        assert!((deg.rem_euclid(360.0) - 315.0).abs() < 1e-9, "{deg}");
     }
 }
