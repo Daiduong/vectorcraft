@@ -11,7 +11,7 @@ use serde_json::{Map, Value, json};
 
 use vectorcraft_color::Color;
 
-use super::{DialogSpec, form, free_distort, transform_each};
+use super::{DialogSpec, form, free_distort, transform, transform_each};
 use crate::panels::c32;
 use crate::state::Dialog;
 use crate::theme::Tokens;
@@ -150,7 +150,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         Some(plugin) => form::schema_fields(ui, d, &plugin.manifest().params),
         None if vectorcraft_effects::is_adjustment(&id) => adjust_fields(ui, d),
         None if id == GLASS => glass_fields(app, ui, d),
-        None if id == TRANSFORM => transform_fields(ui, d, app.session.general_unit()),
+        None if id == TRANSFORM => transform_fields(app, ui, d, app.session.general_unit()),
         None if id == ZIG_ZAG => zig_zag_fields(ui, d, app.session.general_unit()),
         None if id == DROP_SHADOW => drop_shadow_fields(ui, d, app.session.general_unit()),
         None if id == "artistic.filmGrain" => film_grain_fields(ui, d),
@@ -453,13 +453,15 @@ const TRANSFORM: &str = "distort.transform";
 /// The Transform effect's dialog: Transform Each's Scale and Move sliders and Rotate dial, then
 /// Copies, the reflections, the reference point and Random. Returns whether the values differ from
 /// those last previewed.
-fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
+fn transform_fields(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| transform_each::sections(ui, d, unit));
         ui.add_space(16.0);
         ui.vertical(|ui| {
             widgets::subheader(ui, tl!("Options"));
             ui.add_space(4.0);
+            transform::object_options(app, ui, d);
+            transform::scale_options(app, ui, d);
             ui.horizontal(|ui| {
                 widgets::dim_label(ui, tl!("Copies:"));
                 if let Some(n) = widgets::range_field(ui, "fx-copies", d.f64("copies", 0.0), 0.0..=1000.0, "", 0, 50.0) {
@@ -667,7 +669,13 @@ fn command(d: &Dialog) -> (&'static str, Value) {
 }
 
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
-    let (cmd, p) = command(d);
+    let (cmd, mut p) = command(d);
+    if d.str("__effect") == TRANSFORM {
+        let mut params = p.get("params").cloned().unwrap_or(Value::Null);
+        transform::add_object_options(app, d, &mut params);
+        params = transform::with_scale_options(app, d, params)?;
+        p["params"] = params;
+    }
     // A live preview commits as one undo step. When the command refuses the values (a Color the
     // effect can't draw), the dialog stays open and the error is returned.
     let r = form::commit_preview(app, cmd, p.clone())?;

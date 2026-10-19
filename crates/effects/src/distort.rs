@@ -197,6 +197,19 @@ pub(crate) fn transform_within(path: &PathData, b: Rect, p: &Value, seed: u64, m
 /// applies to the object itself when `copies` is 0, and once more to each of `copies` copies
 /// otherwise (see [`transform_within`], and images, whose copies count nodes against
 /// [`MAX_COPY_OBJECTS`]).
+/// Scale Strokes & Effects and Scale Corners for a Transform effect's params.
+pub(crate) fn transform_scaling(p: &Value) -> vectorcraft_doc::Scaling {
+    let strokes = crate::util::flag(p, "strokes", false);
+    let corners = crate::util::flag(p, "corners", false);
+    vectorcraft_doc::Scaling {
+        strokes,
+        effects: strokes.then_some(crate::scale_effect),
+        keep_corners: !corners,
+        keep_type_strokes: !strokes,
+        ..vectorcraft_doc::Scaling::default()
+    }
+}
+
 pub(crate) fn transform_map(b: Rect, p: &Value, seed: u64) -> (Affine, usize) {
     let random = flag(p, "random", false);
     // The share (0..1) of value `k` applied.

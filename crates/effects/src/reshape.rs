@@ -11,10 +11,10 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind};
+use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind, Scaling, pattern};
 use vectorcraft_geom::{Affine, FillRule, PathData, Rect, shapes};
 
-use crate::{GeomContext, apply_one, is_geometry, merged_params};
+use crate::{GeomContext, apply_one, is_geometry, merged_params, util::flag};
 
 /// Can object-level effects apply to `n` only through [`outline_art`] / an offscreen layer (it is
 /// neither a path nor a container)?
@@ -295,6 +295,21 @@ pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
         let Some(bounds) = art.geometric_bounds() else { break };
         let params = merged_params(&e.id, &e.params);
         let transform = (e.id == "distort.transform").then(|| crate::distort::transform_map(bounds, &params, seed));
+        if e.id == "distort.transform" {
+            let objects = flag(&params, "objects", true);
+            let patterns = flag(&params, "patterns", false);
+            if !objects && patterns {
+                if let Some((m, _)) = transform.filter(|(_, c)| *c == 0) {
+                    pattern::transform_patterns_only(art, m);
+                }
+                continue;
+            }
+            if !objects {
+                continue;
+            }
+        }
+        let stroke_scale = (e.id == "distort.transform").then(|| crate::distort::transform_scaling(&params));
+        let patterns = e.id == "distort.transform" && flag(&params, "patterns", false);
         for_each_leaf(art, &mut |leaf| {
             let Some((path, rule)) = leaf_geometry(leaf) else { return };
             // A gradient paints each copy by itself, not the one piece the copies make together.
@@ -307,6 +322,17 @@ pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
             }
             let out = apply_one(&e.id, &params, &path, bounds, &GeomContext { seed, ..GeomContext::of(leaf) });
             set_geometry(leaf, out, rule);
+            if let (Some((m, _)), Some(sc)) = (transform, stroke_scale) {
+                if patterns {
+                    pattern::transform_pattern_paints(leaf, m);
+                }
+                if sc.strokes && let Some(k) = Scaling::factor(m) {
+                    leaf.appearance.scale_strokes(k);
+                    if let Some(f) = sc.effects {
+                        leaf.appearance.scale_effects(k, f);
+                    }
+                }
+            }
         });
         if let Some((m, copies)) = transform {
             transform_placed(art, m, copies);

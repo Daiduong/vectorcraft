@@ -192,6 +192,13 @@ fn transform_copies_and_move() {
 }
 
 #[test]
+fn transform_effect_objects_off_leaves_geometry() {
+    let before = square().bounds().unwrap();
+    let after = run("distort.transform", json!({"moveH": 40, "objects": false, "patterns": false}), &square()).bounds().unwrap();
+    assert_eq!(before, after);
+}
+
+#[test]
 fn transform_scales_and_rotates_about_its_reference_point() {
     // Bottom right (8) stays put while the square halves; the top left (0) while it rotates.
     let r = run("distort.transform", json!({"scaleH": 50, "scaleV": 50, "reference": 8}), &square()).bounds().unwrap();
