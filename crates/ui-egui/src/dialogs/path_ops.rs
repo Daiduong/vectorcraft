@@ -1,6 +1,8 @@
 //! Path dialogs: Average, and Offset Path, Simplify and Split Into Grid with Preview.
 
-use serde_json::{Value, json};
+use std::sync::Mutex;
+
+use serde_json::{Map, Value, json};
 use vectorcraft_doc::{NodeId, NodeKind, Unit};
 use vectorcraft_geom::PathData;
 
@@ -19,6 +21,42 @@ pub(crate) const ANGLE_THRESHOLD: f64 = 150.0;
 
 /// The field where Simplify keeps the ids of the paths its last preview ran on.
 const ORIGINAL_IDS: &str = "__ids";
+
+/// Simplify sets this once so retained settings are not applied again on every body pass.
+const RETAIN_INIT: &str = "__retainInit";
+
+/// Simplify fields remembered when Retain my latest settings is on at OK.
+const RETAINED_FIELDS: [&str; 3] = ["tolerance", "angleThreshold", "straightLines"];
+
+/// Last Simplify settings confirmed with Retain my latest settings (session only; Offset Path
+/// stores the same kind of data on `UiState::offset_path`).
+static SIMPLIFY_RETAINED: Mutex<Option<(bool, Map<String, Value>)>> = Mutex::new(None);
+
+fn apply_simplify_retained(d: &mut Dialog) {
+    if d.kind != "simplify" || d.fields.contains_key(RETAIN_INIT) {
+        return;
+    }
+    d.fields.insert(RETAIN_INIT.into(), json!(true));
+    let retained = SIMPLIFY_RETAINED.lock().ok().and_then(|g| g.clone());
+    let (on, fields) = retained.unwrap_or((false, Map::new()));
+    d.fields.insert("retainSettings".into(), json!(on));
+    if on {
+        for (k, v) in fields {
+            d.fields.insert(k, v);
+        }
+    }
+}
+
+fn store_simplify_retained(d: &Dialog) {
+    if d.kind != "simplify" {
+        return;
+    }
+    let on = d.bool("retainSettings");
+    let fields = RETAINED_FIELDS.iter().filter_map(|k| Some(((*k).into(), d.fields.get(*k)?.clone()))).collect();
+    if let Ok(mut g) = SIMPLIFY_RETAINED.lock() {
+        *g = Some((on, fields));
+    }
+}
 
 fn title(kind: &str) -> &'static str {
     match kind {
@@ -115,6 +153,8 @@ fn simplify_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: Unit) {
     ui.add_space(8.0);
     form::check(ui, d, "straightLines", tl!("Convert to Straight Lines"));
     form::check(ui, d, "showOriginal", tl!("Show Original Path"));
+    ui.add_space(8.0);
+    form::check(ui, d, "retainSettings", tl!("Retain my latest settings"));
 }
 
 /// Simplify's Show Original Path: while the dialog previews with it on, every path the preview ran
@@ -138,6 +178,7 @@ pub(crate) fn original_paths(app: &VectorcraftApp) -> Vec<(NodeId, &PathData)> {
 }
 
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+    apply_simplify_retained(d);
     let unit = app.session.general_unit();
     if d.kind == "splitIntoGrid" {
         split_grid(ui, d, unit);
@@ -180,5 +221,6 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
         let kept = ["offset", "joins", "miterLimit"].into_iter().filter_map(|k| Some((k.to_string(), d.fields.get(k)?.clone())));
         app.ui.offset_path = Value::Object(kept.collect());
     }
+    store_simplify_retained(d);
     Ok(r)
 }

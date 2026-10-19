@@ -283,6 +283,32 @@ fn offset_path_remembers_its_last_values() {
     assert_eq!((d.f64("offset", 0.0), d.str("joins"), d.f64("miterLimit", 0.0)), (-4.5, "round".to_string(), 4.0));
 }
 
+/// Simplify opens on the values it was last confirmed with when Retain my latest settings is on.
+#[test]
+fn simplify_dialog_remembers_settings_when_retain_is_on() {
+    let (ctx, mut app) = (ctx(), app_with_dense_path());
+    crate::menus::invoke(&mut app, "object.path.simplify", json!({}));
+    settle(&ctx, &mut app);
+    let d = app.ui.dialog.as_mut().unwrap();
+    d.fields.insert("tolerance".into(), json!("0.25 pt"));
+    d.fields.insert("angleThreshold".into(), json!(120));
+    d.fields.insert("straightLines".into(), json!(true));
+    d.fields.insert("retainSettings".into(), json!(true));
+    confirm(&mut app).unwrap();
+    crate::menus::invoke(&mut app, "object.path.simplify", json!({}));
+    settle(&ctx, &mut app);
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert!(d.bool("retainSettings"));
+    assert_eq!((d.f64("tolerance", 0.0), d.f64("angleThreshold", 0.0), d.bool("straightLines")), (0.25, 120.0, true));
+    app.ui.dialog.as_mut().unwrap().fields.insert("retainSettings".into(), json!(false));
+    confirm(&mut app).unwrap();
+    crate::menus::invoke(&mut app, "object.path.simplify", json!({}));
+    settle(&ctx, &mut app);
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert!(!d.bool("retainSettings"));
+    assert_eq!((d.f64("tolerance", 0.0), d.f64("angleThreshold", 0.0)), (1.0, super::path_ops::ANGLE_THRESHOLD));
+}
+
 fn app_with_dense_path() -> VectorcraftApp {
     let mut app = VectorcraftApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
