@@ -40,6 +40,25 @@ fn partial(a: &[u8]) -> usize {
     a.iter().filter(|v| **v > 0 && **v < 255).count()
 }
 
+/// The first pixels of `drawn` (type drawn with `m`) that are not the share `edge_coverage` gives
+/// the same pixel of `sharp` (the type drawn with Sharp), within a step of rounding: (pixel,
+/// Sharp, drawn).
+fn off_the_share(m: TypeAntiAlias, sharp: &[u8], drawn: &[u8]) -> Vec<(usize, u8, u8)> {
+    sharp
+        .iter()
+        .zip(drawn)
+        .enumerate()
+        .filter(|(_, (c, v))| {
+            // One step of rounding either way in the coverage.
+            let near = [c.saturating_sub(1), **c, c.saturating_add(1)].map(|c| edge_coverage(m, c));
+            let (lo, hi) = (near.iter().min().copied().unwrap_or(0), near.iter().max().copied().unwrap_or(255));
+            **v < lo.saturating_sub(1) || **v > hi.saturating_add(1)
+        })
+        .map(|(i, (c, v))| (i, *c, *v))
+        .take(5)
+        .collect()
+}
+
 /// On the canvas each method gives every pixel the share of it that `edge_coverage` gives the
 /// share Sharp draws: None paints whole pixels from half coverage up, Crisp doubles the contrast
 /// around half coverage, and Strong doubles the coverage.
@@ -51,19 +70,7 @@ fn each_method_draws_the_share_of_each_pixel_it_defines() {
     for m in [TypeAntiAlias::None, TypeAntiAlias::Crisp, TypeAntiAlias::Strong] {
         let drawn = alphas(&page(m, None), &opts);
         assert_ne!(drawn, sharp, "{m:?} changes the edges");
-        let wrong: Vec<_> = sharp
-            .iter()
-            .zip(&drawn)
-            .enumerate()
-            .filter(|(_, (c, v))| {
-                // One step of rounding either way in the coverage.
-                let near = [c.saturating_sub(1), **c, c.saturating_add(1)].map(|c| edge_coverage(m, c));
-                let (lo, hi) = (near.iter().min().copied().unwrap_or(0), near.iter().max().copied().unwrap_or(255));
-                **v < lo.saturating_sub(1) || **v > hi.saturating_add(1)
-            })
-            .map(|(i, (c, v))| (i, *c, *v))
-            .take(5)
-            .collect();
+        let wrong = off_the_share(m, &sharp, &drawn);
         assert!(wrong.is_empty(), "{m:?}: (pixel, Sharp, drawn) {wrong:?}");
     }
     assert_eq!(partial(&alphas(&page(TypeAntiAlias::None, None), &opts)), 0, "None paints whole pixels");
@@ -187,6 +194,80 @@ fn type_in_an_offscreen_group_keeps_the_exports_pixels() {
         let a = alphas(&d, &opts);
         assert!(a.iter().filter(|v| **v == 255).count() > 1000, "x {x}");
         assert_eq!(partial(&a), 0, "x {x}: None type has hard edges");
+    }
+}
+
+/// In a supersampled export, None type in a layer drawn offscreen over a copy of the art below it
+/// (the layer multiplies, and art inside it blends) still has hard edges on the exported pixels,
+/// wherever the layer's pixels start.
+#[test]
+fn type_in_an_offscreen_layer_keeps_the_exports_pixels() {
+    let opts = RenderOptions { supersample: true, precise: true, ..Default::default() };
+    for x in [10.3, 10.55, 10.8, 11.05] {
+        let mut d = Document::new(f64::from(W), f64::from(H));
+        let mut t = TextObject::point(Point::new(x, 60.4), "Hamburg", CharStyle { size: 40.0, ..Default::default() });
+        t.anti_alias = TypeAntiAlias::None;
+        let text = Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
+        let black = Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0);
+        let mut square = Node::path(d.alloc_id(), rectangle(Rect::new(220.0, 10.0, 250.0, 30.0)), black);
+        square.blend = vectorcraft_color::BlendMode::Multiply;
+        let l = d.layers[0].id;
+        d.insert(Some(l), 0, square).unwrap();
+        d.insert(Some(l), 1, text).unwrap();
+        Arc::make_mut(&mut d.layers[0]).blend = vectorcraft_color::BlendMode::Multiply;
+        let a = alphas(&d, &opts);
+        assert!(a.iter().filter(|v| **v == 255).count() > 1000, "x {x}");
+        assert_eq!(partial(&a), 0, "x {x}: None type has hard edges");
+    }
+}
+
+/// Type in a placed document, placed at half and at twice its size with its frame starting part
+/// of a pixel in, is drawn on the page's pixels: on the canvas each method gives every pixel the
+/// share of it `edge_coverage` defines, and in a supersampled export None type has hard edges.
+#[test]
+fn type_in_a_placed_document_takes_the_pages_pixels() {
+    use vectorcraft_doc::{ImageBlob, LinkInfo, PlacedDocument};
+    // A page showing a file that holds "Hamburg" at 40 / `k` pt drawn with `m`, placed at `k` times
+    // its size, so the type is 40 pt on the page.
+    let placing = |m: TypeAntiAlias, k: f64| {
+        let frame = Rect::new(0.0, 0.0, f64::from(W) / k, f64::from(H) / k);
+        let mut t = TextObject::point(Point::new(10.0 / k, 60.0 / k), "Hamburg", CharStyle { size: 40.0 / k, ..Default::default() });
+        t.anti_alias = m;
+        let text = Node::new(NodeId(1), NodeKind::Text(Box::new(t)));
+        let art = Node::new(NodeId(0), NodeKind::Group { children: vec![Arc::new(text)], clip: false });
+        let key = format!("typeedges-{m:?}-{k}");
+        let blob = ImageBlob::new("application/json", key.clone().into_bytes());
+        let p = PlacedDocument {
+            link: LinkInfo::new("/art/type.vectorcraft"),
+            key: key.clone(),
+            bounding: false,
+            width: f64::from(W),
+            height: f64::from(H),
+            xf: Affine::translate((0.3, 0.4)),
+            placement: Default::default(),
+        };
+        // The file as read, kept for the object, so drawing it needs no loader.
+        vectorcraft_doc::placed_document::prime(&p, blob.bytes.clone(), (Document::new(frame.width(), frame.height()), art, frame));
+        let mut d = Document::new(f64::from(W), f64::from(H));
+        d.images.insert(key, blob);
+        let n = Node::new(d.alloc_id(), NodeKind::PlacedDocument(Box::new(p)));
+        let l = d.layers[0].id;
+        d.insert(Some(l), 0, n).unwrap();
+        d
+    };
+    let export = RenderOptions { supersample: true, precise: true, ..Default::default() };
+    for k in [0.5, 2.0] {
+        let sharp = alphas(&placing(TypeAntiAlias::Sharp, k), &RenderOptions::default());
+        assert!(partial(&sharp) > 200, "k {k}: Sharp draws smooth edges: {} partial pixels", partial(&sharp));
+        for m in [TypeAntiAlias::None, TypeAntiAlias::Crisp, TypeAntiAlias::Strong] {
+            let drawn = alphas(&placing(m, k), &RenderOptions::default());
+            assert_ne!(drawn, sharp, "k {k}: {m:?} changes the edges");
+            let wrong = off_the_share(m, &sharp, &drawn);
+            assert!(wrong.is_empty(), "k {k}, {m:?}: (pixel, Sharp, drawn) {wrong:?}");
+        }
+        let none = alphas(&placing(TypeAntiAlias::None, k), &export);
+        assert!(none.iter().filter(|v| **v == 255).count() > 1000, "k {k}");
+        assert_eq!(partial(&none), 0, "k {k}: None type has hard edges in the export");
     }
 }
 
