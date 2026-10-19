@@ -379,7 +379,7 @@ impl ToolContext<'_> {
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))
     }
-    /// Distance, angle and offset from `a` to `b`, as Measurement Labels show while drawing or moving.
+    /// Distance, angle and offset from `a` to `b`, as Measurement Labels show while measuring or drawing a segment.
     pub fn draw_measure_label(&self, a: vectorcraft_geom::Point, b: vectorcraft_geom::Point) -> String {
         let (dist, ang, dx, dy) = xform::measure(a, b);
         format!("D: {}\nAngle: {ang:.1}°\n{}", self.len(dist), self.offset_label(dx, dy))

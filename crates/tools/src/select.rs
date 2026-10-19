@@ -610,7 +610,7 @@ impl Tool for SelectionTool {
                 // Shift has already constrained `d`: any change is a snap.
                 self.snapped = (d - unsnapped).hypot() > 1e-9;
                 self.state = State::Moving { start, began: true, deselect: None, key: None };
-                self.measure = cx.measurement_labels.then(|| (p, cx.draw_measure_label(start, p)));
+                self.measure = cx.measurement_labels.then(|| (p, cx.offset_label(d.x, d.y)));
                 out.push(Action::Preview("object.transform".into(), json!({ "matrix": matrix_json(Affine::translate(d)), "copy": m.alt })));
                 out
             }
@@ -1850,7 +1850,7 @@ mod tests {
             assert_eq!(measures(&t, &c), usize::from(on), "measurement labels {on}");
             if on {
                 let text = move_label(&t, &c).expect("move label");
-                assert!(text.contains("D:") && text.contains("Angle:") && text.contains("dX:"), "{}", text);
+                assert!(text.contains("dX:") && text.contains("dY:") && !text.contains("D:"), "{}", text);
             }
             t.pointer(&c, &ev(PointerKind::Up, 285.0, 135.0));
         }
