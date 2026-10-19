@@ -92,7 +92,7 @@ pub(super) fn action_batch(s: &mut Session, p: &Value) -> Result<Value> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn batch_folder(s: &mut Session, cmd: &str, p: &Value, override_open: bool, run: &Run<'_>) -> Result<Value> {
-    use super::{absolute_path, may_read};
+    use super::{absolute_path, distinct_names, may_read};
 
     let folder = str_param(p, "folder").map(absolute_path).ok_or_else(|| bad(cmd, "missing `folder`"))?;
     may_read(&folder)?;
@@ -104,12 +104,15 @@ fn batch_folder(s: &mut Session, cmd: &str, p: &Value, override_open: bool, run:
     if files.is_empty() {
         return Err(bad(cmd, "no readable files in the folder"));
     }
+    // Each file's name without its extension, with `-2`, `-3`… after a name an earlier file used
+    // (`a.svg` and `sub/a.svg`, or `a.svg` and `a.ai`), as data set names are numbered.
+    let stems =
+        distinct_names(files.iter().map(|path| std::path::Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("file").to_string()));
     let steps = filter_steps(run.steps, override_open, false);
     let run = Run { steps: &steps, ..*run };
     let mut processed = Vec::new();
     let mut failed = 0usize;
-    for path in &files {
-        let stem = std::path::Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+    for (path, stem) in files.iter().zip(&stems) {
         let ext = super::extension(path);
         match process_one_file(s, &run, path, stem, &ext) {
             Ok(row) => processed.push(row),
@@ -526,6 +529,73 @@ mod tests {
         assert_eq!(r["failed"], 0, "{r}");
         assert_eq!(file_names(&own), ["Artboard-1.svg"], "{r}");
         assert!(file_names(&dest).is_empty(), "{r}");
+    }
+
+    /// Two source files with the same name in different subfolders get Export for Screens folders of
+    /// their own: the second one's folder is numbered, as a repeated data set name is.
+    #[test]
+    fn batch_override_export_numbers_export_for_screens_folders_of_files_with_the_same_name() {
+        let src = tmp("screens-same-src");
+        std::fs::create_dir_all(src.join("sub")).unwrap();
+        write_svg(&src, "a.svg", "#f00");
+        write_svg(&src.join("sub"), "a.svg", "#0f0");
+        let dest = tmp("screens-same-out");
+        let mut s = Session::new();
+        let r = s
+            .execute(
+                "action.batch",
+                &json!({
+                    "folder": src.to_string_lossy(),
+                    "includeSubdirs": true,
+                    "destinationFolder": dest.to_string_lossy(),
+                    "commands": [{"command": "document.exportForScreens", "params": {"formats": [{"format": "svg"}]}}]
+                }),
+            )
+            .unwrap();
+        for folder in file_names(&dest) {
+            println!("{folder}/: {:?}", file_names(&dest.join(&folder)));
+        }
+        assert_eq!(r["failed"], 0, "{r}");
+        assert_eq!(file_names(&dest), ["a", "a-2"], "{r}");
+        for (folder, fill) in [("a", "#ff0000"), ("a-2", "#00ff00")] {
+            assert_eq!(file_names(&dest.join(folder)), ["Artboard-1.svg"], "{r}");
+            let svg = std::fs::read_to_string(dest.join(folder).join("Artboard-1.svg")).unwrap();
+            assert!(svg.contains(fill), "{folder}: {svg}");
+        }
+    }
+
+    /// Two source files with the same name in different subfolders are saved under names of their
+    /// own, by Override Save and by the Folder destination: the second one's name is numbered.
+    #[test]
+    fn batch_numbers_saved_files_of_source_files_with_the_same_name() {
+        let src = tmp("save-same-src");
+        std::fs::create_dir_all(src.join("sub")).unwrap();
+        write_svg(&src, "a.svg", "#f00");
+        write_svg(&src.join("sub"), "a.svg", "#0f0");
+        let save = json!([{"command": "file.saveAs", "params": {"format": "svg"}}]);
+        let unlock = json!([{"command": "object.unlockAll", "params": {}}]);
+        for (tag, destination, commands) in [("save", "none", save), ("folder", "folder", unlock)] {
+            let dest = tmp(&format!("save-same-{tag}"));
+            let mut s = Session::new();
+            let r = s
+                .execute(
+                    "action.batch",
+                    &json!({
+                        "folder": src.to_string_lossy(),
+                        "includeSubdirs": true,
+                        "destination": destination,
+                        "destinationFolder": dest.to_string_lossy(),
+                        "commands": commands
+                    }),
+                )
+                .unwrap();
+            assert_eq!(r["failed"], 0, "{tag}: {r}");
+            assert_eq!(file_names(&dest), ["a-2.svg", "a.svg"], "{tag}: {r}");
+            for (file, fill) in [("a.svg", "#ff0000"), ("a-2.svg", "#00ff00")] {
+                let svg = std::fs::read_to_string(dest.join(file)).unwrap();
+                assert!(svg.contains(fill), "{tag}: {file}: {svg}");
+            }
+        }
     }
 
     /// Override Export writes an Export Assets step's files into a folder for each data set inside

@@ -1157,7 +1157,9 @@ already walks Image Trace. Short agent entry points:
   source file's extension (`.vectorcraft` over data sets). Override Export gives a `document.exportForScreens` or
   `assets.export` step the `folder` `destinationFolder/<stem>`, in place of the step's own folder or an export
   preset's: one folder for each source file, named after the file without its extension, or for each data set,
-  named `<document>_<data set>`. The export names the files in it as it does outside Batch.
+  named `<document>_<data set>`. The export names the files in it as it does outside Batch. When two source files
+  have the same name without the extension (`a.svg` and `sub/a.svg`, or `a.svg` and `a.ai`), the folder destination
+  and the overrides add `-2`, `-3`… to the name for each later file (compared without case), as for data sets.
 - Image Trace: `imageTrace.presets`, `imageTrace.make {id?, preset?, params?, view?}` (or `imageTrace.makeAndExpand`),
   `imageTrace.setView`, `imageTrace.expand`, `imageTrace.release`.
 - Live Paint: `livePaint.make`, `livePaint.merge`, `livePaint.fill {group?, point}`, `livePaint.strokeEdge`,
