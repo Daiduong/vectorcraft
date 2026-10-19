@@ -1209,6 +1209,9 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         // Opens something already listed, by handle or by name. The listing is what the user can
         // see, which keeps a scripted open and a clicked one on the same footing.
         "cloud.openFile" => {
+            if !crate::cloud::available(app) {
+                return Some(Err(crate::cloud::UNAVAILABLE.to_owned()));
+            }
             let id = p.get("id").and_then(Value::as_str);
             let name = p.get("name").and_then(Value::as_str).unwrap_or("");
             let found = app
@@ -4794,7 +4797,7 @@ mod tests {
     #[test]
     fn cloud_open_file_without_a_handle_or_name_is_refused() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
-        assert_eq!(app.run("cloud.openFile", json!({})).unwrap_err(), "no such file in the cloud listing");
+        assert_eq!(app.run("cloud.openFile", json!({})).unwrap_err(), crate::cloud::UNAVAILABLE);
     }
 
     #[test]
