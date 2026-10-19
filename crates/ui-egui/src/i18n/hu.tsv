@@ -5162,3 +5162,20 @@ imageTrace	Outline	Körvonal
 @msg	too many library panels were opened in this session	ebben a munkamenetben túl sok könyvtárpanel nyílt meg
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kép {_1} × {_2} képpont, egyik oldalán több mint {LARGE_TRACE_SIDE}: a vektorizálás megtörténik, de lassabban. Kisebb hűségű előbeállítással vagy a kép kisebb másolatával gyorsabb.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A kép vektorizálása {_1} × {_2} képponton történt, {_3} × {_4} méretről kicsinyítve (legfeljebb {_5} megapixel).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Távoli MI-kapcsolatok…
+	Remote connection action	Távoli kapcsolati művelet
+@msg	Choose a folder to remove	Válassza ki az eltávolítandó mappát
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Válasszon 12–256 karakteres jelmondatot, és írja be kétszer
+@msg	Choose folders in an existing setup before resyncing	Újraszinkronizálás előtt válasszon mappákat egy meglévő beállításban
+@msg	Passphrases do not match. Check both fields before saving	A jelmondatok nem egyeznek. Mentés előtt ellenőrizze mindkét mezőt
+@msg	Remote connections are unavailable in this build	Ebben a verzióban nem érhetők el távoli kapcsolatok
+@msg	Save your setup on the Authorize step before finishing	Befejezés előtt mentse a beállításokat az Engedélyezés lépésben
+@msg	The folder is no longer in the list	A mappa már nem szerepel a listában
+@msg	The local connection task ended unexpectedly	A helyi kapcsolati feladat váratlanul véget ért
+@msg	Too many automation folders	Túl sok automatizálási mappa
+@msg	Unknown local connection action	Ismeretlen helyi kapcsolati művelet
+@msg	Wait for the current connection operation to finish	Várja meg az aktuális kapcsolati művelet befejezését
+@msg	You can share up to 32 artwork folders	Legfeljebb 32 grafikai mappát oszthat meg
+@msg	automation path rejected: private connection folder is excluded: {path}	az automatizálási útvonal elutasítva: a kapcsolat privát mappája ki van zárva: {path}

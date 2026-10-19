@@ -5028,3 +5028,20 @@ mark-style	Japanese	Japońskie
 @msg	too many library panels were opened in this session	w tej sesji otwarto zbyt wiele paneli bibliotek
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz ma {_1} × {_2} pikseli, ponad {LARGE_TRACE_SIDE} na jednym boku: zostanie obrysowany, ale wolniej. Ustawienie wstępne o niższej wierności lub mniejsza kopia obrazu obrysuje się szybciej.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz obrysowano w rozdzielczości {_1} × {_2} pikseli, po zmniejszeniu z {_3} × {_4} (najwyżej {_5} megapikseli).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Zdalne połączenia AI…
+	Remote connection action	Czynność połączenia zdalnego
+@msg	Choose a folder to remove	Wybierz folder do usunięcia
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Wybierz hasło o długości od 12 do 256 znaków i wpisz je dwukrotnie
+@msg	Choose folders in an existing setup before resyncing	Przed ponowną synchronizacją wybierz foldery w istniejącej konfiguracji
+@msg	Passphrases do not match. Check both fields before saving	Hasła nie są zgodne. Przed zapisaniem sprawdź oba pola
+@msg	Remote connections are unavailable in this build	Połączenia zdalne są niedostępne w tej kompilacji
+@msg	Save your setup on the Authorize step before finishing	Przed zakończeniem zapisz konfigurację w kroku Autoryzacja
+@msg	The folder is no longer in the list	Folderu nie ma już na liście
+@msg	The local connection task ended unexpectedly	Zadanie połączenia lokalnego nieoczekiwanie się zakończyło
+@msg	Too many automation folders	Zbyt wiele folderów automatyzacji
+@msg	Unknown local connection action	Nieznana czynność połączenia lokalnego
+@msg	Wait for the current connection operation to finish	Poczekaj na zakończenie bieżącej operacji połączenia
+@msg	You can share up to 32 artwork folders	Możesz udostępnić do 32 folderów z grafiką
+@msg	automation path rejected: private connection folder is excluded: {path}	ścieżka automatyzacji odrzucona: prywatny folder połączenia jest wykluczony: {path}

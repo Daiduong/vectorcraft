@@ -8,6 +8,11 @@ description = "VectorCraft MCP server: JSON-RPC 2.0 over stdio, driving a runnin
 [lints]
 workspace = true
 
+[features]
+# Local transport prototype; excluded from ordinary builds and from wasm.
+http = ["dep:tiny_http", "dep:subtle"]
+remote = ["http", "dep:axum", "dep:tokio", "dep:serde", "dep:url", "dep:rand", "dep:sha2", "dep:base64", "dep:argon2", "dep:fs2", "dep:http-body-util"]
+
 [dependencies]
 vectorcraft-engine = { workspace = true }
 vectorcraft-render = { workspace = true }
@@ -21,7 +26,22 @@ log = { workspace = true }
 
 image = { workspace = true }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tiny_http = { version = "0.12", default-features = false, optional = true }
+subtle = { version = "2.6", optional = true }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query", "form"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time", "signal", "macros"], optional = true }
+serde = { workspace = true, optional = true }
+url = { version = "2", optional = true }
+rand = { version = "0.9", optional = true }
+sha2 = { version = "0.10", optional = true }
+base64 = { version = "0.22", optional = true }
+argon2 = { version = "0.5", optional = true }
+fs2 = { version = "0.4", optional = true }
+http-body-util = { version = "0.1", optional = true }
+
 [dev-dependencies]
+tempfile = "3"
 vectorcraft-testkit = { workspace = true }
 proptest = { workspace = true }
 socket2 = { workspace = true }

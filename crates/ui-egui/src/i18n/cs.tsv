@@ -5176,3 +5176,20 @@ mark-style	Japanese	Japonské
 @msg	too many library panels were opened in this session	v této relaci bylo otevřeno příliš mnoho panelů knihoven
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz má {_1} × {_2} pixelů, na jedné straně více než {LARGE_TRACE_SIDE}: vektorizuje se, ale pomaleji. Rychleji se vektorizuje s předvolbou nižší věrnosti nebo menší kopie obrazu.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz byl vektorizován v rozlišení {_1} × {_2} pixelů, zmenšený z {_3} × {_4} (nejvýše {_5} megapixelů).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Vzdálená připojení AI…
+	Remote connection action	Akce vzdáleného připojení
+@msg	Choose a folder to remove	Vyberte složku k odebrání
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Zvolte přístupovou frázi o 12 až 256 znacích a zadejte ji dvakrát
+@msg	Choose folders in an existing setup before resyncing	Před opětovnou synchronizací vyberte složky v existujícím nastavení
+@msg	Passphrases do not match. Check both fields before saving	Přístupové fráze se neshodují. Před uložením zkontrolujte obě pole
+@msg	Remote connections are unavailable in this build	V tomto sestavení nejsou vzdálená připojení dostupná
+@msg	Save your setup on the Authorize step before finishing	Před dokončením uložte nastavení v kroku Autorizace
+@msg	The folder is no longer in the list	Složka již není v seznamu
+@msg	The local connection task ended unexpectedly	Úloha místního připojení neočekávaně skončila
+@msg	Too many automation folders	Příliš mnoho složek pro automatizaci
+@msg	Unknown local connection action	Neznámá akce místního připojení
+@msg	Wait for the current connection operation to finish	Počkejte na dokončení aktuální operace připojení
+@msg	You can share up to 32 artwork folders	Můžete sdílet až 32 složek s grafikou
+@msg	automation path rejected: private connection folder is excluded: {path}	cesta automatizace zamítnuta: soukromá složka připojení je vyloučena: {path}

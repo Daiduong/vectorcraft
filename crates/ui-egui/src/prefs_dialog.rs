@@ -19,6 +19,10 @@ pub const UI_FIELDS: &[(&str, &str, &str)] = &[
     ("__taskBar", "General", "Enable Contextual Task Bar"),
 ];
 
+fn categories(app: &VectorcraftApp) -> Vec<&'static str> {
+    PREF_CATEGORIES.iter().copied().chain(app.services.remote_access.is_some().then_some("Remote AI")).collect()
+}
+
 pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     // One field per preference key or group (the flattener presets have commands of their own).
     let mut fields: Map<String, Value> = app.session.prefs.to_json().as_object().cloned().unwrap_or_default();
@@ -27,7 +31,7 @@ pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     if let Some(st) = app.session.active() {
         fields.insert("unitsGeneral".into(), json!(st.doc.units.key()));
     }
-    let cat = category.and_then(|c| PREF_CATEGORIES.iter().find(|x| x.eq_ignore_ascii_case(c))).copied().unwrap_or(PREF_CATEGORIES[0]);
+    let cat = category.and_then(|c| categories(app).into_iter().find(|x| x.eq_ignore_ascii_case(c))).unwrap_or(PREF_CATEGORIES[0]);
     fields.insert("__category".into(), json!(cat));
     fields.insert("__smartGuides".into(), json!(app.ui.view.smart_guides));
     fields.insert("__snapToGrid".into(), json!(app.ui.view.snap_to_grid));
@@ -155,8 +159,10 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);
     let (mut ok, mut cancel, mut reset) = (false, false, false);
+    let mut remote = false;
+    let categories = categories(app);
     let cat = d.str("__category");
-    let cat = PREF_CATEGORIES.iter().find(|c| **c == cat).copied().unwrap_or(PREF_CATEGORIES[0]);
+    let cat = categories.iter().find(|c| **c == cat).copied().unwrap_or(PREF_CATEGORIES[0]);
     crate::dialogs::modal::show(ctx, tl!("Preferences"), egui::Id::new("dialog-preferences"), -20.0, 20, |ui| {
         ui.set_width(760.0);
         crate::dialogs::modal::heading(ui, tl!("Preferences"));
@@ -168,7 +174,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 ui.set_min_height(430.0);
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 1.0;
-                    for c in PREF_CATEGORIES {
+                    for c in &categories {
                         let sel = *c == cat;
                         let text = egui::RichText::new(tl!(*c)).size(12.5).color(if sel { t.text_strong } else { t.text });
                         let b = egui::Button::selectable(sel, text).min_size(egui::vec2(184.0, 24.0));
@@ -185,7 +191,16 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 ui.label(egui::RichText::new(tl!(cat)).font(theme::semibold(14.0)).color(t.text_strong));
                 ui.add_space(8.0);
                 egui::ScrollArea::vertical().id_salt(("prefs", cat)).max_height(400.0).auto_shrink([false, false]).show(ui, |ui| {
-                    category_fields(ui, &mut d, cat);
+                    if cat == "Remote AI" {
+                        ui.label("Connect AI apps to this native test workspace and manage their shared artwork folders.");
+                        ui.add_space(12.0);
+                        if ui.button("Open Remote AI connections…").clicked() {
+                            remote = true;
+                        }
+                        ui.small("Choose several folders, set up sign-in, and manage linked apps in the connection wizard.");
+                    } else {
+                        category_fields(ui, &mut d, cat);
+                    }
                 });
             });
         });
@@ -206,12 +221,16 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                     cancel = true;
                 }
                 ui.add_space(16.0);
-                let i = PREF_CATEGORIES.iter().position(|c| *c == cat).unwrap_or(0);
-                if ui.add_enabled(i + 1 < PREF_CATEGORIES.len(), egui::Button::new(tl!("Next"))).clicked() {
-                    d.fields.insert("__category".into(), json!(PREF_CATEGORIES[i + 1]));
+                let i = categories.iter().position(|c| *c == cat).unwrap_or(0);
+                if ui.add_enabled(i + 1 < categories.len(), egui::Button::new(tl!("Next"))).clicked()
+                    && let Some(next) = categories.get(i + 1)
+                {
+                    d.fields.insert("__category".into(), json!(next));
                 }
-                if ui.add_enabled(i > 0, egui::Button::new(tl!("Previous"))).clicked() {
-                    d.fields.insert("__category".into(), json!(PREF_CATEGORIES[i - 1]));
+                if ui.add_enabled(i > 0, egui::Button::new(tl!("Previous"))).clicked()
+                    && let Some(previous) = i.checked_sub(1).and_then(|i| categories.get(i))
+                {
+                    d.fields.insert("__category".into(), json!(previous));
                 }
             });
         });
@@ -222,6 +241,12 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         }
     }
     app.ui.dialog = Some(d);
+    if remote {
+        if let Err(error) = app.run("ui.remoteAccess", json!({})) {
+            app.status(error);
+        }
+        return;
+    }
     if cancel {
         app.ui.dialog = None;
     } else if ok && let Err(e) = confirm(app) {

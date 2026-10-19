@@ -1015,6 +1015,9 @@ fn list_dir(path: &str, max: usize) -> Result<(Vec<Value>, bool)> {
         }
         let name = e.file_name().to_string_lossy().into_owned();
         let Ok(t) = e.file_type() else { continue };
+        if !t.is_symlink() && may_read(&e.path().to_string_lossy()).is_err() {
+            continue;
+        }
         let entry = if t.is_symlink() {
             json!({ "name": name, "kind": "link" })
         } else if t.is_dir() {

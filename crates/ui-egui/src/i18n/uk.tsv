@@ -4769,3 +4769,20 @@ lighting	Light	Світло
 @msg	too many library panels were opened in this session	у цьому сеансі відкрито забагато панелей бібліотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Зображення {_1} × {_2} пікселів, понад {LARGE_TRACE_SIDE} з одного боку: трасування виконується, але повільніше. Стиль із нижчою точністю або менша копія зображення трасуються швидше.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Зображення трасовано в розмірі {_1} × {_2} пікселів, зменшене з {_3} × {_4} (щонайбільше {_5} мегапікселів).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Віддалені підключення ШІ…
+	Remote connection action	Дія віддаленого підключення
+@msg	Choose a folder to remove	Виберіть папку для видалення
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Виберіть парольну фразу завдовжки від 12 до 256 символів і введіть її двічі
+@msg	Choose folders in an existing setup before resyncing	Перед повторною синхронізацією виберіть папки в наявному налаштуванні
+@msg	Passphrases do not match. Check both fields before saving	Парольні фрази не збігаються. Перевірте обидва поля перед збереженням
+@msg	Remote connections are unavailable in this build	У цій збірці віддалені підключення недоступні
+@msg	Save your setup on the Authorize step before finishing	Перед завершенням збережіть налаштування на кроці Авторизація
+@msg	The folder is no longer in the list	Папки більше немає у списку
+@msg	The local connection task ended unexpectedly	Завдання локального підключення несподівано завершилося
+@msg	Too many automation folders	Забагато папок автоматизації
+@msg	Unknown local connection action	Невідома дія локального підключення
+@msg	Wait for the current connection operation to finish	Дочекайтеся завершення поточної операції підключення
+@msg	You can share up to 32 artwork folders	Можна надати спільний доступ до 32 папок із графікою
+@msg	automation path rejected: private connection folder is excluded: {path}	шлях автоматизації відхилено: приватну папку підключення виключено: {path}

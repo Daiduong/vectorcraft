@@ -16,9 +16,13 @@
 
 mod backend;
 mod headless;
+#[cfg(all(feature = "http", not(target_arch = "wasm32")))]
+pub mod http;
 mod intake;
 pub mod logging;
 mod prompts;
+#[cfg(all(feature = "remote", not(target_arch = "wasm32")))]
+pub mod remote;
 mod resources;
 mod server;
 mod tools;

@@ -5093,3 +5093,20 @@ mark-style	Japanese	Japonesas
 @msg	too many library panels were opened in this session	foram abertos painéis de biblioteca demais nesta sessão
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A imagem tem {_1} × {_2} pixels, mais de {LARGE_TRACE_SIDE} em um lado: ela é traçada, mas mais devagar. Uma predefinição de menor fidelidade ou uma cópia menor da imagem traça mais rápido.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A imagem foi traçada em {_1} × {_2} pixels, reduzida de {_3} × {_4} (no máximo {_5} megapixels).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Conexões remotas de IA…
+	Remote connection action	Ação de conexão remota
+@msg	Choose a folder to remove	Escolha uma pasta para remover
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Escolha uma frase-senha de 12 a 256 caracteres e digite-a duas vezes
+@msg	Choose folders in an existing setup before resyncing	Escolha as pastas em uma configuração existente antes de sincronizar novamente
+@msg	Passphrases do not match. Check both fields before saving	As frases-senha não coincidem. Verifique os dois campos antes de salvar
+@msg	Remote connections are unavailable in this build	As conexões remotas não estão disponíveis nesta compilação
+@msg	Save your setup on the Authorize step before finishing	Salve a configuração na etapa Autorizar antes de concluir
+@msg	The folder is no longer in the list	A pasta não está mais na lista
+@msg	The local connection task ended unexpectedly	A tarefa de conexão local terminou inesperadamente
+@msg	Too many automation folders	Pastas de automação demais
+@msg	Unknown local connection action	Ação de conexão local desconhecida
+@msg	Wait for the current connection operation to finish	Aguarde a conclusão da operação de conexão atual
+@msg	You can share up to 32 artwork folders	Você pode compartilhar até 32 pastas de ilustrações
+@msg	automation path rejected: private connection folder is excluded: {path}	caminho de automação rejeitado: a pasta privada da conexão está excluída: {path}

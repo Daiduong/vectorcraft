@@ -43,6 +43,8 @@ pub mod panels;
 pub mod picks;
 pub mod place;
 pub mod prefs_dialog;
+pub mod remote_access;
+pub use remote_access::RemoteAccessFn;
 pub mod print;
 pub mod recovery;
 pub mod render_worker;
@@ -221,6 +223,8 @@ pub type RevealFn = Box<dyn FnMut(&str) -> Result<(), String>>;
 /// Platform services injected by the host app (desktop or web).
 #[derive(Default)]
 pub struct Services {
+    /// Owner-only remote connection management, performed on a host worker thread.
+    pub remote_access: Option<RemoteAccessFn>,
     /// Show an open dialog; returns a path.
     pub pick_open: Option<PickOpen>,
     /// Show a save dialog (suggested name, folder, file types); returns a path.
@@ -383,6 +387,8 @@ pub struct Perf {
 }
 
 pub struct VectorcraftApp {
+    /// Ephemeral owner-only state; excluded from serialized UI/control inspection.
+    pub remote_access: remote_access::RemoteAccessUi,
     pub session: Session,
     pub ui: UiState,
     pub views: Vec<View>,
@@ -489,6 +495,7 @@ pub struct VectorcraftApp {
 /// frame is presented; a window that isn't presented never delivers one, hence the deadline.
 struct PendingScreenshot {
     token: u64,
+    privacy_epoch: u64,
     path: Option<String>,
     /// Send the PNG back as `pngBase64`.
     data: bool,
@@ -509,6 +516,7 @@ impl VectorcraftApp {
         }
         let views = session.documents().iter().map(View::of).collect();
         Self {
+            remote_access: Default::default(),
             session,
             ui: UiState::default(),
             views,
@@ -886,12 +894,19 @@ impl VectorcraftApp {
                 control::Outcome::Done(v) => {
                     let _ = reply.send(v);
                 }
-                control::Outcome::Screenshot { path, data } => {
+                control::Outcome::Screenshot { path, data, privacy_epoch } => {
                     self.screenshot_token += 1;
                     let token = self.screenshot_token;
                     let settle = ctx.global_style().animation_time as f64 * 2000.0 + 80.0;
                     self.queued_screenshots.push((token, now_ms() + settle, 0));
-                    self.pending_screenshots.push(PendingScreenshot { token, path, data, reply, deadline: now_ms() + settle + 8000.0 });
+                    self.pending_screenshots.push(PendingScreenshot {
+                        token,
+                        privacy_epoch,
+                        path,
+                        data,
+                        reply,
+                        deadline: now_ms() + settle + 8000.0,
+                    });
                 }
             }
         }
@@ -938,6 +953,12 @@ impl VectorcraftApp {
         for (token, image) in events {
             if let Some(i) = self.pending_screenshots.iter().position(|p| p.token == token) {
                 let p = self.pending_screenshots.remove(i);
+                if !self.remote_access.allows_screenshot(p.privacy_epoch) {
+                    let _ = p
+                        .reply
+                        .send(serde_json::json!({"ok":false,"error":"Screenshot discarded because private field visibility changed during capture"}));
+                    continue;
+                }
                 let roots = self.automation_roots.clone();
                 let _ = p.reply.send(file_access::confine(roots.as_ref(), || control::save_screenshot(self, &image, p.path.as_deref(), p.data)));
             }
@@ -1440,6 +1461,7 @@ impl VectorcraftApp {
         dock::floating_panel(self, &ctx);
         floating::show(self, &ctx);
         dialogs::show(self, &ctx);
+        remote_access::show(self, &ctx);
         palette::show(self, &ctx);
         if self.custom_titlebar {
             titlebar::resize_zones(ui);

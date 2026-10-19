@@ -153,7 +153,10 @@ fn import_never_reads_or_runs_scripts() {
     let text = svg(r#"<script xlink:href="evil.js"/><script href="evil.js"/><script type="text/ecmascript">document.title = "x";</script>
         <image xlink:href="photo.png" width="10" height="10"/>
         <rect id="shape" width="20" height="20" onclick="fetch('https://example.com')" onfoo="x()" data-a="1"/>"#);
-    let (doc, warnings) = import_with(&text, &ImportOptions { folder: Some("/tmp"), read: Some(&read) }).unwrap();
+    // Resolving a local image needs an absolute folder on every platform, including a drive on Windows.
+    let folder = std::env::temp_dir();
+    let folder = folder.to_string_lossy();
+    let (doc, warnings) = import_with(&text, &ImportOptions { folder: Some(&folder), read: Some(&read) }).unwrap();
     let asked = asked.lock().unwrap().clone();
     assert!(asked.iter().any(|p| p.contains("photo.png")) && !asked.iter().any(|p| p.contains("evil")), "read {asked:?}");
     assert_eq!(doc.svg_scripts, ["evil.js"], "each link once, the inline script left out");

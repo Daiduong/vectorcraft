@@ -5175,3 +5175,20 @@ theme	Appearance	Apparence
 @msg	too many library panels were opened in this session	trop de panneaux de bibliothèque ont été ouverts dans cette session
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’image fait {_1} × {_2} pixels, plus de {LARGE_TRACE_SIDE} sur un côté : elle est vectorisée, mais plus lentement. Un paramètre prédéfini moins fidèle ou une copie plus petite de l’image se vectorise plus vite.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’image a été vectorisée à {_1} × {_2} pixels, réduite de {_3} × {_4} ({_5} mégapixels au plus).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Connexions IA distantes…
+	Remote connection action	Action de connexion distante
+@msg	Choose a folder to remove	Choisissez un dossier à retirer
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Choisissez une phrase secrète de 12 à 256 caractères et saisissez-la deux fois
+@msg	Choose folders in an existing setup before resyncing	Choisissez les dossiers dans une configuration existante avant de resynchroniser
+@msg	Passphrases do not match. Check both fields before saving	Les phrases secrètes ne correspondent pas. Vérifiez les deux champs avant d’enregistrer
+@msg	Remote connections are unavailable in this build	Les connexions distantes ne sont pas disponibles dans cette version
+@msg	Save your setup on the Authorize step before finishing	Enregistrez la configuration à l’étape Autoriser avant de terminer
+@msg	The folder is no longer in the list	Le dossier ne figure plus dans la liste
+@msg	The local connection task ended unexpectedly	La tâche de connexion locale s’est terminée de manière inattendue
+@msg	Too many automation folders	Trop de dossiers d’automatisation
+@msg	Unknown local connection action	Action de connexion locale inconnue
+@msg	Wait for the current connection operation to finish	Attendez la fin de l’opération de connexion en cours
+@msg	You can share up to 32 artwork folders	Vous pouvez partager jusqu’à 32 dossiers d’illustrations
+@msg	automation path rejected: private connection folder is excluded: {path}	chemin d’automatisation refusé : le dossier privé de connexion est exclu : {path}

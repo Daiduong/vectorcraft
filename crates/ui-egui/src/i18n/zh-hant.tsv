@@ -4074,3 +4074,7 @@ lighting	Light	光源
 	Enable Guides for 9-Slice Scaling	啟用 9-slice 縮放參考線
 	Persistent	持久
 	Library Panel Options	資料庫面板選項
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	AI 遠端連線…
+	Remote connection action	遠端連線操作

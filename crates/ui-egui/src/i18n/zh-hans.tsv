@@ -5012,3 +5012,20 @@ lighting	Light	光源
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	浏览器中只会打开 http、https 和 mailto 的 URL，不会打开 “{url}”
 @msg	{id} opens another app: only the person at the keyboard can run it	{id} 会打开其他应用程序：只有使用键盘的人才能运行它
 @msg	“{name}” is not a file	“{name}” 不是文件
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	AI远程连接…
+	Remote connection action	远程连接操作
+@msg	Choose a folder to remove	选择要移除的文件夹
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	请选择12至256个字符的口令并输入两次
+@msg	Choose folders in an existing setup before resyncing	重新同步前，请在现有配置中选择文件夹
+@msg	Passphrases do not match. Check both fields before saving	两次口令不一致。保存前请检查两个输入框
+@msg	Remote connections are unavailable in this build	此构建版本不支持远程连接
+@msg	Save your setup on the Authorize step before finishing	完成前请在授权步骤中保存配置
+@msg	The folder is no longer in the list	该文件夹已不在列表中
+@msg	The local connection task ended unexpectedly	本地连接任务意外结束
+@msg	Too many automation folders	自动化文件夹过多
+@msg	Unknown local connection action	未知的本地连接操作
+@msg	Wait for the current connection operation to finish	请等待当前连接操作完成
+@msg	You can share up to 32 artwork folders	最多可共享32个作品文件夹
+@msg	automation path rejected: private connection folder is excluded: {path}	自动化路径被拒绝：已排除连接的私有文件夹：{path}

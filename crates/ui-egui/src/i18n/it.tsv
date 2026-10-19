@@ -4789,3 +4789,20 @@ lighting	Light	Luce
 @msg	too many library panels were opened in this session	in questa sessione sono stati aperti troppi pannelli libreria
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’immagine è di {_1} × {_2} pixel, più di {LARGE_TRACE_SIDE} su un lato: viene vettorializzata, ma più lentamente. Un predefinito a fedeltà più bassa o una copia più piccola dell’immagine è più veloce.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’immagine è stata vettorializzata a {_1} × {_2} pixel, ridotta da {_3} × {_4} (al massimo {_5} megapixel).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Connessioni IA remote…
+	Remote connection action	Azione di connessione remota
+@msg	Choose a folder to remove	Scegli una cartella da rimuovere
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Scegli una frase segreta da 12 a 256 caratteri e inseriscila due volte
+@msg	Choose folders in an existing setup before resyncing	Scegli le cartelle in una configurazione esistente prima di risincronizzare
+@msg	Passphrases do not match. Check both fields before saving	Le frasi segrete non corrispondono. Controlla entrambi i campi prima di salvare
+@msg	Remote connections are unavailable in this build	Le connessioni remote non sono disponibili in questa build
+@msg	Save your setup on the Authorize step before finishing	Salva la configurazione nel passaggio Autorizza prima di terminare
+@msg	The folder is no longer in the list	La cartella non è più nell’elenco
+@msg	The local connection task ended unexpectedly	L’attività di connessione locale è terminata in modo imprevisto
+@msg	Too many automation folders	Troppe cartelle di automazione
+@msg	Unknown local connection action	Azione di connessione locale sconosciuta
+@msg	Wait for the current connection operation to finish	Attendi il completamento dell’operazione di connessione corrente
+@msg	You can share up to 32 artwork folders	Puoi condividere fino a 32 cartelle di illustrazioni
+@msg	automation path rejected: private connection folder is excluded: {path}	percorso di automazione rifiutato: la cartella privata della connessione è esclusa: {path}

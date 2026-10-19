@@ -5128,3 +5128,20 @@ effect	Points	Σημεία
 @msg	too many library panels were opened in this session	άνοιξαν πάρα πολλοί πίνακες βιβλιοθηκών σε αυτή τη συνεδρία
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Η εικόνα είναι {_1} × {_2} εικονοστοιχεία, πάνω από {LARGE_TRACE_SIDE} σε μία πλευρά: ανιχνεύεται, αλλά πιο αργά. Μια προρύθμιση χαμηλότερης πιστότητας ή ένα μικρότερο αντίγραφο της εικόνας ανιχνεύεται γρηγορότερα.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Η εικόνα ανιχνεύτηκε σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη από {_3} × {_4} (το πολύ {_5} megapixel).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Απομακρυσμένες συνδέσεις AI…
+	Remote connection action	Ενέργεια απομακρυσμένης σύνδεσης
+@msg	Choose a folder to remove	Επιλέξτε φάκελο για αφαίρεση
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Επιλέξτε συνθηματική φράση 12 έως 256 χαρακτήρων και πληκτρολογήστε την δύο φορές
+@msg	Choose folders in an existing setup before resyncing	Επιλέξτε φακέλους σε μια υπάρχουσα ρύθμιση πριν από τον επανασυγχρονισμό
+@msg	Passphrases do not match. Check both fields before saving	Οι συνθηματικές φράσεις δεν ταιριάζουν. Ελέγξτε και τα δύο πεδία πριν από την αποθήκευση
+@msg	Remote connections are unavailable in this build	Οι απομακρυσμένες συνδέσεις δεν είναι διαθέσιμες σε αυτή την έκδοση
+@msg	Save your setup on the Authorize step before finishing	Αποθηκεύστε τη ρύθμιση στο βήμα Εξουσιοδότηση πριν ολοκληρώσετε
+@msg	The folder is no longer in the list	Ο φάκελος δεν βρίσκεται πλέον στη λίστα
+@msg	The local connection task ended unexpectedly	Η εργασία τοπικής σύνδεσης τερματίστηκε απροσδόκητα
+@msg	Too many automation folders	Υπερβολικά πολλοί φάκελοι αυτοματοποίησης
+@msg	Unknown local connection action	Άγνωστη ενέργεια τοπικής σύνδεσης
+@msg	Wait for the current connection operation to finish	Περιμένετε να ολοκληρωθεί η τρέχουσα λειτουργία σύνδεσης
+@msg	You can share up to 32 artwork folders	Μπορείτε να κοινοποιήσετε έως 32 φακέλους γραφικών
+@msg	automation path rejected: private connection folder is excluded: {path}	η διαδρομή αυτοματοποίησης απορρίφθηκε: ο ιδιωτικός φάκελος σύνδεσης εξαιρείται: {path}

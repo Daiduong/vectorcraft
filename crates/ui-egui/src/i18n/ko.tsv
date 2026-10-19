@@ -4753,3 +4753,20 @@ lighting	Light	광원
 @msg	too many library panels were opened in this session	이 세션에서 라이브러리 패널을 너무 많이 열었습니다
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	이미지가 {_1} × {_2}픽셀로 한 변이 {LARGE_TRACE_SIDE}을 넘습니다. 추적은 되지만 더 느립니다. 충실도가 낮은 사전 설정이나 이미지의 작은 사본을 사용하면 더 빠릅니다.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	이미지를 {_3} × {_4}에서 축소한 {_1} × {_2}픽셀로 추적했습니다(최대 {_5}메가픽셀).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	AI 원격 연결…
+	Remote connection action	원격 연결 동작
+@msg	Choose a folder to remove	제거할 폴더를 선택하세요
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	12~256자의 암호 문구를 정하고 두 번 입력하세요
+@msg	Choose folders in an existing setup before resyncing	다시 동기화하기 전에 기존 설정에서 폴더를 선택하세요
+@msg	Passphrases do not match. Check both fields before saving	암호 문구가 일치하지 않습니다. 저장하기 전에 두 입력란을 확인하세요
+@msg	Remote connections are unavailable in this build	이 빌드에서는 원격 연결을 사용할 수 없습니다
+@msg	Save your setup on the Authorize step before finishing	완료하기 전에 승인 단계에서 설정을 저장하세요
+@msg	The folder is no longer in the list	폴더가 더 이상 목록에 없습니다
+@msg	The local connection task ended unexpectedly	로컬 연결 작업이 예기치 않게 종료되었습니다
+@msg	Too many automation folders	자동화 폴더가 너무 많습니다
+@msg	Unknown local connection action	알 수 없는 로컬 연결 동작입니다
+@msg	Wait for the current connection operation to finish	현재 연결 작업이 끝날 때까지 기다리세요
+@msg	You can share up to 32 artwork folders	아트워크 폴더를 최대 32개까지 공유할 수 있습니다
+@msg	automation path rejected: private connection folder is excluded: {path}	자동화 경로 거부됨: 연결의 비공개 폴더는 제외됩니다: {path}

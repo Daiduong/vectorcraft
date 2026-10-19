@@ -168,6 +168,8 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("file.newDialog", "New…", "Cmd+N", "{} opens the New Document dialog"),
     ("app.home", "Home", "", "{} shows the Home screen (new file presets, Open) over the open documents; choosing a document tab returns to it"),
     ("edit.preferences", "Preferences…", "Cmd+K", "{category?} open Preferences (engine: prefs.get / prefs.set / prefs.list)"),
+    ("ui.remoteAccess", "Remote AI connections…", "", "{} open the local owner's remote connection wizard; automation cannot open it"),
+    ("ui.remoteAccess.action", "Remote connection action", "", "{action, id?} local owner connection action; unavailable to automation"),
     ("edit.keyboardShortcuts", "Keyboard Shortcuts…", "Cmd+Alt+Shift+K", "{}"),
     ("shortcuts.set", "Set Keyboard Shortcut", "", "{id: command id or tool:<id>, shortcut: \"Cmd+Shift+K\" | \"\" (none) | null (default), force?}"),
     ("shortcuts.list", "List Keyboard Shortcuts", "", "{query?} → [{id, label, group, shortcut, default, overridden}]"),
@@ -1136,6 +1138,8 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             crate::prefs_dialog::open(app, s("category").as_deref());
             Ok(Value::Null)
         }
+        "ui.remoteAccess" => crate::remote_access::open(app),
+        "ui.remoteAccess.action" => crate::remote_access::action(app, p),
         // Edit → Color Settings… / Assign Profile… (no params): show the colour-management panel.
         "edit.colorSettings" | "edit.assignProfile" if p.as_object().is_none_or(|o| o.is_empty()) => {
             app.ui.open_panel = Some("separations".into());
@@ -2203,6 +2207,9 @@ pub(crate) fn waits_for_ime(app: &VectorcraftApp, id: &str) -> bool {
 }
 
 pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
+    if matches!(id, "ui.remoteAccess" | "ui.remoteAccess.action") {
+        return app.services.remote_access.is_some() && !app.ui.answering_control && !app.synthetic_frame;
+    }
     if waits_for_ime(app, id) {
         return false;
     }

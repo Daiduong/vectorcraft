@@ -2,7 +2,7 @@
 //!
 //! `vectorcraft-cli mcp --automation-read-root <dir> --automation-write-root <dir>`, and
 //! `vectorcraft --control <port>` with the same flags, confine the files an agent's commands
-//! reach. [`AutomationRoots`] holds the two folders. While they are in force, every path a command
+//! reach. [`AutomationRoots`] holds the read/write folders and optional private exclusions. While they are in force, every path a command
 //! reads goes through [`check_read`] and every path it writes through [`check_write`]:
 //!
 //! - The path is made absolute against the working directory, as the file system reads it. Its
@@ -38,8 +38,9 @@ pub enum Access {
 /// The folders automation may read and write; a root left out grants no access of its kind.
 #[derive(Debug)]
 pub struct AutomationRoots {
-    read: Option<Root>,
-    write: Option<Root>,
+    read: Vec<Root>,
+    write: Vec<Root>,
+    excluded: Vec<Root>,
 }
 
 #[derive(Debug)]
@@ -68,40 +69,58 @@ impl AutomationRoots {
     /// The roots `read` and `write`, which must be existing folders; `None` when neither is given
     /// (nothing is confined then).
     pub fn new(read: Option<&Path>, write: Option<&Path>) -> Result<Option<Arc<Self>>, String> {
-        if read.is_none() && write.is_none() {
+        Self::new_many(
+            &read.map(Path::to_path_buf).into_iter().collect::<Vec<_>>(),
+            &write.map(Path::to_path_buf).into_iter().collect::<Vec<_>>(),
+            &[],
+        )
+    }
+
+    /// A union of approved folders, with private subfolders denied even inside a broad grant.
+    /// The single-folder constructor retains its existing behavior for ordinary automation.
+    pub fn new_many(read: &[PathBuf], write: &[PathBuf], excluded: &[PathBuf]) -> Result<Option<Arc<Self>>, String> {
+        if read.len() > 64 || write.len() > 64 || excluded.len() > 64 {
+            return Err("Too many automation folders".into());
+        }
+        if read.is_empty() && write.is_empty() && excluded.is_empty() {
             return Ok(None);
         }
-        let read = read.map(|p| Root::open(p, Access::Read)).transpose()?;
-        let write = write.map(|p| Root::open(p, Access::Write)).transpose()?;
-        Ok(Some(Arc::new(Self { read, write })))
+        let read = read.iter().map(|p| Root::open(p, Access::Read)).collect::<Result<Vec<_>, _>>()?;
+        let write = write.iter().map(|p| Root::open(p, Access::Write)).collect::<Result<Vec<_>, _>>()?;
+        let excluded = excluded.iter().map(|p| Root::open(p, Access::Read)).collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(Arc::new(Self { read, write, excluded })))
     }
 
-    /// The read root, absolute with its links followed.
+    /// The first read root, absolute with links followed (the legacy single-root accessor).
     pub fn read_root(&self) -> Option<&Path> {
-        self.read.as_ref().map(|r| r.shown.as_path())
+        self.read.first().map(|r| r.shown.as_path())
     }
 
-    /// The write root, absolute with its links followed.
+    /// The first write root, absolute with links followed (the legacy single-root accessor).
     pub fn write_root(&self) -> Option<&Path> {
-        self.write.as_ref().map(|r| r.shown.as_path())
+        self.write.first().map(|r| r.shown.as_path())
     }
 
     /// May the file or folder at `path` be read (or written)? `Err` says why not.
     pub fn check(&self, path: &str, access: Access) -> Result<(), String> {
         let root = match access {
-            Access::Read => self.read.as_ref(),
-            Access::Write => self.write.as_ref(),
+            Access::Read => &self.read,
+            Access::Write => &self.write,
         };
-        let Some(Root { resolved: folder, shown }) = root else {
+        let Some(first) = root.first() else {
             return match access {
                 Access::Read => Err(format!("automation filesystem access is not granted: read authority is absent: {path}")),
                 Access::Write => Err(format!("automation filesystem access is not granted: write authority is absent: {path}")),
             };
         };
-        if inside(&resolve(path)?, folder) {
+        let resolved = resolve(path)?;
+        if self.excluded.iter().any(|folder| inside(&resolved, &folder.resolved)) {
+            return Err(format!("automation path rejected: private connection folder is excluded: {path}"));
+        }
+        if root.iter().any(|folder| inside(&resolved, &folder.resolved)) {
             return Ok(());
         }
-        let root = shown.display();
+        let root = first.shown.display();
         match access {
             Access::Read => Err(format!("automation path rejected: outside the read root {root}: {path}")),
             Access::Write => Err(format!("automation path rejected: outside the write root {root}: {path}")),
@@ -286,6 +305,47 @@ mod tests {
 
     fn s(p: PathBuf) -> String {
         p.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn multiple_folders_keep_gaps_and_private_subfolders_outside_authority() {
+        let (base, _) = folders("multiple");
+        let private = base.join("in/Remote Access");
+        std::fs::create_dir_all(&private).unwrap();
+        std::fs::write(private.join("settings.json"), "private").unwrap();
+        let approved = vec![base.join("in"), base.join("out")];
+        let roots = AutomationRoots::new_many(&approved, &approved, std::slice::from_ref(&private)).unwrap().unwrap();
+        for access in [Access::Read, Access::Write] {
+            assert!(roots.check(&s(base.join("in/a.svg")), access).is_ok());
+            assert!(roots.check(&s(base.join("out/new.svg")), access).is_ok());
+            assert!(roots.check(&s(base.join("outside/secret.svg")), access).is_err());
+            assert!(roots.check(&s(base.join("in2/new.svg")), access).is_err());
+            assert!(roots.check(&s(private.join("settings.json")), access).unwrap_err().contains("private connection"));
+        }
+        let broad =
+            AutomationRoots::new_many(std::slice::from_ref(&base), std::slice::from_ref(&base), std::slice::from_ref(&private)).unwrap().unwrap();
+        assert!(broad.check(&s(private.join("new.json")), Access::Write).is_err());
+        assert!(broad.check(&s(base.join("outside/secret.svg")), Access::Read).is_ok());
+        let mut session = crate::Session::new();
+        let listing = confine(Some(&broad), || session.execute("file.list", &serde_json::json!({"path":base.join("in")}))).unwrap();
+        assert!(!listing.to_string().contains("Remote Access"));
+        assert!(confine(Some(&broad), || session.execute("file.list", &serde_json::json!({"path":private}))).is_err());
+        #[cfg(windows)]
+        assert!(broad.check(&s(private.join("SETTINGS.JSON")).to_uppercase(), Access::Read).is_err());
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn multiple_folder_authorities_are_separate_and_missing_folders_fail_closed() {
+        let (base, _) = folders("multiple-authority");
+        let roots = AutomationRoots::new_many(&[base.join("in"), base.join("out")], &[base.join("out")], &[]).unwrap().unwrap();
+        assert!(roots.check(&s(base.join("in/a.svg")), Access::Read).is_ok());
+        assert!(roots.check(&s(base.join("in/new.svg")), Access::Write).is_err());
+        assert!(AutomationRoots::new_many(&[base.join("in"), base.join("missing")], &[], &[]).is_err());
+        let empty = AutomationRoots::new_many(&[], &[], &[base.join("in")]).unwrap().unwrap();
+        assert!(empty.check(&s(base.join("outside/secret.svg")), Access::Read).is_err());
+        assert!(AutomationRoots::new_many(&vec![base.clone(); 65], &[], &[]).is_err());
+        let _ = std::fs::remove_dir_all(base);
     }
 
     #[test]

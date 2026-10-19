@@ -4,6 +4,11 @@
 (newline-delimited JSON-RPC 2.0; see [Protocol](#protocol) for version negotiation). Agents use it to
 draw, inspect and look at VectorCraft documents.
 
+Optional [native HTTP experiments](local-http-prototype.md) reuse this server: `http` enables an
+authenticated loopback transport, and `remote` adds OAuth for a trusted HTTPS gateway. The desktop
+`remote-access` feature adds an owner-only setup wizard and an explicit remote opener. These are
+experimental, disabled in ordinary builds, and not yet validated with live hosted accounts.
+
 It has two backends:
 
 | Mode | How | What works |
@@ -272,7 +277,8 @@ one line in, one reply out, no threads.
 - **`sampling/createMessage` and `elicitation/create`.** Both are server→client requests. Supporting
   them means being able to suspend a tool call mid-flight, which is what the `2026-07-28` revision's
   input-requests mechanism exists for.
-- **Streamable HTTP / SSE.** stdio only.
+- **Streamable HTTP / SSE.** Ordinary builds use stdio. Optional experiments provide JSON Streamable
+  HTTP; streaming progress and HTTP cancellation remain unimplemented.
 
 `completion/complete` covers the "what could I pass here" half of the same problem, which is why it
 is here and subscriptions are not.

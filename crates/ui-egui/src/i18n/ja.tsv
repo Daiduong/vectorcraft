@@ -4830,3 +4830,20 @@ lighting	Light	ライト
 @msg	too many library panels were opened in this session	このセッションで開いたライブラリパネルが多すぎます
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	画像は {_1} × {_2} ピクセルで、一辺が {LARGE_TRACE_SIDE} を超えています。トレースはできますが、時間がかかります。忠実度の低いプリセットや画像の小さいコピーを使うと速くなります。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	画像は {_3} × {_4} から縮小した {_1} × {_2} ピクセルでトレースされました (最大 {_5} メガピクセル)。
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	AIリモート接続…
+	Remote connection action	リモート接続操作
+@msg	Choose a folder to remove	削除するフォルダーを選択してください
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	12～256文字のパスフレーズを決めて2回入力してください
+@msg	Choose folders in an existing setup before resyncing	再同期する前に既存の設定でフォルダーを選択してください
+@msg	Passphrases do not match. Check both fields before saving	パスフレーズが一致しません。保存する前に両方の欄を確認してください
+@msg	Remote connections are unavailable in this build	このビルドではリモート接続を利用できません
+@msg	Save your setup on the Authorize step before finishing	完了する前に認証の手順で設定を保存してください
+@msg	The folder is no longer in the list	フォルダーはすでに一覧から削除されています
+@msg	The local connection task ended unexpectedly	ローカル接続タスクが予期せず終了しました
+@msg	Too many automation folders	自動操作用のフォルダーが多すぎます
+@msg	Unknown local connection action	不明なローカル接続操作です
+@msg	Wait for the current connection operation to finish	現在の接続操作が完了するまでお待ちください
+@msg	You can share up to 32 artwork folders	アートワークのフォルダーを最大32個共有できます
+@msg	automation path rejected: private connection folder is excluded: {path}	自動操作のパスが拒否されました: 接続の非公開フォルダーは対象外です: {path}

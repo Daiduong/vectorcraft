@@ -5146,3 +5146,7 @@ theme	Appearance	Външен вид
 	Enable Guides for 9-Slice Scaling	Включване на водачи за 9-slice мащабиране
 	Persistent	Постоянна
 	Library Panel Options	Опции на панела с библиотека
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Отдалечени връзки с ИИ…
+	Remote connection action	Действие за отдалечена връзка

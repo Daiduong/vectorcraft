@@ -121,18 +121,41 @@ USAGE:
 /// The usage text plus the formats `document.open` reads and `document.export` writes.
 fn usage() -> String {
     use vectorcraft_engine::cmd::fileio::{OPEN_EXTS, export_extensions};
-    format!("{USAGE}\nReadable formats: .{}\nWritable formats: .{}\n", OPEN_EXTS.join(", ."), export_extensions().join(", ."))
+    let http = if cfg!(all(feature = "http", not(target_arch = "wasm32"))) {
+        "\nExperimental local HTTP:\n  vectorcraft-cli mcp --http 127.0.0.1:33981 --http-token-file PATH --connect 127.0.0.1:33982\n  Requires a private 64-hex-character bearer token file. No public binding or headless fallback.\n"
+    } else {
+        ""
+    };
+    format!("{USAGE}\nReadable formats: .{}\nWritable formats: .{}\n{http}", OPEN_EXTS.join(", ."), export_extensions().join(", ."))
 }
 
 fn main() -> ExitCode {
+    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("--profile-dir") {
+        let result = args
+            .get(1)
+            .ok_or_else(|| "--profile-dir needs an absolute path".to_string())
+            .and_then(|p| prefs_dir::set_explicit_profile(std::path::PathBuf::from(p)));
+        if let Err(error) = result {
+            eprintln!("vectorcraft-cli: {error}");
+            return ExitCode::FAILURE;
+        }
+        args.drain(..2);
+    }
     // Before any font lookup: the fonts font services load (#579).
     #[cfg(all(windows, not(target_vendor = "win7")))]
     system_fonts::install();
     #[cfg(target_os = "macos")]
     mac_fonts::install();
     prefs_dir::install_fonts();
-    let args: Vec<String> = std::env::args().skip(1).collect();
     let r = match args.first().map(String::as_str) {
+        #[cfg(all(feature = "remote", not(target_arch = "wasm32")))]
+        Some("remote-configure") => remote_configure(&args[1..]),
+        #[cfg(all(feature = "remote", not(target_arch = "wasm32")))]
+        Some("remote-http") => match args.as_slice() {
+            [_, flag, path] if flag == "--config" => vectorcraft_mcp::remote::run(Path::new(path)),
+            _ => Err("Use: vectorcraft-cli remote-http --config PATH".into()),
+        },
         Some("mcp") => mcp(&args[1..]),
         Some("run") => run(&args[1..]),
         Some("commands") => commands(),
@@ -159,6 +182,66 @@ fn main() -> ExitCode {
     }
 }
 
+/// Noninteractive owner setup for local deployments and protocol tests. The passphrase is read
+/// from stdin, never from process arguments. The desktop wizard writes the same settings format.
+#[cfg(all(feature = "remote", not(target_arch = "wasm32")))]
+fn remote_configure(args: &[String]) -> Result<(), String> {
+    use std::io::Read as _;
+    use vectorcraft_mcp::remote::config::{Settings, hash_phrase, secret};
+    let mut fields = std::collections::BTreeMap::new();
+    let mut stdin = false;
+    let mut it = args.iter();
+    while let Some(flag) = it.next() {
+        if flag == "--passphrase-stdin" {
+            if stdin {
+                return Err("Passphrase input was specified twice".into());
+            }
+            stdin = true;
+            continue;
+        }
+        if !["--profile", "--app", "--origin", "--bind", "--control", "--artwork-root"].contains(&flag.as_str()) {
+            return Err(format!("Unknown remote setup flag: {flag}"));
+        }
+        let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
+        if fields.insert(flag.as_str(), value.as_str()).is_some() {
+            return Err(format!("{flag} was specified twice"));
+        }
+    }
+    if !stdin {
+        return Err("Use --passphrase-stdin; passphrases must not appear on the command line".into());
+    }
+    let required = |key: &str| fields.get(key).copied().ok_or_else(|| format!("{key} is required"));
+    let profile = std::path::PathBuf::from(required("--profile")?);
+    if !profile.is_absolute() {
+        return Err("Use an absolute profile path".into());
+    }
+    std::fs::create_dir_all(&profile).map_err(|e| e.to_string())?;
+    let mut phrase = String::new();
+    std::io::stdin().take(1025).read_to_string(&mut phrase).map_err(|e| e.to_string())?;
+    let settings = Settings {
+        version: 1,
+        enabled: true,
+        public_origin: required("--origin")?.trim_end_matches('/').into(),
+        base_path: "/vectorcraft-native".into(),
+        bind: required("--bind")?.into(),
+        control_port: required("--control")?.parse().map_err(|_| "Invalid control port")?,
+        app_path: required("--app")?.into(),
+        profile_dir: profile.clone(),
+        artwork_root: required("--artwork-root")?.into(),
+        additional_artwork_roots: Vec::new(),
+        owner_hash: hash_phrase(phrase.trim_end_matches(['\r', '\n']))?,
+        management_token: secret(),
+        allow_test_callbacks: false,
+    };
+    let path = profile.join("Remote Access/settings.json");
+    if path.exists() {
+        return Err("This profile already has remote settings; use its local connection wizard to update them".into());
+    }
+    settings.save(&path)?;
+    outln!("{}", json!({"configured":true,"settings":path,"endpoint":settings.resource()}));
+    Ok(())
+}
+
 /// A headless session that remembers what the user keeps between runs: the PDF presets saved, the
 /// ICC profiles loaded and the plug-ins installed (#2168, #2174, #2541), in the folders next to the preferences that the desktop
 /// app uses too. `VECTORCRAFT_NO_PREFS` and `VECTORCRAFT_CONFIG_DIR` apply as they do there.
@@ -172,6 +255,8 @@ fn with_stores(mut h: Headless) -> Headless {
 fn mcp(args: &[String]) -> Result<(), String> {
     let mut connect: Option<String> = None;
     let mut headless = false;
+    #[cfg(all(feature = "http", not(target_arch = "wasm32")))]
+    let (mut http_address, mut http_token_file): (Option<String>, Option<String>) = (None, None);
     let (mut read_root, mut write_root): (Option<String>, Option<String>) = (None, None);
     let mut it = args.iter();
     while let Some(a) = it.next() {
@@ -183,6 +268,18 @@ fn mcp(args: &[String]) -> Result<(), String> {
         match flag {
             "--connect" => connect = Some(it.next().cloned().ok_or("--connect needs an address")?),
             "--headless" => headless = true,
+            #[cfg(all(feature = "http", not(target_arch = "wasm32")))]
+            "--http" => {
+                if http_address.replace(it.next().cloned().ok_or("--http needs a loopback address")?).is_some() {
+                    return Err("--http is given twice".into());
+                }
+            }
+            #[cfg(all(feature = "http", not(target_arch = "wasm32")))]
+            "--http-token-file" => {
+                if http_token_file.replace(it.next().cloned().ok_or("--http-token-file needs a path")?).is_some() {
+                    return Err("--http-token-file is given twice".into());
+                }
+            }
             "--automation-read-root" | "--automation-write-root" => {
                 let dir = inline.or_else(|| it.next().cloned()).ok_or_else(|| format!("{flag} needs a folder"))?;
                 let slot = if flag == "--automation-read-root" { &mut read_root } else { &mut write_root };
@@ -197,6 +294,23 @@ fn mcp(args: &[String]) -> Result<(), String> {
         return Err("use either --connect or --headless".into());
     }
     let roots = AutomationRoots::new(read_root.as_deref().map(Path::new), write_root.as_deref().map(Path::new))?;
+    #[cfg(all(feature = "http", not(target_arch = "wasm32")))]
+    if http_address.is_some() || http_token_file.is_some() {
+        let address = http_address.ok_or("--http-token-file requires --http")?;
+        let token_file = http_token_file.ok_or("--http requires --http-token-file")?;
+        if headless || roots.is_some() {
+            return Err("the HTTP prototype requires a live desktop backend; set automation roots on the desktop app".into());
+        }
+        let desktop = connect.as_deref().unwrap_or(DEFAULT_ADDR);
+        let desktop_address: std::net::SocketAddr = desktop.parse().map_err(|_| "HTTP --connect must be a loopback IP:port")?;
+        if !desktop_address.ip().is_loopback() {
+            return Err("HTTP --connect must target a loopback desktop address".into());
+        }
+        let options = vectorcraft_mcp::http::Options::from_file(&address, Path::new(&token_file))?;
+        let endpoint = vectorcraft_mcp::http::Endpoint::bind(options)?;
+        eprintln!("vectorcraft-cli: experimental local HTTP at http://{}/mcp (bearer token required)", endpoint.address());
+        return endpoint.serve(Box::new(Remote::deferred(desktop)));
+    }
     if roots.is_some() && connect.is_some() {
         return Err("--automation-read-root and --automation-write-root confine the headless server; a running app enforces its own roots:                     start it with `vectorcraft --control <port> --automation-read-root <dir> --automation-write-root <dir>`"
             .into());

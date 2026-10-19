@@ -110,6 +110,7 @@ pub enum Outcome {
     Screenshot {
         path: Option<String>,
         data: bool,
+        privacy_epoch: u64,
     },
 }
 
@@ -195,6 +196,12 @@ fn modifiers(p: &Value) -> egui::Modifiers {
 }
 
 pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+    if req.method == "ui.screenshot" && !app.remote_access.allows_screenshot(app.remote_access.privacy_epoch()) {
+        return err("Window screenshots are paused while a passphrase is visible");
+    }
+    if app.remote_access.pauses_control() && !matches!(req.method.as_str(), "ui.inspect" | "ui.screenshot" | "engine.commands") {
+        return err("The owner is editing connection settings locally. Remote control is paused until that window closes");
+    }
     let p = &req.params;
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     match req.method.as_str() {
@@ -413,7 +420,11 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             }
             ctx.request_repaint();
-            Outcome::Screenshot { path: s("path").map(str::to_string), data: p.get("data").and_then(Value::as_bool) == Some(true) }
+            Outcome::Screenshot {
+                path: s("path").map(str::to_string),
+                data: p.get("data").and_then(Value::as_bool) == Some(true),
+                privacy_epoch: app.remote_access.privacy_epoch(),
+            }
         }
         "ui.render" => {
             let Some(st) = app.session.active() else { return err("no document") };

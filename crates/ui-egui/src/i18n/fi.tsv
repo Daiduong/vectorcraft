@@ -5140,3 +5140,20 @@ mark-style	Japanese	Japanilainen
 @msg	too many library panels were opened in this session	tässä istunnossa on avattu liian monta kirjastopaneelia
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Kuva on {_1} × {_2} kuvapistettä, yhdeltä sivultaan yli {LARGE_TRACE_SIDE}: se jäljitetään, mutta hitaammin. Pienemmän tarkkuuden esiasetus tai kuvan pienempi kopio jäljittyy nopeammin.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Kuva jäljitettiin kokoon {_1} × {_2} kuvapistettä pienennettynä koosta {_3} × {_4} (enintään {_5} megapikseliä).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	Tekoälyn etäyhteydet…
+	Remote connection action	Etäyhteyden toiminto
+@msg	Choose a folder to remove	Valitse poistettava kansio
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Valitse 12–256 merkin tunnuslause ja kirjoita se kahdesti
+@msg	Choose folders in an existing setup before resyncing	Valitse kansiot olemassa olevista asetuksista ennen uudelleensynkronointia
+@msg	Passphrases do not match. Check both fields before saving	Tunnuslauseet eivät täsmää. Tarkista molemmat kentät ennen tallentamista
+@msg	Remote connections are unavailable in this build	Etäyhteydet eivät ole käytettävissä tässä versiossa
+@msg	Save your setup on the Authorize step before finishing	Tallenna asetukset Valtuutus-vaiheessa ennen lopettamista
+@msg	The folder is no longer in the list	Kansio ei ole enää luettelossa
+@msg	The local connection task ended unexpectedly	Paikallinen yhteystehtävä päättyi odottamatta
+@msg	Too many automation folders	Liian monta automaatiokansiota
+@msg	Unknown local connection action	Tuntematon paikallisen yhteyden toiminto
+@msg	Wait for the current connection operation to finish	Odota nykyisen yhteystoiminnon päättymistä
+@msg	You can share up to 32 artwork folders	Voit jakaa enintään 32 kuvakansiota
+@msg	automation path rejected: private connection folder is excluded: {path}	automaatiopolku hylätty: yhteyden yksityinen kansio on suljettu pois: {path}

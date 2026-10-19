@@ -4751,3 +4751,20 @@ effect	Regular	Regelmäßig
 @msg	too many library panels were opened in this session	in dieser Sitzung wurden zu viele Bibliotheksbedienfelder geöffnet
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Das Bild hat {_1} × {_2} Pixel, mehr als {LARGE_TRACE_SIDE} auf einer Seite: Es wird nachgezeichnet, aber langsamer. Eine Vorgabe mit geringerer Detailtreue oder eine kleinere Kopie des Bildes geht schneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Das Bild wurde mit {_1} × {_2} Pixeln nachgezeichnet, verkleinert von {_3} × {_4} (höchstens {_5} Megapixel).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	KI-Remoteverbindungen…
+	Remote connection action	Remoteverbindungsaktion
+@msg	Choose a folder to remove	Wählen Sie einen zu entfernenden Ordner
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Wählen Sie eine Passphrase mit 12 bis 256 Zeichen und geben Sie sie zweimal ein
+@msg	Choose folders in an existing setup before resyncing	Wählen Sie vor dem erneuten Synchronisieren Ordner in einer bestehenden Einrichtung
+@msg	Passphrases do not match. Check both fields before saving	Die Passphrasen stimmen nicht überein. Prüfen Sie vor dem Speichern beide Felder
+@msg	Remote connections are unavailable in this build	In diesem Build sind keine Remoteverbindungen verfügbar
+@msg	Save your setup on the Authorize step before finishing	Speichern Sie vor dem Abschließen Ihre Einrichtung im Schritt Autorisieren
+@msg	The folder is no longer in the list	Der Ordner ist nicht mehr in der Liste
+@msg	The local connection task ended unexpectedly	Die lokale Verbindungsaufgabe wurde unerwartet beendet
+@msg	Too many automation folders	Zu viele Automatisierungsordner
+@msg	Unknown local connection action	Unbekannte lokale Verbindungsaktion
+@msg	Wait for the current connection operation to finish	Warten Sie, bis der aktuelle Verbindungsvorgang abgeschlossen ist
+@msg	You can share up to 32 artwork folders	Sie können bis zu 32 Grafikordner freigeben
+@msg	automation path rejected: private connection folder is excluded: {path}	Automatisierungspfad abgelehnt: privater Verbindungsordner ist ausgeschlossen: {path}

@@ -12,6 +12,21 @@ use super::*;
 /// The walker threads of these tests' searches, apart from the searches of other tests.
 static TESTS: Pool = Pool::new(32);
 
+#[test]
+fn background_walkers_do_not_enter_private_subfolders_of_an_approved_parent() {
+    let root = tree("private-authority", &["art/good.ttf", "Remote Access/private.ttf"]);
+    let roots = crate::file_access::AutomationRoots::new_many(std::slice::from_ref(&root), &[], &[root.join("Remote Access")]).unwrap().unwrap();
+    let search = crate::file_access::confine(Some(&roots), || {
+        begin(root.clone(), rules(&root), Limits::default(), 2, 2, Arc::new(Names(&["good.ttf", "private.ttf"])))
+    });
+    let progress = wait(&search);
+    assert_eq!(progress.end, Some(End::Done));
+    assert_eq!(progress.hits.len(), 1, "{:?}", progress.hits);
+    assert_eq!(progress.hits[0].0.file_name().unwrap(), "good.ttf");
+    assert!(progress.skipped >= 1);
+    let _ = std::fs::remove_dir_all(root);
+}
+
 /// [`start`] on the threads of [`TESTS`].
 fn begin(folder: PathBuf, rules: Rules, limits: Limits, threads: usize, items: usize, visitor: Arc<dyn Visitor>) -> Search {
     start_in(&TESTS, folder, Some(rules), limits, threads, items, visitor).unwrap()

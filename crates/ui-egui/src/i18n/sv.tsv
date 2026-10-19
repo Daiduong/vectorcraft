@@ -5132,3 +5132,20 @@ theme	Appearance	Utseende
 @msg	too many library panels were opened in this session	för många bibliotekspaneler har öppnats i den här sessionen
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Bilden är {_1} × {_2} pixlar, mer än {LARGE_TRACE_SIDE} på en sida: den vektoriseras, men långsammare. En förinställning med lägre återgivning eller en mindre kopia av bilden går snabbare.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Bilden vektoriserades vid {_1} × {_2} pixlar, nedskalad från {_3} × {_4} (högst {_5} megapixlar).
+
+# Native remote connection commands and messages (original translations).
+	Remote AI connections…	AI-fjärranslutningar…
+	Remote connection action	Fjärranslutningsåtgärd
+@msg	Choose a folder to remove	Välj en mapp att ta bort
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	Välj en lösenfras med 12 till 256 tecken och skriv in den två gånger
+@msg	Choose folders in an existing setup before resyncing	Välj mappar i en befintlig konfiguration innan du synkroniserar igen
+@msg	Passphrases do not match. Check both fields before saving	Lösenfraserna stämmer inte överens. Kontrollera båda fälten innan du sparar
+@msg	Remote connections are unavailable in this build	Fjärranslutningar är inte tillgängliga i den här versionen
+@msg	Save your setup on the Authorize step before finishing	Spara konfigurationen i steget Auktorisera innan du avslutar
+@msg	The folder is no longer in the list	Mappen finns inte längre i listan
+@msg	The local connection task ended unexpectedly	Den lokala anslutningsuppgiften avslutades oväntat
+@msg	Too many automation folders	För många automatiseringsmappar
+@msg	Unknown local connection action	Okänd lokal anslutningsåtgärd
+@msg	Wait for the current connection operation to finish	Vänta tills den pågående anslutningsåtgärden är klar
+@msg	You can share up to 32 artwork folders	Du kan dela upp till 32 mappar med grafik
+@msg	automation path rejected: private connection folder is excluded: {path}	automatiseringssökvägen nekades: den privata anslutningsmappen är undantagen: {path}
