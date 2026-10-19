@@ -237,7 +237,7 @@ panel-menu commands such as Break Link to Symbol), so they can be given shortcut
 
 ## Look and feel
 
-- [x] Complete artwork during navigation: newly exposed areas get a complete frame before display, with background rendering retained for covered views (controlled-worker regressions and synthetic native checks; heavy redraws can pause input; automatic-policy original-file acceptance pending).
+- [x] Complete artwork during navigation: newly exposed areas get a complete frame before display, with background rendering retained for covered views (controlled-worker regressions and synthetic native checks; heavy redraws can pause input; contributor original-file acceptance confirmed 2026-10-19 for blanking, pan/zoom, rotation, panel resizing and save/reopen).
 
 Medium Dark theme and four brightness levels, the categorized and Advanced toolbars, 35 pt document tabs,
 33 pt panel tabs, hint bar, contextual task bar and native macOS menus, restyled to values measured from
@@ -250,6 +250,7 @@ re-measure of the panels added since. Slider rails show on Medium Dark (#1808, #
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | Contributor original-file acceptance confirmed for automatic navigation rendering: no blanking; pan/zoom, rotation, panel resizing and save/reopen verified. Resolves the checklist pending-acceptance inconsistency; scores and estimates unchanged. |
 | 2026-10-19 | minor | Complete artwork during navigation: newly exposed canvas areas render immediately; covered views retain background rendering. Coverage, late-frame and native checks; heavy redraw responsiveness tradeoff documented. Scores and estimates unchanged. |
 | 2026-10-18 | minor | Mirror Repeat shows its axis when selected (#2877): drag the line or center handle to move it, drag an end handle to rotate it (Shift: 45°), Escape cancels and each drag is one undo step. Engine and headless canvas gesture regressions passed; native move, rotation and Escape screenshots reviewed. Formatting, Clippy, WASM and repository checks passed; the undo label reuses translated Repeat Options. (#2877) Scores and hours unchanged. |
 | 2026-10-18 | minor | Bounding-box handles take priority where a selected Mirror Repeat axis crosses them: the Top handle scales the repeat, while the center still moves it and the ends still rotate it. A headless canvas regression confirms height changes while width stays fixed; scores and hours unchanged. |

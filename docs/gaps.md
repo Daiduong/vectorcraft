@@ -43,7 +43,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G1 Interaction fidelity
 
-- **Complete artwork during navigation:** newly exposed canvas areas render immediately; covered views retain background rendering. This removes viewport-cache holes while preserving async rendering where coverage permits. Heavy immediate redraws may pause input; bounded tiles or a document-wide preview remain possible performance work. Regression and synthetic native checks cover this focused correction; original-file acceptance of the automatic policy is pending. G1 scope and estimates are unchanged.
+- **Complete artwork during navigation:** newly exposed canvas areas render immediately; covered views retain background rendering. This removes viewport-cache holes while preserving async rendering where coverage permits. Heavy immediate redraws may pause input; bounded tiles or a document-wide preview remain possible performance work. Regression and synthetic native checks cover this focused correction; contributor original-file acceptance of the automatic policy confirmed 2026-10-19 for blanking, pan/zoom, rotation, panel resizing and save/reopen. G1 scope and estimates are unchanged.
 
 - **Done (#2877):** a selected Mirror Repeat shows its axis: drag the line or the center handle to move it, an end handle to rotate it (Shift: 45°); each drag is one undo step and Escape cancels it. Bounding-box handles take priority over the axis line; the center and end handles keep their actions. Broader G1 estimates unchanged.
 
@@ -353,6 +353,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | Contributor original-file acceptance confirmed for automatic navigation rendering: no blanking; pan/zoom, rotation, panel resizing and save/reopen verified. Resolves the checklist pending-acceptance inconsistency; scores and estimates unchanged. |
 | 2026-10-19 | minor | Complete artwork during navigation: newly exposed canvas areas render immediately; covered views retain background rendering. Coverage, late-frame and native checks; heavy redraw responsiveness tradeoff documented. Scores and estimates unchanged. |
 | 2026-10-18 | minor | Mirror Repeat shows its axis when selected (#2877): drag the line or center handle to move it, drag an end handle to rotate it (Shift: 45°), Escape cancels and each drag is one undo step. Engine and headless canvas gesture regressions passed; native move, rotation and Escape screenshots reviewed. Formatting, Clippy, WASM and repository checks passed; the undo label reuses translated Repeat Options. (#2877) Scores and hours unchanged. |
 | 2026-10-18 | minor | Bounding-box handles take priority where a selected Mirror Repeat axis crosses them; a Top-handle regression confirms scaling of the default repeat. Center and end handles retain their move and rotation behavior. G1 scope and estimate unchanged. |
