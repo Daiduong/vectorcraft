@@ -40,6 +40,9 @@ pub struct Settings {
     pub public_origin: String,
     pub base_path: String,
     pub bind: String,
+    /// Non-loopback HTTP is an explicit opt-in for a single trusted gateway.
+    #[serde(default)]
+    pub trusted_proxy: Option<std::net::IpAddr>,
     pub control_port: u16,
     pub app_path: PathBuf,
     pub profile_dir: PathBuf,
@@ -74,6 +77,15 @@ impl Settings {
             return Err("Invalid endpoint path".into());
         }
         let address: std::net::SocketAddr = self.bind.parse().map_err(|_| "Invalid listener address")?;
+        if address.is_ipv6() || self.trusted_proxy.is_some_and(|ip| ip.is_ipv6()) {
+            return Err("This desktop transport requires IPv4 listener and gateway addresses".into());
+        }
+        if !address.ip().is_loopback() && self.trusted_proxy.is_none() {
+            return Err("LAN access requires an explicit trusted gateway IP in Preferences > Remote AI".into());
+        }
+        if self.trusted_proxy.is_some_and(|ip| ip.is_unspecified() || ip.is_multicast() || ip.is_loopback()) {
+            return Err("Enter the gateway computer's individual network IP address".into());
+        }
         if address.port() == 0 || self.control_port == 0 || address.port() == self.control_port {
             return Err("Choose distinct nonzero HTTP and control ports".into());
         }
@@ -154,6 +166,17 @@ impl Settings {
     }
     pub fn save(&self, path: &Path) -> Result<(), String> {
         self.validate()?;
+        self.save_private(path)
+    }
+    /// The local owner must be able to persist Stop even while a folder or network policy
+    /// needs repair. Disabled configurations cannot start a service; storage stays private.
+    pub fn save_disabled(&self, path: &Path) -> Result<(), String> {
+        if self.enabled {
+            return Err("Repair settings before enabling the connection".into());
+        }
+        self.save_private(path)
+    }
+    fn save_private(&self, path: &Path) -> Result<(), String> {
         let bytes = serde_json::to_vec_pretty(self).map_err(|e| e.to_string())?;
         if bytes.len() > 64 * 1024 {
             return Err("Remote settings are too large".into());

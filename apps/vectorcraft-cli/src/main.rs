@@ -203,7 +203,7 @@ fn remote_configure(args: &[String]) -> Result<(), String> {
             stdin = true;
             continue;
         }
-        if !["--profile", "--app", "--origin", "--bind", "--control", "--artwork-root"].contains(&flag.as_str()) {
+        if !["--profile", "--app", "--origin", "--bind", "--trusted-proxy", "--control", "--artwork-root"].contains(&flag.as_str()) {
             return Err(format!("Unknown remote setup flag: {flag}"));
         }
         let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
@@ -228,6 +228,7 @@ fn remote_configure(args: &[String]) -> Result<(), String> {
         public_origin: required("--origin")?.trim_end_matches('/').into(),
         base_path: "/vectorcraft-native".into(),
         bind: required("--bind")?.into(),
+        trusted_proxy: fields.get("--trusted-proxy").map(|value| value.parse().map_err(|_| "Invalid trusted gateway IP")).transpose()?,
         control_port: required("--control")?.parse().map_err(|_| "Invalid control port")?,
         app_path: required("--app")?.into(),
         profile_dir: profile.clone(),

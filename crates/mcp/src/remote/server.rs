@@ -1,6 +1,6 @@
 use super::{
     SCOPE,
-    config::{Settings, now},
+    config::Settings,
     oauth::{self, Failure, Fields, Store, equal},
     pages,
     worker::Worker,
@@ -14,7 +14,6 @@ use axum::{
 use base64::Engine as _;
 use http_body_util::BodyExt as _;
 use serde_json::{Value, json};
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -27,7 +26,8 @@ struct Context {
     worker: Arc<Worker>,
     stop: tokio::sync::Notify,
     admission: Arc<tokio::sync::Semaphore>,
-    rates: Mutex<HashMap<&'static str, (u64, u32)>>,
+    owner_admission: Arc<tokio::sync::Semaphore>,
+    password_checks: Arc<tokio::sync::Semaphore>,
 }
 // This transport implements the initialization-based revisions. Upstream's partial modern
 // result support is not a complete 2026 transport (server/discover, metadata validation, MRTR).
@@ -64,19 +64,10 @@ fn put(response: &mut Response, name: &'static str, value: &str) {
     }
 }
 impl Context {
-    fn rate(&self, key: &'static str, limit: u32, window: u64) -> bool {
-        let Ok(mut rates) = self.rates.lock() else { return false };
-        let slot = rates.entry(key).or_insert((now(), 0));
-        if now().saturating_sub(slot.0) >= window {
-            *slot = (now(), 0);
-        }
-        if slot.1 >= limit {
-            return false;
-        }
-        slot.1 += 1;
-        true
-    }
     fn validate(&self, request: &Request, peer: SocketAddr) -> Result<(), Failure> {
+        if !peer.ip().is_loopback() && self.settings.trusted_proxy != Some(peer.ip()) {
+            return Err(Failure { status: 403, code: "access_denied", message: "Gateway IP not allowed".into() });
+        }
         let host = header(request.headers(), "host")?.unwrap_or_default();
         let url = self.settings.origin().map_err(|e| Failure::new("server_error", e))?;
         let authority = &url[url::Position::BeforeHost..url::Position::AfterPort];
@@ -174,7 +165,15 @@ async fn json_body(request: Request) -> Result<Value, Box<Response>> {
     serde_json::from_slice(&body(request, 16 * 1024).await?).map_err(|_| Box::new(bad("Invalid JSON")))
 }
 async fn endpoint(State(context): State<Arc<Context>>, ConnectInfo(peer): ConnectInfo<SocketAddr>, request: Request) -> Response {
-    let permit = context.admission.clone().try_acquire_owned();
+    // Reserve recovery capacity for the authenticated local owner, even when anonymous
+    // clients occupy the public request budget. Never trust forwarding headers here.
+    let owner = peer.ip().is_loopback()
+        && request.uri().path() == format!("{}/_owner", context.settings.base_path)
+        && header(request.headers(), "authorization")
+            .ok()
+            .flatten()
+            .is_some_and(|value| equal(value.strip_prefix("Bearer ").unwrap_or(""), &context.settings.management_token));
+    let permit = if owner { &context.owner_admission } else { &context.admission }.clone().try_acquire_owned();
     let mut response = if permit.is_err() {
         json_response(503, json!({"error":"server_busy"}))
     } else if let Err(e) = context.validate(&request, peer) {
@@ -269,21 +268,15 @@ async fn dispatch(context: &Arc<Context>, peer: SocketAddr, request: Request) ->
             _ => bad("Unknown owner action"),
         }
     } else if path == format!("{prefix}/register") && method == Method::POST {
-        if !context.rate("register", 24, 60) {
-            return json_response(429, json!({"error":"slow_down"}));
-        }
         let input = match json_body(request).await {
             Ok(value) => value,
             Err(response) => return *response,
         };
-        match context.store().and_then(|mut store| store.register(input)) {
+        match context.store().and_then(|mut store| store.register_public(input)) {
             Ok(value) => json_response(201, value),
             Err(e) => error(e),
         }
     } else if path == format!("{prefix}/authorize") && method == Method::GET {
-        if !context.rate("authorize", 60, 60) {
-            return json_response(429, json!({"error":"slow_down"}));
-        }
         let parameters = match oauth::fields(request.uri().query().unwrap_or("")) {
             Ok(value) => value,
             Err(e) => return error(e),
@@ -305,9 +298,6 @@ async fn dispatch(context: &Arc<Context>, peer: SocketAddr, request: Request) ->
             Err(e) => error(e),
         }
     } else if path == format!("{prefix}/approve") && method == Method::POST {
-        if !context.rate("approve", 10, 900) {
-            return json_response(429, json!({"error":"slow_down","error_description":"Too many sign-in attempts. Try later"}));
-        }
         let origin = header(request.headers(), "origin").ok().flatten().unwrap_or_default();
         if settings.origin().map(|u| u.origin().ascii_serialization()).unwrap_or_default() != origin {
             return json_response(403, json!({"error":"access_denied","error_description":"Origin not allowed"}));
@@ -328,9 +318,25 @@ async fn dispatch(context: &Arc<Context>, peer: SocketAddr, request: Request) ->
             return bad("Invalid decision");
         }
         if allow {
+            let password_permit = match context.password_checks.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return json_response(503, json!({"error":"server_busy","error_description":"Sign-in verification is busy. Retry shortly"}));
+                }
+            };
+            if let Err(e) = context.store().and_then(|mut store| store.password_attempt(&id, &cookie)) {
+                return error(e);
+            }
             let phrase = parameters.get("passphrase").cloned().unwrap_or_default();
             let hash = settings.owner_hash.clone();
-            let valid = tokio::task::spawn_blocking(move || super::config::check_phrase(&phrase, &hash)).await.unwrap_or(false);
+            let valid = tokio::task::spawn_blocking(move || {
+                // A disconnected HTTP caller cannot release capacity while its non-cancellable
+                // Argon2 task is still running.
+                let _permit = password_permit;
+                super::config::check_phrase(&phrase, &hash)
+            })
+            .await
+            .unwrap_or(false);
             if !valid {
                 let mut response = (
                     StatusCode::FORBIDDEN,
@@ -354,9 +360,6 @@ async fn dispatch(context: &Arc<Context>, peer: SocketAddr, request: Request) ->
             Err(e) => error(e),
         }
     } else if (path == format!("{prefix}/token") || path == format!("{prefix}/revoke")) && method == Method::POST {
-        if !context.rate("tokens", 120, 60) {
-            return json_response(429, json!({"error":"slow_down"}));
-        }
         let authorization = header(request.headers(), "authorization").ok().flatten();
         let basic = authorization
             .as_deref()
@@ -510,7 +513,8 @@ pub fn run(path: &Path) -> Result<(), String> {
         worker,
         stop: tokio::sync::Notify::new(),
         admission: Arc::new(tokio::sync::Semaphore::new(32)),
-        rates: Mutex::new(HashMap::new()),
+        owner_admission: Arc::new(tokio::sync::Semaphore::new(4)),
+        password_checks: Arc::new(tokio::sync::Semaphore::new(2)),
     });
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().map_err(|e| e.to_string())?;
     runtime.block_on(async move {

@@ -15,6 +15,7 @@ fn fixture() -> (tempfile::TempDir, Settings) {
         public_origin: "https://native.example.test".into(),
         base_path: "/vectorcraft-native".into(),
         bind: "127.0.0.1:3002".into(),
+        trusted_proxy: None,
         control_port: port,
         app_path: std::env::current_exe().unwrap(),
         profile_dir: profile,

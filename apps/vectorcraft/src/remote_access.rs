@@ -10,35 +10,24 @@ pub fn profile() -> Result<PathBuf, String> {
 fn settings_path() -> Result<PathBuf, String> {
     Ok(profile()?.join("Remote Access/settings.json"))
 }
-pub fn initial_control(explicit_roots: bool) -> Result<(u16, Option<std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>>), String> {
+pub type InitialControl = (Option<u16>, Option<std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>>);
+pub fn initial_control(explicit_roots: bool) -> Result<InitialControl, String> {
     if explicit_roots {
         return Err("Native Remote AI folders cannot be combined with command-line automation roots; manage grants in Preferences > Remote AI".into());
     }
     let profile = profile()?;
     initial_control_in(&profile)
 }
-fn initial_control_in(profile: &std::path::Path) -> Result<(u16, Option<std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>>), String> {
-    std::fs::create_dir_all(profile).map_err(|e| e.to_string())?;
+fn initial_control_in(profile: &std::path::Path) -> Result<InitialControl, String> {
     let private = profile.join("Remote Access");
-    protect_directory(&private)?;
     let path = private.join("settings.json");
     if path.exists() {
-        match Settings::read(&path) {
-            Ok(settings) => Ok((settings.control_port, settings.automation_roots()?)),
-            Err(error) => {
-                eprintln!("vectorcraft: remote setup needs repair in Preferences > Remote AI: {error}");
-                let port = Settings::read_for_owner_repair(&path).ok().map(|saved| saved.control_port).filter(|port| *port != 0).unwrap_or(33982);
-                // Keep local editing and the repair wizard available, without granting any
-                // automated file access. Only a successfully validated owner setup replaces this.
-                let roots = vectorcraft_engine::file_access::AutomationRoots::new_many(&[], &[], &[private])?;
-                Ok((port, roots))
-            }
-        }
+        protect_directory(&private)?;
+        let settings = Settings::read(&path)?;
+        Ok((settings.enabled.then_some(settings.control_port), settings.automation_roots()?))
     } else {
-        let root = profile.join("Shared Artwork");
-        std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
-        let roots = vectorcraft_engine::file_access::AutomationRoots::new_many(std::slice::from_ref(&root), std::slice::from_ref(&root), &[private])?;
-        Ok((33982, roots))
+        // A feature-enabled build is still an ordinary editor until the owner saves setup.
+        Ok((None, None))
     }
 }
 fn client() -> Result<reqwest::blocking::Client, String> {
@@ -77,17 +66,20 @@ fn public_status(settings: Option<&Settings>) -> Result<Value, String> {
         None => profile()?,
     };
     let mut result = json!({"configured":settings.is_some(),"running":false,"publicOrigin":"","basePath":"/vectorcraft-native","httpPort":3002,
-        "artworkRoots":[profile.join("Shared Artwork")],"activeArtworkRoots":[],"privateFolder":profile.join("Remote Access"),"clients":[],"pending":0,"uncertain":false});
+        "artworkRoots":[],"activeArtworkRoots":[],"privateFolder":profile.join("Remote Access"),"clients":[],"pending":0,"uncertain":false,"trustedProxy":"","controlPort":33982});
     if let Some(settings) = settings {
         result["publicOrigin"] = json!(settings.public_origin);
         result["basePath"] = json!(settings.base_path);
+        result["trustedProxy"] = json!(settings.trusted_proxy.map(|ip| ip.to_string()).unwrap_or_default());
+        result["controlPort"] = json!(settings.control_port);
         result["artworkRoots"] = json!(settings.artwork_roots());
         result["endpoint"] = json!(settings.resource());
         if let Err(error) = settings.validate() {
             result["configurationError"] = json!(error);
-            return Ok(result);
         }
-        let address: std::net::SocketAddr = settings.bind.parse().map_err(|_| "Invalid bind")?;
+        // A readable legacy service may still be running. Keep authenticated local Stop
+        // available during repair, even when the new policy refuses to start that setup.
+        let Ok(address) = settings.bind.parse::<std::net::SocketAddr>() else { return Ok(result) };
         result["httpPort"] = json!(address.port());
         if listening(address.port()) {
             let status = owner(settings, json!({"action":"status"}))?;
@@ -132,7 +124,7 @@ fn start(settings: &Settings, path: &std::path::Path) -> Result<(), String> {
     }
     Err("The native service did not become ready. See the service log in this profile's Remote Access folder".into())
 }
-fn handle(input: Value, control_port: u16) -> Result<Value, String> {
+fn handle(input: Value, control_port: Option<u16>) -> Result<Value, String> {
     let path = settings_path()?;
     let mut settings = if path.exists() { Some(Settings::read_for_owner_repair(&path)?) } else { None };
     let action = input.get("action").and_then(Value::as_str).unwrap_or("");
@@ -167,8 +159,20 @@ fn handle(input: Value, control_port: u16) -> Result<Value, String> {
                 enabled: true,
                 public_origin: url,
                 base_path: "/vectorcraft-native".into(),
-                bind: "0.0.0.0:3002".into(),
-                control_port,
+                bind: if input.get("lanAccess").and_then(Value::as_bool) == Some(true) { "0.0.0.0:3002" } else { "127.0.0.1:3002" }.into(),
+                trusted_proxy: if input.get("lanAccess").and_then(Value::as_bool) == Some(true) {
+                    Some(
+                        input
+                            .get("trustedProxy")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .parse()
+                            .map_err(|_| "Enter the trusted gateway IP address")?,
+                    )
+                } else {
+                    None
+                },
+                control_port: control_port.or_else(|| settings.as_ref().map(|s| s.control_port)).unwrap_or(33982),
                 app_path: std::env::current_exe().map_err(|e| e.to_string())?,
                 profile_dir: profile,
                 artwork_root: root,
@@ -211,7 +215,7 @@ fn handle(input: Value, control_port: u16) -> Result<Value, String> {
                 return Err("The connection is finishing requests. Wait before trying again".into());
             }
             s.enabled = false;
-            s.save(&path)?;
+            s.save_disabled(&path)?;
             public_status(Some(&s))
         }
         "register" => {
@@ -298,7 +302,7 @@ pub fn service(control_port: Option<u16>) -> vectorcraft_ui_egui::RemoteAccessFn
     Box::new(move |input| {
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
-            let result = handle(input, control_port.unwrap_or(33982));
+            let result = handle(input, control_port);
             let _ = sender.send(result);
         });
         receiver
@@ -308,6 +312,62 @@ pub fn service(control_port: Option<u16>) -> vectorcraft_ui_egui::RemoteAccessFn
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn optional_private_store_failure_keeps_startup_available_and_disables_even_explicit_control() {
+        let (port, roots) = super::super::remote_control_startup(Some(33982), Err("private directory protection failed".into()));
+        assert!(port.is_none());
+        assert!(roots.is_none());
+        let (port, _) = super::super::remote_control_startup(Some(33982), Ok((None, None)));
+        assert_eq!(port, Some(33982), "explicit CLI control remains deliberate when no remote setup failed");
+    }
+    #[test]
+    fn fresh_profiles_do_not_create_private_folders_or_start_a_control_channel() {
+        let root = std::env::temp_dir().join(format!("vectorcraft-unconfigured-{}", secret()));
+        let (port, roots) = initial_control_in(&root).unwrap();
+        assert!(port.is_none());
+        assert!(roots.is_none());
+        assert!(!root.exists());
+    }
+    #[test]
+    fn disabled_saved_connections_do_not_implicitly_open_control() {
+        let (mut settings, path, root) = fixture();
+        settings.enabled = false;
+        settings.save(&path).unwrap();
+        let (port, _) = initial_control_in(&settings.profile_dir).unwrap();
+        assert!(port.is_none());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn a_running_legacy_service_stays_visible_to_the_owner_while_network_policy_needs_repair() {
+        use std::io::{Read as _, Write as _};
+        let (mut settings, _, root) = fixture();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        settings.bind = format!("0.0.0.0:{}", listener.local_addr().unwrap().port());
+        assert!(settings.validate().is_err());
+        let responder = std::thread::spawn(move || {
+            for socket in listener.incoming() {
+                let mut socket = socket.unwrap();
+                socket.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+                let mut request = [0; 4096];
+                if socket.read(&mut request).unwrap_or(0) == 0 {
+                    continue;
+                }
+                let body = r#"{"running":true,"clients":[],"pending":0}"#;
+                write!(
+                    socket,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+                break;
+            }
+        });
+        let status = public_status(Some(&settings)).unwrap();
+        assert_eq!(status["running"], true, "the wizard must show Stop for a running legacy service");
+        assert!(status["configurationError"].is_string());
+        responder.join().unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn command_line_roots_cannot_override_private_exclusions_or_saved_remote_grants() {
         assert!(initial_control(true).unwrap_err().contains("cannot be combined"));
@@ -327,6 +387,7 @@ mod tests {
             public_origin: format!("http://127.0.0.1:{port}"),
             base_path: "/vectorcraft-native".into(),
             bind: format!("127.0.0.1:{port}"),
+            trusted_proxy: None,
             control_port: 33982,
             app_path: std::env::current_exe().unwrap(),
             profile_dir: profile.clone(),
@@ -398,12 +459,7 @@ mod tests {
         std::fs::remove_dir(&settings.artwork_root).unwrap();
         assert!(Settings::read(&path).is_err());
         let saved = Settings::read_for_owner_repair(&path).unwrap();
-        let (port, roots) = initial_control_in(&settings.profile_dir).unwrap();
-        assert_eq!(port, settings.control_port);
-        let roots = roots.unwrap();
-        for access in [vectorcraft_engine::file_access::Access::Read, vectorcraft_engine::file_access::Access::Write] {
-            assert!(roots.check(&root.join("anything.svg").to_string_lossy(), access).is_err());
-        }
+        assert!(initial_control_in(&settings.profile_dir).is_err(), "invalid setup never activates control");
         let status = public_status(Some(&saved)).unwrap();
         assert_eq!(status["configured"], true);
         assert_eq!(status["running"], false);

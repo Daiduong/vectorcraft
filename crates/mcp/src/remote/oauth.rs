@@ -72,6 +72,10 @@ pub struct Client {
     pub token_endpoint_auth_method: String,
     pub client_id_issued_at: u64,
     pub secret_hash: Option<String>,
+    /// Public registrations expire unless the owner approves them. Legacy and locally
+    /// registered clients retain their existing lifetime.
+    #[serde(default)]
+    pub registration_expires: Option<u64>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Grant {
@@ -110,6 +114,7 @@ pub struct Store {
     db: Database,
     pending: HashMap<String, Pending>,
     codes: HashMap<String, Code>,
+    attempts: HashMap<String, u8>,
 }
 impl Store {
     pub fn open(settings: Settings, path: &Path) -> Result<Self, String> {
@@ -130,12 +135,13 @@ impl Store {
             }
         }
         Self::prune_db(&mut db);
-        Ok(Self { settings, path: path.into(), db, pending: HashMap::new(), codes: HashMap::new() })
+        Ok(Self { settings, path: path.into(), db, pending: HashMap::new(), codes: HashMap::new(), attempts: HashMap::new() })
     }
     fn prune_db(db: &mut Database) {
         let time = now();
         db.access.retain(|_, g| g.expires > time);
         db.refresh.retain(|_, g| g.expires > time);
+        db.clients.retain(|_, c| c.registration_expires.is_none_or(|expiry| expiry > time));
     }
     fn commit(&mut self, mut db: Database) -> AuthResult<()> {
         Self::prune_db(&mut db);
@@ -148,9 +154,12 @@ impl Store {
         Ok(())
     }
     pub fn register(&mut self, input: Value) -> AuthResult<Value> {
-        if self.db.clients.len() >= 128 {
-            return Err(Failure::new("invalid_client_metadata", "Client limit reached; remove unused registrations locally"));
-        }
+        self.register_client(input, false)
+    }
+    pub fn register_public(&mut self, input: Value) -> AuthResult<Value> {
+        self.register_client(input, true)
+    }
+    fn register_client(&mut self, input: Value, public: bool) -> AuthResult<Value> {
         let redirects: Vec<String> = serde_json::from_value(input.get("redirect_uris").cloned().unwrap_or(Value::Null))
             .map_err(|_| Failure::new("invalid_client_metadata", "redirect_uris must be an array"))?;
         if redirects.is_empty() || redirects.len() > 16 || redirects.iter().any(|r| !allowed_callback(r, self.settings.allow_test_callbacks)) {
@@ -175,6 +184,18 @@ impl Store {
         if name.len() > 120 {
             return Err(Failure::new("invalid_client_metadata", "Client name is too long"));
         }
+        Self::prune_db(&mut self.db);
+        let count = self.db.clients.values().filter(|c| c.registration_expires.is_some() == public).count();
+        if count >= if public { 32 } else { 128 } {
+            return Err(Failure::new(
+                "temporarily_unavailable",
+                if public {
+                    "Public registration is busy. Try again in ten minutes or create a client in Preferences > Remote AI"
+                } else {
+                    "Client limit reached; remove unused registrations locally"
+                },
+            ));
+        }
         let client_secret = (method != "none").then(secret);
         let client = Client {
             client_id: secret(),
@@ -183,6 +204,7 @@ impl Store {
             token_endpoint_auth_method: method.into(),
             client_id_issued_at: now(),
             secret_hash: client_secret.as_deref().map(digest),
+            registration_expires: public.then(|| now() + 600),
         };
         let mut db = self.db.clone();
         db.clients.insert(client.client_id.clone(), client.clone());
@@ -210,7 +232,12 @@ impl Store {
         if parameters.get("response_type").map(String::as_str) != Some("code") {
             return Err(Failure::new("unsupported_response_type", "Use the code flow"));
         }
-        let client = self.db.clients.get(parameters.get("client_id").map(String::as_str).unwrap_or("")).ok_or_else(Failure::unauthorized)?;
+        let client = self
+            .db
+            .clients
+            .get(parameters.get("client_id").map(String::as_str).unwrap_or(""))
+            .filter(|c| c.registration_expires.is_none_or(|expiry| expiry > now()))
+            .ok_or_else(Failure::unauthorized)?;
         let redirect = parameters
             .get("redirect_uri")
             .filter(|r| client.redirect_uris.contains(r))
@@ -222,9 +249,18 @@ impl Store {
         if parameters.get("code_challenge_method").map(String::as_str) != Some("S256") {
             return Err(Failure::new("invalid_request", "S256 PKCE is required"));
         }
-        self.pending.retain(|_, p| p.expires > now());
+        self.pending.retain(|_, p| {
+            p.expires > now() && self.db.clients.get(&p.client_id).is_some_and(|c| c.registration_expires.is_none_or(|expiry| expiry > now()))
+        });
+        self.attempts.retain(|id, _| self.pending.contains_key(id));
         self.codes.retain(|_, c| c.grant.expires > now());
-        if self.pending.len() >= 64 || self.codes.len() >= 128 {
+        let public = client.registration_expires.is_some();
+        let pending_class =
+            self.pending.values().filter(|p| self.db.clients.get(&p.client_id).is_some_and(|c| c.registration_expires.is_some() == public)).count();
+        if self.pending.values().filter(|p| p.client_id == client.client_id).count() >= 8
+            || pending_class >= if public { 32 } else { 64 }
+            || self.codes.len() >= 128
+        {
             return Err(Failure::new("temporarily_unavailable", "Too many pending sign-ins"));
         }
         let id = secret();
@@ -244,12 +280,28 @@ impl Store {
     pub fn pending(&self, id: &str, cookie: &str) -> AuthResult<Pending> {
         self.pending
             .get(&digest(id))
-            .filter(|p| p.expires > now() && equal(&digest(cookie), &p.cookie_hash))
+            .filter(|p| {
+                p.expires > now()
+                    && equal(&digest(cookie), &p.cookie_hash)
+                    && self.db.clients.get(&p.client_id).is_some_and(|c| c.registration_expires.is_none_or(|expiry| expiry > now()))
+            })
             .cloned()
             .ok_or_else(|| Failure::new("invalid_request", "Sign-in expired or invalid. Start again from the app connecting to VectorCraft"))
     }
     pub fn approve(&mut self, id: &str, cookie: &str, allow: bool) -> AuthResult<String> {
         let pending = self.pending(id, cookie)?;
+        if !self.db.clients.get(&pending.client_id).is_some_and(|c| c.registration_expires.is_none_or(|expiry| expiry > now())) {
+            return Err(Failure::unauthorized());
+        }
+        if allow && self.db.clients.get(&pending.client_id).is_some_and(|c| c.registration_expires.is_some()) {
+            if self.db.clients.values().filter(|c| c.registration_expires.is_none()).count() >= 128 {
+                return Err(Failure::new("temporarily_unavailable", "Remove an unused saved client locally before approving another"));
+            }
+            let mut db = self.db.clone();
+            let client = db.clients.get_mut(&pending.client_id).ok_or_else(Failure::unauthorized)?;
+            client.registration_expires = None;
+            self.commit(db)?;
+        }
         let mut destination = Url::parse(&pending.redirect).map_err(|_| Failure::new("server_error", "Invalid saved callback"))?;
         {
             let mut query = destination.query_pairs_mut();
@@ -279,11 +331,27 @@ impl Store {
             }
         }
         self.pending.remove(&digest(id));
+        self.attempts.remove(&digest(id));
         Ok(destination.to_string())
+    }
+    /// A retry budget belongs to a validated browser sign-in, never to an anonymous route.
+    pub fn password_attempt(&mut self, id: &str, cookie: &str) -> AuthResult<()> {
+        self.pending(id, cookie)?;
+        let attempts = self.attempts.entry(digest(id)).or_default();
+        if *attempts >= 10 {
+            return Err(Failure {
+                status: 429,
+                code: "slow_down",
+                message: "Too many attempts for this sign-in. Start a new sign-in from your AI app".into(),
+            });
+        }
+        *attempts += 1;
+        Ok(())
     }
     pub fn authenticate(&self, parameters: &Fields, basic: Option<(&str, &str)>) -> AuthResult<Client> {
         let id = basic.map(|v| v.0).or_else(|| parameters.get("client_id").map(String::as_str)).unwrap_or("");
-        let client = self.db.clients.get(id).ok_or_else(Failure::unauthorized)?;
+        let client =
+            self.db.clients.get(id).filter(|c| c.registration_expires.is_none_or(|expiry| expiry > now())).ok_or_else(Failure::unauthorized)?;
         if basic.is_some() && (parameters.get("client_id").is_some_and(|value| value != id) || parameters.contains_key("client_secret")) {
             return Err(Failure::unauthorized());
         }
@@ -390,6 +458,7 @@ impl Store {
             self.db
                 .clients
                 .values()
+                .filter(|c| c.registration_expires.is_none_or(|expiry| expiry > now()))
                 .map(|c| json!({"id":c.client_id,"name":c.client_name,"callbacks":c.redirect_uris,
         "connections":self.db.refresh.values().filter(|g|g.client_id==c.client_id&&!g.used&&g.expires>now()).count()}))
                 .collect::<Vec<_>>()
@@ -402,12 +471,14 @@ impl Store {
         db.refresh.retain(|_, g| g.client_id != id);
         self.commit(db)?;
         self.pending.retain(|_, p| p.client_id != id);
+        self.attempts.retain(|id, _| self.pending.contains_key(id));
         self.codes.retain(|_, c| c.grant.client_id != id);
         Ok(())
     }
     pub fn revoke_all(&mut self) -> AuthResult<()> {
         self.commit(Database { resource: self.settings.resource(), ..Default::default() })?;
         self.pending.clear();
+        self.attempts.clear();
         self.codes.clear();
         Ok(())
     }

@@ -21,6 +21,7 @@ impl Fixture {
             public_origin: "https://native.example.test".into(),
             base_path: "/vectorcraft-native".into(),
             bind: "127.0.0.1:33981".into(),
+            trusted_proxy: None,
             control_port: 33982,
             app_path: std::env::current_exe().unwrap(),
             profile_dir: profile.clone(),
@@ -328,6 +329,98 @@ fn single_folder_settings_migrate_and_extra_folders_are_validated() {
     assert!(f.settings.validate().is_err());
     f.settings.additional_artwork_roots = vec![second; 32];
     assert!(f.settings.validate().is_err());
+}
+
+#[test]
+fn network_listening_requires_explicit_gateway_consent_including_legacy_settings() {
+    let mut f = Fixture::new();
+    f.settings.bind = "0.0.0.0:3002".into();
+    assert!(f.settings.validate().unwrap_err().contains("trusted gateway"));
+    let mut legacy = serde_json::to_value(&f.settings).unwrap();
+    legacy.as_object_mut().unwrap().remove("trustedProxy");
+    let saved: Settings = serde_json::from_value(legacy).unwrap();
+    assert!(saved.validate().is_err(), "old LAN settings require an explicit owner decision");
+    f.settings.trusted_proxy = Some("192.0.2.10".parse().unwrap());
+    f.settings.validate().unwrap();
+    for ip in ["0.0.0.0", "127.0.0.1", "224.0.0.1", "::", "::1", "ff02::1", "2001:db8::10"] {
+        f.settings.trusted_proxy = Some(ip.parse().unwrap());
+        assert!(f.settings.validate().is_err(), "{ip}");
+    }
+}
+
+#[test]
+fn owner_can_persist_stop_during_repair_but_cannot_enable_or_move_private_settings() {
+    let mut f = Fixture::new();
+    let path = f.settings.profile_dir.join("Remote Access/settings.json");
+    f.settings.save(&path).unwrap();
+    f.settings.bind = "0.0.0.0:3002".into();
+    assert!(f.settings.save_disabled(&path).is_err(), "the repair writer cannot enable invalid settings");
+    f.settings.enabled = false;
+    f.settings.save_disabled(&path).unwrap();
+    assert!(!Settings::read_for_owner_repair(&path).unwrap().enabled);
+    assert!(Settings::read(&path).is_err(), "network policy still requires repair before use");
+    assert!(f.settings.save_disabled(&f.root.path().join("outside.json")).is_err());
+    f.settings.trusted_proxy = Some("192.0.2.10".parse().unwrap());
+    f.settings.save(&path).unwrap();
+    assert!(!Settings::read(&path).unwrap().enabled, "repair does not silently undo the owner's Stop");
+}
+
+#[test]
+fn public_registrations_expire_and_cannot_consume_locally_registered_client_capacity() {
+    let mut f = Fixture::new();
+    let input = json!({"redirect_uris":["https://chatgpt.com/connector/oauth/test"],"token_endpoint_auth_method":"none"});
+    for _ in 0..32 {
+        f.store.register_public(input.clone()).unwrap();
+    }
+    assert_eq!(f.store.register_public(input.clone()).unwrap_err().code, "temporarily_unavailable");
+    let (owner, _) = f.client("none", "https://chatgpt.com/connector/oauth/owner");
+    let (id, cookie, _, _) = f.begin(&owner);
+    f.store.approve(&id, &cookie, true).unwrap();
+    for client in f.store.db.clients.values_mut().filter(|c| c.registration_expires.is_some()) {
+        client.registration_expires = Some(now() - 1);
+    }
+    f.store.register_public(input).unwrap();
+    assert_eq!(f.store.db.clients.len(), 2);
+    assert!(f.store.db.clients.contains_key(&owner.client_id));
+}
+
+#[test]
+fn owner_approval_promotes_a_temporary_client_and_survives_service_restart() {
+    let mut f = Fixture::new();
+    let value =
+        f.store.register_public(json!({"redirect_uris":["https://chatgpt.com/connector/oauth/test"],"token_endpoint_auth_method":"none"})).unwrap();
+    let id = value["client_id"].as_str().unwrap();
+    let client = f.store.db.clients[id].clone();
+    assert!(client.registration_expires.is_some());
+    let (request, cookie, _, _) = f.begin(&client);
+    f.store.approve(&request, &cookie, true).unwrap();
+    let restarted = Store::open(f.settings.clone(), &f.store.path).unwrap();
+    assert!(restarted.db.clients[id].registration_expires.is_none());
+}
+
+#[test]
+fn invalid_sign_ins_cannot_exhaust_another_browsers_retry_budget_or_pending_slots() {
+    let mut f = Fixture::new();
+    let (first, _) = f.client("none", "https://chatgpt.com/connector/oauth/one");
+    let (second, _) = f.client("none", "https://chatgpt.com/connector/oauth/two");
+    let (id, cookie, _, parameters) = f.begin(&first);
+    for _ in 0..100 {
+        assert!(f.store.password_attempt("invented", "invented").is_err());
+        assert!(f.store.password_attempt(&id, "wrong browser").is_err());
+    }
+    for _ in 0..10 {
+        f.store.password_attempt(&id, &cookie).unwrap();
+    }
+    assert_eq!(f.store.password_attempt(&id, &cookie).unwrap_err().status, 429);
+    let (other_id, other_cookie, _, _) = f.begin(&second);
+    f.store.password_attempt(&other_id, &other_cookie).unwrap();
+    for _ in 1..8 {
+        f.store.authorize(&parameters).unwrap();
+    }
+    assert_eq!(f.store.authorize(&parameters).err().unwrap().code, "temporarily_unavailable");
+    f.begin(&second);
+    // An existing sign-in remains valid when a different client's pending queue is full.
+    f.store.approve(&other_id, &other_cookie, true).unwrap();
 }
 #[test]
 fn expired_access_and_refresh_cannot_authorize_or_issue_tokens() {

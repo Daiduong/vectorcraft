@@ -533,9 +533,18 @@ fn services(parent: Parent, ui: egui::Context, _control_port: Option<u16>) -> Se
     let (p1, p2, p3, p4, p5) = (parent.clone(), parent.clone(), parent.clone(), parent.clone(), parent);
     #[cfg(target_os = "macos")]
     let sampled_ui = ui.clone();
+    #[cfg(feature = "remote-access")]
+    let remote_ui = ui.clone();
     Services {
         #[cfg(feature = "remote-access")]
         remote_access: prefs_enabled().then(|| remote_access::service(_control_port)),
+        #[cfg(feature = "remote-access")]
+        start_remote_control: prefs_enabled().then(|| {
+            Box::new(move |port, roots| {
+                vectorcraft_engine::file_access::confine_process(roots);
+                control_server::start(port, remote_ui.clone())
+            }) as vectorcraft_ui_egui::RemoteControlFn
+        }),
         pick_open: Some(Box::new(move |pick: &FilePick| pick_now(PickRequest::Open(pick.clone()), &p1).into_iter().next())),
         pick_open_multi: Some(Box::new(move || pick_now(PickRequest::OpenMany, &p2))),
         pick_save: Some(Box::new(move |pick: &FilePick| pick_now(PickRequest::Save(pick.clone()), &p3).into_iter().next())),
@@ -681,6 +690,18 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
   vectorcraft-cli --help
 ";
 
+#[cfg(feature = "remote-access")]
+fn remote_control_startup(explicit_port: Option<u16>, setup: Result<remote_access::InitialControl, String>) -> remote_access::InitialControl {
+    match setup {
+        Ok((port, roots)) => (explicit_port.or(port), roots),
+        Err(error) => {
+            // Optional setup must never prevent local editing. Disable automation completely,
+            // including an explicit port, rather than falling back to unconfined control.
+            eprintln!("vectorcraft: remote access disabled; repair in Preferences > Remote AI: {error}");
+            (None, None)
+        }
+    }
+}
 fn main() -> std::process::ExitCode {
     // Before any thread starts: the pointer must find a cursor theme on Wayland (#2450).
     #[cfg(target_os = "linux")]
@@ -762,13 +783,7 @@ fn main() -> std::process::ExitCode {
     };
     #[cfg(feature = "remote-access")]
     let (control_port, configured_roots) = if prefs_enabled() {
-        match remote_access::initial_control(read_root.is_some() || write_root.is_some()) {
-            Ok((port, artwork_roots)) => (Some(control_port.unwrap_or(port)), artwork_roots),
-            Err(error) => {
-                eprintln!("vectorcraft: {error}");
-                return std::process::ExitCode::FAILURE;
-            }
-        }
+        remote_control_startup(control_port, remote_access::initial_control(read_root.is_some() || write_root.is_some()))
     } else {
         (control_port, None)
     };
@@ -1139,5 +1154,117 @@ mod tests {
         let types = plist.matches("<key>CFBundleTypeName</key>").count();
         assert!(types > 1 && plist.matches("<key>LSHandlerRank</key>").count() == types, "every document type has a rank");
         assert_eq!(plist.matches("<string>Owner</string>").count(), 2, "only VectorCraft documents and templates are owned");
+    }
+
+    /// The MIME types a Linux desktop gives each extension in `OPEN_EXTS` but `UNASSOCIATED_EXTS`
+    /// (one row per type): shared-mime-info's, or one that `ai.storyteller.vectorcraft.mime.xml`
+    /// declares.
+    const LINUX_TYPES: &[(&str, &str)] = &[
+        ("vectorcraft", "application/x-vectorcraft"),
+        ("drawcraft", "application/x-vectorcraft"),
+        ("svg", "image/svg+xml"),
+        ("svgz", "image/svg+xml-compressed"),
+        ("pdf", "application/pdf"),
+        ("ai", "application/illustrator"), // brand-ok: shared-mime-info's type
+        ("ait", "application/x-ai-template"),
+        ("png", "image/png"),
+        ("jpg", "image/jpeg"),
+        ("jpeg", "image/jpeg"),
+        ("gif", "image/gif"),
+        ("webp", "image/webp"),
+        ("tif", "image/tiff"),
+        ("tiff", "image/tiff"),
+        ("bmp", "image/bmp"),
+        ("vctemplate", "application/x-vectorcraft-template"),
+        ("dxf", "image/vnd.dxf"),
+        ("emf", "image/emf"),
+        ("wmf", "image/wmf"),
+        ("eps", "image/x-eps"),
+        ("af", "application/x-affinity"),
+        ("afdesign", "application/x-affinity"),
+        ("afpub", "application/x-affinity"),
+    ];
+
+    /// The types in `LINUX_TYPES` that shared-mime-info defines. The MIME package declares every
+    /// other one.
+    const LINUX_SHARED_TYPES: &[&str] = &[
+        "image/svg+xml",
+        "image/svg+xml-compressed",
+        "application/pdf",
+        "application/illustrator", // brand-ok: shared-mime-info's type
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/tiff",
+        "image/bmp",
+        "image/vnd.dxf",
+        "image/emf",
+        "image/wmf",
+        "image/x-eps",
+    ];
+
+    /// Extensions in `LINUX_TYPES` whose type the MIME package matches by file content and not by a
+    /// glob, with the package's `<magic>` rule for that type (its lines joined, indentation removed).
+    const LINUX_BY_CONTENT: &[(&str, &str)] = &[(
+        "af",
+        // `MAGIC` at offset 0 and `DOCUMENT_KIND` at offset 8 (crates/affinity/src/container.rs).
+        r#"<magic><match type="string" offset="0" value="\x00\xff\x4b\x41"><match type="string" offset="8" value="nsrP"/></match></magic>"#,
+    )];
+
+    /// The desktop entry lists a MIME type for every extension in `OPEN_EXTS` but
+    /// `UNASSOCIATED_EXTS`, and the app's MIME package declares the types shared-mime-info doesn't
+    /// have.
+    #[test]
+    fn the_linux_desktop_entry_opens_every_readable_format() {
+        let desktop = include_str!("../../../packaging/linux/ai.storyteller.vectorcraft.desktop");
+        let mime = include_str!("../../../packaging/linux/ai.storyteller.vectorcraft.mime.xml");
+        let listed: Vec<&str> =
+            desktop.lines().find_map(|l| l.strip_prefix("MimeType=")).unwrap_or_default().split(';').filter(|t| !t.is_empty()).collect();
+        // Each type the MIME package declares, with the extensions of its globs and its `<magic>`
+        // rule (empty when it has none) in the form `LINUX_BY_CONTENT` gives.
+        let declared: Vec<(&str, Vec<&str>, String)> = mime
+            .split("<mime-type type=\"")
+            .skip(1)
+            .map(|block| {
+                let body = block.split("</mime-type>").next().unwrap_or_default();
+                let globs = body.split("<glob pattern=\"*.").skip(1).filter_map(|g| g.split('"').next()).collect();
+                let magic = match (body.find("<magic"), body.find("</magic>")) {
+                    (Some(start), Some(end)) => body[start..end + "</magic>".len()].lines().map(str::trim).collect(),
+                    _ => String::new(),
+                };
+                (block.split('"').next().unwrap_or_default(), globs, magic)
+            })
+            .collect();
+        let mut associated: Vec<&str> = fileio::OPEN_EXTS.iter().copied().filter(|e| !fileio::UNASSOCIATED_EXTS.contains(e)).collect();
+        let mut typed: Vec<&str> = LINUX_TYPES.iter().map(|(e, _)| *e).collect();
+        associated.sort_unstable();
+        typed.sort_unstable();
+        typed.dedup();
+        assert_eq!(typed, associated, "a MIME type for each extension the packaging associates with the app");
+        for (e, t) in LINUX_TYPES {
+            assert!(listed.contains(t), "the desktop entry doesn't list {t} (.{e})");
+            let package = declared.iter().find(|(name, ..)| name == t);
+            if LINUX_SHARED_TYPES.contains(t) {
+                assert!(package.is_none(), "{t} is shared-mime-info's, and the MIME package declares it again");
+                continue;
+            }
+            let Some((_, globs, magic)) = package else { panic!("the MIME package doesn't declare {t} (.{e})") };
+            if let Some((_, rule)) = LINUX_BY_CONTENT.iter().find(|(content, _)| content == e) {
+                assert!(!globs.contains(e), "{t} matches .{e} files by content only");
+                assert_eq!(magic, rule, "{t}'s magic rule for .{e} files");
+            } else {
+                assert!(globs.contains(e), "{t} has no *.{e} glob");
+            }
+        }
+        for t in &listed {
+            assert!(LINUX_TYPES.iter().any(|(_, known)| known == t), "the desktop entry lists {t}, which the app doesn't open");
+        }
+        for (t, globs, _) in &declared {
+            assert!(listed.contains(t), "the desktop entry doesn't list the declared {t}");
+            for g in globs {
+                assert!(LINUX_TYPES.contains(&(*g, *t)), "{t}'s *.{g} isn't a file the app opens as {t}");
+            }
+        }
     }
 }

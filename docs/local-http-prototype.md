@@ -7,11 +7,11 @@ prototype; it has not been released. Hosted OpenAI calls and a full SDK scenario
 public gateway pass. Gemini's structured tools work in user testing, with a preview-visibility
 limitation documented below.
 
-The full `cargo xtask ci` gate passes all ten stages on Windows with serialized tests: 8,095
-workspace tests and the separate no-bundled-fonts test pass. Twelve existing tests remain ignored
+The full `cargo xtask ci` gate passes all ten stages on Windows with serialized tests: 8,437
+workspace tests and the separate no-bundled-fonts test pass. Thirteen existing tests remain ignored
 (timing/quality-report probes and a documented tracing-junction case); none were disabled for this
 addition. Workspace all-target clippy with the optional remote features also passes, along with
-144 remote MCP tests, 18 focused wizard tests and 4 host tests. CI follow-ups fix two SVG tests' platform-path
+154 remote MCP tests, 20 focused wizard tests and 8 host tests. CI follow-ups fix two SVG tests' platform-path
 assumptions, supply required catalog entries, and use the shared asynchronous folder picker with
 a regression test. The local manual review is complete. Native macOS/Linux validation, translation
 review and independent maintainer review remain.
@@ -26,6 +26,14 @@ installation are required. The service itself remains Rust and the crate still f
 In a Remote AI desktop build with preferences enabled, CLI automation-root flags are refused:
 the wizard manages its folder authority, so command-line roots cannot replace its grants or
 private exclusions. Ordinary builds and their existing CLI automation support are unchanged.
+
+An unconfigured remote-access build does not create artwork folders or open a control listener.
+Disabled saved connections also leave the implicit listener closed. A successful owner setup (or
+explicit start of a saved connection) installs validated folder authority before activating the
+control channel and HTTP service. Failure to protect or read the private store disables remote
+automation without aborting the desktop editor; repair remains local. Explicit CLI control remains
+an intentional opt-in, while a failing saved remote setup disables it rather than falling back to
+unconfined access.
 
 The desktop control channel retains upstream's trusted-loopback assumption: reserve its configured
 port for the intended executable/profile. It does not authenticate other local programs. Folder
@@ -74,6 +82,19 @@ Default public paths, forwarded unchanged to TCP 3002, are:
 /.well-known/oauth-protected-resource/vectorcraft-native/mcp
 ```
 
+The wizard defaults to **loopback HTTP only** (`127.0.0.1:3002`). Run the HTTPS gateway locally,
+or use an encrypted tunnel to localhost. A gateway on another computer requires checking the LAN
+option and entering its individual IPv4 address. This prototype's local listeners use IPv4.
+Only that actual socket peer and loopback are then
+accepted; forwarded identity headers never grant access. Restrict the host firewall to the same IP.
+The public HTTPS endpoint does **not** encrypt the gateway-to-desktop HTTP hop: the wizard warns
+about this before saving a LAN setup. Only opt in on a trusted private network or encrypted tunnel.
+Older non-loopback settings without `trustedProxy` remain readable for repair but cannot start a
+new service until the owner explicitly chooses the network policy and saves. Existing clients and
+tokens are preserved when the public resource address stays unchanged.
+Readable legacy settings still expose the authenticated local Stop action; Stop can persist a
+disabled state while repair is needed, without weakening the private-storage requirements.
+
 Use the full MCP URL when adding an OAuth connection to an AI client. The server supports dynamic
 registration and separately registered confidential clients. If a client asks for credentials,
 the wizard can register its exact callback and copy the generated ID and secret. The callback
@@ -102,11 +123,21 @@ closing the wizard during a save keeps remote control paused until that transiti
 This is an application-level file boundary, not an OS sandbox against other local processes.
 
 The HTTP service checks Host/Origin and duplicate security headers, ignores forwarded identity,
-bounds request bodies and admission, rate-limits consent/registration, and serializes native work
+bounds request bodies and admission, isolates consent retry budgets, and serializes native work
 through a bounded worker. A missing mutation reply never triggers a replay. Unknown outcomes pause
 new edits until the owner reviews the artwork and resumes from local settings. Requests use
 stateless JSON Streamable HTTP; GET/SSE, streaming progress and HTTP cancellation are not provided.
 Do not forward the desktop's separate loopback control port to the network.
+
+Anonymous requests do not share route-wide lockout counters with real sign-ins. Passphrase retries
+are limited to ten per validated browser sign-in, with at most two simultaneous Argon2 checks.
+Pending sign-ins have per-client and separate saved/public-client bounds. Unapproved public
+registrations expire after ten minutes and have a separate 32-entry capacity; they cannot fill
+the 128-entry saved-client capacity. Owner approval makes a temporary client persistent. When
+public registration is busy, create credentials in the local wizard or retry after expiry.
+Authenticated local management has reserved request capacity, so public queue saturation does not
+disable local recovery. These bounds do not claim availability against a sustained network attack;
+deployments should also enforce appropriate limits at the trusted gateway.
 
 Settings and auth state live in `PROFILE/Remote Access/`, excluded from every artwork grant.
 Existing single-folder configurations remain readable; extra locations are stored in the optional
@@ -114,6 +145,7 @@ Existing single-folder configurations remain readable; extra locations are store
 The CLI also has owner-only development helpers: `remote-configure` accepts the phrase from stdin
 and writes a new profile, and `remote-http --config PATH` runs the same OAuth service. These are
 used by the external SDK development harness, not required by the end-user wizard.
+The CLI requires `--trusted-proxy IP` as an explicit opt-in with a non-loopback `--bind`.
 
 Tests under `remote/oauth`, `remote/server` and `remote/worker` cover authorization, expiry, replay,
 revocation, persistence failure, file boundaries and missing mutation replies. UI tests cover

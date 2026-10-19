@@ -45,7 +45,7 @@ pub mod picks;
 pub mod place;
 pub mod prefs_dialog;
 pub mod remote_access;
-pub use remote_access::RemoteAccessFn;
+pub use remote_access::{RemoteAccessFn, RemoteControlFn};
 pub mod print;
 pub mod recovery;
 pub mod render_worker;
@@ -226,6 +226,8 @@ pub type RevealFn = Box<dyn FnMut(&str) -> Result<(), String>>;
 pub struct Services {
     /// Owner-only remote connection management, performed on a host worker thread.
     pub remote_access: Option<RemoteAccessFn>,
+    /// Start the local control channel only after the owner installs validated folder grants.
+    pub start_remote_control: Option<RemoteControlFn>,
     /// Show an open dialog; returns a path.
     pub pick_open: Option<PickOpen>,
     /// Show a save dialog (suggested name, folder, file types); returns a path.
@@ -315,6 +317,9 @@ pub struct CanvasCache {
     /// drag's lower resolution ([`vectorcraft_render::FrameStats::moved`]): the next frame outside
     /// an interaction runs them again, on the worker when there is one.
     pub moved: bool,
+    /// The frame shown was rendered on the worker: an interaction's frames stay there
+    /// ([`canvas::show`]).
+    pub from_worker: bool,
     pub worker: Option<render_worker::Worker>,
     pub worker_started: bool,
     /// The slices as laid out for (document uid, revision): the canvas draws them every frame.
@@ -533,6 +538,7 @@ impl VectorcraftApp {
                 key: None,
                 last_ms: 0.0,
                 moved: false,
+                from_worker: false,
                 worker: None,
                 worker_started: false,
                 slices: None,
@@ -602,8 +608,16 @@ impl VectorcraftApp {
     /// against the roots in force, and so does the engine; outside those scopes the person at the
     /// keyboard works as usual.
     pub fn with_automation_roots(mut self, roots: Option<Arc<AutomationRoots>>) -> Self {
-        let Some(roots) = roots else { return self };
+        self.install_automation_roots(roots);
+        self
+    }
+    fn install_automation_roots(&mut self, roots: Option<Arc<AutomationRoots>>) {
+        let Some(roots) = roots else { return };
+        let installed = self.automation_roots.is_some();
         self.automation_roots = Some(roots);
+        if installed {
+            return;
+        }
         let s = &mut self.services;
         if let Some(read) = s.read.take() {
             s.read = Some(Box::new(move |p: &str| file_access::check_read(p).and_then(|()| read(p))));
@@ -625,7 +639,6 @@ impl VectorcraftApp {
                 *service = Some(Box::new(move |p: &str| file_access::check_read(p).and_then(|()| open(p))));
             }
         }
-        self
     }
 
     /// Keep `views` aligned with the session's documents (a new one starts at its saved view).

@@ -3,11 +3,15 @@ use crate::VectorcraftApp;
 use serde_json::{Value, json};
 
 pub type RemoteAccessFn = Box<dyn FnMut(Value) -> std::sync::mpsc::Receiver<Result<Value, String>>>;
+pub type RemoteControlFn =
+    Box<dyn FnMut(u16, std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>) -> std::sync::mpsc::Receiver<crate::ControlRequest>>;
 #[derive(Default)]
 pub struct RemoteAccessUi {
     pub open: bool,
     step: usize,
     pub_origin: String,
+    lan_access: bool,
+    trusted_proxy: String,
     artworks: Vec<String>,
     phrase: String,
     phrase_confirmation: String,
@@ -49,12 +53,16 @@ impl RemoteAccessUi {
     }
     fn has_unsaved_changes(&self) -> bool {
         let saved_origin = self.status.get("publicOrigin").and_then(Value::as_str).unwrap_or("");
+        let saved_proxy = self.status.get("trustedProxy").and_then(Value::as_str).unwrap_or("");
+        let saved_lan = !saved_proxy.is_empty();
         let saved_folders: Vec<_> =
             self.status.get("artworkRoots").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect();
         self.pub_origin.trim().trim_end_matches('/') != saved_origin.trim_end_matches('/')
             || self.artworks.iter().map(|p| p.trim()).collect::<Vec<_>>() != saved_folders
             || !self.phrase.is_empty()
             || !self.phrase_confirmation.is_empty()
+            || self.lan_access != saved_lan
+            || (self.lan_access && self.trusted_proxy.trim() != saved_proxy)
     }
     fn folder_active(&self, folder: &str) -> bool {
         self.status.get("running").and_then(Value::as_bool) == Some(true)
@@ -197,6 +205,10 @@ pub fn action(app: &mut VectorcraftApp, parameters: &Value) -> Result<Value, Str
         }
         _ => {}
     }
+    if operation == "start" {
+        let status = app.remote_access.status.clone();
+        install_authority(app, &status)?;
+    }
     let state = &mut app.remote_access;
     let payload = match operation {
         "configure" => {
@@ -204,7 +216,7 @@ pub fn action(app: &mut VectorcraftApp, parameters: &Value) -> Result<Value, Str
             state.phrase_confirmation.clear();
             state.show_phrase = false;
             state.privacy_epoch = state.privacy_epoch.wrapping_add(1);
-            json!({"action":operation,"publicOrigin":state.pub_origin.trim(),"artworkRoots":state.artworks.iter().map(|p| p.trim()).collect::<Vec<_>>(),"passphrase":std::mem::take(&mut state.phrase)})
+            json!({"action":operation,"publicOrigin":state.pub_origin.trim(),"lanAccess":state.lan_access,"trustedProxy":state.trusted_proxy.trim(),"artworkRoots":state.artworks.iter().map(|p| p.trim()).collect::<Vec<_>>(),"passphrase":std::mem::take(&mut state.phrase)})
         }
         "resync" => {
             if !state.can_resync() {
@@ -221,6 +233,28 @@ pub fn action(app: &mut VectorcraftApp, parameters: &Value) -> Result<Value, Str
     state.error.clear();
     state.pending = Some((operation.into(), service(payload)));
     Ok(Value::Null)
+}
+fn install_authority(app: &mut VectorcraftApp, value: &Value) -> Result<(), String> {
+    if let Some(error) = value.get("configurationError").and_then(Value::as_str) {
+        return Err(error.into());
+    }
+    let folders: Vec<std::path::PathBuf> =
+        serde_json::from_value(value.get("artworkRoots").cloned().unwrap_or(Value::Null)).map_err(|_| "The saved folder grants are unavailable")?;
+    let private = value.get("privateFolder").and_then(Value::as_str).ok_or("The private settings folder is unavailable")?;
+    let roots = vectorcraft_engine::file_access::AutomationRoots::new_many(&folders, &folders, &[private.into()])?
+        .ok_or("Choose artwork folders before starting the connection")?;
+    app.install_automation_roots(Some(roots.clone()));
+    if app.control_rx.is_none() {
+        let port = value
+            .get("controlPort")
+            .and_then(Value::as_u64)
+            .and_then(|n| u16::try_from(n).ok())
+            .filter(|p| *p != 0)
+            .ok_or("The saved control port is unavailable")?;
+        let start = app.services.start_remote_control.as_mut().ok_or("The local control channel cannot start in this build")?;
+        app.control_rx = Some(start(port, roots));
+    }
+    Ok(())
 }
 fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let mut start_after_configure = false;
@@ -245,17 +279,9 @@ fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
                         app.remote_access.error = error.into();
                     }
                     if matches!(operation.as_str(), "configure" | "resync") {
-                        if let (Some(folders), Some(private)) =
-                            (value.get("artworkRoots").and_then(Value::as_array), value.get("privateFolder").and_then(Value::as_str))
-                        {
-                            let folders: Vec<_> = folders.iter().filter_map(Value::as_str).map(std::path::PathBuf::from).collect();
-                            match vectorcraft_engine::file_access::AutomationRoots::new_many(&folders, &folders, &[private.into()]) {
-                                Ok(roots) => {
-                                    app.automation_roots = roots;
-                                    start_after_configure = true;
-                                }
-                                Err(e) => app.remote_access.error = e,
-                            }
+                        match install_authority(app, &value) {
+                            Ok(()) => start_after_configure = true,
+                            Err(e) => app.remote_access.error = e,
                         }
                         app.remote_access.public_ready = false;
                         if operation == "configure" {
@@ -265,6 +291,10 @@ fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
                     if !app.remote_access.draft_loaded || operation == "configure" {
                         if let Some(origin) = value.get("publicOrigin").and_then(Value::as_str) {
                             app.remote_access.pub_origin = origin.into();
+                        }
+                        if let Some(proxy) = value.get("trustedProxy").and_then(Value::as_str) {
+                            app.remote_access.trusted_proxy = proxy.into();
+                            app.remote_access.lan_access = !proxy.is_empty();
                         }
                         if let Some(folders) = value.get("artworkRoots").and_then(Value::as_array) {
                             app.remote_access.artworks = folders.iter().filter_map(Value::as_str).map(str::to_owned).collect();
@@ -372,6 +402,15 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                         ui.add_space(8.0);
                         ui.label("Your gateway must forward /vectorcraft-native/ and its OAuth discovery paths to this computer on port 3002.");
                         ui.small("Your existing editor connections can use their own routes alongside this one.");
+                        ui.add_space(8.0);
+                        ui.checkbox(&mut state.lan_access, "My gateway runs on another computer (allow LAN access)");
+                        if state.lan_access {
+                            ui.add(egui::TextEdit::singleline(&mut state.trusted_proxy).hint_text("Trusted gateway IP, e.g. 192.168.1.10").desired_width(400.0));
+                            ui.colored_label(crate::theme::Tokens::get(ui.ctx()).warning, "The gateway-to-desktop HTTP hop is unencrypted. Use only a trusted private network or encrypted tunnel.");
+                            ui.small("Only this gateway IP and this computer are accepted. Restrict your firewall to the same gateway.");
+                        } else {
+                            ui.small("Default: this computer only (127.0.0.1:3002). Run the HTTPS gateway locally or use a tunnel to localhost.");
+                        }
                         if ui.button("Next: owner authorization").clicked() {
                             state.step = 2;
                         }
@@ -547,6 +586,59 @@ mod tests {
         assert_eq!(app.remote_access.phrase, "a local draft passphrase");
     }
     #[test]
+    fn gateway_starts_local_only_and_lan_access_is_an_explicit_unsaved_owner_choice() {
+        let mut app = app();
+        open(&mut app).unwrap();
+        poll(&mut app, &egui::Context::default());
+        app.remote_access.step = 1;
+        assert!(!app.remote_access.lan_access);
+        let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
+        assert!(text.contains("127.0.0.1:3002"));
+        assert!(!text.contains("hop is unencrypted"));
+        app.remote_access.lan_access = true;
+        app.remote_access.trusted_proxy = "192.0.2.10".into();
+        assert!(app.remote_access.has_unsaved_changes());
+        let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
+        assert!(text.contains("hop is unencrypted"));
+        app.services.remote_access = Some(Box::new(|request| {
+            assert_eq!(request["lanAccess"], true);
+            assert_eq!(request["trustedProxy"], "192.0.2.10");
+            std::sync::mpsc::channel().1
+        }));
+        action(&mut app, &json!({"action":"configure"})).unwrap();
+    }
+    #[test]
+    fn starting_saved_setup_installs_authority_and_opens_control_before_http() {
+        let root = std::env::temp_dir().join(format!("vc-remote-lazy-control-{}", std::process::id()));
+        let artwork = root.join("artwork");
+        let private = root.join("Remote Access");
+        std::fs::create_dir_all(&artwork).unwrap();
+        std::fs::create_dir_all(&private).unwrap();
+        let mut app = app();
+        app.services.read = Some(Box::new(|_| Ok(vec![])));
+        app.services.write_shared = Some(std::sync::Arc::new(|_, _| Ok(())));
+        app.remote_access.status = json!({"configured":true,"artworkRoots":[artwork],"privateFolder":private,"controlPort":33982});
+        app.services.start_remote_control = Some(Box::new(move |port, roots| {
+            assert_eq!(port, 33982);
+            assert!(roots.check(&artwork.join("new.svg").to_string_lossy(), vectorcraft_engine::file_access::Access::Write).is_ok());
+            assert!(roots.check(&private.join("settings.json").to_string_lossy(), vectorcraft_engine::file_access::Access::Read).is_err());
+            std::sync::mpsc::channel().1
+        }));
+        assert!(app.control_rx.is_none());
+        action(&mut app, &json!({"action":"start"})).unwrap();
+        assert!(app.control_rx.is_some());
+        assert!(app.automation_roots.is_some());
+        let grants = app.automation_roots.clone().unwrap();
+        let outside = root.join("outside.svg").to_string_lossy().into_owned();
+        assert!(vectorcraft_engine::file_access::confine(Some(&grants), || app.services.read.as_ref().unwrap()(&outside)).is_err());
+        assert!(vectorcraft_engine::file_access::confine(Some(&grants), || app.services.write_shared.as_ref().unwrap()(&outside, &[])).is_err());
+        app.remote_access.pending = None;
+        app.remote_access.status["configurationError"] = json!("private store needs repair");
+        assert!(action(&mut app, &json!({"action":"start"})).is_err());
+        assert!(app.remote_access.pending.is_none(), "a failed repair never starts HTTP");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn resync_sends_only_folders_and_waits_for_installed_authority_before_start() {
         let mut app = app();
         open(&mut app).unwrap();
@@ -565,7 +657,7 @@ mod tests {
         app.services.remote_access = Some(Box::new(move |request| {
             assert_eq!(request, json!({"action":"resync","artworkRoots":[expected_artwork]}));
             let (send, receive) = std::sync::mpsc::channel();
-            send.send(Ok(json!({"configured":true,"running":false,"publicOrigin":"https://native.example.test","artworkRoots":[expected_artwork],"activeArtworkRoots":[],"privateFolder":private_response}))).unwrap();
+            send.send(Ok(json!({"configured":true,"running":false,"publicOrigin":"https://native.example.test","artworkRoots":[expected_artwork],"activeArtworkRoots":[],"privateFolder":private_response,"controlPort":33982}))).unwrap();
             receive
         }));
         action(&mut app, &json!({"action":"resync"})).unwrap();
@@ -594,6 +686,7 @@ mod tests {
     }
     fn app() -> VectorcraftApp {
         let services = crate::Services {
+            start_remote_control: Some(Box::new(|_, _| std::sync::mpsc::channel().1)),
             remote_access: Some(Box::new(|_| {
                 let (sender, receiver) = std::sync::mpsc::channel();
                 sender.send(Ok(json!({"configured":true,"running":false,"publicOrigin":"https://native.example.test","artworkRoots":["C:/artwork"],"activeArtworkRoots":["C:/artwork"],"endpoint":"https://native.example.test/vectorcraft-native/mcp","clients":[]}))).unwrap();
@@ -730,6 +823,20 @@ mod tests {
         }
         {
             let app = harness.state_mut();
+            app.remote_access.step = 1;
+            app.remote_access.lan_access = true;
+            app.remote_access.trusted_proxy = "192.0.2.10".into();
+        }
+        harness.run();
+        harness.step();
+        harness.step();
+        if let Some(folder) = &output {
+            harness.render().unwrap().save(folder.join("gateway.png")).unwrap();
+        }
+        {
+            let app = harness.state_mut();
+            app.remote_access.lan_access = false;
+            app.remote_access.trusted_proxy.clear();
             app.remote_access.step = 0;
             app.remote_access.status["running"] = json!(true);
             app.remote_access.artworks.push("C:/new-artwork".into());
@@ -897,9 +1004,11 @@ mod tests {
             crate::control::Outcome::Done(value) => assert_eq!(value["ok"], false),
             _ => panic!("Configuration must pause control"),
         }
-        send.send(Ok(json!({"configured":true,"running":false,"artworkRoots":[first,second],"privateFolder":private}))).unwrap();
+        assert!(app.control_rx.is_none(), "no listener before the owner saves setup");
+        send.send(Ok(json!({"configured":true,"running":false,"artworkRoots":[first,second],"privateFolder":private,"controlPort":33982}))).unwrap();
         poll(&mut app, &egui::Context::default());
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(app.control_rx.is_some(), "saving setup activates the control channel after folder checks");
         let roots = app.automation_roots.as_ref().unwrap();
         assert!(roots.check(&root.join("second/new.svg").to_string_lossy(), vectorcraft_engine::file_access::Access::Write).is_ok());
         assert!(roots.check(&root.join("Remote Access/settings.json").to_string_lossy(), vectorcraft_engine::file_access::Access::Read).is_err());
