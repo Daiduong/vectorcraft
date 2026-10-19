@@ -76,9 +76,8 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 - **Missing:** Average and Join in one step, with a corner or smooth choice for the joined anchor. `path.average` and `path.join` are separate commands and Join has no such choice (coinciding anchors merge into one since #1533). [ui-parity.md](ui-parity.md) listed "Join with corner/smooth choice" as done until 2026-10-13. About 1–2 h (estimated), inside the estimate below.
 - **Implemented (#1760):** Effect › Warp has a shared style selector with original previews, orientation buttons and percent sliders. Existing effects retain their stack slot and target. Focused checks passed and original captures were reviewed; optional Properties integration and remembered defaults remain outside this change.
 - **Done (#2120):** Smart Guides line extension: dragging the end of a straight segment with Direct Selection or Curvature, the point snaps to the segment's own direction at any angle and the guide runs along it from the other end. Inside the estimate below.
-- **Missing (noted for reporters, 2026-10-14):** Tab in the Color Picker moves through its fields in order (#1692); aligning anchor points selected with
-  Direct Selection to a key anchor (from #1636: they align to their bounds; the current public Align page does
-  not say how the key anchor is chosen, so this waits for the owner). Inside the estimate below.
+- **Done:** with several anchor points direct-selected, a click on one makes it the key anchor (again to clear), as the Selection tool’s key object; Align to Key Object moves the other anchors to its horizontal or vertical position and leaves the key fixed (`select.keyAnchor`, engine tests).
+- **Missing (noted for reporters, 2026-10-14):** Tab in the Color Picker moves through its fields in order (#1692). Inside the estimate below.
 - **Missing:** a tool-by-tool, panel-by-panel pass over modifiers, cursors, the Properties panel per context,
   isolation mode and small behaviours, against the public tool and shortcut documentation. Itemized in
   [ui-parity.md](ui-parity.md). The Shaper's construction-mode widget and gesture refinements remain.
