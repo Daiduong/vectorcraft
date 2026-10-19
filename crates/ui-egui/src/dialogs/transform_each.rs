@@ -29,7 +29,7 @@ pub(super) const SPEC: DialogSpec =
 pub fn fields() -> Value {
     json!({
         "scaleH": 100, "scaleV": 100, "moveH": 0, "moveV": 0, "rotate": 0, "reflectX": false, "reflectY": false, "random": false, "reference": 4, "copy": false,
-        "__uniform": true,
+        "__uniform": false,
     })
 }
 
@@ -95,18 +95,19 @@ pub(super) fn sections(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc
     let axes = |h, v| [(h, tl!("Horizontal:")), (v, tl!("Vertical:"))];
     widgets::subheader(ui, tl!("Scale"));
     let linked = uniform(d);
-    if widgets::icon_button(ui, if linked { "link" } else { "link-2-off" }, tl!("Constrain proportions"), linked, 22.0).clicked() {
-        d.fields.insert("__uniform".into(), json!(!linked));
-        if !linked {
-            d.fields.insert("scaleV".into(), json!(d.f64("scaleH", 100.0)));
-        }
-    }
-    for (key, label) in axes("scaleH", "scaleV") {
+    let tip = tl!("Constrain Width and Height Proportions");
+    for (i, (key, label)) in axes("scaleH", "scaleV").into_iter().enumerate() {
         widgets::label_row(ui, label, LABEL_W, |ui| {
             let shown = widgets::SliderValue::field(d.f64(key, 100.0).clamp(-MAX_SCALE, MAX_SCALE), 0.0..=200.0, "%", 2);
             form::slider_rail_valued(ui, d, key, label, 0.0..=200.0, Some(shown), &track);
             if let Some(n) = widgets::range_field(ui, ("te", key), d.f64(key, 100.0), -MAX_SCALE..=MAX_SCALE, "%", 2, FIELD_W) {
                 d.fields.insert(key.into(), json!(n));
+            }
+            if i == 0 && widgets::icon_button(ui, if linked { "link" } else { "link-2-off" }, tip, linked, 22.0).clicked() {
+                d.fields.insert("__uniform".into(), json!(!linked));
+                if !linked {
+                    d.fields.insert("scaleV".into(), json!(d.f64("scaleH", 100.0)));
+                }
             }
         });
     }
@@ -215,8 +216,11 @@ mod tests {
         app.run("select.all", json!({})).unwrap();
         app.run("ui.menuDialog", json!({ "command": CMD })).unwrap();
         let d = app.ui.dialog.as_mut().unwrap();
-        assert!(d.bool("__uniform"), "scales start linked");
+        assert!(!d.bool("__uniform"), "scales start unlinked so the first field is horizontal scale alone");
         d.fields.insert("scaleH".into(), json!(150));
+        link_scales(d);
+        assert_eq!((d.f64("scaleH", 0.0), d.f64("scaleV", 0.0)), (150.0, 100.0));
+        d.fields.insert("__uniform".into(), json!(true));
         link_scales(d);
         assert_eq!((d.f64("scaleH", 0.0), d.f64("scaleV", 0.0)), (150.0, 150.0));
         d.fields.insert("__uniform".into(), json!(false));
