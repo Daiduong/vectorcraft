@@ -11,7 +11,7 @@
 //! onto another object's anchor scales exactly onto it.
 
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
+use vectorcraft_doc::{NodeId, OrientedBox};
 use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use super::target_overlays;
@@ -117,7 +117,7 @@ impl TransformTool {
     }
 
     /// Transform for dragging from `start` to `p` about `o`; returns the matrix and a readout.
-    pub fn matrix_for(&self, o: Point, start: Point, p: Point, shift: bool, bounds: Rect) -> (Affine, String) {
+    pub fn matrix_for(&self, o: Point, start: Point, p: Point, shift: bool, bounds: Rect, oriented: Option<OrientedBox>) -> (Affine, String) {
         match self.kind {
             TransformKind::Rotate => {
                 let (a, deg) = rotate_for_drag(o, start, p, shift);
@@ -132,9 +132,14 @@ impl TransformTool {
                 (reflect_matrix(o, theta), format!("{:.1}°", vectorcraft_geom::normalize_deg(-theta.to_degrees())))
             }
             TransformKind::Scale => {
-                let d0 = start - o;
-                let d1 = p - o;
                 let ratio = |a: f64, b: f64| if a.abs() > 1e-6 { b / a } else { 1.0 };
+                let clamp = |s: f64| if s.abs() < 1e-4 { 1e-4f64.copysign(s) } else { s };
+                let (d0, d1, origin, conj) = if let Some(bx) = oriented.filter(|b| b.angle.abs() > 1e-6) {
+                    let ol = bx.to_local(o);
+                    (bx.to_local(start) - ol, bx.to_local(p) - ol, ol, Some(bx))
+                } else {
+                    (start - o, p - o, o, None)
+                };
                 let (mut sx, mut sy) = (ratio(d0.x, d1.x), ratio(d0.y, d1.y));
                 if shift {
                     let l2 = d0.hypot2();
@@ -142,9 +147,10 @@ impl TransformTool {
                     sx = k;
                     sy = k;
                 }
-                let clamp = |s: f64| if s.abs() < 1e-4 { 1e-4f64.copysign(s) } else { s };
                 let (sx, sy) = (clamp(sx), clamp(sy));
-                (about(o, Affine::scale_non_uniform(sx, sy)), format!("W: {:.1}%\nH: {:.1}%", sx * 100.0, sy * 100.0))
+                let inner = about(origin, Affine::scale_non_uniform(sx, sy));
+                let a = conj.map_or(inner, |bx| bx.conjugate(inner));
+                (a, format!("W: {:.1}%\nH: {:.1}%", sx * 100.0, sy * 100.0))
             }
             TransformKind::Shear => {
                 // The shear axis follows the dominant drag direction (Shift keeps it strictly on
@@ -212,7 +218,8 @@ impl Tool for TransformTool {
                 }
                 let (p, guides) = self.snap.as_ref().map_or((p, vec![]), |s| s.snap(cx, p));
                 self.hover = guides;
-                let (m, text) = self.matrix_for(d.origin, d.pick, p, ev.mods.shift, d.bounds);
+                let oriented = selection_box(cx);
+                let (m, text) = self.matrix_for(d.origin, d.pick, p, ev.mods.shift, d.bounds, oriented);
                 d.last = m;
                 self.drag = Some(d);
                 self.measure = Some((p, text));
@@ -368,7 +375,7 @@ mod tests {
     #[test]
     fn scale_shift_is_uniform() {
         let t = TransformTool::new(TransformKind::Scale);
-        let (m, _) = t.matrix_for(Point::new(150.0, 150.0), Point::new(200.0, 200.0), Point::new(250.0, 240.0), true, Rect::ZERO);
+        let (m, _) = t.matrix_for(Point::new(150.0, 150.0), Point::new(200.0, 200.0), Point::new(250.0, 240.0), true, Rect::ZERO, None);
         let c = m.as_coeffs();
         assert!((c[0] - c[3]).abs() < 1e-9 && c[0] > 1.0);
     }
@@ -491,10 +498,23 @@ mod tests {
     }
 
     #[test]
+    fn scale_along_a_turned_box_uses_local_axes() {
+        use vectorcraft_doc::OrientedBox;
+        let t = TransformTool::new(TransformKind::Scale);
+        let bx = OrientedBox { angle: 45.0, rect: Rect::new(-50.0, -25.0, 50.0, 25.0) };
+        let o = bx.center();
+        let right = bx.to_doc() * Point::new(50.0, 0.0);
+        let to = bx.to_doc() * Point::new(75.0, 0.0);
+        let (m, _) = t.matrix_for(o, right, to, false, Rect::ZERO, Some(bx));
+        assert!((m * right).distance(to) < 1e-9);
+        assert!((m * o).distance(o) < 1e-9, "the reference point stays put");
+    }
+
+    #[test]
     fn reflect_vertical_axis_mirrors_x() {
         let t = TransformTool::new(TransformKind::Reflect);
         let o = Point::new(150.0, 150.0);
-        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(150.0, 50.0), false, Rect::ZERO);
+        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(150.0, 50.0), false, Rect::ZERO, None);
         assert!((m * Point::new(100.0, 120.0)).distance(Point::new(200.0, 120.0)) < 1e-9);
     }
 
@@ -502,7 +522,7 @@ mod tests {
     fn shear_horizontal_keeps_origin_row() {
         let t = TransformTool::new(TransformKind::Shear);
         let o = Point::new(150.0, 200.0);
-        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(200.0, 100.0), false, Rect::new(100.0, 100.0, 200.0, 200.0));
+        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(200.0, 100.0), false, Rect::new(100.0, 100.0, 200.0, 200.0), None);
         assert!((m * Point::new(100.0, 200.0)).distance(Point::new(100.0, 200.0)) < 1e-9);
         assert!((m * Point::new(150.0, 100.0)).distance(Point::new(200.0, 100.0)) < 1e-9);
     }

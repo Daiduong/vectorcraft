@@ -213,6 +213,27 @@ fn rotated_box_rect_matches_page_bounds_when_upright() {
 /// The Selection tool says when a drag moves, scales or rotates the selection (the canvas hides the
 /// bounding box meanwhile, #712), and not on a press that hasn't moved or a marquee.
 #[test]
+fn free_transform_scales_a_turned_selection_along_its_axes() {
+    let mut s = session();
+    let _a = turned_rect(&mut s);
+    let b = selection_box(&s);
+    let k = 50.0 * std::f64::consts::FRAC_1_SQRT_2;
+    let right = Point::new(200.0 + k, 200.0 - k);
+    let to = Point::new(right.x + k, right.y - k);
+    let n = undo_len(&s);
+    let v = ViewInfo::default();
+    s.select_tool("freeTransform", v).unwrap();
+    for (kind, p) in [(PointerKind::Down, right), (PointerKind::Drag, to), (PointerKind::Up, to)] {
+        s.pointer(&PointerEvent::new(kind, p.x, p.y).with_mods(Mods::default()), v).unwrap();
+    }
+    assert_eq!(undo_len(&s), n + 1);
+    let nb = selection_box(&s);
+    assert!(near(nb.rect.width(), 150.0) && near(nb.rect.height(), 50.0) && near(nb.angle, b.angle), "{nb:?}");
+    let left = |b: &OrientedBox| b.to_doc() * Handle::Left.pos(b.rect);
+    assert!(left(&nb).distance(left(&b)) < 1e-6);
+}
+
+#[test]
 fn the_selection_tool_reports_a_transforming_drag() {
     let mut s = session();
     let id = id_of(&s.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 100, "height": 50})).unwrap());
