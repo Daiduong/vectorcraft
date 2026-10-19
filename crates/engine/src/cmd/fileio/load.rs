@@ -289,6 +289,9 @@ pub fn load_with(name: &str, bytes: &[u8], opts: &LoadOptions) -> Result<Loaded>
     if let Some(mode) = opts.color_mode.filter(|m| *m != doc.color_mode) {
         super::super::colormgmt::set_color_mode(&mut doc, mode, true, None, opts.grays);
     }
+    if !restored && matches!(format.id, "pdf" | "ai" | "ait" | "eps" | "ps") {
+        super::guides_import::promote_straight_path_guides(&mut doc);
+    }
     // Imports are named after the file; a native document keeps its own title (the tab shows the
     // file name once it has a path).
     if !matches!(format.id, "vectorcraft" | "template") || doc.title.is_empty() {

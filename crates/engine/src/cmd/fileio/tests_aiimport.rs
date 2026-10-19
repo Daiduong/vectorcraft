@@ -338,18 +338,41 @@ fn a_cmyk_image_keeps_its_inks_from_the_editing_data_as_from_the_pdf_part() {
     assert_eq!(opened(&s), [Some(inks.to_vec())], "from the PDF part");
 }
 
+/// Straight `(N) *` path guides from editing data become ruler guides; angled ones stay paths.
+#[test]
+fn straight_editing_data_guides_become_ruler_guides() {
+    let art = format!(
+        "0 g\n{}f\n(N) *\n-500 20 m\n700 20 L\n(N) *\n(N) *\n100 10 m\n200 50 L\n(N) *\n",
+        ai::rect(10.0, 10.0, 50.0, 50.0)
+    );
+    let data = ai::editing_data(200.0, 100.0, &ai::layer("Art", &art));
+    let mut s = Session::new();
+    open(&mut s, "guides.eps", &ai::eps(data.as_bytes(), "0 setgray 10 10 40 40 rectfill\n"), json!({})).unwrap();
+    let guides = s.execute("guide.list", &json!({})).unwrap();
+    assert_eq!(guides.as_array().unwrap().len(), 1);
+    assert_eq!(guides[0]["vertical"], false);
+    assert_eq!(guides[0]["pos"], 80.0);
+    let layer = &s.doc().unwrap().doc.layers[0];
+    assert_eq!(layer.children().unwrap().len(), 2);
+    assert!(matches!(layer.children().unwrap()[1].kind, NodeKind::Path { guide: true, .. }));
+}
+
 #[test]
 fn fit_to_artwork_bounds_leaves_out_the_hidden_art_and_guides_the_editing_data_has() {
     // A shown square; a hidden one and a long guide far from it, which the page doesn't draw.
     let art =
-        format!("0 g\n{}f\n1 Xw\n{}f\n0 Xw\n-500 20 m\n700 20 L\n(N) *\n", ai::rect(10.0, 10.0, 50.0, 50.0), ai::rect(150.0, 60.0, 190.0, 95.0));
+        format!("0 g\n{}f\n1 Xw\n{}f\n0 Xw\n(N) *\n-500 20 m\n700 20 L\n(N) *\n", ai::rect(10.0, 10.0, 50.0, 50.0), ai::rect(150.0, 60.0, 190.0, 95.0));
     let data = ai::editing_data(200.0, 100.0, &ai::layer("Art", &art));
     let mut s = Session::new();
     let r = open(&mut s, "fit.eps", &ai::eps(data.as_bytes(), "0 setgray 10 10 40 40 rectfill\n"), json!({})).unwrap();
     let layer = &s.doc().unwrap().doc.layers[0];
     let kids = layer.children().unwrap();
-    assert_eq!(kids.len(), 3, "{r}");
-    assert!(!kids[1].visible && matches!(kids[2].kind, NodeKind::Path { guide: true, .. }));
+    assert_eq!(kids.len(), 2, "{r}");
+    assert!(!kids[1].visible);
+    let guides = s.execute("guide.list", &json!({})).unwrap();
+    assert_eq!(guides.as_array().unwrap().len(), 1);
+    assert_eq!(guides[0]["vertical"], false);
+    assert_eq!(guides[0]["pos"], 80.0);
     s.execute("artboard.fitToArt", &json!({})).unwrap();
     // The square, 50 to 90 down the 100-point page.
     assert_eq!(s.doc().unwrap().doc.artboards[0].rect, vectorcraft_geom::Rect::new(10.0, 50.0, 50.0, 90.0));

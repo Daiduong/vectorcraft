@@ -30,6 +30,7 @@ mod encode;
 pub mod eps;
 mod export;
 pub(crate) mod imagemap;
+mod guides_import;
 mod legacy_ai;
 mod load;
 pub(crate) use load::{MAX_RASTER_ALLOC, too_large_note};
