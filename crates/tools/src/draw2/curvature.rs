@@ -126,31 +126,54 @@ fn neighbours(sp: &SubPath, i: usize) -> [Option<usize>; 2] {
     [prev, next]
 }
 
-/// Move anchor `i` of `sp` to `q` as the Curvature tool drags a point: only the two segments at it
+/// Move anchor `i` of `sp` to `q` as the Curvature tool drags a point: the two segments at it
 /// change. A smooth anchor takes the Curvature tool's own handles ([`smooth_handles`]: along the
 /// circle through it and its neighbours; at an end of an open path the one [`end_handle`] into the
-/// curve). The neighbours' handles on those segments, and a corner's own
-/// handles, keep their directions, their lengths scaling with their segment's chord, so the
-/// segments beyond don't move and a corner without handles keeps none.
-///
-/// The neighbours' tangents are not re-curved: a selected path may come from the Pen or any other
-/// tool, and turning its smooth points would reshape what the user drew. The path the tool is
-/// drawing ([`Grab::Drawn`]) is rebuilt by [`curvature_spline`] from its points, so there the
-/// neighbours do turn with the dragged point. False when there is no anchor `i`.
+/// curve). A smooth neighbour's handle on those segments is re-curved the same way; a corner
+/// neighbour's handle keeps its direction, its length scaling with its segment's chord, and a
+/// corner without handles keeps none. Segments beyond a neighbour keep their shape because only
+/// the handle on the segment to the moved point changes. The path the tool is drawing
+/// ([`Grab::Drawn`]) is rebuilt by [`curvature_spline`] from its points. False when there is no
+/// anchor `i`.
 pub fn curvature_move(sp: &mut SubPath, i: usize, q: Point) -> bool {
     let Some(&a) = sp.anchors.get(i) else { return false };
+    let nbr = neighbours(sp, i);
     let mut own = [a.h_in - a.p, a.h_out - a.p];
-    // Each neighbour, its handle on the segment to `a` scaled.
-    let mut ends: [Option<Anchor>; 2] = [None; 2];
-    for (side, j) in neighbours(sp, i).into_iter().enumerate() {
-        let Some(b) = j.and_then(|j| sp.anchors.get_mut(j)) else { continue };
+    for (side, j_idx) in nbr.into_iter().enumerate() {
+        let Some(j_idx) = j_idx else { continue };
+        if sp.anchors[j_idx].kind == AnchorKind::Smooth {
+            continue;
+        }
+        let Some(b) = sp.anchors.get_mut(j_idx) else { continue };
         let old = a.p.distance(b.p);
         let s = if old > 1e-9 { q.distance(b.p) / old } else { 1.0 };
         let h = if side == 0 { &mut b.h_out } else { &mut b.h_in };
         *h = b.p + (*h - b.p) * s;
         own[side] *= s;
-        ends[side] = Some(*b);
     }
+    for (side, j_idx) in nbr.into_iter().enumerate() {
+        let Some(j_idx) = j_idx else { continue };
+        if sp.anchors.get(j_idx).is_none_or(|b| b.kind != AnchorKind::Smooth) {
+            continue;
+        }
+        let j_pos = sp.anchors[j_idx].p;
+        match side {
+            0 => {
+                let prev = neighbours(sp, j_idx)[0].and_then(|k| sp.anchors.get(k).map(|a| a.p));
+                if let Some(prev) = prev && let Some((_, h_out)) = smooth_handles(prev, j_pos, q) {
+                    sp.anchors[j_idx].h_out = h_out;
+                }
+            }
+            1 => {
+                let next = neighbours(sp, j_idx)[1].and_then(|k| sp.anchors.get(k).map(|a| a.p));
+                if let Some(next) = next && let Some((h_in, _)) = smooth_handles(q, j_pos, next) {
+                    sp.anchors[j_idx].h_in = h_in;
+                }
+            }
+            _ => {}
+        }
+    }
+    let ends: [Option<Anchor>; 2] = nbr.map(|j| j.and_then(|j| sp.anchors.get(j).copied()));
     let mut m = Anchor { p: q, h_in: q + own[0], h_out: q + own[1], kind: a.kind };
     if a.kind == AnchorKind::Smooth {
         match ends {
@@ -740,8 +763,12 @@ mod tests {
         // The segments beyond its neighbours are bit-identical.
         assert_eq!(sp.segment(0), before.segment(0));
         assert_eq!(sp.segment(3), before.segment(3));
-        // The neighbours keep their handle directions on its segments, and their other handles.
-        assert!(collinear(sp.anchors[1].h_out - sp.anchors[1].p, before.anchors[1].h_out - before.anchors[1].p));
+        // Smooth neighbours re-curve on the segment to the moved point; their other handles stay.
+        assert_eq!(
+            sp.anchors[1].h_out,
+            smooth_handles(before.anchors[0].p, before.anchors[1].p, pt(260.0, 140.0)).unwrap().1
+        );
+        // Corner neighbours keep their handle direction on the segment to the moved point.
         assert!(collinear(sp.anchors[3].h_in - sp.anchors[3].p, before.anchors[3].h_in - before.anchors[3].p));
         assert_eq!((sp.anchors[1].h_in, sp.anchors[3].h_out), (before.anchors[1].h_in, before.anchors[3].h_out));
         // The moved smooth point takes the Curvature tool's handles, along the circle through it
