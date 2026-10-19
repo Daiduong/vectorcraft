@@ -1,9 +1,11 @@
 //! Character panel › Anti-aliasing Method: type drawn as pixels with None, Sharp, Crisp or Strong
 //! edges.
 
+use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
+use vectorcraft_doc::pattern::{PatternDef, PatternEdit};
 use vectorcraft_doc::text::{CharStyle, InlineArt, TextObject, TextRun, TypeAntiAlias};
-use vectorcraft_doc::{Appearance, AppearanceItem, FillLayer, Node, NodeKind, TextKind};
+use vectorcraft_doc::{Appearance, AppearanceItem, Effect, FillLayer, Node, NodeKind, TextKind};
 use vectorcraft_geom::Point;
 use vectorcraft_geom::shapes::rectangle;
 
@@ -269,6 +271,114 @@ fn type_in_a_placed_document_takes_the_pages_pixels() {
         assert!(none.iter().filter(|v| **v == 255).count() > 1000, "k {k}");
         assert_eq!(partial(&none), 0, "k {k}: None type has hard edges in the export");
     }
+}
+
+/// The opacity of each pixel of `d` drawn at `view` on a transparent canvas `w` × `h` pixels.
+fn alphas_at(d: &Document, (w, h): (u32, u32), view: Affine) -> Vec<u8> {
+    Renderer::new().render(d, w, h, view, &RenderOptions::default()).pixels.chunks(4).map(|p| p[3]).collect()
+}
+
+/// `page(m, None)` with the effect `id` (parameters `params`) on the type object, and the object's
+/// id.
+fn page_with_effect(m: TypeAntiAlias, id: &str, params: Value) -> (Document, NodeId) {
+    let mut d = page(m, None);
+    let n = d.layers[0].children().and_then(|c| c.first()).map(|n| n.id).unwrap();
+    d.node_mut(n).unwrap().appearance.effects.push(Effect { id: id.into(), params, visible: true });
+    (d, n)
+}
+
+/// "Ham" in 30 pt type drawn with `m`, its baseline at (5.3, 30.4).
+fn ham(d: &mut Document, m: TypeAntiAlias) -> Node {
+    let mut t = TextObject::point(Point::new(5.3, 30.4), "Ham", CharStyle { size: 30.0, ..Default::default() });
+    t.anti_alias = m;
+    Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)))
+}
+
+/// `draw` gives the pixels of type drawn with a method: Sharp type has smooth edges there, and
+/// each other method changes them and gives every pixel the share of it `edge_coverage` defines.
+fn each_method_takes_the_share(what: &str, draw: impl Fn(TypeAntiAlias) -> Vec<u8>) {
+    let sharp = draw(TypeAntiAlias::Sharp);
+    assert!(partial(&sharp) > 200, "{what}: Sharp draws smooth edges: {} partial pixels", partial(&sharp));
+    for m in [TypeAntiAlias::None, TypeAntiAlias::Crisp, TypeAntiAlias::Strong] {
+        let drawn = draw(m);
+        assert_ne!(drawn, sharp, "{what}: {m:?} changes the edges");
+        let wrong = off_the_share(m, &sharp, &drawn);
+        assert!(wrong.is_empty(), "{what}, {m:?}: (pixel, Sharp, drawn) {wrong:?}");
+    }
+}
+
+/// A drop shadow whose offset is not a whole number of pixels draws the type on the canvas's
+/// pixels: each method gives every pixel, the shadow's below the type included, the share of it
+/// `edge_coverage` defines.
+#[test]
+fn type_in_a_drop_shadow_takes_the_canvas_pixels() {
+    let shadow = json!({"mode": "normal", "opacity": 100, "x": 3.4, "y": 45.3, "blur": 0, "color": "#000000"});
+    let draw = |m| alphas_at(&page_with_effect(m, "stylize.dropShadow", shadow.clone()).0, (W, 130), Affine::IDENTITY);
+    // Below the type's descender, the shadow alone.
+    let below = |a: &[u8]| a[(W * 75) as usize..].iter().filter(|v| **v == 255).count();
+    assert!(below(&draw(TypeAntiAlias::Sharp)) > 500, "the shadow is drawn below the type");
+    each_method_takes_the_share("drop shadow", draw);
+}
+
+/// Effect › Rasterize draws the type on the pixels of its image: at 36 ppi each pixel of the image
+/// is 2 × 2 pixels of a canvas whose grid it lies on, and each method gives every pixel the share
+/// of it `edge_coverage` defines.
+#[test]
+fn type_in_a_rasterize_takes_the_images_pixels() {
+    let draw = |m| {
+        let (d, id) = page_with_effect(m, "rasterize", json!({"useDocumentResolution": false, "resolution": 36}));
+        let image = drawn_bounds(&d, d.node(id).unwrap()).unwrap();
+        // The image's corner on a corner of a canvas pixel.
+        let view = Affine::translate((image.x0.ceil() - image.x0, image.y0.ceil() - image.y0));
+        alphas_at(&d, (W, H), view)
+    };
+    each_method_takes_the_share("rasterize", draw);
+}
+
+/// A pattern tile holding type draws it on the pixels of the tile's image, also in the copies of
+/// the tile 80.25 pixels away: in the swatch each method gives every pixel the share of it
+/// `edge_coverage` defines.
+#[test]
+fn type_in_a_pattern_tile_takes_the_tiles_pixels() {
+    let draw = |m| {
+        let mut d = Document::new(f64::from(W), f64::from(H));
+        let text = ham(&mut d, m);
+        let mut def = PatternDef::new("Type", vec![Arc::new(text)]);
+        // The swatch draws 2 pixels a point and shows the copies above and below the tile, 80.25
+        // pixels away.
+        def.tile = Rect::new(0.0, 0.0, 120.5, 40.125);
+        d.patterns.push(def);
+        let swatch = render_pattern_swatch(&d, "Type", 241).unwrap();
+        swatch.pixels.chunks(4).map(|p| p[3]).collect::<Vec<u8>>()
+    };
+    // The rows of the copy above the tile.
+    let above = |a: &[u8]| a[..241 * 60].iter().filter(|v| **v == 255).count();
+    assert!(above(&draw(TypeAntiAlias::Sharp)) > 200, "the swatch shows the copy above the tile");
+    each_method_takes_the_share("pattern tile", draw);
+}
+
+/// Pattern editing mode draws the copies of the tile, 120.25 pixels apart across and 40.125 pixels
+/// apart down, on the canvas's pixels: each method gives every pixel the share of it
+/// `edge_coverage` defines.
+#[test]
+fn type_in_the_copies_of_an_edited_tile_takes_the_canvas_pixels() {
+    let draw = |m| {
+        let mut d = Document::new(400.0, 200.0);
+        let text = ham(&mut d, m);
+        let mut def = PatternDef::new("Type", vec![Arc::new(text.clone())]);
+        def.tile = Rect::new(0.0, 0.0, 120.25, 40.125);
+        // The eight copies around the tile, at full opacity.
+        (def.copies, def.dim_copies, def.show_tile_edge) = (3, 100.0, false);
+        d.patterns.push(def);
+        let layer = d.add_layer(Some("Pattern Editing Mode"));
+        d.insert(Some(layer), 0, text).unwrap();
+        d.pattern_edit = Some(PatternEdit { pattern: "Type".into(), layer, original: None });
+        alphas_at(&d, (380, 130), Affine::translate((125.0, 45.0)))
+    };
+    // The rows of the copies above the tile.
+    let above = |a: &[u8]| a[..380 * 40].iter().filter(|v| **v == 255).count();
+    assert!(above(&draw(TypeAntiAlias::Sharp)) > 200, "the copies above the tile are drawn");
+    each_method_takes_the_share("pattern editing", draw);
 }
 
 /// Type with a brush stroke of its own is drawn as Sharp draws it.
