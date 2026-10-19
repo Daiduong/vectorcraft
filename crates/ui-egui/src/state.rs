@@ -324,6 +324,10 @@ pub struct UiState {
     /// saved.
     #[serde(skip)]
     pub context_locked: Option<(u64, Vec<vectorcraft_doc::NodeId>)>,
+    /// The document point of the last right-click on the canvas (with the document's `uid`), for
+    /// overlap-specific menu items such as Intertwine arrange. Not saved.
+    #[serde(skip)]
+    pub context_menu_at: Option<(u64, vectorcraft_geom::Point)>,
     /// Last tool shown in each toolbar slot (keyed by the slot's first tool id).
     #[serde(default)]
     pub slot_tool: std::collections::BTreeMap<String, String>,
@@ -768,6 +772,7 @@ impl Default for UiState {
             task_bar: true,
             task_bar_place: TaskBarPlace::default(),
             context_locked: None,
+            context_menu_at: None,
             slot_tool: Default::default(),
             floating_flyouts: vec![],
             toolbar_edits: ToolbarEdits::default(),

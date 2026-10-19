@@ -3013,6 +3013,44 @@ fn transform_items() -> Vec<Item> {
     ]
 }
 
+/// Bring Forward / Send Backward for a three-or-more-way Intertwine overlap at the last canvas
+/// right-click ([`crate::state::UiState::context_menu_at`]).
+fn intertwine_overlap_arrange_items(app: &VectorcraftApp) -> Vec<Item> {
+    use vectorcraft_doc::NodeKind;
+    let Some(st) = app.session.active() else { return vec![] };
+    let Some((uid, p)) = app.ui.context_menu_at else { return vec![] };
+    if st.uid != uid {
+        return vec![];
+    }
+    let Some(g) = vectorcraft_tools::intertwine::selected_group(&st.doc, &st.selection.objects) else { return vec![] };
+    let Some(node) = st.doc.node(g) else { return vec![] };
+    let NodeKind::Intertwine { children } = &node.kind else { return vec![] };
+    let all = vectorcraft_tools::intertwine::faces(children);
+    let Some(face) = vectorcraft_tools::intertwine::face_at(&all, p) else { return vec![] };
+    if face.members.len() < 3 {
+        return vec![];
+    }
+    let drawn = vectorcraft_tools::intertwine::drawn_order(children, &face);
+    let member = st
+        .selection
+        .objects
+        .iter()
+        .filter_map(|id| children.iter().position(|c| c.id == *id))
+        .filter(|i| face.members.contains(i))
+        .max_by_key(|i| drawn.iter().position(|&d| d == *i).unwrap_or(0))
+        .map(|i| children[i].id.0);
+    let base = json!({ "id": g.0, "at": [p.x, p.y] });
+    let mut front = base.clone();
+    front["order"] = json!("front");
+    let mut back = base.clone();
+    back["order"] = json!("back");
+    if let Some(m) = member {
+        front["member"] = json!(m);
+        back["member"] = json!(m);
+    }
+    vec![cp("Bring Forward", "object.intertwine.arrange", front), cp("Send Backward", "object.intertwine.arrange", back)]
+}
+
 /// Object → Arrange (also in the canvas context menu).
 fn arrange_items() -> Vec<Item> {
     vec![
@@ -3098,6 +3136,7 @@ pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
         if any(|k| matches!(k, NodeKind::Compound { .. })) {
             v.push(c("Release Compound Path", "object.compoundPath.release"));
         }
+        v.extend(intertwine_overlap_arrange_items(app));
         v.extend([
             c("Make Guides", "view.guides.make"),
             Sep,

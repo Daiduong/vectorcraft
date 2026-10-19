@@ -209,6 +209,34 @@ fn the_menu_follows_the_selection() {
     assert!(items.windows(2).all(|w| !matches!(w, [Item::Sep, Item::Sep])));
 }
 
+#[test]
+fn three_object_intertwine_overlap_lists_bring_forward_and_send_backward_at_the_click() {
+    let mut app = app();
+    let a = rect(&mut app, 40.0, 0.0);
+    let b = rect(&mut app, 44.0, 0.0);
+    let c = rect(&mut app, 46.0, 20.0);
+    app.run("select.set", json!({"ids": [a.0, b.0, c.0]})).unwrap();
+    app.run("object.intertwine.make", json!({})).unwrap();
+    app.run("select.set", json!({"ids": [c.0]})).unwrap();
+    let uid = app.session.active().unwrap().uid;
+    app.ui.context_menu_at = Some((uid, Point::new(50.0, 30.0)));
+    let entries = menus::context_entries(&app);
+    let forward = entries
+        .iter()
+        .find(|e| e.label == "Bring Forward" && e.command.as_deref() == Some("object.intertwine.arrange"))
+        .expect("intertwine Bring Forward");
+    assert_eq!(forward.params["order"], json!("front"));
+    assert_eq!(forward.params["member"], json!(c.0));
+    let back = entries.iter().find(|e| e.label == "Send Backward" && e.command.as_deref() == Some("object.intertwine.arrange")).unwrap();
+    assert_eq!(back.params["order"], json!("back"));
+    // Two-object overlaps still use toggle on a click, not these items.
+    app.ui.context_menu_at = Some((uid, Point::new(50.0, 10.0)));
+    assert!(
+        !menus::context_entries(&app).iter().any(|e| e.command.as_deref() == Some("object.intertwine.arrange")),
+        "only three-or-more-way overlaps"
+    );
+}
+
 /// Every label the context menu can show is a menu string, so complete catalogs must translate it.
 #[test]
 fn every_context_label_is_a_menu_string() {
