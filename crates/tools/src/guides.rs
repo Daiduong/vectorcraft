@@ -12,7 +12,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use vectorcraft_doc::hit::{HitOptions, hit_test};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, OrientedBox, Selection};
+use vectorcraft_doc::{Document, Node, NodeId, NodeKind, OrientedBox, Selection, Unit};
 use vectorcraft_geom::kurbo::ParamCurveNearest;
 use vectorcraft_geom::{Affine, Line, ParamCurve, PathSeg, Point, Rect, SubPath, Vec2, constrain_angle_from};
 
@@ -88,6 +88,8 @@ pub struct Targets {
     extensions: Vec<(Point, Vec2)>,
     /// How the guides these targets produce look.
     style: GuideStyle,
+    /// General units for Spacing Guide distance readouts.
+    unit: Unit,
 }
 
 /// A ruler guide as a snap target.
@@ -250,6 +252,7 @@ impl Targets {
     /// ([`GuideStyle::of`]).
     pub fn styled(mut self, cx: &ToolContext) -> Self {
         self.style = GuideStyle::of(cx);
+        self.unit = cx.unit;
         self
     }
 
@@ -847,11 +850,21 @@ impl Targets {
     }
 
     /// A Spacing Guides mark: a line across the gap (start, end, where across) along the x axis
-    /// (`x`) or the y axis, with a tick `tick` long either side of it at each end.
-    fn gap_marks(&self, [u0, u1, c]: [f64; 3], x: bool, tick: f64) -> [Overlay; 3] {
+    /// (`x`) or the y axis, with a tick `tick` long either side of it at each end, and the gap
+    /// length labelled at its centre when Anchor/Path Labels are on.
+    fn gap_marks(&self, [u0, u1, c]: [f64; 3], x: bool, tick: f64) -> Vec<Overlay> {
         let pt = |u: f64, c: f64| if x { Point::new(u, c) } else { Point::new(c, u) };
         let line = |a: Point, b: Point| Overlay::Line { a, b, color: self.style.color, dashed: false };
-        [line(pt(u0, c), pt(u1, c)), line(pt(u0, c - tick), pt(u0, c + tick)), line(pt(u1, c - tick), pt(u1, c + tick))]
+        let mut out = vec![
+            line(pt(u0, c), pt(u1, c)),
+            line(pt(u0, c - tick), pt(u0, c + tick)),
+            line(pt(u1, c - tick), pt(u1, c + tick)),
+        ];
+        if self.style.labels {
+            let dist = (u1 - u0).abs();
+            out.push(Overlay::Label { p: pt((u0 + u1) / 2.0, c), text: self.unit.readout(dist), color: self.style.color });
+        }
+        out
     }
 
     /// [`Self::snap_rects`] before Spacing Guides, also saying whether each axis (x, y) lined up
@@ -1473,6 +1486,7 @@ mod tests {
         assert_eq!(lines(&ov), 6, "{ov:?}");
         assert!(ov.iter().any(|o| matches!(o, Overlay::Line { a, b, .. } if (a.x, b.x) == (120.0, 140.0) && a.y == b.y)), "{ov:?}");
         assert!(ov.iter().any(|o| matches!(o, Overlay::Line { a, b, .. } if (a.x, b.x) == (60.0, 80.0) && a.y == b.y)), "{ov:?}");
+        assert!(ov.iter().any(|o| matches!(o, Overlay::Label { text, .. } if text == "20.00 pt")), "{ov:?}");
         // Halfway between B and a box at 220–260: 50 either side.
         let mut wide = d.clone();
         let id = wide.alloc_id();
@@ -1492,6 +1506,11 @@ mod tests {
         let off = ToolContext { spacing_guides: false, ..cx(&d, &s, &p) };
         let (dv, ov) = Targets::for_move(&off, &s.objects).snap_rect(Rect::new(141.0, 305.0, 181.0, 345.0), 4.0);
         assert_eq!((dv, lines(&ov)), (Vec2::ZERO, 0));
+        // Anchor/Path Labels off: the gaps are still marked, without numbers.
+        let quiet = ToolContext { anchor_path_labels: false, ..cx(&d, &s, &p) };
+        let (_, ov) = Targets::for_move(&quiet, &s.objects).snap_rect(Rect::new(141.0, 305.0, 181.0, 345.0), 4.0);
+        assert_eq!(lines(&ov), 6);
+        assert!(!ov.iter().any(|o| matches!(o, Overlay::Label { .. })), "{ov:?}");
     }
 
     /// Preferences › Smart Guides › Display Options (#394): the colour, and Alignment Guides and
