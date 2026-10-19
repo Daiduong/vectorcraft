@@ -477,10 +477,10 @@ pub fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let review = Review::of(d);
     let statuses = review.statuses();
     let back = super::parent(d);
-    let mut ov: BTreeMap<String, String> = match (d.str("start") == "current", &back) {
-        (true, Some(b)) => b.fields.get("overrides").and_then(|v| BTreeMap::deserialize(v).ok()).unwrap_or_default(),
+    let mut ov = match (d.str("start") == "current", &back) {
+        (true, Some(b)) => b.fields.get("overrides").map(|v| crate::keymap::stored::from_value(v.clone())).unwrap_or_default(),
         (true, None) => app.ui.shortcut_overrides.clone(),
-        (false, _) => BTreeMap::new(),
+        (false, _) => craft_keymap::Overrides::new(),
     };
     let mut applied = 0usize;
     for (r, (status, chord)) in review.rows.iter().zip(&statuses) {
@@ -498,7 +498,7 @@ pub fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
         shortcut_editor::open(app);
     }
     if let Some(k) = app.ui.dialog.as_mut() {
-        k.fields.insert("overrides".into(), serde_json::to_value(&ov).unwrap_or_else(|_| json!({})));
+        k.fields.insert("overrides".into(), crate::keymap::stored::to_value(&ov));
         k.fields.insert("set".into(), json!(set));
         k.fields.insert("__message".into(), json!(tl!("Imported. Press OK to keep the imported set.")));
     }

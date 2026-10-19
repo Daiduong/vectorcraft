@@ -1,6 +1,8 @@
 //! Keyboard shortcuts: command shortcuts from the registry, single-key tool shortcuts, arrows,
 //! and tool keys (Enter/Esc/↑/↓ while drawing).
 
+use craft_keymap::egui::Hit;
+use craft_keymap::{Active, CommandRef};
 use egui::{Key, KeyboardShortcut, Modifiers};
 use serde_json::json;
 use vectorcraft_engine::cmd::clipboard::{Flavour, TEXT};
@@ -10,7 +12,7 @@ use crate::VectorcraftApp;
 
 /// Parse "Cmd+Shift+]" into an egui shortcut. `Cmd` is Command on macOS and Ctrl elsewhere.
 /// `+` and `=` name one chord key ([`Key::Equals`]): `+` is Shift+`=` on many layouts, so a
-/// `Cmd+=` chord also answers `+` however it is typed (see [`consume`]).
+/// `Cmd+=` chord also answers `+` however it is typed.
 pub fn parse(s: &str) -> Option<KeyboardShortcut> {
     if s.is_empty() {
         return None;
@@ -94,28 +96,6 @@ fn settings_chord(v: &mut Vec<(KeyboardShortcut, &'static str, serde_json::Value
     if let Some(sc) = parse("Cmd+,").filter(|sc| mac && !v.iter().any(|(s, ..)| s == sc)) {
         v.push((sc, "edit.preferences", json!({})));
     }
-}
-
-/// Consume a press of `sc`. A `=` chord also takes [`Key::Plus`], which is how `+` arrives from
-/// the numpad and from layouts where it has its own key (Shift+`=` arrives as either; extra Shift
-/// is ignored).
-pub(crate) fn consume(i: &mut egui::InputState, sc: &KeyboardShortcut) -> bool {
-    i.consume_shortcut(sc)
-        || (sc.logical_key == Key::Equals && i.consume_key(sc.modifiers, Key::Plus))
-        || (sc.modifiers.shift && shifted(sc.logical_key).is_some_and(|k| i.consume_key(sc.modifiers, k)))
-}
-
-/// The key a shifted punctuation key arrives as: egui reports the character typed, so Cmd+Shift+[
-/// comes in as Cmd+Shift+`{` (US-style layouts).
-fn shifted(k: Key) -> Option<Key> {
-    Some(match k {
-        Key::OpenBracket => Key::OpenCurlyBracket,
-        Key::CloseBracket => Key::CloseCurlyBracket,
-        Key::Slash => Key::Questionmark,
-        Key::Semicolon => Key::Colon,
-        Key::Backslash => Key::Pipe,
-        _ => return None,
-    })
 }
 
 /// Keys that paste with Cmd, or alone. (Shift+Insert is left out: Ctrl+Insert copies.)
@@ -347,10 +327,15 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
         }
         // Editing keys with modifiers and the clipboard (Cmd+A is Select All's, below: the text).
         crate::panels::character::route_type_input(app, ctx);
-        // Enter was already delivered above as ToolKey::Enter (newline).
-        let fire = all_shortcuts().into_iter().filter(|(sc, ..)| sc.modifiers.command).find(|(sc, ..)| ctx.input_mut(|i| consume(i, sc)));
-        if let Some((_, id, p)) = fire {
-            crate::menus::invoke(app, id, p);
+        // Enter was already delivered above as ToolKey::Enter (newline). Only chords with the
+        // command key run commands: the rest type or edit.
+        let hits = dispatch(app, ctx, |hit| hit.trigger.chord.mods.cmd);
+        let ran = !hits.is_empty();
+        for c in hits {
+            run_hit(app, ctx, &c);
+        }
+        if !ran {
+            settings_on_a_mac(app, ctx);
         }
         return;
     }
@@ -505,28 +490,16 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
             return;
         }
     }
-    // Command shortcuts.
-    let mut fire = None;
-    for (sc, id, p) in all_shortcuts() {
-        // Letter / punctuation keys without Cmd/Alt/Ctrl are handled below as text (tool shortcuts,
-        // X, D, /, `,` and `.`).
-        let plain = !(sc.modifiers.command || sc.modifiers.alt || sc.modifiers.ctrl);
-        if plain && (sc.logical_key.name().len() == 1 || matches!(sc.logical_key, Key::Slash | Key::Comma | Key::Period)) {
-            continue;
+    // Command, panel and tool shortcuts. Keys that type a character without Cmd/Alt/Ctrl are
+    // handled below as text (tool shortcuts, X, D, /, `,` and `.`).
+    let hits = dispatch(app, ctx, |hit| !(hit.trigger.chord.is_plain() && types_text(hit.trigger.chord.key)));
+    if !hits.is_empty() {
+        for c in hits {
+            run_hit(app, ctx, &c);
         }
-        if ctx.input_mut(|i| consume(i, &sc)) {
-            fire = Some((id, p));
-            break;
-        }
+        return;
     }
-    if let Some((id, p)) = fire {
-        // With the Artboard tool, Select All's keys after a click on an Artboards panel row select
-        // every artboard instead of the art.
-        if id == "select.all" && crate::panels::artboards::selects_all(app, ctx) {
-            crate::panels::artboards::select_all(app);
-        } else {
-            crate::menus::invoke(app, id, p);
-        }
+    if settings_on_a_mac(app, ctx) {
         return;
     }
     // Arrow nudges (Shift = ×10, Alt = copy).
@@ -558,6 +531,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
             })
             .collect()
     });
+    let keymap = crate::shortcut_editor::current();
     for (text, m) in events {
         if m.command || m.alt || m.ctrl {
             continue;
@@ -567,16 +541,78 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
         // A shifted punctuation character can also be written with its Shift (the Curvature tool's
         // Shift+~ arrives as `~`).
         let shifted = m.shift.then(|| format!("Shift+{text}"));
-        let lookup = |find: fn(&str) -> Option<&'static str>| find(&key).or_else(|| find(&text)).or_else(|| shifted.as_deref().and_then(find));
-        // Single-key command shortcuts (X, Shift+X, D, /, Shift+D, F, Shift+F by default).
-        if let Some(id) = lookup(crate::shortcut_editor::command_for_key) {
-            let _ = app.run(id, json!({}));
-            continue;
-        }
-        if let Some(t) = lookup(crate::shortcut_editor::tool_for_key) {
-            app.select_tool(t);
+        let hits: Vec<CommandRef> = [Some(key), Some(text), shifted]
+            .into_iter()
+            .flatten()
+            .filter_map(|t| crate::keymap::vc_chord(&t).and_then(|c| crate::keymap::lookup(&keymap.keymap, &c)))
+            .collect();
+        // Single-key command shortcuts (X, Shift+X, D, /, Shift+D, F, Shift+F by default) before
+        // tools.
+        let Some(hit) = hits.iter().find(|c| !c.id.starts_with("tool:")).or(hits.first()) else { continue };
+        match hit.id.strip_prefix("tool:") {
+            Some(tool) => app.select_tool(tool),
+            None if hit.params.is_null() => {
+                let _ = app.run(&hit.id, json!({}));
+            }
+            None => crate::menus::invoke(app, &hit.id, hit.params.clone()),
         }
     }
+}
+
+/// Runs this frame's key presses against the keymap in effect; `accept` declines a hit, leaving
+/// its press (and the text it typed) to what follows.
+fn dispatch(app: &mut VectorcraftApp, ctx: &egui::Context, accept: impl FnMut(&Hit) -> bool) -> Vec<CommandRef> {
+    let mirror = crate::shortcut_editor::current();
+    let dispatcher = &mut app.dispatcher;
+    ctx.input_mut(|i| {
+        // Shift+`=` types `+`: as the Plus key it also reaches a `=` chord held with Shift
+        // (Cmd+Shift+= zooms in as Cmd+= does).
+        for e in &mut i.events {
+            if let egui::Event::Key { key, modifiers, .. } = e
+                && *key == Key::Equals
+                && modifiers.shift
+            {
+                *key = Key::Plus;
+            }
+        }
+        dispatcher.dispatch_filtered(i, &mirror.keymap, &Active::NONE, accept).into_iter().map(|h| h.command).collect()
+    })
+}
+
+/// Runs what a shortcut is bound to: a tool, a panel (`window.panel {panel}`) or a command.
+fn run_hit(app: &mut VectorcraftApp, ctx: &egui::Context, c: &CommandRef) {
+    if let Some(tool) = c.id.strip_prefix("tool:") {
+        app.select_tool(tool);
+    } else if c.id == "select.all" && crate::panels::artboards::selects_all(app, ctx) {
+        // With the Artboard tool, Select All's keys after a click on an Artboards panel row select
+        // every artboard instead of the art.
+        crate::panels::artboards::select_all(app);
+    } else {
+        let p = if c.params.is_null() { json!({}) } else { c.params.clone() };
+        crate::menus::invoke(app, &c.id, p);
+    }
+}
+
+/// Keys that type a character: letters, digits and punctuation (not Space).
+fn types_text(key: craft_keymap::Key) -> bool {
+    key.name().chars().count() == 1
+}
+
+/// On a Mac, Cmd+, opens Settings when no shortcut has it ([`settings_chord`]). `true` when it ran.
+fn settings_on_a_mac(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
+    if !cfg!(target_os = "macos") {
+        return false;
+    }
+    let pressed = ctx.input_mut(|i| {
+        let at = i.events.iter().position(
+            |e| matches!(e, egui::Event::Key { key: Key::Comma, pressed: true, modifiers, .. } if modifiers.matches_exact(Modifiers::COMMAND)),
+        );
+        at.map(|at| i.events.remove(at)).is_some()
+    });
+    if pressed {
+        crate::menus::invoke(app, "edit.preferences", json!({}));
+    }
+    pressed
 }
 
 /// The second press of Escape pressed twice comes less than this many seconds after the first.
@@ -1457,6 +1493,32 @@ mod tests {
     }
 
     /// Cmd+, opens Settings on a Mac only, and never takes a chord a command already has.
+    /// Shortcuts reach tools, panels (`window.panel {panel}`) and commands through the keymap,
+    /// and a held Cmd+= keeps zooming in.
+    #[test]
+    fn shortcuts_run_tools_panels_and_commands() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 20, "y": 0, "width": 10, "height": 10})).unwrap();
+        app.session.execute("select.set", &json!({"ids": []})).unwrap();
+        let press = |key, modifiers, repeat| egui::Event::Key { key, physical_key: None, pressed: true, repeat, modifiers };
+        crate::keymap::set_override(&mut app.ui.shortcut_overrides, "tool:pen", "F2");
+        crate::shortcut_editor::sync(&app.ui);
+        frame(&mut app, vec![press(Key::F2, Modifiers::NONE, false)]);
+        assert_eq!(app.session.tool_id(), "pen", "a tool on a key that types nothing");
+        app.select_tool("selection");
+        frame(&mut app, vec![press(Key::F7, Modifiers::SHIFT, false)]);
+        assert_eq!(app.ui.open_panel.as_deref(), Some("align"));
+        frame(&mut app, vec![press(Key::A, Modifiers::COMMAND, false)]);
+        assert_eq!(app.session.active().unwrap().selection.objects.len(), 2, "Select All");
+        let zoom = |app: &mut VectorcraftApp| app.view_mut().unwrap().zoom;
+        frame(&mut app, vec![press(Key::Equals, Modifiers::COMMAND, false)]);
+        let once = zoom(&mut app);
+        frame(&mut app, vec![press(Key::Equals, Modifiers::COMMAND, true)]);
+        assert!(zoom(&mut app) > once, "a key repeat zooms again");
+    }
+
     #[test]
     fn cmd_comma_opens_settings_on_a_mac() {
         let comma = parse("Cmd+,").unwrap();

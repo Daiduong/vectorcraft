@@ -360,7 +360,7 @@ fn keyboard_shortcuts_import_reads_both_kinds_of_set() {
     let files: BTreeMap<&str, Vec<u8>> = BTreeMap::from([
         (
             "/sets/Mine.json",
-            serde_json::to_vec(&shortcut_editor::export_json("Mine", &BTreeMap::from([("tool:pen".into(), "Shift+9".into())]))).unwrap(),
+            serde_json::to_vec(&shortcut_editor::export_json("Mine", &crate::keymap::overrides_from(&[("tool:pen", "Shift+9")]))).unwrap(),
         ),
         ("/sets/Text.json", b"\xEF\xBB\xBF  /Menus { /Acme\\ Undo { /Key 1 } }".to_vec()),
     ]);

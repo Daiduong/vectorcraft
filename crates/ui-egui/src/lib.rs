@@ -35,6 +35,7 @@ pub mod i18n;
 pub mod icon_data;
 pub mod icons;
 pub mod io;
+pub mod keymap;
 pub mod menus;
 pub mod native_menu;
 pub mod opening;
@@ -460,6 +461,8 @@ pub struct VectorcraftApp {
     font_install_check_at: f64,
     /// Keyboard pastes of something other than text (see [`shortcuts::PasteChord`]).
     pub(crate) paste_chord: shortcuts::PasteChord,
+    /// Runs the frame's key presses against the keymap ([`shortcuts::handle`]).
+    pub(crate) dispatcher: craft_keymap::egui::Dispatcher,
     /// Saves and exports running in the background (Preferences → File Handling).
     pub background: background::Background,
     /// Documents being read off the UI thread ([`opening`]).
@@ -569,6 +572,8 @@ impl VectorcraftApp {
             font_check: None,
             font_install_check_at: f64::NEG_INFINITY,
             paste_chord: Default::default(),
+            // Held keys repeat their command (Cmd+= keeps zooming in).
+            dispatcher: craft_keymap::egui::Dispatcher::new().with_repeat(true),
             background: Default::default(),
             opening: Default::default(),
             recovery: Default::default(),
