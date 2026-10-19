@@ -375,6 +375,10 @@ impl ToolContext<'_> {
     pub fn size_label(&self, w: f64, h: f64) -> String {
         format!("W: {}\nH: {}", self.len(w), self.len(h))
     }
+    /// Ellipse measurement: bounding width and height plus axis radii.
+    pub fn ellipse_size_label(&self, w: f64, h: f64) -> String {
+        format!("{}\nRx: {}\nRy: {}", self.size_label(w, h), self.len(w / 2.0), self.len(h / 2.0))
+    }
     /// A move label: `dX: …` over `dY: …`.
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))

@@ -259,7 +259,8 @@ impl Tool for ShapeTool {
                     (r.width(), r.height())
                 }
             };
-            o.push(Overlay::Measure { p: self.last, text: cx.size_label(w, h) });
+            let text = if self.id == "ellipse" { cx.ellipse_size_label(w, h) } else { cx.size_label(w, h) };
+            o.push(Overlay::Measure { p: self.last, text });
         }
         o
     }
@@ -355,6 +356,21 @@ mod tests {
         assert!((r2 / r1 - 0.381_966).abs() < 1e-5, "{}", r2 / r1);
         assert_eq!(straight_ratio(4), None, "four points can't line up");
         assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 150.0, 50.0)), vec![Action::Commit]);
+    }
+
+    #[test]
+    fn ellipse_drag_shows_radii_in_measurement_labels() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = ShapeTool::new("ellipse");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 110.0, 60.0));
+        let want = cx.ellipse_size_label(100.0, 50.0);
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        let quiet = ToolContext { measurement_labels: false, ..cx };
+        assert!(!t.overlays(&quiet).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
