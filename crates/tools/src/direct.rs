@@ -769,6 +769,14 @@ impl Tool for DirectSelectionTool {
                 match (began, self.click.take(), self.click_segment.take()) {
                     (true, _, _) => vec![Action::Commit],
                     (false, Some((id, si, ai)), _) => {
+                        let count = cx.selection.anchors.values().map(|s| s.len()).sum::<usize>();
+                        let on = cx.selection.anchors.get(&id).is_some_and(|s| s.contains(&(si, ai)));
+                        if count >= 2 && on {
+                            if cx.selection.key_anchor == Some((id, (si, ai))) {
+                                return vec![Action::Exec("select.keyAnchor".into(), json!({}))];
+                            }
+                            return vec![Action::Exec("select.keyAnchor".into(), json!({"id": id.0, "subpath": si, "anchor": ai}))];
+                        }
                         vec![Action::Exec("select.anchors".into(), json!({"id": id.0, "anchors": [[si, ai]], "mode": "set"}))]
                     }
                     (false, None, Some((id, si, seg))) => vec![Action::Exec("select.segments".into(), json!({"id": id.0, "segments": [[si, seg]]}))],

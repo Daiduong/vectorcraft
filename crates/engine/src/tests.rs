@@ -2786,6 +2786,26 @@ fn align_moves_selected_anchor_points() {
     assert_eq!(anchors(&s)[2].1 - anchors(&s)[0].1, 120.0, "its shape kept");
 }
 
+/// G1: with several anchor points direct-selected, Align to Key Object moves the others to the key
+/// anchor's horizontal or vertical position and leaves the key anchor fixed.
+#[test]
+fn align_direct_selected_anchors_to_a_key_anchor() {
+    let mut s = session();
+    let id = NodeId(s.execute("path.create", &json!({"d": "M10 40 L200 60 L150 160 Z"})).unwrap()["id"].as_u64().unwrap());
+    let anchors = |s: &Session| -> Vec<(f64, f64)> {
+        s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect()
+    };
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    s.execute("select.keyAnchor", &json!({"id": id.0, "subpath": 0, "anchor": 1})).unwrap();
+    assert_eq!(s.doc().unwrap().selection.key_anchor, Some((id, (0, 1))));
+    s.execute("object.align", &json!({"vertical": "top"})).unwrap();
+    assert_eq!(anchors(&s), [(10.0, 60.0), (200.0, 60.0), (150.0, 160.0)]);
+    s.execute("object.align", &json!({"horizontal": "left"})).unwrap();
+    assert_eq!(anchors(&s), [(200.0, 60.0), (200.0, 60.0), (150.0, 160.0)], "the key anchor stays put");
+    s.execute("select.keyAnchor", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().selection.key_anchor, None);
+}
+
 /// #1636: with anchor points selected, the Distribute commands space those points, on one path
 /// or across paths, and leave the other points and the paths' objects where they are.
 #[test]

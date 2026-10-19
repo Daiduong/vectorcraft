@@ -1276,6 +1276,12 @@ fn align_to<'a>(s: &Session, p: &'a Value) -> Option<&'a str> {
     str_param(p, "to").or_else(|| s.doc().ok()?.selection.key.map(|_| "key"))
 }
 
+/// What [`align_anchors`] aligns to: `to`, else the key anchor when one is set, else the
+/// selected anchors' bounds.
+fn align_to_anchors<'a>(s: &Session, p: &'a Value) -> Option<&'a str> {
+    str_param(p, "to").or_else(|| s.doc().ok()?.selection.key_anchor.map(|_| "key"))
+}
+
 fn reference_rect(s: &Session, p: &Value, ids: &[NodeId], preview: bool) -> Result<Rect> {
     let st = s.doc()?;
     match align_to(s, p) {
@@ -1359,7 +1365,8 @@ fn align(s: &mut Session, p: &Value) -> Result<Value> {
 /// moves to the edge or centre of the points' bounds, or of the artboard with Align To Artboard.
 fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&str>, Option<&str>)) -> Result<Value> {
     let targets = super::path::anchor_targets(s)?;
-    let d = &s.doc()?.doc;
+    let st = s.doc()?;
+    let d = &st.doc;
     let pts: Vec<Point> = targets
         .iter()
         .flat_map(|(id, refs)| refs.iter().filter_map(move |(si, ai)| d.node(*id)?.path_data()?.subpaths.get(*si)?.anchors.get(*ai).map(|a| a.p)))
@@ -1367,8 +1374,23 @@ fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&st
     let Some(bounds) = pts.iter().skip(1).fold(pts.first().map(|q| Rect::from_points(*q, *q)), |b, q| b.map(|b| b.union_pt(*q))) else {
         return ok();
     };
-    // shortcut: no key anchor yet, so Align To Key Object aligns to the points' bounds as Selection does.
-    let r = if align_to(s, p) == Some("artboard") { reference_rect(s, p, ids, false)? } else { bounds };
+    let to = align_to_anchors(s, p);
+    let r = match to {
+        Some("artboard") => reference_rect(s, p, ids, false)?,
+        Some("key") => {
+            let (id, (si, ai)) = st.selection.key_anchor.ok_or_else(|| EngineError::Other("no key anchor".into()))?;
+            let p = d
+                .node(id)
+                .and_then(|n| n.path_data())
+                .and_then(|path| path.subpaths.get(si))
+                .and_then(|sp| sp.anchors.get(ai))
+                .map(|a| a.p)
+                .ok_or(EngineError::NoNode(id))?;
+            Rect::from_points(p, p)
+        }
+        _ => bounds,
+    };
+    let key = st.selection.key_anchor;
     let target = |q: Point| {
         let x = match h {
             Some("left") => r.x0,
@@ -1394,6 +1416,9 @@ fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&st
         for (id, refs) in &targets {
             let path = super::path::path_mut(d, *id)?;
             for &(si, ai) in refs {
+                if key == Some((*id, (si, ai))) {
+                    continue;
+                }
                 if let Some(a) = path.anchor_mut(si, ai) {
                     a.translate(target(a.p) - a.p);
                 }

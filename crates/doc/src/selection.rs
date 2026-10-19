@@ -28,6 +28,10 @@ pub struct Selection {
     /// selected or when the key is a group selected with only its own members.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key: Option<NodeId>,
+    /// Key anchor for Align when anchor points are direct-selected: the others align to this
+    /// point’s coordinates with Align to Key Object, as the key object does for whole objects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_anchor: Option<(NodeId, AnchorRef)>,
     /// The object, group or layer targeted through its target circle in the Layers panel, which
     /// appearance, transparency and opacity-mask commands then act on (a targeted layer has its
     /// art selected). Any other selection change clears it.
@@ -64,6 +68,7 @@ impl Selection {
         self.anchors.clear();
         self.segments.clear();
         self.key = None;
+        self.key_anchor = None;
         self.target = None;
         self.slices.clear();
         self.guides.clear();
@@ -89,6 +94,9 @@ impl Selection {
         self.segments.remove(&id);
         if self.key == Some(id) {
             self.key = None;
+        }
+        if self.key_anchor.is_some_and(|(k, _)| k == id) {
+            self.key_anchor = None;
         }
     }
     /// Select slices `ids` (see [`Selection::slices`]) and nothing else.
@@ -153,7 +161,15 @@ impl Selection {
     /// Drop ids that no longer exist or are no longer editable.
     pub fn prune(&mut self, doc: &Document) {
         // Every id this looks up, found in one walk of the tree.
-        let ids = self.objects.iter().chain(self.anchors.keys()).chain(self.segments.keys()).copied().chain(self.key).chain(self.target);
+        let ids = self
+            .objects
+            .iter()
+            .chain(self.anchors.keys())
+            .chain(self.segments.keys())
+            .copied()
+            .chain(self.key)
+            .chain(self.key_anchor.map(|(id, _)| id))
+            .chain(self.target);
         let found = doc.index_paths(ids);
         self.objects.retain(|id| found.contains_key(id));
         self.anchors.retain(|id, _| found.contains_key(id));
@@ -172,6 +188,15 @@ impl Selection {
         });
         if !keep {
             self.key = None;
+        }
+        let anchor_count = self.anchors.values().map(|s| s.len()).sum::<usize>();
+        if anchor_count < 2 {
+            self.key_anchor = None;
+        } else if let Some((id, (si, ai))) = self.key_anchor {
+            let valid = found.contains_key(&id) && self.anchors.get(&id).is_some_and(|set| set.contains(&(si, ai)));
+            if !valid {
+                self.key_anchor = None;
+            }
         }
         if self.target.is_some_and(|t| !found.contains_key(&t)) {
             self.target = None;

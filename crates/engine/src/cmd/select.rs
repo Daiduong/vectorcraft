@@ -70,6 +70,15 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             key
         ),
+        cmd!(
+            "select.keyAnchor",
+            "Cancel Key Anchor",
+            [],
+            None,
+            "{id?, subpath?, anchor?} with all three: a direct-selected anchor of `id` becomes the key anchor Align aligns the other selected anchors to (the Direct Selection tool: a click on one anchor of several; on the key again: no fields); without them it cancels the key anchor → {keyAnchor: [id, subpath, anchor] or null}",
+            has_doc,
+            key_anchor
+        ),
         cmd!("select.anchors", "Select Anchors", [], None, "{id, anchors: [[subpath, anchor]…], mode: \"set\"|\"add\"|\"toggle\"}", has_doc, anchors),
         cmd!(
             "select.segments",
@@ -379,6 +388,39 @@ fn key(s: &mut Session, p: &Value) -> Result<Value> {
     }
     s.select(|_, sel| sel.key = id)?;
     Ok(json!({ "key": s.doc()?.selection.key }))
+}
+
+fn key_anchor(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "select.keyAnchor";
+    if p.get("id").is_some() {
+        let id = checked_id(s, p.get("id").ok_or_else(|| bad(C, "missing id"))?, C)?;
+        let subpath = p
+            .get("subpath")
+            .and_then(Value::as_u64)
+            .and_then(|n| usize::try_from(n).ok())
+            .ok_or_else(|| bad(C, "`subpath` must be a non-negative integer"))?;
+        let anchor = p
+            .get("anchor")
+            .and_then(Value::as_u64)
+            .and_then(|n| usize::try_from(n).ok())
+            .ok_or_else(|| bad(C, "`anchor` must be a non-negative integer"))?;
+        let st = s.doc()?;
+        let count = st.selection.anchors.values().map(|s| s.len()).sum::<usize>();
+        if count < 2 {
+            return Err(bad(C, "at least two anchor points must be selected"));
+        }
+        if !st.selection.anchors.get(&id).is_some_and(|set| set.contains(&(subpath, anchor))) {
+            return Err(bad(C, format!("anchor [{subpath}, {anchor}] of object {id} is not selected")));
+        }
+        s.select(|_, sel| sel.key_anchor = Some((id, (subpath, anchor))))?;
+    } else {
+        s.select(|_, sel| sel.key_anchor = None)?;
+    }
+    Ok(json!({ "keyAnchor": key_anchor_json(&s.doc()?.selection) }))
+}
+
+fn key_anchor_json(sel: &vectorcraft_doc::Selection) -> Value {
+    sel.key_anchor.map(|(id, (si, ai))| json!([id.0, si, ai])).unwrap_or(Value::Null)
 }
 
 /// `[[subpath, anchor]…]` anchor references of `cmd`: a malformed entry fails rather than being
