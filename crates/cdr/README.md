@@ -1,7 +1,7 @@
 # Native CDR import
 
 `vectorcraft-cdr` reads drawing records into editable VectorCraft paths, artboards,
-layers and groups. It does not extract a preview or run CorelDRAW, a converter,
+layers, groups and embedded images. It does not extract a preview or run CorelDRAW, a converter,
 native C/C++ code or a network service. The same reader builds for native and WASM.
 
 The accepted format range is 6 through 27 (including minor format numbers within
@@ -9,8 +9,10 @@ that range). This is a **partial importer**, not a claim of complete compatibili
 with every file or feature in those releases. A CDR 12 grammar fixture is generated
 in Rust; original drawings saved locally by CorelDRAW 27.2 in formats 15, 16 and 27
 were checked against that application's SVG exports. Those local CDR/SVG binaries
-are not distributed in this repository. Formats 6–11, 13–14, and 17–26 have not
-been runtime verified by these tests.
+are not distributed in this repository. One supplied format-24.3 drawing with
+embedded CMYK images, alpha and complex crops was also checked locally. Other
+accepted layouts remain experimental; no historical CorelDRAW application
+release was executed for these checks.
 
 ## Implemented
 
@@ -26,10 +28,13 @@ been runtime verified by these tests.
   affine object transforms and numeric RGB, CMYK, Gray and Lab colours.
 - Solid fills; editable linear and radial fountain ramps, stops and midpoints;
   solid/dashed outlines with width, caps and joins; basic object opacity.
+- Native RI bitmap resources: BGR/palette/grayscale and CMYK samples, separate
+  continuous 8-bit alpha, object transforms and straight/cubic crop outlines.
+  Images remain embedded image objects inside editable native clip groups.
 
 ## Current losses
 
-Text, embedded raster objects, native clipping containers, polygon/star/spline
+Text, general native clipping containers such as PowerClip, polygon/star/spline
 objects, master-page artwork, inherited styles, JSON appearance/transparency
 overrides, patterns, textures, arrowheads and embedded colour profiles are not
 imported. Unsupported colour models use black with a warning. Rectangle corner
@@ -45,6 +50,8 @@ widths, two pages, rotated/nonuniformly scaled groups, a horizontal fountain,
 an elliptical radial fountain, CMYK cyan and Gray. They do not establish fidelity
 for arbitrary production CorelDRAW files. CMYK and Gray preserve their numbers;
 their displayed colour can differ when the source document's profile is omitted.
+CMYK bitmap samples are approximated as RGB PNG pixels without an ICC profile,
+with a warning. This conversion does not preserve the image's original ink values.
 
 ## Bounds
 
@@ -54,6 +61,10 @@ including an alias of an external LIST, consumes a cumulative 512 MiB traversal
 budget. Other bounds: 64 nested lists, 200,000 records, 4,096 ZIP entries/streams,
 1,000 pages, 20,000 styles, 1,000,000 geometry points and 250,000 materialized
 gradient stops/dash values (both style definitions and object copies count).
+Bitmap decoding additionally limits each side to 32,768 pixels, the cumulative
+pixel count to 32 million and retained encoded PNGs to 128 MiB. Row strides,
+palette indices, RI bounds and separate alpha dimensions/overlaps are checked
+before the RGBA allocation.
 Malformed, encrypted, split and ZIP64 archives fail with an error. These are
 resource bounds, not an assertion that arbitrary input can never exhaust a host
 whose available memory is already smaller than the bounds.
@@ -69,6 +80,8 @@ routes Waldo input to its explicit unsupported-version diagnostic.
 compressed RIFF, stored/deflated ZIP prefix recognition, header/CRC mismatch,
 legacy-extension detection, every truncated prefix,
 decompression/copy/traversal limits and property-based random/mutated input.
+Original generated bitmap records check crop geometry, bottom-up rows, BGR,
+CMYK, palettes, continuous alpha, image quotas and native save/reopen/place.
 `CDR_FIXTURE_DIR` optionally points to the locally generated CorelDRAW fixture
 directory. It runs the native-file assertions without committing binary fixtures.
 `cargo clippy -p vectorcraft-cdr --all-targets --all-features -- -D warnings` checks
@@ -89,7 +102,9 @@ linked. Public descriptions used:
   compressed length-pool explanation, consulted as documentation only.
 - [TraceDraw format notes](https://github.com/igtoth/tracedraw/blob/a834cfccdb912d573acb3f3fcaadfdc280bb44aa/docs/cdr-format.md),
   MIT OR Apache-2.0: cross-checks of paint order, group transform scope and newer
-  record conventions, consulted as documentation only.
+  record conventions. The documented RI alpha layout was cross-checked against
+  its [reader](https://github.com/igtoth/tracedraw/blob/a834cfccdb912d573acb3f3fcaadfdc280bb44aa/crates/cdr/src/parse.rs#L3609);
+  no implementation code was copied.
 
 CorelDRAW's documented automation was used to create the local original fixture
 drawings and SVG oracles. It is not required by the importer.

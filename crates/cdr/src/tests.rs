@@ -49,6 +49,53 @@ fn every_truncated_prefix_is_rejected_without_panic() {
 }
 
 #[test]
+/// Preserve the original bitmap samples, top-down placement and native crop as separate objects.
+fn embedded_bitmap_keeps_pixels_placement_and_editable_crop() {
+    use vectorcraft_doc::NodeKind;
+    let bytes = synth::clipped_bitmap();
+    let imported = import(&bytes).unwrap();
+    assert!(imported.warnings.is_empty(), "{:?}", imported.warnings);
+    let doc = imported.document;
+    assert_eq!(doc.images.len(), 1);
+    let page = &doc.layers[0];
+    let layer = &page.children().unwrap()[0];
+    assert!(layer.clips());
+    let children = layer.children().unwrap();
+    assert!(matches!(children[0].kind, NodeKind::Path { rule: vectorcraft_geom::FillRule::EvenOdd, clipping: true, .. }));
+    assert!(children[0].appearance.items.is_empty(), "a bitmap crop must not paint behind transparent pixels");
+    let NodeKind::Image(image) = &children[1].kind else { panic!("the crop's content must remain an image") };
+    assert_eq!((image.width, image.height), (2, 2));
+    let top_left = image.xf * vectorcraft_geom::Point::new(0.0, 0.0);
+    let bottom_right = image.xf * vectorcraft_geom::Point::new(2.0, 2.0);
+    assert!((top_left.x - 50.0).abs() < 0.001 && (top_left.y - 40.0).abs() < 0.001);
+    assert!((bottom_right.x - 90.0).abs() < 0.001 && (bottom_right.y - 60.0).abs() < 0.001);
+    let crop = children[0].path_data().unwrap().to_bezpath();
+    assert!(crop.contains(vectorcraft_geom::Point::new(55.0, 45.0)));
+    assert!(!crop.contains(vectorcraft_geom::Point::new(85.0, 55.0)));
+    let pixels = image::load_from_memory(&doc.images[&image.key].bytes).unwrap().to_rgba8();
+    assert_eq!(pixels.get_pixel(0, 0).0, [255, 0, 0, 128]);
+    assert_eq!(pixels.get_pixel(1, 0).0, [0, 255, 0, 128]);
+    assert_eq!(pixels.get_pixel(0, 1).0, [0, 0, 255, 128]);
+    assert_eq!(pixels.get_pixel(1, 1).0, [255, 255, 255, 128]);
+}
+
+#[test]
+/// Versions 6/7 have a 20-byte bitmap tail; only version 8 uses the shorter 12-byte tail.
+fn older_bitmap_objects_keep_their_native_crop_tail() {
+    for version in [600, 700] {
+        let (mut chunks, _) = crate::container::load(&synth::clipped_bitmap()).unwrap();
+        let config = chunks.iter_mut().find(|c| c.id == *b"mcfg").unwrap();
+        let size = config.data[4..].to_vec();
+        config.data = vec![0; if version == 600 { 28 } else { 0 }];
+        config.data.extend(size);
+        let imported = crate::drawing::import(&chunks, version).unwrap();
+        let crop = &imported.document.layers[0].children().unwrap()[0];
+        assert!(crop.clips(), "version {version} must retain the image crop");
+        assert_eq!(crop.children().unwrap()[0].path_data().unwrap().subpaths.len(), 2, "both outer crop and hole survive");
+    }
+}
+
+#[test]
 /// Check optional local CorelDRAW originals against their known geometry and paint values.
 fn real_corel_files_when_supplied_locally() {
     let Ok(path) = std::env::var("CDR_FIXTURE_DIR") else { return };

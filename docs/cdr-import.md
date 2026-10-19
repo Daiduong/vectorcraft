@@ -4,6 +4,9 @@ CDR.1 adds read-only `.cdr` import to the shared engine. File > Open, File > Pla
 drag and drop, the CLI, MCP and the browser use the same Rust reader. Open creates
 editable paths, artboards, layers and groups. Save asks for a new VectorCraft
 destination; the CDR source is never overwritten. There is no CDR exporter.
+Embedded native bitmap resources also retain their image data, continuous alpha,
+object transforms and editable crop outlines. CMYK bitmap colours are converted
+to RGB without the source ICC profile, with an approximation warning.
 
 The macOS bundle and Linux desktop entry also advertise CDR as a readable format.
 Linux uses the existing `application/vnd.corel-draw` type from
@@ -32,6 +35,7 @@ and its public source references are in [the CDR crate](../crates/cdr/README.md)
 | CDR 12 RIFF | Original, generated record fixture in unit and engine tests |
 | CDR 15 ZIP | Original rectangle and two-page geometry files saved by CorelDRAW 27.2 |
 | CDR 16 ZIP with external streams | The same original scenes saved by CorelDRAW 27.2 |
+| CDR 24.3 ZIP with external streams | One locally supplied drawing: two CMYK bitmaps, exact continuous alpha and native crop outlines; checked with CorelDRAW 27.2, kept private |
 | CDR 27 ZIP with external streams | Original scenes saved by CorelDRAW 27.2, including its extended version and fill records |
 | Other accepted versions between 6 and 27 | Experimental record-layout coverage; not a claim of full fidelity or a verified historical application version |
 | Waldo (CDR 1/2), CMX, encrypted packages, ZIP64, newer unknown versions | Unsupported; returned as errors |
@@ -49,7 +53,7 @@ the native CDR import and that SVG and compares their dimensions and pixels.
 The fixtures and application resources remain local; no Corel fonts, profiles,
 vendor artwork or binaries are redistributed.
 
-Corel-specific effects, text, bitmaps, PowerClip and other unsupported records
+Corel-specific effects, text, PowerClip and other unsupported records
 remain outside the initial import subset. Warnings state what was omitted or
 approximated; see the crate README for the exact implemented paint and geometry
 coverage. Export SVG or PDF from CorelDRAW when a file depends on those features.
@@ -74,6 +78,16 @@ checks, set `CDR_FIXTURE_DIR` to a local folder containing
 When also present, `gradient-v27.cdr` / `gradient-page1.svg` and
 `group-transform-v27.cdr` / `group-transform-page1.svg` extend the render checks
 to fountains and nonuniformly transformed, rotated groups.
+Optional `bitmap-v15.cdr`, `bitmap-v16.cdr`, `bitmap-v27.cdr` and
+`bitmap-page1.svg` plus the original `bitmap-original-checker.png` cover original
+RGB/CMYK images with 0/64/128/255 alpha.
+Their rendered alpha/placement and RGB samples are checked independently;
+CMYK-to-RGB profile differences are reported separately from geometry fidelity.
+
+When all visible artwork lies outside every page and no saved camera exists,
+the desktop's initial view fits that artwork after the canvas has a size. The
+original page and artwork coordinates stay unchanged. Explicit Fit Artboard and
+saved native viewports keep their existing behavior.
 
 Use a 100 by 100 mm page, with the rectangle at drawing coordinates
 (10, 60) mm, 40 by 20 mm, red RGB fill and a 1 mm black outline. The geometry
@@ -88,4 +102,5 @@ assuming the UI's drawing coordinates are the page coordinates.
 
 | Date | Change |
 |---|---|
+| 2026-10-19 | CDR.4: native embedded images, continuous alpha and editable crop outlines; initial framing of off-page artwork. |
 | 2026-10-19 | Initial bounded native import and original CorelDRAW application-oracle validation. |

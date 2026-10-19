@@ -21,7 +21,7 @@ use vectorcraft_doc::Document;
 use vectorcraft_testkit::catch_quiet;
 use vectorcraft_testkit::fixtures::rich_session;
 
-// ---------- CorelDRAW native vectors ----------
+// ---------- CorelDRAW native vectors and embedded bitmaps ----------
 
 proptest! {
     #![proptest_config(config())]
@@ -37,8 +37,9 @@ proptest! {
     fn cdr_damaged_records_survive_open_place_render_and_export(
         cut in 0usize..4096,
         edits in prop::collection::vec((any::<usize>(), any::<u8>()), 0..12),
+        bitmap in any::<bool>(),
     ) {
-        let mut bytes = vectorcraft_cdr::synth::rectangle();
+        let mut bytes = if bitmap { vectorcraft_cdr::synth::clipped_bitmap() } else { vectorcraft_cdr::synth::rectangle() };
         for (offset, value) in edits {
             let length = bytes.len();
             if let Some(byte) = bytes.get_mut(offset % length) { *byte = value; }

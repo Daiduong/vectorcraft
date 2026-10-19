@@ -1,12 +1,14 @@
 //! Interpret the public CDR record layouts into native document objects.
-use crate::{Imported, container::Chunk, reader::Reader};
+use crate::{Imported, bitmap, container::Chunk, reader::Reader};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
 use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Artboard, Dash, Document, FillLayer, LayerColor, LineCap, LineJoin, Node, NodeId, StrokeLayer};
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect, Shape};
+use vectorcraft_doc::{
+    Appearance, AppearanceItem, Artboard, Dash, Document, FillLayer, ImageObject, LayerColor, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeLayer,
+};
+use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Shape};
 
 const MAX_POINTS: usize = 1_000_000;
 const MAX_COORD: f64 = 1e6;
@@ -23,6 +25,8 @@ pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String>
         objects_seen: 0,
         objects_imported: 0,
         paint_values: 0,
+        bitmaps: BTreeMap::new(),
+        bitmap_budget: bitmap::BitmapBudget::default(),
     };
     let mut size = (612.0 / 72.0, 792.0 / 72.0);
     d.styles(chunks, &mut size)?;
@@ -80,6 +84,7 @@ pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String>
         return Err("CDR contains no supported editable artwork; convert text to curves or export the drawing as SVG/PDF in CorelDRAW".into());
     }
     document.fix_next_id();
+    document.images = d.bitmaps.into_values().map(|b| (b.key, b.blob)).collect();
     let mut warnings = d.warnings.into_iter().collect();
     document.limit_depth_noting(&mut warnings);
     Ok(Imported { document, version, warnings })
@@ -160,6 +165,8 @@ struct Drawing {
     objects_seen: usize,
     objects_imported: usize,
     paint_values: usize,
+    bitmaps: BTreeMap<u32, bitmap::Bitmap>,
+    bitmap_budget: bitmap::BitmapBudget,
 }
 
 #[derive(Clone)]
@@ -264,7 +271,19 @@ impl Drawing {
                     *size = valid_size(r.coord()?, r.coord()?)?;
                 }
                 b"txsm" => self.warn("Text objects are omitted; convert text to curves in CorelDRAW for editable outlines"),
-                b"bmp " | b"bmpf" => self.warn("Embedded bitmap objects are omitted"),
+                b"bmp " => {
+                    if let Some(bitmap) = bitmap::decode(&c.data, &mut self.bitmap_budget)? {
+                        if bitmap.cmyk_converted {
+                            self.warn("CMYK bitmap colours are approximated in RGB without the embedded colour profile");
+                        }
+                        if self.bitmaps.insert(bitmap.id, bitmap).is_some() {
+                            return Err("duplicate CDR bitmap resource identifier".into());
+                        }
+                    } else {
+                        self.warn("An unsupported CDR bitmap encoding was omitted");
+                    }
+                }
+                b"bmpf" => self.warn("Bitmap pattern fills are omitted"),
                 b"iccd" => self.warn("Embedded colour profiles are not imported; numeric colours are preserved"),
                 _ => {}
             }
@@ -624,6 +643,9 @@ impl Drawing {
             self.warn("An object without supported coordinate data was omitted");
             return Ok(None);
         };
+        if kind == 5 {
+            return self.bitmap_object(c, coords, parent, &args);
+        }
         let path = match kind {
             1 => self.rectangle(coords)?,
             2 => self.ellipse(coords)?,
@@ -671,6 +693,15 @@ impl Drawing {
                 }
             }
         }
+        self.note_properties(&args);
+        let mut node = Node::path(self.id(), path, Appearance { items, ..Appearance::default() });
+        node.name = self.name(args.get(&1000).copied());
+        node.opacity = self.opacity(args.get(&8000).copied())?;
+        self.objects_imported += 1;
+        Ok(Some(node))
+    }
+    /// Retain warnings for object appearance properties that are not yet interpreted.
+    fn note_properties(&mut self, args: &BTreeMap<u32, &[u8]>) {
         if args.contains_key(&200) {
             self.warn("Inherited CDR object styles are not resolved");
         }
@@ -682,7 +713,50 @@ impl Drawing {
                 self.warn(&format!("Unsupported CDR object property {id} was omitted"));
             }
         }
-        let mut node = Node::path(self.id(), path, Appearance { items, ..Appearance::default() });
+    }
+    /// Place an embedded image in its native coordinates and retain its editable crop outline.
+    fn bitmap_object(&mut self, c: &Chunk, coords: &[u8], parent: Affine, args: &BTreeMap<u32, &[u8]>) -> Result<Option<Node>, String> {
+        let mut r = Reader::new(coords);
+        let (x0, y0, x1, y1) = (r.coord()?, r.coord()?, r.coord()?, r.coord()?);
+        r.skip(32)?;
+        let image_id = r.u32()?;
+        r.skip(if (800..900).contains(&self.version) { 12 } else { 20 })?;
+        let crop_start = r.pos;
+        let crop_count = r.u32()? as usize;
+        let Some(bitmap) = self.bitmaps.get(&image_id) else {
+            self.warn("An image object with an unavailable CDR bitmap resource was omitted");
+            return Ok(None);
+        };
+        let (width, height, key) = (bitmap.width, bitmap.height, bitmap.key.clone());
+        let xf = parent * self.transform(c)?;
+        let image_xf = xf * Affine::new([(x1 - x0) / width as f64, 0.0, 0.0, (y1 - y0) / height as f64, x0, y0]);
+        let bounds = image_xf.transform_rect_bbox(Rect::new(0.0, 0.0, width as f64, height as f64));
+        if x0 == x1 || y0 == y1 || ![bounds.x0, bounds.y0, bounds.x1, bounds.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD) {
+            return Err("CDR bitmap placement is empty or exceeds document coordinate limits".into());
+        }
+        let image = Node::new(
+            self.id(),
+            NodeKind::Image(Box::new(ImageObject { key, width, height, xf: image_xf, link: None, placement: Default::default() })),
+        );
+        let mut node = if crop_count == 0 {
+            image
+        } else {
+            let crop = self.curve(coords.get(crop_start..).ok_or("truncated CDR bitmap crop")?, false)?;
+            let crop = xf * crop;
+            let bounds = crop.bounding_box();
+            if ![bounds.x0, bounds.y0, bounds.x1, bounds.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD) {
+                return Err("CDR bitmap crop exceeds document coordinate limits".into());
+            }
+            // Corel's bitmap crop uses even-odd coverage, including same-winding holes.
+            // Keep its appearance empty: a painted clipping path is rendered underneath the
+            // image and would replace transparent pixels with the clipping path's fill.
+            let mask = Node::new(
+                self.id(),
+                NodeKind::Path { path: PathData::from_bezpath(&crop), rule: FillRule::EvenOdd, live: None, clipping: true, guide: false },
+            );
+            Node::new(self.id(), NodeKind::Group { children: vec![Arc::new(mask), Arc::new(image)], clip: true })
+        };
+        self.note_properties(args);
         node.name = self.name(args.get(&1000).copied());
         node.opacity = self.opacity(args.get(&8000).copied())?;
         self.objects_imported += 1;

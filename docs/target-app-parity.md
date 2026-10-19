@@ -842,6 +842,7 @@ Evidence for the shared light Color: geometry tests in `tests_lighting`, effect 
 |---|---|---|
 | 2026-10-19 | minor | Cache status-readout sample widths per UI, language, document unit and pixels per point; regressions check reuse across live frames and refresh after display-setting changes. Scores and estimates unchanged. |
 | 2026-10-19 | minor | CDR.1: bounded native CorelDRAW import, explicit feature-loss warnings and original CorelDRAW 15/16/27 fixture checks; see [CDR import](cdr-import.md). Scores and estimates unchanged. |
+| 2026-10-19 | minor | CDR.4: native embedded bitmap data, continuous alpha and editable crop outlines; first display fits artwork outside every artboard without changing document coordinates. Original bitmap/SVG oracles and viewport regressions; scores and estimates unchanged. |
 | 2026-10-19 | minor | Status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates. Contributor original-file acceptance confirmed; scores and estimates unchanged. |
 | 2026-10-19 | minor | Cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission. Regression coverage; scores and estimates unchanged. |
 | 2026-10-19 | minor | Cached canvas reprojection preserves scale during resize, rotation and DPI changes. Contributor original-file acceptance confirmed; scores and estimates unchanged. |

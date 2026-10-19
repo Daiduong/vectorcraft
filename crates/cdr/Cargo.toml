@@ -17,6 +17,7 @@ vectorcraft-color = { workspace = true }
 vectorcraft-doc = { workspace = true }
 flate2 = { workspace = true }
 crc32fast = { workspace = true }
+image = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

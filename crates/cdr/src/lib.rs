@@ -2,6 +2,7 @@
 //! No embedded preview is used as drawing content.
 #![forbid(unsafe_code)]
 
+mod bitmap;
 mod container;
 mod drawing;
 mod reader;

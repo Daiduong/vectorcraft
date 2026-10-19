@@ -84,6 +84,37 @@ fn cdr_place_is_an_editable_group_and_one_undo_step() {
 }
 
 #[test]
+/// Retain embedded image data and its crop through rendering, native save/reopen, place and undo.
+fn cdr_bitmap_crops_survive_render_native_round_trip_and_place() {
+    let bytes = vectorcraft_cdr::synth::clipped_bitmap();
+    let mut s = Session::new();
+    open_bytes(&mut s, "bitmap.cdr", &bytes, Some("bitmap.cdr".into())).unwrap();
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.images.len(), 1);
+    assert!(s.doc().unwrap().path.is_none());
+    let frame = doc.artboards[0].rect;
+    let before = vectorcraft_render::Renderer::new().render_region(doc, frame, 1.0, false);
+    assert!(before.pixels.as_chunks::<4>().0.iter().any(|p| p[3] != 0));
+    assert_eq!(before.pixels[(45 * 100 + 65) * 4 + 3], 128, "the crop must not paint a background beneath translucent image pixels");
+    assert_eq!(before.pixels[(55 * 100 + 85) * 4 + 3], 0, "the cropped-away corner stays transparent");
+    assert_eq!(before.pixels[(43 * 100 + 56) * 4 + 3], 0, "a same-winding crop subpath cuts a real hole");
+    let saved = s.execute("document.serialize", &json!({"format": "vectorcraft"})).unwrap();
+    let native = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    open_bytes(&mut s, "bitmap-copy.vectorcraft", &native, None).unwrap();
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.images.len(), 1);
+    let after = vectorcraft_render::Renderer::new().render_region(doc, frame, 1.0, false);
+    assert_eq!(before.pixels, after.pixels);
+    s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+    let count = s.doc().unwrap().doc.node_count();
+    s.execute("file.place", &json!({"name": "bitmap.cdr", "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.images.len(), 1);
+    assert!(s.doc().unwrap().doc.node_count() > count);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.node_count(), count);
+}
+
+#[test]
 /// Keep the active document and tab count intact after malformed CDR opens fail.
 fn malformed_cdr_does_not_replace_the_active_document() {
     let mut s = Session::new();

@@ -4592,6 +4592,7 @@ version = "0.13.1"
 dependencies = [
  "crc32fast",
  "flate2",
+ "image",
  "proptest",
  "vectorcraft-color",
  "vectorcraft-doc",
