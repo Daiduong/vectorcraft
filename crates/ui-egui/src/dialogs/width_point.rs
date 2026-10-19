@@ -374,8 +374,10 @@ mod tests {
             assert!(d.fields.get("index").is_none_or(Value::is_null));
             let actual_t = d.f64("t", -1.0);
             assert!((actual_t - 0.25).abs() < 1e-6, "compound={compound} pointer={quarter:?} actual_t={actual_t} want=0.25");
-            assert!((d.f64("side1", 0.0) - 6.25).abs() < 1e-6);
-            assert!((d.f64("side2", 0.0) - 3.75).abs() < 1e-6);
+            // The smooth profile's sides at a quarter: smoothstep(0.25) = 0.15625 of 1..2 and
+            // 0.5..1.5, on a 10pt stroke (5pt half).
+            assert!((d.f64("side1", 0.0) - 5.78125).abs() < 1e-6);
+            assert!((d.f64("side2", 0.0) - 3.28125).abs() < 1e-6);
             assert!(!d.bool("linked"));
             d.fields.insert("side1".into(), json!(8));
             d.fields.insert("side2".into(), json!(3));

@@ -223,25 +223,37 @@ pub struct ProfilePreset {
 }
 
 impl WidthProfile {
-    /// (left, right) width factors at `t`, linear between points.
+    /// (left, right) width factors at `t`: a smooth cubic between the points.
     pub fn at(&self, t: f64) -> (f64, f64) {
         Self::at_points(&self.points, t)
     }
     /// [`Self::at`] of a profile's points (a preset's or a saved profile's).
+    ///
+    /// The width runs as a cubic Hermite curve through the points, its slope at each one the
+    /// weighted harmonic mean of the secants either side (Fritsch–Carlson). That is C1
+    /// continuous and monotone between points, so it never overshoots them, a point eases into
+    /// its neighbours instead of making a corner, and moving one only reshapes the two segments
+    /// beside it. The ends are flat, where the width is constant outside the profile. Two points
+    /// at one `t` are still a step: the runs either side are independent and flat there.
     pub fn at_points(p: &[(f64, f64, f64)], t: f64) -> (f64, f64) {
-        if p.is_empty() {
-            return (1.0, 1.0);
+        let (Some(first), Some(last)) = (p.first(), p.last()) else { return (1.0, 1.0) };
+        if t <= first.0 {
+            return (first.1, first.2);
         }
-        if t <= p[0].0 {
-            return (p[0].1, p[0].2);
+        if t >= last.0 {
+            return (last.1, last.2);
         }
-        for w in p.windows(2) {
-            if t <= w[1].0 {
-                let u = (t - w[0].0) / (w[1].0 - w[0].0).max(1e-9);
-                return (w[0].1 + (w[1].1 - w[0].1) * u, w[0].2 + (w[1].2 - w[0].2) * u);
-            }
+        // The segment ending at or after `t`: a step's zero-length segment is skipped, so `t`
+        // exactly at a step still reads the width just before it (as `around` documents).
+        let Some(i) = p.windows(2).position(|w| t <= w[1].0) else { return (last.1, last.2) };
+        let (Some(&(t0, l0, r0)), Some(&(t1, l1, r1))) = (p.get(i), p.get(i + 1)) else { return (last.1, last.2) };
+        let h = t1 - t0;
+        if h <= 1e-12 {
+            return (l1, r1);
         }
-        p.last().map_or((1.0, 1.0), |l| (l.1, l.2))
+        let u = (t - t0) / h;
+        let (ml0, mr0, ml1, mr1) = (slope(p, i, false), slope(p, i, true), slope(p, i + 1, false), slope(p, i + 1, true));
+        (hermite(u, h, l0, l1, ml0, ml1), hermite(u, h, r0, r1, mr0, mr1))
     }
     /// The built-in profiles, in menu order. "uniform" is the plain stroke (no profile).
     pub const PRESETS: [ProfilePreset; 7] = [
@@ -291,6 +303,35 @@ impl WidthProfile {
         let v = self.at(t);
         (v, v)
     }
+}
+
+/// The slope of the smooth width curve at `p[i]` for one side: the weighted harmonic mean of the
+/// secants either side, or flat at a local extremum and at the ends of a run (the profile's ends
+/// and either side of a step).
+fn slope(p: &[(f64, f64, f64)], i: usize, right: bool) -> f64 {
+    let value = |k: usize| p.get(k).map_or(0.0, |q| if right { q.2 } else { q.1 });
+    let (Some(&(t, _, _)), Some(&(tm, _, _)), Some(&(tp, _, _))) = (p.get(i), i.checked_sub(1).and_then(|k| p.get(k)), p.get(i + 1)) else {
+        return 0.0;
+    };
+    let (h0, h1) = (t - tm, tp - t);
+    if h0 <= 1e-12 || h1 <= 1e-12 {
+        return 0.0;
+    }
+    let (d0, d1) = ((value(i) - value(i - 1)) / h0, (value(i + 1) - value(i)) / h1);
+    if d0 * d1 <= 0.0 {
+        return 0.0;
+    }
+    let (a, b) = (2.0 * h1 + h0, h1 + 2.0 * h0);
+    let m = (a + b) / (a / d0 + b / d1);
+    // A file's widths are only checked to be finite: keep a slope that overflows flat.
+    if m.is_finite() { m } else { 0.0 }
+}
+
+/// A cubic Hermite from `y0` at `u = 0` to `y1` at `u = 1` over `h` (in `t`), with `m0`/`m1` the
+/// slopes at its ends (width factor per `t`).
+fn hermite(u: f64, h: f64, y0: f64, y1: f64, m0: f64, m1: f64) -> f64 {
+    let (u2, u3) = (u * u, u * u * u);
+    (2.0 * u3 - 3.0 * u2 + 1.0) * y0 + (u3 - 2.0 * u2 + u) * h * m0 + (3.0 * u2 - 2.0 * u3) * y1 + (u3 - u2) * h * m1
 }
 
 /// Pen pressure recorded along a stroke (the Paintbrush with a graphics tablet): (position 0..1
@@ -1300,6 +1341,65 @@ mod tests {
         assert_eq!(p.at(0.5), (1.0, 1.0));
         assert_eq!(p.at(0.25), (0.5, 0.5));
         assert_eq!(p.at(2.0), (0.0, 0.0));
+    }
+
+    /// The width runs smoothly between points: it passes through them, has one slope either side
+    /// of one, and never overshoots the widths its points set.
+    #[test]
+    fn profile_is_smooth_between_points() {
+        let p = [(0.0, 1.0, 2.0), (0.5, 0.2, 2.0), (1.0, 1.0, 2.0)];
+        assert!((WidthProfile::at_points(&p, 0.5).0 - 0.2).abs() < 1e-12);
+        let slope = |t: f64| (WidthProfile::at_points(&p, t + 1e-6).0 - WidthProfile::at_points(&p, t - 1e-6).0) / 2e-6;
+        // A local minimum at the middle point is flat there, so the two sides agree.
+        assert!(slope(0.5).abs() < 1e-3, "{}", slope(0.5));
+        for k in 0..=100 {
+            let w = WidthProfile::at_points(&p, k as f64 / 100.0).0;
+            assert!((0.2..=1.0).contains(&w), "{w} at {k}");
+        }
+        // The side with no points of its own stays flat.
+        for k in 0..=100 {
+            assert!((WidthProfile::at_points(&p, k as f64 / 100.0).1 - 2.0).abs() < 1e-12);
+        }
+    }
+
+    /// A two-point profile is a smoothstep: it eases out of and into the constant ends, and its
+    /// midpoint is still the linear one.
+    #[test]
+    fn profile_eases_into_its_ends() {
+        let p = [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0)];
+        assert!((WidthProfile::at_points(&p, 0.5).0 - 0.5).abs() < 1e-12);
+        let slope = |t: f64| (WidthProfile::at_points(&p, t + 1e-6).0 - WidthProfile::at_points(&p, t - 1e-6).0) / 2e-6;
+        assert!(slope(0.0).abs() < 1e-3, "{}", slope(0.0));
+        assert!(slope(1.0).abs() < 1e-3, "{}", slope(1.0));
+        let mut prev = 0.0;
+        for k in 0..=100 {
+            let w = WidthProfile::at_points(&p, k as f64 / 100.0).0;
+            assert!((0.0..=1.0).contains(&w) && w >= prev - 1e-12, "{w} at {k}");
+            prev = w;
+        }
+    }
+
+    /// A step still steps, and the smooth runs either side meet it flat.
+    #[test]
+    fn profile_steps_stay_steps() {
+        let p = [(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (0.5, 2.0, 2.0), (1.0, 2.0, 2.0)];
+        assert_eq!(WidthProfile::at_points(&p, 0.5), (1.0, 1.0));
+        assert_eq!(WidthProfile::at_points(&p, 0.5 + 1e-6), (2.0, 2.0));
+        assert_eq!(WidthProfile::at_points(&p, 0.5 - 1e-6), (1.0, 1.0));
+        assert_eq!(WidthProfile::at_points(&p, 0.25), (1.0, 1.0));
+        assert_eq!(WidthProfile::at_points(&p, 0.75), (2.0, 2.0));
+    }
+
+    /// Moving a point only reshapes the segments beside it (local influence), not the whole path.
+    #[test]
+    fn profile_points_only_affect_their_neighbouring_segments() {
+        let a = [(0.0, 0.0, 0.0), (0.25, 1.0, 1.0), (0.5, 0.5, 0.5), (0.75, 1.0, 1.0), (1.0, 0.0, 0.0)];
+        let mut b = a;
+        b[3] = (0.75, 0.8, 0.8);
+        for k in 0..=50 {
+            let t = k as f64 / 100.0;
+            assert_eq!(WidthProfile::at_points(&a, t), WidthProfile::at_points(&b, t), "at {t}");
+        }
     }
 
     #[test]

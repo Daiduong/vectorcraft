@@ -84,17 +84,35 @@ pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> (Vec<Point>, 
     (pts, corner)
 }
 
-/// Insert samples where the profile has width points (so the piecewise-linear profile is exact
-/// along straight runs; the two points of a discontinuous point share one sample). `span` maps the
-/// subpath onto the profile (see [`outline_spans`]).
+/// Insert samples where the profile has width points and between them, so its smooth curve is
+/// drawn as a smooth outline along straight runs too (the two points of a discontinuous point
+/// share one sample). `span` maps the subpath onto the profile (see [`outline_spans`]).
 fn densify(pts: &[Point], corner: &[bool], closed: bool, profile: &WidthProfile, span: (f64, f64)) -> (Vec<Point>, Vec<bool>) {
+    // Samples per profile segment; fewer when a profile carries many points, so a file can't turn
+    // the extra samples into a huge allocation.
+    const SAMPLES: usize = 16;
     let total = length(pts, closed);
     let range = span.1 - span.0;
     if total <= 1e-12 || range <= 1e-12 {
         return (pts.to_vec(), corner.to_vec());
     }
     // Where the profile's points fall along this piece (a span past 1 wraps round a closed path).
-    let marks: Vec<f64> = profile.points.iter().flat_map(|p| [p.0, p.0 + 1.0]).map(|t| (t - span.0) / range * total).collect();
+    let mut ts: Vec<f64> = profile.points.iter().flat_map(|p| [p.0, p.0 + 1.0]).collect();
+    ts.sort_by(f64::total_cmp);
+    ts.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
+    // A flat profile draws the same straight pieces as before: sample only its points.
+    let flat = profile.points.first().is_some_and(|f| profile.points.iter().all(|p| (p.1 - f.1).abs() <= 1e-12 && (p.2 - f.2).abs() <= 1e-12));
+    let samples = if flat { 1 } else { SAMPLES.min((4096 / ts.len().max(1)).max(1)) };
+    let mut marks = Vec::with_capacity(ts.len() * samples);
+    for w in ts.windows(2) {
+        for k in 0..samples {
+            marks.push(w[0] + (w[1] - w[0]) * k as f64 / samples as f64);
+        }
+    }
+    if let Some(&last) = ts.last() {
+        marks.push(last);
+    }
+    let marks: Vec<f64> = marks.into_iter().map(|t| (t - span.0) / range * total).collect();
     split_at(pts, corner, closed, &marks)
 }
 
@@ -315,8 +333,10 @@ mod tests {
         assert!((area(&width_outline(&line(), 10.0, &p, &capped(LineCap::Square), 0.01)) - 1100.0).abs() < 1e-6);
     }
 
+    /// The lens eases up to full width and back down (a smooth bump averaging half the width); a
+    /// one-sided profile keeps its side at zero and stays on the other.
     #[test]
-    fn lens_profile_is_a_diamond_and_one_sided_profiles_stay_on_their_side() {
+    fn lens_profile_is_a_smooth_bump_and_one_sided_profiles_stay_on_their_side() {
         let a = area(&width_outline(&line(), 10.0, &WidthProfile::lens(), &capped(LineCap::Butt), 0.01));
         assert!((a - 500.0).abs() < 1e-6, "{a}");
         let one = WidthProfile { points: vec![(0.0, 1.0, 0.0), (1.0, 1.0, 0.0)] };

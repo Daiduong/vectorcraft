@@ -16,7 +16,7 @@
 use kurbo::{BezPath, Point, Shape, Vec2};
 use vectorcraft_doc::color::{Gradient, GradientGeom, GradientPaint, Paint};
 use vectorcraft_doc::live::{H_DOWN, H_LEFT, H_RIGHT, H_UP, lerp_color};
-use vectorcraft_doc::{GradientMesh, LineJoin, MeshPoint, StrokeAlign, StrokeGradientMode, StrokeLayer};
+use vectorcraft_doc::{GradientMesh, LineCap, LineJoin, MeshPoint, StrokeAlign, StrokeGradientMode, StrokeLayer};
 use vectorcraft_geom::FillRule;
 
 use super::width::{flatten, left, length, split_at};
@@ -147,7 +147,10 @@ fn strips(bp: &BezPath, rule: FillRule, st: &StrokeLayer, tol: f64, margin: f64,
     if !(hw > 0.0 && hw.is_finite()) {
         return vec![];
     }
-    let full = hw * st.profile_max();
+    // A projecting cap on every dash reaches a corner half a width along the path and half across
+    // from the dash's end, so the ribs reach further to cover what those dashes paint.
+    let capped = st.cap == LineCap::Square && st.dash.as_ref().is_some_and(|d| d.is_dashed());
+    let full = hw * st.profile_max() * if capped { std::f64::consts::SQRT_2 } else { 1.0 };
     let heads = (st.head_reach(false), st.head_reach(true));
     let cap = cap_extent(st.cap, 2.0 * full);
     let lay = Lay { st, hw, cover: full + margin, margin, ext: (cap.max(heads.0) + margin, cap.max(heads.1) + margin) };
