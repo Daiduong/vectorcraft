@@ -202,14 +202,20 @@ impl Tool for FlareTool {
         self.drag = None;
         if self.placed.take().is_some() && std::mem::take(&mut self.began) { vec![Action::Commit] } else { vec![] }
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
-        match (self.drag, self.placed) {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        let mut o = match (self.drag, self.placed) {
             (Some((c, p)), _) => {
                 vec![Overlay::Path { path: ellipse_path(c, p.distance(c), p.distance(c), 0.0), color: BLUE, width: 1.0, dashed: false }]
             }
             (_, Some((c, _))) => vec![Overlay::Line { a: c, b: self.hover, color: BLUE, dashed: true }],
             _ => vec![],
+        };
+        if cx.measurement_labels {
+            if let Some((c, p)) = self.drag.filter(|_| self.began) {
+                o.push(Overlay::Measure { p, text: format!("D: {}", cx.len(2.0 * p.distance(c))) });
+            }
         }
+        o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _mods: Mods) -> Cursor {
         Cursor::Crosshair
@@ -480,6 +486,23 @@ impl Tool for GraphTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::*;
+    use vectorcraft_doc::Selection;
+
+    #[test]
+    fn flare_centre_drag_shows_diameter_measure_label() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = FlareTool::default();
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 150.0, 100.0));
+        let quiet = ToolContext { measurement_labels: false, ..cx };
+        assert!(!t.overlays(&quiet).iter().any(|o| matches!(o, Overlay::Measure { .. })));
+        let label = format!("D: {}", cx.len(100.0));
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &label)));
+    }
 
     /// The Flare Tool Options: kept within their ranges, and what the next drag draws with.
     #[test]
