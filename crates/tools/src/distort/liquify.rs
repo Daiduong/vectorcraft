@@ -764,10 +764,11 @@ impl Tool for LiquifyTool {
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let mut o = vec![];
         let at = self.hover.or_else(|| self.points.last().map(|(p, _)| *p));
-        if cx.measurement_labels && (self.active || self.sizing.is_some()) {
-            if let Some(p) = at {
-                o.push(Overlay::Measure { p, text: brush_measure_label(cx, self.params.width, self.params.height) });
-            }
+        if cx.measurement_labels
+            && (self.active || self.sizing.is_some())
+            && let Some(p) = at
+        {
+            o.push(Overlay::Measure { p, text: brush_measure_label(cx, self.params.width, self.params.height) });
         }
         let Some(c) = self.hover.filter(|_| self.show_brush || self.sizing.is_some()) else { return o };
         o.push(Overlay::Path {
