@@ -36,6 +36,7 @@ pub mod marks;
 mod mem;
 pub mod metadata;
 pub mod node;
+pub mod objects_on_path;
 pub mod orient;
 pub mod overprint;
 pub mod pattern;
@@ -274,7 +275,12 @@ impl Unit {
     pub fn named(name: &str) -> Option<Unit> {
         let letters = |s: &'static str| s.chars().filter(char::is_ascii_alphanumeric).map(|c| c.to_ascii_lowercase());
         let given = || name.chars().filter(char::is_ascii_alphanumeric).map(|c| c.to_ascii_lowercase());
-        Unit::ALL.into_iter().find(|u| letters(u.label()).eq(given()) || u.suffix().chars().eq(given()))
+        // Feet and Feet & Inches share the suffix `ft`: it names the plain unit, so Feet & Inches
+        // is left to its label and key.
+        Unit::ALL
+            .into_iter()
+            .find(|u| letters(u.label()).eq(given()))
+            .or_else(|| Unit::ALL.into_iter().filter(|u| *u != Unit::FeetInches).find(|u| u.suffix().chars().eq(given())))
     }
     /// A point value as the canvas measurement labels show it: two decimals and the suffix
     /// (`12.50 mm`).
@@ -801,6 +807,12 @@ type Places = BTreeMap<Vec<usize>, Vec<(usize, usize)>>;
 pub const FORMAT_VERSION: u32 = 1;
 
 impl Document {
+    /// Document Raster Effects Settings › Resolution in ppi, 1 to 2400 (72 when the stored value
+    /// isn't a number).
+    pub fn raster_ppi(&self) -> f64 {
+        Some(self.raster_effects_ppi).filter(|v| v.is_finite()).unwrap_or(72.0).clamp(1.0, 2400.0)
+    }
+
     /// The ruler zero point, or zero on both axes when either stored coordinate is invalid.
     /// Rulers, coordinate fields and guide snapping use the same supported range.
     pub fn ruler_origin_or_zero(&self) -> Point {
@@ -1549,9 +1561,17 @@ impl Document {
         {
             dimension.source = None;
         }
+        let mut renamed = std::collections::HashMap::new();
         if let Some(ch) = n.children_mut() {
             let old: Vec<Arc<Node>> = std::mem::take(ch);
             *ch = old.iter().map(|c| Arc::new(self.reid(c))).collect();
+            renamed.extend(old.iter().zip(ch.iter()).map(|(o, c)| (o.id, c.id)));
+        }
+        // An Objects on Path group names its path and its objects by id: the copy names the copies.
+        if let Some(e) = n.extras_if_any()
+            && let Some(on_path) = &mut e.objects_on_path
+        {
+            on_path.rename(&renamed);
         }
         n
     }

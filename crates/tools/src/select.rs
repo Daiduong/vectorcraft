@@ -76,6 +76,8 @@ enum State {
     Corner(CornerDrag),
     /// Dragging a live ellipse's pie widget.
     Pie(PieDrag),
+    /// Move or rotate a live mirror axis.
+    Mirror(crate::mirror::MirrorDrag),
     /// Dragging a bracket of type on a path.
     Bracket(BracketDrag),
     /// Loaded with the text of area type `from` by a click on its out port; `press`: where the
@@ -294,6 +296,12 @@ fn box_hit(cx: &ToolContext, b: &OrientedBox, p: Point) -> Option<BoxHit> {
     in_rotate_zone(b.rect, lp, tol, cx.tol(18.0)).map(|_| BoxHit::Rotate)
 }
 
+/// Whether the current selection's bounding-box handle is under `p`, using the same geometry as
+/// the Selection tool's press handling.
+pub(crate) fn bbox_handle_at(cx: &ToolContext, p: Point) -> bool {
+    cx.show_bbox && selection_box(cx).is_some_and(|b| matches!(box_hit(cx, &b, p), Some(BoxHit::Handle(_))))
+}
+
 /// How near (screen points) the pointer must come to an object's centre or anchor for Smart Guides
 /// to label it while hovering.
 const HOVER_REACH: f64 = 6.0;
@@ -390,6 +398,12 @@ impl Tool for SelectionTool {
             *enclosed = !*enclosed;
             return vec![];
         }
+        if key == ToolKey::Escape
+            && matches!(self.state, State::Mirror(_))
+            && let State::Mirror(d) = std::mem::take(&mut self.state)
+        {
+            return d.cancel();
+        }
         if key == ToolKey::Escape && matches!(self.state, State::Loaded { .. }) {
             self.state = State::Idle;
             return vec![];
@@ -400,7 +414,7 @@ impl Tool for SelectionTool {
     fn claims_key(&self, _cx: &ToolContext, key: ToolKey) -> bool {
         match self.state {
             State::Marquee { .. } => key == ToolKey::Letter('e'),
-            State::Loaded { .. } => key == ToolKey::Escape,
+            State::Loaded { .. } | State::Mirror(_) => key == ToolKey::Escape,
             _ => false,
         }
     }
@@ -410,6 +424,7 @@ impl Tool for SelectionTool {
             State::Moving { began: true, .. } | State::Scaling { .. } | State::Rotating { .. } => true,
             State::Corner(c) => c.adjusting(),
             State::Pie(d) => d.adjusting(),
+            State::Mirror(d) => d.adjusting(),
             _ => false,
         }
     }
@@ -419,6 +434,30 @@ impl Tool for SelectionTool {
             && let Some(out) = self.loaded(cx, ev, from, press)
         {
             return out;
+        }
+        // Mirror controls take precedence over art, bounding handles and ruler guides.
+        if let State::Mirror(mut d) = self.state.clone() {
+            match ev.kind {
+                PointerKind::Drag | PointerKind::Up => {
+                    let mut out = d.drag(cx, ev.pos, ev.mods);
+                    if ev.kind == PointerKind::Up {
+                        out.extend(d.finish());
+                        self.state = State::Idle;
+                    } else {
+                        self.state = State::Mirror(d);
+                    }
+                    return out;
+                }
+                _ => return vec![],
+            }
+        }
+        if matches!(self.state, State::Idle)
+            && ev.kind == PointerKind::Down
+            && let Some(d) = crate::mirror::MirrorDrag::hit(cx, ev.pos, ev.mods)
+        {
+            self.state = State::Mirror(d);
+            self.hover = None;
+            return vec![];
         }
         if let Some(out) = self.guide.pointer(cx, ev) {
             return out;
@@ -693,6 +732,17 @@ impl Tool for SelectionTool {
     }
 
     fn cursor(&self, cx: &ToolContext, p: Point, m: Mods) -> Cursor {
+        if let State::Mirror(d) = &self.state {
+            return d.cursor(cx, p);
+        }
+        if matches!(self.state, State::Idle)
+            && !m.cmd
+            && !m.ctrl
+            && !m.alt
+            && let Some(cursor) = crate::mirror::cursor(cx, p)
+        {
+            return cursor;
+        }
         match self.state {
             State::Rotating { center, .. } => return Cursor::rotate_about_in_view(center, p, cx.view_angle()),
             State::Scaling { handle, bx, .. } => return handle_cursor(handle, bx.angle - cx.view_angle()),
@@ -1627,6 +1677,38 @@ mod tests {
         t.pointer(&cx_locked, &ev(PointerKind::Drag, 120.0, 120.0));
         let a = t.pointer(&cx_locked, &ev(PointerKind::Up, 120.0, 120.0));
         assert_eq!(a, vec![Action::Exec("select.set".into(), json!({"ids": [id.0]}))]);
+    }
+
+    /// #3036: with Lock Guides on, a guide object neither takes the press nor stops a marquee
+    /// from starting over it; with guides unlocked, the press still picks it.
+    #[test]
+    fn marquee_passes_through_locked_guide_objects() {
+        let (mut d, id) = doc_with_rect();
+        let l = d.layers[0].id;
+        let g = d.alloc_id();
+        let pts = [Point::new(20.0, 20.0), Point::new(400.0, 20.0), Point::new(400.0, 400.0), Point::new(20.0, 400.0)];
+        let path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&pts, true));
+        let mut guide = vectorcraft_doc::Node::path(g, path, vectorcraft_doc::Appearance::default_art());
+        let vectorcraft_doc::NodeKind::Path { guide: flag, .. } = &mut guide.kind else { panic!("a path") };
+        *flag = true;
+        d.insert(Some(l), 1, guide).unwrap();
+        let s = Selection::default();
+        let p = paint();
+        let locked = ToolContext { guides: false, ..cx(&d, &s, &p) };
+        for (x, y) in [(20.0, 60.0), (50.0, 50.0)] {
+            let mut t = SelectionTool::default();
+            assert!(t.pointer(&locked, &ev(PointerKind::Down, x, y)).is_empty(), "press at ({x}, {y})");
+            t.pointer(&locked, &ev(PointerKind::Drag, 250.0, 250.0));
+            assert!(matches!(t.state, State::Marquee { .. }), "press at ({x}, {y})");
+            // The rectangle is rubber-band selected (the engine leaves locked guides out).
+            let a = t.pointer(&locked, &ev(PointerKind::Up, 250.0, 250.0));
+            let Some(Action::Exec(c, v)) = a.first() else { panic!("press at ({x}, {y}): {a:?}") };
+            assert_eq!(c, "select.set", "press at ({x}, {y})");
+            assert!(v["ids"].as_array().unwrap().contains(&json!(id.0)), "press at ({x}, {y}): {a:?}");
+        }
+        let unlocked = ToolContext { guides: true, ..cx(&d, &s, &p) };
+        let mut t = SelectionTool::default();
+        assert_eq!(t.pointer(&unlocked, &ev(PointerKind::Down, 20.0, 60.0)), vec![Action::Exec("select.set".into(), json!({"ids": [g.0]}))]);
     }
 
     #[test]

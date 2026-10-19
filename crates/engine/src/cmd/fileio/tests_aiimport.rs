@@ -188,7 +188,7 @@ fn what_the_reader_doesnt_read_opens_as_before_with_a_warning() {
 /// data sets weren't read, whether its layers are read or it comes in as its PDF part.
 #[test]
 fn an_ai_file_with_a_variable_library_says_its_variables_werent_read() {
-    const NOTE: &str = "the file's variables and data sets weren't read (2 variables, 3 data sets): the Variables panel doesn't list them";
+    const NOTE: &str = "the file's variables and data sets weren't read (variables: 2, data sets: 3): the Variables panel doesn't list them";
     let library = ai::variable_library(&["Name", "Number"], &["One", "Two", "Three"]);
     let square = format!("0 1 1 0 1 0 0 Xa\n{}f\n", ai::rect(10.0, 50.0, 40.0, 90.0));
     let notes =
@@ -226,6 +226,19 @@ fn an_ai_file_saved_without_its_pdf_part_opens_from_its_editing_data() {
     assert!(e.contains("without PDF compatibility") && e.contains("zlib"), "{e}");
     // Without editing data, the placeholder still isn't opened as the art.
     let e = open(&mut s, "plain.ai", &ai::ai(b"", PLACEHOLDER), json!({})).unwrap_err().to_string();
+    assert!(e.contains("placeholder"), "{e}");
+}
+
+#[test]
+fn an_ai_file_saved_without_its_pdf_part_opens_with_pages_naming_every_page() {
+    let file = ai::ai(&compressed(&ai::sample_data()), PLACEHOLDER);
+    for pages in [json!("1"), json!(1), json!("1-")] {
+        let mut s = Session::new();
+        open(&mut s, "art.ai", &file, json!({"pages": pages})).unwrap();
+        check_sample(&s);
+    }
+    // Without editing data, the placeholder still isn't opened as the art.
+    let e = open(&mut Session::new(), "plain.ai", &ai::ai(b"", PLACEHOLDER), json!({"pages": "1"})).unwrap_err().to_string();
     assert!(e.contains("placeholder"), "{e}");
 }
 
