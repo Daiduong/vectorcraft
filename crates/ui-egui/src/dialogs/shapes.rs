@@ -1,7 +1,7 @@
 //! Shape size dialogs (a click with a shape tool): Rectangle, Rounded Rectangle, Ellipse, Polygon,
 //! Star, Line Segment Tool Options and the two grids (size, divider counts and skews, switches).
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use super::{DialogSpec, form, run_and_close};
 use crate::VectorcraftApp;
@@ -23,12 +23,26 @@ fn title(kind: &str) -> &'static str {
 }
 
 /// The grids' divider counts and skews: (rows / concentric, columns / radial).
-fn grid_keys(kind: &str) -> ([&'static str; 2], [&'static str; 2]) {
+pub(crate) fn grid_tool_fields(kind: &str) -> ([&'static str; 2], [&'static str; 2]) {
     if kind == "polarGrid" { (["concentric", "radial"], ["concentricSkew", "radialSkew"]) } else { (["rows", "columns"], ["rowSkew", "columnSkew"]) }
 }
 
-/// The form's fields, then a grid's switches.
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+/// Divider counts, skews and switches read from a grid dialog (`kind` is the tool id).
+pub(crate) fn grid_tool_option_values(d: &Dialog, kind: &str) -> Map<String, Value> {
+    let (counts, skews) = grid_tool_fields(kind);
+    let mut values = Map::new();
+    for (count, skew) in counts.into_iter().zip(skews) {
+        values.insert(count.into(), json!((d.f64(count, 5.0) as u64).min(999)));
+        values.insert(skew.into(), json!(d.f64(skew, 0.0)));
+    }
+    let switch = if kind == "polarGrid" { "compound" } else { "frame" };
+    values.insert(switch.into(), json!(d.bool(switch)));
+    values.insert("fill".into(), json!(d.bool("fill")));
+    values
+}
+
+/// Divider counts, skews and switches for a rectangular or polar grid dialog (`d.kind` is the tool).
+pub(crate) fn grid_tool_body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     form::grid(ui, d, app.session.general_unit());
     let own = match d.kind.as_str() {
         "rectangularGrid" => ("frame", tl!("Use Outside Rectangle As Frame")),
@@ -39,6 +53,15 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     for (key, label) in [own, ("fill", tl!("Fill Grid"))] {
         form::check(ui, d, key, label);
     }
+    false
+}
+
+/// The form's fields, then a grid's switches.
+fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+    if matches!(d.kind.as_str(), "rectangularGrid" | "polarGrid") {
+        return grid_tool_body(app, ui, d);
+    }
+    form::grid(ui, d, app.session.general_unit());
     false
 }
 
@@ -53,7 +76,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
         ),
         kind @ ("rectangularGrid" | "polarGrid") => {
             // The switches as they are; the typed fields as numbers.
-            let (mut p, (counts, skews)) = (form::params(d), grid_keys(kind));
+            let (mut p, (counts, skews)) = (form::params(d), grid_tool_fields(kind));
             for (k, default) in [("width", 100.0), ("height", 100.0)] {
                 p[k] = json!(d.f64(k, default));
             }

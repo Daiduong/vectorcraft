@@ -4,7 +4,7 @@
 
 use serde_json::{Map, Value, json};
 
-use super::{DialogSpec, form, run_and_close};
+use super::{DialogSpec, run_and_close};
 use crate::state::Dialog;
 use crate::VectorcraftApp;
 
@@ -21,20 +21,8 @@ fn heading(d: &Dialog) -> String {
     crate::i18n::fmt(tl!("{tool} Options"), &[("tool", tl!(label))])
 }
 
-/// The grids' divider counts and skews: (rows / concentric, columns / radial).
-fn grid_keys(tool: &str) -> ([&'static str; 2], [&'static str; 2]) {
-    if tool == "polarGrid" {
-        (["concentric", "radial"], ["concentricSkew", "radialSkew"])
-    } else {
-        (["rows", "columns"], ["rowSkew", "columnSkew"])
-    }
-}
-
 /// Open the options of grid tool `tool` with their current values.
 pub fn open(app: &mut VectorcraftApp, tool: &str) -> Result<Value, String> {
-    if !TOOLS.contains(&tool) {
-        return Err(format!("`{tool}` isn't a grid tool"));
-    }
     let o = app.session.tool_options_of(tool);
     let mut fields: Map<String, Value> = match o {
         Value::Object(m) => m,
@@ -46,37 +34,16 @@ pub fn open(app: &mut VectorcraftApp, tool: &str) -> Result<Value, String> {
 }
 
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
-    let tool = d.str("tool");
     let saved = d.kind.clone();
-    d.kind = tool.clone();
-    form::grid(ui, d, app.session.general_unit());
-    let own = match tool.as_str() {
-        "rectangularGrid" => ("frame", tl!("Use Outside Rectangle As Frame")),
-        "polarGrid" => ("compound", tl!("Create Compound Path From Ellipses")),
-        _ => {
-            d.kind = saved;
-            return false;
-        }
-    };
-    ui.add_space(8.0);
-    for (key, label) in [own, ("fill", tl!("Fill Grid"))] {
-        form::check(ui, d, key, label);
-    }
+    d.kind = d.str("tool");
+    let r = super::shapes::grid_tool_body(app, ui, d);
     d.kind = saved;
-    false
+    r
 }
 
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let tool = d.str("tool");
-    let (counts, skews) = grid_keys(tool.as_str());
-    let mut values = Map::new();
-    for (count, skew) in counts.into_iter().zip(skews) {
-        values.insert(count.into(), json!((d.f64(count, 5.0) as u64).min(999)));
-        values.insert(skew.into(), json!(d.f64(skew, 0.0)));
-    }
-    let switch = if tool == "polarGrid" { "compound" } else { "frame" };
-    values.insert(switch.into(), json!(d.bool(switch)));
-    values.insert("fill".into(), json!(d.bool("fill")));
+    let values = super::shapes::grid_tool_option_values(d, tool.as_str());
     run_and_close(app, "tool.setOption", json!({ "tool": tool, "values": values }))
 }
 
@@ -114,7 +81,7 @@ mod tests {
             }
             assert!(text.contains("Fill Grid"), "{text}");
             let d = app.ui.dialog.as_mut().unwrap();
-            let (counts, _) = grid_keys(tool);
+            let (counts, _) = crate::dialogs::shapes::grid_tool_fields(tool);
             d.fields.insert(counts[0].into(), json!(7));
             d.fields.insert(counts[1].into(), json!(3));
             super::super::confirm(&mut app).unwrap();
