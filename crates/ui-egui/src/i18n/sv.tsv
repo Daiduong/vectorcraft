@@ -1176,6 +1176,8 @@
 	Large Gaps	Stora mellanrum
 	Gap Preview Color:	Förhandsgranskningsfärg för mellanrum:
 	Close Gaps With Paths	Stäng mellanrum med banor
+	Select Fills	Markera fyllningar
+	Select Strokes	Markera konturer
 	Gaussian Blur…	Gaussisk oskärpa…
 	General	Allmänt
 	General › Placement › X	Allmänt › Placering › X
@@ -1372,6 +1374,12 @@
 	Release Blend	Släpp blandning
 	Release Envelope	Släpp kuvert
 	Release Intertwine	Släpp sammanflätning
+	Objects on Path	Objekt på bana
+	Attach	Fäst
+	Objects on Path Options	Alternativ för objekt på bana
+	Objects on Path Tool	Verktyg för objekt på bana
+	Attach Objects on Path	Fäst objekt på bana
+	Expand Objects on Path	Expandera objekt på bana
 	Release Live Paint	Släpp direktmålning
 	Release Repeat	Släpp upprepning
 	Release Slice	Släpp skiva
@@ -1672,6 +1680,7 @@
 	Load Text into Clipboard	Läs in text till urklipp
 	Local Libraries	Lokala bibliotek
 	Locate Object	Hitta objekt
+	Locate Selected Objects	Hitta markerade objekt
 	Location	Plats
 	Location:	Plats:
 	Lock	Lås
@@ -2952,6 +2961,7 @@
 	Snap to Pixel	Fäst mot pixel
 	Precise Cursors	Exakta markörer
 	Snap to Point	Fäst mot punkt
+	Snap to Unit	Fäst mot enhet
 	Snapping Tolerance	Fästtolerans
 	Social Square Post 1080×1080	Kvadratiskt inlägg för sociala medier 1080×1080
 	Soft Light	Mjukt ljus
@@ -3732,6 +3742,8 @@ axis	Both	Båda
 @msg	`{key}` must be a #rrggbb color	`{key}` måste vara en färg i formatet #rrggbb
 @msg	`{key}` must be a #rrggbb colour	`{key}` måste vara en färg i formatet #rrggbb
 @msg	`{key}` must be a number	`{key}` måste vara ett tal
+@msg	`{key}` must be a number, not {v}	`{key}` måste vara ett tal, inte {v}
+@msg	{key} must be Unix seconds (an integer) or null	{key} måste vara Unix-tid i sekunder (ett heltal) eller null
 @msg	`{key}` must be a string	`{key}` måste vara en sträng
 @msg	`{key}` must be a whole number	`{key}` måste vara ett heltal
 @msg	`{key}` must be a whole number between {min} and {max} (got {x})	`{key}` måste vara ett heltal mellan {min} och {max} (fick {x})
@@ -3858,6 +3870,7 @@ axis	Both	Båda
 @msg	missing `tool`	`tool` saknas
 @msg	missing index	index saknas
 @msg	missing number `{key}`	talet `{key}` saknas
+@msg	missing integer `{key}`	heltalet `{key}` saknas
 @msg	multiple windows land with M11.5	flera fönster kommer med M11.5
 @msg	name the file	namnge filen
 @msg	no CSS to copy: select objects with CSS of their own	ingen CSS att kopiera: markera objekt som har egen CSS
@@ -3981,6 +3994,7 @@ axis	Both	Båda
 @msg	object {id} is not a selected top-level object	objekt {id} är inte ett markerat objekt på toppnivå
 @msg	page size {w} × {h}	sidstorlek {w} × {h}
 @msg	page {0} does not exist (the PDF has {1})	sidan {0} finns inte (PDF-filen har {1})
+@msg	thumbnail: no page {n} (the file has 1)	thumbnail: sidan {n} finns inte (filen har 1)
 @msg	paste unavailable	inklistring är inte tillgänglig
 @msg	path is already closed	banan är redan sluten
 @msg	paths contain invalid coordinates	banorna innehåller ogiltiga koordinater
@@ -4288,6 +4302,9 @@ axis	Both	Båda
 @msg	`{text}`: step {i}'s result has no such value (write $$ for a literal $)	`{text}`: resultatet från steg {i} har inget sådant värde (skriv $$ för ett bokstavligt $)
 @msg	`{text}`: there is no step {i} before this one (steps count from 0; write $$ for a literal $)	`{text}`: det finns inget steg {i} före det här (stegen räknas från 0; skriv $$ för ett bokstavligt $)
 @msg	object ids are non-negative integers, not {v}	objekt-id:n är icke-negativa heltal, inte {v}
+@msg	{key} must be an array of non-negative integer object ids	{key} måste vara en array med objekt-id:n som är icke-negativa heltal
+@msg	invalid object id {value}: expected a non-negative integer	ogiltigt objekt-id {value}: ett icke-negativt heltal förväntades
+@msg	no such object id {value}	det finns inget objekt med id {value}
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: läsbehörighet saknas: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: skrivbehörighet saknas: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automatiseringssökvägen avvisades: utanför läsroten {root}: {path}
@@ -5091,7 +5108,9 @@ theme	Appearance	Utseende
 @msg	choose a destination folder	välj en målmapp
 @msg	choose a source folder	välj en källmapp
 @msg	open a document with data sets	öppna ett dokument med datauppsättningar
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	inget i datauppsättningen {name} användes: inget objekt är bundet till en variabel som den har ett värde för
 @msg	select an Intertwine group	markera en sammanflätningsgrupp
+@msg	select an Objects on Path group	markera en grupp med objekt på bana
 @msg	span must be "object" or "selection", got {v}	span måste vara "object" eller "selection", fick {v}
 @msg	span: "selection" places a `gradient`, not a swatch	span: "selection" placerar en `gradient`, inte en färgruta
 @msg	span: "selection" places a gradient: give `gradient`	span: "selection" placerar en övertoning: ange `gradient`
@@ -5161,3 +5180,7 @@ theme	Appearance	Utseende
 	Full Justify	Fullständig marginaljustering
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum får inte överstiga Önskat, och Önskat inte Maximum.
 	Justification	Justering
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	filens variabler och datauppsättningar lästes inte (variabler: {variables}, datauppsättningar: {data_sets}): panelen Variabler visar dem inte
+# Select by Color (select.color)
+	Select by Color	Markera efter färg
+	Move Anchor Point	Flytta ankarpunkt

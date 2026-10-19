@@ -200,13 +200,9 @@ impl VariableLibrary {
     /// The import's note that the library wasn't read, when it has a variable or a data set.
     pub fn note(self) -> Option<String> {
         let Self { variables, data_sets } = self;
-        let s = |n: usize| if n == 1 { "" } else { "s" };
+        // Counts after a colon need no plural, so every language can translate the note whole.
         (variables + data_sets > 0).then(|| {
-            format!(
-                "the file's variables and data sets weren't read ({variables} variable{}, {data_sets} data set{}): the Variables panel doesn't list them",
-                s(variables),
-                s(data_sets)
-            )
+            format!("the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them")
         })
     }
 }
@@ -1328,6 +1324,10 @@ impl<'a> Reader<'a> {
             // Far-Eastern type) and final-form positions (§15.3).
             "Tk" | "TK" | "TC" | "TW" | "Tq" | "Tc" | "Tw" | "Tm" | "Td" | "T*" | "TR" | "T+" | "T-" | "TV" | "Tv" | "Ty" | "TY" | "TG" | "Tg"
             | "Tu" | "Xu" => {}
+            // Hyphenation and tab-ruler attributes the reader doesn't keep either (§22): `Th`
+            // hyphen control, `XL` hyphenation language, `Xb`/`XB` a tab definition (and the `Xe`
+            // tab descriptions between them).
+            "Th" | "XL" | "Xb" | "XB" | "Xe" => {}
             "TE" => self.te(&vals),
             // An image whose samples follow in comment lines (read at `%AI5_EndRaster`).
             "XI" if self.raster.is_some() => {
@@ -2016,9 +2016,15 @@ impl<'a> Reader<'a> {
     /// An image of operands `vals` and samples `data`.
     fn image_from(&mut self, vals: Vec<V>, data: &[u8]) -> Result<(), String> {
         let space = self.raster.as_ref().and_then(|r| r.space.clone()).unwrap_or_default();
-        let Some(m) = vals.iter().find_map(|v| if let V::Arr(a) = v { Some(Self::nums(a)) } else { None }) else { return Ok(()) };
+        let Some(m) = vals.iter().find_map(|v| if let V::Arr(a) = v { Some(Self::nums(a)) } else { None }) else {
+            self.warn("an image VectorCraft can't read was left out");
+            return Ok(());
+        };
         let n = Self::nums(&vals);
-        let [_, _, _, _, w, h, bits, kind, alpha, _, binary, ..] = n.as_slice() else { return Ok(()) };
+        let [_, _, _, _, w, h, bits, kind, alpha, _, binary, ..] = n.as_slice() else {
+            self.warn("an image VectorCraft can't read was left out");
+            return Ok(());
+        };
         let (w, h) = (*w as u64, *h as u64);
         if w == 0 || h == 0 || w.saturating_mul(h) > MAX_PIXELS || ![1.0, 8.0].contains(bits) {
             self.warn("an image VectorCraft can't read was left out");
@@ -2084,7 +2090,10 @@ impl<'a> Reader<'a> {
                 rgba.extend_from_slice(&[px[0], px[1], px[2], a]);
             }
         }
-        let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, rgba) else { return Ok(()) };
+        let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, rgba) else {
+            self.warn("an image VectorCraft can't read was left out");
+            return Ok(());
+        };
         let mut png = vec![];
         if img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).is_err() {
             self.warn("an image VectorCraft can't read was left out");
@@ -2100,10 +2109,14 @@ impl<'a> Reader<'a> {
         // The matrix is an art-space matrix (y up) applied to the pixels with their rows running
         // downwards, (u, -v): pixels → (u, -v) → art space. Flipping the matrix's result instead
         // gives the same place only when the image isn't rotated (b = c = 0).
-        let [a, b, c, d, tx, ty] = m else { return Ok(()) };
+        let [a, b, c, d, tx, ty] = m else {
+            self.warn("an image VectorCraft can't read was left out");
+            return Ok(());
+        };
         let to_doc = self.space();
         let xf = to_doc * Affine::new([*a, *b, *c, *d, *tx, *ty]) * FLIP;
         if !xf.as_coeffs().iter().all(|v| v.is_finite()) || xf.determinant().abs() < 1e-12 {
+            self.warn("an image VectorCraft can't read was left out");
             return Ok(());
         }
         let mask = alpha.and_then(|a| self.alpha_mask(a, w, h, xf));

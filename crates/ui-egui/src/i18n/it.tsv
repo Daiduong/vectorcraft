@@ -1208,6 +1208,8 @@ file-filter	Templates	Modelli
 	Large Gaps	Spazi vuoti grandi
 	Gap Preview Color:	Colore anteprima spazi vuoti:
 	Close Gaps With Paths	Chiudi spazi vuoti con tracciati
+	Select Fills	Seleziona riempimenti
+	Select Strokes	Seleziona tracce
 	Gaussian Blur…	Sfocatura gaussiana…
 	General	Generale
 	General › Placement › X	Generale › Posizionamento › X
@@ -1415,6 +1417,12 @@ file-filter	Templates	Modelli
 	Release Envelope	Rilascia involucro
 	Release Image Trace	Rilascia ricalco immagine
 	Release Intertwine	Rilascia intreccio
+	Objects on Path	Oggetti su tracciato
+	Attach	Aggancia
+	Objects on Path Options	Opzioni oggetti su tracciato
+	Objects on Path Tool	Strumento Oggetti su tracciato
+	Attach Objects on Path	Aggancia oggetti al tracciato
+	Expand Objects on Path	Espandi oggetti su tracciato
 	Release Live Paint	Rilascia pittura dinamica
 	Release Repeat	Rilascia ripetizione
 	Release Slice	Rilascia sezione
@@ -1739,6 +1747,7 @@ file-filter	Templates	Modelli
 	Load Text into Clipboard	Carica testo negli appunti
 	Local Libraries	Librerie locali
 	Locate Object	Individua oggetto
+	Locate Selected Objects	Individua oggetti selezionati
 	Location	Posizione
 	Location:	Posizione:
 	Lock	Blocca
@@ -3044,6 +3053,7 @@ mark-style	Japanese	Giapponese
 	Snap to Pixel	Aggancia ai pixel
 	Precise Cursors	Cursori di precisione
 	Snap to Point	Aggancia al punto
+	Snap to Unit	Aggancia all'unità
 	Snapping Tolerance	Tolleranza di aggancio
 	Social Square Post 1080×1080	Post quadrato per social 1080×1080
 	Soft Light	Luce soffusa
@@ -3842,6 +3852,8 @@ axis	Both	Entrambi
 @msg	`{key}` must be a #rrggbb color	`{key}` deve essere un colore #rrggbb
 @msg	`{key}` must be a #rrggbb colour	`{key}` deve essere un colore #rrggbb
 @msg	`{key}` must be a number	`{key}` deve essere un numero
+@msg	`{key}` must be a number, not {v}	`{key}` deve essere un numero, non {v}
+@msg	{key} must be Unix seconds (an integer) or null	{key} deve essere un tempo Unix in secondi (un intero) o null
 @msg	`{key}` must be a string	`{key}` deve essere una stringa
 @msg	`{key}` must be a whole number	`{key}` deve essere un numero intero
 @msg	`{key}` must be a whole number between {min} and {max} (got {x})	`{key}` deve essere un numero intero tra {min} e {max} (ricevuto {x})
@@ -3972,6 +3984,7 @@ axis	Both	Entrambi
 @msg	missing `tool`	manca `tool`
 @msg	missing index	manca index
 @msg	missing number `{key}`	manca il numero `{key}`
+@msg	missing integer `{key}`	manca il numero intero `{key}`
 @msg	multiple windows land with M11.5	le finestre multiple arriveranno con M11.5
 @msg	name the file	assegna un nome al file
 @msg	no CSS to copy: select objects with CSS of their own	nessun CSS da copiare: seleziona oggetti con un CSS proprio
@@ -4095,6 +4108,7 @@ axis	Both	Entrambi
 @msg	object {id} is not a selected top-level object	l'oggetto {id} non è un oggetto selezionato di primo livello
 @msg	page size {w} × {h}	dimensioni pagina {w} × {h}
 @msg	page {0} does not exist (the PDF has {1})	la pagina {0} non esiste (il PDF ne ha {1})
+@msg	thumbnail: no page {n} (the file has 1)	thumbnail: la pagina {n} non esiste (il file ne ha 1)
 @msg	paste unavailable	impossibile incollare
 @msg	path is already closed	il tracciato è già chiuso
 @msg	paths contain invalid coordinates	i tracciati contengono coordinate non valide
@@ -4133,6 +4147,7 @@ axis	Both	Entrambi
 @msg	select a linked image: an embedded one has no file	seleziona un'immagine collegata: un'immagine incorporata non ha un file
 @msg	select a repeat	seleziona una ripetizione
 @msg	select an Intertwine group	seleziona un gruppo intrecciato
+@msg	select an Objects on Path group	seleziona un gruppo di oggetti su tracciato
 @msg	select a stroke with a variable width	seleziona una traccia con larghezza variabile
 @msg	select a symbol instance	seleziona un'istanza di simbolo
 @msg	select an Image Trace object	seleziona un oggetto di ricalco immagine
@@ -4391,6 +4406,9 @@ axis	Both	Entrambi
 @msg	`{text}`: step {i}'s result has no such value (write $$ for a literal $)	`{text}`: il risultato del passaggio {i} non ha questo valore (scrivi $$ per un $ letterale)
 @msg	`{text}`: there is no step {i} before this one (steps count from 0; write $$ for a literal $)	`{text}`: non c’è un passaggio {i} prima di questo (i passaggi si contano da 0; scrivi $$ per un $ letterale)
 @msg	object ids are non-negative integers, not {v}	gli ID oggetto sono interi non negativi, non {v}
+@msg	{key} must be an array of non-negative integer object ids	{key} deve essere un array di ID oggetto interi non negativi
+@msg	invalid object id {value}: expected a non-negative integer	ID oggetto {value} non valido: è richiesto un intero non negativo
+@msg	no such object id {value}	nessun oggetto con ID {value}
 @msg	automation filesystem access is not granted: read authority is absent: {path}	l'automazione non ha accesso al file system: manca l'autorizzazione di lettura: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	l'automazione non ha accesso al file system: manca l'autorizzazione di scrittura: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	percorso di automazione rifiutato: fuori dalla cartella radice di lettura {root}: {path}
@@ -4760,6 +4778,7 @@ lighting	Light	Luce
 @msg	choose a destination folder	scegli una cartella di destinazione
 @msg	choose a source folder	scegli una cartella di origine
 @msg	open a document with data sets	apri un documento con set di dati
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	non è stato applicato nulla del set di dati {name}: nessun oggetto è associato a una variabile per cui ha un valore
 @msg	the action has no steps	l'azione non ha passaggi
 
 # User Interface › Accent Color
@@ -4819,3 +4838,7 @@ lighting	Light	Luce
 	Minimum must not exceed Desired, nor Desired Maximum.	Il minimo non può superare il valore desiderato, né il desiderato il massimo.
 	Minimum	Minimo
 	Justification	Giustificazione
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	le variabili e i set di dati del file non sono stati letti (variabili: {variables}, set di dati: {data_sets}): il pannello Variabili non li elenca
+# Select by Color (select.color)
+	Select by Color	Seleziona per colore
+	Move Anchor Point	Sposta punto di ancoraggio

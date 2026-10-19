@@ -258,6 +258,8 @@
 	Large Gaps	큰 간격
 	Gap Preview Color:	간격 미리 보기 색상:
 	Close Gaps With Paths	패스로 간격 닫기
+	Select Fills	칠 선택
+	Select Strokes	선 선택
 	Image Trace	이미지 추적
 	Image Tracing	이미지 추적
 	Tracing Presets	추적 프리셋
@@ -1656,6 +1658,12 @@
 	Release Envelope	엔벨로프 해제
 	Release Image Trace	이미지 추적 해제
 	Release Intertwine	교차 해제
+	Objects on Path	패스 위 개체
+	Attach	부착
+	Objects on Path Options	패스 위 개체 옵션
+	Objects on Path Tool	패스 위 개체 도구
+	Attach Objects on Path	패스 위 개체 부착
+	Expand Objects on Path	패스 위 개체 확장
 	Release Live Paint	라이브 페인트 해제
 	Release Repeat	반복 해제
 	Release Slice	분할 해제
@@ -1907,6 +1915,7 @@
 	Load Text into Clipboard	텍스트를 클립보드로 불러오기
 	Local Libraries	로컬 라이브러리
 	Locate Object	개체 찾기
+	Locate Selected Objects	선택한 개체 찾기
 	Location	위치
 	Location:	위치:
 	Lock (⌘2)	잠금 (⌘2)
@@ -2816,6 +2825,7 @@ mark-style	Japanese	일본식
 	Source Image	원본 이미지
 	Image Trace View	이미지 추적 보기
 	Snap Options	스냅 옵션
+	Snap to Unit	단위에 스냅
 	Snapping Tolerance	스냅 허용 오차
 	Soft Light	소프트 라이트
 	Solid	단색
@@ -3860,6 +3870,8 @@ theme	Appearance	외관
 @msg	`freeform.points` must be an array	`freeform.points`는 배열이어야 합니다
 @msg	`freeform.lines` must be an array	`freeform.lines`는 배열이어야 합니다
 @msg	`{key}` must be a number	`{key}`은(는) 숫자여야 합니다
+@msg	`{key}` must be a number, not {v}	`{key}`은(는) 숫자여야 하며 {v}은(는) 안 됩니다
+@msg	{key} must be Unix seconds (an integer) or null	{key}은(는) 초 단위 Unix 시간(정수) 또는 null이어야 합니다
 @msg	a freeform gradient keeps at least one point	자유형 그레이디언트에는 점이 하나 이상 있어야 합니다
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	자유형 점 {i}에는 `at` [x, y]과 올바른 `color`가 필요합니다
 @msg	freeform line {i} must be an array of point indices	자유형 선 {i}은(는) 점 인덱스 배열이어야 합니다
@@ -3950,6 +3962,7 @@ theme	Appearance	외관
 @msg	pattern missing	패턴이 없습니다
 @msg	select a repeat	반복을 선택하세요
 @msg	select an Intertwine group	교차 그룹을 선택하세요
+@msg	select an Objects on Path group	패스 위 개체 그룹을 선택하세요
 @msg	select the art to repeat	반복할 아트웍을 선택하세요
 @msg	the document has no patterns	문서에 패턴이 없습니다
 @msg	no artboard	아트보드가 없습니다
@@ -4099,6 +4112,7 @@ theme	Appearance	외관
 @msg	cannot read PDF: {0}	PDF를 읽을 수 없습니다: {0}
 @msg	invalid PDF setting: {0}	잘못된 PDF 설정: {0}
 @msg	page {0} does not exist (the PDF has {1})	페이지 {0}이(가) 없습니다(PDF의 페이지 수: {1})
+@msg	thumbnail: no page {n} (the file has 1)	thumbnail: 페이지 {n}이(가) 없습니다(파일의 페이지 수: 1)
 @msg	the PDF has no pages	PDF에 페이지가 없습니다
 @msg	the PDF is password-protected: give its password	PDF가 암호로 보호되어 있습니다: 암호를 입력하세요
 @msg	the PDF password is wrong	PDF 암호가 올바르지 않습니다
@@ -4251,6 +4265,7 @@ theme	Appearance	외관
 @msg	missing `tool`	`tool`이 없습니다
 @msg	missing index	index가 없습니다
 @msg	missing number `{key}`	숫자 `{key}`이(가) 없습니다
+@msg	missing integer `{key}`	정수 `{key}`이(가) 없습니다
 @msg	multiple windows land with M11.5	여러 창은 M11.5에서 지원됩니다
 @msg	no PNG encoder	PNG 인코더가 없습니다
 @msg	no document open	열린 문서가 없습니다
@@ -4361,6 +4376,9 @@ theme	Appearance	외관
 @msg	`{text}`: step {i}'s result has no such value (write $$ for a literal $)	`{text}`: 단계 {i}의 결과에 해당 값이 없습니다(문자 그대로의 $는 $$로 쓰세요)
 @msg	`{text}`: there is no step {i} before this one (steps count from 0; write $$ for a literal $)	`{text}`: 이 단계 앞에 단계 {i}이(가) 없습니다(단계는 0부터 셉니다. 문자 그대로의 $는 $$로 쓰세요)
 @msg	object ids are non-negative integers, not {v}	개체 id는 음이 아닌 정수여야 하며 {v}은(는) 안 됩니다
+@msg	{key} must be an array of non-negative integer object ids	{key}은(는) 음이 아닌 정수인 개체 id의 배열이어야 합니다
+@msg	invalid object id {value}: expected a non-negative integer	개체 id {value}이(가) 올바르지 않습니다: 음이 아닌 정수여야 합니다
+@msg	no such object id {value}	id가 {value}인 개체가 없습니다
 @msg	automation filesystem access is not granted: read authority is absent: {path}	자동화 파일 시스템 접근이 허용되지 않았습니다: 읽기 권한이 없습니다: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	자동화 파일 시스템 접근이 허용되지 않았습니다: 쓰기 권한이 없습니다: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	자동화 경로가 거부되었습니다: 읽기 루트 {root} 밖입니다: {path}
@@ -4723,6 +4741,7 @@ lighting	Light	광원
 @msg	choose a destination folder	대상 폴더를 선택하세요
 @msg	choose a source folder	소스 폴더를 선택하세요
 @msg	open a document with data sets	데이터 세트가 있는 문서를 여세요
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	데이터 세트 {name}에서 적용된 항목이 없습니다: 값이 있는 변수에 연결된 개체가 없습니다
 @msg	the action has no steps	액션에 단계가 없습니다
 
 # User Interface › Accent Color
@@ -4782,3 +4801,7 @@ lighting	Light	광원
 	Minimum must not exceed Desired, nor Desired Maximum.	최소값은 희망값을, 희망값은 최대값을 넘을 수 없습니다.
 	Minimum	최소
 	Justification	양끝 맞춤
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	파일의 변수와 데이터 세트를 읽지 않았습니다(변수: {variables}, 데이터 세트: {data_sets}). 변수 패널에 표시되지 않습니다
+# Select by Color (select.color)
+	Select by Color	색상별 선택
+	Move Anchor Point	앵커 포인트 이동
