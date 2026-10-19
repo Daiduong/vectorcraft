@@ -1986,6 +1986,8 @@ file-filter	Templates	Sablonok
 	Start from VectorCraft Defaults	Kiindulás a VectorCraft-alapértékekből
 	Add to the Current Shortcuts	Hozzáadás a jelenlegi billentyűparancsokhoz
 	Remember My Choices	Választásaim megjegyzése
+	Retain my latest settings	Legutóbbi beállítások megtartása
+Választásaim megjegyzése
 	{ready} of {total} ready	Kész: {ready}/{total}
 	The file is too large to read in full, so only its first part is listed.	A fájl túl nagy a teljes beolvasáshoz, ezért csak az első része szerepel a listában.
 	Report copied	Jelentés másolva

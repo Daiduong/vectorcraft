@@ -1585,6 +1585,8 @@ file-filter	Templates	Vorlagen
 	Start from VectorCraft Defaults	Von den VectorCraft-Standardwerten ausgehen
 	Add to the Current Shortcuts	Zu den aktuellen Tastaturbefehlen hinzufügen
 	Remember My Choices	Meine Auswahl merken
+	Retain my latest settings	Meine letzten Einstellungen beibehalten
+Meine Auswahl merken
 	{ready} of {total} ready	{ready} von {total} bereit
 	The file is too large to read in full, so only its first part is listed.	Die Datei ist zu groß, um sie vollständig zu lesen. Daher wird nur ihr erster Teil aufgeführt.
 	Report copied	Bericht kopiert

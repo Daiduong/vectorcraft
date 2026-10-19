@@ -4274,6 +4274,8 @@ imageTrace	Outline	轮廓
 	Start from VectorCraft Defaults	从 VectorCraft 默认开始
 	Add to the Current Shortcuts	添加到当前快捷键
 	Remember My Choices	记住我的选择
+	Retain my latest settings	保留我的最新设置
+记住我的选择
 	{ready} of {total} ready	{total} 个中有 {ready} 个就绪
 	The file is too large to read in full, so only its first part is listed.	文件太大，无法完整读取，因此只列出开头部分。
 	Report copied	已复制报告

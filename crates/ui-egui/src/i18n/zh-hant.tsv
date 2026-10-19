@@ -2303,6 +2303,8 @@ file-filter	Templates	範本
 	Start from VectorCraft Defaults	從 VectorCraft 預設值開始
 	Add to the Current Shortcuts	加入目前的快速鍵
 	Remember My Choices	記住我的選擇
+	Retain my latest settings	保留我的最新設定
+記住我的選擇
 	{ready} of {total} ready	{total} 個中有 {ready} 個就緒
 	The file is too large to read in full, so only its first part is listed.	檔案太大，無法完整讀取，因此只列出開頭的部分。
 	Report copied	已複製報告

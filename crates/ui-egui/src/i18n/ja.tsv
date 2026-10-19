@@ -1804,6 +1804,8 @@
 	Start from VectorCraft Defaults	VectorCraft の初期設定から開始
 	Add to the Current Shortcuts	現在のショートカットに追加
 	Remember My Choices	選択内容を記憶
+	Retain my latest settings	最新の設定を保持
+選択内容を記憶
 	{ready} of {total} ready	{total} 件中 {ready} 件が適用可能
 	The file is too large to read in full, so only its first part is listed.	ファイルが大きすぎて全体を読み込めないため、最初の部分のみを表示しています。
 	Report copied	レポートをコピーしました

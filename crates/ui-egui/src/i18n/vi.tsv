@@ -1728,6 +1728,8 @@ file-filter	Templates	Mẫu
 	Start from VectorCraft Defaults	Bắt đầu từ mặc định VectorCraft
 	Add to the Current Shortcuts	Thêm vào phím tắt hiện tại
 	Remember My Choices	Ghi nhớ lựa chọn của tôi
+	Retain my latest settings	Giữ lại thiết lập mới nhất của tôi
+Ghi nhớ lựa chọn của tôi
 	{ready} of {total} ready	Sẵn sàng {ready} trong {total}
 	The file is too large to read in full, so only its first part is listed.	Tệp quá lớn để đọc hết, nên chỉ phần đầu được liệt kê.
 	Report copied	Đã sao chép báo cáo

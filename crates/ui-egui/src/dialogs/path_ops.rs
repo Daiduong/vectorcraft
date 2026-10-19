@@ -1,7 +1,5 @@
 //! Path dialogs: Average, and Offset Path, Simplify and Split Into Grid with Preview.
 
-use std::sync::Mutex;
-
 use serde_json::{Map, Value, json};
 use vectorcraft_doc::{NodeId, NodeKind, Unit};
 use vectorcraft_geom::PathData;
@@ -28,34 +26,45 @@ const RETAIN_INIT: &str = "__retainInit";
 /// Simplify fields remembered when Retain my latest settings is on at OK.
 const RETAINED_FIELDS: [&str; 3] = ["tolerance", "angleThreshold", "straightLines"];
 
-/// Last Simplify settings confirmed with Retain my latest settings (session only; Offset Path
-/// stores the same kind of data on `UiState::offset_path`).
-static SIMPLIFY_RETAINED: Mutex<Option<(bool, Map<String, Value>)>> = Mutex::new(None);
-
-fn apply_simplify_retained(d: &mut Dialog) {
+fn apply_simplify_retained(app: &VectorcraftApp, d: &mut Dialog) {
     if d.kind != "simplify" || d.fields.contains_key(RETAIN_INIT) {
         return;
     }
     d.fields.insert(RETAIN_INIT.into(), json!(true));
-    let retained = SIMPLIFY_RETAINED.lock().ok().and_then(|g| g.clone());
-    let (on, fields) = retained.unwrap_or((false, Map::new()));
+    let Some(stored) = app.ui.simplify_path.as_object() else {
+        d.fields.insert("retainSettings".into(), json!(false));
+        return;
+    };
+    let on = stored.get("retainSettings").and_then(Value::as_bool).unwrap_or(false);
     d.fields.insert("retainSettings".into(), json!(on));
     if on {
-        for (k, v) in fields {
-            d.fields.insert(k, v);
+        for k in RETAINED_FIELDS {
+            if let Some(v) = stored.get(k) {
+                d.fields.insert(k.into(), v.clone());
+            }
         }
     }
 }
 
-fn store_simplify_retained(d: &Dialog) {
+fn store_simplify_path(app: &mut VectorcraftApp, d: &Dialog) {
     if d.kind != "simplify" {
         return;
     }
     let on = d.bool("retainSettings");
-    let fields = RETAINED_FIELDS.iter().filter_map(|k| Some(((*k).into(), d.fields.get(*k)?.clone()))).collect();
-    if let Ok(mut g) = SIMPLIFY_RETAINED.lock() {
-        *g = Some((on, fields));
+    let mut obj = Map::new();
+    obj.insert("retainSettings".into(), json!(on));
+    if on {
+        for k in RETAINED_FIELDS {
+            if let Some(v) = d.fields.get(k) {
+                obj.insert(k.into(), v.clone());
+            }
+        }
+    } else {
+        obj.insert("tolerance".into(), json!("1 pt"));
+        obj.insert("angleThreshold".into(), json!(ANGLE_THRESHOLD));
+        obj.insert("straightLines".into(), json!(false));
     }
+    app.ui.simplify_path = Value::Object(obj);
 }
 
 fn title(kind: &str) -> &'static str {
@@ -178,7 +187,7 @@ pub(crate) fn original_paths(app: &VectorcraftApp) -> Vec<(NodeId, &PathData)> {
 }
 
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
-    apply_simplify_retained(d);
+    apply_simplify_retained(app, d);
     let unit = app.session.general_unit();
     if d.kind == "splitIntoGrid" {
         split_grid(ui, d, unit);
@@ -221,6 +230,6 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
         let kept = ["offset", "joins", "miterLimit"].into_iter().filter_map(|k| Some((k.to_string(), d.fields.get(k)?.clone())));
         app.ui.offset_path = Value::Object(kept.collect());
     }
-    store_simplify_retained(d);
+    store_simplify_path(app, d);
     Ok(r)
 }

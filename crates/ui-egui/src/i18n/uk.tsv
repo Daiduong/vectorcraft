@@ -1597,6 +1597,8 @@ file-filter	Templates	Шаблони
 	Start from VectorCraft Defaults	Почати зі значень VectorCraft за промовчанням
 	Add to the Current Shortcuts	Додати до поточних сполучень клавіш
 	Remember My Choices	Запам’ятати мій вибір
+	Retain my latest settings	Зберегти останні налаштування
+Запам’ятати мій вибір
 	{ready} of {total} ready	Готово: {ready} з {total}
 	The file is too large to read in full, so only its first part is listed.	Файл завеликий, щоб прочитати його повністю, тому показано лише його першу частину.
 	Report copied	Звіт скопійовано
