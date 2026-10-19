@@ -211,10 +211,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         ui.painter().rect_filled(full, 0.0, t.panel_darker);
         return;
     }
-    // Normal Screen Mode and Full Screen Mode with Menu Bar keep the scroll bars along the right
-    // and bottom edges; Full Screen and Presentation Mode have none.
+    // Normal Screen Mode, Full Screen Mode with Menu Bar and Full Screen Mode keep the scroll bars
+    // along the right and bottom edges; Presentation Mode has none.
     let outer = full;
-    let bars = app.ui.screen_mode < 2;
+    let bars = app.ui.screen_mode < 3;
     let full = if bars { egui::Rect::from_min_max(full.min, full.max - vec2(SCROLL_BAR, SCROLL_BAR)) } else { full };
     let rect = if app.ui.view.rulers && app.ui.screen_mode < 3 { egui::Rect::from_min_max(full.min + vec2(RULER, RULER), full.max) } else { full };
     app.canvas_rect = Some(rect);
@@ -7541,18 +7541,17 @@ mod tests {
         egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() }
     }
 
-    /// #2322: the Normal and Full Screen with Menu Bar modes keep the scroll bars along the right
-    /// and bottom edges, beside the rulers; Full Screen and Presentation Mode give the canvas the
-    /// whole window.
+    /// #2322 / #2548: Normal Screen Mode, Full Screen with Menu Bar and Full Screen Mode keep the
+    /// scroll bars along the right and bottom edges, beside the rulers when they show;
+    /// Presentation Mode gives the canvas the whole window.
     #[test]
     fn scroll_bars_take_the_right_and_bottom_edges_in_the_windowed_screen_modes() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         app.ui.view.rulers = true;
         let ctx = egui::Context::default();
-        for (mode, max) in
-            [(0, WINDOW.max - vec2(SCROLL_BAR, SCROLL_BAR)), (1, WINDOW.max - vec2(SCROLL_BAR, SCROLL_BAR)), (2, WINDOW.max), (3, WINDOW.max)]
-        {
+        let inset = WINDOW.max - vec2(SCROLL_BAR, SCROLL_BAR);
+        for (mode, max) in [(0, inset), (1, inset), (2, inset), (3, WINDOW.max)] {
             app.ui.screen_mode = mode;
             frame(&mut app, &ctx, vec![]);
             assert_eq!(app.canvas_rect.unwrap().max, max, "screen mode {mode}");
