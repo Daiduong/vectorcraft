@@ -296,8 +296,11 @@ impl WidthTool {
         };
         let (mut lo, mut hi) = (f64::NEG_INFINITY, f64::INFINITY);
         let (mut first, mut last) = (f64::INFINITY, f64::NEG_INFINITY);
+        let n = sp.anchors.len();
         for (i, a) in sp.anchors.iter().enumerate() {
-            if a.kind != AnchorKind::Corner {
+            // An open path's ends are where the stroke stops, not sharp corners, so they do not
+            // bound a run: a width point at either end scales with it.
+            if a.kind != AnchorKind::Corner || (!sp.closed && (i == 0 || i + 1 == n)) {
                 continue;
             }
             let f = fraction(i);
@@ -648,7 +651,11 @@ impl Tool for WidthTool {
                         acts.push(Self::preview(&d));
                     }
                     let dt = d.t - d.spot.t;
-                    self.selected = match (d.group.is_some(), d.moved, self.selected.take()) {
+                    // An elastic move re-spaces the profile, so the group's uniform `dt` would leave
+                    // the selection's `t` values off the points it committed; keep only the dragged
+                    // point selected then, and leave grouped Width drags to move the group.
+                    let grouped = d.group.is_some() && !(d.elastic && d.mode == Mode::Move);
+                    self.selected = match (grouped, d.moved, self.selected.take()) {
                         // A click on one of several selected points selects just that one.
                         (true, false, _) if !ev.mods.shift => Some((d.spot.owner, vec![d.spot.t])),
                         // Points moved together stay selected.
@@ -1027,6 +1034,27 @@ mod tests {
         assert!(t.selected.as_ref().is_some_and(|(_, ts)| (ts[0] - 0.55).abs() < 1e-3), "the dragged point stays selected where it landed");
     }
 
+    /// A grouped Move that turns elastic partway through re-spaces the profile, so the group's
+    /// uniform shift no longer lands the selection on the points it committed: only the dragged
+    /// point stays selected.
+    #[test]
+    fn an_elastic_grouped_move_selects_the_dragged_point() {
+        let (d, id) = doc_three_points();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool { selected: Some((id, vec![0.25, 0.5])), ..Default::default() };
+        let (none, shift) = (Mods::default(), Mods { shift: true, ..Default::default() });
+        // Plain-drag the pair (a grouped Move), then hold Shift: the drag re-spaces the profile.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 200.0, none));
+        t.pointer(&c, &ev(PointerKind::Drag, 205.0, 200.0, none));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 210.0, 200.0, shift));
+        assert_eq!(preview(&acts).0, "stroke.widthProfile.set");
+        t.pointer(&c, &ev(PointerKind::Up, 210.0, 200.0, shift));
+        let (_, sel) = t.selected.clone().unwrap();
+        assert_eq!(sel.len(), 1, "only the dragged point stays selected: {sel:?}");
+        assert!((sel[0] - 0.55).abs() < 1e-3, "and it is where the drag landed: {sel:?}");
+    }
+
     #[test]
     fn a_shift_move_stops_at_the_profile_ends() {
         let (d, id) = doc_corner();
@@ -1211,6 +1239,29 @@ mod tests {
         assert!((pts[1][0] - 0.25).abs() < 1e-6 && (pts[1][1] - 4.0).abs() < 1e-6 && (pts[1][2] - 4.0).abs() < 1e-6, "{pts:?}");
         assert!((pts[2][1] - 1.0).abs() < 1e-6 && (pts[3][1] - 1.0).abs() < 1e-6, "{pts:?}");
         t.pointer(&c, &ev(PointerKind::Up, 150.0, 180.0, shift));
+    }
+
+    /// An open path's ends are where the stroke stops, not sharp corners, so a Shift-drag of a
+    /// handle scales the width points at t = 0 and t = 1 too rather than tapering the stroke.
+    #[test]
+    fn shift_drag_of_a_handle_scales_an_open_paths_end_points() {
+        let (d, id) = doc_three_points();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let shift = Mods { shift: true, ..Default::default() };
+        // Shift-drag the left handle of the middle point (x = 200, width 1) out to twice its width:
+        // the whole path is one smooth run, so every point scales, ends included.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 195.0, shift));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 190.0, shift));
+        let (cmd, v) = preview(&acts);
+        assert_eq!((cmd, &v["ids"]), ("stroke.widthProfile.set", &json!([id.0])));
+        let pts: Vec<[f64; 3]> =
+            v["points"].as_array().unwrap().iter().map(|q| [q[0].as_f64().unwrap(), q[1].as_f64().unwrap(), q[2].as_f64().unwrap()]).collect();
+        assert!((pts[0][0] - 0.0).abs() < 1e-6 && (pts[0][1] - 2.0).abs() < 1e-6, "the t = 0 end scales: {pts:?}");
+        assert!((pts[2][1] - 2.0).abs() < 1e-6, "the dragged point scales: {pts:?}");
+        assert!((pts[4][0] - 1.0).abs() < 1e-6 && (pts[4][1] - 2.0).abs() < 1e-6, "the t = 1 end scales: {pts:?}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 190.0, shift));
     }
 
     #[test]
