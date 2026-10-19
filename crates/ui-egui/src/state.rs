@@ -34,7 +34,7 @@ impl View {
     pub fn of(st: &vectorcraft_engine::DocState) -> Self {
         match &st.view {
             Some(v) if v.zoom.is_finite() && v.zoom > 0.0 && v.center.x.is_finite() && v.center.y.is_finite() => Self {
-                zoom: v.zoom.clamp(0.0313, 640.0),
+                zoom: v.zoom.clamp(ZOOM_MIN, ZOOM_MAX),
                 center: v.center,
                 fitted: true,
                 rotation: if v.rotation.is_finite() { v.rotation } else { 0.0 },
@@ -72,6 +72,11 @@ pub fn sync_zoom_stops_display_print_size(v: bool) {
     ZOOM_STOPS_PRINT_SIZE.store(v, Ordering::Relaxed);
 }
 
+/// Smallest zoom factor (0.1% in the status bar): Fit All on very large artboards (#2427).
+pub const ZOOM_MIN: f64 = 0.001;
+/// Largest zoom factor (64000% in the status bar).
+pub const ZOOM_MAX: f64 = 640.0;
+
 /// Illustrator's preset zoom stops, in percent.
 pub const ZOOM_STOPS: [f64; 26] = [
     3.13, 4.17, 6.25, 8.33, 12.5, 16.67, 25.0, 33.33, 50.0, 66.67, 100.0, 150.0, 200.0, 300.0, 400.0, 600.0, 800.0, 1200.0, 1600.0, 2400.0, 3200.0,
@@ -101,7 +106,12 @@ pub fn next_zoom_with_display(z: f64, up: bool, display_print_size: bool) -> f64
     let stop = if up {
         ZOOM_STOPS.iter().find(|s| **s > pct + 0.01).copied().unwrap_or(64000.0)
     } else {
-        ZOOM_STOPS.iter().rev().find(|s| **s < pct - 0.01).copied().unwrap_or(3.13)
+        ZOOM_STOPS
+            .iter()
+            .rev()
+            .find(|s| **s < pct - 0.01)
+            .copied()
+            .unwrap_or(zoom_display_percent(ZOOM_MIN, display_print_size))
     };
     zoom_from_display_percent(stop, display_print_size)
 }
@@ -860,6 +870,7 @@ mod tests {
         assert_eq!(next_zoom_with_display(1.0, true, false), 1.5);
         assert!((next_zoom_with_display(1.0, false, false) - 0.6667).abs() < 1e-9);
         assert_eq!(next_zoom_with_display(640.0, true, false), 640.0);
+        assert!((next_zoom_with_display(ZOOM_MIN, false, false) - ZOOM_MIN).abs() < 1e-12);
         assert_eq!(zoom_label(0.6667, false), "66.67%");
         assert_eq!(zoom_label(1.0, false), "100%");
         assert_eq!(zoom_label(0.125, false), "12.5%");

@@ -182,7 +182,7 @@ pub fn fit(app: &mut VectorcraftApp, how: &str) {
         let (w, h) = (target.width(), target.height());
         let zx = (rect.width() as f64 - 60.0) / (w * cs.abs() + h * sn.abs()).max(1.0);
         let zy = (rect.height() as f64 - 60.0) / (w * sn.abs() + h * cs.abs()).max(1.0);
-        zx.min(zy).clamp(0.0313, 640.0)
+        zx.min(zy).clamp(crate::state::ZOOM_MIN, crate::state::ZOOM_MAX)
     };
     let Some(v) = app.view_mut() else { return };
     v.center = target.center();
@@ -899,7 +899,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                             // The marquee's center and its size on screen set the view, at any rotation.
                             vm.center = xf.to_doc(r.center());
                             let fill = (rect.width() / r.width()).min(rect.height() / r.height());
-                            vm.zoom = (xf.zoom * f64::from(fill)).clamp(0.0313, 640.0);
+                            vm.zoom = (xf.zoom * f64::from(fill)).clamp(crate::state::ZOOM_MIN, crate::state::ZOOM_MAX);
                         } else {
                             zoom_about(vm, rect, p, crate::state::next_zoom(vm.zoom, !m.alt));
                         }
@@ -1002,7 +1002,7 @@ pub(crate) fn actual_size_zoom(display_print_size: bool) -> f64 {
 /// point under screen point `p` where it is.
 fn zoom_about(vm: &mut View, rect: egui::Rect, p: Pos2, zoom: f64) {
     let before = Xf::new(rect, vm).to_doc(p);
-    vm.zoom = zoom.clamp(0.0313, 640.0);
+    vm.zoom = zoom.clamp(crate::state::ZOOM_MIN, crate::state::ZOOM_MAX);
     vm.center += before - Xf::new(rect, vm).to_doc(p);
 }
 
@@ -5873,6 +5873,20 @@ mod tests {
         app.session.execute("prefs.set", &json!({"key": "displayPrintSize", "value": true})).unwrap();
         app.run("view.actualSize", json!({})).unwrap();
         assert!((app.view().unwrap().zoom - 96.0 / 72.0).abs() < 1e-12, "an inch is 96 screen points");
+    }
+
+    /// #2427: Fit All on a very wide artboard zooms out below the old 3.13% floor so the art fits.
+    #[test]
+    fn fit_all_on_a_very_large_artboard_zooms_out_far_enough() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 163_830, "height": 100})).unwrap();
+        app.canvas_rect = Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 800.0)));
+        super::fit(&mut app, "view.fitAll");
+        let z = app.view().unwrap().zoom;
+        assert!(z < 0.0313 && z >= crate::state::ZOOM_MIN, "fit zoom {z}");
+        let board = app.session.active().unwrap().doc.artboards[0].rect;
+        let q = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap()).quad(board);
+        assert!(q.iter().all(|c| app.canvas_rect.unwrap().contains(*c)));
     }
 
     /// Fit Artboard in Window fits the artboard as a rotated view shows it: at 45° every corner is
