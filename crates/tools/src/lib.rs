@@ -379,6 +379,12 @@ impl ToolContext<'_> {
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))
     }
+    /// Arc tool drag: chord length and sweep (quarter-ellipse open, three-quarter when closed).
+    pub fn arc_measure_label(&self, a: Point, b: Point, closed: bool) -> String {
+        let chord = (b - a).hypot();
+        let sweep = if closed { 270.0 } else { 90.0 };
+        format!("D: {}\nSweep: {sweep:.1}°", self.len(chord))
+    }
     /// What Snap to Grid snaps to: the grid's subdivisions (or its lines without any).
     pub fn grid_step(&self) -> f64 {
         self.doc.grid.spacing / self.doc.grid.subdivisions.max(1) as f64

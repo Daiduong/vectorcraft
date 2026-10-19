@@ -81,6 +81,12 @@ impl FamilyTool {
         (self.id != "spiral").then(|| Leave::diagonal(start, m.shift))
     }
 
+    /// Arc endpoints for a drag from `start` to `p` (same geometry as [`Self::command`]).
+    fn arc_endpoints(&self, start: Point, p: Point, m: Mods) -> (Point, Point) {
+        let d = if m.shift { square(p - start) } else { p - start };
+        if m.alt { (start - d, start + d) } else { (start, start + d) }
+    }
+
     /// The command for a drag from `start` to `p`.
     pub fn command(&self, start: Point, p: Point, m: Mods) -> (String, Value) {
         match self.id {
@@ -101,8 +107,7 @@ impl FamilyTool {
                 (format!("shape.{}", self.id), params)
             }
             _ => {
-                let d = if m.shift { square(p - start) } else { p - start };
-                let (a, b) = if m.alt { (start - d, start + d) } else { (start, start + d) };
+                let (a, b) = self.arc_endpoints(start, p, m);
                 ("shape.arc".into(), json!({"x1": a.x, "y1": a.y, "x2": b.x, "y2": b.y, "closed": self.closed}))
             }
         }
@@ -200,10 +205,16 @@ impl Tool for FamilyTool {
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let mut o = self.snap.guides().to_vec();
         if let Some(s) = self.start.filter(|_| self.began && cx.measurement_labels) {
-            // The size as drawn (from the centre with Alt, square with Shift).
-            let r = drag_rect(s, self.last, self.mods);
-            let (w, h) = if self.id == "spiral" { ((self.last - s).x.abs(), (self.last - s).y.abs()) } else { (r.width(), r.height()) };
-            o.push(Overlay::Measure { p: self.last, text: cx.size_label(w, h) });
+            let text = if self.id == "arc" {
+                let (a, b) = self.arc_endpoints(s, self.last, self.mods);
+                cx.arc_measure_label(a, b, self.closed)
+            } else {
+                // The size as drawn (from the centre with Alt, square with Shift).
+                let r = drag_rect(s, self.last, self.mods);
+                let (w, h) = if self.id == "spiral" { ((self.last - s).x.abs(), (self.last - s).y.abs()) } else { (r.width(), r.height()) };
+                cx.size_label(w, h)
+            };
+            o.push(Overlay::Measure { p: self.last, text });
         }
         o
     }
@@ -328,6 +339,34 @@ mod tests {
         let (c, v) = t.command(Point::new(0.0, 0.0), Point::new(10.0, 4.0), Mods { shift: true, ..Default::default() });
         assert_eq!(c, "shape.arc");
         assert_eq!(v, json!({"x1": 0.0, "y1": 0.0, "x2": 10.0, "y2": 10.0, "closed": false}));
+    }
+
+    /// Arc drags show chord length and sweep in measurement labels, not the drag box size.
+    #[test]
+    fn arc_chord_and_sweep_measure_labels() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let mut cx = cx(&d, &s, &p);
+        cx.smart_guides = false;
+        let label = |closed: bool| {
+            let mut t = FamilyTool::new("arc");
+            t.closed = closed;
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 100.0, 0.0));
+            t.overlays(&cx)
+                .into_iter()
+                .find_map(|o| match o {
+                    Overlay::Measure { text, .. } => Some(text),
+                    _ => None,
+                })
+                .unwrap_or_default()
+        };
+        let open = label(false);
+        assert!(open.starts_with("D: 100.00 pt"), "{open}");
+        assert!(open.contains("Sweep: 90.0°"), "{open}");
+        let closed = label(true);
+        assert!(closed.contains("Sweep: 270.0°"), "{closed}");
     }
 
     /// The start and the dragged corner snap to Smart Guides (#506), Shift sliding the corner of
