@@ -251,15 +251,19 @@ impl Tool for ShapeTool {
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let mut o = self.snap.guides().to_vec();
         if let Some(s) = self.start.filter(|_| self.began && cx.measurement_labels) {
-            // A box's size as drawn (from its centre with Alt, square with Shift).
-            let (w, h) = match self.id {
-                "polygon" | "star" | "lineSegment" => ((self.last - s).x.abs(), (self.last - s).y.abs()),
+            let text = match self.id {
+                "polygon" | "star" => cx.draw_measure_label(s, self.last),
+                "lineSegment" => {
+                    let (w, h) = ((self.last - s).x.abs(), (self.last - s).y.abs());
+                    cx.size_label(w, h)
+                }
                 _ => {
+                    // A box's size as drawn (from its centre with Alt, square with Shift).
                     let r = drag_rect(s, self.last, self.mods);
-                    (r.width(), r.height())
+                    cx.size_label(r.width(), r.height())
                 }
             };
-            o.push(Overlay::Measure { p: self.last, text: cx.size_label(w, h) });
+            o.push(Overlay::Measure { p: self.last, text });
         }
         o
     }
@@ -355,6 +359,29 @@ mod tests {
         assert!((r2 / r1 - 0.381_966).abs() < 1e-5, "{}", r2 / r1);
         assert_eq!(straight_ratio(4), None, "four points can't line up");
         assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 150.0, 50.0)), vec![Action::Commit]);
+    }
+
+    #[test]
+    fn polygon_and_star_drag_show_distance_and_angle_labels() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let want = cx.draw_measure_label(Point::new(10.0, 10.0), Point::new(40.0, -20.0));
+        for id in ["polygon", "star"] {
+            let mut t = ShapeTool::new(id);
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 40.0, -20.0));
+            assert!(
+                t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)),
+                "{id}: {want}"
+            );
+        }
+        let mut t = ShapeTool::new("polygon");
+        let quiet = ToolContext { measurement_labels: false, ..cx };
+        t.pointer(&quiet, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&quiet, &PointerEvent::new(PointerKind::Drag, 40.0, -20.0));
+        assert!(!t.overlays(&quiet).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
