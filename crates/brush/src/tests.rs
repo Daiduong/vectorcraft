@@ -247,6 +247,24 @@ fn pattern_tile_count_by_fit() {
     assert_eq!(stroke_pieces(&Document::new(1.0, 1.0), &pattern_brush(PatternFit::Stretch, false), &p, &stroke(2.0)).len(), 5);
 }
 
+/// G5: a pattern brush with only a side tile still places corners on sharp turns.
+#[test]
+fn pattern_auto_corners_from_side_tile() {
+    let sq = shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)).to_bezpath();
+    let b = pattern_brush(PatternFit::Stretch, false);
+    let doc = Document::new(1.0, 1.0);
+    let s = stroke(1.0);
+    let straight = stroke_pieces(&doc, &b, &line(0.0, 0.0, 100.0, 0.0), &s).len();
+    let square = stroke_pieces(&doc, &b, &sq, &s);
+    assert_eq!(straight, 10);
+    assert!(square.len() > straight * 4, "corners add tiles on a square: {}", square.len());
+    let near = |p: Point, c: Point| p.distance(c) < 8.0;
+    let verts = [Point::new(0.0, 0.0), Point::new(100.0, 0.0), Point::new(100.0, 100.0), Point::new(0.0, 100.0)];
+    for v in verts {
+        assert!(square.iter().any(|n| near(n.geometric_bounds().unwrap().center(), v)), "tile at {v}");
+    }
+}
+
 #[test]
 fn pattern_places_corner_tiles() {
     let sq = shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)).to_bezpath();

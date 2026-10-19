@@ -273,7 +273,12 @@ pub(crate) fn pattern(pb: &PatternBrush, bp: &BezPath, weight: f64) -> Vec<Node>
         for &(i, _) in &corners {
             let (a, b) = t.in_out(i);
             // Turning towards the left normal puts the tile's +y side on the inside.
-            let tile = if a.cross(b) > 0.0 { inner.as_ref().or(outer.as_ref()) } else { outer.as_ref().or(inner.as_ref()) };
+            // Without corner tiles, the side tile is bent at the corner (auto-generated corners).
+            let tile = if a.cross(b) > 0.0 {
+                inner.as_ref().or(outer.as_ref()).or(Some(&side))
+            } else {
+                outer.as_ref().or(inner.as_ref()).or(Some(&side))
+            };
             let Some((art, bb)) = tile else { continue };
             corner_half = corner_half.max(bb.width() * k / 2.0);
             let bis = a + b;
