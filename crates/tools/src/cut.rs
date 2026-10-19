@@ -170,7 +170,12 @@ impl Tool for CutTool {
         let Some(a) = self.start else { return vec![] };
         let b = self.end;
         if self.id == "rectCut" {
-            return vec![Overlay::Marquee(drag_rect(a, b, self.mods))];
+            let r = drag_rect(a, b, self.mods);
+            let mut o = vec![Overlay::Marquee(r)];
+            if self.began && cx.measurement_labels && r.width() > 0.0 && r.height() > 0.0 {
+                o.push(Overlay::Measure { p: b, text: cx.size_label(r.width(), r.height()) });
+            }
+            return o;
         }
         // The axis and the cut line run across the art: draw them across the view.
         let d = match (self.id, self.axis) {
@@ -181,7 +186,15 @@ impl Tool for CutTool {
         };
         let far = d * cx.tol(10_000.0);
         let mid = if self.constrained() { b } else { a };
-        vec![Overlay::Line { a: mid - far, b: mid + far, color: FEEDBACK, dashed: true }]
+        let mut o = vec![Overlay::Line { a: mid - far, b: mid + far, color: FEEDBACK, dashed: true }];
+        if self.began && cx.measurement_labels && !self.constrained() && a.distance(b) >= cx.tol(MIN_DRAG_PX) {
+            let (dist, ang, dx, dy) = crate::xform::measure(a, b);
+            o.push(Overlay::Measure {
+                p: b + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: format!("D: {}\nAngle: {ang:.1}°\n{}", cx.len(dist), cx.offset_label(dx, dy)),
+            });
+        }
+        o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
         Cursor::Crosshair
@@ -299,5 +312,37 @@ mod tests {
         assert_eq!(t.overlays(&cx).len(), 1);
         assert_eq!(t.key(&cx, ToolKey::Escape, Mods::default()), vec![Action::Cancel]);
         assert!(!t.busy() && t.overlays(&cx).is_empty());
+    }
+
+    #[test]
+    fn line_cut_measure_label_follows_preference() {
+        let (d, id) = doc_with_rect();
+        let mut s = Selection::default();
+        s.set([id]);
+        let p = paint();
+        let mut cx = cx(&d, &s, &p);
+        let mut t = CutTool::new("lineCut");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 40.0, 10.0));
+        cx.measurement_labels = true;
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("D: 30.00 pt"))));
+        cx.measurement_labels = false;
+        assert!(!t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { .. })));
+    }
+
+    #[test]
+    fn rect_cut_shows_size_in_measurement_labels() {
+        let (d, id) = doc_with_rect();
+        let mut s = Selection::default();
+        s.set([id]);
+        let p = paint();
+        let mut cx = cx(&d, &s, &p);
+        cx.measurement_labels = true;
+        let mut t = CutTool::new("rectCut");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 200.0, 150.0));
+        let ov = t.overlays(&cx);
+        assert!(matches!(&ov[0], Overlay::Marquee(_)));
+        assert!(ov.iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.contains("W: 100.00 pt") && text.contains("H: 50.00 pt"))));
     }
 }
