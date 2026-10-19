@@ -8,7 +8,8 @@
 //! centre slides it along the path; Alt-dragging the centre slides a copy; dropping either onto
 //! another width point makes a discontinuous point (the width steps there). Shift-dragging a point
 //! moves or scales the whole profile with it: its centre re-spaces every width point along the path
-//! in proportion (the ends stay put), its handle scales the width points on the same smooth stretch,
+//! in proportion (the ends stay put, so dragging an end point leaves a point where that end was and
+//! moves a re-spaced one), its handle scales the width points on the same smooth stretch,
 //! up to the nearest sharp corner. Shift-click adds width points to the selection (or takes them
 //! out), and dragging one of several selected points moves or widens them all. Double-clicking a
 //! stroke opens Width Point Edit (the `widthPoint` dialog), editing a hit point or creating one on
@@ -356,8 +357,9 @@ impl WidthTool {
 
     /// The profile an elastic drag previews. A move re-spaces every point along the path, so the
     /// gaps either side of the dragged point stretch or squeeze in proportion and the ends stay
-    /// put; a width change scales the points on the dragged point's smooth run by the same factor
-    /// (the width the pointer pulls its handle to over the width it started at).
+    /// put — dragging an end point keeps a point there and moves the re-spaced one; a width change
+    /// scales the points on the dragged point's smooth run by the same factor (the width the
+    /// pointer pulls its handle to over the width it started at).
     fn elastic_points(d: &Drag) -> Vec<[f64; 3]> {
         match d.mode {
             Mode::Move => {
@@ -380,6 +382,19 @@ impl WidthTool {
                         [t.clamp(0.0, 1.0), l, r]
                     })
                     .collect();
+                // The ends are the anchors, so dragging one of them would slide it off the end and
+                // leave the path's start or finish without a width point. Keep a point where that
+                // end was, with the same widths, and let the re-spaced point carry the drag.
+                let kept = if (t0 - lo).abs() <= SAME_T {
+                    d.profile.first().copied()
+                } else if (t0 - hi).abs() <= SAME_T {
+                    d.profile.last().copied()
+                } else {
+                    None
+                };
+                if let Some((t, l, r)) = kept {
+                    pts.push([t, l, r]);
+                }
                 pts.sort_by(|a, b| a[0].total_cmp(&b[0]));
                 pts
             }
@@ -1031,6 +1046,33 @@ mod tests {
         assert!((d.t - 0.75).abs() < 1e-6, "the moved point is clamped to the profile's last t: {}", d.t);
         assert!((d.spot.p - Point::new(200.0, 250.0)).hypot() < 1e-3, "the spot is re-evaluated at the clamped t: {:?}", d.spot.p);
         t.pointer(&c, &ev(PointerKind::Up, 200.0, 350.0, shift));
+    }
+
+    /// Shift-dragging the profile's first or last point must not slide it off the end: a point
+    /// stays where that end was and the re-spaced one carries the drag.
+    #[test]
+    fn shift_drag_of_an_end_point_keeps_a_point_at_that_end() {
+        let (d, id) = doc_three_points();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let shift = Mods { shift: true, ..Default::default() };
+        let ts = |v: &serde_json::Value| -> Vec<f64> {
+            v["points"].as_array().unwrap().iter().map(|q| (q[0].as_f64().unwrap() * 10000.0).round() / 10000.0).collect()
+        };
+        // The first point (t = 0) in to t = 0.05.
+        t.pointer(&c, &ev(PointerKind::Down, 100.0, 200.0, shift));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 110.0, 200.0, shift));
+        let (cmd, v) = preview(&acts);
+        assert_eq!((cmd, &v["ids"]), ("stroke.widthProfile.set", &json!([id.0])));
+        assert_eq!(ts(v), vec![0.0, 0.05, 0.2875, 0.525, 0.7625, 1.0]);
+        t.pointer(&c, &ev(PointerKind::Up, 110.0, 200.0, shift));
+        // The last point (t = 1) in to t = 0.95, its own end kept.
+        t.pointer(&c, &ev(PointerKind::Down, 300.0, 200.0, shift));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 290.0, 200.0, shift));
+        let (_, v) = preview(&acts);
+        assert_eq!(ts(v), vec![0.0, 0.2375, 0.475, 0.7125, 0.95, 1.0]);
+        t.pointer(&c, &ev(PointerKind::Up, 290.0, 200.0, shift));
     }
 
     #[test]
