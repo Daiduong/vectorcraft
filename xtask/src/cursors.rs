@@ -24,7 +24,8 @@ pub fn run(root: &Path) -> Result<(), String> {
 }
 
 /// Warnings for `Cursor` variants in `enum_src` and `[[cursor]]` entries in `manifest` that don't
-/// match, and for entries that repeat an id or lack a required field.
+/// match, for entries that repeat an id or lack a required field, and for a `confidence` that isn't
+/// a whole number from 0 to 10.
 pub fn check(enum_src: &str, manifest: &str) -> Vec<String> {
     let variants = variants(enum_src);
     let entries = entries(manifest);
@@ -45,6 +46,9 @@ pub fn check(enum_src: &str, manifest: &str) -> Vec<String> {
             if !e.fields.contains(field) {
                 out.push(format!("{MANIFEST}:{}: {name} has no {field}", e.line));
             }
+        }
+        if e.confidence.as_deref().is_some_and(|c| !c.parse::<u8>().is_ok_and(|c| c <= 10)) {
+            out.push(format!("{MANIFEST}:{}: {name}'s confidence must be a whole number from 0 to 10", e.line));
         }
     }
     for v in variants.iter().filter(|v| !ids.contains(v.name.as_str())) {
@@ -70,13 +74,15 @@ pub fn variants(src: &str) -> Vec<Variant> {
         .collect()
 }
 
-/// One `[[cursor]]` table: its first line (1-based), its `id`, the keys it sets, and whether
-/// designers draw it (`designer = false`: the operating system does).
+/// One `[[cursor]]` table: its first line (1-based), its `id`, the keys it sets, whether
+/// designers draw it (`designer = false`: the operating system does) and its `confidence` as
+/// written.
 pub struct Entry {
     line: usize,
     pub id: Option<String>,
     fields: BTreeSet<String>,
     pub designer: bool,
+    confidence: Option<String>,
 }
 
 /// The `[[cursor]]` tables of `manifest`, read line by line (keys at the start of a line).
@@ -88,7 +94,7 @@ pub fn entries(manifest: &str) -> Vec<Entry> {
         if line.starts_with('[') && !line.starts_with("[\"") {
             in_cursor = line == "[[cursor]]";
             if in_cursor {
-                out.push(Entry { line: i + 1, id: None, fields: BTreeSet::new(), designer: true });
+                out.push(Entry { line: i + 1, id: None, fields: BTreeSet::new(), designer: true, confidence: None });
             }
             continue;
         }
@@ -97,6 +103,9 @@ pub fn entries(manifest: &str) -> Vec<Entry> {
             continue;
         }
         let key = key.trim();
+        if key == "confidence" {
+            e.confidence = Some(value.trim().to_string());
+        }
         let value = value.trim().trim_matches('"');
         match key {
             "id" => e.id = Some(value.to_string()),
@@ -132,6 +141,18 @@ mod tests {
         assert!(w.contains("Gone is not a Cursor value"), "{w}");
         assert!(w.contains("Pen has no shown_when") && w.contains("Pen has no hotspot"), "{w}");
         assert!(w.contains("Cursor::RotateToward has no entry"), "{w}");
+    }
+
+    #[test]
+    fn confidence_is_optional_and_a_whole_number_from_0_to_10() {
+        let rated = |id: &str, c: &str| entry(id).replace("hotspot", &format!("confidence = {c}\nhotspot"));
+        let m = [rated("Arrow", "0"), rated("RotateToward", "10"), entry("Pen")].concat();
+        assert_eq!(check(ENUM, &m), Vec::<String>::new());
+        let m = [rated("Arrow", "11"), rated("RotateToward", "7.5"), rated("Pen", "\"high\"")].concat();
+        let w = check(ENUM, &m).join("\n");
+        for id in ["Arrow", "RotateToward", "Pen"] {
+            assert!(w.contains(&format!("{id}'s confidence must be a whole number from 0 to 10")), "{w}");
+        }
     }
 
     #[test]

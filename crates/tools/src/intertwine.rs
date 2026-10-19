@@ -279,7 +279,7 @@ impl Tool for IntertwineTool {
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _mods: Mods) -> Cursor {
-        Cursor::Arrow
+        Cursor::SelectionArrow
     }
 
     fn options(&self) -> Value {

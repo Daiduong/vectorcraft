@@ -604,7 +604,8 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
     use egui::CursorIcon as C;
     match c {
         Cursor::Arrow
-        | Cursor::ArrowHollow
+        | Cursor::SelectionArrow
+        | Cursor::SelectionArrowHollow
         | Cursor::DirectAnchor
         | Cursor::DirectAnchorSelected
         | Cursor::ReshapeSegment

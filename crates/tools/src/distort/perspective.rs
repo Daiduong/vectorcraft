@@ -1032,13 +1032,13 @@ impl Tool for PerspectiveGridTool {
             return Cursor::Move;
         }
         if g.locked {
-            return Cursor::Arrow;
+            return Cursor::SelectionArrow;
         }
         match handles(&g, cx.tol(1.0)).into_iter().find(|(_, q)| q.distance(p) <= tol).map(|h| h.0) {
             Some(Handle::Horizon | Handle::Height | Handle::Cell) => Cursor::ResizeV,
             Some(Handle::ExtentLeft | Handle::ExtentRight) => Cursor::ResizeH,
             Some(_) => Cursor::Move,
-            None => Cursor::Arrow,
+            None => Cursor::SelectionArrow,
         }
         .turned(cx.view_angle())
     }
@@ -1284,7 +1284,7 @@ impl Tool for PerspectiveSelectionTool {
             // The handle's direction on screen: the view turns it clockwise.
             return resize_cursor((Affine::rotate(cx.view_angle().to_radians()) * (a - c).to_point()).to_vec2());
         }
-        Cursor::Arrow
+        Cursor::SelectionArrow
     }
     fn busy(&self) -> bool {
         !matches!(self.drag, SelDrag::Idle)

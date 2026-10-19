@@ -469,7 +469,7 @@ impl Tool for PuppetWarpTool {
         out
     }
     fn cursor(&self, cx: &ToolContext, p: Point, mods: Mods) -> Cursor {
-        let Some(c) = self.pins(cx) else { return Cursor::Arrow };
+        let Some(c) = self.pins(cx) else { return Cursor::SelectionArrow };
         if mods.alt && self.turn_pin_at(cx, &c.set, p).is_some() {
             Cursor::Rotate
         } else if Self::pin_at(cx, &c.set, p).is_some() {

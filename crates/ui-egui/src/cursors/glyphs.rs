@@ -11,7 +11,8 @@ use vectorcraft_tools::Cursor;
 /// The cursors drawn with a generated glyph.
 pub(super) const GENERATED: &[(Cursor, &Glyph)] = &[
     (Cursor::Arrow, &ARROW),
-    (Cursor::ArrowHollow, &ARROW_HOLLOW),
+    (Cursor::SelectionArrow, &SELECTION_ARROW),
+    (Cursor::SelectionArrowHollow, &SELECTION_ARROW_HOLLOW),
     (Cursor::DirectAnchor, &DIRECT_ANCHOR),
     (Cursor::DirectAnchorSelected, &DIRECT_ANCHOR_SELECTED),
     (Cursor::ReshapeSegment, &RESHAPE_SEGMENT),
@@ -29,6 +30,7 @@ pub(super) const GENERATED: &[(Cursor, &Glyph)] = &[
     (Cursor::RotateToward(super::ROTATE_TOWARD_DRAWN), &ROTATE_TOWARD),
     (Cursor::CornerRadius, &CORNER_RADIUS),
     (Cursor::Pen, &PEN),
+    (Cursor::PenDrawing, &PEN_DRAWING),
     (Cursor::PenAdd, &PEN_ADD),
     (Cursor::PenDelete, &PEN_DELETE),
     (Cursor::PenClose, &PEN_CLOSE),
@@ -165,19 +167,27 @@ const ARROW: Glyph = Glyph {
     ],
 };
 
-/// The `ArrowHollow` cursor, drawn by Michael Gieson.
+/// The `SelectionArrow` cursor, drawn by Michael Gieson.
 /// Points relative to the hotspot, at (4.0, 4.0) in the drawing.
 #[rustfmt::skip]
 #[allow(clippy::approx_constant, reason = "generated coordinates, such as 6.28")]
-const ARROW_HOLLOW: Glyph = Glyph {
-    id: "ArrowHollow",
+const SELECTION_ARROW: Glyph = Glyph {
+    id: "SelectionArrow",
     parts: &[
-        GlyphPart::Fill { points: &[(19.6, 18.62), (19.6, 11.48), (19.84, 11.48), (19.84, 18.62)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(19.6, 18.62), (19.6, 11.48), (19.84, 11.48), (19.84, 18.62)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.14, 15.17), (16.14, 14.93), (23.29, 14.93), (23.29, 15.17)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.14, 15.17), (16.14, 14.93), (23.29, 14.93), (23.29, 15.17)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+    ],
+};
+
+/// The `SelectionArrowHollow` cursor, drawn by Michael Gieson.
+/// Points relative to the hotspot, at (4.0, 4.0) in the drawing.
+#[rustfmt::skip]
+#[allow(clippy::approx_constant, reason = "generated coordinates, such as 6.28")]
+const SELECTION_ARROW_HOLLOW: Glyph = Glyph {
+    id: "SelectionArrowHollow",
+    parts: &[
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -188,9 +198,9 @@ const ARROW_HOLLOW: Glyph = Glyph {
 const DIRECT_ANCHOR: Glyph = Glyph {
     id: "DirectAnchor",
     parts: &[
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
-        GlyphPart::Stroke { points: &[(17.65, 12.86), (21.79, 12.86), (21.79, 17.0), (17.65, 17.0)], closed: true, width: 1.0, white: false },
+        GlyphPart::Stroke { points: &[(15.44, 16.49), (19.59, 16.49), (19.59, 20.63), (15.44, 20.63)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -201,10 +211,10 @@ const DIRECT_ANCHOR: Glyph = Glyph {
 const DIRECT_ANCHOR_SELECTED: Glyph = Glyph {
     id: "DirectAnchorSelected",
     parts: &[
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(17.81, 13.14), (21.63, 13.14), (21.63, 16.96), (17.81, 16.96)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(17.81, 13.14), (21.63, 13.14), (21.63, 16.96), (17.81, 16.96)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(15.61, 16.77), (19.42, 16.77), (19.42, 20.59), (15.61, 20.59)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(15.61, 16.77), (19.42, 16.77), (19.42, 20.59), (15.61, 20.59)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -215,10 +225,14 @@ const DIRECT_ANCHOR_SELECTED: Glyph = Glyph {
 const RESHAPE_SEGMENT: Glyph = Glyph {
     id: "ReshapeSegment",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.8, 19.31), (16.98, 17.71), (17.51, 16.24), (18.33, 14.95), (19.41, 13.87), (20.7, 13.05), (22.17, 12.52), (23.77, 12.34), (23.77, 12.57), (22.22, 12.75), (20.8, 13.25), (19.55, 14.05), (18.51, 15.09), (17.71, 16.34), (17.21, 17.76), (17.03, 19.31)], tris: &[[15, 0, 1], [1, 2, 3], [3, 4, 5], [5, 6, 7], [7, 8, 9], [5, 7, 9], [5, 9, 10], [5, 10, 11], [3, 5, 11], [3, 11, 12], [3, 12, 13], [1, 3, 13], [1, 13, 14], [1, 14, 15]], white: false },
-        GlyphPart::Stroke { points: &[(16.8, 19.31), (16.98, 17.71), (17.51, 16.24), (18.33, 14.95), (19.41, 13.87), (20.7, 13.05), (22.17, 12.52), (23.77, 12.34), (23.77, 12.57), (22.22, 12.75), (20.8, 13.25), (19.55, 14.05), (18.51, 15.09), (17.71, 16.34), (17.21, 17.76), (17.03, 19.31)], closed: true, width: 1.2, white: false },
+        GlyphPart::Fill { points: &[(15.38, 21.31), (15.56, 19.92), (16.09, 18.67), (16.91, 17.61), (17.97, 16.8), (19.22, 16.27), (20.61, 16.08), (20.61, 16.25), (19.01, 16.51), (17.62, 17.23), (16.52, 18.32), (15.81, 19.71), (15.55, 21.31)], tris: &[[12, 0, 1], [1, 2, 3], [3, 4, 5], [5, 6, 7], [5, 7, 8], [5, 8, 9], [3, 5, 9], [3, 9, 10], [1, 3, 10], [1, 10, 11], [1, 11, 12]], white: false },
+        GlyphPart::Stroke { points: &[(15.38, 21.31), (15.56, 19.92), (16.09, 18.67), (16.91, 17.61), (17.97, 16.8), (19.22, 16.27), (20.61, 16.08), (20.61, 16.25), (19.01, 16.51), (17.62, 17.23), (16.52, 18.32), (15.81, 19.71), (15.55, 21.31)], closed: true, width: 1.2, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(23.0, 15.33), (24.51, 15.33), (24.51, 16.84), (23.0, 16.84)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(23.0, 15.33), (24.51, 15.33), (24.51, 16.84), (23.0, 16.84)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(14.62, 23.37), (16.13, 23.37), (16.13, 24.88), (14.62, 24.88)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(14.62, 23.37), (16.13, 23.37), (16.13, 24.88), (14.62, 24.88)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -229,25 +243,26 @@ const RESHAPE_SEGMENT: Glyph = Glyph {
 const GROUP_SELECTION: Glyph = Glyph {
     id: "GroupSelection",
     parts: &[
-        GlyphPart::Fill { points: &[(19.6, 18.62), (19.6, 11.48), (19.84, 11.48), (19.84, 18.62)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(19.6, 18.62), (19.6, 11.48), (19.84, 11.48), (19.84, 18.62)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.14, 15.17), (16.14, 14.93), (23.29, 14.93), (23.29, 15.17)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.14, 15.17), (16.14, 14.93), (23.29, 14.93), (23.29, 15.17)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(12.71, 7.65), (12.71, 0.5), (12.95, 0.5), (12.95, 7.65)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(12.71, 7.65), (12.71, 0.5), (12.95, 0.5), (12.95, 7.65)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(9.26, 4.19), (9.26, 3.95), (16.4, 3.95), (16.4, 4.19)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(9.26, 4.19), (9.26, 3.95), (16.4, 3.95), (16.4, 4.19)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
     ],
 };
 
 /// The `SelectionCopy` cursor, drawn by Michael Gieson.
-/// Points relative to the hotspot, at (5.0, 5.0) in the drawing.
+/// Points relative to the hotspot, at (4.0, 4.0) in the drawing.
 #[rustfmt::skip]
 #[allow(clippy::approx_constant, reason = "generated coordinates, such as 6.28")]
 const SELECTION_COPY: Glyph = Glyph {
     id: "SelectionCopy",
     parts: &[
-        GlyphPart::Fill { points: &[(6.53, 20.34), (5.44, 6.22), (16.56, 15.4), (10.58, 15.86)], tris: &[[3, 0, 1], [1, 2, 3]], white: true },
-        GlyphPart::Stroke { points: &[(6.53, 20.34), (5.44, 6.22), (16.56, 15.4), (10.58, 15.86)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(0.0, 15.0), (0.0, 0.0), (11.0, 10.6), (4.64, 10.6)], tris: &[[3, 0, 1], [1, 2, 3]], white: false },
+        GlyphPart::Fill { points: &[(11.61, 19.74), (18.13, 19.74), (6.8, 7.81), (6.93, 24.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(11.61, 19.74), (18.13, 19.74), (6.8, 7.81), (6.93, 24.26)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -258,18 +273,18 @@ const SELECTION_COPY: Glyph = Glyph {
 const MOVE: Glyph = Glyph {
     id: "Move",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Stroke { points: &[(19.74, 18.05), (19.74, 12.05)], closed: false, width: 0.7, white: false },
-        GlyphPart::Fill { points: &[(19.42, 11.98), (20.05, 11.98), (19.74, 11.58)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(19.42, 11.98), (20.05, 11.98), (19.74, 11.58)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(20.05, 18.22), (19.42, 18.22), (19.74, 18.62)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(20.05, 18.22), (19.42, 18.22), (19.74, 18.62)], closed: true, width: 1.0, white: false },
-        GlyphPart::Stroke { points: &[(16.79, 15.1), (22.79, 15.1)], closed: false, width: 0.7, white: false },
-        GlyphPart::Fill { points: &[(22.86, 14.78), (22.86, 15.41), (23.25, 15.1)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(22.86, 14.78), (22.86, 15.41), (23.25, 15.1)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.61, 15.41), (16.61, 14.78), (16.22, 15.1)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.61, 15.41), (16.61, 14.78), (16.22, 15.1)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+        GlyphPart::Stroke { points: &[(17.73, 22.11), (17.73, 15.62)], closed: false, width: 0.7, white: false },
+        GlyphPart::Fill { points: &[(17.39, 15.54), (18.07, 15.54), (17.73, 15.12)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(17.39, 15.54), (18.07, 15.54), (17.73, 15.12)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(18.07, 22.29), (17.39, 22.29), (17.73, 22.72)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(18.07, 22.29), (17.39, 22.29), (17.73, 22.72)], closed: true, width: 1.0, white: false },
+        GlyphPart::Stroke { points: &[(14.55, 18.92), (21.03, 18.92)], closed: false, width: 0.7, white: false },
+        GlyphPart::Fill { points: &[(21.11, 18.58), (21.11, 19.26), (21.53, 18.92)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(21.11, 18.58), (21.11, 19.26), (21.53, 18.92)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(14.36, 19.26), (14.36, 18.58), (13.93, 18.92)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(14.36, 19.26), (14.36, 18.58), (13.93, 18.92)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -420,10 +435,10 @@ const ROTATE_TOWARD: Glyph = Glyph {
 const CORNER_RADIUS: Glyph = Glyph {
     id: "CornerRadius",
     parts: &[
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(15.95, 15.94), (16.18, 14.53), (16.81, 13.3), (17.78, 12.34), (19.0, 11.7), (20.41, 11.48), (23.72, 11.48), (23.72, 11.71), (20.41, 11.71), (19.08, 11.92), (17.91, 12.52), (17.0, 13.44), (16.4, 14.6), (16.18, 15.94), (16.18, 19.22), (15.95, 19.22)], tris: &[[15, 0, 1], [1, 2, 3], [3, 4, 5], [5, 6, 7], [5, 7, 8], [5, 8, 9], [3, 5, 9], [3, 9, 10], [3, 10, 11], [1, 3, 11], [1, 11, 12], [1, 12, 13], [15, 1, 13], [13, 14, 15]], white: false },
-        GlyphPart::Stroke { points: &[(15.95, 15.94), (16.18, 14.53), (16.81, 13.3), (17.78, 12.34), (19.0, 11.7), (20.41, 11.48), (23.72, 11.48), (23.72, 11.71), (20.41, 11.71), (19.08, 11.92), (17.91, 12.52), (17.0, 13.44), (16.4, 14.6), (16.18, 15.94), (16.18, 19.22), (15.95, 19.22)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(14.22, 19.79), (14.45, 18.38), (15.08, 17.15), (16.04, 16.19), (17.27, 15.55), (18.68, 15.33), (21.98, 15.33), (21.98, 15.56), (18.68, 15.56), (17.34, 15.77), (16.18, 16.37), (15.26, 17.29), (14.66, 18.45), (14.45, 19.79), (14.45, 23.07), (14.22, 23.07)], tris: &[[15, 0, 1], [1, 2, 3], [3, 4, 5], [5, 6, 7], [5, 7, 8], [5, 8, 9], [3, 5, 9], [3, 9, 10], [3, 10, 11], [1, 3, 11], [1, 11, 12], [1, 12, 13], [15, 1, 13], [13, 14, 15]], white: false },
+        GlyphPart::Stroke { points: &[(14.22, 19.79), (14.45, 18.38), (15.08, 17.15), (16.04, 16.19), (17.27, 15.55), (18.68, 15.33), (21.98, 15.33), (21.98, 15.56), (18.68, 15.56), (17.34, 15.77), (16.18, 16.37), (15.26, 17.29), (14.66, 18.45), (14.45, 19.79), (14.45, 23.07), (14.22, 23.07)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -434,10 +449,36 @@ const CORNER_RADIUS: Glyph = Glyph {
 const PEN: Glyph = Glyph {
     id: "Pen",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
+        GlyphPart::Fill { points: &[(21.85, 18.33), (21.65, 18.45), (20.67, 16.75), (20.87, 16.63)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(21.85, 18.33), (21.65, 18.45), (20.67, 16.75), (20.87, 16.63)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(23.66, 14.87), (23.66, 15.1), (21.7, 15.1), (21.7, 14.87)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(23.66, 14.87), (23.66, 15.1), (21.7, 15.1), (21.7, 14.87)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(21.57, 11.57), (21.77, 11.68), (20.79, 13.38), (20.59, 13.27)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(21.57, 11.57), (21.77, 11.68), (20.79, 13.38), (20.59, 13.27)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(17.66, 11.73), (17.87, 11.61), (18.85, 13.31), (18.64, 13.43)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(17.66, 11.73), (17.87, 11.61), (18.85, 13.31), (18.64, 13.43)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(15.85, 15.2), (15.85, 14.96), (17.81, 14.96), (17.81, 15.2)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(15.85, 15.2), (15.85, 14.96), (17.81, 14.96), (17.81, 15.2)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(17.95, 18.5), (17.74, 18.38), (18.72, 16.68), (18.93, 16.8)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(17.95, 18.5), (17.74, 18.38), (18.72, 16.68), (18.93, 16.8)], closed: true, width: 1.0, white: false },
+    ],
+};
+
+/// The `PenDrawing` cursor, drawn by Michael Gieson.
+/// Points relative to the hotspot, at (4.0, 4.0) in the drawing.
+#[rustfmt::skip]
+#[allow(clippy::approx_constant, reason = "generated coordinates, such as 6.28")]
+const PEN_DRAWING: Glyph = Glyph {
+    id: "PenDrawing",
+    parts: &[
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -448,14 +489,14 @@ const PEN: Glyph = Glyph {
 const PEN_ADD: Glyph = Glyph {
     id: "PenAdd",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
         GlyphPart::Fill { points: &[(19.62, 18.67), (19.62, 11.53), (19.86, 11.53), (19.86, 18.67)], tris: &[], white: false },
         GlyphPart::Stroke { points: &[(19.62, 18.67), (19.62, 11.53), (19.86, 11.53), (19.86, 18.67)], closed: true, width: 1.0, white: false },
         GlyphPart::Fill { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], tris: &[], white: false },
         GlyphPart::Stroke { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], closed: true, width: 1.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -466,12 +507,12 @@ const PEN_ADD: Glyph = Glyph {
 const PEN_DELETE: Glyph = Glyph {
     id: "PenDelete",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
         GlyphPart::Fill { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], tris: &[], white: false },
         GlyphPart::Stroke { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], closed: true, width: 1.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -482,11 +523,11 @@ const PEN_DELETE: Glyph = Glyph {
 const PEN_CLOSE: Glyph = Glyph {
     id: "PenClose",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
         GlyphPart::Stroke { points: &[(22.86, 15.1), (22.61, 16.31), (21.94, 17.3), (20.95, 17.97), (19.74, 18.22), (18.52, 17.97), (17.53, 17.3), (16.86, 16.31), (16.62, 15.1), (16.86, 13.88), (17.53, 12.89), (18.52, 12.23), (19.74, 11.98), (20.95, 12.23), (21.94, 12.89), (22.61, 13.88)], closed: true, width: 1.2, white: false },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -497,12 +538,12 @@ const PEN_CLOSE: Glyph = Glyph {
 const PEN_CONTINUE: Glyph = Glyph {
     id: "PenContinue",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
         GlyphPart::Fill { points: &[(16.79, 18.59), (22.74, 11.45), (22.93, 11.6), (16.97, 18.75)], tris: &[], white: false },
         GlyphPart::Stroke { points: &[(16.79, 18.59), (22.74, 11.45), (22.93, 11.6), (16.97, 18.75)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -541,12 +582,12 @@ const CURVATURE: Glyph = Glyph {
 const PEN_JOIN: Glyph = Glyph {
     id: "PenJoin",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
         GlyphPart::Fill { points: &[(17.83, 13.19), (21.65, 13.19), (21.65, 17.01), (17.83, 17.01)], tris: &[], white: false },
         GlyphPart::Stroke { points: &[(17.83, 13.19), (21.65, 13.19), (21.65, 17.01), (17.83, 17.01)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -557,12 +598,12 @@ const PEN_JOIN: Glyph = Glyph {
 const PEN_CONVERT: Glyph = Glyph {
     id: "PenConvert",
     parts: &[
-        GlyphPart::Fill { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(9.64, 16.63), (9.51, 10.47), (0.83, 0.97), (0.11, 1.27), (0.83, 14.12), (5.14, 18.53)], closed: true, width: 2.0, white: false },
-        GlyphPart::Stroke { points: &[(0.0, 0.0), (4.66, 11.1)], closed: false, width: 1.3, white: true },
-        GlyphPart::Fill { points: &[(2.71, 11.19), (2.7, 9.78), (3.69, 8.78), (5.1, 8.77), (6.1, 9.77), (6.11, 11.18), (5.12, 12.18), (3.71, 12.19)], tris: &[], white: true },
         GlyphPart::Fill { points: &[(19.74, 12.35), (22.78, 18.43), (22.58, 18.53), (19.74, 12.85), (16.9, 18.53), (16.7, 18.43)], tris: &[[0, 1, 2], [0, 2, 3], [5, 0, 3], [3, 4, 5]], white: false },
         GlyphPart::Stroke { points: &[(19.74, 12.35), (22.78, 18.43), (22.58, 18.53), (19.74, 12.85), (16.9, 18.53), (16.7, 18.43)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(10.45, 18.03), (10.31, 11.35), (0.9, 1.05), (0.12, 1.38), (0.9, 15.31), (5.57, 20.08)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(0.0, 0.0), (5.06, 12.03)], closed: false, width: 1.3, white: true },
+        GlyphPart::Fill { points: &[(2.93, 12.13), (2.93, 10.61), (4.0, 9.52), (5.53, 9.51), (6.62, 10.59), (6.62, 12.11), (5.55, 13.2), (4.02, 13.21)], tris: &[], white: true },
     ],
 };
 
@@ -687,12 +728,12 @@ const EYEDROPPER: Glyph = Glyph {
 const ADD_STOP: Glyph = Glyph {
     id: "AddStop",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(19.62, 18.67), (19.62, 11.53), (19.86, 11.53), (19.86, 18.67)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(19.62, 18.67), (19.62, 11.53), (19.86, 11.53), (19.86, 18.67)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(17.39, 22.15), (17.39, 15.0), (17.62, 15.0), (17.62, 22.15)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(17.39, 22.15), (17.39, 15.0), (17.62, 15.0), (17.62, 22.15)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(13.93, 18.7), (13.93, 18.46), (21.08, 18.46), (21.08, 18.7)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(13.93, 18.7), (13.93, 18.46), (21.08, 18.46), (21.08, 18.7)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -703,10 +744,10 @@ const ADD_STOP: Glyph = Glyph {
 const REMOVE_STOP: Glyph = Glyph {
     id: "RemoveStop",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.16, 15.22), (16.16, 14.98), (23.31, 14.98), (23.31, 15.22)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(13.93, 18.7), (13.93, 18.46), (21.08, 18.46), (21.08, 18.7)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(13.93, 18.7), (13.93, 18.46), (21.08, 18.46), (21.08, 18.7)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -731,12 +772,12 @@ const SLICE: Glyph = Glyph {
 const SLICE_SELECT: Glyph = Glyph {
     id: "SliceSelect",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(22.74, 17.86), (16.74, 17.86), (16.74, 17.66), (22.74, 17.66)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(22.74, 17.86), (16.74, 17.86), (16.74, 17.66), (22.74, 17.66)], closed: true, width: 2.0, white: false },
-        GlyphPart::Fill { points: &[(22.74, 14.54), (16.74, 14.54), (16.74, 14.34), (22.74, 14.34)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(22.74, 14.54), (16.74, 14.54), (16.74, 14.34), (22.74, 14.34)], closed: true, width: 2.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(20.62, 20.8), (14.62, 20.8), (14.62, 20.6), (20.62, 20.6)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(20.62, 20.8), (14.62, 20.8), (14.62, 20.6), (20.62, 20.6)], closed: true, width: 2.0, white: false },
+        GlyphPart::Fill { points: &[(20.62, 17.48), (14.62, 17.48), (14.62, 17.28), (20.62, 17.28)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(20.62, 17.48), (14.62, 17.48), (14.62, 17.28), (20.62, 17.28)], closed: true, width: 2.0, white: false },
     ],
 };
 
@@ -747,9 +788,9 @@ const SLICE_SELECT: Glyph = Glyph {
 const WIDTH: Glyph = Glyph {
     id: "Width",
     parts: &[
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(13.98, 14.87), (15.8, 14.64), (16.99, 14.09), (17.84, 13.44), (18.66, 12.89), (19.72, 12.66), (20.78, 12.89), (21.59, 13.44), (22.45, 14.09), (23.64, 14.64), (25.46, 14.87), (25.46, 15.23), (23.64, 15.46), (22.45, 16.01), (21.59, 16.66), (20.78, 17.21), (19.72, 17.44), (18.66, 17.21), (17.84, 16.66), (16.99, 16.01), (15.8, 15.46), (13.98, 15.23)], tris: &[[21, 0, 1], [2, 3, 4], [2, 4, 5], [2, 5, 6], [1, 2, 6], [1, 6, 7], [21, 1, 7], [21, 7, 8], [21, 8, 9], [21, 9, 10], [21, 10, 11], [21, 11, 12], [21, 12, 13], [13, 14, 15], [13, 15, 16], [13, 16, 17], [13, 17, 18], [13, 18, 19], [13, 19, 20], [13, 20, 21]], white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(11.77, 18.5), (13.59, 18.27), (14.79, 17.72), (15.64, 17.07), (16.46, 16.52), (17.52, 16.29), (18.57, 16.52), (19.39, 17.07), (20.24, 17.72), (21.44, 18.27), (23.26, 18.5), (23.26, 18.86), (21.44, 19.09), (20.24, 19.64), (19.39, 20.29), (18.57, 20.84), (17.52, 21.07), (16.46, 20.84), (15.64, 20.29), (14.79, 19.64), (13.59, 19.09), (11.77, 18.86)], tris: &[[21, 0, 1], [2, 3, 4], [2, 4, 5], [2, 5, 6], [1, 2, 6], [1, 6, 7], [21, 1, 7], [21, 7, 8], [21, 8, 9], [21, 9, 10], [21, 10, 11], [21, 11, 12], [21, 12, 13], [13, 14, 15], [13, 15, 16], [13, 16, 17], [13, 17, 18], [13, 18, 19], [13, 19, 20], [13, 20, 21]], white: false },
     ],
 };
 
@@ -760,13 +801,13 @@ const WIDTH: Glyph = Glyph {
 const WIDTH_ADD: Glyph = Glyph {
     id: "WidthAdd",
     parts: &[
-        GlyphPart::Fill { points: &[(19.62, 7.44), (19.62, 1.62), (19.81, 1.62), (19.81, 7.44)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(19.62, 7.44), (19.62, 1.62), (19.81, 1.62), (19.81, 7.44)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.81, 4.63), (16.81, 4.43), (22.63, 4.43), (22.63, 4.63)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.81, 4.63), (16.81, 4.43), (22.63, 4.43), (22.63, 4.63)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(13.98, 14.87), (15.8, 14.64), (16.99, 14.09), (17.84, 13.44), (18.66, 12.89), (19.72, 12.66), (20.78, 12.89), (21.59, 13.44), (22.45, 14.09), (23.64, 14.64), (25.46, 14.87), (25.46, 15.23), (23.64, 15.46), (22.45, 16.01), (21.59, 16.66), (20.78, 17.21), (19.72, 17.44), (18.66, 17.21), (17.84, 16.66), (16.99, 16.01), (15.8, 15.46), (13.98, 15.23)], tris: &[[21, 0, 1], [2, 3, 4], [2, 4, 5], [2, 5, 6], [1, 2, 6], [1, 6, 7], [21, 1, 7], [21, 7, 8], [21, 8, 9], [21, 9, 10], [21, 10, 11], [21, 11, 12], [21, 12, 13], [13, 14, 15], [13, 15, 16], [13, 16, 17], [13, 17, 18], [13, 18, 19], [13, 19, 20], [13, 20, 21]], white: false },
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(17.42, 10.96), (17.42, 5.14), (17.61, 5.14), (17.61, 10.96)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(17.42, 10.96), (17.42, 5.14), (17.61, 5.14), (17.61, 10.96)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(14.6, 8.15), (14.6, 7.95), (20.43, 7.95), (20.43, 8.15)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(14.6, 8.15), (14.6, 7.95), (20.43, 7.95), (20.43, 8.15)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(11.77, 18.39), (13.59, 18.16), (14.79, 17.61), (15.64, 16.96), (16.46, 16.41), (17.52, 16.18), (18.57, 16.41), (19.39, 16.96), (20.24, 17.61), (21.44, 18.16), (23.26, 18.39), (23.26, 18.75), (21.44, 18.98), (20.24, 19.53), (19.39, 20.18), (18.57, 20.73), (17.52, 20.96), (16.46, 20.73), (15.64, 20.18), (14.79, 19.53), (13.59, 18.98), (11.77, 18.75)], tris: &[[21, 0, 1], [2, 3, 4], [2, 4, 5], [2, 5, 6], [1, 2, 6], [1, 6, 7], [21, 1, 7], [21, 7, 8], [21, 8, 9], [21, 9, 10], [21, 10, 11], [21, 11, 12], [21, 12, 13], [13, 14, 15], [13, 15, 16], [13, 16, 17], [13, 17, 18], [13, 18, 19], [13, 19, 20], [13, 20, 21]], white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -777,14 +818,14 @@ const WIDTH_ADD: Glyph = Glyph {
 const WIDTH_POINT: Glyph = Glyph {
     id: "WidthPoint",
     parts: &[
-        GlyphPart::Fill { points: &[(15.71, 18.86), (15.56, 18.71), (15.4, 18.86), (15.56, 19.02)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(15.71, 18.86), (15.56, 18.71), (15.4, 18.86), (15.56, 19.02)], closed: true, width: 2.0, white: false },
-        GlyphPart::Fill { points: &[(23.53, 11.05), (23.37, 10.89), (23.22, 11.05), (23.37, 11.2)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(23.53, 11.05), (23.37, 10.89), (23.22, 11.05), (23.37, 11.2)], closed: true, width: 2.0, white: false },
-        GlyphPart::Stroke { points: &[(15.56, 18.86), (23.18, 11.24)], closed: false, width: 0.5, white: false },
-        GlyphPart::Fill { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: true },
-        GlyphPart::Stroke { points: &[(0.33, 14.87), (0.33, 0.75), (10.63, 10.4), (5.99, 10.91), (8.71, 17.18), (6.59, 18.1), (3.88, 11.83)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(13.98, 14.87), (15.8, 14.64), (16.99, 14.09), (17.84, 13.44), (18.66, 12.89), (19.72, 12.66), (20.78, 12.89), (21.59, 13.44), (22.45, 14.09), (23.64, 14.64), (25.46, 14.87), (25.46, 15.23), (23.64, 15.46), (22.45, 16.01), (21.59, 16.66), (20.78, 17.21), (19.72, 17.44), (18.66, 17.21), (17.84, 16.66), (16.99, 16.01), (15.8, 15.46), (13.98, 15.23)], tris: &[[21, 0, 1], [2, 3, 4], [2, 4, 5], [2, 5, 6], [1, 2, 6], [1, 6, 7], [21, 1, 7], [21, 7, 8], [21, 8, 9], [21, 9, 10], [21, 10, 11], [21, 11, 12], [21, 12, 13], [13, 14, 15], [13, 15, 16], [13, 16, 17], [13, 17, 18], [13, 18, 19], [13, 19, 20], [13, 20, 21]], white: false },
+        GlyphPart::Fill { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], tris: &[[0, 3, 2], [2, 1, 0]], white: true },
+        GlyphPart::Stroke { points: &[(5.14, 12.74), (11.66, 12.74), (0.33, 0.81), (0.46, 17.26)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(13.63, 22.35), (13.47, 22.2), (13.32, 22.35), (13.47, 22.51)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(13.63, 22.35), (13.47, 22.2), (13.32, 22.35), (13.47, 22.51)], closed: true, width: 2.0, white: false },
+        GlyphPart::Fill { points: &[(21.44, 14.54), (21.29, 14.38), (21.13, 14.54), (21.29, 14.69)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(21.44, 14.54), (21.29, 14.38), (21.13, 14.54), (21.29, 14.69)], closed: true, width: 2.0, white: false },
+        GlyphPart::Stroke { points: &[(13.47, 22.35), (21.1, 14.73)], closed: false, width: 0.5, white: false },
+        GlyphPart::Fill { points: &[(11.89, 18.36), (13.71, 18.13), (14.9, 17.58), (15.76, 16.93), (16.57, 16.38), (17.63, 16.15), (18.69, 16.38), (19.51, 16.93), (20.36, 17.58), (21.56, 18.13), (23.38, 18.36), (23.38, 18.72), (21.56, 18.95), (20.36, 19.5), (19.51, 20.15), (18.69, 20.7), (17.63, 20.93), (16.57, 20.7), (15.76, 20.15), (14.9, 19.5), (13.71, 18.95), (11.89, 18.72)], tris: &[[21, 0, 1], [2, 3, 4], [2, 4, 5], [2, 5, 6], [1, 2, 6], [1, 6, 7], [21, 1, 7], [21, 7, 8], [21, 8, 9], [21, 9, 10], [21, 10, 11], [21, 11, 12], [21, 12, 13], [13, 14, 15], [13, 15, 16], [13, 16, 17], [13, 17, 18], [13, 18, 19], [13, 19, 20], [13, 20, 21]], white: false },
     ],
 };
 
@@ -842,14 +883,14 @@ const BLEND_ANCHOR: Glyph = Glyph {
 const PATH_BRACKET: Glyph = Glyph {
     id: "PathBracket",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(19.62, 18.67), (19.62, 11.53), (19.86, 11.53), (19.86, 18.67)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(19.62, 18.67), (19.62, 11.53), (19.86, 11.53), (19.86, 18.67)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(22.49, 14.19), (22.49, 16.01), (23.63, 15.1)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(22.49, 14.19), (22.49, 16.01), (23.63, 15.1)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(16.99, 14.19), (16.99, 16.01), (15.85, 15.1)], tris: &[], white: false },
-        GlyphPart::Stroke { points: &[(16.99, 14.19), (16.99, 16.01), (15.85, 15.1)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(17.39, 22.15), (17.39, 15.0), (17.62, 15.0), (17.62, 22.15)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(17.39, 22.15), (17.39, 15.0), (17.62, 15.0), (17.62, 22.15)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(20.26, 17.67), (20.26, 19.49), (21.39, 18.58)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(20.26, 17.67), (20.26, 19.49), (21.39, 18.58)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(14.75, 17.67), (14.75, 19.49), (13.62, 18.58)], tris: &[], white: false },
+        GlyphPart::Stroke { points: &[(14.75, 17.67), (14.75, 19.49), (13.62, 18.58)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -860,10 +901,10 @@ const PATH_BRACKET: Glyph = Glyph {
 const TYPE_WIDGET: Glyph = Glyph {
     id: "TypeWidget",
     parts: &[
-        GlyphPart::Fill { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], tris: &[[6, 0, 1], [1, 2, 3], [6, 1, 3], [6, 3, 4], [4, 5, 6]], white: false },
-        GlyphPart::Stroke { points: &[(0.34, 14.92), (0.35, 0.8), (10.65, 10.45), (6.01, 10.96), (8.73, 17.23), (6.61, 18.15), (3.89, 11.88)], closed: true, width: 1.0, white: false },
-        GlyphPart::Fill { points: &[(17.54, 11.53), (17.06, 12.77), (17.12, 12.8), (18.11, 11.78), (19.36, 11.59), (19.81, 11.74), (19.95, 12.21), (19.95, 17.26), (19.77, 18.31), (19.16, 18.65), (18.93, 18.66), (18.93, 18.67), (21.45, 18.67), (21.45, 18.66), (21.23, 18.65), (20.61, 18.31), (20.43, 17.26), (20.43, 12.21), (20.58, 11.74), (21.03, 11.59), (22.27, 11.78), (23.27, 12.8), (23.32, 12.77), (22.85, 11.53)], tris: &[[23, 22, 21], [23, 21, 20], [23, 20, 19], [0, 23, 19], [14, 13, 12], [14, 12, 11], [14, 11, 10], [14, 10, 9], [15, 14, 9], [15, 9, 8], [16, 15, 8], [16, 8, 7], [17, 16, 7], [17, 7, 6], [18, 17, 6], [18, 6, 5], [19, 18, 5], [19, 5, 4], [0, 19, 4], [0, 4, 3], [0, 3, 2], [2, 1, 0]], white: false },
-        GlyphPart::Stroke { points: &[(17.54, 11.53), (17.06, 12.77), (17.12, 12.8), (18.11, 11.78), (19.36, 11.59), (19.81, 11.74), (19.95, 12.21), (19.95, 17.26), (19.77, 18.31), (19.16, 18.65), (18.93, 18.66), (18.93, 18.67), (21.45, 18.67), (21.45, 18.66), (21.23, 18.65), (20.61, 18.31), (20.43, 17.26), (20.43, 12.21), (20.58, 11.74), (21.03, 11.59), (22.27, 11.78), (23.27, 12.8), (23.32, 12.77), (22.85, 11.53)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(14.73, 15.45), (14.26, 16.7), (14.31, 16.72), (15.31, 15.7), (16.55, 15.51), (17.0, 15.66), (17.14, 16.13), (17.14, 21.19), (16.97, 22.24), (16.35, 22.58), (16.13, 22.58), (16.13, 22.6), (18.64, 22.6), (18.64, 22.58), (18.42, 22.58), (17.81, 22.24), (17.63, 21.19), (17.63, 16.13), (17.77, 15.66), (18.22, 15.51), (19.47, 15.7), (20.46, 16.72), (20.51, 16.7), (20.04, 15.45)], tris: &[[23, 22, 21], [23, 21, 20], [23, 20, 19], [0, 23, 19], [14, 13, 12], [14, 12, 11], [14, 11, 10], [14, 10, 9], [15, 14, 9], [15, 9, 8], [16, 15, 8], [16, 8, 7], [17, 16, 7], [17, 7, 6], [18, 17, 6], [18, 6, 5], [19, 18, 5], [19, 5, 4], [0, 19, 4], [0, 4, 3], [0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(14.73, 15.45), (14.26, 16.7), (14.31, 16.72), (15.31, 15.7), (16.55, 15.51), (17.0, 15.66), (17.14, 16.13), (17.14, 21.19), (16.97, 22.24), (16.35, 22.58), (16.13, 22.58), (16.13, 22.6), (18.64, 22.6), (18.64, 22.58), (18.42, 22.58), (17.81, 22.24), (17.63, 21.19), (17.63, 16.13), (17.77, 15.66), (18.22, 15.51), (19.47, 15.7), (20.46, 16.72), (20.51, 16.7), (20.04, 15.45)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -908,10 +949,10 @@ const SHAPE_BUILDER_ERASE: Glyph = Glyph {
 const LASSO: Glyph = Glyph {
     id: "Lasso",
     parts: &[
-        GlyphPart::Fill { points: &[(5.57, 12.83), (0.3, 17.34), (0.3, 0.68), (12.47, 12.06)], tris: &[[0, 1, 2], [0, 2, 3]], white: false },
-        GlyphPart::Stroke { points: &[(5.57, 12.83), (0.3, 17.34), (0.3, 0.68), (12.47, 12.06)], closed: true, width: 1.0, white: false },
         GlyphPart::Stroke { points: &[(26.55, 17.97), (26.25, 19.15), (25.42, 20.18), (24.16, 20.99), (22.56, 21.52), (20.72, 21.72), (18.88, 21.52), (17.28, 20.99), (16.01, 20.18), (15.19, 19.15), (14.89, 17.97), (15.19, 16.78), (16.01, 15.75), (17.28, 14.94), (18.88, 14.41), (20.72, 14.22), (22.56, 14.41), (24.16, 14.94), (25.42, 15.75), (26.25, 16.78)], closed: true, width: 1.2, white: false },
         GlyphPart::Stroke { points: &[(15.72, 20.05), (15.35, 21.21), (15.46, 22.25), (15.63, 23.26), (15.44, 24.3), (14.47, 25.46)], closed: false, width: 1.2, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
     ],
 };
 
@@ -1268,8 +1309,6 @@ const SCISSORS_NOT_ALLOWED: Glyph = Glyph {
 const MESH_ADD: Glyph = Glyph {
     id: "MeshAdd",
     parts: &[
-        GlyphPart::Fill { points: &[(5.56, 12.85), (0.29, 17.37), (0.29, 0.7), (12.45, 12.09)], tris: &[[0, 1, 2], [0, 2, 3]], white: false },
-        GlyphPart::Stroke { points: &[(5.56, 12.85), (0.29, 17.37), (0.29, 0.7), (12.45, 12.09)], closed: true, width: 1.0, white: false },
         GlyphPart::Fill { points: &[(16.06, 14.93), (24.06, 14.93), (24.06, 22.93), (16.06, 22.93)], tris: &[], white: true },
         GlyphPart::Stroke { points: &[(16.06, 14.93), (24.06, 14.93), (24.06, 22.93), (16.06, 22.93)], closed: true, width: 0.9, white: false },
         GlyphPart::Stroke { points: &[(18.73, 14.93), (19.15, 16.27), (19.06, 17.6), (18.73, 18.93), (18.4, 20.27), (18.31, 21.6), (18.73, 22.93)], closed: false, width: 0.75, white: false },
@@ -1278,6 +1317,8 @@ const MESH_ADD: Glyph = Glyph {
         GlyphPart::Stroke { points: &[(19.52, 6.19), (19.52, -0.96), (19.76, -0.96), (19.76, 6.19)], closed: true, width: 1.0, white: false },
         GlyphPart::Fill { points: &[(16.06, 2.73), (16.06, 2.49), (23.21, 2.49), (23.21, 2.73)], tris: &[], white: false },
         GlyphPart::Stroke { points: &[(16.06, 2.73), (16.06, 2.49), (23.21, 2.49), (23.21, 2.73)], closed: true, width: 1.0, white: false },
+        GlyphPart::Fill { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], tris: &[[0, 3, 2], [2, 1, 0]], white: false },
+        GlyphPart::Stroke { points: &[(5.13, 12.75), (11.65, 12.75), (0.32, 0.83), (0.45, 17.28)], closed: true, width: 1.0, white: false },
     ],
 };
 

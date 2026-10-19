@@ -313,7 +313,7 @@ impl Tool for FreeTransformTool {
     }
 
     fn cursor(&self, cx: &ToolContext, p: Point, m: Mods) -> Cursor {
-        let Some(r) = selection_bounds(cx) else { return Cursor::Arrow };
+        let Some(r) = selection_bounds(cx) else { return Cursor::SelectionArrow };
         match self.drag.map(|d| d.op).or_else(|| self.classify(cx, r, p, m)) {
             Some(Op::Rotate) => Cursor::rotate_about_in_view(r.center(), p, cx.view_angle()),
             Some(Op::Move) => Cursor::Move,
@@ -327,7 +327,7 @@ impl Tool for FreeTransformTool {
             }
             .turned(cx.view_angle()),
             Some(Op::Corners(..)) => Cursor::Crosshair,
-            None => Cursor::Arrow,
+            None => Cursor::SelectionArrow,
         }
     }
 

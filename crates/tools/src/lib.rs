@@ -434,9 +434,16 @@ pub enum Overlay {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cursor {
+    /// The plain pointer, with a tail like the system's: tools without a selection pointer of
+    /// their own, at rest.
     #[default]
     Arrow,
-    ArrowHollow,
+    /// The Selection tool on the canvas, and drags with Selection or Direct Selection: a solid
+    /// arrowhead without a tail. SelectionArrowHollow is its hollow twin.
+    SelectionArrow,
+    /// Direct Selection on the canvas, and a selection drag that snaps: a hollow arrowhead
+    /// without a tail.
+    SelectionArrowHollow,
     /// Direct Selection over an anchor of a path that isn't selected: the white arrow with a
     /// hollow square.
     DirectAnchor,
@@ -680,7 +687,8 @@ impl Cursor {
     /// The cursor this one borrows until it's drawn: the generic crosshair for the
     /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh
     /// tool's plus and Puppet Warp, the pipette for the Eyedropper over type, not-allowed for the
-    /// Scissors away from a path. `None` for a cursor with a look of its own.
+    /// Scissors away from a path, the plain arrow for the Selection tool's. `None` for a cursor
+    /// with a look of its own.
     pub fn stand_in(self) -> Option<Self> {
         match self {
             Cursor::Lasso
@@ -710,6 +718,7 @@ impl Cursor {
             Cursor::EyedropperType => Some(Cursor::Eyedropper),
             Cursor::TypeVertical | Cursor::LoadedText => Some(Cursor::Text),
             Cursor::PenDrawing => Some(Cursor::Pen),
+            Cursor::SelectionArrow => Some(Cursor::Arrow),
             Cursor::MeshAdd | Cursor::PuppetPin => Some(Cursor::PenAdd),
             Cursor::ScissorsNotAllowed => Some(Cursor::NotAllowed),
             _ => None,
@@ -992,6 +1001,20 @@ mod cursor_tests {
             assert_eq!(c.precise(), Cursor::Crosshair, "{id}");
             assert_eq!(c.stand_in(), Some(Cursor::Crosshair), "{id}");
         }
+    }
+
+    /// Tools that manipulate art rest on the selection tools' tailless arrowhead; the plain Arrow,
+    /// with its tail, is for tools with no cursor of their own.
+    #[test]
+    fn tools_that_manipulate_art_rest_on_the_selection_arrowhead() {
+        let (d, _) = doc_with_rect();
+        let away = Point::new(400.0, 400.0);
+        for id in
+            ["reshape", "freeTransform", "cropImage", "puppetWarp", "perspectiveGrid", "perspectiveSelection", "livePaintSelection", "intertwine"]
+        {
+            assert_eq!(cursor_at(id, &d, away), Cursor::SelectionArrow, "{id}");
+        }
+        assert_eq!(cursor_at("rotateView", &d, away), Cursor::Arrow);
     }
 
     #[test]

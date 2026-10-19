@@ -850,7 +850,7 @@ impl Tool for DirectSelectionTool {
         if !self.group && (matches!(self.state, State::Bracket(_)) || over_bracket(cx, p)) {
             return Cursor::PathBracket;
         }
-        let rest = if self.group { Cursor::GroupSelection } else { Cursor::ArrowHollow };
+        let rest = if self.group { Cursor::GroupSelection } else { Cursor::SelectionArrowHollow };
         if !self.group {
             match self.state {
                 // Alt-dragging leaves a copy behind.
@@ -864,7 +864,7 @@ impl Tool for DirectSelectionTool {
                 | State::TypeArea { began: true, .. }
                 | State::MoveAnchors { began: true, .. }
                 | State::MoveObject { began: true, .. } => {
-                    return if self.snapped { Cursor::ArrowHollow } else { Cursor::Arrow };
+                    return if self.snapped { Cursor::SelectionArrowHollow } else { Cursor::SelectionArrow };
                 }
                 // Alt makes it the Group Selection tool for the next press, unless the press takes
                 // a handle, a mesh or spine point, a type frame's edge or a ruler guide.
@@ -1647,11 +1647,11 @@ mod tests {
         let none = Selection::default();
         let c = cx(&d, &none, &p);
         let t = DirectSelectionTool::new(false);
-        assert_eq!(t.cursor(&c, pt(20.0, 20.0), m), Cursor::ArrowHollow);
+        assert_eq!(t.cursor(&c, pt(20.0, 20.0), m), Cursor::SelectionArrowHollow);
         assert_eq!(t.cursor(&c, pt(100.0, 300.0), m), Cursor::DirectAnchor);
         assert_eq!(t.cursor(&c, pt(150.0, 262.5), m), Cursor::ReshapeSegment);
-        assert_eq!(t.cursor(&c, pt(150.0, 100.0), m), Cursor::ArrowHollow, "a straight segment moves");
-        assert_eq!(t.cursor(&c, pt(150.0, 150.0), m), Cursor::ArrowHollow, "the fill");
+        assert_eq!(t.cursor(&c, pt(150.0, 100.0), m), Cursor::SelectionArrowHollow, "a straight segment moves");
+        assert_eq!(t.cursor(&c, pt(150.0, 150.0), m), Cursor::SelectionArrowHollow, "the fill");
         let alt = Mods { alt: true, ..m };
         assert_eq!(t.cursor(&c, pt(100.0, 300.0), alt), Cursor::GroupSelection);
         assert_eq!(DirectSelectionTool::new(true).cursor(&c, pt(100.0, 300.0), m), Cursor::GroupSelection);
@@ -1659,13 +1659,13 @@ mod tests {
         whole.set([arch]);
         let c = cx(&d, &whole, &p);
         assert_eq!(t.cursor(&c, pt(200.0, 300.0), m), Cursor::DirectAnchorSelected);
-        assert_eq!(t.cursor(&c, pt(150.0, 262.5), m), Cursor::ArrowHollow, "a path selected whole moves whole");
+        assert_eq!(t.cursor(&c, pt(150.0, 262.5), m), Cursor::SelectionArrowHollow, "a path selected whole moves whole");
         // One anchor selected: its handle end shows and keeps the plain arrow, Alt or not (a press
         // takes the handle).
         let s = anchors_of(arch, &[(0, 0)]);
         let c = cx(&d, &s, &p);
-        assert_eq!(t.cursor(&c, pt(100.0, 250.0), m), Cursor::ArrowHollow, "a handle end");
-        assert_eq!(t.cursor(&c, pt(100.0, 250.0), alt), Cursor::ArrowHollow, "a handle end with Alt");
+        assert_eq!(t.cursor(&c, pt(100.0, 250.0), m), Cursor::SelectionArrowHollow, "a handle end");
+        assert_eq!(t.cursor(&c, pt(100.0, 250.0), alt), Cursor::SelectionArrowHollow, "a handle end with Alt");
         assert_eq!(t.cursor(&c, pt(200.0, 300.0), m), Cursor::DirectAnchorSelected);
         // Bending the curve keeps the Reshape Segment cursor.
         let mut t = DirectSelectionTool::new(false);
@@ -1688,17 +1688,17 @@ mod tests {
         let mut t = DirectSelectionTool::new(false);
         t.pointer(&c, &at(PointerKind::Down, 300.0, 300.0, none));
         t.pointer(&c, &at(PointerKind::Drag, 250.0, 260.0, none));
-        assert_eq!(t.cursor(&c, Point::new(250.0, 260.0), none), Cursor::Arrow);
+        assert_eq!(t.cursor(&c, Point::new(250.0, 260.0), none), Cursor::SelectionArrow);
         // Onto A's bottom-right corner.
         t.pointer(&c, &at(PointerKind::Drag, 203.0, 199.0, none));
-        assert_eq!(t.cursor(&c, Point::new(203.0, 199.0), none), Cursor::ArrowHollow);
+        assert_eq!(t.cursor(&c, Point::new(203.0, 199.0), none), Cursor::SelectionArrowHollow);
         t.pointer(&c, &at(PointerKind::Up, 203.0, 199.0, none));
         // Shift with a Constrain Angle of 10°: the constraint alone isn't a snap.
         let shift = Mods { shift: true, ..none };
         let tilted = ToolContext { constrain_angle: 10.0, ..cx(&d, &one, &p) };
         t.pointer(&tilted, &at(PointerKind::Down, 300.0, 300.0, shift));
         t.pointer(&tilted, &at(PointerKind::Drag, 380.0, 262.0, shift));
-        assert_eq!(t.cursor(&tilted, Point::new(380.0, 262.0), shift), Cursor::Arrow);
+        assert_eq!(t.cursor(&tilted, Point::new(380.0, 262.0), shift), Cursor::SelectionArrow);
         t.pointer(&tilted, &at(PointerKind::Up, 380.0, 262.0, shift));
         let mut whole = Selection::default();
         whole.set([b]);

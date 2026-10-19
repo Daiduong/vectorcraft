@@ -265,7 +265,7 @@ mod tests {
         let p = paint();
         let c = cx(&d, &s, &p);
         let mut t = SelectionTool::default();
-        assert_eq!(t.cursor(&c, Point::new(312.0, 150.0), Mods::default()), Cursor::ArrowHollow);
+        assert_eq!(t.cursor(&c, Point::new(312.0, 150.0), Mods::default()), Cursor::SelectionArrowHollow);
         assert!(t.pointer(&c, &ev(PointerKind::Down, Point::new(312.0, 150.0))).is_empty());
         let a = t.pointer(&c, &ev(PointerKind::Drag, Point::new(200.0, 20.0)));
         assert_eq!(a[0], Action::Begin("Live Shape".into()));

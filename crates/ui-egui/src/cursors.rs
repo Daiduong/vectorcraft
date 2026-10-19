@@ -411,13 +411,14 @@ fn magnifier(p: &mut Ink, o: Pos2, out: bool) {
 
 /// Every cursor with a glyph: its own, generated or drawn here, or the one it borrows.
 #[cfg(test)]
-const GLYPHS: [Cursor; 77] = [
+const GLYPHS: [Cursor; 78] = [
     Cursor::Hand,
     Cursor::HandGrab,
     Cursor::ZoomIn,
     Cursor::ZoomOut,
     Cursor::Arrow,
-    Cursor::ArrowHollow,
+    Cursor::SelectionArrow,
+    Cursor::SelectionArrowHollow,
     Cursor::DirectAnchor,
     Cursor::DirectAnchorSelected,
     Cursor::ReshapeSegment,
@@ -518,7 +519,7 @@ fn glyph(c: Cursor, p: Pos2) -> Option<Vec<Shape>> {
     }
     match c {
         Cursor::Arrow => arrow(ink, p, false),
-        Cursor::ArrowHollow => arrow(ink, p, true),
+        Cursor::SelectionArrowHollow => arrow(ink, p, true),
         Cursor::DirectAnchor => arrow_square(ink, p, false),
         Cursor::DirectAnchorSelected => arrow_square(ink, p, true),
         Cursor::ReshapeSegment => reshape_segment(ink, p),
@@ -945,7 +946,7 @@ mod tests {
         let out = frame(&mut app, &ctx, vec![egui::Event::PointerMoved(over)]);
         if OS_CURSORS {
             let img = out.platform_output.cursor_image.as_ref().expect("the Selection tool's arrow as an OS cursor");
-            assert_eq!(img, &app.canvas.cursors.get(Cursor::Arrow, 1.0).unwrap());
+            assert_eq!(img, &app.canvas.cursors.get(Cursor::SelectionArrow, 1.0).unwrap());
             // Where the OS can't show the bitmap, its system cursor.
             assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::Default);
         } else {
@@ -1041,9 +1042,9 @@ mod tests {
         let shown =
             |app: &mut VectorcraftApp, d: f32| frame(app, &ctx, vec![egui::Event::PointerMoved(over + vec2(d, 0.0))]).platform_output.cursor_image;
         if OS_CURSORS {
-            assert_eq!(shown(&mut app, 0.0).unwrap(), app.canvas.cursors.get(Cursor::Arrow, 1.0).unwrap(), "off: its own size");
+            assert_eq!(shown(&mut app, 0.0).unwrap(), app.canvas.cursors.get(Cursor::SelectionArrow, 1.0).unwrap(), "off: its own size");
             app.run("prefs.set", json!({"key": "scaleCursorWithUi", "value": true})).unwrap();
-            assert_eq!(shown(&mut app, 4.0).unwrap(), app.canvas.cursors.get(Cursor::Arrow, 2.0).unwrap(), "on: twice as big");
+            assert_eq!(shown(&mut app, 4.0).unwrap(), app.canvas.cursors.get(Cursor::SelectionArrow, 2.0).unwrap(), "on: twice as big");
         }
         // Painted into the window (macOS, the web), the glyph is drawn at the scale asked for, its
         // hotspot where the pointer is.

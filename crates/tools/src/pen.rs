@@ -405,6 +405,10 @@ impl Tool for PenTool {
         if let Some(t) = &self.convert {
             return t.cursor(cx, p, m);
         }
+        // Dragging out handles (past the drag threshold): the selection tools' arrowhead.
+        if self.dragged && (self.drag.is_some() || self.handle.is_some()) {
+            return Cursor::SelectionArrow;
+        }
         let tol = cx.tol(5.0).max(cx.point_tol());
         let active = self.active(cx);
         if let Some((id, first, last, _)) = active {
@@ -520,6 +524,40 @@ mod tests {
         assert_eq!(pen.pointer(&cx, &PointerEvent::new(PointerKind::Up, 101.0, 101.0)), vec![Action::Commit]);
         pen.pointer(&cx, &PointerEvent::new(PointerKind::Down, 200.0, 200.0));
         assert_eq!(pen.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 204.0, 200.0)).len(), 1);
+    }
+
+    #[test]
+    fn dragging_out_handles_shows_the_selection_arrowhead() {
+        let (d, s) = (vectorcraft_doc::Document::new(500.0, 500.0), Selection::default());
+        let paint = paint();
+        let cx =
+            ToolContext { zoom: 1.0, smart_guides: false, snap_to_point: false, snap_to_pixel: false, snap_to_grid: false, ..cx(&d, &s, &paint) };
+        let none = Mods::default();
+        let mut pen = PenTool::default();
+        pen.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+        pen.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 101.0, 101.0));
+        assert_ne!(pen.cursor(&cx, Point::new(101.0, 101.0), none), Cursor::SelectionArrow, "under the drag threshold");
+        pen.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 140.0, 100.0));
+        assert_eq!(pen.cursor(&cx, Point::new(140.0, 100.0), none), Cursor::SelectionArrow);
+        pen.pointer(&cx, &PointerEvent::new(PointerKind::Up, 140.0, 100.0));
+        assert_ne!(pen.cursor(&cx, Point::new(140.0, 100.0), none), Cursor::SelectionArrow, "after the drag");
+    }
+
+    #[test]
+    fn pulling_a_handle_from_the_last_anchor_shows_the_selection_arrowhead() {
+        let last = Point::new(200.0, 400.0);
+        let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), last], false));
+        let paint = paint();
+        let cx =
+            ToolContext { zoom: 1.0, smart_guides: false, snap_to_point: false, snap_to_pixel: false, snap_to_grid: false, ..cx(&d, &s, &paint) };
+        let none = Mods::default();
+        let mut pen = PenTool::default();
+        // A click on its end continues the path; a press there again pulls a new handle.
+        assert!(click(&mut pen, &cx, last.x, last.y, none).is_empty());
+        pen.pointer(&cx, &PointerEvent::new(PointerKind::Down, last.x, last.y));
+        assert_eq!(pen.handle.map(|h| h.0), Some(id));
+        pen.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 240.0, 400.0));
+        assert_eq!(pen.cursor(&cx, Point::new(240.0, 400.0), none), Cursor::SelectionArrow);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # Development
 
-> **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
+> **Last updated:** 2026-10-18 · **Change:** the cursor list's `confidence` field and the node-editing cursor reference; the cursor glyphs; earlier: leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
 ## Web build
@@ -247,7 +247,7 @@ other `sv-*` locale resolve to it), Czech (`cs`, every menu label) and Brazilian
 
 ## Cursors
 
-`crates/tools/src/cursors.toml` lists every `Cursor` value: when it shows, in plain behaviour terms, and where its hotspot is, so whoever draws the cursors knows what each one is for without reading the tools (CLAUDE.md › Adding a cursor). `cargo xtask cursors` (part of `cargo xtask ci`) warns about a `Cursor` value with no entry, an entry with no `Cursor` value, a repeated id or a missing field; it never fails the build. Most cursors are drawn from original SVG drawings, generated into `crates/ui-egui/src/cursors/glyphs.rs` by cursor id (author and licence in ASSETS.md); change the drawing and regenerate rather than editing the numbers. The rest are drawn in code in `cursors.rs`, and a cursor not drawn yet borrows another's look (`Cursor::stand_in`).
+`crates/tools/src/cursors.toml` lists every `Cursor` value: when it shows, in plain behaviour terms, and where its hotspot is, so whoever draws the cursors knows what each one is for without reading the tools (CLAUDE.md › Adding a cursor). `cargo xtask cursors` (part of `cargo xtask ci`) warns about a `Cursor` value with no entry, an entry with no `Cursor` value, a repeated id or a missing field; it never fails the build. An entry's optional `confidence` (0 to 10, checked by `cargo xtask cursors`) tells designers how closely to follow its description; the reasons are in the node-editing cursor reference ([cursors-node-editing.md](cursors-node-editing.md)). Most cursors are drawn from original SVG drawings, generated into `crates/ui-egui/src/cursors/glyphs.rs` by cursor id (author and licence in ASSETS.md); change the drawing and regenerate rather than editing the numbers. The rest are drawn in code in `cursors.rs`, and a cursor not drawn yet borrows another's look (`Cursor::stand_in`).
 
 ## Vendor names gate
 
@@ -370,6 +370,7 @@ do not replace expected hashes automatically in response to a download mismatch.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-18 | minor | Cursors section: the list's optional `confidence` (0–10) for designers, the node-editing cursor reference (`docs/cursors-node-editing.md`), and the generated cursor glyphs (`cursors/glyphs.rs`). |
 | 2026-10-14 | minor | Document the `bundled-fonts` feature of vectorcraft-text and vectorcraft-engine (Fonts › Leaving out the bundled fonts). |
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |

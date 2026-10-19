@@ -382,7 +382,7 @@ fn use_precise_cursors_makes_drawing_cursors_crosshairs() {
     s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": true})).unwrap();
     assert_eq!(cursor(&mut s, "pen"), Cursor::Crosshair);
     assert_eq!(cursor(&mut s, "eyedropper"), Cursor::Crosshair);
-    assert_eq!(cursor(&mut s, "selection"), Cursor::Arrow);
+    assert_eq!(cursor(&mut s, "selection"), Cursor::SelectionArrow);
     s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": false})).unwrap();
     assert_eq!(cursor(&mut s, "eyedropper"), Cursor::Eyedropper);
 }
@@ -1419,9 +1419,9 @@ fn snap_to_point_cues_anchors_and_lands_pen_clicks_on_them() {
     let off = ViewInfo { snap_to_point: false, ..on };
     s.select_tool("selection", on).unwrap();
     let near = vectorcraft_geom::Point::new(302.0, 102.0);
-    assert_eq!(s.cursor(near, Mods::default(), on), Cursor::ArrowHollow);
-    assert_eq!(s.cursor(vectorcraft_geom::Point::new(325.0, 125.0), Mods::default(), on), Cursor::Arrow, "away from the anchors");
-    assert_eq!(s.cursor(near, Mods::default(), off), Cursor::Arrow, "Snap to Point off");
+    assert_eq!(s.cursor(near, Mods::default(), on), Cursor::SelectionArrowHollow);
+    assert_eq!(s.cursor(vectorcraft_geom::Point::new(325.0, 125.0), Mods::default(), on), Cursor::SelectionArrow, "away from the anchors");
+    assert_eq!(s.cursor(near, Mods::default(), off), Cursor::SelectionArrow, "Snap to Point off");
     for (v, first) in [(on, (300.0, 100.0)), (off, (301.0, 101.0))] {
         s.select_tool("pen", v).unwrap();
         gesture(&mut s, v, &[(Down, 301.0, 101.0), (Up, 301.0, 101.0), (Down, 200.0, 250.0), (Up, 200.0, 250.0)]);

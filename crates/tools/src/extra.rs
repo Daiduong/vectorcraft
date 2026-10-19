@@ -302,7 +302,7 @@ impl Tool for ReshapeTool {
         vec![]
     }
     fn cursor(&self, cx: &ToolContext, p: Point, _mods: Mods) -> Cursor {
-        if self.grab.is_some() || Self::hit(cx, p).is_some() { Cursor::Move } else { Cursor::Arrow }
+        if self.grab.is_some() || Self::hit(cx, p).is_some() { Cursor::Move } else { Cursor::SelectionArrow }
     }
 }
 

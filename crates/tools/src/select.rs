@@ -636,9 +636,9 @@ impl Tool for SelectionTool {
             // Alt-dragging leaves a copy behind; otherwise the filled arrow, hollow while the move
             // snaps to a point or a guide.
             State::Moving { began: true, .. } if m.alt => return Cursor::SelectionCopy,
-            State::Moving { began: true, .. } => return if self.snapped { Cursor::ArrowHollow } else { Cursor::Arrow },
+            State::Moving { began: true, .. } => return if self.snapped { Cursor::SelectionArrowHollow } else { Cursor::SelectionArrow },
             State::Corner(_) => return Cursor::CornerRadius,
-            State::Pie(_) => return Cursor::ArrowHollow,
+            State::Pie(_) => return Cursor::SelectionArrowHollow,
             State::Bracket(_) => return Cursor::PathBracket,
             State::Loaded { .. } => return Cursor::LoadedText,
             _ => {}
@@ -650,7 +650,7 @@ impl Tool for SelectionTool {
             return Cursor::CornerRadius;
         }
         if pie::over_widget(cx, p) {
-            return Cursor::ArrowHollow;
+            return Cursor::SelectionArrowHollow;
         }
         if over_bracket(cx, p) {
             return Cursor::PathBracket;
@@ -673,15 +673,15 @@ impl Tool for SelectionTool {
         // View → Snap to Point: over an anchor a press would grab the object by, the arrow turns
         // hollow.
         if cx.snap_to_point && matches!(Self::hover_point(cx, p), Some((_, "anchor"))) {
-            return Cursor::ArrowHollow;
+            return Cursor::SelectionArrowHollow;
         }
         if let Some(h) = hit_test(cx.doc, p, cx.hit_options()) {
             if cx.selection.contains(h.top_object(cx.isolation)) || m.alt {
                 return Cursor::Move;
             }
-            return Cursor::Arrow;
+            return Cursor::SelectionArrow;
         }
-        Cursor::Arrow
+        Cursor::SelectionArrow
     }
 }
 
@@ -1075,11 +1075,12 @@ mod tests {
         let c = cx(&d, &s, &p);
         let none = Mods::default();
         let mut t = SelectionTool::default();
+        assert_eq!(t.cursor(&c, Point::new(50.0, 50.0), none), Cursor::SelectionArrow, "empty canvas");
         t.pointer(&c, &ev(PointerKind::Down, 350.0, 350.0));
         t.pointer(&c, &ev(PointerKind::Drag, 377.0, 371.0));
-        assert_eq!(t.cursor(&c, Point::new(377.0, 371.0), none), Cursor::Arrow);
+        assert_eq!(t.cursor(&c, Point::new(377.0, 371.0), none), Cursor::SelectionArrow);
         t.pointer(&c, &ev(PointerKind::Drag, 253.0, 371.0));
-        assert_eq!(t.cursor(&c, Point::new(253.0, 371.0), none), Cursor::ArrowHollow, "lined up with A");
+        assert_eq!(t.cursor(&c, Point::new(253.0, 371.0), none), Cursor::SelectionArrowHollow, "lined up with A");
         let alt = Mods { alt: true, ..none };
         t.pointer(&c, &ev(PointerKind::Drag, 377.0, 371.0).with_mods(alt));
         assert_eq!(t.cursor(&c, Point::new(377.0, 371.0), alt), Cursor::SelectionCopy);

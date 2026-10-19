@@ -760,7 +760,7 @@ impl Tool for LivePaintSelectionTool {
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
-        Cursor::Arrow
+        Cursor::SelectionArrow
     }
 }
 

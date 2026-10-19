@@ -206,14 +206,14 @@ impl Tool for CropImageTool {
     }
 
     fn cursor(&self, cx: &ToolContext, p: Point, _mods: Mods) -> Cursor {
-        let Some((_, _, r)) = self.current(cx) else { return Cursor::Arrow };
+        let Some((_, _, r)) = self.current(cx) else { return Cursor::SelectionArrow };
         match hit_handle(r, p, cx.tol(5.0)) {
             Some(Handle::Top | Handle::Bottom) => Cursor::ResizeV,
             Some(Handle::Left | Handle::Right) => Cursor::ResizeH,
             Some(Handle::TopLeft | Handle::BottomRight) => Cursor::ResizeNwSe,
             Some(Handle::TopRight | Handle::BottomLeft) => Cursor::ResizeNeSw,
             None if r.contains(p) => Cursor::Move,
-            None => Cursor::Arrow,
+            None => Cursor::SelectionArrow,
         }
         .turned(cx.view_angle())
     }
