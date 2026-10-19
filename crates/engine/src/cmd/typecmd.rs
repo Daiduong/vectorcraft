@@ -57,7 +57,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Area Type Options…",
             ["Type"],
             None,
-            "{ids?|id?, width?: pt, height?: pt, rows?, columns?, gutter?: pt, inset?: pt, firstBaseline?: ascent|capHeight|xHeight|leading|fixed, firstBaselineMin?: pt, verticalAlign?: top|center|bottom|justify, fit?: none|autoHeight|shrinkText, fitMinPercent?: 10..100, …the keys of its own reply (it can be passed back; the values it only reports are ignored)} set the selected area type's options; width and height size the type area from its top-left corner, along the type's own axes, and the text reflows at its size (with fit autoHeight, Auto Size, the frame's height follows the text after every edit and height is ignored; setting the height by hand turns it off); fit shrinkText scales overflowing text down (size, leading, baseline shift) by the largest factor down to fitMinPercent % (default 50) that makes it fit (none given: query) → the first object's options, plus overflow (the text doesn't fit its frame) and fitScale (Shrink Text's factor, 1 unshrunk)",
+            "{ids?|id?, width?: pt, height?: pt, rows?, columns?, gutter?: pt, inset?: pt, firstBaseline?: ascent|capHeight|xHeight|leading|fixed, firstBaselineMin?: pt, verticalAlign?: top|center|bottom|justify, paragraphSpacingLimit?: pt (with justify: extra space at paragraph boundaries before line gaps), fit?: none|autoHeight|shrinkText, fitMinPercent?: 10..100, …the keys of its own reply (it can be passed back; the values it only reports are ignored)} set the selected area type's options; width and height size the type area from its top-left corner, along the type's own axes, and the text reflows at its size (with fit autoHeight, Auto Size, the frame's height follows the text after every edit and height is ignored; setting the height by hand turns it off); fit shrinkText scales overflowing text down (size, leading, baseline shift) by the largest factor down to fitMinPercent % (default 50) that makes it fit (none given: query) → the first object's options, plus overflow (the text doesn't fit its frame) and fitScale (Shrink Text's factor, 1 unshrunk)",
             has_selection,
             area_options
         ),
@@ -756,7 +756,7 @@ pub(crate) fn area_options_json(t: &TextObject) -> Result<Value> {
 }
 
 /// The [`vectorcraft_doc::AreaOptions`] keys `text.areaOptions` merges as they are.
-const AREA_KEYS: [&str; 7] = ["rows", "columns", "gutter", "inset", "firstBaseline", "firstBaselineMin", "verticalAlign"];
+const AREA_KEYS: [&str; 8] = ["rows", "columns", "gutter", "inset", "firstBaseline", "firstBaselineMin", "verticalAlign", "paragraphSpacingLimit"];
 
 fn area_options(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "text.areaOptions";
@@ -791,6 +791,7 @@ fn area_options(s: &mut Session, p: &Value) -> Result<Value> {
     opts.gutter = finite(opts.gutter).clamp(0.0, 10_000.0);
     opts.inset = finite(opts.inset).clamp(0.0, 10_000.0);
     opts.first_baseline_min = finite(opts.first_baseline_min).clamp(0.0, 10_000.0);
+    opts.paragraph_spacing_limit = finite(opts.paragraph_spacing_limit).clamp(0.0, 10_000.0);
     opts.fit = fit.unwrap_or(cur.fit);
     if opts.fit == AreaFit::AutoHeight {
         // Auto Size sets the height (Illustrator's dialog turns the Height field off).

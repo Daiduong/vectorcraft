@@ -28,7 +28,7 @@ fn lengths(command: &str) -> &'static [&'static str] {
         "shape.flare" => &["diameter", "pathLength"],
         "perspective.grid.set" => &["cell", "distance"],
         "object.repeat.options" => &["radius", "hSpacing", "vSpacing"],
-        "text.areaOptions" => &["width", "height", "gutter", "inset", "firstBaselineMin"],
+        "text.areaOptions" => &["width", "height", "gutter", "inset", "firstBaselineMin", "paragraphSpacingLimit"],
         "type.pathOptions" => &["spacing"],
         _ => &[],
     }

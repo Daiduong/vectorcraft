@@ -153,6 +153,7 @@ pub fn layout(db: &FontDb, t: &TextObject) -> TextLayout {
         first_baseline: a.first_baseline,
         first_baseline_min: a.first_baseline_min,
         vertical_align: a.vertical_align,
+        paragraph_spacing_limit: a.paragraph_spacing_limit,
         fit: a.fit,
         ..LayoutOptions::default()
     };
@@ -643,6 +644,36 @@ fn cell_space(out: &TextLayout, regions: &[Region]) -> Vec<Option<(f64, f64, usi
         .collect()
 }
 
+/// Justify offsets for `line_indices` in a cell: index `k` moves down by the returned amount.
+fn justify_offsets(line_indices: &[usize], below: f64, limit: f64, text: &str, lines: &[LineInfo]) -> Vec<f64> {
+    let n = line_indices.len();
+    if n <= 1 {
+        return vec![0.0; n];
+    }
+    let mut gap_extra = vec![0.0; n - 1];
+    let mut remaining = below.max(0.0);
+    if limit > 0.0 {
+        for i in 0..n - 1 {
+            let li = line_indices[i + 1];
+            let starts_para = lines[li].start > 0 && text.as_bytes().get(lines[li].start - 1) == Some(&b'\n');
+            if starts_para {
+                let add = remaining.min(limit);
+                gap_extra[i] += add;
+                remaining -= add;
+            }
+        }
+    }
+    let share = remaining / (n - 1) as f64;
+    for g in &mut gap_extra {
+        *g += share;
+    }
+    let mut offs = vec![0.0];
+    for g in gap_extra {
+        offs.push(offs.last().copied().unwrap_or(0.0) + g);
+    }
+    offs
+}
+
 /// Area Type Options "Align" other than Top: move each cell's lines down. Rectangular cells
 /// without text wrap shift their lines (centre: half the space left below the last line;
 /// bottom: all of it; justify: the first line stays, each further line gets an equal share of it).
@@ -654,25 +685,40 @@ fn align_vertically(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, re
     let plain = regions.iter().all(|r| (r.rect || r.polys.is_empty()) && r.wraps.is_empty());
     if plain {
         let space = cell_space(&cx.out, regions);
-        // Each distinct baseline's index within its cell, for justify.
-        let mut seen: Vec<Vec<f64>> = vec![vec![]; regions.len()];
+        let limit = cx.opts.paragraph_spacing_limit;
+        let per_region: Vec<Vec<usize>> = (0..regions.len())
+            .map(|ri| cx.out.lines.iter().enumerate().filter(|(_, l)| l.region == ri).map(|(i, _)| i).collect())
+            .collect();
+        let justify_offs: Vec<Vec<f64>> = per_region
+            .iter()
+            .enumerate()
+            .map(|(ri, indices)| {
+                let Some(Some((_, below, n))) = space.get(ri).copied() else { return vec![0.0] };
+                if align != VerticalAlign::Justify || n <= 1 || indices.len() <= 1 {
+                    return vec![0.0; indices.len()];
+                }
+                if limit > 0.0 {
+                    justify_offsets(indices, below, limit, cx.text, &cx.out.lines)
+                } else {
+                    (0..indices.len()).map(|k| below * k as f64 / (indices.len() - 1) as f64).collect()
+                }
+            })
+            .collect();
         let offs: Vec<f64> = cx
             .out
             .lines
             .iter()
-            .map(|l| {
-                let Some(Some((_, below, n))) = space.get(l.region).copied() else { return 0.0 };
+            .enumerate()
+            .map(|(idx, l)| {
+                let Some(Some((_, below, _))) = space.get(l.region).copied() else { return 0.0 };
                 match align {
                     VerticalAlign::Top => 0.0,
                     VerticalAlign::Center => below * 0.5,
                     VerticalAlign::Bottom => below,
                     VerticalAlign::Justify => {
-                        let Some(s) = seen.get_mut(l.region) else { return 0.0 };
-                        let k = s.iter().position(|b| (b - l.baseline).abs() < 1e-6).unwrap_or_else(|| {
-                            s.push(l.baseline);
-                            s.len() - 1
-                        });
-                        if n > 1 { below * k as f64 / (n - 1) as f64 } else { 0.0 }
+                        let indices = &per_region[l.region];
+                        let k = indices.iter().position(|&i| i == idx).unwrap_or(0);
+                        justify_offs[l.region].get(k).copied().unwrap_or(0.0)
                     }
                 }
             })

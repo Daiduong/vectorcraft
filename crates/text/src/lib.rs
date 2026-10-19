@@ -60,6 +60,9 @@ pub struct LayoutOptions {
     pub first_baseline_min: f64,
     /// Vertical alignment of the lines in each row/column (Area Type Options "Align").
     pub vertical_align: VerticalAlign,
+    /// With [`VerticalAlign::Justify`], the most extra space added at each paragraph boundary
+    /// before the remaining slack is spread between lines (points; 0 = spread only between lines).
+    pub paragraph_spacing_limit: f64,
     /// Area type only: Shrink Text to Fit scales overflowing text down at layout time (see
     /// [`TextLayout::fit_scale`]); the other fits are the engine's business and lay out as `None`.
     pub fit: AreaFit,
@@ -78,6 +81,7 @@ impl Default for LayoutOptions {
             first_baseline: FirstBaseline::Ascent,
             first_baseline_min: 0.0,
             vertical_align: VerticalAlign::Top,
+            paragraph_spacing_limit: 0.0,
             fit: AreaFit::None,
             composer: None,
             features: OtFeatures::default(),

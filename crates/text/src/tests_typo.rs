@@ -891,6 +891,27 @@ fn vertical_align_center_bottom_and_justify_in_a_rectangle() {
 }
 
 #[test]
+fn vertical_align_justify_paragraph_spacing_limit() {
+    let text = "alpha beta gamma delta epsilon zeta\n\nomega";
+    let t = area(text, style(12.0), Rect::new(0.0, 0.0, 90.0, 320.0), Justify::Left);
+    let uniform = layout_with(db(), &t, &valign(VerticalAlign::Justify));
+    let limited = layout_with(
+        db(),
+        &t,
+        &LayoutOptions { vertical_align: VerticalAlign::Justify, paragraph_spacing_limit: 24.0, ..Default::default() },
+    );
+    assert!(uniform.lines.len() >= 3 && uniform.lines.len() == limited.lines.len());
+    let gap = |l: &TextLayout, i: usize| l.lines[i + 1].baseline - l.lines[i].baseline;
+    let para_gap_u = gap(&uniform, uniform.lines.len() - 2);
+    let para_gap_l = gap(&limited, limited.lines.len() - 2);
+    assert!(para_gap_l > para_gap_u + 10.0, "{para_gap_u} {para_gap_l}");
+    let wrap_gap_u = gap(&uniform, 0);
+    let wrap_gap_l = gap(&limited, 0);
+    assert!(wrap_gap_l < wrap_gap_u - 5.0, "wrap {wrap_gap_l} vs uniform {wrap_gap_u}");
+    assert!(block_space(&limited, 320.0).1.abs() < 1e-6);
+}
+
+#[test]
 fn vertical_align_leaves_overflowing_text_where_it_is() {
     let text = COPY.repeat(4);
     let t = area(&text, style(12.0), Rect::new(0.0, 0.0, 200.0, 100.0), Justify::Left);

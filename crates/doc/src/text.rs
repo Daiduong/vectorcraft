@@ -907,7 +907,7 @@ pub enum VerticalAlign {
     /// The last line's descent touches the cell bottom.
     Bottom,
     /// The first line stays at the top, the last one moves to the bottom and the space left over
-    /// is shared equally between the lines (no paragraph spacing limit).
+    /// is shared between the lines; see [`AreaOptions::paragraph_spacing_limit`].
     Justify,
 }
 
@@ -1029,6 +1029,10 @@ pub struct AreaOptions {
     pub first_baseline_min: f64,
     /// Vertical alignment of the lines in each row/column.
     pub vertical_align: VerticalAlign,
+    /// With [`VerticalAlign::Justify`], the most extra space added at each paragraph boundary
+    /// before the remaining slack is spread between lines (points; 0 = spread only between lines).
+    #[serde(skip_serializing_if = "crate::skip::is_default")]
+    pub paragraph_spacing_limit: f64,
     /// How the frame and its text fit each other (Auto Size, Shrink Text to Fit).
     #[serde(skip_serializing_if = "crate::skip::is_default")]
     pub fit: AreaFit,
@@ -1044,6 +1048,7 @@ impl Default for AreaOptions {
             first_baseline: FirstBaseline::Ascent,
             first_baseline_min: 0.0,
             vertical_align: VerticalAlign::Top,
+            paragraph_spacing_limit: 0.0,
             fit: AreaFit::None,
         }
     }
