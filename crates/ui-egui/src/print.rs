@@ -242,7 +242,7 @@ mod tests {
     fn a_grayscale_preset_makes_the_job_gray() {
         let mut app = app_with_gray_preset();
         assert_eq!(job_hints(&mut app, &json!({"preset": "Mono"})), (true, false));
-        assert_eq!(job_hints(&mut app, &json!({"preset": "mono"})).0, true, "any case, as the engine takes it");
+        assert!(job_hints(&mut app, &json!({"preset": "mono"})).0, "any case, as the engine takes it");
         assert!(!job_hints(&mut app, &json!({})).0, "no preset: the document's settings, which are in colour");
         assert!(!job_hints(&mut app, &json!({"preset": null})).0);
         assert!(job_hints(&mut app, &json!({"settings": {"color": {"grayscale": true}}})).0, "explicit settings still apply");
