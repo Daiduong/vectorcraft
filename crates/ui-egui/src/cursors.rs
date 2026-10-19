@@ -851,6 +851,7 @@ mod tests {
             assert!(pixel(&dropper, hx, hy)[3] > 0, "the tip covers the hotspot at {ppp}");
         }
         assert!(rasterize(Cursor::NotAllowed, 1.0).is_none(), "the busy states stay system cursors");
+        assert!(rasterize(Cursor::Busy, 1.0).is_none());
         if glyphs::generated(Cursor::ScissorsNotAllowed).is_none() {
             assert!(rasterize(Cursor::ScissorsNotAllowed, 1.0).is_none(), "until it's drawn it borrows the system not-allowed cursor");
         }

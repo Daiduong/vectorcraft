@@ -6,10 +6,10 @@
 //!   Blend Options (dialog `blendOptions`). Clicking empty canvas starts over.
 //! - Mesh: click inside a filled path → `object.mesh.create {ids, at}` (1×1 mesh plus lines through
 //!   the click); click inside a mesh or a mesh envelope → `object.mesh.addLine` (a gradient mesh's
-//!   new point takes the current fill colour unless Shift); drag a mesh point, or a handle of the
-//!   point last clicked → `object.mesh.movePoint` previews ([`MeshEdit`]); Alt-click a mesh point →
-//!   `object.mesh.deletePoint`. Clicking a gradient mesh's point selects the mesh, and the next
-//!   solid fill colour recolours just that point.
+//!   new point takes the current fill color in its own model, unless Shift); drag a mesh point,
+//!   or a handle of the point last clicked → `object.mesh.movePoint` previews ([`MeshEdit`]);
+//!   Alt-click a mesh point → `object.mesh.deletePoint`. Clicking a gradient mesh's point selects
+//!   the mesh, and the next solid fill color recolors just that point.
 
 use serde_json::json;
 use vectorcraft_color::Paint;
@@ -173,14 +173,15 @@ impl MeshTool {
     /// What a click at `p` off a mesh point does: a mesh line through a mesh or mesh envelope
     /// (in `color`, a gradient mesh's), or a path or compound path turned into a mesh. `None`
     /// where a click adds nothing.
-    fn add_at(cx: &ToolContext, p: Point, color: Option<&str>) -> Option<Action> {
+    fn add_at(cx: &ToolContext, p: Point, color: Option<&serde_json::Value>) -> Option<Action> {
         let (top, leaf) = hit_top(cx, p)?;
         for id in [leaf, top] {
             match cx.doc.node(id).map(|n| &n.kind) {
                 Some(NodeKind::Mesh(_)) => {
                     let mut params = json!({"id": id.0, "x": p.x, "y": p.y});
                     if let Some(c) = color {
-                        params["color"] = json!(c);
+                        params["color"] = c.clone();
+                        params["keepModel"] = json!(true);
                     }
                     return Some(Action::Exec("object.mesh.addLine".into(), params));
                 }
@@ -221,10 +222,10 @@ impl Tool for MeshTool {
                 }
                 self.edit.unfocus();
                 let color = match (&cx.paint.fill, ev.mods.shift) {
-                    (Paint::Solid { color, .. }, false) => Some(color.to_hex()),
+                    (Paint::Solid { color, .. }, false) => Some(crate::params::color_json(color)),
                     _ => None,
                 };
-                Self::add_at(cx, p, color.as_deref()).into_iter().collect()
+                Self::add_at(cx, p, color.as_ref()).into_iter().collect()
             }
             PointerKind::Drag => self.edit.drag_to(p).unwrap_or_default(),
             PointerKind::Up => self.edit.release().unwrap_or_default(),
