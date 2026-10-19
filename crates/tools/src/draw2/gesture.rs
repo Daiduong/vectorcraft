@@ -320,6 +320,14 @@ impl Tool for GestureTool {
     }
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let mut o = self.snap.guides().to_vec();
+        if matches!(self.id, "blobBrush" | "eraser")
+            && self.active
+            && self.points.len() >= 2
+            && cx.measurement_labels
+            && let Some(p) = self.points.last()
+        {
+            o.push(Overlay::Measure { p: *p, text: format!("D: {}", cx.stroke_unit.readout(self.size)) });
+        }
         if !self.active || self.points.len() < 2 || self.began {
             return o;
         }
@@ -525,6 +533,34 @@ mod tests {
         assert_eq!(k.overlays(&cx).len(), 1);
         let a = k.pointer(&cx, &PointerEvent::new(PointerKind::Up, 250.0, 150.0));
         assert!(matches!(&a[0], Action::Exec(c, v) if c == "path.knife" && v["points"].as_array().unwrap().len() == 3));
+    }
+
+    #[test]
+    fn blob_brush_and_eraser_show_diameter_while_drawing() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let measure = |t: &GestureTool, c: &ToolContext| {
+            t.overlays(c)
+                .iter()
+                .find_map(|o| match o {
+                    Overlay::Measure { text, .. } => Some(text.clone()),
+                    _ => None,
+                })
+        };
+        let mut blob = GestureTool::new("blobBrush");
+        blob.size = 14.0;
+        blob.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        blob.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 30.0, 10.0));
+        assert_eq!(measure(&blob, &cx).as_deref(), Some("D: 14.00 pt"));
+        let quiet = ToolContext { measurement_labels: false, ..crate::testutil::cx(&d, &s, &p) };
+        assert!(measure(&blob, &quiet).is_none());
+        let mut eraser = GestureTool::new("eraser");
+        eraser.size = 8.0;
+        eraser.pointer(&cx, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        eraser.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 5.0, 0.0));
+        assert_eq!(measure(&eraser, &cx).as_deref(), Some("D: 8.00 pt"));
     }
 
     #[test]
