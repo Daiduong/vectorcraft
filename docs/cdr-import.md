@@ -5,6 +5,11 @@ drag and drop, the CLI, MCP and the browser use the same Rust reader. Open creat
 editable paths, artboards, layers and groups. Save asks for a new VectorCraft
 destination; the CDR source is never overwritten. There is no CDR exporter.
 
+The macOS bundle and Linux desktop entry also advertise CDR as a readable format.
+Linux uses the existing `application/vnd.corel-draw` type from
+[shared-mime-info](https://cgit.freedesktop.org/xdg/shared-mime-info/tree/data/freedesktop.org.xml.in)
+rather than declaring a competing MIME type in the app's package.
+
 This is partial interoperability. Unsupported art is reported in the import
 warnings. The reader does not substitute an embedded thumbnail or a rendered
 preview for editable objects.
