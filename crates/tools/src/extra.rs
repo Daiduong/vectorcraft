@@ -210,10 +210,8 @@ impl Tool for FlareTool {
             (_, Some((c, _))) => vec![Overlay::Line { a: c, b: self.hover, color: BLUE, dashed: true }],
             _ => vec![],
         };
-        if cx.measurement_labels {
-            if let Some((c, p)) = self.drag.filter(|_| self.began) {
-                o.push(Overlay::Measure { p, text: format!("D: {}", cx.len(2.0 * p.distance(c))) });
-            }
+        if cx.measurement_labels && let Some((c, p)) = self.drag.filter(|_| self.began) {
+            o.push(Overlay::Measure { p, text: format!("D: {}", cx.len(2.0 * p.distance(c))) });
         }
         o
     }
