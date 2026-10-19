@@ -190,115 +190,277 @@ impl Ctx<'_> {
         // at a discontinuous point).
         let width_at = |d: f64| {
             let t = span.0 + (span.1 - span.0) * d / total;
-            let (b, a) = self.profile.around(if t > 1.0 { t - 1.0 } else { t });
+            // A closed path joins its own start and end: a profile with different widths there
+            // is a step, not a stretch across the seam.
+            let (b, a) = if closed && span == (0.0, 1.0) && d <= 1e-12 {
+                (self.profile.around(1.0).0, self.profile.around(0.0).1)
+            } else {
+                self.profile.around(if t > 1.0 { t - 1.0 } else { t })
+            };
             let side = |(l, r): (f64, f64)| (self.half * l.max(0.0), self.half * r.max(0.0));
             (side(b), side(a))
         };
-        let mut lpts = Vec::with_capacity(n);
-        let mut rpts = Vec::with_capacity(n);
+        let mut lpts: Vec<(Point, bool)> = Vec::with_capacity(n);
+        let mut rpts: Vec<(Point, bool)> = Vec::with_capacity(n);
+        // Only a butt cap makes the side end at a corner; square and round caps stay tangent to it.
+        let end_sharp = matches!(self.cap, LineCap::Butt);
         for (i, &p) in pts.iter().enumerate() {
-            let (before, after) = width_at(cum[i]);
+            let ((wl_b, wr_b), (wl_a, wr_a)) = width_at(cum[i]);
             if !closed && (i == 0 || i == n - 1) {
                 let nm = left(seg_dir[i.min(seg_count - 1)]);
-                let (wl, wr) = if i == 0 { after } else { before };
-                lpts.push(p + nm * wl);
-                rpts.push(p - nm * wr);
+                let (wl, wr) = if i == 0 { (wl_a, wr_a) } else { (wl_b, wr_b) };
+                lpts.push((p + nm * wl, end_sharp));
+                rpts.push((p - nm * wr, end_sharp));
                 continue;
             }
             let ip = if i == 0 { seg_count - 1 } else { i - 1 };
             let v = Vertex { p, a: seg_dir[ip], b: seg_dir[i], la: cum[ip + 1] - cum[ip], lb: cum[i + 1] - cum[i], corner: corner[i] };
             // A step: the side goes straight out (or in) from the width before to the one after.
-            for (k, (wl, wr)) in [before, after].into_iter().enumerate() {
-                if k == 0 || (wl, wr) != before {
-                    self.join(&mut lpts, &v, wl, 1.0);
-                    self.join(&mut rpts, &v, wr, -1.0);
-                }
+            // Both ends of that straight piece are corners: the run before it must not round
+            // into the step.
+            let (step_l, step_r) = (wl_a != wl_b, wr_a != wr_b);
+            self.join(&mut lpts, &v, wl_b, 1.0, step_l);
+            self.join(&mut rpts, &v, wr_b, -1.0, step_r);
+            if step_l {
+                self.join(&mut lpts, &v, wl_a, 1.0, true);
+            }
+            if step_r {
+                self.join(&mut rpts, &v, wr_a, -1.0, true);
             }
         }
         if closed {
-            polygon(out, lpts.into_iter());
-            polygon(out, rpts.into_iter().rev());
+            polygon(out, lpts.into_iter(), self.tol);
+            polygon(out, rpts.into_iter().rev(), self.tol);
             return;
         }
         let (t0, t1) = (seg_dir[0], seg_dir[seg_count - 1]);
         let ((wl0, wr0), (wl1, wr1)) = (width_at(0.0).1, width_at(total).0);
         let mut ring = lpts;
         // End cap: from the left side around the end to the right side.
-        cap_points(&mut ring, pts[n - 1], left(t1), t1, wl1, wr1, self.cap);
+        cap_points(&mut ring, pts[n - 1], left(t1), t1, wl1, wr1, self.cap, self.tol);
         ring.extend(rpts.into_iter().rev());
         // Start cap: from the right side around the start back to the left side.
-        cap_points(&mut ring, pts[0], -left(t0), -t0, wr0, wl0, self.cap);
-        polygon(out, ring.into_iter());
+        cap_points(&mut ring, pts[0], -left(t0), -t0, wr0, wl0, self.cap, self.tol);
+        polygon(out, ring.into_iter(), self.tol);
     }
 
     /// The offset points at `v` on one side (`side` 1: left, −1: right), `w` from the path: the
     /// join on the outer side of a turn, the inner miter point (or a detour through the vertex
     /// when that would overshoot a segment) on the inner side.
-    fn join(&self, pts: &mut Vec<Point>, v: &Vertex, w: f64, side: f64) {
+    ///
+    /// Each point says whether the outline is sharp there: a path corner, a miter tip, a width
+    /// step or a butt cap end. Only those break the smooth fitting; a rapid width change makes
+    /// the offset turn sharply, but it is not a corner and must not be fitted as one.
+    fn join(&self, pts: &mut Vec<(Point, bool)>, v: &Vertex, w: f64, side: f64, step: bool) {
         let (na, nb) = (left(v.a) * side, left(v.b) * side);
         let mid = na + nb;
         // Cosine of half the turn; the miter point is `w / c` out along `mid`.
         let c = mid.hypot() / 2.0;
-        let miter = |pts: &mut Vec<Point>| pts.push(v.p + mid * (w / (2.0 * c * c)));
         if w <= 0.0 {
-            pts.push(v.p);
-        } else if v.b.dot(na) <= 0.0 {
+            pts.push((v.p, true));
+            return;
+        }
+        let miter = if c > 1e-9 { Some(v.p + mid * (w / (2.0 * c * c))) } else { None };
+        if v.b.dot(na) <= 0.0 {
             // Outer side: the path turns away from it.
-            let excess = if c > 1e-9 { w * (1.0 / c - 1.0) } else { f64::INFINITY };
-            match self.join {
-                _ if excess <= self.tol => miter(pts),
-                LineJoin::Miter if v.corner && 1.0 / c <= self.miter_limit => miter(pts),
-                LineJoin::Miter | LineJoin::Bevel if v.corner => pts.extend([v.p + na * w, v.p + nb * w]),
-                _ => self.arc(pts, v, na, nb, w),
+            if !v.corner {
+                // A smooth point has no join: mitering its flattened segments is the offset
+                // itself. A round join here would dent the edge by the turn's excess at every
+                // sample, which shows as scallops along a wide curve.
+                match miter {
+                    Some(m) => pts.push((m, step)),
+                    None => self.arc(pts, v, na, nb, w, step),
+                }
+            } else {
+                let excess = if c > 1e-9 { w * (1.0 / c - 1.0) } else { f64::INFINITY };
+                match self.join {
+                    _ if excess <= self.tol => pts.push((miter.unwrap_or(v.p), true)),
+                    LineJoin::Miter if c > 1e-9 && 1.0 / c <= self.miter_limit => pts.push((miter.unwrap_or(v.p), true)),
+                    LineJoin::Miter | LineJoin::Bevel => pts.extend([(v.p + na * w, true), (v.p + nb * w, true)]),
+                    _ => self.arc(pts, v, na, nb, w, step),
+                }
             }
-        } else if c > 1e-9 && w * (1.0 - c * c).sqrt() / c <= v.la.min(v.lb) {
-            miter(pts);
+        } else if c <= 1e-9 {
+            // A reversal has no inner miter; go through the vertex. That is a notch in the
+            // outline, so it stays sharp: fitting a curve through it would loop.
+            pts.extend([(v.p + na * w, true), (v.p, true), (v.p + nb * w, true)]);
+        } else if !v.corner || w * (1.0 - c * c).sqrt() / c <= v.la.min(v.lb) {
+            // A smooth point's inner offset is a miter too, however short its neighbours are: a
+            // sample added right beside a vertex must not turn it into a detour to the centre.
+            pts.push((miter.unwrap_or(v.p), step || v.corner));
         } else {
-            pts.extend([v.p + na * w, v.p, v.p + nb * w]);
+            // The inner offset of a corner cuts through the vertex; keep that notch sharp.
+            pts.extend([(v.p + na * w, true), (v.p, true), (v.p + nb * w, true)]);
         }
     }
 
     /// A round join from `na` to `nb` (unit normals) at radius `w` around `v`; a full reversal
-    /// rounds through the direction of travel.
-    fn arc(&self, pts: &mut Vec<Point>, v: &Vertex, na: Vec2, nb: Vec2, w: f64) {
+    /// rounds through the direction of travel. `sharp` marks a step at the join's ends.
+    fn arc(&self, pts: &mut Vec<(Point, bool)>, v: &Vertex, na: Vec2, nb: Vec2, w: f64, sharp: bool) {
         let phi =
             if (na + nb).hypot() < 1e-9 { if Vec2::new(-na.y, na.x).dot(v.a) > 0.0 { PI } else { -PI } } else { na.cross(nb).atan2(na.dot(nb)) };
         let step = 2.0 * (1.0 - (self.tol / w).min(1.0)).acos();
         let steps = ((phi.abs() / step.max(1e-3)).ceil() as usize).clamp(1, 256);
         for k in 0..=steps {
             let (s, c) = (phi * k as f64 / steps as f64).sin_cos();
-            pts.push(v.p + Vec2::new(na.x * c - na.y * s, na.x * s + na.y * c) * w);
+            pts.push((v.p + Vec2::new(na.x * c - na.y * s, na.x * s + na.y * c) * w, sharp));
         }
     }
 }
 
 /// Cap points between `c + u·r0` and `c − u·r1`, bulging towards `v`.
-fn cap_points(ring: &mut Vec<Point>, c: Point, u: Vec2, v: Vec2, r0: f64, r1: f64, cap: LineCap) {
+#[allow(clippy::too_many_arguments)]
+fn cap_points(ring: &mut Vec<(Point, bool)>, c: Point, u: Vec2, v: Vec2, r0: f64, r1: f64, cap: LineCap, tol: f64) {
     match cap {
         LineCap::Butt => {}
         LineCap::Square => {
             let h = (r0 + r1) / 2.0;
-            ring.push(c + u * r0 + v * h);
-            ring.push(c - u * r1 + v * h);
+            ring.push((c + u * r0 + v * h, true));
+            ring.push((c - u * r1 + v * h, true));
         }
         LineCap::Round => {
-            let steps = 16;
+            // Enough steps that the cap's facets stay within `tol`, as a round join does.
+            let r = r0.max(r1).max(1e-9);
+            let step = 2.0 * (1.0 - (tol / r).min(1.0)).acos();
+            let steps = ((PI / step.max(1e-6)).ceil() as usize).clamp(8, 256);
             for k in 1..steps {
-                let a = std::f64::consts::PI * k as f64 / steps as f64;
+                let a = PI * k as f64 / steps as f64;
                 let r = r0 + (r1 - r0) * (k as f64 / steps as f64);
-                ring.push(c + u * (a.cos() * r) + v * (a.sin() * r));
+                ring.push((c + u * (a.cos() * r) + v * (a.sin() * r), false));
             }
         }
     }
 }
 
-fn polygon(out: &mut BezPath, mut pts: impl Iterator<Item = Point>) {
-    let Some(first) = pts.next() else { return };
-    out.move_to(first);
-    for p in pts {
-        out.line_to(p);
+/// Append `pts` as a closed contour (a width outline's ring or loop), through a smooth run's
+/// points as cubic curves. Sampled as line segments, a curved, wide stroke shows the facets of
+/// its offset whenever it is magnified; the cubics keep it smooth. Every point is interpolated
+/// (so the sampled width is kept), a run whose points are collinear stays a line, and the points
+/// marked sharp — caps, miter joins, width steps and path corners — stay sharp. A rapid width
+/// change turns the offset sharply without being a corner: marking corners here rather than
+/// measuring turns keeps that turn smooth.
+fn polygon(out: &mut BezPath, pts: impl Iterator<Item = (Point, bool)>, tol: f64) {
+    let mut ring: Vec<(Point, bool)> = Vec::new();
+    for (p, sharp) in pts {
+        if !p.x.is_finite() || !p.y.is_finite() {
+            return;
+        }
+        if let Some(last) = ring.last_mut()
+            && last.0.distance(p) <= 1e-9
+        {
+            last.1 |= sharp;
+            continue;
+        }
+        ring.push((p, sharp));
+    }
+    if ring.len() > 1
+        && ring[0].0.distance(ring[ring.len() - 1].0) <= 1e-9
+        && let Some(last) = ring.pop()
+    {
+        ring[0].1 |= last.1;
+    }
+    let n = ring.len();
+    if n == 0 {
+        return;
+    }
+    if n < 3 {
+        out.move_to(ring[0].0);
+        if n == 2 {
+            out.line_to(ring[1].0);
+        }
+        out.close_path();
+        return;
+    }
+    // Start at a sharp point when there is one, so no run has to wrap: `smooth_run` starts from
+    // whichever point is current, and starting anywhere else would bridge over the skipped arc.
+    match ring.iter().position(|&(_, sharp)| sharp) {
+        None => {
+            // A smooth closed loop: fit across the seam, so it doesn't start with a kink.
+            let pts: Vec<Point> = ring.iter().map(|&(p, _)| p).collect();
+            out.move_to(pts[0]);
+            smooth_run(out, &pts, true, tol);
+        }
+        Some(first) => {
+            out.move_to(ring[first].0);
+            // From each sharp point to the next; the sharp points themselves stay sharp.
+            let mut i = first;
+            loop {
+                let mut j = (i + 1) % n;
+                while !ring[j].1 {
+                    j = (j + 1) % n;
+                }
+                // A contour with a single sharp point comes back to it: the run is the whole
+                // loop, fitted non-cyclically so that point stays sharp.
+                let steps = if j == i { n } else { (j + n - i) % n };
+                if steps == 1 {
+                    out.line_to(ring[j].0);
+                } else {
+                    let run: Vec<Point> = (0..=steps).map(|k| ring[(i + k) % n].0).collect();
+                    smooth_run(out, &run, false, tol);
+                }
+                if j == first {
+                    break;
+                }
+                i = j;
+            }
+        }
     }
     out.close_path();
+}
+
+/// The tangent at `run[i]`: the angle bisector of its two segments, as long as their harmonic
+/// mean (equal to a centered difference for evenly spaced points, and bounded by the shorter
+/// segment so uneven samples can't make the curve overshoot). At an end, the one segment it has.
+fn tangent(run: &[Point], i: usize, cyclic: bool) -> Vec2 {
+    let n = run.len();
+    let (prev, next) = if cyclic { (run[(i + n - 1) % n], run[(i + 1) % n]) } else { (run[i.saturating_sub(1)], run[(i + 1).min(n - 1)]) };
+    let (a, b) = (run[i] - prev, next - run[i]);
+    let (la, lb) = (a.hypot(), b.hypot());
+    if la <= 1e-12 {
+        return b;
+    }
+    if lb <= 1e-12 {
+        return a;
+    }
+    let d = a / la + b / lb;
+    let dl = d.hypot();
+    if dl <= 1e-12 {
+        return a;
+    }
+    d * (2.0 * la * lb / ((la + lb) * dl))
+}
+
+/// Append a run of points as cubics through them (or one line when they are collinear).
+fn smooth_run(out: &mut BezPath, run: &[Point], cyclic: bool, tol: f64) {
+    let n = run.len();
+    if n < 2 {
+        return;
+    }
+    if !cyclic && is_straight(run, tol) {
+        out.line_to(run[n - 1]);
+        return;
+    }
+    let segs = if cyclic { n } else { n - 1 };
+    for i in 0..segs {
+        let j = (i + 1) % n;
+        let (m0, m1) = (tangent(run, i, cyclic), tangent(run, j, cyclic));
+        if m0.hypot() <= 1e-12 || m1.hypot() <= 1e-12 {
+            out.line_to(run[j]);
+        } else {
+            out.curve_to(run[i] + m0 / 3.0, run[j] - m1 / 3.0, run[j]);
+        }
+    }
+}
+
+/// Are the run's points within the flattening tolerance of its chord?
+fn is_straight(run: &[Point], tol: f64) -> bool {
+    let (a, b) = (run[0], run[run.len() - 1]);
+    let d = b - a;
+    let l = d.hypot();
+    if l <= 1e-12 {
+        return false;
+    }
+    run.iter().all(|p| (d.cross(*p - a) / l).abs() <= tol.max(1e-6) * 0.25)
 }
 
 #[cfg(test)]
@@ -338,7 +500,7 @@ mod tests {
     #[test]
     fn lens_profile_is_a_smooth_bump_and_one_sided_profiles_stay_on_their_side() {
         let a = area(&width_outline(&line(), 10.0, &WidthProfile::lens(), &capped(LineCap::Butt), 0.01));
-        assert!((a - 500.0).abs() < 1e-6, "{a}");
+        assert!((a - 500.0).abs() < 0.1, "{a}");
         let one = WidthProfile { points: vec![(0.0, 1.0, 0.0), (1.0, 1.0, 0.0)] };
         let o = width_outline(&line(), 10.0, &one, &capped(LineCap::Butt), 0.01);
         assert!((area(&o) - 500.0).abs() < 1e-6);
@@ -360,6 +522,78 @@ mod tests {
         l.line_to((100.0, 100.0));
         let a = area(&width_outline(&l, 10.0, &p, &capped(LineCap::Butt), 0.01));
         assert!(a.is_finite() && (a - 3000.0).abs() < 150.0, "{a}");
+    }
+
+    #[test]
+    fn a_closed_path_steps_where_its_profile_ends_differ() {
+        let mut sq = BezPath::new();
+        sq.move_to((0.0, 0.0));
+        sq.line_to((100.0, 0.0));
+        sq.line_to((100.0, 100.0));
+        sq.line_to((0.0, 100.0));
+        sq.close_path();
+        // 5 pt at the seam's start, 10 pt at its end: the ring must step between them, not
+        // stretch the last width point round the corner.
+        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 2.0, 2.0)] };
+        let o = width_outline(&sq, 10.0, &p, &capped(LineCap::Butt), 0.01);
+        let at = |p: Point, x: f64, y: f64| (p.x - x).abs() < 1e-9 && (p.y - y).abs() < 1e-9;
+        let step = o.elements().windows(2).any(|w| match (w[0], w[1]) {
+            (PathEl::MoveTo(a), PathEl::LineTo(b)) | (PathEl::LineTo(a), PathEl::LineTo(b)) => {
+                at(a, -10.0, -10.0) && at(b, -5.0, -5.0) || at(a, -5.0, -5.0) && at(b, -10.0, -10.0)
+            }
+            _ => false,
+        });
+        assert!(step, "{o:?}");
+    }
+
+    #[test]
+    fn a_wiggly_profile_on_a_curve_fits_without_kinks() {
+        // A rapid width change turns the offset sharply; that is not a path corner, so the
+        // outline must stay tangent-continuous through it (the old turn-angle test did not).
+        let c = kurbo::Circle::new((0.0, 0.0), 50.0).to_path(1e-3);
+        let p = WidthProfile {
+            points: vec![(0.0, 1.0, 1.0), (0.15, 3.0, 0.4), (0.3, 0.2, 2.8), (0.5, 2.5, 0.3), (0.7, 0.4, 2.2), (0.85, 2.0, 0.5), (1.0, 1.0, 1.0)],
+        };
+        let o = width_outline(&c, 10.0, &p, &capped(LineCap::Butt), 0.01);
+        let mut cursor = None;
+        let mut prev: Option<Vec2> = None;
+        let mut kinks = 0;
+        let mut check = |a: Vec2, b: Vec2| {
+            let (la, lb) = (a.hypot(), b.hypot());
+            if la > 1e-9 && lb > 1e-9 && (a.dot(b) <= 0.0 || a.cross(b).abs() / (la * lb) > 1e-6) {
+                kinks += 1;
+            }
+        };
+        for el in o.elements() {
+            match el {
+                PathEl::MoveTo(p) => {
+                    cursor = Some(*p);
+                    prev = None;
+                }
+                PathEl::LineTo(p) => {
+                    if let Some(q) = cursor {
+                        let d = *p - q;
+                        if let Some(a) = prev {
+                            check(a, d);
+                        }
+                        prev = Some(d);
+                    }
+                    cursor = Some(*p);
+                }
+                PathEl::CurveTo(a, b, p) => {
+                    if let Some(q) = cursor {
+                        let d = if a.distance(q) > 1e-9 { *a - q } else { *b - q };
+                        if let Some(prev) = prev {
+                            check(prev, d);
+                        }
+                        prev = Some(if p.distance(*b) > 1e-9 { *p - *b } else { *p - *a });
+                    }
+                    cursor = Some(*p);
+                }
+                PathEl::QuadTo(_, _) | PathEl::ClosePath => {}
+            }
+        }
+        assert_eq!(kinks, 0, "{o:?}");
     }
 
     #[test]
