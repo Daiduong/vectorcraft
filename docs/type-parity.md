@@ -31,7 +31,7 @@ against Illustrator's public documentation; **estimated** unless noted.
 | Font menu: samples, live preview, filters, favourites; font matching by any name; Find Font | done | #339; script filter: Japanese, Latin, Thai; the font scan on Linux also reads the folders fontconfig's configuration lists, such as TeX fonts under `/usr/share/texmf/fonts` (#1548, fixes #1529; not verified on Linux) |
 | Missing glyphs set in an installed font made for their script (Thai, Lao, Khmer, Myanmar first; then any font that has them) | done | Thai: Leelawadee UI, Tahoma, Thonburi, Sukhumvit Set, Noto Sans Thai, TLWG |
 | Full font-name matching (OpenType name ID 4) | done | #1258: loaded/cataloged faces and Missing Fonts searches; localized names and variable default faces; Windows font-service QA pending |
-| Variable fonts | partial | named instances as styles; Character panel › Variable Font sets each axis (`fontAxes`); the font menu's Variable filter is missing |
+| Variable fonts | partial | named instances as styles; Character panel › Variable Font sets each axis (`fontAxes`); font menu **Variable** filter lists families with variation axes |
 | Fallback glyphs keep the text's weight and slant | done | #2491: a character from a fallback face is set in that family's face nearest the run's weight and slant; Bold Italic of a missing family is drawn Bold (Source Sans 3 has no Bold Italic) rather than Italic |
 | Colour fonts (OpenType SVG / COLR) | partial | |
 | Every-line and Single-line composers | done | tuned by eye, never compared side by side |

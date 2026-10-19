@@ -31,6 +31,12 @@ fn text(family: &str, style: &str, s: &str) -> TextObject {
 }
 
 #[test]
+fn family_traits_mark_variable_fonts() {
+    let db = db();
+    assert!(db.family_traits(FAMILY).variable);
+}
+
+#[test]
 fn named_instances_are_styles_of_the_family() {
     let db = db();
     // The default instance is the face itself; the unnamed and the twice-named ones are left out.

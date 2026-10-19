@@ -107,6 +107,10 @@ fn script_matches(script: usize, traits: vectorcraft_text::FontTraits) -> bool {
     }
 }
 
+fn variable_filter_matches(only: bool, traits: vectorcraft_text::FontTraits) -> bool {
+    !only || traits.variable
+}
+
 fn class_label(c: FontClass) -> &'static str {
     match c {
         FontClass::Serif => tl!("Serif / Mincho"),
@@ -150,9 +154,9 @@ fn remap_highlight(before: &[Row], selected: Option<usize>, after: &[Row]) -> Op
     after.iter().position(|candidate| candidate == row)
 }
 
-/// What the rows were listed for: the query, the script, kind and favourites filters, Show Font
-/// Names in English, the expanded families, the favourites and the font list's generation.
-type RowsKey = (String, usize, Option<FontClass>, bool, bool, Vec<String>, Vec<String>, u64);
+/// What the rows were listed for: the query, the script, kind, variable and favourites filters,
+/// Show Font Names in English, the expanded families, the favourites and the font list's generation.
+type RowsKey = (String, usize, Option<FontClass>, bool, bool, bool, Vec<String>, Vec<String>, u64);
 
 /// The menu's state between frames.
 #[derive(Clone, Default)]
@@ -167,10 +171,11 @@ struct MenuState {
     /// The highlighted row and the query and filters it belongs to.
     highlight: Option<usize>,
     query: String,
-    /// The filters (kept from one opening to the next): script (0..[`SCRIPTS`]), kind, and
-    /// favourites only.
+    /// The filters (kept from one opening to the next): script (0..[`SCRIPTS`]), kind, variable
+    /// fonts only, and favourites only.
     script: usize,
     class: Option<FontClass>,
+    variable_only: bool,
     favorites_only: bool,
     /// Families whose styles are listed (lowercase).
     expanded: Vec<String>,
@@ -257,6 +262,10 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
     });
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(4.0, 2.0);
+        if ui.selectable_label(st.variable_only, egui::RichText::new(tl!("Variable")).size(11.0)).clicked() {
+            st.variable_only = !st.variable_only;
+            refilter = true;
+        }
         if ui.selectable_label(st.favorites_only, egui::RichText::new("★").size(11.0)).on_hover_text(tl!("Favorites")).clicked() {
             st.favorites_only = !st.favorites_only;
             refilter = true;
@@ -280,8 +289,17 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
     let current = current.as_str();
     let favorite = |f: &str| look.favorites.iter().any(|x| x.eq_ignore_ascii_case(f));
     // The generation is read first: fonts that load meanwhile make the next frame list them.
-    let key: RowsKey =
-        (query.clone(), st.script, st.class, st.favorites_only, look.english_names, st.expanded.clone(), look.favorites.to_vec(), db.generation());
+    let key: RowsKey = (
+        query.clone(),
+        st.script,
+        st.class,
+        st.variable_only,
+        st.favorites_only,
+        look.english_names,
+        st.expanded.clone(),
+        look.favorites.to_vec(),
+        db.generation(),
+    );
     if st.rows_key.as_ref() != Some(&key) {
         let wanted = |f: &str| {
             let label = db.family_display_name(f, look.english_names);
@@ -291,10 +309,13 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
             if st.favorites_only && !favorite(f) {
                 return false;
             }
+            let traits = db.family_traits(f);
+            if !variable_filter_matches(st.variable_only, traits) {
+                return false;
+            }
             if st.script == 0 && st.class.is_none() {
                 return true;
             }
-            let traits = db.family_traits(f);
             script_matches(st.script, traits) && st.class.is_none_or(|c| c == traits.class)
         };
         let mut rows: Vec<Row> = vec![];
@@ -766,6 +787,16 @@ mod tests {
 
     /// The script filter: Thai lists families with Thai; Latin, those with neither Thai nor
     /// Japanese.
+    #[test]
+    fn the_variable_filter_lists_variable_families() {
+        use vectorcraft_text::FontTraits;
+        let variable = FontTraits { variable: true, ..Default::default() };
+        let static_ = FontTraits::default();
+        assert!(super::variable_filter_matches(false, static_));
+        assert!(super::variable_filter_matches(true, variable));
+        assert!(!super::variable_filter_matches(true, static_));
+    }
+
     #[test]
     fn the_thai_filter_lists_fonts_with_thai() {
         use vectorcraft_text::FontTraits;
