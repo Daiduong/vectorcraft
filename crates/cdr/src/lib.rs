@@ -22,12 +22,13 @@ pub struct Imported {
 }
 
 /// Identify CDR RIFF signatures or ZIP archives containing a native CDR root.
+/// ZIP recognition expands only a 12-byte header; import validates the full payload.
 /// Recognition does not promise that the version or contents can be imported.
 pub fn is_cdr(bytes: &[u8]) -> bool {
     container::recognize(bytes)
 }
 
-/// Read native CDR geometry, page structure, solid fills and outlines.
+/// Read supported native CDR geometry, page structure, fills and outlines.
 /// All input, expansion, nesting and record counts are bounded.
 pub fn import(bytes: &[u8]) -> Result<Imported, String> {
     let (chunks, version) = container::load(bytes)?;

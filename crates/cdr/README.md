@@ -58,10 +58,16 @@ Malformed, encrypted, split and ZIP64 archives fail with an error. These are
 resource bounds, not an assertion that arbitrary input can never exhaust a host
 whose available memory is already smaller than the bounds.
 
+Format recognition checks only the 12-byte RIFF header, including for stored or
+deflated ZIP roots. Loading performs the complete size and CRC validation once.
+The weak legacy `WL` prefix is not used for sniffing; a `.cdr` extension still
+routes Waldo input to its explicit unsupported-version diagnostic.
+
 ## Verification
 
 `cargo test -p vectorcraft-cdr` covers the generated editable drawing, equivalent
-compressed RIFF, ZIP recognition/header mismatch, every truncated prefix,
+compressed RIFF, stored/deflated ZIP prefix recognition, header/CRC mismatch,
+legacy-extension detection, every truncated prefix,
 decompression/copy/traversal limits and property-based random/mutated input.
 `CDR_FIXTURE_DIR` optionally points to the locally generated CorelDRAW fixture
 directory. It runs the native-file assertions without committing binary fixtures.

@@ -11,6 +11,7 @@ use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect, Shape};
 const MAX_POINTS: usize = 1_000_000;
 const MAX_COORD: f64 = 1e6;
 
+/// Build editable pages in points from native records, retaining omission warnings.
 pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String> {
     let mut d = Drawing {
         version,
@@ -84,13 +85,15 @@ pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String>
     Ok(Imported { document, version, warnings })
 }
 
+/// Detect object records even inside containers whose artwork is unsupported.
 fn has_art(c: &Chunk) -> bool {
     c.list.as_ref().is_some_and(|k| k == b"obj ") || c.children.iter().any(has_art)
 }
-// lgob/trfl wrap properties belonging to this object, not to its children.
+/// Find this object's property, descending through `lgob`/`trfl` wrappers only.
 fn metadata<'a>(c: &'a Chunk, id: &[u8; 4]) -> Option<&'a Chunk> {
     c.child(id).or_else(|| c.children.iter().filter(|c| matches!(c.list.as_ref(), Some(b"lgob" | b"trfl"))).find_map(|c| metadata(c, id)))
 }
+/// Collect matching lists without descending into a match a second time.
 fn find_lists<'a>(chunks: &'a [Chunk], kind: &[u8; 4], out: &mut Vec<&'a Chunk>) {
     for c in chunks {
         if c.list.as_ref() == Some(kind) {
@@ -100,6 +103,7 @@ fn find_lists<'a>(chunks: &'a [Chunk], kind: &[u8; 4], out: &mut Vec<&'a Chunk>)
         }
     }
 }
+/// Validate positive page dimensions in inches against the document point limit.
 fn valid_size(w: f64, h: f64) -> Result<(f64, f64), String> {
     if w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0 && w * 72.0 <= MAX_COORD && h * 72.0 <= MAX_COORD {
         Ok((w, h))
@@ -108,7 +112,8 @@ fn valid_size(w: f64, h: f64) -> Result<(f64, f64), String> {
     }
 }
 
-/// loda stores offsets in forward order and argument types in reverse order.
+/// Read an object kind and bounded borrowed arguments from its `loda` table.
+/// Offsets are stored in forward order and argument types in reverse order.
 fn arguments(data: &[u8]) -> Result<(u32, BTreeMap<u32, &[u8]>), String> {
     let mut r = Reader::new(data);
     let len = r.u32()? as usize;
@@ -174,6 +179,7 @@ struct Fountain {
     tail: Option<[f64; 4]>,
 }
 impl Fill {
+    /// Place a solid or fountain paint in the object's bounds and document transform.
     fn paint(&self, bounds: Rect, xf: Affine) -> Result<Paint, String> {
         match self {
             Self::Plain(paint) => Ok(paint.clone()),
@@ -217,16 +223,19 @@ impl Fill {
     }
 }
 impl Drawing {
+    /// Retain at most 100 distinct warnings about omitted or approximated features.
     fn warn(&mut self, text: &str) {
         if self.warnings.len() < 100 {
             self.warnings.insert(text.to_owned());
         }
     }
+    /// Allocate a unique document node ID within the bounded record traversal.
     fn id(&mut self) -> NodeId {
         let id = self.next_id;
         self.next_id += 1;
         NodeId(id)
     }
+    /// Collect fill/outline definitions and page defaults before resolving objects.
     fn styles(&mut self, chunks: &[Chunk], size: &mut (f64, f64)) -> Result<(), String> {
         for c in chunks {
             if self.fills.len() + self.strokes.len() > 20_000 {
@@ -263,6 +272,7 @@ impl Drawing {
         }
         Ok(())
     }
+    /// Decode supported numeric colour models and warn when substituting black.
     fn color(&mut self, r: &mut Reader<'_>) -> Result<Color, String> {
         let model = r.u16()?;
         let palette = r.u16()?;
@@ -298,6 +308,7 @@ impl Drawing {
         };
         Ok(color)
     }
+    /// Read a versioned fill definition, omitting unsupported fill kinds with a warning.
     fn fill(&mut self, bytes: &[u8]) -> Result<(u32, Fill), String> {
         let mut r = Reader::new(bytes);
         let id = r.u32()?;
@@ -345,6 +356,7 @@ impl Drawing {
         };
         Ok((id, Fill::Plain(Paint::solid(color))))
     }
+    /// Read bounded fountain stops and placement, recording interpolation approximations.
     fn fountain(&mut self, r: &mut Reader<'_>) -> Result<Fountain, String> {
         r.skip(if self.version >= 1300 { 8 } else { 2 })?;
         let kind = r.u8()?;
@@ -413,6 +425,7 @@ impl Drawing {
         }
         Ok(Fountain { kind, stops, angle, edge, center, tail })
     }
+    /// Decode outline width, colour, caps, joins and dashes, or an explicit no-outline style.
     fn stroke(&mut self, bytes: &[u8]) -> Result<(u32, Option<StrokeLayer>), String> {
         let mut r = Reader::new(bytes);
         let id = r.u32()?;
@@ -483,6 +496,7 @@ impl Drawing {
         }
         Ok((id, Some(stroke)))
     }
+    /// Compose this object's affine transforms, converting their translations to inches.
     fn transform(&mut self, c: &Chunk) -> Result<Affine, String> {
         let Some(c) = metadata(c, b"trfd") else { return Ok(Affine::IDENTITY) };
         let mut r = Reader::new(&c.data);
@@ -515,6 +529,7 @@ impl Drawing {
         }
         Ok(xf)
     }
+    /// Assemble layers, groups and objects in document paint order under the parent transform.
     fn children(&mut self, chunks: &[Chunk], parent: Affine) -> Result<Vec<Arc<Node>>, String> {
         let mut nodes = Vec::new();
         for c in chunks {
@@ -567,6 +582,7 @@ impl Drawing {
         nodes.reverse();
         Ok(nodes)
     }
+    /// Decode a bounded optional name as UTF-16 for CDR 12+, or lossy UTF-8 for older files.
     fn name(&self, bytes: Option<&[u8]>) -> Option<String> {
         let bytes = bytes?;
         let name = if self.version >= 1200 {
@@ -584,6 +600,7 @@ impl Drawing {
         };
         if name.is_empty() { None } else { Some(name) }
     }
+    /// Convert optional uniform transparency to opacity, rejecting values above 1000.
     fn opacity(&mut self, bytes: Option<&[u8]>) -> Result<f32, String> {
         let Some(bytes) = bytes else { return Ok(1.0) };
         let mut r = Reader::new(bytes);
@@ -594,6 +611,8 @@ impl Drawing {
         }
         Ok(1.0 - v as f32 / 1000.0)
     }
+    /// Resolve one supported object into an editable path, appearance and optional name.
+    /// Unsupported geometry returns `None` with a warning; malformed data returns an error.
     fn object(&mut self, c: &Chunk, parent: Affine) -> Result<Option<Node>, String> {
         self.objects_seen += 1;
         let Some(loda) = metadata(c, b"loda").or_else(|| metadata(c, b"lobj")) else {
@@ -669,6 +688,7 @@ impl Drawing {
         self.objects_imported += 1;
         Ok(Some(node))
     }
+    /// Charge geometry before allocation against the cumulative one-million-point limit.
     fn add_points(&mut self, n: usize) -> Result<(), String> {
         self.points = self.points.checked_add(n).ok_or("CDR point count overflow")?;
         if self.points > MAX_POINTS {
@@ -676,6 +696,7 @@ impl Drawing {
         }
         Ok(())
     }
+    /// Charge both style definitions and per-object gradient/dash copies against their limit.
     fn add_paint_values(&mut self, n: usize) -> Result<(), String> {
         self.paint_values = self.paint_values.checked_add(n).ok_or("CDR paint count overflow")?;
         if self.paint_values > 250_000 {
@@ -683,6 +704,7 @@ impl Drawing {
         }
         Ok(())
     }
+    /// Decode rectangle dimensions in inches, warning when importing treated corners square.
     fn rectangle(&mut self, bytes: &[u8]) -> Result<BezPath, String> {
         self.add_points(16)?;
         let mut r = Reader::new(bytes);
@@ -716,6 +738,7 @@ impl Drawing {
         p.close_path();
         Ok(p)
     }
+    /// Approximate an ellipse, arc or pie with up to four cubic segments in local inches.
     fn ellipse(&mut self, bytes: &[u8]) -> Result<BezPath, String> {
         self.add_points(16)?;
         let mut r = Reader::new(bytes);
@@ -751,6 +774,7 @@ impl Drawing {
         }
         Ok(p)
     }
+    /// Decode bounded polycurve points and node flags into straight and cubic subpaths.
     fn curve(&mut self, bytes: &[u8], path: bool) -> Result<BezPath, String> {
         let mut r = Reader::new(bytes);
         let count = if path {

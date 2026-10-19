@@ -5,12 +5,15 @@
 /// solid red RGB fill and a one-point black outline. Geometry starts at the
 /// page centre (50, 40 points), extending right and down.
 pub fn rectangle() -> Vec<u8> {
+    /// Encode little-endian words for generated record fields.
     fn u32s(values: &[u32]) -> Vec<u8> {
         values.iter().flat_map(|v| v.to_le_bytes()).collect()
     }
+    /// Encode a point measurement as a signed CDR coordinate stored in a word.
     fn coord(points: f64) -> u32 {
         (points / 72.0 * 254000.0).round() as i32 as u32
     }
+    /// Encode a RIFF chunk and pad odd payload lengths.
     fn chunk(id: &[u8; 4], body: &[u8]) -> Vec<u8> {
         let mut v = id.to_vec();
         v.extend_from_slice(&(body.len() as u32).to_le_bytes());
@@ -20,6 +23,7 @@ pub fn rectangle() -> Vec<u8> {
         }
         v
     }
+    /// Wrap generated child chunks in a typed RIFF LIST.
     fn list(kind: &[u8; 4], children: &[u8]) -> Vec<u8> {
         let mut b = kind.to_vec();
         b.extend_from_slice(children);

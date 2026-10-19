@@ -5,6 +5,7 @@ use vectorcraft_color::Paint;
 use vectorcraft_doc::Node;
 use vectorcraft_geom::Shape;
 
+/// Collect editable path nodes recursively for fixture geometry assertions.
 fn paths<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
     if node.path_data().is_some() {
         out.push(node);
@@ -17,6 +18,7 @@ fn paths<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
 }
 
 #[test]
+/// Verify generated geometry, page size and numeric fill/outline properties.
 fn original_rectangle_is_editable_geometry_with_numeric_paint() {
     let bytes = synth::rectangle();
     let imported = import(&bytes).unwrap();
@@ -38,6 +40,7 @@ fn original_rectangle_is_editable_geometry_with_numeric_paint() {
 }
 
 #[test]
+/// Refuse every incomplete prefix of an otherwise valid original drawing.
 fn every_truncated_prefix_is_rejected_without_panic() {
     let bytes = synth::rectangle();
     for n in 0..bytes.len() {
@@ -46,6 +49,7 @@ fn every_truncated_prefix_is_rejected_without_panic() {
 }
 
 #[test]
+/// Check optional local CorelDRAW originals against their known geometry and paint values.
 fn real_corel_files_when_supplied_locally() {
     let Ok(path) = std::env::var("CDR_FIXTURE_DIR") else { return };
     for file in [
@@ -65,6 +69,7 @@ fn real_corel_files_when_supplied_locally() {
         }
         let bytes = std::fs::read(fixture).unwrap();
         if std::env::var_os("CDR_DUMP").is_some() {
+            /// Print bounded record prefixes for explicitly enabled local fixture diagnostics.
             fn dump(chunks: &[crate::container::Chunk], depth: usize) {
                 for c in chunks {
                     eprintln!(
@@ -147,6 +152,7 @@ fn real_corel_files_when_supplied_locally() {
 }
 
 #[test]
+/// Give an actionable failure when every object has an unsupported native kind.
 fn unsupported_only_artwork_has_an_actionable_error() {
     let mut bytes = synth::rectangle();
     let at = bytes.windows(4).position(|p| p == b"loda").unwrap() + 8 + 16;
@@ -155,6 +161,7 @@ fn unsupported_only_artwork_has_an_actionable_error() {
 }
 
 #[test]
+/// Refuse an unsupported clipping-only drawing instead of claiming an empty import succeeded.
 fn clipping_only_artwork_is_not_reported_as_a_blank_drawing() {
     let mut bytes = synth::rectangle();
     let start = bytes.windows(4).position(|p| p == b"obj ").unwrap() - 8;
@@ -176,10 +183,12 @@ fn clipping_only_artwork_is_not_reported_as_a_blank_drawing() {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(256))]
     #[test]
+    /// Keep arbitrary bounded input on the fallible parsing path.
     fn arbitrary_input_never_panics(bytes in proptest::collection::vec(any::<u8>(),0..8192)) {
         let _ = is_cdr(&bytes); let _ = import(&bytes);
     }
     #[test]
+    /// Reject or import byte mutations of an original generated record structure without panics.
     fn mutations_of_real_record_structure_never_panic(offset in 0usize..512, value in any::<u8>()) {
         let mut bytes = synth::rectangle();
         if let Some(b) = bytes.get_mut(offset) { *b = value; }

@@ -8,6 +8,7 @@ use vectorcraft_engine::cmd::fileio;
 use vectorcraft_render::Renderer;
 
 #[test]
+/// Compare every page of optional original CorelDRAW fixtures with independently exported SVGs.
 fn original_corel_files_match_their_independent_svg_exports() {
     let Ok(folder) = std::env::var("CDR_FIXTURE_DIR") else { return };
     let folder = Path::new(&folder);

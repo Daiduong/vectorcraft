@@ -6,6 +6,7 @@ use vectorcraft_doc::NodeKind;
 use super::*;
 
 #[test]
+/// Expose CDR in shared open/place filters while keeping the source format read-only.
 fn cdr_is_registered_for_open_and_place_but_never_for_saving() {
     let mut s = Session::new();
     let r = s.execute("document.formats", &json!({})).unwrap();
@@ -22,6 +23,7 @@ fn cdr_is_registered_for_open_and_place_but_never_for_saving() {
 }
 
 #[test]
+/// Recognize native CDR data without stealing unrelated ZIP or RIFF inputs.
 fn cdr_sniffing_preserves_other_zip_and_riff_formats() {
     let wave = b"RIFF\x04\0\0\0WAVE";
     assert!(detect("sound.wav", wave).is_none());
@@ -33,6 +35,18 @@ fn cdr_sniffing_preserves_other_zip_and_riff_formats() {
 }
 
 #[test]
+/// Route legacy diagnostics through `.cdr` names while preserving other extension fallbacks.
+fn cdr_waldo_diagnostics_use_the_extension_without_hijacking_other_formats() {
+    let bytes = b"WL unrelated content";
+    assert!(detect("unknown.bin", bytes).is_none());
+    assert_eq!(detect("drawing.svg", bytes).unwrap().id, "svg");
+    assert_eq!(detect("legacy.cdr", bytes).unwrap().id, "cdr");
+    let mut s = Session::new();
+    assert!(open_bytes(&mut s, "legacy.cdr", bytes, None).unwrap_err().to_string().contains("Waldo"));
+}
+
+#[test]
+/// Preserve editable geometry through native serialization and protect the imported CDR source.
 fn cdr_open_keeps_editable_vectors_and_requires_a_new_save_path() {
     let bytes = vectorcraft_cdr::synth::rectangle();
     let mut s = Session::new();
@@ -53,6 +67,7 @@ fn cdr_open_keeps_editable_vectors_and_requires_a_new_save_path() {
 }
 
 #[test]
+/// Place editable CDR geometry as one group that a single undo removes.
 fn cdr_place_is_an_editable_group_and_one_undo_step() {
     let bytes = vectorcraft_cdr::synth::rectangle();
     let mut s = Session::new();
@@ -69,6 +84,7 @@ fn cdr_place_is_an_editable_group_and_one_undo_step() {
 }
 
 #[test]
+/// Keep the active document and tab count intact after malformed CDR opens fail.
 fn malformed_cdr_does_not_replace_the_active_document() {
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 40, "height": 30})).unwrap();

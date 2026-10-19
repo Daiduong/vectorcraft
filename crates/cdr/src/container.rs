@@ -16,29 +16,31 @@ pub(crate) struct Chunk {
     pub children: Vec<Chunk>,
 }
 impl Chunk {
+    /// Find the first direct child with the requested FourCC.
     pub fn child(&self, id: &[u8; 4]) -> Option<&Chunk> {
         self.children.iter().find(|c| &c.id == id)
     }
 }
 
+/// Convert an exactly four-byte field into a FourCC, rejecting truncated tags.
 fn four(bytes: &[u8]) -> Result<[u8; 4], String> {
     bytes.try_into().map_err(|_| "truncated CDR FourCC".into())
 }
 
+/// Recognize a complete native RIFF header, excluding the `CDRX` form.
 fn signature(bytes: &[u8]) -> bool {
-    bytes.get(..4) == Some(b"RIFF") && bytes.get(8..11).is_some_and(|s| s.eq_ignore_ascii_case(b"CDR")) && bytes.get(11) != Some(&b'X')
+    bytes.get(..4) == Some(b"RIFF") && bytes.get(8..11).is_some_and(|s| s.eq_ignore_ascii_case(b"CDR")) && bytes.get(11).is_some_and(|c| *c != b'X')
 }
 
+/// Sniff a bounded native header, reading only a 12-byte prefix from ZIP roots.
 pub(crate) fn recognize(bytes: &[u8]) -> bool {
     if bytes.len() > MAX_BYTES {
         return false;
     }
     signature(bytes)
-        || (bytes.starts_with(b"WL"))
         || zip_directory(bytes).is_ok_and(|d| {
             let Some(e) = d.get("content/riffData.cdr").or_else(|| d.get("content/root.dat")) else { return false };
-            let mut remaining = MAX_BYTES;
-            zip_read(bytes, e, &mut remaining).is_ok_and(|root| signature(&root))
+            zip_prefix(bytes, e).is_ok_and(|root| signature(&root))
         })
 }
 
@@ -53,6 +55,7 @@ struct ZipEntry {
     data_end: usize,
 }
 
+/// Index a bounded central directory, rejecting duplicate names and unsupported archive layouts.
 fn zip_directory(bytes: &[u8]) -> Result<BTreeMap<String, ZipEntry>, String> {
     if !bytes.starts_with(b"PK") {
         return Err("not a ZIP container".into());
@@ -115,6 +118,7 @@ fn zip_directory(bytes: &[u8]) -> Result<BTreeMap<String, ZipEntry>, String> {
     Ok(entries)
 }
 
+/// Expand a stream against the shared output budget, returning an error on excess.
 fn inflate(reader: impl Read, remaining: &mut usize) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
     reader.take(*remaining as u64 + 1).read_to_end(&mut out).map_err(|e| format!("CDR decompression failed: {e}"))?;
@@ -122,10 +126,8 @@ fn inflate(reader: impl Read, remaining: &mut usize) -> Result<Vec<u8>, String> 
     Ok(out)
 }
 
-fn zip_read(bytes: &[u8], e: &ZipEntry, remaining: &mut usize) -> Result<Vec<u8>, String> {
-    if e.size > *remaining {
-        return Err("CDR decompressed data limit exceeded".into());
-    }
+/// Validate local/header agreement and payload bounds before borrowing compressed entry bytes.
+fn zip_body<'a>(bytes: &'a [u8], e: &ZipEntry) -> Result<&'a [u8], String> {
     let mut r = Reader::new(bytes).at(e.offset)?;
     if r.take(4)? != b"PK\x03\x04" {
         return Err("invalid CDR ZIP local header".into());
@@ -151,7 +153,30 @@ fn zip_read(bytes: &[u8], e: &ZipEntry, remaining: &mut usize) -> Result<Vec<u8>
     if r.pos.checked_add(e.compressed).is_none_or(|end| end > e.data_end) {
         return Err("CDR ZIP entry overlaps its directory".into());
     }
-    let body = r.take(e.compressed)?;
+    r.take(e.compressed)
+}
+
+/// Recognition needs only the RIFF header; full expansion and CRC checks belong to loading.
+fn zip_prefix(bytes: &[u8], e: &ZipEntry) -> Result<[u8; 12], String> {
+    if !(12..=MAX_BYTES).contains(&e.size) {
+        return Err("invalid CDR ZIP root size".into());
+    }
+    let body = zip_body(bytes, e)?;
+    let mut prefix = [0; 12];
+    match e.method {
+        0 => prefix.copy_from_slice(body.get(..12).ok_or("truncated CDR ZIP root")?),
+        8 => DeflateDecoder::new(body).read_exact(&mut prefix).map_err(|e| format!("CDR prefix decompression failed: {e}"))?,
+        _ => return Err("unsupported CDR ZIP compression method".into()),
+    }
+    Ok(prefix)
+}
+
+/// Fully decode an entry, charging expansion and verifying its declared size and CRC.
+fn zip_read(bytes: &[u8], e: &ZipEntry, remaining: &mut usize) -> Result<Vec<u8>, String> {
+    if e.size > *remaining {
+        return Err("CDR decompressed data limit exceeded".into());
+    }
+    let body = zip_body(bytes, e)?;
     let out = match e.method {
         0 => {
             *remaining = remaining.checked_sub(body.len()).ok_or("CDR expansion limit exceeded")?;
@@ -166,6 +191,7 @@ fn zip_read(bytes: &[u8], e: &ZipEntry, remaining: &mut usize) -> Result<Vec<u8>
     Ok(out)
 }
 
+/// Load native RIFF or ZIP/external streams into checked chunks and resolve the format version.
 pub(crate) fn load(bytes: &[u8]) -> Result<(Vec<Chunk>, u32), String> {
     if bytes.len() > MAX_BYTES {
         return Err("CDR file exceeds 128 MiB input limit".into());
@@ -260,6 +286,7 @@ struct Parser<'a> {
     count: usize,
 }
 impl Parser<'_> {
+    /// Parse RIFF lists and external references under nesting, traversal, expansion and copy quotas.
     fn chunks(&mut self, data: &[u8], sizes: Option<&[u32]>, depth: usize) -> Result<Vec<Chunk>, String> {
         if depth > MAX_DEPTH {
             return Err("CDR nesting limit exceeded".into());
@@ -356,6 +383,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use std::io::Write;
+    /// Encode an original RIFF chunk with its required even-byte padding.
     fn chunk(id: &[u8; 4], body: &[u8]) -> Vec<u8> {
         let mut b = id.to_vec();
         b.extend_from_slice(&(body.len() as u32).to_le_bytes());
@@ -365,6 +393,7 @@ mod tests {
         }
         b
     }
+    /// Wrap test records in a native CDR 12 RIFF header.
     fn riff(body: &[u8]) -> Vec<u8> {
         let mut b = b"RIFF".to_vec();
         b.extend_from_slice(&((body.len() + 4) as u32).to_le_bytes());
@@ -372,6 +401,7 @@ mod tests {
         b.extend_from_slice(body);
         b
     }
+    /// Create the public `CPng`/zlib representation used by compressed RIFF streams.
     fn compressed(data: &[u8]) -> Vec<u8> {
         let mut enc = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
         enc.write_all(data).unwrap();
@@ -379,6 +409,7 @@ mod tests {
         b.extend(enc.finish().unwrap());
         b
     }
+    /// Replace generated chunk lengths with indices into a shared compressed-length pool.
     fn indexed(bytes: &[u8], sizes: &mut Vec<u32>) -> Vec<u8> {
         let mut r = Reader::new(bytes);
         let mut result = Vec::new();
@@ -405,23 +436,40 @@ mod tests {
         }
         result
     }
+    /// Build a single-entry stored ZIP from original test bytes.
     pub(super) fn zip(name: &str, data: &[u8]) -> Vec<u8> {
+        zip_with_method(name, data, 0)
+    }
+    /// Build matching local/central ZIP headers for stored or raw-deflated test bytes.
+    fn zip_with_method(name: &str, data: &[u8], method: u16) -> Vec<u8> {
+        let body = if method == 8 {
+            let mut enc = flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
+            enc.write_all(data).unwrap();
+            enc.finish().unwrap()
+        } else {
+            data.to_vec()
+        };
         let crc = crc32fast::hash(data);
         let size = data.len() as u32;
+        let compressed = body.len() as u32;
         let n = name.len() as u16;
         let mut b = b"PK\x03\x04".to_vec();
-        b.extend_from_slice(&[20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        for v in [crc, size, size] {
+        b.extend_from_slice(&[20, 0, 0, 0]);
+        b.extend_from_slice(&method.to_le_bytes());
+        b.extend_from_slice(&[0; 4]);
+        for v in [crc, compressed, size] {
             b.extend_from_slice(&v.to_le_bytes());
         }
         b.extend_from_slice(&n.to_le_bytes());
         b.extend_from_slice(&[0, 0]);
         b.extend_from_slice(name.as_bytes());
-        b.extend_from_slice(data);
+        b.extend_from_slice(&body);
         let offset = b.len() as u32;
         let mut c = b"PK\x01\x02".to_vec();
-        c.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        for v in [crc, size, size] {
+        c.extend_from_slice(&[20, 0, 20, 0, 0, 0]);
+        c.extend_from_slice(&method.to_le_bytes());
+        c.extend_from_slice(&[0; 4]);
+        for v in [crc, compressed, size] {
             c.extend_from_slice(&v.to_le_bytes());
         }
         c.extend_from_slice(&n.to_le_bytes());
@@ -437,6 +485,7 @@ mod tests {
         b
     }
     #[test]
+    /// Require compressed length-pool decoding to preserve the generated native document.
     fn compressed_length_pool_recovers_same_native_drawing() {
         let plain = crate::synth::rectangle();
         let mut sizes = Vec::new();
@@ -456,6 +505,7 @@ mod tests {
         assert_eq!(p.document, z.document);
     }
     #[test]
+    /// Reject unrelated roots and conflicting local ZIP flags or compression methods.
     fn zip_recognition_checks_native_root_and_rejects_local_header_mismatch() {
         let b = zip("content/root.dat", &crate::synth::rectangle());
         assert!(recognize(&b));
@@ -470,12 +520,40 @@ mod tests {
         assert!(!recognize(&mismatch));
     }
     #[test]
+    /// Keep weak legacy prefixes out of sniffing while retaining the Waldo import diagnostic.
+    fn recognition_requires_a_full_riff_signature_and_does_not_guess_waldo() {
+        assert!(!recognize(b"WL"));
+        assert!(!recognize(b"WL unrelated file"));
+        assert!(!recognize(b"RIFF\x04\0\0\0CDR"));
+        assert!(load(b"WL").unwrap_err().contains("Waldo"));
+    }
+    #[test]
+    /// Exercise stored/deflated sniffing and defer full CRC validation to loading.
+    fn zip_recognition_reads_only_the_signature_and_loading_checks_crc() {
+        let root = crate::synth::rectangle();
+        for method in [0, 8] {
+            let mut bytes = zip_with_method("content/riffData.cdr", &root, method);
+            assert!(recognize(&bytes));
+            assert!(crate::import(&bytes).is_ok());
+            // Matching headers with a wrong CRC must still sniff as CDR, but never load.
+            let directory = bytes.windows(4).position(|s| s == b"PK\x01\x02").unwrap();
+            let wrong_crc = (crc32fast::hash(&root) ^ 1).to_le_bytes();
+            bytes[14..18].copy_from_slice(&wrong_crc);
+            bytes[directory + 16..directory + 20].copy_from_slice(&wrong_crc);
+            assert!(recognize(&bytes));
+            assert!(load(&bytes).unwrap_err().contains("CRC"));
+            assert!(!recognize(&zip_with_method("content/root.dat", b"RIFF", method)));
+        }
+    }
+    #[test]
+    /// Stop decompression when its output would exceed the supplied budget.
     fn expansion_budget_stops_before_large_allocation() {
         let encoded = compressed(&[0; 256]);
         let mut remaining = 16;
         assert!(inflate(ZlibDecoder::new(&encoded[8..]), &mut remaining).is_err());
     }
     #[test]
+    /// Charge repeated aliases for each materialized leaf rather than only the backing stream.
     fn duplicate_external_references_have_a_separate_copy_budget() {
         let streams = vec![vec![7; 32]];
         let mut remaining = 1024;
@@ -487,6 +565,7 @@ mod tests {
         assert!(p.chunks(&chunks, None, 0).unwrap_err().contains("materialized"));
     }
     #[test]
+    /// Reject nonterminal zero records and overflowing version-record lengths.
     fn zero_records_and_huge_version_lengths_are_rejected() {
         let mut zeros = vec![0; 65536];
         zeros.extend_from_slice(b"nonzero!");
@@ -496,6 +575,7 @@ mod tests {
         assert!(load(&riff(&fver)).is_err());
     }
     #[test]
+    /// Bound repeated external LIST traversal independently of leaf-copy allocations.
     fn repeated_external_lists_charge_the_traversal_budget() {
         let mut list = b"data".to_vec();
         list.extend_from_slice(&[0; 32]);

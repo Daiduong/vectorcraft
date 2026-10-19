@@ -27,11 +27,13 @@ proptest! {
     #![proptest_config(config())]
 
     #[test]
+    /// Exercise shared CDR loading with bounded arbitrary input without panicking.
     fn cdr_garbage_never_panics(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
         survive("CDR garbage", || vectorcraft_cdr::import(&bytes).ok().map(|i| i.document))?;
     }
 
     #[test]
+    /// Carry mutated original CDR records through open, place, rendering and export.
     fn cdr_damaged_records_survive_open_place_render_and_export(
         cut in 0usize..4096,
         edits in prop::collection::vec((any::<usize>(), any::<u8>()), 0..12),
