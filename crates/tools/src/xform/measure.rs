@@ -57,12 +57,11 @@ impl Tool for MeasureTool {
         if a == b {
             return vec![];
         }
-        let (dist, ang, dx, dy) = measure(a, b);
         vec![
             Overlay::Line { a, b, color: CYAN, dashed: false },
             Overlay::Measure {
                 p: b + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
-                text: format!("D: {}\nAngle: {ang:.1}°\n{}", cx.len(dist), cx.offset_label(dx, dy)),
+                text: cx.draw_measure_label(a, b),
             },
         ]
     }

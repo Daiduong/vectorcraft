@@ -610,7 +610,7 @@ impl Tool for SelectionTool {
                 // Shift has already constrained `d`: any change is a snap.
                 self.snapped = (d - unsnapped).hypot() > 1e-9;
                 self.state = State::Moving { start, began: true, deselect: None, key: None };
-                self.measure = cx.measurement_labels.then(|| (p, cx.offset_label(d.x, d.y)));
+                self.measure = cx.measurement_labels.then(|| (p, cx.draw_measure_label(start, p)));
                 out.push(Action::Preview("object.transform".into(), json!({ "matrix": matrix_json(Affine::translate(d)), "copy": m.alt })));
                 out
             }
@@ -1831,6 +1831,12 @@ mod tests {
         s.add(id);
         let p = paint();
         let measures = |t: &SelectionTool, c: &ToolContext| t.overlays(c).iter().filter(|o| matches!(o, Overlay::Measure { .. })).count();
+        let move_label = |t: &SelectionTool, c: &ToolContext| {
+            t.overlays(c).iter().find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+        };
         let height = |a: &[Action]| {
             let Action::Preview(_, v) = &a[0] else { panic!("{a:?}") };
             v["matrix"][3].as_f64().unwrap() * 50.0
@@ -1842,6 +1848,10 @@ mod tests {
             t.pointer(&c, &ev(PointerKind::Down, 275.0, 125.0));
             t.pointer(&c, &ev(PointerKind::Drag, 285.0, 135.0));
             assert_eq!(measures(&t, &c), usize::from(on), "measurement labels {on}");
+            if on {
+                let text = move_label(&t, &c).expect("move label");
+                assert!(text.contains("D:") && text.contains("Angle:") && text.contains("dX:"), "{}", text);
+            }
             t.pointer(&c, &ev(PointerKind::Up, 285.0, 135.0));
         }
         // Scaling by a handle: the size readout belongs to Transform Tools.
