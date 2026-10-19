@@ -356,6 +356,23 @@ fn fit_to_artwork_bounds_leaves_out_the_hidden_art_and_guides_the_editing_data_h
 }
 
 #[test]
+fn template_layers_open_from_editing_data() {
+    let square = format!("0 g\n{}f\n", ai::rect(0.0, 0.0, 10.0, 10.0));
+    let template = format!(
+        "%AI5_BeginLayer\n1 1 1 0 1 0 1 0 79 128 255 0 40 0 Lb\n(Dieline) Ln\n0 A\n0 Xw\n{square}\nLB\n%AI5_EndLayer--\n"
+    );
+    let data = ai::editing_data(200.0, 100.0, &template);
+    let mut s = Session::new();
+    open(&mut s, "pkg.ai", &ai::ai(&compressed(data.as_bytes()), PLACEHOLDER), json!({})).unwrap();
+    let layer = &s.doc().unwrap().doc.layers[0];
+    assert_eq!(layer.name.as_deref(), Some("Dieline"));
+    let NodeKind::Layer { printable, template, dim_images, .. } = &layer.kind else { panic!("not a layer") };
+    assert!(!*printable && *template);
+    assert_eq!(*dim_images, Some(40));
+    assert!(layer.is_template());
+}
+
+#[test]
 fn type_asked_for_as_outlines_opens_a_file_whose_type_shows_from_its_pdf_part() {
     let text = "/AI11Text :\n0 /FreeUndo ,\n0 /FrameIndex ,\n0 /StoryIndex ,\n;\n";
     let data = ai::editing_data(200.0, 100.0, &ai::layer("Art", &format!("0 g\n{}f\n{text}", ai::rect(10.0, 10.0, 50.0, 50.0))));

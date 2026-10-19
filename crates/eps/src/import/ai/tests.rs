@@ -75,6 +75,22 @@ fn layers_and_sublayers() {
 }
 
 #[test]
+fn template_and_non_printing_layers_from_lb_flags() {
+    let square = format!("{RED}{}f\n", rect_path(0.0, 0.0, 10.0, 10.0));
+    // Non-printing only: printing off, dimmed off (as a PDF layer with PrintState /OFF).
+    let notes = format!("%AI5_BeginLayer\n1 1 1 0 0 0 1 0 79 128 255 0 50 0 Lb\n(Notes) Ln\n0 A\n0 Xw\n{square}\nLB\n%AI5_EndLayer--\n");
+    // Template: printing off, dimmed on (as the version 7 writer emits template layers).
+    let template = format!("%AI5_BeginLayer\n1 1 1 0 1 0 1 0 79 128 255 0 40 0 Lb\n(Dieline) Ln\n0 A\n0 Xw\n{square}\nLB\n%AI5_EndLayer--\n");
+    let doc = read_ok(&format!("{notes}{template}")).doc;
+    assert_eq!(doc.layers.len(), 2);
+    let NodeKind::Layer { printable, template, dim_images, .. } = &doc.layers[0].kind else { panic!() };
+    assert!(!*printable && !*template && dim_images.is_none());
+    let NodeKind::Layer { printable, template, dim_images, .. } = &doc.layers[1].kind else { panic!() };
+    assert!(!*printable && *template);
+    assert_eq!(*dim_images, Some(40));
+}
+
+#[test]
 fn groups_names_hidden_and_locked() {
     let art_ = format!(
         "0 Ae\nu\n{RED}{}f\n%_/ArtDictionary :\n%_/XMLUID : (My_Rect__x23_2) ; (AI10_ArtUID) ,\n%_;\n%_\n\

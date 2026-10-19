@@ -3,7 +3,9 @@
 //! - Art space has y up; the first artboard's top left corner is the document's origin.
 //! - Layers: `%AI5_BeginLayer`, `visible preview unlocked printing dimmed … colorIndex r g b …
 //!   dimPercent … Lb` (ten operands in the legacy format, without the one before the colour
-//!   index), `(name) Ln`, its art, `LB`.
+//!   index), `(name) Ln`, its art, `LB`. A layer that doesn't print with dimmed on is a template
+//!   layer (as the version 7 writer emits them); one that doesn't print without dimmed is only
+//!   non-printing.
 //! - Groups `u` … `U`, compound paths `*u` … `*U`, clipping groups `q` … `Q` (the path painted
 //!   with `W` clips); a group's transparency and name follow its end.
 //! - Paths: `m`, `l`/`L`, `c`/`C`, `v`/`V`, `y`/`Y`, painted by `N n F f S s B b` (lower case
@@ -356,6 +358,7 @@ struct LayerAttrs {
     preview: bool,
     locked: bool,
     printable: bool,
+    template: bool,
     dim: Option<u8>,
     color: Option<LayerColor>,
 }
@@ -1050,7 +1053,7 @@ impl<'a> Reader<'a> {
         let color = a.color.unwrap_or(LayerColor::Preset(0));
         let mut layer = Node::new(
             self.doc.alloc_id(),
-            NodeKind::Layer { color, template: false, printable: a.printable, children, clip, preview: a.preview, dim_images: a.dim },
+            NodeKind::Layer { color, template: a.template, printable: a.printable, children, clip, preview: a.preview, dim_images: a.dim },
         );
         layer.name = Some(a.name.clone());
         layer.visible = a.visible;
@@ -1625,8 +1628,10 @@ impl<'a> Reader<'a> {
         a.preview = flag(1, true);
         a.locked = !flag(2, true);
         a.printable = flag(3, true);
+        let dimmed = flag(4, false);
+        a.template = !a.printable && dimmed;
         let dim_pct = n.get(12).copied().filter(|v| v.is_finite()).unwrap_or(50.0).clamp(0.0, 100.0);
-        a.dim = flag(4, false).then_some(dim_pct.round() as u8);
+        a.dim = dimmed.then_some(dim_pct.round() as u8);
         let at = if n.len() <= 10 { 6 } else { 7 };
         let index = n.get(at).copied().unwrap_or(0.0);
         let rgb = |i: usize| n.get(at + i).map_or(0, |v| v.clamp(0.0, 255.0) as u8);
