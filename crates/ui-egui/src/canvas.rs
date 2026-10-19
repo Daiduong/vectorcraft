@@ -3575,9 +3575,11 @@ mod tests {
 
     /// Over the canvas a tool's glyph cursor is an OS cursor bitmap, which the system moves at
     /// hardware speed (a painted one trails the mouse), with the nearest system cursor as the
-    /// fallback; the pointer leaving the canvas drops the bitmap.
+    /// fallback; the pointer leaving the canvas drops the bitmap. Builds that paint the glyphs in
+    /// the window instead (macOS, the web: [`crate::cursors::OS_CURSORS`]) never set a bitmap.
     #[test]
     fn glyph_cursors_are_os_cursor_bitmaps() {
+        let os = crate::cursors::OS_CURSORS;
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         app.select_tool("selection");
@@ -3586,17 +3588,21 @@ mod tests {
         // egui hit-tests against the previous frame's widgets.
         frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at)]);
         let out = frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at + vec2(1.0, 1.0))]);
-        assert!(out.platform_output.cursor_image.is_some(), "the arrow is an OS cursor");
-        assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::Default, "the system arrow is its fallback");
+        assert_eq!(out.platform_output.cursor_image.is_some(), os, "the arrow is an OS cursor where the build has them");
+        if os {
+            assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::Default, "the system arrow is its fallback");
+        }
 
         app.select_tool("hand");
         let out = frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at + vec2(1.0, 0.0))]);
-        assert!(out.platform_output.cursor_image.is_some(), "the hand is an OS cursor");
-        assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::Grab, "the system grab hand is its fallback");
+        assert_eq!(out.platform_output.cursor_image.is_some(), os, "the hand is an OS cursor where the build has them");
+        if os {
+            assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::Grab, "the system grab hand is its fallback");
+        }
 
         app.select_tool("pen");
         let out = frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at)]);
-        assert!(out.platform_output.cursor_image.is_some(), "the pen is an OS cursor");
+        assert_eq!(out.platform_output.cursor_image.is_some(), os, "the pen is an OS cursor where the build has them");
         let out = frame(&mut app, &ctx, vec![egui::Event::PointerGone]);
         assert_eq!(out.platform_output.cursor_image, None, "off the canvas the bitmap is dropped");
     }
