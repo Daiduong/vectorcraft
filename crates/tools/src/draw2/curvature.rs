@@ -374,10 +374,19 @@ impl CurvatureTool {
 
     /// The path the next click goes on (left out of the snap targets, its anchors still pulling)
     /// and the segment to it: the path being drawn, or the selected one whose end is current.
-    fn leave(&self, cx: &ToolContext) -> Option<(NodeId, Leave)> {
+    fn leave(&self, cx: &ToolContext, shift: bool) -> Option<(NodeId, Leave)> {
         match self.active(cx) {
-            Some(id) => self.pts.last().map(|(p, _)| (id, Leave::segment(cx, *p, false))),
-            None => current_end(cx).map(|e| (e.id, Leave::segment(cx, e.p, false))),
+            Some(id) => self.pts.last().map(|(p, _)| (id, Leave::segment(cx, *p, shift))),
+            None => current_end(cx).map(|e| (e.id, Leave::segment(cx, e.p, shift))),
+        }
+    }
+
+    /// Shift keeps a dragged point on 45° steps from the anchor being moved (#975).
+    fn drag_leave(cx: &ToolContext, grab: Grab, pts: &[(Point, bool)], shift: bool) -> Option<Leave> {
+        match grab {
+            Grab::Drawn(i) => pts.get(i).map(|(p, _)| Leave::segment(cx, *p, shift)),
+            Grab::Anchor(id, si, ai) => subpath(cx, id, si)?.anchors.get(ai).map(|a| Leave::segment(cx, a.p, shift)),
+            Grab::Inserted(..) => None,
         }
     }
 
@@ -420,7 +429,7 @@ impl CurvatureTool {
             return Some(out);
         }
         if let Some(e) = end {
-            let q = self.snap.press(cx, p, &[e.id], Some(&Leave::segment(cx, e.p, false)));
+            let q = self.snap.press(cx, p, &[e.id], Some(&Leave::segment(cx, e.p, ev.mods.shift)));
             let how = self.how(&e);
             self.placed = Some(Placed { id: e.id, si: e.si, start: e.start, anchors: e.anchors + 1, corner: ev.mods.alt });
             let v = json!({"id": e.id.0, "subpath": e.si, "op": "extend", "end": e.name(), "x": q.x, "y": q.y, "from": how.name(), "corner": ev.mods.alt});
@@ -448,10 +457,15 @@ impl Tool for CurvatureTool {
         if active.is_none() && self.id.is_some() && matches!(ev.kind, PointerKind::Down) {
             self.reset();
         }
+        let exclude: Vec<NodeId> = active.into_iter().collect();
+        let segment_leave = match active {
+            Some(_) => self.leave(cx, ev.mods.shift).map(|(_, l)| l),
+            None if !self.pts.is_empty() => self.pts.last().map(|(p, _)| Leave::segment(cx, *p, ev.mods.shift)),
+            None => current_end(cx).map(|e| Leave::segment(cx, e.p, ev.mods.shift)),
+        };
         match ev.kind {
             PointerKind::Move => {
-                let (on, from) = self.leave(cx).unzip();
-                self.hover = Some(self.snap.hover(cx, p, on.as_slice(), from.as_ref()));
+                self.hover = Some(self.snap.hover(cx, p, &exclude, segment_leave.as_ref()));
                 vec![]
             }
             PointerKind::Down => {
@@ -472,8 +486,7 @@ impl Tool for CurvatureTool {
                         return vec![];
                     }
                     if !self.closed {
-                        let from = self.leave(cx).map(|l| l.1);
-                        let p = self.snap.press(cx, p, &[id], from.as_ref());
+                        let p = self.snap.press(cx, p, &exclude, segment_leave.as_ref());
                         self.pts.push((p, ev.mods.alt));
                         self.current = Some(self.pts.len() - 1);
                         return vec![Action::Exec("path.curvature".into(), self.params())];
@@ -499,7 +512,8 @@ impl Tool for CurvatureTool {
                     out.push(Action::Begin("Curvature".into()));
                     self.drag = Some((grab, start, true));
                 }
-                let p = self.snap.drag(cx, p, None);
+                let from = Self::drag_leave(cx, grab, &self.pts, ev.mods.shift);
+                let p = self.snap.drag(cx, p, from.as_ref());
                 out.push(match grab {
                     Grab::Drawn(i) => {
                         if let Some(pt) = self.pts.get_mut(i) {
@@ -684,6 +698,25 @@ mod tests {
         t.pts = vec![(Point::new(100.0, 100.0), false); 4];
         let a = t.pointer(&cx2, &PointerEvent::new(PointerKind::Down, 400.0, 400.0));
         assert!(matches!(&a[0], Action::Exec(_, v) if v["id"] == id.0 && v["points"].as_array().unwrap().len() == 5));
+    }
+
+    /// #975: Shift keeps the next point at 45° steps from the previous one, as the Pen tool does.
+    #[test]
+    fn shift_constrains_the_next_point_to_forty_five_degrees() {
+        let start = pt(50.0, 50.0);
+        let (d, id) = doc_with(SubPath::new(vec![Anchor::corner(start)], false));
+        let s = selected(id, None);
+        let p = paint();
+        let cx = quiet(&d, &s, &p);
+        let mut t = CurvatureTool::default();
+        t.id = Some(id);
+        t.pts = vec![(start, false)];
+        let shift = Mods { shift: true, ..Mods::default() };
+        let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 200.0, 50.0).with_mods(shift));
+        let Action::Exec(_, v) = &a[0] else { panic!("{a:?}") };
+        let pt = &v["points"][1];
+        assert!((pt["x"].as_f64().unwrap() - 200.0).abs() < 1e-6);
+        assert!((pt["y"].as_f64().unwrap() - 50.0).abs() < 1e-6, "{pt:?}");
     }
 
     /// Points snap to Smart Guides (#506): the first lands on another object's anchor and says so.
