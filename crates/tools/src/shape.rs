@@ -2,14 +2,14 @@
 //!
 //! Drag draws (Shift constrains to square/circle/45°, Alt draws from the centre, Space held moves
 //! the shape being drawn); a click without a drag asks the UI for the size dialog (like
-//! Illustrator). ↑/↓ during a polygon/star drag change the side/point count; during a rectangle
-//! drag they cycle the corner kind (round, inverted round, chamfer); during a star drag, Ctrl/Cmd
+//! Illustrator). ↑/↓ during a polygon/star drag change the side/point count; during a rounded
+//! rectangle drag they change the corner radius; during a star drag, Ctrl/Cmd
 //! keeps the inner radius where it is while the outer one follows the pointer, and Alt keeps the
 //! star's shoulders straight (#812). The start point and the dragged corner snap to Smart Guides
 //! ([`DrawSnap`]), hovering before the press too.
 
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Rect, shapes::CornerKind};
+use vectorcraft_geom::{Point, Rect};
 
 use crate::guides::{DrawSnap, Leave, square};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -23,10 +23,6 @@ pub struct ShapeTool {
     pub sides: u32,
     pub points: u32,
     pub corner_radius: f64,
-    /// Corner kind while drawing a rectangle (↑/↓ cycle it).
-    corner_kind: CornerKind,
-    /// Live corner radius for a rectangle drag (set when a non-square corner is chosen).
-    rect_corner_radius: f64,
     /// Star inner radius as a fraction of the outer radius.
     pub star_ratio: f64,
     /// The star's inner radius held while Ctrl/Cmd is down in a drag.
@@ -61,8 +57,6 @@ impl ShapeTool {
             sides: 6,
             points: 5,
             corner_radius: 12.0,
-            corner_kind: CornerKind::Round,
-            rect_corner_radius: 0.0,
             star_ratio: 0.5,
             inner: None,
             snap: DrawSnap::default(),
@@ -135,25 +129,10 @@ impl ShapeTool {
                 let mut v = json!({ "x": r.x0, "y": r.y0, "width": r.width(), "height": r.height() });
                 if self.id == "roundedRectangle" {
                     v["radius"] = json!(self.corner_radius);
-                } else if self.id == "rectangle" && self.rect_corner_radius > 0.0 {
-                    v["radius"] = json!(self.rect_corner_radius);
-                    v["kind"] = json!(match self.corner_kind {
-                        CornerKind::Round => "round",
-                        CornerKind::InvertedRound => "invertedRound",
-                        CornerKind::Chamfer => "chamfer",
-                    });
                 }
                 (cmd.into(), v)
             }
         }
-    }
-}
-
-fn corner_kind_prev(k: CornerKind) -> CornerKind {
-    match k {
-        CornerKind::Round => CornerKind::Chamfer,
-        CornerKind::InvertedRound => CornerKind::Round,
-        CornerKind::Chamfer => CornerKind::InvertedRound,
     }
 }
 
@@ -191,8 +170,6 @@ impl Tool for ShapeTool {
                 self.start = Some(p);
                 self.last = ev.pos;
                 self.began = false;
-                self.corner_kind = CornerKind::Round;
-                self.rect_corner_radius = 0.0;
                 vec![]
             }
             PointerKind::Drag => {
@@ -256,24 +233,6 @@ impl Tool for ShapeTool {
             }
             ("roundedRectangle", ToolKey::Down) => {
                 self.corner_radius = (self.corner_radius - 1.0).max(0.0);
-                true
-            }
-            ("rectangle", ToolKey::Up) => {
-                self.corner_kind = match self.corner_kind {
-                    CornerKind::Round => CornerKind::InvertedRound,
-                    CornerKind::InvertedRound => CornerKind::Chamfer,
-                    CornerKind::Chamfer => CornerKind::Round,
-                };
-                if self.rect_corner_radius == 0.0 {
-                    self.rect_corner_radius = self.corner_radius;
-                }
-                true
-            }
-            ("rectangle", ToolKey::Down) => {
-                self.corner_kind = corner_kind_prev(self.corner_kind);
-                if self.rect_corner_radius == 0.0 {
-                    self.rect_corner_radius = self.corner_radius;
-                }
                 true
             }
             _ => false,
@@ -432,27 +391,6 @@ mod tests {
         t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 10.0));
         let a = t.key(&cx, ToolKey::Up, Mods::default());
         assert!(matches!(&a[0], Action::Preview(_, v) if v["sides"] == 7));
-    }
-
-    #[test]
-    fn arrow_keys_cycle_rectangle_corner_kinds() {
-        let (d, _) = doc_with_rect();
-        let s = Selection::default();
-        let p = paint();
-        let cx = cx(&d, &s, &p);
-        let mut t = ShapeTool::new("rectangle");
-        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
-        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 30.0));
-        let a = t.key(&cx, ToolKey::Up, Mods::default());
-        assert!(
-            matches!(&a[0], Action::Preview(_, v) if v["kind"] == "invertedRound" && v["radius"].as_f64() == Some(12.0)),
-            "{a:?}"
-        );
-        let a = t.key(&cx, ToolKey::Down, Mods::default());
-        assert!(
-            matches!(&a[0], Action::Preview(_, v) if v["kind"] == "round" && v["radius"].as_f64() == Some(12.0)),
-            "{a:?}"
-        );
     }
 
     /// The start and the dragged corner land on another object's anchors (#506), hovering shows
