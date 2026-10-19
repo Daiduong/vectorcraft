@@ -1250,6 +1250,7 @@ impl VectorcraftApp {
             // The timer and heartbeat run in an idle window too.
             ctx.request_repaint_after(std::time::Duration::from_secs_f64(wait));
         }
+        crate::keymap::note_os(ctx.os());
         shortcut_editor::sync(&self.ui);
         prefs_dialog::apply_runtime(self, ctx);
         // The OS title bar (and the taskbar / Alt-Tab entry) follows the active file; with the

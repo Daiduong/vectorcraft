@@ -6,6 +6,7 @@
 //! mirror (synced every frame by [`sync`]) holds the keymap with them, so `menus::shortcut_of`, the
 //! dispatcher, the native menu and tooltips consult them without threading the app state through.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -87,8 +88,12 @@ ui_mirror!(fn store() -> Option<Arc<Mirror>>);
 
 /// The mirror: the keymap in effect.
 pub(crate) fn current() -> Arc<Mirror> {
-    static DEFAULTS: OnceLock<Arc<Mirror>> = OnceLock::new();
-    store().read().ok().and_then(|m| m.clone()).unwrap_or_else(|| DEFAULTS.get_or_init(|| Arc::new(Mirror::new(Overrides::new()))).clone())
+    static MAC: OnceLock<Arc<Mirror>> = OnceLock::new();
+    static OTHER: OnceLock<Arc<Mirror>> = OnceLock::new();
+    store().read().ok().and_then(|m| m.clone()).unwrap_or_else(|| {
+        let defaults = if crate::keymap::platform().is_mac() { &MAC } else { &OTHER };
+        defaults.get_or_init(|| Arc::new(Mirror::new(Overrides::new()))).clone()
+    })
 }
 
 /// Leak-once interning for override strings (bounded by the chords a user ever assigns).
@@ -108,7 +113,7 @@ pub fn sync(ui: &UiState) {
     let same = store()
         .read()
         .map(|m| match &*m {
-            Some(m) => *m.keymap.overrides() == ui.shortcut_overrides,
+            Some(m) => *m.keymap.overrides() == ui.shortcut_overrides && m.keymap.platform() == crate::keymap::platform(),
             None => ui.shortcut_overrides.is_empty(),
         })
         .unwrap_or(false);
@@ -382,7 +387,7 @@ pub fn assign_in(km: &mut Keymap, key: &str, chord: Option<&str>, force: bool) -
     if km.bindable(&command).is_none() {
         return Err(format!("unknown tool or command `{key}`"));
     }
-    let text = match chord {
+    let c = match chord {
         None | Some("") => {
             // Fails only when the overrides hold the most entries they can.
             if !km.clear(&command) {
@@ -392,7 +397,7 @@ pub fn assign_in(km: &mut Keymap, key: &str, chord: Option<&str>, force: bool) -
         }
         Some(c) => c,
     };
-    let chord = vc_chord(text).ok_or_else(|| format!("can't parse shortcut `{text}`"))?;
+    let chord = vc_chord(c).ok_or_else(|| format!("can't parse shortcut `{c}`"))?;
     if key.starts_with("tool:") && (chord.mods.cmd || chord.mods.ctrl || chord.mods.alt) {
         return Err("tool shortcuts must be a single key (optionally with Shift)".into());
     }
@@ -595,11 +600,45 @@ pub fn is_recording(app: &VectorcraftApp) -> bool {
 
 // ---------- dialog ----------
 
+/// The dialog's working set as a keymap, with each entry's shortcut text (in [`entries`] order)
+/// and the number of conflicts, kept between frames while the set is unchanged.
+struct DialogView {
+    /// The dialog's `overrides` field this was built from.
+    source: Value,
+    keymap: Keymap,
+    texts: Vec<Option<String>>,
+    conflicts: usize,
+}
+
+impl DialogView {
+    fn new(overrides: Overrides) -> DialogView {
+        let keymap = keymap_with(&overrides);
+        let texts = entries().iter().map(|e| effective_with(&keymap, &e.key)).collect();
+        let conflicts = conflicts_in(&keymap).len();
+        DialogView { source: stored::to_value(keymap.overrides()), keymap, texts, conflicts }
+    }
+
+    /// The view of `d`'s working set, from the cache unless the set changed. The dialog's
+    /// `overrides` field is left in its stored form.
+    fn of(ctx: &egui::Context, d: &mut Dialog) -> Arc<DialogView> {
+        let id = egui::Id::new("dialog-shortcuts-view");
+        let source = d.fields.get("overrides").unwrap_or(&Value::Null);
+        if let Some(v) = ctx.data(|m| m.get_temp::<Arc<DialogView>>(id)).filter(|v| v.source == *source) {
+            return v;
+        }
+        let v = Arc::new(DialogView::new(dialog_overrides(d)));
+        d.fields.insert("overrides".into(), v.source.clone());
+        ctx.data_mut(|m| m.insert_temp(id, v.clone()));
+        v
+    }
+}
+
 pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);
-    // The working set, as a keymap: built once a frame.
-    let mut km = keymap_with(&dialog_overrides(&d));
+    // The working set, as a keymap: copied only by an edit this frame.
+    let view = DialogView::of(ctx, &mut d);
+    let mut km = Cow::Borrowed(&view.keymap);
     let mut ok = false;
     let mut cancel = false;
     let recording = d.str("__recording");
@@ -617,7 +656,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             if key == Key::Escape {
                 d.fields.insert("__recording".into(), json!(""));
             } else if let Some(chord) = chord_from_event(key, m) {
-                record(&mut d, &mut km, &recording, &chord);
+                record(&mut d, km.to_mut(), &recording, &chord);
             }
         }
     }
@@ -638,7 +677,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             if let Some(&name) = crate::dialogs::mixed_dropdown(ui, "kbset", &cur, &opts, 200.0, |_| true).and_then(|i| opts.get(i))
                 && let Some(p) = preset(name)
             {
-                km.set_overrides(p);
+                km.to_mut().set_overrides(p);
                 d.fields.insert("set".into(), json!(name));
                 d.fields.insert("__message".into(), json!(""));
             }
@@ -650,7 +689,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 d.fields.insert("__export".into(), json!(true));
             }
             if ui.button(tl!("Reset to Defaults")).clicked() {
-                km.reset_all();
+                km.to_mut().reset_all();
                 d.fields.insert("set".into(), json!(PRESETS[0]));
                 d.fields.insert("__message".into(), json!(tl!("All shortcuts reset to defaults.")));
             }
@@ -686,8 +725,11 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 ui.label(egui::RichText::new(tl!("Shortcut")).color(t.text_dim).size(11.0));
             });
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, false]).show(ui, |ui| {
-                for e in entries().iter().filter(|e| e.is_tool == tools) {
-                    let sc = effective_with(&km, &e.key);
+                for (i, e) in entries().iter().enumerate().filter(|(_, e)| e.is_tool == tools) {
+                    let sc = match &km {
+                        Cow::Borrowed(_) => view.texts.get(i).cloned().flatten(),
+                        Cow::Owned(km) => effective_with(km, &e.key),
+                    };
                     let matches = e.label.to_lowercase().contains(&q)
                         || tl!(&e.label).to_lowercase().contains(&q)
                         || e.group.to_lowercase().contains(&q)
@@ -738,13 +780,13 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             let sel = d.str("__selected");
             ui.add_enabled_ui(!sel.is_empty(), |ui| {
                 if ui.button(tl!("Clear")).on_hover_text(tl!("Remove the shortcut")).clicked() {
-                    if let Err(e) = assign_in(&mut km, &sel, None, true) {
+                    if let Err(e) = assign_in(km.to_mut(), &sel, None, true) {
                         d.fields.insert("__message".into(), json!(e));
                     }
                     d.fields.insert("set".into(), json!(CUSTOM));
                 }
                 if ui.button(tl!("Use Default")).clicked() {
-                    km.reset(&command_of(&sel));
+                    km.to_mut().reset(&command_of(&sel));
                 }
             });
             let conflict = d.str("__conflict");
@@ -761,7 +803,10 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         if !msg.is_empty() {
             ui.label(egui::RichText::new(msg).color(t.accent_strong).size(11.5));
         }
-        let n = conflicts_in(&km).len();
+        let n = match &km {
+            Cow::Borrowed(_) => view.conflicts,
+            Cow::Owned(km) => conflicts_in(km).len(),
+        };
         if n > 0 {
             ui.label(
                 egui::RichText::new(crate::i18n::tn(
@@ -784,7 +829,9 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             }
         });
     });
-    d.fields.insert("overrides".into(), stored::to_value(km.overrides()));
+    if let Cow::Owned(km) = &km {
+        d.fields.insert("overrides".into(), stored::to_value(km.overrides()));
+    }
     let import = d.fields.remove("__import").is_some();
     let export = d.fields.remove("__export").is_some();
     app.ui.dialog = Some(d);

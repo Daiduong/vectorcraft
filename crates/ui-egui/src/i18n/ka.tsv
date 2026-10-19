@@ -5088,6 +5088,7 @@ imageTrace	Outline	კონტური
 @msg	the image has no usable size or position	გამოსახულებას არ აქვს გამოსადეგი ზომა ან პოზიცია
 @msg	the image's pixels can't be read	გამოსახულების პიქსელების წაკითხვა ვერ ხერხდება
 @msg	the spine has no segments	ხერხემალს სეგმენტები არ აქვს
+@msg	too many changed shortcuts	ზედმეტად ბევრი შეცვლილი მალსახმობი
 @msg	too many library panels were opened in this session	ამ სესიაში ზედმეტად ბევრი ბიბლიოთეკის პანელი გაიხსნა
 @msg	variables are locked	ცვლადები ჩაკეტილია
 @msg	x and y must be finite	x და y სასრული უნდა იყოს

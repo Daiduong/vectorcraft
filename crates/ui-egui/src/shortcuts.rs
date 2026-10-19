@@ -82,20 +82,12 @@ pub(crate) fn all_shortcuts() -> Vec<(KeyboardShortcut, &'static str, serde_json
             v.push((sc, "window.panel", json!({ "panel": panel })));
         }
     }
-    settings_chord(&mut v, cfg!(target_os = "macos"));
-    // Most specific (most modifiers) first so Cmd+Shift+Z isn't eaten by Cmd+Z.
+    // Most specific (most modifiers) first: `paste_command` takes the first V chord the held keys
+    // match logically, so Cmd+Shift+V isn't taken by Cmd+V.
     v.sort_by_key(|(sc, ..)| {
         std::cmp::Reverse(sc.modifiers.shift as u8 + sc.modifiers.alt as u8 + sc.modifiers.command as u8 + sc.modifiers.ctrl as u8)
     });
     v
-}
-
-/// On a Mac, Cmd+, opens Settings as in every Mac app (#663), beside Preferences' own shortcut,
-/// unless a command or a user's shortcut already took it.
-fn settings_chord(v: &mut Vec<(KeyboardShortcut, &'static str, serde_json::Value)>, mac: bool) {
-    if let Some(sc) = parse("Cmd+,").filter(|sc| mac && !v.iter().any(|(s, ..)| s == sc)) {
-        v.push((sc, "edit.preferences", json!({})));
-    }
 }
 
 /// Keys that paste with Cmd, or alone. (Shift+Insert is left out: Ctrl+Insert copies.)
@@ -330,13 +322,10 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
         // Enter was already delivered above as ToolKey::Enter (newline). Only chords with the
         // command key run commands: the rest type or edit.
         let hits = dispatch(app, ctx, |hit| hit.trigger.chord.mods.cmd);
-        let ran = !hits.is_empty();
         for c in hits {
             run_hit(app, ctx, &c);
         }
-        if !ran {
-            settings_on_a_mac(app, ctx);
-        }
+        settings_on_a_mac(app, ctx, mac(ctx));
         return;
     }
     // Clipboard keys arrive as events, not key presses; the chord held says which paste.
@@ -493,13 +482,11 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // Command, panel and tool shortcuts. Keys that type a character without Cmd/Alt/Ctrl are
     // handled below as text (tool shortcuts, X, D, /, `,` and `.`).
     let hits = dispatch(app, ctx, |hit| !(hit.trigger.chord.is_plain() && types_text(hit.trigger.chord.key)));
-    if !hits.is_empty() {
-        for c in hits {
-            run_hit(app, ctx, &c);
-        }
-        return;
+    let ran = !hits.is_empty();
+    for c in hits {
+        run_hit(app, ctx, &c);
     }
-    if settings_on_a_mac(app, ctx) {
+    if settings_on_a_mac(app, ctx, mac(ctx)) || ran {
         return;
     }
     // Arrow nudges (Shift = ×10, Alt = copy).
@@ -598,9 +585,15 @@ fn types_text(key: craft_keymap::Key) -> bool {
     key.name().chars().count() == 1
 }
 
-/// On a Mac, Cmd+, opens Settings when no shortcut has it ([`settings_chord`]). `true` when it ran.
-fn settings_on_a_mac(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
-    if !cfg!(target_os = "macos") {
+/// Whether the app runs on a Mac (on the web, in a browser on a Mac).
+fn mac(ctx: &egui::Context) -> bool {
+    ctx.os() == egui::os::OperatingSystem::Mac
+}
+
+/// On a Mac, Cmd+, opens Settings as in every Mac app (#663), beside Preferences' own shortcut,
+/// when no shortcut took the press this frame. Runs after [`dispatch`]. `true` when it ran.
+fn settings_on_a_mac(app: &mut VectorcraftApp, ctx: &egui::Context, mac: bool) -> bool {
+    if !mac {
         return false;
     }
     let pressed = ctx.input_mut(|i| {
@@ -773,10 +766,6 @@ mod tests {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
         assert_eq!(crate::menus::shortcut_of("type.createOutlines"), Some("Cmd+Shift+O"));
-        let open = parse("Cmd+O").unwrap();
-        let outlines = parse("Cmd+Shift+O").unwrap();
-        let pos = |want: egui::KeyboardShortcut, id: &str| super::all_shortcuts().iter().position(|(sc, i, _)| *i == id && *sc == want);
-        assert!(pos(outlines, "type.createOutlines").unwrap() < pos(open, "file.open").unwrap(), "more modifiers win so Open does not eat the chord");
         let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
         let chord = egui::Event::Key { key: Key::O, physical_key: None, pressed: true, repeat: false, modifiers: cmd_shift };
         let is_text = |app: &VectorcraftApp, id: u64| {
@@ -1492,7 +1481,6 @@ mod tests {
         assert_eq!(letter_of(Key::Escape), None);
     }
 
-    /// Cmd+, opens Settings on a Mac only, and never takes a chord a command already has.
     /// Shortcuts reach tools, panels (`window.panel {panel}`) and commands through the keymap,
     /// and a held Cmd+= keeps zooming in.
     #[test]
@@ -1519,21 +1507,32 @@ mod tests {
         assert!(zoom(&mut app) > once, "a key repeat zooms again");
     }
 
+    /// Cmd+, opens Settings on a Mac only, beside the frame's other shortcuts, and never takes a
+    /// chord a shortcut already has.
     #[test]
     fn cmd_comma_opens_settings_on_a_mac() {
-        let comma = parse("Cmd+,").unwrap();
-        let mut v = vec![];
-        super::settings_chord(&mut v, false);
-        assert!(v.is_empty(), "not elsewhere");
-        super::settings_chord(&mut v, true);
-        assert_eq!(v.len(), 1);
-        assert_eq!((v[0].0, v[0].1), (comma, "edit.preferences"));
-        let mut taken = vec![(comma, "view.zoomIn", json!({}))];
-        super::settings_chord(&mut taken, true);
-        assert_eq!(taken.len(), 1, "a command that has it keeps it");
-        if cfg!(target_os = "macos") {
-            assert!(super::all_shortcuts().iter().any(|(sc, id, _)| *sc == comma && *id == "edit.preferences"));
-        }
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
+        let press = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
+        let on = |app: &mut VectorcraftApp, os, events| {
+            app.ui.dialog = None;
+            app.session.execute("select.set", &json!({"ids": []})).unwrap();
+            let ctx = egui::Context::default();
+            ctx.set_os(os);
+            ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| handle(app, ui.ctx())).textures_delta.clear();
+            let settings = app.ui.dialog.as_ref().is_some_and(|d| d.kind == "preferences");
+            (settings, app.session.active().unwrap().selection.objects.len())
+        };
+        let (mac, linux) = (egui::os::OperatingSystem::Mac, egui::os::OperatingSystem::Nix);
+        let comma = press(Key::Comma, Modifiers::COMMAND);
+        let select_all = press(Key::A, Modifiers::COMMAND);
+        assert_eq!(on(&mut app, mac, vec![comma.clone()]), (true, 0));
+        assert_eq!(on(&mut app, mac, vec![select_all.clone(), comma.clone()]), (true, 1), "with another shortcut in the frame");
+        assert_eq!(on(&mut app, linux, vec![select_all, comma.clone()]), (false, 1), "not elsewhere");
+        crate::keymap::set_override(&mut app.ui.shortcut_overrides, "select.all", "Cmd+,");
+        crate::shortcut_editor::sync(&app.ui);
+        assert_eq!(on(&mut app, mac, vec![comma]), (false, 1), "a shortcut that has it keeps it");
     }
 
     #[test]

@@ -8,6 +8,7 @@
 //! `=` for Plus with modifiers). Inside an [`Overrides`] keys and texts are the crate's.
 
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use craft_keymap::{Bindable, Binding, Chord, CommandRef, Key, Keymap, Kind, Lookup, Mods, Overrides, Platform, Scope, Scopes};
 use serde_json::{Value, json};
@@ -154,10 +155,29 @@ fn catalogue() -> Vec<Bindable> {
         .collect()
 }
 
-/// The keymap with the default shortcuts, built once.
+/// On the web, whether the browser runs on a Mac ([`note_os`]).
+static WEB_MAC: AtomicBool = AtomicBool::new(false);
+
+/// The platform shortcuts follow: the build's, and on the web the browser's operating system, so
+/// Ctrl stays Ctrl in a browser on a Mac.
+pub fn platform() -> Platform {
+    if cfg!(target_arch = "wasm32") && WEB_MAC.load(Ordering::Relaxed) { Platform::Mac } else { Platform::current() }
+}
+
+/// Records the operating system egui reports, which the web build reads from the browser.
+pub fn note_os(os: egui::os::OperatingSystem) {
+    if cfg!(target_arch = "wasm32") {
+        WEB_MAC.store(os == egui::os::OperatingSystem::Mac, Ordering::Relaxed);
+    }
+}
+
+/// The keymap with the default shortcuts for [`platform`], built once per platform.
 pub fn template() -> &'static Keymap {
-    static K: OnceLock<Keymap> = OnceLock::new();
-    K.get_or_init(|| Keymap::new(catalogue(), Scopes::new(), Platform::current()))
+    static MAC: OnceLock<Keymap> = OnceLock::new();
+    static OTHER: OnceLock<Keymap> = OnceLock::new();
+    let p = platform();
+    let k = if p.is_mac() { &MAC } else { &OTHER };
+    k.get_or_init(|| Keymap::new(catalogue(), Scopes::new(), p))
 }
 
 /// The keymap with `overrides` applied.
@@ -353,6 +373,13 @@ mod tests {
         assert_eq!(template().conflicts(), vec![]);
         assert_eq!(template().problems(), vec![]);
         assert_eq!(template().catalogue().len(), shortcut_editor::entries().len(), "every entry is bindable");
+        // A default the bridge can't read would show in the menus but never run.
+        let unbound: Vec<(&str, &str)> = shortcut_editor::entries()
+            .iter()
+            .filter_map(|e| shortcut_editor::default_of(&e.key).map(|d| (e.key.as_str(), d)))
+            .filter(|(key, d)| vc_binding(d).map(|b| vec![b]) != Some(template().default_bindings(&command_of(key))))
+            .collect();
+        assert_eq!(unbound, vec![], "every default text becomes the entry's binding");
     }
 
     #[test]
