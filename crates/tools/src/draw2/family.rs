@@ -203,7 +203,13 @@ impl Tool for FamilyTool {
             // The size as drawn (from the centre with Alt, square with Shift).
             let r = drag_rect(s, self.last, self.mods);
             let (w, h) = if self.id == "spiral" { ((self.last - s).x.abs(), (self.last - s).y.abs()) } else { (r.width(), r.height()) };
-            o.push(Overlay::Measure { p: self.last, text: cx.size_label(w, h) });
+            let mut text = cx.size_label(w, h);
+            match self.id {
+                "rectangularGrid" => text.push_str(&format!("\nRows: {}\nColumns: {}", self.rows, self.columns)),
+                "polarGrid" => text.push_str(&format!("\nConcentric: {}\nRadial: {}", self.rows, self.columns)),
+                _ => {}
+            }
+            o.push(Overlay::Measure { p: self.last, text });
         }
         o
     }
@@ -272,6 +278,8 @@ mod tests {
         );
         let a = t.key(&cx, ToolKey::Right, Mods::default());
         assert!(matches!(&a[0], Action::Preview(_, v) if v["columns"] == 6));
+        let want = format!("{}\nRows: 5\nColumns: 6", cx.size_label(50.0, 30.0));
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
         // Space held moves the grid at its size; let go, it grows again from there.
         let space = Mods { space: true, ..Mods::default() };
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 80.0, 50.0).with_mods(space));
