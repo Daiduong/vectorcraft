@@ -1,0 +1,83 @@
+//! CDR uses the same open/place path as other editable formats, with read-only source files.
+
+use serde_json::json;
+use vectorcraft_doc::NodeKind;
+
+use super::*;
+
+#[test]
+fn cdr_is_registered_for_open_and_place_but_never_for_saving() {
+    let mut s = Session::new();
+    let r = s.execute("document.formats", &json!({})).unwrap();
+    let f = r["formats"].as_array().unwrap().iter().find(|f| f["id"] == "cdr").unwrap();
+    assert_eq!(f["read"], true);
+    assert_eq!(f["write"], false);
+    assert_eq!(f["raster"], false);
+    assert_eq!(format_for_name("DRAWING.CDR").unwrap().id, "cdr");
+    assert!(OPEN_EXTS.contains(&"cdr") && PLACE_EXTS.contains(&"cdr"));
+    assert!(open_filters().any(|(label, exts)| label == "CorelDRAW" && exts.contains(&"cdr")));
+    assert!(place_filters().any(|(label, exts)| label == "CorelDRAW" && exts.contains(&"cdr")));
+    assert!(!SAVE_FORMATS.contains(&"cdr"));
+    assert!(writable_format(Some("cdr"), None).is_err());
+}
+
+#[test]
+fn cdr_sniffing_preserves_other_zip_and_riff_formats() {
+    let wave = b"RIFF\x04\0\0\0WAVE";
+    assert!(detect("sound.wav", wave).is_none());
+    let zip = zip::store(&[("ordinary.txt", b"text")]).unwrap();
+    assert!(detect("archive.zip", &zip).is_none());
+    let unrelated_root = zip::store(&[("content/root.dat", wave.as_slice())]).unwrap();
+    assert!(detect("other.zip", &unrelated_root).is_none());
+    assert_eq!(detect("unknown.bin", &vectorcraft_cdr::synth::rectangle()).unwrap().id, "cdr");
+}
+
+#[test]
+fn cdr_open_keeps_editable_vectors_and_requires_a_new_save_path() {
+    let bytes = vectorcraft_cdr::synth::rectangle();
+    let mut s = Session::new();
+    let r = open_bytes(&mut s, "drawing.cdr", &bytes, Some("drawing.cdr".into())).unwrap();
+    assert_eq!(r["format"], "cdr");
+    let st = s.doc().unwrap();
+    assert!(st.path.is_none(), "Save must not overwrite a CDR source");
+    assert!(st.doc.images.is_empty(), "native geometry, no preview raster");
+    assert!(st.doc.node_count() >= 2);
+    let svg = vectorcraft_svg::export(&st.doc, &vectorcraft_svg::ExportOptions::default());
+    assert!(svg.contains("<path"), "the rectangle is editable path geometry");
+    assert!(!svg.contains("<image"));
+    let native = s.execute("document.serialize", &json!({"format": "vectorcraft"})).unwrap();
+    let data = vectorcraft_format::base64_decode(native["dataBase64"].as_str().unwrap()).unwrap();
+    open_bytes(&mut s, "copy.vectorcraft", &data, None).unwrap();
+    assert!(s.doc().unwrap().doc.node_count() >= 2);
+    assert!(s.execute("document.export", &json!({"format": "cdr"})).is_err());
+}
+
+#[test]
+fn cdr_place_is_an_editable_group_and_one_undo_step() {
+    let bytes = vectorcraft_cdr::synth::rectangle();
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+    let before = s.doc().unwrap().doc.node_count();
+    let r =
+        s.execute("file.place", &json!({"name": "drawing.cdr", "dataBase64": vectorcraft_format::base64_encode(&bytes), "at": [200, 150]})).unwrap();
+    assert_eq!(r["format"], "cdr");
+    assert_eq!(r["linked"], false);
+    assert!(s.doc().unwrap().doc.node_count() > before);
+    assert!(matches!(s.doc().unwrap().doc.layers[0].children().unwrap().last().unwrap().kind, NodeKind::Group { .. }));
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.node_count(), before);
+}
+
+#[test]
+fn malformed_cdr_does_not_replace_the_active_document() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 40, "height": 30})).unwrap();
+    s.execute("shape.rectangle", &json!({"x": 1, "y": 1, "width": 5, "height": 5})).unwrap();
+    let before = s.doc().unwrap().doc.node_count();
+    let count = s.documents().len();
+    for bytes in [b"not a CDR".as_slice(), b"RIFF\xff\xff\xff\xffCDRL".as_slice(), b"PK\x03\x04".as_slice()] {
+        assert!(open_bytes(&mut s, "broken.cdr", bytes, None).is_err());
+        assert_eq!(s.documents().len(), count);
+        assert_eq!(s.doc().unwrap().doc.node_count(), before);
+    }
+}
