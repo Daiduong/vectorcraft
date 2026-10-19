@@ -172,8 +172,12 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Opt
         return Some(collapse(app, params));
     }
     // Docking into the dock's tree or its icon column is the shared layout's, whatever set the
-    // panel floats in.
-    let into_tree = id == "window.panel.dock" && (params.get("anchor").is_some() || params.get("icon").is_some());
+    // panel floats in. A dock column is the native sets', so it doesn't combine with either.
+    let to_icons = params.get("icon").is_some_and(|icon| icon != &Value::Bool(false));
+    let into_tree = id == "window.panel.dock" && (params.get("anchor").is_some() || to_icons);
+    if into_tree && params.get("column").is_some() {
+        return Some(Err("column docks a set as a dock column, with no anchor or icon".into()));
+    }
     if matches!(id, "window.panel.float" | "window.panel.dock")
         && !into_tree
         && (params.get("above").is_some()
@@ -373,7 +377,7 @@ fn collapse(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
     let panel = params.get("panel").and_then(Value::as_str).and_then(normalize).ok_or("panel must name a registered panel")?;
     let collapsed = crate::menus::opt_bool(params, "collapsed")?;
     if crate::floating::group_of(&app.ui, panel).is_some() {
-        return Err("panel floats; collapse its group with window.panel.float {collapsed}".into());
+        return Err("panel floats; collapse its group with window.panel.float {panel, collapsed}".into());
     }
     match app.ui.docking.as_mut() {
         Some(layout) => {
@@ -468,8 +472,9 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
         app.ui.docking_hidden.iter().filter(|(id, _)| normalize(id).is_some()).take(64).map(|(id, at)| (id.clone(), at.clone())).collect();
     let mut icons = icon_origins(app);
     if to_icons {
-        // Any panel lives in the icon column once dropped there, the tabbed group's too.
-        icons.extend(members.iter().cloned());
+        // Any panel the icon column can show lives there once dropped on it, the tabbed group's
+        // too; the others (library panels) dock as they would without `icon`.
+        icons.extend(members.iter().filter(|id| crate::state::rail_panel(id).is_some()).cloned());
     }
     let icon_panel = crate::state::ICON_PANELS.iter().any(|entry| entry.0 == panel) || icons.contains(panel);
     if icon_panel && !layout.contains(&panel.to_string()) {

@@ -360,7 +360,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.panel.collapse",
         "Collapse Panel Group",
         "",
-        "{panel, collapsed?: bool} show the dock group holding a panel as its tabs only (or its panel again), as a double-click on its tab does; the panel becomes the group's shown one. Without `collapsed` it toggles. Floating groups collapse through window.panel.float {collapsed}. Returns {panel, collapsed}",
+        "{panel, collapsed?: bool} show the dock group holding a panel as its tabs only (or its panel again), as a double-click on its tab does; the panel becomes the group's shown one. Without `collapsed` it toggles. Floating groups collapse through window.panel.float {panel, collapsed}. Returns {panel, collapsed}",
     ),
     (
         "window.panel.float",

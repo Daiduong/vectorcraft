@@ -862,6 +862,36 @@ fn icon_docking_commands_validate_and_round_trip_through_workspaces() {
     assert_eq!(app.ui.open_panel.as_deref(), Some("layers"));
 }
 
+/// `column` goes with neither `anchor` nor `icon: true`, so it is never silently dropped;
+/// `icon: false` is the same as no `icon`, so a dock column still takes the panel.
+#[test]
+fn a_dock_column_is_refused_with_an_anchor_or_icon_and_icon_false_is_no_icon() {
+    let mut app = app();
+    for params in [json!({"panel":"color","column":1,"anchor":"properties"}), json!({"panel":"color","column":true,"icon":true})] {
+        assert!(app.run("window.panel.dock", params.clone()).is_err(), "{params}");
+        assert!(app.ui.docking.is_none() && app.ui.floating_panels.is_empty(), "{params} changed nothing");
+    }
+    let r = app.run("window.panel.dock", json!({"panel":"color","column":true,"icon":false})).unwrap();
+    assert_eq!((r["column"].clone(), r["floating"].clone()), (json!(1), json!(false)));
+}
+
+/// A group dropped on the icon column leaves what the column can't show (a library panel) in the
+/// dock instead of losing it.
+#[test]
+fn a_library_panel_dropped_on_the_icon_column_with_its_group_stays_in_the_dock() {
+    let mut app = app();
+    app.run("file.new", json!({})).unwrap();
+    app.run("window.swatchLibrary", json!({"library": "pastels"})).unwrap();
+    let library = "library:swatches:pastels".to_string();
+    app.run("window.panel.float", json!({"panel": library, "x": 300, "y": 100})).unwrap();
+    app.run("window.panel.move", json!({"panel":"color", "anchor": library})).unwrap();
+    assert_eq!(group_members(app.ui.docking.as_ref().unwrap(), &library).len(), 2, "one floating group");
+    app.run("window.panel.dock", json!({"panel": library, "group": true, "icon": true})).unwrap();
+    assert!(app.ui.docking_icons.contains("color"));
+    assert!(!app.ui.docking_icons.contains(&library));
+    assert!(Layout { root: app.ui.docking.as_ref().unwrap().root.clone(), floating: Vec::new() }.contains(&library), "in the dock");
+}
+
 #[test]
 fn a_panel_the_icon_column_has_no_place_for_still_shows_there_once_dropped_on_it() {
     let mut h = harness(app(), vec2(1280.0, 1600.0));
