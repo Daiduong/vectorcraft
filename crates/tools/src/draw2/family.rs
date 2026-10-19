@@ -7,7 +7,7 @@
 //! change grid columns / radial dividers.
 
 use serde_json::{Value, json};
-use vectorcraft_geom::Point;
+use vectorcraft_geom::{Point, Vec2};
 
 use crate::guides::{DrawSnap, Leave, square};
 use crate::shape::drag_rect;
@@ -131,7 +131,13 @@ impl Tool for FamilyTool {
             }
             PointerKind::Drag => {
                 let Some(mut s) = self.start else { return vec![] };
-                let pos = self.snap.drag(cx, ev.pos, self.leave(s, ev.mods).as_ref());
+                let leave = self.leave(s, ev.mods);
+                let (pos, spacing) = if self.id == "spiral" {
+                    (self.snap.drag(cx, ev.pos, leave.as_ref()), Vec2::ZERO)
+                } else {
+                    self.snap.drag_box(cx, s, ev.pos, leave.as_ref(), ev.mods)
+                };
+                s += spacing;
                 let ev = &PointerEvent { pos, ..*ev };
                 crate::shape::space_moves(&mut s, &mut self.last, ev, self.began);
                 self.start = Some(s);

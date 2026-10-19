@@ -17,7 +17,7 @@ use vectorcraft_geom::kurbo::ParamCurveNearest;
 use vectorcraft_geom::{Affine, Line, ParamCurve, PathSeg, Point, Rect, SubPath, Vec2, constrain_angle_from};
 
 use crate::bbox::Handle;
-use crate::{Overlay, ScreenFrame, ToolContext};
+use crate::{Mods, Overlay, ScreenFrame, ToolContext};
 
 pub const MAGENTA: [u8; 3] = [0xff, 0x3d, 0xfc];
 
@@ -1302,6 +1302,26 @@ impl DrawSnap {
         self.guides = guides;
         q
     }
+
+    /// Snap a box drawn from `start`: Spacing Guides shift the whole preview bounds (start and
+    /// corner move together), then the usual point snap ([`Self::drag`]). Returns the snapped
+    /// corner and how far `start` should move with the spacing shift.
+    pub fn drag_box(&mut self, cx: &ToolContext, start: Point, p: Point, from: Option<&Leave>, mods: Mods) -> (Point, Vec2) {
+        let mut spacing = vec![];
+        let mut shift = Vec2::ZERO;
+        let mut p = p;
+        if !(cx.snap_to_pixel || cx.snap_to_grid || !cx.spacing_guides || !cx.smart_guides) {
+            let (dv, ov) = Targets::for_move(cx, &[]).snap_rect(crate::shape::drag_rect(start, p, mods), cx.snap_tol());
+            if dv != Vec2::ZERO {
+                spacing = ov;
+                shift = dv;
+                p += dv;
+            }
+        }
+        p = self.drag(cx, p, from);
+        self.guides.extend(spacing);
+        (p, shift)
+    }
 }
 
 /// Snapping for a dragged direction handle: Shift keeps it at 45° steps round its anchor, else it
@@ -1445,6 +1465,36 @@ mod tests {
         let (nr, ov) = snap(Rect::new(240.0, 320.0, 300.0, 380.0), Handle::BottomRight, Point::new(318.0, 398.0), true);
         assert_eq!(nr, Rect::new(240.0, 320.0, 320.0, 400.0));
         assert!(anchor(&ov), "{ov:?}");
+    }
+
+    /// Smart Guides › Spacing Guides (#394): a rectangle dragged out beside a row of two squares
+    /// 20 pt apart lands with its left edge 20 pt from the second, with the gaps marked; off, the
+    /// corner stays where it was dragged.
+    #[test]
+    fn spacing_guides_snap_a_drawn_rectangle() {
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        for r in [Rect::new(20.0, 300.0, 60.0, 340.0), Rect::new(80.0, 300.0, 120.0, 340.0)] {
+            let id = d.alloc_id();
+            d.insert(Some(l), 0, Node::path(id, vectorcraft_geom::shapes::rectangle(r), Default::default())).unwrap();
+        }
+        let (s, p) = (Selection::default(), paint());
+        let lines = |ov: &[Overlay]| ov.iter().filter(|o| matches!(o, Overlay::Line { color, .. } if *color == MAGENTA)).count();
+        let mut snap = DrawSnap::default();
+        let cx = cx(&d, &s, &p);
+        assert_eq!(Targets::for_move(&cx, &s.objects).snap_rect(Rect::new(141.0, 305.0, 181.0, 345.0), 4.0).0, Vec2::new(-1.0, 0.0));
+        let start = Point::new(141.0, 305.0);
+        snap.press(&cx, start, &[], None);
+        let (end, shift) = snap.drag_box(&cx, start, Point::new(181.0, 345.0), Some(&Leave::diagonal(start, false)), Mods::default());
+        assert_eq!(shift, Vec2::new(-1.0, 0.0));
+        assert_eq!(crate::shape::drag_rect(start + shift, end, Mods::default()).x0, 140.0, "20 pt from the second square");
+        assert!(lines(snap.guides()) >= 2, "{:?}", snap.guides());
+        let off = ToolContext { spacing_guides: false, ..cx };
+        let mut snap = DrawSnap::default();
+        snap.press(&off, start, &[], None);
+        let (end, shift) = snap.drag_box(&off, start, Point::new(181.0, 345.0), Some(&Leave::diagonal(start, false)), Mods::default());
+        assert_eq!((end.x, shift), (181.0, Vec2::ZERO));
+        assert_eq!(lines(snap.guides()), 0);
     }
 
     /// Smart Guides › Spacing Guides (#394): a moved selection lands as far from its neighbour as

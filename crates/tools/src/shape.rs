@@ -8,7 +8,7 @@
 //! the dragged corner snap to Smart Guides ([`DrawSnap`]), hovering before the press too.
 
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Rect};
+use vectorcraft_geom::{Point, Rect, Vec2};
 
 use crate::guides::{DrawSnap, Leave, square};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -173,7 +173,13 @@ impl Tool for ShapeTool {
             }
             PointerKind::Drag => {
                 let Some(mut s) = self.start else { return vec![] };
-                let pos = self.snap.drag(cx, ev.pos, self.leave(cx, s, ev.mods).as_ref());
+                let leave = self.leave(cx, s, ev.mods);
+                let (pos, spacing) = if matches!(self.id, "lineSegment" | "polygon" | "star") {
+                    (self.snap.drag(cx, ev.pos, leave.as_ref()), Vec2::ZERO)
+                } else {
+                    self.snap.drag_box(cx, s, ev.pos, leave.as_ref(), ev.mods)
+                };
+                s += spacing;
                 let ev = &PointerEvent { pos, ..*ev };
                 space_moves(&mut s, &mut self.last, ev, self.began);
                 self.start = Some(s);
@@ -390,6 +396,36 @@ mod tests {
         t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 10.0));
         let a = t.key(&cx, ToolKey::Up, Mods::default());
         assert!(matches!(&a[0], Action::Preview(_, v) if v["sides"] == 7));
+    }
+
+    /// Smart Guides › Spacing Guides (#394): a rectangle dragged beside a row of squares lands with
+    /// an equal gap, with the magenta marks; off, it stays where it was dragged.
+    #[test]
+    fn spacing_guides_snap_while_drawing_a_rectangle() {
+        use vectorcraft_doc::{Document, Node};
+        use vectorcraft_geom::Rect;
+        use vectorcraft_geom::shapes::rectangle;
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        for r in [Rect::new(20.0, 300.0, 60.0, 340.0), Rect::new(80.0, 300.0, 120.0, 340.0)] {
+            let id = d.alloc_id();
+            d.insert(Some(l), 0, Node::path(id, rectangle(r), Default::default())).unwrap();
+        }
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let magenta = |o: &[Overlay]| o.iter().filter(|o| matches!(o, Overlay::Line { color, .. } if *color == crate::guides::MAGENTA)).count();
+        let mut t = ShapeTool::new("rectangle");
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 141.0, 305.0));
+        let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 181.0, 345.0));
+        assert!(matches!(&a[1], Action::Preview(_, v) if v["x"].as_f64() == Some(140.0)), "{a:?}");
+        assert!(magenta(&t.overlays(&cx)) >= 2);
+        let off = ToolContext { spacing_guides: false, ..cx };
+        let mut t = ShapeTool::new("rectangle");
+        t.pointer(&off, &PointerEvent::new(PointerKind::Down, 141.0, 305.0));
+        let a = t.pointer(&off, &PointerEvent::new(PointerKind::Drag, 181.0, 345.0));
+        assert!(matches!(&a[1], Action::Preview(_, v) if v["x"].as_f64() == Some(141.0)), "{a:?}");
+        assert_eq!(magenta(&t.overlays(&off)), 0);
     }
 
     /// The start and the dragged corner land on another object's anchors (#506), hovering shows
