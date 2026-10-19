@@ -177,7 +177,12 @@ pub fn template() -> &'static Keymap {
     static OTHER: OnceLock<Keymap> = OnceLock::new();
     let p = platform();
     let k = if p.is_mac() { &MAC } else { &OTHER };
-    k.get_or_init(|| Keymap::new(catalogue(), Scopes::new(), p))
+    k.get_or_init(|| keymap_for(p))
+}
+
+/// The default keymap of `p`. The chords the operating system takes can't be assigned.
+fn keymap_for(p: Platform) -> Keymap {
+    Keymap::new(catalogue(), Scopes::new(), p).with_reserved(craft_keymap::reserved::system(p))
 }
 
 /// The keymap with `overrides` applied.
@@ -380,6 +385,28 @@ mod tests {
             .filter(|(key, d)| vc_binding(d).map(|b| vec![b]) != Some(template().default_bindings(&command_of(key))))
             .collect();
         assert_eq!(unbound, vec![], "every default text becomes the entry's binding");
+    }
+
+    /// The chords the operating system takes are refused, and no default uses one.
+    #[test]
+    fn system_shortcuts_are_refused() {
+        for (p, os_chord) in [(Platform::Mac, "Cmd+Tab"), (Platform::Windows, "Alt+F4"), (Platform::Linux, "Ctrl+Alt+F2")] {
+            let mut km = keymap_for(p);
+            assert_eq!((km.conflicts(), km.problems()), (vec![], vec![]), "{p:?}");
+            let reserved: Vec<String> = shortcut_editor::entries()
+                .iter()
+                .filter(|e| km.bindings(&command_of(&e.key)).iter().any(|b| km.is_reserved(&b.trigger.chord)))
+                .map(|e| e.key.clone())
+                .collect();
+            assert_eq!(reserved, Vec::<String>::new(), "{p:?}: defaults on reserved chords");
+            let err = shortcut_editor::assign_in(&mut km, "edit.undo", Some(os_chord), true).unwrap_err();
+            assert!(err.ends_with("is reserved by the system"), "{p:?}: {err}");
+            // A saved override on a reserved chord keeps the default.
+            let mut ov = Overrides::new();
+            let _ = ov.insert(stored_key("edit.undo"), vec![os_chord.to_string()]);
+            let km = keymap_for(p).with_overrides(ov);
+            assert_eq!(km.bindings(&command_of("edit.undo")), km.default_bindings(&command_of("edit.undo")), "{p:?}");
+        }
     }
 
     #[test]

@@ -4390,6 +4390,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	unknown preset (one of {_1})	不明なプリセットです ({_1} のいずれかを指定してください)
 @msg	unknown tool or command `{key}`	`{key}` は不明なツールまたはコマンドです
 @msg	{_1} is already used by {_2}	{_1} はすでに {_2} で使用されています
+@msg	{_1} is reserved by the system	{_1} はシステムで予約されています
 @msg	Couldn't copy to the system clipboard: {e}	システムのクリップボードにコピーできませんでした: {e}
 @msg	Couldn't paste from the clipboard: {e}	クリップボードから貼り付けられませんでした: {e}
 @msg	nothing selected	何も選択されていません

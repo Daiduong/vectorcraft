@@ -423,6 +423,7 @@ pub fn assign_in(km: &mut Keymap, key: &str, chord: Option<&str>, force: bool) -
                 .collect();
             Err(format!("{} is already used by {}", menus::pretty_shortcut(&vc_format(&chord)), names.join(", ")))
         }
+        Err(AssignError::Reserved(_)) => Err(format!("{} is reserved by the system", menus::pretty_shortcut(&vc_format(&chord)))),
         Err(e) => Err(e.to_string()),
     }
 }
