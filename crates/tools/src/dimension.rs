@@ -415,6 +415,14 @@ impl Tool for DimensionTool {
                     if toward.hypot() > 1e-9 {
                         out.push(Overlay::Line { a: *center, b: *center + toward / toward.hypot() * *radius, color, dashed: true });
                     }
+                    if cx.measurement_labels {
+                        let text = if self.at.distance(*center) >= *radius {
+                            format!("R: {}", cx.len(*radius))
+                        } else {
+                            format!("D: {}", cx.len(*radius * 2.0))
+                        };
+                        out.push(Overlay::Measure { p: self.at + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text });
+                    }
                 }
                 None => {}
             }
@@ -441,5 +449,38 @@ impl Tool for DimensionTool {
             out.push(Overlay::Line { a: *p, b, color, dashed: true });
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testutil::{cx, paint};
+    use vectorcraft_doc::{Appearance, Node, NodeId, Selection};
+
+    fn doc_with_circle() -> (vectorcraft_doc::Document, NodeId) {
+        use vectorcraft_geom::shapes;
+        let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        let id = d.alloc_id();
+        let r = vectorcraft_geom::Rect::new(150.0, 150.0, 250.0, 250.0);
+        d.insert(Some(l), 0, Node::path(id, shapes::ellipse(r), Appearance::default_art())).unwrap();
+        (d, id)
+    }
+
+    /// Radial mode shows R: on the outline and D: when the pointer is inside the circle (#2516).
+    #[test]
+    fn dimension_radial_hover_measure_label() {
+        let (d, _) = doc_with_circle();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = DimensionTool { kind: Kind::Radial, ..DimensionTool::default() };
+        assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Move, 250.0, 200.0)).is_empty());
+        let ov = t.overlays(&cx);
+        assert!(ov.iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &format!("R: {}", cx.len(50.0)))));
+        // Just inside the outline (still within pick tolerance): diameter readout.
+        assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Move, 245.0, 200.0)).is_empty());
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &format!("D: {}", cx.len(100.0)))));
     }
 }
