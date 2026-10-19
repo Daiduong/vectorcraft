@@ -210,15 +210,26 @@ fn the_window_menu_has_the_system_items() {
 /// user's shortcuts show in the menus.
 #[test]
 fn a_command_keeps_a_system_key_it_is_bound_to() {
-    let mut app = app(true);
-    app.ui.shortcut_overrides.insert("view.grid".into(), "Cmd+M".into());
-    crate::shortcut_editor::sync(&app.ui);
-    let layout = native_menu::mac_layout(&app, &native_menu::from_tree(&app, &menus::menu_tree()), Lang::EN);
-    app.ui.shortcut_overrides.clear();
-    crate::shortcut_editor::sync(&app.ui);
-    assert_eq!(find(&layout.bar, native_menu::MINIMIZE).shortcut, None);
-    assert_eq!(find(&layout.bar, "view.grid").shortcut, Some("Cmd+M"), "the user's override shows in the menu");
-    assert_eq!(layout.clashes.iter().map(|c| (c.shortcut, c.command)).collect::<Vec<_>>(), [("Cmd+M", "view.grid")]);
+    // Exercise both platforms' edge bindings on every host: non-Mac defaults still use Cmd+H.
+    for edges in ["Cmd+H", "Ctrl+Cmd+H"] {
+        let mut app = app(true);
+        app.ui.shortcut_overrides.insert("view.edges".into(), edges.into());
+        app.ui.shortcut_overrides.insert("view.grid".into(), "Cmd+M".into());
+        crate::shortcut_editor::sync(&app.ui);
+        let layout = native_menu::mac_layout(&app, &native_menu::from_tree(&app, &menus::menu_tree()), Lang::EN);
+        app.ui.shortcut_overrides.clear();
+        crate::shortcut_editor::sync(&app.ui);
+        assert_eq!(find(&layout.bar, native_menu::MINIMIZE).shortcut, None);
+        assert_eq!(find(&layout.bar, "view.grid").shortcut, Some("Cmd+M"), "the user's override shows in the menu");
+        assert_eq!(find(&layout.bar, "view.edges").shortcut, Some(edges));
+        assert_eq!(find(&layout.bar, native_menu::HIDE).shortcut, (edges != "Cmd+H").then_some("Cmd+H"));
+        let mut expected = Vec::new();
+        if edges == "Cmd+H" {
+            expected.push(("Cmd+H", "view.edges"));
+        }
+        expected.push(("Cmd+M", "view.grid"));
+        assert_eq!(layout.clashes.iter().map(|c| (c.shortcut, c.command)).collect::<Vec<_>>(), expected);
+    }
 }
 
 /// A native menu can't turn a plain item into a check item in place: opening a document or
