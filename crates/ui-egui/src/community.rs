@@ -71,6 +71,7 @@ pub fn links(app: &mut VectorcraftApp, ui: &mut Ui) {
     link(app, ui, "globe", tl!("ArtCraft website"), "help.website", &s("website"));
     link(app, ui, "external-link", tl!("VectorCraft on getartcraft.com"), "help.appPage", &s("appPage"));
     link(app, ui, "git-branch", tl!("Source code on GitHub"), "help.github", &s("github"));
+    link(app, ui, "sparkles", tl!("Request a Feature…"), "help.featureRequests", &s("featureRequests"));
 }
 
 #[cfg(test)]
@@ -84,7 +85,7 @@ mod tests {
         let o = opened.clone();
         let services = crate::Services { open_url: Some(Box::new(move |u: &str| o.lock().unwrap().push(u.to_string()))), ..Default::default() };
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), services);
-        for id in ["help.discord", "help.website", "help.appPage", "help.github"] {
+        for id in ["help.discord", "help.website", "help.appPage", "help.github", "help.featureRequests"] {
             crate::menus::invoke(&mut app, id, serde_json::json!({}));
         }
         assert_eq!(
@@ -93,13 +94,14 @@ mod tests {
                 "https://discord.gg/artcraft",
                 "https://getartcraft.com",
                 "https://getartcraft.com/apps/vectorcraft",
-                "https://github.com/storytold/vectorcraft"
+                "https://github.com/storytold/vectorcraft",
+                "https://github.com/storytold/vectorcraft/issues/new?labels=enhancement"
             ]
         );
         // The control channel / MCP path returns the URL without opening a browser.
         let v = app.run("help.discord", serde_json::json!({})).unwrap();
         assert_eq!(v["url"], "https://discord.gg/artcraft");
-        assert_eq!(opened.lock().unwrap().len(), 4);
+        assert_eq!(opened.lock().unwrap().len(), 5);
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| links(&mut app, ui));
