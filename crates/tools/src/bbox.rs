@@ -91,15 +91,17 @@ pub fn scale_for_drag(r: Rect, handle: Handle, p: Point, proportional: bool, fro
     Affine::translate(origin.to_vec2()) * Affine::scale_non_uniform(clamp(sx), clamp(sy)) * Affine::translate(-origin.to_vec2())
 }
 
-/// Rotation about `center` taking `from` to `to`; `snap` constrains to 45° steps.
-pub fn rotate_for_drag(center: Point, from: Point, to: Point, snap: bool) -> (Affine, f64) {
+/// Rotation about `center` taking `from` to `to`; `snap` constrains the pointer direction to 45°
+/// steps from `base_deg` (Preferences › General › Constrain Angle).
+pub fn rotate_for_drag(center: Point, from: Point, to: Point, snap: bool, base_deg: f64) -> (Affine, f64) {
     let a0 = (from - center).atan2();
-    let a1 = (to - center).atan2();
-    let mut a = a1 - a0;
-    if snap {
-        let step = std::f64::consts::FRAC_PI_4;
-        a = (a / step).round() * step;
-    }
+    let dir = if snap {
+        vectorcraft_geom::constrain_angle_from(to - center, 45.0, base_deg)
+    } else {
+        to - center
+    };
+    let a1 = dir.y.atan2(dir.x);
+    let a = a1 - a0;
     (Affine::translate(center.to_vec2()) * Affine::rotate(a) * Affine::translate(-center.to_vec2()), -a.to_degrees())
 }
 
@@ -142,8 +144,10 @@ mod tests {
 
     #[test]
     fn rotate_snaps() {
-        let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true);
+        let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true, 0.0);
         assert!((deg + 45.0).abs() < 1e-9);
+        let (_, deg) = rotate_for_drag(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true, 30.0);
+        assert!((deg + 60.0).abs() < 1e-9, "pointer direction snaps to 60° from a 30° Constrain Angle");
         assert!(in_rotate_zone(R, Point::new(-8.0, -8.0), 4.0, 20.0).is_some());
         assert!(in_rotate_zone(R, Point::new(5.0, 5.0), 4.0, 20.0).is_none());
     }

@@ -1,8 +1,9 @@
 //! Rotate (R), Reflect (O), Scale (S) and Shear tools.
 //!
 //! The reference point defaults to the centre of the selection. A click sets it (shown as a cyan
-//! target); a drag transforms about it with a live preview (Shift constrains to 45° / uniform, Alt
-//! at release makes a copy: Alt-drag). Alt-click (the release of a click made with Alt) sets the
+//! target); a drag transforms about it with a live preview (Shift constrains rotation and reflection
+//! to 45° steps from Preferences › General › Constrain Angle, or uniform scale, Alt at release makes
+//! a copy: Alt-drag). Alt-click (the release of a click made with Alt) sets the
 //! point and opens the tool's dialog; double-click or Return opens the dialog too. A clicked or
 //! Alt-clicked point snaps to the nearest anchor or centre (Snap to Point / Smart Guides), labelled
 //! while hovering, so transforms pivot exactly on a corner. A drag starts from the point it grabbed
@@ -117,16 +118,16 @@ impl TransformTool {
     }
 
     /// Transform for dragging from `start` to `p` about `o`; returns the matrix and a readout.
-    pub fn matrix_for(&self, o: Point, start: Point, p: Point, shift: bool, bounds: Rect) -> (Affine, String) {
+    pub fn matrix_for(&self, o: Point, start: Point, p: Point, shift: bool, bounds: Rect, constrain_angle: f64) -> (Affine, String) {
         match self.kind {
             TransformKind::Rotate => {
-                let (a, deg) = rotate_for_drag(o, start, p, shift);
+                let (a, deg) = rotate_for_drag(o, start, p, shift, constrain_angle);
                 (a, format!("{:.1}°", -deg))
             }
             TransformKind::Reflect => {
                 let mut v = p - o;
                 if shift {
-                    v = vectorcraft_geom::constrain_angle(v, 45.0);
+                    v = vectorcraft_geom::constrain_angle_from(v, 45.0, constrain_angle);
                 }
                 let theta = if v.hypot() < 1e-9 { std::f64::consts::FRAC_PI_2 } else { v.y.atan2(v.x) };
                 (reflect_matrix(o, theta), format!("{:.1}°", vectorcraft_geom::normalize_deg(-theta.to_degrees())))
@@ -212,7 +213,7 @@ impl Tool for TransformTool {
                 }
                 let (p, guides) = self.snap.as_ref().map_or((p, vec![]), |s| s.snap(cx, p));
                 self.hover = guides;
-                let (m, text) = self.matrix_for(d.origin, d.pick, p, ev.mods.shift, d.bounds);
+                let (m, text) = self.matrix_for(d.origin, d.pick, p, ev.mods.shift, d.bounds, cx.constrain_angle);
                 d.last = m;
                 self.drag = Some(d);
                 self.measure = Some((p, text));
@@ -368,7 +369,7 @@ mod tests {
     #[test]
     fn scale_shift_is_uniform() {
         let t = TransformTool::new(TransformKind::Scale);
-        let (m, _) = t.matrix_for(Point::new(150.0, 150.0), Point::new(200.0, 200.0), Point::new(250.0, 240.0), true, Rect::ZERO);
+        let (m, _) = t.matrix_for(Point::new(150.0, 150.0), Point::new(200.0, 200.0), Point::new(250.0, 240.0), true, Rect::ZERO, 0.0);
         let c = m.as_coeffs();
         assert!((c[0] - c[3]).abs() < 1e-9 && c[0] > 1.0);
     }
@@ -491,10 +492,17 @@ mod tests {
     }
 
     #[test]
+    fn rotate_shift_uses_the_constrain_angle_preference() {
+        let t = TransformTool::new(TransformKind::Rotate);
+        let (_, text) = t.matrix_for(Point::ZERO, Point::new(10.0, 0.0), Point::new(10.0, 9.0), true, Rect::ZERO, 30.0);
+        assert_eq!(text, "60.0°");
+    }
+
+    #[test]
     fn reflect_vertical_axis_mirrors_x() {
         let t = TransformTool::new(TransformKind::Reflect);
         let o = Point::new(150.0, 150.0);
-        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(150.0, 50.0), false, Rect::ZERO);
+        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(150.0, 50.0), false, Rect::ZERO, 0.0);
         assert!((m * Point::new(100.0, 120.0)).distance(Point::new(200.0, 120.0)) < 1e-9);
     }
 
@@ -502,7 +510,7 @@ mod tests {
     fn shear_horizontal_keeps_origin_row() {
         let t = TransformTool::new(TransformKind::Shear);
         let o = Point::new(150.0, 200.0);
-        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(200.0, 100.0), false, Rect::new(100.0, 100.0, 200.0, 200.0));
+        let (m, _) = t.matrix_for(o, Point::new(150.0, 100.0), Point::new(200.0, 100.0), false, Rect::new(100.0, 100.0, 200.0, 200.0), 0.0);
         assert!((m * Point::new(100.0, 200.0)).distance(Point::new(100.0, 200.0)) < 1e-9);
         assert!((m * Point::new(150.0, 100.0)).distance(Point::new(200.0, 100.0)) < 1e-9);
     }

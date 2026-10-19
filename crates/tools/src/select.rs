@@ -630,7 +630,7 @@ impl Tool for SelectionTool {
                 vec![Action::Preview("object.transform".into(), params)]
             }
             (PointerKind::Drag, State::Rotating { center, start, .. }) => {
-                let (a, deg) = rotate_for_drag(center, start, p, m.shift);
+                let (a, deg) = rotate_for_drag(center, start, p, m.shift, cx.constrain_angle);
                 self.measure = cx.transform_tools_guides.then(|| (p, format!("{:.1}°", -deg)));
                 vec![Action::Preview("object.transform".into(), json!({ "matrix": matrix_json(a), "copy": false }))]
             }

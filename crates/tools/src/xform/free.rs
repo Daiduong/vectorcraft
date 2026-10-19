@@ -209,7 +209,7 @@ impl FreeTransformTool {
             }
             Op::Shear(h) => shear_for_side(d.rect, h, delta, m.alt),
             Op::Rotate => {
-                let (a, deg) = rotate_for_drag(d.rect.center(), d.start, p, shift);
+                let (a, deg) = rotate_for_drag(d.rect.center(), d.start, p, shift, cx.constrain_angle);
                 self.measure = cx.transform_tools_guides.then(|| (p, format!("{:.1}°", -deg)));
                 a
             }
