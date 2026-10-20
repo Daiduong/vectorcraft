@@ -331,6 +331,10 @@ pub struct CanvasCache {
     pub content_bounds: Option<((u64, u64), Option<vectorcraft_geom::Rect>)>,
     /// The tools' cursors as OS cursor bitmaps.
     pub cursors: cursors::Images,
+    /// The last rendered document artwork, kept for inverted highlights.
+    pub last_img: Option<vectorcraft_render::Rendered>,
+    /// Reusable texture for drawing inverted highlights (text selection).
+    pub invert_texture: Option<egui::TextureHandle>,
 }
 
 /// [`CanvasCache::slices`]: the layout of the slices of (document uid, revision).
@@ -540,6 +544,8 @@ impl VectorcraftApp {
                 selection_bounds: None,
                 content_bounds: None,
                 cursors: Default::default(),
+                last_img: None,
+                invert_texture: None,
             },
             perf: Perf::default(),
             titlebar_inset: 0.0,
