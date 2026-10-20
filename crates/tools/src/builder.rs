@@ -639,17 +639,32 @@ fn lp_overlays(h: &LpHover, cache: &RegionCache, color: [u8; 3], width: f32) -> 
     }
 }
 
+/// Filled area of the face `h` highlights, in document points².
+fn lp_face_area(h: &LpHover, cache: &RegionCache) -> Option<f64> {
+    let bp = match h {
+        LpHover::None => return None,
+        LpHover::Part(p) => p,
+        LpHover::Region(i) => &cache.map.regions.get(*i)?.1,
+    };
+    let area = bp.area().abs();
+    (area.is_finite() && area > 0.0).then_some(area)
+}
+
 /// Live Paint Bucket: click fills the face under the cursor with the current fill; Shift-click
 /// paints the nearest edge with the current stroke. Clicking selected ordinary paths makes them a
 /// Live Paint group first.
 pub struct LivePaintBucketTool {
     cache: RegionCache,
     hover: LpHover,
+    /// Pointer while hovering (for measurement labels).
+    at: Option<Point>,
+    /// Shift: paint the nearest edge, not fill a face.
+    edge: bool,
 }
 
 impl Default for LivePaintBucketTool {
     fn default() -> Self {
-        Self { cache: RegionCache::live_paint(), hover: LpHover::None }
+        Self { cache: RegionCache::live_paint(), hover: LpHover::None, at: None, edge: false }
     }
 }
 
@@ -662,10 +677,13 @@ impl Tool for LivePaintBucketTool {
         let p = ev.pos;
         match ev.kind {
             PointerKind::Move => {
-                self.hover = lp_hover(cx, &mut self.cache, p, ev.mods.shift);
+                self.edge = ev.mods.shift;
+                self.at = Some(p);
+                self.hover = lp_hover(cx, &mut self.cache, p, self.edge);
                 vec![]
             }
             PointerKind::Down => {
+                self.at = None;
                 self.hover = LpHover::None;
                 let point = json!([p.x, p.y]);
                 if ev.mods.shift {
@@ -698,8 +716,14 @@ impl Tool for LivePaintBucketTool {
         }
     }
 
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
-        lp_overlays(&self.hover, &self.cache, HIGHLIGHT_RED, 4.0)
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        let mut out = lp_overlays(&self.hover, &self.cache, HIGHLIGHT_RED, 4.0);
+        if cx.measurement_labels && !self.edge {
+            if let (Some(p), Some(area)) = (self.at, lp_face_area(&self.hover, &self.cache)) {
+                out.push(Overlay::Measure { p, text: format!("Area: {}", cx.len(area)) });
+            }
+        }
+        out
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
@@ -1021,6 +1045,24 @@ mod tests {
         g.name = Some(LIVE_PAINT_NAME.into());
         d.insert(Some(l), 0, g).unwrap();
         (d, gid, f2, e)
+    }
+
+    #[test]
+    fn bucket_hover_honors_measurement_labels_for_face_area() {
+        let (d, _, _, _) = live_group_doc();
+        let s = Selection::default();
+        let p = paint();
+        let base = cx(&d, &s, &p);
+        let on = ToolContext { measurement_labels: true, ..base };
+        let off = ToolContext { measurement_labels: false, ..base };
+        let mut t = LivePaintBucketTool::default();
+        t.pointer(&on, &ev(PointerKind::Move, 75.0, 25.0));
+        let want = format!("Area: {}", on.len(2500.0));
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
+        let shift = Mods { shift: true, ..Default::default() };
+        t.pointer(&on, &ev(PointerKind::Move, 51.0, 25.0).with_mods(shift));
+        assert!(!t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { .. })), "edge mode hides area");
     }
 
     #[test]
