@@ -16,7 +16,10 @@ use super::paint_owner;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 #[derive(Default)]
-pub struct MagicWandTool;
+pub struct MagicWandTool {
+    /// Where the last click landed, for tolerance readouts.
+    readout_at: Option<Point>,
+}
 
 impl Tool for MagicWandTool {
     fn id(&self) -> &'static str {
@@ -27,6 +30,7 @@ impl Tool for MagicWandTool {
         if ev.kind != PointerKind::Down {
             return vec![];
         }
+        self.readout_at = Some(ev.pos);
         let Some(h) = hit_test(cx.doc, ev.pos, cx.hit_options()) else {
             return if ev.mods.shift || ev.mods.alt { vec![] } else { vec![Action::Exec("select.none".into(), json!({}))] };
         };
@@ -38,6 +42,30 @@ impl Tool for MagicWandTool {
             "set"
         };
         vec![Action::Exec("select.magicWand".into(), json!({ "id": paint_owner(cx.doc, h.leaf).0, "mode": mode }))]
+    }
+
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        if !cx.measurement_labels {
+            return vec![];
+        }
+        let Some(p) = self.readout_at else { return vec![] };
+        let text = cx.magic_wand.measure_label(&cx.stroke_unit);
+        if text.is_empty() {
+            return vec![];
+        }
+        vec![Overlay::Measure { p, text }]
+    }
+
+    fn key(&mut self, _cx: &ToolContext, key: ToolKey, _mods: Mods) -> Vec<Action> {
+        if key == ToolKey::Escape {
+            self.readout_at = None;
+        }
+        vec![]
+    }
+
+    fn deactivate(&mut self, _cx: &ToolContext) -> Vec<Action> {
+        self.readout_at = None;
+        vec![]
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
@@ -153,7 +181,27 @@ impl Tool for LassoTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
+    use crate::MagicWandTolerances;
     use vectorcraft_doc::Selection;
+
+    #[test]
+    fn magic_wand_shows_tolerance_readouts_on_click() {
+        let (d, a) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let mut t = MagicWandTool::default();
+        let wand = MagicWandTolerances { fill_color: true, fill_tolerance: 32.0, stroke_weight: true, weight_tolerance: 2.0, ..Default::default() };
+        let on = ToolContext { measurement_labels: true, magic_wand: wand, ..cx(&d, &s, &p) };
+        let off = ToolContext { measurement_labels: false, magic_wand: wand, ..cx(&d, &s, &p) };
+        assert!(t.overlays(&on).is_empty());
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, 150.0, 150.0));
+        let text = wand.measure_label(&on.stroke_unit);
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { p, text: t } if *p == Point::new(150.0, 150.0) && *t == text)));
+        assert!(t.overlays(&off).is_empty());
+        t.key(&on, ToolKey::Escape, Mods::default());
+        assert!(t.overlays(&on).is_empty());
+        let _ = a;
+    }
 
     #[test]
     fn magic_wand_emits_the_engine_command() {
@@ -161,7 +209,7 @@ mod tests {
         let s = Selection::default();
         let p = paint();
         let cx = cx(&d, &s, &p);
-        let mut t = MagicWandTool;
+        let mut t = MagicWandTool::default();
         let r = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 150.0, 150.0));
         assert_eq!(r, vec![Action::Exec("select.magicWand".into(), json!({"id": a.0, "mode": "set"}))]);
         let shift = Mods { shift: true, ..Default::default() };

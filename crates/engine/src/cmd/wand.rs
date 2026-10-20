@@ -9,6 +9,7 @@ use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
 
 use super::select::selectable_ids;
 use super::*;
+use vectorcraft_tools::MagicWandTolerances;
 
 /// Magic Wand panel settings. Tolerances: colours as 0–255 RGB distance, stroke weight in
 /// points, opacity in percent.
@@ -38,6 +39,21 @@ impl Default for WandSettings {
             opacity: false,
             opacity_tolerance: 5.0,
             blending_mode: false,
+        }
+    }
+}
+
+impl From<&WandSettings> for MagicWandTolerances {
+    fn from(w: &WandSettings) -> Self {
+        Self {
+            fill_color: w.fill_color,
+            fill_tolerance: w.fill_tolerance,
+            stroke_color: w.stroke_color,
+            stroke_tolerance: w.stroke_tolerance,
+            stroke_weight: w.stroke_weight,
+            weight_tolerance: w.weight_tolerance,
+            opacity: w.opacity,
+            opacity_tolerance: w.opacity_tolerance,
         }
     }
 }

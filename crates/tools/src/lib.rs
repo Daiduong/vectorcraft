@@ -224,6 +224,39 @@ impl ScreenFrame {
     }
 }
 
+/// Magic Wand panel tolerances passed to the tool for measurement readouts.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MagicWandTolerances {
+    pub fill_color: bool,
+    pub fill_tolerance: f64,
+    pub stroke_color: bool,
+    pub stroke_tolerance: f64,
+    pub stroke_weight: bool,
+    pub weight_tolerance: f64,
+    pub opacity: bool,
+    pub opacity_tolerance: f64,
+}
+
+impl MagicWandTolerances {
+    /// Lines for Measurement Labels after a Magic Wand click (enabled attributes only).
+    pub fn measure_label(&self, stroke_unit: &Unit) -> String {
+        let mut lines = Vec::new();
+        if self.fill_color {
+            lines.push(format!("Fill: ±{:.0}", self.fill_tolerance));
+        }
+        if self.stroke_color {
+            lines.push(format!("Stroke: ±{:.0}", self.stroke_tolerance));
+        }
+        if self.stroke_weight {
+            lines.push(format!("Weight: ±{}", stroke_unit.readout(self.weight_tolerance)));
+        }
+        if self.opacity {
+            lines.push(format!("Opacity: ±{:.0}%", self.opacity_tolerance));
+        }
+        lines.join("\n")
+    }
+}
+
 /// Read-only context a tool sees.
 pub struct ToolContext<'a> {
     pub doc: &'a Document,
@@ -355,6 +388,8 @@ pub struct ToolContext<'a> {
     pub screen: Option<ScreenFrame>,
     /// Where the Plane Switching Widget sits (Perspective Grid Options); None while it's hidden.
     pub plane_widget: Option<distort::perspective::widget::WidgetCorner>,
+    /// Magic Wand panel settings (for tolerance readouts on click).
+    pub magic_wand: MagicWandTolerances,
 }
 
 impl ToolContext<'_> {
@@ -976,6 +1011,7 @@ pub(crate) mod testutil {
             construction_angles: guides::construction_angles(guides::DEFAULT_CONSTRUCTION_ANGLES),
             screen: None,
             plane_widget: Some(Default::default()),
+            magic_wand: MagicWandTolerances::default(),
         }
     }
 }

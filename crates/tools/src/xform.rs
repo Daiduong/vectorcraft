@@ -37,7 +37,7 @@ pub fn create(id: &str) -> Option<Box<dyn Tool>> {
         "eyedropper" => Box::new(EyedropperTool::default()),
         "gradient" => Box::new(GradientTool::default()),
         "artboard" => Box::new(ArtboardTool::default()),
-        "magicWand" => Box::new(MagicWandTool),
+        "magicWand" => Box::new(MagicWandTool::default()),
         "lasso" => Box::new(LassoTool::default()),
         "measure" => Box::new(MeasureTool::default()),
         _ => return None,
