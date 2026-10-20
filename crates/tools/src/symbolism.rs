@@ -8,9 +8,9 @@
 //! else the document's current brush).
 
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Shape};
+use vectorcraft_geom::{Point, Shape, Vec2};
 
-use crate::draw2::{FEEDBACK, GestureTool, points_json};
+use crate::draw2::{FEEDBACK, GestureTool, points_json, polyline};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 /// Create a symbolism tool or the brush-aware Paintbrush (None = not one of ours).
@@ -67,6 +67,10 @@ impl SymbolismTool {
             "symbolStyler" => "Symbol Styler",
             _ => "Symbol Sprayer",
         }
+    }
+
+    fn scrub_path_length(&self) -> f64 {
+        self.points.windows(2).map(|w| w[0].distance(w[1])).sum()
     }
 
     /// The command + params for the gesture so far.
@@ -165,10 +169,18 @@ impl Tool for SymbolismTool {
         }
         vec![]
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let Some(p) = self.hover else { return vec![] };
         let circle = kurbo::Circle::new(p, self.diameter / 2.0).to_path(0.1);
-        vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }]
+        let mut out = vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }];
+        if self.id == "symbolScruncher" && self.active && self.points.len() >= 2 {
+            out.push(Overlay::Path { path: polyline(&self.points), color: FEEDBACK, width: 1.0, dashed: false });
+            if cx.measurement_labels {
+                let text = format!("D: {}", cx.len(self.scrub_path_length()));
+                out.push(Overlay::Measure { p: p + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text });
+            }
+        }
+        out
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
         match self.id {
@@ -306,6 +318,27 @@ mod tests {
         let fill = serde_json::to_value(p.fill.color().unwrap()).unwrap();
         let a = create("symbolStainer").unwrap().pointer(&cx, &PointerEvent::new(PointerKind::Down, 5.0, 5.0));
         assert!(matches!(&a[1], Action::Preview(_, v) if v["color"] == fill && v["keepModel"] == true), "{a:?}");
+    }
+
+    #[test]
+    fn symbol_scruncher_scrub_shows_path_length_measurement_labels() {
+        let (d, _) = doc_with_rect();
+        let (s, p) = (Selection::default(), paint());
+        let base = cx(&d, &s, &p);
+        let mut t = SymbolismTool::new("symbolScruncher");
+        t.pointer(&base, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        t.pointer(&base, &PointerEvent::new(PointerKind::Drag, 50.0, 0.0));
+        let measure_text = |on: bool| {
+            let c = ToolContext { measurement_labels: on, ..cx(&d, &s, &p) };
+            t.overlays(&c).iter().find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+        };
+        assert_eq!(measure_text(true).as_deref(), Some("D: 50.00 pt"));
+        assert!(measure_text(false).is_none());
+        let paths = t.overlays(&base).iter().filter(|o| matches!(o, Overlay::Path { .. })).count();
+        assert_eq!(paths, 2, "brush circle and scrub polyline");
     }
 
     #[test]
