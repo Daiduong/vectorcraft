@@ -398,6 +398,8 @@ pub struct VectorcraftApp {
     pub titlebar_inset: f32,
     /// Last applied effect (Effect → Apply Last Effect).
     pub last_effect: Option<(String, serde_json::Value)>,
+    /// Last confirmed Warp Options (bend, distortion, orientation) for the next new warp dialog.
+    pub last_warp: Option<serde_json::Value>,
     /// Commands run through [`Self::run`] so far: the native menu bar reads its rows again when it
     /// moves ([`native_menu::sync`]).
     run_count: u64,
@@ -542,6 +544,7 @@ impl VectorcraftApp {
             perf: Perf::default(),
             titlebar_inset: 0.0,
             last_effect: None,
+            last_warp: None,
             run_count: 0,
             clipboard_out: None,
             clipboard_published: None,
@@ -681,6 +684,7 @@ impl VectorcraftApp {
             // nor the Live Corners widgets, and the tools do not answer the pointer on them.
             show_bbox: self.ui.view.bounding_box && self.ui.view.edges,
             snap_to_point: self.ui.view.snap_to_point,
+            snap_to_glyph: self.ui.view.snap_to_glyph,
             corner_widgets: self.ui.view.corner_widgets && self.ui.view.edges,
             screen: self.screen_frame(),
             artboard: self.view().map_or(0, |v| v.artboard),
@@ -1462,6 +1466,13 @@ impl VectorcraftApp {
                 chrome::doc_tabs(self, ui);
             }
             canvas::show(self, ui);
+            // Over the canvas inside the rulers, so the rulers and scroll bars stay uncovered.
+            if self.ui.screen_mode < 3
+                && !menus::home_showing(self)
+                && let Some(area) = self.canvas_rect
+            {
+                chrome::isolation_bar(self, ui, area);
+            }
         });
         dock::floating_panel(self, &ctx);
         floating::show(self, &ctx);

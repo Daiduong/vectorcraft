@@ -302,6 +302,7 @@
 	Plug-ins	Laajennukset
 	No filter plug-ins installed	Suodinlaajennuksia ei ole asennettu
 	Install Plug-in…	Asenna laajennus…
+	Open this setting's help page	Avaa tämän asetuksen ohjesivu
 	Reload Plug-ins	Lataa laajennukset uudelleen
 	Type	Teksti
 	Font	Fontti
@@ -1620,7 +1621,7 @@ lighting	Light	Valo
 	This library is empty	Tämä kirjasto on tyhjä
 	No results	Ei tuloksia
 	No items in this library match “{query}”.	Mikään tämän kirjaston kohde ei vastaa hakua ”{query}”.
-	Right-click an item to move it into this group.	Siirrä kohde tähän ryhmään napsauttamalla sitä hiiren kakkospainikkeella.
+	Drag an item here, or right-click one, to put it in this group.	Vedä kohde tähän tai napsauta sitä hiiren kakkospainikkeella lisätäksesi sen tähän ryhmään.
 	New Group	Uusi ryhmä
 	New Group…	Uusi ryhmä…
 	Move to Group	Siirrä ryhmään
@@ -1675,6 +1676,8 @@ lighting	Light	Valo
 	Corner Point Angle Threshold:	Kulmapisteiden kulmakynnys:
 	Convert to Straight Lines	Muunna suoriksi viivoiksi
 	Show Original Path	Näytä alkuperäinen polku
+	Open this dialog with these settings next time	Avaa tämä valintaikkuna näillä asetuksilla ensi kerralla
+	Auto-Simplify	Yksinkertaista automaattisesti
 	Transparency Options	Läpinäkyvyysasetukset
 	Color Mixer (Shift-click the chip)	Värisekoitin (Vaihto-napsauta värilaattaa)
 	Fill: click for swatches, Shift-click for the color mixer	Täyttö: napsauta avataksesi värimallit, Vaihto-napsauta avataksesi värisekoittimen
@@ -1749,6 +1752,7 @@ lighting	Light	Valo
 	Left in Front	Vasen edessä
 	No document	Ei asiakirjaa
 	Open a document to edit its patterns.	Avaa asiakirja, niin voit muokata sen kuvioita.
+	Overlap	Limitys
 	Overlap:	Limitys:
 	Pattern options are available in pattern editing mode.	Kuvioasetukset ovat käytettävissä kuvion muokkaustilassa.
 	Right in Front	Oikea edessä
@@ -2122,6 +2126,7 @@ lighting	Light	Valo
 	One file per artboard: <name>-<artboard>.{ext}	Yksi tiedosto piirtoalustaa kohden: <name>-<artboard>.{ext}
 	One page per artboard.	Yksi sivu piirtoalustaa kohden.
 	The bounds of the visible art.	Näkyvän kuvituksen rajat.
+	The plug-in writes the whole document.	Laajennus vie koko asiakirjan.
 	Use Artboards	Käytä piirtoalustoja
 	Choose a folder	Valitse kansio
 	Create Sub-folders	Luo alikansiot
@@ -2207,6 +2212,7 @@ lighting	Light	Valo
 	Edit selected paths within:	Muokkaa valittuja polkuja etäisyydellä:
 	Fidelity:	Tarkkuus:
 	Fill new strokes	Täytä uudet viivat
+	Alt key toggles to Smooth Tool	Alt-näppäin vaihtaa Tasoitustyökaluun
 	The document has no colour swatches.	Asiakirjassa ei ole värimalleja.
 	Style Name:	Tyylin nimi:
 	Crop To	Rajaa kohteeseen
@@ -4459,6 +4465,7 @@ imageTrace	Outline	Ääriviiva
 @msg	{_1} files are written by file.saveAsTemplate	{_1}-tiedostot kirjoitetaan komennolla file.saveAsTemplate
 @msg	{_1} font families available	{_1} fonttiperhettä käytettävissä
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} on live-tehoste (Tehoste › Laajennukset)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} on vientilaajennus (Tiedosto › Vie › Vie muodossa…)
 @msg	{_1} is already used by {_2}	{_1} on jo käytössä kohteella {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} linkitettyä tiedostoa ei voi lukea täällä: niiden esikatselut näytetään
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} linkitettyä kuvaa muuttui levyllä: Päivitä linkit näyttää uudet versiot
@@ -5124,6 +5131,7 @@ mark-style	Japanese	Japanilainen
 @msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" sijoittaa lineaarisen tai säteittäisen liukuvärin, ei vapaamuotoista
 @msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" sijoittaa itse liukuvärin: jätä pois `start` ja `end` (ne sijoittavat sen jo asiakirjan koordinaatteihin)
 @msg	the Color Picker is not open	värinvalitsin ei ole auki
+@msg	the Simplify slider is not open	Yksinkertaista-liukusäädin ei ole auki
 @msg	the action has no steps	toiminnossa ei ole vaiheita
 @msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	tiedoston tasoja ei luettu ({_1}): se tuodaan sivunaan yhdelle tasolle
 @msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	tiedoston tasoja ei luettu sen muokkaustiedoista ({_1}): ne tulevat sen PDF-osasta
@@ -5151,6 +5159,27 @@ mark-style	Japanese	Japanilainen
 	Movie Clip	Elokuvaleike
 @msg	name is empty	nimi on tyhjä
 @msg	no symbol named `{n}`	symbolia nimeltä `{n}` ei ole
+	Smudge Stick…	Sumennuskynä…
+	Smudge Stick	Sumennuskynä
+	Sponge…	Sieni…
+	Sponge	Sieni
+	Watercolor…	Vesiväri…
+	Watercolor	Vesiväri
+	Brush Size	Siveltimen koko
+	Definition	Terävyys
+	Brush Detail	Siveltimen yksityiskohta
+	Shadow Intensity	Varjojen voimakkuus
+	Bas Relief…	Matala korkokuva…
+	Bas Relief	Matala korkokuva
+	Charcoal…	Hiili…
+	Charcoal	Hiili
+	Photocopy…	Valokopio…
+	Photocopy	Valokopio
+	Stamp…	Leima…
+	Stamp	Leima
+	Thickness	Paksuus
+	Detail	Yksityiskohta
+	Light/Dark Balance	Vaalean ja tumman tasapaino
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	Muokkaa alkuperäistä avaa vain kuva- ja asiakirjatiedostoja; “{name}” ei ole sellainen
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	selaimessa avataan vain http-, https- ja mailto-URL-osoitteet, ei “{url}”
@@ -5258,3 +5287,20 @@ swatch	Bright Violet	Kirkas violetti
 	Save and Close	Tallenna ja sulje
 	Play:	Toista:
 	Move Anchor Point	Siirrä ankkuripistettä
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} säilyttää asiakirjan {n} piirtoalustasta 1: tiedosto avautuu uudelleen yhdellä. Ota Säilytä muokkausominaisuudet käyttöön, jotta kaikki säilyvät.
+	Chalk & Charcoal…	Liitu ja hiili…
+	Chalk & Charcoal	Liitu ja hiili
+	Graphic Pen…	Grafiikkakynä…
+	Graphic Pen	Grafiikkakynä
+	Reticulation…	Retikulaatio…
+	Reticulation	Retikulaatio
+	Plastic Wrap…	Muovikalvo…
+	Plastic Wrap	Muovikalvo
+	Chrome…	Kromi…
+	Chrome	Kromi
+	Drop here to take it out of its group	Pudota tähän poistaaksesi sen ryhmästään
+	Move Library Group	Siirrä kirjastoryhmä
+	Plaster…	Kipsi…
+	Plaster	Kipsi
+	Note Paper…	Kirjepaperi…
+	Note Paper	Kirjepaperi
