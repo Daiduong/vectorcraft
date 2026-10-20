@@ -393,6 +393,8 @@ since 2026-10-01.
 
 ## Evidence: what ships today, by area
 
+- **Hide Guides (#3219):** the view toggle hides guide paths in the artwork raster as well as ruler-guide overlays, including Outline view and cached group effects. Renderer pixel tests and a headless canvas upload regression cover hide/show while preserving ordinary artwork and document data. Scores and hours unchanged.
+
 - **Stable status-bar readouts:** The status message keeps its left anchor and clipping allocation as live values, canvas hover and background-job state change. Coordinate and spinner slots stay reserved; narrow windows hide optional diagnostics, then coordinates, to preserve message space. Widths are measured from the active font, translated labels and fixed numeric samples, never current readings. Coordinates through +/-9999.99 selected units, timings through 9999.9 ms and FPS through 9999 remain readable. Extreme values are elided with full tooltip/accessibility text; only elided fields show a tooltip. Coordinate inspection retains the last point per document and clears on PointerGone. Regressions cover message origin/clip/bounds/elision invariance, all registered languages and ten units, responsive layouts, coordinate inspection and document switching, and accessible busy transitions. The contributor rebuilt and confirmed the original status-bar issue is fixed with their own artwork on 2026-10-19; the subsequent upstream rebase is checked by regressions and full CI. The artwork stays local. Scores and estimates are unchanged. Sample widths use a bounded single-entry UI cache keyed by language, unit and pixels per point; two regressions verify reuse during live updates and invalidation after each display-setting change.
 
 - **Canvas review follow-up:** Cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission. Controlled-worker regression checks oversized width and height, high DPI and the render transform without allocating oversized images. Scores and estimates are unchanged.
@@ -851,6 +853,7 @@ Evidence for the shared light Color: geometry tests in `tests_lighting`, effect 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-20 | minor | Guides/rulers: Hide Guides refreshes guide paths and cached group effects in Preview and Outline (#3219); scores and hours unchanged. |
 | 2026-10-19 | minor | Plug-ins: live effects are given their object's fills and strokes, read only, and the item they sit on (G17); engine and unit regressions. Scores and hours unchanged. |
 | 2026-10-19 | minor | Plug-ins: parameters with labels, units, help, groups and conditions in their dialogs, `string` and `numberList` types, up to 256 per plug-in (G17); manifest and kittest dialog regressions. Scores and hours unchanged. |
 | 2026-10-19 | minor | Plug-ins: exporter plug-ins add write-only file formats to Export As and `document.export` (G17); engine, ABI and headless Export As regressions. Scores and hours unchanged. |

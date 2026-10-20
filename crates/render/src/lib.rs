@@ -125,6 +125,8 @@ pub struct RenderOptions {
     pub skip_templates: bool,
     /// View › Hide Template: template layers left out of the screen view (guides stay).
     pub hide_templates: bool,
+    /// View › Hide Guides: leave paths made into guides out of the screen view.
+    pub hide_guides: bool,
     /// Pattern editing mode's tile edge and swatch bounds colour (Object → Pattern → Tile Edge
     /// Color), RGB.
     pub tile_edge: [u8; 3],
@@ -246,6 +248,7 @@ impl Default for RenderOptions {
             trim: false,
             skip_templates: false,
             hide_templates: false,
+            hide_guides: false,
             tile_edge: vectorcraft_doc::LAYER_COLORS[0].1,
             guide: ([0x4a, 0xd8, 0xff], false),
             mask_view: None,
@@ -1037,7 +1040,7 @@ impl Renderer {
     /// Whether `a` is left out of this frame: hidden, a skipped template or guide, or culled.
     fn skipped(&mut self, f: &Frame, a: &Arc<Node>) -> bool {
         let skipped_template = (f.opts.skip_templates || f.opts.hide_templates) && matches!(a.kind, NodeKind::Layer { template: true, .. })
-            || f.opts.skip_templates && matches!(a.kind, NodeKind::Path { guide: true, .. });
+            || (f.opts.skip_templates || f.opts.hide_guides) && matches!(a.kind, NodeKind::Path { guide: true, .. });
         if !a.visible || skipped_template || f.opts.hidden.contains(&a.id) {
             return true;
         }
@@ -1153,6 +1156,10 @@ impl Renderer {
     }
 
     fn draw_node(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, force: bool) {
+        // Outline members can reach this entry without draw_arc's visibility check.
+        if f.opts.hide_guides && matches!(n.kind, NodeKind::Path { guide: true, .. }) {
+            return;
+        }
         if !force && (!n.visible || f.opts.hidden.contains(&n.id)) {
             return;
         }

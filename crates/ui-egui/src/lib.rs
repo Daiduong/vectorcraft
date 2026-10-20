@@ -377,6 +377,8 @@ pub struct CacheKey {
     pub rich_black: bool,
     /// Colour and style of guide paths ([`vectorcraft_render::RenderOptions::guide`]).
     pub guide: ([u8; 3], bool),
+    /// View › Show/Hide Guides, including paths drawn into the artwork raster.
+    pub guides: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

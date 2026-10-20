@@ -88,6 +88,7 @@ M3 follow-up (#1968): native saves retain the per-document transparency grid set
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-20 | minor | M2 interaction follow-up (#3219): Hide Guides hides converted guide paths as well as ruler guides, including Outline and cached effects; stage, scores and estimates unchanged. |
 | 2026-10-19 | minor | Cache status-readout sample widths per UI, language, document unit and pixels per point; regressions check reuse across live frames and refresh after display-setting changes. Scores and estimates unchanged. |
 | 2026-10-19 | minor | Status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates. Contributor original-file acceptance confirmed; scores and estimates unchanged. |
 | 2026-10-18 | minor | M4/DXF #1299: circular cubic paths export as native CIRCLE/ARC where stroke semantics permit; R12 weighted strokes retain POLYLINE width and closed partial arcs with an implicit closing chord are not promoted to CIRCLE. Scores and hours unchanged. |

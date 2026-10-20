@@ -319,6 +319,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let guide_look = LineLook::guides(&app.session.prefs, &t);
     let key = CacheKey {
         guide: ([guide_look.color.r(), guide_look.color.g(), guide_look.color.b()], guide_look.dots),
+        guides: app.ui.view.guides,
         doc: st.uid as usize,
         revision: st.revision,
         interacting: st.interaction.is_some(),
@@ -388,6 +389,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 [r, g, b]
             }),
             guide: key.guide,
+            hide_guides: !key.guides,
             mask_view,
             highlight_substitutions: true,
             // Type › Highlight Alternate Glyphs (#394): pink behind OpenType substitutions.
@@ -5290,6 +5292,39 @@ mod tests {
             .collect();
         assert!(turned.len() >= 200, "{}", turned.len());
         assert!(turned.iter().all(|a| [30.0, 60.0, 120.0, 150.0].iter().any(|t| (a - t).abs() < 0.5)), "turned 30°: {turned:?}");
+    }
+
+    /// #3219: Hide Guides must refresh the artwork raster as well as the ruler-guide overlay.
+    #[test]
+    fn hide_guides_refreshes_guide_paths_without_changing_the_document() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width":400,"height":300})).unwrap();
+        app.run("shape.rectangle", json!({"x":100,"y":100,"width":100,"height":100})).unwrap();
+        app.run("view.guides.make", json!({})).unwrap();
+        app.run("select.none", json!({})).unwrap();
+        app.run("prefs.set", json!({"key":"guideColor","value":"#ff0000"})).unwrap();
+        app.canvas.worker_started = true; // Render synchronously so each upload belongs to this frame.
+        let ctx = egui::Context::default();
+        let before = app.session.active().unwrap().doc.clone();
+        let ink = |app: &mut VectorcraftApp| {
+            let (_, mut delta) = frame_output(app, &ctx);
+            let art = app.canvas.texture.as_ref().unwrap().id();
+            let count = delta.set.iter().find(|e| e.0.eq(&art)).and_then(|e| e.1.last()).map(|d| {
+                let egui::ImageData::Color(img) = &d.image;
+                img.pixels.iter().filter(|p| p.r() > 100 && p.g() < 80 && p.b() < 80 && p.a() > 100).count()
+            });
+            delta.clear();
+            count
+        };
+        for outline in [false, true] {
+            app.ui.view.outline = outline;
+            assert!(ink(&mut app).expect("shown guide paths render") > 100);
+            app.run("view.guides", json!({})).unwrap();
+            assert_eq!(ink(&mut app), Some(0), "hiding guides refreshes the cached raster, outline={outline}");
+            app.run("view.guides", json!({})).unwrap();
+            assert!(ink(&mut app).expect("showing guides refreshes the cached raster") > 100);
+            assert!(std::sync::Arc::ptr_eq(&before, &app.session.active().unwrap().doc), "view changes leave the document intact");
+        }
     }
 
     /// Guides & Grid (#394): the grid in Grid Color, behind the art or, with Grids In Back off,

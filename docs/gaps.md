@@ -43,6 +43,8 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G1 Interaction fidelity
 
+- **Fixed (#3219):** Hide Guides applies to paths made into guides as well as ruler guides, in Preview and Outline. Guide visibility reaches the renderer and invalidates the canvas and cached group effects; regression tests cover hide/show without document edits. Broader G1 scope and estimates unchanged.
+
 - **Implemented, regression-tested and contributor-confirmed:** status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates. Original-file acceptance confirmed 2026-10-19; broader G1 scope and estimates unchanged. Sample widths are cached by language, document unit and pixels per point rather than remeasured every frame.
 
 - **Canvas review follow-up:** Cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission. Controlled-worker regression checks oversized width and height, high DPI and the render transform without allocating oversized images. G1 scope and estimates are unchanged.
