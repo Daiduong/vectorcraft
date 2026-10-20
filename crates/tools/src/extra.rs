@@ -386,11 +386,20 @@ impl Tool for ShaperTool {
         }
         vec![]
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         if self.points.len() < 2 {
             return vec![];
         }
-        vec![Overlay::Path { path: crate::draw2::polyline(&self.points), color: BLUE, width: 1.5, dashed: false }]
+        let mut o = vec![Overlay::Path { path: crate::draw2::polyline(&self.points), color: BLUE, width: 1.5, dashed: false }];
+        if cx.measurement_labels {
+            let last = self.points[self.points.len() - 1];
+            let length = self.points.windows(2).map(|w| w[0].distance(w[1])).sum::<f64>();
+            o.push(Overlay::Measure {
+                p: last + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: format!("L: {}", cx.len(length)),
+            });
+        }
+        o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _mods: Mods) -> Cursor {
         Cursor::Shaper
@@ -550,6 +559,35 @@ mod tests {
         let mut quiet = GraphTool::new("columnGraph");
         drag(&mut quiet, &off);
         assert_eq!(measure_count(&quiet, &off), 0);
+    }
+
+    #[test]
+    fn shaper_gesture_measure_labels() {
+        use crate::testutil::*;
+        use vectorcraft_doc::Selection;
+
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let measure = |t: &ShaperTool, c: &ToolContext| {
+            t.overlays(c).iter().find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+        };
+        let mut t = ShaperTool::default();
+        let drag = |t: &mut ShaperTool, c: &ToolContext| {
+            t.pointer(c, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+            t.pointer(c, &PointerEvent::new(PointerKind::Drag, 100.0, 0.0));
+        };
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        drag(&mut t, &on);
+        let text = measure(&t, &on).unwrap_or_default();
+        assert!(text.starts_with("L: "), "{text}");
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        let mut quiet = ShaperTool::default();
+        drag(&mut quiet, &off);
+        assert!(measure(&quiet, &off).is_none());
     }
 
     #[test]
