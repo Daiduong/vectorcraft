@@ -8,6 +8,9 @@
 //!   it. `keep` names the side kept; Alt on release keeps the other one.
 //! - Line Cut: the drag draws the cut line (Shift: 45° steps).
 //! - Rectangle Cut: the drag draws the rectangle (Shift: a square, Alt: from its centre).
+//!
+//! With Smart Guides › Measurement Labels on, a drag shows size (rectangle cut) or distance and
+//! angle (mirror and line cut), like other drawing tools.
 
 use serde_json::{Value, json};
 use vectorcraft_geom::{Point, Vec2, constrain_angle_from};
@@ -188,10 +191,9 @@ impl Tool for CutTool {
         let mid = if self.constrained() { b } else { a };
         let mut o = vec![Overlay::Line { a: mid - far, b: mid + far, color: FEEDBACK, dashed: true }];
         if self.began && cx.measurement_labels && !self.constrained() && a.distance(b) >= cx.tol(MIN_DRAG_PX) {
-            let (dist, ang, dx, dy) = crate::xform::measure(a, b);
             o.push(Overlay::Measure {
                 p: b + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
-                text: format!("D: {}\nAngle: {ang:.1}°\n{}", cx.len(dist), cx.offset_label(dx, dy)),
+                text: crate::xform::segment_measure_label(cx, a, b),
             });
         }
         o
@@ -304,7 +306,8 @@ mod tests {
         let mut s = Selection::default();
         s.set([id]);
         let p = paint();
-        let cx = cx(&d, &s, &p);
+        let mut cx = cx(&d, &s, &p);
+        cx.measurement_labels = false;
         let mut t = CutTool::new("lineCut");
         t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 150.0, 50.0));
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 150.0, 250.0));
@@ -325,7 +328,8 @@ mod tests {
         t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
         t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 40.0, 10.0));
         cx.measurement_labels = true;
-        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("D: 30.00 pt"))));
+        let want = crate::xform::segment_measure_label(&cx, Point::new(10.0, 10.0), Point::new(40.0, 10.0));
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
         cx.measurement_labels = false;
         assert!(!t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }

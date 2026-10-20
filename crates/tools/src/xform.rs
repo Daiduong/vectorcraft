@@ -16,15 +16,24 @@ mod wand;
 use vectorcraft_doc::{Document, NodeId, NodeKind};
 use vectorcraft_geom::{BezPath, Point, Rect, Shape};
 
-use crate::{Overlay, Tool};
+use crate::{Overlay, Tool, ToolContext};
 
 pub use artboard::ArtboardTool;
 pub use eyedropper::EyedropperTool;
 pub use free::{DistortMode, FreeTransformTool};
 pub use gradient::GradientTool;
-pub use measure::{MeasureTool, measure};
+pub use measure::MeasureTool;
 pub use transform::{TransformKind, TransformTool};
 pub use wand::{LassoTool, MagicWandTool};
+
+/// Straight-segment readout (distance, angle counter-clockwise from +x, dX/dY), as the Measure tool
+/// and Smart Guides › Measurement Labels show while drawing (#2983).
+pub fn segment_measure_label(cx: &ToolContext, from: Point, to: Point) -> String {
+    let d = to - from;
+    let dist = d.hypot();
+    let ang = (-d.y).atan2(d.x).to_degrees();
+    format!("D: {}\nAngle: {ang:.1}°\n{}", cx.len(dist), cx.offset_label(d.x, d.y))
+}
 
 /// Create a transform/utility tool by id (None = not one of ours).
 pub fn create(id: &str) -> Option<Box<dyn Tool>> {
