@@ -45,7 +45,7 @@ pub mod picks;
 pub mod place;
 pub mod prefs_dialog;
 pub mod remote_access;
-pub use remote_access::{RemoteAccessFn, RemoteControlFn};
+pub use remote_access::{RemoteAccessFn, RemoteAuthorizeFn, RemoteControlFn};
 pub mod print;
 pub mod recovery;
 pub mod render_worker;
@@ -226,6 +226,8 @@ pub type RevealFn = Box<dyn FnMut(&str) -> Result<(), String>>;
 pub struct Services {
     /// Owner-only remote connection management, performed on a host worker thread.
     pub remote_access: Option<RemoteAccessFn>,
+    /// Verify workspace identity and current grants before any remote HTTP operation runs.
+    pub remote_authorize: Option<RemoteAuthorizeFn>,
     /// Start the local control channel only after the owner installs validated folder grants.
     pub start_remote_control: Option<RemoteControlFn>,
     /// Show an open dialog; returns a path.

@@ -24,6 +24,7 @@ pub struct Worker {
 }
 struct Guarded {
     remote: Remote,
+    capability: String,
     uncertain: Arc<AtomicBool>,
     roots: Arc<vectorcraft_engine::file_access::AutomationRoots>,
 }
@@ -42,7 +43,7 @@ impl Backend for Guarded {
         if let (Some(access), Some(path)) = (access, params.get("path").and_then(Value::as_str)) {
             self.roots.check(path, access)?;
         }
-        let result = self.remote.call(method, params);
+        let result = self.remote.call("remote.execute", json!({"capability":self.capability,"method":method,"params":params}));
         if result.as_ref().err().is_some_and(|e| e.contains("may have completed") || e.contains("may yet complete") || e.contains("still running")) {
             self.uncertain.store(true, Ordering::SeqCst);
         }
@@ -86,7 +87,7 @@ fn read_only(message: &Value) -> bool {
 fn open(settings: &Settings) -> Result<Value, String> {
     let address = format!("127.0.0.1:{}", settings.control_port);
     if let Ok(mut remote) = Remote::connect(&address) {
-        remote.call("ui.inspect", json!({}))?;
+        remote.call("remote.execute", json!({"capability":settings.desktop_capability()?,"method":"ui.inspect","params":{}}))?;
         return Ok(json!({"status":"already_running","ready":true}));
     }
     let mut command = std::process::Command::new(&settings.app_path);
@@ -117,7 +118,7 @@ fn open(settings: &Settings) -> Result<Value, String> {
     let deadline = Instant::now() + Duration::from_secs(30);
     while Instant::now() < deadline {
         if let Ok(mut remote) = Remote::connect(&address) {
-            remote.call("ui.inspect", json!({}))?;
+            remote.call("remote.execute", json!({"capability":settings.desktop_capability()?,"method":"ui.inspect","params":{}}))?;
             return Ok(json!({"status":"started","ready":true}));
         }
         std::thread::sleep(Duration::from_millis(200));
@@ -179,6 +180,7 @@ impl Worker {
     /// Discovery leaves the editor closed; uncertain edits require local review before further mutations.
     pub fn start(settings: Settings) -> Result<Arc<Self>, String> {
         let roots = settings.automation_roots()?.ok_or("Artwork access was not configured")?;
+        let capability = settings.desktop_capability()?;
         let (sender, receiver) = sync_channel::<Job>(8);
         let pending = Arc::new(AtomicUsize::new(0));
         let count = pending.clone();
@@ -187,7 +189,12 @@ impl Worker {
         std::thread::Builder::new()
             .name("native-mcp-worker".into())
             .spawn(move || {
-                let backend = Guarded { remote: Remote::deferred(&format!("127.0.0.1:{}", settings.control_port)), uncertain: guard.clone(), roots };
+                let backend = Guarded {
+                    remote: Remote::deferred(&format!("127.0.0.1:{}", settings.control_port)),
+                    capability,
+                    uncertain: guard.clone(),
+                    roots,
+                };
                 let mut server = Server::new(Box::new(backend));
                 for job in receiver {
                     let mutable = !read_only(&job.message);

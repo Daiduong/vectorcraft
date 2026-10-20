@@ -198,6 +198,21 @@ fn modifiers(p: &Value) -> egui::Modifiers {
 /// Dispatch one claimed desktop-control request under the caller's file-access scope.
 /// Pause edits during connection setup and refuse window captures while a passphrase is visible.
 pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+    if req.method == "remote.execute" {
+        let Some(method) = req.params.get("method").and_then(Value::as_str).filter(|m| *m != "remote.execute") else {
+            return err("A delegated operation needs a non-nested control method");
+        };
+        let capability = req.params.get("capability").and_then(Value::as_str).unwrap_or("");
+        let Some(roots) = app.automation_roots.as_ref() else { return err("This desktop has no approved remote artwork folders") };
+        let Some(authorize) = app.services.remote_authorize.as_ref() else {
+            return err("This desktop cannot verify the configured remote workspace");
+        };
+        if let Err(error) = authorize(roots, capability) {
+            return err(error);
+        }
+        let (inner, _) = ControlRequest::new(method, req.params.get("params").cloned().unwrap_or(json!({})));
+        return handle(app, ctx, &inner);
+    }
     if req.method == "ui.screenshot" && !app.remote_access.allows_screenshot(app.remote_access.privacy_epoch()) {
         return err("Window screenshots are paused while a passphrase is visible");
     }
@@ -515,6 +530,44 @@ mod tests {
         let (req, _) = ControlRequest::new(method, params);
         let Outcome::Done(r) = handle(app, &egui::Context::default(), &req) else { panic!("expected immediate reply") };
         r
+    }
+    /// Reject unverified delegated operations before dispatch, including nested engine file commands.
+    #[test]
+    fn delegated_calls_require_current_authority_before_any_operation_runs() {
+        use vectorcraft_engine::file_access::{AutomationRoots, confine};
+        let root = std::env::temp_dir().join(format!("vc-delegation-{}", std::process::id()));
+        let artwork = root.join("artwork");
+        std::fs::create_dir_all(&artwork).unwrap();
+        let installed = AutomationRoots::new(Some(&artwork), Some(&artwork)).unwrap().unwrap();
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let message = json!({"capability":"test-profile-capability","method":"ui.inspect","params":{}});
+        assert_eq!(input_request(&mut app, "remote.execute", message.clone())["ok"], false);
+        app.install_automation_roots(Some(installed.clone()));
+        assert_eq!(input_request(&mut app, "remote.execute", message.clone())["ok"], false);
+        let expected = installed.clone();
+        app.services.remote_authorize = Some(Box::new(move |roots, capability| {
+            if roots == expected.as_ref() && capability == "test-profile-capability" { Ok(()) } else { Err("Workspace mismatch".into()) }
+        }));
+        assert_eq!(input_request(&mut app, "remote.execute", message)["ok"], true);
+        assert_eq!(input_request(&mut app, "remote.execute", json!({"method":"remote.execute","params":{}}))["ok"], false);
+        let accepted = json!({"capability":"test-profile-capability","method":"engine.execute","params":{"command":"file.new","params":{"width":10,"height":10}}});
+        let before = app.session.documents().len();
+        assert_eq!(input_request(&mut app, "remote.execute", accepted)["ok"], true);
+        assert_eq!(app.session.documents().len(), before + 1);
+        let mutation =
+            json!({"capability":"wrong-profile","method":"engine.execute","params":{"command":"file.new","params":{"width":10,"height":10}}});
+        let before = app.session.documents().len();
+        assert_eq!(input_request(&mut app, "remote.execute", mutation)["ok"], false);
+        assert_eq!(app.session.documents().len(), before);
+        let outside =
+            json!({"capability":"test-profile-capability","method":"engine.execute","params":{"command":"file.list","params":{"path":root}}});
+        let response = confine(Some(&installed), || input_request(&mut app, "remote.execute", outside));
+        assert_eq!(response["ok"], false);
+        assert!(response["error"].as_str().unwrap().contains("outside the"));
+        let broader = AutomationRoots::new(Some(&root), Some(&root)).unwrap().unwrap();
+        app.install_automation_roots(Some(broader));
+        assert_eq!(input_request(&mut app, "remote.execute", json!({"capability":"test-profile-capability","method":"ui.inspect"}))["ok"], false);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

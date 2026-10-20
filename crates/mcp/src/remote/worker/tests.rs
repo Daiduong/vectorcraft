@@ -34,13 +34,64 @@ fn fixture() -> (tempfile::TempDir, Settings) {
 fn explicit_file_targets_are_checked_before_desktop_dispatch() {
     let (_root, settings) = fixture();
     let roots = vectorcraft_engine::file_access::AutomationRoots::new(Some(&settings.artwork_root), Some(&settings.artwork_root)).unwrap().unwrap();
-    let mut backend =
-        Guarded { remote: Remote::deferred(&format!("127.0.0.1:{}", settings.control_port)), uncertain: Arc::new(AtomicBool::new(false)), roots };
+    let mut backend = Guarded {
+        remote: Remote::deferred(&format!("127.0.0.1:{}", settings.control_port)),
+        capability: settings.desktop_capability().unwrap(),
+        uncertain: Arc::new(AtomicBool::new(false)),
+        roots,
+    };
     for method in ["app.open", "app.save", "app.export", "ui.render", "ui.screenshot"] {
         let error = backend.call(method, json!({"path":settings.profile_dir.join("private.json")})).unwrap_err();
         assert!(error.contains("outside the"), "{method}: {error}");
     }
     assert!(!backend.uncertain.load(Ordering::SeqCst));
+}
+/// Reconnection and readiness probes always use the bound envelope, never a bare desktop method.
+#[test]
+fn reconnection_and_open_refuse_a_different_workspace_on_the_same_port() {
+    use std::io::{BufRead as _, Write as _};
+    let (_root, settings) = fixture();
+    let listener = std::net::TcpListener::bind(("127.0.0.1", settings.control_port)).unwrap();
+    let capability = settings.desktop_capability().unwrap();
+    let expected = capability.clone();
+    let responder = std::thread::spawn(move || {
+        for index in 0..3 {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+            let mut line = String::new();
+            std::io::BufReader::new(socket.try_clone().unwrap()).read_line(&mut line).unwrap();
+            let request: Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(request["method"], "remote.execute");
+            assert_eq!(request["params"]["capability"], expected);
+            let reply = if index == 0 {
+                json!({"id":request["id"],"ok":true,"result":{"verified":true}})
+            } else {
+                json!({"id":request["id"],"ok":false,"error":"Workspace mismatch; no operation dispatched"})
+            };
+            writeln!(socket, "{reply}").unwrap();
+            socket.shutdown(std::net::Shutdown::Both).unwrap();
+        }
+    });
+    let mut backend = Guarded {
+        remote: Remote::deferred(&format!("127.0.0.1:{}", settings.control_port)),
+        capability,
+        uncertain: Arc::new(AtomicBool::new(false)),
+        roots: settings.automation_roots().unwrap().unwrap(),
+    };
+    assert_eq!(backend.call("ui.inspect", json!({})).unwrap()["verified"], true);
+    // The first server closed its socket. The replacement must authorize the next operation anew.
+    let probe = backend.remote.connection_probe();
+    probe.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    assert_eq!(probe.peek(&mut [0]).unwrap(), 0, "wait for the old endpoint's FIN before reconnecting");
+    assert!(
+        backend
+            .call("engine.execute", json!({"command":"file.list","params":{"path":settings.profile_dir}}))
+            .unwrap_err()
+            .contains("Workspace mismatch")
+    );
+    assert!(open(&settings).unwrap_err().contains("Workspace mismatch"));
+    assert!(!backend.uncertain.load(Ordering::SeqCst));
+    responder.join().unwrap();
 }
 
 /// Verify a lost mutation reply pauses later edits while allowing discovery and inspection metadata.

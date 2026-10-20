@@ -3,6 +3,8 @@ use crate::VectorcraftApp;
 use serde_json::{Value, json};
 
 pub type RemoteAccessFn = Box<dyn FnMut(Value) -> std::sync::mpsc::Receiver<Result<Value, String>>>;
+/// Authenticate a delegated operation against locally installed grants and saved profile settings.
+pub type RemoteAuthorizeFn = Box<dyn Fn(&vectorcraft_engine::file_access::AutomationRoots, &str) -> Result<(), String>>;
 pub type RemoteControlFn =
     Box<dyn FnMut(u16, std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>) -> std::sync::mpsc::Receiver<crate::ControlRequest>>;
 #[derive(Default)]

@@ -7,11 +7,11 @@ prototype; it has not been released. Earlier builds passed hosted OpenAI calls a
 public gateway. Gemini's structured tools work in user testing, with a preview-visibility
 limitation documented below.
 
-The full `cargo xtask ci` gate passes all ten stages on Windows with serialized tests: 8,592
+The full `cargo xtask ci` gate passes all ten stages on Windows with serialized tests: 8,593
 workspace tests and the separate no-bundled-fonts test pass. 13 existing tests remain ignored
 (timing/quality-report probes and a documented tracing-junction case); none were disabled for this
 addition. Workspace all-target clippy with the optional remote features also passes, along with
-156 remote MCP tests, 20 focused wizard tests and 9 host tests. CI follow-ups fix two SVG tests' platform-path
+157 remote MCP tests, 20 focused wizard tests and 11 host tests. CI follow-ups fix two SVG tests' platform-path
 assumptions, supply required catalog entries, and use the shared asynchronous folder picker with
 a regression test. The local manual review is complete. Native macOS/Linux validation, translation
 review and independent maintainer review remain.
@@ -20,6 +20,9 @@ The wizard is not yet fully localized.
 A fresh local SDK scenario on the combined upstream build used a wildcard listener and verified
 authenticated local owner status, client registration, revocation, resume and Stop through `127.0.0.1`.
 It also passed OAuth, approved-folder boundaries, native editing, PNG previews and restart/reconnect checks.
+A fresh SDK regression also starts a real, broader-authority editor in another profile on the
+configured control port. Both initial reuse and reconnection refuse the opener, nested `file.list`
+and document inspection; the intended profile still opens, edits, saves and renders normally.
 
 Manual-review fixes enforce character-based passphrase bounds, private-directory-only settings
 storage and a matching read/write size limit. Unavailable artwork folders no longer prevent local
@@ -39,12 +42,24 @@ automation without aborting the desktop editor; repair remains local. Explicit C
 an intentional opt-in, while a failing saved remote setup disables it rather than falling back to
 unconfined access.
 
-The desktop control channel retains upstream's trusted-loopback assumption: reserve its configured
-port for the intended executable/profile. It does not authenticate other local programs. Folder
-checks are not an OS sandbox and do not prevent local filesystem races or processes running as
-the owner. Invalid JSON settings may still need a local restore; the repair flow covers readable
+HTTP delegation uses a private, domain-separated desktop capability derived from the connection's
+management credential, canonical executable, profile and approved folders, including the private
+exclusion. Every delegated operation is authenticated by the receiving editor before dispatch. The
+host compares its actual installed read/write grants and exclusions with its current saved settings;
+a different profile, executable, stale folder setup or disabled connection is refused. Readiness probes
+use the same authenticated envelope. Reconnection never falls back to ordinary unauthenticated control,
+and older builds without the envelope cannot be reused. Updating this prototype requires replacing
+both the HTTP service and editor; linked OAuth accounts do not need to be recreated.
+
+The ordinary desktop control channel retains upstream's trusted-loopback assumption for intentional
+local callers. The capability does not authenticate hostile programs already running as the owner,
+who can read the private settings. Folder checks are not an OS sandbox and do not prevent local
+filesystem races or processes running as the owner. Invalid JSON settings may still need a local restore; the repair flow covers readable
 settings with unavailable folders. No native macOS/Linux execution or independent security audit
 is claimed by the local review.
+
+The local Stop action also persists its disabled setting when the HTTP service already exited,
+so a crash followed by Stop does not leave implicit desktop-control startup enabled.
 
 ## OAuth desktop build
 

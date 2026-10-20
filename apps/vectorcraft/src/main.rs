@@ -539,6 +539,8 @@ fn services(parent: Parent, ui: egui::Context, _control_port: Option<u16>) -> Se
         #[cfg(feature = "remote-access")]
         remote_access: prefs_enabled().then(|| remote_access::service(_control_port)),
         #[cfg(feature = "remote-access")]
+        remote_authorize: prefs_enabled().then(|| Box::new(remote_access::authorize_desktop) as vectorcraft_ui_egui::RemoteAuthorizeFn),
+        #[cfg(feature = "remote-access")]
         start_remote_control: prefs_enabled().then(|| {
             Box::new(move |port, roots| {
                 vectorcraft_engine::file_access::confine_process(roots);

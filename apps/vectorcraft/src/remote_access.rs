@@ -12,6 +12,12 @@ pub fn profile() -> Result<PathBuf, String> {
 fn settings_path() -> Result<PathBuf, String> {
     Ok(profile()?.join("Remote Access/settings.json"))
 }
+/// Authorize a delegated desktop call using this profile's current saved connection settings.
+/// The UI supplies its installed grants; no remote caller can replace them or select a profile.
+pub fn authorize_desktop(roots: &vectorcraft_engine::file_access::AutomationRoots, capability: &str) -> Result<(), String> {
+    let settings = Settings::read(&settings_path()?)?;
+    settings.authorize_desktop(roots, capability, &std::env::current_exe().map_err(|e| e.to_string())?)
+}
 pub type InitialControl = (Option<u16>, Option<std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>>);
 /// Load saved artwork-folder grants and the enabled connection's control port.
 /// Reject CLI folder overrides; Remote AI grants are managed in Preferences > Remote AI.
@@ -222,19 +228,7 @@ fn handle(input: Value, control_port: Option<u16>) -> Result<Value, String> {
         }
         "stop" => {
             let mut s = settings.ok_or("No connection is configured")?;
-            owner(&s, json!({"action":"stop"}))?;
-            let address: std::net::SocketAddr = s.bind.parse().map_err(|_| "Invalid bind")?;
-            for _ in 0..50 {
-                if !listening(address.port()) {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            if listening(address.port()) {
-                return Err("The connection is finishing requests. Wait before trying again".into());
-            }
-            s.enabled = false;
-            s.save_disabled(&path)?;
+            disable(&mut s, &path)?;
             public_status(Some(&s))
         }
         "register" => {
@@ -270,6 +264,13 @@ fn handle(input: Value, control_port: Option<u16>) -> Result<Value, String> {
         }
         _ => Err("Unknown local connection action".into()),
     }
+}
+/// Persist the owner's Stop choice even when the service already exited.
+/// A running service must finish its work successfully before its setup is disabled.
+fn disable(settings: &mut Settings, path: &std::path::Path) -> Result<(), String> {
+    stop_running(settings)?;
+    settings.enabled = false;
+    settings.save_disabled(path)
 }
 /// Validate replacement artwork folders while preserving all other connection settings.
 fn folder_settings(previous: &Settings, input: &Value) -> Result<Settings, String> {
@@ -366,6 +367,54 @@ mod tests {
         settings.save(&path).unwrap();
         let (port, _) = initial_control_in(&settings.profile_dir).unwrap();
         assert!(port.is_none());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    /// Stop remains persistent after a crash, and repeating Stop keeps automatic control disabled.
+    #[test]
+    fn stopping_an_already_exited_service_persists_disabled_state() {
+        let (mut settings, path, root) = fixture();
+        settings.save(&path).unwrap();
+        disable(&mut settings, &path).unwrap();
+        assert!(!Settings::read(&path).unwrap().enabled);
+        assert!(initial_control_in(&settings.profile_dir).unwrap().0.is_none());
+        disable(&mut settings, &path).unwrap();
+        assert!(!Settings::read(&path).unwrap().enabled);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    /// A desktop capability cannot authorize another profile, broader grants or missing exclusions.
+    #[test]
+    fn desktop_delegation_requires_the_saved_profile_build_and_actual_grants() {
+        use vectorcraft_engine::file_access::AutomationRoots;
+        let (settings, path, root) = fixture();
+        settings.save(&path).unwrap();
+        let installed = settings.automation_roots().unwrap().unwrap();
+        let capability = settings.desktop_capability().unwrap();
+        assert!(!capability.contains(&settings.management_token));
+        assert!(settings.authorize_desktop(&installed, &capability, &settings.app_path).is_ok());
+        let broader = AutomationRoots::new(Some(&root), Some(&root)).unwrap().unwrap();
+        assert!(settings.authorize_desktop(&broader, &capability, &settings.app_path).is_err());
+        let no_exclusion = AutomationRoots::new(Some(&settings.artwork_root), Some(&settings.artwork_root)).unwrap().unwrap();
+        assert!(settings.authorize_desktop(&no_exclusion, &capability, &settings.app_path).is_err());
+        let mut other = settings.clone();
+        other.profile_dir = root.join("other-profile");
+        std::fs::create_dir_all(other.profile_dir.join("Remote Access")).unwrap();
+        assert_ne!(other.desktop_capability().unwrap(), capability);
+        assert!(other.authorize_desktop(&installed, &capability, &settings.app_path).is_err());
+        let other_build = root.join("another-build.exe");
+        std::fs::write(&other_build, b"not executable; identity test only").unwrap();
+        assert!(settings.authorize_desktop(&installed, &capability, &other_build).is_err());
+        other = settings.clone();
+        other.enabled = false;
+        assert!(other.authorize_desktop(&installed, &capability, &settings.app_path).is_err());
+        other = settings.clone();
+        other.management_token = secret();
+        assert!(other.authorize_desktop(&installed, &capability, &settings.app_path).is_err());
+        other = settings.clone();
+        other.additional_artwork_roots.push(root.clone());
+        assert_ne!(other.desktop_capability().unwrap(), capability);
+        assert!(other.authorize_desktop(&installed, &capability, &settings.app_path).is_err());
+        assert!(other.authorize_desktop(&other.automation_roots().unwrap().unwrap(), &capability, &settings.app_path).is_err());
+        assert!(!public_status(Some(&settings)).unwrap().to_string().contains(&capability));
         std::fs::remove_dir_all(root).unwrap();
     }
     /// Keep Stop available when an older running connection lacks the new gateway setting.

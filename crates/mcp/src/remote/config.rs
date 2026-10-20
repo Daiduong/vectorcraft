@@ -153,6 +153,40 @@ impl Settings {
         let roots = self.artwork_roots();
         vectorcraft_engine::file_access::AutomationRoots::new_many(&roots, &roots, &[self.profile_dir.join("Remote Access")])
     }
+    /// Derive a private desktop capability bound to this build, profile and approved folders.
+    /// Never send the owner management token over the desktop control channel.
+    pub fn desktop_capability(&self) -> Result<String, String> {
+        let canonical = |path: &Path| path.canonicalize().map_err(|e| e.to_string());
+        let folders = self.artwork_roots().iter().map(|p| canonical(p)).collect::<Result<Vec<_>, _>>()?;
+        let authority = serde_json::json!([
+            "vectorcraft-desktop-authority-v1",
+            self.management_token,
+            canonical(&self.app_path)?,
+            canonical(&self.profile_dir)?,
+            folders,
+            canonical(&self.profile_dir.join("Remote Access"))?
+        ]);
+        Ok(digest(&authority.to_string()))
+    }
+    /// Authenticate each delegated operation against the editor's actual installed file grants.
+    /// Refuse stopped setups, another executable, and stale or broader desktop authority.
+    pub fn authorize_desktop(
+        &self,
+        installed: &vectorcraft_engine::file_access::AutomationRoots,
+        capability: &str,
+        executable: &Path,
+    ) -> Result<(), String> {
+        use subtle::ConstantTimeEq as _;
+        let expected = self.automation_roots()?.ok_or("Artwork access was not configured")?;
+        if !self.enabled
+            || installed != expected.as_ref()
+            || executable.canonicalize().map_err(|e| e.to_string())? != self.app_path.canonicalize().map_err(|e| e.to_string())?
+            || !bool::from(self.desktop_capability()?.as_bytes().ct_eq(capability.as_bytes()))
+        {
+            return Err("The desktop does not match this connection's saved workspace and approved folders. Reopen the configured build or resync folders in Preferences > Remote AI".into());
+        }
+        Ok(())
+    }
     /// Parse the saved public gateway address without changing the connection settings.
     pub fn origin(&self) -> Result<Url, String> {
         Url::parse(&self.public_origin).map_err(|e| e.to_string())

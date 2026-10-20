@@ -36,14 +36,14 @@ pub enum Access {
 }
 
 /// The folders automation may read and write; a root left out grants no access of its kind.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AutomationRoots {
     read: Vec<Root>,
     write: Vec<Root>,
     excluded: Vec<Root>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct Root {
     /// The folder made absolute, links followed: what paths are compared with.
     resolved: PathBuf,
