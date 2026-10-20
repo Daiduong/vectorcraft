@@ -1,5 +1,6 @@
 use super::*;
 
+/// Create isolated artwork folders and settings for worker file-access and reply-loss checks.
 fn fixture() -> (tempfile::TempDir, Settings) {
     let root = tempfile::tempdir().unwrap();
     let profile = root.path().join("profile");
@@ -28,6 +29,7 @@ fn fixture() -> (tempfile::TempDir, Settings) {
     (root, settings)
 }
 
+/// Verify out-of-folder file targets are refused before attempting a desktop connection.
 #[test]
 fn explicit_file_targets_are_checked_before_desktop_dispatch() {
     let (_root, settings) = fixture();
@@ -41,6 +43,7 @@ fn explicit_file_targets_are_checked_before_desktop_dispatch() {
     assert!(!backend.uncertain.load(Ordering::SeqCst));
 }
 
+/// Verify a lost mutation reply pauses later edits while allowing discovery and inspection metadata.
 #[test]
 fn dropped_mutation_reply_pauses_edits_but_keeps_metadata_available() {
     let (_root, settings) = fixture();

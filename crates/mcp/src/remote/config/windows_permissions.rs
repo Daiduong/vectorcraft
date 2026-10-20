@@ -4,6 +4,8 @@
 use std::os::windows::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 
+/// Replace a private file or folder's DACL with owner and SYSTEM access only.
+/// The caller supplies a validated SID; paths are passed as data to a hidden fixed command.
 pub(super) fn protect(path: &Path, owner: &str, directory: bool) -> Result<(), String> {
     let inheritance = if directory { "OICI" } else { "" };
     // owner is a validated numeric SID from whoami. Pass metadata through environment entries,

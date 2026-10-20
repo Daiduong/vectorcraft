@@ -1,5 +1,6 @@
 use super::*;
 
+/// Create an isolated server context with valid settings and bounded request/owner capacity.
 fn context() -> (tempfile::TempDir, Arc<Context>) {
     let root = tempfile::tempdir().unwrap();
     let profile = root.path().join("profile");
@@ -39,6 +40,7 @@ fn context() -> (tempfile::TempDir, Arc<Context>) {
     )
 }
 
+/// Verify only actual loopback or trusted-gateway peers pass the connection's network check.
 #[test]
 fn only_loopback_and_the_explicit_gateway_are_accepted_regardless_of_forwarding_headers() {
     let (_root, mut context) = context();
@@ -56,6 +58,7 @@ fn only_loopback_and_the_explicit_gateway_are_accepted_regardless_of_forwarding_
     assert_eq!(context.validate(&request, "198.51.100.10:1234".parse().unwrap()).unwrap_err().status, 403);
 }
 
+/// Verify reserved owner capacity remains available when public request slots are occupied.
 #[tokio::test]
 async fn anonymous_capacity_cannot_block_authenticated_local_recovery() {
     let (_root, context) = context();
@@ -74,6 +77,7 @@ async fn anonymous_capacity_cannot_block_authenticated_local_recovery() {
     assert_eq!(endpoint(State(context), ConnectInfo("127.0.0.1:1234".parse().unwrap()), anonymous).await.status(), StatusCode::SERVICE_UNAVAILABLE);
 }
 
+/// Verify invalid anonymous approval posts cannot lock out a valid browser sign-in.
 #[tokio::test]
 async fn anonymous_invalid_approval_posts_cannot_lock_out_a_real_browser_sign_in() {
     let (_root, context) = context();
@@ -116,6 +120,7 @@ async fn anonymous_invalid_approval_posts_cannot_lock_out_a_real_browser_sign_in
         .finish();
     assert_eq!(dispatch(&context, peer, request(body, &cookie)).await.status(), StatusCode::SEE_OTHER);
 }
+/// Verify unsupported revision probes fail before body reads so clients can use legacy fallback.
 #[test]
 fn modern_and_unknown_http_versions_are_rejected_for_legacy_fallback() {
     for version in HTTP_VERSIONS {
@@ -127,6 +132,7 @@ fn modern_and_unknown_http_versions_are_rejected_for_legacy_fallback() {
         assert_eq!(response.headers().get("connection").unwrap(), "close");
     }
 }
+/// Verify supported Google callback relays are accepted without admitting unrelated user-content URLs.
 #[test]
 fn callback_policy_keeps_google_relays_separate_from_user_content() {
     assert!(oauth::allowed_callback("https://chatgpt.com/connector/oauth/test", false));
@@ -141,11 +147,13 @@ fn callback_policy_keeps_google_relays_separate_from_user_content() {
         assert!(!oauth::allowed_callback(callback, false), "{callback}");
     }
 }
+/// Verify repeated OAuth form fields are rejected instead of choosing an ambiguous value.
 #[test]
 fn duplicate_form_fields_are_rejected() {
     assert!(oauth::fields("client_id=one&client_id=two").is_err());
     assert!(oauth::fields("client_id=one&code=two").is_ok());
 }
+/// Verify fixed and chunked bodies complete normally while unfinished bodies time out before dispatch.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn complete_fixed_and_chunked_bodies_work_but_an_unfinished_body_never_dispatches() {
     use std::io::{Read as _, Write as _};

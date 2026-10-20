@@ -4,13 +4,17 @@ use std::path::PathBuf;
 use std::time::Duration;
 use vectorcraft_mcp::remote::config::{Settings, hash_phrase, protect_directory, secret};
 
+/// Find the selected desktop profile folder, or report that preferences are unavailable.
 pub fn profile() -> Result<PathBuf, String> {
     super::prefs_path().and_then(|p| p.parent().map(std::path::Path::to_path_buf)).ok_or_else(|| "This session has no saved profile folder".into())
 }
+/// Locate connection settings inside this profile's private Remote Access folder.
 fn settings_path() -> Result<PathBuf, String> {
     Ok(profile()?.join("Remote Access/settings.json"))
 }
 pub type InitialControl = (Option<u16>, Option<std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>>);
+/// Load saved artwork-folder grants and the enabled connection's control port.
+/// Reject CLI folder overrides; Remote AI grants are managed in Preferences > Remote AI.
 pub fn initial_control(explicit_roots: bool) -> Result<InitialControl, String> {
     if explicit_roots {
         return Err("Native Remote AI folders cannot be combined with command-line automation roots; manage grants in Preferences > Remote AI".into());
@@ -18,6 +22,8 @@ pub fn initial_control(explicit_roots: bool) -> Result<InitialControl, String> {
     let profile = profile()?;
     initial_control_in(&profile)
 }
+/// Load and validate existing connection settings before granting automated file access.
+/// A fresh profile creates no private folders and starts no control channel.
 fn initial_control_in(profile: &std::path::Path) -> Result<InitialControl, String> {
     let private = profile.join("Remote Access");
     let path = private.join("settings.json");
@@ -30,6 +36,8 @@ fn initial_control_in(profile: &std::path::Path) -> Result<InitialControl, Strin
         Ok((None, None))
     }
 }
+/// Build a short-deadline HTTP client that never follows redirects.
+/// Use it for local connection management and the public gateway check.
 fn client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -37,6 +45,8 @@ fn client() -> Result<reqwest::blocking::Client, String> {
         .build()
         .map_err(|e| e.to_string())
 }
+/// Send an authenticated management request to this computer's connection service.
+/// Return service errors without exposing the private management token to the wizard.
 fn owner(settings: &Settings, value: Value) -> Result<Value, String> {
     let address: std::net::SocketAddr = settings.bind.parse().map_err(|_| "Invalid HTTP bind")?;
     let response = client()?
@@ -57,9 +67,13 @@ fn owner(settings: &Settings, value: Value) -> Result<Value, String> {
     }
     Ok(result)
 }
+/// Check briefly whether the local HTTP port accepts a connection.
+/// This is only a readiness probe; callers authenticate separately.
 fn listening(port: u16) -> bool {
     std::net::TcpStream::connect_timeout(&std::net::SocketAddr::from(([127, 0, 0, 1], port)), Duration::from_millis(200)).is_ok()
 }
+/// Build the wizard's connection status without returning passphrases or tokens.
+/// Keep a running service visible for Stop even when saved settings need repair.
 fn public_status(settings: Option<&Settings>) -> Result<Value, String> {
     let profile = match settings {
         Some(settings) => settings.profile_dir.clone(),
@@ -90,6 +104,8 @@ fn public_status(settings: Option<&Settings>) -> Result<Value, String> {
     }
     Ok(result)
 }
+/// Start or authenticate the native connection service and wait for local readiness.
+/// Record startup errors in the private profile log; do not open the editor here.
 fn start(settings: &Settings, path: &std::path::Path) -> Result<(), String> {
     let address: std::net::SocketAddr = settings.bind.parse().map_err(|_| "Invalid bind")?;
     if listening(address.port()) {
@@ -124,6 +140,8 @@ fn start(settings: &Settings, path: &std::path::Path) -> Result<(), String> {
     }
     Err("The native service did not become ready. See the service log in this profile's Remote Access folder".into())
 }
+/// Perform a local owner action from the Remote AI connections wizard.
+/// Saving setup or resyncing folders returns status so the UI can install grants before Start.
 fn handle(input: Value, control_port: Option<u16>) -> Result<Value, String> {
     let path = settings_path()?;
     let mut settings = if path.exists() { Some(Settings::read_for_owner_repair(&path)?) } else { None };
@@ -252,6 +270,7 @@ fn handle(input: Value, control_port: Option<u16>) -> Result<Value, String> {
         _ => Err("Unknown local connection action".into()),
     }
 }
+/// Validate replacement artwork folders while preserving all other connection settings.
 fn folder_settings(previous: &Settings, input: &Value) -> Result<Settings, String> {
     let roots: Vec<PathBuf> =
         serde_json::from_value(input.get("artworkRoots").cloned().unwrap_or(Value::Null)).map_err(|_| "Choose one or more artwork folders")?;
@@ -262,6 +281,8 @@ fn folder_settings(previous: &Settings, input: &Value) -> Result<Settings, Strin
     next.validate()?;
     Ok(next)
 }
+/// Ask a running connection to stop and wait for its HTTP listener to close.
+/// Refuse to interrupt pending work; return whether a service was running.
 fn stop_running(settings: &Settings) -> Result<bool, String> {
     let address: std::net::SocketAddr = settings.bind.parse().map_err(|_| "Invalid bind")?;
     if !listening(address.port()) {
@@ -276,6 +297,8 @@ fn stop_running(settings: &Settings) -> Result<bool, String> {
     }
     Err("The connection is finishing requests. Wait before trying again".into())
 }
+/// Save only the approved artwork-folder changes, keeping linked apps and the passphrase.
+/// Refuse resync while work is still running; the UI installs saved grants before restarting.
 fn resync_folders(previous: &Settings, path: &std::path::Path, input: &Value) -> Result<Settings, String> {
     // Validate before stopping anything. Only folders change; OAuth clients, tokens and owner
     // credentials remain in place. A pending edit causes stop to refuse, rather than interrupt it.
@@ -289,6 +312,8 @@ fn resync_folders(previous: &Settings, path: &std::path::Path, input: &Value) ->
     }
     Ok(next)
 }
+/// Normalize the gateway address and reject paths, queries, fragments and credentials.
+/// Full connection validation separately enforces the HTTPS policy.
 fn url_origin(value: &str) -> Result<String, String> {
     // Config validation performs the HTTPS and origin checks; this normalizes scheme and host.
     let parsed = reqwest::Url::parse(value).map_err(|_| "Enter a complete HTTPS address")?;
@@ -298,6 +323,7 @@ fn url_origin(value: &str) -> Result<String, String> {
     }
     Ok(parsed.as_str().trim_end_matches('/').into())
 }
+/// Expose asynchronous local-owner operations to the wizard without blocking UI frames.
 pub fn service(control_port: Option<u16>) -> vectorcraft_ui_egui::RemoteAccessFn {
     Box::new(move |input| {
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -312,6 +338,8 @@ pub fn service(control_port: Option<u16>) -> vectorcraft_ui_egui::RemoteAccessFn
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Verify that private-settings failure leaves the editor usable with control disabled.
+    /// An otherwise valid fresh session may still use an explicit CLI control port.
     #[test]
     fn optional_private_store_failure_keeps_startup_available_and_disables_even_explicit_control() {
         let (port, roots) = super::super::remote_control_startup(Some(33982), Err("private directory protection failed".into()));
@@ -320,6 +348,7 @@ mod tests {
         let (port, _) = super::super::remote_control_startup(Some(33982), Ok((None, None)));
         assert_eq!(port, Some(33982), "explicit CLI control remains deliberate when no remote setup failed");
     }
+    /// Verify that an unconfigured Remote AI build leaves a fresh profile untouched.
     #[test]
     fn fresh_profiles_do_not_create_private_folders_or_start_a_control_channel() {
         let root = std::env::temp_dir().join(format!("vectorcraft-unconfigured-{}", secret()));
@@ -328,6 +357,7 @@ mod tests {
         assert!(roots.is_none());
         assert!(!root.exists());
     }
+    /// Verify that saved Stop state prevents automatic control-channel startup.
     #[test]
     fn disabled_saved_connections_do_not_implicitly_open_control() {
         let (mut settings, path, root) = fixture();
@@ -337,6 +367,7 @@ mod tests {
         assert!(port.is_none());
         std::fs::remove_dir_all(root).unwrap();
     }
+    /// Keep Stop available when an older running connection lacks the new gateway setting.
     #[test]
     fn a_running_legacy_service_stays_visible_to_the_owner_while_network_policy_needs_repair() {
         use std::io::{Read as _, Write as _};
@@ -368,10 +399,12 @@ mod tests {
         responder.join().unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
+    /// Reject CLI folder overrides that would compete with the wizard's approved folders.
     #[test]
     fn command_line_roots_cannot_override_private_exclusions_or_saved_remote_grants() {
         assert!(initial_control(true).unwrap_err().contains("cannot be combined"));
     }
+    /// Create isolated profile and artwork folders with loopback-only test connection settings.
     fn fixture() -> (Settings, PathBuf, PathBuf) {
         let root = std::env::temp_dir().join(format!("vectorcraft-host-resync-{}", secret()));
         let profile = root.join("profile");
@@ -399,6 +432,7 @@ mod tests {
         };
         (settings, profile.join("Remote Access/settings.json"), root)
     }
+    /// Verify that Resync folders changes grants without replacing linked-app state or credentials.
     #[test]
     fn resync_changes_only_folders_and_preserves_oauth_state_and_credentials() {
         let (settings, path, root) = fixture();
@@ -420,6 +454,7 @@ mod tests {
         assert!(folder_settings(&next, &json!({"artworkRoots":[path.parent().unwrap()]})).is_err());
         std::fs::remove_dir_all(root).unwrap();
     }
+    /// Verify that pending work blocks Resync folders before settings or credentials change.
     #[test]
     fn a_pending_edit_prevents_resync_without_saving_or_revoking_anything() {
         use std::io::{Read as _, Write as _};
@@ -452,6 +487,7 @@ mod tests {
         responder.join().unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
+    /// Verify that a missing artwork folder blocks automated access while local repair remains possible.
     #[test]
     fn an_unavailable_artwork_folder_keeps_the_editor_confined_and_the_setup_repairable() {
         let (settings, path, root) = fixture();

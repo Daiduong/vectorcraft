@@ -28,6 +28,8 @@ struct Guarded {
     roots: Arc<vectorcraft_engine::file_access::AutomationRoots>,
 }
 impl Backend for Guarded {
+    /// Check explicit file targets against approved artwork folders before contacting the editor.
+    /// Record an uncertain outcome when a desktop reply may have been lost after dispatch.
     fn call(&mut self, method: &str, params: Value) -> Result<Value, String> {
         // Reject explicit file targets before scheduling native background work, even if a clean
         // document would make Save a no-op. The desktop also confines engine commands and input.
@@ -46,21 +48,27 @@ impl Backend for Guarded {
         }
         result
     }
+    /// Advertise the live desktop backend even when its editor has not yet been opened.
     fn has_ui(&self) -> bool {
         true
     }
+    /// Return the configured desktop backend description without changing the artwork.
     fn describe(&self) -> String {
         self.remote.describe()
     }
 }
+/// Describe open_vectorcraft, the explicit tool for opening or reusing the configured workspace.
 fn opener() -> Value {
     json!({"name":"open_vectorcraft","title":"Open VectorCraft","description":"Open the configured VectorCraft desktop workspace, or reuse it if already running. Does not create or modify a document.",
     "inputSchema":{"type":"object","properties":{},"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})
 }
+/// Describe list_shared_folders, which lists approved artwork folders without opening the editor.
 fn shared_folders_tool() -> Value {
     json!({"name":"list_shared_folders","title":"List shared artwork folders","description":"List the owner-approved artwork folders and their availability, without opening the editor. Use their paths with file.list and file.open through command_run. Private connection settings remain excluded.",
     "inputSchema":{"type":"object","properties":{},"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})
 }
+/// Classify discovery and annotated inspection calls for uncertain-edit recovery.
+/// Unknown tool calls are treated as potentially changing artwork.
 fn read_only(message: &Value) -> bool {
     if message.get("method").and_then(Value::as_str) != Some("tools/call") {
         return true;
@@ -73,6 +81,8 @@ fn read_only(message: &Value) -> bool {
         .iter()
         .any(|t| t.get("name").and_then(Value::as_str) == Some(name) && t.pointer("/annotations/readOnlyHint").and_then(Value::as_bool) == Some(true))
 }
+/// Reuse or launch the configured VectorCraft build and profile, then verify desktop readiness.
+/// Do not create or modify a document, and do not substitute another installed build.
 fn open(settings: &Settings) -> Result<Value, String> {
     let address = format!("127.0.0.1:{}", settings.control_port);
     if let Ok(mut remote) = Remote::connect(&address) {
@@ -114,6 +124,8 @@ fn open(settings: &Settings) -> Result<Value, String> {
     }
     Err("The editor was launched but is not ready. Check its startup status before trying again".into())
 }
+/// Handle one MCP job and add connection-specific tools, OAuth metadata and usage guidance.
+/// Folder discovery stays independent of desktop startup.
 fn dispatch(server: &mut Server, settings: &Settings, job: &Job) -> Value {
     let method = job.message.get("method").and_then(Value::as_str).unwrap_or("");
     if method != "initialize" {
@@ -163,6 +175,8 @@ fn dispatch(server: &mut Server, settings: &Settings, job: &Job) -> Value {
     response
 }
 impl Worker {
+    /// Start a bounded serial worker using the saved approved artwork folders.
+    /// Discovery leaves the editor closed; uncertain edits require local review before further mutations.
     pub fn start(settings: Settings) -> Result<Arc<Self>, String> {
         let roots = settings.automation_roots()?.ok_or("Artwork access was not configured")?;
         let (sender, receiver) = sync_channel::<Job>(8);
@@ -201,6 +215,8 @@ impl Worker {
             .map_err(|e| e.to_string())?;
         Ok(Arc::new(Self { sender, pending, uncertain }))
     }
+    /// Queue a bounded MCP job and await its reply without replaying it on failure.
+    /// If a mutation reply is lost, pause later edits until the owner reviews and resumes the connection.
     pub async fn call(&self, message: Value, version: String) -> Result<Value, String> {
         let mutable = !read_only(&message);
         let (reply, response) = tokio::sync::oneshot::channel();

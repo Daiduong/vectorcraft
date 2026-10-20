@@ -10,18 +10,22 @@ const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789a
 
 struct Fake(Arc<AtomicUsize>);
 impl Backend for Fake {
+    /// Count desktop dispatches and return a successful fake backend response.
     fn call(&mut self, _method: &str, _params: Value) -> Result<Value, String> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(json!({"ok":true}))
     }
+    /// Advertise desktop support so transport tests exercise the native tool definitions.
     fn has_ui(&self) -> bool {
         true
     }
+    /// Identify the fake desktop backend without contacting an editor.
     fn describe(&self) -> String {
         "test desktop".into()
     }
 }
 
+/// Start a loopback test endpoint that handles a fixed request count and records backend calls.
 fn fixture(count: usize) -> (String, Arc<AtomicUsize>, std::thread::JoinHandle<()>) {
     let endpoint = Endpoint::bind(Options { address: "127.0.0.1:0".parse().unwrap(), token: TOKEN.into() }).unwrap();
     let address = endpoint.address().to_string();
@@ -37,6 +41,7 @@ fn fixture(count: usize) -> (String, Arc<AtomicUsize>, std::thread::JoinHandle<(
     (address, calls, worker)
 }
 
+/// Send one raw HTTP test request and return its status and wire response.
 fn raw(address: &str, method: &str, path: &str, headers: &str, body: &str) -> (u16, String) {
     let mut socket = TcpStream::connect(address).unwrap();
     socket.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -49,10 +54,12 @@ fn raw(address: &str, method: &str, path: &str, headers: &str, body: &str) -> (u
     (status, response)
 }
 
+/// Build valid test authentication and content headers with optional extra fields.
 fn headers(extra: &str) -> String {
     format!("Authorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\n{extra}")
 }
 
+/// Send a JSON-RPC test call and decode either fixed-length or chunked response framing.
 fn rpc(address: &str, method: &str, params: Value, extra: &str) -> (u16, Value) {
     let body = json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}).to_string();
     let (status, response) = raw(address, "POST", "/mcp", &headers(extra), &body);
@@ -80,6 +87,7 @@ fn rpc(address: &str, method: &str, params: Value, extra: &str) -> (u16, Value) 
     (status, serde_json::from_slice(&bytes).unwrap())
 }
 
+/// Verify that every local endpoint requires authentication before backend dispatch.
 #[test]
 fn authentication_is_required_for_every_request() {
     let (address, calls, worker) = fixture(4);
@@ -91,6 +99,7 @@ fn authentication_is_required_for_every_request() {
     worker.join().unwrap();
 }
 
+/// Verify rejection of unexpected Host/Origin values and ambiguous authentication headers.
 #[test]
 fn host_origin_and_duplicate_auth_are_rejected() {
     let (address, calls, worker) = fixture(4);
@@ -102,6 +111,7 @@ fn host_origin_and_duplicate_auth_are_rejected() {
     worker.join().unwrap();
 }
 
+/// Verify that tool discovery uses the native catalog without opening or contacting the editor.
 #[test]
 fn discovery_reuses_native_definitions_without_contacting_the_desktop() {
     let (address, calls, worker) = fixture(5);
@@ -120,6 +130,7 @@ fn discovery_reuses_native_definitions_without_contacting_the_desktop() {
     worker.join().unwrap();
 }
 
+/// Verify malformed HTTP or JSON-RPC requests cannot reach the desktop backend.
 #[test]
 fn invalid_http_and_json_do_not_dispatch() {
     let (address, calls, worker) = fixture(8);
@@ -137,6 +148,7 @@ fn invalid_http_and_json_do_not_dispatch() {
     worker.join().unwrap();
 }
 
+/// Verify notifications receive empty accepted replies without dispatching artwork changes.
 #[test]
 fn notifications_have_empty_accepted_responses_and_never_edit() {
     let (address, calls, worker) = fixture(2);
@@ -150,6 +162,7 @@ fn notifications_have_empty_accepted_responses_and_never_edit() {
     worker.join().unwrap();
 }
 
+/// Verify that one HTTP client's selected protocol revision cannot affect another client.
 #[test]
 fn per_request_protocol_revisions_do_not_leak_between_clients() {
     let (address, _, worker) = fixture(3);
@@ -162,6 +175,7 @@ fn per_request_protocol_revisions_do_not_leak_between_clients() {
     worker.join().unwrap();
 }
 
+/// Verify loopback-only binding and strict token-file validation before startup.
 #[test]
 fn public_bind_and_invalid_tokens_are_refused() {
     let missing = Path::new("does-not-exist-http-token");
@@ -178,6 +192,7 @@ fn public_bind_and_invalid_tokens_are_refused() {
     std::fs::remove_file(path).unwrap();
 }
 
+/// Verify discovery succeeds with a deferred backend while the editor is closed.
 #[test]
 fn deferred_remote_discovery_works_while_desktop_is_closed() {
     let endpoint = Endpoint::bind(Options { address: "127.0.0.1:0".parse().unwrap(), token: TOKEN.into() }).unwrap();
@@ -198,6 +213,7 @@ fn deferred_remote_discovery_works_while_desktop_is_closed() {
     worker.join().unwrap();
 }
 
+/// Verify a lost HTTP reply cannot cause a native operation to run twice.
 #[test]
 fn native_tool_calls_are_dispatched_once_and_http_disconnect_does_not_replay() {
     let (address, calls, worker) = fixture(2);
@@ -222,6 +238,7 @@ fn native_tool_calls_are_dispatched_once_and_http_disconnect_does_not_replay() {
     worker.join().unwrap();
 }
 
+/// Verify declared oversized bodies are rejected before backend dispatch.
 #[test]
 fn oversized_requests_are_rejected_before_reading_or_dispatch() {
     let (address, calls, worker) = fixture(1);

@@ -519,6 +519,8 @@ const SYSTEM_CLIPBOARD_POLL: f64 = 0.25;
 const FONT_INSTALL_POLL: f64 = 2.0;
 
 impl VectorcraftApp {
+    /// Create the desktop UI around a session and the host's available services.
+    /// Remote AI controls remain unavailable unless the host supplies their service callback.
     pub fn new(mut session: Session, services: Services) -> Self {
         // The font menus and the first file opened need the installed fonts: catalog them now.
         vectorcraft_text::FontDb::global().scan_in_background();
@@ -611,6 +613,9 @@ impl VectorcraftApp {
         self.install_automation_roots(roots);
         self
     }
+    /// Install current approved artwork folders and wrap host file services with access checks.
+    /// On resync, replace the grants without stacking wrappers. Remote AI callers supply the
+    /// private connection folder as an exclusion when constructing these grants.
     fn install_automation_roots(&mut self, roots: Option<Arc<AutomationRoots>>) {
         let Some(roots) = roots else { return };
         let installed = self.automation_roots.is_some();
@@ -887,6 +892,8 @@ impl VectorcraftApp {
         self.ui.flyout = None;
     }
 
+    /// Process a bounded batch of live control requests under the current artwork-folder grants.
+    /// Skip abandoned requests and retain screenshot privacy state until capture completes.
     fn drain_control(&mut self, ctx: &egui::Context) {
         let Some(rx) = self.control_rx.take() else { return };
         let mut handled = 0;
@@ -954,6 +961,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// Match captured frames to waiting requests and enforce their original privacy epoch.
+    /// Discard captures after passphrase visibility changes before saving or returning image data.
     fn collect_screenshots(&mut self, ctx: &egui::Context) {
         if self.pending_screenshots.is_empty() {
             return;
@@ -1454,6 +1463,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// Render one editor frame, including the local Remote AI connections wizard.
+    /// UI controls act through commands or host services rather than editing connection files directly.
     fn ui_frame(&mut self, ui: &mut egui::Ui) {
         crate::state::sync_zoom_stops_display_print_size(self.session.prefs.display_print_size);
         let ctx = ui.ctx().clone();

@@ -690,6 +690,8 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
   vectorcraft-cli --help
 ";
 
+/// Choose the local control port and approved artwork folders for this session.
+/// If Remote AI setup fails, keep the editor usable and leave remote control disabled.
 #[cfg(feature = "remote-access")]
 fn remote_control_startup(explicit_port: Option<u16>, setup: Result<remote_access::InitialControl, String>) -> remote_access::InitialControl {
     match setup {
@@ -702,6 +704,8 @@ fn remote_control_startup(explicit_port: Option<u16>, setup: Result<remote_acces
         }
     }
 }
+/// Start the desktop editor, or run an explicitly requested remote-service process.
+/// Load the selected profile and its connection settings before enabling remote control.
 fn main() -> std::process::ExitCode {
     // Before any thread starts: the pointer must find a cursor theme on Wayland (#2450).
     #[cfg(target_os = "linux")]

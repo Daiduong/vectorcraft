@@ -307,6 +307,7 @@ mod tests {
         p.to_string_lossy().into_owned()
     }
 
+    /// Verify that several approved folders do not grant access to intervening or private folders.
     #[test]
     fn multiple_folders_keep_gaps_and_private_subfolders_outside_authority() {
         let (base, _) = folders("multiple");
@@ -335,6 +336,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(base);
     }
 
+    /// Verify separate read/write grants and refusal to install unavailable artwork folders.
     #[test]
     fn multiple_folder_authorities_are_separate_and_missing_folders_fail_closed() {
         let (base, _) = folders("multiple-authority");

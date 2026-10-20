@@ -195,6 +195,8 @@ fn modifiers(p: &Value) -> egui::Modifiers {
     egui::Modifiers { alt: b("alt"), ctrl: b("ctrl"), shift: b("shift"), mac_cmd: b("cmd") && cfg!(target_os = "macos"), command: b("cmd") }
 }
 
+/// Dispatch one claimed desktop-control request under the caller's file-access scope.
+/// Pause edits during connection setup and refuse window captures while a passphrase is visible.
 pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
     if req.method == "ui.screenshot" && !app.remote_access.allows_screenshot(app.remote_access.privacy_epoch()) {
         return err("Window screenshots are paused while a passphrase is visible");

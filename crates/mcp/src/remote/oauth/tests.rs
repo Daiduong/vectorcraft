@@ -7,6 +7,7 @@ struct Fixture {
     store: Store,
 }
 impl Fixture {
+    /// Create an isolated authorization store with valid artwork folders and a test passphrase hash.
     fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
         let profile = root.path().join("profile");
@@ -35,10 +36,12 @@ impl Fixture {
         let store = Store::open(settings.clone(), &profile.join("Remote Access/oauth-state.json")).unwrap();
         Self { root, settings, store }
     }
+    /// Register a fixture client and return its saved record plus the initial registration response.
     fn client(&mut self, method: &str, callback: &str) -> (Client, Value) {
         let value=self.store.register(json!({"client_name":"Test <unsafe>","redirect_uris":[callback],"token_endpoint_auth_method":method,"grant_types":["authorization_code","refresh_token"],"response_types":["code"]})).unwrap();
         (self.store.db.clients.get(value["client_id"].as_str().unwrap()).unwrap().clone(), value)
     }
+    /// Start a valid fixture sign-in with a fresh cookie-bound S256 PKCE challenge.
     fn begin(&mut self, client: &Client) -> (String, String, String, Fields) {
         let verifier = secret();
         let mut fields = Fields::new();
@@ -57,6 +60,7 @@ impl Fixture {
         let (id, cookie, _) = self.store.authorize(&fields).unwrap();
         (id, cookie, verifier, fields)
     }
+    /// Approve a fixture sign-in and exchange its code, checking returned state and issuer.
     fn grant(&mut self, client: &Client) -> (Value, Fields) {
         let (id, cookie, verifier, _) = self.begin(client);
         let destination = self.store.approve(&id, &cookie, true).unwrap();
@@ -78,6 +82,7 @@ impl Fixture {
         (self.store.token(&form, client).unwrap(), form)
     }
 }
+/// Verify one-use codes and token persistence without storing usable token or client-secret values.
 #[test]
 fn code_is_single_use_and_tokens_survive_restart_without_plaintext_secrets() {
     let mut f = Fixture::new();
@@ -95,6 +100,7 @@ fn code_is_single_use_and_tokens_survive_restart_without_plaintext_secrets() {
     assert!(loaded.valid_access(tokens["access_token"].as_str().unwrap()));
     assert!(f.root.path().is_dir());
 }
+/// Verify sign-in and code exchange enforce callback, scope, resource, cookie, expiry and PKCE.
 #[test]
 fn pkce_callback_resource_scope_cookie_and_expiry_are_enforced() {
     let mut f = Fixture::new();
@@ -124,6 +130,7 @@ fn pkce_callback_resource_scope_cookie_and_expiry_are_enforced() {
     f.store.pending.get_mut(&digest(&id)).unwrap().expires = now() - 1;
     assert!(f.store.pending(&id, &cookie).is_err());
 }
+/// Verify refresh-token reuse revokes its connection family while other connections remain valid.
 #[test]
 fn refresh_rotation_replay_revokes_only_its_connection_family() {
     let mut f = Fixture::new();
@@ -141,6 +148,7 @@ fn refresh_rotation_replay_revokes_only_its_connection_family() {
     assert!(!f.store.valid_access(next["access_token"].as_str().unwrap()));
     assert!(f.store.valid_access(other["access_token"].as_str().unwrap()));
 }
+/// Verify public, secret-post and Basic clients cannot mix authentication methods.
 #[test]
 fn public_post_and_basic_client_authentication_are_distinct() {
     let mut f = Fixture::new();
@@ -167,6 +175,7 @@ fn public_post_and_basic_client_authentication_are_distinct() {
         }
     }
 }
+/// Verify linked-app revocation removes tokens and pending sign-in authority.
 #[test]
 fn revocation_removes_access_refresh_and_pending_client_grants() {
     let mut f = Fixture::new();
@@ -180,6 +189,7 @@ fn revocation_removes_access_refresh_and_pending_client_grants() {
     assert!(!f.store.valid_access(tokens["access_token"].as_str().unwrap()));
     assert!(f.store.pending(&id, &cookie).is_err());
 }
+/// Verify safe consent-page escaping and state-preserving cancellation without authorization.
 #[test]
 fn authorization_cancellation_escapes_the_page_and_preserves_state() {
     let mut f = Fixture::new();
@@ -199,6 +209,7 @@ fn authorization_cancellation_escapes_the_page_and_preserves_state() {
     assert_eq!(params["state"], "a + / = & %");
     assert!(f.store.approve(&id, &cookie, true).is_err());
 }
+/// Verify owner-passphrase checks and refusal to grant access outside approved artwork folders.
 #[test]
 fn owner_password_hash_and_artwork_boundary_are_validated() {
     let mut f = Fixture::new();
@@ -215,6 +226,7 @@ fn owner_password_hash_and_artwork_boundary_are_validated() {
             .is_err()
     );
 }
+/// Verify passphrase limits count characters while retaining the independent UTF-8 byte bound.
 #[test]
 fn owner_phrase_limits_count_characters_rather_than_utf8_bytes() {
     assert!(hash_phrase(&"界".repeat(4)).is_err());
@@ -241,6 +253,7 @@ fn owner_phrase_limits_count_characters_rather_than_utf8_bytes() {
     // HTML counts UTF-16 units: allow a surrogate pair for each of the 256 characters.
     assert!(crate::remote::pages::consent(&f.settings, "test", &pending, None).contains("maxlength=\"512\""));
 }
+/// Verify connection settings stay in private storage and oversized replacements preserve saved data.
 #[test]
 fn settings_cannot_be_saved_or_served_outside_the_excluded_private_folder() {
     let f = Fixture::new();
@@ -258,6 +271,7 @@ fn settings_cannot_be_saved_or_served_outside_the_excluded_private_folder() {
     std::fs::write(&public, serde_json::to_vec(&f.settings).unwrap()).unwrap();
     assert!(Settings::read(&public).is_err());
 }
+/// Verify private-settings reads and writes refuse symbolic-link destinations on Unix.
 #[cfg(unix)]
 #[test]
 fn private_settings_and_state_refuse_symbolic_link_targets() {
@@ -272,10 +286,12 @@ fn private_settings_and_state_refuse_symbolic_link_targets() {
     assert!(write_private(&private, b"must not be written").is_err());
     assert_eq!(std::fs::read(&outside).unwrap(), original);
 }
+/// Verify Windows permission repair removes old explicit access grants without changing file contents.
 #[cfg(windows)]
 #[test]
 fn protecting_private_storage_removes_old_explicit_grants_from_folder_and_file() {
     use std::os::windows::process::CommandExt as _;
+    /// Count Windows ACL entries through a temporary metadata export for permission assertions.
     fn entries(path: &Path) -> usize {
         let export = path.parent().unwrap().join(format!(".test-permissions-{}.acl", secret()));
         let utility = PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32/icacls.exe");
@@ -313,6 +329,7 @@ fn protecting_private_storage_removes_old_explicit_grants_from_folder_and_file()
     assert_eq!(entries(&file), 2, "old explicit file grants must be replaced too");
     assert_eq!(std::fs::read(file).unwrap(), original);
 }
+/// Verify old single-folder settings load and additional artwork folders must be valid.
 #[test]
 fn single_folder_settings_migrate_and_extra_folders_are_validated() {
     let mut f = Fixture::new();
@@ -331,6 +348,7 @@ fn single_folder_settings_migrate_and_extra_folders_are_validated() {
     assert!(f.settings.validate().is_err());
 }
 
+/// Verify LAN access requires explicit trusted-gateway settings, including after loading legacy setup.
 #[test]
 fn network_listening_requires_explicit_gateway_consent_including_legacy_settings() {
     let mut f = Fixture::new();
@@ -348,6 +366,7 @@ fn network_listening_requires_explicit_gateway_consent_including_legacy_settings
     }
 }
 
+/// Verify Stop can be saved during repair without enabling invalid setup or weakening private storage.
 #[test]
 fn owner_can_persist_stop_during_repair_but_cannot_enable_or_move_private_settings() {
     let mut f = Fixture::new();
@@ -365,6 +384,7 @@ fn owner_can_persist_stop_during_repair_but_cannot_enable_or_move_private_settin
     assert!(!Settings::read(&path).unwrap().enabled, "repair does not silently undo the owner's Stop");
 }
 
+/// Verify temporary public registrations expire and leave local client-registration capacity separate.
 #[test]
 fn public_registrations_expire_and_cannot_consume_locally_registered_client_capacity() {
     let mut f = Fixture::new();
@@ -384,6 +404,7 @@ fn public_registrations_expire_and_cannot_consume_locally_registered_client_capa
     assert!(f.store.db.clients.contains_key(&owner.client_id));
 }
 
+/// Verify owner-approved public registration becomes persistent across service restarts.
 #[test]
 fn owner_approval_promotes_a_temporary_client_and_survives_service_restart() {
     let mut f = Fixture::new();
@@ -398,6 +419,7 @@ fn owner_approval_promotes_a_temporary_client_and_survives_service_restart() {
     assert!(restarted.db.clients[id].registration_expires.is_none());
 }
 
+/// Verify invalid browser requests cannot spend another valid sign-in's passphrase retry budget.
 #[test]
 fn invalid_sign_ins_cannot_exhaust_another_browsers_retry_budget_or_pending_slots() {
     let mut f = Fixture::new();
@@ -422,6 +444,7 @@ fn invalid_sign_ins_cannot_exhaust_another_browsers_retry_budget_or_pending_slot
     // An existing sign-in remains valid when a different client's pending queue is full.
     f.store.approve(&other_id, &other_cookie, true).unwrap();
 }
+/// Verify expired access and refresh tokens cannot authorize tools or renew a connection.
 #[test]
 fn expired_access_and_refresh_cannot_authorize_or_issue_tokens() {
     let mut f = Fixture::new();
@@ -438,6 +461,7 @@ fn expired_access_and_refresh_cannot_authorize_or_issue_tokens() {
     assert_eq!(f.store.token(&form, &client).unwrap_err().code, "invalid_grant");
 }
 
+/// Verify a failed authorization-store write returns no token and leaves live grants unissued.
 #[test]
 fn persistence_failure_does_not_issue_a_usable_token() {
     let mut f = Fixture::new();

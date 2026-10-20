@@ -21,16 +21,20 @@ pub struct Failure {
 #[cfg(test)]
 mod tests;
 impl Failure {
+    /// Construct an OAuth request failure with HTTP status 400 and a user-readable explanation.
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self { status: 400, code, message: message.into() }
     }
+    /// Return a generic client-authentication failure without revealing which credential failed.
     pub fn unauthorized() -> Self {
         Self { status: 401, code: "invalid_client", message: "Client authentication failed".into() }
     }
 }
+/// Compare credential bytes using constant-time equality for equal-length inputs.
 pub fn equal(a: &str, b: &str) -> bool {
     bool::from(a.as_bytes().ct_eq(b.as_bytes()))
 }
+/// Parse bounded OAuth form parameters and reject repeated keys or oversized values.
 pub fn fields(text: &str) -> AuthResult<Fields> {
     let mut result = Fields::new();
     for (k, v) in url::form_urlencoded::parse(text.as_bytes()) {
@@ -40,6 +44,8 @@ pub fn fields(text: &str) -> AuthResult<Fields> {
     }
     Ok(result)
 }
+/// Check the supported AI-app callback policy before accepting a client registration.
+/// Only explicit test settings permit HTTP loopback callbacks.
 pub fn allowed_callback(text: &str, test: bool) -> bool {
     if text.len() > 2048 {
         return false;
@@ -117,6 +123,8 @@ pub struct Store {
     attempts: HashMap<String, u8>,
 }
 impl Store {
+    /// Load this connection's size-bounded authorization store and prune expired entries.
+    /// Refuse a public-address change while saved clients or grants still belong to the old address.
     pub fn open(settings: Settings, path: &Path) -> Result<Self, String> {
         let mut db = if path.exists() {
             if std::fs::metadata(path).map_err(|e| e.to_string())?.len() > 8 * 1024 * 1024 {
@@ -137,12 +145,15 @@ impl Store {
         Self::prune_db(&mut db);
         Ok(Self { settings, path: path.into(), db, pending: HashMap::new(), codes: HashMap::new(), attempts: HashMap::new() })
     }
+    /// Remove expired access tokens, refresh tokens and unapproved temporary registrations.
     fn prune_db(db: &mut Database) {
         let time = now();
         db.access.retain(|_, g| g.expires > time);
         db.refresh.retain(|_, g| g.expires > time);
         db.clients.retain(|_, c| c.registration_expires.is_none_or(|expiry| expiry > time));
     }
+    /// Save a bounded candidate authorization database before replacing live in-memory state.
+    /// Report storage errors; this method does not reconcile an indeterminate disk-write failure.
     fn commit(&mut self, mut db: Database) -> AuthResult<()> {
         Self::prune_db(&mut db);
         if db.access.len() > 4096 || db.refresh.len() > 4096 {
@@ -153,12 +164,17 @@ impl Store {
         self.db = db;
         Ok(())
     }
+    /// Create a persistent client from the local wizard's client ID and secret setup.
+    /// Registration alone does not authorize artwork access.
     pub fn register(&mut self, input: Value) -> AuthResult<Value> {
         self.register_client(input, false)
     }
+    /// Create a temporary public registration that expires unless the owner approves sign-in.
     pub fn register_public(&mut self, input: Value) -> AuthResult<Value> {
         self.register_client(input, true)
     }
+    /// Validate callback addresses and supported client-authentication options, then save registration.
+    /// Keep temporary public capacity separate from clients created or approved by the owner.
     fn register_client(&mut self, input: Value, public: bool) -> AuthResult<Value> {
         let redirects: Vec<String> = serde_json::from_value(input.get("redirect_uris").cloned().unwrap_or(Value::Null))
             .map_err(|_| Failure::new("invalid_client_metadata", "redirect_uris must be an array"))?;
@@ -218,6 +234,7 @@ impl Store {
         }
         Ok(result)
     }
+    /// Reject requests for a different MCP connection URL or an unsupported access scope.
     fn target(&self, parameters: &Fields) -> AuthResult<()> {
         if parameters.get("resource").is_some_and(|r| r.trim_end_matches('/') != self.settings.resource()) {
             return Err(Failure::new("invalid_target", "Token belongs to a different MCP resource"));
@@ -227,6 +244,8 @@ impl Store {
         }
         Ok(())
     }
+    /// Start a bounded browser sign-in tied to a registered callback and S256 PKCE challenge.
+    /// Return the request ID, browser cookie and consent details; no artwork access is granted yet.
     pub fn authorize(&mut self, parameters: &Fields) -> AuthResult<(String, String, Pending)> {
         self.target(parameters)?;
         if parameters.get("response_type").map(String::as_str) != Some("code") {
@@ -277,6 +296,7 @@ impl Store {
         self.pending.insert(digest(&id), pending.clone());
         Ok((id, cookie, pending))
     }
+    /// Retrieve an unexpired sign-in only when its request ID, cookie and client are valid.
     pub fn pending(&self, id: &str, cookie: &str) -> AuthResult<Pending> {
         self.pending
             .get(&digest(id))
@@ -288,6 +308,8 @@ impl Store {
             .cloned()
             .ok_or_else(|| Failure::new("invalid_request", "Sign-in expired or invalid. Start again from the app connecting to VectorCraft"))
     }
+    /// Complete the browser's approved or cancelled sign-in and return its callback URL.
+    /// The caller must verify the passphrase before approval; successful public clients become persistent.
     pub fn approve(&mut self, id: &str, cookie: &str, allow: bool) -> AuthResult<String> {
         let pending = self.pending(id, cookie)?;
         if !self.db.clients.get(&pending.client_id).is_some_and(|c| c.registration_expires.is_none_or(|expiry| expiry > now())) {
@@ -348,6 +370,8 @@ impl Store {
         *attempts += 1;
         Ok(())
     }
+    /// Validate a registered client using exactly its selected OAuth authentication method.
+    /// Reject expired registrations and mixed Basic/form credentials.
     pub fn authenticate(&self, parameters: &Fields, basic: Option<(&str, &str)>) -> AuthResult<Client> {
         let id = basic.map(|v| v.0).or_else(|| parameters.get("client_id").map(String::as_str)).unwrap_or("");
         let client =
@@ -373,6 +397,7 @@ impl Store {
         }
         Ok(client.clone())
     }
+    /// Save hashes of a fresh access/refresh pair before returning its usable tokens to the app.
     fn issue(&mut self, grant: &Grant, mut db: Database) -> AuthResult<Value> {
         let access = secret();
         let refresh = secret();
@@ -387,6 +412,8 @@ impl Store {
         self.commit(db)?;
         Ok(json!({"access_token":access,"refresh_token":refresh,"token_type":"Bearer","expires_in":3600,"scope":SCOPE}))
     }
+    /// Exchange a one-use PKCE authorization code or rotate a linked app's refresh token.
+    /// Reusing a rotated refresh token revokes that connection's token family.
     pub fn token(&mut self, parameters: &Fields, client: &Client) -> AuthResult<Value> {
         self.target(parameters)?;
         match parameters.get("grant_type").map(String::as_str) {
@@ -432,6 +459,7 @@ impl Store {
             _ => Err(Failure::new("unsupported_grant_type", "Use authorization_code or refresh_token")),
         }
     }
+    /// Check an unexpired bearer token for this MCP connection and an existing client.
     pub fn valid_access(&self, token: &str) -> bool {
         token.len() <= 512
             && self
@@ -440,10 +468,13 @@ impl Store {
                 .get(&digest(token))
                 .is_some_and(|g| g.expires > now() && g.resource == self.settings.resource() && self.db.clients.contains_key(&g.client_id))
     }
+    /// Remove every access and refresh token in one connection's token family.
     fn remove_family(db: &mut Database, family: &str) {
         db.access.retain(|_, g| g.family != family);
         db.refresh.retain(|_, g| g.family != family);
     }
+    /// Revoke the supplied token's family only when it belongs to the authenticated client.
+    /// Unknown tokens succeed without disclosing whether they exist.
     pub fn revoke(&mut self, token: &str, client: &Client) -> AuthResult<()> {
         let key = digest(token);
         if let Some(grant) = self.db.access.get(&key).or_else(|| self.db.refresh.get(&key)).filter(|g| g.client_id == client.client_id).cloned() {
@@ -453,6 +484,7 @@ impl Store {
         }
         Ok(())
     }
+    /// Return linked-app registration and active-connection summaries without secrets or tokens.
     pub fn clients(&self) -> Value {
         json!(
             self.db
@@ -464,6 +496,7 @@ impl Store {
                 .collect::<Vec<_>>()
         )
     }
+    /// Remove one linked app, its tokens and pending sign-ins, persisting the change first.
     pub fn remove_client(&mut self, id: &str) -> AuthResult<()> {
         let mut db = self.db.clone();
         db.clients.remove(id);
@@ -475,6 +508,7 @@ impl Store {
         self.codes.retain(|_, c| c.grant.client_id != id);
         Ok(())
     }
+    /// Clear all linked-app registrations and grants, then discard pending sign-ins and codes.
     pub fn revoke_all(&mut self) -> AuthResult<()> {
         self.commit(Database { resource: self.settings.resource(), ..Default::default() })?;
         self.pending.clear();

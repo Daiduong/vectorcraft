@@ -25,6 +25,8 @@ pub const PORTABLE_MARKERS: [&str; 2] = ["portable.txt", "VectorCraft.portable"]
 pub const PORTABLE_DATA_DIR: &str = "VectorCraftData";
 
 static EXPLICIT_PROFILE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+/// Select an absolute profile folder once for this process.
+/// Reject relative paths and repeated selection so a remote launch cannot switch profiles later.
 pub fn set_explicit_profile(path: PathBuf) -> Result<(), String> {
     if !path.is_absolute() {
         return Err("The profile folder must be an absolute path".into());
@@ -32,6 +34,8 @@ pub fn set_explicit_profile(path: PathBuf) -> Result<(), String> {
     EXPLICIT_PROFILE.set(path).map_err(|_| "The profile folder was specified twice".into())
 }
 
+/// Locate current or legacy preferences using the selected profile policy.
+/// An explicit profile never falls back to another profile's legacy settings.
 pub fn prefs_path(legacy: bool) -> Option<PathBuf> {
     if let Some(path) = EXPLICIT_PROFILE.get() {
         return (!legacy).then(|| path.join("ui.json"));

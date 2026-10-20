@@ -19,10 +19,13 @@ pub const UI_FIELDS: &[(&str, &str, &str)] = &[
     ("__taskBar", "General", "Enable Contextual Task Bar"),
 ];
 
+/// List preference categories, adding Remote AI only when native host support is available.
 fn categories(app: &VectorcraftApp) -> Vec<&'static str> {
     PREF_CATEGORIES.iter().copied().chain(app.services.remote_access.is_some().then_some("Remote AI")).collect()
 }
 
+/// Open a draft of the requested preference category without applying changes.
+/// Include Remote AI only for hosts that provide connection management.
 pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     // One field per preference key or group (the flattener presets have commands of their own).
     let mut fields: Map<String, Value> = app.session.prefs.to_json().as_object().cloned().unwrap_or_default();
@@ -155,6 +158,7 @@ pub fn apply_runtime(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
+/// Render Preferences and its supported categories, including the Remote AI wizard entry.
 pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);

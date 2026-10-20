@@ -90,6 +90,7 @@ fn a_linked_png_resolves_against_the_svg_folder_and_stays_linked() {
     assert!((b.x0 - 10.0).abs() < 1e-6 && (b.y0 - 20.0).abs() < 1e-6 && (b.width() - 80.0).abs() < 1e-6, "{b:?}");
 }
 
+/// Verify a missing linked SVG image reports a warning and retains its placed bounds.
 #[test]
 fn a_missing_link_warns_and_keeps_a_placeholder_in_its_box() {
     let dir = folder("missing");

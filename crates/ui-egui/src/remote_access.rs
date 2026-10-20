@@ -28,15 +28,20 @@ pub struct RemoteAccessUi {
     pending: Option<(String, std::sync::mpsc::Receiver<Result<Value, String>>)>,
 }
 impl RemoteAccessUi {
+    /// Pause remote edits while connection settings are open or a save/resync is unfinished.
     pub fn pauses_control(&self) -> bool {
         self.open || self.pending.as_ref().is_some_and(|(operation, _)| matches!(operation.as_str(), "configure" | "resync"))
     }
+    /// Return the capture generation used to invalidate screenshots after private UI changes.
     pub fn privacy_epoch(&self) -> u64 {
         self.privacy_epoch
     }
+    /// Allow a capture only for the current privacy generation with no passphrase revealed.
     pub fn allows_screenshot(&self, epoch: u64) -> bool {
         self.privacy_epoch == epoch && !(self.open && self.show_phrase)
     }
+    /// Require matching passphrase fields with the same limits used by the native host.
+    /// Both fields may stay blank only to keep an existing passphrase.
     fn validate_phrase(&self) -> Result<(), String> {
         let keeping_existing =
             self.status.get("configured").and_then(Value::as_bool) == Some(true) && self.phrase.is_empty() && self.phrase_confirmation.is_empty();
@@ -51,6 +56,7 @@ impl RemoteAccessUi {
         }
         Ok(())
     }
+    /// Compare the wizard draft with saved gateway, artwork-folder and passphrase settings.
     fn has_unsaved_changes(&self) -> bool {
         let saved_origin = self.status.get("publicOrigin").and_then(Value::as_str).unwrap_or("");
         let saved_proxy = self.status.get("trustedProxy").and_then(Value::as_str).unwrap_or("");
@@ -64,6 +70,7 @@ impl RemoteAccessUi {
             || self.lan_access != saved_lan
             || (self.lan_access && self.trusted_proxy.trim() != saved_proxy)
     }
+    /// Check whether this artwork folder is active in the running connection for its green check.
     fn folder_active(&self, folder: &str) -> bool {
         self.status.get("running").and_then(Value::as_bool) == Some(true)
             && self
@@ -75,6 +82,7 @@ impl RemoteAccessUi {
                 .filter_map(Value::as_str)
                 .any(|active| same_folder(active, folder))
     }
+    /// Detect pending folder additions/removals or a stopped connection using active service grants.
     fn needs_folder_sync(&self) -> bool {
         let active: Vec<_> =
             self.status.get("activeArtworkRoots").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect();
@@ -82,9 +90,12 @@ impl RemoteAccessUi {
             || active.len() != self.artworks.len()
             || self.artworks.iter().any(|folder| !active.iter().any(|saved| same_folder(saved, folder)))
     }
+    /// Enable Resync folders only for a configured setup with a nonempty changed folder list.
     fn can_resync(&self) -> bool {
         self.status.get("configured").and_then(Value::as_bool) == Some(true) && !self.artworks.is_empty() && self.needs_folder_sync()
     }
+    /// Close the wizard, clear displayed secrets and invalidate in-flight private screenshots.
+    /// Saved connection settings and the running service are left in place.
     fn close(&mut self) {
         self.open = false;
         self.phrase.clear();
@@ -94,6 +105,8 @@ impl RemoteAccessUi {
         self.privacy_epoch = self.privacy_epoch.wrapping_add(1);
     }
 }
+/// Compare folder labels using platform-appropriate separators and case handling.
+/// This UI comparison is not a filesystem authorization check.
 fn same_folder(first: &str, second: &str) -> bool {
     if first.trim().is_empty() || second.trim().is_empty() {
         return false;
@@ -106,6 +119,7 @@ fn same_folder(first: &str, second: &str) -> bool {
     let second = normalize(second);
     if cfg!(windows) { first.eq_ignore_ascii_case(&second) } else { first == second }
 }
+/// Draw Resync folders with paired arrows and explain that linked apps and the passphrase are kept.
 fn resync_button(ui: &mut egui::Ui, enabled: bool) -> egui::Response {
     let response = crate::widgets::primary_button_enabled(ui, "     Resync folders", enabled);
     let color = if enabled { egui::Color32::WHITE } else { crate::theme::Tokens::get(ui.ctx()).text_disabled };
@@ -129,6 +143,8 @@ fn resync_button(ui: &mut egui::Ui, enabled: bool) -> egui::Response {
     }
     response.on_hover_text("Apply folder changes to the connection. Existing linked accounts and the passphrase are kept.")
 }
+/// Open Remote AI connections for the local owner and request current connection status.
+/// Reject automation and hide any previously revealed passphrase.
 pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     app.refuse_automation("ui.remoteAccess")?;
     if app.services.remote_access.is_none() {
@@ -142,6 +158,8 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     action(app, &json!({"action":"status"}))?;
     Ok(Value::Null)
 }
+/// Validate a local wizard action and pass only its required fields to the native host.
+/// Handle draft-only actions locally; never expose passphrases through control replies.
 pub fn action(app: &mut VectorcraftApp, parameters: &Value) -> Result<Value, String> {
     app.refuse_automation("ui.remoteAccess.action")?;
     let operation = parameters.get("action").and_then(Value::as_str).unwrap_or("");
@@ -234,6 +252,8 @@ pub fn action(app: &mut VectorcraftApp, parameters: &Value) -> Result<Value, Str
     state.pending = Some((operation.into(), service(payload)));
     Ok(Value::Null)
 }
+/// Install saved artwork-folder grants and private exclusions before starting the connection.
+/// Open the local control channel only after these file-access checks are in place.
 fn install_authority(app: &mut VectorcraftApp, value: &Value) -> Result<(), String> {
     if let Some(error) = value.get("configurationError").and_then(Value::as_str) {
         return Err(error.into());
@@ -256,6 +276,8 @@ fn install_authority(app: &mut VectorcraftApp, value: &Value) -> Result<(), Stri
     }
     Ok(())
 }
+/// Collect a completed host action while preserving unsaved wizard drafts.
+/// After Save or Resync folders, install the new grants before requesting connection startup.
 fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let mut start_after_configure = false;
     let result = app.remote_access.pending.as_ref().and_then(|(name, receiver)| match receiver.try_recv() {
@@ -318,6 +340,8 @@ fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 }
+/// Render the Artwork, Gateway, Authorize and Connections steps for local owner input.
+/// Poll background work even when the wizard is closed so grants finish installing safely.
 pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     poll(app, ctx);
     if !app.remote_access.open {
@@ -558,6 +582,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Verify green folder checks reflect the running connection, not merely saved folder choices.
     #[test]
     fn folder_checks_describe_the_running_grant_not_just_saved_settings() {
         let mut state = RemoteAccessUi::default();
@@ -573,6 +598,7 @@ mod tests {
         state.status["running"] = json!(false);
         assert!(!state.folder_active("C:/artwork"));
     }
+    /// Verify Refresh status preserves pending artwork-folder edits and passphrase entries.
     #[test]
     fn status_refresh_preserves_unsaved_folder_and_passphrase_drafts() {
         let mut app = app();
@@ -585,6 +611,7 @@ mod tests {
         assert_eq!(app.remote_access.artworks.len(), 2);
         assert_eq!(app.remote_access.phrase, "a local draft passphrase");
     }
+    /// Verify the gateway defaults to this computer and LAN access is a deliberate unsaved owner choice.
     #[test]
     fn gateway_starts_local_only_and_lan_access_is_an_explicit_unsaved_owner_choice() {
         let mut app = app();
@@ -607,6 +634,7 @@ mod tests {
         }));
         action(&mut app, &json!({"action":"configure"})).unwrap();
     }
+    /// Verify Start installs artwork-folder and host-file checks before enabling the HTTP connection.
     #[test]
     fn starting_saved_setup_installs_authority_and_opens_control_before_http() {
         let root = std::env::temp_dir().join(format!("vc-remote-lazy-control-{}", std::process::id()));
@@ -638,6 +666,7 @@ mod tests {
         assert!(app.remote_access.pending.is_none(), "a failed repair never starts HTTP");
         std::fs::remove_dir_all(root).unwrap();
     }
+    /// Verify Resync folders sends only folder changes and installs new grants before restarting HTTP.
     #[test]
     fn resync_sends_only_folders_and_waits_for_installed_authority_before_start() {
         let mut app = app();
@@ -684,6 +713,7 @@ mod tests {
         assert_eq!(app.remote_access.pub_origin, "https://unsaved-origin.example");
         std::fs::remove_dir_all(root).unwrap();
     }
+    /// Create a lightweight editor with a fake asynchronous Remote AI host service for wizard tests.
     fn app() -> VectorcraftApp {
         let services = crate::Services {
             start_remote_control: Some(Box::new(|_, _| std::sync::mpsc::channel().1)),
@@ -696,6 +726,7 @@ mod tests {
         };
         VectorcraftApp::new(vectorcraft_engine::Session::new(), services)
     }
+    /// Verify mismatched passphrase confirmation is refused before any native host request.
     #[test]
     fn a_new_passphrase_requires_matching_confirmation_before_any_host_call() {
         let mut app = app();
@@ -712,6 +743,7 @@ mod tests {
         assert!(app.remote_access.phrase_confirmation.is_empty());
         assert!(!app.remote_access.show_phrase);
     }
+    /// Verify blank passphrase fields preserve an existing secret but cannot create a new setup.
     #[test]
     fn both_blank_fields_keep_an_existing_passphrase_but_not_a_new_one() {
         let mut state = RemoteAccessUi::default();
@@ -724,6 +756,7 @@ mod tests {
         state.phrase_confirmation = state.phrase.clone();
         assert!(state.validate_phrase().is_err());
     }
+    /// Verify Show passphrase blocks remote capture and invalidates already queued screenshots.
     #[test]
     fn revealed_passphrases_are_local_only_and_in_flight_screenshots_are_discarded() {
         let mut app = app();
@@ -765,6 +798,7 @@ mod tests {
         assert!(action(&mut app, &json!({"action":"toggle_phrase_visibility"})).is_err());
         assert!(!app.remote_access.show_phrase);
     }
+    /// Verify Done preserves saved connections while requiring unsaved setup changes to be resolved.
     #[test]
     fn done_preserves_saved_setup_and_running_service_and_refuses_unsaved_edits() {
         let mut app = app();
@@ -784,11 +818,13 @@ mod tests {
         assert!(app.remote_access.client_secret.is_empty());
         assert!(!app.remote_access.show_phrase);
     }
+    /// Verify Remote AI is available through Preferences without a duplicate Edit menu entry.
     #[test]
     fn connection_wizard_is_available_in_preferences_without_an_edit_menu_duplicate() {
         let app = app();
         assert!(!crate::menus::menu_entries(&app).iter().any(|entry| entry.command.as_deref() == Some("ui.remoteAccess")));
     }
+    /// Render the wizard controls in a headless frame and optionally save previews for local inspection.
     #[test]
     fn authorize_and_completion_steps_render_the_owner_controls() {
         let mut app = app();
@@ -865,6 +901,7 @@ mod tests {
         action(app, &json!({"action":"done"})).unwrap();
         assert!(!app.remote_access.open);
     }
+    /// Verify automation and synthetic input cannot open or manage local connection settings.
     #[test]
     fn remote_commands_and_synthetic_frames_cannot_open_or_manage_the_wizard() {
         let mut app = app();
@@ -877,6 +914,7 @@ mod tests {
         assert!(app.run("ui.remoteAccess", json!({})).is_err());
         assert!(app.run("ui.remoteAccess.action", json!({"action":"copy_secret"})).is_err());
     }
+    /// Verify masked passphrases and client secrets are absent from control inspection and painted text.
     #[test]
     fn wizard_secrets_are_not_in_control_inspection_or_painted_text() {
         let mut app = app();
@@ -896,6 +934,7 @@ mod tests {
         assert!(text.contains("Connection is stopped"));
         assert!(!text.contains("client-secret-not-painted"));
     }
+    /// Verify opening connection settings pauses remote edits before they can queue simulated input.
     #[test]
     fn open_wizard_pauses_remote_edits_before_queuing_input() {
         let mut app = app();
@@ -910,6 +949,7 @@ mod tests {
         }
         assert!(app.synthetic.is_empty());
     }
+    /// Verify unavailable host support leaves Remote AI actions disabled in ordinary and web builds.
     #[test]
     fn ordinary_and_web_builds_show_disabled_remote_actions_without_a_host_service() {
         let app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
@@ -917,6 +957,7 @@ mod tests {
         assert!(!crate::menus::enabled(&app, "ui.remoteAccess.action"));
     }
 
+    /// Verify the artwork-folder picker supports multiple independent folders without duplicate entries.
     #[test]
     fn folder_picker_adds_and_removes_independent_locations_without_duplicates() {
         let mut app = app();
@@ -933,6 +974,7 @@ mod tests {
         assert!(action(&mut app, &json!({"action":"add_path"})).is_err());
     }
 
+    /// Verify the wizard and native host apply matching character limits to non-ASCII passphrases.
     #[test]
     fn non_ascii_passphrases_follow_the_same_character_limits_as_the_host() {
         let mut app = app();
@@ -943,6 +985,7 @@ mod tests {
         }
     }
 
+    /// Verify an asynchronous artwork-folder choice still completes after the current document closes.
     #[test]
     fn folder_picker_accepts_an_async_answer_after_the_active_document_closes() {
         let mut app = app();
@@ -964,6 +1007,7 @@ mod tests {
         assert_eq!(app.remote_access.artworks, vec!["C:/chosen"]);
     }
 
+    /// Verify Preferences shows Remote AI only when the native connection service is available.
     #[test]
     fn remote_ai_preferences_category_is_visible_only_with_native_host_support() {
         let mut app = app();
@@ -976,6 +1020,7 @@ mod tests {
         assert_eq!(ordinary.ui.dialog.as_ref().unwrap().str("__category"), "General");
     }
 
+    /// Verify closing the wizard during Save does not resume edits before new folder grants are installed.
     #[test]
     fn closing_a_configuring_wizard_keeps_control_paused_until_new_authority_is_installed() {
         let root = std::env::temp_dir().join(format!("vc-remote-folder-transition-{}", std::process::id()));

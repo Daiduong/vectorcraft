@@ -24,6 +24,8 @@ pub struct Options {
 }
 
 impl Options {
+    /// Load the local bearer token and validate a loopback-only listener address.
+    /// Reject oversized files and tokens other than 64 hexadecimal characters.
     pub fn from_file(address: &str, path: &Path) -> Result<Self, String> {
         let address: SocketAddr = address.parse().map_err(|e| format!("invalid HTTP address: {e}"))?;
         if !address.ip().is_loopback() {
@@ -55,16 +57,20 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
+    /// Bind the validated local HTTP endpoint and retain its actual listening address.
     pub fn bind(options: Options) -> Result<Self, String> {
         let transport = tiny_http::Server::http(options.address).map_err(|e| format!("HTTP bind failed: {e}"))?;
         let address = transport.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
         Ok(Self { transport, authority: address.to_string(), token: options.token })
     }
 
+    /// Return the bound authority, including the assigned port when a test requested port zero.
     pub fn address(&self) -> &str {
         &self.authority
     }
 
+    /// Handle local HTTP requests serially through one MCP backend until receiving fails.
+    /// A disconnected caller never causes an operation to be replayed.
     pub fn serve(self, backend: Box<dyn Backend>) -> Result<(), String> {
         let mut server = Server::new(backend);
         loop {
@@ -73,6 +79,7 @@ impl Endpoint {
         }
     }
 
+    /// Validate and dispatch one HTTP request, then attempt to deliver its response once.
     fn handle(&self, mut request: Request, server: &mut Server) {
         let reply = match self.validate(&request) {
             Ok(()) => self.dispatch(&mut request, server),
@@ -84,6 +91,8 @@ impl Endpoint {
         }
     }
 
+    /// Check the real loopback peer, Host, Origin, bearer token, route and protocol revision.
+    /// Reject duplicate security headers before application dispatch.
     fn validate(&self, request: &Request) -> Result<(), Reply> {
         if !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
             return Err(Reply::error(403, "loopback clients only"));
@@ -113,6 +122,8 @@ impl Endpoint {
         Ok(())
     }
 
+    /// Validate bounded HTTP/JSON-RPC input and dispatch one authenticated MCP message.
+    /// Notifications receive an empty response without running edits; protocol state is per request.
     fn dispatch(&self, request: &mut Request, server: &mut Server) -> Reply {
         if request.url() == "/health" {
             return if request.method() == &Method::Get {
@@ -211,6 +222,7 @@ impl Endpoint {
     }
 }
 
+/// Read at most one header value, rejecting duplicates rather than choosing between them.
 fn header(request: &Request, name: &str) -> Result<Option<String>, Reply> {
     let mut matches = request.headers().iter().filter(|h| h.field.to_string().eq_ignore_ascii_case(name));
     let value = matches.next().map(|h| h.value.to_string());
@@ -226,18 +238,23 @@ struct Reply {
 }
 
 impl Reply {
+    /// Construct an HTTP reply with no response body, such as an accepted notification.
     fn empty(status: u16) -> Self {
         Self { status, body: String::new() }
     }
+    /// Encode a JSON response using the requested HTTP status.
     fn json(status: u16, body: Value) -> Self {
         Self { status, body: body.to_string() }
     }
+    /// Construct a transport error response rather than a successful tool result.
     fn error(status: u16, message: impl Into<String>) -> Self {
         Self::json(status, json!({"error":message.into()}))
     }
+    /// Construct a JSON-RPC error with a null request ID for invalid incoming messages.
     fn rpc_error(status: u16, code: i64, message: &str) -> Self {
         Self::json(status, json!({"jsonrpc":"2.0","id":null,"error":{"code":code,"message":message}}))
     }
+    /// Build the HTTP response with JSON, no-cache and content-sniffing protection headers.
     fn response(self) -> Response<std::io::Cursor<Vec<u8>>> {
         let mut response = Response::from_string(self.body).with_status_code(StatusCode(self.status));
         let mut headers = vec![("Content-Type", "application/json"), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")];

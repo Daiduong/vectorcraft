@@ -12,6 +12,7 @@ use super::*;
 /// The walker threads of these tests' searches, apart from the searches of other tests.
 static TESTS: Pool = Pool::new(32);
 
+/// Verify that file listing and search exclude private folders even inside an approved parent.
 #[test]
 fn background_walkers_do_not_enter_private_subfolders_of_an_approved_parent() {
     let root = tree("private-authority", &["art/good.ttf", "Remote Access/private.ttf"]);

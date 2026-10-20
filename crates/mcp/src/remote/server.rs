@@ -32,6 +32,8 @@ struct Context {
 // This transport implements the initialization-based revisions. Upstream's partial modern
 // result support is not a complete 2026 transport (server/discover, metadata validation, MRTR).
 const HTTP_VERSIONS: &[&str] = &["2025-03-26", "2025-06-18"];
+/// Reject unsupported HTTP protocol revisions before reading their bodies.
+/// Close the connection and return a legacy-compatible error so clients can fall back safely.
 fn supported_http_version(version: &str) -> Result<(), Box<Response>> {
     if HTTP_VERSIONS.contains(&version) {
         return Ok(());
@@ -42,15 +44,19 @@ fn supported_http_version(version: &str) -> Result<(), Box<Response>> {
     put(&mut response, "connection", "close");
     Err(Box::new(response))
 }
+/// Encode a JSON response, using an internal-error status if the supplied code is invalid.
 fn json_response(status: u16, value: Value) -> Response {
     (StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR), Json(value)).into_response()
 }
+/// Translate an OAuth failure into its HTTP status and public error description.
 fn error(error: Failure) -> Response {
     json_response(error.status, json!({"error":error.code,"error_description":error.message}))
 }
+/// Construct an invalid-request response without dispatching a tool.
 fn bad(message: &str) -> Response {
     error(Failure::new("invalid_request", message))
 }
+/// Read a single valid text header, rejecting duplicate values and invalid header text.
 fn header(headers: &HeaderMap, name: &str) -> Result<Option<String>, Failure> {
     let values: Vec<_> = headers.get_all(name).iter().collect();
     if values.len() > 1 {
@@ -58,12 +64,15 @@ fn header(headers: &HeaderMap, name: &str) -> Result<Option<String>, Failure> {
     }
     values.first().map(|v| v.to_str().map(str::to_owned).map_err(|_| Failure::new("invalid_request", "Invalid header"))).transpose()
 }
+/// Set a response header only when its value is valid HTTP header text.
 fn put(response: &mut Response, name: &'static str, value: &str) {
     if let Ok(value) = HeaderValue::from_str(value) {
         response.headers_mut().insert(name, value);
     }
 }
 impl Context {
+    /// Accept only real loopback peers or the configured trusted gateway IP.
+    /// Check Host, Origin and duplicate credential headers without trusting forwarding headers.
     fn validate(&self, request: &Request, peer: SocketAddr) -> Result<(), Failure> {
         if !peer.ip().is_loopback() && self.settings.trusted_proxy != Some(peer.ip()) {
             return Err(Failure { status: 403, code: "access_denied", message: "Gateway IP not allowed".into() });
@@ -85,13 +94,17 @@ impl Context {
         header(request.headers(), "cookie")?;
         Ok(())
     }
+    /// Lock authorization state or return a controlled error if the mutex is poisoned.
     fn store(&self) -> Result<std::sync::MutexGuard<'_, Store>, Failure> {
         self.store.lock().map_err(|_| Failure::new("server_error", "Authorization state is unavailable"))
     }
 }
+/// Read a size-bounded request body with the service's ten-second completion deadline.
 async fn body(request: Request, limit: usize) -> Result<Vec<u8>, Box<Response>> {
     receive_body(request, limit, Duration::from_secs(10)).await
 }
+/// Collect HTTP body frames within a byte limit and deadline before any tool dispatch.
+/// Timeout logs contain framing counts and categories, never credentials or body contents.
 async fn receive_body(request: Request, limit: usize, timeout: Duration) -> Result<Vec<u8>, Box<Response>> {
     let declared = request.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|v| v.parse::<usize>().ok());
     if declared.is_some_and(|n| n > limit) {
@@ -148,6 +161,7 @@ async fn receive_body(request: Request, limit: usize, timeout: Duration) -> Resu
         }
     }
 }
+/// Require form encoding, bounded UTF-8 content and unique OAuth parameter names.
 async fn form(request: Request) -> Result<Fields, Box<Response>> {
     if request.headers().get("content-type").and_then(|v| v.to_str().ok()).and_then(|v| v.split(';').next())
         != Some("application/x-www-form-urlencoded")
@@ -158,12 +172,15 @@ async fn form(request: Request) -> Result<Fields, Box<Response>> {
     let text = std::str::from_utf8(&bytes).map_err(|_| Box::new(bad("Form is not UTF-8")))?;
     oauth::fields(text).map_err(|e| Box::new(error(e)))
 }
+/// Require a bounded JSON body for registration or local connection-management requests.
 async fn json_body(request: Request) -> Result<Value, Box<Response>> {
     if request.headers().get("content-type").and_then(|v| v.to_str().ok()).and_then(|v| v.split(';').next()) != Some("application/json") {
         return Err(Box::new(json_response(415, json!({"error":"invalid_request","error_description":"Use JSON"}))));
     }
     serde_json::from_slice(&body(request, 16 * 1024).await?).map_err(|_| Box::new(bad("Invalid JSON")))
 }
+/// Apply connection admission limits and request checks, then add privacy response headers.
+/// Authenticated local-owner requests use reserved capacity so public load cannot occupy every slot.
 async fn endpoint(State(context): State<Arc<Context>>, ConnectInfo(peer): ConnectInfo<SocketAddr>, request: Request) -> Response {
     // Reserve recovery capacity for the authenticated local owner, even when anonymous
     // clients occupy the public request budget. Never trust forwarding headers here.
@@ -187,6 +204,8 @@ async fn endpoint(State(context): State<Arc<Context>>, ConnectInfo(peer): Connec
     put(&mut response, "referrer-policy", "strict-origin");
     response
 }
+/// Route discovery, browser sign-in, token, MCP and local-owner requests.
+/// Check route-specific credentials before dispatch; only the local owner may manage linked apps.
 async fn dispatch(context: &Arc<Context>, peer: SocketAddr, request: Request) -> Response {
     let settings = &context.settings;
     let path = request.uri().path().trim_end_matches('/').to_string();
@@ -490,6 +509,8 @@ async fn dispatch(context: &Arc<Context>, peer: SocketAddr, request: Request) ->
     }
 }
 
+/// Run one enabled connection service for the selected private settings file.
+/// Validate setup, lock the profile store and start HTTP/worker handling without opening the editor.
 pub fn run(path: &Path) -> Result<(), String> {
     let settings = Settings::read(path)?;
     if !settings.enabled {

@@ -8,16 +8,21 @@ use url::Url;
 #[cfg(windows)]
 mod windows_permissions;
 
+/// Return Unix time in seconds for sign-in and token expiry checks; use zero before the epoch.
 pub fn now() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
+/// Generate a URL-safe random 256-bit credential for a connection or sign-in.
 pub fn secret() -> String {
     let bytes: [u8; 32] = rand::random();
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
+/// Hash a credential using URL-safe SHA-256 so the store need not retain its usable value.
 pub fn digest(value: &str) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(Sha256::digest(value.as_bytes()))
 }
+/// Validate and hash the owner passphrase with a fresh Argon2 salt.
+/// Require 12 to 256 characters and at most 1024 UTF-8 bytes, as in the Authorize step.
 pub fn hash_phrase(phrase: &str) -> Result<String, String> {
     if phrase.len() > 1024 || !(12..=256).contains(&phrase.chars().count()) {
         return Err("Choose an owner passphrase of 12 to 256 characters".into());
@@ -26,6 +31,7 @@ pub fn hash_phrase(phrase: &str) -> Result<String, String> {
     let salt = argon2::password_hash::SaltString::encode_b64(&bytes).map_err(|e| e.to_string())?;
     Argon2::default().hash_password(phrase.as_bytes(), &salt).map(|h| h.to_string()).map_err(|e| e.to_string())
 }
+/// Check a bounded passphrase against its saved Argon2 hash; malformed hashes fail closed.
 pub fn check_phrase(phrase: &str, hash: &str) -> bool {
     phrase.len() <= 1024
         && phrase.chars().count() <= 256
@@ -55,6 +61,8 @@ pub struct Settings {
     pub allow_test_callbacks: bool,
 }
 impl Settings {
+    /// Validate gateway, listener, profile, passphrase hash and approved artwork folders.
+    /// LAN access requires one explicit trusted gateway; private connection settings cannot be shared.
     pub fn validate(&self) -> Result<(), String> {
         let origin = Url::parse(&self.public_origin).map_err(|_| "Public address is not a URL")?;
         let loopback = matches!(origin.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"));
@@ -130,25 +138,34 @@ impl Settings {
         }
         Ok(())
     }
+    /// Return the primary and additional artwork folders in their saved order.
     pub fn artwork_roots(&self) -> Vec<PathBuf> {
         std::iter::once(self.artwork_root.clone()).chain(self.additional_artwork_roots.iter().cloned()).collect()
     }
+    /// Build read/write grants for approved artwork folders and exclude private connection settings.
+    /// Return an error if a configured folder cannot be used safely.
     pub fn automation_roots(&self) -> Result<Option<std::sync::Arc<vectorcraft_engine::file_access::AutomationRoots>>, String> {
         let roots = self.artwork_roots();
         vectorcraft_engine::file_access::AutomationRoots::new_many(&roots, &roots, &[self.profile_dir.join("Remote Access")])
     }
+    /// Parse the saved public gateway address without changing the connection settings.
     pub fn origin(&self) -> Result<Url, String> {
         Url::parse(&self.public_origin).map_err(|e| e.to_string())
     }
+    /// Return the OAuth issuer URL formed from the public gateway address and connection path.
     pub fn issuer(&self) -> String {
         format!("{}{}", self.public_origin.trim_end_matches('/'), self.base_path)
     }
+    /// Return the MCP connection URL copied into the AI app during setup.
     pub fn resource(&self) -> String {
         format!("{}/mcp", self.issuer())
     }
+    /// Find the settings file's parent folder, or reject a path with no parent.
     pub fn directory(path: &Path) -> Result<&Path, String> {
         path.parent().ok_or_else(|| "Settings need a parent folder".into())
     }
+    /// Load connection settings and validate both their contents and private storage location.
+    /// Only validated settings may start the service or grant automated file access.
     pub fn read(path: &Path) -> Result<Self, String> {
         let result = Self::read_for_owner_repair(path)?;
         result.validate()?;
@@ -164,6 +181,7 @@ impl Settings {
         }
         serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?).map_err(|e| format!("Invalid remote settings: {e}"))
     }
+    /// Validate the complete connection setup before saving it in the private settings folder.
     pub fn save(&self, path: &Path) -> Result<(), String> {
         self.validate()?;
         self.save_private(path)
@@ -176,6 +194,8 @@ impl Settings {
         }
         self.save_private(path)
     }
+    /// Encode size-bounded settings, protect the private folder and validate the destination.
+    /// Used by normal Save and by Stop while the owner repairs an invalid configuration.
     fn save_private(&self, path: &Path) -> Result<(), String> {
         let bytes = serde_json::to_vec_pretty(self).map_err(|e| e.to_string())?;
         if bytes.len() > 64 * 1024 {
@@ -185,6 +205,8 @@ impl Settings {
         self.validate_storage(path)?;
         write_private(path, &bytes)
     }
+    /// Require the settings file to stay in this profile's private Remote Access folder.
+    /// Reject symbolic-link file targets.
     fn validate_storage(&self, path: &Path) -> Result<(), String> {
         let private = self.profile_dir.join("Remote Access").canonicalize().map_err(|e| e.to_string())?;
         let directory = Self::directory(path)?.canonicalize().map_err(|e| e.to_string())?;
@@ -195,6 +217,7 @@ impl Settings {
     }
 }
 
+/// Reject an existing symbolic-link destination while allowing a new private file.
 fn reject_link(path: &Path) -> Result<(), String> {
     match std::fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err("Private authorization files cannot be symbolic links".into()),
@@ -203,6 +226,8 @@ fn reject_link(path: &Path) -> Result<(), String> {
         Err(error) => Err(error.to_string()),
     }
 }
+/// Write private connection data through the shared save helper, refusing symlink targets.
+/// On Unix, also restrict the resulting file to its owner; filesystem failures are reported.
 pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     reject_link(path)?;
     vectorcraft_format::write_atomic(path, bytes).map_err(|e| e.to_string())?;
@@ -213,6 +238,8 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     }
     Ok(())
 }
+/// Create the private connection folder and restrict its permissions for this platform.
+/// On Windows, also replace old explicit grants on existing flat-store files.
 pub fn protect_directory(path: &Path) -> Result<(), String> {
     std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
     #[cfg(unix)]

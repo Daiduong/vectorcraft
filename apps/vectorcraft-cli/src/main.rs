@@ -133,6 +133,8 @@ fn usage() -> String {
     format!("{USAGE}\nReadable formats: .{}\nWritable formats: .{}\n{http}", OPEN_EXTS.join(", ."), export_extensions().join(", ."))
 }
 
+/// Run the requested CLI operation and report failures without opening the desktop editor.
+/// Remote connection setup and serving require their optional build features.
 fn main() -> ExitCode {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) == Some("--profile-dir") {
@@ -257,6 +259,8 @@ fn with_stores(mut h: Headless) -> Headless {
     h
 }
 
+/// Serve MCP over stdio or the explicitly configured loopback HTTP endpoint.
+/// Discovery can run while the editor is closed; desktop operations use the selected backend.
 fn mcp(args: &[String]) -> Result<(), String> {
     let mut connect: Option<String> = None;
     let mut headless = false;

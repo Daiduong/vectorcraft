@@ -1,7 +1,10 @@
 use super::{config::Settings, oauth::Pending};
+/// Escape untrusted text before inserting it into the browser sign-in page.
 pub fn escape(value: &str) -> String {
     value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
 }
+/// Render the owner-passphrase approval page for one pending AI-app sign-in.
+/// Escape client details and errors; the matching browser cookie is checked on submission.
 pub fn consent(settings: &Settings, id: &str, pending: &Pending, error: Option<&str>) -> String {
     let error = error.map(|e| format!("<p class=error>{}</p>", escape(e))).unwrap_or_default();
     format!(
@@ -18,6 +21,8 @@ pub fn consent(settings: &Settings, id: &str, pending: &Pending, error: Option<&
         escape(id)
     )
 }
+/// Build the consent page's content-security policy for its registered callback origin.
+/// Permit the supported Google relay continuation while blocking embedding and other content.
 pub fn csp(redirect: &str) -> String {
     let origin = url::Url::parse(redirect).map(|u| u.origin().ascii_serialization()).unwrap_or_default();
     // Chromium checks every redirect hop, including the Google relay returning to its AI app.
