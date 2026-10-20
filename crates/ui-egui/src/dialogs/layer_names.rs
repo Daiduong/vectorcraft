@@ -213,8 +213,19 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     }
     let mut d = d.clone();
     stop(app, &mut d);
-    let names = d.fields.get("names").ok_or("Generate names first")?;
-    let result = app.run("layer.applyNames", json!({"uid":d.fields.get("uid"),"revision":d.fields.get("revision"),"names":names}))?;
+    let Some(names) = d.fields.get("names").cloned() else {
+        // `stop` already folded the last finished name into this clone. Put it back before the
+        // error, or the next frame saves the dialog from before that name arrived.
+        app.ui.dialog = Some(d);
+        return Err("Generate names first".into());
+    };
+    let result = match app.run("layer.applyNames", json!({"uid":d.fields.get("uid"),"revision":d.fields.get("revision"),"names":names})) {
+        Ok(result) => result,
+        Err(error) => {
+            app.ui.dialog = Some(d);
+            return Err(error);
+        }
+    };
     let st = app.session.active().ok_or("No document")?;
     d.fields.insert("revision".into(), json!(st.revision));
     app.naming_checkpoint = if d.bool("complete") { None } else { Some(d) };
@@ -502,9 +513,17 @@ mod tests {
         assert_eq!(app.run("layer.namingCandidates", json!({})).unwrap()["rows"], before["rows"]);
         d.fields.insert("busy".into(), json!(true));
         d.fields.insert("paused".into(), json!(true));
+        let progress = std::sync::Arc::new(Progress::default());
+        progress.names.lock().unwrap().push(json!({"id": 999, "name": "Late Name"}));
+        let (_tx, rx) = std::sync::mpsc::channel();
+        app.naming_job = Some(Job { base: 0, progress, rx, cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) });
         app.ui.dialog = Some(d.clone());
         assert!(confirm(&mut app, &d).is_err());
-        assert!(app.ui.dialog.is_some());
+        let kept = app.ui.dialog.as_ref().expect("dialog stays open");
+        assert!(
+            kept.fields["names"].as_array().unwrap().iter().any(|n| n["name"] == "Late Name"),
+            "a name finished at apply time survives a rejected apply"
+        );
         let mut output = egui::Context::default().run_ui(egui::RawInput::default(), |ui| {
             body(&mut app, ui, &mut d);
         });

@@ -2711,6 +2711,7 @@ mod tests {
             "New Sublayer…",
             "Duplicate Selection",
             "Delete Selection",
+            "Name Layers with AI…",
             "Options for Selection…",
             "Make/Release Clipping Mask",
             "Enter Isolation Mode",
