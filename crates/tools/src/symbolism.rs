@@ -8,7 +8,7 @@
 //! else the document's current brush).
 
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Shape};
+use vectorcraft_geom::{Point, Shape, Vec2};
 
 use crate::draw2::{FEEDBACK, GestureTool, points_json};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -165,10 +165,17 @@ impl Tool for SymbolismTool {
         }
         vec![]
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let Some(p) = self.hover else { return vec![] };
         let circle = kurbo::Circle::new(p, self.diameter / 2.0).to_path(0.1);
-        vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }]
+        let mut o = vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }];
+        if cx.measurement_labels && self.active && self.id == "symbolScreener" && self.points.len() >= 2 {
+            o.push(Overlay::Measure {
+                p: p + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: format!("Intensity: {:.0}", self.intensity),
+            });
+        }
+        o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
         match self.id {
@@ -318,6 +325,32 @@ mod tests {
         t.key(&cx, ToolKey::BracketLeft, Mods { shift: true, ..Default::default() });
         assert_eq!(t.options()["diameter"], json!(90.0));
         assert_eq!(t.options()["intensity"], json!(4.0));
+    }
+
+    #[test]
+    fn symbol_screener_intensity_measure_labels() {
+        let (d, _) = doc_with_rect();
+        let (s, p) = (Selection::default(), paint());
+        let base = cx(&d, &s, &p);
+        let mut t = SymbolismTool::new("symbolScreener");
+        t.intensity = 7.0;
+        let count = |t: &SymbolismTool, on: bool| {
+            let c = ToolContext { measurement_labels: on, ..base };
+            t.overlays(&c).iter().filter(|o| matches!(o, Overlay::Measure { .. })).count()
+        };
+        assert_eq!(count(&t, false), 0, "preference off");
+        assert_eq!(count(&t, true), 0, "idle: no label");
+        t.pointer(&base, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        assert_eq!(count(&t, true), 0, "pressed but not dragging");
+        t.pointer(&base, &PointerEvent::new(PointerKind::Drag, 20.0, 10.0));
+        let on = ToolContext { measurement_labels: true, ..base };
+        let text = t
+            .overlays(&on)
+            .iter()
+            .find_map(|o| if let Overlay::Measure { text, .. } = o { Some(text.clone()) } else { None });
+        assert_eq!(text.as_deref(), Some("Intensity: 7"));
+        let off = ToolContext { measurement_labels: false, ..base };
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
