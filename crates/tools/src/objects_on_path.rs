@@ -7,7 +7,7 @@
 use serde_json::json;
 use vectorcraft_doc::NodeId;
 use vectorcraft_doc::objects_on_path::{attachable_path, is_objects_on_path};
-use vectorcraft_geom::{BezPath, Point};
+use vectorcraft_geom::{ArcPath, BezPath, Point, Vec2};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -32,6 +32,8 @@ pub struct ObjectsOnPathTool {
     hover: Option<(NodeId, BezPath)>,
     /// Where the press was, while the button is down.
     press: Option<Point>,
+    /// The last pointer position (for measurement labels along the hovered path).
+    at: Option<Point>,
 }
 
 impl Tool for ObjectsOnPathTool {
@@ -43,10 +45,12 @@ impl Tool for ObjectsOnPathTool {
         let p = ev.pos;
         match ev.kind {
             PointerKind::Move => {
+                self.at = Some(p);
                 self.hover = target(cx, p);
                 vec![]
             }
             PointerKind::Down => {
+                self.at = Some(p);
                 self.press = Some(p);
                 vec![]
             }
@@ -61,8 +65,26 @@ impl Tool for ObjectsOnPathTool {
         }
     }
 
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
-        self.hover.iter().map(|(_, path)| Overlay::Path { path: path.clone(), color: HIGHLIGHT, width: 2.0, dashed: false }).collect()
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        let mut o: Vec<Overlay> = self
+            .hover
+            .iter()
+            .map(|(_, path)| Overlay::Path { path: path.clone(), color: HIGHLIGHT, width: 2.0, dashed: false })
+            .collect();
+        if cx.measurement_labels {
+            if let Some(((id, _), at)) = self.hover.as_ref().zip(self.at.as_ref()) {
+                if let Some(path) = cx.doc.node(*id).and_then(attachable_path) {
+                    let arc = ArcPath::new(path);
+                    if let Some(s) = arc.nearest(*at) {
+                        o.push(Overlay::Measure {
+                            p: *at + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                            text: format!("D: {}", cx.len(s)),
+                        });
+                    }
+                }
+            }
+        }
+        o
     }
 
     fn cursor(&self, cx: &ToolContext, p: Point, _mods: Mods) -> Cursor {
@@ -74,6 +96,7 @@ impl Tool for ObjectsOnPathTool {
         if key == ToolKey::Escape {
             self.press = None;
             self.hover = None;
+            self.at = None;
         }
         vec![]
     }
@@ -121,10 +144,33 @@ mod tests {
         assert_eq!(t.cursor(&cx, on, Mods::default()), Cursor::ObjectsOnPath);
         assert_eq!(t.cursor(&cx, Point::new(200.0, 500.0), Mods::default()), Cursor::Arrow, "away from paths");
         t.pointer(&cx, &ev(PointerKind::Move, on.x, on.y));
-        assert_eq!(t.overlays(&cx).len(), 1, "the path is highlighted");
+        assert_eq!(t.overlays(&cx).iter().filter(|o| matches!(o, Overlay::Path { .. })).count(), 1, "the path is highlighted");
         t.pointer(&cx, &ev(PointerKind::Down, on.x, on.y));
         let acts = t.pointer(&cx, &ev(PointerKind::Up, on.x, on.y));
         assert!(matches!(acts.as_slice(), [Action::Exec(id, p)] if id == "object.objectsOnPath.attach" && p["path"] == line.0), "{acts:?}");
+    }
+
+    #[test]
+    fn hover_path_distance_honors_measurement_labels() {
+        let (d, _, square) = doc();
+        let mut sel = Selection::default();
+        sel.set([square]);
+        let paint = paint();
+        let mut t = ObjectsOnPathTool::default();
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &sel, &paint) };
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &sel, &paint) };
+        t.pointer(&on, &ev(PointerKind::Move, 200.0, 300.0));
+        assert_eq!(t.overlays(&on).iter().filter(|o| matches!(o, Overlay::Measure { .. })).count(), 1);
+        let text = t
+            .overlays(&on)
+            .iter()
+            .find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        assert_eq!(text, format!("D: {}", on.len(200.0)));
+        assert_eq!(t.overlays(&off).iter().filter(|o| matches!(o, Overlay::Measure { .. })).count(), 0);
     }
 
     #[test]
