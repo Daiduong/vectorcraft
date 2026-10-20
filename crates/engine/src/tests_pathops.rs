@@ -1054,3 +1054,84 @@ fn outline_stroke_mixed_contours_keep_only_closed_fill() {
     assert_eq!(path.subpaths.len(), 1);
     assert!(path.subpaths[0].closed);
 }
+
+#[test]
+fn outline_stroke_keeps_closed_compound_members_editable() {
+    check_outlined_compound_members(false);
+}
+
+#[test]
+fn outline_stroke_filters_open_compound_contours_without_flattening_members() {
+    check_outlined_compound_members(true);
+}
+
+fn check_outlined_compound_members(mixed: bool) {
+    use vectorcraft_geom::{Anchor, Point, SubPath};
+    let mut s = session();
+    let outer = rect(&mut s, 10.0, 10.0, 100.0, 100.0);
+    let inner = rect(&mut s, 35.0, 35.0, 30.0, 30.0);
+    let mut members = vec![outer.0, inner.0];
+    if mixed {
+        let open = s.execute("path.create", &json!({"anchors":[{"x":140,"y":10},{"x":170,"y":30},{"x":140,"y":50}]})).unwrap();
+        members.push(open["id"].as_u64().unwrap());
+        s.edit("Mixed compound member", |d, _| {
+            let NodeKind::Path { path, .. } = &mut d.node_mut(inner).unwrap().kind else { panic!("path") };
+            path.subpaths.push(SubPath::new(vec![Anchor::corner(Point::new(45.0, 80.0)), Anchor::corner(Point::new(70.0, 90.0))], false));
+            Ok(())
+        })
+        .unwrap();
+    }
+    s.execute("select.set", &json!({"ids":members})).unwrap();
+    let compound = NodeId(s.execute("object.compoundPath.make", &json!({})).unwrap()["id"].as_u64().unwrap());
+    s.edit("Compound member names and rule", |d, _| {
+        d.node_mut(outer).unwrap().name = Some("outer-member".into());
+        d.node_mut(inner).unwrap().name = Some("inner-member".into());
+        let NodeKind::Compound { rule, .. } = &mut d.node_mut(compound).unwrap().kind else { panic!("compound") };
+        *rule = FillRule::EvenOdd;
+        Ok(())
+    })
+    .unwrap();
+    let original = node(&s, compound);
+    let expected: Vec<_> = original
+        .children()
+        .unwrap()
+        .iter()
+        .take(2)
+        .map(|child| {
+            let mut path = child.path_data().unwrap().clone();
+            path.subpaths.retain(|sp| sp.closed);
+            (child.name.clone(), path)
+        })
+        .collect();
+    let before = s.doc().unwrap().doc.layers.clone();
+    let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap())[0];
+    let group = node(&s, result);
+    let fill = group.children().unwrap().iter().find(|child| child.appearance.fill_paint() == Paint::solid(Color::WHITE)).unwrap();
+    let NodeKind::Compound { children, rule } = &fill.kind else { panic!("closed fill must retain editable compound members") };
+    assert_eq!(*rule, FillRule::EvenOdd);
+    assert_eq!(children.len(), 2);
+    for (child, (name, path)) in children.iter().zip(expected) {
+        assert_eq!(child.name, name);
+        assert_eq!(child.path_data().unwrap(), &path);
+        assert_ne!(child.id, outer);
+        assert_ne!(child.id, inner);
+    }
+    let member = children[0].id;
+    let sibling = children[1].id;
+    let member_bounds = children[0].geometric_bounds().unwrap();
+    let sibling_before = children[1].clone();
+    let after = s.doc().unwrap().doc.layers.clone();
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.layers, before);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.layers, after);
+    // Group Selection can still address one retained child without moving its sibling.
+    s.execute("select.set", &json!({"ids":[member.0]})).unwrap();
+    s.execute("object.move", &json!({"dx":7,"dy":3})).unwrap();
+    assert!(close(
+        node(&s, member).geometric_bounds().unwrap(),
+        Rect::new(member_bounds.x0 + 7.0, member_bounds.y0 + 3.0, member_bounds.x1 + 7.0, member_bounds.y1 + 3.0),
+        1e-6
+    ));
+    assert_eq!(node(&s, sibling), *sibling_before);
+}

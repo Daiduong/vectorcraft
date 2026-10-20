@@ -639,6 +639,24 @@ pub(crate) fn outlined_stroke(
     Some(n)
 }
 
+/// Remove open contours without replacing a compound's independently editable members.
+fn retain_closed_fill_members(n: &mut Node) -> bool {
+    match &mut n.kind {
+        NodeKind::Path { path, live, .. } => {
+            if path.subpaths.iter().any(|sp| !sp.closed) {
+                path.subpaths.retain(|sp| sp.closed);
+                *live = None;
+            }
+            !path.subpaths.is_empty()
+        }
+        NodeKind::Compound { children, .. } => {
+            children.retain_mut(|child| retain_closed_fill_members(Arc::make_mut(child)));
+            !children.is_empty()
+        }
+        _ => false,
+    }
+}
+
 /// Path `l` with every stroke outlined, in appearance order: runs of fills stay on copies of
 /// the path, each stroke becomes its outline (or brush art), grouped when there are several.
 /// `None` when `l` has no stroke to outline.
@@ -652,7 +670,13 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
     let fill_path = PathData::new(path.subpaths.iter().filter(|sp| sp.closed).cloned().collect());
     let fill_copy = |d: &mut Document, items| {
         let mut n = styled_copy(d, l, items);
-        n.kind = NodeKind::Path { path: fill_path.clone(), rule, live: None, clipping: false, guide: false };
+        if matches!(&n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }) {
+            if fill_path.subpaths.len() != path.subpaths.len() {
+                retain_closed_fill_members(&mut n);
+            }
+        } else {
+            n.kind = NodeKind::Path { path: fill_path.clone(), rule, live: None, clipping: false, guide: false };
+        }
         n
     };
     let mut parts: Vec<Node> = vec![];
