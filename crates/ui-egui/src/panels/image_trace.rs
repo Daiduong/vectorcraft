@@ -176,9 +176,12 @@ fn preset_list(app: &mut VectorcraftApp, ui: &mut Ui, current: &str) -> Option<S
 /// Width of the Control bar's Image Trace button.
 pub(crate) const TRACE_BUTTON_W: f32 = 104.0;
 
-/// The Image Trace button for a selected image (Control bar, Properties): a click traces it with
-/// the Default preset, its arrow lists the presets to trace it with.
+/// The Image Trace button for one eligible ordinary image (Control bar, Properties). Retained
+/// trace sources have no action; a click traces with Default, and the arrow lists presets.
 pub(crate) fn trace_button(app: &mut VectorcraftApp, ui: &mut Ui, width: f32) {
+    if !target(app).1 {
+        return;
+    }
     let (main, arrow) = widgets::split_button_named(ui, tl!("Image Trace"), tl!("Tracing Presets"), width);
     if main.on_hover_text(tl!("Trace the image with the Default preset")).clicked() {
         trace_with(app, "Default");
@@ -979,5 +982,46 @@ mod tests {
         frame(h.state_mut(), &ctx, vec![]);
         assert!(pstate::<TraceUi>(&ctx, "image-trace").info.is_none());
         assert!(!ctx.data(|d| d.get_temp::<bool>(egui::Id::new(("trace-slider-enabled", "Threshold")))).unwrap());
+    }
+
+    #[test]
+    fn shared_trace_action_rejects_retained_sources_in_control_bar_and_properties() {
+        use egui_kittest::kittest::Queryable;
+        for properties in [false, true] {
+            let mut app = traced_app();
+            let group = app.session.active().unwrap().selection.objects[0];
+            let source = app.session.active().unwrap().doc.node(group).unwrap().children().unwrap()[0].id;
+            app.run("select.set", json!({"ids":[source.0]})).unwrap();
+            let before = app.session.active().unwrap().history.undo.len();
+            let mut h = egui_kittest::Harness::new_ui_state(
+                move |ui, app| {
+                    if properties {
+                        crate::panels::properties::show(app, ui);
+                    } else {
+                        crate::place::control_bar_details(app, ui);
+                    }
+                },
+                app,
+            );
+            assert!(h.query_by_label("Image Trace").is_none(), "retained source must not expose the shared Trace action (Properties={properties})");
+            assert!(h.query_by_label("Tracing Presets").is_none(), "retained source must not expose tracing presets");
+            assert_eq!(h.state().session.active().unwrap().history.undo.len(), before);
+            assert!(h.state_mut().run("imageTrace.make", json!({"id":source.0})).is_err(), "the explicit-id engine guard remains");
+            assert_eq!(h.state().session.active().unwrap().history.undo.len(), before);
+            h.state_mut().run("select.set", json!({"ids":[group.0]})).unwrap();
+            h.state_mut().run("imageTrace.release", json!({})).unwrap();
+            h.run();
+            assert!(h.query_by_label("Image Trace").is_some(), "a released ordinary image still exposes tracing");
+            assert!(h.query_by_label("Tracing Presets").is_some());
+            h.get_by_label("Image Trace").click();
+            h.run();
+            assert!(selected_trace(h.state()).is_some(), "the ordinary image button still creates a live trace");
+            h.state_mut().run("edit.undo", json!({})).unwrap();
+            h.run();
+            assert!(h.query_by_label("Image Trace").is_some(), "Undo restores the plain-image action");
+            h.state_mut().run("edit.redo", json!({})).unwrap();
+            h.run();
+            assert!(selected_trace(h.state()).is_some());
+        }
     }
 }
