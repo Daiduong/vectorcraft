@@ -695,6 +695,45 @@ fn library_panels_float_with_their_names_and_a_persistent_menu_item() {
 }
 
 #[test]
+fn image_trace_icon_rail_placement_survives_show_and_reopen() {
+    for customized in [false, true] {
+        let mut app = app();
+        if customized {
+            app.run("window.panel.move", json!({"panel":"swatches","anchor":"layers","zone":"top"})).unwrap();
+        }
+        app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+        assert!(app.ui.docking.as_ref().unwrap().floating.iter().any(|group| group.panels.contains(&"imageTrace".into())));
+        app.run("window.panel.dock", json!({"panel":"imageTrace"})).unwrap();
+        assert!(app.ui.docking_icons.contains("imageTrace"));
+        for close in [false, true] {
+            if close {
+                if app.ui.open_panel.as_deref() != Some("imageTrace") {
+                    app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+                }
+                app.run("window.panel", json!({"panel":"imageTrace","toggle":true})).unwrap();
+                assert!(app.ui.open_panel.is_none());
+            }
+            app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+            let layout = app.ui.docking.as_ref().unwrap();
+            assert!(
+                !layout.floating.iter().any(|group| group.panels.contains(&"imageTrace".into())),
+                "Show must preserve explicit icon-rail placement"
+            );
+            assert!(app.ui.docking_icons.contains("imageTrace"));
+            assert!(crate::floating::group_of(&app.ui, "imageTrace").is_none());
+            assert!(valid(layout));
+        }
+        let saved = serde_json::to_value(&app.ui).unwrap();
+        let restored: crate::state::UiState = serde_json::from_value(saved).unwrap();
+        assert!(restored.docking_icons.contains("imageTrace"));
+        app.ui = restored;
+        app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+        assert!(app.ui.docking_icons.contains("imageTrace"));
+        assert!(!app.ui.docking.as_ref().unwrap().floating.iter().any(|group| group.panels.contains(&"imageTrace".into())));
+    }
+}
+
+#[test]
 fn image_trace_opens_floating_and_keeps_explicit_docking() {
     for customized in [false, true] {
         let mut app = app();

@@ -164,11 +164,12 @@ fn placement(params: &Value) -> Result<Placement<String>, String> {
 
 pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
     // First opening is a movable palette in an already-customized workspace too. An
-    // explicitly placed or closed panel keeps its saved dock/floating return location.
+    // explicitly placed or closed panel keeps its saved dock, icon-rail or floating location.
     if id == "window.panel"
         && params.get("panel").and_then(Value::as_str).and_then(normalize) == Some("imageTrace")
         && app.ui.docking.as_ref().is_some_and(|layout| !layout.contains(&"imageTrace".into()))
         && !app.ui.docking_hidden.contains_key("imageTrace")
+        && !app.ui.docking_icons.contains("imageTrace")
         && crate::floating::group_of(&app.ui, "imageTrace").is_none()
     {
         return Some(change(app, "float", params));
