@@ -25,7 +25,15 @@ pub fn width_outline(bp: &BezPath, width: f64, profile: &WidthProfile, st: &Stro
 /// `spans[i]` of the subpath it was cut from (see [`Dashed::spans`](super::Dashed::spans));
 /// subpaths without a span are whole.
 pub(super) fn outline_spans(bp: &BezPath, spans: &[(f64, f64)], width: f64, profile: &WidthProfile, st: &StrokeLayer, tol: f64) -> BezPath {
-    let ctx = Ctx { half: width / 2.0, profile, cap: st.cap, join: st.join, miter_limit: st.miter_limit, tol: tol.max(1e-4) };
+    let ctx = Ctx {
+        half: width / 2.0,
+        profile,
+        cap: st.cap,
+        join: st.join,
+        miter_limit: st.miter_limit,
+        tol: tol.max(1e-4),
+        uniform: profile.points.first().is_some_and(|f| profile.points.iter().all(|p| p.1 == f.1 && p.2 == f.2)),
+    };
     let mut out = BezPath::new();
     for (i, (r, closed)) in subpaths(bp).into_iter().enumerate() {
         let (pts, corner) = flatten(&segments(&bp.elements()[r]), closed, ctx.tol);
@@ -159,6 +167,8 @@ struct Ctx<'a> {
     join: LineJoin,
     miter_limit: f64,
     tol: f64,
+    /// The profile has one (left, right) width everywhere.
+    uniform: bool,
 }
 
 /// A vertex of a flattened subpath: where it is, the directions in and out, the lengths of the
@@ -289,10 +299,22 @@ impl Ctx<'_> {
             // outline, so it stays sharp: fitting a curve through it would loop.
             pts.extend([(v.p + na * w, true), (v.p, true), (v.p + nb * w, true)]);
         } else if !v.corner {
-            // A smooth point's inner offset follows its normal too: a sample added right beside a
-            // vertex must not turn it into a detour to the centre.
-            let n = normal.unwrap_or(v.p);
-            pts.push((n, step));
+            // A smooth point's inner offset follows its normal too. With a constant profile, once
+            // the half-width reaches the local radius of curvature the offset crosses the centre of
+            // curvature and comes back as a reversed contour, which the non-zero fill rules into a
+            // hole. The stroke covers that centre, so cut through it instead: the cut is inside the
+            // painted region and does not show. (With varying widths the crossing usually marks a
+            // real caustic; a cut there would show as a slit, so leave it to the offset.)
+            let turn = 2.0 * c.clamp(-1.0, 1.0).acos();
+            let radius = if turn > 1e-9 { 0.5 * (v.la + v.lb) / turn } else { f64::INFINITY };
+            if self.uniform && w >= radius {
+                pts.push((v.p + na * w, true));
+                pts.push((v.p, true));
+                pts.push((v.p + nb * w, true));
+            } else {
+                let n = normal.unwrap_or(v.p);
+                pts.push((n, step));
+            }
         } else if w * (1.0 - c * c).sqrt() / c <= v.la.min(v.lb) {
             // A corner's inner offset is its miter while that stays inside both segments.
             pts.push((miter.unwrap_or(v.p), true));
@@ -643,6 +665,16 @@ mod tests {
         let a = area(&width_outline(&c, 10.0, &p, &capped(LineCap::Butt), 0.001));
         let want = 2.0 * std::f64::consts::PI * 50.0 * 10.0;
         assert!((a - want).abs() / want < 0.01, "{a} vs {want}");
+    }
+
+    #[test]
+    fn a_uniform_circle_narrower_than_its_stroke_has_no_hole() {
+        // Half-width 15 on a radius-5 circle: the inner offset crosses the centre. The constant
+        // stroke still covers the centre, so the outline must not leave a hole there.
+        let c = kurbo::Circle::new((0.0, 0.0), 5.0).to_path(1e-3);
+        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
+        let o = width_outline(&c, 30.0, &p, &capped(LineCap::Butt), 0.01);
+        assert!(o.contains(Point::new(0.0, 0.0)), "{o:?}");
     }
 
     #[test]
