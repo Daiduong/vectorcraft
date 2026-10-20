@@ -45,6 +45,8 @@ pub struct BlendTool {
     first: Option<Pick>,
     /// A blend was just made: the next click adds to it (the selected blend).
     chained: bool,
+    /// Pointer while the second object is being chosen (for measurement labels).
+    track: Option<Point>,
 }
 
 /// The anchor of the first subpath of path or compound path `id` (its first member's) nearest
@@ -76,6 +78,25 @@ impl BlendTool {
             _ => None,
         })
     }
+
+    fn clear(&mut self) {
+        self.first = None;
+        self.chained = false;
+        self.track = None;
+    }
+
+    /// Where the first pick attaches on its object: an anchor or the bounds centre.
+    fn first_point(&self, cx: &ToolContext) -> Option<Point> {
+        let (id, start) = self.first(cx)?;
+        let n = cx.doc.node(id)?;
+        match (start, &n.kind) {
+            (Some(i), NodeKind::Path { path, .. }) => path.subpaths.first().and_then(|s| s.anchors.get(i)).map(|a| a.p),
+            (Some(i), NodeKind::Compound { children, .. }) => {
+                children.first().and_then(|c| c.path_data()).and_then(|p| p.subpaths.first()).and_then(|s| s.anchors.get(i)).map(|a| a.p)
+            }
+            _ => n.geometric_bounds().map(|b| b.center()),
+        }
+    }
 }
 
 impl Tool for BlendTool {
@@ -84,23 +105,30 @@ impl Tool for BlendTool {
     }
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
         let options = |t: &mut Self| {
-            (t.first, t.chained) = (None, false);
+            t.clear();
             vec![Action::Dialog(BLEND_OPTIONS.into(), json!({}))]
         };
         match ev.kind {
             PointerKind::DoubleClick => options(self),
             PointerKind::Down if ev.mods.alt => options(self),
+            PointerKind::Move if self.first(cx).is_some() => {
+                self.track = Some(ev.pos);
+                vec![]
+            }
             PointerKind::Down => match (self.first(cx), pick(cx, ev.pos)) {
                 (_, None) => {
-                    (self.first, self.chained) = (None, false);
+                    self.clear();
                     vec![]
                 }
                 (None, Some((top, start))) => {
                     self.first = Some((top, start));
+                    self.track = Some(ev.pos);
                     vec![Action::Exec("select.set".into(), json!({"ids": [top.0]}))]
                 }
                 (Some((a, sa)), Some((b, sb))) if a != b && cx.doc.node(a).is_some() => {
-                    (self.first, self.chained) = (None, true);
+                    self.track = None;
+                    self.first = None;
+                    self.chained = true;
                     let mut p = json!({"ids": [a.0, b.0]});
                     if sa.is_some() || sb.is_some() {
                         p["starts"] = json!([sa, sb]);
@@ -113,17 +141,17 @@ impl Tool for BlendTool {
         }
     }
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
-        let Some((id, start)) = self.first(cx) else { return vec![] };
-        let Some(n) = cx.doc.node(id) else { return vec![] };
-        let at = match (start, &n.kind) {
-            (Some(i), NodeKind::Path { path, .. }) => path.subpaths.first().and_then(|s| s.anchors.get(i)).map(|a| a.p),
-            (Some(i), NodeKind::Compound { children, .. }) => {
-                children.first().and_then(|c| c.path_data()).and_then(|p| p.subpaths.first()).and_then(|s| s.anchors.get(i)).map(|a| a.p)
-            }
-            _ => None,
-        };
-        let Some(p) = at.or_else(|| n.geometric_bounds().map(|b| b.center())) else { return vec![] };
-        vec![Overlay::Anchor { p, color: FEEDBACK, filled: true, size: 6.0 }]
+        let Some(p) = self.first_point(cx) else { return vec![] };
+        let mut o = vec![Overlay::Anchor { p, color: FEEDBACK, filled: true, size: 6.0 }];
+        if cx.measurement_labels
+            && let Some(q) = self.track.filter(|q| q.distance(p) > 1e-9)
+        {
+            o.push(Overlay::Measure {
+                p: q + vectorcraft_geom::Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: cx.segment_measure_label(p, q),
+            });
+        }
+        o
     }
     fn cursor(&self, cx: &ToolContext, p: Point, _mods: Mods) -> Cursor {
         match pick(cx, p) {
@@ -136,7 +164,7 @@ impl Tool for BlendTool {
         self.first.is_some()
     }
     fn deactivate(&mut self, _cx: &ToolContext) -> Vec<Action> {
-        (self.first, self.chained) = (None, false);
+        self.clear();
         vec![]
     }
 }
@@ -320,7 +348,7 @@ mod tests {
         d.insert(Some(l), 1, blend).unwrap();
         let mut s = Selection::default();
         let p = paint();
-        let mut t = BlendTool { first: None, chained: true };
+        let mut t = BlendTool { first: None, chained: true, track: None };
         s.set([g]);
         let c = cx(&d, &s, &p);
         let acts = t.pointer(&c, &PointerEvent::new(PointerKind::Down, 150.0, 150.0));
@@ -328,6 +356,22 @@ mod tests {
         // Away from art: start over.
         t.pointer(&c, &PointerEvent::new(PointerKind::Down, 450.0, 450.0));
         assert!(t.first(&c).is_none());
+    }
+
+    #[test]
+    fn blend_tool_shows_segment_measure_while_choosing_second() {
+        let (d, _) = doc_with_rect();
+        let (s, p) = (Selection::default(), paint());
+        let mut t = create("blend").unwrap();
+        let c = cx(&d, &s, &p);
+        t.pointer(&c, &PointerEvent::new(PointerKind::Down, 150.0, 150.0));
+        let to = Point::new(280.0, 220.0);
+        t.pointer(&c, &PointerEvent::new(PointerKind::Move, to.x, to.y));
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let label = on.segment_measure_label(Point::new(150.0, 150.0), to);
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &label)));
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
