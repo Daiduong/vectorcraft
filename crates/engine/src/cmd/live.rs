@@ -411,6 +411,7 @@ const DEFAULT_DISTANCE: f64 = 10.0;
 
 fn spacing_param(p: &Value, cmd: &str, current: BlendSpacing) -> Result<BlendSpacing> {
     check_numbers(p, &["value", "steps", "distance"], cmd)?;
+    let smooth = switch_or(p, "smooth", false, cmd)?;
     let num = |k: &str| p.get(k).and_then(Value::as_f64);
     let steps = |k: &str, n: f64| whole(n, k, cmd).map(|n| BlendSpacing::Steps(n as u32));
     let mode = str_param(p, "spacing");
@@ -428,7 +429,7 @@ fn spacing_param(p: &Value, cmd: &str, current: BlendSpacing) -> Result<BlendSpa
                 steps("steps", n)?
             } else if let Some(d) = num("distance") {
                 BlendSpacing::Distance(d)
-            } else if bool_or(p, "smooth", false) {
+            } else if smooth {
                 BlendSpacing::SmoothColor
             } else {
                 current
@@ -643,7 +644,7 @@ fn spine_move_anchor(s: &mut Session, p: &Value) -> Result<Value> {
         Some("in") => Some(false),
         Some(_) => return Err(bad(C, "handle must be in or out")),
     };
-    let independent = bool_or(p, "independent", false);
+    let independent = switch_or(p, "independent", false, C)?;
     edit_spine(s, p, C, "Reshape Spine", |sp, anchors, keys| {
         let a = sp.anchors.get_mut(index).ok_or_else(|| bad(C, "no such spine point"))?;
         if let Some(out) = handle {
@@ -702,7 +703,7 @@ fn spine_reshape_segment(s: &mut Session, p: &Value) -> Result<Value> {
     if !(t.is_finite() && dv.x.is_finite() && dv.y.is_finite() && dv.hypot() < 1e9) {
         return Err(bad(C, "t, dx and dy must be finite"));
     }
-    let perpendicular = bool_or(p, "perpendicular", false);
+    let perpendicular = switch_or(p, "perpendicular", false, C)?;
     edit_spine(s, p, C, "Reshape Spine", |sp, _, _| {
         let bent = if perpendicular { sp.bend_segment_perpendicular(seg, t, dv) } else { sp.bend_segment(seg, t, dv) };
         if bent { Ok(()) } else { Err(bad(C, "no such spine segment")) }
@@ -991,10 +992,11 @@ fn warp_kind(p: &Value, cmd: &str, cur: Option<&EnvelopeKind>) -> Result<Envelop
     bend = f64_or(p, "bend", bend).clamp(-100.0, 100.0);
     h = f64_or(p, "h", f64_or(p, "horizontalDistortion", h)).clamp(-100.0, 100.0);
     v = f64_or(p, "v", f64_or(p, "verticalDistortion", v)).clamp(-100.0, 100.0);
+    let given = switch_or(p, "horizontal", horizontal, cmd)?;
     horizontal = match str_param(p, "orientation") {
         Some("vertical") => false,
         Some("horizontal") => true,
-        _ => bool_or(p, "horizontal", horizontal),
+        _ => given,
     };
     Ok(EnvelopeKind::Warp { style, bend, h, v, horizontal })
 }
@@ -1119,7 +1121,7 @@ fn env_reset_warp(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn env_reset_mesh(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.envelope.resetWithMesh";
-    let maintain = bool_or(p, "maintainShape", true);
+    let maintain = switch_or(p, "maintainShape", true, C)?;
     let kinds = reshaped(s, |env, kind| {
         let own = match kind {
             EnvelopeKind::Mesh { rows, cols, .. } => (*rows, *cols),
@@ -1150,11 +1152,11 @@ fn options_param(p: &Value, cmd: &str, cur: EnvelopeOptions) -> Result<EnvelopeO
         None => cur.preserve_shape,
     };
     Ok(EnvelopeOptions {
-        anti_alias: bool_or(p, "antiAlias", cur.anti_alias),
+        anti_alias: switch_or(p, "antiAlias", cur.anti_alias, cmd)?,
         preserve_shape,
-        distort_appearance: bool_or(p, "distortAppearance", cur.distort_appearance),
-        distort_linear_gradients: bool_or(p, "distortLinearGradients", cur.distort_linear_gradients),
-        distort_pattern_fills: bool_or(p, "distortPatternFills", cur.distort_pattern_fills),
+        distort_appearance: switch_or(p, "distortAppearance", cur.distort_appearance, cmd)?,
+        distort_linear_gradients: switch_or(p, "distortLinearGradients", cur.distort_linear_gradients, cmd)?,
+        distort_pattern_fills: switch_or(p, "distortPatternFills", cur.distort_pattern_fills, cmd)?,
     })
 }
 
@@ -1249,6 +1251,7 @@ fn env_options(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.envelope.options";
     check_numbers(p, &["fidelity"], C)?;
     check_numbers(p, WARP_NUMBERS, C)?;
+    switch_or(p, "horizontal", true, C)?;
     let fid = p.get("fidelity").and_then(Value::as_f64);
     if fid.is_some_and(|f| !(0.0..=100.0).contains(&f)) {
         return Err(bad(C, "fidelity must be 0..100"));
@@ -1330,9 +1333,10 @@ fn env_expand(s: &mut Session, _: &Value) -> Result<Value> {
 }
 
 fn env_edit_contents(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "object.envelope.editContents";
     let envs = selected_of(s, is_envelope);
     let cur = matches!(envs.first().and_then(|e| s.doc().ok()?.doc.node(*e)).map(|n| &n.kind), Some(NodeKind::Envelope { editing: true, .. }));
-    let want = bool_or(p, "editing", !cur);
+    let want = switch_or(p, "editing", !cur, C)?;
     s.edit(if want { "Edit Contents" } else { "Edit Envelope" }, |d, sel| {
         let mut content_ids = vec![];
         for e in &envs {
@@ -1530,6 +1534,15 @@ fn index_param(p: &Value, key: &str, cmd: &str) -> Result<usize> {
 /// `x`, the value of `key`, when it is a whole number, and an error otherwise.
 fn whole(x: f64, key: &str, cmd: &str) -> Result<f64> {
     if x.fract() == 0.0 { Ok(x) } else { Err(bad(cmd, format!("`{key}` must be a whole number"))) }
+}
+
+/// The true or false `p` gives for `key`, or `default` when `p` gives none or null. Any other value gives
+/// "`{key}` must be true or false".
+fn switch_or(p: &Value, key: &str, default: bool, cmd: &str) -> Result<bool> {
+    match p.get(key) {
+        None | Some(Value::Null) => Ok(default),
+        Some(v) => v.as_bool().ok_or_else(|| bad(cmd, format!("`{key}` must be true or false"))),
+    }
 }
 
 fn mesh_set_color(s: &mut Session, p: &Value) -> Result<Value> {

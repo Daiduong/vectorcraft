@@ -941,6 +941,15 @@ message, as in `` `steps` must be a number, not "8" ``, and change nothing: `ste
 `highlight` in `object.mesh.create`; and `opacity` in `object.mesh.setPointColor`. A null is read as a key left out.
 `object.mesh.create` refuses an `at` that is not two numbers with `` `at` must be [x, y] ``.
 
+The blend and envelope commands refuse a string, a number or another value that is not true or false with
+`` `smooth` must be true or false ``, naming the key, and leave the document, its undo history and the options new
+blends and envelopes start with as they were: `smooth` in `object.blend.make` and `object.blend.options`;
+`independent` in `object.blend.spine.moveAnchor`; `perpendicular` in `object.blend.spine.reshapeSegment`; `horizontal`
+in `object.envelope.makeWithWarp`, `resetWithWarp` and `options`, also when an `orientation` is given; `maintainShape`
+in `object.envelope.resetWithMesh`; `antiAlias`, `distortAppearance`, `distortLinearGradients` and
+`distortPatternFills` in `object.envelope.options`; and `editing` in `object.envelope.editContents`. A null is read as
+a key left out.
+
 A step can use an earlier step's result, in `run` as in the `command_batch` tool. A parameter string that is exactly
 `$N` or `$N.path` takes that value from the result of step `N` (counting from 0, in the order they ran; `run --in`'s
 open isn't a step), and `$last…` from the step before. A path goes into objects by key and arrays by index:
