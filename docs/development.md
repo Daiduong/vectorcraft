@@ -1,5 +1,6 @@
 # Development
 
+> **Last updated:** 2026-10-20 · **Change:** Quality gate section for local vs Ubuntu `cargo xtask ci` (#2131).
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
@@ -250,6 +251,21 @@ other `sv-*` locale resolve to it), Georgian (`ka`, complete; `ka-GE` and `ka_GE
   system font; the glyph test checks Latin and Cyrillic catalogs always and the CJK ones only with craft-fonts.
   A Traditional Chinese UI font is still to be added to craft-fonts for the web build.
 
+## Quality gate
+
+Merges use `cargo xtask ci`: fmt, clippy (`-D warnings`, `--locked`), test (`--locked`), no-bundled-fonts, pdf-deps, assets, brands, cursors, layers, wasm. The Ubuntu job in `.github/workflows/ci.yml` runs that same command on code PRs and on pushes to `main` (see #2131). FreeBSD remains a platform check; Affinity corpus stays its own workflow.
+
+To match Actions on your machine:
+
+```sh
+export CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+# optional, same pin as CI / FreeBSD so Japanese-glyph tests run instead of skipping:
+# export CRAFT_FONTS_DIR="$PWD/../craft-fonts" CRAFT_FONTS_REQUIRED=1
+cargo xtask ci
+```
+
+First-time pull requests from a fork need a maintainer to click **Approve and run workflows** once for that author; after that, the CI job runs on its own.
+
 ## Cursors
 
 `crates/tools/src/cursors.toml` lists every `Cursor` value: when it shows, in plain behaviour terms, and where its hotspot is, so whoever draws the cursors knows what each one is for without reading the tools (CLAUDE.md › Adding a cursor). `cargo xtask cursors` (part of `cargo xtask ci`) warns about a `Cursor` value with no entry, an entry with no `Cursor` value, a repeated id or a missing field; it never fails the build. A cursor not drawn yet borrows another's look (`Cursor::stand_in`).
@@ -375,6 +391,7 @@ do not replace expected hashes automatically in response to a download mismatch.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-20 | minor | Quality gate: Ubuntu `cargo xtask ci` job, local env to match Actions (#2131). |
 | 2026-10-14 | minor | Document the `bundled-fonts` feature of vectorcraft-text and vectorcraft-engine (Fonts › Leaving out the bundled fonts). |
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
