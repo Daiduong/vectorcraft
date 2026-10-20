@@ -4688,6 +4688,7 @@ dependencies = [
  "vectorcraft-doc",
  "vectorcraft-eps",
  "vectorcraft-format",
+ "vectorcraft-freehand",
  "vectorcraft-geom",
  "vectorcraft-metafile",
  "vectorcraft-pathops",
@@ -4739,6 +4740,14 @@ dependencies = [
  "vectorcraft-doc",
  "vectorcraft-geom",
  "vectorcraft-testkit",
+]
+
+[[package]]
+name = "vectorcraft-freehand"
+version = "0.13.1"
+dependencies = [
+ "flate2",
+ "proptest",
 ]
 
 [[package]]
