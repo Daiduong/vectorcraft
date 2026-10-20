@@ -640,6 +640,11 @@ fn arrange(s: &mut Session, how: Arrange) -> Result<Value> {
             }
         }
         for (par, group) in by_parent {
+            // A clip group's first (bottom-most) child is its clipping path, and with nothing to
+            // clip by the rest of the group is hidden: arrange must not displace it (#3188). The
+            // clipping path stays put, and the other children stop just above it, as in Illustrator.
+            let clip_group = par.is_some_and(|p| matches!(d.node(p).map(|n| &n.kind), Some(NodeKind::Group { clip: true, .. })));
+            let floor = usize::from(clip_group);
             for (k, id) in group.iter().enumerate() {
                 let Some((_, idx, len)) = d.position(*id) else { continue };
                 if len == 0 {
@@ -648,9 +653,15 @@ fn arrange(s: &mut Session, how: Arrange) -> Result<Value> {
                 let last = len - 1;
                 let to = match how {
                     Arrange::Front => last.saturating_sub(k),
-                    Arrange::Back => k.min(last),
+                    Arrange::Back => (k + floor).min(last),
                     Arrange::Forward => (idx + 1).min(last.saturating_sub(k)).max(idx),
-                    Arrange::Backward => idx.saturating_sub(1).max(k.min(idx)),
+                    Arrange::Backward => idx.saturating_sub(1).max((k + floor).min(idx)),
+                };
+                let to = if clip_group && idx == 0 {
+                    // The clipping path itself stays the first child.
+                    idx
+                } else {
+                    to.max(floor)
                 };
                 if to != idx {
                     d.move_node(*id, par, to)?;

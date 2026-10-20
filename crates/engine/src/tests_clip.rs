@@ -170,3 +170,47 @@ fn imported_multi_shape_and_even_odd_clip_paths_clip() {
     assert!(!opaque(&r, 70, 75), "the even-odd centre");
     assert_outputs_agree(&mut s, &[(15, 20), (75, 20), (45, 20), (15, 43), (70, 56), (70, 75)]);
 }
+
+/// Arrange inside a clip group keeps the clipping path first (#3188): Send to Back moved the
+/// clipped art below the clip shape, the group then had nothing to clip by, and the art vanished
+/// until it was brought to the front again. The art now stops just above the clipping path, which
+/// itself stays put, whatever is arranged.
+#[test]
+fn arrange_in_a_clip_group_keeps_the_clipping_path_first() {
+    let mut s = session();
+    let mid = id_of(&s.execute("shape.rectangle", &json!({"x": 20, "y": 20, "width": 60, "height": 60})).unwrap());
+    let (art, donut) = art_and_donut(&mut s);
+    select(&mut s, &[mid, art, donut]);
+    let g = id_of(&s.execute("object.clippingMask.make", &json!({})).unwrap());
+    let idx_of = |s: &Session, id: NodeId| {
+        let d = &s.doc().unwrap().doc;
+        let NodeKind::Group { clip: true, .. } = &d.node(g).unwrap().kind else { panic!("a clip group") };
+        d.position(id).map(|(_, i, _)| i)
+    };
+    assert_eq!(idx_of(&s, donut), Some(0), "the clip shape is the first child");
+
+    // Send to Back stops just above the clipping path instead of displacing it.
+    select(&mut s, &[art]);
+    s.execute("object.arrange.sendToBack", &json!({})).unwrap();
+    assert_eq!(idx_of(&s, donut), Some(0), "the clip shape still clips");
+    assert_eq!(idx_of(&s, art), Some(1), "the art stops just above it");
+
+    // Send Backward cannot go below the clipping path either.
+    select(&mut s, &[art]);
+    s.execute("object.arrange.sendBackward", &json!({})).unwrap();
+    assert_eq!(idx_of(&s, donut), Some(0));
+    assert_eq!(idx_of(&s, art), Some(1));
+
+    // The clipping path itself stays the first child, front or back.
+    select(&mut s, &[donut]);
+    s.execute("object.arrange.bringToFront", &json!({})).unwrap();
+    s.execute("object.arrange.sendToBack", &json!({})).unwrap();
+    assert_eq!(idx_of(&s, donut), Some(0));
+
+    // The group still clips what it did before any of the arranging.
+    let r = render(&s);
+    assert!(opaque(&r, 20, 50), "the ring still shows the art");
+    assert!(!opaque(&r, 50, 50), "the hole stays transparent");
+    assert!(!opaque(&r, 3, 3), "outside the ring");
+    assert_outputs_agree(&mut s, &[(20, 50), (50, 50), (3, 3)]);
+}
