@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 
 use serde_json::{Value, json};
 use vectorcraft_doc::{Document, Node, NodeId, PuppetPin, PuppetPins};
-use vectorcraft_geom::{BezPath, Point, Rect};
+use vectorcraft_geom::{BezPath, Point, Rect, Vec2};
 
 use super::arap::{self, Mesh, MeshOptions, default_pins};
 use super::{BLUE, collect_points, warp_node_with};
@@ -466,6 +466,12 @@ impl Tool for PuppetWarpTool {
         if let Some(p) = self.off_mesh {
             out.push(Overlay::Label { p, text: OFF_MESH.into(), color: WARN });
         }
+        if cx.measurement_labels
+            && let Some(Gesture::Move { from, to }) = self.drag
+        {
+            let delta = to - from;
+            out.push(Overlay::Measure { p: to + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text: cx.offset_label(delta.x, delta.y) });
+        }
         out
     }
     fn cursor(&self, cx: &ToolContext, p: Point, mods: Mods) -> Cursor {
@@ -526,6 +532,7 @@ impl Tool for PuppetWarpTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
+    use crate::ToolContext;
     use vectorcraft_doc::Selection;
 
     fn alt() -> Mods {
@@ -676,6 +683,21 @@ mod tests {
         r.key(ToolKey::Backspace);
         assert!(r.pins().is_empty());
         assert_eq!(r.bounds(), before);
+    }
+
+    #[test]
+    fn puppet_pin_move_honors_measurement_labels() {
+        let mut r = Rig::new();
+        r.click(130.0, 170.0, Mods::default());
+        r.ev(PointerKind::Down, 130.0, 170.0, Mods::default());
+        r.ev(PointerKind::Drag, 120.0, 190.0, Mods::default());
+        let p = paint();
+        let base = cx(&r.doc, &r.sel, &p);
+        let on = ToolContext { measurement_labels: true, ..base };
+        let off = ToolContext { measurement_labels: false, ..base };
+        let want = on.offset_label(-10.0, 20.0);
+        assert!(r.tool.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        assert!(!r.tool.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
