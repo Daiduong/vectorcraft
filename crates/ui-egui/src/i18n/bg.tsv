@@ -5239,3 +5239,7 @@ theme	Appearance	Външен вид
 	Edit Typst	Редактиране на Typst
 	Typst Info	Информация за Typst
 	Preamble:	Преамбюл:
+	Enable Typst	Включване на Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Изпълнява програмата typst, която изтегля пакетите @preview, импортирани от маркировката.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst е изключен: включете „Включване на Typst“ в Настройки › Тип
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	автоматизацията не може да включи „Включване на Typst“: включете го в Настройки › Тип

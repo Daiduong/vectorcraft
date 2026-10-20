@@ -5186,6 +5186,10 @@ imageTrace	Outline	კონტური
 	Edit Typst	Typst-ის რედაქტირება
 	Typst Info	Typst-ის ინფორმაცია
 	Preamble:	პრეამბულა:
+	Enable Typst	Typst-ის ჩართვა
+	Runs the typst program, which downloads the @preview packages the markup imports.	უშვებს პროგრამას typst, რომელიც ჩამოტვირთავს მარკირების მიერ იმპორტირებულ @preview პაკეტებს.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst გამორთულია: ჩართეთ „Typst-ის ჩართვა“ აქ: პარამეტრები › ტექსტი
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	ავტომატიზაციას არ შეუძლია „Typst-ის ჩართვა“-ს ჩართვა: ჩართეთ აქ: პარამეტრები › ტექსტი
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst-ს დესკტოპის აპი სჭირდება: ვებ-აპს typst პროგრამის გაშვება არ შეუძლია
 @msg	Typst took longer than {_1} seconds	Typst-მა {_1} წამზე მეტი დრო მოითხოვა
 @msg	Typst's SVG is larger than {_1} MB	Typst-ის SVG {_1} MB-ზე დიდია

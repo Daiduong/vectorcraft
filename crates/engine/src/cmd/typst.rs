@@ -8,6 +8,10 @@
 //! references, come in as plain paths rather than as symbols. The project root (what `#image` and
 //! `#read` can see) is the document's folder, or an empty folder for an unsaved document.
 //!
+//! Nothing runs until Preferences › Type › Enable Typst is on (`enableTypst`, off by default):
+//! Typst downloads the `@preview` packages markup imports, a network fetch the app doesn't make
+//! or check itself.
+//!
 //! The page is as big as its contents (no margins, no fill). An edit typesets the source again and
 //! puts the new page's centre where the old one's is, with the object's scale and rotation
 //! ([`TypstSpec::xf`]).
@@ -38,7 +42,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Insert Typst",
             [],
             None,
-            "{source: string (Typst markup; `$ … $` for math), preamble?: string (markup read first: #set, #import, #let), fontSize?: pt (default 11), at?: [x, y] (centre; default the first artboard's)} typeset with the `typst` program (desktop builds; `typst` on the PATH or $VECTORCRAFT_TYPST) and place it as one selected group of paths that keeps its source → {id, width, height}",
+            "{source: string (Typst markup; `$ … $` for math), preamble?: string (markup read first: #set, #import, #let), fontSize?: pt (default 11), at?: [x, y] (centre; default the first artboard's)} typeset with the `typst` program (desktop builds, once prefs enableTypst is on; `typst` on the PATH or $VECTORCRAFT_TYPST) and place it as one selected group of paths that keeps its source → {id, width, height}",
             has_doc,
             insert
         ),
@@ -129,6 +133,7 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
     if at.is_some_and(|c| !(c.x.abs() <= MAX_COORD && c.y.abs() <= MAX_COORD)) {
         return Err(bad(INSERT, "at lies outside the canvas"));
     }
+    enabled(s)?;
     let st = s.doc()?;
     let art = typeset(&source, &preamble, font_size, st.path.as_deref(), INSERT)?;
     let centre = at.or_else(|| st.doc.artboards.first().map(|a| a.rect.center())).unwrap_or_default();
@@ -146,6 +151,7 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn edit(s: &mut Session, p: &Value) -> Result<Value> {
     let id = target(s, p, EDIT)?;
+    enabled(s)?;
     let st = s.doc()?;
     let old = st.doc.node(id).ok_or(EngineError::NoNode(id))?;
     let Some(was) = old.extras().typst.as_deref().cloned() else { return Err(bad(EDIT, "not a Typst object")) };
@@ -211,6 +217,14 @@ fn group(d: &mut Document, mut art: Typeset, spec: TypstSpec, m: Affine) -> Node
     g.extras_mut().typst = Some(Box::new(spec));
     // The spec's `xf` becomes `m` with the art.
     super::place::transformed(g, m)
+}
+
+/// Refused while Preferences › Type › Enable Typst is off.
+fn enabled(s: &Session) -> Result<()> {
+    if s.prefs.enable_typst {
+        return Ok(());
+    }
+    Err(EngineError::Other("Typst is off: turn on Enable Typst in Preferences › Type".into()))
 }
 
 /// `source` typeset, with `preamble` before it, from the folder of the document at `doc_path`.

@@ -7,6 +7,10 @@ Typst. It isn't an Illustrator feature.
 
 ## Using it
 
+Typst is **off by default**: turn on **Enable Typst** in Preferences › Type, or in the dialog. Until then
+nothing is typeset, so a document, the control channel or MCP can't make the app run `typst`. Automation
+confined with `--automation-read-root` can't turn it on (`prefs.set` refuses), only off.
+
 - **Text**: the Typst markup. Write math between dollar signs (`$ sum_(k=1)^n k = (n(n+1))/2 $`) or ordinary
   Typst markup (`#emph[hello]`, `#table(…)`).
 - **Preamble**: markup read before the text, for `#set`, `#show`, `#import` and `#let` rules, such as
@@ -32,7 +36,9 @@ export the paths.
   one the `VECTORCRAFT_TYPST` environment variable names. The web app can't run programs, so there the command
   explains that.
 - Typst finds fonts as it always does: the fonts it embeds, the system's, and `TYPST_FONT_PATHS`.
-- `#import "@preview/…"` packages are downloaded by Typst, as on the command line.
+- **Network:** `#import "@preview/…"` packages are downloaded by Typst from its package registry the first
+  time they are used, as on the command line, and cached by Typst. The app doesn't make or check that
+  download, and Typst has no setting to turn it off; the dialog says so next to Enable Typst.
 - `#image` and `#read` paths are relative to the document's folder (an empty folder of its own for a document
   not yet saved). Typst can't read outside it, except through links in it. When automation is confined
   (`--automation-read-root`), Typst always gets the empty folder, since a link in the document's folder could
@@ -49,7 +55,7 @@ export the paths.
 | `ui.typst` | `{}` | opens the dialog (`typst`: fields `source`, `preamble`, `fontSize`) |
 
 `id` defaults to the selected Typst object (an object selected inside one counts); with two or more selected,
-`ui.typst` and the commands ask to select one. Each insert or edit is one
+`ui.typst` and the commands ask to select one. Insert and edit need `enableTypst` on (`prefs.set`); info doesn't. Each insert or edit is one
 undo step. The program is never chosen by command params, so the control channel and MCP can't make the app run
 another one.
 

@@ -19,6 +19,7 @@ fn have_typst() -> bool {
 
 fn session() -> Session {
     let mut s = Session::new();
+    s.prefs.enable_typst = true;
     s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     s
 }
@@ -34,6 +35,40 @@ fn id_of(r: &Value) -> u64 {
 
 fn close(a: f64, b: f64) -> bool {
     (a - b).abs() < 1e-3
+}
+
+#[test]
+fn nothing_runs_until_enable_typst_is_on() {
+    let mut s = session();
+    s.prefs.enable_typst = false;
+    let e = s.execute("type.typst.insert", &json!({"source": "x"})).unwrap_err();
+    assert_eq!(e.to_string(), "Typst is off: turn on Enable Typst in Preferences › Type");
+    // Off by default, and the preference turns it on.
+    assert!(!Prefs::default().enable_typst);
+    s.execute("prefs.set", &json!({"key": "enableTypst", "value": true})).unwrap();
+    assert!(s.prefs.enable_typst);
+}
+
+#[test]
+fn confined_automation_cant_turn_typst_on() {
+    let dir = std::env::temp_dir().join(format!("vectorcraft-typst-confined-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let roots = crate::file_access::AutomationRoots::new(Some(&dir), None).unwrap();
+    let mut s = session();
+    s.prefs.enable_typst = false;
+    crate::file_access::confine(roots.as_ref(), || {
+        let e = s.execute("prefs.set", &json!({"key": "enableTypst", "value": true})).unwrap_err();
+        assert!(e.to_string().contains("Enable Typst"), "{e}");
+        let mut p = s.prefs.clone();
+        p.enable_typst = true;
+        s.apply_prefs(p);
+        assert!(!s.prefs.enable_typst);
+        // Once the user turned it on, automation may turn it off.
+        s.prefs.enable_typst = true;
+        s.execute("prefs.set", &json!({"key": "enableTypst", "value": false})).unwrap();
+        assert!(!s.prefs.enable_typst);
+    });
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

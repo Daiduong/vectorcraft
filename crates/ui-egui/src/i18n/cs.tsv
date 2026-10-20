@@ -5279,6 +5279,10 @@ mark-style	Japanese	Japonské
 	Edit Typst	Upravit Typst
 	Typst Info	Informace o Typst
 	Preamble:	Preambule:
+	Enable Typst	Povolit Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Spouští program typst, který stahuje balíčky @preview importované značkováním.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst je vypnutý: zapněte Povolit Typst v Předvolby › Text
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	automatizace nemůže zapnout Povolit Typst: zapněte ho v Předvolby › Text
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst potřebuje desktopovou aplikaci: webová aplikace nemůže spustit program typst
 @msg	Typst took longer than {_1} seconds	Typst trval déle než {_1} sekund
 @msg	Typst's SVG is larger than {_1} MB	SVG z Typstu je větší než {_1} MB

@@ -5231,6 +5231,10 @@ effect	Points	Σημεία
 	Edit Typst	Επεξεργασία Typst
 	Typst Info	Πληροφορίες Typst
 	Preamble:	Προοίμιο:
+	Enable Typst	Ενεργοποίηση Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Εκτελεί το πρόγραμμα typst, το οποίο κατεβάζει τα πακέτα @preview που εισάγει η σήμανση.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Το Typst είναι απενεργοποιημένο: ενεργοποιήστε την επιλογή Ενεργοποίηση Typst στις Προτιμήσεις › Κείμενο
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	ο αυτοματισμός δεν μπορεί να ενεργοποιήσει την επιλογή Ενεργοποίηση Typst: ενεργοποιήστε την στις Προτιμήσεις › Κείμενο
 @msg	Typst needs the desktop app: the web app can't run the typst program	Το Typst χρειάζεται την εφαρμογή υπολογιστή: η εφαρμογή ιστού δεν μπορεί να εκτελέσει το πρόγραμμα typst
 @msg	Typst took longer than {_1} seconds	Το Typst χρειάστηκε περισσότερο από {_1} δευτερόλεπτα
 @msg	Typst's SVG is larger than {_1} MB	Το SVG του Typst είναι μεγαλύτερο από {_1} MB

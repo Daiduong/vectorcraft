@@ -4873,6 +4873,10 @@ lighting	Light	Світло
 	Edit Typst	Редагувати Typst
 	Typst Info	Відомості про Typst
 	Preamble:	Преамбула:
+	Enable Typst	Увімкнути Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Запускає програму typst, яка завантажує пакети @preview, що їх імпортує розмітка.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst вимкнено: увімкніть «Увімкнути Typst» у Налаштування › Текст
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	автоматизація не може ввімкнути «Увімкнути Typst»: увімкніть його в Налаштування › Текст
 @msg	Typst needs the desktop app: the web app can't run the typst program	Для Typst потрібна настільна програма: вебпрограма не може запустити програму typst
 @msg	Typst took longer than {_1} seconds	Typst працював довше за {_1} с
 @msg	Typst's SVG is larger than {_1} MB	SVG від Typst більший за {_1} МБ

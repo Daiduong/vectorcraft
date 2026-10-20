@@ -870,6 +870,9 @@ pub struct Prefs {
     pub missing_glyph_protection: bool,
     pub highlight_alternate_glyphs: bool,
     pub placeholder_text: bool,
+    /// Type › Typst… may run the `typst` program, which downloads the `@preview` packages markup
+    /// imports. Off by default; automation confined to its roots can't turn it on.
+    pub enable_typst: bool,
     // Units
     pub units_general: String,
     pub units_stroke: String,
@@ -1124,6 +1127,7 @@ impl Default for Prefs {
             missing_glyph_protection: true,
             highlight_alternate_glyphs: false,
             placeholder_text: true,
+            enable_typst: false,
             units_general: s("points"),
             units_stroke: s("points"),
             units_type: s("points"),

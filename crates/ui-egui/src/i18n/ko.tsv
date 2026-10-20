@@ -4856,6 +4856,10 @@ lighting	Light	광원
 	Edit Typst	Typst 편집
 	Typst Info	Typst 정보
 	Preamble:	프리앰블:
+	Enable Typst	Typst 사용
+	Runs the typst program, which downloads the @preview packages the markup imports.	typst 프로그램을 실행하며, 마크업이 가져오는 @preview 패키지를 다운로드합니다.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst가 꺼져 있습니다. 환경 설정 › 문자에서 Typst 사용을 켜십시오
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	자동화로는 Typst 사용을 켤 수 없습니다. 환경 설정 › 문자에서 켜십시오
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst에는 데스크톱 앱이 필요합니다: 웹 앱은 typst 프로그램을 실행할 수 없습니다
 @msg	Typst took longer than {_1} seconds	Typst가 {_1}초 넘게 걸렸습니다
 @msg	Typst's SVG is larger than {_1} MB	Typst의 SVG가 {_1}MB보다 큽니다

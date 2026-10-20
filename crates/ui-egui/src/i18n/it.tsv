@@ -4893,6 +4893,10 @@ lighting	Light	Luce
 	Edit Typst	Modifica Typst
 	Typst Info	Informazioni Typst
 	Preamble:	Preambolo:
+	Enable Typst	Abilita Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Esegue il programma typst, che scarica i pacchetti @preview importati dal markup.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst è disattivato: attiva Abilita Typst in Preferenze › Testo
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	l’automazione non può attivare Abilita Typst: attivalo in Preferenze › Testo
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst richiede l'app desktop: l'app web non può eseguire il programma typst
 @msg	Typst took longer than {_1} seconds	Typst ha impiegato più di {_1} secondi
 @msg	Typst's SVG is larger than {_1} MB	L'SVG di Typst supera {_1} MB

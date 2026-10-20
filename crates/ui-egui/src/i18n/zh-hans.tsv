@@ -5116,6 +5116,10 @@ lighting	Light	光源
 	Edit Typst	编辑 Typst
 	Typst Info	Typst 信息
 	Preamble:	导言区：
+	Enable Typst	启用 Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	运行 typst 程序，它会下载标记导入的 @preview 包。
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst 已关闭：请在 首选项 › 文字 中开启“启用 Typst”
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	自动化无法开启“启用 Typst”：请在 首选项 › 文字 中开启
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst 需要桌面应用：网页应用无法运行 typst 程序
 @msg	Typst took longer than {_1} seconds	Typst 运行超过 {_1} 秒
 @msg	Typst's SVG is larger than {_1} MB	Typst 的 SVG 大于 {_1} MB

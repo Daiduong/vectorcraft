@@ -4933,6 +4933,10 @@ lighting	Light	ライト
 	Edit Typst	Typst を編集
 	Typst Info	Typst 情報
 	Preamble:	プリアンブル:
+	Enable Typst	Typst を有効にする
+	Runs the typst program, which downloads the @preview packages the markup imports.	typst プログラムを実行します。マークアップが読み込む @preview パッケージはダウンロードされます。
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst はオフです：環境設定 › 書式 で「Typst を有効にする」をオンにしてください
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	自動操作では「Typst を有効にする」をオンにできません：環境設定 › 書式 でオンにしてください
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst にはデスクトップアプリが必要です: Web アプリでは typst プログラムを実行できません
 @msg	Typst took longer than {_1} seconds	Typst の処理が {_1} 秒を超えました
 @msg	Typst's SVG is larger than {_1} MB	Typst の SVG が {_1} MB を超えています

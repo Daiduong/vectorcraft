@@ -4911,6 +4911,10 @@ lighting	Light	光源
 	Edit Typst	編輯 Typst
 	Typst Info	Typst 資訊
 	Preamble:	導言區：
+	Enable Typst	啟用 Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	執行 typst 程式，它會下載標記匯入的 @preview 套件。
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst 已關閉：請在 偏好設定 › 文字 中開啟「啟用 Typst」
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	自動化無法開啟「啟用 Typst」：請在 偏好設定 › 文字 中開啟
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst 需要桌面版應用程式：網頁版應用程式無法執行 typst 程式
 @msg	Typst took longer than {_1} seconds	Typst 執行超過 {_1} 秒
 @msg	Typst's SVG is larger than {_1} MB	Typst 的 SVG 大於 {_1} MB

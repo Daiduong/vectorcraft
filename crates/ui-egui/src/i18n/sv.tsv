@@ -5235,6 +5235,10 @@ theme	Appearance	Utseende
 	Edit Typst	Redigera Typst
 	Typst Info	Typst-information
 	Preamble:	Preambel:
+	Enable Typst	Aktivera Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Kör programmet typst, som hämtar de @preview-paket som märkspråket importerar.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst är avstängt: slå på Aktivera Typst under Inställningar › Typ
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	automatisering kan inte slå på Aktivera Typst: slå på det under Inställningar › Typ
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst kräver skrivbordsappen: webbappen kan inte köra programmet typst
 @msg	Typst took longer than {_1} seconds	Typst tog längre tid än {_1} sekunder
 @msg	Typst's SVG is larger than {_1} MB	Typsts SVG är större än {_1} MB

@@ -5131,6 +5131,10 @@ mark-style	Japanese	Japońskie
 	Edit Typst	Edytuj Typst
 	Typst Info	Informacje o Typst
 	Preamble:	Preambuła:
+	Enable Typst	Włącz Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Uruchamia program typst, który pobiera pakiety @preview importowane przez znaczniki.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst jest wyłączony: zaznacz Włącz Typst w Preferencje › Tekst
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	automatyzacja nie może włączyć opcji Włącz Typst: włącz ją w Preferencje › Tekst
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst wymaga aplikacji komputerowej: aplikacja internetowa nie może uruchomić programu typst
 @msg	Typst took longer than {_1} seconds	Typst działał dłużej niż {_1} s
 @msg	Typst's SVG is larger than {_1} MB	SVG z Typsta jest większy niż {_1} MB

@@ -4860,6 +4860,10 @@ effect	Soft	Weich
 	Edit Typst	Typst bearbeiten
 	Typst Info	Typst-Informationen
 	Preamble:	Präambel:
+	Enable Typst	Typst aktivieren
+	Runs the typst program, which downloads the @preview packages the markup imports.	Führt das Programm typst aus, das die vom Markup importierten @preview-Pakete herunterlädt.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst ist aus: Aktivieren Sie „Typst aktivieren“ unter Voreinstellungen › Text
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	Automatisierung kann „Typst aktivieren“ nicht einschalten: Schalten Sie es unter Voreinstellungen › Text ein
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst benötigt die Desktop-App: Die Web-App kann das Programm typst nicht ausführen
 @msg	Typst took longer than {_1} seconds	Typst hat länger als {_1} Sekunden gebraucht
 @msg	Typst's SVG is larger than {_1} MB	Das SVG von Typst ist größer als {_1} MB

@@ -5278,6 +5278,10 @@ theme	Appearance	Apparence
 	Edit Typst	Modifier le Typst
 	Typst Info	Informations Typst
 	Preamble:	Préambule :
+	Enable Typst	Activer Typst
+	Runs the typst program, which downloads the @preview packages the markup imports.	Exécute le programme typst, qui télécharge les paquets @preview importés par le balisage.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst est désactivé : cochez Activer Typst dans Préférences › Texte
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	l’automatisation ne peut pas cocher Activer Typst : cochez-le dans Préférences › Texte
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst nécessite l’application de bureau : l’application web ne peut pas exécuter le programme typst
 @msg	Typst took longer than {_1} seconds	Typst a pris plus de {_1} secondes
 @msg	Typst's SVG is larger than {_1} MB	Le SVG de Typst dépasse {_1} Mo

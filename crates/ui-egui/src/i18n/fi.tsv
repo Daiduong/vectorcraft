@@ -5310,6 +5310,10 @@ swatch	Bright Violet	Kirkas violetti
 	Edit Typst	Muokkaa Typstia
 	Typst Info	Typst-tiedot
 	Preamble:	Johdanto:
+	Enable Typst	Ota Typst käyttöön
+	Runs the typst program, which downloads the @preview packages the markup imports.	Suorittaa typst-ohjelman, joka lataa merkintäkielen tuomat @preview-paketit.
+@msg	Typst is off: turn on Enable Typst in Preferences › Type	Typst ei ole käytössä: valitse Ota Typst käyttöön kohdassa Asetukset › Teksti
+@msg	automation can't turn on Enable Typst: turn it on in Preferences › Type	automaatio ei voi ottaa Typstia käyttöön: valitse Ota Typst käyttöön kohdassa Asetukset › Teksti
 @msg	Typst needs the desktop app: the web app can't run the typst program	Typst tarvitsee työpöytäsovelluksen: verkkosovellus ei voi suorittaa typst-ohjelmaa
 @msg	Typst took longer than {_1} seconds	Typst kesti yli {_1} sekuntia
 @msg	Typst's SVG is larger than {_1} MB	Typstin SVG on yli {_1} Mt

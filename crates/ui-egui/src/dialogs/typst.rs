@@ -2,6 +2,9 @@
 //! object selected, that object's source to change and typeset again (`type.typst.edit`). OK
 //! typesets; when Typst reports an error the dialog stays open and shows it under the source.
 //!
+//! Nothing is typeset until Enable Typst (Preferences › Type) is on; the dialog has the same
+//! switch, and says that Typst downloads the packages markup imports.
+//!
 //! Fields: `source`, `preamble`, `fontSize` (pt), `__id` (the Typst object edited; null to insert)
 //! and `__error` (Typst's last message).
 
@@ -81,7 +84,7 @@ fn code(ui: &mut egui::Ui, d: &mut Dialog, key: &str, rows: usize) {
     }
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     widgets::label_row(ui, "Text:", LABEL_W, |_| {});
     code(ui, d, "source", 8);
@@ -98,6 +101,15 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             d.fields.insert("fontSize".into(), json!(v.clamp(1.0, 1296.0)));
         }
     });
+    ui.add_space(8.0);
+    let on = app.session.prefs.enable_typst;
+    if widgets::check(ui, "Enable Typst", on, true) {
+        // A refusal (automation confined to its roots) shows in the status bar.
+        let _ = app.run("prefs.set", json!({ "key": "enableTypst", "value": !on }));
+    }
+    ui.label(
+        egui::RichText::new(tl!("Runs the typst program, which downloads the @preview packages the markup imports.")).size(11.0).color(t.text_dim),
+    );
     false
 }
 
@@ -141,6 +153,7 @@ mod tests {
     #[test]
     fn inserts_then_reopens_on_the_selection_to_edit_and_keeps_errors_open() {
         let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.session.prefs.enable_typst = true;
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         open(&mut app).unwrap();
         let d = app.ui.dialog.clone().unwrap();
@@ -171,6 +184,7 @@ mod tests {
             return;
         }
         let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.session.prefs.enable_typst = true;
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         app.session.execute("type.typst.insert", &json!({"source": "a", "at": [100, 100]})).unwrap();
         app.session.execute("type.typst.insert", &json!({"source": "b", "at": [300, 100]})).unwrap();
