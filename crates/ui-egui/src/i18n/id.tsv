@@ -173,6 +173,7 @@
 	Expand…	Perluas…
 	Expand Appearance	Perluas tampilan
 	Crop Image	Pangkas gambar
+	Edit Path	Edit jalur
 	Mask	Masker
 	Rasterize…	Rasterisasi…
 	Create Gradient Mesh…	Buat mesh gradien…
@@ -268,6 +269,7 @@
 	Plug-ins	Plug-in
 	No filter plug-ins installed	Tidak ada plug-in filter yang terinstal
 	Install Plug-in…	Instal plug-in…
+	Open this setting's help page	Buka halaman bantuan pengaturan ini
 	Reload Plug-ins	Muat ulang plug-in
 	Type	Teks
 	Font	Font
@@ -361,6 +363,7 @@
 	Font Family & Style	Keluarga & gaya font
 	Font Family, Style & Size	Keluarga, gaya & ukuran font
 	Font Size	Ukuran font
+	Variable Font	Font variabel
 	Text Fill Color	Warna isian teks
 	Text Stroke Color	Warna stroke teks
 	All on Same Layers	Semua di lapisan yang sama
@@ -996,6 +999,7 @@ lighting	Light	Cahaya
 	Click or drag	Klik atau seret
 	Click the first point	Klik titik pertama
 	Connect Selected End Points	Hubungkan titik akhir terpilih
+	Connect	Hubungkan
 	Convert Selected Anchor Points to Corner	Konversi titik jangkar terpilih menjadi sudut
 	Convert Selected Anchor Points to Smooth	Konversi titik jangkar terpilih menjadi halus
 	Convert:	Konversi:
@@ -1152,6 +1156,7 @@ lighting	Light	Cahaya
 	Reshape Tool	Alat pembentuk ulang
 	Rotate Tool	Alat putar
 	Rotate View Tool	Alat putar tampilan
+	Trackpad Gesture to Rotate View	Putar tampilan dengan gestur trackpad
 	Rotate View	Putar tampilan
 	Rounded Rectangle Tool	Alat persegi panjang bulat
 	Scale Tool	Alat skala
@@ -1245,6 +1250,8 @@ lighting	Light	Cahaya
 	Opacity: {value}	Opasitas: {value}
 	Rectangle: Sunshine	Persegi panjang: Sunshine
 	Redefine Graphic Style “{name}”	Definisikan ulang gaya grafis “{name}”
+	Apply {name}	Terapkan gaya “{name}”
+	Redefine {name}	Definisikan ulang gaya “{name}”
 	Show Thumbnail	Tampilkan thumbnail
 	Artboard Options: edit with the Artboard tool	Opsi artboard: edit dengan alat artboard
 	Delete Artboards	Hapus artboard
@@ -1431,6 +1438,10 @@ lighting	Light	Cahaya
 	Use Text for Previews	Gunakan teks untuk pratinjau
 	{percent}% opacity	Opasitas {percent}%
 	History Options…	Opsi riwayat…
+	Step Backward	Mundur satu langkah
+	Step Forward	Maju satu langkah
+	Clear History	Hapus riwayat
+	Set History Limit…	Atur batas riwayat…
 	Open a document to see its history.	Buka dokumen untuk melihat riwayatnya.
 	Abutting	Bersinggungan
 	Black and White	Hitam dan putih
@@ -1479,7 +1490,7 @@ lighting	Light	Cahaya
 	This library is empty	Pustaka ini kosong
 	No results	Tidak ada hasil
 	No items in this library match “{query}”.	Tidak ada item di pustaka ini yang cocok dengan “{query}”.
-	Right-click an item to move it into this group.	Klik kanan item untuk memindahkannya ke grup ini.
+	Drag an item here, or right-click one, to put it in this group.	Seret item ke sini, atau klik kanan item, untuk memasukkannya ke grup ini.
 	New Group	Grup baru
 	New Group…	Grup baru…
 	Move to Group	Pindahkan ke grup
@@ -1597,6 +1608,7 @@ lighting	Light	Cahaya
 	Left in Front	Kiri di depan
 	No document	Tidak ada dokumen
 	Open a document to edit its patterns.	Buka dokumen untuk mengedit polanya.
+	Overlap	Tumpang tindih
 	Overlap:	Tumpang tindih:
 	Pattern options are available in pattern editing mode.	Opsi pola tersedia dalam mode pengeditan pola.
 	Right in Front	Kanan di depan
@@ -1724,6 +1736,7 @@ lighting	Light	Cahaya
 	Right-Justified Tab	Tab rata kanan
 	Select a text object to set its tab stops.	Pilih objek teks untuk mengatur tab stop-nya.
 	Select text	Pilih teks
+	Snap to Unit	Snap ke satuan
 	+ Add Scale	+ Tambah skala
 	Add Selected Artwork as One Asset	Tambahkan karya seni terpilih sebagai satu aset
 	Export Settings	Pengaturan ekspor
@@ -1968,6 +1981,7 @@ lighting	Light	Cahaya
 	One file per artboard: <name>-<artboard>.{ext}	Satu file per artboard: <name>-<artboard>.{ext}
 	One page per artboard.	Satu halaman per artboard.
 	The bounds of the visible art.	Batas karya seni yang terlihat.
+	The plug-in writes the whole document.	Plug-in mengekspor seluruh dokumen.
 	Use Artboards	Gunakan artboard
 	Choose a folder	Pilih folder
 	Create Sub-folders	Buat subfolder
@@ -2053,6 +2067,7 @@ lighting	Light	Cahaya
 	Edit selected paths within:	Edit jalur terpilih dalam jarak:
 	Fidelity:	Fidelitas:
 	Fill new strokes	Isi stroke baru
+	Alt key toggles to Smooth Tool	Tombol Alt beralih ke Alat penghalus
 	The document has no colour swatches.	Dokumen tidak memiliki swatch warna.
 	Style Name:	Nama gaya:
 	Crop To	Pangkas ke
@@ -2070,6 +2085,7 @@ lighting	Light	Cahaya
 	Layers Panel Options	Opsi panel lapisan
 	Row Size:	Ukuran baris:
 	Show Layers Only	Tampilkan lapisan saja
+	Locate Selected Objects	Temukan objek terpilih
 	Thumbnails:	Miniatur:
 	Anchor Points	Titik jangkar
 	Brush Affects:	Kuas memengaruhi:
@@ -3236,6 +3252,7 @@ theme	Appearance	Tampilan
 	Save Print Preset	Simpan preset cetak
 	Print Tiling Pages	Halaman pengubinan cetak
 	Document Raster Effects Settings	Pengaturan efek raster dokumen
+	Use Document Raster Effects Resolution	Gunakan resolusi dari pengaturan efek raster dokumen
 	Artwork Colors	Warna karya seni
 	Randomize Colors	Acak warna
 	Recolor Artwork	Warnai ulang karya seni
@@ -3369,6 +3386,8 @@ axis	Both	Keduanya
 	Star	Bintang
 	Power Saving (integrated)	Hemat daya (terintegrasi)
 	Target	Target
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) saat pena terpasang
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Jika pena tablet gambar tidak menggambar, pilih opsi X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Print as Bitmap	Cetak sebagai bitmap
 	Draft	Draf
@@ -3745,7 +3764,8 @@ imageTrace	Outline	Kontur
 @msg	its editing data doesn't say where its artboard is	data penyuntingannya tidak menyebut di mana artboard-nya berada
 @msg	its editing data has no layers	data penyuntingannya tidak memiliki lapisan
 @msg	its editing data is damaged	data penyuntingannya rusak
-@msg	its editing data is for a different page	data penyuntingannya untuk halaman yang berbeda
+@msg	its editing data is for a {w} × {h} pt page, not the file's {pw} × {ph} pt page	data penyuntingannya untuk halaman {w} × {h} pt, bukan halaman file {pw} × {ph} pt
+@msg	its editing data is for a {w} × {h} pt page, the file's {pw} × {ph} pt page at {scale}	data penyuntingannya untuk halaman {w} × {h} pt, yaitu halaman file {pw} × {ph} pt dengan skala {scale}
 @msg	its layers use {_1}, which aren't read yet	lapisannya menggunakan {_1}, yang belum dapat dibaca
 @msg	its page has text, and its layers have no text objects to put it in	halamannya memiliki teks, tetapi lapisannya tidak memiliki objek teks untuk menampungnya
 @msg	its type is to come in as outlines, which only its page has	teksnya akan masuk sebagai kontur, yang hanya ada di halamannya
@@ -3841,6 +3861,8 @@ imageTrace	Outline	Kontur
 @msg	`{key}` must be `auto` or a language code such as `en` or `zh-hant`	`{key}` harus `auto` atau kode bahasa seperti `en` atau `zh-hant`
 @msg	`{key}` must be a #rrggbb colour	`{key}` harus berupa warna #rrggbb
 @msg	`{key}` must be a number	`{key}` harus berupa angka
+@msg	`{key}` must be a number, not {v}	`{key}` harus berupa angka, bukan {v}
+@msg	{key} must be Unix seconds (an integer) or null	{key} harus berupa waktu Unix dalam detik (bilangan bulat) atau null
 @msg	`{key}` must be a string	`{key}` harus berupa string
 @msg	`{key}` must be a whole number	`{key}` harus berupa bilangan bulat
 @msg	`{key}` must be a whole number between {min} and {max} (got {x})	`{key}` harus berupa bilangan bulat antara {min} dan {max} (diperoleh {x})
@@ -3878,6 +3900,7 @@ imageTrace	Outline	Kontur
 @msg	a page tree node has no kids	simpul pohon halaman tidak memiliki anak
 @msg	a page's placement is not finite	penempatan halaman bukan bilangan hingga
 @msg	a preset named `{_1}` exists	preset bernama `{_1}` sudah ada
+@msg	a swatch or color group named `{n}` exists	sampel atau grup warna bernama `{n}` sudah ada
 @msg	a slice size must be a positive number of points	ukuran irisan harus berupa bilangan positif dalam titik
 @msg	a stream runs past the end	aliran melewati akhir
 @msg	a stream's length is wrong	panjang aliran salah
@@ -3959,6 +3982,8 @@ imageTrace	Outline	Kontur
 @msg	missing `name`	`name` tidak ada
 @msg	missing `tool`	`tool` tidak ada
 @msg	missing index	indeks tidak ada
+@msg	missing number `{key}`	angka `{key}` tidak ada
+@msg	missing integer `{key}`	bilangan bulat `{key}` tidak ada
 @msg	multiple windows land with M11.5	beberapa jendela hadir bersama M11.5
 @msg	name the file	beri nama file
 @msg	no CSS to copy: select objects with CSS of their own	tidak ada CSS untuk disalin: pilih objek yang memiliki CSS sendiri
@@ -4069,6 +4094,7 @@ imageTrace	Outline	Kontur
 @msg	nothing to redo	tidak ada yang dapat dipulihkan
 @msg	nothing to save: the document has no visible art	tidak ada yang dapat disimpan: dokumen tidak memiliki karya seni yang terlihat
 @msg	nothing to undo	tidak ada yang dapat diurungkan
+@msg	no history to clear	tidak ada riwayat yang dapat dihapus
 @msg	nothing to warp	tidak ada yang dapat diubah bentuknya
 @msg	nothing to wrap	tidak ada yang dapat dibungkus
 @msg	object {0} cannot have children	objek {0} tidak dapat memiliki anak
@@ -4233,6 +4259,7 @@ imageTrace	Outline	Kontur
 @msg	{C}: no effect at index {from}	{C}: tidak ada efek pada indeks {from}
 @msg	{_1} failed: {e}	{_1} gagal: {e}
 @msg	{_1} files can be opened but not written (see document.formats)	berkas {_1} dapat dibuka tetapi tidak dapat ditulis (lihat document.formats)
+@msg	{_1} files are written by file.saveAsTemplate	berkas {_1} ditulis oleh file.saveAsTemplate
 @msg	{_1} font families available	{_1} keluarga font tersedia
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} adalah efek langsung (Efek › Plug-in)
 @msg	{_1} is already used by {_2}	{_1} sudah digunakan oleh {_2}
@@ -4339,6 +4366,9 @@ imageTrace	Outline	Kontur
 @msg	`{text}`: step {i}'s result has no such value (write $$ for a literal $)	`{text}`: hasil langkah {i} tidak memiliki nilai seperti itu (tulis $$ untuk $ literal)
 @msg	`{text}`: there is no step {i} before this one (steps count from 0; write $$ for a literal $)	`{text}`: tidak ada langkah {i} sebelum langkah ini (langkah dihitung mulai dari 0; tulis $$ untuk $ literal)
 @msg	object ids are non-negative integers, not {v}	id objek adalah bilangan bulat non-negatif, bukan {v}
+@msg	{key} must be an array of non-negative integer object ids	{key} harus berupa larik id objek yang berupa bilangan bulat non-negatif
+@msg	invalid object id {value}: expected a non-negative integer	id objek {value} tidak valid: harus berupa bilangan bulat non-negatif
+@msg	no such object id {value}	tidak ada objek dengan id {value}
 @msg	automation filesystem access is not granted: read authority is absent: {path}	akses sistem berkas otomatisasi tidak diberikan: otoritas baca tidak ada: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	akses sistem berkas otomatisasi tidak diberikan: otoritas tulis tidak ada: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	jalur otomatisasi ditolak: di luar akar baca {root}: {path}
@@ -4751,6 +4781,11 @@ mark-style	Japanese	Jepang
 	Softness	Kelembutan
 	Ambient Light	Cahaya ambient
 	Light behind the object	Cahaya di belakang objek
+# 3D light management.
+	Lights	Lampu
+	Add Light	Tambah Lampu
+	Delete Light	Hapus Lampu
+3d	Light	Lampu
 	2up	2up
 	4up	4up
 	A6	A6
@@ -5020,6 +5055,8 @@ swatch	Bright Violet	Violet cerah
 	Outline Object	Kerangka objek
 	Update Selection	Perbarui seleksi
 	Show Original Path	Tampilkan jalur asli
+	Open this dialog with these settings next time	Buka dialog ini dengan pengaturan ini lain kali
+	Auto-Simplify	Sederhanakan otomatis
 @msg	check a layer to export	centang lapisan yang akan diekspor
 @msg	select the art to export first	pilih dulu karya yang akan diekspor
 @msg	no saved selection recalled	tidak ada seleksi tersimpan yang dipanggil
@@ -5045,6 +5082,8 @@ swatch	Bright Violet	Violet cerah
 	Chop Design	Potong desain
 	Clear Events	Hapus peristiwa
 	Close Gaps With Paths	Tutup celah dengan jalur
+	Select Fills	Pilih isian
+	Select Strokes	Pilih stroke
 	Column Type:	Jenis kolom:
 	Each Design Represents:	Setiap desain mewakili:
 	Event:	Peristiwa:
@@ -5069,3 +5108,146 @@ swatch	Bright Violet	Violet cerah
 	Uniformly Scaled	Diskalakan seragam
 	Vertically Scaled	Diskalakan vertikal
 	“{name}” already exists. Replace it?	“{name}” sudah ada. Ganti?
+	Enable Guides for 9-Slice Scaling	Aktifkan panduan untuk penskalaan 9-iris
+	Lock Variables	Kunci variabel
+	Unlock Variables	Buka kunci variabel
+	Change to Artboard Rulers	Ubah ke penggaris artboard
+	Cutout…	Potongan…
+	Neon Glow…	Pendar neon…
+	Poster Edges…	Tepi poster…
+	Cutout	Potongan
+	Neon Glow	Pendar neon
+	Poster Edges	Tepi poster
+	Apply Data Set	Terapkan set data
+	Cancel Pattern Editing	Batalkan pengeditan pola
+	Copy Appearance	Salin tampilan
+	Copy Guide	Salin panduan
+	Copy in Perspective	Salin dalam perspektif
+	Create Slice from Selection	Buat slice dari pilihan
+	Create Slices from Guides	Buat slice dari panduan
+	Delete All Slices	Hapus semua slice
+	Delete Data Sets	Hapus set data
+	Delete Graphic Styles	Hapus gaya grafis
+	Delete Guide	Hapus panduan
+	Delete Guides	Hapus semua panduan
+	Delete Slice	Hapus slice
+	Delete Style	Hapus gaya
+	Delete Variables	Hapus variabel
+	Delete View	Hapus tampilan
+	Done Editing Pattern	Selesai mengedit pola
+	Duplicate Rows	Duplikatkan baris
+	Edit Perspective Grid	Edit kisi perspektif
+	Expand Blend	Perluas blend
+	Expand Envelope	Perluas amplop
+	Expand Image Trace	Perluas Image Trace
+	Expand Live Paint	Perluas Live Paint
+	Live Shape	Bentuk langsung
+	Make Blend	Buat blend
+	Make Dynamic	Jadikan dinamis
+	Make Intertwine	Buat jalinan
+	Make Live Paint	Buat Live Paint
+	Make Pattern	Buat pola
+	Make Slice	Buat slice
+	Merge Live Paint	Gabungkan Live Paint
+	Mesh Point Color	Warna titik mesh
+	Move Envelope Point	Pindahkan titik amplop
+	Move Plane and Copy Objects	Pindahkan bidang dan salin objek
+	Move Plane and Objects	Pindahkan bidang dan objek
+	Move Slice	Pindahkan slice
+	Move Type on a Path	Pindahkan teks pada jalur
+	New Guide	Panduan baru
+	Place from Library	Tempatkan dari pustaka
+	Rearrange Artboards	Atur ulang artboard
+	Release Blend	Lepaskan blend
+	Release Envelope	Lepaskan amplop
+	Release Intertwine	Lepaskan jalinan
+	Objects on Path	Objek pada jalur
+	Attach	Tempelkan
+	Objects on Path Options	Opsi objek pada jalur
+	Objects on Path Tool	Alat objek pada jalur
+	Attach Objects on Path	Tempelkan objek pada jalur
+	Expand Objects on Path	Perluas objek pada jalur
+	Release Live Paint	Lepaskan Live Paint
+	Release Repeat	Lepaskan perulangan
+	Release Slice	Lepaskan slice
+	Release Threaded Text	Lepaskan teks beruntun
+	Rename Design	Ganti nama desain
+	Rename Style	Ganti nama gaya
+	Rename View	Ganti nama tampilan
+	Reorder Appearance	Susun ulang tampilan
+	Reorder Artboards	Susun ulang artboard
+	Reshape Spine	Bentuk ulang spine
+	Resize Artboard	Ubah ukuran artboard
+	Resize Slice	Ubah ukuran slice
+	Resize Type Area	Ubah ukuran area teks
+	Scale in Perspective	Skalakan dalam perspektif
+	Shape Builder Delete	Hapus dengan Pembangun bentuk
+	Sort Swatches	Urutkan sampel warna
+	Symbol Screener	Penyaring simbol
+	Symbol Scruncher	Perapat simbol
+	Symbol Shifter	Penggeser simbol
+	Symbol Sizer	Pengubah ukuran simbol
+	Symbol Spinner	Pemutar simbol
+	Symbol Stainer	Pewarna simbol
+	Symbol Styler	Penerap gaya simbol
+	Text Orientation	Orientasi teks
+	Thread Text	Untai teks
+	Typing	Mengetik
+	Persistent	Persisten
+	Library Panel Options	Opsi panel pustaka
+	Artboard {n} of {total}	Artboard {n} dari {total}
+	Encoding and writing the file…	Mengodekan dan menulis berkas…
+@plural	{n} more export waiting|{n} more exports waiting	{n} ekspor lagi menunggu
+	Continue in Background	Lanjutkan di latar belakang
+	Cancel Export	Batalkan ekspor
+@msg	Export cancelled	Ekspor dibatalkan
+# Paragraph panel menu › Justification…
+	Desired	Diinginkan
+	Word Spacing:	Spasi Kata:
+	Letter Spacing:	Spasi Huruf:
+	Glyph Scaling:	Penskalaan Glif:
+	Auto Leading:	Spasi Baris Otomatis:
+	Single Word Justification:	Perataan Kata Tunggal:
+	Full Justify	Rata Penuh
+	Minimum must not exceed Desired, nor Desired Maximum.	Minimum tidak boleh melebihi Diinginkan, dan Diinginkan tidak boleh melebihi Maksimum.
+	Justification	Justifikasi
+# Select by Color (select.color)
+	Select by Color	Pilih berdasarkan warna
+	Smudge Stick…	Tongkat olesan…
+	Smudge Stick	Tongkat olesan
+	Sponge…	Spons…
+	Sponge	Spons
+	Watercolor…	Cat air…
+	Watercolor	Cat air
+	Brush Size	Ukuran kuas
+	Definition	Definisi
+	Brush Detail	Detail kuas
+	Shadow Intensity	Intensitas bayangan
+	Bas Relief…	Relief dangkal…
+	Bas Relief	Relief dangkal
+	Charcoal…	Arang…
+	Charcoal	Arang
+	Photocopy…	Fotokopi…
+	Photocopy	Fotokopi
+	Stamp…	Stempel…
+	Stamp	Stempel
+	Thickness	Ketebalan
+	Detail	Detail
+	Light/Dark Balance	Keseimbangan terang/gelap
+	Move Anchor Point	Pindahkan titik jangkar
+	Chalk & Charcoal…	Kapur dan arang…
+	Chalk & Charcoal	Kapur dan arang
+	Graphic Pen…	Pena grafis…
+	Graphic Pen	Pena grafis
+	Reticulation…	Retikulasi…
+	Reticulation	Retikulasi
+	Plastic Wrap…	Pembungkus plastik…
+	Plastic Wrap	Pembungkus plastik
+	Chrome…	Krom…
+	Chrome	Krom
+	Drop here to take it out of its group	Lepaskan di sini untuk mengeluarkannya dari grupnya
+	Move Library Group	Pindahkan grup pustaka
+	Plaster…	Plester…
+	Plaster	Plester
+	Note Paper…	Kertas Catatan…
+	Note Paper	Kertas Catatan

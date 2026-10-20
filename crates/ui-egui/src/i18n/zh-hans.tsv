@@ -314,6 +314,7 @@
 	Change Case	更改大小写
 	Change Screen Mode (F)	更改屏幕模式 (F)
 	Change to Global Rulers	更改为全局标尺
+	Change to Artboard Rulers	更改为画板标尺
 	Change to Right-to-Left Layout	更改为由右至左版面配置
 	Changed since the last Refresh.	自上次刷新后已更改
 	Changes allowed:	允许的更改：
@@ -501,6 +502,7 @@
 	Condition identifier:	条件识别码：
 	Conflict {n} of {count}	冲突 {n}／{count}
 	Connect Selected End Points	连接所选端点
+	Connect	连接
 	Consolidate All Windows	合并所有窗口
 	Constrain Angle	约束角度
 	Constrain Width and Height Proportions	约束宽高比例
@@ -594,6 +596,7 @@
 	Created:	创建时间：
 	Crop	裁剪
 	Crop Image	裁剪图像
+	Edit Path	编辑路径
 	Mask	蒙版
 	Crop Marks	裁切标记
 	Crop To	裁剪到
@@ -738,6 +741,7 @@
 	Document open password	文档打开口令
 	Document profile	文档配置文档
 	Document Raster Effects Settings	文档栅格效果设置
+	Use Document Raster Effects Resolution	使用文档栅格效果设置的分辨率
 	Document Raster Effects Settings Dialog	文档栅格效果设置对话框
 	Document Raster Effects Settings…	文档栅格化效果设置…
 	Document Setup	文档设置
@@ -1022,6 +1026,7 @@
 	Fill (X), double-click for the Color Picker	填色 (X)，双击打开拾色器
 	Fill and Stroke	填色和描边
 	Fill new strokes	为新描边应用填色
+	Alt key toggles to Smooth Tool	Alt 键切换为平滑工具
 	Keep selected	保持选择状态
 	Merge only with selection	仅与所选对象合并
 	Fill Color	填色
@@ -1113,6 +1118,7 @@ file-filter	Templates	模板
 	Font List	字体列表
 	Font Preview Size	字体预览大小
 	Font Size	字号
+	Variable Font	可变字体
 	Font:	字体：
 	Fonts	字体
 	Fonts in Document	文档中的字体
@@ -1150,6 +1156,8 @@ file-filter	Templates	模板
 	Large Gaps	大间隙
 	Gap Preview Color:	间隙预览颜色：
 	Close Gaps With Paths	用路径封闭间隙
+	Select Fills	选择填色
+	Select Strokes	选择描边
 	Gaussian Blur…	高斯模糊…
 	General	常规
 	General › Placement › X	一般 › 位置 › X
@@ -1293,7 +1301,95 @@ file-filter	Templates	模板
 	Highlight Substituted Glyphs	突出显示替代字形
 	History	历史记录
 	History Options…	历史记录选项…
+	Step Backward	后退一步
+	Step Forward	前进一步
+	Clear History	清除历史记录
+	Set History Limit…	设置历史记录上限…
 	History States	历史记录步数
+# History panel: the names of undo steps (`every_undo_label_is_translated`).
+	Apply Data Set	应用数据集
+	Bloat	膨胀
+	Cancel Pattern Editing	取消图案编辑
+	Copy Appearance	复制外观
+	Copy Guide	复制参考线
+	Copy in Perspective	在透视中复制
+	Create Slice from Selection	从选区创建切片
+	Create Slices from Guides	从参考线创建切片
+	Delete All Slices	删除所有切片
+	Delete Data Sets	删除数据集
+	Delete Graphic Styles	删除图形样式
+	Delete Guide	删除参考线
+	Delete Guides	删除参考线
+	Delete Slice	删除切片
+	Delete Style	删除样式
+	Delete Variables	删除变量
+	Delete View	删除视图
+	Done Editing Pattern	完成图案编辑
+	Duplicate Rows	复制行
+	Edit Perspective Grid	编辑透视网格
+	Expand Blend	扩展混合
+	Expand Envelope	扩展封套
+	Expand Image Trace	扩展图像描摹
+	Expand Live Paint	扩展实时上色
+	Grid Repeat	网格重复
+	Live Shape	实时形状
+	Make Blend	创建混合
+	Make Dynamic	使其动态化
+	Make Intertwine	创建交织
+	Make Live Paint	创建实时上色
+	Make Pattern	创建图案
+	Make Slice	创建切片
+	Merge Live Paint	合并实时上色
+	Mesh Point Color	网格点颜色
+	Mirror Repeat	镜像重复
+	Move Envelope Point	移动封套点
+	Move Plane and Copy Objects	移动平面并复制对象
+	Move Plane and Objects	移动平面和对象
+	Move Slice	移动切片
+	Move Type on a Path	移动路径文字
+	New Guide	新建参考线
+	Place from Library	从库置入
+	Pucker	收缩
+	Radial Repeat	径向重复
+	Rearrange Artboards	重新排列画板
+	Release Blend	释放混合
+	Release Envelope	释放封套
+	Release Intertwine	释放交织
+	Objects on Path	路径上的对象
+	Attach	附加
+	Objects on Path Options	路径上的对象选项
+	Objects on Path Tool	路径上的对象工具
+	Attach Objects on Path	附加路径上的对象
+	Expand Objects on Path	扩展路径上的对象
+	Release Live Paint	释放实时上色
+	Release Repeat	释放重复
+	Release Slice	释放切片
+	Release Threaded Text	释放串接文本
+	Rename Design	重命名设计
+	Rename Style	重命名样式
+	Rename View	重命名视图
+	Reorder Appearance	重新排序外观
+	Reorder Artboards	重新排序画板
+	Reshape Spine	整形脊线
+	Resize Artboard	调整画板大小
+	Resize Slice	调整切片大小
+	Resize Type Area	调整文字区域大小
+	Scale in Perspective	在透视中缩放
+	Scallop	扇贝
+	Shape Builder Delete	形状生成器 (删除)
+	Sort Swatches	排序色板
+	Symbol Screener	符号透明度
+	Symbol Scruncher	符号紧缩
+	Symbol Shifter	符号移位
+	Symbol Sizer	符号缩放
+	Symbol Spinner	符号旋转
+	Symbol Stainer	符号着色
+	Symbol Styler	符号样式
+	Text Orientation	文字方向
+	Thread Text	串接文本
+	Twirl	旋转扭曲
+	Typing	输入文字
+	Wrinkle	褶皱
 	Hollow	空心
 	Home	主页
 	Horizon Height:	地平线高度：
@@ -1383,6 +1479,7 @@ file-filter	Templates	模板
 	Inspect Object	检查对象
 	Install Plug-in	安装插件
 	Install Plug-in…	安装增效工具…
+	Open this setting's help page	打开此设置的帮助页面
 	Installed plug-in {}	已安装增效工具 {}
 	Intensity:	强度：
 	Intent:	意图：
@@ -1543,6 +1640,7 @@ file-filter	Templates	模板
 	Load Text into Clipboard	将文本载入剪贴板
 	Local Libraries	本地库
 	Locate Object	查找对象
+	Locate Selected Objects	查找所选对象
 	Location	位置
 	Location:	位置：
 	Lock	锁定
@@ -1680,6 +1778,7 @@ file-filter	Templates	模板
 @msg	a key object sits on that point	该点上有关键对象
 @msg	a spine keeps at least two points	脊线至少保留两个点
 @msg	missing number `{key}`	缺少数字 `{key}`
+@msg	missing integer `{key}`	缺少整数 `{key}`
 @msg	index must be ≥ 0	index 不能为负数
 @msg	x and y must be finite	x 和 y 必须是有限值
 @msg	t, dx and dy must be finite	t、dx 和 dy 必须是有限值
@@ -1972,6 +2071,7 @@ file-filter	Templates	模板
 	Output White	输出白色
 	Output › Mode	输出 › 模式
 	Output:	输出：
+	Overlap	重叠
 	Overlap:	重叠：
 	Overlapping	重叠
 	Overlay	叠加
@@ -2157,6 +2257,7 @@ diagnostics	ui	界面
 	Printer mark type:	打印机标记类型：
 	Roman	西式
 mark-style	Japanese	日式
+font-script	Japanese	汉字
 	Printer profile:	打印机配置文件：
 	Printer Setup…	打印机设置…
 	Printer:	打印机：
@@ -2276,6 +2377,8 @@ mark-style	Japanese	日式
 	Redefine Character Style	重新定义字符样式
 	Redefine Graphic Style	重新定义图形样式
 	Redefine Graphic Style “{name}”	重新定义图形样式“{name}”
+	Apply {name}	应用样式“{name}”
+	Redefine {name}	重新定义样式“{name}”
 	Redefine Paragraph Style	重新定义段落样式
 	Redefine Symbol	重新定义符号
 	Redefine {kind} Style	重新定义{kind}样式
@@ -2440,6 +2543,7 @@ mark-style	Japanese	日式
 	Rotate 90° CW	顺时针旋转 90°
 	Rotate Tool	旋转工具
 	Rotate View Tool	旋转视图工具
+	Trackpad Gesture to Rotate View	使用触控板手势旋转视图
 	Rotate…	旋转…
 	Rotation	旋转
 	Roughen…	粗糙效果…
@@ -2707,6 +2811,8 @@ mark-style	Japanese	日式
 	Show Note	显示注解
 	Show Options	显示选项
 	Show Original Path	显示原始路径
+	Open this dialog with these settings next time	下次以这些设置打开此对话框
+	Auto-Simplify	自动简化
 	Color Panel Options	颜色面板选项
 	Show Package	显示打包
 	Show Panel	显示面板
@@ -2803,6 +2909,7 @@ mark-style	Japanese	日式
 	Snap to Pixel	对齐像素
 	Precise Cursors	精确光标
 	Snap to Point	对齐点
+	Snap to Unit	对齐单位
 	Snapping Tolerance	吸附容差
 	Social Square Post 1080×1080	社交方形帖子 1080×1080
 	Soft Light	柔光
@@ -2930,7 +3037,7 @@ mark-style	Japanese	日式
 	Delete Library Item	删除库项目
 	No results	无结果
 	No items in this library match “{query}”.	此库中没有与“{query}”匹配的项目。
-	Right-click an item to move it into this group.	右键单击项目可将其移到此组。
+	Drag an item here, or right-click one, to put it in this group.	将项目拖到此处，或右键单击项目，即可将其放入此组。
 	New Group	新建组
 	New Group…	新建组…
 	Move to Group	移到组
@@ -2990,6 +3097,7 @@ mark-style	Japanese	日式
 	Text Wrap Options	文字绕图选项
 	Text Wrap Options…	文本绕排选项…
 	The bounds of the visible art.	可见图稿的边界。
+	The plug-in writes the whole document.	增效工具会导出整个文档。
 	The cell shows the type object's text as HTML.	该单元格以 HTML 显示文字对象的内容。
 	The document has no colour swatches.	文档没有颜色色板。
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	打印机无法触及的纸张边缘：图稿会放在其内侧，预览中会以虚线显示。
@@ -3202,6 +3310,9 @@ mark-style	Japanese	日式
 	Variables	变量
 	New Variable	新建变量
 	Delete Variable	删除变量
+	Lock Variables	锁定变量
+	Unlock Variables	解锁变量
+@msg	variables are locked	变量已锁定
 	List Variables	列出变量
 	Bind Variable	绑定变量
 	Unbind Variable	解除变量绑定
@@ -3458,6 +3569,9 @@ imageTrace	Outline	轮廓
 @msg	it has more than one artboard	它有多个画板
 @msg	its editing data has no layers	其编辑数据中没有图层
 @msg	its editing data is damaged	其编辑数据已损坏
+@msg	its zlib compression is damaged	其 zlib 压缩已损坏
+@msg	its Zstandard compression is damaged	其 Zstandard 压缩已损坏
+@msg	it decompresses to more than {_1} MB	解压后超过 {_1} MB
 @msg	its type is to come in as outlines, which only its page has	其文字需要以轮廓导入，而只有其页面中包含这些轮廓
 @msg	{_1} files	{_1} 文件
 @msg	A browser with WebGPU or WebGL2 is required.	需要支持 WebGPU 或 WebGL2 的浏览器。
@@ -3544,6 +3658,7 @@ imageTrace	Outline	轮廓
 @msg	template layers and their objects can't be isolated	无法隔离模板图层及其对象
 @msg	nothing to redo	没有可重做的操作
 @msg	nothing to undo	没有可撤销的操作
+@msg	no history to clear	没有可清除的历史记录
 @msg	Expand Appearance: the selection has a basic appearance	扩展外观：所选对象只有基本外观
 @msg	select (or target) objects whose appearance isn't basic	请选择 (或定位) 外观不是基本外观的对象
 @msg	{C}: no effect at index {from}	{C}：索引 {from} 处没有效果
@@ -3561,6 +3676,7 @@ imageTrace	Outline	轮廓
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	此文件保存时未启用 PDF 兼容性，且无法读取其编辑数据 ({why})
 @msg	the export wrote no file	导出未写入任何文件
 @msg	{_1} files can be opened but not written (see document.formats)	{_1} 文件可以打开，但不能写入 (请参阅 document.formats)
+@msg	{_1} files are written by file.saveAsTemplate	{_1} 文件由 file.saveAsTemplate 写入
 @msg	{path}: no file system here (pass dataBase64 to open; omit the path to get dataBase64)	{path}：此处没有文件系统 (要打开文件，请传入 dataBase64；省略路径可获取 dataBase64)
 @msg	Save writes {_1}, not {_2}: use document.export for other formats	保存会写入 {_1}，而不是 {_2}：其他格式请使用 document.export
 @msg	no changes since the last save	自上次保存以来没有更改
@@ -3581,6 +3697,8 @@ imageTrace	Outline	轮廓
 @msg	`freeform.points` must be an array	`freeform.points` 必须是数组
 @msg	`freeform.lines` must be an array	`freeform.lines` 必须是数组
 @msg	`{key}` must be a number	`{key}` 必须是数字
+@msg	`{key}` must be a number, not {v}	`{key}` 必须是数字，而不是 {v}
+@msg	{key} must be Unix seconds (an integer) or null	{key} 必须是以秒为单位的 Unix 时间 (整数) 或 null
 @msg	a freeform gradient keeps at least one point	任意形状渐变至少保留一个点
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	任意形状点 {i} 需要 `at` [x, y] 和有效的 `color`
 @msg	freeform line {i} must be an array of point indices	任意形状线 {i} 必须是由点索引组成的数组
@@ -3670,6 +3788,7 @@ imageTrace	Outline	轮廓
 @msg	pattern missing	缺少图案
 @msg	select a repeat	请选择一个重复对象
 @msg	select an Intertwine group	请选择一个交织组
+@msg	select an Objects on Path group	请选择一个路径上的对象组
 @msg	select the art to repeat	请选择要重复的图稿
 @msg	the document has no patterns	文档中没有图案
 @msg	no artboard	没有画板
@@ -3769,7 +3888,8 @@ imageTrace	Outline	轮廓
 @msg	it has too much text	它的文字过多
 @msg	its editing data doesn't say where its art is	其编辑数据未说明其图稿的位置
 @msg	its editing data doesn't say where its artboard is	其编辑数据未说明其画板的位置
-@msg	its editing data is for a different page	其编辑数据属于另一个页面
+@msg	its editing data is for a {w} × {h} pt page, not the file's {pw} × {ph} pt page	其编辑数据属于 {w} × {h} pt 的页面，而非文件的 {pw} × {ph} pt 页面
+@msg	its editing data is for a {w} × {h} pt page, the file's {pw} × {ph} pt page at {scale}	其编辑数据属于 {w} × {h} pt 的页面，即文件的 {pw} × {ph} pt 页面按 {scale} 比例缩放后的页面
 @msg	its page has text, and its layers have no text objects to put it in	其页面中有文字，但其图层中没有可放置这些文字的文本对象
 @msg	the art on them differs from the page's in {_1}% of it	其上的图稿与页面的图稿有 {_1}% 不同
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	其上的图稿与页面的图稿有 {_1}% 不同：它们仍从其编辑数据导入
@@ -3813,6 +3933,7 @@ imageTrace	Outline	轮廓
 @msg	cannot read PDF: {0}	无法读取 PDF：{0}
 @msg	invalid PDF setting: {0}	PDF 设置无效：{0}
 @msg	page {0} does not exist (the PDF has {1})	页面 {0} 不存在 (该 PDF 有 {1} 页)
+@msg	thumbnail: no page {n} (the file has 1)	thumbnail：页面 {n} 不存在 (该文件有 1 页)
 @msg	the PDF has no pages	该 PDF 没有页面
 @msg	the PDF is password-protected: give its password	该 PDF 受密码保护：请提供其密码
 @msg	the PDF password is wrong	PDF 密码错误
@@ -3856,6 +3977,7 @@ imageTrace	Outline	轮廓
 @msg	no blend options	没有混合选项
 @msg	bad color {v}	颜色 {v} 无效
 @msg	the Color Picker is not open	拾色器未打开
+@msg	the Simplify slider is not open	简化滑块未打开
 @msg	the screen color sampler is already open	屏幕取色器已打开
 @msg	this system has no screen color sampler	此系统没有屏幕取色器
 @msg	Corners edits the corners of a path	转角用于编辑路径的转角
@@ -3895,7 +4017,9 @@ imageTrace	Outline	轮廓
 @msg	missing `id` (see plugin.list)	缺少 `id` (请参阅 plugin.list)
 @msg	no plug-in {id} is installed	未安装增效工具 {id}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} 是实时效果 (效果 › 增效工具)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} 是导出增效工具 (文件 › 导出 › 导出为…)
 @msg	a preset named `{_1}` exists	名为 `{_1}` 的预设已存在
+@msg	a swatch or color group named `{n}` exists	名为 `{n}` 的色板或颜色组已存在
 @msg	no print preset named `{base}`	没有名为 `{base}` 的打印预设
 @msg	no print preset named `{name}`	没有名为 `{name}` 的打印预设
 @msg	no saved print preset named `{name}` ({DEFAULT_PRESET} is protected: start a new one from it)	没有名为 `{name}` 的已保存打印预设 ({DEFAULT_PRESET} 受保护：请以它为基础新建一个)
@@ -4065,6 +4189,9 @@ imageTrace	Outline	轮廓
 @msg	`{text}`: step {i}'s result has no such value (write $$ for a literal $)	`{text}`：步骤 {i} 的结果中没有此值 (要表示 $ 本身，请写 $$)
 @msg	`{text}`: there is no step {i} before this one (steps count from 0; write $$ for a literal $)	`{text}`：此步骤之前没有步骤 {i} (步骤从 0 开始计数；要表示 $ 本身，请写 $$)
 @msg	object ids are non-negative integers, not {v}	对象 id 是非负整数，而不是 {v}
+@msg	{key} must be an array of non-negative integer object ids	{key} 必须是由非负整数对象 id 组成的数组
+@msg	invalid object id {value}: expected a non-negative integer	无效的对象 id {value}：应为非负整数
+@msg	no such object id {value}	没有 id 为 {value} 的对象
 @msg	automation filesystem access is not granted: read authority is absent: {path}	未授予自动化文件系统访问权限：缺少读取权限：{path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	未授予自动化文件系统访问权限：缺少写入权限：{path}
 @msg	automation path rejected: outside the read root {root}: {path}	已拒绝自动化路径：位于读取根目录 {root} 之外：{path}
@@ -4142,6 +4269,7 @@ imageTrace	Outline	轮廓
 @msg	choose a destination folder	请选择目标文件夹
 @msg	choose a source folder	请选择源文件夹
 @msg	open a document with data sets	请打开包含数据集的文档
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	数据集 {name} 未应用任何内容：没有对象绑定到该数据集中有值的变量
 @msg	the action has no steps	该动作没有步骤
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
 	Import Shortcut Set	导入快捷键组
@@ -4743,11 +4871,27 @@ lighting	Light	光源
 	Horizontal Guide	水平参考线
 	Move Guide to Layer	将参考线移至图层
 	Linux Display Server	Linux 显示服务器
+	X11 (XWayland) When a Pen Is Attached	连接手写笔时使用 X11 (XWayland)
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	如果数位板的笔无法绘画，请选择一个 X11 (XWayland) 选项。
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	标尺原点
 	Reset Ruler Origin	重置标尺原点
 	Artistic	艺术效果
 	Film Grain…	胶片颗粒…
+	Cutout…	剪纸…
+	Cutout	剪纸
+	Neon Glow…	霓虹灯光…
+	Neon Glow	霓虹灯光
+	Poster Edges…	海报边缘…
+	Poster Edges	海报边缘
+	Levels	色阶数
+	Edge Simplicity	边缘简化度
+	Edge Fidelity	边缘逼真度
+	Glow Size	发光大小
+	Glow Brightness	发光亮度
+	Edge Thickness	边缘厚度
+	Edge Intensity	边缘强度
+	Posterization	海报化
 	Highlight Area	高光区域
 	Concentric Dividers:	同心分隔线：
 	Radial Dividers:	径向分隔线：
@@ -4820,6 +4964,11 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	环境光
 	Light behind the object	光源位于对象后方
+# 3D light management.
+	Lights	光源列表
+	Add Light	添加光源
+	Delete Light	删除光源
+3d	Light	光源
 	Registration:	对齐点:
 # Dimension tool (linked dimension annotations)
 	Create Dimension	创建尺寸标注
@@ -4880,8 +5029,85 @@ lighting	Light	光源
 	Movie Clip	影片剪辑
 @msg	name is empty	名称为空
 @msg	no symbol named `{n}`	没有名为 `{n}` 的符号
+	Smudge Stick…	涂抹棒…
+	Smudge Stick	涂抹棒
+	Sponge…	海绵…
+	Sponge	海绵
+	Watercolor…	水彩…
+	Watercolor	水彩
+	Brush Size	画笔大小
+	Definition	清晰度
+	Brush Detail	画笔细节
+	Shadow Intensity	阴影强度
+	Bas Relief…	浅浮雕…
+	Bas Relief	浅浮雕
+	Charcoal…	炭笔…
+	Charcoal	炭笔
+	Photocopy…	影印…
+	Photocopy	影印
+	Stamp…	图章…
+	Stamp	图章
+	Thickness	粗细
+	Detail	细节
+	Light/Dark Balance	明暗平衡
+	Enable Guides for 9-Slice Scaling	启用 9-slice 缩放参考线
 @msg	cancelled; nothing was changed	已取消；未做任何更改
 @msg	Save writes {_1}, not {_2}: use file.saveAsTemplate to write it	保存会写入 {_1}，而不是 {_2}：要写入该格式请使用 file.saveAsTemplate
+@msg	aiVersion 7 writes legacy .ai files; a .ait template is always PDF-compatible	aiVersion 7 写入旧版 .ai 文件；.ait 模板始终与 PDF 兼容
 @msg	a mask has more than one art block	蒙版包含多个图稿块
 @msg	mask art ends outside a mask dictionary	蒙版图稿在蒙版字典之外结束
 @msg	`{key}` must be a #rrggbb color	`{key}` 必须是 #rrggbb 格式的颜色
+@msg	a linked image can't become a gradient mesh: embed it first	链接的图像无法转换为渐变网格：请先嵌入它
+@msg	the image has no usable size or position	图像没有可用的尺寸或位置
+@msg	the image's pixels can't be read	无法读取图像的像素
+	Persistent	持久
+	Library Panel Options	库面板选项
+@msg	Persistent libraries not found: {files}	找不到持久库：{files}
+@msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` 不是库面板 (请参阅 window.swatchLibrary)
+@msg	library panel `{given}` isn't open	库面板 `{given}` 未打开
+@msg	too many library panels were opened in this session	本次会话中打开的库面板过多
+@msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	图像为 {_1} × {_2} 像素，某一边超过 {LARGE_TRACE_SIDE}：会进行描摹，但速度较慢。使用保真度较低的预设或图像的较小副本会更快。
+@msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	图像已按 {_1} × {_2} 像素描摹，由 {_3} × {_4} 缩小而来（最多 {_5} 百万像素）。
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	编辑原稿只能打开图像和文档文件；“{name}” 不是其中之一
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	浏览器中只会打开 http、https 和 mailto 的 URL，不会打开 “{url}”
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} 会打开其他应用程序：只有使用键盘的人才能运行它
+@msg	“{name}” is not a file	“{name}” 不是文件
+	Artboard {n} of {total}	画板 {n} / {total}
+	Encoding and writing the file…	正在编码并写入文件…
+@plural	{n} more export waiting|{n} more exports waiting	另有 {n} 个导出等待中
+	Continue in Background	在后台继续
+	Cancel Export	取消导出
+@msg	Export cancelled	已取消导出
+# Paragraph panel menu › Justification…
+	Desired	所需
+	Word Spacing:	字间距：
+	Letter Spacing:	字母间距：
+	Glyph Scaling:	字形缩放：
+	Auto Leading:	自动行距：
+	Single Word Justification:	单字对齐：
+	Full Justify	全部强制双齐
+	Minimum must not exceed Desired, nor Desired Maximum.	最小值不能超过所需值，所需值不能超过最大值。
+	Minimum	最小值
+	Justification	对齐设置
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	文件的变量和数据集未被读取（变量：{variables}，数据集：{data_sets}）：“变量”面板不会列出它们
+# Select by Color (select.color)
+	Select by Color	按颜色选择
+	Move Anchor Point	移动锚点
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} 只保留文档 {n} 个画板中的 1 个：文件重新打开时只有一个。打开“保留编辑功能”可全部保留。
+	Chalk & Charcoal…	粉笔和炭笔…
+	Chalk & Charcoal	粉笔和炭笔
+	Graphic Pen…	绘图笔…
+	Graphic Pen	绘图笔
+	Reticulation…	网状…
+	Reticulation	网状
+	Plastic Wrap…	塑料包装…
+	Plastic Wrap	塑料包装
+	Chrome…	铬黄…
+	Chrome	铬黄
+	Drop here to take it out of its group	放到此处可将其移出所在组
+	Move Library Group	移动库组
+	Plaster…	塑料效果…
+	Plaster	塑料效果
+	Note Paper…	便条纸…
+	Note Paper	便条纸

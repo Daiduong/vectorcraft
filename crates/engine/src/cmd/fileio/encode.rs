@@ -385,7 +385,7 @@ pub fn encode(doc: &Document, format: &str, p: &Value) -> Result<Vec<u8>> {
 
 /// Like [`encode`], also returning the encoder's warnings (PDF and SVG: options not applied yet,
 /// features approximated or left out; every format that draws type: fonts written in the fallback
-/// font).
+/// font; PDF, EPS, SVG, EMF, WMF and the raster formats: type that doesn't fit its frame).
 pub fn encode_with_warnings(doc: &Document, format: &str, p: &Value) -> Result<(Vec<u8>, Vec<String>)> {
     let f = super::writable(C, Some(format), None)?;
     encode_all(doc, f.id, p)?.single(f)
@@ -411,14 +411,19 @@ pub fn encode_all(doc: &Document, format: &str, p: &Value) -> Result<Encoded> {
 /// [`encode_all`] of `doc` as it is.
 fn encode_all_of(doc: &Document, format: &str, p: &Value) -> Result<Encoded> {
     let f = super::writable(C, Some(format), None)?;
+    if let Some(plugin) = vectorcraft_plugins::export::by_format(f.id) {
+        return plugin_file(doc, &plugin, f, p);
+    }
     let failed = vectorcraft_render::decode_failures();
     let mut enc = encode_files(doc, f, p)?;
     // Baking, flattening and drawing stop early when cancelled and leave a truncated result.
     vectorcraft_doc::cancel::check()?;
     // An image the renderer couldn't decode draws nothing: say so rather than write a picture
     // that silently lacks it.
-    if f.raster && vectorcraft_render::decode_failures() > failed {
-        enc.warnings.push("an image couldn't be decoded and is missing from the picture".into());
+    if f.raster
+        && let Some(w) = crate::cmd::rasterfx::undecoded_warning(failed)
+    {
+        enc.warnings.push(w.into());
     }
     // Formats that draw type: missing fonts come out in the fallback font (PDF and SVG say so
     // themselves: SVG only when it outlines or embeds fonts).
@@ -428,6 +433,32 @@ fn encode_all_of(doc: &Document, format: &str, p: &Value) -> Result<Encoded> {
         enc.warnings.push(w);
     }
     Ok(enc)
+}
+
+/// The file exporter plug-in `plugin` writes of `doc` in its format `f`
+/// ([`vectorcraft_plugins::export`]). The plug-in is given the native file's JSON
+/// ([`vectorcraft_format::json_part`]) and `p`'s `params`, for the file `p`'s `path` names (else
+/// one named after the document) with that path's extension when the plug-in lists it, else its
+/// first. Its warnings come back with the file.
+fn plugin_file(doc: &Document, plugin: &vectorcraft_plugins::Plugin, f: &Format, p: &Value) -> Result<Encoded> {
+    use vectorcraft_plugins::{Error, export};
+    let doc = &*doc.without_edit_modes();
+    let file = vectorcraft_format::save_with(doc, &vectorcraft_format::SaveOptions::default()).map_err(|e| EngineError::Other(e.to_string()))?;
+    let path = p.get("path").and_then(Value::as_str);
+    let listed = path.map(super::extension).and_then(|e| f.extensions.iter().copied().find(|x| *x == e));
+    let extension = listed.or(f.extensions.first().copied()).unwrap_or_default();
+    let name = super::file_stem(path.unwrap_or(&super::default_name(doc, extension)));
+    let params = p.get("params").cloned().unwrap_or(Value::Null);
+    let target = export::Target { extension, name: &name };
+    let out = export::run(plugin, vectorcraft_format::json_part(&file), &params, target).map_err(|e| match e {
+        Error::Cancelled => EngineError::Cancelled,
+        Error::Params(why) => bad(C, why),
+        e => EngineError::Other(e.to_string()),
+    })?;
+    // The plug-in's output, so reported as its other output errors are.
+    let invalid = || EngineError::Other(Error::Output("`dataBase64` is not valid base64".into()).to_string());
+    let bytes = vectorcraft_format::base64_decode(&out.data_base64).ok_or_else(invalid)?;
+    Ok(Encoded { warnings: out.warnings, ..Encoded::one(bytes) })
 }
 
 /// [`encode_all`] without the font substitution warning.
@@ -527,6 +558,8 @@ fn encode_files(doc: &Document, f: &Format, p: &Value) -> Result<Encoded> {
             if enc.files.is_empty() {
                 return Err(bad(C, "the document has no artboard"));
             }
+            let regions: Vec<Rect> = enc.files.iter().filter_map(|(b, _)| b.and_then(|b| doc.artboards.get(b))).map(|a| a.rect).collect();
+            enc.warnings.extend(crate::cmd::fonts::export_overflow_warning(doc, &doc.layers, Some(&regions)));
             if format == RasterFormat::WebP && o.lossless == Some(false) {
                 enc.warnings.push("lossy WebP isn't available yet: the file is lossless (exact, but larger)".into());
             }

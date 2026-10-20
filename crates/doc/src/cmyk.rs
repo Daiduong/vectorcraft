@@ -201,6 +201,53 @@ impl ImageBlob {
         let bytes = self.bytes.as_slice();
         if bytes.starts_with(&[0xFF, 0xD8]) { jpeg_inks(bytes) } else { tiff_inks(bytes) }
     }
+
+    /// The ink amounts around pixel (`x`, `y`) of a CMYK image, in the pixel space of an image
+    /// object of `object` (width, height) pixels: the average of the `size` × `size` pixels centered
+    /// on it, clipped to the image, as C, M, Y and K bytes. `None` outside the image and for images
+    /// [`Self::cmyk`] doesn't read. The inks of the last CMYK image are kept for the next sample
+    /// (the Eyedropper samples one image click after click), as [`Self::sample_object`] keeps its
+    /// pixels.
+    pub fn sample_cmyk_object(&self, x: f64, y: f64, object: (u32, u32), size: u32) -> Option<[u8; 4]> {
+        thread_local! {
+            static LAST: std::cell::RefCell<Option<(String, Arc<Inks>)>> = const { std::cell::RefCell::new(None) };
+        }
+        if !self.is_cmyk() {
+            return None;
+        }
+        let key = self.content_key();
+        let inks = LAST.with_borrow_mut(|last| match last {
+            Some((k, inks)) if *k == key => Some(inks.clone()),
+            _ => {
+                let inks = Arc::new(self.cmyk()?);
+                *last = Some((key, inks.clone()));
+                Some(inks)
+            }
+        })?;
+        let k = |n: u32, of: u32| n as f64 / of.max(1) as f64;
+        sample_inks(&inks, x * k(inks.width, object.0), y * k(inks.height, object.1), size)
+    }
+}
+
+/// [`ImageBlob::sample_cmyk_object`] of `inks` at (`x`, `y`) in their own pixel space.
+fn sample_inks(inks: &Inks, x: f64, y: f64, size: u32) -> Option<[u8; 4]> {
+    let (w, h) = (i64::from(inks.width), i64::from(inks.height));
+    let (cx, cy) = (x.floor() as i64, y.floor() as i64);
+    if !(0..w).contains(&cx) || !(0..h).contains(&cy) {
+        return None;
+    }
+    let r = i64::from(size.max(1)) / 2;
+    let (mut sum, mut n) = ([0u64; 4], 0u64);
+    for py in (cy - r).max(0)..=(cy + r).min(h - 1) {
+        for px in (cx - r).max(0)..=(cx + r).min(w - 1) {
+            let i = usize::try_from((py * w + px) * 4).ok()?;
+            let p = inks.data.get(i..i + 4)?;
+            sum.iter_mut().zip(p).for_each(|(s, v)| *s += u64::from(*v));
+            n += 1;
+        }
+    }
+    let c = |v: u64| ((v + n / 2) / n) as u8;
+    Some(sum.map(c))
 }
 
 /// The ink amounts of a four-component JPEG (its samples inverted back; YCCK converted to CMYK
@@ -300,6 +347,162 @@ pub fn extra_samples_tiff_rgba(bytes: &[u8], rgb: impl Fn([f32; 4]) -> [f32; 3])
         out.push(opacity);
     }
     image::RgbaImage::from_raw(w, h, out)
+}
+
+/// Why a TIFF compressed with CCITT Group 3 wasn't read ([`group3_tiff_rgba`]).
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+pub enum Group3Error {
+    /// Its pixels would take more than [`crate::MAX_RASTER_ALLOC`] as RGBA.
+    #[error("an image of {w} × {h} pixels is too large to draw")]
+    TooLarge { w: u32, h: u32 },
+    /// A strip or tile ends before its last row or can't be decoded (it holds a code the decoder
+    /// doesn't read, such as T.4's uncompressed mode, or a row of the wrong width), or a tile is
+    /// larger than [`crate::MAX_RASTER_ALLOC`] allows as RGBA.
+    #[error("could not decode image: {0}")]
+    Damaged(hayro_ccitt::DecodeError),
+}
+
+/// The pixels of a 1-bit TIFF compressed with CCITT Group 3, which the image decoder doesn't read,
+/// as RGBA. Compression 2 is modified Huffman coding with each row starting at a byte and no EOL
+/// codes. Compression 3 is ITU-T T.4 coding with an EOL code before each row: one-dimensional rows,
+/// or with T4Options bit 0, rows that a tag bit marks as one-dimensional or as coded against the
+/// row above. Fill bits before an EOL are skipped. Rows in T.4's uncompressed mode (T4Options
+/// bit 1) can't be decoded. Each strip or tile is coded on its own. White runs are 0 bits and black
+/// runs are 1 bits, as libtiff writes them, and PhotometricInterpretation 0 shows 0 bits as white
+/// and 1 shows them as black. FillOrder 2 (each byte's lowest bit first) is read too. Together, the
+/// strips and tiles are read from at most as many bytes as the file has. `None` for other images;
+/// an error when the pixels would take more than [`crate::MAX_RASTER_ALLOC`] as RGBA, a tile is
+/// larger than that allowance, or a strip or tile can't be decoded or ends before its last row.
+pub fn group3_tiff_rgba(bytes: &[u8]) -> Option<Result<image::RgbaImage, Group3Error>> {
+    use hayro_ccitt::{DecodeError, DecodeSettings, DecoderContext, EncodingMode};
+    use tiff::tags::Tag;
+    let (kind, mut d) = tiff(bytes)?;
+    let compression = d.find_tag_unsigned::<u16>(Tag::Compression).ok().flatten()?;
+    let (w, h) = d.dimensions().ok()?;
+    if kind != tiff::ColorType::Gray(1) || !matches!(compression, 2 | 3) || w == 0 || h == 0 {
+        return None;
+    }
+    // The level of a 0 bit (a white run): white when white is zero (0), black when black is zero (1).
+    let zero = match d.find_tag_unsigned::<u16>(Tag::PhotometricInterpretation).ok().flatten() {
+        Some(0) => u8::MAX,
+        Some(1) => 0,
+        _ => return None,
+    };
+    if u64::from(w) * u64::from(h) > crate::MAX_RASTER_ALLOC / 4 {
+        return Some(Err(Group3Error::TooLarge { w, h }));
+    }
+    let t4_options = d.find_tag_unsigned::<u32>(Tag::Unknown(292)).ok().flatten().unwrap_or(0);
+    let lsb_first = d.find_tag_unsigned::<u16>(Tag::FillOrder).ok().flatten() == Some(2);
+    let encoding = if compression == 3 && t4_options & 1 != 0 {
+        // Each row's tag bit says how it is coded.
+        EncodingMode::Group3_2D { k: 2 }
+    } else {
+        EncodingMode::Group3_1D
+    };
+    // The width and height of each strip or tile, and the tags of their offsets and byte counts.
+    let tiled = d.get_chunk_type() == tiff::decoder::ChunkType::Tile;
+    let (cw, ch, offsets, counts) = if tiled {
+        let tw = d.find_tag_unsigned::<u32>(Tag::TileWidth).ok().flatten().filter(|&v| v > 0)?;
+        let th = d.find_tag_unsigned::<u32>(Tag::TileLength).ok().flatten().filter(|&v| v > 0)?;
+        (tw, th, Tag::TileOffsets, Tag::TileByteCounts)
+    } else {
+        let rows = d.find_tag_unsigned::<u32>(Tag::RowsPerStrip).ok().flatten().filter(|&v| v > 0).map_or(h, |r| r.min(h));
+        (w, rows, Tag::StripOffsets, Tag::StripByteCounts)
+    };
+    let damaged = |e: DecodeError| Some(Err(Group3Error::Damaged(e)));
+    // A tile is held to the allowance the image is held to; a strip is no larger than the image.
+    if u64::from(cw) * u64::from(ch) > crate::MAX_RASTER_ALLOC / 4 {
+        return damaged(DecodeError::Overflow);
+    }
+    let offsets = d.find_tag_unsigned_vec::<u64>(offsets).ok().flatten().unwrap_or_default();
+    let counts = d.find_tag_unsigned_vec::<u64>(counts).ok().flatten().unwrap_or_default();
+    let across = w.div_ceil(cw);
+    let chunks = u64::from(across) * u64::from(h.div_ceil(ch));
+    if chunks > offsets.len().min(counts.len()) as u64 {
+        return damaged(DecodeError::UnexpectedEof);
+    }
+    let mut gray = vec![zero; usize::try_from(u64::from(w) * u64::from(h)).ok()?];
+    let mut budget = bytes.len();
+    for (i, (&offset, &count)) in (0..chunks).zip(offsets.iter().zip(&counts)) {
+        let (x0, y0) = (u32::try_from(i % u64::from(across)).ok()? * cw, u32::try_from(i / u64::from(across)).ok()? * ch);
+        let Some(start) = usize::try_from(offset).ok().filter(|&s| s <= bytes.len()) else {
+            return damaged(DecodeError::UnexpectedEof);
+        };
+        let len = usize::try_from(count).unwrap_or(usize::MAX).min(bytes.len() - start).min(budget);
+        budget -= len;
+        let data = bytes.get(start..start + len)?;
+        let data: std::borrow::Cow<[u8]> = if lsb_first { data.iter().map(|b| b.reverse_bits()).collect() } else { data.into() };
+        let settings = DecodeSettings {
+            columns: cw,
+            // A tile is coded whole; the last strip only has the image's remaining rows.
+            rows: if tiled { ch } else { ch.min(h - y0) },
+            end_of_block: compression == 3,
+            end_of_line: compression == 3,
+            rows_are_byte_aligned: compression == 2,
+            encoding,
+            invert_black: false,
+        };
+        let mut rows = Rows { out: &mut gray, width: w, height: h, x0, y0, x: 0, y: 0, zero };
+        if let Err(e) = hayro_ccitt::decode(&data, &mut rows, &mut DecoderContext::new(settings)) {
+            return damaged(e);
+        }
+        // The data ended, or six EOL codes came, before the strip's or tile's last row.
+        if rows.y < settings.rows {
+            return damaged(DecodeError::UnexpectedEof);
+        }
+    }
+    let gray = image::GrayImage::from_raw(w, h, gray)?;
+    Some(Ok(image::DynamicImage::ImageLuma8(gray).to_rgba8()))
+}
+
+/// Where a strip or tile of a Group 3 TIFF ([`group3_tiff_rgba`]) puts its decoded pixels: `out`
+/// holds the image's levels row by row, `width` × `height`, and the strip or tile starts at (`x0`,
+/// `y0`). Pixels past the image's right or bottom edge (a tile's padding) are dropped.
+struct Rows<'a> {
+    out: &'a mut [u8],
+    width: u32,
+    height: u32,
+    x0: u32,
+    y0: u32,
+    /// The next pixel in the strip or tile.
+    x: u64,
+    y: u32,
+    /// The level of a white run.
+    zero: u8,
+}
+
+impl Rows<'_> {
+    /// The next `n` pixels of the row, a white run's or a black run's.
+    fn run(&mut self, white: bool, n: u64) {
+        let level = if white { self.zero } else { u8::MAX - self.zero };
+        let row = u64::from(self.y0) + u64::from(self.y);
+        let left = u64::from(self.x0) + self.x;
+        let right = left.saturating_add(n).min(u64::from(self.width));
+        if row < u64::from(self.height) && left < right {
+            let at = row * u64::from(self.width);
+            if let (Ok(a), Ok(b)) = (usize::try_from(at + left), usize::try_from(at + right))
+                && let Some(px) = self.out.get_mut(a..b)
+            {
+                px.fill(level);
+            }
+        }
+        self.x = self.x.saturating_add(n);
+    }
+}
+
+impl hayro_ccitt::Decoder for Rows<'_> {
+    fn push_pixel(&mut self, white: bool) {
+        self.run(white, 1);
+    }
+
+    fn push_pixel_chunk(&mut self, white: bool, chunk_count: u32) {
+        self.run(white, u64::from(chunk_count) * 8);
+    }
+
+    fn next_line(&mut self) {
+        self.y = self.y.saturating_add(1);
+        self.x = 0;
+    }
 }
 
 #[cfg(test)]
@@ -428,6 +631,20 @@ mod tests {
         // Every image reader sees an RGB image: cyan is (0, 255, 255).
         let rgb = image::load_from_memory(&b.bytes).unwrap().to_rgb8();
         assert_eq!(rgb.get_pixel(1, 0).0, [0, 255, 255]);
+    }
+
+    #[test]
+    fn a_cmyk_image_samples_its_ink_amounts() {
+        let b = ImageBlob::cmyk_tiff(&inks()).unwrap();
+        assert_eq!(b.sample_cmyk_object(0.5, 0.5, (3, 2), 1), Some([0, 40, 100, 0]));
+        // An object of 6 × 4 pixels showing these 3 × 2: (5, 3) is the last pixel.
+        assert_eq!(b.sample_cmyk_object(5.0, 3.0, (6, 4), 1), Some([12, 34, 56, 78]));
+        // 3 × 3 around (1, 0), clipped to the image: all six pixels averaged.
+        assert_eq!(b.sample_cmyk_object(1.5, 0.5, (3, 2), 3), Some([45, 55, 69, 56]));
+        assert_eq!(b.sample_cmyk_object(3.5, 0.5, (3, 2), 1), None, "outside");
+        let mut png = Vec::new();
+        image::RgbaImage::new(2, 2).write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        assert_eq!(ImageBlob::png(png).sample_cmyk_object(0.5, 0.5, (2, 2), 1), None, "an RGB image has no inks");
     }
 
     #[test]

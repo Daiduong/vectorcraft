@@ -371,7 +371,7 @@ impl<W: std::io::Write> std::io::Write for Counted<W> {
 /// `separateArtboards`, those `range` names (default all).
 fn separate_boards(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Vec<usize>> {
     // A legacy .ai file is a file per artboard already.
-    if !is_native(f) || !bool_or(p, "separateArtboards", false) || super::legacy_ai::wanted(cmd, p)? {
+    if !is_native(f) || !bool_or(p, "separateArtboards", false) || super::legacy_ai::wanted(cmd, f, p)? {
         return Ok(vec![]);
     }
     let range = str_param(p, "range").filter(|r| !r.trim().is_empty()).map(str::to_string);
@@ -424,7 +424,7 @@ const NOT_PDF_COMPATIBLE: &str = "saved without PDF content: VectorCraft opens i
 /// The shared Save and Export encoder for PDF-compatible `.ai` files (and `.ait` templates, the
 /// same file).
 pub(super) fn encode_ai(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Encoded> {
-    if super::legacy_ai::wanted(cmd, p)? {
+    if super::legacy_ai::wanted(cmd, f, p)? {
         return super::legacy_ai::encode(cmd, f, doc, p);
     }
     let mut params = if p.is_object() { p.clone() } else { json!({}) };
@@ -508,7 +508,7 @@ fn job_for_stamped(s: &Session, st: &DocState, plan: SavePlan, stamped: Option<i
     }
     let boards = separate_boards(cmd, plan.format, &doc, &params)?;
     let mut params = super::pdf::expand_preset(s, cmd, &params)?.into_owned();
-    let legacy = super::legacy_ai::wanted(cmd, &params)?;
+    let legacy = super::legacy_ai::wanted(cmd, plan.format, &params)?;
     if let (Some(o), "ai" | "ait") = (params.as_object_mut(), plan.format.id) {
         // Save keeps every artboard; exports may choose a subset instead. A legacy .ai file per
         // artboard keeps a range given: the artboards to save.
@@ -549,7 +549,10 @@ impl SaveJob {
             let one = self.encode_one(&artboard_doc(&self.doc, b))?;
             enc.files.extend(one.files.into_iter().map(|(_, bytes)| (Some(b), bytes)));
         }
-        enc.warnings.splice(0..0, fidelity_warning(self.plan.format));
+        // Lost artboards first: the status bar shows only the first warning.
+        let f = self.plan.format;
+        let lost = if is_svg(f) { super::svg::lost_artboards_warning(&self.doc, &self.params, f.label) } else { None };
+        enc.warnings.splice(0..0, lost.into_iter().chain(fidelity_warning(f)));
         Ok(enc)
     }
 
@@ -558,7 +561,7 @@ impl SaveJob {
         let (cmd, f) = (self.plan.mode.command(), self.plan.format);
         let enc = if matches!(f.id, "ai" | "ait") { encode_ai(cmd, f, doc, &self.params)? } else { encode_all(doc, f.id, &self.params)? };
         // A legacy .ai file per artboard.
-        let per_artboard = f.id == "ai" && super::legacy_ai::wanted(cmd, &self.params)?;
+        let per_artboard = f.id == "ai" && super::legacy_ai::wanted(cmd, f, &self.params)?;
         if enc.files.len() != 1 && !per_artboard {
             return Err(bad(cmd, "Save writes one artboard: name one, or export several with document.export"));
         }
@@ -648,7 +651,8 @@ impl SaveJob {
 
     /// Once written: Save and Save As (except to a template) make the file `st`'s own: path,
     /// title, format, options, and the snapshot as the saved state (edits made since the job was
-    /// made keep the document modified).
+    /// made keep the document modified; changes that are not edits to save don't,
+    /// [`DocState::same_content`]).
     pub fn finish(self, st: &mut DocState) {
         let retargets = self.plan.retargets();
         if let (true, Some(path)) = (retargets, self.plan.path) {
@@ -660,6 +664,12 @@ impl SaveJob {
             if let Some(at) = self.stamped {
                 if Arc::ptr_eq(&st.doc, &self.source) {
                     st.doc = self.snapshot.clone();
+                } else if st.same_content(&self.source) {
+                    // Changed while the save ran only by changes that are not edits to save
+                    // (Puppet Warp pins dropped, Edit Text ended, type laid out again after a font
+                    // scan): with the dates, the document counts as saved.
+                    stamp_save_dates(st, at);
+                    return st.mark_saved();
                 } else {
                     // Edited while the save ran: the dates still go on, the edits stay unsaved. The
                     // undo history holds the document as it was before the dates, so that is the
@@ -790,7 +800,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save as Template…",
             ["File"],
             None,
-            "{…as document.save} {path? (saved with the format's extension: one naming another format is replaced, and one is added to a name without it), format?: template (default) | ait (also when format is not given and the path ends in .ait), compress?, version?, preview?} a template that opens as a new untitled document: a native template (.vctemplate), or a PDF-compatible .ait written as a .ai file is (the .ai options and the PDF options, as document.save takes them for .ai); the document is unchanged → {path, format, bytes, warnings}; no path → {dataBase64, format, name: \"<name> template.<ext>\", folder: the Templates folder (preference templatesFolder), warnings}",
+            "{…as document.save} {path? (saved with the format's extension: one naming another format is replaced, and one is added to a name without it), format?: template (default) | ait (also when format is not given and the path ends in .ait), compress?, version?, preview?} a template that opens as a new untitled document: a native template (.vctemplate), or a PDF-compatible .ait written as a .ai file is (the .ai options and the PDF options, as document.save takes them for .ai; aiVersion 7 is an error); the document is unchanged → {path, format, bytes, warnings}; no path → {dataBase64, format, name: \"<name> template.<ext>\", folder: the Templates folder (preference templatesFolder), warnings}",
             has_doc,
             |s, p| save(s, SaveMode::Template, p)
         ),
