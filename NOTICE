@@ -123,3 +123,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Close Hand cursor: based on "Close Hand" by Claudio Guglieri (2015), Noun Project icon 101203,
+https://thenounproject.com/icon/close-hand-101203/ , licensed under Creative Commons Attribution
+3.0 Unported, https://creativecommons.org/licenses/by/3.0/ . The original work has been modified:
+traced and edited by @FractalEncrypt, normalized for cursor scale with a white palm and widened
+finger creases by VectorCraft contributors. See assets/cursors/LICENSE-CC-BY-3.0.txt.
+This cursor asset remains under CC BY 3.0; it is not covered by the code's MIT/Apache licences.
+
+Open Hand cursor: original contributor-generated artwork and vector refinement supplied by
+@FractalEncrypt; normalized for cursor scale by VectorCraft contributors. MIT OR Apache-2.0.
+See assets/cursors/LICENSE-original-hand.txt. The source image and private PDF are not bundled.

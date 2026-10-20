@@ -68,6 +68,13 @@ fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
         ))
         .size(11.0),
     );
+    ui.label(
+        egui::RichText::new(
+            "Close Hand: Claudio Guglieri / Noun Project (CC BY 3.0). Modified by @FractalEncrypt and VectorCraft. \
+          https://thenounproject.com/icon/close-hand-101203/ — https://creativecommons.org/licenses/by/3.0/",
+        )
+        .size(11.0),
+    );
     // The GPU the window renders with, for bug reports (Preferences › Performance picks it).
     if let Some(adapter) = &app.graphics_adapter {
         ui.add_space(6.0);

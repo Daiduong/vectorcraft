@@ -4,7 +4,7 @@ Every non-code asset in this repository (icons, images, fonts, example art, colo
 
 **Policy (mandatory):** VectorCraft contains **no Adobe iconography, images, artwork, presets, swatch/brush/symbol/pattern libraries or ICC profiles**. Every asset is either original work by VectorCraft contributors, or third-party material under an open licence (OSI open source, public domain / CC0, or Creative Commons that allows redistribution), and it is attributed below. Screenshots of Adobe software are never committed. The one exception is the ArtCraft name, wordmark and logos in `docs/brand/`: ArtCraft trademarks, not open source, usable only under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 
-Generated-in-code art is original and has no file to list. This covers the default swatches, brushes, symbols, patterns, graphic styles, image-trace presets and the vector tool cursors (`crates/ui-egui/src/cursors.rs`).
+Generated-in-code art is original and has no file to list. This covers the default swatches, brushes, symbols, patterns, graphic styles, image-trace presets and the vector tool cursors (`crates/ui-egui/src/cursors.rs`), except the attributed hand assets below.
 
 **Font files are never committed here.** Fonts shared by the Crafting Apps live in [storytold/craft-fonts](https://github.com/storytold/craft-fonts) (rules: craftrules [`standards/fonts.md`](https://github.com/storytold/craftrules/blob/main/standards/fonts.md)). The small Latin UI/document fonts below predate that rule and stay.
 
@@ -365,3 +365,13 @@ The shared PDF backend keeps the existing standard-font and CMap features. These
 | `hayro-interpret 0.7.0 / assets/CGATS001Compat-v2-micro.icc` | Clinton Ingram (saucecontrol/Compact-ICC-Profiles) | https://github.com/storytold/craft-libs/blob/ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d/vendor/hayro-interpret/assets/CGATS001Compat-v2-micro.icc | CC0-1.0 | `73e1ba37d2bad5bab2a964f40a9eed96209666efc067c3322626214bbef234a0` | Default CMYK colour conversion (pinned hayro-interpret) |
 | `hayro-cmap 0.1.0 / assets/cmaps.brotli` | Adobe | https://crates.io/crates/hayro-cmap/0.1.0 | BSD-3-Clause | `ddf37af521d904d5646c2fc37b2b7e912dc1b56f0d210190b61f598154758e46` | Character-code mapping tables required to read CJK PDFs. Non-visual dependency data; existing embedding unchanged |
 | `hayro-interpret 0.7.0 / src/font/generated/metrics.rs` | Adobe (Core 14 AFM metrics, PDF specification encodings); tables by The Hayro Authors | https://github.com/storytold/craft-libs/blob/ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d/vendor/hayro-interpret/src/font/generated/metrics.rs | MIT OR Apache-2.0 | `2ec9e608573eda459de1e1d9bda3bb494315e36bee885acc88912a11fe0caa41` | Glyph widths and encodings for non-embedded standard fonts. Non-visual dependency data; existing embedding unchanged |
+
+## Pan cursor adaptation
+
+| Asset | Author | Source | Licence | Notes |
+|---|---|---|---|---|
+| `assets/cursors/hand-grab.json` | Claudio Guglieri; adaptation by @FractalEncrypt and VectorCraft contributors | https://thenounproject.com/icon/close-hand-101203/ | CC BY 3.0 Unported, https://creativecommons.org/licenses/by/3.0/ | Close Hand, icon 101203 (2015); user trace/edits, normalized for cursor scale, white palm and widened finger creases. Author attribution is also displayed in About and NOTICE. |
+| `assets/cursors/LICENSE-CC-BY-3.0.txt` | Creative Commons | https://creativecommons.org/licenses/by/3.0/legalcode.txt | CC BY 3.0 Unported licence text | Licence for hand-grab.json |
+
+| `assets/cursors/hand-open.json` | @FractalEncrypt; cursor normalization by VectorCraft contributors | Contributor-generated Gemini artwork, vector refinement supplied for this cursor (2026-10-19) | MIT OR Apache-2.0 | Original open hand; normalized contour coordinates only. Source PDF/image stay private; no source metadata, embedded images or fonts shipped. |
+| `assets/cursors/LICENSE-original-hand.txt` | ArtCraft Team and VectorCraft contributors | Root LICENSE-MIT and LICENSE-APACHE | MIT OR Apache-2.0 licence texts | Dual licence for hand-open.json |
