@@ -12,7 +12,7 @@
 
 use serde_json::{Value, json};
 use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Point;
+use vectorcraft_geom::{Point, Vec2};
 
 use super::{FEEDBACK, points_json, polyline};
 use crate::guides::DrawSnap;
@@ -345,7 +345,21 @@ impl Tool for GestureTool {
     }
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let mut o = self.snap.guides().to_vec();
-        if !self.active || self.points.len() < 2 || self.began {
+        if !self.active {
+            return o;
+        }
+        if self.draws_path()
+            && cx.measurement_labels
+            && self.points.len() >= 2
+            && let (Some(a), Some(b)) = (self.points.get(self.points.len() - 2), self.points.last())
+            && a.distance(*b) > 1e-9
+        {
+            o.push(Overlay::Measure {
+                p: *b + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: cx.segment_measure_label(*a, *b),
+            });
+        }
+        if self.points.len() < 2 || self.began {
             return o;
         }
         let width = match self.id {
@@ -496,6 +510,26 @@ mod tests {
         assert!(matches!(&last[0], Action::Preview(_, v) if v["closed"] == false && v["style"] == "pencil"));
         assert_eq!(last[1], Action::Commit);
         assert!(!t.busy());
+    }
+
+    #[test]
+    fn pencil_segment_measure_labels() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        let mut t = GestureTool::new("pencil");
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, 100.0, 0.0));
+        let want = on.segment_measure_label(Point::new(0.0, 0.0), Point::new(100.0, 0.0));
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
+        let mut brush = GestureTool::new("paintbrush");
+        brush.pointer(&on, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        brush.pointer(&on, &PointerEvent::new(PointerKind::Drag, 0.0, 50.0));
+        let want = on.segment_measure_label(Point::new(0.0, 0.0), Point::new(0.0, 50.0));
+        assert!(brush.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
     }
 
     /// Keep selected is on by default, and every Pencil and Paintbrush preview sends it.
