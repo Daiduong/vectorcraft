@@ -328,6 +328,11 @@ pub fn sorted_roots(doc: &Document, ids: &[NodeId]) -> Vec<NodeId> {
     v.into_iter().map(|(_, id)| id).collect()
 }
 
+/// Total length of a polyline through its vertices.
+fn polyline_length(pts: &[Point]) -> f64 {
+    pts.windows(2).map(|w| w[0].distance(w[1])).sum()
+}
+
 /// Sample points along a polyline every `step` units (always including the vertices).
 pub fn sample_polyline(pts: &[Point], step: f64) -> Vec<Point> {
     let mut out = vec![];
@@ -574,6 +579,10 @@ impl Tool for ShapeBuilderTool {
                 bp.line_to(*q);
             }
             out.push(Overlay::Path { path: bp, color, width: 1.0, dashed: false });
+            if cx.measurement_labels {
+                let p = self.points[self.points.len() - 1];
+                out.push(Overlay::Measure { p, text: format!("D: {}", cx.len(polyline_length(&self.points))) });
+            }
         }
         out
     }
@@ -872,6 +881,22 @@ mod tests {
         assert!((bb.x0 - 50.0).abs() < 1e-6 && (bb.x1 - 100.0).abs() < 1e-6, "{bb:?}");
         t.pointer(&cx, &ev(PointerKind::Move, 400.0, 400.0));
         assert!(t.overlays(&cx).is_empty());
+    }
+
+    #[test]
+    fn shape_builder_lasso_shows_path_length_when_measurement_labels_on() {
+        let (d, a, b) = two_rects();
+        let mut s = Selection::default();
+        s.set([a, b]);
+        let p = paint();
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        let mut t = ShapeBuilderTool::default();
+        t.pointer(&on, &ev(PointerKind::Down, 25.0, 50.0));
+        t.pointer(&on, &ev(PointerKind::Drag, 75.0, 50.0));
+        let want = format!("D: {}", on.len(50.0));
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
