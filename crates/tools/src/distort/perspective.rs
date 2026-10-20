@@ -637,6 +637,16 @@ impl PlaneDrag {
         Some(Action::Preview("perspective.plane.move".into(), json!({"plane": self.plane.id(), "offset": offset, "objects": objects})))
     }
 
+    /// Measurement label for a drag to `p` (`dZ` along the plane normal).
+    pub fn measure_label(&self, g: &PerspectiveGrid, p: Point, cx: &ToolContext) -> Option<(Point, String)> {
+        if !cx.measurement_labels {
+            return None;
+        }
+        let new = g.depth_at(self.plane, self.offset, self.anchor, self.anchor + (p - self.press))?;
+        let delta = new - self.offset;
+        Some((p, format!("dZ: {}", cx.len(delta))))
+    }
+
     /// The plane options dialog a double-click on the widget opens.
     pub fn options(&self) -> Action {
         Action::Dialog(PLANE_DIALOG.into(), json!({"plane": self.plane.id()}))
@@ -958,6 +968,7 @@ pub struct PerspectiveGridTool {
     drag: Option<Press>,
     /// Dragging a plane widget.
     plane: Option<PlaneDrag>,
+    measure: Option<(Point, String)>,
 }
 
 impl Tool for PerspectiveGridTool {
@@ -970,6 +981,7 @@ impl Tool for PerspectiveGridTool {
         match ev.kind {
             PointerKind::Down => {
                 let mut pre = vec![];
+                self.measure = None;
                 if !g.visible {
                     pre.push(Action::Exec("perspective.grid.show".into(), json!({"visible": true})));
                 }
@@ -995,15 +1007,24 @@ impl Tool for PerspectiveGridTool {
                 }
                 pre
             }
-            PointerKind::Drag if self.plane.is_some() => self.plane.and_then(|d| d.preview(&g, p, ev.mods)).into_iter().collect(),
+            PointerKind::Drag if self.plane.is_some() => {
+                if let Some(d) = self.plane {
+                    self.measure = d.measure_label(&g, p, cx);
+                    return d.preview(&g, p, ev.mods).into_iter().collect();
+                }
+                vec![]
+            }
             PointerKind::Drag => match &self.drag {
                 Some(press) => vec![Action::Preview("perspective.grid.set".into(), drag_handle(press, p, ev.mods).definition_json())],
                 None => vec![],
             },
-            PointerKind::Up => match (self.drag.take(), self.plane.take()) {
-                (None, None) => vec![],
-                _ => vec![Action::Commit],
-            },
+            PointerKind::Up => {
+                self.measure = None;
+                match (self.drag.take(), self.plane.take()) {
+                    (None, None) => vec![],
+                    _ => vec![Action::Commit],
+                }
+            }
             PointerKind::DoubleClick => PlaneDrag::hit(&g, cx.tol(6.0), p).map(|d| d.options()).into_iter().collect(),
             _ => vec![],
         }
@@ -1015,7 +1036,7 @@ impl Tool for PerspectiveGridTool {
             return vec![];
         }
         let ink = [0x20, 0x20, 0x20];
-        handles(&g, cx.tol(1.0))
+        let mut out = handles(&g, cx.tol(1.0))
             .into_iter()
             .map(|(h, p)| match h {
                 Handle::VpLeft | Handle::VpRight | Handle::VpVertical => Overlay::Anchor { p, color: ink, filled: true, size: 7.0 },
@@ -1023,7 +1044,13 @@ impl Tool for PerspectiveGridTool {
                 Handle::Cell => Overlay::Handle { p, color: ink },
                 _ => Overlay::Anchor { p, color: ink, filled: false, size: 6.0 },
             })
-            .collect()
+            .collect::<Vec<_>>();
+        if cx.measurement_labels
+            && let Some((p, t)) = &self.measure
+        {
+            out.push(Overlay::Measure { p: *p, text: t.clone() });
+        }
+        out
     }
     fn cursor(&self, cx: &ToolContext, p: Point, _mods: Mods) -> Cursor {
         let g = PerspectiveGrid::current(cx.doc);
@@ -1046,6 +1073,7 @@ impl Tool for PerspectiveGridTool {
         self.drag.is_some() || self.plane.is_some()
     }
     fn deactivate(&mut self, _cx: &ToolContext) -> Vec<Action> {
+        self.measure = None;
         match (self.drag.take(), self.plane.take()) {
             (None, None) => vec![],
             _ => vec![Action::Commit],
@@ -1195,6 +1223,7 @@ impl Tool for PerspectiveSelectionTool {
             }
             (PointerKind::Drag, SelDrag::Plane(d)) => {
                 self.drag = SelDrag::Plane(d);
+                self.measure = d.measure_label(&g, p, cx);
                 d.preview(&g, p, m).into_iter().collect()
             }
             (PointerKind::Up, SelDrag::Scale { .. } | SelDrag::Plane(_)) => {
@@ -1426,6 +1455,27 @@ mod tests {
         assert_eq!(v["vpLeft"], json!(g.vp_left - 40.0));
         assert_eq!(v["horizon"], json!(g.horizon + 10.0));
         assert!(!grid_overlays(&d, 1.0).is_empty());
+    }
+
+    #[test]
+    fn perspective_plane_widget_drag_shows_dz_measurement_labels() {
+        let mut d = Document::new(800.0, 600.0);
+        grid(2).store(&mut d);
+        let (s, p) = (Selection::default(), paint());
+        let base = cx(&d, &s, &p);
+        let anchor = PerspectiveGrid::current(&d).plane_widgets().into_iter().next().map(|(_, q)| q).unwrap();
+        let mut t = PerspectiveGridTool::default();
+        let on = ToolContext { measurement_labels: true, ..base };
+        assert_eq!(t.pointer(&on, &PointerEvent::new(PointerKind::Down, anchor.x, anchor.y)), vec![Action::Begin("Move Plane".into())]);
+        let to = Point::new(anchor.x, anchor.y + 40.0);
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, to.x, to.y));
+        let label = t.overlays(&on).into_iter().find_map(|o| match o {
+            Overlay::Measure { text, .. } => Some(text),
+            _ => None,
+        });
+        assert!(label.as_ref().is_some_and(|t| t.starts_with("dZ: ")), "{label:?}");
+        let off = ToolContext { measurement_labels: false, ..base };
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
