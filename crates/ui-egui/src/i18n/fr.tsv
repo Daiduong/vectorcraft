@@ -644,6 +644,7 @@
 	Created:	Création :
 	Crop	Recadrer
 	Crop Image	Recadrer l’image
+	Edit Path	Modifier le tracé
 	Mask	Masque
 	Crop Marks	Traits de coupe
 	Crop To	Recadrer selon
@@ -1077,6 +1078,7 @@
 	Fill (X), double-click for the Color Picker	Fond (X), double-cliquez pour ouvrir le Sélecteur de couleurs
 	Fill and Stroke	Fond et contour
 	Fill new strokes	Remplir les nouveaux contours
+	Alt key toggles to Smooth Tool	La touche Alt bascule sur l’outil Arrondi
 	Keep selected	Garder sélectionné
 	Merge only with selection	Fusionner uniquement avec la sélection
 	Fill Color	Couleur de fond
@@ -1197,6 +1199,8 @@
 	Large Gaps	Grands espaces
 	Gap Preview Color:	Couleur d’aperçu des espaces :
 	Close Gaps With Paths	Fermer les espaces avec des tracés
+	Select Fills	Sélectionner les fonds
+	Select Strokes	Sélectionner les contours
 	Gaussian Blur…	Flou gaussien…
 	General	Général
 	General › Placement › X	Général › Placement › X
@@ -1345,6 +1349,10 @@
 	Highlight Substituted Glyphs	Surligner les glyphes remplacés
 	History	Historique
 	History Options…	Options d’historique…
+	Step Backward	Pas en arrière
+	Step Forward	Pas en avant
+	Clear History	Effacer l’historique
+	Set History Limit…	Définir la limite de l’historique…
 	History States	États de l’historique
 # History panel: the names of undo steps (`every_undo_label_is_translated`).
 	Apply Data Set	Appliquer le jeu de données
@@ -1390,6 +1398,12 @@
 	Release Blend	Annuler le dégradé de formes
 	Release Envelope	Annuler l’enveloppe
 	Release Intertwine	Annuler l’entrelacement
+	Objects on Path	Objets sur tracé
+	Attach	Attacher
+	Objects on Path Options	Options d’objets sur tracé
+	Objects on Path Tool	Outil Objets sur tracé
+	Attach Objects on Path	Attacher des objets au tracé
+	Expand Objects on Path	Décomposer les objets sur tracé
 	Release Live Paint	Annuler la peinture dynamique
 	Release Repeat	Annuler la répétition
 	Release Slice	Annuler la tranche
@@ -1505,6 +1519,7 @@
 	Inspect Object	Inspecter l’objet
 	Install Plug-in	Installer un module externe
 	Install Plug-in…	Installer un module externe…
+	Open this setting's help page	Ouvrir la page d’aide de ce réglage
 	Installed plug-in {}	Module externe {} installé
 	Intensity:	Intensité :
 	Intent:	Mode de rendu :
@@ -1707,6 +1722,7 @@
 	Load Text into Clipboard	Charger du texte dans le presse-papiers
 	Local Libraries	Bibliothèques locales
 	Locate Object	Localiser l’objet
+	Locate Selected Objects	Localiser les objets sélectionnés
 	Location	Emplacement
 	Location:	Emplacement :
 	Lock	Verrouiller
@@ -2137,6 +2153,7 @@
 	Output White	Blanc de sortie
 	Output › Mode	Sortie › Mode
 	Output:	Sortie :
+	Overlap	Chevauchement
 	Overlap:	Chevauchement :
 	Overlapping	Superposés
 	Overlay	Incrustation
@@ -2437,6 +2454,8 @@
 	Redefine Character Style	Redéfinir le style de caractère
 	Redefine Graphic Style	Redéfinir le style graphique
 	Redefine Graphic Style “{name}”	Redéfinir le style graphique « {name} »
+	Apply {name}	Appliquer le style « {name} »
+	Redefine {name}	Redéfinir le style « {name} »
 	Redefine Paragraph Style	Redéfinir le style de paragraphe
 	Redefine Symbol	Redéfinir le symbole
 	Redefine {kind} Style	Redéfinir le style de {kind}
@@ -2905,6 +2924,8 @@
 	Show Note	Afficher la note
 	Show Options	Afficher les options
 	Show Original Path	Afficher le tracé d’origine
+	Open this dialog with these settings next time	Ouvrir cette boîte de dialogue avec ces réglages la prochaine fois
+	Auto-Simplify	Simplifier automatiquement
 	Color Panel Options	Options du panneau Couleur
 	Show Package	Afficher le dossier d’assemblage
 	Show Panel	Afficher le panneau
@@ -3001,6 +3022,7 @@
 	Snap to Pixel	Magnétisme du pixel
 	Precise Cursors	Pointeurs précis
 	Snap to Point	Magnétisme du point
+	Snap to Unit	Magnétisme de l’unité
 	Snapping Tolerance	Tolérance du magnétisme
 	Social Square Post 1080×1080	Publication carrée pour réseaux sociaux 1080×1080
 	Soft Light	Lumière tamisée
@@ -3128,7 +3150,7 @@
 	Delete Library Item	Supprimer l’élément de la bibliothèque
 	No results	Aucun résultat
 	No items in this library match “{query}”.	Aucun élément de cette bibliothèque ne correspond à « {query} ».
-	Right-click an item to move it into this group.	Cliquez avec le bouton droit sur un élément pour le placer dans ce groupe.
+	Drag an item here, or right-click one, to put it in this group.	Faites glisser un élément ici, ou cliquez dessus avec le bouton droit, pour le placer dans ce groupe.
 	New Group	Nouveau groupe
 	New Group…	Nouveau groupe…
 	Move to Group	Déplacer vers le groupe
@@ -3188,6 +3210,7 @@
 	Text Wrap Options	Options d’habillage de texte
 	Text Wrap Options…	Options d’habillage de texte…
 	The bounds of the visible art.	Les limites de l’illustration visible.
+	The plug-in writes the whole document.	Le module externe exporte le document entier.
 	The cell shows the type object's text as HTML.	La cellule affiche le texte de l’objet texte au format HTML.
 	The document has no colour swatches.	Le document ne contient aucune nuance de couleur.
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	Le bord du papier que l’imprimante ne peut pas atteindre : l’illustration reste à l’intérieur, et l’aperçu l’affiche en pointillés.
@@ -3685,6 +3708,11 @@ axis	Both	Les deux
 @msg	its editing data doesn't say where its artboard is	ses données de modification n’indiquent pas où se trouve son plan de travail
 @msg	its editing data has no layers	ses données de modification n’ont pas de calques
 @msg	its editing data is damaged	ses données de modification sont endommagées
+@msg	its editing data is for a {w} × {h} pt page, not the file's {pw} × {ph} pt page	ses données de modification concernent une page de {w} × {h} pt, et non la page du fichier de {pw} × {ph} pt
+@msg	its editing data is for a {w} × {h} pt page, the file's {pw} × {ph} pt page at {scale}	ses données de modification concernent une page de {w} × {h} pt, soit la page du fichier de {pw} × {ph} pt à l’échelle {scale}
+@msg	its zlib compression is damaged	leur compression zlib est endommagée
+@msg	its Zstandard compression is damaged	leur compression Zstandard est endommagée
+@msg	it decompresses to more than {_1} MB	elles dépassent {_1} Mo une fois décompressées
 @msg	its editing data is for a different page	ses données de modification concernent une autre page
 @msg	its layers use {_1}, which aren't read yet	ses calques utilisent {_1}, qui ne sont pas encore lus
 @msg	its page has text, and its layers have no text objects to put it in	sa page contient du texte, et ses calques n’ont aucun objet texte où le mettre
@@ -3754,6 +3782,7 @@ axis	Both	Les deux
 @msg	Save for Web: the image is empty	Enregistrer pour le Web : l’image est vide
 @msg	Save writes {_1}, not {_2}: use document.export for other formats	Enregistrer écrit du {_1}, pas du {_2} : utilisez document.export pour les autres formats
 @msg	Save writes {_1}, not {_2}: use file.saveAsTemplate to write it	Enregistrer écrit du {_1}, pas du {_2} : utilisez file.saveAsTemplate pour l’écrire
+@msg	aiVersion 7 writes legacy .ai files; a .ait template is always PDF-compatible	aiVersion 7 écrit des fichiers .ai hérités, alors qu’un modèle .ait est toujours compatible PDF
 @msg	Saved recovery data for {title}	Données de récupération enregistrées pour {title}
 @msg	Saved to User Defined: {_1}	Enregistré dans Défini par l’utilisateur : {_1}
 @msg	Saved {path}	{path} enregistré
@@ -3786,6 +3815,8 @@ axis	Both	Les deux
 @msg	`{key}` must be a #rrggbb color	`{key}` doit être une couleur #rrggbb
 @msg	`{key}` must be a #rrggbb colour	`{key}` doit être une couleur #rrggbb
 @msg	`{key}` must be a number	`{key}` doit être un nombre
+@msg	`{key}` must be a number, not {v}	`{key}` doit être un nombre, pas {v}
+@msg	{key} must be Unix seconds (an integer) or null	{key} doit être un temps Unix en secondes (un entier) ou null
 @msg	`{key}` must be a string	`{key}` doit être une chaîne
 @msg	`{key}` must be a whole number	`{key}` doit être un nombre entier
 @msg	`{key}` must be a whole number between {min} and {max} (got {x})	`{key}` doit être un nombre entier compris entre {min} et {max} (reçu : {x})
@@ -3825,6 +3856,7 @@ axis	Both	Les deux
 @msg	a page tree node has no kids	un nœud de l’arborescence des pages n’a pas d’enfants
 @msg	a page's placement is not finite	la position d’une page n’est pas finie
 @msg	a preset named `{_1}` exists	un paramètre prédéfini nommé `{_1}` existe déjà
+@msg	a swatch or color group named `{n}` exists	une nuance ou un groupe de couleurs nommé `{n}` existe déjà
 @msg	a slice size must be a positive number of points	la taille d’une tranche doit être un nombre de points positif
 @msg	a spine keeps at least two points	une dorsale garde au moins deux points
 @msg	a stream runs past the end	un flux dépasse la fin du fichier
@@ -3841,6 +3873,7 @@ axis	Both	Les deux
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	arrière-plan {other} : transparent, white, black ou une couleur comme "#ff8800"
 @msg	bad color {v}	couleur non valide {v}
 @msg	the Color Picker is not open	le Sélecteur de couleurs n’est pas ouvert
+@msg	the Simplify slider is not open	le curseur Simplifier n’est pas ouvert
 @msg	the screen color sampler is already open	l’outil de prélèvement de couleur à l’écran est déjà ouvert
 @msg	this system has no screen color sampler	ce système n’a pas d’outil de prélèvement de couleur à l’écran
 @msg	bad colour `{hex}` (#rrggbb)	couleur non valide `{hex}` (#rrggbb)
@@ -3915,6 +3948,7 @@ axis	Both	Les deux
 @msg	missing `tool`	`tool` manquant
 @msg	missing index	index manquant
 @msg	missing number `{key}`	nombre `{key}` manquant
+@msg	missing integer `{key}`	nombre entier `{key}` manquant
 @msg	multiple windows land with M11.5	les fenêtres multiples arrivent avec M11.5
 @msg	name the file	nommez le fichier
 @msg	no CSS to copy: select objects with CSS of their own	aucun CSS à copier : sélectionnez des objets ayant leur propre CSS
@@ -4030,6 +4064,7 @@ axis	Both	Les deux
 @msg	nothing to redo	rien à rétablir
 @msg	nothing to save: the document has no visible art	rien à enregistrer : le document n’a aucune illustration visible
 @msg	nothing to undo	rien à annuler
+@msg	no history to clear	aucun historique à effacer
 @msg	nothing to warp	rien à déformer
 @msg	nothing to wrap	rien à envelopper
 @msg	object {0} cannot have children	l’objet {0} ne peut pas avoir d’enfants
@@ -4037,6 +4072,7 @@ axis	Both	Les deux
 @msg	object {id} is not a selected top-level object	l’objet {id} n’est pas un objet sélectionné de premier niveau
 @msg	page size {w} × {h}	format de page {w} × {h}
 @msg	page {0} does not exist (the PDF has {1})	la page {0} n’existe pas (le PDF en a {1})
+@msg	thumbnail: no page {n} (the file has 1)	thumbnail : la page {n} n’existe pas (le fichier en a 1)
 @msg	paste unavailable	collage indisponible
 @msg	path is already closed	le tracé est déjà fermé
 @msg	paths contain invalid coordinates	les tracés contiennent des coordonnées non valides
@@ -4075,6 +4111,7 @@ axis	Both	Les deux
 @msg	select a linked image: an embedded one has no file	sélectionnez une image liée : une image incorporée n’a pas de fichier
 @msg	select a repeat	sélectionnez une répétition
 @msg	select an Intertwine group	sélectionnez un groupe entrelacé
+@msg	select an Objects on Path group	sélectionnez un groupe d’objets sur tracé
 @msg	select a stroke with a variable width	sélectionnez un contour de largeur variable
 @msg	select a symbol instance	sélectionnez une instance de symbole
 @msg	select an Image Trace object	sélectionnez un objet de vectorisation de l’image
@@ -4201,8 +4238,10 @@ axis	Both	Les deux
 @msg	{C}: no effect at index {from}	{C} : aucun effet à l’indice {from}
 @msg	{_1} failed: {e}	échec de {_1} : {e}
 @msg	{_1} files can be opened but not written (see document.formats)	les fichiers {_1} peuvent être ouverts mais pas écrits (voir document.formats)
+@msg	{_1} files are written by file.saveAsTemplate	les fichiers {_1} sont écrits par file.saveAsTemplate
 @msg	{_1} font families available	{_1} familles de polices disponibles
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} est un effet dynamique (Effet › Plug-ins)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} est un module externe d’exportation (Fichier › Exporter › Exporter sous…)
 @msg	{_1} is already used by {_2}	{_1} est déjà utilisé par {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} fichier(s) lié(s) illisible(s) ici : leurs aperçus sont affichés
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} image(s) liée(s) modifiée(s) sur le disque : Mettre à jour les liens affiche les nouvelles versions
@@ -4346,6 +4385,9 @@ axis	Both	Les deux
 @msg	`{text}`: step {i}'s result has no such value (write $$ for a literal $)	`{text}` : le résultat de l’étape {i} n’a pas cette valeur (écrivez $$ pour un $ littéral)
 @msg	`{text}`: there is no step {i} before this one (steps count from 0; write $$ for a literal $)	`{text}` : il n’y a pas d’étape {i} avant celle-ci (les étapes sont comptées à partir de 0 ; écrivez $$ pour un $ littéral)
 @msg	object ids are non-negative integers, not {v}	les identifiants d’objet sont des entiers positifs ou nuls, pas {v}
+@msg	{key} must be an array of non-negative integer object ids	{key} doit être un tableau d’identifiants d’objet, entiers positifs ou nuls
+@msg	invalid object id {value}: expected a non-negative integer	identifiant d’objet {value} non valide (un entier positif ou nul est attendu)
+@msg	no such object id {value}	aucun objet ne porte l’identifiant {value}
 @msg	automation filesystem access is not granted: read authority is absent: {path}	l’automatisation n’a pas accès au système de fichiers : aucune autorisation de lecture : {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	l’automatisation n’a pas accès au système de fichiers : aucune autorisation d’écriture : {path}
 @msg	automation path rejected: outside the read root {root}: {path}	chemin d’automatisation refusé : hors du dossier racine de lecture {root} : {path}
@@ -4535,6 +4577,8 @@ lighting	Light	Lumière
 @msg	missing panel layout	Disposition des panneaux manquante
 @msg	unsupported native docking operation	Opération native d’ancrage non prise en charge
 	Linux Display Server	Serveur d’affichage Linux
+	X11 (XWayland) When a Pen Is Attached	X11 (XWayland) quand un stylet est branché
+	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Si le stylet d’une tablette graphique ne dessine pas, choisissez une option X11 (XWayland).
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	Origine des règles
 	Reset Ruler Origin	Réinitialiser l’origine des règles
@@ -5057,6 +5101,11 @@ theme	Appearance	Apparence
 	Softness	Douceur
 	Ambient Light	Lumière ambiante
 	Light behind the object	Lumière derrière l'objet
+# 3D light management.
+	Lights	Lumières
+	Add Light	Ajouter une lumière
+	Delete Light	Supprimer la lumière
+3d	Light	Lumière
 	Registration:	Repère d'alignement :
 # Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
 	Dimension	Cote
@@ -5123,6 +5172,7 @@ theme	Appearance	Apparence
 @msg	choose a destination folder	choisissez un dossier de destination
 @msg	choose a source folder	choisissez un dossier source
 @msg	open a document with data sets	ouvrez un document avec des jeux de données
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	rien du jeu de données {name} n’a été appliqué, car aucun objet n’est lié à une variable pour laquelle il a une valeur
 @msg	the action has no steps	l'action n'a aucune étape
 
 # User Interface › Accent Color
@@ -5144,6 +5194,32 @@ theme	Appearance	Apparence
 	Movie Clip	Clip
 @msg	name is empty	le nom est vide
 @msg	no symbol named `{n}`	aucun symbole nommé `{n}`
+	Smudge Stick…	Estompe…
+	Smudge Stick	Estompe
+	Sponge…	Éponge…
+	Sponge	Éponge
+	Watercolor…	Aquarelle…
+	Watercolor	Aquarelle
+	Brush Size	Taille du pinceau
+	Definition	Définition
+	Brush Detail	Détail du pinceau
+	Shadow Intensity	Intensité des ombres
+	Bas Relief…	Bas-relief…
+	Bas Relief	Bas-relief
+	Charcoal…	Fusain…
+	Charcoal	Fusain
+	Photocopy…	Photocopie…
+	Photocopy	Photocopie
+	Stamp…	Tampon…
+	Stamp	Tampon
+	Thickness	Épaisseur
+	Detail	Détail
+	Light/Dark Balance	Équilibre clair/foncé
+# Links and Attributes: files and URLs handed to other apps.
+@msg	Edit Original opens image and document files only; “{name}” is not one	Modifier l’original n’ouvre que les fichiers d’image et de document ; « {name} » n’en est pas un
+@msg	only http, https and mailto URLs open in the browser, not “{url}”	seules les URL http, https et mailto s’ouvrent dans le navigateur, pas « {url} »
+@msg	{id} opens another app: only the person at the keyboard can run it	{id} ouvre une autre application : seule la personne devant le clavier peut l’exécuter
+@msg	“{name}” is not a file	« {name} » n’est pas un fichier
 	Enable Guides for 9-Slice Scaling	Activer les repères pour la mise à l’échelle 9-slice
 @msg	a mask has more than one art block	un masque contient plusieurs blocs graphiques
 @msg	mask art ends outside a mask dictionary	les éléments graphiques du masque se terminent en dehors d’un dictionnaire de masque
@@ -5159,3 +5235,40 @@ theme	Appearance	Apparence
 @msg	too many library panels were opened in this session	trop de panneaux de bibliothèque ont été ouverts dans cette session
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’image fait {_1} × {_2} pixels, plus de {LARGE_TRACE_SIDE} sur un côté : elle est vectorisée, mais plus lentement. Un paramètre prédéfini moins fidèle ou une copie plus petite de l’image se vectorise plus vite.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’image a été vectorisée à {_1} × {_2} pixels, réduite de {_3} × {_4} ({_5} mégapixels au plus).
+	Artboard {n} of {total}	Plan de travail {n} sur {total}
+	Encoding and writing the file…	Encodage et écriture du fichier…
+@plural	{n} more export waiting|{n} more exports waiting	{n} autre exportation en attente|{n} autres exportations en attente
+	Continue in Background	Continuer en arrière-plan
+	Cancel Export	Annuler l’exportation
+@msg	Export cancelled	Exportation annulée
+# Paragraph panel menu › Justification…
+	Desired	Optimal
+	Word Spacing:	Espacement des mots :
+	Letter Spacing:	Espacement des lettres :
+	Glyph Scaling:	Mise à l’échelle des glyphes :
+	Auto Leading:	Interlignage automatique :
+	Single Word Justification:	Justification d’un mot isolé :
+	Full Justify	Justification complète
+	Minimum must not exceed Desired, nor Desired Maximum.	Le minimum ne doit pas dépasser la valeur optimale, ni la valeur optimale le maximum.
+	Justification	Justification
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	les variables et jeux de données du fichier n’ont pas été lus (variables : {variables}, jeux de données : {data_sets}) : le panneau Variables ne les affiche pas
+# Select by Color (select.color)
+	Select by Color	Sélectionner par couleur
+	Move Anchor Point	Déplacer le point d’ancrage
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} conserve 1 des {n} plans de travail du document : le fichier se rouvre avec un seul. Activez Conserver les fonctions d’édition pour les conserver tous.
+	Chalk & Charcoal…	Craie et fusain…
+	Chalk & Charcoal	Craie et fusain
+	Graphic Pen…	Plume graphique…
+	Graphic Pen	Plume graphique
+	Reticulation…	Réticulation…
+	Reticulation	Réticulation
+	Plastic Wrap…	Emballage plastique…
+	Plastic Wrap	Emballage plastique
+	Chrome…	Chrome…
+	Chrome	Chrome
+	Drop here to take it out of its group	Déposez ici pour le sortir de son groupe
+	Move Library Group	Déplacer le groupe de bibliothèque
+	Plaster…	Plâtre…
+	Plaster	Plâtre
+	Note Paper…	Papier gaufré…
+	Note Paper	Papier gaufré

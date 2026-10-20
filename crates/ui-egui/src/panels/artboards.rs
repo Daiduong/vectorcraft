@@ -8,6 +8,7 @@
 
 use egui::{Sense, Ui, pos2, vec2};
 use serde_json::{Value, json};
+use vectorcraft_geom::Rect;
 
 use super::{alt_held, pstate, set_pstate};
 use crate::theme::Tokens;
@@ -110,7 +111,7 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
                 "width" => [None, None, Some(nv), None],
                 _ => [None, None, None, Some(nv)],
             };
-            super::transform::set_artboard(app, i, r, refi, xywh, link);
+            super::transform::set_artboard(app, i, refi, xywh, link);
         }
     }
     true
@@ -151,6 +152,53 @@ pub(crate) fn picked(app: &VectorcraftApp, n: usize) -> Vec<usize> {
     all.sort_unstable();
     all.dedup();
     all
+}
+
+/// The artboards a new size for artboard `i` goes to: the selected artboards ([`picked`]) when
+/// `i` is one of them, else `i` alone.
+pub(crate) fn resized_with(app: &VectorcraftApp, i: usize) -> Vec<usize> {
+    let all = picked(app, app.session.active().map_or(0, |d| d.doc.artboards.len()));
+    if all.contains(&i) { all } else { vec![i] }
+}
+
+/// The `artboard.setProps` params that set `entries` (each an artboard's `index` and its fields)
+/// with `common` (an object: `scaleArt`, `moveArt`), in one undo step: the one entry's fields
+/// beside `common`, or an `artboards` list of several beside it; None for no entry.
+pub(crate) fn set_props_params(common: Value, mut entries: Vec<Value>) -> Option<Value> {
+    let mut p = common;
+    let o = p.as_object_mut()?;
+    match entries.len() {
+        0 => return None,
+        1 => {
+            if let Value::Object(e) = entries.remove(0) {
+                o.extend(e);
+            }
+        }
+        _ => {
+            o.insert("artboards".into(), Value::Array(entries));
+        }
+    }
+    Some(p)
+}
+
+/// Run `artboard.setProps` with `common` on each artboard of `indices` that `entry` gives fields for
+/// (from its index and rectangle), in one undo step ([`set_props_params`]). Nothing runs when it
+/// gives none.
+pub(crate) fn set_props(
+    app: &mut VectorcraftApp,
+    indices: &[usize],
+    common: Value,
+    entry: impl Fn(usize, Rect) -> Option<Value>,
+) -> Result<Value, String> {
+    let entries: Vec<Value> = app
+        .session
+        .active()
+        .map(|d| indices.iter().filter_map(|&i| d.doc.artboards.get(i).and_then(|a| entry(i, a.rect))).collect())
+        .unwrap_or_default();
+    match set_props_params(common, entries) {
+        Some(p) => app.run("artboard.setProps", p),
+        None => Ok(Value::Null),
+    }
 }
 
 /// Delete the picked artboards and select a remaining one.
@@ -200,6 +248,32 @@ fn toggle(app: &mut VectorcraftApp, i: usize, n: usize) {
     if let Some(v) = app.view_mut() {
         v.artboard = active;
     }
+    app.session.set_tool_option("selected", &json!(all));
+}
+
+/// Whether the panel has the keyboard: one of its rows was clicked, and in every frame since then
+/// the panel was drawn and the pointer was not pressed outside its list.
+fn has_keyboard(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+    pstate::<Option<u64>>(ctx, "ab-keys").is_some_and(|f| f + 1 >= app.frame)
+}
+
+/// Whether Select All's shortcut selects every artboard ([`select_all`]) instead of the art: the
+/// panel has the keyboard and the Artboard tool is in use. [`crate::shortcuts::handle`] and
+/// [`crate::menus::invoke_from_system_menu`] read it before they run `select.all`, which they reach
+/// only while no text field has the keyboard.
+pub(crate) fn selects_all(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+    app.session.tool_id() == "artboard" && has_keyboard(app, ctx)
+}
+
+/// Ctrl/Cmd+A while [`selects_all`]: the Artboard tool selects every artboard, and the active
+/// artboard stays active. The art's selection stays as it is.
+pub(crate) fn select_all(app: &mut VectorcraftApp) {
+    let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
+    if n == 0 {
+        return;
+    }
+    let active = selected(app, n);
+    let all: Vec<usize> = std::iter::once(active).chain((0..n).filter(|i| *i != active)).collect();
     app.session.set_tool_option("selected", &json!(all));
 }
 
@@ -254,10 +328,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let sel = selected(app, abs.len());
     let all = picked(app, abs.len());
     let editing: Option<usize> = pstate(ui.ctx(), "ab-edit");
-    widgets::list_box(ui, |ui| {
+    let mut row_clicked = false;
+    let list_rect = widgets::list_box(ui, |ui| {
         ui.set_min_height(110.0);
         ui.spacing_mut().item_spacing.y = 0.0;
-        egui::ScrollArea::vertical().id_salt("ab-scroll").max_height(220.0).show(ui, |ui| {
+        let scrolled = egui::ScrollArea::vertical().id_salt("ab-scroll").max_height(220.0).show(ui, |ui| {
             for (i, name) in abs.iter().enumerate() {
                 let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click_and_drag());
                 if resp.drag_started() {
@@ -279,6 +354,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 if editing == Some(i) {
                     let id = ui.id().with(("ab-name", i));
                     let mut buf: String = ui.data_mut(|d| d.get_temp::<String>(id)).unwrap_or_else(|| name.clone());
+                    let kept = widgets::own_field_shift_enter(ui, id, &mut buf, name);
                     let te = ui.put(name_rect, egui::TextEdit::singleline(&mut buf).id(id).font(egui::FontId::proportional(12.0)));
                     if !te.has_focus() && !te.lost_focus() {
                         te.request_focus();
@@ -290,6 +366,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                         if !ui.input(|i| i.key_pressed(egui::Key::Escape)) && !buf.trim().is_empty() && buf != *name {
                             app.run("artboard.setProps", json!({"index": i, "name": buf.trim()})).ok();
                         }
+                    } else if kept && !buf.trim().is_empty() && buf != *name {
+                        // Shift+Enter renames it and keeps the field open.
+                        app.run("artboard.setProps", json!({"index": i, "name": buf.trim()})).ok();
                     }
                 } else {
                     ui.painter().text(name_rect.left_center(), egui::Align2::LEFT_CENTER, name, egui::FontId::proportional(12.5), t.text);
@@ -308,6 +387,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 }
                 let m = ui.input(|inp| inp.modifiers);
                 let tool = app.session.tool_id() == "artboard";
+                row_clicked |= resp.clicked();
                 if resp.clicked() && tool && m.shift {
                     let from = select_range(app, pstate(ui.ctx(), "ab-anchor"), i, abs.len());
                     set_pstate(ui.ctx(), "ab-anchor", Some(from));
@@ -329,7 +409,13 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 }
             }
         });
+        scrolled.inner_rect
     });
+    // Keyboard: the panel takes it with a click on a row and gives it up when the pointer is
+    // pressed outside the list or the panel is not drawn (`ab-keys`: the frame it last had it in).
+    let pressed_outside = ui.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(|p| !list_rect.contains(p)));
+    let keys = row_clicked || (has_keyboard(app, ui.ctx()) && !pressed_outside);
+    set_pstate(ui.ctx(), "ab-keys", keys.then_some(app.frame));
     let n = abs.len();
     widgets::bottom_bar(ui, |ui| {
         if widgets::icon_button_enabled(ui, "dc-rearrange", tl!("Rearrange All Artboards"), false, n > 1, 24.0).clicked() {
@@ -624,6 +710,39 @@ mod tests {
             crate::canvas::dispatch(&mut app, &vectorcraft_tools::PointerEvent::new(kind, 100.0, 100.0), view);
         }
         assert_eq!((app.session.tool_options()["active"].clone(), selected(&app, 2)), (json!(0), 0));
+    }
+
+    /// Shift+Enter in a row's name field renames the artboard and keeps the field open, the new
+    /// name selected; Enter then renames it again and closes the field.
+    #[test]
+    fn shift_enter_renames_an_artboard_and_keeps_the_field_open() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 150})).unwrap();
+        app.session.execute("artboard.new", &json!({"x": 400, "y": 300, "width": 100, "height": 50})).unwrap();
+        let ctx = egui::Context::default();
+        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui));
+            out.textures_delta.clear();
+        };
+        let name = |app: &VectorcraftApp| app.session.active().unwrap().doc.artboards[1].name.clone();
+        let key = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
+        // What a double-click on the second row's name does: its name field opens.
+        set_pstate::<Option<usize>>(&ctx, "ab-edit", Some(1));
+        frame(&mut app, vec![]);
+        frame(&mut app, vec![]);
+        frame(&mut app, vec![key(egui::Key::A, egui::Modifiers::COMMAND), egui::Event::Text("Cover".into())]);
+        frame(&mut app, vec![key(egui::Key::Enter, egui::Modifiers::SHIFT)]);
+        assert_eq!(name(&app), "Cover", "Shift+Enter applies the name");
+        let field = ctx.memory(|m| m.focused()).expect("the field keeps the focus");
+        assert_eq!(pstate::<Option<usize>>(&ctx, "ab-edit"), Some(1), "and stays open");
+        frame(&mut app, vec![]);
+        let selected = egui::TextEdit::load_state(&ctx, field).and_then(|st| st.cursor.char_range()).map(|r| r.as_sorted_char_range());
+        assert_eq!(selected.map(|r| (r.start.0, r.end.0)), Some((0, 5)), "the name shown is selected");
+        frame(&mut app, vec![egui::Event::Text("Back".into())]);
+        frame(&mut app, vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
+        frame(&mut app, vec![]);
+        assert_eq!(name(&app), "Back", "typing replaced it, and Enter applies that");
+        assert_eq!(pstate::<Option<usize>>(&ctx, "ab-edit"), None, "and closes the field");
     }
 
     /// A row's options icon opens Artboard Options for that row's artboard and leaves the tool as
