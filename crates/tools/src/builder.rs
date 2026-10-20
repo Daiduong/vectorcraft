@@ -718,10 +718,11 @@ impl Tool for LivePaintBucketTool {
 
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let mut out = lp_overlays(&self.hover, &self.cache, HIGHLIGHT_RED, 4.0);
-        if cx.measurement_labels && !self.edge {
-            if let (Some(p), Some(area)) = (self.at, lp_face_area(&self.hover, &self.cache)) {
-                out.push(Overlay::Measure { p, text: format!("Area: {}", cx.len(area)) });
-            }
+        if cx.measurement_labels
+            && !self.edge
+            && let (Some(p), Some(area)) = (self.at, lp_face_area(&self.hover, &self.cache))
+        {
+            out.push(Overlay::Measure { p, text: format!("Area: {}", cx.len(area)) });
         }
         out
     }
