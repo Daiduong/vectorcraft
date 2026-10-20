@@ -941,6 +941,15 @@ message, as in `` `steps` must be a number, not "8" ``, and change nothing: `ste
 `highlight` in `object.mesh.create`; and `opacity` in `object.mesh.setPointColor`. A null is read as a key left out.
 `object.mesh.create` refuses an `at` that is not two numbers with `` `at` must be [x, y] ``.
 
+The transform, Align, Object Properties and Live Shape Properties commands refuse a string, a number or another value
+that is not true or false with `` `strokes` must be true or false ``, naming the key, and leave the document and its
+undo history as they were: the options `copy`, `strokes`, `corners`, `patterns`, `objects` and `typeAreas` in
+`object.transform`, `object.move`, `object.nudge`, `object.rotate`, `object.scale`, `object.reflect`, `object.shear`,
+`object.transformAgain` and `object.setBounds`; `anchors` in `object.transform`; `big` in `object.nudge`;
+`absolute` in `object.rotate`; `proportional` in `object.setBounds`; `patterns` in `object.align`, `object.distribute`
+and `object.distributeSpacing`; `visible`, `locked`, `isolate` and `knockoutShape` in `object.setProps`; and
+`invertPie` and `makeSidesEqual` in `object.setLiveShape`. A null is read as a key left out.
+
 A step can use an earlier step's result, in `run` as in the `command_batch` tool. A parameter string that is exactly
 `$N` or `$N.path` takes that value from the result of step `N` (counting from 0, in the order they ran; `run --in`'s
 open isn't a step), and `$last…` from the step before. A path goes into objects by key and arrays by index:
