@@ -23,6 +23,7 @@ pub mod intertwine;
 pub mod meshblend;
 pub mod meshedit;
 pub mod mirror;
+pub mod objects_on_path;
 pub mod params;
 pub mod pathtype;
 pub mod pen;
@@ -251,6 +252,8 @@ pub struct ToolContext<'a> {
     /// points (a transform's reference point) land on anchors and ruler guides within
     /// [`Self::snap_tolerance`].
     pub snap_to_point: bool,
+    /// View → Snap to Glyph: drawn points snap to live-text baselines and glyph bounds (with Smart Guides).
+    pub snap_to_glyph: bool,
     /// View → Show Corner Widget: paths show draggable Live Corners widgets in their corners.
     pub corner_widgets: bool,
     /// Which paint proxy is in front (true = Fill): the one the Gradient tool edits.
@@ -262,6 +265,8 @@ pub struct ToolContext<'a> {
     pub appearance_item: Option<usize>,
     /// General → Constrain Angle (degrees): Shift constrains drags to 45° steps from it.
     pub constrain_angle: f64,
+    /// General → Keyboard Increment: arrow-key nudges in document units (Shift multiplies by 10).
+    pub keyboard_increment: f64,
     /// The selected freeform gradient point (`paint.freeform.selectPoint`), marked on the
     /// freeform annotator.
     pub freeform_point: Option<usize>,
@@ -381,11 +386,9 @@ impl ToolContext<'_> {
     }
     /// A straight segment: distance, angle (degrees counter-clockwise from +x) and offset, as the
     /// Measure tool and Smart Guides measurement labels show while drawing.
-    pub fn segment_measure_label(&self, from: Point, to: Point) -> String {
-        let d = to - from;
-        let dist = d.hypot();
-        let ang = (-d.y).atan2(d.x).to_degrees();
-        format!("D: {}\nAngle: {ang:.1}°\n{}", self.len(dist), self.offset_label(d.x, d.y))
+    pub fn segment_measure_label(&self, a: Point, b: Point) -> String {
+        let (dist, ang, dx, dy) = xform::measure(a, b);
+        format!("D: {}\nAngle: {ang:.1}°\n{}", self.len(dist), self.offset_label(dx, dy))
     }
     /// What Snap to Grid snaps to: the grid's subdivisions (or its lines without any).
     pub fn grid_step(&self) -> f64 {
@@ -410,6 +413,7 @@ impl ToolContext<'_> {
             path_only: self.path_only,
             type_path_only: self.type_path_only,
             scope: self.isolation,
+            skip_guides: !self.guides,
         }
     }
 }
@@ -524,6 +528,9 @@ pub enum Cursor {
     BlendObject,
     /// The Blend tool over an anchor point (the blend starts there): a crosshair with a target.
     BlendAnchor,
+    /// The Objects on Path tool over a path the selected objects can attach to (a click attaches
+    /// them).
+    ObjectsOnPath,
     /// Over a bracket of selected type on a path (a drag moves it): the arrow with a bracket.
     PathBracket,
     /// Over the type widget of selected type (a double-click converts point type to area type and
@@ -699,6 +706,7 @@ impl Cursor {
             | Cursor::Shaper
             | Cursor::LivePaintBucket
             | Cursor::Measure
+            | Cursor::ObjectsOnPath
             | Cursor::PrintTiling
             | Cursor::SymbolSprayer
             | Cursor::SymbolShifter
@@ -817,6 +825,7 @@ pub fn create(id: &str) -> Box<dyn Tool> {
             .or_else(|| cropimage::create(other))
             .or_else(|| cut::create(other))
             .or_else(|| intertwine::create(other))
+            .or_else(|| objects_on_path::create(other))
             .or_else(|| touchtype::create(other))
             .unwrap_or_else(|| Box::new(NoopTool(tool_info(other).map(|t| t.id).unwrap_or("selection")))),
     }
@@ -928,11 +937,13 @@ pub(crate) mod testutil {
             show_bbox: true,
             snap_to_pixel: false,
             snap_to_point: true,
+            snap_to_glyph: false,
             corner_widgets: true,
             fill_active: true,
             gradient_stop: None,
             appearance_item: None,
             constrain_angle: 0.0,
+            keyboard_increment: 1.0,
             freeform_point: None,
             raster_sample: 1,
             preview_bounds: false,
