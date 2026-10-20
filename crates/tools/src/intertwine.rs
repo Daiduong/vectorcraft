@@ -265,12 +265,29 @@ impl Tool for IntertwineTool {
         matches!(key, ToolKey::Escape | ToolKey::Enter)
     }
 
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let color = crate::builder::HIGHLIGHT_RED;
         let mut out = vec![];
         if self.dragging && self.points.len() > 1 {
             if let Some(l) = self.lasso() {
                 out.push(Overlay::Path { path: l.to_bezpath(), color, width: 1.0, dashed: true });
+                if cx.measurement_labels {
+                    let area = po::area(&l, FillRule::NonZero).abs();
+                    if area > 0.0 {
+                        let p = *self.points.last().unwrap_or(&self.points[0]);
+                        let mut text = if self.rect {
+                            let r = Rect::from_points(self.points[0], p);
+                            cx.size_label(r.width(), r.height())
+                        } else {
+                            String::new()
+                        };
+                        if !text.is_empty() {
+                            text.push('\n');
+                        }
+                        text.push_str(&format!("Area: {}", cx.len(area)));
+                        out.push(Overlay::Measure { p, text });
+                    }
+                }
             }
         } else if let Some(h) = &self.hover {
             out.push(Overlay::Path { path: h.clone(), color, width: 2.0, dashed: false });
@@ -339,5 +356,32 @@ mod tests {
         let around = |r: Rect| shapes::rectangle(r);
         assert_eq!(faces_in(&f, &around(Rect::new(4.0, -1.0, 11.0, 11.0))).len(), 1);
         assert!(faces_in(&f, &around(Rect::new(20.0, 0.0, 30.0, 10.0))).is_empty());
+    }
+
+    #[test]
+    fn intertwine_lasso_drag_honors_measurement_labels() {
+        use crate::testutil::{cx, paint};
+        use vectorcraft_doc::{Document, Selection};
+
+        let (d, s, p) = (Document::new(500.0, 500.0), Selection::default(), paint());
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        let t = IntertwineTool {
+            dragging: true,
+            rect: true,
+            points: vec![Point::new(0.0, 0.0), Point::new(100.0, 50.0)],
+            ..IntertwineTool::default()
+        };
+        let text = t
+            .overlays(&on)
+            .iter()
+            .find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        assert!(text.contains(&on.size_label(100.0, 50.0)), "{text}");
+        assert!(text.contains(&format!("Area: {}", on.len(5000.0))), "{text}");
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 }
