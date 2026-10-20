@@ -384,11 +384,10 @@ impl ToolContext<'_> {
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))
     }
-    /// Arc tool drag: chord length and sweep (quarter-ellipse open, three-quarter when closed).
-    pub fn arc_measure_label(&self, a: Point, b: Point, closed: bool) -> String {
+    /// Arc tool drag: chord length and sweep (quarter-ellipse; closing only adds a corner segment).
+    pub fn arc_measure_label(&self, a: Point, b: Point, _closed: bool) -> String {
         let chord = (b - a).hypot();
-        let sweep = if closed { 270.0 } else { 90.0 };
-        format!("D: {}\nSweep: {sweep:.1}°", self.len(chord))
+        format!("D: {}\nSweep: 90.0°", self.len(chord))
     }
     /// A segment label while drawing: distance, angle and offsets between two points.
     pub fn segment_measure_label(&self, a: Point, b: Point) -> String {

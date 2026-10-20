@@ -366,7 +366,7 @@ mod tests {
         assert!(open.starts_with("D: 100.00 pt"), "{open}");
         assert!(open.contains("Sweep: 90.0°"), "{open}");
         let closed = label(true);
-        assert!(closed.contains("Sweep: 270.0°"), "{closed}");
+        assert!(closed.contains("Sweep: 90.0°"), "{closed}");
     }
 
     /// The start and the dragged corner snap to Smart Guides (#506), Shift sliding the corner of
