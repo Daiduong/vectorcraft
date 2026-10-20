@@ -2713,6 +2713,7 @@ mod tests {
             "Duplicate Selection",
             "Delete Selection",
             "Name Layers with AI…",
+            "Slice Artwork with AI…",
             "Options for Selection…",
             "Make/Release Clipping Mask",
             "Enter Isolation Mode",
