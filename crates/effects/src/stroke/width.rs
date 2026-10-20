@@ -3,10 +3,10 @@
 //! A stroke with a [`WidthProfile`] is drawn as a filled outline: each subpath is flattened, and
 //! at every sample the left and right offsets `width/2 · factor(t)` (t = fraction of the
 //! subpath's length) are placed along the normal. Corners of the path take the stroke's miter,
-//! round or bevel join on their outer side (smooth points bend round), open subpaths get butt,
-//! round or projecting caps (the round cap blends the two side widths), and closed subpaths become
-//! two loops of opposite orientation filled with the non-zero rule. Dashes are pieces of a longer
-//! subpath and read the profile where they sit along it ([`outline_spans`]).
+//! round or bevel join on their outer side (smooth points offset along the curve's normal), open
+//! subpaths get butt, round or projecting caps (the round cap blends the two side widths), and
+//! closed subpaths become two loops of opposite orientation filled with the non-zero rule. Dashes
+//! are pieces of a longer subpath and read the profile where they sit along it ([`outline_spans`]).
 
 use std::f64::consts::PI;
 
@@ -244,9 +244,10 @@ impl Ctx<'_> {
         polygon(out, ring.into_iter(), self.tol);
     }
 
-    /// The offset points at `v` on one side (`side` 1: left, −1: right), `w` from the path: the
-    /// join on the outer side of a turn, the inner miter point (or a detour through the vertex
-    /// when that would overshoot a segment) on the inner side.
+    /// The offset points at `v` on one side (`side` 1: left, −1: right), `w` from the path. A
+    /// smooth point follows the vertex normal, the offset of the curve itself; a corner takes the
+    /// join on its outer side and the inner miter point (or a detour through the vertex when that
+    /// would overshoot a segment) on its inner side.
     ///
     /// Each point says whether the outline is sharp there: a path corner, a miter tip, a width
     /// step or a butt cap end. Only those break the smooth fitting; a rapid width change makes
@@ -261,14 +262,17 @@ impl Ctx<'_> {
             return;
         }
         let miter = if c > 1e-9 { Some(v.p + mid * (w / (2.0 * c * c))) } else { None };
+        // The offset of the smooth path itself is at `w` along the vertex normal. The polyline
+        // miter (`w / c`) is the offset of the flattened segments, not of the curve: at a tight
+        // curve it spiked every sample outward and left a scalloped edge. A round join would dent
+        // it inward instead; the unit bisector is the smooth normal.
+        let normal = if c > 1e-9 { Some(v.p + mid * (w / (2.0 * c))) } else { None };
         if v.b.dot(na) <= 0.0 {
             // Outer side: the path turns away from it.
             if !v.corner {
-                // A smooth point has no join: mitering its flattened segments is the offset
-                // itself. A round join here would dent the edge by the turn's excess at every
-                // sample, which shows as scallops along a wide curve.
-                match miter {
-                    Some(m) => pts.push((m, step)),
+                // A smooth point has no join: its offset is along the vertex normal.
+                match normal {
+                    Some(n) => pts.push((n, step)),
                     None => self.arc(pts, v, na, nb, w, step),
                 }
             } else {
@@ -284,10 +288,14 @@ impl Ctx<'_> {
             // A reversal has no inner miter; go through the vertex. That is a notch in the
             // outline, so it stays sharp: fitting a curve through it would loop.
             pts.extend([(v.p + na * w, true), (v.p, true), (v.p + nb * w, true)]);
-        } else if !v.corner || w * (1.0 - c * c).sqrt() / c <= v.la.min(v.lb) {
-            // A smooth point's inner offset is a miter too, however short its neighbours are: a
-            // sample added right beside a vertex must not turn it into a detour to the centre.
-            pts.push((miter.unwrap_or(v.p), step || v.corner));
+        } else if !v.corner {
+            // A smooth point's inner offset follows its normal too: a sample added right beside a
+            // vertex must not turn it into a detour to the centre.
+            let n = normal.unwrap_or(v.p);
+            pts.push((n, step));
+        } else if w * (1.0 - c * c).sqrt() / c <= v.la.min(v.lb) {
+            // A corner's inner offset is its miter while that stays inside both segments.
+            pts.push((miter.unwrap_or(v.p), true));
         } else {
             // The inner offset of a corner cuts through the vertex; keep that notch sharp.
             pts.extend([(v.p + na * w, true), (v.p, true), (v.p + nb * w, true)]);
@@ -408,26 +416,44 @@ fn polygon(out: &mut BezPath, pts: impl Iterator<Item = (Point, bool)>, tol: f64
     out.close_path();
 }
 
-/// The tangent at `run[i]`: the angle bisector of its two segments, as long as their harmonic
-/// mean (equal to a centered difference for evenly spaced points, and bounded by the shorter
-/// segment so uneven samples can't make the curve overshoot). At an end, the one segment it has.
-fn tangent(run: &[Point], i: usize, cyclic: bool) -> Vec2 {
+/// The tangent at the start of the segment `run[i] → run[j]`, for that segment's parameter. This
+/// is the chord-length Catmull–Rom tangent: the secant across the point's neighbours, scaled by
+/// the segment's share of the neighbouring lengths. The share keeps a short sample from flattening
+/// the long segment beside it, while the secant's own length (not a unit direction) keeps a curved
+/// run from overshooting. At an end, the segment itself.
+fn tangent_start(run: &[Point], i: usize, j: usize, cyclic: bool) -> Vec2 {
     let n = run.len();
-    let (prev, next) = if cyclic { (run[(i + n - 1) % n], run[(i + 1) % n]) } else { (run[i.saturating_sub(1)], run[(i + 1).min(n - 1)]) };
-    let (a, b) = (run[i] - prev, next - run[i]);
-    let (la, lb) = (a.hypot(), b.hypot());
-    if la <= 1e-12 {
-        return b;
+    let (p, q) = (run[i], run[j]);
+    let l = p.distance(q);
+    if l <= 1e-12 {
+        return Vec2::ZERO;
     }
-    if lb <= 1e-12 {
-        return a;
+    if cyclic || i > 0 {
+        let prev = run[(i + n - 1) % n];
+        let la = p.distance(prev);
+        if la + l > 1e-12 {
+            return (q - prev) * (l / (la + l));
+        }
     }
-    let d = a / la + b / lb;
-    let dl = d.hypot();
-    if dl <= 1e-12 {
-        return a;
+    q - p
+}
+
+/// The tangent at the end of the segment `run[i] → run[j]`, pointing forward.
+fn tangent_end(run: &[Point], i: usize, j: usize, cyclic: bool) -> Vec2 {
+    let n = run.len();
+    let (p, q) = (run[i], run[j]);
+    let l = p.distance(q);
+    if l <= 1e-12 {
+        return Vec2::ZERO;
     }
-    d * (2.0 * la * lb / ((la + lb) * dl))
+    if cyclic || j + 1 < n {
+        let next = run[(j + 1) % n];
+        let lb = q.distance(next);
+        if l + lb > 1e-12 {
+            return (next - p) * (l / (l + lb));
+        }
+    }
+    q - p
 }
 
 /// Append a run of points as cubics through them (or one line when they are collinear).
@@ -443,7 +469,7 @@ fn smooth_run(out: &mut BezPath, run: &[Point], cyclic: bool, tol: f64) {
     let segs = if cyclic { n } else { n - 1 };
     for i in 0..segs {
         let j = (i + 1) % n;
-        let (m0, m1) = (tangent(run, i, cyclic), tangent(run, j, cyclic));
+        let (m0, m1) = (tangent_start(run, i, j, cyclic), tangent_end(run, i, j, cyclic));
         if m0.hypot() <= 1e-12 || m1.hypot() <= 1e-12 {
             out.line_to(run[j]);
         } else {
@@ -616,6 +642,18 @@ mod tests {
         let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
         let a = area(&width_outline(&c, 10.0, &p, &capped(LineCap::Butt), 0.001));
         let want = 2.0 * std::f64::consts::PI * 50.0 * 10.0;
+        assert!((a - want).abs() / want < 0.01, "{a} vs {want}");
+    }
+
+    #[test]
+    fn a_coarse_wide_circle_keeps_its_offset() {
+        // A wide stroke flattened coarsely: offsetting each flattened segment by its miter
+        // (`w / cos(θ/2)`) scalloped the circle outward at every sample. Smooth points follow the
+        // curve's normal instead, so the ring is the annulus between radii 10 and 30.
+        let c = kurbo::Circle::new((0.0, 0.0), 20.0).to_path(0.5);
+        let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
+        let a = area(&width_outline(&c, 20.0, &p, &capped(LineCap::Butt), 0.5));
+        let want = std::f64::consts::PI * (30.0 * 30.0 - 10.0 * 10.0);
         assert!((a - want).abs() / want < 0.01, "{a} vs {want}");
     }
 }
