@@ -838,6 +838,7 @@
 	DXF Import Options	Опции за импортиране на DXF
 	DXF Info	Информация за DXF
 	DXF Options	Опции за DXF
+	DWG Options	Опции за DWG
 	DXF Options Dialog	Диалогов прозорец с опции за DXF
 	e.g. 1-3, 5	напр. 1-3, 5
 	Each page prints as one image, at the document's raster effects resolution.	Всяка страница се отпечатва като едно изображение при разделителната способност на растерните ефекти на документа.
@@ -1000,6 +1001,7 @@
 	Export CSS…	Експортиране на CSS…
 	Export Document	Експортиране на документ
 	Export DXF	Експортиране в DXF
+	Export DWG	Експортиране в DWG
 	Export EPS	Експортиране в EPS
 	Export for Screens	Експортиране за екрани
 	Export for Screens Settings	Настройки за експортиране за екрани
@@ -4658,7 +4660,6 @@ lighting	Light	Светлина
 	Current Colors	Текущи цветове
 	Current Colors (0)	Текущи цветове (0)
 	Custom Scale	Персонализиран мащаб
-	DWG (use DXF)	DWG (използване на DXF)
 	Default Graphic Style	Стил на графика по подразбиране
 	Diamond (open)	Диамант (отворен)
 	Differences from VectorCraft Default:	Разлики от настройките по подразбиране на VectorCraft:

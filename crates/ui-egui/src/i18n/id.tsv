@@ -1927,6 +1927,7 @@ lighting	Light	Cahaya
 	Scaling	Penskalaan
 	Alter Paths for Appearance	Ubah jalur untuk tampilan
 	DXF Options	Opsi DXF
+	DWG Options	Opsi DWG
 	Export Option	Opsi ekspor
 	Export Selected Art Only	Ekspor hanya karya seni terpilih
 	Number of Colors:	Jumlah warna:
@@ -2853,6 +2854,7 @@ theme	Appearance	Tampilan
 	DXF Info	Info DXF
 	Export Document	Ekspor dokumen
 	Export DXF	Ekspor DXF
+	Export DWG	Ekspor DWG
 	Export EPS	Ekspor EPS
 	Export for Screens	Ekspor untuk layar
 	Export for Screens Settings	Pengaturan ekspor untuk layar
@@ -4683,7 +4685,6 @@ imageTrace	Outline	Kontur
 	16 bits/pixel	16 bit/piksel
 	24 bits/pixel	24 bit/piksel
 	32 bits/pixel	32 bit/piksel
-	DWG (use DXF)	DWG (gunakan DXF)
 	Artistic	Artistik
 	Film Grain…	Butiran film…
 	Highlight Area	Area sorotan
