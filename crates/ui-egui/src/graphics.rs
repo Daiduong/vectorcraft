@@ -115,6 +115,11 @@ impl VectorcraftApp {
             self.fonts_ready = false;
             self.ui_fonts = Default::default();
             self.canvas.texture = None;
+            self.canvas.gpu_texture = None;
+            #[cfg(feature = "gpu-canvas")]
+            {
+                self.gpu_canvas = None;
+            }
             self.canvas.key = None;
             self.place.forget_textures();
         }

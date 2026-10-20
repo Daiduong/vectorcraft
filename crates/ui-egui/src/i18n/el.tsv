@@ -5188,6 +5188,20 @@ effect	Points	Σημεία
 @msg	too many library panels were opened in this session	άνοιξαν πάρα πολλοί πίνακες βιβλιοθηκών σε αυτή τη συνεδρία
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Η εικόνα είναι {_1} × {_2} εικονοστοιχεία, πάνω από {LARGE_TRACE_SIDE} σε μία πλευρά: ανιχνεύεται, αλλά πιο αργά. Μια προρύθμιση χαμηλότερης πιστότητας ή ένα μικρότερο αντίγραφο της εικόνας ανιχνεύεται γρηγορότερα.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Η εικόνα ανιχνεύτηκε σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη από {_3} × {_4} (το πολύ {_5} megapixel).
+
+# Experimental GPU canvas
+	Canvas Renderer	Απόδοση καμβά
+	CPU	CPU
+	GPU (Experimental)	GPU (πειραματικό)
+@msg	GPU alpha pipeline is unavailable	Η διοχέτευση άλφα της GPU δεν είναι διαθέσιμη
+@msg	GPU canvas device is unavailable	Η συσκευή GPU του καμβά δεν είναι διαθέσιμη
+@msg	GPU canvas frame queue limit reached	Συμπληρώθηκε το όριο της ουράς καρέ GPU του καμβά
+@msg	GPU canvas validation has not completed	Η επικύρωση του καμβά GPU δεν έχει ολοκληρωθεί
+@msg	GPU renderer is unavailable	Η απόδοση μέσω GPU δεν είναι διαθέσιμη
+@msg	GPU target was not created	Δεν δημιουργήθηκε ο στόχος απόδοσης της GPU
+@msg	canvas exceeds graphics device limits	ο καμβάς υπερβαίνει τα όρια της συσκευής γραφικών
+@msg	this graphics device has no compatible compute renderer	αυτή η συσκευή γραφικών δεν διαθέτει συμβατή απόδοση μέσω υπολογιστικών σκιαστών
+@msg	GPU canvas render-target memory budget exceeded	υπέρβαση ορίου μνήμης στόχων απόδοσης καμβά GPU
 	Artboard {n} of {total}	Πίνακας σχεδίασης {n} από {total}
 	Encoding and writing the file…	Κωδικοποίηση και εγγραφή του αρχείου…
 @plural	{n} more export waiting|{n} more exports waiting	{n} ακόμη εξαγωγή σε αναμονή|{n} ακόμη εξαγωγές σε αναμονή

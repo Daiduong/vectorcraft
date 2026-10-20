@@ -30,6 +30,8 @@ pub mod find_font;
 pub mod floating;
 pub mod font_menu;
 mod free_transform;
+#[cfg(feature = "gpu-canvas")]
+mod gpu_canvas;
 pub mod graphics;
 pub mod i18n;
 pub mod icon_data;
@@ -305,6 +307,11 @@ pub struct Services {
 pub struct CanvasCache {
     pub renderer: vectorcraft_render::Renderer,
     pub texture: Option<egui::TextureHandle>,
+    pub gpu_texture: Option<egui::TextureId>,
+    pub backend: &'static str,
+    pub backend_reason: Option<String>,
+    /// A current CPU frame temporarily replaced a backed-up GPU submission.
+    pub gpu_retry: bool,
     pub key: Option<CacheKey>,
     pub last_ms: f64,
     /// The frame shown drew raster effects from rasters made before their objects moved, or at a
@@ -339,8 +346,12 @@ pub type SliceCache = ((u64, u64), std::sync::Arc<Vec<vectorcraft_doc::SliceArea
 /// [`CanvasCache::print_tiling`]: the print tiling of (document uid, revision).
 pub type PrintTilingCache = ((u64, u64), std::sync::Arc<Vec<vectorcraft_pdf::TilingPage>>);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CacheKey {
+    pub gpu: bool,
+    /// Fonts, active colour settings, registered profiles and plug-ins affect GPU-prepared artwork
+    /// independently of the document revision. They must also invalidate completed worker jobs.
+    pub resources: (u64, vectorcraft_color::cms::ColorSettings, u64, u64),
     pub doc: usize,
     pub revision: u64,
     /// An interaction is in progress ([`vectorcraft_render::RenderOptions::interacting`]).
@@ -442,6 +453,8 @@ pub struct VectorcraftApp {
     /// The graphics adapter the window renders with ("name (backend)"), as the host reports it:
     /// shown in Help › About and `ui.inspect` for GPU bug reports. `None` when unknown.
     pub graphics_adapter: Option<String>,
+    #[cfg(feature = "gpu-canvas")]
+    pub(crate) gpu_canvas: Option<gpu_canvas::GpuCanvas>,
     /// File → Place: picked files, the place cursor's thumbnails, the Control bar's image details.
     pub place: place::PlaceState,
     /// The Paste commands can paste from the system clipboard alone: it holds something to paste
@@ -527,6 +540,10 @@ impl VectorcraftApp {
             canvas: CanvasCache {
                 renderer: vectorcraft_render::Renderer::new(),
                 texture: None,
+                gpu_texture: None,
+                backend: "cpu",
+                backend_reason: None,
+                gpu_retry: false,
                 key: None,
                 last_ms: 0.0,
                 moved: false,
@@ -567,6 +584,8 @@ impl VectorcraftApp {
             custom_titlebar: false,
             last_window_title: String::new(),
             graphics_adapter: None,
+            #[cfg(feature = "gpu-canvas")]
+            gpu_canvas: None,
             place: Default::default(),
             system_paste: false,
             system_paste_at: f64::NEG_INFINITY,

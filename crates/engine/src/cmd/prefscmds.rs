@@ -302,6 +302,7 @@ pub const PREF_SPECS: &[PrefSpec] = &[
     p!("gpuPerformance", "Performance", "GPU Performance", "GPU Performance", bool),
     p!("animatedZoom", "Performance", "GPU Performance", "Animated Zoom", bool),
     p!("gpuPreference", "Performance", "GPU Performance", "Graphics Processor", choice(GPU_PREFERENCES)),
+    p!("canvasRenderer", "Performance", "GPU Performance", "Canvas Renderer", choice(&[("cpu", "CPU"), ("gpu", "GPU (Experimental)")])),
     p!("historyStates", "Performance", "", "History States", int(5, 1000)),
     p!("realTimeDrawing", "Performance", "", "Real-time Drawing and Editing", bool),
     p!("renderThreads", "Performance", "", "Render Threads (-1 = Automatic)", int(-1, 64)),

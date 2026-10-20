@@ -5195,6 +5195,11 @@ swatch	Bright Violet	Violet cerah
 	Typing	Mengetik
 	Persistent	Persisten
 	Library Panel Options	Opsi panel pustaka
+
+# Experimental GPU canvas
+	Canvas Renderer	Perender kanvas
+	CPU	CPU
+	GPU (Experimental)	GPU (eksperimental)
 	Artboard {n} of {total}	Artboard {n} dari {total}
 	Encoding and writing the file…	Mengodekan dan menulis berkas…
 @plural	{n} more export waiting|{n} more exports waiting	{n} ekspor lagi menunggu

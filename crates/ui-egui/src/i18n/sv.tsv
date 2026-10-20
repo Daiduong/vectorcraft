@@ -5192,6 +5192,20 @@ theme	Appearance	Utseende
 @msg	too many library panels were opened in this session	för många bibliotekspaneler har öppnats i den här sessionen
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Bilden är {_1} × {_2} pixlar, mer än {LARGE_TRACE_SIDE} på en sida: den vektoriseras, men långsammare. En förinställning med lägre återgivning eller en mindre kopia av bilden går snabbare.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Bilden vektoriserades vid {_1} × {_2} pixlar, nedskalad från {_3} × {_4} (högst {_5} megapixlar).
+
+# Experimental GPU canvas
+	Canvas Renderer	Renderare för arbetsytan
+	CPU	CPU
+	GPU (Experimental)	GPU (experimentell)
+@msg	GPU alpha pipeline is unavailable	GPU-pipelinen för alfa är inte tillgänglig
+@msg	GPU canvas device is unavailable	GPU-enheten för arbetsytan är inte tillgänglig
+@msg	GPU canvas frame queue limit reached	Gränsen för GPU-arbetsytans bildkö har nåtts
+@msg	GPU canvas validation has not completed	Valideringen av GPU-arbetsytan är inte slutförd
+@msg	GPU renderer is unavailable	GPU-renderaren är inte tillgänglig
+@msg	GPU target was not created	GPU-renderingsmålet skapades inte
+@msg	canvas exceeds graphics device limits	arbetsytan överskrider grafikenhetens gränser
+@msg	this graphics device has no compatible compute renderer	denna grafikenhet har ingen kompatibel beräkningsrenderare
+@msg	GPU canvas render-target memory budget exceeded	minnesbudgeten för GPU-arbetsytans renderingsmål har överskridits
 	Artboard {n} of {total}	Rityta {n} av {total}
 	Encoding and writing the file…	Kodar och skriver filen…
 @plural	{n} more export waiting|{n} more exports waiting	{n} export till väntar|{n} exporter till väntar

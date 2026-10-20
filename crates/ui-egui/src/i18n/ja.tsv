@@ -4889,6 +4889,20 @@ lighting	Light	ライト
 @msg	too many library panels were opened in this session	このセッションで開いたライブラリパネルが多すぎます
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	画像は {_1} × {_2} ピクセルで、一辺が {LARGE_TRACE_SIDE} を超えています。トレースはできますが、時間がかかります。忠実度の低いプリセットや画像の小さいコピーを使うと速くなります。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	画像は {_3} × {_4} から縮小した {_1} × {_2} ピクセルでトレースされました (最大 {_5} メガピクセル)。
+
+# Experimental GPU canvas
+	Canvas Renderer	キャンバスレンダラー
+	CPU	CPU
+	GPU (Experimental)	GPU（試験的）
+@msg	GPU alpha pipeline is unavailable	GPU のアルファ処理パイプラインを利用できません
+@msg	GPU canvas device is unavailable	キャンバス用の GPU デバイスを利用できません
+@msg	GPU canvas frame queue limit reached	GPU キャンバスのフレームキューが上限に達しました
+@msg	GPU canvas validation has not completed	GPU キャンバスの検証が完了していません
+@msg	GPU renderer is unavailable	GPU レンダラーを利用できません
+@msg	GPU target was not created	GPU の描画先が作成されませんでした
+@msg	canvas exceeds graphics device limits	キャンバスがグラフィックスデバイスの制限を超えています
+@msg	this graphics device has no compatible compute renderer	このグラフィックスデバイスには互換性のあるコンピュートレンダラーがありません
+@msg	GPU canvas render-target memory budget exceeded	GPUキャンバスの描画ターゲットのメモリ上限を超えました
 	Artboard {n} of {total}	アートボード {n} / {total}
 	Encoding and writing the file…	ファイルをエンコードして書き込み中…
 @plural	{n} more export waiting|{n} more exports waiting	待機中の書き出し: あと {n} 件

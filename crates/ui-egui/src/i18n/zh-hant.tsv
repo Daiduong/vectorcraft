@@ -4862,6 +4862,11 @@ lighting	Light	光源
 	Enable Guides for 9-Slice Scaling	啟用 9-slice 縮放參考線
 	Persistent	持久
 	Library Panel Options	資料庫面板選項
+
+# Experimental GPU canvas
+	Canvas Renderer	畫布算繪器
+	CPU	CPU
+	GPU (Experimental)	GPU（實驗性）
 	Artboard {n} of {total}	工作區域 {n} / {total}
 	Encoding and writing the file…	正在編碼並寫入檔案…
 @plural	{n} more export waiting|{n} more exports waiting	另有 {n} 個匯出等待中
@@ -4905,3 +4910,14 @@ lighting	Light	光源
 	Plaster	塑膠效果
 	Note Paper…	便條紙…
 	Note Paper	便條紙
+
+# Experimental GPU canvas integration
+@msg	GPU alpha pipeline is unavailable	GPU Alpha 管線無法使用
+@msg	GPU canvas device is unavailable	GPU 畫布裝置無法使用
+@msg	GPU canvas frame queue limit reached	已達 GPU 畫布影格佇列上限
+@msg	GPU canvas validation has not completed	GPU 畫布驗證尚未完成
+@msg	GPU renderer is unavailable	GPU 算繪器無法使用
+@msg	GPU target was not created	未建立 GPU 算繪目標
+@msg	canvas exceeds graphics device limits	畫布超出圖形裝置限制
+@msg	this graphics device has no compatible compute renderer	此圖形裝置沒有相容的計算算繪器
+@msg	GPU canvas render-target memory budget exceeded	GPU 畫布算繪目標超出記憶體預算

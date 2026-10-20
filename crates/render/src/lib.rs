@@ -10,7 +10,11 @@ mod brush_fx;
 pub mod encode;
 mod freeform;
 mod fx;
+#[cfg(feature = "gpu")]
+pub mod gpu;
 mod group;
+#[cfg(feature = "gpu")]
+pub use compute_vello as gpu_backend;
 mod images;
 mod ink;
 mod live;
@@ -433,6 +437,10 @@ struct PlacedEntry {
 /// Reusable renderer (keeps the render context, geometry and glyph caches between frames; decoded
 /// images are shared by all renderers, see [`set_image_cache_budget`]).
 pub struct Renderer {
+    #[cfg(feature = "gpu")]
+    gpu_images: FrameCache<gpu::ImageKey, compute_vello::peniko::ImageData>,
+    #[cfg(feature = "gpu")]
+    gpu_inventory: Option<gpu::ImageInventory>,
     /// Glyph geometry per text object, keyed by `Arc` identity like `geom` (see [`Self::text_geom_of`]).
     texts: FrameCache<usize, (Arc<Node>, Arc<TextGeom>)>,
     /// The [`vectorcraft_text::FontDb::generation`] `texts` was laid out with: type lays out
@@ -606,6 +614,10 @@ impl Frame<'_> {
 impl Renderer {
     pub fn new() -> Self {
         Self {
+            #[cfg(feature = "gpu")]
+            gpu_images: FrameCache::new(64 << 20, 0),
+            #[cfg(feature = "gpu")]
+            gpu_inventory: None,
             texts: FrameCache::new(lru::TEXT_BUDGET, 1024),
             text_fonts: 0,
             clips: FrameCache::new(lru::CLIP_BUDGET, 256),
@@ -746,6 +758,8 @@ impl Renderer {
         // Filtered rasters are large: only those of the last frame stay.
         self.pixel_fx.retain(|_, e| e.stamp == g);
         self.texts.sweep(g);
+        #[cfg(feature = "gpu")]
+        self.gpu_images.sweep(g);
         self.clips.sweep(g);
         self.clip_paints.sweep(g);
         self.fx_arts.sweep(g);

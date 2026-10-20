@@ -223,6 +223,21 @@ fn gpu_preference_defaults_to_automatic_and_validates() {
     assert_eq!(s.prefs.gpu_preference, "automatic");
 }
 
+#[test]
+fn experimental_canvas_renderer_is_separate_from_adapter_selection() {
+    let mut session = Session::new();
+    assert_eq!(session.prefs.canvas_renderer, "cpu");
+    session.execute("prefs.set", &json!({"key": "canvasRenderer", "value": "gpu"})).unwrap();
+    assert_eq!(session.prefs.canvas_renderer, "gpu");
+    assert_eq!(session.prefs.gpu_preference, "automatic");
+    assert!(session.execute("prefs.set", &json!({"key": "canvasRenderer", "value": "invalid"})).is_err());
+    assert_eq!(session.prefs.canvas_renderer, "gpu");
+    let restored: Prefs = serde_json::from_value(session.prefs.to_json()).unwrap();
+    assert_eq!(restored.canvas_renderer, "gpu");
+    let old: Prefs = serde_json::from_value(json!({})).unwrap();
+    assert_eq!(old.canvas_renderer, "cpu");
+}
+
 /// Performance › Linux Display Server (#1151): automatic by default, X11 by value or label, and
 /// anything else is an error that changes nothing.
 #[test]

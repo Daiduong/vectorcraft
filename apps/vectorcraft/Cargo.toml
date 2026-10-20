@@ -11,6 +11,7 @@ workspace = true
 
 [features]
 default = ["wgpu", "accessibility"]
+gpu-canvas = ["wgpu", "vectorcraft-ui-egui/gpu-canvas"]
 wgpu = ["eframe/wgpu", "dep:winsafe"]
 accessibility = ["eframe/accesskit"]
 # Build with --no-default-features --features windows7 and the win7 Rust target.

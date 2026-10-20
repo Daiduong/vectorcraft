@@ -66,7 +66,7 @@ impl Ink {
         peniko::Color::from_rgba8(r, g, b, a)
     }
 
-    fn fixed8(self, [r, g, b, a]: [u8; 4]) -> [u8; 4] {
+    pub(crate) fn fixed8(self, [r, g, b, a]: [u8; 4]) -> [u8; 4] {
         match self {
             Ink::Display | Ink::RichBlack => [r, g, b, a],
             _ => {
@@ -174,6 +174,36 @@ type Cached<T> = Mutex<Option<(Arc<Cms>, Arc<T>, u64)>>;
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 
 static DISPLAY: Cached<InkLut> = Mutex::new(None);
+#[cfg(feature = "gpu")]
+static GPU_DISPLAY: Cached<Vec<[f32; 4]>> = Mutex::new(None);
+
+/// The exact XYZ samples of the CPU display table, shared by GPU frames until the active
+/// profile changes. Sampling grid points preserves the CPU's interpolation and gamut policy.
+#[cfg(feature = "gpu")]
+pub(crate) fn gpu_display_lut() -> (Arc<[[f32; 4]]>, u64) {
+    let (table, generation) = cached(&GPU_DISPLAY, |cms| {
+        let lut = InkLut::build(cms);
+        (0..17usize.pow(4))
+            .map(|i| {
+                let inks = [i / 4913, i / 289 % 17, i / 17 % 17, i % 17].map(|v| v as f32 / 16.0);
+                lut.0.apply(inks)
+            })
+            .collect()
+    });
+    // Retain an Arc of the samples rather than copying the 1.3 MiB grid for every frame.
+    // The slice cache is keyed by the same never-reused table generation.
+    type Samples = (u64, Arc<[[f32; 4]]>);
+    static SAMPLES: Mutex<Option<Samples>> = Mutex::new(None);
+    let mut samples = SAMPLES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((held, values)) = &*samples
+        && *held == generation
+    {
+        return (values.clone(), generation);
+    }
+    let values: Arc<[[f32; 4]]> = table.as_slice().into();
+    *samples = Some((generation, values.clone()));
+    (values, generation)
+}
 /// Screen colours → [`Ink::Cmy`] and [`Ink::K`] values (placed images).
 static SEPARATE: Cached<[ProofLut; 2]> = Mutex::new(None);
 

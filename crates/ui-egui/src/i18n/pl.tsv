@@ -5088,6 +5088,20 @@ mark-style	Japanese	Japońskie
 @msg	too many library panels were opened in this session	w tej sesji otwarto zbyt wiele paneli bibliotek
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz ma {_1} × {_2} pikseli, ponad {LARGE_TRACE_SIDE} na jednym boku: zostanie obrysowany, ale wolniej. Ustawienie wstępne o niższej wierności lub mniejsza kopia obrazu obrysuje się szybciej.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz obrysowano w rozdzielczości {_1} × {_2} pikseli, po zmniejszeniu z {_3} × {_4} (najwyżej {_5} megapikseli).
+
+# Experimental GPU canvas
+	Canvas Renderer	Silnik renderowania płótna
+	CPU	CPU
+	GPU (Experimental)	GPU (eksperymentalny)
+@msg	GPU alpha pipeline is unavailable	Potok alfa GPU jest niedostępny
+@msg	GPU canvas device is unavailable	Urządzenie GPU płótna jest niedostępne
+@msg	GPU canvas frame queue limit reached	Osiągnięto limit kolejki klatek płótna GPU
+@msg	GPU canvas validation has not completed	Weryfikacja płótna GPU nie została zakończona
+@msg	GPU renderer is unavailable	Moduł renderowania GPU jest niedostępny
+@msg	GPU target was not created	Nie utworzono celu renderowania GPU
+@msg	canvas exceeds graphics device limits	płótno przekracza ograniczenia urządzenia graficznego
+@msg	this graphics device has no compatible compute renderer	to urządzenie graficzne nie ma zgodnego modułu renderowania obliczeniowego
+@msg	GPU canvas render-target memory budget exceeded	przekroczono limit pamięci celów renderowania płótna GPU
 	Artboard {n} of {total}	Obszar kompozycji {n} z {total}
 	Encoding and writing the file…	Kodowanie i zapisywanie pliku…
 @plural	{n} more export waiting|{n} more exports waiting	Czeka jeszcze {n} eksport|Czekają jeszcze {n} eksporty|Czeka jeszcze {n} eksportów

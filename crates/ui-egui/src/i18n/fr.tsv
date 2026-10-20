@@ -5235,6 +5235,20 @@ theme	Appearance	Apparence
 @msg	too many library panels were opened in this session	trop de panneaux de bibliothèque ont été ouverts dans cette session
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’image fait {_1} × {_2} pixels, plus de {LARGE_TRACE_SIDE} sur un côté : elle est vectorisée, mais plus lentement. Un paramètre prédéfini moins fidèle ou une copie plus petite de l’image se vectorise plus vite.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’image a été vectorisée à {_1} × {_2} pixels, réduite de {_3} × {_4} ({_5} mégapixels au plus).
+
+# Experimental GPU canvas
+	Canvas Renderer	Moteur de rendu du canevas
+	CPU	CPU
+	GPU (Experimental)	GPU (expérimental)
+@msg	GPU alpha pipeline is unavailable	Le pipeline alpha du GPU est indisponible
+@msg	GPU canvas device is unavailable	Le périphérique GPU du canevas est indisponible
+@msg	GPU canvas frame queue limit reached	La limite de la file des images GPU du canevas est atteinte
+@msg	GPU canvas validation has not completed	La validation du canevas GPU est inachevée
+@msg	GPU renderer is unavailable	Le moteur de rendu GPU est indisponible
+@msg	GPU target was not created	La cible de rendu GPU n’a pas été créée
+@msg	canvas exceeds graphics device limits	le canevas dépasse les limites du périphérique graphique
+@msg	this graphics device has no compatible compute renderer	ce périphérique graphique ne dispose pas de moteur de rendu par calcul compatible
+@msg	GPU canvas render-target memory budget exceeded	budget mémoire des cibles de rendu du canevas GPU dépassé
 	Artboard {n} of {total}	Plan de travail {n} sur {total}
 	Encoding and writing the file…	Encodage et écriture du fichier…
 @plural	{n} more export waiting|{n} more exports waiting	{n} autre exportation en attente|{n} autres exportations en attente

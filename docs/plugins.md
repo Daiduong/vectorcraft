@@ -1,5 +1,7 @@
 # Plug-ins: the WebAssembly plug-in API (ABI v1)
 
+> **Last updated:** 2026-10-18 · **Status:** ABI v1; native GPU canvas changes only the Preferences section label.
+
 VectorCraft does not host native plug-ins built for other illustration apps: that needs unsafe FFI into
 arbitrary machine code and cannot work in the browser build. Instead, plug-ins are **WebAssembly modules**
 run in a sandbox. One `.wasm` file works on macOS, Windows, Linux and the web. The design follows PhotoCraft's
@@ -47,7 +49,7 @@ Artboards is greyed out (the plug-in writes the whole document); one with parame
 same kind once the file is picked, and its Export button writes the file. **File › Open** of a `.wasm` file installs
 a plug-in too (on the web this is how plug-ins get in).
 
-**Preference folder.** Edit › Preferences › Performance & Storage › *Additional Plug-ins Folder*: when set, every
+**Preference folder.** Edit › Preferences › Plug-ins & Scratch Disks › *Additional Plug-ins Folder*: when set, every
 `*.wasm` in that folder (not recursive) is installed at startup and whenever the preference changes (desktop builds;
 the web build installs from bytes).
 
@@ -279,3 +281,9 @@ per change of their input, parameters or paints (results are cached), not per fr
 - Live effects that change paint (they reshape geometry; an object filter recolours), and filters on type, images or
   symbols.
 - Apply Last Effect and Last Effect work for plug-in effects; there is no "last filter" for object filters yet.
+
+## Revision history
+
+| Date | Change |
+|---|---|
+| 2026-10-18 | Rename the Preferences section to Plug-ins & Scratch Disks; stored preferences and plug-in behavior are unchanged. |

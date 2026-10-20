@@ -8,6 +8,12 @@ description = "VectorCraft renderer: document to pixels (vello_cpu backend)"
 [lints]
 workspace = true
 
+[features]
+# Experimental canvas backend. CLI/export builds keep the CPU dependency path.
+gpu = ["dep:compute_vello", "dep:wgpu"]
+# Linux headless measurement tool; the canvas itself inherits its host's backends.
+gpu-probe = ["gpu", "wgpu/vulkan"]
+
 [dependencies]
 vectorcraft-geom = { workspace = true }
 vectorcraft-color = { workspace = true }
@@ -25,6 +31,8 @@ gif = { workspace = true }
 # TIFF LZW compression (MIT OR Apache-2.0; already used by the image crate's TIFF reader).
 weezl = "0.1"
 log = { workspace = true }
+wgpu = { version = "30", default-features = false, features = ["std", "wgsl"], optional = true }
+compute_vello = { package = "vello", version = "=0.11.0", default-features = false, features = ["wgpu"], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 vello_cpu = { workspace = true, features = ["multithreading"] }
@@ -43,3 +51,9 @@ tiff = "0.11"
 psd = "0.3"
 proptest = { workspace = true }
 serde_json = { workspace = true }
+pollster = "1"
+naga = { version = "30", features = ["wgsl-in"] }
+
+[[example]]
+name = "gpu_probe"
+required-features = ["gpu-probe"]

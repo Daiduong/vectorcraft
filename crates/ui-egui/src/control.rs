@@ -156,6 +156,7 @@ pub fn inspect(app: &VectorcraftApp, ctx: &egui::Context) -> Value {
         "activeDocument": app.session.active_index(),
         "perf": {"frameMs": app.perf.frame_ms, "renderMs": app.perf.render_ms, "fps": app.perf.fps},
         "graphicsAdapter": app.graphics_adapter,
+        "canvasRenderer": {"active": app.canvas.backend, "reason": app.canvas.backend_reason},
         // The menus are in the macOS menu bar rather than the window.
         "nativeMenuBar": app.services.native_menu.is_some(),
         // Saves and exports still being written in the background (Background Save / Export).

@@ -5067,6 +5067,20 @@ lighting	Light	光源
 @msg	too many library panels were opened in this session	本次会话中打开的库面板过多
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	图像为 {_1} × {_2} 像素，某一边超过 {LARGE_TRACE_SIDE}：会进行描摹，但速度较慢。使用保真度较低的预设或图像的较小副本会更快。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	图像已按 {_1} × {_2} 像素描摹，由 {_3} × {_4} 缩小而来（最多 {_5} 百万像素）。
+
+# Experimental GPU canvas
+	Canvas Renderer	画布渲染器
+	CPU	CPU
+	GPU (Experimental)	GPU（实验性）
+@msg	GPU alpha pipeline is unavailable	GPU Alpha 处理管线不可用
+@msg	GPU canvas device is unavailable	画布 GPU 设备不可用
+@msg	GPU canvas frame queue limit reached	画布 GPU 帧队列已达上限
+@msg	GPU canvas validation has not completed	画布 GPU 验证尚未完成
+@msg	GPU renderer is unavailable	GPU 渲染器不可用
+@msg	GPU target was not created	未创建 GPU 渲染目标
+@msg	canvas exceeds graphics device limits	画布超出图形设备的限制
+@msg	this graphics device has no compatible compute renderer	此图形设备没有兼容的计算渲染器
+@msg	GPU canvas render-target memory budget exceeded	超出 GPU 画布渲染目标内存预算
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	编辑原稿只能打开图像和文档文件；“{name}” 不是其中之一
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	浏览器中只会打开 http、https 和 mailto 的 URL，不会打开 “{url}”

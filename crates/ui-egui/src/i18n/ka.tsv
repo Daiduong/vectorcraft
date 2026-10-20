@@ -5180,3 +5180,17 @@ imageTrace	Outline	კონტური
 	Plaster	თაბაშირი
 	Note Paper…	ჩანაწერების ქაღალდი…
 	Note Paper	ჩანაწერების ქაღალდი
+
+# Experimental GPU canvas integration
+	Canvas Renderer	ტილოს რენდერი
+	CPU	CPU
+	GPU (Experimental)	GPU (ექსპერიმენტული)
+@msg	GPU alpha pipeline is unavailable	GPU-ის ალფა-არხის დამუშავების სისტემა მიუწვდომელია
+@msg	GPU canvas device is unavailable	ტილოს GPU მოწყობილობა მიუწვდომელია
+@msg	GPU canvas frame queue limit reached	ტილოს GPU კადრების რიგის ლიმიტი მიღწეულია
+@msg	GPU canvas validation has not completed	ტილოს GPU შემოწმება არ დასრულებულა
+@msg	GPU renderer is unavailable	GPU რენდერი მიუწვდომელია
+@msg	GPU target was not created	GPU რენდერის სამიზნე არ შექმნილა
+@msg	canvas exceeds graphics device limits	ტილო აჭარბებს გრაფიკული მოწყობილობის ლიმიტებს
+@msg	this graphics device has no compatible compute renderer	ამ გრაფიკულ მოწყობილობას თავსებადი გამოთვლითი რენდერი არ აქვს
+@msg	GPU canvas render-target memory budget exceeded	ტილოს GPU რენდერის სამიზნეების მეხსიერების ლიმიტი გადაჭარბებულია

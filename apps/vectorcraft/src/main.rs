@@ -835,15 +835,15 @@ fn main() -> std::process::ExitCode {
     #[cfg(feature = "wgpu")]
     let options = {
         let mut options = options;
-        // One frame queued, not two: the canvas is rasterized on the CPU and the GPU only
-        // composites it, so the window answers the pointer a frame sooner (#444).
+        // Keep the existing low-latency presentation policy for both canvas renderers (#444).
         options.wgpu_options.surface = eframe::egui_wgpu::SurfaceConfig::LOW_LATENCY;
         // Only adapters that can show the window, in the order `gpu` gives (#306, #502).
         if let eframe::egui_wgpu::WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup {
             create.native_adapter_selector = Some(gpu::selector(power, displays, compositor, left_out.adapters.clone(), startup.clone()));
-            // Nothing draws or dispatches indirectly, so wgpu's check of indirect arguments only
-            // costs a compute shader at start-up, one some drivers can't compile (OCLP-patched
-            // Metal on an Iris Pro, #651). `WGPU_VALIDATION_INDIRECT_CALL=1` turns it back on.
+            // Preserve the compositor's driver compatibility: indirect validation introduces a
+            // shader some drivers cannot compile (OCLP-patched Metal on an Iris Pro, #651).
+            // The opt-in Vello canvas uses GPU-generated indirect arguments from bounded scenes;
+            // `WGPU_VALIDATION_INDIRECT_CALL=1` enables the additional checks for hardware QA.
             create.instance_descriptor.flags =
                 (eframe::wgpu::InstanceFlags::from_build_config() - eframe::wgpu::InstanceFlags::VALIDATION_INDIRECT_CALL).with_env();
             create.instance_descriptor.backends =
@@ -918,6 +918,8 @@ fn main() -> std::process::ExitCode {
                 let graphics_loss = GraphicsLoss::default();
                 #[cfg(feature = "wgpu")]
                 if let Some(rs) = &cc.wgpu_render_state {
+                    #[cfg(feature = "gpu-canvas")]
+                    app.enable_gpu_canvas(rs.clone());
                     let summary = adapter_summary(&rs.adapter.get_info());
                     log::info!("rendering with {summary} (power preference {power:?})");
                     created.created(&cc.egui_ctx);

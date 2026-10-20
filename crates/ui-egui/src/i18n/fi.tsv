@@ -5200,6 +5200,20 @@ mark-style	Japanese	Japanilainen
 @msg	too many library panels were opened in this session	tässä istunnossa on avattu liian monta kirjastopaneelia
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Kuva on {_1} × {_2} kuvapistettä, yhdeltä sivultaan yli {LARGE_TRACE_SIDE}: se jäljitetään, mutta hitaammin. Pienemmän tarkkuuden esiasetus tai kuvan pienempi kopio jäljittyy nopeammin.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Kuva jäljitettiin kokoon {_1} × {_2} kuvapistettä pienennettynä koosta {_3} × {_4} (enintään {_5} megapikseliä).
+
+# Experimental GPU canvas
+	Canvas Renderer	Piirtoalueen renderöinti
+	CPU	CPU
+	GPU (Experimental)	GPU (kokeellinen)
+@msg	GPU alpha pipeline is unavailable	GPU:n alfaputki ei ole käytettävissä
+@msg	GPU canvas device is unavailable	Piirtoalueen GPU-laite ei ole käytettävissä
+@msg	GPU canvas frame queue limit reached	GPU-piirtoalueen kehysjonon raja saavutettiin
+@msg	GPU canvas validation has not completed	GPU-piirtoalueen tarkistus ei ole valmistunut
+@msg	GPU renderer is unavailable	GPU-renderöijä ei ole käytettävissä
+@msg	GPU target was not created	GPU-renderöintikohdetta ei luotu
+@msg	canvas exceeds graphics device limits	piirtoalue ylittää grafiikkalaitteen rajat
+@msg	this graphics device has no compatible compute renderer	tässä grafiikkalaitteessa ei ole yhteensopivaa laskentarenderöijää
+@msg	GPU canvas render-target memory budget exceeded	GPU-piirtoalueen renderöintikohteiden muistiraja ylitetty
 	Artboard {n} of {total}	Piirtoalusta {n}/{total}
 	Encoding and writing the file…	Tiedostoa koodataan ja kirjoitetaan…
 @plural	{n} more export waiting|{n} more exports waiting	{n} vienti odottaa|{n} vientiä odottaa

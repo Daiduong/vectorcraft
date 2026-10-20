@@ -19,6 +19,11 @@ pub const UI_FIELDS: &[(&str, &str, &str)] = &[
     ("__taskBar", "General", "Enable Contextual Task Bar"),
 ];
 
+/// Keep the engine category stable for automation while naming its actual contents in the UI.
+fn category_title(category: &str) -> String {
+    if category == "Performance & Storage" { format!("{} & {}", tl!("Plug-ins"), tl!("Scratch Disks")) } else { tl!(category).into() }
+}
+
 pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     // One field per preference key or group (the flattener presets have commands of their own).
     let mut fields: Map<String, Value> = app.session.prefs.to_json().as_object().cloned().unwrap_or_default();
@@ -27,6 +32,7 @@ pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     if let Some(st) = app.session.active() {
         fields.insert("unitsGeneral".into(), json!(st.doc.units.key()));
     }
+    let category = category.map(|c| if c.eq_ignore_ascii_case("Plug-ins & Scratch Disks") { "Performance & Storage" } else { c });
     let cat = category.and_then(|c| PREF_CATEGORIES.iter().find(|x| x.eq_ignore_ascii_case(c))).copied().unwrap_or(PREF_CATEGORIES[0]);
     fields.insert("__category".into(), json!(cat));
     fields.insert("__smartGuides".into(), json!(app.ui.view.smart_guides));
@@ -170,7 +176,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                     ui.spacing_mut().item_spacing.y = 1.0;
                     for c in PREF_CATEGORIES {
                         let sel = *c == cat;
-                        let text = egui::RichText::new(tl!(*c)).size(12.5).color(if sel { t.text_strong } else { t.text });
+                        let text = egui::RichText::new(category_title(c)).size(12.5).color(if sel { t.text_strong } else { t.text });
                         let b = egui::Button::selectable(sel, text).min_size(egui::vec2(184.0, 24.0));
                         if ui.add(b).clicked() {
                             d.fields.insert("__category".into(), json!(c));
@@ -182,7 +188,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             // Fields.
             ui.vertical(|ui| {
                 ui.set_width(530.0);
-                ui.label(egui::RichText::new(tl!(cat)).font(theme::semibold(14.0)).color(t.text_strong));
+                ui.label(egui::RichText::new(category_title(cat)).font(theme::semibold(14.0)).color(t.text_strong));
                 ui.add_space(8.0);
                 egui::ScrollArea::vertical().id_salt(("prefs", cat)).max_height(400.0).auto_shrink([false, false]).show(ui, |ui| {
                     category_fields(ui, &mut d, cat);
@@ -730,6 +736,19 @@ mod tests {
         for c in PREF_CATEGORIES {
             assert!(PREF_SPECS.iter().any(|s| s.category == *c));
         }
+    }
+
+    #[test]
+    fn storage_category_opens_by_its_display_name_or_legacy_name() {
+        let mut a = app();
+        for name in ["Plug-ins & Scratch Disks", "Performance & Storage"] {
+            a.run("edit.preferences", json!({"category": name})).unwrap();
+            let d = a.ui.dialog.as_ref().unwrap();
+            assert_eq!(d.str("__category"), "Performance & Storage");
+            assert!(d.fields.contains_key("pluginsFolder") && d.fields.contains_key("scratchPrimary"));
+        }
+        assert_eq!(category_title("Performance & Storage"), "Plug-ins & Scratch Disks");
+        assert_eq!(PREF_CATEGORIES.iter().filter(|c| category_title(c).contains("Performance")).count(), 1);
     }
 
     /// Preferences › Type › Show Font Names in English (#394): OK on the dialog stores the flag the

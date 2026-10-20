@@ -73,4 +73,9 @@ fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
         ui.add_space(6.0);
         ui.label(egui::RichText::new(crate::i18n::fmt(tl!("Graphics: {adapter}"), &[("adapter", adapter.as_str())])).size(11.0));
     }
+    let backend = if app.canvas.backend == "gpu" { tl!("GPU (Experimental)") } else { tl!("CPU") };
+    let label = ui.label(egui::RichText::new(format!("{}: {backend}", tl!("Canvas Renderer"))).size(11.0));
+    if let Some(reason) = &app.canvas.backend_reason {
+        label.on_hover_text(reason);
+    }
 }

@@ -5236,6 +5236,20 @@ mark-style	Japanese	Japonské
 @msg	too many library panels were opened in this session	v této relaci bylo otevřeno příliš mnoho panelů knihoven
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz má {_1} × {_2} pixelů, na jedné straně více než {LARGE_TRACE_SIDE}: vektorizuje se, ale pomaleji. Rychleji se vektorizuje s předvolbou nižší věrnosti nebo menší kopie obrazu.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz byl vektorizován v rozlišení {_1} × {_2} pixelů, zmenšený z {_3} × {_4} (nejvýše {_5} megapixelů).
+
+# Experimental GPU canvas
+	Canvas Renderer	Vykreslování plátna
+	CPU	CPU
+	GPU (Experimental)	GPU (experimentální)
+@msg	GPU alpha pipeline is unavailable	GPU pipeline pro alfa kanál není dostupná
+@msg	GPU canvas device is unavailable	GPU zařízení pro plátno není dostupné
+@msg	GPU canvas frame queue limit reached	Dosažen limit fronty snímků GPU plátna
+@msg	GPU canvas validation has not completed	Ověření GPU plátna ještě nebylo dokončeno
+@msg	GPU renderer is unavailable	GPU vykreslovač není dostupný
+@msg	GPU target was not created	Cíl vykreslování GPU nebyl vytvořen
+@msg	canvas exceeds graphics device limits	plátno překračuje limity grafického zařízení
+@msg	this graphics device has no compatible compute renderer	toto grafické zařízení nemá kompatibilní výpočetní vykreslovač
+@msg	GPU canvas render-target memory budget exceeded	překročen paměťový limit vykreslovacích cílů GPU plátna
 	Artboard {n} of {total}	Pracovní plocha {n} z {total}
 	Encoding and writing the file…	Kódování a zápis souboru…
 @plural	{n} more export waiting|{n} more exports waiting	Čeká ještě {n} export|Čekají ještě {n} exporty|Čeká ještě {n} exportů

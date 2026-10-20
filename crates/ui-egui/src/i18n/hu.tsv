@@ -5222,6 +5222,20 @@ imageTrace	Outline	Körvonal
 @msg	too many library panels were opened in this session	ebben a munkamenetben túl sok könyvtárpanel nyílt meg
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kép {_1} × {_2} képpont, egyik oldalán több mint {LARGE_TRACE_SIDE}: a vektorizálás megtörténik, de lassabban. Kisebb hűségű előbeállítással vagy a kép kisebb másolatával gyorsabb.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A kép vektorizálása {_1} × {_2} képponton történt, {_3} × {_4} méretről kicsinyítve (legfeljebb {_5} megapixel).
+
+# Experimental GPU canvas
+	Canvas Renderer	Vászon megjelenítője
+	CPU	CPU
+	GPU (Experimental)	GPU (kísérleti)
+@msg	GPU alpha pipeline is unavailable	A GPU alfa-feldolgozási folyamata nem érhető el
+@msg	GPU canvas device is unavailable	A vászon GPU-eszköze nem érhető el
+@msg	GPU canvas frame queue limit reached	A vászon GPU-képkockáinak várólistája megtelt
+@msg	GPU canvas validation has not completed	A GPU-vászon ellenőrzése még nem fejeződött be
+@msg	GPU renderer is unavailable	A GPU-megjelenítő nem érhető el
+@msg	GPU target was not created	A GPU renderelési célja nem jött létre
+@msg	canvas exceeds graphics device limits	a vászon meghaladja a grafikus eszköz korlátait
+@msg	this graphics device has no compatible compute renderer	ehhez a grafikus eszközhöz nincs kompatibilis számítási megjelenítő
+@msg	GPU canvas render-target memory budget exceeded	a GPU-vászon renderelési céljainak memóriakerete túllépve
 	Artboard {n} of {total}	Rajztábla: {n} / {total}
 	Encoding and writing the file…	A fájl kódolása és írása…
 @plural	{n} more export waiting|{n} more exports waiting	Még {n} exportálás várakozik

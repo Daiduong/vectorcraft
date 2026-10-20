@@ -219,16 +219,30 @@ fn with_tile_renderer<T>(f: impl FnOnce(&mut Renderer) -> T) -> Option<T> {
 /// Set a pattern paint on `ctx` (its current transform maps the paint's user space to pixels), as
 /// frame `f` paints it.
 pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine, f: &Frame) -> bool {
-    let (doc, ink) = (f.doc, f.ink);
-    let missing = || ink.fixed([128, 128, 128, 255]);
-    let Some(def) = doc.pattern(name) else {
-        ctx.set_paint(missing());
-        return true;
-    };
-    if def.art.is_empty() {
-        return false;
+    match pattern_image(f.doc, name, *ctx.transform() * xf, f.ink) {
+        Ok(Some((pm, placement))) => {
+            let sampler = ImageSampler { x_extend: Extend::Repeat, y_extend: Extend::Repeat, quality: ImageQuality::Medium, alpha: 1.0 };
+            ctx.set_paint(vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(pm), sampler });
+            ctx.set_paint_transform(xf * placement);
+            true
+        }
+        Ok(None) => false,
+        Err(_) => {
+            ctx.set_paint(f.ink.fixed([128, 128, 128, 255]));
+            true
+        }
     }
-    let dev = *ctx.transform() * xf;
+}
+
+type PatternImage = (Arc<Pixmap>, Affine);
+
+/// The same cached tile used by CPU paints; the placement maps tile pixels to pattern space.
+/// A missing or excessively nested definition is reported so native GPU callers can fall back.
+pub(crate) fn pattern_image(doc: &Document, name: &str, dev: Affine, ink: Ink) -> Result<Option<PatternImage>, String> {
+    let def = doc.pattern(name).ok_or("missing pattern definition")?;
+    if def.art.is_empty() {
+        return Ok(None);
+    }
     let s = dev.determinant().abs().sqrt();
     let (pw, ph) = def.period();
     let scale = raster_scale(s, (pw, ph));
@@ -260,8 +274,7 @@ pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine,
             let h = (ph * scale).ceil().clamp(1.0, 4096.0) as u16;
             let before = crate::paint::decode_failures();
             let Some(pm) = with_tile_renderer(|r| rasterize(r, doc, def, Rect::new(0.0, 0.0, pw, ph), w, h, ink)) else {
-                ctx.set_paint(missing());
-                return true;
+                return Err("pattern nesting limit exceeded".into());
             };
             let failed = crate::paint::decode_failures() - before;
             let pm = Arc::new(pm);
@@ -281,10 +294,7 @@ pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine,
             (pm, sx, sy)
         }
     };
-    let sampler = ImageSampler { x_extend: Extend::Repeat, y_extend: Extend::Repeat, quality: ImageQuality::Medium, alpha: 1.0 };
-    ctx.set_paint(vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(pm), sampler });
-    ctx.set_paint_transform(xf * Affine::scale_non_uniform(1.0 / sx, 1.0 / sy));
-    true
+    Ok(Some((pm, Affine::scale_non_uniform(1.0 / sx, 1.0 / sy))))
 }
 
 /// A swatch thumbnail of pattern `name`: the tiling around the tile, fitted into `size`².

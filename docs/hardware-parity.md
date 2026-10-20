@@ -1,6 +1,7 @@
 # Hardware parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-15 · **Change:** patch (web pen buttons/modifiers preserved, touch-only input left to eframe, session-only palm rejection; tool cursors painted into the window on Wayland, #1652, not run on Linux; borderless title-bar window on Windows, #1758, awaiting confirmation; a window surface larger than 8192 px keeps working, #1459 in part; Linux Display Server preference opens the window through XWayland, #1151) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-18 · **Change:** patch (web pen buttons/modifiers preserved, touch-only input left to eframe, session-only palm rejection; tool cursors painted into the window on Wayland, #1652, not run on Linux; borderless title-bar window on Windows, #1758, awaiting confirmation; a window surface larger than 8192 px keeps working, #1459 in part; Linux Display Server preference opens the window through XWayland, #1151) · **Target:** Adobe Illustrator 2026 (30.x)
+> **M5 update (2026-10-18):** opt-in native GPU canvas adds text outlines, images, gradients, clips, cached pattern tiles, aligned image opacity masks, CMYK ink composition and device-aware canvas sizing; CPU default and whole-frame fallback; effects and platform QA pending. Scores and remaining-hour estimates unchanged (estimated).
 
 What hardware Illustrator uses, per platform, against VectorCraft. Illustrator's side is from its public
 documentation (GPU Performance, touch workspace, pen pressure pages); ours from the code
@@ -9,13 +10,13 @@ documentation (GPU Performance, touch workspace, pen pressure pages); ours from 
 
 ## Summary
 
-**~35% (estimated), 25–45 h.** VectorCraft rasterizes the canvas on the CPU (multithreaded `vello_cpu`) and uses
-the GPU only to composite, so any GPU that can show a window works, at the cost of GPU-accelerated preview
-on huge documents. Pen input is pressure-only and Windows-first.
+**~35% (estimated), 25–45 h.** VectorCraft defaults to rasterizing the canvas on the CPU (multithreaded `vello_cpu`) and uses
+the GPU to composite. An opt-in native GPU canvas for paths, text, images, gradients, clips, cached pattern tiles and CMYK is available; full appearance
+coverage and cross-platform validation remain open ([details](gpu-renderer.md)). Pen input is pressure-only and Windows-first.
 
 | Feature | Illustrator | VectorCraft macOS | Windows | Linux | Web | Status / hours |
 |---|---|---|---|---|---|---|
-| GPU-accelerated canvas (GPU Performance, GPU Preview, GPU anti-aliasing) | Metal, DirectX | CPU raster, GPU composite (wgpu/Metal) | CPU raster, GPU composite (DX12, OpenGL fallback) | CPU raster, GPU composite (Vulkan/GL) | WebGPU, WebGL2 fallback | partial; a GPU renderer spike is pending (M5): 15–25 h |
+| GPU-accelerated canvas (GPU Performance, GPU Preview, GPU anti-aliasing) | Metal, DirectX | CPU raster, GPU composite (wgpu/Metal) | CPU raster, GPU composite (DX12, OpenGL fallback) | CPU raster, GPU composite (Vulkan/GL) | WebGPU, WebGL2 fallback | partial; opt-in native paths/text/images/gradients/clips/pattern tiles/aligned image masks/CMYK canvas, Linux/Vulkan probe; broader semantics and platform QA pending (M5): 15–25 h |
 | Multithreaded rendering off the UI thread | partial | yes | yes | yes | single-threaded | beyond Illustrator |
 | Hybrid-graphics GPU choice | automatic | power-saving GPU by default, Preferences › Graphics Processor | same; DX12 then OpenGL; no Vulkan unless asked (#545, #806) | the desktop's GPU | browser | done |
 | Restart on another GPU when the first fails to present | — | yes (#502, #964) | yes | yes | restart on lost device (#369) | done |
@@ -33,6 +34,8 @@ on huge documents. Pen input is pressure-only and Windows-first.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-18 | minor | M5: extend the optional native GPU compiler to shared text outlines, decoded images, gradients, clipping, pattern tiles and CMYK ink planes; resource invalidation, device-aware canvas sizing with a render-target budget, aligned image masks, a strict opaque-path knockout subset, retained atlas allocations and intermediate pan frames. General mask/knockout fallback remains. Scores and estimates unchanged. |
+| 2026-10-17 | minor | M5: optional native GPU path/stroke canvas, capability fallback, bounded worker and diagnostics; see [gpu-renderer.md](gpu-renderer.md). Scores and estimates unchanged. |
 | 2026-10-15 | patch | Web review: preserve pen buttons and modifiers; leave fingers to eframe before the first pen contact; remove persistent pen policy. Canvas regression tests cover intermediate moves and long-touch cancellation on native and web input. Physical-device QA pending. |
 | 2026-10-14 | minor | Tool cursors are painted into the window on Wayland (#1652; not run on Linux, #1645 stays open until confirmed); On Windows the custom title bar's window stays truly borderless, so the pointer lines up with what is drawn on systems where the hidden caption offset it (#1791, #1758; awaiting the reporter's confirmation); neither is confirmed on the hardware that reported it, so nothing is marked done |
 | 2026-10-13 | minor | Web: the shell reads pen and finger Pointer Events itself (pen pressure with coalesced events, Apple Pencil hover, palm rejection: after a pen contact fingers only navigate until reload; long press opens the context menu); score unchanged (estimated) |

@@ -947,6 +947,8 @@ pub struct Prefs {
     /// runs on: a Wayland compositor may not show frames from another GPU (#502). Single-GPU
     /// machines are unaffected.
     pub gpu_preference: String,
+    /// Experimental canvas backend, independently of which adapter presents the window.
+    pub canvas_renderer: String,
     pub history_states: u32,
     pub real_time_drawing: bool,
     /// Rasterizer worker threads; -1 = automatic.
@@ -1171,6 +1173,7 @@ impl Default for Prefs {
             gpu_performance: true,
             animated_zoom: true,
             gpu_preference: s("automatic"),
+            canvas_renderer: s("cpu"),
             history_states: 500,
             real_time_drawing: true,
             render_threads: -1,

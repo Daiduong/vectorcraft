@@ -1,6 +1,7 @@
 # Architecture
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-13 · **Change:** minor (shared PDF reader and writer; app output policy and editable-import adapter retained; verified PngSuite downloads, #1729; synthetic control-input budgets, #1709; desktop printing uses craft-print; Windows 7 fallback retained) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-18 · **Change:** minor (shared PDF reader and writer; app output policy and editable-import adapter retained; verified PngSuite downloads, #1729; synthetic control-input budgets, #1709; desktop printing uses craft-print; Windows 7 fallback retained) · **Target:** Adobe Illustrator 2026 (30.x)
+> **M5 update (2026-10-18):** opt-in native GPU canvas adds text outlines, images, gradients, clips, cached pattern tiles, aligned image opacity masks, CMYK ink composition and device-aware canvas sizing; CPU default and whole-frame fallback; effects and platform QA pending. Scores and remaining-hour estimates unchanged (estimated).
 
 How VectorCraft is built today. The design rationale lives in the local, gitignored `plan/architecture.md`;
 this file describes what is committed. Day-to-day rules (clean-room, never crash, quality gates) are in
@@ -40,10 +41,13 @@ the control channel, the CLI and MCP all reach the same registry, so anything a 
 
 ## Rendering
 
-The canvas is rasterized on the CPU by `vello_cpu` on worker threads, off the UI thread, with caches per object
+By default the canvas is rasterized on the CPU by `vello_cpu` on worker threads, off the UI thread, with caches per object
 and per effect; the GPU (wgpu: Metal, DX12, Vulkan/GL; WebGPU/WebGL2 on the web) only composites the result. Raster
 effects are rendered offscreen per object and cached while panning. See
 [hardware-parity.md](hardware-parity.md).
+
+The optional native GPU canvas uses a capability-checked Vello scene and the host device/queue;
+unsupported frames use the CPU. Physical canvas sizes respect the host device limit and a combined render-target memory budget, including both CMYK ink planes. See [gpu-renderer.md](gpu-renderer.md) for the supported subset and limits.
 
 ## Files
 
@@ -90,6 +94,8 @@ saves copies in the background. See [development.md](development.md#robustness-v
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-18 | minor | M5: extend the optional native GPU compiler to shared text outlines, decoded images, gradients, clipping, pattern tiles and CMYK ink planes; resource invalidation, device-aware canvas sizing with a render-target budget, aligned image masks, a strict opaque-path knockout subset, retained atlas allocations and intermediate pan frames. General mask/knockout fallback remains. Scores and estimates unchanged. |
+| 2026-10-17 | minor | M5: optional native GPU path/stroke canvas, capability fallback, bounded worker and diagnostics; see [gpu-renderer.md](gpu-renderer.md). Scores and estimates unchanged. |
 | 2026-10-13 | minor | Pinned PngSuite HTTPS files verified by SHA-256 before publication; bounded downloads replace archive extraction (#1729). Scores and hours unchanged. |
 | 2026-10-13 | minor | Bounded synthetic control input (#1709): counts and queued events validated before mutation; control-channel bursts yield between frames. Scores and hours unchanged. |
 | 2026-10-13 | minor | PDF.R1: editable PDF import uses the shared pinned reader; layer and overprint scans preserve state across content windows and reject known incomplete input. Synthetic streaming, decoder-limit and dependency-source regressions added; scores and hours unchanged. |

@@ -5196,6 +5196,11 @@ theme	Appearance	Външен вид
 	Enable Guides for 9-Slice Scaling	Включване на водачи за 9-slice мащабиране
 	Persistent	Постоянна
 	Library Panel Options	Опции на панела с библиотека
+
+# Experimental GPU canvas
+	Canvas Renderer	Рендериране на платното
+	CPU	CPU
+	GPU (Experimental)	GPU (експериментално)
 	Artboard {n} of {total}	Работна област {n} от {total}
 	Encoding and writing the file…	Кодиране и записване на файла…
 @plural	{n} more export waiting|{n} more exports waiting	Още {n} експортиране в изчакване|Още {n} експортирания в изчакване

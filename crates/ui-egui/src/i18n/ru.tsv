@@ -4845,6 +4845,20 @@ lighting	Light	Свет
 @msg	too many library panels were opened in this session	в этом сеансе открыто слишком много панелей библиотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Изображение {_1} × {_2} пикселей, больше {LARGE_TRACE_SIDE} по одной стороне: трассировка выполняется, но медленнее. Стиль с меньшей точностью или уменьшенная копия изображения трассируются быстрее.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Изображение трассировано в размере {_1} × {_2} пикселей, уменьшенное с {_3} × {_4} (не более {_5} мегапикселей).
+
+# Experimental GPU canvas
+	Canvas Renderer	Рендеринг холста
+	CPU	CPU
+	GPU (Experimental)	GPU (экспериментальный)
+@msg	GPU alpha pipeline is unavailable	Конвейер альфа-канала GPU недоступен
+@msg	GPU canvas device is unavailable	Устройство GPU для холста недоступно
+@msg	GPU canvas frame queue limit reached	Достигнут предел очереди кадров холста GPU
+@msg	GPU canvas validation has not completed	Проверка холста GPU ещё не завершена
+@msg	GPU renderer is unavailable	Рендерер GPU недоступен
+@msg	GPU target was not created	Цель рендеринга GPU не создана
+@msg	canvas exceeds graphics device limits	холст превышает ограничения графического устройства
+@msg	this graphics device has no compatible compute renderer	у этого графического устройства нет совместимого вычислительного рендерера
+@msg	GPU canvas render-target memory budget exceeded	превышен лимит памяти целей рендеринга холста GPU
 	Artboard {n} of {total}	Монтажная область {n} из {total}
 	Encoding and writing the file…	Кодирование и запись файла…
 @plural	{n} more export waiting|{n} more exports waiting	Ещё {n} экспорт в очереди|Ещё {n} экспорта в очереди|Ещё {n} экспортов в очереди

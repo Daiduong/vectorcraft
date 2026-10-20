@@ -209,8 +209,97 @@ pub fn fit(app: &mut VectorcraftApp, how: &str) {
     v.zoom = zoom;
 }
 
+fn gpu_requested(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
+    if app.session.prefs.canvas_renderer != "gpu" {
+        app.canvas.backend_reason = None;
+        app.canvas.gpu_retry = false;
+        return false;
+    }
+    if !app.session.prefs.gpu_performance {
+        app.canvas.backend_reason = Some("GPU Performance is disabled".into());
+        return false;
+    }
+    #[cfg(feature = "gpu-canvas")]
+    if let Some(gpu) = &mut app.gpu_canvas {
+        gpu.poll();
+        if gpu.pending() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(16));
+        } else if std::mem::take(&mut app.canvas.gpu_retry) {
+            // A temporary backlog used a current CPU frame. Retry automatically once all
+            // submissions/scopes have completed, even if the document stopped changing.
+            app.canvas.key = None;
+        }
+        if let Some(reason) = &gpu.disabled {
+            app.canvas.backend_reason = Some(reason.clone());
+            if app.canvas.gpu_texture.take().is_some() {
+                app.canvas.key = None;
+            }
+            return false;
+        }
+        if std::env::var_os("VECTORCRAFT_SYNC_RENDER").is_none() {
+            return true;
+        }
+    }
+    let _ = ctx; // CPU-only builds do not own graphics-device resources.
+    app.canvas.backend_reason = Some("experimental GPU canvas is unavailable in this build or graphics context".into());
+    false
+}
+
+#[cfg(feature = "gpu-canvas")]
+fn present_gpu(app: &mut VectorcraftApp, scene: vectorcraft_render::gpu::PreparedScene, pixel: bool) -> bool {
+    match app.gpu_canvas.as_mut().ok_or_else(|| "GPU canvas device is unavailable".to_owned()).and_then(|g| g.present(scene, pixel)) {
+        Ok(id) => {
+            app.canvas.gpu_texture = Some(id);
+            app.canvas.backend = "gpu";
+            app.canvas.backend_reason = None;
+            app.canvas.gpu_retry = false;
+            true
+        }
+        Err(reason) => {
+            let retry = app.gpu_canvas.as_ref().is_some_and(|g| g.disabled.is_none());
+            app.canvas.gpu_retry = retry;
+            if !retry {
+                log::warn!("GPU canvas disabled: {reason}");
+            }
+            app.canvas.backend_reason = Some(reason);
+            false
+        }
+    }
+}
+
+/// Whether the frame for `key` goes to the render worker rather than rendering on this thread.
+/// Only while a frame of the same document is shown, CPU or GPU, so a document switch or the first
+/// frame never leaves the canvas empty.
+fn renders_on_worker(canvas: &crate::CanvasCache, key: &CacheKey) -> bool {
+    if !canvas.key.as_ref().is_some_and(|k| k.doc == key.doc) {
+        return false;
+    }
+    let cpu_shown = canvas.texture.is_some();
+    let settling = canvas.moved && !key.interacting;
+    // A CPU interaction stays on the worker once it drew the frame shown (#2558).
+    let staying = key.interacting && !key.gpu && canvas.from_worker;
+    staying && cpu_shown
+        || !key.interacting && (key.gpu && (cpu_shown || canvas.gpu_texture.is_some()) || (canvas.last_ms > 8.0 || settling) && cpu_shown)
+}
+
+/// A completed pan frame remains useful: its texture is reprojected just like the CPU canvas.
+/// Every other input must still match, and edits must never lag their live selection overlays.
+fn gpu_frame_matches(prepared: &CacheKey, current: &CacheKey) -> bool {
+    if prepared == current {
+        return true;
+    }
+    if prepared.interacting || current.interacting || prepared.pixel.is_some() || current.pixel.is_some() {
+        return false;
+    }
+    let mut pan = prepared.clone();
+    pan.cx = current.cx;
+    pan.cy = current.cy;
+    pan == *current
+}
+
 /// Paint the document canvas, complete or cached artwork, navigation and tool overlays.
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let gpu = gpu_requested(app, ui.ctx());
     let t = Tokens::get(ui.ctx());
     let full = ui.available_rect_before_wrap();
     // `hidden_chars` holds the marks Show Hidden Characters kept and the text nodes they were laid
@@ -318,6 +407,17 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // Paths made into guides are drawn as the ruler guides are (Preferences › Guides & Grid).
     let guide_look = LineLook::guides(&app.session.prefs, &t);
     let key = CacheKey {
+        gpu,
+        resources: if gpu {
+            (
+                vectorcraft_text::FontDb::global().generation(),
+                vectorcraft_color::cms::active_settings(),
+                vectorcraft_color::cms::profiles_generation(),
+                vectorcraft_render::effects::plugin_revision(),
+            )
+        } else {
+            Default::default()
+        },
         guide: ([guide_look.color.r(), guide_look.color.g(), guide_look.color.b()], guide_look.dots),
         doc: st.uid as usize,
         revision: st.revision,
@@ -354,18 +454,43 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.canvas.worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
         }
     }
-    // Upload finished background renders.
+    // Upload finished background renders. A CPU drag on the worker (#2558) shows each frame it
+    // finishes, though every move since is a newer revision; anything else must be current.
     if let Some(done) = app.canvas.worker.as_mut().and_then(|w| w.poll())
         && done.key.doc == key.doc
+        && (done.key.revision == key.revision || !key.gpu && done.key.interacting && key.interacting)
+        && done.key.gpu == key.gpu
+        && done.key.resources == key.resources
+        && (!key.gpu || gpu_frame_matches(&done.key, &key))
     {
-        upload(app, ui.ctx(), &done.img, done.key.pixel.is_some());
-        app.canvas.key = Some(done.key);
-        app.perf.render_ms = done.ms;
-        app.canvas.last_ms = done.ms;
-        app.canvas.moved = done.moved > 0;
-        app.canvas.from_worker = true;
+        let accepted = if let Some(img) = done.img {
+            upload(app, ui.ctx(), &img, done.key.pixel.is_some());
+            if done.reason.is_some() || key.gpu {
+                app.canvas.backend_reason = done.reason;
+            }
+            true
+        } else {
+            false
+        };
+        #[cfg(feature = "gpu-canvas")]
+        let accepted = if let Some(scene) = done.scene {
+            let accepted = present_gpu(app, scene, done.key.pixel.is_some());
+            if !accepted {
+                ui.ctx().request_repaint();
+            }
+            accepted
+        } else {
+            accepted
+        };
+        if accepted {
+            app.canvas.key = Some(done.key);
+            app.perf.render_ms = done.ms;
+            app.canvas.last_ms = done.ms;
+            app.canvas.moved = done.moved > 0;
+            app.canvas.from_worker = true;
+        }
     }
-    if app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none() {
+    if app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none() && app.canvas.gpu_texture.is_none() {
         let (w, h, view) = match pixel {
             Some([x0, y0, x1, y1]) => ((x1 - x0) as u32, (y1 - y0) as u32, Affine::translate((-x0 as f64, -y0 as f64))),
             None => (
@@ -411,31 +536,59 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             rich_black: key.rich_black,
             ..opts
         };
-        // Light documents render synchronously (no lag vs overlays); heavy ones go to the worker.
+        // During interactions the artwork and tool overlays must describe the same revision.
+        // A larger window can push even a single rectangle over the worker's time threshold;
+        // queuing that frame separates the live selection outline from its artwork. Prepare and
+        // submit the current GPU scene (or render CPU fallback) before painting its overlays.
+        // Outside interactions heavy frames go to the worker.
         // A document switch renders synchronously so another document's frame is never shown.
         // The first frame after an interaction, when the frame shown drew moved rasters, also goes
         // to the worker. An interaction's frames stay on the worker once it drew the frame shown:
         // its renderer keeps the rasters of the art's effects that make those frames fast, and this
         // thread's renderer has none, so a frame fast on the worker would be slow here.
-        let same_doc = app.canvas.key.as_ref().is_some_and(|k| k.doc == key.doc);
-        let settling = app.canvas.moved && !key.interacting;
-        let staying = key.interacting && app.canvas.from_worker;
-        let heavy = (app.canvas.last_ms > 8.0 || settling || staying) && app.canvas.texture.is_some() && same_doc;
+        let heavy = renders_on_worker(&app.canvas, &key);
+        #[cfg(feature = "gpu-canvas")]
+        let gpu_limits = app.gpu_canvas.as_ref().map_or_else(Default::default, crate::gpu_canvas::GpuCanvas::limits);
         match (&mut app.canvas.worker, heavy) {
-            (Some(worker), true) => worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts }),
+            (Some(worker), true) => worker.submit(crate::render_worker::Job {
+                key: key.clone(),
+                doc: doc.clone(),
+                w,
+                h,
+                view,
+                opts,
+                #[cfg(feature = "gpu-canvas")]
+                gpu_limits,
+            }),
             _ => {
                 let t0 = now_ms();
-                let img = app.canvas.renderer.render(&doc, w, h, view, &opts);
-                upload(app, ui.ctx(), &img, pixel.is_some());
+                let rendered_gpu = false;
+                #[cfg(feature = "gpu-canvas")]
+                let rendered_gpu = if key.gpu {
+                    match app.canvas.renderer.prepare_gpu_with_limits(&doc, w, h, view, &opts, gpu_limits) {
+                        Ok(scene) => present_gpu(app, scene, pixel.is_some()),
+                        Err(reason) => {
+                            app.canvas.backend_reason = Some(reason);
+                            false
+                        }
+                    }
+                } else {
+                    rendered_gpu
+                };
+                if !rendered_gpu {
+                    let img = app.canvas.renderer.render(&doc, w, h, view, &opts);
+                    upload(app, ui.ctx(), &img, pixel.is_some());
+                }
                 app.canvas.key = Some(key.clone());
                 app.perf.render_ms = now_ms() - t0;
                 app.canvas.last_ms = app.perf.render_ms;
-                app.canvas.moved = app.canvas.renderer.stats.moved > 0;
+                app.canvas.moved = !rendered_gpu && app.canvas.renderer.stats.moved > 0;
                 app.canvas.from_worker = false;
             }
         }
     }
-    if let (Some(tex), Some(k)) = (&app.canvas.texture, &app.canvas.key)
+    let texture = app.canvas.gpu_texture.or_else(|| app.canvas.texture.as_ref().map(egui::TextureHandle::id));
+    if let (Some(tex), Some(k)) = (texture, &app.canvas.key)
         && k.doc == key.doc
     {
         // The frame being shown covers the canvas rect it was rendered for. While a panel is
@@ -449,14 +602,14 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         match k.pixel {
             // Document pixels: placed over the document rect they cover, turning with the view.
             Some([x0, y0, x1, y1]) => {
-                textured_quad(&painter, tex.id(), &xf.quad(Rect::new(x0 as f64, y0 as f64, x1 as f64, y1 as f64)), (1.0, 1.0));
+                textured_quad(&painter, tex, &xf.quad(Rect::new(x0 as f64, y0 as f64, x1 as f64, y1 as f64)), (1.0, 1.0));
             }
             None if (k.rot - v.rotation).abs() < 1e-9 => {
                 // Reproject the last frame if it was rendered for a different view.
                 let old = Xf { rect: old_rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: xf.rot };
                 let a = xf.to_screen(old.to_doc(old_rect.min));
                 let b = xf.to_screen(old.to_doc(old_rect.max));
-                painter.image(tex.id(), egui::Rect::from_min_max(a, b), egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                painter.image(tex, egui::Rect::from_min_max(a, b), egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
             }
             // The view turned after the last frame was rendered, and the worker renders the frame at
             // the new angle. Until it arrives, the last frame is drawn turned into this view: each
@@ -465,7 +618,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 let old = Xf { rect: old_rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: k.rot.to_radians() };
                 let q =
                     [old_rect.left_top(), old_rect.right_top(), old_rect.right_bottom(), old_rect.left_bottom()].map(|c| xf.to_screen(old.to_doc(c)));
-                textured_quad(&painter, tex.id(), &q, (1.0, 1.0));
+                textured_quad(&painter, tex, &q, (1.0, 1.0));
             }
         }
     }
@@ -2980,6 +3133,8 @@ fn kurbo_flatten(p: &BezPath, tol: f64, f: &mut impl FnMut(PathEl)) {
 
 /// Upload the art's raster; Pixel Preview's document pixels keep hard edges when magnified.
 fn upload(app: &mut VectorcraftApp, ctx: &egui::Context, img: &vectorcraft_render::Rendered, pixel: bool) {
+    app.canvas.gpu_texture = None;
+    app.canvas.backend = "cpu";
     let color = egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels);
     let options = if pixel { egui::TextureOptions::NEAREST } else { egui::TextureOptions::LINEAR };
     match &mut app.canvas.texture {
@@ -3294,6 +3449,24 @@ const TASK_BAR_TO_SMOOTH: &str = "taskBar.toSmooth";
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn completed_gpu_pan_frames_are_usable_but_changed_content_or_modes_are_not() {
+        let prepared = CacheKey { gpu: true, doc: 7, revision: 9, zoom: 1.0, w: 4314, h: 2544, ..Default::default() };
+        let current = CacheKey { cx: 200.0, cy: 100.0, ..prepared.clone() };
+        assert!(gpu_frame_matches(&prepared, &current));
+        for changed in [
+            CacheKey { doc: 8, ..current.clone() },
+            CacheKey { revision: 10, ..current.clone() },
+            CacheKey { interacting: true, ..current.clone() },
+            CacheKey { zoom: 2.0, ..current.clone() },
+            CacheKey { outline: true, ..current.clone() },
+            CacheKey { pixel: Some([0, 0, 100, 100]), ..current.clone() },
+            CacheKey { resources: (1, Default::default(), 0, 0), ..current.clone() },
+        ] {
+            assert!(!gpu_frame_matches(&prepared, &changed), "accepted incompatible frame: {changed:?}");
+        }
+    }
     use vectorcraft_engine::Session;
     use vectorcraft_geom::Shape as _;
 
@@ -4735,6 +4908,58 @@ mod tests {
         assert!(partial(&alphas(&mut app).expect("re-rendered")) > 50, "smooth again");
     }
 
+    #[test]
+    fn drag_artwork_tracks_the_selection_even_after_a_slow_large_frame() {
+        for size in [vec2(800.0, 600.0), vec2(3840.0, 2160.0)] {
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+            let id = app.run("shape.rectangle", json!({"x": 100, "y": 80, "width": 80, "height": 60})).unwrap()["id"].as_u64().unwrap();
+            app.ui.task_bar = false;
+            app.ui.view.rulers = false;
+            app.canvas.worker_started = true;
+            let ctx = egui::Context::default();
+            let render = |app: &mut VectorcraftApp| {
+                let raw = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, size)),
+                    max_texture_side: Some(8192),
+                    ..Default::default()
+                };
+                ctx.run_ui(raw, |ui| show(app, ui))
+            };
+            let mut first = render(&mut app);
+            first.textures_delta.clear();
+            app.canvas.worker = crate::render_worker::Worker::spawn(ctx.clone());
+            app.select_tool("selection");
+            let view = app.view_info();
+            app.session.pointer(&PointerEvent::new(PointerKind::Down, 140.0, 110.0), view).unwrap();
+            for step in [1.0, 2.0, 3.0] {
+                // Force the background-render threshold without a timing-sensitive assertion.
+                app.canvas.last_ms = 1000.0;
+                app.session.pointer(&PointerEvent::new(PointerKind::Drag, 140.0 + step * 20.0, 110.0 + step * 10.0), view).unwrap();
+                assert!(app.session.in_interaction());
+                let mut output = render(&mut app);
+                let texture = app.canvas.texture.as_ref().unwrap().id();
+                let delta = output.textures_delta.set.iter().find(|entry| entry.0.eq(&texture)).and_then(|(_, updates)| updates.last());
+                let egui::ImageData::Color(image) = &delta.expect("the artwork must move in the same frame as the selection").image;
+                let mut bounds = egui::Rect::NOTHING;
+                for (index, _) in image.pixels.iter().enumerate().filter(|(_, pixel)| pixel.a() > 127) {
+                    let at = pos2((index % image.size[0]) as f32 + 0.5, (index / image.size[0]) as f32 + 0.5);
+                    bounds.extend_with(at);
+                }
+                let rect = app.canvas_rect.unwrap();
+                let doc = &app.session.active().unwrap().doc;
+                let center = doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap().center();
+                let expected = (Xf::new(rect, app.view().unwrap()).to_screen(center) - rect.min) * ctx.pixels_per_point();
+                assert!(
+                    bounds.center().distance(pos2(expected.x, expected.y)) < 1.5,
+                    "{size:?}: artwork {:?}, selection {expected:?}",
+                    bounds.center()
+                );
+                output.textures_delta.clear();
+            }
+        }
+    }
+
     /// A drag of an object with raster effects (#1257): the drag's frames render while
     /// interacting and draw the object's drop shadow and filtered content from the rasters of the
     /// frame before; the frame after the drag renders without `interacting`, on the render worker,
@@ -4951,6 +5176,71 @@ mod tests {
         }
     }
 
+    /// A GPU frame goes to the worker only while a frame of the same document is shown: a document
+    /// switch or the first frame renders here, so the canvas is never left with paper alone.
+    #[test]
+    fn gpu_frames_go_to_the_worker_only_over_a_shown_frame_of_the_document() {
+        let key = CacheKey { gpu: true, doc: 2, revision: 5, ..Default::default() };
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let canvas = &mut app.canvas;
+        assert!(!renders_on_worker(canvas, &key), "first frame");
+        canvas.key = Some(CacheKey { doc: 1, ..key.clone() });
+        canvas.gpu_texture = Some(egui::TextureId::User(1));
+        assert!(!renders_on_worker(canvas, &key), "another document's frame is shown");
+        canvas.key = Some(CacheKey { revision: 4, ..key.clone() });
+        assert!(renders_on_worker(canvas, &key), "an earlier frame of this document is shown");
+        canvas.gpu_texture = None;
+        assert!(!renders_on_worker(canvas, &key), "no frame shown");
+        assert!(!renders_on_worker(canvas, &CacheKey { interacting: true, ..key.clone() }), "interactions render here");
+    }
+
+    /// A drag on the worker shows each frame it finishes, though the drag has moved on by then:
+    /// every move is a new revision, so waiting for the current one would hold the art still until
+    /// the pointer stops.
+    #[test]
+    fn a_drag_on_the_worker_shows_frames_the_pointer_has_moved_past() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 100, "y": 80, "width": 80, "height": 60})).unwrap();
+        app.canvas.worker_started = true;
+        let ctx = egui::Context::default();
+        shapes(&mut app, &ctx);
+        let (worker, jobs, completed) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        app.canvas.from_worker = true;
+        app.select_tool("selection");
+        let view = app.view_info();
+        app.session.pointer(&PointerEvent::new(PointerKind::Down, 140.0, 110.0), view).unwrap();
+        let mut shown = 0;
+        for step in 1..=4 {
+            let step = f64::from(step);
+            app.session.pointer(&PointerEvent::new(PointerKind::Drag, 140.0 + step * 20.0, 110.0 + step * 10.0), view).unwrap();
+            shapes(&mut app, &ctx);
+            let job = jobs.try_recv().expect("the drag frame went to the worker");
+            assert!(job.key.interacting);
+            // The pointer moves again before the frame finishes.
+            app.session.pointer(&PointerEvent::new(PointerKind::Drag, 150.0 + step * 20.0, 115.0 + step * 10.0), view).unwrap();
+            let img = app.canvas.renderer.render(&job.doc, job.w, job.h, job.view, &job.opts);
+            let expected = job.key.clone();
+            completed.send(crate::render_worker::Done {
+                key: job.key,
+                img: Some(img),
+                #[cfg(feature = "gpu-canvas")]
+                scene: None,
+                reason: None,
+                ms: 20.0,
+                moved: 0,
+            });
+            shapes(&mut app, &ctx);
+            if app.canvas.key.as_ref() == Some(&expected) {
+                shown += 1;
+            }
+            let _ = jobs.try_recv(); // the frame queued for the newer position
+        }
+        assert_eq!(shown, 4, "every finished drag frame is shown");
+        app.session.pointer(&PointerEvent::new(PointerKind::Up, 230.0, 155.0), view).unwrap();
+    }
+
     /// The frame after an interaction renders without `interacting` also when the interaction
     /// leaves the document as it was (#1257): here a drag back to where it started.
     #[test]
@@ -5101,7 +5391,15 @@ mod tests {
             // Deliver the actual replacement and verify that it replaces the cached key.
             let img = app.canvas.renderer.render(&job.doc, job.w, job.h, job.view, &job.opts);
             let expected = job.key.clone();
-            completed.send(crate::render_worker::Done { key: job.key, img, ms: 1.0, moved: 0 }).unwrap();
+            completed.send(crate::render_worker::Done {
+                key: job.key,
+                img: Some(img),
+                #[cfg(feature = "gpu-canvas")]
+                scene: None,
+                reason: None,
+                ms: 1.0,
+                moved: 0,
+            });
             frame(&mut app, size, new_ppp);
             assert_eq!(app.canvas.key.as_ref(), Some(&expected), "the worker's frame arrived");
         }
