@@ -30,6 +30,7 @@ use vectorcraft_doc::hit::hit_test;
 use vectorcraft_geom::{Affine, Point, Shape, Vec2, constrain_angle_from};
 
 use super::freeform::{self, Annotator as FreeformAnnotator};
+use super::measure;
 use super::paint_owner;
 use crate::guides::snap_draw;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -370,7 +371,11 @@ impl GradientTool {
                 let start = place(geom.start, geom.start + (p - g.at));
                 ("paint.setGradientGeom", Self::geom_params(cx, start, start + (geom.end - geom.start)))
             }
-            Grab::End(geom) => ("paint.setGradientGeom", Self::geom_params(cx, geom.start, place(geom.start, p))),
+            Grab::End(geom) => {
+                let end = place(geom.start, p);
+                g.vector = Some((geom.start, end));
+                ("paint.setGradientGeom", Self::geom_params(cx, geom.start, end))
+            }
             Grab::Rotate { geom, from } => {
                 let dir = (Affine::rotate(-from) * (p - geom.start).to_point()).to_vec2();
                 let dir = if mods.shift { constrain(dir) } else { dir };
@@ -555,6 +560,17 @@ impl Tool for GradientTool {
             _ => vec![],
         };
         o.extend(self.guides.iter().cloned());
+        if cx.measurement_labels
+            && let Some(g) = &self.gesture
+            && g.began
+            && let Some((a, b)) = g.vector.filter(|(a, b)| a.distance(*b) > 1e-9)
+        {
+            let (dist, ang, dx, dy) = measure::measure(a, b);
+            o.push(Overlay::Measure {
+                p: b + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: format!("D: {}\nAngle: {ang:.1}°\n{}", cx.len(dist), cx.offset_label(dx, dy)),
+            });
+        }
         o
     }
 
@@ -657,7 +673,21 @@ mod tests {
         assert!((v["end"][1].as_f64().unwrap() - 150.0).abs() < 1e-9);
         // While dragging a solid-filled object the annotator follows the drag.
         assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Handle { p, .. } if p.x == 110.0)));
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("D: 80.0") && text.contains("pt"))));
+        let quiet = ToolContext { measurement_labels: false, ..cx };
+        assert!(!t.overlays(&quiet).iter().any(|o| matches!(o, Overlay::Measure { .. })));
         assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 190.0, 150.0)), vec![Action::Commit]);
+    }
+
+    #[test]
+    fn end_handle_drag_shows_gradient_vector_in_measurement_labels() {
+        let (d, s) = graded(two());
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = GradientTool::default();
+        t.pointer(&cx, &ev(PointerKind::Down, Point::new(200.0, 150.0)));
+        t.pointer(&cx, &ev(PointerKind::Drag, Point::new(300.0, 150.0)));
+        assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("D: 200.00 pt") && text.contains("dX: 200.00 pt") && text.contains("dY: 0.00 pt"))));
     }
 
     #[test]
