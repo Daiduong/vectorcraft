@@ -411,6 +411,22 @@ fn outline_stroke_of_line() {
 }
 
 #[test]
+fn outline_stroke_drops_a_zero_area_default_fill_centerline() {
+    let mut s = session();
+    s.execute("shape.line", &json!({"x1": 10, "y1": 20, "x2": 60, "y2": 90})).unwrap();
+    let before = s.doc().unwrap().doc.clone();
+    let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap());
+    let n = node(&s, result[0]);
+    assert!(matches!(n.kind, NodeKind::Path { .. }), "one filled outline, no centerline group");
+    assert!(n.appearance.stroke().is_none());
+    assert!(area_of(&s, result[0]) > 80.0);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.layers, before.layers);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert!(node(&s, result[0]).appearance.stroke().is_none());
+}
+
+#[test]
 fn outline_stroke_with_fill_makes_group() {
     let mut s = session();
     let a = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
@@ -981,4 +997,60 @@ fn offset_path_that_leaves_nothing_says_so() {
     s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
     let e = s.execute("object.path.offsetPath", &json!({"offset": -20})).unwrap_err().to_string();
     assert!(e.contains("leaves nothing") && !e.contains("select paths"), "{e}");
+}
+
+#[test]
+fn outline_stroke_preserves_tiny_and_signed_area_canceling_closed_fills() {
+    for points in [vec![[0.0, 0.0], [100.0, 100.0], [0.0, 100.0], [100.0, 0.0]], vec![[0.0, 0.0], [1e-8, 0.0], [1e-8, 1e-8]]] {
+        let mut s = session();
+        let anchors: Vec<Value> = points.into_iter().map(|[x, y]| json!({"x":x,"y":y})).collect();
+        s.execute("path.create", &json!({"anchors":anchors,"closed":true})).unwrap();
+        let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap());
+        let n = node(&s, result[0]);
+        let retains_fill = n.children().is_some_and(|ch| ch.iter().any(|c| c.appearance.fill_paint() == Paint::solid(Color::WHITE)))
+            || n.appearance.fill_paint() == Paint::solid(Color::WHITE);
+        assert!(retains_fill, "a real fill survives independently of its signed area or scale");
+    }
+}
+
+#[test]
+fn outline_stroke_consumes_bent_open_fill_and_preserves_history() {
+    let mut s = session();
+    s.execute("path.create", &json!({"anchors":[{"x":0,"y":0},{"x":60,"y":0},{"x":75,"y":-15},{"x":110,"y":-15}],"closed":false})).unwrap();
+    let before = s.doc().unwrap().doc.clone();
+    let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap());
+    let n = node(&s, result[0]);
+    assert!(matches!(n.kind, NodeKind::Path { .. }), "only the stroke outline remains");
+    assert_eq!(n.appearance.fill_paint(), Paint::solid(Color::BLACK));
+    assert!(n.appearance.stroke().is_none());
+    assert!(path_of(&s, result[0]).0.subpaths.iter().all(|sp| sp.closed));
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.layers, before.layers);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(node(&s, result[0]).appearance.fill_paint(), Paint::solid(Color::BLACK));
+}
+
+#[test]
+fn outline_stroke_mixed_contours_keep_only_closed_fill() {
+    use vectorcraft_geom::{Anchor, Point, SubPath};
+    let mut s = session();
+    let id = rect(&mut s, 0.0, 0.0, 20.0, 20.0);
+    s.edit("mixed contours", |d, _| {
+        let n = d.node_mut(id).unwrap();
+        if let NodeKind::Path { path, .. } = &mut n.kind {
+            path.subpaths.push(SubPath::new(
+                vec![Anchor::corner(Point::new(50.0, 0.0)), Anchor::corner(Point::new(80.0, 0.0)), Anchor::corner(Point::new(80.0, 20.0))],
+                false,
+            ));
+        }
+        Ok(())
+    })
+    .unwrap();
+    let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap());
+    let outlined = node(&s, result[0]);
+    let children = outlined.children().unwrap();
+    let fill = children.iter().find(|n| n.appearance.fill_paint() == Paint::solid(Color::WHITE)).unwrap();
+    let NodeKind::Path { path, .. } = &fill.kind else { panic!("fill is a path") };
+    assert_eq!(path.subpaths.len(), 1);
+    assert!(path.subpaths[0].closed);
 }

@@ -647,14 +647,22 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
         return None;
     }
     let (path, rule) = node_path(l)?;
+    // Outline Stroke consumes open contours, including their implicit closing fill.
+    // Closed contours keep their fill, independent of area, winding or scale.
+    let fill_path = PathData::new(path.subpaths.iter().filter(|sp| sp.closed).cloned().collect());
+    let fill_copy = |d: &mut Document, items| {
+        let mut n = styled_copy(d, l, items);
+        n.kind = NodeKind::Path { path: fill_path.clone(), rule, live: None, clipping: false, guide: false };
+        n
+    };
     let mut parts: Vec<Node> = vec![];
     let mut fills: Vec<AppearanceItem> = vec![];
     for item in &l.appearance.items {
         match item {
-            AppearanceItem::Fill(f) if f.visible && !f.paint.is_none() => fills.push(item.clone()),
+            AppearanceItem::Fill(f) if !fill_path.subpaths.is_empty() && f.visible && !f.paint.is_none() => fills.push(item.clone()),
             AppearanceItem::Stroke(st) if outlinable(st) => {
                 if !fills.is_empty() {
-                    parts.push(styled_copy(d, l, std::mem::take(&mut fills)));
+                    parts.push(fill_copy(d, std::mem::take(&mut fills)));
                 }
                 parts.extend(outlined_stroke(d, brushes, &path, rule, st));
             }
@@ -662,7 +670,7 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
         }
     }
     if !fills.is_empty() {
-        parts.push(styled_copy(d, l, fills));
+        parts.push(fill_copy(d, fills));
     }
     assemble(d, l, parts)
 }
