@@ -170,6 +170,27 @@ fn spine_commands_refuse_an_index_that_is_not_a_whole_number() {
     assert_eq!(spec(&s, g).spine.unwrap().subpaths[0].anchors[1].p, Point::new(55.0, 60.0));
 }
 
+/// Reshape Spine Segment refuses a `t`, `dx` or `dy` given as text or as another value that is not
+/// a number, instead of bending the spine by 0 or at the segment's middle, and the blend stays as
+/// it was; null is read as the key left out.
+#[test]
+fn spine_reshape_segment_refuses_a_number_given_as_text() {
+    let mut s = session();
+    let (_, _, g) = blend(&mut s);
+    let before = node(&s, g);
+    for key in ["t", "dx", "dy"] {
+        for v in [json!("10"), json!([10]), json!(true)] {
+            let mut p = json!({"id": g.0, "segment": 0, "t": 0.5, "dx": 0, "dy": 40});
+            p[key] = v.clone();
+            let r = s.execute("object.blend.spine.reshapeSegment", &p);
+            assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if *msg == format!("`{key}` must be a number, not {v}")), "{p}: {r:?}");
+            assert_eq!(node(&s, g), before, "{p}");
+        }
+    }
+    s.execute("object.blend.spine.reshapeSegment", &json!({"id": g.0, "segment": 0, "t": null, "dx": null, "dy": 40})).unwrap();
+    assert!(center(&steps(&s, g)[1]).y > 20.0, "the step follows the bent spine");
+}
+
 #[test]
 fn info_lists_the_spine() {
     let mut s = session();

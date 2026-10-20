@@ -697,6 +697,7 @@ fn spine_convert_anchor(s: &mut Session, p: &Value) -> Result<Value> {
 fn spine_reshape_segment(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.blend.spine.reshapeSegment";
     let seg = index_param(p, "segment", C)?;
+    check_numbers(p, &["t", "dx", "dy"], C)?;
     let t = f64_or(p, "t", 0.5).clamp(0.05, 0.95);
     let dv = Vec2::new(f64_or(p, "dx", 0.0), f64_or(p, "dy", 0.0));
     if !(t.is_finite() && dv.x.is_finite() && dv.y.is_finite() && dv.hypot() < 1e9) {

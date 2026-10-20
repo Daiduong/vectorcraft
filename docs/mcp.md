@@ -2046,6 +2046,20 @@ the canvas (coordinates out of range)".
 is not a whole number of 0 or more, such as 1.5, -1 or "1" ("missing integer `subpath`"); `path.split` refuses such
 an `anchor` or `segment` in the same way. The document does not change and no undo step is recorded.
 
+These commands refuse a string or another value that is not a number with `` `dy` must be a number, not "10" ``,
+naming the key; the document does not change and no undo step is recorded: `t`, `dx` and `dy` in
+`path.reshapeSegment` and `object.blend.spine.reshapeSegment`; `x`, `y` and `t` in `path.curvatureEdit`; `x` and `y`
+in `path.convertAnchor`; `t` in `path.insertAnchor`; `fidelity` and the `within` of `redraw` in `path.freehand` (and in
+`brush.freehand`, which runs it); `size` in `path.eraseRegion` and `path.blob`; `width` in `path.eraseSegments`;
+`radius` and `fidelity` in `path.smoothRegion`; `tolerance` in `path.joinScrub`; `dx` and `dy` in `path.moveAnchors`;
+and `dx`, `dy`, `tol` and `radius` in `path.reshape`. A null is read as a key left out. `path.convertAnchor` refuses
+an `x` without a `y`, or a `y` without an `x`, with "x and y must be given together". `path.freehand`,
+`path.curvature`, `path.knife`, `path.eraseRegion`, `path.eraseSegments`, `path.smoothRegion`, `path.joinScrub` and
+`path.blob` refuse a point in `points` whose x or y is not a number, such as `["10", 10]` or a point written as a
+string, with "x and y must both be numbers". All of them except `path.curvature` refuse a pen pressure that is neither
+a number nor null with `` `pressure` must be a number, not "0.5" ``. `path.close` refuses an `in` that is not `[x, y]`
+with `` `in` must be [x, y] ``.
+
 A `pointer_gesture` with `mods: {cmd: true}` held at the press, with any tool but the selection tools (Command on
 macOS, Ctrl elsewhere), drags with the selection tool chosen last (`select_tool`), or Direct Selection with the Pen,
 Curvature and anchor tools until one is chosen; the release gives the tool back as it was, so the Pen goes on drawing
