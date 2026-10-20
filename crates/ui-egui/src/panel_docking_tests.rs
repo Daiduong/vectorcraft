@@ -693,3 +693,41 @@ fn library_panels_float_with_their_names_and_a_persistent_menu_item() {
     let persistent: Vec<&str> = h.state().ui.library_panels.iter().filter(|p| p.persistent).map(|p| p.id.as_str()).collect();
     assert_eq!(persistent, ["pastels"]);
 }
+
+/// Every observed frame of a narrowing drag must follow the divider, including after settling.
+#[test]
+fn dock_narrowing_follows_the_pointer_without_width_feedback() {
+    for shared in [false, true] {
+        let mut app = app();
+        app.run("file.new", json!({})).unwrap();
+        app.ui.dock_tab = crate::state::DockTab::Layers;
+        if shared {
+            app.run("window.panel.move", json!({"panel":"properties","anchor":"layers"})).unwrap();
+        }
+        let mut h = harness(app, vec2(1280.0, 800.0));
+        let panel = if shared { crate::dock::SHARED_DOCK_PANEL } else { crate::dock::LEGACY_DOCK_PANEL };
+        let rect = egui::containers::panel::PanelState::load(&h.ctx, egui::Id::new(panel)).unwrap().outer_rect;
+        let from = pos2(rect.left(), 400.0);
+        h.event(Event::PointerMoved(from));
+        h.run_steps(1);
+        h.event(Event::PointerButton { pos: from, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+        h.run_steps(1);
+        let mut last = rect.left();
+        for step in 1..=100 {
+            let at = from + vec2(step as f32, 0.0);
+            h.event(Event::PointerMoved(at));
+            h.run_steps(1);
+            // The card/dock bounds are the actual resolved layout, not the pre-drag persisted width.
+            let mut actual = h.ctx.data(|d| d.get_temp::<egui::Rect>(crate::floating::dock_rect_id())).unwrap();
+            actual.min.x += 38.0;
+            assert!(actual.left() >= last - 0.5, "divider reversed: {last} -> {}", actual.left());
+            assert!(
+                (actual.left() - at.x.min(rect.right() - if shared { 220.0 } else { 230.0 })).abs() <= if step < 8 { 8.0 } else { 2.0 },
+                "divider left {} vs pointer {}",
+                actual.left(),
+                at.x
+            );
+            last = actual.left();
+        }
+    }
+}

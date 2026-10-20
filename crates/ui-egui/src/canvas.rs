@@ -237,6 +237,20 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let bars = app.ui.screen_mode < 2;
     let full = if bars { egui::Rect::from_min_max(full.min, full.max - vec2(SCROLL_BAR, SCROLL_BAR)) } else { full };
     let rect = if app.ui.view.rulers && app.ui.screen_mode < 3 { egui::Rect::from_min_max(full.min + vec2(RULER, RULER), full.max) } else { full };
+    let layout_id = egui::Id::new(("canvas-layout-rect", app.session.active().map(|st| st.uid)));
+    let previous = ui.data_mut(|data| {
+        let previous = data.get_temp::<egui::Rect>(layout_id);
+        data.insert_temp(layout_id, rect);
+        previous
+    });
+    // `fitted` means the initial camera has been established; it does not classify navigation.
+    if let Some(previous) = previous.filter(|old| *old != rect)
+        && let Some(v) = app.view_mut().filter(|v| v.fitted)
+    {
+        // Keep every document point stationary in window coordinates when panels/rulers/window
+        // change the viewport. Explicit fit/reset/navigation commands still choose their camera.
+        v.center = Xf::new(previous, v).to_doc(rect.center());
+    }
     app.canvas_rect = Some(rect);
     let fitted = app.view().is_some_and(|v| v.fitted);
     if !fitted {
@@ -304,14 +318,23 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
     // Artwork raster.
     let ppp = ui.ctx().pixels_per_point();
+    // Render behind the horizontal chrome too. With screen-anchored artwork the same raster
+    // then covers both dock expansion and narrowing, rather than synchronously rendering each
+    // newly exposed strip of a heavy document. The painter still clips to the visible canvas.
+    let screen = ui.ctx().content_rect();
+    let render_rect =
+        egui::Rect::from_min_max(pos2(screen.left().min(rect.left()), rect.top()), pos2(screen.right().max(rect.right()), rect.bottom()));
+    let render_center = xf.to_doc(render_rect.center());
     // Match Renderer::render_as before recording the cache extent or building its view.
     let (w, h) = (
-        ((rect.width() * ppp).round().max(1.0) as u32).min(u32::from(u16::MAX)),
-        ((rect.height() * ppp).round().max(1.0) as u32).min(u32::from(u16::MAX)),
+        ((render_rect.width() * ppp).round().max(1.0) as u32).min(u32::from(u16::MAX)),
+        ((render_rect.height() * ppp).round().max(1.0) as u32).min(u32::from(u16::MAX)),
     );
     // View › Pixel Preview: the art as it rasterizes, one pixel per point, while a document pixel
     // is bigger than a screen pixel (below that the screen render already shows it).
-    let pixel = (app.ui.view.pixel_preview && v.zoom * ppp as f64 > 1.0).then(|| pixel_region(&xf)).flatten();
+    let pixel = (app.ui.view.pixel_preview && v.zoom * ppp as f64 > 1.0)
+        .then(|| pixel_region(&Xf { rect: render_rect, center: render_center, ..xf }))
+        .flatten();
     // File Handling › Display Bitmaps as Anti-aliased Images in Pixel Preview: off, images show
     // their pixels as they rasterize, hard-edged.
     let smooth_images = pixel.is_none() || app.session.prefs.anti_aliased_bitmaps;
@@ -323,8 +346,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         revision: st.revision,
         interacting: st.interaction.is_some(),
         zoom: v.zoom,
-        cx: v.center.x,
-        cy: v.center.y,
+        cx: render_center.x,
+        cy: render_center.y,
         w,
         h,
         outline: app.ui.view.outline,
@@ -374,7 +397,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 Affine::translate((w as f64 / 2.0, h as f64 / 2.0))
                     * Affine::rotate(v.rotation.to_radians())
                     * Affine::scale(v.zoom * ppp as f64)
-                    * Affine::translate(-v.center.to_vec2()),
+                    * Affine::translate(-render_center.to_vec2()),
             ),
         };
         let opts = vectorcraft_render::RenderOptions { outline: app.ui.view.outline, background: None, artboards: false, ..Default::default() };
@@ -5071,13 +5094,16 @@ mod tests {
                 }
             }
             let size = vec2(602.5, 720.1);
+            let prior_mapping = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
             let mesh = frame(&mut app, size, new_ppp);
             assert_eq!(app.canvas.key.as_ref(), Some(&old), "the cached frame is still displayed");
             let job = jobs.try_recv().expect("the replacement frame was submitted");
             assert_eq!(job.key.ppp, new_ppp);
             assert_eq!(job.key.rot, new_rot);
             if resize_only {
-                assert_eq!((job.key.zoom, job.key.cx, job.key.cy, job.key.rot, job.key.ppp), (old.zoom, old.cx, old.cy, old.rot, old.ppp));
+                assert_eq!((job.key.zoom, job.key.rot, job.key.ppp), (old.zoom, old.rot, old.ppp));
+                let want = prior_mapping.to_doc(pos2(ctx.content_rect().center().x, app.canvas_rect.unwrap().center().y));
+                assert!((Point::new(job.key.cx, job.key.cy) - want).length() < 1e-6, "the new raster camera preserves the prior screen mapping");
             }
             assert_ne!((job.key.w, job.key.h), (old.w, old.h));
             let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
@@ -5123,7 +5149,8 @@ mod tests {
         app.view_mut().unwrap().rotation = 30.0;
         shapes(&mut app, &ctx);
         let rect = app.canvas_rect.unwrap();
-        let old = Xf::new(rect, app.view().unwrap());
+        let old_rect = egui::Rect::from_min_max(pos2(ctx.content_rect().left(), rect.top()), pos2(ctx.content_rect().right(), rect.bottom()));
+        let old = Xf { rect: old_rect, center: panel_raster_center(&app, &ctx), ..Xf::new(rect, app.view().unwrap()) };
         // `art` runs one frame and finds the mesh that draws the art's texture.
         let art = |app: &mut VectorcraftApp| {
             let s = shapes(app, &ctx);
@@ -5140,7 +5167,7 @@ mod tests {
         let mesh = art(&mut app).expect("the last frame, turned");
         assert!(app.canvas.worker.as_ref().and_then(|w| w.pending.as_ref()).is_some_and(|k| k.rot == 0.0), "sent to the worker");
         let new = Xf::new(rect, app.view().unwrap());
-        let corners = [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom()];
+        let corners = [old.rect.left_top(), old.rect.right_top(), old.rect.right_bottom(), old.rect.left_bottom()];
         assert_eq!(mesh.vertices.len(), 4);
         for ((v, corner), uv) in mesh.vertices.iter().zip(corners).zip([pos2(0.0, 0.0), pos2(1.0, 0.0), pos2(1.0, 1.0), pos2(0.0, 1.0)]) {
             let at = new.to_screen(old.to_doc(corner));
@@ -5148,7 +5175,7 @@ mod tests {
         }
         // The point where the last frame drew the rectangle's top-left corner lands where the new view puts that corner.
         let p = Point::new(100.0, 50.0);
-        let uv = (old.to_screen(p) - rect.min) / rect.size();
+        let uv = (old.to_screen(p) - old.rect.min) / old.rect.size();
         let [a, b, _, d] = [0, 1, 2, 3].map(|i| mesh.vertices[i].pos);
         assert!((a + (b - a) * uv.x + (d - a) * uv.y - new.to_screen(p)).length() < 0.01, "the rectangle's corner");
         // The worker's frame at 0° then covers the canvas unturned.
@@ -5159,7 +5186,7 @@ mod tests {
         }
         assert!(app.canvas.key.as_ref().is_some_and(|k| k.rot == 0.0), "the worker's frame arrives");
         let b = art(&mut app).expect("the worker's frame").calc_bounds();
-        assert!((b.min - rect.min).length() < 0.01 && (b.max - rect.max).length() < 0.01, "{b:?} over {rect:?}");
+        assert!((b.min - old.rect.min).length() < 0.01 && (b.max - old.rect.max).length() < 0.01, "{b:?} over {old:?}");
         // In Pixel Preview the last frame's pixels are drawn over the document rect they cover.
         app.canvas.worker = None;
         app.ui.view.pixel_preview = true;
@@ -8060,6 +8087,117 @@ mod tests {
             let after = on_screen(&app, p);
             let want = if k == 0 { before - vec2(30.0, 0.0) } else { before - vec2(0.0, 30.0) };
             assert!((after - want).length() < 0.5, "bar {k}: {before:?} -> {after:?}, want {want:?}");
+        }
+    }
+    // The panel cache is centered in the window, independently of the visible canvas center.
+    fn panel_raster_center(app: &VectorcraftApp, ctx: &egui::Context) -> Point {
+        let rect = app.canvas_rect.unwrap();
+        Xf::new(rect, app.view().unwrap()).to_doc(pos2(ctx.content_rect().center().x, rect.center().y))
+    }
+
+    /// Narrowing a side panel reveals pixels already rendered behind it. No synchronous render
+    /// or worker replacement is needed during the drag, even on an arbitrarily slow scene.
+    #[test]
+    fn side_panel_resize_reuses_the_raster_behind_chrome_without_blocking() {
+        for (rotation, ppp, pixel) in [(0.0, 1.0, false), (30.0, 1.25, false), (75.0, 2.0, false), (30.0, 1.25, true)] {
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width":400,"height":300})).unwrap();
+            app.canvas.worker_started = true;
+            let frame = |app: &mut VectorcraftApp, width| {
+                let mut input = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(pos2(0.0, 0.0), vec2(1400.0, 800.0))),
+                    max_texture_side: Some(8192),
+                    ..Default::default()
+                };
+                input.viewports.get_mut(&egui::ViewportId::ROOT).unwrap().native_pixels_per_point = Some(ppp);
+                let mut out = ctx.run_ui(input, |ui| {
+                    egui::Panel::right("resize-test-panel").exact_size(width).show(ui, |_| {});
+                    show(app, ui);
+                });
+                out.textures_delta.clear();
+            };
+            frame(&mut app, 300.0);
+            app.view_mut().unwrap().rotation = rotation;
+            app.view_mut().unwrap().zoom = 2.5;
+            app.ui.view.pixel_preview = pixel;
+            frame(&mut app, 300.0);
+            let original = app.canvas.key.clone().unwrap();
+            let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+            let (worker, jobs, _done) = crate::render_worker::Worker::test_channel();
+            app.canvas.worker = Some(worker);
+            app.canvas.last_ms = 500.0;
+            for width in [310.0, 480.0, 700.0, 650.0, 500.0, 300.0, 230.0, 38.0, 300.0] {
+                frame(&mut app, width);
+                assert_eq!(app.canvas.key.as_ref(), Some(&original), "panel {width}, {rotation} degrees, {ppp} DPI, pixel={pixel}");
+                // Tiny floating-point differences in the camera may schedule a refresh, but
+                // must not force a synchronous render or replace the covered texture.
+                while jobs.try_recv().is_ok() {}
+                assert_eq!(app.canvas.last_ms, 500.0, "the UI thread did not render");
+                let now = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+                assert!((xf.to_screen(Point::new(50.0, 60.0)) - now.to_screen(Point::new(50.0, 60.0))).length() < 0.002);
+            }
+        }
+    }
+
+    #[test]
+    fn layout_changes_preserve_window_anchors_after_navigation_at_any_rotation() {
+        for rotation in [0.0, 30.0, 90.0, 135.0] {
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width":400,"height":300})).unwrap();
+            app.canvas.worker_started = true;
+            let frame = |app: &mut VectorcraftApp, rect| {
+                let input = egui::RawInput { screen_rect: Some(rect), ..Default::default() };
+                let mut out = ctx.run_ui(input, |ui| show(app, ui));
+                out.textures_delta.clear();
+            };
+            let rect = |x, y, w, h| egui::Rect::from_min_size(pos2(x, y), vec2(w, h));
+            let initial = rect(20.0, 30.0, 1000.0, 600.0);
+            frame(&mut app, initial);
+            app.run("view.setZoom", json!({"zoom":125,"center":[220,160]})).unwrap();
+            app.run("view.rotate", json!({"angle":rotation})).unwrap();
+            frame(&mut app, initial);
+            let points = [Point::ZERO, Point::new(150.0, 90.0), Point::new(300.0, 280.0)];
+            let before = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+            let document = app.session.active().unwrap().doc.clone();
+            let check = |app: &VectorcraftApp| {
+                let after = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+                for p in points {
+                    assert!((before.to_screen(p) - after.to_screen(p)).length() < 0.002, "rotation {rotation}");
+                }
+                assert_eq!(before.zoom, after.zoom);
+                assert_eq!(before.rot, after.rot);
+                assert_eq!(app.session.active().unwrap().doc, document);
+                assert!(!app.session.active().unwrap().is_dirty());
+            };
+            // Width, height and the logical viewport origin each change independently.
+            // This is an egui coordinate-origin check, not an OS multi-monitor/DPI claim.
+            for changed in [
+                rect(20.0, 30.0, 995.0, 600.0),
+                rect(20.0, 30.0, 600.0, 600.0),
+                initial,
+                rect(20.0, 30.0, 1000.0, 420.0),
+                rect(20.0, 30.0, 1000.0, 780.0),
+                initial,
+                rect(-30.0, 55.0, 1000.0, 600.0),
+                rect(80.0, -20.0, 1000.0, 600.0),
+                initial,
+            ] {
+                frame(&mut app, changed);
+                check(&app);
+            }
+            for rulers in [true, false, true] {
+                app.ui.view.rulers = rulers;
+                frame(&mut app, initial);
+                check(&app);
+            }
+            app.run("view.fitArtboard", json!({})).unwrap();
+            frame(&mut app, initial);
+            let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+            assert!((xf.to_screen(Point::new(200.0, 150.0)) - xf.rect.center()).length() < 0.002);
         }
     }
 }
