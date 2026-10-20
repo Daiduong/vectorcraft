@@ -12,7 +12,7 @@
 
 use serde_json::{Value, json};
 use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Point;
+use vectorcraft_geom::{Point, Vec2};
 
 use super::{FEEDBACK, points_json, polyline};
 use crate::guides::DrawSnap;
@@ -354,6 +354,14 @@ impl Tool for GestureTool {
         };
         let color = if self.id == "eraser" { [0x80, 0x80, 0x80] } else { FEEDBACK };
         o.push(Overlay::Path { path: polyline(&self.points), color, width, dashed: self.id == "knife" });
+        if self.id == "join" && cx.measurement_labels {
+            let last = self.points[self.points.len() - 1];
+            let length = self.points.windows(2).map(|w| w[0].distance(w[1])).sum::<f64>();
+            o.push(Overlay::Measure {
+                p: last + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
+                text: format!("L: {}", cx.len(length)),
+            });
+        }
         o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, m: Mods) -> Cursor {
@@ -556,6 +564,24 @@ mod tests {
         let cx2 = crate::testutil::cx(&d, &s2, &p);
         let acts = drag(&mut t, &cx2, &[(100.0, 100.0), (90.0, 90.0)], Mods::default());
         assert!(matches!(&acts[1][1], Action::Preview(_, v) if v.get("extend").is_none()));
+    }
+
+    #[test]
+    fn join_scrub_shows_polyline_length_in_measurement_labels() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let mut t = GestureTool::new("join");
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, 100.0, 0.0));
+        let want = format!("L: {}", on.len(100.0));
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, 100.0, 100.0));
+        let want = format!("L: {}", on.len(200.0));
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        let off = ToolContext { measurement_labels: false, ..on };
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
