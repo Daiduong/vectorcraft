@@ -1,7 +1,7 @@
 //! Linux: which desktop the custom title bar's caption buttons look like with the Classic OG colour
 //! scheme, and which buttons go on which side (`vectorcraft_ui_egui::titlebar::CaptionStyle`), as in
-//! PhotoCraft (its `caption_style.rs`). GNOME gets libadwaita's buttons, KDE (and SteamOS's desktop
-//! mode) Breeze's in KWin's order (`kwinrc`); other desktops get plain round buttons, or Adwaita's
+//! PhotoCraft (its `caption_style.rs`). GNOME gets libadwaita's buttons in its `button-layout` order
+//! (from `gsettings`), KDE (and SteamOS's desktop mode) Breeze's in KWin's order (`kwinrc`); other desktops get plain round buttons, or Adwaita's
 //! or Breeze's when their GTK theme is one of those, in GTK's `gtk-decoration-layout` order. Read
 //! once, when the app starts.
 //!
@@ -131,7 +131,7 @@ fn read_text(path: &std::path::Path) -> Option<String> {
 }
 
 /// The GTK theme and the button layout from the desktop's files: `kwinrc` on KDE, GTK 3's
-/// `settings.ini` elsewhere.
+/// `settings.ini` elsewhere (on GNOME, its own setting replaces it: [`gnome_button_layout`]).
 #[cfg(target_os = "linux")]
 fn from_files(desktop: Desktop, var: &dyn Fn(&str) -> Option<String>) -> Found {
     let config = var("XDG_CONFIG_HOME")
@@ -149,6 +149,27 @@ fn from_files(desktop: Desktop, var: &dyn Fn(&str) -> Option<String>) -> Found {
     Found { gtk_theme, layout }
 }
 
+/// GNOME's `org.gnome.desktop.wm.preferences` `button-layout`, from `gsettings` (none when it is
+/// missing, as in some sandboxes, or fails).
+#[cfg(target_os = "linux")]
+fn gnome_button_layout() -> Option<String> {
+    let out = std::process::Command::new("gsettings").args(["get", "org.gnome.desktop.wm.preferences", "button-layout"]).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    gsettings_string(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// A string as `gsettings get` prints it (`'appmenu:close'`, or `@ms 'appmenu:close'` for a maybe
+/// type), without the quotes; none when empty.
+#[cfg(target_os = "linux")]
+fn gsettings_string(printed: &str) -> Option<String> {
+    let s = printed.trim();
+    let s = s.strip_prefix("@ms ").unwrap_or(s).trim();
+    let s = s.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')).unwrap_or(s).trim();
+    (!s.is_empty()).then(|| s.to_string())
+}
+
 /// The desktop's caption buttons, for `Services::caption_style`; `None` off Linux (Windows keeps its
 /// own buttons, macOS its traffic lights).
 pub fn detect() -> Option<vectorcraft_ui_egui::titlebar::CaptionStyle> {
@@ -156,7 +177,15 @@ pub fn detect() -> Option<vectorcraft_ui_egui::titlebar::CaptionStyle> {
     {
         let var = |k: &str| std::env::var(k).ok();
         let desktop = desktop(&var);
-        Some(resolve(desktop, &from_files(desktop, &var), &var))
+        let mut found = from_files(desktop, &var);
+        // GNOME keeps its button layout in its settings (what Settings and Tweaks change), not in
+        // GTK's settings.ini.
+        if desktop == Desktop::Gnome
+            && let Some(layout) = gnome_button_layout()
+        {
+            found.layout = Some(layout);
+        }
+        Some(resolve(desktop, &found, &var))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -173,6 +202,18 @@ mod tests {
     fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> + use<> {
         let pairs: Vec<(String, String)> = pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
         move |k| pairs.iter().find(|(key, _)| key == k).map(|(_, v)| v.clone())
+    }
+
+    #[test]
+    fn gsettings_strings_lose_their_quotes() {
+        assert_eq!(gsettings_string("'appmenu:minimize,maximize,close'\n").as_deref(), Some("appmenu:minimize,maximize,close"));
+        assert_eq!(gsettings_string("@ms 'close,minimize:'").as_deref(), Some("close,minimize:"));
+        assert_eq!(gsettings_string("''\n"), None);
+        assert_eq!(gsettings_string(""), None);
+        // GNOME's layout then sets the buttons (Minimize and Maximize turned on in Tweaks).
+        let found = Found { gtk_theme: None, layout: gsettings_string("'appmenu:minimize,maximize,close'") };
+        let s = resolve(Desktop::Gnome, &found, &env(&[]));
+        assert_eq!((s.family, s.left, s.right), (CaptionFamily::Adwaita, vec![], vec![Minimize, Maximize, Close]));
     }
 
     #[test]
