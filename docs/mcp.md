@@ -933,6 +933,13 @@ missing one does.
 `` `columns` must be a number, not "4" ``. Each message names the key that was given, and the command then changes
 nothing.
 
+These Object menu commands refuse a string, a number or another value that is not true or false with
+`` `copy` must be true or false ``, naming the key, and change nothing: `reflectX`, `reflectY`, `random` and `copy` in
+`object.transformEach`; `gray` and `deleteRaster` in `object.createObjectMosaic`; `trim` in `object.cropImage`;
+`allArtboards` in `object.createTrimMarks`; and `byColumn` and `moveArtwork` in `artboard.rearrange`. A null is read as
+a key left out. `object.createTrimMarks` refuses a `style` that is not a string, such as `5`, with
+`` `style` must be roman or japanese ``, the message it gives for a string that names no style.
+
 The blend, envelope and gradient mesh commands refuse a string or another value that is not a number with the same
 message, as in `` `steps` must be a number, not "8" ``, and change nothing: `steps`, `distance` and `value` in
 `object.blend.make` and `object.blend.options`; `bend`, `h`, `v`, `horizontalDistortion` and `verticalDistortion` in

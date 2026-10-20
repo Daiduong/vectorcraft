@@ -2475,6 +2475,32 @@ fn object_mosaic_refuses_a_size_or_spacing_given_as_text() {
     assert_eq!(r["tiles"], json!(2));
 }
 
+/// Gray or Delete Raster given as text or as another value that is not true or false is an error naming the key. No
+/// mosaic is made and the image stays. True and null still work.
+#[test]
+fn object_mosaic_refuses_a_boolean_given_as_text() {
+    let mut s = session();
+    rect(&mut s, 0.0, 0.0, 100.0, 50.0);
+    s.execute("object.rasterize", &json!({"ppi": 72})).unwrap();
+    let undo = |s: &Session| s.doc().unwrap().history.undo.len();
+    let images = |s: &Session| {
+        s.doc().unwrap().doc.layers[0].children().unwrap().iter().filter(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))).count()
+    };
+    let before = (undo(&s), images(&s));
+    for (p, msg) in [
+        (json!({"gray": "true"}), "`gray` must be true or false"),
+        (json!({"columns": 2, "gray": 1}), "`gray` must be true or false"),
+        (json!({"deleteRaster": "false"}), "`deleteRaster` must be true or false"),
+        (json!({"deleteRaster": [true]}), "`deleteRaster` must be true or false"),
+    ] {
+        let r = s.execute("object.createObjectMosaic", &p);
+        assert!(matches!(&r, Err(EngineError::BadParams { msg: m, .. }) if m == msg), "{p}: {r:?}");
+        assert_eq!((undo(&s), images(&s)), before, "{p}");
+    }
+    let r = s.execute("object.createObjectMosaic", &json!({"columns": 2, "rows": 1, "gray": true, "deleteRaster": null})).unwrap();
+    assert_eq!((r["tiles"].clone(), images(&s)), (json!(2), 1));
+}
+
 #[test]
 fn snap_to_pixel_rounds_drawing_and_moves() {
     let mut s = session();
