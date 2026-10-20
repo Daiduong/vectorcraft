@@ -104,6 +104,8 @@ pub struct TouchTypeTool {
     /// The selected character: its type object and its first byte.
     target: Option<(NodeId, usize)>,
     drag: Option<Drag>,
+    /// Latest pointer position (document space), for measurement labels while dragging.
+    pointer: Option<Point>,
     cache: Mutex<Option<CachedLayout>>,
 }
 
@@ -314,6 +316,42 @@ impl TouchTypeTool {
         }
         out
     }
+
+    /// Measurement label for drag `d` with the pointer at `p`, or None when there is nothing to show.
+    fn measure_label(cx: &ToolContext, id: NodeId, t: &TextObject, d: &Drag, p: Point) -> Option<String> {
+        let params = Self::params(id, t, d, p);
+        match d.part {
+            Part::Move => {
+                let dx = params.get("dx").and_then(Value::as_f64).unwrap_or(0.0);
+                let dy = params.get("dy").and_then(Value::as_f64).unwrap_or(0.0);
+                if dx == 0.0 && dy == 0.0 {
+                    None
+                } else {
+                    Some(cx.offset_label(dx, dy))
+                }
+            }
+            Part::HScale => params
+                .get("hScale")
+                .and_then(Value::as_f64)
+                .map(|s| format!("H: {:.0}%", s)),
+            Part::VScale => params
+                .get("vScale")
+                .and_then(Value::as_f64)
+                .map(|s| format!("V: {:.0}%", s)),
+            Part::Scale => {
+                let h = params.get("hScale").and_then(Value::as_f64);
+                let v = params.get("vScale").and_then(Value::as_f64);
+                match (h, v) {
+                    (Some(h), Some(v)) => Some(format!("H: {:.0}%\nV: {:.0}%", h, v)),
+                    _ => None,
+                }
+            }
+            Part::Rotate => params
+                .get("rotation")
+                .and_then(Value::as_f64)
+                .map(|r| format!("{:.1}°", r - d.from.style.rotation)),
+        }
+    }
 }
 
 impl Tool for TouchTypeTool {
@@ -326,6 +364,7 @@ impl Tool for TouchTypeTool {
     }
 
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
+        self.pointer = Some(ev.pos);
         match ev.kind {
             PointerKind::Down => {
                 let mut out = vec![];
@@ -408,7 +447,7 @@ impl Tool for TouchTypeTool {
     }
 
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
-        let Some((_, t, b)) = self.current(cx) else { return vec![] };
+        let Some((id, t, b)) = self.current(cx) else { return vec![] };
         let q = b.quad.map(|p| t.xf * p);
         let mut out: Vec<Overlay> = (0..4).map(|i| Overlay::Line { a: q[i], b: q[(i + 1) % 4], color: BLUE, dashed: false }).collect();
         for part in PARTS {
@@ -418,6 +457,13 @@ impl Tool for TouchTypeTool {
                 Part::Move => Overlay::Anchor { p, color: BLUE, filled: true, size: 7.0 },
                 _ => Overlay::Anchor { p, color: BLUE, filled: false, size: 7.0 },
             });
+        }
+        if cx.measurement_labels
+            && let (Some(d), Some(p)) = (&self.drag, self.pointer)
+            && d.began
+            && let Some(text) = Self::measure_label(cx, id, t, d, p)
+        {
+            out.push(Overlay::Measure { p: p + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text });
         }
         out
     }
@@ -599,6 +645,43 @@ mod tests {
             other => panic!("{other:?}"),
         };
         assert!(close(p3["dx"].as_f64().unwrap(), 10.0), "{p3}");
+    }
+
+    #[test]
+    fn touch_type_drag_shows_measurement_labels() {
+        let (d, id, s) = doc_with_type();
+        let p = paint();
+        let base = cx(&d, &s, &p);
+        let on = ToolContext { measurement_labels: true, ..base };
+        let off = ToolContext { measurement_labels: false, ..base };
+        let mut t = TouchTypeTool::default();
+        let lay = vectorcraft_text::layout(FontDb::global(), text_of(&on, id).unwrap());
+        let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
+        let at = Point::new(100.0, 200.0) + (y.origin.to_vec2() + Vec2::new(y.advance / 2.0, -10.0));
+        fn measure(t: &TouchTypeTool, c: &ToolContext) -> Option<String> {
+            t.overlays(c)
+                .iter()
+                .find_map(|o| match o {
+                    Overlay::Measure { text, .. } => Some(text.clone()),
+                    _ => None,
+                })
+        }
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, at.x, at.y));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, at.x + 10.0, at.y - 4.0));
+        let want = on.offset_label(10.0, 4.0);
+        assert_eq!(measure(&t, &on), Some(want));
+        assert!(measure(&t, &off).is_none());
+        let [tl, tr, br, _] = quad(&t, &on);
+        let (w, _) = (tr.x - tl.x, br.y - tr.y);
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, br.x, br.y));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, br.x + w / 2.0, br.y));
+        assert_eq!(measure(&t, &on), Some("H: 150%".into()));
+        let top = tl.midpoint(tr);
+        let pivot = Point::new(100.0, 200.0) + y.origin.to_vec2();
+        let r = top - pivot;
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, top.x, top.y));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, pivot.x + r.y, pivot.y - r.x));
+        assert_eq!(measure(&t, &on), Some("90.0°".into()));
     }
 
     #[test]
