@@ -71,17 +71,13 @@ impl Tool for ObjectsOnPathTool {
             .iter()
             .map(|(_, path)| Overlay::Path { path: path.clone(), color: HIGHLIGHT, width: 2.0, dashed: false })
             .collect();
-        if cx.measurement_labels {
-            if let Some(((id, _), at)) = self.hover.as_ref().zip(self.at.as_ref()) {
-                if let Some(path) = cx.doc.node(*id).and_then(attachable_path) {
-                    let arc = ArcPath::new(path);
-                    if let Some(s) = arc.nearest(*at) {
-                        o.push(Overlay::Measure {
-                            p: *at + Vec2::new(cx.tol(12.0), cx.tol(12.0)),
-                            text: format!("D: {}", cx.len(s)),
-                        });
-                    }
-                }
+        if cx.measurement_labels
+            && let Some(((id, _), at)) = self.hover.as_ref().zip(self.at.as_ref())
+            && let Some(path) = cx.doc.node(*id).and_then(attachable_path)
+        {
+            let arc = ArcPath::new(path);
+            if let Some(s) = arc.nearest(*at) {
+                o.push(Overlay::Measure { p: *at + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text: format!("D: {}", cx.len(s)) });
             }
         }
         o
