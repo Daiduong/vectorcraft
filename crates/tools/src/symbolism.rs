@@ -8,7 +8,7 @@
 //! else the document's current brush).
 
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Shape};
+use vectorcraft_geom::{Point, Shape, Vec2};
 
 use crate::draw2::{FEEDBACK, GestureTool, points_json};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -39,6 +39,8 @@ pub struct SymbolismTool {
     pub symbol: Option<String>,
     /// Graphic style for the Styler (None = the document's first non-default style).
     pub style: Option<String>,
+    /// Move readout while dragging (Symbol Shifter only).
+    measure: Option<(Point, String)>,
 }
 
 impl SymbolismTool {
@@ -53,7 +55,19 @@ impl SymbolismTool {
             "symbolStyler" => "symbolStyler",
             _ => "symbolSprayer",
         };
-        Self { id, points: vec![], active: false, hover: None, alt: false, diameter: 80.0, intensity: 5.0, density: 5.0, symbol: None, style: None }
+        Self {
+            id,
+            points: vec![],
+            active: false,
+            hover: None,
+            alt: false,
+            diameter: 80.0,
+            intensity: 5.0,
+            density: 5.0,
+            symbol: None,
+            style: None,
+            measure: None,
+        }
     }
 
     fn label(&self) -> &'static str {
@@ -118,6 +132,7 @@ impl Tool for SymbolismTool {
                 self.points = vec![p];
                 self.active = true;
                 self.alt = ev.mods.alt;
+                self.measure = None;
                 let (c, v) = self.command(cx);
                 vec![Action::Begin(self.label().into()), Action::Preview(c, v)]
             }
@@ -128,12 +143,21 @@ impl Tool for SymbolismTool {
                     return vec![];
                 }
                 self.points.push(p);
+                self.measure = if self.id == "symbolShifter" {
+                    self.points.first().filter(|start| start.distance(p) > 1e-9).map(|start| {
+                        let d = p - *start;
+                        (p, cx.offset_label(d.x, d.y))
+                    })
+                } else {
+                    None
+                };
                 let (c, v) = self.command(cx);
                 vec![Action::Preview(c, v)]
             }
             PointerKind::Up if self.active => {
                 self.active = false;
                 self.points.clear();
+                self.measure = None;
                 vec![Action::Commit]
             }
             _ => vec![],
@@ -151,6 +175,7 @@ impl Tool for SymbolismTool {
             ToolKey::Escape if self.active => {
                 self.active = false;
                 self.points.clear();
+                self.measure = None;
                 return vec![Action::Cancel];
             }
             _ => {}
@@ -161,14 +186,21 @@ impl Tool for SymbolismTool {
         if self.active {
             self.active = false;
             self.points.clear();
+            self.measure = None;
             return vec![Action::Commit];
         }
         vec![]
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let Some(p) = self.hover else { return vec![] };
         let circle = kurbo::Circle::new(p, self.diameter / 2.0).to_path(0.1);
-        vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }]
+        let mut o = vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }];
+        if cx.measurement_labels
+            && let Some((at, text)) = &self.measure
+        {
+            o.push(Overlay::Measure { p: *at + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text: text.clone() });
+        }
+        o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
         match self.id {
@@ -339,5 +371,24 @@ mod tests {
         assert!(matches!(&a[1], Action::Preview(c, v) if c == "brush.freehand" && v["brush"] == "Charcoal"));
         t.set_option("brush", &json!("Dots"));
         assert_eq!(t.options()["brush"], "Dots");
+    }
+
+    #[test]
+    fn symbol_shifter_drag_honors_measurement_labels() {
+        let (d, _) = doc_with_rect();
+        let (s, p) = (Selection::default(), paint());
+        let base = cx(&d, &s, &p);
+        let on = ToolContext { measurement_labels: true, ..base };
+        let off = ToolContext { measurement_labels: false, ..base };
+        let mut t = SymbolismTool::new("symbolShifter");
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, 130.0, 160.0));
+        let want = on.offset_label(30.0, 60.0);
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
+        let mut sizer = SymbolismTool::new("symbolSizer");
+        sizer.pointer(&on, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        sizer.pointer(&on, &PointerEvent::new(PointerKind::Drag, 40.0, 30.0));
+        assert!(!sizer.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 }
