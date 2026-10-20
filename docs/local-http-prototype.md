@@ -3,19 +3,23 @@
 This checkout contains two optional transports. The original `http` feature remains a loopback-only
 bearer-token experiment. The `remote` feature adds an OAuth service for testing through a trusted
 HTTPS reverse proxy. Neither is enabled in an ordinary upstream build. This is a local architecture
-prototype; it has not been released. Hosted OpenAI calls and a full SDK scenario through the
-public gateway pass. Gemini's structured tools work in user testing, with a preview-visibility
+prototype; it has not been released. Earlier builds passed hosted OpenAI calls and a full SDK scenario through the
+public gateway. Gemini's structured tools work in user testing, with a preview-visibility
 limitation documented below.
 
-The full `cargo xtask ci` gate passes all ten stages on Windows with serialized tests: 8,437
-workspace tests and the separate no-bundled-fonts test pass. Thirteen existing tests remain ignored
+The full `cargo xtask ci` gate passes all ten stages on Windows with serialized tests: 8,592
+workspace tests and the separate no-bundled-fonts test pass. 13 existing tests remain ignored
 (timing/quality-report probes and a documented tracing-junction case); none were disabled for this
 addition. Workspace all-target clippy with the optional remote features also passes, along with
-154 remote MCP tests, 20 focused wizard tests and 8 host tests. CI follow-ups fix two SVG tests' platform-path
+156 remote MCP tests, 20 focused wizard tests and 9 host tests. CI follow-ups fix two SVG tests' platform-path
 assumptions, supply required catalog entries, and use the shared asynchronous folder picker with
 a regression test. The local manual review is complete. Native macOS/Linux validation, translation
 review and independent maintainer review remain.
 The wizard is not yet fully localized.
+
+A fresh local SDK scenario on the combined upstream build used a wildcard listener and verified
+authenticated local owner status, client registration, revocation, resume and Stop through `127.0.0.1`.
+It also passed OAuth, approved-folder boundaries, native editing, PNG previews and restart/reconnect checks.
 
 Manual-review fixes enforce character-based passphrase bounds, private-directory-only settings
 storage and a matching read/write size limit. Unavailable artwork folders no longer prevent local
@@ -85,6 +89,11 @@ Default public paths, forwarded unchanged to TCP 3002, are:
 The wizard defaults to **loopback HTTP only** (`127.0.0.1:3002`). Run the HTTPS gateway locally,
 or use an encrypted tunnel to localhost. A gateway on another computer requires checking the LAN
 option and entering its individual IPv4 address. This prototype's local listeners use IPv4.
+Use `127.0.0.1` for access from this computer only, or `0.0.0.0` with the trusted gateway option.
+Other specific listener addresses (including alternate loopback addresses) are refused because
+local connection management always uses `127.0.0.1`. Saved older settings stay readable for repair,
+but cannot start the service until corrected. Startup validates before probing or launching a service;
+the service itself validates saved settings before acquiring its profile lock.
 Only that actual socket peer and loopback are then
 accepted; forwarded identity headers never grant access. Restrict the host firewall to the same IP.
 The public HTTPS endpoint does **not** encrypt the gateway-to-desktop HTTP hop: the wizard warns

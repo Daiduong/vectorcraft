@@ -366,6 +366,39 @@ fn network_listening_requires_explicit_gateway_consent_including_legacy_settings
     }
 }
 
+/// Verify supported listener addresses always include the local owner's 127.0.0.1 management path.
+#[test]
+fn listeners_must_keep_local_owner_actions_reachable() {
+    let mut f = Fixture::new();
+    for host in ["127.0.0.1", "0.0.0.0"] {
+        f.settings.bind = format!("{host}:3002");
+        f.settings.trusted_proxy = Some("192.0.2.10".parse().unwrap());
+        f.settings.validate().unwrap();
+    }
+    for host in ["192.0.2.20", "127.0.0.2", "224.0.0.1", "255.255.255.255"] {
+        f.settings.bind = format!("{host}:3002");
+        let error = f.settings.validate().unwrap_err();
+        assert!(error.contains("127.0.0.1"), "{host}: {error}");
+    }
+}
+
+/// Keep older specific-address settings repairable but reject them before the service acquires its lock.
+#[test]
+fn saved_unreachable_owner_listeners_cannot_start_the_remote_service() {
+    let mut f = Fixture::new();
+    let path = f.settings.profile_dir.join("Remote Access/settings.json");
+    f.settings.trusted_proxy = Some("192.0.2.10".parse().unwrap());
+    for host in ["192.0.2.20", "127.0.0.2"] {
+        f.settings.bind = format!("{host}:3002");
+        std::fs::write(&path, serde_json::to_vec(&f.settings).unwrap()).unwrap();
+        let repair = Settings::read_for_owner_repair(&path).unwrap();
+        assert_eq!(repair.bind, f.settings.bind);
+        assert!(Settings::read(&path).err().unwrap().contains("127.0.0.1"));
+        assert!(crate::remote::run(&path).unwrap_err().contains("127.0.0.1"));
+        assert!(!path.with_file_name("service.lock").exists());
+    }
+}
+
 /// Verify Stop can be saved during repair without enabling invalid setup or weakening private storage.
 #[test]
 fn owner_can_persist_stop_during_repair_but_cannot_enable_or_move_private_settings() {

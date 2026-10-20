@@ -88,6 +88,11 @@ impl Settings {
         if address.is_ipv6() || self.trusted_proxy.is_some_and(|ip| ip.is_ipv6()) {
             return Err("This desktop transport requires IPv4 listener and gateway addresses".into());
         }
+        // Owner actions always connect to 127.0.0.1. Other specific addresses, including
+        // alternate 127/8 loopbacks, would leave a running service unreachable to its owner.
+        if address.ip() != std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST) && !address.ip().is_unspecified() {
+            return Err("Use 127.0.0.1 for this computer or 0.0.0.0 for trusted gateway access".into());
+        }
         if !address.ip().is_loopback() && self.trusted_proxy.is_none() {
             return Err("LAN access requires an explicit trusted gateway IP in Preferences > Remote AI".into());
         }

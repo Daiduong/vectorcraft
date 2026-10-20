@@ -107,6 +107,25 @@ fn drag_id() -> egui::Id {
 fn drag_pos_id() -> egui::Id {
     egui::Id::new("canvas-drag-pos")
 }
+/// The document point last sent to the tool as a drag during [`Drag::Tool`].
+fn tool_drag_doc_id() -> egui::Id {
+    egui::Id::new("canvas-tool-drag-doc")
+}
+/// Whether the tool should get another drag event: the pointer moved this frame, or its document
+/// position changed without a delta (some Wayland compositors coalesce motion until release, #834).
+fn tool_drag_moved(ui: &Ui, xf: &Xf, p: Pos2, pointer: &egui::PointerState) -> bool {
+    if pointer.delta() != egui::Vec2::ZERO {
+        return true;
+    }
+    let at = xf.to_doc(p);
+    let id = tool_drag_doc_id();
+    let prev = ui.data(|d| d.get_temp::<Point>(id));
+    if prev == Some(at) {
+        return false;
+    }
+    ui.data_mut(|d| d.insert_temp(id, at));
+    true
+}
 
 /// The pen pressure (0..1) of the press in progress: the force of this frame's pen or touch
 /// input, else the last one seen since the press (`pressed`: a new press, whose mouse has none
@@ -483,6 +502,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         // Selected guides in the selection colour.
         let picked = LineLook { color: t.selection, ..look };
         let selected: &[usize] = app.session.active().map_or(&[], |st| &st.selection.guides);
+        let key = app.session.active().and_then(|st| st.selection.key_guide);
         let view = view_bounds(&xf);
         // Guides on a hidden layer hide with it.
         for (i, g) in doc.guides.iter().enumerate().filter(|(_, g)| doc.guide_shown(g)) {
@@ -498,6 +518,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 }
             };
             if selected.contains(&i) { picked } else { look }.guide(&painter, a, b);
+            // The key guide (Align to Key Object, #2143): thicker, as a key object's outline is.
+            if key == Some(i) {
+                painter.line_segment([a, b], Stroke::new(KEY_OUTLINE, picked.color));
+            }
         }
     }
 
@@ -552,7 +576,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         rulers(ui, full, &xf, app.hover_doc, app.session.general_unit(), origin_preview.unwrap_or_else(|| app.ruler_origin()), &t);
     }
-    if app.ui.task_bar && !revolve_edit && !app.session.tool_busy() && app.ui.screen_mode < 3 {
+    // The task bar is not drawn while the Simplify slider shows.
+    if app.ui.task_bar && !revolve_edit && !app.session.tool_busy() && app.ui.screen_mode < 3 && !crate::dialogs::simplify_slider::showing(app) {
         task_bar(app, ui, &xf);
     }
     if app.ui.screen_mode < 3 {
@@ -887,7 +912,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     ui.data_mut(|dd| dd.insert_temp(drag_id(), Drag::Art));
                 }
                 Drag::Tool => {
-                    if pointer.delta() != egui::Vec2::ZERO {
+                    if tool_drag_moved(ui, &xf, p, &pointer) {
                         // Every position the pen or mouse passed this frame, not just the last: a
                         // fast stroke keeps its curve (a pen reports far more often than frames come).
                         for (at, force) in frame_moves(ui) {
@@ -910,6 +935,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
             ui.data_mut(|dd| {
                 dd.remove::<Drag>(drag_id());
                 dd.remove::<Pos2>(drag_pos_id());
+                dd.remove::<Point>(tool_drag_doc_id());
             });
             match d {
                 Drag::ZoomBox { start } => {
@@ -2019,6 +2045,8 @@ fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, xf: &Xf)
         // Art dragged back onto the canvas: its move was already dropped. (A symbol was placed
         // above.)
         widgets::PanelDrag::Art(_) | widgets::PanelDrag::Symbol(_) | widgets::PanelDrag::LibraryGraphic { .. } => return,
+        // A Libraries panel style or group only moves within that panel.
+        widgets::PanelDrag::LibraryItem { .. } | widgets::PanelDrag::LibraryGroup { .. } => return,
     };
     if let Err(e) = app.run(cmd, params) {
         app.status(e);
@@ -2830,9 +2858,27 @@ fn draw_overlays(p: &egui::Painter, xf: &Xf, overlays: &[Overlay], t: &Tokens, l
 fn home(app: &mut VectorcraftApp, ui: &mut Ui, rect: egui::Rect) {
     let t = Tokens::get(ui.ctx());
     ui.painter().rect_filled(rect, 0.0, t.panel_darker);
-    let inner = rect.shrink2(vec2((rect.width() - 820.0).max(40.0) / 2.0, 60.0));
-    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(egui::Layout::top_down(egui::Align::Min)));
-    let ui = &mut child;
+    // Taller than the window (a small window, many recent files): it scrolls. Widgets scrolled out
+    // of view are clipped, so they take no pointer.
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(egui::Layout::top_down(egui::Align::Min)));
+    egui::ScrollArea::vertical().id_salt("home-scroll").auto_shrink([false, false]).show(&mut child, |ui| {
+        let side = (ui.available_width() - 820.0).max(40.0) / 2.0;
+        let width = (ui.available_width() - 2.0 * side).max(0.0);
+        ui.add_space(60.0);
+        ui.horizontal_top(|ui| {
+            ui.add_space(side);
+            ui.allocate_ui_with_layout(vec2(width, 0.0), egui::Layout::top_down(egui::Align::Min), |ui| {
+                ui.set_width(width);
+                home_content(app, ui);
+            });
+        });
+        ui.add_space(60.0);
+    });
+}
+
+/// The Home screen's column: welcome, New / Open, Recent Files, presets and community links.
+fn home_content(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new(tl!("Welcome to VectorCraft")).font(theme::semibold(26.0)).color(t.text));
     ui.add_space(4.0);
     ui.label(egui::RichText::new(tl!("Vector illustration — fast, open, scriptable.")).size(14.0).color(t.text_dim));
@@ -2880,19 +2926,52 @@ fn recent(app: &mut VectorcraftApp, ui: &mut Ui) {
     ui.label(egui::RichText::new(tl!("Recent Files")).font(theme::semibold(14.0)).color(t.text));
     ui.add_space(8.0);
     for path in files {
-        let p = std::path::Path::new(&path);
-        let name = p.file_name().map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
-        let folder = p.parent().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
-        ui.horizontal(|ui| {
-            crate::icons::icon(ui, "history", 16.0, t.icon);
-            let r = ui.add(egui::Button::new(egui::RichText::new(&name).color(t.accent).size(13.0)).frame(false)).on_hover_text(&path);
-            ui.add(egui::Label::new(egui::RichText::new(&folder).size(12.0).color(t.text_dim)).truncate());
-            if r.clicked() {
-                // A failure is reported to the user there.
-                let _ = crate::io::open_reporting(app, &path);
-            }
-        });
+        if recent_row(ui, &path).clicked() {
+            // A failure is reported to the user there.
+            let _ = crate::io::open_reporting(app, &path);
+        }
     }
+}
+
+/// One Recent Files row across the Home screen: history icon, name (accent) and folder (dim,
+/// truncated). The whole row is one button that lights up under the pointer; its tooltip is the
+/// full path.
+fn recent_row(ui: &mut Ui, path: &str) -> egui::Response {
+    const PAD: f32 = 6.0;
+    const ICON: f32 = 16.0;
+    let t = Tokens::get(ui.ctx());
+    let p = std::path::Path::new(path);
+    let name = p.file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
+    let folder = p.parent().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), egui::Sense::click());
+    if ui.is_rect_visible(rect) {
+        if resp.hovered() {
+            ui.painter().rect_filled(rect, CornerRadius::same(4), t.hover);
+        }
+        let icon = egui::Rect::from_center_size(egui::pos2(rect.left() + PAD + ICON / 2.0, rect.center().y), vec2(ICON, ICON));
+        crate::icons::paint(ui, "history", icon, t.icon);
+        let x = icon.right() + 8.0;
+        let name_galley = egui::WidgetText::from(egui::RichText::new(&name).size(13.0).color(t.accent)).into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            (rect.right() - PAD - x).max(0.0),
+            egui::TextStyle::Body,
+        );
+        let folder_x = x + name_galley.size().x + 10.0;
+        ui.painter().galley(egui::pos2(x, rect.center().y - name_galley.size().y / 2.0), name_galley, t.accent);
+        let room = rect.right() - PAD - folder_x;
+        if room > 0.0 && !folder.is_empty() {
+            let folder_galley = egui::WidgetText::from(egui::RichText::new(&folder).size(12.0).color(t.text_dim)).into_galley(
+                ui,
+                Some(egui::TextWrapMode::Truncate),
+                room,
+                egui::TextStyle::Body,
+            );
+            ui.painter().galley(egui::pos2(folder_x, rect.center().y - folder_galley.size().y / 2.0), folder_galley, t.text_dim);
+        }
+    }
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &name));
+    resp.on_hover_text(path).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 fn kurbo_flatten(p: &BezPath, tol: f64, f: &mut impl FnMut(PathEl)) {
@@ -6886,7 +6965,7 @@ mod tests {
         let fill = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.fill_paint();
         let red = Paint::solid(Color::from_hex("#ed1c24").unwrap());
         let rows = SwatchRows { grabbed: "Red".into(), names: vec!["Red".into()], groups: false };
-        let swatch = PanelDrag::Paint { paint: red.clone(), params: json!({"swatch": "Red"}), rows: Some(rows) };
+        let swatch = PanelDrag::Paint { paint: red.clone(), params: json!({"swatch": "Red"}), rows: Some(rows), library: None };
         // Off the art nothing happens.
         drop(&mut app, swatch.clone(), Point::new(300.0, 250.0));
         assert_eq!(fill(&app), Paint::solid(Color::WHITE));
@@ -7173,6 +7252,34 @@ mod tests {
         assert!(app.session.tool_composing());
         assert!(!app.take_ime_discard());
         assert_eq!(plain(&app, id), "雅がくらくか");
+    }
+
+    #[test]
+    fn tool_drag_moved_without_pointer_delta() {
+        let ctx = egui::Context::default();
+        let rect = egui::Rect::from_min_size(Pos2::ZERO, vec2(400.0, 300.0));
+        let v = View::default();
+        let xf = Xf::new(rect, &v);
+        let a = pos2(100.0, 100.0);
+        let b = pos2(150.0, 120.0);
+        let mut first = false;
+        let mut second = false;
+        let mut out =
+            ctx.run_ui(egui::RawInput { screen_rect: Some(rect), events: vec![egui::Event::PointerMoved(a)], ..Default::default() }, |ui| {
+                let pointer = ui.input(|i| i.pointer.clone());
+                first = tool_drag_moved(ui, &xf, a, &pointer);
+                second = tool_drag_moved(ui, &xf, a, &pointer);
+            });
+        out.textures_delta.clear();
+        assert!(first, "the first drag sample at a position runs");
+        assert!(!second, "the same position without a delta is not sent again");
+        let mut moved = false;
+        out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), events: vec![egui::Event::PointerMoved(b)], ..Default::default() }, |ui| {
+            let pointer = ui.input(|i| i.pointer.clone());
+            moved = tool_drag_moved(ui, &xf, b, &pointer);
+        });
+        out.textures_delta.clear();
+        assert!(moved, "a new document position runs even when egui reports no delta");
     }
 
     #[test]

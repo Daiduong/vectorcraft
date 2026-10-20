@@ -107,6 +107,7 @@ fn public_status(settings: Option<&Settings>) -> Result<Value, String> {
 /// Start or authenticate the native connection service and wait for local readiness.
 /// Record startup errors in the private profile log; do not open the editor here.
 fn start(settings: &Settings, path: &std::path::Path) -> Result<(), String> {
+    settings.validate()?;
     let address: std::net::SocketAddr = settings.bind.parse().map_err(|_| "Invalid bind")?;
     if listening(address.port()) {
         owner(settings, json!({"action":"status"}))?;
@@ -403,6 +404,21 @@ mod tests {
     #[test]
     fn command_line_roots_cannot_override_private_exclusions_or_saved_remote_grants() {
         assert!(initial_control(true).unwrap_err().contains("cannot be combined"));
+    }
+    /// Reject an unreachable owner listener before readiness probes, log creation or process launch.
+    #[test]
+    fn invalid_owner_listener_is_rejected_before_startup_side_effects() {
+        let (mut settings, _, root) = fixture();
+        settings.trusted_proxy = Some("192.0.2.10".parse().unwrap());
+        // A missing log parent also prevents a child launch if the validation guard regresses.
+        let path = root.join("missing/settings.json");
+        for host in ["192.0.2.20", "127.0.0.2"] {
+            settings.bind = format!("{host}:3002");
+            let error = start(&settings, &path).unwrap_err();
+            assert!(error.contains("127.0.0.1"), "{host}: {error}");
+            assert!(!root.join("missing").exists());
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
     /// Create isolated profile and artwork folders with loopback-only test connection settings.
     fn fixture() -> (Settings, PathBuf, PathBuf) {
