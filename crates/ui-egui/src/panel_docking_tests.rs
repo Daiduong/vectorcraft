@@ -846,10 +846,12 @@ fn icon_docking_commands_validate_and_round_trip_through_workspaces() {
         assert!(app.ui.docking.is_none());
     }
     assert!(app.run("window.panel.move", json!({"panel":"layers","anchor":"properties","icon":true})).is_err());
-    app.run("window.panel.dock", json!({"panel":"layers","icon":true})).unwrap();
+    let r = app.run("window.panel.dock", json!({"panel":"layers","icon":true})).unwrap();
+    assert!(r.get("layout").is_some() && r.get("column").is_none(), "the shared layout's result: {r}");
     assert!(app.ui.docking_icons.contains("layers"));
     assert!(!app.ui.docking.as_ref().unwrap().contains(&"layers".to_string()));
-    app.run("window.panel.dock", json!({"panel":"pathfinder","anchor":"properties","zone":"bottom"})).unwrap();
+    let r = app.run("window.panel.dock", json!({"panel":"pathfinder","anchor":"properties","zone":"bottom"})).unwrap();
+    assert!(r.get("layout").is_some() && r.get("column").is_none(), "the shared layout's result: {r}");
     assert!(matches!(&app.ui.docking.as_ref().unwrap().root, Some(Node::Split { axis: craft_ui::layout::SplitAxis::Vertical, .. })));
     app.run("window.workspace.new", json!({"name":"Icons"})).unwrap();
     app.run("window.workspace", json!({"name":"Essentials"})).unwrap();
