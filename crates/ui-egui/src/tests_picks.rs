@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use vectorcraft_engine::Session;
 
 use crate::panels::graphic_styles::GraphicStyleLibraries;
-use crate::panels::library_panel::library_menu;
+use crate::panels::library_panel::{self, library_menu};
 use crate::panels::swatches::SwatchLibraries;
 use crate::picks::{self, PickRequest};
 use crate::state::Dialog;
@@ -221,6 +221,33 @@ fn load_profile_asks_off_the_ui_thread() {
     assert!(app.ui.status.contains("/no/such/profile.icc"), "color.loadProfile ran on the path: {}", app.ui.status);
 }
 
+/// The Variables panel menu's Import Data Sets… and Export Data Sets… ask off the UI thread: the
+/// data sets in the file picked are loaded, and the data sets are written to the path the dialog
+/// answers.
+#[test]
+fn variables_panel_data_sets_ask_off_the_ui_thread() {
+    let (mut app, shown, _) = app();
+    app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+    let dir = std::env::temp_dir().join(format!("vc-picks-data-sets-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (csv, out) = (dir.join("sets.csv"), dir.join("out.csv"));
+    std::fs::write(&csv, "name,Name\nB,y\n").unwrap();
+    let sets = |app: &VectorcraftApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+
+    click(&mut app, "Import Data Sets…", crate::panels::variables::menu);
+    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
+    shown.answer(&[&csv.to_string_lossy()]);
+    poll(&mut app);
+    assert_eq!(sets(&app), ["B"], "{}", app.ui.status);
+
+    click(&mut app, "Export Data Sets…", crate::panels::variables::menu);
+    assert!(matches!(shown.requests().as_slice(), [PickRequest::Save(_)]));
+    shown.answer(&[&out.to_string_lossy()]);
+    poll(&mut app);
+    assert!(std::fs::read_to_string(&out).is_ok_and(|text| text.starts_with("name,Name\n")), "{}", app.ui.status);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 /// The Swatches libraries menu's Other Library… asks off the UI thread; the file picked (another
 /// document) loads as a library and opens in the library panel.
 #[test]
@@ -232,10 +259,10 @@ fn other_swatch_library_asks_off_the_ui_thread() {
     click(&mut app, "Other Library…", library_menu::<SwatchLibraries>);
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
     poll(&mut app);
-    assert!(app.ui.library_panel.is_none() && app.ui.status.is_empty(), "{}", app.ui.status);
+    assert!(library_panel::last_open(&app.ui).is_none() && app.ui.status.is_empty(), "{}", app.ui.status);
     shown.answer(&[&file]);
     poll(&mut app);
-    let open = app.ui.library_panel.clone().unwrap_or_else(|| panic!("no library open: {}", app.ui.status));
+    let open = library_panel::last_open(&app.ui).cloned().unwrap_or_else(|| panic!("no library open: {}", app.ui.status));
     assert_eq!(open.kind, "swatches");
     let (_, lib) = vectorcraft_engine::cmd::swatchlib::library(&app.session, &open.id).unwrap();
     assert!(lib.swatch("Signal").is_some(), "{}", open.id);
@@ -255,7 +282,7 @@ fn other_graphic_style_library_asks_off_the_ui_thread() {
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
     shown.answer(&[&file]);
     poll(&mut app);
-    let open = app.ui.library_panel.clone().unwrap_or_else(|| panic!("no library open: {}", app.ui.status));
+    let open = library_panel::last_open(&app.ui).cloned().unwrap_or_else(|| panic!("no library open: {}", app.ui.status));
     assert_eq!(open.kind, "graphicStyles");
     let (_, lib) = vectorcraft_engine::cmd::stylelib::library(&app.session, &open.id).unwrap();
     assert!(lib.style("Poster Look").is_some(), "{}", open.id);

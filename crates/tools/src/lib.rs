@@ -22,6 +22,8 @@ pub mod guides;
 pub mod intertwine;
 pub mod meshblend;
 pub mod meshedit;
+pub mod mirror;
+pub mod objects_on_path;
 pub mod params;
 pub mod pathtype;
 pub mod pen;
@@ -250,6 +252,8 @@ pub struct ToolContext<'a> {
     /// points (a transform's reference point) land on anchors and ruler guides within
     /// [`Self::snap_tolerance`].
     pub snap_to_point: bool,
+    /// View → Snap to Glyph: drawn points snap to live-text baselines and glyph bounds (with Smart Guides).
+    pub snap_to_glyph: bool,
     /// View → Show Corner Widget: paths show draggable Live Corners widgets in their corners.
     pub corner_widgets: bool,
     /// Which paint proxy is in front (true = Fill): the one the Gradient tool edits.
@@ -261,6 +265,8 @@ pub struct ToolContext<'a> {
     pub appearance_item: Option<usize>,
     /// General → Constrain Angle (degrees): Shift constrains drags to 45° steps from it.
     pub constrain_angle: f64,
+    /// General → Keyboard Increment: arrow-key nudges in document units (Shift multiplies by 10).
+    pub keyboard_increment: f64,
     /// The selected freeform gradient point (`paint.freeform.selectPoint`), marked on the
     /// freeform annotator.
     pub freeform_point: Option<usize>,
@@ -378,6 +384,11 @@ impl ToolContext<'_> {
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))
     }
+    /// A segment label while drawing: distance, angle and offsets between two points.
+    pub fn segment_measure_label(&self, a: Point, b: Point) -> String {
+        let (dist, ang, dx, dy) = xform::measure(a, b);
+        format!("D: {}\nAngle: {ang:.1}°\n{}", self.len(dist), self.offset_label(dx, dy))
+    }
     /// What Snap to Grid snaps to: the grid's subdivisions (or its lines without any).
     pub fn grid_step(&self) -> f64 {
         self.doc.grid.spacing / self.doc.grid.subdivisions.max(1) as f64
@@ -401,6 +412,7 @@ impl ToolContext<'_> {
             path_only: self.path_only,
             type_path_only: self.type_path_only,
             scope: self.isolation,
+            skip_guides: !self.guides,
         }
     }
 }
@@ -493,6 +505,8 @@ pub enum Cursor {
     ZoomOut,
     Eyedropper,
     NotAllowed,
+    /// A long operation (opening a file, a background save or export): the OS wait cursor.
+    Busy,
     /// Over the gradient annotator's bar: a click adds a stop.
     AddStop,
     /// A gradient stop dragged off the bar: releasing deletes it.
@@ -513,11 +527,17 @@ pub enum Cursor {
     BlendObject,
     /// The Blend tool over an anchor point (the blend starts there): a crosshair with a target.
     BlendAnchor,
+    /// The Objects on Path tool over a path the selected objects can attach to (a click attaches
+    /// them).
+    ObjectsOnPath,
     /// Over a bracket of selected type on a path (a drag moves it): the arrow with a bracket.
     PathBracket,
     /// Over the type widget of selected type (a double-click converts point type to area type and
     /// back): the arrow with a type badge.
     TypeWidget,
+    /// The Selection tool loaded with the text of an area type's out port (a click threads it
+    /// into a path or a new frame, a drag draws the new frame).
+    LoadedText,
     /// The Shape Builder: a crosshair with a plus (merge mode)...
     ShapeBuilder,
     /// ...or, with Alt held, a minus (erase mode).
@@ -667,7 +687,7 @@ impl Cursor {
     }
 
     /// The cursor this one borrows until it's drawn: the generic crosshair for the
-    /// tools, the I-beam for vertical type, the Pen's add cursor for the Mesh tool and Puppet
+    /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh tool and Puppet
     /// Warp, not-allowed for the Scissors away from a path. `None` for a cursor with a look of
     /// its own.
     pub fn stand_in(self) -> Option<Self> {
@@ -685,6 +705,7 @@ impl Cursor {
             | Cursor::Shaper
             | Cursor::LivePaintBucket
             | Cursor::Measure
+            | Cursor::ObjectsOnPath
             | Cursor::PrintTiling
             | Cursor::SymbolSprayer
             | Cursor::SymbolShifter
@@ -695,7 +716,7 @@ impl Cursor {
             | Cursor::SymbolScreener
             | Cursor::SymbolStyler
             | Cursor::Scissors => Some(Cursor::Crosshair),
-            Cursor::TypeVertical => Some(Cursor::Text),
+            Cursor::TypeVertical | Cursor::LoadedText => Some(Cursor::Text),
             Cursor::MeshAdd | Cursor::PuppetPin => Some(Cursor::PenAdd),
             Cursor::ScissorsNotAllowed => Some(Cursor::NotAllowed),
             _ => None,
@@ -803,6 +824,7 @@ pub fn create(id: &str) -> Box<dyn Tool> {
             .or_else(|| cropimage::create(other))
             .or_else(|| cut::create(other))
             .or_else(|| intertwine::create(other))
+            .or_else(|| objects_on_path::create(other))
             .or_else(|| touchtype::create(other))
             .unwrap_or_else(|| Box::new(NoopTool(tool_info(other).map(|t| t.id).unwrap_or("selection")))),
     }
@@ -864,6 +886,29 @@ pub(crate) mod testutil {
         (d, id)
     }
 
+    /// [`doc_with_rect`] plus a Shaper Group of two source squares (x from 0 to 100 and from 50 to
+    /// 150, y from 300 to 400) whose visible face is the first square: the document, the group, its
+    /// source shapes and the face.
+    pub fn doc_with_shaper_group() -> (Document, NodeId, NodeId, NodeId) {
+        use std::sync::Arc;
+        let (mut d, _) = doc_with_rect();
+        let l = d.layers[0].id;
+        let square = |x: f64| shapes::rectangle(Rect::new(x, 300.0, x + 100.0, 400.0));
+        let a = Node::path(d.alloc_id(), square(0.0), Appearance::default_art());
+        let b = Node::path(d.alloc_id(), square(50.0), Appearance::default_art());
+        let mut sources = Node::group(d.alloc_id(), vec![Arc::new(a), Arc::new(b)]);
+        sources.name = Some(vectorcraft_doc::shaper::SOURCES.into());
+        sources.opacity = 0.0;
+        let mut face = Node::path(d.alloc_id(), square(0.0), Appearance::default_art());
+        face.name = Some(format!("{}0", vectorcraft_doc::shaper::FILL_PREFIX));
+        let (sources_id, face_id) = (sources.id, face.id);
+        let mut group = Node::group(d.alloc_id(), vec![Arc::new(sources), Arc::new(face)]);
+        group.extras_mut().shaper = Some(Box::default());
+        let group_id = group.id;
+        d.insert(Some(l), 1, group).unwrap();
+        (d, group_id, sources_id, face_id)
+    }
+
     pub fn paint() -> PaintDefaults {
         PaintDefaults::default()
     }
@@ -891,11 +936,13 @@ pub(crate) mod testutil {
             show_bbox: true,
             snap_to_pixel: false,
             snap_to_point: true,
+            snap_to_glyph: false,
             corner_widgets: true,
             fill_active: true,
             gradient_stop: None,
             appearance_item: None,
             constrain_angle: 0.0,
+            keyboard_increment: 1.0,
             freeform_point: None,
             raster_sample: 1,
             preview_bounds: false,

@@ -36,6 +36,7 @@ pub use journal::Journal;
 pub use tooling::{UiRequest, ViewInfo};
 pub use vectorcraft_doc as doc;
 pub use vectorcraft_doc::cancel;
+pub use vectorcraft_pathops::{SIMPLIFY_LEVEL, simplify_level_tolerance};
 pub use vectorcraft_tools as tools;
 
 #[derive(Debug, thiserror::Error)]
@@ -91,6 +92,27 @@ pub struct HistoryEntry {
     next_bytes: usize,
     /// Which document the figures were taken against (its address): the next state.
     next: usize,
+    /// The template and name `label` was made from ([`Session::edit_named`]).
+    named: Option<NamedStep>,
+}
+
+/// A step name made by filling the `{name}` placeholder of a template with a name
+/// ([`Session::edit_named`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NamedStep {
+    /// The English template, with one `{name}` placeholder (`Apply {name}`).
+    pub template: &'static str,
+    /// The name in the placeholder, as the document holds it (a style's name).
+    pub name: String,
+    /// The name is one VectorCraft gives (`[Normal Character Style]`), not one the user typed.
+    pub built_in: bool,
+}
+
+impl NamedStep {
+    /// The step name: the template with the name in its placeholder.
+    pub fn label(&self) -> String {
+        self.template.replace("{name}", &self.name)
+    }
 }
 
 impl HistoryEntry {
@@ -98,7 +120,14 @@ impl HistoryEntry {
     pub(crate) fn kept(label: String, doc: Arc<Document>, selection: Arc<Selection>, next: &Document) -> Self {
         doc.drop_lookup_cache();
         let (bytes, next_bytes) = doc.retained_bytes_each(next);
-        HistoryEntry { label, doc, selection, bytes, next_bytes, next: std::ptr::from_ref(next) as usize }
+        HistoryEntry { label, doc, selection, bytes, next_bytes, next: std::ptr::from_ref(next) as usize, named: None }
+    }
+
+    /// The template and name the step's label was made from, while the label is still the one
+    /// they make: `None` for a step named any other way, and for one whose label was changed
+    /// since it was recorded.
+    pub fn named(&self) -> Option<&NamedStep> {
+        self.named.as_ref().filter(|n| n.label() == self.label)
     }
 
     /// The step that undoing (redoing) the step `costs` came from makes: it keeps `doc`, the
@@ -112,7 +141,7 @@ impl HistoryEntry {
             return Self::kept(label, doc, selection, now);
         }
         doc.drop_lookup_cache();
-        HistoryEntry { label, doc, selection, bytes: costs.next_bytes, next_bytes: costs.bytes, next: Arc::as_ptr(now) as usize }
+        HistoryEntry { label, doc, selection, bytes: costs.next_bytes, next_bytes: costs.bytes, next: Arc::as_ptr(now) as usize, named: None }
     }
 
     /// The figures [`HistoryEntry::turned`] reuses.
@@ -745,6 +774,11 @@ pub(crate) fn deselect_guides(d: &Document, sel: &mut Selection) -> bool {
         sel.remove(id);
     }
     sel.guides.clear();
+    sel.key_guide = None;
+    // A key object kept only for the guides to line up on goes with them.
+    if sel.key.is_some_and(|k| sel.objects.iter().all(|o| *o == k)) {
+        sel.key = None;
+    }
     any
 }
 
@@ -918,7 +952,8 @@ pub struct Prefs {
     /// Rasterizer worker threads; -1 = automatic.
     pub render_threads: i32,
     /// Linux: `automatic` opens the window on the session's display server; `x11` opens it through
-    /// XWayland on a Wayland session, where dropped files arrive (#1151). Read when the app starts.
+    /// XWayland on a Wayland session, where dropped files arrive (#1151); `x11WithPen` opens it
+    /// through XWayland only when a pen is attached (#2028). Read when the app starts.
     pub linux_display_server: String,
     // File Handling
     pub background_save: bool,
@@ -1252,6 +1287,9 @@ pub struct Session {
     /// Where the ICC profiles `color.loadProfile` loads are kept; `None`: only for the process
     /// ([`Session::attach_profile_store`]).
     profile_dir: Option<std::path::PathBuf>,
+    /// Where the plug-ins `plugin.install` installs are kept; `None`: only for the process
+    /// ([`Session::attach_plugin_store`]).
+    plugin_dir: Option<std::path::PathBuf>,
     /// URLs recently given in the Attributes panel (`attributes.set {url}`), newest first; not saved.
     pub recent_urls: Vec<String>,
     /// The language the UI is drawn in (a language code, never `auto`), set by the UI each frame;
@@ -1316,6 +1354,8 @@ impl Session {
         // Placed documents are read by the native format's loader.
         vectorcraft_doc::placed_document::set_loader(cmd::place::document::read_document);
         vectorcraft_doc::placed_document::set_file_reader(cmd::place::document::read_file_again);
+        // Clicks find an image's own fills and strokes where their effects draw them.
+        vectorcraft_doc::hit::set_image_paint(vectorcraft_render::effects::image_paint);
         Self {
             docs: vec![],
             active: None,
@@ -1346,6 +1386,7 @@ impl Session {
             libraries: Default::default(),
             pdf_preset_dir: None,
             profile_dir: None,
+            plugin_dir: None,
             recent_urls: vec![],
             ui_language: None,
             journal_note: Default::default(),
@@ -1669,14 +1710,17 @@ impl Session {
         let before = st.doc.clone();
         let before_sel = st.selection.clone();
         let doc = Arc::make_mut(&mut st.doc);
-        // Dimensions follow the art they measure.
+        // Objects attached to a path follow it, and dimensions follow the art they measure.
         let result = match f(doc, &mut st.selection).and_then(|v| {
+            cmd::objects_on_path::refresh(&before, doc);
             cmd::dimension::refresh(&before, doc)?;
             Ok(v)
         }) {
             Ok(v) => match cmd::shaper::refresh(&before, Arc::make_mut(&mut st.doc)) {
                 Err(e) => Err(e),
                 Ok(()) => {
+                    // Attached Shaper groups whose art was rebuilt go back on their path.
+                    cmd::objects_on_path::refresh(&before, Arc::make_mut(&mut st.doc));
                     // Inline graphics in text follow their symbols.
                     cmd::inline::refresh(&before, Arc::make_mut(&mut st.doc));
                     // Text Wrap: area type follows its wrap objects; then threads re-flow.
@@ -1732,6 +1776,33 @@ impl Session {
                 Err(e)
             }
         }
+    }
+
+    /// [`Session::edit`] with the step named `template`, its `{name}` placeholder filled with `name`
+    /// (a style's name). The undo step it records keeps the template and the name
+    /// ([`HistoryEntry::named`]), and a frontend shows the template's translation with the name in
+    /// it. An edit that records no step of its own (inside an interaction, or a later edit of an
+    /// undo group) keeps neither, and neither does a step an undo group names.
+    pub fn edit_named<T>(
+        &mut self,
+        template: &'static str,
+        name: &str,
+        built_in: bool,
+        f: impl FnOnce(&mut Document, &mut Selection) -> Result<T>,
+    ) -> Result<T> {
+        let named = NamedStep { template, name: name.to_string(), built_in };
+        let step = named.label();
+        // The step this edit records keeps the document as it is now.
+        let now = Arc::as_ptr(&self.doc()?.doc);
+        let v = self.edit(&step, f)?;
+        if let Ok(st) = self.doc_mut()
+            && let Some(e) = st.history.undo.last_mut()
+            && Arc::as_ptr(&e.doc) == now
+            && e.label == step
+        {
+            e.named = Some(named);
+        }
+        Ok(v)
     }
 
     /// Change only the selection (not an undo step).
@@ -2083,6 +2154,8 @@ mod tests_intertwine;
 #[cfg(test)]
 mod tests_journal;
 #[cfg(test)]
+mod tests_keyguide;
+#[cfg(test)]
 mod tests_knockout;
 #[cfg(test)]
 mod tests_labspots;
@@ -2096,6 +2169,8 @@ mod tests_layers;
 mod tests_legacy_ai;
 #[cfg(test)]
 mod tests_library;
+#[cfg(test)]
+mod tests_link_paths;
 #[cfg(test)]
 mod tests_linked_stops;
 #[cfg(test)]
@@ -2122,6 +2197,8 @@ mod tests_nativefile;
 mod tests_newart;
 #[cfg(test)]
 mod tests_newdoc;
+#[cfg(test)]
+mod tests_objects_on_path;
 #[cfg(test)]
 mod tests_objexpand;
 #[cfg(test)]
