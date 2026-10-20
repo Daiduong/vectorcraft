@@ -1008,7 +1008,7 @@ mod tests {
     fn shape_builder_erase_drag_into_regions_shows_the_regions_not_the_edges_it_crosses() {
         let (d, s) = corner_rects();
         let p = paint();
-        let cx = cx(&d, &s, &p);
+        let cx = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
         let mut t = ShapeBuilderTool::default();
         let alt = Mods { alt: true, ..Default::default() };
         t.pointer(&cx, &ev(PointerKind::Down, 25.0, 25.0).with_mods(alt));
