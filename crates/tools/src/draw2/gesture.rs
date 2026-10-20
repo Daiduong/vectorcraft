@@ -408,7 +408,10 @@ impl Tool for GestureTool {
     fn set_option(&mut self, key: &str, v: &Value) {
         match key {
             "fidelity" => self.fidelity = v.as_f64().unwrap_or(self.fidelity).clamp(0.05, 100.0),
-            "size" => self.size = v.as_f64().unwrap_or(self.size).clamp(0.1, 1000.0),
+            "size" => {
+                let min = if self.id == "paintbrush" { 1.0 } else { 0.1 };
+                self.size = v.as_f64().unwrap_or(self.size).clamp(min, 1000.0);
+            }
             "fill" => self.fill = v.as_bool().unwrap_or(self.fill),
             "altSmooth" => self.alt_smooth = v.as_bool().unwrap_or(self.alt_smooth),
             "keepSelected" => self.keep_selected = v.as_bool().unwrap_or(self.keep_selected),
@@ -616,6 +619,9 @@ mod tests {
             t.key(&cx, ToolKey::BracketLeft, Mods::default());
         }
         assert_eq!(t.options()["size"], 1.0);
+        t.set_option("size", &json!(0.5));
+        assert_eq!(t.options()["size"], 1.0);
+        assert_eq!(t.freehand_params(false)["scale"], json!(0.1));
         t.extend = Some((NodeId(1), false));
         assert!(t.freehand_params(false).get("scale").is_none());
         assert!(!GestureTool::new("pencil").claims_key(&cx, ToolKey::BracketRight));
