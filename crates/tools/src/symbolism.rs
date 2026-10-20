@@ -8,9 +8,10 @@
 //! else the document's current brush).
 
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Shape};
+use vectorcraft_geom::{Point, Shape, Vec2};
 
-use crate::draw2::{FEEDBACK, GestureTool, points_json};
+use crate::draw2::{FEEDBACK, GestureTool, points_json, polyline};
+use crate::xform::measure;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 /// Create a symbolism tool or the brush-aware Paintbrush (None = not one of ours).
@@ -53,7 +54,18 @@ impl SymbolismTool {
             "symbolStyler" => "symbolStyler",
             _ => "symbolSprayer",
         };
-        Self { id, points: vec![], active: false, hover: None, alt: false, diameter: 80.0, intensity: 5.0, density: 5.0, symbol: None, style: None }
+        Self {
+            id,
+            points: vec![],
+            active: false,
+            hover: None,
+            alt: false,
+            diameter: 80.0,
+            intensity: 5.0,
+            density: 5.0,
+            symbol: None,
+            style: None,
+        }
     }
 
     fn label(&self) -> &'static str {
@@ -165,10 +177,21 @@ impl Tool for SymbolismTool {
         }
         vec![]
     }
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         let Some(p) = self.hover else { return vec![] };
         let circle = kurbo::Circle::new(p, self.diameter / 2.0).to_path(0.1);
-        vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }]
+        let mut out = vec![Overlay::Path { path: circle, color: FEEDBACK, width: 1.0, dashed: false }];
+        if self.id == "symbolSpinner" && self.active && self.points.len() >= 2 {
+            out.push(Overlay::Path { path: polyline(&self.points), color: FEEDBACK, width: 1.0, dashed: false });
+            if cx.measurement_labels
+                && let Some(start) = self.points.first()
+                && start.distance(p) > cx.tol(6.0)
+            {
+                let (_, ang, _, _) = measure(*start, p);
+                out.push(Overlay::Measure { p: p + Vec2::new(cx.tol(12.0), cx.tol(12.0)), text: format!("{:.1}°", ang) });
+            }
+        }
+        out
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
         match self.id {
@@ -318,6 +341,25 @@ mod tests {
         t.key(&cx, ToolKey::BracketLeft, Mods { shift: true, ..Default::default() });
         assert_eq!(t.options()["diameter"], json!(90.0));
         assert_eq!(t.options()["intensity"], json!(4.0));
+    }
+
+    #[test]
+    fn symbol_spinner_scrub_shows_angle_measurement_labels() {
+        let (d, _) = doc_with_rect();
+        let (s, p) = (Selection::default(), paint());
+        let base = cx(&d, &s, &p);
+        let mut t = SymbolismTool::new("symbolSpinner");
+        t.pointer(&base, &PointerEvent::new(PointerKind::Down, 0.0, 0.0));
+        t.pointer(&base, &PointerEvent::new(PointerKind::Drag, 50.0, 0.0));
+        let measure_text = |on: bool| {
+            let c = ToolContext { measurement_labels: on, ..cx(&d, &s, &p) };
+            t.overlays(&c).iter().find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+        };
+        assert!(matches!(measure_text(true).as_deref(), Some("0.0°") | Some("-0.0°")));
+        assert!(measure_text(false).is_none());
     }
 
     #[test]
