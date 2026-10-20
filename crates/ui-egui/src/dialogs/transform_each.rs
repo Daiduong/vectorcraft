@@ -33,8 +33,8 @@ pub fn fields() -> Value {
     })
 }
 
-/// Are horizontal and vertical scale linked? Defaults to on for a fresh dialog, or when the two
-/// values already match.
+/// Are horizontal and vertical scale linked (`__uniform`)? When that key is absent, linked only if
+/// the two scale values already match.
 fn uniform(d: &Dialog) -> bool {
     d.fields
         .get("__uniform")
@@ -42,29 +42,31 @@ fn uniform(d: &Dialog) -> bool {
         .unwrap_or_else(|| (d.f64("scaleH", 100.0) - d.f64("scaleV", 100.0)).abs() < 1e-9)
 }
 
-/// While [`uniform`] is on, keep `scaleH` and `scaleV` equal (the field that changed last wins).
-fn link_scales(d: &mut Dialog) {
-    if !d.fields.contains_key("__uniform") {
-        d.fields.insert("__uniform".into(), json!(uniform(d)));
+fn scale_pair_key(key: &str) -> Option<(&'static str, &'static str)> {
+    match key {
+        "scaleH" => Some(("scaleH", "scaleV")),
+        "scaleV" => Some(("scaleV", "scaleH")),
+        _ => None,
     }
+}
+
+/// Set one scale field; while [`uniform`] is on, set the other to the same value.
+fn set_scale(d: &mut Dialog, key: &str, value: f64) {
+    d.fields.insert(key.into(), json!(value));
+    if uniform(d) && let Some((_, other)) = scale_pair_key(key) {
+        d.fields.insert(other.into(), json!(value));
+    }
+}
+
+/// After a slider may have changed `key`, mirror to the other axis when linked.
+fn mirror_scale_slider(d: &mut Dialog, key: &str, before: f64) {
     if !uniform(d) {
-        let h = d.f64("scaleH", 100.0);
-        let v = d.f64("scaleV", 100.0);
-        d.fields.insert("__scales".into(), json!([h, v]));
         return;
     }
-    let h = d.f64("scaleH", 100.0);
-    let v = d.f64("scaleV", 100.0);
-    let last: Option<Vec<f64>> = d.fields.get("__scales").and_then(|v| serde_json::from_value(v.clone()).ok());
-    let (h, v) = match last.as_deref() {
-        Some([lh, lv]) if (h - lh).abs() > 1e-9 && (v - lv).abs() <= 1e-9 => (h, h),
-        Some([lh, lv]) if (v - lv).abs() > 1e-9 && (h - lh).abs() <= 1e-9 => (v, v),
-        _ => (h, h),
-    };
-    for (k, n) in [("scaleH", h), ("scaleV", v)] {
-        d.fields.insert(k.into(), json!(n));
+    let after = d.f64(key, 100.0);
+    if (after - before).abs() > 1e-9 && let Some((_, other)) = scale_pair_key(key) {
+        d.fields.insert(other.into(), json!(after));
     }
-    d.fields.insert("__scales".into(), json!([h, v]));
 }
 
 /// The command's parameters without the scale options.
@@ -97,11 +99,12 @@ pub(super) fn sections(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc
     let linked = uniform(d);
     let tip = tl!("Constrain Width and Height Proportions");
     for (i, (key, label)) in axes("scaleH", "scaleV").into_iter().enumerate() {
+        let before = d.f64(key, 100.0);
         widgets::label_row(ui, label, LABEL_W, |ui| {
             let shown = widgets::SliderValue::field(d.f64(key, 100.0).clamp(-MAX_SCALE, MAX_SCALE), 0.0..=200.0, "%", 2);
             form::slider_rail_valued(ui, d, key, label, 0.0..=200.0, Some(shown), &track);
             if let Some(n) = widgets::range_field(ui, ("te", key), d.f64(key, 100.0), -MAX_SCALE..=MAX_SCALE, "%", 2, FIELD_W) {
-                d.fields.insert(key.into(), json!(n));
+                set_scale(d, key, n);
             }
             if i == 0 && widgets::icon_button(ui, if linked { "link" } else { "link-2-off" }, tip, linked, 22.0).clicked() {
                 d.fields.insert("__uniform".into(), json!(!linked));
@@ -110,8 +113,8 @@ pub(super) fn sections(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc
                 }
             }
         });
+        mirror_scale_slider(d, key, before);
     }
-    link_scales(d);
     widgets::subheader(ui, tl!("Move"));
     for (key, label) in axes("moveH", "moveV") {
         widgets::label_row(ui, label, LABEL_W, |ui| {
@@ -217,15 +220,13 @@ mod tests {
         app.run("ui.menuDialog", json!({ "command": CMD })).unwrap();
         let d = app.ui.dialog.as_mut().unwrap();
         assert!(!d.bool("__uniform"), "scales start unlinked so the first field is horizontal scale alone");
-        d.fields.insert("scaleH".into(), json!(150));
-        link_scales(d);
+        set_scale(d, "scaleH", 150.0);
         assert_eq!((d.f64("scaleH", 0.0), d.f64("scaleV", 0.0)), (150.0, 100.0));
         d.fields.insert("__uniform".into(), json!(true));
-        link_scales(d);
+        set_scale(d, "scaleH", 150.0);
         assert_eq!((d.f64("scaleH", 0.0), d.f64("scaleV", 0.0)), (150.0, 150.0));
         d.fields.insert("__uniform".into(), json!(false));
-        d.fields.insert("scaleV".into(), json!(80));
-        link_scales(d);
+        set_scale(d, "scaleV", 80.0);
         assert_eq!((d.f64("scaleH", 0.0), d.f64("scaleV", 0.0)), (150.0, 80.0));
         let p = params(d);
         assert_eq!((&p["scaleH"], &p["scaleV"]), (&json!(150.0), &json!(80.0)));
