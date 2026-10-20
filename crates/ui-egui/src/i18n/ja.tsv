@@ -8,6 +8,8 @@
 	Glowing Edges	エッジの光彩
 	Edge Width	エッジの幅
 	Edge Brightness	エッジの明るさ
+	Request a Feature	機能をリクエスト
+	Request a Feature…	機能をリクエスト…
 	Smoothness	滑らかさ
 #
 # Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
