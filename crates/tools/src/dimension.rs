@@ -410,6 +410,20 @@ impl Tool for DimensionTool {
                     segment(first, &mut out);
                     segment(second, &mut out);
                     out.push(Overlay::Anchor { p: *at, color, filled: true, size: 7.0 });
+                    if cx.measurement_labels {
+                        let mut d = self.recipe(
+                            DimensionMode::Angular,
+                            Point::ZERO,
+                            Point::new(1.0, 0.0),
+                            Point::ZERO,
+                            Some(DimensionSource::Angle { first: first.clone(), second: second.clone() }),
+                        );
+                        if d.resolve(cx.doc).is_ok()
+                            && let Ok(text) = d.label()
+                        {
+                            out.push(Overlay::Measure { p: self.at + Vec2::new(12.0, 12.0), text });
+                        }
+                    }
                 }
                 Some(Target::Radial { center, radius, .. }) => {
                     out.push(Overlay::Anchor { p: *center, color, filled: false, size: 6.0 });
@@ -443,5 +457,40 @@ impl Tool for DimensionTool {
             out.push(Overlay::Line { a: *p, b, color, dashed: true });
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testutil::{cx, paint};
+    use vectorcraft_doc::{Appearance, Document, Node, NodeId};
+    use vectorcraft_geom::{BezPath, PathData, PathEl, Point};
+
+    fn doc_with_right_angle() -> (Document, NodeId) {
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        let id = d.alloc_id();
+        let path = BezPath::from_vec(vec![
+            PathEl::MoveTo(Point::new(100.0, 100.0)),
+            PathEl::LineTo(Point::new(200.0, 100.0)),
+            PathEl::LineTo(Point::new(200.0, 200.0)),
+        ]);
+        d.insert(Some(l), 0, Node::path(id, PathData::from_bezpath(&path), Appearance::default_art())).unwrap();
+        (d, id)
+    }
+
+    #[test]
+    fn corner_hover_honors_measurement_labels() {
+        let (d, _) = doc_with_right_angle();
+        let p = paint();
+        let s = crate::Selection::default();
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        let mut t = DimensionTool { kind: Kind::Angular, ..DimensionTool::default() };
+        let corner = Point::new(200.0, 100.0);
+        assert!(t.pointer(&on, &PointerEvent::new(PointerKind::Move, corner.x, corner.y)).is_empty());
+        assert!(t.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == "90.00°")));
+        assert!(!t.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 }
