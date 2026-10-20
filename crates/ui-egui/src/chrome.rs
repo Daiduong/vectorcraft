@@ -415,9 +415,9 @@ fn first_tab_shown(widths: &[f32], active: Option<usize>, room: f32) -> usize {
     first
 }
 
-/// Activate the open document at `index` (a tab click or Window › Documents). Clears the Home
-/// screen; with the Artboard tool, restores the displayed board as its target.
-pub(crate) fn activate_document(app: &mut VectorcraftApp, index: usize) {
+/// Activate the open document at `index` (a tab click). Clears the Home screen; with the
+/// Artboard tool, restores the displayed board as its target.
+fn activate_document(app: &mut VectorcraftApp, index: usize) {
     app.ui.home = None;
     let changed = app.session.active_index() != Some(index);
     if app.session.set_active(index)
@@ -433,8 +433,7 @@ pub(crate) fn activate_document(app: &mut VectorcraftApp, index: usize) {
 /// Document tab strip: "Name* @ 66.67% (RGB/Preview)". User Interface › Large Tabs makes the tabs
 /// taller, with larger titles. Tabs that don't fit are reached from a » button at the strip's
 /// right end, which lists every open document, and the active tab is always in view (#746).
-/// Hidden when Preferences › User Interface › Open Documents As Tabs is off; use Window › Documents
-/// instead.
+/// Hidden when Preferences › User Interface › Open Documents As Tabs is off (#394).
 pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
     /// The width of the » button.
     const MORE: f32 = 30.0;
@@ -2085,21 +2084,13 @@ mod visual_regressions {
         }
     }
 
-    /// User Interface › Open Documents As Tabs (#394): off, the tab strip is omitted and Window ›
-    /// Documents lists open files; on, the tab strip returns.
+    /// User Interface › Open Documents As Tabs (#394): off, the tab strip is omitted; on, it returns.
     #[test]
-    fn open_documents_as_tabs_off_hides_the_tab_strip_and_window_menu_lists_documents() {
+    fn open_documents_as_tabs_off_hides_the_tab_strip() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("prefs.set", json!({"key": "openDocumentsAsTabs", "value": false})).unwrap();
-        let entries = crate::menus::menu_entries(&app);
-        let docs = entries
-            .iter()
-            .filter(|e| e.path == ["Window", "Documents"] && e.command.as_deref() == Some("window.openDocument1"))
-            .collect::<Vec<_>>();
-        assert_eq!(docs.len(), 1);
-        assert!(docs[0].enabled);
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
@@ -2121,10 +2112,22 @@ mod visual_regressions {
             })
             .collect::<Vec<_>>();
         assert!(tab_titles.is_empty(), "tab strip hidden: {tab_titles:?}");
-        app.run("window.openDocument2", json!({})).unwrap();
-        assert_eq!(app.session.active_index(), Some(1));
         app.run("prefs.set", json!({"key": "openDocumentsAsTabs", "value": true})).unwrap();
-        let entries = crate::menus::menu_entries(&app);
-        assert!(!entries.iter().any(|e| e.command.as_deref().map(|c| c.starts_with("window.openDocument")).unwrap_or(false)));
+        let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), ..Default::default() }, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
+                super::doc_tabs(&mut app, ui);
+                ui.label("canvas");
+            });
+        });
+        out.textures_delta.clear();
+        let tab_titles = out
+            .shapes
+            .iter()
+            .filter_map(|s| match &s.shape {
+                egui::Shape::Text(t) if t.galley.job.text.contains('@') => Some(t.galley.job.text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(tab_titles.len(), 2, "tab strip visible again: {tab_titles:?}");
     }
 }
