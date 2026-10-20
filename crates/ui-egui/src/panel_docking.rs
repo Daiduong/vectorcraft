@@ -203,6 +203,8 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Opt
         "window.panel.dock" => "dock",
         "window.panel.activate" => "activate",
         "window.panel.close" => "close",
+        "window.panel.hideIcon" => "hideIcon",
+        "window.panel.showInIcons" => "showInIcons",
         "window.panel" if app.ui.docking.is_some() => "activate",
         _ => return None,
     };
@@ -317,6 +319,22 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
     if operation == "activate" && icon_panel && !layout.contains(&panel.to_string()) {
         app.ui.open_panel = if app.ui.open_panel.as_deref() == Some(panel) { None } else { Some(panel.into()) };
         return Ok(json!({"panel": panel, "open": app.ui.open_panel}));
+    }
+    if operation == "hideIcon" || operation == "showInIcons" {
+        // Icon-rail parity with the docked columns: a panel's icon can leave the rail and come
+        // back. It stays reachable from the Window menu either way.
+        return if icon_panel {
+            if operation == "hideIcon" {
+                app.ui.icons_hidden.insert(panel.to_string());
+                app.ui.open_panel = None;
+            } else {
+                app.ui.icons_hidden.remove(panel);
+                app.ui.open_panel = Some(panel.into());
+            }
+            Ok(json!({"panel": panel, "hidden": app.ui.icons_hidden.contains(panel)}))
+        } else {
+            Err("only icon panels can be hidden from the iconic rail".into())
+        };
     }
     if operation == "dock" && params.get("anchor").or_else(|| params.get("onto")).is_none() {
         let mut candidate = layout.clone();
@@ -816,8 +834,9 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
 fn icon_rail(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let column = egui::Panel::right("shared-panel-icons")
-        .exact_size(38.0)
-        .resizable(false)
+        .resizable(true)
+        .default_size(38.0)
+        .size_range(38.0..=304.0)
         .frame(egui::Frame::NONE)
         .show(ui, |ui| {
             crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, |ui| {
@@ -831,7 +850,13 @@ fn icon_rail(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
                         if app.ui.docking.as_ref().is_some_and(|layout| layout.contains(&id.to_string())) {
                             continue;
                         }
+                        if app.ui.icons_hidden.contains(id) {
+                            continue;
+                        }
                         let (_, rect) = ui.allocate_space(egui::vec2(30.0, 30.0));
+                        // Center the icon when the rail is wider than its 38-point default.
+                        let span = ui.available_width() - 30.0;
+                        let rect = if span > 0.0 { rect.translate(egui::vec2(span * 0.5, 0.0)) } else { rect };
                         let response = ui.interact(rect, ui.id().with(("panel-icon", id)), egui::Sense::click_and_drag());
                         let response = crate::widgets::paint_icon_button(ui, response, icon, tl!(label), app.ui.open_panel.as_deref() == Some(id));
                         if response.clicked() {
@@ -879,6 +904,33 @@ pub(crate) fn legacy_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui, panel: &st
                 }
             }
         });
+        // Icon-rail parity with the docked columns: hide an unused icon, or bring a hidden one
+        // back (the rail's resizable width lives in dock.rs; close and add live here).
+        if app.ui.icons_hidden.contains(panel) {
+            if ui.button(tl!("Show in Icon Rail")).clicked() {
+                if let Err(error) = app.run("window.panel.showInIcons", json!({"panel": panel})) {
+                    app.ui.status = error;
+                }
+                ui.close();
+            }
+        } else if ui.button(tl!("Hide from Icon Rail")).clicked() {
+            if let Err(error) = app.run("window.panel.hideIcon", json!({"panel": panel})) {
+                app.ui.status = error;
+            }
+            ui.close();
+        }
+        if !app.ui.icons_hidden.is_empty() {
+            ui.menu_button(tl!("Add to Icon Rail"), |ui| {
+                for hidden_panel in app.ui.icons_hidden.clone() {
+                    if ui.button(tl!(hidden_panel.as_str())).clicked() {
+                        if let Err(error) = app.run("window.panel.showInIcons", json!({"panel": hidden_panel})) {
+                            app.ui.status = error;
+                        }
+                        ui.close();
+                    }
+                }
+            });
+        }
     });
     if response.drag_started()
         && let Some(id) = normalize(panel)

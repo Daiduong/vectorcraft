@@ -118,6 +118,9 @@ fn panel_icon(app: &mut VectorcraftApp, ui: &mut Ui, id: &'static str, label: &s
     let open = app.ui.open_panel.as_deref() == Some(id);
     // Its own id: the icons below it move up when it floats, and mustn't take over its drag.
     let (_, rect) = ui.allocate_space(vec2(30.0, 30.0));
+    // Center the icon when the rail is wider than its 38-point default (resizable rail).
+    let span = ui.available_width() - 30.0;
+    let rect = if span > 0.0 { rect.translate(vec2(span * 0.5, 0.0)) } else { rect };
     let resp = widgets::paint_icon_button(ui, ui.interact(rect, ui.id().with(("panel-icon", id)), Sense::click_and_drag()), icon, label, open);
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, ui.is_enabled(), open, tl!(label)));
     if resp.clicked() {
@@ -169,7 +172,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // collapsed group's panels head it, under the « that expands them again. Floating panels leave
     // it.
     let collapsed = app.ui.dock_collapsed && shown.is_some();
-    let column = egui::Panel::right("icon_column").resizable(false).exact_size(ICON_COL).frame(egui::Frame::NONE).show(ui, |ui| {
+    let column = egui::Panel::right("icon_column").resizable(true).default_size(ICON_COL).size_range(ICON_COL..=ICON_COL * 8.0).frame(egui::Frame::NONE).show(ui, |ui| {
         crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, |ui| {
             let bounds = ui.max_rect();
             if collapsed && collapse_header(ui, true) {
@@ -194,6 +197,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                         for id in group.iter() {
                             let Some((_, label, icon)) = ICON_PANELS.iter().find(|p| p.0 == *id) else { continue };
                             if floating::group_of(&app.ui, id).is_some() {
+                                continue;
+                            }
+                            if app.ui.icons_hidden.contains(*id) {
                                 continue;
                             }
                             if std::mem::take(&mut first) && std::mem::replace(&mut divider, true) {
