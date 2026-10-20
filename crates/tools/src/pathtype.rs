@@ -162,6 +162,8 @@ pub struct BracketDrag {
     /// Where the press was along the path (a fraction of its length).
     grab: f64,
     began: bool,
+    /// Measurement label at the pointer while dragging.
+    measure: Option<(Point, String)>,
 }
 
 impl BracketDrag {
@@ -172,21 +174,40 @@ impl BracketDrag {
         }
         let (brackets, which) = bracket_at(cx, ev.pos)?;
         let grab = brackets.fraction_at(ev.pos)?;
-        Some(Self { brackets, which, start: ev.pos, grab, began: false })
+        Some(Self { brackets, which, start: ev.pos, grab, began: false, measure: None })
     }
 
     pub fn drag(&mut self, cx: &ToolContext, p: Point, cmd: bool) -> Vec<Action> {
         let mut out = vec![];
         if !self.began {
             if p.distance(self.start) < cx.tol(3.0) {
+                self.measure = None;
                 return out;
             }
             self.began = true;
             out.push(Action::Begin("Move Type on a Path".into()));
         }
-        let Some(u) = self.brackets.fraction_at(p) else { return out };
+        let Some(u) = self.brackets.fraction_at(p) else {
+            self.measure = None;
+            return out;
+        };
+        if cx.measurement_labels {
+            let mut delta = u - self.grab;
+            if self.brackets.arc.is_closed() {
+                delta -= delta.round();
+            }
+            let dist = delta.abs() * self.brackets.arc.len();
+            self.measure = Some((p + Vec2::new(cx.tol(12.0), cx.tol(12.0)), format!("D: {}", cx.len(dist))));
+        } else {
+            self.measure = None;
+        }
         out.push(Action::Preview("type.pathOptions".into(), self.params(cx, p, u, cmd)));
         out
+    }
+
+    /// Measurement readout while a bracket moves along the path.
+    pub fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+        self.measure.iter().map(|(p, text)| Overlay::Measure { p: *p, text: text.clone() }).collect()
     }
 
     /// `type.pathOptions` params for the pointer at `p`, `u` along the path.
@@ -328,6 +349,23 @@ mod tests {
             assert_eq!(n, 0);
             assert_ne!(cursor, Cursor::PathBracket);
         }
+    }
+
+    #[test]
+    fn bracket_drag_honors_measurement_labels() {
+        let (d, id) = doc_with_path_type();
+        let s = selected(id);
+        let p = paint();
+        let base = cx(&d, &s, &p);
+        let grab = Point::new(280.0, 295.0);
+        let to = Point::new(340.0, 295.0);
+        let mut drag = BracketDrag::hit(&base, &PointerEvent::new(PointerKind::Down, grab.x, grab.y)).expect("a bracket");
+        let on = ToolContext { measurement_labels: true, ..base };
+        let off = ToolContext { measurement_labels: false, ..base };
+        drag.drag(&on, to, false);
+        assert!(drag.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text.starts_with("D:"))));
+        drag.drag(&off, to, false);
+        assert!(drag.overlays(&off).is_empty());
     }
 
     #[test]

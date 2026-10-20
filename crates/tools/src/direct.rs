@@ -845,6 +845,7 @@ impl Tool for DirectSelectionTool {
         match &self.state {
             State::Marquee { start, cur, .. } => vec![Overlay::Marquee(Rect::from_points(*start, *cur))],
             State::Corner(c) => c.overlays(cx),
+            State::Bracket(b) => b.overlays(cx),
             _ => {
                 let mut out = self.spine_overlays(cx);
                 out.extend(self.mesh.overlays(cx));
