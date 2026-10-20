@@ -1451,6 +1451,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
                     app.ui.dock_tab = tab;
                     Ok(Value::Null)
                 }
+                (Some("imageTrace"), None) => app.run("window.panel.float", json!({"panel": "imageTrace"})),
                 // A library panel isn't in the icon column: it floats.
                 (Some(p), None) if crate::panels::library_panel::parse(p).is_some() => crate::panels::library_panel::float(app, p),
                 (Some(p), None) => {

@@ -163,6 +163,16 @@ fn placement(params: &Value) -> Result<Placement<String>, String> {
 }
 
 pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+    // First opening is a movable palette in an already-customized workspace too. An
+    // explicitly placed or closed panel keeps its saved dock/floating return location.
+    if id == "window.panel"
+        && params.get("panel").and_then(Value::as_str).and_then(normalize) == Some("imageTrace")
+        && app.ui.docking.as_ref().is_some_and(|layout| !layout.contains(&"imageTrace".into()))
+        && !app.ui.docking_hidden.contains_key("imageTrace")
+        && crate::floating::group_of(&app.ui, "imageTrace").is_none()
+    {
+        return Some(change(app, "float", params));
+    }
     if matches!(id, "window.panel.float" | "window.panel.dock")
         && (params.get("above").is_some()
             || params.get("below").is_some()
@@ -387,7 +397,12 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
                 .iter()
                 .find(|group| group.panels.iter().any(|id| id == panel) && group.panels.len() == members.len())
                 .map(|group| group.rect)
-                .unwrap_or([400.0 + 24.0 * layout.floating.len().min(12) as f32, 140.0 + 24.0 * layout.floating.len().min(12) as f32, 300.0, 400.0]);
+                .unwrap_or([
+                    400.0 + 24.0 * layout.floating.len().min(12) as f32,
+                    140.0 + 24.0 * layout.floating.len().min(12) as f32,
+                    if panel == "imageTrace" { crate::dock::panel_width(panel) } else { 300.0 },
+                    400.0,
+                ]);
             let rect =
                 [number(params, "x", old[0])?, number(params, "y", old[1])?, number(params, "width", old[2])?, number(params, "height", old[3])?];
             let fallback = float_fallback(&layout, panel).or_else(|| first_root(&layout, panel));
@@ -499,6 +514,8 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
 
 struct PanelContent<'a> {
     app: &'a mut VectorcraftApp,
+    ctx: egui::Context,
+    font: egui::FontId,
     commands: Vec<(&'static str, Value)>,
 }
 
@@ -514,10 +531,15 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
         if crate::state::DockTab::from_id(panel).is_some() {
             crate::dock::panel_body(self.app, ui, panel, width, height);
         } else {
-            egui::ScrollArea::vertical()
-                .id_salt(("shared-panel-body", panel))
-                .auto_shrink([false, false])
-                .show(ui, |ui| crate::dock::panel_body(self.app, ui, panel, width, height));
+            egui::ScrollArea::vertical().id_salt(("shared-panel-body", panel)).auto_shrink([false, false]).show(ui, |ui| {
+                crate::dock::panel_body(self.app, ui, panel, width, height);
+                if panel == "imageTrace" {
+                    // Capture only this docking body's allocation. A rail flyout drawn
+                    // later may measure different content/width and must not resize it.
+                    let measurement = crate::panels::image_trace::content_size(ui.ctx()).zip(crate::panels::image_trace::measured_width(ui.ctx()));
+                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("image-trace-palette-measurement"), measurement));
+                }
+            });
         }
     }
 
@@ -525,8 +547,23 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
         crate::panels::panel_menu_items(self.app, ui, panel);
     }
 
-    fn group_header_width(&self, _panels: &[String], _active: &String, floating: bool) -> f32 {
-        if floating { 48.0 } else { 80.0 }
+    fn group_header_width(&self, panels: &[String], active: &String, floating: bool) -> f32 {
+        if !floating {
+            return 80.0;
+        }
+        let width =
+            self.app.ui.docking.as_ref().and_then(|layout| layout.floating.iter().find(|g| g.panels.contains(active))).map_or(300.0, |g| g.rect[2]);
+        let tabs: f32 = panels
+            .iter()
+            .map(|panel| {
+                let label = crate::panels::library_panel::tab_label(self.app, panel)
+                    .unwrap_or_else(|| crate::state::all_panels().find(|p| p.0 == panel).map_or_else(|| panel.clone(), |p| tl!(p.1).to_string()));
+                self.ctx.fonts_mut(|f| f.layout_no_wrap(label, self.font.clone(), egui::Color32::WHITE)).size().x + 24.0
+            })
+            .sum();
+        // Let the shared tab strip keep its natural tab widths; reserve the free remainder
+        // as an application-owned title handle, beside the explicit dock/menu controls.
+        (width.max(220.0).min(self.ctx.content_rect().width()) - 12.0 - tabs).max(48.0)
     }
 
     fn group_header(&mut self, ui: &mut egui::Ui, _panels: &[String], active: &String, floating: bool) {
@@ -535,9 +572,33 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
         crate::panels::panel_menu(self.app, ui, active, menu);
         let grip = egui::Rect::from_min_max(rect.min, egui::pos2(menu.left() - 4.0, rect.bottom()));
         if floating {
-            let response = ui.put(grip, egui::Button::new("×")).on_hover_text(tl!("Dock Panel"));
-            if response.clicked() {
-                self.commands.push(("window.panel.dock", json!({"panel": active, "group": true})));
+            let close = egui::Rect::from_min_max(egui::pos2((grip.right() - 24.0).max(grip.left()), grip.top()), grip.max);
+            let handle = egui::Rect::from_min_max(grip.min, egui::pos2(close.left(), grip.bottom()));
+            let origin_id = ui.id().with("floating-header-origin");
+            let response = ui.interact(handle, ui.id().with("floating-header-move"), egui::Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);
+            if response.drag_started()
+                && let Some(rect) = self.app.ui.docking.as_ref().and_then(|l| l.floating.iter().find(|g| g.panels.contains(active))).map(|g| g.rect)
+            {
+                let pressed = ui.input(|i| i.pointer.press_origin()).unwrap_or(egui::Pos2::ZERO);
+                let generation = self.app.ui.docking_generation;
+                ui.ctx().data_mut(|d| d.insert_temp(origin_id, (rect, pressed, generation)));
+            }
+            if let Some((original, pressed, generation)) = ui.ctx().data(|d| d.get_temp::<([f32; 4], egui::Pos2, u64)>(origin_id)) {
+                let cancel = ui.input(|i| i.key_pressed(egui::Key::Escape) || !i.focused);
+                if generation == self.app.ui.docking_generation && (response.dragged() || cancel) {
+                    let delta = if cancel { egui::Vec2::ZERO } else { response.interact_pointer_pos().unwrap_or(pressed) - pressed };
+                    let screen = ui.ctx().content_rect();
+                    let mut moved = original;
+                    moved[0] = (original[0] + delta.x).clamp(screen.left(), (screen.right() - original[2]).max(screen.left()));
+                    moved[1] = (original[1] + delta.y).clamp(screen.top(), (screen.bottom() - original[3]).max(screen.top()));
+                    self.commands.push(("window.panel.layout", json!({"action":Action::MoveFloating {panel:active.clone(),rect:moved}})));
+                }
+                if cancel || response.drag_stopped() || generation != self.app.ui.docking_generation {
+                    ui.ctx().data_mut(|d| d.remove::<([f32; 4], egui::Pos2, u64)>(origin_id));
+                }
+            }
+            if ui.put(close, egui::Button::new("×")).on_hover_text(tl!("Dock Panel")).clicked() {
+                self.commands.push(("window.panel.dock", json!({"panel":active,"group":true})));
             }
         } else {
             let response = ui.interact(grip, ui.id().with("dock-group-bar"), egui::Sense::drag());
@@ -562,7 +623,38 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
     }
 }
 
+/// A lone Image Trace palette follows its controls' natural height, just like the rail
+/// flyout. Screen-constrained palettes still scroll; other floating groups retain manual sizes.
+fn fit_trace_palette(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    let Some((body, width)) = ctx.data(|d| d.get_temp::<Option<(egui::Vec2, f32)>>(egui::Id::new("image-trace-palette-measurement"))).flatten()
+    else {
+        return;
+    };
+    let Some(group) = app.ui.docking.as_ref().and_then(|l| l.floating.iter().find(|g| g.panels == ["imageTrace"])) else { return };
+    // Native columns, docked or collapsed groups own their size and aren't this palette.
+    if app.ui.floating_panels.iter().any(|g| decorated(g) && g.panels.iter().any(|p| p == "imageTrace")) {
+        return;
+    }
+    let screen = ctx.content_rect();
+    let mut rect = group.rect;
+    // A width from an older allocation must not undo a user's narrowing drag. First
+    // measure at the new width, then grow only if its fixed-width controls overflow.
+    if (rect[2] - width - 20.0).abs() < 1.0 {
+        rect[2] = rect[2].max(body.x + 20.0);
+    }
+    rect[2] = rect[2].min(screen.width()).max(1.0);
+    rect[0] = rect[0].clamp(screen.left(), (screen.right() - rect[2]).max(screen.left()));
+    rect[3] = (body.y + 20.0 + 33.0).min(screen.height()).max(1.0);
+    rect[1] = rect[1].clamp(screen.top(), (screen.bottom() - rect[3]).max(screen.top()));
+    if rect.iter().zip(group.rect).any(|(a, b)| (a - b).abs() > 0.5)
+        && let Err(error) = app.run("window.panel.layout", json!({"action":Action::MoveFloating { panel:"imageTrace".to_string(), rect }}))
+    {
+        app.ui.status = error;
+    }
+}
+
 pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
+    fit_trace_palette(app, ui.ctx());
     let root_key = egui::Id::new("vectorcraft-root-group-drag");
     if let Some(drag) = ui.ctx().data(|data| data.get_temp::<RootGroupDrag>(root_key)) {
         if drag.generation != app.ui.docking_generation {
@@ -695,7 +787,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         style.panels_label = tl!("Panels").to_string();
         style.resize_label = tl!("Resize panels").to_string();
         style.resize_window_label = tl!("Resize panel window").to_string();
-        let mut content = PanelContent { app, commands: Vec::new() };
+        let mut content = PanelContent { app, ctx: ui.ctx().clone(), font: style.font.clone(), commands: Vec::new() };
         let output = craft_ui::docking::DockArea::new(area).show_customized(
             ui,
             &display,

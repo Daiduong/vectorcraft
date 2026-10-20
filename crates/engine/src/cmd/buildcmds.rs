@@ -959,6 +959,14 @@ fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
     let is = |b: Option<tr::TraceParams>| b.and_then(|b| serde_json::to_value(&b).ok()).as_ref() == Some(&params_json);
     let preset_label = if is(tr::preset(named)) || is(tr::enhanced_preset(named)) { named.to_string() } else { "Custom".to_string() };
     let roots = root_ids(s, p)?;
+    // A live trace owns its retained bitmap. Reject explicit ids as well as selection
+    // before tracing or editing anything; replacing that child would break the outer trace.
+    let d = &s.doc()?.doc;
+    if roots.iter().any(|id| {
+        d.parent_of(*id).and_then(|p| d.node(p)).is_some_and(is_trace_group) && d.node(*id).is_some_and(|n| matches!(n.kind, NodeKind::Image(_)))
+    }) {
+        return Err(bad(C, "select the Image Trace group, not its retained source image"));
+    }
     // The image (inside a trace group, or selected directly).
     let (target, img) = {
         let d = &s.doc()?.doc;
@@ -1044,7 +1052,7 @@ fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
         if !expand {
             // Tracing again keeps the object's view unless another is asked for.
             let view = view.unwrap_or_else(|| src.trace_view());
-            g.extras_mut().trace = Some(Box::new(json!({ "preset": preset_label, "params": params_json, "view": view.id() })));
+            g.extras_mut().trace = Some(Box::new(json!({ "preset": preset_label, "params": params_json, "view": view.id(), "info": {"paths": npaths, "anchors": anchors, "colors": colors} })));
         }
         let (par, idx, _) = d.position(target).ok_or(EngineError::NoNode(target))?;
         d.remove(target)?;

@@ -693,3 +693,117 @@ fn library_panels_float_with_their_names_and_a_persistent_menu_item() {
     let persistent: Vec<&str> = h.state().ui.library_panels.iter().filter(|p| p.persistent).map(|p| p.id.as_str()).collect();
     assert_eq!(persistent, ["pastels"]);
 }
+
+#[test]
+fn image_trace_opens_floating_and_keeps_explicit_docking() {
+    for customized in [false, true] {
+        let mut app = app();
+        if customized {
+            app.run("window.panel.move", json!({"panel":"swatches","anchor":"layers","zone":"top"})).unwrap();
+        }
+        app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+        let layout = app.ui.docking.as_ref().unwrap();
+        assert!(layout.floating.iter().any(|g| g.panels.contains(&"imageTrace".into())));
+        app.run("window.panel.dock", json!({"panel":"imageTrace","anchor":"layers","zone":"tab"})).unwrap();
+        for close in [false, true] {
+            if close {
+                app.run("window.panel.close", json!({"panel":"imageTrace"})).unwrap();
+            }
+            app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+            assert!(!app.ui.docking.as_ref().unwrap().floating.iter().any(|g| g.panels.contains(&"imageTrace".into())));
+        }
+    }
+}
+
+#[test]
+fn floating_image_trace_can_be_repositioned_repeatedly_by_its_title() {
+    let mut app = app();
+    app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+    let mut h = harness(app, vec2(1280.0, 900.0));
+    for delta in [vec2(120.0, 80.0), vec2(-90.0, 120.0), vec2(160.0, -70.0)] {
+        let before = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+        let from = h.ctx.read_response(egui::Id::new("vectorcraft-panel-docking").with(("tab", &"imageTrace".to_string()))).unwrap().rect.center();
+        drag(&mut h, from, from + delta);
+        let after = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+        assert!((after[0] - before[0]).abs() > 30.0 || (after[1] - before[1]).abs() > 30.0, "title at {from:?}: {before:?} -> {after:?}");
+    }
+}
+
+#[test]
+fn floating_image_trace_free_header_can_be_dragged_repeatedly() {
+    let mut app = app();
+    app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+    let mut h = harness(app, vec2(1280.0, 900.0));
+    for delta in [vec2(100.0, 60.0), vec2(-70.0, 90.0), vec2(130.0, -100.0)] {
+        let before = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+        let from = egui::pos2(before[0] + 160.0, before[1] + 16.0);
+        drag(&mut h, from, from + delta);
+        let after = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+        assert!((after[0] - before[0] - delta.x).abs() < 15.0 && (after[1] - before[1] - delta.y).abs() < 15.0, "{before:?} -> {after:?}");
+    }
+    assert!(valid(h.state().ui.docking.as_ref().unwrap()));
+}
+
+#[test]
+fn floating_trace_fits_advanced_content_and_collapses_without_empty_space() {
+    let mut app = app();
+    app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+    let mut h = harness(app, vec2(1280.0, 1000.0));
+    for advanced in [true, false, true] {
+        h.state_mut().ui.image_trace_advanced = advanced;
+        h.run_steps(4);
+        let rect = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+        let body = crate::panels::image_trace::content_size(&h.ctx).unwrap();
+        assert!(rect[2] >= crate::dock::panel_width("imageTrace"));
+        assert!(rect[2] >= body.x + 19.5, "fixed-width controls fit inside the panel");
+        let slider = h.ctx.data(|d| d.get_temp::<egui::Rect>(egui::Id::new(("trace-slider", "Threshold")))).unwrap();
+        assert!(slider.right() <= rect[0] + rect[2] - 9.0, "slider value field is not clipped");
+        assert!((rect[3] - body.y - 53.0).abs() < 2.0, "advanced={advanced}: {rect:?}, body={body:?}");
+        let expand = h.query_all_by_label("Expand").next().unwrap().rect();
+        assert!(expand.bottom() <= rect[1] + rect[3] && expand.top() >= rect[1], "last row visible without scrolling");
+    }
+    let fitted = h.state().ui.docking.as_ref().unwrap().floating[0].rect[2];
+    h.state_mut().run("window.panel.float", json!({"panel":"imageTrace","width":400})).unwrap();
+    h.run_steps(5);
+    assert_eq!(h.state().ui.docking.as_ref().unwrap().floating[0].rect[2], 400.0);
+    h.state_mut().run("window.panel.float", json!({"panel":"imageTrace","width":fitted})).unwrap();
+    h.run_steps(5);
+    assert!((h.state().ui.docking.as_ref().unwrap().floating[0].rect[2] - fitted).abs() < 1.0, "content fitting permits narrowing after widening");
+}
+
+#[test]
+fn floating_trace_remains_within_a_short_viewport() {
+    let mut app = app();
+    app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+    let mut h = harness(app, vec2(700.0, 360.0));
+    h.run_steps(4);
+    let rect = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+    assert!(rect[1] >= 0.0 && rect[1] + rect[3] <= 360.5);
+    assert!(crate::panels::image_trace::content_size(&h.ctx).unwrap().y + 53.0 > rect[3], "short windows keep scrolling as a fallback");
+    assert!(valid(h.state().ui.docking.as_ref().unwrap()));
+}
+
+#[test]
+fn trace_palette_fit_ignores_other_instances_and_collapsed_groups() {
+    let mut app = app();
+    app.run("window.panel", json!({"panel":"imageTrace"})).unwrap();
+    let mut h = harness(app, vec2(1280.0, 1000.0));
+    h.run_steps(5);
+    let before = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+    // Render another panel instance after the palette, at a different width, mode and DPI.
+    h.state_mut().ui.image_trace_advanced = false;
+    h.ctx.set_pixels_per_point(1.5);
+    let ctx = h.ctx.clone();
+    let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        ui.set_width(550.0);
+        crate::panels::image_trace::show(h.state_mut(), ui);
+    });
+    out.textures_delta.clear();
+    fit_trace_palette(h.state_mut(), &ctx);
+    let after = h.state().ui.docking.as_ref().unwrap().floating[0].rect;
+    assert_eq!(&after[2..], &before[2..], "another allocation cannot supply the palette's fit; its position may clamp at the changed DPI");
+    h.state_mut().run("window.panel.float", json!({"panel":"imageTrace","collapsed":true})).unwrap();
+    let collapsed = h.state().ui.docking.clone();
+    fit_trace_palette(h.state_mut(), &ctx);
+    assert_eq!(h.state().ui.docking, collapsed, "collapsed native group keeps its own dimensions");
+}
