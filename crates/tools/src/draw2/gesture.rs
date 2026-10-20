@@ -11,8 +11,9 @@
 //! one command on release.
 
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Point;
+use vectorcraft_doc::{Node, NodeId, NodeKind};
+use vectorcraft_geom::kurbo::ParamCurveNearest;
+use vectorcraft_geom::{Line, Point, Rect};
 
 use super::{FEEDBACK, points_json, polyline};
 use crate::guides::DrawSnap;
@@ -52,6 +53,84 @@ pub struct GestureTool {
     pub close_within: f64,
     /// Smart Guides for the Pencil's ends.
     snap: DrawSnap,
+}
+
+/// Shortest distance from `q` to the polyline `pts`.
+fn dist_to_polyline(pts: &[Point], q: Point) -> f64 {
+    if pts.len() == 1 {
+        return pts[0].distance(q);
+    }
+    pts.windows(2)
+        .map(|w| {
+            let (a, b) = (w[0], w[1]);
+            let ab = b - a;
+            let l2 = ab.hypot2();
+            let t = if l2 < 1e-18 { 0.0 } else { ((q - a).dot(ab) / l2).clamp(0.0, 1.0) };
+            (a + ab * t).distance(q)
+        })
+        .fold(f64::INFINITY, f64::min)
+}
+
+fn scrub_bounds(pts: &[Point], pad: f64) -> Rect {
+    let r = pts.iter().fold(Rect::from_points(pts[0], pts[0]), |r, p| r.union_pt(*p));
+    r.inflate(pad, pad)
+}
+
+/// Where `q` falls along `pts`, for ordering endpoints like `path.joinScrub`.
+fn order_along_scrub(pts: &[Point], q: Point) -> f64 {
+    let mut best = (0.0, f64::INFINITY);
+    let mut cum = 0.0;
+    for w in pts.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        let n = Line::new(a, b).nearest(q, 1e-6);
+        if n.distance_sq < best.1 {
+            best = (cum + n.t * a.distance(b), n.distance_sq);
+        }
+        cum += a.distance(b);
+    }
+    best.0
+}
+
+/// The gap between the first two open endpoints a Join scrub would merge (label position, gap length).
+fn join_scrub_gap(cx: &ToolContext, pts: &[Point], tol: f64) -> Option<(Point, f64)> {
+    if pts.len() < 2 || !tol.is_finite() {
+        return None;
+    }
+    let area = scrub_bounds(pts, tol);
+    let mut ends: Vec<(f64, Point)> = vec![];
+    let mut visit = |n: &Node| {
+        if let NodeKind::Path { guide: false, path, .. } = &n.kind
+            && path.control_bounds().is_some_and(|b| b.inflate(0.5, 0.5).intersect(area).area() > 0.0 || b.width() == 0.0 || b.height() == 0.0)
+            && cx.doc.is_editable(n.id)
+        {
+            for sp in &path.subpaths {
+                if sp.closed || sp.anchors.len() < 2 {
+                    continue;
+                }
+                for a in [sp.anchors[0].p, sp.anchors[sp.anchors.len() - 1].p] {
+                    if dist_to_polyline(pts, a) <= tol {
+                        ends.push((order_along_scrub(pts, a), a));
+                    }
+                }
+            }
+        }
+    };
+    if cx.selection.is_empty() {
+        cx.doc.walk(&mut visit);
+    } else {
+        for id in &cx.selection.objects {
+            if let Some(n) = cx.doc.node(*id) {
+                n.walk(&mut |c| visit(c));
+            }
+        }
+    }
+    ends.sort_by(|a, b| a.0.total_cmp(&b.0));
+    if ends.len() < 2 {
+        return None;
+    }
+    let pa = ends[0].1;
+    let pb = ends[1].1;
+    Some((pa.midpoint(pb), pa.distance(pb)))
 }
 
 impl GestureTool {
@@ -354,6 +433,12 @@ impl Tool for GestureTool {
         };
         let color = if self.id == "eraser" { [0x80, 0x80, 0x80] } else { FEEDBACK };
         o.push(Overlay::Path { path: polyline(&self.points), color, width, dashed: self.id == "knife" });
+        if cx.measurement_labels && self.id == "join" {
+            let tol = cx.tol(self.edit_within);
+            if let Some((p, gap)) = join_scrub_gap(cx, &self.points, tol) {
+                o.push(Overlay::Measure { p, text: format!("Gap: {}", cx.len(gap)) });
+            }
+        }
         o
     }
     fn cursor(&self, _cx: &ToolContext, _p: Point, m: Mods) -> Cursor {
@@ -574,6 +659,39 @@ mod tests {
         assert_eq!(k.overlays(&cx).len(), 1);
         let a = k.pointer(&cx, &PointerEvent::new(PointerKind::Up, 250.0, 150.0));
         assert!(matches!(&a[0], Action::Exec(c, v) if c == "path.knife" && v["points"].as_array().unwrap().len() == 3));
+    }
+
+    #[test]
+    fn join_scrub_shows_gap_in_measurement_labels() {
+        use vectorcraft_doc::{Appearance, Document, Node};
+        use vectorcraft_geom::shapes;
+
+        let mut d = Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        for (a, b) in [(Point::new(100.0, 100.0), Point::new(200.0, 100.0)), (Point::new(205.0, 100.0), Point::new(300.0, 150.0))] {
+            let id = d.alloc_id();
+            d.insert(Some(l), 0, Node::path(id, shapes::line(a, b), Appearance::default_art())).unwrap();
+        }
+        let s = Selection::default();
+        let p = paint();
+        let on = ToolContext { measurement_labels: true, ..cx(&d, &s, &p) };
+        let off = ToolContext { measurement_labels: false, ..cx(&d, &s, &p) };
+        let mut t = GestureTool::new("join");
+        t.pointer(&on, &PointerEvent::new(PointerKind::Down, 202.0, 90.0));
+        t.pointer(&on, &PointerEvent::new(PointerKind::Drag, 202.0, 110.0));
+        let text = t
+            .overlays(&on)
+            .iter()
+            .find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        assert!(text.starts_with("Gap: 5.00 pt"), "{text}");
+        let mut quiet = GestureTool::new("join");
+        quiet.pointer(&off, &PointerEvent::new(PointerKind::Down, 202.0, 90.0));
+        quiet.pointer(&off, &PointerEvent::new(PointerKind::Drag, 202.0, 110.0));
+        assert!(!quiet.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
     }
 
     #[test]
