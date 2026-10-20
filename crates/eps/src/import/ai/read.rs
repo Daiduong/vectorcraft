@@ -3,9 +3,8 @@
 //! - Art space has y up; the first artboard's top left corner is the document's origin.
 //! - Layers: `%AI5_BeginLayer`, `visible preview unlocked printing dimmed … colorIndex r g b …
 //!   dimPercent … Lb` (ten operands in the legacy format, without the one before the colour
-//!   index), `(name) Ln`, its art, `LB`. A layer that doesn't print with dimmed on is a template
-//!   layer (as the version 7 writer emits them); one that doesn't print without dimmed is only
-//!   non-printing.
+//!   index), `(name) Ln`, its art, `LB`. The extended editing-data form adds a template flag
+//!   before `hasMultiLayerMasks` (operand six when there are more than ten numbers).
 //! - Groups `u` … `U`, compound paths `*u` … `*U`, clipping groups `q` … `Q` (the path painted
 //!   with `W` clips); a group's transparency and name follow its end.
 //! - Paths: `m`, `l`/`L`, `c`/`C`, `v`/`V`, `y`/`Y`, painted by `N n F f S s B b` (lower case
@@ -1619,7 +1618,8 @@ impl<'a> Reader<'a> {
     }
 
     /// `… Lb`: a layer's options. The legacy format's has ten operands, its colour index one place
-    /// earlier (`visible preview unlocked printing dimmed masks colorIndex r g b`).
+    /// earlier (`visible preview unlocked printing dimmed masks colorIndex r g b`). The extended
+    /// editing-data form inserts a template flag before `masks`.
     fn layer_attrs(&mut self, vals: &[V]) {
         let n = Self::nums(vals);
         let Some(Frame { kind: Kind::Layer(a), .. }) = self.frames.last_mut() else { return };
@@ -1629,7 +1629,7 @@ impl<'a> Reader<'a> {
         a.locked = !flag(2, true);
         a.printable = flag(3, true);
         let dimmed = flag(4, false);
-        a.template = !a.printable && dimmed;
+        a.template = n.len() > 10 && flag(5, false);
         let dim_pct = n.get(12).copied().filter(|v| v.is_finite()).unwrap_or(50.0).clamp(0.0, 100.0);
         a.dim = dimmed.then_some(dim_pct.round() as u8);
         let at = if n.len() <= 10 { 6 } else { 7 };
