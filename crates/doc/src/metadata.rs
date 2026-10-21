@@ -3,6 +3,7 @@
 //! document title is [`crate::Document::title`]. Every field is defaulted, so documents saved
 //! before File Info existed load unchanged.
 
+use chrono::{Datelike, Timelike};
 use serde::{Deserialize, Serialize};
 
 /// File Info → Copyright Status.
@@ -118,23 +119,20 @@ pub fn now_unix() -> Option<i64> {
     None
 }
 
-/// Unix seconds (UTC) → `[year, month, day, hour, minute, second]` (civil-from-days, proleptic
-/// Gregorian; years clamped to 0–9999).
+/// Unix seconds (UTC) → `[year, month, day, hour, minute, second]` (proleptic Gregorian; years
+/// clamped to 0–9999).
 pub fn civil(t: i64) -> [i64; 6] {
-    // Clamp first so every step stays in range for any input.
+    // Clamp first so every input maps to a representable date (0000-01-01 .. 9999-12-31).
     let t = t.clamp(-62_167_219_200, 253_402_300_799);
-    let days = t.div_euclid(86_400);
-    let secs = t.rem_euclid(86_400);
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    [year.clamp(0, 9999), month, day, secs / 3600, secs / 60 % 60, secs % 60]
+    let dt = chrono::DateTime::from_timestamp(t, 0).unwrap_or_default().naive_utc();
+    [
+        i64::from(dt.year()).clamp(0, 9999),
+        i64::from(dt.month()),
+        i64::from(dt.day()),
+        i64::from(dt.hour()),
+        i64::from(dt.minute()),
+        i64::from(dt.second()),
+    ]
 }
 
 /// Unix seconds → `2026-10-05T14:03:00Z`.
