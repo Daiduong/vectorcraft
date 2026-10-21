@@ -121,6 +121,7 @@ pub(crate) fn import(bytes: &[u8], title: &str, info: CdrInfo, opts: &ImportOpti
             rect,
             show_center_mark: false,
             show_cross_hairs: false,
+            color: None,
         });
         // CorelDRAW page (mm, Y up, origin at the bottom left) → document.
         let m = Affine::new([r.k, 0.0, 0.0, -r.k, x, hp]);

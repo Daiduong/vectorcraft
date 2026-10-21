@@ -35,6 +35,7 @@ fn sample(with_text: bool) -> Document {
         rect: Rect::new(700.0, 0.0, 1295.0, 842.0),
         show_center_mark: false,
         show_cross_hairs: false,
+        color: None,
     });
     let red = path_node(
         &mut d,
