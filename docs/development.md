@@ -1,5 +1,6 @@
 # Development
 
+> **Last updated:** 2026-10-20 · **Change:** iPad app (iOS wrapper around the web build).
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
@@ -44,6 +45,14 @@ How the web shell (`apps/vectorcraft-web/src/web.rs`) differs from desktop:
   The desktop app can't make a new device for its window (eframe can't), so on a lost device (a driver reset) it logs the reason, writes the recovery copies, and says in the status bar to save and restart. Once the copies are written, closing the window skips the Save Changes question, which it can't show: the next launch offers the changes back.
 - **No control server:** browsers can't listen on TCP. To automate the web build, drive headless Chrome with `--remote-debugging-port`.
 - Quick smoke test: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --enable-unsafe-webgpu --screenshot=web.png --window-size=1440,900 --virtual-time-budget=15000 http://127.0.0.1:8766/` (headless Chrome on macOS gets a real WebGPU adapter).
+
+### iPad app
+
+`packaging/ios/` wraps the web build in a native iPad app: a full-screen `WKWebView` serving
+`dist/web` from `http://localhost` inside the app (a secure context, so WebGPU works), with Save /
+Export going to Files and files opened from Files reaching `window.vectorcraft.openFile`. No Rust
+changes: pen and touch input are the web build's. `packaging/ios/build.sh vectorcraft --sim` builds
+and runs it on a simulator; see [`packaging/ios/README.md`](../packaging/ios/README.md).
 
 ## Desktop graphics processor
 
@@ -375,6 +384,7 @@ do not replace expected hashes automatically in response to a download mismatch.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-20 | minor | Web build › iPad app: the iOS wrapper in `packaging/ios/`. |
 | 2026-10-14 | minor | Document the `bundled-fonts` feature of vectorcraft-text and vectorcraft-engine (Fonts › Leaving out the bundled fonts). |
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
