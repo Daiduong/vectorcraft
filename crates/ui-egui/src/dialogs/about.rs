@@ -70,7 +70,7 @@ fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     );
     ui.label(
         egui::RichText::new(
-            "Close Hand: Claudio Guglieri / Noun Project (CC BY 3.0). Modified by @FractalEncrypt and VectorCraft. \
+            "Close Hand: Claudio Guglieri / Noun Project (CC BY 3.0). Gemini-assisted adaptation by @FractalEncrypt; normalized by VectorCraft. \
           https://thenounproject.com/icon/close-hand-101203/ — https://creativecommons.org/licenses/by/3.0/",
         )
         .size(11.0),

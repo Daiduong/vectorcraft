@@ -372,16 +372,16 @@ struct GrabGlyph {
     layers: Vec<GrabLayer>,
 }
 
-/// Claudio Guglieri's Close Hand (CC BY 3.0), traced/edited by @FractalEncrypt.
+/// Gemini-assisted adaptation of the current licensed Close Hand, retaining Claudio Guglieri's CC BY 3.0 attribution.
 /// Source, adaptation notice and full licence: assets/cursors and ASSETS.md / NOTICE.
-/// The hidden thumb orientation is intentional; it is a pan grip, not a front-facing fist.
+/// The folded fingers and white palm remain distinct at cursor sizes; the hotspot is in the palm.
 fn licensed_grab(p: &mut Ink, o: Pos2) -> bool {
     static GLYPH: std::sync::OnceLock<Option<GrabGlyph>> = std::sync::OnceLock::new();
     let Some(glyph) = GLYPH.get_or_init(|| serde_json::from_str(include_str!("../../../assets/cursors/hand-grab.json")).ok()) else { return false };
     draw_hand_glyph(p, o, glyph)
 }
 
-/// Original contributor-generated open hand; only normalized contour coordinates are shipped.
+/// Contributor text-only Gemini open hand with spread fingers; only normalized contour coordinates are shipped.
 fn contributed_open(p: &mut Ink, o: Pos2) -> bool {
     static GLYPH: std::sync::OnceLock<Option<GrabGlyph>> = std::sync::OnceLock::new();
     let Some(glyph) = GLYPH.get_or_init(|| serde_json::from_str(include_str!("../../../assets/cursors/hand-open.json")).ok()) else { return false };
@@ -870,8 +870,6 @@ mod tests {
         [img.rgba[i], img.rgba[i + 1], img.rgba[i + 2], img.rgba[i + 3]]
     }
 
-    /// The Anchor Point caret's hotspot is the middle of its hollow square: white there, with the
-    /// square's ink a few points above it.
     #[test]
     fn hands_have_solid_palms_distinct_silhouettes_and_dpi_previews() {
         for ppp in [1.0, 1.25, 1.5, 2.0] {
@@ -890,6 +888,8 @@ mod tests {
         }
     }
 
+    /// The Anchor Point caret's hotspot is the middle of its hollow square: white there, with the
+    /// square's ink a few points above it.
     #[test]
     fn anchor_point_hotspot_is_inside_its_square() {
         for ppp in [1.0f32, 2.0] {
@@ -1240,7 +1240,7 @@ mod tests {
     #[test]
     fn licensed_closed_hand_contours_are_complete_and_have_no_forward_thumb() {
         let glyph: GrabGlyph = serde_json::from_str(include_str!("../../../assets/cursors/hand-grab.json")).unwrap();
-        assert_eq!(glyph.layers.len(), 5, "outer contour, white palm, three user-added finger creases");
+        assert_eq!(glyph.layers.len(), 2, "outer contour and white palm with connected finger divisions");
         for layer in &glyph.layers {
             assert!(layer.points.iter().flatten().all(|v| v.is_finite() && v.abs() < 32.0));
             let points: Vec<_> = layer.points.iter().map(|&[x, y]| pos2(x, y)).collect();
@@ -1250,6 +1250,29 @@ mod tests {
         let [x, y] = img.hotspot.map(usize::from);
         assert_eq!(pixel(&img, x, y), [255, 255, 255, 255], "unmarked palm; no forward thumb crease");
     }
+    #[test]
+    fn open_hand_fingers_spread_above_the_palm() {
+        let glyph: GrabGlyph = serde_json::from_str(include_str!("../../../assets/cursors/hand-open.json")).unwrap();
+        let points = &glyph.layers[0].points;
+        assert!(points.len() >= 3);
+        // A scan through the upper fingers must cross three separated silhouettes.
+        // The previous close-set open hand crossed only one connected silhouette here.
+        let y = -15.0;
+        let mut crossings = Vec::new();
+        for index in 0..points.len() {
+            let [ax, ay] = points[index];
+            let [bx, by] = points[(index + 1) % points.len()];
+            if (ay <= y && y < by) || (by <= y && y < ay) {
+                crossings.push(ax + (y - ay) * (bx - ax) / (by - ay));
+            }
+        }
+        crossings.sort_by(f32::total_cmp);
+        assert!(crossings.len() >= 6, "three visibly spread upper fingers");
+        assert_eq!(crossings.len() % 2, 0);
+        let gaps: f32 = (1..crossings.len() - 1).step_by(2).map(|i| crossings[i + 1] - crossings[i]).sum();
+        assert!(gaps >= 0.3, "upper fingers keep real separation, not a closed-hand outline");
+    }
+
     #[test]
     fn contributed_open_hand_contours_are_complete_and_have_a_white_palm() {
         let glyph: GrabGlyph = serde_json::from_str(include_str!("../../../assets/cursors/hand-open.json")).unwrap();
