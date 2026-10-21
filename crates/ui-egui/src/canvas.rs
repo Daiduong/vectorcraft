@@ -3027,15 +3027,22 @@ fn draw_inverting_highlights(
         return;
     };
 
-    let ppp = ctx.pixels_per_point();
-    let v = app.view().cloned().unwrap_or_default();
-    let doc_to_pixel = match app.canvas.key.as_ref().and_then(|k| k.pixel) {
+    let key = app.canvas.key.as_ref();
+    let ppp = key.map_or_else(|| ctx.pixels_per_point(), |k| if k.ppp > 0.0 { k.ppp } else { 1.0 });
+    let (zoom, center, rot_rad) = if let Some(k) = key {
+        (k.zoom, Point::new(k.cx, k.cy), k.rot.to_radians())
+    } else {
+        let v = app.view().cloned().unwrap_or_default();
+        (v.zoom, v.center, v.rotation.to_radians())
+    };
+
+    let doc_to_pixel = match key.and_then(|k| k.pixel) {
         Some([x0, y0, _, _]) => Affine::translate((-x0 as f64, -y0 as f64)),
         None => {
             Affine::translate((img.width as f64 / 2.0, img.height as f64 / 2.0))
-                * Affine::rotate(v.rotation.to_radians())
-                * Affine::scale(v.zoom * ppp as f64)
-                * Affine::translate(-v.center.to_vec2())
+                * Affine::rotate(rot_rad)
+                * Affine::scale(zoom * ppp as f64)
+                * Affine::translate(-center.to_vec2())
         }
     };
 
@@ -3066,6 +3073,13 @@ fn draw_inverting_highlights(
     let pw = (max_ix - min_ix) as usize;
     let ph = (max_iy - min_iy) as usize;
     if pw > 8192 || ph > 8192 {
+        for q in &quads {
+            painter.add(Shape::convex_polygon(
+                q.iter().map(|p| xf.to_screen(*p)).collect(),
+                Color32::from_black_alpha(200),
+                Stroke::NONE,
+            ));
+        }
         return;
     }
 
@@ -3116,7 +3130,7 @@ fn draw_inverting_highlights(
 
     if let Some(tex) = &app.canvas.invert_texture {
         let old_rect = egui::Rect::from_center_size(rect.center(), vec2(img.width as f32 / ppp, img.height as f32 / ppp));
-        let old = Xf { rect: old_rect, zoom: v.zoom, center: v.center, rot: v.rotation.to_radians() };
+        let old = Xf { rect: old_rect, zoom, center, rot: rot_rad };
         let q = [old_rect.left_top(), old_rect.right_top(), old_rect.right_bottom(), old_rect.left_bottom()].map(|c| xf.to_screen(old.to_doc(c)));
 
         let u0 = min_ix as f32 / img.width as f32;
