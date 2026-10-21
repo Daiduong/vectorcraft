@@ -11,10 +11,13 @@ The shared assessment status line and revision table retain the feature-base sna
 - Current-main conflict reconciliation retains upstream and feature behavior; scores and estimates unchanged
 - Thin curved raster strokes retain subpixel coverage through tighter outline fitting and flattening
 
+- The raster-only tight-outline cutoff is narrowed from eight to four times the outline tolerance; wider strokes retain the original outline path. Document stroke weights and opacity, and vector export geometry, are unchanged. Earlier eight-times timing records keep their actual build identities; this narrower candidate requires its own native and cost evidence. Scores and estimates are unchanged.
+
 ### Feature revisions
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-21 | minor | Narrow thin curved-stroke raster preprocessing to four times tolerance after unchanged coverage and renderer regressions; preserve earlier execution records and require independent new native/cost review. Scores and estimates unchanged. |
 | 2026-10-21 | minor | Reconcile feature status and revision evidence in a dated section; retain shared baseline metadata for independent upstream updates. Scores and estimates are not reassessed. |
 | 2026-10-21 | minor | Reconcile this feature with current main, preserving both sets of behavior and progress evidence; scores and estimates unchanged. |
 | 2026-10-20 | minor | Thin curved raster strokes retain subpixel coverage through tighter outline fitting and flattening; scores and hours unchanged. |

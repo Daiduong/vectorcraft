@@ -2208,7 +2208,7 @@ fn painted_items(n: &Node) -> usize {
 /// that can erase much of the band between the inner and outer contours. Preflatten just those
 /// outlines more tightly; the document's weight/opacity and export geometry stay unchanged.
 fn raster_stroke_outline(line: &BezPath, st: &StrokeLayer, width: f64, tol: f64) -> BezPath {
-    if width >= tol * 8.0 {
+    if width >= tol * 4.0 {
         return effects::stroke::line_outline(line, st, width, tol);
     }
     // Offset fitting must be tight too: coordinate rounding at a closed endpoint can make
