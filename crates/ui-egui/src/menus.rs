@@ -357,8 +357,6 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ),
     ("window.panel.activate", "Activate Panel", "", "{panel} show and select a panel in its current group"),
     ("window.panel.close", "Close Panel", "", "{panel} hide a panel"),
-    ("window.panel.hideIcon", "Hide from Icon Rail", "", "{panel} remove a panel's icon from the iconic rail; it still opens from the Window menu and window.panel.showInIcons puts it back"),
-    ("window.panel.showInIcons", "Show in Icon Rail", "", "{panel} put a panel hidden with window.panel.hideIcon back in the iconic rail and open it"),
     (
         "window.panel.float",
         "Float Panel",

@@ -118,15 +118,39 @@ fn panel_icon(app: &mut VectorcraftApp, ui: &mut Ui, id: &'static str, label: &s
     let open = app.ui.open_panel.as_deref() == Some(id);
     // Its own id: the icons below it move up when it floats, and mustn't take over its drag.
     let (_, rect) = ui.allocate_space(vec2(30.0, 30.0));
-    // Center the icon when the rail is wider than its 38-point default (resizable rail).
-    let span = ui.available_width() - 30.0;
-    let rect = if span > 0.0 { rect.translate(vec2(span * 0.5, 0.0)) } else { rect };
+    let rect = rail_icon(ui, rect, label);
     let resp = widgets::paint_icon_button(ui, ui.interact(rect, ui.id().with(("panel-icon", id)), Sense::click_and_drag()), icon, label, open);
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, ui.is_enabled(), open, tl!(label)));
     if resp.clicked() {
         app.ui.open_panel = if open { None } else { Some(id.to_string()) };
     }
     crate::panel_docking::legacy_tab(app, ui, id, &resp);
+}
+
+/// The width a rail needs before it shows each panel's name beside its icon, as Illustrator's
+/// expanded icon dock does.
+const RAIL_NAME_WIDTH: f32 = 78.0;
+
+/// An icon in a rail: centred while the rail is narrow, and at the left with the panel's name
+/// beside it once the rail is wide enough, as Illustrator's expanded icon dock shows. Both rails
+/// call this, so the rail looks the same wherever it is drawn.
+pub(crate) fn rail_icon(ui: &Ui, rect: Rect, label: &str) -> Rect {
+    let width = ui.available_width();
+    if width < RAIL_NAME_WIDTH {
+        // Narrow rail: the icon sits in the middle of it.
+        let span = width - 30.0;
+        return if span > 0.0 { rect.translate(vec2(span * 0.5, 0.0)) } else { rect };
+    }
+    // Wide rail: the icon at the left, the panel's name beside it.
+    let t = Tokens::get(ui.ctx());
+    ui.painter().text(
+        egui::pos2(rect.right() + 6.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        tl!(label),
+        theme::semibold(11.0),
+        t.text,
+    );
+    rect
 }
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
@@ -197,9 +221,6 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                         for id in group.iter() {
                             let Some((_, label, icon)) = ICON_PANELS.iter().find(|p| p.0 == *id) else { continue };
                             if floating::group_of(&app.ui, id).is_some() {
-                                continue;
-                            }
-                            if app.ui.icons_hidden.contains(*id) {
                                 continue;
                             }
                             if std::mem::take(&mut first) && std::mem::replace(&mut divider, true) {

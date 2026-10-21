@@ -355,10 +355,6 @@ pub struct UiState {
     /// Panels whose saved return destination is the iconic rail.
     #[serde(default, skip_serializing_if = "std::collections::BTreeSet::is_empty")]
     pub docking_icons: std::collections::BTreeSet<String>,
-    /// Icon panels deliberately hidden from the iconic rail ("Hide from Icon Rail"); brought back
-    /// with "Show in Icon Rail" (`window.panel.showInIcons`).
-    #[serde(default, skip_serializing_if = "std::collections::BTreeSet::is_empty")]
-    pub icons_hidden: std::collections::BTreeSet<String>,
     /// Invalidates in-flight gestures when a workspace is replaced.
     #[serde(skip)]
     pub docking_generation: u64,
@@ -759,7 +755,6 @@ impl UiState {
         crate::edit_toolbar::sanitize(&mut self.toolbar_edits);
         self.docking = self.docking.filter(crate::panel_docking::valid);
         self.docking_icons.retain(|id| ICON_PANELS.iter().any(|entry| entry.0 == id));
-        self.icons_hidden.retain(|id| ICON_PANELS.iter().any(|entry| entry.0 == id));
         // Overrides that can't fire (modifier-only chords recorded by older versions, #487) give
         // the default back.
         self.shortcut_overrides.retain(|_, c| c.is_empty() || crate::shortcut_editor::normalize(c).is_some());
@@ -791,7 +786,6 @@ impl Default for UiState {
             docking: None,
             docking_hidden: Default::default(),
             docking_icons: Default::default(),
-            icons_hidden: Default::default(),
             docking_generation: 0,
             dock_width: None,
             dock_width_pending: false,

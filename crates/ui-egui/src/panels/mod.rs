@@ -259,6 +259,13 @@ pub fn panel_menu(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, rect: Rect) {
             {
                 app.ui.status = e;
             }
+            // Illustrator closes a panel to take it away and reopens it from the Window menu, so
+            // the same command does here.
+            if crate::widgets::menu_item(ui, tl!("Close Panel"), true, false)
+                && let Err(e) = app.run("window.panel.close", json!({ "panel": id }))
+            {
+                app.ui.status = e;
+            }
         });
     });
 }
