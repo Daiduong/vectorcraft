@@ -30,6 +30,8 @@ mod control_server;
 mod cursor_theme;
 #[cfg(feature = "wgpu")]
 mod gpu;
+#[cfg(target_os = "linux")]
+mod linux_file_read;
 mod logging;
 #[cfg(target_os = "macos")]
 mod mac_fonts;
@@ -544,7 +546,16 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         dialogs_are_sheets: cfg!(target_os = "macos"),
         wayland,
         no_cursor_theme: wayland && cursor_theme::theme_missing(),
-        read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
+        read: Some(Box::new(|p: &str| {
+            #[cfg(target_os = "linux")]
+            {
+                linux_file_read::read(p)
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                std::fs::read(p).map_err(|e| e.to_string())
+            }
+        })),
         write: Some(Box::new(write_file)),
         exists: Some(Box::new(|p: &str| std::path::Path::new(p).exists())),
         // Background Save and Export write from a worker thread.

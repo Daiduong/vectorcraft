@@ -1,5 +1,7 @@
 # UI and interaction parity
 
+> **2026-10-21 Linux read safety (M4):** the desktop reader accepts regular files only, follows ordinary document symlinks, opens with nonblocking flags and rechecks the opened descriptor. Pipes, devices and directories are refused; input is capped at 512 MiB, including files that grow or report zero length. This covers forwarded files and local File Open. Regular-file I/O remains synchronous; this change does not bound network filesystem latency. Scores and estimates unchanged.
+
 > **2026-10-21 security follow-up (M4):** Linux session-bus handoff opens documents only. Files classified by `io::opens_as` as plug-ins, presets, libraries, shortcut sets or scripts are refused before reading, so forwarding cannot install or replace plug-ins or import settings. Use the app’s local File Open or plug-in installation controls for those files. Scores and estimates unchanged.
 
 > **2026-10-21 update (M3/Eyedropper text ranges):** choosing Eyedropper from highlighted
@@ -209,7 +211,7 @@ tools, never checked side by side) isn't captured row by row.
 
 | Behaviour | Status | Notes |
 |---|---|---|
-| File-manager opens become tabs in the existing window | done | Document-only session D-Bus handoff (plug-ins/settings imports refused before read); requests wait for dialogs and preserve unsaved documents; activation obeys compositor focus policy. Automation stays independent; no session bus falls back to normal startup. `single_instance::tests` covers transport, bounds, modal deferral and ownership release; native and Flatpak manually verified |
+| File-manager opens become tabs in the existing window | done | Document-only session D-Bus handoff (plug-ins/settings imports refused before read); Linux reads refuse pipes/devices and cap regular-file input at 512 MiB; requests wait for dialogs and preserve unsaved documents; activation obeys compositor focus policy. Automation stays independent; no session bus falls back to normal startup. `single_instance::tests` covers transport, bounds, modal deferral and ownership release; native and Flatpak manually verified |
 
 ## Keyboard shortcuts
 
@@ -289,6 +291,7 @@ re-measure of the panels added since. Slider rails show on Medium Dark (#1808, #
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-21 | minor | M4: Linux desktop reads reject pipes/devices, validate opened file type and cap input at 512 MiB; descriptor, symlink and byte-limit regressions; scores and hours unchanged |
 | 2026-10-21 | minor | M4 security: document-only Linux handoff rejects non-document actions before reading; real-bus plug-in install/replacement regression and explicit local install coverage; scores and hours unchanged |
 | 2026-10-21 | minor | PR #3423 review: highlighted-text Eyedropper and Linux file-handoff checklist rows, including explicit transparency and compositor limits; scores unchanged |
 | 2026-10-21 | minor | M4/Linux: file-manager opens reuse the running window through D-Bus; tab, unsaved-artwork and dialog-deferral regressions. Scores and estimates unchanged |

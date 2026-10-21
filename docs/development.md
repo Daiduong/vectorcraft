@@ -1,5 +1,7 @@
 # Development
 
+> **2026-10-21 Linux read safety (M4):** the desktop reader accepts regular files only, follows ordinary document symlinks, opens with nonblocking flags and rechecks the opened descriptor. Pipes, devices and directories are refused; input is capped at 512 MiB, including files that grow or report zero length. This covers forwarded files and local File Open. Regular-file I/O remains synchronous; this change does not bound network filesystem latency. Scores and estimates unchanged.
+
 > **2026-10-21 security follow-up (M4):** Linux session-bus handoff opens documents only. Files classified by `io::opens_as` as plug-ins, presets, libraries, shortcut sets or scripts are refused before reading, so forwarding cannot install or replace plug-ins or import settings. Use the app’s local File Open or plug-in installation controls for those files. Scores and estimates unchanged.
 
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
