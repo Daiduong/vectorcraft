@@ -6,7 +6,7 @@ use zune_core::bit_depth::BitDepth;
 use zune_core::colorspace::ColorSpace;
 use zune_core::options::EncoderOptions;
 
-use super::jxlread::{ToSrgb, decode, is_jxl, to_rgba};
+use super::jxlread::{ToSrgb, decode, is_jxl, kept_profile, to_rgba};
 use super::*;
 
 /// A lossless JPEG XL codestream of `w` × `h` pixels: `samples` in `space`, 8-bit, or 16-bit in
@@ -91,7 +91,7 @@ fn sixteen_bit_samples_become_eight_bits() {
     let f = jxl(2, 2, ColorSpace::RGB, BitDepth::Sixteen, &samples);
     let to8 = |v: u16| (f64::from(v) / 65535.0 * 255.0).round() as u8;
     let want: Vec<[u8; 4]> = rgb.iter().map(|p| [to8(p[0]), to8(p[1]), to8(p[2]), 255]).collect();
-    assert_eq!(decode(&f, 1 << 30).unwrap().pixels().map(|p| p.0).collect::<Vec<_>>(), want);
+    assert_eq!(decode(&f, 1 << 30).unwrap().0.pixels().map(|p| p.0).collect::<Vec<_>>(), want);
     // Gray, 16 bits, in the container, opened as a document.
     let gray: Vec<u8> = [0xffffu16, 0x8080, 0x0000, 0x4040].iter().flat_map(|v| v.to_ne_bytes()).collect();
     let f = container(&jxl(2, 2, ColorSpace::Luma, BitDepth::Sixteen, &gray));
@@ -202,7 +202,47 @@ fn metadata_boxes_are_not_read() {
     boxed(b"Exif", &[0, 0, 0, 0, b'M', b'M', 0, 42]);
     boxed(b"brob", &[b'x', b'm', b'l', b' ', 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
     boxed(b"jxlc", &rgba8());
-    assert_eq!(decode(&f, 1 << 30).unwrap().pixels().map(|p| p.0).collect::<Vec<_>>(), RGBA);
+    assert_eq!(decode(&f, 1 << 30).unwrap().0.pixels().map(|p| p.0).collect::<Vec<_>>(), RGBA);
+}
+
+/// Colors left in their embedded RGB profile keep it: the PNG they are stored in carries the
+/// profile. Colors converted to sRGB, and a gray image's colors, which come back as RGB, are stored
+/// without one.
+#[test]
+fn colors_left_in_their_icc_profile_keep_it() {
+    use image::ImageDecoder as _;
+    use jxl_oxide::{EnumColourEncoding, RenderingIntent};
+    // A profile jxl-color can't turn into a JPEG XL color space, so the decoder leaves the colors
+    // in it: the sRGB profile with the tag of its red curve renamed.
+    let unnamed = |encoding: &EnumColourEncoding, curve: &[u8; 4]| {
+        let mut icc = jxl_color::icc::colour_encoding_to_icc(encoding);
+        let count = u32::from_be_bytes(icc[128..132].try_into().unwrap()) as usize;
+        for at in (0..count).map(|i| 132 + 12 * i) {
+            if icc[at..at + 4] == curve[..] {
+                icc[at..at + 4].copy_from_slice(b"xTRC");
+            }
+        }
+        icc
+    };
+    let srgb = EnumColourEncoding::srgb(RenderingIntent::Relative);
+    let rgb = unnamed(&srgb, b"rTRC");
+    assert_ne!(rgb, jxl_color::icc::colour_encoding_to_icc(&srgb), "a tag renamed");
+    assert_eq!(kept_profile(false, Some(&rgb)), Some(rgb.clone()));
+    assert_eq!(kept_profile(true, Some(&rgb)), None, "XYB-encoded colors become sRGB");
+    assert_eq!(kept_profile(false, Some(&jxl_color::icc::colour_encoding_to_icc(&srgb))), None, "converted to sRGB");
+    let gray = unnamed(&EnumColourEncoding::gray_srgb(RenderingIntent::Relative), b"kTRC");
+    assert_eq!(kept_profile(false, Some(&gray)), None, "gray");
+    assert_eq!(kept_profile(false, None), None);
+    // The PNG carries the profile, the pixels and the resolution.
+    let img = image::RgbaImage::from_raw(2, 1, vec![200, 100, 50, 255, 9, 9, 9, 0]).unwrap();
+    for icc in [Some(rgb), None] {
+        let RasterImage { blob, width, height, .. } = super::load::as_png(img.clone(), icc.clone(), Some((144.0, 144.0))).unwrap();
+        assert_eq!((width, height), (2, 1));
+        let mut png = image::codecs::png::PngDecoder::new(std::io::Cursor::new(&blob.bytes[..])).unwrap();
+        assert_eq!(png.icc_profile().unwrap(), icc);
+        assert_eq!(image::DynamicImage::from_decoder(png).unwrap().to_rgba8(), img);
+        assert_eq!(super::ppi::resolution(&blob.bytes).map(|(x, y)| (x.round(), y.round())), Some((144.0, 144.0)));
+    }
 }
 
 #[test]

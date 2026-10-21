@@ -5,7 +5,8 @@
 //! Colors come back as sRGB whenever the decoder converts them without a color management
 //! system: XYB-encoded images, every color space a JPEG XL header names, and embedded ICC
 //! profiles that describe one of them. Any other image with an embedded ICC profile comes back
-//! with its samples as stored, as PNG and JPEG files with an embedded profile are drawn. 16-bit and floating-point samples become 8 bits, alpha comes back straight,
+//! with its samples as stored, as PNG and JPEG files with an embedded profile are drawn, and with
+//! the profile when it is an RGB one. 16-bit and floating-point samples become 8 bits, alpha comes back straight,
 //! and CMYK images are refused. The file is untrusted: the decoder is given only a container's
 //! image boxes, the image's size is checked from its header before any pixels are decoded, and the
 //! decoder's image buffers are capped.
@@ -38,10 +39,11 @@ pub fn is_jxl(bytes: &[u8]) -> bool {
     bytes.starts_with(&CODESTREAM) || bytes.starts_with(&CONTAINER)
 }
 
-/// The first frame of a JPEG XL image as straight RGBA. Fails, without decoding the pixels, when
-/// the image would take more than `max_alloc` bytes as RGBA. The image is also too large to draw
-/// when the decoder's buffers for its pixels need more than they are allowed.
-pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, String> {
+/// The first frame of a JPEG XL image as straight RGBA, with the embedded ICC profile its colors
+/// are in when they are not converted to sRGB ([`kept_profile`]). Fails, without decoding the
+/// pixels, when the image would take more than `max_alloc` bytes as RGBA. The image is also too
+/// large to draw when the decoder's buffers for its pixels need more than they are allowed.
+pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<(image::RgbaImage, Option<Vec<u8>>), String> {
     let pixel_boxes = pixel_boxes(bytes);
     let bytes = pixel_boxes.as_deref().unwrap_or(bytes);
     // The decoder reads the header first, with buffers for the header alone.
@@ -71,6 +73,7 @@ pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, String> 
     let associated = metadata.alpha().and_then(|i| metadata.ec_info.get(i)).and_then(|ec| ec.alpha_associated()) == Some(true);
     let intent = RenderingIntent::Relative;
     let srgb = if metadata.grayscale() { EnumColourEncoding::gray_srgb(intent) } else { EnumColourEncoding::srgb(intent) };
+    let profile = kept_profile(metadata.xyb_encoded, image.original_icc());
     // Premultiplied colors are divided by alpha in the encoding they are stored in, and converted
     // to sRGB after that. XYB-encoded images come from the decoder in linear sRGB (tone mapped when
     // they are HDR), which the sRGB transfer curve alone turns into sRGB.
@@ -110,7 +113,7 @@ pub fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, String> 
         }
         to_rgba(&row, channels, associated, convert.as_ref(), &mut colors, line)?;
     }
-    Ok(out)
+    Ok((out, profile))
 }
 
 /// How colors whose alpha was divided out become sRGB.
@@ -214,6 +217,13 @@ fn header(bytes: &[u8], buffers: usize, size: Option<(u32, u32)>) -> Result<(Jxl
 /// describes one of those.
 fn to_srgb_without_cms(xyb: bool, icc: Option<&[u8]>) -> bool {
     xyb || icc.is_none_or(|icc| ColorEncodingWithProfile::with_icc(icc).is_ok_and(|p| p.icc_profile().is_empty()))
+}
+
+/// The embedded ICC profile `icc` when the colors come back as stored in it
+/// ([`to_srgb_without_cms`] is false), for the PNG they are kept in. Only an RGB profile is kept:
+/// the colors of a gray image come back as RGB.
+pub(crate) fn kept_profile(xyb: bool, icc: Option<&[u8]>) -> Option<Vec<u8>> {
+    icc.filter(|icc| icc.get(16..20) == Some(b"RGB ") && !to_srgb_without_cms(xyb, Some(icc))).map(<[u8]>::to_vec)
 }
 
 /// The decoder's error `e` as a message. When the decoder's buffers needed more than they were
