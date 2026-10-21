@@ -3422,6 +3422,13 @@ effect	Regular	ჩვეულებრივი
 	Glowing Edges	მანათობელი კიდეები
 	Edge Width	კიდის სიგანე
 	Edge Brightness	კიდის სიკაშკაშე
+	Max per Row:	მაქსიმუმი რიგზე:
+	No fonts are installed.	ფონტები არ არის დაყენებული.
+	No line in the box is a code this type can carry.	ჩარჩოში არც ერთი სტრიქონი არ არის კოდი, რომელიც ამ ტიპს შეუძლია.
+	One code a line, each a whole value of the type above.	თითო კოდი სტრიქონზე, თითოეული ზემოთ მოცემული ტიპის სრული მნიშვნელობა.
+	Outline the digits	ციფრების კონტურებად ქცევა
+	printable ASCII	ბეჭდვადი ASCII
+	printable ASCII, upper case and control characters	ბეჭდვადი ASCII, დიდი ასოები და მართვის სიმბოლოები
 	Smoothness	სიგლუვე
 	Color Halftone	ფერადი ნახევარტონი
 	Mezzotint	მეცოტინტო
@@ -4636,6 +4643,7 @@ mark-style	Japanese	იაპონური
 	Check Script	სკრიპტის შემოწმება
 	Check Script…	სკრიპტის შემოწმება…
 	Copy Report	ანგარიშის კოპირება
+	Valid:	სწორია:
 	VectorCraft read this script without running it.	VectorCraft-მა ეს სკრიპტი წაიკითხა მისი გაშვების გარეშე.
 	Needs nothing beyond plain JavaScript	საკმარისია ჩვეულებრივი JavaScript
 	Needs the script language's own objects or directives	სჭირდება სკრიპტის ენის საკუთარი ობიექტები ან დირექტივები
@@ -4645,6 +4653,7 @@ mark-style	Japanese	იაპონური
 	Needs dialogs	სჭირდება დიალოგები
 	Needs features only the reference app has	სჭირდება ფუნქციები, რომლებიც მხოლოდ საორიენტაციო აპს აქვს
 	Outside the document	დოკუმენტის გარეთ
+	White background box	თეთრი ფონის ჩარჩო
 	Writes, moves or deletes files	ფაილებს წერს, გადააადგილებს ან შლის
 	Opens files in other apps	ფაილებს სხვა აპებში ხსნის
 	Opens network connections	ქსელურ კავშირებს ხსნის
@@ -4887,6 +4896,19 @@ imageTrace	Outline	კონტური
 @msg	open a document with data sets	გახსენით დოკუმენტი მონაცემთა ნაკრებებით
 @msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	მონაცემთა ნაკრები {name}: არაფერი გამოყენებულა; არცერთი ობიექტი არ არის მიბმული ცვლადზე, რომელსაც მასში მნიშვნელობა აქვს
 @msg	the action has no steps	მოქმედებას ნაბიჯები არ აქვს
+	Barcode	შტრიხკოდი
+	Barcode Options	შტრიხკოდის პარამეტრები
+	Data:	მონაცემები:
+	Document Default	დოკუმენტის ნაგულისხმევი
+	Error Correction:	შეცდომების კორექცია:
+	Human Readable Line	ადამიანისთვის წასაკითხი სტრიქონი
+	Install OCR-B for the standard digits.	დააყენეთ OCR-B სტანდარტული ციფრებისთვის.
+	Magnification:	გადიდება:
+	Mask:	ნიღაბი:
+	Module:	მოდული:
+	Quiet Zone:	მშვიდი ზონა:
+	Update	განახლება
+	Width Ratio:	სიგანის შეფარდება:
 	Convert to Straight Lines	სწორ ხაზებად გარდაქმნა
 	Corner Point Angle Threshold:	კუთხოვანი წერტილის კუთხის ზღვარი:
 	Decrease Font Size by Five Steps	შრიფტის შემცირება ხუთი საფეხურით
@@ -5224,3 +5246,19 @@ imageTrace	Outline	კონტური
 # Artboard tool hints (#2497)
 	 on the canvas to create one (	 ტილოზე — ახლის შესაქმნელად (
 	 selects several, or draws one inside an artboard)	 რამდენიმეს მონიშნავს ან ახალს სამუშაო დაფის შიგნით ხატავს)
+	11 or 12 digits	11 ან 12 ციფრი
+	12 or 13 digits	12 ან 13 ციფრი
+	6 or 8 digits	6 ან 8 ციფრი
+	7 or 8 digits	7 ან 8 ციფრი
+	an even number of digits	ციფრების ლუწი რაოდენობა
+	any text	ნებისმიერი ტექსტი
+	ASCII	ASCII
+	Barcodes	შტრიხკოდები
+	Check	შემოწმება
+	Check Barcode	შტრიხკოდის შემოწმება
+	Codes:	კოდები:
+	Create Batch	პარტიის შექმნა
+	digits, A–Z and - . $ / + % and space	ციფრები, A–Z და - . $ / + % და ინტერვალი
+	digits, with or without the (01) application identifier	ციფრები, (01) აპლიკაციის იდენტიფიკატორით ან მის გარეშე
+	Drawn:	დახატულია:
+	Gap:	დაშორება:
