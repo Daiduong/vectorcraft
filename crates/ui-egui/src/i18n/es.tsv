@@ -2394,6 +2394,7 @@
 	Proof Setup	Ajuste de prueba
 	Properties	Propiedades
 	Proportional Metrics	Métrica proporcional
+	Character Direction	Dirección de caracteres
 	Digits	Dígitos
 	Arabic	Árabes
 	Hindi	Hindi
@@ -4557,6 +4558,7 @@ axis	Both	Ambos
 	Activate Panel	Activar panel
 	Change Panel Layout	Cambiar distribución de paneles
 	Close Panel	Cerrar panel
+	Collapse Panel Group	Contraer grupo de paneles
 	Move Panel	Mover panel
 	Group with	Agrupar con
 	Resize panels	Cambiar tamaño de los paneles
@@ -4567,6 +4569,12 @@ axis	Both	Ambos
 @msg	before must name a panel	before debe indicar un panel
 @msg	docking action contains an unknown panel or an excessive split path	La acción de anclaje contiene un panel desconocido o una ruta de divisiones demasiado larga
 @msg	group must be true or false	group debe ser true o false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	el panel flota; contraiga su grupo con window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	el panel no está en un grupo del acoplamiento
+@msg	only a dock group above or below others collapses, not one beside another	solo se contrae un grupo del acoplamiento situado encima o debajo de otros, no al lado
+@msg	icon must be true or false	icon debe ser true o false
+@msg	icon only docks a panel in the icon column, with no anchor	icon solo acopla un panel en la columna de iconos, sin anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column acopla un conjunto como columna del acoplamiento, sin anchor ni icon
 @msg	move requires a destination panel	Para mover se requiere un panel de destino
 @msg	move requires an existing destination panel	Para mover se requiere un panel de destino existente
 @msg	onto must name a floating panel	onto debe indicar un panel flotante
@@ -5270,6 +5278,7 @@ mark-style	Japanese	Japonesas
 @msg	too many library panels were opened in this session	se abrieron demasiados paneles de biblioteca en esta sesión
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	La imagen tiene {_1} × {_2} píxeles, más de {LARGE_TRACE_SIDE} en un lado: se calcará, pero más despacio. Un ajuste preestablecido de menor fidelidad o una copia más pequeña de la imagen se calcan más rápido.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	La imagen se calcó a {_1} × {_2} píxeles, reducida desde {_3} × {_4} ({_5} megapíxeles como máximo).
+	Gap Length:	Longitud del hueco:
 	Artboard {n} of {total}	Mesa de trabajo {n} de {total}
 	Encoding and writing the file…	Codificando y escribiendo el archivo…
 @plural	{n} more export waiting|{n} more exports waiting	{n} exportación más en espera|{n} exportaciones más en espera
@@ -5311,5 +5320,11 @@ mark-style	Japanese	Japonesas
 	Water Paper	Papel mojado
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Entrada suave
+	Ease Out	Salida suave
+	Ease In Out	Entrada y salida suaves
+	Ease Out In	Salida y entrada suaves
+	Ramp:	Intensidad:
+	Shift:	Desplazamiento:
 	Fresco…	Fresco…
 	Fresco	Fresco

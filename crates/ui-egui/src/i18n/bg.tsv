@@ -2342,6 +2342,7 @@
 	Proof Setup	Настройка на пробен печат
 	Properties	Свойства
 	Proportional Metrics	Пропорционални метрики
+	Character Direction	Посока на знаците
 	Digits	Цифри
 	Arabic	Арабски
 	Hindi	Хинди
@@ -4474,6 +4475,7 @@ effect	Soft	Меко
 	Activate Panel	Активиране на панела
 	Change Panel Layout	Промяна на оформлението на панела
 	Close Panel	Затваряне на панела
+	Collapse Panel Group	Свиване на групата панели
 	Move Panel	Преместване на панела
 	Group with	Групиране с
 	Resize panels	Преоразмеряване на панели
@@ -4484,6 +4486,12 @@ effect	Soft	Меко
 @msg	before must name a panel	параметърът „преди“ трябва да указва панел
 @msg	docking action contains an unknown panel or an excessive split path	действието по закачане съдържа непознат панел или прекомерен път на разделяне
 @msg	group must be true or false	групата трябва да е истина или лъжа
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	панелът е плаващ; свийте групата му с window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	панелът не е в група на дока
+@msg	only a dock group above or below others collapses, not one beside another	свива се само група на дока над или под други, не и такава до друга
+@msg	icon must be true or false	icon трябва да е истина или лъжа
+@msg	icon only docks a panel in the icon column, with no anchor	icon закачва панел само в колоната с икони, без anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column закачва набор като колона на дока, без anchor или icon
 @msg	move requires a destination panel	преместването изисква целеви панел
 @msg	move requires an existing destination panel	преместването изисква съществуващ целеви панел
 @msg	onto must name a floating panel	параметърът „върху“ трябва да указва плаващ панел
@@ -5285,6 +5293,7 @@ theme	Appearance	Външен вид
 	Persistent	Постоянна
 	Locate Library…	Намиране на библиотека…
 	Library Panel Options	Опции на панела с библиотека
+	Gap Length:	Дължина на пропуска:
 	Artboard {n} of {total}	Работна област {n} от {total}
 	Encoding and writing the file…	Кодиране и записване на файла…
 @plural	{n} more export waiting|{n} more exports waiting	Още {n} експортиране в изчакване|Още {n} експортирания в изчакване
@@ -5326,5 +5335,11 @@ theme	Appearance	Външен вид
 	Water Paper	Мокра хартия
 	Ruby…	Руби…
 	Ruby	Руби
+	Ease In	Плавно начало
+	Ease Out	Плавен край
+	Ease In Out	Плавно начало и край
+	Ease Out In	Плавен край и начало
+	Ramp:	Рампа:
+	Shift:	Изместване:
 	Fresco…	Фреска…
 	Fresco	Фреска

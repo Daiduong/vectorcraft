@@ -2360,6 +2360,7 @@ mark-style	Japanese	Japanisch
 	Proof Setup	Proof einrichten
 	Properties	Eigenschaften
 	Proportional Metrics	Proportionale Metrik
+	Character Direction	Zeichenrichtung
 	Digits	Ziffern
 	Arabic	Arabisch
 	Hindi	Hindi
@@ -4554,6 +4555,7 @@ theme	Appearance	Erscheinungsbild
 	Activate Panel	Bedienfeld aktivieren
 	Change Panel Layout	Bedienfeldanordnung ändern
 	Close Panel	Bedienfeld schließen
+	Collapse Panel Group	Bedienfeldgruppe minimieren
 	Move Panel	Bedienfeld verschieben
 	Group with	Gruppieren mit
 	Resize panel window	Bedienfeldfenster skalieren
@@ -4564,6 +4566,12 @@ theme	Appearance	Erscheinungsbild
 @msg	before must name a panel	before muss ein Bedienfeld benennen
 @msg	docking action contains an unknown panel or an excessive split path	Die Docking-Aktion enthält ein unbekanntes Bedienfeld oder einen zu langen Teilungspfad
 @msg	group must be true or false	group muss true oder false sein
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	Bedienfeld ist abgelöst; seine Gruppe mit window.panel.float {panel, collapsed} minimieren
+@msg	panel is not in a dock group	Bedienfeld ist in keiner Dock-Gruppe
+@msg	only a dock group above or below others collapses, not one beside another	nur eine Dock-Gruppe über oder unter anderen lässt sich minimieren, nicht eine daneben
+@msg	icon must be true or false	icon muss true oder false sein
+@msg	icon only docks a panel in the icon column, with no anchor	icon dockt ein Bedienfeld nur in der Symbolspalte an, ohne anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column dockt einen Satz als Dock-Spalte an, ohne anchor oder icon
 @msg	move requires a destination panel	Das Verschieben erfordert ein Zielbedienfeld
 @msg	move requires an existing destination panel	Das Verschieben erfordert ein vorhandenes Zielbedienfeld
 @msg	onto must name a floating panel	onto muss ein schwebendes Bedienfeld benennen
@@ -4908,6 +4916,7 @@ effect	Soft	Weich
 @msg	too many library panels were opened in this session	in dieser Sitzung wurden zu viele Bibliotheksbedienfelder geöffnet
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Das Bild hat {_1} × {_2} Pixel, mehr als {LARGE_TRACE_SIDE} auf einer Seite: Es wird nachgezeichnet, aber langsamer. Eine Vorgabe mit geringerer Detailtreue oder eine kleinere Kopie des Bildes geht schneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Das Bild wurde mit {_1} × {_2} Pixeln nachgezeichnet, verkleinert von {_3} × {_4} (höchstens {_5} Megapixel).
+	Gap Length:	Lückenlänge:
 	Artboard {n} of {total}	Zeichenfläche {n} von {total}
 	Encoding and writing the file…	Datei wird codiert und geschrieben…
 @plural	{n} more export waiting|{n} more exports waiting	{n} weiterer Export wartet|{n} weitere Exporte warten
@@ -4950,5 +4959,11 @@ effect	Soft	Weich
 	Water Paper	Feuchtes Papier
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Langsam starten
+	Ease Out	Langsam enden
+	Ease In Out	Langsam starten und enden
+	Ease Out In	Langsam enden und starten
+	Ramp:	Stärke:
+	Shift:	Verschiebung:
 	Fresco…	Fresko…
 	Fresco	Fresko
