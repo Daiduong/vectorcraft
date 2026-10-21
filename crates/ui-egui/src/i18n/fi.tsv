@@ -44,6 +44,7 @@
 	Quit VectorCraft	Lopeta VectorCraft
 	File	Tiedosto
 	New…	Uusi…
+	New Without Dialog	Uusi ilman valintaikkunaa
 	New from Template…	Uusi mallipohjasta…
 	Open…	Avaa…
 	Open Recent Files	Avaa viimeisimmät tiedostot
@@ -271,6 +272,8 @@
 	Large Gaps	Suuret aukot
 	Gap Preview Color:	Aukkojen esikatseluväri:
 	Close Gaps With Paths	Sulje aukot poluilla
+	Show Live Paint Gaps	Näytä elävän maalauksen aukot
+	Hide Live Paint Gaps	Piilota elävän maalauksen aukot
 	Select Fills	Valitse täytöt
 	Select Strokes	Valitse viivat
 	Image Trace	Kuvan jäljitys
@@ -1111,7 +1114,8 @@ lighting	Light	Valo
 	 to sample a color	 ottaaksesi värinäytteen
 	 across a selected object to set the gradient direction	 valitun objektin poikki asettaaksesi liukuvärin suunnan
 	 to select an artboard  |  	 valitaksesi piirtoalustan  |  
-	 on the canvas to create one	 kankaalla luodaksesi uuden
+	 on the canvas to create one (	 kankaalla luodaksesi uuden (
+	 selects several, or draws one inside an artboard)	 valitsee useita tai luo uuden piirtoalustan sisään)
 	 a stroke to add a width point  |  	 viivaa lisätäksesi leveyspisteen  |  
 	 to change one side  |  	 muuttaaksesi yhtä puolta  |  
 	 to select more points  |  	 valitaksesi lisää pisteitä  |  
@@ -1716,6 +1720,9 @@ lighting	Light	Valo
 	Left Indent	Vasen sisennys
 	Left-to-Right Paragraph Direction	Kappaleen suunta vasemmalta oikealle
 	Line-end Punctuation Half Width	Rivinlopun välimerkit puolileveinä
+	Insert Kashidas	Lisää kashidat
+	Long	Pitkä
+	Stylistic	Tyylitelty
 	Mojikumi Set	Mojikumi-joukko
 	Kinsoku Set	Kinsoku-joukko
 	Hard	Tiukka
@@ -1867,6 +1874,7 @@ lighting	Light	Valo
 	Select art and click New Symbol to make one.	Luo symboli valitsemalla kuvitus ja napsauttamalla Uusi symboli.
 	Symbol Libraries (on the roadmap)	Symbolikirjastot (suunnitteilla)
 	Align On:	Tasaa kohteeseen:
+	Bottom-Justified Tab	Alas tasattu sarkain
 	Center-Justified Tab	Keskitetty sarkain
 	Above Text	Tekstin yläpuolella
 	Position Panel Above Text	Sijoita paneeli tekstin yläpuolelle
@@ -1878,6 +1886,7 @@ lighting	Light	Valo
 	No text selected	Ei valittua tekstiä
 	Repeat Tab	Toista sarkain
 	Right-Justified Tab	Oikealle tasattu sarkain
+	Top-Justified Tab	Ylös tasattu sarkain
 	Select a text object to set its tab stops.	Valitse tekstiobjekti, jonka sarkainkohdat haluat asettaa.
 	Select text	Valitse teksti
 	Snap to Unit	Kohdista yksikköön
@@ -4008,7 +4017,7 @@ imageTrace	Outline	Ääriviiva
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Esikatselu selaimessa vaatii työpöytäsovelluksen (verkkoversio lataa tiedostot sen sijaan)
 @msg	Release Guides: no guides	Vapauta apuviivat: ei apuviivoja
 @msg	Release: no layer to put the rectangle in	Vapauta: ei tasoa, johon suorakulmion voisi sijoittaa
-@msg	Replace Spine: select a blend and a path	Korvaa runko: valitse sulautus ja polku
+@msg	Replace Spine: select a blend and a path	Korvaa selkäranka: valitse sulautus ja polku
 @msg	select two or more objects to distribute	valitse kaksi tai useampia objekteja jaettavaksi tasaisesti
 @msg	select paths or anchor points	valitse polkuja tai ankkuripisteitä
 @msg	SVG parse error: {0}	SVG-jäsennysvirhe: {0}
@@ -4071,6 +4080,25 @@ imageTrace	Outline	Ääriviiva
 @msg	a PostScript error ({name} in `{op}`: {at})	tapahtui PostScript-virhe ({name} kohdassa `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	tapahtui PostScript-virhe ({name} kohdassa `{op}`: {at}), proseduurissa {procs}
 @msg	a PostScript error ({name})	tapahtui PostScript-virhe ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	tapahtui PostScript-virhe ({name} kohdassa `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	tapahtui PostScript-virhe ({name} kohdassa `{op}`; {meaning}), proseduurissa {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	tapahtui PostScript-virhe ({name} kohdassa `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	tapahtui PostScript-virhe ({name} kohdassa `{op}`: {at}; {meaning}), proseduurissa {procs}
+@msg	a PostScript error ({name}; {meaning})	tapahtui PostScript-virhe ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	ohjelma päättää sanakirjan, jota se ei aloittanut
+@msg	the program opens a file, which the reader can't do	ohjelma avaa tiedoston, mitä PostScript-lukija ei osaa
+@msg	the program restores a saved state that was already restored	ohjelma palauttaa tallennetun tilan, joka on jo palautettu
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	ohjelman lukemat tiedot ovat vioittuneet tai katkenneet, tai ohjelma pyytää sijaintia tiedostossa, jolla sitä ei ole
+@msg	the program goes past one of the reader's limits	ohjelma ylittää yhden PostScript-lukijan rajoista
+@msg	the path has no point to continue from	polulla ei ole pistettä, josta jatkaa
+@msg	a value is outside the range the operator takes	arvo on operaattorin hyväksymän alueen ulkopuolella
+@msg	the operator needs more values than the stack holds	operaattori tarvitsee enemmän arvoja kuin pinossa on
+@msg	part of the program isn't valid PostScript text	osa ohjelmasta ei ole kelvollista PostScript-tekstiä
+@msg	a value has the wrong type for the operator	arvo on väärää tyyppiä operaattorille
+@msg	the program runs, deletes or renames a file, which the reader can't do	ohjelma suorittaa, poistaa tai nimeää uudelleen tiedoston, mitä PostScript-lukija ei osaa
+@msg	the program asks for a resource that isn't defined	ohjelma pyytää resurssia, jota ei ole määritetty
+@msg	a calculation has no result, as in a division by zero	laskutoimituksella ei ole tulosta, kuten nollalla jaettaessa
+@msg	the operator looks for a mark on the stack and finds none	operaattori etsii pinosta merkkiä eikä löydä sitä
 @msg	a bitmap is empty	bittikartta on tyhjä
 @msg	a bitmap is too large to read	bittikartta on liian suuri luettavaksi
 @msg	a colour index is 0 to {_1}, not {n}	väri-indeksi on väliltä 0–{_1}, ei {n}
@@ -5067,6 +5095,13 @@ mark-style	Japanese	Japanilainen
 	Isolate Selected Object	Eristä valittu objekti
 	Keep selected	Pidä valittuna
 	Merge only with selection	Yhdistä vain valintaan
+	Consider Open Filled Paths as Closed	Käsittele avoimia täytettyjä polkuja suljettuina
+	Pick Color From:	Värin lähde:
+	Artwork	Kuvitus
+	Cursor Swatch Preview	Värimallien esikatselu osoittimen vieressä
+	Selection:	Valinta:
+	Straight Line	Suora viiva
+	Highlight:	Korostus:
 	Legacy (version 7)	Vanha (versio 7)
 	Legacy .ai Options	Vanhan .ai-muodon asetukset
 	Linked Files	Linkitetyt tiedostot
@@ -5125,6 +5160,10 @@ mark-style	Japanese	Japanilainen
 @msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	tietojoukosta {name} ei käytetty mitään: mitään objektia ei ole sidottu muuttujaan, jolle siinä on arvo
 @msg	select an Intertwine group	valitse lomitusryhmä
 @msg	select an Objects on Path group	valitse Objektit polulla -ryhmä
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	yhdistelmäpolun, sulautuksen, vääristyskuoren, toiston tai lomitusryhmän sisällä olevaan polkuun ei voi kiinnittää objekteja
+@msg	a clipping path can't take objects	leikkauspolkuun ei voi kiinnittää objekteja
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	sulautuksen, vääristyskuoren, toiston tai lomitusryhmän sisällä olevia objekteja ei voi kiinnittää polulle
+@msg	a clipping path can't be attached to a path	leikkauspolkua ei voi kiinnittää polulle
 @msg	span must be "object" or "selection", got {v}	span-arvon on oltava "object" tai "selection", saatiin {v}
 @msg	span: "selection" places a `gradient`, not a swatch	span: "selection" sijoittaa `gradient`-liukuvärin, ei värimallia
 @msg	span: "selection" places a gradient: give `gradient`	span: "selection" sijoittaa liukuvärin: anna `gradient`
@@ -5304,3 +5343,5 @@ swatch	Bright Violet	Kirkas violetti
 	Plaster	Kipsi
 	Note Paper…	Kirjepaperi…
 	Note Paper	Kirjepaperi
+	Water Paper…	Märkä paperi…
+	Water Paper	Märkä paperi
