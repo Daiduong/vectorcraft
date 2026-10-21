@@ -19,6 +19,7 @@ The transport regression starts its own `dbus-daemon`, so it does not contact th
 
 ```sh
 cargo test -p vectorcraft single_instance -- --nocapture
+cargo test -p vectorcraft-engine eyedropper --lib
 ```
 
 ## Web build

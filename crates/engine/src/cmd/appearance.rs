@@ -119,7 +119,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Eyedropper",
             [],
             None,
-            "{source: id, ids?, pickUp?, apply? (trees as eyedropper.setOptions, merged over the Eyedropper Options for this call), reverse?: bool, append?: bool} copy the attributes both picked up and applied (by default the whole appearance stack, opacity and blend mode, and from type to type the character and paragraph attributes) from `source` to ids (default: the selection), the fill, stroke and weight also to the paint defaults; `reverse` (Alt-click) copies from the first selected object (or ids) onto `source` instead; `append` (Shift+Alt-click) adds the source's fills, strokes and effects on top of each target's stack; placed gradients land at the same place relative to each target's bounds (defaults: fitted to new art) → {ids}",
+            "{source: id, ids?, pickUp?, apply? (trees as eyedropper.setOptions, merged over the Eyedropper Options for this call), reverse?: bool, append?: bool} copy the attributes both picked up and applied (by default the whole appearance stack, opacity and blend mode, and from type to type the character and paragraph attributes) from `source` to ids (default: highlighted characters while editing type, otherwise the object selection), the fill, stroke and weight also to the paint defaults; `reverse` (Alt-click) copies from the first selected object (or ids) onto `source` instead; `append` (Shift+Alt-click) adds the source's fills, strokes and effects on top of each target's stack; placed gradients land at the same place relative to each target's bounds (defaults: fitted to new art) → {ids}",
             has_doc,
             copy_from
         ),
@@ -761,6 +761,7 @@ fn copy_from(s: &mut Session, p: &Value) -> Result<Value> {
     let clicked = id_param(p, "source").ok_or_else(|| bad(C, "missing `source` id"))?;
     let (reverse, append) = (bool_or(p, "reverse", false), bool_or(p, "append", false));
     let attrs = s.prefs.eyedropper.attrs(p).map_err(|e| bad(C, e))?;
+    let range = if !reverse && !append && p.get("ids").is_none() { super::textedit::editing_range(s)?.filter(|(_, a, b)| a != b) } else { None };
     let selected = match ids_param(p, "ids") {
         Some(v) => outermost(&s.doc()?.doc, v),
         None => selected_roots(s)?,
@@ -779,6 +780,20 @@ fn copy_from(s: &mut Session, p: &Value) -> Result<Value> {
     }
     if targets.is_empty() || attrs.is_empty() {
         return Ok(json!({ "ids": [] }));
+    }
+    if let Some((id, start, end)) = range.filter(|(id, _, _)| targets.contains(id)) {
+        let before = s.doc()?.doc.clone();
+        super::overprint::edit_counted(s, "Eyedropper", |d| {
+            let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) else { return Err(EngineError::NoNode(id)) };
+            let placed = picked.placed(Some(t.local_bounds()));
+            vectorcraft_text::edit::style_range(&mut t.runs, start, end, |st| picked.run(st, &placed, &attrs));
+            if let Some((_, para)) = picked.text.as_ref().filter(|_| attrs.paragraph) {
+                t.edit_paras(Some(t.paragraphs_in(start, end)), |p| *p = para.clone());
+            }
+            super::typecmd::refresh_bounds(t);
+            Ok(count_changed(d, &before, &[id]))
+        })?;
+        return Ok(json!({ "ids": [id.0] }));
     }
     // When every target comes out as it was, the document and its undo history stay as they are.
     let before = s.doc()?.doc.clone();
@@ -841,6 +856,22 @@ impl Picked {
         }
     }
 
+    /// Copy character attributes and the enabled paint attributes through the same path for
+    /// whole text objects and highlighted character ranges.
+    fn run(&self, st: &mut CharStyle, placed: &Appearance, a: &EyedropperAttrs) {
+        if let Some((cs, _)) = self.text.as_ref().filter(|_| a.character) {
+            *st = CharStyle {
+                fill: std::mem::take(&mut st.fill),
+                stroke: std::mem::take(&mut st.stroke),
+                stroke_width: st.stroke_width,
+                overprint_fill: st.overprint_fill,
+                overprint_stroke: st.overprint_stroke,
+                ..cs.clone()
+            };
+        }
+        run_attrs(st, placed, &a.appearance);
+    }
+
     /// Apply attributes `a` to `n`. `append` adds the fills and strokes (and effects) on top of its
     /// stack instead. Type takes the paints on its characters, and character and paragraph
     /// attributes from type.
@@ -860,19 +891,7 @@ impl Picked {
             let placed = self.placed(Some(t.local_bounds()));
             let text = self.text.as_ref();
             for r in &mut t.runs {
-                if let Some((cs, _)) = text.filter(|_| a.character) {
-                    // The character attributes; the paints follow the appearance attributes.
-                    let st = &mut r.style;
-                    *st = CharStyle {
-                        fill: std::mem::take(&mut st.fill),
-                        stroke: std::mem::take(&mut st.stroke),
-                        stroke_width: st.stroke_width,
-                        overprint_fill: st.overprint_fill,
-                        overprint_stroke: st.overprint_stroke,
-                        ..cs.clone()
-                    };
-                }
-                run_attrs(&mut r.style, &placed, ap);
+                self.run(&mut r.style, &placed, a);
             }
             if let Some((_, para)) = text.filter(|_| a.paragraph) {
                 // The source's first paragraph's attributes, on every paragraph.

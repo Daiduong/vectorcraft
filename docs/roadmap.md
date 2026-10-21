@@ -1,5 +1,11 @@
 # Roadmap: milestones and what's next
 
+> **2026-10-21 update (M3/Eyedropper text ranges):** choosing Eyedropper from highlighted
+> type retains that character range and its overlay. Sampling applies font and paint attributes
+> only to those characters; Shift samples color only. Deselecting or switching documents clears
+> the transient range. Whole-object and explicit-id sampling keep their existing behavior.
+> Regression coverage: `tests_eyedropper.rs`; scores and estimates unchanged.
+
 > **2026-10-21 update (M4/Linux file opens):** ordinary Linux file-manager launches
 > hand files to the existing window through the session bus, opening document tabs after
 > dialogs close. Automation runs stay separate; sessions without D-Bus open normally.

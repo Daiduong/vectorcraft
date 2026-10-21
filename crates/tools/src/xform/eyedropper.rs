@@ -20,12 +20,14 @@ use vectorcraft_geom::Point;
 
 use super::paint_owner;
 use crate::params::color_json;
-use crate::{Action, Cursor, Mods, PointerEvent, PointerKind, Tool, ToolContext};
+use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext};
 
 #[derive(Default)]
 pub struct EyedropperTool {
     /// Sampling for the selected gradient stop: the tool to switch back to afterwards.
     stop: Option<String>,
+    /// The Type tool's highlighted range while sampling, including its selection overlay.
+    text_selection: crate::text::TypeTool,
 }
 
 /// The colour of `paint` at `p` (gradients are sampled along their vector, radial ones honouring
@@ -108,13 +110,28 @@ impl Tool for EyedropperTool {
     }
 
     fn options(&self) -> Value {
-        json!({ "stop": self.stop })
+        let selected = self.text_selection.options();
+        let mut options = if selected.get("editing").is_some_and(|v| !v.is_null()) { selected } else { json!({}) };
+        if let Some(o) = options.as_object_mut() {
+            o.insert("stop".into(), json!(self.stop));
+        }
+        options
     }
 
     fn set_option(&mut self, key: &str, value: &Value) {
         if key == "stop" {
             self.stop = value.as_str().map(str::to_string);
+        } else if key == "textSelection" {
+            self.text_selection.set_option(key, value);
         }
+    }
+
+    fn after_command(&mut self, cx: &ToolContext) -> Vec<Action> {
+        self.text_selection.after_command(cx)
+    }
+
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        if self.text_selection.options().get("editing").is_some_and(|v| !v.is_null()) { self.text_selection.overlays(cx) } else { vec![] }
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
