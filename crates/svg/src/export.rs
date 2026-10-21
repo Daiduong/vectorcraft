@@ -637,7 +637,7 @@ impl Writer<'_> {
             .map_or(&[][..], |a| a.classes.as_slice())
             .iter()
             .map(String::as_str)
-            .filter(|c| !c.is_empty() && c.chars().all(xml_name_char))
+            .filter(|c| !c.is_empty() && !c.chars().any(|ch| ch.is_control() || matches!(ch, '\u{fffe}' | '\u{ffff}')))
             .collect();
         if !classes.is_empty() && !self.tiny() {
             out.push_str(&format!(" class=\"{}\"", xml_attr_escape(&classes.join(" "))));

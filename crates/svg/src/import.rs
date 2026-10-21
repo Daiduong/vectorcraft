@@ -718,11 +718,12 @@ type Extras = (Vec<(String, String)>, Vec<String>);
 const MAX_CLASSES: usize = 64;
 
 /// The CSS classes of element `e`, in order and without repeats. Classes our own export
-/// generated (`cls-1`, with or without a prefix) aren't kept: export makes them again.
+/// generated (`cls-1`, with or without a prefix) aren't kept: export makes them again. A class list
+/// is split on SVG's five ASCII whitespace characters only, so a no-break space stays inside a name.
 fn user_classes(e: XNode) -> Vec<String> {
     let generated = |c: &str| c.rsplit_once("cls-").is_some_and(|(_, n)| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
     let mut out: Vec<String> = Vec::new();
-    for c in e.attribute("class").into_iter().flat_map(str::split_whitespace) {
+    for c in e.attribute("class").into_iter().flat_map(|v| v.split(['\u{20}', '\t', '\n', '\u{c}', '\r']).filter(|c| !c.is_empty())) {
         if out.len() < MAX_CLASSES && !generated(c) && !out.iter().any(|k| k == c) {
             out.push(c.to_string());
         }

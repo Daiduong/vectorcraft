@@ -29,3 +29,10 @@ fn imported_classes_survive_every_styling_with_generated_ones() {
         assert_eq!(class_of(&again, "r"), Some(rect), "{styling:?}");
     }
 }
+
+#[test]
+fn class_names_with_colons_slashes_and_no_break_spaces_are_kept() {
+    let src = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect id=\"r\" class=\"hover:bg-blue w-1/2 a\u{a0}b\" width=\"5\" height=\"5\" fill=\"red\"/></svg>";
+    let out = export(&import(src).unwrap(), &ExportOptions::default());
+    assert_eq!(class_of(&out, "r").as_deref(), Some("hover:bg-blue w-1/2 a\u{a0}b"));
+}
