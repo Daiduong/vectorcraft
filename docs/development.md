@@ -3,6 +3,24 @@
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
+## Linux file-manager opens
+
+Ordinary Linux desktop launches share a window through the session D-Bus name
+`ai.storyteller.vectorcraft.OpenDocuments`. A later launch sends absolute paths to the
+running app and exits after the request is queued. The app opens them through the normal
+File Open path as document tabs, waiting until native file dialogs and in-app dialogs close.
+Requests received during startup wait for the first UI frame. The bus releases ownership
+when the app exits; no lock file cleanup is needed. A launch without files activates the window.
+Window focus remains subject to the desktop compositor's focus policy.
+
+`--control` / `VECTORCRAFT_CONTROL_PORT` and `VECTORCRAFT_NO_PREFS` runs remain independent
+for automation. Without a usable session bus, the app prints a warning and opens normally.
+The transport regression starts its own `dbus-daemon`, so it does not contact the user's app:
+
+```sh
+cargo test -p vectorcraft single_instance -- --nocapture
+```
+
 ## Web build
 
 `apps/vectorcraft-web` runs the same `VectorcraftApp` in the browser through eframe's web runner. The renderer is wgpu: WebGPU where the browser has it, WebGL2 otherwise. It is Rust only; the only JavaScript is the glue wasm-bindgen generates.

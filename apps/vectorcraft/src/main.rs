@@ -47,6 +47,8 @@ mod open_documents;
 mod portal_save;
 mod prefs_dir;
 mod printing;
+#[cfg(target_os = "linux")]
+mod single_instance;
 #[cfg(all(windows, not(target_vendor = "win7")))]
 mod system_fonts;
 mod window;
@@ -66,6 +68,8 @@ struct App {
     graphics_loss: GraphicsLoss,
     /// The graphics device was lost and the unsaved changes are kept for Data Recovery.
     graphics_lost: bool,
+    #[cfg(target_os = "linux")]
+    instance: Option<single_instance::Instance>,
     /// Frames the UI has run (see [`end_before_teardown`]).
     frames: u64,
     /// Keeps the custom title bar's window borderless (Windows, #1758).
@@ -145,6 +149,10 @@ impl App {
         #[cfg(target_os = "macos")]
         if !self.app.file_dialog_open() {
             open_files(&mut self.app, open_documents::take());
+        }
+        #[cfg(target_os = "linux")]
+        if let Some(instance) = &self.instance {
+            instance.dispatch(&mut self.app, ctx);
         }
         self.app.logic(ctx);
         window::track(ctx, &mut self.app.ui.window);
@@ -783,6 +791,21 @@ fn main() -> std::process::ExitCode {
             }
         },
     };
+    // Automation runs stay independent. Ordinary desktop launches share one window on Linux.
+    #[cfg(target_os = "linux")]
+    let instance = if control_port.is_some() || !prefs_enabled() {
+        None
+    } else {
+        match single_instance::start(&files) {
+            Ok(single_instance::Launch::Forwarded) => return std::process::ExitCode::SUCCESS,
+            Ok(single_instance::Launch::Primary(instance)) => Some(instance),
+            Err(e) => {
+                // Minimal desktop sessions may have no bus. Keep file opening available there.
+                eprintln!("vectorcraft: could not reuse the existing window: {e}");
+                None
+            }
+        }
+    };
     // Before desktop services, so every start-up warning is recorded (`logging`).
     let logger = logging::install();
     vectorcraft_ui_egui::i18n::detect_system_lang_in_background();
@@ -1004,6 +1027,10 @@ fn main() -> std::process::ExitCode {
                 {
                     app.graphics_adapter = Some("OpenGL (Windows 7 compatibility)".into());
                 }
+                #[cfg(target_os = "linux")]
+                if let Some(instance) = &instance {
+                    instance.set_ui(&cc.egui_ctx);
+                }
                 app.custom_titlebar = custom_titlebar;
                 if let Some(port) = control_port {
                     let rx = control_server::start(port, cc.egui_ctx.clone());
@@ -1031,7 +1058,15 @@ fn main() -> std::process::ExitCode {
                 created.ready();
                 // The content and the pointer stay aligned on Windows (#1758).
                 let window_frame = window_frame::service(cc, custom_titlebar);
-                Ok(Box::new(App { app, graphics_loss, graphics_lost: false, frames: 0, window_frame }))
+                Ok(Box::new(App {
+                    app,
+                    graphics_loss,
+                    graphics_lost: false,
+                    frames: 0,
+                    window_frame,
+                    #[cfg(target_os = "linux")]
+                    instance,
+                }))
             }),
         )
     });
