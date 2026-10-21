@@ -81,6 +81,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("cloud.browse", "Browse a Cloud Folder", "", "{path?} list cloud folder `path` (empty: the top of your own storage) → {folder}"),
     ("cloud.shared", "List Cloud Shares", "", "{} list what other people shared with you, where the provider offers it"),
     ("cloud.link", "Connect Cloud Storage", "", "{} link a storage account, which the user finishes in their browser → the cloud state"),
+    ("cloud.share", "Share…", "", "{} open the Share dialog for the open drawing"),
     (
         "cloud.save",
         "Save to the Cloud",
@@ -1206,6 +1207,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             crate::cloud::link(app);
             Ok(crate::cloud::status(app))
         }
+        "cloud.share" => crate::cloud::open_share(app).map(|_| crate::cloud::status(app)),
         // Opens something already listed, by handle or by name. The listing is what the user can
         // see, which keeps a scripted open and a clicked one on the same footing.
         "cloud.openFile" => {
@@ -2379,8 +2381,11 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         // Save is off for a clean document that already has its own file.
         "file.save" => app.session.active().is_some_and(|d| d.path.is_none() || d.converted || d.is_dirty()),
         // Cloud storage: nothing without a service, and the ones that act on a drawing need one open.
-        "cloud.open" | "cloud.browse" | "cloud.shared" | "cloud.link" | "cloud.status" => crate::cloud::available(app),
-        "cloud.saveAs" | "cloud.save" | "cloud.reload" | "cloud.openFile" => crate::cloud::available(app) && app.session.active().is_some(),
+        "cloud.open" | "cloud.browse" | "cloud.shared" | "cloud.link" | "cloud.status" | "cloud.openFile" => {
+            crate::cloud::available(app)
+        }
+        "cloud.share" => crate::cloud::available(app) && app.share.available() && app.session.active().is_some(),
+        "cloud.saveAs" | "cloud.save" | "cloud.reload" => crate::cloud::available(app) && app.session.active().is_some(),
         "type.bold" | "type.italic" => crate::panels::character::text_style(app).is_some(),
         id if crate::panels::paragraph::ALIGN_COMMANDS.iter().any(|c| c.0 == id) => crate::panels::character::text_style(app).is_some(),
         "file.reveal" => app.services.reveal.is_some() && app.session.active().is_some_and(|d| d.path.is_some()),
@@ -3059,6 +3064,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 c("New Window", "window.newWindow"),
                 sub("Arrange", vec![todo("Cascade"), todo("Tile"), todo("Float in Window"), todo("Consolidate All Windows")]),
                 sub("Workspace", crate::workspaces::menu_items()),
+                c("Share…", "cloud.share"),
                 Sep,
                 c("Control", "window.control"),
                 c("Contextual Task Bar", "window.taskBar"),
