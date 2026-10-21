@@ -142,10 +142,13 @@ fn vertical_ruby_is_upright_to_the_right_of_the_column() {
     let ruby = ruby_ink(&lay);
     assert!(ruby.x0 > base.x0, "ruby right of the column: {ruby:?} vs {base:?}");
     assert!(ruby.x0 >= base.x1 - 1.0, "ruby outside the column: {ruby:?} vs {base:?}");
-    // Upright kana are taller than wide (they would be lying on their side if not).
+    // Upright kana are not lying on their side — a turned glyph is a good deal wider than tall.
+    // How much taller than wide an upright one is depends on the installed face (FreeBSD's
+    // fallback kana are nearly square), so the slack is a fifth of the reading's 10 pt size
+    // rather than a fixed point of ink.
     for g in &lay.ruby {
         if let Some(b) = ink(g) {
-            assert!(b.width() <= b.height() + 1.0, "upright ruby glyph {b:?}");
+            assert!(b.width() <= b.height() + 2.0, "upright ruby glyph {b:?}");
         }
     }
     // Down the column: the reading's glyphs have distinct y positions.
