@@ -4940,6 +4940,61 @@ theme	Appearance	Giao diện
 	Minimum must not exceed Desired, nor Desired Maximum.	Giá trị tối thiểu không được vượt quá giá trị mong muốn, và giá trị mong muốn không được vượt quá tối đa.
 	Minimum	Tối thiểu
 	Justification	Căn đều
+
+# AI-assisted layer naming.
+	Name Layers with AI	Đặt tên lớp bằng AI
+	Layer Naming Candidates	Các lớp cần đặt tên
+	Apply Layer Names	Áp dụng tên lớp
+	Apply Names	Áp dụng tên
+	Server URL	URL máy chủ
+	Vision model	Mô hình hỗ trợ hình ảnh
+	Name language	Ngôn ngữ tên
+	Scope	Phạm vi
+	Whole document	Toàn bộ tài liệu
+	Highlighted rows or selection	Các hàng tô sáng hoặc vùng chọn
+	Group depth	Độ sâu nhóm
+	Generate Names	Đề xuất tên
+	Previews are sent to the configured Ollama server.	Bản xem trước được gửi đến máy chủ Ollama đã cấu hình.
+	Analyzing groups…	Đang phân tích nhóm…
+	Review and edit names before applying.	Xem lại và chỉnh sửa tên trước khi áp dụng.
+	Name Layers with AI…	Đặt tên lớp bằng AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Đặt tên lớp bằng AI cần ứng dụng máy tính và Ollama
+@msg	Cancelled	Đã hủy
+@msg	Cannot render group {id}	Không thể kết xuất nhóm {id}
+@msg	Enter a vision model and name language	Nhập mô hình hỗ trợ hình ảnh và ngôn ngữ tên
+@msg	Generate names first	Hãy tạo tên trước
+@msg	Invalid artwork bounds	Giới hạn đồ họa không hợp lệ
+@msg	Invalid candidate id	ID ứng viên không hợp lệ
+@msg	Invalid thumbnail	Ảnh thu nhỏ không hợp lệ
+@msg	Model did not name every requested group; try again	Mô hình chưa đặt tên cho mọi nhóm; hãy thử lại
+@msg	Model returned an invalid name	Mô hình trả về tên không hợp lệ
+@msg	Model returned duplicate or unknown IDs	Mô hình trả về ID trùng lặp hoặc không xác định
+@msg	Model returned no names array	Mô hình không trả về mảng tên
+@msg	No artwork in the selected groups	Không có đồ họa trong các nhóm đã chọn
+@msg	No candidates	Không có ứng viên
+@msg	No document	Không có tài liệu
+@msg	No request pipe	Không có kênh yêu cầu
+@msg	No response pipe	Không có kênh phản hồi
+@msg	No visible artwork to analyze	Không có đồ họa hiển thị để phân tích
+@msg	Ollama request failed or response exceeded 1 MiB	Yêu cầu Ollama thất bại hoặc phản hồi vượt quá 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Yêu cầu Ollama thất bại. Kiểm tra URL máy chủ, mô hình hình ảnh đã cài và curl; thời gian chờ là 120 giây.
+@msg	Ollama returned no message content	Ollama không trả về nội dung tin nhắn
+@msg	Server URL must start with http:// or https://	URL máy chủ phải bắt đầu bằng http:// hoặc https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// không mã hóa chỉ được phép với localhost; hãy dùng https:// cho máy chủ từ xa
+@msg	Unable to render naming previews	Không thể kết xuất bản xem trước để đặt tên
+@msg	Wait for generation to finish	Chờ quá trình tạo hoàn tất
+
+# AI naming player and partial results.
+	Apply Ready Names	Áp dụng tên đã hoàn tất
+	Play or continue naming	Bắt đầu hoặc tiếp tục đặt tên
+	Pause after the current group	Tạm dừng sau nhóm hiện tại
+	Paused; ready names are kept.	Đã tạm dừng; các tên đã hoàn tất được giữ lại.
+	Start Over	Bắt đầu lại
+	Finishing current group…	Đang hoàn tất nhóm hiện tại…
+@msg	Naming scope changed. Start over to use the new scope.	Phạm vi đặt tên đã thay đổi. Bắt đầu lại để dùng phạm vi mới.
+@msg	the document changed; generate names again	tài liệu đã thay đổi; hãy tạo lại tên
+	Naming in progress…	Đang đặt tên…
+	Naming complete.	Đã đặt tên xong.
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	các biến và tập dữ liệu của tệp chưa được đọc (biến: {variables}, tập dữ liệu: {data_sets}): bảng Biến không liệt kê chúng
 # Select by Color (select.color)
 	Select by Color	Chọn theo màu

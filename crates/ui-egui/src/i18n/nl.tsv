@@ -5340,6 +5340,34 @@ swatch	Bright Violet	Felviolet
 	Full Justify	Volledig uitvullen
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum mag niet groter zijn dan Gewenst, en Gewenst niet groter dan Maximum.
 	Justification	Uitvullen
+
+# AI-assisted layer naming.
+	Name Layers with AI	Lagen benoemen met AI
+	Layer Naming Candidates	Kandidaten voor laagnamen
+	Apply Layer Names	Laagnamen toepassen
+	Apply Names	Namen toepassen
+	Server URL	Server-URL
+	Vision model	Model met beeldondersteuning
+	Name language	Taal van namen
+	Scope	Bereik
+	Whole document	Hele document
+	Highlighted rows or selection	Gemarkeerde rijen of selectie
+	Group depth	Groepsdiepte
+	Generate Names	Namen voorstellen
+	Previews are sent to the configured Ollama server.	Voorbeelden worden naar de ingestelde Ollama-server verzonden.
+	Analyzing groups…	Groepen analyseren…
+	Review and edit names before applying.	Controleer en bewerk namen voordat u ze toepast.
+	Name Layers with AI…	Lagen benoemen met AI…
+
+# AI naming player and partial results.
+	Apply Ready Names	Gereedstaande namen toepassen
+	Play or continue naming	Naamgeving starten of hervatten
+	Pause after the current group	Pauzeren na de huidige groep
+	Paused; ready names are kept.	Gepauzeerd; gereedstaande namen blijven bewaard.
+	Start Over	Opnieuw beginnen
+	Finishing current group…	Huidige groep afronden…
+	Naming in progress…	Naamgeving bezig…
+	Naming complete.	Naamgeving voltooid.
 # Select by Color (select.color)
 	Select by Color	Selecteren op kleur
 	Smudge Stick…	Uitsmeerstift…

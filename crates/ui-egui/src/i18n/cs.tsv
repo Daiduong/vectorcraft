@@ -5345,6 +5345,61 @@ mark-style	Japanese	Japonské
 	Full Justify	Zarovnat do bloku
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum nesmí překročit požadovanou hodnotu ani požadovaná hodnota maximum.
 	Justification	Zarovnání do bloku
+
+# AI-assisted layer naming.
+	Name Layers with AI	Pojmenovat vrstvy pomocí AI
+	Layer Naming Candidates	Kandidáti na pojmenování vrstev
+	Apply Layer Names	Použít názvy vrstev
+	Apply Names	Použít názvy
+	Server URL	URL serveru
+	Vision model	Model s podporou obrázků
+	Name language	Jazyk názvů
+	Scope	Rozsah
+	Whole document	Celý dokument
+	Highlighted rows or selection	Označené řádky nebo výběr
+	Group depth	Hloubka skupin
+	Generate Names	Navrhnout názvy
+	Previews are sent to the configured Ollama server.	Náhledy se odesílají na nastavený server Ollama.
+	Analyzing groups…	Analýza skupin…
+	Review and edit names before applying.	Před použitím názvy zkontrolujte a upravte.
+	Name Layers with AI…	Pojmenovat vrstvy pomocí AI…
+@msg	AI layer naming currently requires the desktop app and Ollama	Pojmenování vrstev pomocí AI vyžaduje desktopovou aplikaci a Ollama
+@msg	Cancelled	Zrušeno
+@msg	Cannot render group {id}	Nelze vykreslit skupinu {id}
+@msg	Enter a vision model and name language	Zadejte model s podporou obrázků a jazyk názvů
+@msg	Generate names first	Nejprve vygenerujte názvy
+@msg	Invalid artwork bounds	Neplatné hranice kresby
+@msg	Invalid candidate id	Neplatné ID kandidáta
+@msg	Invalid thumbnail	Neplatný náhled
+@msg	Model did not name every requested group; try again	Model nepojmenoval všechny skupiny; zkuste to znovu
+@msg	Model returned an invalid name	Model vrátil neplatný název
+@msg	Model returned duplicate or unknown IDs	Model vrátil duplicitní nebo neznámá ID
+@msg	Model returned no names array	Model nevrátil pole názvů
+@msg	No artwork in the selected groups	Ve vybraných skupinách není kresba
+@msg	No candidates	Žádní kandidáti
+@msg	No document	Žádný dokument
+@msg	No request pipe	Chybí kanál požadavku
+@msg	No response pipe	Chybí kanál odpovědi
+@msg	No visible artwork to analyze	Žádná viditelná kresba k analýze
+@msg	Ollama request failed or response exceeded 1 MiB	Požadavek Ollama selhal nebo odpověď přesáhla 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Požadavek Ollama selhal. Zkontrolujte URL serveru, nainstalovaný model s podporou obrázků a curl; časový limit je 120 sekund.
+@msg	Ollama returned no message content	Ollama nevrátila obsah zprávy
+@msg	Server URL must start with http:// or https://	URL serveru musí začínat http:// nebo https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	Prosté http:// je povoleno jen pro localhost; pro vzdálený server použijte https://
+@msg	Unable to render naming previews	Nelze vykreslit náhledy pro pojmenování
+@msg	Wait for generation to finish	Počkejte na dokončení generování
+
+# AI naming player and partial results.
+	Apply Ready Names	Použít hotové názvy
+	Play or continue naming	Spustit nebo pokračovat v pojmenování
+	Pause after the current group	Pozastavit po aktuální skupině
+	Paused; ready names are kept.	Pozastaveno; hotové názvy zůstávají.
+	Start Over	Začít znovu
+	Finishing current group…	Dokončování aktuální skupiny…
+@msg	Naming scope changed. Start over to use the new scope.	Rozsah pojmenování se změnil. Pro nový rozsah začněte znovu.
+@msg	the document changed; generate names again	dokument se změnil; vygenerujte názvy znovu
+	Naming in progress…	Probíhá pojmenování…
+	Naming complete.	Pojmenování dokončeno.
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	proměnné a sady dat souboru nebyly načteny (proměnné: {variables}, sady dat: {data_sets}): panel Proměnné je nezobrazuje
 # Select by Color (select.color)
 	Select by Color	Vybrat podle barvy

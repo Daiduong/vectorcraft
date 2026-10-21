@@ -5331,6 +5331,61 @@ imageTrace	Outline	Körvonal
 	Full Justify	Teljes sorkizárás
 	Minimum must not exceed Desired, nor Desired Maximum.	A minimum nem haladhatja meg a kívánt értéket, sem a kívánt érték a maximumot.
 	Justification	Sorkizárás
+
+# AI-assisted layer naming.
+	Name Layers with AI	Rétegek elnevezése MI-vel
+	Layer Naming Candidates	Elnevezendő rétegek
+	Apply Layer Names	Rétegnevek alkalmazása
+	Apply Names	Nevek alkalmazása
+	Server URL	Kiszolgáló URL-je
+	Vision model	Képeket támogató modell
+	Name language	Nevek nyelve
+	Scope	Hatókör
+	Whole document	Teljes dokumentum
+	Highlighted rows or selection	Kiemelt sorok vagy kijelölés
+	Group depth	Csoportmélység
+	Generate Names	Nevek javaslata
+	Previews are sent to the configured Ollama server.	Az előnézetek a beállított Ollama-kiszolgálóra kerülnek.
+	Analyzing groups…	Csoportok elemzése…
+	Review and edit names before applying.	Alkalmazás előtt ellenőrizze és szerkessze a neveket.
+	Name Layers with AI…	Rétegek elnevezése MI-vel…
+@msg	AI layer naming currently requires the desktop app and Ollama	Az MI-alapú rétegnevekhez az asztali alkalmazás és az Ollama szükséges
+@msg	Cancelled	Megszakítva
+@msg	Cannot render group {id}	A(z) {id} csoport nem rajzolható ki
+@msg	Enter a vision model and name language	Adjon meg képeket támogató modellt és a nevek nyelvét
+@msg	Generate names first	Először generáljon neveket
+@msg	Invalid artwork bounds	Érvénytelen rajzhatárok
+@msg	Invalid candidate id	Érvénytelen jelöltazonosító
+@msg	Invalid thumbnail	Érvénytelen bélyegkép
+@msg	Model did not name every requested group; try again	A modell nem nevezett el minden csoportot; próbálja újra
+@msg	Model returned an invalid name	A modell érvénytelen nevet adott vissza
+@msg	Model returned duplicate or unknown IDs	A modell ismétlődő vagy ismeretlen azonosítókat adott vissza
+@msg	Model returned no names array	A modell nem adott vissza névtömböt
+@msg	No artwork in the selected groups	Nincs rajz a kijelölt csoportokban
+@msg	No candidates	Nincsenek jelöltek
+@msg	No document	Nincs dokumentum
+@msg	No request pipe	Nincs kéréscsatorna
+@msg	No response pipe	Nincs válaszcsatorna
+@msg	No visible artwork to analyze	Nincs elemezhető látható rajz
+@msg	Ollama request failed or response exceeded 1 MiB	Az Ollama-kérés sikertelen, vagy a válasz nagyobb 1 MiB-nál
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Az Ollama-kérés sikertelen. Ellenőrizze a kiszolgáló URL-jét, a telepített képfeldolgozó modellt és a curl programot; az időkorlát 120 másodperc.
+@msg	Ollama returned no message content	Az Ollama nem adott vissza üzenettartalmat
+@msg	Server URL must start with http:// or https://	A kiszolgáló URL-jének http:// vagy https:// kezdetűnek kell lennie
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	A sima http:// csak a localhost számára engedélyezett; távoli szerverhez használjon https:// címet
+@msg	Unable to render naming previews	A névadási előnézetek nem rajzolhatók ki
+@msg	Wait for generation to finish	Várja meg a generálás befejezését
+
+# AI naming player and partial results.
+	Apply Ready Names	Elkészült nevek alkalmazása
+	Play or continue naming	Elnevezés indítása vagy folytatása
+	Pause after the current group	Szünet az aktuális csoport után
+	Paused; ready names are kept.	Szünetel; az elkészült nevek megmaradnak.
+	Start Over	Újrakezdés
+	Finishing current group…	Aktuális csoport befejezése…
+@msg	Naming scope changed. Start over to use the new scope.	Az elnevezés hatóköre megváltozott. Az új hatókörhöz kezdje újra.
+@msg	the document changed; generate names again	a dokumentum megváltozott; hozza létre újra a neveket
+	Naming in progress…	Elnevezés folyamatban…
+	Naming complete.	Elnevezés kész.
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	a fájl változói és adatkészletei nem lettek beolvasva (változók: {variables}, adatkészletek: {data_sets}): a Változók panel nem listázza őket
 # Select by Color (select.color)
 	Select by Color	Kijelölés szín szerint

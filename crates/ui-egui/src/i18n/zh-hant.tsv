@@ -4974,6 +4974,61 @@ lighting	Light	光源
 	Minimum must not exceed Desired, nor Desired Maximum.	最小值不可超過所需值，所需值不可超過最大值。
 	Minimum	最小值
 	Justification	對齊設定
+
+# AI-assisted layer naming.
+	Name Layers with AI	使用 AI 命名圖層
+	Layer Naming Candidates	圖層命名候選項
+	Apply Layer Names	套用圖層名稱
+	Apply Names	套用名稱
+	Server URL	伺服器 URL
+	Vision model	支援影像的模型
+	Name language	名稱語言
+	Scope	範圍
+	Whole document	整份文件
+	Highlighted rows or selection	反白列或選取範圍
+	Group depth	群組深度
+	Generate Names	建議名稱
+	Previews are sent to the configured Ollama server.	預覽將傳送至設定的 Ollama 伺服器。
+	Analyzing groups…	正在分析群組…
+	Review and edit names before applying.	套用前請檢查並編輯名稱。
+	Name Layers with AI…	使用 AI 命名圖層…
+@msg	AI layer naming currently requires the desktop app and Ollama	AI 圖層命名需要桌面應用程式和 Ollama
+@msg	Cancelled	已取消
+@msg	Cannot render group {id}	無法繪製群組 {id}
+@msg	Enter a vision model and name language	請輸入支援影像的模型和名稱語言
+@msg	Generate names first	請先產生名稱
+@msg	Invalid artwork bounds	圖稿邊界無效
+@msg	Invalid candidate id	候選項 ID 無效
+@msg	Invalid thumbnail	縮圖無效
+@msg	Model did not name every requested group; try again	模型未命名所有要求的群組，請再試一次
+@msg	Model returned an invalid name	模型傳回了無效名稱
+@msg	Model returned duplicate or unknown IDs	模型傳回了重複或未知 ID
+@msg	Model returned no names array	模型未傳回名稱陣列
+@msg	No artwork in the selected groups	所選群組中沒有圖稿
+@msg	No candidates	沒有候選項
+@msg	No document	沒有文件
+@msg	No request pipe	沒有要求管道
+@msg	No response pipe	沒有回應管道
+@msg	No visible artwork to analyze	沒有可分析的可見圖稿
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama 要求失敗或回應超過 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama 要求失敗。請檢查伺服器 URL、已安裝的影像模型和 curl；逾時為 120 秒。
+@msg	Ollama returned no message content	Ollama 未傳回訊息內容
+@msg	Server URL must start with http:// or https://	伺服器 URL 必須以 http:// 或 https:// 開頭
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	明文 http:// 僅允許用於 localhost；遠端伺服器請使用 https://
+@msg	Unable to render naming previews	無法繪製命名預覽
+@msg	Wait for generation to finish	請等待產生完成
+
+# AI naming player and partial results.
+	Apply Ready Names	套用已完成的名稱
+	Play or continue naming	開始或繼續命名
+	Pause after the current group	目前群組完成後暫停
+	Paused; ready names are kept.	已暫停，已完成的名稱會保留。
+	Start Over	重新開始
+	Finishing current group…	正在完成目前群組…
+@msg	Naming scope changed. Start over to use the new scope.	命名範圍已變更。請重新開始以使用新範圍。
+@msg	the document changed; generate names again	文件已變更，請重新產生名稱
+	Naming in progress…	正在命名…
+	Naming complete.	命名完成。
 # Select by Color (select.color)
 	Select by Color	依顏色選取
 @msg	missing integer `{key}`	未提供整數 `{key}`

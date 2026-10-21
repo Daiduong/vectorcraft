@@ -5262,6 +5262,61 @@ mark-style	Japanese	Japonesas
 	Full Justify	Justificação Completa
 	Minimum must not exceed Desired, nor Desired Maximum.	O mínimo não pode passar do desejado, nem o desejado do máximo.
 	Justification	Justificação
+
+# AI-assisted layer naming.
+	Name Layers with AI	Nomear camadas com IA
+	Layer Naming Candidates	Candidatos a nomes de camadas
+	Apply Layer Names	Aplicar nomes de camadas
+	Apply Names	Aplicar nomes
+	Server URL	URL do servidor
+	Vision model	Modelo com suporte a imagens
+	Name language	Idioma dos nomes
+	Scope	Escopo
+	Whole document	Documento inteiro
+	Highlighted rows or selection	Linhas destacadas ou seleção
+	Group depth	Profundidade dos grupos
+	Generate Names	Sugerir nomes
+	Previews are sent to the configured Ollama server.	As prévias são enviadas ao servidor Ollama configurado.
+	Analyzing groups…	Analisando grupos…
+	Review and edit names before applying.	Revise e edite os nomes antes de aplicá-los.
+	Name Layers with AI…	Nomear camadas com IA…
+@msg	AI layer naming currently requires the desktop app and Ollama	Os nomes de camadas com IA exigem o aplicativo de desktop e Ollama
+@msg	Cancelled	Cancelado
+@msg	Cannot render group {id}	Não foi possível renderizar o grupo {id}
+@msg	Enter a vision model and name language	Informe um modelo com imagens e o idioma dos nomes
+@msg	Generate names first	Gere os nomes primeiro
+@msg	Invalid artwork bounds	Limites da arte inválidos
+@msg	Invalid candidate id	ID de candidato inválido
+@msg	Invalid thumbnail	Miniatura inválida
+@msg	Model did not name every requested group; try again	O modelo não nomeou todos os grupos; tente novamente
+@msg	Model returned an invalid name	O modelo retornou um nome inválido
+@msg	Model returned duplicate or unknown IDs	O modelo retornou IDs duplicados ou desconhecidos
+@msg	Model returned no names array	O modelo não retornou uma matriz de nomes
+@msg	No artwork in the selected groups	Não há arte nos grupos selecionados
+@msg	No candidates	Nenhum candidato
+@msg	No document	Nenhum documento
+@msg	No request pipe	Sem canal de solicitação
+@msg	No response pipe	Sem canal de resposta
+@msg	No visible artwork to analyze	Não há arte visível para analisar
+@msg	Ollama request failed or response exceeded 1 MiB	A solicitação ao Ollama falhou ou a resposta excedeu 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	A solicitação ao Ollama falhou. Verifique a URL do servidor, o modelo com imagens instalado e curl; o limite é de 120 segundos.
+@msg	Ollama returned no message content	Ollama não retornou conteúdo de mensagem
+@msg	Server URL must start with http:// or https://	A URL do servidor deve começar com http:// ou https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// sem criptografia só é permitido para localhost; use https:// para um servidor remoto
+@msg	Unable to render naming previews	Não foi possível renderizar as prévias de nomes
+@msg	Wait for generation to finish	Aguarde a conclusão da geração
+
+# AI naming player and partial results.
+	Apply Ready Names	Aplicar nomes prontos
+	Play or continue naming	Iniciar ou continuar a nomeação
+	Pause after the current group	Pausar após o grupo atual
+	Paused; ready names are kept.	Em pausa; os nomes prontos são mantidos.
+	Start Over	Recomeçar
+	Finishing current group…	Concluindo o grupo atual…
+@msg	Naming scope changed. Start over to use the new scope.	O escopo da nomeação mudou. Recomece para usar o novo escopo.
+@msg	the document changed; generate names again	o documento mudou; gere os nomes novamente
+	Naming in progress…	Nomeação em andamento…
+	Naming complete.	Nomeação concluída.
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	as variáveis e os conjuntos de dados do arquivo não foram lidos (variáveis: {variables}, conjuntos de dados: {data_sets}): o painel Variáveis não os lista
 # Select by Color (select.color)
 	Select by Color	Selecionar por Cor

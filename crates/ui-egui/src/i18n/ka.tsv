@@ -5227,6 +5227,59 @@ imageTrace	Outline	კონტური
 @msg	its zlib compression is damaged	მისი zlib შეკუმშვა დაზიანებულია
 @msg	its Zstandard compression is damaged	მისი Zstandard შეკუმშვა დაზიანებულია
 @msg	it decompresses to more than {_1} MB	გაშლისას {_1} MB-ს აღემატება
+
+# AI-assisted layer naming.
+	Name Layers with AI	ფენების დასახელება ხელოვნური ინტელექტით
+	Layer Naming Candidates	ფენების დასახელების კანდიდატები
+	Apply Layer Names	ფენების სახელების გამოყენება
+	Apply Names	სახელების გამოყენება
+	Server URL	სერვერის მისამართი
+	Vision model	გამოსახულების მოდელი
+	Name language	სახელების ენა
+	Scope	არე
+	Whole document	მთელი დოკუმენტი
+	Highlighted rows or selection	მონიშნული რიგები ან მონიშვნა
+	Group depth	ჯგუფების სიღრმე
+	Generate Names	სახელების შეთავაზება
+	Previews are sent to the configured Ollama server.	გადახედვები იგზავნება მითითებულ Ollama სერვერზე.
+	Analyzing groups…	ჯგუფების ანალიზი…
+	Review and edit names before applying.	გამოყენებამდე შეამოწმეთ და შეასწორეთ სახელები.
+	Name Layers with AI…	ფენების დასახელება ხელოვნური ინტელექტით…
+@msg	AI layer naming currently requires the desktop app and Ollama	ფენების ხელოვნური ინტელექტით დასახელებას სჭირდება დესკტოპის აპი და Ollama
+@msg	Cancelled	გაუქმებულია
+@msg	Cannot render group {id}	ჯგუფის {id} დახატვა ვერ მოხერხდა
+@msg	Enter a vision model and name language	მიუთითეთ გამოსახულების მოდელი და სახელების ენა
+@msg	Generate names first	ჯერ მოითხოვეთ სახელები
+@msg	Invalid artwork bounds	ნახატის არასწორი საზღვრები
+@msg	Invalid candidate id	კანდიდატის არასწორი ID
+@msg	Invalid thumbnail	არასწორი მინიატურა
+@msg	Model did not name every requested group; try again	მოდელმა ყველა მოთხოვნილი ჯგუფი ვერ დაასახელა; სცადეთ ხელახლა
+@msg	Model returned an invalid name	მოდელმა არასწორი სახელი დააბრუნა
+@msg	Model returned duplicate or unknown IDs	მოდელმა დუბლირებული ან უცნობი ID-ები დააბრუნა
+@msg	Model returned no names array	მოდელმა სახელების მასივი არ დააბრუნა
+@msg	No artwork in the selected groups	მონიშნულ ჯგუფებში ნახატი არ არის
+@msg	No candidates	კანდიდატები არ არის
+@msg	No document	დოკუმენტი არ არის
+@msg	No request pipe	მოთხოვნის არხი არ არის
+@msg	No response pipe	პასუხის არხი არ არის
+@msg	No visible artwork to analyze	გასაანალიზებელი ხილული ნახატი არ არის
+@msg	Ollama request failed or response exceeded 1 MiB	Ollama-ს მოთხოვნა ვერ შესრულდა ან პასუხმა 1 MiB-ს გადააჭარბა
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	Ollama-ს მოთხოვნა ვერ შესრულდა. შეამოწმეთ სერვერის მისამართი, დაყენებული გამოსახულების მოდელი და curl; ლოდინის დრო 120 წამია.
+@msg	Ollama returned no message content	Ollama-მ შეტყობინების შიგთავსი არ დააბრუნა
+@msg	Server URL must start with http:// or https://	სერვერის მისამართი უნდა იწყებოდეს http://-ით ან https://-ით
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	ღია http:// დასაშვებია მხოლოდ localhost-ისთვის; დაშორებული სერვერისთვის გამოიყენეთ https://
+@msg	Unable to render naming previews	დასახელების გადახედვების დახატვა ვერ მოხერხდა
+@msg	Wait for generation to finish	დაელოდეთ გენერაციის დასრულებას
+	Apply Ready Names	მზა სახელების გამოყენება
+	Play or continue naming	დასახელების დაწყება ან გაგრძელება
+	Pause after the current group	პაუზა მიმდინარე ჯგუფის შემდეგ
+	Paused; ready names are kept.	პაუზა; მზა სახელები შენარჩუნებულია.
+	Start Over	თავიდან დაწყება
+	Finishing current group…	მიმდინარე ჯგუფის დასრულება…
+@msg	Naming scope changed. Start over to use the new scope.	დასახელების არე შეიცვალა. ახალი არესთვის დაიწყეთ თავიდან.
+@msg	the document changed; generate names again	დოკუმენტი შეიცვალა; სახელები თავიდან შექმენით
+	Naming in progress…	მიმდინარეობს დასახელება…
+	Naming complete.	დასახელება დასრულდა.
 # Select by Color (select.color)
 	Select by Color	მონიშვნა ფერის მიხედვით
 @msg	thumbnail: no page {n} (the file has 1)	thumbnail: გვერდი {n} არ არსებობს (ფაილს 1 გვერდი აქვს)

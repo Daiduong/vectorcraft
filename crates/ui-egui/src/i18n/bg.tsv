@@ -5302,6 +5302,34 @@ theme	Appearance	Външен вид
 	Full Justify	Пълно двустранно
 	Minimum must not exceed Desired, nor Desired Maximum.	Минималната стойност не може да надвишава желаната, нито желаната – максималната.
 	Justification	Подравняване
+
+# AI-assisted layer naming.
+	Name Layers with AI	Именуване на слоеве с ИИ
+	Layer Naming Candidates	Кандидати за именуване на слоеве
+	Apply Layer Names	Прилагане на имената на слоевете
+	Apply Names	Прилагане на имената
+	Server URL	Адрес на сървъра
+	Vision model	Модел с поддръжка на изображения
+	Name language	Език на имената
+	Scope	Обхват
+	Whole document	Целият документ
+	Highlighted rows or selection	Маркирани редове или селекция
+	Group depth	Дълбочина на групите
+	Generate Names	Предлагане на имена
+	Previews are sent to the configured Ollama server.	Прегледите се изпращат до зададения сървър Ollama.
+	Analyzing groups…	Анализиране на групи…
+	Review and edit names before applying.	Проверете и редактирайте имената преди прилагане.
+	Name Layers with AI…	Именуване на слоеве с ИИ…
+
+# AI naming player and partial results.
+	Apply Ready Names	Прилагане на готовите имена
+	Play or continue naming	Начало или продължаване на именуването
+	Pause after the current group	Пауза след текущата група
+	Paused; ready names are kept.	Пауза; готовите имена се запазват.
+	Start Over	Начало отначало
+	Finishing current group…	Завършване на текущата група…
+	Naming in progress…	Именуването е в ход…
+	Naming complete.	Именуването завърши.
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	променливите и наборите от данни на файла не бяха прочетени (променливи: {variables}, набори от данни: {data_sets}): панелът „Променливи“ не ги показва
 # Select by Color (select.color)
 	Select by Color	Избиране по цвят

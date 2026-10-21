@@ -5287,6 +5287,61 @@ mark-style	Japanese	Japonesas
 	Full Justify	Justificar completamente
 	Minimum must not exceed Desired, nor Desired Maximum.	El mínimo no puede superar el deseado, ni el deseado el máximo.
 	Justification	Justificación
+
+# AI-assisted layer naming.
+	Name Layers with AI	Nombrar capas con IA
+	Layer Naming Candidates	Candidatos para nombres de capas
+	Apply Layer Names	Aplicar nombres de capas
+	Apply Names	Aplicar nombres
+	Server URL	URL del servidor
+	Vision model	Modelo con soporte de imágenes
+	Name language	Idioma de los nombres
+	Scope	Ámbito
+	Whole document	Todo el documento
+	Highlighted rows or selection	Filas resaltadas o selección
+	Group depth	Profundidad de grupos
+	Generate Names	Proponer nombres
+	Previews are sent to the configured Ollama server.	Las vistas previas se envían al servidor Ollama configurado.
+	Analyzing groups…	Analizando grupos…
+	Review and edit names before applying.	Revise y edite los nombres antes de aplicarlos.
+	Name Layers with AI…	Nombrar capas con IA…
+@msg	AI layer naming currently requires the desktop app and Ollama	Los nombres de capas con IA requieren la aplicación de escritorio y Ollama
+@msg	Cancelled	Cancelado
+@msg	Cannot render group {id}	No se puede representar el grupo {id}
+@msg	Enter a vision model and name language	Introduzca un modelo con imágenes y el idioma de los nombres
+@msg	Generate names first	Genere nombres primero
+@msg	Invalid artwork bounds	Límites de ilustración no válidos
+@msg	Invalid candidate id	ID de candidato no válido
+@msg	Invalid thumbnail	Miniatura no válida
+@msg	Model did not name every requested group; try again	El modelo no nombró todos los grupos; inténtelo de nuevo
+@msg	Model returned an invalid name	El modelo devolvió un nombre no válido
+@msg	Model returned duplicate or unknown IDs	El modelo devolvió ID duplicados o desconocidos
+@msg	Model returned no names array	El modelo no devolvió una matriz de nombres
+@msg	No artwork in the selected groups	No hay ilustración en los grupos seleccionados
+@msg	No candidates	No hay candidatos
+@msg	No document	No hay documento
+@msg	No request pipe	No hay canal de solicitud
+@msg	No response pipe	No hay canal de respuesta
+@msg	No visible artwork to analyze	No hay ilustración visible para analizar
+@msg	Ollama request failed or response exceeded 1 MiB	La solicitud a Ollama falló o la respuesta superó 1 MiB
+@msg	Ollama request failed. Check the server URL, installed vision model and curl; request timeout is 120 seconds.	La solicitud a Ollama falló. Compruebe la URL del servidor, el modelo con imágenes instalado y curl; el tiempo límite es de 120 segundos.
+@msg	Ollama returned no message content	Ollama no devolvió contenido del mensaje
+@msg	Server URL must start with http:// or https://	La URL del servidor debe empezar por http:// o https://
+@msg	Plain http:// is only allowed for localhost; use https:// for a remote server	http:// sin cifrar solo se permite para localhost; use https:// para un servidor remoto
+@msg	Unable to render naming previews	No se pueden representar las vistas previas de nombres
+@msg	Wait for generation to finish	Espere a que termine la generación
+
+# AI naming player and partial results.
+	Apply Ready Names	Aplicar nombres listos
+	Play or continue naming	Iniciar o continuar el nombrado
+	Pause after the current group	Pausar tras el grupo actual
+	Paused; ready names are kept.	En pausa; se conservan los nombres listos.
+	Start Over	Volver a empezar
+	Finishing current group…	Finalizando el grupo actual…
+@msg	Naming scope changed. Start over to use the new scope.	El ámbito de nombrado ha cambiado. Vuelva a empezar para usar el nuevo ámbito.
+@msg	the document changed; generate names again	el documento ha cambiado; genere los nombres de nuevo
+	Naming in progress…	Asignando nombres…
+	Naming complete.	Asignación de nombres completada.
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	no se leyeron las variables ni los conjuntos de datos del archivo (variables: {variables}, conjuntos de datos: {data_sets}): el panel Variables no los muestra
 # Select by Color (select.color)
 	Select by Color	Seleccionar por color

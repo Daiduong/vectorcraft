@@ -38,6 +38,7 @@ pub mod icons;
 pub mod io;
 pub mod menus;
 pub mod native_menu;
+mod ollama;
 pub mod opening;
 pub mod palette;
 mod panel_docking;
@@ -495,6 +496,8 @@ pub struct VectorcraftApp {
     /// When installed fonts were last checked in line (app time, s).
     #[cfg(not(target_arch = "wasm32"))]
     font_install_check_at: f64,
+    pub(crate) naming_checkpoint: Option<state::Dialog>,
+    pub(crate) naming_job: Option<dialogs::layer_names::Job>,
     /// Keyboard pastes of something other than text (see [`shortcuts::PasteChord`]).
     pub(crate) paste_chord: shortcuts::PasteChord,
     /// Saves and exports running in the background (Preferences → File Handling).
@@ -616,6 +619,8 @@ impl VectorcraftApp {
             font_check: None,
             #[cfg(not(target_arch = "wasm32"))]
             font_install_check_at: f64::NEG_INFINITY,
+            naming_checkpoint: None,
+            naming_job: None,
             paste_chord: Default::default(),
             background: Default::default(),
             opening: Default::default(),
