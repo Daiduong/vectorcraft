@@ -208,6 +208,25 @@ fn unsupported_only_artwork_has_an_actionable_error() {
 }
 
 #[test]
+/// An unsupported legacy polygon must not prevent the supported rectangle from opening.
+fn legacy_polygon_omission_preserves_other_editable_objects() {
+    let (mut chunks, _) = crate::container::load(&synth::rectangle()).unwrap();
+    let (mut other, _) = crate::container::load(&synth::rectangle()).unwrap();
+    let page = other.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+    let mut polygon = page.children.remove(1);
+    polygon.children[0].data[16..20].copy_from_slice(&20u32.to_le_bytes());
+    let page = chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+    page.children.push(polygon);
+    let imported = crate::drawing::import(&chunks, 1200).unwrap();
+    let mut objects = Vec::new();
+    for node in &imported.document.layers {
+        paths(node, &mut objects);
+    }
+    assert_eq!(objects.len(), 1);
+    assert!(imported.warnings.iter().any(|w| w.contains("legacy CDR polygon")));
+}
+
+#[test]
 /// Refuse an unsupported clipping-only drawing instead of claiming an empty import succeeded.
 fn clipping_only_artwork_is_not_reported_as_a_blank_drawing() {
     let mut bytes = synth::rectangle();

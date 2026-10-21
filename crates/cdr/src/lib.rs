@@ -3,8 +3,11 @@
 #![forbid(unsafe_code)]
 
 mod bitmap;
+mod bspline;
 mod container;
+mod corners;
 mod drawing;
+mod polygon;
 mod reader;
 
 #[cfg(any(test, feature = "synth"))]

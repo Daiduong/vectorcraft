@@ -13,9 +13,13 @@ use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Shape};
 const MAX_POINTS: usize = 1_000_000;
 const MAX_COORD: f64 = 1e6;
 
+#[path = "powerclip.rs"]
+mod powerclip;
+
 /// Build editable pages in points from native records, retaining omission warnings.
 pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String> {
     let mut d = Drawing::new(version);
+    d.index_clips(chunks)?;
     let mut size = (612.0 / 72.0, 792.0 / 72.0);
     d.styles(chunks, &mut size, &mut BTreeSet::new())?;
     let mut pages = Vec::new();
@@ -231,7 +235,7 @@ fn arguments(data: &[u8]) -> Result<(u32, BTreeMap<u32, &[u8]>), String> {
     Ok((kind, result))
 }
 
-struct Drawing {
+struct Drawing<'a> {
     version: u32,
     fills: BTreeMap<u32, Fill>,
     strokes: BTreeMap<u32, Option<StrokeLayer>>,
@@ -243,6 +247,11 @@ struct Drawing {
     paint_values: usize,
     bitmaps: BTreeMap<u32, bitmap::Bitmap>,
     bitmap_budget: bitmap::BitmapBudget,
+    clips: BTreeMap<u32, &'a Chunk>,
+    clip_owners: BTreeSet<u32>,
+    active_clips: BTreeSet<u32>,
+    visits: usize,
+    depth: usize,
 }
 
 #[derive(Clone)]
@@ -305,7 +314,7 @@ impl Fill {
         }
     }
 }
-impl Drawing {
+impl<'a> Drawing<'a> {
     /// Start one import with independent resource maps and cumulative work budgets.
     fn new(version: u32) -> Self {
         Self {
@@ -320,6 +329,11 @@ impl Drawing {
             paint_values: 0,
             bitmaps: BTreeMap::new(),
             bitmap_budget: bitmap::BitmapBudget::default(),
+            clips: BTreeMap::new(),
+            clip_owners: BTreeSet::new(),
+            active_clips: BTreeSet::new(),
+            visits: 0,
+            depth: 0,
         }
     }
     /// Retain at most 100 distinct warnings about omitted or approximated features.
@@ -335,7 +349,7 @@ impl Drawing {
         NodeId(id)
     }
     /// Collect fill/outline definitions and page defaults before resolving objects.
-    fn styles<'a>(&mut self, chunks: &'a [Chunk], size: &mut (f64, f64), bitmap_sources: &mut BTreeSet<&'a [u8]>) -> Result<(), String> {
+    fn styles<'s>(&mut self, chunks: &'s [Chunk], size: &mut (f64, f64), bitmap_sources: &mut BTreeSet<&'s [u8]>) -> Result<(), String> {
         for c in chunks {
             if self.fills.len() + self.strokes.len() > 20_000 {
                 return Err("CDR style count limit exceeded".into());
@@ -657,6 +671,20 @@ impl Drawing {
     }
     /// Assemble layers, groups and objects in document paint order under the parent transform.
     fn children(&mut self, chunks: &[Chunk], parent: Affine) -> Result<Vec<Arc<Node>>, String> {
+        if self.depth >= 64 {
+            return Err("CDR drawing reference depth limit exceeded".into());
+        }
+        self.visits = self.visits.checked_add(chunks.len()).ok_or("CDR drawing visit count overflow")?;
+        if self.visits > 200_000 {
+            return Err("CDR drawing reference expansion limit exceeded".into());
+        }
+        self.depth += 1;
+        let result = self.children_inner(chunks, parent);
+        self.depth -= 1;
+        result
+    }
+    /// Visit one bounded level; the wrapper also charges referenced PowerClip contents.
+    fn children_inner(&mut self, chunks: &[Chunk], parent: Affine) -> Result<Vec<Arc<Node>>, String> {
         let mut nodes = Vec::new();
         for c in chunks {
             let Some(kind) = c.list.as_ref() else { continue };
@@ -696,8 +724,9 @@ impl Drawing {
                     nodes.push(Arc::new(group));
                 }
             } else if kind == b"clpt" {
-                self.warn("Clipping containers are omitted");
-                if has_art(c) {
+                // The indexed resource groups are drawn only through their frame references.
+                if c.children.iter().any(|child| child.list.as_ref() != Some(b"grp ") || child.child(b"spnd").is_none()) && has_art(c) {
+                    self.warn("An unsupported clipping container layout was omitted");
                     self.objects_seen += 1;
                 }
             } else if kind != b"vect" && kind != b"stlt" {
@@ -746,20 +775,52 @@ impl Drawing {
             return Ok(None);
         };
         let (kind, args) = arguments(&loda.data)?;
-        let Some(coords) = args.get(&30) else {
-            self.warn("An object without supported coordinate data was omitted");
+        if kind == 20 && self.version < 1300 {
+            self.warn("A legacy CDR polygon layout was omitted");
             return Ok(None);
-        };
-        if kind == 5 {
-            return self.bitmap_object(c, coords, parent, &args);
         }
-        let path = match kind {
-            1 => self.rectangle(coords)?,
-            2 => self.ellipse(coords)?,
-            3 | 0x25 => self.curve(coords, kind == 0x25)?,
-            _ => {
-                self.warn(&format!("Native CDR object type {kind} is omitted"));
+        let path = if kind == 0x26 {
+            // Native B-splines keep their controls in a named property set, not
+            // in the ordinary coordinate argument. Do not confuse other sets
+            // (effects, plugins, etc.) with this verified geometry identifier.
+            const SPLINE_PROPERTY: [u8; 16] = [0xef, 0xe9, 0x0e, 0x66, 0x4c, 0xa5, 0xbc, 0x40, 0x91, 0x0b, 0x8a, 0x16, 0x16, 0xc1, 0x5e, 0x4a];
+            let mut properties = c
+                .children
+                .iter()
+                .filter(|child| child.list.as_ref() == Some(b"npps") && child.child(b"ppid").is_some_and(|id| id.data.as_slice() == SPLINE_PROPERTY));
+            let Some(property) = properties.next().filter(|_| self.version >= 1500) else {
+                self.warn("An unsupported CDR B-spline property layout was omitted");
                 return Ok(None);
+            };
+            if properties.next().is_some() {
+                return Err("ambiguous CDR B-spline geometry properties".into());
+            }
+            let data = property.child(b"ppdt").ok_or("CDR B-spline property is missing its control points")?;
+            let (path, points) = crate::bspline::bspline(&data.data, MAX_POINTS.saturating_sub(self.points))?;
+            self.add_points(points)?;
+            path
+        } else {
+            let Some(coords) = args.get(&30) else {
+                self.warn("An object without supported coordinate data was omitted");
+                return Ok(None);
+            };
+            if kind == 5 {
+                return self.bitmap_object(c, coords, parent, &args);
+            }
+            match kind {
+                1 => self.rectangle(coords)?,
+                2 => self.ellipse(coords)?,
+                3 | 0x25 => self.curve(coords, kind == 0x25)?,
+                20 => {
+                    let parameters = args.get(&11000).ok_or("CDR polygon is missing its repetition parameters")?;
+                    let (path, points) = crate::polygon::polygon(coords, parameters, self.version, MAX_POINTS.saturating_sub(self.points))?;
+                    self.add_points(points)?;
+                    path
+                }
+                _ => {
+                    self.warn(&format!("Native CDR object type {kind} is omitted"));
+                    return Ok(None);
+                }
             }
         };
         let local_bounds = path.bounding_box();
@@ -802,8 +863,20 @@ impl Drawing {
         }
         self.note_properties(&args);
         let mut node = Node::path(self.id(), path, Appearance { items, ..Appearance::default() });
+        // Original same-winding compound paths confirm alternate coverage by default;
+        // argument 14001 explicitly selects winding coverage (also for PowerClip frames).
+        if let NodeKind::Path { rule, .. } = &mut node.kind {
+            *rule = match args.get(&14001).map(|arg| Reader::new(arg).u32()).transpose()? {
+                None | Some(0) => FillRule::EvenOdd,
+                Some(1) => FillRule::NonZero,
+                _ => return Err("unsupported CDR path fill rule".into()),
+            };
+        }
         node.name = self.name(args.get(&1000).copied());
         node.opacity = self.opacity(args.get(&8000).copied())?;
+        if let Some(reference) = args.get(&8005) {
+            node = self.powerclip(c, node, reference, parent)?;
+        }
         self.objects_imported += 1;
         Ok(Some(node))
     }
@@ -816,7 +889,7 @@ impl Drawing {
             self.warn("Native appearance and transparency overrides in JSON styles are omitted");
         }
         for id in args.keys() {
-            if ![10, 20, 30, 100, 200, 201, 1000, 8000, 19130, 40050].contains(id) {
+            if ![10, 20, 30, 100, 200, 201, 1000, 8000, 8005, 11000, 14001, 19130, 40050].contains(id) {
                 self.warn(&format!("Unsupported CDR object property {id} was omitted"));
             }
         }
@@ -885,39 +958,14 @@ impl Drawing {
         }
         Ok(())
     }
-    /// Decode rectangle dimensions in inches, warning when importing treated corners square.
+    /// Decode rectangle corners into editable local-space cubic or straight segments.
     fn rectangle(&mut self, bytes: &[u8]) -> Result<BezPath, String> {
-        self.add_points(16)?;
-        let mut r = Reader::new(bytes);
-        let (w, h) = if self.version >= 1500 { (r.f64()? / 254000.0, r.f64()? / 254000.0) } else { (r.coord()?, r.coord()?) };
-        // Preserve the rectangle itself even where corner treatment isn't yet decoded.
-        let corners = if self.version >= 1500 {
-            r.skip(24)?;
-            let mut any = r.f64()? != 0.0;
-            for _ in 0..3 {
-                r.skip(16)?;
-                any |= r.f64()? != 0.0;
-            }
-            any
-        } else {
-            let mut any = r.coord()? != 0.0;
-            if self.version >= 900 {
-                for _ in 0..3 {
-                    any |= r.coord()? != 0.0;
-                }
-            }
-            any
-        };
-        if corners {
-            self.warn("Rounded, scalloped or chamfered rectangle corners are imported square");
+        self.add_points(17)?;
+        let (path, approximated) = crate::corners::rectangle(bytes, self.version)?;
+        if approximated {
+            self.warn("An unsupported or overlapping rectangle corner treatment was approximated");
         }
-        let mut p = BezPath::new();
-        p.move_to((0.0, 0.0));
-        p.line_to((w, 0.0));
-        p.line_to((w, h));
-        p.line_to((0.0, h));
-        p.close_path();
-        Ok(p)
+        Ok(path)
     }
     /// Approximate an ellipse, arc or pie with up to four cubic segments in local inches.
     fn ellipse(&mut self, bytes: &[u8]) -> Result<BezPath, String> {

@@ -37,9 +37,13 @@ proptest! {
     fn cdr_damaged_records_survive_open_place_render_and_export(
         cut in 0usize..4096,
         edits in prop::collection::vec((any::<usize>(), any::<u8>()), 0..12),
-        bitmap in any::<bool>(),
+        fixture in 0u8..3,
     ) {
-        let mut bytes = if bitmap { vectorcraft_cdr::synth::clipped_bitmap() } else { vectorcraft_cdr::synth::rectangle() };
+        let mut bytes = match fixture {
+            0 => vectorcraft_cdr::synth::rectangle(),
+            1 => vectorcraft_cdr::synth::clipped_bitmap(),
+            _ => vectorcraft_cdr::synth::powerclip(),
+        };
         for (offset, value) in edits {
             let length = bytes.len();
             if let Some(byte) = bytes.get_mut(offset % length) { *byte = value; }

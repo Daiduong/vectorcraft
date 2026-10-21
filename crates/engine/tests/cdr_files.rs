@@ -24,8 +24,10 @@ fn original_corel_files_match_their_independent_svg_exports() {
         }
     }
     for version in [15, 16, 27] {
-        if folder.join(format!("bitmap-v{version}.cdr")).exists() {
-            cases.push(("bitmap", version, 1));
+        for stem in ["bitmap", "powerclip", "corners", "corner-types", "polygons", "fill-rules", "bspline"] {
+            if folder.join(format!("{stem}-v{version}.cdr")).exists() {
+                cases.push((stem, version, 1));
+            }
         }
     }
     for (stem, version, expected_pages) in cases {

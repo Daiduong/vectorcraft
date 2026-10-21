@@ -26,6 +26,14 @@ release was executed for these checks.
   groups, linked-group transforms and front-to-back native paint order.
 - Rectangles, full ellipses, ellipse arcs/pies, compound straight/cubic paths,
   affine object transforms and numeric RGB, CMYK, Gray and Lab colours.
+- Modern rectangle round, scallop and chamfer corners, with independent corner
+  values and absolute/relative scaling, retained as editable straight/cubic paths.
+- Modern polygon/star single-side seeds, including their intermediate anchors
+  and cubic handles, expanded with the native repetition step and axis scales.
+- Modern native B-spline controls and clamped points, converted into editable
+  cubic paths with open endpoints and curved closed seams.
+- Referenced PowerClip contents, nested frames, frame fills/outlines and native
+  alternate/winding fill rules. Frames and contents remain editable vector nodes.
 - Solid fills; editable linear and radial fountain ramps, stops and midpoints;
   solid/dashed outlines with width, caps and joins; basic object opacity.
 - Native RI bitmap resources: BGR/palette/grayscale and CMYK samples, separate
@@ -34,11 +42,14 @@ release was executed for these checks.
 
 ## Current losses
 
-Text, general native clipping containers such as PowerClip, polygon/star/spline
-objects, master-page artwork, inherited styles, JSON appearance/transparency
+Text, master-page artwork, inherited styles, JSON appearance/transparency
 overrides, patterns, textures, arrowheads and embedded colour profiles are not
-imported. Unsupported colour models use black with a warning. Rectangle corner
-treatments become square. Conical/square fountains become radial; advanced
+imported. Unsupported colour models use black with a warning. Legacy rectangle
+corner layouts remain square with a warning; overlapping modern radii are clamped
+with a warning. Alternate polygon seed modes, non-coprime compound-star steps,
+displaced seed centres and unsupported PowerClip reference layouts fail explicitly.
+PowerClip fitting/locking UI settings and complex transparency are not reproduced.
+Conical/square fountains become radial; advanced
 fountain placement and colour interpolation can be approximate. Spot identities,
 overprint and exact calligraphic/scaled outline behaviour are not preserved.
 Warnings describe omitted/approximated features. A file containing objects but no
@@ -61,6 +72,9 @@ including an alias of an external LIST, consumes a cumulative 512 MiB traversal
 budget. Other bounds: 64 nested lists, 200,000 records, 4,096 ZIP entries/streams,
 1,000 pages, 20,000 styles, 1,000,000 geometry points and 250,000 materialized
 gradient stops/dash values (both style definitions and object copies count).
+Referenced drawing expansion additionally limits interpretation to 200,000 record
+visits and 64 recursive levels; cyclic or mismatched PowerClip references fail.
+Polygon expansion charges its generated point count before allocating the outline.
 Bitmap decoding additionally limits each side to 32,768 pixels, the cumulative
 pixel count to 32 million and generated encoded PNGs to 128 MiB. Exact raw bitmap
 aliases are skipped before decoding and consume no additional image quota. A
@@ -89,6 +103,10 @@ crop geometry, bottom-up rows, BGR,
 CMYK, palettes, continuous alpha, image quotas and native save/reopen/place.
 `CDR_FIXTURE_DIR` optionally points to the locally generated CorelDRAW fixture
 directory. It runs the native-file assertions without committing binary fixtures.
+The engine oracle suite also accepts `powerclip`, `corners`, `corner-types`,
+`polygons`, `fill-rules` and `bspline` scenes saved in formats 15/16/27, each with its independent
+page SVG. Those checks assert zero image resources for every vector-only scene.
+Record observations and unresolved cases are in [the vector record notes](../../docs/cdr-vector-records.md).
 `cargo clippy -p vectorcraft-cdr --all-targets --all-features -- -D warnings` checks
 the shipped no-unsafe/no-panic policy as well as the fixture feature.
 

@@ -126,3 +126,79 @@ pub fn clipped_bitmap() -> Vec<u8> {
     result.extend(body);
     result
 }
+
+/// Original vector-only PowerClip: a blue rectangle exceeds a red compound frame
+/// with a same-winding hole. Its contents live in a referenced resource group.
+/// CDR 12 container/style fields keep this small; the reference relationships are
+/// independently checked with local Corel-authored format 15/16/27 drawings.
+pub fn powerclip() -> Vec<u8> {
+    /// Encode fixture words, including signed coordinates represented as words.
+    fn words(values: &[u32]) -> Vec<u8> {
+        values.iter().flat_map(|v| v.to_le_bytes()).collect()
+    }
+    /// Convert points to native integer units without producer-authored bytes.
+    fn coord(points: i32) -> u32 {
+        (points as f64 * 254000.0 / 72.0).round() as i32 as u32
+    }
+    /// Encode one padded original RIFF record.
+    fn chunk(tag: &[u8; 4], body: &[u8]) -> Vec<u8> {
+        let mut bytes = tag.to_vec();
+        bytes.extend(words(&[body.len() as u32]));
+        bytes.extend(body);
+        if !body.len().is_multiple_of(2) {
+            bytes.push(0);
+        }
+        bytes
+    }
+    /// Encode a typed original container.
+    fn list(kind: &[u8; 4], body: &[u8]) -> Vec<u8> {
+        let mut bytes = kind.to_vec();
+        bytes.extend(body);
+        chunk(b"LIST", &bytes)
+    }
+    /// Put geometry and reference fields ahead of their offset/reversed-type tables.
+    fn loda(kind: u32, args: &[(u32, Vec<u8>)]) -> Vec<u8> {
+        let count = args.len() as u32;
+        let table = 20 + args.iter().map(|(_, data)| data.len() as u32).sum::<u32>();
+        let mut bytes = words(&[table + count * 8, count, table, table + count * 4, kind]);
+        let mut offsets = Vec::new();
+        for (_, data) in args {
+            offsets.push(bytes.len() as u32);
+            bytes.extend(data);
+        }
+        bytes.extend(words(&offsets));
+        bytes.extend(words(&args.iter().rev().map(|(id, _)| *id).collect::<Vec<_>>()));
+        chunk(b"loda", &bytes)
+    }
+    /// Encode a solid RGB style under an original numeric identifier.
+    fn fill(id: u32, rgb: [u8; 3]) -> Vec<u8> {
+        let mut data = words(&[id, 1, 5, 0]);
+        data.extend([rgb[2], rgb[1], rgb[0], 0]);
+        chunk(b"fild", &data)
+    }
+    let mut geometry = words(&[8]);
+    for (x, y) in [(0, 0), (40, 0), (40, -30), (0, -30), (10, -10), (30, -10), (30, -20), (10, -20)] {
+        geometry.extend(words(&[coord(x), coord(y)]));
+    }
+    geometry.extend([0, 64, 64, 72, 0, 64, 64, 72]);
+    let mut frame = chunk(b"spnd", &words(&[10]));
+    frame.extend(loda(3, &[(30, geometry), (20, words(&[1])), (8005, words(&[8, 1, 0, 0]))]));
+    let content = loda(1, &[(30, words(&[coord(60), coord(-45), 0, 0, 0, 0])), (20, words(&[2]))]);
+    let mut resource = chunk(b"spnd", &words(&[8]));
+    resource.extend(loda(0, &[(3500, words(&[10]))]));
+    resource.extend(list(b"obj ", &content));
+    let resources = list(b"doc ", &list(b"clpt", &list(b"grp ", &resource)));
+    let mut page = chunk(b"flgs", &[0, 0, 0, 0x90]);
+    page.extend(list(b"obj ", &frame));
+    let mut body = chunk(b"vrsn", &1200u16.to_le_bytes());
+    body.extend(chunk(b"mcfg", &words(&[0, coord(160), coord(120)])));
+    body.extend(fill(1, [220, 40, 70]));
+    body.extend(fill(2, [20, 100, 230]));
+    body.extend(resources);
+    body.extend(list(b"page", &page));
+    let mut bytes = b"RIFF".to_vec();
+    bytes.extend(words(&[body.len() as u32 + 4]));
+    bytes.extend(b"CDRC");
+    bytes.extend(body);
+    bytes
+}

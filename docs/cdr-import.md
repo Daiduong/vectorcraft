@@ -1,5 +1,8 @@
 # Native CorelDRAW import
 
+> **Last updated:** 2026-10-22 · CDR.8: editable PowerClip, modern corners,
+> polygon/star seeds, B-splines and compound-path fill rules. Compatibility remains partial.
+
 CDR.1 adds read-only `.cdr` import to the shared engine. File > Open, File > Place,
 drag and drop, the CLI, MCP and the browser use the same Rust reader. Open creates
 editable paths, artboards, layers and groups. Save asks for a new VectorCraft
@@ -7,6 +10,9 @@ destination; the CDR source is never overwritten. There is no CDR exporter.
 Embedded native bitmap resources also retain their image data, continuous alpha,
 object transforms and editable crop outlines. CMYK bitmap colours are converted
 to RGB without the source ICC profile, with an approximation warning.
+PowerClip contents now become native clipping groups with editable frames and
+children. Modern rectangle corners and supported polygon/star seeds become
+straight/cubic paths; compound holes retain their alternate or winding rule.
 
 The macOS bundle and Linux desktop entry also advertise CDR as a readable format.
 Linux uses the existing `application/vnd.corel-draw` type from
@@ -53,7 +59,7 @@ the native CDR import and that SVG and compares their dimensions and pixels.
 The fixtures and application resources remain local; no Corel fonts, profiles,
 vendor artwork or binaries are redistributed.
 
-Corel-specific effects, text, PowerClip and other unsupported records
+Corel-specific effects, text and other unsupported records
 remain outside the initial import subset. Warnings state what was omitted or
 approximated; see the crate README for the exact implemented paint and geometry
 coverage. Export SVG or PDF from CorelDRAW when a file depends on those features.
@@ -83,6 +89,17 @@ Optional `bitmap-v15.cdr`, `bitmap-v16.cdr`, `bitmap-v27.cdr` and
 RGB/CMYK images with 0/64/128/255 alpha.
 Their rendered alpha/placement and RGB samples are checked independently;
 CMYK-to-RGB profile differences are reported separately from geometry fidelity.
+Optional `powerclip`, `corners`, `corner-types`, `polygons`, `fill-rules` and `bspline`
+scenes use `NAME-v15.cdr`, `NAME-v16.cdr`, `NAME-v27.cdr` and `NAME-page1.svg`.
+These cover nested/rotated clipping, multiple ordered contents, painted frames,
+same-winding holes, explicit nonzero winding, asymmetric round/scallop/chamfer
+corners, both corner scaling modes, concave polygons and a complex seven-point star.
+The B-spline scene covers open endpoints, cyclic controls and a clamped interior
+point; imported geometry retains its cubic handles rather than flattened segments.
+Every vector-only imported scene must have zero image resources. A separate engine
+regression edits a clipped child, undoes, saves/reopens and places/undoes the drawing,
+and requires a vector `<clipPath>` export. See [record notes](cdr-vector-records.md)
+for observed fields and the remaining boundaries.
 
 When all visible artwork lies outside every page and no saved camera exists,
 the desktop's initial view fits that artwork after the canvas has a size. The
@@ -102,5 +119,6 @@ assuming the UI's drawing coordinates are the page coordinates.
 
 | Date | Change |
 |---|---|
+| 2026-10-22 | CDR.8: native PowerClip references, modern corner treatments, polygon/star seeds, B-spline cubics and alternate/winding fills; original 15/16/27 SVG oracles and bounded reference expansion. |
 | 2026-10-19 | CDR.4: native embedded images, continuous alpha and editable crop outlines; initial framing of off-page artwork. |
 | 2026-10-19 | Initial bounded native import and original CorelDRAW application-oracle validation. |

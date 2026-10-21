@@ -115,6 +115,46 @@ fn cdr_bitmap_crops_survive_render_native_round_trip_and_place() {
 }
 
 #[test]
+/// Vector contents, alternate-rule holes and clipping survive editing and native save/reopen.
+fn cdr_powerclip_remains_editable_and_exports_vector_clipping() {
+    let bytes = vectorcraft_cdr::synth::powerclip();
+    let mut session = Session::new();
+    open_bytes(&mut session, "clip.cdr", &bytes, None).unwrap();
+    let doc = &session.doc().unwrap().doc;
+    assert!(doc.images.is_empty());
+    let clip = &doc.layers[0].children().unwrap()[0];
+    assert!(clip.clips());
+    let children = clip.children().unwrap();
+    assert_eq!(children.len(), 2);
+    assert_eq!(children[0].path_data().unwrap().subpaths.len(), 2);
+    assert!(children[1].path_data().is_some());
+    let content = children[1].id;
+    let region = doc.artboards[0].rect;
+    let before = vectorcraft_render::Renderer::new().render_region(doc, region, 1.0, false);
+    assert_eq!(&before.pixels[(65 * 160 + 85) * 4..(65 * 160 + 85) * 4 + 4], &[20, 100, 230, 255]);
+    assert_eq!(before.pixels[(75 * 160 + 100) * 4 + 3], 0, "same-winding clip hole stays empty");
+    assert_eq!(before.pixels[(65 * 160 + 130) * 4 + 3], 0, "oversized vector content is clipped");
+    let svg = vectorcraft_svg::export(doc, &vectorcraft_svg::ExportOptions::default());
+    assert!(svg.contains("<clipPath") && svg.contains("<path") && !svg.contains("<image"));
+    session.execute("select.set", &json!({"ids": [content.0]})).unwrap();
+    session.execute("object.move", &json!({"dx": 4, "dy": 3})).unwrap();
+    session.execute("edit.undo", &json!({})).unwrap();
+    let saved = session.execute("document.serialize", &json!({"format": "vectorcraft"})).unwrap();
+    let data = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    open_bytes(&mut session, "clip-copy.vectorcraft", &data, None).unwrap();
+    let doc = &session.doc().unwrap().doc;
+    assert!(doc.images.is_empty());
+    assert!(doc.layers[0].children().unwrap()[0].clips());
+    assert_eq!(before.pixels, vectorcraft_render::Renderer::new().render_region(doc, region, 1.0, false).pixels);
+    session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+    let count = session.doc().unwrap().doc.node_count();
+    session.execute("file.place", &json!({"name": "clip.cdr", "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+    assert!(session.doc().unwrap().doc.node_count() > count);
+    session.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(session.doc().unwrap().doc.node_count(), count);
+}
+
+#[test]
 /// Keep the active document and tab count intact after malformed CDR opens fail.
 fn malformed_cdr_does_not_replace_the_active_document() {
     let mut s = Session::new();
