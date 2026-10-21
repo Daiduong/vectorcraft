@@ -303,6 +303,39 @@ fn each_transform_copy_keeps_its_own_gradient() {
     assert_eq!(differ, none_differ);
 }
 
+/// Random in a Transform effect takes its seed from the object's id. The outline draws as the
+/// canvas drew the object with Random in a Transform effect that copies a gradient square, in a
+/// Transform effect on the stroke of such a square, and in a Transform effect on the fill of a
+/// plain square.
+#[test]
+fn outlines_keep_the_random_transforms_the_canvas_drew() {
+    let random = json!({"moveH": 30, "moveV": 30, "rotate": 40, "random": true});
+    let cases = [
+        ("random copies", json!({"gradient": {"kind": "linear"}}), json!({"moveH": 120, "rotate": 30, "copies": 1, "random": true}), None),
+        ("copies, random stroke", json!({"gradient": {"kind": "linear"}}), json!({"moveH": 120, "copies": 1}), Some(1)),
+        ("random fill", json!({"color": "#33aa55"}), json!({}), Some(0)),
+    ];
+    let mut differ = vec![];
+    for (case, fill, object, item) in &cases {
+        for (command, p) in outlining() {
+            let mut s = session();
+            square_with(&mut s, fill.clone(), Value::Null, &[]);
+            if object != &json!({}) {
+                s.execute("effect.apply", &json!({"effect": "distort.transform", "params": object})).unwrap();
+            }
+            s.execute("stroke.set", &json!({"weight": 12})).unwrap();
+            if let Some(item) = item {
+                s.execute("effect.apply", &json!({"effect": "distort.transform", "params": random, "item": item})).unwrap();
+            }
+            let before = render(&s);
+            outlined_by(&mut s, command, &p);
+            differ.push((*case, command, differing(&before, &render(&s), 64)));
+        }
+    }
+    let none_differ: Vec<_> = cases.iter().flat_map(|(case, ..)| outlining().map(|(command, _)| (*case, command, 0))).collect();
+    assert_eq!(differ, none_differ);
+}
+
 #[test]
 fn brushed_strokes_outline_to_their_brush_art() {
     let mut s = session();

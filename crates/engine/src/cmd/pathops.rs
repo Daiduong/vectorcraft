@@ -13,7 +13,7 @@ use vectorcraft_pathops as po;
 use vectorcraft_pathops::{BoolOp, PathfinderOp};
 
 use super::edit::selected_roots;
-use super::expand::reshaped;
+use super::expand::{fill_shape, reshaped, seeded};
 use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -644,8 +644,11 @@ pub(crate) fn outlined_stroke(
 /// the path, each stroke becomes its outline (or brush art), grouped when there are several.
 /// As on the canvas, the path's geometry effects ([`reshaped`]) shape the path first, and each
 /// stroke's own geometry effects then shape the path that stroke outlines; [`outlined_stroke`]
-/// gets the stroke without them. A path whose Transform effect copies it with a gradient becomes
-/// the art the canvas draws for it, each copy with its own gradient and its strokes outlined.
+/// gets the stroke without them. A fill with a random Transform effect paints the outline its
+/// geometry effects make of the path, on a copy of its own. A path whose Transform effect copies
+/// it with a gradient becomes the art the canvas draws for it, each copy with its own gradient and
+/// its strokes outlined before the art gets new ids. Random in a Transform effect takes its seed
+/// from the object's id, so these effects give the outline the values the canvas drew.
 /// `None` when `l` has no stroke to outline.
 pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Brush], l: &Node) -> Option<Node> {
     use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, has_gradient_copies, is_geometry, reshape};
@@ -653,9 +656,9 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
         return None;
     }
     if has_gradient_copies(l) {
-        let mut art = d.reid(&reshape(l, None)?);
+        let mut art = reshape(l, None)?;
         outline_member_strokes(d, brushes, &mut art);
-        return Some(art);
+        return Some(d.reid(&art));
     }
     let reshaped = reshaped(l);
     let l = reshaped.as_ref().unwrap_or(l);
@@ -665,7 +668,19 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
     let mut fills: Vec<AppearanceItem> = vec![];
     for item in &l.appearance.items {
         match item {
-            AppearanceItem::Fill(f) if f.visible && !f.paint.is_none() => fills.push(item.clone()),
+            AppearanceItem::Fill(f) if f.visible && !f.paint.is_none() => {
+                let shaped = f.effects.iter().any(seeded).then(|| path.bounds().and_then(|b| fill_shape(l, item, &path, b))).flatten();
+                let Some((shape, ..)) = shaped else {
+                    fills.push(item.clone());
+                    continue;
+                };
+                if !fills.is_empty() {
+                    parts.push(styled_copy(d, l, std::mem::take(&mut fills)));
+                }
+                let mut plain = item.clone();
+                plain.effects_mut().retain(|e| !is_geometry(&e.id));
+                parts.push(styled_copy(d, &shape, vec![plain]));
+            }
             AppearanceItem::Stroke(st) if outlinable(st) => {
                 if !fills.is_empty() {
                     parts.push(styled_copy(d, l, std::mem::take(&mut fills)));

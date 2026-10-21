@@ -366,7 +366,7 @@ pub(crate) fn reshaped(l: &Node) -> Option<Node> {
 /// Path `l` (outline `path`, box `bounds`) as its fill `item` paints it on the canvas, with its
 /// outline and box: when the fill has visible geometry effects, `l` with the outline they make of
 /// `path` as a plain path, and that outline's box.
-fn fill_shape(l: &Node, item: &AppearanceItem, path: &PathData, bounds: Rect) -> Option<(Node, PathData, Rect)> {
+pub(crate) fn fill_shape(l: &Node, item: &AppearanceItem, path: &PathData, bounds: Rect) -> Option<(Node, PathData, Rect)> {
     use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry};
     if !has_geometry(item.effects()) {
         return Some((l.clone(), path.clone(), bounds));
@@ -595,10 +595,13 @@ fn moves_only(a: Affine) -> bool {
     (m0 - 1.0).abs() <= eps && m1.abs() <= eps && m2.abs() <= eps && (m3 - 1.0).abs() <= eps
 }
 
+/// Is `e` a visible Transform effect with Random on (which takes its seed from the object's id)?
+pub(crate) fn seeded(e: &vectorcraft_doc::Effect) -> bool {
+    e.visible && e.id == "distort.transform" && e.params.get("random").and_then(Value::as_bool) == Some(true)
+}
+
 /// Does `n` have a visible Transform effect with Random on, its own or a fill's or stroke's?
 fn seeded_here(n: &Node) -> bool {
-    let seeded =
-        |e: &vectorcraft_doc::Effect| e.visible && e.id == "distort.transform" && e.params.get("random").and_then(Value::as_bool) == Some(true);
     n.appearance.effects.iter().any(seeded) || n.appearance.items.iter().any(|i| i.effects().iter().any(seeded))
 }
 
