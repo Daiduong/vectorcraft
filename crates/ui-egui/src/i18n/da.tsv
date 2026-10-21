@@ -22,6 +22,7 @@
 	Quit VectorCraft	Slut VectorCraft
 	File	Filer
 	New…	Ny…
+	New Without Dialog	Ny uden dialog
 	New from Template…	Ny fra skabelon…
 	Open…	Åbn…
 	Open Recent Files	Åbn seneste filer
@@ -269,6 +270,7 @@
 	Plug-ins	Plug-ins
 	No filter plug-ins installed	Ingen filter-plug-ins installeret
 	Install Plug-in…	Installér plug-in…
+	Open this setting's help page	Åbn hjælpesiden for denne indstilling
 	Reload Plug-ins	Genindlæs plug-ins
 	Type	Tekst
 	Font	Skrifttype
@@ -1055,7 +1057,8 @@ lighting	Light	Lys
 	 to sample a color	 for at tage en farveprøve
 	 across a selected object to set the gradient direction	 hen over et markeret objekt for at angive gradientretningen
 	 to select an artboard  |  	 for at markere et tegnebræt  |  
-	 on the canvas to create one	 på canvaset for at oprette et
+	 on the canvas to create one (	 på canvaset for at oprette et (
+	 selects several, or draws one inside an artboard)	 markerer flere eller opretter et inde i et tegnebræt)
 	 a stroke to add a width point  |  	 på en kontur for at tilføje et breddepunkt  |  
 	 to change one side  |  	 for at ændre den ene side  |  
 	 to select more points  |  	 for at markere flere punkter  |  
@@ -1489,7 +1492,7 @@ lighting	Light	Lys
 	This library is empty	Dette bibliotek er tomt
 	No results	Ingen resultater
 	No items in this library match “{query}”.	Ingen elementer i dette bibliotek matcher »{query}«.
-	Right-click an item to move it into this group.	Højreklik på et element for at flytte det til denne gruppe.
+	Drag an item here, or right-click one, to put it in this group.	Træk et element hertil, eller højreklik på et, for at lægge det i denne gruppe.
 	New Group	Ny gruppe
 	New Group…	Ny gruppe…
 	Move to Group	Flyt til gruppe
@@ -1571,6 +1574,9 @@ lighting	Light	Lys
 	Left Indent	Venstre indrykning
 	Left-to-Right Paragraph Direction	Afsnitsretning fra venstre mod højre
 	Line-end Punctuation Half Width	Skilletegn i halv bredde ved linjeslut
+	Insert Kashidas	Indsæt kashidaer
+	Long	Lang
+	Stylistic	Stilistisk
 	Mojikumi Set	Mojikumi-sæt
 	Kinsoku Set	Kinsoku-sæt
 	Hard	Hård
@@ -1607,6 +1613,7 @@ lighting	Light	Lys
 	Left in Front	Venstre forrest
 	No document	Intet dokument
 	Open a document to edit its patterns.	Åbn et dokument for at redigere dets mønstre.
+	Overlap	Overlap
 	Overlap:	Overlap:
 	Pattern options are available in pattern editing mode.	Mønsterindstillinger er tilgængelige i mønsterredigeringstilstand.
 	Right in Front	Højre forrest
@@ -1721,6 +1728,7 @@ lighting	Light	Lys
 	Select art and click New Symbol to make one.	Markér grafik, og klik på Nyt symbol for at oprette et.
 	Symbol Libraries (on the roadmap)	Symbolbiblioteker (på roadmappen)
 	Align On:	Justér på:
+	Bottom-Justified Tab	Bundjusteret tabulator
 	Center-Justified Tab	Midterjusteret tabulator
 	Above Text	Over teksten
 	Position Panel Above Text	Placér panel over teksten
@@ -1732,8 +1740,10 @@ lighting	Light	Lys
 	No text selected	Ingen tekst markeret
 	Repeat Tab	Gentag tabulator
 	Right-Justified Tab	Højrejusteret tabulator
+	Top-Justified Tab	Topjusteret tabulator
 	Select a text object to set its tab stops.	Markér et tekstobjekt for at angive dets tabulatorstop.
 	Select text	Markér tekst
+	Snap to Unit	Fastgør til enhed
 	+ Add Scale	+ Tilføj skala
 	Add Selected Artwork as One Asset	Tilføj markeret grafik som ét aktiv
 	Export Settings	Eksportindstillinger
@@ -1978,6 +1988,7 @@ lighting	Light	Lys
 	One file per artboard: <name>-<artboard>.{ext}	Én fil pr. tegnebræt: <name>-<artboard>.{ext}
 	One page per artboard.	Én side pr. tegnebræt.
 	The bounds of the visible art.	Den synlige grafiks grænser.
+	The plug-in writes the whole document.	Plug-ins eksporterer hele dokumentet.
 	Use Artboards	Brug tegnebrætter
 	Choose a folder	Vælg en mappe
 	Create Sub-folders	Opret undermapper
@@ -2063,6 +2074,7 @@ lighting	Light	Lys
 	Edit selected paths within:	Redigér markerede stier inden for:
 	Fidelity:	Præcision:
 	Fill new strokes	Udfyld nye konturer
+	Alt key toggles to Smooth Tool	Alt-tasten skifter til Udglatningsværktøj
 	The document has no colour swatches.	Dokumentet har ingen farveprøver.
 	Style Name:	Typografinavn:
 	Crop To	Beskær til
@@ -2080,6 +2092,7 @@ lighting	Light	Lys
 	Layers Panel Options	Indstillinger for lagpanelet
 	Row Size:	Rækkestørrelse:
 	Show Layers Only	Vis kun lag
+	Locate Selected Objects	Lokalisér markerede objekter
 	Thumbnails:	Miniaturer:
 	Anchor Points	Ankerpunkter
 	Brush Affects:	Penslen påvirker:
@@ -3879,6 +3892,25 @@ imageTrace	Outline	Kontur
 @msg	a PostScript error ({name} in `{op}`: {at})	en PostScript-fejl ({name} i `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	en PostScript-fejl ({name} i `{op}`: {at}), i {procs}
 @msg	a PostScript error ({name})	en PostScript-fejl ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	en PostScript-fejl ({name} i `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	en PostScript-fejl ({name} i `{op}`; {meaning}), i {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	en PostScript-fejl ({name} i `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	en PostScript-fejl ({name} i `{op}`: {at}; {meaning}), i {procs}
+@msg	a PostScript error ({name}; {meaning})	en PostScript-fejl ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	programmet afslutter en ordbog, det ikke har startet
+@msg	the program opens a file, which the reader can't do	programmet åbner en fil, hvilket læseren ikke kan
+@msg	the program restores a saved state that was already restored	programmet gendanner en gemt tilstand, der allerede er gendannet
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	data, som programmet læser, er beskadigede eller afkortede, eller programmet beder om en position i en fil, der ikke har nogen
+@msg	the program goes past one of the reader's limits	programmet overskrider en af læserens grænser
+@msg	the path has no point to continue from	kurven har intet punkt at fortsætte fra
+@msg	a value is outside the range the operator takes	en værdi ligger uden for det område, operatoren tager imod
+@msg	the operator needs more values than the stack holds	operatoren skal bruge flere værdier, end stakken indeholder
+@msg	part of the program isn't valid PostScript text	en del af programmet er ikke gyldig PostScript-tekst
+@msg	a value has the wrong type for the operator	en værdi har den forkerte type til operatoren
+@msg	the program runs, deletes or renames a file, which the reader can't do	programmet kører, sletter eller omdøber en fil, hvilket læseren ikke kan
+@msg	the program asks for a resource that isn't defined	programmet beder om en ressource, der ikke er defineret
+@msg	a calculation has no result, as in a division by zero	en beregning har intet resultat, som ved division med nul
+@msg	the operator looks for a mark on the stack and finds none	operatoren leder efter et mærke på stakken og finder intet
 @msg	a bitmap is empty	en bitmap er tom
 @msg	a bitmap is too large to read	en bitmap er for stor til at læse
 @msg	a colour index is 0 to {_1}, not {n}	et farveindeks er fra 0 til {_1}, ikke {n}
@@ -5049,10 +5081,19 @@ swatch	Bright Violet	Kraftig violet
 	Outline Object	Objekt til kontur
 	Update Selection	Opdater markering
 	Show Original Path	Vis oprindelig kurve
+	Open this dialog with these settings next time	Åbn denne dialogboks med disse indstillinger næste gang
+	Auto-Simplify	Forenkl automatisk
 @msg	check a layer to export	markér et lag, der skal eksporteres
 @msg	select the art to export first	markér først grafikken, der skal eksporteres
 @msg	no saved selection recalled	ingen gemt markering hentet
 	Merge only with selection	Flet kun med markering
+	Consider Open Filled Paths as Closed	Behandl åbne udfyldte kurver som lukkede
+	Pick Color From:	Hent farve fra:
+	Artwork	Grafik
+	Cursor Swatch Preview	Forhåndsvisning af farveprøver ved markøren
+	Selection:	Markering:
+	Straight Line	Lige linje
+	Highlight:	Fremhævning:
 	Sketch	Skitse
 	Halftone Pattern…	Rastermønster…
 	Halftone Pattern	Rastermønster
@@ -5074,6 +5115,8 @@ swatch	Bright Violet	Kraftig violet
 	Chop Design	Beskær design
 	Clear Events	Ryd hændelser
 	Close Gaps With Paths	Luk huller med stier
+	Select Fills	Markér udfyldninger
+	Select Strokes	Markér konturer
 	Column Type:	Søjletype:
 	Each Design Represents:	Hvert design repræsenterer:
 	Event:	Hændelse:
@@ -5082,6 +5125,8 @@ swatch	Bright Violet	Kraftig violet
 	Gap Detection	Registrering af huller
 	Gap Options	Indstillinger for huller
 	Gap Preview Color:	Eksempelfarve for huller:
+	Show Live Paint Gaps	Vis huller i live-maling
+	Hide Live Paint Gaps	Skjul huller i live-maling
 	Graph Column	Diagramsøjle
 	JavaScript Files	JavaScript-filer
 	JavaScript:	JavaScript:
@@ -5151,6 +5196,12 @@ swatch	Bright Violet	Kraftig violet
 	Release Blend	Frigør blanding
 	Release Envelope	Frigør konvolut
 	Release Intertwine	Frigør sammenfletning
+	Objects on Path	Objekter på kurve
+	Attach	Tilknyt
+	Objects on Path Options	Indstillinger for objekter på kurve
+	Objects on Path Tool	Objekter på kurve-værktøj
+	Attach Objects on Path	Tilknyt objekter til kurve
+	Expand Objects on Path	Udvid objekter på kurve
 	Release Live Paint	Frigør live-maling
 	Release Repeat	Frigør gentagelse
 	Release Slice	Frigør udsnit
@@ -5197,3 +5248,43 @@ swatch	Bright Violet	Kraftig violet
 	Justification	Justering
 # Select by Color (select.color)
 	Select by Color	Markér efter farve
+	Smudge Stick…	Udtværingsstift…
+	Smudge Stick	Udtværingsstift
+	Sponge…	Svamp…
+	Sponge	Svamp
+	Watercolor…	Akvarel…
+	Watercolor	Akvarel
+	Brush Size	Penselstørrelse
+	Definition	Definition
+	Brush Detail	Penseldetalje
+	Shadow Intensity	Skyggeintensitet
+	Bas Relief…	Basrelief…
+	Bas Relief	Basrelief
+	Charcoal…	Kul…
+	Charcoal	Kul
+	Photocopy…	Fotokopi…
+	Photocopy	Fotokopi
+	Stamp…	Stempel…
+	Stamp	Stempel
+	Thickness	Tykkelse
+	Detail	Detalje
+	Light/Dark Balance	Lys/mørk-balance
+	Move Anchor Point	Flyt ankerpunkt
+	Chalk & Charcoal…	Kridt og kul…
+	Chalk & Charcoal	Kridt og kul
+	Graphic Pen…	Grafisk pen…
+	Graphic Pen	Grafisk pen
+	Reticulation…	Retikulering…
+	Reticulation	Retikulering
+	Plastic Wrap…	Plastfolie…
+	Plastic Wrap	Plastfolie
+	Chrome…	Krom…
+	Chrome	Krom
+	Drop here to take it out of its group	Slip her for at tage det ud af gruppen
+	Move Library Group	Flyt biblioteksgruppe
+	Plaster…	Gips…
+	Plaster	Gips
+	Note Paper…	Notatpapir…
+	Note Paper	Notatpapir
+	Water Paper…	Vådt papir…
+	Water Paper	Vådt papir

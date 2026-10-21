@@ -296,6 +296,7 @@
 	Blur	Oskärpa
 	Bottom	Nederkant
 	Bottom in Front	Nederkant framför
+	Bottom-Justified Tab	Bottenjusterad tabb
 	Bottom:	Nederkant:
 	Bounds	Gränser
 	Bounds (Fill Proportionally)	Gränser (fyll proportionellt)
@@ -1060,6 +1061,7 @@
 	Fill (X), double-click for the Color Picker	Fyllning (X), dubbelklicka för färgväljaren
 	Fill and Stroke	Fyllning och kontur
 	Fill new strokes	Fyll nya konturer
+	Alt key toggles to Smooth Tool	Alt-tangenten växlar till Utjämningsverktyg
 	Fill Color	Fyllnadsfärg
 	Fill New Type Objects With Placeholder Text	Fyll nya textobjekt med platshållartext
 	Fill Rule	Fyllningsregel
@@ -1176,6 +1178,10 @@
 	Large Gaps	Stora mellanrum
 	Gap Preview Color:	Förhandsgranskningsfärg för mellanrum:
 	Close Gaps With Paths	Stäng mellanrum med banor
+	Show Live Paint Gaps	Visa mellanrum i direktmålning
+	Hide Live Paint Gaps	Dölj mellanrum i direktmålning
+	Select Fills	Markera fyllningar
+	Select Strokes	Markera konturer
 	Gaussian Blur…	Gaussisk oskärpa…
 	General	Allmänt
 	General › Placement › X	Allmänt › Placering › X
@@ -1372,6 +1378,12 @@
 	Release Blend	Släpp blandning
 	Release Envelope	Släpp kuvert
 	Release Intertwine	Släpp sammanflätning
+	Objects on Path	Objekt på bana
+	Attach	Fäst
+	Objects on Path Options	Alternativ för objekt på bana
+	Objects on Path Tool	Verktyg för objekt på bana
+	Attach Objects on Path	Fäst objekt på bana
+	Expand Objects on Path	Expandera objekt på bana
 	Release Live Paint	Släpp direktmålning
 	Release Repeat	Släpp upprepning
 	Release Slice	Släpp skiva
@@ -1487,6 +1499,7 @@
 	Inspect Object	Inspektera objekt
 	Install Plug-in	Installera plugin
 	Install Plug-in…	Installera plugin…
+	Open this setting's help page	Öppna hjälpsidan för den här inställningen
 	Installed plug-in {}	Installerade plugin {}
 	Intensity:	Intensitet:
 	Intent:	Återgivningsmetod:
@@ -1672,6 +1685,7 @@
 	Load Text into Clipboard	Läs in text till urklipp
 	Local Libraries	Lokala bibliotek
 	Locate Object	Hitta objekt
+	Locate Selected Objects	Hitta markerade objekt
 	Location	Plats
 	Location:	Plats:
 	Lock	Lås
@@ -1775,6 +1789,9 @@
 	Modified:	Ändrad:
 	Modify	Ändra
 	Mojikumi	Mojikumi
+	Insert Kashidas	Infoga kashidor
+	Long	Lång
+	Stylistic	Stilistisk
 	Mojikumi Set	Mojikumi-uppsättning
 	Kinsoku Set	Kinsoku-uppsättning
 	Hard	Hård
@@ -1914,6 +1931,7 @@
 	New View	Ny vy
 	New View…	Ny vy…
 	New Window	Nytt fönster
+	New Without Dialog	Ny utan dialogruta
 	New Workspace	Ny arbetsyta
 	New Workspace…	Ny arbetsyta…
 	New {kind} Style…	Ny {kind}stil…
@@ -2102,6 +2120,7 @@
 	Output White	Vitt i utgång
 	Output › Mode	Utgång › Läge
 	Output:	Utgång:
+	Overlap	Överlappning
 	Overlap:	Överlappning:
 	Overlapping	Överlappande
 	Overlay	Överlägg
@@ -2858,6 +2877,8 @@
 	Show Note	Visa anteckning
 	Show Options	Visa alternativ
 	Show Original Path	Visa ursprunglig bana
+	Open this dialog with these settings next time	Öppna den här dialogrutan med de här inställningarna nästa gång
+	Auto-Simplify	Förenkla automatiskt
 	Show Package	Visa paket
 	Show Panel	Visa panel
 	Show Pattern Swatches	Visa mönsterprover
@@ -2952,6 +2973,7 @@
 	Snap to Pixel	Fäst mot pixel
 	Precise Cursors	Exakta markörer
 	Snap to Point	Fäst mot punkt
+	Snap to Unit	Fäst mot enhet
 	Snapping Tolerance	Fästtolerans
 	Social Square Post 1080×1080	Kvadratiskt inlägg för sociala medier 1080×1080
 	Soft Light	Mjukt ljus
@@ -3079,7 +3101,7 @@
 	Delete Library Item	Radera biblioteksobjekt
 	No results	Inga resultat
 	No items in this library match “{query}”.	Inga objekt i det här biblioteket matchar ”{query}”.
-	Right-click an item to move it into this group.	Högerklicka på ett objekt för att flytta det till den här gruppen.
+	Drag an item here, or right-click one, to put it in this group.	Dra hit ett objekt, eller högerklicka på ett, för att lägga det i den här gruppen.
 	New Group	Ny grupp
 	New Group…	Ny grupp…
 	Move to Group	Flytta till grupp
@@ -3139,6 +3161,7 @@
 	Text Wrap Options	Alternativ för textombrytning
 	Text Wrap Options…	Alternativ för textombrytning…
 	The bounds of the visible art.	Gränserna för den synliga grafiken.
+	The plug-in writes the whole document.	Insticksprogrammet exporterar hela dokumentet.
 	The cell shows the type object's text as HTML.	Cellen visar textobjektets text som HTML.
 	The document has no colour swatches.	Dokumentet har inga färgrutor.
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	Den kant av papperet som skrivaren inte når: grafiken placeras innanför den, och förhandsgranskningen visar den streckad.
@@ -3194,6 +3217,7 @@
 	Tools	Verktyg
 	Top	Överkant
 	Top in Front	Ovansidan framför
+	Top-Justified Tab	Toppjusterad tabb
 	Top:	Överkant:
 	Total Width:	Total bredd:
 	Touch Type Tool	Beröringstextverktyg
@@ -3531,7 +3555,8 @@ imageTrace	Outline	Disposition
 	 to sample a color	 för att hämta en färg
 	 across a selected object to set the gradient direction	 över ett markerat objekt för att ange gradientens riktning
 	 to select an artboard  |  	 för att markera en rityta  |  
-	 on the canvas to create one	 på arbetsytan för att skapa en
+	 on the canvas to create one (	 på arbetsytan för att skapa en (
+	 selects several, or draws one inside an artboard)	 markerar flera eller skapar en ny i en rityta)
 	 a stroke to add a width point  |  	 en kontur för att lägga till en breddpunkt  |  
 	 to change one side  |  	 för att ändra en sida  |  
 	 to select more points  |  	 för att markera fler punkter  |  
@@ -3755,6 +3780,25 @@ axis	Both	Båda
 @msg	a PostScript error ({name} in `{op}`: {at})	ett PostScript-fel ({name} i `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	ett PostScript-fel ({name} i `{op}`: {at}), i {procs}
 @msg	a PostScript error ({name})	ett PostScript-fel ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	ett PostScript-fel ({name} i `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	ett PostScript-fel ({name} i `{op}`; {meaning}), i {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	ett PostScript-fel ({name} i `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	ett PostScript-fel ({name} i `{op}`: {at}; {meaning}), i {procs}
+@msg	a PostScript error ({name}; {meaning})	ett PostScript-fel ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	programmet avslutar en ordlista som det inte har påbörjat
+@msg	the program opens a file, which the reader can't do	programmet öppnar en fil, vilket PostScript-läsaren inte kan
+@msg	the program restores a saved state that was already restored	programmet återställer ett sparat läge som redan har återställts
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	data som programmet läser är skadade eller avkortade, eller så frågar programmet efter en position i en fil som inte har någon
+@msg	the program goes past one of the reader's limits	programmet överskrider en av PostScript-läsarens gränser
+@msg	the path has no point to continue from	banan har ingen punkt att fortsätta från
+@msg	a value is outside the range the operator takes	ett värde ligger utanför intervallet som operatorn tar emot
+@msg	the operator needs more values than the stack holds	operatorn behöver fler värden än stacken innehåller
+@msg	part of the program isn't valid PostScript text	en del av programmet är inte giltig PostScript-text
+@msg	a value has the wrong type for the operator	ett värde har fel typ för operatorn
+@msg	the program runs, deletes or renames a file, which the reader can't do	programmet kör, tar bort eller byter namn på en fil, vilket PostScript-läsaren inte kan
+@msg	the program asks for a resource that isn't defined	programmet begär en resurs som inte är definierad
+@msg	a calculation has no result, as in a division by zero	en beräkning har inget resultat, som vid division med noll
+@msg	the operator looks for a mark on the stack and finds none	operatorn letar efter en markering på stacken och hittar ingen
 @msg	a bitmap is empty	en bitmapp är tom
 @msg	a bitmap is too large to read	en bitmapp är för stor för att läsas
 @msg	a colour index is 0 to {_1}, not {n}	ett färgindex är 0 till {_1}, inte {n}
@@ -4150,6 +4194,7 @@ axis	Both	Båda
 @msg	{_1} files are written by file.saveAsTemplate	{_1}-filer skrivs av file.saveAsTemplate
 @msg	{_1} font families available	{_1} teckensnittsfamiljer tillgängliga
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} är en live-effekt (Effekt › Insticksprogram)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} är ett exportinsticksprogram (Fil › Exportera › Exportera som…)
 @msg	{_1} is already used by {_2}	{_1} används redan av {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} länkade fil(er) kan inte läsas här: deras förhandsgranskningar visas
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} länkade bild(er) har ändrats på disken: Uppdatera länkar visar de nya versionerna
@@ -5042,6 +5087,13 @@ theme	Appearance	Utseende
 	Isolate Selected Object	Isolera markerat objekt
 	Keep selected	Behåll markerad
 	Merge only with selection	Sammanfoga endast med markeringen
+	Consider Open Filled Paths as Closed	Behandla öppna fyllda banor som slutna
+	Pick Color From:	Hämta färg från:
+	Artwork	Bildmaterial
+	Cursor Swatch Preview	Förhandsvisning av färgprover vid pekaren
+	Selection:	Markering:
+	Straight Line	Rak linje
+	Highlight:	Framhävning:
 	Legacy (version 7)	Äldre (version 7)
 	Legacy .ai Options	Alternativ för äldre .ai
 	Linked Files	Länkade filer
@@ -5097,13 +5149,20 @@ theme	Appearance	Utseende
 @msg	choose a destination folder	välj en målmapp
 @msg	choose a source folder	välj en källmapp
 @msg	open a document with data sets	öppna ett dokument med datauppsättningar
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	inget i datauppsättningen {name} användes: inget objekt är bundet till en variabel som den har ett värde för
 @msg	select an Intertwine group	markera en sammanflätningsgrupp
+@msg	select an Objects on Path group	markera en grupp med objekt på bana
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	en bana inuti en sammansatt bana, en blandning, ett kuvert, en upprepning eller en sammanflätningsgrupp kan inte ta emot objekt
+@msg	a clipping path can't take objects	en klippbana kan inte ta emot objekt
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	objekt inuti en blandning, ett kuvert, en upprepning eller en sammanflätningsgrupp kan inte fästas på en bana
+@msg	a clipping path can't be attached to a path	en klippbana kan inte fästas på en bana
 @msg	span must be "object" or "selection", got {v}	span måste vara "object" eller "selection", fick {v}
 @msg	span: "selection" places a `gradient`, not a swatch	span: "selection" placerar en `gradient`, inte en färgruta
 @msg	span: "selection" places a gradient: give `gradient`	span: "selection" placerar en övertoning: ange `gradient`
 @msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" placerar en linjär eller radiell övertoning, inte en fri
 @msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" placerar själva övertoningen: utelämna `start` och `end` (de placerar den redan i dokumentkoordinater)
 @msg	the Color Picker is not open	färgväljaren är inte öppen
+@msg	the Simplify slider is not open	Förenkla-reglaget är inte öppet
 @msg	the action has no steps	åtgärden har inga steg
 @msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	filens lager lästes inte ({_1}): den hämtas in som en sida, i ett enda lager
 @msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	filens lager lästes inte från dess redigeringsdata ({_1}): de kommer från dess PDF-del
@@ -5131,6 +5190,27 @@ theme	Appearance	Utseende
 	Movie Clip	Filmklipp
 @msg	name is empty	namnet är tomt
 @msg	no symbol named `{n}`	ingen symbol med namnet `{n}`
+	Smudge Stick…	Utsmetning…
+	Smudge Stick	Utsmetning
+	Sponge…	Svamp…
+	Sponge	Svamp
+	Watercolor…	Akvarell…
+	Watercolor	Akvarell
+	Brush Size	Penselstorlek
+	Definition	Skärpa
+	Brush Detail	Penseldetalj
+	Shadow Intensity	Skuggintensitet
+	Bas Relief…	Basrelief…
+	Bas Relief	Basrelief
+	Charcoal…	Kol…
+	Charcoal	Kol
+	Photocopy…	Fotokopia…
+	Photocopy	Fotokopia
+	Stamp…	Stämpel…
+	Stamp	Stämpel
+	Thickness	Tjocklek
+	Detail	Detalj
+	Light/Dark Balance	Balans ljust/mörkt
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	Redigera original öppnar bara bild- och dokumentfiler; ”{name}” är ingen sådan
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	bara http-, https- och mailto-URL:er öppnas i webbläsaren, inte ”{url}”
@@ -5170,3 +5250,23 @@ theme	Appearance	Utseende
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	filens variabler och datauppsättningar lästes inte (variabler: {variables}, datauppsättningar: {data_sets}): panelen Variabler visar dem inte
 # Select by Color (select.color)
 	Select by Color	Markera efter färg
+	Move Anchor Point	Flytta ankarpunkt
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} behåller 1 av dokumentets {n} ritytor: filen öppnas igen med en. Slå på Bevara redigeringsmöjligheter för att behålla alla.
+	Chalk & Charcoal…	Krita och kol…
+	Chalk & Charcoal	Krita och kol
+	Graphic Pen…	Grafisk penna…
+	Graphic Pen	Grafisk penna
+	Reticulation…	Retikulering…
+	Reticulation	Retikulering
+	Plastic Wrap…	Plastfolie…
+	Plastic Wrap	Plastfolie
+	Chrome…	Krom…
+	Chrome	Krom
+	Drop here to take it out of its group	Släpp här för att ta ut det ur gruppen
+	Move Library Group	Flytta biblioteksgrupp
+	Plaster…	Gips…
+	Plaster	Gips
+	Note Paper…	Anteckningspapper…
+	Note Paper	Anteckningspapper
+	Water Paper…	Vått papper…
+	Water Paper	Vått papper

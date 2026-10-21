@@ -209,7 +209,8 @@ fn partial_catalogs_only_translate_strings_the_ui_shows() {
 }
 
 /// The engine learns the language the UI is drawn in each frame: new type takes the Japanese
-/// defaults while it is Japanese (#432). The frames stay in English.
+/// defaults while it is Japanese (#432). A Japanese frame draws in Japanese on this test's thread
+/// only: the tests running beside it on other threads still draw in English.
 #[test]
 fn the_engine_follows_the_interface_language() {
     let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
@@ -220,14 +221,19 @@ fn the_engine_follows_the_interface_language() {
     frame(&mut app);
     assert_eq!(app.session.ui_language.as_deref(), Some("en"), "tests resolve `auto` to English");
     assert!(!app.session.japanese_interface());
-    // Each frame hands the engine the language it draws in, whatever the engine had.
-    app.session.ui_language = Some("ja".into());
+    app.session.prefs.interface_language = "ja".into();
+    frame(&mut app);
+    assert_eq!(app.session.ui_language.as_deref(), Some("ja"));
     assert!(app.session.japanese_interface());
+    assert_eq!(current().code(), "ja");
+    // A test running beside this one on another thread still draws in English.
+    assert_eq!(std::thread::spawn(|| (current(), t("Layers"))).join().unwrap(), (Lang::EN, "Layers"));
+    // With the preference back on `auto`, the next frame hands the engine `en` again.
+    app.session.prefs.interface_language = "auto".into();
     frame(&mut app);
     assert_eq!(app.session.ui_language.as_deref(), Some("en"));
-    // The language a frame would draw in follows the preference.
-    app.session.prefs.interface_language = "ja".into();
-    assert_eq!(app.ui_language().code(), "ja");
+    assert!(!app.session.japanese_interface());
+    assert_eq!(current(), Lang::EN);
 }
 
 /// `app.language` sets the `interfaceLanguage` preference, which is what persists; the checked
@@ -931,6 +937,7 @@ fn toggled_labels() -> Vec<String> {
         "view.textThreads",
         "type.hiddenCharacters",
         "view.gradientAnnotator",
+        "view.livePaintGaps",
         "view.artboards",
         "view.template",
         "view.rulers",
@@ -1207,6 +1214,47 @@ fn vietnamese_domain_terms_are_consistent() {
     assert_eq!(message(vi(), "select a blend"), "hãy chọn một đối tượng hòa trộn");
     assert_eq!(message(vi(), "select a repeat"), "hãy chọn một đối tượng lặp");
     assert_eq!(message(vi(), "Replace Spine: select a blend and a path"), "Thay thế trục: chọn một đối tượng hòa trộn và một đường dẫn");
+}
+
+/// Each catalog listed here names a blend's spine with one term, in one of the forms listed for
+/// it, in every row whose English text names the spine: the spine commands' labels and the Replace
+/// Spine message. A catalog missing from the list is not checked.
+#[test]
+fn each_catalog_names_the_blend_spine_with_one_term() {
+    const SPINE_TERMS: &[(&str, &[&str])] = &[
+        ("bg", &["оста"]),
+        ("cs", &["páteř"]),
+        ("de", &["achse"]),
+        ("el", &["κεντρικής καμπύλης"]),
+        ("es", &["eje"]),
+        ("fi", &["selkäran"]),
+        ("fr", &["dorsale"]),
+        ("hu", &["gerinc"]),
+        ("it", &["dorsale"]),
+        ("ja", &["スパイン"]),
+        ("ko", &["스파인"]),
+        ("pl", &["grzbiet"]),
+        ("pt-br", &["coluna"]),
+        ("ru", &["остов"]),
+        ("sv", &["ryggrad"]),
+        ("uk", &["вісь", "осі"]),
+        ("vi", &["trục"]),
+        ("zh-hans", &["脊线"]),
+        ("zh-hant", &["脊線"]),
+    ];
+    let mut bad = Vec::new();
+    for (code, terms) in SPINE_TERMS {
+        let lang = Lang::from_code(code).expect("language registered");
+        let (entries, _) = parse_entries(lang.0.source);
+        let rows: Vec<_> = entries.iter().filter(|(_, src, _)| src.to_lowercase().contains("spine")).collect();
+        assert!(!rows.is_empty(), "{code}: no row names the spine");
+        for (ctx, src, tr) in rows {
+            if !terms.iter().any(|t| tr.to_lowercase().contains(t)) {
+                bad.push(format!("{code}: {ctx} {src:?} → {tr:?}"));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "rows that name the spine with another term:\n{}", bad.join("\n"));
 }
 
 fn uk() -> Lang {
@@ -1648,6 +1696,23 @@ fn align_reflect_and_shear_param_errors_are_translated() {
     }
 }
 
+/// The warning that a data set with no value for a bound variable gives, which the status bar
+/// shows and the scan above doesn't read, is translated in each language of [`COMPLETE_MESSAGES`],
+/// with the data set's name kept.
+#[test]
+fn the_data_set_applied_nothing_warning_is_translated() {
+    use serde_json::json;
+    let mut s = vectorcraft_engine::Session::new();
+    s.execute("file.new", &json!({})).unwrap();
+    s.execute("dataset.import", &json!({"csv": "name,Name\nRow 7,Ann\n"})).unwrap();
+    let v = s.execute("dataset.select", &json!({"name": "Row 7"})).unwrap();
+    let warning = v["warning"].as_str().unwrap();
+    for code in COMPLETE_MESSAGES {
+        let shown = message(Lang::from_code(code).unwrap(), warning);
+        assert!(shown.contains("Row 7") && !shown.contains("was applied"), "{code}: {shown}");
+    }
+}
+
 /// The parameter errors of the blend spine commands (Move Spine Point, Reshape Spine Segment, Add
 /// Spine Point and Delete Spine Point, which Direct Selection, the Pen and the Anchor Point tool
 /// send), whose text the scan above doesn't read, are translated whole in each language of
@@ -1715,6 +1780,39 @@ fn blend_spine_param_errors_are_translated() {
     assert!(untranslated.is_empty(), "untranslated spine errors:\n{}", untranslated.join("\n"));
 }
 
+/// Objects on Path's refusals of a path inside a compound path, blend, envelope, repeat or
+/// Intertwine group, of an object inside a blend, envelope, repeat or Intertwine group, and of a
+/// clipping path, whose text the scan above doesn't read, are translated whole in each language of
+/// [`COMPLETE_MESSAGES`].
+#[test]
+fn objects_on_path_refusals_are_translated() {
+    use serde_json::json;
+    use vectorcraft_engine::Session;
+    let mut s = Session::new();
+    s.execute("file.new", &json!({})).unwrap();
+    let rectangle =
+        |s: &mut Session, x: u64| s.execute("shape.rectangle", &json!({"x": x, "y": 0, "width": 40, "height": 40})).unwrap()["id"].clone();
+    let path = s.execute("shape.line", &json!({"x1": 0, "y1": 300, "x2": 300, "y2": 300})).unwrap()["id"].clone();
+    let object = rectangle(&mut s, 0);
+    let (member, hole) = (rectangle(&mut s, 100), rectangle(&mut s, 110));
+    s.execute("select.set", &json!({"ids": [member, hole]})).unwrap();
+    s.execute("object.compoundPath.make", &json!({})).unwrap();
+    let (art, mask) = (rectangle(&mut s, 200), rectangle(&mut s, 210));
+    s.execute("select.set", &json!({"ids": [art, mask]})).unwrap();
+    s.execute("object.clippingMask.make", &json!({})).unwrap();
+    let source = rectangle(&mut s, 300);
+    s.execute("select.set", &json!({"ids": [source]})).unwrap();
+    s.execute("object.repeat.grid", &json!({})).unwrap();
+    for (p, ids) in [(&member, &object), (&mask, &object), (&path, &source), (&path, &mask)] {
+        let e = s.execute("object.objectsOnPath.attach", &json!({"path": p, "ids": [ids]})).unwrap_err();
+        let vectorcraft_engine::EngineError::BadParams { msg, .. } = &e else { panic!("{e}") };
+        for code in COMPLETE_MESSAGES {
+            let shown = message(Lang::from_code(code).unwrap(), &e.to_string());
+            assert!(!shown.contains(msg.as_str()), "{code}: {shown}");
+        }
+    }
+}
+
 /// The parameter error of Save as Template for a `.ait` with `aiVersion` 7 is translated whole in
 /// each language of [`COMPLETE_MESSAGES`].
 #[test]
@@ -1770,6 +1868,38 @@ fn effect_channel_param_error_is_translated() {
     for code in COMPLETE_MESSAGES.iter().chain(&["bg"]) {
         let shown = message(Lang::from_code(code).unwrap(), &e.to_string());
         assert!(!shown.contains(msg.as_str()) && shown.contains("`channel`") && shown.contains("effect.apply"), "{code}: {shown}");
+    }
+}
+
+/// The status bar's line for an EPS file whose PostScript stops on an error, opened partly or
+/// refused, and the refusal's dialog keep the error's name as PostScript spells it and show what
+/// it means in each language of [`COMPLETE_MESSAGES`] and in Bulgarian; each meaning in
+/// [`vectorcraft_eps::POSTSCRIPT_ERRORS`] has a row in those catalogs.
+#[test]
+fn postscript_error_meanings_are_translated() {
+    let languages = || COMPLETE_MESSAGES.iter().chain(&["bg"]).map(|code| (*code, Lang::from_code(code).unwrap()));
+    let meaning = "a value has the wrong type for the operator";
+    for (body, opens) in [("0 0 10 10 rectfill 1 (a) add", true), ("1 (a) add", false)] {
+        let bytes = format!("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 100 100\n%%EndComments\n{body}\n%%EOF\n").into_bytes();
+        let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.services.read = Some(Box::new(move |_: &str| Ok(bytes.clone())));
+        assert_eq!(crate::io::open_reporting(&mut app, "/in/a.eps").is_ok(), opens, "{}", app.ui.status);
+        let mut shown_texts = vec![app.ui.status.clone()];
+        if !opens {
+            shown_texts.push(app.ui.dialog.take().expect("a dialog says why").str("detail"));
+        }
+        for text in shown_texts {
+            assert!(text.contains(&format!("(typecheck in `add`; {meaning})")), "{text}");
+            for (code, lang) in languages() {
+                let shown = message(lang, &text);
+                let ok = shown.contains("typecheck") && shown.contains("`add`") && shown.contains(&message(lang, meaning));
+                assert!(ok && !shown.contains(meaning) && !shown.contains("PostScript error"), "{code}: {shown}");
+            }
+        }
+    }
+    for (code, lang) in languages() {
+        let missing: Vec<_> = vectorcraft_eps::POSTSCRIPT_ERRORS.iter().filter(|(_, m)| message(lang, m) == *m).collect();
+        assert!(missing.is_empty(), "{code}: {missing:?}");
     }
 }
 

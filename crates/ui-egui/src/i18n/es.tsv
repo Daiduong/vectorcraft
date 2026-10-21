@@ -307,6 +307,7 @@
 	Blur	Desenfocar
 	Bottom	Abajo
 	Bottom in Front	Inferior delante
+	Bottom-Justified Tab	Tabulación inferior
 	Bottom:	Abajo:
 	Bounds	Límites
 	Bounds (Fill Proportionally)	Límites (rellenar proporcionalmente)
@@ -1078,8 +1079,16 @@
 	Fill (X), double-click for the Color Picker	Relleno (X), doble clic para el selector de color
 	Fill and Stroke	Relleno y trazo
 	Fill new strokes	Rellenar trazos nuevos
+	Alt key toggles to Smooth Tool	La tecla Alt cambia a la herramienta Suavizar
 	Keep selected	Mantener seleccionado
 	Merge only with selection	Combinar solo con la selección
+	Consider Open Filled Paths as Closed	Tratar los trazados abiertos con relleno como cerrados
+	Pick Color From:	Tomar el color de:
+	Artwork	Ilustración
+	Cursor Swatch Preview	Vista previa de muestras junto al cursor
+	Selection:	Selección:
+	Straight Line	Línea recta
+	Highlight:	Resaltado:
 	Fill Color	Color de relleno
 	Fill New Type Objects With Placeholder Text	Rellenar nuevos objetos de texto con texto de muestra
 	Fill Rule	Regla de relleno
@@ -1199,6 +1208,10 @@
 	Large Gaps	Huecos grandes
 	Gap Preview Color:	Color de previsualización de huecos:
 	Close Gaps With Paths	Cerrar huecos con trazados
+	Show Live Paint Gaps	Mostrar huecos de pintura interactiva
+	Hide Live Paint Gaps	Ocultar huecos de pintura interactiva
+	Select Fills	Seleccionar rellenos
+	Select Strokes	Seleccionar trazos
 	Gaussian Blur…	Desenfoque gaussiano…
 	General	General
 	General › Placement › X	General › Colocación › X
@@ -1396,6 +1409,12 @@
 	Release Blend	Soltar fusión
 	Release Envelope	Soltar envolvente
 	Release Intertwine	Soltar entrelazado
+	Objects on Path	Objetos en trazado
+	Attach	Adjuntar
+	Objects on Path Options	Opciones de objetos en trazado
+	Objects on Path Tool	Herramienta Objetos en trazado
+	Attach Objects on Path	Adjuntar objetos al trazado
+	Expand Objects on Path	Expandir objetos en trazado
 	Release Live Paint	Soltar pintura interactiva
 	Release Repeat	Soltar repetición
 	Release Slice	Soltar sector
@@ -1511,6 +1530,7 @@
 	Inspect Object	Inspeccionar objeto
 	Install Plug-in	Instalar plugin
 	Install Plug-in…	Instalar plugin…
+	Open this setting's help page	Abrir la página de ayuda de este ajuste
 	Installed plug-in {}	Se instaló el plugin {}
 	Intensity:	Intensidad:
 	Intent:	Propósito:
@@ -1713,6 +1733,7 @@
 	Load Text into Clipboard	Cargar texto en el portapapeles
 	Local Libraries	Bibliotecas locales
 	Locate Object	Localizar objeto
+	Locate Selected Objects	Localizar objetos seleccionados
 	Location	Ubicación
 	Location:	Ubicación:
 	Lock	Bloquear
@@ -1816,6 +1837,9 @@
 	Modified:	Modificado:
 	Modify	Modificar
 	Mojikumi	Mojikumi
+	Insert Kashidas	Insertar kashidas
+	Long	Larga
+	Stylistic	Estilística
 	Mojikumi Set	Conjunto de mojikumi
 	Kinsoku Set	Conjunto de kinsoku
 	Hard	Fuerte
@@ -1957,6 +1981,7 @@
 	New View	Nueva vista
 	New View…	Nueva vista…
 	New Window	Nueva ventana
+	New Without Dialog	Nuevo sin cuadro de diálogo
 	New Workspace	Nuevo espacio de trabajo
 	New Workspace…	Nuevo espacio de trabajo…
 	New {kind} Style…	Nuevo estilo de {kind}…
@@ -2145,6 +2170,7 @@
 	Output White	Blanco de salida
 	Output › Mode	Salida › Modo
 	Output:	Salida:
+	Overlap	Superposición
 	Overlap:	Superposición:
 	Overlapping	Superpuesto
 	Overlay	Superponer
@@ -2915,6 +2941,8 @@
 	Show Note	Mostrar nota
 	Show Options	Mostrar opciones
 	Show Original Path	Mostrar trazado original
+	Open this dialog with these settings next time	Abrir este cuadro de diálogo con estos ajustes la próxima vez
+	Auto-Simplify	Simplificar automáticamente
 	Color Panel Options	Opciones del panel Color
 	Show Package	Mostrar paquete
 	Show Panel	Mostrar panel
@@ -3011,6 +3039,7 @@
 	Snap to Pixel	Ajustar a píxel
 	Precise Cursors	Cursores precisos
 	Snap to Point	Ajustar a punto
+	Snap to Unit	Ajustar a unidad
 	Snapping Tolerance	Tolerancia de ajuste
 	Social Square Post 1080×1080	Publicación cuadrada para redes 1080×1080
 	Soft Light	Luz suave
@@ -3138,7 +3167,7 @@
 	Delete Library Item	Eliminar elemento de la biblioteca
 	No results	Sin resultados
 	No items in this library match “{query}”.	Ningún elemento de esta biblioteca coincide con “{query}”.
-	Right-click an item to move it into this group.	Haz clic con el botón derecho en un elemento para moverlo a este grupo.
+	Drag an item here, or right-click one, to put it in this group.	Arrastra aquí un elemento, o haz clic con el botón derecho en uno, para ponerlo en este grupo.
 	New Group	Nuevo grupo
 	New Group…	Nuevo grupo…
 	Move to Group	Mover al grupo
@@ -3198,6 +3227,7 @@
 	Text Wrap Options	Opciones de ceñir texto
 	Text Wrap Options…	Opciones de ceñir texto…
 	The bounds of the visible art.	Los límites de la ilustración visible.
+	The plug-in writes the whole document.	El plugin exporta el documento completo.
 	The cell shows the type object's text as HTML.	La celda muestra el texto del objeto de texto como HTML.
 	The document has no colour swatches.	El documento no tiene muestras de color.
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	El borde del papel al que no llega la impresora: la ilustración queda dentro y la vista previa lo muestra discontinuo.
@@ -3253,6 +3283,7 @@
 	Tools	Herramientas
 	Top	Arriba
 	Top in Front	Superior delante
+	Top-Justified Tab	Tabulación superior
 	Top:	Arriba:
 	Total Width:	Anchura total:
 	Touch Type Tool	Herramienta Retocar texto
@@ -3590,7 +3621,8 @@ imageTrace	Outline	Contorno
 	 to sample a color	 para muestrear un color
 	 across a selected object to set the gradient direction	 sobre un objeto seleccionado para definir la dirección del degradado
 	 to select an artboard  |  	 para seleccionar una mesa de trabajo  |  
-	 on the canvas to create one	 en el lienzo para crear una
+	 on the canvas to create one (	 en el lienzo para crear una (
+	 selects several, or draws one inside an artboard)	 selecciona varias o crea una dentro de una mesa de trabajo)
 	 a stroke to add a width point  |  	 un trazo para agregar un punto de anchura  |  
 	 to change one side  |  	 para cambiar un solo lado  |  
 	 to select more points  |  	 para seleccionar más puntos  |  
@@ -3827,6 +3859,25 @@ axis	Both	Ambos
 @msg	a PostScript error ({name} in `{op}`: {at})	un error de PostScript ({name} en `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	un error de PostScript ({name} en `{op}`: {at}), en {procs}
 @msg	a PostScript error ({name})	un error de PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	un error de PostScript ({name} en `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	un error de PostScript ({name} en `{op}`; {meaning}), en {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	un error de PostScript ({name} en `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	un error de PostScript ({name} en `{op}`: {at}; {meaning}), en {procs}
+@msg	a PostScript error ({name}; {meaning})	un error de PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	el programa cierra un diccionario que no abrió
+@msg	the program opens a file, which the reader can't do	el programa abre un archivo, algo que el lector no puede hacer
+@msg	the program restores a saved state that was already restored	el programa restaura un estado guardado que ya se había restaurado
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	los datos que lee el programa están dañados o cortados, o el programa pide una posición en un archivo que no la tiene
+@msg	the program goes past one of the reader's limits	el programa supera uno de los límites del lector
+@msg	the path has no point to continue from	el trazado no tiene un punto desde el que continuar
+@msg	a value is outside the range the operator takes	un valor está fuera del intervalo que admite el operador
+@msg	the operator needs more values than the stack holds	el operador necesita más valores de los que tiene la pila
+@msg	part of the program isn't valid PostScript text	una parte del programa no es texto PostScript válido
+@msg	a value has the wrong type for the operator	un valor tiene un tipo incorrecto para el operador
+@msg	the program runs, deletes or renames a file, which the reader can't do	el programa ejecuta, elimina o cambia el nombre de un archivo, algo que el lector no puede hacer
+@msg	the program asks for a resource that isn't defined	el programa pide un recurso que no está definido
+@msg	a calculation has no result, as in a division by zero	un cálculo no tiene resultado, como en una división por cero
+@msg	the operator looks for a mark on the stack and finds none	el operador busca una marca en la pila y no encuentra ninguna
 @msg	a bitmap is empty	un mapa de bits está vacío
 @msg	a bitmap is too large to read	un mapa de bits es demasiado grande para leerlo
 @msg	a colour index is 0 to {_1}, not {n}	un índice de color va de 0 a {_1}, no {n}
@@ -3860,6 +3911,7 @@ axis	Both	Ambos
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	fondo {other}: transparent, white, black o un color como "#ff8800"
 @msg	bad color {v}	color no válido {v}
 @msg	the Color Picker is not open	el Selector de color no está abierto
+@msg	the Simplify slider is not open	el regulador de Simplificar no está abierto
 @msg	the screen color sampler is already open	el muestreador de color de la pantalla ya está abierto
 @msg	this system has no screen color sampler	este sistema no tiene muestreador de color de la pantalla
 @msg	bad colour `{hex}` (#rrggbb)	color no válido `{hex}` (#rrggbb)
@@ -4097,6 +4149,11 @@ axis	Both	Ambos
 @msg	select a linked image: an embedded one has no file	selecciona una imagen vinculada: una incrustada no tiene archivo
 @msg	select a repeat	selecciona una repetición
 @msg	select an Intertwine group	selecciona un grupo entrelazado
+@msg	select an Objects on Path group	selecciona un grupo de objetos en trazado
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	un trazado dentro de un trazado compuesto, una fusión, una envolvente, una repetición o un grupo entrelazado no puede recibir objetos
+@msg	a clipping path can't take objects	un trazado de recorte no puede recibir objetos
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	los objetos dentro de una fusión, una envolvente, una repetición o un grupo entrelazado no se pueden adjuntar a un trazado
+@msg	a clipping path can't be attached to a path	un trazado de recorte no se puede adjuntar a un trazado
 @msg	select a stroke with a variable width	selecciona un trazo con anchura variable
 @msg	select a symbol instance	selecciona una instancia de símbolo
 @msg	select an Image Trace object	selecciona un objeto de calco de imagen
@@ -4226,6 +4283,7 @@ axis	Both	Ambos
 @msg	{_1} files are written by file.saveAsTemplate	los archivos {_1} se escriben con file.saveAsTemplate
 @msg	{_1} font families available	{_1} familias de fuentes disponibles
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} es un efecto interactivo (Efecto › Plugins)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} es un plugin de exportación (Archivo › Exportar › Exportar como…)
 @msg	{_1} is already used by {_2}	{_1} ya lo usa {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	aquí no se pueden leer {_1} archivo(s) vinculado(s): se muestran sus previsualizaciones
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} imagen(es) vinculada(s) cambiaron en el disco: Actualizar vínculos muestra las versiones nuevas
@@ -5096,6 +5154,7 @@ mark-style	Japanese	Japonesas
 @msg	choose a destination folder	elija una carpeta de destino
 @msg	choose a source folder	elija una carpeta de origen
 @msg	open a document with data sets	abra un documento con conjuntos de datos
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	no se aplicó nada del conjunto de datos {name}: ningún objeto está vinculado a una variable para la que tenga un valor
 @msg	the action has no steps	la acción no tiene pasos
 
 # User Interface › Accent Color
@@ -5117,6 +5176,27 @@ mark-style	Japanese	Japonesas
 	Movie Clip	Clip de película
 @msg	name is empty	el nombre está vacío
 @msg	no symbol named `{n}`	no hay ningún símbolo llamado `{n}`
+	Smudge Stick…	Difuminar con barra…
+	Smudge Stick	Difuminar con barra
+	Sponge…	Esponja…
+	Sponge	Esponja
+	Watercolor…	Acuarela…
+	Watercolor	Acuarela
+	Brush Size	Tamaño del pincel
+	Definition	Definición
+	Brush Detail	Detalle del pincel
+	Shadow Intensity	Intensidad de sombras
+	Bas Relief…	Bajorrelieve…
+	Bas Relief	Bajorrelieve
+	Charcoal…	Carboncillo…
+	Charcoal	Carboncillo
+	Photocopy…	Fotocopia…
+	Photocopy	Fotocopia
+	Stamp…	Sello…
+	Stamp	Sello
+	Thickness	Grosor
+	Detail	Detalle
+	Light/Dark Balance	Equilibrio claro/oscuro
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	Editar original solo abre archivos de imagen y de documento; “{name}” no lo es
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	solo se abren en el navegador las URL http, https y mailto, no “{url}”
@@ -5156,3 +5236,23 @@ mark-style	Japanese	Japonesas
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	no se leyeron las variables ni los conjuntos de datos del archivo (variables: {variables}, conjuntos de datos: {data_sets}): el panel Variables no los muestra
 # Select by Color (select.color)
 	Select by Color	Seleccionar por color
+	Move Anchor Point	Mover punto de ancla
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} conserva 1 de las {n} mesas de trabajo del documento: el archivo se vuelve a abrir con una. Active Conservar capacidades de edición para conservarlas todas.
+	Chalk & Charcoal…	Tiza y carboncillo…
+	Chalk & Charcoal	Tiza y carboncillo
+	Graphic Pen…	Pluma gráfica…
+	Graphic Pen	Pluma gráfica
+	Reticulation…	Reticulación…
+	Reticulation	Reticulación
+	Plastic Wrap…	Envoltura plástica…
+	Plastic Wrap	Envoltura plástica
+	Chrome…	Cromo…
+	Chrome	Cromo
+	Drop here to take it out of its group	Suelta aquí para sacarlo de su grupo
+	Move Library Group	Mover grupo de biblioteca
+	Plaster…	Yeso…
+	Plaster	Yeso
+	Note Paper…	Papel con relieve…
+	Note Paper	Papel con relieve
+	Water Paper…	Papel mojado…
+	Water Paper	Papel mojado

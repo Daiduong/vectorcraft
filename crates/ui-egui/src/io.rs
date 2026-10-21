@@ -152,7 +152,9 @@ pub fn install_plugin(app: &mut VectorcraftApp, path: Option<String>) -> Result<
     let path = match path {
         Some(p) => p,
         None if app.services.open_async.is_some() => return open_dialog(app).map(|_| Value::Null),
-        None => pick_open(app, &FilePick { filters: vec![("Plug-ins", vectorcraft_engine::cmd::plugin::EXTS)], ..Default::default() })?,
+        None => {
+            pick_open(app, &FilePick { filters: vec![FilePick::filter("Plug-ins", vectorcraft_engine::cmd::plugin::EXTS)], ..Default::default() })?
+        }
     };
     let r = app.run("plugin.install", json!({ "path": path }))?;
     app.status(format!("Installed plug-in {}", r["name"].as_str().unwrap_or_default()));
@@ -165,7 +167,7 @@ pub fn open_dialog(app: &mut VectorcraftApp) -> Result<(), String> {
         f();
         return Ok(());
     }
-    let path = pick_open(app, &FilePick { filters: fileio::open_filters().collect(), ..Default::default() })?;
+    let path = pick_open(app, &FilePick { filters: FilePick::filters(fileio::open_filters()), ..Default::default() })?;
     open_reporting(app, &path).map(|_| ())
 }
 
@@ -264,7 +266,7 @@ pub fn new_from_template(app: &mut VectorcraftApp, path: Option<String>) -> Resu
         Some(p) => p,
         None if app.services.open_async.is_some() => return open_dialog(app).map(|_| Value::Null),
         None => {
-            let filters = std::iter::once(("Templates", TEMPLATE_EXTS)).chain(fileio::open_filters()).collect();
+            let filters = FilePick::filters(std::iter::once(("Templates", TEMPLATE_EXTS)).chain(fileio::open_filters()));
             pick_open(app, &FilePick { folder: fileio::templates_dialog_folder(&app.session.prefs), filters, ..Default::default() })?
         }
     };
@@ -367,12 +369,12 @@ const FILE_TYPES: &[(&str, &[&str])] = &[
 
 /// The file type a save panel shows for a file with extension `ext`: its format's, else its
 /// [`FILE_TYPES`] row; none for any other extension.
-fn file_types(ext: &str) -> Vec<(&'static str, &'static [&'static str])> {
+fn file_types(ext: &str) -> Vec<crate::FileFilter> {
     if let Some(f) = fileio::format(ext) {
-        return vec![(f.label, f.extensions)];
+        return vec![FilePick::filter(f.label, f.extensions)];
     }
     let ext = ext.trim_start_matches('.').to_ascii_lowercase();
-    FILE_TYPES.iter().find(|(_, exts)| exts.contains(&ext.as_str())).copied().into_iter().collect()
+    FilePick::filters(FILE_TYPES.iter().find(|(_, exts)| exts.contains(&ext.as_str())).copied())
 }
 
 /// `path`, else one picked in a save panel (the web: the suggested name) for the active document
@@ -440,8 +442,9 @@ fn plan(app: &VectorcraftApp, mode: SaveMode, p: &Value) -> Result<SavePlan, Str
 /// per template format for Save as Template) and the web opens the Save As dialog (file name and
 /// format). With `ask_options` and no options in `p`,
 /// a format picked that way that has options asks for them before anything is written (SVG
-/// Options, the Save PDF dialog, or the save options dialog: native and `.ai` files on Save As
-/// only), and so does Save As or Save a Copy to a given SVG path. → `{path, format, warnings…}` once written, or `{pending: <dialog kind>,
+/// Options, the Save PDF dialog, or the save options dialog: native files on Save As only, `.ai`
+/// files on Save As and Save a Copy), and so does Save As or Save a Copy to a given SVG path.
+/// → `{path, format, warnings…}` once written, or `{pending: <dialog kind>,
 /// path?}` while a dialog is open.
 pub fn save(app: &mut VectorcraftApp, mode: SaveMode, p: &Value, ask_options: bool) -> Result<Value, String> {
     remember_view(app);
@@ -460,10 +463,10 @@ pub fn save(app: &mut VectorcraftApp, mode: SaveMode, p: &Value, ask_options: bo
     if is_web(app) && ask_options {
         return Ok(open_options(app, mode.command(), first.format, &first.name, true));
     }
-    let filters = match mode {
+    let filters = FilePick::filters(match mode {
         SaveMode::Template => fileio::template_filters(first.format.id),
         _ => fileio::save_filters(first.format.id),
-    };
+    });
     let pick = FilePick { name: first.name.clone(), folder: first.folder.clone(), filters };
     let picked = pick_finished(app, &pick, |picked, file_type| with_picked_type(picked, &first.name, file_type, first.format, mode))?;
     // The picked file type wins over a `format` param.
@@ -524,12 +527,14 @@ fn ask_before_losing(app: &mut VectorcraftApp, path: &str, command: &str, params
 }
 
 /// Does a save (`mode`) to a picked file of format `f` ask for its options first? Native and `.ai`
-/// files only on Save As (the options dialog after the save panel); Save, a Copy and templates
-/// reuse the remembered options or Use Compression.
+/// files on Save As (the options dialog after the save panel), and `.ai` files also on Save a Copy,
+/// so the copy is not written in the version last saved whatever the panel's `.ai` type says
+/// (#3141); Save and templates reuse the remembered options or Use Compression.
 fn asks_options(mode: SaveMode, f: &Format) -> bool {
     !f.options.is_empty()
         && match f.id {
-            "vectorcraft" | "ai" => mode == SaveMode::SaveAs,
+            "vectorcraft" => mode == SaveMode::SaveAs,
+            "ai" => matches!(mode, SaveMode::SaveAs | SaveMode::Copy),
             "template" | "ait" => false,
             _ => true,
         }
@@ -722,9 +727,13 @@ pub fn export(app: &mut VectorcraftApp, format: Option<&str>, path: Option<Strin
         Some(z) if f.id == "svg" && z.id == "svgz" => z,
         _ => f,
     };
-    // Background Export: encoded and written from this snapshot while editing goes on.
+    // Background Export: encoded and written from this snapshot while editing goes on. The
+    // encoder is told the file it writes (an exporter plug-in gets its name and extension).
     let label = format!("Exporting {}", fileio::file_name(&path));
-    let (params, target) = (params.clone(), path.clone());
+    let (mut params, target) = (params.clone(), path.clone());
+    if let Some(o) = params.as_object_mut() {
+        o.insert("path".into(), json!(path));
+    }
     // The progress dialog's counts and Cancel: a cancelled export stops drawing and never starts
     // writing.
     let progress = Progress::new();

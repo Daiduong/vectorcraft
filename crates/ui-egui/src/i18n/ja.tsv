@@ -48,6 +48,9 @@
 	Japanese	日本語
 	Join Our Discord	Discord に参加
 	Line-end Punctuation Half Width	行末約物半角
+	Insert Kashidas	カシーダを挿入
+	Long	長い
+	Stylistic	スタイリスティック
 	Mojikumi Set	文字組み
 	Kinsoku Set	禁則処理
 	Hard	強い禁則
@@ -73,6 +76,7 @@
 	Quit VectorCraft	VectorCraft を終了
 	File	ファイル
 	New…	新規…
+	New Without Dialog	ダイアログなしで新規
 	New from Template…	テンプレートから新規…
 	Open…	開く…
 	Open Recent Files	最近使用したファイルを開く
@@ -235,8 +239,8 @@
 	Blend	ブレンド
 	Blend Options…	ブレンドオプション…
 	Expand	拡張
-	Replace Spine	ブレンド軸を置き換え
-	Reverse Spine	ブレンド軸を反転
+	Replace Spine	スパインを置き換え
+	Reverse Spine	スパインを反転
 	Reverse Front to Back	前後を反転
 	Envelope Distort	エンベロープ
 	Make with Warp…	ワープで作成…
@@ -262,6 +266,10 @@
 	Large Gaps	大きい間隔
 	Gap Preview Color:	間隔のプレビューカラー:
 	Close Gaps With Paths	パスで間隔を閉じる
+	Show Live Paint Gaps	ライブペイントの間隔を表示
+	Hide Live Paint Gaps	ライブペイントの間隔を隠す
+	Select Fills	塗りを選択
+	Select Strokes	線を選択
 	Image Trace	画像トレース
 	Image Tracing	画像トレースオブジェクト
 	Tracing Presets	トレースプリセット
@@ -287,6 +295,7 @@
 	Plug-ins	プラグイン
 	No filter plug-ins installed	フィルタープラグインはインストールされていません
 	Install Plug-in…	プラグインをインストール…
+	Open this setting's help page	この設定のヘルプページを開く
 	Reload Plug-ins	プラグインを再読み込み
 	Type	書式
 	Font	フォント
@@ -738,7 +747,8 @@
 	 from center  |  	：中心から描画  |  
 	 keeps its proportions)	：縦横比を固定）
 	 near a selected pin to rotate  |  	：選択したピンの近くで回転  |  
-	 on the canvas to create one	：アートボードを作成
+	 on the canvas to create one (	：アートボードを作成（
+	 selects several, or draws one inside an artboard)	：複数を選択、またはアートボード内に作成）
 	 over paths to roughen their outlines  |  	：パスの輪郭を粗くする  |  
 	 over paths, and hold still to keep going  |  	：パス上で押し続けると効果が続く  |  
 	 the art to add a pin  |  	：アートにピンを追加  |  
@@ -1478,8 +1488,17 @@
 	Fill Rule	塗りのルール
 	Fill and Stroke	塗りと線
 	Fill new strokes	新しいストロークに塗りを適用
+	Alt key toggles to Smooth Tool	Alt キーでスムーズツールに切り替え
 	Keep selected	選択を保持
 	Merge only with selection	選択範囲とのみ結合
+	Consider Open Filled Paths as Closed	塗りのある開いたパスを閉じたパスとみなす
+	Pick Color From:	色の取得元:
+	Artwork	アートワーク
+	Cursor Swatch Preview	ポインター横のスウォッチプレビュー
+	Selection:	選択方法:
+	Freeform	自由形状
+	Straight Line	直線
+	Highlight:	強調表示:
 	Fill:	塗り:
 	Find	検索
 	Find Font	フォントを検索
@@ -1660,6 +1679,12 @@
 	Release Envelope	エンベロープを解除
 	Release Image Trace	画像トレースを解除
 	Release Intertwine	織り交ぜを解除
+	Objects on Path	パス上のオブジェクト
+	Attach	アタッチ
+	Objects on Path Options	パス上のオブジェクトオプション
+	Objects on Path Tool	パス上のオブジェクトツール
+	Attach Objects on Path	パス上のオブジェクトをアタッチ
+	Expand Objects on Path	パス上のオブジェクトを拡張
 	Release Live Paint	ライブペイントを解除
 	Release Repeat	リピートを解除
 	Release Slice	スライスを解除
@@ -1911,6 +1936,7 @@
 	Load Text into Clipboard	テキストをクリップボードに読み込む
 	Local Libraries	ローカルライブラリ
 	Locate Object	オブジェクトを検索
+	Locate Selected Objects	選択したオブジェクトを検索
 	Location	場所
 	Location:	位置:
 	Lock (⌘2)	ロック (⌘2)
@@ -2235,6 +2261,7 @@
 	Output condition:	出力条件:
 	Output intent profile:	出力インテントプロファイル:
 	Output:	出力:
+	Overlap	重なり
 	Overlap:	重なり:
 	Overlapping	重なり
 	Overlay	オーバーレイ
@@ -2756,6 +2783,8 @@ mark-style	Japanese	日本式
 	Show Note	メモを表示
 	Show Options	オプションを表示
 	Show Original Path	元のパスを表示
+	Open this dialog with these settings next time	次回はこの設定でこのダイアログを開く
+	Auto-Simplify	自動単純化
 	Color Panel Options	カラーパネルオプション
 	Show Package	パッケージを表示
 	Show Panel	パネルを表示
@@ -2821,6 +2850,7 @@ mark-style	Japanese	日本式
 	Source Image	元画像
 	Image Trace View	画像トレースの表示
 	Snap Options	スナップオプション
+	Snap to Unit	単位にスナップ
 	Snapping Tolerance	スナップ許容値
 	Soft Light	ソフトライト
 	Solid	実線
@@ -2903,7 +2933,7 @@ mark-style	Japanese	日本式
 	Delete Library Item	ライブラリ項目を削除
 	No results	結果はありません
 	No items in this library match “{query}”.	このライブラリには「{query}」に一致する項目がありません。
-	Right-click an item to move it into this group.	項目を右クリックすると、このグループに移動できます。
+	Drag an item here, or right-click one, to put it in this group.	項目をここにドラッグするか、項目を右クリックすると、このグループに入れられます。
 	New Group	新規グループ
 	New Group…	新規グループ…
 	Move to Group	グループに移動
@@ -2946,6 +2976,7 @@ mark-style	Japanese	日本式
 	Text Import Options	テキスト読み込みオプション
 	The Print Tiling tool placed the pages.	プリント分割ツールでページが配置されています。
 	The bounds of the visible art.	表示されているアートの範囲。
+	The plug-in writes the whole document.	プラグインがドキュメント全体を書き出します。
 	The cell shows the type object's text as HTML.	セルには文字オブジェクトのテキストが HTML として表示されます。
 	The document has no colour swatches.	ドキュメントにカラースウォッチがありません。
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	プリンターが印刷できない用紙の端の部分です。アートはこの内側に配置され、プレビューでは破線で表示されます。
@@ -3209,6 +3240,7 @@ gradient-kind	Radial	円形
 	Black and White Logo	白黒ロゴ
 	Bottom	下
 	Bottom in Front	下が前面
+	Bottom-Justified Tab	下揃えタブ
 	Bounds	境界
 	Bounds (Fill Proportionally)	境界 (縦横比を保って全体を覆う)
 	Bounds (Fit Proportionally)	境界 (縦横比を保って収める)
@@ -3533,6 +3565,7 @@ file-filter	Templates	テンプレート
 	Tip on the end point	先端をパスの端点に合わせる
 	Top	上
 	Top in Front	上が前面
+	Top-Justified Tab	上揃えタブ
 	Transforms	変形
 	Transparent (Default)	透明 (デフォルト)
 	Trim marks	トリムマーク
@@ -3965,7 +3998,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	{path}: not a file	{path}: ファイルではありません
 @msg	{path}: {e}	{path}: {e}
 @msg	can't write .{ext} images	.{ext} 画像は書き出せません
-@msg	Replace Spine: select a blend and a path	ブレンド軸を置き換え: ブレンドとパスを選択してください
+@msg	Replace Spine: select a blend and a path	スパインを置き換え: ブレンドとパスを選択してください
 @msg	nothing to wrap	まとめるものがありません
 @msg	select a blend	ブレンドを選択してください
 @msg	select a blend or give `id`	ブレンドを選択するか、`id` を指定してください
@@ -4019,6 +4052,11 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	pattern missing	パターンが見つかりません
 @msg	select a repeat	リピートを選択してください
 @msg	select an Intertwine group	織り交ぜグループを選択してください
+@msg	select an Objects on Path group	パス上のオブジェクトグループを選択してください
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	複合パス、ブレンド、エンベロープ、リピートまたは織り交ぜグループ内のパスにはオブジェクトをアタッチできません
+@msg	a clipping path can't take objects	クリッピングパスにはオブジェクトをアタッチできません
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	ブレンド、エンベロープ、リピートまたは織り交ぜグループ内のオブジェクトはパスにアタッチできません
+@msg	a clipping path can't be attached to a path	クリッピングパスはパスにアタッチできません
 @msg	select the art to repeat	リピートするアートを選択してください
 @msg	the document has no patterns	ドキュメントにパターンがありません
 @msg	no artboard	アートボードがありません
@@ -4115,6 +4153,25 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	a PostScript error ({name} in `{op}`: {at})	PostScript エラー (`{op}` での {name}: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	{procs} 内の PostScript エラー (`{op}` での {name}: {at})
 @msg	a PostScript error ({name})	PostScript エラー ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	PostScript エラー (`{op}` での {name}、{meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	{procs} 内の PostScript エラー (`{op}` での {name}、{meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	PostScript エラー (`{op}` での {name}: {at}、{meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	{procs} 内の PostScript エラー (`{op}` での {name}: {at}、{meaning})
+@msg	a PostScript error ({name}; {meaning})	PostScript エラー ({name}、{meaning})
+@msg	the program ends a dictionary it didn't begin	プログラムが、開始していない辞書を終了しようとしています
+@msg	the program opens a file, which the reader can't do	プログラムがファイルを開こうとしていますが、PostScript 読み込み機能はファイルを開けません
+@msg	the program restores a saved state that was already restored	プログラムが、すでに復元された保存状態を復元しようとしています
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	プログラムが読み込むデータが壊れているか途中で切れているか、プログラムが位置を持たないファイルの位置を求めています
+@msg	the program goes past one of the reader's limits	プログラムが PostScript 読み込み機能の制限を超えています
+@msg	the path has no point to continue from	パスに続きを描く起点がありません
+@msg	a value is outside the range the operator takes	値がオペレーターの受け付ける範囲外です
+@msg	the operator needs more values than the stack holds	オペレーターに必要な値がスタックに足りません
+@msg	part of the program isn't valid PostScript text	プログラムの一部が有効な PostScript テキストではありません
+@msg	a value has the wrong type for the operator	値の型がオペレーターに合っていません
+@msg	the program runs, deletes or renames a file, which the reader can't do	プログラムがファイルの実行、削除、名前の変更をしようとしていますが、PostScript 読み込み機能はこれを行えません
+@msg	the program asks for a resource that isn't defined	プログラムが定義されていないリソースを要求しています
+@msg	a calculation has no result, as in a division by zero	ゼロによる除算などで、計算の結果が得られません
+@msg	the operator looks for a mark on the stack and finds none	オペレーターがスタック上のマークを探しましたが、見つかりません
 @msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	VectorCraft の PostScript 読み込み機能が対応していない `{at}` を使用しています
 @msg	the file was read up to an error ({why}): what follows it was left out	ファイルはエラーが発生した箇所まで読み込まれました ({why}): それ以降の内容は除外されました
 @msg	this file's PostScript couldn't be read ({why}): {what}	このファイルの PostScript を読み込めませんでした ({why}): {what}
@@ -4213,6 +4270,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	no blend options	ブレンドオプションがありません
 @msg	bad color {v}	カラー {v} が正しくありません
 @msg	the Color Picker is not open	カラーピッカーが開いていません
+@msg	the Simplify slider is not open	単純化スライダーが開いていません
 @msg	the screen color sampler is already open	画面のカラーサンプラーはすでに開いています
 @msg	this system has no screen color sampler	このシステムには画面のカラーサンプラーがありません
 @msg	Corners edits the corners of a path	「コーナー」で編集できるのはパスの角だけです
@@ -4255,6 +4313,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	missing `id` (see plugin.list)	`id` が指定されていません (plugin.list を参照)
 @msg	no plug-in {id} is installed	プラグイン {id} はインストールされていません
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} はライブ効果です (「効果 › プラグイン」から使用してください)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} は書き出しプラグインです (「ファイル › 書き出し › 形式を指定して書き出し…」から使用してください)
 @msg	a preset named `{_1}` exists	`{_1}` という名前のプリセットはすでに存在します
 @msg	a swatch or color group named `{n}` exists	`{n}` という名前のスウォッチまたはカラーグループはすでに存在します
 @msg	no print preset named `{base}`	`{base}` という名前のプリントプリセットが見つかりません
@@ -4806,6 +4865,7 @@ lighting	Light	ライト
 @msg	choose a destination folder	出力先フォルダーを選択してください
 @msg	choose a source folder	ソースフォルダーを選択してください
 @msg	open a document with data sets	データセットのあるドキュメントを開いてください
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	データセット {name} から何も適用されませんでした: 値のある変数にバインドされたオブジェクトがありません
 @msg	the action has no steps	アクションにステップがありません
 
 # User Interface › Accent Color
@@ -4828,6 +4888,27 @@ lighting	Light	ライト
 	Movie Clip	ムービークリップ
 @msg	name is empty	名前が空です
 @msg	no symbol named `{n}`	`{n}` という名前のシンボルはありません
+	Smudge Stick…	スマッジスティック…
+	Smudge Stick	スマッジスティック
+	Sponge…	スポンジ…
+	Sponge	スポンジ
+	Watercolor…	水彩…
+	Watercolor	水彩
+	Brush Size	ブラシサイズ
+	Definition	精細度
+	Brush Detail	ブラシの細かさ
+	Shadow Intensity	シャドウの強さ
+	Bas Relief…	レリーフ…
+	Bas Relief	レリーフ
+	Charcoal…	木炭…
+	Charcoal	木炭
+	Photocopy…	コピー…
+	Photocopy	コピー
+	Stamp…	スタンプ…
+	Stamp	スタンプ
+	Thickness	太さ
+	Detail	ディテール
+	Light/Dark Balance	明暗のバランス
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	「オリジナルを編集」で開けるのは画像ファイルとドキュメントファイルだけです: 「{name}」はどちらでもありません
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	ブラウザーで開けるのは http、https、mailto の URL だけです: 「{url}」は開けません
@@ -4868,3 +4949,23 @@ lighting	Light	ライト
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	ファイルの変数とデータセットは読み込まれませんでした (変数: {variables}、データセット: {data_sets})。変数パネルには表示されません
 # Select by Color (select.color)
 	Select by Color	カラーで選択
+	Move Anchor Point	アンカーポイントを移動
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} ではドキュメントの {n} 個のアートボードのうち 1 個だけが保持され、ファイルは 1 個で開き直されます。すべて保持するには「編集機能を保持」をオンにしてください。
+	Chalk & Charcoal…	チョーク・木炭画…
+	Chalk & Charcoal	チョーク・木炭画
+	Graphic Pen…	グラフィックペン…
+	Graphic Pen	グラフィックペン
+	Reticulation…	網目…
+	Reticulation	網目
+	Plastic Wrap…	ラップ…
+	Plastic Wrap	ラップ
+	Chrome…	クロム…
+	Chrome	クロム
+	Drop here to take it out of its group	ここにドロップするとグループから外れます
+	Move Library Group	ライブラリグループを移動
+	Plaster…	石膏…
+	Plaster	石膏
+	Note Paper…	ノート用紙…
+	Note Paper	ノート用紙
+	Water Paper…	ぬれた紙…
+	Water Paper	ぬれた紙

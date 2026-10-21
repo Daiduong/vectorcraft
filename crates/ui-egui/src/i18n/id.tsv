@@ -22,6 +22,7 @@
 	Quit VectorCraft	Keluar dari VectorCraft
 	File	Berkas
 	New…	Baru…
+	New Without Dialog	Baru tanpa dialog
 	New from Template…	Baru dari templat…
 	Open…	Buka…
 	Open Recent Files	Buka berkas terbaru
@@ -269,6 +270,7 @@
 	Plug-ins	Plug-in
 	No filter plug-ins installed	Tidak ada plug-in filter yang terinstal
 	Install Plug-in…	Instal plug-in…
+	Open this setting's help page	Buka halaman bantuan pengaturan ini
 	Reload Plug-ins	Muat ulang plug-in
 	Type	Teks
 	Font	Font
@@ -1055,7 +1057,8 @@ lighting	Light	Cahaya
 	 to sample a color	 untuk mengambil sampel warna
 	 across a selected object to set the gradient direction	 melintasi objek terpilih untuk mengatur arah gradien
 	 to select an artboard  |  	 untuk memilih artboard  |  
-	 on the canvas to create one	 di kanvas untuk membuatnya
+	 on the canvas to create one (	 di kanvas untuk membuatnya (
+	 selects several, or draws one inside an artboard)	 memilih beberapa, atau membuat satu di dalam artboard)
 	 a stroke to add a width point  |  	 stroke untuk menambah titik lebar  |  
 	 to change one side  |  	 untuk mengubah satu sisi  |  
 	 to select more points  |  	 untuk memilih lebih banyak titik  |  
@@ -1489,7 +1492,7 @@ lighting	Light	Cahaya
 	This library is empty	Pustaka ini kosong
 	No results	Tidak ada hasil
 	No items in this library match “{query}”.	Tidak ada item di pustaka ini yang cocok dengan “{query}”.
-	Right-click an item to move it into this group.	Klik kanan item untuk memindahkannya ke grup ini.
+	Drag an item here, or right-click one, to put it in this group.	Seret item ke sini, atau klik kanan item, untuk memasukkannya ke grup ini.
 	New Group	Grup baru
 	New Group…	Grup baru…
 	Move to Group	Pindahkan ke grup
@@ -1571,6 +1574,9 @@ lighting	Light	Cahaya
 	Left Indent	Indentasi kiri
 	Left-to-Right Paragraph Direction	Arah paragraf kiri ke kanan
 	Line-end Punctuation Half Width	Tanda baca akhir baris lebar setengah
+	Insert Kashidas	Sisipkan kashida
+	Long	Panjang
+	Stylistic	Stilistik
 	Mojikumi Set	Set Mojikumi
 	Kinsoku Set	Set Kinsoku
 	Hard	Keras
@@ -1607,6 +1613,7 @@ lighting	Light	Cahaya
 	Left in Front	Kiri di depan
 	No document	Tidak ada dokumen
 	Open a document to edit its patterns.	Buka dokumen untuk mengedit polanya.
+	Overlap	Tumpang tindih
 	Overlap:	Tumpang tindih:
 	Pattern options are available in pattern editing mode.	Opsi pola tersedia dalam mode pengeditan pola.
 	Right in Front	Kanan di depan
@@ -1721,6 +1728,7 @@ lighting	Light	Cahaya
 	Select art and click New Symbol to make one.	Pilih karya seni dan klik Simbol Baru untuk membuatnya.
 	Symbol Libraries (on the roadmap)	Pustaka simbol (ada di peta jalan)
 	Align On:	Ratakan pada:
+	Bottom-Justified Tab	Tab rata bawah
 	Center-Justified Tab	Tab rata tengah
 	Above Text	Di atas teks
 	Position Panel Above Text	Posisikan panel di atas teks
@@ -1732,8 +1740,10 @@ lighting	Light	Cahaya
 	No text selected	Tidak ada teks yang dipilih
 	Repeat Tab	Ulangi tab
 	Right-Justified Tab	Tab rata kanan
+	Top-Justified Tab	Tab rata atas
 	Select a text object to set its tab stops.	Pilih objek teks untuk mengatur tab stop-nya.
 	Select text	Pilih teks
+	Snap to Unit	Snap ke satuan
 	+ Add Scale	+ Tambah skala
 	Add Selected Artwork as One Asset	Tambahkan karya seni terpilih sebagai satu aset
 	Export Settings	Pengaturan ekspor
@@ -1978,6 +1988,7 @@ lighting	Light	Cahaya
 	One file per artboard: <name>-<artboard>.{ext}	Satu file per artboard: <name>-<artboard>.{ext}
 	One page per artboard.	Satu halaman per artboard.
 	The bounds of the visible art.	Batas karya seni yang terlihat.
+	The plug-in writes the whole document.	Plug-in mengekspor seluruh dokumen.
 	Use Artboards	Gunakan artboard
 	Choose a folder	Pilih folder
 	Create Sub-folders	Buat subfolder
@@ -2063,6 +2074,7 @@ lighting	Light	Cahaya
 	Edit selected paths within:	Edit jalur terpilih dalam jarak:
 	Fidelity:	Fidelitas:
 	Fill new strokes	Isi stroke baru
+	Alt key toggles to Smooth Tool	Tombol Alt beralih ke Alat penghalus
 	The document has no colour swatches.	Dokumen tidak memiliki swatch warna.
 	Style Name:	Nama gaya:
 	Crop To	Pangkas ke
@@ -2080,6 +2092,7 @@ lighting	Light	Cahaya
 	Layers Panel Options	Opsi panel lapisan
 	Row Size:	Ukuran baris:
 	Show Layers Only	Tampilkan lapisan saja
+	Locate Selected Objects	Temukan objek terpilih
 	Thumbnails:	Miniatur:
 	Anchor Points	Titik jangkar
 	Brush Affects:	Kuas memengaruhi:
@@ -3879,6 +3892,25 @@ imageTrace	Outline	Kontur
 @msg	a PostScript error ({name} in `{op}`: {at})	kesalahan PostScript ({name} dalam `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	kesalahan PostScript ({name} dalam `{op}`: {at}), dalam {procs}
 @msg	a PostScript error ({name})	kesalahan PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	kesalahan PostScript ({name} dalam `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	kesalahan PostScript ({name} dalam `{op}`; {meaning}), dalam {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	kesalahan PostScript ({name} dalam `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	kesalahan PostScript ({name} dalam `{op}`: {at}; {meaning}), dalam {procs}
+@msg	a PostScript error ({name}; {meaning})	kesalahan PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	program mengakhiri kamus yang tidak dimulainya
+@msg	the program opens a file, which the reader can't do	program membuka berkas, yang tidak dapat dilakukan pembaca PostScript
+@msg	the program restores a saved state that was already restored	program memulihkan keadaan tersimpan yang sudah dipulihkan
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	data yang dibaca program rusak atau terpotong, atau program meminta posisi dalam berkas yang tidak memiliki posisi
+@msg	the program goes past one of the reader's limits	program melewati salah satu batas pembaca PostScript
+@msg	the path has no point to continue from	jalur tidak memiliki titik untuk dilanjutkan
+@msg	a value is outside the range the operator takes	sebuah nilai berada di luar rentang yang diterima operator
+@msg	the operator needs more values than the stack holds	operator memerlukan lebih banyak nilai daripada yang ada di tumpukan
+@msg	part of the program isn't valid PostScript text	sebagian program bukan teks PostScript yang valid
+@msg	a value has the wrong type for the operator	sebuah nilai memiliki tipe yang salah untuk operator
+@msg	the program runs, deletes or renames a file, which the reader can't do	program menjalankan, menghapus, atau mengganti nama berkas, yang tidak dapat dilakukan pembaca PostScript
+@msg	the program asks for a resource that isn't defined	program meminta sumber daya yang tidak didefinisikan
+@msg	a calculation has no result, as in a division by zero	sebuah perhitungan tidak memiliki hasil, seperti pada pembagian dengan nol
+@msg	the operator looks for a mark on the stack and finds none	operator mencari penanda di tumpukan dan tidak menemukannya
 @msg	a bitmap is empty	bitmap kosong
 @msg	a bitmap is too large to read	bitmap terlalu besar untuk dibaca
 @msg	a colour index is 0 to {_1}, not {n}	indeks warna 0 hingga {_1}, bukan {n}
@@ -5049,10 +5081,19 @@ swatch	Bright Violet	Violet cerah
 	Outline Object	Kerangka objek
 	Update Selection	Perbarui seleksi
 	Show Original Path	Tampilkan jalur asli
+	Open this dialog with these settings next time	Buka dialog ini dengan pengaturan ini lain kali
+	Auto-Simplify	Sederhanakan otomatis
 @msg	check a layer to export	centang lapisan yang akan diekspor
 @msg	select the art to export first	pilih dulu karya yang akan diekspor
 @msg	no saved selection recalled	tidak ada seleksi tersimpan yang dipanggil
 	Merge only with selection	Gabungkan hanya dengan seleksi
+	Consider Open Filled Paths as Closed	Anggap jalur terbuka yang terisi sebagai tertutup
+	Pick Color From:	Ambil warna dari:
+	Artwork	Karya seni
+	Cursor Swatch Preview	Pratinjau swatch di kursor
+	Selection:	Seleksi:
+	Straight Line	Garis lurus
+	Highlight:	Sorotan:
 	Sketch	Sketsa
 	Halftone Pattern…	Pola halftone…
 	Halftone Pattern	Pola halftone
@@ -5074,6 +5115,8 @@ swatch	Bright Violet	Violet cerah
 	Chop Design	Potong desain
 	Clear Events	Hapus peristiwa
 	Close Gaps With Paths	Tutup celah dengan jalur
+	Select Fills	Pilih isian
+	Select Strokes	Pilih stroke
 	Column Type:	Jenis kolom:
 	Each Design Represents:	Setiap desain mewakili:
 	Event:	Peristiwa:
@@ -5082,6 +5125,8 @@ swatch	Bright Violet	Violet cerah
 	Gap Detection	Deteksi celah
 	Gap Options	Opsi celah
 	Gap Preview Color:	Warna pratinjau celah:
+	Show Live Paint Gaps	Tampilkan celah Live Paint
+	Hide Live Paint Gaps	Sembunyikan celah Live Paint
 	Graph Column	Kolom grafik
 	JavaScript Files	File JavaScript
 	JavaScript:	JavaScript:
@@ -5151,6 +5196,12 @@ swatch	Bright Violet	Violet cerah
 	Release Blend	Lepaskan blend
 	Release Envelope	Lepaskan amplop
 	Release Intertwine	Lepaskan jalinan
+	Objects on Path	Objek pada jalur
+	Attach	Tempelkan
+	Objects on Path Options	Opsi objek pada jalur
+	Objects on Path Tool	Alat objek pada jalur
+	Attach Objects on Path	Tempelkan objek pada jalur
+	Expand Objects on Path	Perluas objek pada jalur
 	Release Live Paint	Lepaskan Live Paint
 	Release Repeat	Lepaskan perulangan
 	Release Slice	Lepaskan slice
@@ -5197,3 +5248,43 @@ swatch	Bright Violet	Violet cerah
 	Justification	Justifikasi
 # Select by Color (select.color)
 	Select by Color	Pilih berdasarkan warna
+	Smudge Stick…	Tongkat olesan…
+	Smudge Stick	Tongkat olesan
+	Sponge…	Spons…
+	Sponge	Spons
+	Watercolor…	Cat air…
+	Watercolor	Cat air
+	Brush Size	Ukuran kuas
+	Definition	Definisi
+	Brush Detail	Detail kuas
+	Shadow Intensity	Intensitas bayangan
+	Bas Relief…	Relief dangkal…
+	Bas Relief	Relief dangkal
+	Charcoal…	Arang…
+	Charcoal	Arang
+	Photocopy…	Fotokopi…
+	Photocopy	Fotokopi
+	Stamp…	Stempel…
+	Stamp	Stempel
+	Thickness	Ketebalan
+	Detail	Detail
+	Light/Dark Balance	Keseimbangan terang/gelap
+	Move Anchor Point	Pindahkan titik jangkar
+	Chalk & Charcoal…	Kapur dan arang…
+	Chalk & Charcoal	Kapur dan arang
+	Graphic Pen…	Pena grafis…
+	Graphic Pen	Pena grafis
+	Reticulation…	Retikulasi…
+	Reticulation	Retikulasi
+	Plastic Wrap…	Pembungkus plastik…
+	Plastic Wrap	Pembungkus plastik
+	Chrome…	Krom…
+	Chrome	Krom
+	Drop here to take it out of its group	Lepaskan di sini untuk mengeluarkannya dari grupnya
+	Move Library Group	Pindahkan grup pustaka
+	Plaster…	Plester…
+	Plaster	Plester
+	Note Paper…	Kertas Catatan…
+	Note Paper	Kertas Catatan
+	Water Paper…	Kertas Basah…
+	Water Paper	Kertas Basah

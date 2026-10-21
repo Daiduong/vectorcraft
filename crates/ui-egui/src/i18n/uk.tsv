@@ -301,6 +301,7 @@
 	Blur	Розмиття
 	Bottom	Внизу
 	Bottom in Front	Нижній спереду
+	Bottom-Justified Tab	Табуляція з вирівнюванням по нижньому краю
 	Bottom:	Внизу:
 	Bounds	Межі
 	Bounds (Fill Proportionally)	Межі (заповнювати пропорційно)
@@ -1072,8 +1073,17 @@
 	Fill (X), double-click for the Color Picker	Заливка (X), двічі клацніть на палітрі кольорів
 	Fill and Stroke	Заливка та обведення
 	Fill new strokes	Заповнювати нові обведення
+	Alt key toggles to Smooth Tool	Клавіша Alt перемикає на інструмент «Згладжування»
 	Keep selected	Залишати вибраним
 	Merge only with selection	Об’єднувати лише з виділеним
+	Consider Open Filled Paths as Closed	Вважати відкриті контури із заливкою замкненими
+	Pick Color From:	Джерело кольору:
+	Artwork	Графіка
+	Cursor Swatch Preview	Зразки біля вказівника
+	Selection:	Виділення:
+	Freeform	Довільно
+	Straight Line	Пряма лінія
+	Highlight:	Підсвічування:
 	Fill Color	Колір заливки
 	Fill New Type Objects With Placeholder Text	Заповнювати нові текстові об’єкти текстом-заповнювачем
 	Fill Rule	Правило заливки
@@ -1202,6 +1212,10 @@ file-filter	Templates	Шаблони
 	Large Gaps	Великі проміжки
 	Gap Preview Color:	Колір перегляду проміжків:
 	Close Gaps With Paths	Закрити проміжки контурами
+	Show Live Paint Gaps	Показати проміжки швидкої заливки
+	Hide Live Paint Gaps	Приховати проміжки швидкої заливки
+	Select Fills	Виділяти заливки
+	Select Strokes	Виділяти обведення
 	Gaussian Blur…	Розмиття за Гауссом…
 	General	Загальні
 	General › Placement › X	Загальні › Розміщення › X
@@ -1409,6 +1423,12 @@ file-filter	Templates	Шаблони
 	Release Envelope	Звільнити оболонку
 	Release Image Trace	Звільнити трасування зображення
 	Release Intertwine	Звільнити переплетення
+	Objects on Path	Об’єкти на контурі
+	Attach	Прикріпити
+	Objects on Path Options	Параметри об’єктів на контурі
+	Objects on Path Tool	Інструмент «Об’єкти на контурі»
+	Attach Objects on Path	Прикріпити об’єкти до контуру
+	Expand Objects on Path	Розібрати об’єкти на контурі
 	Release Live Paint	Звільнити швидку заливку
 	Release Repeat	Звільнити повтор
 	Release Slice	Звільнити фрагмент
@@ -1529,6 +1549,7 @@ file-filter	Templates	Шаблони
 	Inspect Object	Перевірити об’єкт
 	Install Plug-in	Встановити модуль
 	Install Plug-in…	Встановити модуль…
+	Open this setting's help page	Відкрити сторінку довідки для цього параметра
 	Installed plug-in {}	Встановлено модуль {}
 	Intensity:	Інтенсивність:
 	Intent:	Призначення:
@@ -1733,6 +1754,7 @@ file-filter	Templates	Шаблони
 	Load Text into Clipboard	Завантажити текст у буфер обміну
 	Local Libraries	Локальні бібліотеки
 	Locate Object	Знайти об’єкт
+	Locate Selected Objects	Знаходити виділені об’єкти
 	Location	Розташування
 	Location:	Розташування:
 	Lock	Заблокувати
@@ -1836,6 +1858,9 @@ file-filter	Templates	Шаблони
 	Modified:	Змінено:
 	Modify	Змінити
 	Mojikumi	Mojikumi
+	Insert Kashidas	Вставляти кашиди
+	Long	Довгі
+	Stylistic	Стилістичні
 	Mojikumi Set	Набір mojikumi
 	Kinsoku Set	Набір kinsoku
 	Hard	Суворий
@@ -1975,6 +2000,7 @@ file-filter	Templates	Шаблони
 	New View	Новий вигляд
 	New View…	Новий вигляд…
 	New Window	Нове вікно
+	New Without Dialog	Створити без діалогового вікна
 	New Workspace	Нове робоче середовище
 	New Workspace…	Нове робоче середовище…
 	New {kind} Style…	Новий стиль {kind}…
@@ -2163,6 +2189,7 @@ file-filter	Templates	Шаблони
 	Output White	Вихідний білий
 	Output › Mode	Виведення › Режим
 	Output:	Виведення:
+	Overlap	Перекриття
 	Overlap:	Перекриття:
 	Overlapping	Перекривається
 	Overlay	Накладання
@@ -2566,7 +2593,7 @@ mark-style	Japanese	Японський
 	Replace	Замінити
 	Replace Font	Замінити шрифт
 	Replace it with another file, or ignore it: its images keep showing the preview saved with the document.	Замініть його іншим файлом або ігноруйте: зображення продовжать показувати попередній перегляд, збережений з документом.
-	Replace Spine	Замінити кістяк
+	Replace Spine	Замінити вісь
 	Replace Symbol	Замінити символ
 	Replace With Font	Замінити шрифтом
 	Replaces the saved preset of that name.	Замінює збережений набір із таким ім’ям.
@@ -2940,6 +2967,8 @@ mark-style	Japanese	Японський
 	Show Note	Показати примітку
 	Show Options	Показати параметри
 	Show Original Path	Показати початковий контур
+	Open this dialog with these settings next time	Наступного разу відкривати це діалогове вікно з цими параметрами
+	Auto-Simplify	Автоматичне спрощення
 	Color Panel Options	Параметри панелі «Колір»
 	Show Package	Показати пакет
 	Show Panel	Показати панель
@@ -3037,6 +3066,7 @@ effect	Points	Точки
 	Snap to Pixel	Прив’язати до пікселя
 	Precise Cursors	Точні курсори
 	Snap to Point	Прив’язати до точки
+	Snap to Unit	Прив’язати до одиниць
 	Snapping Tolerance	Допуск прив’язки
 	Social Square Post 1080×1080	Квадратний пост для соцмереж 1080×1080
 	Soft Light	М’яке світло
@@ -3164,7 +3194,7 @@ effect	Points	Точки
 	Delete Library Item	Видалити елемент бібліотеки
 	No results	Нічого не знайдено
 	No items in this library match “{query}”.	У цій бібліотеці немає елементів, що відповідають «{query}».
-	Right-click an item to move it into this group.	Клацніть елемент правою кнопкою миші, щоб перемістити його в цю групу.
+	Drag an item here, or right-click one, to put it in this group.	Перетягніть сюди елемент або клацніть його правою кнопкою миші, щоб покласти його в цю групу.
 	New Group	Нова група
 	New Group…	Нова група…
 	Move to Group	Перемістити в групу
@@ -3224,6 +3254,7 @@ effect	Points	Точки
 	Text Wrap Options	Параметри обтікання текстом
 	Text Wrap Options…	Параметри обтікання текстом…
 	The bounds of the visible art.	Кордони видимого малюнка.
+	The plug-in writes the whole document.	Модуль експортує весь документ.
 	The cell shows the type object's text as HTML.	Осередок показує текст текстового об’єкта як HTML.
 	The document has no colour swatches.	У документі немає кольорових зразків.
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	Край паперу, до якого не приходить принтер: малюнок залишається всередині нього, а перегляд показує його пунктиром.
@@ -3279,6 +3310,7 @@ effect	Points	Точки
 	Tools	Інструменти
 	Top	Вгорі
 	Top in Front	Верхній спереду
+	Top-Justified Tab	Табуляція з вирівнюванням по верхньому краю
 	Top:	Вгорі:
 	Total Width:	Загальна ширина:
 	Touch Type	Налаштування тексту
@@ -3618,7 +3650,8 @@ imageTrace	Outline	Контур
 	 to sample a color	 для взяття зразка кольору
 	 across a selected object to set the gradient direction	 по виділеному об’єкту, щоб задати напрям градієнта
 	 to select an artboard  |  	 для вибору монтажної області  |  
-	 on the canvas to create one	 на полотні для створення однієї
+	 on the canvas to create one (	 на полотні для створення однієї (
+	 selects several, or draws one inside an artboard)	 вибирає кілька або створює нову всередині монтажної області)
 	 a stroke to add a width point  |  	 обведення для додавання точки ширини  |  
 	 to change one side  |  	 для зміни однієї сторони  |  
 	 to select more points  |  	 для виділення інших точок  |  
@@ -3785,7 +3818,7 @@ axis	Both	Обидві
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Перегляд у браузері вимагає настільної програми (web-версія завантажує файли)
 @msg	Release Guides: no guides	Звільнення напрямних: немає напрямних
 @msg	Release: no layer to put the rectangle in	Звільнення: немає шару для приміщення прямокутника
-@msg	Replace Spine: select a blend and a path	Заміна кістяка: виділіть перехід і контур
+@msg	Replace Spine: select a blend and a path	Заміна осі: виділіть перехід і контур
 @msg	select two or more objects to distribute	виділіть два або більше об’єктів для розподілу
 @msg	select paths or anchor points	виділіть контури або опорні точки
 @msg	SVG parse error: {0}	Помилка розбору SVG: {0}
@@ -3850,6 +3883,25 @@ axis	Both	Обидві
 @msg	a PostScript error ({name} in `{op}`: {at})	помилка PostScript ({name} у `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	помилка PostScript ({name} `{op}`: {at}), {procs}
 @msg	a PostScript error ({name})	помилка PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	помилка PostScript ({name} у `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	помилка PostScript ({name} у `{op}`; {meaning}), у {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	помилка PostScript ({name} у `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	помилка PostScript ({name} у `{op}`: {at}; {meaning}), у {procs}
+@msg	a PostScript error ({name}; {meaning})	помилка PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	програма закриває словник, який вона не відкривала
+@msg	the program opens a file, which the reader can't do	програма відкриває файл, а читач PostScript цього не вміє
+@msg	the program restores a saved state that was already restored	програма відновлює збережений стан, який уже відновлено
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	дані, які читає програма, пошкоджені або обірвані, або програма запитує позицію у файлі, який її не має
+@msg	the program goes past one of the reader's limits	програма виходить за одну з меж читача PostScript
+@msg	the path has no point to continue from	контур не має точки, від якої можна продовжити
+@msg	a value is outside the range the operator takes	значення поза діапазоном, який приймає оператор
+@msg	the operator needs more values than the stack holds	операторові потрібно більше значень, ніж є в стеку
+@msg	part of the program isn't valid PostScript text	частина програми не є допустимим текстом PostScript
+@msg	a value has the wrong type for the operator	значення має неправильний тип для оператора
+@msg	the program runs, deletes or renames a file, which the reader can't do	програма запускає, видаляє або перейменовує файл, а читач PostScript цього не вміє
+@msg	the program asks for a resource that isn't defined	програма запитує ресурс, який не визначено
+@msg	a calculation has no result, as in a division by zero	обчислення не має результату, як під час ділення на нуль
+@msg	the operator looks for a mark on the stack and finds none	оператор шукає мітку в стеку й не знаходить її
 @msg	a bitmap is empty	растрове зображення порожнє
 @msg	a bitmap is too large to read	растрове зображення занадто велике для читання
 @msg	a colour index is 0 to {_1}, not {n}	індекс кольору від 0 до {_1}, а не {n}
@@ -3883,6 +3935,7 @@ axis	Both	Обидві
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	фон {other}: transparent, white, black або колір, наприклад "#ff8800"
 @msg	bad color {v}	неприпустимий колір {v}
 @msg	the Color Picker is not open	палітра кольорів не відкрита
+@msg	the Simplify slider is not open	повзунок «Спростити» не відкрито
 @msg	the screen color sampler is already open	засіб вибору кольору з екрана вже відкритий
 @msg	this system has no screen color sampler	у цій системі немає засобу вибору кольору з екрана
 @msg	bad colour `{hex}` (#rrggbb)	неприпустимий колір `{hex}` (#rrggbb)
@@ -4120,6 +4173,11 @@ axis	Both	Обидві
 @msg	select a linked image: an embedded one has no file	виділіть пов’язане зображення: у вбудованого немає файлу
 @msg	select a repeat	виділіть повтор
 @msg	select an Intertwine group	виділіть групу переплетення
+@msg	select an Objects on Path group	виділіть групу об’єктів на контурі
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	до контуру всередині складеного контуру, переходу, оболонки, повтору або групи переплетення не можна прикріпити об’єкти
+@msg	a clipping path can't take objects	до відсічного контуру не можна прикріпити об’єкти
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	об’єкти всередині переходу, оболонки, повтору або групи переплетення не можна прикріпити до контуру
+@msg	a clipping path can't be attached to a path	відсічний контур не можна прикріпити до контуру
 @msg	select a stroke with a variable width	виділіть обведення зі змінною шириною
 @msg	select a symbol instance	виділіть екземпляр символу
 @msg	select an Image Trace object	виділіть об’єкт трасування зображення
@@ -4249,6 +4307,7 @@ axis	Both	Обидві
 @msg	{_1} files are written by file.saveAsTemplate	файли {_1} записує file.saveAsTemplate
 @msg	{_1} font families available	доступно сімейства шрифтів: {_1}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} - динамічний ефект (Ефект › Модулі)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} - модуль експорту (Файл › Експорт › Експортувати як…)
 @msg	{_1} is already used by {_2}	{_1} вже використовується {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	тут неможливо прочитати пов’язані файли: {_1}: відображаються їх попередні перегляди
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	пов’язаних зображень ({_1}) змінилися на диску: «Оновити зв’язки» покаже нові версії
@@ -4746,6 +4805,7 @@ lighting	Light	Світло
 @msg	choose a destination folder	виберіть папку призначення
 @msg	choose a source folder	виберіть вихідну папку
 @msg	open a document with data sets	відкрийте документ із наборами даних
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	з набору даних {name} нічого не застосовано: жоден об’єкт не прив’язано до змінної, для якої в ньому є значення
 @msg	the action has no steps	у дії немає кроків
 
 # User Interface › Accent Color
@@ -4768,6 +4828,27 @@ lighting	Light	Світло
 	Movie Clip	Кліп
 @msg	name is empty	ім’я порожнє
 @msg	no symbol named `{n}`	немає символу з назвою `{n}`
+	Smudge Stick…	Розтушовування…
+	Smudge Stick	Розтушовування
+	Sponge…	Губка…
+	Sponge	Губка
+	Watercolor…	Акварель…
+	Watercolor	Акварель
+	Brush Size	Розмір пензля
+	Definition	Чіткість
+	Brush Detail	Деталізація пензля
+	Shadow Intensity	Інтенсивність тіней
+	Bas Relief…	Барельєф…
+	Bas Relief	Барельєф
+	Charcoal…	Вугілля…
+	Charcoal	Вугілля
+	Photocopy…	Фотокопія…
+	Photocopy	Фотокопія
+	Stamp…	Штамп…
+	Stamp	Штамп
+	Thickness	Товщина
+	Detail	Деталі
+	Light/Dark Balance	Баланс світлого й темного
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	«Редагувати оригінал» відкриває лише файли зображень і документів; «{name}» до них не належить
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	у браузері відкриваються лише URL з http, https і mailto, а не «{url}»
@@ -4808,3 +4889,23 @@ lighting	Light	Світло
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	змінні та набори даних файлу не прочитано (змінних: {variables}, наборів даних: {data_sets}): панель «Змінні» їх не показує
 # Select by Color (select.color)
 	Select by Color	Виділити за кольором
+	Move Anchor Point	Перемістити опорну точку
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} зберігає 1 з {n} монтажних областей документа: файл відкриється знову з однією. Увімкніть «Зберігати можливості редагування», щоб зберегти всі.
+	Chalk & Charcoal…	Крейда і вугілля…
+	Chalk & Charcoal	Крейда і вугілля
+	Graphic Pen…	Графічне перо…
+	Graphic Pen	Графічне перо
+	Reticulation…	Ретикуляція…
+	Reticulation	Ретикуляція
+	Plastic Wrap…	Целофанова плівка…
+	Plastic Wrap	Целофанова плівка
+	Chrome…	Хром…
+	Chrome	Хром
+	Drop here to take it out of its group	Відпустіть тут, щоб вийняти його з групи
+	Move Library Group	Перемістити групу бібліотеки
+	Plaster…	Гіпс…
+	Plaster	Гіпс
+	Note Paper…	Поштовий папір…
+	Note Paper	Поштовий папір
+	Water Paper…	Мокрий папір…
+	Water Paper	Мокрий папір

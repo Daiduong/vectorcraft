@@ -98,7 +98,7 @@
 	Add Selected Artwork (Alt: as one asset)	Προσθήκη επιλεγμένου γραφικού (Alt: ως ένα στοιχείο)
 	Add Selected Artwork as Multiple Assets	Προσθήκη επιλεγμένου γραφικού ως πολλών στοιχείων
 	Add Selected Artwork as One Asset	Προσθήκη επιλεγμένου γραφικού ως ενός στοιχείου
-	Add Spine Point	Προσθήκη σημείου άξονα
+	Add Spine Point	Προσθήκη σημείου κεντρικής καμπύλης
 	Add Swatches	Προσθήκη δειγμάτων χρωμάτων
 	Add to Graphic Styles	Προσθήκη στα στυλ γραφικών
 	Add to Profiles	Προσθήκη στα προφίλ
@@ -285,6 +285,7 @@
 	Blur	Θόλωση
 	Bottom	Κάτω
 	Bottom in Front	Κάτω αντικείμενο μπροστά
+	Bottom-Justified Tab	Στηλοθέτης κάτω στοίχισης
 	Bottom:	Κάτω:
 	Bounds	Όρια
 	Bounds (Fill Proportionally)	Όρια (αναλογικό γέμισμα)
@@ -671,7 +672,7 @@
 	Delete Selected Item	Διαγραφή επιλεγμένου στοιχείου
 	Delete Selection	Διαγραφή επιλογής
 	Delete Slices	Διαγραφή τομών
-	Delete Spine Point	Διαγραφή σημείου άξονα
+	Delete Spine Point	Διαγραφή σημείου κεντρικής καμπύλης
 	Delete Stop	Διαγραφή στάσης ντεγκραντέ
 	Delete Swatch	Διαγραφή δείγματος χρώματος
 	Delete Symbol	Διαγραφή συμβόλου
@@ -1024,6 +1025,7 @@
 	Fill (X), double-click for the Color Picker	Γέμισμα (X), διπλό κλικ για τον επιλογέα χρώματος
 	Fill and Stroke	Γέμισμα και περίγραμμα
 	Fill new strokes	Γέμισμα νέων περιγραμμάτων
+	Alt key toggles to Smooth Tool	Το πλήκτρο Alt αλλάζει στο εργαλείο Εξομάλυνση (Smooth Tool)
 	Fill Color	Χρώμα γεμίσματος
 	Fill New Type Objects With Placeholder Text	Συμπλήρωση νέων αντικειμένων κειμένου με κείμενο υπόδειξης
 	Fill Rule	Κανόνας γεμίσματος
@@ -1139,6 +1141,10 @@
 	Large Gaps	Μεγάλα διάκενα
 	Gap Preview Color:	Χρώμα προεπισκόπησης διακένων:
 	Close Gaps With Paths	Κλείσιμο διακένων με διαδρομές
+	Show Live Paint Gaps	Εμφάνιση διακένων δυναμικής βαφής
+	Hide Live Paint Gaps	Απόκρυψη διακένων δυναμικής βαφής
+	Select Fills	Επιλογή γεμισμάτων
+	Select Strokes	Επιλογή περιγραμμάτων
 	Gaussian Blur…	Θόλωση Γκάους…
 	General	Γενικά
 	General › Placement › X	Γενικά › Τοποθέτηση › X
@@ -1333,6 +1339,12 @@
 	Release Blend	Αποδέσμευση ανάμειξης
 	Release Envelope	Αποδέσμευση περιβλήματος
 	Release Intertwine	Αποδέσμευση διαπλοκής
+	Objects on Path	Αντικείμενα σε διαδρομή
+	Attach	Προσάρτηση
+	Objects on Path Options	Επιλογές αντικειμένων σε διαδρομή
+	Objects on Path Tool	Αντικείμενα σε διαδρομή (Objects on Path Tool)
+	Attach Objects on Path	Προσάρτηση αντικειμένων σε διαδρομή
+	Expand Objects on Path	Επέκταση αντικειμένων σε διαδρομή
 	Release Live Paint	Αποδέσμευση δυναμικής βαφής
 	Release Repeat	Αποδέσμευση επανάληψης
 	Release Slice	Αποδέσμευση τομής
@@ -1447,6 +1459,7 @@
 	Inspect Object	Επιθεώρηση αντικειμένου
 	Install Plug-in	Εγκατάσταση προσθέτου
 	Install Plug-in…	Εγκατάσταση προσθέτου…
+	Open this setting's help page	Άνοιγμα της σελίδας βοήθειας αυτής της ρύθμισης
 	Installed plug-in {}	Εγκαταστάθηκε επέκταση {}
 	Intensity:	Ένταση:
 	Intent:	Σκοπός μετατροπής:
@@ -1614,6 +1627,7 @@
 	New Layer…	Νέο επίπεδο…
 	New Swatch…	Νέο δείγμα χρώματος…
 	New Window	Νέο παράθυρο
+	New Without Dialog	Νέο χωρίς παράθυρο διαλόγου
 	New Workspace	Νέος χώρος εργασίας
 	New Workspace…	Νέος χώρος εργασίας…
 	New…	Νέο…
@@ -1833,6 +1847,7 @@
 	Snap to Grid	Προσκόλληση στο πλέγμα
 	Snap to Pixel	Προσκόλληση σε εικονοστοιχείο
 	Snap to Point	Προσκόλληση σε σημείο
+	Snap to Unit	Προσκόλληση σε μονάδα
 	Soft Light	Απαλό φως
 	Solid	Συνεχές
 	Spacing:	Απόσταση:
@@ -2057,7 +2072,7 @@ axis	Both	Και τα δύο
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Η προεπισκόπηση σε πρόγραμμα περιήγησης απαιτεί την εφαρμογή υπολογιστή (η έκδοση ιστού πραγματοποιεί λήψη αρχείων)
 @msg	Release Guides: no guides	Αποδέσμευση οδηγών: δεν υπάρχουν οδηγοί
 @msg	Release: no layer to put the rectangle in	Αποδέσμευση: δεν υπάρχει επίπεδο για να τοποθετηθεί το ορθογώνιο
-@msg	Replace Spine: select a blend and a path	Αντικατάσταση άξονα: επιλέξτε ανάμειξη και διαδρομή
+@msg	Replace Spine: select a blend and a path	Αντικατάσταση κεντρικής καμπύλης: επιλέξτε ανάμειξη και διαδρομή
 @msg	select two or more objects to distribute	Επιλέξτε δύο ή περισσότερα αντικείμενα για κατανομή
 @msg	select paths or anchor points	Επιλέξτε διαδρομές ή σημεία αγκύρωσης
 @msg	SVG parse error: {0}	Σφάλμα ανάλυσης SVG: {0}
@@ -2457,6 +2472,7 @@ theme	Appearance	Εμφάνιση
 	Load Text into Clipboard	Φόρτωση κειμένου στο πρόχειρο
 	Local Libraries	Τοπικές βιβλιοθήκες
 	Locate Object	Εντοπισμός αντικειμένου
+	Locate Selected Objects	Εντοπισμός επιλεγμένων αντικειμένων
 	Lock (⌘2)	Κλείδωμα (⌘2)
 	Lock Grid	Κλείδωμα πλέγματος
 	Lock Others	Κλείδωμα υπόλοιπων
@@ -2533,6 +2549,9 @@ theme	Appearance	Εμφάνιση
 	Modified since it was read: {path}	Τροποποιήθηκε μετά την ανάγνωση: {path}
 	Modified:	Τροποποιήθηκε:
 	Mojikumi	Mojikumi
+	Insert Kashidas	Εισαγωγή κασίντα
+	Long	Μακρύ
+	Stylistic	Στιλιστικό
 	Mojikumi Set	Σύνολο Mojikumi
 	Kinsoku Set	Σύνολο Kinsoku
 	Mono	Μονοφωνικό
@@ -2760,6 +2779,7 @@ theme	Appearance	Εμφάνιση
 	Output intent profile:	Προφίλ προορισμού εξόδου:
 	Output White	Λευκό εξόδου
 	Output › Mode	Έξοδος › Λειτουργία
+	Overlap	Επικάλυψη
 	Overlap:	Επικάλυψη:
 	Overlapping	Επικαλυπτόμενα
 	Overprint	Υπερεκτύπωση
@@ -3314,6 +3334,8 @@ theme	Appearance	Εμφάνιση
 	Show Note	Εμφάνιση σημείωσης
 	Show Options	Εμφάνιση επιλογών
 	Show Original Path	Εμφάνιση αρχικής διαδρομής
+	Open this dialog with these settings next time	Άνοιγμα αυτού του παραθύρου με αυτές τις ρυθμίσεις την επόμενη φορά
+	Auto-Simplify	Αυτόματη απλοποίηση
 	Show Package	Εμφάνιση συσκευασίας
 	Show Panel	Εμφάνιση πίνακα
 	Show Pattern Swatches	Εμφάνιση δειγμάτων μοτίβου
@@ -3478,7 +3500,7 @@ theme	Appearance	Εμφάνιση
 	Delete Library Item	Διαγραφή στοιχείου βιβλιοθήκης
 	No results	Δεν βρέθηκαν αποτελέσματα
 	No items in this library match “{query}”.	Κανένα στοιχείο αυτής της βιβλιοθήκης δεν αντιστοιχεί στο «{query}».
-	Right-click an item to move it into this group.	Κάντε δεξί κλικ σε στοιχείο για να το μετακινήσετε σε αυτήν την ομάδα.
+	Drag an item here, or right-click one, to put it in this group.	Σύρετε εδώ ένα στοιχείο ή κάντε δεξί κλικ σε ένα για να το βάλετε σε αυτήν την ομάδα.
 	Move to Group	Μετακίνηση σε ομάδα
 	No Group	Χωρίς ομάδα
 	Import Library…	Εισαγωγή βιβλιοθήκης…
@@ -3527,6 +3549,7 @@ theme	Appearance	Εμφάνιση
 	Text Wrap Options	Επιλογές αναδίπλωσης κειμένου
 	Text Wrap Options…	Επιλογές αναδίπλωσης κειμένου…
 	The bounds of the visible art.	Τα όρια του ορατού σχεδίου.
+	The plug-in writes the whole document.	Το πρόσθετο εξάγει ολόκληρο το έγγραφο.
 	The cell shows the type object's text as HTML.	Το κελί εμφανίζει το κείμενο του αντικειμένου ως HTML.
 	The document has no colour swatches.	Το έγγραφο δεν περιέχει δείγματα χρωμάτων.
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	Το περιθώριο του χαρτιού όπου δεν μπορεί να εκτυπώσει ο εκτυπωτής: το σχέδιο βρίσκεται εντός του και η προεπισκόπηση το δείχνει διακεκομμένο.
@@ -3568,6 +3591,7 @@ theme	Appearance	Εμφάνιση
 	Toolbar: Remove Tool	Γραμμή εργαλείων: Αφαίρεση εργαλείου
 	Toolbar: Reset	Γραμμή εργαλείων: Επαναφορά
 	Top in Front	Επάνω μπροστά
+	Top-Justified Tab	Στηλοθέτης επάνω στοίχισης
 	Total Width:	Συνολικό πλάτος:
 	Touch Type Tool	Επεξεργασία χαρακτήρων με αφή (Touch Type Tool)
 	Trace	Διανυσματοποίηση
@@ -3807,6 +3831,25 @@ theme	Appearance	Εμφάνιση
 @msg	a PostScript error ({name} in `{op}`: {at})	σφάλμα PostScript ({name} στην εντολή `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`: {at}), στις διαδικασίες {procs}
 @msg	a PostScript error ({name})	σφάλμα PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	σφάλμα PostScript ({name} στην εντολή `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`; {meaning}), στις διαδικασίες {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	σφάλμα PostScript ({name} στην εντολή `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`: {at}; {meaning}), στις διαδικασίες {procs}
+@msg	a PostScript error ({name}; {meaning})	σφάλμα PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	το πρόγραμμα κλείνει ένα λεξικό που δεν άνοιξε
+@msg	the program opens a file, which the reader can't do	το πρόγραμμα ανοίγει ένα αρχείο, κάτι που ο αναγνώστης δεν μπορεί να κάνει
+@msg	the program restores a saved state that was already restored	το πρόγραμμα επαναφέρει μια αποθηκευμένη κατάσταση που έχει ήδη επαναφερθεί
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	τα δεδομένα που διαβάζει το πρόγραμμα είναι κατεστραμμένα ή περικομμένα, ή το πρόγραμμα ζητά θέση σε ένα αρχείο που δεν έχει θέση
+@msg	the program goes past one of the reader's limits	το πρόγραμμα ξεπερνά ένα από τα όρια του αναγνώστη
+@msg	the path has no point to continue from	η διαδρομή δεν έχει σημείο από το οποίο να συνεχίσει
+@msg	a value is outside the range the operator takes	μια τιμή είναι εκτός του εύρους που δέχεται η εντολή
+@msg	the operator needs more values than the stack holds	η εντολή χρειάζεται περισσότερες τιμές από όσες έχει η στοίβα
+@msg	part of the program isn't valid PostScript text	μέρος του προγράμματος δεν είναι έγκυρο κείμενο PostScript
+@msg	a value has the wrong type for the operator	μια τιμή έχει λάθος τύπο για την εντολή
+@msg	the program runs, deletes or renames a file, which the reader can't do	το πρόγραμμα εκτελεί, διαγράφει ή μετονομάζει ένα αρχείο, κάτι που ο αναγνώστης δεν μπορεί να κάνει
+@msg	the program asks for a resource that isn't defined	το πρόγραμμα ζητά έναν πόρο που δεν έχει οριστεί
+@msg	a calculation has no result, as in a division by zero	ένας υπολογισμός δεν έχει αποτέλεσμα, όπως σε μια διαίρεση με το μηδέν
+@msg	the operator looks for a mark on the stack and finds none	η εντολή αναζητά ένα σημάδι στη στοίβα και δεν βρίσκει κανένα
 @msg	a bitmap is empty	το bitmap είναι κενό
 @msg	a bitmap is too large to read	το bitmap είναι πολύ μεγάλο για ανάγνωση
 @msg	a colour index is 0 to {_1}, not {n}	ο δείκτης χρώματος πρέπει να είναι από 0 έως {_1}, όχι {n}
@@ -4202,6 +4245,7 @@ theme	Appearance	Εμφάνιση
 @msg	{_1} files are written by file.saveAsTemplate	τα αρχεία {_1} αποθηκεύονται με το file.saveAsTemplate
 @msg	{_1} font families available	{_1} διαθέσιμες οικογένειες γραμματοσειρών
 @msg	{_1} is a live effect (Effect › Plug-ins)	το {_1} είναι δυναμικό εφέ (Εφέ › Πρόσθετα)
+@msg	{_1} is an exporter (File › Export › Export As…)	το {_1} είναι πρόσθετο εξαγωγής (Αρχείο › Εξαγωγή › Εξαγωγή ως…)
 @msg	{_1} is already used by {_2}	το {_1} χρησιμοποιείται ήδη από το {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} συνδεδεμένα αρχεία δεν μπορούν να διαβαστούν εδώ: εμφανίζονται οι προεπισκοπήσεις τους
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} συνδεδεμένες εικόνες άλλαξαν στον δίσκο: η Ενημέρωση συνδέσμων εμφανίζει τις νέες εκδόσεις
@@ -4777,7 +4821,8 @@ theme	Appearance	Εμφάνιση
 	 to sample a color	 για δειγματοληψία χρώματος
 	 across a selected object to set the gradient direction	 κατά μήκος επιλεγμένου αντικειμένου για ορισμό κατεύθυνσης ντεγκραντέ
 	 to select an artboard  |  	 για επιλογή πίνακα σχεδίασης  |  
-	 on the canvas to create one	 στον καμβά για δημιουργία ενός
+	 on the canvas to create one (	 στον καμβά για δημιουργία ενός (
+	 selects several, or draws one inside an artboard)	 επιλέγει πολλούς ή δημιουργεί νέο μέσα σε πίνακα σχεδίασης)
 	 a stroke to add a width point  |  	 περίγραμμα για προσθήκη σημείου πλάτους  |  
 	 to change one side  |  	 για αλλαγή μίας πλευράς  |  
 	 to select more points  |  	 για επιλογή περισσότερων σημείων  |  
@@ -5038,6 +5083,13 @@ effect	Points	Σημεία
 	Isolate Selected Object	Απομόνωση επιλεγμένου αντικειμένου
 	Keep selected	Διατήρηση επιλογής
 	Merge only with selection	Συγχώνευση μόνο με την επιλογή
+	Consider Open Filled Paths as Closed	Οι ανοιχτές γεμισμένες διαδρομές θεωρούνται κλειστές
+	Pick Color From:	Λήψη χρώματος από:
+	Artwork	Γραφικά
+	Cursor Swatch Preview	Προεπισκόπηση δείγματος δίπλα στον δείκτη
+	Selection:	Επιλογή:
+	Straight Line	Ευθεία γραμμή
+	Highlight:	Επισήμανση:
 	Legacy (version 7)	Παλαιού τύπου (έκδοση 7)
 	Legacy .ai Options	Επιλογές .ai παλαιού τύπου
 	Linked Files	Συνδεδεμένα αρχεία
@@ -5093,13 +5145,20 @@ effect	Points	Σημεία
 @msg	choose a destination folder	επιλέξτε φάκελο προορισμού
 @msg	choose a source folder	επιλέξτε φάκελο προέλευσης
 @msg	open a document with data sets	ανοίξτε ένα έγγραφο με σύνολα δεδομένων
+@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	δεν εφαρμόστηκε τίποτα από το σύνολο δεδομένων {name}: κανένα αντικείμενο δεν είναι συνδεδεμένο με μεταβλητή για την οποία έχει τιμή
 @msg	select an Intertwine group	επιλέξτε μια ομάδα διαπλοκής
+@msg	select an Objects on Path group	επιλέξτε μια ομάδα αντικειμένων σε διαδρομή
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	μια διαδρομή μέσα σε σύνθετη διαδρομή, ανάμειξη, περίβλημα, επανάληψη ή ομάδα διαπλοκής δεν μπορεί να δεχτεί αντικείμενα
+@msg	a clipping path can't take objects	μια διαδρομή αποκοπής δεν μπορεί να δεχτεί αντικείμενα
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	τα αντικείμενα μέσα σε ανάμειξη, περίβλημα, επανάληψη ή ομάδα διαπλοκής δεν μπορούν να προσαρτηθούν σε διαδρομή
+@msg	a clipping path can't be attached to a path	μια διαδρομή αποκοπής δεν μπορεί να προσαρτηθεί σε διαδρομή
 @msg	span must be "object" or "selection", got {v}	το span πρέπει να είναι "object" ή "selection", δόθηκε {v}
 @msg	span: "selection" places a `gradient`, not a swatch	span: το "selection" τοποθετεί ένα `gradient`, όχι δείγμα χρώματος
 @msg	span: "selection" places a gradient: give `gradient`	span: το "selection" τοποθετεί ντεγκραντέ: δώστε `gradient`
 @msg	span: "selection" places a linear or radial gradient, not a freeform one	span: το "selection" τοποθετεί γραμμικό ή ακτινικό ντεγκραντέ, όχι ελεύθερης μορφής
 @msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: το "selection" τοποθετεί το ίδιο το ντεγκραντέ: παραλείψτε τα `start` και `end` (το τοποθετούν ήδη σε συντεταγμένες εγγράφου)
 @msg	the Color Picker is not open	ο επιλογέας χρώματος δεν είναι ανοιχτός
+@msg	the Simplify slider is not open	ο ρυθμιστής Απλοποίησης δεν είναι ανοιχτός
 @msg	the action has no steps	η ενέργεια δεν έχει βήματα
 @msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	τα επίπεδα του αρχείου δεν διαβάστηκαν ({_1}): εισάγεται ως η σελίδα του, σε ένα επίπεδο
 @msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	τα επίπεδα του αρχείου δεν διαβάστηκαν από τα δεδομένα επεξεργασίας του ({_1}): προέρχονται από το τμήμα PDF του
@@ -5127,6 +5186,27 @@ effect	Points	Σημεία
 	Movie Clip	Κλιπ ταινίας
 @msg	name is empty	το όνομα είναι κενό
 @msg	no symbol named `{n}`	κανένα σύμβολο με όνομα `{n}`
+	Smudge Stick…	Μουτζούρα…
+	Smudge Stick	Μουτζούρα
+	Sponge…	Σφουγγάρι…
+	Sponge	Σφουγγάρι
+	Watercolor…	Υδατογραφία…
+	Watercolor	Υδατογραφία
+	Brush Size	Μέγεθος πινέλου
+	Definition	Ευκρίνεια
+	Brush Detail	Λεπτομέρεια πινέλου
+	Shadow Intensity	Ένταση σκιών
+	Bas Relief…	Ανάγλυφο…
+	Bas Relief	Ανάγλυφο
+	Charcoal…	Κάρβουνο…
+	Charcoal	Κάρβουνο
+	Photocopy…	Φωτοαντίγραφο…
+	Photocopy	Φωτοαντίγραφο
+	Stamp…	Σφραγίδα…
+	Stamp	Σφραγίδα
+	Thickness	Πάχος
+	Detail	Λεπτομέρεια
+	Light/Dark Balance	Ισορροπία φωτεινού/σκούρου
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	η Επεξεργασία πρωτοτύπου ανοίγει μόνο αρχεία εικόνων και εγγράφων· το «{name}» δεν είναι τέτοιο αρχείο
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	στο πρόγραμμα περιήγησης ανοίγουν μόνο URL http, https και mailto, όχι το «{url}»
@@ -5166,3 +5246,23 @@ effect	Points	Σημεία
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	οι μεταβλητές και τα σύνολα δεδομένων του αρχείου δεν διαβάστηκαν (μεταβλητές: {variables}, σύνολα δεδομένων: {data_sets}): ο πίνακας Μεταβλητές δεν τα εμφανίζει
 # Select by Color (select.color)
 	Select by Color	Επιλογή βάσει χρώματος
+	Move Anchor Point	Μετακίνηση σημείου αγκύρωσης
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	Το {label} διατηρεί 1 από τους {n} πίνακες σχεδίασης του εγγράφου: το αρχείο ανοίγει ξανά με μία. Ενεργοποιήστε τη Διατήρηση δυνατοτήτων επεξεργασίας για να τους κρατήσετε όλους.
+	Chalk & Charcoal…	Κιμωλία και κάρβουνο…
+	Chalk & Charcoal	Κιμωλία και κάρβουνο
+	Graphic Pen…	Γραφική πένα…
+	Graphic Pen	Γραφική πένα
+	Reticulation…	Δικτύωση…
+	Reticulation	Δικτύωση
+	Plastic Wrap…	Πλαστική μεμβράνη…
+	Plastic Wrap	Πλαστική μεμβράνη
+	Chrome…	Χρώμιο…
+	Chrome	Χρώμιο
+	Drop here to take it out of its group	Αφήστε εδώ για να το βγάλετε από την ομάδα του
+	Move Library Group	Μετακίνηση ομάδας βιβλιοθήκης
+	Plaster…	Γύψος…
+	Plaster	Γύψος
+	Note Paper…	Χαρτί σημειώσεων…
+	Note Paper	Χαρτί σημειώσεων
+	Water Paper…	Βρεγμένο χαρτί…
+	Water Paper	Βρεγμένο χαρτί

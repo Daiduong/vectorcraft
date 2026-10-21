@@ -139,6 +139,41 @@ fn distribute_with_a_huge_spacing_from_the_key_object() {
 }
 
 #[test]
+fn distribute_with_a_huge_spacing_from_a_key_guide() {
+    for (vertical, pos) in [(true, 50.0), (true, 10000.0), (false, -10000.0)] {
+        for p in [json!({"horizontal": "left", "spacing": 1e308}), json!({"vertical": "bottom", "spacing": -1e308})] {
+            let mut s = Fixture::Multi.session();
+            s.execute("guide.add", &json!({"vertical": vertical, "pos": pos})).unwrap();
+            s.execute("guide.select", &json!({"indexes": [0], "toggle": true})).unwrap();
+            s.execute("select.key", &json!({"guide": 0})).unwrap();
+            if no_panic(s.execute("object.distribute", &p)).is_ok() {
+                check_session(&s).unwrap_or_else(|e| panic!("guide at {pos}, {p}: {e}"));
+                vectorcraft_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("guide at {pos}, {p}: {e}"));
+            }
+        }
+    }
+}
+
+#[test]
+fn distribute_guides_selected_alone_with_a_huge_spacing() {
+    for (cmd, p) in [
+        ("object.distributeSpacing", json!({"axis": "horizontal", "spacing": 1e308})),
+        ("object.distributeSpacing", json!({"axis": "vertical", "spacing": -1e308})),
+        ("object.distribute", json!({"horizontal": "center", "to": "artboard", "artboard": 99})),
+    ] {
+        let mut s = Fixture::Empty.session();
+        for (v, pos) in [(true, 10.0), (true, 20.0), (true, 9000.0), (false, -9000.0), (false, 0.0)] {
+            s.execute("guide.add", &json!({"vertical": v, "pos": pos})).unwrap();
+        }
+        s.execute("guide.select", &json!({"indexes": [0, 1, 2, 3, 4]})).unwrap();
+        if no_panic(s.execute(cmd, &p)).is_ok() {
+            check_session(&s).unwrap_or_else(|e| panic!("{cmd} {p}: {e}"));
+            vectorcraft_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{cmd} {p}: {e}"));
+        }
+    }
+}
+
+#[test]
 fn bug_artboard_huge_props_break_svg() {
     for key in ["x", "y", "width", "height"] {
         let mut s = Fixture::Single.session();
@@ -219,6 +254,8 @@ fn structured_junk() {
         ("path.insertAnchor", json!({"id": 2, "subpath": 0, "segment": 99, "t": 5})),
         ("path.insertAnchor", json!({"id": 2, "subpath": 7, "segment": 0, "t": -1})),
         ("path.setHandle", json!({"id": 2, "subpath": 0, "anchor": 100, "which": "in", "x": 0, "y": 0})),
+        ("path.moveAnchor", json!({"id": 2, "subpath": 0, "anchor": 100, "x": 0, "y": 0})),
+        ("path.moveAnchor", json!({"id": 2, "subpath": 0, "anchor": 0, "x": 1e308, "y": -1e308})),
         ("path.removeAnchor", json!({"id": 2, "subpath": 0, "anchor": 0})),
         ("path.split", json!({"id": 2, "subpath": 0, "segment": 1000, "t": 0.5})),
         ("path.reshapeSegment", json!({"id": 2, "subpath": 0, "segment": 0, "t": 2.0, "dx": 1e308, "dy": 0})),
@@ -329,10 +366,20 @@ fn structured_junk() {
         ("effect.apply", json!({"effect": "pixelate.crystallize", "params": {"cellSize": -1e308}})),
         ("effect.apply", json!({"effect": "pixelate.mezzotint", "params": {"type": 5}})),
         ("effect.apply", json!({"effect": "pixelate.pointillize", "params": {"cellSize": "NaN"}})),
+        ("effect.apply", json!({"effect": "artistic.smudgeStick", "params": {"strokeLength": 1e308, "highlightArea": "NaN", "intensity": [1]}})),
+        ("effect.apply", json!({"effect": "artistic.sponge", "params": {"brushSize": -1e308, "definition": 1e308, "smoothness": null}})),
+        ("effect.apply", json!({"effect": "artistic.watercolor", "params": {"brushDetail": "1e999", "shadowIntensity": -1, "texture": 1e308}})),
         ("effect.apply", json!({"effect": "artistic.cutout", "params": {"levels": 1e308, "edgeSimplicity": "NaN", "edgeFidelity": -1e308}})),
         ("effect.apply", json!({"effect": "artistic.neonGlow", "params": {"glowSize": -1e308, "glowBrightness": "1e999", "color": [1]}})),
         ("effect.apply", json!({"effect": "artistic.posterEdges", "params": {"edgeThickness": 1e308, "edgeIntensity": [], "posterization": -7}})),
+        ("effect.apply", json!({"effect": "sketch.chrome", "params": {"detail": -1e308, "smoothness": "NaN"}})),
+        ("effect.apply", json!({"effect": "sketch.graphicPen", "params": {"strokeLength": -1e308, "lightDarkBalance": "NaN", "strokeDirection": 3}})),
         ("effect.apply", json!({"effect": "sketch.halftonePattern", "params": {"size": -1e308, "contrast": "NaN", "patternType": 3}})),
+        ("effect.apply", json!({"effect": "sketch.basRelief", "params": {"detail": "NaN", "smoothness": 1e308, "lightDirection": 3}})),
+        ("effect.apply", json!({"effect": "sketch.charcoal", "params": {"thickness": 1e308, "detail": -1e308, "lightDarkBalance": [1]}})),
+        ("effect.apply", json!({"effect": "sketch.photocopy", "params": {"detail": "1e999", "darkness": null}})),
+        ("effect.apply", json!({"effect": "sketch.stamp", "params": {"lightDarkBalance": -1e308, "smoothness": "NaN"}})),
+        ("effect.apply", json!({"effect": "sketch.reticulation", "params": {"density": "NaN", "foregroundLevel": -1e308, "backgroundLevel": 1e308}})),
         ("effect.apply", json!({"effect": "texture.craquelure", "params": {"crackSpacing": -1e308, "crackDepth": "NaN", "crackBrightness": 1e308}})),
         ("effect.apply", json!({"effect": "texture.grain", "params": {"intensity": 1e308, "contrast": [1], "grainType": 7}})),
         ("effect.apply", json!({"effect": "texture.mosaicTiles", "params": {"tileSize": "1e999", "groutWidth": -1, "lightenGrout": null}})),
@@ -353,6 +400,9 @@ fn structured_junk() {
         ("object.path.offsetPath", json!({"offset": 1e308})),
         ("object.path.offsetPath", json!({"offset": -1e308})),
         ("object.path.simplify", json!({"tolerance": -1, "cornerAngle": 1e308})),
+        ("object.path.simplify", json!({"level": 1e308, "tolerance": "x"})),
+        ("object.path.simplify", json!({"level": -1e308, "auto": "yes"})),
+        ("object.path.simplify", json!({"auto": true, "level": [1]})),
         (
             "shape.rectangularGrid",
             json!({"x": 0, "y": 0, "width": 1e308, "height": -1e308, "rows": 999, "columns": u64::MAX, "rowSkew": 1e308, "columnSkew": -1e308, "frame": false, "fill": true}),
