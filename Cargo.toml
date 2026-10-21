@@ -18,6 +18,9 @@ craft-docpath = { version = "0.1.0", git = "https://github.com/storytold/craft-l
 # non-wasm target (it has no feature to turn them off). craft-ui's `printing::network` destination is #112.
 craft-print = { git = "https://github.com/storytold/craft-libs", rev = "refs/pull/116/head", default-features = false }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "refs/pull/112/head", features = ["serde"] }
+# Decides who draws the window frame (desktop vs. app) so the suite shares one native titlebar per
+# desktop. The `egui` feature adds `craft_window::decorate`. (craft-libs#217.)
+craft-window = { git = "https://github.com/storytold/craft-libs", rev = "1f805378d454dac48b5c214029d254055fdf961b", features = ["egui"] }
 # internal
 vectorcraft-geom = { path = "crates/geom" }
 vectorcraft-color = { path = "crates/color" }

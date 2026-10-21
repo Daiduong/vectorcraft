@@ -47,6 +47,12 @@ web-time = "1"
 # The in-process fake WS-Print printer for the network print tests (`craft_print::wsd::testing`).
 craft-print = { workspace = true, features = ["wsd", "testing"] }
 
+# The current user's id (`geteuid`): Preview in Browser uses its temporary folder only when that
+# user owns it (src/dialogs/save_for_web.rs). Already in Cargo.lock (tempfile), so this adds no
+# new crate.
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, features = ["std", "process"] }
+
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 vectorcraft-testkit = { workspace = true }
