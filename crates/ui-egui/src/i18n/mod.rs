@@ -94,7 +94,7 @@ fn plural_polish(n: u64) -> usize {
 }
 
 /// The registry. English first: it is the fallback and the source language.
-pub static LANGUAGES: [LangInfo; 23] = [
+pub static LANGUAGES: [LangInfo; 24] = [
     LangInfo { code: "en", name: "English", source: "", plural: plural_one_other, complete_menus: false, catalog: OnceLock::new() },
     // Greek: the whole interface and the status and error messages, keeping the same names in
     // English as Spanish; every `el-*` locale (including `el-GR` and `el-CY`) resolves here.
@@ -153,6 +153,12 @@ pub static LANGUAGES: [LangInfo; 23] = [
         plural: plural_one_other,
         complete_menus: true,
         catalog: OnceLock::new(),
+    },
+    // Georgian: the whole interface and the status and error messages, keeping the same names in
+    // English as Spanish. Georgian nouns stay singular after a number, so one plural form;
+    // `ka-GE` and `ka_GE.UTF-8` resolve here.
+    LangInfo {
+        code: "ka", name: "ქართული", source: include_str!("ka.tsv"), plural: plural_none, complete_menus: true, catalog: OnceLock::new()
     },
     // Russian: the whole interface and the status and error messages, keeping the same names in
     // English as Spanish; every `ru-*` locale (`ru-RU`, `ru-BY`, `ru-KZ` …) resolves here.
@@ -213,8 +219,8 @@ pub static LANGUAGES: [LangInfo; 23] = [
         complete_menus: true,
         catalog: OnceLock::new(),
     },
-    // Traditional Chinese in the vocabulary used in Taiwan; `zh-TW`, `zh-HK`, `zh-MO` and `zh-Hant-*`
-    // locales all resolve here (see `candidates`).
+    // Traditional Chinese in the vocabulary used in Taiwan: the whole interface and the status and
+    // error messages; `zh-TW`, `zh-HK`, `zh-MO` and `zh-Hant-*` locales all resolve here (see `candidates`).
     LangInfo {
         code: "zh-hant",
         name: "繁體中文",
@@ -546,8 +552,11 @@ pub fn label_or_name(lang: Lang, s: &str, built_in: bool) -> &str {
     if built_in { tr(lang, s) } else { s }
 }
 
-/// How deep [`message`] translates placeholder values that are messages themselves.
-const MESSAGE_DEPTH: usize = 3;
+/// How deep [`message`] translates placeholder values that are messages themselves. The status
+/// bar's line for an EPS file that can't be opened has five levels: `Couldn't open {name}: {e}`,
+/// the loader's `can't open …: {e}` (matched by `{path}: {e}`), the reader's `this PostScript file
+/// can't be read ({why}): …`, `a PostScript error (…; {meaning})` and the meaning.
+const MESSAGE_DEPTH: usize = 5;
 
 /// Translate a status or error message for display (see the module docs). Unknown messages, and
 /// parts of them (file names, numbers, a reason with no entry), stay as they are.

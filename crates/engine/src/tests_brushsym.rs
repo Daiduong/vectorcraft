@@ -202,6 +202,86 @@ fn brushes_delete_and_duplicate_by_names() {
     assert_eq!((names(&mut s), brush_of(&s, b).as_deref()), (before, Some("6 pt. Flat")));
 }
 
+fn unused(s: &mut Session) -> Vec<String> {
+    serde_json::from_value(s.execute("brush.unused", &json!({})).unwrap()["names"].clone()).unwrap()
+}
+
+/// Select All Unused: `brush.unused` lists the brushes no stroke paints with, in library order,
+/// without an undo step.
+#[test]
+fn brush_unused_lists_the_brushes_no_stroke_paints_with() {
+    let mut s = session();
+    let mut lib = vectorcraft_brush::library(&s.doc().unwrap().doc);
+    lib.retain(|b| ["3 pt. Round", "6 pt. Flat", "Charcoal"].contains(&b.name.as_str()));
+    vectorcraft_brush::store(std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc), &lib);
+    let a = rect(&mut s, 10.0, 10.0, 50.0, 50.0);
+    s.execute("brush.apply", &json!({"name": "6 pt. Flat"})).unwrap();
+    let undo = s.doc().unwrap().history.undo.len();
+    assert_eq!(unused(&mut s), ["3 pt. Round", "Charcoal"]);
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo);
+    s.execute("brush.remove", &json!({"ids": [a.0]})).unwrap();
+    assert_eq!(unused(&mut s), ["3 pt. Round", "6 pt. Flat", "Charcoal"]);
+}
+
+/// A brush counts as used when a stroke paints with it in an opacity mask, a symbol, a graph
+/// design, a pattern tile, a graphic style, or the art of a brush that is used. The art of a brush
+/// that is not used, its own strokes included, does not count.
+#[test]
+fn brush_unused_counts_strokes_in_masks_symbols_designs_patterns_styles_and_used_brush_art() {
+    let mut s = session();
+    // Makes a rectangle painted with `brush` and leaves it selected; the test clears it once it
+    // has been used.
+    let brushed = |s: &mut Session, brush: &str| {
+        let id = rect(s, 10.0, 10.0, 40.0, 20.0);
+        s.execute("brush.apply", &json!({"name": brush, "ids": [id.0]})).unwrap();
+        id
+    };
+    let clear = |s: &mut Session, id: NodeId| {
+        s.execute("edit.clear", &json!({"ids": [id.0]})).unwrap();
+    };
+    brushed(&mut s, "Charcoal");
+    let sym = s.execute("symbol.new", &json!({"name": "Mark"})).unwrap();
+    clear(&mut s, NodeId(sym["id"].as_u64().unwrap()));
+    let id2 = brushed(&mut s, "Dots");
+    s.execute("graph.design", &json!({"new": "Bar"})).unwrap();
+    clear(&mut s, id2);
+    let id3 = brushed(&mut s, "Arrow");
+    s.execute("object.pattern.make", &json!({"edit": false})).unwrap();
+    if s.doc().unwrap().doc.node(id3).is_some() {
+        clear(&mut s, id3);
+    }
+    let id4 = brushed(&mut s, "Chain");
+    s.execute("graphicStyle.new", &json!({"name": "Linked", "id": id4.0})).unwrap();
+    clear(&mut s, id4);
+    let masked = rect(&mut s, 100.0, 100.0, 60.0, 60.0);
+    let mask = brushed(&mut s, "6 pt. Flat");
+    select(&mut s, &[masked, mask]);
+    s.execute("transparency.makeOpacityMask", &json!({})).unwrap();
+    // "Holder" is used, and its art paints with "10 pt. Oval"; "Idle" is not, and its art paints
+    // with "Bristle Round". "Loop" paints its own art with itself and is not used anywhere else.
+    let id5 = brushed(&mut s, "10 pt. Oval");
+    s.execute("brush.new", &json!({"type": "art", "name": "Holder"})).unwrap();
+    clear(&mut s, id5);
+    let l = line(&mut s);
+    s.execute("brush.apply", &json!({"name": "Holder", "ids": [l.0]})).unwrap();
+    let id6 = brushed(&mut s, "Bristle Round");
+    s.execute("brush.new", &json!({"type": "art", "name": "Idle"})).unwrap();
+    clear(&mut s, id6);
+    let id7 = rect(&mut s, 10.0, 10.0, 40.0, 20.0);
+    s.execute("brush.new", &json!({"type": "art", "name": "Loop"})).unwrap();
+    s.execute("brush.apply", &json!({"name": "Loop", "ids": [id7.0]})).unwrap();
+    let art = serde_json::to_value(node(&s, id7)).unwrap();
+    s.execute("brush.options", &json!({"name": "Loop", "params": {"art": art}})).unwrap();
+    clear(&mut s, id7);
+    let left = unused(&mut s);
+    for used in ["Charcoal", "Dots", "Arrow", "Chain", "6 pt. Flat", "Holder", "10 pt. Oval"] {
+        assert!(!left.iter().any(|n| n == used), "{used} in {left:?}");
+    }
+    for name in ["Idle", "Bristle Round", "Loop", "3 pt. Round"] {
+        assert!(left.iter().any(|n| n == name), "{name} not in {left:?}");
+    }
+}
+
 #[test]
 fn expand_brush_replaces_path_with_art_group() {
     let mut s = session();
@@ -428,6 +508,69 @@ fn scatter_art_and_pattern_brush_options_update_strokes() {
     s.execute("brush.options", &json!({"name": "Chain", "params": {"scale": 1e308, "spacing": -1e308}})).unwrap();
     let b = s.execute("brush.get", &json!({"name": "Chain"})).unwrap();
     assert_eq!((&b["scale"], &b["spacing"]), (&json!(10000.0), &json!(0.0)));
+}
+
+/// Hue Shift given without a key color takes the color the art's fills and strokes use most, in
+/// New Brush and in Brush Options, and a Brush Options edit that gives only the method keeps the
+/// brush's key color.
+#[test]
+fn hue_shift_without_a_key_takes_the_most_used_art_color() {
+    let mut s = session();
+    let paint = |s: &mut Session, id: NodeId, fill: &str, stroke: Option<&str>| {
+        s.execute("paint.setFill", &json!({"color": fill, "ids": [id.0]})).unwrap();
+        match stroke {
+            Some(c) => s.execute("paint.setStroke", &json!({"color": c, "ids": [id.0]})).unwrap(),
+            None => s.execute("paint.setStroke", &json!({"none": true, "ids": [id.0]})).unwrap(),
+        };
+    };
+    // Blue comes first; red paints two fills and a stroke.
+    let a = rect(&mut s, 10.0, 200.0, 20.0, 8.0);
+    paint(&mut s, a, "#0000ff", None);
+    let b = rect(&mut s, 40.0, 200.0, 20.0, 8.0);
+    paint(&mut s, b, "#ff0000", Some("#ff0000"));
+    let c = rect(&mut s, 70.0, 200.0, 20.0, 8.0);
+    paint(&mut s, c, "#ff0000", None);
+    let color = |r: f32, g: f32, b: f32| serde_json::to_value(vectorcraft_color::Color::rgb(r, g, b)).unwrap();
+    let (red, green) = (color(1.0, 0.0, 0.0), color(0.0, 1.0, 0.0));
+    let hue_shift = json!({"colorization": {"method": "hueShift"}});
+    let r = s.execute("brush.new", &json!({"type": "scatter", "name": "Key", "ids": [a.0, b.0, c.0], "params": hue_shift})).unwrap();
+    assert_eq!(r["name"], "Key");
+    let colorization = |s: &mut Session| s.execute("brush.get", &json!({"name": "Key"})).unwrap()["colorization"].clone();
+    assert_eq!(colorization(&mut s), json!({"method": "hueShift", "key": red}));
+    let options = |s: &mut Session, params: Value| s.execute("brush.options", &json!({"name": "Key", "params": params})).unwrap();
+    // Brush Options switches from Tints to Hue Shift without a key.
+    options(&mut s, json!({"colorization": {"method": "tints"}}));
+    assert_eq!(colorization(&mut s), json!({"method": "tints"}));
+    options(&mut s, hue_shift.clone());
+    assert_eq!(colorization(&mut s), json!({"method": "hueShift", "key": red}));
+    // A key color that was set stays when an edit gives only the method.
+    options(&mut s, json!({"colorization": {"method": "hueShift", "key": green}}));
+    options(&mut s, hue_shift.clone());
+    assert_eq!(colorization(&mut s), json!({"method": "hueShift", "key": green}));
+    // Art with no solid color takes black.
+    let d = rect(&mut s, 100.0, 200.0, 20.0, 8.0);
+    s.execute("paint.setFill", &json!({"gradient": {"kind": "linear"}, "ids": [d.0]})).unwrap();
+    s.execute("paint.setStroke", &json!({"none": true, "ids": [d.0]})).unwrap();
+    let r = s.execute("brush.new", &json!({"type": "art", "name": "Plain", "ids": [d.0], "params": hue_shift})).unwrap();
+    assert_eq!(r["name"], "Plain");
+    let b = s.execute("brush.get", &json!({"name": "Plain"})).unwrap();
+    assert_eq!(b["colorization"], json!({"method": "hueShift", "key": color(0.0, 0.0, 0.0)}));
+}
+
+/// Brush Options merges an art brush's `scale` field by field: an edit that gives only the start
+/// guide keeps the end guide.
+#[test]
+fn art_brush_options_keep_the_scale_fields_an_edit_leaves_out() {
+    let mut s = session();
+    let r = rect(&mut s, 10.0, 200.0, 40.0, 8.0);
+    s.execute("brush.new", &json!({"type": "art", "name": "Bar", "ids": [r.0]})).unwrap();
+    s.execute("brush.options", &json!({"name": "Bar", "params": {"scale": {"mode": "betweenGuides", "start": 0.2, "end": 0.6}}})).unwrap();
+    s.execute("brush.options", &json!({"name": "Bar", "params": {"scale": {"mode": "betweenGuides", "start": 0.3}}})).unwrap();
+    let b = s.execute("brush.get", &json!({"name": "Bar"})).unwrap();
+    assert_eq!(b["scale"], json!({"mode": "betweenGuides", "start": 0.3, "end": 0.6}));
+    // A scale that becomes a plain mode drops the guides.
+    s.execute("brush.options", &json!({"name": "Bar", "params": {"scale": {"mode": "stretch"}}})).unwrap();
+    assert_eq!(s.execute("brush.get", &json!({"name": "Bar"})).unwrap()["scale"], json!({"mode": "stretch"}));
 }
 
 // ---------- symbols ----------

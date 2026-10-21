@@ -202,6 +202,9 @@ fn raster_filter_dialogs_preview_and_apply() {
         ("artistic.cutout", "levels", "6"),
         ("artistic.neonGlow", "color", "#ff00ff"),
         ("artistic.posterEdges", "edgeThickness", "5"),
+        ("artistic.smudgeStick", "strokeLength", "6"),
+        ("artistic.sponge", "definition", "20"),
+        ("artistic.watercolor", "texture", "2"),
         ("blur.radial", "method", "zoom"),
         ("blur.smart", "quality", "high"),
         ("blur.smart", "blurMode", "overlayEdge"),
@@ -210,7 +213,12 @@ fn raster_filter_dialogs_preview_and_apply() {
         ("pixelate.crystallize", "cellSize", "20"),
         ("pixelate.mezzotint", "type", "longLines"),
         ("pixelate.pointillize", "cellSize", "12"),
+        ("sketch.basRelief", "lightDirection", "left"),
+        ("sketch.charcoal", "thickness", "5"),
         ("sketch.halftonePattern", "patternType", "line"),
+        ("sketch.photocopy", "darkness", "40"),
+        ("sketch.stamp", "lightDarkBalance", "10"),
+        ("sketch.plaster", "lightDirection", "bottomLeft"),
         ("texture.craquelure", "crackDepth", "9"),
         ("texture.grain", "grainType", "stippled"),
         ("texture.mosaicTiles", "tileSize", "20"),
@@ -474,6 +482,10 @@ fn menu_parameter_dialogs_are_compact() {
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
         app.run("select.all", json!({})).unwrap();
         crate::menus::invoke(&mut app, id, json!({}));
+        // Simplify opens its slider; More Options opens the dialog.
+        if id == "object.path.simplify" {
+            app.run("ui.simplifyMoreOptions", json!({})).unwrap();
+        }
         assert!(app.ui.dialog.is_some(), "{id} opened no dialog");
         let wide = dialog_rect(&mut app, 1600.0);
         eprintln!("{id}: {:.0} × {:.0} in a 1600-point window", wide.width(), wide.height());
@@ -510,7 +522,7 @@ fn given_headings_are_shown_as_they_are() {
 struct PluginIntField {
     ctx: egui::Context,
     d: Dialog,
-    specs: Vec<(String, vectorcraft_plugins::ParamSpec)>,
+    m: vectorcraft_plugins::Manifest,
     pos: egui::Pos2,
 }
 
@@ -519,8 +531,17 @@ impl PluginIntField {
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
         theme::apply(&ctx, Default::default());
-        let specs = vec![("seed".into(), vectorcraft_plugins::ParamSpec::Int { min, max, default: 0 })];
-        let mut f = PluginIntField { ctx, d: Dialog::new(plugin::KIND, json!({ "seed": start })), specs, pos: egui::Pos2::ZERO };
+        let m = vectorcraft_plugins::Manifest {
+            id: "test.seed".into(),
+            name: "Seed".into(),
+            version: String::new(),
+            kind: vectorcraft_plugins::Kind::Filter,
+            description: String::new(),
+            author: String::new(),
+            params: vec![("seed".into(), vectorcraft_plugins::ParamSpec::Int { min, max, default: 0 }.into())],
+            extensions: Vec::new(),
+        };
+        let mut f = PluginIntField { ctx, d: Dialog::new(plugin::KIND, json!({ "seed": start })), m, pos: egui::Pos2::ZERO };
         fn number_rect(shape: &egui::Shape, text: &str) -> Option<egui::Rect> {
             match shape {
                 egui::Shape::Text(t) if t.galley.text() == text => Some(t.visual_bounding_rect()),
@@ -534,9 +555,9 @@ impl PluginIntField {
     }
 
     fn run(&mut self, events: Vec<egui::Event>) -> egui::FullOutput {
-        let (d, specs) = (&mut self.d, &self.specs);
+        let (d, m) = (&mut self.d, &self.m);
         let mut out = self.ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
-            form::schema_fields(ui, d, specs);
+            form::schema_rows(ui, d, m);
         });
         out.textures_delta.clear();
         out
@@ -1019,6 +1040,116 @@ fn artboard_options_position_follows_the_tool_option_with_another_tool() {
     }
 }
 
+/// Artboard Options shows the artboard's background color on its Background Color: row (None,
+/// White, Black, or Custom for another color) and not as a text field. OK keeps the color while it
+/// applies another field, and a null `color` clears it.
+#[test]
+fn artboard_options_shows_keeps_and_clears_the_background_color() {
+    let mut app = app();
+    let color = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards[0].color.map(|c| c.to_hex());
+    let lines = |app: &mut VectorcraftApp| {
+        let text = crate::tests_labels::painted_text(app, |app, ui| show(app, ui.ctx()));
+        text.lines().map(str::trim).map(str::to_string).collect::<Vec<_>>()
+    };
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let shown = lines(&mut app);
+    assert!(shown.iter().any(|l| l == "Background Color:") && shown.iter().any(|l| l == "None"), "{shown:?}");
+    app.ui.dialog = None;
+    app.run("artboard.setProps", json!({"index": 0, "color": "#336699"})).unwrap();
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let shown = lines(&mut app);
+    assert!(shown.iter().any(|l| l == "Custom") && !shown.iter().any(|l| l == "Color:" || l.starts_with('[')), "{shown:?}");
+    app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Card"));
+    super::confirm(&mut app).unwrap();
+    assert_eq!((app.session.doc().unwrap().doc.artboards[0].name.as_str(), color(&app).as_deref()), ("Card", Some("#336699")));
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), json!(null));
+    super::confirm(&mut app).unwrap();
+    assert_eq!(color(&app), None);
+}
+
+/// Artboard Options for a new artboard (`ui.newArtboard`) gives the new artboard the background
+/// color picked on its Background Color: row, and none when nothing was picked.
+#[test]
+fn new_artboard_options_give_the_new_artboard_its_background_color() {
+    let mut app = app();
+    for (picked, want) in [(Some(json!("#336699")), Some("#336699")), (None, None)] {
+        app.run("ui.newArtboard", json!({})).unwrap();
+        if let Some(c) = picked {
+            app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), c);
+        }
+        super::confirm(&mut app).unwrap();
+        let ab = app.session.doc().unwrap().doc.artboards.last().cloned().unwrap();
+        assert_eq!(ab.color.map(|c| c.to_hex()).as_deref(), want);
+    }
+}
+
+/// #1482: with Artboards 1 and 3 selected with the Artboard tool, a new Width in Artboard Options
+/// goes to both, each keeping its top-left corner and its height, in one undo step. The new name
+/// goes only to the artboard the dialog shows, and Artboard 2 keeps its size. A name alone resizes
+/// nothing.
+#[test]
+fn artboard_options_width_resizes_every_selected_artboard() {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    app.run("file.new", json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
+    app.run("artboard.setProps", json!({"index": 2, "width": 300, "height": 150})).unwrap();
+    app.select_tool("artboard");
+    crate::panels::artboards::select(&mut app, 0);
+    app.session.set_tool_option("selected", &json!([0, 2]));
+    let boards = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards.clone();
+    let before = boards(&app);
+    let undo = app.session.doc().unwrap().history.undo.len();
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let fields = &mut app.ui.dialog.as_mut().unwrap().fields;
+    fields.insert("width".into(), json!("250 pt"));
+    fields.insert("name".into(), json!("Cover"));
+    frame(&mut app, Default::default());
+    super::confirm(&mut app).unwrap();
+    let mut want = before.clone();
+    want[0].name = "Cover".into();
+    for i in [0, 2] {
+        want[i].rect.x1 = want[i].rect.x0 + 250.0;
+    }
+    assert_eq!(boards(&app), want);
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
+    app.run("edit.undo", json!({})).unwrap();
+    assert_eq!(boards(&app), before);
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Cover"));
+    frame(&mut app, Default::default());
+    super::confirm(&mut app).unwrap();
+    want = before.clone();
+    want[0].name = "Cover".into();
+    assert_eq!(boards(&app), want, "a name alone");
+}
+
+/// #1482 with #1876: a Width typed in Artboard Options resizes each selected artboard about the
+/// reference point the form uses, the center by default, as the Transform panel's W does.
+#[test]
+fn artboard_options_width_resizes_every_selected_artboard_about_the_reference_point() {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    app.run("file.new", json!({"width": 400, "height": 300, "artboards": 2})).unwrap();
+    app.select_tool("artboard");
+    crate::panels::artboards::select(&mut app, 0);
+    app.session.set_tool_option("selected", &json!([0, 1]));
+    let before: Vec<vectorcraft_geom::Rect> = app.session.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let mut f = Frames::new();
+    let shown = f.texts(&mut app);
+    let (width, height) = (field_after(&shown, "Width:"), field_after(&shown, "Height:"));
+    f.press(&mut app, width, true);
+    f.press(&mut app, width, false);
+    f.run(&mut app, vec![egui::Event::Text("500".into())]);
+    // A click on Height ends the Width field's editing.
+    f.press(&mut app, height, true);
+    f.press(&mut app, height, false);
+    f.key(&mut app, egui::Key::Enter, egui::Modifiers::NONE);
+    assert!(app.ui.dialog.is_none(), "Enter applies the dialog");
+    let after: Vec<vectorcraft_geom::Rect> = app.session.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
+    let want: Vec<vectorcraft_geom::Rect> = before.iter().map(|r| vectorcraft_geom::Rect::new(r.x0 - 50.0, r.y0, r.x1 + 50.0, r.y1)).collect();
+    assert_eq!(after, want);
+}
+
 /// The strings a frame painted, each with its rectangle.
 fn painted(out: &egui::FullOutput) -> Vec<(String, egui::Rect)> {
     fn walk(s: &egui::Shape, v: &mut Vec<(String, egui::Rect)>) {
@@ -1228,6 +1359,24 @@ fn dialog_sliders_report_the_numbers_their_fields_show() {
         flatten::options_editor(ui, "flatten-test", &mut o, true);
     });
     assert_eq!(slider_value(&shown, "Raster/Vector Balance:"), v(30.0, (0.0, 100.0), "30"));
+}
+
+/// Dragging Pattern Brush Options' Scale slider past its right end sets Scale to 10000%, and
+/// dragging Art Brush Options' Width slider past its left end sets Width to 1%; OK gives each
+/// brush its new value.
+#[test]
+fn brush_options_sliders_set_pattern_scale_and_art_width() {
+    use egui::accesskit::Role::Slider;
+    let mut app = app();
+    for (brush, label, key, by, want) in [("Diamonds", "Scale:", "scale", 400.0, 10000.0), ("Arrow", "Width:", "width", -400.0, 1.0)] {
+        app.run("ui.brushOptions", json!({ "name": brush })).unwrap();
+        let mut f = Frames::new();
+        let at = f.control(&mut app, label, Slider);
+        f.drag(&mut app, at, egui::vec2(by, 0.0));
+        assert_eq!(app.ui.dialog.as_ref().expect("Brush Options is open").f64(key, 0.0), want, "{brush}");
+        confirm(&mut app).unwrap();
+        assert_eq!(app.run("brush.get", json!({ "name": brush })).unwrap()[key], json!(want), "{brush}");
+    }
 }
 
 /// Frames of the dialog layer on one context (so a drag and the keyboard focus last from frame to

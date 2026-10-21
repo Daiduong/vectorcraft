@@ -6,6 +6,7 @@
 //! `Node::geometric_bounds` assumes for instances, and each instance's `xf` scales it back. The
 //! natural size is kept in `Document::unknown["symbolSizes"]` so new instances come out right.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -85,11 +86,20 @@ pub fn specs() -> Vec<CommandSpec> {
             brush_duplicate
         ),
         cmd!(
+            query "brush.unused",
+            "Select All Unused",
+            [],
+            None,
+            "{} → {names: [the brushes no stroke paints with, in library order]} (the Brushes panel selects them): strokes in the art (opacity masks included), symbols, graph designs, pattern tiles and graphic styles count, and so do strokes in the art of a brush that is used",
+            has_doc,
+            brush_unused
+        ),
+        cmd!(
             "brush.options",
             "Brush Options…",
             [],
             None,
-            "{name, params?: {…fields to change (brush.get shows them; values outside their ranges are clamped). calligraphic: angle −180..180°, roundness 0..100%, size 0..1296 pt, variation: [angle°, roundness%, size pt], modes: [fixed|random|pressure for angle, roundness, size] (pressure goes from value − variation at the lightest pen pressure to value + variation at the heaviest). scatter: size [a, b] 1..10000%, spacing [a, b] 1..10000%, scatter [a, b] −1000..1000%, rotation [a, b] −180..180°, modes: [fixed|random|pressure for size, spacing, scatter, rotation] (fixed: a; random: between a and b; pressure: a at the lightest pen pressure to b at the heaviest), rotation_relative_to_path. art: width 1..1000%, scale: {mode: proportional|stretch|betweenGuides, start, end: 0..1 of the art length}, direction: leftToRight|rightToLeft|topToBottom|bottomToTop, flip_along, flip_across. pattern: scale 1..10000%, spacing 0..10000%, fit: stretch|addSpace|approximate, flip_along, flip_across. scatter, art and pattern: colorization: {method: none|tints|tintsAndShades|hueShift, key: colour (hueShift: the art colour that becomes the stroke colour)}}, newName? (trimmed; blank: the name is kept)} edit a brush definition (strokes using it update) → {name}",
+            "{name, params?: {…fields to change (brush.get shows them; values outside their ranges are clamped). calligraphic: angle −180..180°, roundness 0..100%, size 0..1296 pt, variation: [angle°, roundness%, size pt], modes: [fixed|random|pressure for angle, roundness, size] (pressure goes from value − variation at the lightest pen pressure to value + variation at the heaviest). scatter: size [a, b] 1..10000%, spacing [a, b] 1..10000%, scatter [a, b] −1000..1000%, rotation [a, b] −180..180°, modes: [fixed|random|pressure for size, spacing, scatter, rotation] (fixed: a; random: between a and b; pressure: a at the lightest pen pressure to b at the heaviest), rotation_relative_to_path. art: width 1..1000%, scale: {mode: proportional|stretch|betweenGuides, start, end: 0..1 of the art length}, direction: leftToRight|rightToLeft|topToBottom|bottomToTop, flip_along, flip_across, overlap. pattern: scale 1..10000%, spacing 0..10000%, fit: stretch|addSpace|approximate, flip_along, flip_across. scatter, art and pattern: colorization: {method: none|tints|tintsAndShades|hueShift, key: colour (hueShift: the art colour that becomes the stroke colour; without a key: the solid color the art's fills and strokes use most, black when they use none)}; colorization and the art brush's scale change only the fields given}, newName? (trimmed; blank: the name is kept)} edit a brush definition (strokes using it update) → {name}",
             has_doc,
             brush_options
         ),
@@ -348,10 +358,24 @@ pub(crate) fn selection_art(s: &Session, p: &Value) -> Result<Option<Node>> {
     })
 }
 
+/// The definition fields that `params` change field by field when the brush has them as objects:
+/// `{colorization: {method: "hueShift"}}` keeps the key color, and an art brush's `scale` with only
+/// `start` keeps `end`.
+const MERGED_FIELDS: [&str; 2] = ["colorization", "scale"];
+
 fn merge(base: &mut Value, patch: &Value) {
     if let (Some(b), Some(pt)) = (base.as_object_mut(), patch.as_object()) {
         for (k, v) in pt {
-            b.insert(k.clone(), v.clone());
+            match (b.get_mut(k).and_then(Value::as_object_mut), v.as_object()) {
+                (Some(inner), Some(fields)) if MERGED_FIELDS.contains(&k.as_str()) => {
+                    for (f, fv) in fields {
+                        inner.insert(f.clone(), fv.clone());
+                    }
+                }
+                _ => {
+                    b.insert(k.clone(), v.clone());
+                }
+            }
         }
     }
 }
@@ -424,11 +448,9 @@ fn brush_new(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "name": name }))
 }
 
-/// A brush definition from command params, its values kept within their ranges.
+/// A brush definition from command params, its values kept within their ranges ([`Brush::from_json`]).
 fn parse_brush(cmd: &str, v: Value) -> Result<Brush> {
-    let mut b: Brush = serde_json::from_value(v).map_err(|e| bad(cmd, format!("invalid brush: {e}")))?;
-    b.sanitize();
-    Ok(b)
+    Brush::from_json(v).map_err(|e| bad(cmd, format!("invalid brush: {e}")))
 }
 
 fn brush_delete(s: &mut Session, p: &Value) -> Result<Value> {
@@ -462,6 +484,44 @@ fn brush_duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     }
     save_library(s, "Duplicate Brush", lib, &[])?;
     Ok(if p.get("names").is_some() { json!({ "names": out }) } else { json!({ "name": out.first() }) })
+}
+
+/// Adds the names of the brushes the strokes of `items` paint with to `out`.
+fn stroke_brushes(items: &[AppearanceItem], out: &mut Vec<String>) {
+    for it in items {
+        if let AppearanceItem::Stroke(st) = it
+            && let Some(b) = &st.brush
+        {
+            out.push(b.clone());
+        }
+    }
+}
+
+/// Adds the names of the brushes the strokes in `n` (its opacity masks included) paint with to
+/// `out`.
+fn art_brushes(n: &Node, out: &mut Vec<String>) {
+    vectorcraft_doc::swatches::walk_with_masks(n, &mut |m| stroke_brushes(&m.appearance.items, out));
+}
+
+/// The brushes no stroke paints with. Strokes in the art (opacity masks included), symbols, graph
+/// designs, pattern tiles and graphic styles count, and so do the strokes in the art of every brush
+/// that a counted stroke paints with.
+fn brush_unused(s: &mut Session, _: &Value) -> Result<Value> {
+    let d = &s.doc()?.doc;
+    let lib = brush::library(d);
+    let mut todo = vec![];
+    let trees = d.layers.iter().chain(d.symbols.iter().map(|s| &s.art)).chain(d.graph_designs.iter().map(|g| &g.art));
+    trees.chain(d.patterns.iter().flat_map(|p| &p.art)).for_each(|n| art_brushes(n, &mut todo));
+    d.graphic_styles.iter().for_each(|g| stroke_brushes(&g.appearance.items, &mut todo));
+    let mut used = BTreeSet::new();
+    while let Some(name) = todo.pop() {
+        if !used.contains(&name) {
+            lib.iter().filter(|b| b.name == name).flat_map(Brush::art).for_each(|n| art_brushes(n, &mut todo));
+            used.insert(name);
+        }
+    }
+    let names: Vec<&str> = lib.iter().map(|b| b.name.as_str()).filter(|n| !used.contains(*n)).collect();
+    Ok(json!({ "names": names }))
 }
 
 fn brush_options(s: &mut Session, p: &Value) -> Result<Value> {
