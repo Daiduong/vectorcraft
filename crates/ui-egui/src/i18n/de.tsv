@@ -1064,6 +1064,7 @@
 	Eyedropper Picks Up:	Pipette nimmt auf:
 	Eyedropper Tool	Pipette-Werkzeug
 	Eyedropper: click the art to sample the stop's colour	Pipette: Klicken Sie auf die Grafik, um die Farbe für den Farbstopp aufzunehmen
+	Eyedropper: click the art to sample the key color	Pipette: Klicken Sie auf die Grafik, um die Hauptfarbe aufzunehmen
 	Favorites	Favoriten
 	Feather…	Weiche Kante…
 	Feet	Fuß
@@ -1337,6 +1338,7 @@ file-filter	Templates	Vorlagen
 	Hand-Drawn	Handgezeichnet
 	Handles	Griffe
 	Hard Light	Hartes Licht
+	Hard Mix	Hart mischen
 	Harmony Rules:	Harmonieregeln:
 	Harmony Sets	Harmoniesätze
 	Height	Höhe
@@ -1910,6 +1912,7 @@ file-filter	Templates	Vorlagen
 	Move Slices	Slices verschieben
 	Move Spine Point	Achsenpunkt verschieben
 	Reshape Spine Segment	Achsensegment umformen
+	Move Brush	Pinsel verschieben
 	Move Swatch	Farbfeld verschieben
 	Move Up	Nach oben verschieben
 	Move…	Verschieben…
@@ -1954,6 +1957,14 @@ file-filter	Templates	Vorlagen
 	Round Fan	Rund, Fächer
 	Flat Fan	Flach, Fächer
 	New Brush…	Neuer Pinsel…
+	New Brush	Neuer Pinsel
+	Calligraphic Brush	Kalligrafiepinsel
+	Scatter Brush	Spezialpinsel
+	Art Brush	Bildpinsel
+	Bristle Brush	Borstenpinsel
+	Pattern Brush	Musterpinsel
+	Select art to make a scatter, art or pattern brush.	Wählen Sie eine Grafik aus, um einen Spezial-, Bild- oder Musterpinsel zu erstellen.
+	Brush Art	Pinselgrafik
 	New Calligraphic Brush	Neuer Kalligrafiepinsel
 	New Character Style	Neues Zeichenformat
 	New Color Group	Neue Farbgruppe
@@ -2570,6 +2581,7 @@ mark-style	Japanese	Japanisch
 	Reorder	Neu anordnen
 	Reorder Appearance Item	Aussehenselement neu anordnen
 	Repeat	Wiederholung
+	Repeat Objects	Wiederholungsobjekte
 	Repeat Options	Wiederholungsoptionen
 	Repeat Pathfinder	Pathfinder wiederholen
 	Repeat Tab	Tabulator wiederholen
@@ -2781,6 +2793,7 @@ mark-style	Japanese	Japanisch
 	Scale Cursor Proportional to UI	Cursor proportional zur Benutzeroberfläche skalieren
 	Scale Lineweights	Linienstärken skalieren
 	Scale Strokes & Effects	Konturen und Effekte skalieren
+	Scale Text Attributes	Textattribute skalieren
 	Scale to Fit Artboard	Auf Zeichenfläche skalieren
 	Scale Tool	Skalieren-Werkzeug
 	Scale:	Skalierung:
@@ -3054,6 +3067,7 @@ effect	Points	Punkte
 	Snapping Tolerance	Einrasttoleranz
 	Social Square Post 1080×1080	Quadratischer Social-Media-Beitrag 1080×1080
 	Soft Light	Weiches Licht
+	Soft Mix	Weiche Mischung
 	Solid	Gefüllt
 	Sort by Kind	Nach Art sortieren
 	Sort by Name	Nach Name sortieren
@@ -3970,7 +3984,9 @@ theme	Appearance	Erscheinungsbild
 @msg	no blend options	keine Angleichungsoptionen
 @msg	no bounds	keine Begrenzung
 @msg	no brush named `{name}`	kein Pinsel namens `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	der Name eines Borstenpinsels darf höchstens {max} Zeichen lang sein: `{name}` hat {count}
 @msg	no brush selected	kein Pinsel ausgewählt
+@msg	brushes move only within their type	Pinsel lassen sich nur innerhalb ihrer Art verschieben
 @msg	this kind of brush has no options dialog yet	für diese Pinselart gibt es noch kein Optionsdialogfeld
 @msg	no catalog	kein Katalog
 @msg	no changes since the last save	keine Änderungen seit dem letzten Speichern
@@ -4025,6 +4041,7 @@ theme	Appearance	Erscheinungsbild
 @msg	no such action	keine solche Aktion
 @msg	no such anchor	kein solcher Ankerpunkt
 @msg	no such artboard	keine solche Zeichenfläche
+@msg	the artboard is locked	die Zeichenfläche ist gesperrt
 @msg	no such document	kein solches Dokument
 @msg	no such layer or object	keine solche Ebene und kein solches Objekt
 @msg	no such object {0}	kein solches Objekt {0}
@@ -4239,6 +4256,7 @@ theme	Appearance	Erscheinungsbild
 @msg	unknown workspace (one of {_1})	unbekannter Arbeitsbereich (einer von {_1})
 @msg	unsupported: {0}	nicht unterstützt: {0}
 @msg	variables are locked	die Variablen sind gesperrt
+@msg	variables that aren't text were left out: {kinds}	die Variablen, die kein Text sind, wurden ausgelassen: {kinds}
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	Dateien der Version {0} können nicht komprimiert werden: Erst Version {COMPRESSED_SINCE} und neuer öffnen komprimierte Dateien
 @msg	width and height are at least 1 pixel	Breite und Höhe betragen mindestens 1 Pixel
 @msg	workspace name can't be empty	der Name des Arbeitsbereichs darf nicht leer sein
@@ -4472,6 +4490,13 @@ theme	Appearance	Erscheinungsbild
 	Tints	Farbtöne
 	Tints and Shades	Farbtöne und Schattierungen
 	Hue Shift	Farbtonverschiebung
+	Tips	Tipps
+	Colorization Tips	Tipps zur Färbung
+	The samples show this brush on a blue stroke.	Die Beispiele zeigen diesen Pinsel auf einer blauen Kontur.
+	The art keeps its own colors.	Die Grafik behält ihre eigenen Farben.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Schwarz wird zur Konturfarbe und Weiß bleibt weiß. Andere Farben werden zu Farbtönen der Konturfarbe, und je heller eine Farbe ist, desto heller ist ihr Farbton.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Schwarz bleibt schwarz und Weiß bleibt weiß. Andere Farben werden zu Schattierungen der Konturfarbe, wenn sie dunkel sind, und zu Farbtönen davon, wenn sie hell sind.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Die Hauptfarbe wird zur Konturfarbe. Die anderen Farben wandern ebenso weit um den Farbkreis wie die Hauptfarbe und behalten ihre Sättigung und Helligkeit.
 	RGB:	RGB:
 	CMYK:	CMYK:
 # PSD files (opened and placed as their merged image).
@@ -4640,12 +4665,30 @@ lighting	Light	Licht
 	Reset Ruler Origin	Linealursprung zurücksetzen
 	Artistic	Kunstfilter
 	Film Grain…	Filmkörnung…
+	Colored Pencil…	Buntstift…
+	Colored Pencil	Buntstift
+	Simple	Einfach
+	Light Rough	Leicht rau
+	Dark Rough	Dunkel rau
+	Wide Sharp	Breit scharf
+	Wide Blurry	Breit unscharf
+	Sparkle	Funkeln
 	Cutout…	Ausschnitt…
 	Cutout	Ausschnitt
+	Dry Brush…	Trockenpinsel…
+	Dry Brush	Trockenpinsel
 	Neon Glow…	Neonglühen…
+	Palette Knife…	Palettenmesser…
 	Neon Glow	Neonglühen
+	Paint Daubs…	Tupfer…
+	Paint Daubs	Tupfer
+	Palette Knife	Palettenmesser
 	Poster Edges…	Posterkanten…
+	Rough Pastels…	Pastellkreide…
 	Poster Edges	Posterkanten
+	Rough Pastels	Pastellkreide
+	Underpainting…	Untermalung…
+	Underpainting	Untermalung
 	Levels	Stufen
 	Edge Simplicity	Kantenvereinfachung
 	Edge Fidelity	Kantentreue
@@ -4743,6 +4786,9 @@ effect	Soft	Weich
 	Softness	Weichheit
 	Ambient Light	Umgebungslicht
 	Light behind the object	Licht hinter dem Objekt
+	3D Lighting Preset	3D-Beleuchtungsvorgabe
+	Standard	Standard
+	Diffuse	Diffus
 # 3D light management.
 	Lights	Lichter
 	Add Light	Licht hinzufügen
@@ -4789,6 +4835,7 @@ effect	Soft	Weich
 @msg	Measured anchor no longer exists	Der gemessene Ankerpunkt existiert nicht mehr
 @msg	Measured segment no longer exists	Das gemessene Segment existiert nicht mehr
 @msg	Non-finite dimension	Die Bemaßung ist keine endliche Zahl
+@msg	Scale Text Attributes: selected type has no scale to bake	Textattribute skalieren: Der ausgewählte Text weist keine zu übernehmende Skalierung auf
 @msg	Scale must be drawing:real, for example 1:10	Der Maßstab muss Zeichnung:Realität sein, zum Beispiel 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Das Maßstabsverhältnis muss zwischen 1:1000000 und 1000000:1 liegen
 @msg	Second measured segment no longer exists	Das zweite gemessene Segment existiert nicht mehr
@@ -4807,6 +4854,7 @@ effect	Soft	Weich
 	Make Image Dynamic	Bild dynamisch machen
 	Import Data Sets…	Datensätze importieren…
 	Export Data Sets…	Datensätze exportieren…
+	Load Variable Library…	Variablenbibliothek laden…
 	Make Graph Dynamic	Diagramm dynamisch machen
 	Batch…	Stapelverarbeitung…
 	Source Folder:	Quellordner:
@@ -4843,6 +4891,8 @@ effect	Soft	Weich
 	Sketch	Zeichenfilter
 	Halftone Pattern…	Rasterungseffekt…
 	Halftone Pattern	Rasterungseffekt
+	Torn Edges…	Zerrissene Kanten…
+	Torn Edges	Zerrissene Kanten
 	Pattern Type	Musterart
 	Dot	Punkt
 # User Interface › Color Scheme
@@ -4861,6 +4911,7 @@ effect	Soft	Weich
 	Watercolor…	Aquarell…
 	Watercolor	Aquarell
 	Brush Size	Pinselgröße
+	Texture Coverage	Texturabdeckung
 	Definition	Definition
 	Brush Detail	Pinseldetail
 	Shadow Intensity	Schattenintensität
@@ -4890,6 +4941,7 @@ effect	Soft	Weich
 @msg	the image's pixels can't be read	die Pixel des Bildes können nicht gelesen werden
 	Persistent	Dauerhaft
 	Library Panel Options	Optionen für das Bibliotheksbedienfeld
+	Locate Library…	Bibliothek ausfindig machen…
 @msg	Persistent libraries not found: {files}	Dauerhafte Bibliotheken nicht gefunden: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` ist kein Bibliotheksbedienfeld (siehe window.swatchLibrary)
 @msg	library panel `{given}` isn't open	Bibliotheksbedienfeld `{given}` ist nicht geöffnet
@@ -4936,3 +4988,7 @@ effect	Soft	Weich
 	Note Paper	Prägepapier
 	Water Paper…	Feuchtes Papier…
 	Water Paper	Feuchtes Papier
+	Ruby…	Ruby…
+	Ruby	Ruby
+	Fresco…	Fresko…
+	Fresco	Fresko

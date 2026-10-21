@@ -60,6 +60,13 @@
 	Channel 4	Канал 4
 	Cell Size	Размер ячейки
 	Fine Dots	Мелкие точки
+
+	Simple	Простой
+	Light Rough	Светлая грубость
+	Dark Rough	Тёмная грубость
+	Wide Sharp	Широкий резкий
+	Wide Blurry	Широкий размытый
+	Sparkle	Блеск
 	Medium Dots	Средние точки
 	Grainy Dots	Зернистые точки
 	Coarse Dots	Крупные точки
@@ -1078,6 +1085,7 @@
 	Eyedropper Picks Up:	Пипетка берёт:
 	Eyedropper Tool	Инструмент «Пипетка»
 	Eyedropper: click the art to sample the stop's colour	Пипетка: щёлкните рисунок, чтобы взять цвет точки перехода
+	Eyedropper: click the art to sample the key color	Пипетка: щёлкните рисунок, чтобы взять ключевой цвет
 	Favorites	Избранное
 	Feather…	Растушёвка…
 	Feet	Футы
@@ -1351,6 +1359,7 @@ file-filter	Templates	Шаблоны
 	Hand-Drawn	Нарисованный от руки
 	Handles	Маркеры
 	Hard Light	Жёсткий свет
+	Hard Mix	Жёсткое наложение
 	Harmony Rules:	Правила гармонии:
 	Harmony Sets	Наборы гармонии
 	Height	Высота
@@ -1926,6 +1935,7 @@ file-filter	Templates	Шаблоны
 	Move Slices	Переместить фрагменты
 	Move Spine Point	Переместить точку остова
 	Reshape Spine Segment	Изменить форму сегмента остова
+	Move Brush	Переместить кисть
 	Move Swatch	Переместить образец
 	Move Up	Переместить вверх
 	Move…	Переместить…
@@ -1981,6 +1991,13 @@ file-filter	Templates	Шаблоны
 	Tints and Shades	Оттенки и тени
 	Hue Shift	Сдвиг тона
 	Key Color:	Ключевой цвет:
+	Tips	Советы
+	Colorization Tips	Советы по перекрашиванию
+	The samples show this brush on a blue stroke.	Образцы показывают эту кисть на синей обводке.
+	The art keeps its own colors.	Рисунок сохраняет собственные цвета.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Чёрный становится цветом обводки, а белый остаётся белым. Остальные цвета становятся оттенками цвета обводки, и чем светлее цвет, тем светлее его оттенок.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Чёрный остаётся чёрным, а белый остаётся белым. Остальные цвета становятся тенями цвета обводки, если они тёмные, и его оттенками, если они светлые.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Ключевой цвет становится цветом обводки. Остальные цвета сдвигаются по цветовому кругу на столько же, на сколько ключевой цвет, и сохраняют насыщенность и яркость.
 	Roundness:	Округлость:
 	Fixed	Фиксированный
 	Pressure	Нажим
@@ -2001,6 +2018,14 @@ file-filter	Templates	Шаблоны
 	Round Fan	Круглая веерная
 	Flat Fan	Плоская веерная
 	New Brush…	Новая кисть…
+	New Brush	Новая кисть
+	Calligraphic Brush	Каллиграфическая кисть
+	Scatter Brush	Кисть-распыление
+	Art Brush	Художественная кисть
+	Bristle Brush	Щетинная кисть
+	Pattern Brush	Узорная кисть
+	Select art to make a scatter, art or pattern brush.	Выделите рисунок, чтобы создать кисть-распыление, художественную или узорную кисть.
+	Brush Art	Рисунок кисти
 	New Calligraphic Brush	Новая каллиграфическая кисть
 	New Character Style	Новый стиль символа
 	New Color Group	Новая цветовая группа
@@ -2617,6 +2642,7 @@ mark-style	Japanese	Японский
 	Reorder	Изменить порядок
 	Reorder Appearance Item	Изменить порядок элемента оформления
 	Repeat	Повторить
+	Repeat Objects	Объекты повтора
 	Repeat Options	Параметры повтора
 	Repeat Pathfinder	Повторить обработку контуров
 	Repeat Tab	Повторить табуляцию
@@ -2828,6 +2854,7 @@ mark-style	Japanese	Японский
 	Scale Cursor Proportional to UI	Масштабировать курсор пропорционально интерфейсу
 	Scale Lineweights	Масштабировать толщины линий
 	Scale Strokes & Effects	Масштабировать обводки и эффекты
+	Scale Text Attributes	Масштабировать атрибуты текста
 	Scale to Fit Artboard	Масштабировать по монтажной области
 	Scale Tool	Инструмент «Масштаб»
 	Scale:	Масштаб:
@@ -3100,6 +3127,7 @@ mark-style	Japanese	Японский
 	Snapping Tolerance	Допуск привязки
 	Social Square Post 1080×1080	Квадратный пост для соцсетей 1080×1080
 	Soft Light	Мягкий свет
+	Soft Mix	Мягкое смешение
 	Solid	Сплошной
 	Sort by Kind	Сортировать по типу
 	Sort by Name	Сортировать по имени
@@ -4068,7 +4096,9 @@ axis	Both	Оба
 @msg	no blend options	нет параметров перехода
 @msg	no bounds	нет границ
 @msg	no brush named `{name}`	нет кисти с именем `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	наибольшая длина имени щетинной кисти (символов): {max}; в `{name}` символов: {count}
 @msg	no brush selected	кисть не выбрана
+@msg	brushes move only within their type	кисти можно перемещать только в пределах их типа
 @msg	no catalog	нет каталога
 @msg	no changes since the last save	нет изменений с момента последнего сохранения
 @msg	no clock to keep a heartbeat by	нет часов для поддержания сигнала
@@ -4122,6 +4152,7 @@ axis	Both	Оба
 @msg	no such action	такого действия нет
 @msg	no such anchor	такой опорной точки нет
 @msg	no such artboard	такой монтажной области нет
+@msg	the artboard is locked	монтажная область заблокирована
 @msg	no such document	такого документа нет
 @msg	no such layer or object	такого слоя или объекта нет
 @msg	no such object {0}	объект {0} не существует
@@ -4336,6 +4367,7 @@ axis	Both	Оба
 @msg	unknown workspace (one of {_1})	неизвестная рабочая среда (одна из: {_1})
 @msg	unsupported: {0}	не поддерживается: {0}
 @msg	variables are locked	переменные заблокированы
+@msg	variables that aren't text were left out: {kinds}	переменные, которые не являются текстовыми, пропущены: {kinds}
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	файлы версии {0} не могут быть сжаты: только версия {COMPRESSED_SINCE} и новее открывают сжатые файлы
 @msg	width and height are at least 1 pixel	ширина и высота должны быть не менее 1 пикселя
 @msg	workspace name can't be empty	имя рабочей среды не может быть пустым
@@ -4678,12 +4710,24 @@ lighting	Light	Свет
 	Reset Ruler Origin	Сбросить начало координат линеек
 	Artistic	Художественные
 	Film Grain…	Зернистость плёнки…
+	Colored Pencil…	Цветной карандаш…
+	Colored Pencil	Цветной карандаш
 	Cutout…	Аппликация…
 	Cutout	Аппликация
+	Dry Brush…	Сухая кисть…
+	Dry Brush	Сухая кисть
 	Neon Glow…	Неоновое свечение…
+	Palette Knife…	Нож для палитры…
 	Neon Glow	Неоновое свечение
+	Paint Daubs…	Мазки кисти…
+	Paint Daubs	Мазки кисти
+	Palette Knife	Нож для палитры
 	Poster Edges…	Края плаката…
+	Rough Pastels…	Грубые пастели…
 	Poster Edges	Края плаката
+	Rough Pastels	Грубые пастели
+	Underpainting…	Подмалёвка…
+	Underpainting	Подмалёвка
 	Levels	Уровни
 	Edge Simplicity	Простота краёв
 	Edge Fidelity	Точность краёв
@@ -4773,6 +4817,9 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+	3D Lighting Preset	Предустановка 3D освещения
+	Standard	Стандартное
+	Diffuse	Рассеянное
 # 3D light management.
 	Lights	Источники света
 	Add Light	Добавить свет
@@ -4819,6 +4866,7 @@ lighting	Light	Свет
 @msg	Measured anchor no longer exists	Измеряемая опорная точка больше не существует
 @msg	Measured segment no longer exists	Измеряемый сегмент больше не существует
 @msg	Non-finite dimension	Размер не является конечным числом
+@msg	Scale Text Attributes: selected type has no scale to bake	Масштабировать атрибуты текста: у выбранного текста нет масштаба для применения
 @msg	Scale must be drawing:real, for example 1:10	Масштаб должен быть в виде чертёж:реальность, например 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Соотношение масштаба должно быть от 1:1000000 до 1000000:1
 @msg	Second measured segment no longer exists	Второй измеряемый сегмент больше не существует
@@ -4837,6 +4885,7 @@ lighting	Light	Свет
 	Make Image Dynamic	Сделать изображение динамическим
 	Import Data Sets…	Импортировать наборы данных…
 	Export Data Sets…	Экспортировать наборы данных…
+	Load Variable Library…	Загрузить библиотеку переменных…
 	Make Graph Dynamic	Сделать диаграмму динамической
 	Batch…	Пакетная обработка…
 	Source Folder:	Исходная папка:
@@ -4873,6 +4922,8 @@ lighting	Light	Свет
 	Sketch	Эскиз
 	Halftone Pattern…	Полутоновый узор…
 	Halftone Pattern	Полутоновый узор
+	Torn Edges…	Рваные края…
+	Torn Edges	Рваные края
 	Pattern Type	Тип узора
 	Dot	Точка
 # User Interface › Color Scheme
@@ -4891,6 +4942,7 @@ lighting	Light	Свет
 	Watercolor…	Акварель…
 	Watercolor	Акварель
 	Brush Size	Размер кисти
+	Texture Coverage	Покрытие текстурой
 	Definition	Чёткость
 	Brush Detail	Детализация кисти
 	Shadow Intensity	Интенсивность теней
@@ -4919,6 +4971,7 @@ lighting	Light	Свет
 @msg	the image's pixels can't be read	не удаётся прочитать пиксели изображения
 	Persistent	Постоянная
 	Library Panel Options	Параметры панели библиотеки
+	Locate Library…	Найти библиотеку…
 @msg	Persistent libraries not found: {files}	Постоянные библиотеки не найдены: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` — не панель библиотеки (см. window.swatchLibrary)
 @msg	library panel `{given}` isn't open	панель библиотеки `{given}` не открыта
@@ -4965,3 +5018,7 @@ lighting	Light	Свет
 	Note Paper	Почтовая бумага
 	Water Paper…	Мокрая бумага…
 	Water Paper	Мокрая бумага
+	Ruby…	Руби…
+	Ruby	Руби
+	Fresco…	Фреска…
+	Fresco	Фреска

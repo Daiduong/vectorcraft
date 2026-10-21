@@ -1418,6 +1418,7 @@ lighting	Light	Lys
 	{count} more rules: Export writes every one.	{count} flere regler: Eksport skriver hver enkelt.
 	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	{count} unavngivne objekter udeladt: giv dem navne, eller aktivér Unavngivne objekter i panelmenuen.
 	All Categories	Alle kategorier
+	Repeat Objects	Gentagelsesobjekter
 	Save…	Gem…
 	Selection Only	Kun markering
 	{title} (selection)	{title} (markering)
@@ -1451,6 +1452,7 @@ lighting	Light	Lys
 	Edit the selected point's colour in the Color panel	Redigér det markerede punkts farve i farvepanelet
 	Edit the stop	Redigér stoppet
 	Eyedropper: click the art to sample the stop's colour	Pipette: klik på grafikken for at prøvetage stoppets farve
+	Eyedropper: click the art to sample the key color	Pipette: klik på grafikken for at prøvetage nøglefarven
 	Gradient across stroke	Gradient på tværs af konturen
 	Gradient along stroke	Gradient langs konturen
 	Gradient Fill: click to apply, drag onto art	Gradientfyld: klik for at anvende, træk hen over grafikken
@@ -1896,6 +1898,13 @@ lighting	Light	Lys
 	Tints and Shades	Nuancer og skygger
 	Hue Shift	Farvetoneskift
 	Key Color:	Nøglefarve:
+	Tips	Tips
+	Colorization Tips	Tips om farvelægning
+	The samples show this brush on a blue stroke.	Eksemplerne viser denne pensel på en blå streg.
+	The art keeps its own colors.	Grafikken beholder sine egne farver.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Sort bliver stregfarven, og hvid forbliver hvid. Andre farver bliver nuancer af stregfarven, og jo lysere en farve er, desto lysere er dens nuance.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Sort forbliver sort, og hvid forbliver hvid. Andre farver bliver skygger af stregfarven, når de er mørke, og nuancer af den, når de er lyse.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Nøglefarven bliver stregfarven. De andre farver flytter sig lige så langt rundt i farvehjulet som nøglefarven og beholder deres mætning og lysstyrke.
 	Size:	Størrelse:
 	Calligraphic Brush Options	Indstillinger for kalligrafipensel
 	Bristle Brush Options	Indstillinger for børstepensel
@@ -2712,12 +2721,21 @@ lighting	Light	Lys
 	Darken	Mørkere
 	Exclusion	Udelukkelse
 	Hard Light	Hårdt lys
+	Hard Mix	Hård blanding
 	Lighten	Lysere
 	Luminosity	Luminans
 	Overlay	Overlejring
 	Soft Light	Blødt lys
+	Soft Mix	Blød blanding
 	Crosshatch	Krydsskravering
 	Fine Dots	Fine prikker
+
+	Simple	Enkel
+	Light Rough	Lys ru
+	Dark Rough	Mørk ru
+	Wide Sharp	Bred skarp
+	Wide Blurry	Bred sløret
+	Sparkle	Glimt
 	Medium Dots	Mellemstore prikker
 	Grainy Dots	Kornede prikker
 	Coarse Dots	Grove prikker
@@ -2789,6 +2807,14 @@ theme	Appearance	Udseende
 	Edit Symbol	Redigér symbol
 	Expand Brush Strokes	Udvid penselstrøg
 	New Brush…	Ny pensel…
+	New Brush	Ny pensel
+	Calligraphic Brush	Kalligrafipensel
+	Scatter Brush	Spredningspensel
+	Art Brush	Grafikpensel
+	Bristle Brush	Børstepensel
+	Pattern Brush	Mønsterpensel
+	Select art to make a scatter, art or pattern brush.	Markér grafik for at oprette en spredningspensel, grafikpensel eller mønsterpensel.
+	Brush Art	Penselgrafik
 	New Symbol	Nyt symbol
 	New Symbol…	Nyt symbol…
 	Place Symbol Instance	Placér symbolforekomst
@@ -3249,6 +3275,7 @@ theme	Appearance	Udseende
 	Scale Corners	Skalér hjørner
 	Scale Cursor Proportional to UI	Skalér markør proportionalt med brugergrænsefladen
 	Scale Strokes & Effects	Skalér konturer & effekter
+	Scale Text Attributes	Skalér tekstattributter
 	Scratch Disks	Midlertidige diske
 	Secondary	Sekundær
 	Select Same Tint %	Markér samme farvetone %
@@ -3349,6 +3376,7 @@ theme	Appearance	Udseende
 	Delete Swatch	Slet farveprøve
 	Duplicate Swatch	Duplikér farveprøve
 	Merge Swatches	Flet farveprøver
+	Move Brush	Flyt pensel
 	Move Swatch	Flyt farveprøve
 	New Color Group	Ny farvegruppe
 	New Swatch	Ny farveprøve
@@ -4069,6 +4097,7 @@ imageTrace	Outline	Kontur
 @msg	no bounds	ingen grænser
 @msg	no brush named `{name}`	ingen pensel med navnet `{name}`
 @msg	no brush selected	ingen pensel er markeret
+@msg	brushes move only within their type	pensler kan kun flyttes inden for deres egen type
 @msg	no catalog	intet katalog
 @msg	no changes since the last save	ingen ændringer siden sidste gemning
 @msg	no clock to keep a heartbeat by	intet ur at holde hjerteslag efter
@@ -4847,6 +4876,9 @@ mark-style	Japanese	Japansk
 	Softness	Blødhed
 	Ambient Light	Omgivelseslys
 	Light behind the object	Lys bag objektet
+	3D Lighting Preset	Forudindstilling for 3D-belysning
+	Standard	Standard
+	Diffuse	Diffust
 # 3D light management.
 	Lights	Lyskilder
 	Add Light	Tilføj lyskilde
@@ -4891,6 +4923,7 @@ mark-style	Japanese	Japansk
 	Painting	Maling
 	Printing and Proofing	Udskrivning og prøvetrykning
 	Tracing	Sporing
+	Touch	Touch
 	Typography	Typografi
 	VectorCraft	VectorCraft
 	Web	Web
@@ -4957,6 +4990,7 @@ mark-style	Japanese	Japansk
 @msg	Measured anchor no longer exists	Det målte ankerpunkt findes ikke længere
 @msg	Measured segment no longer exists	Det målte segment findes ikke længere
 @msg	Non-finite dimension	Ikke-endeligt mål
+@msg	Scale Text Attributes: selected type has no scale to bake	Skalér tekstattributter: den valgte tekst har ingen skalering at anvende
 @msg	Scale must be drawing:real, for example 1:10	Målestokken skal være tegning:virkelig, for eksempel 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Målestoksforholdet skal være mellem 1:1000000 og 1000000:1
 @msg	Second measured segment no longer exists	Det andet målte segment findes ikke længere
@@ -4983,6 +5017,8 @@ mark-style	Japanese	Japansk
 	Make Image Dynamic	Gør billede dynamisk
 	Import Data Sets…	Importér datasæt…
 	Export Data Sets…	Eksportér datasæt…
+	Load Variable Library…	Indlæs variabelbibliotek…
+@msg	variables that aren't text were left out: {kinds}	variabler, der ikke er tekst, blev udeladt: {kinds}
 	Make Graph Dynamic	Gør diagram dynamisk
 	Batch…	Batch…
 	Source Folder:	Kildemappe:
@@ -5137,6 +5173,8 @@ swatch	Bright Violet	Kraftig violet
 	Sketch	Skitse
 	Halftone Pattern…	Rastermønster…
 	Halftone Pattern	Rastermønster
+	Torn Edges…	Flængede kanter…
+	Torn Edges	Flængede kanter
 	Pattern Type	Mønstertype
 	Dot	Prik
 	Export Type:	Eksporttype:
@@ -5187,12 +5225,24 @@ swatch	Bright Violet	Kraftig violet
 	Lock Variables	Lås variabler
 	Unlock Variables	Lås variabler op
 	Change to Artboard Rulers	Skift til kunstpladelinealer
+	Colored Pencil…	Farveblyant…
+	Colored Pencil	Farveblyant
 	Cutout…	Udklip…
+	Dry Brush…	Tør pensel…
 	Neon Glow…	Neonglød…
+	Palette Knife…	Paletkniv…
 	Poster Edges…	Plakatkanter…
+	Rough Pastels…	Grove pasteller…
 	Cutout	Udklip
+	Dry Brush	Tør pensel
 	Neon Glow	Neonglød
+	Paint Daubs…	Malerklatter…
+	Paint Daubs	Malerklatter
+	Palette Knife	Paletkniv
 	Poster Edges	Plakatkanter
+	Rough Pastels	Grove pasteller
+	Underpainting…	Undermaling…
+	Underpainting	Undermaling
 	Apply Data Set	Anvend datasæt
 	Cancel Pattern Editing	Annullér redigering af mønster
 	Copy Appearance	Kopiér udseende
@@ -5269,6 +5319,7 @@ swatch	Bright Violet	Kraftig violet
 	Thread Text	Sammenkæd tekst
 	Typing	Indtastning
 	Persistent	Vedvarende
+	Locate Library…	Lokalisér bibliotek…
 	Library Panel Options	Indstillinger for bibliotekspanel
 	Artboard {n} of {total}	Tegneflade {n} af {total}
 	Encoding and writing the file…	Koder og skriver filen…
@@ -5295,6 +5346,7 @@ swatch	Bright Violet	Kraftig violet
 	Watercolor…	Akvarel…
 	Watercolor	Akvarel
 	Brush Size	Penselstørrelse
+	Texture Coverage	Teksturdækning
 	Definition	Definition
 	Brush Detail	Penseldetalje
 	Shadow Intensity	Skyggeintensitet
@@ -5328,3 +5380,7 @@ swatch	Bright Violet	Kraftig violet
 	Note Paper	Notatpapir
 	Water Paper…	Vådt papir…
 	Water Paper	Vådt papir
+	Ruby…	Ruby…
+	Ruby	Ruby
+	Fresco…	Fresko…
+	Fresco	Fresko
