@@ -1352,6 +1352,7 @@ lighting	Light	Cahaya
 	Leading	Leading
 	No Break	Tanpa pemenggalan
 	Proportional Metrics	Metrik proporsional
+	Character Direction	Arah karakter
 	Digits	Digit
 	Arabic	Arab
 	Hindi	Hindi
@@ -5390,5 +5391,11 @@ swatch	Bright Violet	Violet cerah
 	Water Paper	Kertas Basah
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Awal Lambat
+	Ease Out	Akhir Lambat
+	Ease In Out	Awal dan Akhir Lambat
+	Ease Out In	Akhir dan Awal Lambat
+	Ramp:	Kekuatan:
+	Shift:	Pergeseran:
 	Fresco…	Fresko…
 	Fresco	Fresko
