@@ -50,22 +50,27 @@ pub(super) fn left(t: Vec2) -> Vec2 {
     Vec2::new(t.y, -t.x)
 }
 
-/// A flattened subpath: its points, which of them are corners, and the source segment that drew
-/// each flattened segment (so a sample added between two points can read that segment's tangent
-/// instead of the chord's direction).
+/// A flattened subpath: its points, which of them are corners, and the source segment and
+/// parameter range that drew each flattened piece (so a sample added between two points can read
+/// that piece's tangent instead of the chord's direction).
 pub(super) struct Flat {
     pub(super) pts: Vec<Point>,
     pub(super) corner: Vec<bool>,
     pub(super) seg_of: Vec<usize>,
+    /// The source segment's parameter range for each flattened piece. Restricting the tangent
+    /// search to this range keeps a sample on the branch that drew it when a cubic loops back
+    /// near itself.
+    pub(super) param: Vec<(f64, f64)>,
 }
 
 /// The flattened points of one subpath (consecutive duplicates removed; a closed one doesn't
 /// repeat its start), each marked when it is a corner of the path.
 pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> Flat {
-    let Some(s0) = segs.first() else { return Flat { pts: vec![], corner: vec![], seg_of: vec![] } };
-    let mut flat = Flat { pts: vec![s0.start()], corner: vec![false], seg_of: vec![] };
-    // The first and the last segment that drew something.
-    let (mut first, mut prev): (Option<&PathSeg>, Option<&PathSeg>) = (None, None);
+    let Some(s0) = segs.first() else { return Flat { pts: vec![], corner: vec![], seg_of: vec![], param: vec![] } };
+    let mut flat = Flat { pts: vec![s0.start()], corner: vec![false], seg_of: vec![], param: vec![] };
+    // The last segment that drew something, and the last parameter it reached.
+    let mut prev: Option<&PathSeg> = None;
+    let mut last_added: Option<(usize, f64)> = None;
     for (si, seg) in segs.iter().enumerate() {
         let at = flat.pts.len() - 1;
         let before = flat.pts.len();
@@ -89,10 +94,26 @@ pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> Flat {
             for slot in flat.seg_of.iter_mut().take(end).skip(at) {
                 *slot = si;
             }
+            // Find each new point's source parameter, never going backwards. A point is on the
+            // curve, so its nearest parameter is exact except at a self-intersection, where the
+            // monotone search picks the branch that continues this flattened piece.
+            let mut ts = Vec::with_capacity(end - at + 1);
+            ts.push(0.0);
+            let mut t = 0.0;
+            for p in &flat.pts[at + 1..=end] {
+                if t >= 1.0 - 1e-12 {
+                    t = 1.0;
+                } else {
+                    let sub = seg.subsegment(t..1.0);
+                    let nr = sub.nearest(*p, 1e-9);
+                    t = (t + (1.0 - t) * nr.t).clamp(0.0, 1.0);
+                }
+                ts.push(t);
+            }
+            flat.param.extend(ts.windows(2).map(|w| (w[0], w[1])));
+            last_added = ts.last().map(|t| (si, *t));
             if let Some(p) = prev {
                 flat.corner[at] = kink(p, seg);
-            } else {
-                first = Some(seg);
             }
             prev = Some(seg);
         }
@@ -102,14 +123,25 @@ pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> Flat {
             flat.pts.pop();
             flat.corner.pop();
         }
-        if let (Some(a), Some(b)) = (prev, first) {
+        if let (Some(a), Some(b)) = (segs.last(), segs.first()) {
             flat.corner[0] = kink(a, b);
         }
-        // A closing segment normally came from the path's last source segment; keep a tangent for
-        // it if the path closed without a duplicate point.
+        // The closing piece comes from the last source segment even when its endpoint is the
+        // already-present start point and did not add a flattened point. Keep a tangent (and its
+        // whole parameter range) for it.
+        flat.seg_of.truncate(flat.pts.len());
+        flat.param.truncate(flat.pts.len());
         if flat.seg_of.len() < flat.pts.len() {
-            let last = flat.seg_of.last().copied().unwrap_or(0);
+            let last = segs.len().saturating_sub(1);
+            // A closing curve with interior flattened points has already reached a parameter
+            // before its end (the duplicated start point was not added); the missing piece starts
+            // where it left off, not at 0.
+            let start = match last_added {
+                Some((si, t)) if si == last => t,
+                _ => 0.0,
+            };
             flat.seg_of.resize(flat.pts.len(), last);
+            flat.param.resize(flat.pts.len(), (start, 1.0));
         }
     }
     flat
@@ -157,21 +189,36 @@ pub(super) fn length(pts: &[Point], closed: bool) -> f64 {
 /// A flattened subpath (see [`flatten`]) with points added `marks` along it (distances from its
 /// start; those on a point or off the subpath are ignored).
 pub(super) fn split_at(flat: &Flat, closed: bool, marks: &[f64], segs: &[PathSeg]) -> (Vec<Point>, Vec<bool>, Vec<Vec2>) {
-    let Flat { pts, corner, seg_of } = flat;
+    let Flat { pts, corner, seg_of, param } = flat;
     let n = pts.len();
     let seg_count = if closed { n } else { n.saturating_sub(1) };
-    // The source's direction at `p`, from the segment that drew its flattened piece. The chord
-    // direction is the secant, not the tangent: using it for points added inside a chord jogs the
-    // normal at every flatten vertex.
-    let source = |p: Point, si: Option<usize>| -> Vec2 {
-        let Some(seg) = si.and_then(|i| segs.get(i)) else { return Vec2::new(1.0, 0.0) };
-        tangent(seg, seg.nearest(p, 1e-9).t)
+    // The source's direction at a source parameter. The chord direction is the secant, not the
+    // tangent: using it for points added inside a chord jogs the normal at every flatten vertex.
+    let source_at = |si: usize, t: f64| -> Vec2 { segs.get(si).map_or(Vec2::new(1.0, 0.0), |seg| tangent(seg, t)) };
+    // A point added inside a flattened piece searches only that piece's source parameter range:
+    // a looping cubic can pass near itself, and a full-segment nearest would take the other
+    // branch's tangent.
+    let source_near = |p: Point, i: usize| -> Vec2 {
+        let Some(si) = seg_of.get(i).copied() else { return Vec2::new(1.0, 0.0) };
+        let Some(seg) = segs.get(si) else { return Vec2::new(1.0, 0.0) };
+        let (t0, t1) = param.get(i).copied().unwrap_or((0.0, 1.0));
+        if t1 - t0 > 1e-12 {
+            let sub = seg.subsegment(t0..t1);
+            tangent(seg, t0 + (t1 - t0) * sub.nearest(p, 1e-9).t)
+        } else {
+            tangent(seg, t0)
+        }
     };
     // At a shared point, average the arriving and leaving directions unless it is a corner.
     let dir_at = |i: usize| -> Vec2 {
-        let incoming = if i == 0 { if closed { seg_of.last().copied() } else { None } } else { seg_of.get(i - 1).copied() };
-        let outgoing = seg_of.get(i).copied();
-        let (a, b) = (incoming.map(|si| source(pts[i], Some(si))), outgoing.map(|si| source(pts[i], Some(si))));
+        let incoming = if i == 0 {
+            if closed { seg_of.last().copied().zip(param.last().copied()) } else { None }
+        } else {
+            seg_of.get(i - 1).copied().zip(param.get(i - 1).copied())
+        };
+        let outgoing = seg_of.get(i).copied().zip(param.get(i).copied());
+        let a = incoming.map(|(si, (_, t))| source_at(si, t));
+        let b = outgoing.map(|(si, (t, _))| source_at(si, t));
         match (a, b) {
             (Some(a), Some(b)) if !corner[i] => {
                 let sum = a + b;
@@ -197,7 +244,7 @@ pub(super) fn split_at(flat: &Flat, closed: bool, marks: &[f64], segs: &[PathSeg
             let p = a.lerp(b, (d - acc) / len);
             out.0.push(p);
             out.1.push(false);
-            out.2.push(source(p, seg_of.get(i).copied()));
+            out.2.push(source_near(p, i));
         }
         acc += len;
     }
@@ -799,6 +846,42 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn added_samples_stay_on_their_flattened_branch() {
+        // This cubic loops back near itself. At a coarse tolerance a chord midpoint can be closer
+        // to the other branch; a full-segment nearest would then take that branch's tangent and
+        // spike the offset. Each inserted sample must use the parameter range of its own piece.
+        let mut b = BezPath::new();
+        b.move_to((0.0, 0.0));
+        b.curve_to((150.0, 100.0), (-50.0, 100.0), (100.0, 0.0));
+        let segs = segments(b.elements());
+        let seg = segs[0];
+        let flat = flatten(&segs, false, 2.0);
+        let mut acc = 0.0;
+        let mut divergent = 0;
+        for i in 0..flat.pts.len() - 1 {
+            let len = flat.pts[i].distance(flat.pts[i + 1]);
+            if len <= 1e-12 {
+                continue;
+            }
+            let (t0, t1) = flat.param[i];
+            let sub = seg.subsegment(t0..t1);
+            for k in 1..16 {
+                let (out, _, dirs) = split_at(&flat, false, &[acc + len * k as f64 / 16.0], &segs);
+                assert!(out.len() >= i + 2, "no sample inserted in piece {i}");
+                let p = out[i + 1];
+                let want = tangent(&seg, t0 + (t1 - t0) * sub.nearest(p, 1e-9).t);
+                assert!(dirs[i + 1].dot(want) > 0.999, "piece {i}, k {k}: {:?} vs {want:?}", dirs[i + 1]);
+                let full = tangent(&seg, seg.nearest(p, 1e-9).t);
+                if full.dot(want) < 0.9 {
+                    divergent += 1;
+                }
+            }
+            acc += len;
+        }
+        assert!(divergent > 0, "the fixture did not cross the other branch");
     }
 
     #[test]
