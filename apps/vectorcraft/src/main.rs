@@ -639,9 +639,7 @@ const CUSTOM_TITLEBAR: bool = !cfg!(target_os = "macos");
 /// Bar. Read from the saved preferences before the window opens; a missing or unreadable value is
 /// `false` (the default). This preference forces the desktop/native frame back on.
 fn opted_into_system_title_bar(saved: Option<&vectorcraft_ui_egui::UiState>) -> bool {
-    saved
-        .map(|ui| ui.engine_prefs.get("systemTitleBar").and_then(serde_json::Value::as_bool).unwrap_or(false))
-        .unwrap_or(false)
+    saved.map(|ui| ui.engine_prefs.get("systemTitleBar").and_then(serde_json::Value::as_bool).unwrap_or(false)).unwrap_or(false)
 }
 
 /// Whether this start draws its own title bar, given the frame the shared `craft-window` crate
@@ -676,9 +674,24 @@ fn custom_titlebar_from(_frame: &craft_window::Frame, opted_into_system: bool) -
 /// Whether this start draws its own title bar. Probes the shared `craft-window` crate once (its
 /// override variable is `VECTORCRAFT_TITLEBAR`) and combines its decision with the saved System
 /// Title Bar preference. Call once at startup, before [`native_options`].
+///
+/// On Linux, Preferences › Performance › Linux Display Server › X11 opens the window through
+/// XWayland (below). A GNOME/Wayland probe would say `Frame::App` there, but the window really runs
+/// on X11, whose window manager draws the frame — so when XWayland is being forced, keep the native
+/// frame, the same as a real X11 session. An explicit `VECTORCRAFT_TITLEBAR` override still wins.
 fn custom_titlebar(saved: Option<&vectorcraft_ui_egui::UiState>) -> bool {
     let choice = craft_window::Choice::probe(craft_window::Prefix::new("VECTORCRAFT"));
-    custom_titlebar_from(choice.frame(), opted_into_system_title_bar(saved))
+    let opted_into_system = opted_into_system_title_bar(saved);
+    #[cfg(target_os = "linux")]
+    {
+        let pref = saved.and_then(|ui| ui.engine_prefs.get("linuxDisplayServer")).and_then(serde_json::Value::as_str);
+        // `overridden() == None` means the probe decided (no VECTORCRAFT_TITLEBAR): when the window
+        // is being forced onto XWayland, that run is effectively X11, so keep the native frame.
+        if choice.overridden().is_none() && xwayland::wanted(pref, |name| std::env::var_os(name), xwayland::pen_attached) {
+            return custom_titlebar_from(&craft_window::Frame::Desktop, opted_into_system);
+        }
+    }
+    custom_titlebar_from(choice.frame(), opted_into_system)
 }
 
 fn native_options(custom_titlebar: bool) -> eframe::NativeOptions {
