@@ -1,24 +1,5 @@
 # Development
 
-## Linux file-manager handoff (2026-10-21)
-
-Ordinary Linux launches share the session D-Bus name `ai.storyteller.vectorcraft.OpenDocuments`.
-Later launches queue absolute document paths and exit; the running app opens document tabs
-once native and in-app dialogs close, preserving existing unsaved work. Activation remains
-subject to the compositor's focus policy. Automation (`--control`, `VECTORCRAFT_CONTROL_PORT`,
-`VECTORCRAFT_NO_PREFS`) stays independent; no usable session bus falls back to normal startup.
-Forwarded paths use `io::opens_as` to refuse plug-ins, presets, libraries, shortcut sets and
-scripts before reading; deliberate local File Open and plug-in installation stay available.
-Linux desktop reads accept regular files and ordinary symlinks, reject pipes/devices/directories,
-recheck the opened descriptor, and cap input at 512 MiB even for growing or zero-reported-length
-files. Nonblocking opens prevent FIFO replacement from hanging; regular-file I/O remains
-synchronous and network filesystem latency is not bounded. Queued paths are bounded; aggregate
-decoding work and open tabs do not yet have a shared resource budget.
-Tests: `single_instance::tests` (isolated real D-Bus, Unicode/relative paths, ownership release,
-modal deferral, unsaved documents, document-only handling) and `linux_file_read::tests`
-(special descriptors, symlinks, exact/oversize/streaming limits). Native and Flatpak tab opening
-were manually verified. Scores and estimates unchanged.
-
 > **Last updated:** 2026-10-21 · **Change:** leaving out the bundled fonts with the egui panels (vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features).
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
@@ -418,3 +399,22 @@ do not replace expected hashes automatically in response to a download mismatch.
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
+
+## Linux file-manager handoff (2026-10-21)
+
+Ordinary Linux launches share the session D-Bus name `ai.storyteller.vectorcraft.OpenDocuments`.
+Later launches queue absolute document paths and exit; the running app opens document tabs
+once native and in-app dialogs close, preserving existing unsaved work. Activation remains
+subject to the compositor's focus policy. Automation (`--control`, `VECTORCRAFT_CONTROL_PORT`,
+`VECTORCRAFT_NO_PREFS`) stays independent; no usable session bus falls back to normal startup.
+Forwarded paths use `io::opens_as` to refuse plug-ins, presets, libraries, shortcut sets and
+scripts before reading; deliberate local File Open and plug-in installation stay available.
+Linux desktop reads accept regular files and ordinary symlinks, reject pipes/devices/directories,
+recheck the opened descriptor, and cap input at 512 MiB even for growing or zero-reported-length
+files. Nonblocking opens prevent FIFO replacement from hanging; regular-file I/O remains
+synchronous and network filesystem latency is not bounded. Queued paths are bounded; aggregate
+decoding work and open tabs do not yet have a shared resource budget.
+Tests: `single_instance::tests` (isolated real D-Bus, Unicode/relative paths, ownership release,
+modal deferral, unsaved documents, document-only handling) and `linux_file_read::tests`
+(special descriptors, symlinks, exact/oversize/streaming limits). Native and Flatpak tab opening
+were manually verified. Scores and estimates unchanged.
