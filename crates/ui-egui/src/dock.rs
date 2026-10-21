@@ -143,7 +143,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             .size_range(LEGACY_DOCK_MIN..=LEGACY_DOCK_MAX)
             .frame(egui::Frame::NONE)
             .show(ui, |ui| {
-                crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, |ui| {
+                crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, theme::Edge::Left, |ui| {
                     if collapse_header(ui, false) {
                         toggle(app, true);
                     }
@@ -184,7 +184,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // it.
     let collapsed = app.ui.dock_collapsed && shown.is_some();
     let column = egui::Panel::right("icon_column").resizable(false).exact_size(ICON_COL).frame(egui::Frame::NONE).show(ui, |ui| {
-        crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, |ui| {
+        crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, theme::Edge::Left, |ui| {
             let bounds = ui.max_rect();
             if collapsed && collapse_header(ui, true) {
                 toggle(app, false);
@@ -372,11 +372,29 @@ pub(crate) fn panel_tabs(
         let resp = craft_ui::tabs::Tab::new(ui.id().with((id, key)), label, i == selected)
             .sense(Sense::click_and_drag())
             .focus_stroke(Stroke::new(1.0, t.accent))
-            .show_at(ui, rect, |ui, _| {
-                if i == selected {
-                    ui.painter().rect_filled(rect.shrink2(vec2(3.0, 5.0)), t.cr(), t.button);
+            .show_at(ui, rect, |ui, resp| {
+                let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+                let size = galley.size();
+                let at = rect.center() - size / 2.0;
+                match t.tab_style {
+                    theme::TabStyle::Pill => {
+                        if i == selected {
+                            ui.painter().rect_filled(rect.shrink2(vec2(3.0, 5.0)), t.cr(), t.button);
+                        }
+                        painter.galley(at, galley, t.text);
+                    }
+                    theme::TabStyle::Underline => {
+                        if i == selected {
+                            painter.galley(at, galley, t.text);
+                            let line = Rect::from_min_max(egui::pos2(at.x, rect.bottom() - 2.0), egui::pos2(at.x + size.x, rect.bottom()));
+                            painter.rect_filled(line, 0.0, t.text_strong);
+                        } else if resp.hovered() {
+                            painter.galley_with_override_text_color(at, galley, t.text);
+                        } else {
+                            painter.galley(at, galley, t.text);
+                        }
+                    }
                 }
-                ui.painter().with_clip_rect(rect.intersect(ui.clip_rect())).galley(rect.center() - galley.size() / 2.0, galley, t.text);
                 let _ = separators;
             });
         out.responses.push((i, if shrunk { resp.on_hover_text(*label) } else { resp }));

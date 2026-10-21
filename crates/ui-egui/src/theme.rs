@@ -85,27 +85,47 @@ impl Accent {
     }
 }
 
-/// User Interface › Color Scheme: Modern (the default: slate greys and the chosen accent) or
-/// Classic (the neutral greys and blue accent of earlier versions). Both keep the same layout,
-/// cards and corners; only the colours differ.
+/// User Interface › Color Scheme: Modern (the default: slate greys and the chosen accent),
+/// Classic (the neutral greys and blue accent of earlier versions) or Flat (neutral greys, a blue
+/// accent, and the toolbar, rail and dock flush with the window's edges instead of cards). The
+/// layout is the same in all three; Flat's look comes from its tokens ([`Tokens::cards`],
+/// [`Tokens::tab_style`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Scheme {
     #[default]
     Modern,
     Classic,
+    Flat,
 }
 
 impl Scheme {
-    pub const ALL: [Scheme; 2] = [Scheme::Modern, Scheme::Classic];
+    pub const ALL: [Scheme; 3] = [Scheme::Modern, Scheme::Classic, Scheme::Flat];
     pub fn id(self) -> &'static str {
         match self {
             Scheme::Modern => "modern",
             Scheme::Classic => "classic",
+            Scheme::Flat => "flat",
         }
     }
     pub fn parse(s: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|c| c.id().eq_ignore_ascii_case(s))
     }
+}
+
+/// How a panel tab strip marks the tab in front.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TabStyle {
+    /// A filled block in the button colour behind its label.
+    Pill,
+    /// Labels alone, a 2 pt line in the label's colour under the one in front.
+    Underline,
+}
+
+/// The side of a docked column that meets the canvas or the next column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Edge {
+    Left,
+    Right,
 }
 
 /// All colours and metrics the UI uses. Never hard-code a colour in a widget.
@@ -143,6 +163,11 @@ pub struct Tokens {
     /// Floating surfaces: menus, popovers, the task bar, dialogs and windows, and [`card`]s
     /// ([`Tokens::cr_float`]). Docked chrome and anything not listed here is square.
     pub radius_float: u8,
+    /// The toolbar, rail and dock are [`card`]s on the window's frame colour; without, they reach
+    /// the window's edges and a divider separates them.
+    pub cards: bool,
+    /// How panel tabs mark the one in front.
+    pub tab_style: TabStyle,
     /// Field values, button labels, link labels.
     pub text_strong: Color32,
     /// Panel tab strips, doc-tab bar, dock header.
@@ -210,6 +235,8 @@ impl Tokens {
             radius: 4,
             radius_small: 2,
             radius_float: 8,
+            cards: true,
+            tab_style: TabStyle::Pill,
             text_strong: hex(0xffffff),
             tab_strip: hex(0x0f1116),
             button_border: hex(0x4a5363),
@@ -431,11 +458,134 @@ impl Tokens {
         }
     }
 
-    /// The tokens for `b` in `scheme`; Modern takes `accent`, Classic has its own blue.
+    /// The Flat colour scheme at brightness `b`: one neutral surface for the toolbar, rail and dock,
+    /// flush with the window's edges with 1 pt dividers between them (no cards), labels for panel
+    /// tabs, a neutral grey pressed tool and a blue accent kept for selection, focus and the primary
+    /// action. Medium Dark and Light are the proposal's dark and light tokens; Dark and Medium Light
+    /// are a shade deeper.
+    pub fn flat(b: Brightness) -> Self {
+        let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
+        let base = Tokens {
+            dark: true,
+            cards: false,
+            tab_style: TabStyle::Underline,
+            app_bar: hex(0x1a1b1e),
+            panel: hex(0x1f2023),
+            panel_darker: hex(0x1a1b1e),
+            tab_strip: hex(0x1f2023),
+            input: hex(0x28292d),
+            input_border: hex(0x313236),
+            border: hex(0x34363b),
+            divider: hex(0x2e3035),
+            text: hex(0xe4e5e8),
+            text_strong: hex(0xffffff),
+            text_dim: hex(0x9ea2aa),
+            text_disabled: hex(0x6c7079),
+            icon: hex(0xaeb2b9),
+            hover: hex(0x2c2d32),
+            tool_active: hex(0x3a3c42),
+            accent: hex(0x5b8def),
+            accent_strong: hex(0x4a7de6),
+            flyout_active: hex(0x5b8def),
+            // The accent at 18% over the panel.
+            row_selected: hex(0x2a3448),
+            pasteboard: hex(0x2a2b2f),
+            ruler: hex(0x1f2023),
+            ruler_tick: hex(0x6c7079),
+            measure_bg: Color32::from_rgba_unmultiplied(38, 39, 43, 235),
+            button: hex(0x2d2e33),
+            button_border: hex(0x4a4d55),
+            ..Tokens::for_brightness(Brightness::MediumDark)
+        };
+        match b {
+            Brightness::Dark => Tokens {
+                app_bar: hex(0x131416),
+                panel: hex(0x18191b),
+                panel_darker: hex(0x131416),
+                tab_strip: hex(0x18191b),
+                input: hex(0x212226),
+                input_border: hex(0x2a2b2f),
+                border: hex(0x2d2f33),
+                divider: hex(0x26282c),
+                hover: hex(0x24252a),
+                tool_active: hex(0x33353a),
+                row_selected: hex(0x242e41),
+                pasteboard: hex(0x222326),
+                ruler: hex(0x18191b),
+                measure_bg: Color32::from_rgba_unmultiplied(31, 32, 35, 235),
+                button: hex(0x26272b),
+                button_border: hex(0x44474e),
+                ..base
+            },
+            Brightness::MediumDark => base,
+            Brightness::MediumLight => Tokens {
+                dark: false,
+                app_bar: hex(0xdddfe2),
+                panel: hex(0xe6e7ea),
+                panel_darker: hex(0xdddfe2),
+                tab_strip: hex(0xe6e7ea),
+                input: hex(0xdadcdf),
+                input_border: hex(0xc4c7cc),
+                border: hex(0xcacdd2),
+                divider: hex(0xcacdd2),
+                text: hex(0x1b1d22),
+                text_strong: hex(0x000000),
+                text_dim: hex(0x50555d),
+                text_disabled: hex(0x80858d),
+                icon: hex(0x44484f),
+                hover: hex(0xdcdee2),
+                tool_active: hex(0xcacdd2),
+                accent: hex(0x2f6be0),
+                accent_strong: hex(0x2a60cc),
+                flyout_active: hex(0x2f6be0),
+                row_selected: hex(0xd0d8e9),
+                pasteboard: hex(0xd3d5d9),
+                ruler: hex(0xe6e7ea),
+                ruler_tick: hex(0x50555d),
+                measure_bg: Color32::from_rgba_unmultiplied(245, 245, 246, 235),
+                button: hex(0xd5d7db),
+                button_border: hex(0x9a9ea6),
+                ..base
+            },
+            Brightness::Light => Tokens {
+                dark: false,
+                app_bar: hex(0xedeef0),
+                panel: hex(0xf5f5f6),
+                panel_darker: hex(0xedeef0),
+                tab_strip: hex(0xf5f5f6),
+                input: hex(0xeaebed),
+                input_border: hex(0xd6d8dc),
+                border: hex(0xdcdee2),
+                divider: hex(0xdcdee2),
+                text: hex(0x1e2025),
+                text_strong: hex(0x111317),
+                text_dim: hex(0x5e636b),
+                text_disabled: hex(0x8e939b),
+                icon: hex(0x4e535b),
+                hover: hex(0xebecee),
+                tool_active: hex(0xdcdee2),
+                accent: hex(0x2f6be0),
+                accent_strong: hex(0x2a60cc),
+                flyout_active: hex(0x2f6be0),
+                // The accent at 12% over the panel.
+                row_selected: hex(0xdde4f3),
+                pasteboard: hex(0xe4e5e8),
+                ruler: hex(0xf5f5f6),
+                ruler_tick: hex(0x5e636b),
+                measure_bg: Color32::from_rgba_unmultiplied(255, 255, 255, 235),
+                button: hex(0xe4e5e8),
+                button_border: hex(0xa9adb4),
+                ..base
+            },
+        }
+    }
+
+    /// The tokens for `b` in `scheme`; Modern takes `accent`, Classic and Flat have their own blue.
     pub fn for_scheme(scheme: Scheme, b: Brightness, accent: Accent) -> Self {
         match scheme {
             Scheme::Modern => Self::for_brightness(b).with_accent(accent),
             Scheme::Classic => Self::classic(b),
+            Scheme::Flat => Self::flat(b),
         }
     }
 
@@ -476,9 +626,23 @@ impl Tokens {
     }
 }
 
-/// The toolbar, the panel dock and the icon rail are cards: `body` drawn on the panel colour with
-/// the floating corners, `margin` of the window's frame colour around it.
-pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, body: impl FnOnce(&mut egui::Ui) -> R) -> R {
+/// The toolbar, the panel dock and the icon rail: with [`Tokens::cards`], `body` drawn on the panel
+/// colour with the floating corners, `margin` of the window's frame colour around it; without, the
+/// panel colour fills the whole column, square, and a divider runs down its `inner` side.
+pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, inner: Edge, body: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    if !t.cards {
+        let shown = egui::Frame::NONE.fill(t.panel).show(ui, |ui| {
+            ui.set_min_size(ui.available_size());
+            body(ui)
+        });
+        let r = shown.response.rect;
+        let x = match inner {
+            Edge::Left => r.left() + 0.5,
+            Edge::Right => r.right() - 0.5,
+        };
+        ui.painter().vline(x, r.y_range(), Stroke::new(1.0, t.divider));
+        return shown.inner;
+    }
     egui::Frame::NONE
         .fill(t.app_bar)
         .inner_margin(margin)
