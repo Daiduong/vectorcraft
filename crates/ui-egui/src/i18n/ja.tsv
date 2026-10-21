@@ -4927,3 +4927,5 @@ lighting	Light	ライト
 	Plaster	石膏
 	Note Paper…	ノート用紙…
 	Note Paper	ノート用紙
+	“{name}” changed on disk. Reload it?	「{name}」はディスク上で変更されました。再読み込みしますか？
+@msg	Reloaded {_1}: the file changed on disk	{_1} を再読み込みしました：ファイルがディスク上で変更されました

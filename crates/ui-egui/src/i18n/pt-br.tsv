@@ -5190,3 +5190,5 @@ mark-style	Japanese	Japonesas
 	Plaster	Gesso
 	Note Paper…	Papel de carta…
 	Note Paper	Papel de carta
+	“{name}” changed on disk. Reload it?	“{name}” foi alterado no disco. Recarregar?
+@msg	Reloaded {_1}: the file changed on disk	{_1} recarregado: o arquivo foi alterado no disco

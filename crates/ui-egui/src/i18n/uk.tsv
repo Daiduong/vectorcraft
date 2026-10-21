@@ -4867,3 +4867,5 @@ lighting	Light	Світло
 	Plaster	Гіпс
 	Note Paper…	Поштовий папір…
 	Note Paper	Поштовий папір
+	“{name}” changed on disk. Reload it?	«{name}» змінено на диску. Перезавантажити?
+@msg	Reloaded {_1}: the file changed on disk	Перезавантажено {_1}: файл змінено на диску

@@ -5259,3 +5259,5 @@ imageTrace	Outline	Körvonal
 	Plaster	Gipsz
 	Note Paper…	Jegyzetpapír…
 	Note Paper	Jegyzetpapír
+	“{name}” changed on disk. Reload it?	„{name}” módosult a lemezen. Újratöltöd?
+@msg	Reloaded {_1}: the file changed on disk	Újratöltve: {_1} (a fájl módosult a lemezen)

@@ -4905,3 +4905,5 @@ lighting	Light	光源
 	Plaster	塑膠效果
 	Note Paper…	便條紙…
 	Note Paper	便條紙
+	“{name}” changed on disk. Reload it?	「{name}」已在磁碟上變更。要重新載入嗎？
+@msg	Reloaded {_1}: the file changed on disk	已重新載入 {_1}：檔案已在磁碟上變更

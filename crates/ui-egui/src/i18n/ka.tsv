@@ -5180,3 +5180,5 @@ imageTrace	Outline	კონტური
 	Plaster	თაბაშირი
 	Note Paper…	ჩანაწერების ქაღალდი…
 	Note Paper	ჩანაწერების ქაღალდი
+	“{name}” changed on disk. Reload it?	„{name}“ შეიცვალა დისკზე. ჩაიტვირთოს ხელახლა?
+@msg	Reloaded {_1}: the file changed on disk	ხელახლა ჩაიტვირთა {_1}: ფაილი შეიცვალა დისკზე

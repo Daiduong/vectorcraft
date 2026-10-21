@@ -5233,3 +5233,5 @@ theme	Appearance	Външен вид
 	Plaster	Гипс
 	Note Paper…	Хартия за писма…
 	Note Paper	Хартия за писма
+	“{name}” changed on disk. Reload it?	„{name}“ е променен на диска. Да се презареди ли?
+@msg	Reloaded {_1}: the file changed on disk	{_1} е презареден: файлът е променен на диска

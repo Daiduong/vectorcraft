@@ -5251,3 +5251,5 @@ swatch	Bright Violet	Kraftig violet
 	Plaster	Gips
 	Note Paper…	Notatpapir…
 	Note Paper	Notatpapir
+	“{name}” changed on disk. Reload it?	»{name}« er ændret på disken. Vil du genindlæse den?
+@msg	Reloaded {_1}: the file changed on disk	Genindlæste {_1}: filen blev ændret på disken

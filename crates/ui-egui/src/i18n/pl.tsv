@@ -5125,3 +5125,5 @@ mark-style	Japanese	Japońskie
 	Plaster	Gips
 	Note Paper…	Papier listowy…
 	Note Paper	Papier listowy
+	“{name}” changed on disk. Reload it?	Plik „{name}” zmienił się na dysku. Wczytać go ponownie?
+@msg	Reloaded {_1}: the file changed on disk	Wczytano ponownie {_1}: plik zmienił się na dysku

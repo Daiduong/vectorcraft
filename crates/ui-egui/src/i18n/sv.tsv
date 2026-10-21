@@ -5229,3 +5229,5 @@ theme	Appearance	Utseende
 	Plaster	Gips
 	Note Paper…	Anteckningspapper…
 	Note Paper	Anteckningspapper
+	“{name}” changed on disk. Reload it?	”{name}” har ändrats på disken. Vill du läsa in den igen?
+@msg	Reloaded {_1}: the file changed on disk	Läste in {_1} igen: filen ändrades på disken

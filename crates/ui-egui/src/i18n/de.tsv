@@ -4854,3 +4854,5 @@ effect	Soft	Weich
 	Plaster	Gipsabdruck
 	Note Paper…	Prägepapier…
 	Note Paper	Prägepapier
+	“{name}” changed on disk. Reload it?	„{name}“ wurde auf dem Datenträger geändert. Neu laden?
+@msg	Reloaded {_1}: the file changed on disk	{_1} neu geladen: Die Datei wurde auf dem Datenträger geändert

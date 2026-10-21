@@ -4887,3 +4887,5 @@ lighting	Light	Luce
 	Plaster	Gesso
 	Note Paper…	Carta da lettere…
 	Note Paper	Carta da lettere
+	“{name}” changed on disk. Reload it?	“{name}” è stato modificato su disco. Ricaricarlo?
+@msg	Reloaded {_1}: the file changed on disk	{_1} ricaricato: il file è stato modificato su disco

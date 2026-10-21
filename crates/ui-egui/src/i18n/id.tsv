@@ -5251,3 +5251,5 @@ swatch	Bright Violet	Violet cerah
 	Plaster	Plester
 	Note Paper…	Kertas Catatan…
 	Note Paper	Kertas Catatan
+	“{name}” changed on disk. Reload it?	“{name}” berubah di disk. Muat ulang?
+@msg	Reloaded {_1}: the file changed on disk	Telah memuat ulang {_1}: berkas berubah di disk

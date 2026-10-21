@@ -163,6 +163,39 @@ fn revert_reloads_the_saved_file_in_the_same_tab() {
     let _ = std::fs::remove_dir_all(d);
 }
 
+/// `file_version` moves on when VectorCraft writes or reads again the document's own file, and only
+/// then: the desktop app's file watcher tells VectorCraft's own saves from another app's changes by it.
+#[test]
+fn the_file_version_moves_on_with_the_documents_own_file() {
+    let d = dir("fileversion");
+    let mut s = session();
+    let version = |s: &Session| s.doc().unwrap().file_version;
+    rect(&mut s);
+    assert_eq!(version(&s), 0, "an edit leaves the file alone");
+    s.execute("document.save", &json!({"path": path(&d, "a.vectorcraft")})).unwrap();
+    assert_eq!(version(&s), 1);
+    s.execute("file.saveCopy", &json!({"path": path(&d, "copy.vectorcraft")})).unwrap();
+    assert_eq!(version(&s), 1, "a copy is another file");
+    rect(&mut s);
+    s.execute("file.revert", &json!({})).unwrap();
+    assert_eq!(version(&s), 2);
+    let svg = path(&d, "b.svg");
+    s.execute("file.saveAs", &json!({"path": svg})).unwrap();
+    assert_eq!(version(&s), 3);
+    // A version another app wrote, read by the watcher: replaced in the same tab.
+    let (index, uid) = (s.active_index().unwrap(), s.doc().unwrap().uid);
+    let other =
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="5" height="5"/><rect x="9" width="5" height="5"/></svg>"#;
+    crate::cmd::fileio::reload_with(&mut s, index, other.as_bytes()).unwrap();
+    assert_eq!((version(&s), s.doc().unwrap().uid), (4, uid));
+    assert!(!s.doc().unwrap().is_dirty());
+    // Bytes that can't be read leave the document and its version as they are.
+    let before = objects(&s);
+    assert!(crate::cmd::fileio::reload_with(&mut s, index, b"<svg").is_err());
+    assert_eq!((version(&s), objects(&s)), (4, before));
+    let _ = std::fs::remove_dir_all(d);
+}
+
 #[test]
 fn templates_suggest_a_name_in_the_templates_folder_and_open_untitled() {
     let d = dir("tpl");

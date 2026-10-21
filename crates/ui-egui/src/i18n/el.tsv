@@ -5225,3 +5225,5 @@ effect	Points	Σημεία
 	Plaster	Γύψος
 	Note Paper…	Χαρτί σημειώσεων…
 	Note Paper	Χαρτί σημειώσεων
+	“{name}” changed on disk. Reload it?	Το «{name}» άλλαξε στον δίσκο. Να γίνει επαναφόρτωση;
+@msg	Reloaded {_1}: the file changed on disk	Έγινε επαναφόρτωση του {_1}: το αρχείο άλλαξε στον δίσκο

@@ -873,6 +873,16 @@ pub fn ask_revert(app: &mut VectorcraftApp) -> Result<Value, String> {
     Ok(json!({ "pending": dialogs::confirm::KIND }))
 }
 
+/// The active document's file changed on disk while it has unsaved changes
+/// ([`crate::file_watch`]): ask whether to read it again; OK runs `file.revert` with
+/// `confirmed`, Cancel keeps the changes (asked again only when the file changes again).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn ask_reload_changed(app: &mut VectorcraftApp) {
+    let name = app.session.active().map(|d| d.title()).unwrap_or_default();
+    let message = crate::i18n::fmt(tl!("“{name}” changed on disk. Reload it?"), &[("name", &name)]);
+    dialogs::confirm::ask(app, &message, tl!("Changes made since it was last saved will be lost."), "file.revert", json!({ "confirmed": true }));
+}
+
 /// File → Show in Folder: the document's file in the system file manager.
 pub fn reveal(app: &mut VectorcraftApp) -> Result<Value, String> {
     let path = app.session.active().and_then(|d| d.path.clone()).ok_or("the document has never been saved")?;

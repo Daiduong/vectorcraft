@@ -5304,3 +5304,5 @@ swatch	Bright Violet	Kirkas violetti
 	Plaster	Kipsi
 	Note Paper…	Kirjepaperi…
 	Note Paper	Kirjepaperi
+	“{name}” changed on disk. Reload it?	Tiedosto ”{name}” on muuttunut levyllä. Ladataanko se uudelleen?
+@msg	Reloaded {_1}: the file changed on disk	Ladattiin {_1} uudelleen: tiedosto muuttui levyllä

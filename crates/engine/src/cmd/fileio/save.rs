@@ -690,6 +690,10 @@ impl SaveJob {
         let written = self.plan.path.clone().filter(|_| matches!(self.plan.format.id, "vectorcraft" | "template"));
         if let Some(st) = s.document_mut(uid) {
             self.finish(st);
+            // The file just written is its own, not a change made by another app.
+            if saved {
+                st.file_version += 1;
+            }
         }
         if saved {
             crate::cmd::recovery::forget(s, uid);
@@ -729,17 +733,34 @@ fn can_revert(s: &Session) -> std::result::Result<(), String> {
     }
 }
 
-/// File → Revert: read and decode the saved file first (on any failure the document is left as it
-/// is), then replace the document in its tab.
+/// File → Revert: see [`reload`].
 fn revert(s: &mut Session, _: &Value) -> Result<Value> {
     let index = s.active_index().ok_or(crate::EngineError::NoDocument)?;
-    let path = s.doc()?.path.clone().ok_or_else(|| bad("file.revert", "the document has never been saved"))?;
-    let Loaded { mut doc, .. } = load(&path, &read_file(&path)?)?.with_grid_prefs(&s.prefs);
+    reload(s, index, "file.revert")
+}
+
+/// Read the file of the document at `index` again (File → Revert): see [`reload_with`].
+fn reload(s: &mut Session, index: usize, command: &str) -> Result<Value> {
+    let path = s.documents().get(index).ok_or(crate::EngineError::NoDocument)?.path.clone();
+    let path = path.ok_or_else(|| bad(command, "the document has never been saved"))?;
+    reload_with(s, index, &read_file(&path)?)
+}
+
+/// Replace the document at `index` with `bytes`, its own file as it is now (read again by Revert,
+/// or by a file watcher when another app changed it): decode them first (on any failure the
+/// document is left as it is), then replace the document in its tab, which keeps its place and
+/// view; the history is cleared → {path}.
+pub fn reload_with(s: &mut Session, index: usize, bytes: &[u8]) -> Result<Value> {
+    let st = s.documents().get(index).ok_or(crate::EngineError::NoDocument)?;
+    let (path, uid) = (st.path.clone().ok_or_else(|| bad("file.revert", "the document has never been saved"))?, st.uid);
+    let Loaded { mut doc, .. } = load(&path, bytes)?.with_grid_prefs(&s.prefs);
     doc.template = false;
     // Back to the saved file: its recovery copy has nothing left to recover.
-    let uid = s.doc()?.uid;
     crate::cmd::recovery::forget(s, uid);
     s.replace_document(index, doc);
+    if let Some(st) = s.document_mut(uid) {
+        st.file_version += 1;
+    }
     Ok(json!({ "path": path }))
 }
 

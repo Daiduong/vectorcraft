@@ -26,6 +26,8 @@ pub mod dialogs;
 pub mod dock;
 mod edit_toolbar;
 pub mod export_progress;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod file_watch;
 pub mod find_font;
 pub mod floating;
 pub mod font_menu;
@@ -81,6 +83,8 @@ mod tests_cut;
 mod tests_distortkeys;
 #[cfg(test)]
 mod tests_docsetup;
+#[cfg(test)]
+mod tests_filewatch;
 #[cfg(test)]
 mod tests_font_menu;
 #[cfg(test)]
@@ -469,6 +473,9 @@ pub struct VectorcraftApp {
     pub background: background::Background,
     /// Documents being read off the UI thread ([`opening`]).
     pub opening: opening::Opening,
+    /// Documents whose own file changes on disk ([`file_watch`]).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub file_watch: file_watch::FileWatch,
     /// Data Recovery's timer and startup question ([`recovery`]).
     pub recovery: recovery::Timer,
     /// Modifiers the keyboard holds (from the host's input), given back after synthetic input.
@@ -578,6 +585,8 @@ impl VectorcraftApp {
             paste_chord: Default::default(),
             background: Default::default(),
             opening: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            file_watch: Default::default(),
             recovery: Default::default(),
             host_modifiers: Default::default(),
             synthetic_modifiers: false,
@@ -1227,6 +1236,8 @@ impl VectorcraftApp {
         opening::poll(self);
         #[cfg(not(target_arch = "wasm32"))]
         self.tick_link_updates(ctx, now);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.tick_file_watch(ctx);
         if !self.background.jobs.is_empty() || !self.opening.pending.is_empty() {
             // Keep the status bar's progress moving and pick the result up when it arrives.
             ctx.request_repaint_after(std::time::Duration::from_millis(100));

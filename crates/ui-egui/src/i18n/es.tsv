@@ -5215,3 +5215,5 @@ mark-style	Japanese	Japonesas
 	Plaster	Yeso
 	Note Paper…	Papel con relieve…
 	Note Paper	Papel con relieve
+	“{name}” changed on disk. Reload it?	“{name}” cambió en el disco. ¿Volver a cargarlo?
+@msg	Reloaded {_1}: the file changed on disk	Se volvió a cargar {_1}: el archivo cambió en el disco

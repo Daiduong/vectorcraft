@@ -5293,3 +5293,5 @@ swatch	Bright Violet	Felviolet
 	Plaster	Gips
 	Note Paper…	Notitiepapier…
 	Note Paper	Notitiepapier
+	“{name}” changed on disk. Reload it?	„{name}” is gewijzigd op de schijf. Opnieuw laden?
+@msg	Reloaded {_1}: the file changed on disk	{_1} opnieuw geladen: het bestand is gewijzigd op de schijf

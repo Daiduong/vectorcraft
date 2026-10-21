@@ -381,6 +381,10 @@ pub struct DocState {
     /// Transform Again after a perspective move or scale (Perspective Selection tool): the
     /// `perspective.transform` params it repeats. `None` once an ordinary transform follows.
     pub last_perspective: Option<Value>,
+    /// Moves on whenever VectorCraft itself writes or reads again the document's own file (a save
+    /// to it, Save As, Revert, a reload of a version another app wrote): a file watcher's finding
+    /// from before is older than the document, and the file's state now is VectorCraft's own.
+    pub file_version: u64,
 }
 
 static NEXT_DOC_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -553,6 +557,7 @@ impl DocState {
             imported_from: None,
             import_losses: vec![],
             last_perspective: None,
+            file_version: 0,
         }
     }
     /// Unsaved changes: the document differs from the saved one (selection changes and changes that
@@ -1525,6 +1530,7 @@ impl Session {
         st.import_losses = old.import_losses.clone();
         st.view = old.view.clone();
         st.layers_open = old.layers_open.clone();
+        st.file_version = old.file_version;
         let old = std::mem::replace(&mut self.docs[index], st);
         if let Some(stash) = &mut self.batch_stash {
             stash.push(old);
