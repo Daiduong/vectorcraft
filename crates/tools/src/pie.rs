@@ -92,7 +92,9 @@ impl Ellipse {
     }
 }
 
-/// Nearest 90° step from `base_deg` when `shift`; otherwise `deg` unchanged.
+/// When `shift`, snaps `deg` (the pie angle in the ellipse's own frame, from
+/// [`Ellipse::angle_toward`]) to the nearest 90° step from `base_deg` (General → Constrain Angle).
+/// Otherwise returns `deg` unchanged.
 fn snap_pie_angle(deg: f64, shift: bool, base_deg: f64) -> f64 {
     if !shift || !deg.is_finite() {
         return deg;
@@ -334,6 +336,51 @@ mod tests {
         let Action::Preview(_, v2) = &a2[1] else { panic!("{a2:?}") };
         let free = v2["pieEnd"].as_f64().unwrap();
         assert!((free - 90.0).abs() > 1.0 && (free - 45.0).abs() > 1.0, "{free}");
+    }
+
+    /// Shift snaps to 90° steps from General → Constrain Angle (45° → 45°, 135°, …).
+    #[test]
+    fn shift_snaps_from_the_constrain_angle_on_an_unrotated_ellipse() {
+        let (d, _, s) = doc_with_ellipse((0.0, 360.0));
+        let p = paint();
+        let c = ToolContext { constrain_angle: 45.0, ..cx(&d, &s, &p) };
+        let shift = Mods { shift: true, ..Mods::default() };
+        let mut t = SelectionTool::default();
+        t.pointer(&c, &ev(PointerKind::Down, Point::new(312.0, 150.0)));
+        let a = t.pointer(&c, &PointerEvent::new(PointerKind::Drag, 235.0, 55.0).with_mods(shift));
+        let Action::Preview(_, v) = &a[1] else { panic!("{a:?}") };
+        assert!((v["pieEnd"].as_f64().unwrap() - 45.0).abs() < 1e-9, "{v}");
+    }
+
+    /// On a rotated ellipse, Shift still snaps in the shape's local angles (15° + k·90°).
+    #[test]
+    fn shift_snaps_in_the_ellipse_frame_when_rotated() {
+        use std::f64::consts::PI;
+        let rot = 30.0 * PI / 180.0;
+        let xf = Affine::translate((100.0, 100.0)) * Affine::rotate(rot);
+        let (d, _, s) = ellipse_doc(200.0, 100.0, (0.0, 360.0), xf);
+        let p = paint();
+        let c = ToolContext { constrain_angle: 15.0, ..cx(&d, &s, &p) };
+        let center = xf * Point::new(100.0, 50.0);
+        let local_deg: f64 = 40.0;
+        let rad = local_deg.to_radians();
+        let on = xf * Point::new(100.0 + 100.0 * rad.cos(), 50.0 - 50.0 * rad.sin());
+        let drag = center + (on - center) * 1.05;
+        let ws = PieWidget::of(&d, &s, 1.0);
+        let down = ws[0].at;
+        let shift = Mods { shift: true, ..Mods::default() };
+        let mut t = SelectionTool::default();
+        t.pointer(&c, &ev(PointerKind::Down, down));
+        let a = t.pointer(&c, &PointerEvent::new(PointerKind::Drag, drag.x, drag.y).with_mods(shift));
+        let Action::Preview(_, v) = &a[1] else { panic!("{a:?}") };
+        assert!((v["pieEnd"].as_f64().unwrap() - 15.0).abs() < 1e-9, "{v}");
+        let mut plain = SelectionTool::default();
+        plain.pointer(&c, &ev(PointerKind::Down, down));
+        let a2 = plain.pointer(&c, &ev(PointerKind::Drag, drag));
+        let Action::Preview(_, v2) = &a2[1] else { panic!("{a2:?}") };
+        let free = v2["pieEnd"].as_f64().unwrap();
+        assert!((free - local_deg).abs() < 2.0, "{free}");
+        assert!((free - 15.0).abs() > 1.0 && (free - 105.0).abs() > 1.0, "{free}");
     }
 
     /// The Start widget sets Pie Start Angle and leaves the end where it is.
