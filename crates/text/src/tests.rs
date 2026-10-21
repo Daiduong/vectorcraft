@@ -875,6 +875,23 @@ fn font_size_measures_the_font_height_reference() {
     assert!(set.len() == 2 && near(set[0], 20.0) && near(set[1], 20.0 / cap), "{set:?}");
 }
 
+/// A font height outside 0.1 to 2 ems is not used: 20 pt type that measures a font's 2.5 em cap
+/// height or its 0.05 em x height is set at 20 pt to the em.
+#[test]
+fn a_font_height_outside_a_tenth_to_two_ems_measures_the_em_box() {
+    use crate::test_fonts::{HEIGHT_OUTSIDE_FAMILY, height_outside_font};
+    use vectorcraft_doc::FontHeightReference as R;
+    let db = FontDb::with_font_dirs(vec![]);
+    db.add_font(height_outside_font().unwrap());
+    let face = db.face(HEIGHT_OUTSIDE_FAMILY, "Regular").unwrap();
+    for r in [R::CapHeight, R::XHeight] {
+        assert_eq!(face.font_height(r, false), None, "{r:?}");
+        let st = CharStyle { font_family: HEIGHT_OUTSIDE_FAMILY.into(), font_height_reference: r, ..style(20.0) };
+        let ems = layout(&db, &point("Hx", st)).glyphs.iter().map(|g| g.xf.determinant().abs().sqrt() * 1000.0).collect::<Vec<_>>();
+        assert!(!ems.is_empty() && ems.iter().all(|e| (e - 20.0).abs() < 1e-6), "{r:?}: {ems:?}");
+    }
+}
+
 /// Burasagari leaves Latin punctuation alone: in a measure of exactly "abcd", the full stop of
 /// "abcd. ef" doesn't hang with Standard or Forced (the line breaks as it does with None), and a
 /// Latin line ending in a full stop isn't shortened by Forced.
