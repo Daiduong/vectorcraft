@@ -122,17 +122,23 @@ pub fn now_unix() -> Option<i64> {
 /// Unix seconds (UTC) → `[year, month, day, hour, minute, second]` (proleptic Gregorian; years
 /// clamped to 0–9999).
 pub fn civil(t: i64) -> [i64; 6] {
-    // Clamp first so every input maps to a representable date (0000-01-01 .. 9999-12-31).
+    // Clamp the input first so every input maps to a representable date (0000-01-01 .. 9999-12-31),
+    // exactly as the old code did. The clamped instant is always inside chrono's range, so the
+    // conversion below never falls back; the trailing `clamp(0, 9999)` is the old year clamp.
     let t = t.clamp(-62_167_219_200, 253_402_300_799);
-    let dt = chrono::DateTime::from_timestamp(t, 0).unwrap_or_default().naive_utc();
-    [
-        i64::from(dt.year()).clamp(0, 9999),
-        i64::from(dt.month()),
-        i64::from(dt.day()),
-        i64::from(dt.hour()),
-        i64::from(dt.minute()),
-        i64::from(dt.second()),
-    ]
+    let (days, sod) = (t.div_euclid(86_400), t.rem_euclid(86_400));
+    let (cycles, rest) = (days.div_euclid(146_097), days.rem_euclid(146_097));
+    // `rest + 719_163` (1970-01-01 is CE day 719_163) is always a valid CE day, and `sod` < 86_400.
+    let date = i32::try_from(rest + 719_163).ok().and_then(chrono::NaiveDate::from_num_days_from_ce_opt);
+    let time = u32::try_from(sod).ok().and_then(|s| chrono::NaiveTime::from_num_seconds_from_midnight_opt(s, 0));
+    match (date, time) {
+        (Some(d), Some(tm)) => {
+            let year = i128::from(d.year()) + i128::from(cycles) * 400;
+            let year = i64::try_from(year).unwrap_or(if year < 0 { i64::MIN } else { i64::MAX });
+            [year.clamp(0, 9999), i64::from(d.month()), i64::from(d.day()), i64::from(tm.hour()), i64::from(tm.minute()), i64::from(tm.second())]
+        }
+        _ => [1970, 1, 1, 0, 0, 0], // unreachable: the clamped `t` is always a valid date
+    }
 }
 
 /// Unix seconds → `2026-10-05T14:03:00Z`.
@@ -149,8 +155,15 @@ mod tests {
     fn dates_and_statuses() {
         assert_eq!(iso8601(0), "1970-01-01T00:00:00Z");
         assert_eq!(iso8601(1_791_208_980), "2026-10-05T14:03:00Z");
+        // The input is clamped to 0000-01-01..9999-12-31, then the year is clamped to 0..=9999,
+        // exactly as the old code did: inputs far past chrono's range land on the clamp bounds,
+        // never on the epoch.
         assert_eq!(civil(i64::MIN)[0], 0);
         assert_eq!(civil(i64::MAX)[0], 9999);
+        assert_eq!(iso8601(i64::MIN), "0000-01-01T00:00:00Z");
+        assert_eq!(iso8601(i64::MAX), "9999-12-31T23:59:59Z");
+        assert_eq!(iso8601(10_000_000_000_000), "9999-12-31T23:59:59Z");
+        assert_eq!(iso8601(-10_000_000_000_000), "0000-01-01T00:00:00Z");
         assert_eq!(CopyrightStatus::parse("Public Domain"), Some(CopyrightStatus::PublicDomain));
         assert_eq!(CopyrightStatus::parse("publicdomain"), Some(CopyrightStatus::PublicDomain));
         assert_eq!(CopyrightStatus::parse("maybe"), None);
