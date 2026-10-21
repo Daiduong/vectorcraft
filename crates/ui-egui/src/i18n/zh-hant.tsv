@@ -273,6 +273,7 @@
 	Blur	模糊
 	Bottom	下
 	Bottom in Front	下方置前
+	Bottom-Justified Tab	靠下定位點
 	Bottom-to-Bottom Leading	基線至基線行距
 	Burasagari	標點懸掛
 	Force	強制
@@ -1053,6 +1054,14 @@
 	Alt key toggles to Smooth Tool	Alt 鍵切換為平滑工具
 	Keep selected	保持選取狀態
 	Merge only with selection	僅與選取物件合併
+	Consider Open Filled Paths as Closed	將有填色的開放路徑視為封閉路徑
+	Pick Color From:	顏色來源：
+	Artwork	圖稿
+	Cursor Swatch Preview	在指標旁預覽色票
+	Selection:	選取方式：
+	Freeform	自由
+	Straight Line	直線
+	Highlight:	強調顯示：
 	Fill New Type Objects With Placeholder Text	以預留位置文字填滿新文字物件
 	Fill Rule	填色規則
 	Fill with Placeholder Text	以預留位置文字填滿
@@ -1180,6 +1189,8 @@ file-filter	Templates	範本
 	Large Gaps	大間隙
 	Gap Preview Color:	間隙預覽顏色：
 	Close Gaps With Paths	以路徑封閉間隙
+	Show Live Paint Gaps	顯示即時上色間隙
+	Hide Live Paint Gaps	隱藏即時上色間隙
 	Select Fills	選取填色
 	Select Strokes	選取筆畫
 	Gaussian Blur…	高斯模糊…
@@ -1792,6 +1803,10 @@ file-filter	Templates	範本
 @msg	select a repeat	請選取重複物件
 @msg	select an Intertwine group	請選取交織群組
 @msg	select an Objects on Path group	請選取路徑上的物件群組
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	複合路徑、漸變物件、封套、重複物件或交織群組中的路徑無法附加物件
+@msg	a clipping path can't take objects	剪裁路徑無法附加物件
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	漸變物件、封套、重複物件或交織群組中的物件無法附加到路徑
+@msg	a clipping path can't be attached to a path	剪裁路徑無法附加到路徑
 @msg	select the art to repeat	請選取要重複的圖稿
 @msg	the document has no patterns	文件中沒有圖樣
 @msg	no artboard	沒有工作區域
@@ -1883,6 +1898,25 @@ file-filter	Templates	範本
 @msg	a PostScript error ({name} in `{op}`: {at})	PostScript 錯誤 ({name}，位於 `{op}`：{at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	PostScript 錯誤 ({name}，位於 `{op}`：{at})，在 {procs} 中
 @msg	a PostScript error ({name})	PostScript 錯誤 ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	PostScript 錯誤 ({name}，位於 `{op}`；{meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	PostScript 錯誤 ({name}，位於 `{op}`；{meaning})，在 {procs} 中
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	PostScript 錯誤 ({name}，位於 `{op}`：{at}；{meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	PostScript 錯誤 ({name}，位於 `{op}`：{at}；{meaning})，在 {procs} 中
+@msg	a PostScript error ({name}; {meaning})	PostScript 錯誤 ({name}；{meaning})
+@msg	the program ends a dictionary it didn't begin	程式要結束一個它沒有開始的字典
+@msg	the program opens a file, which the reader can't do	程式要開啟檔案，而 PostScript 讀取器無法開啟檔案
+@msg	the program restores a saved state that was already restored	程式要還原一個已經還原過的儲存狀態
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	程式讀取的資料已損壞或不完整，或者程式要在沒有位置的檔案中取得位置
+@msg	the program goes past one of the reader's limits	程式超出了 PostScript 讀取器的一項限制
+@msg	the path has no point to continue from	路徑沒有可以接著繪製的點
+@msg	a value is outside the range the operator takes	某個值超出了運算子接受的範圍
+@msg	the operator needs more values than the stack holds	運算子需要的值多於堆疊中的值
+@msg	part of the program isn't valid PostScript text	程式的一部分不是有效的 PostScript 文字
+@msg	a value has the wrong type for the operator	某個值的類型不適用於該運算子
+@msg	the program runs, deletes or renames a file, which the reader can't do	程式要執行、刪除或重新命名檔案，而 PostScript 讀取器無法執行這些操作
+@msg	the program asks for a resource that isn't defined	程式要求了未定義的資源
+@msg	a calculation has no result, as in a division by zero	計算沒有結果，例如除以零
+@msg	the operator looks for a mark on the stack and finds none	運算子在堆疊中找不到標記
 @msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	它使用了 `{at}`，VectorCraft 的 PostScript 讀取器無法辨識
 @msg	the file was read up to an error ({why}): what follows it was left out	檔案已讀取到發生錯誤處 ({why})：之後的內容已略過
 @msg	this file's PostScript couldn't be read ({why}): {what}	無法讀取此檔案的 PostScript ({why})：{what}
@@ -2557,6 +2591,9 @@ file-filter	Templates	範本
 	Modified since it was read: {path}	讀取後已被修改：{path}
 	Modified:	修改時間：
 	Modify	修改
+	Insert Kashidas	插入卡希達
+	Long	長
+	Stylistic	風格化
 	Mojikumi Set	標點間距
 	Kinsoku Set	Kinsoku 集
 	Hard	強
@@ -2711,6 +2748,7 @@ file-filter	Templates	範本
 	New View	新增檢視
 	New View…	新增檢視…
 	New Window	新增視窗
+	New Without Dialog	新增但不開啟對話方塊
 	New Workspace	新增工作區
 	New Workspace…	新增工作區…
 	New {kind} Style…	新增{kind}樣式…
@@ -3307,7 +3345,7 @@ font-script	Japanese	漢字
 	Replace	取代
 	Replace Font	取代字體
 	Replace it with another file, or ignore it: its images keep showing the preview saved with the document.	以其他檔案取代，或忽略：其影像會繼續顯示隨文件儲存的預覽。
-	Replace Spine	取代軸線
+	Replace Spine	取代脊線
 	Replace Symbol	取代符號
 	Replace With Font	取代為字體
 	Replaces the saved preset of that name.	取代同名的已儲存預設集。
@@ -3354,7 +3392,7 @@ font-script	Japanese	漢字
 	Reverse Path Direction	反轉路徑方向
 	Reverse Path Direction Off	關閉反轉路徑方向
 	Reverse Path Direction On	開啟反轉路徑方向
-	Reverse Spine	反轉軸線
+	Reverse Spine	反轉脊線
 	Revert	回復
 	Revert to the saved version of “{name}”?	要回復為「{name}」已儲存的版本嗎？
 	Replace “{name}”, the file this document was opened from?	要取代「{name}」（開啟此文件的來源檔案）嗎？
@@ -4022,6 +4060,7 @@ font-script	Japanese	漢字
 	Tools	工具
 	Top	上
 	Top in Front	上方在前
+	Top-Justified Tab	靠上定位點
 	Top-to-Top Leading	上緣至上緣行距
 	Top:	上：
 	Total Width:	總寬度：
@@ -4370,7 +4409,8 @@ imageTrace	Outline	輪廓
 	 to sample a color	可取樣顏色
 	 across a selected object to set the gradient direction	橫越所選物件可設定漸層方向
 	 to select an artboard  |  	可選取工作區域  |  
-	 on the canvas to create one	畫布可建立工作區域
+	 on the canvas to create one (	畫布可建立工作區域 (
+	 selects several, or draws one inside an artboard)	可選取多個，或在工作區域內建立工作區域)
 	 a stroke to add a width point  |  	筆畫可新增寬度點  |  
 	 to change one side  |  	可只變更單側  |  
 	 to select more points  |  	可選取更多點  |  
@@ -4905,3 +4945,5 @@ lighting	Light	光源
 	Plaster	塑膠效果
 	Note Paper…	便條紙…
 	Note Paper	便條紙
+	Water Paper…	水彩畫紙…
+	Water Paper	水彩畫紙

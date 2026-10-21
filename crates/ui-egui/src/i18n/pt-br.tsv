@@ -40,7 +40,8 @@
 	 from center  |  	 do centro  |  
 	 keeps its proportions)	 mantém suas proporções)
 	 near a selected pin to rotate  |  	 perto de um pino selecionado para girar  |  
-	 on the canvas to create one	 na tela para criar um
+	 on the canvas to create one (	 na tela para criar um (
+	 selects several, or draws one inside an artboard)	 seleciona várias ou cria uma dentro de uma mesa de trabalho)
 	 over paths to roughen their outlines  |  	 sobre caminhos para enrugar seus contornos  |  
 	 over paths, and hold still to keep going  |  	 sobre caminhos, e mantenha parado para continuar  |  
 	 the art to add a pin  |  	 a arte para adicionar um pino  |  
@@ -966,6 +967,13 @@
 	Alt key toggles to Smooth Tool	A tecla Alt alterna para a ferramenta Suavizar
 	Keep selected	Manter selecionado
 	Merge only with selection	Mesclar somente com a seleção
+	Consider Open Filled Paths as Closed	Tratar caminhos abertos preenchidos como fechados
+	Pick Color From:	Origem da cor:
+	Artwork	Ilustração
+	Cursor Swatch Preview	Visualização de amostras junto ao cursor
+	Selection:	Seleção:
+	Straight Line	Linha reta
+	Highlight:	Destaque:
 	Fill with Placeholder Text	Preencher com Texto de Placeholder
 	Insert Inline Symbol	Inserir Símbolo no Texto
 	Fill:	Preenchimento:
@@ -1057,6 +1065,8 @@
 	Large Gaps	Lacunas Grandes
 	Gap Preview Color:	Cor de Visualização das Lacunas:
 	Close Gaps With Paths	Fechar Lacunas com Caminhos
+	Show Live Paint Gaps	Mostrar Lacunas da Pintura ao Vivo
+	Hide Live Paint Gaps	Ocultar Lacunas da Pintura ao Vivo
 	Select Fills	Selecionar Preenchimentos
 	Select Strokes	Selecionar Traçados
 	Gaussian Blur…	Desfoque Gaussiano…
@@ -1604,6 +1614,7 @@
 	New Symbol…	Novo Símbolo…
 	New View…	Nova Visualização…
 	New Window	Nova Janela
+	New Without Dialog	Novo sem Diálogo
 	New Workspace	Novo Espaço de Trabalho
 	New Workspace…	Novo Espaço de Trabalho…
 	New file	Novo arquivo
@@ -3133,6 +3144,9 @@ lighting	Light	Luz
 	Lock Others	Bloquear outros
 	Merge Selected	Mesclar selecionados
 	Model	Modelo
+	Insert Kashidas	Inserir Kashidas
+	Long	Longo
+	Stylistic	Estilístico
 	Mojikumi Set	Conjunto Mojikumi
 	Kinsoku Set	Conjunto Kinsoku
 	Hard	Duro
@@ -3368,7 +3382,7 @@ axis	Both	Ambos
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Visualizar no navegador exige o aplicativo para desktop (na web, os arquivos são baixados)
 @msg	Release Guides: no guides	Liberar guias: não há guias
 @msg	Release: no layer to put the rectangle in	Liberar: não há camada para colocar o retângulo
-@msg	Replace Spine: select a blend and a path	Substituir eixo: selecione uma mesclagem e um traçado
+@msg	Replace Spine: select a blend and a path	Substituir coluna: selecione uma mesclagem e um traçado
 @msg	select two or more objects to distribute	selecione dois ou mais objetos para distribuir
 @msg	select paths or anchor points	selecione traçados ou pontos de ancoragem
 @msg	SVG parse error: {0}	Erro de análise do SVG: {0}
@@ -3431,6 +3445,25 @@ axis	Both	Ambos
 @msg	a PostScript error ({name} in `{op}`: {at})	um erro de PostScript ({name} em `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	um erro de PostScript ({name} em `{op}`: {at}), em {procs}
 @msg	a PostScript error ({name})	um erro de PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	um erro de PostScript ({name} em `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	um erro de PostScript ({name} em `{op}`; {meaning}), em {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	um erro de PostScript ({name} em `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	um erro de PostScript ({name} em `{op}`: {at}; {meaning}), em {procs}
+@msg	a PostScript error ({name}; {meaning})	um erro de PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	o programa encerra um dicionário que não iniciou
+@msg	the program opens a file, which the reader can't do	o programa abre um arquivo, o que o leitor de PostScript não consegue fazer
+@msg	the program restores a saved state that was already restored	o programa restaura um estado salvo que já foi restaurado
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	os dados que o programa lê estão danificados ou cortados, ou o programa pede uma posição em um arquivo que não tem posição
+@msg	the program goes past one of the reader's limits	o programa ultrapassa um dos limites do leitor de PostScript
+@msg	the path has no point to continue from	o traçado não tem um ponto a partir do qual continuar
+@msg	a value is outside the range the operator takes	um valor está fora do intervalo aceito pelo operador
+@msg	the operator needs more values than the stack holds	o operador precisa de mais valores do que a pilha contém
+@msg	part of the program isn't valid PostScript text	parte do programa não é texto PostScript válido
+@msg	a value has the wrong type for the operator	um valor tem o tipo errado para o operador
+@msg	the program runs, deletes or renames a file, which the reader can't do	o programa executa, exclui ou renomeia um arquivo, o que o leitor de PostScript não consegue fazer
+@msg	the program asks for a resource that isn't defined	o programa pede um recurso que não está definido
+@msg	a calculation has no result, as in a division by zero	um cálculo não tem resultado, como em uma divisão por zero
+@msg	the operator looks for a mark on the stack and finds none	o operador procura uma marca na pilha e não encontra nenhuma
 @msg	a bitmap is empty	um bitmap está vazio
 @msg	a bitmap is too large to read	um bitmap é grande demais para ser lido
 @msg	a colour index is 0 to {_1}, not {n}	um índice de cor vai de 0 a {_1}, não {n}
@@ -3695,6 +3728,10 @@ axis	Both	Ambos
 @msg	select a repeat	selecione uma repetição
 @msg	select an Intertwine group	selecione um grupo entrelaçado
 @msg	select an Objects on Path group	selecione um grupo de objetos no caminho
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	um caminho dentro de um caminho composto, mesclagem, envelope, repetição ou grupo entrelaçado não pode receber objetos
+@msg	a clipping path can't take objects	um caminho de recorte não pode receber objetos
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	objetos dentro de uma mesclagem, envelope, repetição ou grupo entrelaçado não podem ser anexados a um caminho
+@msg	a clipping path can't be attached to a path	um caminho de recorte não pode ser anexado a um caminho
 @msg	select a stroke with a variable width	selecione um traço com largura variável
 @msg	select a symbol instance	selecione uma instância de símbolo
 @msg	select an Image Trace object	selecione um objeto de Vetorização de imagem
@@ -4082,6 +4119,7 @@ axis	Both	Ambos
 	Black and White Logo	Logotipo em Preto e Branco
 	Bottom	Inferior
 	Bottom in Front	Inferior na Frente
+	Bottom-Justified Tab	Parada de Tabulação Inferior
 	Bounds	Limites
 	Bounds (Fill Proportionally)	Limites (Preencher Proporcionalmente)
 	Bounds (Fit Proportionally)	Limites (Ajustar Proporcionalmente)
@@ -4465,6 +4503,7 @@ axis	Both	Ambos
 	Toolbar: Reset	Barra de Ferramentas: Redefinir
 	Top	Superior
 	Top in Front	Superior na Frente
+	Top-Justified Tab	Parada de Tabulação Superior
 	Transforms	Transformações
 	Transparent (Default)	Transparente (Padrão)
 	Trim marks	Marcas de corte
@@ -5190,3 +5229,5 @@ mark-style	Japanese	Japonesas
 	Plaster	Gesso
 	Note Paper…	Papel de carta…
 	Note Paper	Papel de carta
+	Water Paper…	Papel molhado…
+	Water Paper	Papel molhado
