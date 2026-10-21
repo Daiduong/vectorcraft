@@ -4294,6 +4294,14 @@ copies). Object › Transform › Transform Again repeats the last perspective m
 {"name":"run_command","arguments":{"command":"object.transformAgain","params":{}}}
 ```
 
+The perspective, width point, Liquify and Puppet Warp commands refuse a string, a number or another value that is not
+true or false with `` `copy` must be true or false ``, naming the key, and leave the document and its undo history as
+they were: `copy`, `perpendicular` and `snap` in `perspective.move`; `copy` in `perspective.transform`; `big` and
+`copy` in `perspective.nudge`; `snap` in `perspective.draw`; `reproject` in `perspective.grid.set`; `visible` in
+`perspective.grid.show`; `adjustAdjoining` in `stroke.widthPoint.set`; `usePressure`, `simplifyOn`, `affectAnchors`,
+`affectIn` and `affectOut` in `object.liquify`, with any `tool`; and `rest` in `object.puppetWarp`. A null is read as
+a key left out.
+
 Planes move along their normals: `perspective.plane.move {plane, offset | by, objects}` (`leftOffset`,
 `rightOffset`, `groundOffset` in the grid). The plane widgets (a diamond on each plane, drawn while the grid shows)
 do it with the Perspective Grid and Perspective Selection tools: a plain drag moves the plane alone, Shift-drag moves

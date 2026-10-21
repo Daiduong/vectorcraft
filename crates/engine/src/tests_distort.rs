@@ -70,6 +70,18 @@ fn close(a: Point, b: Point, tol: f64) -> bool {
     a.distance(b) <= tol
 }
 
+/// `cmd` with `p` fails with the error for `key`, which `p` gives as something other than true or false.
+fn refuses_non_boolean(s: &mut Session, cmd: &str, p: &serde_json::Value, key: &str) {
+    let r = s.execute(cmd, p);
+    let want = format!("`{key}` must be true or false");
+    assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if *msg == want), "{cmd} {p}: {r:?}");
+}
+
+/// Values for an on/off param that are not true, false or null.
+fn not_booleans() -> [serde_json::Value; 4] {
+    [json!("true"), json!(1), json!("false"), json!([true])]
+}
+
 // ---------- width ----------
 
 #[test]
@@ -178,6 +190,26 @@ fn width_commands_that_change_nothing_record_no_undo_step() {
     assert_eq!(history(&s), (before.0 + 1, 0, true));
 }
 
+/// Width Point refuses an `adjustAdjoining` given as text or as another value that is not true or
+/// false, for a new point and for a point given by its index: the profile and the undo history stay
+/// as they were. Null is read as the key left out, and the points either side keep their widths.
+#[test]
+fn width_point_set_refuses_adjust_adjoining_given_as_text() {
+    let mut s = session();
+    let id = line(&mut s);
+    s.execute("stroke.widthPoint.set", &json!({"id": id.0, "t": 0.5, "left": 10, "right": 10})).unwrap();
+    let before = (profile(&s, id), undo_len(&s));
+    for v in not_booleans() {
+        let added = json!({"id": id.0, "t": 0.25, "left": 4, "right": 4, "adjustAdjoining": v});
+        refuses_non_boolean(&mut s, "stroke.widthPoint.set", &added, "adjustAdjoining");
+        let moved = json!({"id": id.0, "index": 1, "t": 0.5, "left": 4, "right": 4, "adjustAdjoining": v});
+        refuses_non_boolean(&mut s, "stroke.widthPoint.set", &moved, "adjustAdjoining");
+        assert_eq!((profile(&s, id), undo_len(&s)), before, "{v}");
+    }
+    s.execute("stroke.widthPoint.set", &json!({"id": id.0, "t": 0.25, "left": 4, "right": 4, "adjustAdjoining": null})).unwrap();
+    assert_eq!(profile(&s, id).unwrap(), vec![(0.0, 1.0, 1.0), (0.25, 0.8, 0.8), (0.5, 2.0, 2.0), (1.0, 1.0, 1.0)]);
+}
+
 // ---------- liquify ----------
 
 fn warp_params() -> serde_json::Value {
@@ -252,6 +284,32 @@ fn liquify_that_reshapes_no_path_records_no_undo_step() {
     assert_eq!(s.journal.last().unwrap().0, "object.liquify");
     assert_eq!(history(&s), before, "a Warp tool drag");
     assert_eq!(path(&s, a).bounds().unwrap(), Rect::new(100.0, 100.0, 300.0, 300.0));
+}
+
+/// Liquify refuses a `usePressure`, `simplifyOn`, `affectAnchors`, `affectIn` or `affectOut` given as
+/// text or as another value that is not true or false, whichever tool it is given with: the path and
+/// the undo history stay as they were. Null is read as the key left out.
+#[test]
+fn liquify_refuses_a_boolean_given_as_text() {
+    let mut s = session();
+    let a = rect(&mut s, 100.0, 100.0, 200.0, 200.0);
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    let before = (path(&s, a), undo_len(&s));
+    let crystallize = json!({"tool": "crystallize", "points": [[300, 150]], "diameter": 100, "intensity": 100});
+    let keys = [("usePressure", warp_params()), ("simplifyOn", warp_params()), ("affectAnchors", crystallize.clone())];
+    let keys = keys.into_iter().chain([("affectIn", crystallize.clone()), ("affectOut", crystallize), ("affectOut", warp_params())]);
+    for (key, mut p) in keys {
+        for v in not_booleans() {
+            p[key] = v;
+            refuses_non_boolean(&mut s, "object.liquify", &p, key);
+        }
+    }
+    assert_eq!((path(&s, a), undo_len(&s)), before, "nothing changed");
+    let mut p = warp_params();
+    p["usePressure"] = json!(null);
+    p["simplifyOn"] = json!(null);
+    assert_eq!(s.execute("object.liquify", &p).unwrap()["ids"], json!([a.0]));
+    assert_eq!(undo_len(&s), before.1 + 1);
 }
 
 fn session_with_rect() -> Session {
@@ -340,6 +398,23 @@ fn puppet_warp_that_moves_nothing_records_no_undo_step() {
         assert_eq!(history(&s), before, "{p}");
         assert_eq!(path(&s, a), warped, "{p}");
     }
+}
+
+/// Puppet Warp refuses a `rest` given as text or as another value that is not true or false: the art
+/// and the undo history stay as they were. Null is read as the key left out.
+#[test]
+fn puppet_warp_refuses_rest_given_as_text() {
+    let mut s = session();
+    let a = rect(&mut s, 100.0, 100.0, 300.0, 100.0);
+    let before = (path(&s, a), undo_len(&s));
+    let warp = |rest| json!({"id": a.0, "pins": [[120, 150], [250, 150], [380, 150]], "moved": [[120, 150], [250, 150], [370, 90]], "rest": rest});
+    for v in not_booleans() {
+        refuses_non_boolean(&mut s, "object.puppetWarp", &warp(v), "rest");
+    }
+    assert_eq!((path(&s, a), undo_len(&s)), before, "nothing changed");
+    s.execute("object.puppetWarp", &warp(json!(null))).unwrap();
+    assert_eq!(undo_len(&s), before.1 + 1);
+    assert!(path(&s, a).bounds().unwrap().y0 < 80.0);
 }
 
 // ---------- perspective ----------
@@ -468,6 +543,24 @@ fn rectangle_tool_draws_in_perspective_on_the_active_plane() {
     assert!(s.doc().unwrap().doc.node(id).is_none());
 }
 
+/// Draw in Perspective refuses a `snap` given as text or as another value that is not true or false
+/// before it draws: no shape is made and the undo history stays as it was. Null is read as the key
+/// left out.
+#[test]
+fn perspective_draw_refuses_snap_given_as_text() {
+    let mut s = session();
+    s.execute("perspective.grid.preset", &json!({"kind": 2})).unwrap();
+    s.execute("perspective.plane.set", &json!({"plane": "left"})).unwrap();
+    let before = (history(&s), s.doc().unwrap().selection.objects.clone());
+    let draw = |snap| json!({"command": "shape.rectangle", "params": {"x": 300, "y": 320, "width": 50, "height": 80}, "snap": snap});
+    for v in not_booleans() {
+        refuses_non_boolean(&mut s, "perspective.draw", &draw(v), "snap");
+    }
+    assert_eq!((history(&s), s.doc().unwrap().selection.objects.clone()), before, "nothing drawn");
+    let r = s.execute("perspective.draw", &draw(json!(null))).unwrap();
+    assert_eq!((r["plane"].clone(), history(&s).0), (json!("left"), before.0.0 + 1));
+}
+
 #[test]
 fn perspective_selection_moves_within_the_plane() {
     let mut s = session();
@@ -536,6 +629,28 @@ fn perspective_grid_commands_that_change_nothing_record_no_undo_step() {
     assert_eq!(history(&s), (before.0 + 1, 0, true));
 }
 
+/// Define Perspective Grid refuses a `reproject`, and Show Perspective Grid a `visible`, given as text
+/// or as another value that is not true or false: the grid, the object on it and the undo history
+/// stay as they were. A null `reproject` leaves the object where it is, and a null `visible` toggles
+/// the grid, as the keys left out do.
+#[test]
+fn perspective_grid_commands_refuse_a_boolean_given_as_text() {
+    let mut s = session();
+    s.execute("perspective.grid.preset", &json!({"kind": 2})).unwrap();
+    let a = rect(&mut s, 450.0, 380.0, 60.0, 60.0);
+    s.execute("perspective.attach", &json!({"ids": [a.0], "plane": "right"})).unwrap();
+    let state = |s: &Session| (grid(s).definition_json(), grid(s).visible, path(s, a), history(s));
+    let before = state(&s);
+    for v in not_booleans() {
+        refuses_non_boolean(&mut s, "perspective.grid.set", &json!({"horizon": 250, "reproject": v}), "reproject");
+        refuses_non_boolean(&mut s, "perspective.grid.show", &json!({"visible": v}), "visible");
+        assert_eq!(state(&s), before, "{v}");
+    }
+    s.execute("perspective.grid.set", &json!({"horizon": 250, "reproject": null})).unwrap();
+    assert_eq!((grid(&s).horizon, path(&s, a)), (250.0, before.2));
+    assert_eq!(s.execute("perspective.grid.show", &json!({"visible": null})).unwrap(), json!({"visible": !before.1}));
+}
+
 /// For an object in perspective, Move in Perspective by 0 (along its plane or its normal),
 /// Transform in Perspective by the identity, Transform Again after each, and a Perspective Selection
 /// drag that ends where it started record no undo step. So do a Move by 0 and a 1 pt Nudge that
@@ -598,4 +713,39 @@ fn perspective_moves_that_move_nothing_record_no_undo_step() {
     let r = s.execute("perspective.transform", &json!({"matrix": [1, 0, 0, 1, 0, 0], "copy": true})).unwrap();
     assert_ne!(r, json!({"ids": [a.0]}));
     assert_eq!(history(&s), (before.0 + 1, 0, true));
+}
+
+/// Move in Perspective refuses a `copy`, `perpendicular` or `snap`, Transform in Perspective a `copy`,
+/// and Nudge in Perspective a `big` or `copy`, given as text or as another value that is not true or
+/// false: the object stays where it is, nothing is copied, and the undo history stays as it was. Null
+/// is read as the key left out.
+#[test]
+fn perspective_moves_refuse_a_boolean_given_as_text() {
+    let mut s = session();
+    s.execute("perspective.grid.preset", &json!({"kind": 2})).unwrap();
+    let a = rect(&mut s, 450.0, 380.0, 60.0, 60.0);
+    s.execute("perspective.attach", &json!({"ids": [a.0], "plane": "right"})).unwrap();
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    let state = |s: &Session| (path(s, a), history(s), s.doc().unwrap().selection.objects.clone());
+    let before = state(&s);
+    let (from, to) = (json!([480, 410]), json!([500, 420]));
+    for v in not_booleans() {
+        for key in ["copy", "perpendicular", "snap"] {
+            refuses_non_boolean(&mut s, "perspective.move", &json!({"from": from, "to": to, key: v}), key);
+        }
+        refuses_non_boolean(&mut s, "perspective.transform", &json!({"matrix": [1.5, 0, 0, 1.5, 0, 0], "copy": v}), "copy");
+        for key in ["big", "copy"] {
+            refuses_non_boolean(&mut s, "perspective.nudge", &json!({"dx": 1, "dy": 0, key: v}), key);
+        }
+        assert_eq!(state(&s), before, "{v}");
+    }
+    let calls = [
+        ("perspective.move", json!({"from": from, "to": to, "copy": null, "perpendicular": null, "snap": null})),
+        ("perspective.transform", json!({"matrix": [1.5, 0, 0, 1.5, 0, 0], "copy": null})),
+        ("perspective.nudge", json!({"dx": 1, "dy": 0, "big": null, "copy": null})),
+    ];
+    for (i, (c, p)) in calls.into_iter().enumerate() {
+        assert_eq!(s.execute(c, &p).unwrap(), json!({"ids": [a.0]}), "{c} {p}");
+        assert_eq!(history(&s).0, before.1.0 + i + 1, "{c} {p}");
+    }
 }
