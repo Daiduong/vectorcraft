@@ -6,10 +6,14 @@ use std::time::Duration;
 
 const NAME: &str = "ai.storyteller.vectorcraft.OpenDocuments";
 const PATH: &str = "/ai/storyteller/vectorcraft/OpenDocuments";
+// A shared handoff budget, retained through decoding and the lifetime of open tabs.
+const MAX_FILES: usize = 32;
 
 #[derive(Default)]
 struct Pending {
     files: Vec<String>,
+    /// UI-owned documents, decoders and modal work; a dispatched path reserves its slot.
+    occupied: usize,
     activate: bool,
     ctx: Option<egui::Context>,
 }
@@ -22,9 +26,15 @@ impl OpenDocuments {
     /// Validate and queue absolute file paths, then wake the UI to dispatch them.
     fn open(&self, files: Vec<String>) -> zbus::fdo::Result<()> {
         let mut pending = self.0.lock().unwrap_or_else(PoisonError::into_inner);
-        // Bound queued work, including requests that arrive while a file dialog is open.
-        if files.len().saturating_add(pending.files.len()) > 256 || files.iter().any(|p| p.len() > 32768 || !std::path::Path::new(p).is_absolute()) {
-            return Err(zbus::fdo::Error::InvalidArgs("too many files or invalid absolute paths".into()));
+        if files.iter().any(|p| p.len() > 32768 || !std::path::Path::new(p).is_absolute()) {
+            return Err(zbus::fdo::Error::InvalidArgs("invalid absolute paths".into()));
+        }
+        // Draining the queue must not free admission capacity while the document is decoding
+        // or remains open. An empty request may still focus a workspace that is at capacity.
+        if !files.is_empty() && files.len().saturating_add(pending.files.len()).saturating_add(pending.occupied) > MAX_FILES {
+            return Err(zbus::fdo::Error::LimitsExceeded(format!(
+                "file handoff is limited to {MAX_FILES} queued, opening or open documents; close tabs and retry"
+            )));
         }
         pending.files.extend(files);
         pending.activate = true;
@@ -47,32 +57,38 @@ pub enum Launch {
     Forwarded,
 }
 
+/// Only an unavailable session bus permits a separate desktop window.
+#[derive(Debug)]
+pub enum StartError {
+    BusUnavailable(String),
+    ForwardingFailed(String),
+}
+
 /// Claim the session-bus name or forward this launch to its existing owner.
-pub fn start(files: &[String]) -> Result<Launch, String> {
-    let documents = OpenDocuments::default();
-    let builder = zbus::blocking::connection::Builder::session().map_err(|e| e.to_string())?;
-    start_on(builder, files, documents)
+pub fn start(files: &[String]) -> Result<Launch, StartError> {
+    let builder = zbus::blocking::connection::Builder::session().map_err(|e| StartError::BusUnavailable(e.to_string()))?;
+    start_on(builder, files, OpenDocuments::default())
 }
 
 /// Start on a supplied connection builder so transport tests can isolate their bus.
-fn start_on(builder: zbus::blocking::connection::Builder<'_>, files: &[String], documents: OpenDocuments) -> Result<Launch, String> {
+fn start_on(builder: zbus::blocking::connection::Builder<'_>, files: &[String], documents: OpenDocuments) -> Result<Launch, StartError> {
     let connection = builder
         .method_timeout(Duration::from_secs(5))
         .serve_at(PATH, documents.clone())
-        .map_err(|e| e.to_string())?
+        .map_err(|e| StartError::BusUnavailable(e.to_string()))?
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| StartError::BusUnavailable(e.to_string()))?;
     match connection.request_name_with_flags(NAME, zbus::fdo::RequestNameFlags::DoNotQueue.into()) {
         Ok(_) => Ok(Launch::Primary(Instance { _connection: connection, documents })),
         Err(zbus::Error::NameTaken) => {
-            // Relative paths belong to the launching file manager's working directory.
-            let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+            // Once an owner exists, failure (including rejection/timeout) must not bypass it.
+            let cwd = std::env::current_dir().map_err(|e| StartError::ForwardingFailed(e.to_string()))?;
             let paths: Vec<String> = files.iter().map(|p| cwd.join(p).to_string_lossy().into_owned()).collect();
-            let proxy = zbus::blocking::Proxy::new(&connection, NAME, PATH, NAME).map_err(|e| e.to_string())?;
-            let _: () = proxy.call("Open", &(paths,)).map_err(|e| e.to_string())?;
+            let proxy = zbus::blocking::Proxy::new(&connection, NAME, PATH, NAME).map_err(|e| StartError::ForwardingFailed(e.to_string()))?;
+            let _: () = proxy.call("Open", &(paths,)).map_err(|e| StartError::ForwardingFailed(e.to_string()))?;
             Ok(Launch::Forwarded)
         }
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(StartError::BusUnavailable(e.to_string())),
     }
 }
 
@@ -84,8 +100,10 @@ impl Instance {
 
     /// File-open requests must not change the document a dialog is acting on.
     pub fn dispatch(&self, app: &mut vectorcraft_ui_egui::VectorcraftApp, ctx: &egui::Context) {
+        self.update_occupancy(app);
         if !app.file_dialog_open()
             && app.ui.dialog.is_none()
+            && app.opening.pending.is_empty()
             && let Some(files) = self.take()
         {
             for file in files {
@@ -101,18 +119,37 @@ impl Instance {
                     super::open_files(app, vec![file]);
                 }
             }
+            self.update_occupancy(app);
+            // At most one path was dispatched. Let its dialog/decoder finish before the next.
+            if app.ui.dialog.is_none() && app.opening.pending.is_empty() {
+                ctx.request_repaint();
+            }
             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
     }
 
-    /// Drain an activation request once; an empty file list still requests focus.
+    /// Synchronize admission with live work; closed tabs and cancelled dialogs release slots.
+    fn update_occupancy(&self, app: &vectorcraft_ui_egui::VectorcraftApp) {
+        self.documents.0.lock().unwrap_or_else(PoisonError::into_inner).occupied = app
+            .session
+            .documents()
+            .len()
+            .saturating_add(app.opening.pending.len())
+            .saturating_add(usize::from(app.file_dialog_open() || app.ui.dialog.is_some()));
+    }
+
+    /// Reserve one path without draining later requests; an empty request still focuses.
     fn take(&self) -> Option<Vec<String>> {
         let mut pending = self.documents.0.lock().unwrap_or_else(PoisonError::into_inner);
-        if !std::mem::take(&mut pending.activate) {
+        if !pending.activate || (!pending.files.is_empty() && pending.occupied >= MAX_FILES) {
             return None;
         }
-        Some(std::mem::take(&mut pending.files))
+        let n = pending.files.len().min(1);
+        let files = pending.files.drain(..n).collect();
+        pending.occupied = pending.occupied.saturating_add(n);
+        pending.activate = !pending.files.is_empty();
+        Some(files)
     }
 }
 
@@ -130,6 +167,15 @@ mod tests {
         let pending = documents.0.lock().unwrap();
         assert_eq!(pending.files, ["/tmp/a b.svg", "/tmp/日本語.svg"]);
         assert!(pending.activate);
+    }
+
+    /// An unavailable private socket permits the documented no-session-bus fallback.
+    #[test]
+    fn unavailable_bus_is_distinct_from_a_rejected_handoff() {
+        let dir = std::env::temp_dir().join(format!("vectorcraft-absent-bus-{}", std::process::id()));
+        let address = format!("unix:path={}/bus", dir.display());
+        let builder = zbus::blocking::connection::Builder::address(address.as_str()).unwrap();
+        assert!(matches!(start_on(builder, &[], OpenDocuments::default()), Err(StartError::BusUnavailable(_))));
     }
 
     /// Exercise real forwarding, dialog deferral, tab opening and ownership cleanup.
@@ -158,6 +204,9 @@ mod tests {
         let builder = || zbus::blocking::connection::Builder::address(address.trim()).unwrap();
         let Launch::Primary(first) = start_on(builder(), &[], OpenDocuments::default()).unwrap() else { panic!("first launch") };
         first.set_ui(&egui::Context::default());
+        let failure = start_on(builder(), &vec!["/tmp/rejected.svg".into(); MAX_FILES + 1], OpenDocuments::default()).err().unwrap();
+        assert!(matches!(failure, StartError::ForwardingFailed(_)), "an owner rejection must never enable standalone startup");
+        assert!(first.documents.0.lock().unwrap().files.is_empty());
         assert!(matches!(
             start_on(builder(), &["a b.svg".into(), "/tmp/日本語.svg".into(), "/tmp/external.WASM".into()], OpenDocuments::default()).unwrap(),
             Launch::Forwarded
@@ -170,8 +219,11 @@ mod tests {
         // Exercise the actual desktop file-opening path with an existing unsaved document.
         let special_reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let reads = special_reads.clone();
+        let total_reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let total = total_reads.clone();
         let services = vectorcraft_ui_egui::Services {
             read: Some(Box::new(move |path| {
+                total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if vectorcraft_ui_egui::io::opens_as(path).is_some() {
                     reads.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
@@ -196,15 +248,20 @@ mod tests {
         assert_eq!(first.documents.0.lock().unwrap().files, files, "queued files wait for the dialog");
         app.ui.dialog = None;
         first.dispatch(&mut app, &ctx);
+        assert_eq!(app.opening.pending.len(), 1, "one forwarded decoder at a time");
+        let read_count = total_reads.load(std::sync::atomic::Ordering::Relaxed);
+        first.dispatch(&mut app, &ctx);
+        assert_eq!(total_reads.load(std::sync::atomic::Ordering::Relaxed), read_count, "no read starts while earlier work is pending");
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while app.ui.dialog.is_none() && std::time::Instant::now() < deadline {
+            vectorcraft_ui_egui::opening::poll(&mut app);
+            first.dispatch(&mut app, &ctx);
+            std::thread::sleep(Duration::from_millis(10));
+        }
         assert!(app.run("plugin.info", plugin.clone()).is_err(), "forwarded files cannot install plug-ins in the running editor");
         assert_eq!(special_reads.load(std::sync::atomic::Ordering::Relaxed), 0, "reject before reading the module");
         assert!(app.ui.dialog.as_ref().unwrap().str("detail").contains("only open documents"));
-        app.ui.dialog = None; // The user closes the refusal before queued documents finish.
-        let deadline = std::time::Instant::now() + Duration::from_secs(10);
-        while !app.opening.pending.is_empty() && std::time::Instant::now() < deadline {
-            vectorcraft_ui_egui::opening::poll(&mut app);
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        app.ui.dialog = None; // The user closes the refusal after the earlier decoders finish.
         assert!(app.opening.pending.is_empty(), "forwarded files finished opening");
         assert_eq!(app.session.documents().len(), 3, "both files become tabs in the same app");
         assert_eq!(app.session.documents()[0].doc, original, "unsaved artwork is preserved");
@@ -221,6 +278,37 @@ mod tests {
         app.ui.dialog = None;
         assert!(matches!(start_on(builder(), &[], OpenDocuments::default()).unwrap(), Launch::Forwarded));
         assert_eq!(first.take(), Some(vec![]));
+        // Each refusal owns its dialog until the user closes it; later files must wait.
+        first.documents.open(vec!["/tmp/refusal-a.wasm".into(), "/tmp/refusal-b.wasm".into()]).unwrap();
+        first.dispatch(&mut app, &ctx);
+        assert!(app.ui.dialog.as_ref().unwrap().str("message").contains("refusal-a.wasm"));
+        assert_eq!(first.documents.0.lock().unwrap().files, ["/tmp/refusal-b.wasm"]);
+        first.dispatch(&mut app, &ctx);
+        assert!(app.ui.dialog.as_ref().unwrap().str("message").contains("refusal-a.wasm"));
+        app.ui.dialog = None;
+        first.dispatch(&mut app, &ctx);
+        assert!(app.ui.dialog.as_ref().unwrap().str("message").contains("refusal-b.wasm"));
+        app.ui.dialog = None;
+        // Admission remains occupied after dispatch and after decoding, until a tab closes.
+        first.dispatch(&mut app, &ctx); // Refresh the slot held by the just-closed dialog.
+        let count = app.session.documents().len();
+        first.documents.open(vec!["/tmp/budget.svg".into(); MAX_FILES - count]).unwrap();
+        assert!(first.documents.open(vec!["/tmp/overflow.svg".into()]).is_err());
+        first.dispatch(&mut app, &ctx);
+        assert_eq!(app.opening.pending.len(), 1);
+        assert!(first.documents.open(vec!["/tmp/overflow.svg".into()]).is_err(), "dequeueing keeps its reservation");
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !app.opening.pending.is_empty() && std::time::Instant::now() < deadline {
+            vectorcraft_ui_egui::opening::poll(&mut app);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(app.opening.pending.is_empty());
+        first.update_occupancy(&app);
+        assert!(first.documents.open(vec!["/tmp/overflow.svg".into()]).is_err(), "the resulting tab keeps its slot");
+        assert!(app.session.close_document(app.session.documents().len() - 1));
+        first.update_occupancy(&app);
+        first.documents.open(vec!["/tmp/after-close.svg".into()]).unwrap();
+        assert!(first.documents.open(vec!["/tmp/overflow.svg".into()]).is_err(), "closing a tab releases exactly one slot");
         drop(first);
         assert!(matches!(start_on(builder(), &[], OpenDocuments::default()).unwrap(), Launch::Primary(_)));
     }

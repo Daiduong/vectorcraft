@@ -196,7 +196,7 @@ tools, never checked side by side) isn't captured row by row.
 
 | Behaviour | Status | Notes |
 |---|---|---|
-| File-manager opens become tabs in the existing window | done | Document-only session D-Bus; modal deferral and unsaved work preserved; special files refused and regular-file input capped at 512 MiB; automation independent; no-bus fallback; compositor focus policy applies. Transport and reader tests; native/Flatpak verification |
+| File-manager opens become tabs in the existing window | done | Document-only session D-Bus; modal deferral and unsaved work preserved; special files refused and regular-file input capped at 512 MiB; automation independent; no-bus fallback; compositor focus policy applies. Transport and reader tests; native/Flatpak verification; review follow-up: one forwarded decode at a time, 32 shared slots, failed handoff never opens a second window |
 
 ## Keyboard shortcuts
 
@@ -292,6 +292,7 @@ sampling coexistence. Scores and estimates unchanged. See [development.md](devel
 | 2026-10-21 | minor | G1: one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top (public doc cited in target-app-parity.md). Scores unchanged. |
 | 2026-10-19 | minor | Distribute Objects and Distribute Spacing space the selected ruler guides across the axis with the objects, as items with no size, and two or more guides selected alone (#1597 in part); with a key guide and a spacing, the guide stays put and the other items are spaced from it (key guide from #3165); the Distribute Spacing value is enabled for a key guide; scores unchanged |
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
+| 2026-10-21 | minor | M4 review: rejected forwarding cannot bypass the owner; per-file dialog/decoder deferral and shared 32-slot admission preserve request ownership and bound repeated handoff work; real-bus regressions; scores unchanged. |
 | 2026-10-21 | minor | Snap to Glyph marked done (#3124); scores unchanged |
 | 2026-10-20 | minor | The selection tools (Selection, Direct Selection, Group Selection) take a clipping path on its outline, within the selection tolerance, before the art it clips, so its segments can be dragged where the art covers the mask's edge; Select Behind lists the same, and the eyedropper and the tools that act on what is drawn are unchanged. Doc and tool regression tests. Scores unchanged. |
 | 2026-10-20 | minor | Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; existing opening gestures retained; scores and hours unchanged. |
@@ -372,8 +373,11 @@ sampling coexistence. Scores and estimates unchanged. See [development.md](devel
 
 ## Linux file-manager handoff (2026-10-21)
 
-Document-only session D-Bus requests open tabs in the existing window after dialogs close;
-automation stays independent and unavailable D-Bus falls back to normal startup. Compositor
-focus policy applies. Linux reads reject pipes/devices and cap regular-file input at 512 MiB.
-Real-bus and reader regressions cover safeguards and unsaved-document preservation; aggregate
-in-flight work is not bounded. Scores and estimates unchanged. See [development.md](development.md#linux-file-manager-handoff-2026-10-21).
+Document-only session D-Bus requests open tabs in the existing window. Forwarding failures
+exit unsuccessfully; only an unavailable bus permits standalone fallback. Dispatch processes
+one file at a time, retaining later requests across dialogs and decoding. A shared 32-slot
+budget covers queued work, decoders, dialogs and open tabs; closing tabs releases capacity.
+Linux reads reject pipes/devices and cap regular-file input at 512 MiB. Automation remains
+independent; compositor focus policy applies. Real-bus and reader regressions cover these
+safeguards and unsaved work. Work count is bounded, not total decoded bytes or network latency.
+Scores and estimates unchanged. See [development.md](development.md#linux-file-manager-handoff-2026-10-21).

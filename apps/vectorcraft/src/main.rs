@@ -810,10 +810,14 @@ fn main() -> std::process::ExitCode {
         match single_instance::start(&files) {
             Ok(single_instance::Launch::Forwarded) => return std::process::ExitCode::SUCCESS,
             Ok(single_instance::Launch::Primary(instance)) => Some(instance),
-            Err(e) => {
+            Err(single_instance::StartError::BusUnavailable(e)) => {
                 // Minimal desktop sessions may have no bus. Keep file opening available there.
                 eprintln!("vectorcraft: could not reuse the existing window: {e}");
                 None
+            }
+            Err(single_instance::StartError::ForwardingFailed(e)) => {
+                eprintln!("vectorcraft: could not forward to the existing window: {e}");
+                return std::process::ExitCode::FAILURE;
             }
         }
     };

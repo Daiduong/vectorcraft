@@ -398,6 +398,7 @@ sampling coexistence. Scores and estimates unchanged. See [development.md](devel
 | 2026-10-21 | minor | G1: one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top. No entry closed, estimates unchanged. |
 | 2026-10-20 | minor | G1: for the selection tools, a press within the selection tolerance of a clipping path's outline (a clip group's, or a layer's clipping mask) hits the clipping path before the art it clips, so Direct Selection takes its segments and the Selection tool the clip group even where the art lies over the mask's edge; Select Behind lists the same; the eyedropper and the tools that act on what is drawn are unchanged. Doc and tool regression tests. No entry closed, estimates unchanged. |
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
+| 2026-10-21 | minor | M4 review: rejected forwarding cannot bypass the owner; per-file dialog/decoder deferral and shared 32-slot admission preserve request ownership and bound repeated handoff work; real-bus regressions; scores unchanged. |
 | 2026-10-20 | minor | Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; existing opening gestures retained; scores and hours unchanged. |
 | 2026-10-20 | minor | Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; scores and hours unchanged. |
 | 2026-10-19 | minor | G17: filter plug-ins read and set their objects' effect records (admitted as `effect.apply` admits them) and strokes' joins, caps and miter limits; a path handed back unchanged stays a live shape; engine and unit regressions. No entry closed, estimates unchanged. |
@@ -507,8 +508,11 @@ sampling coexistence. Scores and estimates unchanged. See [development.md](devel
 
 ## Linux file-manager handoff (2026-10-21)
 
-Document-only session D-Bus requests open tabs in the existing window after dialogs close;
-automation stays independent and unavailable D-Bus falls back to normal startup. Compositor
-focus policy applies. Linux reads reject pipes/devices and cap regular-file input at 512 MiB.
-Real-bus and reader regressions cover safeguards and unsaved-document preservation; aggregate
-in-flight work is not bounded. Scores and estimates unchanged. See [development.md](development.md#linux-file-manager-handoff-2026-10-21).
+Document-only session D-Bus requests open tabs in the existing window. Forwarding failures
+exit unsuccessfully; only an unavailable bus permits standalone fallback. Dispatch processes
+one file at a time, retaining later requests across dialogs and decoding. A shared 32-slot
+budget covers queued work, decoders, dialogs and open tabs; closing tabs releases capacity.
+Linux reads reject pipes/devices and cap regular-file input at 512 MiB. Automation remains
+independent; compositor focus policy applies. Real-bus and reader regressions cover these
+safeguards and unsaved work. Work count is bounded, not total decoded bytes or network latency.
+Scores and estimates unchanged. See [development.md](development.md#linux-file-manager-handoff-2026-10-21).

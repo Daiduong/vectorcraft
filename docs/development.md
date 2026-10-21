@@ -413,22 +413,36 @@ covers upstream brush-key sampling. Scores and estimates unchanged.
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
+| 2026-10-21 | minor | M4 review: rejected forwarding cannot bypass the owner; per-file dialog/decoder deferral and shared 32-slot admission preserve request ownership and bound repeated handoff work; real-bus regressions; scores unchanged. |
 
 ## Linux file-manager handoff (2026-10-21)
 
 Ordinary Linux launches share the session D-Bus name `ai.storyteller.vectorcraft.OpenDocuments`.
 Later launches queue absolute document paths and exit; the running app opens document tabs
-once native and in-app dialogs close, preserving existing unsaved work. Activation remains
-subject to the compositor's focus policy. Automation (`--control`, `VECTORCRAFT_CONTROL_PORT`,
-`VECTORCRAFT_NO_PREFS`) stays independent; no usable session bus falls back to normal startup.
+while preserving existing unsaved work. Activation remains subject to compositor focus policy.
+Automation (`--control`, `VECTORCRAFT_CONTROL_PORT`, `VECTORCRAFT_NO_PREFS`) stays independent.
+Only unavailable-bus startup errors permit standalone fallback. An existing owner's rejection,
+timeout or other forwarding failure exits unsuccessfully instead of starting a second window.
+
+Handoff shares a 32-slot admission budget with queued paths, decoding, modal work and open tabs
+(including tabs opened locally). Dispatch reserves a slot and starts at most one file; it waits
+for the decoder and any native or in-app dialog to finish before taking the next queued path.
+A completed tab retains its slot until closed. Capacity is refreshed by the UI; closing a tab
+or cancelling a dialog releases its slot. Overload is rejected atomically; close tabs and retry.
+An activation-only request still works at capacity. Local File Open is not capped by this IPC
+policy, but its tabs count against new forwarded work. Startup requests wait for the first UI
+frame, which checks actual occupancy before dispatching.
+
 Forwarded paths use `io::opens_as` to refuse plug-ins, presets, libraries, shortcut sets and
 scripts before reading; deliberate local File Open and plug-in installation stay available.
 Linux desktop reads accept regular files and ordinary symlinks, reject pipes/devices/directories,
 recheck the opened descriptor, and cap input at 512 MiB even for growing or zero-reported-length
-files. Nonblocking opens prevent FIFO replacement from hanging; regular-file I/O remains
-synchronous and network filesystem latency is not bounded. Queued paths are bounded; aggregate
-decoding work and open tabs do not yet have a shared resource budget.
-Tests: `single_instance::tests` (isolated real D-Bus, Unicode/relative paths, ownership release,
-modal deferral, unsaved documents, document-only handling) and `linux_file_read::tests`
-(special descriptors, symlinks, exact/oversize/streaming limits). Native and Flatpak tab opening
-were manually verified. Scores and estimates unchanged.
+files. Nonblocking opens prevent FIFO replacement from hanging. Regular-file I/O remains
+synchronous and network filesystem latency is not bounded. The admission budget bounds work
+count, not decoded bytes; existing importer limits still apply.
+
+Tests: `single_instance::tests` covers isolated real D-Bus, rejected handoff classification,
+no-bus fallback, serialized decoding, retained dialog requests, slot retention and close/retry,
+Unicode/relative paths, ownership release, unsaved documents and document-only handling.
+`linux_file_read::tests` covers special descriptors, symlinks and byte limits. Native/Flatpak
+tab opening was manually verified before this review follow-up. Scores and estimates unchanged.
