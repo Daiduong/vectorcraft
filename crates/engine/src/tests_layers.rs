@@ -547,6 +547,24 @@ fn a_template_layer_deselects_its_art_locked_or_not() {
     assert_eq!((parent(&s, g), s.doc().unwrap().selection.objects.clone()), (Some(other), vec![a]), "layer.move put g there");
 }
 
+/// Targeting a layer with no art selects nothing. Making the layer a template, or locking it,
+/// still clears the target, so appearance edits no longer act on it; undo targets it again.
+#[test]
+fn an_empty_targeted_layer_made_a_template_or_locked_is_no_longer_targeted() {
+    let mut s = session();
+    let empty = id(&run(&mut s, "layer.new", json!({})));
+    for props in [json!({"template": true, "locked": false}), json!({"locked": true})] {
+        run(&mut s, "layer.target", json!({"id": empty.0}));
+        assert_eq!(s.doc().unwrap().selection.subjects(), [empty]);
+        let mut p = props.clone();
+        p["id"] = json!(empty.0);
+        run(&mut s, "layer.setProps", p);
+        assert_eq!(s.doc().unwrap().selection.target, None, "{props}");
+        run(&mut s, "edit.undo", json!({}));
+        assert_eq!(s.doc().unwrap().selection.target, Some(empty), "undo targets it again: {props}");
+    }
+}
+
 #[test]
 fn alt_drag_copies_rows_and_the_selected_art_moves_between_layers() {
     let mut s = session();

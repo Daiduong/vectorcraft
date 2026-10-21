@@ -200,8 +200,12 @@ impl Selection {
     }
     /// Deselect the objects that are hidden or locked, themselves or through a group or layer
     /// around them, or that are on a template layer ([`Document::is_selectable`]), and so the key
-    /// object when it is one: such art can't stay selected.
+    /// object when it is one: such art can't stay selected. A target that can't be selected is
+    /// cleared too, also a layer with no art selected.
     pub fn deselect_uneditable(&mut self, doc: &Document) {
+        if self.target.is_some_and(|t| !doc.is_selectable(t)) {
+            self.target = None;
+        }
         let uneditable: HashSet<NodeId> = self.objects.iter().copied().filter(|o| !doc.is_selectable(*o)).collect();
         if uneditable.is_empty() {
             return;
