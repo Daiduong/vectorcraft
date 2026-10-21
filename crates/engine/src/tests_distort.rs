@@ -110,6 +110,22 @@ fn width_profile_set_and_clear() {
     assert_eq!(profile(&s, id), None);
 }
 
+/// Width Profile refuses a point with a place or width given as text, null or another value that is
+/// not a number, such as `[0.5, "1", 2, 2]`, and leaves the profile and the undo history as they were.
+#[test]
+fn width_profile_set_refuses_a_width_given_as_text() {
+    let mut s = session();
+    let id = line(&mut s);
+    s.execute("stroke.widthProfile.set", &json!({"ids": [id.0], "points": [[0, 1, 1], [1, 1, 1]]})).unwrap();
+    let before = (profile(&s, id), undo_len(&s));
+    for points in [json!([[0.5, "1", 2, 2]]), json!([[0.5, 1, 2, "3"]]), json!([[0.5, null, 2, 2]]), json!([[true, 0.5, 2, 2]])] {
+        let r = s.execute("stroke.widthProfile.set", &json!({"ids": [id.0], "points": points}));
+        let want = "points must be [t, left, right] with non-negative widths";
+        assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if msg == want), "{points}: {r:?}");
+        assert_eq!((profile(&s, id), undo_len(&s)), before, "{points}");
+    }
+}
+
 #[test]
 fn width_tool_gesture_is_one_undo_step() {
     let mut s = session();
@@ -237,6 +253,54 @@ fn liquify_tool_replays_from_the_journal() {
     assert_eq!(path(&t, a), after);
 }
 
+/// `cmd` with `p` fails with the error for `key`, which `p` gives as something other than a number.
+fn refuses_non_number(s: &mut Session, cmd: &str, p: &serde_json::Value, key: &str) {
+    let r = s.execute(cmd, p);
+    let want = format!("`{key}` must be a number, not {}", p[key]);
+    assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if *msg == want), "{cmd} {p}: {r:?}");
+}
+
+/// Liquify refuses a brush size, angle, intensity, detail, simplify, rate, complexity or wrinkle
+/// amount given as text or as another value that is not a number, with the tool that uses the key and
+/// with one that does not: the path and the undo history stay as they were. Null is read as the key
+/// left out.
+#[test]
+fn liquify_refuses_a_number_given_as_text() {
+    let mut s = session();
+    let a = rect(&mut s, 100.0, 100.0, 200.0, 200.0);
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    let before = (path(&s, a), undo_len(&s));
+    let with = |tool: &str, key: &str, v: serde_json::Value| {
+        let mut p = warp_params();
+        p["tool"] = json!(tool);
+        p[key] = v;
+        (key.to_string(), p)
+    };
+    let calls = [
+        with("warp", "diameter", json!("40")),
+        with("warp", "width", json!("80")),
+        with("pucker", "height", json!([80])),
+        with("twirl", "angle", json!("45")),
+        with("bloat", "intensity", json!("80%")),
+        with("warp", "detail", json!(true)),
+        with("warp", "simplify", json!("50")),
+        with("twirl", "rate", json!("90")),
+        with("crystallize", "complexity", json!("3")),
+        with("wrinkle", "horizontal", json!("50")),
+        with("wrinkle", "vertical", json!({"value": 50})),
+        with("warp", "complexity", json!("3")),
+    ];
+    for (key, p) in calls {
+        refuses_non_number(&mut s, "object.liquify", &p, &key);
+        assert_eq!((path(&s, a), undo_len(&s)), before, "{p}");
+    }
+    let mut p = warp_params();
+    p["diameter"] = json!(null);
+    p["intensity"] = json!(null);
+    assert_eq!(s.execute("object.liquify", &p).unwrap()["ids"], json!([a.0]));
+    assert_eq!(undo_len(&s), before.1 + 1);
+}
+
 /// A Liquify stroke that reshapes no path (the brush reaches none) records no undo step, run as a
 /// command or dragged with the tool, and the command replies with no ids.
 #[test]
@@ -281,6 +345,32 @@ fn puppet_warp_satisfies_pins_and_keeps_area() {
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(path(&s, a).bounds().unwrap(), Rect::new(100.0, 100.0, 400.0, 200.0));
     assert!(s.execute("object.puppetWarp", &json!({"id": a.0, "pins": [[1, 1]], "moved": []})).is_err());
+}
+
+/// Puppet Warp and Puppet Warp Pins refuse an `expand` given as text or as another value that is not
+/// a number, and Puppet Warp refuses an angle that is not a number or null, such as "90": the art and
+/// the undo history stay as they were. A null `expand` is read as the key left out.
+#[test]
+fn puppet_warp_refuses_a_number_given_as_text() {
+    let mut s = session();
+    let a = rect(&mut s, 100.0, 100.0, 300.0, 100.0);
+    let before = (path(&s, a), undo_len(&s));
+    let with = |key: &str, v: serde_json::Value| {
+        let mut p = json!({"id": a.0, "pins": [[120, 150], [380, 150]], "moved": [[120, 150], [370, 90]]});
+        p[key] = v;
+        p
+    };
+    refuses_non_number(&mut s, "object.puppetWarp", &with("expand", json!("5")), "expand");
+    refuses_non_number(&mut s, "object.puppetWarp", &with("expand", json!([5])), "expand");
+    refuses_non_number(&mut s, "object.puppetWarp.pins", &json!({"id": a.0, "expand": "5"}), "expand");
+    for angles in [json!(["90", null]), json!([null, true])] {
+        let r = s.execute("object.puppetWarp", &with("angles", angles.clone()));
+        let want = "angles must be a list as long as pins (degrees or null)";
+        assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if msg == want), "{angles}: {r:?}");
+    }
+    assert_eq!((path(&s, a), undo_len(&s)), before);
+    s.execute("object.puppetWarp", &with("expand", json!(null))).unwrap();
+    assert_eq!(undo_len(&s), before.1 + 1);
 }
 
 #[test]
@@ -498,6 +588,43 @@ fn perspective_move_attaches_loose_objects_to_the_given_plane() {
     s.execute("perspective.move", &json!({"ids": [a.0], "from": [260, 390], "to": [270, 390], "plane": "ground"})).unwrap();
     assert_eq!(grid(&s).attached_plane(a), Some(Plane::Ground));
     assert!(s.execute("perspective.attach", &json!({"ids": [a.0], "plane": "none"})).is_err());
+}
+
+/// Transform in Perspective refuses a `depth`, Nudge in Perspective refuses a `dx` or `dy`, and Move Plane
+/// refuses an `offset` or `by` given as text or as another value that is not a number, such as "10". Draw in
+/// Perspective refuses an `at` that is not two numbers. The object, the grid and the undo history stay as they
+/// were. A null `depth` or `at` is read as the key left out.
+#[test]
+fn perspective_commands_refuse_a_number_given_as_text() {
+    let mut s = session();
+    s.execute("perspective.grid.preset", &json!({"kind": 2})).unwrap();
+    s.execute("perspective.grid.snap", &json!({"on": false})).unwrap();
+    let a = rect(&mut s, 450.0, 380.0, 60.0, 60.0);
+    s.execute("perspective.attach", &json!({"ids": [a.0], "plane": "right"})).unwrap();
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    let before = (path(&s, a), grid(&s).definition_json(), undo_len(&s));
+    let calls = [
+        ("perspective.transform", json!({"matrix": [1, 0, 0, 1, 0, 0], "depth": "10"}), "depth"),
+        ("perspective.nudge", json!({"dx": "1", "dy": 0}), "dx"),
+        ("perspective.nudge", json!({"dx": 0, "dy": [1]}), "dy"),
+        ("perspective.plane.move", json!({"plane": "right", "offset": "10"}), "offset"),
+        ("perspective.plane.move", json!({"plane": "right", "offset": "10", "by": 5}), "offset"),
+        ("perspective.plane.move", json!({"plane": "right", "by": true}), "by"),
+    ];
+    for (c, p, key) in calls {
+        refuses_non_number(&mut s, c, &p, key);
+        assert_eq!((path(&s, a), grid(&s).definition_json(), undo_len(&s)), before, "{c} {p}");
+    }
+    let draw = |at: serde_json::Value| json!({"command": "shape.rectangle", "params": {"x": 450, "y": 380, "width": 20, "height": 20}, "plane": "right", "at": at});
+    for at in [json!(["450", 380]), json!("450, 380"), json!([450]), json!([450, 380, 0])] {
+        let r = s.execute("perspective.draw", &draw(at.clone()));
+        assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if msg == "`at` must be [x, y]"), "at {at}: {r:?}");
+        assert_eq!((path(&s, a), grid(&s).definition_json(), undo_len(&s)), before, "at {at}");
+    }
+    s.execute("perspective.transform", &json!({"matrix": [1, 0, 0, 1, 10, 0], "depth": null})).unwrap();
+    assert_eq!(undo_len(&s), before.2 + 1);
+    s.execute("perspective.draw", &draw(json!(null))).unwrap();
+    assert_eq!(undo_len(&s), before.2 + 2);
 }
 
 /// With the grid defined, Define Perspective Grid with the values the grid has (Reproject or not),

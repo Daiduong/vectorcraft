@@ -405,7 +405,7 @@ fn width_profile_set(s: &mut Session, p: &Value) -> Result<Value> {
         Some(Value::Array(a)) => {
             let mut pts = vec![];
             for q in a {
-                let v: Vec<f64> = q.as_array().map(|x| x.iter().filter_map(Value::as_f64).collect()).unwrap_or_default();
+                let v: Vec<f64> = q.as_array().and_then(|x| x.iter().map(Value::as_f64).collect()).unwrap_or_default();
                 if v.len() != 3 || v.iter().any(|x| !x.is_finite()) || v[1] < 0.0 || v[2] < 0.0 {
                     return Err(bad(C, "points must be [t, left, right] with non-negative widths"));
                 }
@@ -628,8 +628,14 @@ impl LiquifyStroke {
     }
 }
 
+/// The number keys of `object.liquify`. [`LiquifyParams::from_json`] reads a value that is not a
+/// number as the key left out.
+const LIQUIFY_NUMBERS: &[&str] =
+    &["diameter", "width", "height", "angle", "intensity", "detail", "simplify", "rate", "complexity", "horizontal", "vertical"];
+
 fn liquify(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.liquify";
+    check_numbers(p, LIQUIFY_NUMBERS, C)?;
     let prm = LiquifyParams::from_json(p).ok_or_else(|| bad(C, "missing or unknown `tool`"))?;
     let pts = samples_of(p, "points").filter(|v| !v.is_empty()).ok_or_else(|| bad(C, "points must be a non-empty [[x,y,pressure?]…] list"))?;
     if pts.iter().any(|(q, f)| !q.x.is_finite() || !q.y.is_finite() || !f.is_finite()) {
@@ -697,6 +703,7 @@ fn puppet_ids(p: &Value, default: impl FnOnce() -> Result<Vec<NodeId>>) -> Resul
 
 fn puppet_warp(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.puppetWarp";
+    check_numbers(p, &["expand"], C)?;
     let pins = points_of(p, "pins").ok_or_else(|| bad(C, "pins must be [[x,y]…]"))?;
     let moved = points_of(p, "moved").ok_or_else(|| bad(C, "moved must be [[x,y]…]"))?;
     let rest = bool_or(p, "rest", false);
@@ -711,7 +718,9 @@ fn puppet_warp(s: &mut Session, p: &Value) -> Result<Value> {
     let expand = f64_or(p, "expand", 3.0).clamp(0.0, 1000.0);
     let angles: Vec<Option<f64>> = match p.get("angles") {
         None | Some(Value::Null) => vec![None; pins.len()],
-        Some(Value::Array(a)) if a.len() == pins.len() => a.iter().map(|v| v.as_f64().filter(|d| d.is_finite()).map(f64::to_radians)).collect(),
+        Some(Value::Array(a)) if a.len() == pins.len() && a.iter().all(|v| v.is_null() || v.is_number()) => {
+            a.iter().map(|v| v.as_f64().filter(|d| d.is_finite()).map(f64::to_radians)).collect()
+        }
         Some(_) => return Err(bad(C, "angles must be a list as long as pins (degrees or null)")),
     };
     let ids_json = json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>() });
@@ -752,6 +761,7 @@ pub(crate) fn drop_puppet_pins(st: &mut crate::DocState) {
 }
 
 fn puppet_pins(s: &mut Session, p: &Value) -> Result<Value> {
+    check_numbers(p, &["expand"], "object.puppetWarp.pins")?;
     let ids = puppet_ids(p, || Ok(s.doc()?.selection.objects.clone()))?;
     let expand = f64_or(p, "expand", 3.0).clamp(0.0, 1000.0);
     let set = PinSet::of(&s.doc()?.doc, &ids, expand).ok_or_else(|| EngineError::Other("nothing to warp".into()))?;
@@ -1084,6 +1094,7 @@ fn persp_move(s: &mut Session, p: &Value) -> Result<Value> {
 fn persp_transform(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "perspective.transform";
     let m = matrix_param(p, "matrix").ok_or_else(|| bad(C, "missing matrix [a,b,c,d,e,f]"))?;
+    check_numbers(p, &["depth"], C)?;
     let dz = f64_or(p, "depth", 0.0);
     if !m.as_coeffs().iter().all(|v| v.is_finite()) || m.determinant().abs() < 1e-12 || !dz.is_finite() {
         return Err(bad(C, "matrix must be finite and invertible, depth finite"));
@@ -1122,6 +1133,7 @@ pub(crate) fn transform_again(s: &mut Session, again: &Value) -> Result<Value> {
 
 fn plane_move(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "perspective.plane.move";
+    check_numbers(p, &["offset", "by"], C)?;
     let old = grid_of(&s.doc()?.doc);
     let plane = plane_param(&old, p, C)?;
     let from = old.offset(plane);
@@ -1218,6 +1230,7 @@ fn plane_match(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn persp_nudge(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "perspective.nudge";
+    check_numbers(p, &["dx", "dy"], C)?;
     let (dx, dy) = (f64_or(p, "dx", 0.0), f64_or(p, "dy", 0.0));
     if !(dx.is_finite() && dy.is_finite()) || (dx == 0.0 && dy == 0.0) {
         return Err(bad(C, "dx and dy give the arrow's direction"));
@@ -1244,9 +1257,12 @@ fn persp_draw(s: &mut Session, p: &Value) -> Result<Value> {
     let plane = plane_param(&g, p, C)?;
     let snap = bool_or(p, "snap", g.snap);
     // A click-to-size dialog's shape keeps its sizes in plane units from the click.
-    let map = match point_param(p, "at") {
-        Some(at) => Some(g.size_homography(plane, at, snap).ok_or_else(beyond_horizon)?),
-        None => None,
+    let map = match p.get("at") {
+        None | Some(Value::Null) => None,
+        Some(v) => {
+            let at = finite_numbers(v).map(|[x, y]| Point::new(x, y)).ok_or_else(|| bad(C, "`at` must be [x, y]"))?;
+            Some(g.size_homography(plane, at, snap).ok_or_else(beyond_horizon)?)
+        }
     };
     let undo_before = s.doc()?.history.undo.len();
     let r = s.execute(&command, &params)?;

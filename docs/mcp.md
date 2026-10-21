@@ -4276,6 +4276,17 @@ stroke at once, so the journal entry replays it exactly.
 {"name":"pointer_gesture","arguments":{"tool":"twirl","events":[{"kind":"down","x":300,"y":200,"holdMs":800},{"kind":"up","x":300,"y":200}]}}
 ```
 
+The Liquify, Puppet Warp and perspective commands refuse a string or another value that is not a number with
+`` `diameter` must be a number, not "40" ``, naming the key, and leave the document and its undo history as they
+were: `diameter`, `width`, `height`, `angle`, `intensity`, `detail`, `simplify`, `rate`, `complexity`, `horizontal`
+and `vertical` in `object.liquify`, with any `tool`; `expand` in `object.puppetWarp` and `object.puppetWarp.pins`;
+`depth` in `perspective.transform`; `dx` and `dy` in `perspective.nudge`; and `offset` and `by` in
+`perspective.plane.move`. A null is read as a key left out. `object.puppetWarp` refuses an `angles` entry that is not
+a number or null with "angles must be a list as long as pins (degrees or null)", `perspective.draw` refuses an `at`
+that is not two numbers, such as `["450", 380]`, with "`at` must be [x, y]", and `stroke.widthProfile.set` refuses a
+point that is not three numbers, such as `[0.5, "1", 2, 2]`, with "points must be [t, left, right] with non-negative
+widths".
+
 ## Perspective Selection
 
 Objects in perspective keep their attachment themselves (`perspective` on the object: `plane` and `depth`, the
