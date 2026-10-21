@@ -213,7 +213,7 @@ fn body_contents(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) ->
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
         }
     }
-    ui.label(tl!("Send preview to Ollama"));
+    ui.label(tl!("Previews are sent to the configured Ollama server."));
     egui::CollapsingHeader::new(tl!("Connection and scope"))
         .id_salt(("ai-slice-connection", d.fields.contains_key("candidates")))
         .default_open(!d.fields.contains_key("candidates"))
