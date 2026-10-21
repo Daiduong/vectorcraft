@@ -3,7 +3,8 @@
 
 use super::*;
 use crate::testutil::{cx, paint};
-use vectorcraft_doc::{CharStyle, Document, Node, Selection};
+use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, Selection, TextObject};
+use vectorcraft_text::FontDb;
 
 fn doc_with_text(text: &str) -> (Document, NodeId) {
     let mut d = Document::new(500.0, 500.0);
@@ -508,6 +509,35 @@ fn hebrew_typing_and_visual_arrows_keep_logical_text() {
     assert_eq!(t.plain_text(), "שלום");
 }
 
+/// View › Snap to Glyph: new point type placed near live text snaps to its baseline.
+#[test]
+fn snap_to_glyph_lines_up_new_point_type_with_a_baseline() {
+    let (d, _) = doc_with_text("Baseline");
+    let (sel, p) = (Selection::default(), paint());
+    let mut c = cx(&d, &sel, &p);
+    c.snap_to_glyph = true;
+    let existing = match &d.layers[0].children().unwrap()[0].kind {
+        NodeKind::Text(t) => t,
+        _ => panic!("text"),
+    };
+    let lay = vectorcraft_text::layout(FontDb::global(), existing);
+    let baseline_y = (existing.xf * Point::new(0.0, lay.lines[0].baseline)).y;
+    let mut tool = TypeTool::new("type");
+    tool.pointer(&c, &PointerEvent::new(PointerKind::Down, 250.0, baseline_y + 2.0));
+    let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, 250.0, baseline_y + 2.0));
+    assert!(
+        acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.create" && (v["y"].as_f64().unwrap() - baseline_y).abs() < 0.5)),
+        "{acts:?}"
+    );
+    c.snap_to_glyph = false;
+    tool.pointer(&c, &PointerEvent::new(PointerKind::Down, 250.0, baseline_y + 2.0));
+    let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, 250.0, baseline_y + 2.0));
+    assert!(
+        acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.create" && (v["y"].as_f64().unwrap() - (baseline_y + 2.0)).abs() < 0.5)),
+        "{acts:?}"
+    );
+}
+
 /// Where new type goes snaps to Smart Guides (#506): a click beside a rect lines up with its
 /// centre, and hovering shows it first; an area's corners land on its anchors.
 #[test]
@@ -527,6 +557,20 @@ fn new_type_snaps_to_smart_guides() {
     let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, 199.0, 202.0));
     let area = json!({"width": 100.0, "height": 100.0});
     assert!(acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.create" && v["x"] == 100.0 && v["area"] == area)), "{acts:?}");
+}
+
+#[test]
+fn area_type_drag_measure_labels_honor_preference() {
+    let (d, _) = crate::testutil::doc_with_rect();
+    let (sel, p) = (Selection::default(), paint());
+    let on = ToolContext { measurement_labels: true, ..cx(&d, &sel, &p) };
+    let off = ToolContext { measurement_labels: false, ..cx(&d, &sel, &p) };
+    let mut tool = TypeTool::new("type");
+    tool.pointer(&on, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+    tool.pointer(&on, &PointerEvent::new(PointerKind::Drag, 200.0, 150.0));
+    let want = on.size_label(100.0, 50.0);
+    assert!(tool.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+    assert!(!tool.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
 }
 
 #[test]

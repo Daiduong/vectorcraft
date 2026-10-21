@@ -36,6 +36,7 @@ pub use journal::Journal;
 pub use tooling::{UiRequest, ViewInfo};
 pub use vectorcraft_doc as doc;
 pub use vectorcraft_doc::cancel;
+pub use vectorcraft_pathops::{SIMPLIFY_LEVEL, simplify_level_tolerance};
 pub use vectorcraft_tools as tools;
 
 #[derive(Debug, thiserror::Error)]
@@ -773,6 +774,11 @@ pub(crate) fn deselect_guides(d: &Document, sel: &mut Selection) -> bool {
         sel.remove(id);
     }
     sel.guides.clear();
+    sel.key_guide = None;
+    // A key object kept only for the guides to line up on goes with them.
+    if sel.key.is_some_and(|k| sel.objects.iter().all(|o| *o == k)) {
+        sel.key = None;
+    }
     any
 }
 
@@ -1348,6 +1354,8 @@ impl Session {
         // Placed documents are read by the native format's loader.
         vectorcraft_doc::placed_document::set_loader(cmd::place::document::read_document);
         vectorcraft_doc::placed_document::set_file_reader(cmd::place::document::read_file_again);
+        // Clicks find an image's own fills and strokes where their effects draw them.
+        vectorcraft_doc::hit::set_image_paint(vectorcraft_render::effects::image_paint);
         Self {
             docs: vec![],
             active: None,
@@ -2145,6 +2153,8 @@ mod tests_interactivity;
 mod tests_intertwine;
 #[cfg(test)]
 mod tests_journal;
+#[cfg(test)]
+mod tests_keyguide;
 #[cfg(test)]
 mod tests_knockout;
 #[cfg(test)]

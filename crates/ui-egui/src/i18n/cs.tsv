@@ -36,6 +36,7 @@
 	Quit VectorCraft	Ukončit VectorCraft
 	File	Soubor
 	New…	Nový…
+	New Without Dialog	Nový bez dialogového okna
 	New from Template…	Nový ze šablony…
 	Open…	Otevřít…
 	Open Recent Files	Otevřít nedávné soubory
@@ -264,6 +265,8 @@
 	Large Gaps	Velké mezery
 	Gap Preview Color:	Barva náhledu mezer:
 	Close Gaps With Paths	Uzavřít mezery cestami
+	Show Live Paint Gaps	Zobrazit mezery živé malby
+	Hide Live Paint Gaps	Skrýt mezery živé malby
 	Select Fills	Vybírat výplně
 	Select Strokes	Vybírat tahy
 	Image Trace	Vektorizace obrazu
@@ -305,6 +308,7 @@
 	Plug-ins	Zásuvné moduly
 	No filter plug-ins installed	Nejsou nainstalovány žádné filtry
 	Install Plug-in…	Nainstalovat zásuvný modul…
+	Open this setting's help page	Otevřít stránku nápovědy k tomuto nastavení
 	Reload Plug-ins	Znovu načíst zásuvné moduly
 	Type	Text
 	Font	Písmo
@@ -1657,7 +1661,7 @@ lighting	Light	Světlo
 	This library is empty	Tato knihovna je prázdná
 	No results	Žádné výsledky
 	No items in this library match “{query}”.	Žádná položka v této knihovně neodpovídá „{query}“.
-	Right-click an item to move it into this group.	Kliknutím pravým tlačítkem na položku ji přesunete do této skupiny.
+	Drag an item here, or right-click one, to put it in this group.	Přetáhněte sem položku nebo na ni klikněte pravým tlačítkem a vložte ji do této skupiny.
 	New Group	Nová skupina
 	New Group…	Nová skupina…
 	Move to Group	Přesunout do skupiny
@@ -1712,6 +1716,8 @@ lighting	Light	Světlo
 	Corner Point Angle Threshold:	Prahový úhel rohových bodů:
 	Convert to Straight Lines	Převést na přímé čáry
 	Show Original Path	Zobrazit původní cestu
+	Open this dialog with these settings next time	Příště otevřít toto dialogové okno s tímto nastavením
+	Auto-Simplify	Automaticky zjednodušit
 	Transparency Options	Možnosti průhlednosti
 	Color Mixer (Shift-click the chip)	Míchání barev (Shift+kliknutí na políčko)
 	Fill: click for swatches, Shift-click for the color mixer	Výplň: kliknutím otevřete vzorník, Shift+kliknutím míchání barev
@@ -1786,6 +1792,7 @@ lighting	Light	Světlo
 	Left in Front	Levý vpředu
 	No document	Žádný dokument
 	Open a document to edit its patterns.	Otevřete dokument, abyste mohli upravit jeho vzorky.
+	Overlap	Překrytí
 	Overlap:	Překrytí:
 	Pattern options are available in pattern editing mode.	Možnosti vzorku jsou dostupné v režimu úprav vzorku.
 	Right in Front	Pravý vpředu
@@ -2165,6 +2172,7 @@ lighting	Light	Světlo
 	One file per artboard: <name>-<artboard>.{ext}	Jeden soubor na pracovní plochu: <name>-<artboard>.{ext}
 	One page per artboard.	Jedna stránka na pracovní plochu.
 	The bounds of the visible art.	Hranice viditelné kresby.
+	The plug-in writes the whole document.	Zásuvný modul exportuje celý dokument.
 	Use Artboards	Použít pracovní plochy
 	Choose a folder	Vyberte složku
 	Create Sub-folders	Vytvořit podsložky
@@ -2250,6 +2258,7 @@ lighting	Light	Světlo
 	Edit selected paths within:	Upravovat vybrané cesty do:
 	Fidelity:	Věrnost:
 	Fill new strokes	Vyplňovat nové tahy
+	Alt key toggles to Smooth Tool	Klávesa Alt přepíná na nástroj Vyhlazení
 	Keep selected	Ponechat vybrané
 	Merge only with selection	Sloučit jen s výběrem
 	The document has no colour swatches.	Dokument nemá ve vzorníku žádné barvy.
@@ -4172,6 +4181,7 @@ imageTrace	Outline	Obrys
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	pozadí {other}: transparent, white, black nebo barva jako "#ff8800"
 @msg	bad color {v}	chybná barva {v}
 @msg	the Color Picker is not open	Výběr barvy není otevřený
+@msg	the Simplify slider is not open	Posuvník Zjednodušit není otevřený
 @msg	the screen color sampler is already open	nástroj pro nabírání barvy z obrazovky už je otevřený
 @msg	this system has no screen color sampler	tento systém nemá nástroj pro nabírání barvy z obrazovky
 @msg	bad colour `{hex}` (#rrggbb)	chybná barva `{hex}` (#rrggbb)
@@ -4538,6 +4548,7 @@ imageTrace	Outline	Obrys
 @msg	{_1} files are written by file.saveAsTemplate	soubory {_1} zapisuje file.saveAsTemplate
 @msg	{_1} font families available	Dostupné rodiny písem: {_1}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} je živý efekt (Efekt › Zásuvné moduly)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} je exportní zásuvný modul (Soubor › Export › Exportovat jako…)
 @msg	{_1} is already used by {_2}	{_1} už používá {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	propojené soubory ({_1}) zde nelze přečíst: zobrazují se jejich náhledy
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	propojené obrázky ({_1}) se na disku změnily: nové verze zobrazí Aktualizovat propojení
@@ -5187,6 +5198,27 @@ mark-style	Japanese	Japonské
 	Movie Clip	Filmový klip
 @msg	name is empty	název je prázdný
 @msg	no symbol named `{n}`	žádný symbol s názvem `{n}`
+	Smudge Stick…	Rozmazávací tyčinka…
+	Smudge Stick	Rozmazávací tyčinka
+	Sponge…	Houba…
+	Sponge	Houba
+	Watercolor…	Akvarel…
+	Watercolor	Akvarel
+	Brush Size	Velikost štětce
+	Definition	Definice
+	Brush Detail	Detail štětce
+	Shadow Intensity	Intenzita stínů
+	Bas Relief…	Basreliéf…
+	Bas Relief	Basreliéf
+	Charcoal…	Uhel…
+	Charcoal	Uhel
+	Photocopy…	Fotokopie…
+	Photocopy	Fotokopie
+	Stamp…	Razítko…
+	Stamp	Razítko
+	Thickness	Tloušťka
+	Detail	Detail
+	Light/Dark Balance	Vyvážení světlé/tmavé
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	Upravit originál otevírá pouze soubory obrázků a dokumentů; „{name}“ mezi ně nepatří
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	v prohlížeči se otevírají pouze adresy URL http, https a mailto, ne „{url}“
@@ -5227,3 +5259,22 @@ mark-style	Japanese	Japonské
 # Select by Color (select.color)
 	Select by Color	Vybrat podle barvy
 	Move Anchor Point	Přesunout kotevní bod
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} zachová 1 z {n} pracovních ploch dokumentu: soubor se znovu otevře s jedním. Zapněte Zachovat možnosti úprav, aby zůstala všechna.
+	Chalk & Charcoal…	Křída a uhel…
+	Chalk & Charcoal	Křída a uhel
+	Graphic Pen…	Grafické pero…
+	Graphic Pen	Grafické pero
+	Reticulation…	Síťování…
+	Reticulation	Síťování
+	Plastic Wrap…	Plastová fólie…
+	Plastic Wrap	Plastová fólie
+	Chrome…	Chrom…
+	Chrome	Chrom
+	Drop here to take it out of its group	Pusťte sem, chcete-li ji vyjmout ze skupiny
+	Move Library Group	Přesunout skupinu knihovny
+	Plaster…	Sádra…
+	Plaster	Sádra
+	Note Paper…	Dopisní papír…
+	Note Paper	Dopisní papír
+	Water Paper…	Mokrý papír…
+	Water Paper	Mokrý papír

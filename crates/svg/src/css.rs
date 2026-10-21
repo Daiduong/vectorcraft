@@ -85,6 +85,22 @@ pub(crate) fn font_stretch(st: &CharStyle) -> Option<f64> {
     st.font_axes.get("wdth").copied().filter(|w| w.is_finite() && *w > 0.0)
 }
 
+/// The generic family to list after `family`, with its leading comma, so a viewer without the font draws
+/// the kind of face it was (the font's class, as the font menu's filters know it) rather than its default
+/// serif. Nothing when `family` is a generic family itself.
+fn generic_fallback(family: &str) -> &'static str {
+    const GENERIC: [&str; 5] = ["serif", "sans-serif", "monospace", "cursive", "fantasy"];
+    if GENERIC.iter().any(|g| family.trim().eq_ignore_ascii_case(g)) {
+        return "";
+    }
+    match vectorcraft_text::FontDb::global().family_traits(family).class {
+        vectorcraft_text::FontClass::Serif => ", serif",
+        vectorcraft_text::FontClass::Monospaced => ", monospace",
+        vectorcraft_text::FontClass::Script => ", cursive",
+        _ => ", sans-serif",
+    }
+}
+
 /// The font of character style `st`: family, size (the vertical scale; writers stretch the
 /// horizontal one), weight and style, and its Variable Font settings, lengths written by `len`.
 /// The weight is the style's number (600 for Semibold, 300 for Light) or the `wght` setting,
@@ -93,12 +109,11 @@ pub(crate) fn font_stretch(st: &CharStyle) -> Option<f64> {
 pub(crate) fn font_props(st: &CharStyle, len: &dyn Fn(f64) -> String) -> Props {
     let mut p = Props::new();
     // A quoted family escapes `\` and `'`, which would otherwise end the string early.
-    let fam = if st.font_family.contains(|c: char| c.is_whitespace() || matches!(c, ',' | '\'' | '\\')) {
-        format!("'{}'", st.font_family.replace('\\', "\\\\").replace('\'', "\\'"))
-    } else {
-        st.font_family.clone()
-    };
-    p.push(("font-family", fam));
+    // Only a plain identifier (no leading digit) can be written bare; anything else is quoted.
+    let bare = st.font_family.chars().next().is_some_and(|c| !c.is_ascii_digit() && c != '-')
+        && st.font_family.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '_'));
+    let fam = if !bare { format!("'{}'", st.font_family.replace('\\', "\\\\").replace('\'', "\\'")) } else { st.font_family.clone() };
+    p.push(("font-family", format!("{fam}{}", generic_fallback(&st.font_family))));
     p.push(("font-size", len(st.size * st.v_scale / 100.0)));
     let (weight, italic) = font_descriptor(st);
     match weight {
@@ -678,4 +693,24 @@ fn is_upright_rectangle(path: &PathData) -> bool {
         && sp.anchors.iter().all(|a| corner(a.p))
         && b.width() > 0.0
         && b.height() > 0.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn family(name: &str) -> String {
+        let st = CharStyle { font_family: name.into(), ..CharStyle::default() };
+        let p = font_props(&st, &|v| format!("{v}px"));
+        p.into_iter().find(|(k, _)| *k == "font-family").unwrap().1
+    }
+
+    #[test]
+    fn font_family_quoted_unless_plain_identifier() {
+        assert!(family("04b03").starts_with("'04b03'"), "{}", family("04b03"));
+        assert!(family("a;b").starts_with("'a;b'"));
+        assert!(family("a\"b").starts_with("'a\"b'"));
+        assert!(family("a(b").starts_with("'a(b'"));
+        assert!(family("Arial").starts_with("Arial,"));
+    }
 }

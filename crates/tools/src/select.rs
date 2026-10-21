@@ -48,9 +48,9 @@ enum State {
         /// Shift-pressed on this selected object: released without a drag, it leaves the
         /// selection.
         deselect: Option<NodeId>,
-        /// Pressed (no modifier) on this object of a selection of several: released without a
-        /// drag, it becomes the key object that Align aligns to if `can_be_key` allows it (the key
-        /// again: no key).
+        /// Pressed (no modifier) on this object of a selection of several, or of one with ruler
+        /// guides: released without a drag, it becomes the key object that Align aligns to if
+        /// `can_be_key` allows it (the key again: no key).
         key: Option<NodeId>,
     },
     Scaling {
@@ -321,7 +321,7 @@ impl SelectionTool {
             return None;
         }
         let reach = cx.tol(HOVER_REACH);
-        let under = hit_test(cx.doc, p, cx.hit_options()).map(|h| h.top_object(cx.isolation));
+        let under = hit_test(cx.doc, p, cx.selection_hit_options()).map(|h| h.top_object(cx.isolation));
         let nearest = |points: &mut dyn Iterator<Item = Point>| {
             points.filter(|q| q.distance(p) <= reach).min_by(|a, b| a.distance(p).total_cmp(&b.distance(p)))
         };
@@ -372,6 +372,7 @@ fn thread_params(cx: &ToolContext, from: NodeId, start: Point, end: Point) -> Va
     let frame = |n: &vectorcraft_doc::Node| {
         is_area_type(n) || matches!(&n.kind, vectorcraft_doc::NodeKind::Path { path, .. } if path.subpaths.first().is_some_and(|s| s.closed))
     };
+    // The art the text flows into: what is drawn, not a clipping path's outline.
     let to =
         hit_test(cx.doc, start, cx.hit_options()).map(|h| h.top_object(cx.isolation)).filter(|id| *id != from && cx.doc.node(*id).is_some_and(frame));
     match to {
@@ -424,6 +425,7 @@ impl Tool for SelectionTool {
             State::Moving { began: true, .. } | State::Scaling { .. } | State::Rotating { .. } => true,
             State::Corner(c) => c.adjusting(),
             State::Pie(d) => d.adjusting(),
+            State::Bracket(b) => b.adjusting(),
             State::Mirror(d) => d.adjusting(),
             _ => false,
         }
@@ -487,6 +489,7 @@ impl Tool for SelectionTool {
                 if crate::rulerguide::guide_at(cx, p).is_some() {
                     return vec![];
                 }
+                // A double-click edits what is drawn: not a clipping path's outline.
                 if let Some(h) = hit_test(cx.doc, p, cx.hit_options()) {
                     let top = h.top_object(cx.isolation);
                     if cx.doc.node(top).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Text(_))) {
@@ -542,7 +545,7 @@ impl Tool for SelectionTool {
                             // What the handle moves snaps as a dragged point does: to pixels or the
                             // grid, else with Smart Guides to the other objects, else with Snap to
                             // Point to their anchors; the ruler guides with Snap to Point.
-                            self.targets = Some(PointSnap::new(cx, || Targets::collect(cx.doc, &cx.selection.objects, None)));
+                            self.targets = Some(PointSnap::new(cx, || Targets::for_scale(cx)));
                             self.state = State::Scaling { handle, bx, areas };
                             return vec![Action::Begin(label.into())];
                         }
@@ -566,7 +569,7 @@ impl Tool for SelectionTool {
                     self.state = State::Moving { start: p, began: false, deselect: None, key: None };
                     return vec![Action::Exec("select.set".into(), json!({ "ids": [behind.0] }))];
                 }
-                match hit_test(cx.doc, p, cx.hit_options()) {
+                match hit_test(cx.doc, p, cx.selection_hit_options()) {
                     Some(h) => {
                         let top = h.top_object(cx.isolation);
                         let mut out = vec![];
@@ -581,7 +584,7 @@ impl Tool for SelectionTool {
                             }
                         } else if !cx.selection.contains(top) {
                             out.push(Action::Exec("select.set".into(), json!({ "ids": [top.0] })));
-                        } else if cx.selection.objects.len() > 1 && !m.cmd && !m.alt {
+                        } else if (cx.selection.objects.len() > 1 || !cx.selection.guides.is_empty()) && !m.cmd && !m.alt {
                             key = Some(top);
                         }
                         self.state = State::Moving { start: grab, began: false, deselect, key };
@@ -713,7 +716,7 @@ impl Tool for SelectionTool {
         match &self.state {
             State::Marquee { start, cur, .. } => o.push(Overlay::Marquee(Rect::from_points(*start, *cur))),
             State::Corner(c) => o.extend(c.overlays(cx)),
-            State::Pie(d) => o.extend(d.overlays()),
+            State::Pie(d) => o.extend(d.overlays(cx)),
             State::Loaded { press: Some((start, cur)), .. } => o.push(Overlay::Marquee(Rect::from_points(*start, *cur))),
             _ => {}
         }
@@ -788,7 +791,7 @@ impl Tool for SelectionTool {
         if cx.snap_to_point && matches!(Self::hover_point(cx, p), Some((_, "anchor"))) {
             return Cursor::ArrowHollow;
         }
-        if let Some(h) = hit_test(cx.doc, p, cx.hit_options()) {
+        if let Some(h) = hit_test(cx.doc, p, cx.selection_hit_options()) {
             if cx.selection.contains(h.top_object(cx.isolation)) || m.alt {
                 return Cursor::Move;
             }
@@ -801,7 +804,7 @@ impl Tool for SelectionTool {
 /// Select Behind: of the objects under `p` (topmost first), the one below the lowest selected
 /// one, back to the topmost after the bottom one; the topmost when none is selected.
 fn object_behind(cx: &ToolContext, p: Point) -> Option<NodeId> {
-    let stack = objects_at(cx.doc, p, cx.hit_options(), cx.isolation);
+    let stack = objects_at(cx.doc, p, cx.selection_hit_options(), cx.isolation);
     let next = stack.iter().rposition(|id| cx.selection.contains(*id)).map_or(0, |i| i + 1);
     stack.get(next).or(stack.first()).copied()
 }
@@ -872,6 +875,21 @@ mod tests {
         PointerEvent::new(kind, x, y)
     }
 
+    /// A Selection tool press on a clip group's mask edge, where the art it clips lies over it,
+    /// selects the clip group, as a press on the art inside does.
+    #[test]
+    fn a_press_on_a_masks_edge_selects_its_clip_group() {
+        let (d, g, _, _) = doc_with_masked_square();
+        let (s, p) = (Selection::default(), paint());
+        for x in [500.0, 501.5, 450.0] {
+            let a = SelectionTool::default().pointer(&cx(&d, &s, &p), &ev(PointerKind::Down, x, 450.0));
+            assert!(a.iter().any(|a| matches!(a, Action::Exec(c, v) if c == "select.set" && v["ids"] == json!([g.0]))), "at {x}: {a:?}");
+        }
+        // Just outside the mask, beyond the tolerance, the clipped-away art isn't there.
+        let a = SelectionTool::default().pointer(&cx(&d, &s, &p), &ev(PointerKind::Down, 520.0, 450.0));
+        assert!(!a.iter().any(|a| matches!(a, Action::Exec(c, _) if c == "select.set")), "{a:?}");
+    }
+
     /// #955: grabbed by an anchor and dropped near another object's anchor, the anchor lands
     /// exactly on it with Smart Guides, even where lining the bounds up would leave it beside it.
     #[test]
@@ -924,6 +942,22 @@ mod tests {
         t.pointer(&cx, &ev(PointerKind::Down, 190.0, 191.0));
         assert!(!t.transforming(), "a press is still a click");
         t.pointer(&cx, &ev(PointerKind::Drag, 175.0, 176.0));
+        assert!(t.transforming());
+    }
+
+    /// A type-on-path bracket drag is a transform, so the sharp selection box hides while the span moves.
+    #[test]
+    fn a_bracket_drag_counts_as_transforming_once_it_moves() {
+        let (d, id) = crate::testutil::doc_with_path_type();
+        let mut s = Selection::default();
+        s.add(id);
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = SelectionTool::default();
+        assert!(!t.transforming());
+        t.pointer(&cx, &ev(PointerKind::Down, 280.0, 290.0));
+        assert!(!t.transforming(), "a press is still a click");
+        t.pointer(&cx, &ev(PointerKind::Drag, 320.0, 290.0));
         assert!(t.transforming());
     }
 
@@ -1425,7 +1459,8 @@ mod tests {
     }
 
     /// #541: a click on one object of a selection of several makes it the key object; a click on
-    /// the key again lets it go. A drag moves them all, a lone object has no key.
+    /// the key again lets it go. A drag moves them all, a lone object has no key unless ruler
+    /// guides are selected with it.
     #[test]
     fn a_click_on_a_selected_object_makes_it_the_key() {
         let (d, id) = doc_with_area_type();
@@ -1449,10 +1484,13 @@ mod tests {
         t.pointer(&c, &ev(PointerKind::Down, 150.0, 150.0));
         t.pointer(&c, &ev(PointerKind::Drag, 170.0, 150.0));
         assert_eq!(t.pointer(&c, &ev(PointerKind::Up, 170.0, 150.0)), vec![Action::Commit]);
-        // One object selected: a click on it does nothing.
+        // One object selected: a click on it does nothing, unless ruler guides are selected
+        // with it for it to be the key of (#2143).
         let mut one = Selection::default();
         one.add(rect);
         assert!(click(&one, 150.0, 150.0).is_empty());
+        one.guides = vec![0];
+        assert_eq!(click(&one, 150.0, 150.0), vec![Action::Exec("select.key".into(), json!({"id": rect.0}))]);
     }
 
     /// In isolation mode a click makes only a selected top-level object the key, as `select.key`
@@ -2049,6 +2087,62 @@ mod tests {
         // The bounding box's corner handle below the port still resizes the frame.
         let corner = Point::new(port.x, port.y + crate::text::PORT_RISE_PX);
         assert_eq!(t.pointer(&cx, &ev(PointerKind::Down, corner.x, corner.y)), vec![Action::Begin("Resize Type Area".into())]);
+    }
+
+    /// Loaded text clicked just inside a layer's clipping mask, where art is drawn over the mask's
+    /// edge, threads into that art, not into the unpainted mask: placing text acts on what is drawn,
+    /// so it takes the ordinary hit, not the selection tools' clipping-path outline.
+    #[test]
+    fn loaded_text_threads_into_the_art_on_a_layer_masks_edge() {
+        let (mut d, id, _, port) = overflowing_area_type();
+        let art = d.alloc_id();
+        let picture = vectorcraft_doc::Node::path(
+            art,
+            vectorcraft_geom::shapes::rectangle(Rect::new(350.0, 350.0, 550.0, 550.0)),
+            vectorcraft_doc::Appearance::default_art(),
+        );
+        add_masked_layer(&mut d, Rect::new(400.0, 400.0, 500.0, 500.0), picture);
+        let mut s = Selection::default();
+        s.set([id]);
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        assert!(cx.selection_hit_options().clip_outlines, "the selection tools would take the mask here");
+        let mut t = SelectionTool::default();
+        t.pointer(&cx, &ev(PointerKind::Down, port.x, port.y));
+        t.pointer(&cx, &ev(PointerKind::Up, port.x, port.y));
+        t.pointer(&cx, &ev(PointerKind::Down, 498.5, 450.0));
+        assert_eq!(
+            t.pointer(&cx, &ev(PointerKind::Up, 498.5, 450.0)),
+            vec![Action::Exec("text.thread.add".into(), json!({"from": id.0, "to": art.0}))]
+        );
+    }
+
+    /// A double-click on type where a layer's clipping mask edge runs through it edits the type,
+    /// though a press there selects the mask: what a double-click edits is what is drawn.
+    #[test]
+    fn a_double_click_on_type_at_a_layer_masks_edge_edits_it() {
+        let (d, _, at) = doc_with_type_on_a_layer_masks_edge();
+        let (s, p) = (Selection::default(), paint());
+        let a = SelectionTool::default().pointer(&cx(&d, &s, &p), &ev(PointerKind::DoubleClick, at.x, at.y));
+        assert_eq!(a, vec![Action::SwitchTool("type".into())]);
+    }
+
+    /// A Cmd/Ctrl+Shift double-click releases a guide path where it crosses a layer's clipping
+    /// mask edge (its left side, x = 450, just inside the mask's bottom): the mask, unpainted and
+    /// never a guide, doesn't stand in front of it.
+    #[test]
+    fn a_guide_on_a_layer_masks_edge_is_released() {
+        let (mut d, _) = doc_with_rect();
+        let id = d.alloc_id();
+        let mut guide_path =
+            vectorcraft_doc::Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(450.0, 350.0, 550.0, 550.0)), Default::default());
+        let vectorcraft_doc::NodeKind::Path { guide, .. } = &mut guide_path.kind else { panic!("a path") };
+        *guide = true;
+        add_masked_layer(&mut d, Rect::new(400.0, 400.0, 500.0, 500.0), guide_path);
+        let (s, p) = (Selection::default(), paint());
+        let both = Mods { cmd: true, shift: true, ..Mods::default() };
+        let a = SelectionTool::default().pointer(&cx(&d, &s, &p), &ev(PointerKind::DoubleClick, 450.0, 498.5).with_mods(both));
+        assert_eq!(a, vec![Action::Exec("view.guides.release".into(), json!({"ids": [id.0]}))]);
     }
 
     /// Escape drops the loaded text, and the next click is an ordinary one; type that fits its

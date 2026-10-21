@@ -2,7 +2,7 @@
 //! carries (see `native`). The files here are small ones written by hand for the tests, with the
 //! operators seen in files their users own.
 
-use vectorcraft_doc::{Document, LayerColor, Node, NodeKind};
+use vectorcraft_doc::{Document, LayerColor, Node, NodeKind, Unit};
 
 use crate::import::import;
 
@@ -71,6 +71,16 @@ fn page_square(x: u32, y: u32) -> String {
 
 fn names(d: &Document) -> Vec<String> {
     d.layers.iter().map(|l| l.name.clone().unwrap_or_default()).collect()
+}
+
+#[test]
+fn native_import_keeps_ruler_units_from_editing_data() {
+    let art = layer("Art", true, &square(10, 10));
+    let native = format!(
+        "%!PS-Adobe-3.0 \n%%BoundingBox: 0 0 100 100\n%%HiResBoundingBox: 0 0 100 100\n%AI3_Cropmarks: 0 0 100 100\n%AI5_RulerUnits: 1\n%AI5_NumLayers: 1\n{art}%%Trailer\n"
+    );
+    let r = import(&eps(&page_square(10, 10), &native)).unwrap();
+    assert_eq!(r.document.units, Unit::Millimeters);
 }
 
 fn kinds(l: &Node) -> Vec<&'static str> {
@@ -1321,4 +1331,24 @@ fn raster_print_page_recovers_legacy_mesh_vector_mask_and_editable_curve() {
     let wrong = file.replace("%%BoundingBox: 0 0 100 100", "%%BoundingBox: 0 0 120 100");
     let r = import(wrong.as_bytes()).unwrap();
     assert!(r.warnings.iter().any(|w| w.contains("for a 100 × 100 pt page, not the file's 120 × 100 pt page")), "{:?}", r.warnings);
+}
+
+#[test]
+fn envelope_options_keep_the_source_text_hidden_under_its_outlined_appearance() {
+    let doc = text_document(&[("CHONKYCATS\r", 0, (8200.0, 8180.0), (0.0, 0.0), 0.0)]);
+    let slot: String = text_object(0).lines().map(|line| format!("%_{line}\n")).collect();
+    let envelope =
+        format!("%_/ArtDictionary :\n%_1 /Int (AIDeformOptionsKey) ,\n%_198 /Real (AIDeformArtHeightKey) ,\n%_X=\n%_0 Ae\n%_u\n{slot}%_U\n%_;\n");
+    let art = native_with_text(&layer("Art", true, &format!("{}\n{envelope}", square(10, 10))), &doc);
+    let r = import(&eps(&page_square(10, 10), &art)).unwrap();
+    assert_eq!(names(&r.document), ["Art"], "{:?}", r.warnings);
+    assert_eq!(kinds(&r.document.layers[0]), ["path", "text"], "{:?}", r.warnings);
+    let mut texts = vec![];
+    r.document.walk(|n| {
+        if let NodeKind::Text(t) = &n.kind {
+            texts.push((t.plain_text(), n.visible));
+        }
+    });
+    assert_eq!(texts, [("CHONKYCATS".to_string(), false)], "{:?}", r.warnings);
+    assert!(r.warnings.is_empty(), "{:?}", r.warnings);
 }

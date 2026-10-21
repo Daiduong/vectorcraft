@@ -1060,6 +1060,7 @@
 	Fill (X), double-click for the Color Picker	Fyllning (X), dubbelklicka för färgväljaren
 	Fill and Stroke	Fyllning och kontur
 	Fill new strokes	Fyll nya konturer
+	Alt key toggles to Smooth Tool	Alt-tangenten växlar till Utjämningsverktyg
 	Fill Color	Fyllnadsfärg
 	Fill New Type Objects With Placeholder Text	Fyll nya textobjekt med platshållartext
 	Fill Rule	Fyllningsregel
@@ -1176,6 +1177,8 @@
 	Large Gaps	Stora mellanrum
 	Gap Preview Color:	Förhandsgranskningsfärg för mellanrum:
 	Close Gaps With Paths	Stäng mellanrum med banor
+	Show Live Paint Gaps	Visa mellanrum i direktmålning
+	Hide Live Paint Gaps	Dölj mellanrum i direktmålning
 	Select Fills	Markera fyllningar
 	Select Strokes	Markera konturer
 	Gaussian Blur…	Gaussisk oskärpa…
@@ -1495,6 +1498,7 @@
 	Inspect Object	Inspektera objekt
 	Install Plug-in	Installera plugin
 	Install Plug-in…	Installera plugin…
+	Open this setting's help page	Öppna hjälpsidan för den här inställningen
 	Installed plug-in {}	Installerade plugin {}
 	Intensity:	Intensitet:
 	Intent:	Återgivningsmetod:
@@ -1923,6 +1927,7 @@
 	New View	Ny vy
 	New View…	Ny vy…
 	New Window	Nytt fönster
+	New Without Dialog	Ny utan dialogruta
 	New Workspace	Ny arbetsyta
 	New Workspace…	Ny arbetsyta…
 	New {kind} Style…	Ny {kind}stil…
@@ -2111,6 +2116,7 @@
 	Output White	Vitt i utgång
 	Output › Mode	Utgång › Läge
 	Output:	Utgång:
+	Overlap	Överlappning
 	Overlap:	Överlappning:
 	Overlapping	Överlappande
 	Overlay	Överlägg
@@ -2867,6 +2873,8 @@
 	Show Note	Visa anteckning
 	Show Options	Visa alternativ
 	Show Original Path	Visa ursprunglig bana
+	Open this dialog with these settings next time	Öppna den här dialogrutan med de här inställningarna nästa gång
+	Auto-Simplify	Förenkla automatiskt
 	Show Package	Visa paket
 	Show Panel	Visa panel
 	Show Pattern Swatches	Visa mönsterprover
@@ -3089,7 +3097,7 @@
 	Delete Library Item	Radera biblioteksobjekt
 	No results	Inga resultat
 	No items in this library match “{query}”.	Inga objekt i det här biblioteket matchar ”{query}”.
-	Right-click an item to move it into this group.	Högerklicka på ett objekt för att flytta det till den här gruppen.
+	Drag an item here, or right-click one, to put it in this group.	Dra hit ett objekt, eller högerklicka på ett, för att lägga det i den här gruppen.
 	New Group	Ny grupp
 	New Group…	Ny grupp…
 	Move to Group	Flytta till grupp
@@ -3149,6 +3157,7 @@
 	Text Wrap Options	Alternativ för textombrytning
 	Text Wrap Options…	Alternativ för textombrytning…
 	The bounds of the visible art.	Gränserna för den synliga grafiken.
+	The plug-in writes the whole document.	Insticksprogrammet exporterar hela dokumentet.
 	The cell shows the type object's text as HTML.	Cellen visar textobjektets text som HTML.
 	The document has no colour swatches.	Dokumentet har inga färgrutor.
 	The edge of the paper the printer can't reach: the art goes inside it, and the preview shows it dashed.	Den kant av papperet som skrivaren inte når: grafiken placeras innanför den, och förhandsgranskningen visar den streckad.
@@ -4160,6 +4169,7 @@ axis	Both	Båda
 @msg	{_1} files are written by file.saveAsTemplate	{_1}-filer skrivs av file.saveAsTemplate
 @msg	{_1} font families available	{_1} teckensnittsfamiljer tillgängliga
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} är en live-effekt (Effekt › Insticksprogram)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} är ett exportinsticksprogram (Fil › Exportera › Exportera som…)
 @msg	{_1} is already used by {_2}	{_1} används redan av {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} länkade fil(er) kan inte läsas här: deras förhandsgranskningar visas
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} länkade bild(er) har ändrats på disken: Uppdatera länkar visar de nya versionerna
@@ -5116,6 +5126,7 @@ theme	Appearance	Utseende
 @msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" placerar en linjär eller radiell övertoning, inte en fri
 @msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" placerar själva övertoningen: utelämna `start` och `end` (de placerar den redan i dokumentkoordinater)
 @msg	the Color Picker is not open	färgväljaren är inte öppen
+@msg	the Simplify slider is not open	Förenkla-reglaget är inte öppet
 @msg	the action has no steps	åtgärden har inga steg
 @msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	filens lager lästes inte ({_1}): den hämtas in som en sida, i ett enda lager
 @msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	filens lager lästes inte från dess redigeringsdata ({_1}): de kommer från dess PDF-del
@@ -5143,6 +5154,27 @@ theme	Appearance	Utseende
 	Movie Clip	Filmklipp
 @msg	name is empty	namnet är tomt
 @msg	no symbol named `{n}`	ingen symbol med namnet `{n}`
+	Smudge Stick…	Utsmetning…
+	Smudge Stick	Utsmetning
+	Sponge…	Svamp…
+	Sponge	Svamp
+	Watercolor…	Akvarell…
+	Watercolor	Akvarell
+	Brush Size	Penselstorlek
+	Definition	Skärpa
+	Brush Detail	Penseldetalj
+	Shadow Intensity	Skuggintensitet
+	Bas Relief…	Basrelief…
+	Bas Relief	Basrelief
+	Charcoal…	Kol…
+	Charcoal	Kol
+	Photocopy…	Fotokopia…
+	Photocopy	Fotokopia
+	Stamp…	Stämpel…
+	Stamp	Stämpel
+	Thickness	Tjocklek
+	Detail	Detalj
+	Light/Dark Balance	Balans ljust/mörkt
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	Redigera original öppnar bara bild- och dokumentfiler; ”{name}” är ingen sådan
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	bara http-, https- och mailto-URL:er öppnas i webbläsaren, inte ”{url}”
@@ -5183,3 +5215,22 @@ theme	Appearance	Utseende
 # Select by Color (select.color)
 	Select by Color	Markera efter färg
 	Move Anchor Point	Flytta ankarpunkt
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} behåller 1 av dokumentets {n} ritytor: filen öppnas igen med en. Slå på Bevara redigeringsmöjligheter för att behålla alla.
+	Chalk & Charcoal…	Krita och kol…
+	Chalk & Charcoal	Krita och kol
+	Graphic Pen…	Grafisk penna…
+	Graphic Pen	Grafisk penna
+	Reticulation…	Retikulering…
+	Reticulation	Retikulering
+	Plastic Wrap…	Plastfolie…
+	Plastic Wrap	Plastfolie
+	Chrome…	Krom…
+	Chrome	Krom
+	Drop here to take it out of its group	Släpp här för att ta ut det ur gruppen
+	Move Library Group	Flytta biblioteksgrupp
+	Plaster…	Gips…
+	Plaster	Gips
+	Note Paper…	Anteckningspapper…
+	Note Paper	Anteckningspapper
+	Water Paper…	Vått papper…
+	Water Paper	Vått papper

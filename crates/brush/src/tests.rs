@@ -153,6 +153,28 @@ fn art_brush_between_guides_keeps_ends() {
 }
 
 #[test]
+fn art_brush_overlap_splits_at_corners() {
+    let mut bp = BezPath::new();
+    bp.move_to((0.0, 0.0));
+    bp.line_to((100.0, 0.0));
+    bp.line_to((100.0, 100.0));
+    let brush = |overlap: bool| Brush {
+        name: "a".into(),
+        kind: BrushKind::Art(ArtBrush {
+            art: rect_art(10.0, 4.0),
+            scale: ArtScale::Stretch,
+            overlap,
+            colorization: Colorization::None,
+            ..Default::default()
+        }),
+    };
+    let one = stroke_pieces(&Document::new(1.0, 1.0), &brush(false), &bp, &stroke(1.0));
+    let two = stroke_pieces(&Document::new(1.0, 1.0), &brush(true), &bp, &stroke(1.0));
+    assert_eq!(one.len(), 1, "one bent copy along the whole path");
+    assert_eq!(two.len(), 2, "one copy per run between corners");
+}
+
+#[test]
 fn art_brush_follows_curves() {
     let bp = shapes::ellipse(Rect::new(0.0, 0.0, 200.0, 200.0)).to_bezpath();
     let mut bp_open = BezPath::new();
@@ -538,6 +560,32 @@ fn art_colors_list_the_most_used_first() {
     let b = defaults().iter().find(|b| b.name == "Chain").unwrap();
     assert_eq!(b.art().len(), 3, "the side and both corner tiles");
     assert!(calli(0.0, 100.0, 3.0).art().is_empty());
+}
+
+/// A Hue Shift definition without a key color takes the art's most used color, or black when the
+/// art has no solid color; a key that is given is kept.
+#[test]
+fn hue_shift_without_a_key_takes_the_most_used_art_color() {
+    let red = Color::rgb(1.0, 0.0, 0.0);
+    let blue = Color::rgb(0.0, 0.0, 1.0);
+    let path = |fill: Paint| Node::path(NodeId(0), shapes::rectangle(Rect::new(0.0, 0.0, 1.0, 1.0)), Appearance::basic(fill, Paint::None, 0.0));
+    let art = Node::group(NodeId(0), vec![Arc::new(path(Paint::solid(red))), Arc::new(path(Paint::solid(blue))), Arc::new(path(Paint::solid(blue)))]);
+    let lib = parse_library(&serde_json::json!([
+        {"name": "s", "type": "scatter", "art": art, "colorization": {"method": "hueShift"}},
+        {"name": "a", "type": "art", "art": art, "colorization": {"method": "hueShift", "key": null}},
+        {"name": "p", "type": "pattern", "side": art, "colorization": {"method": "hueShift", "key": red}},
+        {"name": "n", "type": "art", "art": path(Paint::None), "colorization": {"method": "hueShift"}},
+    ]));
+    let keys: Vec<(&str, Colorization)> = lib.iter().map(|b| (b.name.as_str(), b.kind.colorization())).collect();
+    assert_eq!(
+        keys,
+        vec![
+            ("s", Colorization::HueShift { key: blue }),
+            ("a", Colorization::HueShift { key: blue }),
+            ("p", Colorization::HueShift { key: red }),
+            ("n", Colorization::HueShift { key: Color::BLACK }),
+        ]
+    );
 }
 
 /// Brush pieces draw no brushed stroke, also not by name: a symbol instance whose art is brushed

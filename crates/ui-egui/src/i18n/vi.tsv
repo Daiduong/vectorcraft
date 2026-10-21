@@ -1243,6 +1243,7 @@
 	Fill Color	Màu tô
 	Fill Grid	Tô lưới
 	Fill new strokes	Tô nét mới
+	Alt key toggles to Smooth Tool	Phím Alt chuyển sang công cụ Làm mượt
 	Keep selected	Giữ trạng thái đã chọn
 	Merge only with selection	Chỉ hợp nhất với vùng chọn
 	Fill New Type Objects With Placeholder Text	Tô đối tượng chữ mới bằng văn bản giữ chỗ
@@ -1394,6 +1395,8 @@ file-filter	Templates	Mẫu
 	Large Gaps	Khoảng cách lớn
 	Gap Preview Color:	Màu xem trước khoảng cách:
 	Close Gaps With Paths	Đóng khoảng cách bằng đường dẫn
+	Show Live Paint Gaps	Hiện khoảng cách tô trực tiếp
+	Hide Live Paint Gaps	Ẩn khoảng cách tô trực tiếp
 	Select Fills	Chọn vùng tô
 	Select Strokes	Chọn nét
 	Gaussian Blur	Mờ Gaussian
@@ -1786,6 +1789,7 @@ file-filter	Templates	Mẫu
 	Inspect Object	Kiểm tra đối tượng
 	Install Plug-in	Cài đặt plug-in
 	Install Plug-in…	Cài đặt plug-in…
+	Open this setting's help page	Mở trang trợ giúp của thiết lập này
 	Installed plug-in {}	Đã cài plug-in {}
 	Intensity	Cường độ
 	Intensity:	Cường độ:
@@ -2224,6 +2228,7 @@ file-filter	Templates	Mẫu
 	New View	Chế độ xem mới
 	New View…	Chế độ xem mới…
 	New Window	Cửa sổ mới
+	New Without Dialog	Mới không qua hộp thoại
 	New Workspace	Không gian làm việc mới
 	New Workspace…	Không gian làm việc mới…
 	New {kind} Style…	Kiểu {kind} mới…
@@ -2447,6 +2452,7 @@ file-filter	Templates	Mẫu
 	Output › Mode	Đầu ra › Chế độ
 	Output:	Đầu ra:
 	Outside	Bên ngoài
+	Overlap	Chồng lấp
 	Overlap:	Chồng lấp:
 	Overlapping	Chồng lấp
 	Overlay	Phủ lên
@@ -2924,7 +2930,7 @@ mark-style	Japanese	Kiểu Nhật
 	Right Indent	Thụt lề phải
 	Right Plane	Mặt phẳng phải
 	Right to Left	Phải sang trái
-	Right-click an item to move it into this group.	Bấm chuột phải vào mục để di chuyển vào nhóm này.
+	Drag an item here, or right-click one, to put it in this group.	Kéo một mục vào đây, hoặc bấm chuột phải vào mục, để đưa vào nhóm này.
 	Right-Justified Tab	Tab căn phải
 	Right-to-Left Paragraph Direction	Hướng đoạn văn từ phải sang trái
 	Right:	Phải:
@@ -3282,6 +3288,8 @@ mark-style	Japanese	Kiểu Nhật
 	Show Note	Hiện ghi chú
 	Show Options	Hiện tùy chọn
 	Show Original Path	Hiện đường dẫn gốc
+	Open this dialog with these settings next time	Lần sau mở hộp thoại này với các cài đặt này
+	Auto-Simplify	Tự động đơn giản hóa
 	Color Panel Options	Tùy chọn bảng màu
 	Show Package	Hiện gói
 	Show Panel	Hiện bảng
@@ -3568,6 +3576,7 @@ mark-style	Japanese	Kiểu Nhật
 	Texturizer…	Texturizer…
 	Thai	Tiếng Thái
 	The bounds of the visible art.	Vùng giới hạn của đối tượng hiển thị.
+	The plug-in writes the whole document.	Plug-in xuất toàn bộ tài liệu.
 	The cell shows the type object's text as HTML.	Ô hiển thị văn bản của đối tượng chữ dưới dạng HTML.
 	The dialog was closed before its file dialog answered	Hộp thoại đã đóng trước khi hộp thoại tệp phản hồi
 	The document has no colour swatches.	Tài liệu không có mẫu màu.
@@ -4061,6 +4070,7 @@ theme	Appearance	Giao diện
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	background {other}: transparent, white, black hoặc màu như "#ff8800"
 @msg	bad color {v}	màu không hợp lệ {v}
 @msg	the Color Picker is not open	Bộ chọn màu chưa được mở
+@msg	the Simplify slider is not open	Thanh trượt Đơn giản hóa chưa được mở
 @msg	the screen color sampler is already open	công cụ lấy mẫu màu trên màn hình đã được mở
 @msg	this system has no screen color sampler	hệ thống này không có công cụ lấy mẫu màu trên màn hình
 @msg	bad colour `{hex}` (#rrggbb)	màu không hợp lệ `{hex}` (#rrggbb)
@@ -4631,6 +4641,7 @@ theme	Appearance	Giao diện
 @msg	{_1} font families available	{_1} họ phông chữ khả dụng
 @msg	{_1} has no {_2} style	{_1} không có kiểu {_2}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} là hiệu ứng trực tiếp (Hiệu ứng › Plug-ins)
+@msg	{_1} is an exporter (File › Export › Export As…)	{_1} là plug-in xuất (Tệp › Xuất › Xuất thành…)
 @msg	{_1} is already used by {_2}	{_1} đã được dùng bởi {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} tệp liên kết không thể đọc ở đây: bản xem trước được hiển thị
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} ảnh liên kết đã thay đổi trên đĩa: Cập nhật liên kết hiển thị phiên bản mới
@@ -4780,6 +4791,27 @@ theme	Appearance	Giao diện
 	Movie Clip	Clip phim
 @msg	name is empty	tên trống
 @msg	no symbol named `{n}`	không có biểu tượng nào tên `{n}`
+	Smudge Stick…	Bút chì xóa mờ…
+	Smudge Stick	Bút chì xóa mờ
+	Sponge…	Bọt biển…
+	Sponge	Bọt biển
+	Watercolor…	Màu nước…
+	Watercolor	Màu nước
+	Brush Size	Kích thước cọ
+	Definition	Độ nét
+	Brush Detail	Chi tiết cọ
+	Shadow Intensity	Cường độ bóng
+	Bas Relief…	Chạm nổi…
+	Bas Relief	Chạm nổi
+	Charcoal…	Than củi…
+	Charcoal	Than củi
+	Photocopy…	Bản photocopy…
+	Photocopy	Bản photocopy
+	Stamp…	Con dấu…
+	Stamp	Con dấu
+	Thickness	Độ dày
+	Detail	Chi tiết
+	Light/Dark Balance	Cân bằng sáng/tối
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	Chỉnh sửa bản gốc chỉ mở tệp hình ảnh và tài liệu; “{name}” không thuộc loại đó
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	chỉ URL http, https và mailto mới được mở trong trình duyệt, không mở “{url}”
@@ -4821,3 +4853,22 @@ theme	Appearance	Giao diện
 # Select by Color (select.color)
 	Select by Color	Chọn theo màu
 	Move Anchor Point	Di chuyển điểm neo
+@msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} chỉ giữ 1 trong {n} bảng vẽ của tài liệu: tệp sẽ mở lại với một bảng vẽ. Bật Bảo lưu khả năng chỉnh sửa để giữ tất cả.
+	Chalk & Charcoal…	Phấn và than…
+	Chalk & Charcoal	Phấn và than
+	Graphic Pen…	Bút đồ họa…
+	Graphic Pen	Bút đồ họa
+	Reticulation…	Lưới hạt…
+	Reticulation	Lưới hạt
+	Plastic Wrap…	Màng bọc nhựa…
+	Plastic Wrap	Màng bọc nhựa
+	Chrome…	Crôm…
+	Chrome	Crôm
+	Drop here to take it out of its group	Thả vào đây để đưa ra khỏi nhóm
+	Move Library Group	Di chuyển nhóm thư viện
+	Plaster…	Thạch cao…
+	Plaster	Thạch cao
+	Note Paper…	Giấy ghi chú…
+	Note Paper	Giấy ghi chú
+	Water Paper…	Giấy ướt…
+	Water Paper	Giấy ướt

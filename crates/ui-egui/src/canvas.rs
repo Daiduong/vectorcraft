@@ -91,8 +91,9 @@ enum Drag {
         start_rot: f64,
         snaps: bool,
     },
-    /// A Selection tool move dragged off the canvas: the panels get the art
-    /// ([`widgets::PanelDrag::Art`]).
+    /// A Selection tool move over a panel or toolbar: the art waits where it last moved on the
+    /// canvas, and the panels get it ([`widgets::PanelDrag::Art`]) if it is released there. Back
+    /// on the canvas the move goes on, as in Illustrator (#2826).
     Art,
     /// Fingers making a touch gesture ([`crate::touch`]): the first one's press does nothing.
     Gesture,
@@ -106,6 +107,33 @@ fn drag_id() -> egui::Id {
 /// Where the pointer was last seen during a press on the canvas.
 fn drag_pos_id() -> egui::Id {
     egui::Id::new("canvas-drag-pos")
+}
+/// The layer the canvas was last drawn on: a release over another layer is over a panel (#2826).
+fn drag_layer_id() -> egui::Id {
+    egui::Id::new("canvas-drag-layer")
+}
+/// Whether `p` is over the canvas itself, not a panel or a floating window over it.
+fn on_canvas(ui: &Ui, resp: &egui::Response, p: Pos2) -> bool {
+    ui.clip_rect().contains(p) && ui.ctx().layer_id_at(p).is_none_or(|l| l == resp.layer_id)
+}
+/// The document point last sent to the tool as a drag during [`Drag::Tool`].
+fn tool_drag_doc_id() -> egui::Id {
+    egui::Id::new("canvas-tool-drag-doc")
+}
+/// Whether the tool should get another drag event: the pointer moved this frame, or its document
+/// position changed without a delta (some Wayland compositors coalesce motion until release, #834).
+fn tool_drag_moved(ui: &Ui, xf: &Xf, p: Pos2, pointer: &egui::PointerState) -> bool {
+    if pointer.delta() != egui::Vec2::ZERO {
+        return true;
+    }
+    let at = xf.to_doc(p);
+    let id = tool_drag_doc_id();
+    let prev = ui.data(|d| d.get_temp::<Point>(id));
+    if prev == Some(at) {
+        return false;
+    }
+    ui.data_mut(|d| d.insert_temp(id, at));
+    true
 }
 
 /// The pen pressure (0..1) of the press in progress: the force of this frame's pen or touch
@@ -311,6 +339,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         outline: app.ui.view.outline,
         trim: app.ui.view.trim_view,
         templates: app.ui.view.templates,
+        guides: app.ui.view.guides,
         ppp,
         hidden: vec![],
         rot: v.rotation,
@@ -364,6 +393,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             overprint_preview: vectorcraft_render::proof::overprint_preview_on(),
             trim: app.ui.view.trim_view,
             hide_templates: !app.ui.view.templates,
+            hide_guides: !app.ui.view.guides,
             tile_edge: vectorcraft_color::Color::from_hex(&app.session.prefs.pattern_tile_edge_color).map_or(opts.tile_edge, |c| {
                 let [r, g, b, _] = c.to_rgba8(1.0);
                 [r, g, b]
@@ -483,6 +513,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         // Selected guides in the selection colour.
         let picked = LineLook { color: t.selection, ..look };
         let selected: &[usize] = app.session.active().map_or(&[], |st| &st.selection.guides);
+        let key = app.session.active().and_then(|st| st.selection.key_guide);
         let view = view_bounds(&xf);
         // Guides on a hidden layer hide with it.
         for (i, g) in doc.guides.iter().enumerate().filter(|(_, g)| doc.guide_shown(g)) {
@@ -498,6 +529,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 }
             };
             if selected.contains(&i) { picked } else { look }.guide(&painter, a, b);
+            // The key guide (Align to Key Object, #2143): thicker, as a key object's outline is.
+            if key == Some(i) {
+                painter.line_segment([a, b], Stroke::new(KEY_OUTLINE, picked.color));
+            }
         }
     }
 
@@ -527,6 +562,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         if app.ui.view.text_threads {
             thread_overlay(app, &painter, &xf);
         }
+        if app.ui.view.live_paint_gaps {
+            overlays.extend(live_paint_gap_overlays(app));
+        }
         if app.ui.view.hidden_chars {
             app.canvas.hidden_chars = hidden_chars;
             hidden_chars_overlay(app, &painter, &xf);
@@ -552,7 +590,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         rulers(ui, full, &xf, app.hover_doc, app.session.general_unit(), origin_preview.unwrap_or_else(|| app.ruler_origin()), &t);
     }
-    if app.ui.task_bar && !revolve_edit && !app.session.tool_busy() && app.ui.screen_mode < 3 {
+    // The task bar is not drawn while the Simplify slider shows.
+    if app.ui.task_bar && !revolve_edit && !app.session.tool_busy() && app.ui.screen_mode < 3 && !crate::dialogs::simplify_slider::showing(app) {
         task_bar(app, ui, &xf);
     }
     if app.ui.screen_mode < 3 {
@@ -830,6 +869,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
             ui.data_mut(|dd| {
                 dd.insert_temp(drag_id(), d);
                 dd.insert_temp(drag_pos_id(), p);
+                dd.insert_temp(drag_layer_id(), resp.layer_id);
             });
         }
     } else if drag.is_none()
@@ -882,12 +922,22 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     }
                     ui.data_mut(|dd| dd.insert_temp(drag_id(), Drag::ZoomScrub { start, held, moved }));
                 }
+                Drag::Art if on_canvas(ui, resp, p) => {
+                    // Back on the canvas: the move goes on from where it left, with the pointer.
+                    egui::DragAndDrop::clear_payload(ui.ctx());
+                    let ev = PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
+                    dispatch(app, &ev, view);
+                    ui.data_mut(|dd| {
+                        dd.insert_temp(drag_id(), Drag::Tool);
+                        dd.insert_temp(drag_pos_id(), p);
+                    });
+                }
                 Drag::Art | Drag::Gesture | Drag::Present => {}
-                Drag::Tool if drag_art_out(app, ui, resp, p, view) => {
+                Drag::Tool if drag_art_out(app, ui, resp, p) => {
                     ui.data_mut(|dd| dd.insert_temp(drag_id(), Drag::Art));
                 }
                 Drag::Tool => {
-                    if pointer.delta() != egui::Vec2::ZERO {
+                    if tool_drag_moved(ui, &xf, p, &pointer) {
                         // Every position the pen or mouse passed this frame, not just the last: a
                         // fast stroke keeps its curve (a pen reports far more often than frames come).
                         for (at, force) in frame_moves(ui) {
@@ -910,6 +960,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
             ui.data_mut(|dd| {
                 dd.remove::<Drag>(drag_id());
                 dd.remove::<Pos2>(drag_pos_id());
+                dd.remove::<Point>(tool_drag_doc_id());
             });
             match d {
                 Drag::ZoomBox { start } => {
@@ -942,7 +993,22 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     let ev = PointerEvent { kind: PointerKind::Up, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
                     dispatch(app, &ev, view);
                 }
-                Drag::Art | Drag::Gesture | Drag::Present => {}
+                Drag::Art if on_canvas(ui, resp, p) => {
+                    // Came back to the canvas and released in one frame: finish the move here.
+                    egui::DragAndDrop::clear_payload(ui.ctx());
+                    let pressure = pen_pressure(ui, false);
+                    let pos = xf.to_doc(p);
+                    dispatch(app, &PointerEvent { kind: PointerKind::Drag, pos, mods: mods(m, space), pressure }, view);
+                    dispatch(app, &PointerEvent { kind: PointerKind::Up, pos, mods: mods(m, space), pressure }, view);
+                }
+                Drag::Art => {
+                    // Released over a panel: the move goes back. (The app ends it before the panels
+                    // see the release, so a panel can take the art; this is the headless path.)
+                    // With no document open there is nothing to roll back; the tool still gets its up.
+                    let _ = app.session.cancel_interaction();
+                    dispatch(app, &PointerEvent { kind: PointerKind::Up, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
+                }
+                Drag::Gesture | Drag::Present => {}
                 Drag::Pan { .. } | Drag::RotateView { .. } => {}
             }
         }
@@ -1344,10 +1410,13 @@ fn touch_gestures(app: &mut VectorcraftApp, ui: &Ui, rect: egui::Rect, view: vec
 /// does nothing ([`Drag::Gesture`]).
 fn drop_press(app: &mut VectorcraftApp, ui: &Ui, view: vectorcraft_engine::ViewInfo) {
     match ui.data(|d| d.get_temp::<Drag>(drag_id())) {
-        Some(Drag::Tool) => {
-            // The tool's mouse-up returns it to rest.
+        Some(Drag::Tool | Drag::Art) => {
+            // The tool's mouse-up returns it to rest. A move waiting over a panel is still live
+            // and would otherwise outlive the drag that owns it (#2826).
+            // Nothing to roll back without a document; the tool still gets its mouse-up.
             let _ = app.session.cancel_interaction();
             dispatch(app, &PointerEvent { kind: PointerKind::Up, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
+            egui::DragAndDrop::clear_payload(ui.ctx());
         }
         Some(_) => {}
         None => return,
@@ -1355,10 +1424,11 @@ fn drop_press(app: &mut VectorcraftApp, ui: &Ui, view: vectorcraft_engine::ViewI
     ui.data_mut(|d| d.insert_temp(drag_id(), Drag::Gesture));
 }
 
-/// A Selection tool move dragged off the canvas (to `p`, over a panel) turns into a panel drag of
-/// the selected art ([`widgets::PanelDrag::Art`]): the move is dropped, so the art stays where it
-/// was, and the panel it is released on takes it (the Graphic Styles panel makes a style of it).
-fn drag_art_out(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos2, view: vectorcraft_engine::ViewInfo) -> bool {
+/// A Selection tool move dragged off the canvas (to `p`, over a panel) becomes a panel drag of
+/// the selected art ([`widgets::PanelDrag::Art`]): the art waits where it last moved on the
+/// canvas, and a panel it is released on takes it (the Graphic Styles panel makes a style of it).
+/// Back on the canvas, [`Drag::Art`] takes the move up again where the pointer is (#2826).
+fn drag_art_out(app: &VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos2) -> bool {
     let off = !ui.clip_rect().contains(p) || ui.ctx().layer_id_at(p).is_some_and(|l| l != resp.layer_id);
     let Some(st) = app.session.active().filter(|_| off && app.session.tool_id() == "selection") else { return false };
     // The Selection tool's interaction while it moves (or Alt-copies) the selection.
@@ -1366,13 +1436,32 @@ fn drag_art_out(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos
         return false;
     }
     let ids = st.selection.objects.clone();
-    if app.session.cancel_interaction().is_err() {
-        return false;
-    }
-    // With nothing left to commit, the tool's mouse-up just returns it to rest.
-    dispatch(app, &PointerEvent { kind: PointerKind::Up, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
     egui::DragAndDrop::set_payload(ui.ctx(), widgets::PanelDrag::Art(ids));
     true
+}
+
+/// A Selection tool move released over a panel: end it before the panels see the release, so a
+/// panel that takes the art ([`widgets::PanelDrag::Art`]) takes it where it was, and no move is
+/// left open (#2826). The art stays where it last moved while the pointer is over the panel.
+pub(crate) fn release_over_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    if !ctx.input(|i| i.pointer.primary_released()) {
+        return;
+    }
+    let Some(p) = ctx.input(|i| i.pointer.interact_pos().or(i.pointer.latest_pos())) else { return };
+    if !matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art)) {
+        return;
+    }
+    let layer = ctx.data(|d| d.get_temp::<egui::LayerId>(drag_layer_id()));
+    let on = app.canvas_rect.is_some_and(|r| r.contains(p)) && ctx.layer_id_at(p).is_none_or(|l| Some(l) == layer);
+    if on {
+        // The canvas's release finishes the move.
+        return;
+    }
+    // With no document open there is nothing to roll back; the tool still gets its mouse-up.
+    let _ = app.session.cancel_interaction();
+    let view = app.view_info();
+    dispatch(app, &PointerEvent { kind: PointerKind::Up, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
+    ctx.data_mut(|d| d.remove::<Drag>(drag_id()));
 }
 
 /// Send a pointer event to the active tool and act on UI requests (dialogs, tool switches).
@@ -1555,11 +1644,26 @@ fn grid(p: &egui::Painter, xf: &Xf, spacing: f64, subdiv: u32, look: LineLook) {
 }
 
 /// A ruler label for `v` (in the ruler's unit) on a ruler whose labels are `step` apart: whole
-/// numbers, or as many decimals as the step has.
+/// numbers, or the fewest decimals that write `step` exactly, so a binary step keeps its value
+/// (an inch ruler's 1/16 reads `0.0625`, not the `0.06` that rounding the step's magnitude gave).
+/// How far down the left ruler a label of `chars` characters reaches, counting from its top: it
+/// is spelled one character per line, [`RULER_CHAR`] apart, and the last one is a line tall.
+pub(crate) fn vertical_label_height(chars: usize) -> f32 {
+    chars.saturating_sub(1) as f32 * RULER_CHAR + RULER_LINE
+}
+
+/// A ruler label's line spacing and line height on the left ruler.
+const RULER_CHAR: f32 = 8.5;
+const RULER_LINE: f32 = 9.5;
+
 pub(crate) fn ruler_label(v: f64, step: f64) -> String {
-    let decimals = if step >= 1.0 { 0 } else { (-step.log10()).ceil() as usize };
+    let exact = |d: u32| (step * 10f64.powi(d as i32)).fract().abs() < 1e-9;
+    let decimals = (0..=7).find(|d| exact(*d)).unwrap_or(7) as usize;
     let s = format!("{v:.decimals$}");
-    if s.trim_start_matches('-').chars().all(|c| c == '0' || c == '.') { "0".into() } else { s }
+    // Trailing zeros go, as `Unit::number` drops them: a sixteenth-inch ruler labels the inch `1`,
+    // not `1.0000`, which the vertical ruler would spell down six lines.
+    let s = if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.') } else { &s };
+    if s.trim_start_matches('-').chars().all(|c| c == '0' || c == '.') { "0".into() } else { s.into() }
 }
 
 /// The rulers, numbered in `unit` (the General unit).
@@ -1669,7 +1773,7 @@ fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, unit: Unit, 
     // (`per` points each).
     let per = unit.points();
     let step = unit.ruler_step(xf.zoom);
-    let minor = step / 10.0;
+    let minor = unit.ruler_minor(step);
     let font = egui::FontId::proportional(9.5);
     let near = |v: f64, every: f64| ((v / every).round() * every - v).abs() < minor * 0.01;
     // A tick's length: the labelled ones longest, the halves between them shorter.
@@ -1705,14 +1809,24 @@ fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, unit: Unit, 
         }
     });
     let clip_left = p.with_clip_rect(left);
+    // A label spelled down the ruler is tall, and a long one can reach the next label's place:
+    // "-0.0625" is seven characters, 60 pt of ruler, where a sixteenth-inch step leaves 54 pt at
+    // zoom 12. The ticks all stay; a label that would run into the one above it is left out.
+    let mut filled_to = f32::NEG_INFINITY;
     ticks(left.left_top(), left.left_bottom(), vectorcraft_geom::Vec2::new(sn, cs), &mut |d, y| {
         let sy = left.top() + d;
         clip_left.line_segment([pos2(left.right() - tick(y), sy), pos2(left.right(), sy)], Stroke::new(1.0, t.ruler_tick));
         if near(y, step) {
             // Vertical labels read top-to-bottom, one digit per line like Illustrator.
-            for (k, ch) in ruler_label(y, step).chars().enumerate() {
+            let text = ruler_label(y, step);
+            let top = sy + 2.0;
+            if top < filled_to {
+                return;
+            }
+            filled_to = top + vertical_label_height(text.chars().count());
+            for (k, ch) in text.chars().enumerate() {
                 clip_left.text(
-                    pos2(left.left() + 4.0, sy + 2.0 + k as f32 * 8.5),
+                    pos2(left.left() + 4.0, top + k as f32 * RULER_CHAR),
                     egui::Align2::LEFT_TOP,
                     ch.to_string(),
                     font.clone(),
@@ -1828,8 +1942,7 @@ fn too_many_anchors<'a>(nodes: impl IntoIterator<Item = &'a Node>) -> bool {
         if n.clips() {
             return n.children().and_then(|children| children.first()).is_some_and(|clip| over(clip, left));
         }
-        !matches!(n.kind, NodeKind::Envelope { .. })
-            && n.children().into_iter().flatten().skip(usize::from(n.extras().shaper.is_some())).any(|c| over(c, left))
+        !matches!(n.kind, NodeKind::Envelope { .. }) && n.editing_children().iter().any(|c| over(c, left))
     }
     let mut left = OVERLAY_MAX_ANCHORS;
     nodes.into_iter().any(|n| over(n, &mut left))
@@ -1873,15 +1986,23 @@ fn walk_drawn<'a>(n: &'a Node, f: &mut impl FnMut(&'a Node)) {
         }
         return;
     }
-    for c in n.children().into_iter().flatten().skip(usize::from(n.extras().shaper.is_some())) {
+    for c in n.editing_children().iter() {
         walk_drawn(c, f);
     }
 }
 
-/// The topmost editable object under document point `p` at `zoom`, as the selection tools pick it
-/// ([`hit_with`]).
+/// The topmost editable object under document point `p` at `zoom`, as what is drawn there
+/// ([`hit_with`]): a swatch or a symbol dropped on art.
 fn hit_at(app: &VectorcraftApp, p: Point, zoom: f64) -> Option<vectorcraft_doc::hit::Hit> {
     hit_with(app, p, zoom, vectorcraft_doc::hit::hit_test)
+}
+
+/// The topmost editable object under document point `p` at `zoom`, as the selection tools pick
+/// it: [`hit_at`], and a clipping path on its outline before the art it clips
+/// ([`vectorcraft_doc::hit::HitOptions::clip_outlines`]). Object Highlighting and a right-click's
+/// selection show and take what a click of those tools would.
+fn selection_hit_at(app: &VectorcraftApp, p: Point, zoom: f64) -> Option<vectorcraft_doc::hit::Hit> {
+    hit_with(app, p, zoom, |doc, p, opt| vectorcraft_doc::hit::hit_test(doc, p, vectorcraft_doc::hit::HitOptions { clip_outlines: true, ..opt }))
 }
 
 /// `test` on the active document at document point `p`, with the options the selection tools hit
@@ -1900,6 +2021,7 @@ fn hit_with<T>(
         path_only: prefs.object_selection_by_path_only,
         type_path_only: prefs.type_selection_by_path_only,
         scope: app.session.active().and_then(|st| st.isolation),
+        skip_guides: !app.ui.view.guides,
         ..Default::default()
     };
     test(&app.session.active()?.doc, p, opt)
@@ -1917,7 +2039,7 @@ fn context_menu(app: &mut VectorcraftApp, resp: &egui::Response, xf: &Xf) {
         let locked = hit_with(app, p, xf.zoom, |doc, p, opt| Some(vectorcraft_doc::hit::locked_objects_at(doc, p, opt)));
         app.ui.context_locked = app.session.active().map(|st| st.uid).zip(locked);
         if let Some(st) = app.session.active()
-            && let Some(top) = hit_at(app, p, xf.zoom).map(|h| h.top_object(st.isolation))
+            && let Some(top) = selection_hit_at(app, p, xf.zoom).map(|h| h.top_object(st.isolation))
             && !st.selection.contains(top)
         {
             // A locked or hidden object can't be selected; the menu is then for the selection as is.
@@ -1994,6 +2116,8 @@ fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, xf: &Xf)
         // Art dragged back onto the canvas: its move was already dropped. (A symbol was placed
         // above.)
         widgets::PanelDrag::Art(_) | widgets::PanelDrag::Symbol(_) | widgets::PanelDrag::LibraryGraphic { .. } => return,
+        // A Libraries panel style or group only moves within that panel.
+        widgets::PanelDrag::LibraryItem { .. } | widgets::PanelDrag::LibraryGroup { .. } => return,
     };
     if let Err(e) = app.run(cmd, params) {
         app.status(e);
@@ -2010,7 +2134,7 @@ fn hover_highlight(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
         return;
     }
     let Some(st) = app.session.active() else { return };
-    let Some(hit) = hit_at(app, h, xf.zoom) else { return };
+    let Some(hit) = selection_hit_at(app, h, xf.zoom) else { return };
     let id = if app.session.tool_id() == "selection" { hit.top_object(st.isolation) } else { hit.leaf };
     if st.selection.contains(id) {
         return;
@@ -2189,6 +2313,22 @@ fn thread_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
             }
         }
     }
+}
+
+/// View → Show Live Paint Gaps: the gaps of the selected Live Paint groups in each group's Gap
+/// Preview Color ([`crate::dialogs::live_paint_gaps::selected_gaps`]). Cached per revision.
+fn live_paint_gap_overlays(app: &mut VectorcraftApp) -> Vec<Overlay> {
+    let Some(st) = app.session.active() else { return vec![] };
+    let key = (st.uid, st.revision);
+    let gaps = match &app.canvas.live_paint_gaps {
+        Some((k, gaps)) if *k == key => gaps.clone(),
+        _ => {
+            let gaps = std::sync::Arc::new(crate::dialogs::live_paint_gaps::selected_gaps(app));
+            app.canvas.live_paint_gaps = Some((key, gaps.clone()));
+            gaps
+        }
+    };
+    gaps.to_vec()
 }
 
 /// Simplify's Show Original Path: the paths its preview ran on, as they were before it, in a band
@@ -2805,9 +2945,27 @@ fn draw_overlays(p: &egui::Painter, xf: &Xf, overlays: &[Overlay], t: &Tokens, l
 fn home(app: &mut VectorcraftApp, ui: &mut Ui, rect: egui::Rect) {
     let t = Tokens::get(ui.ctx());
     ui.painter().rect_filled(rect, 0.0, t.panel_darker);
-    let inner = rect.shrink2(vec2((rect.width() - 820.0).max(40.0) / 2.0, 60.0));
-    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(egui::Layout::top_down(egui::Align::Min)));
-    let ui = &mut child;
+    // Taller than the window (a small window, many recent files): it scrolls. Widgets scrolled out
+    // of view are clipped, so they take no pointer.
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(egui::Layout::top_down(egui::Align::Min)));
+    egui::ScrollArea::vertical().id_salt("home-scroll").auto_shrink([false, false]).show(&mut child, |ui| {
+        let side = (ui.available_width() - 820.0).max(40.0) / 2.0;
+        let width = (ui.available_width() - 2.0 * side).max(0.0);
+        ui.add_space(60.0);
+        ui.horizontal_top(|ui| {
+            ui.add_space(side);
+            ui.allocate_ui_with_layout(vec2(width, 0.0), egui::Layout::top_down(egui::Align::Min), |ui| {
+                ui.set_width(width);
+                home_content(app, ui);
+            });
+        });
+        ui.add_space(60.0);
+    });
+}
+
+/// The Home screen's column: welcome, New / Open, Recent Files, presets and community links.
+fn home_content(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new(tl!("Welcome to VectorCraft")).font(theme::semibold(26.0)).color(t.text));
     ui.add_space(4.0);
     ui.label(egui::RichText::new(tl!("Vector illustration — fast, open, scriptable.")).size(14.0).color(t.text_dim));
@@ -2855,19 +3013,52 @@ fn recent(app: &mut VectorcraftApp, ui: &mut Ui) {
     ui.label(egui::RichText::new(tl!("Recent Files")).font(theme::semibold(14.0)).color(t.text));
     ui.add_space(8.0);
     for path in files {
-        let p = std::path::Path::new(&path);
-        let name = p.file_name().map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
-        let folder = p.parent().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
-        ui.horizontal(|ui| {
-            crate::icons::icon(ui, "history", 16.0, t.icon);
-            let r = ui.add(egui::Button::new(egui::RichText::new(&name).color(t.accent).size(13.0)).frame(false)).on_hover_text(&path);
-            ui.add(egui::Label::new(egui::RichText::new(&folder).size(12.0).color(t.text_dim)).truncate());
-            if r.clicked() {
-                // A failure is reported to the user there.
-                let _ = crate::io::open_reporting(app, &path);
-            }
-        });
+        if recent_row(ui, &path).clicked() {
+            // A failure is reported to the user there.
+            let _ = crate::io::open_reporting(app, &path);
+        }
     }
+}
+
+/// One Recent Files row across the Home screen: history icon, name (accent) and folder (dim,
+/// truncated). The whole row is one button that lights up under the pointer; its tooltip is the
+/// full path.
+fn recent_row(ui: &mut Ui, path: &str) -> egui::Response {
+    const PAD: f32 = 6.0;
+    const ICON: f32 = 16.0;
+    let t = Tokens::get(ui.ctx());
+    let p = std::path::Path::new(path);
+    let name = p.file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
+    let folder = p.parent().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), egui::Sense::click());
+    if ui.is_rect_visible(rect) {
+        if resp.hovered() {
+            ui.painter().rect_filled(rect, CornerRadius::same(4), t.hover);
+        }
+        let icon = egui::Rect::from_center_size(egui::pos2(rect.left() + PAD + ICON / 2.0, rect.center().y), vec2(ICON, ICON));
+        crate::icons::paint(ui, "history", icon, t.icon);
+        let x = icon.right() + 8.0;
+        let name_galley = egui::WidgetText::from(egui::RichText::new(&name).size(13.0).color(t.accent)).into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            (rect.right() - PAD - x).max(0.0),
+            egui::TextStyle::Body,
+        );
+        let folder_x = x + name_galley.size().x + 10.0;
+        ui.painter().galley(egui::pos2(x, rect.center().y - name_galley.size().y / 2.0), name_galley, t.accent);
+        let room = rect.right() - PAD - folder_x;
+        if room > 0.0 && !folder.is_empty() {
+            let folder_galley = egui::WidgetText::from(egui::RichText::new(&folder).size(12.0).color(t.text_dim)).into_galley(
+                ui,
+                Some(egui::TextWrapMode::Truncate),
+                room,
+                egui::TextStyle::Body,
+            );
+            ui.painter().galley(egui::pos2(folder_x, rect.center().y - folder_galley.size().y / 2.0), folder_galley, t.text_dim);
+        }
+    }
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &name));
+    resp.on_hover_text(path).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 fn kurbo_flatten(p: &BezPath, tol: f64, f: &mut impl FnMut(PathEl)) {
@@ -5524,8 +5715,43 @@ mod tests {
         assert_eq!(dots(&mut app).len(), 2, "one anchor still shows them");
     }
 
+    /// #3219: a selected path made into a guide is deselected when guides are hidden, so the
+    /// selection overlay cannot reveal the hidden path.
+    #[test]
+    fn hide_guides_deselects_selected_guide_paths() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        let id = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
+        app.run("view.guides.make", json!({})).unwrap();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        assert_eq!(app.session.active().unwrap().selection.objects, vec![vectorcraft_doc::NodeId(id)]);
+
+        app.run("view.guides", json!({})).unwrap();
+
+        assert!(app.session.active().unwrap().selection.objects.is_empty());
+    }
+
     /// Smart Guides › Object Highlighting (#394): the outline of the object under the pointer does not
     /// show with View › Snap to Grid or View › Pixel Preview on, even with Smart Guides and the option on.
+    /// #3219: guide paths hidden by View > Hide Guides are not hittable and cannot reveal
+    /// themselves through Smart Guides object highlighting.
+    #[test]
+    fn hidden_guide_paths_have_no_hover_highlight() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        let id = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
+        app.run("view.guides.make", json!({})).unwrap();
+        app.run("select.none", json!({})).unwrap();
+        app.select_tool("selection");
+        app.ui.view.guides = false;
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let color = c32(app.session.active().unwrap().doc.layer_color(vectorcraft_doc::NodeId(id)));
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(xf.to_screen(Point::new(100.0, 150.0)))]);
+        assert!(drawn_in(&mut app, &ctx, color, 1.5).is_empty(), "a hidden guide has no hover highlight");
+    }
+
     #[test]
     fn snap_to_grid_and_pixel_preview_hide_the_hover_outline() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -5697,6 +5923,71 @@ mod tests {
         let w = widget(&app);
         double_click(&mut app, w.at);
         assert!(area(&app), "a double-click on the widget converts to area type");
+    }
+
+    /// View → Show Live Paint Gaps draws the gaps of each selected Live Paint group in the group's
+    /// Gap Preview Color, and nothing for a group or path that is not a selected Live Paint group;
+    /// Hide Live Paint Gaps and Hide Edges hide them.
+    #[test]
+    fn show_live_paint_gaps_draws_the_selected_groups_gaps_in_their_preview_color() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        // Open paths round a square, each ending 2 pt short of its start: one Small Gap each.
+        let square = |app: &mut VectorcraftApp, x: i64| {
+            let anchors = [(0, 0), (100, 0), (100, 100), (0, 100), (0, 2)].map(|(dx, y)| json!({"x": x + dx, "y": y}));
+            app.session.execute("path.create", &json!({ "anchors": anchors })).unwrap()["id"].as_u64().unwrap()
+        };
+        let mut groups = vec![];
+        for (x, color) in [(0, "#123456"), (150, "#654321")] {
+            let p = square(&mut app, x);
+            app.session.execute("select.set", &json!({"ids": [p]})).unwrap();
+            let g = app.session.execute("livePaint.make", &json!({})).unwrap()["id"].as_u64().unwrap();
+            app.session.execute("livePaint.gapOptions", &json!({"id": g, "color": color})).unwrap();
+            groups.push(g);
+        }
+        let plain = square(&mut app, 300);
+        let ctx = egui::Context::default();
+        let gaps = |app: &mut VectorcraftApp, rgb: [u8; 3]| {
+            let solid = egui::epaint::ColorMode::Solid(c32(rgb));
+            shapes(app, &ctx).iter().filter(|s| matches!(s, Shape::Path(ps) if ps.stroke.color == solid && ps.stroke.width == 2.0)).count()
+        };
+        let (first, second) = ([0x12, 0x34, 0x56], [0x65, 0x43, 0x21]);
+        // The color the plain path's gaps would be drawn in.
+        let plain_color = vectorcraft_doc::GapOptions::default().color;
+        app.session.execute("select.set", &json!({"ids": [groups[0], plain]})).unwrap();
+        assert_eq!((gaps(&mut app, first), gaps(&mut app, second)), (0, 0), "off until the item is chosen");
+        // View → Show Live Paint Gaps runs the command.
+        let tree = crate::menus::menu_tree();
+        let (_, view) = tree.iter().find(|(t, _)| *t == "View").unwrap();
+        assert!(view.iter().any(|i| matches!(i, crate::menus::Item::Cmd("Show Live Paint Gaps", "view.livePaintGaps", _))), "{view:?}");
+        crate::menus::invoke(&mut app, "view.livePaintGaps", json!({}));
+        assert!(app.ui.view.live_paint_gaps);
+        assert_eq!(
+            (gaps(&mut app, first), gaps(&mut app, second), gaps(&mut app, plain_color)),
+            (1, 0, 0),
+            "the selected group only; the plain path shows none"
+        );
+        app.session.execute("select.set", &json!({"ids": [groups[1]]})).unwrap();
+        assert_eq!((gaps(&mut app, first), gaps(&mut app, second)), (0, 1));
+        // The lines follow the group's Gap Preview Color and Paint Stops At size.
+        app.session.execute("livePaint.gapOptions", &json!({"id": groups[1], "color": "#123456"})).unwrap();
+        assert_eq!((gaps(&mut app, first), gaps(&mut app, second)), (1, 0));
+        app.session.execute("livePaint.gapOptions", &json!({"id": groups[1], "size": 1})).unwrap();
+        assert_eq!(gaps(&mut app, first), 0, "a 2 pt gap is wider than 1 pt");
+        app.session.execute("livePaint.gapOptions", &json!({"id": groups[1], "size": "small"})).unwrap();
+        app.ui.view.edges = false;
+        assert_eq!(gaps(&mut app, first), 0, "Hide Edges hides them");
+        app.ui.view.edges = true;
+        assert_eq!(gaps(&mut app, first), 1);
+        app.run("view.livePaintGaps", json!({})).unwrap();
+        assert!(!app.ui.view.live_paint_gaps);
+        assert_eq!(gaps(&mut app, first), 0, "View → Hide Live Paint Gaps");
+        // The setting is kept with the interface state; a state saved before it existed loads with it off.
+        app.ui.view.live_paint_gaps = true;
+        let mut saved = serde_json::to_value(&app.ui).unwrap();
+        assert_eq!(saved["view"]["live_paint_gaps"], json!(true));
+        saved["view"].as_object_mut().unwrap().remove("live_paint_gaps");
+        assert!(!serde_json::from_value::<crate::UiState>(saved).unwrap().view.live_paint_gaps);
     }
 
     /// #511: a star shows a widget in each of its ten corners with Direct Selection (none with
@@ -6861,7 +7152,7 @@ mod tests {
         let fill = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.fill_paint();
         let red = Paint::solid(Color::from_hex("#ed1c24").unwrap());
         let rows = SwatchRows { grabbed: "Red".into(), names: vec!["Red".into()], groups: false };
-        let swatch = PanelDrag::Paint { paint: red.clone(), params: json!({"swatch": "Red"}), rows: Some(rows) };
+        let swatch = PanelDrag::Paint { paint: red.clone(), params: json!({"swatch": "Red"}), rows: Some(rows), library: None };
         // Off the art nothing happens.
         drop(&mut app, swatch.clone(), Point::new(300.0, 250.0));
         assert_eq!(fill(&app), Paint::solid(Color::WHITE));
@@ -6940,7 +7231,7 @@ mod tests {
     }
 
     #[test]
-    fn art_moved_off_the_canvas_becomes_a_panel_drag_and_stays_put() {
+    fn art_moved_off_the_canvas_waits_and_drops_on_the_panel() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         let id = app.session.execute("shape.rectangle", &json!({"x": 50, "y": 50, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
@@ -6958,21 +7249,62 @@ mod tests {
             modifiers: Default::default(),
         };
         let start = xf.to_screen(Point::new(100.0, 100.0));
+        let left = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
+        let moved_to = |screen: Pos2| 50.0 + xf.to_doc(screen).x - 100.0;
         frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start), button(start, true)]);
         // Moving on the canvas moves the art...
         frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start + vec2(40.0, 0.0))]);
         assert!(app.session.active().unwrap().interaction.is_some());
-        // ...until the pointer leaves it: the move is dropped and the panels get the art.
+        // ...over a panel it waits where it was, and the panels get the art.
         frame(&mut app, &ctx, vec![egui::Event::PointerMoved(pos2(850.0, 100.0))]);
-        assert!(app.session.active().unwrap().interaction.is_none());
-        assert_eq!(*app.session.active().unwrap().doc, *before, "the art is back where it was");
+        assert!(app.session.active().unwrap().interaction.is_some(), "the move waits, not cancels");
+        assert!((left(&app) - moved_to(start + vec2(40.0, 0.0))).abs() < 0.01, "the art stays where it last moved");
         assert_eq!(egui::DragAndDrop::payload::<widgets::PanelDrag>(&ctx).as_deref(), Some(&widgets::PanelDrag::Art(vec![id])));
-        assert!(!app.session.tool_busy());
-        // Released anywhere, nothing moves and nothing is recorded.
-        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start), button(start, false)]);
+        // Released over the panel, the move goes back and nothing is recorded.
+        frame(&mut app, &ctx, vec![button(pos2(850.0, 100.0), false)]);
         let st = app.session.active().unwrap();
+        assert!(st.interaction.is_none());
         assert_eq!(*st.doc, *before);
         assert_eq!(st.history.undo.len(), undo);
+    }
+
+    /// #2826: a move taken over a panel waits where it left the canvas, and goes on with the
+    /// pointer when it comes back — it isn't dropped or put back.
+    #[test]
+    fn art_moved_off_the_canvas_resumes_when_the_pointer_returns() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let id = app.session.execute("shape.rectangle", &json!({"x": 50, "y": 50, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
+        app.select_tool("selection");
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let undo = app.session.active().unwrap().history.undo.len();
+        let button = |pos: Pos2, pressed: bool| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        let start = xf.to_screen(Point::new(100.0, 100.0));
+        let left = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap().x0;
+        let moved_to = |screen: Pos2| 50.0 + xf.to_doc(screen).x - 100.0;
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start), button(start, true)]);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start + vec2(40.0, 0.0))]);
+        assert!((left(&app) - moved_to(start + vec2(40.0, 0.0))).abs() < 0.01, "the move is live");
+        // Over a panel the move waits where it last moved, and stays live.
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(pos2(850.0, 100.0))]);
+        assert!(app.session.active().unwrap().interaction.is_some(), "the move waits, not cancels");
+        assert!((left(&app) - moved_to(start + vec2(40.0, 0.0))).abs() < 0.01, "the art stays where it last moved");
+        // Back on the canvas it goes on with the pointer, 60 pt right.
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start + vec2(60.0, 0.0))]);
+        assert!(app.session.active().unwrap().interaction.is_some(), "the move is live again");
+        assert!((left(&app) - moved_to(start + vec2(60.0, 0.0))).abs() < 0.01, "the move resumes with the pointer");
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start + vec2(70.0, 0.0))]);
+        frame(&mut app, &ctx, vec![button(start + vec2(70.0, 0.0), false)]);
+        let st = app.session.active().unwrap();
+        assert!((left(&app) - moved_to(start + vec2(70.0, 0.0))).abs() < 0.01, "released where the pointer was");
+        assert_eq!(st.history.undo.len(), undo + 1, "one move, one undo step");
     }
 
     /// One frame of keyboard handling and canvas, as the app runs them; returns the IME output.
@@ -6995,6 +7327,50 @@ mod tests {
             NodeKind::Text(t) => t.plain_text(),
             _ => panic!("not text"),
         }
+    }
+
+    /// #2826: the app ends a move released over a panel before the panels draw, so a panel takes
+    /// the art as it was, and no move is left open.
+    #[test]
+    fn a_move_released_over_a_panel_ends_before_the_panels_draw() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let id = app.session.execute("shape.rectangle", &json!({"x": 50, "y": 50, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
+        app.select_tool("selection");
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let before = app.session.active().unwrap().doc.clone();
+        let undo = app.session.active().unwrap().history.undo.len();
+        let button = |pos: Pos2, pressed: bool| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        let start = xf.to_screen(Point::new(100.0, 100.0));
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start), button(start, true)]);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start + vec2(40.0, 0.0))]);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(pos2(850.0, 100.0))]);
+        assert!(app.session.active().unwrap().interaction.is_some());
+        let raw = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events: vec![button(pos2(850.0, 100.0), false)],
+            ..Default::default()
+        };
+        let mut out = ctx.run_ui(raw, |ui| {
+            crate::canvas::release_over_panel(&mut app, ui.ctx());
+            assert!(app.session.active().unwrap().interaction.is_none(), "the move is ended");
+            assert_eq!(*app.session.active().unwrap().doc, *before, "the art is back where it was");
+            assert_eq!(
+                egui::DragAndDrop::payload::<widgets::PanelDrag>(ui.ctx()).as_deref(),
+                Some(&widgets::PanelDrag::Art(vec![vectorcraft_doc::NodeId(id)])),
+                "the panel still gets the art"
+            );
+            assert!(ui.ctx().data(|d| d.get_temp::<Drag>(drag_id())).is_none(), "no drag is left");
+        });
+        out.textures_delta.clear();
+        assert_eq!(app.session.active().unwrap().history.undo.len(), undo);
     }
 
     #[test]
@@ -7042,6 +7418,68 @@ mod tests {
         assert_eq!(plain(&app, id), "雅楽!");
         crate::menus::invoke(&mut app, "edit.undo", json!({}));
         assert_eq!(plain(&app, id), "");
+    }
+
+    /// Vietnamese Telex via the Windows IME (TSF): the preedit grows digit by digit, then an empty
+    /// preedit plus a single Commit lands the amount once, not duplicated.
+    #[test]
+    fn vietnamese_telex_digits_commit_once() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.prefs.placeholder_text = false;
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let ctx = egui::Context::default();
+        typing_frame(&mut app, &ctx, vec![]);
+        app.select_tool("type");
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let at = xf.to_screen(Point::new(100.0, 100.0));
+        let click =
+            |p: Pos2, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at), click(at, true)]);
+        typing_frame(&mut app, &ctx, vec![click(at, false)]);
+        let id = app.session.active().unwrap().selection.objects[0].0;
+        typing_frame(&mut app, &ctx, vec![]);
+        typing_frame(&mut app, &ctx, vec![preedit("3", 1)]);
+        typing_frame(&mut app, &ctx, vec![preedit("31", 2)]);
+        typing_frame(&mut app, &ctx, vec![preedit("316", 3)]);
+        typing_frame(&mut app, &ctx, vec![preedit("3160", 4)]);
+        typing_frame(&mut app, &ctx, vec![preedit("", 0), egui::Event::Ime(egui::ImeEvent::Commit("3160".into()))]);
+        assert_eq!(plain(&app, id), "3160");
+        assert!(!app.session.tool_composing());
+    }
+
+    /// Keyboard-hook IMEs (UniKey/OpenKey) type Vietnamese by injecting VK_PACKET characters and
+    /// Backspaces, which egui surfaces as interleaved Event::Text and Event::Key(Backspace). When a
+    /// tone key fires, the Backspaces and the re-injected characters arrive in one frame; the Type
+    /// tool must apply them in order to build "tiếng" (captured from a real UniKey session), not
+    /// insert every character first and delete afterwards.
+    #[test]
+    fn hook_ime_backspace_and_reinject_builds_vietnamese() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.prefs.placeholder_text = false;
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let ctx = egui::Context::default();
+        typing_frame(&mut app, &ctx, vec![]);
+        app.select_tool("type");
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let at = xf.to_screen(Point::new(100.0, 100.0));
+        let click =
+            |p: Pos2, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at), click(at, true)]);
+        typing_frame(&mut app, &ctx, vec![click(at, false)]);
+        let id = app.session.active().unwrap().selection.objects[0].0;
+        typing_frame(&mut app, &ctx, vec![]);
+        let txt = |s: &str| egui::Event::Text(s.into());
+        let bs = || egui::Event::Key { key: egui::Key::Backspace, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
+        // When a tone key fires, the Backspaces and the re-injected VK_PACKET characters land
+        // together in one poll (one egui frame).
+        typing_frame(&mut app, &ctx, vec![txt("t")]);
+        typing_frame(&mut app, &ctx, vec![txt("i")]);
+        typing_frame(&mut app, &ctx, vec![txt("e")]);
+        typing_frame(&mut app, &ctx, vec![bs(), txt("ê")]); // 2nd "e" -> ê
+        typing_frame(&mut app, &ctx, vec![txt("n")]);
+        typing_frame(&mut app, &ctx, vec![txt("g")]);
+        typing_frame(&mut app, &ctx, vec![bs(), bs(), bs(), txt("ế"), txt("n"), txt("g")]); // "s" tone
+        assert_eq!(plain(&app, id), "tiếng");
     }
 
     /// Clear History waits while an IME composes, as Undo does: the marked text and the steps stay.
@@ -7151,6 +7589,34 @@ mod tests {
     }
 
     #[test]
+    fn tool_drag_moved_without_pointer_delta() {
+        let ctx = egui::Context::default();
+        let rect = egui::Rect::from_min_size(Pos2::ZERO, vec2(400.0, 300.0));
+        let v = View::default();
+        let xf = Xf::new(rect, &v);
+        let a = pos2(100.0, 100.0);
+        let b = pos2(150.0, 120.0);
+        let mut first = false;
+        let mut second = false;
+        let mut out =
+            ctx.run_ui(egui::RawInput { screen_rect: Some(rect), events: vec![egui::Event::PointerMoved(a)], ..Default::default() }, |ui| {
+                let pointer = ui.input(|i| i.pointer.clone());
+                first = tool_drag_moved(ui, &xf, a, &pointer);
+                second = tool_drag_moved(ui, &xf, a, &pointer);
+            });
+        out.textures_delta.clear();
+        assert!(first, "the first drag sample at a position runs");
+        assert!(!second, "the same position without a delta is not sent again");
+        let mut moved = false;
+        out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), events: vec![egui::Event::PointerMoved(b)], ..Default::default() }, |ui| {
+            let pointer = ui.input(|i| i.pointer.clone());
+            moved = tool_drag_moved(ui, &xf, b, &pointer);
+        });
+        out.textures_delta.clear();
+        assert!(moved, "a new document position runs even when egui reports no delta");
+    }
+
+    #[test]
     fn frame_moves_keeps_touch_samples_and_pressure_but_leaves_mouse_unchanged() {
         let ctx = egui::Context::default();
         let a = pos2(10.0, 20.0);
@@ -7197,6 +7663,46 @@ mod tests {
         assert!(app.session.active().unwrap().interaction.is_none());
         tick(&mut app, 1.6, pen(egui::TouchPhase::End, pos, 0.5));
         assert!(app.session.active().unwrap().doc.art_bounds().is_none(), "releasing cannot commit the cancelled press");
+    }
+
+    /// #2826: a second finger drops a move waiting over a panel, so its interaction doesn't
+    /// outlive the drag that began it.
+    #[test]
+    fn a_second_finger_drops_a_move_waiting_over_a_panel() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.prefs.touch_gestures = true;
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 50, "y": 50, "width": 100, "height": 100})).unwrap();
+        app.select_tool("selection");
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let before = app.session.active().unwrap().doc.clone();
+        let start = xf.to_screen(Point::new(100.0, 100.0));
+        // One finger presses on the art, moves it, and leaves the canvas for a panel.
+        frame(&mut app, &ctx, pen(egui::TouchPhase::Start, start, 0.5));
+        frame(&mut app, &ctx, pen(egui::TouchPhase::Move, start + vec2(40.0, 0.0), 0.5));
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(pos2(850.0, 100.0))]);
+        assert!(matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art)));
+        assert!(app.session.active().unwrap().interaction.is_some());
+        assert!(egui::DragAndDrop::payload::<widgets::PanelDrag>(&ctx).is_some());
+        // A second finger lands: the move is dropped, not left live without its pointer.
+        let second = egui::Event::Touch {
+            device_id: egui::TouchDeviceId(1),
+            id: egui::TouchId(2),
+            phase: egui::TouchPhase::Start,
+            pos: pos2(400.0, 300.0),
+            force: Some(0.5),
+        };
+        frame(&mut app, &ctx, vec![second]);
+        assert!(matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Gesture)));
+        let st = app.session.active().unwrap();
+        assert!(st.interaction.is_none(), "the move is dropped");
+        assert_eq!(*st.doc, *before, "the art is back where it was");
+        assert!(egui::DragAndDrop::payload::<widgets::PanelDrag>(&ctx).is_none(), "no panel drag is left");
+        // Lifting the first finger commits nothing.
+        frame(&mut app, &ctx, pen(egui::TouchPhase::End, start + vec2(40.0, 0.0), 0.5));
+        assert_eq!(*app.session.active().unwrap().doc, *before);
     }
 
     /// The events eframe's winit integration sends for a pen (Windows Ink) or a finger: a touch
@@ -7929,5 +8435,41 @@ mod tests {
             let want = if k == 0 { before - vec2(30.0, 0.0) } else { before - vec2(0.0, 30.0) };
             assert!((after - want).length() < 0.5, "bar {k}: {before:?} -> {after:?}, want {want:?}");
         }
+    }
+    #[test]
+    fn live_trace_selection_highlight_excludes_the_retained_source_rectangle() {
+        use std::sync::Arc;
+        use vectorcraft_doc::{Appearance, ImageObject, NodeId, TraceView};
+        let mut source = Node::new(
+            NodeId(2),
+            NodeKind::Image(Box::new(ImageObject {
+                key: "synthetic".into(),
+                width: 200,
+                height: 200,
+                xf: Affine::IDENTITY,
+                link: None,
+                placement: Default::default(),
+            })),
+        );
+        source.visible = false;
+        let art =
+            Node::path(NodeId(3), vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(20.0, 30.0, 80.0, 90.0)), Appearance::default());
+        let mut group = Node::group(NodeId(1), vec![Arc::new(source), Arc::new(art)]);
+        let doc = vectorcraft_doc::Document::new(300.0, 300.0);
+        let symbols = doc.symbol_boxes();
+        for view in TraceView::ALL {
+            group.extras_mut().trace = Some(Box::new(json!({"view":view.id()})));
+            let mut visited = vec![];
+            walk_drawn(&group, &mut |n| visited.push(n.id));
+            assert_eq!(visited.contains(&NodeId(2)), view.shows_source());
+            let want = if view.shows_source() {
+                vectorcraft_geom::Rect::new(0.0, 0.0, 200.0, 200.0)
+            } else {
+                vectorcraft_geom::Rect::new(20.0, 30.0, 80.0, 90.0)
+            };
+            assert_eq!(node_outline(&group, &symbols).bounding_box(), want);
+        }
+        group.extras_mut().trace = None;
+        assert_eq!(node_outline(&group, &symbols).bounding_box(), vectorcraft_geom::Rect::new(0.0, 0.0, 200.0, 200.0));
     }
 }

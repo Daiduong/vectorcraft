@@ -8,6 +8,7 @@
 
 use egui::{Sense, Ui, pos2, vec2};
 use serde_json::{Value, json};
+use vectorcraft_geom::Rect;
 
 use super::{alt_held, pstate, set_pstate};
 use crate::theme::Tokens;
@@ -110,7 +111,7 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
                 "width" => [None, None, Some(nv), None],
                 _ => [None, None, None, Some(nv)],
             };
-            super::transform::set_artboard(app, i, r, refi, xywh, link);
+            super::transform::set_artboard(app, i, refi, xywh, link);
         }
     }
     true
@@ -151,6 +152,53 @@ pub(crate) fn picked(app: &VectorcraftApp, n: usize) -> Vec<usize> {
     all.sort_unstable();
     all.dedup();
     all
+}
+
+/// The artboards a new size for artboard `i` goes to: the selected artboards ([`picked`]) when
+/// `i` is one of them, else `i` alone.
+pub(crate) fn resized_with(app: &VectorcraftApp, i: usize) -> Vec<usize> {
+    let all = picked(app, app.session.active().map_or(0, |d| d.doc.artboards.len()));
+    if all.contains(&i) { all } else { vec![i] }
+}
+
+/// The `artboard.setProps` params that set `entries` (each an artboard's `index` and its fields)
+/// with `common` (an object: `scaleArt`, `moveArt`), in one undo step: the one entry's fields
+/// beside `common`, or an `artboards` list of several beside it; None for no entry.
+pub(crate) fn set_props_params(common: Value, mut entries: Vec<Value>) -> Option<Value> {
+    let mut p = common;
+    let o = p.as_object_mut()?;
+    match entries.len() {
+        0 => return None,
+        1 => {
+            if let Value::Object(e) = entries.remove(0) {
+                o.extend(e);
+            }
+        }
+        _ => {
+            o.insert("artboards".into(), Value::Array(entries));
+        }
+    }
+    Some(p)
+}
+
+/// Run `artboard.setProps` with `common` on each artboard of `indices` that `entry` gives fields for
+/// (from its index and rectangle), in one undo step ([`set_props_params`]). Nothing runs when it
+/// gives none.
+pub(crate) fn set_props(
+    app: &mut VectorcraftApp,
+    indices: &[usize],
+    common: Value,
+    entry: impl Fn(usize, Rect) -> Option<Value>,
+) -> Result<Value, String> {
+    let entries: Vec<Value> = app
+        .session
+        .active()
+        .map(|d| indices.iter().filter_map(|&i| d.doc.artboards.get(i).and_then(|a| entry(i, a.rect))).collect())
+        .unwrap_or_default();
+    match set_props_params(common, entries) {
+        Some(p) => app.run("artboard.setProps", p),
+        None => Ok(Value::Null),
+    }
 }
 
 /// Delete the picked artboards and select a remaining one.
@@ -424,7 +472,9 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     menu_item(ui, tl!("Delete Empty Artboards"), false, false);
     ui.separator();
-    menu_item(ui, tl!("Convert to Artboards"), false, false);
+    if menu_item(ui, tl!("Convert to Artboards"), crate::menus::enabled(app, "artboard.convertToArtboards"), false) {
+        crate::menus::invoke(app, "artboard.convertToArtboards", json!({}));
+    }
     if menu_item(ui, tl!("Artboard Options…"), n > 0, false) {
         app.run("tool.options", json!({ "tool": "artboard" })).ok();
     }
@@ -819,6 +869,52 @@ mod tests {
         app.run("edit.undo", json!({})).unwrap();
         let d = &app.session.active().unwrap().doc;
         assert_eq!((d.artboards.len(), d.layers[0].children().unwrap().len()), (3, 2), "one undo step");
+    }
+
+    /// The panel menu's Convert to Artboards turns the geometric bounds of each selected rectangle
+    /// into a new artboard and removes the rectangles, in one undo step, as Object › Artboards ›
+    /// Convert to Artboards does; with nothing selected it is off.
+    #[test]
+    fn the_panel_menus_convert_to_artboards_converts_the_selected_objects() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 150})).unwrap();
+        for x in [10, 60] {
+            app.session.execute("shape.rectangle", &json!({"x": x, "y": 10, "width": 20, "height": 30})).unwrap();
+        }
+        let ctx = egui::Context::default();
+        let screen = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(240.0, 400.0)));
+        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: screen, ..Default::default() }, |ui| menu(app, ui));
+            out.textures_delta.clear();
+            out.shapes
+        };
+        let item = frame(&mut app, vec![])
+            .iter()
+            .find_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text().trim_start() == "Convert to Artboards" => Some(t.visual_bounding_rect().center()),
+                _ => None,
+            })
+            .unwrap();
+        let button = |pressed| egui::Event::PointerButton { pos: item, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        let click = |app: &mut VectorcraftApp| frame(app, vec![egui::Event::PointerMoved(item), button(true), button(false)]);
+        let boards = |app: &VectorcraftApp| app.session.active().unwrap().doc.artboards.iter().map(|a| a.rect).collect::<Vec<_>>();
+        let first = boards(&app)[0];
+        app.session.execute("select.none", &json!({})).unwrap();
+        frame(&mut app, vec![]);
+        click(&mut app);
+        // An enabled item would run the command, and its refusal would show in the status bar.
+        assert_eq!((boards(&app), app.ui.status.as_str()), (vec![first], ""), "off with nothing selected");
+        app.session.execute("select.all", &json!({})).unwrap();
+        // Draw one frame with the item enabled, as the app redraws the panel after the selection changes.
+        frame(&mut app, vec![]);
+        click(&mut app);
+        let rect = vectorcraft_geom::Rect::new;
+        assert_eq!(boards(&app), [first, rect(10.0, 10.0, 30.0, 40.0), rect(60.0, 10.0, 80.0, 40.0)]);
+        let d = app.session.active().unwrap();
+        assert_eq!((d.doc.layers[0].children().unwrap().len(), d.selection.objects.len()), (0, 0), "the rectangles are removed");
+        app.run("edit.undo", json!({})).unwrap();
+        let d = &app.session.active().unwrap().doc;
+        assert_eq!((d.artboards.len(), d.layers[0].children().unwrap().len()), (1, 2), "one undo step");
     }
 
     /// One headless frame of the Control bar, 2,000 points wide, with `events` → the texts painted,
