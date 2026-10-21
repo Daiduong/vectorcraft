@@ -30,6 +30,7 @@ mod control_server;
 mod cursor_theme;
 #[cfg(feature = "wgpu")]
 mod gpu;
+mod local_ai;
 mod logging;
 #[cfg(target_os = "macos")]
 mod mac_fonts;
@@ -532,6 +533,7 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
     #[cfg(target_os = "macos")]
     let sampled_ui = ui.clone();
     Services {
+        local_ai: Some(std::sync::Arc::new(local_ai::call)),
         pick_open: Some(Box::new(move |pick: &FilePick| pick_now(PickRequest::Open(pick.clone()), &p1).into_iter().next())),
         pick_open_multi: Some(Box::new(move || pick_now(PickRequest::OpenMany, &p2))),
         pick_save: Some(Box::new(move |pick: &FilePick| pick_now(PickRequest::Save(pick.clone()), &p3).into_iter().next())),
