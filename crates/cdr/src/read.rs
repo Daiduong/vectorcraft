@@ -119,6 +119,7 @@ pub(crate) fn import(bytes: &[u8], title: &str, info: CdrInfo, opts: &ImportOpti
             id: r.doc.artboards.len() as u32 + 1,
             name: if page.name.trim().is_empty() { format!("Page {}", i + 1) } else { page.name.clone() },
             rect,
+            locked: false,
             show_center_mark: false,
             show_cross_hairs: false,
             color: None,
