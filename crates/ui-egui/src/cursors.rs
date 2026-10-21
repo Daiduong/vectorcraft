@@ -361,33 +361,175 @@ fn shape_builder(p: &mut Ink, o: Pos2, erase: bool) {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct GrabLayer {
+    white: bool,
+    points: Vec<[f32; 2]>,
+}
+
+#[derive(serde::Deserialize)]
+struct GrabGlyph {
+    layers: Vec<GrabLayer>,
+}
+
+/// Gemini-assisted adaptation of the current licensed Close Hand, retaining Claudio Guglieri's CC BY 3.0 attribution.
+/// Source, adaptation notice and full licence: assets/cursors and ASSETS.md / NOTICE.
+/// The folded fingers and white palm remain distinct at cursor sizes; the hotspot is in the palm.
+fn licensed_grab(p: &mut Ink, o: Pos2) -> bool {
+    static GLYPH: std::sync::OnceLock<Option<GrabGlyph>> = std::sync::OnceLock::new();
+    let Some(glyph) = GLYPH.get_or_init(|| serde_json::from_str(include_str!("../../../assets/cursors/hand-grab.json")).ok()) else { return false };
+    draw_hand_glyph(p, o, glyph)
+}
+
+/// Contributor text-only Gemini open hand with spread fingers; only normalized contour coordinates are shipped.
+fn contributed_open(p: &mut Ink, o: Pos2) -> bool {
+    static GLYPH: std::sync::OnceLock<Option<GrabGlyph>> = std::sync::OnceLock::new();
+    let Some(glyph) = GLYPH.get_or_init(|| serde_json::from_str(include_str!("../../../assets/cursors/hand-open.json")).ok()) else { return false };
+    draw_hand_glyph(p, o, glyph)
+}
+
+fn draw_hand_glyph(p: &mut Ink, o: Pos2, glyph: &GrabGlyph) -> bool {
+    if glyph.layers.is_empty() {
+        return false;
+    }
+    for (index, layer) in glyph.layers.iter().enumerate() {
+        let points: Vec<_> = layer.points.iter().map(|&[x, y]| o + vec2(x, y)).collect();
+        if index == 0 {
+            p.add(Shape::closed_line(points.clone(), Stroke::new(3.0, HALO)));
+        }
+        let mut mesh = Mesh::default();
+        for &pos in &points {
+            mesh.colored_vertex(pos, if layer.white { HALO } else { INK });
+        }
+        mesh.indices = earcut_hand(&points);
+        p.add(Shape::mesh(mesh));
+    }
+    true
+}
+
 /// The Hand tool and Space: an open hand (palm and four fingers, thumb to the left), or the same
 /// hand closed while it drags the view. Windows has no system hand that isn't a pointing finger
 /// (winit maps egui's Grab and Grabbing to the four-headed move cursor), so it is drawn like the
 /// other tool cursors. Hotspot in the palm.
 fn hand(p: &mut Ink, o: Pos2, closed: bool) {
-    // Thumb out to the left, four fingers up from the palm (open) or folded over it (closed),
-    // then the palm, a rounded block below the hotspot, over their bases.
-    let mut parts = vec![vec![o + vec2(-7.0, 0.0), o + vec2(-13.0, -4.0), o + vec2(-14.0, -1.0), o + vec2(-9.0, 5.0)]];
-    for (i, x) in [-5.5f32, -1.75, 2.0, 5.75].into_iter().enumerate() {
-        let top = if closed {
-            -5.0
-        } else if i == 0 || i == 3 {
-            -11.0
-        } else {
-            -14.0
-        };
-        parts.push(vec![o + vec2(x - 1.5, 0.0), o + vec2(x - 1.5, top), o + vec2(x + 1.5, top), o + vec2(x + 1.5, 0.0)]);
+    if (closed && licensed_grab(p, o)) || (!closed && contributed_open(p, o)) {
+        return;
     }
-    parts.push(vec![o + vec2(-7.0, -2.0), o + vec2(7.25, -2.0), o + vec2(8.0, 6.0), o + vec2(4.0, 11.0), o + vec2(-5.0, 11.0), o + vec2(-9.0, 5.0)]);
-    // Every halo first, so no part's halo covers another's outline.
-    for part in &parts {
-        p.add(Shape::closed_line(part.clone(), Stroke::new(3.0, HALO)));
+    // Procedural fallbacks if an embedded hand asset cannot be read.
+    // Both share the palm hotspot and wrist; the open
+    // fingers spread above it and the fist folds into a compact row of rounded knuckles.
+    let contour: &[(f32, f32)] = if closed {
+        &[
+            (-7.0, 2.0),
+            (-8.0, -2.0),
+            (-7.0, -5.0),
+            (-5.0, -6.0),
+            (-5.0, -8.0),
+            (-2.0, -9.0),
+            (0.0, -7.0),
+            (2.0, -8.0),
+            (4.0, -7.0),
+            (6.0, -7.0),
+            (8.0, -5.0),
+            (8.0, 2.0),
+            (6.0, 6.0),
+            (4.0, 9.0),
+            (-4.0, 9.0),
+            (-4.0, 7.0),
+        ]
+    } else {
+        &[
+            (-8.0, 0.0),
+            (-10.0, -3.5),
+            (-12.0, -4.0),
+            (-13.0, -2.0),
+            (-12.0, 1.0),
+            (-8.0, 6.5),
+            (-5.0, 9.0),
+            (-2.0, 10.0),
+            (1.5, 10.0),
+            (4.5, 8.5),
+            (6.5, 5.5),
+            (7.5, 1.0),
+            (7.5, -6.0),
+            (6.7, -8.0),
+            (5.3, -8.0),
+            (4.5, -6.0),
+            (4.5, -2.0),
+            (3.5, -2.0),
+            (3.5, -12.5),
+            (2.7, -14.5),
+            (1.3, -14.5),
+            (0.5, -12.5),
+            (0.5, -2.0),
+            (-0.5, -2.0),
+            (-0.5, -15.5),
+            (-1.5, -17.5),
+            (-3.0, -17.5),
+            (-4.0, -15.5),
+            (-4.0, -2.0),
+            (-5.0, -2.0),
+            (-5.0, -12.0),
+            (-6.0, -14.0),
+            (-7.3, -14.0),
+            (-8.0, -12.0),
+            (-8.0, -2.0),
+        ]
+    };
+    // Cut each corner twice, retaining narrow finger gaps without acute stroke miters.
+    let mut outline: Vec<_> = contour.iter().map(|&(x, y)| o + vec2(x, y)).collect();
+    for _ in 0..2 {
+        let mut rounded = Vec::with_capacity(outline.len() * 2);
+        for (a, b) in outline.iter().zip(outline.iter().cycle().skip(1)) {
+            rounded.push(a.lerp(*b, 0.22));
+            rounded.push(a.lerp(*b, 0.78));
+        }
+        outline = rounded;
     }
-    for part in parts {
-        p.add(Shape::convex_polygon(part.clone(), HALO, Stroke::NONE));
-        p.add(Shape::closed_line(part, Stroke::new(1.0, INK)));
+    p.add(Shape::closed_line(outline.clone(), Stroke::new(3.0, HALO)));
+    // A hand is concave. Tessellate the contour explicitly rather than submitting it as a
+    // convex polygon (which fills across finger gaps).
+    let triangles = earcut_hand(&outline);
+    let mut mesh = Mesh::default();
+    for &pos in &outline {
+        mesh.colored_vertex(pos, HALO);
     }
+    mesh.indices = triangles;
+    p.add(Shape::mesh(mesh));
+    p.add(Shape::closed_line(outline, Stroke::new(1.2, INK)));
+    if closed {
+        for (a, b) in [((-4.0, -5.0), (-4.0, -2.0)), ((0.0, -6.0), (0.0, -3.0)), ((4.0, -5.0), (4.0, -2.0))] {
+            p.line_segment([o + vec2(a.0, a.1), o + vec2(b.0, b.1)], Stroke::new(1.0, INK));
+        }
+    }
+}
+
+/// Ear clipping of these small, fixed, simple contours. The signed area handles either winding.
+fn earcut_hand(points: &[Pos2]) -> Vec<u32> {
+    let cross = |a: Pos2, b: Pos2, c: Pos2| (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    let area: f32 = points.iter().zip(points.iter().cycle().skip(1)).take(points.len()).map(|(a, b)| a.x * b.y - b.x * a.y).sum();
+    let sign = area.signum();
+    let mut remaining: Vec<_> = (0..points.len()).collect();
+    let mut out = Vec::new();
+    while remaining.len() >= 3 {
+        let n = remaining.len();
+        let ear = (0..n).find(|&i| {
+            let (a, b, c) = (points[remaining[(i + n - 1) % n]], points[remaining[i]], points[remaining[(i + 1) % n]]);
+            cross(a, b, c) * sign > 0.0
+                && !remaining.iter().enumerate().any(|(j, &k)| {
+                    j != (i + n - 1) % n
+                        && j != i
+                        && j != (i + 1) % n
+                        && cross(a, b, points[k]) * sign >= 0.0
+                        && cross(b, c, points[k]) * sign >= 0.0
+                        && cross(c, a, points[k]) * sign >= 0.0
+                })
+        });
+        let Some(i) = ear else { break };
+        out.extend([remaining[(i + n - 1) % n] as u32, remaining[i] as u32, remaining[(i + 1) % n] as u32]);
+        remaining.remove(i);
+    }
+    out
 }
 
 /// The Zoom tool: a magnifier with a plus in the lens (Alt: a minus), the lens centred on the
@@ -726,6 +868,24 @@ mod tests {
     fn pixel(img: &CustomCursorImage, x: usize, y: usize) -> [u8; 4] {
         let i = (y * img.size[0] as usize + x) * 4;
         [img.rgba[i], img.rgba[i + 1], img.rgba[i + 2], img.rgba[i + 3]]
+    }
+
+    #[test]
+    fn hands_have_solid_palms_distinct_silhouettes_and_dpi_previews() {
+        for ppp in [1.0, 1.25, 1.5, 2.0] {
+            let open = rasterize(Cursor::Hand, ppp).unwrap();
+            let closed = rasterize(Cursor::HandGrab, ppp).unwrap();
+            assert_ne!(open, closed);
+            assert!(open.size[1] > closed.size[1]);
+            for (name, img) in [("open", open), ("closed", closed)] {
+                let [x, y] = img.hotspot.map(usize::from);
+                assert_eq!(pixel(&img, x, y)[3], 255, "solid palm, {name} {ppp}");
+                if let Ok(dir) = std::env::var("VECTORCRAFT_CURSOR_PREVIEW_DIR") {
+                    let path = std::path::Path::new(&dir).join(format!("hand-{name}-{ppp}.png"));
+                    image::save_buffer(path, &img.rgba, u32::from(img.size[0]), u32::from(img.size[1]), image::ColorType::Rgba8).unwrap();
+                }
+            }
+        }
     }
 
     /// The Anchor Point caret's hotspot is the middle of its hollow square: white there, with the
@@ -1076,5 +1236,55 @@ mod tests {
         let pts = arrow_points(pos2(10.0, 20.0));
         assert_eq!(pts[0], pos2(10.0, 20.0));
         assert!(pts.iter().all(|q| q.x >= 10.0 && q.y >= 20.0));
+    }
+    #[test]
+    fn licensed_closed_hand_contours_are_complete_and_have_no_forward_thumb() {
+        let glyph: GrabGlyph = serde_json::from_str(include_str!("../../../assets/cursors/hand-grab.json")).unwrap();
+        assert_eq!(glyph.layers.len(), 2, "outer contour and white palm with connected finger divisions");
+        for layer in &glyph.layers {
+            assert!(layer.points.iter().flatten().all(|v| v.is_finite() && v.abs() < 32.0));
+            let points: Vec<_> = layer.points.iter().map(|&[x, y]| pos2(x, y)).collect();
+            assert_eq!(earcut_hand(&points).len(), (points.len() - 2) * 3, "every contour is fully tessellated");
+        }
+        let img = rasterize(Cursor::HandGrab, 2.0).unwrap();
+        let [x, y] = img.hotspot.map(usize::from);
+        assert_eq!(pixel(&img, x, y), [255, 255, 255, 255], "unmarked palm; no forward thumb crease");
+    }
+    #[test]
+    fn open_hand_fingers_spread_above_the_palm() {
+        let glyph: GrabGlyph = serde_json::from_str(include_str!("../../../assets/cursors/hand-open.json")).unwrap();
+        let points = &glyph.layers[0].points;
+        assert!(points.len() >= 3);
+        // A scan through the upper fingers must cross three separated silhouettes.
+        // The previous close-set open hand crossed only one connected silhouette here.
+        let y = -15.0;
+        let mut crossings = Vec::new();
+        for index in 0..points.len() {
+            let [ax, ay] = points[index];
+            let [bx, by] = points[(index + 1) % points.len()];
+            if (ay <= y && y < by) || (by <= y && y < ay) {
+                crossings.push(ax + (y - ay) * (bx - ax) / (by - ay));
+            }
+        }
+        crossings.sort_by(f32::total_cmp);
+        assert!(crossings.len() >= 6, "three visibly spread upper fingers");
+        assert_eq!(crossings.len() % 2, 0);
+        let gaps: f32 = (1..crossings.len() - 1).step_by(2).map(|i| crossings[i + 1] - crossings[i]).sum();
+        assert!(gaps >= 0.3, "upper fingers keep real separation, not a closed-hand outline");
+    }
+
+    #[test]
+    fn contributed_open_hand_contours_are_complete_and_have_a_white_palm() {
+        let glyph: GrabGlyph = serde_json::from_str(include_str!("../../../assets/cursors/hand-open.json")).unwrap();
+        assert_eq!(glyph.layers.len(), 2);
+        for layer in &glyph.layers {
+            let points: Vec<_> = layer.points.iter().map(|p| pos2(p[0], p[1])).collect();
+            assert_eq!(earcut_hand(&points).len(), (points.len() - 2) * 3);
+        }
+        for scale in [1.0, 1.25, 1.5, 2.0] {
+            let image = rasterize(Cursor::Hand, scale).unwrap();
+            let [x, y] = image.hotspot.map(usize::from);
+            assert_eq!(pixel(&image, x, y), [255, 255, 255, 255]);
+        }
     }
 }
