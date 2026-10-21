@@ -1535,6 +1535,7 @@ fn whole(x: f64, key: &str, cmd: &str) -> Result<f64> {
 fn mesh_set_color(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.mesh.setPointColor";
     check_numbers(p, &["opacity"], C)?;
+    super::paint::check_keep_model(p, C)?;
     let index = index_param(p, "index", C)?;
     let color = p.get("color").and_then(color_value).map(|c| super::paint::new_color(s, p, c));
     let opacity = p.get("opacity").and_then(Value::as_f64);
@@ -1573,6 +1574,7 @@ fn mesh_move_point(s: &mut Session, p: &Value) -> Result<Value> {
 fn mesh_add_line(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.mesh.addLine";
     let q = Point::new(f64_req(p, "x", C)?, f64_req(p, "y", C)?);
+    super::paint::check_keep_model(p, C)?;
     let color = p.get("color").and_then(color_value).map(|c| super::paint::new_color(s, p, c));
     let index = with_mesh(s, p, C, "Add Mesh Line", true, |m| {
         let i = m.add_lines_at(q).ok_or_else(|| bad(C, "point is outside the mesh"))?;
