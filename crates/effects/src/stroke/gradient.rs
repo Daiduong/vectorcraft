@@ -158,20 +158,21 @@ fn strips(bp: &BezPath, rule: FillRule, st: &StrokeLayer, tol: f64, margin: f64,
     let count = subs.len();
     let mut out = vec![];
     for (k, (range, closed)) in subs.into_iter().enumerate() {
-        let (pts, corner) = flatten(&segments(&bp.elements()[range]), closed, tol.max(1e-4));
-        let side =
-            (st.align != StrokeAlign::Center && closed_path && closed).then(|| band_on_left(bp, rule, &pts, st.align, (4.0 * tol).min(hw / 2.0)));
+        let segs = segments(&bp.elements()[range]);
+        let flat = flatten(&segs, closed, tol.max(1e-4));
+        let side = (st.align != StrokeAlign::Center && closed_path && closed)
+            .then(|| band_on_left(bp, rule, &flat.pts, st.align, (4.0 * tol).min(hw / 2.0)));
         // Arrowheads sit on the start of the first subpath and the end of the last one.
         let heads = (if k == 0 { heads.0 } else { 0.0 }, if k + 1 == count { heads.1 } else { 0.0 });
-        let ribs = match pts.len() {
+        let ribs = match flat.pts.len() {
             0 => continue,
             // A subpath of no length: a dot (round and projecting caps paint it).
             1 => {
                 let (d, b, e) = (Vec2::new(1.0, 0.0), lay.band(0.0, side), lay.ext.0.max(lay.ext.1));
-                vec![Rib::square(pts[0] - d * e, d, lay.cover, 0.0, b), Rib::square(pts[0] + d * e, d, lay.cover, 0.0, b)]
+                vec![Rib::square(flat.pts[0] - d * e, d, lay.cover, 0.0, b), Rib::square(flat.pts[0] + d * e, d, lay.cover, 0.0, b)]
             }
             _ => {
-                let total = length(&pts, closed);
+                let total = length(&flat.pts, closed);
                 if total <= 1e-12 {
                     continue;
                 }
@@ -179,7 +180,7 @@ fn strips(bp: &BezPath, rule: FillRule, st: &StrokeLayer, tol: f64, margin: f64,
                 let profile = st.profile.iter().flat_map(|p| p.points.iter().map(|q| q.0));
                 let at: Vec<f64> =
                     marks.iter().copied().chain(profile).chain((1..steps).map(|i| i as f64 / steps as f64)).map(|t| t * total).collect();
-                let (pts, _) = split_at(&pts, &corner, closed, &at);
+                let (pts, _, _) = split_at(&flat, closed, &at, &segs);
                 strip(&lay, &pts, closed, total, side, if closed { (0.0, 0.0) } else { heads })
             }
         };

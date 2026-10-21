@@ -10,10 +10,10 @@
 
 use std::f64::consts::PI;
 
-use kurbo::{BezPath, ParamCurve, PathEl, PathSeg, Point, Vec2};
+use kurbo::{BezPath, ParamCurve, ParamCurveNearest, PathEl, PathSeg, Point, Vec2};
 use vectorcraft_doc::{LineCap, LineJoin, StrokeLayer, WidthProfile};
 
-use super::{kink, segments, subpaths, unit};
+use super::{kink, segments, subpaths, tangent, unit};
 
 /// Filled outline of `bp` stroked with `width` scaled by `profile`, with the caps, joins and miter
 /// limit of `st`, flattened to `tol`.
@@ -36,9 +36,10 @@ pub(super) fn outline_spans(bp: &BezPath, spans: &[(f64, f64)], width: f64, prof
     };
     let mut out = BezPath::new();
     for (i, (r, closed)) in subpaths(bp).into_iter().enumerate() {
-        let (pts, corner) = flatten(&segments(&bp.elements()[r]), closed, ctx.tol);
-        if pts.len() > 1 {
-            ctx.subpath(&mut out, &pts, &corner, closed, spans.get(i).copied().unwrap_or((0.0, 1.0)));
+        let segs = segments(&bp.elements()[r]);
+        let flat = flatten(&segs, closed, ctx.tol);
+        if flat.pts.len() > 1 {
+            ctx.subpath(&mut out, &flat, &segs, closed, spans.get(i).copied().unwrap_or((0.0, 1.0)));
         }
     }
     out
@@ -49,19 +50,29 @@ pub(super) fn left(t: Vec2) -> Vec2 {
     Vec2::new(t.y, -t.x)
 }
 
+/// A flattened subpath: its points, which of them are corners, and the source segment that drew
+/// each flattened segment (so a sample added between two points can read that segment's tangent
+/// instead of the chord's direction).
+pub(super) struct Flat {
+    pub(super) pts: Vec<Point>,
+    pub(super) corner: Vec<bool>,
+    pub(super) seg_of: Vec<usize>,
+}
+
 /// The flattened points of one subpath (consecutive duplicates removed; a closed one doesn't
 /// repeat its start), each marked when it is a corner of the path.
-pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> (Vec<Point>, Vec<bool>) {
-    let Some(s0) = segs.first() else { return (vec![], vec![]) };
-    let (mut pts, mut corner) = (vec![s0.start()], vec![false]);
+pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> Flat {
+    let Some(s0) = segs.first() else { return Flat { pts: vec![], corner: vec![], seg_of: vec![] } };
+    let mut flat = Flat { pts: vec![s0.start()], corner: vec![false], seg_of: vec![] };
     // The first and the last segment that drew something.
     let (mut first, mut prev): (Option<&PathSeg>, Option<&PathSeg>) = (None, None);
-    for seg in segs {
-        let at = pts.len() - 1;
+    for (si, seg) in segs.iter().enumerate() {
+        let at = flat.pts.len() - 1;
+        let before = flat.pts.len();
         let mut push = |p: Point| {
-            if pts.last().is_none_or(|l| l.distance(p) > 1e-9) {
-                pts.push(p);
-                corner.push(false);
+            if flat.pts.last().is_none_or(|l| l.distance(p) > 1e-9) {
+                flat.pts.push(p);
+                flat.corner.push(false);
             }
         };
         match seg {
@@ -72,45 +83,57 @@ pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> (Vec<Point>, 
                 }
             }),
         }
-        if pts.len() > at + 1 {
-            match prev {
-                Some(p) => corner[at] = kink(p, seg),
-                None => first = Some(seg),
+        if flat.pts.len() > before {
+            let end = flat.pts.len() - 1;
+            flat.seg_of.resize(end, si);
+            for slot in flat.seg_of.iter_mut().take(end).skip(at) {
+                *slot = si;
+            }
+            if let Some(p) = prev {
+                flat.corner[at] = kink(p, seg);
+            } else {
+                first = Some(seg);
             }
             prev = Some(seg);
         }
     }
     if closed {
-        if pts.len() > 1 && pts[0].distance(pts[pts.len() - 1]) <= 1e-9 {
-            pts.pop();
-            corner.pop();
+        if flat.pts.len() > 1 && flat.pts[0].distance(flat.pts[flat.pts.len() - 1]) <= 1e-9 {
+            flat.pts.pop();
+            flat.corner.pop();
         }
         if let (Some(a), Some(b)) = (prev, first) {
-            corner[0] = kink(a, b);
+            flat.corner[0] = kink(a, b);
+        }
+        // A closing segment normally came from the path's last source segment; keep a tangent for
+        // it if the path closed without a duplicate point.
+        if flat.seg_of.len() < flat.pts.len() {
+            let last = flat.seg_of.last().copied().unwrap_or(0);
+            flat.seg_of.resize(flat.pts.len(), last);
         }
     }
-    (pts, corner)
+    flat
 }
 
 /// Insert samples where the profile has width points and between them, so its smooth curve is
 /// drawn as a smooth outline along straight runs too (the two points of a discontinuous point
 /// share one sample). `span` maps the subpath onto the profile (see [`outline_spans`]).
-fn densify(pts: &[Point], corner: &[bool], closed: bool, profile: &WidthProfile, span: (f64, f64)) -> (Vec<Point>, Vec<bool>) {
+fn densify(flat: &Flat, segs: &[PathSeg], closed: bool, profile: &WidthProfile, span: (f64, f64)) -> (Vec<Point>, Vec<bool>, Vec<Vec2>) {
     // Samples per profile segment; fewer when a profile carries many points, so a file can't turn
     // the extra samples into a huge allocation.
     const SAMPLES: usize = 16;
-    let total = length(pts, closed);
+    let total = length(&flat.pts, closed);
     let range = span.1 - span.0;
     if total <= 1e-12 || range <= 1e-12 {
-        return (pts.to_vec(), corner.to_vec());
+        return split_at(flat, closed, &[], segs);
     }
     // Where the profile's points fall along this piece (a span past 1 wraps round a closed path).
     let mut ts: Vec<f64> = profile.points.iter().flat_map(|p| [p.0, p.0 + 1.0]).collect();
     ts.sort_by(f64::total_cmp);
     ts.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
     // A flat profile draws the same straight pieces as before: sample only its points.
-    let flat = profile.points.first().is_some_and(|f| profile.points.iter().all(|p| (p.1 - f.1).abs() <= 1e-12 && (p.2 - f.2).abs() <= 1e-12));
-    let samples = if flat { 1 } else { SAMPLES.min((4096 / ts.len().max(1)).max(1)) };
+    let constant = profile.points.first().is_some_and(|f| profile.points.iter().all(|p| (p.1 - f.1).abs() <= 1e-12 && (p.2 - f.2).abs() <= 1e-12));
+    let samples = if constant { 1 } else { SAMPLES.min((4096 / ts.len().max(1)).max(1)) };
     let mut marks = Vec::with_capacity(ts.len() * samples);
     for w in ts.windows(2) {
         for k in 0..samples {
@@ -121,7 +144,7 @@ fn densify(pts: &[Point], corner: &[bool], closed: bool, profile: &WidthProfile,
         marks.push(last);
     }
     let marks: Vec<f64> = marks.into_iter().map(|t| (t - span.0) / range * total).collect();
-    split_at(pts, corner, closed, &marks)
+    split_at(flat, closed, &marks, segs)
 }
 
 /// Length of a flattened subpath (see [`flatten`]).
@@ -133,28 +156,55 @@ pub(super) fn length(pts: &[Point], closed: bool) -> f64 {
 
 /// A flattened subpath (see [`flatten`]) with points added `marks` along it (distances from its
 /// start; those on a point or off the subpath are ignored).
-pub(super) fn split_at(pts: &[Point], corner: &[bool], closed: bool, marks: &[f64]) -> (Vec<Point>, Vec<bool>) {
+pub(super) fn split_at(flat: &Flat, closed: bool, marks: &[f64], segs: &[PathSeg]) -> (Vec<Point>, Vec<bool>, Vec<Vec2>) {
+    let Flat { pts, corner, seg_of } = flat;
     let n = pts.len();
     let seg_count = if closed { n } else { n.saturating_sub(1) };
-    let mut out = (Vec::with_capacity(n + marks.len()), Vec::with_capacity(n + marks.len()));
+    // The source's direction at `p`, from the segment that drew its flattened piece. The chord
+    // direction is the secant, not the tangent: using it for points added inside a chord jogs the
+    // normal at every flatten vertex.
+    let source = |p: Point, si: Option<usize>| -> Vec2 {
+        let Some(seg) = si.and_then(|i| segs.get(i)) else { return Vec2::new(1.0, 0.0) };
+        tangent(seg, seg.nearest(p, 1e-9).t)
+    };
+    // At a shared point, average the arriving and leaving directions unless it is a corner.
+    let dir_at = |i: usize| -> Vec2 {
+        let incoming = if i == 0 { if closed { seg_of.last().copied() } else { None } } else { seg_of.get(i - 1).copied() };
+        let outgoing = seg_of.get(i).copied();
+        let (a, b) = (incoming.map(|si| source(pts[i], Some(si))), outgoing.map(|si| source(pts[i], Some(si))));
+        match (a, b) {
+            (Some(a), Some(b)) if !corner[i] => {
+                let sum = a + b;
+                if sum.hypot() > 1e-9 { unit(sum) } else { b }
+            }
+            (_, Some(b)) => b,
+            (Some(a), None) => a,
+            (None, None) => Vec2::new(1.0, 0.0),
+        }
+    };
+    let mut out = (Vec::with_capacity(n + marks.len()), Vec::with_capacity(n + marks.len()), Vec::with_capacity(n + marks.len()));
     let mut acc = 0.0;
     for i in 0..seg_count {
         let (a, b) = (pts[i], pts[(i + 1) % n]);
         let len = a.distance(b);
         out.0.push(a);
         out.1.push(corner[i]);
+        out.2.push(dir_at(i));
         let mut inner: Vec<f64> = marks.iter().copied().filter(|d| *d > acc + 1e-9 && *d < acc + len - 1e-9).collect();
         inner.sort_by(f64::total_cmp);
         inner.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
         for d in inner {
-            out.0.push(a.lerp(b, (d - acc) / len));
+            let p = a.lerp(b, (d - acc) / len);
+            out.0.push(p);
             out.1.push(false);
+            out.2.push(source(p, seg_of.get(i).copied()));
         }
         acc += len;
     }
     if !closed && n > 0 {
         out.0.push(pts[n - 1]);
         out.1.push(corner[n - 1]);
+        out.2.push(dir_at(n - 1));
     }
     out
 }
@@ -177,14 +227,19 @@ struct Vertex {
     p: Point,
     a: Vec2,
     b: Vec2,
+    /// The smooth tangent: the source curve's direction at this sample, or the average of its
+    /// arriving and leaving directions at a smooth join. A smooth point offsets along this
+    /// normal, not the chord bisector; otherwise the chord normal inside each flattened piece and
+    /// the bisector at each flatten vertex alternate and the edge is scalloped.
+    n: Vec2,
     la: f64,
     lb: f64,
     corner: bool,
 }
 
 impl Ctx<'_> {
-    fn subpath(&self, out: &mut BezPath, pts: &[Point], corner: &[bool], closed: bool, span: (f64, f64)) {
-        let (pts, corner) = densify(pts, corner, closed, self.profile, span);
+    fn subpath(&self, out: &mut BezPath, flat: &Flat, segs: &[PathSeg], closed: bool, span: (f64, f64)) {
+        let (pts, corner, dirs) = densify(flat, segs, closed, self.profile, span);
         let n = pts.len();
         let seg_count = if closed { n } else { n - 1 };
         let seg_dir: Vec<Vec2> = (0..seg_count).map(|i| unit(pts[(i + 1) % n] - pts[i])).collect();
@@ -217,14 +272,14 @@ impl Ctx<'_> {
         for (i, &p) in pts.iter().enumerate() {
             let ((wl_b, wr_b), (wl_a, wr_a)) = width_at(cum[i]);
             if !closed && (i == 0 || i == n - 1) {
-                let nm = left(seg_dir[i.min(seg_count - 1)]);
+                let nm = left(dirs[i]);
                 let (wl, wr) = if i == 0 { (wl_a, wr_a) } else { (wl_b, wr_b) };
                 lpts.push((p + nm * wl, end_sharp));
                 rpts.push((p - nm * wr, end_sharp));
                 continue;
             }
             let ip = if i == 0 { seg_count - 1 } else { i - 1 };
-            let v = Vertex { p, a: seg_dir[ip], b: seg_dir[i], la: cum[ip + 1] - cum[ip], lb: cum[i + 1] - cum[i], corner: corner[i] };
+            let v = Vertex { p, a: seg_dir[ip], b: seg_dir[i], n: dirs[i], la: cum[ip + 1] - cum[ip], lb: cum[i + 1] - cum[i], corner: corner[i] };
             // A step: the side goes straight out (or in) from the width before to the one after.
             // Both ends of that straight piece are corners: the run before it must not round
             // into the step.
@@ -243,7 +298,7 @@ impl Ctx<'_> {
             polygon(out, rpts.into_iter().rev(), self.tol);
             return;
         }
-        let (t0, t1) = (seg_dir[0], seg_dir[seg_count - 1]);
+        let (t0, t1) = (dirs[0], dirs[n - 1]);
         let ((wl0, wr0), (wl1, wr1)) = (width_at(0.0).1, width_at(total).0);
         let mut ring = lpts;
         // End cap: from the left side around the end to the right side.
@@ -272,19 +327,16 @@ impl Ctx<'_> {
             return;
         }
         let miter = if c > 1e-9 { Some(v.p + mid * (w / (2.0 * c * c))) } else { None };
-        // The offset of the smooth path itself is at `w` along the vertex normal. The polyline
+        // The offset of the smooth path itself is at `w` along the path normal. The polyline
         // miter (`w / c`) is the offset of the flattened segments, not of the curve: at a tight
-        // curve it spiked every sample outward and left a scalloped edge. A round join would dent
-        // it inward instead; the unit bisector is the smooth normal.
-        let normal = if c > 1e-9 { Some(v.p + mid * (w / (2.0 * c))) } else { None };
+        // curve it spiked every sample outward and left a scalloped edge. The source curve's
+        // tangent is the smooth normal; a corner still uses its two chords for the join.
+        let smooth = v.p + left(v.n) * (w * side);
         if v.b.dot(na) <= 0.0 {
             // Outer side: the path turns away from it.
             if !v.corner {
-                // A smooth point has no join: its offset is along the vertex normal.
-                match normal {
-                    Some(n) => pts.push((n, step)),
-                    None => self.arc(pts, v, na, nb, w, step),
-                }
+                // A smooth point has no join: its offset is along the path normal.
+                pts.push((smooth, step));
             } else {
                 let excess = if c > 1e-9 { w * (1.0 / c - 1.0) } else { f64::INFINITY };
                 match self.join {
@@ -308,12 +360,11 @@ impl Ctx<'_> {
             let turn = 2.0 * c.clamp(-1.0, 1.0).acos();
             let radius = if turn > 1e-9 { 0.5 * (v.la + v.lb) / turn } else { f64::INFINITY };
             if self.uniform && w >= radius {
-                pts.push((v.p + na * w, true));
+                pts.push((smooth, true));
                 pts.push((v.p, true));
-                pts.push((v.p + nb * w, true));
+                pts.push((smooth, true));
             } else {
-                let n = normal.unwrap_or(v.p);
-                pts.push((n, step));
+                pts.push((smooth, step));
             }
         } else if w * (1.0 - c * c).sqrt() / c <= v.la.min(v.lb) {
             // A corner's inner offset is its miter while that stays inside both segments.
@@ -438,44 +489,58 @@ fn polygon(out: &mut BezPath, pts: impl Iterator<Item = (Point, bool)>, tol: f64
     out.close_path();
 }
 
-/// The tangent at the start of the segment `run[i] → run[j]`, for that segment's parameter. This
-/// is the chord-length Catmull–Rom tangent: the secant across the point's neighbours, scaled by
-/// the segment's share of the neighbouring lengths. The share keeps a short sample from flattening
-/// the long segment beside it, while the secant's own length (not a unit direction) keeps a curved
-/// run from overshooting. At an end, the segment itself.
-fn tangent_start(run: &[Point], i: usize, j: usize, cyclic: bool) -> Vec2 {
+/// The derivative of the run at each point, in points per point of chord length. Each coordinate
+/// is a shape-preserving cubic Hermite (Fritsch–Carlson): between two points it stays within their
+/// coordinate range, so a cubic through a fast width pinch cannot bulge past the pinch and cross
+/// the other side, and it has a flat slope at a local extremum. A Catmull–Rom tangent (the secant
+/// across the neighbours) does neither: it overshoots a V and, with the uneven sample spacing of a
+/// flattened path, leaves a scalloped edge.
+fn tangents(run: &[Point], cyclic: bool) -> Vec<Vec2> {
     let n = run.len();
-    let (p, q) = (run[i], run[j]);
-    let l = p.distance(q);
-    if l <= 1e-12 {
-        return Vec2::ZERO;
+    let segs = if cyclic { n } else { n.saturating_sub(1) };
+    let mut h = vec![0.0; segs];
+    for (i, hi) in h.iter_mut().enumerate() {
+        *hi = run[i].distance(run[(i + 1) % n]);
     }
-    if cyclic || i > 0 {
-        let prev = run[(i + n - 1) % n];
-        let la = p.distance(prev);
-        if la + l > 1e-12 {
-            return (q - prev) * (l / (la + l));
+    let slope = |d0: f64, d1: f64, h0: f64, h1: f64| {
+        if d0 * d1 <= 0.0 {
+            return 0.0;
+        }
+        let (w0, w1) = (2.0 * h1 + h0, h1 + 2.0 * h0);
+        let m = (w0 + w1) / (w0 / d0 + w1 / d1);
+        if m.is_finite() { m } else { 0.0 }
+    };
+    let delta = |i: usize| -> Vec2 {
+        let hi = h[i % segs];
+        if hi > 1e-12 { (run[(i + 1) % n] - run[i % n]) / hi } else { Vec2::ZERO }
+    };
+    let mut out = vec![Vec2::ZERO; n];
+    for (i, m) in out.iter_mut().enumerate() {
+        let (d0, d1) = (delta((i + n - 1) % n), delta(i % segs));
+        let (h0, h1) = (h[(i + n - 1) % segs], h[i % segs]);
+        if h0 <= 1e-12 || h1 <= 1e-12 {
+            *m = if h1 > 1e-12 { d1 } else { d0 };
+        } else if cyclic || (i > 0 && i + 1 < n) {
+            *m = Vec2::new(slope(d0.x, d1.x, h0, h1), slope(d0.y, d1.y, h0, h1));
+        } else if i == 0 {
+            *m = d1;
+        } else {
+            *m = d0;
+        }
+        // A shape-preserving slope is flat in a coordinate at that coordinate's local extremum.
+        // Where both are extrema at one sample (a loop or a pinch in the sampled edge) the flat
+        // tangent would make a line and a kink; the secant across the sample keeps the curve C1
+        // there, and the extremum itself is what trims the loop later.
+        if m.hypot() <= 1e-12 {
+            let prev = if cyclic || i > 0 { run[(i + n - 1) % n] } else { run[i] };
+            let next = if cyclic || i + 1 < n { run[(i + 1) % n] } else { run[i] };
+            let sec = next - prev;
+            if sec.hypot() > 1e-12 {
+                *m = sec.normalize();
+            }
         }
     }
-    q - p
-}
-
-/// The tangent at the end of the segment `run[i] → run[j]`, pointing forward.
-fn tangent_end(run: &[Point], i: usize, j: usize, cyclic: bool) -> Vec2 {
-    let n = run.len();
-    let (p, q) = (run[i], run[j]);
-    let l = p.distance(q);
-    if l <= 1e-12 {
-        return Vec2::ZERO;
-    }
-    if cyclic || j + 1 < n {
-        let next = run[(j + 1) % n];
-        let lb = q.distance(next);
-        if l + lb > 1e-12 {
-            return (next - p) * (l / (l + lb));
-        }
-    }
-    q - p
+    out
 }
 
 /// Append a run of points as cubics through them (or one line when they are collinear).
@@ -489,13 +554,15 @@ fn smooth_run(out: &mut BezPath, run: &[Point], cyclic: bool, tol: f64) {
         return;
     }
     let segs = if cyclic { n } else { n - 1 };
+    let tans = tangents(run, cyclic);
     for i in 0..segs {
         let j = (i + 1) % n;
-        let (m0, m1) = (tangent_start(run, i, j, cyclic), tangent_end(run, i, j, cyclic));
+        let h = run[i].distance(run[j]);
+        let (m0, m1) = (tans[i] * (h / 3.0), tans[j] * (h / 3.0));
         if m0.hypot() <= 1e-12 || m1.hypot() <= 1e-12 {
             out.line_to(run[j]);
         } else {
-            out.curve_to(run[i] + m0 / 3.0, run[j] - m1 / 3.0, run[j]);
+            out.curve_to(run[i] + m0, run[j] - m1, run[j]);
         }
     }
 }
@@ -595,6 +662,33 @@ mod tests {
     }
 
     #[test]
+    fn added_samples_follow_the_curve_not_the_flattened_chord() {
+        // A cubic with a tight S: its chords are far from its tangents. A sample inserted inside a
+        // chord must take the curve's direction there; the chord's direction is what made a wide
+        // profile scallop at every flatten vertex.
+        let mut b = BezPath::new();
+        b.move_to((0.0, 0.0));
+        b.curve_to((0.0, 120.0), (120.0, -120.0), (120.0, 0.0));
+        let segs = segments(b.elements());
+        let flat = flatten(&segs, false, 2.0);
+        assert!(flat.pts.len() >= 3);
+        let mut marks = vec![];
+        let mut acc = 0.0;
+        for i in 0..flat.pts.len() - 1 {
+            let len = flat.pts[i].distance(flat.pts[i + 1]);
+            marks.push(acc + len / 2.0);
+            acc += len;
+        }
+        let (all, _, dirs) = split_at(&flat, false, &marks, &segs);
+        assert!(all.len() > flat.pts.len());
+        let seg = segs[0];
+        for (p, d) in all.iter().zip(&dirs) {
+            let want = tangent(&seg, seg.nearest(*p, 1e-9).t);
+            assert!(d.dot(want) > 0.999, "{d:?} vs {want:?} at {p:?}");
+        }
+    }
+
+    #[test]
     fn a_wiggly_profile_on_a_curve_fits_without_kinks() {
         // A rapid width change turns the offset sharply; that is not a path corner, so the
         // outline must stay tangent-continuous through it (the old turn-angle test did not).
@@ -675,6 +769,36 @@ mod tests {
         let p = WidthProfile { points: vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)] };
         let o = width_outline(&c, 30.0, &p, &capped(LineCap::Butt), 0.01);
         assert!(o.contains(Point::new(0.0, 0.0)), "{o:?}");
+    }
+
+    #[test]
+    fn a_quick_width_change_does_not_overshoot_its_samples() {
+        // Width falls to a point and comes back, unevenly on either side: the fitted edge must not
+        // dip past the point (that crossed the other edge and left a scalloped neck).
+        let mut run = vec![Point::new(0.0, 0.0), Point::new(10.0, -1.0), Point::new(20.0, -0.3)];
+        let (mut a, mut b) = (BezPath::new(), BezPath::new());
+        a.move_to(run[0]);
+        b.move_to(run[0]);
+        smooth_run(&mut a, &run, false, 0.0);
+        // Reverse the same points: the fit must stay inside the V from either direction too.
+        run.reverse();
+        smooth_run(&mut b, &run, false, 0.0);
+        for path in [a, b] {
+            let mut start = Point::ZERO;
+            for el in path.elements() {
+                match el {
+                    PathEl::MoveTo(p) => start = *p,
+                    PathEl::CurveTo(c1, c2, p) => {
+                        for c in [c1, c2] {
+                            assert!(c.y >= -1.0 - 1e-9, "{c:?} in {path:?}");
+                            assert!(c.y <= start.y.max(p.y) + 1e-9, "{c:?} in {path:?}");
+                        }
+                        start = *p;
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     #[test]
