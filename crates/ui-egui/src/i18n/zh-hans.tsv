@@ -1002,6 +1002,7 @@
 	Eyedropper Picks Up:	吸管拾取：
 	Eyedropper Tool	吸管工具
 	Eyedropper: click the art to sample the stop's colour	吸管：点击图稿以取样色标的颜色
+	Eyedropper: click the art to sample the key color	吸管：点击图稿以取样主色
 	Feather…	羽化…
 	Feet	英尺
 	Feet & Inches	英尺和英寸
@@ -1272,6 +1273,7 @@ file-filter	Templates	模板
 	Hand-Drawn	手绘
 	Handles	手柄
 	Hard Light	强光
+	Hard Mix	实色混合
 	Harmony Rules:	协调规则：
 	Harmony Sets	色彩调和组
 	Height	高度
@@ -1794,6 +1796,7 @@ file-filter	Templates	模板
 @msg	x and y must be finite	x 和 y 必须是有限值
 @msg	t, dx and dy must be finite	t、dx 和 dy 必须是有限值
 @msg	handle must be in or out	handle 必须是 in 或 out
+	Move Brush	移动画笔
 	Move Swatch	移动色板
 	Move Up	上移
 	Move…	移动…
@@ -1867,6 +1870,14 @@ file-filter	Templates	模板
 	Round Fan	圆扇头
 	Flat Fan	扁扇头
 	New Brush…	新建画笔…
+	New Brush	新建画笔
+	Calligraphic Brush	书法画笔
+	Scatter Brush	散布画笔
+	Art Brush	艺术画笔
+	Bristle Brush	鬃毛画笔
+	Pattern Brush	图案画笔
+	Select art to make a scatter, art or pattern brush.	选择图稿以创建散布画笔、艺术画笔或图案画笔。
+	Brush Art	画笔图稿
 	New Calligraphic Brush	新建书法画笔
 	New Character Style	新建字符样式
 	New Color Group	新建颜色组
@@ -2479,6 +2490,7 @@ font-script	Japanese	汉字
 	Reorder	重新排序
 	Reorder Appearance Item	重新排序外观项目
 	Repeat	重复
+	Repeat Objects	重复对象
 	Repeat Options	重复选项
 	Repeat Pathfinder	重复路径查找器
 	Repeat Tab	重复制表位
@@ -2660,6 +2672,7 @@ font-script	Japanese	汉字
 	Scale Cursor Proportional to UI	光标随界面等比缩放
 	Scale Lineweights	缩放线宽
 	Scale Strokes & Effects	缩放描边和效果
+	Scale Text Attributes	缩放文本属性
 	Scale to Fit Artboard	缩放以适合画板
 	Scale Tool	比例缩放工具
 	Scale:	缩放：
@@ -3168,6 +3181,7 @@ font-script	Japanese	汉字
 	Top-to-Top Leading	上缘至上缘行距
 	Top:	上：
 	Total Width:	总宽度：
+	Touch	触控
 	Touch Type Tool	修饰文字工具
 	Trace	描摹
 	Trace the image with the Default preset	使用“默认”预设描摹图像
@@ -3326,6 +3340,7 @@ font-script	Japanese	汉字
 	Lock Variables	锁定变量
 	Unlock Variables	解锁变量
 @msg	variables are locked	变量已锁定
+@msg	variables that aren't text were left out: {kinds}	已省略非文本变量：{kinds}
 	List Variables	列出变量
 	Bind Variable	绑定变量
 	Unbind Variable	解除变量绑定
@@ -3618,7 +3633,9 @@ imageTrace	Outline	轮廓
 @msg	Show All Hidden Attributes: nothing is hidden	显示所有隐藏属性：没有隐藏任何内容
 @msg	Expand: no brush strokes selected	扩展：未选择画笔描边
 @msg	no brush named `{name}`	没有名为 `{name}` 的画笔
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	鬃毛画笔的名称最多 {max} 个字符：`{name}` 有 {count} 个字符
 @msg	no brush selected	未选择画笔
+@msg	brushes move only within their type	画笔只能在同一类型内移动
 @msg	no symbol instances selected	未选择符号实例
 @msg	select a symbol instance	请选择一个符号实例
 @msg	the art has no bounds	图稿没有边界
@@ -3661,6 +3678,7 @@ imageTrace	Outline	轮廓
 @msg	no saved selection recalled	未调出任何已保存的选区
 @msg	no saved selections	没有已保存的选区
 @msg	no such artboard	没有此画板
+@msg	the artboard is locked	该画板已锁定
 @msg	cannot split an open path at its end point	无法在开放路径的端点处拆分该路径
 @msg	closing needs three anchors	闭合需要三个锚点
 @msg	empty brush stroke	画笔描边为空
@@ -4290,6 +4308,7 @@ imageTrace	Outline	轮廓
 @msg	Measured anchor no longer exists	测量锚点已不存在
 @msg	Measured segment no longer exists	测量线段已不存在
 @msg	Non-finite dimension	尺寸标注不是有限值
+@msg	Scale Text Attributes: selected type has no scale to bake	缩放文本属性：所选文本没有可应用的缩放
 @msg	Scale must be drawing:real, for example 1:10	比例必须为 图纸:实际，例如 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	比例必须介于 1:1000000 和 1000000:1 之间
 @msg	Second measured segment no longer exists	第二条测量线段已不存在
@@ -4550,6 +4569,13 @@ imageTrace	Outline	轮廓
 	Scale Tints	缩放淡色
 	Tints and Shades	淡色和阴影
 	Hue Shift	色相偏移
+	Tips	提示
+	Colorization Tips	着色提示
+	The samples show this brush on a blue stroke.	示例显示此画笔在蓝色描边上的效果。
+	The art keeps its own colors.	图稿保留自己的颜色。
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	黑色变为描边颜色，白色保持白色。其他颜色变为描边颜色的淡色，颜色越浅，淡色越浅。
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	黑色保持黑色，白色保持白色。其他颜色较暗时变为描边颜色的阴影，较亮时变为描边颜色的淡色。
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	主色变为描边颜色。其他颜色在色轮上移动与主色相同的距离，并保持其饱和度和亮度。
 	Harmony Rules	协调规则
 	Variation	变化
 	Drag art, colors and text styles here to reuse them across documents. Libraries are stored on this machine — no account required.	将图稿、颜色和文字样式拖到这里，即可在不同文档中复用。库保存在本机，无需账户。
@@ -4735,6 +4761,13 @@ axis	Both	两者
 	Channel 4	色版 4
 	Cell Size	单元格大小
 	Fine Dots	细点
+
+	Simple	简单
+	Light Rough	浅色粗糙
+	Dark Rough	深色粗糙
+	Wide Sharp	宽锐
+	Wide Blurry	宽模糊
+	Sparkle	闪光
 	Medium Dots	中等点
 	Grainy Dots	颗粒点
 	Coarse Dots	粗点
@@ -4917,12 +4950,24 @@ lighting	Light	光源
 	Reset Ruler Origin	重置标尺原点
 	Artistic	艺术效果
 	Film Grain…	胶片颗粒…
+	Colored Pencil…	彩色铅笔…
+	Colored Pencil	彩色铅笔
 	Cutout…	剪纸…
+	Dry Brush…	干画笔…
 	Cutout	剪纸
+	Dry Brush	干画笔
 	Neon Glow…	霓虹灯光…
+	Palette Knife…	调色刀…
 	Neon Glow	霓虹灯光
+	Paint Daubs…	绘画涂抹…
+	Paint Daubs	绘画涂抹
+	Palette Knife	调色刀
 	Poster Edges…	海报边缘…
+	Rough Pastels…	粗糙蜡笔…
 	Poster Edges	海报边缘
+	Rough Pastels	粗糙蜡笔
+	Underpainting…	底纹效果…
+	Underpainting	底纹效果
 	Levels	色阶数
 	Edge Simplicity	边缘简化度
 	Edge Fidelity	边缘逼真度
@@ -5003,6 +5048,9 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	环境光
 	Light behind the object	光源位于对象后方
+	3D Lighting Preset	3D 光照预设
+	Standard	标准
+	Diffuse	漫射
 # 3D light management.
 	Lights	光源列表
 	Add Light	添加光源
@@ -5040,6 +5088,7 @@ lighting	Light	光源
 	Make Image Dynamic	使图像动态化
 	Import Data Sets…	导入数据集…
 	Export Data Sets…	导出数据集…
+	Load Variable Library…	载入变量库…
 	Make Graph Dynamic	使图表动态化
 	Batch…	批处理…
 	Source Folder:	源文件夹：
@@ -5075,6 +5124,7 @@ lighting	Light	光源
 	Watercolor…	水彩…
 	Watercolor	水彩
 	Brush Size	画笔大小
+	Texture Coverage	纹理覆盖
 	Definition	清晰度
 	Brush Detail	画笔细节
 	Shadow Intensity	阴影强度
@@ -5101,6 +5151,7 @@ lighting	Light	光源
 @msg	the image's pixels can't be read	无法读取图像的像素
 	Persistent	持久
 	Library Panel Options	库面板选项
+	Locate Library…	查找库…
 @msg	Persistent libraries not found: {files}	找不到持久库：{files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` 不是库面板 (请参阅 window.swatchLibrary)
 @msg	library panel `{given}` isn't open	库面板 `{given}` 未打开
@@ -5152,3 +5203,5 @@ lighting	Light	光源
 	Note Paper	便条纸
 	Water Paper…	水彩画纸…
 	Water Paper	水彩画纸
+	Ruby…	注音…
+	Ruby	注音
