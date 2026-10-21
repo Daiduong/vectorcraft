@@ -685,9 +685,13 @@ fn custom_titlebar(saved: Option<&vectorcraft_ui_egui::UiState>) -> bool {
     #[cfg(target_os = "linux")]
     {
         let pref = saved.and_then(|ui| ui.engine_prefs.get("linuxDisplayServer")).and_then(serde_json::Value::as_str);
-        // `overridden() == None` means the probe decided (no VECTORCRAFT_TITLEBAR): when the window
-        // is being forced onto XWayland, that run is effectively X11, so keep the native frame.
-        if choice.overridden().is_none() && xwayland::wanted(pref, |name| std::env::var_os(name), xwayland::pen_attached) {
+        // `overridden() == None` means the probe decided (no VECTORCRAFT_TITLEBAR). When the window
+        // will actually open on X11 (XWayland) — the user asked for it *and* the X11 libraries are
+        // present, the same two conditions the launch path checks below — that run is effectively
+        // X11, so keep the native frame. If the libraries are missing, startup stays on Wayland, so
+        // the probe's own decision (app-drawn on GNOME) must stand.
+        let forced_to_x11 = xwayland::wanted(pref, |name| std::env::var_os(name), xwayland::pen_attached) && xwayland::x11_libraries_found();
+        if choice.overridden().is_none() && forced_to_x11 {
             return custom_titlebar_from(&craft_window::Frame::Desktop, opted_into_system);
         }
     }
