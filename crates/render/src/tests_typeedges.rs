@@ -78,6 +78,31 @@ fn each_method_draws_the_share_of_each_pixel_it_defines() {
     assert_eq!(partial(&alphas(&page(TypeAntiAlias::None, None), &opts)), 0, "None paints whole pixels");
 }
 
+/// `edge_coverage` gives each method the share its documentation defines: None shows all of a
+/// pixel from half coverage (127) up and none of it below, Sharp shows the coverage, Crisp shows
+/// `2c - 0.5` and Strong shows `2c`, each kept between 0 and all.
+#[test]
+fn edge_coverage_gives_each_methods_documented_share() {
+    // Coverage, then what None, Sharp, Crisp and Strong show of the pixel (out of 255).
+    let table: [(u8, [u8; 4]); 11] = [
+        (0, [0, 0, 0, 0]),
+        (1, [0, 1, 0, 2]),
+        (63, [0, 63, 0, 126]),
+        (64, [0, 64, 0, 128]),
+        (65, [0, 65, 2, 130]),
+        (126, [0, 126, 124, 252]),
+        (127, [255, 127, 126, 254]),
+        (128, [255, 128, 128, 255]),
+        (191, [255, 191, 254, 255]),
+        (192, [255, 192, 255, 255]),
+        (255, [255, 255, 255, 255]),
+    ];
+    for (c, shown) in table {
+        let got = [TypeAntiAlias::None, TypeAntiAlias::Sharp, TypeAntiAlias::Crisp, TypeAntiAlias::Strong].map(|m| edge_coverage(m, c));
+        assert_eq!(got, shown, "coverage {c}: None, Sharp, Crisp, Strong");
+    }
+}
+
 /// A raster export draws its art at several times its size and averages it down; type with None
 /// still has hard edges on the exported pixels, Crisp has fewer partly covered pixels than Sharp,
 /// and Strong draws heavier type.
