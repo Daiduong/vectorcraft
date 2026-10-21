@@ -15,7 +15,7 @@
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
 use vectorcraft_doc::hit::{HitKind, hit_test, hit_test_visible};
-use vectorcraft_doc::{Node, NodeKind};
+use vectorcraft_doc::{Node, NodeId, NodeKind};
 use vectorcraft_geom::Point;
 
 use super::paint_owner;
@@ -71,6 +71,28 @@ fn image_color_at(cx: &ToolContext, n: &Node, p: Point) -> Option<Color> {
     Some(Color::rgb(r, g, b))
 }
 
+/// What an Eyedropper click reads at `p`: the object whose appearance it copies, and the colour a
+/// Shift-click (or a click on an image, or a gradient-stop sample) would take from it.
+pub struct EyedropperHit {
+    pub source: NodeId,
+    pub color: Option<Color>,
+}
+
+/// The hit an Eyedropper click uses. `editable` is Alt without Shift and without a gradient-stop
+/// sample: that click writes onto the object, so only art [`hit_test`] can change counts. Every
+/// other read uses [`hit_test_visible`] (locked art and art outside isolation included). Fills
+/// count, whatever Object Selection by Path Only says. An image is sampled from `cx` (its document
+/// and raster sample size), so a CMYK image still gives its inks and other images stay in the
+/// working RGB space.
+pub fn read_at(cx: &ToolContext, p: Point, editable: bool) -> Option<EyedropperHit> {
+    let opt = vectorcraft_doc::hit::HitOptions { path_only: false, type_path_only: false, ..cx.hit_options() };
+    let h = if editable { hit_test(cx.doc, p, opt) } else { hit_test_visible(cx.doc, p, opt) }?;
+    let source = paint_owner(cx.doc, h.leaf);
+    let n = cx.doc.node(source)?;
+    let color = if matches!(n.kind, NodeKind::Image(_)) { image_color_at(cx, n, p) } else { paint_sample(n, h.kind == HitKind::Stroke, p) };
+    Some(EyedropperHit { source, color })
+}
+
 impl Tool for EyedropperTool {
     fn id(&self) -> &'static str {
         "eyedropper"
@@ -80,15 +102,12 @@ impl Tool for EyedropperTool {
         if ev.kind != PointerKind::Down {
             return vec![];
         }
-        // A click inside a fill or among characters samples it too, whatever Object and Type
-        // Object Selection by Path Only say.
-        let opts = vectorcraft_doc::hit::HitOptions { path_only: false, type_path_only: false, ..cx.hit_options() };
         let stop = self.stop.as_ref().zip(cx.gradient_stop);
         // Reading a source is independent of its editability. Only Alt's reverse operation
         // writes to the clicked object; Shift+Alt appends its appearance to the selection.
-        let h = if ev.mods.alt && !ev.mods.shift && stop.is_none() { hit_test(cx.doc, ev.pos, opts) } else { hit_test_visible(cx.doc, ev.pos, opts) };
-        let Some(h) = h else { return vec![] };
-        let src = paint_owner(cx.doc, h.leaf);
+        let editable = ev.mods.alt && !ev.mods.shift && stop.is_none();
+        let Some(read) = read_at(cx, ev.pos, editable) else { return vec![] };
+        let src = read.source;
         let Some(n) = cx.doc.node(src) else { return vec![] };
         if ev.mods.alt && stop.is_none() {
             let how = if ev.mods.shift { "append" } else { "reverse" };
@@ -98,8 +117,7 @@ impl Tool for EyedropperTool {
         if !(ev.mods.shift || stop.is_some() || image) {
             return vec![Action::Exec("appearance.copyFrom".into(), json!({ "source": src.0 }))];
         }
-        let sampled = if image { image_color_at(cx, n, ev.pos) } else { paint_sample(n, h.kind == HitKind::Stroke, ev.pos) };
-        let Some(c) = sampled else { return vec![] };
+        let Some(c) = read.color else { return vec![] };
         let color = color_json(&c);
         let Some((back, i)) = stop else { return vec![Action::Exec("paint.sampleColor".into(), json!({ "color": color }))] };
         let out = vec![Action::Exec("paint.sampleColor".into(), json!({ "color": color, "stop": i })), Action::SwitchTool(back.clone())];
@@ -144,6 +162,20 @@ mod tests {
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 150.0).with_mods(shift));
         assert_eq!(a, vec![Action::Exec("paint.sampleColor".into(), json!({"color": color_json(&Color::BLACK)}))]);
         assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 400.0, 400.0)).is_empty());
+    }
+
+    #[test]
+    fn read_at_samples_a_fill_even_when_path_only_is_set() {
+        let (d, id) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let mut cx = cx(&d, &s, &p);
+        cx.path_only = true;
+        cx.type_path_only = true;
+        let read = read_at(&cx, Point::new(150.0, 150.0), false).unwrap();
+        assert_eq!(read.source, id);
+        assert_eq!(read.color, Some(Color::WHITE));
+        assert!(read_at(&cx, Point::new(400.0, 400.0), false).is_none());
     }
 
     #[test]
