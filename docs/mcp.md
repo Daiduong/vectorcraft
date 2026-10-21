@@ -1349,6 +1349,9 @@ already walks Image Trace. Short agent entry points:
   `livePaint.merge` keeps the bottom Live Paint group's id, name, lock, visibility, transparency, appearance, opacity
   mask and graphic style link. With a Live Paint group among the objects, `livePaint.make` adds the others to it as
   `livePaint.merge` does, and so does `livePaint.fill {ids}` when `point` is outside that group's faces.
+  `livePaint.fill` does not fill a face that is hidden on its own. With `group`, a point on a hidden face is an
+  error. With `ids`, at a point on a hidden face it fills the face there of another Live Paint group among the
+  objects; otherwise it returns an error and does not merge the objects.
 
 `brush.selectionArt {ids?|id?}` (a query) replies `{art}`: the object that `brush.new` given the same `ids` or `id`,
 or the same selection, takes as a new scatter or art brush's art and as a new pattern brush's side tile. Several
@@ -1535,7 +1538,13 @@ Recolor Artwork keys colours by identity, not hex: `recolor.colors` lists each c
 Lab and RGB colours that look alike stay apart, and every colour parameter also accepts a key.
 `recolor.reduce {colors?, method?, preserve?, limitTo?}` groups the selection's colours into rows of similar colours (k-means in Lab, weighted by use;
 tints of a global swatch share its row; White and Black are preserved by default) and returns a map of rows
-`[{from: [keys], to: key}]` to edit and pass to `recolor.apply {map, method?, limitTo?, group?, groupColors?, rename?}`.
+`[{from: [keys], to: key}]` to edit and pass to `recolor.apply {map, method?, model?, limitTo?, group?, groupColors?, rename?}`.
+For scripts and MCP, `model` selects the replacement color model: `keep` (default) retains each
+original color's model, `new` takes the replacement's model, and `document` converts replacements
+and edited color groups to the document's model. Invalid values fail before editing. This parameter
+is not a control in the Recolor Artwork dialog. A returned `note` reports a model conversion in
+`keep` mode.
+
 `method` says how a row's colours take its new colour: `exact`, `preserveTints` (tints of the row's darkest colour
 stay tints), `scaleTints` (every colour becomes a tint as light, relative to the darkest), `tintsShades` (lighter and
 darker than the row's average become tints and shades) or `hueShift` (the most saturated colour takes the new colour,
