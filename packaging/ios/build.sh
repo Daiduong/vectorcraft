@@ -14,7 +14,12 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 APP="${1:-}"; MODE="${2:-}"
-[ -f "$HERE/apps/$APP.conf" ] || { echo "usage: $0 <$(cd "$HERE/apps" && ls *.conf | sed 's/\.conf//' | paste -sd'|' -)> [--sim|--device]" >&2; exit 2; }
+if [ ! -f "$HERE/apps/$APP.conf" ]; then
+  apps=""
+  for f in "$HERE"/apps/*.conf; do b="${f##*/}"; apps="${apps:+$apps|}${b%.conf}"; done
+  echo "usage: $0 <$apps> [--sim|--device]" >&2
+  exit 2
+fi
 # shellcheck source=/dev/null
 . "$HERE/apps/$APP.conf"
 if [ "$APP" = vectorcraft ]; then REPO="$ROOT"; else REPO="${CRAFT_ROOT:-$(dirname "$ROOT")}/$APP"; fi

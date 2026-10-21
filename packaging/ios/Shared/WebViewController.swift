@@ -13,6 +13,9 @@ final class WebViewController: UIViewController {
     private var server: LocalServer?
     private var pendingFiles: [URL] = []
     private var pageLoaded = false
+    /// A delivery loop is working through `pendingFiles`; only one runs at a time, so a file isn't
+    /// opened twice or dropped from the queue undelivered.
+    private var delivering = false
     /// Where each in-flight download is being written.
     private var downloadTargets: [ObjectIdentifier: URL] = [:]
     private let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "App"
@@ -104,16 +107,26 @@ final class WebViewController: UIViewController {
         if pageLoaded { deliverPendingFiles() }
     }
 
-    private func deliverPendingFiles(attempt: Int = 0) {
-        guard !pendingFiles.isEmpty else { return }
-        let url = pendingFiles[0]
+    /// Starts delivering the queued files, unless a delivery loop is already running (it picks up
+    /// files queued since).
+    private func deliverPendingFiles() {
+        guard !delivering else { return }
+        deliverNext(attempt: 0)
+    }
+
+    private func deliverNext(attempt: Int) {
+        guard let url = pendingFiles.first else {
+            delivering = false
+            return
+        }
+        delivering = true
         let scoped = url.startAccessingSecurityScopedResource()
         let data = try? Data(contentsOf: url)
         if scoped { url.stopAccessingSecurityScopedResource() }
         guard let data else {
             pendingFiles.removeFirst()
             showError("Couldn't read \(url.lastPathComponent).")
-            deliverPendingFiles()
+            deliverNext(attempt: 0)
             return
         }
         let args = (try? JSONSerialization.data(withJSONObject: [url.lastPathComponent, openFileAPI]))
@@ -146,11 +159,13 @@ final class WebViewController: UIViewController {
             guard let self else { return }
             if (result as? Bool) == true {
                 self.pendingFiles.removeFirst()
-                self.deliverPendingFiles()
+                self.deliverNext(attempt: 0)
             } else if attempt < 120 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.deliverPendingFiles(attempt: attempt + 1) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.deliverNext(attempt: attempt + 1) }
             } else {
+                // Give up on this file; the rest wait for the next open or page load.
                 self.pendingFiles.removeFirst()
+                self.delivering = false
                 self.showError("\(self.appName) didn't start in time to open \(url.lastPathComponent).")
             }
         }

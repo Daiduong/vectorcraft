@@ -106,11 +106,13 @@ final class LocalServer {
             return send(status: "404 Not Found", on: connection)
         }
 
-        let cache = file.lastPathComponent == "index.html" ? "no-cache" : "public, max-age=31536000, immutable"
+        // Never cached for long: the web view's cache outlives app updates (same origin, fixed port),
+        // and files with unhashed names (fonts/, …) would stay stale. Serving over loopback from a
+        // mapped file costs next to nothing.
         var header = "HTTP/1.1 200 OK\r\n"
         header += "Content-Type: \(Self.mimeType(for: file.pathExtension))\r\n"
         header += "Content-Length: \(body.count)\r\n"
-        header += "Cache-Control: \(cache)\r\n"
+        header += "Cache-Control: no-cache\r\n"
         header += "X-Content-Type-Options: nosniff\r\n"
         header += "Connection: close\r\n\r\n"
         var out = Data(header.utf8)
