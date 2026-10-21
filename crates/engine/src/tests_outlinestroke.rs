@@ -280,6 +280,29 @@ fn a_geometry_effect_on_the_object_shapes_the_path_it_outlines() {
     assert_eq!(outlined_as_drawn(json!({"color": "#33aa55"}), Value::Null), as_drawn());
 }
 
+/// The canvas paints a gradient fill or stroke on each copy that the object's Transform effect
+/// makes by itself; the outlined result draws the same, with the gradient fitted to each copy.
+#[test]
+fn each_transform_copy_keeps_its_own_gradient() {
+    let mut differ = vec![];
+    for on_stroke in [false, true] {
+        for (command, p) in outlining() {
+            let mut s = session();
+            let fill = if on_stroke { json!({"none": true}) } else { json!({"gradient": {"kind": "linear"}}) };
+            square_with(&mut s, fill, Value::Null, &[("distort.transform", json!({"moveH": 120, "copies": 1}))]);
+            if on_stroke {
+                s.execute("paint.setStroke", &json!({"gradient": {"kind": "linear"}})).unwrap();
+                s.execute("stroke.set", &json!({"weight": 12})).unwrap();
+            }
+            let before = render(&s);
+            outlined_by(&mut s, command, &p);
+            differ.push((on_stroke, command, differing(&before, &render(&s), 64)));
+        }
+    }
+    let none_differ: Vec<_> = [false, true].into_iter().flat_map(|on_stroke| outlining().map(|(command, _)| (on_stroke, command, 0))).collect();
+    assert_eq!(differ, none_differ);
+}
+
 #[test]
 fn brushed_strokes_outline_to_their_brush_art() {
     let mut s = session();

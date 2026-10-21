@@ -644,11 +644,18 @@ pub(crate) fn outlined_stroke(
 /// the path, each stroke becomes its outline (or brush art), grouped when there are several.
 /// As on the canvas, the path's geometry effects ([`reshaped`]) shape the path first, and each
 /// stroke's own geometry effects then shape the path that stroke outlines; [`outlined_stroke`]
-/// gets the stroke without them. `None` when `l` has no stroke to outline.
+/// gets the stroke without them. A path whose Transform effect copies it with a gradient becomes
+/// the art the canvas draws for it, each copy with its own gradient and its strokes outlined.
+/// `None` when `l` has no stroke to outline.
 pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Brush], l: &Node) -> Option<Node> {
-    use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, is_geometry};
+    use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, has_gradient_copies, is_geometry, reshape};
     if !l.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(st) if outlinable(st))) {
         return None;
+    }
+    if has_gradient_copies(l) {
+        let mut art = d.reid(&reshape(l, None)?);
+        outline_member_strokes(d, brushes, &mut art);
+        return Some(art);
     }
     let reshaped = reshaped(l);
     let l = reshaped.as_ref().unwrap_or(l);
@@ -678,6 +685,18 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
         parts.push(styled_copy(d, l, fills));
     }
     assemble(d, l, parts)
+}
+
+/// Outline the strokes of every member of group `n`, however deep ([`outline_strokes`]).
+fn outline_member_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &mut Node) {
+    let Some(children) = n.children_mut() else { return };
+    for c in children.iter_mut() {
+        if let Some(o) = outline_strokes(d, brushes, c) {
+            *c = Arc::new(o);
+        } else if c.children().is_some() {
+            outline_member_strokes(d, brushes, Arc::make_mut(c));
+        }
+    }
 }
 
 /// A plain copy of path `l` (new ids, no transparency, name or mask) painted with `items`.
