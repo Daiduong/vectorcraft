@@ -1,5 +1,6 @@
 # Development
 
+> **Last updated:** 2026-10-21 · **Change:** leaving out the bundled fonts with the egui panels (vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features).
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
@@ -104,11 +105,13 @@ On macOS the menus live in the system menu bar, not in the window's app bar (whi
 
 ## Linux: Wayland and X11
 
+On GNOME/Wayland, enable **Preferences › User Interface › System Title Bar** and restart to use winit's font-free Adwaita window controls (`wayland-csd-adwaita-notitle`); the existing custom title bar remains the Linux default.
+
 The window runs natively on Wayland (eframe's `wayland` feature) and on X11. On machines with two GPUs it renders on the one the desktop runs on unless Preferences say otherwise; see [Desktop graphics processor](#desktop-graphics-processor) (#502). The system clipboard (`apps/vectorcraft/src/clipboard.rs`) is arboard with its `wayland-data-control` feature:
 
 - **Clipboard:** under Wayland arboard talks to the compositor through the data-control protocol (wlroots compositors such as Sway and Hyprland, KDE Plasma), so bitmaps (`image/png`), SVG markup and text copied in any app paste (#398). Where the compositor lacks the protocol (GNOME's Mutter, [arboard#223](https://github.com/1Password/arboard/issues/223)), arboard falls back to the X11 clipboard through XWayland, which only holds what X11 apps copied. egui's own text paste into fields goes through smithay-clipboard and works either way.
 - **Clipboard owners that never answer (#510):** reading the clipboard waits on the app that owns it: arboard gives up on an X11 owner after 4 s, and a Wayland read waits for the owner to send its data. So on Linux the check that enables the Paste menu items runs on a background thread with a second clipboard handle (`crates/ui-egui/src/clipboard_probe.rs`, installed as `Services::clipboard_probe`), only while nothing is copied in the app and a document is open, and the window keeps drawing. A paste itself still reads on the UI thread, so pasting from such an owner waits for it once. Windows and macOS keep the check on the UI thread: Windows only asks which formats the clipboard holds, macOS asks the pasteboard server.
-- **Copied files:** files copied in a file manager (`text/uri-list`; `CF_HDROP` on Windows, file URLs on macOS) paste as the first one that is art (SVG, PDF, EPS, EMF/WMF or a bitmap; a `.ai` or `.ait` file as the PDF or PostScript it holds), before the clipboard's other formats (which include the files' paths as text).
+- **Copied files:** files copied in a file manager (`text/uri-list`; `CF_HDROP` on Windows, file URLs on macOS) paste as the first one that is art (SVG, PDF, EPS, EMF/WMF or a bitmap; a `.ai` or `.ait` file from the editing data it holds, else as the PDF or PostScript it holds), before the clipboard's other formats (which include the files' paths as text).
 - **Dropping files on the window does not work under Wayland:** winit 0.30, which eframe 0.36 runs on, has no Wayland drag and drop ([winit#1881](https://github.com/rust-windowing/winit/issues/1881), added in winit 0.31; [egui#1563](https://github.com/emilk/egui/issues/1563)), so no `dropped_files` arrive. Until eframe moves to winit 0.31: copy the files in the file manager and paste them, use File › Place or Open, or open the window through XWayland, where drops work: set **Preferences › Performance › Linux Display Server** to **X11 (XWayland)** and restart (#1151), or start the app with `WAYLAND_DISPLAY= vectorcraft`. The preference (`linuxDisplayServer`, read at startup in `apps/vectorcraft/src/main.rs`, shown on Linux only) has winit open the window on X11 (`EventLoopBuilderExtX11::with_x11`) when the session is Wayland, `DISPLAY` is set and the X11 libraries winit loads are installed (`apps/vectorcraft/src/xwayland.rs` reads `ldconfig -p` and the usual library directories); otherwise the window opens on Wayland and the log says why. Unlike clearing `WAYLAND_DISPLAY`, it leaves the clipboard on the compositor's own.
 - **Pens and pen displays under Wayland (#491, #2028):** winit 0.30 doesn't bind the Wayland tablet protocol (`zwp_tablet_v2`; tablet input arrives in winit 0.31, [winit#4318](https://github.com/rust-windowing/winit/pull/4318), [egui#7731](https://github.com/emilk/egui/pull/7731)). Since Plasma 6.3, KWin no longer turns tablet input into pointer input for such apps ([kwin!6336](https://invent.kde.org/plasma/kwin/-/merge_requests/6336), commit [25c65abd](https://invent.kde.org/plasma/kwin/-/commit/25c65abddd95eb87fb892a8594faccbf509ff62f)), and GNOME's Mutter does not turn it into pointer input either (that commit's message): on KWin the pen moves the compositor's cursor over the window, but the app gets no motion or presses and shows none of its own cursors. Until eframe moves to winit 0.31, either run the app under XWayland, which supports the tablet protocol and hands the pen to X11 apps as a pointer (Preferences › Performance › Linux Display Server › X11 (XWayland); X11 (XWayland) When a Pen Is Attached (`x11WithPen`), which opens the window through XWayland only when `/proc/bus/input/devices` lists a pen as the app starts, a device with the `BTN_TOOL_PEN` key and the `ABS_X` and `ABS_Y` axes, and logs `pen found: opening the window through XWayland`; `WAYLAND_DISPLAY= vectorcraft`, or `env -u WAYLAND_DISPLAY vectorcraft`; for a desktop launcher, put `env WAYLAND_DISPLAY=` before the command in its `Exec=` line), or turn KWin's deprecated emulation back on for the whole session by setting `KWIN_WAYLAND_EMULATE_TABLET=1` in KWin's environment (for example in a file under `~/.config/environment.d/` or in `/etc/environment`) and logging in again. The pen then works as a mouse, without pressure: winit 0.30 reads pen pressure on Windows only (Windows Ink, which reaches the Liquify tools' Use Pressure Pen). Other compositors that don't emulate a pointer for tablets behave the same way.
 
@@ -158,15 +161,28 @@ CRAFT_FONTS_DIR="$PWD/../craft-fonts" cargo xtask ci   # also runs the Japanese-
 
 The Latin fonts in `assets/fonts/` are compiled into `vectorcraft-text` by its `bundled-fonts`
 feature (3.4 MB of the binary). It is on by default, and `vectorcraft-engine`'s default
-`bundled-fonts` feature turns it on, so the apps and anything built on the engine have them. An
+`bundled-fonts` feature turns it on, so the apps and anything built on the engine with its default
+features have them. An
 embedder that brings every font itself at run time (`FontDb::add_font`, say a web app serving its
 own font catalogue) depends on the engine with `default-features = false` and doesn't ship them
 twice. Its font database starts without them: on the web and without craft-fonts it starts empty,
 and text has no glyphs until a font is added.
 
-- The workspace declares `vectorcraft-text` without default features, so no library crate turns the
-  fonts back on; a crate whose tests lay type out asks for `bundled-fonts` in its
-  dev-dependencies (or gets it through `vectorcraft-testkit`, which uses the engine).
+An embedder that also hosts the egui panels depends on `vectorcraft-ui-egui` with
+`default-features = false` as well: its own `bundled-fonts` feature, on by default, turns the
+engine's on; `vectorcraft-mcp` has the same feature. The panels' interface faces (Source Sans 3
+Regular and Semibold, Inter Regular and SemiBold, JetBrains Mono) are separate copies in
+`theme.rs` and stay either way.
+
+- The workspace declares `vectorcraft-text` and `vectorcraft-engine` without default features, so
+  each crate that wants the fonts asks for them (the apps, and `vectorcraft-testkit` for tests);
+  a crate whose tests lay type out asks for `bundled-fonts` in its dev-dependencies (or gets it
+  through `vectorcraft-testkit`).
+- `cargo xtask ci`'s `no-bundled-fonts` step also checks that `vectorcraft-ui-egui` and
+  `vectorcraft-mcp` without their default features turn them on nowhere, for any target
+  (`cargo tree -p vectorcraft-ui-egui --no-default-features --target all -e features,normal -i
+  vectorcraft-text`, and the same for `vectorcraft-mcp`), and with them do; a test of either can't
+  see that configuration, since their dev-dependencies turn the fonts on.
 - `cargo test -p vectorcraft-text --no-default-features --test without_bundled_fonts` checks the
   configuration without them.
 
@@ -238,9 +254,14 @@ other `sv-*` locale resolve to it), Georgian (`ka`, complete; `ka-GE` and `ka_GE
   `Couldn't open {name}: {e}`; `{_1}`, `{_2}` … stand for the format string's `{}`, and the values in the
   placeholders are translated in turn (the reason after `: {e}` is often a message too). Czech, German, Greek, Spanish, French, Georgian, Hungarian, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Simplified Chinese, Traditional Chinese, Swedish, Ukrainian, Vietnamese and Finnish cover every
   message literal the test scan finds (`complete_languages_translate_every_message`, languages listed in
-  `COMPLETE_MESSAGES`): a new `Err("…")`, `Other(…)`, `#[error(…)]` or `status(…)` message needs a row in each of those catalogs (`VECTORCRAFT_I18N_DUMP_MESSAGES=messages.txt cargo test -p vectorcraft-ui-egui
-  complete_languages_translate_every_message` lists them all). Other languages show messages in English
-  until they add `@msg` rows.
+  `COMPLETE_MESSAGES`), except the messages listed in `crates/ui-egui/src/i18n/untranslated_messages.txt`.
+  A new `Err("…")`, `Other(…)`, `#[error(…)]` or `status(…)` message needs a row in each of those catalogs, and so
+  does a new message given to an error enum's variant (`PsError::Limit(…)`), to the engine's `bad(cmd, …)`, `err(…)` or
+  `error(…)`, or to the PDF writer's `bad(…)` or `failed(…)` (`VECTORCRAFT_I18N_DUMP_MESSAGES=messages.txt cargo test -p vectorcraft-ui-egui
+  complete_languages_translate_every_message` lists them all). The list also holds the messages that open pull
+  requests add without those rows. A change that adds the rows for a listed message removes its line from the list
+  (`VECTORCRAFT_I18N_DUMP_UNTRANSLATED=<file>` writes the messages in the sources that lack a row). Other languages
+  show messages in English until they add `@msg` rows.
 - Not translated on purpose: names that are user data (layers, swatches, fonts, documents), the tab
   title's colour mode, command ids and parameter names inside messages. Not done yet: locale-aware number
   and date formats, right-to-left layout. Chinese and Japanese UI text
@@ -254,7 +275,7 @@ other `sv-*` locale resolve to it), Georgian (`ka`, complete; `ka-GE` and `ka_GE
 
 ## Vendor names gate
 
-`cargo xtask brands` (part of `cargo xtask ci`) fails when user-visible text names another vendor's products or company: string literals in Rust sources (command labels and params docs, menus, panels, MCP tool definitions), `Cargo.toml` descriptions and packaging files. Comments and test code are not checked. Say "the reference app" or name the feature itself. A line that must keep an old name, such as an alias that files or preferences from earlier versions still use, carries a `brand-ok` comment.
+`cargo xtask brands` (part of `cargo xtask ci`) fails when user-visible text names another vendor's products or company: string literals in Rust sources (command labels and params docs, menus, panels, MCP tool definitions), `Cargo.toml` descriptions and packaging files. Comments, test files and `#[cfg(test)]` modules are not checked. Say "the reference app" or name the feature itself. A line that must keep an old name, such as an alias that files or preferences from earlier versions still use, or a name another project defines, such as a shared MIME type, carries a `brand-ok` comment. In the Linux desktop entry, whose comments take whole lines, the comment goes on the `#` line just above it; `MARK_ABOVE` in `xtask/src/brands.rs` lists the files that accept a mark there.
 
 ## Robustness: VectorCraft never crashes
 
@@ -373,6 +394,7 @@ do not replace expected hashes automatically in response to a download mismatch.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-21 | minor | Fonts › Leaving out the bundled fonts: vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features, and the engine declared without default features. |
 | 2026-10-14 | minor | Document the `bundled-fonts` feature of vectorcraft-text and vectorcraft-engine (Fonts › Leaving out the bundled fonts). |
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |

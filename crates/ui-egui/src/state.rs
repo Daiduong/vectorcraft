@@ -224,10 +224,17 @@ pub struct ViewFlags {
     pub corner_widgets: bool,
     /// View → Snap to Pixel.
     pub snap_to_pixel: bool,
+    /// View → Snap to Glyph.
+    #[serde(default)]
+    pub snap_to_glyph: bool,
     /// View → Show/Hide Text Threads.
     pub text_threads: bool,
     /// View → Show/Hide Gradient Annotator.
     pub gradient_annotator: bool,
+    /// View → Show/Hide Live Paint Gaps: draw the gaps of the selected Live Paint groups in their Gap
+    /// Preview Color.
+    #[serde(default)]
+    pub live_paint_gaps: bool,
     /// Type → Show Hidden Characters.
     pub hidden_chars: bool,
     /// View → Hide/Show Template: template layers drawn (dimmed) or left out of the canvas.
@@ -252,8 +259,10 @@ impl Default for ViewFlags {
             trim_view: false,
             corner_widgets: true,
             snap_to_pixel: false,
+            snap_to_glyph: false,
             text_threads: true,
             gradient_annotator: true,
+            live_paint_gaps: false,
             hidden_chars: false,
             templates: true,
         }
@@ -300,6 +309,9 @@ pub struct UiState {
     pub legacy_language: Option<String>,
     pub brightness: Brightness,
     pub dock_tab: DockTab,
+    /// Tab order in the dock's tabbed group when it differs from [`DockTab::ALL`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dock_tab_order: Vec<DockTab>,
     /// The dock's tabbed group (Properties | Layers | Libraries) is collapsed to icons at the top of
     /// the icon column (the dock's double arrow, `window.collapseDock`).
     #[serde(default)]
@@ -410,6 +422,9 @@ pub struct UiState {
     /// Current workspace (Window → Workspace).
     #[serde(default = "default_workspace")]
     pub workspace: String,
+    /// Workspace before Preferences › Devices › Enable Touch Workspace switched to Touch (#394).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub touch_workspace_restore: Option<String>,
     /// User-saved workspaces (New Workspace…).
     #[serde(default)]
     pub custom_workspaces: Vec<crate::workspaces::Workspace>,
@@ -444,6 +459,11 @@ pub struct UiState {
     /// buttons follow ([`crate::panels::align::with_align_to`]).
     #[serde(default, deserialize_with = "crate::panels::align::deserialize_align_to")]
     pub align_to: crate::panels::align::AlignTo,
+    /// Align panel: the Distribute Spacing value in points, which the Distribute Objects and
+    /// Distribute Spacing buttons and their commands send while there is a key object or a key
+    /// guide ([`crate::panels::align::run_button`]). Not saved.
+    #[serde(skip)]
+    pub align_spacing: f64,
     /// Color panel: the mode picked last from its menu (`None`: never picked), in which the panel
     /// shows the defaults for new art ([`crate::panels::color::deserialize_mode`]).
     #[serde(default, deserialize_with = "crate::panels::color::deserialize_mode")]
@@ -488,6 +508,11 @@ pub struct UiState {
     /// dialog opens on them (#1152).
     #[serde(default)]
     pub offset_path: Value,
+    /// The Simplify dialog's fields confirmed last with "Open this dialog with these settings next
+    /// time" ticked (null: not ticked): Object › Path › Simplify opens the dialog on them instead
+    /// of the Simplify slider.
+    #[serde(default)]
+    pub simplify: Value,
     /// The Move dialog's checkboxes as it was last confirmed with (copy, objects, preview; null:
     /// never used): it opens with them.
     #[serde(default)]
@@ -501,7 +526,7 @@ pub struct UiState {
     /// becoming active, leaves it.
     #[serde(skip)]
     pub home: Option<(Option<u64>, usize)>,
-    /// Layers panel › Panel Options… (row size, thumbnails, Show Layers Only).
+    /// Layers panel › Panel Options… (row size, thumbnails, Show Layers Only, Locate Selected Objects).
     #[serde(default)]
     pub layers_panel: crate::panels::layers::PanelOptions,
     /// The Layers panel's Filter (`ui.layersFilter`). It is not saved and lasts the session, as the
@@ -759,6 +784,7 @@ impl Default for UiState {
             legacy_language: None,
             brightness: Brightness::MediumDark,
             dock_tab: DockTab::Properties,
+            dock_tab_order: Vec::new(),
             dock_collapsed: false,
             open_panel: None,
             control_bar: false,
@@ -801,6 +827,7 @@ impl Default for UiState {
             shortcut_overrides: Default::default(),
             shortcut_set: default_shortcut_set(),
             workspace: default_workspace(),
+            touch_workspace_restore: None,
             custom_workspaces: vec![],
             recent_files: vec![],
             recent_fonts: vec![],
@@ -811,6 +838,7 @@ impl Default for UiState {
             flattener_preview: Default::default(),
             color_guide_limit: String::new(),
             align_to: Default::default(),
+            align_spacing: 0.0,
             color_mode: None,
             color_hide_options: false,
             svg_options: Value::Null,
@@ -823,6 +851,7 @@ impl Default for UiState {
             dxf_options: Value::Null,
             eps_options: Value::Null,
             offset_path: Value::Null,
+            simplify: Value::Null,
             move_options: Value::Null,
             dxf_import: Value::Null,
             home: None,

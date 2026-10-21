@@ -130,15 +130,17 @@ fn export_with_report_inner(doc: &Document, opts: &PdfOptions, left_out: &mut Ha
         w.page(&mut ex, &sheet).map_err(|_| PdfError::BadArtboard(i))?;
     }
     vectorcraft_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
-    let (layers, overprinted) = (ex.layers, ex.overprinted);
+    let (layers, overprinted, invisible) = (ex.layers, ex.overprinted, ex.invisible);
     w.absorb(ex);
     let (bytes, more) = w.finish(left_out)?;
-    let bytes = crate::forms::finish(bytes, doc, set, layers, overprinted)?;
+    let bytes = crate::forms::finish(bytes, doc, set, layers, overprinted, invisible)?;
     // The writer gives the file its creation date as its modification date too.
     let bytes = match opts.modified.filter(|m| Some(*m) != created_at) {
         Some(modified) => crate::post::modification_date(bytes, modified)?,
         None => bytes,
     };
+    // The writer's metadata has no copyright: it is added to the XMP packet.
+    let bytes = crate::post::rights(bytes, &doc.metadata)?;
     warnings.extend(more);
     let bytes = crate::post::user_units(bytes, &units)?;
     let bytes = crate::post::finish(bytes, opts, native.is_some(), &mut warnings)?;
@@ -597,6 +599,8 @@ pub(crate) struct Exporter<'a> {
     pub overprint: bool,
     /// An overprinting fill or stroke was drawn so.
     pub overprinted: bool,
+    /// Characters with neither fill nor stroke were written as text in forms marked invisible.
+    pub invisible: bool,
     /// Inline graphics being drawn inside inline graphics (text in a symbol shown inline in
     /// text…): deeper ones are left out.
     inline_depth: u32,
@@ -639,6 +643,7 @@ impl<'a> Exporter<'a> {
             in_layer: 0,
             overprint: false,
             overprinted: false,
+            invisible: false,
             inline_depth: 0,
             left_out: HashSet::new(),
         }
@@ -1528,11 +1533,13 @@ impl Exporter<'_> {
         // pushed for each fill and stroke of the characters, inside its form when the fill or
         // stroke overprints.
         let text_space = xf(t.xf);
-        let plain = (!self.outline_text).then(|| t.plain_text());
+        // Ruby can't be real text in one run (it isn't characters of the base text): the type's
+        // characters go out as outlines where ruby is present, ruby included.
+        let plain = (!self.outline_text && t.ruby.is_empty()).then(|| t.plain_text());
         let bars = vectorcraft_text::decorations(&layout, vectorcraft_text::FontDb::global(), t);
         for (i, run) in t.runs.iter().enumerate() {
             let mut bp = BezPath::new();
-            for g in layout.glyphs.iter().filter(|g| g.run == i) {
+            for g in layout.glyphs.iter().filter(|g| g.run == i).chain(layout.ruby.iter().filter(|g| g.run == i)) {
                 bp.extend(g.outline.iter());
             }
             // Underline and strikethrough bars are paths, with real text too (#847).
@@ -1564,6 +1571,18 @@ impl Exporter<'_> {
                 }
                 s.pop();
             });
+            // Characters with neither fill nor stroke (a scanned page's recognized text) are still
+            // text: written invisible (rendering mode 3), so they can still be selected and searched.
+            if let Some(text) = plain.as_deref().filter(|_| fill.is_none() && !run.style.has_stroke()) {
+                self.invisible = true;
+                crate::forms::form(s, Mark::Invisible, |s| {
+                    s.push_transform(&text_space);
+                    // The paint only lets the writer write the text; the glyphs it can't write
+                    // as text draw nothing.
+                    self.glyph_text(s, &layout, i, text, &Paint::solid(Color::gray(0.0)));
+                    s.pop();
+                });
+            }
             s.push_transform(&text_space);
             let path = run.style.has_stroke().then(|| to_path(s, &bp)).flatten();
             s.pop();
