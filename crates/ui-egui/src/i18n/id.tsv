@@ -1378,6 +1378,7 @@ lighting	Light	Cahaya
 	{count} more rules: Export writes every one.	{count} aturan lagi: Ekspor menuliskan semuanya.
 	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	{count} objek tanpa nama tidak disertakan: beri nama, atau aktifkan Objek Tanpa Nama di menu panel.
 	All Categories	Semua kategori
+	Repeat Objects	Objek pengulangan
 	Save…	Simpan…
 	Selection Only	Hanya seleksi
 	{title} (selection)	{title} (seleksi)
@@ -1411,6 +1412,7 @@ lighting	Light	Cahaya
 	Edit the selected point's colour in the Color panel	Edit warna titik terpilih di panel Warna
 	Edit the stop	Edit stop
 	Eyedropper: click the art to sample the stop's colour	Pipet: klik karya seni untuk mengambil sampel warna stop
+	Eyedropper: click the art to sample the key color	Pipet: klik karya seni untuk mengambil sampel warna kunci
 	Gradient across stroke	Gradien melintasi stroke
 	Gradient along stroke	Gradien sepanjang stroke
 	Gradient Fill: click to apply, drag onto art	Isian gradien: klik untuk menerapkan, seret ke karya seni
@@ -1856,6 +1858,13 @@ lighting	Light	Cahaya
 	Tints and Shades	Tint dan shade
 	Hue Shift	Pergeseran rona
 	Key Color:	Warna kunci:
+	Tips	Kiat
+	Colorization Tips	Kiat pewarnaan
+	The samples show this brush on a blue stroke.	Contoh menampilkan kuas ini pada stroke biru.
+	The art keeps its own colors.	Karya seni mempertahankan warnanya sendiri.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Hitam menjadi warna stroke dan putih tetap putih. Warna lain menjadi tint dari warna stroke, dan makin terang suatu warna, makin terang tint-nya.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Hitam tetap hitam dan putih tetap putih. Warna lain menjadi shade dari warna stroke jika gelap dan tint darinya jika terang.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Warna kunci menjadi warna stroke. Warna lain bergeser di roda warna sejauh warna kunci bergeser dan mempertahankan saturasi serta kecerahannya.
 	Size:	Ukuran:
 	Calligraphic Brush Options	Opsi kuas kaligrafi
 	Bristle Brush Options	Opsi kuas bristle
@@ -2672,12 +2681,21 @@ lighting	Light	Cahaya
 	Darken	Menggelapkan
 	Exclusion	Pengecualian
 	Hard Light	Cahaya keras
+	Hard Mix	Campuran keras
 	Lighten	Menerangkan
 	Luminosity	Luminositas
 	Overlay	Menimpa
 	Soft Light	Cahaya lembut
+	Soft Mix	Campuran lembut
 	Crosshatch	Arsir silang
 	Fine Dots	Titik halus
+
+	Simple	Sederhana
+	Light Rough	Kasar terang
+	Dark Rough	Kasar gelap
+	Wide Sharp	Lebar tajam
+	Wide Blurry	Lebar buram
+	Sparkle	Kilau
 	Medium Dots	Titik sedang
 	Grainy Dots	Titik berbutir
 	Coarse Dots	Titik kasar
@@ -2749,6 +2767,14 @@ theme	Appearance	Tampilan
 	Edit Symbol	Edit simbol
 	Expand Brush Strokes	Perluas guratan kuas
 	New Brush…	Kuas baru…
+	New Brush	Kuas baru
+	Calligraphic Brush	Kuas kaligrafi
+	Scatter Brush	Kuas sebar
+	Art Brush	Kuas seni
+	Bristle Brush	Kuas bristle
+	Pattern Brush	Kuas pola
+	Select art to make a scatter, art or pattern brush.	Pilih karya seni untuk membuat kuas sebar, seni, atau pola.
+	Brush Art	Karya seni kuas
 	New Symbol	Simbol baru
 	New Symbol…	Simbol baru…
 	Place Symbol Instance	Tempatkan instansi simbol
@@ -3209,6 +3235,7 @@ theme	Appearance	Tampilan
 	Scale Corners	Skalakan sudut
 	Scale Cursor Proportional to UI	Skalakan kursor proporsional dengan UI
 	Scale Strokes & Effects	Skalakan guratan & efek
+	Scale Text Attributes	Skalakan atribut teks
 	Scratch Disks	Disk scratch
 	Secondary	Sekunder
 	Select Same Tint %	Pilih tint yang sama %
@@ -3309,6 +3336,7 @@ theme	Appearance	Tampilan
 	Delete Swatch	Hapus sampel
 	Duplicate Swatch	Duplikatkan sampel
 	Merge Swatches	Gabungkan sampel
+	Move Brush	Pindahkan kuas
 	Move Swatch	Pindahkan sampel
 	New Color Group	Grup warna baru
 	New Swatch	Sampel baru
@@ -4029,6 +4057,7 @@ imageTrace	Outline	Kontur
 @msg	no bounds	tidak ada batas
 @msg	no brush named `{name}`	tidak ada kuas bernama `{name}`
 @msg	no brush selected	tidak ada kuas yang dipilih
+@msg	brushes move only within their type	kuas hanya dapat dipindahkan di dalam jenisnya sendiri
 @msg	no catalog	tidak ada katalog
 @msg	no changes since the last save	tidak ada perubahan sejak penyimpanan terakhir
 @msg	no clock to keep a heartbeat by	tidak ada jam untuk menjaga detak
@@ -4807,6 +4836,9 @@ mark-style	Japanese	Jepang
 	Softness	Kelembutan
 	Ambient Light	Cahaya ambient
 	Light behind the object	Cahaya di belakang objek
+	3D Lighting Preset	Preset Pencahayaan 3D
+	Standard	Standar
+	Diffuse	Difus
 # 3D light management.
 	Lights	Lampu
 	Add Light	Tambah Lampu
@@ -4851,6 +4883,7 @@ mark-style	Japanese	Jepang
 	Painting	Painting
 	Printing and Proofing	Printing and Proofing
 	Tracing	Tracing
+	Touch	Touch
 	Typography	Typography
 	VectorCraft	VectorCraft
 	Web	Web
@@ -4917,6 +4950,7 @@ mark-style	Japanese	Jepang
 @msg	Measured anchor no longer exists	Titik jangkar yang diukur sudah tidak ada
 @msg	Measured segment no longer exists	Segmen yang diukur sudah tidak ada
 @msg	Non-finite dimension	Dimensi bukan bilangan berhingga
+@msg	Scale Text Attributes: selected type has no scale to bake	Skalakan atribut teks: teks yang dipilih tidak memiliki skala untuk diterapkan
 @msg	Scale must be drawing:real, for example 1:10	Skala harus dalam format gambar:sebenarnya, misalnya 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Rasio skala harus antara 1:1000000 dan 1000000:1
 @msg	Second measured segment no longer exists	Segmen yang diukur kedua sudah tidak ada
@@ -4943,6 +4977,8 @@ mark-style	Japanese	Jepang
 	Make Image Dynamic	Jadikan gambar dinamis
 	Import Data Sets…	Impor himpunan data…
 	Export Data Sets…	Ekspor himpunan data…
+	Load Variable Library…	Muat pustaka variabel…
+@msg	variables that aren't text were left out: {kinds}	variabel yang bukan teks dihilangkan: {kinds}
 	Make Graph Dynamic	Jadikan grafik dinamis
 	Batch…	Batch…
 	Source Folder:	Folder sumber:
@@ -5147,12 +5183,24 @@ swatch	Bright Violet	Violet cerah
 	Lock Variables	Kunci variabel
 	Unlock Variables	Buka kunci variabel
 	Change to Artboard Rulers	Ubah ke penggaris artboard
+	Colored Pencil…	Pensil warna…
+	Colored Pencil	Pensil warna
 	Cutout…	Potongan…
+	Dry Brush…	Kuas kering…
 	Neon Glow…	Pendar neon…
+	Palette Knife…	Pisau palet…
 	Poster Edges…	Tepi poster…
+	Rough Pastels…	Pastel kasar…
 	Cutout	Potongan
+	Dry Brush	Kuas kering
 	Neon Glow	Pendar neon
+	Paint Daubs…	Coretan cat…
+	Paint Daubs	Coretan cat
+	Palette Knife	Pisau palet
 	Poster Edges	Tepi poster
+	Rough Pastels	Pastel kasar
+	Underpainting…	Underpainting…
+	Underpainting	Underpainting
 	Apply Data Set	Terapkan set data
 	Cancel Pattern Editing	Batalkan pengeditan pola
 	Copy Appearance	Salin tampilan
@@ -5229,6 +5277,7 @@ swatch	Bright Violet	Violet cerah
 	Thread Text	Untai teks
 	Typing	Mengetik
 	Persistent	Persisten
+	Locate Library…	Temukan pustaka…
 	Library Panel Options	Opsi panel pustaka
 	Artboard {n} of {total}	Artboard {n} dari {total}
 	Encoding and writing the file…	Mengodekan dan menulis berkas…
@@ -5255,6 +5304,7 @@ swatch	Bright Violet	Violet cerah
 	Watercolor…	Cat air…
 	Watercolor	Cat air
 	Brush Size	Ukuran kuas
+	Texture Coverage	Cakupan tekstur
 	Definition	Definisi
 	Brush Detail	Detail kuas
 	Shadow Intensity	Intensitas bayangan
@@ -5288,3 +5338,5 @@ swatch	Bright Violet	Violet cerah
 	Note Paper	Kertas Catatan
 	Water Paper…	Kertas Basah…
 	Water Paper	Kertas Basah
+	Ruby…	Ruby…
+	Ruby	Ruby
