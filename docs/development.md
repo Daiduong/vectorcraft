@@ -1,5 +1,7 @@
 # Development
 
+> **2026-10-21 security follow-up (M4):** Linux session-bus handoff opens documents only. Files classified by `io::opens_as` as plug-ins, presets, libraries, shortcut sets or scripts are refused before reading, so forwarding cannot install or replace plug-ins or import settings. Use the app’s local File Open or plug-in installation controls for those files. Scores and estimates unchanged.
+
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
@@ -21,6 +23,10 @@ running app and exits after the request is queued. The app opens them through th
 File Open path as document tabs, waiting until native file dialogs and in-app dialogs close.
 Requests received during startup wait for the first UI frame. The bus releases ownership
 when the app exits; no lock file cleanup is needed. A launch without files activates the window.
+Forwarded paths are checked against the same non-document classification used by File Open
+(`io::opens_as`) before any read. Plug-ins, presets, libraries, shortcut sets and scripts show
+an error instead of invoking their special handlers. Local File Open and Install Plug-in
+remain unchanged. This prevents IPC from silently changing the running plug-in registry.
 Window focus remains subject to the desktop compositor's focus policy.
 
 `--control` / `VECTORCRAFT_CONTROL_PORT` and `VECTORCRAFT_NO_PREFS` runs remain independent

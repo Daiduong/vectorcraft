@@ -88,7 +88,19 @@ impl Instance {
             && app.ui.dialog.is_none()
             && let Some(files) = self.take()
         {
-            super::open_files(app, files);
+            for file in files {
+                // IPC grants document opening only. File Open also installs plug-ins and
+                // imports settings/libraries; those actions require an explicit local choice.
+                if vectorcraft_ui_egui::io::opens_as(&file).is_some() {
+                    vectorcraft_ui_egui::io::report_open_error(
+                        app,
+                        &file,
+                        "Forwarded requests can only open documents. Open this file from within VectorCraft instead.",
+                    );
+                } else {
+                    super::open_files(app, vec![file]);
+                }
+            }
             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
@@ -146,17 +158,33 @@ mod tests {
         let builder = || zbus::blocking::connection::Builder::address(address.trim()).unwrap();
         let Launch::Primary(first) = start_on(builder(), &[], OpenDocuments::default()).unwrap() else { panic!("first launch") };
         first.set_ui(&egui::Context::default());
-        assert!(matches!(start_on(builder(), &["a b.svg".into(), "/tmp/日本語.svg".into()], OpenDocuments::default()).unwrap(), Launch::Forwarded));
+        assert!(matches!(
+            start_on(builder(), &["a b.svg".into(), "/tmp/日本語.svg".into(), "/tmp/external.WASM".into()], OpenDocuments::default()).unwrap(),
+            Launch::Forwarded
+        ));
         let files = first.documents.0.lock().unwrap().files.clone();
-        assert_eq!(files, [std::env::current_dir().unwrap().join("a b.svg").to_string_lossy(), "/tmp/日本語.svg".into()]);
+        assert_eq!(
+            files,
+            [std::env::current_dir().unwrap().join("a b.svg").to_string_lossy(), "/tmp/日本語.svg".into(), "/tmp/external.WASM".into()]
+        );
         // Exercise the actual desktop file-opening path with an existing unsaved document.
+        let special_reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let reads = special_reads.clone();
         let services = vectorcraft_ui_egui::Services {
-            read: Some(Box::new(|_| {
+            read: Some(Box::new(move |path| {
+                if vectorcraft_ui_egui::io::opens_as(path).is_some() {
+                    reads.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+                if vectorcraft_ui_egui::io::opens_as(path) == Some(vectorcraft_ui_egui::io::OpensAs::Plugin) {
+                    return Ok(include_bytes!("../../../crates/plugins/tests/fixtures/desaturate.wasm").to_vec());
+                }
                 Ok(br#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="10" height="10"/></svg>"#.to_vec())
             })),
             ..Default::default()
         };
         let mut app = vectorcraft_ui_egui::VectorcraftApp::new(vectorcraft_engine::Session::new(), services);
+        let plugin = serde_json::json!({"id": "org.vectorcraft.example.desaturate"});
+        assert!(app.run("plugin.info", plugin.clone()).is_err());
         app.run("file.new", serde_json::json!({"width": 100, "height": 100})).unwrap();
         app.run("shape.rectangle", serde_json::json!({"x": 1, "y": 1, "width": 5, "height": 5})).unwrap();
         let original = app.session.documents()[0].doc.clone();
@@ -168,6 +196,10 @@ mod tests {
         assert_eq!(first.documents.0.lock().unwrap().files, files, "queued files wait for the dialog");
         app.ui.dialog = None;
         first.dispatch(&mut app, &ctx);
+        assert!(app.run("plugin.info", plugin.clone()).is_err(), "forwarded files cannot install plug-ins in the running editor");
+        assert_eq!(special_reads.load(std::sync::atomic::Ordering::Relaxed), 0, "reject before reading the module");
+        assert!(app.ui.dialog.as_ref().unwrap().str("detail").contains("only open documents"));
+        app.ui.dialog = None; // The user closes the refusal before queued documents finish.
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         while !app.opening.pending.is_empty() && std::time::Instant::now() < deadline {
             vectorcraft_ui_egui::opening::poll(&mut app);
@@ -179,6 +211,14 @@ mod tests {
         assert!(app.session.documents()[0].is_dirty());
         assert_ne!(app.session.active_index(), Some(0));
         assert!(first.take().is_none());
+        // Deliberate local installation still works, and IPC cannot replace that plug-in.
+        vectorcraft_ui_egui::io::open_path(&mut app, "/tmp/manual.wasm").unwrap();
+        let installed = app.run("plugin.info", plugin.clone()).unwrap();
+        assert!(matches!(start_on(builder(), &["/tmp/external.WASM".into()], OpenDocuments::default()).unwrap(), Launch::Forwarded));
+        first.dispatch(&mut app, &ctx);
+        assert_eq!(app.run("plugin.info", plugin).unwrap(), installed, "forwarding must not replace an installed plug-in");
+        assert_eq!(special_reads.load(std::sync::atomic::Ordering::Relaxed), 1, "only the explicit local install reads the module");
+        app.ui.dialog = None;
         assert!(matches!(start_on(builder(), &[], OpenDocuments::default()).unwrap(), Launch::Forwarded));
         assert_eq!(first.take(), Some(vec![]));
         drop(first);

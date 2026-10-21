@@ -1,5 +1,7 @@
 # Gaps
 
+> **2026-10-21 security follow-up (M4):** Linux session-bus handoff opens documents only. Files classified by `io::opens_as` as plug-ins, presets, libraries, shortcut sets or scripts are refused before reading, so forwarding cannot install or replace plug-ins or import settings. Use the app’s local File Open or plug-in installation controls for those files. Scores and estimates unchanged.
+
 > **2026-10-21 review follow-up (M3):** highlighted-text Eyedropper sampling explicitly refuses enabled non-neutral object transparency before changing art or defaults. Disable Transparency to sample supported attributes. Opacity/blend rejection and opt-out regression-tested; scores and estimates unchanged.
 
 > **2026-10-21 update (M3/Eyedropper text ranges):** choosing Eyedropper from highlighted
