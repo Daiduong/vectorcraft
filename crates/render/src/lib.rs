@@ -2516,26 +2516,25 @@ fn fill_rule(r: FillRule) -> peniko::Fill {
 
 pub(crate) fn blend_mode(b: vectorcraft_color::BlendMode) -> BlendMode {
     use vectorcraft_color::BlendMode as B;
-    let (mix, compose) = match b {
-        B::Erase => (Mix::Normal, Compose::DestOut),
-        B::Normal => (Mix::Normal, Compose::SrcOver),
-        B::Darken => (Mix::Darken, Compose::SrcOver),
-        B::Multiply => (Mix::Multiply, Compose::SrcOver),
-        B::ColorBurn => (Mix::ColorBurn, Compose::SrcOver),
-        B::Lighten => (Mix::Lighten, Compose::SrcOver),
-        B::Screen => (Mix::Screen, Compose::SrcOver),
-        B::ColorDodge => (Mix::ColorDodge, Compose::SrcOver),
-        B::Overlay => (Mix::Overlay, Compose::SrcOver),
-        B::SoftLight => (Mix::SoftLight, Compose::SrcOver),
-        B::HardLight => (Mix::HardLight, Compose::SrcOver),
-        B::Difference => (Mix::Difference, Compose::SrcOver),
-        B::Exclusion => (Mix::Exclusion, Compose::SrcOver),
-        B::Hue => (Mix::Hue, Compose::SrcOver),
-        B::Saturation => (Mix::Saturation, Compose::SrcOver),
-        B::Color => (Mix::Color, Compose::SrcOver),
-        B::Luminosity => (Mix::Luminosity, Compose::SrcOver),
+    let mix = match b {
+        B::Normal => Mix::Normal,
+        B::Darken => Mix::Darken,
+        B::Multiply => Mix::Multiply,
+        B::ColorBurn => Mix::ColorBurn,
+        B::Lighten => Mix::Lighten,
+        B::Screen => Mix::Screen,
+        B::ColorDodge => Mix::ColorDodge,
+        B::Overlay => Mix::Overlay,
+        B::SoftLight => Mix::SoftLight,
+        B::HardLight => Mix::HardLight,
+        B::Difference => Mix::Difference,
+        B::Exclusion => Mix::Exclusion,
+        B::Hue => Mix::Hue,
+        B::Saturation => Mix::Saturation,
+        B::Color => Mix::Color,
+        B::Luminosity => Mix::Luminosity,
     };
-    BlendMode::new(mix, compose)
+    BlendMode::new(mix, Compose::SrcOver)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

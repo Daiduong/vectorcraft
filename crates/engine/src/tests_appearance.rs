@@ -166,26 +166,6 @@ fn transparency_goes_to_the_targeted_item() {
 }
 
 #[test]
-fn erase_blend_mode_is_stored_and_reverts_to_normal() {
-    let mut s = session();
-    let back = run(&mut s, "shape.rectangle", json!({"x": 0, "y": 0, "width": 200, "height": 200}))["id"].as_u64().unwrap();
-    let top = run(&mut s, "shape.rectangle", json!({"x": 50, "y": 50, "width": 100, "height": 100}))["id"].as_u64().unwrap();
-    run(&mut s, "transparency.set", json!({"ids": [top], "blend": "erase", "opacity": 50}));
-    assert_eq!(node(&s, NodeId(top)).blend, BlendMode::Erase);
-    let hole = vectorcraft_render::Renderer::new()
-        .render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &Default::default())
-        .pixel(100, 100);
-    assert!(hole[3] < 200, "erase thins the backdrop: {hole:?}");
-    run(&mut s, "transparency.set", json!({"ids": [top], "blend": "normal"}));
-    assert_eq!(node(&s, NodeId(top)).blend, BlendMode::Normal);
-    let solid = vectorcraft_render::Renderer::new()
-        .render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &Default::default())
-        .pixel(100, 100);
-    assert!(solid[3] > hole[3], "normal shows the top colour again: {solid:?}");
-    let _ = back;
-}
-
-#[test]
 fn group_rows_are_the_groups_own_stack() {
     let mut s = session();
     let a = rect(&mut s, 100.0);

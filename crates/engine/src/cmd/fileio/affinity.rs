@@ -197,9 +197,8 @@ impl Builder {
             Blend::Saturation => BlendMode::Saturation,
             Blend::Color => BlendMode::Color,
             Blend::Luminosity => BlendMode::Luminosity,
-            Blend::Erase => BlendMode::Erase,
             _ => {
-                self.warn("blend modes VectorCraft doesn't have (Add, Linear Light, Vivid Light, Pin Light, Hard Mix, Subtract, Darker/Lighter Colour, Average, Negation, Reflect, Glow) import as Normal");
+                self.warn("blend modes VectorCraft doesn't have (Add, Linear Light, Vivid Light, Pin Light, Hard Mix, Subtract, Darker/Lighter Colour, Average, Negation, Reflect, Glow, Erase) import as Normal");
                 BlendMode::Normal
             }
         }

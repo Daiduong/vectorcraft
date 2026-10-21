@@ -78,9 +78,6 @@ fn tolerance(mode: Blend) -> i32 {
 fn every_mode_matches_the_reference_formulas() {
     let mut r = Renderer::new();
     for mode in Blend::ALL {
-        if mode == Blend::Erase {
-            continue;
-        }
         for level in [Level::Object, Level::Fill, Level::Group] {
             for (b, s) in PAIRS {
                 let px = r.render(&doc(mode, level, b, s), 20, 20, Affine::IDENTITY, &RenderOptions::default()).pixel(10, 10);
@@ -98,9 +95,6 @@ fn every_mode_matches_the_reference_formulas() {
 fn a_translucent_source_mixes_the_blend_by_its_opacity() {
     let mut r = Renderer::new();
     for mode in Blend::ALL {
-        if mode == Blend::Erase {
-            continue;
-        }
         let (b, s) = PAIRS[0];
         let mut d = doc(mode, Level::Object, b, s);
         let top = d.layers[0].children().unwrap()[1].id;
@@ -112,19 +106,4 @@ fn a_translucent_source_mixes_the_blend_by_its_opacity() {
         // The opacity is one more 8-bit step.
         assert!(within([px[0], px[1], px[2]], want, tolerance(mode) + 1), "{mode:?}: {px:?}, want {want:?}");
     }
-}
-
-#[test]
-fn erase_mode_cuts_the_backdrop_where_the_source_covers_it() {
-    let mut r = Renderer::new();
-    let (b, s) = PAIRS[0];
-    let px = r.render(&doc(Blend::Erase, Level::Object, b, s), 20, 20, Affine::IDENTITY, &RenderOptions::default()).pixel(10, 10);
-    assert!(px[3] < 10, "erase punches a hole: {px:?}");
-    let mut d = doc(Blend::Erase, Level::Object, b, s);
-    let top = d.layers[0].children().unwrap()[1].id;
-    d.node_mut(top).unwrap().opacity = 0.5;
-    let px = r.render(&d, 20, 20, Affine::IDENTITY, &RenderOptions::default()).pixel(10, 10);
-    let f = |c: [u8; 3], a: f32| [c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0, a];
-    let want = vectorcraft_color::blend::composite(Blend::Erase, f(b, 1.0), f(s, 0.5));
-    assert!((px[3] as f32 / 255.0 - want[3]).abs() < 0.02, "{px:?}, want alpha {want:?}");
 }

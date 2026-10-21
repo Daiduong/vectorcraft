@@ -749,8 +749,6 @@ fn blend(b: BlendMode) -> krilla::blend::BlendMode {
         BlendMode::Saturation => K::Saturation,
         BlendMode::Color => K::Color,
         BlendMode::Luminosity => K::Luminosity,
-        // PDF's standard blend-mode list has no destination-out; flatten or re-export through SVG for now.
-        BlendMode::Erase => K::Normal,
     }
 }
 

@@ -24,7 +24,7 @@ fn text(d: &Document) -> String {
 
 #[test]
 fn every_blend_mode_is_written_under_its_pdf_name_and_read_back() {
-    for mode in BlendMode::ALL.into_iter().filter(|m| *m != BlendMode::Normal && *m != BlendMode::Erase) {
+    for mode in BlendMode::ALL.into_iter().filter(|m| *m != BlendMode::Normal) {
         let mut d = Document::new(100.0, 100.0);
         add(&mut d, rect(Rect::new(0.0, 0.0, 100.0, 100.0), (0.2, 0.5, 0.9)));
         let mut top = rect(Rect::new(20.0, 20.0, 80.0, 80.0), (0.6, 0.25, 0.5));
