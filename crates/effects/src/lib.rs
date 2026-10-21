@@ -20,6 +20,8 @@
 //!   art painting its members (its raster effects then apply to the composite).
 //! - [`clip_outline`] is the region a clip group clips to, shared by the renderer and the SVG and
 //!   PDF writers.
+//! - [`preview`] measures objects as they are drawn, with their geometry effects (Use Preview
+//!   Bounds).
 //! - **Plug-in effects** (`plugin.<plug-in id>`, Effect › Plug-ins) are geometry effects run by an
 //!   installed WebAssembly plug-in (`vectorcraft-plugins`); [`effect_info`] describes them like
 //!   built-in ones, and an effect whose plug-in isn't installed leaves the geometry as it is.
@@ -41,6 +43,7 @@ mod lighting;
 mod live;
 mod marks;
 pub mod pixel;
+pub mod preview;
 mod raster;
 mod reshape;
 mod revolve;
@@ -56,7 +59,7 @@ mod tests;
 mod tests_scale;
 
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{AppearanceItem, Effect, Node, NodeKind, StrokeLayer};
+use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind, StrokeLayer};
 use vectorcraft_geom::{BezPath, FillRule, PathData, Rect};
 
 pub use adjust::{
@@ -155,6 +158,8 @@ fn lengths_of(id: &str) -> Lengths {
         "texture.stainedGlass" => always(&["cellSize"]),
         "sketch.graphicPen" => always(&["strokeLength"]),
         "sketch.halftonePattern" => always(&["size"]),
+        "sketch.notePaper" => always(&["relief"]),
+        "sketch.waterPaper" => always(&["fiberLength"]),
         RASTERIZE => always(&["addAround"]),
         _ => Lengths::default(),
     }
@@ -535,8 +540,15 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "sketch.halftonePattern",
             "Halftone Pattern…",
             SKETCH,
-            "{size: pt 1..12 (1; how far apart the screen's dots, rings or lines are), contrast: 0..50 (5; 50 draws pure black and white), patternType: \"circle\"|\"dot\"|\"line\" (\"dot\"; rings round the object's centre, dots on a square grid, horizontal lines)} redraws the object in black ink on white paper through a halftone screen whose ink covers as much as the colour is dark, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{size: pt 1..12 (1; how far apart the screen's dots, rings or lines are), contrast: 0..50 (5; 50 draws pure black and white), patternType: \"circle\"|\"dot\"|\"line\" (\"dot\"; rings round the object's centre, dots on a square grid, horizontal lines)} redraws the object in black ink on white paper through a halftone screen whose ink covers as much as the colour is dark, keeping its coverage. Original visual approximation from the public Sketch effects reference; slider ranges follow the documented control names, numeric defaults are chosen for VectorCraft and are not verified against proprietary defaults (the public help pages give no numbers).",
             json!({"size": 1.0, "contrast": 5.0, "patternType": "dot"}),
+        ),
+        r(
+            "sketch.notePaper",
+            "Note Paper…",
+            SKETCH,
+            "{imageBalance: 0..50 (25; lower tones darken the emboss, higher lighten it), graininess: 0..10 (0; fibrous paper texture), relief: 0..50 (4; emboss strength in points)} embosses the object's tones on warm paper, keeping its coverage. Original visual approximation from the public Sketch effects reference; slider ranges follow the documented control names, numeric defaults are chosen for VectorCraft and are not verified against proprietary defaults (the public help pages give no numbers).",
+            json!({"imageBalance": 25.0, "graininess": 0.0, "relief": 4.0}),
         ),
         r(
             "sketch.photocopy",
@@ -565,6 +577,13 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             SKETCH,
             "{lightDarkBalance: 0..50 (25; the larger, the more of the object prints black), smoothness: 1..50 (5; rounds the shapes)} simplifies the object to solid black and white, as a rubber stamp would print it. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
             json!({"lightDarkBalance": 25.0, "smoothness": 5.0}),
+        ),
+        r(
+            "sketch.waterPaper",
+            "Water Paper…",
+            SKETCH,
+            "{fiberLength: pt 3..50 (15; scale of paper fibers and blotchy daubs), brightness: 0..100 (50), contrast: 0..100 (50)} washes the object's colours as if painted on damp fibrous paper, with soft flow and a fibrous modulation. Public helpx names Fiber Length, Brightness and Contrast but not slider ranges or dialog defaults; ranges and defaults here are unverified VectorCraft choices. Original visual approximation, not a proprietary reproduction.",
+            json!({"fiberLength": 15.0, "brightness": 50.0, "contrast": 50.0}),
         ),
         r(
             "stylize.glowingEdges",
@@ -933,6 +952,12 @@ pub struct GeomContext<'a> {
     /// The seed of the Transform effect's Random: the object's id, so each object varies its own
     /// way and keeps its result on every redraw.
     pub seed: u64,
+    /// The object's appearance, which live-effect plug-ins are given read only (their fills and
+    /// strokes).
+    pub appearance: Option<&'a Appearance>,
+    /// The index in `appearance.items` of the fill or stroke whose own effects these are; `None`:
+    /// the object's effects.
+    pub item: Option<usize>,
 }
 
 impl<'a> GeomContext<'a> {
@@ -942,15 +967,17 @@ impl<'a> GeomContext<'a> {
             NodeKind::Path { rule, .. } | NodeKind::Compound { rule, .. } => *rule,
             _ => FillRule::NonZero,
         };
-        Self { stroke: n.appearance.stroke().filter(|s| !s.paint.is_none() && s.width > 0.0), rule, seed: n.id.0 }
+        let stroke = n.appearance.stroke().filter(|s| !s.paint.is_none() && s.width > 0.0);
+        Self { stroke, rule, seed: n.id.0, appearance: Some(&n.appearance), item: None }
     }
 
     /// The context of the effects on `item`, one of the same object's appearance items: a
-    /// stroke's own effects outline that stroke.
+    /// stroke's own effects outline that stroke, and a plug-in is told which item it is on.
     pub fn item(self, item: &'a AppearanceItem) -> Self {
+        let at = self.appearance.and_then(|a| a.items.iter().position(|i| std::ptr::eq(i, item)));
         match item {
-            AppearanceItem::Stroke(s) => Self { stroke: Some(s), ..self },
-            AppearanceItem::Fill(_) => self,
+            AppearanceItem::Stroke(s) => Self { stroke: Some(s), item: at, ..self },
+            AppearanceItem::Fill(_) => Self { item: at, ..self },
         }
     }
 }
@@ -989,7 +1016,8 @@ pub fn apply_geometry_bez(effects: &[Effect], path: &BezPath, bounds: Rect, ctx:
 pub(crate) fn apply_one(id: &str, p: &Value, path: &PathData, b: Rect, ctx: &GeomContext) -> PathData {
     use util::*;
     if let Some(plugin) = vectorcraft_plugins::effect::plugin_id(id) {
-        return vectorcraft_plugins::effect::apply(plugin, p, path, b, ctx.rule).unwrap_or_else(|| path.clone());
+        let paints = vectorcraft_plugins::effect::Paints { appearance: ctx.appearance, item: ctx.item };
+        return vectorcraft_plugins::effect::apply(plugin, p, path, b, ctx.rule, paints).unwrap_or_else(|| path.clone());
     }
     match id {
         "distort.freeDistort" => distort::free_distort(path, b, p),

@@ -2,7 +2,7 @@
 //! Poster Edges, Smudge Stick, Sponge and Watercolor, Blur › Radial Blur and Smart Blur, Brush Strokes › Accented Edges, Angled Strokes,
 //! Crosshatch, Dark Strokes, Ink Outlines, Spatter, Sprayed Strokes and Sumi-e, Distort › Diffuse
 //! Glow, Glass and Ocean Ripple, Pixelate › Color Halftone, Crystallize, Mezzotint and Pointillize,
-//! Sharpen › Unsharp Mask, Sketch › Chalk & Charcoal, Graphic Pen, Halftone Pattern, Plaster and
+//! Sharpen › Unsharp Mask, Sketch › Chalk & Charcoal, Graphic Pen, Halftone Pattern, Note Paper, Plaster and
 //! Reticulation, Stylize ›
 //! Glowing Edges, Texture
 //! › Craquelure, Grain, Mosaic Tiles, Patchwork, Stained Glass and Texturizer, and Video ›
@@ -43,7 +43,7 @@ pub use sketch::{HALFTONE_TYPES, HalftonePattern};
 pub use texture::{GRAIN_TYPES, Grain, LIGHT_DIRECTIONS, Light, TEXTURES, Texture};
 
 /// The Photoshop-style effect ids (all raster effects, see [`crate::is_raster`]).
-pub const PIXEL_EFFECTS: [&str; 45] = [
+pub const PIXEL_EFFECTS: [&str; 47] = [
     "artistic.cutout",
     "artistic.filmGrain",
     "artistic.neonGlow",
@@ -76,10 +76,12 @@ pub const PIXEL_EFFECTS: [&str; 45] = [
     "sketch.chrome",
     "sketch.graphicPen",
     "sketch.halftonePattern",
+    "sketch.notePaper",
     "sketch.photocopy",
     "sketch.plaster",
     "sketch.reticulation",
     "sketch.stamp",
+    "sketch.waterPaper",
     "stylize.glowingEdges",
     "texture.craquelure",
     "texture.grain",
@@ -180,6 +182,8 @@ pub enum PixelFx {
     /// Sketch › Halftone Pattern: black ink on white paper through a `kind` screen of cells `size`
     /// (1..12) apart, its edges as hard as `contrast` (0..50) says.
     HalftonePattern { size: f64, contrast: f64, kind: HalftonePattern },
+    /// Sketch › Note Paper: embossed tones on fibrous paper (`balance`, `graininess`, `relief`).
+    NotePaper { balance: f64, graininess: f64, relief: f64 },
     /// Sketch › Bas Relief: low relief lit from `light`, keeping the finer features as `detail`
     /// (1..15) says and rounded by `smoothness` (1..15).
     BasRelief { detail: f64, smoothness: f64, light: Light },
@@ -199,6 +203,10 @@ pub enum PixelFx {
     /// Sketch › Reticulation: black ink on white paper through a high-contrast film-grain screen;
     /// `density` (0..50), `foreground` and `background` (0..50) pull tones before the grain.
     Reticulation { density: f64, foreground: f64, background: f64 },
+    /// Sketch › Water Paper: colours flow on damp fibrous paper; `fiber_length` (3..50) sets the
+    /// fibers and daubs, `brightness` and `contrast` (0..100) adjust the wash. Ranges and defaults
+    /// are unverified VectorCraft choices (helpx documents the controls only).
+    WaterPaper { fiber_length: f64, brightness: f64, contrast: f64 },
     /// Stylize › Glowing Edges: bright coloured Sobel outlines on black.
     GlowingEdges { width: f64, brightness: f64, smoothness: f64 },
     /// Pixelate › Color Halftone: each colour channel screened at its angle (`angles`° of channels
@@ -404,6 +412,11 @@ pub(crate) fn parse(id: &str, p: &Value) -> Option<PixelFx> {
             contrast: num(p, "contrast", 5.0).clamp(0.0, 50.0),
             kind: HalftonePattern::parse(text(p, "patternType", "dot")),
         },
+        "sketch.notePaper" => PixelFx::NotePaper {
+            balance: num(p, "imageBalance", 25.0).clamp(0.0, 50.0),
+            graininess: num(p, "graininess", 0.0).clamp(0.0, 10.0),
+            relief: num(p, "relief", 4.0).clamp(0.0, 50.0),
+        },
         "sketch.basRelief" => PixelFx::BasRelief {
             detail: num(p, "detail", 13.0).clamp(1.0, 15.0),
             smoothness: num(p, "smoothness", 3.0).clamp(1.0, 15.0),
@@ -429,6 +442,11 @@ pub(crate) fn parse(id: &str, p: &Value) -> Option<PixelFx> {
             density: num(p, "density", 12.0).clamp(0.0, 50.0),
             foreground: num(p, "foregroundLevel", 6.0).clamp(0.0, 50.0),
             background: num(p, "backgroundLevel", 6.0).clamp(0.0, 50.0),
+        },
+        "sketch.waterPaper" => PixelFx::WaterPaper {
+            fiber_length: num(p, "fiberLength", 15.0).clamp(3.0, 50.0),
+            brightness: num(p, "brightness", 50.0).clamp(0.0, 100.0),
+            contrast: num(p, "contrast", 50.0).clamp(0.0, 100.0),
         },
         "stylize.glowingEdges" => PixelFx::GlowingEdges {
             width: num(p, "edgeWidth", 2.0).clamp(1.0, 14.0),
@@ -512,9 +530,11 @@ impl PixelFx {
             | PixelFx::ChalkCharcoal { .. }
             | PixelFx::Chrome { .. }
             | PixelFx::HalftonePattern { .. }
+            | PixelFx::NotePaper { .. }
             | PixelFx::Plaster { .. }
             | PixelFx::Reticulation { .. } => 0.0,
             PixelFx::BasRelief { .. } | PixelFx::Charcoal { .. } | PixelFx::Photocopy { .. } | PixelFx::Stamp { .. } => 0.0,
+            PixelFx::WaterPaper { fiber_length, .. } => sketch::water_paper_shift(fiber_length),
             PixelFx::GlowingEdges { width, smoothness, .. } => width.max(smoothness * 3.0),
             // These three keep the object's coverage.
             PixelFx::SmudgeStick { .. } | PixelFx::Sponge { .. } | PixelFx::Watercolor { .. } => 0.0,
@@ -575,8 +595,15 @@ impl PixelFx {
             PixelFx::Crystallize { cell } => Some(1.5 * cell),
             PixelFx::ChalkCharcoal { .. } => Some(sketch::CHALK_CHARCOAL_REACH),
             PixelFx::Chrome { smoothness, .. } => Some(sketch::chrome_reach(smoothness)),
-            PixelFx::FilmGrain { .. } | PixelFx::Mezzotint { .. } | PixelFx::HalftonePattern { .. } | PixelFx::Reticulation { .. } => Some(0.0),
+            PixelFx::FilmGrain { .. }
+            | PixelFx::Mezzotint { .. }
+            | PixelFx::HalftonePattern { .. }
+            | PixelFx::NotePaper { .. }
+            | PixelFx::Reticulation { .. } => Some(0.0),
             PixelFx::Plaster { smoothness, .. } => Some(sketch::plaster_reach(smoothness)),
+            PixelFx::WaterPaper { fiber_length, .. } => {
+                Some(sketch::water_paper_shift(fiber_length) + 3.0 * (0.06 * fiber_length.clamp(3.0, 50.0)).max(0.35))
+            }
             // Cutout's palette comes from the whole object.
             PixelFx::Cutout { .. } => None,
             // The softened tones around the pixel.
@@ -639,12 +666,14 @@ impl PixelFx {
             PixelFx::Chrome { detail, smoothness } => sketch::chrome(px, w, h, space, detail, smoothness),
             PixelFx::GraphicPen { length, balance, direction } => brushstrokes::graphic_pen(px, w, h, space, length, balance, direction),
             PixelFx::HalftonePattern { size, contrast, kind } => sketch::halftone_pattern(px, w, h, space, size, contrast, kind),
+            PixelFx::NotePaper { balance, graininess, relief } => sketch::note_paper(px, w, h, space, balance, graininess, relief),
             PixelFx::BasRelief { detail, smoothness, light } => sketch_ink::bas_relief(px, w, h, space, detail, smoothness, light),
             PixelFx::Charcoal { thickness, detail, balance } => sketch_ink::charcoal(px, w, h, space, thickness, detail, balance),
             PixelFx::Photocopy { detail, darkness } => sketch_ink::photocopy(px, w, h, space, detail, darkness),
             PixelFx::Stamp { balance, smoothness } => sketch_ink::stamp(px, w, h, space, balance, smoothness),
             PixelFx::Plaster { image_balance, smoothness, light } => sketch::plaster(px, w, h, space, image_balance, smoothness, light),
             PixelFx::Reticulation { density, foreground, background } => sketch::reticulation(px, w, h, space, density, foreground, background),
+            PixelFx::WaterPaper { fiber_length, brightness, contrast } => sketch::water_paper(px, w, h, space, fiber_length, brightness, contrast),
             PixelFx::GlowingEdges { width, brightness, smoothness } => edges::glow(px, w, h, to_px(width), brightness, to_px(smoothness)),
             PixelFx::ColorHalftone { max_radius, angles } => pixelate::color_halftone(px, w, h, space, max_radius, angles),
             PixelFx::Crystallize { cell } => pixelate::crystallize(px, w, h, space, cell),
