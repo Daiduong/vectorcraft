@@ -3097,6 +3097,7 @@ effect	Points	Точки
 	Snapping Tolerance	Допуск прив’язки
 	Social Square Post 1080×1080	Квадратний пост для соцмереж 1080×1080
 	Soft Light	М’яке світло
+	Soft Mix	М’яке змішування
 	Solid	Суцільний
 	Sort by Kind	Сортувати за типом
 	Sort by Name	Сортувати за назвою
@@ -4865,6 +4866,8 @@ lighting	Light	Світло
 	Sketch	Ескіз
 	Halftone Pattern…	Напівтоновий візерунок…
 	Halftone Pattern	Напівтоновий візерунок
+	Torn Edges…	Порвані краї…
+	Torn Edges	Порвані краї
 	Pattern Type	Тип візерунка
 	Dot	Крапка
 # User Interface › Color Scheme
@@ -4961,3 +4964,5 @@ lighting	Light	Світло
 	Water Paper	Мокрий папір
 	Ruby…	Рубі…
 	Ruby	Рубі
+	Fresco…	Фреска…
+	Fresco	Фреска

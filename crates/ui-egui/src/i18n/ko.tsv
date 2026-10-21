@@ -2866,6 +2866,7 @@ mark-style	Japanese	일본식
 	Snap to Unit	단위에 스냅
 	Snapping Tolerance	스냅 허용 오차
 	Soft Light	소프트 라이트
+	Soft Mix	소프트 혼합
 	Solid	단색
 	Sort by Kind	종류별 정렬
 	Sort by Name	이름별 정렬
@@ -4848,6 +4849,8 @@ lighting	Light	광원
 	Sketch	스케치
 	Halftone Pattern…	하프톤 패턴…
 	Halftone Pattern	하프톤 패턴
+	Torn Edges…	찢어진 가장자리…
+	Torn Edges	찢어진 가장자리
 	Pattern Type	패턴 유형
 	Dot	점
 # User Interface › Color Scheme
@@ -4944,3 +4947,5 @@ lighting	Light	광원
 	Water Paper	물 종이
 	Ruby…	루비…
 	Ruby	루비
+	Fresco…	프레스코…
+	Fresco	프레스코

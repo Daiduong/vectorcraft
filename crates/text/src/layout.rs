@@ -37,6 +37,8 @@ struct Ctx<'a> {
     /// a quarter turn back (see [`stands_upright`]); [`TextLayout::line_xf`] then stands the lines
     /// up as columns.
     vertical: bool,
+    /// Character panel menu › System Layout. On: positive advances are whole points.
+    system_layout: bool,
     /// Character panel menu › Fractional Widths. Off, positive advances are whole points.
     fractional_widths: bool,
     out: TextLayout,
@@ -54,7 +56,10 @@ impl Ctx<'_> {
         let levels = bidi.map_or(&[][..], |b| &b.levels);
         shape_range(self.db, self.text, r, &self.runs, &self.inlines, &self.opts.features, levels, &mut v);
         if self.vertical {
-            tate_chu_yoko(&mut v, |g| self.style_at(g.byte).size);
+            tate_chu_yoko(&mut v, |g| {
+                let st = self.style_at(g.byte);
+                (st.size, st.tate_chu_yoko)
+            });
             // An upright glyph advances down the column by its vertical advance (the font's vertical
             // metrics; without them at least one em, as CJK fonts' is), centred across it: a narrow
             // mark like § must not overlap its neighbours.
@@ -73,9 +78,9 @@ impl Ctx<'_> {
                 }
             }
         }
-        // Fractional Widths off: whole-point advances, after tate-chu-yoko and the upright cell
-        // have set the widths the line breaker will use. A zero advance stays zero.
-        if !self.fractional_widths {
+        // System Layout or Fractional Widths off: whole-point advances, after tate-chu-yoko and the
+        // upright cell have set the widths the line breaker will use. A zero advance stays zero.
+        if self.system_layout || !self.fractional_widths {
             whole_character_widths(&mut v);
         }
         v
@@ -387,6 +392,7 @@ fn layout_once(db: &FontDb, t: &TextObject, opts: &LayoutOptions) -> TextLayout 
         default: CharStyle::default(),
         opts,
         vertical,
+        system_layout: t.system_layout,
         fractional_widths: t.fractional_widths,
         out: TextLayout::default(),
     };
@@ -454,9 +460,9 @@ fn layout_once(db: &FontDb, t: &TextObject, opts: &LayoutOptions) -> TextLayout 
     cx.out
 }
 
-/// Fractional Widths off: each character that takes space advances by a whole number of points,
-/// at least one, so small type does not collapse onto itself. A zero advance (a tate-chu-yoko
-/// continuation, a zero-width mark) stays zero.
+/// System Layout on or Fractional Widths off: each character that takes space advances by a whole
+/// number of points, at least one, so small type does not collapse onto itself. A zero advance (a
+/// tate-chu-yoko continuation, a zero-width mark) stays zero.
 fn whole_character_widths(glyphs: &mut [SGlyph]) {
     for g in glyphs {
         if g.adv.is_finite() && g.adv > 0.0 {
@@ -465,35 +471,56 @@ fn whole_character_widths(glyphs: &mut [SGlyph]) {
     }
 }
 
-/// Tate-chu-yoko: a run of two or three half-width digits (`10`月, `100`年) stands upright across
-/// the column as one block one em long, squeezed to the em when wider; longer numbers (`2026`)
-/// stay on their side.
-fn tate_chu_yoko(g: &mut [SGlyph], size: impl Fn(&SGlyph) -> f64) {
-    let digits: Vec<bool> = g.iter().map(|g| g.ch.is_ascii_digit()).collect();
-    let digit = |i: usize| digits.get(i).copied().unwrap_or(false);
+/// Tate-chu-yoko: a horizontal block one em of the column long, squeezed to the em when wider.
+///
+/// Automatic: a run of two or three half-width digits (`10`月, `100`年). A single digit and a
+/// longer number (`2026`) stay on their side.
+///
+/// Manual (Character panel menu › Tate-chu-yoko): any characters marked `tateChuYoko`, including
+/// one character, letters and numbers longer than three digits. Marked characters are taken
+/// before the automatic digit rule.
+/// <https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html>
+fn tate_chu_yoko(g: &mut [SGlyph], style: impl Fn(&SGlyph) -> (f64, bool)) {
+    let manual: Vec<bool> = g.iter().map(|gl| style(gl).1).collect();
+    let digits: Vec<bool> = g.iter().map(|gl| gl.inline.is_none() && gl.ch.is_ascii_digit()).collect();
     let mut i = 0;
     while i < g.len() {
-        if !digit(i) {
+        if manual.get(i).copied().unwrap_or(false) {
+            let mut end = i + 1;
+            while manual.get(end).copied().unwrap_or(false) {
+                end += 1;
+            }
+            let em = style(&g[i]).0;
+            place_tcy_block(&mut g[i..end], em);
+            i = end;
+            continue;
+        }
+        if !digits.get(i).copied().unwrap_or(false) {
             i += 1;
             continue;
         }
-        let mut end = i;
-        while digit(end) {
+        let mut end = i + 1;
+        while digits.get(end).copied().unwrap_or(false) && !manual.get(end).copied().unwrap_or(false) {
             end += 1;
         }
         if (2..=3).contains(&(end - i)) {
-            let em = size(&g[i]);
-            let width: f64 = g[i..end].iter().map(|g| g.adv).sum();
-            let squeeze = if width > em && width > 0.0 { em / width } else { 1.0 };
-            let mut ink = 0.0;
-            for (k, gl) in g[i..end].iter_mut().enumerate() {
-                let adv = gl.adv;
-                gl.tcy = Some(Tcy { pen: if k == 0 { 0.0 } else { em }, ink, width, squeeze });
-                gl.adv = if k == 0 { em } else { 0.0 };
-                ink += adv;
-            }
+            let em = style(&g[i]).0;
+            place_tcy_block(&mut g[i..end], em);
         }
         i = end;
+    }
+}
+
+/// Lay `g` across one em of the column. The first glyph takes the em; the rest share its cell.
+fn place_tcy_block(g: &mut [SGlyph], em: f64) {
+    let width: f64 = g.iter().map(|gl| gl.adv).sum();
+    let squeeze = if width > em && width > 0.0 { em / width } else { 1.0 };
+    let mut ink = 0.0;
+    for (k, gl) in g.iter_mut().enumerate() {
+        let adv = gl.adv;
+        gl.tcy = Some(Tcy { pen: if k == 0 { 0.0 } else { em }, ink, width, squeeze });
+        gl.adv = if k == 0 { em } else { 0.0 };
+        ink += adv;
     }
 }
 

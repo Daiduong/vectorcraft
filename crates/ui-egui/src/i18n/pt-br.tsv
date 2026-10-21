@@ -2542,6 +2542,7 @@
 	Snap to Unit	Ajustar à Unidade
 	Snapping Tolerance	Tolerância de Ajuste
 	Soft Light	Luz Suave
+	Soft Mix	Mistura suave
 	Solid	Sólido
 	Sort by Kind	Ordenar por Tipo
 	Sort by Name	Ordenar por Nome
@@ -5190,6 +5191,8 @@ mark-style	Japanese	Japonesas
 	Sketch	Esboço
 	Halftone Pattern…	Padrão de meio-tom…
 	Halftone Pattern	Padrão de meio-tom
+	Torn Edges…	Bordas rasgadas…
+	Torn Edges	Bordas rasgadas
 	Pattern Type	Tipo de padrão
 	Dot	Ponto
 # User Interface › Color Scheme
@@ -5283,3 +5286,5 @@ mark-style	Japanese	Japonesas
 	Water Paper	Papel molhado
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Fresco…	Afresco…
+	Fresco	Afresco

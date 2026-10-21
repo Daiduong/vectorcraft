@@ -27,7 +27,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Character",
             [],
             None,
-            "{id? (default: the one selected type object), start?: byte, end?: byte (default: all text), font?, style?, size?: pt, leading?: pt|\"auto\", tracking?, kerning?: 1/1000 em|\"auto\", baselineShift?: pt, hScale?: %, vScale?: %, rotation?: deg, fill?: colour|\"none\", stroke?: colour|\"none\", keepModel?: bool (fill and stroke, as paint.setFill), strokeWidth?: pt, strokeOptions?: {weight?, cap?, join?, miterLimit?, align?, dash?, dashOffset?, alignDashes?} (as stroke.set: the character stroke), underline?, strikethrough?, allCaps?: bool, smallCaps?: bool, position?: \"normal\"|\"superscript\"|\"subscript\" (sizes from Document Setup), features?: [\"dlig\", \"-liga\", …], charAlign?: \"romanBaseline\"|\"emBoxTop\"|\"emBoxCenter\"|\"emBoxBottom\"|\"icfTop\"|\"icfBottom\", proportionalMetrics?: bool (full-width glyphs on the font's proportional widths: `palt` in horizontal type, `vpal` in vertical type), noBreak?: bool (Character panel menu › No Break: these characters stay on one line, including across a space inside the run), digits?: \"default\"|\"arabic\"|\"hindi\"|\"farsi\" (Character panel menu › Digits: the numeral system every digit is drawn in, whatever was typed), fontAxes?: {\"wght\": 650, …} (Character panel › Variable Font: the setting of each variation axis named, in the axis's units and clamped to its range; null: back to the style's own setting; other axes keep theirs; tags the font has no axis for are left out; a font or style change clears them; text.fontList {family, style} lists the axes)} style a character range (size/leading/baselineShift are document points and hScale includes the object transform; runs are split at the range ends) → {id, runs}",
+            "{id? (default: the one selected type object), start?: byte, end?: byte (default: all text), font?, style?, size?: pt, leading?: pt|\"auto\", tracking?, kerning?: 1/1000 em|\"auto\", baselineShift?: pt, hScale?: %, vScale?: %, rotation?: deg, fill?: colour|\"none\", stroke?: colour|\"none\", keepModel?: bool (fill and stroke, as paint.setFill), strokeWidth?: pt, strokeOptions?: {weight?, cap?, join?, miterLimit?, align?, dash?, dashOffset?, alignDashes?} (as stroke.set: the character stroke), underline?, strikethrough?, allCaps?: bool, smallCaps?: bool, position?: \"normal\"|\"superscript\"|\"subscript\" (sizes from Document Setup), features?: [\"dlig\", \"-liga\", …], charAlign?: \"romanBaseline\"|\"emBoxTop\"|\"emBoxCenter\"|\"emBoxBottom\"|\"icfTop\"|\"icfBottom\", proportionalMetrics?: bool (full-width glyphs on the font's proportional widths: `palt` in horizontal type, `vpal` in vertical type), tateChuYoko?: bool (Character panel menu › Tate-chu-yoko, with Show East Asian Options: in vertical type those characters stand side by side across one em of the column; kept on the characters and ignored in horizontal type), noBreak?: bool (Character panel menu › No Break: these characters stay on one line, including across a space inside the run), digits?: \"default\"|\"arabic\"|\"hindi\"|\"farsi\" (Character panel menu › Digits: the numeral system every digit is drawn in, whatever was typed), fontAxes?: {\"wght\": 650, …} (Character panel › Variable Font: the setting of each variation axis named, in the axis's units and clamped to its range; null: back to the style's own setting; other axes keep theirs; tags the font has no axis for are left out; a font or style change clears them; text.fontList {family, style} lists the axes)} style a character range (size/leading/baselineShift are document points and hScale includes the object transform; runs are split at the range ends) → {id, runs}",
             has_doc,
             set_range_style
         ),
@@ -257,6 +257,7 @@ pub(crate) struct CharChange {
     small_caps: Option<Option<f64>>,
     char_align: Option<vectorcraft_doc::CharAlign>,
     proportional_metrics: Option<bool>,
+    tate_chu_yoko: Option<bool>,
     no_break: Option<bool>,
     digits: Option<vectorcraft_doc::Digits>,
     font_axes: Option<AxisChange>,
@@ -416,6 +417,7 @@ impl CharChange {
             small_caps,
             char_align: char_align_param(p, cmd)?,
             proportional_metrics: flag("proportionalMetrics"),
+            tate_chu_yoko: flag("tateChuYoko"),
             no_break: flag("noBreak"),
             digits: digits_param(p, cmd)?,
             font_axes: font_axes_param(p, cmd)?,
@@ -458,6 +460,7 @@ impl CharChange {
             && self.small_caps.is_none()
             && self.char_align.is_none()
             && self.proportional_metrics.is_none()
+            && self.tate_chu_yoko.is_none()
             && self.no_break.is_none()
             && self.digits.is_none()
             && self.font_axes.is_none()
@@ -553,6 +556,9 @@ impl CharChange {
         }
         if let Some(v) = self.proportional_metrics {
             st.proportional_metrics = v;
+        }
+        if let Some(v) = self.tate_chu_yoko {
+            st.tate_chu_yoko = v;
         }
         if let Some(v) = self.no_break {
             st.no_break = v;
@@ -862,6 +868,7 @@ fn create_in_path(s: &mut Session, p: &Value) -> Result<Value> {
         path_spacing: 0.0,
         wrap: Vec::new(),
         optical_margin: false,
+        system_layout: false,
         fractional_widths: true,
         cached_bounds: None,
         cached_baselines: Vec::new(),
@@ -870,6 +877,7 @@ fn create_in_path(s: &mut Session, p: &Value) -> Result<Value> {
     if !on_path {
         t.area.fit = super::create::new_area_fit(s, p, C)?;
     }
+    t.system_layout = s.doc()?.doc.setup.system_layout;
     if bool_or(p, "placeholder", false) {
         super::typemenu::fill_with_placeholder(&mut t);
     } else {
@@ -1085,7 +1093,8 @@ fn headline_tracking(t: &TextObject, target: f64) -> Option<f64> {
             path_spacing: 0.0,
             wrap: Vec::new(),
             optical_margin: false,
-            fractional_widths: true,
+            system_layout: t.system_layout,
+            fractional_widths: t.fractional_widths,
             cached_bounds: None,
             cached_baselines: Vec::new(),
         };
