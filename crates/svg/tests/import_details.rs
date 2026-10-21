@@ -90,6 +90,7 @@ fn a_linked_png_resolves_against_the_svg_folder_and_stays_linked() {
     assert!((b.x0 - 10.0).abs() < 1e-6 && (b.y0 - 20.0).abs() < 1e-6 && (b.width() - 80.0).abs() < 1e-6, "{b:?}");
 }
 
+/// Verify a missing linked SVG image reports a warning and retains its placed bounds.
 #[test]
 fn a_missing_link_warns_and_keeps_a_placeholder_in_its_box() {
     let dir = folder("missing");
@@ -103,7 +104,8 @@ fn a_missing_link_warns_and_keeps_a_placeholder_in_its_box() {
     assert!((b.x0 - 10.0).abs() < 1e-6 && (b.width() - 100.0).abs() < 1e-6 && (b.height() - 50.0).abs() < 1e-6, "{b:?}");
     // Without a reader nothing is read: the same placeholder.
     let (d, w) = import_with_report(&svg(r#"<image href="/abs/photo.png" width="10" height="10"/>"#)).unwrap();
-    assert_eq!(images(&d)[0].1.link.as_ref().unwrap().path, "/abs/photo.png");
+    // A stored filesystem path uses the platform's separators.
+    assert_eq!(Path::new(&images(&d)[0].1.link.as_ref().unwrap().path), Path::new("/abs/photo.png"));
     assert!(!w.is_empty());
 }
 

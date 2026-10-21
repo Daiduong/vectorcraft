@@ -16,6 +16,8 @@
 
 mod backend;
 mod headless;
+#[cfg(all(feature = "http", not(target_arch = "wasm32")))]
+pub mod http;
 mod intake;
 pub mod logging;
 mod prompts;

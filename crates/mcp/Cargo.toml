@@ -8,6 +8,10 @@ description = "VectorCraft MCP server: JSON-RPC 2.0 over stdio, driving a runnin
 [lints]
 workspace = true
 
+[features]
+# Local transport prototype; excluded from ordinary builds and from wasm.
+http = ["dep:tiny_http", "dep:subtle"]
+
 [dependencies]
 vectorcraft-engine = { workspace = true }
 vectorcraft-render = { workspace = true }
@@ -21,7 +25,12 @@ log = { workspace = true }
 
 image = { workspace = true }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tiny_http = { version = "0.12", default-features = false, optional = true }
+subtle = { version = "2.6", optional = true }
+
 [dev-dependencies]
+tempfile = "3"
 vectorcraft-testkit = { workspace = true }
 proptest = { workspace = true }
 socket2 = { workspace = true }
