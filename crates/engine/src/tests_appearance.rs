@@ -131,6 +131,22 @@ fn active_item_targets_paint_and_proxies_and_clears_on_selection_change() {
 }
 
 #[test]
+fn clearing_the_top_fill_to_none_clears_lower_fills_too() {
+    let mut s = session();
+    let id = rect(&mut s, 100.0);
+    run(&mut s, "appearance.addFill", json!({}));
+    run(&mut s, "paint.setFill", json!({"color": "#ff0000"}));
+    run(&mut s, "paint.setFill", json!({"none": true}));
+    let n = node(&s, id);
+    assert!(n.appearance.items.iter().filter(|i| i.is_fill()).all(|i| i.paint().is_none()));
+    run(&mut s, "paint.setFill", json!({"color": "#00ff00"}));
+    run(&mut s, "appearance.setActiveItem", json!({"index": 0}));
+    run(&mut s, "paint.setFill", json!({"none": true}));
+    let n = node(&s, id);
+    assert!(!fill_paint(&n, 2).is_none());
+}
+
+#[test]
 fn item_rows_follow_remove_and_move() {
     let mut s = session();
     let id = rect(&mut s, 100.0);

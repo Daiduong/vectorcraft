@@ -487,6 +487,9 @@ fn apply_paint(s: &mut Session, p: &Value, paint: Paint, fill: bool) -> Result<V
             let new_paint = keep_pattern_xf(&paint, p, n.appearance.paint_at(index, fill));
             let placed = place_paint(&new_paint, p, item_paint_bounds(n, index, fill));
             n.appearance.set_paint_at(index, fill, placed);
+            if fill {
+                n.appearance.clear_lower_fills_when_top_cleared(index, &paint);
+            }
             Ok(())
         },
         |d, changed| {
