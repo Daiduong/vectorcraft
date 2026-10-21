@@ -5121,11 +5121,11 @@ imageTrace	Outline	კონტური
 # Select by Color (select.color)
 	Select by Color	მონიშვნა ფერის მიხედვით
 @msg	thumbnail: no page {n} (the file has 1)	thumbnail: გვერდი {n} არ არსებობს (ფაილს 1 გვერდი აქვს)
+	A network printer's copies are set in its section above	ქსელური პრინტერის ასლები ზემოთ, მის განყოფილებაში დგინდება
 	A setting isn't valid	პარამეტრი არასწორია
 	Accepted by {printer}	მიღებულია: {printer}
 	Asking the printer…	პრინტერს ვეკითხებით…
 	Canceling…	გაუქმება…
-	Colour	ფერი
 	Couldn't reach the printer	პრინტერთან დაკავშირება ვერ მოხერხდა
 	Flip on long edge	გადაბრუნება გრძელი კიდის გასწვრივ
 	Flip on short edge	გადაბრუნება მოკლე კიდის გასწვრივ
@@ -5170,6 +5170,7 @@ imageTrace	Outline	კონტური
 	This printer does not take an orientation setting.	ამ პრინტერს ორიენტაციის პარამეტრი არ აქვს.
 	This printer only prints in grayscale.	ეს პრინტერი მხოლოდ ნაცრისფერ ტონებში ბეჭდავს.
 	This printer only prints one-sided.	ეს პრინტერი მხოლოდ ცალმხრივად ბეჭდავს.
+	Tick the confirmation box to send this document to this printer.	მონიშნეთ დადასტურების ველი, რომ ეს დოკუმენტი ამ პრინტერზე გაიგზავნოს.
 	Two-sided:	ორმხრივი:
 	Waiting in the printer's queue	ელოდება პრინტერის რიგში
 	{printer} (default)	{printer} (ნაგულისხმევი)

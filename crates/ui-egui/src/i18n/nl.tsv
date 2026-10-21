@@ -5240,11 +5240,11 @@ swatch	Bright Violet	Felviolet
 # Select by Color (select.color)
 	Select by Color	Selecteren op kleur
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	De kopieën voor een netwerkprinter stelt u hierboven in de sectie van de printer in
 	A setting isn't valid	Een instelling is ongeldig
 	Accepted by {printer}	Geaccepteerd door {printer}
 	Asking the printer…	De printer wordt gevraagd…
 	Canceling…	Annuleren…
-	Colour	Kleur
 	Couldn't reach the printer	De printer was niet te bereiken
 	Flip on long edge	Omdraaien aan de lange kant
 	Flip on short edge	Omdraaien aan de korte kant
@@ -5289,6 +5289,7 @@ swatch	Bright Violet	Felviolet
 	This printer does not take an orientation setting.	Deze printer kent geen instelling voor de afdrukstand.
 	This printer only prints in grayscale.	Deze printer drukt alleen in grijstinten af.
 	This printer only prints one-sided.	Deze printer drukt alleen enkelzijdig af.
+	Tick the confirmation box to send this document to this printer.	Vink het bevestigingsvakje aan om dit document naar deze printer te verzenden.
 	Two-sided:	Dubbelzijdig:
 	Waiting in the printer's queue	Wacht in de wachtrij van de printer
 	{printer} (default)	{printer} (standaard)

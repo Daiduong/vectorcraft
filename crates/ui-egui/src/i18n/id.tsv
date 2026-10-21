@@ -5198,11 +5198,11 @@ swatch	Bright Violet	Violet cerah
 # Select by Color (select.color)
 	Select by Color	Pilih berdasarkan warna
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Salinan printer jaringan diatur di bagiannya di atas
 	A setting isn't valid	Sebuah pengaturan tidak valid
 	Accepted by {printer}	Diterima oleh {printer}
 	Asking the printer…	Menanyakan ke printer…
 	Canceling…	Membatalkan…
-	Colour	Warna
 	Couldn't reach the printer	Printer tidak dapat dijangkau
 	Flip on long edge	Balik pada sisi panjang
 	Flip on short edge	Balik pada sisi pendek
@@ -5247,6 +5247,7 @@ swatch	Bright Violet	Violet cerah
 	This printer does not take an orientation setting.	Printer ini tidak memiliki pengaturan orientasi.
 	This printer only prints in grayscale.	Printer ini hanya mencetak dalam skala abu-abu.
 	This printer only prints one-sided.	Printer ini hanya mencetak satu sisi.
+	Tick the confirmation box to send this document to this printer.	Centang kotak konfirmasi untuk mengirim dokumen ini ke printer ini.
 	Two-sided:	Dua sisi:
 	Waiting in the printer's queue	Menunggu di antrean printer
 	{printer} (default)	{printer} (default)

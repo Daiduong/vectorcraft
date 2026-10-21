@@ -5179,11 +5179,11 @@ theme	Appearance	Външен вид
 # Select by Color (select.color)
 	Select by Color	Избиране по цвят
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Копията за мрежов принтер се задават в неговия раздел по-горе
 	A setting isn't valid	Настройката не е валидна
 	Accepted by {printer}	Приета от {printer}
 	Asking the printer…	Питане на принтера…
 	Canceling…	Отмяна…
-	Colour	Цвят
 	Couldn't reach the printer	Принтерът не може да бъде достигнат
 	Flip on long edge	Обръщане по дългия ръб
 	Flip on short edge	Обръщане по късия ръб
@@ -5228,6 +5228,7 @@ theme	Appearance	Външен вид
 	This printer does not take an orientation setting.	Този принтер не поддържа настройка за ориентация.
 	This printer only prints in grayscale.	Този принтер печата само в нюанси на сивото.
 	This printer only prints one-sided.	Този принтер печата само едностранно.
+	Tick the confirmation box to send this document to this printer.	Отметете полето за потвърждение, за да изпратите този документ към този принтер.
 	Two-sided:	Двустранно:
 	Waiting in the printer's queue	Чака в опашката на принтера
 	{printer} (default)	{printer} (по подразбиране)

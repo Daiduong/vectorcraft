@@ -5051,11 +5051,11 @@ lighting	Light	光源
 # Select by Color (select.color)
 	Select by Color	按颜色选择
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	网络打印机的份数在上方它的部分中设置
 	A setting isn't valid	某项设置无效
 	Accepted by {printer}	{printer} 已接收
 	Asking the printer…	正在询问打印机…
 	Canceling…	正在取消…
-	Colour	彩色
 	Couldn't reach the printer	无法连接到打印机
 	Flip on long edge	沿长边翻转
 	Flip on short edge	沿短边翻转
@@ -5099,6 +5099,7 @@ lighting	Light	光源
 	This printer does not take an orientation setting.	这台打印机不支持方向设置。
 	This printer only prints in grayscale.	这台打印机只能以灰度打印。
 	This printer only prints one-sided.	这台打印机只能单面打印。
+	Tick the confirmation box to send this document to this printer.	请勾选确认框，以将此文档发送到这台打印机。
 	Two-sided:	双面：
 	Waiting in the printer's queue	正在打印机队列中等待
 	Network Printer…	网络打印机…

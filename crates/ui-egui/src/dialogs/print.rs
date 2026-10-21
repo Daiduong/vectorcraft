@@ -210,7 +210,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
         app.ui.dialog = None;
         return Ok(json!({ "settings": settings }));
     }
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
     if d.bool("network") {
         // A network printer: the job runs in the background and the dialog stays open to show it.
         return crate::print::run_network(app, &settings, paper_chosen(&d));
@@ -238,7 +238,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     }
     let shown = shown_settings(app, d);
     let preview = preview_of(app, ui.ctx(), &shown);
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
     if d.kind == KIND && d.bool("network") {
         // The address, query, listed options, confirmation and job are craft-ui's `printing::network`.
         let sheets_ok = preview.as_ref().as_ref().is_ok_and(|v| v["sheets"].as_array().is_some_and(|s| !s.is_empty()));
@@ -324,8 +324,8 @@ pub(super) enum Destination {
     /// The system's default printer (the web: the browser's print dialog).
     Default,
     File,
-    /// A printer on the network, by its address (desktop only).
-    #[cfg(not(target_arch = "wasm32"))]
+    /// A printer on the network, by its address (desktop only, not the Windows 7 build).
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
     Network,
 }
 
@@ -341,7 +341,7 @@ pub(super) fn destinations(printers: Option<&Value>) -> Vec<Destination> {
     if service && entries.is_empty() {
         entries.push(Destination::Default);
     }
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
     entries.push(Destination::Network);
     entries.push(Destination::File);
     entries
@@ -354,13 +354,15 @@ pub(super) fn destination_label(e: &Destination) -> String {
         Destination::Printer(name, false) => name.clone(),
         Destination::Default => tl!(DEFAULT_PRINTER).into(),
         Destination::File => tl!(PDF_FILE).into(),
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
         Destination::Network => tl!("Network Printer…").into(),
     }
 }
 
 /// Choose `e`: what the dialog's `printer`, `toFile` and `network` fields say.
 pub(super) fn choose(app: &mut VectorcraftApp, d: &mut Dialog, e: &Destination) {
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
+    let gray = prints_gray(&settings(d));
     let mut to = |printer: Option<&str>, file: bool, network: bool| {
         if let Some(p) = printer {
             d.fields.insert("printer".into(), json!(p));
@@ -372,12 +374,17 @@ pub(super) fn choose(app: &mut VectorcraftApp, d: &mut Dialog, e: &Destination) 
         Destination::Printer(name, _) => to(Some(name), false, false),
         Destination::Default => to(Some(""), false, false),
         Destination::File => to(None, true, false),
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
         Destination::Network => {
+            // The dialog's copies are where the network section's copies start (General's are off
+            // from now on), and its Grayscale is where the Color setting starts; the confirmation is
+            // asked afresh.
             to(None, false, true);
-            // The dialog's copies are where the printer's copies start; the confirmation is asked afresh.
             app.print_net.state.dialog_opened();
             app.print_net.state.draft.copies = (d.f64("copies", 1.0).max(1.0) as u32).min(999);
+            if gray {
+                app.print_net.state.draft.color = Some(craft_ui::printing::network::ColorMode::Monochrome);
+            }
         }
     }
     let _ = app;
@@ -393,9 +400,9 @@ fn printer_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let labels: Vec<String> = entries.iter().map(destination_label).collect();
     let options: Vec<&str> = labels.iter().map(String::as_str).collect();
     let printer = d.str("printer");
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
     let network = d.bool("network").then_some(Destination::Network);
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(all(not(target_arch = "wasm32"), not(target_vendor = "win7"))))]
     let network: Option<Destination> = None;
     let current = if let Some(network) = network {
         network
@@ -431,20 +438,25 @@ fn printer_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
     }
 }
 
-/// The settings the pages print with: the dialog's, with Grayscale also when a network printer's
-/// Color setting is Grayscale. The preview, the Summary and the job all use these.
+/// The settings the pages print with: the dialog's; for a network printer, with its Color setting's
+/// Grayscale (the dialog's when none is picked) and the network section's copies, as
+/// [`crate::print::run_network`] prints them. The preview, the Summary and the job all use these.
 pub(super) fn shown_settings(app: &VectorcraftApp, d: &Dialog) -> Value {
     let s = settings(d);
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
     if d.kind == KIND && d.bool("network") {
-        return crate::print::with_grayscale(&s, app.print_net.network_grayscale());
+        let mut s = crate::print::with_grayscale(&s, app.print_net.network_grayscale(prints_gray(&s)));
+        if let Some(o) = s.as_object_mut() {
+            o.insert("copies".into(), json!(app.print_net.state.draft.copies.max(1)));
+        }
+        return s;
     }
     let _ = app;
     s
 }
 
 /// Whether `settings` print gray (Grayscale on, composite output).
-pub(super) fn prints_gray(settings: &Value) -> bool {
+pub(crate) fn prints_gray(settings: &Value) -> bool {
     serde_json::from_value::<PrintSettings>(settings.clone()).is_ok_and(|s| vectorcraft_engine::cmd::print::prints_gray(&s))
 }
 
@@ -670,12 +682,32 @@ fn whole(ui: &mut egui::Ui, d: &mut Dialog, path: &str, range: std::ops::RangeIn
     });
 }
 
+/// A network printer's copies (its section's), which stand for General's Copies; `None` for the
+/// other destinations.
+pub(super) fn network_copies(app: &VectorcraftApp, d: &Dialog) -> Option<u64> {
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
+    if d.kind == KIND && d.bool("network") {
+        return Some(u64::from(app.print_net.state.draft.copies.max(1)));
+    }
+    let _ = (app, d);
+    None
+}
+
 fn general(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let unit = app.session.general_unit();
+    let network_copies = network_copies(app, d);
     row(ui, tl!("Copies:"), |ui| {
-        whole(ui, d, "copies", 1.0..=f64::from(vectorcraft_pdf::MAX_COPIES), true);
+        match network_copies {
+            // A network printer's copies are set in its section; this one shows them, off.
+            Some(n) => {
+                ui.add_enabled_ui(false, |ui| widgets::plain_field(ui, "copies-network", n as f64, "", 0, 56.0))
+                    .response
+                    .on_disabled_hover_text(tl!("A network printer's copies are set in its section above"));
+            }
+            None => whole(ui, d, "copies", 1.0..=f64::from(vectorcraft_pdf::MAX_COPIES), true),
+        }
         ui.add_space(12.0);
-        let copies = get(d, "copies").as_u64().unwrap_or(1);
+        let copies = network_copies.unwrap_or_else(|| get(d, "copies").as_u64().unwrap_or(1));
         flag(ui, d, "collate", tl!("Collate"), copies > 1);
         flag(ui, d, "reverse", tl!("Reverse Order"), true);
     });

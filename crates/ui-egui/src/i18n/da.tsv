@@ -5198,11 +5198,11 @@ swatch	Bright Violet	Kraftig violet
 # Select by Color (select.color)
 	Select by Color	Markér efter farve
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	En netværksprinters kopier angives i dens afsnit ovenfor
 	A setting isn't valid	En indstilling er ugyldig
 	Accepted by {printer}	Accepteret af {printer}
 	Asking the printer…	Spørger printeren…
 	Canceling…	Annullerer…
-	Colour	Farve
 	Couldn't reach the printer	Printeren kunne ikke nås
 	Flip on long edge	Vend langs den lange kant
 	Flip on short edge	Vend langs den korte kant
@@ -5247,6 +5247,7 @@ swatch	Bright Violet	Kraftig violet
 	This printer does not take an orientation setting.	Denne printer har ingen retningsindstilling.
 	This printer only prints in grayscale.	Denne printer udskriver kun i gråtoner.
 	This printer only prints one-sided.	Denne printer udskriver kun ensidet.
+	Tick the confirmation box to send this document to this printer.	Sæt flueben i bekræftelsesfeltet for at sende dette dokument til denne printer.
 	Two-sided:	Tosidet:
 	Waiting in the printer's queue	Venter i printerens kø
 	{printer} (default)	{printer} (standard)

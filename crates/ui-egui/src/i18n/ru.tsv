@@ -4825,11 +4825,11 @@ lighting	Light	Свет
 # Select by Color (select.color)
 	Select by Color	Выделить по цвету
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Число копий для сетевого принтера задаётся в его разделе выше
 	A setting isn't valid	Недопустимый параметр
 	Accepted by {printer}	Принято принтером {printer}
 	Asking the printer…	Запрос к принтеру…
 	Canceling…	Отмена…
-	Colour	Цвет
 	Couldn't reach the printer	Не удалось связаться с принтером
 	Flip on long edge	Переворот по длинному краю
 	Flip on short edge	Переворот по короткому краю
@@ -4873,6 +4873,7 @@ lighting	Light	Свет
 	This printer does not take an orientation setting.	Этот принтер не поддерживает параметр ориентации.
 	This printer only prints in grayscale.	Этот принтер печатает только в оттенках серого.
 	This printer only prints one-sided.	Этот принтер печатает только на одной стороне.
+	Tick the confirmation box to send this document to this printer.	Установите флажок подтверждения, чтобы отправить этот документ на этот принтер.
 	Two-sided:	Двусторонняя печать:
 	Waiting in the printer's queue	Ожидает в очереди принтера
 	Network Printer…	Сетевой принтер…

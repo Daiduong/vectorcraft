@@ -85,9 +85,20 @@ impl NetTasks {
         self.transport.clone()
     }
 
-    /// Whether the network printer's Color setting is Grayscale, as it will be sent.
-    pub(crate) fn network_grayscale(&self) -> bool {
-        self.state.draft.request(None).color == Some(net::ColorMode::Monochrome)
+    /// Whether a network job prints gray: the network printer's Color setting as it will be sent,
+    /// else (no Color picked) `settings_gray`, the dialog's or the preset's Grayscale.
+    pub(crate) fn network_grayscale(&self, settings_gray: bool) -> bool {
+        match self.state.draft.request(None).color {
+            Some(color) => color == net::ColorMode::Monochrome,
+            None => settings_gray,
+        }
+    }
+
+    /// Whether the printer makes the copies: only when it listed a copies range that covers them.
+    /// A printer that did not say (or listed a smaller range) gets the copies in the document.
+    pub(crate) fn printer_makes_copies(&self) -> bool {
+        let state = self.state.draft.copies_state();
+        state.is_supported() && state.allows(&self.state.draft.copies)
     }
 
     /// What the last query read of the printer at `address`, when it is the same printer.
@@ -105,13 +116,22 @@ impl NetTasks {
 
     /// Send the print-ready `pdf` (laid out as `sheets`, whose count is the job's page count) to the
     /// queried printer, off the UI thread. It needs the person's confirmation, which it spends.
-    /// Returns `true` when a job started.
-    pub(crate) fn send(&mut self, ctx: Option<egui::Context>, name: &str, pdf: Vec<u8>, pages: usize, paper: Option<&str>) -> bool {
+    /// `copies_by_printer`: the printer is asked for the copies; otherwise they are in `pdf` and it
+    /// is asked for one. Returns `true` when a job started.
+    pub(crate) fn send(
+        &mut self,
+        ctx: Option<egui::Context>,
+        name: &str,
+        pdf: Vec<u8>,
+        pages: usize,
+        paper: Option<&str>,
+        copies_by_printer: bool,
+    ) -> bool {
         let address = self.state.draft.normalized_url();
         // The attestation comes from the ticked box and nothing else.
         let Ok(confirmed) = UserConfirmed::attest(Some(self.state.draft.confirmed)) else { return false };
         let queried = canonical(&address).and_then(|a| self.queried(&a));
-        let send = send_job(self.transport(), ctx, name.to_owned(), Arc::new(pdf), queried, confirmed);
+        let send = send_job(self.transport(), ctx, name.to_owned(), Arc::new(pdf), queried, confirmed, copies_by_printer);
         // The sheets are the pages of the document sent: the total that progress shows until the printer reports one.
         self.state.draft.expected_pages = u32::try_from(pages).ok();
         self.reported = false;
@@ -389,7 +409,7 @@ fn report(outcome: &WatchOutcome, printer: &str, warnings: &[String]) -> Report 
 /// The worker that sends the print-ready `pdf` and follows the job. `queried` is what the last query
 /// read of the printer, when it is the one addressed. Each call makes a new job, with the person's
 /// `confirmed` (never `interactive()`: it is the attestation of the ticked box, taken when Print was
-/// pressed).
+/// pressed). `copies_by_printer` false: the copies are in `pdf`, so the printer is asked for one.
 pub(crate) fn send_job(
     transport: Option<Transport>,
     ctx: Option<egui::Context>,
@@ -397,8 +417,12 @@ pub(crate) fn send_job(
     pdf: Arc<Vec<u8>>,
     queried: Option<Elements>,
     confirmed: UserConfirmed,
+    copies_by_printer: bool,
 ) -> SendJob {
-    Box::new(move |address: &str, request: Request| {
+    Box::new(move |address: &str, mut request: Request| {
+        if !copies_by_printer {
+            request.copies = None;
+        }
         let (result_tx, result_rx) = mpsc::channel();
         let (update_tx, update_rx) = mpsc::channel();
         let cancel = CancelToken::new();
@@ -435,7 +459,8 @@ fn run_job(
     let sent = match printer.submit(Document::pdf(pdf.as_slice()), job, options, confirmed, cancel, &mut |_| {}) {
         Ok(sent) => sent,
         Err(e) if e.kind() == ErrorKind::Cancelled => {
-            return Ok(Report { outcome: Outcome::Canceled, printer: String::new(), sheets: 0, notes: Vec::new() });
+            let printer = queried.map(|elements| summary(elements.clone()).name).filter(|n| !n.is_empty()).unwrap_or_else(|| printer.address());
+            return Ok(Report { outcome: Outcome::Canceled, printer, sheets: 0, notes: Vec::new() });
         }
         Err(e) => return Err(failure(&e, false)),
     };
@@ -492,7 +517,7 @@ pub(crate) fn labels() -> Labels<'static> {
         high: tl!("High"),
         photo: tl!("Photo"),
         color: tl!("Color:"),
-        color_color: tl!("Colour"),
+        color_color: tl!("Color"),
         color_monochrome: tl!("Grayscale"),
         resolution: tl!("Resolution:"),
         resolution_dpi: "{dpi} dpi",

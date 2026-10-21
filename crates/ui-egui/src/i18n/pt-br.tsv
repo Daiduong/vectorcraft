@@ -5132,11 +5132,11 @@ mark-style	Japanese	Japonesas
 # Select by Color (select.color)
 	Select by Color	Selecionar por Cor
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	As cópias de uma impressora de rede são definidas na seção dela acima
 	A setting isn't valid	Uma configuração não é válida
 	Accepted by {printer}	Aceito por {printer}
 	Asking the printer…	Consultando a impressora…
 	Canceling…	Cancelando…
-	Colour	Cor
 	Couldn't reach the printer	Não foi possível alcançar a impressora
 	Flip on long edge	Virar na borda longa
 	Flip on short edge	Virar na borda curta
@@ -5180,6 +5180,7 @@ mark-style	Japanese	Japonesas
 	This printer does not take an orientation setting.	Esta impressora não aceita configuração de orientação.
 	This printer only prints in grayscale.	Esta impressora só imprime em escala de cinza.
 	This printer only prints one-sided.	Esta impressora só imprime em um lado.
+	Tick the confirmation box to send this document to this printer.	Marque a caixa de confirmação para enviar este documento para esta impressora.
 	Two-sided:	Frente e verso:
 	Waiting in the printer's queue	Aguardando na fila da impressora
 	Network Printer…	Impressora de rede…

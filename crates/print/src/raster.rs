@@ -99,8 +99,10 @@ fn resample(pixels: &[u8], bpp: usize, (sw, sh): (u32, u32), (tw, th): (u32, u32
     out
 }
 
-/// Premultiplied RGBA over white, as 8-bit grey (luma) or RGB.
+/// Premultiplied RGBA over white, as 8-bit grey (Rec. 709 luma, the weights of the print's
+/// Grayscale and its preview) or RGB.
 fn flatten(rgba: &[u8], gray: bool) -> Vec<u8> {
+    let [kr, kg, kb] = vectorcraft_color::blend::MASK_LUM;
     let mut out = Vec::with_capacity(rgba.len() / 4 * if gray { 1 } else { 3 });
     let (pixels, _) = rgba.as_chunks::<4>();
     for px in pixels {
@@ -108,7 +110,7 @@ fn flatten(rgba: &[u8], gray: bool) -> Vec<u8> {
         let over = |c: u8| (u16::from(c) + (255 - a)).min(255) as u8;
         let (r, g, b) = (over(px[0]), over(px[1]), over(px[2]));
         if gray {
-            out.push(((u32::from(r) * 299 + u32::from(g) * 587 + u32::from(b) * 114) / 1000) as u8);
+            out.push((kr * f32::from(r) + kg * f32::from(g) + kb * f32::from(b) + 0.5).min(255.0) as u8);
         } else {
             out.extend_from_slice(&[r, g, b]);
         }
@@ -126,6 +128,13 @@ mod tests {
         assert_eq!(flatten(&[0, 0, 0, 255, 0, 0, 0, 0], false), [0, 0, 0, 255, 255, 255]);
         assert_eq!(flatten(&[255, 255, 255, 255], true), [255]);
         assert_eq!(flatten(&[1, 2, 3], true), Vec::<u8>::new());
+    }
+
+    /// Gray raster uses the Rec. 709 weights of the print's Grayscale and its preview, not Rec. 601's.
+    #[test]
+    fn gray_raster_uses_rec_709_weights() {
+        // Opaque red, green and blue: 0.2126, 0.7152 and 0.0722 of 255.
+        assert_eq!(flatten(&[255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255], true), [54, 182, 18]);
     }
 
     #[test]

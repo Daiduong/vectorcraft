@@ -4795,11 +4795,11 @@ effect	Soft	Weich
 # Select by Color (select.color)
 	Select by Color	Nach Farbe auswählen
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Die Kopien eines Netzwerkdruckers werden oben in seinem Abschnitt festgelegt
 	A setting isn't valid	Eine Einstellung ist ungültig
 	Accepted by {printer}	Von {printer} angenommen
 	Asking the printer…	Drucker wird abgefragt …
 	Canceling…	Wird abgebrochen …
-	Colour	Farbe
 	Couldn't reach the printer	Der Drucker ist nicht erreichbar
 	Flip on long edge	An der langen Kante wenden
 	Flip on short edge	An der kurzen Kante wenden
@@ -4843,6 +4843,7 @@ effect	Soft	Weich
 	This printer does not take an orientation setting.	Dieser Drucker unterstützt keine Ausrichtungseinstellung.
 	This printer only prints in grayscale.	Dieser Drucker druckt nur in Graustufen.
 	This printer only prints one-sided.	Dieser Drucker druckt nur einseitig.
+	Tick the confirmation box to send this document to this printer.	Aktivieren Sie das Bestätigungsfeld, um dieses Dokument an diesen Drucker zu senden.
 	Two-sided:	Zweiseitig:
 	Waiting in the printer's queue	Wartet in der Warteschlange des Druckers
 	Network Printer…	Netzwerkdrucker …

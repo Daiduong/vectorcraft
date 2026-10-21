@@ -4829,11 +4829,11 @@ lighting	Light	Luce
 # Select by Color (select.color)
 	Select by Color	Seleziona per colore
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Le copie di una stampante di rete si impostano nella sua sezione qui sopra
 	A setting isn't valid	Un'impostazione non è valida
 	Accepted by {printer}	Accettato da {printer}
 	Asking the printer…	Interrogazione della stampante…
 	Canceling…	Annullamento…
-	Colour	Colore
 	Couldn't reach the printer	Impossibile raggiungere la stampante
 	Flip on long edge	Capovolgi sul lato lungo
 	Flip on short edge	Capovolgi sul lato corto
@@ -4877,6 +4877,7 @@ lighting	Light	Luce
 	This printer does not take an orientation setting.	Questa stampante non supporta un'impostazione per l'orientamento.
 	This printer only prints in grayscale.	Questa stampante stampa solo in scala di grigi.
 	This printer only prints one-sided.	Questa stampante stampa solo su un lato.
+	Tick the confirmation box to send this document to this printer.	Seleziona la casella di conferma per inviare questo documento a questa stampante.
 	Two-sided:	Fronte/retro:
 	Waiting in the printer's queue	In attesa nella coda della stampante
 	Network Printer…	Stampante di rete…

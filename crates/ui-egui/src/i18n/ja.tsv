@@ -4869,11 +4869,11 @@ lighting	Light	ライト
 # Select by Color (select.color)
 	Select by Color	カラーで選択
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	ネットワークプリンターのコピー数は、上のプリンターのセクションで設定します
 	A setting isn't valid	無効な設定があります
 	Accepted by {printer}	{printer} が受け付けました
 	Asking the printer…	プリンターに問い合わせています…
 	Canceling…	キャンセルしています…
-	Colour	カラー
 	Couldn't reach the printer	プリンターに接続できませんでした
 	Flip on long edge	長辺とじで反転
 	Flip on short edge	短辺とじで反転
@@ -4917,6 +4917,7 @@ lighting	Light	ライト
 	This printer does not take an orientation setting.	このプリンターは向きの設定に対応していません。
 	This printer only prints in grayscale.	このプリンターはグレースケールでのみ印刷できます。
 	This printer only prints one-sided.	このプリンターは片面印刷のみ対応しています。
+	Tick the confirmation box to send this document to this printer.	このドキュメントをこのプリンターに送信するには、確認のチェックボックスをオンにしてください。
 	Two-sided:	両面印刷:
 	Waiting in the printer's queue	プリンターのキューで待機中
 	Network Printer…	ネットワークプリンター…

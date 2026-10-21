@@ -5171,11 +5171,11 @@ theme	Appearance	Utseende
 # Select by Color (select.color)
 	Select by Color	Markera efter färg
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	En nätverksskrivares kopior anges i dess avsnitt ovan
 	A setting isn't valid	En inställning är inte giltig
 	Accepted by {printer}	Godtagen av {printer}
 	Asking the printer…	Frågar skrivaren…
 	Canceling…	Avbryter…
-	Colour	Färg
 	Couldn't reach the printer	Det gick inte att nå skrivaren
 	Flip on long edge	Vänd på långsidan
 	Flip on short edge	Vänd på kortsidan
@@ -5220,6 +5220,7 @@ theme	Appearance	Utseende
 	This printer does not take an orientation setting.	Den här skrivaren tar ingen orienteringsinställning.
 	This printer only prints in grayscale.	Den här skrivaren skriver bara ut i gråskala.
 	This printer only prints one-sided.	Den här skrivaren skriver bara ut ensidigt.
+	Tick the confirmation box to send this document to this printer.	Markera bekräftelserutan för att skicka dokumentet till den här skrivaren.
 	Two-sided:	Dubbelsidigt:
 	Waiting in the printer's queue	Väntar i skrivarens kö
 	{printer} (default)	{printer} (standard)

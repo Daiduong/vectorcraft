@@ -48,7 +48,8 @@ fn app_pdf() -> Vec<u8> {
 }
 
 fn send(tasks: &mut NetTasks) -> bool {
-    tasks.send(None, "report", app_pdf(), 1, Some("iso_a4_210x297mm"))
+    let by_printer = tasks.printer_makes_copies();
+    tasks.send(None, "report", app_pdf(), 1, Some("iso_a4_210x297mm"), by_printer)
 }
 
 #[test]
@@ -355,8 +356,79 @@ fn a_printer_that_lists_pdf_gets_the_print_ready_pdf_unchanged() {
     query(&mut tasks);
     tasks.state.draft.confirmed = true;
     let pdf = app_pdf();
-    assert!(tasks.send(None, "report", pdf.clone(), 1, None));
+    assert!(tasks.send(None, "report", pdf.clone(), 1, None, true));
     wait(&mut tasks, |t| !t.state.draft.running());
     assert_eq!(printer.job(1).unwrap().document.as_deref(), Some(&pdf[..]));
     assert_eq!(reads(&printer), 2, "the query and the backend's own: {:?}", printer.actions());
+}
+
+/// The printer makes the copies only when its listed range covers them; one that did not list
+/// copies, or lists fewer, gets them in the document.
+#[test]
+fn the_printer_makes_the_copies_only_when_its_range_covers_them() {
+    let (mut tasks, _) = tasks(Config { max_copies: 5, ..Default::default() });
+    query(&mut tasks);
+    for (copies, by_printer) in [(1, true), (5, true), (10, false)] {
+        tasks.state.draft.copies = copies;
+        assert_eq!(tasks.printer_makes_copies(), by_printer, "{copies} copies of 1 to 5");
+    }
+    if let Query::Done(summary) = &mut tasks.state.draft.query {
+        summary.caps.copies = Capability::Unknown;
+    }
+    assert!(!tasks.printer_makes_copies(), "a printer that did not say may ignore the setting");
+    // Not queried: nothing is known.
+    assert!(!NetTasks::default().printer_makes_copies());
+}
+
+/// The copies left to the document are not asked of the printer as well.
+#[test]
+fn copies_in_the_document_are_not_asked_of_the_printer() {
+    let (mut tasks, printer) = tasks(Config::default());
+    query(&mut tasks);
+    tasks.state.draft.confirmed = true;
+    tasks.state.draft.copies = 3;
+    assert!(tasks.send(None, "report", app_pdf(), 1, None, false));
+    wait(&mut tasks, |t| !t.state.draft.running());
+    let ticket = printer.job(1).unwrap().ticket;
+    assert!(!ticket.contains("Copies"), "{ticket}");
+}
+
+#[test]
+fn the_color_setting_stands_over_the_dialogs_grayscale_and_none_leaves_it() {
+    let mut tasks = NetTasks::default();
+    assert!(!tasks.network_grayscale(false) && tasks.network_grayscale(true), "no Color picked: the dialog's Grayscale");
+    tasks.state.draft.color = Some(net::ColorMode::Monochrome);
+    assert!(tasks.network_grayscale(false));
+    tasks.state.draft.color = Some(net::ColorMode::Color);
+    assert!(!tasks.network_grayscale(true));
+}
+
+/// Answers every request late, so a cancel lands before the printer has the document.
+struct Slow(Arc<FakePrinter>);
+
+impl craft_print::wsd::adapter::Transport for Slow {
+    fn post(&self, _: &DeviceUrl, request: WireRequest) -> Result<Response, WireError> {
+        std::thread::sleep(Duration::from_millis(200));
+        let (status, content_type, body) = self.0.handle(&request.content_type, &request.body);
+        Ok(Response::new(status, Some(content_type), body))
+    }
+}
+
+#[test]
+fn a_job_canceled_before_the_printer_accepted_it_names_the_printer() {
+    let printer = FakePrinter::new(Config::default());
+    let mut tasks = tasks_with(Arc::new(Slow(printer.clone())));
+    query(&mut tasks);
+    tasks.state.draft.confirmed = true;
+    assert!(send(&mut tasks));
+    assert!(tasks.state.cancel_job());
+    wait(&mut tasks, |t| !t.state.draft.running());
+    match &tasks.state.draft.job {
+        JobView::Finished(r) => {
+            assert_eq!(r.outcome, Outcome::Canceled);
+            assert!(!r.printer.is_empty(), "{r:?}");
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(!printer.actions().iter().any(|a| a == "SendDocument"), "{:?}", printer.actions());
 }

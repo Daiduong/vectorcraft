@@ -4792,11 +4792,11 @@ lighting	Light	광원
 # Select by Color (select.color)
 	Select by Color	색상별 선택
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	네트워크 프린터의 매수는 위의 프린터 섹션에서 설정합니다
 	A setting isn't valid	올바르지 않은 설정이 있습니다
 	Accepted by {printer}	{printer}에서 접수했습니다
 	Asking the printer…	프린터에 문의하는 중…
 	Canceling…	취소하는 중…
-	Colour	컬러
 	Couldn't reach the printer	프린터에 연결할 수 없습니다
 	Flip on long edge	긴 가장자리로 넘기기
 	Flip on short edge	짧은 가장자리로 넘기기
@@ -4840,6 +4840,7 @@ lighting	Light	광원
 	This printer does not take an orientation setting.	이 프린터는 방향 설정을 지원하지 않습니다.
 	This printer only prints in grayscale.	이 프린터는 그레이스케일로만 인쇄합니다.
 	This printer only prints one-sided.	이 프린터는 단면 인쇄만 지원합니다.
+	Tick the confirmation box to send this document to this printer.	이 문서를 이 프린터로 보내려면 확인란을 선택하세요.
 	Two-sided:	양면:
 	Waiting in the printer's queue	프린터 대기열에서 기다리는 중
 	Network Printer…	네트워크 프린터…

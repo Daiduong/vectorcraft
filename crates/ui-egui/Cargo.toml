@@ -33,8 +33,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
 
-# Network printing (WS-Print, IPP): no sockets on the web.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Network printing (WS-Print, IPP): no sockets on the web, and not in the experimental Windows 7
+# build, which keeps craft-print out of its tree (docs/windows7.md).
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))'.dependencies]
 vectorcraft-print = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -42,9 +43,11 @@ vectorcraft-print = { workspace = true }
 # MIT OR Apache-2.0 and already in the build through eframe.
 web-time = "1"
 
-[dev-dependencies]
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))'.dev-dependencies]
 # The in-process fake WS-Print printer for the network print tests (`craft_print::wsd::testing`).
 craft-print = { workspace = true, features = ["wsd", "testing"] }
+
+[dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 vectorcraft-testkit = { workspace = true }
 # A variable font built in code (no font file is committed).

@@ -5215,11 +5215,11 @@ mark-style	Japanese	Japonské
 # Select by Color (select.color)
 	Select by Color	Vybrat podle barvy
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Kopie pro síťovou tiskárnu se nastavují v její sekci výše
 	A setting isn't valid	Nastavení není platné
 	Accepted by {printer}	Přijato tiskárnou {printer}
 	Asking the printer…	Dotazování tiskárny…
 	Canceling…	Ruší se…
-	Colour	Barva
 	Couldn't reach the printer	Tiskárnu se nepodařilo zastihnout
 	Flip on long edge	Otočit podle delší hrany
 	Flip on short edge	Otočit podle kratší hrany
@@ -5263,6 +5263,7 @@ mark-style	Japanese	Japonské
 	This printer does not take an orientation setting.	Tato tiskárna nepřijímá nastavení orientace.
 	This printer only prints in grayscale.	Tato tiskárna tiskne pouze ve stupních šedi.
 	This printer only prints one-sided.	Tato tiskárna tiskne pouze jednostranně.
+	Tick the confirmation box to send this document to this printer.	Zaškrtněte políčko potvrzení, abyste odeslali tento dokument na tuto tiskárnu.
 	Two-sided:	Oboustranně:
 	Waiting in the printer's queue	Čeká ve frontě tiskárny
 	Network Printer…	Síťová tiskárna…

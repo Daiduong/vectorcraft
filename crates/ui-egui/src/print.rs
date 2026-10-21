@@ -159,8 +159,8 @@ fn job_hints(app: &mut VectorcraftApp, p: &Value) -> (bool, bool) {
     (gray, chosen)
 }
 
-/// `settings` with Grayscale `gray` (a network printer's Color setting is the only say it has).
-#[cfg(not(target_arch = "wasm32"))]
+/// `settings` with Grayscale `gray` (what a network job prints: [`crate::network_glue::NetTasks::network_grayscale`]).
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 pub(crate) fn with_grayscale(settings: &Value, gray: bool) -> Value {
     let mut out = settings.clone();
     if let Some(o) = out.as_object_mut() {
@@ -178,11 +178,15 @@ pub(crate) fn with_grayscale(settings: &Value, gray: bool) -> Value {
 /// that cannot start says why. The dialog stays open to show the job; the result of the job is
 /// shown there, or as a notice when the dialog is closed.
 ///
-/// Copies: a printer that takes a copies setting makes them itself (the PDF is one copy); one that
-/// doesn't (or hasn't been queried to say) gets them in the PDF, so the sheets are what was asked for.
+/// Copies are the network section's: a printer whose listed copies range covers them makes them
+/// itself (the PDF is one copy); any other (no range listed, or a smaller one) gets them in the PDF
+/// and is asked for one copy, so the sheets are what was asked for.
+///
+/// Grayscale: the network section's Color setting when one is picked, else the dialog's (or the
+/// preset's) Grayscale; a gray job is a gray PDF and asks the printer for monochrome.
 ///
 /// `paper_chosen`: the person picked the paper (the dialog says so), so it is sent as the media.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 pub fn run_network(app: &mut VectorcraftApp, settings: &Value, paper_chosen: bool) -> Result<Value, String> {
     use craft_ui::printing::network::Block;
     let sheets_ok =
@@ -196,16 +200,21 @@ pub fn run_network(app: &mut VectorcraftApp, settings: &Value, paper_chosen: boo
             Block::NotQueried => labels.query_first,
             Block::Format => labels.no_common_format,
             Block::NoPages => tl!("Nothing to print"),
-            Block::Unconfirmed => labels.confirm,
+            // The box's own label is no reason: say what to do.
+            Block::Unconfirmed => tl!("Tick the confirmation box to send this document to this printer."),
             Block::Busy => labels.sending,
         }
         .replace("{printer}", "…"));
     }
-    // The printer makes the copies when it takes a copies setting.
-    let by_printer = draft.request(None).copies.is_some();
-    let copies = if by_printer { 1 } else { draft.copies.max(1) };
+    let by_printer = app.print_net.printer_makes_copies();
+    let copies = if by_printer { 1 } else { app.print_net.state.draft.copies.max(1) };
     // A printer told to print Grayscale may still print colour, so the PDF itself is gray too.
-    let mut q = json!({ "settings": with_grayscale(settings, app.print_net.network_grayscale()) });
+    let gray = app.print_net.network_grayscale(crate::dialogs::print::prints_gray(settings));
+    if gray && app.print_net.state.draft.color.is_none() {
+        // The dialog's (or the preset's) Grayscale, with no Color picked: the printer is asked for it too.
+        app.print_net.state.draft.color = Some(craft_ui::printing::network::ColorMode::Monochrome);
+    }
+    let mut q = json!({ "settings": with_grayscale(settings, gray) });
     q["settings"]["copies"] = json!(copies);
     let mut v = app.session.execute("file.print", &q).map_err(|e| e.to_string())?;
     let data = v.as_object_mut().and_then(|o| o.remove("dataBase64"));
@@ -215,7 +224,7 @@ pub fn run_network(app: &mut VectorcraftApp, settings: &Value, paper_chosen: boo
     // The paper goes to the printer only when the person chose it; otherwise `media` is the document's
     // own default (Letter) and the printer's own paper stands, as for a local queue.
     let paper = paper_chosen.then(|| settings["media"].as_str().and_then(crate::network_glue::media_for_paper)).flatten();
-    if !app.print_net.send(None, &title, pdf, pages, paper) {
+    if !app.print_net.send(None, &title, pdf, pages, paper, by_printer) {
         return Err(tl!("Couldn't reach the printer").into());
     }
     v["printed"] = json!(false);

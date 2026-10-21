@@ -4809,11 +4809,11 @@ lighting	Light	Світло
 # Select by Color (select.color)
 	Select by Color	Виділити за кольором
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Кількість копій для мережевого принтера задається в його розділі вище
 	A setting isn't valid	Недійсний параметр
 	Accepted by {printer}	Прийнято принтером {printer}
 	Asking the printer…	Опитування принтера…
 	Canceling…	Скасування…
-	Colour	Колір
 	Couldn't reach the printer	Не вдалося зв'язатися з принтером
 	Flip on long edge	Перевернути по довгому краю
 	Flip on short edge	Перевернути по короткому краю
@@ -4857,6 +4857,7 @@ lighting	Light	Світло
 	This printer does not take an orientation setting.	Цей принтер не підтримує параметр орієнтації.
 	This printer only prints in grayscale.	Цей принтер друкує лише у відтінках сірого.
 	This printer only prints one-sided.	Цей принтер друкує лише з одного боку.
+	Tick the confirmation box to send this document to this printer.	Позначте прапорець підтвердження, щоб надіслати цей документ на цей принтер.
 	Two-sided:	Двосторонній друк:
 	Waiting in the printer's queue	Очікує в черзі принтера
 	Network Printer…	Мережевий принтер…

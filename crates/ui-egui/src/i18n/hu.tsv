@@ -5201,11 +5201,11 @@ imageTrace	Outline	Körvonal
 # Select by Color (select.color)
 	Select by Color	Kijelölés szín szerint
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	A hálózati nyomtató példányszáma a fenti szakaszában állítható be
 	A setting isn't valid	Egy beállítás érvénytelen
 	Accepted by {printer}	{printer} elfogadta
 	Asking the printer…	A nyomtató lekérdezése…
 	Canceling…	Megszakítás…
-	Colour	Szín
 	Couldn't reach the printer	A nyomtató nem érhető el
 	Flip on long edge	Forgatás a hosszú élen
 	Flip on short edge	Forgatás a rövid élen
@@ -5249,6 +5249,7 @@ imageTrace	Outline	Körvonal
 	This printer does not take an orientation setting.	Ez a nyomtató nem támogatja a tájolás beállítását.
 	This printer only prints in grayscale.	Ez a nyomtató csak szürkeárnyalatosan nyomtat.
 	This printer only prints one-sided.	Ez a nyomtató csak egyoldalasan nyomtat.
+	Tick the confirmation box to send this document to this printer.	Jelölje be a megerősítő négyzetet, hogy elküldje ezt a dokumentumot erre a nyomtatóra.
 	Two-sided:	Kétoldalas:
 	Waiting in the printer's queue	Várakozik a nyomtató sorában
 	Network Printer…	Hálózati nyomtató…

@@ -4809,11 +4809,11 @@ theme	Appearance	Giao diện
 # Select by Color (select.color)
 	Select by Color	Chọn theo màu
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Số bản in của máy in mạng được đặt trong phần của máy in ở trên
 	A setting isn't valid	Một thiết lập không hợp lệ
 	Accepted by {printer}	{printer} đã nhận
 	Asking the printer…	Đang hỏi máy in…
 	Canceling…	Đang hủy…
-	Colour	Màu
 	Couldn't reach the printer	Không thể kết nối với máy in
 	Flip on long edge	Lật theo cạnh dài
 	Flip on short edge	Lật theo cạnh ngắn
@@ -4857,6 +4857,7 @@ theme	Appearance	Giao diện
 	This printer does not take an orientation setting.	Máy in này không hỗ trợ thiết lập hướng giấy.
 	This printer only prints in grayscale.	Máy in này chỉ in thang xám.
 	This printer only prints one-sided.	Máy in này chỉ in một mặt.
+	Tick the confirmation box to send this document to this printer.	Hãy đánh dấu ô xác nhận để gửi tài liệu này đến máy in này.
 	Two-sided:	In hai mặt:
 	Waiting in the printer's queue	Đang chờ trong hàng đợi của máy in
 	Network Printer…	Máy in mạng…

@@ -5179,11 +5179,11 @@ mark-style	Japanese	Japanilainen
 # Select by Color (select.color)
 	Select by Color	Valitse värin mukaan
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Verkkotulostimen kopiot asetetaan sen osiossa yllä
 	A setting isn't valid	Asetus ei kelpaa
 	Accepted by {printer}	{printer} hyväksyi tehtävän
 	Asking the printer…	Kysytään tulostimelta…
 	Canceling…	Peruutetaan…
-	Colour	Väri
 	Couldn't reach the printer	Tulostimeen ei saatu yhteyttä
 	Flip on long edge	Käännä pitkältä reunalta
 	Flip on short edge	Käännä lyhyeltä reunalta
@@ -5228,6 +5228,7 @@ mark-style	Japanese	Japanilainen
 	This printer does not take an orientation setting.	Tämä tulostin ei tue suunta-asetusta.
 	This printer only prints in grayscale.	Tämä tulostin tulostaa vain harmaasävyinä.
 	This printer only prints one-sided.	Tämä tulostin tulostaa vain yksipuolisesti.
+	Tick the confirmation box to send this document to this printer.	Valitse vahvistusruutu, niin tämä asiakirja lähetetään tälle tulostimelle.
 	Two-sided:	Kaksipuolinen:
 	Waiting in the printer's queue	Odottaa tulostimen jonossa
 	{printer} (default)	{printer} (oletus)

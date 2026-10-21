@@ -5214,11 +5214,11 @@ theme	Appearance	Apparence
 # Select by Color (select.color)
 	Select by Color	Sélectionner par couleur
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Les copies d'une imprimante réseau se règlent dans sa section ci-dessus
 	A setting isn't valid	Un réglage n'est pas valide
 	Accepted by {printer}	Accepté par {printer}
 	Asking the printer…	Interrogation de l'imprimante…
 	Canceling…	Annulation…
-	Colour	Couleur
 	Couldn't reach the printer	Impossible de joindre l'imprimante
 	Flip on long edge	Retourner sur le bord long
 	Flip on short edge	Retourner sur le bord court
@@ -5262,6 +5262,7 @@ theme	Appearance	Apparence
 	This printer does not take an orientation setting.	Cette imprimante ne prend pas en charge un réglage de l'orientation.
 	This printer only prints in grayscale.	Cette imprimante n'imprime qu'en niveaux de gris.
 	This printer only prints one-sided.	Cette imprimante n'imprime qu'en recto.
+	Tick the confirmation box to send this document to this printer.	Cochez la case de confirmation pour envoyer ce document à cette imprimante.
 	Two-sided:	Recto verso :
 	Waiting in the printer's queue	En attente dans la file de l'imprimante
 	Network Printer…	Imprimante réseau…

@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+vectorcraft-color = { workspace = true }
 vectorcraft-pdf = { workspace = true }
 vectorcraft-render = { workspace = true }
 

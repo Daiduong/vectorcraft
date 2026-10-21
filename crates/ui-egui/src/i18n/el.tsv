@@ -5167,11 +5167,11 @@ effect	Points	Σημεία
 # Select by Color (select.color)
 	Select by Color	Επιλογή βάσει χρώματος
 # Network printer destination of the Print dialog (WS-Print / IPP): machine-drafted by Claude (AI), not reviewed by a native speaker.
+	A network printer's copies are set in its section above	Τα αντίγραφα ενός εκτυπωτή δικτύου ορίζονται στην ενότητά του παραπάνω
 	A setting isn't valid	Μια ρύθμιση δεν είναι έγκυρη
 	Accepted by {printer}	Αποδεκτό από τον εκτυπωτή {printer}
 	Asking the printer…	Ερώτηση στον εκτυπωτή…
 	Canceling…	Ακύρωση…
-	Colour	Χρώμα
 	Couldn't reach the printer	Δεν ήταν δυνατή η επικοινωνία με τον εκτυπωτή
 	Flip on long edge	Αναστροφή στη μεγάλη πλευρά
 	Flip on short edge	Αναστροφή στη μικρή πλευρά
@@ -5216,6 +5216,7 @@ effect	Points	Σημεία
 	This printer does not take an orientation setting.	Αυτός ο εκτυπωτής δεν δέχεται ρύθμιση προσανατολισμού.
 	This printer only prints in grayscale.	Αυτός ο εκτυπωτής εκτυπώνει μόνο σε κλίμακα του γκρι.
 	This printer only prints one-sided.	Αυτός ο εκτυπωτής εκτυπώνει μόνο μονής όψης.
+	Tick the confirmation box to send this document to this printer.	Επιλέξτε το πλαίσιο επιβεβαίωσης για να στείλετε αυτό το έγγραφο σε αυτόν τον εκτυπωτή.
 	Two-sided:	Διπλής όψης:
 	Waiting in the printer's queue	Σε αναμονή στην ουρά του εκτυπωτή
 	{printer} (default)	{printer} (προεπιλογή)

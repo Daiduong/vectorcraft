@@ -245,7 +245,9 @@ fn the_control_channel_fills_and_confirms_the_dialog() {
 }
 
 // ---------- one Printer list ----------
+// The network printer destination is not built for the web nor for the Windows 7 build.
 
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 #[test]
 fn the_printer_list_holds_every_system_printer_then_network_then_pdf() {
     use super::print::Destination::*;
@@ -266,6 +268,7 @@ fn the_printer_list_holds_every_system_printer_then_network_then_pdf() {
     frame(&mut app);
 }
 
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 #[test]
 fn choosing_the_network_entry_shows_the_network_section_and_a_queue_hides_it() {
     use super::print::{Destination, choose};
@@ -285,10 +288,12 @@ fn choosing_the_network_entry_shows_the_network_section_and_a_queue_hides_it() {
 
 // ---------- Grayscale ----------
 
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 #[test]
 fn the_colour_choice_says_grayscale_not_black_and_white() {
     let labels = crate::network_glue::labels();
     assert_eq!(labels.color_monochrome, "Grayscale");
+    assert_eq!(labels.color_color, "Color", "US spelling, as every other label");
     assert!(labels.unsupported_color.contains("grayscale"), "{}", labels.unsupported_color);
     assert!(!labels.unsupported_color.to_lowercase().contains("black"));
 }
@@ -391,6 +396,7 @@ fn a_document_sized_job_does_not_demand_a_paper_but_a_chosen_paper_is_demanded()
     assert!(!asked.borrow().last().unwrap().1);
 }
 
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 #[test]
 fn a_network_printers_grayscale_makes_the_preview_and_the_job_gray() {
     use craft_ui::printing::network::ColorMode;
@@ -401,33 +407,84 @@ fn a_network_printers_grayscale_makes_the_preview_and_the_job_gray() {
     assert!(!super::print::prints_gray(&super::print::shown_settings(&app, &d)));
     app.print_net.state.draft.color = Some(ColorMode::Monochrome);
     assert!(super::print::prints_gray(&super::print::shown_settings(&app, &d)), "the Color setting is Grayscale");
-    // The dialog's own box does not leak into a network job: the printer's Color setting decides.
+    // A Color picked in the network section stands over the dialog's (or the preset's) Grayscale…
     app.print_net.state.draft.color = Some(ColorMode::Color);
     d.fields.insert("color".into(), json!({"grayscale": true}));
     assert!(!super::print::prints_gray(&super::print::shown_settings(&app, &d)));
+    // …and with none picked, the dialog's Grayscale stands.
+    app.print_net.state.draft.color = None;
+    assert!(super::print::prints_gray(&super::print::shown_settings(&app, &d)), "the dialog's Grayscale is not dropped");
 }
 
 // ---------- the network printer destination ----------
 
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
 mod network {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use craft_print::wsd::testing::{FakeConfig as Config, FakePrinter, MemTransport};
+    use craft_print::wsd::testing::{FakeConfig as Config, FakeJob, FakePrinter, MemTransport};
+    use craft_ui::capability::Capability;
+    use craft_ui::printing::network::{ColorMode, Query};
 
     use super::*;
 
     const ADDRESS: &str = "127.0.0.1:5357/printer";
 
     fn network_app() -> (VectorcraftApp, Jobs, Arc<FakePrinter>) {
+        network_app_with(Config::default())
+    }
+
+    fn network_app_with(config: Config) -> (VectorcraftApp, Jobs, Arc<FakePrinter>) {
         let (mut app, jobs) = app();
-        let printer = FakePrinter::new(Config::default());
+        let printer = FakePrinter::new(config);
         app.set_network_print_transport(Arc::new(MemTransport(printer.clone())));
         app.print_net.state.draft = craft_ui::printing::network::Draft::for_address(ADDRESS);
         app.run("file.print", json!({})).unwrap();
         set(&mut app, "network", json!(true));
         set(&mut app, "toFile", json!(false));
         (app, jobs, printer)
+    }
+
+    /// Query the printer as the Query button does. The query goes to a worker of its own: this app's
+    /// "queried" memory stays empty, so the job reads the printer again.
+    fn query(app: &mut VectorcraftApp) {
+        let transport = app.print_net.transport();
+        let worker = crate::network_glue::query_printer(transport, None, Default::default());
+        assert!(app.print_net.state.start_query(&worker, true));
+        let ctx = egui::Context::default();
+        for _ in 0..200 {
+            app.print_net.poll(&ctx, true);
+            if !app.print_net.state.draft.querying() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(app.print_net.state.draft.printer().is_some(), "{:?}", app.print_net.state.draft.query);
+    }
+
+    /// Tick the box, press Print and follow the job to its end: what the printer got.
+    fn print(app: &mut VectorcraftApp, printer: &FakePrinter) -> FakeJob {
+        app.print_net.state.draft.confirmed = true;
+        super::super::confirm(app).expect("the job starts");
+        assert!(app.ui.dialog.is_some() && app.print_net.state.draft.running());
+        let ctx = egui::Context::default();
+        for _ in 0..400 {
+            app.print_net.poll(&ctx, true);
+            if !app.print_net.state.draft.running() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        assert_eq!(printer.jobs(), 1);
+        printer.job(1).unwrap()
+    }
+
+    /// The copies the job's ticket asks the printer for (`None`: one).
+    fn ticket_copies(job: &FakeJob) -> Option<u32> {
+        let (_, rest) = job.ticket.split_once("<wprt:Copies")?;
+        let (_, rest) = rest.split_once('>')?;
+        rest.split_once('<')?.0.trim().parse().ok()
     }
 
     #[test]
@@ -445,42 +502,96 @@ mod network {
         let err = super::super::confirm(&mut app).unwrap_err();
         assert!(err.contains("Query the printer first"), "{err}");
         assert!(app.ui.dialog.is_some(), "the dialog stays");
+        query(&mut app);
+        let err = super::super::confirm(&mut app).unwrap_err();
+        // What to do, not the box's own label.
+        assert_eq!(err, "Tick the confirmation box to send this document to this printer.");
         assert_eq!((printer.jobs(), jobs.borrow().len()), (0, 0));
-        assert!(printer.actions().is_empty(), "nothing reached the printer: {:?}", printer.actions());
+        assert!(
+            !printer.actions().iter().any(|a| a == "CreatePrintJob" || a == "SendDocument"),
+            "no job reached the printer: {:?}",
+            printer.actions()
+        );
     }
 
     #[test]
     fn a_confirmed_job_goes_to_the_network_printer_not_the_spooler_and_the_dialog_stays_open() {
         let (mut app, jobs, printer) = network_app();
-        set(&mut app, "copies", json!(2));
         set(&mut app, "media", json!("a4"));
-        // Query as the Query button does.
-        let transport = app.print_net.transport();
-        let worker = crate::network_glue::query_printer(transport, None, Default::default());
-        assert!(app.print_net.state.start_query(&worker, true));
-        let ctx = egui::Context::default();
-        for _ in 0..200 {
-            app.print_net.poll(&ctx, true);
-            if !app.print_net.state.draft.querying() {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        // The query went to a worker of its own: this app's "queried" memory is empty, the job reads again.
-        app.print_net.state.draft.confirmed = true;
-        super::super::confirm(&mut app).expect("the job starts");
-        assert!(app.ui.dialog.is_some() && app.print_net.state.draft.running());
-        for _ in 0..400 {
-            app.print_net.poll(&ctx, true);
-            if !app.print_net.state.draft.running() {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(25));
-        }
-        assert_eq!(printer.jobs(), 1);
+        query(&mut app);
+        // Two copies in the network section; the printer lists 1 to 10, so it makes them.
+        app.print_net.state.draft.copies = 2;
+        let job = print(&mut app, &printer);
         assert!(jobs.borrow().is_empty(), "the spooler was not used");
-        let pdf = printer.job(1).unwrap().document.unwrap();
-        // Three artboards, one copy made by the printer (it lists a copies range): three sheets in the PDF.
-        assert_eq!(pages(&pdf), 3);
+        // Three artboards, one copy in the PDF: three sheets, and the ticket asks for two copies.
+        assert_eq!(pages(job.document.as_ref().unwrap()), 3);
+        assert_eq!(ticket_copies(&job), Some(2), "{}", job.ticket);
+    }
+
+    /// General's Copies is the network section's while a network printer is chosen: shown, off, and
+    /// what the preview and the Summary count. The dialog's own copies never reach the job.
+    #[test]
+    fn a_network_printer_takes_its_copies_from_its_section_not_general() {
+        let (mut app, _, printer) = network_app();
+        let mut d = dialog(&mut app).clone();
+        d.fields.insert("network".into(), json!(false));
+        d.fields.insert("copies".into(), json!(3));
+        // Choosing the destination starts the section's copies at the dialog's.
+        super::super::print::choose(&mut app, &mut d, &super::super::print::Destination::Network);
+        assert_eq!(app.print_net.state.draft.copies, 3);
+        app.print_net.state.draft.copies = 1;
+        assert_eq!(super::super::print::network_copies(&app, &d), Some(1), "General shows the section's copies");
+        assert_eq!(super::super::print::shown_settings(&app, &d)["copies"], 1, "the preview counts the section's copies");
+        app.ui.dialog = Some(d);
+        frame(&mut app);
+        query(&mut app);
+        let job = print(&mut app, &printer);
+        assert_eq!((pages(job.document.as_ref().unwrap()), ticket_copies(&job)), (3, None), "the dialog's 3 copies are not printed");
+        // Other destinations keep General's Copies.
+        let mut d = app.ui.dialog.clone().unwrap();
+        d.fields.insert("network".into(), json!(false));
+        assert_eq!(super::super::print::network_copies(&app, &d), None);
+    }
+
+    /// A printer that did not list copies may ignore the setting: the copies go in the PDF.
+    #[test]
+    fn a_printer_that_lists_no_copies_gets_them_in_the_pdf() {
+        let (mut app, _, printer) = network_app();
+        query(&mut app);
+        if let Query::Done(summary) = &mut app.print_net.state.draft.query {
+            summary.caps.copies = Capability::Unknown;
+        }
+        app.print_net.state.draft.copies = 10;
+        let job = print(&mut app, &printer);
+        assert_eq!(pages(job.document.as_ref().unwrap()), 30, "ten copies of three sheets");
+        assert_eq!(ticket_copies(&job), None, "{}", job.ticket);
+    }
+
+    /// A printer whose range stops short of the copies would clamp them: they go in the PDF.
+    #[test]
+    fn a_printer_whose_range_is_too_small_gets_the_copies_in_the_pdf() {
+        let (mut app, _, printer) = network_app_with(Config { max_copies: 5, ..Config::default() });
+        query(&mut app);
+        app.print_net.state.draft.copies = 10;
+        let job = print(&mut app, &printer);
+        assert_eq!(pages(job.document.as_ref().unwrap()), 30, "ten copies of three sheets, none lost to the printer's 5");
+        assert_eq!(ticket_copies(&job), None, "{}", job.ticket);
+    }
+
+    /// A Grayscale preset prints gray on a network printer whose Color setting was left alone, and
+    /// the printer is asked for monochrome.
+    #[test]
+    fn a_grayscale_preset_makes_a_network_job_gray() {
+        let (mut app, _, printer) = network_app();
+        app.run("print.presets.save", json!({"name": "Mono", "settings": {"color": {"grayscale": true}}})).unwrap();
+        set(&mut app, "preset", json!("Mono"));
+        frame(&mut app);
+        assert_eq!(dialog(&mut app).fields["color"]["grayscale"], true, "the preset is loaded");
+        query(&mut app);
+        assert_eq!(app.print_net.state.draft.color, None, "no Color picked in the network section");
+        let job = print(&mut app, &printer);
+        let (rgb, gray) = paints(job.document.as_ref().unwrap());
+        assert!(gray && !rgb, "the network job is gray (rgb {rgb}, gray {gray})");
+        assert_eq!(app.print_net.state.draft.request(None).color, Some(ColorMode::Monochrome), "the request is monochrome");
     }
 }

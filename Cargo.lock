@@ -4996,6 +4996,7 @@ name = "vectorcraft-print"
 version = "0.13.1"
 dependencies = [
  "craft-print",
+ "vectorcraft-color",
  "vectorcraft-doc",
  "vectorcraft-pdf",
  "vectorcraft-render",
