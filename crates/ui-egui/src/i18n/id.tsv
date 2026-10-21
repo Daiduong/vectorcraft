@@ -761,6 +761,7 @@
 	Activate Panel	Aktifkan panel
 	Change Panel Layout	Ubah tata letak panel
 	Close Panel	Tutup panel
+	Collapse Panel Group	Ciutkan grup panel
 	Move Panel	Pindahkan panel
 	Group with	Grupkan dengan
 	Resize panels	Ubah ukuran panel
@@ -1311,6 +1312,7 @@ lighting	Light	Cahaya
 	Leading	Leading
 	No Break	Tanpa pemenggalan
 	Proportional Metrics	Metrik proporsional
+	Character Direction	Arah karakter
 	Digits	Digit
 	Arabic	Arab
 	Hindi	Hindi
@@ -4450,6 +4452,12 @@ imageTrace	Outline	Kontur
 @msg	before must name a panel	before harus menyebutkan panel
 @msg	docking action contains an unknown panel or an excessive split path	tindakan docking berisi panel tidak dikenal atau jalur pemisahan berlebihan
 @msg	group must be true or false	group harus true atau false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	panel mengambang; ciutkan grupnya dengan window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	panel tidak berada dalam grup dok
+@msg	only a dock group above or below others collapses, not one beside another	hanya grup dok di atas atau di bawah grup lain yang bisa diciutkan, bukan yang berada di sampingnya
+@msg	icon must be true or false	icon harus true atau false
+@msg	icon only docks a panel in the icon column, with no anchor	icon hanya menambatkan panel di kolom ikon, tanpa anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column menambatkan satu set sebagai kolom dok, tanpa anchor atau icon
 @msg	move requires a destination panel	move memerlukan panel tujuan
 @msg	move requires an existing destination panel	move memerlukan panel tujuan yang sudah ada
 @msg	onto must name a floating panel	onto harus menyebutkan panel mengambang
@@ -5281,6 +5289,7 @@ swatch	Bright Violet	Violet cerah
 	Persistent	Persisten
 	Locate Library…	Temukan pustaka…
 	Library Panel Options	Opsi panel pustaka
+	Gap Length:	Panjang celah:
 	Artboard {n} of {total}	Artboard {n} dari {total}
 	Encoding and writing the file…	Mengodekan dan menulis berkas…
 @plural	{n} more export waiting|{n} more exports waiting	{n} ekspor lagi menunggu
@@ -5342,5 +5351,11 @@ swatch	Bright Violet	Violet cerah
 	Water Paper	Kertas Basah
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Awal Lambat
+	Ease Out	Akhir Lambat
+	Ease In Out	Awal dan Akhir Lambat
+	Ease Out In	Akhir dan Awal Lambat
+	Ramp:	Kekuatan:
+	Shift:	Pergeseran:
 	Fresco…	Fresko…
 	Fresco	Fresko

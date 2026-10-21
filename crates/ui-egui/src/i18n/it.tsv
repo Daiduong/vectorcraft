@@ -2425,6 +2425,7 @@ mark-style	Japanese	Giapponese
 	Proof Setup	Impostazione prova
 	Properties	Proprietà
 	Proportional Metrics	Metrica proporzionale
+	Character Direction	Direzione caratteri
 	Digits	Cifre
 	Arabic	Arabe
 	Hindi	Hindi
@@ -4599,6 +4600,7 @@ effect	Regular	Normale
 	Activate Panel	Attiva pannello
 	Change Panel Layout	Modifica disposizione dei pannelli
 	Close Panel	Chiudi pannello
+	Collapse Panel Group	Comprimi gruppo di pannelli
 	Move Panel	Sposta pannello
 	Group with	Raggruppa con
 	Resize panels	Ridimensiona pannelli
@@ -4609,6 +4611,12 @@ effect	Regular	Normale
 @msg	before must name a panel	before deve indicare un pannello
 @msg	docking action contains an unknown panel or an excessive split path	L’azione di ancoraggio contiene un pannello sconosciuto o un percorso di divisioni troppo lungo
 @msg	group must be true or false	group deve essere true o false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	il pannello è mobile; comprimi il suo gruppo con window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	il pannello non è in un gruppo del dock
+@msg	only a dock group above or below others collapses, not one beside another	si comprime solo un gruppo del dock sopra o sotto altri, non uno accanto
+@msg	icon must be true or false	icon deve essere true o false
+@msg	icon only docks a panel in the icon column, with no anchor	icon ancora un pannello solo nella colonna delle icone, senza anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column ancora un insieme come colonna del dock, senza anchor né icon
 @msg	move requires a destination panel	Lo spostamento richiede un pannello di destinazione
 @msg	move requires an existing destination panel	Lo spostamento richiede un pannello di destinazione esistente
 @msg	onto must name a floating panel	onto deve indicare un pannello mobile
@@ -4942,6 +4950,7 @@ lighting	Light	Luce
 @msg	too many library panels were opened in this session	in questa sessione sono stati aperti troppi pannelli libreria
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’immagine è di {_1} × {_2} pixel, più di {LARGE_TRACE_SIDE} su un lato: viene vettorializzata, ma più lentamente. Un predefinito a fedeltà più bassa o una copia più piccola dell’immagine è più veloce.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	L’immagine è stata vettorializzata a {_1} × {_2} pixel, ridotta da {_3} × {_4} (al massimo {_5} megapixel).
+	Gap Length:	Lunghezza lacuna:
 	Artboard {n} of {total}	Tavola da disegno {n} di {total}
 	Encoding and writing the file…	Codifica e scrittura del file…
 @plural	{n} more export waiting|{n} more exports waiting	{n} altra esportazione in attesa|{n} altre esportazioni in attesa
@@ -4984,5 +4993,11 @@ lighting	Light	Luce
 	Water Paper	Carta bagnata
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Inizio graduale
+	Ease Out	Fine graduale
+	Ease In Out	Inizio e fine graduali
+	Ease Out In	Fine e inizio graduali
+	Ramp:	Intensità:
+	Shift:	Spostamento:
 	Fresco…	Affresco…
 	Fresco	Affresco

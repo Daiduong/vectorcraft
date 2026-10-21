@@ -35,6 +35,7 @@
 	ICF Top/Right	ICF 위/오른쪽
 	ICF Bottom/Left	ICF 아래/왼쪽
 	Proportional Metrics	비례 메트릭
+	Character Direction	문자 방향
 	Digits	숫자
 	Arabic	아라비아어
 	Hindi	힌디어
@@ -4568,6 +4569,7 @@ effect	Vertical	세로
 	Activate Panel	패널 활성화
 	Change Panel Layout	패널 레이아웃 변경
 	Close Panel	패널 닫기
+	Collapse Panel Group	패널 그룹 접기
 	Move Panel	패널 이동
 	Group with	함께 그룹화
 	Resize panels	패널 크기 조절
@@ -4579,6 +4581,12 @@ effect	Vertical	세로
 @msg	before must name a panel	before는 패널을 지정해야 합니다
 @msg	docking action contains an unknown panel or an excessive split path	도킹 동작에 알 수 없는 패널이나 지나치게 많은 분할 경로가 있습니다
 @msg	group must be true or false	group은 true 또는 false여야 합니다
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	패널이 분리되어 있습니다. 그룹은 window.panel.float {panel, collapsed}로 접으세요
+@msg	panel is not in a dock group	패널이 도크 그룹에 없습니다
+@msg	only a dock group above or below others collapses, not one beside another	다른 그룹의 위나 아래에 있는 도크 그룹만 접을 수 있으며, 옆에 있는 그룹은 접을 수 없습니다
+@msg	icon must be true or false	icon은 true 또는 false여야 합니다
+@msg	icon only docks a panel in the icon column, with no anchor	icon은 anchor 없이 패널을 아이콘 열에만 도킹합니다
+@msg	column docks a set as a dock column, with no anchor or icon	column은 anchor나 icon 없이 세트를 도크 열로 도킹합니다
 @msg	move requires a destination panel	move에는 대상 패널이 필요합니다
 @msg	move requires an existing destination panel	move에는 존재하는 대상 패널이 필요합니다
 @msg	onto must name a floating panel	onto는 떠 있는 패널을 지정해야 합니다
@@ -4905,6 +4913,7 @@ lighting	Light	광원
 @msg	too many library panels were opened in this session	이 세션에서 라이브러리 패널을 너무 많이 열었습니다
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	이미지가 {_1} × {_2}픽셀로 한 변이 {LARGE_TRACE_SIDE}을 넘습니다. 추적은 되지만 더 느립니다. 충실도가 낮은 사전 설정이나 이미지의 작은 사본을 사용하면 더 빠릅니다.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	이미지를 {_3} × {_4}에서 축소한 {_1} × {_2}픽셀로 추적했습니다(최대 {_5}메가픽셀).
+	Gap Length:	간격 길이:
 	Artboard {n} of {total}	아트보드 {n} / {total}
 	Encoding and writing the file…	파일을 인코딩하고 쓰는 중…
 @plural	{n} more export waiting|{n} more exports waiting	대기 중인 내보내기 {n}개 더
@@ -4947,5 +4956,11 @@ lighting	Light	광원
 	Water Paper	물 종이
 	Ruby…	루비…
 	Ruby	루비
+	Ease In	서서히 시작
+	Ease Out	서서히 종료
+	Ease In Out	서서히 시작 및 종료
+	Ease Out In	서서히 종료 및 시작
+	Ramp:	강도:
+	Shift:	이동:
 	Fresco…	프레스코…
 	Fresco	프레스코

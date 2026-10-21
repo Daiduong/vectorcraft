@@ -2421,6 +2421,7 @@ mark-style	Japanese	Японский
 	Proof Setup	Настройка цветопробы
 	Properties	Свойства
 	Proportional Metrics	Пропорциональные метрики
+	Character Direction	Направление символов
 	Digits	Цифры
 	Arabic	Арабские
 	Hindi	Хинди
@@ -4595,6 +4596,7 @@ axis	Both	Оба
 	Activate Panel	Активировать панель
 	Change Panel Layout	Изменить расположение панелей
 	Close Panel	Закрыть панель
+	Collapse Panel Group	Свернуть группу панелей
 	Move Panel	Переместить панель
 	Group with	Сгруппировать с
 	Resize panels	Изменить размер панелей
@@ -4605,6 +4607,12 @@ axis	Both	Оба
 @msg	before must name a panel	before должен указывать панель
 @msg	docking action contains an unknown panel or an excessive split path	Действие прикрепления содержит неизвестную панель или слишком длинный путь разделений
 @msg	group must be true or false	group должен иметь значение true или false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	панель плавающая; сверните её группу через window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	панель не находится в группе дока
+@msg	only a dock group above or below others collapses, not one beside another	свернуть можно только группу дока над или под другими, а не рядом с ними
+@msg	icon must be true or false	icon должен быть true или false
+@msg	icon only docks a panel in the icon column, with no anchor	icon только закрепляет панель в столбце значков, без anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column закрепляет набор как столбец дока, без anchor и icon
 @msg	move requires a destination panel	Для перемещения требуется целевая панель
 @msg	move requires an existing destination panel	Для перемещения требуется существующая целевая панель
 @msg	onto must name a floating panel	onto должен указывать плавающую панель
@@ -4938,6 +4946,7 @@ lighting	Light	Свет
 @msg	too many library panels were opened in this session	в этом сеансе открыто слишком много панелей библиотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Изображение {_1} × {_2} пикселей, больше {LARGE_TRACE_SIDE} по одной стороне: трассировка выполняется, но медленнее. Стиль с меньшей точностью или уменьшенная копия изображения трассируются быстрее.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Изображение трассировано в размере {_1} × {_2} пикселей, уменьшенное с {_3} × {_4} (не более {_5} мегапикселей).
+	Gap Length:	Длина зазора:
 	Artboard {n} of {total}	Монтажная область {n} из {total}
 	Encoding and writing the file…	Кодирование и запись файла…
 @plural	{n} more export waiting|{n} more exports waiting	Ещё {n} экспорт в очереди|Ещё {n} экспорта в очереди|Ещё {n} экспортов в очереди
@@ -4980,5 +4989,11 @@ lighting	Light	Свет
 	Water Paper	Мокрая бумага
 	Ruby…	Руби…
 	Ruby	Руби
+	Ease In	Плавное начало
+	Ease Out	Плавное окончание
+	Ease In Out	Плавное начало и окончание
+	Ease Out In	Плавное окончание и начало
+	Ramp:	Сила:
+	Shift:	Сдвиг:
 	Fresco…	Фреска…
 	Fresco	Фреска
