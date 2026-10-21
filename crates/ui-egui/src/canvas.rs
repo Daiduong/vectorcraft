@@ -17,6 +17,50 @@ const RULER: f32 = 16.0;
 /// The scroll bars' thickness along the window's right and bottom edges.
 const SCROLL_BAR: f32 = 12.0;
 
+/// A layout-only request for covered pixels. Paint, navigation, DPI or window changes invalidate
+/// the request; ordinary frames must not keep paying for artwork behind horizontal chrome.
+#[derive(Clone, Copy, PartialEq)]
+struct LayoutRaster {
+    revision: u64,
+    zoom: f64,
+    rotation: f64,
+    center: Point,
+    ppp: f32,
+    rect: egui::Rect,
+    pending: bool,
+}
+
+impl LayoutRaster {
+    fn same_view(self, mut other: Self) -> bool {
+        other.pending = self.pending;
+        self == other
+    }
+}
+
+/// A completed layout raster can cover a smaller visible canvas without another render. All
+/// scene and paint fields must match; this is used only for the unchanged layout camera, never
+/// to change navigation's rendering policy.
+fn layout_raster_covers(cached: &CacheKey, wanted: &CacheKey, rect: egui::Rect, xf: &Xf) -> bool {
+    let mut normalized = cached.clone();
+    normalized.cx = wanted.cx;
+    normalized.cy = wanted.cy;
+    normalized.w = wanted.w;
+    normalized.h = wanted.h;
+    normalized.pixel = wanted.pixel;
+    if normalized != *wanted || !cached.ppp.is_finite() || cached.ppp <= 0.0 {
+        return false;
+    }
+    match (cached.pixel, wanted.pixel) {
+        (Some([a, b, c, d]), Some([x, y, z, w])) => a <= x && b <= y && c >= z && d >= w,
+        (None, None) => {
+            let old_rect = egui::Rect::from_center_size(rect.center(), vec2(cached.w as f32 / cached.ppp, cached.h as f32 / cached.ppp));
+            let old = Xf { rect: old_rect, zoom: cached.zoom, center: Point::new(cached.cx, cached.cy), rot: cached.rot.to_radians() };
+            egui::Rect::from_min_max(xf.to_screen(old.to_doc(old_rect.min)), xf.to_screen(old.to_doc(old_rect.max))).contains_rect(rect)
+        }
+        _ => false,
+    }
+}
+
 /// Screen ↔ document mapping for one frame.
 #[derive(Clone, Copy, Debug)]
 pub struct Xf {
@@ -318,12 +362,30 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
     // Artwork raster.
     let ppp = ui.ctx().pixels_per_point();
-    // Render behind the horizontal chrome too. With screen-anchored artwork the same raster
-    // then covers both dock expansion and narrowing, rather than synchronously rendering each
-    // newly exposed strip of a heavy document. The painter still clips to the visible canvas.
+    // Request covered pixels for layout changes, not every ordinary paint/navigation frame.
+    // A first cold narrowing may await the expanded background frame; subsequent changes reuse
+    // its coverage. Native layout warmup goes to the worker even when the visible-only frame
+    // was fast: covered artwork can be much denser. Other rendering keeps its existing policy.
     let screen = ui.ctx().content_rect();
-    let render_rect =
+    let covered_rect =
         egui::Rect::from_min_max(pos2(screen.left().min(rect.left()), rect.top()), pos2(screen.right().max(rect.right()), rect.bottom()));
+    let scope_id = egui::Id::new(("canvas-layout-raster", st.uid));
+    let requested = LayoutRaster {
+        revision: st.revision,
+        zoom: v.zoom,
+        rotation: v.rotation,
+        center: xf.to_doc(covered_rect.center()),
+        ppp,
+        rect: covered_rect,
+        pending: true,
+    };
+    let mut scope = ui.data(|d| d.get_temp::<LayoutRaster>(scope_id));
+    if previous.is_some_and(|old| old != rect) {
+        scope = Some(requested);
+    } else if scope.is_some_and(|old| !old.same_view(requested)) {
+        scope = None;
+    }
+    let render_rect = if scope.is_some_and(|s| s.pending) { covered_rect } else { rect };
     let render_center = xf.to_doc(render_rect.center());
     // Match Renderer::render_as before recording the cache extent or building its view.
     let (w, h) = (
@@ -388,7 +450,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         app.canvas.moved = done.moved > 0;
         app.canvas.from_worker = true;
     }
-    if app.canvas.key.as_ref() != Some(&key) || app.canvas.texture.is_none() {
+    let reusable = app.canvas.texture.is_some()
+        && app.canvas.key.as_ref().is_some_and(|cached| cached == &key || (scope.is_some() && layout_raster_covers(cached, &key, render_rect, &xf)));
+    if reusable && let Some(scope) = &mut scope {
+        scope.pending = false;
+    }
+    ui.data_mut(|d| {
+        if let Some(scope) = scope {
+            d.insert_temp(scope_id, scope);
+        } else {
+            d.remove::<LayoutRaster>(scope_id);
+        }
+    });
+    if !reusable {
         let (w, h, view) = match pixel {
             Some([x0, y0, x1, y1]) => ((x1 - x0) as u32, (y1 - y0) as u32, Affine::translate((-x0 as f64, -y0 as f64))),
             None => (
@@ -443,7 +517,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         let same_doc = app.canvas.key.as_ref().is_some_and(|k| k.doc == key.doc);
         let settling = app.canvas.moved && !key.interacting;
         let staying = key.interacting && app.canvas.from_worker;
-        let heavy = (app.canvas.last_ms > 8.0 || settling || staying) && app.canvas.texture.is_some() && same_doc;
+        let layout_warmup = scope.is_some_and(|s| s.pending) && render_rect != rect;
+        let heavy = (app.canvas.last_ms > 8.0 || settling || staying || layout_warmup) && app.canvas.texture.is_some() && same_doc;
         match (&mut app.canvas.worker, heavy) {
             (Some(worker), true) => worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts }),
             _ => {
@@ -5149,7 +5224,8 @@ mod tests {
         app.view_mut().unwrap().rotation = 30.0;
         shapes(&mut app, &ctx);
         let rect = app.canvas_rect.unwrap();
-        let old_rect = egui::Rect::from_min_max(pos2(ctx.content_rect().left(), rect.top()), pos2(ctx.content_rect().right(), rect.bottom()));
+        let cached = app.canvas.key.as_ref().unwrap();
+        let old_rect = egui::Rect::from_center_size(rect.center(), vec2(cached.w as f32 / cached.ppp, cached.h as f32 / cached.ppp));
         let old = Xf { rect: old_rect, center: panel_raster_center(&app, &ctx), ..Xf::new(rect, app.view().unwrap()) };
         // `art` runs one frame and finds the mesh that draws the art's texture.
         let art = |app: &mut VectorcraftApp| {
@@ -8089,14 +8165,14 @@ mod tests {
             assert!((after - want).length() < 0.5, "bar {k}: {before:?} -> {after:?}, want {want:?}");
         }
     }
-    // The panel cache is centered in the window, independently of the visible canvas center.
-    fn panel_raster_center(app: &VectorcraftApp, ctx: &egui::Context) -> Point {
-        let rect = app.canvas_rect.unwrap();
-        Xf::new(rect, app.view().unwrap()).to_doc(pos2(ctx.content_rect().center().x, rect.center().y))
+    // Reprojection uses the actual cached frame's camera, whether visible-only or covered.
+    fn panel_raster_center(app: &VectorcraftApp, _ctx: &egui::Context) -> Point {
+        let key = app.canvas.key.as_ref().unwrap();
+        Point::new(key.cx, key.cy)
     }
 
-    /// Narrowing a side panel reveals pixels already rendered behind it. No synchronous render
-    /// or worker replacement is needed during the drag, even on an arbitrarily slow scene.
+    /// Once a layout frame has completed, narrowing a panel reuses its covered pixels without
+    /// synchronous rendering or a worker replacement. Cold warmup is checked separately below.
     #[test]
     fn side_panel_resize_reuses_the_raster_behind_chrome_without_blocking() {
         for (rotation, ppp, pixel) in [(0.0, 1.0, false), (30.0, 1.25, false), (75.0, 2.0, false), (30.0, 1.25, true)] {
@@ -8123,6 +8199,8 @@ mod tests {
             app.view_mut().unwrap().zoom = 2.5;
             app.ui.view.pixel_preview = pixel;
             frame(&mut app, 300.0);
+            // A completed layout-only frame has covered pixels; ordinary initial frames do not.
+            frame(&mut app, 301.0);
             let original = app.canvas.key.clone().unwrap();
             let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
             let (worker, jobs, _done) = crate::render_worker::Worker::test_channel();
@@ -8198,6 +8276,77 @@ mod tests {
             frame(&mut app, initial);
             let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
             assert!((xf.to_screen(Point::new(200.0, 150.0)) - xf.rect.center()).length() < 0.002);
+        }
+    }
+
+    /// Layout warmup may run on the worker; paint and navigation afterward must return to the
+    /// visible canvas, with no redundant narrowing render while the covered frame is still valid.
+    #[test]
+    fn layout_cache_warms_off_thread_and_later_paint_and_navigation_are_canvas_sized() {
+        for (rotation, ppp, pixel) in [(0.0, 1.0, false), (30.0, 1.25, false), (75.0, 2.0, true)] {
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width":400,"height":300})).unwrap();
+            app.canvas.worker_started = true;
+            let frame = |app: &mut VectorcraftApp, width| {
+                let mut input = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(pos2(0.0, 0.0), vec2(1400.0, 800.0))),
+                    max_texture_side: Some(8192),
+                    ..Default::default()
+                };
+                input.viewports.get_mut(&egui::ViewportId::ROOT).unwrap().native_pixels_per_point = Some(ppp);
+                let mut out = ctx.run_ui(input, |ui| {
+                    egui::Panel::right("scoped-layout-test").exact_size(width).show(ui, |_| {});
+                    show(app, ui);
+                });
+                out.textures_delta.clear();
+            };
+            frame(&mut app, 300.0);
+            app.view_mut().unwrap().rotation = rotation;
+            app.view_mut().unwrap().zoom = 2.5;
+            app.ui.view.pixel_preview = pixel;
+            frame(&mut app, 300.0);
+            let visible_width = (app.canvas_rect.unwrap().width() * ppp).round() as u32;
+            assert_eq!(app.canvas.key.as_ref().unwrap().w, visible_width, "initial steady frame has no always-on margin");
+            let original = app.canvas.key.clone().unwrap();
+            let anchor = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap()).to_screen(Point::new(50.0, 60.0));
+            let (worker, jobs, completed) = crate::render_worker::Worker::test_channel();
+            app.canvas.worker = Some(worker);
+            app.canvas.last_ms = 1.0;
+            frame(&mut app, 290.0);
+            assert_eq!(app.canvas.key.as_ref(), Some(&original), "cold layout awaits the worker rather than blocking the UI");
+            assert_eq!(app.canvas.last_ms, 1.0, "fast visible content does not make unknown covered content synchronous");
+            let job = jobs.try_recv().expect("cold layout requests covered pixels asynchronously");
+            assert_eq!(job.key.w, (ctx.content_rect().width() * ppp).round() as u32);
+            let mut renderer = vectorcraft_render::Renderer::new();
+            let img = renderer.render(&job.doc, job.w, job.h, job.view, &job.opts);
+            completed.send(crate::render_worker::Done { key: job.key, img, ms: 500.0, moved: 0 }).unwrap();
+            frame(&mut app, 290.0);
+            let warm = app.canvas.key.clone().unwrap();
+            frame(&mut app, 290.0);
+            assert!(jobs.try_recv().is_err(), "settling does not rasterize the smaller canvas again");
+            for width in [38.0, 700.0, 310.0] {
+                frame(&mut app, width);
+                assert_eq!(app.canvas.key.as_ref(), Some(&warm), "warm covered frame is reused");
+                assert_eq!(app.canvas.last_ms, 500.0);
+                let now = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap()).to_screen(Point::new(50.0, 60.0));
+                assert!((now - anchor).length() < 0.002);
+            }
+            while jobs.try_recv().is_ok() {}
+            app.run("shape.rectangle", json!({"x":10,"y":10,"width":5,"height":5})).unwrap();
+            frame(&mut app, 310.0);
+            let job = jobs.try_recv().expect("paint revision needs a fresh frame");
+            assert_eq!(job.key.revision, app.session.active().unwrap().revision);
+            assert_eq!(job.key.w, (app.canvas_rect.unwrap().width() * ppp).round() as u32, "ordinary paint has no behind-panel cost");
+            let img = renderer.render(&job.doc, job.w, job.h, job.view, &job.opts);
+            completed.send(crate::render_worker::Done { key: job.key, img, ms: 500.0, moved: 0 }).unwrap();
+            frame(&mut app, 310.0);
+            app.run("view.setZoom", json!({"zoom":125,"center":[220,160]})).unwrap();
+            frame(&mut app, 310.0);
+            let job = jobs.try_recv().expect("navigation retains the upstream fresh-frame policy");
+            assert_eq!(job.key.w, (app.canvas_rect.unwrap().width() * ppp).round() as u32);
+            assert_eq!(job.key.zoom, 1.25);
         }
     }
 }
