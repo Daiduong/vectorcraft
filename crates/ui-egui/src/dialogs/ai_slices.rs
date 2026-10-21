@@ -478,13 +478,32 @@ fn update_collection_folder(d: &mut Dialog, name: &str) {
         d.fields.insert("autoFolderValue".into(), json!(folder));
     }
 }
-/// Stable key for one export folder.
+/// Stable key for one export folder. A path the filesystem has resolved is remembered for this
+/// folder string, so an idle dialog does not call `canonicalize` on every repaint. A missing
+/// folder is not remembered: export creates it, and the next lookup must see that real path.
 fn folder_key(folder: &str) -> String {
+    thread_local! {
+        static CACHE: std::cell::Cell<Option<(String, String)>> = const { std::cell::Cell::new(None) };
+    }
+    if let Some(hit) = CACHE.with(|cache| cache.take().filter(|(key, _)| key == folder)) {
+        let value = hit.1.clone();
+        CACHE.with(|cache| cache.set(Some(hit)));
+        return value;
+    }
+    let (resolved, stable) = resolve_folder_key(folder);
+    if stable {
+        CACHE.with(|cache| cache.set(Some((folder.to_string(), resolved.clone()))));
+    }
+    resolved
+}
+/// Resolve one folder string once, without the repaint cache. The flag is true when the filesystem
+/// returned the path, which stays valid for later frames.
+fn resolve_folder_key(folder: &str) -> (String, bool) {
     let path = std::path::PathBuf::from(folder);
     let absolute = if path.is_absolute() { path } else { std::env::current_dir().unwrap_or_default().join(path) };
     #[cfg(not(target_arch = "wasm32"))]
     if let Ok(real) = std::fs::canonicalize(&absolute) {
-        return real.to_string_lossy().into_owned();
+        return (real.to_string_lossy().into_owned(), true);
     }
     let mut normalized = std::path::PathBuf::new();
     for part in absolute.components() {
@@ -496,7 +515,7 @@ fn folder_key(folder: &str) -> String {
             other => normalized.push(other.as_os_str()),
         }
     }
-    normalized.to_string_lossy().into_owned()
+    (normalized.to_string_lossy().into_owned(), false)
 }
 /// Identity of one region export so a later batch does not repeat it.
 fn export_key(d: &Dialog, row: &Value) -> Value {
@@ -508,7 +527,17 @@ fn export_key_at(d: &Dialog, row: &Value, folder: &str) -> Value {
 }
 /// Checked regions that have not been written yet.
 fn pending_exports(d: &Dialog) -> Vec<Value> {
-    let folder = folder_key(&d.str("folder"));
+    let Some(rows) = d.fields.get("regions").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    if rows.iter().all(|row| row["keep"] == false) {
+        return Vec::new();
+    }
+    let raw = d.str("folder");
+    if raw.trim().is_empty() {
+        return Vec::new();
+    }
+    let folder = folder_key(&raw);
     d.fields
         .get("regions")
         .and_then(Value::as_array)
