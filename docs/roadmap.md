@@ -1,5 +1,7 @@
 # Roadmap: milestones and what's next
 
+> **2026-10-21 review follow-up (M3):** highlighted-text Eyedropper sampling explicitly refuses enabled non-neutral object transparency before changing art or defaults. Disable Transparency to sample supported attributes. Opacity/blend rejection and opt-out regression-tested; scores and estimates unchanged.
+
 > **2026-10-21 update (M3/Eyedropper text ranges):** choosing Eyedropper from highlighted
 > type retains that character range and its overlay. Sampling applies font and paint attributes
 > only to those characters; Shift samples color only. Deselecting or switching documents clears

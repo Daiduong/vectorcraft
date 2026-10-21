@@ -109,6 +109,7 @@ impl Tool for EyedropperTool {
         out
     }
 
+    /// Expose a transient text range alongside gradient-stop sampling state.
     fn options(&self) -> Value {
         let selected = self.text_selection.options();
         let mut options = if selected.get("editing").is_some_and(|v| !v.is_null()) { selected } else { json!({}) };
@@ -118,6 +119,7 @@ impl Tool for EyedropperTool {
         options
     }
 
+    /// Accept a stop target or the selection transferred from the Type tool.
     fn set_option(&mut self, key: &str, value: &Value) {
         if key == "stop" {
             self.stop = value.as_str().map(str::to_string);
@@ -126,10 +128,12 @@ impl Tool for EyedropperTool {
         }
     }
 
+    /// Drop the range when its text is removed or no longer selected.
     fn after_command(&mut self, cx: &ToolContext) -> Vec<Action> {
         self.text_selection.after_command(cx)
     }
 
+    /// Keep the sampled character range highlighted without activating text input.
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         if self.text_selection.options().get("editing").is_some_and(|v| !v.is_null()) { self.text_selection.overlays(cx) } else { vec![] }
     }

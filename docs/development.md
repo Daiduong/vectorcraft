@@ -3,6 +3,16 @@
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
+> **Last updated:** 2026-10-21 · **Change:** selected-text sampling reports unsupported object transparency before changing art or defaults.
+
+## Highlighted-text sampling
+
+Character styles cannot store object opacity or blend modes. When sampling highlighted text,
+enabled Transparency with a non-neutral source opacity or blend mode returns an error before
+changing the document, paint defaults, selection or undo history. Disable Transparency in
+Eyedropper Options to sample the supported font and paint attributes. Whole-object sampling
+continues to copy object transparency normally.
+
 ## Linux file-manager opens
 
 Ordinary Linux desktop launches share a window through the session D-Bus name

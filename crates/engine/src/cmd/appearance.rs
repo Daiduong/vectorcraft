@@ -119,7 +119,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Eyedropper",
             [],
             None,
-            "{source: id, ids?, pickUp?, apply? (trees as eyedropper.setOptions, merged over the Eyedropper Options for this call), reverse?: bool, append?: bool} copy the attributes both picked up and applied (by default the whole appearance stack, opacity and blend mode, and from type to type the character and paragraph attributes) from `source` to ids (default: highlighted characters while editing type, otherwise the object selection), the fill, stroke and weight also to the paint defaults; `reverse` (Alt-click) copies from the first selected object (or ids) onto `source` instead; `append` (Shift+Alt-click) adds the source's fills, strokes and effects on top of each target's stack; placed gradients land at the same place relative to each target's bounds (defaults: fitted to new art) → {ids}",
+            "{source: id, ids?, pickUp?, apply? (trees as eyedropper.setOptions, merged over the Eyedropper Options for this call), reverse?: bool, append?: bool} copy the attributes both picked up and applied (by default the whole appearance stack, opacity and blend mode, and from type to type the character and paragraph attributes) from `source` to ids (default: highlighted characters while editing type, otherwise the object selection; highlighted characters reject enabled non-neutral object transparency), the fill, stroke and weight also to the paint defaults; `reverse` (Alt-click) copies from the first selected object (or ids) onto `source` instead; `append` (Shift+Alt-click) adds the source's fills, strokes and effects on top of each target's stack; placed gradients land at the same place relative to each target's bounds (defaults: fitted to new art) → {ids}",
             has_doc,
             copy_from
         ),
@@ -756,6 +756,7 @@ fn target_contents(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>() }))
 }
 
+/// Sample enabled attributes, refusing object transparency that a text range cannot store.
 fn copy_from(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "appearance.copyFrom";
     let clicked = id_param(p, "source").ok_or_else(|| bad(C, "missing `source` id"))?;
@@ -775,13 +776,22 @@ fn copy_from(s: &mut Session, p: &Value) -> Result<Value> {
     };
     targets.retain(|id| *id != src_id);
     let picked = Picked::of(s.doc()?.doc.node(src_id).ok_or(EngineError::NoNode(src_id))?);
+    let range = range.filter(|(id, _, _)| targets.contains(id));
+    // Character styles cannot represent object transparency. Refuse before even changing
+    // paint defaults; applying it to the object would also alter the unselected characters.
+    if range.is_some() && attrs.appearance.transparency && (picked.opacity != 1.0 || picked.blend != BlendMode::Normal) {
+        return Err(bad(
+            C,
+            "object transparency cannot be sampled onto highlighted characters; disable Transparency in Eyedropper Options or select the whole object",
+        ));
+    }
     if !reverse {
         picked.to_defaults(s, &attrs.appearance);
     }
     if targets.is_empty() || attrs.is_empty() {
         return Ok(json!({ "ids": [] }));
     }
-    if let Some((id, start, end)) = range.filter(|(id, _, _)| targets.contains(id)) {
+    if let Some((id, start, end)) = range {
         let before = s.doc()?.doc.clone();
         super::overprint::edit_counted(s, "Eyedropper", |d| {
             let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) else { return Err(EngineError::NoNode(id)) };

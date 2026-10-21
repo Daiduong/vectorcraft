@@ -19,6 +19,7 @@ struct OpenDocuments(Arc<Mutex<Pending>>);
 
 #[zbus::interface(name = "ai.storyteller.vectorcraft.OpenDocuments")]
 impl OpenDocuments {
+    /// Validate and queue absolute file paths, then wake the UI to dispatch them.
     fn open(&self, files: Vec<String>) -> zbus::fdo::Result<()> {
         let mut pending = self.0.lock().unwrap_or_else(PoisonError::into_inner);
         // Bound queued work, including requests that arrive while a file dialog is open.
@@ -40,17 +41,20 @@ pub struct Instance {
     documents: OpenDocuments,
 }
 
+/// Whether this process owns the desktop window or handed its request to the owner.
 pub enum Launch {
     Primary(Instance),
     Forwarded,
 }
 
+/// Claim the session-bus name or forward this launch to its existing owner.
 pub fn start(files: &[String]) -> Result<Launch, String> {
     let documents = OpenDocuments::default();
     let builder = zbus::blocking::connection::Builder::session().map_err(|e| e.to_string())?;
     start_on(builder, files, documents)
 }
 
+/// Start on a supplied connection builder so transport tests can isolate their bus.
 fn start_on(builder: zbus::blocking::connection::Builder<'_>, files: &[String], documents: OpenDocuments) -> Result<Launch, String> {
     let connection = builder
         .method_timeout(Duration::from_secs(5))
@@ -73,6 +77,7 @@ fn start_on(builder: zbus::blocking::connection::Builder<'_>, files: &[String], 
 }
 
 impl Instance {
+    /// Register the repaint context after the primary window has been created.
     pub fn set_ui(&self, ctx: &egui::Context) {
         self.documents.0.lock().unwrap_or_else(PoisonError::into_inner).ctx = Some(ctx.clone());
     }
@@ -89,6 +94,7 @@ impl Instance {
         }
     }
 
+    /// Drain an activation request once; an empty file list still requests focus.
     fn take(&self) -> Option<Vec<String>> {
         let mut pending = self.documents.0.lock().unwrap_or_else(PoisonError::into_inner);
         if !std::mem::take(&mut pending.activate) {
@@ -102,6 +108,7 @@ impl Instance {
 mod tests {
     use super::*;
 
+    /// Invalid requests leave previously queued paths intact.
     #[test]
     fn queues_files_until_taken_and_rejects_invalid_requests() {
         let documents = OpenDocuments::default();
@@ -113,6 +120,7 @@ mod tests {
         assert!(pending.activate);
     }
 
+    /// Exercise real forwarding, dialog deferral, tab opening and ownership cleanup.
     #[test]
     fn second_launch_forwards_and_name_is_released_on_exit() {
         use std::io::BufRead as _;
@@ -126,6 +134,7 @@ mod tests {
         };
         struct Stop(std::process::Child);
         impl Drop for Stop {
+            /// Stop the private test bus even when an assertion unwinds.
             fn drop(&mut self) {
                 let _ = self.0.kill();
                 let _ = self.0.wait();
