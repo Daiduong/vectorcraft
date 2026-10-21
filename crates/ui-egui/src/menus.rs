@@ -3256,6 +3256,13 @@ pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
         if any(|k| matches!(k, NodeKind::Compound { .. })) {
             v.push(c("Release Compound Path", "object.compoundPath.release"));
         }
+        // A graph, or art inside one, selected: its Graph Data worksheet, as Object › Graph › Data… opens.
+        let in_graph = |id: vectorcraft_doc::NodeId| {
+            std::iter::successors(Some(id), |c| st.doc.parent_of(*c)).any(|c| st.doc.node(c).is_some_and(|n| n.extras().graph.is_some()))
+        };
+        if st.selection.objects.iter().any(|id| in_graph(*id)) {
+            v.push(c("Data…", "graph.setData"));
+        }
         v.extend([
             c("Make Guides", "view.guides.make"),
             Sep,
