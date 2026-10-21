@@ -626,7 +626,8 @@ fn swap(s: &mut Session, p: &Value) -> Result<Value> {
                 }
                 let f = n.appearance.fill_paint();
                 let st = n.appearance.stroke_paint();
-                n.appearance.set_fill(st);
+                n.appearance.set_fill(st.clone());
+                n.appearance.clear_lower_fills_when_top_cleared(None, &st);
                 restore_unpainted_stroke(&mut n.appearance, None, &f);
                 n.appearance.set_stroke(f);
             }
