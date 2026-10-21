@@ -86,20 +86,20 @@ impl Accent {
     }
 }
 
-/// User Interface › Color Scheme: Modern (the default: slate greys and the chosen accent),
-/// Classic (the neutral greys and blue accent of earlier versions), Flat (neutral greys, a blue
-/// accent, and the toolbar, rail and dock flush with the window's edges instead of cards) or Quiet
-/// (Flat without the full-height lines: the chrome one surface with short inset lines between its
-/// columns, raised controls on inset fields). The layout is the same in all four; Flat's and
-/// Quiet's looks come from their tokens ([`Tokens::cards`], [`Tokens::tab_style`],
+/// User Interface › Color Scheme: Quiet (the default: Flat without the full-height lines, the
+/// chrome one surface with short inset lines between its columns and raised controls on inset
+/// fields), Modern (slate greys, cards and the chosen accent), Classic (the neutral greys and blue
+/// accent of earlier versions, on cards) or Flat (neutral greys, a blue accent, and the toolbar,
+/// rail and dock flush with the window's edges instead of cards). The layout is the same in all
+/// four; Flat's and Quiet's looks come from their tokens ([`Tokens::cards`], [`Tokens::tab_style`],
 /// [`Tokens::chrome_lines`], [`Tokens::column_separator`], [`Tokens::raised_shadow`],
 /// [`Tokens::field_shade`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Scheme {
-    #[default]
     Modern,
     Classic,
     Flat,
+    #[default]
     Quiet,
 }
 
@@ -795,7 +795,8 @@ impl Tokens {
     }
 
     pub fn get(ctx: &egui::Context) -> Tokens {
-        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::NULL)).unwrap_or_else(|| Tokens::for_brightness(Brightness::default()))
+        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::NULL))
+            .unwrap_or_else(|| Tokens::for_scheme(Scheme::default(), Brightness::default(), Accent::default()))
     }
     /// Corners of controls.
     pub fn cr(&self) -> CornerRadius {
@@ -1208,5 +1209,12 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Quiet is the default, in the engine's preferences as in the UI's fallback.
+    #[test]
+    fn quiet_is_the_default_scheme() {
+        assert_eq!(Scheme::default(), Scheme::Quiet);
+        assert_eq!(Scheme::parse(&vectorcraft_engine::Prefs::default().ui_color_scheme), Some(Scheme::default()));
     }
 }
