@@ -3702,6 +3702,7 @@ mark-style	Japanese	Japán
 	Social Tall Post 1000×1500	Magas közösségimédia-bejegyzés 1000×1500
 	Soft	Lágy
 	Soft Light	Lágy fény
+	Soft Mix	Lágy keverés
 	Solid	Kitöltött
 	Sort	Rendezés
 	Sort by Hue	Rendezés színárnyalat szerint
@@ -5257,6 +5258,8 @@ imageTrace	Outline	Körvonal
 	Sketch	Vázlat
 	Halftone Pattern…	Féltónus minta…
 	Halftone Pattern	Féltónus minta
+	Torn Edges…	Szaggatott szélek…
+	Torn Edges	Szaggatott szélek
 	Pattern Type	Mintatípus
 	Dot	Pont
 # User Interface › Color Scheme
@@ -5352,3 +5355,5 @@ imageTrace	Outline	Körvonal
 	Water Paper	Nedves papír
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Fresco…	Freskó…
+	Fresco	Freskó

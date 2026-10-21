@@ -3432,6 +3432,7 @@ mark-style	Japanese	Kiểu Nhật
 	Social Square Post 1080×1080	Bài đăng vuông mạng xã hội 1080×1080
 	Soft	Mềm
 	Soft Light	Ánh sáng mềm
+	Soft Mix	Trộn mềm
 	Solid	Đặc
 	Sort	Sắp xếp
 	Sort by Kind	Sắp xếp theo loại
@@ -4865,6 +4866,8 @@ theme	Appearance	Giao diện
 	Sketch	Phác thảo
 	Halftone Pattern…	Mẫu bán sắc…
 	Halftone Pattern	Mẫu bán sắc
+	Torn Edges…	Cạnh rách…
+	Torn Edges	Cạnh rách
 	Pattern Type	Loại mẫu
 	Dot	Chấm
 # User Interface › Color Scheme
@@ -4961,3 +4964,5 @@ theme	Appearance	Giao diện
 	Water Paper	Giấy ướt
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Fresco…	Bích họa…
+	Fresco	Bích họa

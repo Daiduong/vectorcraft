@@ -2700,6 +2700,7 @@ lighting	Light	Licht
 	Luminosity	Luminositeit
 	Overlay	Bedekken
 	Soft Light	Zacht licht
+	Soft Mix	Zachte menging
 	Crosshatch	Kruisarcering
 	Fine Dots	Fijne stippen
 
@@ -5143,6 +5144,8 @@ swatch	Bright Violet	Felviolet
 	Sketch	Schets
 	Halftone Pattern…	Rasterpatroon…
 	Halftone Pattern	Rasterpatroon
+	Torn Edges…	Gescheurde randen…
+	Torn Edges	Gescheurde randen
 	Pattern Type	Patroontype
 	Dot	Punt
 	Export Type:	Exporttype:
@@ -5381,3 +5384,5 @@ swatch	Bright Violet	Felviolet
 	Water Paper	Nat papier
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Fresco…	Fresco…
+	Fresco	Fresco

@@ -3070,6 +3070,7 @@
 	Snapping Tolerance	Tolerancia de ajuste
 	Social Square Post 1080×1080	Publicación cuadrada para redes 1080×1080
 	Soft Light	Luz suave
+	Soft Mix	Mezcla suave
 	Solid	Sólido
 	Sort by Kind	Ordenar por tipo
 	Sort by Name	Ordenar por nombre
@@ -5213,6 +5214,8 @@ mark-style	Japanese	Japonesas
 	Sketch	Bosquejar
 	Halftone Pattern…	Trama de semitonos…
 	Halftone Pattern	Trama de semitonos
+	Torn Edges…	Bordes desgarrados…
+	Torn Edges	Bordes desgarrados
 	Pattern Type	Tipo de trama
 	Dot	Punto
 # User Interface › Color Scheme
@@ -5308,3 +5311,5 @@ mark-style	Japanese	Japonesas
 	Water Paper	Papel mojado
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Fresco…	Fresco…
+	Fresco	Fresco

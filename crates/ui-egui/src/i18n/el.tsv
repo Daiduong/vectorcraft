@@ -1866,6 +1866,7 @@
 	Snap to Point	Προσκόλληση σε σημείο
 	Snap to Unit	Προσκόλληση σε μονάδα
 	Soft Light	Απαλό φως
+	Soft Mix	Απαλή ανάμειξη
 	Solid	Συνεχές
 	Spacing:	Απόσταση:
 	Total:	Σύνολο:
@@ -5223,6 +5224,8 @@ effect	Points	Σημεία
 	Sketch	Σκίτσο
 	Halftone Pattern…	Μοτίβο ημιτόνου…
 	Halftone Pattern	Μοτίβο ημιτόνου
+	Torn Edges…	Ξεσκισμένες άκρες…
+	Torn Edges	Ξεσκισμένες άκρες
 	Pattern Type	Τύπος μοτίβου
 	Dot	Κουκκίδα
 # User Interface › Color Scheme
@@ -5318,3 +5321,5 @@ effect	Points	Σημεία
 	Water Paper	Βρεγμένο χαρτί
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Fresco…	Νωπογραφία…
+	Fresco	Νωπογραφία

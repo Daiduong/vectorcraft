@@ -2498,6 +2498,7 @@ lighting	Light	სინათლე
 	Luminosity	ნათება
 	Overlay	გადაფარვა
 	Soft Light	რბილი სინათლე
+	Soft Mix	რბილი შერევა
 	Crosshatch	ჯვარედინი დაშტრიხვა
 	Fine Dots	წვრილი წერტილები
 
@@ -4987,6 +4988,8 @@ imageTrace	Outline	კონტური
 	Sketch	ესკიზი
 	Halftone Pattern…	ნახევარტონური პატერნი…
 	Halftone Pattern	ნახევარტონური პატერნი
+	Torn Edges…	დაგვერძნილი კიდეები…
+	Torn Edges	დაგვერძნილი კიდეები
 	Pattern Type	პატერნის ტიპი
 	Dot	წერტილი
 	Color Scheme	ფერის სქემა
@@ -5276,3 +5279,5 @@ imageTrace	Outline	კონტური
 	 selects several, or draws one inside an artboard)	 რამდენიმეს მონიშნავს ან ახალს სამუშაო დაფის შიგნით ხატავს)
 	Ruby…	რუბი…
 	Ruby	რუბი
+	Fresco…	ფრესკა…
+	Fresco	ფრესკა
