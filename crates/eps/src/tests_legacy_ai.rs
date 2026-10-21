@@ -316,14 +316,15 @@ fn images_below_a_square(images: bool) -> Document {
     doc
 }
 
-/// Each image the file holds (§8.4): the lines from `%AI5_File:` to `%AI5_EndRaster`.
+/// Each image the file holds (§8.4): the lines from `%AI5_File:` to the line after
+/// `%AI5_EndRaster`.
 fn rasters(text: &str) -> Vec<Vec<&str>> {
     let lines: Vec<&str> = text.lines().collect();
     let mut out = vec![];
     for (i, l) in lines.iter().enumerate() {
         if *l == "%AI5_File:" {
             let end = lines[i..].iter().position(|l| *l == "%AI5_EndRaster").map(|n| i + n).unwrap();
-            out.push(lines[i..=end].to_vec());
+            out.push(lines[i..=(end + 1).min(lines.len() - 1)].to_vec());
         }
     }
     out
@@ -332,8 +333,9 @@ fn rasters(text: &str) -> Vec<Vec<&str>> {
 /// Every image, in a clipping group, a group or neither, is written as §8.1's syntax and §8.4's
 /// examples write one: `%AI5_File:`, `%AI5_BeginRaster`, the matrix with a space inside each
 /// bracket and the operands on the `XI` line, the samples in hex on comment lines of 60 digits,
-/// `%AI5_EndRaster`. The art after the images is written as it is without them, and the file
-/// reads back with its layers, clipping group, images and square (#2692).
+/// `%AI5_EndRaster`. A line `F`, which the examples do not show, follows each image. The art
+/// after the images is written as it is without them, and the file reads back with its layers,
+/// clipping group, images and square (#2692, #2830).
 #[test]
 fn images_are_written_in_the_form_the_specification_shows() {
     let out = write(&images_below_a_square(true));
@@ -341,8 +343,8 @@ fn images_are_written_in_the_form_the_specification_shows() {
     let images = rasters(&text);
     assert_eq!(images.len(), 3, "{text}");
     for lines in &images {
-        let [file, begin, xi, data @ .., end] = lines.as_slice() else { panic!("{lines:?}") };
-        assert_eq!((*file, *begin, *end), ("%AI5_File:", "%AI5_BeginRaster", "%AI5_EndRaster"));
+        let [file, begin, xi, data @ .., end, paint] = lines.as_slice() else { panic!("{lines:?}") };
+        assert_eq!((*file, *begin, *end, *paint), ("%AI5_File:", "%AI5_BeginRaster", "%AI5_EndRaster", "F"));
         let matrix = xi.strip_prefix("[ ").and_then(|l| l.strip_suffix(" ] 0 0 16 16 16 16 8 3 0 0 0 0 XI")).unwrap_or_else(|| panic!("{xi}"));
         assert_eq!(matrix.split(' ').filter(|v| v.parse::<f64>().is_ok()).count(), 6, "{xi}");
         let digits: Vec<&str> = data.iter().map(|l| l.strip_prefix('%').unwrap_or_else(|| panic!("{l}"))).collect();
@@ -352,9 +354,10 @@ fn images_are_written_in_the_form_the_specification_shows() {
         assert_eq!(digits.concat().len(), 16 * 16 * 3 * 2);
     }
     // The clipping group: `q`, the clipping path painted `h W n` (§5.6.2), the image, `Q`; the
-    // group: `u`, the image, `U`.
-    assert!(text.contains("\nh\nW\nn\n%AI5_File:\n") && text.contains("\n%AI5_EndRaster\nQ\n"), "{text}");
-    assert!(text.contains("\nu\n%AI5_File:\n") && text.contains("\n%AI5_EndRaster\nU\n"), "{text}");
+    // group: `u`, the image, `U`; the loose image, then the layer's end.
+    assert!(text.contains("\nh\nW\nn\n%AI5_File:\n") && text.contains("\n%AI5_EndRaster\nF\nQ\n"), "{text}");
+    assert!(text.contains("\nu\n%AI5_File:\n") && text.contains("\n%AI5_EndRaster\nF\nU\n"), "{text}");
+    assert!(text.contains("\n%AI5_EndRaster\nF\nLB\n"), "{text}");
     let layer = |t: &str| -> String {
         let at = t.find("(Above) Ln\n").unwrap();
         t[at..].split("%AI5_EndLayer--").next().unwrap().to_string()
@@ -367,8 +370,11 @@ fn images_are_written_in_the_form_the_specification_shows() {
     let below = children(&doc.layers[0]);
     assert_eq!(below.len(), 3, "{below:#?}");
     let NodeKind::Group { children: window, clip: true } = &below[0].kind else { panic!("{:?}", below[0].kind) };
+    assert_eq!(window.len(), 2, "{window:#?}");
     assert!(matches!(window[0].kind, NodeKind::Path { clipping: true, .. }) && matches!(window[1].kind, NodeKind::Image(_)), "{window:#?}");
-    assert!(matches!(&below[1].kind, NodeKind::Group { children, clip: false } if matches!(children[0].kind, NodeKind::Image(_))));
+    assert!(
+        matches!(&below[1].kind, NodeKind::Group { children, clip: false } if children.len() == 1 && matches!(children[0].kind, NodeKind::Image(_)))
+    );
     assert!(matches!(below[2].kind, NodeKind::Image(_)));
     let above = children(&doc.layers[1]);
     assert_eq!(above.len(), 1);
@@ -456,11 +462,10 @@ fn radials() -> Document {
 }
 
 /// Every radial gradient instance has its highlight `Bh` (§3.5.5): `0 0 0 0 Bh` when it is at the
-/// center (#2687: without it the reference app drew the circle in its outer color), on fills,
-/// strokes, in groups, compound paths and clipping groups, and an off-center one within the
-/// gradient's circle. Linear instances have none. VectorCraft reads back one linear and at least
-/// seven radial gradients, each with its stops, and the circle, the square and the off-center
-/// square in their place.
+/// center (§3.5.6), on fills, strokes, in groups, compound paths and clipping groups, and an
+/// off-center one within the gradient's circle. Linear instances have none. VectorCraft reads
+/// back one linear and at least seven radial gradients, each with its stops, and the circle, the
+/// square and the off-center square in their place.
 #[test]
 fn radial_gradients_have_their_highlight() {
     let out = write(&radials());
@@ -534,6 +539,66 @@ fn radial_gradients_have_their_highlight() {
     assert!(near(off.end, 320.0, 240.0) && off.focal.is_some_and(|f| near(f, 300.0, 220.0)), "{off:?}");
 }
 
+/// A radial gradient's stops are listed from the first to the last, as §3.5.2's radial definition
+/// lists them (10, then 100), and a linear gradient's stops are listed from the last to the first
+/// (§1.4.3). Each stop keeps its color and its midpoint to the next stop. The reference app read a
+/// radial gradient's stops listed from the last as one color (two stops) or inverted (three
+/// stops), reported on #2807. Both gradients read back with their stops.
+#[test]
+fn radial_gradient_stops_are_listed_from_the_first() {
+    let white = Color::rgb(1.0, 1.0, 1.0);
+    let red = Color::rgb(1.0, 0.0, 0.0);
+    let navy = Color::rgb(27.0 / 255.0, 42.0 / 255.0, 107.0 / 255.0);
+    let stop = |offset: f32, color: Color, midpoint: f32| GradientStop { midpoint, ..GradientStop::new(offset, color) };
+    let stops = vec![stop(0.0, white, 0.3), stop(0.3, red, 0.7), stop(1.0, navy, 0.5)];
+    let mut doc = Document::new(200.0, 100.0);
+    let layer = doc.layers[0].id;
+    for (kind, x) in [(GradientKind::Radial, 10.0), (GradientKind::Linear, 110.0)] {
+        let paint = Paint::Gradient(Box::new(GradientPaint::new(Gradient { kind, stops: stops.clone() })));
+        let n = shape(&mut doc, shapes::rectangle(Rect::new(x, 10.0, x + 80.0, 90.0)), paint, Paint::None);
+        doc.insert(Some(layer), usize::MAX, n).unwrap();
+    }
+    let out = write(&doc);
+    let text = String::from_utf8(out.bytes.clone()).unwrap();
+    // Each `%_Bs` line of a definition: its RGB color (`c m y k r g b 2`), midpoint and ramp point.
+    let listed = |head: &str| -> Vec<([f64; 3], f64, f64)> {
+        let def = text.split(head).nth(1).and_then(|t| t.split("BD\n").next()).unwrap_or_else(|| panic!("no {head:?} in\n{text}"));
+        def.lines()
+            .map(|l| {
+                let n: Vec<f64> = l.trim_end_matches(" %_Bs").split_whitespace().map(|v| v.parse().unwrap()).collect();
+                let [_, _, _, _, r, g, b, style, mid, ramp] = n.as_slice() else { panic!("{l}") };
+                assert_eq!(*style, 2.0, "{l}");
+                ([*r, *g, *b], *mid, *ramp)
+            })
+            .collect()
+    };
+    let rgb = |c: Color| c.to_rgb().map(f64::from);
+    let first_first = [(rgb(white), 30.0, 0.0), (rgb(red), 70.0, 30.0), (rgb(navy), 50.0, 100.0)];
+    let mut last_first = first_first;
+    last_first.reverse();
+    let same = |got: &[([f64; 3], f64, f64)], want: &[([f64; 3], f64, f64)]| {
+        got.len() == want.len()
+            && got.iter().zip(want).all(|((c, m, r), (wc, wm, wr))| {
+                c.iter().zip(wc).all(|(a, b)| (a - b).abs() < 1e-3) && (m - wm).abs() < 1e-3 && (r - wr).abs() < 1e-3
+            })
+    };
+    let radial = listed("(Gradient) 1 3 Bd\n[\n");
+    assert!(same(&radial, &first_first), "{radial:?}\n{text}");
+    let linear = listed("(Gradient 2) 0 3 Bd\n[\n");
+    assert!(same(&linear, &last_first), "{linear:?}\n{text}");
+    // Read back: both gradients, each stop at its offset with its color and midpoint.
+    let doc = crate::import(&out.bytes).unwrap().document;
+    let read: Vec<_> = children(&doc.layers[0])
+        .iter()
+        .filter_map(|n| if let Paint::Gradient(g) = n.appearance.fill_paint() { Some(g.gradient.clone()) } else { None })
+        .collect();
+    assert_eq!(read.iter().map(|g| g.kind).collect::<Vec<_>>(), [GradientKind::Radial, GradientKind::Linear], "{read:#?}");
+    for g in &read {
+        let got: Vec<_> = g.stops.iter().map(|s| (rgb(s.color), f64::from(s.midpoint) * 100.0, f64::from(s.offset) * 100.0)).collect();
+        assert!(same(&got, &first_first), "{g:#?}");
+    }
+}
+
 #[test]
 fn reads_back_with_layers_groups_and_paths() {
     let out = write(&sample());
@@ -604,6 +669,127 @@ fn spot_colours_are_custom_colours() {
     let Paint::Solid { swatch, tint, .. } = n.appearance.fill_paint() else { panic!() };
     assert_eq!(swatch.as_deref(), Some("Spot Test"));
     assert!((tint - 0.5).abs() < 1e-6);
+}
+
+/// A document with a spot color swatch for each of `spots`, a square filled with each at half
+/// tint, and a square whose linear gradient fill (the first spot color to white) names the
+/// gradient swatch `gradient` (the document holds no such swatch; the writer reads only the
+/// fill's name).
+fn spots_and_gradient(spots: &[&str], gradient: &str) -> Document {
+    let mut doc = Document::new(200.0, 100.0);
+    let layer = doc.layers[0].id;
+    for (i, name) in spots.iter().enumerate() {
+        let c = i as f32 * 0.5;
+        doc.swatches.push(vectorcraft_color::Swatch {
+            name: (*name).into(),
+            paint: Paint::solid(Color::cmyk(c, 0.5, 1.0, 0.0)),
+            global: true,
+            spot: true,
+        });
+        let fill = Paint::Solid { color: Color::cmyk(c / 2.0, 0.25, 0.5, 0.0), swatch: Some((*name).into()), tint: 0.5 };
+        let x = 10.0 + 40.0 * i as f64;
+        let n = shape(&mut doc, shapes::rectangle(Rect::new(x, 10.0, x + 30.0, 40.0)), fill, Paint::None);
+        doc.insert(Some(layer), usize::MAX, n).unwrap();
+    }
+    let mut first = GradientStop::new(0.0, Color::cmyk(0.0, 0.5, 1.0, 0.0));
+    first.swatch = Some(spots[0].into());
+    let g = Gradient { kind: GradientKind::Linear, stops: vec![first, GradientStop::new(1.0, Color::cmyk(0.0, 0.0, 0.0, 0.0))] };
+    let mut paint = GradientPaint::new(g);
+    paint.swatch = Some(gradient.into());
+    let n = shape(&mut doc, shapes::rectangle(Rect::new(10.0, 50.0, 50.0, 90.0)), Paint::Gradient(Box::new(paint)), Paint::None);
+    doc.insert(Some(layer), usize::MAX, n).unwrap();
+    doc
+}
+
+/// `doc` written with the title `title`, and run as a PostScript program ([`prints_as`]).
+fn write_titled(doc: &Document, title: &str) -> LegacyAiOutput {
+    let o = LegacyAiOptions { title: title.into(), created: Some(0), ..LegacyAiOptions::default() };
+    let out = export_legacy_ai(doc, &o).unwrap();
+    prints_as(&out.bytes, doc, &o);
+    out
+}
+
+/// The spot colors and gradients of the objects of `doc`'s first layer, in paint order: each
+/// solid fill's swatch, and each gradient fill's swatch with its first stop's.
+fn inks(doc: &Document) -> Vec<Option<String>> {
+    let mut out = vec![];
+    for n in children(&doc.layers[0]) {
+        match n.appearance.fill_paint() {
+            Paint::Solid { swatch, .. } => out.push(swatch.clone()),
+            Paint::Gradient(g) => {
+                out.push(g.swatch.clone());
+                out.push(g.gradient.stops.first().and_then(|s| s.swatch.clone()));
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The title, spot color names and gradient names are written in Windows-1252, as layer names
+/// are: é is 351 (octal) in the header's custom colors, each `x`, the gradient's definition, its
+/// stops and `Bg`. The spot color and gradient names read back as they were.
+#[test]
+fn spot_gradient_and_title_names_are_written_in_windows_1252() {
+    let doc = spots_and_gradient(&["Caf\u{e9}"], "D\u{e9}grad\u{e9}");
+    let out = write_titled(&doc, "R\u{e9}sum\u{e9}");
+    let text = String::from_utf8(out.bytes.clone()).unwrap();
+    for needle in [
+        "%%Title: (R\\351sum\\351)\n",
+        "%%DocumentCustomColors: (Caf\\351)\n",
+        "%%CMYKCustomColor: 0 0.5 1 0 (Caf\\351)\n",
+        "0 0.5 1 0 (Caf\\351) 0.5 x\n",
+        "%AI5_BeginGradient: (D\\351grad\\351)\n(D\\351grad\\351) 0 2 Bd\n",
+        "0 0.5 1 0 (Caf\\351) 0 3 50 0 %_Bs\n",
+        "1 (D\\351grad\\351) ",
+    ] {
+        assert!(text.contains(needle), "missing {needle:?} in\n{text}");
+    }
+    assert!(!text.contains("\\303"), "{text}");
+    assert!(!out.warnings.iter().any(|w| w == TITLE_AND_COLOR_NAMES), "{:?}", out.warnings);
+    let read = crate::import(&out.bytes).unwrap().document;
+    let names = inks(&read);
+    let want = ["Caf\u{e9}", "D\u{e9}grad\u{e9}", "Caf\u{e9}"].map(|n| Some(n.to_string()));
+    assert_eq!(names, want);
+}
+
+/// A character Windows-1252 can't hold is written as `?`, with one warning for all of these
+/// names. Names that become the same are numbered, so the header, each `x` and each `Bg` still
+/// tell the colors and gradients apart.
+#[test]
+fn names_outside_windows_1252_are_replaced_and_kept_apart() {
+    // 赤 and 青 (spot colors), 渐变 and グラ (gradients), 日本 (the title).
+    let mut doc = spots_and_gradient(&["\u{8d64}", "\u{9752}"], "\u{6e10}\u{53d8}");
+    let g = Gradient {
+        kind: GradientKind::Linear,
+        stops: vec![GradientStop::new(0.0, Color::cmyk(1.0, 0.0, 0.0, 0.0)), GradientStop::new(1.0, Color::cmyk(0.0, 0.0, 0.0, 0.0))],
+    };
+    let mut paint = GradientPaint::new(g);
+    paint.swatch = Some("\u{30b0}\u{30e9}".into());
+    let n = shape(&mut doc, shapes::rectangle(Rect::new(60.0, 50.0, 100.0, 90.0)), Paint::Gradient(Box::new(paint)), Paint::None);
+    let layer = doc.layers[0].id;
+    doc.insert(Some(layer), usize::MAX, n).unwrap();
+    let out = write_titled(&doc, "\u{65e5}\u{672c}");
+    let text = String::from_utf8(out.bytes.clone()).unwrap();
+    for needle in [
+        "%%Title: (??)\n",
+        "%%DocumentCustomColors: (?)\n%%+ (? 2)\n",
+        "%%CMYKCustomColor: 0 0.5 1 0 (?)\n%%+ 0.5 0.5 1 0 (? 2)\n",
+        "0 0.5 1 0 (?) 0.5 x\n",
+        "0.5 0.5 1 0 (? 2) 0.5 x\n",
+        "(??) 0 2 Bd\n",
+        "(?? 2) 0 2 Bd\n",
+        "0 0.5 1 0 (?) 0 3 50 0 %_Bs\n",
+        "1 (??) ",
+        "1 (?? 2) ",
+    ] {
+        assert!(text.contains(needle), "missing {needle:?} in\n{text}");
+    }
+    assert_eq!(out.warnings.iter().filter(|w| *w == TITLE_AND_COLOR_NAMES).count(), 1, "{:?}", out.warnings);
+    assert!(!out.warnings.iter().any(|w| w == LAYER_NAME), "{:?}", out.warnings);
+    let read = crate::import(&out.bytes).unwrap().document;
+    let want = [Some("?"), Some("? 2"), Some("??"), Some("?"), Some("?? 2"), None].map(|n| n.map(String::from));
+    assert_eq!(inks(&read), want);
 }
 
 #[test]
@@ -805,6 +991,34 @@ fn type_reads_back_as_text() {
     assert!((start - 0.25).abs() < 1e-2, "{start}");
     let b = path.transformed(along.xf).to_bezpath().bounding_box();
     assert!((b.x0 - 150.0).abs() < 1e-3 && (b.y1 - 190.0).abs() < 1e-3, "{b:?}");
+}
+
+/// Area type that Shrink Text to Fit scales down is written at the sizes, leading and baseline
+/// shifts it draws at, so it reads back fitting its frame.
+#[test]
+fn shrunk_area_type_is_written_at_the_size_it_draws_at() {
+    use vectorcraft_doc::{TextKind, TextObject, TextRun};
+    let mut doc = Document::new(300.0, 200.0);
+    let layer = doc.layers[0].id;
+    let mut area = TextObject::point(vectorcraft_geom::Point::ZERO, "Area type that is too long ", style(14.0, Paint::solid(Color::BLACK)));
+    let raised = vectorcraft_doc::CharStyle { baseline_shift: 3.0, leading: Some(20.0), ..style(14.0, red()) };
+    area.runs.push(TextRun::new("for its frame shrinks", raised));
+    area.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 40.0)) };
+    area.area.fit = vectorcraft_doc::AreaFit::ShrinkText { min_percent: 10.0 };
+    area.xf = Affine::translate((20.0, 80.0));
+    let fit = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &area).fit_scale;
+    assert!(fit < 0.9, "the text is shrunk to fit: {fit}");
+    let n = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(area)));
+    doc.insert(Some(layer), usize::MAX, n).unwrap();
+    let imported = crate::import(&write(&doc).bytes).unwrap();
+    let found = texts(&imported.document);
+    let (_, back) = found.first().expect("the area type reads back");
+    let sizes: Vec<(f64, f64, Option<f64>)> = back.runs.iter().map(|r| (r.style.size, r.style.baseline_shift, r.style.leading)).collect();
+    assert_eq!(sizes.len(), 2, "{sizes:?}");
+    assert!((sizes[0].0 - 14.0 * fit).abs() < 1e-3 && (sizes[1].0 - 14.0 * fit).abs() < 1e-3, "{sizes:?} at {fit}");
+    assert!((sizes[1].1 - 3.0 * fit).abs() < 1e-3, "{sizes:?} at {fit}");
+    assert!(sizes[1].2.is_some_and(|l| (l - 20.0 * fit).abs() < 1e-3), "{sizes:?} at {fit}");
+    assert!(!vectorcraft_text::layout(vectorcraft_text::FontDb::global(), back).overflow, "it fits its frame as written");
 }
 
 #[test]

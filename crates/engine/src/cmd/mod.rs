@@ -47,6 +47,7 @@ pub(crate) mod menucmds;
 pub(crate) mod newart;
 pub mod newdoc;
 mod object;
+pub(crate) mod objects_on_path;
 mod opacitymask;
 mod overprint;
 mod package;
@@ -257,6 +258,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(brushsym::specs());
         v.extend(patterncmds::specs());
         v.extend(intertwine::specs());
+        v.extend(objects_on_path::specs());
         v.extend(prefscmds::specs());
         v.extend(distortcmds::specs());
         v.extend(paint::proxy_specs());
@@ -484,6 +486,7 @@ pub(crate) fn unique_name(base: &str, taken: impl Fn(&str) -> bool) -> String {
 }
 
 pub(crate) use edit::{settle_interaction, typing_in_progress};
+pub(crate) use object::bounds_rewrite;
 pub(crate) use vectorcraft_doc::range::parse_range;
 
 /// A date param in Unix seconds that defaults to the clock: `None` when absent (now, see
@@ -500,7 +503,7 @@ pub(crate) fn date_param(p: &Value, key: &str, cmd: &str) -> Result<Option<Optio
 /// no clock). It joins the running command's journal entry as `key`, so a replay of the journal
 /// gives the same date whenever it runs (an action leaves it out: [`crate::Session::journal_for_action`]).
 pub(crate) fn clock_date(s: &mut Session, key: &str, given: Option<Option<i64>>) -> Option<i64> {
-    let t = given.unwrap_or_else(vectorcraft_doc::metadata::now_unix);
+    let t = given.unwrap_or_else(vectorcraft_doc::metadata::output_time);
     s.note_journal(key, serde_json::json!(t));
     t
 }
@@ -522,6 +525,9 @@ pub use flatten::FlattenerPreset;
 
 /// The shapes a group selected alone gives the Pathfinder panel.
 pub use pathops::shape_count;
+
+/// The gaps View › Show Live Paint Gaps shows on a Live Paint group.
+pub use buildcmds::live_paint_gaps;
 
 /// Command ids kept only so older scripts keep working: `(alias, the command it duplicates)`.
 /// They run as before but the command palette leaves them out (it lists the command once).

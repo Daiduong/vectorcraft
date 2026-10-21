@@ -135,12 +135,12 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
     }
     if !doc.title.is_empty() {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<title>{}</title>{nl}", xml_escape(&doc.title)));
+        out.push_str(&format!("<title>{}</title>{nl}", xml_text(&doc.title)));
     }
     // File Info's description.
     if !doc.metadata.description.trim().is_empty() {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<desc>{}</desc>{nl}", xml_escape(&doc.metadata.description)));
+        out.push_str(&format!("<desc>{}</desc>{nl}", xml_text(&doc.metadata.description)));
     }
     // Window › SVG Interactivity › Link JavaScript Files.
     for file in &doc.svg_scripts {
@@ -1651,7 +1651,11 @@ impl Writer<'_> {
             return 0;
         }
         let bounds = n.visual_bounds_with(&self.doc.symbol_boxes());
-        let reach: f64 = fx.iter().map(|f| f.outset(bounds.unwrap_or_default())).sum::<f64>() + 2.0;
+        // An Outer Glow's silhouette grows by a quarter of a pixel of the document's raster grid first.
+        let grow = 18.0 / self.doc.raster_ppi();
+        let reach: f64 =
+            fx.iter().map(|f| f.outset(bounds.unwrap_or_default()) + if matches!(f, RasterFx::OuterGlow { .. }) { grow } else { 0.0 }).sum::<f64>()
+                + 2.0;
         let region = bounds.map(|b| self.xf.transform_rect_bbox(b).inflate(reach, reach));
         let mut opened = 0;
         for f in fx.iter().rev() {
@@ -1691,9 +1695,10 @@ impl Writer<'_> {
                     self.num(*dy),
                     flood(color, *opacity)
                 ),
-                // The glow blurs a solid silhouette: alpha × 255 makes any alpha full.
+                // The glow blurs a solid silhouette (alpha × 255 makes any alpha full) grown by a quarter raster pixel.
                 RasterFx::OuterGlow { opacity, blur, color, .. } => format!(
-                    "<feComponentTransfer in=\"SourceAlpha\"><feFuncA type=\"linear\" slope=\"255\"/></feComponentTransfer><feGaussianBlur stdDeviation=\"{}\" result=\"glow\"/>{}<feComposite in2=\"glow\" operator=\"in\" result=\"paint\"/><feMerge><feMergeNode in=\"paint\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>",
+                    "<feComponentTransfer in=\"SourceAlpha\"><feFuncA type=\"linear\" slope=\"255\"/></feComponentTransfer><feMorphology operator=\"dilate\" radius=\"{}\"/><feGaussianBlur stdDeviation=\"{}\" result=\"glow\"/>{}<feComposite in2=\"glow\" operator=\"in\" result=\"paint\"/><feMerge><feMergeNode in=\"paint\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>",
+                    fmt_num(grow, 3),
                     sd(*blur),
                     flood(color, *opacity)
                 ),
@@ -1885,10 +1890,18 @@ impl Writer<'_> {
                 self.warn("type on a path with an end bracket, Align to Path or Spacing is outlined to keep its look");
                 return self.text_outlines(n, t);
             }
+            // It cannot hang glyphs outside the start bracket either.
+            if hangs_on_path(t, &lay) {
+                self.warn("type on a path with glyphs hanging outside its brackets is outlined to keep its look");
+                return self.text_outlines(n, t);
+            }
             return self.text_on_path(n, t, path, *start);
         }
         self.note_fonts(t, &lay);
         let lines = text_lines(t, &lay, self.opts.fewer_tspans);
+        // `drawn` holds the styles the layout draws the text in: Shrink Text to Fit scales its sizes, explicit leading and baseline shifts.
+        let fitted = (lay.fit_scale != 1.0).then(|| vectorcraft_text::scaled(t, lay.fit_scale));
+        let drawn = fitted.as_ref().unwrap_or(t);
         // Each line is anchored as its paragraph is aligned. A tab starts a new chunk at its
         // stop, and so does the text after an inline graphic: lines with tabs, and text with
         // inline graphics, are never anchored.
@@ -1909,7 +1922,7 @@ impl Writer<'_> {
         let uniform = anchors.first().copied().filter(|a| a.is_some() && anchors.iter().all(|b| b == a)).flatten();
         // The <text> element's user space is text space.
         let space = (lay.bounds, Affine::IDENTITY);
-        let base = TextBase { props: self.char_props(&t.first_style(), space), space, anchored: uniform.is_some() };
+        let base = TextBase { props: self.char_props(&drawn.first_style(), space), space, anchored: uniform.is_some() };
         let mut props = base.props.clone();
         if let Some((a, _)) = uniform {
             props.push(("text-anchor", a.into()));
@@ -1934,10 +1947,10 @@ impl Writer<'_> {
                 Some((a, _)) => {
                     s.push_str(&format!("<tspan x=\"{}\" y=\"{}\" text-anchor=\"{a}\">", self.num(start.0), self.num(start.1)));
                     let inner = TextBase { anchored: true, ..base.clone() };
-                    self.text_line(&mut s, t, &line.segs, start, &inner, false);
+                    self.text_line(&mut s, drawn, &line.segs, start, &inner, false);
                     s.push_str("</tspan>");
                 }
-                None => self.text_line(&mut s, t, &line.segs, start, &base, true),
+                None => self.text_line(&mut s, drawn, &line.segs, start, &base, true),
             }
         }
         s.push_str("</text>");
@@ -2157,6 +2170,24 @@ impl Writer<'_> {
 /// Does a character style stroke inside or outside its glyphs (not centred)?
 fn aligned(st: &CharStyle) -> bool {
     st.has_stroke() && st.stroke_align != StrokeAlign::Center
+}
+
+/// Does type on a path `t`, laid out as `lay`, hang glyphs outside its brackets? It does when
+/// Optical Margin Alignment or its first paragraph's Roman Hanging Punctuation is on and its
+/// glyphs sit elsewhere with both off.
+fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
+    if !t.optical_margin && !t.para_at(0).roman_hanging {
+        return false;
+    }
+    let mut flush = t.clone();
+    flush.optical_margin = false;
+    let mut styles = flush.paragraph_styles();
+    for p in &mut styles {
+        p.roman_hanging = false;
+    }
+    flush.set_paragraph_styles(styles);
+    let flush = vectorcraft_text::layout(FontDb::global(), &flush);
+    lay.glyphs.len() != flush.glyphs.len() || lay.glyphs.iter().zip(&flush.glyphs).any(|(a, b)| a.origin != b.origin)
 }
 
 /// What the `<tspan>` of a run whose properties are `run` sets over its `<text>`'s `base`: the

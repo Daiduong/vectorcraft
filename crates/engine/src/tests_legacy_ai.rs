@@ -204,8 +204,8 @@ const RADIAL_AND_LINEAR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" widt
 </svg>"##;
 
 /// A radial gradient is written with its highlight, `0 0 0 0 Bh` at the center (§3.5.5, §3.5.6).
-/// #2687's file had none, and the reference app drew the circle in its outer color. The linear one
-/// has none. Both open again with their type, stops and place.
+/// #2687's file had none. The linear one has none. Both open again with their type, stops and
+/// place.
 #[test]
 fn a_radial_gradient_is_written_with_its_highlight() {
     let mut s = Session::new();
@@ -242,6 +242,34 @@ fn a_radial_gradient_is_written_with_its_highlight() {
         let got = colour_at(d, x, y);
         assert!(got.iter().zip(want).all(|(a, b)| a.abs_diff(b) <= 8), "{got:?} at {x}, {y}");
     }
+}
+
+/// #2687's radial gradient lists its stops from white at ramp point 0 to #1b2a6b at 100, as
+/// §3.5.2's radial definition lists them (10, then 100); the linear one lists them from 100 to 0
+/// (§1.4.3). The reference app read the radial gradient's two stops listed from 100 both at ramp
+/// point 100 and drew the circle in #1b2a6b (reported on #2807).
+#[test]
+fn a_radial_gradient_lists_its_stops_from_the_first() {
+    let mut s = Session::new();
+    let svg = vectorcraft_format::base64_encode(RADIAL_AND_LINEAR.as_bytes());
+    s.execute("document.open", &json!({"name": "t_radial.svg", "dataBase64": svg})).unwrap();
+    let r = s.execute("file.saveCopy", &json!({"format": "ai", "aiVersion": "7"})).unwrap();
+    let text = String::from_utf8(vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
+    // Each `%_Bs` line of a definition as its RGB color (0-255) and ramp point.
+    let listed = |head: &str| -> Vec<([u8; 3], String)> {
+        let def = text.split(head).nth(1).and_then(|t| t.split("BD\n").next()).unwrap_or_else(|| panic!("no {head:?} in\n{text}"));
+        def.lines()
+            .map(|l| {
+                let n: Vec<&str> = l.split_whitespace().collect();
+                let [_, _, _, _, r, g, b, "2", "50", ramp, "%_Bs"] = n.as_slice() else { panic!("{l}") };
+                let c = [r, g, b].map(|v| (v.parse::<f64>().unwrap() * 255.0).round() as u8);
+                (c, (*ramp).to_string())
+            })
+            .collect()
+    };
+    let (white, navy) = ([255, 255, 255], [27, 42, 107]);
+    assert_eq!(listed("(Gradient) 1 2 Bd\n[\n"), [(white, "0".to_string()), (navy, "100".to_string())], "{text}");
+    assert_eq!(listed("(Gradient 2) 0 2 Bd\n[\n"), [(navy, "100".to_string()), (white, "0".to_string())], "{text}");
 }
 
 /// A `w`×`h` PNG of one colour (`rgba`), 72 ppi.
@@ -371,7 +399,7 @@ fn transparent_images_can_be_left_out_and_opacity_makes_one_transparent() {
     assert_eq!(v["options"]["transparentImages"]["value"], "flatten", "{v}");
 }
 
-/// #2692's files: an image clipped to a circle inside a circle's stroke, and an image with
+/// #2692's file, an image clipped to a circle inside a circle's stroke, and #2830's, an image with
 /// see-through pixels (which the save flattens into an image inside a clipping group), each with
 /// an orange square on the next layer.
 const CLIPPED_IMAGE: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="200" viewBox="0 0 400 200">
@@ -389,14 +417,16 @@ const SEE_THROUGH_IMAGE: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" xmln
   <g id="above"><rect x="220" y="20" width="160" height="160" fill="#f7941d"/></g>
 </svg>"##;
 
-/// #2692: the image inside a clipping group, clipped in the file or flattened by the save, is
-/// written as the version 7 specification shows one (§8.1, §8.4): the matrix with a space inside
-/// each bracket and the samples on comment lines of 60 hex digits, between `W n` and `Q`. The next
+/// #2692 and #2830: the image inside a clipping group, clipped in the file or flattened by the
+/// save, is written as the version 7 specification shows one (§8.1, §8.4): the matrix with a space
+/// inside each bracket and the samples on comment lines of 60 hex digits, between `W n` and `Q`.
+/// A line `F`, which the specification's examples do not show, follows `%AI5_EndRaster`. The next
 /// layer follows with the square's exact lines, and the file opens again with both layers, the
-/// clipping group, the image and the square.
+/// clipping group, the image, the square and, besides the clipping path, only the paths the SVG
+/// holds.
 #[test]
 fn a_clipped_or_flattened_image_is_written_as_the_specification_shows_it() {
-    for (svg, layer) in [(CLIPPED_IMAGE, "clipped-image"), (SEE_THROUGH_IMAGE, "alpha-image")] {
+    for (svg, layer, paths) in [(CLIPPED_IMAGE, "clipped-image", 2), (SEE_THROUGH_IMAGE, "alpha-image", 1)] {
         let mut s = Session::new();
         s.execute("document.open", &json!({"name": "t.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes())})).unwrap();
         let r = s.execute("file.saveCopy", &json!({"format": "ai", "aiVersion": "7"})).unwrap();
@@ -411,7 +441,8 @@ fn a_clipped_or_flattened_image_is_written_as_the_specification_shows_it() {
         let end = at + lines[at..].iter().position(|l| *l == "%AI5_EndRaster").unwrap();
         let (last, full) = lines[at + 1..end].split_last().unwrap();
         assert!(full.iter().all(|l| l.len() == 61) && (2..=61).contains(&last.len()), "{layer}");
-        assert!(text.contains("\nW\nn\n%AI5_File:\n") && text.contains("\n%AI5_EndRaster\nQ\nLB\n%AI5_EndLayer--\n"), "{text}");
+        assert_eq!(lines[end + 1], "F", "{layer}");
+        assert!(text.contains("\nW\nn\n%AI5_File:\n") && text.contains("\n%AI5_EndRaster\nF\nQ\nLB\n%AI5_EndLayer--\n"), "{text}");
         let square = "%AI5_BeginLayer\n1 1 1 1 0 0 1 255 79 79 Lb\n(above) Ln\n0 A\n0.9686 0.5804 0.1137 Xa\n0 O\n0 XR\n\
                       220 180 m\n380 180 L\n380 20 L\n220 20 L\n220 180 L\nf\nLB\n%AI5_EndLayer--\n%%PageTrailer\n";
         assert!(text.contains(square), "{text}");
@@ -419,6 +450,9 @@ fn a_clipped_or_flattened_image_is_written_as_the_specification_shows_it() {
         let d = &s.doc().unwrap().doc;
         assert_eq!(layer_names(d), [layer, "above"]);
         assert_eq!(images(d), (1, 1), "{layer}");
+        let mut drawn = 0;
+        d.walk(|n| drawn += usize::from(matches!(n.kind, vectorcraft_doc::NodeKind::Path { clipping: false, .. })));
+        assert_eq!(drawn, paths, "{layer}");
         assert_eq!(colour_at(d, 300.0, 100.0), [247, 148, 29], "{layer}");
         assert_ne!(colour_at(d, 100.0, 100.0), [255, 255, 255], "{layer}");
     }

@@ -317,10 +317,10 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     ui.separator();
     if widgets::menu_item(ui, tl!("Import Data Sets…"), true, false) {
-        import_datasets(app);
+        crate::picks::button(app, import_datasets);
     }
     if widgets::menu_item(ui, tl!("Export Data Sets…"), !vars.is_empty(), false) {
-        export_datasets(app);
+        crate::picks::button(app, export_datasets);
     }
     ui.separator();
     // What the highlighted variable drives, selected — its bindings are left alone.
@@ -334,7 +334,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// Variables panel: Import Data Sets… opens a file dialog for a comma- or tab-separated file and runs `dataset.import` on the chosen file.
 fn import_datasets(app: &mut VectorcraftApp) {
-    let pick = crate::FilePick { filters: vec![("CSV", &["csv", "tsv", "txt"])], ..Default::default() };
+    let pick = crate::FilePick { filters: vec![crate::FilePick::filter("CSV", &["csv", "tsv", "txt"])], ..Default::default() };
     let Some(path) = crate::picks::open(app, &pick) else { return };
     if let Err(e) = app.run("dataset.import", json!({"path": path})) {
         app.status(e);
@@ -343,7 +343,7 @@ fn import_datasets(app: &mut VectorcraftApp) {
 
 /// Variables panel: Export Data Sets… — pick a path and run `dataset.export`.
 fn export_datasets(app: &mut VectorcraftApp) {
-    let pick = crate::FilePick { name: "datasets.csv".into(), filters: vec![("CSV", &["csv"])], ..Default::default() };
+    let pick = crate::FilePick { name: "datasets.csv".into(), filters: vec![crate::FilePick::filter("CSV", &["csv"])], ..Default::default() };
     let Some(path) = crate::picks::save(app, &pick) else { return };
     if let Err(e) = app.run("dataset.export", json!({"path": path})) {
         app.status(e);
@@ -388,6 +388,38 @@ mod tests {
         // Updating writes the art back into the row.
         app.run("dataset.update", json!({})).unwrap();
         assert_eq!(app.run("dataset.list", json!({})).unwrap()["datasets"][0]["matches"], json!(true));
+    }
+
+    /// Choosing a data set, or stepping to one with the arrows, shows a status message when no
+    /// object is bound to a variable it has a value for, for example after Import Data Sets…
+    /// defines new variables. With such an object bound, choosing a data set or stepping to one
+    /// clears the message.
+    #[test]
+    fn a_data_set_with_nothing_bound_shows_a_status_message() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
+        let t = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "x"})).unwrap()["id"].as_u64().unwrap();
+        app.run("dataset.import", json!({"csv": "name,Name\nA,Ann\nB,Bob\n"})).unwrap();
+        let message = |row: &str| format!("nothing in data set {row} was applied: no object is bound to a variable it has a value for");
+        app.run("dataset.select", json!({"name": "A"})).unwrap();
+        assert_eq!(app.ui.status, message("A"));
+        app.run("dataset.next", json!({})).unwrap();
+        assert_eq!(app.ui.status, message("B"));
+        app.run("dataset.prev", json!({})).unwrap();
+        assert_eq!(app.ui.status, message("A"));
+
+        app.run("variable.bind", json!({"variable": "Name", "ids": [t]})).unwrap();
+        app.run("dataset.select", json!({"name": "B"})).unwrap();
+        assert_eq!(app.ui.status, "");
+        // Stepping to a data set that applies clears the message as well.
+        for step in ["dataset.next", "dataset.prev"] {
+            app.run("variable.unbind", json!({"variable": "Name", "ids": [t]})).unwrap();
+            app.run("dataset.select", json!({"name": "A"})).unwrap();
+            assert_eq!(app.ui.status, message("A"));
+            app.run("variable.bind", json!({"variable": "Name", "ids": [t]})).unwrap();
+            app.run(step, json!({})).unwrap();
+            assert_eq!(app.ui.status, "", "{step}");
+        }
     }
 
     #[test]

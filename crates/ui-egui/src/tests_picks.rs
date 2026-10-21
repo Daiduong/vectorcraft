@@ -213,12 +213,39 @@ fn load_profile_asks_off_the_ui_thread() {
     let (mut app, shown, _) = app();
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     click(&mut app, "Load Profile…", crate::panels::separations::show);
-    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(p)] if p.filters.iter().any(|(_, e)| e.contains(&"icc"))));
+    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(p)] if p.filters.iter().any(|(_, e)| e.iter().any(|e| e == "icc"))));
     poll(&mut app);
     assert!(app.ui.status.is_empty(), "{}", app.ui.status);
     shown.answer(&["/no/such/profile.icc"]);
     poll(&mut app);
     assert!(app.ui.status.contains("/no/such/profile.icc"), "color.loadProfile ran on the path: {}", app.ui.status);
+}
+
+/// The Variables panel menu's Import Data Sets… and Export Data Sets… ask off the UI thread: the
+/// data sets in the file picked are loaded, and the data sets are written to the path the dialog
+/// answers.
+#[test]
+fn variables_panel_data_sets_ask_off_the_ui_thread() {
+    let (mut app, shown, _) = app();
+    app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+    let dir = std::env::temp_dir().join(format!("vc-picks-data-sets-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (csv, out) = (dir.join("sets.csv"), dir.join("out.csv"));
+    std::fs::write(&csv, "name,Name\nB,y\n").unwrap();
+    let sets = |app: &VectorcraftApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+
+    click(&mut app, "Import Data Sets…", crate::panels::variables::menu);
+    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
+    shown.answer(&[&csv.to_string_lossy()]);
+    poll(&mut app);
+    assert_eq!(sets(&app), ["B"], "{}", app.ui.status);
+
+    click(&mut app, "Export Data Sets…", crate::panels::variables::menu);
+    assert!(matches!(shown.requests().as_slice(), [PickRequest::Save(_)]));
+    shown.answer(&[&out.to_string_lossy()]);
+    poll(&mut app);
+    assert!(std::fs::read_to_string(&out).is_ok_and(|text| text.starts_with("name,Name\n")), "{}", app.ui.status);
+    let _ = std::fs::remove_dir_all(dir);
 }
 
 /// The Swatches libraries menu's Other Library… asks off the UI thread; the file picked (another
@@ -870,7 +897,7 @@ fn only_picks_shows_the_hosts_dialogs() {
                 .services
                 .pick_open
                 .as_mut()
-                .and_then(|f| f(&crate::FilePick { filters: vec![("ICC Profiles", &["icc", "icm"])], ..Default::default() }))
+                .and_then(|f| f(&crate::FilePick { filters: vec![FilePick::filter("ICC Profiles", &["icc", "icm"])], ..Default::default() }))
         {"#;
     assert_eq!(in_line_dialogs(&code_only(before)).len(), 1);
     assert_eq!(in_line_dialogs(&code_only("let s = &mut app.services; let p = (s.pick_save.as_mut()?)(&pick);")).len(), 1);
