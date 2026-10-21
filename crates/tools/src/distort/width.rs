@@ -10,10 +10,11 @@
 //! moves or scales the whole profile with it: its centre re-spaces every width point along the path
 //! in proportion (the ends stay put, so dragging an end point leaves a point where that end was and
 //! moves a re-spaced one), its handle scales the width points on the same smooth stretch,
-//! up to the nearest sharp corner. Shift-click adds width points to the selection (or takes them
-//! out), and dragging one of several selected points moves or widens them all. Double-clicking a
-//! stroke opens Width Point Edit (the `widthPoint` dialog), editing a hit point or creating one on
-//! confirmation. Delete/Backspace removes the selected width points.
+//! up to the nearest sharp corner; Alt alongside Shift scales only that handle's side. Shift-click
+//! adds width points to the selection (or takes them out), and dragging one of several selected
+//! points moves or widens them all — Alt then changes that one side of every selected point.
+//! Double-clicking a stroke opens Width Point Edit (the `widthPoint` dialog), editing a hit point
+//! or creating one on confirmation. Delete/Backspace removes the selected width points.
 //!
 //! Gestures preview `stroke.widthPoint.set {id, t, left, right, index?}` (side widths in points),
 //! `stroke.widthPoint.copy {id, index, t}` or, for several points, `stroke.widthProfile.set {ids,
@@ -96,6 +97,9 @@ struct Drag {
     left: f64,
     right: f64,
     t: f64,
+    /// Where the pointer went down. A drag has to beat a few pixels before it counts as one, so a
+    /// Shift-press that barely moves is still a Shift-click.
+    start: Point,
     group: Option<Group>,
     /// The other width points of the subpath when the drag began, which a slid point snaps onto.
     others: Vec<WPoint>,
@@ -108,6 +112,8 @@ struct Drag {
     /// Alt held during the drag: both sides' widths from when Alt went down, so the side the
     /// pointer is not on keeps its own width (crossing the path swaps which side that is).
     held: Option<(f64, f64)>,
+    /// Alt during an elastic width drag: scale only the side whose handle the drag began on.
+    one_side: bool,
     /// Shift held on an existing point: the whole profile moves (its centre) or scales (its handle)
     /// with this point rather than it alone. A Shift-click instead selects it, decided on release.
     elastic: bool,
@@ -306,9 +312,12 @@ impl WidthTool {
             let f = fraction(i);
             first = first.min(f);
             last = last.max(f);
-            if f < t {
+            // A corner at exactly `t` bounds the run on both sides: the point sits on the corner
+            // itself, not on a smooth stretch, so only that point scales.
+            if f <= t {
                 lo = lo.max(f);
-            } else if f > t {
+            }
+            if f >= t {
                 hi = hi.min(f);
             }
         }
@@ -412,7 +421,17 @@ impl WidthTool {
                 d.profile
                     .iter()
                     .enumerate()
-                    .map(|(i, &(t, l, r))| if Some(i) == d.index || in_run(t) { [t, l * d.scale, r * d.scale] } else { [t, l, r] })
+                    .map(|(i, &(t, l, r))| {
+                        if Some(i) != d.index && !in_run(t) {
+                            return [t, l, r];
+                        }
+                        // Alt scales the side under the handle only; the other one holds.
+                        match (d.one_side, d.side) {
+                            (true, true) => [t, l * d.scale, r],
+                            (true, false) => [t, l, r * d.scale],
+                            (false, _) => [t, l * d.scale, r * d.scale],
+                        }
+                    })
                     .collect()
             }
         }
@@ -448,14 +467,15 @@ impl Tool for WidthTool {
                 };
                 let drag = match Self::hit(cx, &spot, p) {
                     Some((w, part)) => {
-                        let mode = match part {
+                        let mut mode = match part {
                             None if ev.mods.alt => Mode::Copy,
                             None => Mode::Move,
                             Some(left) => Mode::Width(ev.mods.alt.then_some(left)),
                         };
                         // Shift on an existing point drags the whole profile with it. A Shift-click
-                        // (released without moving) selects instead, so the selection waits.
-                        let elastic = ev.mods.shift && !ev.mods.alt;
+                        // (released without moving) selects instead, so the selection waits. Alt
+                        // alongside Shift limits an elastic width drag to the handle's own side.
+                        let elastic = ev.mods.shift && mode != Mode::Copy;
                         if !elastic {
                             if ev.mods.shift {
                                 if !self.toggle(spot.owner, w.t) {
@@ -467,6 +487,11 @@ impl Tool for WidthTool {
                         }
                         let others = Self::points_of(cx, spot.owner, spot.id, spot.sub).into_iter().filter(|o| o.index != w.index).collect();
                         let group = if elastic { None } else { self.group(cx, spot.owner, mode) };
+                        // Several selected points take Alt live, like one does: the side is decided
+                        // while the drag runs rather than at the press.
+                        if group.is_some() && matches!(mode, Mode::Width(Some(_))) {
+                            mode = Mode::Width(None);
+                        }
                         // Capture the profile as it is now: the drag's own previews go onto the
                         // document, so this is the last point at which it is the profile the drag
                         // began with, which an elastic move or width change spaces from.
@@ -480,12 +505,14 @@ impl Tool for WidthTool {
                             left: w.left,
                             right: w.right,
                             t: w.t,
+                            start: p,
                             group,
                             others,
                             moved: false,
                             side: part.unwrap_or(true),
                             base: (w.left, w.right),
                             held: None,
+                            one_side: false,
                             elastic,
                             profile,
                             run,
@@ -503,12 +530,14 @@ impl Tool for WidthTool {
                             left: spot.left,
                             right: spot.right,
                             t: spot.t,
+                            start: p,
                             group: None,
                             others: vec![],
                             moved: false,
                             side,
                             base: (spot.left, spot.right),
                             held: None,
+                            one_side: false,
                             elastic: false,
                             profile: vec![],
                             run: (0.0, 1.0),
@@ -516,19 +545,28 @@ impl Tool for WidthTool {
                         }
                     }
                 };
-                let label = if drag.mode == Mode::Copy { "Copy Width Point" } else { "Width Point" };
+                let label = if drag.mode == Mode::Copy {
+                    "Copy Width Point"
+                } else if drag.elastic {
+                    "Width Profile"
+                } else {
+                    "Width Point"
+                };
                 self.drag = Some(drag);
                 vec![Action::Begin(label.into())]
             }
             PointerKind::Drag => {
                 let Some(d) = &mut self.drag else { return vec![] };
-                d.moved = true;
+                // A few pixels of jitter must not turn a Shift-click into a drag: the click is
+                // decided on release, so the press only counts as a drag once it has moved.
+                d.moved |= p.distance(d.start) > cx.tol(2.0);
                 // Shift may go down or up partway through a drag: match the live modifier so a plain
-                // drag turns elastic (and back) without letting go. Alt keeps its own path below.
+                // drag turns elastic (and back) without letting go. Alt alongside it (see below)
+                // narrows an elastic width drag to one side; on its own it keeps its own path.
                 // Only an existing point can be elastic: a drag creating one has no profile to
                 // re-space, so Shift leaves it alone. Entering captures the smooth run, which the
                 // drag's own previews don't change (the profile it spaces from was taken at Down).
-                let elastic_now = ev.mods.shift && !ev.mods.alt && d.mode != Mode::Copy && d.index.is_some();
+                let elastic_now = ev.mods.shift && d.mode != Mode::Copy && d.index.is_some();
                 if elastic_now != d.elastic {
                     if elastic_now {
                         d.run = if matches!(d.mode, Mode::Width(_)) { Self::smooth_run(cx, d.spot.id, d.spot.sub, d.spot.t) } else { (0.0, 1.0) };
@@ -553,19 +591,26 @@ impl Tool for WidthTool {
                             (d.t, d.spot.p, d.spot.n) = (t, q, left_normal(tan));
                         }
                         // The handle follows the pointer; the preview scales that point's smooth run
-                        // by the same factor.
+                        // by the same factor. Alt scales the handle's own side only, so the other
+                        // side of every point in the run keeps its width.
                         _ => {
                             let off = (p - d.spot.p).dot(d.spot.n);
-                            d.side = off >= 0.0;
+                            d.one_side = ev.mods.alt;
                             let base = if d.side { d.spot.left } else { d.spot.right };
                             d.scale = if base > 1e-9 { off.abs() / base } else { 1.0 };
-                            (d.left, d.right) = (d.spot.left * d.scale, d.spot.right * d.scale);
+                            (d.left, d.right) = if d.one_side {
+                                if d.side { (d.spot.left * d.scale, d.spot.right) } else { (d.spot.left, d.spot.right * d.scale) }
+                            } else {
+                                (d.spot.left * d.scale, d.spot.right * d.scale)
+                            };
                         }
                     }
                     return vec![Self::preview(d)];
                 }
                 match d.mode {
-                    Mode::Width(_) if d.group.is_none() => {
+                    // An existing point (or several) takes Alt live; a new one is created at the
+                    // pointer's width, or on one side of it when Alt is already down.
+                    Mode::Width(_) if d.index.is_some() => {
                         // The pointer along the left normal: + on the left side, - on the right.
                         let off = (p - d.spot.p).dot(d.spot.n);
                         let mag = off.abs();
@@ -983,7 +1028,7 @@ mod tests {
         // Click the point at t = 0.25, Shift-click the one at 0.75.
         t.pointer(&c, &ev(PointerKind::Down, 150.0, 200.0, none));
         t.pointer(&c, &ev(PointerKind::Up, 150.0, 200.0, none));
-        assert_eq!(t.pointer(&c, &ev(PointerKind::Down, 250.0, 200.0, shift)), vec![Action::Begin("Width Point".into())]);
+        assert_eq!(t.pointer(&c, &ev(PointerKind::Down, 250.0, 200.0, shift)), vec![Action::Begin("Width Profile".into())]);
         t.pointer(&c, &ev(PointerKind::Up, 250.0, 200.0, shift));
         assert_eq!(t.selected_indices(&c, id), vec![1, 3]);
         // Dragging one of them 20 pt along moves both by a tenth of the path, as one command.
@@ -1005,7 +1050,7 @@ mod tests {
         assert_eq!((w(1, 1), w(3, 2), w(2, 1)), (2.0, 2.0, 1.0));
         t.pointer(&c, &ev(PointerKind::Up, 250.0, 190.0, none));
         // Shift-clicking a selected point takes it out again (on release, and drags nothing).
-        assert_eq!(t.pointer(&c, &ev(PointerKind::Down, 150.0, 200.0, shift)), vec![Action::Begin("Width Point".into())]);
+        assert_eq!(t.pointer(&c, &ev(PointerKind::Down, 150.0, 200.0, shift)), vec![Action::Begin("Width Profile".into())]);
         assert_eq!(t.pointer(&c, &ev(PointerKind::Up, 150.0, 200.0, shift)), vec![Action::Cancel]);
         assert_eq!(t.selected_indices(&c, id), vec![3]);
         // A plain click on one of several selected points selects just that one.
@@ -1013,6 +1058,60 @@ mod tests {
         t.pointer(&c, &ev(PointerKind::Down, 250.0, 200.0, none));
         t.pointer(&c, &ev(PointerKind::Up, 250.0, 200.0, none));
         assert_eq!(t.selected_indices(&c, id), vec![3]);
+    }
+
+    /// A Shift-press that barely moves is still a Shift-click: a pixel or two of jitter must not
+    /// commit an elastic drag instead of toggling the point's selection.
+    #[test]
+    fn a_tiny_nudge_keeps_a_shift_click_selecting() {
+        let (d, id) = doc_three_points();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let shift = Mods { shift: true, ..Default::default() };
+        let mut t = WidthTool { selected: Some((id, vec![0.25])), ..Default::default() };
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 200.0, shift));
+        t.pointer(&c, &ev(PointerKind::Drag, 201.0, 200.0, shift));
+        assert_eq!(t.pointer(&c, &ev(PointerKind::Up, 201.0, 200.0, shift)), vec![Action::Cancel]);
+        assert_eq!(t.selected_indices(&c, id), vec![1, 2], "the point is added to the selection, not dragged");
+        // Past the dead zone it drags the profile instead.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 200.0, shift));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 210.0, 200.0, shift));
+        assert_eq!(preview(&acts).0, "stroke.widthProfile.set");
+        assert_eq!(t.pointer(&c, &ev(PointerKind::Up, 210.0, 200.0, shift)), vec![Action::Commit]);
+    }
+
+    /// Alt changes one side of every selected point, not just of the one under the pointer, and it
+    /// works from the press or partway through the drag.
+    #[test]
+    fn alt_drag_changes_one_side_of_every_selected_point() {
+        let (d, id) = doc_three_points();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let alt = Mods { alt: true, ..Default::default() };
+        // The points at t = 0.25 and 0.5 selected; Alt-drag the left handle of the first one out.
+        let mut t = WidthTool { selected: Some((id, vec![0.25, 0.5])), ..Default::default() };
+        t.pointer(&c, &ev(PointerKind::Down, 150.0, 195.0, alt));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 150.0, 190.0, alt));
+        let pts = preview(&acts).1["points"].as_array().unwrap().clone();
+        let w = |i: usize, side: usize| (pts[i][side].as_f64().unwrap() * 1e6).round() / 1e6;
+        assert_eq!((w(1, 1), w(1, 2), w(2, 1), w(2, 2)), (2.0, 1.0, 2.0, 1.0), "both selected points widen on the left only");
+        // Further out, still one side.
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 150.0, 185.0, alt));
+        let pts = preview(&acts).1["points"].as_array().unwrap().clone();
+        let w = |i: usize, side: usize| (pts[i][side].as_f64().unwrap() * 1e6).round() / 1e6;
+        assert_eq!((w(1, 1), w(1, 2), w(2, 1), w(2, 2)), (3.0, 1.0, 3.0, 1.0));
+        t.pointer(&c, &ev(PointerKind::Up, 150.0, 185.0, alt));
+        // Pressed partway through a plain drag, Alt takes the group's other side back where it
+        // started and keeps it there.
+        let mut t = WidthTool { selected: Some((id, vec![0.25, 0.5])), ..Default::default() };
+        t.pointer(&c, &ev(PointerKind::Down, 150.0, 195.0, Mods::default()));
+        t.pointer(&c, &ev(PointerKind::Drag, 150.0, 190.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 150.0, 185.0, alt));
+        let pts = preview(&acts).1["points"].as_array().unwrap().clone();
+        let w = |i: usize, side: usize| (pts[i][side].as_f64().unwrap() * 1e6).round() / 1e6;
+        assert_eq!((w(1, 1), w(1, 2)), (3.0, 2.0), "the side under the pointer follows it, the other holds where Alt went down");
+        assert_eq!((w(2, 1), w(2, 2)), (3.0, 2.0));
+        t.pointer(&c, &ev(PointerKind::Up, 150.0, 185.0, alt));
     }
 
     #[test]
@@ -1262,6 +1361,51 @@ mod tests {
         assert!((pts[2][1] - 2.0).abs() < 1e-6, "the dragged point scales: {pts:?}");
         assert!((pts[4][0] - 1.0).abs() < 1e-6 && (pts[4][1] - 2.0).abs() < 1e-6, "the t = 1 end scales: {pts:?}");
         t.pointer(&c, &ev(PointerKind::Up, 200.0, 190.0, shift));
+    }
+
+    /// A width point can sit exactly on a sharp corner. Its smooth run is the point itself, not
+    /// "everything on the far side of the corner", so only that point scales.
+    #[test]
+    fn shift_drag_of_a_handle_on_a_corner_scales_only_that_point() {
+        let (d, id) = doc_corner();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let shift = Mods { shift: true, ..Default::default() };
+        // The corner point (t = 0.5, x = 200, width 1) out to twice its width.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 195.0, shift));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 190.0, shift));
+        let (cmd, v) = preview(&acts);
+        assert_eq!((cmd, &v["ids"]), ("stroke.widthProfile.set", &json!([id.0])));
+        let pts: Vec<[f64; 3]> =
+            v["points"].as_array().unwrap().iter().map(|q| [q[0].as_f64().unwrap(), q[1].as_f64().unwrap(), q[2].as_f64().unwrap()]).collect();
+        assert!((pts[2][0] - 0.5).abs() < 1e-6 && (pts[2][1] - 2.0).abs() < 1e-6, "the corner point scales: {pts:?}");
+        assert!((pts[0][1] - 1.0).abs() < 1e-6, "the point before the corner holds: {pts:?}");
+        assert!((pts[1][1] - 2.0).abs() < 1e-6, "the other point on the first leg holds: {pts:?}");
+        assert!((pts[3][1] - 1.0).abs() < 1e-6, "the point past the corner holds: {pts:?}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 190.0, shift));
+    }
+
+    /// Shift+Alt scales the handle's own side of the smooth run and leaves the other side of those
+    /// points where it was.
+    #[test]
+    fn alt_shift_drag_scales_one_side_of_the_run() {
+        let (d, id) = doc_corner();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        let both = Mods { shift: true, alt: true, ..Default::default() };
+        // The left handle of the point at t = 0.25, out to twice its width.
+        t.pointer(&c, &ev(PointerKind::Down, 150.0, 190.0, both));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 150.0, 180.0, both));
+        let (cmd, v) = preview(&acts);
+        assert_eq!((cmd, &v["ids"]), ("stroke.widthProfile.set", &json!([id.0])));
+        let pts: Vec<[f64; 3]> =
+            v["points"].as_array().unwrap().iter().map(|q| [q[0].as_f64().unwrap(), q[1].as_f64().unwrap(), q[2].as_f64().unwrap()]).collect();
+        assert!((pts[0][1] - 2.0).abs() < 1e-6 && (pts[0][2] - 1.0).abs() < 1e-6, "the run's left side scales, its right holds: {pts:?}");
+        assert!((pts[1][1] - 4.0).abs() < 1e-6 && (pts[1][2] - 2.0).abs() < 1e-6, "the dragged point: {pts:?}");
+        assert!((pts[2][1] - 1.0).abs() < 1e-6 && (pts[3][1] - 1.0).abs() < 1e-6, "past the corner holds: {pts:?}");
+        t.pointer(&c, &ev(PointerKind::Up, 150.0, 180.0, both));
     }
 
     #[test]
