@@ -1003,7 +1003,8 @@ pub struct Prefs {
     /// User Interface › Accent Color: the colour of what is on, chosen or focused.
     pub ui_accent: String,
     /// User Interface › Color Scheme: "modern" (with the accent above), "classic" (neutral greys
-    /// and a blue accent) or "flat" (neutral greys, a blue accent, no cards).
+    /// and a blue accent), "flat" (neutral greys, a blue accent, no cards) or "quiet" (Flat
+    /// without the lines: one chrome surface, raised controls on inset fields).
     pub ui_color_scheme: String,
     pub canvas_color: String,
     pub auto_collapse_icon_panels: bool,

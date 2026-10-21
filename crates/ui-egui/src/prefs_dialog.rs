@@ -322,7 +322,8 @@ fn category_fields(ui: &mut egui::Ui, d: &mut Dialog, cat: &str) {
             }
             // Linux only: the other platforms have a single display server.
             PrefKind::Choice(_) if sp.key == "linuxDisplayServer" && !cfg!(target_os = "linux") => {}
-            // The Classic and Flat colour schemes have their own accent: dimmed while one is chosen.
+            // The Classic, Flat and Quiet colour schemes have their own accent: dimmed while one is
+            // chosen.
             PrefKind::Choice(opts) if sp.key == "uiAccent" => {
                 let modern = Scheme::parse(&d.str("uiColorScheme")).unwrap_or_default() == Scheme::Modern;
                 ui.add_enabled_ui(modern, |ui| choice_row(ui, d, sp.key, sp.label, opts, &v));

@@ -107,9 +107,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     match app.ui.toolbar_pos {
         None => {
             let margin = egui::Margin { left: 6, right: 0, top: 6, bottom: 6 };
-            egui::Panel::left("toolbar").resizable(false).exact_size(w + 6.0).frame(egui::Frame::NONE).show(ui, |ui| {
-                crate::theme::card(ui, &t, margin, crate::theme::Edge::Right, |ui| body(app, ui, cols, None));
-            });
+            egui::Panel::left("toolbar").resizable(false).exact_size(w + 6.0).show_separator_line(t.chrome_lines).frame(egui::Frame::NONE).show(
+                ui,
+                |ui| {
+                    crate::theme::card(ui, &t, margin, crate::theme::Edge::Right, |ui| body(app, ui, cols, None));
+                },
+            );
         }
         Some(pos) => {
             // Floating, kept inside the window, its tools scrolling when they don't fit under it.
@@ -226,7 +229,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, cols: usize, floating: Option<egu
                     let (rect, resp) = ui.allocate_exact_size(vec2(36.0, PITCH - 1.0), Sense::click_and_drag());
                     let well = egui::Rect::from_center_size(rect.center(), vec2(30.0, 27.5));
                     if is_active {
-                        ui.painter().rect_filled(well, t.cr(), t.tool_active);
+                        crate::theme::paint_raised(ui.painter(), well, t.cr(), t.tool_active, &t);
                     } else if resp.hovered() {
                         ui.painter().rect_filled(well, t.cr(), t.hover);
                     }
@@ -703,7 +706,7 @@ fn tool_strip(ui: &mut Ui, t: &Tokens, active: &str, tools: &[String]) -> Option
         let (r, resp) = ui.allocate_exact_size(STRIP_BUTTON, Sense::click());
         let well = r.shrink(1.0);
         if active == tool.id {
-            ui.painter().rect_filled(well, t.cr(), t.tool_active);
+            crate::theme::paint_raised(ui.painter(), well, t.cr(), t.tool_active, t);
         } else if resp.hovered() {
             ui.painter().rect_filled(well, t.cr(), t.hover);
         }

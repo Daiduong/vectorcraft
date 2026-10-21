@@ -2,7 +2,8 @@
 
 use std::sync::Arc;
 
-use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Stroke, TextStyle, Visuals};
+use egui::epaint::Shadow;
+use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Painter, Rect, Stroke, StrokeKind, TextStyle, Visuals};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,25 +87,29 @@ impl Accent {
 }
 
 /// User Interface › Color Scheme: Modern (the default: slate greys and the chosen accent),
-/// Classic (the neutral greys and blue accent of earlier versions) or Flat (neutral greys, a blue
-/// accent, and the toolbar, rail and dock flush with the window's edges instead of cards). The
-/// layout is the same in all three; Flat's look comes from its tokens ([`Tokens::cards`],
-/// [`Tokens::tab_style`]).
+/// Classic (the neutral greys and blue accent of earlier versions), Flat (neutral greys, a blue
+/// accent, and the toolbar, rail and dock flush with the window's edges instead of cards) or Quiet
+/// (Flat without the lines: the chrome one surface, raised controls on inset fields). The layout
+/// is the same in all four; Flat's and Quiet's looks come from their tokens ([`Tokens::cards`],
+/// [`Tokens::tab_style`], [`Tokens::chrome_lines`], [`Tokens::raised_shadow`],
+/// [`Tokens::field_shade`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Scheme {
     #[default]
     Modern,
     Classic,
     Flat,
+    Quiet,
 }
 
 impl Scheme {
-    pub const ALL: [Scheme; 3] = [Scheme::Modern, Scheme::Classic, Scheme::Flat];
+    pub const ALL: [Scheme; 4] = [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet];
     pub fn id(self) -> &'static str {
         match self {
             Scheme::Modern => "modern",
             Scheme::Classic => "classic",
             Scheme::Flat => "flat",
+            Scheme::Quiet => "quiet",
         }
     }
     pub fn parse(s: &str) -> Option<Self> {
@@ -119,6 +124,9 @@ pub enum TabStyle {
     Pill,
     /// Labels alone, a 2 pt line in the label's colour under the one in front.
     Underline,
+    /// A segmented control: the tabs lie on a pill-shaped track in the field colour, the one in
+    /// front on a raised chip in the button colour ([`paint_segments`]).
+    Segmented,
 }
 
 /// The side of a docked column that meets the canvas or the next column.
@@ -168,6 +176,17 @@ pub struct Tokens {
     pub cards: bool,
     /// How panel tabs mark the one in front.
     pub tab_style: TabStyle,
+    /// 1 pt lines between the parts of the docked chrome (app bar, control bar, doc tabs, toolbar,
+    /// dock, rail, status and hint bars, and egui's panel separators), where it meets the canvas,
+    /// and between panel sections; without, they are separated by tone and space alone
+    /// ([`Tokens::chrome_stroke`]).
+    pub chrome_lines: bool,
+    /// The soft shadow under raised controls: buttons, the pressed tool, the tab in front
+    /// ([`paint_raised`]). [`Shadow::NONE`] draws them flat.
+    pub raised_shadow: Shadow,
+    /// The shade along the top inside edge of an inset field ([`paint_inset`]);
+    /// [`Color32::TRANSPARENT`] draws fields flat.
+    pub field_shade: Color32,
     /// Field values, button labels, link labels.
     pub text_strong: Color32,
     /// Panel tab strips, doc-tab bar, dock header.
@@ -237,6 +256,9 @@ impl Tokens {
             radius_float: 8,
             cards: true,
             tab_style: TabStyle::Pill,
+            chrome_lines: true,
+            raised_shadow: Shadow::NONE,
+            field_shade: Color32::TRANSPARENT,
             text_strong: hex(0xffffff),
             tab_strip: hex(0x0f1116),
             button_border: hex(0x4a5363),
@@ -580,12 +602,151 @@ impl Tokens {
         }
     }
 
-    /// The tokens for `b` in `scheme`; Modern takes `accent`, Classic and Flat have their own blue.
+    /// The Quiet colour scheme at brightness `b`: Flat without the lines. The app bar, toolbar,
+    /// rail, dock and status bars are one surface separated by tone and space alone (no cards, no
+    /// dividers); fields are inset (a darker fill with a shade along the top), buttons, the pressed
+    /// tool and the tab in front raised (a lighter fill with a soft shadow); panel tabs are a
+    /// segmented control; corners are 8 for controls and 14 for floating surfaces. The pressed tool
+    /// is neutral and the blue accent is kept for selection, focus and the primary action. Light and
+    /// Medium Dark are the proposal's light and dark tokens; Medium Light and Dark a shade deeper.
+    pub fn quiet(b: Brightness) -> Self {
+        let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
+        let raised = |alpha: u8| Shadow { offset: [0, 1], blur: 3, spread: 0, color: Color32::from_black_alpha(alpha) };
+        let base = Tokens {
+            dark: true,
+            cards: false,
+            tab_style: TabStyle::Segmented,
+            chrome_lines: false,
+            raised_shadow: raised(128),
+            field_shade: hex(0x0e0f11),
+            radius: 8,
+            radius_small: 4,
+            radius_float: 14,
+            app_bar: hex(0x1d1e21),
+            panel: hex(0x1d1e21),
+            panel_darker: hex(0x18191c),
+            tab_strip: hex(0x1d1e21),
+            input: hex(0x16171a),
+            input_border: hex(0x121315),
+            border: hex(0x34363b),
+            divider: hex(0x2b2d31),
+            text: hex(0xe7e8ea),
+            text_strong: hex(0xffffff),
+            text_dim: hex(0xa0a4ab),
+            text_disabled: hex(0x6f737b),
+            icon: hex(0xb9bcc2),
+            hover: hex(0x27292d),
+            tool_active: hex(0x34363c),
+            accent: hex(0x6e97f2),
+            accent_strong: hex(0x5b86e6),
+            flyout_active: hex(0x6e97f2),
+            // The accent at 18% over the panel.
+            row_selected: hex(0x2c3447),
+            pasteboard: hex(0x2a2c30),
+            ruler: hex(0x1d1e21),
+            ruler_tick: hex(0x6f737b),
+            measure_bg: Color32::from_rgba_unmultiplied(42, 44, 48, 235),
+            button: hex(0x2c2e33),
+            button_border: hex(0x4a4d55),
+            ..Tokens::for_brightness(Brightness::MediumDark)
+        };
+        match b {
+            Brightness::Dark => Tokens {
+                app_bar: hex(0x151618),
+                panel: hex(0x151618),
+                panel_darker: hex(0x111214),
+                tab_strip: hex(0x151618),
+                input: hex(0x0f1012),
+                input_border: hex(0x0b0c0d),
+                field_shade: hex(0x08090a),
+                border: hex(0x2b2d31),
+                divider: hex(0x232528),
+                hover: hex(0x1f2023),
+                tool_active: hex(0x2b2d32),
+                row_selected: hex(0x252d3f),
+                pasteboard: hex(0x222327),
+                ruler: hex(0x151618),
+                measure_bg: Color32::from_rgba_unmultiplied(33, 34, 37, 235),
+                button: hex(0x25272b),
+                button_border: hex(0x44474e),
+                ..base
+            },
+            Brightness::MediumDark => base,
+            Brightness::MediumLight => Tokens {
+                dark: false,
+                raised_shadow: raised(36),
+                app_bar: hex(0xe5e7ea),
+                panel: hex(0xe5e7ea),
+                panel_darker: hex(0xdddfe3),
+                tab_strip: hex(0xe5e7ea),
+                input: hex(0xdadde1),
+                input_border: hex(0xd0d3d7),
+                field_shade: hex(0xcbced2),
+                border: hex(0xd3d6da),
+                divider: hex(0xd3d6da),
+                text: hex(0x1b1e23),
+                text_strong: hex(0x000000),
+                text_dim: hex(0x50555d),
+                text_disabled: hex(0x80858d),
+                icon: hex(0x44484f),
+                hover: hex(0xdadce0),
+                tool_active: hex(0xf7f8f9),
+                accent: hex(0x3d6fe0),
+                accent_strong: hex(0x3563cc),
+                flyout_active: hex(0x3d6fe0),
+                // The accent at 14% over the panel.
+                row_selected: hex(0xced6e8),
+                pasteboard: hex(0xd8dade),
+                ruler: hex(0xe5e7ea),
+                ruler_tick: hex(0x50555d),
+                measure_bg: Color32::from_rgba_unmultiplied(245, 245, 246, 235),
+                button: hex(0xf7f8f9),
+                button_border: hex(0x9a9ea6),
+                ..base
+            },
+            Brightness::Light => Tokens {
+                dark: false,
+                raised_shadow: raised(31),
+                app_bar: hex(0xf3f4f6),
+                panel: hex(0xf3f4f6),
+                panel_darker: hex(0xecedf0),
+                tab_strip: hex(0xf3f4f6),
+                input: hex(0xe9ebee),
+                input_border: hex(0xe0e2e6),
+                field_shade: hex(0xd9dbdf),
+                border: hex(0xe3e5e9),
+                divider: hex(0xe3e5e9),
+                text: hex(0x1f2328),
+                text_strong: hex(0x111317),
+                text_dim: hex(0x646a73),
+                text_disabled: hex(0x969ca5),
+                icon: hex(0x545961),
+                hover: hex(0xe8eaed),
+                tool_active: hex(0xffffff),
+                accent: hex(0x3d6fe0),
+                accent_strong: hex(0x3563cc),
+                flyout_active: hex(0x3d6fe0),
+                // The accent at 12% over the panel.
+                row_selected: hex(0xdde4f3),
+                pasteboard: hex(0xe7e9ec),
+                ruler: hex(0xf3f4f6),
+                ruler_tick: hex(0x646a73),
+                measure_bg: Color32::from_rgba_unmultiplied(255, 255, 255, 235),
+                button: hex(0xffffff),
+                button_border: hex(0xa9adb4),
+                ..base
+            },
+        }
+    }
+
+    /// The tokens for `b` in `scheme`; Modern takes `accent`, Classic, Flat and Quiet have their
+    /// own blue.
     pub fn for_scheme(scheme: Scheme, b: Brightness, accent: Accent) -> Self {
         match scheme {
             Scheme::Modern => Self::for_brightness(b).with_accent(accent),
             Scheme::Classic => Self::classic(b),
             Scheme::Flat => Self::flat(b),
+            Scheme::Quiet => Self::quiet(b),
         }
     }
 
@@ -624,11 +785,59 @@ impl Tokens {
     pub fn cr_float(&self) -> CornerRadius {
         CornerRadius::same(self.radius_float)
     }
+    /// A 1 pt line in `color` between parts of the docked chrome, or none without
+    /// [`Tokens::chrome_lines`].
+    pub fn chrome_stroke(&self, color: Color32) -> Stroke {
+        if self.chrome_lines { Stroke::new(1.0, color) } else { Stroke::NONE }
+    }
+}
+
+/// Fully rounded ends: pills and segmented controls.
+pub const PILL: CornerRadius = CornerRadius::same(u8::MAX);
+
+/// The shapes of a raised control's face: `fill` with [`Tokens::raised_shadow`] under it.
+pub fn raised_shapes(rect: Rect, corners: CornerRadius, fill: Color32, t: &Tokens) -> [egui::Shape; 2] {
+    let shadow = if t.raised_shadow == Shadow::NONE { egui::Shape::Noop } else { t.raised_shadow.as_shape(rect, corners).into() };
+    [shadow, egui::Shape::rect_filled(rect, corners, fill)]
+}
+
+/// A raised control's face ([`raised_shapes`]).
+pub fn paint_raised(painter: &Painter, rect: Rect, corners: CornerRadius, fill: Color32, t: &Tokens) {
+    painter.extend(raised_shapes(rect, corners, fill, t));
+}
+
+/// An inset field's face: `fill` with [`Tokens::field_shade`] along its top inside edge, and
+/// `stroke` round it.
+pub fn paint_inset(painter: &Painter, rect: Rect, corners: CornerRadius, fill: Color32, stroke: Stroke, t: &Tokens) {
+    if t.field_shade == Color32::TRANSPARENT {
+        painter.rect(rect, corners, fill, stroke, StrokeKind::Inside);
+        return;
+    }
+    // egui has no inner shadows: the shade, then the fill a point and a half lower over it.
+    painter.rect_filled(rect, corners, t.field_shade);
+    painter.rect_filled(Rect::from_min_max(rect.min + egui::vec2(0.0, 1.5), rect.max), corners, fill);
+    painter.rect_stroke(rect, corners, stroke, StrokeKind::Inside);
+}
+
+/// The shapes of a segmented tab strip ([`TabStyle::Segmented`]): the pill-shaped `track` in the
+/// field colour, and the tab in front, `chip`, raised on it in the button colour.
+pub fn segment_shapes(track: Rect, chip: Option<Rect>, t: &Tokens) -> Vec<egui::Shape> {
+    let mut shapes = vec![egui::Shape::rect_filled(track, PILL, t.input)];
+    if let Some(chip) = chip {
+        shapes.extend(raised_shapes(chip, PILL, t.button, t));
+    }
+    shapes
+}
+
+/// A segmented tab strip ([`segment_shapes`]).
+pub fn paint_segments(painter: &Painter, track: Rect, chip: Option<Rect>, t: &Tokens) {
+    painter.extend(segment_shapes(track, chip, t));
 }
 
 /// The toolbar, the panel dock and the icon rail: with [`Tokens::cards`], `body` drawn on the panel
 /// colour with the floating corners, `margin` of the window's frame colour around it; without, the
-/// panel colour fills the whole column, square, and a divider runs down its `inner` side.
+/// panel colour fills the whole column, square, and (with [`Tokens::chrome_lines`]) a divider runs
+/// down its `inner` side.
 pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, inner: Edge, body: impl FnOnce(&mut egui::Ui) -> R) -> R {
     if !t.cards {
         let shown = egui::Frame::NONE.fill(t.panel).show(ui, |ui| {
@@ -640,7 +849,7 @@ pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, inner: Edge,
             Edge::Left => r.left() + 0.5,
             Edge::Right => r.right() - 0.5,
         };
-        ui.painter().vline(x, r.y_range(), Stroke::new(1.0, t.divider));
+        ui.painter().vline(x, r.y_range(), t.chrome_stroke(t.divider));
         return shown.inner;
     }
     egui::Frame::NONE
@@ -877,18 +1086,21 @@ mod tests {
         }
     }
 
-    /// One corner scale in every scheme: small marks under controls under floating surfaces, the
-    /// same steps in all three schemes; Modern and Classic keep their cards and pill tabs.
+    /// One corner scale in every scheme: small marks under controls under floating surfaces, 2/4/8
+    /// in Modern, Classic and Flat and 4/8/14 in Quiet; Modern and Classic keep their cards, pill
+    /// tabs and lines.
     #[test]
     fn every_scheme_has_one_corner_scale() {
         for b in Brightness::ALL {
             for scheme in Scheme::ALL {
                 let t = Tokens::for_scheme(scheme, b, Accent::default());
-                assert_eq!((t.radius_small, t.radius, t.radius_float), (2, 4, 8), "{scheme:?} {b:?}");
+                let steps = if scheme == Scheme::Quiet { (4, 8, 14) } else { (2, 4, 8) };
+                assert_eq!((t.radius_small, t.radius, t.radius_float), steps, "{scheme:?} {b:?}");
                 assert_eq!(t.cr_float(), CornerRadius::same(t.radius_float));
-                if scheme != Scheme::Flat {
+                if matches!(scheme, Scheme::Modern | Scheme::Classic) {
                     assert!(t.cards, "{scheme:?} {b:?}");
                     assert_eq!(t.tab_style, TabStyle::Pill, "{scheme:?} {b:?}");
+                    assert!(t.chrome_lines, "{scheme:?} {b:?}");
                 }
             }
         }

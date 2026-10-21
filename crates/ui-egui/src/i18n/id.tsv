@@ -5054,6 +5054,7 @@ mark-style	Japanese	Jepang
 	Color Scheme	Skema warna
 	Modern	Modern
 	Flat	Datar
+	Quiet	Tenang
 @msg	`{key}` must be an array of these names: {_1}	`{key}` harus berupa array dari nama-nama ini: {_1}
 	Mode	Mode
 	Blur Mode	Mode blur

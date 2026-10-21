@@ -139,6 +139,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let group = shown.filter(|_| !app.ui.dock_collapsed).map(|active| {
         egui::Panel::right(LEGACY_DOCK_PANEL)
             .resizable(true)
+            .show_separator_line(t.chrome_lines)
             .default_size(legacy_dock_default_width(&app.ui))
             .size_range(LEGACY_DOCK_MIN..=LEGACY_DOCK_MAX)
             .frame(egui::Frame::NONE)
@@ -183,45 +184,51 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // collapsed group's panels head it, under the « that expands them again. Floating panels leave
     // it.
     let collapsed = app.ui.dock_collapsed && shown.is_some();
-    let column = egui::Panel::right("icon_column").resizable(false).exact_size(ICON_COL).frame(egui::Frame::NONE).show(ui, |ui| {
-        crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, theme::Edge::Left, |ui| {
-            let bounds = ui.max_rect();
-            if collapsed && collapse_header(ui, true) {
-                toggle(app, false);
-            }
-            egui::Frame::NONE.inner_margin(egui::Margin::symmetric(1, 4)).show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 2.0;
-                // The icons scroll in a window too short for them.
-                widgets::strip_scroll(ui, "icon_column", |ui| {
-                    if collapsed {
-                        for tab in DockTab::ALL {
-                            let (id, label, icon) = tab.info();
-                            if floating::group_of(&app.ui, id).is_none() {
-                                panel_icon(app, ui, id, label, icon, bounds);
-                            }
-                        }
+    let column =
+        egui::Panel::right("icon_column").resizable(false).exact_size(ICON_COL).show_separator_line(t.chrome_lines).frame(egui::Frame::NONE).show(
+            ui,
+            |ui| {
+                crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, theme::Edge::Left, |ui| {
+                    let bounds = ui.max_rect();
+                    if collapsed && collapse_header(ui, true) {
+                        toggle(app, false);
                     }
-                    // A divider above each group with icons left, but the first.
-                    let mut divider = collapsed;
-                    for group in ICON_PANEL_GROUPS {
-                        let mut first = true;
-                        for id in group.iter() {
-                            let Some((_, label, icon)) = ICON_PANELS.iter().find(|p| p.0 == *id) else { continue };
-                            if floating::group_of(&app.ui, id).is_some() {
-                                continue;
+                    egui::Frame::NONE.inner_margin(egui::Margin::symmetric(1, 4)).show(ui, |ui| {
+                        ui.spacing_mut().item_spacing.y = 2.0;
+                        // The icons scroll in a window too short for them.
+                        widgets::strip_scroll(ui, "icon_column", |ui| {
+                            if collapsed {
+                                for tab in DockTab::ALL {
+                                    let (id, label, icon) = tab.info();
+                                    if floating::group_of(&app.ui, id).is_none() {
+                                        panel_icon(app, ui, id, label, icon, bounds);
+                                    }
+                                }
                             }
-                            if std::mem::take(&mut first) && std::mem::replace(&mut divider, true) {
-                                let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 7.0), Sense::hover());
-                                ui.painter()
-                                    .line_segment([r.left_center() + vec2(4.0, 0.0), r.right_center() - vec2(4.0, 0.0)], Stroke::new(1.0, t.divider));
+                            // A divider above each group with icons left, but the first.
+                            let mut divider = collapsed;
+                            for group in ICON_PANEL_GROUPS {
+                                let mut first = true;
+                                for id in group.iter() {
+                                    let Some((_, label, icon)) = ICON_PANELS.iter().find(|p| p.0 == *id) else { continue };
+                                    if floating::group_of(&app.ui, id).is_some() {
+                                        continue;
+                                    }
+                                    if std::mem::take(&mut first) && std::mem::replace(&mut divider, true) {
+                                        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 7.0), Sense::hover());
+                                        ui.painter().line_segment(
+                                            [r.left_center() + vec2(4.0, 0.0), r.right_center() - vec2(4.0, 0.0)],
+                                            t.chrome_stroke(t.divider),
+                                        );
+                                    }
+                                    panel_icon(app, ui, id, label, icon, bounds);
+                                }
                             }
-                            panel_icon(app, ui, id, label, icon, bounds);
-                        }
-                    }
-                });
-            });
-        })
-    });
+                        });
+                    });
+                })
+            },
+        );
     let column = column.response.rect;
     let dock = group.map_or(column, |g| g.union(column));
     // Floating sets docked as columns, left of the icon column.
@@ -241,7 +248,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 fn tab_strip(app: &mut VectorcraftApp, ui: &mut Ui, active: DockTab) -> bool {
     let t = Tokens::get(ui.ctx());
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), 33.0), Sense::hover());
-    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], Stroke::new(1.0, t.divider));
+    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], t.chrome_stroke(t.divider));
     let outside = ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| !strip.contains(p));
     // What a drag out of the strip floats: the panels, the one shown, where its tab began.
     let mut tear: Option<(Vec<&'static str>, &'static str, f32)> = None;
@@ -335,6 +342,19 @@ pub(crate) struct PanelTabs {
     pub right: f32,
 }
 
+/// How far a segmented tab strip ([`theme::TabStyle::Segmented`]) stands off its column's edge.
+pub(crate) const SEGMENT_INSET: f32 = 6.0;
+
+/// The track of a segmented tab strip whose tabs span `tabs`.
+pub(crate) fn segment_track(tabs: Rect) -> Rect {
+    tabs.shrink2(vec2(0.0, 4.0))
+}
+
+/// The raised chip of the segmented tab `tab` on `track`, two points inside the track.
+pub(crate) fn segment_chip(tab: Rect, track: Rect) -> Rect {
+    Rect::from_x_y_ranges(tab.x_range(), track.y_range()).intersect(track).shrink(2.0)
+}
+
 pub(crate) fn panel_tabs(
     ui: &mut Ui,
     id: &str,
@@ -352,8 +372,28 @@ pub(crate) fn panel_tabs(
         .map(|(i, label)| ui.painter().layout_no_wrap((*label).to_string(), font.clone(), if i == selected { t.text_strong } else { t.text_dim }))
         .collect();
     let natural: Vec<_> = galleys.iter().map(|g| g.size().x + 24.0).collect();
+    // A segmented strip stands off the column's edge, as the panel's contents do, when that leaves
+    // room for a tab: a narrower strip keeps all its width for the overflow button.
+    let area = if t.tab_style == theme::TabStyle::Segmented && area.width() >= SEGMENT_INSET + 40.0 {
+        Rect::from_min_max(area.min + vec2(SEGMENT_INSET, 0.0), area.max)
+    } else {
+        area
+    };
     let fit = craft_ui::tabs::fit(&natural, selected, area.width(), 40.0, 18.0);
     let mut out = PanelTabs { responses: Vec::with_capacity(fit.shown.len()), picked: None, right: area.left() };
+    if t.tab_style == theme::TabStyle::Segmented && !fit.shown.is_empty() {
+        let right = area.left() + fit.shown.iter().map(|&(_, width)| width).sum::<f32>();
+        let track = segment_track(Rect::from_min_max(area.min, egui::pos2(right, area.bottom())));
+        let mut x = area.left();
+        let mut chip = None;
+        for &(i, width) in &fit.shown {
+            if i == selected {
+                chip = Some(segment_chip(Rect::from_min_size(egui::pos2(x, area.top()), vec2(width, area.height())), track));
+            }
+            x += width;
+        }
+        theme::paint_segments(&ui.painter().with_clip_rect(area.intersect(ui.clip_rect())), track, chip, &t);
+    }
     for (i, width) in fit.shown {
         let Some((key, _)) = tabs.get(i) else { continue };
         let Some(label) = labels.get(i) else { continue };
@@ -389,6 +429,14 @@ pub(crate) fn panel_tabs(
                             let line = Rect::from_min_max(egui::pos2(at.x, rect.bottom() - 2.0), egui::pos2(at.x + size.x, rect.bottom()));
                             painter.rect_filled(line, 0.0, t.text_strong);
                         } else if resp.hovered() {
+                            painter.galley_with_override_text_color(at, galley, t.text);
+                        } else {
+                            painter.galley(at, galley, t.text);
+                        }
+                    }
+                    // The track and the chip are drawn under all the tabs, above.
+                    theme::TabStyle::Segmented => {
+                        if i != selected && resp.hovered() {
                             painter.galley_with_override_text_color(at, galley, t.text);
                         } else {
                             painter.galley(at, galley, t.text);

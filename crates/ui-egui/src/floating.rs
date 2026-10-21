@@ -884,7 +884,8 @@ pub(crate) fn docked_columns(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> Vec
             .resizable(true)
             .default_size(natural)
             .size_range(200.0..=520.0)
-            .frame(egui::Frame::NONE.fill(t.panel).stroke(Stroke::new(1.5, t.border)))
+            .show_separator_line(t.chrome_lines)
+            .frame(egui::Frame::NONE.fill(t.panel).stroke(if t.chrome_lines { Stroke::new(1.5, t.border) } else { Stroke::NONE }))
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
                 let width = ui.available_width();
