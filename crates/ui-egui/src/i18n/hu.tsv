@@ -38,7 +38,8 @@
 	 from center  |  	 – rajzolás a középpontból  |  
 	 keeps its proportions)	 – arányok megtartása)
 	 near a selected pin to rotate  |  	 egy kijelölt tű közelében – forgatás  |  
-	 on the canvas to create one	 a vásznon – új rajztábla
+	 on the canvas to create one (	 a vásznon – új rajztábla (
+	 selects several, or draws one inside an artboard)	 – több kijelölése, vagy új rajztábla egy rajztáblán belül)
 	 over paths to roughen their outlines  |  	 útvonalakon – a körvonaluk eldurvítása  |  
 	 over paths, and hold still to keep going  |  	 útvonalakon – nyomva tartva folytatódik  |  
 	 right or left to zoom in or out  |  	 jobbra vagy balra – nagyítás vagy kicsinyítés  |  
@@ -432,6 +433,7 @@
 	Bottom Left	Bal alsó
 	Bottom Right	Jobb alsó
 	Bottom to Top	Lentről felfelé
+	Bottom-Justified Tab	Alulra igazító tabulátor
 	Bottom-to-Bottom Leading	Alulról alulra mért sorköz
 	Bottom:	Alsó:
 	Bounding Box	Befoglaló keret
@@ -1368,6 +1370,13 @@
 	Alt key toggles to Smooth Tool	Az Alt billentyű a Simítás eszközre vált
 	Keep selected	Kijelölés megtartása
 	Merge only with selection	Összeolvasztás csak a kijelöléssel
+	Consider Open Filled Paths as Closed	A nyitott kitöltött útvonalak zártnak számítanak
+	Pick Color From:	Szín forrása:
+	Artwork	Grafika
+	Cursor Swatch Preview	Színminta-előnézet a mutató mellett
+	Selection:	Kijelölés:
+	Straight Line	Egyenes vonal
+	Highlight:	Kiemelés:
 	Fill New Type Objects With Placeholder Text	Új szövegobjektumok kitöltése helykitöltő szöveggel
 	Fill Rule	Kitöltési szabály
 	Fill with Placeholder Text	Kitöltés helykitöltő szöveggel
@@ -1505,6 +1514,8 @@ file-filter	Templates	Sablonok
 	Large Gaps	Nagy hézagok
 	Gap Preview Color:	Hézagok előnézeti színe:
 	Close Gaps With Paths	Hézagok lezárása útvonalakkal
+	Show Live Paint Gaps	Élő festés hézagainak megjelenítése
+	Hide Live Paint Gaps	Élő festés hézagainak elrejtése
 	Select Fills	Kitöltések kijelölése
 	Select Strokes	Körvonalak kijelölése
 	Gaussian Blur	Gauss-elmosás
@@ -2313,6 +2324,9 @@ file-filter	Templates	Sablonok
 	Modified:	Módosítva:
 	Modify	Módosítás
 	Mojikumi	Mojikumi
+	Insert Kashidas	Kasidák beszúrása
+	Long	Hosszú
+	Stylistic	Stilisztikai
 	Mojikumi Set	Mojikumi-készlet
 	Monitor RGB	Monitor-RGB
 	Mono	Egyszínű
@@ -2418,6 +2432,7 @@ file-filter	Templates	Sablonok
 	New View	Új nézet
 	New View…	Új nézet…
 	New Window	Új ablak
+	New Without Dialog	Új párbeszédablak nélkül
 	New Workspace	Új munkaterület
 	New Workspace…	Új munkaterület…
 	New {kind} Style…	Új stílus: {kind}…
@@ -3942,6 +3957,7 @@ mark-style	Japanese	Japán
 	Top Left	Bal felső
 	Top Right	Jobb felső
 	Top to Bottom	Fentről lefelé
+	Top-Justified Tab	Felülre igazító tabulátor
 	Top-to-Top Leading	Felülről felülre mért sorköz
 	Top:	Felső:
 	Total Width:	Teljes szélesség:
@@ -4386,6 +4402,25 @@ imageTrace	Outline	Körvonal
 @msg	a PostScript error ({name} in `{op}`: {at})	PostScript-hiba ({name}, itt: `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	PostScript-hiba ({name}, itt: `{op}`: {at}), eljárás: {procs}
 @msg	a PostScript error ({name})	PostScript-hiba ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	PostScript-hiba ({name}, itt: `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	PostScript-hiba ({name}, itt: `{op}`; {meaning}), eljárás: {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	PostScript-hiba ({name}, itt: `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	PostScript-hiba ({name}, itt: `{op}`: {at}; {meaning}), eljárás: {procs}
+@msg	a PostScript error ({name}; {meaning})	PostScript-hiba ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	a program lezár egy szótárt, amelyet nem nyitott meg
+@msg	the program opens a file, which the reader can't do	a program fájlt nyit meg, amire a PostScript-olvasó nem képes
+@msg	the program restores a saved state that was already restored	a program egy már visszaállított mentett állapotot állít vissza
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	a program által olvasott adatok sérültek vagy csonkák, vagy a program pozíciót kér egy olyan fájlban, amelynek nincs pozíciója
+@msg	the program goes past one of the reader's limits	a program túllépi a PostScript-olvasó egyik korlátját
+@msg	the path has no point to continue from	az útvonalnak nincs pontja, ahonnan folytatódhatna
+@msg	a value is outside the range the operator takes	egy érték kívül esik az operátor által elfogadott tartományon
+@msg	the operator needs more values than the stack holds	az operátornak több értékre van szüksége, mint amennyi a veremben van
+@msg	part of the program isn't valid PostScript text	a program egy része nem érvényes PostScript-szöveg
+@msg	a value has the wrong type for the operator	egy érték típusa nem megfelelő az operátorhoz
+@msg	the program runs, deletes or renames a file, which the reader can't do	a program fájlt futtat, töröl vagy nevez át, amire a PostScript-olvasó nem képes
+@msg	the program asks for a resource that isn't defined	a program olyan erőforrást kér, amely nincs definiálva
+@msg	a calculation has no result, as in a division by zero	egy számításnak nincs eredménye, például nullával való osztáskor
+@msg	the operator looks for a mark on the stack and finds none	az operátor jelölőt keres a veremben, de nem talál
 @msg	a preset named `{_1}` exists	már van ilyen nevű előbeállítás: `{_1}`
 @msg	a swatch or color group named `{n}` exists	már van ilyen nevű színminta vagy színcsoport: `{n}`
 @msg	a slice size must be a positive number of points	a szelet mérete pozitív pontérték kell legyen
@@ -4804,6 +4839,10 @@ imageTrace	Outline	Körvonal
 @msg	select a repeat	jelölj ki egy ismétlést
 @msg	select an Intertwine group	jelölj ki egy összefonási csoportot
 @msg	select an Objects on Path group	jelölj ki egy Objektumok útvonalon csoportot
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	összetett útvonalban, összemosásban, burkolóban, ismétlésben vagy összefonási csoportban lévő útvonalhoz nem csatolhatók objektumok
+@msg	a clipping path can't take objects	vágóútvonalhoz nem csatolhatók objektumok
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	összemosásban, burkolóban, ismétlésben vagy összefonási csoportban lévő objektumok nem csatolhatók útvonalhoz
+@msg	a clipping path can't be attached to a path	vágóútvonal nem csatolható útvonalhoz
 @msg	select a stroke with a variable width	jelölj ki egy változó szélességű körvonalat
 @msg	select a symbol instance	jelölj ki egy szimbólumpéldányt
 @msg	select an envelope	jelölj ki egy burkolót
@@ -5259,3 +5298,5 @@ imageTrace	Outline	Körvonal
 	Plaster	Gipsz
 	Note Paper…	Jegyzetpapír…
 	Note Paper	Jegyzetpapír
+	Water Paper…	Nedves papír…
+	Water Paper	Nedves papír

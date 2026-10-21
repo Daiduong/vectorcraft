@@ -301,6 +301,7 @@
 	Blur	Розмиття
 	Bottom	Внизу
 	Bottom in Front	Нижній спереду
+	Bottom-Justified Tab	Табуляція з вирівнюванням по нижньому краю
 	Bottom:	Внизу:
 	Bounds	Межі
 	Bounds (Fill Proportionally)	Межі (заповнювати пропорційно)
@@ -1075,6 +1076,14 @@
 	Alt key toggles to Smooth Tool	Клавіша Alt перемикає на інструмент «Згладжування»
 	Keep selected	Залишати вибраним
 	Merge only with selection	Об’єднувати лише з виділеним
+	Consider Open Filled Paths as Closed	Вважати відкриті контури із заливкою замкненими
+	Pick Color From:	Джерело кольору:
+	Artwork	Графіка
+	Cursor Swatch Preview	Зразки біля вказівника
+	Selection:	Виділення:
+	Freeform	Довільно
+	Straight Line	Пряма лінія
+	Highlight:	Підсвічування:
 	Fill Color	Колір заливки
 	Fill New Type Objects With Placeholder Text	Заповнювати нові текстові об’єкти текстом-заповнювачем
 	Fill Rule	Правило заливки
@@ -1203,6 +1212,8 @@ file-filter	Templates	Шаблони
 	Large Gaps	Великі проміжки
 	Gap Preview Color:	Колір перегляду проміжків:
 	Close Gaps With Paths	Закрити проміжки контурами
+	Show Live Paint Gaps	Показати проміжки швидкої заливки
+	Hide Live Paint Gaps	Приховати проміжки швидкої заливки
 	Select Fills	Виділяти заливки
 	Select Strokes	Виділяти обведення
 	Gaussian Blur…	Розмиття за Гауссом…
@@ -1847,6 +1858,9 @@ file-filter	Templates	Шаблони
 	Modified:	Змінено:
 	Modify	Змінити
 	Mojikumi	Mojikumi
+	Insert Kashidas	Вставляти кашиди
+	Long	Довгі
+	Stylistic	Стилістичні
 	Mojikumi Set	Набір mojikumi
 	Kinsoku Set	Набір kinsoku
 	Hard	Суворий
@@ -1986,6 +2000,7 @@ file-filter	Templates	Шаблони
 	New View	Новий вигляд
 	New View…	Новий вигляд…
 	New Window	Нове вікно
+	New Without Dialog	Створити без діалогового вікна
 	New Workspace	Нове робоче середовище
 	New Workspace…	Нове робоче середовище…
 	New {kind} Style…	Новий стиль {kind}…
@@ -2578,7 +2593,7 @@ mark-style	Japanese	Японський
 	Replace	Замінити
 	Replace Font	Замінити шрифт
 	Replace it with another file, or ignore it: its images keep showing the preview saved with the document.	Замініть його іншим файлом або ігноруйте: зображення продовжать показувати попередній перегляд, збережений з документом.
-	Replace Spine	Замінити кістяк
+	Replace Spine	Замінити вісь
 	Replace Symbol	Замінити символ
 	Replace With Font	Замінити шрифтом
 	Replaces the saved preset of that name.	Замінює збережений набір із таким ім’ям.
@@ -3295,6 +3310,7 @@ effect	Points	Точки
 	Tools	Інструменти
 	Top	Вгорі
 	Top in Front	Верхній спереду
+	Top-Justified Tab	Табуляція з вирівнюванням по верхньому краю
 	Top:	Вгорі:
 	Total Width:	Загальна ширина:
 	Touch Type	Налаштування тексту
@@ -3634,7 +3650,8 @@ imageTrace	Outline	Контур
 	 to sample a color	 для взяття зразка кольору
 	 across a selected object to set the gradient direction	 по виділеному об’єкту, щоб задати напрям градієнта
 	 to select an artboard  |  	 для вибору монтажної області  |  
-	 on the canvas to create one	 на полотні для створення однієї
+	 on the canvas to create one (	 на полотні для створення однієї (
+	 selects several, or draws one inside an artboard)	 вибирає кілька або створює нову всередині монтажної області)
 	 a stroke to add a width point  |  	 обведення для додавання точки ширини  |  
 	 to change one side  |  	 для зміни однієї сторони  |  
 	 to select more points  |  	 для виділення інших точок  |  
@@ -3801,7 +3818,7 @@ axis	Both	Обидві
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Перегляд у браузері вимагає настільної програми (web-версія завантажує файли)
 @msg	Release Guides: no guides	Звільнення напрямних: немає напрямних
 @msg	Release: no layer to put the rectangle in	Звільнення: немає шару для приміщення прямокутника
-@msg	Replace Spine: select a blend and a path	Заміна кістяка: виділіть перехід і контур
+@msg	Replace Spine: select a blend and a path	Заміна осі: виділіть перехід і контур
 @msg	select two or more objects to distribute	виділіть два або більше об’єктів для розподілу
 @msg	select paths or anchor points	виділіть контури або опорні точки
 @msg	SVG parse error: {0}	Помилка розбору SVG: {0}
@@ -3866,6 +3883,25 @@ axis	Both	Обидві
 @msg	a PostScript error ({name} in `{op}`: {at})	помилка PostScript ({name} у `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	помилка PostScript ({name} `{op}`: {at}), {procs}
 @msg	a PostScript error ({name})	помилка PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	помилка PostScript ({name} у `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	помилка PostScript ({name} у `{op}`; {meaning}), у {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	помилка PostScript ({name} у `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	помилка PostScript ({name} у `{op}`: {at}; {meaning}), у {procs}
+@msg	a PostScript error ({name}; {meaning})	помилка PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	програма закриває словник, який вона не відкривала
+@msg	the program opens a file, which the reader can't do	програма відкриває файл, а читач PostScript цього не вміє
+@msg	the program restores a saved state that was already restored	програма відновлює збережений стан, який уже відновлено
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	дані, які читає програма, пошкоджені або обірвані, або програма запитує позицію у файлі, який її не має
+@msg	the program goes past one of the reader's limits	програма виходить за одну з меж читача PostScript
+@msg	the path has no point to continue from	контур не має точки, від якої можна продовжити
+@msg	a value is outside the range the operator takes	значення поза діапазоном, який приймає оператор
+@msg	the operator needs more values than the stack holds	операторові потрібно більше значень, ніж є в стеку
+@msg	part of the program isn't valid PostScript text	частина програми не є допустимим текстом PostScript
+@msg	a value has the wrong type for the operator	значення має неправильний тип для оператора
+@msg	the program runs, deletes or renames a file, which the reader can't do	програма запускає, видаляє або перейменовує файл, а читач PostScript цього не вміє
+@msg	the program asks for a resource that isn't defined	програма запитує ресурс, який не визначено
+@msg	a calculation has no result, as in a division by zero	обчислення не має результату, як під час ділення на нуль
+@msg	the operator looks for a mark on the stack and finds none	оператор шукає мітку в стеку й не знаходить її
 @msg	a bitmap is empty	растрове зображення порожнє
 @msg	a bitmap is too large to read	растрове зображення занадто велике для читання
 @msg	a colour index is 0 to {_1}, not {n}	індекс кольору від 0 до {_1}, а не {n}
@@ -4138,6 +4174,10 @@ axis	Both	Обидві
 @msg	select a repeat	виділіть повтор
 @msg	select an Intertwine group	виділіть групу переплетення
 @msg	select an Objects on Path group	виділіть групу об’єктів на контурі
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	до контуру всередині складеного контуру, переходу, оболонки, повтору або групи переплетення не можна прикріпити об’єкти
+@msg	a clipping path can't take objects	до відсічного контуру не можна прикріпити об’єкти
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	об’єкти всередині переходу, оболонки, повтору або групи переплетення не можна прикріпити до контуру
+@msg	a clipping path can't be attached to a path	відсічний контур не можна прикріпити до контуру
 @msg	select a stroke with a variable width	виділіть обведення зі змінною шириною
 @msg	select a symbol instance	виділіть екземпляр символу
 @msg	select an Image Trace object	виділіть об’єкт трасування зображення
@@ -4867,3 +4907,5 @@ lighting	Light	Світло
 	Plaster	Гіпс
 	Note Paper…	Поштовий папір…
 	Note Paper	Поштовий папір
+	Water Paper…	Мокрий папір…
+	Water Paper	Мокрий папір
