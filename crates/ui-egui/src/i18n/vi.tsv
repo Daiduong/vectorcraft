@@ -1268,6 +1268,8 @@
 	Fill: click for swatches, Shift-click for the color mixer	Tô: bấm để xem mẫu màu, Shift-bấm để trộn màu
 	Fills	Vùng tô
 	Film Grain…	Hạt phim…
+	Colored Pencil…	Bút chì màu…
+	Colored Pencil	Bút chì màu
 	Cutout…	Cắt dán…
 	Cutout	Cắt dán
 	Dry Brush…	Cọ khô…
@@ -1305,6 +1307,47 @@
 	Find Next	Tìm tiếp
 	Find Objects	Tìm đối tượng
 	Fine Dots	Chấm mịn
+
+# CorelDRAW (.cdr) import and export. In English until translated.
+	Export As CDR…	Export As CDR…
+	Import CorelDRAW	Import CorelDRAW
+	CorelDRAW Import Options	CorelDRAW Import Options
+	CorelDRAW document read	CorelDRAW document read
+	format version	format version
+	page(s)	page(s)
+	object(s)	object(s)
+	This file can't be read:	This file can't be read:
+	Scale and Structure	Scale and Structure
+	Preserve Original Document Scale	Preserve Original Document Scale
+	The first page is scaled to fit the first artboard.	The first page is scaled to fit the first artboard.
+	Preserve Layers and Groups	Preserve Layers and Groups
+	Keep Text Editable When Possible	Keep Text Editable When Possible
+	Convert Text to Outlines	Convert Text to Outlines
+	Warn About Missing Fonts	Warn About Missing Fonts
+	Compatibility	Compatibility
+	Report Unsupported Effects	Report Unsupported Effects
+	Editable vectors are never turned into images. What can't be kept is listed in the import notes.	Editable vectors are never turned into images. What can't be kept is listed in the import notes.
+	CorelDRAW Export Options	CorelDRAW Export Options
+	verified	verified
+	experimental	experimental
+	Target Version:	Target Version:
+	Files of this version were verified to open in CorelDRAW. Older CorelDRAW releases can't open newer versions: pick the oldest one you need.	Files of this version were verified to open in CorelDRAW. Older CorelDRAW releases can't open newer versions: pick the oldest one you need.
+	Experimental: written with the layout of that version's sample files, but not verified to open in CorelDRAW.	Experimental: written with the layout of that version's sample files, but not verified to open in CorelDRAW.
+	Keep Text Editable	Keep Text Editable
+	Area type, vertical type and type on a path are always written as outlines.	Area type, vertical type and type on a path are always written as outlines.
+	Preserve Vector Paths	Preserve Vector Paths
+	Rasterize Raster Effects (Shadows, Glows, Blurs)	Rasterize Raster Effects (Shadows, Glows, Blurs)
+	Validate After Export	Validate After Export
+	Without validation the written file isn't checked.	Without validation the written file isn't checked.
+	Exporting to CorelDRAW…	Exporting to CorelDRAW…
+	CorelDRAW file exported and validated	CorelDRAW file exported and validated
+	CorelDRAW file exported (not validated)	CorelDRAW file exported (not validated)
+	CorelDRAW Compatibility	CorelDRAW Compatibility
+	CorelDRAW File Info	CorelDRAW File Info
+@msg	CDR version {_1}: choose from {_2} to {_3}	CDR version {_1}: choose from {_2} to {_3}
+@msg	cdr must be an object of CorelDRAW import options	cdr must be an object of CorelDRAW import options
+@msg	cdr scale must be a positive number up to 1000, not {s}	cdr scale must be a positive number up to 1000, not {s}
+@msg	cdr: {e}	cdr: {e}
 
 	Simple	Đơn giản
 	Light Rough	Thô sáng
@@ -3430,6 +3473,7 @@ mark-style	Japanese	Kiểu Nhật
 	Social Square Post 1080×1080	Bài đăng vuông mạng xã hội 1080×1080
 	Soft	Mềm
 	Soft Light	Ánh sáng mềm
+	Soft Mix	Trộn mềm
 	Solid	Đặc
 	Sort	Sắp xếp
 	Sort by Kind	Sắp xếp theo loại
@@ -4863,6 +4907,8 @@ theme	Appearance	Giao diện
 	Sketch	Phác thảo
 	Halftone Pattern…	Mẫu bán sắc…
 	Halftone Pattern	Mẫu bán sắc
+	Torn Edges…	Cạnh rách…
+	Torn Edges	Cạnh rách
 	Pattern Type	Loại mẫu
 	Dot	Chấm
 # User Interface › Color Scheme
@@ -4959,41 +5005,5 @@ theme	Appearance	Giao diện
 	Water Paper	Giấy ướt
 	Ruby…	Ruby…
 	Ruby	Ruby
-
-# CorelDRAW (.cdr) import and export. In English until translated.
-	Export As CDR…	Export As CDR…
-	Import CorelDRAW	Import CorelDRAW
-	CorelDRAW Import Options	CorelDRAW Import Options
-	CorelDRAW document read	CorelDRAW document read
-	format version	format version
-	page(s)	page(s)
-	object(s)	object(s)
-	This file can't be read:	This file can't be read:
-	Scale and Structure	Scale and Structure
-	Preserve Original Document Scale	Preserve Original Document Scale
-	The first page is scaled to fit the first artboard.	The first page is scaled to fit the first artboard.
-	Preserve Layers and Groups	Preserve Layers and Groups
-	Keep Text Editable When Possible	Keep Text Editable When Possible
-	Convert Text to Outlines	Convert Text to Outlines
-	Warn About Missing Fonts	Warn About Missing Fonts
-	Compatibility	Compatibility
-	Report Unsupported Effects	Report Unsupported Effects
-	Editable vectors are never turned into images. What can't be kept is listed in the import notes.	Editable vectors are never turned into images. What can't be kept is listed in the import notes.
-	CorelDRAW Export Options	CorelDRAW Export Options
-	verified	verified
-	experimental	experimental
-	Target Version:	Target Version:
-	Files of this version were verified to open in CorelDRAW. Older CorelDRAW releases can't open newer versions: pick the oldest one you need.	Files of this version were verified to open in CorelDRAW. Older CorelDRAW releases can't open newer versions: pick the oldest one you need.
-	Experimental: written with the layout of that version's sample files, but not verified to open in CorelDRAW.	Experimental: written with the layout of that version's sample files, but not verified to open in CorelDRAW.
-	Keep Text Editable	Keep Text Editable
-	Area type, vertical type and type on a path are always written as outlines.	Area type, vertical type and type on a path are always written as outlines.
-	Preserve Vector Paths	Preserve Vector Paths
-	Rasterize Raster Effects (Shadows, Glows, Blurs)	Rasterize Raster Effects (Shadows, Glows, Blurs)
-	Validate After Export	Validate After Export
-	Without validation the written file isn't checked.	Without validation the written file isn't checked.
-	Exporting to CorelDRAW…	Exporting to CorelDRAW…
-	CorelDRAW file exported and validated	CorelDRAW file exported and validated
-	CorelDRAW file exported (not validated)	CorelDRAW file exported (not validated)
-	CorelDRAW Compatibility	CorelDRAW Compatibility
-	CorelDRAW File Info	CorelDRAW File Info
-@msg	CDR version {_1}: choose from {_2} to {_3}	CDR version {_1}: choose from {_2} to {_3}
+	Fresco…	Bích họa…
+	Fresco	Bích họa

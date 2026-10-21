@@ -109,6 +109,12 @@ pub struct CharStyle {
     /// its proportional heights, `vpal`.
     #[serde(default, rename = "proportionalMetrics", skip_serializing_if = "crate::skip::is_default")]
     pub proportional_metrics: bool,
+    /// Tate-chu-yoko (Character panel menu, East Asian options): in vertical type these characters
+    /// stand side by side across one em of the column. Horizontal type keeps the mark and does not
+    /// move them. Two or three half-width digits do this without the mark.
+    /// <https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html>
+    #[serde(default, rename = "tateChuYoko", skip_serializing_if = "crate::skip::is_default")]
+    pub tate_chu_yoko: bool,
     /// Digits (Character panel menu, Middle Eastern options): the numeral system the digits of
     /// these characters are drawn in, whatever digits were typed.
     #[serde(default, skip_serializing_if = "crate::skip::is_default")]
@@ -292,6 +298,7 @@ impl Default for CharStyle {
             position: CharPosition::Normal,
             char_align: CharAlign::RomanBaseline,
             proportional_metrics: false,
+            tate_chu_yoko: false,
             small_caps: None,
             digits: Digits::Default,
             no_break: false,
@@ -1413,6 +1420,11 @@ pub struct TextObject {
     /// Off for new type and for documents from before it, and saved only when on.
     #[serde(default, rename = "opticalMarginAlignment", skip_serializing_if = "crate::skip::is_default")]
     pub optical_margin: bool,
+    /// Character panel menu › System Layout, copied from the document: when on, each character
+    /// that takes space advances by a whole number of points. Off by default, and saved only when
+    /// on. The document setting is [`crate::DocSetup::system_layout`].
+    #[serde(default, rename = "systemLayout", skip_serializing_if = "crate::skip::is_default")]
+    pub system_layout: bool,
     /// Character panel menu › Fractional Widths: spacing between characters uses fractions of a
     /// point. On for new type and for documents from before it, and saved only when off. Off, each
     /// character that takes any space advances by a whole number of points, at least one, so small
@@ -1517,6 +1529,7 @@ impl TextObject {
             path_spacing: 0.0,
             wrap: Vec::new(),
             optical_margin: false,
+            system_layout: false,
             fractional_widths: true,
             cached_bounds: None,
             cached_baselines: Vec::new(),
