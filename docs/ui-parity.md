@@ -294,6 +294,7 @@ sampling coexistence. Scores and estimates unchanged. See [development.md](devel
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
 | 2026-10-21 | minor | M4 review: rejected forwarding cannot bypass the owner; per-file dialog/decoder deferral and shared 32-slot admission preserve request ownership and bound repeated handoff work; real-bus regressions; scores unchanged. |
 | 2026-10-22 | minor | M4 review: owner-side capacity refusals show a coalesced status message without disturbing dialogs or queued documents; connected-bus ownership refusals fail closed. Private D-Bus regressions; scores and estimates unchanged. |
+| 2026-10-22 | minor | M4 startup review: reserve primary file slots before publishing the D-Bus service; real-bus boundary regressions cover startup admission, activation and first-frame capacity reconciliation. Scores and estimates unchanged. |
 | 2026-10-21 | minor | Snap to Glyph marked done (#3124); scores unchanged |
 | 2026-10-20 | minor | The selection tools (Selection, Direct Selection, Group Selection) take a clipping path on its outline, within the selection tolerance, before the art it clips, so its segments can be dragged where the art covers the mask's edge; Select Behind lists the same, and the eyedropper and the tools that act on what is drawn are unchanged. Doc and tool regression tests. Scores unchanged. |
 | 2026-10-20 | minor | Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; existing opening gestures retained; scores and hours unchanged. |
@@ -389,3 +390,11 @@ refusals coalesce without adding queued work. Once the session bus is connected,
 name-ownership errors fail closed rather than starting a second workspace. Private
 D-Bus tests cover denied ownership and visible, one-shot capacity feedback while
 preserving queued files, dialogs and unsaved artwork. Scores and estimates unchanged.
+
+Startup admission follow-up (2026-10-22): the primary reserves its startup file
+count before publishing the D-Bus service. Concurrent launches therefore count
+startup work toward the shared limit. The first UI dispatch replaces this temporary
+reservation with realized tabs, decoders and dialogs. Explicit primary startup files
+retain their existing behavior, including counts above the forwarded-work limit;
+additional forwarded files are refused until capacity becomes available. Real-bus
+regressions exercise the boundary before any UI frame and subsequent reconciliation.

@@ -77,6 +77,8 @@ pub fn start(files: &[String]) -> Result<Launch, StartError> {
 
 /// Start on a supplied connection builder so transport tests can isolate their bus.
 fn start_on(builder: zbus::blocking::connection::Builder<'_>, files: &[String], documents: OpenDocuments) -> Result<Launch, StartError> {
+    // Reserve primary startup work before the service becomes reachable by other launches.
+    documents.0.lock().unwrap_or_else(PoisonError::into_inner).occupied = files.len();
     let connection = builder
         .method_timeout(Duration::from_secs(5))
         .serve_at(PATH, documents.clone())
@@ -261,6 +263,30 @@ mod tests {
         std::io::BufReader::new(daemon.stdout.take().unwrap()).read_line(&mut address).unwrap();
         let _stop = Stop(daemon);
         let builder = || zbus::blocking::connection::Builder::address(address.trim()).unwrap();
+        // The owner is reachable before any UI frame: startup work must already occupy slots.
+        for startup_count in [MAX_FILES - 1, MAX_FILES, MAX_FILES + 1] {
+            let startup = vec!["/tmp/startup.svg".into(); startup_count];
+            let Launch::Primary(owner) = start_on(builder(), &startup, OpenDocuments::default()).unwrap() else { panic!("startup owner") };
+            let remaining = MAX_FILES.saturating_sub(startup_count);
+            assert!(matches!(start_on(builder(), &vec!["/tmp/early.svg".into(); remaining], OpenDocuments::default()).unwrap(), Launch::Forwarded));
+            assert!(matches!(start_on(builder(), &["/tmp/overflow.svg".into()], OpenDocuments::default()), Err(StartError::ForwardingFailed(_))));
+            assert_eq!(owner.documents.0.lock().unwrap().files.len(), remaining, "startup paths are reserved, not enqueued twice");
+            assert!(matches!(start_on(builder(), &[], OpenDocuments::default()).unwrap(), Launch::Forwarded), "activation works at capacity");
+            // The first UI synchronization replaces startup reservations with realized work.
+            let mut app = vectorcraft_ui_egui::VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+            app.run("file.new", serde_json::Value::Null).unwrap();
+            app.run("file.newDialog", serde_json::Value::Null).unwrap();
+            owner.dispatch(&mut app, &egui::Context::default());
+            assert!(app.ui.dialog.is_some(), "startup reconciliation preserves modal ownership");
+            assert_eq!(owner.documents.0.lock().unwrap().occupied, 2, "one open tab and its dialog replace startup reservations");
+            let freed = MAX_FILES - remaining - 2;
+            assert!(matches!(
+                start_on(builder(), &vec!["/tmp/after-startup.svg".into(); freed], OpenDocuments::default()).unwrap(),
+                Launch::Forwarded
+            ));
+            assert!(matches!(start_on(builder(), &["/tmp/still-full.svg".into()], OpenDocuments::default()), Err(StartError::ForwardingFailed(_))));
+            drop(owner);
+        }
         let Launch::Primary(first) = start_on(builder(), &[], OpenDocuments::default()).unwrap() else { panic!("first launch") };
         first.set_ui(&egui::Context::default());
         let failure = start_on(builder(), &vec!["/tmp/rejected.svg".into(); MAX_FILES + 1], OpenDocuments::default()).err().unwrap();
