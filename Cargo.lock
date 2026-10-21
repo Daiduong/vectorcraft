@@ -860,6 +860,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-desktop"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "raw-window-handle",
+ "serde_json",
+ "wayland-client",
+ "wayland-protocols-plasma",
+ "winit",
+ "x11rb",
+ "zbus",
+]
+
+[[package]]
 name = "craft-docpath"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=82a24b006eefa036b43c09a67fb9a3fbd17ffe63#82a24b006eefa036b43c09a67fb9a3fbd17ffe63"
@@ -4570,6 +4584,7 @@ dependencies = [
  "arboard",
  "block2 0.6.2",
  "clipboard-win",
+ "craft-desktop",
  "craft-print",
  "craft-window",
  "eframe",
@@ -5022,6 +5037,7 @@ dependencies = [
 name = "vectorcraft-ui-egui"
 version = "0.14.0"
 dependencies = [
+ "craft-desktop",
  "craft-ui",
  "egui",
  "egui_extras",
@@ -5899,8 +5915,6 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winit"
 version = "0.30.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6755fa58a9f8350bd1e472d4c3fcc25f824ec358933bba33306d0b63df5978d"
 dependencies = [
  "ahash",
  "android-activity",

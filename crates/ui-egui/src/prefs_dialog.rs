@@ -106,7 +106,13 @@ fn canvas_color(key: &str) -> Option<egui::Color32> {
 /// Per frame: push UI-side preferences into egui / the renderer when they change.
 pub fn apply_runtime(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let p = &app.session.prefs;
-    if let Some(b) = Brightness::parse(&p.ui_brightness)
+    let selected = if p.ui_brightness == "system" {
+        let system = app.services.system_theme.as_ref().and_then(|read| read(ctx)).or_else(|| ctx.system_theme());
+        Some(if system == Some(egui::Theme::Light) { Brightness::Light } else { Brightness::MediumDark })
+    } else {
+        Brightness::parse(&p.ui_brightness)
+    };
+    if let Some(b) = selected
         && b != app.ui.brightness
     {
         app.ui.brightness = b;
@@ -128,7 +134,9 @@ pub fn apply_runtime(app: &mut VectorcraftApp, ctx: &egui::Context) {
         // General › Show Tool Tips: off, no button or field shows its tool tip (they never come
         // due), whichever widget asks for one.
         let delay = if want.tool_tips { egui::style::Interaction::default().tooltip_delay } else { f32::INFINITY };
-        ctx.global_style_mut(|s| s.interaction.tooltip_delay = delay);
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            ctx.style_mut_of(theme, |s| s.interaction.tooltip_delay = delay);
+        }
         crate::scrub::set_enabled(ctx, want.scrub);
         crate::widgets::set_bare_numbers_are_points(ctx, want.bare_points);
         if let Some(c) = want.canvas {
@@ -412,6 +420,65 @@ mod tests {
     use super::*;
     use crate::Services;
     use vectorcraft_engine::Session;
+
+    #[test]
+    fn automatic_brightness_follows_live_system_changes_without_rewriting_preferences() {
+        use std::cell::Cell;
+        use std::rc::Rc;
+        let system = Rc::new(Cell::new(Some(egui::Theme::Light)));
+        let source = Rc::clone(&system);
+        let mut app = VectorcraftApp::new(Session::new(), Services { system_theme: Some(Box::new(move |_| source.get())), ..Services::default() });
+        let ctx = egui::Context::default();
+        assert_eq!(app.session.prefs.ui_brightness, "mediumDark", "existing default stays fixed");
+        app.run("prefs.set", json!({"values": {"uiBrightness": "system", "uiAccent": "violet", "uiColorScheme": "modern"}})).unwrap();
+        for (appearance, expected) in
+            [(Some(egui::Theme::Light), Brightness::Light), (Some(egui::Theme::Dark), Brightness::MediumDark), (None, Brightness::MediumDark)]
+        {
+            system.set(appearance);
+            apply_runtime(&mut app, &ctx);
+            assert_eq!(app.ui.brightness, expected);
+            assert_eq!(app.session.prefs.ui_brightness, "system");
+            assert_eq!(app.session.prefs.ui_accent, "violet");
+            assert_eq!(Tokens::get(&ctx).accent, Tokens::for_scheme(Scheme::Modern, expected, Accent::Violet).accent);
+        }
+        app.run("prefs.set", json!({"key": "uiBrightness", "value": "mediumLight"})).unwrap();
+        system.set(Some(egui::Theme::Dark));
+        apply_runtime(&mut app, &ctx);
+        assert_eq!(app.ui.brightness, Brightness::MediumLight, "a manual choice ignores the system");
+    }
+
+    #[test]
+    fn fractional_monitor_changes_preserve_user_scale_multiplier() {
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let ctx = egui::Context::default();
+        for user in [1.0, 1.25, 2.0] {
+            app.run("prefs.set", json!({"key": "uiScaling", "value": user})).unwrap();
+            for native in [1.0, 1.25, 1.5, 1.75, 2.0, 1.0] {
+                for _ in 0..2 {
+                    let mut input = egui::RawInput::default();
+                    input.viewports.entry(egui::ViewportId::ROOT).or_default().native_pixels_per_point = Some(native);
+                    ctx.run_ui(input, |ui| apply_runtime(&mut app, ui.ctx())).textures_delta.clear();
+                }
+                assert!((ctx.pixels_per_point() - native * user as f32).abs() < 0.001);
+                assert_eq!(app.session.prefs.ui_scaling, user);
+            }
+        }
+    }
+
+    #[test]
+    fn fixed_palette_survives_system_style_branch_changes() {
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let ctx = egui::Context::default();
+        app.run("prefs.set", json!({"values": {"uiBrightness": "dark", "showToolTips": false}})).unwrap();
+        for system_theme in [egui::Theme::Dark, egui::Theme::Light, egui::Theme::Dark] {
+            let input = egui::RawInput { system_theme: Some(system_theme), ..Default::default() };
+            ctx.run_ui(input, |ui| apply_runtime(&mut app, ui.ctx())).textures_delta.clear();
+            assert_eq!(app.ui.brightness, Brightness::Dark);
+            assert_eq!(ctx.global_style().visuals.panel_fill, Tokens::get(&ctx).panel);
+            assert!(ctx.global_style().visuals.dark_mode);
+            assert!(ctx.global_style().interaction.tooltip_delay.is_infinite());
+        }
+    }
 
     /// A resting checkbox must have a visible outline in both states and every brightness.
     #[test]

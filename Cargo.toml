@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
+exclude = ["vendor/craft-desktop", "vendor/winit"]
 default-members = ["crates/*", "apps/vectorcraft", "apps/vectorcraft-cli", "xtask"]
 
 [workspace.package]
@@ -128,6 +129,7 @@ lto = "thin"
 codegen-units = 1
 
 [patch.crates-io]
+winit = { path = "vendor/winit" }
 hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
 hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
 hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }

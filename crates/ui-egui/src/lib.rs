@@ -22,6 +22,7 @@ pub mod community;
 pub mod control;
 pub mod credits;
 pub mod cursors;
+pub mod desktop_menu;
 pub mod dialogs;
 pub mod dock;
 mod edit_toolbar;
@@ -299,6 +300,9 @@ pub struct Services {
     pub print: Option<Box<dyn print::PrintService>>,
     /// The macOS menu bar, when the desktop app installed one: the in-window menus are hidden then.
     pub native_menu: Option<native_menu::NativeMenu>,
+    /// Desktop appearance where winit cannot report it (notably Wayland). Called only when
+    /// Automatic brightness is selected; platform services wake egui on a setting change.
+    pub system_theme: Option<SystemThemeFn>,
     /// Show file dialogs off the UI thread (desktop Linux, where a dialog in line holds the window
     /// and the compositor finds it not answering, #592) or as sheets on the window (macOS, where a
     /// dialog in line aborts the app, #867): what asked runs again with the answer ([`picks`]).
@@ -315,6 +319,8 @@ pub struct Services {
     /// pointer visible next to the tool glyph ([`cursors::hide_system_pointer`], #2450).
     pub no_cursor_theme: bool,
 }
+
+pub type SystemThemeFn = Box<dyn Fn(&egui::Context) -> Option<egui::Theme>>;
 
 /// Cached canvas raster.
 pub struct CanvasCache {

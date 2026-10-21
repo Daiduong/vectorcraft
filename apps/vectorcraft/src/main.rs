@@ -22,6 +22,7 @@ compile_error!("windows7 requires --target x86_64-win7-windows-msvc; the ordinar
 #[cfg(all(target_vendor = "win7", not(feature = "windows7")))]
 compile_error!("the win7 target requires --no-default-features --features windows7");
 
+mod appearance;
 mod automation_args;
 mod clipboard;
 #[cfg(feature = "wgpu")]
@@ -62,6 +63,10 @@ use vectorcraft_ui_egui::{ClipboardProbeFactory, FilePick, Services, Vectorcraft
 
 struct App {
     app: VectorcraftApp,
+    #[cfg(target_os = "linux")]
+    menu: Option<craft_desktop::appmenu::Bridge>,
+    #[cfg(target_os = "linux")]
+    menu_state: Option<u64>,
     /// Reported by wgpu when the window's graphics device is lost (a driver reset).
     graphics_loss: GraphicsLoss,
     /// The graphics device was lost and the unsaved changes are kept for Data Recovery.
@@ -100,6 +105,14 @@ impl eframe::App for App {
             self.app.titlebar_inset = inset.unwrap_or(mac_window::DEFAULT_INSET);
         }
         file_access::unconfined(|| self.app.ui(ui));
+        #[cfg(target_os = "linux")]
+        if let Some(menu) = self.menu.as_ref() {
+            let state = vectorcraft_ui_egui::desktop_menu::state_key(&self.app, ui.ctx());
+            if self.menu_state != Some(state) {
+                menu.publish(vectorcraft_ui_egui::desktop_menu::snapshot(&self.app));
+                self.menu_state = Some(state);
+            }
+        }
         // Preferences are written when confirmed, not only at exit: a session ended any other way
         // (the system shutting down, the process ended or crashing) used to lose them (#1747).
         if self.app.take_prefs_changed() {
@@ -113,11 +126,15 @@ impl eframe::App for App {
     }
     #[cfg(not(feature = "windows7"))]
     fn on_exit(&mut self) {
+        #[cfg(target_os = "linux")]
+        self.menu.take();
         file_access::unconfined(|| save_prefs(&self.app));
         end_before_teardown(self.frames);
     }
     #[cfg(feature = "windows7")]
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        #[cfg(target_os = "linux")]
+        self.menu.take();
         file_access::unconfined(|| save_prefs(&self.app));
     }
 }
@@ -147,6 +164,13 @@ impl App {
             open_files(&mut self.app, open_documents::take());
         }
         self.app.logic(ctx);
+        #[cfg(target_os = "linux")]
+        if let Some(menu) = self.menu.as_mut() {
+            for click in menu.take_events() {
+                vectorcraft_ui_egui::desktop_menu::activate(&mut self.app, ctx, click.document, &click.action);
+                self.menu_state = None;
+            }
+        }
         window::track(ctx, &mut self.app.ui.window);
         if self.app.ui.status == "quit" {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -534,6 +558,7 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         // dialogs run the window's events while they are open.
         start_pick: cfg!(unix).then(|| Box::new(move |request: PickRequest| start_pick(request, &p5, &ui)) as vectorcraft_ui_egui::picks::StartPick),
         dialogs_are_sheets: cfg!(target_os = "macos"),
+        system_theme: appearance::service(),
         wayland,
         no_cursor_theme: wayland && cursor_theme::theme_missing(),
         read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
@@ -1031,7 +1056,28 @@ fn main() -> std::process::ExitCode {
                 created.ready();
                 // The content and the pointer stay aligned on Windows (#1758).
                 let window_frame = window_frame::service(cc, custom_titlebar);
-                Ok(Box::new(App { app, graphics_loss, graphics_lost: false, frames: 0, window_frame }))
+                #[cfg(target_os = "linux")]
+                let menu = cc.winit_window().and_then(|window| {
+                    let ctx = cc.egui_ctx.clone();
+                    craft_desktop::appmenu::Bridge::start(
+                        window.clone(),
+                        "ai.storyteller.vectorcraft",
+                        "VECTORCRAFT",
+                        vectorcraft_ui_egui::desktop_menu::snapshot(&app),
+                        move || ctx.request_repaint(),
+                    )
+                });
+                Ok(Box::new(App {
+                    app,
+                    #[cfg(target_os = "linux")]
+                    menu,
+                    #[cfg(target_os = "linux")]
+                    menu_state: None,
+                    graphics_loss,
+                    graphics_lost: false,
+                    frames: 0,
+                    window_frame,
+                }))
             }),
         )
     });

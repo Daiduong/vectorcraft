@@ -9,6 +9,7 @@ description = "VectorCraft egui frontend (menus, panels, tools and canvas); swap
 workspace = true
 
 [dependencies]
+craft-desktop = { path = "../../vendor/craft-desktop" }
 craft-ui = { workspace = true }
 vectorcraft-geom = { workspace = true }
 vectorcraft-color = { workspace = true }

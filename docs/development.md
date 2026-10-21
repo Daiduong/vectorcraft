@@ -1,5 +1,36 @@
 # Development
 
+> **Linux integration update:** 2026-10-21 — optional system appearance and fractional-DPI regression coverage.
+
+## KDE appearance and scaling
+
+Preferences › User Interface › Brightness › Automatic (`prefs.set` with `uiBrightness: "system"`)
+follows the desktop light/dark preference. On Linux, a lazy shared portal watcher reads
+`org.freedesktop.appearance/color-scheme` off the UI thread and requests a repaint on changes;
+its bounded polling also recovers after a portal restart. On other platforms egui supplies the
+system appearance. With no preference available, Automatic uses Medium Dark. Existing saved
+brightness, color scheme and accent choices are not replaced; selecting any fixed brightness
+stops applying system changes. System accent adoption is deliberately not enabled.
+
+UI Scaling remains a multiplier of the compositor's scale, not a replacement for it. Leave it
+at 1× to follow 100%, 125%, 150%, 175% and 200% desktop scales. Tests inject each native scale
+and transitions back to 100%; this is not proof of physical multi-monitor operation. For a
+manual check, move the native Wayland window between differently scaled monitors, resize it,
+open Preferences and a long menu, and check text, cursor alignment and clipping. Test both
+Automatic appearance transitions and a fixed custom palette while the desktop theme changes.
+Do not change global desktop settings programmatically for this check.
+
+Linux decorations already follow `craft-window`: KDE/server-side decoration support keeps
+the native frame, while compositors requiring client controls keep the app frame. Existing
+titlebar overrides and the System Title Bar preference are retained. Native Wayland's existing
+tablet and file-drop limitations remain; see the Linux section below.
+
+### Global Menu manual acceptance
+
+See [KDE validation](KDE.md) for isolated launch commands, regression tests and the native
+Global Menu/appearance/DPI checklist. Registrar permissions and model tests do not establish
+Plasma or Flatpak runtime acceptance; never overwrite real settings or documents for QA.
+
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
@@ -375,6 +406,7 @@ do not replace expected hashes automatically in response to a download mismatch.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-21 | minor | Opt-in Automatic appearance through the shared portal watcher, stable fixed theme styles and fractional-monitor regression matrix. Physical multi-monitor and native theme acceptance remain manual checks. |
 | 2026-10-14 | minor | Document the `bundled-fonts` feature of vectorcraft-text and vectorcraft-engine (Fonts › Leaving out the bundled fonts). |
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |

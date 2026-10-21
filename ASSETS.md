@@ -12,6 +12,14 @@ Generated-in-code art is original and has no file to list. This covers the defau
 
 | Asset | Author | Source | Licence | Notes |
 |---|---|---|---|---|
+| `vendor/winit/examples/data/icon.png` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/examples/data | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream example, not application artwork |
+| `vendor/winit/examples/data/gradient.png` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/examples/data | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream example |
+| `vendor/winit/examples/data/cross.png` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/examples/data | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream example cursor |
+| `vendor/winit/examples/data/cross2.png` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/examples/data | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream example cursor |
+| `vendor/winit/docs/res/keyboard_standard_1_key.svg` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/docs/res | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream keyboard documentation |
+| `vendor/winit/docs/res/keyboard_right_shift_key.svg` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/docs/res | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream keyboard documentation |
+| `vendor/winit/docs/res/keyboard_numpad_1_key.svg` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/docs/res | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream keyboard documentation |
+| `vendor/winit/docs/res/keyboard_left_shift_key.svg` | Winit contributors | https://github.com/rust-windowing/winit/tree/v0.30.13/docs/res | Apache-2.0 (`vendor/winit/LICENSE`) | Upstream keyboard documentation |
 | `docs/brand/artcraft-logo-white.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
 | `docs/brand/artcraft-logo-white.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
 | `docs/brand/artcraft-logo.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
