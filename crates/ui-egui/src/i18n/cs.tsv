@@ -36,6 +36,7 @@
 	Quit VectorCraft	Ukončit VectorCraft
 	File	Soubor
 	New…	Nový…
+	New Without Dialog	Nový bez dialogového okna
 	New from Template…	Nový ze šablony…
 	Open…	Otevřít…
 	Open Recent Files	Otevřít nedávné soubory
@@ -264,6 +265,8 @@
 	Large Gaps	Velké mezery
 	Gap Preview Color:	Barva náhledu mezer:
 	Close Gaps With Paths	Uzavřít mezery cestami
+	Show Live Paint Gaps	Zobrazit mezery živé malby
+	Hide Live Paint Gaps	Skrýt mezery živé malby
 	Select Fills	Vybírat výplně
 	Select Strokes	Vybírat tahy
 	Image Trace	Vektorizace obrazu
@@ -1133,7 +1136,8 @@ lighting	Light	Světlo
 	 to sample a color	 nabere barvu
 	 across a selected object to set the gradient direction	 přes vybraný objekt nastaví směr přechodu
 	 to select an artboard  |  	 vybere pracovní plochu  |  
-	 on the canvas to create one	 na plátně vytvoří novou
+	 on the canvas to create one (	 na plátně vytvoří novou (
+	 selects several, or draws one inside an artboard)	 vybere více nebo vytvoří novou uvnitř pracovní plochy)
 	 a stroke to add a width point  |  	 tahu přidá bod šířky  |  
 	 to change one side  |  	 změní jednu stranu  |  
 	 to select more points  |  	 vybere další body  |  
@@ -1753,6 +1757,9 @@ lighting	Light	Světlo
 	Left Indent	Odsazení zleva
 	Left-to-Right Paragraph Direction	Směr odstavce zleva doprava
 	Line-end Punctuation Half Width	Interpunkce na konci řádku poloviční šířky
+	Insert Kashidas	Vložit kašídy
+	Long	Dlouhý
+	Stylistic	Stylistický
 	Mojikumi Set	Sada Mojikumi
 	Kinsoku Set	Sada Kinsoku
 	Hard	Pevné
@@ -1904,6 +1911,7 @@ lighting	Light	Světlo
 	Select art and click New Symbol to make one.	Vyberte kresbu a symbol vytvořte tlačítkem Nový symbol.
 	Symbol Libraries (on the roadmap)	Knihovny symbolů (v plánu)
 	Align On:	Zarovnat na:
+	Bottom-Justified Tab	Tabulátor zarovnaný dolů
 	Center-Justified Tab	Tabulátor zarovnaný na střed
 	Above Text	Nad textem
 	Position Panel Above Text	Umístit panel nad text
@@ -1915,6 +1923,7 @@ lighting	Light	Světlo
 	No text selected	Není vybrán žádný text
 	Repeat Tab	Opakovat tabulátor
 	Right-Justified Tab	Tabulátor zarovnaný doprava
+	Top-Justified Tab	Tabulátor zarovnaný nahoru
 	Select a text object to set its tab stops.	Vyberte textový objekt, abyste mohli nastavit jeho zarážky tabulátoru.
 	Select text	Vyberte text
 	Snap to Unit	Přichytávat k jednotkám
@@ -2258,6 +2267,13 @@ lighting	Light	Světlo
 	Alt key toggles to Smooth Tool	Klávesa Alt přepíná na nástroj Vyhlazení
 	Keep selected	Ponechat vybrané
 	Merge only with selection	Sloučit jen s výběrem
+	Consider Open Filled Paths as Closed	Považovat otevřené vyplněné cesty za uzavřené
+	Pick Color From:	Brát barvu z:
+	Artwork	Kresba
+	Cursor Swatch Preview	Náhled vzorku u kurzoru
+	Selection:	Výběr:
+	Straight Line	Přímka
+	Highlight:	Zvýraznění:
 	The document has no colour swatches.	Dokument nemá ve vzorníku žádné barvy.
 	Style Name:	Název stylu:
 	Crop To	Oříznout na
@@ -4145,6 +4161,25 @@ imageTrace	Outline	Obrys
 @msg	a PostScript error ({name} in `{op}`: {at})	chyba PostScriptu ({name} v `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	chyba PostScriptu ({name} v `{op}`: {at}), v {procs}
 @msg	a PostScript error ({name})	chyba PostScriptu ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	chyba PostScriptu ({name} v `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	chyba PostScriptu ({name} v `{op}`; {meaning}), v {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	chyba PostScriptu ({name} v `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	chyba PostScriptu ({name} v `{op}`: {at}; {meaning}), v {procs}
+@msg	a PostScript error ({name}; {meaning})	chyba PostScriptu ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	program ukončuje slovník, který nezačal
+@msg	the program opens a file, which the reader can't do	program otevírá soubor, což čtečka neumí
+@msg	the program restores a saved state that was already restored	program obnovuje uložený stav, který už byl obnoven
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	data, která program čte, jsou poškozená nebo zkrácená, nebo program žádá pozici v souboru, který žádnou nemá
+@msg	the program goes past one of the reader's limits	program překračuje jeden z limitů čtečky
+@msg	the path has no point to continue from	cesta nemá bod, ze kterého by mohla pokračovat
+@msg	a value is outside the range the operator takes	hodnota je mimo rozsah, který operátor přijímá
+@msg	the operator needs more values than the stack holds	operátor potřebuje více hodnot, než obsahuje zásobník
+@msg	part of the program isn't valid PostScript text	část programu není platný text PostScriptu
+@msg	a value has the wrong type for the operator	hodnota má pro operátor nesprávný typ
+@msg	the program runs, deletes or renames a file, which the reader can't do	program spouští, maže nebo přejmenovává soubor, což čtečka neumí
+@msg	the program asks for a resource that isn't defined	program požaduje prostředek, který není definován
+@msg	a calculation has no result, as in a division by zero	výpočet nemá výsledek, například při dělení nulou
+@msg	the operator looks for a mark on the stack and finds none	operátor hledá na zásobníku značku a žádnou nenachází
 @msg	a bitmap is empty	bitmapa je prázdná
 @msg	a bitmap is too large to read	bitmapa je příliš velká na načtení
 @msg	a colour index is 0 to {_1}, not {n}	index barvy je 0 až {_1}, ne {n}
@@ -4416,6 +4451,10 @@ imageTrace	Outline	Obrys
 @msg	select a repeat	vyberte opakování
 @msg	select an Intertwine group	vyberte skupinu propletení
 @msg	select an Objects on Path group	vyberte skupinu objektů na cestě
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	cesta uvnitř složené cesty, prolnutí, obálky, opakování nebo skupiny propletení nemůže přijmout objekty
+@msg	a clipping path can't take objects	ořezová cesta nemůže přijmout objekty
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	objekty uvnitř prolnutí, obálky, opakování nebo skupiny propletení nelze připojit na cestu
+@msg	a clipping path can't be attached to a path	ořezovou cestu nelze připojit na cestu
 @msg	select a stroke with a variable width	vyberte tah s proměnnou šířkou
 @msg	select a symbol instance	vyberte instanci symbolu
 @msg	select an Image Trace object	vyberte objekt vektorizace obrazu
@@ -5273,3 +5312,5 @@ mark-style	Japanese	Japonské
 	Plaster	Sádra
 	Note Paper…	Dopisní papír…
 	Note Paper	Dopisní papír
+	Water Paper…	Mokrý papír…
+	Water Paper	Mokrý papír

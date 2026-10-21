@@ -350,7 +350,7 @@ objects' fills or strokes differ (`fillMixed` / `strokeMixed`, drawn as a "?" pr
 |---|---|---|
 | `list_commands` | `{filter?, query?, menu?, enabledOnly?, brief?}` | The command catalogue: id, label, menu, shortcut, params doc (left out with `brief`), enablement. |
 | `run_command` | `{command, params?}` | Runs any command. Use it for everything without a dedicated tool. |
-| `inspect_document` | `{depth?, childLimit?, ids?, kind?, limit?, offset?}` | Artboards, layer tree (ids, kinds, bounds, paint), selection, history, tool. A type node's `fill`, `stroke` and `strokeWidth` are the paint its characters show (its first run's); fills and strokes of the type object itself come as `objectFill`, `objectStroke` and `objectStrokeWidth`. Paint comes as a label (`"#ff0000"`, `"None"`, `"G1 40% (#ff9999)"` for a swatch at a tint); `paint.proxies` gives it as an object. |
+| `inspect_document` | `{depth?, childLimit?, ids?, kind?, limit?, offset?}` | Artboards (with `color`, `#rrggbb`, for one with a background color), layer tree (ids, kinds, bounds, paint), selection, history, tool. A type node's `fill`, `stroke` and `strokeWidth` are the paint its characters show (its first run's); fills and strokes of the type object itself come as `objectFill`, `objectStroke` and `objectStrokeWidth`. Paint comes as a label (`"#ff0000"`, `"None"`, `"G1 40% (#ff9999)"` for a swatch at a tint); `paint.proxies` gives it as an object. |
 | `inspect_ui` | `{}` | UI state. Remote mode only. |
 | `select_tool` | `{tool}` | `selection`, `directSelection`, `pen`, `rectangle`, `ellipse`, `polygon`, `star`, `lineSegment`, … |
 | `pointer_gesture` | `{events:[{kind,x,y,mods?}], tool?, mods?}` | `kind` is one of `down`, `drag`, `up`, `move`, `doubleclick`. Events go through the same path as the mouse. |
@@ -371,7 +371,7 @@ objects' fills or strokes differ (`fillMixed` / `strokeMixed`, drawn as a "?" pr
 | `apply_effect` | `{effect?, params?, ids?}` | Appends a live effect. Without `effect`, returns the effect catalogue with parameters and defaults. |
 | `pathfinder` | `{operation, ids?}` | `unite`, `minusFront`, `intersect`, `exclude`, `divide`, `trim`, `merge`, `crop`, `outline`, `minusBack`. For a live version, apply the `pathfinder.*` effect to a group (`effect.apply` groups several loose selected objects first). |
 | `transform` | `{ids?, dx?, dy?, rotate?, scale?, scaleX?, scaleY?, reflect?, shear?, origin?, copy?}` | Runs move, rotate, scale, reflect, shear in that order. With `copy`, the first step duplicates. |
-| `create_graph` | `{type?, x, y, width, height, csv? \| series?, categories?, rows?}` | The nine Illustrator graph types: column, stacked column, bar, stacked bar, line, area, scatter, pie and radar. An empty CSV cell or a `null` in `rows` is a blank value; a number in straight quotes is a label. Edit later with `graph.setData` / `graph.setType` via `run_command`. `graph.column {design, columnType: vertical\|uniform\|repeating\|sliding, each, fractions: chop\|scale}` draws the columns or bars of the series picked with Group Selection (or `seriesIndexes`, or all of them) with a graph design saved by `graph.design`; with no `design` it returns the series' current design and options. |
+| `create_graph` | `{type?, x, y, width, height, csv? \| series?, categories?, rows?}` | The nine Illustrator graph types: column, stacked column, bar, stacked bar, line, area, scatter, pie and radar. An empty CSV cell or a `null` in `rows` is a blank value; a number in straight quotes is a label. Edit later with `graph.setData` / `graph.setType` via `run_command`. `graph.column {design, columnType: vertical\|uniform\|repeating\|sliding, each, fractions: chop\|scale}` draws the columns or bars of the series picked with Group Selection (or `seriesIndexes`, or all of them) with a graph design saved by `graph.design`; with no `design` it returns the series' current design and options. Type in the design that holds a `%` followed by two digits shows each column's value, with at least the first digit's places before the decimal point and the second digit's places after it. |
 | `text_wrap` | `{ids?, offset?, invert?, release?}` | Area type below the objects (same layer) flows around them. |
 | `undo` / `redo` | `{}` | Many calls that change nothing record no undo step, for example `object.align` with nothing to move, `object.move` by 0 without `copy` and `object.showAll` with nothing hidden. `undo` (`edit.undo`) after such a call undoes the step before it. `inspect_document` lists the undo steps as `history`. `run_command` with `edit.clearHistory` removes every undo and redo step of the active document and returns `{cleared}`, the number of steps removed; the document stays as it is, and the command records no undo step. |
 
@@ -415,7 +415,8 @@ mode. To press the key during a drag, end one
 With nothing being dragged, `e` chooses the tool bound to E.
 
 Appearance stacks: an object can carry several fills and strokes (`appearance.addFill`, `appearance.addStroke`), indexed
-in paint order (0 is painted first, the bottom row of the Appearance panel). `paint.setFill`, `paint.setStroke`,
+in paint order (0 is painted first, the bottom row of the Appearance panel). Cmd+/ runs `appearance.addFill` and
+Cmd+Alt+/ runs `appearance.addStroke` (`press_key {key: "/", mods: {cmd: true, alt: true}}`). `paint.setFill`, `paint.setStroke`,
 `stroke.set`, `stroke.setAdvanced`, `paint.editGradient`, `paint.setGradientGeom` and `transparency.set` take
 `item` to edit one of them; `run_command appearance.setActiveItem {"index": n}` makes that row the target of later
 calls that omit `item` (as clicking the row in the Appearance panel does) until the selection changes; the proxy of
@@ -687,7 +688,9 @@ area type and type on a path), and what can't be is left out with a warning. Non
 PDF, which Illustrator shows but doesn't edit and keeps as a PDF inside the editing data) is drawn by the PDF importer,
 as a group named "Non-native art" fitted to the object's box; one whose PDF can't be read is left out with a warning.
 Without editing data it says it can't be opened. `pages` that name every page of such a file also open it from its
-editing data.
+editing data. `file.place` reads it from its editing data too and places the art of the layers that show on artboard
+`page`, clipped to that artboard unless `crop` is `bounding`. `clipboard.importPdf` takes every object of its editing
+data.
 
 What a PDF holds comes in as editable art: soft masks become opacity masks (an alpha mask as a white copy of its art;
 the backdrop colour gives Clip, an inverting transfer function Invert), transparency groups keep isolation and knockout,
@@ -1108,7 +1111,7 @@ With a key object (or a key guide), `object.align` moves the other selected rule
 Aligning to the selection or the artboard leaves guides where they are.
 `select.key {guide}` makes a selected ruler guide (its `guide.list` index) the key instead, while one or more objects are selected (#2143).
 `object.align` then lines the objects up on the guide and the guide stays put: a vertical guide sets where their left edges, centres or right edges go and vertical alignment leaves them where they are, a horizontal guide the other way round.
-Selected anchor points align to it the same way. Distribute Spacing doesn't space from a key guide.
+Selected anchor points align to it the same way. `object.distribute {spacing}` and `object.distributeSpacing {spacing}` space the objects from it (see [Align to Artboard](#align-to-artboard)).
 A click with the Selection tool on a guide selected with objects runs `select.key {guide}`, and a click on the key guide again runs `select.key {}`.
 The key guide goes when it leaves the selection or no object is left selected, and an object key replaces it (and the other way round).
 It returns `{key}`, the key object's id or null, with `guide`, the key guide's index, when a guide is the key.
@@ -1141,6 +1144,8 @@ and `select.recall`. They leave out hidden and locked objects with the objects i
 locked or template layers and sublayers and, in isolation mode, everything outside the isolated group or layer. When
 the isolated group or layer, or a group or layer it is in, is hidden, locked or a template layer, they also leave out
 everything in it, and `select.all`, `select.allOnArtboard` and `select.inverse` select nothing.
+`select.object.bristleBrushStrokes` selects the objects whose topmost stroke has a bristle brush (type `bristle` in
+`brush.list`), whatever the brush is named; a brush of another type with "Bristle" in its name does not count.
 `select.nextAbove` and `select.nextBelow` select the nearest such object above or below the first selected object
 among the objects beside it in its group or layer, passing over hidden and locked objects and sublayers. When there
 is no such object, the selection stays as it is.
@@ -1220,12 +1225,20 @@ already walks Image Trace. Short agent entry points:
   `symbol.place {name?, x?, y?}`, `symbol.breakLink {ids?}`, `symbol.replace`, `symbol.edit`, `symbol.duplicate`,
   `symbol.selectInstances {name}`. `symbol.new` and `symbol.duplicate {name, newName?}` trim the white space around the
   name they are given, as `symbol.options` trims `newName`; a blank one gives "New Symbol" or "<name> copy".
+- The Brushes panel menu's Select All Unused: `brush.unused` (a query) lists the brushes no stroke paints with, in
+  library order, and the panel selects them. Strokes in the art (opacity masks included), symbols, graph designs,
+  pattern tiles and graphic styles count, and so do the strokes in the art of a brush that is used. The art of a brush
+  that is not used does not count, so a brush whose own art is the only art that paints with it is listed.
 - Brushes: `brush.list`, `brush.get {name}`, `brush.apply {name, ids?}`, `brush.new {type, name?, params?, ids?}`,
   `brush.setCurrent {name}`, `brush.options {name, params?}`, `brush.delete {name} | {names}`,
   `brush.duplicate {name, newName?} | {names}`, `brush.freehand`, `object.expandBrush {ids?}`. `brush.new`,
   `brush.duplicate` and `brush.options` trim the white space around the name they are given. A blank `name` gives
   the type's default name ("New Calligraphic Brush" for a calligraphic brush), and a blank `newName` gives
-  "`<name>` copy" in `brush.duplicate` and keeps the name in `brush.options`.
+  "`<name>` copy" in `brush.duplicate` and keeps the name in `brush.options`. A Hue Shift `colorization` given to
+  `brush.new` or `brush.options` without a `key` takes the color that the art's fills and strokes use most (on a tie,
+  the one found first), or black when they use no solid color. `brush.options` changes only the fields of
+  `colorization` and of an art brush's `scale` that `params` gives, so `{colorization: {method: "hueShift"}}` keeps a
+  Hue Shift brush's key.
 - Variables: `variable.list`, `variable.define {name, kind: text|visibility|image|graph}`, `variable.bind {variable, ids?}`,
   `variable.makeTextDynamic`, `variable.makeVisibilityDynamic`, `variable.makeImageDynamic`, `variable.makeGraphDynamic`,
   `variable.unbind`, `variable.rename`, `variable.delete`, `variable.highlight` (image values are file paths, graph
@@ -1263,12 +1276,18 @@ already walks Image Trace. Short agent entry points:
   and `livePaint.info` list the gaps up to `size` wide that no path closes, as `[x0, y0, x1, y1]`. `livePaint.merge`
   keeps the bottom group's options when its Gap Detection is on, and otherwise turns Gap Detection on with `small`
   when another merged group has it on. When Gap Detection is off in every merged group, it stays off.
+  `view.livePaintGaps` (View › Show Live Paint Gaps, or Hide Live Paint Gaps while it is on) turns the drawing of
+  those gaps on or off. While it is on and edges show, the canvas draws the gaps of each selected Live Paint group in
+  that group's Gap Preview Color. The reply is the new state (`true` when on).
   The Live Paint Selection tool's options (`tool.setOption {tool: "livePaintSelection", values}`; double-clicking the
   tool opens them, dialog `livePaintSelectionOptions`) are `selectFills` and `selectStrokes` (both on), `color` (the
   highlight color, `#rrggbb` or a layer color's name; `#ff2a2a`) and `width` (the highlight's width, 1 to 20 screen
   pixels; 4). With `selectStrokes` off, Alt-click selects the face under the pointer as a click does; with
   `selectFills` off, a click selects the edge nearest the pointer as Alt-click does; with both off, a click selects
   no face or edge.
+  `livePaint.merge` keeps the bottom Live Paint group's id, name, lock, visibility, transparency, appearance, opacity
+  mask and graphic style link. With a Live Paint group among the objects, `livePaint.make` adds the others to it as
+  `livePaint.merge` does, and so does `livePaint.fill {ids}` when `point` is outside that group's faces.
 
 `dataset.select`, `dataset.next` and `dataset.prev` reply `{name, applied, skipped}`. They add `overflow: [id…]`
 when area type or type on a path whose text they rewrote doesn't fit, as `text.setText` does (see
@@ -1740,10 +1759,12 @@ and `layerRows`, the rows highlighted in the panel.
   `layer.outlineOthers` / `layer.previewAll` (Ctrl/Cmd+Alt-clicking an eye runs Outline Others for the row's layer, or
   Preview All Layers when the others are in Outline already), `layer.lockOthers` / `layer.unlockAll` (Alt-clicking an eye or a lock
   runs Hide or Lock Others for the row's layer, or Show or Unlock All when the others already are), `layer.pasteRemembersLayers`,
-  `object.isolate {id}` (a group, a layer or a single object; not type) / `object.exitIsolation`.
+  `object.isolate {id?}` (a group, a layer or a single object, by default the first selected object; not type, not a
+  hidden or locked object or one in a hidden or locked group or layer, and not a guide path while Lock Guides is on) /
+  `object.exitIsolation`.
 - **Dialogs and panel state** (control channel and the app's MCP): `ui.layerOptions {ids?}` and `ui.newLayer
   {sublayer?}` open Layer Options (dialog `layerOptions`: name, color, template, locked, visible, printable, preview,
-  dimImages, dimPercent; OK is one undo step), `ui.layersPanelOptions` opens Panel Options (`layersPanelOptions`:
+  dimImages, dimPercent; OK is one undo step; Cmd/Ctrl+Alt+L runs `ui.newLayer` for a new layer), `ui.layersPanelOptions` opens Panel Options (`layersPanelOptions`:
   layersOnly, locateSelected, rowSize small|medium|large|other, otherSize, thumbLayers, thumbGroups, thumbObjects), and
   `ui.layersExpand {ids?, open?}` opens or closes rows as their triangles do (Alt-click: everything inside).
   With `locateSelected` on (Locate Selected Objects, off by default), when the last selected object changes on the canvas
@@ -2238,16 +2259,30 @@ left or top edge of the first object, in the order of those edges, on the artboa
 right or bottom edge of the last object on the artboard's right or bottom edge, with equal gaps between the objects.
 With `to: "selection"` or `"key"`, or without `to`, `object.distribute` and `object.distributeSpacing` without `spacing`
 keep the first and last objects where they are, and `object.distribute` without `spacing` moves nothing with fewer than
-three objects. With `spacing`, `object.distributeSpacing` does not use `to`, and `object.distribute` does not use it
-while the selection has a key object. With anchor points selected (Direct Selection), both commands space the points
+three objects. With `spacing` and a key object, `object.distribute` and `object.distributeSpacing` do not use `to`;
+with a key guide, `to` decides whether the guide is the key. With anchor points selected (Direct Selection), both commands space the points
 among themselves and do not use `to` or `artboard`.
 
 `object.distribute {spacing}` (the Distribute Objects buttons while the selection has a key object, `select.key`) keeps
 the key object where it is, with the compound path or selected group that contains it. It places the objects' lines
 (left edges, centers or right edges; top edges, centers or bottom edges) `spacing` points apart, outward from the key
 object's line, in their order on that line. With `spacing: 0`, every object ends on the key object's line. Two objects
-are enough. Without a key object, or with anchor points selected, `object.distribute` does not use `spacing`. A
-`spacing` that is not a number is an error.
+are enough. Without a key object or key guide, or with anchor points selected, `object.distribute` does not use
+`spacing`. A `spacing` that is not a number is an error.
+
+`object.distribute` and `object.distributeSpacing` space the selected ruler guides across the axis (vertical guides
+for the horizontal options, horizontal guides for the vertical ones) with the selected objects, as items with no size
+(#1597). A guide's left edge, center and right edge are all its line, so the three options of an axis give the same
+result for it. Guides along the axis stay where they are. Two or more guides selected without objects are enough, and
+the Align panel's buttons are enabled for them; with `to: "artboard"`, the outermost items go to the artboard's edges.
+
+With a key guide (`select.key {guide}`, #2143), `object.distribute {spacing}` and `object.distributeSpacing {spacing}`
+(the Align panel's Distribute buttons send the Distribute Spacing value then too) keep the guide where it is and
+space the other items from it, as from a key object with no size: `object.distribute` places their lines `spacing`
+points apart, outward from the guide's line, and `object.distributeSpacing` leaves gaps of `spacing` points, the guide
+included. With `spacing: 0`, `object.distribute` puts every line on the guide. A key guide along the axis leaves
+everything where it is, as `object.align` does. `to: "selection"` or `"artboard"` distributes without the key guide
+as the key, as with `object.align`, and without `spacing` a key guide is spaced as any selected guide.
 
 The desktop app adds its active artboard, the one the Artboards panel highlights, to the `object.align`,
 `object.distribute`, `object.distributeSpacing` and `select.allOnArtboard` calls it runs without `artboard`, as it does
@@ -2297,6 +2332,18 @@ flyout's Use Preview Bounds), the Transform panel's and Control bar's X, Y, W an
 stroke (see Stroke bounds and clicks); off, they measure the paths. The three Align commands also take
 `bounds: "preview"|"geometric"` for one call. `object.setBounds` then sets the visual box: with Scale Strokes &
 Effects off a 100 pt wide rectangle with a 10 pt stroke set to `width: 220` gets a 210 pt path.
+
+With Use Preview Bounds on, these measures take in each object as it is drawn after its geometry effects. A path is
+measured by its effected shape, and a fill or stroke with geometry effects of its own is measured by the shape it
+paints. Type, images, live objects and symbol instances are measured by their reshaped art, and a symbol instance is
+also measured by its reshaped art when its symbol's art has geometry effects. A group or layer with geometry or
+Pathfinder effects, or with a fill or stroke of its own that has geometry effects or paints members with geometry
+effects, is measured by its evaluated art. A blend, envelope or repeat whose objects have geometry effects is
+measured by its evaluated art, with those objects measured after their effects. A 100 pt square without a stroke,
+with Offset Path 10, measures 120 pt, and type with Outline Object is measured by its glyph outlines. Raster effects such as shadows and glows are not
+measured. In one object, the art of at most 4,096 symbol instances is measured with its geometry effects, and the
+other instances are measured without them. `object.setBounds` with `width: 100` gives that type a glyph box 100 pt
+wide.
 
 ```json
 {"name":"run_command","arguments":{"command":"object.align","params":{"horizontal":"left","bounds":"preview"}}}
@@ -2618,6 +2665,9 @@ passed straight back to `file.new`. Print presets and sizes without `units` star
 (mobile, web, video, social) in Pixels. A saved or Recent preset whose size (up to 163,830 pt), `artboards` (1 to
 1,000), spacing (0 to 100,000 pt) or bleed (0 to 72 pt a side) lies outside those ranges is read with the nearer end of
 each range, and a size of 0 or less is read as 1 pt.
+The desktop app's `file.newDialog` (Cmd/Ctrl+N) opens the New Document dialog on the first Recent entry, or on the
+Print category's Letter while Recent is empty. `file.newWithoutDialog` (Cmd/Ctrl+Alt+N) runs `file.new` with those
+settings and the next untitled name, without opening the dialog, and returns what `file.new` returns.
 
 ```json
 {"name":"run_command","arguments":{"command":"file.new","params":{"preset":"A4","orientation":"landscape","artboards":4,"artboardLayout":{"columns":2},"bleed":9}}}
@@ -2702,7 +2752,7 @@ value: true}`; the Control bar's and Properties' Scale Artwork with Artboard che
 Artboard) makes its handle drags proportional and passes `scaleArt`, as do Properties' and the Transform panel's
 artboard size fields while the tool is in use.
 
-`artboard.setProps {artboards: [{index, name?, x?, y?, width?, height?}…], scaleArt?, moveArt?, …}` sets several
+`artboard.setProps {artboards: [{index, name?, color?, x?, y?, width?, height?}…], scaleArt?, moveArt?, …}` sets several
 artboards in one undo step, each with its own fields; the other params apply to all of them. The art that moves or
 scales with each artboard is the art inside it before any of them changes, and an object inside several of them goes
 with the first one listed that moves or scales its art. An empty list and a list that names an artboard twice are
@@ -2721,6 +2771,15 @@ artboard only, and Artboard Options' Name renames only the artboard it shows.
 ```json
 {"name":"run_command","arguments":{"command":"artboard.setProps","params":{"artboards":[{"index":0,"width":300},{"index":2,"width":300}],"scaleArt":true}}}
 ```
+
+An artboard's background color (Properties › Artboards › Fill, Artboard Options' Background Color): `artboard.setProps
+{index, color}` sets it, with a color as the paint commands take it (`"#rrggbb"`, `{c, m, y, k}`, …), and
+`artboard.setProps {index, color: null}` removes it, each in one undo step; `artboard.new {color}` makes an artboard
+with one. The canvas draws that artboard's paper in
+the color. With Simulate Colored Paper on, it multiplies the color with the paper color, each sRGB channel as
+artboard × paper / 255; artboards without a color show the paper color. The transparency grid still covers it while
+it shows. Copies, duplicates and the native format keep the color; exports and print do not draw it. `inspect_document`
+lists it as the artboard's `color` (`#rrggbb`), and `ui.colorPicker {artboard: index}` opens the Color Picker for it.
 
 ```json
 {"name":"run_command","arguments":{"command":"artboard.copy","params":{"index":0}}}
@@ -2829,7 +2888,8 @@ the linked files again, looking for each at its path, then at its relative path 
 (so a folder moved with its links still opens). Only files on this computer, or on the network share the document is
 on, are looked at: a path to another computer, a device or a URL counts as missing. On Windows, a document opened from
 a mapped drive (`Z:\…`) is on the share the drive is mapped to, and links on that share (`\\server\share\…`) are
-looked at. The result lists `missingLinks`
+looked at. A link on a drive mapped to another share (`Y:\…`) counts as missing, from a document on this computer too.
+The result lists `missingLinks`
 (their images show the preview), `modifiedLinks` (left as they were; read again only with the preference
 `updateLinks: "automatically"`, then they are in `updatedLinks`), each as `{name, path, ids}`, with `refused` (why the
 path isn't followed) when it isn't. The desktop app also checks the active document's links when its window
@@ -2935,7 +2995,8 @@ shows the first note of the PDF and PNG it offers in the status bar.
 What other apps copied goes into the clipboard with `clipboard.importSvg`, `clipboard.importPdf {dataBase64, page?,
 password?, editingData?}` (the page's objects; with `editingData: true` the data is a `.ai` or `.ait` file, and every
 object of its editing data comes in as `document.open` reads it, each layer's objects in stacking order and a hidden
-layer's objects hidden, or the page's objects when `document.open` would not use that copy), `clipboard.importEps
+layer's objects hidden, or the page's objects when `document.open` would not use that copy; a `.ai` saved without PDF
+compatibility comes in from its editing data the same way with or without `editingData`), `clipboard.importEps
 {dataBase64}` (an EPS or other PostScript picture's objects, as `document.open` reads one, a hidden layer's objects
 hidden), `clipboard.importImage {dataBase64, mime?}` (an embedded image at 100% of its physical size) or
 `clipboard.importText {text}` (point text in the default type style), each centred on `center`
@@ -3053,8 +3114,9 @@ written. Every option defaults to true. Without `folder` (the web, or an agent t
 result carries the same files as a zip (`{name: "<name>.zip", dataBase64}`, entries under `<name>/`).
 
 `document.info {selectionOnly?, category?, format?: "text"}` adds `sections` (`[{id, title, rows: [[label, value]]}]`:
-document, objects, graphicStyles, spotColors, patterns, gradients, symbols, fonts, fontDetails, linkedImages,
-embeddedImages) and `pathLength` (pt: the total length of the paths, compound paths' pieces included and guides left
+document, objects, graphicStyles, brushes, spotColors, patterns, gradients, symbols, fonts, fontDetails, linkedImages,
+embeddedImages), `brushNames` (the Brushes panel's brushes; with `selectionOnly`, the brushes the selected objects'
+strokes use) and `pathLength` (pt: the total length of the paths, compound paths' pieces included and guides left
 out, which objects lists as Path Length in the document's units, say for a cut line or an LED strip along the letters);
 `format: "text"` returns the plain-text report Document Info › Save… (`docInfo.save {path?}`) and the package report
 write.
@@ -3483,7 +3545,9 @@ point type in the font the file names (embedded font programs are skipped). In a
 (else `%%BoundingBox`; a letter page without one). A program the interpreter can't run (an operator it doesn't know,
 an error, a runaway loop) or that draws nothing comes in as its TIFF preview (palette previews with an alpha channel
 too) with a warning; without a preview, the art drawn up to the error is kept with a warning, and a file with none is
-refused with a message saying why.
+refused with a message saying why. A PostScript error is named as PostScript spells it, followed by what it means:
+``a PostScript error (typecheck in `add`; a value has the wrong type for the operator)``. The status bar shows
+the meaning in the interface language, and the name stays as it is.
 
 ```json
 {"name":"run_command","arguments":{"command":"document.open","params":{"path":"/tmp/logo.eps"}}}
@@ -3754,6 +3818,27 @@ values the Paragraph panel shows, with Preview; OK sends the values that changed
 ```json
 {"name":"run_command","arguments":{"command":"text.setFormat","params":{"wordSpacing":[80,100,150],"letterSpacing":{"max":5},"singleWordJustification":"alignLeft"}}}
 ```
+
+## Insert Kashidas
+
+`text.setFormat {kashida}` (Paragraph panel › Insert Kashidas, shown with the Indic options) sets how the justified
+lines of the paragraphs of the selected type (or `ids`, or the paragraphs a `start` / `end` range touches) lengthen
+their Arabic words: `"none"` (the default), `"short"`, `"medium"`, `"long"` or `"stylistic"`. On a justified line of
+horizontal area type that is shorter than its measure, each Arabic word with joined letters gets one kashida between its
+last pair of them: a tatweel (U+0640) in the font of the letter after it. Words end at spaces, inline graphics and
+characters other than letters and marks, such as punctuation, digits and symbols. The kashidas share the line's room
+equally, each at most a quarter of an em (short), half an em (medium) or an em (long) of that letter's size at its
+horizontal scale; a stylistic kashida is a row of the font's own tatweels, as many whole ones as fit in its share and in
+an em. The word spaces and the rest of justification take the room the kashidas leave, so the line keeps its width.
+Line breaks are the same as with none. Lines that are not justified, words without joined letters and fonts without a
+tatweel get no kashidas. Each tatweel is a glyph of the layout that stands for no character and does not advance; the
+letter after the kashida advances over it, so the caret before that letter, a selection of it and a click on it take
+the kashida in. The setting is saved with the paragraph (`kashida` in `para`) only when it is not none, paragraph
+styles carry it, and Reset Panel sets it back to none. The change is one undo step.
+
+```json
+{"name":"run_command","arguments":{"command":"text.setFormat","params":{"kashida":"medium"}}}
+```
 ## Kinsoku Set
 
 `text.setFormat {kinsoku: "hard"|"soft"|"none"}` sets the Paragraph panel's Kinsoku Set of the selected type (or `ids`):
@@ -3797,7 +3882,13 @@ Left-aligned lines hang at their left margin, right-aligned lines hang at their 
 justified lines hang at both. In vertical type the margins are the top and bottom of a column. The space that
 justification adds between glyphs leaves out the gaps next to a hanging punctuation mark. Lines break where they did
 without it, and a line of one glyph does not hang. East Asian commas and full stops hang only through burasagari, and
-a line that ends in one hangs only at its start. Type on a path and right-to-left paragraphs are laid out as before.
+a line that ends in one hangs only at its start. Type on a path hangs at its brackets, measured along the path:
+left-aligned, Auto, Justify All and Justify with Last Line Aligned Left type hangs at the start bracket, right-aligned
+and Justify with Last Line Aligned Right type hangs at the end bracket, and centered and Justify with Last Line Aligned
+Center type hangs at both. Glyphs that hang past the end bracket do not make the type overflow. On an open path a
+hang stops at the path's end, and on a closed path the two hangs together take at most the stretch between the end
+and start brackets. SVG export writes type on a path whose glyphs hang as outlines, with a warning. Type on a path
+whose first paragraph runs right to left, and right-to-left paragraphs of point and area type, are laid out as before.
 New type and documents from before it have it off, and it is saved only when on. One undo step.
 
 ```json
@@ -3812,9 +3903,11 @@ paragraphs the punctuation Optical Margin Alignment hangs hangs outside the marg
 hyphens, full stops and commas wholly; asterisks, tildes, ellipses, en and em dashes, colons and semicolons by half),
 on the same sides (left-aligned lines at their left, right-aligned at their right, centered and justified at both), and
 letters don't hang. With Optical Margin Alignment on as well, the letters hang too. East Asian punctuation hangs only
-through burasagari; type on a path and right-to-left paragraphs are laid out as before. Off by default, saved with the
-paragraph (`roman_hanging` in `para`) only when on, carried by paragraph styles, and turned off by Reset Panel. One undo
-step. The menu item is checked while the paragraph the Paragraph panel shows has it on.
+through burasagari. When the first paragraph of type on a path has Roman Hanging Punctuation on, the type hangs its
+punctuation at its brackets as Optical Margin Alignment does, and no letters. Type on a path whose first paragraph runs
+right to left, and right-to-left paragraphs of point and area type, are laid out as before. Off by default, saved with
+the paragraph (`roman_hanging` in `para`) only when on, carried by paragraph styles, and turned off by Reset Panel.
+One undo step. The menu item is checked while the paragraph the Paragraph panel shows has it on.
 
 ```json
 {"name":"run_command","arguments":{"command":"text.setFormat","params":{"romanHangingPunctuation":true}}}
@@ -4127,7 +4220,7 @@ active tool, `tool` names another one, and `{}` just reads them; the result is t
 tool keeps last across tool switches (and documents) and are saved with the preferences (`toolSettings` in
 `prefs.get`'s full object), as the reference app keeps them: the Liquify tools' brush and tool options, Mirror & Cut's
 axis and side, Puppet Warp's mesh, the Symbolism brush, the line, grid, pencil, brush and eraser tools' options,
-polygon sides and star points, and the Flare Tool Options. The Liquify tools share one set of Global Brush Dimensions (width, height, angle,
+polygon sides and star points, the Flare Tool Options and the Shape Builder Tool Options. The Liquify tools share one set of Global Brush Dimensions (width, height, angle,
 intensity), and the Symbolism tools one brush. Interaction state (pins, a reference point) starts afresh.
 
 ```json
@@ -4153,6 +4246,21 @@ default name, "Artboard N" for the Nth artboard.
 
 ```json
 {"name":"run_command","arguments":{"command":"tool.setOption","params":{"tool":"flare","values":{"rays":24,"ringsOn":false}}}}
+```
+
+The Shape Builder tool's options are its Shape Builder Tool Options (dialog `shapeBuilderOptions`):
+`openFilledAsClosed` (on: a filled open path bounds a region as if an invisible edge closed it; off: it cuts regions
+as an unfilled path does), `pickColorFrom` (`artwork`, the default: a merged shape takes the fill of the front-most
+object over the first region the drag touches that an object covers, and the current fill when only lines enclose
+every region touched; `swatches`: the current fill, and the Left and Right arrow keys step the current fill through the
+document's color swatches), `cursorSwatchPreview` (off; with `swatches`, chips above the pointer show the current fill
+and the swatches before and after it), `selection` (`freeform`, the default, or `straightLine`: a drag touches what
+the line from its first point to the pointer crosses) and `highlightFill` (on by default; when it is off, merge mode
+shades no regions). The tool sends `openFilledAsClosed` and `pickColorFrom` with `shapeBuilder.merge`, which takes
+both as params, and `shapeBuilder.regions` takes `openFilledAsClosed`.
+
+```json
+{"name":"run_command","arguments":{"command":"tool.setOption","params":{"tool":"shapeBuilder","values":{"selection":"straightLine","pickColorFrom":"swatches"}}}}
 ```
 
 ## Perspective grid
@@ -4373,8 +4481,12 @@ between them by length; on a closed path the gaps run all the way round. The att
 object is turned to the path's direction there. An object rotated by other than a multiple of 90° is first turned to
 the nearest multiple. `rotate` tilts every object by that many degrees counter-clockwise. Without `path`, the command
 chooses the Objects on Path tool (`objectsOnPath`), whose click on a path sends `{path}`. As the path, the command
-refuses a guide, a compound path, type, a path without length and a path already in an Objects on Path group. As
-objects, it refuses graphs, layers and objects already in an Objects on Path group.
+refuses a guide, a compound path, type, a path without length, a path already in an Objects on Path group, a
+clipping path, and a path inside a compound path, blend, envelope, repeat or Intertwine group. As objects, it skips
+layers and refuses graphs, objects already in an Objects on Path group, clipping paths, and objects inside a blend,
+envelope, repeat or Intertwine group; a member of a compound path attaches as its whole compound path. The tool
+does not highlight a clipping path or a path inside a blend, envelope, repeat or Intertwine group, and a click on one
+attaches nothing.
 
 The group stays live: after every edit its objects go back on its path. Editing the path moves them, an object moved
 on its own goes back to its place, an object moved into the group (`layer.move` with `place: "inside"`) joins the end
@@ -4399,7 +4511,9 @@ when it is Single-line). Every-line, the default, picks the breaks of the whole 
 justified text gets even word spacing, ragged text (left, centre or right aligned) an even rag, so it may move a word
 that fits to the next line to avoid a lone short word on the last line or a full line next to a short one.
 Single-line fills each line as far as it goes. Point type and type on a path have no line width, so both composers
-give the same result there; paragraphs that mix type sizes fall back to Single-line.
+give the same result there. A paragraph whose characters differ in line metrics (type size, font, leading or vertical
+scale, or an inline graphic taller than the text) is composed with Every-line in rectangular area type, rows and
+columns included; in area type of another shape, or with text wrap, it falls back to Single-line.
 
 ```json
 {"name":"run_command","arguments":{"command":"text.setFormat","params":{"ids":[7],"composer":"singleLine"}}}

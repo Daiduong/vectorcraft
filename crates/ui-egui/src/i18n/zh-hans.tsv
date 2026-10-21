@@ -262,6 +262,7 @@
 	Blur	模糊
 	Bottom	下
 	Bottom in Front	下方置前
+	Bottom-Justified Tab	底对齐制表位
 	Bottom-to-Bottom Leading	基线至基线行距
 	Burasagari	标点悬挂
 	Force	强制
@@ -1029,6 +1030,14 @@
 	Alt key toggles to Smooth Tool	Alt 键切换为平滑工具
 	Keep selected	保持选择状态
 	Merge only with selection	仅与所选对象合并
+	Consider Open Filled Paths as Closed	将有填色的开放路径视为闭合路径
+	Pick Color From:	颜色来源：
+	Artwork	图稿
+	Cursor Swatch Preview	在指针旁预览色板
+	Selection:	选择方式：
+	Freeform	自由
+	Straight Line	直线
+	Highlight:	突出显示：
 	Fill Color	填色
 	Fill New Type Objects With Placeholder Text	用占位文本填充新文字对象
 	Fill Rule	填充规则
@@ -1156,6 +1165,8 @@ file-filter	Templates	模板
 	Large Gaps	大间隙
 	Gap Preview Color:	间隙预览颜色：
 	Close Gaps With Paths	用路径封闭间隙
+	Show Live Paint Gaps	显示实时上色间隙
+	Hide Live Paint Gaps	隐藏实时上色间隙
 	Select Fills	选择填色
 	Select Strokes	选择描边
 	Gaussian Blur…	高斯模糊…
@@ -1884,6 +1895,7 @@ file-filter	Templates	模板
 	New View	新建视图
 	New View…	新建视图…
 	New Window	新建窗口
+	New Without Dialog	无对话框新建
 	New Workspace	新建工作区
 	New Workspace…	新建工作区…
 	New {kind} Style…	新建{kind}样式…
@@ -2474,7 +2486,7 @@ font-script	Japanese	汉字
 	Replace	替换
 	Replace Font	替换字体
 	Replace it with another file, or ignore it: its images keep showing the preview saved with the document.	将其替换为其他文件，或忽略：其图像继续显示随文档保存的预览。
-	Replace Spine	替换路径
+	Replace Spine	替换脊线
 	Replace Symbol	替换符号
 	Replace With Font	替换为字体
 	Replaces the saved preset of that name.	替换同名已存预设。
@@ -2520,7 +2532,7 @@ font-script	Japanese	汉字
 	Reverse Path Direction	反转路径方向
 	Reverse Path Direction Off	关闭反转路径方向
 	Reverse Path Direction On	开启反转路径方向
-	Reverse Spine	反转路径
+	Reverse Spine	反转脊线
 	Revert	恢复
 	Revert to the saved version of “{name}”?	要恢复为“{name}”已存储的版本吗？
 	Replace “{name}”, the file this document was opened from?	要替换“{name}”（打开此文档的源文件）吗？
@@ -3152,6 +3164,7 @@ font-script	Japanese	汉字
 	Tools	工具
 	Top	上
 	Top in Front	上方在前
+	Top-Justified Tab	顶对齐制表位
 	Top-to-Top Leading	上缘至上缘行距
 	Top:	上：
 	Total Width:	总宽度：
@@ -3498,7 +3511,8 @@ imageTrace	Outline	轮廓
 	 to sample a color	以取样颜色
 	 across a selected object to set the gradient direction	横跨所选对象以设置渐变方向
 	 to select an artboard  |  	以选择画板  |  
-	 on the canvas to create one	在画布上以创建画板
+	 on the canvas to create one (	在画布上以创建画板 (
+	 selects several, or draws one inside an artboard)	可选择多个，或在画板内创建画板)
 	 a stroke to add a width point  |  	描边可添加宽度点  |  
 	 to change one side  |  	可只更改单侧  |  
 	 to select more points  |  	可选择更多点  |  
@@ -3734,7 +3748,7 @@ imageTrace	Outline	轮廓
 @msg	{path}: not a file	{path}：不是文件
 @msg	{path}: {e}	{path}：{e}
 @msg	can't write .{ext} images	无法写入 .{ext} 图像
-@msg	Replace Spine: select a blend and a path	替换混合轴：请选择一个混合对象和一条路径
+@msg	Replace Spine: select a blend and a path	替换脊线：请选择一个混合对象和一条路径
 @msg	nothing to wrap	没有可绕排的内容
 @msg	select a blend	请选择一个混合对象
 @msg	select a gradient mesh	请选择一个渐变网格
@@ -3788,6 +3802,10 @@ imageTrace	Outline	轮廓
 @msg	select a repeat	请选择一个重复对象
 @msg	select an Intertwine group	请选择一个交织组
 @msg	select an Objects on Path group	请选择一个路径上的对象组
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	复合路径、混合对象、封套、重复对象或交织组中的路径无法附加对象
+@msg	a clipping path can't take objects	剪切路径无法附加对象
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	混合对象、封套、重复对象或交织组中的对象无法附加到路径
+@msg	a clipping path can't be attached to a path	剪切路径无法附加到路径
 @msg	select the art to repeat	请选择要重复的图稿
 @msg	the document has no patterns	文档中没有图案
 @msg	no artboard	没有画板
@@ -3879,6 +3897,25 @@ imageTrace	Outline	轮廓
 @msg	a PostScript error ({name} in `{op}`: {at})	PostScript 错误 ({name}，位于 `{op}`：{at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	PostScript 错误 ({name}，位于 `{op}`：{at})，在 {procs} 中
 @msg	a PostScript error ({name})	PostScript 错误 ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	PostScript 错误 ({name}，位于 `{op}`；{meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	PostScript 错误 ({name}，位于 `{op}`；{meaning})，在 {procs} 中
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	PostScript 错误 ({name}，位于 `{op}`：{at}；{meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	PostScript 错误 ({name}，位于 `{op}`：{at}；{meaning})，在 {procs} 中
+@msg	a PostScript error ({name}; {meaning})	PostScript 错误 ({name}；{meaning})
+@msg	the program ends a dictionary it didn't begin	程序要结束一个它没有开始的字典
+@msg	the program opens a file, which the reader can't do	程序要打开文件，而 PostScript 读取器无法打开文件
+@msg	the program restores a saved state that was already restored	程序要恢复一个已经恢复过的保存状态
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	程序读取的数据已损坏或不完整，或者程序要在没有位置的文件中获取位置
+@msg	the program goes past one of the reader's limits	程序超出了 PostScript 读取器的一项限制
+@msg	the path has no point to continue from	路径没有可以接着绘制的点
+@msg	a value is outside the range the operator takes	某个值超出了运算符接受的范围
+@msg	the operator needs more values than the stack holds	运算符需要的值多于栈中的值
+@msg	part of the program isn't valid PostScript text	程序的一部分不是有效的 PostScript 文本
+@msg	a value has the wrong type for the operator	某个值的类型不适用于该运算符
+@msg	the program runs, deletes or renames a file, which the reader can't do	程序要运行、删除或重命名文件，而 PostScript 读取器无法执行这些操作
+@msg	the program asks for a resource that isn't defined	程序请求了未定义的资源
+@msg	a calculation has no result, as in a division by zero	计算没有结果，例如除以零
+@msg	the operator looks for a mark on the stack and finds none	运算符在栈中找不到标记
 @msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	它使用了 `{at}`，VectorCraft 的 PostScript 读取器无法识别
 @msg	the file was read up to an error ({why}): what follows it was left out	文件已读取到出错处 ({why})：其后的内容已略去
 @msg	this file's PostScript couldn't be read ({why}): {what}	无法读取此文件的 PostScript ({why})：{what}
@@ -4571,6 +4608,9 @@ imageTrace	Outline	轮廓
 	Left-to-Right Paragraph Direction	从左到右段落方向
 	Right-to-Left Paragraph Direction	从右到左段落方向
 	Line-end Punctuation Half Width	行尾标点半角
+	Insert Kashidas	插入卡希达
+	Long	长
+	Stylistic	风格化
 	Mojikumi Set	标点挤压集
 	Kinsoku Set	Kinsoku 集
 	Hard	强
@@ -5110,3 +5150,5 @@ lighting	Light	光源
 	Plaster	塑料效果
 	Note Paper…	便条纸…
 	Note Paper	便条纸
+	Water Paper…	水彩画纸…
+	Water Paper	水彩画纸
