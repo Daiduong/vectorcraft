@@ -102,7 +102,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Live Paint Bucket",
             [],
             None,
-            "{group?: id | ids?|id?: [id…] (paths to make live first, as livePaint.make does), point: [x,y], color?|swatch?|gradient?|none? (default: current fill), tint?: 0..100, keepModel?: bool (both as paint.setFill)} fill the face containing point → {group, face}",
+            "{group?: id | ids?|id?: [id…] (paths to make live first, as livePaint.make does), point: [x,y], color?|swatch?|gradient?|none? (default: current fill), tint?: 0..100, keepModel?: bool (both as paint.setFill)} fill the face containing point, skipping hidden faces → {group, face}",
             has_doc,
             lp_fill
         ),
@@ -752,6 +752,7 @@ fn lp_gap_options(s: &mut Session, p: &Value) -> Result<Value> {
 fn lp_fill(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "livePaint.fill";
     let pt = point_param(p, "point").filter(|q| finite(*q)).ok_or_else(|| bad(C, "missing point [x,y]"))?;
+    super::paint::check_keep_model(p, C)?;
     let paint = paint_from(s, p)?.unwrap_or_else(|| s.paint.fill.clone());
     let group = id_param(p, "group");
     let roots = if group.is_none() { root_ids(s, p)? } else { vec![] };
@@ -763,13 +764,24 @@ fn lp_fill(s: &mut Session, p: &Value) -> Result<Value> {
                 }
                 g
             }
-            None => match roots.iter().copied().find(|r| d.node(*r).is_some_and(|n| is_live_paint(n) && face_at(n, pt).is_some())) {
-                Some(g) => g,
-                None => make_live(d, sel, &roots)?.0,
-            },
+            None => {
+                let live_at = |face: fn(&Node, Point) -> Option<&Arc<Node>>| {
+                    roots.iter().copied().find(|r| d.node(*r).is_some_and(|n| is_live_paint(n) && face(n, pt).is_some()))
+                };
+                match (live_at(b::visible_face_at), live_at(face_at)) {
+                    (Some(g), _) => g,
+                    // At a point on a hidden face of a Live Paint group among the objects, the command returns an error
+                    // and does not merge the objects.
+                    (None, Some(_)) => return Err(EngineError::Other("no Live Paint face at that point".into())),
+                    (None, None) => make_live(d, sel, &roots)?.0,
+                }
+            }
         };
-        let fid =
-            d.node(gid).and_then(|n| face_at(n, pt)).map(|f| f.id).ok_or_else(|| EngineError::Other("no Live Paint face at that point".into()))?;
+        let fid = d
+            .node(gid)
+            .and_then(|n| b::visible_face_at(n, pt))
+            .map(|f| f.id)
+            .ok_or_else(|| EngineError::Other("no Live Paint face at that point".into()))?;
         d.node_mut(fid).ok_or(EngineError::NoNode(fid))?.appearance.set_fill(paint.clone());
         Ok((gid, fid))
     })?;
@@ -781,6 +793,7 @@ fn lp_stroke_edge(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "livePaint.strokeEdge";
     let pt = point_param(p, "point").filter(|q| finite(*q)).ok_or_else(|| bad(C, "missing point [x,y]"))?;
     let g = id_param(p, "group").ok_or_else(|| bad(C, "missing group"))?;
+    super::paint::check_keep_model(p, C)?;
     let paint = paint_from(s, p)?.unwrap_or_else(|| s.paint.stroke.clone());
     let width = p.get("width").and_then(Value::as_f64).unwrap_or(s.paint.stroke_width.max(0.0));
     if !(0.0..=1000.0).contains(&width) {
@@ -910,13 +923,14 @@ fn traced_shape(shape: tr::TracedShape, xf: vectorcraft_geom::Affine) -> LiveSha
             h: height,
             radii: [radius; 4],
             kinds: Default::default(),
+            radii_relative: false,
             xf: about(center, rotation) * Affine::translate((-width / 2.0, -height / 2.0)),
         },
         tr::TracedShape::Ellipse { center, rx, ry, rotation } => {
             LiveShape::Ellipse { w: 2.0 * rx, h: 2.0 * ry, pie: (0.0, 360.0), xf: about(center, rotation) * Affine::translate((-rx, -ry)) }
         }
         tr::TracedShape::Polygon { center, radius, sides, rotation } => {
-            LiveShape::Polygon { radius, sides, xf: about(center, rotation), radii: vec![], kinds: vec![] }
+            LiveShape::Polygon { radius, sides, xf: about(center, rotation), radii: vec![], kinds: vec![], radii_relative: false }
         }
     };
     // (Whether the move changed the shape's own numbers does not matter: its path is made from them next.)

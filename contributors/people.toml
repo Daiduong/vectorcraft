@@ -149,3 +149,6 @@ sync_github_name = true
 
 [people.addibble]
 sync_github_name = true
+
+[people.alpha-rock]
+display_name = "Aditya Sisodiya"

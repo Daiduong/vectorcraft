@@ -2849,8 +2849,10 @@ fn select_named_artboard(app: &mut VectorcraftApp, index: usize) {
     }
 }
 
+/// Start editing artboard `index`'s name on the canvas, unless the artboard is locked (the
+/// Artboards panel still renames it).
 fn begin_artboard_name_edit(ui: &Ui, app: &VectorcraftApp, index: usize) {
-    let Some(name) = app.session.active().and_then(|st| st.doc.artboards.get(index).map(|a| a.name.clone())) else { return };
+    let Some(name) = app.session.active().and_then(|st| st.doc.artboards.get(index).filter(|a| !a.locked).map(|a| a.name.clone())) else { return };
     ui.data_mut(|d| d.insert_temp(name_edit_id(), ArtboardNameEdit { index, text: name, fresh: true }));
 }
 
@@ -3112,9 +3114,22 @@ fn kurbo_flatten(p: &BezPath, tol: f64, f: &mut impl FnMut(PathEl)) {
     vectorcraft_geom::kurbo::flatten(p.elements().iter().copied(), tol, f);
 }
 
+/// The rendered raster `img` as an egui image. Both are premultiplied RGBA8, so its bytes are copied
+/// over whole instead of pixel by pixel, which costs milliseconds for a canvas on a large screen.
+/// A raster whose bytes don't match its size gives an empty image of that size.
+pub(crate) fn color_image(img: &vectorcraft_render::Rendered) -> egui::ColorImage {
+    let size = [img.width as usize, img.height as usize];
+    let mut pixels = vec![egui::Color32::TRANSPARENT; size[0] * size[1]];
+    let bytes: &mut [u8] = bytemuck::cast_slice_mut(&mut pixels);
+    if bytes.len() == img.pixels.len() {
+        bytes.copy_from_slice(&img.pixels);
+    }
+    egui::ColorImage::new(size, pixels)
+}
+
 /// Upload the art's raster; Pixel Preview's document pixels keep hard edges when magnified.
 fn upload(app: &mut VectorcraftApp, ctx: &egui::Context, img: &vectorcraft_render::Rendered, pixel: bool) {
-    let color = egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels);
+    let color = color_image(img);
     let options = if pixel { egui::TextureOptions::NEAREST } else { egui::TextureOptions::LINEAR };
     match &mut app.canvas.texture {
         Some(tex) => tex.set(color, options),
@@ -3430,6 +3445,23 @@ mod tests {
     use super::*;
     use vectorcraft_engine::Session;
     use vectorcraft_geom::Shape as _;
+
+    /// A rendered raster becomes the image egui's own conversion makes of it, half-transparent
+    /// edges and all; one whose bytes don't match its size becomes an empty image of that size.
+    #[test]
+    fn rendered_rasters_become_the_same_egui_images() {
+        let mut s = Session::new();
+        s.execute("file.new", &serde_json::json!({})).unwrap();
+        s.execute("shape.ellipse", &serde_json::json!({"x": 10, "y": 10, "width": 60, "height": 40})).unwrap();
+        s.execute("paint.setFill", &serde_json::json!({"color": "#3366cc"})).unwrap();
+        let doc = s.active().unwrap().doc.clone();
+        let img = vectorcraft_render::Renderer::new().render(&doc, 97, 61, Affine::IDENTITY, &vectorcraft_render::RenderOptions::default());
+        assert!(img.pixels.as_chunks::<4>().0.iter().any(|p| p[3] != 0 && p[3] != 255), "partly covered pixels");
+        let egui = egui::ColorImage::from_rgba_premultiplied([97, 61], &img.pixels);
+        assert_eq!(color_image(&img), egui);
+        let short = vectorcraft_render::Rendered { width: 3, height: 2, pixels: vec![255; 5] };
+        assert_eq!(color_image(&short), egui::ColorImage::new([3, 2], vec![egui::Color32::TRANSPARENT; 6]));
+    }
 
     /// With VECTORCRAFT_SYSTEM_CURSORS set the glyphs aren't drawn and the system's cursors stand in: those of
     /// the Pen and the other drawing tools are the system crosshair already, so Use Precise Cursors makes no
@@ -4051,6 +4083,37 @@ mod tests {
         assert_eq!(app.session.active().unwrap().doc.artboards[0].name, "Poster");
         commit_artboard_name(&mut app, 0, "   ");
         assert_eq!(app.session.active().unwrap().doc.artboards[0].name, "Poster", "an empty name is left as it is");
+    }
+
+    /// Double-clicking the name drawn above a locked artboard doesn't edit it (the Artboards panel
+    /// still renames the artboard), fit an artboard or open Artboard Options.
+    #[test]
+    fn double_clicking_a_locked_artboards_name_leaves_it() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 40, "y": 40, "width": 30, "height": 20})).unwrap();
+        app.session.execute("artboard.setProps", &json!({"index": 0, "locked": true})).unwrap();
+        app.select_tool("artboard");
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let rect = app.canvas_rect.unwrap();
+        let xf = Xf::new(rect, app.view().unwrap());
+        let mut target = None;
+        let _ =
+            ctx.run_ui(egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), ..Default::default() }, |ui| {
+                let ab = &app.session.active().unwrap().doc.artboards[0];
+                target = Some(tool_name_rect(ui.painter(), &xf, ab.rect, 0, &ab.name).center());
+            });
+        let at = target.unwrap();
+        let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        for _ in 0..2 {
+            frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at)]);
+            frame(&mut app, &ctx, vec![button(true)]);
+            frame(&mut app, &ctx, vec![button(false)]);
+        }
+        assert!(ctx.data(|d| d.get_temp::<ArtboardNameEdit>(name_edit_id()).is_none()), "the name isn't edited");
+        assert_eq!(app.session.active().unwrap().doc.artboards.len(), 1);
+        assert!(app.ui.dialog.is_none(), "Artboard Options stays closed");
     }
 
     /// #949: an artboard's name stays within the artboard's width on screen, ending in "…" when
@@ -5936,6 +5999,18 @@ mod tests {
         assert_eq!(outlines(&mut app), 0, "Pixel Preview on");
         app.run("view.pixelPreview", json!({})).unwrap();
         assert!(outlines(&mut app) > 0, "Pixel Preview off again");
+    }
+
+    /// View › Snap to Glyph toggles through the View menu command (#3124).
+    #[test]
+    fn snap_to_glyph_menu_command_toggles_the_view_flag() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+        assert!(!app.ui.view.snap_to_glyph);
+        app.run("view.snapToGlyph", json!({})).unwrap();
+        assert!(app.ui.view.snap_to_glyph);
+        app.run("view.snapToGlyph", json!({})).unwrap();
+        assert!(!app.ui.view.snap_to_glyph);
     }
 
     /// Smart Guides › Object Highlighting (#394): the outline of the object under the pointer

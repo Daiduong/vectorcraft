@@ -1375,6 +1375,7 @@ lighting	Light	Światło
 	{count} more rules: Export writes every one.	Więcej reguł: {count}. Eksport zapisze wszystkie.
 	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	Pominięto obiekty bez nazwy: {count}. Nadaj im nazwy lub włącz Obiekty bez nazwy w menu panelu.
 	All Categories	Wszystkie kategorie
+	Repeat Objects	Obiekty powtórzenia
 	Save…	Zapisz…
 	Selection Only	Tylko zaznaczenie
 	{title} (selection)	{title} (zaznaczenie)
@@ -1408,6 +1409,7 @@ lighting	Light	Światło
 	Edit the selected point's colour in the Color panel	Edytuj kolor zaznaczonego punktu w panelu Kolor
 	Edit the stop	Edytuj punkt koloru
 	Eyedropper: click the art to sample the stop's colour	Kroplomierz: kliknij kompozycję, aby pobrać kolor punktu
+	Eyedropper: click the art to sample the key color	Kroplomierz: kliknij kompozycję, aby pobrać kolor kluczowy
 	Gradient across stroke	Gradient w poprzek obrysu
 	Gradient along stroke	Gradient wzdłuż obrysu
 	Gradient Fill: click to apply, drag onto art	Wypełnienie gradientem: kliknij, aby zastosować, przeciągnij na kompozycję
@@ -1957,6 +1959,13 @@ lighting	Light	Światło
 	Tints and Shades	Tinty i odcienie
 	Hue Shift	Przesunięcie barwy
 	Key Color:	Kolor kluczowy:
+	Tips	Wskazówki
+	Colorization Tips	Wskazówki dotyczące koloryzacji
+	The samples show this brush on a blue stroke.	Próbki pokazują ten pędzel na niebieskim obrysie.
+	The art keeps its own colors.	Kompozycja zachowuje własne kolory.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Czarny staje się kolorem obrysu, a biały pozostaje biały. Pozostałe kolory stają się tintami koloru obrysu, a im jaśniejszy jest kolor, tym jaśniejsza jest jego tinta.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Czarny pozostaje czarny, a biały pozostaje biały. Pozostałe kolory stają się ciemnymi odcieniami koloru obrysu, gdy są ciemne, i jego tintami, gdy są jasne.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Kolor kluczowy staje się kolorem obrysu. Pozostałe kolory przesuwają się po kole barw o tyle samo co kolor kluczowy i zachowują nasycenie oraz jasność.
 	Size:	Rozmiar:
 	Calligraphic Brush Options	Opcje pędzla kaligraficznego
 	Bristle Brush Options	Opcje pędzla włosiankowego
@@ -2777,12 +2786,21 @@ lighting	Light	Światło
 	Darken	Ciemniej
 	Exclusion	Wykluczenie
 	Hard Light	Ostre światło
+	Hard Mix	Mieszanie twarde
 	Lighten	Jaśniej
 	Luminosity	Jasność
 	Overlay	Nakładka
 	Soft Light	Łagodne światło
+	Soft Mix	Miękkie mieszanie
 	Crosshatch	Kreskowanie krzyżowe
 	Fine Dots	Drobne kropki
+
+	Simple	Prosty
+	Light Rough	Jasny szorstki
+	Dark Rough	Ciemny szorstki
+	Wide Sharp	Szeroki ostry
+	Wide Blurry	Szeroki rozmyty
+	Sparkle	Iskra
 	Medium Dots	Średnie kropki
 	Grainy Dots	Ziarniste kropki
 	Coarse Dots	Grube kropki
@@ -2860,6 +2878,14 @@ theme	Appearance	Wygląd
 	Edit Symbol	Edytuj symbol
 	Expand Brush Strokes	Rozszerz pociągnięcia pędzla
 	New Brush…	Nowy pędzel…
+	New Brush	Nowy pędzel
+	Calligraphic Brush	Pędzel kaligraficzny
+	Scatter Brush	Pędzel rozproszony
+	Art Brush	Pędzel artystyczny
+	Bristle Brush	Pędzel włosiankowy
+	Pattern Brush	Pędzel wzorka
+	Select art to make a scatter, art or pattern brush.	Zaznacz kompozycję, aby utworzyć pędzel rozproszony, artystyczny lub wzorka.
+	Brush Art	Kompozycja pędzla
 	New Symbol	Nowy symbol
 	New Symbol…	Nowy symbol…
 	Place Symbol Instance	Umieść wystąpienie symbolu
@@ -3320,6 +3346,7 @@ theme	Appearance	Wygląd
 	Scale Corners	Skaluj narożniki
 	Scale Cursor Proportional to UI	Skaluj kursor proporcjonalnie do interfejsu
 	Scale Strokes & Effects	Skaluj obrysy i efekty
+	Scale Text Attributes	Skaluj atrybuty tekstu
 	Scratch Disks	Dyski robocze
 	Secondary	Dodatkowy
 	Select Same Tint %	Zaznaczaj ten sam % tinty
@@ -3416,6 +3443,7 @@ theme	Appearance	Wygląd
 	Delete Swatch	Usuń próbkę
 	Duplicate Swatch	Powiel próbkę
 	Merge Swatches	Scal próbki
+	Move Brush	Przesuń pędzel
 	Move Swatch	Przesuń próbkę
 	New Color Group	Nowa grupa kolorów
 	New Swatch	Nowa próbka
@@ -4129,7 +4157,9 @@ imageTrace	Outline	Kontur
 @msg	no blend options	brak opcji przejścia
 @msg	no bounds	brak granic
 @msg	no brush named `{name}`	brak pędzla o nazwie `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	nazwa pędzla włosiankowego może mieć najwyżej {max} znaków (liczba znaków w `{name}`: {count})
 @msg	no brush selected	nie zaznaczono pędzla
+@msg	brushes move only within their type	pędzle można przesuwać tylko w obrębie ich typu
 @msg	no catalog	brak katalogu
 @msg	no changes since the last save	brak zmian od ostatniego zapisu
 @msg	no clock to keep a heartbeat by	brak zegara do podtrzymywania sygnału aktywności
@@ -4183,6 +4213,7 @@ imageTrace	Outline	Kontur
 @msg	no such action	brak takiej operacji
 @msg	no such anchor	brak takiego punktu
 @msg	no such artboard	brak takiego obszaru kompozycji
+@msg	the artboard is locked	obszar kompozycji jest zablokowany
 @msg	no such document	brak takiego dokumentu
 @msg	no such layer or object	brak takiej warstwy lub obiektu
 @msg	no such object {0}	brak obiektu {0}
@@ -4399,6 +4430,7 @@ imageTrace	Outline	Kontur
 @msg	unknown workspace (one of {_1})	nieznany obszar roboczy (jeden z: {_1})
 @msg	unsupported: {0}	nieobsługiwane: {0}
 @msg	variables are locked	zmienne są zablokowane
+@msg	variables that aren't text were left out: {kinds}	pominięto zmienne, które nie są tekstowe: {kinds}
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	plików w wersji {0} nie można kompresować: skompresowane pliki otwierają tylko wersje {COMPRESSED_SINCE} i nowsze
 @msg	width and height are at least 1 pixel	szerokość i wysokość muszą wynosić co najmniej 1 piksel
 @msg	workspace name can't be empty	nazwa obszaru roboczego nie może być pusta
@@ -4858,12 +4890,24 @@ imageTrace	Outline	Kontur
 	DWG (use DXF)	DWG (użyj DXF)
 	Artistic	Artystyczne
 	Film Grain…	Ziarno filmu…
+	Colored Pencil…	Kolorowa kredka…
+	Colored Pencil	Kolorowa kredka
 	Cutout…	Wycinanka…
 	Cutout	Wycinanka
+	Dry Brush…	Suchy pędzel…
+	Dry Brush	Suchy pędzel
 	Neon Glow…	Neonowa poświata…
+	Palette Knife…	Szpachel…
 	Neon Glow	Neonowa poświata
+	Paint Daubs…	Plamy farby…
+	Paint Daubs	Plamy farby
+	Palette Knife	Szpachel
 	Poster Edges…	Krawędzie plakatu…
+	Rough Pastels…	Suche pastele…
 	Poster Edges	Krawędzie plakatu
+	Rough Pastels	Suche pastele
+	Underpainting…	Podmalówka…
+	Underpainting	Podmalówka
 	Levels	Poziomy
 	Edge Simplicity	Prostota krawędzi
 	Edge Fidelity	Wierność krawędzi
@@ -4977,6 +5021,9 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+	3D Lighting Preset	Ustawienie oświetlenia 3D
+	Standard	Standardowe
+	Diffuse	Rozproszone
 # 3D light management.
 	Lights	Światła
 	Add Light	Dodaj światło
@@ -5034,6 +5081,7 @@ mark-style	Japanese	Japońskie
 @msg	Measured anchor no longer exists	Mierzony punkt kontrolny już nie istnieje
 @msg	Measured segment no longer exists	Mierzony odcinek już nie istnieje
 @msg	Non-finite dimension	Wymiar nie jest liczbą skończoną
+@msg	Scale Text Attributes: selected type has no scale to bake	Skaluj atrybuty tekstu: wybrany tekst nie ma skali do zastosowania
 @msg	Scale must be drawing:real, for example 1:10	Skala musi mieć postać rysunek:rzeczywistość, na przykład 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Współczynnik skali musi mieścić się między 1:1000000 a 1000000:1
 @msg	Second measured segment no longer exists	Drugi mierzony odcinek już nie istnieje
@@ -5052,6 +5100,7 @@ mark-style	Japanese	Japońskie
 	Make Image Dynamic	Uczyń obraz dynamicznym
 	Import Data Sets…	Importuj zestawy danych…
 	Export Data Sets…	Eksportuj zestawy danych…
+	Load Variable Library…	Wczytaj bibliotekę zmiennych…
 	Make Graph Dynamic	Uczyń wykres dynamicznym
 	Batch…	Przetwarzanie wsadowe…
 	Source Folder:	Folder źródłowy:
@@ -5075,6 +5124,8 @@ mark-style	Japanese	Japońskie
 	Sketch	Szkic
 	Halftone Pattern…	Wzór rastra…
 	Halftone Pattern	Wzór rastra
+	Torn Edges…	Postrzępione krawędzie…
+	Torn Edges	Postrzępione krawędzie
 	Pattern Type	Typ wzoru
 	Dot	Kropka
 # User Interface › Color Scheme
@@ -5093,6 +5144,7 @@ mark-style	Japanese	Japońskie
 	Watercolor…	Akwarela…
 	Watercolor	Akwarela
 	Brush Size	Rozmiar pędzla
+	Texture Coverage	Pokrycie teksturą
 	Definition	Wyrazistość
 	Brush Detail	Szczegółowość pędzla
 	Shadow Intensity	Intensywność cieni
@@ -5121,6 +5173,7 @@ mark-style	Japanese	Japońskie
 @msg	the image's pixels can't be read	nie można odczytać pikseli obrazu
 	Persistent	Trwały
 	Library Panel Options	Opcje panelu biblioteki
+	Locate Library…	Znajdź bibliotekę…
 @msg	Persistent libraries not found: {files}	Nie znaleziono trwałych bibliotek: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` nie jest panelem biblioteki (zobacz window.swatchLibrary)
 @msg	library panel `{given}` isn't open	panel biblioteki `{given}` nie jest otwarty
@@ -5221,3 +5274,7 @@ mark-style	Japanese	Japońskie
 	Note Paper	Papier listowy
 	Water Paper…	Mokry papier…
 	Water Paper	Mokry papier
+	Ruby…	Ruby…
+	Ruby	Ruby
+	Fresco…	Fresk…
+	Fresco	Fresk
