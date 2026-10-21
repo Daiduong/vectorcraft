@@ -460,6 +460,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("window.panel.activate", "Activate Panel", "", "{panel} show and select a panel in its current group"),
     ("window.panel.close", "Close Panel", "", "{panel} hide a panel"),
     (
+        "window.panel.collapse",
+        "Collapse Panel Group",
+        "",
+        "{panel, collapsed?: bool} show the dock group holding a panel as its tabs only (or its panel again), as a double-click on its tab does; the panel becomes the group's shown one. Without `collapsed` it toggles. Floating groups collapse through window.panel.float {panel, collapsed}. Returns {panel, collapsed}",
+    ),
+    (
         "window.panel.float",
         "Float Panel",
         "",
@@ -469,7 +475,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.panel.dock",
         "Dock Panel",
         "",
-        "{panel: id or \"tools\", group?: bool, column?: true or n} put a floating panel (with `group`, its whole group) back in the dock, as dropping it on the dock or its group's × does: Properties, Layers and Libraries in the tabbed group, the other panels in the icon column; with `column`, dock its group and the rest of its set as a dock column instead, as dropping it on the left edge of the icon column or of a dock column does: `true` at the dock's left, n at that place (1: next to the icon column, counting left); \"tools\" docks the Tools panel at the window's left edge. Returns {panel, floating, column}",
+        "{panel: id or \"tools\", group?: bool, column?: true or n, anchor?: id, zone?: \"tab\" | \"top\" | \"bottom\" | \"left\" | \"right\" | \"center\", before?: id, icon?: bool} put a floating panel (with `group`, its whole group) back in the dock, as dropping it on the dock or its group's × does: Properties, Layers and Libraries in the tabbed group, the other panels in the icon column; with `anchor`, in the dock group holding that panel instead: `zone` \"tab\" (the default) as a tab of it (before the `before` panel's tab), as dropping it on that group's tabs does, \"top\" / \"bottom\" as a new group above / below it, as dropping it on that group's upper / lower half does (\"left\", \"right\" and \"center\" split or join it likewise); with `icon: true` (no `anchor`), as icons in the icon column, the tabbed group's panels too, as dropping it on the icon column does: it lives there from then on and pops out of its icon; with `column`, dock its group and the rest of its set as a dock column instead, as dropping it on the left edge of the icon column or of a dock column does: `true` at the dock's left, n at that place (1: next to the icon column, counting left); \"tools\" docks the Tools panel at the window's left edge. Returns {panel, floating, column}, or with `anchor` or `icon: true` (the shared layout) {panel, floating, layout} and no `column`",
     ),
     (
         "window.collapseDock",
@@ -478,8 +484,18 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{collapsed?: bool} collapse the dock's Properties | Layers | Libraries group to icons (true), expand it (false) or toggle (omitted), as the double arrow at the top of the dock does; returns the new state",
     ),
     ("window.brightness", "UI Brightness", "", "{brightness: dark|mediumDark|mediumLight|light}"),
-    ("window.workspace", "Workspace", "", "{name} switch workspace (Essentials, Essentials Classic, Painting, …)"),
-    ("window.workspace.reset", "Reset Essentials", "", "{} reset the current workspace"),
+    (
+        "window.workspace",
+        "Workspace",
+        "",
+        "{name} switch workspace (Essentials, Essentials Classic, Painting, …): the one left keeps its layout changes, and the one switched to comes back as it was left (as saved if never changed)",
+    ),
+    (
+        "window.workspace.reset",
+        "Reset Essentials",
+        "",
+        "{} reset the current workspace to the way it was saved, dropping the layout changes made in it",
+    ),
     ("window.workspace.new", "New Workspace…", "", "{name?} save the current layout"),
     ("window.workspace.manage", "Manage Workspaces…", "", "{}"),
     ("window.workspace.delete", "Delete Workspace", "", "{name}"),
