@@ -74,7 +74,7 @@ struct Move {
 pub(crate) enum Drop {
     /// Back in the dock (the Tools panel: at the window's left edge).
     Dock,
-    /// The Tools panel docked at the window's right edge.
+    /// The Tools panel docked on the right, left of the panel dock.
     DockRight,
     /// Stacked with the floating group holding this panel.
     Stack(&'static str),
@@ -156,7 +156,7 @@ pub(crate) fn tools_zone_id() -> Id {
     Id::new("floating-tools-zone")
 }
 
-/// Where a Tools panel dropped docks at the window's right edge.
+/// Where a Tools panel dropped docks on the right: the strip left of the panel dock.
 pub(crate) fn tools_zone_right_id() -> Id {
     Id::new("floating-tools-zone-right")
 }
@@ -426,7 +426,14 @@ pub(crate) fn drag_tools(app: &mut VectorcraftApp, ctx: &egui::Context, title: &
 pub(crate) fn drop_target(app: &VectorcraftApp, ctx: &egui::Context, what: Moving, at: Pos2) -> Option<(Drop, Rect)> {
     let zone = |id: Id| ctx.data(|d| d.get_temp::<Rect>(id)).filter(|r| r.contains(at));
     let Moving::Panel(id) = what else {
-        return zone(tools_zone_id()).map(|r| (Drop::Dock, r)).or_else(|| zone(tools_zone_right_id()).map(|r| (Drop::DockRight, r)));
+        // Left of the panel dock, or anywhere along the window's right edge: it docks left of
+        // the panels either way, so that place lights up.
+        let right = ctx.data(|d| d.get_temp::<Rect>(tools_zone_right_id()));
+        let at_edge = at.x >= ctx.content_rect().right() - crate::toolbar::WIDTH && right.is_some_and(|r| r.y_range().contains(at.y));
+        return zone(tools_zone_id())
+            .map(|r| (Drop::Dock, r))
+            .or_else(|| zone(tools_zone_right_id()).map(|r| (Drop::DockRight, r)))
+            .or_else(|| right.filter(|_| at_edge).map(|r| (Drop::DockRight, r)));
     };
     let own = group_of(&app.ui, id);
     let moving = own.map(|i| set_of(&app.ui, i)).unwrap_or_default();
@@ -1650,8 +1657,9 @@ mod tests {
         assert_ne!(h.app.ui.toolbar_double, double);
     }
 
-    /// The Tools panel also docks at the window's right edge, stays there through a restart and a
-    /// workspace, and its flyouts open on its left, where there is room.
+    /// The Tools panel also docks on the right, dropped at the window's right edge or just left of
+    /// the panel dock: it stands between the canvas and the panels (left of their icon column),
+    /// stays there through a restart and a workspace, and its flyouts open on its left.
     #[test]
     fn the_tools_panel_docks_on_the_right_edge_too() {
         let mut h = Harness::new();
@@ -1665,10 +1673,14 @@ mod tests {
         assert_eq!((h.app.ui.toolbar_pos, h.app.ui.toolbar_right), (None, true), "docked on the right");
         h.settle();
         let bar = h.temp_rect(crate::edit_toolbar::toolbar_id());
-        assert!(bar.right() <= SCREEN.x && bar.right() > SCREEN.x - 10.0, "at the window's right edge (past the card's gap): {bar:?}");
-        // A flyout opens on the toolbar's left.
+        let dock = crate::toolbar::dock_left(&h.app, &h.ctx).expect("the panel dock shows");
+        assert!(dock < SCREEN.x - 40.0, "the panels keep the window's right edge: {dock}");
+        assert!(bar.right() <= dock + 1.0 && bar.right() > dock - 12.0, "left of the panel dock at {dock}: {bar:?}");
+        // A flyout opens on the toolbar's left, toward the canvas, not over the panels.
         let screen = Rect::from_min_size(Pos2::ZERO, SCREEN);
-        let x = crate::toolbar::beside(bar, 160.0, 8.0, screen);
+        let room = crate::toolbar::room(&h.app, &h.ctx);
+        assert!((room.right() - dock).abs() < 1.0, "room ends at the panels: {room:?}");
+        let x = crate::toolbar::beside(bar, 160.0, 8.0, room);
         assert!(x + 160.0 <= bar.left() - 7.0, "left of the toolbar: {x}");
         assert_eq!(crate::toolbar::beside(Rect::from_min_size(pos2(0.0, 50.0), vec2(40.0, 40.0)), 160.0, 8.0, screen), 48.0, "right of it elsewhere");
         // Kept in the preferences and in a saved workspace; Essentials docks it on the left.
@@ -1686,6 +1698,17 @@ mod tests {
         let float = h.ctx.memory(|m| m.area_rect(Id::new("toolbar-floating"))).unwrap();
         h.drag(float.left_top() + vec2(30.0, 7.0), pos2(10.0, 400.0));
         assert_eq!((h.app.ui.toolbar_pos, h.app.ui.toolbar_right), (None, false));
+        // Dropped just left of the panel dock (not at the window's edge), it docks there too.
+        h.settle();
+        let bar = h.temp_rect(crate::edit_toolbar::toolbar_id());
+        h.drag(bar.left_top() + vec2(30.0, 7.0), pos2(400.0, 300.0));
+        let float = h.ctx.memory(|m| m.area_rect(Id::new("toolbar-floating"))).unwrap();
+        let dock = crate::toolbar::dock_left(&h.app, &h.ctx).expect("the panel dock shows");
+        let beside = pos2(dock - 10.0, 400.0);
+        h.hold(float.left_top() + vec2(30.0, 7.0), beside);
+        assert_eq!(drop_target(&h.app, &h.ctx, Moving::Tools, beside).map(|t| t.0), Some(Drop::DockRight));
+        h.release(beside);
+        assert_eq!((h.app.ui.toolbar_pos, h.app.ui.toolbar_right), (None, true));
     }
 
     #[test]

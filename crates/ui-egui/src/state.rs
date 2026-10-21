@@ -391,7 +391,8 @@ pub struct UiState {
     /// docked at the window's left edge (or right edge, [`Self::toolbar_right`]).
     #[serde(default)]
     pub toolbar_pos: Option<[f32; 2]>,
-    /// The docked Tools panel stands at the window's right edge instead of its left (dropped there).
+    /// The docked Tools panel stands on the right, left of the panel dock, instead of at the window's
+    /// left edge (dropped there or on the window's right edge).
     #[serde(default)]
     pub toolbar_right: bool,
     pub status_bar: bool,

@@ -1610,12 +1610,18 @@ impl VectorcraftApp {
             // Keeps the previous frame's value valid for menus drawn above, before the bars.
             widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());
         }
-        if self.ui.toolbar && self.ui.screen_mode < 3 {
+        // Docked right, the Tools panel stands between the canvas and the panel dock: laid out
+        // after the dock, which takes the window's right edge first.
+        let tools_after_dock = self.ui.toolbar_right && self.ui.toolbar_pos.is_none();
+        if self.ui.toolbar && self.ui.screen_mode < 3 && !tools_after_dock {
             toolbar::show(self, ui);
         }
         panels::library_panel::tidy(self);
         if self.ui.dock && self.ui.screen_mode < 3 {
             dock::show(self, ui);
+        }
+        if self.ui.toolbar && self.ui.screen_mode < 3 && tools_after_dock {
+            toolbar::show(self, ui);
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.pasteboard)).show(ui, |ui| {
             if self.ui.screen_mode < 3 {

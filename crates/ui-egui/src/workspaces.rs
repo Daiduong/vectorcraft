@@ -52,7 +52,7 @@ pub struct Workspace {
     /// Main dock column width in screen points (#1753).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dock_width: Option<f32>,
-    /// The docked Tools panel stands at the window's right edge (built-in workspaces: left).
+    /// The docked Tools panel stands on the right, left of the panel dock (built-in workspaces: left).
     pub toolbar_right: bool,
 }
 
