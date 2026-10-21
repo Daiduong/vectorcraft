@@ -883,7 +883,7 @@ fn remove_image_background(s: &mut Session, p: &Value) -> Result<Value> {
                 height: h,
                 xf: im.xf,
                 link: im.link.clone(),
-                placement: im.placement.clone(),
+                placement: im.placement,
             }));
         }
         Ok(())
