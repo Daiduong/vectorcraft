@@ -5375,6 +5375,12 @@ imageTrace	Outline	Körvonal
 	Select by Color	Kijelölés szín szerint
 	Move Anchor Point	Horgonypont áthelyezése
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	A(z) {label} a dokumentum {n} rajztáblájából 1-et tart meg: a fájl eggyel nyílik meg újra. Kapcsolja be a Szerkeszthetőség megtartása beállítást, hogy mind megmaradjon.
+@msg	a QR Code version is 1 to 40, not {other}	a QR-kód verziója 1 és 40 közötti, nem {other}
+@msg	no codes to draw	nincs megrajzolható kód
+@msg	no line in the data is a code this symbology can carry	az adatok egyetlen sora sem olyan kód, amelyet ez a szimbólumrendszer hordozhat
+@msg	select a barcode	válasszon vonalkódot
+@msg	unknown barcode type `{name}`	ismeretlen vonalkódtípus: `{name}`
+@msg	unknown error correction level `{other}`	ismeretlen hibajavítási szint: `{other}`
 	Chalk & Charcoal…	Kréta és szén…
 	Chalk & Charcoal	Kréta és szén
 	Graphic Pen…	Grafikus toll…

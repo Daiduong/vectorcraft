@@ -5345,6 +5345,12 @@ theme	Appearance	Utseende
 	Select by Color	Markera efter färg
 	Move Anchor Point	Flytta ankarpunkt
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} behåller 1 av dokumentets {n} ritytor: filen öppnas igen med en. Slå på Bevara redigeringsmöjligheter för att behålla alla.
+@msg	a QR Code version is 1 to 40, not {other}	en QR-kods version är 1 till 40, inte {other}
+@msg	no codes to draw	inga koder att rita
+@msg	no line in the data is a code this symbology can carry	ingen rad i data är en kod som denna symbologi kan bära
+@msg	select a barcode	välj en streckkod
+@msg	unknown barcode type `{name}`	okänd streckkodstyp `{name}`
+@msg	unknown error correction level `{other}`	okänd felkorrigeringsnivå `{other}`
 	Chalk & Charcoal…	Krita och kol…
 	Chalk & Charcoal	Krita och kol
 	Graphic Pen…	Grafisk penna…

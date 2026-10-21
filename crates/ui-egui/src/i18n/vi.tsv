@@ -4984,6 +4984,12 @@ theme	Appearance	Giao diện
 	Select by Color	Chọn theo màu
 	Move Anchor Point	Di chuyển điểm neo
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} chỉ giữ 1 trong {n} bảng vẽ của tài liệu: tệp sẽ mở lại với một bảng vẽ. Bật Bảo lưu khả năng chỉnh sửa để giữ tất cả.
+@msg	a QR Code version is 1 to 40, not {other}	phiên bản QR Code từ 1 đến 40, không phải {other}
+@msg	no codes to draw	không có mã nào để vẽ
+@msg	no line in the data is a code this symbology can carry	không dòng nào trong dữ liệu là mã mà kiểu mã này có thể mang
+@msg	select a barcode	hãy chọn một mã vạch
+@msg	unknown barcode type `{name}`	kiểu mã vạch không xác định `{name}`
+@msg	unknown error correction level `{other}`	mức sửa lỗi không xác định `{other}`
 	Chalk & Charcoal…	Phấn và than…
 	Chalk & Charcoal	Phấn và than
 	Graphic Pen…	Bút đồ họa…

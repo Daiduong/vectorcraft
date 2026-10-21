@@ -5341,6 +5341,12 @@ effect	Points	Σημεία
 	Select by Color	Επιλογή βάσει χρώματος
 	Move Anchor Point	Μετακίνηση σημείου αγκύρωσης
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	Το {label} διατηρεί 1 από τους {n} πίνακες σχεδίασης του εγγράφου: το αρχείο ανοίγει ξανά με μία. Ενεργοποιήστε τη Διατήρηση δυνατοτήτων επεξεργασίας για να τους κρατήσετε όλους.
+@msg	a QR Code version is 1 to 40, not {other}	η έκδοση ενός QR Code είναι 1 έως 40, όχι {other}
+@msg	no codes to draw	δεν υπάρχουν κωδικοί για σχεδίαση
+@msg	no line in the data is a code this symbology can carry	καμία γραμμή στα δεδομένα δεν είναι κωδικός που μπορεί να φέρει αυτή η συμβολολογία
+@msg	select a barcode	επιλέξτε γραμμωτό κώδικα
+@msg	unknown barcode type `{name}`	άγνωστος τύπος γραμμωτού κώδικα `{name}`
+@msg	unknown error correction level `{other}`	άγνωστο επίπεδο διόρθωσης σφαλμάτων `{other}`
 	Chalk & Charcoal…	Κιμωλία και κάρβουνο…
 	Chalk & Charcoal	Κιμωλία και κάρβουνο
 	Graphic Pen…	Γραφική πένα…

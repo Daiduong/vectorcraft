@@ -5044,6 +5044,12 @@ lighting	Light	ライト
 	Select by Color	カラーで選択
 	Move Anchor Point	アンカーポイントを移動
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} ではドキュメントの {n} 個のアートボードのうち 1 個だけが保持され、ファイルは 1 個で開き直されます。すべて保持するには「編集機能を保持」をオンにしてください。
+@msg	a QR Code version is 1 to 40, not {other}	QR コードのバージョンは 1 から 40 です（{other} ではありません）
+@msg	no codes to draw	描画するコードがありません
+@msg	no line in the data is a code this symbology can carry	このシンボロジーが扱えるコードがデータのどの行にもありません
+@msg	select a barcode	バーコードを選択してください
+@msg	unknown barcode type `{name}`	不明なバーコードの種類 `{name}`
+@msg	unknown error correction level `{other}`	不明な誤り訂正レベル `{other}`
 	Chalk & Charcoal…	チョーク・木炭画…
 	Chalk & Charcoal	チョーク・木炭画
 	Graphic Pen…	グラフィックペン…

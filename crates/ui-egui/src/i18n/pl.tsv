@@ -5241,6 +5241,12 @@ mark-style	Japanese	Japońskie
 	Select by Color	Zaznacz według koloru
 	Move Anchor Point	Przesuń punkt kontrolny
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} zachowuje 1 z {n} obszarów kompozycji dokumentu: plik otworzy się ponownie z jednym. Włącz Zachowaj możliwości edycji, aby zachować wszystkie.
+@msg	a QR Code version is 1 to 40, not {other}	wersja kodu QR to od 1 do 40, nie {other}
+@msg	no codes to draw	brak kodów do narysowania
+@msg	no line in the data is a code this symbology can carry	żaden wiersz danych nie jest kodem, który ta symbologia może przenieść
+@msg	select a barcode	wybierz kod kreskowy
+@msg	unknown barcode type `{name}`	nieznany typ kodu kreskowego `{name}`
+@msg	unknown error correction level `{other}`	nieznany poziom korekcji błędów `{other}`
 	Chalk & Charcoal…	Kreda i węgiel…
 	Chalk & Charcoal	Kreda i węgiel
 	Graphic Pen…	Pióro graficzne…

@@ -5420,6 +5420,12 @@ swatch	Bright Violet	Kirkas violetti
 	Play:	Toista:
 	Move Anchor Point	Siirrä ankkuripistettä
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} säilyttää asiakirjan {n} piirtoalustasta 1: tiedosto avautuu uudelleen yhdellä. Ota Säilytä muokkausominaisuudet käyttöön, jotta kaikki säilyvät.
+@msg	a QR Code version is 1 to 40, not {other}	QR-koodin versio on 1–40, ei {other}
+@msg	no codes to draw	ei piirrettäviä koodeja
+@msg	no line in the data is a code this symbology can carry	mikään datan rivi ei ole koodi, jonka tämä symboliikka voi sisältää
+@msg	select a barcode	valitse viivakoodi
+@msg	unknown barcode type `{name}`	tuntematon viivakoodityyppi `{name}`
+@msg	unknown error correction level `{other}`	tuntematon virheenkorjaustaso `{other}`
 	Chalk & Charcoal…	Liitu ja hiili…
 	Chalk & Charcoal	Liitu ja hiili
 	Graphic Pen…	Grafiikkakynä…

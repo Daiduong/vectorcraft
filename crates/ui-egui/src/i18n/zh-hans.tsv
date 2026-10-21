@@ -5228,6 +5228,12 @@ lighting	Light	光源
 	Select by Color	按颜色选择
 	Move Anchor Point	移动锚点
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} 只保留文档 {n} 个画板中的 1 个：文件重新打开时只有一个。打开“保留编辑功能”可全部保留。
+@msg	a QR Code version is 1 to 40, not {other}	QR 码版本为 1 到 40，不是 {other}
+@msg	no codes to draw	没有可绘制的编码
+@msg	no line in the data is a code this symbology can carry	数据中没有任何一行是此码制能承载的编码
+@msg	select a barcode	请选择一个条形码
+@msg	unknown barcode type `{name}`	未知的条形码类型 `{name}`
+@msg	unknown error correction level `{other}`	未知的纠错级别 `{other}`
 	Chalk & Charcoal…	粉笔和炭笔…
 	Chalk & Charcoal	粉笔和炭笔
 	Graphic Pen…	绘图笔…

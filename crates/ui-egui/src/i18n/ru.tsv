@@ -5000,6 +5000,12 @@ lighting	Light	Свет
 	Select by Color	Выделить по цвету
 	Move Anchor Point	Переместить опорную точку
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} сохраняет 1 из {n} монтажных областей документа: файл откроется снова с одной. Включите «Сохранять возможности редактирования», чтобы сохранить все.
+@msg	a QR Code version is 1 to 40, not {other}	версия QR-кода — от 1 до 40, а не {other}
+@msg	no codes to draw	нет кодов для рисования
+@msg	no line in the data is a code this symbology can carry	ни одна строка данных не является кодом, который поддерживает эта символика
+@msg	select a barcode	выберите штрихкод
+@msg	unknown barcode type `{name}`	неизвестный тип штрихкода `{name}`
+@msg	unknown error correction level `{other}`	неизвестный уровень коррекции ошибок `{other}`
 	Chalk & Charcoal…	Мел и уголь…
 	Chalk & Charcoal	Мел и уголь
 	Graphic Pen…	Графическое перо…

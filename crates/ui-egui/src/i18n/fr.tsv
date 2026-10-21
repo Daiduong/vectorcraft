@@ -5388,6 +5388,12 @@ theme	Appearance	Apparence
 	Select by Color	Sélectionner par couleur
 	Move Anchor Point	Déplacer le point d’ancrage
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} conserve 1 des {n} plans de travail du document : le fichier se rouvre avec un seul. Activez Conserver les fonctions d’édition pour les conserver tous.
+@msg	a QR Code version is 1 to 40, not {other}	une version de QR Code va de 1 à 40, pas {other}
+@msg	no codes to draw	aucun code à dessiner
+@msg	no line in the data is a code this symbology can carry	aucune ligne des données n'est un code que cette symbologie peut porter
+@msg	select a barcode	sélectionnez un code-barres
+@msg	unknown barcode type `{name}`	type de code-barres inconnu `{name}`
+@msg	unknown error correction level `{other}`	niveau de correction d'erreur inconnu `{other}`
 	Chalk & Charcoal…	Craie et fusain…
 	Chalk & Charcoal	Craie et fusain
 	Graphic Pen…	Plume graphique…
