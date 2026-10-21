@@ -486,6 +486,7 @@ pub(crate) fn unique_name(base: &str, taken: impl Fn(&str) -> bool) -> String {
 }
 
 pub(crate) use edit::{settle_interaction, typing_in_progress};
+pub(crate) use object::bounds_rewrite;
 pub(crate) use vectorcraft_doc::range::parse_range;
 
 /// A date param in Unix seconds that defaults to the clock: `None` when absent (now, see
@@ -524,6 +525,9 @@ pub use flatten::FlattenerPreset;
 
 /// The shapes a group selected alone gives the Pathfinder panel.
 pub use pathops::shape_count;
+
+/// The gaps View › Show Live Paint Gaps shows on a Live Paint group.
+pub use buildcmds::live_paint_gaps;
 
 /// Command ids kept only so older scripts keep working: `(alias, the command it duplicates)`.
 /// They run as before but the command palette leaves them out (it lists the command once).

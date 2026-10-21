@@ -24,7 +24,8 @@
 	 from center  |  	 từ tâm  |  
 	 keeps its proportions)	 giữ nguyên tỷ lệ)
 	 near a selected pin to rotate  |  	 gần ghim đã chọn để xoay  |  
-	 on the canvas to create one	 trên vùng vẽ để tạo một cái
+	 on the canvas to create one (	 trên vùng vẽ để tạo một cái (
+	 selects several, or draws one inside an artboard)	 chọn nhiều cái hoặc tạo cái mới bên trong bảng vẽ)
 	 over paths to roughen their outlines  |  	 qua đường dẫn để làm thô đường bao  |  
 	 over paths, and hold still to keep going  |  	 qua đường dẫn và giữ yên để tiếp tục  |  
 	 right or left to zoom in or out  |  	 sang phải hoặc trái để phóng to hoặc thu nhỏ  |  
@@ -354,6 +355,7 @@
 	Bottom Left	Dưới trái
 	Bottom Right	Dưới phải
 	Bottom to Top	Dưới lên trên
+	Bottom-Justified Tab	Tab căn dưới
 	Bottom-to-Bottom Leading	Giãn dòng đáy đến đáy
 	Bottom:	Dưới:
 	Bounds	Giới hạn
@@ -1246,6 +1248,14 @@
 	Alt key toggles to Smooth Tool	Phím Alt chuyển sang công cụ Làm mượt
 	Keep selected	Giữ trạng thái đã chọn
 	Merge only with selection	Chỉ hợp nhất với vùng chọn
+	Consider Open Filled Paths as Closed	Coi đường dẫn mở có tô là đường dẫn đóng
+	Pick Color From:	Lấy màu từ:
+	Artwork	Tác phẩm
+	Cursor Swatch Preview	Xem trước mẫu màu cạnh con trỏ
+	Selection:	Cách chọn:
+	Freeform	Tự do
+	Straight Line	Đường thẳng
+	Highlight:	Làm nổi bật:
 	Fill New Type Objects With Placeholder Text	Tô đối tượng chữ mới bằng văn bản giữ chỗ
 	Fill Rule	Quy tắc tô
 	Fill with Placeholder Text	Tô bằng văn bản giữ chỗ
@@ -1395,6 +1405,8 @@ file-filter	Templates	Mẫu
 	Large Gaps	Khoảng cách lớn
 	Gap Preview Color:	Màu xem trước khoảng cách:
 	Close Gaps With Paths	Đóng khoảng cách bằng đường dẫn
+	Show Live Paint Gaps	Hiện khoảng cách tô trực tiếp
+	Hide Live Paint Gaps	Ẩn khoảng cách tô trực tiếp
 	Select Fills	Chọn vùng tô
 	Select Strokes	Chọn nét
 	Gaussian Blur	Mờ Gaussian
@@ -2124,6 +2136,9 @@ file-filter	Templates	Mẫu
 	Modified:	Đã sửa đổi:
 	Modify	Sửa đổi
 	Mojikumi	Mojikumi
+	Insert Kashidas	Chèn kashida
+	Long	Dài
+	Stylistic	Kiểu cách
 	Mojikumi Set	Bộ Mojikumi
 	Monitor RGB	RGB màn hình
 	Mono	Đơn sắc
@@ -2226,6 +2241,7 @@ file-filter	Templates	Mẫu
 	New View	Chế độ xem mới
 	New View…	Chế độ xem mới…
 	New Window	Cửa sổ mới
+	New Without Dialog	Mới không qua hộp thoại
 	New Workspace	Không gian làm việc mới
 	New Workspace…	Không gian làm việc mới…
 	New {kind} Style…	Kiểu {kind} mới…
@@ -3641,6 +3657,7 @@ mark-style	Japanese	Kiểu Nhật
 	Top Left	Trên trái
 	Top Right	Trên phải
 	Top to Bottom	Trên xuống dưới
+	Top-Justified Tab	Tab căn trên
 	Top-to-Top Leading	Giãn dòng đỉnh đến đỉnh
 	Top:	Trên:
 	Total Width:	Tổng chiều rộng:
@@ -4034,6 +4051,25 @@ theme	Appearance	Giao diện
 @msg	a PostScript error ({name} in `{op}`: {at})	lỗi PostScript ({name} trong `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	lỗi PostScript ({name} trong `{op}`: {at}), trong {procs}
 @msg	a PostScript error ({name})	lỗi PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	lỗi PostScript ({name} trong `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	lỗi PostScript ({name} trong `{op}`; {meaning}), trong {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	lỗi PostScript ({name} trong `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	lỗi PostScript ({name} trong `{op}`: {at}; {meaning}), trong {procs}
+@msg	a PostScript error ({name}; {meaning})	lỗi PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	chương trình kết thúc một từ điển mà nó chưa bắt đầu
+@msg	the program opens a file, which the reader can't do	chương trình mở một tệp, việc mà trình đọc PostScript không làm được
+@msg	the program restores a saved state that was already restored	chương trình khôi phục một trạng thái đã lưu vốn đã được khôi phục
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	dữ liệu chương trình đọc bị hỏng hoặc bị cắt cụt, hoặc chương trình yêu cầu vị trí trong một tệp không có vị trí
+@msg	the program goes past one of the reader's limits	chương trình vượt quá một giới hạn của trình đọc PostScript
+@msg	the path has no point to continue from	đường dẫn không có điểm để tiếp tục
+@msg	a value is outside the range the operator takes	một giá trị nằm ngoài phạm vi mà toán tử chấp nhận
+@msg	the operator needs more values than the stack holds	toán tử cần nhiều giá trị hơn số có trong ngăn xếp
+@msg	part of the program isn't valid PostScript text	một phần chương trình không phải là văn bản PostScript hợp lệ
+@msg	a value has the wrong type for the operator	một giá trị có kiểu không phù hợp với toán tử
+@msg	the program runs, deletes or renames a file, which the reader can't do	chương trình chạy, xóa hoặc đổi tên một tệp, việc mà trình đọc PostScript không làm được
+@msg	the program asks for a resource that isn't defined	chương trình yêu cầu một tài nguyên chưa được định nghĩa
+@msg	a calculation has no result, as in a division by zero	một phép tính không có kết quả, như khi chia cho không
+@msg	the operator looks for a mark on the stack and finds none	toán tử tìm một dấu mốc trên ngăn xếp nhưng không thấy
 @msg	a preset named `{_1}` exists	đã có thiết lập sẵn tên `{_1}`
 @msg	a swatch or color group named `{n}` exists	đã có mẫu màu hoặc nhóm màu tên `{n}`
 @msg	a slice size must be a positive number of points	kích thước lát cắt phải là số điểm dương
@@ -4454,6 +4490,10 @@ theme	Appearance	Giao diện
 @msg	select a repeat	hãy chọn một đối tượng lặp
 @msg	select an Intertwine group	hãy chọn một nhóm đan xen
 @msg	select an Objects on Path group	hãy chọn một nhóm đối tượng trên đường dẫn
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	không thể gắn đối tượng lên một đường dẫn nằm trong đường dẫn phức, đối tượng hòa trộn, Envelope, đối tượng lặp hoặc nhóm đan xen
+@msg	a clipping path can't take objects	không thể gắn đối tượng lên đường dẫn cắt
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	không thể gắn các đối tượng nằm trong đối tượng hòa trộn, Envelope, đối tượng lặp hoặc nhóm đan xen lên đường dẫn
+@msg	a clipping path can't be attached to a path	không thể gắn đường dẫn cắt lên đường dẫn
 @msg	select a stroke with a variable width	hãy chọn nét có chiều rộng biến đổi
 @msg	select a symbol instance	hãy chọn đối tượng ký hiệu
 @msg	select an envelope	hãy chọn một Envelope
@@ -4867,3 +4907,5 @@ theme	Appearance	Giao diện
 	Plaster	Thạch cao
 	Note Paper…	Giấy ghi chú…
 	Note Paper	Giấy ghi chú
+	Water Paper…	Giấy ướt…
+	Water Paper	Giấy ướt
