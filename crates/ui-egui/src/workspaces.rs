@@ -41,6 +41,9 @@ pub struct Workspace {
     pub docking_icons: std::collections::BTreeSet<String>,
     /// Where the Tools panel floats (built-in workspaces: docked).
     pub toolbar_pos: Option<[f32; 2]>,
+    /// Main dock column width in screen points (#1753).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dock_width: Option<f32>,
 }
 
 impl Default for Workspace {
@@ -51,6 +54,8 @@ impl Default for Workspace {
 }
 
 pub const ESSENTIALS: &str = "Essentials";
+/// Touch workspace (Window → Workspace → Touch; Preferences › Devices › Enable Touch Workspace).
+pub const TOUCH: &str = "Touch";
 
 /// Built-in workspaces, in Illustrator's menu order (Essentials first).
 pub fn builtins() -> Vec<Workspace> {
@@ -112,7 +117,38 @@ pub fn builtins() -> Vec<Workspace> {
             x.toolbar_advanced = true;
             x.open_panel = Some("symbols".into());
         }),
+        w(TOUCH, &|x| {
+            x.control_bar = true;
+            x.toolbar = true;
+            x.toolbar_advanced = true;
+            x.task_bar = true;
+            x.open_panel = Some("align".into());
+        }),
     ]
+}
+
+/// Preferences › Devices › Enable Touch Workspace (#394): on, a touch screen switches to the Touch
+/// workspace; off, or when no touch screen is reported, the workspace before that switch is
+/// restored if Touch was entered automatically.
+pub fn sync_touch_workspace(app: &mut VectorcraftApp, touch_screen: bool) {
+    let auto = app.session.prefs.touch_workspace && touch_screen;
+    if auto {
+        if app.ui.workspace != TOUCH {
+            if app.ui.touch_workspace_restore.is_none() {
+                app.ui.touch_workspace_restore = Some(app.ui.workspace.clone());
+            }
+            if let Some(w) = find(&app.ui, TOUCH) {
+                apply(&mut app.ui, &w);
+            }
+        }
+    } else if app.ui.touch_workspace_restore.is_some() && app.ui.workspace == TOUCH {
+        let back = app.ui.touch_workspace_restore.take().filter(|n| find(&app.ui, n).is_some()).unwrap_or_else(|| ESSENTIALS.to_string());
+        if let Some(w) = find(&app.ui, &back) {
+            apply(&mut app.ui, &w);
+        }
+    } else if !auto {
+        app.ui.touch_workspace_restore = None;
+    }
 }
 
 pub fn is_builtin(name: &str) -> bool {
@@ -140,6 +176,7 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
         docking_hidden: ui.docking_hidden.clone(),
         docking_icons: ui.docking_icons.clone(),
         toolbar_pos: ui.toolbar_pos,
+        dock_width: ui.dock_width,
     }
 }
 
@@ -165,6 +202,8 @@ pub fn apply(ui: &mut UiState, w: &Workspace) {
     ui.docking_icons =
         w.docking_icons.iter().filter(|id| crate::state::ICON_PANELS.iter().any(|entry| entry.0 == id.as_str())).take(64).cloned().collect();
     ui.toolbar_pos = w.toolbar_pos;
+    ui.dock_width = w.dock_width;
+    ui.dock_width_pending = true;
     FloatingPanels::sanitize(&mut ui.floating_panels, &mut ui.toolbar_pos);
     ui.flyout = None;
     ui.workspace = w.name.clone();
@@ -487,8 +526,43 @@ mod tests {
     #[test]
     fn all_requested_workspaces_exist() {
         let ui = UiState::default();
-        for n in ["Essentials", "Essentials Classic", "Painting", "Typography", "Layout", "Tracing", "Web", "Automation"] {
+        for n in ["Essentials", "Essentials Classic", "Painting", "Typography", "Layout", "Tracing", "Web", "Automation", TOUCH] {
             assert!(find(&ui, n).is_some(), "{n}");
         }
+    }
+
+    #[test]
+    fn touch_workspace_preference_switches_and_restores() {
+        use crate::{Services, VectorcraftApp};
+        use vectorcraft_engine::Session;
+
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        app.ui.workspace = "Typography".into();
+        app.session.prefs.touch_workspace = true;
+        sync_touch_workspace(&mut app, true);
+        assert_eq!(app.ui.workspace, TOUCH);
+        assert_eq!(app.ui.touch_workspace_restore.as_deref(), Some("Typography"));
+        assert!(app.ui.control_bar && app.ui.open_panel.as_deref() == Some("align"));
+        app.session.prefs.touch_workspace = false;
+        sync_touch_workspace(&mut app, true);
+        assert_eq!(app.ui.workspace, "Typography");
+        assert!(app.ui.touch_workspace_restore.is_none());
+    }
+
+    #[test]
+    fn saved_workspaces_restore_dock_width() {
+        let mut ui = UiState { dock_width: Some(420.0), ..Default::default() };
+        save_as(&mut ui, "Wide").unwrap();
+        ui.dock_width = Some(260.0);
+        save_as(&mut ui, "Narrow").unwrap();
+        let wide = find(&ui, "Wide").unwrap();
+        apply(&mut ui, &wide);
+        assert_eq!(ui.dock_width, Some(420.0));
+        assert!(ui.dock_width_pending);
+        let narrow = find(&ui, "Narrow").unwrap();
+        apply(&mut ui, &narrow);
+        assert_eq!(ui.dock_width, Some(260.0));
+        let back: UiState = serde_json::from_value(serde_json::to_value(&ui).unwrap()).unwrap();
+        assert_eq!(back.custom_workspaces[1].dock_width, Some(260.0));
     }
 }

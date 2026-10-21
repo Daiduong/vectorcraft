@@ -15,7 +15,9 @@
 //! layer's own fills and strokes paint its members' geometry and its effects apply to them as one
 //! piece; the Contents row (type: Characters) is the slot that says which of its fills and strokes
 //! paint below the members and which above ([`Appearance::contents_at`], moved by
-//! `appearance.moveItem {from: "contents"}`).
+//! `appearance.moveItem {from: "contents"}`). An image's own fills and strokes paint only the
+//! shape that a Convert to Shape or Outline Object effect on them gives them, below or above the
+//! image as its Contents row says; new ones go right below that row.
 
 use serde_json::{Value, json};
 use vectorcraft_color::{BlendMode, Paint};
@@ -35,8 +37,8 @@ pub fn specs() -> Vec<CommandSpec> {
             "appearance.addFill",
             "Add New Fill",
             ["Window", "Appearance"],
-            None,
-            "{ids?|id?, target?: \"object\"|\"contents\"} add a fill on top of each selected object's own stack (a copy of its top fill; type without one: its characters' fill; else the default fill)",
+            Some("Cmd+/"),
+            "{ids?|id?, target?: \"object\"|\"contents\"} add a fill on top of each selected object's own stack, on an image right below its Contents row (a copy of its top fill; type without one: its characters' fill; else the default fill)",
             has_doc,
             |s, p| add_item(s, p, true)
         ),
@@ -44,8 +46,8 @@ pub fn specs() -> Vec<CommandSpec> {
             "appearance.addStroke",
             "Add New Stroke",
             ["Window", "Appearance"],
-            None,
-            "{ids?|id?, target?} add a stroke on top of each selected object's own stack (a copy of its top stroke, else the default stroke)",
+            Some("Cmd+Alt+/"),
+            "{ids?|id?, target?} add a stroke on top of each selected object's own stack, on an image right below its Contents row (a copy of its top stroke, else the default stroke)",
             has_doc,
             |s, p| add_item(s, p, false)
         ),
@@ -216,7 +218,7 @@ pub(crate) fn item_target_at(s: &Session, p: &Value, key: &str, cmd: &str) -> Re
         Some(Value::Null) => Ok(ItemTarget::Top),
         Some(v) => v
             .as_u64()
-            .map(|i| ItemTarget::Item { index: i as usize, explicit: true })
+            .map(|i| ItemTarget::Item { index: index(i), explicit: true })
             .ok_or_else(|| bad(cmd, format!("`{key}` must be an appearance item index (paint order) or null"))),
         // The active item is a row of the first selected object's own stack.
         None if p.get("ids").is_some() || p.get("id").is_some() || targets_contents(p)? => Ok(ItemTarget::Top),
@@ -381,8 +383,9 @@ pub(crate) fn edits_stroke(s: &Session, p: &Value, item: ItemTarget, default: bo
     Ok(ids.first().and_then(|id| d.node(*id)?.appearance.items.get(index)).map_or(default, |it| !it.is_fill()))
 }
 
+/// The whole number of 0 or more that `key` holds, read with [`index`].
 pub(crate) fn index_param(p: &Value, key: &str, cmd: &str) -> Result<usize> {
-    p.get(key).and_then(Value::as_u64).map(|i| i as usize).ok_or_else(|| bad(cmd, format!("missing integer `{key}`")))
+    p.get(key).and_then(Value::as_u64).map(index).ok_or_else(|| bad(cmd, format!("missing integer `{key}`")))
 }
 
 fn set_active_item(s: &mut Session, p: &Value) -> Result<Value> {
@@ -408,6 +411,9 @@ fn set_active_item(s: &mut Session, p: &Value) -> Result<Value> {
 fn add_item(s: &mut Session, p: &Value, fill: bool) -> Result<Value> {
     let ids = require_targets(s, p, if fill { "appearance.addFill" } else { "appearance.addStroke" })?;
     let defaults = s.paint.clone();
+    // Where the new item went in on the active item's object, when it is an image.
+    let active = s.active_appearance_item.as_ref().and_then(|a| a.objects.first().copied());
+    let mut inserted = None;
     s.edit(if fill { "Add New Fill" } else { "Add New Stroke" }, |d, _| {
         for id in &ids {
             if let Some(n) = d.node_mut(*id) {
@@ -429,11 +435,23 @@ fn add_item(s: &mut Session, p: &Value, fill: bool) -> Result<Value> {
                 } else {
                     AppearanceItem::Stroke(StrokeLayer::new(paint, n.appearance.stroke_width().max(1.0)))
                 };
-                n.appearance.items.push(item);
+                if matches!(n.kind, NodeKind::Image(_)) {
+                    // On an image it goes right below the Contents row (the image).
+                    let k = n.appearance.contents_at();
+                    n.appearance.items.insert(k, item);
+                    n.appearance.set_contents_at(k + 1);
+                    if active == Some(*id) {
+                        inserted = Some(k);
+                    }
+                } else {
+                    n.appearance.items.push(item);
+                }
             }
         }
         Ok(())
     })?;
+    // The rows above the new item move up by one.
+    s.remap_appearance_item(&ids, |a| Some(a + usize::from(inserted.is_some_and(|k| k <= a))));
     ok()
 }
 
@@ -478,7 +496,7 @@ fn transfer(s: &mut Session, p: &Value) -> Result<Value> {
         if let (Some(f), Some(t)) = (src.geometric_bounds(), to.geometric_bounds()) {
             ap.rebase_gradients(f, t);
         }
-        // Only groups, layers and type have a Contents (Characters) row to keep a slot for.
+        // Only groups, layers, type and images have a Contents (Characters) row to keep a slot for.
         if to.contents_label().is_none() {
             ap.contents_index = None;
         }
@@ -530,6 +548,7 @@ fn reduce_basic(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn set_item(s: &mut Session, p: &Value) -> Result<Value> {
     let idx = index_param(p, "index", "appearance.setItem")?;
+    super::paint::check_keep_model(p, "appearance.setItem")?;
     let paint = paint_from(s, p)?;
     let ids = appearance_targets(s, p)?;
     if ids.is_empty() {
@@ -586,7 +605,7 @@ fn item_indices(p: &Value, cmd: &str) -> Result<Vec<usize>> {
     let mut v = match p.get("indices") {
         Some(a) => a
             .as_array()
-            .and_then(|a| a.iter().map(|x| x.as_u64().map(|i| i as usize)).collect::<Option<Vec<_>>>())
+            .and_then(|a| a.iter().map(|x| x.as_u64().map(index)).collect::<Option<Vec<_>>>())
             .filter(|v| !v.is_empty())
             .ok_or_else(|| bad(cmd, "`indices` must be a non-empty array of item indices"))?,
         None => vec![index_param(p, "index", cmd)?],
@@ -717,7 +736,7 @@ fn move_contents(s: &mut Session, ids: &[NodeId], to: usize) -> Result<Value> {
             n.appearance.set_contents_at(to);
             slot.get_or_insert(n.appearance.contents_at());
         }
-        slot.ok_or_else(|| bad("appearance.moveItem", "only groups, layers and type have a Contents (Characters) row"))?;
+        slot.ok_or_else(|| bad("appearance.moveItem", "only groups, layers, type and images have a Contents (Characters) row"))?;
         Ok(count_changed(d, &before, ids))
     })?;
     Ok(json!({ "contents": slot }))

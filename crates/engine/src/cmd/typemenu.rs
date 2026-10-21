@@ -160,6 +160,13 @@ fn edit_runs<S: Default>(s: &mut Session, label: &str, ids: &[NodeId], f: impl F
 
 // ---------- Change Case ----------
 
+/// Does `c` take a capital at the start of a word or sentence? Georgian has no word capitals:
+/// Mtavruli is a separate all-caps style, so title and sentence case leave Mkhedruli (and turn
+/// Mtavruli back into) lower case. Upper case still gives Mtavruli, as Unicode defines it.
+fn capitalizes(c: char) -> bool {
+    !matches!(c, '\u{10D0}'..='\u{10FF}' | '\u{1C90}'..='\u{1CBF}')
+}
+
 #[derive(Default)]
 struct CaseState {
     /// Previous character (across runs).
@@ -187,7 +194,7 @@ fn change_case(s: &mut Session, p: &Value) -> Result<Value> {
                 "upper" | "uppercase" => out.extend(c.to_uppercase()),
                 "lower" | "lowercase" => out.extend(c.to_lowercase()),
                 "title" => {
-                    if st.prev.is_none_or(|p| p.is_whitespace() || matches!(p, '-' | '(' | '"' | '“' | '/')) {
+                    if capitalizes(c) && st.prev.is_none_or(|p| p.is_whitespace() || matches!(p, '-' | '(' | '"' | '“' | '/')) {
                         out.extend(c.to_uppercase())
                     } else {
                         out.extend(c.to_lowercase())
@@ -195,7 +202,11 @@ fn change_case(s: &mut Session, p: &Value) -> Result<Value> {
                 }
                 _ => {
                     if c.is_alphabetic() && st.sentence {
-                        out.extend(c.to_uppercase());
+                        if capitalizes(c) {
+                            out.extend(c.to_uppercase());
+                        } else {
+                            out.extend(c.to_lowercase());
+                        }
                         st.sentence = false;
                     } else {
                         out.extend(c.to_lowercase());
@@ -635,9 +646,10 @@ pub(crate) fn find_all(hay: &str, needle: &str, match_case: bool, whole_word: bo
 
 fn all_texts(d: &Document) -> Vec<NodeId> {
     let mut v = vec![];
+    let locks = d.locked_artboards();
     for l in d.layers.iter().filter(|l| l.visible && !l.locked) {
         l.walk(&mut |n| {
-            if matches!(n.kind, NodeKind::Text(_)) && n.visible && !n.locked {
+            if matches!(n.kind, NodeKind::Text(_)) && n.visible && !n.locked && !locks.holds_id(n.id) {
                 v.push(n.id);
             }
         });

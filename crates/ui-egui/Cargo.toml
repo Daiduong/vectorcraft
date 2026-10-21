@@ -8,6 +8,13 @@ description = "VectorCraft egui frontend (menus, panels, tools and canvas); swap
 [lints]
 workspace = true
 
+[features]
+default = ["bundled-fonts"]
+# The fonts vectorcraft-text bundles for documents, through the engine's `bundled-fonts`. Off, for
+# an embedder that supplies every document font at run time (`vectorcraft_text::FontDb::add_font`);
+# the interface's own faces are separate copies in theme.rs and stay either way.
+bundled-fonts = ["vectorcraft-engine/bundled-fonts"]
+
 [dependencies]
 craft-ui = { workspace = true }
 vectorcraft-geom = { workspace = true }
@@ -38,9 +45,17 @@ log = { workspace = true }
 # MIT OR Apache-2.0 and already in the build through eframe.
 web-time = "1"
 
+# The current user's id (`geteuid`): Preview in Browser uses its temporary folder only when that
+# user owns it (src/dialogs/save_for_web.rs). Already in Cargo.lock (tempfile), so this adds no
+# new crate.
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, features = ["std", "process"] }
+
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 vectorcraft-testkit = { workspace = true }
+# A variable font built in code (no font file is committed).
+vectorcraft-text = { workspace = true, features = ["test-fonts"] }
 wat = { workspace = true }
 
 [build-dependencies]

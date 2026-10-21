@@ -13,12 +13,13 @@
 
 use std::sync::Arc;
 
+use vectorcraft_doc::color::{Color, Paint};
 use vectorcraft_doc::{Appearance, AppearanceItem, Node, NodeId, NodeKind, StrokeLayer};
 use vectorcraft_geom::{FillRule, PathData, Rect};
 use vectorcraft_pathops::{self as po, PathfinderOp};
 
 /// Effect ids of the Pathfinder submenu with their operation, in Illustrator's menu order.
-pub const PATHFINDER_EFFECTS: [(&str, &str, PathfinderOp); 10] = [
+pub const PATHFINDER_EFFECTS: [(&str, &str, PathfinderOp); 11] = [
     ("pathfinder.add", "Add", PathfinderOp::Unite),
     ("pathfinder.intersect", "Intersect", PathfinderOp::Intersect),
     ("pathfinder.exclude", "Exclude", PathfinderOp::Exclude),
@@ -29,6 +30,7 @@ pub const PATHFINDER_EFFECTS: [(&str, &str, PathfinderOp); 10] = [
     ("pathfinder.merge", "Merge", PathfinderOp::Merge),
     ("pathfinder.crop", "Crop", PathfinderOp::Crop),
     ("pathfinder.outline", "Outline", PathfinderOp::Outline),
+    ("pathfinder.hardMix", "Hard Mix", PathfinderOp::HardMix),
 ];
 
 /// Is `id` an Effect → Pathfinder effect?
@@ -138,13 +140,50 @@ pub fn pathfinder_children(group: &Node, hook: Option<OutlineHook>) -> Option<Ve
         if shapes.is_empty() {
             return Some(vec![]);
         }
-        stack = po::pathfinder(op, &shapes)
-            .into_iter()
-            .filter(|r| !r.path.is_empty())
-            .map(|r| Arc::new(styled(&sources[r.key as usize], r.path, op == PathfinderOp::Outline)))
-            .collect();
+        stack = if op == PathfinderOp::HardMix {
+            po::regions(&shapes)
+                .into_iter()
+                .filter(|r| !r.path.is_empty())
+                .map(|r| Arc::new(hard_mix_face(r.path, &r.sources, &shapes, &sources)))
+                .collect()
+        } else {
+            po::pathfinder(op, &shapes)
+                .into_iter()
+                .filter(|r| !r.path.is_empty())
+                .map(|r| Arc::new(styled(&sources[r.key as usize], r.path, op == PathfinderOp::Outline)))
+                .collect()
+        };
     }
     Some(stack)
+}
+
+/// One face of a Hard Mix: the max of each CMYK channel over every covering shape's fill; no stroke.
+fn hard_mix_face(path: PathData, covering: &[usize], shapes: &[po::Shape], sources: &[Node]) -> Node {
+    let mut cmyk = [0.0f32; 4];
+    let mut painted = false;
+    for &si in covering {
+        let src = &sources[shapes[si].key as usize];
+        let paint = src.appearance.fill_paint();
+        if let Some(color) = paint.color() {
+            let tinted = match paint {
+                Paint::Solid { tint, .. } => color.tinted(tint),
+                _ => color,
+            };
+            let [c, m, y, k] = tinted.to_cmyk();
+            for (out, v) in cmyk.iter_mut().zip([c, m, y, k]) {
+                *out = out.max(v);
+            }
+            painted = true;
+        }
+    }
+    let fill = if painted { Paint::solid(Color::cmyk(cmyk[0], cmyk[1], cmyk[2], cmyk[3])) } else { Paint::None };
+    let top = covering.last().and_then(|&si| sources.get(shapes[si].key as usize));
+    let mut n = Node::path(top.map_or(NodeId(0), |s| s.id), path, Appearance::basic(fill, Paint::None, 0.0));
+    if let Some(src) = top {
+        n.opacity = src.opacity;
+        n.blend = src.blend;
+    }
+    n
 }
 
 fn is_container(n: &Node) -> bool {
@@ -293,6 +332,15 @@ mod tests {
     use vectorcraft_doc::{CharStyle, Effect, NodeId, TextObject};
     use vectorcraft_geom::{Point, Rect, shapes};
 
+    /// Type tests need glyph outlines, which only the optional craft-fonts build input provides.
+    fn skip_without_craft_fonts() -> bool {
+        let skip = vectorcraft_text::CRAFT_FONTS.is_empty();
+        if skip {
+            eprintln!("skipped: built without craft-fonts (set CRAFT_FONTS_DIR to a craft-fonts checkout to run it)");
+        }
+        skip
+    }
+
     fn sq(id: u64, x: f64, color: Color) -> Arc<Node> {
         Arc::new(Node::path(
             NodeId(id),
@@ -309,6 +357,32 @@ mod tests {
 
     fn area(n: &Node) -> f64 {
         po::area(n.path_data().unwrap(), FillRule::NonZero).abs()
+    }
+
+    #[test]
+    fn hard_mix_takes_the_highest_of_each_cmyk_channel_and_drops_strokes() {
+        let a = Appearance::basic(Paint::solid(Color::cmyk(0.2, 0.66, 0.4, 0.0)), Paint::solid(Color::BLACK), 2.0);
+        let b = Appearance::basic(Paint::solid(Color::cmyk(0.4, 0.2, 0.3, 0.1)), Paint::solid(Color::BLACK), 2.0);
+        let mut g = Node::group(
+            NodeId(10),
+            vec![
+                Arc::new(Node::path(NodeId(1), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), a)),
+                Arc::new(Node::path(NodeId(2), shapes::rectangle(Rect::new(5.0, 0.0, 15.0, 10.0)), b)),
+            ],
+        );
+        g.appearance.effects.push(Effect { id: "pathfinder.hardMix".into(), params: serde_json::json!({}), visible: true });
+        let faces = pathfinder_children(&g, None).unwrap();
+        assert_eq!(faces.len(), 3);
+        let overlap = faces
+            .iter()
+            .find(|n| {
+                let b = n.geometric_bounds().unwrap();
+                b.x0 >= 4.9 && b.x1 <= 10.1 && b.y0 <= 0.1 && b.y1 >= 9.9
+            })
+            .expect("overlap face");
+        assert!(overlap.appearance.stroke_paint().is_none());
+        let [c, m, y, k] = overlap.appearance.fill_paint().color().unwrap().to_cmyk();
+        assert!((c - 0.4).abs() < 0.02 && (m - 0.66).abs() < 0.02 && (y - 0.4).abs() < 0.02 && (k - 0.1).abs() < 0.02, "{c} {m} {y} {k}");
     }
 
     #[test]
@@ -350,6 +424,9 @@ mod tests {
 
     #[test]
     fn type_changes_the_result_of_every_pathfinder_effect() {
+        if skip_without_craft_fonts() {
+            return;
+        }
         let glyphs = crate::outline_text(&type_h()).unwrap();
         let b = glyphs.geometric_bounds().unwrap();
         assert!(b.x0 < 100.0 && b.x1 > 100.0 && b.y0 > 0.0 && b.y1 < 100.0, "{b:?}");
@@ -377,6 +454,9 @@ mod tests {
 
     #[test]
     fn pieces_of_type_keep_its_paint_opacity_and_blend_mode() {
+        if skip_without_craft_fonts() {
+            return;
+        }
         let mut t = type_h();
         (t.opacity, t.blend) = (0.5, BlendMode::Multiply);
         let look = |p: &Arc<Node>| (p.appearance.fill_paint(), p.opacity, p.blend);
@@ -418,6 +498,9 @@ mod tests {
 
     #[test]
     fn type_in_a_group_keeps_its_look_when_the_groups_geometry_effects_outline_it() {
+        if skip_without_craft_fonts() {
+            return;
+        }
         use vectorcraft_color::BlendMode;
         let art = type_in_group(|t| (t.opacity, t.blend) = (0.5, BlendMode::Multiply));
         assert!(art.id == NodeId(3) && !matches!(art.kind, NodeKind::Text(_)), "{art:?}");
@@ -447,6 +530,9 @@ mod tests {
 
     #[test]
     fn a_transform_on_a_group_moves_the_gradients_of_its_type_and_not_those_placed_on_its_paths() {
+        if skip_without_craft_fonts() {
+            return;
+        }
         use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
         let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
         let ramp = GradientPaint::new(Gradient { kind: GradientKind::Linear, stops });
@@ -469,5 +555,33 @@ mod tests {
         let after = start(&members[1].children().unwrap()[0]);
         assert!((after - before - 30.0).abs() < 1e-6, "the type's gradient starts at {before}, then {after}");
         assert_eq!(start(&members[0]), 0.0, "the square's gradient stays where it was placed");
+    }
+
+    #[test]
+    fn a_transform_on_a_group_paints_each_copy_with_its_own_gradient() {
+        use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+        let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
+        let ramp = GradientPaint::new(Gradient { kind: GradientKind::Linear, stops });
+        let geom = GradientGeom { start: (0.0, 5.0).into(), end: (10.0, 5.0).into(), aspect: 1.0, focal: None };
+        let paints = [Paint::Gradient(Box::new(ramp.clone())), Paint::Gradient(Box::new(GradientPaint { geom: Some(geom), ..ramp }))];
+        for (k, paint) in paints.into_iter().enumerate() {
+            let square =
+                Arc::new(Node::path(NodeId(1), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::basic(paint, Paint::None, 0.0)));
+            let mut g = Node::group(NodeId(10), vec![square]);
+            let params = serde_json::json!({"moveH": 30, "copies": 2});
+            g.appearance.effects.push(Effect { id: "distort.transform".into(), params, visible: true });
+            let art = evaluate_container(&g).unwrap();
+            let copies = art.children().unwrap()[0].children().expect("the object and its copies are objects of their own");
+            assert_eq!(copies.len(), 3);
+            for (i, c) in copies.iter().enumerate() {
+                // Each copy's own box: an unplaced gradient fits it, a placed one moved with it.
+                assert!((c.geometric_bounds().unwrap().x0 - 30.0 * i as f64).abs() < 1e-6);
+                match c.appearance.fill_paint() {
+                    Paint::Gradient(g) if k == 0 => assert!(g.geom.is_none(), "copy {i} fits its own box"),
+                    Paint::Gradient(g) => assert!((g.geom.unwrap().start.x - 30.0 * i as f64).abs() < 1e-6, "copy {i}"),
+                    p => panic!("a gradient: {p:?}"),
+                }
+            }
+        }
     }
 }

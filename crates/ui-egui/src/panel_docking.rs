@@ -142,6 +142,74 @@ fn number(params: &Value, key: &str, default: f32) -> Result<f32, String> {
     }
 }
 
+const LEGACY_REORDER_BAD_DEST: &str = "move requires an existing destination panel";
+
+enum LegacyStripReorder {
+    DockStrip,
+    FloatingGroup(usize),
+}
+
+fn legacy_strip_reorder_target(
+    app: &VectorcraftApp,
+    before: &str,
+    dock_strip: bool,
+    panel_group: Option<usize>,
+) -> Result<LegacyStripReorder, String> {
+    if dock_strip {
+        return Ok(LegacyStripReorder::DockStrip);
+    }
+    let gi = panel_group.ok_or(LEGACY_REORDER_BAD_DEST)?;
+    if crate::floating::group_of(&app.ui, before) != Some(gi) {
+        return Err(LEGACY_REORDER_BAD_DEST.into());
+    }
+    Ok(LegacyStripReorder::FloatingGroup(gi))
+}
+
+/// Legacy workspaces (no saved `docking` layout): reorder tabs in the dock strip or a floating
+/// group without promoting to a shared layout.
+fn legacy_same_strip_reorder(app: &mut VectorcraftApp, panel: &str, before: &str, target: LegacyStripReorder) -> Result<Value, String> {
+    use crate::state::DockTab;
+    match target {
+        LegacyStripReorder::DockStrip => {
+            let mut order: Vec<DockTab> = crate::floating::docked_tabs(&app.ui).collect();
+            let from = order.iter().position(|t| t.info().0 == panel).ok_or(LEGACY_REORDER_BAD_DEST)?;
+            let to = order.iter().position(|t| t.info().0 == before).ok_or(LEGACY_REORDER_BAD_DEST)?;
+            if from != to {
+                let item = order.remove(from);
+                order.insert(to, item);
+                crate::floating::set_dock_tab_order(&mut app.ui, order);
+            }
+        }
+        LegacyStripReorder::FloatingGroup(gi) => {
+            let g = app.ui.floating_panels.get_mut(gi).ok_or("invalid restored panel group")?;
+            let from = g.panels.iter().position(|id| id == panel).ok_or(LEGACY_REORDER_BAD_DEST)?;
+            let to = g.panels.iter().position(|id| id == before).ok_or(LEGACY_REORDER_BAD_DEST)?;
+            crate::floating::reorder_group_tab_indices(g, from, to);
+            if let Some(layout) = app.ui.docking.as_mut() {
+                let panels = g.panels.clone();
+                let active = g.active.min(panels.len().saturating_sub(1));
+                if let Some(group) = layout.floating.iter_mut().find(|group| group.panels.iter().any(|id| id == panel)) {
+                    group.panels = panels;
+                    group.active = active;
+                }
+            }
+        }
+    }
+    Ok(json!({ "panel": panel, "before": before }))
+}
+
+/// Same-strip tab reorder for `window.panel.move` and in-frame tab drags (`app.run` during egui deadlocks).
+pub(crate) fn strip_tab_reorder(app: &mut VectorcraftApp, panel: &str, before: &str) -> Result<Value, String> {
+    use crate::state::DockTab;
+    let panel_group = crate::floating::group_of(&app.ui, panel);
+    let dock_strip_reorder = DockTab::from_id(panel).is_some()
+        && DockTab::from_id(before).is_some()
+        && panel_group.is_none()
+        && crate::floating::group_of(&app.ui, before).is_none();
+    let target = legacy_strip_reorder_target(app, before, dock_strip_reorder, panel_group)?;
+    legacy_same_strip_reorder(app, panel, before, target)
+}
+
 fn placement(params: &Value) -> Result<Placement<String>, String> {
     if let Some(before) = params.get("before") {
         let id = before.as_str().and_then(normalize).ok_or("before must name a panel")?;
@@ -294,6 +362,18 @@ fn apply_action(app: &mut VectorcraftApp, action: Action<String>) -> Result<Valu
 
 fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<Value, String> {
     let panel = params.get("panel").and_then(Value::as_str).and_then(normalize).ok_or("panel must name a registered panel")?;
+    if operation == "move" && params.get("before").is_some() {
+        let before = params.get("before").and_then(Value::as_str).and_then(normalize).ok_or("before must name a panel")?;
+        use crate::state::DockTab;
+        let panel_group = crate::floating::group_of(&app.ui, panel);
+        let dock_strip_reorder = DockTab::from_id(panel).is_some()
+            && DockTab::from_id(before).is_some()
+            && panel_group.is_none()
+            && crate::floating::group_of(&app.ui, before).is_none();
+        if app.ui.docking.is_none() || panel_group.is_some() || dock_strip_reorder {
+            return strip_tab_reorder(app, panel, before);
+        }
+    }
     if app.ui.docking.as_ref().is_some_and(|layout| !valid(layout)) {
         return Err("saved panel layout is invalid; reset the workspace first".into());
     }
@@ -504,6 +584,11 @@ struct PanelContent<'a> {
 
 impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
     fn body(&mut self, ui: &mut egui::Ui, panel: &String) {
+        let t = crate::theme::Tokens::get(ui.ctx());
+        let back = ui.max_rect();
+        if back.is_positive() {
+            ui.painter().rect_filled(back, 0.0, t.panel);
+        }
         let width = ui.available_width();
         let height = (ui.available_height() - 20.0).max(0.0);
         if crate::state::DockTab::from_id(panel).is_some() {
@@ -625,6 +710,29 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
     display
         .floating
         .retain(|group| !app.ui.floating_panels.iter().any(|native| decorated(native) && native.panels.iter().any(|id| group.panels.contains(id))));
+    // Library panels are titled by their libraries' names.
+    let library_labels: Vec<(String, String)> = layout
+        .panels()
+        .into_iter()
+        .filter_map(|panel| crate::panels::library_panel::tab_label(app, panel).map(|label| (panel.clone(), label)))
+        .collect();
+    let library_label = |panel: &str| library_labels.iter().find(|(p, _)| p == panel).map(|(_, label)| label.clone());
+    // Floating groups lie on the canvas, not on the dock's card: reserve a fill under each one
+    // before the dock draws it, sized once it is placed, so the canvas doesn't show through (#2421).
+    let fills: Vec<_> = display
+        .floating
+        .iter()
+        .filter_map(|group| {
+            let first = group.panels.first()?;
+            let layer = egui::LayerId::new(egui::Order::Middle, area.with(("floating", first)));
+            let [x, y, w, h] = group.rect;
+            let layout_rect = egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(w, h));
+            let fill = ui.ctx().layer_painter(layer).add(egui::Shape::Noop);
+            Some((layer, layout_rect, fill))
+        })
+        .collect();
+    crate::dock::apply_pending_dock_width(app, ui.ctx(), crate::dock::SHARED_DOCK_PANEL, crate::dock::clamp_shared_dock_width);
+    let shared_dock_default = crate::dock::shared_dock_default_width(&app.ui);
     let mut draw = |ui: &mut egui::Ui| {
         if layout.root.is_some() && crate::dock::collapse_header(ui, collapsed) {
             let _ = app.run("window.collapseDock", json!({"collapsed":!collapsed}));
@@ -635,8 +743,16 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
                 let info = crate::state::DockTab::from_id(panel)
                     .map(|tab| tab.info())
                     .or_else(|| crate::state::ICON_PANELS.iter().find(|entry| entry.0 == panel).copied());
-                if let Some((_, label, icon)) = info
-                    && crate::widgets::icon_button(ui, icon, tl!(label), app.ui.open_panel.as_ref() == Some(panel), 30.0).clicked()
+                let label = info.map(|(_, label, _)| tl!(label).to_string()).or_else(|| library_label(panel));
+                if let Some(label) = label
+                    && crate::widgets::icon_button(
+                        ui,
+                        info.map_or("library", |(_, _, icon)| icon),
+                        &label,
+                        app.ui.open_panel.as_ref() == Some(panel),
+                        30.0,
+                    )
+                    .clicked()
                 {
                     app.ui.open_panel = if app.ui.open_panel.as_ref() == Some(panel) { None } else { Some(panel.clone()) };
                 }
@@ -644,7 +760,8 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         }
         let mut style = craft_ui::docking::DockStyle::from_ui(ui);
         style.tab_height = 33.0;
-        // The dock is a card (`theme::card`): its panes and tab strip lie on the card's colour.
+        // The dock is a card (`theme::card`): its panes and tab strip lie on the card's colour
+        // (square fills would cover its rounded corners). Floating groups get the fills below.
         style.background = egui::Color32::TRANSPARENT;
         style.tab_background = egui::Color32::TRANSPARENT;
         style.active_background = t.button;
@@ -659,11 +776,17 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         style.resize_label = tl!("Resize panels").to_string();
         style.resize_window_label = tl!("Resize panel window").to_string();
         let mut content = PanelContent { app, commands: Vec::new() };
-        let output = craft_ui::docking::DockArea::new(egui::Id::new("vectorcraft-panel-docking")).show_customized(
+        let output = craft_ui::docking::DockArea::new(area).show_customized(
             ui,
             &display,
             &style,
-            |id| crate::state::all_panels().find(|p| p.0 == id).map(|p| tl!(p.1).to_string()).unwrap_or_else(|| id.clone()),
+            |id| {
+                crate::state::all_panels()
+                    .find(|p| p.0 == id)
+                    .map(|p| tl!(p.1).to_string())
+                    .or_else(|| library_label(id))
+                    .unwrap_or_else(|| id.clone())
+            },
             |_| craft_ui::docking::Permissions::default(),
             |_| craft_ui::docking::PanelLimits { min: egui::vec2(220.0, 80.0), ..Default::default() },
             &mut content,
@@ -676,10 +799,15 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         output
     };
     let output = if layout.root.is_some() {
-        let panel = egui::Panel::right("shared-panel-dock").default_size(310.0).size_range(220.0..=720.0).resizable(true).frame(egui::Frame::NONE);
+        let panel = egui::Panel::right(crate::dock::SHARED_DOCK_PANEL)
+            .default_size(shared_dock_default)
+            .size_range(220.0..=720.0)
+            .resizable(true)
+            .frame(egui::Frame::NONE);
         let panel = if collapsed { panel.exact_size(38.0).resizable(false) } else { panel };
         let shown = panel.show(ui, |ui| crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, &mut draw));
         ui.ctx().data_mut(|data| data.insert_temp(crate::floating::dock_rect_id(), shown.response.rect));
+        crate::dock::note_dock_width(app, ui.ctx(), crate::dock::SHARED_DOCK_PANEL);
         shown.inner
     } else {
         draw(ui)
@@ -718,6 +846,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         {
             return app.ui.docking.is_some();
         }
+        craft_ui::docking::cancel_drag::<String>(ui.ctx(), egui::Id::new("vectorcraft-panel-docking"));
         ui.ctx().data_mut(|data| data.remove::<LegacyDrag>(egui::Id::new("vectorcraft-panel-docking").with("legacy-origin")));
     }
     for action in output.actions {
@@ -726,7 +855,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         {
             continue;
         }
-        if let Err(error) = app.run("window.panel.layout", json!({"action": action})) {
+        if let Err(error) = apply_action(app, action) {
             app.ui.status = error;
         }
     }
@@ -752,6 +881,12 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
             && let Some(rect) = ui.ctx().memory(|memory| memory.area_rect(area.with(("floating", first))))
         {
             ui.ctx().data_mut(|data| data.insert_temp(crate::floating::group_rect_id(first), rect));
+        }
+    }
+    for (layer, layout_rect, fill) in fills {
+        let rect = ui.ctx().memory(|memory| memory.area_rect(layer.id)).filter(|rect| rect.is_positive()).unwrap_or(layout_rect);
+        if rect.is_positive() {
+            ui.ctx().layer_painter(layer).set(fill, egui::Shape::rect_filled(rect, 0.0, t.panel));
         }
     }
     icon_rail(app, ui);
@@ -803,6 +938,10 @@ fn icon_rail(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
 }
 
 pub(crate) fn legacy_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui, panel: &str, response: &egui::Response) {
+    legacy_tab_in_strip(app, ui, panel, response, None);
+}
+
+pub(crate) fn legacy_tab_in_strip(app: &mut VectorcraftApp, ui: &mut egui::Ui, panel: &str, response: &egui::Response, strip: Option<egui::Rect>) {
     let Some(panel) = normalize(panel) else { return };
     response.context_menu(|ui| {
         if ui.button(tl!("Float Panel")).clicked() {
@@ -826,9 +965,11 @@ pub(crate) fn legacy_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui, panel: &st
             }
         });
     });
-    if response.drag_started()
-        && let Some(id) = normalize(panel)
-    {
+    let inside_strip = strip.is_some_and(|strip| ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| strip.expand(4.0).contains(p)));
+    let area = egui::Id::new("vectorcraft-panel-docking");
+    let begun = ui.ctx().data(|d| d.get_temp::<LegacyDrag>(area.with("legacy-origin")).is_some());
+    let begin = if strip.is_some() { !begun && (response.drag_started() || (!inside_strip && response.dragged())) } else { response.drag_started() };
+    if begin && let Some(id) = normalize(panel) {
         let mut layout = app.ui.docking.clone().unwrap_or_else(|| legacy(app));
         let bounds = ui.max_rect();
         let source = egui::Rect::from_min_size(
@@ -981,9 +1122,10 @@ mod tests;
 
 /// Commit a pointer drop after shared and native panel windows have finished rendering.
 pub(crate) fn finish_native_drop(app: &mut VectorcraftApp, ctx: &egui::Context) {
-    if let Some((command, params)) =
+    if let Some((id, params)) =
         ctx.data_mut(|data| data.remove_temp::<(&'static str, serde_json::Value)>(egui::Id::new("vectorcraft-native-panel-drop")))
-        && let Err(error) = app.run(command, params)
+        && let Some(result) = command(app, id, &params)
+        && let Err(error) = result
     {
         app.ui.status = error;
     }
