@@ -840,6 +840,7 @@
 	Align to Artboard	아트보드에 정렬
 	Align to Glyph Bounds	글리프 경계에 정렬
 	Align to Key Object	키 개체에 정렬
+	Align to Key Anchor	키 앵커에 정렬
 	Align to Page	페이지에 정렬
 	Align to Path	패스에 정렬
 	Align to Selection	선택 영역에 정렬
@@ -958,6 +959,7 @@
 	Can't print these settings: see the Summary	이 설정으로는 인쇄할 수 없습니다. 요약을 확인하세요
 	Cancel	취소
 	Cancel Key Object	키 개체 취소
+	Cancel Key Anchor	키 앵커 취소
 	Canvas Color	캔버스 색상
 	Cap:	끝 모양:
 	Center Artwork	아트워크 가운데 맞춤

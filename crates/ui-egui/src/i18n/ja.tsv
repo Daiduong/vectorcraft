@@ -845,6 +845,7 @@
 	Align to Artboard	アートボードに整列
 	Align to Glyph Bounds	字形の境界に整列
 	Align to Key Object	キーオブジェクトに整列
+	Align to Key Anchor	キーアンカーに整列
 	Align to Page	ページに沿う
 	Align to Path	パスに沿う
 	Align to Selection	選択範囲に整列
@@ -963,6 +964,7 @@
 	Can't print these settings: see the Summary	この設定ではプリントできません。「サマリー」を確認してください
 	Cancel	キャンセル
 	Cancel Key Object	キーオブジェクトを解除
+	Cancel Key Anchor	キーアンカーを解除
 	Canvas Color	カンバスカラー
 	Cap:	線端:
 	Center Artwork	アートワークを中央に配置

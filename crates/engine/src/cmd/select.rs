@@ -524,11 +524,21 @@ fn anchors(s: &mut Session, p: &Value) -> Result<Value> {
         if whole && let Some(path) = d.node(id).and_then(|n| n.path_data()) {
             e.extend(path.anchors().map(|(s, i, _)| (s, i)));
         }
+        let mut last_added = None;
         for r in refs {
             if mode == "toggle" && e.contains(&r) {
                 e.remove(&r);
             } else {
                 e.insert(r);
+                if mode == "toggle" || mode == "add" {
+                    last_added = Some(r);
+                }
+            }
+        }
+        if let Some(r) = last_added {
+            let count = sel.anchors.values().map(|s| s.len()).sum::<usize>();
+            if count >= 2 {
+                sel.key_anchor = Some((id, r));
             }
         }
     })?;

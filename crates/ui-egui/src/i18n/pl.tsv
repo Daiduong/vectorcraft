@@ -1211,9 +1211,11 @@ lighting	Light	Światło
 	Align to Artboard	Wyrównaj do obszaru kompozycji
 	Align to Glyph Bounds	Wyrównaj do granic glifów
 	Align to Key Object	Wyrównaj do obiektu kluczowego
+	Align to Key Anchor	Wyrównaj do kotwicy kluczowej
 	Align to Selection	Wyrównaj do zaznaczenia
 	Align To:	Wyrównaj do:
 	Cancel Key Object	Anuluj obiekt kluczowy
+	Cancel Key Anchor	Anuluj kotwicę kluczową
 	Distribute Objects:	Rozmieść obiekty:
 	Distribute Spacing:	Rozmieść odstępy:
 	Horizontal Distribute Center	Rozmieść poziomo według środków

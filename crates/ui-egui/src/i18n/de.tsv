@@ -129,6 +129,7 @@
 	Align to Artboard	An Zeichenfläche ausrichten
 	Align to Glyph Bounds	An Glyphenbegrenzung ausrichten
 	Align to Key Object	An Basisobjekt ausrichten
+	Align to Key Anchor	An Ankerpunkt ausrichten
 	Align to Page	An Seite ausrichten
 	Align to Path	An Pfad ausrichten
 	Align to Selection	An Auswahl ausrichten
@@ -325,6 +326,7 @@
 	Can't print these settings: see the Summary	Mit diesen Einstellungen kann nicht gedruckt werden: siehe Übersicht
 	Cancel	Abbrechen
 	Cancel Key Object	Basisobjekt aufheben
+	Cancel Key Anchor	Ankerpunkt aufheben
 	Canvas Color	Farbe der Arbeitsfläche
 	Cap	Abschluss
 	Cap:	Abschluss:

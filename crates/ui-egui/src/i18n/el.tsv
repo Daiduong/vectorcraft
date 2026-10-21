@@ -127,6 +127,7 @@
 	Align to Artboard	Στοίχιση ως προς τον πίνακα σχεδίασης
 	Align to Glyph Bounds	Στοίχιση στα όρια των γλυφών
 	Align to Key Object	Στοίχιση ως προς το βασικό αντικείμενο
+	Align to Key Anchor	Στοίχιση ως προς το βασικό αγκύρωμα
 	Align to Page	Στοίχιση ως προς τη σελίδα
 	Align to Path	Στοίχιση ως προς τη διαδρομή
 	Align to Selection	Στοίχιση ως προς την επιλογή
@@ -318,6 +319,7 @@
 	Can't print these settings: see the Summary	Δεν είναι δυνατή η εκτύπωση με αυτές τις ρυθμίσεις: δείτε τη σύνοψη
 	Cancel	Ακύρωση
 	Cancel Key Object	Ακύρωση βασικού αντικειμένου
+	Cancel Key Anchor	Ακύρωση βασικού αγκυρώματος
 	Canvas Color	Χρώμα καμβά
 	Cap	Άκρο
 	Cap:	Άκρο:

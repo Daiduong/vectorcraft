@@ -1271,9 +1271,11 @@ lighting	Light	Valo
 	Align to Artboard	Tasaa piirtoalustaan
 	Align to Glyph Bounds	Tasaa merkin rajoihin
 	Align to Key Object	Tasaa avainobjektiin
+	Align to Key Anchor	Tasaa avainankkuriin
 	Align to Selection	Tasaa valintaan
 	Align To:	Tasaa:
 	Cancel Key Object	Peruuta avainobjekti
+	Cancel Key Anchor	Peruuta avainankkuri
 	Distribute Objects:	Jaa objektit tasaisesti:
 	Distribute Spacing:	Jaa välit tasaisesti:
 	Horizontal Distribute Center	Jaa tasaisesti vaakasuunnassa keskeltä

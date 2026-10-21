@@ -104,6 +104,7 @@
 	Align to Artboard	对齐画板
 	Align to Glyph Bounds	对齐到字形边界
 	Align to Key Object	对齐关键对象
+	Align to Key Anchor	对齐关键锚点
 	Align to Page	对齐页面
 	Align to Path	对齐路径
 	Align to Selection	对齐选区
@@ -301,6 +302,7 @@
 	Can't print these settings: see the Summary	无法打印这些设置：请参阅摘要
 	Cancel	取消
 	Cancel Key Object	取消关键对象
+	Cancel Key Anchor	取消关键锚点
 	Canvas Color	画布颜色
 	Cap	端点
 	Cap:	端点：

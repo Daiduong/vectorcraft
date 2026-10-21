@@ -145,6 +145,7 @@
 	Align to Artboard	Выровнять по монтажной области
 	Align to Glyph Bounds	Выровнять по границам глифа
 	Align to Key Object	Выровнять по ключевому объекту
+	Align to Key Anchor	Выровнять по ключевой точке привязки
 	Align to Page	Выровнять по странице
 	Align to Path	Выровнять по контуру
 	Align to Selection	Выровнять по выделению
@@ -341,6 +342,7 @@
 	Can't print these settings: see the Summary	Невозможно напечатать с этими параметрами: см. сводку
 	Cancel	Отмена
 	Cancel Key Object	Отменить ключевой объект
+	Cancel Key Anchor	Отменить ключевую точку привязки
 	Canvas Color	Цвет холста
 	Cap	Окончание
 	Cap:	Окончание:

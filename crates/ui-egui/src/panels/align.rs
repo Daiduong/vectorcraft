@@ -117,6 +117,15 @@ fn has_key(app: &VectorcraftApp) -> bool {
     app.session.active().is_some_and(|st| st.selection.has_key())
 }
 
+/// Whether a key anchor is set while anchor points are direct-selected.
+fn has_key_anchor(app: &VectorcraftApp) -> bool {
+    app.session.active().is_some_and(|st| st.selection.key_anchor.is_some())
+}
+
+fn selected_anchor_count(app: &VectorcraftApp) -> usize {
+    app.session.active().map(|st| st.selection.anchors.values().map(|s| s.len()).sum()).unwrap_or(0)
+}
+
 /// The first selected ruler guide while objects are selected too: the one Align to Key Object
 /// makes the key when there is no other object to be it.
 fn guide_for_key(app: &VectorcraftApp) -> Option<usize> {
@@ -138,7 +147,7 @@ fn topmost(app: &VectorcraftApp) -> Option<vectorcraft_doc::NodeId> {
 /// stored Align To choice, Selection or Artboard. The Distribute Objects and Distribute Spacing
 /// buttons send it as their `to`.
 fn align_to(app: &VectorcraftApp) -> AlignTo {
-    if has_key(app) { AlignTo::Key } else { app.ui.align_to }
+    if has_key(app) || has_key_anchor(app) { AlignTo::Key } else { app.ui.align_to }
 }
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
@@ -212,14 +221,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             // With one object selected the buttons align it to the artboard, and Align To shows Artboard.
             let shown = aligns_to(to, objects_aligned(app));
             ui.horizontal(|ui| {
+                let key_tip = if has_anchors(app) { tl!("Align to Key Anchor") } else { tl!("Align to Key Object") };
                 for (v, icon, tip) in [
                     (AlignTo::Selection, "dc-alignto-selection", tl!("Align to Selection")),
-                    (AlignTo::Key, "dc-alignto-key", tl!("Align to Key Object")),
+                    (AlignTo::Key, "dc-alignto-key", key_tip),
                     (AlignTo::Artboard, "dc-alignto-artboard", tl!("Align to Artboard")),
                 ] {
                     // A key object is one of two or more selected objects, or a guide selected
-                    // with objects.
-                    let on = v != AlignTo::Key || n >= 2 || has_key(app) || guide_for_key(app).is_some();
+                    // with objects; a key anchor needs two or more direct-selected anchor points.
+                    let on = match v {
+                        AlignTo::Key if has_anchors(app) => selected_anchor_count(app) >= 2 || has_key_anchor(app),
+                        AlignTo::Key => n >= 2 || has_key(app) || guide_for_key(app).is_some(),
+                        _ => true,
+                    };
                     if widgets::icon_button_enabled(ui, icon, tl!(tip), shown == v, on, 28.0).clicked() {
                         if v == AlignTo::Key {
                             // The topmost selected object becomes the key object, unless
@@ -257,8 +271,11 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
         super::transform::set_pref(app, "usePreviewBounds", !pb);
     }
     // Cancel Key Object clears the key, and Align To shows its stored choice again.
-    if menu_item(ui, tl!("Cancel Key Object"), align_to(app) == AlignTo::Key, false) {
+    if menu_item(ui, tl!("Cancel Key Object"), align_to(app) == AlignTo::Key && has_key(app), false) {
         app.run("select.key", json!({})).ok();
+    }
+    if menu_item(ui, tl!("Cancel Key Anchor"), has_key_anchor(app), false) {
+        app.run("select.keyAnchor", json!({})).ok();
     }
     menu_item(ui, tl!("Align to Glyph Bounds"), false, false);
 }

@@ -133,6 +133,7 @@
 	Align to Artboard	Подравняване спрямо работната област
 	Align to Glyph Bounds	Подравняване спрямо границите на глифа
 	Align to Key Object	Подравняване спрямо ключов обект
+	Align to Key Anchor	Подравняване спрямо ключова котва
 	Align to Page	Подравняване спрямо страницата
 	Align to Path	Подравняване спрямо пътя
 	Align to Selection	Подравняване спрямо селекцията
@@ -330,6 +331,7 @@
 	Can't print these settings: see the Summary	Тези настройки не могат да бъдат отпечатани: вижте обобщението
 	Cancel	Отказ
 	Cancel Key Object	Отмяна на основен обект
+	Cancel Key Anchor	Отмяна на ключова котва
 	Canvas Color	Цвят на платното
 	Cap	Капачка
 	Cap:	Край:

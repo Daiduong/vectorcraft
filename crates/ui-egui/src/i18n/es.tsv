@@ -147,6 +147,7 @@
 	Align to Artboard	Alinear con la mesa de trabajo
 	Align to Glyph Bounds	Alinear con los límites del glifo
 	Align to Key Object	Alinear con el objeto clave
+	Align to Key Anchor	Alinear con el punto de anclaje
 	Align to Page	Alinear con la página
 	Align to Path	Alinear con el trazado
 	Align to Selection	Alinear con la selección
@@ -343,6 +344,7 @@
 	Can't print these settings: see the Summary	No se puede imprimir con estos ajustes: consulta el Resumen
 	Cancel	Cancelar
 	Cancel Key Object	Cancelar objeto clave
+	Cancel Key Anchor	Cancelar punto de anclaje
 	Canvas Color	Color del lienzo
 	Cap	Extremo
 	Cap:	Extremo:

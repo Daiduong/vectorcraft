@@ -2786,6 +2786,28 @@ fn align_moves_selected_anchor_points() {
     assert_eq!(anchors(&s)[2].1 - anchors(&s)[0].1, 120.0, "its shape kept");
 }
 
+/// G1: Shift-adding anchor points makes the last one the key anchor; a plain click narrows and
+/// clears it; Align then leaves the key anchor fixed.
+#[test]
+fn shift_added_anchors_set_the_key_anchor_for_align() {
+    let mut s = session();
+    let id = NodeId(s.execute("path.create", &json!({"d": "M10 40 L200 60 L150 160 Z"})).unwrap()["id"].as_u64().unwrap());
+    let anchors = |s: &Session| -> Vec<(f64, f64)> {
+        s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect()
+    };
+    let key = |s: &Session| s.doc().unwrap().selection.key_anchor;
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 0]], "mode": "set"})).unwrap();
+    assert_eq!(key(&s), None);
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 1]], "mode": "toggle"})).unwrap();
+    assert_eq!(key(&s), Some((id, (0, 1))));
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 2]], "mode": "toggle"})).unwrap();
+    assert_eq!(key(&s), Some((id, (0, 2))));
+    s.execute("object.align", &json!({"vertical": "top"})).unwrap();
+    assert_eq!(anchors(&s), [(10.0, 160.0), (200.0, 160.0), (150.0, 160.0)], "C stays, A and B move to C's y");
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 1]], "mode": "set"})).unwrap();
+    assert_eq!(key(&s), None);
+}
+
 /// G1: with several anchor points direct-selected, Align to Key Object moves the others to the key
 /// anchor's horizontal or vertical position and leaves the key anchor fixed.
 #[test]
