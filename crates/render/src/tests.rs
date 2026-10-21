@@ -1036,6 +1036,21 @@ fn fractional_curved_strokes_retain_coverage_between_notches() {
                 Affine::translate((500.0 + phase, 500.0 + phase)) * Affine::rotate(f64::to_radians(rotation)) * Affine::translate((-500.0, -500.0));
             let image =
                 Renderer::new().render(&d, 1000, 1000, view, &RenderOptions { background: Some([255; 4]), artboards: false, ..Default::default() });
+            // Collect only the measured radial bands once, in the original row-major order.
+            // Each bin then adds the same pixels in the same order without rescanning the image.
+            let mut ring = Vec::new();
+            for y in 0..1000 {
+                for x in 0..1000 {
+                    let dx = x as f64 + 0.5 - 500.0 - phase;
+                    let dy = y as f64 + 0.5 - 500.0 - phase;
+                    let distance = dx.hypot(dy);
+                    if !arcs.iter().any(|(r, _, _)| (distance - r).abs() <= 3.0) {
+                        continue;
+                    }
+                    let angle = (dy.atan2(dx) - f64::to_radians(rotation)).rem_euclid(std::f64::consts::TAU);
+                    ring.push((distance, angle, f64::from(255 - image.pixel(x, y)[0]) / 255.0));
+                }
+            }
             for (r, begin, end) in arcs {
                 // 3 bins per arc avoid averaging away a washed-out section. The expected ink area
                 // is independently r * angle * displayed weight, with the existing half-pixel floor.
@@ -1043,17 +1058,12 @@ fn fractional_curved_strokes_retain_coverage_between_notches() {
                     let lo = begin + (end - begin) * bin as f64 / 3.0;
                     let hi = begin + (end - begin) * (bin + 1) as f64 / 3.0;
                     let mut ink = 0.0;
-                    for y in 0..1000 {
-                        for x in 0..1000 {
-                            let dx = x as f64 + 0.5 - 500.0 - phase;
-                            let dy = y as f64 + 0.5 - 500.0 - phase;
-                            if (dx.hypot(dy) - r).abs() > 3.0 {
-                                continue;
-                            }
-                            let angle = (dy.atan2(dx) - f64::to_radians(rotation)).rem_euclid(std::f64::consts::TAU);
-                            if angle >= lo && angle < hi {
-                                ink += f64::from(255 - image.pixel(x, y)[0]) / 255.0;
-                            }
+                    for &(distance, angle, value) in &ring {
+                        if (distance - r).abs() > 3.0 {
+                            continue;
+                        }
+                        if angle >= lo && angle < hi {
+                            ink += value;
                         }
                     }
                     let expected = r * (hi - lo) * weight.max(0.5) * f64::from(opacity);
