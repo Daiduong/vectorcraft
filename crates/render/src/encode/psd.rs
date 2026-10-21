@@ -74,6 +74,7 @@ fn blend_key(b: BlendMode) -> [u8; 4] {
         BlendMode::Saturation => b"sat ",
         BlendMode::Color => b"colr",
         BlendMode::Luminosity => b"lum ",
+        BlendMode::Erase => b"norm",
     }
 }
 

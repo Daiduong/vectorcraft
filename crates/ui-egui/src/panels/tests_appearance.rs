@@ -242,7 +242,7 @@ fn blend_separators_follow_the_groups() {
     use vectorcraft_color::BlendMode;
     let starts: Vec<BlendMode> =
         (0..BlendMode::ALL.len()).filter(|i| crate::widgets::blend_separator_before(*i)).map(|i| BlendMode::ALL[i]).collect();
-    assert_eq!(starts, [BlendMode::Darken, BlendMode::Lighten, BlendMode::Overlay, BlendMode::Difference, BlendMode::Hue]);
+    assert_eq!(starts, [BlendMode::Darken, BlendMode::Lighten, BlendMode::Overlay, BlendMode::Difference, BlendMode::Hue, BlendMode::Erase]);
     assert!(starts.iter().all(|m| m.group() > 0) && !crate::widgets::blend_separator_before(BlendMode::ALL.len()));
 }
 

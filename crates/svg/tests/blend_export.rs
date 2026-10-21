@@ -46,7 +46,7 @@ fn every_blend_mode_follows_the_reference_formulas() {
     ];
     for mode in BlendMode::ALL {
         for (b, s, clips) in pairs {
-            if clips && !mode.is_separable() {
+            if mode == BlendMode::Erase || (clips && !mode.is_separable()) {
                 continue;
             }
             let mut d = Document::new(20.0, 20.0);

@@ -1,4 +1,5 @@
-//! Blend modes (the 16 modes of Illustrator's Transparency panel, same as PDF's).
+//! Blend modes: Illustrator's Transparency panel (16 modes, same as PDF's) plus Erase (Affinity-style
+//! destination-out compositing).
 
 use serde::{Deserialize, Serialize};
 
@@ -21,11 +22,14 @@ pub enum BlendMode {
     Saturation,
     Color,
     Luminosity,
+    /// Cuts a hole in the backdrop where this object covers it (destination-out). Opacity scales the
+    /// cut, as in Affinity Designer.
+    Erase,
 }
 
 impl BlendMode {
     /// In Transparency-panel order (grouped as Illustrator groups them).
-    pub const ALL: [BlendMode; 16] = [
+    pub const ALL: [BlendMode; 17] = [
         BlendMode::Normal,
         BlendMode::Darken,
         BlendMode::Multiply,
@@ -42,6 +46,7 @@ impl BlendMode {
         BlendMode::Saturation,
         BlendMode::Color,
         BlendMode::Luminosity,
+        BlendMode::Erase,
     ];
 
     pub fn label(self) -> &'static str {
@@ -62,6 +67,7 @@ impl BlendMode {
             BlendMode::Saturation => "Saturation",
             BlendMode::Color => "Color",
             BlendMode::Luminosity => "Luminosity",
+            BlendMode::Erase => "Erase",
         }
     }
     /// Index of the separator group (the panel draws a divider between groups).
@@ -72,6 +78,7 @@ impl BlendMode {
             BlendMode::Lighten | BlendMode::Screen | BlendMode::ColorDodge => 2,
             BlendMode::Overlay | BlendMode::SoftLight | BlendMode::HardLight => 3,
             BlendMode::Difference | BlendMode::Exclusion => 4,
+            BlendMode::Erase => 6,
             _ => 5,
         }
     }
@@ -142,6 +149,7 @@ pub fn blend_rgb(mode: BlendMode, backdrop: [f32; 3], source: [f32; 3]) -> [f32;
         B::Saturation => set_lum(set_sat(backdrop, sat(source)), lum(backdrop)),
         B::Color => set_lum(source, lum(backdrop)),
         B::Luminosity => set_lum(backdrop, lum(source)),
+        B::Erase => backdrop,
     }
 }
 
@@ -150,6 +158,13 @@ pub fn blend_rgb(mode: BlendMode, backdrop: [f32; 3], source: [f32; 3]) -> [f32;
 /// alpha, then laid over the backdrop by its own alpha.
 pub fn composite(mode: BlendMode, backdrop: [f32; 4], source: [f32; 4]) -> [f32; 4] {
     let (ab, as_) = (backdrop[3].clamp(0.0, 1.0), source[3].clamp(0.0, 1.0));
+    if mode == BlendMode::Erase {
+        let ao = ab * (1.0 - as_);
+        if ao <= 0.0 {
+            return [0.0; 4];
+        }
+        return [backdrop[0], backdrop[1], backdrop[2], ao];
+    }
     let ao = as_ + ab * (1.0 - as_);
     if ao <= 0.0 {
         return [0.0; 4];
@@ -308,7 +323,18 @@ mod tests {
     }
 
     #[test]
+    fn erase_composite_cuts_backdrop_alpha() {
+        let b = [0.8, 0.4, 0.2, 1.0];
+        let s = [0.5, 0.5, 0.5, 0.5];
+        let o = composite(BlendMode::Erase, b, s);
+        assert!((o[3] - 0.5).abs() < 1e-6 && o[0..3] == b[0..3], "{o:?}");
+        let cut = composite(BlendMode::Erase, b, [0.5, 0.5, 0.5, 1.0]);
+        assert!(cut[3] < 1e-6, "{cut:?}");
+    }
+
+    #[test]
     fn parse_labels() {
+        assert_eq!(BlendMode::parse("erase"), Some(BlendMode::Erase));
         assert_eq!(BlendMode::parse("color burn"), Some(BlendMode::ColorBurn));
         assert_eq!(BlendMode::parse("ColorBurn"), Some(BlendMode::ColorBurn));
         assert_eq!(BlendMode::parse("soft_light"), Some(BlendMode::SoftLight));
