@@ -839,4 +839,58 @@ mod tests {
             assert_eq!(Scheme::parse(Scheme::Classic.id()), Some(Scheme::Classic));
         }
     }
+
+    /// How far a colour is from grey: its largest channel minus its smallest.
+    fn chroma(c: Color32) -> u8 {
+        c.r().max(c.g()).max(c.b()) - c.r().min(c.g()).min(c.b())
+    }
+
+    /// Flat: nothing docked is a card and tabs are underlined; the surfaces, the pressed tool and
+    /// buttons are neutral grey whatever accent is chosen, and the accent is a blue that nothing
+    /// but selection, focus and the primary action wears.
+    #[test]
+    fn flat_scheme_is_flush_and_neutral_with_a_blue_accent() {
+        for b in Brightness::ALL {
+            let t = Tokens::for_scheme(Scheme::Flat, b, Accent::Coral);
+            assert!(!t.cards, "{b:?}");
+            assert_eq!(t.tab_style, TabStyle::Underline);
+            assert_eq!(t.dark, Tokens::for_brightness(b).dark, "{b:?}");
+            assert_eq!(t.accent, Tokens::for_scheme(Scheme::Flat, b, Accent::Pink).accent, "{b:?}: the accent choice doesn't apply");
+            assert!(t.accent.b() > t.accent.r() + 80 && t.accent.b() > t.accent.g() + 60, "{b:?}: accent {:?} is blue", t.accent);
+            for (name, c) in [
+                ("app_bar", t.app_bar),
+                ("panel", t.panel),
+                ("tab_strip", t.tab_strip),
+                ("divider", t.divider),
+                ("input", t.input),
+                ("button", t.button),
+                ("hover", t.hover),
+                ("tool_active", t.tool_active),
+            ] {
+                assert!(chroma(c) <= 10, "{b:?}: {name} {c:?} is grey");
+                assert_ne!(c, t.accent, "{b:?}: {name}");
+            }
+            assert_ne!(t.tool_active, t.panel, "{b:?}: the pressed tool shows");
+            // Selected rows: a faint blue tint, nowhere near the accent itself.
+            assert!(t.row_selected.b() > t.row_selected.r() && chroma(t.row_selected) < chroma(t.accent) / 3, "{b:?}: {:?}", t.row_selected);
+            assert_eq!(Scheme::parse(Scheme::Flat.id()), Some(Scheme::Flat));
+        }
+    }
+
+    /// One corner scale in every scheme: small marks under controls under floating surfaces, the
+    /// same steps in all three schemes; Modern and Classic keep their cards and pill tabs.
+    #[test]
+    fn every_scheme_has_one_corner_scale() {
+        for b in Brightness::ALL {
+            for scheme in Scheme::ALL {
+                let t = Tokens::for_scheme(scheme, b, Accent::default());
+                assert_eq!((t.radius_small, t.radius, t.radius_float), (2, 4, 8), "{scheme:?} {b:?}");
+                assert_eq!(t.cr_float(), CornerRadius::same(t.radius_float));
+                if scheme != Scheme::Flat {
+                    assert!(t.cards, "{scheme:?} {b:?}");
+                    assert_eq!(t.tab_style, TabStyle::Pill, "{scheme:?} {b:?}");
+                }
+            }
+        }
+    }
 }

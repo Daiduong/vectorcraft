@@ -1011,4 +1011,49 @@ mod tests {
         app.run("window.workspace", json!({"name": "Icons"})).unwrap();
         assert!(app.ui.dock_collapsed, "the user workspace keeps them collapsed");
     }
+
+    /// The panel-coloured rectangles one frame of the toolbar, the dock and the icon rail paints in
+    /// a 1440 × 900 window in `scheme`.
+    fn docked_surfaces(scheme: theme::Scheme) -> Vec<egui::epaint::RectShape> {
+        fn rects(shape: &egui::Shape, fill: egui::Color32, out: &mut Vec<egui::epaint::RectShape>) {
+            match shape {
+                egui::Shape::Rect(r) if r.fill == fill && r.rect.height() > 400.0 => out.push(r.clone()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| rects(s, fill, out)),
+                _ => {}
+            }
+        }
+        let ctx = egui::Context::default();
+        egui_extras::install_image_loaders(&ctx);
+        theme::install_fonts(&ctx);
+        theme::apply_with(&ctx, theme::Brightness::MediumDark, theme::Accent::default(), scheme);
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({})).unwrap();
+        let screen_rect = Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(1440.0, 900.0)));
+        let mut output = ctx.run_ui(egui::RawInput { screen_rect, ..Default::default() }, |ui| {
+            crate::toolbar::show(&mut app, ui);
+            show(&mut app, ui);
+        });
+        output.textures_delta.clear();
+        let mut out = Vec::new();
+        for s in &output.shapes {
+            rects(&s.shape, Tokens::get(&ctx).panel, &mut out);
+        }
+        out
+    }
+
+    /// Flat: the toolbar and the dock reach the window's left and right edges, square; Modern keeps
+    /// them cards, inset from the edges with rounded corners.
+    #[test]
+    fn flat_columns_reach_the_window_edges_and_modern_keeps_its_cards() {
+        let flat = docked_surfaces(theme::Scheme::Flat);
+        assert!(flat.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {flat:?}");
+        assert!(flat.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {flat:?}");
+        assert!(flat.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO), "{flat:?}");
+        let modern = docked_surfaces(theme::Scheme::Modern);
+        assert!(modern.len() >= 3, "toolbar, rail and dock are cards: {modern:?}");
+        for r in &modern {
+            assert!(r.rect.left() >= 3.0 && r.rect.right() <= 1440.0 - 3.0, "a card stands off the edges: {:?}", r.rect);
+            assert_eq!(r.corner_radius, egui::CornerRadius::same(8));
+        }
+    }
 }
