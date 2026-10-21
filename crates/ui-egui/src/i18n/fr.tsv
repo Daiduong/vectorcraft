@@ -308,6 +308,7 @@
 	Blur	Flou
 	Bottom	Bas
 	Bottom in Front	Bas au premier plan
+	Bottom-Justified Tab	Tabulation alignée en bas
 	Bottom:	Bas :
 	Bounds	Limites
 	Bounds (Fill Proportionally)	Limites (remplir proportionnellement)
@@ -1081,6 +1082,13 @@
 	Alt key toggles to Smooth Tool	La touche Alt bascule sur l’outil Arrondi
 	Keep selected	Garder sélectionné
 	Merge only with selection	Fusionner uniquement avec la sélection
+	Consider Open Filled Paths as Closed	Traiter les tracés ouverts avec fond comme fermés
+	Pick Color From:	Prendre la couleur dans :
+	Artwork	Illustration
+	Cursor Swatch Preview	Aperçu des nuances près du pointeur
+	Selection:	Sélection :
+	Straight Line	Ligne droite
+	Highlight:	Mise en évidence :
 	Fill Color	Couleur de fond
 	Fill New Type Objects With Placeholder Text	Remplir les nouveaux objets texte avec un texte de substitution
 	Fill Rule	Règle de remplissage
@@ -1199,6 +1207,8 @@
 	Large Gaps	Grands espaces
 	Gap Preview Color:	Couleur d’aperçu des espaces :
 	Close Gaps With Paths	Fermer les espaces avec des tracés
+	Show Live Paint Gaps	Afficher les espaces de peinture dynamique
+	Hide Live Paint Gaps	Masquer les espaces de peinture dynamique
 	Select Fills	Sélectionner les fonds
 	Select Strokes	Sélectionner les contours
 	Gaussian Blur…	Flou gaussien…
@@ -1826,6 +1836,9 @@
 	Modified:	Modifié :
 	Modify	Modifier
 	Mojikumi	Mojikumi
+	Insert Kashidas	Insérer des kashidas
+	Long	Longue
+	Stylistic	Stylistique
 	Mojikumi Set	Jeu de mojikumi
 	Kinsoku Set	Jeu de kinsoku
 	Hard	Fort
@@ -1965,6 +1978,7 @@
 	New View	Nouvelle vue
 	New View…	Nouvelle vue…
 	New Window	Nouvelle fenêtre
+	New Without Dialog	Nouveau sans boîte de dialogue
 	New Workspace	Nouvel espace de travail
 	New Workspace…	Nouvel espace de travail…
 	New {kind} Style…	Nouveau style de {kind}…
@@ -3266,6 +3280,7 @@
 	Tools	Outils
 	Top	Haut
 	Top in Front	Haut au premier plan
+	Top-Justified Tab	Tabulation alignée en haut
 	Top:	Haut :
 	Total Width:	Largeur totale :
 	Touch Type Tool	Outil Retouche de texte
@@ -3603,7 +3618,8 @@ imageTrace	Outline	Contour
 	 to sample a color	 pour prélever une couleur
 	 across a selected object to set the gradient direction	 sur un objet sélectionné pour définir la direction du dégradé
 	 to select an artboard  |  	 pour sélectionner un plan de travail  |  
-	 on the canvas to create one	 sur la zone de travail pour en créer un
+	 on the canvas to create one (	 sur la zone de travail pour en créer un (
+	 selects several, or draws one inside an artboard)	 en sélectionne plusieurs ou en crée un dans un plan de travail)
 	 a stroke to add a width point  |  	 sur un contour pour ajouter un point de largeur  |  
 	 to change one side  |  	 pour modifier un seul côté  |  
 	 to select more points  |  	 pour sélectionner d’autres points  |  
@@ -3840,6 +3856,25 @@ axis	Both	Les deux
 @msg	a PostScript error ({name} in `{op}`: {at})	une erreur PostScript ({name} dans `{op}` : {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	une erreur PostScript ({name} dans `{op}` : {at}), dans {procs}
 @msg	a PostScript error ({name})	une erreur PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	une erreur PostScript ({name} dans `{op}` ; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	une erreur PostScript ({name} dans `{op}` ; {meaning}), dans {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	une erreur PostScript ({name} dans `{op}` : {at} ; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	une erreur PostScript ({name} dans `{op}` : {at} ; {meaning}), dans {procs}
+@msg	a PostScript error ({name}; {meaning})	une erreur PostScript ({name} ; {meaning})
+@msg	the program ends a dictionary it didn't begin	le programme ferme un dictionnaire qu’il n’a pas ouvert
+@msg	the program opens a file, which the reader can't do	le programme ouvre un fichier, ce que le lecteur PostScript ne sait pas faire
+@msg	the program restores a saved state that was already restored	le programme restaure un état enregistré qui a déjà été restauré
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	les données que lit le programme sont endommagées ou tronquées, ou le programme demande une position dans un fichier qui n’en a pas
+@msg	the program goes past one of the reader's limits	le programme dépasse l’une des limites du lecteur PostScript
+@msg	the path has no point to continue from	le tracé n’a aucun point à partir duquel continuer
+@msg	a value is outside the range the operator takes	une valeur est hors de la plage acceptée par l’opérateur
+@msg	the operator needs more values than the stack holds	l’opérateur a besoin de plus de valeurs que la pile n’en contient
+@msg	part of the program isn't valid PostScript text	une partie du programme n’est pas du texte PostScript valide
+@msg	a value has the wrong type for the operator	une valeur est d’un type incorrect pour l’opérateur
+@msg	the program runs, deletes or renames a file, which the reader can't do	le programme exécute, supprime ou renomme un fichier, ce que le lecteur PostScript ne sait pas faire
+@msg	the program asks for a resource that isn't defined	le programme demande une ressource qui n’est pas définie
+@msg	a calculation has no result, as in a division by zero	un calcul n’a pas de résultat, comme dans une division par zéro
+@msg	the operator looks for a mark on the stack and finds none	l’opérateur cherche une marque sur la pile et n’en trouve aucune
 @msg	a bitmap is empty	une image bitmap est vide
 @msg	a bitmap is too large to read	une image bitmap est trop grande pour être lue
 @msg	a colour index is 0 to {_1}, not {n}	un indice de couleur va de 0 à {_1}, pas {n}
@@ -4112,6 +4147,10 @@ axis	Both	Les deux
 @msg	select a repeat	sélectionnez une répétition
 @msg	select an Intertwine group	sélectionnez un groupe entrelacé
 @msg	select an Objects on Path group	sélectionnez un groupe d’objets sur tracé
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	un tracé à l’intérieur d’un tracé transparent, d’un dégradé de formes, d’une enveloppe, d’une répétition ou d’un groupe entrelacé ne peut pas recevoir d’objets
+@msg	a clipping path can't take objects	un tracé d’écrêtage ne peut pas recevoir d’objets
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	les objets à l’intérieur d’un dégradé de formes, d’une enveloppe, d’une répétition ou d’un groupe entrelacé ne peuvent pas être attachés à un tracé
+@msg	a clipping path can't be attached to a path	un tracé d’écrêtage ne peut pas être attaché à un tracé
 @msg	select a stroke with a variable width	sélectionnez un contour de largeur variable
 @msg	select a symbol instance	sélectionnez une instance de symbole
 @msg	select an Image Trace object	sélectionnez un objet de vectorisation de l’image
@@ -5272,3 +5311,5 @@ theme	Appearance	Apparence
 	Plaster	Plâtre
 	Note Paper…	Papier gaufré…
 	Note Paper	Papier gaufré
+	Water Paper…	Papier humide…
+	Water Paper	Papier humide

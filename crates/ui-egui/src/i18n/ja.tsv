@@ -48,6 +48,9 @@
 	Japanese	日本語
 	Join Our Discord	Discord に参加
 	Line-end Punctuation Half Width	行末約物半角
+	Insert Kashidas	カシーダを挿入
+	Long	長い
+	Stylistic	スタイリスティック
 	Mojikumi Set	文字組み
 	Kinsoku Set	禁則処理
 	Hard	強い禁則
@@ -73,6 +76,7 @@
 	Quit VectorCraft	VectorCraft を終了
 	File	ファイル
 	New…	新規…
+	New Without Dialog	ダイアログなしで新規
 	New from Template…	テンプレートから新規…
 	Open…	開く…
 	Open Recent Files	最近使用したファイルを開く
@@ -235,8 +239,8 @@
 	Blend	ブレンド
 	Blend Options…	ブレンドオプション…
 	Expand	拡張
-	Replace Spine	ブレンド軸を置き換え
-	Reverse Spine	ブレンド軸を反転
+	Replace Spine	スパインを置き換え
+	Reverse Spine	スパインを反転
 	Reverse Front to Back	前後を反転
 	Envelope Distort	エンベロープ
 	Make with Warp…	ワープで作成…
@@ -262,6 +266,8 @@
 	Large Gaps	大きい間隔
 	Gap Preview Color:	間隔のプレビューカラー:
 	Close Gaps With Paths	パスで間隔を閉じる
+	Show Live Paint Gaps	ライブペイントの間隔を表示
+	Hide Live Paint Gaps	ライブペイントの間隔を隠す
 	Select Fills	塗りを選択
 	Select Strokes	線を選択
 	Image Trace	画像トレース
@@ -741,7 +747,8 @@
 	 from center  |  	：中心から描画  |  
 	 keeps its proportions)	：縦横比を固定）
 	 near a selected pin to rotate  |  	：選択したピンの近くで回転  |  
-	 on the canvas to create one	：アートボードを作成
+	 on the canvas to create one (	：アートボードを作成（
+	 selects several, or draws one inside an artboard)	：複数を選択、またはアートボード内に作成）
 	 over paths to roughen their outlines  |  	：パスの輪郭を粗くする  |  
 	 over paths, and hold still to keep going  |  	：パス上で押し続けると効果が続く  |  
 	 the art to add a pin  |  	：アートにピンを追加  |  
@@ -1484,6 +1491,14 @@
 	Alt key toggles to Smooth Tool	Alt キーでスムーズツールに切り替え
 	Keep selected	選択を保持
 	Merge only with selection	選択範囲とのみ結合
+	Consider Open Filled Paths as Closed	塗りのある開いたパスを閉じたパスとみなす
+	Pick Color From:	色の取得元:
+	Artwork	アートワーク
+	Cursor Swatch Preview	ポインター横のスウォッチプレビュー
+	Selection:	選択方法:
+	Freeform	自由形状
+	Straight Line	直線
+	Highlight:	強調表示:
 	Fill:	塗り:
 	Find	検索
 	Find Font	フォントを検索
@@ -3225,6 +3240,7 @@ gradient-kind	Radial	円形
 	Black and White Logo	白黒ロゴ
 	Bottom	下
 	Bottom in Front	下が前面
+	Bottom-Justified Tab	下揃えタブ
 	Bounds	境界
 	Bounds (Fill Proportionally)	境界 (縦横比を保って全体を覆う)
 	Bounds (Fit Proportionally)	境界 (縦横比を保って収める)
@@ -3549,6 +3565,7 @@ file-filter	Templates	テンプレート
 	Tip on the end point	先端をパスの端点に合わせる
 	Top	上
 	Top in Front	上が前面
+	Top-Justified Tab	上揃えタブ
 	Transforms	変形
 	Transparent (Default)	透明 (デフォルト)
 	Trim marks	トリムマーク
@@ -3981,7 +3998,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	{path}: not a file	{path}: ファイルではありません
 @msg	{path}: {e}	{path}: {e}
 @msg	can't write .{ext} images	.{ext} 画像は書き出せません
-@msg	Replace Spine: select a blend and a path	ブレンド軸を置き換え: ブレンドとパスを選択してください
+@msg	Replace Spine: select a blend and a path	スパインを置き換え: ブレンドとパスを選択してください
 @msg	nothing to wrap	まとめるものがありません
 @msg	select a blend	ブレンドを選択してください
 @msg	select a blend or give `id`	ブレンドを選択するか、`id` を指定してください
@@ -4036,6 +4053,10 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	select a repeat	リピートを選択してください
 @msg	select an Intertwine group	織り交ぜグループを選択してください
 @msg	select an Objects on Path group	パス上のオブジェクトグループを選択してください
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	複合パス、ブレンド、エンベロープ、リピートまたは織り交ぜグループ内のパスにはオブジェクトをアタッチできません
+@msg	a clipping path can't take objects	クリッピングパスにはオブジェクトをアタッチできません
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	ブレンド、エンベロープ、リピートまたは織り交ぜグループ内のオブジェクトはパスにアタッチできません
+@msg	a clipping path can't be attached to a path	クリッピングパスはパスにアタッチできません
 @msg	select the art to repeat	リピートするアートを選択してください
 @msg	the document has no patterns	ドキュメントにパターンがありません
 @msg	no artboard	アートボードがありません
@@ -4132,6 +4153,25 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	a PostScript error ({name} in `{op}`: {at})	PostScript エラー (`{op}` での {name}: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	{procs} 内の PostScript エラー (`{op}` での {name}: {at})
 @msg	a PostScript error ({name})	PostScript エラー ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	PostScript エラー (`{op}` での {name}、{meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	{procs} 内の PostScript エラー (`{op}` での {name}、{meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	PostScript エラー (`{op}` での {name}: {at}、{meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	{procs} 内の PostScript エラー (`{op}` での {name}: {at}、{meaning})
+@msg	a PostScript error ({name}; {meaning})	PostScript エラー ({name}、{meaning})
+@msg	the program ends a dictionary it didn't begin	プログラムが、開始していない辞書を終了しようとしています
+@msg	the program opens a file, which the reader can't do	プログラムがファイルを開こうとしていますが、PostScript 読み込み機能はファイルを開けません
+@msg	the program restores a saved state that was already restored	プログラムが、すでに復元された保存状態を復元しようとしています
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	プログラムが読み込むデータが壊れているか途中で切れているか、プログラムが位置を持たないファイルの位置を求めています
+@msg	the program goes past one of the reader's limits	プログラムが PostScript 読み込み機能の制限を超えています
+@msg	the path has no point to continue from	パスに続きを描く起点がありません
+@msg	a value is outside the range the operator takes	値がオペレーターの受け付ける範囲外です
+@msg	the operator needs more values than the stack holds	オペレーターに必要な値がスタックに足りません
+@msg	part of the program isn't valid PostScript text	プログラムの一部が有効な PostScript テキストではありません
+@msg	a value has the wrong type for the operator	値の型がオペレーターに合っていません
+@msg	the program runs, deletes or renames a file, which the reader can't do	プログラムがファイルの実行、削除、名前の変更をしようとしていますが、PostScript 読み込み機能はこれを行えません
+@msg	the program asks for a resource that isn't defined	プログラムが定義されていないリソースを要求しています
+@msg	a calculation has no result, as in a division by zero	ゼロによる除算などで、計算の結果が得られません
+@msg	the operator looks for a mark on the stack and finds none	オペレーターがスタック上のマークを探しましたが、見つかりません
 @msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	VectorCraft の PostScript 読み込み機能が対応していない `{at}` を使用しています
 @msg	the file was read up to an error ({why}): what follows it was left out	ファイルはエラーが発生した箇所まで読み込まれました ({why}): それ以降の内容は除外されました
 @msg	this file's PostScript couldn't be read ({why}): {what}	このファイルの PostScript を読み込めませんでした ({why}): {what}
@@ -4927,3 +4967,5 @@ lighting	Light	ライト
 	Plaster	石膏
 	Note Paper…	ノート用紙…
 	Note Paper	ノート用紙
+	Water Paper…	ぬれた紙…
+	Water Paper	ぬれた紙

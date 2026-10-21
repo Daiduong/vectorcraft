@@ -20,6 +20,8 @@
 //!   art painting its members (its raster effects then apply to the composite).
 //! - [`clip_outline`] is the region a clip group clips to, shared by the renderer and the SVG and
 //!   PDF writers.
+//! - [`preview`] measures objects as they are drawn, with their geometry effects (Use Preview
+//!   Bounds).
 //! - **Plug-in effects** (`plugin.<plug-in id>`, Effect › Plug-ins) are geometry effects run by an
 //!   installed WebAssembly plug-in (`vectorcraft-plugins`); [`effect_info`] describes them like
 //!   built-in ones, and an effect whose plug-in isn't installed leaves the geometry as it is.
@@ -41,6 +43,7 @@ mod lighting;
 mod live;
 mod marks;
 pub mod pixel;
+pub mod preview;
 mod raster;
 mod reshape;
 mod revolve;
@@ -156,6 +159,7 @@ fn lengths_of(id: &str) -> Lengths {
         "sketch.graphicPen" => always(&["strokeLength"]),
         "sketch.halftonePattern" => always(&["size"]),
         "sketch.notePaper" => always(&["relief"]),
+        "sketch.waterPaper" => always(&["fiberLength"]),
         RASTERIZE => always(&["addAround"]),
         _ => Lengths::default(),
     }
@@ -573,6 +577,13 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             SKETCH,
             "{lightDarkBalance: 0..50 (25; the larger, the more of the object prints black), smoothness: 1..50 (5; rounds the shapes)} simplifies the object to solid black and white, as a rubber stamp would print it. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
             json!({"lightDarkBalance": 25.0, "smoothness": 5.0}),
+        ),
+        r(
+            "sketch.waterPaper",
+            "Water Paper…",
+            SKETCH,
+            "{fiberLength: pt 3..50 (15; scale of paper fibers and blotchy daubs), brightness: 0..100 (50), contrast: 0..100 (50)} washes the object's colours as if painted on damp fibrous paper, with soft flow and a fibrous modulation. Public helpx names Fiber Length, Brightness and Contrast but not slider ranges or dialog defaults; ranges and defaults here are unverified VectorCraft choices. Original visual approximation, not a proprietary reproduction.",
+            json!({"fiberLength": 15.0, "brightness": 50.0, "contrast": 50.0}),
         ),
         r(
             "stylize.glowingEdges",
