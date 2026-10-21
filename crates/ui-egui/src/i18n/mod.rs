@@ -9,7 +9,8 @@
 //!    English text, clean-room, see `zh-hant.tsv`).
 //! 2. Add one row to [`LANGUAGES`] (code, native name, catalog, plural rule), its catalog as
 //!    `catalog_tsv!("xx.tsv", "lang-xx")`, and the feature `lang-xx` to `Cargo.toml`, listed in
-//!    `translations`, so an embedder may leave it out.
+//!    `translations`, so an embedder may leave it out, and to `FEATURE_ON` in
+//!    `tests_compiled_in.rs`.
 //!
 //! That is all: the Preferences dropdown, the system-locale match and the catalog tests (parse,
 //! placeholders, plural forms, menu coverage) pick it up from the registry.

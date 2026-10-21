@@ -229,11 +229,13 @@ other `sv-*` locale resolve to it), Georgian (`ka`, complete; `ka-GE` and `ka_GE
   the browser's `navigator.languages`). The Preferences dialog previews the chosen language before OK.
 - To add a language: add `<code>.tsv`, one row in `i18n::LANGUAGES` (code, native name, catalog as
   `catalog_tsv!("<code>.tsv", "lang-<code>")`, plural rule) and the feature `lang-<code>` in
-  `crates/ui-egui/Cargo.toml`, listed in `translations`. The Language menu, the dropdown, locale matching and the catalog tests (well-formed, no duplicates,
-  placeholders and ellipses agree, command ids exist, every row of a partial catalog is a string the UI
-  shows, the UI fonts have every glyph, no Simplified characters in `zh-hant`) pick it up. Set `complete_menus`
-  once every menu string and `tl!` literal is translated; `i18n::tests` then enforce it
-  (`VECTORCRAFT_I18N_DUMP=strings.txt cargo test -p vectorcraft-ui-egui dump_source_strings` lists them).
+  `crates/ui-egui/Cargo.toml`, listed in `translations` (and in `FEATURE_ON`,
+  `i18n/tests_compiled_in.rs`). The Language menu, the dropdown, locale matching and the catalog
+  tests (well-formed, no duplicates, placeholders and ellipses agree, command ids exist, every row
+  of a partial catalog is a string the UI shows, the UI fonts have every glyph, no Simplified
+  characters in `zh-hant`) pick it up. Set `complete_menus` once every menu string and `tl!` literal
+  is translated; `i18n::tests` then enforce it (`VECTORCRAFT_I18N_DUMP=strings.txt cargo test -p
+  vectorcraft-ui-egui dump_source_strings` lists them).
 - Translations are clean-room: written from the meaning of the English text in ordinary vocabulary, never
   from another product's localisation resources. Product and technology names stay in Latin letters.
 - Status-bar messages and errors stay English where they are made (`app.ui.status`, `EngineError`: the

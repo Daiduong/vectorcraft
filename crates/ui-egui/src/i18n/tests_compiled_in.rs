@@ -51,8 +51,38 @@ fn a_catalog_is_its_file_only_with_its_feature() {
     }
 }
 
+/// Whether each language's feature is on in this build, in the registry's order. `cfg!` takes a
+/// literal feature name, so each language has its row here; the test below checks the list
+/// against the registry.
+const FEATURE_ON: [(&str, bool); 23] = [
+    ("el", cfg!(feature = "lang-el")),
+    ("ja", cfg!(feature = "lang-ja")),
+    ("ko", cfg!(feature = "lang-ko")),
+    ("vi", cfg!(feature = "lang-vi")),
+    ("cs", cfg!(feature = "lang-cs")),
+    ("de", cfg!(feature = "lang-de")),
+    ("es", cfg!(feature = "lang-es")),
+    ("fr", cfg!(feature = "lang-fr")),
+    ("it", cfg!(feature = "lang-it")),
+    ("ka", cfg!(feature = "lang-ka")),
+    ("ru", cfg!(feature = "lang-ru")),
+    ("uk", cfg!(feature = "lang-uk")),
+    ("bg", cfg!(feature = "lang-bg")),
+    ("hu", cfg!(feature = "lang-hu")),
+    ("pl", cfg!(feature = "lang-pl")),
+    ("sv", cfg!(feature = "lang-sv")),
+    ("pt-br", cfg!(feature = "lang-pt-br")),
+    ("zh-hant", cfg!(feature = "lang-zh-hant")),
+    ("zh-hans", cfg!(feature = "lang-zh-hans")),
+    ("nl", cfg!(feature = "lang-nl")),
+    ("da", cfg!(feature = "lang-da")),
+    ("id", cfg!(feature = "lang-id")),
+    ("fi", cfg!(feature = "lang-fi")),
+];
+
 /// Each catalog is compiled in by the feature named after its file, the row that reads it has the
-/// file's code and every catalog file has text (so an empty catalog means its feature is off), and
+/// file's code and every catalog file has text, each row's catalog is its file exactly when its
+/// feature is on (and empty otherwise), and
 /// the manifest declares exactly one `lang-<code>` feature per language, every one of them listed in
 /// `translations`. So no build can offer a language under another's feature, or leave one out of
 /// `translations`. (A feature the manifest lacks is also an `unexpected_cfgs` warning, which clippy
@@ -78,8 +108,11 @@ fn each_catalog_has_its_own_feature_and_translations_lists_every_one() {
         let text = std::fs::read_to_string(format!("{dir}/{code}.tsv")).unwrap();
         assert!(!text.is_empty(), "{code}.tsv is empty");
         let row = LANGUAGES.iter().find(|l| l.code == *code).unwrap();
-        assert!(row.source.is_empty() || row.source == text, "{code} reads its own catalog");
+        let on = FEATURE_ON.iter().find(|(c, _)| c == code).is_some_and(|(_, on)| *on);
+        assert_eq!(row.source, if on { text.as_str() } else { "" }, "{code}: its own catalog with lang-{code}, else none");
     }
+    let listed: Vec<&str> = FEATURE_ON.iter().map(|(c, _)| *c).collect();
+    assert_eq!(listed, registered, "FEATURE_ON lists every language, in the table's order");
 
     let manifest: toml::Table = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")).unwrap().parse().unwrap();
     let features = manifest["features"].as_table().unwrap();
