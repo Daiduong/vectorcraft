@@ -13,6 +13,7 @@ workspace = true
 default = ["wgpu", "accessibility"]
 wgpu = ["eframe/wgpu", "dep:winsafe"]
 accessibility = ["eframe/accesskit"]
+remote-access = ["dep:vectorcraft-mcp", "vectorcraft-mcp/remote", "dep:reqwest"]
 # Build with --no-default-features --features windows7 and the win7 Rust target.
 windows7 = ["eframe/glow"]
 
@@ -24,6 +25,8 @@ eframe = { workspace = true, features = ["default_fonts", "wayland", "x11"] }
 egui = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
+vectorcraft-mcp = { workspace = true, optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rfd = { workspace = true }

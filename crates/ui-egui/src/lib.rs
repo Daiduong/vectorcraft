@@ -44,6 +44,8 @@ pub mod panels;
 pub mod picks;
 pub mod place;
 pub mod prefs_dialog;
+pub mod remote_access;
+pub use remote_access::{RemoteAccessFn, RemoteAuthorizeFn, RemoteControlFn};
 pub mod print;
 pub mod recovery;
 pub mod render_worker;
@@ -222,6 +224,12 @@ pub type RevealFn = Box<dyn FnMut(&str) -> Result<(), String>>;
 /// Platform services injected by the host app (desktop or web).
 #[derive(Default)]
 pub struct Services {
+    /// Owner-only remote connection management, performed on a host worker thread.
+    pub remote_access: Option<RemoteAccessFn>,
+    /// Verify workspace identity and current grants before any remote HTTP operation runs.
+    pub remote_authorize: Option<RemoteAuthorizeFn>,
+    /// Start the local control channel only after the owner installs validated folder grants.
+    pub start_remote_control: Option<RemoteControlFn>,
     /// Show an open dialog; returns a path.
     pub pick_open: Option<PickOpen>,
     /// Show a save dialog (suggested name, folder, file types); returns a path.
@@ -387,6 +395,8 @@ pub struct Perf {
 }
 
 pub struct VectorcraftApp {
+    /// Ephemeral owner-only state; excluded from serialized UI/control inspection.
+    pub remote_access: remote_access::RemoteAccessUi,
     pub session: Session,
     pub ui: UiState,
     pub views: Vec<View>,
@@ -498,6 +508,7 @@ pub struct VectorcraftApp {
 /// frame is presented; a window that isn't presented never delivers one, hence the deadline.
 struct PendingScreenshot {
     token: u64,
+    privacy_epoch: u64,
     path: Option<String>,
     /// Send the PNG back as `pngBase64`.
     data: bool,
@@ -512,6 +523,8 @@ const SYSTEM_CLIPBOARD_POLL: f64 = 0.25;
 const FONT_INSTALL_POLL: f64 = 2.0;
 
 impl VectorcraftApp {
+    /// Create the desktop UI around a session and the host's available services.
+    /// Remote AI controls remain unavailable unless the host supplies their service callback.
     pub fn new(mut session: Session, services: Services) -> Self {
         // The font menus and the first file opened need the installed fonts: catalog them now.
         vectorcraft_text::FontDb::global().scan_in_background();
@@ -520,6 +533,7 @@ impl VectorcraftApp {
         }
         let views = session.documents().iter().map(View::of).collect();
         Self {
+            remote_access: Default::default(),
             session,
             ui: UiState::default(),
             views,
@@ -601,8 +615,19 @@ impl VectorcraftApp {
     /// against the roots in force, and so does the engine; outside those scopes the person at the
     /// keyboard works as usual.
     pub fn with_automation_roots(mut self, roots: Option<Arc<AutomationRoots>>) -> Self {
-        let Some(roots) = roots else { return self };
+        self.install_automation_roots(roots);
+        self
+    }
+    /// Install current approved artwork folders and wrap host file services with access checks.
+    /// On resync, replace the grants without stacking wrappers. Remote AI callers supply the
+    /// private connection folder as an exclusion when constructing these grants.
+    fn install_automation_roots(&mut self, roots: Option<Arc<AutomationRoots>>) {
+        let Some(roots) = roots else { return };
+        let installed = self.automation_roots.is_some();
         self.automation_roots = Some(roots);
+        if installed {
+            return;
+        }
         let s = &mut self.services;
         if let Some(read) = s.read.take() {
             s.read = Some(Box::new(move |p: &str| file_access::check_read(p).and_then(|()| read(p))));
@@ -624,7 +649,6 @@ impl VectorcraftApp {
                 *service = Some(Box::new(move |p: &str| file_access::check_read(p).and_then(|()| open(p))));
             }
         }
-        self
     }
 
     /// Keep `views` aligned with the session's documents (a new one starts at its saved view).
@@ -874,6 +898,8 @@ impl VectorcraftApp {
         self.ui.flyout = None;
     }
 
+    /// Process a bounded batch of live control requests under the current artwork-folder grants.
+    /// Skip abandoned requests and retain screenshot privacy state until capture completes.
     fn drain_control(&mut self, ctx: &egui::Context) {
         let Some(rx) = self.control_rx.take() else { return };
         let mut handled = 0;
@@ -902,12 +928,19 @@ impl VectorcraftApp {
                 control::Outcome::Done(v) => {
                     let _ = reply.send(v);
                 }
-                control::Outcome::Screenshot { path, data } => {
+                control::Outcome::Screenshot { path, data, privacy_epoch } => {
                     self.screenshot_token += 1;
                     let token = self.screenshot_token;
                     let settle = ctx.global_style().animation_time as f64 * 2000.0 + 80.0;
                     self.queued_screenshots.push((token, now_ms() + settle, 0));
-                    self.pending_screenshots.push(PendingScreenshot { token, path, data, reply, deadline: now_ms() + settle + 8000.0 });
+                    self.pending_screenshots.push(PendingScreenshot {
+                        token,
+                        privacy_epoch,
+                        path,
+                        data,
+                        reply,
+                        deadline: now_ms() + settle + 8000.0,
+                    });
                 }
             }
         }
@@ -934,6 +967,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// Match captured frames to waiting requests and enforce their original privacy epoch.
+    /// Discard captures after passphrase visibility changes before saving or returning image data.
     fn collect_screenshots(&mut self, ctx: &egui::Context) {
         if self.pending_screenshots.is_empty() {
             return;
@@ -954,6 +989,12 @@ impl VectorcraftApp {
         for (token, image) in events {
             if let Some(i) = self.pending_screenshots.iter().position(|p| p.token == token) {
                 let p = self.pending_screenshots.remove(i);
+                if !self.remote_access.allows_screenshot(p.privacy_epoch) {
+                    let _ = p
+                        .reply
+                        .send(serde_json::json!({"ok":false,"error":"Screenshot discarded because private field visibility changed during capture"}));
+                    continue;
+                }
                 let roots = self.automation_roots.clone();
                 let _ = p.reply.send(file_access::confine(roots.as_ref(), || control::save_screenshot(self, &image, p.path.as_deref(), p.data)));
             }
@@ -1428,6 +1469,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// Render one editor frame, including the local Remote AI connections wizard.
+    /// UI controls act through commands or host services rather than editing connection files directly.
     fn ui_frame(&mut self, ui: &mut egui::Ui) {
         crate::state::sync_zoom_stops_display_print_size(self.session.prefs.display_print_size);
         let ctx = ui.ctx().clone();
@@ -1477,6 +1520,7 @@ impl VectorcraftApp {
         dock::floating_panel(self, &ctx);
         floating::show(self, &ctx);
         dialogs::show(self, &ctx);
+        remote_access::show(self, &ctx);
         export_progress::show(self, &ctx);
         palette::show(self, &ctx);
         if self.custom_titlebar {

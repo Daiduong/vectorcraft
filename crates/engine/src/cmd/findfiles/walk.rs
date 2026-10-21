@@ -257,7 +257,7 @@ pub(crate) fn start_in(
     if cfg!(target_arch = "wasm32") {
         return Err("searching a folder isn't available on the web".into());
     }
-    // The walkers follow no links, so a folder automation may read holds all they read.
+    // Carry file authority into the walkers, including excluded private subfolders.
     crate::file_access::check_read(&folder.to_string_lossy())?;
     let seconds = if limits.seconds.is_finite() { limits.seconds.clamp(0.0, 3600.0) } else { 60.0 };
     let n = pool.reserve(threads.clamp(1, MAX_THREADS));
@@ -283,11 +283,12 @@ pub(crate) fn start_in(
     let mut spawned = 0;
     for _ in 0..n {
         let s = shared.clone();
+        let scope = crate::file_access::ScopeHandle::capture();
         let thread = std::thread::Builder::new().name("vectorcraft-find".into()).spawn(move || {
             let _alive = Alive(s.clone());
             // A bug in the walk ends this walker and the others go on; when every walker ends this
             // way, the search fails ([`Alive`]).
-            let _ = crate::guard::catch_panic(|| walker(&s));
+            let _ = crate::guard::catch_panic(|| scope.run(|| walker(&s)));
         });
         if thread.is_ok() {
             spawned += 1;
@@ -416,6 +417,10 @@ impl Shared {
     /// List one folder: queue its subfolders, then read the files [`Visitor::wants`] accepts.
     fn list(&self, dir: &Path, depth: u32) {
         let Some(rules) = self.rules.get() else { return };
+        if crate::file_access::check_read(&dir.to_string_lossy()).is_err() {
+            self.lock().skipped += 1;
+            return;
+        }
         let (mut skipped, mut unreadable, mut files) = (0, 0, 0);
         let entries = match std::fs::read_dir(dir) {
             Ok(entries) => entries,
@@ -461,6 +466,10 @@ impl Shared {
             }
             // Links are neither followed nor read.
             if kind.is_dir() {
+                if crate::file_access::check_read(&entry.path().to_string_lossy()).is_err() {
+                    skipped += 1;
+                    continue;
+                }
                 folders.push((entry, name.to_string()));
             } else if kind.is_file() {
                 files += 1;

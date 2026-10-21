@@ -168,6 +168,8 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("file.newDialog", "New…", "Cmd+N", "{} opens the New Document dialog"),
     ("app.home", "Home", "", "{} shows the Home screen (new file presets, Open) over the open documents; choosing a document tab returns to it"),
     ("edit.preferences", "Preferences…", "Cmd+K", "{category?} open Preferences (engine: prefs.get / prefs.set / prefs.list)"),
+    ("ui.remoteAccess", "Remote AI connections…", "", "{} open the local owner's remote connection wizard; automation cannot open it"),
+    ("ui.remoteAccess.action", "Remote connection action", "", "{action, id?} local owner connection action; unavailable to automation"),
     ("edit.keyboardShortcuts", "Keyboard Shortcuts…", "Cmd+Alt+Shift+K", "{}"),
     ("shortcuts.set", "Set Keyboard Shortcut", "", "{id: command id or tool:<id>, shortcut: \"Cmd+Shift+K\" | \"\" (none) | null (default), force?}"),
     ("shortcuts.list", "List Keyboard Shortcuts", "", "{query?} → [{id, label, group, shortcut, default, overridden}]"),
@@ -1059,6 +1061,8 @@ pub fn check_params(session: &vectorcraft_engine::Session, id: &str, params: &Va
     session.check_params(id, params).map_err(|e| e.to_string())
 }
 
+/// Execute a UI command using the app's current document and host services.
+/// Remote AI setup actions enforce their local-owner checks inside the wizard handler.
 pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     // The Window menu's panel items toggle like its other checked items (#2361); the panel's
     // other ways in (shortcuts, Show Properties Panel, a tool's double-click) only show it.
@@ -1169,6 +1173,8 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             crate::prefs_dialog::open(app, s("category").as_deref());
             Ok(Value::Null)
         }
+        "ui.remoteAccess" => crate::remote_access::open(app),
+        "ui.remoteAccess.action" => crate::remote_access::action(app, p),
         // Edit → Color Settings… / Assign Profile… (no params): show the colour-management panel.
         "edit.colorSettings" | "edit.assignProfile" if p.as_object().is_none_or(|o| o.is_empty()) => {
             app.ui.open_panel = Some("separations".into());
@@ -2253,7 +2259,12 @@ pub(crate) fn waits_for_ime(app: &VectorcraftApp, id: &str) -> bool {
             || id.starts_with("edit.paste"))
 }
 
+/// Report whether a command is available in the current UI state.
+/// Remote AI setup requires host support and local input, not automation or synthetic frames.
 pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
+    if matches!(id, "ui.remoteAccess" | "ui.remoteAccess.action") {
+        return app.services.remote_access.is_some() && !app.ui.answering_control && !app.synthetic_frame;
+    }
     if waits_for_ime(app, id) {
         return false;
     }

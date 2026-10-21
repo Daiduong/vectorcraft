@@ -13,7 +13,7 @@
 //! `--automation-write-root` (or `VECTORCRAFT_AUTOMATION_READ_ROOT` / `_WRITE_ROOT`) confine the
 //! files its requests read and write (`vectorcraft_engine::file_access`); the person at the
 //! keyboard isn't confined.
-#![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
+#![cfg_attr(all(target_os = "windows", any(not(debug_assertions), feature = "remote-access")), windows_subsystem = "windows")]
 
 #[cfg(all(feature = "windows7", any(feature = "wgpu", feature = "accessibility")))]
 compile_error!("windows7 requires --no-default-features (wgpu and accessibility must be disabled)");
@@ -47,6 +47,8 @@ mod open_documents;
 mod portal_save;
 mod prefs_dir;
 mod printing;
+#[cfg(feature = "remote-access")]
+mod remote_access;
 #[cfg(all(windows, not(target_vendor = "win7")))]
 mod system_fonts;
 mod window;
@@ -525,13 +527,26 @@ fn start_pick(request: PickRequest, parent: &Parent, ui: &egui::Context) -> Opti
 }
 
 /// The host's services; `ui` is woken when a file dialog answers.
-fn services(parent: Parent, ui: egui::Context) -> Services {
+fn services(parent: Parent, ui: egui::Context, _control_port: Option<u16>) -> Services {
     use winit::raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
     let wayland = parent.as_ref().and_then(|w| w.window_handle().ok()).is_some_and(|h| matches!(h.as_raw(), RawWindowHandle::Wayland(_)));
     let (p1, p2, p3, p4, p5) = (parent.clone(), parent.clone(), parent.clone(), parent.clone(), parent);
     #[cfg(target_os = "macos")]
     let sampled_ui = ui.clone();
+    #[cfg(feature = "remote-access")]
+    let remote_ui = ui.clone();
     Services {
+        #[cfg(feature = "remote-access")]
+        remote_access: prefs_enabled().then(|| remote_access::service(_control_port)),
+        #[cfg(feature = "remote-access")]
+        remote_authorize: prefs_enabled().then(|| Box::new(remote_access::authorize_desktop) as vectorcraft_ui_egui::RemoteAuthorizeFn),
+        #[cfg(feature = "remote-access")]
+        start_remote_control: prefs_enabled().then(|| {
+            Box::new(move |port, roots| {
+                vectorcraft_engine::file_access::confine_process(roots);
+                control_server::start(port, remote_ui.clone())
+            }) as vectorcraft_ui_egui::RemoteControlFn
+        }),
         pick_open: Some(Box::new(move |pick: &FilePick| pick_now(PickRequest::Open(pick.clone()), &p1).into_iter().next())),
         pick_open_multi: Some(Box::new(move || pick_now(PickRequest::OpenMany, &p2))),
         pick_save: Some(Box::new(move |pick: &FilePick| pick_now(PickRequest::Save(pick.clone()), &p3).into_iter().next())),
@@ -677,6 +692,22 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
   vectorcraft-cli --help
 ";
 
+/// Choose the local control port and approved artwork folders for this session.
+/// If Remote AI setup fails, keep the editor usable and leave remote control disabled.
+#[cfg(feature = "remote-access")]
+fn remote_control_startup(explicit_port: Option<u16>, setup: Result<remote_access::InitialControl, String>) -> remote_access::InitialControl {
+    match setup {
+        Ok((port, roots)) => (explicit_port.or(port), roots),
+        Err(error) => {
+            // Optional setup must never prevent local editing. Disable automation completely,
+            // including an explicit port, rather than falling back to unconfined control.
+            eprintln!("vectorcraft: remote access disabled; repair in Preferences > Remote AI: {error}");
+            (None, None)
+        }
+    }
+}
+/// Start the desktop editor, or run an explicitly requested remote-service process.
+/// Load the selected profile and its connection settings before enabling remote control.
 fn main() -> std::process::ExitCode {
     // Before any thread starts: the pointer must find a cursor theme on Wayland (#2450).
     #[cfg(target_os = "linux")]
@@ -688,6 +719,8 @@ fn main() -> std::process::ExitCode {
     let mut roots_args =
         automation_args::AutomationArgs::new(root_env("VECTORCRAFT_AUTOMATION_READ_ROOT"), root_env("VECTORCRAFT_AUTOMATION_WRITE_ROOT"));
     let mut files = Vec::new();
+    #[cfg(feature = "remote-access")]
+    let mut remote_setup = false;
     let mut in_window_menus = std::env::var_os("VECTORCRAFT_IN_WINDOW_MENUS").is_some_and(|v| !v.is_empty() && v != "0");
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -700,6 +733,32 @@ fn main() -> std::process::ExitCode {
             }
         }
         match a.as_str() {
+            "--profile-dir" => {
+                let result = args
+                    .next()
+                    .ok_or_else(|| "--profile-dir needs an absolute path".to_string())
+                    .and_then(|p| prefs_dir::set_explicit_profile(std::path::PathBuf::from(p)));
+                if let Err(error) = result {
+                    eprintln!("vectorcraft: {error}");
+                    return std::process::ExitCode::FAILURE;
+                }
+            }
+            #[cfg(feature = "remote-access")]
+            "--remote-setup" => remote_setup = true,
+            #[cfg(feature = "remote-access")]
+            "--remote-service" => {
+                let result = args
+                    .next()
+                    .ok_or_else(|| "--remote-service needs a settings path".to_string())
+                    .and_then(|p| vectorcraft_mcp::remote::run(std::path::Path::new(&p)));
+                return match result {
+                    Ok(()) => std::process::ExitCode::SUCCESS,
+                    Err(error) => {
+                        eprintln!("vectorcraft: {error}");
+                        std::process::ExitCode::FAILURE
+                    }
+                };
+            }
             "--in-window-menus" => in_window_menus = true,
             "--version" => {
                 println!("vectorcraft {}", env!("CARGO_PKG_VERSION"));
@@ -727,6 +786,12 @@ fn main() -> std::process::ExitCode {
                 return std::process::ExitCode::FAILURE;
             }
         },
+    };
+    #[cfg(feature = "remote-access")]
+    let (control_port, configured_roots) = if prefs_enabled() {
+        remote_control_startup(control_port, remote_access::initial_control(read_root.is_some() || write_root.is_some()))
+    } else {
+        (control_port, None)
     };
     // Before desktop services, so every start-up warning is recorded (`logging`).
     let logger = logging::install();
@@ -769,6 +834,8 @@ fn main() -> std::process::ExitCode {
             }
         }
     };
+    #[cfg(feature = "remote-access")]
+    let roots = configured_roots.or(roots);
     let saved = read_prefs();
     let saved_window = saved.as_ref().and_then(|ui| ui.window);
     #[cfg(feature = "wgpu")]
@@ -885,7 +952,11 @@ fn main() -> std::process::ExitCode {
                 // The profiles loaded before come back before the preferences name any of them.
                 prefs_dir::attach_profile_store(&mut session);
                 prefs_dir::attach_plugin_store(&mut session);
-                let mut app = VectorcraftApp::new(session, services(cc.winit_window().cloned(), cc.egui_ctx.clone()));
+                let mut app = VectorcraftApp::new(session, services(cc.winit_window().cloned(), cc.egui_ctx.clone(), control_port));
+                #[cfg(feature = "remote-access")]
+                if remote_setup && let Err(error) = vectorcraft_ui_egui::remote_access::open(&mut app) {
+                    app.status(error);
+                }
                 load_prefs(&mut app, saved);
                 // The saved PDF presets live in their own folder (also read by vectorcraft-cli),
                 // which takes over from the copy the preferences file used to hold.

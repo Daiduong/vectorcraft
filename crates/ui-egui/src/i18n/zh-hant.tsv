@@ -4862,6 +4862,16 @@ lighting	Light	光源
 	Enable Guides for 9-Slice Scaling	啟用 9-slice 縮放參考線
 	Persistent	持久
 	Library Panel Options	資料庫面板選項
+
+# Native remote connection commands and messages (original translations).
+# Native remote connection hardening messages (original draft translations).
+@msg	The saved folder grants are unavailable	已儲存的資料夾存取權限無法使用
+@msg	The private settings folder is unavailable	私人設定資料夾無法使用
+@msg	Choose artwork folders before starting the connection	啟動連線前請選擇作品資料夾
+@msg	The saved control port is unavailable	已儲存的控制連接埠無法使用
+@msg	The local control channel cannot start in this build	此組建版本無法啟動本機控制通道
+	Remote AI connections…	AI 遠端連線…
+	Remote connection action	遠端連線操作
 	Artboard {n} of {total}	工作區域 {n} / {total}
 	Encoding and writing the file…	正在編碼並寫入檔案…
 @plural	{n} more export waiting|{n} more exports waiting	另有 {n} 個匯出等待中
@@ -4887,6 +4897,21 @@ lighting	Light	光源
 @msg	{key} must be an array of non-negative integer object ids	{key} 必須是由非負整數物件 id 組成的陣列
 @msg	invalid object id {value}: expected a non-negative integer	無效的物件 id {value}：應為非負整數
 @msg	no such object id {value}	沒有 id 為 {value} 的物件
+
+# Native remote connection status messages (original translations).
+@msg	Choose a folder to remove	選擇要移除的資料夾
+@msg	Choose a passphrase of 12 to 256 characters and enter it twice	請選擇 12 至 256 個字元的通行片語並輸入兩次
+@msg	Choose folders in an existing setup before resyncing	重新同步前，請在現有設定中選擇資料夾
+@msg	Passphrases do not match. Check both fields before saving	兩次通行片語不一致。儲存前請檢查兩個輸入欄位
+@msg	Remote connections are unavailable in this build	此組建版本不支援遠端連線
+@msg	Save your setup on the Authorize step before finishing	完成前請在「授權」步驟儲存設定
+@msg	The folder is no longer in the list	該資料夾已不在清單中
+@msg	The local connection task ended unexpectedly	本機連線工作意外結束
+@msg	Too many automation folders	自動化資料夾過多
+@msg	Unknown local connection action	未知的本機連線操作
+@msg	Wait for the current connection operation to finish	請等待目前的連線操作完成
+@msg	You can share up to 32 artwork folders	最多可以共用 32 個作品資料夾
+@msg	automation path rejected: private connection folder is excluded: {path}	自動化路徑遭拒：已排除連線的私人資料夾：{path}
 	Move Anchor Point	移動錨點
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} 只保留文件 {n} 個工作區域中的 1 個：檔案重新開啟時只有一個。開啟「保留編輯功能」可全部保留。
 	Chalk & Charcoal…	粉筆和炭筆…

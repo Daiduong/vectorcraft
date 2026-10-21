@@ -31,9 +31,16 @@ pub struct Remote {
 const MAX_REPLY_BYTES: usize = 256 * 1024 * 1024;
 
 impl Remote {
+    /// Prepare a desktop backend without opening a connection. Metadata-only discovery works
+    /// while the desktop is closed; the first real call connects and fails explicitly if absent.
+    /// As with `connect`, this never falls back to a headless session.
+    pub fn deferred(addr: &str) -> Self {
+        Self { addr: addr.to_string(), conn: None, next_id: 1 }
+    }
+
     /// Connect to `addr` (e.g. `127.0.0.1:7979`), failing fast when nothing is listening.
     pub fn connect(addr: &str) -> std::io::Result<Self> {
-        let mut r = Self { addr: addr.to_string(), conn: None, next_id: 1 };
+        let mut r = Self::deferred(addr);
         r.reconnect()?;
         Ok(r)
     }

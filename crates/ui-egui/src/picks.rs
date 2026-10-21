@@ -69,6 +69,7 @@ const DOCUMENT_FREE: &[&str] = &[
     "shortcuts.import",
     "shortcuts.export",
     "ui.shortcutImportDialog",
+    "ui.remoteAccess.action",
 ];
 
 impl Entry {
