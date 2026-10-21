@@ -82,6 +82,7 @@ fn candidates(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 /// Apply every reviewed name in one undo step after the document and id checks.
+/// An open drag or typing session is finished first, so the names do not join its undo entry.
 fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "layer.applyNames";
     let st = s.doc()?;
@@ -117,6 +118,8 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let renamed = edits.len();
     if renamed != 0 {
+        // `edit` records no step of its own while a drag is still open.
+        super::edit::settle_interaction(s)?;
         s.edit("Name Layers with AI", |doc, _| {
             for (id, name) in edits {
                 if let Some(node) = doc.node_mut(id) {
@@ -189,5 +192,30 @@ mod tests {
         assert_eq!(s.execute("layer.namingCandidates", &json!({})).unwrap()["rows"], before["rows"]);
         s.execute("edit.redo", &json!({})).unwrap();
         assert_eq!(s.execute("layer.namingCandidates", &json!({})).unwrap()["rows"][0]["name"], "Play Button");
+    }
+
+    #[test]
+    /// An open drag stays its own undo step when names are applied.
+    fn apply_names_keeps_an_open_drag_as_its_own_undo_step() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({})).unwrap();
+        let made = s.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 40, "height": 20})).unwrap();
+        let art = NodeId(made["id"].as_u64().unwrap());
+        s.begin_interaction("Move").unwrap();
+        s.preview("object.move", &json!({"dx": 30, "dy": 0})).unwrap();
+        let current = s.execute("layer.namingCandidates", &json!({})).unwrap();
+        let id = current["rows"][0]["id"].clone();
+        let original = current["rows"][0]["name"].clone();
+        s.execute("layer.applyNames", &json!({"uid": current["uid"], "revision": current["revision"], "names": [{"id": id, "name": "Play Button"}]}))
+            .unwrap();
+        assert!(!s.in_interaction());
+        assert_eq!(s.doc().unwrap().history.undo.last().map(|e| e.label.as_str()), Some("Name Layers with AI"));
+        assert_eq!(s.doc().unwrap().doc.node(art).unwrap().geometric_bounds().unwrap().x0, 40.0);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(s.execute("layer.namingCandidates", &json!({})).unwrap()["rows"][0]["name"], original);
+        assert_eq!(s.doc().unwrap().history.undo.last().map(|e| e.label.as_str()), Some("Move"));
+        assert_eq!(s.doc().unwrap().doc.node(art).unwrap().geometric_bounds().unwrap().x0, 40.0);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().doc.node(art).unwrap().geometric_bounds().unwrap().x0, 10.0);
     }
 }

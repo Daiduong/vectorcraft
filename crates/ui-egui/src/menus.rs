@@ -646,6 +646,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "",
         "{names: [two or more styles]} open Graphic Style Options (dialog `graphicStyleOptions`, field `name`) to name the style OK merges from them (graphicStyle.merge)",
     ),
+    #[cfg(not(target_arch = "wasm32"))]
     (
         "ui.nameLayers",
         "Name Layers with AI…",
