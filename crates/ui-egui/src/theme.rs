@@ -1086,6 +1086,41 @@ mod tests {
         }
     }
 
+    /// Quiet: the app bar, toolbar, rail, dock and tab strips are one surface with no lines and no
+    /// cards; fields are inset (darker than it, with a shade), buttons and the pressed tool raised
+    /// (lighter, with a shadow) and neutral grey whatever accent is chosen; panel tabs are a
+    /// segmented control; the accent is a blue.
+    #[test]
+    fn quiet_scheme_is_one_surface_with_raised_controls_and_a_blue_accent() {
+        let luma = |c: Color32| u32::from(c.r()) + u32::from(c.g()) + u32::from(c.b());
+        for b in Brightness::ALL {
+            let t = Tokens::for_scheme(Scheme::Quiet, b, Accent::Coral);
+            assert_eq!(t.dark, Tokens::for_brightness(b).dark, "{b:?}");
+            assert!(!t.cards && !t.chrome_lines, "{b:?}");
+            assert_eq!(t.chrome_stroke(t.divider), Stroke::NONE, "{b:?}");
+            assert_eq!(t.tab_style, TabStyle::Segmented);
+            assert_eq!((t.app_bar, t.tab_strip), (t.panel, t.panel), "{b:?}: one surface");
+            assert_eq!((t.radius, t.radius_float), (8, 14), "{b:?}");
+            assert!(luma(t.input) < luma(t.panel), "{b:?}: fields are inset");
+            assert_ne!(t.field_shade, Color32::TRANSPARENT, "{b:?}");
+            assert!(luma(t.field_shade) < luma(t.input), "{b:?}: the field's shade is darker than it");
+            assert!(luma(t.button) > luma(t.panel) && luma(t.tool_active) > luma(t.panel), "{b:?}: buttons and the pressed tool are raised");
+            assert_ne!(t.raised_shadow, Shadow::NONE, "{b:?}");
+            assert_eq!(t.accent, Tokens::for_scheme(Scheme::Quiet, b, Accent::Pink).accent, "{b:?}: the accent choice doesn't apply");
+            assert!(t.accent.b() > t.accent.r() + 80 && t.accent.b() > t.accent.g() + 60, "{b:?}: accent {:?} is blue", t.accent);
+            for (name, c) in [("panel", t.panel), ("input", t.input), ("button", t.button), ("hover", t.hover), ("tool_active", t.tool_active)] {
+                assert!(chroma(c) <= 10, "{b:?}: {name} {c:?} is grey");
+            }
+            assert!(t.row_selected.b() > t.row_selected.r() && chroma(t.row_selected) < chroma(t.accent) / 3, "{b:?}: {:?}", t.row_selected);
+            assert_eq!(Scheme::parse(Scheme::Quiet.id()), Some(Scheme::Quiet));
+        }
+        // The other schemes keep their lines and draw controls flat.
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat] {
+            let t = Tokens::for_scheme(scheme, Brightness::default(), Accent::default());
+            assert!(t.chrome_lines && t.raised_shadow == Shadow::NONE && t.field_shade == Color32::TRANSPARENT, "{scheme:?}");
+        }
+    }
+
     /// One corner scale in every scheme: small marks under controls under floating surfaces, 2/4/8
     /// in Modern, Classic and Flat and 4/8/14 in Quiet; Modern and Classic keep their cards, pill
     /// tabs and lines.

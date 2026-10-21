@@ -1060,14 +1060,13 @@ mod tests {
         assert!(app.ui.dock_collapsed, "the user workspace keeps them collapsed");
     }
 
-    /// The panel-coloured rectangles one frame of the toolbar, the dock and the icon rail paints in
-    /// a 1440 × 900 window in `scheme`.
-    fn docked_surfaces(scheme: theme::Scheme) -> Vec<egui::epaint::RectShape> {
-        fn rects(shape: &egui::Shape, fill: egui::Color32, out: &mut Vec<egui::epaint::RectShape>) {
+    /// Every shape one frame of the toolbar, the dock and the icon rail paints in a 1440 × 900
+    /// window in `scheme`, flattened, and the scheme's tokens.
+    fn docked_frame(scheme: theme::Scheme) -> (Vec<egui::Shape>, Tokens) {
+        fn flatten(shape: egui::Shape, out: &mut Vec<egui::Shape>) {
             match shape {
-                egui::Shape::Rect(r) if r.fill == fill && r.rect.height() > 400.0 => out.push(r.clone()),
-                egui::Shape::Vec(v) => v.iter().for_each(|s| rects(s, fill, out)),
-                _ => {}
+                egui::Shape::Vec(v) => v.into_iter().for_each(|s| flatten(s, out)),
+                s => out.push(s),
             }
         }
         let ctx = egui::Context::default();
@@ -1083,25 +1082,76 @@ mod tests {
         });
         output.textures_delta.clear();
         let mut out = Vec::new();
-        for s in &output.shapes {
-            rects(&s.shape, Tokens::get(&ctx).panel, &mut out);
+        for s in output.shapes {
+            flatten(s.shape, &mut out);
         }
-        out
+        (out, Tokens::get(&ctx))
+    }
+
+    /// The panel-coloured rectangles taller than 400 pt among `shapes`: the toolbar, the dock and
+    /// the icon rail.
+    fn docked_surfaces(shapes: &[egui::Shape], t: &Tokens) -> Vec<egui::epaint::RectShape> {
+        shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Rect(r) if r.fill == t.panel && r.rect.height() > 400.0 => Some(r.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     /// Flat: the toolbar and the dock reach the window's left and right edges, square; Modern keeps
     /// them cards, inset from the edges with rounded corners.
     #[test]
     fn flat_columns_reach_the_window_edges_and_modern_keeps_its_cards() {
-        let flat = docked_surfaces(theme::Scheme::Flat);
+        let (shapes, t) = docked_frame(theme::Scheme::Flat);
+        let flat = docked_surfaces(&shapes, &t);
         assert!(flat.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {flat:?}");
         assert!(flat.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {flat:?}");
         assert!(flat.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO), "{flat:?}");
-        let modern = docked_surfaces(theme::Scheme::Modern);
+        let (shapes, t) = docked_frame(theme::Scheme::Modern);
+        let modern = docked_surfaces(&shapes, &t);
         assert!(modern.len() >= 3, "toolbar, rail and dock are cards: {modern:?}");
         for r in &modern {
             assert!(r.rect.left() >= 3.0 && r.rect.right() <= 1440.0 - 3.0, "a card stands off the edges: {:?}", r.rect);
             assert_eq!(r.corner_radius, egui::CornerRadius::same(8));
         }
+    }
+
+    /// Quiet: the toolbar, the dock and the rail reach the window's edges, square, with no line
+    /// anywhere in them, and the dock's tabs are a segmented control: a pill-shaped track in the
+    /// field colour, the tab in front on a raised pill-shaped chip in the button colour inside it.
+    #[test]
+    fn quiet_dock_tabs_are_a_segmented_control_and_its_columns_have_no_dividers() {
+        let (shapes, t) = docked_frame(theme::Scheme::Quiet);
+        let quiet = docked_surfaces(&shapes, &t);
+        assert!(quiet.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {quiet:?}");
+        assert!(quiet.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {quiet:?}");
+        assert!(quiet.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO && r.stroke.width == 0.0), "{quiet:?}");
+        let line = |s: &egui::Stroke| s.width > 0.0 && (s.color == t.divider || s.color == t.border);
+        for s in &shapes {
+            match s {
+                egui::Shape::LineSegment { stroke, points } => assert!(!line(stroke), "a line from {:?} to {:?}", points[0], points[1]),
+                egui::Shape::Rect(r) => assert!(!line(&r.stroke), "an outline round {:?}", r.rect),
+                _ => {}
+            }
+        }
+        let rects: Vec<&egui::epaint::RectShape> = shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Rect(r) => Some(r),
+                _ => None,
+            })
+            .collect();
+        let track = rects.iter().find(|r| r.fill == t.input && r.corner_radius == theme::PILL).expect("a segmented track");
+        let chip = rects
+            .iter()
+            .find(|r| r.fill == t.button && r.corner_radius == theme::PILL && track.rect.contains_rect(r.rect))
+            .expect("the tab in front on a chip in the track");
+        assert!(chip.rect.width() < track.rect.width() - 20.0, "the chip is one of the segments: {:?} in {:?}", chip.rect, track.rect);
+        assert!(
+            rects.iter().any(|r| r.blur_width > 0.0 && (r.rect.center().x - chip.rect.center().x).abs() < 0.5 && r.rect.top() > chip.rect.top()),
+            "the chip casts a soft shadow"
+        );
     }
 }
