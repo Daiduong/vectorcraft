@@ -231,7 +231,8 @@ pub(crate) fn spines(cx: &ToolContext) -> Vec<(NodeId, PathData)> {
         }
     });
     v.reverse();
-    v.retain(|(id, _)| cx.doc.is_editable(*id));
+    let editable = cx.doc.editable();
+    v.retain(|(id, _)| editable(*id));
     v
 }
 
@@ -288,7 +289,8 @@ fn anchor_owners(cx: &ToolContext, f: fn(&Node) -> bool) -> Vec<NodeId> {
         }
     });
     v.reverse();
-    v.retain(|id| cx.doc.is_editable(*id));
+    let editable = cx.doc.editable();
+    v.retain(|id| editable(*id));
     v
 }
 
@@ -811,7 +813,8 @@ impl Tool for DirectSelectionTool {
                 // (members of groups too), each whole, as a click selects one.
                 if enclosed {
                     let mut touched = vectorcraft_doc::hit::marquee(cx.doc, r, cx.isolation, true);
-                    touched.retain(|id| cx.doc.is_editable(*id));
+                    let editable = cx.doc.editable();
+                    touched.retain(|id| editable(*id));
                     let ids: Vec<Value> = crate::select::inside(cx, r, touched).into_iter().map(|id| json!(id.0)).collect();
                     let art = Action::Exec(if toggle { "select.toggle" } else { "select.set" }.into(), json!({ "ids": ids }));
                     return std::iter::once(art).chain(crate::rulerguide::marquee_select(cx, r, true)).collect();
@@ -834,7 +837,8 @@ impl Tool for DirectSelectionTool {
                         sel.push((id, vec![]));
                     }
                 }
-                sel.retain(|(id, _)| cx.doc.is_editable(*id));
+                let editable = cx.doc.editable();
+                sel.retain(|(id, _)| editable(*id));
                 let items: Vec<Value> = sel.iter().map(|(id, v)| json!({"id": id.0, "anchors": anchors_json(v)})).collect();
                 let art = Action::Exec("select.anchorsMany".into(), json!({"items": items, "mode": if toggle { "toggle" } else { "set" }}));
                 std::iter::once(art).chain(crate::rulerguide::marquee_select(cx, r, false)).collect()
@@ -2017,6 +2021,29 @@ mod tests {
             let mut t = DirectSelectionTool::new(group);
             let (v, _) = drag(&mut t, &c, (350.0, 350.0), (253.0, 351.0), Mods::default());
             assert_eq!(v["matrix"], json!([1.0, 0.0, 0.0, 1.0, -100.0, 1.0]), "group: {group}");
+        }
+    }
+
+    /// #1816: Group Selection and Direct Selection move a whole path with Snap to Grid as the
+    /// Selection tool does, landing an edge on the grid; the center does not snap. A 45 pt square at
+    /// 90–135 on the 9 pt grid, dragged right by 22 to 112–157, lands its left edge on the gridline
+    /// 108 and moves by 18. Its center, at 134.5 after the drag, is nearer the gridline 135 and
+    /// does not snap.
+    #[test]
+    fn a_move_of_objects_lands_an_edge_on_the_grid() {
+        let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+        let l = d.layers[0].id;
+        let id = d.alloc_id();
+        let sq = vectorcraft_geom::shapes::rectangle(Rect::new(90.0, 90.0, 135.0, 135.0));
+        d.insert(Some(l), 0, vectorcraft_doc::Node::path(id, sq, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let p = paint();
+        let mut s = Selection::default();
+        s.set([id]);
+        let c = ToolContext { snap_to_grid: true, ..cx(&d, &s, &p) };
+        for group in [true, false] {
+            let mut t = DirectSelectionTool::new(group);
+            let (v, _) = drag(&mut t, &c, (110.0, 110.0), (132.0, 110.0), Mods::default());
+            assert_eq!(v["matrix"], json!([1.0, 0.0, 0.0, 1.0, 18.0, 0.0]), "group: {group}");
         }
     }
 

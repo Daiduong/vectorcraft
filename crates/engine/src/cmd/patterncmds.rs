@@ -491,10 +491,7 @@ fn swatch_name_clash(d: &Document, old: &str, new: &str) -> bool {
     let own = |w: &vectorcraft_color::Swatch| pattern_name(&w.paint).is_some_and(|p| p == old);
     let mut holders = d.swatches_iter().filter(|w| w.name == new).peekable();
     let only_own = holders.peek().is_some() && holders.all(own);
-    // A pattern swatch still named `old` takes the new name in `rename_pattern_uses`, so it frees
-    // the name rather than holding it.
-    let still_old = d.swatches_iter().any(|w| w.name == old && own(w));
-    d.swatch_name_taken(new) && (!only_own || still_old)
+    d.swatch_name_taken(new) && (!only_own || d.swatches_iter().any(|w| w.name == old && own(w)))
 }
 
 /// Rename a pattern in swatches, paints and the edit record. Of the swatches named `old`, only the

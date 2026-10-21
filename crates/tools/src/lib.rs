@@ -275,6 +275,9 @@ pub struct ToolContext<'a> {
     pub raster_sample: u32,
     /// General → Use Preview Bounds: the bounding box measures visual bounds (strokes included).
     pub preview_bounds: bool,
+    /// The session's memo of the selection tools' measurements for the document as it is
+    /// ([`select::PreviewMemo`]); without one they measure on every call.
+    pub preview_memo: Option<&'a select::PreviewMemo>,
     /// Units ▸ General: the unit measurement labels show lengths in.
     pub unit: Unit,
     /// Units ▸ Stroke: the unit measurement labels show stroke widths in.
@@ -546,8 +549,8 @@ pub enum Cursor {
     /// Over the type widget of selected type (a double-click converts point type to area type and
     /// back): the arrow with a type badge.
     TypeWidget,
-    /// The Selection tool loaded with the text of an area type's out port (a click threads it
-    /// into a path or a new frame, a drag draws the new frame).
+    /// The Selection tool loaded with the text of the out port of area type or type on a path (a
+    /// click threads it into a path or a new frame, a drag draws the new frame).
     LoadedText,
     /// The Shape Builder: a crosshair with a plus (merge mode)...
     ShapeBuilder,
@@ -559,8 +562,14 @@ pub enum Cursor {
     MagicWand,
     /// The Pencil tool.
     Pencil,
+    /// The Pencil tool with Alt held while Alt key toggles to Smooth Tool is off: releasing the
+    /// mouse button with Alt still held closes the path. A crosshair with a ring.
+    PencilClose,
     /// The Paintbrush tool.
     Paintbrush,
+    /// The Paintbrush tool with Alt held: releasing the mouse button with Alt still held closes
+    /// the path. A crosshair with a ring.
+    PaintbrushClose,
     /// The Blob Brush tool.
     BlobBrush,
     /// The Eraser tool.
@@ -671,7 +680,9 @@ impl Cursor {
             | Cursor::Lasso
             | Cursor::MagicWand
             | Cursor::Pencil
+            | Cursor::PencilClose
             | Cursor::Paintbrush
+            | Cursor::PaintbrushClose
             | Cursor::BlobBrush
             | Cursor::Eraser
             | Cursor::Smooth
@@ -1002,6 +1013,7 @@ pub(crate) mod testutil {
             freeform_point: None,
             raster_sample: 1,
             preview_bounds: false,
+            preview_memo: None,
             unit: Unit::Points,
             stroke_unit: Unit::Points,
             paste_plain_text: false,

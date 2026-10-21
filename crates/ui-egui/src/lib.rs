@@ -175,20 +175,34 @@ pub use control::{ControlRequest, ControlResponse, Ticket as ControlTicket};
 pub use state::{UiState, View};
 pub use sysclip::{ClipboardProbeFactory, SystemClipboard};
 
+/// A file type a dialog filters by: its label, which shows translated, and its extensions without
+/// the dot.
+pub type FileFilter = (String, Vec<String>);
+
 /// What a file dialog shows: a suggested file name (save dialogs), the folder to start in and the
 /// file-type filters.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FilePick {
     pub name: String,
     pub folder: Option<String>,
-    /// `(label, extensions without the dot)`, the default type first; empty = every file.
-    pub filters: Vec<(&'static str, &'static [&'static str])>,
+    /// The default type first; empty = every file.
+    pub filters: Vec<FileFilter>,
 }
 
 impl FilePick {
     /// A save dialog suggesting `name`.
     pub fn named(name: &str) -> Self {
         Self { name: name.to_string(), ..Default::default() }
+    }
+
+    /// The file type `label` with `extensions`.
+    pub fn filter(label: &str, extensions: &[&str]) -> FileFilter {
+        (label.to_owned(), extensions.iter().map(|e| (*e).to_owned()).collect())
+    }
+
+    /// The file types of `list`, as the engine lists them: `(label, extensions)`.
+    pub fn filters<'a>(list: impl IntoIterator<Item = (&'a str, &'a [&'a str])>) -> Vec<FileFilter> {
+        list.into_iter().map(|(label, extensions)| Self::filter(label, extensions)).collect()
     }
 }
 
@@ -315,6 +329,13 @@ pub struct CanvasCache {
     /// The frame shown was rendered on the worker: an interaction's frames stay there
     /// ([`canvas::show`]).
     pub from_worker: bool,
+    /// Set in the web build, which has no render worker: while the view changes on a document whose
+    /// last render took more than 8 ms, the canvas draws the frame shown reprojected and renders
+    /// once the view has been still for [`canvas::STILL_SECS`].
+    pub waits_for_still: bool,
+    /// The cache key the canvas last asked for and when it first asked for it (seconds, egui's
+    /// input time), kept while [`Self::waits_for_still`] is set.
+    pub still: Option<(CacheKey, f64)>,
     pub worker: Option<render_worker::Worker>,
     pub worker_started: bool,
     /// The slices as laid out for (document uid, revision): the canvas draws them every frame.
@@ -472,6 +493,7 @@ pub struct VectorcraftApp {
     /// the answer.
     font_check: Option<(std::sync::mpsc::Receiver<bool>, bool)>,
     /// When installed fonts were last checked in line (app time, s).
+    #[cfg(not(target_arch = "wasm32"))]
     font_install_check_at: f64,
     /// Keyboard pastes of something other than text (see [`shortcuts::PasteChord`]).
     pub(crate) paste_chord: shortcuts::PasteChord,
@@ -492,9 +514,13 @@ pub struct VectorcraftApp {
     pub(crate) ime_discard: bool,
     /// Preferences were confirmed (see [`Self::take_prefs_changed`]).
     pub(crate) prefs_changed: bool,
+    /// Whether the last frame's input reported a touch screen (Preferences › Devices › Touch Workspace).
+    pub touch_screen: bool,
     /// A numeric field is being scrubbed: the document's edits meanwhile are one undo step
     /// ([`scrub::begin_frame`]).
     scrub_group: bool,
+    /// The undo step of the scrub in progress ([`vectorcraft_engine::Session::begin_undo_scope`]).
+    scrub_scope: Option<vectorcraft_engine::UndoScope>,
     /// The folders control requests, and the input they inject, may read and write
     /// (`--automation-read-root`, `--automation-write-root`); `None`: anywhere. See
     /// [`Self::with_automation_roots`].
@@ -519,6 +545,7 @@ struct PendingScreenshot {
 /// Seconds between two looks at the system clipboard for [`VectorcraftApp::system_paste`].
 const SYSTEM_CLIPBOARD_POLL: f64 = 0.25;
 /// Seconds between looks for fonts a font manager activated while the app stays in front (#2576).
+#[cfg(not(target_arch = "wasm32"))]
 const FONT_INSTALL_POLL: f64 = 2.0;
 
 impl VectorcraftApp {
@@ -541,6 +568,8 @@ impl VectorcraftApp {
                 last_ms: 0.0,
                 moved: false,
                 from_worker: false,
+                waits_for_still: cfg!(target_arch = "wasm32"),
+                still: None,
                 worker: None,
                 worker_started: false,
                 slices: None,
@@ -585,6 +614,7 @@ impl VectorcraftApp {
             picks: picks::Picks::default(),
             screen_sampler: None,
             font_check: None,
+            #[cfg(not(target_arch = "wasm32"))]
             font_install_check_at: f64::NEG_INFINITY,
             paste_chord: Default::default(),
             background: Default::default(),
@@ -595,7 +625,9 @@ impl VectorcraftApp {
             ime_marked: None,
             ime_discard: false,
             prefs_changed: false,
+            touch_screen: false,
             scrub_group: false,
+            scrub_scope: None,
             automation_roots: None,
             synthetic_frame: false,
         }
@@ -1128,7 +1160,7 @@ impl VectorcraftApp {
         {
             return b;
         }
-        let b = match st.selection.anchor_bounds(&st.doc, self.session.prefs.use_preview_bounds) {
+        let b = match vectorcraft_effects::preview::anchor_bounds(&st.selection, &st.doc, self.session.prefs.use_preview_bounds) {
             Some(r) => Some(vectorcraft_doc::OrientedBox::aligned(r)),
             None => self.session.transform_box(&st.selection.objects),
         };
@@ -1136,9 +1168,9 @@ impl VectorcraftApp {
         b
     }
 
-    /// The selection's visual bounds (stroke and effects included), square to the page: measured
-    /// once per revision, as the canvas reads it every frame (a traced photo selects a group of
-    /// hundreds of thousands of paths).
+    /// The selection's visual bounds (strokes included, effects left out), square to the page:
+    /// measured once per revision, as the canvas reads it every frame (a traced photo selects a
+    /// group of hundreds of thousands of paths).
     pub fn selection_bounds(&mut self) -> Option<vectorcraft_geom::Rect> {
         let st = self.session.active()?;
         let key = (st.uid, st.revision);
