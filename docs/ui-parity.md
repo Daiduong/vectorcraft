@@ -293,6 +293,7 @@ sampling coexistence. Scores and estimates unchanged. See [development.md](devel
 | 2026-10-19 | minor | Distribute Objects and Distribute Spacing space the selected ruler guides across the axis with the objects, as items with no size, and two or more guides selected alone (#1597 in part); with a key guide and a spacing, the guide stays put and the other items are spaced from it (key guide from #3165); the Distribute Spacing value is enabled for a key guide; scores unchanged |
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
 | 2026-10-21 | minor | M4 review: rejected forwarding cannot bypass the owner; per-file dialog/decoder deferral and shared 32-slot admission preserve request ownership and bound repeated handoff work; real-bus regressions; scores unchanged. |
+| 2026-10-22 | minor | M4 review: owner-side capacity refusals show a coalesced status message without disturbing dialogs or queued documents; connected-bus ownership refusals fail closed. Private D-Bus regressions; scores and estimates unchanged. |
 | 2026-10-21 | minor | Snap to Glyph marked done (#3124); scores unchanged |
 | 2026-10-20 | minor | The selection tools (Selection, Direct Selection, Group Selection) take a clipping path on its outline, within the selection tolerance, before the art it clips, so its segments can be dragged where the art covers the mask's edge; Select Behind lists the same, and the eyedropper and the tools that act on what is drawn are unchanged. Doc and tool regression tests. Scores unchanged. |
 | 2026-10-20 | minor | Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; existing opening gestures retained; scores and hours unchanged. |
@@ -381,3 +382,10 @@ Linux reads reject pipes/devices and cap regular-file input at 512 MiB. Automati
 independent; compositor focus policy applies. Real-bus and reader regressions cover these
 safeguards and unsaved work. Work count is bounded, not total decoded bytes or network latency.
 Scores and estimates unchanged. See [development.md](development.md#linux-file-manager-handoff-2026-10-21).
+
+Linux handoff review follow-up (2026-10-22): capacity refusals wake the owner and
+show a one-shot status message, including while a dialog defers opening. Repeated
+refusals coalesce without adding queued work. Once the session bus is connected,
+name-ownership errors fail closed rather than starting a second workspace. Private
+D-Bus tests cover denied ownership and visible, one-shot capacity feedback while
+preserving queued files, dialogs and unsaved artwork. Scores and estimates unchanged.

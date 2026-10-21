@@ -8,6 +8,7 @@ const NAME: &str = "ai.storyteller.vectorcraft.OpenDocuments";
 const PATH: &str = "/ai/storyteller/vectorcraft/OpenDocuments";
 // A shared handoff budget, retained through decoding and the lifetime of open tabs.
 const MAX_FILES: usize = 32;
+const CAPACITY_MESSAGE: &str = "Too many open or queued documents. Close some tabs and try opening the file again.";
 
 #[derive(Default)]
 struct Pending {
@@ -15,6 +16,8 @@ struct Pending {
     /// UI-owned documents, decoders and modal work; a dispatched path reserves its slot.
     occupied: usize,
     activate: bool,
+    /// Coalesce capacity refusals into one owner-side status update.
+    rejected: bool,
     ctx: Option<egui::Context>,
 }
 
@@ -32,9 +35,11 @@ impl OpenDocuments {
         // Draining the queue must not free admission capacity while the document is decoding
         // or remains open. An empty request may still focus a workspace that is at capacity.
         if !files.is_empty() && files.len().saturating_add(pending.files.len()).saturating_add(pending.occupied) > MAX_FILES {
-            return Err(zbus::fdo::Error::LimitsExceeded(format!(
-                "file handoff is limited to {MAX_FILES} queued, opening or open documents; close tabs and retry"
-            )));
+            pending.rejected = true;
+            if let Some(ctx) = &pending.ctx {
+                ctx.request_repaint();
+            }
+            return Err(zbus::fdo::Error::LimitsExceeded(CAPACITY_MESSAGE.into()));
         }
         pending.files.extend(files);
         pending.activate = true;
@@ -88,7 +93,8 @@ fn start_on(builder: zbus::blocking::connection::Builder<'_>, files: &[String], 
             let _: () = proxy.call("Open", &(paths,)).map_err(|e| StartError::ForwardingFailed(e.to_string()))?;
             Ok(Launch::Forwarded)
         }
-        Err(e) => Err(StartError::BusUnavailable(e.to_string())),
+        // A connected bus that refuses ownership must not enable another workspace.
+        Err(e) => Err(StartError::ForwardingFailed(e.to_string())),
     }
 }
 
@@ -101,6 +107,13 @@ impl Instance {
     /// File-open requests must not change the document a dialog is acting on.
     pub fn dispatch(&self, app: &mut vectorcraft_ui_egui::VectorcraftApp, ctx: &egui::Context) {
         self.update_occupancy(app);
+        let rejected = {
+            let mut pending = self.documents.0.lock().unwrap_or_else(PoisonError::into_inner);
+            std::mem::take(&mut pending.rejected)
+        };
+        if rejected {
+            app.status(CAPACITY_MESSAGE);
+        }
         if !app.file_dialog_open()
             && app.ui.dialog.is_none()
             && app.opening.pending.is_empty()
@@ -178,6 +191,52 @@ mod tests {
         assert!(matches!(start_on(builder, &[], OpenDocuments::default()), Err(StartError::BusUnavailable(_))));
     }
 
+    /// A live bus may deny name ownership; only connection failure permits fallback.
+    #[test]
+    fn denied_name_ownership_never_permits_standalone_startup() {
+        use std::io::BufRead as _;
+        let dir = std::env::temp_dir().join(format!("vectorcraft-denied-bus-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = dir.join("bus.conf");
+        std::fs::write(
+            &config,
+            format!(
+                r#"<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen>
+<auth>EXTERNAL</auth><policy context="default"><allow user="*"/>
+<allow send_destination="*"/><allow receive_sender="*"/><deny own="{NAME}"/>
+</policy></busconfig>"#
+            ),
+        )
+        .unwrap();
+        let Ok(mut daemon) = std::process::Command::new("dbus-daemon")
+            .arg(format!("--config-file={}", config.display()))
+            .args(["--nofork", "--print-address=1"])
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+        else {
+            std::fs::remove_file(config).unwrap();
+            std::fs::remove_dir(dir).unwrap();
+            eprintln!("dbus-daemon unavailable; skipping ownership policy regression");
+            return;
+        };
+        struct Stop(std::process::Child, std::path::PathBuf);
+        impl Drop for Stop {
+            /// Stop the bus and remove its synthetic policy even if assertions fail.
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+                let _ = std::fs::remove_file(self.1.join("bus.conf"));
+                let _ = std::fs::remove_dir(&self.1);
+            }
+        }
+        let mut address = String::new();
+        std::io::BufReader::new(daemon.stdout.take().unwrap()).read_line(&mut address).unwrap();
+        let _stop = Stop(daemon, dir);
+        let builder = zbus::blocking::connection::Builder::address(address.trim()).unwrap();
+        let error = start_on(builder, &[], OpenDocuments::default()).err().unwrap();
+        assert!(matches!(&error, StartError::ForwardingFailed(message) if message.contains("AccessDenied")), "{error:?}");
+    }
+
     /// Exercise real forwarding, dialog deferral, tab opening and ownership cleanup.
     #[test]
     fn second_launch_forwards_and_name_is_released_on_exit() {
@@ -246,6 +305,22 @@ mod tests {
         first.dispatch(&mut app, &ctx);
         assert_eq!(app.session.documents().len(), 1, "dialog keeps its document active");
         assert_eq!(first.documents.0.lock().unwrap().files, files, "queued files wait for the dialog");
+        assert_eq!(app.ui.status, CAPACITY_MESSAGE, "owner displays the remote capacity rejection even during a dialog");
+        app.status("sentinel");
+        first.dispatch(&mut app, &ctx);
+        assert_eq!(app.ui.status, "sentinel", "a rejection is consumed exactly once");
+        assert!(matches!(
+            start_on(builder(), &vec!["/tmp/overflow.svg".into(); MAX_FILES + 1], OpenDocuments::default()),
+            Err(StartError::ForwardingFailed(_))
+        ));
+        assert!(matches!(
+            start_on(builder(), &vec!["/tmp/overflow.svg".into(); MAX_FILES + 1], OpenDocuments::default()),
+            Err(StartError::ForwardingFailed(_))
+        ));
+        first.dispatch(&mut app, &ctx);
+        assert_eq!(app.ui.status, CAPACITY_MESSAGE, "repeated refusals coalesce and later rejections still notify");
+        assert_eq!(first.documents.0.lock().unwrap().files, files);
+        assert_eq!(app.session.documents()[0].doc, original);
         app.ui.dialog = None;
         first.dispatch(&mut app, &ctx);
         assert_eq!(app.opening.pending.len(), 1, "one forwarded decoder at a time");

@@ -414,6 +414,7 @@ covers upstream brush-key sampling. Scores and estimates unchanged.
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
 | 2026-10-21 | minor | M4: Linux document-only window reuse; regular-file/512 MiB read safeguards; isolated transport and reader regressions; scores and estimates unchanged. |
 | 2026-10-21 | minor | M4 review: rejected forwarding cannot bypass the owner; per-file dialog/decoder deferral and shared 32-slot admission preserve request ownership and bound repeated handoff work; real-bus regressions; scores unchanged. |
+| 2026-10-22 | minor | M4 review: owner-side capacity refusals show a coalesced status message without disturbing dialogs or queued documents; connected-bus ownership refusals fail closed. Private D-Bus regressions; scores and estimates unchanged. |
 
 ## Linux file-manager handoff (2026-10-21)
 
@@ -446,3 +447,10 @@ no-bus fallback, serialized decoding, retained dialog requests, slot retention a
 Unicode/relative paths, ownership release, unsaved documents and document-only handling.
 `linux_file_read::tests` covers special descriptors, symlinks and byte limits. Native/Flatpak
 tab opening was manually verified before this review follow-up. Scores and estimates unchanged.
+
+Linux handoff review follow-up (2026-10-22): capacity refusals wake the owner and
+show a one-shot status message, including while a dialog defers opening. Repeated
+refusals coalesce without adding queued work. Once the session bus is connected,
+name-ownership errors fail closed rather than starting a second workspace. Private
+D-Bus tests cover denied ownership and visible, one-shot capacity feedback while
+preserving queued files, dialogs and unsaved artwork. Scores and estimates unchanged.
