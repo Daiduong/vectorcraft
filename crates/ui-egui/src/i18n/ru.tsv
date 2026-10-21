@@ -305,6 +305,7 @@
 	Blur	Размытие
 	Bottom	Внизу
 	Bottom in Front	Нижний спереди
+	Bottom-Justified Tab	Табуляция с выравниванием по нижнему краю
 	Bottom:	Внизу:
 	Bounds	Границы
 	Bounds (Fill Proportionally)	Границы (заполнять пропорционально)
@@ -1079,6 +1080,14 @@
 	Alt key toggles to Smooth Tool	Клавиша Alt переключает на инструмент «Сглаживание»
 	Keep selected	Оставлять выбранным
 	Merge only with selection	Объединять только с выделенным
+	Consider Open Filled Paths as Closed	Считать открытые контуры с заливкой замкнутыми
+	Pick Color From:	Источник цвета:
+	Artwork	Графика
+	Cursor Swatch Preview	Образцы у указателя
+	Selection:	Выделение:
+	Freeform	Произвольно
+	Straight Line	Прямая линия
+	Highlight:	Подсветка:
 	Fill Color	Цвет заливки
 	Fill New Type Objects With Placeholder Text	Заполнять новые текстовые объекты текстом-заполнителем
 	Fill Rule	Правило заливки
@@ -1207,6 +1216,8 @@ file-filter	Templates	Шаблоны
 	Large Gaps	Большие зазоры
 	Gap Preview Color:	Цвет просмотра зазоров:
 	Close Gaps With Paths	Закрыть зазоры контурами
+	Show Live Paint Gaps	Показать зазоры быстрой заливки
+	Hide Live Paint Gaps	Скрыть зазоры быстрой заливки
 	Select Fills	Выделять заливки
 	Select Strokes	Выделять обводки
 	Gaussian Blur…	Размытие по Гауссу…
@@ -1851,6 +1862,9 @@ file-filter	Templates	Шаблоны
 	Modified:	Изменено:
 	Modify	Изменить
 	Mojikumi	Mojikumi
+	Insert Kashidas	Вставлять кашиды
+	Long	Длинные
+	Stylistic	Стилистические
 	Mojikumi Set	Набор mojikumi
 	Kinsoku Set	Набор kinsoku
 	Hard	Строгий
@@ -1990,6 +2004,7 @@ file-filter	Templates	Шаблоны
 	New View	Новый вид
 	New View…	Новый вид…
 	New Window	Новое окно
+	New Without Dialog	Создать без диалогового окна
 	New Workspace	Новая рабочая среда
 	New Workspace…	Новая рабочая среда…
 	New {kind} Style…	Новый стиль {kind}…
@@ -3298,6 +3313,7 @@ mark-style	Japanese	Японский
 	Tools	Инструменты
 	Top	Вверху
 	Top in Front	Верхний спереди
+	Top-Justified Tab	Табуляция с выравниванием по верхнему краю
 	Top:	Вверху:
 	Total Width:	Общая ширина:
 	Touch Type	Настройка текста
@@ -3637,7 +3653,8 @@ imageTrace	Outline	Контур
 	 to sample a color	 для взятия образца цвета
 	 across a selected object to set the gradient direction	 по выделенному объекту для задания направления градиента
 	 to select an artboard  |  	 для выбора монтажной области  |  
-	 on the canvas to create one	 на холсте для создания одной
+	 on the canvas to create one (	 на холсте для создания одной (
+	 selects several, or draws one inside an artboard)	 выбирает несколько или создаёт новую внутри монтажной области)
 	 a stroke to add a width point  |  	 обводку для добавления точки ширины  |  
 	 to change one side  |  	 для изменения одной стороны  |  
 	 to select more points  |  	 для выделения большего числа точек  |  
@@ -3878,6 +3895,25 @@ axis	Both	Оба
 @msg	a PostScript error ({name} in `{op}`: {at})	ошибка PostScript ({name} в `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	ошибка PostScript ({name} в `{op}`: {at}), в {procs}
 @msg	a PostScript error ({name})	ошибка PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	ошибка PostScript ({name} в `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	ошибка PostScript ({name} в `{op}`; {meaning}), в {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	ошибка PostScript ({name} в `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	ошибка PostScript ({name} в `{op}`: {at}; {meaning}), в {procs}
+@msg	a PostScript error ({name}; {meaning})	ошибка PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	программа закрывает словарь, который она не открывала
+@msg	the program opens a file, which the reader can't do	программа открывает файл, а читатель PostScript этого не умеет
+@msg	the program restores a saved state that was already restored	программа восстанавливает сохранённое состояние, которое уже восстановлено
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	данные, которые читает программа, повреждены или обрываются, или программа запрашивает позицию в файле, у которого её нет
+@msg	the program goes past one of the reader's limits	программа выходит за один из пределов читателя PostScript
+@msg	the path has no point to continue from	у контура нет точки, от которой можно продолжить
+@msg	a value is outside the range the operator takes	значение вне диапазона, который принимает оператор
+@msg	the operator needs more values than the stack holds	оператору нужно больше значений, чем есть в стеке
+@msg	part of the program isn't valid PostScript text	часть программы не является допустимым текстом PostScript
+@msg	a value has the wrong type for the operator	значение имеет неверный тип для оператора
+@msg	the program runs, deletes or renames a file, which the reader can't do	программа запускает, удаляет или переименовывает файл, а читатель PostScript этого не умеет
+@msg	the program asks for a resource that isn't defined	программа запрашивает ресурс, который не определён
+@msg	a calculation has no result, as in a division by zero	у вычисления нет результата, как при делении на ноль
+@msg	the operator looks for a mark on the stack and finds none	оператор ищет метку в стеке и не находит её
 @msg	a bitmap is empty	растровое изображение пусто
 @msg	a bitmap is too large to read	растровое изображение слишком велико для чтения
 @msg	a colour index is 0 to {_1}, not {n}	индекс цвета от 0 до {_1}, а не {n}
@@ -4150,6 +4186,10 @@ axis	Both	Оба
 @msg	select a repeat	выделите повтор
 @msg	select an Intertwine group	выделите группу переплетения
 @msg	select an Objects on Path group	выделите группу объектов на контуре
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	к контуру внутри составного контура, перехода, оболочки, повтора или группы переплетения нельзя прикрепить объекты
+@msg	a clipping path can't take objects	к контуру обрезки нельзя прикрепить объекты
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	объекты внутри перехода, оболочки, повтора или группы переплетения нельзя прикрепить к контуру
+@msg	a clipping path can't be attached to a path	контур обрезки нельзя прикрепить к контуру
 @msg	select a stroke with a variable width	выделите обводку с переменной шириной
 @msg	select a symbol instance	выделите экземпляр символа
 @msg	select an Image Trace object	выделите объект трассировки изображения
@@ -4883,3 +4923,5 @@ lighting	Light	Свет
 	Plaster	Гипс
 	Note Paper…	Почтовая бумага…
 	Note Paper	Почтовая бумага
+	Water Paper…	Мокрая бумага…
+	Water Paper	Мокрая бумага

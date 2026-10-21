@@ -98,7 +98,7 @@
 	Add Selected Artwork (Alt: as one asset)	Προσθήκη επιλεγμένου γραφικού (Alt: ως ένα στοιχείο)
 	Add Selected Artwork as Multiple Assets	Προσθήκη επιλεγμένου γραφικού ως πολλών στοιχείων
 	Add Selected Artwork as One Asset	Προσθήκη επιλεγμένου γραφικού ως ενός στοιχείου
-	Add Spine Point	Προσθήκη σημείου άξονα
+	Add Spine Point	Προσθήκη σημείου κεντρικής καμπύλης
 	Add Swatches	Προσθήκη δειγμάτων χρωμάτων
 	Add to Graphic Styles	Προσθήκη στα στυλ γραφικών
 	Add to Profiles	Προσθήκη στα προφίλ
@@ -285,6 +285,7 @@
 	Blur	Θόλωση
 	Bottom	Κάτω
 	Bottom in Front	Κάτω αντικείμενο μπροστά
+	Bottom-Justified Tab	Στηλοθέτης κάτω στοίχισης
 	Bottom:	Κάτω:
 	Bounds	Όρια
 	Bounds (Fill Proportionally)	Όρια (αναλογικό γέμισμα)
@@ -671,7 +672,7 @@
 	Delete Selected Item	Διαγραφή επιλεγμένου στοιχείου
 	Delete Selection	Διαγραφή επιλογής
 	Delete Slices	Διαγραφή τομών
-	Delete Spine Point	Διαγραφή σημείου άξονα
+	Delete Spine Point	Διαγραφή σημείου κεντρικής καμπύλης
 	Delete Stop	Διαγραφή στάσης ντεγκραντέ
 	Delete Swatch	Διαγραφή δείγματος χρώματος
 	Delete Symbol	Διαγραφή συμβόλου
@@ -1140,6 +1141,8 @@
 	Large Gaps	Μεγάλα διάκενα
 	Gap Preview Color:	Χρώμα προεπισκόπησης διακένων:
 	Close Gaps With Paths	Κλείσιμο διακένων με διαδρομές
+	Show Live Paint Gaps	Εμφάνιση διακένων δυναμικής βαφής
+	Hide Live Paint Gaps	Απόκρυψη διακένων δυναμικής βαφής
 	Select Fills	Επιλογή γεμισμάτων
 	Select Strokes	Επιλογή περιγραμμάτων
 	Gaussian Blur…	Θόλωση Γκάους…
@@ -1624,6 +1627,7 @@
 	New Layer…	Νέο επίπεδο…
 	New Swatch…	Νέο δείγμα χρώματος…
 	New Window	Νέο παράθυρο
+	New Without Dialog	Νέο χωρίς παράθυρο διαλόγου
 	New Workspace	Νέος χώρος εργασίας
 	New Workspace…	Νέος χώρος εργασίας…
 	New…	Νέο…
@@ -2068,7 +2072,7 @@ axis	Both	Και τα δύο
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Η προεπισκόπηση σε πρόγραμμα περιήγησης απαιτεί την εφαρμογή υπολογιστή (η έκδοση ιστού πραγματοποιεί λήψη αρχείων)
 @msg	Release Guides: no guides	Αποδέσμευση οδηγών: δεν υπάρχουν οδηγοί
 @msg	Release: no layer to put the rectangle in	Αποδέσμευση: δεν υπάρχει επίπεδο για να τοποθετηθεί το ορθογώνιο
-@msg	Replace Spine: select a blend and a path	Αντικατάσταση άξονα: επιλέξτε ανάμειξη και διαδρομή
+@msg	Replace Spine: select a blend and a path	Αντικατάσταση κεντρικής καμπύλης: επιλέξτε ανάμειξη και διαδρομή
 @msg	select two or more objects to distribute	Επιλέξτε δύο ή περισσότερα αντικείμενα για κατανομή
 @msg	select paths or anchor points	Επιλέξτε διαδρομές ή σημεία αγκύρωσης
 @msg	SVG parse error: {0}	Σφάλμα ανάλυσης SVG: {0}
@@ -2545,6 +2549,9 @@ theme	Appearance	Εμφάνιση
 	Modified since it was read: {path}	Τροποποιήθηκε μετά την ανάγνωση: {path}
 	Modified:	Τροποποιήθηκε:
 	Mojikumi	Mojikumi
+	Insert Kashidas	Εισαγωγή κασίντα
+	Long	Μακρύ
+	Stylistic	Στιλιστικό
 	Mojikumi Set	Σύνολο Mojikumi
 	Kinsoku Set	Σύνολο Kinsoku
 	Mono	Μονοφωνικό
@@ -3584,6 +3591,7 @@ theme	Appearance	Εμφάνιση
 	Toolbar: Remove Tool	Γραμμή εργαλείων: Αφαίρεση εργαλείου
 	Toolbar: Reset	Γραμμή εργαλείων: Επαναφορά
 	Top in Front	Επάνω μπροστά
+	Top-Justified Tab	Στηλοθέτης επάνω στοίχισης
 	Total Width:	Συνολικό πλάτος:
 	Touch Type Tool	Επεξεργασία χαρακτήρων με αφή (Touch Type Tool)
 	Trace	Διανυσματοποίηση
@@ -3823,6 +3831,25 @@ theme	Appearance	Εμφάνιση
 @msg	a PostScript error ({name} in `{op}`: {at})	σφάλμα PostScript ({name} στην εντολή `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`: {at}), στις διαδικασίες {procs}
 @msg	a PostScript error ({name})	σφάλμα PostScript ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	σφάλμα PostScript ({name} στην εντολή `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`; {meaning}), στις διαδικασίες {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	σφάλμα PostScript ({name} στην εντολή `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	σφάλμα PostScript ({name} στην εντολή `{op}`: {at}; {meaning}), στις διαδικασίες {procs}
+@msg	a PostScript error ({name}; {meaning})	σφάλμα PostScript ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	το πρόγραμμα κλείνει ένα λεξικό που δεν άνοιξε
+@msg	the program opens a file, which the reader can't do	το πρόγραμμα ανοίγει ένα αρχείο, κάτι που ο αναγνώστης δεν μπορεί να κάνει
+@msg	the program restores a saved state that was already restored	το πρόγραμμα επαναφέρει μια αποθηκευμένη κατάσταση που έχει ήδη επαναφερθεί
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	τα δεδομένα που διαβάζει το πρόγραμμα είναι κατεστραμμένα ή περικομμένα, ή το πρόγραμμα ζητά θέση σε ένα αρχείο που δεν έχει θέση
+@msg	the program goes past one of the reader's limits	το πρόγραμμα ξεπερνά ένα από τα όρια του αναγνώστη
+@msg	the path has no point to continue from	η διαδρομή δεν έχει σημείο από το οποίο να συνεχίσει
+@msg	a value is outside the range the operator takes	μια τιμή είναι εκτός του εύρους που δέχεται η εντολή
+@msg	the operator needs more values than the stack holds	η εντολή χρειάζεται περισσότερες τιμές από όσες έχει η στοίβα
+@msg	part of the program isn't valid PostScript text	μέρος του προγράμματος δεν είναι έγκυρο κείμενο PostScript
+@msg	a value has the wrong type for the operator	μια τιμή έχει λάθος τύπο για την εντολή
+@msg	the program runs, deletes or renames a file, which the reader can't do	το πρόγραμμα εκτελεί, διαγράφει ή μετονομάζει ένα αρχείο, κάτι που ο αναγνώστης δεν μπορεί να κάνει
+@msg	the program asks for a resource that isn't defined	το πρόγραμμα ζητά έναν πόρο που δεν έχει οριστεί
+@msg	a calculation has no result, as in a division by zero	ένας υπολογισμός δεν έχει αποτέλεσμα, όπως σε μια διαίρεση με το μηδέν
+@msg	the operator looks for a mark on the stack and finds none	η εντολή αναζητά ένα σημάδι στη στοίβα και δεν βρίσκει κανένα
 @msg	a bitmap is empty	το bitmap είναι κενό
 @msg	a bitmap is too large to read	το bitmap είναι πολύ μεγάλο για ανάγνωση
 @msg	a colour index is 0 to {_1}, not {n}	ο δείκτης χρώματος πρέπει να είναι από 0 έως {_1}, όχι {n}
@@ -4794,7 +4821,8 @@ theme	Appearance	Εμφάνιση
 	 to sample a color	 για δειγματοληψία χρώματος
 	 across a selected object to set the gradient direction	 κατά μήκος επιλεγμένου αντικειμένου για ορισμό κατεύθυνσης ντεγκραντέ
 	 to select an artboard  |  	 για επιλογή πίνακα σχεδίασης  |  
-	 on the canvas to create one	 στον καμβά για δημιουργία ενός
+	 on the canvas to create one (	 στον καμβά για δημιουργία ενός (
+	 selects several, or draws one inside an artboard)	 επιλέγει πολλούς ή δημιουργεί νέο μέσα σε πίνακα σχεδίασης)
 	 a stroke to add a width point  |  	 περίγραμμα για προσθήκη σημείου πλάτους  |  
 	 to change one side  |  	 για αλλαγή μίας πλευράς  |  
 	 to select more points  |  	 για επιλογή περισσότερων σημείων  |  
@@ -5055,6 +5083,13 @@ effect	Points	Σημεία
 	Isolate Selected Object	Απομόνωση επιλεγμένου αντικειμένου
 	Keep selected	Διατήρηση επιλογής
 	Merge only with selection	Συγχώνευση μόνο με την επιλογή
+	Consider Open Filled Paths as Closed	Οι ανοιχτές γεμισμένες διαδρομές θεωρούνται κλειστές
+	Pick Color From:	Λήψη χρώματος από:
+	Artwork	Γραφικά
+	Cursor Swatch Preview	Προεπισκόπηση δείγματος δίπλα στον δείκτη
+	Selection:	Επιλογή:
+	Straight Line	Ευθεία γραμμή
+	Highlight:	Επισήμανση:
 	Legacy (version 7)	Παλαιού τύπου (έκδοση 7)
 	Legacy .ai Options	Επιλογές .ai παλαιού τύπου
 	Linked Files	Συνδεδεμένα αρχεία
@@ -5113,6 +5148,10 @@ effect	Points	Σημεία
 @msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	δεν εφαρμόστηκε τίποτα από το σύνολο δεδομένων {name}: κανένα αντικείμενο δεν είναι συνδεδεμένο με μεταβλητή για την οποία έχει τιμή
 @msg	select an Intertwine group	επιλέξτε μια ομάδα διαπλοκής
 @msg	select an Objects on Path group	επιλέξτε μια ομάδα αντικειμένων σε διαδρομή
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	μια διαδρομή μέσα σε σύνθετη διαδρομή, ανάμειξη, περίβλημα, επανάληψη ή ομάδα διαπλοκής δεν μπορεί να δεχτεί αντικείμενα
+@msg	a clipping path can't take objects	μια διαδρομή αποκοπής δεν μπορεί να δεχτεί αντικείμενα
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	τα αντικείμενα μέσα σε ανάμειξη, περίβλημα, επανάληψη ή ομάδα διαπλοκής δεν μπορούν να προσαρτηθούν σε διαδρομή
+@msg	a clipping path can't be attached to a path	μια διαδρομή αποκοπής δεν μπορεί να προσαρτηθεί σε διαδρομή
 @msg	span must be "object" or "selection", got {v}	το span πρέπει να είναι "object" ή "selection", δόθηκε {v}
 @msg	span: "selection" places a `gradient`, not a swatch	span: το "selection" τοποθετεί ένα `gradient`, όχι δείγμα χρώματος
 @msg	span: "selection" places a gradient: give `gradient`	span: το "selection" τοποθετεί ντεγκραντέ: δώστε `gradient`
@@ -5225,3 +5264,5 @@ effect	Points	Σημεία
 	Plaster	Γύψος
 	Note Paper…	Χαρτί σημειώσεων…
 	Note Paper	Χαρτί σημειώσεων
+	Water Paper…	Βρεγμένο χαρτί…
+	Water Paper	Βρεγμένο χαρτί

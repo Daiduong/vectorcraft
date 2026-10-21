@@ -296,6 +296,7 @@
 	Blur	Oskärpa
 	Bottom	Nederkant
 	Bottom in Front	Nederkant framför
+	Bottom-Justified Tab	Bottenjusterad tabb
 	Bottom:	Nederkant:
 	Bounds	Gränser
 	Bounds (Fill Proportionally)	Gränser (fyll proportionellt)
@@ -1177,6 +1178,8 @@
 	Large Gaps	Stora mellanrum
 	Gap Preview Color:	Förhandsgranskningsfärg för mellanrum:
 	Close Gaps With Paths	Stäng mellanrum med banor
+	Show Live Paint Gaps	Visa mellanrum i direktmålning
+	Hide Live Paint Gaps	Dölj mellanrum i direktmålning
 	Select Fills	Markera fyllningar
 	Select Strokes	Markera konturer
 	Gaussian Blur…	Gaussisk oskärpa…
@@ -1786,6 +1789,9 @@
 	Modified:	Ändrad:
 	Modify	Ändra
 	Mojikumi	Mojikumi
+	Insert Kashidas	Infoga kashidor
+	Long	Lång
+	Stylistic	Stilistisk
 	Mojikumi Set	Mojikumi-uppsättning
 	Kinsoku Set	Kinsoku-uppsättning
 	Hard	Hård
@@ -1925,6 +1931,7 @@
 	New View	Ny vy
 	New View…	Ny vy…
 	New Window	Nytt fönster
+	New Without Dialog	Ny utan dialogruta
 	New Workspace	Ny arbetsyta
 	New Workspace…	Ny arbetsyta…
 	New {kind} Style…	Ny {kind}stil…
@@ -3210,6 +3217,7 @@
 	Tools	Verktyg
 	Top	Överkant
 	Top in Front	Ovansidan framför
+	Top-Justified Tab	Toppjusterad tabb
 	Top:	Överkant:
 	Total Width:	Total bredd:
 	Touch Type Tool	Beröringstextverktyg
@@ -3547,7 +3555,8 @@ imageTrace	Outline	Disposition
 	 to sample a color	 för att hämta en färg
 	 across a selected object to set the gradient direction	 över ett markerat objekt för att ange gradientens riktning
 	 to select an artboard  |  	 för att markera en rityta  |  
-	 on the canvas to create one	 på arbetsytan för att skapa en
+	 on the canvas to create one (	 på arbetsytan för att skapa en (
+	 selects several, or draws one inside an artboard)	 markerar flera eller skapar en ny i en rityta)
 	 a stroke to add a width point  |  	 en kontur för att lägga till en breddpunkt  |  
 	 to change one side  |  	 för att ändra en sida  |  
 	 to select more points  |  	 för att markera fler punkter  |  
@@ -3771,6 +3780,25 @@ axis	Both	Båda
 @msg	a PostScript error ({name} in `{op}`: {at})	ett PostScript-fel ({name} i `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	ett PostScript-fel ({name} i `{op}`: {at}), i {procs}
 @msg	a PostScript error ({name})	ett PostScript-fel ({name})
+@msg	a PostScript error ({name} in `{op}`; {meaning})	ett PostScript-fel ({name} i `{op}`; {meaning})
+@msg	a PostScript error ({name} in `{op}`; {meaning}), in {procs}	ett PostScript-fel ({name} i `{op}`; {meaning}), i {procs}
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning})	ett PostScript-fel ({name} i `{op}`: {at}; {meaning})
+@msg	a PostScript error ({name} in `{op}`: {at}; {meaning}), in {procs}	ett PostScript-fel ({name} i `{op}`: {at}; {meaning}), i {procs}
+@msg	a PostScript error ({name}; {meaning})	ett PostScript-fel ({name}; {meaning})
+@msg	the program ends a dictionary it didn't begin	programmet avslutar en ordlista som det inte har påbörjat
+@msg	the program opens a file, which the reader can't do	programmet öppnar en fil, vilket PostScript-läsaren inte kan
+@msg	the program restores a saved state that was already restored	programmet återställer ett sparat läge som redan har återställts
+@msg	data the program reads is damaged or cut short, or the program asks for a position in a file that has none	data som programmet läser är skadade eller avkortade, eller så frågar programmet efter en position i en fil som inte har någon
+@msg	the program goes past one of the reader's limits	programmet överskrider en av PostScript-läsarens gränser
+@msg	the path has no point to continue from	banan har ingen punkt att fortsätta från
+@msg	a value is outside the range the operator takes	ett värde ligger utanför intervallet som operatorn tar emot
+@msg	the operator needs more values than the stack holds	operatorn behöver fler värden än stacken innehåller
+@msg	part of the program isn't valid PostScript text	en del av programmet är inte giltig PostScript-text
+@msg	a value has the wrong type for the operator	ett värde har fel typ för operatorn
+@msg	the program runs, deletes or renames a file, which the reader can't do	programmet kör, tar bort eller byter namn på en fil, vilket PostScript-läsaren inte kan
+@msg	the program asks for a resource that isn't defined	programmet begär en resurs som inte är definierad
+@msg	a calculation has no result, as in a division by zero	en beräkning har inget resultat, som vid division med noll
+@msg	the operator looks for a mark on the stack and finds none	operatorn letar efter en markering på stacken och hittar ingen
 @msg	a bitmap is empty	en bitmapp är tom
 @msg	a bitmap is too large to read	en bitmapp är för stor för att läsas
 @msg	a colour index is 0 to {_1}, not {n}	ett färgindex är 0 till {_1}, inte {n}
@@ -5059,6 +5087,13 @@ theme	Appearance	Utseende
 	Isolate Selected Object	Isolera markerat objekt
 	Keep selected	Behåll markerad
 	Merge only with selection	Sammanfoga endast med markeringen
+	Consider Open Filled Paths as Closed	Behandla öppna fyllda banor som slutna
+	Pick Color From:	Hämta färg från:
+	Artwork	Bildmaterial
+	Cursor Swatch Preview	Förhandsvisning av färgprover vid pekaren
+	Selection:	Markering:
+	Straight Line	Rak linje
+	Highlight:	Framhävning:
 	Legacy (version 7)	Äldre (version 7)
 	Legacy .ai Options	Alternativ för äldre .ai
 	Linked Files	Länkade filer
@@ -5117,6 +5152,10 @@ theme	Appearance	Utseende
 @msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	inget i datauppsättningen {name} användes: inget objekt är bundet till en variabel som den har ett värde för
 @msg	select an Intertwine group	markera en sammanflätningsgrupp
 @msg	select an Objects on Path group	markera en grupp med objekt på bana
+@msg	a path inside a compound path, blend, envelope, repeat or Intertwine group can't take objects	en bana inuti en sammansatt bana, en blandning, ett kuvert, en upprepning eller en sammanflätningsgrupp kan inte ta emot objekt
+@msg	a clipping path can't take objects	en klippbana kan inte ta emot objekt
+@msg	objects inside a blend, envelope, repeat or Intertwine group can't be attached to a path	objekt inuti en blandning, ett kuvert, en upprepning eller en sammanflätningsgrupp kan inte fästas på en bana
+@msg	a clipping path can't be attached to a path	en klippbana kan inte fästas på en bana
 @msg	span must be "object" or "selection", got {v}	span måste vara "object" eller "selection", fick {v}
 @msg	span: "selection" places a `gradient`, not a swatch	span: "selection" placerar en `gradient`, inte en färgruta
 @msg	span: "selection" places a gradient: give `gradient`	span: "selection" placerar en övertoning: ange `gradient`
@@ -5229,3 +5268,5 @@ theme	Appearance	Utseende
 	Plaster	Gips
 	Note Paper…	Anteckningspapper…
 	Note Paper	Anteckningspapper
+	Water Paper…	Vått papper…
+	Water Paper	Vått papper

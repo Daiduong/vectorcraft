@@ -461,7 +461,11 @@ struct Reader<'a> {
     instance: Option<Instance>,
     pending_fill: Option<Paint>,
     pending_stroke: Option<Paint>,
+    /// The named colours the colour operators define (`x`, `Xx`, `Xk`…).
     spots: Vec<Named>,
+    /// The named colours gradient stops name. A stop doesn't say whether its colour is an ink or
+    /// a global process colour, so these make swatches only for names no colour operator defines.
+    stop_spots: Vec<Named>,
     raster: Option<Raster>,
     /// The placed file being read (`%AI5_BeginPlace` … `~`).
     place: Option<Place>,
@@ -626,6 +630,7 @@ impl<'a> Reader<'a> {
             pending_fill: None,
             pending_stroke: None,
             spots: Vec::new(),
+            stop_spots: Vec::new(),
             raster: None,
             place: None,
             foreign_data: None,
@@ -879,6 +884,7 @@ impl<'a> Reader<'a> {
             self.doc.images.entry(key).or_insert(blob);
         }
         self.spots.extend(sub.spots);
+        self.stop_spots.extend(sub.stop_spots);
         self.cmyk_colors += sub.cmyk_colors;
         self.rgb_colors += sub.rgb_colors;
         for w in &sub.warnings {
@@ -1155,7 +1161,7 @@ impl<'a> Reader<'a> {
         let vals = self.take_head(vals);
         if let Some(d) = self.gradient_def.as_mut() {
             match w {
-                "Bs" => d.stop(&vals, &mut self.spots),
+                "Bs" => d.stop(&vals, &mut self.stop_spots),
                 "BD" => {
                     if let Some((name, g)) = self.gradient_def.take().and_then(GradientDef::finish) {
                         self.gradients.insert(name, g);
@@ -1412,17 +1418,33 @@ impl<'a> Reader<'a> {
             return Ok(());
         }
         let Some(f) = self.frames.pop() else { return Ok(()) };
-        let Kind::Obj(mut o) = f.kind else { return Ok(()) };
-        obj::close(&mut o, &mut self.stack, f.base);
-        self.obj_hidden = f.hidden;
+        let Frame { kind, children, base, hidden, gs, after, .. } = f;
+        let Kind::Obj(mut o) = kind else { return Ok(()) };
+        obj::close(&mut o, &mut self.stack, base);
+        self.obj_hidden = hidden;
         // Art made inside a dictionary (type's paths) isn't kept.
-        self.gs = f.gs;
-        self.after_object = f.after;
+        self.gs = gs;
+        self.after_object = after;
         if matches!(self.frames.last(), Some(Frame { kind: Kind::Obj(_), .. })) {
             return self.push(V::Obj(Rc::new(*o)));
         }
         match o.ty.as_str() {
-            "ArtDictionary" => self.art_dictionary(&o),
+            "ArtDictionary" => {
+                let envelope = o.get("AIDeformOptionsKey").is_some();
+                self.art_dictionary(&o);
+                if envelope {
+                    let mut slots = vec![];
+                    for child in &children {
+                        envelope_text_slots(child, &mut slots);
+                    }
+                    for mut slot in slots {
+                        // The editing data keeps the source text inside the envelope's options;
+                        // its visible result is the outlined art the PDF page carries.
+                        slot.visible = false;
+                        self.add(slot, false)?;
+                    }
+                }
+            }
             "Document" => self.document(&o),
             "AI11Text" => self.text_slot(&o)?,
             "SymbolInstance" => self.unreadable("symbols"),
@@ -2291,11 +2313,12 @@ impl<'a> Reader<'a> {
                 rect: to_doc.transform_rect_bbox(r),
                 show_center_mark: false,
                 show_cross_hairs: false,
+                color: None,
             })
             .collect();
         if doc.artboards.is_empty() {
             let rect = doc.art_bounds().filter(|r| sane(*r) && r.area() > 0.0).unwrap_or(Rect::new(0.0, 0.0, 612.0, 792.0));
-            doc.artboards = vec![Artboard { id: 1, name: "Artboard 1".into(), rect, show_center_mark: false, show_cross_hairs: false }];
+            doc.artboards = vec![Artboard { id: 1, name: "Artboard 1".into(), rect, show_center_mark: false, show_cross_hairs: false, color: None }];
         }
         if self.color_model.unwrap_or(self.cmyk_colors > self.rgb_colors) {
             doc.color_mode = ColorMode::Cmyk;
@@ -2305,7 +2328,9 @@ impl<'a> Reader<'a> {
         if let Some(u) = self.ruler_units.and_then(ruler_unit) {
             doc.units = u;
         }
-        for n in &self.spots {
+        // The colour operators' definitions first: a gradient, defined before the art, names a
+        // global process colour as a stop and would otherwise make it an ink (#1771).
+        for n in self.spots.iter().chain(&self.stop_spots) {
             if doc.swatch(&n.name).is_none() {
                 doc.swatches.push(Swatch { name: n.name.clone(), paint: Paint::solid(n.color), global: true, spot: n.spot });
             }
@@ -2333,6 +2358,17 @@ impl<'a> Reader<'a> {
             slot_names: self.slot_names,
             warnings,
         })
+    }
+}
+
+/// The source text inside an envelope options dictionary, carried through its containing metadata.
+fn envelope_text_slots(node: &Node, out: &mut Vec<Node>) {
+    if slot_of(node.name.as_deref()).is_some() {
+        out.push(node.clone());
+    } else if let Some(children) = node.children() {
+        for child in children {
+            envelope_text_slots(child, out);
+        }
     }
 }
 

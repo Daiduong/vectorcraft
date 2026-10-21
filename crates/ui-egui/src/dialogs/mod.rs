@@ -87,6 +87,7 @@ mod save_pdf;
 pub mod save_style_library;
 pub mod save_swatch_library;
 pub mod script_check;
+pub mod shape_builder_options;
 mod shapes;
 pub mod shortcut_import;
 pub(crate) mod simplify_slider;
@@ -122,7 +123,7 @@ pub(crate) use export_for_screens::{
 };
 pub(crate) use form::{humanize, number_list_text, read_number_list, unit_suffix};
 pub(crate) use new_document::preset_name;
-pub use new_document::{open as open_new_document, preset_card};
+pub use new_document::{create_without_dialog as new_document_without_dialog, open as open_new_document, preset_card};
 pub use png_options::open as open_raster_options;
 pub use save_pdf::{open as open_save_pdf, open_preset as open_pdf_preset};
 pub use tools::open_tool_dialog;
@@ -332,6 +333,7 @@ registry! {
     Envelope: [envelope::WARP, envelope::MESH, envelope::OPTIONS] => envelope::SPEC,
     LiquifyOptions: [liquify::KIND] => liquify::SPEC,
     FreehandOptions: [freehand::KIND] => freehand::SPEC,
+    ShapeBuilderOptions: [shape_builder_options::KIND] => shape_builder_options::SPEC,
     FlareOptions: [flare_options::KIND] => flare_options::SPEC,
     SymbolOptions: [symbol_options::KIND] => symbol_options::SPEC,
     SymbolismOptions: [symbolism_options::KIND] => symbolism_options::SPEC,
