@@ -323,6 +323,7 @@
 	Art	Grafikus
 	Art & Illustration	Grafika és illusztráció
 	Art and Bright Colors	Grafika és élénk színek
+	Art Brush	Grafikus ecset
 	Art Brush Options	Grafikus ecset beállításai
 	Art Optimized	Grafikára optimalizált
 	Art using a deleted global swatch keeps its colour.	A törölt globális színmintát használó grafika megtartja a színét.
@@ -457,6 +458,7 @@
 	Bring Forward	Eggyel előre
 	Bring to Front	Előre hozás
 	Bristle	Sörte
+	Bristle Brush	Sörteecset
 	Bristle Brush Options	Sörteecset beállításai
 	Bristle Brush Strokes	Sörteecset-vonások
 	Bristle Density:	Sörtesűrűség:
@@ -465,6 +467,7 @@
 	Brown	Barna
 	Browser	Böngésző
 	Brush Affects:	Az ecset ezekre hat:
+	Brush Art	Ecsetgrafika
 	Brush Definition	Ecsetdefiníció
 	Brush Libraries	Ecsetkönyvtárak
 	Brush Libraries (on the roadmap)	Ecsetkönyvtárak (tervezett funkció)
@@ -485,6 +488,7 @@
 	Butt Cap	Lapos vonalvég
 	Byte Order:	Bájtsorrend:
 	Calligraphic	Kalligrafikus
+	Calligraphic Brush	Kalligrafikus ecset
 	Calligraphic Brush Options	Kalligrafikus ecset beállításai
 	Can't open “{name}”.	Nem nyitható meg: „{name}”.
 	Can't save “{name}”.	Nem menthető: „{name}”.
@@ -1338,6 +1342,7 @@
 	Eyedropper Picks Up:	A pipetta felveszi:
 	Eyedropper Tool	Pipetta
 	Eyedropper: click the art to sample the stop's colour	Pipetta: kattints a grafikára a pont színének mintavételéhez
+	Eyedropper: click the art to sample the key color	Pipetta: kattints a grafikára a kulcsszín mintavételéhez
 	Farsi	Perzsa
 	Favorites	Kedvencek
 	Feather	Tollazat
@@ -1577,6 +1582,8 @@ file-filter	Templates	Sablonok
 	Film Grain…	Filmszemcse…
 	Cutout…	Kivágás…
 	Cutout	Kivágás
+	Dry Brush…	Száraz ecset…
+	Dry Brush	Száraz ecset
 	Neon Glow…	Neonfény…
 	Neon Glow	Neonfény
 	Poster Edges…	Poszterszélek…
@@ -1678,6 +1685,7 @@ file-filter	Templates	Sablonok
 	Handles	Fogantyúk
 	Hard	Szigorú
 	Hard Light	Kemény fény
+	Hard Mix	Kemény keverés
 	Harmony Rules	Harmóniaszabályok
 	Harmony Rules:	Harmóniaszabályok:
 	Harmony Sets	Harmóniakészletek
@@ -2366,6 +2374,7 @@ file-filter	Templates	Sablonok
 	Move Rows	Sorok áthelyezése
 	Move Slices	Szeletek áthelyezése
 	Move Spine Point	Gerincpont áthelyezése
+	Move Brush	Ecset áthelyezése
 	Move Swatch	Színminta áthelyezése
 	Move to Group	Áthelyezés csoportba
 	Move Up	Feljebb
@@ -2393,6 +2402,7 @@ file-filter	Templates	Sablonok
 	New Art Has Basic Appearance	Új grafika alapmegjelenéssel
 	New Artboard	Új rajztábla
 	New Bristle Brush	Új sörteecset
+	New Brush	Új ecset
 	New Brush…	Új ecset…
 	New Calligraphic Brush	Új kalligrafikus ecset
 	New Character Style	Új karakterstílus
@@ -2723,6 +2733,7 @@ file-filter	Templates	Sablonok
 	Path Length	Útvonalak hossza
 	Paths: {paths}    Anchors: {anchors}    Colors: {colors}	Útvonalak: {paths}    Horgonypontok: {anchors}    Színek: {colors}
 	Pattern	Mintázat
+	Pattern Brush	Mintázatecset
 	Pattern Brush Options	Mintázatecset beállításai
 	Pattern Editing	Mintázatszerkesztés
 	Pattern Options	Mintázat beállításai
@@ -3353,6 +3364,7 @@ mark-style	Japanese	Japán
 	Scale Lineweights	Vonalvastagságok méretezése
 	Scale Proportionately	Arányos méretezés
 	Scale Strokes & Effects	Körvonalak és effektusok méretezése
+	Scale Text Attributes	Szövegattribútumok méretezése
 	Scale Tints	Tónusok skálázása
 	Scale to Fit Artboard	Méretezés a rajztáblához
 	Scale Tool	Méretezés
@@ -3366,6 +3378,7 @@ mark-style	Japanese	Japán
 	Scallop Tool	Csipkézés
 	Scans:	Letapogatások:
 	Scatter	Szóró
+	Scatter Brush	Szóróecset
 	Scatter Brush Options	Szóróecset beállításai
 	Scatter Graph Tool	Pontdiagram
 	Scatter:	Szóródás:
@@ -3422,6 +3435,7 @@ mark-style	Japanese	Japán
 	Select art and choose Object › Pattern › Make.	Jelölj ki egy grafikát, és válaszd az Objektum › Mintázat › Létrehozás parancsot.
 	Select art and click New Symbol to make one.	Jelölj ki egy grafikát, és kattints az Új szimbólum gombra.
 	Select art and use New Brush to make one.	Jelölj ki egy grafikát, és hozz létre belőle ecsetet az Új ecset paranccsal.
+	Select art to make a scatter, art or pattern brush.	Jelölj ki egy grafikát szóró-, grafikus vagy mintázatecset létrehozásához.
 	Select Bound Object	Kötött objektum kijelölése
 	Select Data Set	Adatkészlet kiválasztása
 	Select Freeform Point	Szabad formájú pont kijelölése
@@ -3932,6 +3946,13 @@ mark-style	Japanese	Japán
 	Tint	Tónus
 	Tints	Tónusok
 	Tints and Shades	Tónusok és árnyalatok
+	Tips	Tippek
+	Colorization Tips	Színezési tippek
+	The samples show this brush on a blue stroke.	A minták ezt az ecsetet kék körvonalon mutatják.
+	The art keeps its own colors.	A grafika megtartja a saját színeit.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	A fekete a körvonal színévé válik, a fehér pedig fehér marad. A többi szín a körvonalszín tónusává válik, és minél világosabb egy szín, annál világosabb a tónusa.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	A fekete fekete marad, a fehér pedig fehér marad. A többi szín a körvonalszín sötét árnyalatává válik, ha sötét, és a tónusává, ha világos.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	A kulcsszín a körvonal színévé válik. A többi szín ugyanannyit fordul el a színkörön, mint a kulcsszín, és megtartja a telítettségét és a fényességét.
 	Tiny Lens	Apró lencsék
 	Tip extends past the end point	A hegy túlnyúlik a végponton
 	Tip on the end point	A hegy a végponton van
@@ -4642,7 +4663,9 @@ imageTrace	Outline	Körvonal
 @msg	no blend options	nincsenek összemosási beállítások
 @msg	no bounds	nincsenek határok
 @msg	no brush named `{name}`	nincs ilyen nevű ecset: `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	a sörteecset neve legfeljebb {max} karakter hosszú lehet: `{name}` hossza {count} karakter
 @msg	no brush selected	nincs kijelölt ecset
+@msg	brushes move only within their type	az ecsetek csak a saját típusukon belül helyezhetők át
 @msg	no catalog	nincs katalógus
 @msg	no changes since the last save	a legutóbbi mentés óta nincs módosítás
 @msg	no clock to keep a heartbeat by	nincs óra az életjel időzítéséhez
@@ -4704,6 +4727,7 @@ imageTrace	Outline	Körvonal
 @msg	no such action	nincs ilyen művelet
 @msg	no such anchor	nincs ilyen horgonypont
 @msg	no such artboard	nincs ilyen rajztábla
+@msg	the artboard is locked	a rajztábla zárolt
 @msg	no such document	nincs ilyen dokumentum
 @msg	no such layer or object	nincs ilyen réteg vagy objektum
 @msg	no such object {0}	nincs ilyen objektum: {0}
@@ -5169,6 +5193,7 @@ imageTrace	Outline	Körvonal
 @msg	Measured anchor no longer exists	A mért horgonypont már nem létezik
 @msg	Measured segment no longer exists	A mért szakasz már nem létezik
 @msg	Non-finite dimension	Nem véges méret
+@msg	Scale Text Attributes: selected type has no scale to bake	Szövegattribútumok méretezése: a kijelölt szövegnek nincs alkalmazható méretezése
 @msg	Scale must be drawing:real, for example 1:10	A léptéknek rajz:valós alakúnak kell lennie, például 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	A lépték aránya 1:1000000 és 1000000:1 között lehet
 @msg	Second measured segment no longer exists	A második mért szakasz már nem létezik
@@ -5255,6 +5280,7 @@ imageTrace	Outline	Körvonal
 @msg	the image's pixels can't be read	a kép képpontjai nem olvashatók
 	Persistent	Állandó
 	Library Panel Options	Könyvtárpanel beállításai
+	Locate Library…	Könyvtár megkeresése…
 @msg	Persistent libraries not found: {files}	Nem találhatók állandó könyvtárak: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	A(z) `{given}` nem könyvtárpanel (lásd: window.swatchLibrary)
 @msg	library panel `{given}` isn't open	a(z) `{given}` könyvtárpanel nincs megnyitva

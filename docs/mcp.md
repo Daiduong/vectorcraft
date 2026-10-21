@@ -446,6 +446,11 @@ in the app runs `paint.setFill` (or `paint.setStroke`, the active proxy) with `i
 The Swatches panel menu's commands: `swatch.addUsedColors {selection?, global?}`, `swatch.unused` (a query: the
 names Select All Unused selects), `swatch.merge {names}` (the first is kept), `swatch.ungroup {name}` and
 `swatch.sortByKind`.
+`brush.move {name | names, to?, type?}` reorders brushes among the brushes of their type, as dragging one onto
+another of its type in the Brushes panel does. `to` is an index among the brushes of that type in `brush.list`
+order: the brushes go before the first brush of that type at or after `to` that is not moving, and after the last
+brush of that type when there is none or `to` is left out. A move that keeps the order records no undo step.
+Brushes of different types, or a `type` other than theirs, are refused with "brushes move only within their type".
 Document colour mode: `file.new {colorMode: "cmyk"}` starts a CMYK document with CMYK default swatches, and RGB
 colors applied to it (`paint.setFill`/`setStroke` colors, gradient stops and freeform points, `paint.editGradient`
 stops, `paint.freeform.addPoint`/`setPoint`, `paint.sampleColor`, `object.mesh.setPointColor`/`addLine`, the
@@ -687,10 +692,11 @@ page) opens from its editing data alone: its type is made from the file's text d
 area type and type on a path), and what can't be is left out with a warning. Non-native art (the content of a placed
 PDF, which Illustrator shows but doesn't edit and keeps as a PDF inside the editing data) is drawn by the PDF importer,
 as a group named "Non-native art" fitted to the object's box; one whose PDF can't be read is left out with a warning.
+Without editing data it says it can't be opened. `pages` that name every page of a file saved without PDF compatibility also open it from its
+editing data.
 Without editing data it says it can't be opened. `pages` that name every page of such a file also open it from its
 editing data. `file.place` reads it from its editing data too and places the art of the layers that show on artboard
 `page`, clipped to that artboard unless `crop` is `bounding`. `clipboard.importPdf` takes every object of its editing
-data.
 
 What a PDF holds comes in as editable art: soft masks become opacity masks (an alpha mask as a white copy of its art;
 the backdrop colour gives Clip, an inverting transfer function Invert), transparency groups keep isolation and knockout,
@@ -935,6 +941,16 @@ missing one does.
 `` `columns` must be a whole number ``. A string or another value that is not a number is refused with
 `` `columns` must be a number, not "4" ``. Each message names the key that was given, and the command then changes
 nothing.
+
+A whole number that is larger than the build's `usize` can hold (4294967295 on a 32-bit build, such as the
+`wasm32-unknown-unknown` web build) counts as larger than any index, place, byte offset or count. An index, such as
+a `subpath`, `anchor`, `segment`, document `index`, `artboard`, appearance `item` or `index`, gradient `stop` or
+freeform point `index`, names nothing, and the command does what it does for any other index past the end: most
+commands fail and change nothing, and `appearance.removeItem` removes nothing. A place (`to` in `swatch.move`,
+`artboard.reorder`, `graphicStyle.move`, `appearance.moveItem`, `appearance.duplicateItem` and `effect.move`) puts
+the item last. A text `start` or `end` is past the end of the text. `object.slice.divide` refuses such a `rows` or
+`columns`, `recolor.reduce` keeps each color in its own row for such a `colors`, and `layer.setProps` refuses such a
+`color`. `object.setBounds` reads a `reference` past 8 as 8, as `object.transformEach` does.
 
 The blend, envelope and gradient mesh commands refuse a string or another value that is not a number with the same
 message, as in `` `steps` must be a number, not "8" ``, and change nothing: `steps`, `distance` and `value` in
@@ -1230,7 +1246,7 @@ already walks Image Trace. Short agent entry points:
   pattern tiles and graphic styles count, and so do the strokes in the art of a brush that is used. The art of a brush
   that is not used does not count, so a brush whose own art is the only art that paints with it is listed.
 - Brushes: `brush.list`, `brush.get {name}`, `brush.apply {name, ids?}`, `brush.new {type, name?, params?, ids?}`,
-  `brush.setCurrent {name}`, `brush.options {name, params?}`, `brush.delete {name} | {names}`,
+  `brush.setCurrent {name}`, `brush.options {name, params?, newName?}`, `brush.delete {name} | {names}`,
   `brush.duplicate {name, newName?} | {names}`, `brush.freehand`, `object.expandBrush {ids?}`. `brush.new`,
   `brush.duplicate` and `brush.options` trim the white space around the name they are given. A blank `name` gives
   the type's default name ("New Calligraphic Brush" for a calligraphic brush), and a blank `newName` gives
@@ -1238,7 +1254,11 @@ already walks Image Trace. Short agent entry points:
   `brush.new` or `brush.options` without a `key` takes the color that the art's fills and strokes use most (on a tie,
   the one found first), or black when they use no solid color. `brush.options` changes only the fields of
   `colorization` and of an art brush's `scale` that `params` gives, so `{colorization: {method: "hueShift"}}` keeps a
-  Hue Shift brush's key.
+  Hue Shift brush's key. `brush.new` and `brush.options` take a bristle brush name of at most 31 characters:
+  `brush.new` refuses a longer one, counting the number it adds to a taken name, and `brush.options` refuses a
+  longer `newName`. `brush.duplicate` does not check the length. A bristle brush that already has a longer name
+  keeps it, and `brush.options` without a new name, or with a `newName` that only trims the white space around the
+  name, does not refuse. Other brush types take a name of any length.
 - Variables: `variable.list`, `variable.define {name, kind: text|visibility|image|graph}`, `variable.bind {variable, ids?}`,
   `variable.makeTextDynamic`, `variable.makeVisibilityDynamic`, `variable.makeImageDynamic`, `variable.makeGraphDynamic`,
   `variable.unbind`, `variable.rename`, `variable.delete`, `variable.highlight` (image values are file paths, graph
@@ -1288,6 +1308,14 @@ already walks Image Trace. Short agent entry points:
   `livePaint.merge` keeps the bottom Live Paint group's id, name, lock, visibility, transparency, appearance, opacity
   mask and graphic style link. With a Live Paint group among the objects, `livePaint.make` adds the others to it as
   `livePaint.merge` does, and so does `livePaint.fill {ids}` when `point` is outside that group's faces.
+
+`brush.selectionArt {ids?|id?}` (a query) replies `{art}`: the object that `brush.new` given the same `ids` or `id`,
+or the same selection, takes as a new scatter or art brush's art and as a new pattern brush's side tile. Several
+objects become one group, and `art` is `null` when nothing is selected or `ids` name no object. In the app, the
+Brushes panel's New Brush button, its menu's New Brush… and art dropped on the panel open New Brush
+(`ui.newBrush {ids?}`, dialog `newBrush`, field `type`). Scatter, art and pattern need art. OK opens that type's
+Brush Options for the new brush; for a scatter, art or pattern brush they preview the art from `brush.selectionArt`.
+Their OK runs `brush.new {type, name, params, ids?}`, and Cancel adds no brush.
 
 `dataset.select`, `dataset.next` and `dataset.prev` reply `{name, applied, skipped}`. They add `overflow: [id…]`
 when area type or type on a path whose text they rewrote doesn't fit, as `text.setText` does (see
@@ -1573,10 +1601,20 @@ of its kind in that panel (what Previous Library and Next Library do; a library 
 brought forward instead), `view` is `smallThumb`, `mediumThumb`, `largeThumb`, `smallList` or `largeList`,
 `showFind` shows or hides the find field, and `persistent: true` is the panel menu's Persistent: the panel
 reopens when the app starts, with its view and find field, where the saved layout had it (or floating). A
-library loaded from a file is read again from its path; one whose file is gone is left out, and the status bar
-says which. A closed persistent panel can still be set, so `persistent: false` stops it reopening. The reply
-is `{panel, kind, library, view, showFind, persistent, open}`, and `ui.inspect` lists every panel's settings
+library loaded from a file is read again from its path. When the file is gone, the panel still reopens and
+stays in the preferences: its tab shows the file's name, its body shows `Missing:` with the file's path and a
+Locate Library… button, and the status bar names the file. A persistent panel whose User Defined library's
+file is deleted while the app runs stays open with the same tab and `Missing:` body; any other panel closes.
+A closed persistent panel can still be set, so `persistent: false` stops it reopening. The reply is
+`{panel, kind, library, view, showFind, persistent, open}`, and `ui.inspect` lists every panel's settings
 under `ui.library_panels`.
+
+`ui.libraryPanel.locate {panel, path?}` is Locate Library…: it loads the library at `path` (without one, it
+asks for a file) as Other Library… does and shows it in the open panel `panel`, which keeps its view, find
+field and Persistent, and answers as `ui.libraryPanel` does. When the file's library already has a panel open,
+`panel` closes and is forgotten, and that panel is brought forward, made persistent when `panel` was.
+`window.swatchLibrary` and `window.graphicStyleLibrary` also take a missing library's id, so a closed missing
+panel opens again; they answer its file's name without the extension and `count: 0`.
 
 ```json
 {"name":"invoke_menu","arguments":{"command":"window.swatchLibrary","params":{"library":"pastels"}}}
@@ -2284,6 +2322,18 @@ included. With `spacing: 0`, `object.distribute` puts every line on the guide. A
 everything where it is, as `object.align` does. `to: "selection"` or `"artboard"` distributes without the key guide
 as the key, as with `object.align`, and without `spacing` a key guide is spaced as any selected guide.
 
+Each button of the Align panel's Align Objects, Distribute Objects and Distribute Spacing rows is also a UI command
+that takes no params and runs what a click on the button runs: `align.horizontalLeft`, `align.horizontalCenter`,
+`align.horizontalRight`, `align.horizontalVerticalCenter`, `align.verticalTop`, `align.verticalCenter`,
+`align.verticalBottom`, `align.distributeVerticalTop`, `align.distributeVerticalCenter`,
+`align.distributeVerticalBottom`, `align.distributeHorizontalLeft`, `align.distributeHorizontalCenter`,
+`align.distributeHorizontalRight`, `align.distributeVerticalSpace` and `align.distributeHorizontalSpace`. The Align
+commands send `to: "key"` while the selection has a key, else `"artboard"` for one selected object without selected
+anchor points, else the Align To choice. The Distribute commands send `to: "key"` while the selection has a key, else
+the Align To choice, and while there is a key object or a key guide they send the panel's Distribute Spacing value as
+`spacing`. Edit › Keyboard Shortcuts lists them under Align, with no default shortcut, and
+`shortcuts.set {id, shortcut}` gives one a shortcut.
+
 The desktop app adds its active artboard, the one the Artboards panel highlights, to the `object.align`,
 `object.distribute`, `object.distributeSpacing` and `select.allOnArtboard` calls it runs without `artboard`, as it does
 for `edit.pasteInPlace`, `edit.pasteInFront` and `edit.pasteInBack`, and to each `command.batch`. A batch passes its
@@ -2306,8 +2356,9 @@ tool (`tool.select {tool: "artboard"}`) starts it on the active artboard: its `a
 `artboard.fitToArt {index? | indices?}` (Object › Artboards › Fit to Artwork Bounds) fits each artboard it names to
 the art on that artboard, in one undo step. The art is what an export draws, measured with its strokes and with the
 effects on paths, compound paths and symbol instances. An object counts for every artboard its bounds overlap, also
-when it reaches past the artboard's edge, and a group or a clipping layer counts whole. An artboard with no art on it
-keeps its size and place, and the call fails with `no artwork` when none of its artboards has art.
+when it reaches past the artboard's edge, and a group or a clipping layer counts whole. An artboard with no art on it,
+or a locked one, keeps its size and place. The call fails with `the artboard is locked` when every artboard it names is
+locked, and with `no artwork` when none of the others has art.
 `artboard.fitToSelection {index?}` (Object › Artboards › Fit to Selected Art) fits artboard `index` to the selected
 art. Both commands take 0-based indexes and resize the first artboard when the call names none. The desktop app adds
 the selected artboards (those the Artboard tool has selected, else the active one) as `indices` to the
@@ -2372,8 +2423,8 @@ The Selection & Anchor Display and General preferences apply to `pointer_gesture
   point a selection is dragged by, a drawn point and a transform tool's reference point land on an anchor or a ruler
   guide that near.
 - `moveLockedWithArtboard`: `artboard.move {moveArt: true}`, the Artboard tool and `artboard.rearrange` move locked and
-  hidden art with the artboard too, and `artboard.setProps {scaleArt: true}` scales it too; off (the default) it stays
-  where it is.
+  hidden art, and art that is also on a locked artboard, with the artboard too, and `artboard.setProps {scaleArt: true}`
+  scales it too; off (the default) it stays where it is.
 - `penRubberBand`, `curvatureRubberBand` (on by default): off, the Pen and Curvature tools draw no preview segment to
   the pointer.
 - `showHandlesMultipleAnchors` (on by default): off, Direct Selection (and the Anchor Point tool, and the Pen with Alt)
@@ -2752,7 +2803,7 @@ value: true}`; the Control bar's and Properties' Scale Artwork with Artboard che
 Artboard) makes its handle drags proportional and passes `scaleArt`, as do Properties' and the Transform panel's
 artboard size fields while the tool is in use.
 
-`artboard.setProps {artboards: [{index, name?, color?, x?, y?, width?, height?}…], scaleArt?, moveArt?, …}` sets several
+`artboard.setProps {artboards: [{index, name?, color?, locked?, x?, y?, width?, height?}…], scaleArt?, moveArt?, …}` sets several
 artboards in one undo step, each with its own fields; the other params apply to all of them. The art that moves or
 scales with each artboard is the art inside it before any of them changes, and an object inside several of them goes
 with the first one listed that moves or scales its art. An empty list and a list that names an artboard twice are
@@ -2766,11 +2817,34 @@ linked they keep each artboard's own proportions. Artboard Options resizes each 
 form used for the new Width or Height. Properties' W and H and the preset and orientation buttons keep each artboard's
 top-left corner. A preset sizes each artboard in its own orientation, and an orientation
 swaps the width and height of each artboard that is not square and not already in it. A new X or Y moves the active
-artboard only, and Artboard Options' Name renames only the artboard it shows.
+artboard only, and Artboard Options' Name renames only the artboard it shows. A locked artboard among the other
+selected artboards keeps its size.
 
 ```json
 {"name":"run_command","arguments":{"command":"artboard.setProps","params":{"artboards":[{"index":0,"width":300},{"index":2,"width":300}],"scaleArt":true}}}
 ```
+
+Locked artboards: `artboard.setProps {index, locked: true}` locks an artboard and `{index, locked: false}` unlocks it,
+each in one undo step. The Artboards panel's lock column, left of a row's options icon, shows a lock on a locked
+artboard, and a click there runs this command. A locked artboard keeps its place and size. `artboard.setProps` with a
+new `x`, `y`, `width` or `height` fails with `the artboard is locked` unless the same call unlocks it, and
+`artboard.move` without `copy`, `artboard.delete`, `artboard.cut` and `artboard.fitToSelection` fail the same way.
+`artboard.fitToArt` and `artboard.rearrange` leave a locked artboard where it is, and a copy of one
+(`artboard.duplicate`, `artboard.move {copy}`, Paste) starts unlocked. The art on a locked artboard is each object of
+a layer or sublayer whose bounds, with its strokes, overlap the artboard; a group counts as one object, and a hidden
+object, a guide or the art of pattern editing mode is on no artboard. That art acts as locked art: clicks, marquees, `select.set`, `select.all` and the
+tools pass over it, and commands that act on the selection leave it. Locking the artboard deselects it, and so does an
+edit that moves art onto a locked artboard. Art that an edit draws or pastes onto a locked artboard stays selected and
+editable until a selection leaves it out or an edit moves it off the locked artboards, and is then protected like the
+other art on it. `edit.undo`, `edit.redo` and a failed `command.batch` bring back the selection a step had, with that
+art selected and editable when it was. When another artboard moves, scales or is cut (`artboard.move`,
+`artboard.setProps`, `artboard.cut`, `artboard.rearrange`), art that is also on a locked artboard stays where it is
+unless prefs `moveLockedWithArtboard` is on (`lockedAndHidden` for `artboard.setProps`); a copy of an artboard copies
+it. With the Artboard tool, a click
+selects a locked artboard, but a drag doesn't move or copy it, it shows no handles, Delete leaves it, and a
+double-click on its name above the canvas doesn't edit the name (`artboard.setProps {name}` and the Artboards panel
+still rename it). A Shift-click or Shift-drag on a locked artboard selects or draws as on any other artboard. The
+document summary (`document.inspect`) adds `locked: true` to a locked artboard.
 
 An artboard's background color (Properties › Artboards › Fill, Artboard Options' Background Color): `artboard.setProps
 {index, color}` sets it, with a color as the paint commands take it (`"#rrggbb"`, `{c, m, y, k}`, …), and
@@ -2785,6 +2859,7 @@ lists it as the artboard's `color` (`#rrggbb`), and `ui.colorPicker {artboard: i
 {"name":"run_command","arguments":{"command":"artboard.copy","params":{"index":0}}}
 {"name":"run_command","arguments":{"command":"edit.paste","params":{}}}
 {"name":"run_command","arguments":{"command":"artboard.duplicate","params":{"index":0,"art":true}}}
+{"name":"run_command","arguments":{"command":"artboard.setProps","params":{"index":1,"locked":true}}}
 {"name":"run_command","arguments":{"command":"clipboard.conflicts","params":{}}}
 {"name":"run_command","arguments":{"command":"edit.paste","params":{"center":[300,200],"swatchConflict":{"Brand":"add"}}}}
 {"name":"run_command","arguments":{"command":"layer.pasteRemembersLayers","params":{"on":true}}}
@@ -2801,6 +2876,9 @@ author, description and keywords to the document info and XMP, PNG export writes
 creation date) as text chunks, and SVG export writes the description as `<desc>` and, with the `metadata` option,
 all of it as Dublin Core. PDF export and PDF-compatible `.ai` and `.ait` saves write the `created` date (the time of
 writing when the document has none) as the file's creation date and the time of writing as its modification date.
+They also write the `copyrightNotice` as `dc:rights`, the `copyrightUrl` as `xmpRights:WebStatement` and the
+`copyrightStatus` as `xmpRights:Marked` (`True` for copyrighted, `False` for public domain, none for unknown) to the
+XMP packet.
 A PDF, `.ai` or `.ait` opened from its pages or its editing copy (`document.open`,
 `file.newFromTemplate`, `file.revert`; not one restored from the document it carries) opens with the `author`,
 `description`, `keywords`, `copyrightStatus`, `copyrightNotice`, `copyrightUrl`, `created` and `modified` that its XMP
@@ -2952,7 +3030,10 @@ left out. `file.place` answers `format: "rtf"`.
 
 A Word document (a ZIP package named `.docx`, or one that holds `word/document.xml`, except a `.txt` file) is placed
 the same way and keeps the same formatting, taken from the document defaults, the paragraph style and the character
-style (and the styles each is based on) and direct formatting; theme fonts are read from the theme part. Table cells
+style (and the styles each is based on) and direct formatting; theme fonts are read from the theme part. A paragraph
+justified with a low, medium or high kashida length (`w:jc` `lowKashida`, `mediumKashida` or `highKashida`) is
+justified with `kashida` `"short"`, `"medium"` or `"long"` (see [Insert Kashidas](#insert-kashidas)), and one
+justified with `both` has none. Table cells
 are separated by tabs and each row is a paragraph. Hidden and deleted text, field instructions, pictures, text boxes,
 headers, footers, notes and list numbers are left out. A package with more than 10,000 files, a part that unpacks to
 more than 16 MiB or nests elements more than 256 deep, and a document with more than 4 MiB of text or 100,000
@@ -3242,7 +3323,7 @@ a value). `list_commands` with filter `print.setup`
 documents every field:
 
 - General: `copies` (1–999), `collate`, `reverse`; `artboards: all|range|ignore` with `range: "1-3, 5"` (ignore: all
-  the art as one page), `skipBlank`; `media: letter|legal|tabloid|a3|a4|a5|b4|b5|custom` (`width`, `height` in pt),
+  the art as one page), `skipBlank`; `media: letter|legal|tabloid|a3|a4|a5|a6|b4|b5|b4 (jis)|b5 (jis)|b6 (jis)|japanese postcard|japanese double postcard|japanese envelope #3|japanese envelope #4|kaku #2|kaku #3|yonroku-ban|custom` (`width`, `height` in pt; a paper is named by its id or its dialog label, any case and spacing, so `B5 (JIS)` works; `b4` and `b5` stay ISO 216 and the JIS sizes are `b4 (jis)`, `b5 (jis)` and `b6 (jis)`),
   `orientation`, `autoRotate` (on by default: the paper turns to each artboard), `transverse`; `printLayers:
   visiblePrintable|visible|all` (template layers never print); `placement: {origin, x, y}` places the printed area
   (artboard, bleed and marks) on the imageable area (the paper inside `margin`); `scaling: none|fit|custom|tileFull|
@@ -3874,21 +3955,24 @@ for the selected type objects (or `ids`); without `on` it sets the opposite of t
 on. Optical Margin Alignment is a setting of the whole thread: the command sets every frame of a selected frame's
 thread, and `ids` lists them all. Threading frames gives the thread its first frame's setting, frames taken out of
 a thread keep it, and a file whose frames of one thread differ opens with the first frame's setting in all of them.
-In every left-to-right paragraph of point and area type, these characters hang outside the margin when they
+In every paragraph of point and area type, these characters hang outside the margin when they
 start or end a line: quotation marks, hyphens (a hyphenated line's hyphen too), full stops and commas hang wholly;
 asterisks, tildes, ellipses, en and em dashes, colons and semicolons hang by half their width; and A, V, W, Y, v, w
 and y hang by a tenth of theirs. A punctuation mark followed by a quotation mark hangs with it.
 Left-aligned lines hang at their left margin, right-aligned lines hang at their right margin, and centered and
-justified lines hang at both. In vertical type the margins are the top and bottom of a column. The space that
-justification adds between glyphs leaves out the gaps next to a hanging punctuation mark. Lines break where they did
+justified lines hang at both. Auto aligns a right-to-left line at its right. A right-to-left line is read from right
+to left: where it hangs at its left margin, `."` ending it hangs both glyphs. In vertical type the margins are the
+top and bottom of a column. The space that justification adds between glyphs leaves out the gaps next to a
+hanging punctuation mark. Lines break where they did
 without it, and a line of one glyph does not hang. East Asian commas and full stops hang only through burasagari, and
 a line that ends in one hangs only at its start. Type on a path hangs at its brackets, measured along the path:
-left-aligned, Auto, Justify All and Justify with Last Line Aligned Left type hangs at the start bracket, right-aligned
-and Justify with Last Line Aligned Right type hangs at the end bracket, and centered and Justify with Last Line Aligned
-Center type hangs at both. Glyphs that hang past the end bracket do not make the type overflow. On an open path a
-hang stops at the path's end, and on a closed path the two hangs together take at most the stretch between the end
-and start brackets. SVG export writes type on a path whose glyphs hang as outlines, with a warning. Type on a path
-whose first paragraph runs right to left, and right-to-left paragraphs of point and area type, are laid out as before.
+left-aligned, Justify All and Justify with Last Line Aligned Left type hangs at the start bracket, right-aligned and
+Justify with Last Line Aligned Right type hangs at the end bracket, and centered and Justify with Last Line Aligned
+Center type hangs at both. Auto type hangs at the bracket it is placed at: the end bracket for horizontal type whose
+first paragraph runs right to left, and the start bracket otherwise. Glyphs that hang past the end bracket do not make
+the type overflow. On an open path a hang stops at the path's end, and on a closed path the two hangs together take
+at most the stretch between the end and start brackets. SVG export writes type on a path whose glyphs hang as
+outlines, with a warning.
 New type and documents from before it have it off, and it is saved only when on. One undo step.
 
 ```json
@@ -3904,10 +3988,9 @@ hyphens, full stops and commas wholly; asterisks, tildes, ellipses, en and em da
 on the same sides (left-aligned lines at their left, right-aligned at their right, centered and justified at both), and
 letters don't hang. With Optical Margin Alignment on as well, the letters hang too. East Asian punctuation hangs only
 through burasagari. When the first paragraph of type on a path has Roman Hanging Punctuation on, the type hangs its
-punctuation at its brackets as Optical Margin Alignment does, and no letters. Type on a path whose first paragraph runs
-right to left, and right-to-left paragraphs of point and area type, are laid out as before. Off by default, saved with
-the paragraph (`roman_hanging` in `para`) only when on, carried by paragraph styles, and turned off by Reset Panel.
-One undo step. The menu item is checked while the paragraph the Paragraph panel shows has it on.
+punctuation at its brackets as Optical Margin Alignment does, and no letters. Off by default, saved with the paragraph
+(`roman_hanging` in `para`) only when on, carried by paragraph styles, and turned off by Reset Panel. One undo step.
+The menu item is checked while the paragraph the Paragraph panel shows has it on.
 
 ```json
 {"name":"run_command","arguments":{"command":"text.setFormat","params":{"romanHangingPunctuation":true}}}

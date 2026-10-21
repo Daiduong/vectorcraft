@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::corners::set_corners;
+use vectorcraft_doc::corners::{convert_radii_relative, set_corners};
 use vectorcraft_doc::{Appearance, Document, Knockout, LiveCorners, LiveShape, Node, NodeId, NodeKind, OrientedBox, Scaling};
 use vectorcraft_geom::shapes::CornerKind;
 use vectorcraft_geom::{Affine, FillRule, PathData, Point, Rect, Vec2};
@@ -279,7 +279,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Set Bounds",
             [],
             None,
-            "{x?, y?, width?, height?, reference?: 0..8 (9-point grid), proportional?, strokes?, corners?, copy?: bool, patterns?: bool (Transform Patterns), typeAreas?: bool (area type: the frame is reshaped and the text reflows at its size), objects?: bool (Transform Objects, as object.move)} (Transform panel; width/height and the reference point follow the bounding box, rotated with rotated objects; x, y are page coordinates; with Use Preview Bounds the values measure the visual bounds; strokes/corners as object.scale; with anchor points selected (Direct Selection) and no copy, the values are the box around those points, square to the page, and only they move or scale, as with object.move (#1824))",
+            "{x?, y?, width?, height?, reference?: 0..8 (9-point grid; a number past 8 is read as 8), proportional?, strokes?, corners?, copy?: bool, patterns?: bool (Transform Patterns), typeAreas?: bool (area type: the frame is reshaped and the text reflows at its size), objects?: bool (Transform Objects, as object.move)} (Transform panel; width/height and the reference point follow the bounding box, rotated with rotated objects; x, y are page coordinates; with Use Preview Bounds the values measure the visual bounds; strokes/corners as object.scale; with anchor points selected (Direct Selection) and no copy, the values are the box around those points, square to the page, and only they move or scale, as with object.move (#1824))",
             has_selection,
             set_bounds
         ),
@@ -289,7 +289,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Live Shape Properties",
             [],
             None,
-            "{id?, ids?, radius?: pt, kind?: \"round\"|\"invertedRound\"|\"chamfer\", corners?: [i…], items?: [{id, corners?: [i…]}] (several objects, each with its own corners, in place of ids and corners: the canvas's corner widgets across a selection), sides?: n, polygonAngle?: degrees (counterclockwise from its first vertex straight up), polygonRadius?: pt (centre to vertex), sideLength?: pt (sets the radius), makeSidesEqual?: true (a polygon scaled unevenly: drops the uneven scale and shear, keeping its centre, angle and mean radius), pieStart?, pieEnd?: degrees (an ellipse's pie, counterclockwise from 3 o'clock; 0 to 360 is the whole ellipse), invertPie?: true (swaps them: the other part of the ellipse)} (Live Corners on any path: radius and kind set its corners (anchors that aren't smooth, where two sides, straight or curved (#1144), meet at an angle): `corners` (anchor indices of the path with its corners uncut, counting every subpath's anchors in order: a rectangle's 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left; a polygon's from the first vertex clockwise), else the corners with a Direct-Selected anchor, else every corner; each radius is drawn no larger than half the corner's shorter side allows; a path that isn't a live shape keeps its uncut outline so its corners stay editable, and is plain again once none is cut; sides: a polygon's, which keep the radius they shared; the polygon params apply in that order: sides, makeSidesEqual, polygonAngle, then sideLength or else polygonRadius)",
+            "{id?, ids?, radius?: pt (or % of each corner's maximum when `relativeRadii` is true), kind?: \"round\"|\"invertedRound\"|\"chamfer\", relativeRadii?: bool (Relative rounding, as in the reference app: store radii as fractions of each corner's maximum so they scale with the shape), corners?: [i…], items?: [{id, corners?: [i…]}] (several objects, each with its own corners, in place of ids and corners: the canvas's corner widgets across a selection), sides?: n, polygonAngle?: degrees (counterclockwise from its first vertex straight up), polygonRadius?: pt (centre to vertex), sideLength?: pt (sets the radius), makeSidesEqual?: true (a polygon scaled unevenly: drops the uneven scale and shear, keeping its centre, angle and mean radius), pieStart?, pieEnd?: degrees (an ellipse's pie, counterclockwise from 3 o'clock; 0 to 360 is the whole ellipse), invertPie?: true (swaps them: the other part of the ellipse)} (Live Corners on any path: radius and kind set its corners (anchors that aren't smooth, where two sides, straight or curved (#1144), meet at an angle): `corners` (anchor indices of the path with its corners uncut, counting every subpath's anchors in order: a rectangle's 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left; a polygon's from the first vertex clockwise), else the corners with a Direct-Selected anchor, else every corner; each radius is drawn no larger than half the corner's shorter side allows; a path that isn't a live shape keeps its uncut outline so its corners stay editable, and is plain again once none is cut; sides: a polygon's, which keep the radius they shared; the polygon params apply in that order: sides, makeSidesEqual, polygonAngle, then sideLength or else polygonRadius)",
             has_selection,
             set_live_shape
         ),
@@ -1087,6 +1087,8 @@ fn isolate(s: &mut Session, p: &Value) -> Result<Value> {
     }
     st.isolation = Some(isolation);
     st.selection.clear();
+    // New art on a locked artboard, now deselected, is protected.
+    st.sync_new_art();
     st.revision += 1;
     ok()
 }
@@ -1102,6 +1104,8 @@ fn exit_isolation(s: &mut Session, _: &Value) -> Result<Value> {
         if guides_locked {
             crate::deselect_guides(&st.doc, &mut st.selection);
         }
+        // The art on a locked artboard can't be selected.
+        st.protect_locked_artboards(&[], &Default::default(), None);
     }
     st.revision += 1;
     ok()
@@ -1787,7 +1791,7 @@ fn bounds_transform(s: &Session, p: &Value, ids: Vec<NodeId>, least: f64) -> Res
     let margins = |b: Rect| [g.x0 - b.x0, g.y0 - b.y0, b.x1 - g.x1, b.y1 - g.y1];
     let (m, all) = (margins(vs), margins(v));
     let fixed = [all[0] - m[0], all[1] - m[1], all[2] - m[2], all[3] - m[3]];
-    let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4) as usize;
+    let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4).min(8) as usize;
     let rp = vectorcraft_geom::reference_point(v, refi);
     let (w, h) = wanted_size(p, v);
     // The geometric scale that gives the visual size: margins grow by the strokes' scale `f`. It is
@@ -1950,7 +1954,7 @@ fn wanted_size(p: &Value, b: Rect) -> (f64, f64) {
 /// `b`, the box around the anchors (and the objects selected whole) square to the page, and only
 /// the anchors, their handles with them, and those objects move or scale.
 fn set_anchor_bounds(s: &mut Session, p: &Value, ids: Vec<NodeId>, b: Rect) -> Result<Value> {
-    let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4) as usize;
+    let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4).min(8) as usize;
     let rp = vectorcraft_geom::reference_point(b, refi);
     let (w, h) = wanted_size(p, b);
     // A single anchor, or anchors in a line, have no size to scale on that side.
@@ -2330,6 +2334,7 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
         })
         .transpose()?;
     let radius = p.get("radius").and_then(Value::as_f64);
+    let relative_radii = p.get("relativeRadii").and_then(Value::as_bool);
     let sides = p.get("sides").and_then(Value::as_u64);
     // A number that must be `what` (None when absent).
     let number = |k: &str, ok: fn(f64) -> bool, what: &str| -> Result<Option<f64>> {
@@ -2374,6 +2379,9 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
             Some(LiveShape::Ellipse { pie, .. }) if pie_of(*pie) != *pie => return false,
             _ => {}
         }
+        if relative_radii.is_some_and(|on| live.as_deref().map(|l| l.radii_relative()) != Some(on)) {
+            return false;
+        }
         if radius.is_none() && kind.is_none() {
             return true;
         }
@@ -2382,9 +2390,11 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
         // Setting corners folds a scale left in a rectangle's transform into its size, which
         // changes it.
         live.as_deref().is_none_or(|l| l.folded() == *l)
-            && picked
-                .iter()
-                .all(|k| *k < c.base.anchor_count() && radius.is_none_or(|r| c.radius(*k) == r.max(0.0)) && kind.is_none_or(|kd| c.kind(*k) == kd))
+            && picked.iter().all(|k| {
+                *k < c.base.anchor_count()
+                    && radius.is_none_or(|r| (c.drawn_radius(*k) - r.max(0.0)).abs() < 1e-9)
+                    && kind.is_none_or(|kd| c.kind(*k) == kd)
+            })
     };
     if ids.iter().all(has_values) {
         return ok();
@@ -2416,6 +2426,12 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
                 if let LiveShape::Ellipse { pie, .. } = l {
                     *pie = pie_of(*pie);
                 }
+                *path = l.to_path();
+            }
+            if let Some(on) = relative_radii
+                && let Some(l) = live.as_deref_mut()
+            {
+                convert_radii_relative(l, on);
                 *path = l.to_path();
             }
             if radius.is_none() && kind.is_none() {

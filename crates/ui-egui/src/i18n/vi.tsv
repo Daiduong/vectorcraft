@@ -253,6 +253,7 @@
 	Arrange: Bring to Front	Sắp xếp: Đưa lên trên cùng
 	Arrowheads:	Đầu mũi tên:
 	Art	Tác phẩm
+	Art Brush	Cọ bản vẽ
 	Art Brush Options	Tùy chọn cọ bản vẽ
 	Art using a deleted global swatch keeps its colour.	Tác phẩm dùng mẫu màu toàn cục đã xóa vẫn giữ màu của nó.
 	Artboard	Bảng vẽ
@@ -376,6 +377,7 @@
 	Bring Forward	Đưa lên trước
 	Bring to Front	Đưa lên trên cùng
 	Bristle	Lông cứng
+	Bristle Brush	Cọ lông
 	Bristle Brush Options	Tùy chọn cọ lông
 	Bristle Brush Strokes	Nét cọ lông cứng
 	Bristle Density:	Mật độ lông cọ:
@@ -383,6 +385,7 @@
 	Bristle Thickness:	Độ dày lông cọ:
 	Browser	Trình duyệt
 	Brush Affects:	Cọ tác động:
+	Brush Art	Đối tượng của cọ
 	Brush Definition	Định nghĩa cọ
 	Brush Libraries	Thư viện cọ
 	Brush Libraries (on the roadmap)	Thư viện cọ (trong lộ trình)
@@ -401,6 +404,7 @@
 	Butt Cap	Đầu nét vuông
 	Byte Order:	Thứ tự byte:
 	Calligraphic	Thư pháp
+	Calligraphic Brush	Cọ thư pháp
 	Calligraphic Brush Options	Tùy chọn cọ thư pháp
 	Can't open “{name}”.	Không thể mở “{name}”.
 	Can't save “{name}”.	Không thể lưu “{name}”.
@@ -1216,6 +1220,7 @@
 	Eyedropper Picks Up:	Ống hút màu lấy mẫu:
 	Eyedropper Tool	Công cụ Ống hút màu
 	Eyedropper: click the art to sample the stop's colour	Ống hút màu: bấm vào tác phẩm để lấy mẫu màu điểm dừng
+	Eyedropper: click the art to sample the key color	Ống hút màu: bấm vào tác phẩm để lấy mẫu màu chủ
 	Farsi	Farsi
 	Favorites	Yêu thích
 	Feather…	Làm mờ dần…
@@ -1265,6 +1270,8 @@
 	Film Grain…	Hạt phim…
 	Cutout…	Cắt dán…
 	Cutout	Cắt dán
+	Dry Brush…	Cọ khô…
+	Dry Brush	Cọ khô
 	Neon Glow…	Ánh neon…
 	Neon Glow	Ánh neon
 	Poster Edges…	Viền áp phích…
@@ -1519,6 +1526,7 @@ file-filter	Templates	Mẫu
 	Handles	Tay nắm
 	Hard	Cứng
 	Hard Light	Ánh sáng mạnh
+	Hard Mix	Trộn cứng
 	Harmony Rules:	Quy tắc hài hòa màu:
 	Harmony Sets	Bộ hài hòa màu
 	Height	Chiều cao
@@ -2176,6 +2184,7 @@ file-filter	Templates	Mẫu
 	Move Rows	Di chuyển hàng
 	Move Slices	Di chuyển lát cắt
 	Move Spine Point	Di chuyển điểm trục
+	Move Brush	Di chuyển cọ
 	Move Swatch	Di chuyển mẫu màu
 	Move to Group	Di chuyển vào nhóm
 	Move Up	Di chuyển lên
@@ -2201,6 +2210,7 @@ file-filter	Templates	Mẫu
 	New Art Has Basic Appearance	Bản vẽ mới có diện mạo cơ bản
 	New Artboard	Bảng vẽ mới
 	New Bristle Brush	Cọ lông mới
+	New Brush	Cọ mới
 	New Brush…	Cọ mới…
 	New Calligraphic Brush	Cọ thư pháp mới
 	New Character Style	Kiểu ký tự mới
@@ -2531,6 +2541,7 @@ file-filter	Templates	Mẫu
 	Path Length	Độ dài đường dẫn
 	Paths: {paths}    Anchors: {anchors}    Colors: {colors}	Đường dẫn: {paths}    Điểm neo: {anchors}    Màu: {colors}
 	Pattern	Họa tiết
+	Pattern Brush	Cọ họa tiết
 	Pattern Brush Options	Tùy chọn cọ họa tiết
 	Pattern Editing	Chỉnh sửa họa tiết
 	Pattern Options	Tùy chọn họa tiết
@@ -3108,6 +3119,7 @@ mark-style	Japanese	Kiểu Nhật
 	Scale Lineweights	Tỷ lệ độ dày nét
 	Scale Proportionately	Phóng to/thu nhỏ đều
 	Scale Strokes & Effects	Tỷ lệ nét & hiệu ứng
+	Scale Text Attributes	Tỷ lệ thuộc tính văn bản
 	Scale to Fit Artboard	Tỷ lệ vừa bảng vẽ
 	Scale Tool	Công cụ Tỷ lệ
 	Scale:	Tỷ lệ:
@@ -3117,6 +3129,7 @@ mark-style	Japanese	Kiểu Nhật
 	Scallop Tool	Công cụ Vỏ sò
 	Scans:	Lần quét:
 	Scatter	Phân tán
+	Scatter Brush	Cọ phân tán
 	Scatter Brush Options	Tùy chọn cọ phân tán
 	Scatter Graph Tool	Công cụ Biểu đồ phân tán
 	Scatter:	Phân tán:
@@ -3172,6 +3185,7 @@ mark-style	Japanese	Kiểu Nhật
 	Select art and choose Object › Pattern › Make.	Chọn đối tượng và chọn Đối tượng › Họa tiết › Tạo.
 	Select art and click New Symbol to make one.	Chọn đối tượng và bấm Ký hiệu mới để tạo.
 	Select art and use New Brush to make one.	Chọn đối tượng và dùng Cọ mới để tạo.
+	Select art to make a scatter, art or pattern brush.	Chọn đối tượng để tạo cọ phân tán, cọ bản vẽ hoặc cọ họa tiết.
 	Select Bound Object	Chọn đối tượng gắn
 	Select Data Set	Chọn tập dữ liệu
 	Select Freeform Point	Chọn điểm tự do
@@ -3633,6 +3647,13 @@ mark-style	Japanese	Kiểu Nhật
 	Tint	Tông màu
 	Tints	Sắc pha
 	Tints and Shades	Sắc pha và bóng
+	Tips	Mẹo
+	Colorization Tips	Mẹo tô màu
+	The samples show this brush on a blue stroke.	Các mẫu hiển thị cọ này trên một nét màu xanh lam.
+	The art keeps its own colors.	Hình vẽ giữ nguyên màu của nó.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Màu đen trở thành màu nét và màu trắng vẫn là màu trắng. Các màu khác trở thành sắc pha của màu nét, và màu càng sáng thì sắc pha càng sáng.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Màu đen vẫn là màu đen và màu trắng vẫn là màu trắng. Các màu khác trở thành bóng của màu nét khi chúng tối và sắc pha của màu nét khi chúng sáng.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Màu chủ trở thành màu nét. Các màu khác dịch chuyển trên bánh xe màu một khoảng bằng màu chủ và giữ nguyên độ bão hòa và độ sáng.
 	Tiny Lens	Thấu kính nhỏ
 	Tip extends past the end point	Đầu mũi tên vượt qua điểm cuối
 	Tip on the end point	Đầu mũi tên tại điểm cuối
@@ -4289,7 +4310,9 @@ theme	Appearance	Giao diện
 @msg	no blend options	không có tùy chọn hòa trộn
 @msg	no bounds	không có giới hạn
 @msg	no brush named `{name}`	không có cọ tên `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	tên cọ lông có tối đa {max} ký tự: `{name}` có {count} ký tự
 @msg	no brush selected	chưa chọn cọ
+@msg	brushes move only within their type	chỉ có thể di chuyển cọ trong cùng loại của nó
 @msg	no catalog	không có danh mục
 @msg	no changes since the last save	không có thay đổi nào kể từ lần lưu cuối
 @msg	no clock to keep a heartbeat by	không có đồng hồ để duy trì nhịp tim
@@ -4352,6 +4375,7 @@ theme	Appearance	Giao diện
 @msg	no such action	không có hành động như vậy
 @msg	no such anchor	không có điểm neo như vậy
 @msg	no such artboard	không có bảng vẽ như vậy
+@msg	the artboard is locked	bảng vẽ bị khóa
 @msg	no such document	không có tài liệu như vậy
 @msg	no such layer or object	không có lớp hoặc đối tượng như vậy
 @msg	no such object {0}	không có đối tượng như vậy: {0}
@@ -4776,6 +4800,7 @@ theme	Appearance	Giao diện
 @msg	Measured anchor no longer exists	Điểm neo được đo không còn tồn tại
 @msg	Measured segment no longer exists	Đoạn được đo không còn tồn tại
 @msg	Non-finite dimension	Kích thước không phải là số hữu hạn
+@msg	Scale Text Attributes: selected type has no scale to bake	Tỷ lệ thuộc tính văn bản: văn bản được chọn không có tỷ lệ để áp dụng
 @msg	Scale must be drawing:real, for example 1:10	Tỷ lệ phải có dạng bản vẽ:thực tế, ví dụ 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Tỷ lệ phải nằm trong khoảng 1:1000000 đến 1000000:1
 @msg	Second measured segment no longer exists	Đoạn được đo thứ hai không còn tồn tại
@@ -4863,6 +4888,7 @@ theme	Appearance	Giao diện
 @msg	the image's pixels can't be read	không đọc được các điểm ảnh của ảnh
 	Persistent	Lưu giữ
 	Library Panel Options	Tùy chọn bảng thư viện
+	Locate Library…	Xác định vị trí thư viện…
 @msg	Persistent libraries not found: {files}	Không tìm thấy thư viện lưu giữ: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` không phải là bảng thư viện (xem window.swatchLibrary)
 @msg	library panel `{given}` isn't open	bảng thư viện `{given}` chưa được mở

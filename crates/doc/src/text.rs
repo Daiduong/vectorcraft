@@ -113,6 +113,12 @@ pub struct CharStyle {
     /// these characters are drawn in, whatever digits were typed.
     #[serde(default, skip_serializing_if = "crate::skip::is_default")]
     pub digits: Digits,
+    /// No Break (Character panel menu): these characters are not broken across lines, including
+    /// at a space or a hyphenation point inside the run. A run longer than the line stays together
+    /// and can overflow it.
+    /// <https://helpx.adobe.com/illustrator/using/hyphenation-line-breaks.html>
+    #[serde(default, rename = "noBreak", skip_serializing_if = "crate::skip::is_default")]
+    pub no_break: bool,
 }
 
 /// The numeral system digits are drawn in ([`CharStyle::digits`]): as typed, or every digit of
@@ -249,6 +255,9 @@ fn regular() -> String {
 fn hundred() -> f64 {
     100.0
 }
+fn yes() -> bool {
+    true
+}
 
 impl Default for CharStyle {
     fn default() -> Self {
@@ -285,6 +294,7 @@ impl Default for CharStyle {
             proportional_metrics: false,
             small_caps: None,
             digits: Digits::Default,
+            no_break: false,
         }
     }
 }
@@ -1329,11 +1339,17 @@ pub struct TextObject {
     pub wrap: Vec<WrapShape>,
     /// Type › Optical Margin Alignment: in every paragraph, Latin punctuation and the slanted
     /// sides of letters such as A and W at a line's start or end hang outside the margin there
-    /// (point and area type of left-to-right paragraphs, and left-to-right type on a path at its
-    /// brackets; see the layout's `optical_hangs`). Off for new type and for documents from before
-    /// it, and saved only when on.
+    /// (point and area type, and type on a path at its brackets; see the layout's `optical_hangs`).
+    /// Off for new type and for documents from before it, and saved only when on.
     #[serde(default, rename = "opticalMarginAlignment", skip_serializing_if = "crate::skip::is_default")]
     pub optical_margin: bool,
+    /// Character panel menu › Fractional Widths: spacing between characters uses fractions of a
+    /// point. On for new type and for documents from before it, and saved only when off. Off, each
+    /// character that takes any space advances by a whole number of points, at least one, so small
+    /// type does not run together. The setting is the whole type object, not a range of characters.
+    /// <https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/turn-fractional-character-widths-off-or-on.html>
+    #[serde(default = "yes", rename = "fractionalWidths", skip_serializing_if = "crate::skip::is_true")]
+    pub fractional_widths: bool,
     /// Cached layout bounds in text space, filled in by the layout engine (not serialized).
     #[serde(skip)]
     pub cached_bounds: Option<Rect>,
@@ -1386,6 +1402,36 @@ impl TextObject {
         Some(style)
     }
 
+    /// Bakes the object's scale ([`style_scale`]) into character attributes and removes that
+    /// scale from `xf`, so panels show document-point sizes without a separate transform factor.
+    /// Returns `false` when there is nothing to bake (identity scale or an unrepresentable
+    /// transform).
+    pub fn scale_text_attributes(&mut self) -> bool {
+        let Some(scale) = self.style_scale() else { return false };
+        if (scale.points - 1.0).abs() <= 1e-12 && (scale.horizontal - 1.0).abs() <= 1e-12 {
+            return false;
+        }
+        let [a, b, c, d, _, _] = self.xf.as_coeffs();
+        let (sx, sy) = (a.hypot(b), c.hypot(d));
+        if sx <= 1e-12 || sy <= 1e-12 {
+            return false;
+        }
+        let mut baked = Vec::with_capacity(self.runs.len());
+        for run in &self.runs {
+            let Some(eff) = self.effective_char_style(&run.style) else { return false };
+            baked.push(eff);
+        }
+        for (run, style) in self.runs.iter_mut().zip(baked) {
+            run.style = style;
+        }
+        // Character strokes are drawn in text space: widen them by the vertical scale we remove.
+        self.scale_char_strokes(1.0 / sy);
+        self.xf *= Affine::scale_non_uniform(1.0 / sx, 1.0 / sy);
+        self.cached_bounds = None;
+        self.cached_baselines.clear();
+        true
+    }
+
     pub fn point(origin: Point, text: &str, style: CharStyle) -> Self {
         Self {
             vertical: false,
@@ -1400,6 +1446,7 @@ impl TextObject {
             path_spacing: 0.0,
             wrap: Vec::new(),
             optical_margin: false,
+            fractional_widths: true,
             cached_bounds: None,
             cached_baselines: Vec::new(),
         }

@@ -1053,6 +1053,7 @@
 	Eyedropper Picks Up:	La pipette prélève :
 	Eyedropper Tool	Outil Pipette
 	Eyedropper: click the art to sample the stop's colour	Pipette : cliquez sur l’illustration pour prélever la couleur de l’étape de dégradé
+	Eyedropper: click the art to sample the key color	Pipette : cliquez sur l’illustration pour prélever la couleur clé
 	Favorites	Favoris
 	Feather…	Contour progressif…
 	Feet	Pieds
@@ -1315,6 +1316,7 @@
 	Hand-Drawn	Dessiné à la main
 	Handles	Poignées
 	Hard Light	Lumière crue
+	Hard Mix	Mélange maximal
 	Harmony Rules:	Règles d’harmonie :
 	Harmony Sets	Ensembles d’harmonies
 	Height	Hauteur
@@ -1873,6 +1875,7 @@
 	Move Slices	Déplacer les tranches
 	Move Spine Point	Déplacer le point de la dorsale
 	Reshape Spine Segment	Modeler le segment de la dorsale
+	Move Brush	Déplacer la forme
 	Move Swatch	Déplacer la nuance
 	Move Up	Monter
 	Move…	Déplacer…
@@ -1927,6 +1930,13 @@
 	Tints	Teintes
 	Tints and Shades	Teintes et ombres
 	Hue Shift	Décalage de teinte
+	Tips	Conseils
+	Colorization Tips	Conseils de colorisation
+	The samples show this brush on a blue stroke.	Les exemples montrent cette forme sur un contour bleu.
+	The art keeps its own colors.	L’illustration garde ses propres couleurs.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Le noir devient la couleur du contour et le blanc reste blanc. Les autres couleurs deviennent des teintes de la couleur du contour, et plus une couleur est claire, plus sa teinte est claire.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Le noir reste noir et le blanc reste blanc. Les autres couleurs deviennent des ombres de la couleur du contour quand elles sont foncées et des teintes de celle-ci quand elles sont claires.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	La couleur clé devient la couleur du contour. Les autres couleurs tournent sur le cercle chromatique autant que la couleur clé et gardent leur saturation et leur luminosité.
 	Key Color:	Couleur clé :
 	Roundness:	Arrondi :
 	Fixed	Fixe
@@ -1948,6 +1958,14 @@
 	Round Fan	Éventail rond
 	Flat Fan	Éventail plat
 	New Brush…	Nouvelle forme…
+	New Brush	Nouvelle forme
+	Calligraphic Brush	Forme calligraphique
+	Scatter Brush	Forme diffuse
+	Art Brush	Forme artistique
+	Bristle Brush	Forme Soies
+	Pattern Brush	Forme de motif
+	Select art to make a scatter, art or pattern brush.	Sélectionnez une illustration pour créer une forme diffuse, artistique ou de motif.
+	Brush Art	Illustration de la forme
 	New Calligraphic Brush	Nouvelle forme calligraphique
 	New Character Style	Nouveau style de caractère
 	New Color Group	Nouveau groupe de couleurs
@@ -2768,6 +2786,7 @@
 	Scale Cursor Proportional to UI	Mettre le curseur à l’échelle de l’interface
 	Scale Lineweights	Mettre à l’échelle les épaisseurs de trait
 	Scale Strokes & Effects	Mettre à l’échelle les contours et les effets
+	Scale Text Attributes	Mettre à l’échelle les attributs de texte
 	Scale to Fit Artboard	Mettre à l’échelle pour ajuster au plan de travail
 	Scale Tool	Outil Mise à l’échelle
 	Scale:	Échelle :
@@ -4002,7 +4021,9 @@ axis	Both	Les deux
 @msg	no blend options	aucune option de dégradé de formes
 @msg	no bounds	aucune limite
 @msg	no brush named `{name}`	aucune forme nommée `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	le nom d’une forme Soies peut compter au plus {max} caractères, et `{name}` en compte {count}
 @msg	no brush selected	aucune forme sélectionnée
+@msg	brushes move only within their type	les formes ne se déplacent qu’à l’intérieur de leur type
 @msg	no catalog	aucun catalogue
 @msg	no changes since the last save	aucune modification depuis le dernier enregistrement
 @msg	no clock to keep a heartbeat by	aucune horloge pour entretenir le signal d’activité
@@ -4056,6 +4077,7 @@ axis	Both	Les deux
 @msg	no such action	script inexistant
 @msg	no such anchor	point d’ancrage inexistant
 @msg	no such artboard	plan de travail inexistant
+@msg	the artboard is locked	le plan de travail est verrouillé
 @msg	no such document	document inexistant
 @msg	no such layer or object	calque ou objet inexistant
 @msg	no such object {0}	objet {0} inexistant
@@ -4625,6 +4647,8 @@ lighting	Light	Lumière
 	Film Grain…	Grain photographique…
 	Cutout…	Découpage…
 	Cutout	Découpage
+	Dry Brush…	Pinceau sec…
+	Dry Brush	Pinceau sec
 	Neon Glow…	Néon…
 	Neon Glow	Néon
 	Poster Edges…	Bords d’affiche…
@@ -5183,6 +5207,7 @@ theme	Appearance	Apparence
 @msg	Measured anchor no longer exists	Le point d’ancrage mesuré n’existe plus
 @msg	Measured segment no longer exists	Le segment mesuré n’existe plus
 @msg	Non-finite dimension	Cote non finie
+@msg	Scale Text Attributes: selected type has no scale to bake	Mettre à l’échelle les attributs de texte : le texte sélectionné n’a pas d’échelle à intégrer
 @msg	Scale must be drawing:real, for example 1:10	L’échelle doit être dessin:réel, par exemple 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Le rapport d’échelle doit être compris entre 1:1000000 et 1000000:1
 @msg	Second measured segment no longer exists	Le second segment mesuré n’existe plus
@@ -5268,6 +5293,7 @@ theme	Appearance	Apparence
 @msg	the image's pixels can't be read	impossible de lire les pixels de l’image
 	Persistent	Persistante
 	Library Panel Options	Options du panneau de bibliothèque
+	Locate Library…	Localiser la bibliothèque…
 @msg	Persistent libraries not found: {files}	Bibliothèques persistantes introuvables : {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` n’est pas un panneau de bibliothèque (voir window.swatchLibrary)
 @msg	library panel `{given}` isn't open	le panneau de bibliothèque `{given}` n’est pas ouvert

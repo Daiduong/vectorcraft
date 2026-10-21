@@ -1044,6 +1044,18 @@ fn find_and_replace_options() {
     assert!(s.execute("edit.findReplace", &json!({"find": ""})).is_err());
 }
 
+/// Find and Replace with no ids leaves the type on a locked artboard as it is.
+#[test]
+fn find_and_replace_leaves_type_on_a_locked_artboard() {
+    let mut s = session();
+    let a = text(&mut s, "cat");
+    let b = id_of(&s.execute("text.create", &json!({"x": 2050, "y": 50, "text": "cat"})).unwrap());
+    s.execute("artboard.new", &json!({"x": 2000, "y": 0, "width": 400, "height": 400})).unwrap();
+    s.execute("artboard.setProps", &json!({"index": 1, "locked": true})).unwrap();
+    let r = s.execute("edit.findReplace", &json!({"find": "cat", "replace": "dog"})).unwrap();
+    assert_eq!((r["count"].as_u64(), plain(&s, a), plain(&s, b)), (Some(1), "dog".to_string(), "cat".to_string()));
+}
+
 /// Find and Replace that replaces each match with the text it is (`CAT` found in `cat`, ignoring
 /// case, and replaced by `cat`) records no undo step: the step to redo stays and the document stays
 /// unmodified. It still replies with the count. A replacement that changes the text is one undo step.
@@ -1501,6 +1513,17 @@ fn select_all_on_artboard_takes_lines_on_its_right_and_bottom_edges() {
     };
     assert_eq!(on(0), vec![bottom, shared]);
     assert_eq!(on(1), vec![right, shared]);
+}
+
+/// All on Active Artboard refuses artboard 2^32 and selects nothing. A 32-bit build read it as
+/// artboard 0.
+#[test]
+fn select_all_on_artboard_refuses_an_artboard_past_u32() {
+    let mut s = session();
+    rect(&mut s, 10.0, 10.0, 20.0, 20.0);
+    s.execute("select.none", &json!({})).unwrap();
+    assert!(s.execute("select.allOnArtboard", &json!({"artboard": 1u64 << 32})).is_err());
+    assert!(selected(&s).is_empty());
 }
 
 #[test]
@@ -2685,6 +2708,18 @@ fn close_all_documents() {
     assert_eq!(s.execute("file.closeAll", &json!({})).unwrap()["closed"], 2);
     assert!(s.active().is_none());
     assert!(s.execute("file.closeAll", &json!({})).is_err());
+}
+
+/// Close and Activate refuse a document index of 2^32, and both documents stay open with the second
+/// one active. A 32-bit build read the index as 0.
+#[test]
+fn close_and_activate_refuse_a_document_index_past_u32() {
+    let mut s = session();
+    s.execute("file.new", &json!({})).unwrap();
+    for cmd in ["document.activate", "file.close"] {
+        assert!(s.execute(cmd, &json!({"index": 1u64 << 32})).is_err(), "{cmd}");
+        assert_eq!((s.documents().len(), s.active_index()), (2, Some(1)), "{cmd}");
+    }
 }
 
 #[test]

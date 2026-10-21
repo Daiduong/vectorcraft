@@ -1494,6 +1494,7 @@ lighting	Light	Světlo
 	Edit the selected point's colour in the Color panel	Upravit barvu vybraného bodu v panelu Barva
 	Edit the stop	Upravit zarážku
 	Eyedropper: click the art to sample the stop's colour	Kapátko: kliknutím na kresbu naberete barvu zarážky
+	Eyedropper: click the art to sample the key color	Kapátko: kliknutím na kresbu naberete klíčovou barvu
 	Gradient across stroke	Přechod napříč tahem
 	Gradient along stroke	Přechod podél tahu
 	Gradient Fill: click to apply, drag onto art	Přechodová výplň: kliknutím použijete, přetáhněte na kresbu
@@ -2041,6 +2042,13 @@ lighting	Light	Světlo
 	Tints and Shades	Světlé a tmavé tóny
 	Hue Shift	Posun odstínu
 	Key Color:	Klíčová barva:
+	Tips	Tipy
+	Colorization Tips	Tipy k obarvení
+	The samples show this brush on a blue stroke.	Ukázky zobrazují tento štětec na modrém tahu.
+	The art keeps its own colors.	Kresba si ponechá své vlastní barvy.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Černá se změní na barvu tahu a bílá zůstane bílá. Ostatní barvy se změní na světlé tóny barvy tahu, a čím je barva světlejší, tím světlejší je její tón.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Černá zůstane černá a bílá zůstane bílá. Ostatní barvy se změní na tmavé tóny barvy tahu, když jsou tmavé, a na její světlé tóny, když jsou světlé.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Klíčová barva se změní na barvu tahu. Ostatní barvy se posunou po barevném kruhu o stejný úhel jako klíčová barva a zachovají si sytost a jas.
 	Size:	Velikost:
 	Calligraphic Brush Options	Možnosti kaligrafického štětce
 	Bristle Brush Options	Možnosti štětinového štětce
@@ -2899,6 +2907,7 @@ lighting	Light	Světlo
 	Darken	Ztmavit
 	Exclusion	Vyloučit
 	Hard Light	Tvrdé světlo
+	Hard Mix	Tvrdé míchání
 	Lighten	Zesvětlit
 	Luminosity	Světlost
 	Overlay	Překrýt
@@ -2982,6 +2991,14 @@ theme	Appearance	Motiv
 	Edit Symbol	Upravit symbol
 	Expand Brush Strokes	Rozložit tahy štětcem
 	New Brush…	Nový štětec…
+	New Brush	Nový štětec
+	Calligraphic Brush	Kaligrafický štětec
+	Scatter Brush	Rozptylový štětec
+	Art Brush	Obrazový štětec
+	Bristle Brush	Štětinový štětec
+	Pattern Brush	Vzorkový štětec
+	Select art to make a scatter, art or pattern brush.	Vyberte kresbu, abyste mohli vytvořit rozptylový, obrazový nebo vzorkový štětec.
+	Brush Art	Kresba štětce
 	New Symbol	Nový symbol
 	New Symbol…	Nový symbol…
 	Place Symbol Instance	Umístit instanci symbolu
@@ -3458,6 +3475,7 @@ theme	Appearance	Motiv
 	Scale Corners	Měnit velikost rohů
 	Scale Cursor Proportional to UI	Měnit velikost kurzoru úměrně rozhraní
 	Scale Strokes & Effects	Měnit velikost tahů a efektů
+	Scale Text Attributes	Měnit velikost atributů textu
 	Scratch Disks	Odkládací disky
 	Secondary	Sekundární
 	Select Same Tint %	Vybírat stejné % tónu
@@ -3558,6 +3576,7 @@ theme	Appearance	Motiv
 	Delete Swatch	Odstranit položku vzorníku
 	Duplicate Swatch	Duplikovat položku vzorníku
 	Merge Swatches	Sloučit položky vzorníku
+	Move Brush	Přesunout štětec
 	Move Swatch	Přesunout položku vzorníku
 	New Color Group	Nová skupina barev
 	New Swatch	Nová položka vzorníku
@@ -4307,7 +4326,9 @@ imageTrace	Outline	Obrys
 @msg	no blend options	žádné možnosti prolnutí
 @msg	no bounds	žádné hranice
 @msg	no brush named `{name}`	štětec s názvem `{name}` neexistuje
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	název štětinového štětce může mít nejvýše {max} znaků: `{name}` jich má {count}
 @msg	no brush selected	není vybrán žádný štětec
+@msg	brushes move only within their type	štětce lze přesouvat jen v rámci jejich typu
 @msg	no catalog	chybí katalog
 @msg	no changes since the last save	od posledního uložení nejsou žádné změny
 @msg	no clock to keep a heartbeat by	chybí hodiny, podle kterých by šlo udržovat signál aktivity
@@ -4361,6 +4382,7 @@ imageTrace	Outline	Obrys
 @msg	no such action	taková akce neexistuje
 @msg	no such anchor	takový kotevní bod neexistuje
 @msg	no such artboard	taková pracovní plocha neexistuje
+@msg	the artboard is locked	pracovní plocha je zamčená
 @msg	no such document	takový dokument neexistuje
 @msg	no such layer or object	taková vrstva ani objekt neexistuje
 @msg	no such object {0}	objekt {0} neexistuje
@@ -5027,6 +5049,8 @@ imageTrace	Outline	Obrys
 	Film Grain…	Filmové zrno…
 	Cutout…	Výřez…
 	Cutout	Výřez
+	Dry Brush…	Suchý štětec…
+	Dry Brush	Suchý štětec
 	Neon Glow…	Neonová záře…
 	Neon Glow	Neonová záře
 	Poster Edges…	Plakátové okraje…
@@ -5184,6 +5208,7 @@ mark-style	Japanese	Japonské
 @msg	Measured anchor no longer exists	Měřený kotevní bod už neexistuje
 @msg	Measured segment no longer exists	Měřený segment už neexistuje
 @msg	Non-finite dimension	Kóta není konečné číslo
+@msg	Scale Text Attributes: selected type has no scale to bake	Měnit velikost atributů textu: vybraný text nemá žádnou skalaci, kterou lze použít
 @msg	Scale must be drawing:real, for example 1:10	Měřítko musí mít tvar výkres:skutečnost, například 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Poměr měřítka musí být mezi 1:1000000 a 1000000:1
 @msg	Second measured segment no longer exists	Druhý měřený segment už neexistuje
@@ -5269,6 +5294,7 @@ mark-style	Japanese	Japonské
 @msg	the image's pixels can't be read	pixely obrazu nelze přečíst
 	Persistent	Trvalé
 	Library Panel Options	Možnosti panelu knihovny
+	Locate Library…	Najít knihovnu…
 @msg	Persistent libraries not found: {files}	Trvalé knihovny nebyly nalezeny: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` není panel knihovny (viz window.swatchLibrary)
 @msg	library panel `{given}` isn't open	panel knihovny `{given}` není otevřený

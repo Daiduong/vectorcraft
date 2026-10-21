@@ -885,6 +885,7 @@ const MENU_KEEP_AS_IS: &[&str] = &[
     "Painting",
     "Printing and Proofing",
     "Tracing",
+    "Touch",
     "Typography",
     "Web",
     "[1P-Normal View]",
@@ -1696,6 +1697,22 @@ fn align_reflect_and_shear_param_errors_are_translated() {
     }
 }
 
+/// The error of `brush.move` for a brush dragged onto a brush of another type in the Brushes panel,
+/// whose text the scan above doesn't read, is translated whole in each language of
+/// [`COMPLETE_MESSAGES`] and in Bulgarian, Danish, Indonesian and Dutch.
+#[test]
+fn brush_move_param_error_is_translated() {
+    use serde_json::json;
+    let mut s = vectorcraft_engine::Session::new();
+    s.execute("file.new", &json!({})).unwrap();
+    let e = s.execute("brush.move", &json!({"name": "3 pt. Round", "type": "scatter"})).unwrap_err();
+    let vectorcraft_engine::EngineError::BadParams { msg, .. } = &e else { panic!("{e}") };
+    for code in COMPLETE_MESSAGES.iter().chain(&["bg", "da", "id", "nl"]) {
+        let shown = message(Lang::from_code(code).unwrap(), &e.to_string());
+        assert!(!shown.contains(msg.as_str()) && !shown.contains("invalid parameters") && shown.contains("`brush.move`"), "{code}: {shown}");
+    }
+}
+
 /// The warning that a data set with no value for a bound variable gives, which the status bar
 /// shows and the scan above doesn't read, is translated in each language of [`COMPLETE_MESSAGES`],
 /// with the data set's name kept.
@@ -1825,6 +1842,24 @@ fn legacy_ait_param_error_is_translated() {
     for code in COMPLETE_MESSAGES {
         let shown = message(Lang::from_code(code).unwrap(), &e.to_string());
         assert!(!shown.contains(msg.as_str()), "{code}: {shown}");
+    }
+}
+
+/// The error of New Brush and Bristle Brush Options for a bristle brush name of more than 31
+/// characters, whose text the scan above doesn't read, is translated whole in each language of
+/// [`COMPLETE_MESSAGES`] and in Bulgarian, with the name and both counts kept.
+#[test]
+fn bristle_brush_name_limit_error_is_translated() {
+    use serde_json::json;
+    let mut s = vectorcraft_engine::Session::new();
+    s.execute("file.new", &json!({})).unwrap();
+    let name = "b".repeat(32);
+    let e = s.execute("brush.new", &json!({"type": "bristle", "name": name})).unwrap_err();
+    let vectorcraft_engine::EngineError::BadParams { msg, .. } = &e else { panic!("{e}") };
+    for code in COMPLETE_MESSAGES.iter().chain(&["bg"]) {
+        let shown = message(Lang::from_code(code).unwrap(), &e.to_string());
+        let kept = shown.contains(&format!("`{name}`")) && shown.contains("31") && shown.contains("32");
+        assert!(!shown.contains(msg.as_str()) && kept, "{code}: {shown}");
     }
 }
 

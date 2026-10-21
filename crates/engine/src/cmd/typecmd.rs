@@ -35,13 +35,31 @@ pub fn specs() -> Vec<CommandSpec> {
             create_outlines
         ),
         cmd!(
+            "type.scaleTextAttributes",
+            "Scale Text Attributes",
+            ["Type"],
+            None,
+            "{ids?|id?} bake each selected type object's transform scale into its character sizes (leading, baseline shift and horizontal scale included), leaving rotation and position in the affine → {ids, changed}",
+            scale_text_attributes_enabled,
+            scale_text_attributes
+        ),
+        cmd!(
             "type.opticalMarginAlignment",
             "Optical Margin Alignment",
             ["Type"],
             None,
-            "{ids?|id?, on?: bool} turn Optical Margin Alignment on or off for the selected type and every frame of its threads (on omitted: the opposite of the first object's setting): in every left-to-right paragraph of point and area type, quotation marks, hyphens, full stops and commas at a line's start or end hang wholly outside the margin there; asterisks, tildes, ellipses, en and em dashes, colons and semicolons hang by half; and A, V, W, Y, v, w and y hang by a tenth of their advance; a left-aligned line hangs at its left margin, a right-aligned line hangs at its right margin, and centered and justified lines hang at both; left-to-right type on a path hangs at the start bracket when its line is placed there, hangs at the end bracket when the line is placed there, and hangs at both when it is centered → {on, ids}",
+            "{ids?|id?, on?: bool} turn Optical Margin Alignment on or off for the selected type and every frame of its threads (on omitted: the opposite of the first object's setting): in every paragraph of point and area type, quotation marks, hyphens, full stops and commas at a line's start or end hang wholly outside the margin there; asterisks, tildes, ellipses, en and em dashes, colons and semicolons hang by half; and A, V, W, Y, v, w and y hang by a tenth of their advance; a left-aligned line hangs at its left margin, a right-aligned line hangs at its right margin, and centered and justified lines hang at both; Auto aligns a right-to-left line at its right; type on a path hangs at the start bracket when its line is placed there, hangs at the end bracket when the line is placed there, and hangs at both when it is centered → {on, ids}",
             has_selection,
             optical_margin_alignment
+        ),
+        cmd!(
+            "type.fractionalWidths",
+            "Fractional Widths",
+            [],
+            None,
+            "{ids?|id?, on?: bool} turn Fractional Widths on or off for the selected type and every frame of its threads (on omitted: the opposite of the first object's setting). On (the default, and what a document from before it reads as), spacing between characters uses fractions of a point. Off, each character that takes any space advances by a whole number of points, at least one, so small type does not run together; a character with no width stays at none. The setting is the whole type object, not a range of characters → {on, ids}",
+            has_selection,
+            fractional_widths
         ),
         cmd!(
             "text.setText",
@@ -121,6 +139,29 @@ fn optical_margin_alignment(s: &mut Session, p: &Value) -> Result<Value> {
                 return Err(EngineError::NoNode(*id));
             };
             t.optical_margin = on;
+            refresh_bounds(t);
+        }
+        Ok(())
+    })?;
+    Ok(json!({"on": on, "ids": ids.iter().map(|id| id.0).collect::<Vec<_>>()}))
+}
+
+/// Character panel menu › Fractional Widths: set `on` (without it, the opposite of the first
+/// object's setting) on every selected text object and every frame of their threads, in one undo
+/// step. On is the default.
+fn fractional_widths(s: &mut Session, p: &Value) -> Result<Value> {
+    let ids = super::threads::with_threads(&s.doc()?.doc, &text_targets(s, p, "Fractional Widths")?);
+    let first = ids.first().and_then(|id| match s.doc().ok()?.doc.node(*id).map(|n| &n.kind) {
+        Some(NodeKind::Text(t)) => Some(t.fractional_widths),
+        _ => None,
+    });
+    let on = p.get("on").and_then(Value::as_bool).unwrap_or(!first.unwrap_or(true));
+    s.edit("Fractional Widths", |d, _| {
+        for id in &ids {
+            let Some(NodeKind::Text(t)) = d.node_mut(*id).map(|n| &mut n.kind) else {
+                return Err(EngineError::NoNode(*id));
+            };
+            t.fractional_widths = on;
             refresh_bounds(t);
         }
         Ok(())
@@ -354,6 +395,42 @@ fn text_ids(d: &Document, ids: &[NodeId]) -> Vec<NodeId> {
     out
 }
 
+fn scale_text_attributes_enabled(s: &Session) -> std::result::Result<(), String> {
+    has_selection(s)?;
+    let st = s.active().ok_or("no document open")?;
+    let ids = text_ids(&st.doc, &st.selection.objects);
+    if ids.iter().any(|id| {
+        st.doc.node(*id).is_some_and(|n| {
+            let NodeKind::Text(t) = &n.kind else { return false };
+            t.style_scale().is_some_and(|sc| (sc.points - 1.0).abs() > 1e-12 || (sc.horizontal - 1.0).abs() > 1e-12)
+        })
+    }) {
+        Ok(())
+    } else {
+        Err("Scale Text Attributes: selected type has no scale to bake".into())
+    }
+}
+
+fn scale_text_attributes(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "type.scaleTextAttributes";
+    let ids = text_targets(s, p, C)?;
+    let changed = s.edit("Scale Text Attributes", |d, _| {
+        let mut n = 0usize;
+        for id in &ids {
+            let Some(NodeKind::Text(t)) = d.node_mut(*id).map(|node| &mut node.kind) else { continue };
+            if t.scale_text_attributes() {
+                refresh_bounds(t);
+                n += 1;
+            }
+        }
+        if n == 0 {
+            return Err(EngineError::Other("Scale Text Attributes: selected type has no scale to bake".into()));
+        }
+        Ok(n)
+    })?;
+    Ok(json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>(), "changed": changed }))
+}
+
 fn create_outlines(s: &mut Session, _: &Value) -> Result<Value> {
     let roots = selected_roots(s)?;
     let ids = s.edit("Create Outlines", |d, sel| {
@@ -455,9 +532,7 @@ impl TextRange {
         let get = |k: &str| -> Result<Option<usize>> {
             match p.get(k) {
                 None | Some(Value::Null) => Ok(None),
-                Some(v) => {
-                    v.as_u64().map(|n| Some(usize::try_from(n).unwrap_or(usize::MAX))).ok_or_else(|| bad(cmd, format!("`{k}` must be a byte offset")))
-                }
+                Some(v) => v.as_u64().map(|n| Some(index(n))).ok_or_else(|| bad(cmd, format!("`{k}` must be a byte offset"))),
             }
         };
         let (start, end) = (get("start")?, get("end")?);
@@ -1019,6 +1094,56 @@ mod area_tests {
         assert!(!serde_json::from_value::<TextObject>(old).unwrap().optical_margin);
     }
 
+    /// Character panel menu › Fractional Widths: `type.fractionalWidths` sets or toggles the flag
+    /// on the selected type in one undo step. New type and a document from before the flag are on,
+    /// and the flag is saved only when off. Off, each positive advance is a whole number of points.
+    #[test]
+    fn fractional_widths_is_set_per_object_and_saved_only_when_off() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let id = s.execute("text.create", &json!({"x": 10, "y": 40, "size": 13, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
+        s.execute("text.setStyle", &json!({"id": id, "tracking": 50})).unwrap();
+        let text = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => (**t).clone(),
+            _ => panic!("text"),
+        };
+        let advances =
+            |s: &Session| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s)).glyphs.iter().map(|g| g.advance).collect::<Vec<_>>();
+        // New type: on, and not saved.
+        assert!(text(&s).fractional_widths);
+        assert!(serde_json::to_value(text(&s)).unwrap().get("fractionalWidths").is_none());
+        let fractional = advances(&s);
+        assert!(fractional.iter().any(|a| (a - a.round()).abs() > 1e-6), "{fractional:?}");
+        // Nothing but a rectangle selected: an error.
+        let rect = s.execute("shape.rectangle", &json!({"x": 0, "y": 200, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
+        s.execute("select.set", &json!({"ids": [rect]})).unwrap();
+        assert!(s.execute("type.fractionalWidths", &json!({})).is_err());
+        // Toggled off: whole-point advances, and the key is written.
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        assert_eq!(s.execute("type.fractionalWidths", &json!({})).unwrap()["on"], false);
+        assert!(!text(&s).fractional_widths);
+        let whole = advances(&s);
+        assert!(whole.iter().all(|a| *a >= 1.0 && (a - a.round()).abs() < 1e-9), "{whole:?}");
+        assert!(fractional.iter().zip(&whole).any(|(a, b)| (a - b).abs() > 0.05), "{fractional:?} {whole:?}");
+        assert_eq!(serde_json::to_value(text(&s)).unwrap()["fractionalWidths"], false);
+        // A boolean given as text is ignored, so the flag toggles back on.
+        assert_eq!(s.execute("type.fractionalWidths", &json!({"on": "no"})).unwrap()["on"], true);
+        assert!(text(&s).fractional_widths);
+        assert_eq!(s.execute("type.fractionalWidths", &json!({"on": false})).unwrap()["on"], false);
+        assert!(!text(&s).fractional_widths);
+        // One undo step.
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert!(text(&s).fractional_widths);
+        // Saved and reopened as it was; a document from before it reads as on.
+        s.execute("type.fractionalWidths", &json!({"on": false})).unwrap();
+        let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
+        assert!(!t.fractional_widths);
+        let mut old = serde_json::to_value(text(&s)).unwrap();
+        old.as_object_mut().unwrap().remove("fractionalWidths");
+        assert!(serde_json::from_value::<TextObject>(old).unwrap().fractional_widths);
+    }
+
     /// Paragraph panel menu › Hyphenation…: `text.setFormat` sets each paragraph's hyphenation
     /// options, rounded and clamped, in one undo step; they are saved only when not the defaults,
     /// and paragraph styles carry them.
@@ -1344,6 +1469,34 @@ mod area_tests {
         let old = serde_json::to_value(&runs(&s)[0].style).unwrap();
         assert!(old.get("proportionalMetrics").is_none());
         assert!(!serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().proportional_metrics);
+    }
+
+    /// No Break is a character attribute, saved only when on.
+    #[test]
+    fn no_break_is_a_character_attribute_saved_only_when_on() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab"})).unwrap()["id"].as_u64().unwrap();
+        let runs = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => t.runs.clone(),
+            _ => panic!("text"),
+        };
+        assert!(!runs(&s)[0].style.no_break);
+        assert!(serde_json::to_value(&runs(&s)[0].style).unwrap().get("noBreak").is_none());
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        s.execute("text.setFormat", &json!({"noBreak": true})).unwrap();
+        assert!(runs(&s).iter().all(|r| r.style.no_break));
+        assert_eq!(serde_json::to_value(&runs(&s)[0].style).unwrap()["noBreak"], true);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert!(!runs(&s)[0].style.no_break);
+        s.execute("text.setRangeStyle", &json!({"id": id, "start": 0, "end": 1, "noBreak": true})).unwrap();
+        let on: Vec<_> = runs(&s).iter().map(|r| (r.text.clone(), r.style.no_break)).collect();
+        assert_eq!(on, [("A".to_string(), true), ("b".to_string(), false)]);
+        let old = serde_json::to_value(&runs(&s)[1].style).unwrap();
+        assert!(old.get("noBreak").is_none());
+        assert!(!serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().no_break);
+        s.execute("text.setFormat", &json!({"noBreak": false})).unwrap();
+        assert!(runs(&s).iter().all(|r| !r.style.no_break));
     }
 
     /// Digits (Character panel menu, Middle Eastern options): a character attribute, saved only

@@ -351,7 +351,7 @@ fn swatch_new_group(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The name of the item that items moving to index `to` of `list` go before: the first one at or
 /// after `to` that isn't moving (`None`: the end).
-fn anchor<T>(list: &[T], to: Option<usize>, moving: &[String], name: impl Fn(&T) -> &str) -> Option<String> {
+pub(super) fn anchor<T>(list: &[T], to: Option<usize>, moving: &[String], name: impl Fn(&T) -> &str) -> Option<String> {
     list.iter().skip(to?).map(&name).find(|n| !moving.iter().any(|m| m == n)).map(str::to_string)
 }
 
@@ -364,7 +364,7 @@ fn insert_before<T>(list: &mut Vec<T>, items: Vec<T>, anchor: Option<&str>, name
 fn swatch_move(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "swatch.move";
     let names = names_param(p, C)?;
-    let to = p.get("to").and_then(Value::as_u64).map(|v| v as usize);
+    let to = p.get("to").and_then(Value::as_u64).map(index);
     let group = str_param(p, "group").map(str::to_string);
     let moved = names.len();
     s.edit("Move Swatch", |d, _| {
