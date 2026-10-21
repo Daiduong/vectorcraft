@@ -309,6 +309,9 @@ pub struct UiState {
     pub legacy_language: Option<String>,
     pub brightness: Brightness,
     pub dock_tab: DockTab,
+    /// Tab order in the dock's tabbed group when it differs from [`DockTab::ALL`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dock_tab_order: Vec<DockTab>,
     /// The dock's tabbed group (Properties | Layers | Libraries) is collapsed to icons at the top of
     /// the icon column (the dock's double arrow, `window.collapseDock`).
     #[serde(default)]
@@ -419,6 +422,9 @@ pub struct UiState {
     /// Current workspace (Window → Workspace).
     #[serde(default = "default_workspace")]
     pub workspace: String,
+    /// Workspace before Preferences › Devices › Enable Touch Workspace switched to Touch (#394).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub touch_workspace_restore: Option<String>,
     /// User-saved workspaces (New Workspace…).
     #[serde(default)]
     pub custom_workspaces: Vec<crate::workspaces::Workspace>,
@@ -453,6 +459,11 @@ pub struct UiState {
     /// buttons follow ([`crate::panels::align::with_align_to`]).
     #[serde(default, deserialize_with = "crate::panels::align::deserialize_align_to")]
     pub align_to: crate::panels::align::AlignTo,
+    /// Align panel: the Distribute Spacing value in points, which the Distribute Objects and
+    /// Distribute Spacing buttons and their commands send while there is a key object or a key
+    /// guide ([`crate::panels::align::run_button`]). Not saved.
+    #[serde(skip)]
+    pub align_spacing: f64,
     /// Color panel: the mode picked last from its menu (`None`: never picked), in which the panel
     /// shows the defaults for new art ([`crate::panels::color::deserialize_mode`]).
     #[serde(default, deserialize_with = "crate::panels::color::deserialize_mode")]
@@ -773,6 +784,7 @@ impl Default for UiState {
             legacy_language: None,
             brightness: Brightness::MediumDark,
             dock_tab: DockTab::Properties,
+            dock_tab_order: Vec::new(),
             dock_collapsed: false,
             open_panel: None,
             control_bar: false,
@@ -815,6 +827,7 @@ impl Default for UiState {
             shortcut_overrides: Default::default(),
             shortcut_set: default_shortcut_set(),
             workspace: default_workspace(),
+            touch_workspace_restore: None,
             custom_workspaces: vec![],
             recent_files: vec![],
             recent_fonts: vec![],
@@ -825,6 +838,7 @@ impl Default for UiState {
             flattener_preview: Default::default(),
             color_guide_limit: String::new(),
             align_to: Default::default(),
+            align_spacing: 0.0,
             color_mode: None,
             color_hide_options: false,
             svg_options: Value::Null,

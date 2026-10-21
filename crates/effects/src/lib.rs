@@ -40,6 +40,7 @@ mod clip;
 mod distort;
 mod group;
 mod lighting;
+mod lighting_presets;
 mod live;
 mod marks;
 pub mod pixel;
@@ -72,6 +73,7 @@ pub use group::{
     OutlineHook, PATHFINDER_EFFECTS, evaluate_container, has_container_appearance, has_pathfinder, is_pathfinder, member_shapes, paints,
     pathfinder_children,
 };
+pub use lighting_presets::{LIGHTING_PRESETS, LightingPreset, lighting_preset_params, matching_lighting_preset};
 pub use live::{expand_live, expand_live_deep, expanded_live_group, text_outliner};
 pub use marks::{CROP_MARKS, crop_marks_art, has_crop_marks};
 pub use pixel::{PIXEL_EFFECTS, PixelFx, PixelSpace};
@@ -353,6 +355,13 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             ARTISTIC,
             "{levels: 2..8 (4; steps per colour channel: more levels, more flat colours), edgeSimplicity: 0..10 (4; simpler, smoother edges), edgeFidelity: 1..3 (2; keeps more of the edges' detail)} redraws the object as flat pieces of coloured paper, each piece painted in the average colour that falls into it, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
             json!({"levels": 4.0, "edgeSimplicity": 4.0, "edgeFidelity": 2.0}),
+        ),
+        r(
+            "artistic.dryBrush",
+            "Dry Brush…",
+            ARTISTIC,
+            "{brushSize: 1..10 (2; length of the brush strokes), brushDetail: 0..10 (10; more detail keeps finer structure), texture: 1..3 (1; stronger edges and bristle grain at 3)} repaints the object with short strokes along its form and darkens its edges, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            json!({"brushSize": 2.0, "brushDetail": 10.0, "texture": 1.0}),
         ),
         r(
             "artistic.filmGrain",
@@ -659,7 +668,7 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "texture.texturizer",
             "Texturizer…",
             TEXTURE,
-            "{texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"; surfaces made in code), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} paints the object on a surface in relief",
+            "{texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\"|\"loaded\" (\"canvas\"; \"loaded\" draws the image in textureImage and draws Canvas when there is none; the others are surfaces made in code), textureImage?: {path} | {name?, dataBase64} | string (Load Texture…: an image file that File › Place reads, within the renderer's pixel allowance, stored as its gray levels in a grayscale PNG in base64; a file sets texture to \"loaded\" unless texture is given, and the stored string, as effect.list gives it, is kept as it is), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} paints the object on a surface in relief. A loaded texture lies one image pixel per point at 100 %, centered on the object's center and repeated; each pixel's luma is the surface's height, from 0 for black to 1 pt for white, and a transparent pixel counts as middle gray",
             json!({"texture": "canvas", "scaling": 100.0, "relief": 4.0, "lightDirection": "top", "invert": false}),
         ),
         r(

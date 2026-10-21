@@ -1293,6 +1293,7 @@ lighting	Light	სინათლე
 	{count} more rules: Export writes every one.	კიდევ წესები: {count}. ექსპორტი ყველას ჩაწერს.
 	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	გამოტოვებულია უსახელო ობიექტები: {count}. დაარქვით მათ სახელი ან პანელის მენიუში ჩართეთ „უსახელო ობიექტები“.
 	All Categories	ყველა კატეგორია
+	Repeat Objects	გამეორების ობიექტები
 	Save…	შენახვა…
 	Selection Only	მხოლოდ მონიშნული
 	{title} (selection)	{title} (მონიშნული)
@@ -1326,6 +1327,7 @@ lighting	Light	სინათლე
 	Edit the selected point's colour in the Color panel	მონიშნული წერტილის ფერის რედაქტირება ფერის პანელში
 	Edit the stop	გადასვლის წერტილის რედაქტირება
 	Eyedropper: click the art to sample the stop's colour	პიპეტი: დაწკაპეთ ნახატზე გადასვლის წერტილის ფერის ასაღებად
+	Eyedropper: click the art to sample the key color	პიპეტი: დაწკაპეთ ნახატზე საკვანძო ფერის ასაღებად
 	Gradient across stroke	გრადიენტი კონტურის განივად
 	Gradient along stroke	გრადიენტი კონტურის სიგრძეზე
 	Gradient Fill: click to apply, drag onto art	გრადიენტული შევსება: დაწკაპეთ გამოსაყენებლად, ჩაავლეთ ნახატზე
@@ -1755,6 +1757,13 @@ lighting	Light	სინათლე
 	Tints and Shades	ტონირებები და ჩრდილები
 	Hue Shift	ფერის ტონის წანაცვლება
 	Key Color:	საკვანძო ფერი:
+	Tips	რჩევები
+	Colorization Tips	შეფერადების რჩევები
+	The samples show this brush on a blue stroke.	ნიმუშები ამ ფუნჯს ლურჯ კონტურზე აჩვენებს.
+	The art keeps its own colors.	ნახატი საკუთარ ფერებს ინარჩუნებს.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	შავი კონტურის ფერი ხდება, თეთრი კი თეთრად რჩება. სხვა ფერები კონტურის ფერის ტონირებები ხდება და რაც უფრო ღიაა ფერი, მით უფრო ღიაა მისი ტონირება.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	შავი შავად რჩება, თეთრი კი თეთრად რჩება. სხვა ფერები კონტურის ფერის ჩრდილები ხდება, თუ მუქია, და მისი ტონირებები, თუ ღიაა.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	საკვანძო ფერი კონტურის ფერი ხდება. სხვა ფერები ფერთა წრეზე იმდენივეს გადაინაცვლებს, რამდენსაც საკვანძო ფერი, და ინარჩუნებს გაჯერებასა და სიკაშკაშეს.
 	Size:	ზომა:
 	Calligraphic Brush Options	კალიგრაფიული ფუნჯის პარამეტრები
 	Bristle Brush Options	ჯაგრის ფუნჯის პარამეტრები
@@ -2484,6 +2493,7 @@ lighting	Light	სინათლე
 	Darken	ჩამუქება
 	Exclusion	გამორიცხვა
 	Hard Light	მკვეთრი სინათლე
+	Hard Mix	მკაცრი შერევა
 	Lighten	გაღიავება
 	Luminosity	ნათება
 	Overlay	გადაფარვა
@@ -2561,6 +2571,14 @@ theme	Appearance	იერსახე
 	Edit Symbol	სიმბოლოს რედაქტირება
 	Expand Brush Strokes	ფუნჯის შტრიხების გაშლა
 	New Brush…	ახალი ფუნჯი…
+	New Brush	ახალი ფუნჯი
+	Calligraphic Brush	კალიგრაფიული ფუნჯი
+	Scatter Brush	გაფანტვის ფუნჯი
+	Art Brush	მხატვრული ფუნჯი
+	Bristle Brush	ჯაგრის ფუნჯი
+	Pattern Brush	პატერნის ფუნჯი
+	Select art to make a scatter, art or pattern brush.	მონიშნეთ ნახატი გაფანტვის, მხატვრული ან პატერნის ფუნჯის შესაქმნელად.
+	Brush Art	ფუნჯის ნახატი
 	New Symbol	ახალი სიმბოლო
 	New Symbol…	ახალი სიმბოლო…
 	Place Symbol Instance	სიმბოლოს ეგზემპლარის განთავსება
@@ -3019,6 +3037,7 @@ theme	Appearance	იერსახე
 	Scale Corners	კუთხეების მასშტაბირება
 	Scale Cursor Proportional to UI	კურსორის მასშტაბირება ინტერფეისის პროპორციულად
 	Scale Strokes & Effects	კონტურებისა და ეფექტების მასშტაბირება
+	Scale Text Attributes	ტექსტის ატრიბუტების მასშტაბირება
 	Scratch Disks	სამუშაო დისკები
 	Secondary	მეორადი
 	Select Same Tint %	იგივე ტონირების % მონიშვნა
@@ -3113,6 +3132,7 @@ theme	Appearance	იერსახე
 	Delete Swatch	ფერის ნიმუშის წაშლა
 	Duplicate Swatch	ფერის ნიმუშის დუბლირება
 	Merge Swatches	ფერის ნიმუშების შერწყმა
+	Move Brush	ფუნჯის გადატანა
 	Move Swatch	ფერის ნიმუშის გადატანა
 	New Color Group	ფერების ახალი ჯგუფი
 	New Swatch	ფერის ახალი ნიმუში
@@ -3786,7 +3806,9 @@ effect	Regular	ჩვეულებრივი
 @msg	no blend options	გადასვლის პარამეტრები არ არის
 @msg	no bounds	საზღვრები არ არის
 @msg	no brush named `{name}`	ფუნჯი სახელით `{name}` არ არის
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	ჯაგრის ფუნჯის სახელი შეიძლება შეიცავდეს არაუმეტეს {max} სიმბოლოს: `{name}` შეიცავს {count} სიმბოლოს
 @msg	no brush selected	ფუნჯი მონიშნული არ არის
+@msg	brushes move only within their type	ფუნჯების გადატანა მხოლოდ საკუთარი ტიპის ფარგლებში შეიძლება
 @msg	no catalog	კატალოგი არ არის
 @msg	no changes since the last save	ბოლო შენახვის შემდეგ ცვლილებები არ არის
 @msg	no clock to keep a heartbeat by	პულსის შესანარჩუნებელი საათი არ არის
@@ -3839,6 +3861,7 @@ effect	Regular	ჩვეულებრივი
 @msg	no such action	ასეთი მოქმედება არ არის
 @msg	no such anchor	ასეთი საყრდენი წერტილი არ არის
 @msg	no such artboard	ასეთი სამუშაო დაფა არ არის
+@msg	the artboard is locked	სამუშაო დაფა ჩაკეტილია
 @msg	no such document	ასეთი დოკუმენტი არ არსებობს
 @msg	no such layer or object	ასეთი შრე ან ობიექტი არ არის
 @msg	no such object {0}	ასეთი ობიექტი {0} არ არის
@@ -4717,6 +4740,9 @@ imageTrace	Outline	კონტური
 	In the File	ფაილში
 	Keys	კლავიშები
 	Light behind the object	სინათლე ობიექტის უკან
+	3D Lighting Preset	3D განათების წინასწარი პარამეტრი
+	Standard	სტანდარტული
+	Diffuse	დიფუზური
 	Line {line}	სტრიქონი {line}
 	Line {line}: {name}: {status}	სტრიქონი {line}: {name}: {status}
 	Needs Attention Only	მხოლოდ საყურადღებო
@@ -4825,6 +4851,7 @@ imageTrace	Outline	კონტური
 @msg	Measured anchor no longer exists	გაზომილი საყრდენი წერტილი აღარ არსებობს
 @msg	Measured segment no longer exists	გაზომილი სეგმენტი აღარ არსებობს
 @msg	Non-finite dimension	ზომა სასრული რიცხვი არ არის
+@msg	Scale Text Attributes: selected type has no scale to bake	ტექსტის ატრიბუტების მასშტაბირება: არჩეულ ტექსტს არ აქვს გადასაყვანი მასშტაბი
 @msg	Scale must be drawing:real, for example 1:10	მასშტაბი უნდა იყოს ნახაზი:რეალური, მაგალითად 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	მასშტაბის შეფარდება 1:1000000-სა და 1000000:1-ს შორის უნდა იყოს
 @msg	Second measured segment no longer exists	მეორე გაზომილი სეგმენტი აღარ არსებობს
@@ -4874,6 +4901,7 @@ imageTrace	Outline	კონტური
 	Make Image Dynamic	გამოსახულების დინამიკურად ქცევა
 	Import Data Sets…	მონაცემთა ნაკრებების იმპორტი…
 	Export Data Sets…	მონაცემთა ნაკრებების ექსპორტი…
+	Load Variable Library…	ცვლადების ბიბლიოთეკის ჩატვირთვა…
 	Make Graph Dynamic	დიაგრამის დინამიკურად ქცევა
 	Batch…	პაკეტური დამუშავება…
 	Source Folder:	წყარო საქაღალდე:
@@ -4983,7 +5011,9 @@ imageTrace	Outline	კონტური
 	Create Slice from Selection	ნაჭრის შექმნა მონიშნულიდან
 	Create Slices from Guides	ნაჭრების შექმნა დამხმარე ხაზებიდან
 	Cutout	აპლიკაცია
+	Dry Brush	მშრალი ფერწანი
 	Cutout…	აპლიკაცია…
+	Dry Brush…	მშრალი ფერწანი…
 	Delete All Slices	ყველა ნაჭრის წაშლა
 	Delete Data Sets	მონაცემთა ნაკრებების წაშლა
 	Delete Graphic Styles	გრაფიკული სტილების წაშლა
@@ -5027,6 +5057,7 @@ imageTrace	Outline	კონტური
 	Last Artboard	ბოლო სამუშაო დაფა
 	Levels	დონეები
 	Library Panel Options	ბიბლიოთეკის პანელის პარამეტრები
+	Locate Library…	ბიბლიოთეკის მოძებნა…
 	Lights	სინათლის წყაროები
 	Link JavaScript Files…	JavaScript ფაილების დაკავშირება…
 	Live Shape	ცოცხალი ფიგურა
@@ -5147,6 +5178,7 @@ imageTrace	Outline	კონტური
 @msg	the spine has no segments	ხერხემალს სეგმენტები არ აქვს
 @msg	too many library panels were opened in this session	ამ სესიაში ზედმეტად ბევრი ბიბლიოთეკის პანელი გაიხსნა
 @msg	variables are locked	ცვლადები ჩაკეტილია
+@msg	variables that aren't text were left out: {kinds}	ცვლადები, რომლებიც ტექსტი არ არის, გამოტოვებულია: {kinds}
 @msg	x and y must be finite	x და y სასრული უნდა იყოს
 @msg	{id} opens another app: only the person at the keyboard can run it	{id} სხვა აპს ხსნის: მისი გაშვება მხოლოდ კლავიატურასთან მყოფ ადამიანს შეუძლია
 @msg	“{name}” is not a file	„{name}“ ფაილი არ არის
@@ -5224,3 +5256,5 @@ imageTrace	Outline	კონტური
 # Artboard tool hints (#2497)
 	 on the canvas to create one (	 ტილოზე — ახლის შესაქმნელად (
 	 selects several, or draws one inside an artboard)	 რამდენიმეს მონიშნავს ან ახალს სამუშაო დაფის შიგნით ხატავს)
+	Ruby…	რუბი…
+	Ruby	რუბი

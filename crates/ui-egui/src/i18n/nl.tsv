@@ -1392,6 +1392,7 @@ lighting	Light	Licht
 	{count} more rules: Export writes every one.	{count} regels meer: Export schrijft ze allemaal.
 	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	{count} naamloze objecten weggelaten: geef ze een naam, of zet Naamloze objecten aan in het paneelmenu.
 	All Categories	Alle categorieën
+	Repeat Objects	Herhalingsobjecten
 	Save…	Opslaan…
 	Selection Only	Alleen selectie
 	{title} (selection)	{title} (selectie)
@@ -1425,6 +1426,7 @@ lighting	Light	Licht
 	Edit the selected point's colour in the Color panel	Bewerk de kleur van het geselecteerde punt in het Kleur-paneel
 	Edit the stop	Stoppunt bewerken
 	Eyedropper: click the art to sample the stop's colour	Pipet: klik op de illustratie om de kleur van het stoppunt over te nemen
+	Eyedropper: click the art to sample the key color	Pipet: klik op de illustratie om de sleutelkleur over te nemen
 	Gradient across stroke	Verloop over de lijn
 	Gradient along stroke	Verloop langs de lijn
 	Gradient Fill: click to apply, drag onto art	Verloopvulling: klik om toe te passen, sleep naar de illustratie
@@ -1870,6 +1872,13 @@ lighting	Light	Licht
 	Tints and Shades	Tinten en schakeringen
 	Hue Shift	Tintverschuiving
 	Key Color:	Sleutelkleur:
+	Tips	Tips
+	Colorization Tips	Tips voor inkleuring
+	The samples show this brush on a blue stroke.	De voorbeelden tonen dit penseel op een blauwe contour.
+	The art keeps its own colors.	De illustratie behoudt haar eigen kleuren.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Zwart wordt de contourkleur en wit blijft wit. Andere kleuren worden tinten van de contourkleur, en hoe lichter een kleur is, hoe lichter de tint is.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Zwart blijft zwart en wit blijft wit. Andere kleuren worden schakeringen van de contourkleur als ze donker zijn en tinten ervan als ze licht zijn.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	De sleutelkleur wordt de contourkleur. De andere kleuren draaien even ver over de kleurencirkel als de sleutelkleur en behouden hun verzadiging en helderheid.
 	Size:	Grootte:
 	Calligraphic Brush Options	Opties voor kalligrafisch penseel
 	Bristle Brush Options	Opties voor borstelpenseel
@@ -2686,6 +2695,7 @@ lighting	Light	Licht
 	Darken	Donkerder
 	Exclusion	Uitsluiting
 	Hard Light	Hard licht
+	Hard Mix	Hard mengen
 	Lighten	Lichter
 	Luminosity	Luminositeit
 	Overlay	Bedekken
@@ -2763,6 +2773,14 @@ theme	Appearance	Vormgeving
 	Edit Symbol	Symbool bewerken
 	Expand Brush Strokes	Kwaststreken omzetten
 	New Brush…	Nieuwe kwast…
+	New Brush	Nieuwe kwast
+	Calligraphic Brush	Kalligrafisch penseel
+	Scatter Brush	Verspreidingspenseel
+	Art Brush	Artpenseel
+	Bristle Brush	Borstelpenseel
+	Pattern Brush	Patroonpenseel
+	Select art to make a scatter, art or pattern brush.	Selecteer illustratie om een verspreidings-, art- of patroonpenseel te maken.
+	Brush Art	Kwastillustratie
 	New Symbol	Nieuw symbool
 	New Symbol…	Nieuw symbool…
 	Place Symbol Instance	Symboolexemplaar plaatsen
@@ -3223,6 +3241,7 @@ theme	Appearance	Vormgeving
 	Scale Corners	Hoeken schalen
 	Scale Cursor Proportional to UI	Cursor proportioneel schalen met UI
 	Scale Strokes & Effects	Streken & effecten schalen
+	Scale Text Attributes	Tekstkenmerken schalen
 	Scratch Disks	Scratchschijven
 	Secondary	Secundair
 	Select Same Tint %	Zelfde tint % selecteren
@@ -3323,6 +3342,7 @@ theme	Appearance	Vormgeving
 	Delete Swatch	Kleurstaal verwijderen
 	Duplicate Swatch	Kleurstaal dupliceren
 	Merge Swatches	Kleurstalen samenvoegen
+	Move Brush	Kwast verplaatsen
 	Move Swatch	Kleurstaal verplaatsen
 	New Color Group	Nieuwe kleurgroep
 	New Swatch	Nieuw kleurstaal
@@ -4041,6 +4061,7 @@ imageTrace	Outline	Contour
 @msg	no bounds	geen grenzen
 @msg	no brush named `{name}`	geen penseel met de naam `{name}`
 @msg	no brush selected	geen penseel geselecteerd
+@msg	brushes move only within their type	penselen kunnen alleen binnen hun eigen type worden verplaatst
 @msg	no catalog	geen catalogus
 @msg	no changes since the last save	geen wijzigingen sinds de laatste keer opslaan
 @msg	no clock to keep a heartbeat by	geen klok om een hartslag bij te houden
@@ -4819,6 +4840,9 @@ mark-style	Japanese	Japans
 	Softness	Zachtheid
 	Ambient Light	Omgevingslicht
 	Light behind the object	Licht achter het object
+	3D Lighting Preset	Voorinstelling 3D-belichting
+	Standard	Standaard
+	Diffuse	Diffuus
 # 3D light management.
 	Lights	Lichtbronnen
 	Add Light	Lichtbron toevoegen
@@ -4863,6 +4887,7 @@ mark-style	Japanese	Japans
 	Painting	Schilderen
 	Printing and Proofing	Afdrukken en proefdrukken
 	Tracing	Tracering
+	Touch	Touch
 	Typography	Typografie
 	VectorCraft	VectorCraft
 	Web	Web
@@ -4929,6 +4954,7 @@ mark-style	Japanese	Japans
 @msg	Measured anchor no longer exists	Gemeten ankerpunt bestaat niet meer
 @msg	Measured segment no longer exists	Gemeten segment bestaat niet meer
 @msg	Non-finite dimension	Niet-eindige maatlijn
+@msg	Scale Text Attributes: selected type has no scale to bake	Tekstkenmerken schalen: de geselecteerde tekst heeft geen schaling om toe te passen
 @msg	Scale must be drawing:real, for example 1:10	Schaal moet tekening:werkelijk zijn, bijvoorbeeld 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	Schaalverhouding moet tussen 1:1000000 en 1000000:1 liggen
 @msg	Second measured segment no longer exists	Tweede gemeten segment bestaat niet meer
@@ -4955,6 +4981,7 @@ mark-style	Japanese	Japans
 	Make Image Dynamic	Afbeelding dynamisch maken
 	Import Data Sets…	Gegevenssets importeren…
 	Export Data Sets…	Gegevenssets exporteren…
+	Load Variable Library…	Variabelenbibliotheek laden…
 	Make Graph Dynamic	Grafiek dynamisch maken
 	Batch…	Batch…
 	Source Folder:	Bronmap:
@@ -5160,9 +5187,11 @@ swatch	Bright Violet	Felviolet
 	Unlock Variables	Variabelen ontgrendelen
 	Change to Artboard Rulers	Wijzigen in tekenbordlinialen
 	Cutout…	Knipsel…
+	Dry Brush…	Droog penseel…
 	Neon Glow…	Neongloed…
 	Poster Edges…	Posterranden…
 	Cutout	Knipsel
+	Dry Brush	Droog penseel
 	Neon Glow	Neongloed
 	Poster Edges	Posterranden
 	Apply Data Set	Gegevensset toepassen
@@ -5242,6 +5271,7 @@ swatch	Bright Violet	Felviolet
 	Typing	Typen
 	Persistent	Permanent
 	Library Panel Options	Opties voor bibliotheekpaneel
+	Locate Library…	Bibliotheek lokaliseren…
 
 @msg	Save writes {_1}, not {_2}: use file.saveAsTemplate to write it	Opslaan schrijft {_1}, niet {_2}: gebruik file.saveAsTemplate om het te schrijven
 @msg	`{key}` must be a #rrggbb color	`{key}` moet een #rrggbb-kleur zijn
@@ -5265,6 +5295,7 @@ swatch	Bright Violet	Felviolet
 @msg	the image's pixels can't be read	de pixels van de afbeelding kunnen niet worden gelezen
 @msg	the spine has no segments	de as heeft geen segmenten
 @msg	variables are locked	variabelen zijn vergrendeld
+@msg	variables that aren't text were left out: {kinds}	variabelen die geen tekst zijn, zijn weggelaten: {kinds}
 @msg	x and y must be finite	x en y moeten eindig zijn
 @msg	Persistent libraries not found: {files}	Permanente bibliotheken niet gevonden: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` is geen bibliotheekpaneel (zie window.swatchLibrary)
@@ -5330,3 +5361,5 @@ swatch	Bright Violet	Felviolet
 	Note Paper	Notitiepapier
 	Water Paper…	Nat papier…
 	Water Paper	Nat papier
+	Ruby…	Ruby…
+	Ruby	Ruby

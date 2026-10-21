@@ -1053,6 +1053,7 @@
 	Eyedropper Picks Up:	El cuentagotas toma:
 	Eyedropper Tool	Herramienta Cuentagotas
 	Eyedropper: click the art to sample the stop's colour	Cuentagotas: haz clic en la ilustración para tomar el color de la parada
+	Eyedropper: click the art to sample the key color	Cuentagotas: haz clic en la ilustración para tomar el color clave
 	Favorites	Favoritos
 	Feather…	Desvanecer…
 	Feet	Pies
@@ -1316,6 +1317,7 @@
 	Hand-Drawn	Dibujado a mano
 	Handles	Manejadores
 	Hard Light	Luz fuerte
+	Hard Mix	Mezcla definida
 	Harmony Rules:	Reglas de armonía:
 	Harmony Sets	Conjuntos de armonía
 	Height	Altura
@@ -1874,6 +1876,7 @@
 	Move Slices	Mover sectores
 	Move Spine Point	Mover punto del eje
 	Reshape Spine Segment	Remodelar segmento del eje
+	Move Brush	Mover pincel
 	Move Swatch	Mover muestra
 	Move Up	Subir
 	Move…	Mover…
@@ -1931,6 +1934,13 @@
 	Tints and Shades	Matices y sombras
 	Hue Shift	Cambio de tono
 	Key Color:	Color clave:
+	Tips	Consejos
+	Colorization Tips	Consejos de coloración
+	The samples show this brush on a blue stroke.	Las muestras presentan este pincel sobre un trazo azul.
+	The art keeps its own colors.	La ilustración conserva sus propios colores.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	El negro pasa a ser el color del trazo y el blanco sigue siendo blanco. Los demás colores pasan a ser matices del color del trazo, y cuanto más claro es un color, más claro es su matiz.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	El negro sigue siendo negro y el blanco sigue siendo blanco. Los demás colores pasan a ser sombras del color del trazo cuando son oscuros y matices de él cuando son claros.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	El color clave pasa a ser el color del trazo. Los demás colores giran en la rueda de colores lo mismo que el color clave y conservan su saturación y su brillo.
 	Roundness:	Redondez:
 	Fixed	Fijo
 	Pressure	Presión
@@ -1951,6 +1961,14 @@
 	Round Fan	Abanico redondo
 	Flat Fan	Abanico plano
 	New Brush…	Nuevo pincel…
+	New Brush	Nuevo pincel
+	Calligraphic Brush	Pincel caligráfico
+	Scatter Brush	Pincel de dispersión
+	Art Brush	Pincel de arte
+	Bristle Brush	Pincel de cerdas
+	Pattern Brush	Pincel de motivo
+	Select art to make a scatter, art or pattern brush.	Selecciona una ilustración para crear un pincel de dispersión, de arte o de motivo.
+	Brush Art	Ilustración del pincel
 	New Calligraphic Brush	Nuevo pincel caligráfico
 	New Character Style	Nuevo estilo de carácter
 	New Color Group	Nuevo grupo de colores
@@ -2563,6 +2581,7 @@
 	Reorder	Reordenar
 	Reorder Appearance Item	Reordenar elemento de apariencia
 	Repeat	Repetir
+	Repeat Objects	Objetos de repetición
 	Repeat Options	Opciones de repetición
 	Repeat Pathfinder	Repetir Buscatrazos
 	Repeat Tab	Repetir tabulación
@@ -2771,6 +2790,7 @@
 	Scale Cursor Proportional to UI	Escalar el cursor en proporción a la interfaz
 	Scale Lineweights	Escalar grosores de línea
 	Scale Strokes & Effects	Escalar trazos y efectos
+	Scale Text Attributes	Escalar atributos de texto
 	Scale to Fit Artboard	Escalar para encajar en la mesa de trabajo
 	Scale Tool	Herramienta Escalar
 	Scale:	Escala:
@@ -4005,7 +4025,9 @@ axis	Both	Ambos
 @msg	no blend options	no hay opciones de fusión
 @msg	no bounds	sin límites
 @msg	no brush named `{name}`	no hay ningún pincel llamado `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	el nombre de un pincel de cerdas puede tener como máximo {max} caracteres: `{name}` tiene {count}
 @msg	no brush selected	no hay ningún pincel seleccionado
+@msg	brushes move only within their type	los pinceles solo se pueden mover dentro de su tipo
 @msg	no catalog	no hay catálogo
 @msg	no changes since the last save	no hay cambios desde la última vez que se guardó
 @msg	no clock to keep a heartbeat by	no hay reloj para mantener la señal de actividad
@@ -4059,6 +4081,7 @@ axis	Both	Ambos
 @msg	no such action	no existe esa acción
 @msg	no such anchor	no existe ese punto de ancla
 @msg	no such artboard	no existe esa mesa de trabajo
+@msg	the artboard is locked	la mesa de trabajo está bloqueada
 @msg	no such document	no existe ese documento
 @msg	no such layer or object	no existe esa capa u objeto
 @msg	no such object {0}	no existe el objeto {0}
@@ -4273,6 +4296,7 @@ axis	Both	Ambos
 @msg	unknown workspace (one of {_1})	espacio de trabajo desconocido (uno de estos: {_1})
 @msg	unsupported: {0}	no compatible: {0}
 @msg	variables are locked	las variables están bloqueadas
+@msg	variables that aren't text were left out: {kinds}	se omitieron las variables que no son de texto: {kinds}
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	los archivos de la versión {0} no se pueden comprimir: solo la versión {COMPRESSED_SINCE} y posteriores abren archivos comprimidos
 @msg	width and height are at least 1 pixel	el ancho y el alto son de al menos 1 píxel
 @msg	workspace name can't be empty	el nombre del espacio de trabajo no puede estar vacío
@@ -4615,6 +4639,8 @@ lighting	Light	Luz
 	Film Grain…	Granulado de película…
 	Cutout…	Recorte…
 	Cutout	Recorte
+	Dry Brush…	Pincel seco…
+	Dry Brush	Pincel seco
 	Neon Glow…	Resplandor de neón…
 	Neon Glow	Resplandor de neón
 	Poster Edges…	Bordes de póster…
@@ -5081,6 +5107,9 @@ mark-style	Japanese	Japonesas
 	Softness	Suavidad
 	Ambient Light	Luz ambiental
 	Light behind the object	Luz detrás del objeto
+	3D Lighting Preset	Ajuste preestablecido de iluminación 3D
+	Standard	Estándar
+	Diffuse	Difusa
 # 3D light management.
 	Lights	Luces
 	Add Light	Añadir luz
@@ -5125,6 +5154,7 @@ mark-style	Japanese	Japonesas
 @msg	Measured anchor no longer exists	El punto de ancla medido ya no existe
 @msg	Measured segment no longer exists	El segmento medido ya no existe
 @msg	Non-finite dimension	Cota no finita
+@msg	Scale Text Attributes: selected type has no scale to bake	Escalar atributos de texto: el texto seleccionado no tiene escala que aplicar
 @msg	Scale must be drawing:real, for example 1:10	La escala debe ser dibujo:real, por ejemplo 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	La relación de escala debe estar entre 1:1000000 y 1000000:1
 @msg	Second measured segment no longer exists	El segundo segmento medido ya no existe
@@ -5143,6 +5173,7 @@ mark-style	Japanese	Japonesas
 	Make Image Dynamic	Hacer imagen dinámica
 	Import Data Sets…	Importar conjuntos de datos…
 	Export Data Sets…	Exportar conjuntos de datos…
+	Load Variable Library…	Cargar biblioteca de variables…
 	Make Graph Dynamic	Hacer gráfico dinámico
 	Batch…	Lote…
 	Source Folder:	Carpeta de origen:
@@ -5211,6 +5242,7 @@ mark-style	Japanese	Japonesas
 @msg	the image's pixels can't be read	no se pueden leer los píxeles de la imagen
 	Persistent	Persistente
 	Library Panel Options	Opciones del panel de biblioteca
+	Locate Library…	Localizar biblioteca…
 @msg	Persistent libraries not found: {files}	No se encontraron bibliotecas persistentes: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` no es un panel de biblioteca (consulte window.swatchLibrary)
 @msg	library panel `{given}` isn't open	el panel de biblioteca `{given}` no está abierto
@@ -5256,3 +5288,5 @@ mark-style	Japanese	Japonesas
 	Note Paper	Papel con relieve
 	Water Paper…	Papel mojado…
 	Water Paper	Papel mojado
+	Ruby…	Ruby…
+	Ruby	Ruby

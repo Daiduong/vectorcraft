@@ -908,6 +908,7 @@
 	Export CSS	Exportar CSS
 	Export CSS…	Exportar CSS…
 	Export Data Sets…	Exportar Conjuntos de Dados…
+	Load Variable Library…	Carregar Biblioteca de Variáveis…
 	Export DXF	Exportar DXF
 	Export Document	Exportar Documento
 	Export EPS	Exportar EPS
@@ -938,6 +939,7 @@
 	Eyedropper Picks Up:	O Conta-gotas Capta:
 	Eyedropper Tool	Ferramenta Conta-gotas
 	Eyedropper: click the art to sample the stop's colour	Conta-gotas: clique na arte para colher a cor da parada
+	Eyedropper: click the art to sample the key color	Conta-gotas: clique na arte para colher a cor-chave
 	Feather…	Penugem…
 	Feet	Pés
 	Feet & Inches	Pés e Polegadas
@@ -1137,6 +1139,7 @@
 	Hand-Drawn	Desenhado à Mão
 	Handles	Alças
 	Hard Light	Luz Forte
+	Hard Mix	Mistura definida
 	Harmony Rules:	Regras de Harmonia:
 	Harmony Sets	Conjuntos de Harmonia
 	Height	Altura
@@ -1572,6 +1575,7 @@
 	Move Slices	Mover Fatias
 	Move Spine Point	Mover Ponto de Coluna
 	Reshape Spine Segment	Remodelar Segmento da Coluna
+	Move Brush	Mover Pincel
 	Move Swatch	Mover Amostra
 	Move Up	Mover para Cima
 	Move in Perspective	Mover em Perspectiva
@@ -1591,6 +1595,14 @@
 	New Artboard	Nova Mesa de Trabalho
 	New Bristle Brush	Novo Pincel de Cerdas
 	New Brush…	Novo Pincel…
+	New Brush	Novo Pincel
+	Calligraphic Brush	Pincel Caligráfico
+	Scatter Brush	Pincel de Dispersão
+	Art Brush	Pincel de Arte
+	Bristle Brush	Pincel de Cerdas
+	Pattern Brush	Pincel de Padrão
+	Select art to make a scatter, art or pattern brush.	Selecione arte para criar um pincel de dispersão, de arte ou de padrão.
+	Brush Art	Arte do Pincel
 	New Calligraphic Brush	Novo Pincel Caligráfico
 	New Character Style	Novo Estilo de Caractere
 	New Color Group	Novo Grupo de Cores
@@ -2128,6 +2140,7 @@
 	Reorder	Reordenar
 	Reorder Appearance Item	Reordenar Item de Aparência
 	Repeat	Repetir
+	Repeat Objects	Objetos de Repetição
 	Repeat Pathfinder	Repetir Localizador de Caminhos
 	Repeat Tab	Repetir Parada de Tabulação
 	Repeat {name}	Repetir {name}
@@ -2302,6 +2315,7 @@
 	Scale Cursor Proportional to UI	Dimensionar Cursor Proporcionalmente à Interface
 	Scale Lineweights	Dimensionar Espessuras de Linha
 	Scale Strokes & Effects	Dimensionar Traçados e Efeitos
+	Scale Text Attributes	Dimensionar Atributos de Texto
 	Scale Tool	Ferramenta Escala
 	Scale to Fit Artboard	Dimensionar para Ajustar à Mesa de Trabalho
 	Scale:	Escala:
@@ -3186,6 +3200,13 @@ lighting	Light	Luz
 	Tints and Shades	Matizes e sombras
 	Hue Shift	Deslocamento de matiz
 	Key Color:	Cor-chave:
+	Tips	Dicas
+	Colorization Tips	Dicas de colorização
+	The samples show this brush on a blue stroke.	As amostras mostram este pincel em um traçado azul.
+	The art keeps its own colors.	A arte mantém as próprias cores.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	O preto passa a ser a cor do traçado e o branco continua branco. As outras cores passam a ser matizes da cor do traçado, e quanto mais clara é uma cor, mais claro é o seu matiz.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	O preto continua preto e o branco continua branco. As outras cores passam a ser sombras da cor do traçado quando são escuras e matizes dela quando são claras.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	A cor-chave passa a ser a cor do traçado. As outras cores giram na roda de cores tanto quanto a cor-chave e mantêm a saturação e o brilho.
 	Shape:	Forma:
 	New Artboard Options…	Opções de nova mesa de trabalho…
 	New Layer Options…	Opções de nova camada…
@@ -3585,7 +3606,9 @@ axis	Both	Ambos
 @msg	no blend options	sem opções de mesclagem
 @msg	no bounds	sem limites
 @msg	no brush named `{name}`	nenhum pincel chamado `{name}`
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	o nome de um pincel de cerdas pode ter no máximo {max} caracteres: `{name}` tem {count}
 @msg	no brush selected	nenhum pincel selecionado
+@msg	brushes move only within their type	os pincéis só podem ser movidos dentro do seu tipo
 @msg	no catalog	sem catálogo
 @msg	no changes since the last save	nenhuma alteração desde o último salvamento
 @msg	no clock to keep a heartbeat by	sem relógio para manter o sinal de atividade
@@ -3639,6 +3662,7 @@ axis	Both	Ambos
 @msg	no such action	ação inexistente
 @msg	no such anchor	âncora inexistente
 @msg	no such artboard	prancheta inexistente
+@msg	the artboard is locked	a prancheta está bloqueada
 @msg	no such document	documento inexistente
 @msg	no such layer or object	camada ou objeto inexistente
 @msg	no such object {0}	objeto inexistente {0}
@@ -3851,6 +3875,7 @@ axis	Both	Ambos
 @msg	unknown workspace (one of {_1})	espaço de trabalho desconhecido (um de {_1})
 @msg	unsupported: {0}	não suportado: {0}
 @msg	variables are locked	as variáveis estão bloqueadas
+@msg	variables that aren't text were left out: {kinds}	as variáveis que não são de texto foram omitidas: {kinds}
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	arquivos da versão {0} não podem ser compactados: somente a versão {COMPRESSED_SINCE} e posteriores abrem arquivos compactados
 @msg	width and height are at least 1 pixel	largura e altura têm pelo menos 1 pixel
 @msg	workspace name can't be empty	o nome do espaço de trabalho não pode estar vazio
@@ -4016,6 +4041,8 @@ axis	Both	Ambos
 	Film Grain…	Granulação de filme…
 	Cutout…	Recorte…
 	Cutout	Recorte
+	Dry Brush…	Pincel seco…
+	Dry Brush	Pincel seco
 	Neon Glow…	Brilho neon…
 	Neon Glow	Brilho neon
 	Poster Edges…	Bordas de pôster…
@@ -4057,6 +4084,9 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+	3D Lighting Preset	Predefinição de iluminação 3D
+	Standard	Padrão
+	Diffuse	Difusa
 # 3D light management.
 	Lights	Luzes
 	Add Light	Adicionar luz
@@ -5107,6 +5137,7 @@ mark-style	Japanese	Japonesas
 @msg	Measured anchor no longer exists	O ponto de ancoragem medido não existe mais
 @msg	Measured segment no longer exists	O segmento medido não existe mais
 @msg	Non-finite dimension	Cota não finita
+@msg	Scale Text Attributes: selected type has no scale to bake	Dimensionar Atributos de Texto: o texto selecionado não tem escala para aplicar
 @msg	Scale must be drawing:real, for example 1:10	A escala deve ser desenho:real, por exemplo 1:10
 @msg	Scale ratio must be between 1:1000000 and 1000000:1	A proporção da escala deve estar entre 1:1000000 e 1000000:1
 @msg	Second measured segment no longer exists	O segundo segmento medido não existe mais
@@ -5186,6 +5217,7 @@ mark-style	Japanese	Japonesas
 @msg	the image's pixels can't be read	não é possível ler os pixels da imagem
 	Persistent	Persistente
 	Library Panel Options	Opções do Painel de Biblioteca
+	Locate Library…	Localizar Biblioteca…
 @msg	Persistent libraries not found: {files}	Bibliotecas persistentes não encontradas: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` não é um painel de biblioteca (consulte window.swatchLibrary)
 @msg	library panel `{given}` isn't open	o painel de biblioteca `{given}` não está aberto
@@ -5231,3 +5263,5 @@ mark-style	Japanese	Japonesas
 	Note Paper	Papel de carta
 	Water Paper…	Papel molhado…
 	Water Paper	Papel molhado
+	Ruby…	Ruby…
+	Ruby	Ruby
