@@ -13,6 +13,7 @@ use vectorcraft_pathops as po;
 use vectorcraft_pathops::{BoolOp, PathfinderOp};
 
 use super::edit::selected_roots;
+use super::expand::reshaped;
 use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -677,32 +678,6 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
         parts.push(styled_copy(d, l, fills));
     }
     assemble(d, l, parts)
-}
-
-/// Path `l` as the canvas paints its fills and strokes: its visible geometry effects applied to its
-/// path (a plain path then), and every geometry effect of its own removed. `None` when it has no
-/// visible geometry effect.
-pub(crate) fn reshaped(l: &Node) -> Option<Node> {
-    use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, is_geometry};
-    if !has_geometry(&l.appearance.effects) {
-        return None;
-    }
-    let (path, _) = node_path(l)?;
-    let g = apply_geometry_with(&l.appearance.effects, &path, path.bounds()?, &GeomContext::of(l));
-    let mut m = with_path(l, g);
-    m.appearance.effects.retain(|e| !is_geometry(&e.id));
-    Some(m)
-}
-
-/// Path or compound path `l` with `path` as its path, a plain path.
-pub(crate) fn with_path(l: &Node, path: PathData) -> Node {
-    let mut m = l.clone();
-    m.kind = match &l.kind {
-        NodeKind::Path { rule, clipping, guide, .. } => NodeKind::Path { path, rule: *rule, live: None, clipping: *clipping, guide: *guide },
-        NodeKind::Compound { rule, .. } => NodeKind::Path { path, rule: *rule, live: None, clipping: false, guide: false },
-        k => k.clone(),
-    };
-    m
 }
 
 /// A plain copy of path `l` (new ids, no transparency, name or mask) painted with `items`.

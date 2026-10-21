@@ -351,7 +351,7 @@ fn gradient_art(d: &mut Document, l: &Node, path: &PathData, bounds: Rect, f: &F
 /// Path `l` as the canvas paints its fills and strokes: its visible geometry effects applied to its
 /// path (a plain path then), and every geometry effect of its own removed. `None` when it has no
 /// visible geometry effect.
-fn reshaped(l: &Node) -> Option<Node> {
+pub(crate) fn reshaped(l: &Node) -> Option<Node> {
     use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, is_geometry};
     if !has_geometry(&l.appearance.effects) {
         return None;
