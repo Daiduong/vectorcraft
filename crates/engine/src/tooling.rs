@@ -21,6 +21,8 @@ pub struct ViewInfo {
     pub snap_to_pixel: bool,
     /// View → Snap to Point: picked points (a transform's reference point) land on anchors.
     pub snap_to_point: bool,
+    /// View → Snap to Glyph: drawing snaps to live-text baselines and glyph bounds (needs Smart Guides).
+    pub snap_to_glyph: bool,
     /// View → Show Corner Widget.
     pub corner_widgets: bool,
     /// The document window (none headless): screen-fixed widgets sit in it.
@@ -40,6 +42,7 @@ impl Default for ViewInfo {
             show_bbox: true,
             snap_to_pixel: false,
             snap_to_point: true,
+            snap_to_glyph: false,
             corner_widgets: true,
             screen: None,
             artboard: 0,
@@ -101,10 +104,18 @@ impl Session {
 
     /// The selection tool Cmd lends tool `id` for a drag: the one chosen last; until one is,
     /// Direct Selection to the tools that edit anchors (the Pen) and Selection to the others.
-    /// None for the selection tools themselves and the view tools.
-    fn lent_tool(&self, id: &str) -> Option<&'static str> {
+    /// Cmd+Alt lends Group Selection while Direct Selection is active. Cmd still lends the last
+    /// selection tool from other tools (Alt on the lent Direct Selection gesture stays copy/subtract).
+    /// None for the other selection tools and the view tools.
+    fn lent_tool(&self, id: &str, mods: &Mods) -> Option<&'static str> {
         use vectorcraft_tools::catalog::{edits_anchors, is_selection_tool};
-        if is_selection_tool(id) || matches!(id, "hand" | "zoom" | "rotateView") {
+        if matches!(id, "hand" | "zoom" | "rotateView") {
+            return None;
+        }
+        if id == "directSelection" && mods.cmd && mods.alt {
+            return Some("groupSelection");
+        }
+        if is_selection_tool(id) {
             return None;
         }
         Some(self.last_selection_tool.unwrap_or(if edits_anchors(id) { "directSelection" } else { "selection" }))
@@ -117,7 +128,7 @@ impl Session {
         if ev.kind != PointerKind::Down || !ev.mods.cmd || self.lender.is_some() {
             return *ev;
         }
-        let Some(id) = self.lent_tool(self.tool.id()) else { return *ev };
+        let Some(id) = self.lent_tool(self.tool.id(), &ev.mods) else { return *ev };
         // Typing in progress is kept as its own step first: the lent tool's drag previews from the
         // document its interaction started from, which would drop the typing (#1881).
         if crate::cmd::typing_in_progress(self) {
@@ -202,14 +213,17 @@ impl Session {
             // wins instead of pixels quietly rounding every drag to whole points (#1816).
             snap_to_pixel: view.snap_to_pixel && !view.snap_to_grid,
             snap_to_point: view.snap_to_point,
+            snap_to_glyph: view.snap_to_glyph && view.smart_guides && !view.snap_to_grid,
             corner_widgets: view.corner_widgets,
             fill_active: self.fill_active,
             gradient_stop: self.selected_stop(),
             appearance_item: self.appearance_item(),
             constrain_angle: self.prefs.constrain_angle,
+            keyboard_increment: self.prefs.keyboard_increment,
             freeform_point: self.selected_freeform_point(),
             raster_sample: self.prefs.eyedropper.sample_size,
             preview_bounds: self.prefs.use_preview_bounds,
+            preview_memo: Some(&self.preview_memo),
             unit,
             stroke_unit,
             paste_plain_text: self.prefs.paste_text_formatting == "plain",
@@ -425,7 +439,7 @@ impl Session {
     /// tools' a crosshair, [`Cursor::precise`]). With Cmd held, the pointer of the selection tool a
     /// press would borrow ([`Self::lend_selection_tool`]).
     pub fn cursor(&mut self, p: Point, mods: Mods, view: ViewInfo) -> Cursor {
-        let lent = if mods.cmd && self.lender.is_none() { self.lent_tool(self.tool.id()) } else { None };
+        let lent = if mods.cmd && self.lender.is_none() { self.lent_tool(self.tool.id(), &mods) } else { None };
         let c = match lent {
             Some(id) => {
                 let lent = self.make_tool(id);

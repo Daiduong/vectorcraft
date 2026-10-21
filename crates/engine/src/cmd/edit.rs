@@ -76,6 +76,15 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("edit.undo", "Undo", ["Edit"], Some("Cmd+Z"), "{}", can_undo, undo),
         cmd!("edit.redo", "Redo", ["Edit"], Some("Cmd+Shift+Z"), "{}", can_redo, redo),
         cmd!(
+            "edit.clearHistory",
+            "Clear History",
+            [],
+            None,
+            "{} remove every undo and redo step of the active document (the History panel menu's Clear History): the document stays as it is, and clearing is not an undo step → {cleared: the number of steps removed}",
+            can_clear_history,
+            clear_history
+        ),
+        cmd!(
             "edit.undoGroup.begin",
             "Begin Undo Group",
             [],
@@ -162,7 +171,7 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 fn file_close(s: &mut Session, p: &Value) -> Result<Value> {
-    let i = p.get("index").and_then(Value::as_u64).map(|v| v as usize).or(s.active_index()).ok_or(EngineError::NoDocument)?;
+    let i = p.get("index").and_then(Value::as_u64).map(index).or(s.active_index()).ok_or(EngineError::NoDocument)?;
     if !s.close_document(i) {
         return Err(bad("file.close", "no such document"));
     }
@@ -170,7 +179,7 @@ fn file_close(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn doc_activate(s: &mut Session, p: &Value) -> Result<Value> {
-    let i = p.get("index").and_then(Value::as_u64).ok_or_else(|| bad("document.activate", "missing index"))? as usize;
+    let i = p.get("index").and_then(Value::as_u64).map(index).ok_or_else(|| bad("document.activate", "missing index"))?;
     if s.set_active(i) { ok() } else { Err(bad("document.activate", "no such document")) }
 }
 
@@ -380,7 +389,9 @@ fn undo(s: &mut Session, _: &Value) -> Result<Value> {
     let doc = std::mem::replace(&mut st.doc, e.doc);
     let selection = std::mem::replace(&mut st.selection, Arc::unwrap_or_clone(e.selection));
     let selection = shared_selection(selection, st.history.redo.last());
-    st.history.redo.push(crate::HistoryEntry::turned(e.label, doc, selection, &st.doc, costs));
+    let mut turned = crate::HistoryEntry::turned(e.label, doc, selection, &st.doc, costs);
+    turned.named = e.named;
+    st.history.redo.push(turned);
     st.history.trim();
     st.revision += 1;
     st.selection.prune(&st.doc);
@@ -388,6 +399,7 @@ fn undo(s: &mut Session, _: &Value) -> Result<Value> {
     if guides_locked {
         crate::deselect_guides(&st.doc, &mut st.selection);
     }
+    st.sync_new_art();
     super::maskedit::follow_history(st, editing);
     Ok(json!({ "undone": label }))
 }
@@ -403,15 +415,31 @@ fn redo(s: &mut Session, _: &Value) -> Result<Value> {
     let doc = std::mem::replace(&mut st.doc, e.doc);
     let selection = std::mem::replace(&mut st.selection, Arc::unwrap_or_clone(e.selection));
     let selection = shared_selection(selection, st.history.undo.last());
-    st.history.undo.push(crate::HistoryEntry::turned(e.label, doc, selection, &st.doc, costs));
+    let mut turned = crate::HistoryEntry::turned(e.label, doc, selection, &st.doc, costs);
+    turned.named = e.named;
+    st.history.undo.push(turned);
     st.history.trim();
     st.revision += 1;
     st.selection.prune(&st.doc);
     if guides_locked {
         crate::deselect_guides(&st.doc, &mut st.selection);
     }
+    st.sync_new_art();
     super::maskedit::follow_history(st, editing);
     Ok(json!({ "redone": label }))
+}
+
+/// History panel › Clear History: removes the steps after the current state and the steps before
+/// it, and leaves the document as it is. Typing or a drag still in progress is first kept as a
+/// step, as Undo keeps it, so it is removed with the others and its change stays in the document.
+fn clear_history(s: &mut Session, _: &Value) -> Result<Value> {
+    settle_interaction(s)?;
+    let st = s.doc_mut()?;
+    let cleared = st.history.undo.len() + st.history.redo.len();
+    st.history.undo.clear();
+    st.history.redo.clear();
+    st.revision += 1;
+    Ok(json!({ "cleared": cleared }))
 }
 
 /// `selection` for an undo (redo) step, sharing that of `like`, the step beside it, when the same.

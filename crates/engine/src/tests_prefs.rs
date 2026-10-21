@@ -240,6 +240,20 @@ fn linux_display_server_defaults_to_automatic_and_validates() {
     assert_eq!(s.prefs.linux_display_server, "automatic");
 }
 
+/// Linux Display Server's pen choice (#2028): set by value or by label, saved, and off by default.
+#[test]
+fn linux_display_server_has_a_choice_for_an_attached_pen() {
+    let mut s = Session::new();
+    s.execute("prefs.set", &json!({"key": "linuxDisplayServer", "value": "x11WithPen"})).unwrap();
+    assert_eq!(s.prefs.linux_display_server, "x11WithPen");
+    assert_eq!(s.prefs.to_json()["linuxDisplayServer"], "x11WithPen");
+    s.execute("prefs.set", &json!({"key": "linuxDisplayServer", "value": "automatic"})).unwrap();
+    s.execute("prefs.set", &json!({"key": "linuxDisplayServer", "value": "X11 (XWayland) When a Pen Is Attached"})).unwrap();
+    assert_eq!(s.prefs.linux_display_server, "x11WithPen");
+    s.execute("prefs.reset", &json!({"category": "Performance"})).unwrap();
+    assert_eq!(s.prefs.linux_display_server, "automatic");
+}
+
 /// Selection & Anchor Display › Tolerance, Object Selection by Path Only and Command Click to
 /// Select Objects Behind, and General › Double Click To Isolate, as the Selection tool sees them
 /// (#394).
@@ -444,6 +458,24 @@ fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
     s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": false})).unwrap();
     for (tool, c) in own {
         assert_eq!(cursor(&mut s, tool), c, "{tool} off again");
+    }
+}
+
+/// With Alt held, the Pencil and the Paintbrush show their closing cursors, and Use Precise Cursors turns those into
+/// a crosshair too.
+#[test]
+fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
+    use vectorcraft_tools::{Cursor, Mods};
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    let at = vectorcraft_geom::Point::new(300.0, 300.0);
+    let alt = Mods { alt: true, ..Default::default() };
+    for precise in [false, true] {
+        s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": precise})).unwrap();
+        for (tool, c) in [("pencil", Cursor::PencilClose), ("paintbrush", Cursor::PaintbrushClose)] {
+            s.select_tool(tool, ViewInfo::default()).unwrap();
+            assert_eq!(s.cursor(at, alt, ViewInfo::default()), if precise { Cursor::Crosshair } else { c }, "{tool}, precise {precise}");
+        }
     }
 }
 
@@ -1167,7 +1199,10 @@ fn new_type_starts_with_placeholder_text() {
     gesture(&mut s, v, &[(Down, 100.0, 150.0), (Drag, 300.0, 300.0), (Up, 300.0, 300.0)]);
     assert!(text(&s).len() > placeholder.len());
     set_pref(&mut s, "placeholderText", json!(false));
-    gesture(&mut s, v, &[(Down, 50.0, 350.0), (Up, 50.0, 350.0)]);
+    // The first click ends editing the area type (#2871); the second places point type.
+    for _ in 0..2 {
+        gesture(&mut s, v, &[(Down, 50.0, 350.0), (Up, 50.0, 350.0)]);
+    }
     assert_eq!(text(&s), "");
 }
 
@@ -1333,6 +1368,17 @@ fn show_font_names_in_english_preference_is_stored() {
     assert!(!s.prefs.font_names_in_english);
     set_pref(&mut s, "fontNamesInEnglish", json!(true));
     assert!(s.prefs.font_names_in_english);
+}
+
+/// Preferences › Devices › Enable Touch Workspace (#394): stored and restored through `prefs.set`.
+#[test]
+fn touch_workspace_preference_is_stored() {
+    let mut s = Session::new();
+    assert!(s.prefs.touch_workspace, "on by default");
+    set_pref(&mut s, "touchWorkspace", json!(false));
+    assert!(!s.prefs.touch_workspace);
+    set_pref(&mut s, "touchWorkspace", json!(true));
+    assert!(s.prefs.touch_workspace);
 }
 
 /// Preferences › Type › Highlight Alternate Glyphs (#394): off by default so OpenType

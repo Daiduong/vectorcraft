@@ -62,6 +62,9 @@ pub(crate) struct SGlyph {
     /// A word of a script written without spaces (Thai, Lao, Khmer, Myanmar) ends after the
     /// glyph's cluster, so a line may break there ([`mark_word_ends`]).
     pub word_end: bool,
+    /// No Break (Character panel menu): keep this glyph on the same line as the neighbouring
+    /// glyphs that have it.
+    pub no_break: bool,
 }
 
 /// How `vpal` and the vertical kerning with it move an upright glyph in vertical type and change
@@ -384,7 +387,7 @@ pub(crate) fn shape_range(
             } else if let Some((_, f)) = cache.iter().find(|(k, _)| *k == c) {
                 f.clone()
             } else {
-                let f = db.fallback_for(c, primary.id()).unwrap_or_else(|| primary.clone());
+                let f = db.fallback_for_style(c, primary.id(), primary.weight, primary.italic).unwrap_or_else(|| primary.clone());
                 cache.push((c, f.clone()));
                 f
             };
@@ -392,7 +395,8 @@ pub(crate) fn shape_range(
             let next_script = shaping_script(c);
             let strong_script = !matches!(next_script, Script::Common | Script::Inherited);
             let script_change = strong_script && script != Script::Common && script != next_script;
-            // Combining marks stay with their base.
+            // Combining marks, zero width joiners and non-joiners, and variation selectors stay
+            // with the character before them.
             if (face.id() != seg.face.id() || small != seg.small || level != seg.level || script_change) && !is_mark(c) {
                 if i > seg.range.start {
                     seg.range.end = i;
@@ -467,6 +471,7 @@ fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
         char_align: _,
         proportional_metrics,
         digits,
+        no_break,
     } = a;
     *font_family == b.font_family
         && *font_style == b.font_style
@@ -481,6 +486,7 @@ fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
         && *small_caps == b.small_caps
         && *proportional_metrics == b.proportional_metrics
         && *digits == b.digits
+        && *no_break == b.no_break
         && ligatures_suppressed_by(*tracking) == ligatures_suppressed_by(b.tracking)
 }
 
@@ -549,6 +555,7 @@ fn inline_glyph(face: &Arc<FontFace>, st: &CharStyle, art: &InlineArt, run: usiz
         level,
         inline: Some(InlineBox { art: drawn, xf }),
         word_end: false,
+        no_break: st.no_break,
     }
 }
 
@@ -580,7 +587,7 @@ struct Shaped {
 fn is_mark(c: char) -> bool {
     use unicode_general_category::{GeneralCategory, get_general_category};
     matches!(get_general_category(c), GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark)
-        || matches!(c, '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
+        || matches!(c, '\u{200C}' | '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
 }
 
 /// Shape `seg` and append its glyphs to `out`. Each glyph takes the tracking, kerning, baseline
@@ -808,6 +815,7 @@ fn shape_segment(text: &str, context: &Range<usize>, seg: &Segment, feats: &OtFe
             level: *level,
             inline: None,
             word_end: false,
+            no_break: gst.no_break,
         });
     }
 }

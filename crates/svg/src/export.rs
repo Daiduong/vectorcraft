@@ -135,12 +135,12 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
     }
     if !doc.title.is_empty() {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<title>{}</title>{nl}", xml_escape(&doc.title)));
+        out.push_str(&format!("<title>{}</title>{nl}", xml_text(&doc.title)));
     }
     // File Info's description.
     if !doc.metadata.description.trim().is_empty() {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<desc>{}</desc>{nl}", xml_escape(&doc.metadata.description)));
+        out.push_str(&format!("<desc>{}</desc>{nl}", xml_text(&doc.metadata.description)));
     }
     // Window › SVG Interactivity › Link JavaScript Files.
     for file in &doc.svg_scripts {
@@ -1663,7 +1663,11 @@ impl Writer<'_> {
             return 0;
         }
         let bounds = n.visual_bounds_with(&self.doc.symbol_boxes());
-        let reach: f64 = fx.iter().map(|f| f.outset(bounds.unwrap_or_default())).sum::<f64>() + 2.0;
+        // An Outer Glow's silhouette grows by a quarter of a pixel of the document's raster grid first.
+        let grow = 18.0 / self.doc.raster_ppi();
+        let reach: f64 =
+            fx.iter().map(|f| f.outset(bounds.unwrap_or_default()) + if matches!(f, RasterFx::OuterGlow { .. }) { grow } else { 0.0 }).sum::<f64>()
+                + 2.0;
         let region = bounds.map(|b| self.xf.transform_rect_bbox(b).inflate(reach, reach));
         let mut opened = 0;
         for f in fx.iter().rev() {
@@ -1703,8 +1707,10 @@ impl Writer<'_> {
                     self.num(*dy),
                     flood(color, *opacity)
                 ),
+                // The glow blurs a solid silhouette (alpha × 255 makes any alpha full) grown by a quarter raster pixel.
                 RasterFx::OuterGlow { opacity, blur, color, .. } => format!(
-                    "<feGaussianBlur in=\"SourceAlpha\" stdDeviation=\"{}\" result=\"glow\"/>{}<feComposite in2=\"glow\" operator=\"in\" result=\"paint\"/><feMerge><feMergeNode in=\"paint\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>",
+                    "<feComponentTransfer in=\"SourceAlpha\"><feFuncA type=\"linear\" slope=\"255\"/></feComponentTransfer><feMorphology operator=\"dilate\" radius=\"{}\"/><feGaussianBlur stdDeviation=\"{}\" result=\"glow\"/>{}<feComposite in2=\"glow\" operator=\"in\" result=\"paint\"/><feMerge><feMergeNode in=\"paint\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>",
+                    fmt_num(grow, 3),
                     sd(*blur),
                     flood(color, *opacity)
                 ),
@@ -1793,7 +1799,8 @@ impl Writer<'_> {
         let resolved = doc.inline_resolved(t);
         let t = &*resolved;
         let inline = t.runs.iter().any(|r| r.inline.is_some());
-        let outlined = self.opts.outline_text || t.vertical || (inline && matches!(t.kind, TextKind::OnPath { .. }));
+        // Ruby is written as outlines with its base text: a reader's <text> can't place it.
+        let outlined = self.opts.outline_text || t.vertical || !t.ruby.is_empty() || (inline && matches!(t.kind, TextKind::OnPath { .. }));
         let chars = |w: &mut Self, n: &Node| if outlined { w.text_outlines(n, t) } else { w.text(n, t) };
         let painted = n.appearance.items.iter().any(|i| i.visible() && !i.paint().is_none());
         // Live type with an inside or outside character stroke writes that stroke apart from the
@@ -1848,9 +1855,16 @@ impl Writer<'_> {
         let db = vectorcraft_text::FontDb::global();
         let lay = vectorcraft_text::layout(db, t);
         let mut runs: Vec<(usize, kurbo::BezPath)> = vec![];
-        // Underline and strikethrough bars join their run's outlines.
+        // Underline and strikethrough bars join their run's outlines; ruby glyphs are painted
+        // with the run of the text they annotate.
         let bars = vectorcraft_text::decorations(&lay, db, t);
-        for (run, outline) in lay.glyphs.iter().map(|g| (g.run, &g.outline)).chain(bars.iter().map(|(r, b)| (*r, b))) {
+        for (run, outline) in lay
+            .glyphs
+            .iter()
+            .map(|g| (g.run, &g.outline))
+            .chain(lay.ruby.iter().map(|g| (g.run, &g.outline)))
+            .chain(bars.iter().map(|(r, b)| (*r, b)))
+        {
             match runs.iter_mut().find(|(r, _)| *r == run) {
                 Some((_, bp)) => bp.extend(outline.iter()),
                 None => runs.push((run, outline.clone())),
@@ -1896,10 +1910,18 @@ impl Writer<'_> {
                 self.warn("type on a path with an end bracket, Align to Path or Spacing is outlined to keep its look");
                 return self.text_outlines(n, t);
             }
+            // It cannot hang glyphs outside the start bracket either.
+            if hangs_on_path(t, &lay) {
+                self.warn("type on a path with glyphs hanging outside its brackets is outlined to keep its look");
+                return self.text_outlines(n, t);
+            }
             return self.text_on_path(n, t, path, *start);
         }
         self.note_fonts(t, &lay);
         let lines = text_lines(t, &lay, self.opts.fewer_tspans);
+        // `drawn` holds the styles the layout draws the text in: Shrink Text to Fit scales its sizes, explicit leading and baseline shifts.
+        let fitted = (lay.fit_scale != 1.0).then(|| vectorcraft_text::scaled(t, lay.fit_scale));
+        let drawn = fitted.as_ref().unwrap_or(t);
         // Each line is anchored as its paragraph is aligned. A tab starts a new chunk at its
         // stop, and so does the text after an inline graphic: lines with tabs, and text with
         // inline graphics, are never anchored.
@@ -1920,7 +1942,7 @@ impl Writer<'_> {
         let uniform = anchors.first().copied().filter(|a| a.is_some() && anchors.iter().all(|b| b == a)).flatten();
         // The <text> element's user space is text space.
         let space = (lay.bounds, Affine::IDENTITY);
-        let base = TextBase { props: self.char_props(&t.first_style(), space), space, anchored: uniform.is_some() };
+        let base = TextBase { props: self.char_props(&drawn.first_style(), space), space, anchored: uniform.is_some() };
         let mut props = base.props.clone();
         if let Some((a, _)) = uniform {
             props.push(("text-anchor", a.into()));
@@ -1945,10 +1967,10 @@ impl Writer<'_> {
                 Some((a, _)) => {
                     s.push_str(&format!("<tspan x=\"{}\" y=\"{}\" text-anchor=\"{a}\">", self.num(start.0), self.num(start.1)));
                     let inner = TextBase { anchored: true, ..base.clone() };
-                    self.text_line(&mut s, t, &line.segs, start, &inner, false);
+                    self.text_line(&mut s, drawn, &line.segs, start, &inner, false);
                     s.push_str("</tspan>");
                 }
-                None => self.text_line(&mut s, t, &line.segs, start, &base, true),
+                None => self.text_line(&mut s, drawn, &line.segs, start, &base, true),
             }
         }
         s.push_str("</text>");
@@ -2019,8 +2041,8 @@ impl Writer<'_> {
             // After a tab, an inline graphic or a justified word space, and before a character that a
             // reader would draw elsewhere, the next segment is placed.
             place = seg.brk || (!fewer && !base.anchored && positioned);
-            if (st.h_scale - st.v_scale).abs() > 1e-9 {
-                attrs.push_str(&format!(" textLength=\"{}\" lengthAdjust=\"spacingAndGlyphs\"", self.num(seg.advance)));
+            if (st.h_scale - st.v_scale).abs() > 1e-9 || seg.scale != 1.0 {
+                attrs.push_str(&format!(" textLength=\"{}\" lengthAdjust=\"spacingAndGlyphs\"", self.num(seg.advance * seg.scale)));
             }
             if st.rotation != 0.0 {
                 attrs.push_str(&format!(" rotate=\"{}\"", self.num(-st.rotation)));
@@ -2170,6 +2192,24 @@ fn aligned(st: &CharStyle) -> bool {
     st.has_stroke() && st.stroke_align != StrokeAlign::Center
 }
 
+/// Does type on a path `t`, laid out as `lay`, hang glyphs outside its brackets? It does when
+/// Optical Margin Alignment or its first paragraph's Roman Hanging Punctuation is on and its
+/// glyphs sit elsewhere with both off.
+fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
+    if !t.optical_margin && !t.para_at(0).roman_hanging {
+        return false;
+    }
+    let mut flush = t.clone();
+    flush.optical_margin = false;
+    let mut styles = flush.paragraph_styles();
+    for p in &mut styles {
+        p.roman_hanging = false;
+    }
+    flush.set_paragraph_styles(styles);
+    let flush = vectorcraft_text::layout(FontDb::global(), &flush);
+    lay.glyphs.len() != flush.glyphs.len() || lay.glyphs.iter().zip(&flush.glyphs).any(|(a, b)| a.origin != b.origin)
+}
+
 /// What the `<tspan>` of a run whose properties are `run` sets over its `<text>`'s `base`: the
 /// properties that differ, and the initial value of each one `base` sets and the run doesn't.
 fn run_diff(base: &Props, run: Props) -> Props {
@@ -2252,6 +2292,9 @@ struct Segment {
     /// The next segment needs its own position (after a tab, a word space of a justified line, or
     /// the next segment starts with a character the layout draws elsewhere than a reader would).
     brk: bool,
+    /// Glyph Scaling of the segment's one glyph (Justification…), which a reader stretches it to
+    /// (`textLength`); 1 for other segments.
+    scale: f64,
 }
 
 /// How far a reader may draw a character from where the layout draws it before the character is
@@ -2274,7 +2317,10 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
         let style = t.para_at(para);
         let split_words = !fewer && !matches!(style.justify, Justify::Auto | Justify::Left | Justify::Center | Justify::Right);
         // Each cluster's advance and drawing offset as a reader gives them, by its byte offset.
-        let reader = if split_words || (!fewer && !style.mojikumi.is_none()) {
+        // Justification…'s Desired word and letter spacing and glyph scaling move characters from
+        // where a reader draws them, on every line.
+        let spaced = !fewer && !style.justification.desired_is_default();
+        let reader = if split_words || spaced || (!fewer && !style.mojikumi.is_none()) {
             Some(&*kerned.get_or_insert_with(|| reader_advances(t, lay, true)))
         } else {
             None
@@ -2327,7 +2373,9 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
             let src: String = source(g).chars().filter(|c| *c != '\u{ad}').map(|c| run.style.digits.map(c)).collect();
             let piece = if run.style.all_caps { src.to_uppercase() } else { src };
             let brk = piece == "\t" || (split_words && !piece.is_empty() && piece.chars().all(char::is_whitespace));
-            let fresh = std::mem::take(&mut after_inline);
+            // A glyph Glyph Scaling widens or narrows is a segment of its own, stretched to its width.
+            let scale = if reader.is_some() && (g.scale - 1.0).abs() > 1e-9 && g.scale.is_finite() { g.scale } else { 1.0 };
+            let fresh = std::mem::take(&mut after_inline) || scale != 1.0 || segs.last().is_some_and(|last| last.scale != 1.0);
             // The layout draws the character elsewhere than a reader continuing the line would.
             let moved = reader.is_some()
                 && segs.last().is_some_and(|last| (x - pen).abs() > PLACE_TOLERANCE || (g.origin.y - last.y).abs() > PLACE_TOLERANCE);
@@ -2343,7 +2391,7 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
                         last.brk |= moved;
                         end_segment(last, tail, t, lay, &mut unkerned);
                     }
-                    segs.push(Segment { run: g.run, x, y: g.origin.y, text: piece, advance, brk });
+                    segs.push(Segment { run: g.run, x, y: g.origin.y, text: piece, advance, brk, scale });
                 }
             }
             tail = set.map(|_| (g.byte, advance));
@@ -2359,7 +2407,7 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
     lines
 }
 
-/// Ends segment `seg` of horizontally scaled type, which a reader stretches to its width
+/// Ends segment `seg` of horizontally scaled type (or a glyph Glyph Scaling scales), which a reader stretches to its width
 /// (`textLength`): its last cluster (`tail`: byte offset and reader's advance) takes the advance
 /// a reader gives it at the end of a `<tspan>`, without the font's kerning against the character
 /// after it. `unkerned` holds [`reader_advances`] without kerning once a segment needs them.
@@ -2371,7 +2419,7 @@ fn end_segment(
     unkerned: &mut Option<HashMap<usize, (f64, f64)>>,
 ) {
     let Some((byte, advance)) = tail else { return };
-    if t.runs.get(seg.run).is_none_or(|r| (r.style.h_scale - r.style.v_scale).abs() <= 1e-9) {
+    if seg.scale == 1.0 && t.runs.get(seg.run).is_none_or(|r| (r.style.h_scale - r.style.v_scale).abs() <= 1e-9) {
         return;
     }
     if let Some(&(alone, _)) = unkerned.get_or_insert_with(|| reader_advances(t, lay, false)).get(&byte) {
@@ -2388,6 +2436,8 @@ fn reader_advances(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: 
     let mut set = TextObject { kind: TextKind::Point, ..t.clone() };
     for p in std::iter::once(&mut set.para).chain(set.paras.iter_mut()) {
         p.mojikumi = vectorcraft_doc::Mojikumi::None;
+        // A reader spaces words and letters as the font does.
+        p.justification = vectorcraft_doc::JustificationOptions::default();
     }
     if !kerning {
         for r in &mut set.runs {

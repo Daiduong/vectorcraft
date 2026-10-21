@@ -18,10 +18,16 @@ fn style(size: f64) -> CharStyle {
 
 /// Area type `w` wide at (20, 20) in a 300 × 200 document.
 fn area_doc(runs: Vec<TextRun>, w: f64, justify: Justify) -> Document {
+    area_doc_justified(runs, w, justify, vectorcraft_doc::JustificationOptions::default())
+}
+
+/// [`area_doc`] with the paragraph's Justification options `j`.
+fn area_doc_justified(runs: Vec<TextRun>, w: f64, justify: Justify, j: vectorcraft_doc::JustificationOptions) -> Document {
     let mut t = TextObject::point(Point::new(20.0, 20.0), "", style(12.0));
     t.runs = runs;
     t.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, 160.0)) };
     t.para.justify = justify;
+    t.para.justification = j;
     let mut d = Document::new(300.0, 200.0);
     let n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
     let l = d.layers[0].id;
@@ -252,6 +258,32 @@ fn justify_all_lines_keep_their_letter_gaps() {
     }
 }
 
+/// Justification…: Desired word and letter spacing and glyph scaling, and the ranges a justified
+/// line uses, are written so a viewer draws each character where and as wide as the canvas does.
+#[test]
+fn justification_spacing_and_glyph_scaling_are_drawn_in_place() {
+    use vectorcraft_doc::JustificationOptions;
+    let text = "Typography arranges type to make written language legible and readable";
+    for (justify, j) in [
+        (
+            Justify::Left,
+            JustificationOptions { word_spacing: [0.0, 180.0, 200.0], letter_spacing: [0.0, 10.0, 10.0], ..JustificationOptions::default() },
+        ),
+        (Justify::Left, JustificationOptions { glyph_scaling: [50.0, 120.0, 200.0], ..JustificationOptions::default() }),
+        (
+            Justify::JustifyLeft,
+            JustificationOptions {
+                word_spacing: [100.0, 100.0, 100.0],
+                letter_spacing: [0.0, 0.0, 5.0],
+                glyph_scaling: [95.0, 100.0, 110.0],
+                ..JustificationOptions::default()
+            },
+        ),
+    ] {
+        assert_drawn_in_place(&area_doc_justified(vec![run(text, style(12.0))], 160.0, justify, j));
+    }
+}
+
 /// Justified and Mojikumi lines whose characters a reader draws where the layout does are written
 /// as before: a segment per style run, and per word on a justified line.
 #[test]
@@ -268,7 +300,7 @@ fn lines_without_moved_characters_are_written_as_before() {
     }
     let open = |x: &str, anchor: &str| {
         format!(
-            r##"<text transform="matrix(1 0 0 1 20 20)" x="{x}" y="12" xml:space="preserve" font-family="&apos;Source Sans 3&apos;" font-size="12" fill="#000000"{anchor}>"##
+            r##"<text transform="matrix(1 0 0 1 20 20)" x="{x}" y="12" xml:space="preserve" font-family="&apos;Source Sans 3&apos;, sans-serif" font-size="12" fill="#000000"{anchor}>"##
         )
     };
     let words =
@@ -318,6 +350,48 @@ fn justified_japanese_lines_keep_the_gaps_between_their_characters() {
     let text = "日本語の文章は文字と文字の間で両端を揃えます。この段落は三行になります。";
     for justify in [Justify::JustifyLeft, Justify::JustifyAll] {
         assert_drawn_in_place(&area_doc(vec![run(text, style(12.0))], 100.0, justify));
+    }
+}
+
+/// Area type that Shrink Text to Fit scales down to fit its frame is written at the size the
+/// canvas draws it at: sizes, tracking, manual kerning and baseline shifts, on ragged, anchored
+/// and justified lines.
+#[test]
+fn shrunk_area_type_is_written_at_the_size_it_draws_at() {
+    let tracked = CharStyle { tracking: 80.0, ..style(12.0) };
+    let kerned = CharStyle { kerning: Some(-40.0), ..style(12.0) };
+    let wide = CharStyle { h_scale: 150.0, ..style(12.0) };
+    let shifted = CharStyle { baseline_shift: 3.0, ..style(12.0) };
+    for justify in [Justify::Left, Justify::Center, Justify::JustifyLeft, Justify::JustifyAll] {
+        // Tracked and kerned letters are inside words: usvg also spaces a line's last letter, which
+        // moves an anchored line ending in one.
+        let mut runs = vec![
+            run("plain words ", style(12.0)),
+            run("trac", tracked.clone()),
+            run("ked ", style(12.0)),
+            run("ker", kerned.clone()),
+            run("ned ", style(12.0)),
+            run("up ", shifted.clone()),
+            run("big ", style(18.0)),
+        ];
+        // usvg anchors a centered line by its width before `textLength` stretches it.
+        if justify != Justify::Center {
+            runs.push(run("wide ", wide.clone()));
+        }
+        runs.push(run("and more words at the end", style(12.0)));
+        let mut d = area_doc(runs, 90.0, justify);
+        let id = d.layers[0].children().unwrap()[0].id;
+        if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
+            t.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 90.0, 40.0)) };
+            t.area.fit = vectorcraft_doc::AreaFit::ShrinkText { min_percent: 10.0 };
+        }
+        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &the_text(&d));
+        assert!(!lay.overflow && lay.fit_scale < 0.8, "{justify:?}: the text is shrunk to fit ({})", lay.fit_scale);
+        assert_drawn_in_place(&d);
+        // Fewer `<tspan>` Elements writes the shrunk size too.
+        let fewer = export(&d, &ExportOptions { fewer_tspans: true, ..Default::default() });
+        let size = attr(&fewer[fewer.find("<text").unwrap()..], "font-size").unwrap();
+        assert!((size - 12.0 * lay.fit_scale).abs() < 1e-3, "{justify:?}: {fewer}");
     }
 }
 

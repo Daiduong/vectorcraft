@@ -14,7 +14,7 @@ use vectorcraft_doc::live::{
     PreserveShape, Spine,
 };
 use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, Selection};
-use vectorcraft_geom::{Affine, PathData, Point, Vec2};
+use vectorcraft_geom::{Affine, Anchor, PathData, Point, Vec2};
 
 use super::edit::selected_roots;
 use super::expand::gradient_sampler;
@@ -95,6 +95,15 @@ pub fn specs() -> Vec<CommandSpec> {
             "{id? (default: the selected blend), anchor: index, x, y, handle?: in|out, independent?: bool} move a point of the blend's spine (its handles along), or with `handle` place that handle's end at (x, y) (a smooth point keeps the other handle in line unless `independent`). A key object sitting on the point moves with it. The first edit turns the straight spine into a path",
             has_doc,
             spine_move_anchor
+        ),
+        cmd!(
+            "object.blend.spine.convertAnchor",
+            "Convert Anchor Point",
+            [],
+            None,
+            "{id? (default: the selected blend), anchor: index, to: smooth|corner, x?, y?} convert a blend spine point: dragging a corner creates symmetric smooth handles, clicking a point with handles retracts both. Without x/y, smooth uses the neighbouring spine points",
+            has_doc,
+            spine_convert_anchor
         ),
         cmd!(
             "object.blend.spine.reshapeSegment",
@@ -247,7 +256,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Set Mesh Point Color",
             [],
             None,
-            "{id, index, color, opacity?: 0..1} colour of one mesh point",
+            "{id, index, color, keepModel?: bool (as paint.setFill), opacity?: 0..1} colour of one mesh point",
             has_doc,
             mesh_set_color
         ),
@@ -265,7 +274,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Add Mesh Line",
             [],
             None,
-            "{id, x, y, color?} add a row and a column through (x, y) to a gradient mesh (new point in `color`) or a mesh envelope → {index}",
+            "{id, x, y, color?, keepModel?: bool (as paint.setFill)} add a row and a column through (x, y) to a gradient mesh (new point in `color`) or a mesh envelope → {index}",
             has_doc,
             mesh_add_line
         ),
@@ -401,6 +410,8 @@ const DEFAULT_STEPS: u32 = 5;
 const DEFAULT_DISTANCE: f64 = 10.0;
 
 fn spacing_param(p: &Value, cmd: &str, current: BlendSpacing) -> Result<BlendSpacing> {
+    check_numbers(p, &["value", "steps", "distance"], cmd)?;
+    let smooth = switch_or(p, "smooth", false, cmd)?;
     let num = |k: &str| p.get(k).and_then(Value::as_f64);
     let steps = |k: &str, n: f64| whole(n, k, cmd).map(|n| BlendSpacing::Steps(n as u32));
     let mode = str_param(p, "spacing");
@@ -418,7 +429,7 @@ fn spacing_param(p: &Value, cmd: &str, current: BlendSpacing) -> Result<BlendSpa
                 steps("steps", n)?
             } else if let Some(d) = num("distance") {
                 BlendSpacing::Distance(d)
-            } else if bool_or(p, "smooth", false) {
+            } else if smooth {
                 BlendSpacing::SmoothColor
             } else {
                 current
@@ -633,7 +644,7 @@ fn spine_move_anchor(s: &mut Session, p: &Value) -> Result<Value> {
         Some("in") => Some(false),
         Some(_) => return Err(bad(C, "handle must be in or out")),
     };
-    let independent = bool_or(p, "independent", false);
+    let independent = switch_or(p, "independent", false, C)?;
     edit_spine(s, p, C, "Reshape Spine", |sp, anchors, keys| {
         let a = sp.anchors.get_mut(index).ok_or_else(|| bad(C, "no such spine point"))?;
         if let Some(out) = handle {
@@ -653,15 +664,46 @@ fn spine_move_anchor(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
+fn spine_convert_anchor(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "object.blend.spine.convertAnchor";
+    let index = index_param(p, "anchor", C)?;
+    let smooth = match str_param(p, "to") {
+        Some("smooth") => true,
+        Some("corner") => false,
+        _ => return Err(bad(C, "to must be smooth or corner")),
+    };
+    let target = match (p.get("x"), p.get("y")) {
+        (None, None) => None,
+        (Some(_), Some(_)) => Some(finite_point(p, C)?),
+        _ => return Err(bad(C, "x and y must be given together")),
+    };
+    edit_spine(s, p, C, "Convert Anchor Point", |sp, _, _| {
+        if smooth && target.is_none() {
+            if index >= sp.anchors.len() {
+                return Err(bad(C, "no such spine point"));
+            }
+            vectorcraft_tools::draw2::curvature_smooth(sp, index);
+            return Ok(());
+        }
+        let a = sp.anchors.get_mut(index).ok_or_else(|| bad(C, "no such spine point"))?;
+        match target {
+            Some(q) if smooth && q.distance(a.p) > 1e-9 => *a = Anchor::smooth(a.p, q),
+            _ => a.retract(),
+        }
+        Ok(())
+    })?;
+    ok()
+}
+
 fn spine_reshape_segment(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.blend.spine.reshapeSegment";
     let seg = index_param(p, "segment", C)?;
-    let t = f64_or(p, "t", 0.5).clamp(0.05, 0.95);
-    let dv = Vec2::new(f64_or(p, "dx", 0.0), f64_or(p, "dy", 0.0));
+    let t = number_or(p, "t", 0.5, C)?.clamp(0.05, 0.95);
+    let dv = Vec2::new(number_or(p, "dx", 0.0, C)?, number_or(p, "dy", 0.0, C)?);
     if !(t.is_finite() && dv.x.is_finite() && dv.y.is_finite() && dv.hypot() < 1e9) {
         return Err(bad(C, "t, dx and dy must be finite"));
     }
-    let perpendicular = bool_or(p, "perpendicular", false);
+    let perpendicular = switch_or(p, "perpendicular", false, C)?;
     edit_spine(s, p, C, "Reshape Spine", |sp, _, _| {
         let bent = if perpendicular { sp.bend_segment_perpendicular(seg, t, dv) } else { sp.bend_segment(seg, t, dv) };
         if bent { Ok(()) } else { Err(bad(C, "no such spine segment")) }
@@ -931,7 +973,11 @@ fn blend_reverse_stack(s: &mut Session, _: &Value) -> Result<Value> {
 
 // ---------- Envelope ----------
 
+/// The number keys of a warp: `bend`, and the two distortions by their short and long names.
+const WARP_NUMBERS: &[&str] = &["bend", "h", "v", "horizontalDistortion", "verticalDistortion"];
+
 fn warp_kind(p: &Value, cmd: &str, cur: Option<&EnvelopeKind>) -> Result<EnvelopeKind> {
+    check_numbers(p, WARP_NUMBERS, cmd)?;
     let (mut style, mut bend, mut h, mut v, mut horizontal) = ("arc".to_string(), 50.0, 0.0, 0.0, true);
     if let Some(EnvelopeKind::Warp { style: s0, bend: b0, h: h0, v: v0, horizontal: z0 }) = cur {
         (style, bend, h, v, horizontal) = (s0.clone(), *b0, *h0, *v0, *z0);
@@ -946,10 +992,11 @@ fn warp_kind(p: &Value, cmd: &str, cur: Option<&EnvelopeKind>) -> Result<Envelop
     bend = f64_or(p, "bend", bend).clamp(-100.0, 100.0);
     h = f64_or(p, "h", f64_or(p, "horizontalDistortion", h)).clamp(-100.0, 100.0);
     v = f64_or(p, "v", f64_or(p, "verticalDistortion", v)).clamp(-100.0, 100.0);
+    let given = switch_or(p, "horizontal", horizontal, cmd)?;
     horizontal = match str_param(p, "orientation") {
         Some("vertical") => false,
         Some("horizontal") => true,
-        _ => bool_or(p, "horizontal", horizontal),
+        _ => given,
     };
     Ok(EnvelopeKind::Warp { style, bend, h, v, horizontal })
 }
@@ -965,6 +1012,7 @@ fn envelope(id: NodeId, content: Vec<Arc<Node>>, kind: EnvelopeKind, (options, f
 
 /// `rows` and `cols` (or `columns`), whole numbers 1..50 each, defaulting to `default`.
 fn rows_cols(p: &Value, cmd: &str, default: (u32, u32)) -> Result<(u32, u32)> {
+    check_numbers(p, &["rows", "cols", "columns"], cmd)?;
     let rows = f64_or(p, "rows", default.0 as f64);
     let cols_key = if p.get("cols").and_then(Value::as_f64).is_some() { "cols" } else { "columns" };
     let cols = f64_or(p, cols_key, default.1 as f64);
@@ -1073,7 +1121,7 @@ fn env_reset_warp(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn env_reset_mesh(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.envelope.resetWithMesh";
-    let maintain = bool_or(p, "maintainShape", true);
+    let maintain = switch_or(p, "maintainShape", true, C)?;
     let kinds = reshaped(s, |env, kind| {
         let own = match kind {
             EnvelopeKind::Mesh { rows, cols, .. } => (*rows, *cols),
@@ -1104,11 +1152,11 @@ fn options_param(p: &Value, cmd: &str, cur: EnvelopeOptions) -> Result<EnvelopeO
         None => cur.preserve_shape,
     };
     Ok(EnvelopeOptions {
-        anti_alias: bool_or(p, "antiAlias", cur.anti_alias),
+        anti_alias: switch_or(p, "antiAlias", cur.anti_alias, cmd)?,
         preserve_shape,
-        distort_appearance: bool_or(p, "distortAppearance", cur.distort_appearance),
-        distort_linear_gradients: bool_or(p, "distortLinearGradients", cur.distort_linear_gradients),
-        distort_pattern_fills: bool_or(p, "distortPatternFills", cur.distort_pattern_fills),
+        distort_appearance: switch_or(p, "distortAppearance", cur.distort_appearance, cmd)?,
+        distort_linear_gradients: switch_or(p, "distortLinearGradients", cur.distort_linear_gradients, cmd)?,
+        distort_pattern_fills: switch_or(p, "distortPatternFills", cur.distort_pattern_fills, cmd)?,
     })
 }
 
@@ -1201,6 +1249,9 @@ fn env_release(s: &mut Session, _: &Value) -> Result<Value> {
 
 fn env_options(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.envelope.options";
+    check_numbers(p, &["fidelity"], C)?;
+    check_numbers(p, WARP_NUMBERS, C)?;
+    check_switches(p, &["horizontal"], C)?;
     let fid = p.get("fidelity").and_then(Value::as_f64);
     if fid.is_some_and(|f| !(0.0..=100.0).contains(&f)) {
         return Err(bad(C, "fidelity must be 0..100"));
@@ -1282,9 +1333,10 @@ fn env_expand(s: &mut Session, _: &Value) -> Result<Value> {
 }
 
 fn env_edit_contents(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "object.envelope.editContents";
     let envs = selected_of(s, is_envelope);
     let cur = matches!(envs.first().and_then(|e| s.doc().ok()?.doc.node(*e)).map(|n| &n.kind), Some(NodeKind::Envelope { editing: true, .. }));
-    let want = bool_or(p, "editing", !cur);
+    let want = switch_or(p, "editing", !cur, C)?;
     s.edit(if want { "Edit Contents" } else { "Edit Envelope" }, |d, sel| {
         let mut content_ids = vec![];
         for e in &envs {
@@ -1346,14 +1398,19 @@ fn mesh_create(s: &mut Session, p: &Value) -> Result<Value> {
         Some(a) => MeshAppearance::parse(a).ok_or_else(|| bad(C, "appearance must be flat|center|edge"))?,
         None => MeshAppearance::Flat,
     };
+    check_numbers(p, &["highlight"], C)?;
     let highlight = f64_or(p, "highlight", 100.0).clamp(0.0, 100.0);
-    let at = point_param(p, "at");
+    let at = match p.get("at") {
+        None | Some(Value::Null) => None,
+        Some(v) => Some(finite_numbers(v).map(|[x, y]| Point::new(x, y)).ok_or_else(|| bad(C, "`at` must be [x, y]"))?),
+    };
     let (rows, cols) = if at.is_some() { (1, 1) } else { (rows, cols) };
     let roots = roots_param(s, p)?;
     let (ids, index) = s.edit("Create Gradient Mesh", |d, sel| {
         let mut out = vec![];
         let mut index = None;
         let mut refused = None;
+        let model = d.color_mode.model();
         for id in &roots {
             let Some(n) = d.node(*id).cloned() else { continue };
             let m = if let NodeKind::Image(im) = &n.kind {
@@ -1373,7 +1430,7 @@ fn mesh_create(s: &mut Session, p: &Value) -> Result<Value> {
                 match n.appearance.fill_paint() {
                     // The points take the colours the gradient paints there.
                     Paint::Gradient(g) => {
-                        path.bounds().and_then(|b| GradientMesh::for_path_with(&path, rows, cols, &*gradient_sampler(&g, b))).map(|mut m| {
+                        path.bounds().and_then(|b| GradientMesh::for_path_with(&path, rows, cols, &*gradient_sampler(&g, b, model))).map(|mut m| {
                             m.highlight(app, highlight);
                             m
                         })
@@ -1481,8 +1538,10 @@ fn whole(x: f64, key: &str, cmd: &str) -> Result<f64> {
 
 fn mesh_set_color(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.mesh.setPointColor";
+    check_numbers(p, &["opacity"], C)?;
+    super::paint::check_keep_model(p, C)?;
     let index = index_param(p, "index", C)?;
-    let color = p.get("color").and_then(color_value);
+    let color = p.get("color").and_then(color_value).map(|c| super::paint::new_color(s, p, c));
     let opacity = p.get("opacity").and_then(Value::as_f64);
     if color.is_none() && opacity.is_none() {
         return Err(bad(C, "missing `color` or `opacity`"));
@@ -1519,7 +1578,8 @@ fn mesh_move_point(s: &mut Session, p: &Value) -> Result<Value> {
 fn mesh_add_line(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.mesh.addLine";
     let q = Point::new(f64_req(p, "x", C)?, f64_req(p, "y", C)?);
-    let color = p.get("color").and_then(color_value);
+    super::paint::check_keep_model(p, C)?;
+    let color = p.get("color").and_then(color_value).map(|c| super::paint::new_color(s, p, c));
     let index = with_mesh(s, p, C, "Add Mesh Line", true, |m| {
         let i = m.add_lines_at(q).ok_or_else(|| bad(C, "point is outside the mesh"))?;
         if let Some(c) = color {
