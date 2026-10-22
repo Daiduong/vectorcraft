@@ -448,6 +448,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
     let mut x = strip.left();
     let mut activate = None;
     let mut close = None;
+    let mut hovering_art = false;
     for (i, ((_, galley), w)) in tabs.iter().zip(&widths).enumerate().skip(first) {
         if x + w > strip.left() + room && Some(i) != active {
             break;
@@ -468,6 +469,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
         let xresp = ui.interact(xr.expand(3.0), ui.id().with(("tabx", i)), Sense::click());
         icons::paint(ui, "x", xr, if xresp.hovered() { t.text_strong } else { t.text });
         ui.painter().galley(egui::pos2(title_left, r.center().y - galley.size().y / 2.0), galley.clone(), t.text);
+        hovering_art |= crate::document_drag::hover_tab(app, &resp, i, xr.expand(3.0));
         if xresp.clicked() {
             close = Some(i);
         } else if resp.clicked() {
@@ -475,6 +477,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         x += w;
     }
+    crate::document_drag::finish_tabs(ui.ctx(), hovering_art);
     // The » button: every open document, the active one checked.
     if overflow {
         let more = egui::Rect::from_min_max(egui::pos2(strip.right() - MORE, strip.top()), egui::pos2(strip.right(), strip.bottom() - 1.0));
@@ -798,7 +801,8 @@ fn status_readouts(app: &VectorcraftApp, ui: &mut Ui, t: &Tokens) {
         for (id, width, text) in [
             ("render", render_width, format!("{render} {:.1} ms", app.perf.render_ms)),
             ("ui", ui_width, format!("{ui_name} {:.1} ms", app.perf.frame_ms)),
-            ("fps", fps_width, format!("{:.0} fps", app.perf.fps)),
+            // No rate until the window has drawn continuously for a moment (`frame_rate`).
+            ("fps", fps_width, if app.perf.fps > 0.0 { format!("{:.0} fps", app.perf.fps) } else { "– fps".into() }),
         ] {
             let rect = egui::Rect::from_min_size(egui::pos2(x, area.top()), vec2(width, area.height()));
             status_field(ui, id, rect, text, proportional.clone(), t.text_disabled);
@@ -971,7 +975,14 @@ fn hint_for(tool: &str) -> Option<&'static [(&'static str, bool)]> {
             (" to sample a color", false),
         ],
         "gradient" => &[("Drag", true), (" across a selected object to set the gradient direction", false)],
-        "artboard" => &[("Click", true), (" to select an artboard  |  ", false), ("Drag", true), (" on the canvas to create one", false)],
+        "artboard" => &[
+            ("Click", true),
+            (" to select an artboard  |  ", false),
+            ("Drag", true),
+            (" on the canvas to create one (", false),
+            ("Shift", true),
+            (" selects several, or draws one inside an artboard)", false),
+        ],
         "width" => &[
             ("Drag", true),
             (" a stroke to add a width point  |  ", false),
