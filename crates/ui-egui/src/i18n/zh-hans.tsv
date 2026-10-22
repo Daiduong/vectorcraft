@@ -1042,6 +1042,7 @@
 	Keep selected	保持选择状态
 	Merge only with selection	仅与所选对象合并
 	Consider Open Filled Paths as Closed	将有填色的开放路径视为闭合路径
+	In Merge Mode, Clicking Stroke Splits the Path	在合并模式下，单击描边可分割路径
 	Pick Color From:	颜色来源：
 	Artwork	图稿
 	Cursor Swatch Preview	在指针旁预览色板
@@ -1049,6 +1050,7 @@
 	Freeform	自由
 	Straight Line	直线
 	Highlight:	突出显示：
+	Stroke When Editable	可编辑时的描边
 	Fill Color	填色
 	Fill New Type Objects With Placeholder Text	用占位文本填充新文字对象
 	Fill Rule	填充规则
@@ -5278,3 +5280,4 @@ axis	Y Axis	Y 轴
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` 适用于渐变填色 (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` 适用于渐变填色 (paint.setFill)
 @msg	`dither` must be true or false	`dither` 必须是 true 或 false
+@msg	`method` must be classic or perceptual	`method` 必须是 classic 或 perceptual

@@ -1078,6 +1078,7 @@
 	Keep selected	Ausgewählt lassen
 	Merge only with selection	Nur mit Auswahl zusammenfügen
 	Consider Open Filled Paths as Closed	Offene gefüllte Pfade als geschlossen behandeln
+	In Merge Mode, Clicking Stroke Splits the Path	Beim Zusammenfügen teilt ein Klick auf die Kontur den Pfad
 	Pick Color From:	Farbe aufnehmen aus:
 	Artwork	Bildmaterial
 	Cursor Swatch Preview	Farbfeldvorschau am Zeiger
@@ -1085,6 +1086,7 @@
 	Freeform	Freiform
 	Straight Line	Gerade Linie
 	Highlight:	Hervorheben:
+	Stroke When Editable	Kontur, wenn bearbeitbar
 	Fill Color	Flächenfarbe
 	Fill New Type Objects With Placeholder Text	Neue Textobjekte mit Platzhaltertext füllen
 	Fill Rule	Füllregel
@@ -5020,3 +5022,5 @@ axis	Y Axis	Y-Achse
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` gilt für Verlaufsflächen (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` gilt für Verlaufsflächen (paint.setFill)
 @msg	`dither` must be true or false	`dither` muss true oder false sein
+	Perceptual	Perzeptiv
+@msg	`method` must be classic or perceptual	`method` muss classic oder perceptual sein

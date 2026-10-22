@@ -4977,12 +4977,14 @@ imageTrace	Outline	კონტური
 	PDF Print	PDF (ბეჭდვა)
 	Merge only with selection	შერწყმა მხოლოდ მონიშნულთან
 	Consider Open Filled Paths as Closed	შევსებული ღია ტრაექტორიების შეკრულად მიჩნევა
+	In Merge Mode, Clicking Stroke Splits the Path	შერწყმის რეჟიმში კონტურზე დაწკაპუნება ყოფს ტრაექტორიას
 	Pick Color From:	ფერის წყარო:
 	Artwork	ნახატი
 	Cursor Swatch Preview	ფერის ნიმუშები მაჩვენებელთან
 	Selection:	მონიშვნა:
 	Straight Line	სწორი ხაზი
 	Highlight:	გამოკვეთა:
+	Stroke When Editable	კონტური, როცა რედაქტირებადია
 	Words Longer Than:	სიტყვები, რომელთა სიგრძე აღემატება:
 	After First:	პირველის შემდეგ:
 	Before Last:	ბოლომდე:
@@ -5354,3 +5356,4 @@ axis	Y Axis	Y ღერძი
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` ვრცელდება გრადიენტულ შევსებებზე (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` ვრცელდება გრადიენტულ შევსებებზე (paint.setFill)
 @msg	`dither` must be true or false	`dither` უნდა იყოს true ან false
+@msg	`method` must be classic or perceptual	`method` უნდა იყოს classic ან perceptual

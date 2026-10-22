@@ -1266,6 +1266,7 @@
 	Keep selected	Giữ trạng thái đã chọn
 	Merge only with selection	Chỉ hợp nhất với vùng chọn
 	Consider Open Filled Paths as Closed	Coi đường dẫn mở có tô là đường dẫn đóng
+	In Merge Mode, Clicking Stroke Splits the Path	Ở chế độ hợp nhất, nhấp vào nét sẽ tách đường dẫn
 	Pick Color From:	Lấy màu từ:
 	Artwork	Tác phẩm
 	Cursor Swatch Preview	Xem trước mẫu màu cạnh con trỏ
@@ -1273,6 +1274,7 @@
 	Freeform	Tự do
 	Straight Line	Đường thẳng
 	Highlight:	Làm nổi bật:
+	Stroke When Editable	Nét khi có thể chỉnh sửa
 	Fill New Type Objects With Placeholder Text	Tô đối tượng chữ mới bằng văn bản giữ chỗ
 	Fill Rule	Quy tắc tô
 	Fill with Placeholder Text	Tô bằng văn bản giữ chỗ
@@ -5034,3 +5036,5 @@ axis	Y Axis	Trục Y
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` áp dụng cho vùng tô chuyển sắc (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` áp dụng cho vùng tô chuyển sắc (paint.setFill)
 @msg	`dither` must be true or false	`dither` phải là true hoặc false
+	Perceptual	Theo cảm nhận
+@msg	`method` must be classic or perceptual	`method` phải là classic hoặc perceptual

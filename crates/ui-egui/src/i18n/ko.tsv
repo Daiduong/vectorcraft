@@ -1499,6 +1499,7 @@
 	Keep selected	선택 유지
 	Merge only with selection	선택 영역과만 병합
 	Consider Open Filled Paths as Closed	칠이 있는 열린 패스를 닫힌 패스로 처리
+	In Merge Mode, Clicking Stroke Splits the Path	병합 모드에서 선을 클릭하면 패스 분할
 	Pick Color From:	색상 출처:
 	Artwork	아트워크
 	Cursor Swatch Preview	포인터 옆 견본 미리 보기
@@ -1506,6 +1507,7 @@
 	Freeform	자유 형태
 	Straight Line	직선
 	Highlight:	강조:
+	Stroke When Editable	편집 가능한 선
 	Fill:	칠:
 	Find	찾기
 	Find Font	글꼴 찾기
@@ -5017,3 +5019,5 @@ axis	Y Axis	Y축
 @msg	`dither` applies to gradient fills (stroke: false)	`dither`는 그레이디언트 칠에 적용됩니다 (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither`는 그레이디언트 칠에 적용됩니다 (paint.setFill)
 @msg	`dither` must be true or false	`dither`은(는) true 또는 false여야 합니다
+	Perceptual	지각적
+@msg	`method` must be classic or perceptual	`method`는 classic 또는 perceptual이어야 합니다

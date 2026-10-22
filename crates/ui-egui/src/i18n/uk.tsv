@@ -1095,6 +1095,7 @@
 	Keep selected	Залишати вибраним
 	Merge only with selection	Об’єднувати лише з виділеним
 	Consider Open Filled Paths as Closed	Вважати відкриті контури із заливкою замкненими
+	In Merge Mode, Clicking Stroke Splits the Path	У режимі об’єднання клацання по обведенню розділяє контур
 	Pick Color From:	Джерело кольору:
 	Artwork	Графіка
 	Cursor Swatch Preview	Зразки біля вказівника
@@ -1102,6 +1103,7 @@
 	Freeform	Довільно
 	Straight Line	Пряма лінія
 	Highlight:	Підсвічування:
+	Stroke When Editable	Обведення, яке можна редагувати
 	Fill Color	Колір заливки
 	Fill New Type Objects With Placeholder Text	Заповнювати нові текстові об’єкти текстом-заповнювачем
 	Fill Rule	Правило заливки
@@ -5034,3 +5036,5 @@ axis	Y Axis	Вісь Y
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` застосовується до градієнтних заливок (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` застосовується до градієнтних заливок (paint.setFill)
 @msg	`dither` must be true or false	`dither` має бути true або false
+	Perceptual	Перцептивний
+@msg	`method` must be classic or perceptual	`method` має бути classic або perceptual

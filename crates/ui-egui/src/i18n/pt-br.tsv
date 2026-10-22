@@ -980,12 +980,14 @@
 	Keep selected	Manter selecionado
 	Merge only with selection	Mesclar somente com a seleção
 	Consider Open Filled Paths as Closed	Tratar caminhos abertos preenchidos como fechados
+	In Merge Mode, Clicking Stroke Splits the Path	No modo de mesclagem, clicar no traçado divide o caminho
 	Pick Color From:	Origem da cor:
 	Artwork	Ilustração
 	Cursor Swatch Preview	Visualização de amostras junto ao cursor
 	Selection:	Seleção:
 	Straight Line	Linha reta
 	Highlight:	Destaque:
+	Stroke When Editable	Traçado quando editável
 	Fill with Placeholder Text	Preencher com Texto de Placeholder
 	Insert Inline Symbol	Inserir Símbolo no Texto
 	Fill:	Preenchimento:
@@ -5355,3 +5357,4 @@ axis	Y Axis	Eixo Y
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` se aplica a preenchimentos em gradiente (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` se aplica a preenchimentos em gradiente (paint.setFill)
 @msg	`dither` must be true or false	`dither` deve ser true ou false
+@msg	`method` must be classic or perceptual	`method` deve ser classic ou perceptual

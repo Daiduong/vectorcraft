@@ -5154,12 +5154,14 @@ effect	Points	Σημεία
 	Keep selected	Διατήρηση επιλογής
 	Merge only with selection	Συγχώνευση μόνο με την επιλογή
 	Consider Open Filled Paths as Closed	Οι ανοιχτές γεμισμένες διαδρομές θεωρούνται κλειστές
+	In Merge Mode, Clicking Stroke Splits the Path	Σε λειτουργία συγχώνευσης, το κλικ στο περίγραμμα διαιρεί τη διαδρομή
 	Pick Color From:	Λήψη χρώματος από:
 	Artwork	Γραφικά
 	Cursor Swatch Preview	Προεπισκόπηση δείγματος δίπλα στον δείκτη
 	Selection:	Επιλογή:
 	Straight Line	Ευθεία γραμμή
 	Highlight:	Επισήμανση:
+	Stroke When Editable	Περίγραμμα όταν είναι επεξεργάσιμο
 	Legacy (version 7)	Παλαιού τύπου (έκδοση 7)
 	Legacy .ai Options	Επιλογές .ai παλαιού τύπου
 	Linked Files	Συνδεδεμένα αρχεία
@@ -5390,3 +5392,4 @@ axis	Y Axis	Άξονας Y
 @msg	`dither` applies to gradient fills (stroke: false)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (paint.setFill)
 @msg	`dither` must be true or false	Το `dither` πρέπει να είναι true ή false
+@msg	`method` must be classic or perceptual	Το `method` πρέπει να είναι classic ή perceptual
