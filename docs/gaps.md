@@ -427,6 +427,23 @@ rendering, swatch conflicts, cancellation, rotated/zoomed views and target Undo/
 coverage (`tests_document_drag`, `tests_clipboard`). Overflow-menu and cross-window drag remain
 separate. Scores and hours unchanged. [Behavior and command details](development.md#drag-artwork-between-document-tabs-2026-10-22).
 
+## EPS counted-data line endings (2026-10-22)
+
+> **Status:** CR/LF line endings before counted EPS metadata are consumed as one terminator; scores and estimates unchanged.
+
+`readline` consumes an immediately following LF after CR on both the current program
+and decoded/buffered streams. Lone CR, LF, EOF and raw `readstring` bytes keep their
+existing behavior. This prevents a counted metadata payload from being shifted one
+byte and its final `>` being parsed as program text. Synthetic fixtures cover each
+line ending and following-byte preservation; contributor-owned EPS files stay local.
+Reference: [PostScript Language Reference, §3.8](https://www.adobe.com/jp/print/postscript/pdfs/PLRM.pdf).
+This addresses a reproduced import failure related to #3547, not every preview fallback
+or PhotoCraft's separate editable-vector clipboard feature (#2282).
+
+| Date | Change | EPS line-ending history |
+|---|---|---|
+| 2026-10-22 | minor | Read CR/LF as one EPS metadata line ending without changing binary reads or importer safety limits; scores and estimates unchanged. |
+
 ## Revision history
 
 | Date | Change | Summary |
