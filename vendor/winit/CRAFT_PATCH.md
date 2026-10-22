@@ -3,8 +3,20 @@
 Upstream: <https://github.com/rust-windowing/winit>, crates.io release 0.30.13.
 Upstream archive SHA-256:
 `a6755fa58a9f8350bd1e472d4c3fcc25f824ec358933bba33306d0b63df5978d`.
-License: Apache-2.0; the upstream `LICENSE`, notices, documentation and examples
-are retained. This is third-party source, not Craft-authored windowing code.
+Code license: Apache-2.0; the upstream `LICENSE` and attribution notices are
+retained. This is third-party source, not Craft-authored windowing code.
+
+Packaging modification, 2026-10-22: omit the four `docs/res/keyboard_*.svg`
+documentation diagrams (standard 1, right shift, numpad 1 and left shift). Their
+upstream notice identifies them as CC-BY-SA 4.0 derivatives of Tomiĉo's Wikimedia
+illustration, modified by John Nunley, not Apache-2.0 assets. They are not used by
+Craft or the winit build. The existing Rust documentation references upstream
+URLs, not these local files. Keep `docs/res/ATTRIBUTION.md` as provenance; no
+share-alike artwork is bundled in this snapshot.
+
+The unused upstream `src/platform_impl/linux/x11/util/modifiers.rs` is retained
+unchanged for snapshot fidelity. `util/mod.rs` does not declare that module;
+the compiled implementation is `xmodmap.rs`. It is not a Craft runtime path.
 
 Craft modification, 2026-10-21: `src/platform/wayland.rs` adds
 `WindowExtWayland::wayland_surface()`, which clones winit's existing `WlSurface`

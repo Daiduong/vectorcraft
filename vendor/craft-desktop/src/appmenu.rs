@@ -315,6 +315,9 @@ fn shortcut(s: &str) -> Vec<String> {
                 "PageUp" => "Page_Up",
                 "PageDown" => "Page_Down",
                 "Enter" => "Return",
+                "Plus" => "plus",
+                "Minus" | "-" => "minus",
+                "Equals" | "=" => "equal",
                 other => other,
             }
             .to_string()
@@ -754,6 +757,34 @@ mod tests {
     }
 
     #[test]
+    fn appmenu_shortcuts_export_xkb_names_for_zoom_keys() {
+        for (input, expected) in [
+            ("Ctrl+Plus", vec!["Control", "plus"]),
+            ("Ctrl+-", vec!["Control", "minus"]),
+            ("Ctrl+Minus", vec!["Control", "minus"]),
+            ("Ctrl+=", vec!["Control", "equal"]),
+            ("Mod+Shift+Equals", vec!["Control", "Shift", "equal"]),
+            ("Alt+PageUp", vec!["Alt", "Page_Up"]),
+            ("Ctrl+B", vec!["Control", "B"]),
+        ] {
+            let mut m = menu();
+            m.items[0].children[0].shortcut = input.into();
+            let mut tree = Tree::default();
+            tree.update(&m).unwrap();
+            let id = *tree
+                .nodes
+                .iter()
+                .find(|(_, n)| n.item.key == "file.save")
+                .unwrap()
+                .0;
+            let mut properties = tree.properties(id, &[]).unwrap();
+            let exported: Vec<Vec<String>> =
+                properties.remove("shortcut").unwrap().try_into().unwrap();
+            assert_eq!(exported, vec![expected], "{input}");
+        }
+    }
+
+    #[test]
     fn appmenu_layout_has_protocol_signature_depth_and_property_filter() {
         assert_eq!(Layout::SIGNATURE.to_string(), "(ia{sv}av)");
         let mut t = Tree::default();
@@ -974,7 +1005,8 @@ mod tests {
         assert_eq!(next.changes(&previous).unwrap().layouts, vec![0]);
     }
 
-    /// Run explicitly under `dbus-run-session -- cargo test -p wordcraft appmenu_dbus -- --ignored`.
+    /// From an app checkout: `dbus-run-session -- cargo test --manifest-path
+    /// vendor/craft-desktop/Cargo.toml --features linux,portal appmenu_dbus -- --ignored`.
     #[test]
     #[ignore = "requires a private D-Bus session"]
     fn appmenu_dbus_wire_layout_and_activation() {

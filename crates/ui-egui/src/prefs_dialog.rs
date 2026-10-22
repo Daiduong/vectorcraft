@@ -437,6 +437,13 @@ mod tests {
             system.set(appearance);
             apply_runtime(&mut app, &ctx);
             assert_eq!(app.ui.brightness, expected);
+            for brightness in [Brightness::Dark, Brightness::MediumDark, Brightness::MediumLight, Brightness::Light] {
+                assert_eq!(
+                    crate::menus::checked(&app, "window.brightness", &json!({"brightness": brightness.id()})),
+                    Some(brightness == expected),
+                    "exactly the effective Automatic palette should be checked"
+                );
+            }
             assert_eq!(app.session.prefs.ui_brightness, "system");
             assert_eq!(app.session.prefs.ui_accent, "violet");
             assert_eq!(Tokens::get(&ctx).accent, Tokens::for_scheme(Scheme::Modern, expected, Accent::Violet).accent);
@@ -445,6 +452,8 @@ mod tests {
         system.set(Some(egui::Theme::Dark));
         apply_runtime(&mut app, &ctx);
         assert_eq!(app.ui.brightness, Brightness::MediumLight, "a manual choice ignores the system");
+        assert_eq!(crate::menus::checked(&app, "window.brightness", &json!({"brightness": "mediumLight"})), Some(true));
+        assert_eq!(crate::menus::checked(&app, "window.brightness", &json!({"brightness": "mediumDark"})), Some(false));
     }
 
     #[test]

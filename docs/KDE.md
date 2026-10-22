@@ -1,9 +1,12 @@
 # KDE Plasma / Linux
 
-Updated 2026-10-21. Linux exports the existing local command tree through
+Updated 2026-10-22. Linux exports the existing local command tree through
 `vendor/craft-desktop`, while preserving the local menu. The adapter rechecks the active
 document, dynamic targets, modal state and enabled state before calling the normal
 interactive dispatcher, including its focused-field routing. No second command registry exists.
+Native action dispatch and snapshot generation share the UI's last-resort panic recovery
+behavior: report an internal error and keep the application open. Automatic brightness
+checks the effective palette in Appearance, and portal-only changes invalidate its menu cache.
 
 Native Wayland uses KDE's appmenu protocol on the existing window surface; the vendored
 winit extension returns a safe cloned proxy and leaves socket/surface ownership and event
@@ -83,9 +86,27 @@ Check native Wayland and X11 separately:
 
 See [appearance and scaling](development.md#kde-appearance-and-scaling) for implementation
 details and fallback behavior. Compilation and protocol/model tests do not certify visible
-Plasma rendering, physical monitor transitions or portal interaction. The workspace
-`docs/KDE_INTEGRATION_REPORT.md` records checks actually run; the checklist is not a claim
-of comprehensive GUI acceptance.
+Plasma rendering, physical monitor transitions or portal interaction. The
+[Recorded verification](#recorded-verification-2026-10-21) section lists checks actually run;
+the checklist is not a claim of comprehensive GUI acceptance.
+
+## Review follow-up (2026-10-22)
+
+App/UI all-targets Clippy with `-D warnings` passed on the review fixes. Asset checks
+cover 332 remaining files; dependency layering passed for 28 crates. The shared adapter
+passed 17 Linux/portal tests, two separately run private-bus tests and two model-only tests.
+The fresh UI test binary passed six desktop-menu tests, the automatic-brightness regression
+and twenty existing native-menu tests (27 distinct tests; the full UI suite was not run).
+The four unused share-alike keyboard diagrams were removed, with provenance retained in
+the vendored winit notices and `CRAFT_PATCH.md`.
+
+A fresh native Wayland run used a temporary configuration with preference persistence
+disabled. Automatic resolved to the current dark theme; the window screenshot was inspected,
+the exported menu answered `GetLayout`, Preferences opened/closed, and Quit exited normally.
+This was not a physical desktop-theme transition or a complete panel interaction test.
+Full CI remains incomplete: the fresh 120-second run stopped during workspace Clippy,
+and WASM remains blocked by the missing target standard library. Current-main conflicts
+were not resolved as part of this follow-up.
 
 ## Recorded verification (2026-10-21)
 

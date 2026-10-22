@@ -106,12 +106,11 @@ impl eframe::App for App {
         }
         file_access::unconfined(|| self.app.ui(ui));
         #[cfg(target_os = "linux")]
-        if let Some(menu) = self.menu.as_ref() {
-            let state = vectorcraft_ui_egui::desktop_menu::state_key(&self.app, ui.ctx());
-            if self.menu_state != Some(state) {
-                menu.publish(vectorcraft_ui_egui::desktop_menu::snapshot(&self.app));
-                self.menu_state = Some(state);
-            }
+        if let Some(menu) = self.menu.as_ref()
+            && let Some((state, snapshot)) = vectorcraft_ui_egui::desktop_menu::snapshot_if_changed(&mut self.app, ui.ctx(), self.menu_state)
+        {
+            menu.publish(snapshot);
+            self.menu_state = Some(state);
         }
         // Preferences are written when confirmed, not only at exit: a session ended any other way
         // (the system shutting down, the process ended or crashing) used to lose them (#1747).

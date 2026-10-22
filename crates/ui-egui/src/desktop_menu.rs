@@ -6,6 +6,28 @@ use serde_json::{Value, json};
 
 use crate::{VectorcraftApp, menus, native_menu};
 
+/// Native menu work has the same last-resort recovery boundary as a local UI frame.
+fn guarded<T>(app: &mut VectorcraftApp, work: impl FnOnce(&mut VectorcraftApp) -> T) -> Option<T> {
+    match vectorcraft_engine::guard::catch_panic(|| work(app)) {
+        Ok(value) => Some(value),
+        Err(msg) => {
+            app.picks.recover();
+            app.status(format!("Internal error: {msg} (please report this bug)"));
+            None
+        }
+    }
+}
+
+/// Build a changed snapshot inside the recovery boundary. The host only advances its
+/// cached key after success, so failed projection is retried on a subsequent frame.
+pub fn snapshot_if_changed(app: &mut VectorcraftApp, ctx: &egui::Context, previous: Option<u64>) -> Option<(u64, Menu)> {
+    guarded(app, |app| {
+        let state = state_key(app, ctx);
+        (previous != Some(state)).then(|| (state, snapshot(app)))
+    })
+    .flatten()
+}
+
 pub fn state_key(app: &VectorcraftApp, ctx: &egui::Context) -> u64 {
     use std::hash::{Hash, Hasher};
     let input = ctx
@@ -91,6 +113,12 @@ fn contains_enabled(items: &[Item], action: &Action) -> bool {
 /// The action carries menu presentation context, not engine parameters directly. Revalidate
 /// the full envelope before extracting its original command arguments and interactive target.
 pub fn activate(app: &mut VectorcraftApp, ctx: &egui::Context, document: u64, action: &Action) {
+    if guarded(app, |app| activate_inner(app, ctx, document, action)).is_none() {
+        ctx.request_repaint();
+    }
+}
+
+fn activate_inner(app: &mut VectorcraftApp, ctx: &egui::Context, document: u64, action: &Action) {
     let current = snapshot(app);
     if current.document != document || !contains_enabled(&current.items, action) {
         return;
@@ -170,5 +198,33 @@ mod tests {
         let checked = rulers.checked.unwrap();
         activate(&mut app, &egui::Context::default(), before.document, rulers.action.as_ref().unwrap());
         assert_eq!(find(&snapshot(&app).items, "view.rulers").unwrap().checked, Some(!checked));
+    }
+
+    #[test]
+    fn desktop_menu_panic_recovery_preserves_document_and_allows_next_action() {
+        let mut app = app();
+        app.run("file.new", json!({"width": 64, "height": 64})).unwrap();
+        let document = app.session.active().unwrap().uid;
+        assert!(guarded::<()>(&mut app, |_| panic!("synthetic native menu failure")).is_none());
+        assert!(app.ui.status.contains("Internal error: synthetic native menu failure"));
+        assert_eq!(app.session.active().unwrap().uid, document);
+        let ctx = egui::Context::default();
+        let (state, menu) = snapshot_if_changed(&mut app, &ctx, None).unwrap();
+        assert!(snapshot_if_changed(&mut app, &ctx, Some(state)).is_none());
+        let rulers = find(&menu.items, "view.rulers").unwrap();
+        activate(&mut app, &ctx, document, rulers.action.as_ref().unwrap());
+        let (_, refreshed) = snapshot_if_changed(&mut app, &ctx, Some(state)).unwrap();
+        assert_eq!(find(&refreshed.items, "view.rulers").unwrap().checked, rulers.checked.map(|checked| !checked));
+    }
+
+    #[test]
+    fn desktop_menu_automatic_palette_change_invalidates_cached_snapshot() {
+        let mut app = app();
+        app.session.prefs.ui_brightness = "system".into();
+        let ctx = egui::Context::default();
+        app.ui.brightness = crate::theme::Brightness::Light;
+        let (light, _) = snapshot_if_changed(&mut app, &ctx, None).unwrap();
+        app.ui.brightness = crate::theme::Brightness::MediumDark;
+        assert!(snapshot_if_changed(&mut app, &ctx, Some(light)).is_some());
     }
 }

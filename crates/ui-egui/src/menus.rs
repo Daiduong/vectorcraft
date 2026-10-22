@@ -1842,7 +1842,11 @@ pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
         }
         "window.collapseDock" => app.ui.dock_collapsed,
         "window.workspace" => p.get("name").and_then(Value::as_str) == Some(app.ui.workspace.as_str()),
-        "window.brightness" => p.get("brightness").and_then(Value::as_str) == Some(app.session.prefs.ui_brightness.as_str()),
+        "window.brightness" => {
+            let brightness =
+                if app.session.prefs.ui_brightness == "system" { app.ui.brightness.id() } else { app.session.prefs.ui_brightness.as_str() };
+            p.get("brightness").and_then(Value::as_str) == Some(brightness)
+        }
         "view.slices.lock" => app.session.slices_locked(),
         "object.slice.clipToArtboard" => app.session.active().is_some_and(|d| d.doc.slices_clip_to_artboard),
         "view.proofColors" => vectorcraft_render::proof::view().proof_colors,

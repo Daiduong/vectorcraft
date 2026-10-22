@@ -595,6 +595,8 @@ pub(crate) fn state_hash(app: &VectorcraftApp, input: Option<u64>) -> u64 {
     let mut h = DefaultHasher::new();
     input.hash(&mut h);
     app.run_count.hash(&mut h);
+    // Automatic appearance can change via the portal without running a command.
+    app.ui.brightness.id().hash(&mut h);
     let s = &app.session;
     (s.journal.len(), s.active_index(), s.clipboard.is_empty(), s.tool_composing()).hash(&mut h);
     if let Some(d) = s.active() {
