@@ -152,7 +152,9 @@ pub fn install_plugin(app: &mut VectorcraftApp, path: Option<String>) -> Result<
     let path = match path {
         Some(p) => p,
         None if app.services.open_async.is_some() => return open_dialog(app).map(|_| Value::Null),
-        None => pick_open(app, &FilePick { filters: vec![("Plug-ins", vectorcraft_engine::cmd::plugin::EXTS)], ..Default::default() })?,
+        None => {
+            pick_open(app, &FilePick { filters: vec![FilePick::filter("Plug-ins", vectorcraft_engine::cmd::plugin::EXTS)], ..Default::default() })?
+        }
     };
     let r = app.run("plugin.install", json!({ "path": path }))?;
     app.status(format!("Installed plug-in {}", r["name"].as_str().unwrap_or_default()));
@@ -165,7 +167,7 @@ pub fn open_dialog(app: &mut VectorcraftApp) -> Result<(), String> {
         f();
         return Ok(());
     }
-    let path = pick_open(app, &FilePick { filters: fileio::open_filters().collect(), ..Default::default() })?;
+    let path = pick_open(app, &FilePick { filters: FilePick::filters(fileio::open_filters()), ..Default::default() })?;
     open_reporting(app, &path).map(|_| ())
 }
 
@@ -210,6 +212,44 @@ pub fn open_reporting(app: &mut VectorcraftApp, path: &str) -> Result<Value, Str
         report_open_error(app, &fileio::file_name(path), e);
     }
     r
+}
+
+/// Home › Recent Files and File › Open Recent: focus an already-open tab for that path instead of
+/// calling `document.open` again (#3455).
+pub fn open_recent_reporting(app: &mut VectorcraftApp, path: &str) -> Result<Value, String> {
+    if let Some(r) = try_activate_open_document(app, path)? {
+        return Ok(r);
+    }
+    open_reporting(app, path)
+}
+
+fn try_activate_open_document(app: &mut VectorcraftApp, path: &str) -> Result<Option<Value>, String> {
+    let Some(index) = document_index_for_path(app, path) else {
+        return Ok(None);
+    };
+    let st = &app.session.documents()[index];
+    let r = json!({
+        "index": index,
+        "title": st.title(),
+        "format": st.format,
+        "warnings": [],
+        "restored": false,
+        "activated": true,
+    });
+    app.run("document.activate", json!({ "index": index }))?;
+    opened(app, &r);
+    Ok(Some(r))
+}
+
+fn document_index_for_path(app: &VectorcraftApp, path: &str) -> Option<usize> {
+    app.session.documents().iter().position(|st| st.path.as_deref().is_some_and(|p| same_open_path(p, path)))
+}
+
+fn same_open_path(a: &str, b: &str) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
 }
 
 fn read(app: &VectorcraftApp, path: &str) -> Result<Vec<u8>, String> {
@@ -264,7 +304,7 @@ pub fn new_from_template(app: &mut VectorcraftApp, path: Option<String>) -> Resu
         Some(p) => p,
         None if app.services.open_async.is_some() => return open_dialog(app).map(|_| Value::Null),
         None => {
-            let filters = std::iter::once(("Templates", TEMPLATE_EXTS)).chain(fileio::open_filters()).collect();
+            let filters = FilePick::filters(std::iter::once(("Templates", TEMPLATE_EXTS)).chain(fileio::open_filters()));
             pick_open(app, &FilePick { folder: fileio::templates_dialog_folder(&app.session.prefs), filters, ..Default::default() })?
         }
     };
@@ -314,10 +354,10 @@ fn pick_path(app: &mut VectorcraftApp, pick: &FilePick) -> Result<String, String
 
 /// The suggested name made into a path by `finish` on the web (a download), else the save panel's
 /// choice made into one, with the extension of the file type picked in the panel when it reports
-/// one ([`crate::picks::PickAnswer`]). When `finish` changed the choice (an extension added) and a
-/// file is there, which the panel did not ask about, a question asks before replacing it
-/// ([`crate::picks::ask_to_replace`]) and this answers "cancelled"; the question's OK runs what
-/// asked again.
+/// one ([`crate::picks::PickAnswer`]). When `finish` changed the choice (an extension added or
+/// replaced) and a file is there, which the panel did not ask about, a question asks before
+/// replacing it ([`crate::picks::ask_to_replace`]) and this answers "cancelled"; the question's OK
+/// runs what asked again.
 fn pick_finished(app: &mut VectorcraftApp, pick: &FilePick, finish: impl Fn(&str, Option<&str>) -> String) -> Result<String, String> {
     if is_web(app) {
         return Ok(finish(&pick.name, None));
@@ -367,12 +407,12 @@ const FILE_TYPES: &[(&str, &[&str])] = &[
 
 /// The file type a save panel shows for a file with extension `ext`: its format's, else its
 /// [`FILE_TYPES`] row; none for any other extension.
-fn file_types(ext: &str) -> Vec<(&'static str, &'static [&'static str])> {
+fn file_types(ext: &str) -> Vec<crate::FileFilter> {
     if let Some(f) = fileio::format(ext) {
-        return vec![(f.label, f.extensions)];
+        return vec![FilePick::filter(f.label, f.extensions)];
     }
     let ext = ext.trim_start_matches('.').to_ascii_lowercase();
-    FILE_TYPES.iter().find(|(_, exts)| exts.contains(&ext.as_str())).copied().into_iter().collect()
+    FilePick::filters(FILE_TYPES.iter().find(|(_, exts)| exts.contains(&ext.as_str())).copied())
 }
 
 /// `path`, else one picked in a save panel (the web: the suggested name) for the active document
@@ -395,25 +435,30 @@ pub fn remember_view(app: &mut VectorcraftApp) {
 }
 
 /// A path typed in a save panel: kept when its extension names one of the panel's file types (a
-/// save format, or a template format for Save as Template, `mode`); otherwise `f`'s extension is
-/// added.
+/// save format, or a template format for Save as Template, `mode`). An extension that names
+/// another format (`card.png`, or `card.ait` in Save As) is replaced with `f`'s, and `f`'s is
+/// added to any other path (`notes.v2` becomes `notes.v2.vectorcraft`).
 fn with_save_extension(path: &str, f: &Format, mode: SaveMode) -> String {
     let formats = if mode == SaveMode::Template { TEMPLATE_FORMATS } else { SAVE_FORMATS };
+    if fileio::format_for_name(path).is_some_and(|g| !formats.contains(&g.id)) {
+        return std::path::Path::new(path).with_extension(f.extensions[0]).to_string_lossy().into_owned();
+    }
     with_extension(path, f.extensions[0], |g| formats.contains(&g.id))
 }
 
 /// [`with_save_extension`] for a save panel that reports the file type picked in it (`picked`,
 /// that type's extension; the XDG portal's panel on Linux and the BSDs), which then takes `f`'s
-/// place. A path that still ends in the extension of the name the panel suggested (`suggested`)
-/// gets the picked type's extension instead. Without a picked type, or with one the panel did not
+/// place. A path that still ends in the extension of the name the panel suggested (`suggested`),
+/// in any letter case, gets the picked type's extension instead, unless that extension is one of
+/// the picked type's; such a path stays as typed. Without a picked type, or with one the panel did not
 /// offer, [`with_save_extension`] with `f`.
 fn with_picked_type(path: &str, suggested: &str, picked: Option<&str>, f: &Format, mode: SaveMode) -> String {
     let formats = if mode == SaveMode::Template { TEMPLATE_FORMATS } else { SAVE_FORMATS };
     let Some(g) = picked.and_then(fileio::format).filter(|g| formats.contains(&g.id)) else {
         return with_save_extension(path, f, mode);
     };
-    let has = std::path::Path::new(path).extension();
-    if has.is_some() && has == std::path::Path::new(suggested).extension() {
+    let has = fileio::extension(path);
+    if !has.is_empty() && has == fileio::extension(suggested) && !g.extensions.contains(&has.as_str()) {
         return std::path::Path::new(path).with_extension(g.extensions[0]).to_string_lossy().into_owned();
     }
     with_save_extension(path, g, mode)
@@ -461,10 +506,10 @@ pub fn save(app: &mut VectorcraftApp, mode: SaveMode, p: &Value, ask_options: bo
     if is_web(app) && ask_options {
         return Ok(open_options(app, mode.command(), first.format, &first.name, true));
     }
-    let filters = match mode {
+    let filters = FilePick::filters(match mode {
         SaveMode::Template => fileio::template_filters(first.format.id),
         _ => fileio::save_filters(first.format.id),
-    };
+    });
     let pick = FilePick { name: first.name.clone(), folder: first.folder.clone(), filters };
     let picked = pick_finished(app, &pick, |picked, file_type| with_picked_type(picked, &first.name, file_type, first.format, mode))?;
     // The picked file type wins over a `format` param.
@@ -480,9 +525,7 @@ pub fn save(app: &mut VectorcraftApp, mode: SaveMode, p: &Value, ask_options: bo
     if ask && asks_options(mode, chosen.format) {
         let path = chosen.path.clone().unwrap_or_default();
         let r = ask_format_options(app, mode, chosen.format, &path);
-        if let Some(d) = app.ui.dialog.as_mut() {
-            d.fields.insert(crate::dialogs::AFTER_PANEL.into(), json!(true));
-        }
+        crate::dialogs::opened_by_panel(app);
         return r;
     }
     write_plan(app, chosen)
@@ -705,6 +748,9 @@ pub fn hide_exports(app: &mut VectorcraftApp) -> Value {
 /// document keeps its path. → `{path, warnings, files?}` (`files`: every file when there are
 /// several).
 pub fn export(app: &mut VectorcraftApp, format: Option<&str>, path: Option<String>, params: &Value) -> Result<Value, String> {
+    // Options given as anything but an object are none: the path and format still reach the
+    // encoder (an exporter plug-in is told the file it writes).
+    let params = &if params.is_object() { params.clone() } else { json!({}) };
     let f = fileio::writable_format(format, path.as_deref())?;
     let st = app.session.active().ok_or("no document")?;
     let doc = match fileio::export_source(st, params).map_err(|e| e.to_string())? {

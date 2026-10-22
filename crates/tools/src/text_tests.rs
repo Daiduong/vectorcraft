@@ -419,6 +419,36 @@ fn area_and_path_tools_convert_clicked_paths() {
     assert!(acts.iter().any(|a| matches!(a, Action::Exec(cmd, p) if cmd == "text.createInPath" && p["mode"] == "onPath")), "{acts:?}");
 }
 
+/// Area Type and Type on a Path follow the reference app: click the path outline, not the fill interior
+/// (helpx: add-text-work-with-type-objects, creating-type-path).
+#[test]
+fn area_and_path_tools_hit_path_outline_not_fill_interior() {
+    let (mut d, rect) = crate::testutil::doc_with_rect();
+    if let Some(n) = d.node_mut(rect) {
+        n.appearance.set_stroke(vectorcraft_color::Paint::None);
+    }
+    let (sel, p) = (Selection::default(), paint());
+    let c = cx(&d, &sel, &p);
+    let edge = (100.0, 150.0);
+    let interior = (150.0, 150.0);
+    for tool_id in ["areaType", "typeOnPath"] {
+        let mut tool = TypeTool::new(tool_id);
+        tool.pointer(&c, &PointerEvent::new(PointerKind::Down, edge.0, edge.1));
+        let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, edge.0, edge.1));
+        assert!(
+            acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.createInPath" && v["path"] == json!(rect.0))),
+            "{tool_id} on outline: {acts:?}"
+        );
+        let mut tool = TypeTool::new(tool_id);
+        tool.pointer(&c, &PointerEvent::new(PointerKind::Down, interior.0, interior.1));
+        let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, interior.0, interior.1));
+        assert!(
+            !acts.iter().any(|a| matches!(a, Action::Exec(cmd, _) if cmd == "text.createInPath")),
+            "{tool_id} in fill interior should not attach to path: {acts:?}"
+        );
+    }
+}
+
 #[test]
 fn vertical_tools_preserve_their_ids_and_create_vertical_text() {
     for id in ["verticalType", "verticalAreaType", "verticalTypeOnPath"] {
@@ -557,6 +587,20 @@ fn new_type_snaps_to_smart_guides() {
     let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, 199.0, 202.0));
     let area = json!({"width": 100.0, "height": 100.0});
     assert!(acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.create" && v["x"] == 100.0 && v["area"] == area)), "{acts:?}");
+}
+
+#[test]
+fn area_type_drag_measure_labels_honor_preference() {
+    let (d, _) = crate::testutil::doc_with_rect();
+    let (sel, p) = (Selection::default(), paint());
+    let on = ToolContext { measurement_labels: true, ..cx(&d, &sel, &p) };
+    let off = ToolContext { measurement_labels: false, ..cx(&d, &sel, &p) };
+    let mut tool = TypeTool::new("type");
+    tool.pointer(&on, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+    tool.pointer(&on, &PointerEvent::new(PointerKind::Drag, 200.0, 150.0));
+    let want = on.size_label(100.0, 50.0);
+    assert!(tool.overlays(&on).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &want)));
+    assert!(!tool.overlays(&off).iter().any(|o| matches!(o, Overlay::Measure { .. })));
 }
 
 #[test]

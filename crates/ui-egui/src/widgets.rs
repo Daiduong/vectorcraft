@@ -44,6 +44,20 @@ pub fn flat_button(ui: &mut Ui, text: &str, width: f32) -> Response {
     resp
 }
 
+/// A [`flat_button`] that expands to fit localized labels wider than `min_width`.
+pub fn flat_button_fit(ui: &mut Ui, text: &str, min_width: f32) -> Response {
+    let t = Tokens::get(ui.ctx());
+    let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), egui::FontId::proportional(12.5), t.text_strong);
+    let width = (galley.size().x + 24.0).max(min_width);
+    let (rect, resp) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click());
+    let rect = rect.shrink2(vec2(0.0, 0.5));
+    ui.painter().rect_filled(rect, CornerRadius::same(5), t.button);
+    flat_fill(ui, rect, &resp);
+    ui.painter().with_clip_rect(rect).text(rect.center(), egui::Align2::CENTER_CENTER, tl!(text), egui::FontId::proportional(12.5), t.text_strong);
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(text)));
+    resp
+}
+
 /// Width of a [`split_button`]'s arrow.
 pub const SPLIT_ARROW: f32 = 18.0;
 
@@ -825,7 +839,7 @@ pub fn chip_button_named(ui: &mut Ui, size: f32, chevron: bool, tip: &str, draw:
 }
 
 /// What the user did on a [`fill_stroke_proxy`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ProxyClicks {
     pub fill: bool,
     pub stroke: bool,
@@ -833,6 +847,10 @@ pub struct ProxyClicks {
     pub default: bool,
     /// Double-clicked a square: open the Color Picker for it (`true` = the stroke).
     pub pick: Option<bool>,
+    /// A paint dragged from the other proxy (or a swatch) dropped on the fill square.
+    pub dropped_fill: Option<serde_json::Value>,
+    /// A paint dropped on the stroke square.
+    pub dropped_stroke: Option<serde_json::Value>,
 }
 
 /// The Fill/Stroke proxy pair (two overlapping squares). `mixed` (fill, stroke) draws a "?" square
@@ -845,6 +863,8 @@ pub fn fill_stroke_proxy(ui: &mut Ui, fill: &Paint, stroke: &Paint, mixed: (bool
     let stroke_r = Rect::from_min_size(rect.max - Vec2::splat(s), Vec2::splat(s));
     let stroke_resp = ui.interact(stroke_r, ui.id().with("stroke-proxy"), Sense::click_and_drag());
     let fill_resp = ui.interact(fill_r, ui.id().with("fill-proxy"), Sense::click_and_drag());
+    let dropped_fill = if mixed.0 { None } else { proxy_paint_drop(ui, &fill_resp) };
+    let dropped_stroke = if mixed.1 { None } else { proxy_paint_drop(ui, &stroke_resp) };
     // A proxy drags its paint (onto the Swatches panel or art), unless it shows "?".
     for (resp, paint, mixed) in [(&fill_resp, fill, mixed.0), (&stroke_resp, stroke, mixed.1)] {
         if !mixed {
@@ -901,7 +921,24 @@ pub fn fill_stroke_proxy(ui: &mut Ui, fill: &Paint, stroke: &Paint, mixed: (bool
         swap: swap.on_hover_text(tl!("Swap Fill and Stroke (Shift+X)")).clicked(),
         default: def.on_hover_text(tl!("Default Fill and Stroke (D)")).clicked(),
         pick,
+        dropped_fill,
+        dropped_stroke,
     }
+}
+
+/// A [`PanelDrag::Paint`] released on a Fill/Stroke proxy square: highlight while held over it.
+fn proxy_paint_drop(ui: &Ui, resp: &Response) -> Option<serde_json::Value> {
+    if let Some(drag) = resp.dnd_hover_payload::<PanelDrag>()
+        && let PanelDrag::Paint { params, .. } = &*drag
+        && !params.is_null()
+    {
+        let t = Tokens::get(ui.ctx());
+        ui.painter().rect_stroke(resp.rect, 0.0, Stroke::new(2.0, t.accent), StrokeKind::Outside);
+    }
+    resp.dnd_release_payload::<PanelDrag>().and_then(|d| {
+        let PanelDrag::Paint { params, .. } = &*d else { return None };
+        (!params.is_null()).then_some(params.clone())
+    })
 }
 
 /// A compact dropdown of interface labels (shown in the UI language). Returns the chosen index.
@@ -1062,10 +1099,16 @@ pub fn popover<R>(resp: &Response, toggle: bool, content: impl FnOnce(&mut Ui) -
         !was_open
     } else {
         // Popups (this one and those it opened) are on foreground layers; a click anywhere
-        // else closes it.
-        let clicked_elsewhere = ctx
-            .input(|i| i.pointer.any_click().then(|| i.pointer.interact_pos()).flatten())
-            .is_some_and(|pos| ctx.layer_id_at(pos).is_none_or(|l| l.order != egui::Order::Foreground));
+        // else closes it. While the pointer is down or a panel paint drag is active, keep the
+        // popover open so a Fill/Stroke proxy drag can finish (#3440).
+        let pointer_down = ctx.input(|i| i.pointer.any_down());
+        let panel_drag = egui::DragAndDrop::payload::<PanelDrag>(ctx).is_some();
+        let click_pos = ctx.input(|i| i.pointer.any_click().then(|| i.pointer.interact_pos()).flatten());
+        let clicked_anchor = click_pos.is_some_and(|pos| resp.rect.contains(pos));
+        let clicked_elsewhere = !pointer_down
+            && !panel_drag
+            && !clicked_anchor
+            && click_pos.is_some_and(|pos| ctx.layer_id_at(pos).is_none_or(|l| l.order != egui::Order::Foreground));
         was_open && !clicked_elsewhere
     };
     let inner =
@@ -1130,6 +1173,22 @@ pub fn strip_scroll<R>(ui: &mut Ui, id: &str, add_contents: impl FnOnce(&mut Ui)
             ..egui::style::ScrollStyle::floating()
         };
         egui::ScrollArea::vertical().id_salt(id).auto_shrink([false, true]).show(ui, add_contents).inner
+    })
+    .inner
+}
+
+/// A panel's scrolling body (Properties, a dock column, a panel in the shared dock): `area` with
+/// the scroll bar of a menu's list ([`list_scroll_style`]), in a column of its own at the right
+/// edge, so it never covers the controls there, such as a dropdown's arrow (#3093). The scroll
+/// areas inside the body keep their own style.
+pub fn panel_scroll<R>(ui: &mut Ui, area: egui::ScrollArea, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.scope(|ui| {
+        let inner = std::mem::replace(&mut ui.spacing_mut().scroll, list_scroll_style());
+        area.show(ui, |ui| {
+            ui.spacing_mut().scroll = inner;
+            add_contents(ui)
+        })
+        .inner
     })
     .inner
 }
@@ -1711,10 +1770,120 @@ pub fn color_slider_valued(
     width: f32,
     track: &dyn Fn(f32) -> Color32,
 ) -> (Option<f32>, Live) {
+    let id = ui.id().with(id);
+    let (_, picked, phase) = color_rail(ui, id, name, shown, value, width, track);
+    (picked, phase)
+}
+
+/// [`color_slider_valued`] for a dialog's rail beside a number field, which also responds to the
+/// keyboard. A click or a drag gives the rail the keyboard focus, which an outline around it shows.
+/// While it has the focus, → and ↑ raise the number `shown` holds to the next whole number and ←
+/// and ↓ lower it to the next whole number, Shift with an arrow, Page Up and Page Down add or take
+/// ten, and Home and End set the start and the end of `shown`'s range. Screen readers' increment
+/// and decrement actions step the number as → and ← do. A number past the range steps from the
+/// range's nearer end, and no step goes past either end. With `shown` `None` (a blank field), or
+/// in a disabled `ui`, the keys and actions leave the rail as it is. Returns the new value from 0
+/// to 1 that a click or a drag gives, its phase, and the number in `shown`'s units that a key or
+/// an action gives.
+pub fn color_slider_stepped(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    name: &str,
+    shown: Option<SliderValue>,
+    value: f32,
+    width: f32,
+    track: &dyn Fn(f32) -> Color32,
+) -> (Option<f32>, Live, Option<f64>) {
+    let id = ui.id().with(id);
+    let (resp, picked, phase) = color_rail(ui, id, name, shown.clone(), value, width, track);
+    if resp.drag_started() || resp.clicked() {
+        resp.request_focus();
+    }
+    let focused = ui.memory(|m| m.has_focus(id));
+    if focused {
+        let t = Tokens::get(ui.ctx());
+        ui.painter().rect_stroke(resp.rect, 2.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+    }
+    let stepped = shown.filter(|_| ui.is_enabled()).and_then(|s| {
+        ui.ctx().accesskit_node_builder(id, |node| {
+            node.set_numeric_value_step(1.0);
+            node.add_action(egui::accesskit::Action::Increment);
+            node.add_action(egui::accesskit::Action::Decrement);
+        });
+        rail_step(ui, id, focused, &s)
+    });
+    (picked, phase, stepped.filter(|_| picked.is_none()))
+}
+
+/// The number of slider `id` (`s`) after this frame's keys while it is `focused`, and after screen
+/// readers' actions on it ([`color_slider_stepped`]); `None` when they leave it as it was.
+fn rail_step(ui: &Ui, id: egui::Id, focused: bool, s: &SliderValue) -> Option<f64> {
+    use egui::accesskit::Action;
+    use egui::{Event, Key};
+    let (lo, hi) = (*s.range.start(), *s.range.end());
+    if !lo.is_finite() || !hi.is_finite() || hi <= lo {
+        return None;
+    }
+    let from = s.value.clamp(lo, hi);
+    let mut v = from;
+    // Home or End: an end of the range, which also replaces a number past it.
+    let mut end = false;
+    if focused {
+        // The arrows step the rail and do not move the focus. egui keeps the filter only when the
+        // rail also had the focus in the frame before, and applies it from the next frame; until
+        // then, an arrow the rail takes cancels the focus move that egui set at the start of the frame.
+        let filter = egui::EventFilter { horizontal_arrows: true, vertical_arrows: true, ..Default::default() };
+        ui.memory_mut(|m| m.set_focus_lock_filter(id, filter));
+        let mut arrows = false;
+        ui.input_mut(|i| {
+            i.events.retain(|e| {
+                let Event::Key { key, pressed: true, modifiers, .. } = e else { return true };
+                let up = matches!(key, Key::ArrowRight | Key::ArrowUp | Key::PageUp);
+                let n = if up { 1.0 } else { -1.0 };
+                match key {
+                    Key::Home | Key::End if modifiers.is_none() => {
+                        v = if *key == Key::Home { lo } else { hi };
+                        end = true;
+                    }
+                    Key::PageUp | Key::PageDown if modifiers.is_none() => v = (v + 10.0 * n).clamp(lo, hi),
+                    Key::ArrowRight | Key::ArrowUp | Key::ArrowLeft | Key::ArrowDown if modifiers.shift_only() => {
+                        v = (v + 10.0 * n).clamp(lo, hi);
+                    }
+                    Key::ArrowRight | Key::ArrowUp | Key::ArrowLeft | Key::ArrowDown if modifiers.is_none() => {
+                        v = step_to_multiple(v, 1.0, n).clamp(lo, hi);
+                        arrows = true;
+                    }
+                    _ => return true,
+                }
+                false
+            });
+        });
+        if arrows {
+            ui.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
+        }
+    }
+    ui.input(|i| {
+        let n = i.num_accesskit_action_requests(id, Action::Increment) as f64 - i.num_accesskit_action_requests(id, Action::Decrement) as f64;
+        v = step_to_multiple(v, 1.0, n).clamp(lo, hi);
+    });
+    (v != from || (end && v != s.value)).then_some(round_to(v, STEP_DECIMALS).clamp(lo, hi))
+}
+
+/// The rail of [`color_slider_valued`] with the id `id`: its response, the new value from 0 to 1
+/// that a click or drag gives and the phase.
+fn color_rail(
+    ui: &mut Ui,
+    id: egui::Id,
+    name: &str,
+    shown: Option<SliderValue>,
+    value: f32,
+    width: f32,
+    track: &dyn Fn(f32) -> Color32,
+) -> (Response, Option<f32>, Live) {
     let t = Tokens::get(ui.ctx());
     let (rect, _) = ui.allocate_exact_size(vec2(width, 22.0), Sense::hover());
     let bar = Rect::from_min_size(pos2(rect.left() + 4.0, rect.top() + 4.0), vec2(width - 8.0, 7.0));
-    let resp = ui.interact(rect, ui.id().with(id), Sense::click_and_drag());
+    let resp = ui.interact(rect, id, Sense::click_and_drag());
     gradient_strip(ui, bar, (bar.width() / 2.0).ceil().max(2.0) as usize, false, track);
     ui.painter().rect_stroke(bar, 0.0, Stroke::new(1.0, t.border), StrokeKind::Outside);
     let v = value.clamp(0.0, 1.0);
@@ -1724,10 +1893,11 @@ pub fn color_slider_valued(
     let fill = if resp.dragged() || resp.hovered() { Color32::WHITE } else { t.icon };
     ui.painter().add(egui::Shape::convex_polygon(thumb, fill, Stroke::new(1.0, t.border)));
     slider_info(ui, &resp, name, shown);
-    match pointer_phase(&resp) {
+    let (picked, phase) = match pointer_phase(&resp) {
         Some((p, phase)) => (Some(((p.x - bar.left()) / bar.width()).clamp(0.0, 1.0)), phase),
         None => (None, Live::Idle),
-    }
+    };
+    (resp, picked, phase)
 }
 
 /// The pointer of a click or drag on `resp` and its phase (dragging, or released on click/drop).
@@ -2131,7 +2301,7 @@ pub fn doc_preview(ui: &Ui, key: &str, size: Vec2, build: impl FnOnce(f64, f64) 
     }
     let doc = build(w, h)?;
     let img = RENDERER.with(|r| r.borrow_mut().render_region(&doc, vectorcraft_geom::Rect::new(0.0, 0.0, w, h), ppp, false));
-    let color = egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels);
+    let color = crate::canvas::color_image(&img);
     let tex = ui.ctx().load_texture(format!("preview-{key}"), color, egui::TextureOptions::LINEAR);
     CACHE.with(|c| {
         let mut c = c.borrow_mut();
@@ -2358,7 +2528,7 @@ pub fn region_texture(
 ) -> egui::TextureHandle {
     let scale = px / region.width().max(region.height()).max(1.0);
     let img = renderer.render_region(doc, region, scale, true);
-    let color = egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels);
+    let color = crate::canvas::color_image(&img);
     ctx.load_texture(name, color, egui::TextureOptions::LINEAR)
 }
 
@@ -2732,5 +2902,26 @@ mod combo_keyboard_tests {
         assert!(picked.is_some(), "an option was picked");
         frame(&ctx, vec![], &mut picked);
         assert!(!egui::Popup::is_any_open(&ctx), "the list closes after a keyboard pick");
+    }
+}
+
+#[cfg(test)]
+mod button_tests {
+    use super::*;
+
+    /// [`flat_button_fit`] preserves minimum width for short labels and expands for long ones.
+    #[test]
+    fn flat_button_fit_expands_for_long_text() {
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let raw = egui::RawInput::default();
+        let mut out = ctx.run_ui(raw, |ui| {
+            let resp_short = flat_button_fit(ui, "OK", 100.0);
+            assert_eq!(resp_short.rect.width(), 100.0);
+
+            let resp_long = flat_button_fit(ui, "Çalışma Yüzeylerini Düzenle", 100.0);
+            assert!(resp_long.rect.width() > 160.0);
+        });
+        out.textures_delta.clear();
     }
 }
