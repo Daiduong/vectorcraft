@@ -774,7 +774,7 @@ fn main() -> std::process::ExitCode {
             _ => files.push(a),
         }
     }
-    let automation_args::AutomationArgs { read_root, write_root, .. } = roots_args;
+    let automation_args::AutomationArgs { read_roots, write_roots, .. } = roots_args;
     // After the arguments: `--control` and `--version` win over a bad environment value.
     let control_port = match control.port {
         Some(port) => Some(port),
@@ -813,12 +813,14 @@ fn main() -> std::process::ExitCode {
     // The roots confine the control channel: a bad one keeps the app from starting rather than
     // leaving agents unconfined. Without a control port there is nothing to confine.
     let roots = if control_port.is_none() {
-        if read_root.is_some() || write_root.is_some() {
+        if !read_roots.is_empty() || !write_roots.is_empty() {
             log::warn!("--automation-read-root and --automation-write-root confine the control channel: ignored without --control");
         }
         None
     } else {
-        match AutomationRoots::new(read_root.as_deref(), write_root.as_deref()) {
+        let read = read_roots.iter().map(|p| p.as_path()).collect::<Vec<_>>();
+        let write = write_roots.iter().map(|p| p.as_path()).collect::<Vec<_>>();
+        match AutomationRoots::from_roots(&read, &write) {
             Ok(roots) => roots,
             Err(e) => {
                 log::error!("{e}");
@@ -1015,7 +1017,11 @@ fn main() -> std::process::ExitCode {
                         // Everywhere the app doesn't say whose work it is (worker threads), the
                         // roots hold: unconfined is only what the person at the keyboard does.
                         file_access::confine_process(roots.clone());
-                        log::info!("control channel confined to the automation roots: read {:?}, write {:?}", roots.read_root(), roots.write_root());
+                        log::info!(
+                            "control channel confined to the automation roots: read {:?}, write {:?}",
+                            roots.read_roots().collect::<Vec<_>>(),
+                            roots.write_roots().collect::<Vec<_>>()
+                        );
                     }
                 }
                 #[cfg(target_os = "macos")]

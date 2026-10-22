@@ -153,7 +153,6 @@ fn automation_roots(base: &std::path::Path) {
         assert!(!out.status.success() && err.contains(why), "{args:?}: {err}");
     };
     fails(&["mcp", "--automation-read-root", &dir("missing")], "cannot open the automation read root");
-    fails(&["mcp", "--automation-read-root", &dir("in"), "--automation-read-root", &dir("out")], "given twice");
     fails(&["mcp", "--automation-write-root"], "needs a folder");
     fails(&["mcp", "--connect", "127.0.0.1:1", &format!("--automation-write-root={}", dir("out"))], "a running app enforces its own roots");
 
@@ -200,7 +199,7 @@ fn automation_roots(base: &std::path::Path) {
     let replies: Vec<Value> = String::from_utf8(out.stdout).unwrap().lines().map(|l| serde_json::from_str(l).unwrap()).collect();
     let errors: Vec<bool> = replies.iter().map(|r| r["result"]["isError"] == true).collect();
     assert_eq!(errors, expected_errors, "{replies:?}");
-    assert!(replies[1]["result"]["content"][0]["text"].as_str().unwrap().contains("outside the read root"));
+    assert!(replies[1]["result"]["content"][0]["text"].as_str().unwrap().contains("outside the read roots"));
     assert!(base.join("out/a.png").is_file() && !base.join("in/a.png").exists() && !base.join("outside/a.vectorcraft").exists());
     assert!(base.join("out/allowed.vectorcraft").is_file());
     for denied in ["traversal.png", "escaped.png", "missing.png"] {

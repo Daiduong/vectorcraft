@@ -35,11 +35,11 @@ pub enum Access {
     Write,
 }
 
-/// The folders automation may read and write; a root left out grants no access of its kind.
+/// The folders automation may read and write; an empty list grants no access of its kind.
 #[derive(Debug)]
 pub struct AutomationRoots {
-    read: Option<Root>,
-    write: Option<Root>,
+    read: Vec<Root>,
+    write: Vec<Root>,
 }
 
 #[derive(Debug)]
@@ -65,46 +65,64 @@ impl Root {
 }
 
 impl AutomationRoots {
-    /// The roots `read` and `write`, which must be existing folders; `None` when neither is given
-    /// (nothing is confined then).
+    /// The roots `read` and `write`, which must be existing folders; `None` when neither list is
+    /// non-empty (nothing is confined then).
     pub fn new(read: Option<&Path>, write: Option<&Path>) -> Result<Option<Arc<Self>>, String> {
-        if read.is_none() && write.is_none() {
+        let read = read.into_iter().collect::<Vec<_>>();
+        let write = write.into_iter().collect::<Vec<_>>();
+        Self::from_roots(&read, &write)
+    }
+
+    /// Like [`new`], with any number of read and write folders.
+    pub fn from_roots(read: &[&Path], write: &[&Path]) -> Result<Option<Arc<Self>>, String> {
+        if read.is_empty() && write.is_empty() {
             return Ok(None);
         }
-        let read = read.map(|p| Root::open(p, Access::Read)).transpose()?;
-        let write = write.map(|p| Root::open(p, Access::Write)).transpose()?;
+        let read = read.iter().map(|p| Root::open(p, Access::Read)).collect::<Result<Vec<_>, _>>()?;
+        let write = write.iter().map(|p| Root::open(p, Access::Write)).collect::<Result<Vec<_>, _>>()?;
         Ok(Some(Arc::new(Self { read, write })))
     }
 
-    /// The read root, absolute with its links followed.
-    pub fn read_root(&self) -> Option<&Path> {
-        self.read.as_ref().map(|r| r.shown.as_path())
+    /// The read roots, absolute with their links followed.
+    pub fn read_roots(&self) -> impl Iterator<Item = &Path> + '_ {
+        self.read.iter().map(|r| r.shown.as_path())
     }
 
-    /// The write root, absolute with its links followed.
+    /// The write roots, absolute with their links followed.
+    pub fn write_roots(&self) -> impl Iterator<Item = &Path> + '_ {
+        self.write.iter().map(|r| r.shown.as_path())
+    }
+
+    /// The first read root, if any ([`read_roots`]).
+    pub fn read_root(&self) -> Option<&Path> {
+        self.read.first().map(|r| r.shown.as_path())
+    }
+
+    /// The first write root, if any ([`write_roots`]).
     pub fn write_root(&self) -> Option<&Path> {
-        self.write.as_ref().map(|r| r.shown.as_path())
+        self.write.first().map(|r| r.shown.as_path())
     }
 
     /// May the file or folder at `path` be read (or written)? `Err` says why not.
     pub fn check(&self, path: &str, access: Access) -> Result<(), String> {
-        let root = match access {
-            Access::Read => self.read.as_ref(),
-            Access::Write => self.write.as_ref(),
+        let roots = match access {
+            Access::Read => &self.read,
+            Access::Write => &self.write,
         };
-        let Some(Root { resolved: folder, shown }) = root else {
+        if roots.is_empty() {
             return match access {
                 Access::Read => Err(format!("automation filesystem access is not granted: read authority is absent: {path}")),
                 Access::Write => Err(format!("automation filesystem access is not granted: write authority is absent: {path}")),
             };
-        };
-        if inside(&resolve(path)?, folder) {
+        }
+        let resolved = resolve(path)?;
+        if roots.iter().any(|Root { resolved: folder, .. }| inside(&resolved, folder)) {
             return Ok(());
         }
-        let root = shown.display();
+        let listed = roots.iter().map(|r| r.shown.display().to_string()).collect::<Vec<_>>().join(", ");
         match access {
-            Access::Read => Err(format!("automation path rejected: outside the read root {root}: {path}")),
-            Access::Write => Err(format!("automation path rejected: outside the write root {root}: {path}")),
+            Access::Read => Err(format!("automation path rejected: outside the read roots [{listed}]: {path}")),
+            Access::Write => Err(format!("automation path rejected: outside the write roots [{listed}]: {path}")),
         }
     }
 }
@@ -296,11 +314,22 @@ mod tests {
         assert_eq!(roots.check(&s(base.join("in/sub/new.svg")), Access::Read), Ok(()), "missing files are checked by their folder");
         assert_eq!(roots.check(&s(base.join("out/new/deeper/x.png")), Access::Write), Ok(()), "and by their nearest folder");
         let e = roots.check(&s(base.join("outside/secret.svg")), Access::Read).unwrap_err();
-        assert!(e.starts_with("automation path rejected: outside the read root"), "{e}");
+        assert!(e.starts_with("automation path rejected: outside the read roots"), "{e}");
         // Read and write access are separate.
         let e = roots.check(&s(base.join("in/a.svg")), Access::Write).unwrap_err();
         assert!(e.contains("outside the write root"), "{e}");
-        assert!(roots.check(&s(base.join("out/x.png")), Access::Read).unwrap_err().contains("outside the read root"));
+        assert!(roots.check(&s(base.join("out/x.png")), Access::Read).unwrap_err().contains("outside the read roots"));
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn multiple_read_roots_each_allow_their_tree() {
+        let (base, _) = folders("multi");
+        std::fs::write(base.join("in2/b.svg"), "<svg/>").unwrap();
+        let roots = AutomationRoots::from_roots(&[&base.join("in"), &base.join("in2")], &[]).unwrap().unwrap();
+        assert_eq!(roots.check(&s(base.join("in/a.svg")), Access::Read), Ok(()));
+        assert_eq!(roots.check(&s(base.join("in2/b.svg")), Access::Read), Ok(()));
+        assert!(roots.check(&s(base.join("outside/secret.svg")), Access::Read).is_err());
         let _ = std::fs::remove_dir_all(base);
     }
 
@@ -318,7 +347,7 @@ mod tests {
         let (base, roots) = folders("dotdot");
         let sep = std::path::MAIN_SEPARATOR;
         let up = format!("{}{sep}..{sep}outside{sep}secret.svg", s(base.join("in")));
-        assert!(roots.check(&up, Access::Read).unwrap_err().contains("outside the read root"), "`..` out of the root");
+        assert!(roots.check(&up, Access::Read).unwrap_err().contains("outside the read roots"), "`..` out of the root");
         let back = format!("{}{sep}..{sep}a.svg", s(base.join("in/sub")));
         assert_eq!(roots.check(&back, Access::Read), Ok(()), "`..` that stays inside");
         let missing = format!("{}{sep}nope{sep}..{sep}..{sep}outside{sep}x.svg", s(base.join("out")));
@@ -332,7 +361,7 @@ mod tests {
     fn relative_paths_resolve_against_the_working_directory() {
         let (base, roots) = folders("relative");
         // The tests' working directory is the crate's folder: not inside the roots.
-        assert!(roots.check("a.svg", Access::Read).unwrap_err().contains("outside the read root"));
+        assert!(roots.check("a.svg", Access::Read).unwrap_err().contains("outside the read roots"));
         assert!(roots.check("", Access::Read).unwrap_err().contains("path is empty"));
         let _ = std::fs::remove_dir_all(base);
     }
@@ -376,7 +405,7 @@ mod tests {
             let _ = std::fs::remove_dir_all(base);
             return;
         }
-        assert!(roots.check(&s(base.join("in/leak.svg")), Access::Read).unwrap_err().contains("outside the read root"), "a file link out");
+        assert!(roots.check(&s(base.join("in/leak.svg")), Access::Read).unwrap_err().contains("outside the read roots"), "a file link out");
         assert!(made(&base.join("outside"), &base.join("out/away")));
         let e = roots.check(&s(base.join("out/away/new.png")), Access::Write).unwrap_err();
         assert!(e.contains("outside the write root"), "a folder link out: {e}");

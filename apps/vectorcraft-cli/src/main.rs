@@ -177,7 +177,7 @@ fn with_stores(mut h: Headless) -> Headless {
 fn mcp(args: &[String]) -> Result<(), String> {
     let mut connect: Option<String> = None;
     let mut headless = false;
-    let (mut read_root, mut write_root): (Option<String>, Option<String>) = (None, None);
+    let (mut read_roots, mut write_roots): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
     let mut it = args.iter();
     while let Some(a) = it.next() {
         // The roots also come as `--flag=DIR`, as the other Craft apps take them.
@@ -190,9 +190,10 @@ fn mcp(args: &[String]) -> Result<(), String> {
             "--headless" => headless = true,
             "--automation-read-root" | "--automation-write-root" => {
                 let dir = inline.or_else(|| it.next().cloned()).ok_or_else(|| format!("{flag} needs a folder"))?;
-                let slot = if flag == "--automation-read-root" { &mut read_root } else { &mut write_root };
-                if slot.replace(dir).is_some() {
-                    return Err(format!("{flag} is given twice: it takes one folder"));
+                if flag == "--automation-read-root" {
+                    read_roots.push(dir);
+                } else {
+                    write_roots.push(dir);
                 }
             }
             other => return Err(format!("unknown mcp option `{other}`")),
@@ -201,7 +202,9 @@ fn mcp(args: &[String]) -> Result<(), String> {
     if headless && connect.is_some() {
         return Err("use either --connect or --headless".into());
     }
-    let roots = AutomationRoots::new(read_root.as_deref().map(Path::new), write_root.as_deref().map(Path::new))?;
+    let read = read_roots.iter().map(|d| Path::new(d.as_str())).collect::<Vec<_>>();
+    let write = write_roots.iter().map(|d| Path::new(d.as_str())).collect::<Vec<_>>();
+    let roots = AutomationRoots::from_roots(&read, &write)?;
     if roots.is_some() && connect.is_some() {
         return Err("--automation-read-root and --automation-write-root confine the headless server; a running app enforces its own roots:                     start it with `vectorcraft --control <port> --automation-read-root <dir> --automation-write-root <dir>`"
             .into());
@@ -209,8 +212,10 @@ fn mcp(args: &[String]) -> Result<(), String> {
     let backend: Box<dyn Backend> = if let Some(roots) = roots {
         // Every thread of this process, not only the server's: nothing reaches past the roots.
         file_access::confine_process(roots.clone());
-        let show = |root: Option<&Path>| root.map_or_else(|| "none".to_string(), |r| r.display().to_string());
-        eprintln!("vectorcraft-cli: files confined: read root {}, write root {}", show(roots.read_root()), show(roots.write_root()));
+        let read_list = roots.read_roots().map(|r| r.display().to_string()).collect::<Vec<_>>();
+        let write_list = roots.write_roots().map(|r| r.display().to_string()).collect::<Vec<_>>();
+        let show = |names: &[String]| if names.is_empty() { "none".to_string() } else { names.join(", ") };
+        eprintln!("vectorcraft-cli: files confined: read roots {}, write roots {}", show(&read_list), show(&write_list));
         Box::new(Headless::with_document().with_automation_roots(Some(roots)))
     } else if headless {
         Box::new(with_stores(Headless::with_document()))

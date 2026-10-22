@@ -61,11 +61,13 @@ fn missing_empty_or_option_operands_fail_before_startup() {
 }
 
 #[test]
-fn duplicate_roots_fail_for_both_spellings() {
-    for flag in ["--automation-read-root", "--automation-write-root"] {
-        rejects(&[flag, ".", &format!("{flag}=.")], &format!("{flag} given twice"));
-        rejects(&[&format!("{flag}=."), flag, "."], &format!("{flag} given twice"));
-    }
+fn multiple_roots_are_accepted() {
+    let out = Command::new(BIN)
+        .args(["--version", "--automation-read-root", ".", "--automation-read-root=.."])
+        .env("VECTORCRAFT_NO_PREFS", "1")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
 }
 
 #[test]

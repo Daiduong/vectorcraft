@@ -54,6 +54,22 @@ fn refused(server: &mut Server, name: &str, args: Value, why: &str) {
 }
 
 #[test]
+fn multiple_read_roots_each_allow_their_tree() {
+    let base = vectorcraft_testkit::temp_dir("roots-multi");
+    for d in ["in", "in2", "outside"] {
+        std::fs::create_dir_all(base.join(d)).unwrap();
+    }
+    std::fs::write(base.join("in/a.svg"), SVG).unwrap();
+    std::fs::write(base.join("in2/c.svg"), SVG).unwrap();
+    std::fs::write(base.join("outside/b.svg"), SVG).unwrap();
+    let roots = AutomationRoots::from_roots(&[&base.join("in"), &base.join("in2")], &[]).unwrap().unwrap();
+    let mut server = Server::new(Box::new(Headless::with_document().with_automation_roots(Some(roots))));
+    ok(&mut server, "open_file", json!({"path": s(&base.join("in/a.svg"))}));
+    ok(&mut server, "open_file", json!({"path": s(&base.join("in2/c.svg"))}));
+    refused(&mut server, "open_file", json!({"path": s(&base.join("outside/b.svg"))}), "outside the read root");
+}
+
+#[test]
 fn files_open_only_from_inside_the_read_root() {
     let (mut server, base) = confined("open", true, true);
     let sep = std::path::MAIN_SEPARATOR;
