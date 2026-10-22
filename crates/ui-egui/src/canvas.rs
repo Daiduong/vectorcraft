@@ -3587,13 +3587,6 @@ mod tests {
     /// A rendered raster becomes the image egui's own conversion makes of it, half-transparent
     /// edges and all; one whose bytes don't match its size becomes an empty image of that size.
     #[test]
-    #[test]
-    fn selection_bounding_box_stays_visible_during_a_resize_drag() {
-        assert!(show_selection_bounding_box("selection", true, true, true, true));
-        assert!(!show_selection_bounding_box("selection", true, false, true, true));
-        assert!(!show_selection_bounding_box("selection", true, true, false, true));
-    }
-
     fn rendered_rasters_become_the_same_egui_images() {
         let mut s = Session::new();
         s.execute("file.new", &serde_json::json!({})).unwrap();
@@ -3606,6 +3599,13 @@ mod tests {
         assert_eq!(color_image(&img), egui);
         let short = vectorcraft_render::Rendered { width: 3, height: 2, pixels: vec![255; 5] };
         assert_eq!(color_image(&short), egui::ColorImage::new([3, 2], vec![egui::Color32::TRANSPARENT; 6]));
+    }
+
+    #[test]
+    fn selection_bounding_box_stays_visible_during_a_resize_drag() {
+        assert!(show_selection_bounding_box("selection", true, true, true, true));
+        assert!(!show_selection_bounding_box("selection", true, false, true, true));
+        assert!(!show_selection_bounding_box("selection", true, true, false, true));
     }
 
     /// With VECTORCRAFT_SYSTEM_CURSORS set the glyphs aren't drawn and the system's cursors stand in: those of
