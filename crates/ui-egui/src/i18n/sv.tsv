@@ -5153,12 +5153,14 @@ theme	Appearance	Utseende
 	Keep selected	Behåll markerad
 	Merge only with selection	Sammanfoga endast med markeringen
 	Consider Open Filled Paths as Closed	Behandla öppna fyllda banor som slutna
+	In Merge Mode, Clicking Stroke Splits the Path	I sammanfogningsläge delar ett klick på konturen banan
 	Pick Color From:	Hämta färg från:
 	Artwork	Bildmaterial
 	Cursor Swatch Preview	Förhandsvisning av färgprover vid pekaren
 	Selection:	Markering:
 	Straight Line	Rak linje
 	Highlight:	Framhävning:
+	Stroke When Editable	Kontur när den kan redigeras
 	Legacy (version 7)	Äldre (version 7)
 	Legacy .ai Options	Alternativ för äldre .ai
 	Linked Files	Länkade filer
@@ -5306,6 +5308,10 @@ theme	Appearance	Utseende
 @msg	too many library panels were opened in this session	för många bibliotekspaneler har öppnats i den här sessionen
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Bilden är {_1} × {_2} pixlar, mer än {LARGE_TRACE_SIDE} på en sida: den vektoriseras, men långsammare. En förinställning med lägre återgivning eller en mindre kopia av bilden går snabbare.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Bilden vektoriserades vid {_1} × {_2} pixlar, nedskalad från {_3} × {_4} (högst {_5} megapixlar).
+	Snapping	Fästning
+	Snap to Tangent	Fäst mot tangent
+	Snap to Perpendicular	Fäst mot vinkelrät
+@msg	unknown snap option `{key}` (use {options})	okänt fästalternativ `{key}` (använd {options})
 	Gap Length:	Lucklängd:
 	Artboard {n} of {total}	Rityta {n} av {total}
 	Encoding and writing the file…	Kodar och skriver filen…
@@ -5356,6 +5362,7 @@ theme	Appearance	Utseende
 	Water Paper	Vått papper
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometriska stödlinjer
 	Ease In	Långsam start
 	Ease Out	Långsamt slut
 	Ease In Out	Långsam start och slut
@@ -5389,3 +5396,4 @@ axis	Y Axis	Y-axel
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` gäller övertoningsfyllningar (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` gäller övertoningsfyllningar (paint.setFill)
 @msg	`dither` must be true or false	`dither` måste vara true eller false
+@msg	`method` must be classic or perceptual	`method` måste vara classic eller perceptual

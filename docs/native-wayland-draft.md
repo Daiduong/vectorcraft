@@ -17,6 +17,9 @@ existing application path, including file-portal capabilities when offered.
 
 The draft keeps both window backends and the upstream Linux maximize retry. It
 adapts dialog parents, monitor geometry and surface sizing to winit 0.31.
+The current-main Linux pen wrapper forwards the new surface and wake callbacks
+and owns the returning handler for shutdown cleanup. It maps only recognized
+unknown barrel-button codes, preserving pointer metadata and other events.
 
 ## Pinned review dependencies
 

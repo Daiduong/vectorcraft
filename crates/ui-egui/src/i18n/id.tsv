@@ -5140,12 +5140,14 @@ swatch	Bright Violet	Violet cerah
 @msg	no saved selection recalled	tidak ada seleksi tersimpan yang dipanggil
 	Merge only with selection	Gabungkan hanya dengan seleksi
 	Consider Open Filled Paths as Closed	Anggap jalur terbuka yang terisi sebagai tertutup
+	In Merge Mode, Clicking Stroke Splits the Path	Dalam mode gabung, mengeklik stroke memisahkan jalur
 	Pick Color From:	Ambil warna dari:
 	Artwork	Karya seni
 	Cursor Swatch Preview	Pratinjau swatch di kursor
 	Selection:	Seleksi:
 	Straight Line	Garis lurus
 	Highlight:	Sorotan:
+	Stroke When Editable	Stroke saat dapat diedit
 	Sketch	Sketsa
 	Halftone Pattern…	Pola halftone…
 	Halftone Pattern	Pola halftone
@@ -5301,6 +5303,10 @@ swatch	Bright Violet	Violet cerah
 	Persistent	Persisten
 	Locate Library…	Temukan pustaka…
 	Library Panel Options	Opsi panel pustaka
+	Snapping	Snap
+	Snap to Tangent	Snap ke garis singgung
+	Snap to Perpendicular	Snap tegak lurus
+@msg	unknown snap option `{key}` (use {options})	opsi snap `{key}` tidak dikenal (gunakan {options})
 	Gap Length:	Panjang celah:
 	Artboard {n} of {total}	Artboard {n} dari {total}
 	Encoding and writing the file…	Mengodekan dan menulis berkas…
@@ -5371,6 +5377,7 @@ swatch	Bright Violet	Violet cerah
 	Water Paper	Kertas Basah
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Panduan Geometris
 	Ease In	Awal Lambat
 	Ease Out	Akhir Lambat
 	Ease In Out	Awal dan Akhir Lambat
@@ -5404,3 +5411,4 @@ axis	Y Axis	Sumbu Y
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` berlaku untuk isian gradien (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` berlaku untuk isian gradien (paint.setFill)
 @msg	`dither` must be true or false	`dither` harus true atau false
+@msg	`method` must be classic or perceptual	`method` harus classic atau perceptual

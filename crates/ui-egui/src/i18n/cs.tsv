@@ -2284,12 +2284,14 @@ lighting	Light	Světlo
 	Keep selected	Ponechat vybrané
 	Merge only with selection	Sloučit jen s výběrem
 	Consider Open Filled Paths as Closed	Považovat otevřené vyplněné cesty za uzavřené
+	In Merge Mode, Clicking Stroke Splits the Path	V režimu sloučení rozdělí kliknutí na tah cestu
 	Pick Color From:	Brát barvu z:
 	Artwork	Kresba
 	Cursor Swatch Preview	Náhled vzorku u kurzoru
 	Selection:	Výběr:
 	Straight Line	Přímka
 	Highlight:	Zvýraznění:
+	Stroke When Editable	Tah, je-li upravitelný
 	The document has no colour swatches.	Dokument nemá ve vzorníku žádné barvy.
 	Style Name:	Název stylu:
 	Crop To	Oříznout na
@@ -5350,6 +5352,10 @@ mark-style	Japanese	Japonské
 @msg	too many library panels were opened in this session	v této relaci bylo otevřeno příliš mnoho panelů knihoven
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz má {_1} × {_2} pixelů, na jedné straně více než {LARGE_TRACE_SIDE}: vektorizuje se, ale pomaleji. Rychleji se vektorizuje s předvolbou nižší věrnosti nebo menší kopie obrazu.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Obraz byl vektorizován v rozlišení {_1} × {_2} pixelů, zmenšený z {_3} × {_4} (nejvýše {_5} megapixelů).
+	Snapping	Přichytávání
+	Snap to Tangent	Přichytávat k tečně
+	Snap to Perpendicular	Přichytávat ke kolmici
+@msg	unknown snap option `{key}` (use {options})	neznámá možnost přichytávání `{key}` (použijte {options})
 	Gap Length:	Délka mezery:
 	Artboard {n} of {total}	Pracovní plocha {n} z {total}
 	Encoding and writing the file…	Kódování a zápis souboru…
@@ -5400,6 +5406,7 @@ mark-style	Japanese	Japonské
 	Water Paper	Mokrý papír
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometrická vodítka
 	Ease In	Pozvolný začátek
 	Ease Out	Pozvolný konec
 	Ease In Out	Pozvolný začátek a konec
@@ -5433,3 +5440,4 @@ axis	Y Axis	osa Y
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` platí pro výplně přechodem (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` platí pro výplně přechodem (paint.setFill)
 @msg	`dither` must be true or false	`dither` musí být true nebo false
+@msg	`method` must be classic or perceptual	`method` musí být classic nebo perceptual

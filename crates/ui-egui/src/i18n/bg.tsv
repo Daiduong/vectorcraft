@@ -5196,12 +5196,14 @@ theme	Appearance	Външен вид
 	Keep selected	Запазване на избора
 	Merge only with selection	Сливане само с избраното
 	Consider Open Filled Paths as Closed	Отворените запълнени пътища се смятат за затворени
+	In Merge Mode, Clicking Stroke Splits the Path	В режим на сливане щракване върху щриха разделя пътя
 	Pick Color From:	Цвят от:
 	Artwork	Графика
 	Cursor Swatch Preview	Преглед на образеца до курсора
 	Selection:	Селекция:
 	Straight Line	Права линия
 	Highlight:	Открояване:
+	Stroke When Editable	Щрих, когато е редактируем
 	Sample Color from Screen	Взимане на цвят от екрана
 	The active document changed while the screen color sampler was open	Активният документ се промени, докато взимането на цвят от екрана беше отворено
 	This system has no screen color sampler	Тази система няма инструмент за взимане на цвят от екрана
@@ -5305,6 +5307,10 @@ theme	Appearance	Външен вид
 	Persistent	Постоянна
 	Locate Library…	Намиране на библиотека…
 	Library Panel Options	Опции на панела с библиотека
+	Snapping	Прилепване
+	Snap to Tangent	Прилепване към допирателна
+	Snap to Perpendicular	Прилепване към перпендикуляр
+@msg	unknown snap option `{key}` (use {options})	неизвестна опция за прилепване `{key}` (използвайте {options})
 	Gap Length:	Дължина на пропуска:
 	Artboard {n} of {total}	Работна област {n} от {total}
 	Encoding and writing the file…	Кодиране и записване на файла…
@@ -5355,6 +5361,7 @@ theme	Appearance	Външен вид
 	Water Paper	Мокра хартия
 	Ruby…	Руби…
 	Ruby	Руби
+	Geometric Guides	Геометрични водачи
 	Ease In	Плавно начало
 	Ease Out	Плавен край
 	Ease In Out	Плавно начало и край
@@ -5388,3 +5395,4 @@ axis	Y Axis	Y ос
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` се прилага към градиентни запълки (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` се прилага към градиентни запълки (paint.setFill)
 @msg	`dither` must be true or false	`dither` трябва да бъде true или false
+@msg	`method` must be classic or perceptual	`method` трябва да е classic или perceptual

@@ -5161,12 +5161,14 @@ mark-style	Japanese	Japanilainen
 	Keep selected	Pidä valittuna
 	Merge only with selection	Yhdistä vain valintaan
 	Consider Open Filled Paths as Closed	Käsittele avoimia täytettyjä polkuja suljettuina
+	In Merge Mode, Clicking Stroke Splits the Path	Yhdistämistilassa viivan napsauttaminen jakaa polun
 	Pick Color From:	Värin lähde:
 	Artwork	Kuvitus
 	Cursor Swatch Preview	Värimallien esikatselu osoittimen vieressä
 	Selection:	Valinta:
 	Straight Line	Suora viiva
 	Highlight:	Korostus:
+	Stroke When Editable	Viiva, kun muokattavissa
 	Legacy (version 7)	Vanha (versio 7)
 	Legacy .ai Options	Vanhan .ai-muodon asetukset
 	Linked Files	Linkitetyt tiedostot
@@ -5314,6 +5316,10 @@ mark-style	Japanese	Japanilainen
 @msg	too many library panels were opened in this session	tässä istunnossa on avattu liian monta kirjastopaneelia
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Kuva on {_1} × {_2} kuvapistettä, yhdeltä sivultaan yli {LARGE_TRACE_SIDE}: se jäljitetään, mutta hitaammin. Pienemmän tarkkuuden esiasetus tai kuvan pienempi kopio jäljittyy nopeammin.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Kuva jäljitettiin kokoon {_1} × {_2} kuvapistettä pienennettynä koosta {_3} × {_4} (enintään {_5} megapikseliä).
+	Snapping	Tartunta
+	Snap to Tangent	Kohdista tangenttiin
+	Snap to Perpendicular	Kohdista kohtisuoraan
+@msg	unknown snap option `{key}` (use {options})	tuntematon tartuntavalinta `{key}` (käytä: {options})
 	Gap Length:	Aukon pituus:
 	Artboard {n} of {total}	Piirtoalusta {n}/{total}
 	Encoding and writing the file…	Tiedostoa koodataan ja kirjoitetaan…
@@ -5431,6 +5437,7 @@ swatch	Bright Violet	Kirkas violetti
 	Water Paper	Märkä paperi
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometriset apuviivat
 	Ease In	Hidas alku
 	Ease Out	Hidas loppu
 	Ease In Out	Hidas alku ja loppu
@@ -5464,3 +5471,4 @@ axis	Y Axis	Y-akseli
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` koskee liukuväritäyttöjä (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` koskee liukuväritäyttöjä (paint.setFill)
 @msg	`dither` must be true or false	`dither` on oltava true tai false
+@msg	`method` must be classic or perceptual	`method` on oltava classic tai perceptual

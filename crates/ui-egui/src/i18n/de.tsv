@@ -1073,6 +1073,7 @@
 	Keep selected	Ausgewählt lassen
 	Merge only with selection	Nur mit Auswahl zusammenfügen
 	Consider Open Filled Paths as Closed	Offene gefüllte Pfade als geschlossen behandeln
+	In Merge Mode, Clicking Stroke Splits the Path	Beim Zusammenfügen teilt ein Klick auf die Kontur den Pfad
 	Pick Color From:	Farbe aufnehmen aus:
 	Artwork	Bildmaterial
 	Cursor Swatch Preview	Farbfeldvorschau am Zeiger
@@ -1080,6 +1081,7 @@
 	Freeform	Freiform
 	Straight Line	Gerade Linie
 	Highlight:	Hervorheben:
+	Stroke When Editable	Kontur, wenn bearbeitbar
 	Fill Color	Flächenfarbe
 	Fill New Type Objects With Placeholder Text	Neue Textobjekte mit Platzhaltertext füllen
 	Fill Rule	Füllregel
@@ -4930,6 +4932,10 @@ effect	Soft	Weich
 @msg	too many library panels were opened in this session	in dieser Sitzung wurden zu viele Bibliotheksbedienfelder geöffnet
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Das Bild hat {_1} × {_2} Pixel, mehr als {LARGE_TRACE_SIDE} auf einer Seite: Es wird nachgezeichnet, aber langsamer. Eine Vorgabe mit geringerer Detailtreue oder eine kleinere Kopie des Bildes geht schneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Das Bild wurde mit {_1} × {_2} Pixeln nachgezeichnet, verkleinert von {_3} × {_4} (höchstens {_5} Megapixel).
+	Snapping	Einrasten
+	Snap to Tangent	An Tangente ausrichten
+	Snap to Perpendicular	An Senkrechter ausrichten
+@msg	unknown snap option `{key}` (use {options})	unbekannte Einrastoption `{key}` (möglich: {options})
 	Gap Length:	Lückenlänge:
 	Artboard {n} of {total}	Zeichenfläche {n} von {total}
 	Encoding and writing the file…	Datei wird codiert und geschrieben…
@@ -4981,6 +4987,7 @@ effect	Soft	Weich
 	Water Paper	Feuchtes Papier
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometrische Hilfslinien
 	Ease In	Langsam starten
 	Ease Out	Langsam enden
 	Ease In Out	Langsam starten und enden
@@ -5015,3 +5022,5 @@ axis	Y Axis	Y-Achse
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` gilt für Verlaufsflächen (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` gilt für Verlaufsflächen (paint.setFill)
 @msg	`dither` must be true or false	`dither` muss true oder false sein
+	Perceptual	Perzeptiv
+@msg	`method` must be classic or perceptual	`method` muss classic oder perceptual sein

@@ -5151,12 +5151,14 @@ swatch	Bright Violet	Felviolet
 @msg	no saved selection recalled	geen opgeslagen selectie opgeroepen
 	Merge only with selection	Alleen samenvoegen met selectie
 	Consider Open Filled Paths as Closed	Open gevulde paden als gesloten beschouwen
+	In Merge Mode, Clicking Stroke Splits the Path	In samenvoegmodus splitst klikken op de contour het pad
 	Pick Color From:	Kleur kiezen uit:
 	Artwork	Artwork
 	Cursor Swatch Preview	Staalvoorbeeld bij de cursor
 	Selection:	Selectie:
 	Straight Line	Rechte lijn
 	Highlight:	Markering:
+	Stroke When Editable	Contour indien bewerkbaar
 	Sketch	Schets
 	Halftone Pattern…	Rasterpatroon…
 	Halftone Pattern	Rasterpatroon
@@ -5311,6 +5313,10 @@ swatch	Bright Violet	Felviolet
 	Typing	Typen
 	Persistent	Permanent
 	Library Panel Options	Opties voor bibliotheekpaneel
+	Snapping	Uitlijnen
+	Snap to Tangent	Uitlijnen op raaklijn
+	Snap to Perpendicular	Uitlijnen op loodlijn
+@msg	unknown snap option `{key}` (use {options})	onbekende uitlijnoptie `{key}` (gebruik {options})
 	Gap Length:	Lengte van opening:
 	Locate Library…	Bibliotheek lokaliseren…
 
@@ -5414,6 +5420,7 @@ swatch	Bright Violet	Felviolet
 	Water Paper	Nat papier
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometrische hulplijnen
 	Ease In	Langzaam beginnen
 	Ease Out	Langzaam eindigen
 	Ease In Out	Langzaam beginnen en eindigen
@@ -5447,3 +5454,4 @@ axis	Y Axis	Y-as
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` geldt voor verloopvullingen (stroke: false)
 @msg	`dither` applies to gradient fills (paint.setFill)	`dither` geldt voor verloopvullingen (paint.setFill)
 @msg	`dither` must be true or false	`dither` moet true of false zijn
+@msg	`method` must be classic or perceptual	`method` moet classic of perceptual zijn
