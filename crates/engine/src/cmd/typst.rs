@@ -333,12 +333,13 @@ mod run {
     /// The first page of `input` as SVG, else the program's messages.
     pub(super) fn compile(input: &str, doc_path: Option<&str>) -> Result<String, String> {
         let program = std::env::var(super::PROGRAM_VAR).ok().filter(|p| !p.is_empty()).unwrap_or_else(|| "typst".into());
+        // Lives to the end of the run: an empty root is removed when it drops.
         let root = root(doc_path)?;
         let mut child = Command::new(&program)
             .args(["compile", "--format", "svg", "--pages", "1", "--diagnostic-format", "short", "--root"])
-            .arg(&root)
+            .arg(root.path())
             .args(["-", "-"])
-            .current_dir(&root)
+            .current_dir(root.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -401,14 +402,67 @@ mod run {
     /// The project root: the document's folder, else an empty folder of our own. While automation
     /// is confined ([`crate::file_access`]), always the empty folder: Typst reads its root itself,
     /// past the checks the app's own reads go through, and follows links in it to anywhere.
-    fn root(doc_path: Option<&str>) -> Result<std::path::PathBuf, String> {
+    fn root(doc_path: Option<&str>) -> Result<Root, String> {
         let confined = crate::file_access::current().is_some();
         if let Some(dir) = doc_path.and_then(|p| std::path::Path::new(p).parent()).filter(|d| !confined && d.is_dir()) {
-            return Ok(dir.to_path_buf());
+            return Ok(Root::Doc(dir.to_path_buf()));
         }
-        let dir = std::env::temp_dir().join(format!("vectorcraft-typst-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).map_err(|e| format!("couldn't make a folder for Typst: {e}"))?;
-        Ok(dir)
+        EmptyRoot::new().map(Root::Empty)
+    }
+
+    /// Where Typst's `--root` points for one run.
+    pub(super) enum Root {
+        /// The document's folder.
+        Doc(std::path::PathBuf),
+        /// A private empty folder, removed after the run.
+        Empty(EmptyRoot),
+    }
+
+    impl Root {
+        pub(super) fn path(&self) -> &std::path::Path {
+            match self {
+                Root::Doc(p) => p,
+                Root::Empty(e) => &e.0,
+            }
+        }
+    }
+
+    /// A private empty folder made for one Typst run and removed when dropped. Its name is random
+    /// and it is created, not reused, so nobody else can have put files in it first (a guessable
+    /// name made with `create_dir_all` would accept a folder another user prepared); on Unix only
+    /// this user can open it.
+    pub(super) struct EmptyRoot(std::path::PathBuf);
+
+    impl EmptyRoot {
+        pub(super) fn new() -> Result<Self, String> {
+            use std::hash::{BuildHasher, Hasher};
+            let base = std::env::temp_dir();
+            let mut last = None;
+            for _ in 0..16 {
+                // A fresh `RandomState` is keyed from the OS, so the name can't be guessed ahead.
+                let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+                h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0));
+                h.write_u32(std::process::id());
+                let dir = base.join(format!("vectorcraft-typst-{:016x}", h.finish()));
+                let mut builder = std::fs::DirBuilder::new();
+                #[cfg(unix)]
+                std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+                match builder.create(&dir) {
+                    Ok(()) => return Ok(Self(dir)),
+                    // Taken (by an earlier run, or by someone guessing): another name.
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+                    Err(e) => return Err(format!("couldn't make a folder for Typst: {e}")),
+                }
+            }
+            Err(format!("couldn't make a folder for Typst: {}", last.map(|e| e.to_string()).unwrap_or_default()))
+        }
+    }
+
+    impl Drop for EmptyRoot {
+        fn drop(&mut self) {
+            // Best effort: a folder left behind is empty and harmless.
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
     }
 }
 
@@ -423,6 +477,30 @@ mod run {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The empty root is a fresh private folder each time, and it goes away with its guard.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn the_empty_root_is_private_fresh_and_removed() {
+        let a = run::EmptyRoot::new().unwrap();
+        let b = run::EmptyRoot::new().unwrap();
+        let (pa, pb) = (run::Root::Empty(a).path().to_path_buf(), run::Root::Empty(b).path().to_path_buf());
+        assert_ne!(pa, pb, "two runs share a root");
+        assert!(!pa.exists() && !pb.exists(), "a dropped root stays");
+        let c = run::EmptyRoot::new().unwrap();
+        let pc = run::Root::Empty(c);
+        let dir = pc.path().to_path_buf();
+        assert!(dir.is_dir());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0, "the root isn't empty");
+        assert!(dir.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("vectorcraft-typst-") && n.len() == 34));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
+        }
+        drop(pc);
+        assert!(!dir.exists(), "the root stays after the run");
+    }
 
     #[test]
     fn diagnostics_count_lines_in_the_source_and_preamble() {

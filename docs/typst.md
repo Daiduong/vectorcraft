@@ -39,10 +39,10 @@ export the paths.
 - **Network:** `#import "@preview/…"` packages are downloaded by Typst from its package registry the first
   time they are used, as on the command line, and cached by Typst. The app doesn't make or check that
   download, and Typst has no setting to turn it off; the dialog says so next to Enable Typst.
-- `#image` and `#read` paths are relative to the document's folder (an empty folder of its own for a document
-  not yet saved). Typst can't read outside it, except through links in it. When automation is confined
-  (`--automation-read-root`), Typst always gets the empty folder, since a link in the document's folder could
-  lead outside the read root.
+- `#image` and `#read` paths are relative to the document's folder (for a document not yet saved, a private
+  empty folder made for the run, under a random name, and removed after it). Typst can't read outside it,
+  except through links in it. When automation is confined (`--automation-read-root`), Typst always gets the
+  empty folder, since a link in the document's folder could lead outside the read root.
 - Typst gets 30 seconds per typesetting.
 
 ## Commands
