@@ -26,7 +26,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Pencil",
             [],
             None,
-            "{points: [[x,y]…] or [[x,y,pressure]…] (pen pressure 0..1: the stroke keeps it, for Calligraphic brushes with Pressure variation; a point without one presses fully), fidelity?: pt (1.5), closed?, style?: \"pencil\"|\"brush\", fill?: bool, keepSelected?: bool (true: the drawn or continued path is selected; false: it is not, and the rest of the selection stays), extend?: {id, end: \"start\"|\"end\"}, redraw?: {id, within?: pt (12)}} fit a freehand stroke → {id}. extend continues the path from that end; redraw (Edit Selected Paths) replaces the section of the path between where the stroke starts and ends, each within `within` of one subpath (the shorter way round a closed one), and draws a new path when the stroke doesn't end on it",
+            "{points: [[x,y]…] or [[x,y,pressure]…] (pen pressure 0..1: the stroke keeps it, for Calligraphic brushes with Pressure variation; a point without one presses fully), fidelity?: pt (1.5), smooth?: bool (true: Catmull-Rom pre-smoothing before Fidelity, as today; false: anchors along the samples spaced by Fidelity), closed?, style?: \"pencil\"|\"brush\", fill?: bool, keepSelected?: bool (true: the drawn or continued path is selected; false: it is not, and the rest of the selection stays), extend?: {id, end: \"start\"|\"end\"}, redraw?: {id, within?: pt (12)}} fit a freehand stroke → {id}. extend continues the path from that end; redraw (Edit Selected Paths) replaces the section of the path between where the stroke starts and ends, each within `within` of one subpath (the shorter way round a closed one), and draws a new path when the stroke doesn't end on it",
             has_doc,
             freehand
         ),
@@ -536,18 +536,15 @@ fn path_kind(path: PathData) -> NodeKind {
 
 // ---------- Pencil / Paintbrush ----------
 
-/// Fit a freehand polyline: drop jitter, build a spline through the samples (sharp turns stay
-/// corners) and simplify it to `tol`.
-fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
-    let min = (tol * 0.3).max(0.05);
-    let (Some(&p0), Some(&pn)) = (pts.first(), pts.last()) else { return SubPath::new(vec![], closed) };
+/// Samples along a stroke, dropping points closer than `min` apart but always keeping the last.
+fn decimate_stroke(pts: &[Point], min: f64) -> Vec<Point> {
+    let (Some(&p0), Some(&pn)) = (pts.first(), pts.last()) else { return vec![] };
     let mut kept: Vec<Point> = vec![p0];
     for &p in pts.iter().skip(1) {
         if kept.last().is_none_or(|k| k.distance(p) >= min) {
             kept.push(p);
         }
     }
-    // The last sample always ends the stroke.
     if kept.len() > 1 {
         if let Some(k) = kept.last_mut() {
             *k = pn;
@@ -555,6 +552,28 @@ fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
     } else if pts.len() > 1 {
         kept.push(pn);
     }
+    kept
+}
+
+/// Fit a freehand polyline without pre-smoothing: corner anchors spaced by `tol` (Fidelity).
+fn fit_freehand_raw(pts: &[Point], tol: f64, closed: bool) -> SubPath {
+    let min = tol.max(0.05);
+    let kept = decimate_stroke(pts, min);
+    if kept.len() < 2 {
+        return SubPath::new(vec![], closed);
+    }
+    let anchors = kept.into_iter().map(Anchor::corner).collect();
+    SubPath::new(anchors, closed)
+}
+
+/// Fit a freehand polyline: drop jitter, build a spline through the samples (sharp turns stay
+/// corners) and simplify it to `tol`.
+fn fit_freehand(pts: &[Point], tol: f64, closed: bool, smooth: bool) -> SubPath {
+    if !smooth {
+        return fit_freehand_raw(pts, tol, closed);
+    }
+    let min = (tol * 0.3).max(0.05);
+    let kept = decimate_stroke(pts, min);
     let n = kept.len();
     let marked: Vec<(Point, bool)> = (0..n)
         .map(|i| {
@@ -579,7 +598,7 @@ fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
 /// `pd` to another, each within `within` of it, replaces the section between them (the shorter
 /// way round a closed subpath) with the stroke fitted at `tol`. The subpath's index and its new
 /// shape; None when the stroke doesn't start and end on the same subpath, or meets it once.
-fn redraw_section(pd: &PathData, pts: &[Point], tol: f64, within: f64) -> Option<(usize, SubPath)> {
+fn redraw_section(pd: &PathData, pts: &[Point], tol: f64, within: f64, smooth: bool) -> Option<(usize, SubPath)> {
     use kurbo::ParamCurveArclen;
     let (first, last) = (*pts.first()?, *pts.last()?);
     let (si, _, _, _, d_a) = pd.nearest(first)?;
@@ -633,7 +652,7 @@ fn redraw_section(pd: &PathData, pts: &[Point], tol: f64, within: f64) -> Option
     *s0 = s1.p;
     let (Some(e0), Some(e1)) = (stroke.last_mut(), sp.anchors.get(end)) else { return None };
     *e0 = e1.p;
-    let fit = fit_freehand(&stroke, tol, false).anchors;
+    let fit = fit_freehand(&stroke, tol, false, smooth).anchors;
     let (Some(f0), Some(f1)) = (fit.first().copied(), fit.last().copied()) else { return None };
     let inner = fit.get(1..fit.len().saturating_sub(1)).unwrap_or_default();
     let (before, after): (Vec<Anchor>, Vec<Anchor>) = if sp.closed {
@@ -665,6 +684,7 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
     let pressure = stroke_pressure(&samples);
     let mut pts: Vec<Point> = samples.into_iter().map(|(pt, _)| pt).collect();
     let tol = number_or(p, "fidelity", 1.5, C)?.clamp(0.05, 100.0);
+    let smooth = switch_or(p, "smooth", true, C)?;
     let closed = switch_or(p, "closed", false, C)?;
     let brush = str_param(p, "style") == Some("brush");
     let keep_selected = switch_or(p, "keepSelected", true, C)?;
@@ -692,7 +712,7 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
         if closing && let Some(l) = pts.last_mut() {
             *l = first;
         }
-        let fit = fit_freehand(&pts, tol, false);
+        let fit = fit_freehand(&pts, tol, false, smooth);
         let mut add = fit.anchors;
         if let (Some(last), Some(a0)) = (sp.anchors.last_mut(), add.first()) {
             last.h_out = a0.h_out;
@@ -748,7 +768,7 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
         let (pd, _) = path_of(&s.doc()?.doc, id)?;
         // shortcut: a stroke pressure profile is left as it was, measured along the old path; fit
         // it to the new length if Calligraphic pressure strokes get redrawn.
-        if let Some((si, sp)) = redraw_section(&pd, &pts, tol, within) {
+        if let Some((si, sp)) = redraw_section(&pd, &pts, tol, within, smooth) {
             s.edit(if brush { "Paintbrush" } else { "Pencil" }, |d, sel| {
                 *path_mut(d, id)?.subpaths.get_mut(si).ok_or_else(|| bad(C, "no such subpath"))? = sp;
                 if keep_selected {
@@ -764,7 +784,7 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
     if pts.len() < 2 {
         return Err(bad(C, "need at least two points"));
     }
-    let sp = fit_freehand(&pts, tol, closed);
+    let sp = fit_freehand(&pts, tol, closed, smooth);
     let fill = if filled { s.paint.fill.clone() } else { Paint::None };
     // A pencil path with a fill keeps a stroke of None (#1679); only one that would show nothing
     // gets black. A brush is its stroke.

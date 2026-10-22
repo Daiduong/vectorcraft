@@ -43,6 +43,8 @@ pub struct GestureTool {
     /// "Alt key toggles to Smooth Tool": holding Alt with the Pencil tool smooths selected paths
     /// instead of closing the path (Pencil only, off by default).
     pub alt_smooth: bool,
+    /// Catmull-Rom pre-smoothing before Fidelity (Pencil only, on by default).
+    pub smooth_stroke: bool,
     /// Active drag is smoothing with the Pencil tool.
     smoothing: bool,
     /// Where the pointer was for each Blob Brush point dragged since Shift went down: the last
@@ -87,6 +89,7 @@ impl GestureTool {
             keep_selected: id != "blobBrush",
             // Off, as Pencil Tool Options ships it: Alt keeps drawing a closed path until it is on.
             alt_smooth: false,
+            smooth_stroke: true,
             smoothing: false,
             shift_raw: vec![],
             shift_next: None,
@@ -222,6 +225,9 @@ impl GestureTool {
             "fill": self.fill,
             "keepSelected": self.keep_selected,
         });
+        if self.id == "pencil" {
+            v["smooth"] = json!(self.smooth_stroke);
+        }
         if let Some((id, start)) = self.extend {
             v["extend"] = json!({"id": id.0, "end": if start { "start" } else { "end" }});
         } else if let Some((id, within)) = self.redraw {
@@ -432,6 +438,7 @@ impl Tool for GestureTool {
                     "fidelity": self.fidelity,
                     "fill": self.fill,
                     "altSmooth": self.alt_smooth,
+                    "smoothStroke": self.smooth_stroke,
                     "keepSelected": self.keep_selected,
                     "editWithin": self.edit_within,
                     "closeWithin": self.close_within
@@ -458,6 +465,7 @@ impl Tool for GestureTool {
             "size" => self.size = v.as_f64().unwrap_or(self.size).clamp(0.1, 1000.0),
             "fill" => self.fill = v.as_bool().unwrap_or(self.fill),
             "altSmooth" => self.alt_smooth = v.as_bool().unwrap_or(self.alt_smooth),
+            "smoothStroke" => self.smooth_stroke = v.as_bool().unwrap_or(self.smooth_stroke),
             "keepSelected" => self.keep_selected = v.as_bool().unwrap_or(self.keep_selected),
             "mergeOnlySelection" => self.merge_only_selection = v.as_bool().unwrap_or(self.merge_only_selection),
             "editWithin" => self.edit_within = v.as_f64().unwrap_or(self.edit_within).clamp(0.0, 100.0),
@@ -550,6 +558,25 @@ mod tests {
         assert!(matches!(&last[0], Action::Preview(_, v) if v["closed"] == false && v["style"] == "pencil"));
         assert_eq!(last[1], Action::Commit);
         assert!(!t.busy());
+    }
+
+    /// #3511: Pencil Tool Options' Smooth stroke reaches `path.freehand` as `smooth`.
+    #[test]
+    fn pencil_sends_smooth_stroke_to_freehand() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = GestureTool::new("pencil");
+        assert_eq!(t.options()["smoothStroke"], json!(true));
+        for smooth in [true, false] {
+            t.set_option("smoothStroke", &json!(smooth));
+            let acts = drag(&mut t, &cx, &[(0.0, 0.0), (10.0, 5.0), (20.0, 0.0)], Mods::default());
+            assert!(
+                acts[1..].iter().all(|a| a.iter().all(|a| !matches!(a, Action::Preview(_, v) if v.get("smooth") != Some(&json!(smooth))))),
+                "smooth={smooth}"
+            );
+        }
     }
 
     /// Keep selected is on by default, and every Pencil and Paintbrush preview sends it.

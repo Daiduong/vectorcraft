@@ -24,7 +24,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec { heading, body, confirm, min_wid
 pub const TOOLS: [&str; 5] = ["pencil", "paintbrush", "smooth", "blobBrush", "eraser"];
 
 /// The options the dialog edits, in the order it shows them (a tool has those it reports).
-const KEYS: [&str; 8] = ["fidelity", "size", "fill", "altSmooth", "keepSelected", "mergeOnlySelection", "closeWithin", "editWithin"];
+const KEYS: [&str; 9] = ["fidelity", "size", "fill", "altSmooth", "smoothStroke", "keepSelected", "mergeOnlySelection", "closeWithin", "editWithin"];
 
 /// Width of the label column: wide enough for the tolerances' labels when there are any.
 fn label_w(d: &Dialog) -> f32 {
@@ -104,6 +104,9 @@ fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if d.fields.contains_key("altSmooth") {
         check(ui, d, "altSmooth", tl!("Alt key toggles to Smooth Tool"));
     }
+    if d.fields.contains_key("smoothStroke") {
+        check(ui, d, "smoothStroke", tl!("Smooth stroke before Fidelity"));
+    }
     if d.fields.contains_key("keepSelected") {
         check(ui, d, "keepSelected", tl!("Keep selected"));
         if d.fields.contains_key("mergeOnlySelection") {
@@ -155,6 +158,7 @@ mod tests {
             "Smooth",
             "Fill new strokes",
             "Alt key toggles to Smooth Tool",
+            "Smooth stroke before Fidelity",
             "Close paths when ends are within:",
             "Edit selected paths within:",
         ] {
@@ -163,20 +167,39 @@ mod tests {
         assert!(!text.contains("Size:"), "{text}");
         let d = app.ui.dialog.as_mut().unwrap();
         assert_eq!(
-            (d.f64("fidelity", 0.0), d.bool("fill"), d.bool("altSmooth"), d.f64("closeWithin", 0.0), d.f64("editWithin", 0.0)),
-            (1.5, false, false, 15.0, 12.0)
+            (
+                d.f64("fidelity", 0.0),
+                d.bool("fill"),
+                d.bool("altSmooth"),
+                d.bool("smoothStroke"),
+                d.f64("closeWithin", 0.0),
+                d.f64("editWithin", 0.0),
+            ),
+            (1.5, false, false, true, 15.0, 12.0)
         );
-        for (k, v) in
-            [("fidelity", json!(6.5)), ("fill", json!(true)), ("altSmooth", json!(true)), ("closeWithin", json!(0)), ("editWithin", json!(20))]
-        {
+        for (k, v) in [
+            ("fidelity", json!(6.5)),
+            ("fill", json!(true)),
+            ("altSmooth", json!(true)),
+            ("smoothStroke", json!(false)),
+            ("closeWithin", json!(0)),
+            ("editWithin", json!(20)),
+        ] {
             d.fields.insert(k.into(), v);
         }
         super::super::confirm(&mut app).unwrap();
         assert!(app.ui.dialog.is_none());
         let o = app.session.tool_options_of("pencil");
         assert_eq!(
-            (o["fidelity"].as_f64(), o["fill"].as_bool(), o["altSmooth"].as_bool(), o["closeWithin"].as_f64(), o["editWithin"].as_f64()),
-            (Some(6.5), Some(true), Some(true), Some(0.0), Some(20.0))
+            (
+                o["fidelity"].as_f64(),
+                o["fill"].as_bool(),
+                o["altSmooth"].as_bool(),
+                o["smoothStroke"].as_bool(),
+                o["closeWithin"].as_f64(),
+                o["editWithin"].as_f64(),
+            ),
+            (Some(6.5), Some(true), Some(true), Some(false), Some(0.0), Some(20.0))
         );
         // The Paintbrush keeps its own: the Pencil's change left it alone.
         app.run("tool.options", json!({"tool": "paintbrush"})).unwrap();
