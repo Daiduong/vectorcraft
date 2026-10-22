@@ -86,8 +86,13 @@ pub(crate) fn is_trace(n: &Node) -> bool {
 
 /// What the selection is: an Image Trace object (with its stored settings), a plain image, or neither.
 fn target(app: &VectorcraftApp) -> (bool, bool, Option<Value>) {
+    if !app.session.active().is_some_and(|st| st.selection.objects.len() == 1) {
+        return (false, false, None);
+    }
     let Some(n) = first_selected(app) else { return (false, false, None) };
-    (is_trace(&n), matches!(n.kind, NodeKind::Image(_)), n.extras().trace.as_deref().cloned())
+    let live = is_trace(&n);
+    let retained = app.session.active().and_then(|st| st.doc.parent_of(n.id).and_then(|p| st.doc.node(p))).is_some_and(is_trace);
+    (live, matches!(n.kind, NodeKind::Image(_)) && !retained, if live { n.extras().trace.as_deref().cloned() } else { None })
 }
 
 /// The one selected Image Trace object's preset ("Custom" once its settings were changed) and view.
@@ -171,9 +176,12 @@ fn preset_list(app: &mut VectorcraftApp, ui: &mut Ui, current: &str) -> Option<S
 /// Width of the Control bar's Image Trace button.
 pub(crate) const TRACE_BUTTON_W: f32 = 104.0;
 
-/// The Image Trace button for a selected image (Control bar, Properties): a click traces it with
-/// the Default preset, its arrow lists the presets to trace it with.
+/// The Image Trace button for one eligible ordinary image (Control bar, Properties). Retained
+/// trace sources have no action; a click traces with Default, and the arrow lists presets.
 pub(crate) fn trace_button(app: &mut VectorcraftApp, ui: &mut Ui, width: f32) {
+    if !target(app).1 {
+        return;
+    }
     let (main, arrow) = widgets::split_button_named(ui, tl!("Image Trace"), tl!("Tracing Presets"), width);
     if main.on_hover_text(tl!("Trace the image with the Default preset")).clicked() {
         trace_with(app, "Default");
@@ -233,14 +241,44 @@ fn slider(ui: &mut Ui, label: &str, v: &mut f64, range: std::ops::RangeInclusive
         ui.visuals_mut().selection.bg_fill = t.accent;
         let r = ui.add(egui::Slider::new(v, range).suffix(suffix).integer().trailing_fill(true));
         if cfg!(test) {
-            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(("trace-slider", label)), r.rect));
+            ui.ctx().data_mut(|d| {
+                d.insert_temp(egui::Id::new(("trace-slider", label)), r.rect);
+                d.insert_temp(egui::Id::new(("trace-slider-enabled", label)), r.enabled());
+            });
         }
         out = (r.changed(), r.drag_stopped() || (r.changed() && !r.dragged()));
     });
     out
 }
 
+/// Intrinsic controls, shared by the rail flyout and floating palette. Fixed-width rows
+/// may need more than the nominal flyout width; its Area already grows to accommodate them.
+pub(crate) fn content_size(ctx: &egui::Context) -> Option<egui::Vec2> {
+    ctx.data(|d| d.get_temp(egui::Id::new("image-trace-content-size")))
+}
+
+pub(crate) fn measured_width(ctx: &egui::Context) -> Option<f32> {
+    ctx.data(|d| d.get_temp(egui::Id::new("image-trace-measured-width")))
+}
+
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let available = ui.available_width();
+    let (live, image, _) = target(app);
+    let out = ui.add_enabled_ui(live || image, |ui| controls(app, ui));
+    let size = out.response.rect.size();
+    if content_size(ui.ctx()).is_none_or(|old| (old - size).abs().max_elem() > 0.5)
+        || measured_width(ui.ctx()).is_none_or(|old| (old - available).abs() > 0.5)
+    {
+        ui.ctx().data_mut(|d| {
+            d.insert_temp(egui::Id::new("image-trace-content-size"), size);
+            d.insert_temp(egui::Id::new("image-trace-measured-width"), available);
+        });
+        ui.ctx().request_repaint();
+    }
+    out.response.on_disabled_hover_text(tl!("Select an image to trace"));
+}
+
+fn controls(app: &mut VectorcraftApp, ui: &mut Ui) {
     let all = presets(app);
     let mut st: TraceUi = pstate(ui.ctx(), "image-trace");
     if st.params.is_null() {
@@ -248,6 +286,13 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         st.params = all.first().map(|p| p.1.clone()).unwrap_or_default();
     }
     let (is_trace, is_image, stored) = target(app);
+    // Counts belong to the trace, not the panel's last run. Reading its committed
+    // statistics also handles identical settings/ids in different documents and Undo.
+    // Older traces without statistics show no counts until traced again.
+    st.info = stored.as_ref().and_then(|t| Some((t["info"]["paths"].as_u64()?, t["info"]["anchors"].as_u64()?, t["info"]["colors"].as_u64()?)));
+    if !is_trace {
+        st.synced = Value::Null;
+    }
     if let Some(t) = stored.filter(|t| *t != st.synced) {
         st.preset = t["preset"].as_str().unwrap_or("Custom").to_string();
         st.params = t["params"].clone();
@@ -810,6 +855,173 @@ mod tests {
                 menu(&mut app, ui);
             });
             out.textures_delta.clear();
+        }
+    }
+    #[test]
+    fn expanding_disables_trace_controls_and_undo_reactivates_them() {
+        let mut app = traced_app();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let enabled = |app: &mut VectorcraftApp| {
+            frame(app, &ctx, vec![]);
+            ctx.data(|d| d.get_temp::<bool>(egui::Id::new(("trace-slider-enabled", "Threshold")))).unwrap()
+        };
+        assert!(enabled(&mut app));
+        click(&mut app, &ctx, "Trace");
+        assert!(pstate::<TraceUi>(&ctx, "image-trace").info.is_some());
+        click(&mut app, &ctx, "Expand");
+        assert!(!enabled(&mut app));
+        assert!(pstate::<TraceUi>(&ctx, "image-trace").info.is_none(), "expanded selection has no live trace counts");
+        let steps = app.session.active().unwrap().history.undo.len();
+        let open = app.ui.image_trace_advanced;
+        click(&mut app, &ctx, "Advanced");
+        click(&mut app, &ctx, "Default");
+        assert_eq!(app.ui.image_trace_advanced, open);
+        assert_eq!(app.session.active().unwrap().history.undo.len(), steps);
+        app.run("edit.undo", json!({})).unwrap();
+        assert!(enabled(&mut app));
+        app.run("edit.redo", json!({})).unwrap();
+        assert!(!enabled(&mut app));
+        app.run("edit.undo", json!({})).unwrap();
+        app.run("imageTrace.release", json!({})).unwrap();
+        assert!(enabled(&mut app), "a plain source image can be traced again");
+        let image = app.session.active().unwrap().selection.objects[0];
+        let shape = app.run("shape.rectangle", json!({"x":0,"y":0,"width":5,"height":5})).unwrap()["id"].clone();
+        assert!(!enabled(&mut app), "ordinary vectors are not a trace target");
+        app.run("select.set", json!({"ids":[image.0,shape]})).unwrap();
+        assert!(!enabled(&mut app), "mixed selections do not edit an arbitrary first object");
+        app.run("select.none", json!({})).unwrap();
+        assert!(!enabled(&mut app));
+        app.run("select.set", json!({"ids":[image.0]})).unwrap();
+        assert!(enabled(&mut app));
+    }
+    #[test]
+    fn trace_counts_follow_selected_results_across_documents_and_history() {
+        let mut app = traced_app();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let a = app.session.active().unwrap().selection.objects[0];
+        let read = |app: &mut VectorcraftApp| {
+            frame(app, &ctx, vec![]);
+            pstate::<TraceUi>(&ctx, "image-trace").info
+        };
+        let counts_a = read(&mut app).unwrap();
+        // Two disconnected rectangles, with the same settings but different result counts.
+        let image = image::RgbaImage::from_fn(60, 30, |x, y| {
+            image::Rgba(if (5..20).contains(&y) && ((3..15).contains(&x) || (35..48).contains(&x)) { [0, 0, 0, 255] } else { [255, 255, 255, 255] })
+        });
+        let mut png = vec![];
+        image.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        let place = |app: &mut VectorcraftApp, png: &[u8]| {
+            app.run("file.place", json!({"name":"two.png","dataBase64":vectorcraft_format::base64_encode(png),"link":false})).unwrap();
+            app.run("imageTrace.make", json!({})).unwrap()
+        };
+        let result = place(&mut app, &png);
+        let b = result["id"].clone();
+        let counts_b = (result["paths"].as_u64().unwrap(), result["anchors"].as_u64().unwrap(), result["colors"].as_u64().unwrap());
+        assert_ne!(counts_a, counts_b);
+        assert_eq!(read(&mut app), Some(counts_b));
+        app.run("select.set", json!({"ids":[a.0]})).unwrap();
+        assert_eq!(read(&mut app), Some(counts_a));
+        app.run("select.set", json!({"ids":[b]})).unwrap();
+        assert_eq!(read(&mut app), Some(counts_b));
+        app.run("imageTrace.expand", json!({})).unwrap();
+        assert_eq!(read(&mut app), None);
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(read(&mut app), Some(counts_b));
+        app.run("file.new", json!({})).unwrap();
+        let circle =
+            image::RgbaImage::from_fn(60, 60, |x, y| image::Rgba(if x < 20 + (y / 10) % 2 * 10 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }));
+        let mut circle_png = vec![];
+        circle.write_to(&mut std::io::Cursor::new(&mut circle_png), image::ImageFormat::Png).unwrap();
+        let second = place(&mut app, &circle_png);
+        let counts_c = (second["paths"].as_u64().unwrap(), second["anchors"].as_u64().unwrap(), second["colors"].as_u64().unwrap());
+        assert_ne!(counts_a, counts_c);
+        assert_eq!(second["id"], a.0, "node ids overlap across documents");
+        assert_eq!(read(&mut app), Some(counts_c));
+        assert!(app.session.set_active(0));
+        app.run("select.set", json!({"ids":[a.0]})).unwrap();
+        assert_eq!(read(&mut app), Some(counts_a));
+        // Legacy traces have no saved statistics: never show another trace's counts.
+        app.session
+            .edit("legacy trace", |d, _| {
+                d.node_mut(a).unwrap().extras_mut().trace.as_deref_mut().unwrap().as_object_mut().unwrap().remove("info");
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(read(&mut app), None);
+        click(&mut app, &ctx, "Trace");
+        assert_eq!(read(&mut app), Some(counts_a));
+    }
+
+    #[test]
+    fn retained_source_disables_trace_controls_and_control_bar_expand_deactivates_them() {
+        let mut app = traced_app();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let group = app.session.active().unwrap().selection.objects[0];
+        let source = app.session.active().unwrap().doc.node(group).unwrap().children().unwrap()[0].id;
+        app.run("select.set", json!({"ids":[source.0]})).unwrap();
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(target(&app), (false, false, None));
+        let before = app.session.active().unwrap().history.undo.len();
+        click(&mut app, &ctx, "Trace");
+        assert_eq!(app.session.active().unwrap().history.undo.len(), before);
+        assert!(pstate::<TraceUi>(&ctx, "image-trace").info.is_none());
+        app.run("select.set", json!({"ids":[group.0]})).unwrap();
+        let mut h = egui_kittest::Harness::new_ui_state(
+            |ui, app| {
+                control_bar(app, ui);
+            },
+            app,
+        );
+        use egui_kittest::kittest::Queryable;
+        h.get_by_label("Expand").click();
+        h.run();
+        assert!(selected_trace(h.state()).is_none());
+        frame(h.state_mut(), &ctx, vec![]);
+        assert!(pstate::<TraceUi>(&ctx, "image-trace").info.is_none());
+        assert!(!ctx.data(|d| d.get_temp::<bool>(egui::Id::new(("trace-slider-enabled", "Threshold")))).unwrap());
+    }
+
+    #[test]
+    fn shared_trace_action_rejects_retained_sources_in_control_bar_and_properties() {
+        use egui_kittest::kittest::Queryable;
+        for properties in [false, true] {
+            let mut app = traced_app();
+            let group = app.session.active().unwrap().selection.objects[0];
+            let source = app.session.active().unwrap().doc.node(group).unwrap().children().unwrap()[0].id;
+            app.run("select.set", json!({"ids":[source.0]})).unwrap();
+            let before = app.session.active().unwrap().history.undo.len();
+            let mut h = egui_kittest::Harness::new_ui_state(
+                move |ui, app| {
+                    if properties {
+                        crate::panels::properties::show(app, ui);
+                    } else {
+                        crate::place::control_bar_details(app, ui);
+                    }
+                },
+                app,
+            );
+            assert!(h.query_by_label("Image Trace").is_none(), "retained source must not expose the shared Trace action (Properties={properties})");
+            assert!(h.query_by_label("Tracing Presets").is_none(), "retained source must not expose tracing presets");
+            assert_eq!(h.state().session.active().unwrap().history.undo.len(), before);
+            assert!(h.state_mut().run("imageTrace.make", json!({"id":source.0})).is_err(), "the explicit-id engine guard remains");
+            assert_eq!(h.state().session.active().unwrap().history.undo.len(), before);
+            h.state_mut().run("select.set", json!({"ids":[group.0]})).unwrap();
+            h.state_mut().run("imageTrace.release", json!({})).unwrap();
+            h.run();
+            assert!(h.query_by_label("Image Trace").is_some(), "a released ordinary image still exposes tracing");
+            assert!(h.query_by_label("Tracing Presets").is_some());
+            h.get_by_label("Image Trace").click();
+            h.run();
+            assert!(selected_trace(h.state()).is_some(), "the ordinary image button still creates a live trace");
+            h.state_mut().run("edit.undo", json!({})).unwrap();
+            h.run();
+            assert!(h.query_by_label("Image Trace").is_some(), "Undo restores the plain-image action");
+            h.state_mut().run("edit.redo", json!({})).unwrap();
+            h.run();
+            assert!(selected_trace(h.state()).is_some());
         }
     }
 }

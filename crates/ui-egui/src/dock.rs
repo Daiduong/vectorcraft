@@ -465,7 +465,8 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
             }
             let menu_r = Rect::from_center_size(strip.right_center() - vec2(34.0, 0.0), vec2(16.0, 16.0));
             panels::panel_menu(app, ui, id, menu_r);
-            let drag = ui.interact(title, ui.id().with("title"), Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);
+            let handle = Rect::from_min_max(strip.min, egui::pos2(menu_r.left() - 4.0, strip.bottom()));
+            let drag = ui.interact(handle, ui.id().with("title"), Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);
             if drag.dragged() && ui.input(|i| i.pointer.is_decidedly_dragging()) {
                 torn = Some(title.left());
             }

@@ -1816,3 +1816,31 @@ fn shape_builder_merges_rosette_rings_cleanly_however_a_petal_turns() {
     rosette_rings_merge_cleanly(&[(7, &[-45.0])]);
     rosette_rings_merge_cleanly(&[(4, &[100.0, 80.0])]);
 }
+
+#[test]
+fn image_trace_retained_source_cannot_be_nested_even_with_explicit_ids() {
+    let mut s = session();
+    let source = image_doc(&mut s);
+    let result = s.execute("imageTrace.make", &json!({})).unwrap();
+    let group = NodeId(result["id"].as_u64().unwrap());
+    let stored = node(&s, group).extras().trace.clone().unwrap();
+    assert_eq!(stored["info"], json!({"paths":result["paths"],"anchors":result["anchors"],"colors":result["colors"]}));
+    let loaded = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    assert_eq!(loaded.node(group).unwrap().extras().trace.as_deref(), Some(stored.as_ref()), "statistics survive native save/reopen");
+    let plain = image_doc(&mut s);
+    s.execute("select.set", &json!({"ids":[source.0]})).unwrap();
+    let before = vectorcraft_format::save(&s.doc().unwrap().doc, false);
+    let steps = s.doc().unwrap().history.undo.len();
+    for command in ["imageTrace.make", "imageTrace.makeAndExpand"] {
+        for params in [json!({}), json!({"id":source.0}), json!({"ids":[plain.0,source.0]})] {
+            assert!(s.execute(command, &params).is_err(), "{command} {params}");
+            assert_eq!(vectorcraft_format::save(&s.doc().unwrap().doc, false), before);
+            assert_eq!(s.doc().unwrap().selection.objects, [source]);
+            assert_eq!(s.doc().unwrap().history.undo.len(), steps);
+            assert_eq!(node(&s, group).children().unwrap()[0].id, source);
+        }
+    }
+    s.execute("imageTrace.make", &json!({"id":group.0})).unwrap();
+    s.execute("imageTrace.release", &json!({})).unwrap();
+    s.execute("imageTrace.make", &json!({})).unwrap();
+}

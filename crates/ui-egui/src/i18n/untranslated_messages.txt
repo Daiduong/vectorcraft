@@ -963,6 +963,7 @@ select rows or objects to collect
 select something to export
 select something to export (or turn off selectedOnly)
 select text to redefine the style from
+select the Image Trace group, not its retained source image
 select the art and, on top of it, the mask object
 select the art for the design
 select the art for the pattern tile

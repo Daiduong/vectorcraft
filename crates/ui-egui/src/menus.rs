@@ -443,7 +443,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.panel",
         "Show Panel",
         "",
-        "{panel: id, toggle?: bool} e.g. layers, swatches, stroke (case-insensitive; display labels like \"Layers\" work too); toggle (the Window menu) hides a panel that shows, and shows it again where it was",
+        "{panel: id, toggle?: bool} e.g. layers, swatches, stroke (case-insensitive; display labels like \"Layers\" work too); toggle (the Window menu) hides a panel that shows, and shows it again where it was. imageTrace with no saved dock, icon-rail or floating location opens as a floating palette; later Show keeps its placement",
     ),
     (
         "window.panel.layout",
@@ -1599,6 +1599,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
                     app.ui.dock_tab = tab;
                     Ok(Value::Null)
                 }
+                (Some("imageTrace"), None) => app.run("window.panel.float", json!({"panel": "imageTrace"})),
                 // A library panel isn't in the icon column: it floats.
                 (Some(p), None) if crate::panels::library_panel::parse(p).is_some() => crate::panels::library_panel::float(app, p),
                 (Some(p), None) => {
