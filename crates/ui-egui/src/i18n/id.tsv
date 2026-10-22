@@ -5401,3 +5401,8 @@ axis	Y Axis	Sumbu Y
 	Reading	Bacaan
 	Overhang	Tonjolan
 	applied	Diterapkan
+	Clockwise	Searah jarum jam
+	Dither	Dither
+	Fine noise hides banding in the gradient fill	Derau halus menyembunyikan pita warna pada isian gradien
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` berlaku untuk isian gradien (stroke: false)
+@msg	`dither` must be true or false	`dither` harus true atau false

@@ -4367,6 +4367,7 @@ theme	Appearance	Giao diện
 @msg	no file system here	không có hệ thống tệp ở đây
 @msg	no file writer	không có bộ ghi tệp
 @msg	no files to place	không có tệp để đặt
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` không phải là tài liệu VectorCraft, tệp PDF hay tệp .ai tương thích PDF
 @msg	No fonts are missing in this document	Không có phông chữ nào bị thiếu trong tài liệu này
 @msg	no format to export to	không có định dạng để xuất
 @msg	no free recovery area	không có vùng phục hồi trống
@@ -5025,3 +5026,8 @@ axis	Y Axis	Trục Y
 	Reading	Cách đọc
 	Overhang	Độ nhô
 	applied	Đã áp dụng
+	Clockwise	Theo chiều kim đồng hồ
+	Dither	Dither
+	Fine noise hides banding in the gradient fill	Nhiễu mịn che dải màu trong vùng tô chuyển sắc
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` áp dụng cho vùng tô chuyển sắc (stroke: false)
+@msg	`dither` must be true or false	`dither` phải là true hoặc false
