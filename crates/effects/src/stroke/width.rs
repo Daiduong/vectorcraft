@@ -151,9 +151,13 @@ pub(super) fn flatten(segs: &[PathSeg], closed: bool, tol: f64) -> Flat {
 /// drawn as a smooth outline along straight runs too (the two points of a discontinuous point
 /// share one sample). `span` maps the subpath onto the profile (see [`outline_spans`]).
 fn densify(flat: &Flat, segs: &[PathSeg], closed: bool, profile: &WidthProfile, span: (f64, f64)) -> (Vec<Point>, Vec<bool>, Vec<Vec2>) {
-    // Samples per profile segment; fewer when a profile carries many points, so a file can't turn
-    // the extra samples into a huge allocation.
-    const SAMPLES: usize = 16;
+    // Two samples per profile segment: the segment end plus its midpoint. The outline is fitted
+    // with cubics through these points, so a smooth width curve needs far fewer samples than it
+    // did when every pair of samples became a separate cubic. A profile with a strong bend gets
+    // one more subdivision; a flat profile draws the same straight pieces as before.
+    const SAMPLES: usize = 2;
+    const MAX_SAMPLES: usize = 8;
+    const BEND: f64 = 0.20;
     let total = length(&flat.pts, closed);
     let range = span.1 - span.0;
     if total <= 1e-12 || range <= 1e-12 {
@@ -165,11 +169,28 @@ fn densify(flat: &Flat, segs: &[PathSeg], closed: bool, profile: &WidthProfile, 
     ts.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
     // A flat profile draws the same straight pieces as before: sample only its points.
     let constant = profile.points.first().is_some_and(|f| profile.points.iter().all(|p| (p.1 - f.1).abs() <= 1e-12 && (p.2 - f.2).abs() <= 1e-12));
-    let samples = if constant { 1 } else { SAMPLES.min((4096 / ts.len().max(1)).max(1)) };
-    let mut marks = Vec::with_capacity(ts.len() * samples);
+    let cap = (4096 / ts.len().max(1)).max(1);
+    // A curved path's flattened points already sample the width along the subpath. On a dense
+    // piece the profile's own points are enough; a straight run has only its ends, so it needs
+    // the extra samples. This keeps curved, profiled art close to a uniform stroke's size.
+    let pieces = if closed { flat.pts.len() } else { flat.pts.len().saturating_sub(1) }.max(1);
+    let spacing = total / pieces as f64;
+    let mut marks = Vec::with_capacity(ts.len() * SAMPLES);
     for w in ts.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        let samples = if constant {
+            1
+        } else {
+            // `ts` has the profile both at t and t + 1 for a dash crossing a closed seam; the
+            // shifted copy has the same shape, so measure its bend on the unshifted segment.
+            let start = a.rem_euclid(1.0);
+            let end = start + (b - a);
+            let want = adaptive_samples(profile, start, end, SAMPLES, MAX_SAMPLES, BEND).min(cap);
+            let existing = (b - a) * total / spacing;
+            if existing >= want as f64 { 1 } else { want }
+        };
         for k in 0..samples {
-            marks.push(w[0] + (w[1] - w[0]) * k as f64 / samples as f64);
+            marks.push(a + (b - a) * k as f64 / samples as f64);
         }
     }
     if let Some(&last) = ts.last() {
@@ -177,6 +198,27 @@ fn densify(flat: &Flat, segs: &[PathSeg], closed: bool, profile: &WidthProfile, 
     }
     let marks: Vec<f64> = marks.into_iter().map(|t| (t - span.0) / range * total).collect();
     split_at(flat, closed, &marks, segs)
+}
+
+/// How many pieces one profile segment needs so a cubic fit through their ends keeps the width
+/// curve. A straight taper is already straight; a visible bend gets progressively more samples.
+fn adaptive_samples(profile: &WidthProfile, t0: f64, t1: f64, base: usize, max: usize, bend: f64) -> usize {
+    let mut samples = base;
+    let (l0, r0) = profile.at(t0);
+    let (l1, r1) = profile.at(t1);
+    while samples < max {
+        let mut dev = 0.0_f64;
+        for q in [0.25, 0.5, 0.75] {
+            let (l, r) = profile.at(t0 + (t1 - t0) * q);
+            let want = (l0 + (l1 - l0) * q, r0 + (r1 - r0) * q);
+            dev = dev.max((l - want.0).abs()).max((r - want.1).abs());
+        }
+        if dev <= bend {
+            break;
+        }
+        samples *= 2;
+    }
+    samples
 }
 
 /// Length of a flattened subpath (see [`flatten`]).
@@ -557,6 +599,20 @@ fn tangents(run: &[Point], cyclic: bool) -> Vec<Vec2> {
         let m = (w0 + w1) / (w0 / d0 + w1 / d1);
         if m.is_finite() { m } else { 0.0 }
     };
+    // The one-sided slope of a run's end uses its two end secants, instead of only the last one.
+    // A coarse sample then still leaves the end of a profile curve with the right slope.
+    let end_slope = |d0: f64, d1: f64, h0: f64, h1: f64| {
+        if d0 * d1 <= 0.0 || h0 + h1 <= 1e-12 {
+            return 0.0;
+        }
+        let m = ((2.0 * h0 + h1) * d0 - h0 * d1) / (h0 + h1);
+        if m.is_finite() && m * d0 > 0.0 {
+            let cap = 3.0 * d0.abs();
+            m.clamp(-cap, cap)
+        } else {
+            0.0
+        }
+    };
     let delta = |i: usize| -> Vec2 {
         let hi = h[i % segs];
         if hi > 1e-12 { (run[(i + 1) % n] - run[i % n]) / hi } else { Vec2::ZERO }
@@ -570,9 +626,19 @@ fn tangents(run: &[Point], cyclic: bool) -> Vec<Vec2> {
         } else if cyclic || (i > 0 && i + 1 < n) {
             *m = Vec2::new(slope(d0.x, d1.x, h0, h1), slope(d0.y, d1.y, h0, h1));
         } else if i == 0 {
-            *m = d1;
+            *m = if n >= 3 {
+                let (a, b) = (delta(0), delta(1));
+                Vec2::new(end_slope(a.x, b.x, h[0], h[1]), end_slope(a.y, b.y, h[0], h[1]))
+            } else {
+                d1
+            };
         } else {
-            *m = d0;
+            *m = if n >= 3 {
+                let (a, b) = (delta(n - 2), delta(n - 3));
+                Vec2::new(end_slope(a.x, b.x, h[n - 2], h[n - 3]), end_slope(a.y, b.y, h[n - 2], h[n - 3]))
+            } else {
+                d0
+            };
         }
         // A shape-preserving slope is flat in a coordinate at that coordinate's local extremum.
         // Where both are extrema at one sample (a loop or a pinch in the sampled edge) the flat
@@ -894,5 +960,21 @@ mod tests {
         let a = area(&width_outline(&c, 20.0, &p, &capped(LineCap::Butt), 0.5));
         let want = std::f64::consts::PI * (30.0 * 30.0 - 10.0 * 10.0);
         assert!((a - want).abs() / want < 0.01, "{a} vs {want}");
+    }
+
+    #[test]
+    fn profiled_outlines_stay_compact() {
+        // A smooth profile is fitted with cubics, so it must not turn every profile sample into
+        // exported path data. Compare it with the same curved path's uniform outline.
+        let circle = kurbo::Circle::new((0.0, 0.0), 5.0).to_path(0.01);
+        let count = |points| {
+            let p = WidthProfile { points };
+            width_outline(&circle, 5.0, &p, &capped(LineCap::Butt), 0.01).elements().len()
+        };
+        let uniform = count(vec![(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)]);
+        let lens = count(WidthProfile::lens().points);
+        let wave = count(vec![(0.0, 0.3, 0.3), (0.25, 1.0, 1.0), (0.5, 0.3, 0.3), (0.75, 1.0, 1.0), (1.0, 0.3, 0.3)]);
+        assert!(lens <= uniform * 3 / 2, "lens {lens} vs uniform {uniform}");
+        assert!(wave <= uniform * 3 / 2, "wave {wave} vs uniform {uniform}");
     }
 }
