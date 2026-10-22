@@ -4364,6 +4364,7 @@ imageTrace	Outline	Contour
 @msg	Saving	Bezig met opslaan
 @msg	Saving {_1}	Bezig met opslaan van {_1}
 @msg	Exporting {_1}	Bezig met exporteren van {_1}
+@msg	Packaging {_1}	Bezig met verpakken van {_1}
 @msg	Saving recovery data for {_1}	Bezig met opslaan van herstelgegevens voor {_1}
 @msg	Discarded {_1} recovered document(s)	{_1} hersteld(e) document(en) verworpen
 @msg	Restored {_1} recovered document(s): save them to keep them	{_1} hersteld(e) document(en) teruggezet: sla ze op om ze te behouden
@@ -4446,7 +4447,9 @@ imageTrace	Outline	Contour
 @msg	automation filesystem access is not granted: read authority is absent: {path}	toegang tot het bestandssysteem voor automatisering is niet verleend: de leesbevoegdheid ontbreekt: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	toegang tot het bestandssysteem voor automatisering is niet verleend: de schrijfbevoegdheid ontbreekt: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automatiseringspad afgewezen: buiten de leesroot {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automatiseringspad afgewezen: buiten de leesroots {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automatiseringspad afgewezen: buiten de schrijfroot {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automatiseringspad afgewezen: buiten de schrijfroots {roots}: {path}
 @msg	automation path rejected: path is empty	automatiseringspad afgewezen: het pad is leeg
 @msg	automation path rejected: a link that leads nowhere: {path}	automatiseringspad afgewezen: een koppeling die nergens heen leidt: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automatiseringspad afgewezen: kan {path} niet oplossen: {e}
@@ -5159,6 +5162,10 @@ swatch	Bright Violet	Felviolet
 	Halftone Pattern	Rasterpatroon
 	Torn Edges…	Gescheurde randen…
 	Torn Edges	Gescheurde randen
+	Conté Crayon…	Conté-krijt…
+	Conté Crayon	Conté-krijt
+	Foreground Level	Voorgrondniveau
+	Background Level	Achtergrondniveau
 	Pattern Type	Patroontype
 	Dot	Punt
 	Export Type:	Exporttype:
@@ -5434,3 +5441,9 @@ axis	Y Axis	Y-as
 	Packaged {n} file(s) in {folder}	{n} bestand(en) verpakt in {folder}
 	Packaged {n} file(s) {note}	{n} bestand(en) verpakt {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} bestand(en) in {folder}. De pakketmap openen?
+	Clockwise	Met de klok mee
+	Dither	Dither
+	Fine noise hides banding in the gradient fill	Fijne ruis verbergt banden in de verloopvulling
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` geldt voor verloopvullingen (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` geldt voor verloopvullingen (paint.setFill)
+@msg	`dither` must be true or false	`dither` moet true of false zijn

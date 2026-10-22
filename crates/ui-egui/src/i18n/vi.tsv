@@ -4142,7 +4142,9 @@ theme	Appearance	Giao diện
 @msg	automation path rejected: a link that leads nowhere: {path}	đường dẫn tự động bị từ chối: liên kết không dẫn đến đâu: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	đường dẫn tự động bị từ chối: không thể phân giải {path}: {e}
 @msg	automation path rejected: outside the read root {root}: {path}	đường dẫn tự động bị từ chối: ngoài thư mục gốc đọc {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	đường dẫn tự động bị từ chối: ngoài các thư mục gốc đọc {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	đường dẫn tự động bị từ chối: ngoài thư mục gốc ghi {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	đường dẫn tự động bị từ chối: ngoài các thư mục gốc ghi {roots}: {path}
 @msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	đường dẫn tự động bị từ chối: duyệt cha bên dưới thư mục không tồn tại: {path}
 @msg	automation path rejected: path is empty	đường dẫn tự động bị từ chối: đường dẫn trống
 @msg	automation path rejected: reserved device names are not allowed: {path}	đường dẫn tự động bị từ chối: tên thiết bị đặt trước không được phép: {path}
@@ -4236,6 +4238,7 @@ theme	Appearance	Giao diện
 @msg	Exported {what}	Đã xuất {what}
 @msg	Exported {what} with {_1} note(s): {first}	Đã xuất {what} với {_1} ghi chú: {first}
 @msg	Exporting {_1}	Đang xuất {_1}
+@msg	Packaging {_1}	Đang đóng gói {_1}
 @msg	file version {0} is newer than this VectorCraft supports ({VERSION})	phiên bản tệp {0} mới hơn VectorCraft hỗ trợ ({VERSION})
 @msg	Flatten Transparency: select objects to flatten	Dẹp phẳng độ trong suốt: hãy chọn đối tượng để dẹp phẳng
 @msg	Flatten Transparency: {e}	Dẹp phẳng độ trong suốt: {e}
@@ -4364,6 +4367,7 @@ theme	Appearance	Giao diện
 @msg	no file system here	không có hệ thống tệp ở đây
 @msg	no file writer	không có bộ ghi tệp
 @msg	no files to place	không có tệp để đặt
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` không phải là tài liệu VectorCraft, tệp PDF hay tệp .ai tương thích PDF
 @msg	No fonts are missing in this document	Không có phông chữ nào bị thiếu trong tài liệu này
 @msg	no format to export to	không có định dạng để xuất
 @msg	no free recovery area	không có vùng phục hồi trống
@@ -4881,6 +4885,10 @@ theme	Appearance	Giao diện
 	Halftone Pattern	Mẫu bán sắc
 	Torn Edges…	Cạnh rách…
 	Torn Edges	Cạnh rách
+	Conté Crayon…	Bút chì Conté…
+	Conté Crayon	Bút chì Conté
+	Foreground Level	Mức tiền cảnh
+	Background Level	Mức nền
 	Pattern Type	Loại mẫu
 	Dot	Chấm
 # User Interface › Color Scheme
@@ -5015,3 +5023,9 @@ axis	Y Axis	Trục Y
 	Packaged {n} file(s) in {folder}	Đã đóng gói {n} tệp trong {folder}
 	Packaged {n} file(s) {note}	Đã đóng gói {n} tệp {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} tệp trong {folder}. Hiện thư mục gói?
+	Clockwise	Theo chiều kim đồng hồ
+	Dither	Dither
+	Fine noise hides banding in the gradient fill	Nhiễu mịn che dải màu trong vùng tô chuyển sắc
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` áp dụng cho vùng tô chuyển sắc (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` áp dụng cho vùng tô chuyển sắc (paint.setFill)
+@msg	`dither` must be true or false	`dither` phải là true hoặc false

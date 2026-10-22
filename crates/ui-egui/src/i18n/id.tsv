@@ -4352,6 +4352,7 @@ imageTrace	Outline	Kontur
 @msg	Saving	Menyimpan
 @msg	Saving {_1}	Menyimpan {_1}
 @msg	Exporting {_1}	Mengekspor {_1}
+@msg	Packaging {_1}	Mengemas {_1}
 @msg	Saving recovery data for {_1}	Menyimpan data pemulihan untuk {_1}
 @msg	Discarded {_1} recovered document(s)	{_1} dokumen hasil pemulihan dibuang
 @msg	Restored {_1} recovered document(s): save them to keep them	{_1} dokumen hasil pemulihan dipulihkan: simpan agar tidak hilang
@@ -4434,7 +4435,9 @@ imageTrace	Outline	Kontur
 @msg	automation filesystem access is not granted: read authority is absent: {path}	akses sistem berkas otomatisasi tidak diberikan: otoritas baca tidak ada: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	akses sistem berkas otomatisasi tidak diberikan: otoritas tulis tidak ada: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	jalur otomatisasi ditolak: di luar akar baca {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	jalur otomatisasi ditolak: di luar akar-akar baca {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	jalur otomatisasi ditolak: di luar akar tulis {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	jalur otomatisasi ditolak: di luar akar-akar tulis {roots}: {path}
 @msg	automation path rejected: path is empty	jalur otomatisasi ditolak: jalur kosong
 @msg	automation path rejected: a link that leads nowhere: {path}	jalur otomatisasi ditolak: tautan yang tidak mengarah ke mana pun: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	jalur otomatisasi ditolak: tidak dapat menyelesaikan {path}: {e}
@@ -5148,6 +5151,10 @@ swatch	Bright Violet	Violet cerah
 	Halftone Pattern	Pola halftone
 	Torn Edges…	Tepi robek…
 	Torn Edges	Tepi robek
+	Conté Crayon…	Krayon Conté…
+	Conté Crayon	Krayon Conté
+	Foreground Level	Tingkat latar depan
+	Background Level	Tingkat latar belakang
 	Pattern Type	Jenis pola
 	Dot	Titik
 	Export Type:	Jenis ekspor:
@@ -5391,3 +5398,9 @@ axis	Y Axis	Sumbu Y
 	Packaged {n} file(s) in {folder}	Berhasil mengemas {n} file di {folder}
 	Packaged {n} file(s) {note}	Berhasil mengemas {n} file {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} file dalam {folder}. Tampilkan folder paket?
+	Clockwise	Searah jarum jam
+	Dither	Dither
+	Fine noise hides banding in the gradient fill	Derau halus menyembunyikan pita warna pada isian gradien
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` berlaku untuk isian gradien (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` berlaku untuk isian gradien (paint.setFill)
+@msg	`dither` must be true or false	`dither` harus true atau false

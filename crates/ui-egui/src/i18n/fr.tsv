@@ -4057,6 +4057,7 @@ axis	Both	Les deux
 @msg	no file system here	aucun système de fichiers ici
 @msg	no file writer	aucun module d’écriture de fichiers
 @msg	no files to place	aucun fichier à importer
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` n’est ni un document VectorCraft, ni un PDF, ni un fichier .ai compatible PDF
 @msg	no format to export to	aucun format d’exportation
 @msg	no free recovery area	aucune zone de récupération libre
 @msg	no gradient stop or freeform point is selected	aucune étape de dégradé ni point de forme libre n’est sélectionné
@@ -4348,6 +4349,7 @@ axis	Both	Les deux
 @msg	Saving	Enregistrement
 @msg	Saving {_1}	Enregistrement de {_1}
 @msg	Exporting {_1}	Exportation de {_1}
+@msg	Packaging {_1}	Assemblage de {_1}
 @msg	Saving recovery data for {_1}	Enregistrement des données de récupération de {_1}
 @msg	Discarded {_1} recovered document(s)	{_1} document(s) récupéré(s) supprimé(s)
 @msg	Restored {_1} recovered document(s): save them to keep them	{_1} document(s) récupéré(s) restauré(s) : enregistrez-les pour les conserver
@@ -4468,7 +4470,9 @@ axis	Both	Les deux
 @msg	automation filesystem access is not granted: read authority is absent: {path}	l’automatisation n’a pas accès au système de fichiers : aucune autorisation de lecture : {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	l’automatisation n’a pas accès au système de fichiers : aucune autorisation d’écriture : {path}
 @msg	automation path rejected: outside the read root {root}: {path}	chemin d’automatisation refusé : hors du dossier racine de lecture {root} : {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	chemin d’automatisation refusé : hors des dossiers racines de lecture {roots} : {path}
 @msg	automation path rejected: outside the write root {root}: {path}	chemin d’automatisation refusé : hors du dossier racine d’écriture {root} : {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	chemin d’automatisation refusé : hors des dossiers racines d’écriture {roots} : {path}
 @msg	automation path rejected: path is empty	chemin d’automatisation refusé : le chemin est vide
 @msg	automation path rejected: a link that leads nowhere: {path}	chemin d’automatisation refusé : un lien qui ne mène nulle part : {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	chemin d’automatisation refusé : impossible de résoudre {path} : {e}
@@ -5286,6 +5290,10 @@ theme	Appearance	Apparence
 	Halftone Pattern	Trame de demi-teintes
 	Torn Edges…	Bords déchirés…
 	Torn Edges	Bords déchirés
+	Conté Crayon…	Crayon Conté…
+	Conté Crayon	Crayon Conté
+	Foreground Level	Niveau de premier plan
+	Background Level	Niveau d’arrière-plan
 	Pattern Type	Type de motif
 	Dot	Point
 # User Interface › Color Scheme
@@ -5418,3 +5426,9 @@ axis	Y Axis	Axe Y
 	Packaged {n} file(s) in {folder}	{n} fichier(s) assemblé(s) dans {folder}
 	Packaged {n} file(s) {note}	{n} fichier(s) assemblé(s) {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} fichier(s) dans {folder}. Afficher le dossier de l’assemblage ?
+	Clockwise	Sens horaire
+	Dither	Simulation
+	Fine noise hides banding in the gradient fill	Un bruit fin masque les bandes du fond en dégradé
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` s’applique aux fonds en dégradé (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` s’applique aux fonds en dégradé (paint.setFill)
+@msg	`dither` must be true or false	`dither` doit valoir true ou false

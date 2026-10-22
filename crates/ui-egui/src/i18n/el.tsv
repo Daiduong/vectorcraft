@@ -4041,6 +4041,7 @@ theme	Appearance	Εμφάνιση
 @msg	no file system here	δεν υπάρχει σύστημα αρχείων εδώ
 @msg	no file writer	δεν υπάρχει μηχανισμός εγγραφής αρχείων
 @msg	no files to place	δεν υπάρχουν αρχεία για τοποθέτηση
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	Το `{file}` δεν είναι έγγραφο VectorCraft, PDF ή αρχείο .ai συμβατό με PDF
 @msg	no format to export to	δεν υπάρχει μορφή εξαγωγής
 @msg	no free recovery area	δεν υπάρχει ελεύθερη περιοχή ανάκτησης
 @msg	no gradient stop or freeform point is selected	δεν έχει επιλεγεί σημείο χρώματος ντεγκραντέ ή σημείο ελεύθερης μορφής
@@ -4326,6 +4327,7 @@ theme	Appearance	Εμφάνιση
 @msg	Saving	Αποθήκευση σε εξέλιξη
 @msg	Saving {_1}	Αποθήκευση {_1}
 @msg	Exporting {_1}	Εξαγωγή {_1}
+@msg	Packaging {_1}	Συσκευασία {_1}
 @msg	Saving recovery data for {_1}	Αποθήκευση δεδομένων ανάκτησης για {_1}
 @msg	Discarded {_1} recovered document(s)	Απορρίφθηκαν {_1} ανακτημένα έγγραφα
 @msg	Restored {_1} recovered document(s): save them to keep them	Επαναφέρθηκαν {_1} ανακτημένα έγγραφα: αποθηκεύστε τα για να διατηρηθούν
@@ -4438,7 +4440,9 @@ theme	Appearance	Εμφάνιση
 @msg	automation filesystem access is not granted: read authority is absent: {path}	δεν έχει επιτραπεί πρόσβαση αυτοματισμού στο σύστημα αρχείων: δεν υπάρχει δικαίωμα ανάγνωσης: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	δεν έχει επιτραπεί πρόσβαση αυτοματισμού στο σύστημα αρχείων: δεν υπάρχει δικαίωμα εγγραφής: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	απορρίφθηκε η διαδρομή αυτοματισμού: εκτός ρίζας ανάγνωσης {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	απορρίφθηκε η διαδρομή αυτοματισμού: εκτός των ριζών ανάγνωσης {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	απορρίφθηκε η διαδρομή αυτοματισμού: εκτός ρίζας εγγραφής {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	απορρίφθηκε η διαδρομή αυτοματισμού: εκτός των ριζών εγγραφής {roots}: {path}
 @msg	automation path rejected: path is empty	απορρίφθηκε η διαδρομή αυτοματισμού: η διαδρομή είναι κενή
 @msg	automation path rejected: a link that leads nowhere: {path}	απορρίφθηκε η διαδρομή αυτοματισμού: σύνδεσμος χωρίς προορισμό: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	απορρίφθηκε η διαδρομή αυτοματισμού: δεν ήταν δυνατή η επίλυση του {path}: {e}
@@ -5239,6 +5243,10 @@ effect	Points	Σημεία
 	Halftone Pattern	Μοτίβο ημιτόνου
 	Torn Edges…	Ξεσκισμένες άκρες…
 	Torn Edges	Ξεσκισμένες άκρες
+	Conté Crayon…	Κιμωλία Conté…
+	Conté Crayon	Κιμωλία Conté
+	Foreground Level	Επίπεδο προσκηνίου
+	Background Level	Επίπεδο φόντου
 	Pattern Type	Τύπος μοτίβου
 	Dot	Κουκκίδα
 # User Interface › Color Scheme
@@ -5371,3 +5379,9 @@ axis	Y Axis	Άξονας Y
 	Packaged {n} file(s) in {folder}	Συσκευάστηκαν {n} αρχεία στον φάκελο {folder}
 	Packaged {n} file(s) {note}	Συσκευάστηκαν {n} αρχεία {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} αρχεία στον φάκελο {folder}. Να εμφανιστεί ο φάκελος συσκευασίας;
+	Clockwise	Δεξιόστροφα
+	Dither	Πρόσθεση θορύβου
+	Fine noise hides banding in the gradient fill	Ο λεπτός θόρυβος κρύβει τις λωρίδες στο γέμισμα ντεγκραντέ
+@msg	`dither` applies to gradient fills (stroke: false)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (paint.setFill)
+@msg	`dither` must be true or false	Το `dither` πρέπει να είναι true ή false
