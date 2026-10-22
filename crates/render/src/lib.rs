@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 
 mod brush_fx;
+mod changed;
 pub mod encode;
 mod freeform;
 mod fx;
@@ -35,6 +36,7 @@ use ink::Ink;
 use lru::FrameCache;
 
 pub use brush_fx::instance_art;
+pub use changed::{Changed, changed, view_pixels};
 pub use effects::stroke::width_outline;
 pub use images::{IMAGE_CACHE_MAX, image_cache_bytes, set_image_cache_budget};
 pub use live::expand_live;
@@ -80,6 +82,11 @@ pub fn drawn_outline(doc: &Document, n: &Node) -> Option<(BezPath, FillRule)> {
 /// Largest raster an export may ask [`Renderer::render_region`] for, per side. The CPU rasteriser
 /// addresses at most `u16::MAX` pixels per side (and panics at that edge).
 pub const MAX_RASTER_SIDE: u32 = 32_768;
+/// Largest side of a render context the renderer makes. The CPU rasteriser keeps pixel positions
+/// in `u16` and overflows near `u16::MAX` (its tile and bucket arithmetic rounds past it), so
+/// contexts stay within the side raster exports are limited to.
+const MAX_CONTEXT_SIDE: u32 = MAX_RASTER_SIDE;
+
 /// Largest raster an export may ask for in total (16384², 1 GiB of RGBA pixels).
 pub const MAX_RASTER_PIXELS: u64 = 1 << 28;
 
@@ -101,7 +108,7 @@ pub fn raster_size(region: Rect, scale: f64) -> Result<(u32, u32), String> {
 }
 
 /// Rendering options.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RenderOptions {
     /// Outline (wireframe) view: 1 px black paths, no paint.
     pub outline: bool,
@@ -280,7 +287,7 @@ const MAX_SUPERSAMPLED_PIXELS: u64 = 40_000_000;
 pub fn supersample_factor(w: u32, h: u32) -> Option<u32> {
     (2..=4u32).rev().find(|k| {
         let (sw, sh) = (u64::from(w) * u64::from(*k), u64::from(h) * u64::from(*k));
-        sw <= u64::from(u16::MAX) && sh <= u64::from(u16::MAX) && sw * sh <= MAX_SUPERSAMPLED_PIXELS
+        sw <= u64::from(MAX_CONTEXT_SIDE) && sh <= u64::from(MAX_CONTEXT_SIDE) && sw * sh <= MAX_SUPERSAMPLED_PIXELS
     })
 }
 
@@ -444,8 +451,6 @@ pub struct Renderer {
     text_fonts: u64,
     /// Clip regions per clipping path (see [`Self::clip_of`]).
     clips: FrameCache<usize, ClipEntry>,
-    /// Context reused when rendering single-threaded (`threads == 0`).
-    ctx_st: Option<RenderContext>,
     /// Worker threads for the multithreaded rasterizer (0 = single-threaded).
     pub threads: u16,
     geom: PtrMap<usize, GeomEntry>,
@@ -476,7 +481,10 @@ pub struct Renderer {
     stamp: u64,
     /// Opacity folded into paint alpha for the leaf being drawn (avoids a compositing layer).
     alpha: f32,
-    ctx: Option<RenderContext>,
+    /// The contexts kept for the next frames, with the threads they draw on, the last used last: a
+    /// frame of the size of one reuses it instead of making a context and its threads. Two are
+    /// kept, so a view's frames and the parts of them drawn again ([`changed`]) each keep theirs.
+    contexts: Vec<(u16, RenderContext)>,
     resources: Resources,
     /// Statistics of the last frame.
     pub stats: FrameStats,
@@ -613,7 +621,6 @@ impl Renderer {
             texts: FrameCache::new(lru::TEXT_BUDGET, 1024),
             text_fonts: 0,
             clips: FrameCache::new(lru::CLIP_BUDGET, 256),
-            ctx_st: None,
             threads: default_threads(),
             geom: PtrMap::default(),
             symbols: vec![],
@@ -625,7 +632,7 @@ impl Renderer {
             fx_geom: PtrMap::default(),
             stamp: 0,
             alpha: 1.0,
-            ctx: None,
+            contexts: Vec::new(),
             resources: Resources::new(),
             stats: FrameStats::default(),
             brushes: Default::default(),
@@ -665,7 +672,7 @@ impl Renderer {
     fn render_as(&mut self, doc: &Document, width: u32, height: u32, view: Affine, opts: &RenderOptions, inks: bool) -> Rendered {
         let start = now();
         if opts.supersample && opts.anti_alias == AntiAlias::Art && opts.mask_view.is_none() {
-            let (w, h) = (width.clamp(1, u16::MAX as u32), height.clamp(1, u16::MAX as u32));
+            let (w, h) = (width.clamp(1, MAX_CONTEXT_SIDE), height.clamp(1, MAX_CONTEXT_SIDE));
             if let Some(k) = supersample_factor(w, h) {
                 let hard = RenderOptions { anti_alias: AntiAlias::None, supersample: false, ..opts.clone() };
                 let big = self.render_as(doc, w * k, h * k, Affine::scale(f64::from(k)) * view, &hard, inks);
@@ -679,8 +686,8 @@ impl Renderer {
         self.check_symbols(doc);
         let prepared = proof::prepare(doc, opts, &mut self.proof_art);
         let doc: &Document = &prepared;
-        let w = width.clamp(1, u16::MAX as u32) as u16;
-        let h = height.clamp(1, u16::MAX as u32) as u16;
+        let w = width.clamp(1, MAX_CONTEXT_SIDE) as u16;
+        let h = height.clamp(1, MAX_CONTEXT_SIDE) as u16;
         // Raster filters (drop shadow, glows, blur) are rendered offscreen on this thread when the
         // main context is multithreaded (see `fx::with_filters`).
         let threads = self.threads;
@@ -761,13 +768,13 @@ impl Renderer {
     /// Draw frame `f` (`w`×`h` pixels): the background, the artboards and the page's art.
     fn draw_frame(&mut self, f: &Frame, w: u16, h: u16) -> Vec<u8> {
         let (threads, opts) = (self.threads, f.opts);
-        let slot = if threads == 0 { self.ctx_st.take() } else { self.ctx.take() };
-        let mut ctx = match slot {
-            Some(mut c) if c.width() == w && c.height() == h => {
+        let kept = self.contexts.iter().position(|(t, c)| *t == threads && c.width() == w && c.height() == h);
+        let mut ctx = match kept.map(|i| self.contexts.remove(i)) {
+            Some((_, mut c)) => {
                 c.reset();
                 c
             }
-            _ => RenderContext::new_with(w, h, vello_cpu::RenderSettings { num_threads: threads, ..Default::default() }),
+            None => RenderContext::new_with(w, h, vello_cpu::RenderSettings { num_threads: threads, ..Default::default() }),
         };
         // `reset` keeps the threshold of the previous render: set it every time.
         ctx.set_aliasing_threshold(opts.anti_alias.threshold());
@@ -800,10 +807,9 @@ impl Renderer {
             self.draw_page(&mut ctx, f);
         }
         let pm = self.finish(&mut ctx, self.raster);
-        if threads == 0 {
-            self.ctx_st = Some(ctx);
-        } else {
-            self.ctx = Some(ctx);
+        self.contexts.push((threads, ctx));
+        if self.contexts.len() > 2 {
+            self.contexts.remove(0);
         }
         pm.data_as_u8_slice().to_vec()
     }
@@ -909,7 +915,7 @@ impl Renderer {
         let b = brush_fx::cull_bounds(&doc.symbol_boxes(), n)?;
         let s = (size as f64 - 2.0) / b.width().max(b.height()).max(1e-6);
         let view = Affine::translate((size as f64 / 2.0, size as f64 / 2.0)) * Affine::scale(s) * Affine::translate(-b.center().to_vec2());
-        let w = size.clamp(1, u16::MAX as u32) as u16;
+        let w = size.clamp(1, MAX_CONTEXT_SIDE) as u16;
         let mut ctx = single_threaded_context(w, w);
         if let Some(bg) = background {
             ctx.set_paint(peniko::Color::from_rgba8(bg[0], bg[1], bg[2], bg[3]));
@@ -2559,6 +2565,8 @@ mod tests_adjust;
 mod tests_alternate;
 #[cfg(test)]
 mod tests_blend;
+#[cfg(test)]
+mod tests_changed;
 #[cfg(test)]
 mod tests_charstroke;
 #[cfg(test)]

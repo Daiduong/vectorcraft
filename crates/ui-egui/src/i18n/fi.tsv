@@ -42,6 +42,11 @@
 	Medium Light	Keskivaalea
 	Light	Vaalea
 	Quit VectorCraft	Lopeta VectorCraft
+# Artwork drag between document tabs.
+	Drop Artwork	Pudota kuvitus
+@msg	{key} must be [x, y] with finite coordinates	{key} on annettava muodossa [x, y] äärellisillä koordinaateilla
+@msg	ids must contain 1–10000 object ids	ids-arvon on sisällettävä 1–10000 objektitunnusta
+
 	File	Tiedosto
 	New…	Uusi…
 	New Without Dialog	Uusi ilman valintaikkunaa
@@ -762,7 +767,7 @@
 	Units	Yksiköt
 	Guides & Grid	Apuviivat ja ruudukko
 	Hyphenation	Tavutus
-	Performance & Storage	Suorituskyky ja tallennustila
+	Plug-ins & Scratch Disks	Laajennukset & Työlevyt
 	User Interface	Käyttöliittymä
 	Performance	Suorituskyky
 	File Handling	Tiedostojen käsittely
@@ -812,6 +817,7 @@
 	Activate Panel	Aktivoi paneeli
 	Change Panel Layout	Muuta paneelien asettelua
 	Close Panel	Sulje paneeli
+	Collapse Panel Group	Kutista paneeliryhmä
 	Move Panel	Siirrä paneelia
 	Group with	Ryhmitä kohteen kanssa
 	Resize panels	Muuta paneelien kokoa
@@ -1368,6 +1374,7 @@ lighting	Light	Valo
 	Leading	Riviväli
 	No Break	Ei katkoa
 	Proportional Metrics	Suhteelliset metriikat
+	Character Direction	Merkkien suunta
 	Digits	Numerot
 	Arabic	Arabia
 	Hindi	Hindi
@@ -2324,11 +2331,11 @@ lighting	Light	Valo
 	Fonts whose licence doesn't allow embedding are not copied.	Fontteja, joiden lisenssi ei salli upottamista, ei kopioida.
 	Package collects a saved document with its linked files and fonts.	Paketointi kokoaa tallennetun asiakirjan sekä sen linkitetyt tiedostot ja fontit.
 	Package created	Paketti luotu
-	Packaged {n} file(s) in {folder}{note}	Paketoitu {n} tiedosto(a) kansioon {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Paketoitu {n} tiedosto(a) kansioon {folder}{note}
 	Packaged {n} file(s){note}	Paketoitu {n} tiedosto(a){note}
 	Relink Linked Files to the Document	Linkitä linkitetyt tiedostot uudelleen asiakirjaan
 	Save the document first?	Tallennetaanko asiakirja ensin?
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}{note}. Näytetäänkö pakettikansio?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}{note}. Näytetäänkö pakettikansio?
 	{count} linked file(s) not found	{count} linkitettyä tiedostoa ei löytynyt
 	fonts not copied: {fonts}	fontteja ei kopioitu: {fonts}
 	Built-in presets are read-only: New… starts an editable copy.	Sisäiset esiasetukset ovat vain luku -tilassa: Uusi… luo muokattavan kopion.
@@ -2859,6 +2866,7 @@ lighting	Light	Valo
 	Luminosity	Luminanssi
 	Overlay	Sulautus
 	Soft Light	Pehmeä valo
+	Soft Mix	Pehmeä sekoitus
 	Crosshatch	Ristiviivoitus
 	Fine Dots	Hienot pisteet
 
@@ -4039,7 +4047,7 @@ imageTrace	Outline	Ääriviiva
 @msg	Outline Stroke: no stroked paths selected	Muunna viiva ääriviivaksi: viivallisia polkuja ei ole valittu
 @msg	PDF settings are not an object	PDF-asetukset eivät ole objekti
 @msg	PDF writer error: {0}	PDF-kirjoittimen virhe: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Paketoitiin {n} tiedosto(a) kansioon {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Paketoitiin {n} tiedosto(a) kansioon {folder}{note}
 @msg	Packaged {n} file(s){note}	Paketoitiin {n} tiedosto(a){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Esikatselu selaimessa vaatii työpöytäsovelluksen (verkkoversio lataa tiedostot sen sijaan)
 @msg	Release Guides: no guides	Vapauta apuviivat: ei apuviivoja
@@ -4204,7 +4212,7 @@ imageTrace	Outline	Ääriviiva
 @msg	give the path `id` and the width point `index`	anna polun `id` ja leveyspisteen `index`
 @msg	guides are locked	apuviivat on lukittu
 @msg	handle must be in or out	handle-arvon on oltava in tai out
-@msg	image '{key}' has no pixels and was left out	kuvassa '{key}' ei ole pikseleitä, joten se jätettiin pois
+@msg	an image has no pixels and was left out	kuva, jossa ei ole pikseleitä, jätettiin pois
 @msg	image data `{_1}` is missing	kuvan data `{_1}` puuttuu
 @msg	image would be too large; lower the resolution	kuvasta tulisi liian suuri; pienennä tarkkuutta
 @msg	index must be a number or first, previous, next or last	indeksin on oltava luku tai first, previous, next tai last
@@ -4553,6 +4561,7 @@ imageTrace	Outline	Ääriviiva
 @msg	Saving	Tallennetaan
 @msg	Saving {_1}	Tallennetaan {_1}
 @msg	Exporting {_1}	Viedään {_1}
+@msg	Packaging {_1}	Paketoidaan {_1}
 @msg	Saving recovery data for {_1}	Tallennetaan palautustietoja: {_1}
 @msg	Discarded {_1} recovered document(s)	Hylättiin {_1} palautettu(a) asiakirja(a)
 @msg	Restored {_1} recovered document(s): save them to keep them	Palautettiin {_1} asiakirja(a): tallenna ne säilyttääksesi ne
@@ -4637,7 +4646,9 @@ imageTrace	Outline	Ääriviiva
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: lukuoikeus puuttuu: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: kirjoitusoikeus puuttuu: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automaation polku hylättiin: lukujuuren {root} ulkopuolella: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automaation polku hylättiin: lukujuurten {roots} ulkopuolella: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automaation polku hylättiin: kirjoitusjuuren {root} ulkopuolella: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automaation polku hylättiin: kirjoitusjuurten {roots} ulkopuolella: {path}
 @msg	automation path rejected: path is empty	automaation polku hylättiin: polku on tyhjä
 @msg	automation path rejected: a link that leads nowhere: {path}	automaation polku hylättiin: linkki, joka ei johda mihinkään: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automaation polku hylättiin: polkua {path} ei voi selvittää: {e}
@@ -4660,6 +4671,12 @@ imageTrace	Outline	Ääriviiva
 @msg	before must name a panel	before-arvon on nimettävä paneeli
 @msg	docking action contains an unknown panel or an excessive split path	telakointitoiminto sisältää tuntemattoman paneelin tai liian pitkän jakopolun
 @msg	group must be true or false	group-arvon on oltava true tai false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	paneeli kelluu; kutista sen ryhmä komennolla window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	paneeli ei ole telakkaryhmässä
+@msg	only a dock group above or below others collapses, not one beside another	vain muiden ylä- tai alapuolella oleva telakkaryhmä kutistuu, ei toisen vieressä oleva
+@msg	icon must be true or false	icon-arvon on oltava true tai false
+@msg	icon only docks a panel in the icon column, with no anchor	icon telakoi paneelin vain kuvakesarakkeeseen, ilman anchor-arvoa
+@msg	column docks a set as a dock column, with no anchor or icon	column telakoi joukon telakkasarakkeeksi, ilman anchor- tai icon-arvoa
 @msg	move requires a destination panel	siirto vaatii kohdepaneelin
 @msg	move requires an existing destination panel	siirto vaatii olemassa olevan kohdepaneelin
 @msg	onto must name a floating panel	onto-arvon on nimettävä kelluva paneeli
@@ -4951,6 +4968,8 @@ imageTrace	Outline	Ääriviiva
 	DWG (use DXF)	DWG (käytä DXF:ää)
 	Artistic	Taiteelliset
 	Film Grain…	Filmin rakeisuus…
+	Colored Pencil…	Väriliitu…
+	Colored Pencil	Väriliitu
 	Cutout…	Leikkaus…
 	Cutout	Leikkaus
 	Dry Brush…	Kuiva sivellin…
@@ -5233,6 +5252,12 @@ mark-style	Japanese	Japanilainen
 	Sketch	Luonnos
 	Halftone Pattern…	Rasterikuvio…
 	Halftone Pattern	Rasterikuvio
+	Torn Edges…	Repeytyneet reunat…
+	Torn Edges	Repeytyneet reunat
+	Conté Crayon…	Conté-liitu…
+	Conté Crayon	Conté-liitu
+	Foreground Level	Edustan taso
+	Background Level	Taustan taso
 	Pattern Type	Kuviotyyppi
 	Dot	Piste
 # User Interface › Color Scheme
@@ -5284,9 +5309,11 @@ mark-style	Japanese	Japanilainen
 @msg	Persistent libraries not found: {files}	Pysyviä kirjastoja ei löytynyt: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` ei ole kirjastopaneeli (katso window.swatchLibrary)
 @msg	library panel `{given}` isn't open	kirjastopaneeli `{given}` ei ole auki
+@msg	library panel `{given}` isn't missing its library	kirjastopaneelin `{given}` kirjasto ei puutu
 @msg	too many library panels were opened in this session	tässä istunnossa on avattu liian monta kirjastopaneelia
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Kuva on {_1} × {_2} kuvapistettä, yhdeltä sivultaan yli {LARGE_TRACE_SIDE}: se jäljitetään, mutta hitaammin. Pienemmän tarkkuuden esiasetus tai kuvan pienempi kopio jäljittyy nopeammin.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Kuva jäljitettiin kokoon {_1} × {_2} kuvapistettä pienennettynä koosta {_3} × {_4} (enintään {_5} megapikseliä).
+	Gap Length:	Aukon pituus:
 	Artboard {n} of {total}	Piirtoalusta {n}/{total}
 	Encoding and writing the file…	Tiedostoa koodataan ja kirjoitetaan…
 @plural	{n} more export waiting|{n} more exports waiting	{n} vienti odottaa|{n} vientiä odottaa
@@ -5303,6 +5330,14 @@ mark-style	Japanese	Japanilainen
 	Full Justify	Täysi tasaus
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimi ei saa ylittää haluttua arvoa eikä haluttu arvo maksimia.
 	Justification	Tasaus
+	Add filters from the list above	Lisää suodattimia yllä olevasta luettelosta
+	Add to Stack	Lisää pinoon
+	Applied Filters	Käytetyt suodattimet
+	Categories	Luokat
+	Choose a filter	Valitse suodatin
+	Effect Gallery	Tehostegalleria
+	Filters	Suodattimet
+	Select artwork to apply effects	Valitse grafiikka, johon tehosteet otetaan
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	tiedoston muuttujia ja tietojoukkoja ei luettu (muuttujia: {variables}, tietojoukkoja: {data_sets}): Muuttujat-paneeli ei näytä niitä
 # Select by Color (select.color)
 	Select by Color	Valitse värin mukaan
@@ -5395,3 +5430,30 @@ swatch	Bright Violet	Kirkas violetti
 	Water Paper	Märkä paperi
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Hidas alku
+	Ease Out	Hidas loppu
+	Ease In Out	Hidas alku ja loppu
+	Ease Out In	Hidas loppu ja alku
+	Ramp:	Voimakkuus:
+	Shift:	Siirtymä:
+	Fresco…	Fresko…
+	Fresco	Fresko
+	Effect Gallery…	Tehostegalleria…
+	Effect Gallery Dialog	Tehostegalleria-valintaikkuna
+	Arc Segment Tool Options	Kaarisegmenttityökalun asetukset
+	Base Along:	Pohja pitkin:
+	Closed	Suljettu
+	Convex	Kupera
+	Fill Arc	Täytä kaari
+	Length X-Axis:	Pituus X-akseli:
+	Length Y-Axis:	Pituus Y-akseli:
+	Slope:	Kaltevuus:
+axis	X Axis	X-akseli
+axis	Y Axis	Y-akseli
+@msg	Packaged {n} file(s) in {folder}	Paketoitiin {n} tiedosto(a) kansioon {folder}
+@msg	Packaged {n} file(s) {note}	Paketoitiin {n} tiedosto(a) {note}
+@msg	Packaged {n} file(s)	Paketoitiin {n} tiedosto(a)
+	Packaged {n} file(s)	Paketoitiin {n} tiedosto(a)
+	Packaged {n} file(s) in {folder}	Paketoitiin {n} tiedosto(a) kansioon {folder}
+	Packaged {n} file(s) {note}	Paketoitiin {n} tiedosto(a) {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}. Näytetäänkö pakettikansio?

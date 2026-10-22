@@ -1,6 +1,6 @@
 # Effects parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-21 · **Change:** minor (3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; G2: Effect › Sketch › Note Paper; Halftone Pattern and Note Paper defaults documented as unverified VectorCraft choices; G2: Effect › Artistic › Smudge Stick, Sponge and Watercolor; Sketch › Bas Relief, Charcoal, Photocopy and Stamp, #2533; Photoshop filters 46/57, 11 remaining (8–14 h); G2: Sketch › Chrome; Sketch › Chalk & Charcoal, Graphic Pen and Reticulation and Artistic › Plastic Wrap, #2972, #2967, #2976, #3034: 37/57 Photoshop effects; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Zig Zag's Smooth points make a continuous wave, #2343; G2: Effect › Sketch › Halftone Pattern; Photoshop filters 46/57, 11 remaining (8–14 h); Round Corners also rounds corners where a curve meets a line or another curve, with Live Corners' cut; straight corners unchanged; score unchanged; Revolve: automatic smooth shading and default-on Cap with continuous rims; wide shadows and glows at high zoom, #1706; stacked Transform effects, #1705; 3D on nonzero compound paths, #1724; pattern tiles redraw, #1723; scores unchanged; Roughen's Smooth turn-backs, #1643; Scribble per region, #1648; score unchanged; Warp Arc bends in the object's proportions, #1578; Zig Zag ridges evenly spaced, #1558; effect parameters checked, #1592; score unchanged; raster effects after a pattern, radial or freeform gradient fill export at their place and size, #1536; score unchanged; 3D and Materials on outlined type and other shapes of many small curves, #1481; Twist 0° to 360°, #1524; twisted walls keep their faces, #1525; score unchanged; 3D and Materials: Inflate takes Twist, Taper and Cap; score unchanged; 3D and Materials: Perspective as the documented 0°–160° angle; 3D and Materials: the documented light settings) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-22 · **Change:** minor (G2: Effect › Sketch › Conté Crayon (Foreground Level, Background Level, Texture, Scaling, Relief, Light Direction, Invert; a black crayon in the dark areas and a white one in the light areas on textured mid-grey paper; ranges and defaults unverified VectorCraft choices); measured Photoshop-style filters 57/57, the Effect Gallery remains (4–6 h); 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; G2: Effect › Sketch › Note Paper; Halftone Pattern and Note Paper defaults documented as unverified VectorCraft choices; G2: Effect › Artistic › Smudge Stick, Sponge and Watercolor; Sketch › Bas Relief, Charcoal, Photocopy and Stamp, #2533; Photoshop filters 46/57, 11 remaining (8–14 h); G2: Sketch › Chrome; Sketch › Chalk & Charcoal, Graphic Pen and Reticulation and Artistic › Plastic Wrap, #2972, #2967, #2976, #3034: 37/57 Photoshop effects; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Zig Zag's Smooth points make a continuous wave, #2343; G2: Effect › Sketch › Halftone Pattern; Photoshop filters 46/57, 11 remaining (8–14 h); Round Corners also rounds corners where a curve meets a line or another curve, with Live Corners' cut; straight corners unchanged; score unchanged; Revolve: automatic smooth shading and default-on Cap with continuous rims; wide shadows and glows at high zoom, #1706; stacked Transform effects, #1705; 3D on nonzero compound paths, #1724; pattern tiles redraw, #1723; scores unchanged; Roughen's Smooth turn-backs, #1643; Scribble per region, #1648; score unchanged; Warp Arc bends in the object's proportions, #1578; Zig Zag ridges evenly spaced, #1558; effect parameters checked, #1592; score unchanged; raster effects after a pattern, radial or freeform gradient fill export at their place and size, #1536; score unchanged; 3D and Materials on outlined type and other shapes of many small curves, #1481; Twist 0° to 360°, #1524; twisted walls keep their faces, #1525; score unchanged; 3D and Materials: Inflate takes Twist, Taper and Cap; score unchanged; 3D and Materials: Perspective as the documented 0°–160° angle; 3D and Materials: the documented light settings) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Every entry of Illustrator's Effect menu, by its public feature name, against VectorCraft's effects catalogue
 (`effect_catalog()` in `crates/effects/src/lib.rs`) and the Effect menu built from it
@@ -12,7 +12,7 @@ Part of [target-app-parity.md](target-app-parity.md); open work is in [gaps.md](
 | Group | Illustrator | VectorCraft | % | Remaining (h) |
 |---|---:|---:|---:|---:|
 | Illustrator effects (vector and stylize) | 50 | 46 | 92% | 6–10 |
-| Photoshop effects (raster, Effect Gallery) | 57 | 48 | 84% | 8–14 |
+| Photoshop effects (raster, Effect Gallery) | 57 | 57 | 100% | 4–6 (the Effect Gallery) |
 | 3D and Materials | 4 (+3 Classic) | 4 (initial: Extrude & Bevel, Revolve, Inflate, Rotate) | ~25% | 25–45 |
 | Beyond Illustrator: Effect › Color Adjustments (6), effect plug-ins (WebAssembly) | — | 6 + plug-ins | — | — |
 
@@ -23,8 +23,8 @@ Part of [target-app-parity.md](target-app-parity.md); open work is in [gaps.md](
 | Convert to Shape | Rectangle, Rounded Rectangle, Ellipse | 3/3 | — |
 | Crop Marks | Crop Marks | 1/1 | — |
 | Distort & Transform | Free Distort, Pucker & Bloat, Roughen, Transform, Tweak, Twist, Zig Zag | 7/7 | Free Distort's dialog has a handle on each corner of the object's bounds, moved by dragging or with the arrow keys; Transform's Transform Objects/Patterns and Scale Strokes & Effects options, invisible Reflect checkboxes (#885); Zig Zag's ridges are evenly spaced along each segment (#1558), and Smooth points make a continuous wave whose peaks and valleys have handles along the path (#2343); Roughen with Smooth keeps turn-backs smooth instead of cusps that draw as spikes (#1646) |
-| Path | Offset Path, Outline Object, Outline Stroke | 3/3 | — |
-| Pathfinder | Add, Intersect, Exclude, Subtract, Minus Back, Divide, Trim, Merge, Crop, Outline, Hard Mix, Soft Mix, Trap | 10/13 | Hard Mix, Soft Mix, Trap |
+| Path | Offset Path, Outline Object, Outline Stroke | 3/3 | With Use Preview Bounds on, Align, Distribute and the Transform panel still measure type that carries Outline Object by its layout box (preview bounds leave out effects) |
+| Pathfinder | Add, Intersect, Exclude, Subtract, Minus Back, Divide, Trim, Merge, Crop, Outline, Hard Mix, Soft Mix, Trap | 11/13 | Hard Mix, Trap |
 | Rasterize | Rasterize… (as a live effect) | 1/1 | — |
 | Stylize | Drop Shadow, Feather, Inner Glow, Outer Glow, Round Corners, Scribble | 6/6 | Scribble Options' Settings presets |
 | SVG Filters | Apply SVG Filter… and the filter list | 0/1 | the whole submenu (SVG filters on import round-trip already) |
@@ -38,13 +38,13 @@ its resolution, PDF export warns once per object with the requested and the lowe
 
 | Submenu | Items | Ours | Missing |
 |---|---|---:|---|
-| Artistic | Colored Pencil, Cutout, Dry Brush, Film Grain, Fresco, Neon Glow, Paint Daubs, Palette Knife, Plastic Wrap, Poster Edges, Rough Pastels, Smudge Stick, Sponge, Underpainting, Watercolor | 9/15 (approximate Cutout, Film Grain, Neon Glow, Paint Daubs, Plastic Wrap, Poster Edges, Smudge Stick, Sponge, Watercolor) | Colored Pencil, Dry Brush, Fresco, Palette Knife, Rough Pastels, Underpainting |
+| Artistic | Colored Pencil, Cutout, Dry Brush, Film Grain, Fresco, Neon Glow, Paint Daubs, Palette Knife, Plastic Wrap, Poster Edges, Rough Pastels, Smudge Stick, Sponge, Underpainting, Watercolor | 15/15 (approximate Colored Pencil, Cutout, Dry Brush, Film Grain, Fresco, Neon Glow, Paint Daubs, Palette Knife, Plastic Wrap, Poster Edges, Rough Pastels, Smudge Stick, Sponge, Underpainting, Watercolor) | — |
 | Blur | Gaussian Blur, Radial Blur, Smart Blur | 3/3 | — |
 | Brush Strokes | Accented Edges, Angled Strokes, Crosshatch, Dark Strokes, Ink Outlines, Spatter, Sprayed Strokes, Sumi-e | 8/8 | — |
 | Distort | Diffuse Glow, Glass, Ocean Ripple | 3/3 | — |
 | Pixelate | Color Halftone, Crystallize, Mezzotint, Pointillize | 4/4 | — |
 | Sharpen | Unsharp Mask | 1/1 | — |
-| Sketch | Bas Relief, Chalk & Charcoal, Charcoal, Chrome, Conté Crayon, Graphic Pen, Halftone Pattern, Note Paper, Photocopy, Plaster, Reticulation, Stamp, Torn Edges, Water Paper | 12/14 (approximate Bas Relief, Chalk & Charcoal, Charcoal, Chrome, Graphic Pen, Halftone Pattern, Note Paper, Photocopy, Plaster, Reticulation, Stamp, Water Paper; Chalk & Charcoal, Graphic Pen, Note Paper and Water Paper defaults unverified) | Conté Crayon, Torn Edges |
+| Sketch | Bas Relief, Chalk & Charcoal, Charcoal, Chrome, Conté Crayon, Graphic Pen, Halftone Pattern, Note Paper, Photocopy, Plaster, Reticulation, Stamp, Torn Edges, Water Paper | 14/14 (approximate Bas Relief, Chalk & Charcoal, Charcoal, Chrome, Conté Crayon, Graphic Pen, Halftone Pattern, Note Paper, Photocopy, Plaster, Reticulation, Stamp, Torn Edges, Water Paper; Chalk & Charcoal, Conté Crayon, Graphic Pen, Note Paper and Water Paper defaults unverified) | — |
 | Stylize | Glowing Edges | 1/1 | — |
 | Texture | Craquelure, Grain, Mosaic Tiles, Patchwork, Stained Glass, Texturizer | 6/6 | — |
 | Video | De-Interlace, NTSC Colors | 2/2 | — |
@@ -52,8 +52,8 @@ its resolution, PDF export warns once per object with the requested and the lowe
 
 The pixel-filter pipeline (`vectorcraft_effects::pixel`) is in place: each new filter is one function, a
 catalogue row, a menu entry and translations. Measured throughput: 0.7–1.2 agent hours per filter
-(see [calibration](target-app-parity.md#calibration)), so the 12 missing filters are ~8–14 h and the Effect
-Gallery dialog another 4–6 h. These parallelize well across agents.
+(see [calibration](target-app-parity.md#calibration)). Every Photoshop-style filter is in the catalogue; the Effect
+Gallery dialog is the 4–6 h that remain.
 
 Film Grain (`artistic.filmGrain`, Effect › Artistic) adds stable monochrome noise to shadows and
 midtones, with Grain, Highlight Area and Intensity sliders, live preview and appearance editing.
@@ -159,6 +159,21 @@ for VectorCraft and are not verified against proprietary defaults. Evidence: `cr
 `halftone_pattern_settings_survive_a_save_and_open` in `crates/engine/src/tests_rasterfilters.rs`, and
 `tests_labels::effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize`.
 
+Effect › Sketch › Conté Crayon (`sketch.conteCrayon`; `pixel/sketch.rs`) redraws the object in a dense
+black crayon where it is dark and a pure white crayon where it is light, on mid-grey paper, as
+[Illustrator's public effects summary](https://helpx.adobe.com/illustrator/using/summary-effects.html) describes
+(black for dark areas, white for light areas). Its controls follow the public
+[Photoshop filter reference](https://helpx.adobe.com/photoshop/using/filter-effects-reference.html) and the
+[Photoshop Elements Sketch filters guide](https://helpx.adobe.com/photoshop-elements/using/sketch-filters.html)
+(foreground and background levels, texture options): Foreground Level and Background Level (0–20) set how far
+each crayon reaches into the midtones; Texture (Brick, Burlap, Canvas, Sandstone, the surfaces Texturizer
+draws), Scaling, Relief, Light Direction and Invert make the paper's tooth, which breaks the diagonal crayon
+strokes, and its relief. The public pages publish no slider ranges or defaults, so those are unverified
+VectorCraft choices; an original approximation, never compared with another application's output. Tests:
+`pixel::tests_sketch::conte_crayon_*`, `tests_rasterfilters`, `command_sweep`,
+`dialogs::tests::raster_filter_dialogs_preview_and_apply` and
+`tests_labels::effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize`.
+
 ## 3D and Materials
 
 | Item | Ours |
@@ -178,6 +193,7 @@ angular cut caps, exact visibility, 3D Classic, Turntable, 3D export) is 25–45
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-22 | minor | G2: Effect › Sketch › Conté Crayon (Foreground Level, Background Level, Texture, Scaling, Relief, Light Direction, Invert; a black crayon in the dark areas and a white one in the light areas on textured mid-grey paper; ranges and defaults unverified VectorCraft choices); measured Photoshop-style filters 57/57, the Effect Gallery remains (4–6 h); Sketch 14/14. |
 | 2026-10-21 | minor | 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged |
 | 2026-10-20 | minor | G2: Effect › Sketch › Water Paper (Fiber Length, Brightness, Contrast; colours flow on damp fibrous paper, defaults unverified, #2955); measured Photoshop filters 47/57, Sketch 12/14. |
 | 2026-10-20 | minor | G2: Effect › Sketch › Note Paper (Image Balance, Graininess, Relief; embossed tones on fibrous paper); Halftone Pattern and Note Paper parameter ranges follow public control names, numeric defaults are unverified VectorCraft choices (public help gives no numbers); measured Photoshop filters 46/57, Sketch 11/14. |

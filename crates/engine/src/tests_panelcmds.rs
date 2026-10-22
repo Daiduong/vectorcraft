@@ -265,6 +265,52 @@ fn artboard_copies_refuse_an_index_that_names_no_artboard() {
     assert!(s.clipboard.nodes.is_empty() && s.clipboard.artboards.is_empty(), "nothing copied");
 }
 
+/// Artboard Options, Move Artboard, Duplicate Artboards, Copy Artboard and Cut Artboard refuse an
+/// option given as text or as another value that is not true or false, such as "true", and
+/// Artboard Options and Move Artboard a position, size or move given as text, such as "10". The
+/// artboards, the art, the undo history and the clipboard stay as they were; a null reads as the
+/// option left out.
+#[test]
+fn artboard_commands_refuse_a_boolean_or_number_given_as_text() {
+    use super::tests::{not_a_number, not_a_switch, not_refused};
+    let mut s = session();
+    let r = rect(&mut s);
+    s.execute("artboard.new", &json!({})).unwrap();
+    let mut calls: Vec<_> = [
+        ("artboard.setProps", "scaleArt", json!({"index": 0, "width": 400, "scaleArt": "true"})),
+        ("artboard.setProps", "strokes", json!({"index": 0, "width": 400, "scaleArt": true, "strokes": "false"})),
+        ("artboard.setProps", "corners", json!({"index": 0, "width": 400, "scaleArt": true, "corners": 1})),
+        ("artboard.setProps", "patterns", json!({"index": 0, "x": 50, "moveArt": true, "patterns": "true"})),
+        ("artboard.setProps", "moveArt", json!({"index": 0, "x": 50, "moveArt": "true"})),
+        ("artboard.setProps", "lockedAndHidden", json!({"index": 0, "x": 50, "moveArt": true, "lockedAndHidden": [true]})),
+        ("artboard.setProps", "locked", json!({"artboards": [{"index": 1, "locked": "true"}]})),
+        ("artboard.move", "moveArt", json!({"index": 0, "dx": 10, "moveArt": "true"})),
+        ("artboard.move", "copy", json!({"index": 0, "dx": 10, "copy": 1})),
+        ("artboard.move", "patterns", json!({"index": 0, "dx": 10, "moveArt": true, "patterns": "false"})),
+        ("artboard.duplicate", "patterns", json!({"index": 0, "patterns": "true"})),
+        ("artboard.duplicate", "art", json!({"index": 0, "art": "false"})),
+        ("artboard.copy", "art", json!({"index": 0, "art": "true"})),
+        ("artboard.cut", "art", json!({"index": 1, "art": 0})),
+    ]
+    .into_iter()
+    .map(|(cmd, key, p)| not_a_switch(cmd, p, key))
+    .collect();
+    for (cmd, key, p) in [
+        ("artboard.setProps", "x", json!({"index": 0, "x": "50"})),
+        ("artboard.setProps", "height", json!({"index": 1, "height": [300]})),
+        ("artboard.move", "dx", json!({"index": 0, "dx": "10"})),
+        ("artboard.move", "dy", json!({"index": 0, "dx": 10, "dy": "5"})),
+    ] {
+        calls.push(not_a_number(cmd, p, key));
+    }
+    let wrong = not_refused(&mut s, &calls);
+    assert!(wrong.is_empty(), "not refused: {wrong:#?}");
+    assert!(s.clipboard.nodes.is_empty() && s.clipboard.artboards.is_empty(), "nothing copied");
+    let p = json!({"index": 0, "dx": 10, "dy": null, "moveArt": true, "copy": null, "patterns": false});
+    s.execute("artboard.move", &p).unwrap();
+    assert_eq!(node(&s, r).geometric_bounds().map(|b| b.x0), Some(20.0));
+}
+
 /// Artboards 1 and 2, each with a square on it, and an artboard 3 below artboard 1 with a square on
 /// it, with the Artboard tool selecting artboards 1 and 2 → the squares' ids, artboard by artboard.
 fn two_selected_artboards(s: &mut Session) -> [u64; 3] {
@@ -304,6 +350,28 @@ fn duplicate_artboards_copies_every_selected_artboard_in_one_step() {
         s.execute("edit.undo", &json!({})).unwrap();
         assert_eq!((boards(&s), objects(&s)), before, "{p}: one undo step");
     }
+}
+
+/// #2103: with the Artboard tool, an arrow key moves the selected artboards and the art on them by
+/// the keyboard increment (Shift: ten times as far) in one undo step each; the selected art
+/// doesn't move on its own.
+#[test]
+fn artboard_tool_arrow_keys_move_the_selected_artboards_with_their_art() {
+    use vectorcraft_tools::{Mods, ToolKey};
+    let mut s = session();
+    let [a, b, c] = two_selected_artboards(&mut s);
+    s.execute("prefs.set", &json!({"key": "keyboardIncrement", "value": 4})).unwrap();
+    let v = ViewInfo::default();
+    assert!(s.tool_claims_key(ToolKey::Right, v));
+    let undo = s.doc().unwrap().history.undo.len();
+    s.tool_key(ToolKey::Right, Mods::default(), v).unwrap();
+    s.tool_key(ToolKey::Right, Mods { shift: true, ..Mods::default() }, v).unwrap();
+    let xs = |s: &Session| boards(s).into_iter().map(|(x, _)| x).collect::<Vec<_>>();
+    assert_eq!(xs(&s), [44.0, 1044.0, 0.0]);
+    assert_eq!([left(&s, a), left(&s, b), left(&s, c)], [54.0, 1054.0, 10.0], "the art moves with its artboard");
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo + 2, "one step per press");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((xs(&s), left(&s, a)), (vec![4.0, 1004.0, 0.0], 14.0));
 }
 
 /// With the Artboard tool, Copy takes every selected artboard and the art on each (the public Cut,

@@ -1051,6 +1051,11 @@
 	Fidelity:	Återgivning:
 	Figure Space	Siffermellanrum
 	Figure:	Figur:
+# Artwork drag between document tabs.
+	Drop Artwork	Släpp grafik
+@msg	{key} must be [x, y] with finite coordinates	{key} måste vara [x, y] med ändliga koordinater
+@msg	ids must contain 1–10000 object ids	ids måste innehålla 1–10000 objekt-id:n
+
 	File	Fil
 	File Dimensions	Fildimensioner
 	File Format:	Filformat:
@@ -2163,7 +2168,7 @@
 	Package	Paketera
 	Package collects a saved document with its linked files and fonts.	Paketera samlar ett sparat dokument med dess länkade filer och typsnitt.
 	Package created	Paketet har skapats
-	Packaged {n} file(s) in {folder}{note}	Paketerade {n} fil(er) i {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Paketerade {n} fil(er) i {folder}{note}
 	Packaged {n} file(s){note}	Paketerade {n} fil(er){note}
 	Package…	Paketera…
 	Page	Sida
@@ -2222,7 +2227,7 @@
 	Percent:	Procent:
 	Perceptual Scales	Perceptuella skalor
 	Performance	Prestanda
-	Performance & Storage	Prestanda och lagring
+	Plug-ins & Scratch Disks	Insticksprogram & Arbetsdiskar
 	Permissions	Behörigheter
 	Permissions password:	Lösenord för behörigheter:
 	Perspective	Perspektiv
@@ -2342,6 +2347,7 @@
 	Proof Setup	Provtrycksinställningar
 	Properties	Egenskaper
 	Proportional Metrics	Proportionella mått
+	Character Direction	Teckenriktning
 	Digits	Siffror
 	Arabic	Arabiska
 	Hindi	Hindi
@@ -3004,6 +3010,7 @@
 	Snapping Tolerance	Fästtolerans
 	Social Square Post 1080×1080	Kvadratiskt inlägg för sociala medier 1080×1080
 	Soft Light	Mjukt ljus
+	Soft Mix	Mjuk blandning
 	Solid	Enfärgad
 	Sort by Kind	Sortera efter typ
 	Sort by Name	Sortera efter namn
@@ -3510,7 +3517,7 @@
 	Zoom Tool	Zoomverktyg
 	Zoom with Mouse Wheel	Zooma med mushjulet
 	Scrub Numeric Fields by Dragging	Ändra numeriska fält genom att dra
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} fil(er) i {folder}{note}. Visa paketmappen?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} fil(er) i {folder}{note}. Visa paketmappen?
 	{count} linked file(s) not found	{count} länkad(e) fil(er) hittades inte
 	fonts not copied: {fonts}	typsnitt som inte kopierats: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	{count} länkad(e) bild(er) har ändrats sedan dokumentet sparades. Visa de nya versionerna?
@@ -3738,7 +3745,7 @@ axis	Both	Båda
 @msg	Outline Stroke: no stroked paths selected	Kontur till bana: inga banor med kontur markerade
 @msg	PDF settings are not an object	PDF-inställningarna är inte ett objekt
 @msg	PDF writer error: {0}	fel i PDF-skrivaren: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Paketerade {n} fil(er) i {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Paketerade {n} fil(er) i {folder}{note}
 @msg	Packaged {n} file(s){note}	Paketerade {n} fil(er){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Förhandsgranska i webbläsare kräver skrivbordsappen (webbversionen hämtar filer i stället)
 @msg	Release Guides: no guides	Släpp stödlinjer: inga stödlinjer
@@ -3904,7 +3911,7 @@ axis	Both	Båda
 @msg	give the path `id` and the width point `index`	ange banans `id` och breddpunktens `index`
 @msg	guides are locked	stödlinjerna är låsta
 @msg	handle must be in or out	handle måste vara in eller out
-@msg	image '{key}' has no pixels and was left out	bilden '{key}' har inga pixlar och utelämnades
+@msg	an image has no pixels and was left out	en bild utan pixlar utelämnades
 @msg	image data `{_1}` is missing	bilddata `{_1}` saknas
 @msg	image would be too large; lower the resolution	bilden skulle bli för stor; sänk upplösningen
 @msg	index must be a number or first, previous, next or last	index måste vara ett tal eller first, previous, next eller last
@@ -4255,6 +4262,7 @@ axis	Both	Båda
 @msg	Saving	Sparar
 @msg	Saving {_1}	Sparar {_1}
 @msg	Exporting {_1}	Exporterar {_1}
+@msg	Packaging {_1}	Paketerar {_1}
 @msg	Saving recovery data for {_1}	Sparar återställningsdata för {_1}
 @msg	Discarded {_1} recovered document(s)	Kastade {_1} återställda dokument
 @msg	Restored {_1} recovered document(s): save them to keep them	Återställde {_1} återskapade dokument: spara dem för att behålla dem
@@ -4373,7 +4381,9 @@ axis	Both	Båda
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: läsbehörighet saknas: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: skrivbehörighet saknas: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automatiseringssökvägen avvisades: utanför läsroten {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automatiseringssökvägen avvisades: utanför läsrötterna {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automatiseringssökvägen avvisades: utanför skrivroten {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automatiseringssökvägen avvisades: utanför skrivrötterna {roots}: {path}
 @msg	automation path rejected: path is empty	automatiseringssökvägen avvisades: sökvägen är tom
 @msg	automation path rejected: a link that leads nowhere: {path}	automatiseringssökvägen avvisades: en länk som inte leder någonstans: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automatiseringssökvägen avvisades: kan inte lösa upp {path}: {e}
@@ -4479,6 +4489,7 @@ effect	Soft	Mjuk
 	Activate Panel	Aktivera panel
 	Change Panel Layout	Ändra panellayout
 	Close Panel	Stäng panel
+	Collapse Panel Group	Komprimera panelgrupp
 	Move Panel	Flytta panel
 	Group with	Gruppera med
 	Resize panels	Ändra storlek på paneler
@@ -4489,6 +4500,12 @@ effect	Soft	Mjuk
 @msg	before must name a panel	before måste ange en panel
 @msg	docking action contains an unknown panel or an excessive split path	dockningsåtgärden innehåller en okänd panel eller en alltför djup delningssökväg
 @msg	group must be true or false	group måste vara true eller false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	panelen flyter; komprimera dess grupp med window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	panelen ligger inte i en dockningsgrupp
+@msg	only a dock group above or below others collapses, not one beside another	bara en dockningsgrupp ovanför eller under andra komprimeras, inte en bredvid en annan
+@msg	icon must be true or false	icon måste vara true eller false
+@msg	icon only docks a panel in the icon column, with no anchor	icon dockar bara en panel i ikonkolumnen, utan anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column dockar en uppsättning som en dockningskolumn, utan anchor eller icon
 @msg	move requires a destination panel	flyttning kräver en målpanel
 @msg	move requires an existing destination panel	flyttning kräver en befintlig målpanel
 @msg	onto must name a floating panel	onto måste ange en flytande panel
@@ -4563,6 +4580,8 @@ lighting	Light	Ljus
 	Reset Ruler Origin	Återställ linjalens origo
 	Artistic	Konstnärligt
 	Film Grain…	Filmkorn…
+	Colored Pencil…	Färgpenna…
+	Colored Pencil	Färgpenna
 	Cutout…	Urklipp…
 	Cutout	Urklipp
 	Dry Brush…	Torr pensel…
@@ -5225,6 +5244,12 @@ theme	Appearance	Utseende
 	Sketch	Skiss
 	Halftone Pattern…	Rastermönster…
 	Halftone Pattern	Rastermönster
+	Torn Edges…	Riviga kanter…
+	Torn Edges	Riviga kanter
+	Conté Crayon…	Contékrita…
+	Conté Crayon	Contékrita
+	Foreground Level	Förgrundsnivå
+	Background Level	Bakgrundsnivå
 	Pattern Type	Mönstertyp
 	Dot	Punkt
 # User Interface › Color Scheme
@@ -5276,9 +5301,11 @@ theme	Appearance	Utseende
 @msg	Persistent libraries not found: {files}	Beständiga bibliotek hittades inte: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` är inte en bibliotekspanel (se window.swatchLibrary)
 @msg	library panel `{given}` isn't open	bibliotekspanelen `{given}` är inte öppen
+@msg	library panel `{given}` isn't missing its library	bibliotekspanelen `{given}` saknar inte sitt bibliotek
 @msg	too many library panels were opened in this session	för många bibliotekspaneler har öppnats i den här sessionen
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Bilden är {_1} × {_2} pixlar, mer än {LARGE_TRACE_SIDE} på en sida: den vektoriseras, men långsammare. En förinställning med lägre återgivning eller en mindre kopia av bilden går snabbare.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Bilden vektoriserades vid {_1} × {_2} pixlar, nedskalad från {_3} × {_4} (högst {_5} megapixlar).
+	Gap Length:	Lucklängd:
 	Artboard {n} of {total}	Rityta {n} av {total}
 	Encoding and writing the file…	Kodar och skriver filen…
 @plural	{n} more export waiting|{n} more exports waiting	{n} export till väntar|{n} exporter till väntar
@@ -5295,6 +5322,14 @@ theme	Appearance	Utseende
 	Full Justify	Fullständig marginaljustering
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum får inte överstiga Önskat, och Önskat inte Maximum.
 	Justification	Justering
+	Add filters from the list above	Lägg till filter från listan ovan
+	Add to Stack	Lägg till i stacken
+	Applied Filters	Tillämpade filter
+	Categories	Kategorier
+	Choose a filter	Välj ett filter
+	Effect Gallery	Effektgalleri
+	Filters	Filter
+	Select artwork to apply effects	Välj grafik för att tillämpa effekter
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	filens variabler och datauppsättningar lästes inte (variabler: {variables}, datauppsättningar: {data_sets}): panelen Variabler visar dem inte
 # Select by Color (select.color)
 	Select by Color	Markera efter färg
@@ -5320,3 +5355,30 @@ theme	Appearance	Utseende
 	Water Paper	Vått papper
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Långsam start
+	Ease Out	Långsamt slut
+	Ease In Out	Långsam start och slut
+	Ease Out In	Långsamt slut och start
+	Ramp:	Styrka:
+	Shift:	Förskjutning:
+	Fresco…	Fresk…
+	Fresco	Fresk
+	Effect Gallery…	Effektgalleri…
+	Effect Gallery Dialog	Dialogrutan Effektgalleri
+	Arc Segment Tool Options	Alternativ för bågsegmentsverktyget
+	Base Along:	Bas längs:
+	Closed	Stängd
+	Convex	Konvex
+	Fill Arc	Fyll båge
+	Length X-Axis:	Längd X-axel:
+	Length Y-Axis:	Längd Y-axel:
+	Slope:	Lutning:
+axis	X Axis	X-axel
+axis	Y Axis	Y-axel
+@msg	Packaged {n} file(s) in {folder}	Paketerade {n} fil(er) i {folder}
+@msg	Packaged {n} file(s) {note}	Paketerade {n} fil(er) {note}
+@msg	Packaged {n} file(s)	Paketerade {n} fil(er)
+	Packaged {n} file(s)	Paketerade {n} fil(er)
+	Packaged {n} file(s) in {folder}	Paketerade {n} fil(er) i {folder}
+	Packaged {n} file(s) {note}	Paketerade {n} fil(er) {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} fil(er) i {folder}. Visa paketmappen?

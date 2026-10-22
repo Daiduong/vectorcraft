@@ -641,6 +641,7 @@
 	Close All	Összes bezárása
 	Close Library	Könyvtár bezárása
 	Close Panel	Panel bezárása
+	Collapse Panel Group	Panelcsoport összecsukása
 	Close Path	Útvonal lezárása
 	Close paths when ends are within:	Útvonalak lezárása, ha a végek távolsága legfeljebb:
 	Clumped	Csomós
@@ -981,6 +982,7 @@
 	Diffuse Glow	Szórt ragyogás
 	Diffuse Glow…	Szórt ragyogás…
 	Diffusion	Diffúziós
+	Character Direction	Karakterirány
 	Digits	Számjegyek
 	Dim Copies to:	Másolatok halványítása:
 	Dim Images to:	Képek halványítása:
@@ -1353,6 +1355,11 @@
 	Fidelity:	Pontosság:
 	Figure Space	Számjegyszóköz
 	Figure:	Számjegyek:
+# Artwork drag between document tabs.
+	Drop Artwork	Grafika elhelyezése
+@msg	{key} must be [x, y] with finite coordinates	A(z) {key} értékének [x, y] alakúnak kell lennie véges koordinátákkal
+@msg	ids must contain 1–10000 object ids	Az ids értékének 1–10000 objektumazonosítót kell tartalmaznia
+
 	File	Fájl
 	File Dimensions	Fájl méretei
 	File Format:	Fájlformátum:
@@ -1587,6 +1594,8 @@ file-filter	Templates	Sablonok
 	Select Segments	Szakaszok kijelölése
 	Artistic	Művészi
 	Film Grain…	Filmszemcse…
+	Colored Pencil…	Színes ceruza…
+	Colored Pencil	Színes ceruza
 	Cutout…	Kivágás…
 	Cutout	Kivágás
 	Dry Brush…	Száraz ecset…
@@ -2700,7 +2709,7 @@ file-filter	Templates	Sablonok
 	Package	Csomagolás
 	Package collects a saved document with its linked files and fonts.	A csomagolás egy mentett dokumentumot a csatolt fájljaival és betűtípusaival együtt gyűjt össze.
 	Package created	A csomag elkészült
-	Packaged {n} file(s) in {folder}{note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
 	Packaged {n} file(s){note}	Becsomagolt fájlok: {n}{note}
 	Package…	Csomagolás…
 	Page	Oldal
@@ -2778,7 +2787,7 @@ file-filter	Templates	Sablonok
 	Performance	Teljesítmény
 diagnostics	render	renderelés
 diagnostics	ui	felület
-	Performance & Storage	Teljesítmény és tárolás
+	Plug-ins & Scratch Disks	Bővítmények & Munkalemezek
 	Permissions	Engedélyek
 	Permissions password:	Engedélyek jelszava:
 	Perspective	Perspektíva
@@ -3700,6 +3709,7 @@ mark-style	Japanese	Japán
 	Social Tall Post 1000×1500	Magas közösségimédia-bejegyzés 1000×1500
 	Soft	Lágy
 	Soft Light	Lágy fény
+	Soft Mix	Lágy keverés
 	Solid	Kitöltött
 	Sort	Rendezés
 	Sort by Hue	Rendezés színárnyalat szerint
@@ -4301,7 +4311,7 @@ mark-style	Japanese	Japán
 	Zoom to Selection	Nagyítás a kijelölésre
 	Zoom Tool	Nagyító
 	Zoom with Mouse Wheel	Nagyítás egérgörgővel
-	{count} file(s) in {folder}{note}. Show the package folder?	Fájlok: {count}, mappa: {folder}{note}. Megnyitod a csomag mappáját?
+	{count} file(s) in {folder} {note}. Show the package folder?	Fájlok: {count}, mappa: {folder}{note}. Megnyitod a csomag mappáját?
 	{count} folder(s) or file(s) couldn't be read	Nem olvasható mappák vagy fájlok: {count}
 	{count} folder(s) skipped, such as other apps' and the system's folders and hidden ones	Kihagyott mappák: {count} (például más alkalmazások, a rendszer és a rejtett mappák)
 	{count} linked file(s) not found	Nem található csatolt fájlok: {count}
@@ -4483,7 +4493,9 @@ imageTrace	Outline	Körvonal
 @msg	automation path rejected: a link that leads nowhere: {path}	az automatizálás útvonala elutasítva: a hivatkozás nem vezet sehova: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	az automatizálás útvonala elutasítva: nem oldható fel: {path}: {e}
 @msg	automation path rejected: outside the read root {root}: {path}	az automatizálás útvonala elutasítva: kívül esik az olvasási gyökéren ({root}): {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	az automatizálás útvonala elutasítva: kívül esik az olvasási gyökereken ({roots}): {path}
 @msg	automation path rejected: outside the write root {root}: {path}	az automatizálás útvonala elutasítva: kívül esik az írási gyökéren ({root}): {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	az automatizálás útvonala elutasítva: kívül esik az írási gyökereken ({roots}): {path}
 @msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	az automatizálás útvonala elutasítva: szülőmappára lépés egy nem létező mappa alatt: {path}
 @msg	automation path rejected: path is empty	az automatizálás útvonala elutasítva: az útvonal üres
 @msg	automation path rejected: reserved device names are not allowed: {path}	az automatizálás útvonala elutasítva: fenntartott eszköznév nem használható: {path}
@@ -4579,6 +4591,7 @@ imageTrace	Outline	Körvonal
 @msg	Exported {what}	Exportálva: {what}
 @msg	Exported {what} with {_1} note(s): {first}	Exportálva: {what}; megjegyzések: {_1}, az első: {first}
 @msg	Exporting {_1}	Exportálás: {_1}
+@msg	Packaging {_1}	Csomagolás: {_1}
 @msg	file version {0} is newer than this VectorCraft supports ({VERSION})	a fájl verziója újabb, mint amit ez a VectorCraft támogat: {0} (támogatott: {VERSION})
 @msg	Flatten Transparency: select objects to flatten	Átlátszóság lapítása: jelöld ki a lapítandó objektumokat
 @msg	Flatten Transparency: {e}	Átlátszóság lapítása: {e}
@@ -4592,9 +4605,15 @@ imageTrace	Outline	Körvonal
 @msg	give the path `id` and the width point `index`	add meg az útvonal `id` és a szélességi pont `index` értékét
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	a színátmenet nincs megadva a fájlban: „{name}”; helyette egyszínű kitöltés áll
 @msg	group must be true or false	a group értéke true vagy false lehet
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	a panel lebeg; a csoportját a window.panel.float {panel, collapsed} paranccsal csukhatja össze
+@msg	panel is not in a dock group	a panel nincs dokkolt csoportban
+@msg	only a dock group above or below others collapses, not one beside another	csak a többi fölötti vagy alatti dokkolt csoport csukható össze, a mellettük lévő nem
+@msg	icon must be true or false	az icon értéke true vagy false lehet
+@msg	icon only docks a panel in the icon column, with no anchor	az icon csak az ikonoszlopba dokkol egy panelt, anchor nélkül
+@msg	column docks a set as a dock column, with no anchor or icon	a column egy készletet dokkoszlopként dokkol, anchor és icon nélkül
 @msg	guides are locked	a segédvonalak zárolva vannak
 @msg	handle must be in or out	handle: in vagy out kell
-@msg	image '{key}' has no pixels and was left out	a kép kimaradt, mert nincsenek pixelei: '{key}'
+@msg	an image has no pixels and was left out	kimaradt egy kép, mert nincsenek pixelei
 @msg	image data `{_1}` is missing	hiányoznak a képadatok: `{_1}`
 @msg	image is empty	a kép üres
 @msg	Image Trace: the traced image is missing	Képvektorizálás: a vektorizált kép hiányzik
@@ -4807,7 +4826,7 @@ imageTrace	Outline	Körvonal
 @msg	Opened with {_1} note(s): {_2}	Megnyitva; megjegyzések: {_1}: {_2}
 @msg	Opened {url}	Megnyitva: {url}
 @msg	Outline Stroke: no stroked paths selected	Körvonal útvonallá alakítása: nincs kijelölt körvonalas útvonal
-@msg	Packaged {n} file(s) in {folder}{note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
 @msg	Packaged {n} file(s){note}	Becsomagolt fájlok: {n}{note}
 @msg	page size {w} × {h}	oldalméret: {w} × {h}
 @msg	page {0} does not exist (the PDF has {1})	nincs ilyen oldal: {0} (a PDF oldalszáma: {1})
@@ -5255,6 +5274,12 @@ imageTrace	Outline	Körvonal
 	Sketch	Vázlat
 	Halftone Pattern…	Féltónus minta…
 	Halftone Pattern	Féltónus minta
+	Torn Edges…	Szaggatott szélek…
+	Torn Edges	Szaggatott szélek
+	Conté Crayon…	Conté-kréta…
+	Conté Crayon	Conté-kréta
+	Foreground Level	Előtér szintje
+	Background Level	Háttér szintje
 	Pattern Type	Mintatípus
 	Dot	Pont
 # User Interface › Color Scheme
@@ -5306,9 +5331,11 @@ imageTrace	Outline	Körvonal
 @msg	Persistent libraries not found: {files}	Nem találhatók állandó könyvtárak: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	A(z) `{given}` nem könyvtárpanel (lásd: window.swatchLibrary)
 @msg	library panel `{given}` isn't open	a(z) `{given}` könyvtárpanel nincs megnyitva
+@msg	library panel `{given}` isn't missing its library	a(z) `{given}` könyvtárpanel könyvtára nem hiányzik
 @msg	too many library panels were opened in this session	ebben a munkamenetben túl sok könyvtárpanel nyílt meg
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kép {_1} × {_2} képpont, egyik oldalán több mint {LARGE_TRACE_SIDE}: a vektorizálás megtörténik, de lassabban. Kisebb hűségű előbeállítással vagy a kép kisebb másolatával gyorsabb.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A kép vektorizálása {_1} × {_2} képponton történt, {_3} × {_4} méretről kicsinyítve (legfeljebb {_5} megapixel).
+	Gap Length:	Rés hossza:
 	Artboard {n} of {total}	Rajztábla: {n} / {total}
 	Encoding and writing the file…	A fájl kódolása és írása…
 @plural	{n} more export waiting|{n} more exports waiting	Még {n} exportálás várakozik
@@ -5325,6 +5352,14 @@ imageTrace	Outline	Körvonal
 	Full Justify	Teljes sorkizárás
 	Minimum must not exceed Desired, nor Desired Maximum.	A minimum nem haladhatja meg a kívánt értéket, sem a kívánt érték a maximumot.
 	Justification	Sorkizárás
+	Add filters from the list above	Adjon hozzá szűrőket a fenti listából
+	Add to Stack	Hozzáadás a veremhez
+	Applied Filters	Alkalmazott szűrők
+	Categories	Kategóriák
+	Choose a filter	Válasszon szűrőt
+	Effect Gallery	Effektusgaléria
+	Filters	Szűrők
+	Select artwork to apply effects	Válasszon ki grafikát az effektusok alkalmazásához
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	a fájl változói és adatkészletei nem lettek beolvasva (változók: {variables}, adatkészletek: {data_sets}): a Változók panel nem listázza őket
 # Select by Color (select.color)
 	Select by Color	Kijelölés szín szerint
@@ -5350,3 +5385,30 @@ imageTrace	Outline	Körvonal
 	Water Paper	Nedves papír
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Lassú kezdés
+	Ease Out	Lassú befejezés
+	Ease In Out	Lassú kezdés és befejezés
+	Ease Out In	Lassú befejezés és kezdés
+	Ramp:	Erősség:
+	Shift:	Eltolás:
+	Fresco…	Freskó…
+	Fresco	Freskó
+	Effect Gallery…	Effektusgaléria…
+	Effect Gallery Dialog	Effektusgaléria párbeszédpanel
+	Arc Segment Tool Options	Ívszakasz eszköz beállításai
+	Base Along:	Alap mentén:
+	Closed	Zárt
+	Convex	Domború
+	Fill Arc	Ív kitöltése
+	Length X-Axis:	Hossz X tengely:
+	Length Y-Axis:	Hossz Y tengely:
+	Slope:	Lejtés:
+axis	X Axis	X tengely
+axis	Y Axis	Y tengely
+@msg	Packaged {n} file(s) in {folder}	Becsomagolt fájlok: {n}, mappa: {folder}
+@msg	Packaged {n} file(s) {note}	Becsomagolt fájlok: {n} {note}
+@msg	Packaged {n} file(s)	Becsomagolt fájlok: {n}
+	Packaged {n} file(s)	Becsomagolt fájlok: {n}
+	Packaged {n} file(s) in {folder}	Becsomagolt fájlok: {n}, mappa: {folder}
+	Packaged {n} file(s) {note}	Becsomagolt fájlok: {n} {note}
+	{count} file(s) in {folder}. Show the package folder?	Fájlok: {count}, mappa: {folder}. Megnyitod a csomag mappáját?

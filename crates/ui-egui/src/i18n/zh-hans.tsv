@@ -1010,6 +1010,11 @@
 	Fidelity:	精确度：
 	Figure Space	数字空格
 	Figure:	数字：
+# Artwork drag between document tabs.
+	Drop Artwork	放置图稿
+@msg	{key} must be [x, y] with finite coordinates	{key} 必须是具有有限坐标的 [x, y]
+@msg	ids must contain 1–10000 object ids	ids 必须包含 1–10000 个对象 ID
+
 	File	文件
 	File Dimensions	文件尺寸
 	File Format:	文件格式：
@@ -2112,7 +2117,7 @@ file-filter	Templates	模板
 	Package	打包
 	Package collects a saved document with its linked files and fonts.	打包会将已存储的文件连同其链接文件与字体一并收集。
 	Package created	已创建打包
-	Packaged {n} file(s) in {folder}{note}	已将 {n} 个文件打包于 {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	已将 {n} 个文件打包于 {folder}{note}
 	Packaged {n} file(s){note}	已打包 {n} 个文件{note}
 	Package…	打包…
 	Page	页面
@@ -2176,7 +2181,7 @@ file-filter	Templates	模板
 	Performance	性能
 diagnostics	render	渲染
 diagnostics	ui	界面
-	Performance & Storage	性能和存储
+	Plug-ins & Scratch Disks	增效工具 & 暂存盘
 	Permissions	权限
 	Permissions password:	权限密码：
 	Perspective	透视
@@ -2298,6 +2303,7 @@ font-script	Japanese	汉字
 	Proof Setup	校样设置
 	Properties	属性
 	Proportional Metrics	比例度量
+	Character Direction	字符方向
 	Digits	数字
 	Arabic	阿拉伯数字
 	Hindi	印地数字
@@ -2938,6 +2944,7 @@ font-script	Japanese	汉字
 	Snapping Tolerance	吸附容差
 	Social Square Post 1080×1080	社交方形帖子 1080×1080
 	Soft Light	柔光
+	Soft Mix	柔和混合
 	Solid	实心
 	Sort by Kind	按类型排序
 	Sort by Name	按名称排序
@@ -3454,7 +3461,7 @@ font-script	Japanese	汉字
 	Zoom Tool	缩放工具
 	Zoom with Mouse Wheel	使用鼠标滚轮缩放
 	Scrub Numeric Fields by Dragging	拖动以调整数值字段
-	{count} file(s) in {folder}{note}. Show the package folder?	{folder} 中有 {count} 个文件{note}。要显示打包文件夹吗？
+	{count} file(s) in {folder} {note}. Show the package folder?	{folder} 中有 {count} 个文件{note}。要显示打包文件夹吗？
 	{count} linked file(s) not found	找不到 {count} 个链接文件
 	fonts not copied: {fonts}	未复制的字体：{fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	自存储此文档后，有 {count} 个链接图像已更改。要显示新版本吗？
@@ -3622,7 +3629,7 @@ imageTrace	Outline	轮廓
 @msg	the scale is not a usable number	比例不是可用的数字
 @msg	the drawing is too large to open	图纸过大，无法打开
 @msg	scale must be a number from {_1} to {_2}, not {_3}	比例必须是 {_1} 到 {_2} 之间的数字，而不是 {_3}
-@msg	image '{key}' has no pixels and was left out	图像 '{key}' 没有像素，已略去
+@msg	an image has no pixels and was left out	已略去没有像素的图像
 @msg	Embedded {n} image(s)	已嵌入 {n} 张图像
 @msg	object {0} cannot have children	对象 {0} 不能包含子对象
 @msg	range `{s}` is empty	范围 `{s}` 为空
@@ -4017,6 +4024,7 @@ imageTrace	Outline	轮廓
 @msg	SVG parse error: {0}	SVG 解析错误：{0}
 @msg	decimals must be {_1}–{_2} (got {_3})	小数位数必须为 {_1}–{_2} (实际为 {_3})
 @msg	Exporting {_1}	正在导出 {_1}
+@msg	Packaging {_1}	正在打包 {_1}
 @msg	Exported {what}	已导出 {what}
 @msg	"{0}" is not a colour: write it as #rrggbb	"{0}" 不是颜色：请写为 #rrggbb
 @msg	could not decode image: {0}	无法解码图像：{0}
@@ -4059,7 +4067,7 @@ imageTrace	Outline	轮廓
 @msg	{_1} linked file(s) can't be read here: their previews show	此处无法读取 {_1} 个链接文件：显示的是其预览
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	有 {_1} 个链接图像已在磁盘上更改：“更新链接”可显示新版本
 @msg	pick a colour, gradient or pattern to save as a swatch	请选取要保存为色板的颜色、渐变或图案
-@msg	Packaged {n} file(s) in {folder}{note}	已将 {n} 个文件打包到 {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	已将 {n} 个文件打包到 {folder}{note}
 @msg	Packaged {n} file(s){note}	已打包 {n} 个文件{note}
 @msg	choose a location for the package	请为打包选择位置
 @msg	missing `folder`	缺少 `folder`
@@ -4249,7 +4257,9 @@ imageTrace	Outline	轮廓
 @msg	automation filesystem access is not granted: read authority is absent: {path}	未授予自动化文件系统访问权限：缺少读取权限：{path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	未授予自动化文件系统访问权限：缺少写入权限：{path}
 @msg	automation path rejected: outside the read root {root}: {path}	已拒绝自动化路径：位于读取根目录 {root} 之外：{path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	已拒绝自动化路径：位于所有读取根目录 {roots} 之外：{path}
 @msg	automation path rejected: outside the write root {root}: {path}	已拒绝自动化路径：位于写入根目录 {root} 之外：{path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	已拒绝自动化路径：位于所有写入根目录 {roots} 之外：{path}
 @msg	automation path rejected: path is empty	已拒绝自动化路径：路径为空
 @msg	automation path rejected: a link that leads nowhere: {path}	已拒绝自动化路径：链接指向不存在的位置：{path}
 @msg	automation path rejected: cannot resolve {path}: {e}	已拒绝自动化路径：无法解析 {path}：{e}
@@ -4273,6 +4283,12 @@ imageTrace	Outline	轮廓
 @msg	before must name a panel	before 必须指定面板
 @msg	docking action contains an unknown panel or an excessive split path	停靠操作包含未知面板或过长的拆分路径
 @msg	group must be true or false	group 必须是 true 或 false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	面板处于浮动状态；请使用 window.panel.float {panel, collapsed} 折叠其面板组
+@msg	panel is not in a dock group	面板不在停放组中
+@msg	only a dock group above or below others collapses, not one beside another	只有位于其他组上方或下方的停放组可以折叠，并排的不行
+@msg	icon must be true or false	icon 必须为 true 或 false
+@msg	icon only docks a panel in the icon column, with no anchor	icon 只会把面板停放到图标栏中，不能带 anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column 将一组面板停放为停放栏，不能带 anchor 或 icon
 @msg	move requires a destination panel	移动需要目标面板
 @msg	move requires an existing destination panel	移动需要现有的目标面板
 @msg	onto must name a floating panel	onto 必须指定浮动面板
@@ -4882,6 +4898,7 @@ effect	Vertical	垂直
 	Activate Panel	激活面板
 	Change Panel Layout	更改面板布局
 	Close Panel	关闭面板
+	Collapse Panel Group	折叠面板组
 	Move Panel	移动面板
 	Group with	组合到
 	Resize panels	调整面板大小
@@ -4950,6 +4967,8 @@ lighting	Light	光源
 	Reset Ruler Origin	重置标尺原点
 	Artistic	艺术效果
 	Film Grain…	胶片颗粒…
+	Colored Pencil…	彩色铅笔…
+	Colored Pencil	彩色铅笔
 	Cutout…	剪纸…
 	Dry Brush…	干画笔…
 	Cutout	剪纸
@@ -5104,6 +5123,12 @@ lighting	Light	光源
 	Sketch	素描
 	Halftone Pattern…	半调图案…
 	Halftone Pattern	半调图案
+	Torn Edges…	撕边…
+	Torn Edges	撕边
+	Conté Crayon…	孔特蜡笔…
+	Conté Crayon	孔特蜡笔
+	Foreground Level	前景级别
+	Background Level	背景级别
 	Pattern Type	图案类型
 	Dot	网点
 # User Interface › Color Scheme
@@ -5153,9 +5178,11 @@ lighting	Light	光源
 @msg	Persistent libraries not found: {files}	找不到持久库：{files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` 不是库面板 (请参阅 window.swatchLibrary)
 @msg	library panel `{given}` isn't open	库面板 `{given}` 未打开
+@msg	library panel `{given}` isn't missing its library	库面板 `{given}` 的库未缺失
 @msg	too many library panels were opened in this session	本次会话中打开的库面板过多
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	图像为 {_1} × {_2} 像素，某一边超过 {LARGE_TRACE_SIDE}：会进行描摹，但速度较慢。使用保真度较低的预设或图像的较小副本会更快。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	图像已按 {_1} × {_2} 像素描摹，由 {_3} × {_4} 缩小而来（最多 {_5} 百万像素）。
+	Gap Length:	间隙长度：
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	编辑原稿只能打开图像和文档文件；“{name}” 不是其中之一
 @msg	only http, https and mailto URLs open in the browser, not “{url}”	浏览器中只会打开 http、https 和 mailto 的 URL，不会打开 “{url}”
@@ -5178,6 +5205,14 @@ lighting	Light	光源
 	Minimum must not exceed Desired, nor Desired Maximum.	最小值不能超过所需值，所需值不能超过最大值。
 	Minimum	最小值
 	Justification	对齐设置
+	Add filters from the list above	从上方列表添加滤镜
+	Add to Stack	添加到堆栈
+	Applied Filters	已应用的滤镜
+	Categories	类别
+	Choose a filter	选择滤镜
+	Effect Gallery	效果库
+	Filters	滤镜
+	Select artwork to apply effects	选择要应用效果的图稿
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	文件的变量和数据集未被读取（变量：{variables}，数据集：{data_sets}）：“变量”面板不会列出它们
 # Select by Color (select.color)
 	Select by Color	按颜色选择
@@ -5203,3 +5238,31 @@ lighting	Light	光源
 	Water Paper	水彩画纸
 	Ruby…	注音…
 	Ruby	注音
+	Ease In	缓入
+	Ease Out	缓出
+	Ease In Out	缓入缓出
+	Ease Out In	缓出缓入
+	Ramp:	强度：
+	Shift:	偏移：
+	Fresco…	壁画…
+	Fresco	壁画
+	Effect Gallery…	效果库…
+	Effect Gallery Dialog	效果库对话框
+	Arc Segment Tool Options	弧段工具选项
+	Base Along:	基线方向:
+	Closed	闭合
+	Concave	凹
+	Convex	凸
+	Fill Arc	填充弧
+	Length X-Axis:	X 轴长度:
+	Length Y-Axis:	Y 轴长度:
+	Slope:	斜率:
+axis	X Axis	X 轴
+axis	Y Axis	Y 轴
+@msg	Packaged {n} file(s) in {folder}	已将 {n} 个文件打包到 {folder}
+@msg	Packaged {n} file(s) {note}	已打包 {n} 个文件 {note}
+@msg	Packaged {n} file(s)	已打包 {n} 个文件
+	Packaged {n} file(s)	已打包 {n} 个文件
+	Packaged {n} file(s) in {folder}	已将 {n} 个文件打包到 {folder}
+	Packaged {n} file(s) {note}	已打包 {n} 个文件 {note}
+	{count} file(s) in {folder}. Show the package folder?	{folder} 中有 {count} 个文件。要显示打包文件夹吗？

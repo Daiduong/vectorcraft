@@ -64,6 +64,7 @@ fn lengths(kind: &str) -> &'static [&'static str] {
         "polygon" => &["radius"],
         "star" => &["radius1", "radius2"],
         "lineSegment" => &["length"],
+        "arc" => &["lengthX", "lengthY"],
         "offsetPath" => &["offset"],
         _ => &[],
     }
@@ -73,7 +74,7 @@ fn lengths(kind: &str) -> &'static [&'static str] {
 /// number: fields that ↑/↓ step by one (Shift: ten) and that do math, as the distances do.
 fn suffix(kind: &str, key: &str) -> Option<&'static str> {
     match (kind, key) {
-        ("rotate" | "shear" | "reflect" | "move", "angle") => Some("°"),
+        ("rotate" | "shear" | "reflect" | "move" | "lineSegment", "angle") => Some("°"),
         ("scale", "sx" | "sy") => Some("%"),
         _ => None,
     }
@@ -96,6 +97,7 @@ fn order(kind: &str) -> &'static [&'static str] {
         "rectangularGrid" => &["width", "height", "rows", "rowSkew", "columns", "columnSkew"],
         "polarGrid" => &["width", "height", "concentric", "concentricSkew", "radial", "radialSkew"],
         "artboardOptions" => &["name", "width", "height"],
+        "lineSegment" => &["length", "angle"],
         _ => &[],
     }
 }
@@ -649,7 +651,7 @@ pub(super) fn slider_field_named(
     let v = d.f64(key, 0.0).clamp(min, max);
     let shown = crate::widgets::SliderValue::field(v, range.clone(), suffix, 0);
     slider_rail_valued(ui, d, key, name, range, Some(shown), track);
-    if let Some(n) = crate::widgets::plain_field(ui, ("dlg-field", key), v, suffix, 0, 52.0).map(|x| x.round().clamp(min, max)).filter(|n| *n != v) {
+    if let Some(n) = crate::widgets::range_field(ui, ("dlg-field", key), v, min..=max, suffix, 0, 52.0).filter(|n| *n != v) {
         d.fields.insert(key.into(), json!(n));
     }
 }

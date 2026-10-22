@@ -214,6 +214,44 @@ pub fn open_reporting(app: &mut VectorcraftApp, path: &str) -> Result<Value, Str
     r
 }
 
+/// Home › Recent Files and File › Open Recent: focus an already-open tab for that path instead of
+/// calling `document.open` again (#3455).
+pub fn open_recent_reporting(app: &mut VectorcraftApp, path: &str) -> Result<Value, String> {
+    if let Some(r) = try_activate_open_document(app, path)? {
+        return Ok(r);
+    }
+    open_reporting(app, path)
+}
+
+fn try_activate_open_document(app: &mut VectorcraftApp, path: &str) -> Result<Option<Value>, String> {
+    let Some(index) = document_index_for_path(app, path) else {
+        return Ok(None);
+    };
+    let st = &app.session.documents()[index];
+    let r = json!({
+        "index": index,
+        "title": st.title(),
+        "format": st.format,
+        "warnings": [],
+        "restored": false,
+        "activated": true,
+    });
+    app.run("document.activate", json!({ "index": index }))?;
+    opened(app, &r);
+    Ok(Some(r))
+}
+
+fn document_index_for_path(app: &VectorcraftApp, path: &str) -> Option<usize> {
+    app.session.documents().iter().position(|st| st.path.as_deref().is_some_and(|p| same_open_path(p, path)))
+}
+
+fn same_open_path(a: &str, b: &str) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
+}
+
 fn read(app: &VectorcraftApp, path: &str) -> Result<Vec<u8>, String> {
     app.services.read.as_ref().ok_or("no file reader")?(path)
 }
@@ -299,7 +337,7 @@ pub(crate) fn write_named(app: &mut VectorcraftApp, path: Option<String>, name: 
         None => {
             let (_, folder) = suggested(app, "");
             let filters = file_types(&fileio::extension(name));
-            pick_path(app, &FilePick { name: name.to_string(), folder, filters })?
+            pick_path(app, &FilePick { name: name.to_string(), folder, filters }, |_| false)?
         }
     };
     write_reporting(app, &path, bytes)?;
@@ -307,11 +345,24 @@ pub(crate) fn write_named(app: &mut VectorcraftApp, path: Option<String>, name: 
 }
 
 /// Where a file goes when no path was given: the suggested name on the web (a download), else the
-/// save panel's choice, given the suggested name's extension when it names no file type (a name
-/// typed without one).
-fn pick_path(app: &mut VectorcraftApp, pick: &FilePick) -> Result<String, String> {
+/// save panel's choice with the suggested name's extension, [`with_written_extension`]: a name
+/// typed with the extension of a format `keeps` takes stays as typed too.
+fn pick_path(app: &mut VectorcraftApp, pick: &FilePick, keeps: impl Fn(&Format) -> bool) -> Result<String, String> {
     let ext = fileio::extension(&pick.name);
-    pick_finished(app, pick, |picked, _| with_extension(picked, &ext, |_| true))
+    pick_finished(app, pick, |picked, _| with_written_extension(picked, &ext, &keeps))
+}
+
+/// `path` as typed in a save panel for a file with extension `ext`: kept when its extension is
+/// `ext` in any letter case, or names the format `ext` names (`photo.jpeg` for a `.jpg` file) or
+/// a format `keeps` takes. An extension that names another format (`card.svg` for a `.png` file)
+/// is replaced with `ext`, and `.ext` is added to any other path (`v1.2` becomes `v1.2.png`).
+fn with_written_extension(path: &str, ext: &str, keeps: impl Fn(&Format) -> bool) -> String {
+    let written = fileio::format(ext);
+    let keeps = |g: &Format| written.is_some_and(|w| w.id == g.id) || keeps(g);
+    if !ext.is_empty() && !fileio::extension(path).eq_ignore_ascii_case(ext) && fileio::format_for_name(path).is_some_and(|g| !keeps(g)) {
+        return std::path::Path::new(path).with_extension(ext).to_string_lossy().into_owned();
+    }
+    with_extension(path, ext, keeps)
 }
 
 /// The suggested name made into a path by `finish` on the web (a download), else the save panel's
@@ -378,14 +429,26 @@ fn file_types(ext: &str) -> Vec<crate::FileFilter> {
 }
 
 /// `path`, else one picked in a save panel (the web: the suggested name) for the active document
-/// with extension `ext`, filtered to its file type when it has one ([`file_types`]).
+/// with extension `ext`, filtered to its file type when it has one ([`file_types`]). A name typed
+/// with another format's extension gets `ext` instead ([`with_written_extension`]).
 pub(crate) fn target_path(app: &mut VectorcraftApp, path: Option<String>, ext: &str) -> Result<String, String> {
+    target_path_keeping(app, path, ext, |_| false)
+}
+
+/// [`target_path`] for an export in format `f` (Export As's OK and [`export`]): a name typed with
+/// `.svgz` for an SVG stays as typed, and [`export`] writes it compressed.
+pub(crate) fn export_path(app: &mut VectorcraftApp, path: Option<String>, f: &Format) -> Result<String, String> {
+    target_path_keeping(app, path, f.extensions[0], |g| f.id == "svg" && g.id == "svgz")
+}
+
+/// [`target_path`], keeping a typed extension of a format `keeps` takes.
+fn target_path_keeping(app: &mut VectorcraftApp, path: Option<String>, ext: &str, keeps: impl Fn(&Format) -> bool) -> Result<String, String> {
     if let Some(p) = path {
         return Ok(p);
     }
     let (name, folder) = suggested(app, ext);
     let filters = file_types(ext);
-    pick_path(app, &FilePick { name, folder, filters })
+    pick_path(app, &FilePick { name, folder, filters }, keeps)
 }
 
 /// Keep the active document's saved view current before a save (native files reopen at it).
@@ -410,16 +473,17 @@ fn with_save_extension(path: &str, f: &Format, mode: SaveMode) -> String {
 
 /// [`with_save_extension`] for a save panel that reports the file type picked in it (`picked`,
 /// that type's extension; the XDG portal's panel on Linux and the BSDs), which then takes `f`'s
-/// place. A path that still ends in the extension of the name the panel suggested (`suggested`)
-/// gets the picked type's extension instead. Without a picked type, or with one the panel did not
+/// place. A path that still ends in the extension of the name the panel suggested (`suggested`),
+/// in any letter case, gets the picked type's extension instead, unless that extension is one of
+/// the picked type's; such a path stays as typed. Without a picked type, or with one the panel did not
 /// offer, [`with_save_extension`] with `f`.
 fn with_picked_type(path: &str, suggested: &str, picked: Option<&str>, f: &Format, mode: SaveMode) -> String {
     let formats = if mode == SaveMode::Template { TEMPLATE_FORMATS } else { SAVE_FORMATS };
     let Some(g) = picked.and_then(fileio::format).filter(|g| formats.contains(&g.id)) else {
         return with_save_extension(path, f, mode);
     };
-    let has = std::path::Path::new(path).extension();
-    if has.is_some() && has == std::path::Path::new(suggested).extension() {
+    let has = fileio::extension(path);
+    if !has.is_empty() && has == fileio::extension(suggested) && !g.extensions.contains(&has.as_str()) {
         return std::path::Path::new(path).with_extension(g.extensions[0]).to_string_lossy().into_owned();
     }
     with_save_extension(path, g, mode)
@@ -486,9 +550,7 @@ pub fn save(app: &mut VectorcraftApp, mode: SaveMode, p: &Value, ask_options: bo
     if ask && asks_options(mode, chosen.format) {
         let path = chosen.path.clone().unwrap_or_default();
         let r = ask_format_options(app, mode, chosen.format, &path);
-        if let Some(d) = app.ui.dialog.as_mut() {
-            d.fields.insert(crate::dialogs::AFTER_PANEL.into(), json!(true));
-        }
+        crate::dialogs::opened_by_panel(app);
         return r;
     }
     write_plan(app, chosen)
@@ -711,6 +773,9 @@ pub fn hide_exports(app: &mut VectorcraftApp) -> Value {
 /// document keeps its path. → `{path, warnings, files?}` (`files`: every file when there are
 /// several).
 pub fn export(app: &mut VectorcraftApp, format: Option<&str>, path: Option<String>, params: &Value) -> Result<Value, String> {
+    // Options given as anything but an object are none: the path and format still reach the
+    // encoder (an exporter plug-in is told the file it writes).
+    let params = &if params.is_object() { params.clone() } else { json!({}) };
     let f = fileio::writable_format(format, path.as_deref())?;
     let st = app.session.active().ok_or("no document")?;
     let doc = match fileio::export_source(st, params).map_err(|e| e.to_string())? {
@@ -718,7 +783,7 @@ pub fn export(app: &mut VectorcraftApp, format: Option<&str>, path: Option<Strin
         std::borrow::Cow::Owned(d) => std::sync::Arc::new(d),
     };
     let doc = fileio::titled_for_export(&doc, st.path.as_deref(), f.id).map_or(doc, std::sync::Arc::new);
-    let path = target_path(app, path, f.extensions[0])?;
+    let path = export_path(app, path, f)?;
     let mut again = params.clone();
     if let Some(o) = again.as_object_mut() {
         o.insert("format".into(), json!(f.id));
@@ -816,14 +881,18 @@ fn take_output(v: &mut Value) -> Result<Vec<u8>, String> {
 /// Run an engine command that returns `{dataBase64}` without its `path` and write the bytes to
 /// that path (else a picked or suggested name) → (path, the command's result without the data).
 /// The command runs before a path is asked for, so bad params never open a save dialog, except
-/// for Export Selection without a `format`, which takes it from the picked path.
+/// for Export Selection without a `format`, which takes it from the picked path. Export Selection
+/// with a `format` picks a file with that format's extension in place of `ext`.
 pub(crate) fn run_to_file(app: &mut VectorcraftApp, id: &str, ext: &str, mut params: Value) -> Result<(String, Value), String> {
     let mut path = params.as_object_mut().and_then(|o| o.remove("path")).and_then(|p| p.as_str().map(str::to_string));
+    let selection = id == "document.exportSelection";
+    let given = params.get("format").and_then(Value::as_str).and_then(fileio::format).filter(|_| selection);
+    let ext = given.map_or(ext, |f| f.extensions[0]);
     if let Some(o) = params.as_object_mut()
         && o.get("format").is_none()
-        && id == "document.exportSelection"
+        && selection
     {
-        let picked = target_path(app, path, ext)?;
+        let picked = target_path_keeping(app, path, ext, |_| true)?;
         let e = Some(fileio::extension(&picked)).filter(|e| !e.is_empty()).unwrap_or_else(|| ext.into());
         o.insert("format".into(), serde_json::json!(e));
         path = Some(picked);

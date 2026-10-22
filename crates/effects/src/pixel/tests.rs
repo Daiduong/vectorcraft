@@ -1224,6 +1224,8 @@ fn texture_params_take_defaults_and_stay_in_range() {
         ("texture.texturizer", "lightDirection", LIGHT_DIRECTIONS.as_slice()),
         ("artistic.roughPastels", "texture", TEXTURES.as_slice()),
         ("artistic.roughPastels", "lightDirection", LIGHT_DIRECTIONS.as_slice()),
+        ("sketch.conteCrayon", "texture", TEXTURES.as_slice()),
+        ("sketch.conteCrayon", "lightDirection", LIGHT_DIRECTIONS.as_slice()),
     ] {
         let doc = crate::effect_info(id).unwrap().params;
         let parsed: Vec<PixelFx> = table.iter().map(|(_, v)| fx(id, json!({ key: v }))).collect();
@@ -2071,6 +2073,13 @@ fn halftone(p: serde_json::Value, src: &[u8], w: usize, h: usize, s: &PixelSpace
     out
 }
 
+/// Torn Edges of `p` over `w` × `h` pixels of `src`, laid out by `s`.
+fn torn(p: serde_json::Value, src: &[u8], w: usize, h: usize, s: &PixelSpace) -> Vec<u8> {
+    let mut out = src.to_vec();
+    fx("sketch.tornEdges", p).apply(&mut out, w, h, s);
+    out
+}
+
 /// Water Paper of `p` over `w` × `h` pixels of `src`, laid out by `s`.
 fn water_paper(p: serde_json::Value, src: &[u8], w: usize, h: usize, s: &PixelSpace) -> Vec<u8> {
     let mut out = src.to_vec();
@@ -2404,6 +2413,63 @@ fn reticulation_density_changes_the_grain() {
     assert_ne!(low, high);
 }
 
+#[test]
+fn torn_edges_params_take_defaults_and_stay_in_range() {
+    assert_eq!(fx("sketch.tornEdges", json!({})), PixelFx::TornEdges { image_balance: 25.0, smoothness: 11.0, contrast: 17.0 });
+    assert_eq!(
+        fx("sketch.tornEdges", json!({"imageBalance": 0, "smoothness": 99, "contrast": -1})),
+        PixelFx::TornEdges { image_balance: 0.0, smoothness: 15.0, contrast: 0.0 }
+    );
+    assert_eq!(
+        fx("sketch.tornEdges", json!({"imageBalance": 1e9, "smoothness": -3, "contrast": 1e9})),
+        PixelFx::TornEdges { image_balance: 50.0, smoothness: 0.0, contrast: 20.0 }
+    );
+    for junk in [json!({"imageBalance": "x"}), json!({"smoothness": null})] {
+        assert_eq!(fx("sketch.tornEdges", junk), fx("sketch.tornEdges", json!({})));
+    }
+    assert_eq!(fx("sketch.tornEdges", json!({})).reach(), None);
+}
+
+#[test]
+fn torn_edges_draws_in_black_and_white_and_keeps_coverage() {
+    let (w, h) = (64, 48);
+    let src = ramp(w, h);
+    let out = torn(json!({"imageBalance": 12, "contrast": 20, "smoothness": 5}), &src, w, h, &space(w, h));
+    for (p, q) in out.as_chunks::<4>().0.iter().zip(src.as_chunks::<4>().0) {
+        assert_eq!(p[3], q[3], "coverage kept");
+        assert!(p[0] == p[1] && p[1] == p[2] && (p[0] == 0 || p[0] == p[3]), "black or white: {p:?}");
+    }
+    assert!(share(&out, |p| p[0] == 0) > 0.05 && share(&out, |p| p[0] == p[3]) > 0.05, "ink and paper");
+}
+
+#[test]
+fn torn_edges_image_balance_shifts_ink_on_a_grey_ramp() {
+    let (w, h) = (80, 16);
+    let src = image(w, h, |x, _| grey((x * 255 / (w - 1)) as u8));
+    let params = json!({"imageBalance": 25, "contrast": 20, "smoothness": 5});
+    let out = torn(params, &src, w, h, &space(w, h));
+    let mut dark_ink = 0usize;
+    let mut bright_ink = 0usize;
+    for y in 0..h {
+        for x in 0..w / 4 {
+            if at(&out, w, x, y)[0] == 0 {
+                dark_ink += 1;
+            }
+        }
+        for x in 3 * w / 4..w {
+            if at(&out, w, x, y)[0] == 0 {
+                bright_ink += 1;
+            }
+        }
+    }
+    let dark_n = (w / 4) * h;
+    let bright_n = (w - 3 * w / 4) * h;
+    assert!(dark_ink as f64 / dark_n as f64 > bright_ink as f64 / bright_n as f64 + 0.2, "dark end of ramp is inkier than bright end");
+    let dark = share(&torn(json!({"imageBalance": 0, "contrast": 20, "smoothness": 5}), &src, w, h, &space(w, h)), |p| p[0] == 0);
+    let light = share(&torn(json!({"imageBalance": 50, "contrast": 20, "smoothness": 5}), &src, w, h, &space(w, h)), |p| p[0] == 0);
+    assert!(dark > light + 0.15, "low balance leaves more ink: dark={dark} light={light}");
+}
+
 /// The distinct colours of the covered pixels.
 fn colours(d: &[u8]) -> std::collections::BTreeSet<[u8; 4]> {
     d.as_chunks::<4>().0.iter().filter(|p| p[3] > 0).copied().collect()
@@ -2421,6 +2487,12 @@ fn ramp(w: usize, h: usize) -> Vec<u8> {
 
 #[test]
 fn artistic_params_take_defaults_and_stay_in_range() {
+    assert_eq!(fx("artistic.coloredPencil", json!({})), PixelFx::ColoredPencil { width: 5.0, pressure: 5.0, paper: 25.0 });
+    assert_eq!(
+        fx("artistic.coloredPencil", json!({"pencilWidth": 0, "strokePressure": 200, "paperBrightness": -5})),
+        PixelFx::ColoredPencil { width: 1.0, pressure: 15.0, paper: 0.0 }
+    );
+    assert_eq!(fx("artistic.coloredPencil", json!({})).reach(), Some(artistic::colored_pencil_reach(5.0)));
     assert_eq!(fx("artistic.cutout", json!({})), PixelFx::Cutout { levels: 4.0, simplicity: 4.0, fidelity: 2.0 });
     assert_eq!(
         fx("artistic.cutout", json!({"levels": 1e308, "edgeSimplicity": -5, "edgeFidelity": "NaN"})),
@@ -2479,13 +2551,26 @@ fn artistic_params_take_defaults_and_stay_in_range() {
         ),
         PixelFx::RoughPastels { length: 0.0, detail: 20.0, texture: Texture::Canvas, scaling: 0.5, relief: 50.0, light: Light::Top, invert: true }
     );
+    assert_eq!(fx("artistic.fresco", json!({})), PixelFx::Fresco { brush_size: 2.0, brush_detail: 10.0, texture: 1.0 });
+    assert_eq!(
+        fx("artistic.fresco", json!({"brushSize": 0, "brushDetail": 99, "texture": 4.7})),
+        PixelFx::Fresco { brush_size: 1.0, brush_detail: 10.0, texture: 3.0 }
+    );
     assert_eq!(fx("artistic.plasticWrap", json!({})), PixelFx::PlasticWrap { highlight: 20.0, detail: 12.0, smoothness: 15.0 });
     assert_eq!(
         fx("artistic.plasticWrap", json!({"highlightStrength": -1, "detail": 99, "smoothness": 0})),
         PixelFx::PlasticWrap { highlight: 0.0, detail: 15.0, smoothness: 1.0 }
     );
-    for id in ["artistic.cutout", "artistic.dryBrush", "artistic.neonGlow", "artistic.plasticWrap", "artistic.posterEdges", "artistic.underpainting"]
-    {
+    for id in [
+        "artistic.coloredPencil",
+        "artistic.cutout",
+        "artistic.dryBrush",
+        "artistic.fresco",
+        "artistic.neonGlow",
+        "artistic.plasticWrap",
+        "artistic.posterEdges",
+        "artistic.underpainting",
+    ] {
         assert_eq!(fx(id, json!({})).outset(Rect::new(0.0, 0.0, 40.0, 30.0)), 0.0, "{id} keeps the object's shape");
     }
     assert_eq!(fx("artistic.paintDaubs", json!({})), PixelFx::PaintDaubs { size: 10.0, sharpness: 25.0, kind: PaintDaubBrush::Simple });
@@ -2510,6 +2595,19 @@ fn artistic_params_take_defaults_and_stay_in_range() {
 }
 
 #[test]
+fn colored_pencil_strokes_change_pixels_and_keep_coverage() {
+    let (w, h) = (48, 32);
+    let src = ramp(w, h);
+    let mut out = src.clone();
+    fx("artistic.coloredPencil", json!({"strokePressure": 12})).apply(&mut out, w, h, &space(w, h));
+    assert_ne!(out, src);
+    assert!(out.as_chunks::<4>().0.iter().zip(src.as_chunks::<4>().0).all(|(o, s)| o[3] == s[3]));
+    let mut mild = src.clone();
+    fx("artistic.coloredPencil", json!({"strokePressure": 0, "paperBrightness": 0})).apply(&mut mild, w, h, &space(w, h));
+    assert_eq!(mild, src, "zero pressure and paper leaves the art unchanged");
+}
+
+#[test]
 fn artistic_filters_leave_invalid_coordinate_spaces_alone() {
     let (w, h) = (16, 12);
     let src = ramp(w, h);
@@ -2522,6 +2620,7 @@ fn artistic_filters_leave_invalid_coordinate_spaces_alone() {
     let filters = [
         PixelFx::Cutout { levels: 4.0, simplicity: 4.0, fidelity: 2.0 },
         PixelFx::DryBrush { size: 2.0, detail: 10.0, texture: 1.0 },
+        PixelFx::Fresco { brush_size: 2.0, brush_detail: 10.0, texture: 1.0 },
         PixelFx::NeonGlow { size: 5.0, brightness: 15.0, colour },
         PixelFx::PlasticWrap { highlight: 20.0, detail: 12.0, smoothness: 15.0 },
         PixelFx::PosterEdges { thickness: 2.0, intensity: 1.0, posterization: 2.0 },
@@ -2574,6 +2673,9 @@ fn artistic_filters_leave_invalid_coordinate_spaces_alone() {
             light: Light::Top,
             invert: false,
         },
+        PixelFx::Fresco { brush_size: f64::NAN, brush_detail: 10.0, texture: 1.0 },
+        PixelFx::Fresco { brush_size: 2.0, brush_detail: f64::INFINITY, texture: 1.0 },
+        PixelFx::Fresco { brush_size: 2.0, brush_detail: 10.0, texture: f64::NEG_INFINITY },
     ] {
         if run(&f, &space(w, h)) != src {
             changed.push(format!("{f:?}"));
@@ -2601,6 +2703,22 @@ fn underpainting_softens_more_with_a_larger_brush_and_keeps_coverage() {
     let mut out = src.clone();
     fx("artistic.underpainting", json!({})).apply(&mut out, w, h, &space(w, h));
     assert!(out.as_chunks::<4>().0.iter().zip(src.as_chunks::<4>().0).all(|(o, s)| o[3] == s[3]));
+}
+
+#[test]
+fn fresco_keeps_coverage_and_responds_to_texture() {
+    let (w, h) = (48, 32);
+    let src = ramp(w, h);
+    let mut low = src.clone();
+    let mut high = src.clone();
+    fx("artistic.fresco", json!({"texture": 1})).apply(&mut low, w, h, &space(w, h));
+    fx("artistic.fresco", json!({"texture": 3})).apply(&mut high, w, h, &space(w, h));
+    assert_ne!(low, src);
+    assert_ne!(high, src);
+    assert_ne!(low, high, "deeper texture changes the relief");
+    for (a, b) in low.as_chunks::<4>().0.iter().zip(src.as_chunks::<4>().0) {
+        assert_eq!(a[3], b[3], "alpha is preserved");
+    }
 }
 
 #[test]

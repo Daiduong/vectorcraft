@@ -133,9 +133,13 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         out.push_str(&w.indent(1));
         out.push_str(&format!("</defs>{nl}"));
     }
-    if !doc.title.is_empty() {
+    // An artboard exported on its own is named after it (#3544), else after the document.
+    // A name that is blank once the characters XML can't hold are dropped falls back too.
+    let board = opts.artboard.filter(|_| opts.artboard_title).and_then(|i| doc.artboards.get(i)).map(|a| xml_text(&a.name));
+    let title = board.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| xml_text(&doc.title));
+    if !title.is_empty() {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<title>{}</title>{nl}", xml_text(&doc.title)));
+        out.push_str(&format!("<title>{title}</title>{nl}"));
     }
     // File Info's description.
     if !doc.metadata.description.trim().is_empty() {
@@ -1885,9 +1889,11 @@ impl Writer<'_> {
     fn text(&mut self, n: &Node, t: &TextObject) {
         // Live SVG text is written in logical order from left-aligned pieces: bidirectional text
         // (and right-to-left paragraphs) keep their look as outlines until it is written with
-        // `direction`/`unicode-bidi`.
+        // `direction`/`unicode-bidi`. So do runs set Right to Left (Character Direction), whose
+        // `direction="rtl"` would anchor their pieces at the right end.
         let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
-        if lay.glyphs.iter().any(|g| g.rtl) || lay.lines.iter().any(|l| l.rtl) {
+        let rtl_runs = t.runs.iter().any(|r| r.style.char_direction == Some(vectorcraft_doc::ParaDirection::RightToLeft));
+        if lay.glyphs.iter().any(|g| g.rtl) || lay.lines.iter().any(|l| l.rtl) || rtl_runs {
             self.warn("bidirectional text is outlined to preserve shaping and visual order");
             return self.text_outlines(n, t);
         }
@@ -2035,7 +2041,8 @@ impl Writer<'_> {
             if st.rotation != 0.0 {
                 attrs.push_str(&format!(" rotate=\"{}\"", self.num(-st.rotation)));
             }
-            let diff = run_diff(&base.props, self.char_props(st, base.space));
+            let mut diff = run_diff(&base.props, self.char_props(st, base.space));
+            diff.extend(direction_props(st));
             attrs.push_str(&self.attrs(&diff));
             let text = xml_text(&seg.text);
             if attrs.is_empty() && fewer {
@@ -2165,7 +2172,8 @@ impl Writer<'_> {
         let offset = fmt_num(start * 100.0, 3);
         let mut s = format!("<text{id} xml:space=\"preserve\"{a}><textPath xlink:href=\"#{pid}\" startOffset=\"{offset}%\">");
         for run in &t.runs {
-            let diff = run_diff(&base, self.char_props(&run.style, space));
+            let mut diff = run_diff(&base, self.char_props(&run.style, space));
+            diff.extend(direction_props(&run.style));
             let a = self.attrs(&diff);
             s.push_str(&format!("<tspan{a}>{}</tspan>", xml_text(&run.text.replace('\n', " "))));
         }
@@ -2196,6 +2204,16 @@ fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
     flush.set_paragraph_styles(styles);
     let flush = vectorcraft_text::layout(FontDb::global(), &flush);
     lay.glyphs.len() != flush.glyphs.len() || lay.glyphs.iter().zip(&flush.glyphs).any(|(a, b)| a.origin != b.origin)
+}
+
+/// The `direction` and `unicode-bidi` of a `<tspan>` of characters in style `st`: an embedding in
+/// its Character Direction, and nothing without one. Each `<tspan>` of characters with a direction
+/// carries them, and the `<text>` does not. Type with a run set Right to Left is written as
+/// outlines ([`Writer::text`]), so live text writes `direction="ltr"` only.
+fn direction_props(st: &CharStyle) -> Props {
+    let Some(d) = st.char_direction else { return Props::new() };
+    let direction = if d == vectorcraft_doc::ParaDirection::RightToLeft { "rtl" } else { "ltr" };
+    vec![("direction", direction.into()), ("unicode-bidi", "embed".into())]
 }
 
 /// What the `<tspan>` of a run whose properties are `run` sets over its `<text>`'s `base`: the

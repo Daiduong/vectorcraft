@@ -104,11 +104,23 @@ pub struct CharStyle {
     /// their line line up with it.
     #[serde(default, rename = "charAlign", skip_serializing_if = "crate::skip::is_default")]
     pub char_align: CharAlign,
+    /// Character Direction (Character panel menu, Middle Eastern options): these characters are
+    /// set left to right or right to left inside their paragraph, each stretch of them a Unicode
+    /// bidi embedding (UAX #9 LRE or RLE); None = Default, the direction the bidi algorithm gives
+    /// them.
+    #[serde(default, rename = "charDirection", skip_serializing_if = "Option::is_none")]
+    pub char_direction: Option<ParaDirection>,
     /// Proportional Metrics (Character panel menu, East Asian options): full-width glyphs take the
     /// font's own proportional widths, OpenType `palt` (#966); in vertical type upright glyphs take
     /// its proportional heights, `vpal`.
     #[serde(default, rename = "proportionalMetrics", skip_serializing_if = "crate::skip::is_default")]
     pub proportional_metrics: bool,
+    /// Tate-chu-yoko (Character panel menu, East Asian options): in vertical type these characters
+    /// stand side by side across one em of the column. Horizontal type keeps the mark and does not
+    /// move them. Two or three half-width digits do this without the mark.
+    /// <https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html>
+    #[serde(default, rename = "tateChuYoko", skip_serializing_if = "crate::skip::is_default")]
+    pub tate_chu_yoko: bool,
     /// Digits (Character panel menu, Middle Eastern options): the numeral system the digits of
     /// these characters are drawn in, whatever digits were typed.
     #[serde(default, skip_serializing_if = "crate::skip::is_default")]
@@ -291,7 +303,9 @@ impl Default for CharStyle {
             stroke_align: StrokeAlign::Center,
             position: CharPosition::Normal,
             char_align: CharAlign::RomanBaseline,
+            char_direction: None,
             proportional_metrics: false,
+            tate_chu_yoko: false,
             small_caps: None,
             digits: Digits::Default,
             no_break: false,
@@ -855,7 +869,8 @@ impl From<ParaStyleFile> for ParaStyle {
     }
 }
 
-/// A paragraph's base direction ([`ParaStyle::direction`]).
+/// A paragraph's base direction ([`ParaStyle::direction`]), or the direction characters are set
+/// in ([`CharStyle::char_direction`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ParaDirection {
@@ -1413,6 +1428,11 @@ pub struct TextObject {
     /// Off for new type and for documents from before it, and saved only when on.
     #[serde(default, rename = "opticalMarginAlignment", skip_serializing_if = "crate::skip::is_default")]
     pub optical_margin: bool,
+    /// Character panel menu › System Layout, copied from the document: when on, each character
+    /// that takes space advances by a whole number of points. Off by default, and saved only when
+    /// on. The document setting is [`crate::DocSetup::system_layout`].
+    #[serde(default, rename = "systemLayout", skip_serializing_if = "crate::skip::is_default")]
+    pub system_layout: bool,
     /// Character panel menu › Fractional Widths: spacing between characters uses fractions of a
     /// point. On for new type and for documents from before it, and saved only when off. Off, each
     /// character that takes any space advances by a whole number of points, at least one, so small
@@ -1517,6 +1537,7 @@ impl TextObject {
             path_spacing: 0.0,
             wrap: Vec::new(),
             optical_margin: false,
+            system_layout: false,
             fractional_widths: true,
             cached_bounds: None,
             cached_baselines: Vec::new(),
@@ -1688,6 +1709,21 @@ impl TextObject {
             TextKind::OnPath { path, .. } => path.bounds().map(|b| self.xf.transform_rect_bbox(b)),
             TextKind::Point => Some(self.xf.transform_rect_bbox(self.cached_bounds.unwrap_or_else(|| self.estimate_bounds()))),
         }
+    }
+    /// How far the characters' strokes paint past their glyphs, in document space: they scale
+    /// with the type.
+    pub fn char_stroke_outset(&self) -> f64 {
+        let k = crate::node::Scaling::factor(self.xf).unwrap_or(1.0);
+        self.runs.iter().map(|r| r.style.stroke_outset()).fold(0.0, f64::max) * k
+    }
+    /// How far the characters' strokes can paint past their glyphs, their miter spikes and square
+    /// caps included ([`StrokeLayer::reach`]), in document space: what a change of the type must
+    /// redraw. They stretch with the type, so this is as far as its transform takes them on either
+    /// axis. The visual bounds take [`Self::char_stroke_outset`].
+    pub fn char_stroke_reach(&self) -> f64 {
+        let reach = self.runs.iter().filter(|r| r.style.has_stroke()).map(|r| r.style.stroke_layer().reach()).fold(0.0, f64::max);
+        let [a, b, c, d, ..] = self.xf.as_coeffs();
+        reach * (a.abs() + c.abs()).max(b.abs() + d.abs())
     }
     pub fn transform(&mut self, a: Affine) {
         self.xf = a * self.xf;
@@ -1892,6 +1928,22 @@ impl crate::Document {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Character Direction is saved only when set, and styles written before it existed read as
+    /// Default.
+    #[test]
+    fn character_direction_is_saved_only_when_set() {
+        let st = CharStyle::default();
+        assert_eq!(st.char_direction, None);
+        assert!(serde_json::to_value(&st).unwrap().get("charDirection").is_none());
+        for (d, key) in [(ParaDirection::LeftToRight, "leftToRight"), (ParaDirection::RightToLeft, "rightToLeft")] {
+            let set = CharStyle { char_direction: Some(d), ..CharStyle::default() };
+            assert_eq!(serde_json::to_value(&set).unwrap()["charDirection"], key);
+            assert_eq!(serde_json::from_value::<CharStyle>(serde_json::to_value(&set).unwrap()).unwrap(), set);
+        }
+        let old = serde_json::to_value(&st).unwrap();
+        assert_eq!(serde_json::from_value::<CharStyle>(old).unwrap().char_direction, None);
+    }
 
     /// Ruby saves with the type and a file saved before it (no `ruby` key) reads with none.
     #[test]

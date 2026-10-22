@@ -82,7 +82,7 @@ pub use reshape::{expand_outlined, has_gradient_copies, has_item_geometry, image
 pub use revolve::{REVOLVE, has_revolve, revolve_art, revolve_options, validate_revolve};
 pub use solids::{
     EXTRUDE, INFLATE, ROTATE, ROTATION_PRESETS, SOLIDS, extrude_options, has_solid, inflate_options, is_three_d, solid_art, validate_solid,
-    view_options,
+    validate_three_d, view_options,
 };
 pub use warp::{WarpStyle, warp_point};
 
@@ -162,6 +162,7 @@ fn lengths_of(id: &str) -> Lengths {
         "sketch.graphicPen" => always(&["strokeLength"]),
         "sketch.halftonePattern" => always(&["size"]),
         "sketch.notePaper" => always(&["relief"]),
+        "sketch.tornEdges" => always(&["smoothness"]),
         "sketch.waterPaper" => always(&["fiberLength"]),
         RASTERIZE => always(&["addAround"]),
         _ => Lengths::default(),
@@ -351,6 +352,13 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
         r("stylize.feather", "Feather…", STYLIZE, "{radius: pt (5)}", json!({"radius": 5.0})),
         r("blur.gaussian", "Gaussian Blur…", BLUR, "{radius: pt (5)}", json!({"radius": 5.0})),
         r(
+            "artistic.coloredPencil",
+            "Colored Pencil…",
+            ARTISTIC,
+            "{pencilWidth: 1..24 (5; stroke spacing in document units), strokePressure: 0..15 (5; how heavily the strokes darken), paperBrightness: 0..50 (25; lifts lighter areas toward the paper)} redraws the object in coloured pencil strokes along its edges, keeping its hues and coverage. Original visual approximation; chosen VectorCraft defaults.",
+            json!({"pencilWidth": 5.0, "strokePressure": 5.0, "paperBrightness": 25.0}),
+        ),
+        r(
             "artistic.cutout",
             "Cutout…",
             ARTISTIC,
@@ -370,6 +378,13 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             ARTISTIC,
             "{grain: 0..20 (4; monochrome noise in shadows and midtones), highlightArea: 0..20 (0; widens the bright highlight area), intensity: 0..10 (10; highlight strength and quieter highlight grain)}. Smooth document-space grain follows translations; minification uses approximate footprint filtering. Coverage and pure white are preserved; black takes light speckles, and saturated colour channels may clip. Grain 0 with either highlightArea 0 or intensity 0 leaves the art unchanged. Original visual approximation; chosen VectorCraft defaults.",
             json!({"grain": 4.0, "highlightArea": 0.0, "intensity": 10.0}),
+        ),
+        r(
+            "artistic.fresco",
+            "Fresco…",
+            ARTISTIC,
+            "{brushSize: 1..10 (2; wider brush dabs), brushDetail: 0..10 (10; sharper edges and less smoothing), texture: 1..3 (1; deeper plaster relief)} repaints the object as coarse pigment on a textured wall, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            json!({"brushSize": 2.0, "brushDetail": 10.0, "texture": 1.0}),
         ),
         r(
             "artistic.neonGlow",
@@ -584,6 +599,21 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             json!({"detail": 4.0, "smoothness": 4.0}),
         ),
         r(
+            "sketch.conteCrayon",
+            "Conté Crayon…",
+            SKETCH,
+            "{foregroundLevel: 0..20 (12; how far the black crayon reaches from the shadows into the midtones), backgroundLevel: 0..20 (10; how far the white crayon reaches from the highlights into the midtones), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"; the paper's surface, made in code), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} redraws the object in a dense black crayon in its dark areas and a pure white crayon in its light areas, on mid-grey paper whose texture breaks the strokes and stands in relief, keeping its coverage. Public help names Foreground Level, Background Level and the texture options but not slider ranges or dialog defaults; ranges and defaults here are unverified VectorCraft choices. Original visual approximation, not a proprietary reproduction.",
+            json!({
+                "foregroundLevel": 12.0,
+                "backgroundLevel": 10.0,
+                "texture": "canvas",
+                "scaling": 100.0,
+                "relief": 4.0,
+                "lightDirection": "top",
+                "invert": false
+            }),
+        ),
+        r(
             "sketch.graphicPen",
             "Graphic Pen…",
             SKETCH,
@@ -631,6 +661,13 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             SKETCH,
             "{lightDarkBalance: 0..50 (25; the larger, the more of the object prints black), smoothness: 1..50 (5; rounds the shapes)} simplifies the object to solid black and white, as a rubber stamp would print it. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
             json!({"lightDarkBalance": 25.0, "smoothness": 5.0}),
+        ),
+        r(
+            "sketch.tornEdges",
+            "Torn Edges…",
+            SKETCH,
+            "{imageBalance: 0..50 (25; lower leaves more midtones as ink, higher as paper), smoothness: 0..15 (11; softens tones and the ragged edges), contrast: 0..20 (17; 20 is pure black and white)} redraws the object in high-contrast black and white with torn, ragged edges along its tones, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            json!({"imageBalance": 25.0, "smoothness": 11.0, "contrast": 17.0}),
         ),
         r(
             "sketch.waterPaper",
@@ -796,7 +833,17 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
         v.push(g(id, label, WARP, WARP_DOC, json!({"bend": 50.0, "horizontal": 0.0, "vertical": 0.0, "orientation": "horizontal"})));
     }
     for (id, label, _) in PATHFINDER_EFFECTS {
-        v.push(g(id, label, PATHFINDER, "{} (groups and layers: live Pathfinder over the members)", json!({})));
+        if id == "pathfinder.softMix" {
+            v.push(g(
+                id,
+                label,
+                PATHFINDER,
+                "{mixingRate?: 1..100 % (50)} blend overlapping fills in CMYK bottom to top (groups and layers: live Pathfinder over the members)",
+                json!({"mixingRate": 50.0}),
+            ));
+        } else {
+            v.push(g(id, label, PATHFINDER, "{} (groups and layers: live Pathfinder over the members)", json!({})));
+        }
     }
     v.push(g(
         CROP_MARKS,

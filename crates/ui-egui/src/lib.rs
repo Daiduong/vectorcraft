@@ -64,6 +64,7 @@ pub mod unsaved;
 pub mod widgets;
 pub mod workspaces;
 
+mod document_drag;
 #[cfg(test)]
 mod tests_adjust;
 #[cfg(test)]
@@ -82,6 +83,8 @@ mod tests_cut;
 mod tests_distortkeys;
 #[cfg(test)]
 mod tests_docsetup;
+#[cfg(test)]
+mod tests_document_drag;
 #[cfg(test)]
 mod tests_font_menu;
 #[cfg(test)]
@@ -321,6 +324,10 @@ pub struct CanvasCache {
     pub renderer: vectorcraft_render::Renderer,
     pub texture: Option<egui::TextureHandle>,
     pub key: Option<CacheKey>,
+    /// The document the frame shown was rendered from, and the options it was rendered with, with
+    /// [`Self::key`]: when only the document changes, the canvas renders again only where it
+    /// changed ([`vectorcraft_render::changed`]).
+    pub shown: Option<(std::sync::Arc<vectorcraft_doc::Document>, vectorcraft_render::RenderOptions)>,
     pub last_ms: f64,
     /// The frame shown drew raster effects from rasters made before their objects moved, or at a
     /// drag's lower resolution ([`vectorcraft_render::FrameStats::moved`]): the next frame outside
@@ -355,6 +362,12 @@ pub struct CanvasCache {
     pub content_bounds: Option<((u64, u64), Option<vectorcraft_geom::Rect>)>,
     /// The tools' cursors as OS cursor bitmaps.
     pub cursors: cursors::Images,
+    /// The view the canvas last drew and when it last changed (egui's input time): while it moves,
+    /// the canvas doesn't hit-test the art under the pointer ([`canvas::hover_wait`], #2452).
+    pub view_moved: Option<(canvas::ViewKey, f64)>,
+    /// The cursor the active tool last gave over the canvas, with the tool and the modifier keys
+    /// it was for: kept while the view moves.
+    pub hover_cursor: Option<(&'static str, vectorcraft_tools::Mods, vectorcraft_tools::Cursor)>,
 }
 
 /// [`CanvasCache::slices`]: the layout of the slices of (document uid, revision).
@@ -565,6 +578,7 @@ impl VectorcraftApp {
                 renderer: vectorcraft_render::Renderer::new(),
                 texture: None,
                 key: None,
+                shown: None,
                 last_ms: 0.0,
                 moved: false,
                 from_worker: false,
@@ -580,6 +594,8 @@ impl VectorcraftApp {
                 selection_bounds: None,
                 content_bounds: None,
                 cursors: Default::default(),
+                view_moved: None,
+                hover_cursor: None,
             },
             perf: Perf::default(),
             titlebar_inset: 0.0,
@@ -699,6 +715,37 @@ impl VectorcraftApp {
         }
     }
 
+    /// The active document's uid and the artboards the Artboard tool has selected (null with another
+    /// tool), which [`Self::follow_artboard_tool`] compares before and after a command.
+    fn artboard_tool_state(&self) -> (Option<u64>, Value) {
+        let selected = if self.session.tool_id() == "artboard" { self.session.tool_options()["selected"].clone() } else { Value::Null };
+        (self.session.active().map(|d| d.uid), selected)
+    }
+
+    /// After a command run with the Artboard tool, given [`Self::artboard_tool_state`] from before
+    /// it: when the command chose another document, or `reverted` the document (File › Revert),
+    /// the tool takes the document's active artboard, as choosing its tab does. When the command
+    /// changed the artboards the tool has selected (Paste and Cut with the tool, `tool.setOption`),
+    /// the tool's active artboard becomes the active one (the view's), as a click with the tool
+    /// makes it.
+    fn follow_artboard_tool(&mut self, before: (Option<u64>, Value), reverted: bool) {
+        self.sync_views();
+        if self.session.tool_id() != "artboard" {
+            return;
+        }
+        let Some(n) = self.session.active().map(|d| d.doc.artboards.len()).filter(|n| *n > 0) else { return };
+        let (doc, selected) = self.artboard_tool_state();
+        if reverted || doc != before.0 {
+            panels::artboards::select(self, panels::artboards::selected(self, n));
+        } else if selected != before.1
+            && let Some(i) = self.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok())
+            && i < n
+            && let Some(v) = self.view_mut()
+        {
+            v.artboard = i;
+        }
+    }
+
     pub fn view(&self) -> Option<&View> {
         self.session.active_index().and_then(|i| self.views.get(i))
     }
@@ -766,7 +813,9 @@ impl VectorcraftApp {
         if cfg!(debug_assertions) {
             menus::check_params(&self.session, id, &params)?;
         }
+        let artboards = self.artboard_tool_state();
         if let Some(r) = menus::run_ui_command(self, id, &params) {
+            self.follow_artboard_tool(artboards, false);
             return r;
         }
         let mut params = params;
@@ -823,6 +872,8 @@ impl VectorcraftApp {
             self.publish_clipboard();
         }
         self.sync_views();
+        // File › Revert replaces the document in its tab, keeps the tab's view and starts the tool afresh.
+        self.follow_artboard_tool(artboards, r.is_ok() && id == "file.revert");
         match &r {
             Err(e) => self.ui.status = e.clone(),
             Ok(v) => {
@@ -844,11 +895,11 @@ impl VectorcraftApp {
                 if matches!(id, "dataset.select" | "dataset.next" | "dataset.prev") {
                     self.ui.status.clear();
                 }
-                if id == "text.setStyle"
+                if matches!(id, "text.setStyle" | "text.setRangeStyle")
                     && let Some(font) = params.get("font").and_then(Value::as_str)
                 {
                     let r = &mut self.ui.recent_fonts;
-                    r.retain(|f| f != font);
+                    r.retain(|f| !f.eq_ignore_ascii_case(font));
                     r.insert(0, font.to_string());
                     r.truncate(MAX_RECENT_FONTS);
                 }

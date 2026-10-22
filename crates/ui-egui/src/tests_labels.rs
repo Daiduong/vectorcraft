@@ -89,9 +89,11 @@ fn effect_menu_lists_the_artistic_filters_before_blur() {
     assert_eq!(
         labels,
         [
+            "Colored Pencil…",
             "Cutout…",
             "Dry Brush…",
             "Film Grain…",
+            "Fresco…",
             "Neon Glow…",
             "Paint Daubs…",
             "Palette Knife…",
@@ -105,8 +107,8 @@ fn effect_menu_lists_the_artistic_filters_before_blur() {
         ]
     );
     assert!(artistic.iter().all(|e| e.command.as_deref() == Some("effect.dialog")));
-    assert_eq!(artistic[1].params, json!({"effect": "artistic.dryBrush"}));
-    assert_eq!(artistic[3].params, json!({"effect": "artistic.neonGlow"}));
+    assert_eq!(artistic[2].params, json!({"effect": "artistic.dryBrush"}));
+    assert_eq!(artistic[5].params, json!({"effect": "artistic.neonGlow"}));
     let at = |name: &str| entries.iter().position(|e| e.path == ["Effect", name]).unwrap();
     assert!(at("Artistic") < at("Blur"));
 }
@@ -219,6 +221,7 @@ fn effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize() {
             "Chalk & Charcoal…",
             "Charcoal…",
             "Chrome…",
+            "Conté Crayon…",
             "Graphic Pen…",
             "Halftone Pattern…",
             "Note Paper…",
@@ -226,6 +229,7 @@ fn effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize() {
             "Plaster…",
             "Reticulation…",
             "Stamp…",
+            "Torn Edges…",
             "Water Paper…"
         ]
     );
@@ -234,21 +238,23 @@ fn effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize() {
     assert_eq!(sketch[1].params, json!({"effect": "sketch.chalkCharcoal"}));
     assert_eq!(sketch[2].params, json!({"effect": "sketch.charcoal"}));
     assert_eq!(sketch[3].params, json!({"effect": "sketch.chrome"}));
-    assert_eq!(sketch[4].params, json!({"effect": "sketch.graphicPen"}));
-    assert_eq!(sketch[5].params, json!({"effect": "sketch.halftonePattern"}));
-    assert_eq!(sketch[6].params, json!({"effect": "sketch.notePaper"}));
-    assert_eq!(sketch[7].params, json!({"effect": "sketch.photocopy"}));
-    assert_eq!(sketch[8].params, json!({"effect": "sketch.plaster"}));
-    assert_eq!(sketch[9].params, json!({"effect": "sketch.reticulation"}));
-    assert_eq!(sketch[10].params, json!({"effect": "sketch.stamp"}));
-    assert_eq!(sketch[11].params, json!({"effect": "sketch.waterPaper"}));
+    assert_eq!(sketch[4].params, json!({"effect": "sketch.conteCrayon"}));
+    assert_eq!(sketch[5].params, json!({"effect": "sketch.graphicPen"}));
+    assert_eq!(sketch[6].params, json!({"effect": "sketch.halftonePattern"}));
+    assert_eq!(sketch[7].params, json!({"effect": "sketch.notePaper"}));
+    assert_eq!(sketch[8].params, json!({"effect": "sketch.photocopy"}));
+    assert_eq!(sketch[9].params, json!({"effect": "sketch.plaster"}));
+    assert_eq!(sketch[10].params, json!({"effect": "sketch.reticulation"}));
+    assert_eq!(sketch[11].params, json!({"effect": "sketch.stamp"}));
+    assert_eq!(sketch[12].params, json!({"effect": "sketch.tornEdges"}));
+    assert_eq!(sketch[13].params, json!({"effect": "sketch.waterPaper"}));
     let at = |label: &str| entries.iter().position(|e| e.path[0] == "Effect" && e.label == label).unwrap();
     assert!(at("Unsharp Mask…") < at("Bas Relief…") && at("Bas Relief…") < at("Chalk & Charcoal…"));
     assert!(at("Chalk & Charcoal…") < at("Chrome…"));
-    assert!(at("Chrome…") < at("Graphic Pen…") && at("Graphic Pen…") < at("Halftone Pattern…"));
+    assert!(at("Chrome…") < at("Conté Crayon…") && at("Conté Crayon…") < at("Graphic Pen…") && at("Graphic Pen…") < at("Halftone Pattern…"));
     assert!(at("Halftone Pattern…") < at("Note Paper…") && at("Note Paper…") < at("Plaster…"));
     assert!(at("Plaster…") < at("Reticulation…"));
-    assert!(at("Reticulation…") < at("Water Paper…") && at("Water Paper…") < at("Glowing Edges…"));
+    assert!(at("Reticulation…") < at("Torn Edges…") && at("Torn Edges…") < at("Water Paper…") && at("Water Paper…") < at("Glowing Edges…"));
 }
 
 /// Effect › Stylize under Raster Effects, between Sharpen and Texture: Glowing Edges opens its

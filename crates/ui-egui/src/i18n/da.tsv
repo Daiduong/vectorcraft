@@ -20,6 +20,11 @@
 	Medium Light	Mellemlys
 	Light	Lys
 	Quit VectorCraft	Slut VectorCraft
+# Artwork drag between document tabs.
+	Drop Artwork	Slip illustration
+@msg	{key} must be [x, y] with finite coordinates	{key} skal være [x, y] med endelige koordinater
+@msg	ids must contain 1–10000 object ids	ids skal indeholde 1–10000 objekt-id’er
+
 	File	Filer
 	New…	Ny…
 	New Without Dialog	Ny uden dialog
@@ -711,7 +716,7 @@
 	Units	Enheder
 	Guides & Grid	Hjælpelinjer og gitter
 	Hyphenation	Orddeling
-	Performance & Storage	Ydeevne og lager
+	Plug-ins & Scratch Disks	Plug-ins & Midlertidige diske
 	User Interface	Brugergrænseflade
 	Performance	Ydeevne
 	File Handling	Filhåndtering
@@ -761,6 +766,7 @@
 	Activate Panel	Aktivér panel
 	Change Panel Layout	Skift panelets layout
 	Close Panel	Luk panel
+	Collapse Panel Group	Skjul panelgruppe
 	Move Panel	Flyt panel
 	Group with	Gruppér med
 	Resize panels	Tilpas størrelse på paneler
@@ -1311,6 +1317,7 @@ lighting	Light	Lys
 	Leading	Linjeafstand
 	No Break	Ingen ombrydning
 	Proportional Metrics	Proportionale metrikker
+	Character Direction	Tegnretning
 	Digits	Cifre
 	Arabic	Arabisk
 	Hindi	Hindi
@@ -2177,11 +2184,11 @@ lighting	Light	Lys
 	Fonts whose licence doesn't allow embedding are not copied.	Skrifttyper, hvis licens ikke tillader indlejring, kopieres ikke.
 	Package collects a saved document with its linked files and fonts.	Pakning samler et gemt dokument med dets linkede filer og skrifttyper.
 	Package created	Pakke oprettet
-	Packaged {n} file(s) in {folder}{note}	Pakkede {n} fil(er) i {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Pakkede {n} fil(er) i {folder}{note}
 	Packaged {n} file(s){note}	Pakkede {n} fil(er){note}
 	Relink Linked Files to the Document	Genopret link til dokumentets linkede filer
 	Save the document first?	Gem dokumentet først?
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} fil(er) i {folder}{note}. Vis pakkemappen?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} fil(er) i {folder}{note}. Vis pakkemappen?
 	{count} linked file(s) not found	{count} linkede fil(er) ikke fundet
 	fonts not copied: {fonts}	skrifttyper ikke kopieret: {fonts}
 	Built-in presets are read-only: New… starts an editable copy.	Indbyggede forudindstillinger er skrivebeskyttede: Ny… starter en redigerbar kopi.
@@ -2686,6 +2693,7 @@ lighting	Light	Lys
 	Luminosity	Luminans
 	Overlay	Overlejring
 	Soft Light	Blødt lys
+	Soft Mix	Blød blanding
 	Crosshatch	Krydsskravering
 	Fine Dots	Fine prikker
 
@@ -3854,7 +3862,7 @@ imageTrace	Outline	Kontur
 @msg	Outline Stroke: no stroked paths selected	Konturér kurve: ingen kurver med kontur er markeret
 @msg	PDF settings are not an object	PDF-indstillinger er ikke et objekt
 @msg	PDF writer error: {0}	PDF-skriverfejl: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Pakkede {n} fil(er) i {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Pakkede {n} fil(er) i {folder}{note}
 @msg	Packaged {n} file(s){note}	Pakkede {n} fil(er){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Forhåndsvisning i browser kræver skrivebordsappen (webversionen downloader filer i stedet)
 @msg	Release Guides: no guides	Frigiv hjælpelinjer: ingen hjælpelinjer
@@ -4011,7 +4019,7 @@ imageTrace	Outline	Kontur
 @msg	give horizontal or vertical	angiv vandret eller lodret
 @msg	give the path `id` and the width point `index`	angiv `id` for kurven og `index` for breddepunktet
 @msg	guides are locked	hjælpelinjerne er låst
-@msg	image '{key}' has no pixels and was left out	billedet '{key}' har ingen pixels og blev udeladt
+@msg	an image has no pixels and was left out	et billede uden pixels blev udeladt
 @msg	image data `{_1}` is missing	billeddata `{_1}` mangler
 @msg	image would be too large; lower the resolution	billedet ville blive for stort; sænk opløsningen
 @msg	index must be a number or first, previous, next or last	indeks skal være et tal eller first, previous, next eller last
@@ -4344,6 +4352,7 @@ imageTrace	Outline	Kontur
 @msg	Saving	Gemmer
 @msg	Saving {_1}	Gemmer {_1}
 @msg	Exporting {_1}	Eksporterer {_1}
+@msg	Packaging {_1}	Pakker {_1}
 @msg	Saving recovery data for {_1}	Gemmer gendannelsesdata for {_1}
 @msg	Discarded {_1} recovered document(s)	Forkastede {_1} gendannet(e) dokument(er)
 @msg	Restored {_1} recovered document(s): save them to keep them	Genvandt {_1} gendannet(e) dokument(er): gem dem for at beholde dem
@@ -4426,7 +4435,9 @@ imageTrace	Outline	Kontur
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automatiseringens adgang til filsystemet er ikke tildelt: læserettighed mangler: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automatiseringens adgang til filsystemet er ikke tildelt: skriverettighed mangler: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automatiseringssti afvist: uden for læseroden {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automatiseringssti afvist: uden for læserødderne {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automatiseringssti afvist: uden for skriveroden {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automatiseringssti afvist: uden for skriverødderne {roots}: {path}
 @msg	automation path rejected: path is empty	automatiseringssti afvist: stien er tom
 @msg	automation path rejected: a link that leads nowhere: {path}	automatiseringssti afvist: et link, der ikke fører nogen steder hen: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automatiseringssti afvist: kan ikke finde frem til {path}: {e}
@@ -4449,6 +4460,12 @@ imageTrace	Outline	Kontur
 @msg	before must name a panel	before skal angive et panel
 @msg	docking action contains an unknown panel or an excessive split path	dokningshandlingen indeholder et ukendt panel eller en overdreven opdelingssti
 @msg	group must be true or false	group skal være true eller false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	panelet flyder; skjul dets gruppe med window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	panelet er ikke i en dockgruppe
+@msg	only a dock group above or below others collapses, not one beside another	kun en dockgruppe over eller under andre kan skjules, ikke en ved siden af en anden
+@msg	icon must be true or false	icon skal være true eller false
+@msg	icon only docks a panel in the icon column, with no anchor	icon docker kun et panel i ikonkolonnen, uden anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column docker et sæt som en dockkolonne, uden anchor eller icon
 @msg	move requires a destination panel	move kræver et destinationspanel
 @msg	move requires an existing destination panel	move kræver et eksisterende destinationspanel
 @msg	onto must name a floating panel	onto skal angive et flydende panel
@@ -5132,6 +5149,12 @@ swatch	Bright Violet	Kraftig violet
 	Sketch	Skitse
 	Halftone Pattern…	Rastermønster…
 	Halftone Pattern	Rastermønster
+	Torn Edges…	Flængede kanter…
+	Torn Edges	Flængede kanter
+	Conté Crayon…	Conté-kridt…
+	Conté Crayon	Conté-kridt
+	Foreground Level	Forgrundsniveau
+	Background Level	Baggrundsniveau
 	Pattern Type	Mønstertype
 	Dot	Prik
 	Export Type:	Eksporttype:
@@ -5182,6 +5205,8 @@ swatch	Bright Violet	Kraftig violet
 	Lock Variables	Lås variabler
 	Unlock Variables	Lås variabler op
 	Change to Artboard Rulers	Skift til kunstpladelinealer
+	Colored Pencil…	Farveblyant…
+	Colored Pencil	Farveblyant
 	Cutout…	Udklip…
 	Dry Brush…	Tør pensel…
 	Neon Glow…	Neonglød…
@@ -5276,6 +5301,7 @@ swatch	Bright Violet	Kraftig violet
 	Persistent	Vedvarende
 	Locate Library…	Lokalisér bibliotek…
 	Library Panel Options	Indstillinger for bibliotekspanel
+	Gap Length:	Hullængde:
 	Artboard {n} of {total}	Tegneflade {n} af {total}
 	Encoding and writing the file…	Koder og skriver filen…
 @plural	{n} more export waiting|{n} more exports waiting	{n} eksport mere venter|{n} eksporter mere venter
@@ -5292,6 +5318,14 @@ swatch	Bright Violet	Kraftig violet
 	Full Justify	Lige margener
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum må ikke overstige Ønsket, og Ønsket ikke Maksimum.
 	Justification	Justering
+	Add filters from the list above	Tilføj filtre fra listen ovenfor
+	Add to Stack	Tilføj til stak
+	Applied Filters	Anvendte filtre
+	Categories	Kategorier
+	Choose a filter	Vælg et filter
+	Effect Gallery	Effektgalleri
+	Filters	Filtre
+	Select artwork to apply effects	Vælg grafik for at anvende effekter
 # Select by Color (select.color)
 	Select by Color	Markér efter farve
 	Smudge Stick…	Udtværingsstift…
@@ -5337,3 +5371,30 @@ swatch	Bright Violet	Kraftig violet
 	Water Paper	Vådt papir
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Ease In	Langsom start
+	Ease Out	Langsom slutning
+	Ease In Out	Langsom start og slutning
+	Ease Out In	Langsom slutning og start
+	Ramp:	Styrke:
+	Shift:	Forskydning:
+	Fresco…	Fresko…
+	Fresco	Fresko
+	Effect Gallery…	Effektgalleri…
+	Effect Gallery Dialog	Dialogboksen Effektgalleri
+	Arc Segment Tool Options	Indstillinger for buesegmentværktøj
+	Base Along:	Base langs:
+	Closed	Lukket
+	Convex	Konvex
+	Fill Arc	Udfyld bue
+	Length X-Axis:	Længde X-akse:
+	Length Y-Axis:	Længde Y-akse:
+	Slope:	Hældning:
+axis	X Axis	X-akse
+axis	Y Axis	Y-akse
+@msg	Packaged {n} file(s) in {folder}	Pakkede {n} fil(er) i {folder}
+@msg	Packaged {n} file(s) {note}	Pakkede {n} fil(er) {note}
+@msg	Packaged {n} file(s)	Pakkede {n} fil(er)
+	Packaged {n} file(s)	Pakkede {n} fil(er)
+	Packaged {n} file(s) in {folder}	Pakkede {n} fil(er) i {folder}
+	Packaged {n} file(s) {note}	Pakkede {n} fil(er) {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} fil(er) i {folder}. Vis pakkemappen?
