@@ -10,6 +10,7 @@
 //! and the traced filled paths above it, mapped with the image's transform. Expand drops the
 //! image (a plain group of paths remains); Release puts the image back in place of the group.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -39,7 +40,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Shape Builder",
             [],
             None,
-            "{ids?|id?: [id…] (default: selection), points: [[x,y]…] (drag path; one point = click; may be left out with rect), rect?: [x, y, width, height] (Shift-drag marquee from where the drag started, x and y, to x+width and y+height; width and height may be negative: touches every region whose outline crosses the rectangle or has an anchor inside it and the region holding the whole rectangle, the region under x, y comes first and the one under the opposite corner comes next; with points, it also touches the regions along them; for pickColorFrom, x, y is the drag's first point and the opposite corner is its last), erase?: bool (erase mode, Alt: deletes the regions touched, and the pieces of open paths that cut regions and the edges (outline pieces between the points where paths meet; see shapeBuilder.regions) within tolerance; a deleted edge opens its path there, and edges bounding a deleted region go with it; what is left of each path keeps its look, with gradients fitted to its bounds kept where they were on it, its name, opacity mask and attributes, and its fill rule unless merged regions shaped it), splitStroke?: false (In Merge Mode, Clicking Stroke Splits the Path; not with erase or rect: when the one point of a click is within tolerance of a stroke, the path that stroke is on splits in two instead of a merge: the path keeps the rest of it, and a copy of the path holding the run of it from the anchor or crossing point before the click to the one after it, in the path's direction, goes directly above it; both keep the path's gradients where they were on it; the other objects stay as they are; with pickColorFrom \"swatches\" or fill, the run's stroke takes that paint; a path in a Live Paint group or a Shaper Group does not split, and nor does a path the run is all of, such as a lone line, or all but 0.05 pt or less of (a ten-thousandth of the larger side of a path over 500 pt)), tolerance?: pt (2, erase or splitStroke), gap?: pt (0–72; 0: Gap Detection off), openFilledAsClosed?: true (Consider Open Filled Paths as Closed: a filled open path bounds a region as if an invisible edge closed it; false: it cuts the regions it crosses like an unfilled one), pickColorFrom?: \"artwork\" (default: the merged shape takes the look of the front-most object under the first point, else under the last point, else of the front-most object) | \"swatches\" (the current fill, with the rest of the look of the front-most object over the first region the drag touches that an object covers, else of the front-most object), fill?: \"#rrggbb\" | {color|swatch|gradient|none} (overrides pickColorFrom)} → {ids, merged, regions, lines, edges (counts deleted, merged or split), split?: id (the run split off, after a split)}; after a split, ids are the roots, with the rest and the run in place of the path when it was one",
+            "{ids?|id?: [id…] (default: selection), points: [[x,y]…] (drag path; one point = click; may be left out with rect), rect?: [x, y, width, height] (Shift-drag marquee from where the drag started, x and y, to x+width and y+height; width and height may be negative: touches every region whose outline crosses the rectangle or has an anchor inside it and the region holding the whole rectangle, the region under x, y comes first and the one under the opposite corner comes next; with points, it also touches the regions along them; for pickColorFrom, x, y is the drag's first point and the opposite corner is its last), erase?: bool (erase mode, Alt: deletes the regions touched, and the pieces of open paths that cut regions and the edges (outline pieces between the points where paths meet; see shapeBuilder.regions) within tolerance; a deleted edge opens its path there, and edges bounding a deleted region go with it; what is left of each path keeps its look, with gradients fitted to its bounds kept where they were on it, its name, opacity mask and attributes, and its fill rule unless merged regions shaped it), splitStroke?: false (In Merge Mode, Clicking Stroke Splits the Path; not with erase or rect: when the one point of a click is within tolerance of a stroke, the path that stroke is on splits in two instead of a merge: the path keeps the rest of it, and a copy of the path holding the run of it from the anchor or crossing point before the click to the one after it, in the path's direction, goes directly above it; both keep the path's gradients where they were on it; the other objects stay as they are; with pickColorFrom \"swatches\" or fill, the run's stroke takes that paint; a path in a Live Paint group or a Shaper Group does not split, and nor does a path the run is all of, such as a lone line, or all but 0.05 pt or less of (a ten-thousandth of the larger side of a path over 500 pt)), tolerance?: pt (2, erase or splitStroke), gap?: pt (0–72; 0: Gap Detection off), openFilledAsClosed?: true (Consider Open Filled Paths as Closed: a filled open path bounds a region as if an invisible edge closed it; false: it cuts the regions it crosses like an unfilled one), pickColorFrom?: \"artwork\" (default: the merged shape takes the look of the front-most object under the first point, else under the last point, else of the front-most object) | \"swatches\" (the current fill, with the rest of the look of the front-most object over the first region the drag touches that an object covers, else of the front-most object), fill?: \"#rrggbb\" | {color|swatch|gradient|none} (overrides pickColorFrom)} replaces the paths it uses where they are; other selected objects (type, hidden or locked objects, clipping paths) stay, and a group goes only when it is left empty → {ids (selected after: each selected object still there, or what took its place), merged, regions, lines, edges (counts deleted, merged or split), split?: id (the run split off, after a split)}; after a split, ids are the roots, with the rest and the run in place of the path when it was one",
             has_selection_or_ids,
             sb_merge
         ),
@@ -349,22 +350,24 @@ fn sb_merge(s: &mut Session, p: &Value) -> Result<Value> {
         let covered =
             if swatches { picked.iter().find_map(|r| r.top()) } else { first.as_ref().and_then(top_at).or_else(|| last.as_ref().and_then(top_at)) };
         let style_src = covered.or(map.shapes.len().checked_sub(1));
-        let mut new_nodes: Vec<Node> = vec![];
+        // What goes in place of each object the map was made from (none: it stays as it is).
+        let mut outs: Vec<Option<Vec<Node>>> = vec![];
         let mut merged_id = None;
         for (i, (sh, leaf)) in map.shapes.iter().zip(&leaves).enumerate() {
+            let mut out = None;
             let pieces: Vec<usize> = map.lines.iter().enumerate().filter(|(_, (l, _))| l.key == i as u64).map(|(k, _)| k).collect();
             if !pieces.is_empty() {
                 // An open path loses the pieces deleted and those between two merged (or deleted) regions.
                 let keep: Vec<usize> =
                     pieces.iter().copied().filter(|k| !touched.lines.contains(k) && !map.line_between(*k, &touched.regions)).collect();
-                if keep.len() == pieces.len() {
-                    new_nodes.push(d.reid(leaf));
-                } else {
+                if keep.len() != pieces.len() {
+                    let mut kept = vec![];
                     for k in keep {
                         if let Some((l, _)) = map.lines.get(k) {
-                            new_nodes.push(remnant(d, leaf, l.path.clone(), None));
+                            kept.push(remnant(d, leaf, l.path.clone(), None));
                         }
                     }
+                    out = Some(kept);
                 }
             } else {
                 // A shape loses the regions deleted or merged, then the edges deleted (each one on
@@ -396,23 +399,24 @@ fn sb_merge(s: &mut Session, p: &Value) -> Result<Value> {
                         cut = true;
                     }
                 }
-                if !in_union && !cut {
-                    new_nodes.push(d.reid(leaf));
-                } else if !rest.is_empty() {
+                if in_union || cut {
                     // What is left of its own outline keeps its fill rule; united faces fill with non-zero.
-                    new_nodes.push(remnant(d, leaf, rest, in_union.then_some(FillRule::NonZero)));
+                    out = Some(if rest.is_empty() { vec![] } else { vec![remnant(d, leaf, rest, in_union.then_some(FillRule::NonZero))] });
                 }
             }
+            // The merged shape goes in place of the object it takes its look from, so it stays in
+            // that object's group (a clip group too).
             if !erase && !union.is_empty() && Some(i) == style_src {
                 let mut m = shape_node(d, union.clone(), Some(leaf));
                 if let Some(f) = &fill {
                     m.appearance.set_fill(f.clone());
                 }
                 merged_id = Some(m.id);
-                new_nodes.push(m);
+                out.get_or_insert_with(|| vec![leaf.clone()]).push(m);
             }
+            outs.push(out);
         }
-        let new_ids = replace_roots(d, &roots, new_nodes)?;
+        let new_ids = replace_leaves(d, &roots, &leaves, outs)?;
         sel.set(new_ids.iter().copied());
         Ok((new_ids, merged_id, touched, None))
     })?;
@@ -463,6 +467,84 @@ fn remnant(d: &mut Document, src: &Node, path: PathData, rule: Option<FillRule>)
         *r = rule.unwrap_or(own);
     }
     n
+}
+
+/// Put each list of `outs` in place of the leaf of `leaves` at the same index (none: the leaf stays
+/// as it is), then remove the groups under `roots` that this leaves empty. A Live Paint or Shaper
+/// group (the outermost one under the root) is replaced as a whole, by the lists of its leaves,
+/// with a copy of each leaf that stays and of each hidden or locked object in it. Other objects
+/// under the roots, such as type, hidden or locked objects and clipping paths, stay where they are. Returns what to select: each root
+/// still there, or what went in its place.
+fn replace_leaves(d: &mut Document, roots: &[NodeId], leaves: &[Node], outs: Vec<Option<Vec<Node>>>) -> Result<Vec<NodeId>> {
+    let listed: HashSet<NodeId> = roots.iter().copied().collect();
+    let paths = d.index_paths(leaves.iter().map(|l| l.id));
+    // Each leaf's unit (the leaf, or the group replaced as a whole) and the groups from the unit's
+    // parent up to its root, innermost first.
+    let mut places: Vec<(NodeId, Vec<NodeId>)> = vec![];
+    for leaf in leaves {
+        let anc = paths.get(&leaf.id).and_then(|p| d.ancestry_at(p)).unwrap_or_default();
+        let below = anc.iter().position(|a| listed.contains(a)).and_then(|r| anc.get(r..)).unwrap_or_default();
+        let whole = below.iter().position(|a| d.node(*a).is_some_and(|n| is_live_paint(n) || n.extras().shaper.is_some()));
+        let at = whole.unwrap_or(below.len().saturating_sub(1));
+        let unit = below.get(at).copied().unwrap_or(leaf.id);
+        places.push((unit, below.get(..at).unwrap_or_default().iter().rev().copied().collect()));
+    }
+    // (unit, groups above it, what goes in place of each of its leaves, whether it changes); a
+    // unit's leaves are next to each other, in paint order.
+    type Unit = (NodeId, Vec<NodeId>, Vec<(NodeId, Vec<Node>)>, bool);
+    let mut units: Vec<Unit> = vec![];
+    for ((leaf, out), (unit, above)) in leaves.iter().zip(outs).zip(places) {
+        let changed = out.is_some();
+        let list = match out {
+            Some(list) => list,
+            None if unit != leaf.id => vec![d.reid(leaf)],
+            None => vec![],
+        };
+        match units.last_mut() {
+            Some(u) if u.0 == unit => {
+                u.2.push((leaf.id, list));
+                u.3 |= changed;
+            }
+            _ => units.push((unit, above, vec![(leaf.id, list)], changed)),
+        }
+    }
+    units.retain(|u| u.3);
+    let ids: Vec<NodeId> = units.iter().map(|u| u.0).collect();
+    let mut replaced = Beside::replacing(d, &ids);
+    let mut put: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
+    let mut emptied = vec![];
+    for (unit, above, mut lists, _) in units {
+        // A group replaced as a whole keeps a copy of each hidden or locked object in it, where it was.
+        let members: Vec<Node> = d.node(unit).map(|n| b::builder_members(n).into_iter().cloned().collect()).unwrap_or_default();
+        let mut list = vec![];
+        for m in &members {
+            if let Some(k) = lists.iter().position(|l| l.0 == m.id) {
+                list.extend(lists.remove(k).1);
+            } else if (m.locked || !m.visible) && m.id != unit {
+                list.push(d.reid(m));
+            }
+        }
+        list.extend(lists.into_iter().flat_map(|l| l.1));
+        if list.is_empty() {
+            emptied.push(above);
+        }
+        put.insert(unit, list.iter().map(|n| n.id).collect());
+        replaced.put(d, unit, list)?;
+    }
+    replaced.finish(d)?;
+    // A group goes only when nothing is left in it.
+    for above in emptied {
+        for g in above {
+            match d.node(g) {
+                None => continue,
+                Some(n) if !n.is_layer() && n.children().is_some_and(|c| c.is_empty()) => {
+                    d.remove(g)?;
+                }
+                Some(_) => break,
+            }
+        }
+    }
+    Ok(roots.iter().flat_map(|r| put.get(r).cloned().unwrap_or_else(|| d.node(*r).map(|_| vec![*r]).unwrap_or_default())).collect())
 }
 
 fn sb_regions(s: &mut Session, p: &Value) -> Result<Value> {
