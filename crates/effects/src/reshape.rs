@@ -7,14 +7,16 @@
 //! warp bends a line of type as a whole. An image is clipped by its reshaped frame. Raster effects
 //! (shadows, glows, blur, feather) stay on the result for the renderer and exporters. Type without
 //! inline graphics whose own fills or strokes have geometry effects is outlined too: each of those
-//! effects reshapes the whole outline that its fill or stroke paints.
+//! effects reshapes the whole outline that its fill or stroke paints. An image's own fills and
+//! strokes paint only the shape that a Convert to Shape or Outline Object effect on them gives
+//! them ([`image_rows`]).
 
 use std::sync::Arc;
 
 use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind};
-use vectorcraft_geom::{Affine, FillRule, PathData, Rect, shapes};
+use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Rect, Shape, shapes};
 
-use crate::{GeomContext, apply_one, is_geometry, merged_params};
+use crate::{Budget, GeomContext, apply_one, is_geometry, merged_params};
 
 /// Can object-level effects apply to `n` only through [`outline_art`] / an offscreen layer (it is
 /// neither a path nor a container)?
@@ -44,11 +46,75 @@ pub fn has_gradient_copies(n: &Node) -> bool {
 }
 
 /// Is `n` type without inline graphics that has a fill or stroke of its own that paints and has a
-/// visible geometry effect? Such an effect reshapes the whole outline that its fill or stroke
+/// visible geometry effect, or an image with a fill or stroke of its own that paints a shape
+/// ([`image_rows`])? On type, such an effect reshapes the whole outline that its fill or stroke
 /// paints ([`outline_text`], which leaves inline graphics out).
 pub fn has_item_geometry(n: &Node) -> bool {
-    let NodeKind::Text(t) = &n.kind else { return false };
-    t.runs.iter().all(|r| r.inline.is_none()) && n.appearance.items.iter().any(|i| crate::paints(i) && crate::has_geometry(i.effects()))
+    match &n.kind {
+        NodeKind::Text(t) => {
+            t.runs.iter().all(|r| r.inline.is_none()) && n.appearance.items.iter().any(|i| crate::paints(i) && crate::has_geometry(i.effects()))
+        }
+        NodeKind::Image(_) => n.appearance.items.iter().any(shapes_image),
+        _ => false,
+    }
+}
+
+/// Does effect `e` give an image's fill or stroke a shape to paint (a visible Convert to Shape or
+/// Outline Object)?
+fn gives_shape(e: &Effect) -> bool {
+    e.visible
+        && matches!(e.id.as_str(), "convertToShape.rectangle" | "convertToShape.roundedRectangle" | "convertToShape.ellipse" | "path.outlineObject")
+}
+
+/// Does `item`, a fill or stroke of an image, paint something: does it paint and carry an effect
+/// that gives it a shape ([`gives_shape`])?
+fn shapes_image(item: &AppearanceItem) -> bool {
+    crate::paints(item) && item.effects().iter().any(gives_shape)
+}
+
+/// The fills and strokes of `items` (an image's own) that paint something ([`shapes_image`]), each
+/// without the effects before its first Convert to Shape or Outline Object. Convert to Shape sizes
+/// its shape from the image's box, and Outline Object gives the image's frame. The others paint
+/// nothing.
+fn image_rows(items: &[AppearanceItem]) -> Vec<AppearanceItem> {
+    items
+        .iter()
+        .filter(|i| shapes_image(i))
+        .map(|i| {
+            let mut i = i.clone();
+            let fx = i.effects_mut();
+            let first = fx.iter().position(gives_shape).unwrap_or(0);
+            fx.drain(..first);
+            i
+        })
+        .collect()
+}
+
+/// The shapes that the image `n`'s own fills and strokes paint ([`image_rows`]), each with its fill
+/// rule and the fill or stroke that paints it: the paths (or compound paths) along its frame that
+/// [`reshape`] makes, with each fill's or stroke's geometry effects applied as the renderer applies
+/// them. Empty for anything but an image with such fills or strokes.
+pub fn image_paint(n: &Node) -> Vec<(BezPath, FillRule, AppearanceItem)> {
+    if !matches!(n.kind, NodeKind::Image(_)) || !has_item_geometry(n) {
+        return vec![];
+    }
+    let Some(art) = reshape(n, None) else { return vec![] };
+    let mut out = vec![];
+    art.walk(&mut |c| {
+        let (NodeKind::Path { rule, .. } | NodeKind::Compound { rule, .. }) = &c.kind else { return };
+        let Some(g) = c.stroke_path() else { return };
+        let ctx = GeomContext::of(c);
+        for item in c.appearance.items.iter().filter(|i| crate::paints(i)) {
+            let fx = item.effects();
+            let shape = if crate::has_geometry(fx) && !g.elements().is_empty() {
+                crate::apply_geometry_bez(fx, &g, g.bounding_box(), &ctx.item(item))
+            } else {
+                g.clone()
+            };
+            out.push((shape, *rule, item.clone()));
+        }
+    });
+    out
 }
 
 /// The glyph outlines of type `t` in text space with its underline and strikethrough bars: one
@@ -186,11 +252,13 @@ pub(crate) fn outline_nested_text(n: &mut Node, clipping: bool) {
 
 /// `n` (see [`needs_outline`]) with its object-level geometry effects and its perspective applied:
 /// its [`outline_art`] reshaped as one piece, or for an image the image clipped by its reshaped
-/// frame. Type's own fills and strokes keep their effects on its whole outline. The result is a
-/// group with `n`'s id, name, visibility, transparency, opacity mask and remaining (raster)
-/// effects; `None` when `n` has no visible geometry effect, no perspective and is not type with
-/// a geometry effect on a fill or stroke of its own ([`has_item_geometry`]), or has no art (a
-/// symbol instance without `symbol_art`).
+/// frame. Type's own fills and strokes keep their effects on its whole outline. An image's own
+/// fills and strokes that paint a shape ([`image_rows`]) become paths along its frame below and
+/// above it, reshaped with it, and keep their effects from their first Convert to Shape or Outline
+/// Object on. The result is a group with `n`'s id, name, visibility, transparency, opacity mask
+/// and remaining (raster) effects; `None` when `n` has no visible geometry effect, no perspective
+/// and is not type or an image with a fill or stroke of its own that [`has_item_geometry`] counts,
+/// or has no art (a symbol instance without `symbol_art`).
 pub fn reshape(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     if (geometry_effects(n).is_empty() && n.projection().is_none() && !has_item_geometry(n)) || !(needs_outline(n) || has_gradient_copies(n)) {
         return None;
@@ -200,14 +268,17 @@ pub fn reshape(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
 
 /// `n` (see [`needs_outline`], or a path with [`has_gradient_copies`]) as plain art for Expand
 /// Appearance: [`reshape`]d when it has
-/// geometry effects, else type with fills or strokes of its own outlined, in the same form. `None`
-/// when it has neither.
+/// geometry effects, else type with fills or strokes of its own outlined, or an image with fills
+/// or strokes of its own that paint a shape, in the same form. `None` when it has none of these.
 pub fn expand_outlined(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     // A path whose Transform effect copies it with a gradient: each copy an object of its own.
     if has_gradient_copies(n) {
         return as_art(n, symbol_art);
     }
-    let own_paint = matches!(n.kind, NodeKind::Text(_)) && !n.appearance.items.is_empty();
+    let own_paint = match n.kind {
+        NodeKind::Text(_) => !n.appearance.items.is_empty(),
+        _ => has_item_geometry(n),
+    };
     if !needs_outline(n) || (geometry_effects(n).is_empty() && !own_paint) {
         return None;
     }
@@ -220,12 +291,28 @@ pub(crate) fn as_art(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     let mut art = match &n.kind {
         NodeKind::Image(im) => {
             let frame = shapes::rectangle(Rect::new(0.0, 0.0, im.width as f64, im.height as f64)).transformed(im.xf);
-            let mut clip = Node::path(n.id, frame, Appearance::default());
-            if let NodeKind::Path { clipping, .. } = &mut clip.kind {
-                *clipping = true;
-            }
             let image = Node::new(n.id, n.kind.clone());
-            Node::new(n.id, NodeKind::Group { children: vec![Arc::new(clip), Arc::new(image)], clip: true })
+            let clipped = || {
+                let mut clip = Node::path(n.id, frame.clone(), Appearance::default());
+                if let NodeKind::Path { clipping, .. } = &mut clip.kind {
+                    *clipping = true;
+                }
+                Node::new(n.id, NodeKind::Group { children: vec![Arc::new(clip), Arc::new(image.clone())], clip: true })
+            };
+            // The fills and strokes that paint a shape, as paths along the frame below and above
+            // the image.
+            let (below, above) = n.appearance.split_contents();
+            let (below, above) = (image_rows(below), image_rows(above));
+            if below.is_empty() && above.is_empty() {
+                clipped()
+            } else {
+                let rows = |items: Vec<AppearanceItem>| {
+                    (!items.is_empty()).then(|| Arc::new(Node::path(n.id, frame.clone(), Appearance { items, ..Default::default() })))
+                };
+                // Without geometry effects, the image is not clipped.
+                let image = if fx.is_empty() { image.clone() } else { clipped() };
+                Node::group(n.id, rows(below).into_iter().chain([Arc::new(image)]).chain(rows(above)).collect())
+            }
         }
         _ => outline_art(n, symbol_art)?,
     };
@@ -234,7 +321,8 @@ pub(crate) fn as_art(n: &Node, symbol_art: Option<&Node>) -> Option<Node> {
     if let Some(h) = n.projection() {
         project_leaves(&mut art, &h);
     }
-    // The art is a group with `n`'s id (a clip group for an image).
+    // The art is a group with `n`'s id (for an image without fills or strokes that paint, a clip
+    // group).
     let mut out = art;
     out.name = n.name.clone();
     out.visible = n.visible;
@@ -284,35 +372,52 @@ pub(crate) fn geometry_effects(n: &Node) -> Vec<&Effect> {
 /// Apply `fx` to every path under `art` as one piece: each effect takes the whole art's bounds as
 /// its reference box and the art's seed (a random Transform moves the pieces together). Images and
 /// symbol instances follow a Transform effect the same way ([`transform_placed`]); other geometry
-/// effects leave them as they are (a raster follows a non-affine map only as a mesh warp).
+/// effects leave them as they are (a raster follows a non-affine map only as a mesh warp). The
+/// paths keep to one [`Budget::EFFECTS`] together (or to what they cost, when that is more): a path
+/// whose effect would pass what the others leave of it keeps its shape.
 pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
+    reshape_leaves_within(art, fx, Budget::EFFECTS);
+}
+
+/// [`reshape_leaves`] whose paths keep to `budget` together, or to what they cost.
+pub(crate) fn reshape_leaves_within(art: &mut Node, fx: &[&Effect], budget: Budget) {
+    if fx.is_empty() {
+        return;
+    }
     let seed = art.id.0;
     // The placed gradients of type's outlines in `art` (`outline_text`) move and scale with the
     // pieces, from the outlines' bounds before the effects to their bounds after them.
     let mut outlines = vec![];
     type_outline_bounds(art, &mut outlines);
+    let mut used = art_cost(art);
+    let max = budget.at_least(used);
     for e in fx {
         let Some(bounds) = art.geometric_bounds() else { break };
         let params = merged_params(&e.id, &e.params);
         let transform = (e.id == "distort.transform").then(|| crate::distort::transform_map(bounds, &params, seed));
         for_each_leaf(art, &mut |leaf| {
             let Some((path, rule)) = leaf_geometry(leaf) else { return };
+            // What the other paths leave of the budget.
+            let before = Budget::of(&path);
+            let room = max.minus(used.minus(before));
             // A gradient paints each copy by itself, not the one piece the copies make together.
             if let Some((m, copies)) = transform
                 && copies > 0
                 && (leaf.appearance.has_unplaced_gradient() || leaf.appearance.has_placed_gradient())
             {
-                copy_with_gradients(leaf, &path, m, copies);
+                let made = copy_with_gradients(leaf, &path, m, copies, room);
+                used = used.minus(before).plus(made);
                 return;
             }
-            let out = apply_one(&e.id, &params, &path, bounds, &GeomContext { seed, ..GeomContext::of(leaf) });
+            let Some(out) = apply_one(&e.id, &params, &path, bounds, &GeomContext { seed, ..GeomContext::of(leaf) }, room) else { return };
+            used = used.minus(before).plus(Budget::of(&out));
             set_geometry(leaf, out, rule);
         });
         if let Some((m, copies)) = transform {
             transform_placed(art, m, copies);
         }
     }
-    if !fx.is_empty() && outlines.iter().any(Option::is_some) {
+    if outlines.iter().any(Option::is_some) {
         rebase_type_outlines(art, &mut outlines.into_iter());
     }
 }
@@ -320,29 +425,32 @@ pub(crate) fn reshape_leaves(art: &mut Node, fx: &[&Effect]) {
 /// Replace `leaf` (a path or compound path with geometry `path`) by a group of it and `copies`
 /// more, each mapped once more by `m` than the last, as a Transform effect copies an object. Each
 /// copy is an object of its own, so its gradients fit it (a placed gradient moves with it) rather
-/// than spanning every copy. The copies stop where [`crate::distort::transform_within`]'s would.
-fn copy_with_gradients(leaf: &mut Node, path: &PathData, m: Affine, copies: usize) {
-    let each = path.anchor_count();
-    let mut anchors = each;
+/// than spanning every copy. The copies stop where [`crate::distort::transform_within`]'s would,
+/// or before they pass `budget`. Returns what the copies cost, the original included.
+fn copy_with_gradients(leaf: &mut Node, path: &PathData, m: Affine, copies: usize, budget: Budget) -> Budget {
+    let mut made = Budget::of(path);
     let mut placements: Vec<Arc<Node>> = vec![Arc::new(leaf.clone())];
     let mut xf = Affine::IDENTITY;
     for _ in 0..copies {
-        anchors = anchors.saturating_add(each);
-        if anchors > crate::distort::MAX_COPY_ANCHORS {
+        xf *= m;
+        // A copy scaled up is drawn with more lines.
+        let cost = Budget::of(&path.transformed(xf));
+        if !budget.fits(made.plus(cost)) {
             break;
         }
-        xf *= m;
         let mut copy = leaf.clone();
         copy.transform(xf, vectorcraft_doc::Scaling::default());
         if !copy.geometric_bounds().is_some_and(crate::distort::within_reach) {
             break;
         }
         placements.push(Arc::new(copy));
+        made = made.plus(cost);
     }
     // The copies become nodes of their own under a group with the object's id and name.
     let mut g = Node::group(leaf.id, placements);
     g.name = leaf.name.clone();
     *leaf = g;
+    made
 }
 
 /// The bounds of each group of type's outlines under `n` ([`outline_text`]), `n` included, in
@@ -506,6 +614,18 @@ fn for_each_leaf(n: &mut Node, f: &mut dyn FnMut(&mut Node)) {
             }
         }
         _ => {}
+    }
+}
+
+/// What the paths under `n` that [`for_each_leaf`] visits cost together, as [`leaf_geometry`]
+/// gives them.
+fn art_cost(n: &Node) -> Budget {
+    let none = Budget { anchors: 0, lines: 0 };
+    match &n.kind {
+        NodeKind::Path { guide: false, path, .. } => Budget::of(path),
+        NodeKind::Compound { children, .. } => children.iter().filter_map(|c| c.path_data()).map(Budget::of).fold(none, Budget::plus),
+        NodeKind::Group { children, .. } | NodeKind::Layer { children, .. } => children.iter().map(|c| art_cost(c)).fold(none, Budget::plus),
+        _ => none,
     }
 }
 
