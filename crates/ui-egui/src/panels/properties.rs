@@ -11,6 +11,8 @@ use crate::theme::Tokens;
 use crate::widgets::{self, dim_label, divider, section_header};
 use crate::{VectorcraftApp, icons};
 
+/// The panel for what is selected: the selection's kind as its heading, then its sections (Edit
+/// Artboards' with the Artboard tool, the document's with nothing selected).
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else {
@@ -38,6 +40,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     if first.is_none() {
         document_sections(app, ui);
         return;
+    }
+    if n_sel == 1
+        && let Some(NodeKind::Group { clip: true, children }) = first.as_ref().map(|n| &n.kind)
+    {
+        clip_group_buttons(app, ui, children.len() > 1);
+        divider(ui);
     }
     transform_section(app, ui);
     divider(ui);
@@ -137,6 +145,24 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             }
         });
     }
+}
+
+/// The one selected clip group's Edit Clipping Path and Edit Contents, at the top of the panel as in
+/// the reference app ("With the clip group selected, click the Edit Clipping Path button at the top
+/// of the Properties panel to select and edit the mask, or click the Edit Contents button to select
+/// and edit the masked content", <https://www.adobe.com/learn/illustrator/web/crop-using-masks>):
+/// they select its clipping path or its clipped art for the selection tools, as Object › Clipping
+/// Mask does. Edit Contents only when the group clips something.
+fn clip_group_buttons(app: &mut VectorcraftApp, ui: &mut Ui, has_contents: bool) {
+    let w = (ui.available_width() - 6.0) / 2.0;
+    ui.horizontal(|ui| {
+        if widgets::flat_button(ui, tl!("Edit Clipping Path"), w).clicked() {
+            crate::menus::invoke(app, "object.clippingMask.editMask", json!({}));
+        }
+        if has_contents && widgets::flat_button(ui, tl!("Edit Contents"), w).clicked() {
+            crate::menus::invoke(app, "object.clippingMask.editContents", json!({}));
+        }
+    });
 }
 
 /// The one selected image: its file (or Embedded), colour mode and resolution, and the Links
@@ -263,7 +289,8 @@ fn artboard_sections(app: &mut VectorcraftApp, ui: &mut Ui) {
         if widgets::flat_button(ui, tl!("New Artboard"), w).clicked() && app.run("artboard.new", json!({})).is_ok() {
             super::artboards::select(app, n);
         }
-        if ui.add_enabled_ui(n > 1, |ui| widgets::flat_button(ui, tl!("Delete Artboard"), w)).inner.clicked() {
+        let deletable = n > 1 && !super::artboards::deletable(app, n).is_empty();
+        if ui.add_enabled_ui(deletable, |ui| widgets::flat_button(ui, tl!("Delete Artboard"), w)).inner.clicked() {
             super::artboards::delete_selected(app);
         }
     });
@@ -296,6 +323,58 @@ fn turned(landscape: bool, pw: f64, ph: f64) -> (f64, f64) {
 /// width and height of each selected artboard that is not square and not already in it. Each
 /// top-left corner stays put.
 pub(crate) fn artboard_size_row(app: &mut VectorcraftApp, ui: &mut Ui, i: usize, w: f64, h: f64) {
+    let Some(choice) = artboard_size_controls(app, ui, w, h) else { return };
+    let scale_art = super::artboards::scale_art(app);
+    let indices = super::artboards::resized_with(app, i);
+    super::artboards::set_props(app, &indices, json!({"scaleArt": scale_art}), |j, r| {
+        let (width, height) = choice.size_for(r.width(), r.height())?;
+        Some(json!({"index": j, "width": width, "height": height}))
+    })
+    .ok();
+}
+
+/// A shared picker choice, applied separately to each artboard's orientation.
+#[derive(Clone, Copy)]
+pub(crate) enum ArtboardSizeChoice {
+    Preset(f64, f64),
+    Orientation(bool),
+}
+
+impl ArtboardSizeChoice {
+    pub(crate) fn size_for(self, w: f64, h: f64) -> Option<(f64, f64)> {
+        match self {
+            Self::Preset(pw, ph) => Some(turned(w > h, pw, ph)),
+            Self::Orientation(landscape) if (w > h) != landscape && w != h => Some((h, w)),
+            Self::Orientation(_) => None,
+        }
+    }
+}
+
+/// Shared existing presets/orientation UI. Dialogs keep the chosen size in their draft until OK.
+pub(crate) fn artboard_size_controls(app: &VectorcraftApp, ui: &mut Ui, w: f64, h: f64) -> Option<ArtboardSizeChoice> {
+    artboard_size_controls_inner(app, ui, w, h, None).0
+}
+
+/// The dialog's shared preset/orientation picker with optional artwork and selection fits.
+/// The second return value is a chosen Fit: false for all artwork, true for selected artwork.
+pub(crate) fn artboard_size_controls_with_fit(
+    app: &VectorcraftApp,
+    ui: &mut Ui,
+    w: f64,
+    h: f64,
+    enabled: [bool; 2],
+) -> (Option<ArtboardSizeChoice>, Option<bool>) {
+    artboard_size_controls_inner(app, ui, w, h, Some(enabled))
+}
+
+/// Properties and Control keep their ordinary picker; Artboard Options adds two Fit entries.
+fn artboard_size_controls_inner(
+    app: &VectorcraftApp,
+    ui: &mut Ui,
+    w: f64,
+    h: f64,
+    fits: Option<[bool; 2]>,
+) -> (Option<ArtboardSizeChoice>, Option<bool>) {
     let landscape = w > h;
     let same = |s: &newdoc::DocSettings| {
         let (pw, ph) = turned(landscape, s.width, s.height);
@@ -311,10 +390,19 @@ pub(crate) fn artboard_size_row(app: &mut VectorcraftApp, ui: &mut Ui, i: usize,
     // The preset's width and height as listed, or the orientation clicked.
     let mut preset = None;
     let mut orientation = None;
+    let mut fit = None;
     ui.horizontal(|ui| {
         dim_label(ui, tl!("Preset:"));
         preset = widgets::combo(ui, "ab-preset", &current, 140.0, false, |ui| {
             let mut chosen = None;
+            if let Some(enabled) = fits {
+                for (selection, label) in [(false, tl!("Fit to Artwork Bounds")), (true, tl!("Fit to Selected Art"))] {
+                    if widgets::menu_item_name(ui, label, enabled[usize::from(selection)], false) {
+                        fit = Some(selection);
+                    }
+                }
+                ui.separator();
+            }
             for (cat, list) in &cats {
                 ui.menu_button(tl!(cat), |ui| {
                     widgets::menu_scroll(ui, |ui| {
@@ -335,21 +423,7 @@ pub(crate) fn artboard_size_row(app: &mut VectorcraftApp, ui: &mut Ui, i: usize,
             }
         }
     });
-    if preset.is_none() && orientation.is_none() {
-        return;
-    }
-    let scale_art = super::artboards::scale_art(app);
-    let indices = super::artboards::resized_with(app, i);
-    super::artboards::set_props(app, &indices, json!({"scaleArt": scale_art}), |j, r| {
-        let (w, h) = (r.width(), r.height());
-        let (width, height) = match (preset, orientation) {
-            (Some((pw, ph)), _) => turned(w > h, pw, ph),
-            (None, Some(l)) if (w > h) != l && w != h => (h, w),
-            _ => return None,
-        };
-        Some(json!({"index": j, "width": width, "height": height}))
-    })
-    .ok();
+    (preset.map(|(w, h)| ArtboardSizeChoice::Preset(w, h)).or_else(|| orientation.map(ArtboardSizeChoice::Orientation)), fit)
 }
 
 /// Artboard `i`'s Fill, its background `color`: the chip shows it (the None paint when the artboard
@@ -552,7 +626,10 @@ pub fn transform_section(app: &mut VectorcraftApp, ui: &mut Ui) {
         match &**live {
             vectorcraft_doc::LiveShape::Rectangle { .. } => corner_radius_row(app, ui, &n, "radius"),
             vectorcraft_doc::LiveShape::Polygon { .. } => super::transform::polygon_rows(app, ui, &n, live, "props-polygon"),
-            vectorcraft_doc::LiveShape::Ellipse { pie, .. } => super::transform::pie_rows(app, ui, *pie, "props-pie"),
+            vectorcraft_doc::LiveShape::Ellipse { pie, .. } => {
+                widgets::subheader(ui, tl!("Ellipse Properties:"));
+                super::transform::pie_rows(app, ui, *pie, "props-pie");
+            }
             _ => {}
         }
     }
@@ -644,6 +721,7 @@ mod tests {
         panel_frame(app, ctx, events, show)
     }
 
+    /// One frame of `draw` with `events` → the texts painted, with their rects.
     fn panel_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>, draw: fn(&mut VectorcraftApp, &mut Ui)) -> Vec<(String, Rect)> {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(300.0, 700.0))), events, ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| draw(app, ui));
@@ -660,11 +738,84 @@ mod tests {
             .collect()
     }
 
+    /// Clicks the text `label` where the last frame painted it, over two frames (press, release).
     fn click(app: &mut VectorcraftApp, ctx: &egui::Context, texts: &[(String, Rect)], label: &str) {
         let at = texts.iter().find(|(t, _)| t == label).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no {label:?} in {texts:?}"));
         let b = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
         frame(app, ctx, vec![Event::PointerMoved(at), b(true)]);
         frame(app, ctx, vec![b(false)]);
+    }
+
+    /// One selected clip group has Edit Clipping Path and Edit Contents at the top of the panel,
+    /// under its Clip Group heading and before every section, and they select its clipping path or
+    /// its clipped art; one that clips nothing has Edit Clipping Path alone. A plain group, or a clip
+    /// group selected with another object, has neither.
+    #[test]
+    fn one_clip_group_has_edit_clipping_path_and_edit_contents_at_the_top() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        let art = app.run("shape.rectangle", json!({"x": 100, "y": 80, "width": 200, "height": 140})).unwrap()["id"].clone();
+        let mask = app.run("shape.ellipse", json!({"x": 150, "y": 100, "width": 100, "height": 100})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [art, mask]})).unwrap();
+        let group = app.run("object.clippingMask.make", json!({})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [group]})).unwrap();
+        let ctx = egui::Context::default();
+        let selected = |app: &VectorcraftApp| app.session.active().unwrap().selection.objects.iter().map(|n| json!(n.0)).collect::<Vec<_>>();
+        let labels = |texts: &[(String, Rect)]| texts.iter().map(|(t, _)| t.clone()).collect::<Vec<_>>();
+        let texts = frame(&mut app, &ctx, vec![]);
+        let shown = labels(&texts);
+        let at = |label: &str| shown.iter().position(|t| t == label).unwrap_or_else(|| panic!("{label} in {shown:?}"));
+        assert_eq!(at("Clip Group"), 0, "{shown:?}");
+        assert!(at("Edit Clipping Path") == 1 && at("Edit Contents") == 2, "{shown:?}");
+        click(&mut app, &ctx, &texts, "Edit Contents");
+        assert_eq!(selected(&app), std::slice::from_ref(&art), "Edit Contents selects the clipped art");
+        app.run("select.set", json!({"ids": [group]})).unwrap();
+        let texts = frame(&mut app, &ctx, vec![]);
+        click(&mut app, &ctx, &texts, "Edit Clipping Path");
+        assert_eq!(selected(&app), std::slice::from_ref(&mask), "Edit Clipping Path selects the clipping path");
+        let neither = |app: &mut VectorcraftApp| {
+            let shown = labels(&frame(app, &ctx, vec![]));
+            !shown.iter().any(|t| t == "Edit Clipping Path" || t == "Edit Contents")
+        };
+        // The clip group with another object, whichever is selected first.
+        let other = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [group, other]})).unwrap();
+        assert!(neither(&mut app), "a clip group and another object");
+        app.run("select.set", json!({"ids": [other, group]})).unwrap();
+        assert!(neither(&mut app), "another object and a clip group");
+        // A plain group.
+        let b = app.run("shape.rectangle", json!({"x": 60, "y": 10, "width": 40, "height": 40})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [other, b]})).unwrap();
+        let plain = app.run("object.group", json!({})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [plain]})).unwrap();
+        assert!(labels(&frame(&mut app, &ctx, vec![])).iter().any(|t| t == "Ungroup"));
+        assert!(neither(&mut app), "a plain group");
+        // A clip group whose clipped art is deleted: Edit Clipping Path alone.
+        app.run("select.set", json!({"ids": [art]})).unwrap();
+        app.run("edit.clear", json!({})).unwrap();
+        app.run("select.set", json!({"ids": [group]})).unwrap();
+        let texts = frame(&mut app, &ctx, vec![]);
+        let shown = labels(&texts);
+        assert_eq!(shown.iter().position(|t| t == "Edit Clipping Path"), Some(1), "{shown:?}");
+        assert!(!shown.iter().any(|t| t == "Edit Contents"), "nothing to edit: {shown:?}");
+        click(&mut app, &ctx, &texts, "Edit Clipping Path");
+        assert_eq!(selected(&app), std::slice::from_ref(&mask), "Edit Clipping Path selects the clipping path");
+    }
+
+    /// #3451: the Properties panel Transform section shows ellipse pie angles and Invert Pie.
+    #[test]
+    fn transform_section_shows_ellipse_pie_properties() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
+        app.run("shape.ellipse", json!({"x": 50, "y": 50, "width": 120, "height": 80})).unwrap();
+        let ctx = egui::Context::default();
+        let labels: Vec<String> = panel_frame(&mut app, &ctx, vec![], transform_section).into_iter().map(|(t, _)| t).collect();
+        for t in ["Ellipse Properties:", "Pie Start Angle:", "0°", "Pie End Angle:", "360°", "Invert Pie"] {
+            assert!(labels.iter().any(|s| s == t), "{t} in {labels:?}");
+        }
+        app.run("object.setLiveShape", json!({"pieStart": 30, "pieEnd": 120})).unwrap();
+        let labels: Vec<String> = panel_frame(&mut app, &ctx, vec![], transform_section).into_iter().map(|(t, _)| t).collect();
+        assert!(labels.iter().any(|s| s == "30°") && labels.iter().any(|s| s == "120°"), "{labels:?}");
     }
 
     /// The Snap Options and Scale Strokes & Effects checkboxes keep a visible box at rest in every

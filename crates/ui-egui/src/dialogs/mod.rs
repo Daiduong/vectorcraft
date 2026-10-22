@@ -24,6 +24,7 @@ pub mod dxf_import;
 pub mod dxf_options;
 pub mod edit_selection;
 mod effect;
+pub mod effect_gallery;
 pub mod envelope;
 pub mod eps_options;
 pub mod expand;
@@ -55,6 +56,7 @@ pub mod live_paint_selection;
 pub mod missing_fonts;
 pub mod missing_links;
 pub(crate) mod modal;
+pub mod new_brush;
 pub mod new_color_group;
 mod new_document;
 pub mod new_swatch;
@@ -114,7 +116,7 @@ use serde_json::{Value, json};
 pub use color_picker::open as open_color_picker;
 pub use document_setup::open as open_document_setup;
 pub use effect::open as open_effect_dialog;
-pub(crate) use effect::{FILM_GRAIN_FIELDS, SHADES, shown_choices};
+pub(crate) use effect::{FILM_GRAIN_FIELDS, PAINT_DAUB_BRUSH_TYPE_LABELS, SHADES, shown_choices};
 pub use export_as::open as open_export_as;
 pub use export_for_screens::open as open_export_for_screens;
 pub(crate) use export_for_screens::{
@@ -300,6 +302,7 @@ registry! {
     SwatchConflict: [swatch_conflict::KIND] => swatch_conflict::SPEC,
     FileInfo: [file_info::KIND] => file_info::SPEC,
     RasterEffectsSettings: [raster_effects::KIND] => raster_effects::SPEC,
+    EffectGallery: [effect_gallery::KIND] => effect_gallery::SPEC,
     MissingLinks: [missing_links::KIND] => missing_links::SPEC,
     MissingFonts: [missing_fonts::KIND] => missing_fonts::SPEC,
     FindLinks: [find_links::KIND] => find_links::SPEC,
@@ -343,6 +346,7 @@ registry! {
     LivePaintGaps: [live_paint_gaps::KIND] => live_paint_gaps::SPEC,
     LivePaintSelectionOptions: [live_paint_selection::KIND] => live_paint_selection::SPEC,
     BrushOptions: [brush_options::KIND] => brush_options::SPEC,
+    NewBrush: [new_brush::KIND] => new_brush::SPEC,
     EditSelection: [edit_selection::KIND] => edit_selection::SPEC,
     PerspectivePlane: [perspective_plane::KIND] => perspective_plane::SPEC,
     LayerOptions: [layer_options::KIND] => layer_options::SPEC,
@@ -423,6 +427,14 @@ pub(crate) fn settle(app: &mut VectorcraftApp) {
 /// The field of a dialog that a save panel opened (its format's options): Enter doesn't confirm it
 /// until Enter has been let go.
 pub(crate) const AFTER_PANEL: &str = "__afterPanel";
+
+/// Marks the open dialog, if any, as one a save panel opened ([`AFTER_PANEL`]): the Enter that
+/// closed the panel, still held, doesn't confirm it.
+pub(crate) fn opened_by_panel(app: &mut VectorcraftApp) {
+    if let Some(d) = app.ui.dialog.as_mut() {
+        d.fields.insert(AFTER_PANEL.into(), json!(true));
+    }
+}
 
 /// Draws the active dialog and handles shared initial focus, keyboard shortcuts and actions.
 /// Inline actions and footer buttons use the same confirmation and preview rollback paths.

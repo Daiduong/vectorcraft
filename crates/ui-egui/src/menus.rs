@@ -225,6 +225,96 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("type.justifyLeft", "Justify with last line aligned left", "Cmd+Shift+J", "{} justify the selected type's paragraphs, last line aligned left"),
     ("type.justifyAll", "Justify all lines", "Cmd+Shift+F", "{} justify every line of the selected type's paragraphs"),
     (
+        "align.horizontalLeft",
+        "Horizontal Align Left",
+        "",
+        "{} the Align panel's Horizontal Align Left button: object.align {horizontal: \"left\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.horizontalCenter",
+        "Horizontal Align Center",
+        "",
+        "{} the Align panel's Horizontal Align Center button: object.align {horizontal: \"center\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.horizontalRight",
+        "Horizontal Align Right",
+        "",
+        "{} the Align panel's Horizontal Align Right button: object.align {horizontal: \"right\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.horizontalVerticalCenter",
+        "Horizontal & Vertical Align Center",
+        "",
+        "{} the Align panel's Horizontal & Vertical Align Center button: object.align {horizontal: \"center\", vertical: \"center\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.verticalTop",
+        "Vertical Align Top",
+        "",
+        "{} the Align panel's Vertical Align Top button: object.align {vertical: \"top\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.verticalCenter",
+        "Vertical Align Center",
+        "",
+        "{} the Align panel's Vertical Align Center button: object.align {vertical: \"center\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.verticalBottom",
+        "Vertical Align Bottom",
+        "",
+        "{} the Align panel's Vertical Align Bottom button: object.align {vertical: \"bottom\"} with to: \"key\" while there is a key, else \"artboard\" for one selected object without selected anchor points, else the Align To choice",
+    ),
+    (
+        "align.distributeVerticalTop",
+        "Vertical Distribute Top",
+        "",
+        "{} the Align panel's Vertical Distribute Top button: object.distribute {vertical: \"top\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeVerticalCenter",
+        "Vertical Distribute Center",
+        "",
+        "{} the Align panel's Vertical Distribute Center button: object.distribute {vertical: \"center\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeVerticalBottom",
+        "Vertical Distribute Bottom",
+        "",
+        "{} the Align panel's Vertical Distribute Bottom button: object.distribute {vertical: \"bottom\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeHorizontalLeft",
+        "Horizontal Distribute Left",
+        "",
+        "{} the Align panel's Horizontal Distribute Left button: object.distribute {horizontal: \"left\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeHorizontalCenter",
+        "Horizontal Distribute Center",
+        "",
+        "{} the Align panel's Horizontal Distribute Center button: object.distribute {horizontal: \"center\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeHorizontalRight",
+        "Horizontal Distribute Right",
+        "",
+        "{} the Align panel's Horizontal Distribute Right button: object.distribute {horizontal: \"right\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeVerticalSpace",
+        "Vertical Distribute Space",
+        "",
+        "{} the Align panel's Vertical Distribute Space button: object.distributeSpacing {axis: \"vertical\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
+        "align.distributeHorizontalSpace",
+        "Horizontal Distribute Space",
+        "",
+        "{} the Align panel's Horizontal Distribute Space button: object.distributeSpacing {axis: \"horizontal\"} with to: \"key\" while there is a key, else the Align To choice, and spacing: the Distribute Spacing value while there is a key",
+    ),
+    (
         "type.bold",
         "Bold",
         "",
@@ -370,6 +460,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("window.panel.activate", "Activate Panel", "", "{panel} show and select a panel in its current group"),
     ("window.panel.close", "Close Panel", "", "{panel} hide a panel"),
     (
+        "window.panel.collapse",
+        "Collapse Panel Group",
+        "",
+        "{panel, collapsed?: bool} show the dock group holding a panel as its tabs only (or its panel again), as a double-click on its tab does; the panel becomes the group's shown one. Without `collapsed` it toggles. Floating groups collapse through window.panel.float {panel, collapsed}. Returns {panel, collapsed}",
+    ),
+    (
         "window.panel.float",
         "Float Panel",
         "",
@@ -379,7 +475,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.panel.dock",
         "Dock Panel",
         "",
-        "{panel: id or \"tools\", group?: bool, column?: true or n} put a floating panel (with `group`, its whole group) back in the dock, as dropping it on the dock or its group's × does: Properties, Layers and Libraries in the tabbed group, the other panels in the icon column; with `column`, dock its group and the rest of its set as a dock column instead, as dropping it on the left edge of the icon column or of a dock column does: `true` at the dock's left, n at that place (1: next to the icon column, counting left); \"tools\" docks the Tools panel at the window's left edge. Returns {panel, floating, column}",
+        "{panel: id or \"tools\", group?: bool, column?: true or n, anchor?: id, zone?: \"tab\" | \"top\" | \"bottom\" | \"left\" | \"right\" | \"center\", before?: id, icon?: bool} put a floating panel (with `group`, its whole group) back in the dock, as dropping it on the dock or its group's × does: Properties, Layers and Libraries in the tabbed group, the other panels in the icon column; with `anchor`, in the dock group holding that panel instead: `zone` \"tab\" (the default) as a tab of it (before the `before` panel's tab), as dropping it on that group's tabs does, \"top\" / \"bottom\" as a new group above / below it, as dropping it on that group's upper / lower half does (\"left\", \"right\" and \"center\" split or join it likewise); with `icon: true` (no `anchor`), as icons in the icon column, the tabbed group's panels too, as dropping it on the icon column does: it lives there from then on and pops out of its icon; with `column`, dock its group and the rest of its set as a dock column instead, as dropping it on the left edge of the icon column or of a dock column does: `true` at the dock's left, n at that place (1: next to the icon column, counting left); \"tools\" docks the Tools panel at the window's left edge. Returns {panel, floating, column}, or with `anchor` or `icon: true` (the shared layout) {panel, floating, layout} and no `column`",
     ),
     (
         "window.collapseDock",
@@ -388,8 +484,18 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{collapsed?: bool} collapse the dock's Properties | Layers | Libraries group to icons (true), expand it (false) or toggle (omitted), as the double arrow at the top of the dock does; returns the new state",
     ),
     ("window.brightness", "UI Brightness", "", "{brightness: dark|mediumDark|mediumLight|light}"),
-    ("window.workspace", "Workspace", "", "{name} switch workspace (Essentials, Essentials Classic, Painting, …)"),
-    ("window.workspace.reset", "Reset Essentials", "", "{} reset the current workspace"),
+    (
+        "window.workspace",
+        "Workspace",
+        "",
+        "{name} switch workspace (Essentials, Essentials Classic, Painting, …): the one left keeps its layout changes, and the one switched to comes back as it was left (as saved if never changed)",
+    ),
+    (
+        "window.workspace.reset",
+        "Reset Essentials",
+        "",
+        "{} reset the current workspace to the way it was saved, dropping the layout changes made in it",
+    ),
     ("window.workspace.new", "New Workspace…", "", "{name?} save the current layout"),
     ("window.workspace.manage", "Manage Workspaces…", "", "{}"),
     ("window.workspace.delete", "Delete Workspace", "", "{name}"),
@@ -463,10 +569,16 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{} or {stroke?: bool (default: the active proxy), picker?: bool (the open Color Picker instead)} show the system's color sampler (macOS; browsers with an EyeDropper) and answer at once; the color the person picks anywhere on the screen then runs paint.setFill / paint.setStroke (one undo step) or becomes the Color Picker's color (field `color`), converted from display sRGB into the working RGB space; Escape cancels it and the colors stay as they were. ui.inspect reports `screenSampler: true` until it answers. An error without a sampler, while one is open, or with `picker` and no Color Picker open",
     ),
     (
+        "ui.newBrush",
+        "New Brush…",
+        "",
+        "{ids?} (default: the selected art) open New Brush, what the Brushes panel's New Brush button and art dropped on the panel open (dialog `newBrush`, field `type`: calligraphic|scatter|art|bristle|pattern, Art when there is art, else Calligraphic; scatter, art and pattern need art, else OK gives the error `nothing selected`); OK opens that type's Brush Options for the new brush (dialog `brushOptions` with the fields of ui.brushOptions and `__create`; name: New <Type> Brush, numbered when taken; the `ids` given in `__ids`), whose OK runs brush.new {type, name, params, ids?} (a name another brush has gets a number) and whose Cancel adds no brush",
+    ),
+    (
         "ui.brushOptions",
         "Brush Options…",
         "",
-        "{name?} (default: the selected path's brush, else the current brush) open its Brush Options, what double-clicking a brush in the Brushes panel opens (dialog `brushOptions`): Calligraphic (fields name, angle −180..180, roundness 0..100, size 0..1296 pt, angleMode/roundnessMode/sizeMode: fixed|random|pressure, angleVariation/roundnessVariation/sizeVariation), Bristle (fields name, shape, size, length, density, thickness, opacity, stiffness), Scatter (fields sizeMin/sizeMax/sizeMode, spacingMin/spacingMax/spacingMode, scatterMin/scatterMax/scatterMode, rotationMin/rotationMax/rotationMode with modes fixed|random|pressure, rotationRelativeTo: page|path), Art (fields width %, scaleMode: proportional|stretch|betweenGuides, guideStart/guideEnd % of the art length, direction: leftToRight|rightToLeft|topToBottom|bottomToTop, flipAlong, flipAcross) or Pattern (fields scale %, spacing %, fit: stretch|addSpace|approximate, flipAlong, flipAcross); Scatter, Art and Pattern also colorization: none|tints|tintsAndShades|hueShift and keyColor; OK runs brush.options",
+        "{name?} (default: the selected path's brush, else the current brush) open its Brush Options, what double-clicking a brush in the Brushes panel opens (dialog `brushOptions`): Calligraphic (fields name, angle −180..180, roundness 0..100, size 0..1296 pt, angleMode/roundnessMode/sizeMode: fixed|random|pressure, angleVariation/roundnessVariation/sizeVariation), Bristle (fields name, shape, size, length, density, thickness, opacity, stiffness), Scatter (fields sizeMin/sizeMax/sizeMode, spacingMin/spacingMax/spacingMode, scatterMin/scatterMax/scatterMode, rotationMin/rotationMax/rotationMode with modes fixed|random|pressure, rotationRelativeTo: page|path), Art (fields width %, scaleMode: proportional|stretch|betweenGuides, guideStart/guideEnd % of the art length, direction: leftToRight|rightToLeft|topToBottom|bottomToTop, flipAlong, flipAcross) or Pattern (fields scale %, spacing %, fit: stretch|addSpace|approximate, flipAlong, flipAcross); Scatter, Art and Pattern also colorization: none|tints|tintsAndShades|hueShift, keyColor, and tips: true opens Colorization Tips (what each method does, beside a sample of the brush painted with it), as the Tips button beside Method does; OK runs brush.options",
     ),
     (
         "ui.graphicStyleOptions",
@@ -477,7 +589,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     (
         "ui.symbolOptions",
         "Symbol Options…",
-        "",
+        "F8",
         "{name?} open Symbol Options (dialog `symbolOptions`, fields `name`, `exportType`: movieClip|graphic, `registration` 0..8). Without `name` and with a selection: New Symbol (default name the first free \"New Symbol\"/\"New Symbol N\", Export Type Movie Clip, Registration centre); OK runs symbol.new {name, exportType, registration}. With `edit: true` or `name`: edit that symbol; OK runs symbol.options {name, newName?, exportType, registration}",
     ),
     (
@@ -508,7 +620,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.swatchLibrary",
         "Swatch Library",
         "",
-        "{library: id or name (see swatch.library.list) | null (close every swatch library panel)} open the swatch library in a read-only panel of its own, floating (panel id `library:swatches:<id>`, which window.panel.* moves, docks and closes), or bring its panel forward when it is open; clicking a swatch there runs swatch.library.add with apply. ui.libraryPanel sets its view, find field and Persistent (ui.inspect: ui.library_panels) → {open: id, panel, name, count}",
+        "{library: id or name (see swatch.library.list), or the id of a persistent panel's missing library | null (close every swatch library panel)} open the swatch library in a read-only panel of its own, floating (panel id `library:swatches:<id>`, which window.panel.* moves, docks and closes), or bring its panel forward when it is open; clicking a swatch there runs swatch.library.add with apply. ui.libraryPanel sets its view, find field and Persistent (ui.inspect: ui.library_panels) → {open: id, panel, name, count}",
     ),
     (
         "window.swatchLibrary.other",
@@ -521,6 +633,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "Library Panel Options",
         "",
         "{panel: a library panel's id (`library:swatches:pastels`, as window.swatchLibrary answers), library?: id or name of another library of its kind to show in the panel (Previous / Next Library; one open in a panel of its own is brought forward instead), view?: smallThumb|mediumThumb|largeThumb|smallList|largeList, showFind?: bool, persistent?: bool (reopen the panel when the app starts)} set an open library panel, or a closed persistent one's view, Show Find Field and Persistent; kept with the preferences (ui.inspect: ui.library_panels) → {panel, kind, library, view, showFind, persistent, open}",
+    ),
+    (
+        "ui.libraryPanel.locate",
+        "Locate Library…",
+        "",
+        "{panel: an open library panel's id, path?} (default: pick a file) Locate Library… of a persistent library panel whose library's file is missing: load the library from the file, as Other Library… does, and show it in the panel, which keeps its view, Show Find Field and Persistent. When the file's library has a panel open already, the panel closes and that one is brought forward, made persistent when the closed one was → what ui.libraryPanel answers",
     ),
     (
         "ui.saveSwatchLibrary",
@@ -608,7 +726,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "window.graphicStyleLibrary",
         "Graphic Style Library",
         "",
-        "{library: id or name (see graphicStyle.libraries) | null (close every graphic style library panel)} open the graphic style library in a read-only panel of its own, floating (panel id `library:graphicStyles:<id>`), or bring its panel forward when it is open; clicking a style there runs graphicStyle.addFromLibrary with apply (Alt: add). ui.libraryPanel sets its view, find field and Persistent → {open: id, panel, name, count}",
+        "{library: id or name (see graphicStyle.libraries), or the id of a persistent panel's missing library | null (close every graphic style library panel)} open the graphic style library in a read-only panel of its own, floating (panel id `library:graphicStyles:<id>`), or bring its panel forward when it is open; clicking a style there runs graphicStyle.addFromLibrary with apply (Alt: add). ui.libraryPanel sets its view, find field and Persistent → {open: id, panel, name, count}",
     ),
     (
         "window.graphicStyleLibrary.other",
@@ -738,6 +856,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "Document Raster Effects Settings Dialog",
         "",
         "{} open Document Raster Effects Settings (dialog `rasterEffectsSettings`: the document.rasterEffectsSettings fields); OK runs it. The menu item opens it too",
+    ),
+    (
+        "ui.effectGalleryDialog",
+        "Effect Gallery Dialog",
+        "",
+        "{} open Effect Gallery (dialog `effectGallery`: browse raster filters, build a stack, OK applies it as separate effects in one undo step). Effect → Effect Gallery… opens it too",
     ),
     (
         "ui.pdfPresetsDialog",
@@ -1142,7 +1266,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "file.cancelExport" => Ok(io::cancel_exports(app)),
         "file.exportInBackground" => Ok(io::hide_exports(app)),
         id if id.starts_with("file.openRecent") => match recent_slot(app, id).cloned() {
-            Some(path) => io::open_reporting(app, &path),
+            Some(path) => io::open_recent_reporting(app, &path),
             None => Err("no such recent file".into()),
         },
         "type.findFont" => {
@@ -1236,6 +1360,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         id if let Some((_, justify)) = crate::panels::paragraph::ALIGN_COMMANDS.iter().find(|c| c.0 == id) => {
             crate::panels::paragraph::align(app, justify)
         }
+        id if let Some(b) = crate::panels::align::button(id) => crate::panels::align::run_button(app, b),
         "view.gradientAnnotator" => flag(&mut app.ui.view.gradient_annotator),
         "view.livePaintGaps" => flag(&mut app.ui.view.live_paint_gaps),
         "effect.last" => match app.last_effect.clone() {
@@ -1564,6 +1689,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
                 crate::dialogs::symbol_options::open(app)
             }
         }
+        "ui.newBrush" => crate::dialogs::new_brush::open(app, p.get("ids").cloned()),
         "ui.brushOptions" => crate::dialogs::brush_options::open(app, s("name").as_deref()),
         "tool.options" => crate::toolbar::open_options(app, &s("tool").unwrap_or_default()),
         "ui.colorGuideOptions" => {
@@ -1610,6 +1736,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "ui.flattenerPreview" => crate::panels::flattener_preview::command(app, p),
         "window.graphicStyleLibrary" => crate::panels::graphic_styles::open_library(app, p),
         "ui.libraryPanel" => crate::panels::library_panel::command(app, p),
+        "ui.libraryPanel.locate" => crate::panels::library_panel::locate(app, p),
         "window.graphicStyleLibrary.other" => crate::panels::graphic_styles::other_library(app, s("path")),
         "ui.saveGraphicStyleLibrary" => {
             let names = p.get("names").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
@@ -1649,6 +1776,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         "file.exportAs" => io::export(app, s("format").as_deref(), s("path"), p),
         "ui.fileInfoDialog" => crate::dialogs::file_info::open(app),
         "ui.rasterEffectsSettingsDialog" => crate::dialogs::raster_effects::open(app),
+        "ui.effectGalleryDialog" => crate::dialogs::effect_gallery::open(app, p),
         "ui.pdfPresetsDialog" => {
             crate::dialogs::pdf_presets::open(app, s("selected").as_deref());
             Ok(Value::Null)
@@ -2290,6 +2418,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         "file.save" => app.session.active().is_some_and(|d| d.path.is_none() || d.converted || d.is_dirty()),
         "type.bold" | "type.italic" => crate::panels::character::text_style(app).is_some(),
         id if crate::panels::paragraph::ALIGN_COMMANDS.iter().any(|c| c.0 == id) => crate::panels::character::text_style(app).is_some(),
+        id if let Some(b) = crate::panels::align::button(id) => enabled(app, b.command()),
         "file.reveal" => app.services.reveal.is_some() && app.session.active().is_some_and(|d| d.path.is_some()),
         "file.cancelExport" | "file.exportInBackground" => app.background.jobs.iter().any(|j| j.progress.is_some() && !j.cancelled()),
         "file.place"
@@ -2314,7 +2443,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         id if id.starts_with("view.goto") => {
             id["view.goto".len()..].parse::<usize>().is_ok_and(|n| n >= 1 && app.session.active().is_some_and(|d| n <= d.doc.views.len()))
         }
-        "effect.dialog" | "ui.recolorDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
+        "effect.dialog" | "ui.recolorDialog" | "ui.effectGalleryDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
         "ui.cropImage" => selected_image(app, |_| true),
         "effect.applyLast" | "effect.last" => app.last_effect.is_some() && app.session.active().is_some_and(|d| !d.selection.is_empty()),
         "file.export.pdf" | "ui.savePdfDialog" | "ui.fileInfoDialog" | "ui.rasterEffectsSettingsDialog" => app.session.active().is_some(),
@@ -2324,6 +2453,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         "ui.graphicStyleOptions" => app.session.active().is_some(),
         "ui.newArtboard" => app.session.active().is_some(),
         "ui.sampleScreenColor" => crate::screen_color::available(app),
+        "ui.newBrush" => app.session.active().is_some(),
         "ui.brushOptions" => crate::dialogs::brush_options::available(app),
         "ui.hyphenation" | "ui.justification" => crate::panels::character::text_style(app).is_some(),
         "ui.colorBalanceDialog" | "ui.saturateDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
@@ -2780,6 +2910,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 cp("Smart Punctuation…", "type.smartPunctuation", json!({"quotes": true, "dashes": true, "ellipsis": true, "scope": "selection"})),
                 Sep,
                 c("Create Outlines", "type.createOutlines"),
+                c("Scale Text Attributes", "type.scaleTextAttributes"),
                 c("Optical Margin Alignment", "type.opticalMarginAlignment"),
                 Sep,
                 c("Fill with Placeholder Text", "type.fillPlaceholder"),
@@ -3931,6 +4062,7 @@ fn effect_menu() -> Vec<Item> {
     if !raster.is_empty() {
         out.push(Sep);
         out.push(Item::Header("Raster Effects"));
+        out.push(c("Effect Gallery…", "ui.effectGalleryDialog"));
         out.extend(raster);
     }
     // Anything not placed above (future effects) still shows up.
@@ -4081,6 +4213,7 @@ pub fn menu_strings() -> std::collections::BTreeSet<String> {
     out.extend(crate::prefs_dialog::UI_FIELDS.iter().map(|f| f.2.to_string()));
     out.extend(crate::dialogs::button_labels().into_iter().map(str::to_string));
     out.extend(crate::dialogs::FILM_GRAIN_FIELDS.iter().map(|(_, label, _)| label.to_string()));
+    out.extend(crate::dialogs::PAINT_DAUB_BRUSH_TYPE_LABELS.iter().map(|label| label.to_string()));
     out.extend(crate::chrome::hint_strings().into_iter().map(str::to_string));
     out.remove("");
     out
