@@ -450,8 +450,8 @@ pub struct Artboard {
     pub show_cross_hairs: bool,
     /// Background color (Properties › Artboards › Fill, Artboard Options). The canvas draws the
     /// artboard's paper in it, multiplied with the Simulate Colored Paper color while that is on;
-    /// without one the paper is white, or the Simulate Colored Paper color. Exports and print leave
-    /// it out.
+    /// without one the paper is white, or the Simulate Colored Paper color. A single-artboard SVG
+    /// export writes it as a background rectangle; other exports and print still omit it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<vectorcraft_color::Color>,
 }
