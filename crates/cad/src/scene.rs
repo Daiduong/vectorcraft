@@ -33,6 +33,9 @@ const WIDE_LINES: &str =
 const STROKE_EXTRAS: &str = "stroke alignment, width profiles, arrowheads and brushes are left out (Maximize Editability writes strokes as lines)";
 const CLIPPING: &str = "clipping masks are not applied: the art they clip is written whole";
 const TYPE_ITEMS: &str = "fills and strokes added to whole type objects are left out of text entities (outline the text to keep them)";
+/// The warning for an image left out because it can't be decoded: the note raster exports give
+/// (`vectorcraft-engine`'s `rasterfx::undecoded_warning`).
+const UNDECODED: &str = "an image couldn't be decoded and is missing from the picture";
 
 /// One segment of a subpath, cubics for every curve.
 #[derive(Clone, Copy)]
@@ -862,7 +865,8 @@ impl<'a> Scene<'a> {
                 let Some(rgb) = self.paint_rgb(paint) else { continue };
                 let style = self.style(rgb, 1.0, None, None);
                 let text_style = self.text_style(&cs.font_family);
-                let height = cs.size * cs.v_scale / 100.0 * CAP_HEIGHT * across;
+                // The height is that of the size the layout draws: Shrink Text to Fit scales the size by `layout.fit_scale`.
+                let height = cs.size * layout.fit_scale * cs.v_scale / 100.0 * CAP_HEIGHT * across;
                 let width = if cs.v_scale > 0.0 { cs.h_scale / cs.v_scale } else { 1.0 };
                 let origin = run.iter().map(|g| g.origin).min_by(|p, q| p.x.total_cmp(&q.x)).unwrap_or(first.origin);
                 let p = self.pt(t.xf * origin);
@@ -972,8 +976,8 @@ impl<'a> Scene<'a> {
 
     /// Image `key` as a file in the chosen format, and its size in pixels.
     fn encode_image(&self, key: &str) -> Result<(DxfImage, (u32, u32)), String> {
-        let blob = self.doc.images.get(key).filter(|b| !b.bytes.is_empty()).ok_or_else(|| format!("image '{key}' has no pixels and was left out"))?;
-        let img = image::load_from_memory(&blob.bytes).map_err(|_| format!("image '{key}' could not be decoded and was left out"))?;
+        let blob = self.doc.images.get(key).filter(|b| !b.bytes.is_empty()).ok_or_else(|| "an image has no pixels and was left out".to_string())?;
+        let img = image::load_from_memory(&blob.bytes).map_err(|_| UNDECODED.to_string())?;
         let size = (img.width(), img.height());
         let mut bytes = vec![];
         let written = match self.o.raster {
@@ -991,7 +995,7 @@ impl<'a> Scene<'a> {
                 rgb.write_with_encoder(image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 90))
             }
         };
-        written.map_err(|e| format!("image '{key}' could not be written: {e}"))?;
+        written.map_err(|e| format!("an image could not be written: {e}"))?;
         Ok((DxfImage { name: format!("{}.{}", blob.content_key(), self.o.raster.extension()), bytes }, size))
     }
 }
