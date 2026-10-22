@@ -76,46 +76,55 @@ impl PartialEq for Metric {
     }
 }
 
-/// The text the Character panel's dimensional fields act on (the Type-tool range or selected type).
-fn text_in_scope(app: &VectorcraftApp) -> String {
-    let Some(st) = app.session.active() else { return String::new() };
-    let text = |id: NodeId| match st.doc.node(id).map(|n| &n.kind) {
-        Some(NodeKind::Text(t)) => Some(t),
-        _ => None,
-    };
-    let mut out = String::new();
-    if let Some((id, a, b)) = text_editing(app) {
-        let Some(t) = text(id) else { return out };
-        if b <= a {
-            return String::new();
-        }
-        let mut end = 0;
-        for r in &t.runs {
-            let start = end;
-            end += r.text.len();
-            if start < b && end > a {
-                let from = a.saturating_sub(start);
-                let to = (b - start).min(r.text.len());
-                out.push_str(&r.text[from..to]);
+fn text_runs_have_cjk(t: &vectorcraft_doc::TextObject) -> bool {
+    t.runs.iter().any(|r| r.text.chars().any(vectorcraft_text::is_cjk))
+}
+
+fn runs_range_has_cjk(runs: &[vectorcraft_doc::TextRun], a: usize, b: usize) -> bool {
+    if b <= a {
+        return false;
+    }
+    let mut end = 0;
+    for r in runs {
+        let start = end;
+        end += r.text.len();
+        if start < b && end > a {
+            let from = a.saturating_sub(start);
+            let to = (b - start).min(r.text.len());
+            if r.text.get(from..to).is_some_and(|s| s.chars().any(vectorcraft_text::is_cjk)) {
+                return true;
             }
         }
-        return out;
     }
-    for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
-        n.walk(&mut |c| {
-            if let NodeKind::Text(t) = &c.kind {
-                for r in &t.runs {
-                    out.push_str(&r.text);
-                }
-            }
-        });
-    }
-    out
+    false
 }
 
 /// Whether the scoped text is East Asian (Preferences › Units › East Asian Type).
 pub(crate) fn uses_east_asian_type(app: &VectorcraftApp) -> bool {
-    text_in_scope(app).chars().any(vectorcraft_text::is_cjk)
+    let Some(st) = app.session.active() else { return false };
+    let text = |id: NodeId| match st.doc.node(id).map(|n| &n.kind) {
+        Some(NodeKind::Text(t)) => Some(t),
+        _ => None,
+    };
+    if let Some((id, a, b)) = text_editing(app) {
+        let Some(t) = text(id) else { return false };
+        return runs_range_has_cjk(&t.runs, a, b);
+    }
+    for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
+        let mut found = false;
+        n.walk(&mut |c| {
+            if !found
+                && let NodeKind::Text(t) = &c.kind
+                && text_runs_have_cjk(t)
+            {
+                found = true;
+            }
+        });
+        if found {
+            return true;
+        }
+    }
+    false
 }
 
 /// Units › Type, or East Asian Type when [`uses_east_asian_type`] is true.
@@ -506,7 +515,7 @@ pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &
     let fw = ((w - 66.0) / 2.0).clamp(60.0, 100.0);
     let unit = type_display_unit(app);
     egui::Grid::new(id).num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
-        cell(ui, "T", tl!("Font Size"), |ui| size_field(app, ui, "ch-size", fw));
+        cell(ui, "T", tl!("Font Size"), |ui| size_field(app, ui, "ch-size", fw, unit));
         cell(ui, "A↕", tl!("Leading"), |ui| {
             let leading = shared_effective(app, CharStyle::effective_leading);
             let auto = shared(app, |s| s.leading.is_none()) == Some(true);
@@ -559,9 +568,9 @@ pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &
 
 /// The Font Size combo (Character and Properties panels, Control bar): typed, stepped, scrubbed or
 /// picked from the presets, in the type unit, blank where the selected text's sizes differ.
-pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width: f32) {
+pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width: f32, unit: vectorcraft_doc::Unit) {
     let size = shared_effective(app, |s| s.size);
-    if let Some(v) = widgets::spin_field(ui, id, size, type_display_unit(app), width, 1.0, 0.1, &SIZE_PRESETS) {
+    if let Some(v) = widgets::spin_field(ui, id, size, unit, width, 1.0, 0.1, &SIZE_PRESETS) {
         style(app, json!({"size": v}));
     }
 }
@@ -661,7 +670,7 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
         show(app, ui);
     });
     font_pickers(app, ui, &s, ("cb-font", "cb-font-style"), (150.0, 96.0));
-    size_field(app, ui, "cb-font-size", 96.0);
+    size_field(app, ui, "cb-font-size", 96.0, type_display_unit(app));
     ui.add_space(4.0);
     ui.separator();
 }
