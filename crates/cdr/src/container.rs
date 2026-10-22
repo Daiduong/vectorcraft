@@ -8,7 +8,7 @@ const MAX_BYTES: usize = 128 * 1024 * 1024;
 const MAX_RECORDS: usize = 200_000;
 const MAX_DEPTH: usize = 64;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Chunk {
     pub id: [u8; 4],
     pub list: Option<[u8; 4]>,
@@ -564,6 +564,88 @@ mod tests {
         chunks.extend(chunk(b"data", &body));
         assert!(p.chunks(&chunks, None, 0).unwrap_err().contains("materialized"));
     }
+
+    /// Real modern external LIST aliases preserve PowerClip artwork under both page transforms.
+    #[test]
+    fn external_powerclip_frame_and_resource_lists_import_every_occurrence() {
+        use vectorcraft_geom::Shape;
+
+        /// Encode generated object arguments ahead of their offset and reversed-type tables.
+        fn loda(kind: u32, args: &[(u32, Vec<u8>)]) -> Vec<u8> {
+            let count = args.len() as u32;
+            let table = 20 + args.iter().map(|(_, data)| data.len() as u32).sum::<u32>();
+            let mut data: Vec<u8> = [table + count * 8, count, table, table + count * 4, kind].into_iter().flat_map(u32::to_le_bytes).collect();
+            let mut offsets = Vec::new();
+            for (_, value) in args {
+                offsets.push(data.len() as u32);
+                data.extend(value);
+            }
+            data.extend(offsets.into_iter().flat_map(u32::to_le_bytes));
+            data.extend(args.iter().rev().flat_map(|(id, _)| id.to_le_bytes()));
+            chunk(b"loda", &data)
+        }
+        /// A triangle uses the same native curve layout in legacy and modern versions.
+        fn triangle() -> Vec<u8> {
+            let mut data: Vec<u8> = [3u32, 0, 0, 254000, 0, 0, 254000].into_iter().flat_map(u32::to_le_bytes).collect();
+            data.extend([0, 64, 72]);
+            data
+        }
+
+        let mut frame = b"obj ".to_vec();
+        frame.extend(chunk(b"spnd", &10u32.to_le_bytes()));
+        frame.extend(loda(
+            3,
+            &[
+                (30, triangle()),
+                (8005, [8u32, 1, 0, 0].into_iter().flat_map(u32::to_le_bytes).collect()),
+                (1000, "Alias".encode_utf16().flat_map(u16::to_le_bytes).collect()),
+            ],
+        ));
+        let mut page = b"page".to_vec();
+        page.extend(chunk(b"LIST", &frame));
+        let mut content = b"obj ".to_vec();
+        content.extend(loda(3, &[(30, triangle())]));
+        let mut group = b"grp ".to_vec();
+        group.extend(chunk(b"spnd", &8u32.to_le_bytes()));
+        group.extend(loda(0, &[(3500, 10u32.to_le_bytes().to_vec())]));
+        group.extend(chunk(b"LIST", &content));
+        let mut resources = b"clpt".to_vec();
+        resources.extend(chunk(b"LIST", &group));
+        let streams = vec![resources, page];
+        let mut root = Vec::new();
+        for (index, stream) in streams.iter().enumerate() {
+            let reference: Vec<u8> = [index as u32, stream.len() as u32, 0, 0].into_iter().flat_map(u32::to_le_bytes).collect();
+            for _ in 0..2 {
+                root.extend(chunk(b"LIST", &reference));
+            }
+        }
+        let mut remaining = MAX_BYTES;
+        let mut parser = Parser { version: 1600, streams: &streams, remaining: &mut remaining, copied: MAX_BYTES, visited: MAX_BYTES * 4, count: 0 };
+        let chunks = parser.chunks(&root, None, 0).unwrap();
+        assert_eq!(chunks[0], chunks[1]);
+        assert_eq!(chunks[2], chunks[3]);
+        assert!(!std::ptr::eq(&chunks[2].children[0], &chunks[3].children[0]));
+        let imported = crate::drawing::import(&chunks, 1600).unwrap();
+        assert!(imported.warnings.is_empty(), "{:?}", imported.warnings);
+        assert_eq!(imported.document.artboards.len(), 2);
+        assert_eq!(imported.document.layers.len(), 2);
+        let offset = imported.document.artboards[1].rect.x0;
+        for (index, layer) in imported.document.layers.iter().enumerate() {
+            let nodes = layer.children().unwrap();
+            assert_eq!(nodes.len(), 1);
+            let clip = &nodes[0];
+            assert!(clip.clips());
+            assert_eq!(clip.name.as_deref(), Some("Alias"));
+            let contents = clip.children().unwrap();
+            assert_eq!(contents.len(), 2);
+            assert_eq!(contents[0].name, None, "the wrapper takes the name rather than cloning it");
+            for node in contents {
+                let bounds = node.path_data().unwrap().to_bezpath().bounding_box();
+                assert!((bounds.x0 - 306.0 - index as f64 * offset).abs() < 1e-8);
+            }
+        }
+    }
+
     #[test]
     /// Reject nonterminal zero records and overflowing version-record lengths.
     fn zero_records_and_huge_version_lengths_are_rejected() {

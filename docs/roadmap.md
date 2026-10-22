@@ -12,6 +12,10 @@ public menu documentation would be allowed).
 > modern corners, polygon/star seeds, B-spline cubics and fill rules. Focused checks and 32 oracle pages passed.
 > Scores and hour estimates are unchanged; the focused M4 follow-up below records the scope.
 
+CDR.9 also recovers drawing-only zero-page files from their editable artwork bounds
+and accepts exact PowerClip aliases with bounded expanded names. A supplied180-curve
+file is checked against its independent Corel SVG; no private fixture is distributed.
+
 ## Alpha gate
 
 The core-workflow gate from craftrules' progress-docs standard: what a typical professional does with

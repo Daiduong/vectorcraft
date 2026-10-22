@@ -13,6 +13,10 @@ to RGB without the source ICC profile, with an approximation warning.
 PowerClip contents now become native clipping groups with editable frames and
 children. Modern rectangle corners and supported polygon/star seeds become
 straight/cubic paths; compound holes retain their alternate or winding rule.
+Drawing-only CDRs whose page metadata is zero-by-zero recover an artboard from
+the imported artwork, with a warning. The first page retains its native origin
+and physical curve scale. A valid per-page size overrides a missing document default;
+partial-zero/negative dimensions still fail. Empty unsized pages use a warned default.
 
 The macOS bundle and Linux desktop entry also advertise CDR as a readable format.
 Linux uses the existing `application/vnd.corel-draw` type from
@@ -84,6 +88,11 @@ checks, set `CDR_FIXTURE_DIR` to a local folder containing
 When also present, `gradient-v27.cdr` / `gradient-page1.svg` and
 `group-transform-v27.cdr` / `group-transform-page1.svg` extend the render checks
 to fountains and nonuniformly transformed, rotated groups.
+`CDR_ZERO_PAGE_FIXTURE_DIR` can separately point to a private `input.cdr` and
+`corel-artwork.svg`: a supplied format-24.3 zero-page drawing checked through Corel27.2
+has 180 curves,424 subpaths and no images. Its original and derived artwork stay local.
+The engine checks its recovered size, object counts, original paint, and a second
+distinct-colour geometry/stacking comparison against the independent SVG.
 Optional `bitmap-v15.cdr`, `bitmap-v16.cdr`, `bitmap-v27.cdr` and
 `bitmap-page1.svg` plus the original `bitmap-original-checker.png` cover original
 RGB/CMYK images with 0/64/128/255 alpha.
@@ -119,6 +128,7 @@ assuming the UI's drawing coordinates are the page coordinates.
 
 | Date | Change |
 |---|---|
+| 2026-10-22 | CDR.9: accept exact PowerClip aliases with bounded name materialization; recover drawing-only zero-page files as editable vectors with a fitted artboard. External-reference, branching-graph, synthetic page and local independent-oracle regressions cover both fixes. |
 | 2026-10-22 | CDR.8: native PowerClip references, modern corner treatments, polygon/star seeds, B-spline cubics and alternate/winding fills; original 15/16/27 SVG oracles and bounded reference expansion. |
 | 2026-10-19 | CDR.4: native embedded images, continuous alpha and editable crop outlines; initial framing of off-page artwork. |
 | 2026-10-19 | Initial bounded native import and original CorelDRAW application-oracle validation. |

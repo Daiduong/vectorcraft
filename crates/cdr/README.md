@@ -24,6 +24,9 @@ release was executed for these checks.
   (recent releases use extra letters for minor revisions).
 - Per-page dimensions, y-up coordinates, multiple pages, names, layers, ordinary
   groups, linked-group transforms and front-to-back native paint order.
+- Drawing-only files with zero-by-zero page dimensions: infer a warned artboard
+  from the imported vector/image bounds, preserving scale and the first page's
+  drawing origin. Valid explicit page dimensions still take precedence.
 - Rectangles, full ellipses, ellipse arcs/pies, compound straight/cubic paths,
   affine object transforms and numeric RGB, CMYK, Gray and Lab colours.
 - Modern rectangle round, scallop and chamfer corners, with independent corner
@@ -74,6 +77,10 @@ budget. Other bounds: 64 nested lists, 200,000 records, 4,096 ZIP entries/stream
 gradient stops/dash values (both style definitions and object copies count).
 Referenced drawing expansion additionally limits interpretation to 200,000 record
 visits and 64 recursive levels; cyclic or mismatched PowerClip references fail.
+Exact repeated PowerClip frame/resource definitions from external LIST aliases
+share indexing; distinct definitions reusing an identifier fail. Each occurrence
+remains editable under its own page/parent transform. Materialized names have a
+cumulative 16 MiB UTF-8 budget, including aliases; source decoding is bounded too.
 Polygon expansion charges its generated point count before allocating the outline.
 Bitmap decoding additionally limits each side to 32,768 pixels, the cumulative
 pixel count to 32 million and generated encoded PNGs to 128 MiB. Exact raw bitmap
@@ -107,6 +114,9 @@ The engine oracle suite also accepts `powerclip`, `corners`, `corner-types`,
 `polygons`, `fill-rules` and `bspline` scenes saved in formats 15/16/27, each with its independent
 page SVG. Those checks assert zero image resources for every vector-only scene.
 Record observations and unresolved cases are in [the vector record notes](../../docs/cdr-vector-records.md).
+`CDR_ZERO_PAGE_FIXTURE_DIR` optionally points to a local supplied `input.cdr` and
+its independently exported `corel-artwork.svg`. The checked zero-page scene keeps
+180 editable curves/424 subpaths and matches the separate SVG's geometry and paint.
 `cargo clippy -p vectorcraft-cdr --all-targets --all-features -- -D warnings` checks
 the shipped no-unsafe/no-panic policy as well as the fixture feature.
 

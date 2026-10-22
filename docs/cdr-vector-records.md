@@ -32,8 +32,11 @@ The group's `spnd` word is its resource identifier. A frame object's argument
 8005 contains four little-endian words: the contents identifier, `1`, `0`, `0` in
 the checked files. Group argument 3500 refers back to the frame's `spnd`.
 Both directions are checked, and missing/ambiguous/cyclic references are errors.
-Owning frame identifiers must be unique before expansion: repeated physical
-frames cannot use a branching reference graph to duplicate artwork exponentially.
+Each owner/resource identifier must have one unambiguous full definition. Exact
+aliases share indexing while every occurrence is still drawn under its own parent;
+distinct definitions are rejected. Actual expansion, including names, is charged:
+a 16 MiB cumulative UTF-8 name quota prevents a compact branching alias graph from
+materializing unbounded name data. Name source decoding is also bounded.
 
 The contents already have complete transforms, including a rotated frame's
 rotation. Applying the resource group's matrix again would transform them twice.
@@ -46,6 +49,25 @@ Evidence covers rectangular, elliptical and compound-path frames, painted and
 unpainted frames, multiple contents, rotation and nested clips. Other reference
 layouts, fitting/locking settings and complex transparency remain unverified.
 The normal document depth limiter can warn about excessively deep artwork.
+
+## Drawing-only zero pages
+
+A supplied format-24.3 drawing has zero width/height in both `mcfg` and package
+metadata, and no per-page dimension override. CorelDRAW27.2 also opens it as a
+zero-by-zero page at drawing origin0,0, while exposing 180 curves,424 subpaths and
+7386 segments. Its artwork spans200 by191.3496mm and exports as180 SVG paths,
+without images. Those are observations of one local file, not a new universal
+interpretation of all missing metadata.
+
+The recovery policy treats a complete zero-by-zero size as unavailable. Valid
+explicit dimensions or document defaults are used where available; otherwise the
+imported visual bounds define the artboard, with a warning. The first page keeps
+its native zero origin and scale; later inferred boards are translated into the
+usual page row. A degenerate span gets a one-point extent, and an empty unsized
+page gets the existing default board. Partial zeros, negative sizes and oversized
+inferred bounds still fail. Embedded previews are never used as content or sizing
+authority. The local oracle checks full colours and independently recoloured
+geometry/stacking, retaining the existing0.1/255 mean-byte threshold.
 
 ## Modern rectangle corners
 

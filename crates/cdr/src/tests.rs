@@ -39,6 +39,84 @@ fn original_rectangle_is_editable_geometry_with_numeric_paint() {
     assert!(imported.warnings.is_empty(), "{:?}", imported.warnings);
 }
 
+/// Encode a generated per-page size override, separate from the global configuration.
+fn page_dimensions(width: i32, height: i32) -> crate::container::Chunk {
+    let mut data: Vec<u8> = [36u32, 1, 28, 32, 0].into_iter().flat_map(u32::to_le_bytes).collect();
+    for value in [width, height] {
+        data.extend(((value as f64 * 254000.0 / 72.0).round() as i32).to_le_bytes());
+    }
+    data.extend(20u32.to_le_bytes());
+    data.extend(19130u32.to_le_bytes());
+    crate::container::Chunk { id: *b"loda", list: None, data, children: Vec::new() }
+}
+
+#[test]
+/// Missing page dimensions must recover editable art at its native origin, including strokes.
+fn zero_sized_page_fits_art_without_changing_curve_coordinates() {
+    let imported = import(&synth::zero_sized_page()).unwrap();
+    assert!(imported.document.images.is_empty());
+    let path = &imported.document.layers[0].children().unwrap()[0];
+    let geometry = path.path_data().unwrap().to_bezpath().bounding_box();
+    assert!((geometry.x0).abs() < 0.001 && geometry.y0.abs() < 0.001);
+    assert!((geometry.width() - 40.0).abs() < 0.001 && (geometry.height() - 20.0).abs() < 0.001);
+    let page = imported.document.artboards[0].rect;
+    assert!((page.x0 + 0.5).abs() < 0.001 && (page.y0 + 0.5).abs() < 0.001);
+    assert!((page.width() - 41.0).abs() < 0.001 && (page.height() - 21.0).abs() < 0.001);
+    assert!(imported.warnings.iter().any(|w| w.contains("artboard was fitted")));
+}
+
+#[test]
+/// A valid explicit page overrides missing global dimensions without an inferred board.
+fn explicit_page_size_wins_over_a_zero_document_default() {
+    let (mut chunks, version) = crate::container::load(&synth::zero_sized_page()).unwrap();
+    let page = chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+    page.children.push(page_dimensions(200, 120));
+    let imported = crate::drawing::import(&chunks, version).unwrap();
+    let page = imported.document.artboards[0].rect;
+    assert!((page.width() - 200.0).abs() < 0.001 && (page.height() - 120.0).abs() < 0.001);
+    let geometry = imported.document.layers[0].children().unwrap()[0].path_data().unwrap().to_bezpath().bounding_box();
+    assert!((geometry.x0 - 100.0).abs() < 0.001 && (geometry.y0 - 60.0).abs() < 0.001);
+    assert!(imported.warnings.is_empty());
+}
+
+#[test]
+/// Recovered pages must remain distinct rather than overlaying their shared native origins.
+fn multiple_unsized_pages_keep_their_art_separate() {
+    let (mut chunks, version) = crate::container::load(&synth::zero_sized_page()).unwrap();
+    let (other, _) = crate::container::load(&synth::zero_sized_page()).unwrap();
+    chunks.push(other.into_iter().find(|c| c.list.as_ref() == Some(b"page")).unwrap());
+    let imported = crate::drawing::import(&chunks, version).unwrap();
+    let boards = &imported.document.artboards;
+    assert_eq!(boards.len(), 2);
+    assert!((boards[1].rect.x0 - boards[0].rect.x1 - 36.0).abs() < 0.001);
+    let first = imported.document.layers[0].children().unwrap()[0].path_data().unwrap().to_bezpath().bounding_box();
+    let second = imported.document.layers[1].children().unwrap()[0].path_data().unwrap().to_bezpath().bounding_box();
+    assert!((first.width() - second.width()).abs() < 1e-8 && (first.height() - second.height()).abs() < 1e-8);
+    assert!((second.x0 - boards[1].rect.x0 - 0.5).abs() < 0.001);
+}
+
+#[test]
+/// Only a complete zero-by-zero size is recoverable; partial and negative sizes still fail.
+fn invalid_nonzero_page_dimensions_still_fail() {
+    for (width, height) in [(0, 80), (100, 0), (-100, 80), (100, -80)] {
+        let (mut chunks, version) = crate::container::load(&synth::rectangle()).unwrap();
+        let page = chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+        page.children.push(page_dimensions(width, height));
+        assert!(crate::drawing::import(&chunks, version).unwrap_err().contains("invalid CDR page dimensions"));
+    }
+}
+
+#[test]
+/// Genuinely empty unsized documents still have a usable, explicitly warned default artboard.
+fn empty_unsized_page_uses_a_warned_default() {
+    let (mut chunks, version) = crate::container::load(&synth::zero_sized_page()).unwrap();
+    let page = chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+    page.children.retain(|c| c.list.as_ref() != Some(b"obj "));
+    let imported = crate::drawing::import(&chunks, version).unwrap();
+    assert_eq!(imported.document.artboards[0].rect, vectorcraft_geom::Rect::new(0.0, 0.0, 612.0, 792.0));
+    assert!(imported.warnings.iter().any(|w| w.contains("default artboard")));
+}
+
 #[test]
 /// Refuse every incomplete prefix of an otherwise valid original drawing.
 fn every_truncated_prefix_is_rejected_without_panic() {

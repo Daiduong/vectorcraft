@@ -113,6 +113,11 @@ patterns, colour profiles and Corel-specific effects remain unsupported. Focused
 checks and 32 original oracle pages passed (evidence below). The area's **75%** and **10–20 h**
 estimates are unchanged.
 
+CDR.9 additionally recovers zero-by-zero page metadata with a warned, artwork-fitted
+board and bounded PowerClip aliases. The local zero-page oracle retains180 curves,
+424 subpaths and zero images; measured colour/geometry differences are below the
+existing0.1/255 threshold. Source files and derived artwork remain private.
+
 Excluding the generative-AI row (the old table had none), depth is ~76% and the remaining feature work
 ~220–360 h. With 4–6 agents on disjoint crates, wall-clock time divides by about 3.5–4 (shared files such as
 `menus.rs` and the i18n catalogs serialize some work): ~95–165 h to full parity.

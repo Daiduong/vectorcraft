@@ -11,7 +11,9 @@ use vectorcraft_doc::{
 use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Shape};
 
 const MAX_POINTS: usize = 1_000_000;
+const MAX_NAME_BYTES: usize = 16 * 1024 * 1024;
 const MAX_COORD: f64 = 1e6;
+const DEFAULT_PAGE_SIZE: (f64, f64) = (612.0 / 72.0, 792.0 / 72.0);
 
 #[path = "powerclip.rs"]
 mod powerclip;
@@ -20,7 +22,7 @@ mod powerclip;
 pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String> {
     let mut d = Drawing::new(version);
     d.index_clips(chunks)?;
-    let mut size = (612.0 / 72.0, 792.0 / 72.0);
+    let mut size = Some(DEFAULT_PAGE_SIZE);
     d.styles(chunks, &mut size, &mut BTreeSet::new())?;
     let mut pages = Vec::new();
     find_lists(chunks, b"page", &mut pages);
@@ -30,7 +32,8 @@ pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String>
     if pages.len() > 1000 {
         return Err("CDR page limit exceeded".into());
     }
-    let mut document = Document::new(size.0 * 72.0, size.1 * 72.0);
+    let initial_size = size.unwrap_or(DEFAULT_PAGE_SIZE);
+    let mut document = Document::new(initial_size.0 * 72.0, initial_size.1 * 72.0);
     document.layers.clear();
     document.artboards.clear();
     let mut x = 0.0;
@@ -46,28 +49,65 @@ pub(crate) fn import(chunks: &[Chunk], version: u32) -> Result<Imported, String>
             let (_, args) = arguments(&loda.data)?;
             if let Some(arg) = args.get(&19130) {
                 let mut r = Reader::new(arg);
-                page_size = valid_size(r.coord()?, r.coord()?)?;
+                page_size = stored_size(r.coord()?, r.coord()?)?.or(size);
             }
         }
-        let width = page_size.0 * 72.0;
-        let height = page_size.1 * 72.0;
         let index = document.artboards.len();
+        let frame;
+        let mut nodes;
+        if let Some((width, height)) = page_size {
+            let (width, height) = (width * 72.0, height * 72.0);
+            // Sized Corel pages have their y-up origin at the page centre.
+            let page_xf = Affine::new([72.0, 0.0, 0.0, -72.0, x + width / 2.0, height / 2.0]);
+            nodes = d.children(&page.children, page_xf)?;
+            frame = Rect::new(x, 0.0, x + width, height);
+        } else {
+            // A real zero-page CDR can still contain complete native curves. With
+            // no page centre, retain the drawing's origin and infer only its board.
+            nodes = d.children(&page.children, Affine::new([72.0, 0.0, 0.0, -72.0, 0.0, 0.0]))?;
+            frame = if let Some(mut bounds) =
+                nodes.iter().filter(|node| node.visible).filter_map(|node| node.visual_bounds()).reduce(|bounds, next| bounds.union(next))
+            {
+                if bounds.width() == 0.0 {
+                    bounds = bounds.inflate(0.5, 0.0);
+                }
+                if bounds.height() == 0.0 {
+                    bounds = bounds.inflate(0.0, 0.5);
+                }
+                valid_size(bounds.width() / 72.0, bounds.height() / 72.0)?;
+                // Subsequent boards use the importer's usual row layout. Translation
+                // moves geometry and paint together; no recovered artwork is scaled.
+                if index > 0 {
+                    let shift = x - bounds.x0;
+                    let xf = Affine::translate((shift, 0.0));
+                    for node in &mut nodes {
+                        Arc::make_mut(node).transform(xf, false);
+                    }
+                    bounds = xf.transform_rect_bbox(bounds);
+                }
+                if ![bounds.x0, bounds.y0, bounds.x1, bounds.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD) {
+                    return Err("CDR inferred page exceeds document coordinate limits".into());
+                }
+                d.warn("CDR has no positive page size; an artboard was fitted to the imported artwork");
+                bounds
+            } else {
+                d.warn("CDR has no positive page size or artwork bounds; a default artboard was used");
+                Rect::new(x, 0.0, x + DEFAULT_PAGE_SIZE.0 * 72.0, DEFAULT_PAGE_SIZE.1 * 72.0)
+            };
+        }
         document.artboards.push(Artboard {
             id: index as u32 + 1,
             name: format!("Page {}", index + 1),
-            rect: Rect::new(x, 0.0, x + width, height),
+            rect: frame,
             show_center_mark: false,
             show_cross_hairs: false,
         });
-        // Corel coordinates are y-up, with their origin at the page centre.
-        let page_xf = Affine::new([72.0, 0.0, 0.0, -72.0, x + width / 2.0, height / 2.0]);
-        let nodes = d.children(&page.children, page_xf)?;
         let mut layer = Node::layer(d.id(), &format!("Page {}", index + 1), LayerColor::Preset(index as u8 % 27));
         if let Some(children) = layer.children_mut() {
             *children = nodes;
         }
         document.layers.push(Arc::new(layer));
-        x += width + 36.0;
+        x = frame.x1 + 36.0;
     }
     if document.artboards.is_empty() {
         return Err("CDR contains no content pages".into());
@@ -109,7 +149,7 @@ mod tests {
         ];
         let mut drawing = Drawing::new(1200);
         let mut seen = BTreeSet::new();
-        let mut size = (1.0, 1.0);
+        let mut size = Some((1.0, 1.0));
         drawing.styles(&records[..1], &mut size, &mut seen).unwrap();
         let budget = drawing.bitmap_budget.clone();
         drawing.styles(&records[1..], &mut size, &mut seen).unwrap();
@@ -127,7 +167,7 @@ mod tests {
         let records = [bitmap_chunk(data), bitmap_chunk(variant.clone()), bitmap_chunk(variant)];
         let mut drawing = Drawing::new(1200);
         let mut seen = BTreeSet::new();
-        let mut size = (1.0, 1.0);
+        let mut size = Some((1.0, 1.0));
         drawing.styles(&records[..1], &mut size, &mut seen).unwrap();
         let first = drawing.bitmaps.get(&7).unwrap().blob.bytes.clone();
         let budget = drawing.bitmap_budget.clone();
@@ -150,7 +190,7 @@ mod tests {
         let records = [bitmap_chunk(data), bitmap_chunk(variant)];
         let mut drawing = Drawing::new(1200);
         let mut seen = BTreeSet::new();
-        let mut size = (1.0, 1.0);
+        let mut size = Some((1.0, 1.0));
         drawing.styles(&records[..1], &mut size, &mut seen).unwrap();
         let first = drawing.bitmaps.get(&7).unwrap().blob.bytes.clone();
         let error = drawing.styles(&records[1..], &mut size, &mut seen).unwrap_err();
@@ -167,6 +207,23 @@ mod tests {
         let imported = import(&chunks, version).unwrap();
         assert_eq!(imported.document.images.len(), 1);
         assert!(!imported.document.layers.is_empty());
+    }
+
+    /// Charge decoded UTF-8 bytes for both name encodings, including repeated occurrences.
+    #[test]
+    fn names_obey_the_cumulative_byte_quota() {
+        for version in [1100, 1200] {
+            let bytes = if version >= 1200 { "界".encode_utf16().flat_map(u16::to_le_bytes).collect() } else { "界".as_bytes().to_vec() };
+            let mut drawing = Drawing::new(version);
+            drawing.name_bytes = MAX_NAME_BYTES - 6;
+            assert_eq!(drawing.name(Some(&bytes)).unwrap().as_deref(), Some("界"));
+            assert_eq!(drawing.name(Some(&bytes)).unwrap().as_deref(), Some("界"));
+            assert_eq!(drawing.name_bytes, MAX_NAME_BYTES);
+            assert_eq!(drawing.name(None).unwrap(), None);
+            assert_eq!(drawing.name(Some(&[])).unwrap(), None);
+            assert!(drawing.name(Some(&bytes)).unwrap_err().contains("name materialization limit"));
+            assert_eq!(drawing.name_bytes, MAX_NAME_BYTES);
+        }
     }
 }
 
@@ -195,6 +252,12 @@ fn valid_size(w: f64, h: f64) -> Result<(f64, f64), String> {
     } else {
         Err("invalid CDR page dimensions".into())
     }
+}
+
+/// Zero-by-zero means no usable page size, as observed in a drawing-only CDR24.3.
+/// Partial zeros, negative dimensions and out-of-range dimensions remain errors.
+fn stored_size(w: f64, h: f64) -> Result<Option<(f64, f64)>, String> {
+    if w == 0.0 && h == 0.0 { Ok(None) } else { valid_size(w, h).map(Some) }
 }
 
 /// Read an object kind and bounded borrowed arguments from its `loda` table.
@@ -245,10 +308,11 @@ struct Drawing<'a> {
     objects_seen: usize,
     objects_imported: usize,
     paint_values: usize,
+    name_bytes: usize,
     bitmaps: BTreeMap<u32, bitmap::Bitmap>,
     bitmap_budget: bitmap::BitmapBudget,
     clips: BTreeMap<u32, &'a Chunk>,
-    clip_owners: BTreeSet<u32>,
+    clip_owners: BTreeMap<u32, &'a Chunk>,
     active_clips: BTreeSet<u32>,
     visits: usize,
     depth: usize,
@@ -327,10 +391,11 @@ impl<'a> Drawing<'a> {
             objects_seen: 0,
             objects_imported: 0,
             paint_values: 0,
+            name_bytes: 0,
             bitmaps: BTreeMap::new(),
             bitmap_budget: bitmap::BitmapBudget::default(),
             clips: BTreeMap::new(),
-            clip_owners: BTreeSet::new(),
+            clip_owners: BTreeMap::new(),
             active_clips: BTreeSet::new(),
             visits: 0,
             depth: 0,
@@ -349,7 +414,7 @@ impl<'a> Drawing<'a> {
         NodeId(id)
     }
     /// Collect fill/outline definitions and page defaults before resolving objects.
-    fn styles<'s>(&mut self, chunks: &'s [Chunk], size: &mut (f64, f64), bitmap_sources: &mut BTreeSet<&'s [u8]>) -> Result<(), String> {
+    fn styles<'s>(&mut self, chunks: &'s [Chunk], size: &mut Option<(f64, f64)>, bitmap_sources: &mut BTreeSet<&'s [u8]>) -> Result<(), String> {
         for c in chunks {
             if self.fills.len() + self.strokes.len() > 20_000 {
                 return Err("CDR style count limit exceeded".into());
@@ -374,7 +439,7 @@ impl<'a> Drawing<'a> {
                     } else {
                         0
                     })?;
-                    *size = valid_size(r.coord()?, r.coord()?)?;
+                    *size = stored_size(r.coord()?, r.coord()?)?;
                 }
                 b"txsm" => self.warn("Text objects are omitted; convert text to curves in CorelDRAW for editable outlines"),
                 b"bmp " => {
@@ -708,7 +773,7 @@ impl<'a> Drawing<'a> {
                 };
                 if let Some(loda) = metadata(c, b"loda").or_else(|| metadata(c, b"lobj")) {
                     let (_, args) = arguments(&loda.data)?;
-                    group.name = self.name(args.get(&1000).copied());
+                    group.name = self.name(args.get(&1000).copied())?;
                     group.opacity = self.opacity(args.get(&8000).copied())?;
                 }
                 if kind == b"layr" {
@@ -737,9 +802,9 @@ impl<'a> Drawing<'a> {
         nodes.reverse();
         Ok(nodes)
     }
-    /// Decode a bounded optional name as UTF-16 for CDR 12+, or lossy UTF-8 for older files.
-    fn name(&self, bytes: Option<&[u8]>) -> Option<String> {
-        let bytes = bytes?;
+    /// Decode a bounded name and charge every materialized alias against the UTF-8 byte quota.
+    fn name(&mut self, bytes: Option<&[u8]>) -> Result<Option<String>, String> {
+        let Some(bytes) = bytes else { return Ok(None) };
         let name = if self.version >= 1200 {
             let words: Vec<u16> = bytes
                 .as_chunks::<2>()
@@ -751,9 +816,18 @@ impl<'a> Drawing<'a> {
                 .collect();
             String::from_utf16_lossy(&words)
         } else {
-            String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap_or_default()).chars().take(4096).collect()
+            // Four bytes per scalar suffice for the first 4096 UTF-8 characters.
+            // Bound the source scan/conversion too: a large invalid name can be
+            // expanded repeatedly through aliases before the retained-byte quota.
+            let prefix = bytes.get(..bytes.len().min(4096 * 4)).unwrap_or_default();
+            String::from_utf8_lossy(prefix.split(|b| *b == 0).next().unwrap_or_default()).chars().take(4096).collect()
         };
-        if name.is_empty() { None } else { Some(name) }
+        let total = self.name_bytes.checked_add(name.len()).ok_or("CDR name byte count overflow")?;
+        if total > MAX_NAME_BYTES {
+            return Err("CDR name materialization limit exceeded".into());
+        }
+        self.name_bytes = total;
+        Ok(if name.is_empty() { None } else { Some(name) })
     }
     /// Convert optional uniform transparency to opacity, rejecting values above 1000.
     fn opacity(&mut self, bytes: Option<&[u8]>) -> Result<f32, String> {
@@ -872,7 +946,7 @@ impl<'a> Drawing<'a> {
                 _ => return Err("unsupported CDR path fill rule".into()),
             };
         }
-        node.name = self.name(args.get(&1000).copied());
+        node.name = self.name(args.get(&1000).copied())?;
         node.opacity = self.opacity(args.get(&8000).copied())?;
         if let Some(reference) = args.get(&8005) {
             node = self.powerclip(c, node, reference, parent)?;
@@ -937,7 +1011,7 @@ impl<'a> Drawing<'a> {
             Node::new(self.id(), NodeKind::Group { children: vec![Arc::new(mask), Arc::new(image)], clip: true })
         };
         self.note_properties(args);
-        node.name = self.name(args.get(&1000).copied());
+        node.name = self.name(args.get(&1000).copied())?;
         node.opacity = self.opacity(args.get(&8000).copied())?;
         self.objects_imported += 1;
         Ok(Some(node))

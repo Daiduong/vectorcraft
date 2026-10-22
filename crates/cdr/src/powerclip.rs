@@ -24,12 +24,13 @@ impl<'a> Drawing<'a> {
                 {
                     let owner = chunk.child(b"spnd").ok_or("CDR PowerClip frame is missing its identifier")?;
                     let owner = Reader::new(&owner.data).u32()?;
-                    // A contents resource has one owning frame. Repeated physical
-                    // frames with the same identifier would turn a tiny acyclic
-                    // resource graph into exponentially duplicated artwork/names.
-                    if owner == 0 || !self.clip_owners.insert(owner) {
+                    // External LIST references materialize exact aliases. Compare the
+                    // entire borrowed definition, retaining the first; distinct frames
+                    // sharing an identifier remain ambiguous. Expansion has its own quotas.
+                    if owner == 0 || self.clip_owners.get(&owner).is_some_and(|first| *first != chunk) {
                         return Err("duplicate or invalid CDR PowerClip frame identifier".into());
                     }
+                    self.clip_owners.entry(owner).or_insert(chunk);
                 }
             }
             if chunk.list.as_ref() == Some(b"clpt") {
@@ -39,9 +40,10 @@ impl<'a> Drawing<'a> {
                     }
                     let Some(id) = group.child(b"spnd") else { continue };
                     let id = Reader::new(&id.data).u32()?;
-                    if id == 0 || self.clips.insert(id, group).is_some() {
+                    if id == 0 || self.clips.get(&id).is_some_and(|first| *first != group) {
                         return Err("invalid or duplicate CDR PowerClip resource identifier".into());
                     }
+                    self.clips.entry(id).or_insert(group);
                 }
             }
             self.index_clips(&chunk.children)?;
@@ -97,7 +99,7 @@ mod tests {
 
     use super::*;
     use vectorcraft_color::{Color, Paint};
-    use vectorcraft_geom::FillRule;
+    use vectorcraft_geom::{FillRule, Shape};
 
     /// Decode an original generated container, including resources outside pages.
     fn fixture() -> Vec<Chunk> {
@@ -107,6 +109,54 @@ mod tests {
     /// Find the resource pool in this original fixture.
     fn pool(chunks: &mut [Chunk]) -> &mut Vec<Chunk> {
         &mut chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"doc ")).unwrap().children[0].children
+    }
+
+    /// Replace or add a generated argument, rebuilding its offset and reversed-type tables.
+    fn argument(chunk: &mut Chunk, id: u32, value: Vec<u8>) {
+        let loda = chunk.children.iter_mut().find(|c| c.id == *b"loda").unwrap();
+        let (kind, args) = arguments(&loda.data).unwrap();
+        let mut args: std::collections::BTreeMap<_, _> = args.into_iter().map(|(id, data)| (id, data.to_vec())).collect();
+        args.insert(id, value);
+        let count = args.len() as u32;
+        let table = 20 + args.values().map(|data| data.len() as u32).sum::<u32>();
+        let mut data: Vec<u8> = [table + count * 8, count, table, table + count * 4, kind].into_iter().flat_map(u32::to_le_bytes).collect();
+        let mut offsets = Vec::new();
+        for value in args.values() {
+            offsets.push(data.len() as u32);
+            data.extend(value);
+        }
+        data.extend(offsets.into_iter().flat_map(u32::to_le_bytes));
+        data.extend(args.keys().rev().flat_map(|id| id.to_le_bytes()));
+        loda.data = data;
+    }
+
+    /// Two identical references per level form a compact acyclic expansion graph.
+    fn branching_graph(name: Option<&[u8]>) -> Vec<Chunk> {
+        let mut chunks = fixture();
+        let groups = pool(&mut chunks);
+        groups.clear();
+        for level in 0..15u32 {
+            let mut template = fixture();
+            let mut group = pool(&mut template).remove(0);
+            group.children.iter_mut().find(|c| c.id == *b"spnd").unwrap().data = (8 + level).to_le_bytes().to_vec();
+            argument(&mut group, 3500, (10 + level).to_le_bytes().to_vec());
+            if level < 14 {
+                group.children.retain(|c| c.list.as_ref() != Some(b"obj "));
+                for _ in 0..2 {
+                    let mut template = fixture();
+                    let page = template.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+                    let mut frame = page.children.remove(1);
+                    frame.children.iter_mut().find(|c| c.id == *b"spnd").unwrap().data = (11 + level).to_le_bytes().to_vec();
+                    argument(&mut frame, 8005, [9 + level, 1, 0, 0].into_iter().flat_map(u32::to_le_bytes).collect());
+                    if let Some(name) = name {
+                        argument(&mut frame, 1000, name.to_vec());
+                    }
+                    group.children.push(frame);
+                }
+            }
+            groups.push(group);
+        }
+        chunks
     }
 
     /// The mask remains painted geometry, and both mask and oversized content remain editable.
@@ -144,8 +194,7 @@ mod tests {
         let page = other.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
         let frame = page.children.remove(1);
         let mut chunks = fixture();
-        // Start traversal directly at the resource's owning frame, so this also
-        // exercises the runtime guard independently of the duplicate-owner guard.
+        // Start traversal directly at the resource's owning frame to exercise the runtime guard.
         let source = chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap().children.remove(1);
         pool(&mut chunks)[0].children.push(frame);
         let mut drawing = Drawing::new(1200);
@@ -153,62 +202,89 @@ mod tests {
         assert!(drawing.object(&source, Affine::IDENTITY).unwrap_err().contains("cyclic CDR PowerClip"));
     }
 
-    /// Ambiguous group identifiers cannot bind to whichever resource happens to be last.
+    /// Exact aliases retain the first borrowed definitions and still draw on every page.
     #[test]
-    fn duplicate_resource_identifiers_are_rejected() {
-        let mut other = fixture();
-        let duplicate = pool(&mut other).remove(0);
+    fn exact_frame_and_resource_aliases_retain_each_occurrence() {
         let mut chunks = fixture();
-        pool(&mut chunks).push(duplicate);
-        assert!(crate::drawing::import(&chunks, 1200).unwrap_err().contains("duplicate CDR PowerClip"));
+        let mut other = fixture();
+        let duplicate_group = pool(&mut other).remove(0);
+        pool(&mut chunks).push(duplicate_group);
+        let duplicate_page = other.into_iter().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+        chunks.push(duplicate_page);
+        let mut drawing = Drawing::new(1200);
+        drawing.index_clips(&chunks).unwrap();
+        let first_page = chunks.iter().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+        let first_group = &chunks.iter().find(|c| c.list.as_ref() == Some(b"doc ")).unwrap().children[0].children[0];
+        assert_eq!(drawing.clip_owners.len(), 1);
+        assert_eq!(drawing.clips.len(), 1);
+        assert!(std::ptr::eq(*drawing.clip_owners.get(&10).unwrap(), &first_page.children[1]));
+        assert!(std::ptr::eq(*drawing.clips.get(&8).unwrap(), first_group));
+        let imported = crate::drawing::import(&chunks, 1200).unwrap();
+        assert!(imported.warnings.is_empty());
+        assert_eq!(imported.document.layers.len(), 2);
+        let clips: Vec<_> = imported.document.layers.iter().map(|layer| &layer.children().unwrap()[0]).collect();
+        assert!(clips.iter().all(|clip| clip.clips() && clip.children().unwrap().len() == 2));
+        for (left, right) in clips[0].children().unwrap().iter().zip(clips[1].children().unwrap()) {
+            let left = left.path_data().unwrap().to_bezpath().bounding_box();
+            let right = right.path_data().unwrap().to_bezpath().bounding_box();
+            let offset = imported.document.artboards[1].rect.x0;
+            assert!((right.x0 - left.x0 - offset).abs() < 1e-8);
+        }
     }
 
-    /// Two references per level must not exponentially copy names or empty artwork.
+    /// Ambiguous group identifiers cannot bind to whichever resource happens to be last.
     #[test]
-    fn a_small_branching_resource_graph_is_rejected_before_expansion() {
-        /// Change a generated single-word argument without changing its table layout.
-        fn word(chunk: &mut Chunk, id: u32, value: u32) {
-            let loda = chunk.children.iter_mut().find(|c| c.id == *b"loda").unwrap();
-            let data = &mut loda.data;
-            let count = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
-            let offsets = u32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
-            let types = u32::from_le_bytes(data[12..16].try_into().unwrap()) as usize;
-            for index in 0..count {
-                let tag = types + (count - 1 - index) * 4;
-                if u32::from_le_bytes(data[tag..tag + 4].try_into().unwrap()) == id {
-                    let at = offsets + index * 4;
-                    let at = u32::from_le_bytes(data[at..at + 4].try_into().unwrap()) as usize;
-                    data[at..at + 4].copy_from_slice(&value.to_le_bytes());
-                    return;
-                }
-            }
-            panic!("the generated argument exists");
-        }
+    fn conflicting_resource_identifiers_are_rejected_without_replacement() {
+        let mut other = fixture();
+        let mut duplicate = pool(&mut other).remove(0);
+        duplicate.children.push(Chunk { id: *b"data", list: None, data: vec![1], children: Vec::new() });
         let mut chunks = fixture();
-        let groups = pool(&mut chunks);
-        groups.clear();
-        for level in 0..15u32 {
-            let mut template = fixture();
-            let mut group = pool(&mut template).remove(0);
-            group.children.iter_mut().find(|c| c.id == *b"spnd").unwrap().data = (8 + level).to_le_bytes().to_vec();
-            word(&mut group, 3500, 10 + level);
-            if level < 14 {
-                group.children.retain(|c| c.list.as_ref() != Some(b"obj "));
-                for _ in 0..2 {
-                    let mut template = fixture();
-                    let page = template.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
-                    let mut frame = page.children.remove(1);
-                    frame.children.iter_mut().find(|c| c.id == *b"spnd").unwrap().data = (11 + level).to_le_bytes().to_vec();
-                    word(&mut frame, 8005, 9 + level);
-                    group.children.push(frame);
-                }
-            }
-            groups.push(group);
-        }
+        pool(&mut chunks).push(duplicate);
+        let mut drawing = Drawing::new(1200);
+        assert!(drawing.index_clips(&chunks).unwrap_err().contains("duplicate CDR PowerClip"));
+        assert!(drawing.clips.get(&8).unwrap().child(b"data").is_none());
+    }
+
+    /// Different definitions sharing an owner fail during indexing, before any graph expansion.
+    #[test]
+    fn conflicting_branching_frames_are_rejected_before_expansion() {
+        let mut chunks = branching_graph(None);
+        let frame = pool(&mut chunks)[0].children.last_mut().unwrap();
+        frame.children.push(Chunk { id: *b"data", list: None, data: vec![1], children: Vec::new() });
         let mut drawing = Drawing::new(1200);
         assert!(drawing.index_clips(&chunks).unwrap_err().contains("PowerClip frame identifier"));
         assert_eq!(drawing.objects_imported, 0);
         assert_eq!(drawing.visits, 0);
+        assert!(drawing.clip_owners.get(&11).unwrap().child(b"data").is_none());
+    }
+
+    /// Exact aliases are legal, but their expanded names must hit the cumulative byte quota.
+    #[test]
+    fn identical_branching_frames_cannot_amplify_names_without_bound() {
+        let name = [b'n', 0].repeat(4096);
+        let chunks = branching_graph(Some(&name));
+        let mut drawing = Drawing::new(1200);
+        drawing.index_clips(&chunks).unwrap();
+        let page = chunks.iter().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+        let error = drawing.children(&page.children, Affine::IDENTITY).unwrap_err();
+        assert!(error.contains("name materialization limit"), "{error}");
+        assert_eq!(drawing.name_bytes, super::super::MAX_NAME_BYTES);
+        assert!(drawing.points < super::super::MAX_POINTS);
+        assert!(drawing.visits < 200_000);
+        assert_eq!(drawing.depth, 0);
+        assert!(drawing.active_clips.is_empty());
+    }
+
+    /// Zero is never a usable frame or resource identifier, even without a repeated definition.
+    #[test]
+    fn zero_frame_and_resource_identifiers_are_rejected() {
+        let mut chunks = fixture();
+        let page = chunks.iter_mut().find(|c| c.list.as_ref() == Some(b"page")).unwrap();
+        page.children[1].children.iter_mut().find(|c| c.id == *b"spnd").unwrap().data = vec![0; 4];
+        assert!(Drawing::new(1200).index_clips(&chunks).unwrap_err().contains("frame identifier"));
+        let mut chunks = fixture();
+        pool(&mut chunks)[0].children.iter_mut().find(|c| c.id == *b"spnd").unwrap().data = vec![0; 4];
+        assert!(Drawing::new(1200).index_clips(&chunks).unwrap_err().contains("resource identifier"));
     }
 
     /// Reference expansion consumes the same global budget as ordinary page traversal.

@@ -155,6 +155,30 @@ fn cdr_powerclip_remains_editable_and_exports_vector_clipping() {
 }
 
 #[test]
+/// A drawing-only CDR recovers a usable board and editable curves through native save and SVG.
+fn cdr_zero_sized_page_opens_and_round_trips_as_vectors() {
+    let mut session = Session::new();
+    let result = open_bytes(&mut session, "unsized.cdr", &vectorcraft_cdr::synth::zero_sized_page(), Some("unsized.cdr".into())).unwrap();
+    assert_eq!(result["format"], "cdr");
+    let state = session.doc().unwrap();
+    assert!(state.path.is_none());
+    assert!(state.doc.images.is_empty());
+    let board = state.doc.artboards[0].rect;
+    assert!(board.width() > 40.0 && board.height() > 20.0);
+    let before = vectorcraft_render::Renderer::new().render_region(&state.doc, board, 2.0, false);
+    assert!(before.pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] != 0));
+    let svg = vectorcraft_svg::export(&state.doc, &vectorcraft_svg::ExportOptions::default());
+    assert!(svg.contains("<path") && !svg.contains("<image"));
+    let serialized = session.execute("document.serialize", &json!({"format": "vectorcraft"})).unwrap();
+    let bytes = vectorcraft_format::base64_decode(serialized["dataBase64"].as_str().unwrap()).unwrap();
+    open_bytes(&mut session, "unsized-copy.vectorcraft", &bytes, None).unwrap();
+    let state = session.doc().unwrap();
+    assert_eq!(state.doc.artboards[0].rect, board);
+    assert!(state.doc.images.is_empty());
+    assert_eq!(before.pixels, vectorcraft_render::Renderer::new().render_region(&state.doc, board, 2.0, false).pixels);
+}
+
+#[test]
 /// Keep the active document and tab count intact after malformed CDR opens fail.
 fn malformed_cdr_does_not_replace_the_active_document() {
     let mut s = Session::new();

@@ -5,6 +5,17 @@
 /// solid red RGB fill and a one-point black outline. Geometry starts at the
 /// page centre (50, 40 points), extending right and down.
 pub fn rectangle() -> Vec<u8> {
+    rectangle_with_page_size(100.0, 80.0)
+}
+
+/// The same editable rectangle, but with zero-by-zero document page metadata.
+/// This is an original reproducer for a supplied drawing-only CDR, not its bytes.
+pub fn zero_sized_page() -> Vec<u8> {
+    rectangle_with_page_size(0.0, 0.0)
+}
+
+/// Generate one rectangle and independently selectable document page dimensions.
+fn rectangle_with_page_size(width: f64, height: f64) -> Vec<u8> {
     /// Encode little-endian words for generated record fields.
     fn u32s(values: &[u32]) -> Vec<u8> {
         values.iter().flat_map(|v| v.to_le_bytes()).collect()
@@ -54,7 +65,7 @@ pub fn rectangle() -> Vec<u8> {
     page.extend(object);
     let mut body = chunk(b"vrsn", &1200u16.to_le_bytes());
     let mut config = vec![0; 4];
-    config.extend(u32s(&[coord(100.0), coord(80.0)]));
+    config.extend(u32s(&[coord(width), coord(height)]));
     body.extend(chunk(b"mcfg", &config));
     body.extend(chunk(b"fild", &fill));
     body.extend(chunk(b"outl", &outline));

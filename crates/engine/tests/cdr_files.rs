@@ -108,3 +108,86 @@ fn original_corel_files_match_their_independent_svg_exports() {
         }
     }
 }
+
+#[test]
+/// A locally supplied zero-page drawing retains every curve and matches its separate Corel SVG.
+/// The user file and derived artwork remain local; only generated fixtures are committed.
+fn private_zero_page_drawing_matches_its_local_vector_oracle() {
+    let Ok(folder) = std::env::var("CDR_ZERO_PAGE_FIXTURE_DIR") else { return };
+    let folder = Path::new(&folder);
+    let loaded = fileio::load("zero-page.cdr", &std::fs::read(folder.join("input.cdr")).unwrap()).unwrap();
+    let reference = vectorcraft_svg::import(&std::fs::read_to_string(folder.join("corel-artwork.svg")).unwrap()).unwrap();
+    /// Count the native editable subpaths without treating group wrappers as art objects.
+    fn counts(nodes: &[std::sync::Arc<vectorcraft_doc::Node>]) -> (usize, usize) {
+        let mut result = (0, 0);
+        for node in nodes {
+            if let Some(path) = node.path_data() {
+                result.0 += 1;
+                result.1 += path.subpaths.len();
+            }
+            if let Some(children) = node.children() {
+                let child = counts(children);
+                result.0 += child.0;
+                result.1 += child.1;
+            }
+        }
+        result
+    }
+    assert_eq!(counts(&loaded.doc.layers), (180, 424));
+    assert!(loaded.doc.images.is_empty() && !loaded.preview_only);
+    assert!(loaded.warnings.iter().any(|warning| warning.contains("artboard was fitted")));
+    let frame = loaded.doc.artboards[0].rect;
+    let expected_frame = reference.artboards[0].rect;
+    assert!((frame.width() - expected_frame.width()).abs() < 0.01);
+    assert!((frame.height() - expected_frame.height()).abs() < 0.01);
+    let actual = Renderer::new().render_region(&loaded.doc, frame, 2.0, true);
+    let expected = Renderer::new().render_region(&reference, expected_frame, 2.0, true);
+    assert_eq!((actual.width, actual.height), (expected.width, expected.height));
+    let mean = actual.pixels.iter().zip(&expected.pixels).map(|(a, b)| a.abs_diff(*b) as f64).sum::<f64>() / actual.pixels.len() as f64;
+    // Check geometry/stacking independently as well as the original colours:
+    // corresponding paths get distinct RGB paints so equal-coloured overlapping
+    // objects cannot hide an internal boundary or paint-order regression.
+    /// Assign corresponding paths distinct RGB paints to check internal boundaries and stacking.
+    fn geometry_colours(nodes: &mut [std::sync::Arc<vectorcraft_doc::Node>], index: &mut u32) {
+        for node in nodes {
+            let node = std::sync::Arc::make_mut(node);
+            node.opacity = 1.0;
+            // SVG import represents a multi-subpath <path> as one painted compound
+            // with unpainted members; CDR retains it as one multi-subpath PathData.
+            let compound = matches!(node.kind, vectorcraft_doc::NodeKind::Compound { .. });
+            if node.path_data().is_some() || compound {
+                let n = *index;
+                *index += 1;
+                let color = vectorcraft_color::Color::rgb8((30 + n * 53 % 200) as u8, (30 + n * 97 % 200) as u8, (30 + n * 131 % 200) as u8);
+                node.appearance = vectorcraft_doc::Appearance {
+                    items: vec![vectorcraft_doc::AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(vectorcraft_color::Paint::solid(color)))],
+                    ..Default::default()
+                }
+                .into();
+            }
+            if !compound && let Some(children) = node.children_mut() {
+                geometry_colours(children, index);
+            }
+        }
+    }
+    let mut actual_geometry = loaded.doc.clone();
+    let mut expected_geometry = reference.clone();
+    let (mut actual_count, mut expected_count) = (0, 0);
+    geometry_colours(&mut actual_geometry.layers, &mut actual_count);
+    geometry_colours(&mut expected_geometry.layers, &mut expected_count);
+    assert_eq!((actual_count, expected_count), (180, 180));
+    let a = Renderer::new().render_region(&actual_geometry, frame, 2.0, true);
+    let b = Renderer::new().render_region(&expected_geometry, expected_frame, 2.0, true);
+    let geometry_mean = a.pixels.iter().zip(&b.pixels).map(|(a, b)| a.abs_diff(*b) as f64).sum::<f64>() / a.pixels.len() as f64;
+    eprintln!(
+        "private zero-page CDR: 180 curves,424 subpaths; geometry mean {geometry_mean:.6}; colour mean {mean:.6}; warnings={:?}",
+        loaded.warnings
+    );
+    if let Ok(output) = std::env::var("CDR_RENDER_DIR") {
+        std::fs::create_dir_all(&output).unwrap();
+        std::fs::write(Path::new(&output).join("zero-page-native.png"), actual.to_png().unwrap()).unwrap();
+        std::fs::write(Path::new(&output).join("zero-page-reference.png"), expected.to_png().unwrap()).unwrap();
+    }
+    assert!(geometry_mean < 0.1, "native zero-page geometry/stacking differs from its Corel SVG oracle: {geometry_mean}");
+    assert!(mean < 0.1, "native zero-page colours differ from this drawing's Corel SVG oracle: {mean}");
+}
