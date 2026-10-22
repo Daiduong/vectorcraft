@@ -13,6 +13,9 @@ The shared assessment status line and revision table retain the feature-base sna
 
 - Artboard Options puts Fit to Artwork Bounds and Fit to Selected Art in the Preset menu. Artwork bounds cover all drawn document art, including other artboards and off-board art; selection bounds may span artboards. Fit changes only the active artboard and keeps artwork stationary, including position-only fitting with Move Artwork enabled. Existing Background Color and presets remain available; scores and estimates unchanged.
 
+- Panel, ruler and window layout changes keep artwork anchored in window coordinates; covered rasters are layout-scoped, ordinary paint/navigation uses canvas-sized work
+- Relocate the existing divider-following regression unchanged away from the upstream test-append boundary; viewport behavior, assertions, thresholds and runtime evidence stay unchanged; scores and estimates unchanged.
+
 ### Feature revisions
 
 | Date | Change | Summary |
@@ -23,6 +26,9 @@ The shared assessment status line and revision table retain the feature-base sna
 | 2026-10-21 | minor | Reconcile this feature with current main, preserving both sets of behavior and progress evidence; scores and estimates unchanged. |
 | 2026-10-20 | minor | Review follow-up: artwork fitting uses the original target artboard and revision-scoped bounds caches; focused regression evidence and behavior documentation updated; scores and hours unchanged. |
 | 2026-10-20 | minor | Artboard Options shares existing presets and orientation controls and can fit artwork without moving it; scores and hours unchanged. |
+| 2026-10-21 | minor | Relocate the existing divider-following regression unchanged away from the upstream test-append boundary; viewport behavior, assertions, thresholds and runtime evidence stay unchanged; scores and estimates unchanged. |
+| 2026-10-20 | minor | Panel performance rework: layout-only covered raster requests and valid covered reuse; ordinary edits/navigation use visible-canvas work; cold warmup and fresh cost/independent review remain explicit conditions; scores and hours unchanged. |
+| 2026-10-20 | minor | Panel, ruler and window layout changes keep artwork anchored in window coordinates; scores and hours unchanged. |
 
 How VectorCraft's tools, handles, snapping and panels behave next to Illustrator's. A vector illustrator's
 trust is in the details: where a handle lands, what Shift and Alt do mid-drag, what a smart guide snaps to,
@@ -248,6 +254,7 @@ empty), without opening the dialog.
 | Object › Expand on radial, grid and mirror repeats makes groups of their instances | done | #1765 (#1756) |
 | Select › Same matches type on its characters' fill and stroke | done | #1746 (#1737) |
 | ~40 panels with ≡ menus; dock, icon column, collapse, tabs | done | 51 panel modules incl. tests |
+| Viewport layout changes keep artwork fixed in window coordinates across panel, ruler and window resizing | partial | Warm covered-raster reuse and logical-layout anchors; canvas-sized paint/navigation regression; cold layout awaits worker coverage, new cost review and OS multi-monitor QA remain separate conditions |
 | Panels float inside the window, stack, dock back | done | #495 |
 | Floating groups stack into sets; sets dock as extra dock columns (a multi-column dock); groups drop anywhere in a set or column, or onto its tabs; a column taller than the window scrolls | done | `window.panel.float {below, above}`, `window.panel.dock {column}` |
 | Panels dragged onto a dock group's tabs join it; onto its upper or lower half they make a new group above or below it (a top/bottom split, resizable); onto the icon column they become icons, the tabbed group's panels too; a dock tab's context menu closes it (Window menu reopens it) | done | `window.panel.dock {anchor, zone}`, `window.panel.dock {icon: true}`, `window.panel.close` |

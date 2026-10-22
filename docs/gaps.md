@@ -13,6 +13,9 @@ The shared assessment status line and revision table retain the feature-base sna
 
 - Artboard Options puts Fit to Artwork Bounds and Fit to Selected Art in the Preset menu. Artwork bounds cover all drawn document art, including other artboards and off-board art; selection bounds may span artboards. Fit changes only the active artboard and keeps artwork stationary, including position-only fitting with Move Artwork enabled. Existing Background Color and presets remain available; scores and estimates unchanged.
 
+- Panel, ruler and window layout changes keep artwork anchored in window coordinates; covered rasters are layout-scoped, ordinary paint/navigation uses canvas-sized work
+- Relocate the existing divider-following regression unchanged away from the upstream test-append boundary; viewport behavior, assertions, thresholds and runtime evidence stay unchanged; scores and estimates unchanged.
+
 ### Feature revisions
 
 | Date | Change | Summary |
@@ -23,6 +26,9 @@ The shared assessment status line and revision table retain the feature-base sna
 | 2026-10-21 | minor | Reconcile this feature with current main, preserving both sets of behavior and progress evidence; scores and estimates unchanged. |
 | 2026-10-20 | minor | Review follow-up: artwork fitting uses the original target artboard and revision-scoped bounds caches; focused regression evidence and behavior documentation updated; scores and hours unchanged. |
 | 2026-10-20 | minor | Artboard Options shares existing presets and orientation controls and can fit artwork without moving it; scores and hours unchanged. |
+| 2026-10-21 | minor | Relocate the existing divider-following regression unchanged away from the upstream test-append boundary; viewport behavior, assertions, thresholds and runtime evidence stay unchanged; scores and estimates unchanged. |
+| 2026-10-20 | minor | Panel performance rework: layout-only covered raster requests and valid covered reuse; ordinary edits/navigation use visible-canvas work; cold warmup and fresh cost/independent review remain explicit conditions; scores and hours unchanged. |
+| 2026-10-20 | minor | Panel, ruler and window layout changes keep artwork anchored in window coordinates; scores and hours unchanged. |
 
 Every known shortfall against Illustrator, one entry each, **ranked by how much it stops a professional from
 switching**. This is the work list: unless you were given a task, pick the highest-ranked gap you can make
@@ -70,6 +76,8 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 - **Polygon/Star count persistence:** Exact-size placement saves the chosen count for later drags and reopening the existing canvas dialog. Regression coverage includes both tools, repeated drags, switching tools and Cancel. The remaining G1 scope and estimates are unchanged.
 
 - **Artboard Options shares existing presets and orientation controls and can fit artwork without moving it; artwork fitting includes all drawn document art across artboards and off-board; artwork bounds are cached by active document and revision, and selection uses the shared bounds cache across artboards:** Shared existing preset definitions are reused; no external preset assets are added. Presets preserve each selected artboard's orientation, and orientation choices apply even when the active board already matches. Fit operations draft bounds until OK, affect only the active artboard and leave artwork in place. Regression coverage checks draft/Cancel, selected-set application, active-only fitting and Undo. Broader scope and estimates unchanged.
+
+- **Panel, ruler and window layout changes keep artwork anchored in window coordinates; covered rasters are layout-scoped, ordinary paint/navigation uses canvas-sized work:** `side_panel_resize_reuses_the_raster_behind_chrome_without_blocking` calls canvas::show and checks reuse after a completed covered layout frame, with a simulated slow worker, rotation, DPI and Pixel Preview. `layout_changes_preserve_window_anchors_after_navigation_at_any_rotation` covers width, height, logical viewport-origin and ruler changes, unchanged document/zoom/rotation and explicit Fit. The docking pointer harness guards existing layout only; it is not renderer-cost evidence. `layout_cache_warms_off_thread_and_later_paint_and_navigation_are_canvas_sized` checks visible-only steady frames, asynchronous native-worker layout warmup even after a fast visible frame, covered reuse without a redundant settling render, and revision/navigation invalidation. Covered work is requested for layout changes rather than every ordinary frame. A first cold narrowing can expose pixels before the wider worker frame arrives; warmed coverage is reused only for the unchanged scene/view/options. This is a stated tradeoff to assess, not a zero-gap claim. The always-window-wide candidate was held after substantial measured cost; a fresh controlled heavy-document comparison and independent verdict are required for this changed implementation. OS multi-monitor/DPI transitions remain unverified; no navigation scheduling policy is added. Broader scope and estimates unchanged.
 
 - **Implemented, regression-tested and contributor-confirmed:** status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates. Original-file acceptance confirmed 2026-10-19; broader G1 scope and estimates unchanged. Sample widths are cached by language, document unit and pixels per point rather than remeasured every frame.
 
