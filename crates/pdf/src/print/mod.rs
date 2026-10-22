@@ -329,6 +329,7 @@ impl PlannedSheet {
             clip: true,
             marks: self.marks.as_ref(),
             negative: self.negative,
+            background: None,
         }
     }
 }
