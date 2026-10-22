@@ -459,12 +459,11 @@ fn pin_to_page(n: &mut Node, m: Affine) {
 /// `<title>` and Dublin Core title: the artboard name when [`ExportOptions::title_from_artboard`]
 /// is set, else the document title.
 fn export_title(doc: &Document, opts: &ExportOptions) -> Option<String> {
-    if opts.title_from_artboard {
-        if let Some(i) = opts.artboard {
-            if let Some(name) = doc.artboards.get(i).map(|a| a.name.as_str()).filter(|n| !n.is_empty()) {
-                return Some(name.into());
-            }
-        }
+    if opts.title_from_artboard
+        && let Some(i) = opts.artboard
+        && let Some(name) = doc.artboards.get(i).map(|a| a.name.as_str()).filter(|n| !n.is_empty())
+    {
+        return Some(name.into());
     }
     if !doc.title.is_empty() { Some(doc.title.clone()) } else { None }
 }
