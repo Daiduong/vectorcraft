@@ -133,9 +133,9 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         out.push_str(&w.indent(1));
         out.push_str(&format!("</defs>{nl}"));
     }
-    if !doc.title.is_empty() {
+    if let Some(title) = export_title(doc, opts) {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<title>{}</title>{nl}", xml_text(&doc.title)));
+        out.push_str(&format!("<title>{}</title>{nl}", xml_text(&title)));
     }
     // File Info's description.
     if !doc.metadata.description.trim().is_empty() {
@@ -456,14 +456,28 @@ fn pin_to_page(n: &mut Node, m: Affine) {
     }
 }
 
+/// `<title>` and Dublin Core title: the artboard name when [`ExportOptions::title_from_artboard`]
+/// is set, else the document title.
+fn export_title(doc: &Document, opts: &ExportOptions) -> Option<String> {
+    if opts.title_from_artboard {
+        if let Some(i) = opts.artboard {
+            if let Some(name) = doc.artboards.get(i).map(|a| a.name.as_str()).filter(|n| !n.is_empty()) {
+                return Some(name.into());
+            }
+        }
+    }
+    if !doc.title.is_empty() { Some(doc.title.clone()) } else { None }
+}
+
 /// The Dublin Core terms File Info writes to `<metadata>`: the format, title, author (creator),
 /// description, each keyword (subject), copyright notice and URL (rights) and created date, the
 /// empty ones left out.
-fn dublin_core(doc: &Document) -> Vec<(&'static str, String)> {
+fn dublin_core(doc: &Document, title: Option<&str>) -> Vec<(&'static str, String)> {
     let info = &doc.metadata;
     let mut terms = vec![("format", "image/svg+xml".to_string())];
     let created = info.created.map(vectorcraft_doc::metadata::iso8601).unwrap_or_default();
-    let fields = [("title", doc.title.as_str()), ("creator", info.author.as_str()), ("description", info.description.as_str())];
+    let title = title.filter(|s| !s.is_empty()).unwrap_or(doc.title.as_str());
+    let fields = [("title", title), ("creator", info.author.as_str()), ("description", info.description.as_str())];
     let rights = [("rights", info.copyright_notice.as_str()), ("rights", info.copyright_url.as_str()), ("date", created.as_str())];
     let keywords = info.keywords.iter().map(|k| ("subject", k.as_str()));
     terms.extend(fields.into_iter().chain(keywords).chain(rights).filter(|(_, v)| !v.trim().is_empty()).map(|(k, v)| (k, v.to_string())));
@@ -741,7 +755,7 @@ impl Writer<'_> {
         if self.opts.metadata {
             line(2, "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">");
             line(3, "<rdf:Description rdf:about=\"\">");
-            for (term, value) in dublin_core(self.doc) {
+            for (term, value) in dublin_core(self.doc, export_title(self.doc, self.opts).as_deref()) {
                 line(4, &format!("<dc:{term}>{}</dc:{term}>", xml_escape(&value)));
             }
             line(3, "</rdf:Description>");

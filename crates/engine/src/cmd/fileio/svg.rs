@@ -181,7 +181,11 @@ pub(super) fn encode(doc: &Document, p: &Value, compressed: bool) -> Result<Enco
     for artboard in boards {
         // A chosen artboard's file holds the art over it (#550).
         let over = artboard.filter(|_| chosen).and_then(|b| doc.artboards.get(b)).map(|a| super::export::art_over(doc, a.rect));
-        let mut out = vectorcraft_svg::export_full(over.as_ref().unwrap_or(doc), &ExportOptions { artboard, ..opts.clone() }, native.as_deref());
+        let mut out = vectorcraft_svg::export_full(
+            over.as_ref().unwrap_or(doc),
+            &ExportOptions { artboard, title_from_artboard: chosen, ..opts.clone() },
+            native.as_deref(),
+        );
         let bytes = out.take_bytes();
         for l in out.linked {
             if !enc.linked.iter().any(|e| e.name == l.name) {

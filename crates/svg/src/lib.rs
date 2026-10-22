@@ -190,6 +190,10 @@ pub struct ExportOptions {
     /// it (the engine's `artboard`/`range`/`useArtboards` params), so it is not deserialized.
     #[serde(skip)]
     pub artboard: Option<usize>,
+    /// When true with [`artboard`], `<title>` and metadata use that artboard's name instead of
+    /// [`Document::title`] (set by the engine when the user picks artboards to export).
+    #[serde(skip)]
+    pub title_from_artboard: bool,
     pub styling: Styling,
     /// Decimal places for coordinates (1–7 in the dialog; default 3).
     pub decimals: u8,
@@ -225,6 +229,7 @@ impl Default for ExportOptions {
     fn default() -> Self {
         Self {
             artboard: Some(0),
+            title_from_artboard: false,
             styling: Styling::PresentationAttributes,
             decimals: 3,
             object_ids: ObjectIds::LayerNames,

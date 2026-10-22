@@ -255,3 +255,12 @@ fn svgz_opens_and_pastes_like_svg() {
     assert_eq!(r["count"], 2);
     assert!(s.execute("document.open", &json!({"name": "bad.svgz", "dataBase64": vectorcraft_format::base64_encode(&[0x1f, 0x8b, 1, 2])})).is_err());
 }
+
+#[test]
+fn svg_title_uses_the_exported_artboard_name() {
+    let mut s = session(1);
+    s.execute("file.new", &json!({"name": "Icons", "width": 24, "height": 24, "units": "Pixels"})).unwrap();
+    s.execute("artboard.setProps", &json!({"index": 0, "name": "arrow-right"})).unwrap();
+    let out = svg(&mut s, json!({"artboard": 0}));
+    assert!(out.contains("<title>arrow-right</title>"), "{out}");
+}
