@@ -312,12 +312,15 @@ impl WidthTool {
             let f = fraction(i);
             first = first.min(f);
             last = last.max(f);
-            // A corner at exactly `t` bounds the run on both sides: the point sits on the corner
-            // itself, not on a smooth stretch, so only that point scales.
-            if f <= t {
+            // A corner at `t` (within the same rounding tolerance used for width points) bounds
+            // the run on both sides: the point sits on the corner itself, not on a smooth
+            // stretch, so only that point scales. Comparing `f` and `t` exactly can make a tiny
+            // rounding difference leave one side unbounded.
+            let on_corner = (f - t).abs() <= SAME_T;
+            if on_corner || f < t {
                 lo = lo.max(f);
             }
-            if f >= t {
+            if on_corner || f > t {
                 hi = hi.min(f);
             }
         }
@@ -1361,6 +1364,21 @@ mod tests {
         assert!((pts[2][1] - 2.0).abs() < 1e-6, "the dragged point scales: {pts:?}");
         assert!((pts[4][0] - 1.0).abs() < 1e-6 && (pts[4][1] - 2.0).abs() < 1e-6, "the t = 1 end scales: {pts:?}");
         t.pointer(&c, &ev(PointerKind::Up, 200.0, 190.0, shift));
+    }
+
+    /// The stored width `t` and the corner's arc-length fraction can differ by rounding. A corner
+    /// within `SAME_T` of the point must still bound both sides of the run, or the point would
+    /// pick up everything on one side of it.
+    #[test]
+    fn a_corner_rounding_difference_still_bounds_both_sides() {
+        let (d, id) = doc_corner();
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        for t in [0.5 - SAME_T / 2.0, 0.5 + SAME_T / 2.0] {
+            let (lo, hi) = WidthTool::smooth_run(&c, id, 0, t);
+            assert!((lo - 0.5).abs() <= SAME_T, "{t}: lo {lo}");
+            assert!((hi - 0.5).abs() <= SAME_T, "{t}: hi {hi}");
+        }
     }
 
     /// A width point can sit exactly on a sharp corner. Its smooth run is the point itself, not
