@@ -5083,6 +5083,7 @@ imageTrace	Outline	Körvonal
 @msg	{_1} has no {_2} style	ennek nincs ilyen stílusa: {_1} ({_2})
 @msg	{_1} is a live effect (Effect › Plug-ins)	élő effektus: {_1} (Effektus › Bővítmények)
 @msg	{_1} is an exporter (File › Export › Export As…)	exportáló bővítmény: {_1} (Fájl › Exportálás › Exportálás másként…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	a `documentData` mérete {size} bájt (korlát: {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	már foglalt: {_1} (használja: {_2})
 @msg	{_1} linked file(s) can't be read here: their previews show	Itt nem olvasható csatolt fájlok: {_1}; az előnézetük látszik
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	A lemezen módosult csatolt képek: {_1}; a Csatolások frissítése az új változatokat mutatja
@@ -5338,6 +5339,10 @@ imageTrace	Outline	Körvonal
 @msg	too many library panels were opened in this session	ebben a munkamenetben túl sok könyvtárpanel nyílt meg
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kép {_1} × {_2} képpont, egyik oldalán több mint {LARGE_TRACE_SIDE}: a vektorizálás megtörténik, de lassabban. Kisebb hűségű előbeállítással vagy a kép kisebb másolatával gyorsabb.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A kép vektorizálása {_1} × {_2} képponton történt, {_3} × {_4} méretről kicsinyítve (legfeljebb {_5} megapixel).
+	Snapping	Illesztés
+	Snap to Tangent	Illesztés érintőre
+	Snap to Perpendicular	Illesztés merőlegesre
+@msg	unknown snap option `{key}` (use {options})	ismeretlen illesztési beállítás: `{key}` (használható: {options})
 	Gap Length:	Rés hossza:
 	Artboard {n} of {total}	Rajztábla: {n} / {total}
 	Encoding and writing the file…	A fájl kódolása és írása…
@@ -5388,6 +5393,7 @@ imageTrace	Outline	Körvonal
 	Water Paper	Nedves papír
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometriai segédvonalak
 	Ease In	Lassú kezdés
 	Ease Out	Lassú befejezés
 	Ease In Out	Lassú kezdés és befejezés
