@@ -8,7 +8,8 @@
 //!   file VectorCraft would otherwise download (Save, Save As, Export…). Once it is posted the app
 //!   counts a native save as saved.
 //! - `vectorcraft:dirty` (to the parent): `{ dirty }` whenever unsaved changes appear or go away.
-//! - `vectorcraft:failed` (to the parent): `{ error }` when the app couldn't start.
+//! - `vectorcraft:failed` (to the parent): `{ error }` when the app couldn't start, or when a
+//!   `vectorcraft:open` document is over [`crate::host_open::MAX_OPEN_BYTES`] (it isn't opened).
 //!
 //! Only the parent window on the page's own origin is heard or answered.
 
@@ -63,6 +64,7 @@ impl Bridge {
 
     /// Hear documents from the parent; they arrive through the open inbox like a picked file.
     pub fn listen(&self, inbox: crate::web::Inbox, ctx: egui::Context) {
+        let bridge = self.clone();
         let parent = self.parent.clone();
         let origin = self.origin.clone();
         let on_message = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |event: web_sys::MessageEvent| {
@@ -78,6 +80,12 @@ impl Bridge {
                 .map(|n| n.chars().take(MAX_NAME_CHARS).collect())
                 .unwrap_or_else(|| "Untitled.vectorcraft".to_string());
             let Some(array) = byte_array(&data) else { return };
+            // Checked before the bytes are copied out of the parent's buffer.
+            if let Err(e) = crate::host_open::check_open_size(&name, u64::from(array.byte_length())) {
+                log::warn!("vectorcraft-web: {e}");
+                bridge.post_failed(&e);
+                return;
+            }
             inbox.lock().unwrap_or_else(|e| e.into_inner()).push((name, array.to_vec()));
             ctx.request_repaint();
         });
