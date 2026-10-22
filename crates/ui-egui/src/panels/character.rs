@@ -378,9 +378,14 @@ pub(crate) fn route_type_input(app: &mut VectorcraftApp, ctx: &egui::Context, co
                 todo.push(TextInput::Typed(e.clone()));
                 true
             }
-            // Enter types a line break. The event stays in the input for the shortcuts.
-            egui::Event::Key { key: Key::Enter, pressed, .. } => {
-                if *pressed {
+            // Enter types a line break. The event stays in the input for the shortcuts: a command
+            // bound to its chord (Cmd+Enter) runs instead of the line break.
+            egui::Event::Key { key: Key::Enter, pressed, modifiers: m, .. } => {
+                let bound = || {
+                    let all = crate::shortcuts::all_shortcuts();
+                    all.iter().any(|(sc, ..)| sc.modifiers.command && sc.logical_key == Key::Enter && m.matches_logically(sc.modifiers))
+                };
+                if *pressed && !(m.command && bound()) {
                     todo.push(TextInput::Enter);
                 }
                 true

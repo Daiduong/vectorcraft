@@ -7909,6 +7909,35 @@ mod tests {
         assert_eq!(plain(&app, id), "ab1\n\n2x");
     }
 
+    /// Cmd/Ctrl+Enter bound to a command runs the command and types no line break. Unbound, it
+    /// types a line break as Enter does.
+    #[test]
+    fn a_command_on_cmd_enter_runs_without_typing_a_line_break() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.prefs.placeholder_text = false;
+        let ctx = egui::Context::default();
+        let id = start_typing(&mut app, &ctx);
+        let cmd_enter = [true, false].map(|pressed| egui::Event::Key {
+            key: egui::Key::Enter,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::COMMAND,
+        });
+        typing_frame(&mut app, &ctx, vec![egui::Event::Text("a".into())]);
+        typing_frame(&mut app, &ctx, cmd_enter.to_vec());
+        assert_eq!(plain(&app, id), "a\n", "nothing is bound to Cmd+Enter");
+        app.ui.shortcut_overrides.insert("view.grid".into(), "Cmd+Enter".into());
+        crate::shortcut_editor::sync(&app.ui);
+        let grid = app.ui.view.grid;
+        typing_frame(&mut app, &ctx, cmd_enter.to_vec());
+        app.ui.shortcut_overrides.clear();
+        crate::shortcut_editor::sync(&app.ui);
+        assert_eq!((plain(&app, id).as_str(), app.ui.view.grid), ("a\n", !grid), "Cmd+Enter runs Show Grid only");
+        typing_frame(&mut app, &ctx, tap(egui::Key::Enter).to_vec());
+        assert_eq!(plain(&app, id), "a\n\n", "Enter types a line break");
+    }
+
     #[test]
     fn tool_drag_moved_without_pointer_delta() {
         let ctx = egui::Context::default();
