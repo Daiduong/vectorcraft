@@ -129,6 +129,10 @@ fn on_canvas(ui: &Ui, resp: &egui::Response, p: Pos2) -> bool {
 fn tool_drag_doc_id() -> egui::Id {
     egui::Id::new("canvas-tool-drag-doc")
 }
+/// The document point of the press that began [`Drag::Tool`], sent to the tool as its Down.
+fn tool_press_doc_id() -> egui::Id {
+    egui::Id::new("canvas-tool-press-doc")
+}
 /// Whether the tool should get another drag event, and if so records `p` as the last position
 /// sent: the pointer moved this frame, or its document position changed without a delta (#834).
 /// egui's frame delta is zero when some Wayland compositors coalesce motion until release, and in
@@ -137,7 +141,9 @@ fn tool_drag_doc_id() -> egui::Id {
 fn tool_drag_moved(ui: &Ui, xf: &Xf, p: Pos2, pointer: &egui::PointerState) -> bool {
     let at = xf.to_doc(p);
     let id = tool_drag_doc_id();
-    let prev = ui.data(|d| d.get_temp::<Point>(id));
+    // Before the press has dragged, the last position the tool got is the press itself: a press
+    // held still is not a drag.
+    let prev = ui.data(|d| d.get_temp::<Point>(id).or_else(|| d.get_temp::<Point>(tool_press_doc_id())));
     if pointer.delta() == egui::Vec2::ZERO && prev == Some(at) {
         return false;
     }
@@ -1001,6 +1007,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                 dd.insert_temp(drag_layer_id(), resp.layer_id);
                 // A new press has not dragged yet, whatever an interrupted one left behind.
                 dd.remove::<Point>(tool_drag_doc_id());
+                dd.insert_temp(tool_press_doc_id(), xf.to_doc(p));
             });
         }
     } else if drag.is_none()
@@ -1094,6 +1101,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                 dd.remove::<Drag>(drag_id());
                 dd.remove::<Pos2>(drag_pos_id());
                 dd.remove::<Point>(tool_drag_doc_id());
+                dd.remove::<Point>(tool_press_doc_id());
             });
             match d {
                 Drag::ZoomBox { start } => {
@@ -8218,6 +8226,42 @@ mod tests {
         });
         out.textures_delta.clear();
         assert!(moved, "a new document position runs even when egui reports no delta");
+    }
+
+    /// #834 review: a press held still is not a drag. Before the press has dragged, the first held
+    /// frame without a delta at the press's own position sends nothing, so a click stays a click;
+    /// the first move after it does.
+    #[test]
+    fn stationary_press_is_not_a_drag() {
+        let ctx = egui::Context::default();
+        let rect = egui::Rect::from_min_size(Pos2::ZERO, vec2(400.0, 300.0));
+        let v = View::default();
+        let xf = Xf::new(rect, &v);
+        let a = pos2(100.0, 100.0);
+        let b = pos2(150.0, 120.0);
+        let mut out =
+            ctx.run_ui(egui::RawInput { screen_rect: Some(rect), events: vec![egui::Event::PointerMoved(a)], ..Default::default() }, |ui| {
+                ui.data_mut(|d| {
+                    d.remove::<Point>(tool_drag_doc_id());
+                    d.insert_temp(tool_press_doc_id(), xf.to_doc(a));
+                });
+            });
+        out.textures_delta.clear();
+        let mut held = true;
+        out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), ..Default::default() }, |ui| {
+            let pointer = ui.input(|i| i.pointer.clone());
+            assert_eq!(pointer.delta(), egui::Vec2::ZERO);
+            held = tool_drag_moved(ui, &xf, a, &pointer);
+        });
+        out.textures_delta.clear();
+        assert!(!held, "a press held still at its own position is not sent as a drag");
+        let mut moved = false;
+        out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), events: vec![egui::Event::PointerMoved(b)], ..Default::default() }, |ui| {
+            let pointer = ui.input(|i| i.pointer.clone());
+            moved = tool_drag_moved(ui, &xf, b, &pointer);
+        });
+        out.textures_delta.clear();
+        assert!(moved, "the first move after the press is a drag");
     }
 
     /// #834: a bezier drag's preview follows every position the pointer is seen at. egui's frame
