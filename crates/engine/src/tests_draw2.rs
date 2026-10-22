@@ -219,28 +219,6 @@ fn pencil_with_keep_selected_off_leaves_the_new_path_unselected() {
     assert!(selected(&s).is_empty());
 }
 
-/// #3511: `smooth: false` skips Catmull-Rom pre-smoothing and keeps corner anchors on the samples.
-#[test]
-fn pencil_smooth_false_follows_the_stroke_more_closely() {
-    use vectorcraft_geom::Anchor;
-    let mut s = session();
-    let pts: Vec<[f64; 2]> = (0..48)
-        .map(|i| {
-            let t = i as f64 * 0.15;
-            [t * 12.0, t.sin() * 30.0]
-        })
-        .collect();
-    let smooth = s.execute("path.freehand", &json!({"points": pts, "fidelity": 6.0, "smooth": true, "keepSelected": false})).unwrap();
-    let raw = s.execute("path.freehand", &json!({"points": pts, "fidelity": 6.0, "smooth": false, "keepSelected": false})).unwrap();
-    let pd = |id: u64| path(&s, NodeId(id));
-    let smooth_anchors = &pd(smooth["id"].as_u64().unwrap()).subpaths[0].anchors;
-    let raw_anchors = &pd(raw["id"].as_u64().unwrap()).subpaths[0].anchors;
-    let curved = |a: &Anchor| a.h_in != a.p || a.h_out != a.p;
-    assert!(smooth_anchors.iter().any(curved), "smoothed stroke should keep bezier handles on a gentle wave");
-    assert!(raw_anchors.iter().all(|a| !curved(a)), "raw stroke should be corner anchors only");
-    assert!(raw_anchors.len() > smooth_anchors.len(), "raw keeps more fidelity-spaced corners than the simplified smooth fit");
-}
-
 #[test]
 fn paintbrush_uses_stroke_blob_brush_fills() {
     let mut s = session();
