@@ -120,6 +120,14 @@ fn bad_options_draw_nothing() {
     }
 }
 
+#[test]
+fn draw_path_accepts_current_color_stroke() {
+    let mut h = headless();
+    let (id, _) = draw(&mut h, "draw_path", json!({"d": "M4 12h16", "fill": "none", "stroke": "currentColor", "strokeWidth": 2}));
+    let stroke = node(&h, id).appearance.stroke_paint();
+    assert!(stroke.is_current_color());
+}
+
 /// The new arguments are in the tools' schemas, so `tools/call` accepts them (#713 refuses
 /// arguments a schema doesn't list).
 #[test]
