@@ -1,6 +1,6 @@
 # Native Wayland file-drop integration draft
 
-Status: review prototype, 2026-10-22. This is not a release-ready dependency update.
+Status: review prototype, 2026-10-23. This is not a release-ready dependency update.
 The installed contributor build retains earlier local fixes; this focused change
 contains the windowing API adaptation, dependency pins, native read guard and
 raster-drop regressions. It does not include unrelated import or single-instance
@@ -40,7 +40,10 @@ the application's current UI API while that migration is reviewed upstream.
 Linux portal support adds a libdbus development dependency (`libdbus-1-dev` on
 Ubuntu); the runtime must provide libdbus. Debian/RPM metadata declares the
 runtime dependency. [Shared release-build prerequisite #57](https://github.com/storytold/craft-common-actions/pull/57)
-adds native and RISC-V target headers and must be coordinated before release.
+has merged and adds native and RISC-V target headers. The [runtime-packaging follow-up #63](https://github.com/storytold/craft-common-actions/pull/63)
+is separate: opt-in Arch metadata/build tools, a private AppImage
+client library, and Debian/RPM dependencies. See `docs/releasing.md` for the full
+per-format checklist. The caller must wait for the shared `needs-libdbus` input.
 No host paths are embedded in Cargo.
 
 ## Security boundaries

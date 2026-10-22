@@ -173,7 +173,7 @@ metadata and contents, runs `ldd` on the binary and runs each AppImage with `--v
 
 **RPM dependencies.** The x86_64 and aarch64 RPMs require 64-bit shared-library
 capabilities rather than distribution-specific package names: `libc`, libm's `GLIBC_2.35`,
-`libgcc_s`, `libxkbcommon`, and either Vulkan or EGL. Windowing and GPU
+`libgcc_s`, `libdbus-1.so.3`, `libxkbcommon`, and either Vulkan or EGL. Windowing and GPU
 libraries are loaded at runtime, so `ldd` alone does not list every requirement.
 The glibc capability enforces the same floor as the `.deb`; a distribution with
 an older glibc is not supported by these binaries. It names libm, whose `hypot` and `hypotf`
@@ -192,6 +192,42 @@ Before publishing a Linux release:
 against riscv64 libraries from ports.ubuntu.com (so the floor there is glibc 2.39) and runs
 `package.sh --formats tar` with `CROSS_ARCH`, `CROSS_TARGET`, `CROSS_COMPILE` and
 `EMULATOR=qemu-riscv64` set: a `.tar.gz` only, with `vectorcraft-cli --version` run under QEMU.
+
+**Native Wayland libdbus packaging (draft).** The portal feature is enabled only
+for Linux. Header installation in craft-common-actions#57 does not enable it or
+satisfy the runtime dependency. The release caller opts into the shared
+`needs-libdbus` capability ([craft-common-actions#63](https://github.com/storytold/craft-common-actions/pull/63)
+must merge before this caller can run): it
+adds Arch's `dbus` runtime dependency and the Meson/Ninja build tools. Debian
+requires `libdbus-1-3`; RPM requires `libdbus-1.so.3()(64bit)`. Plain tarball users
+must install the matching host library (for example `libdbus-1-3` on Debian,
+`dbus-libs` on Fedora, `dbus` on Arch); the CLI may share its dependency graph.
+
+The AppImage builds the unmodified client library from upstream dbus 1.16.2,
+verified against a fixed SHA256. It disables optional integrations, the daemon
+and standalone tools; only the client library is copied. Packaging refuses any
+unexpected `DT_NEEDED` dependency instead of copying host libraries. AppRun
+prepends the AppImage's private library directory without adding an empty search
+entry. Build this on the same Ubuntu baseline/architecture as the app. The AFL
+2.1 option, compatible permissive notices and exact source URL/hash ship under
+`usr/share/doc/vectorcraft/libdbus`; keep these with redistributed AppImages.
+`DBUS_SOURCE_ARCHIVE` supplies the same verified archive for offline builds.
+
+Freedesktop Platform 25.08 provides the Flatpak runtime library, and its SDK
+provides the headers. Neither manifest needs another library module or broader
+bus/filesystem permissions. Inspect both ELF dependencies and the selected
+runtime when updating it. The manifests' `finish-args` must remain identical.
+
+The FreeBSD resolved graph contains no `libdbus-sys` from this Linux-only feature;
+its existing pure-Rust `zbus` path needs no new native dependency. VectorCraft has
+no tracked `flake.nix` or `nix/package.nix`; the shared Nix workflow currently
+skips. A future flake must include `pkg-config` as a native input and `dbus` as a
+Linux build/runtime input and in its development shell, plus hashes for the
+prototype Git dependencies. No Nix build or FreeBSD runtime success is claimed.
+
+Before publishing, validate native x86_64/aarch64 AppImage startup, Arch package
+metadata, Debian/RPM dependencies, Flatpak source/bundle builds, and RISC-V target
+linking on their runners. A local client-library probe is not a full release run.
 
 **AppImage updates.** Each AppImage embeds the update information
 `gh-releases-zsync|storytold|vectorcraft|latest|vectorcraft-*-linux-<arch>.AppImage.zsync`

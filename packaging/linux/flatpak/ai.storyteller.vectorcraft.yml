@@ -11,6 +11,8 @@
 # Release bundles (.flatpak on GitHub Releases) use ai.storyteller.vectorcraft.bundle.yml instead.
 id: ai.storyteller.vectorcraft
 runtime: org.freedesktop.Platform
+# Platform supplies libdbus-1.so.3; SDK supplies dbus-1.pc/headers for source builds.
+# No new bus/filesystem grant is needed just to link the client library.
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 sdk-extensions:

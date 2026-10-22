@@ -123,3 +123,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Linux AppImages bundle the unmodified libdbus client library 1.16.2 under its
+Academic Free License 2.1 option and compatible permissive notices. The daemon
+and standalone tools are not bundled. Its copyright notices, AFL and permissive
+license texts, and exact source URL/hash accompany the AppImage under
+usr/share/doc/vectorcraft/libdbus. Source: https://dbus.freedesktop.org/releases/dbus/dbus-1.16.2.tar.xz
+This does not relicense libdbus under VectorCraft's MIT/Apache terms.
