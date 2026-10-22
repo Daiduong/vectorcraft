@@ -76,6 +76,53 @@ impl PartialEq for Metric {
     }
 }
 
+/// The text the Character panel's dimensional fields act on (the Type-tool range or selected type).
+fn text_in_scope(app: &VectorcraftApp) -> String {
+    let Some(st) = app.session.active() else { return String::new() };
+    let text = |id: NodeId| match st.doc.node(id).map(|n| &n.kind) {
+        Some(NodeKind::Text(t)) => Some(t),
+        _ => None,
+    };
+    let mut out = String::new();
+    if let Some((id, a, b)) = text_editing(app) {
+        let Some(t) = text(id) else { return out };
+        if b <= a {
+            return String::new();
+        }
+        let mut end = 0;
+        for r in &t.runs {
+            let start = end;
+            end += r.text.len();
+            if start < b && end > a {
+                let from = a.saturating_sub(start);
+                let to = (b - start).min(r.text.len());
+                out.push_str(&r.text[from..to]);
+            }
+        }
+        return out;
+    }
+    for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
+        n.walk(&mut |c| {
+            if let NodeKind::Text(t) = &c.kind {
+                for r in &t.runs {
+                    out.push_str(&r.text);
+                }
+            }
+        });
+    }
+    out
+}
+
+/// Whether the scoped text is East Asian (Preferences › Units › East Asian Type).
+pub(crate) fn uses_east_asian_type(app: &VectorcraftApp) -> bool {
+    text_in_scope(app).chars().any(vectorcraft_text::is_cjk)
+}
+
+/// Units › Type, or East Asian Type when [`uses_east_asian_type`] is true.
+pub(crate) fn type_display_unit(app: &VectorcraftApp) -> vectorcraft_doc::Unit {
+    app.session.type_unit_for(uses_east_asian_type(app))
+}
+
 fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle) -> Option<T>) -> Option<T> {
     let st = app.session.active()?;
     let text = |id: NodeId| match st.doc.node(id).map(|n| &n.kind) {
@@ -457,7 +504,7 @@ fn cell(ui: &mut Ui, label: &str, tip: &str, add: impl FnOnce(&mut Ui)) {
 /// shown). The Properties panel shows its first rows.
 pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &CharStyle, w: f32, more: bool) {
     let fw = ((w - 66.0) / 2.0).clamp(60.0, 100.0);
-    let unit = app.session.type_unit();
+    let unit = type_display_unit(app);
     egui::Grid::new(id).num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
         cell(ui, "T", tl!("Font Size"), |ui| size_field(app, ui, "ch-size", fw));
         cell(ui, "A↕", tl!("Leading"), |ui| {
@@ -514,7 +561,7 @@ pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &
 /// picked from the presets, in the type unit, blank where the selected text's sizes differ.
 pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width: f32) {
     let size = shared_effective(app, |s| s.size);
-    if let Some(v) = widgets::spin_field(ui, id, size, app.session.type_unit(), width, 1.0, 0.1, &SIZE_PRESETS) {
+    if let Some(v) = widgets::spin_field(ui, id, size, type_display_unit(app), width, 1.0, 0.1, &SIZE_PRESETS) {
         style(app, json!({"size": v}));
     }
 }
