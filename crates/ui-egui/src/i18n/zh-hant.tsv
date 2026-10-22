@@ -1061,6 +1061,7 @@
 	Keep selected	保持選取狀態
 	Merge only with selection	僅與選取物件合併
 	Consider Open Filled Paths as Closed	將有填色的開放路徑視為封閉路徑
+	In Merge Mode, Clicking Stroke Splits the Path	在合併模式下，按一下筆畫可分割路徑
 	Pick Color From:	顏色來源：
 	Artwork	圖稿
 	Cursor Swatch Preview	在指標旁預覽色票
@@ -1068,6 +1069,7 @@
 	Freeform	自由
 	Straight Line	直線
 	Highlight:	強調顯示：
+	Stroke When Editable	可編輯時的筆畫
 	Fill New Type Objects With Placeholder Text	以預留位置文字填滿新文字物件
 	Fill Rule	填色規則
 	Fill with Placeholder Text	以預留位置文字填滿
@@ -2173,6 +2175,7 @@ file-filter	Templates	範本
 @msg	no user library folder here	此處沒有使用者資料庫資料夾
 @msg	Couldn't place {name}: the document it was dropped on was closed	無法置入 {name}：放置它的文件已關閉
 @msg	no files to place	沒有要置入的檔案
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` 不是 VectorCraft 文件、PDF 或 PDF 相容的 .ai 檔案
 @msg	paths: give at least one file	paths：請提供至少一個檔案
 @msg	Couldn't place {name}: {e}	無法置入 {name}：{e}
 @msg	no print service	沒有列印服務
@@ -2240,7 +2243,9 @@ file-filter	Templates	範本
 @msg	automation filesystem access is not granted: read authority is absent: {path}	未授予自動化檔案系統存取權：沒有讀取權限：{path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	未授予自動化檔案系統存取權：沒有寫入權限：{path}
 @msg	automation path rejected: outside the read root {root}: {path}	已拒絕自動化路徑：位於讀取根目錄 {root} 之外：{path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	已拒絕自動化路徑：位於所有讀取根目錄 {roots} 之外：{path}
 @msg	automation path rejected: outside the write root {root}: {path}	已拒絕自動化路徑：位於寫入根目錄 {root} 之外：{path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	已拒絕自動化路徑：位於所有寫入根目錄 {roots} 之外：{path}
 @msg	automation path rejected: path is empty	已拒絕自動化路徑：路徑是空的
 @msg	automation path rejected: a link that leads nowhere: {path}	已拒絕自動化路徑：連結指向不存在的位置：{path}
 @msg	automation path rejected: cannot resolve {path}: {e}	已拒絕自動化路徑：無法解析 {path}：{e}
@@ -4934,6 +4939,10 @@ lighting	Light	光源
 	Halftone Pattern	半色調圖樣
 	Torn Edges…	撕裂邊緣…
 	Torn Edges	撕裂邊緣
+	Conté Crayon…	孔特蠟筆…
+	Conté Crayon	孔特蠟筆
+	Foreground Level	前景層級
+	Background Level	背景層級
 	Pattern Type	圖樣類型
 	Dot	網點
 # User Interface › Color Scheme
@@ -5055,3 +5064,11 @@ axis	Y Axis	Y 軸
 	Packaged {n} file(s) in {folder}	已將 {n} 個檔案封裝到 {folder}
 	Packaged {n} file(s) {note}	已封裝 {n} 個檔案 {note}
 	{count} file(s) in {folder}. Show the package folder?	{folder} 中有 {count} 個檔案。要顯示封裝資料夾嗎？
+	Clockwise	順時針
+	Dither	仿色
+	Fine noise hides banding in the gradient fill	細微雜色可隱藏漸層填色中的色帶
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` 適用於漸層填色 (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` 適用於漸層填色 (paint.setFill)
+@msg	`dither` must be true or false	`dither` 必須是 true 或 false
+	Perceptual	感知
+@msg	`method` must be classic or perceptual	`method` 必須是 classic 或 perceptual

@@ -1096,12 +1096,14 @@
 	Keep selected	Mantener seleccionado
 	Merge only with selection	Combinar solo con la selección
 	Consider Open Filled Paths as Closed	Tratar los trazados abiertos con relleno como cerrados
+	In Merge Mode, Clicking Stroke Splits the Path	En modo de combinación, hacer clic en el trazo divide el trazado
 	Pick Color From:	Tomar el color de:
 	Artwork	Ilustración
 	Cursor Swatch Preview	Vista previa de muestras junto al cursor
 	Selection:	Selección:
 	Straight Line	Línea recta
 	Highlight:	Resaltado:
+	Stroke When Editable	Trazo si es editable
 	Fill Color	Color de relleno
 	Fill New Type Objects With Placeholder Text	Rellenar nuevos objetos de texto con texto de muestra
 	Fill Rule	Regla de relleno
@@ -4060,6 +4062,7 @@ axis	Both	Ambos
 @msg	no file system here	aquí no hay sistema de archivos
 @msg	no file writer	no hay escritor de archivos
 @msg	no files to place	no hay archivos para colocar
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` no es un documento de VectorCraft, un PDF ni un archivo .ai compatible con PDF
 @msg	no format to export to	no hay formato al que exportar
 @msg	no free recovery area	no hay ningún área de recuperación libre
 @msg	no gradient stop or freeform point is selected	no hay ninguna parada de degradado ni punto de forma libre seleccionado
@@ -4458,7 +4461,9 @@ axis	Both	Ambos
 @msg	automation filesystem access is not granted: read authority is absent: {path}	la automatización no tiene acceso al sistema de archivos: falta el permiso de lectura: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	la automatización no tiene acceso al sistema de archivos: falta el permiso de escritura: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	ruta de automatización rechazada: fuera de la carpeta raíz de lectura {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	ruta de automatización rechazada: fuera de las carpetas raíz de lectura {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	ruta de automatización rechazada: fuera de la carpeta raíz de escritura {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	ruta de automatización rechazada: fuera de las carpetas raíz de escritura {roots}: {path}
 @msg	automation path rejected: path is empty	ruta de automatización rechazada: la ruta está vacía
 @msg	automation path rejected: a link that leads nowhere: {path}	ruta de automatización rechazada: un vínculo que no lleva a ninguna parte: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	ruta de automatización rechazada: no se puede resolver {path}: {e}
@@ -5230,6 +5235,10 @@ mark-style	Japanese	Japonesas
 	Halftone Pattern	Trama de semitonos
 	Torn Edges…	Bordes desgarrados…
 	Torn Edges	Bordes desgarrados
+	Conté Crayon…	Lápiz Conté…
+	Conté Crayon	Lápiz Conté
+	Foreground Level	Nivel de primer plano
+	Background Level	Nivel de fondo
 	Pattern Type	Tipo de trama
 	Dot	Punto
 # User Interface › Color Scheme
@@ -5362,3 +5371,10 @@ axis	Y Axis	Eje Y
 	Packaged {n} file(s) in {folder}	Se empaquetaron {n} archivo(s) en {folder}
 	Packaged {n} file(s) {note}	Se empaquetaron {n} archivo(s) {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} archivo(s) en {folder}. ¿Mostrar la carpeta del paquete?
+	Clockwise	En sentido horario
+	Dither	Tramado
+	Fine noise hides banding in the gradient fill	Un ruido fino oculta las bandas del relleno de degradado
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` se aplica a rellenos de degradado (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` se aplica a rellenos de degradado (paint.setFill)
+@msg	`dither` must be true or false	`dither` debe ser true o false
+@msg	`method` must be classic or perceptual	`method` debe ser classic o perceptual

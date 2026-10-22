@@ -4278,6 +4278,7 @@ imageTrace	Outline	Ääriviiva
 @msg	no file system here	täällä ei ole tiedostojärjestelmää
 @msg	no file writer	ei tiedostonkirjoittajaa
 @msg	no files to place	ei sijoitettavia tiedostoja
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` ei ole VectorCraft-asiakirja, PDF- eikä PDF-yhteensopiva .ai-tiedosto
 @msg	no format to export to	ei vientimuotoa
 @msg	no free recovery area	ei vapaata palautusaluetta
 @msg	no gradient stop or freeform point is selected	liukuvärin väripistettä tai vapaamuotoista pistettä ei ole valittu
@@ -4646,7 +4647,9 @@ imageTrace	Outline	Ääriviiva
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: lukuoikeus puuttuu: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: kirjoitusoikeus puuttuu: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automaation polku hylättiin: lukujuuren {root} ulkopuolella: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automaation polku hylättiin: lukujuurten {roots} ulkopuolella: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automaation polku hylättiin: kirjoitusjuuren {root} ulkopuolella: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automaation polku hylättiin: kirjoitusjuurten {roots} ulkopuolella: {path}
 @msg	automation path rejected: path is empty	automaation polku hylättiin: polku on tyhjä
 @msg	automation path rejected: a link that leads nowhere: {path}	automaation polku hylättiin: linkki, joka ei johda mihinkään: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automaation polku hylättiin: polkua {path} ei voi selvittää: {e}
@@ -5158,12 +5161,14 @@ mark-style	Japanese	Japanilainen
 	Keep selected	Pidä valittuna
 	Merge only with selection	Yhdistä vain valintaan
 	Consider Open Filled Paths as Closed	Käsittele avoimia täytettyjä polkuja suljettuina
+	In Merge Mode, Clicking Stroke Splits the Path	Yhdistämistilassa viivan napsauttaminen jakaa polun
 	Pick Color From:	Värin lähde:
 	Artwork	Kuvitus
 	Cursor Swatch Preview	Värimallien esikatselu osoittimen vieressä
 	Selection:	Valinta:
 	Straight Line	Suora viiva
 	Highlight:	Korostus:
+	Stroke When Editable	Viiva, kun muokattavissa
 	Legacy (version 7)	Vanha (versio 7)
 	Legacy .ai Options	Vanhan .ai-muodon asetukset
 	Linked Files	Linkitetyt tiedostot
@@ -5252,6 +5257,10 @@ mark-style	Japanese	Japanilainen
 	Halftone Pattern	Rasterikuvio
 	Torn Edges…	Repeytyneet reunat…
 	Torn Edges	Repeytyneet reunat
+	Conté Crayon…	Conté-liitu…
+	Conté Crayon	Conté-liitu
+	Foreground Level	Edustan taso
+	Background Level	Taustan taso
 	Pattern Type	Kuviotyyppi
 	Dot	Piste
 # User Interface › Color Scheme
@@ -5451,3 +5460,10 @@ axis	Y Axis	Y-akseli
 	Packaged {n} file(s) in {folder}	Paketoitiin {n} tiedosto(a) kansioon {folder}
 	Packaged {n} file(s) {note}	Paketoitiin {n} tiedosto(a) {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}. Näytetäänkö pakettikansio?
+	Clockwise	Myötäpäivään
+	Dither	Rasterointi
+	Fine noise hides banding in the gradient fill	Hieno kohina piilottaa raidat liukuväritäytöstä
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` koskee liukuväritäyttöjä (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` koskee liukuväritäyttöjä (paint.setFill)
+@msg	`dither` must be true or false	`dither` on oltava true tai false
+@msg	`method` must be classic or perceptual	`method` on oltava classic tai perceptual

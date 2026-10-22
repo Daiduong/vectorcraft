@@ -2284,12 +2284,14 @@ lighting	Light	Světlo
 	Keep selected	Ponechat vybrané
 	Merge only with selection	Sloučit jen s výběrem
 	Consider Open Filled Paths as Closed	Považovat otevřené vyplněné cesty za uzavřené
+	In Merge Mode, Clicking Stroke Splits the Path	V režimu sloučení rozdělí kliknutí na tah cestu
 	Pick Color From:	Brát barvu z:
 	Artwork	Kresba
 	Cursor Swatch Preview	Náhled vzorku u kurzoru
 	Selection:	Výběr:
 	Straight Line	Přímka
 	Highlight:	Zvýraznění:
+	Stroke When Editable	Tah, je-li upravitelný
 	The document has no colour swatches.	Dokument nemá ve vzorníku žádné barvy.
 	Style Name:	Název stylu:
 	Crop To	Oříznout na
@@ -4363,6 +4365,7 @@ imageTrace	Outline	Obrys
 @msg	no file system here	zde není souborový systém
 @msg	no file writer	chybí zápis souborů
 @msg	no files to place	žádné soubory k umístění
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` není dokument VectorCraft, PDF ani soubor .ai kompatibilní s PDF
 @msg	no format to export to	žádný formát pro export
 @msg	no free recovery area	žádná volná oblast pro obnovení
 @msg	no gradient stop or freeform point is selected	není vybrána žádná zarážka přechodu ani volný bod
@@ -4737,7 +4740,9 @@ imageTrace	Outline	Obrys
 @msg	automation filesystem access is not granted: read authority is absent: {path}	přístup automatizace k systému souborů není udělen: chybí oprávnění ke čtení: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	přístup automatizace k systému souborů není udělen: chybí oprávnění k zápisu: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	cesta automatizace odmítnuta: mimo kořen pro čtení {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	cesta automatizace odmítnuta: mimo kořeny pro čtení {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	cesta automatizace odmítnuta: mimo kořen pro zápis {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	cesta automatizace odmítnuta: mimo kořeny pro zápis {roots}: {path}
 @msg	automation path rejected: path is empty	cesta automatizace odmítnuta: cesta je prázdná
 @msg	automation path rejected: a link that leads nowhere: {path}	cesta automatizace odmítnuta: odkaz, který nikam nevede: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	cesta automatizace odmítnuta: {path} nelze vyhodnotit: {e}
@@ -5288,6 +5293,10 @@ mark-style	Japanese	Japonské
 	Halftone Pattern	Polotónový vzorek
 	Torn Edges…	Roztržené okraje…
 	Torn Edges	Roztržené okraje
+	Conté Crayon…	Křída Conté…
+	Conté Crayon	Křída Conté
+	Foreground Level	Úroveň popředí
+	Background Level	Úroveň pozadí
 	Pattern Type	Typ vzorku
 	Dot	Tečka
 # User Interface › Color Scheme
@@ -5420,3 +5429,10 @@ axis	Y Axis	osa Y
 	Packaged {n} file(s) in {folder}	Zabaleno souborů: {n} do {folder}
 	Packaged {n} file(s) {note}	Zabaleno souborů: {n} {note}
 	{count} file(s) in {folder}. Show the package folder?	Souborů: {count} v {folder}. Zobrazit složku balíčku?
+	Clockwise	Ve směru hodinových ručiček
+	Dither	Rozptýlení
+	Fine noise hides banding in the gradient fill	Jemný šum skryje pruhy ve výplni přechodem
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` platí pro výplně přechodem (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` platí pro výplně přechodem (paint.setFill)
+@msg	`dither` must be true or false	`dither` musí být true nebo false
+@msg	`method` must be classic or perceptual	`method` musí být classic nebo perceptual
