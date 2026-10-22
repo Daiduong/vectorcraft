@@ -114,7 +114,7 @@ fn plural_polish(n: u64) -> usize {
 /// language is here, one left out of the build too (its `source` empty, its `complete_menus` as
 /// registered): [`Lang::all`] lists the languages the build offers, and [`Lang::complete_menus`]
 /// answers for the build.
-pub static LANGUAGES: [LangInfo; 24] = [
+pub static LANGUAGES: [LangInfo; 25] = [
     LangInfo { code: "en", name: "English", source: "", plural: plural_one_other, complete_menus: false, catalog: OnceLock::new() },
     // Greek: the whole interface and the status and error messages, keeping the same names in
     // English as Spanish; every `el-*` locale (including `el-GR` and `el-CY`) resolves here.
@@ -346,6 +346,17 @@ pub static LANGUAGES: [LangInfo; 24] = [
         name: "Suomi",
         source: catalog_tsv!("fi.tsv", "lang-fi"),
         plural: plural_one_other,
+        complete_menus: true,
+        catalog: OnceLock::new(),
+    },
+    // Turkish: the whole interface and the status and error messages, keeping the same names in
+    // English as Spanish; a count takes the singular ("3 katman"), so plurals have one form. Every
+    // `tr-*` locale (including `tr-TR` and `tr-CY`) resolves here.
+    LangInfo {
+        code: "tr",
+        name: "Türkçe",
+        source: catalog_tsv!("tr.tsv", "lang-tr"),
+        plural: plural_none,
         complete_menus: true,
         catalog: OnceLock::new(),
     },

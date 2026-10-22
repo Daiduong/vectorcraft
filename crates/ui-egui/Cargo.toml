@@ -17,7 +17,7 @@ bundled-fonts = ["vectorcraft-engine/bundled-fonts"]
 # The interface's translations (`src/i18n/*.tsv`, about 6.6 MB of the binary), one feature per
 # language (`lang-<code>`, the catalog's file name); `translations` turns on every one. A language
 # whose feature is off is left out and not offered; with none on, the interface is English only.
-translations = ["lang-bg", "lang-cs", "lang-da", "lang-de", "lang-el", "lang-es", "lang-fi", "lang-fr", "lang-hu", "lang-id", "lang-it", "lang-ja", "lang-ka", "lang-ko", "lang-nl", "lang-pl", "lang-pt-br", "lang-ru", "lang-sv", "lang-uk", "lang-vi", "lang-zh-hans", "lang-zh-hant"]
+translations = ["lang-bg", "lang-cs", "lang-da", "lang-de", "lang-el", "lang-es", "lang-fi", "lang-fr", "lang-hu", "lang-id", "lang-it", "lang-ja", "lang-ka", "lang-ko", "lang-nl", "lang-pl", "lang-pt-br", "lang-ru", "lang-sv", "lang-tr", "lang-uk", "lang-vi", "lang-zh-hans", "lang-zh-hant"]
 lang-bg = []
 lang-cs = []
 lang-da = []
@@ -37,6 +37,7 @@ lang-pl = []
 lang-pt-br = []
 lang-ru = []
 lang-sv = []
+lang-tr = []
 lang-uk = []
 lang-vi = []
 lang-zh-hans = []
@@ -60,7 +61,9 @@ vectorcraft-pdf = { workspace = true }
 vectorcraft-cad = { workspace = true }
 vectorcraft-eps = { workspace = true }
 vectorcraft-format = { workspace = true }
-egui = { workspace = true }
+egui = { workspace = true, features = ["bytemuck"] }
+# With egui's `bytemuck`: copies rendered rasters into egui images whole (`canvas::color_image`).
+bytemuck = "1"
 egui_extras = { workspace = true }
 image = { workspace = true }
 serde = { workspace = true }
