@@ -439,7 +439,8 @@ impl TextLine {
                 *shift = 0.0;
             }
         } else if base != 0.0 {
-            self.at.origin += self.at.up() * base;
+            // Up the slant the type leans by (a sheared text matrix), as the file raises it.
+            self.at.origin += (self.at.up() + self.at.dir * self.at.slant) * base;
             for (_, shift, _) in &mut self.runs {
                 *shift -= base;
             }
@@ -504,7 +505,7 @@ impl TextLine {
         // Each glyph where the file put it (#722): the kerning (the font's, or none) and tracking
         // (one value for the line, or each character its own) that place them there.
         let placed = (self.upright.is_none() && t.para.direction.is_none())
-            .then(|| place_each(&t, &self.slots, &self.baseline, path.as_ref(), self.at.dir, self.at.size))
+            .then(|| place_each(&t, &self.slots, &self.baseline, path.as_ref(), self.at, self.at.size))
             .flatten()
             .map(|(runs, laid)| {
                 t.runs = runs;
@@ -624,7 +625,9 @@ fn restyled(t: &TextObject, kern: Option<f64>, own: &[f64]) -> Vec<TextRun> {
 /// spacing, `TJ` adjustments, character tightening, spaces read from gaps).
 ///
 /// The file put the glyph of each character with a [`Slot`] at `baseline` (one origin per glyph),
-/// measured along `path` (type on a path: one curve per glyph) or along `dir`. `None` when the
+/// measured along `path` (type on a path: one curve per glyph) or along `line`'s baseline from its
+/// origin, where a character shifted off it by its baseline shift draws that shift times `line`'s
+/// slant further along (the type's skew leans it so, as the file's text rise did). `None` when the
 /// font laid out isn't the file's (its advances differ from the file's): spacing measured against
 /// a stand-in's widths would keep the stand-in's differences once the font is installed; or when
 /// the glyphs can't be placed so (the layout joins characters the file drew apart).
@@ -633,7 +636,7 @@ fn place_each(
     slots: &[Option<Slot>],
     baseline: &[Point],
     path: Option<&BezPath>,
-    dir: Vec2,
+    line: Placement,
     size: f64,
 ) -> Option<(Vec<TextRun>, TextLayout)> {
     let chars: Vec<usize> = t
@@ -649,7 +652,6 @@ fn place_each(
     if chars.len() < 2 || chars.len() != slots.len() || t.runs.iter().any(|r| r.inline.is_some()) {
         return None;
     }
-    let first = *baseline.first()?;
     // How far along the line the file put each glyph.
     let along: Vec<f64> = match path {
         Some(bp) => std::iter::once(0.0)
@@ -659,10 +661,14 @@ fn place_each(
             }))
             .take(baseline.len())
             .collect(),
-        None => baseline.iter().map(|p| (*p - first).dot(dir)).collect(),
+        None => baseline.iter().map(|p| (*p - line.origin).dot(line.dir)).collect(),
     };
+    // Each character's baseline shift, which the type's slant draws `slant` times as far along.
+    let shifts: Vec<f64> = t.runs.iter().flat_map(|r| r.text.chars().map(move |_| r.style.baseline_shift)).collect();
+    let slant = if path.is_some() { 0.0 } else { line.slant };
     // Each character's target: where the file put it, if it put it anywhere.
-    let target: Vec<Option<(f64, Option<f64>)>> = slots.iter().map(|s| s.and_then(|s| Some((*along.get(s.glyph)?, s.advance)))).collect();
+    let target: Vec<Option<(f64, Option<f64>)>> =
+        slots.iter().zip(&shifts).map(|(s, shift)| s.and_then(|s| Some((*along.get(s.glyph)? - slant * shift, s.advance)))).collect();
     if target.first().is_none_or(Option::is_none) || target.iter().flatten().any(|(d, _)| !d.is_finite()) {
         return None;
     }

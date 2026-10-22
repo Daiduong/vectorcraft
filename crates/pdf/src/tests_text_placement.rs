@@ -333,6 +333,17 @@ fn raised_and_lowered_characters_stay_in_their_line_shifted_off_its_baseline() {
     ] {
         lands(content, "", &[want]);
     }
+    // Under a sheared text matrix (slanted type) text rise moves a glyph along the slant, as the
+    // type's slant draws its baseline shift: the shifted glyphs land where the file draws them.
+    for (content, want) in [
+        ("BT /F1 12 Tf 1 0 0.2 1 20 50 Tm (E = mc) Tj 5 Ts (2) Tj ET", "E = mc2"),
+        ("BT /F1 12 Tf 1 0 0.2 1 20 50 Tm (E = mc) Tj 5 Ts (2) Tj 0 Ts ( here) Tj ET", "E = mc2 here"),
+        ("BT /F1 12 Tf 1 0 -0.3 1 20 50 Tm (H) Tj -3 Ts (2) Tj 0 Ts (O water) Tj ET", "H2O water"),
+        ("BT /F1 12 Tf 1 0 0.2 1 20 50 Tm 1.5 Ts (1) Tj 0 Ts (Footnote text) Tj ET", "1Footnote text"),
+        ("BT /F1 12 Tf 1 0 0.2 1 20 50 Tm 4 Ts (Raised) Tj ET", "Raised"),
+    ] {
+        lands(content, "", &[want]);
+    }
     let t = texts(&open_as(&page("BT /F1 12 Tf 20 50 Td 1.5 Ts (1) Tj 0 Ts (Footnote text) Tj ET", ""), TextAs::Text));
     let origin = t[0].xf * Point::ZERO;
     assert!((origin.y - 150.0).abs() < 1e-6, "on the text's baseline, not the mark's: {origin:?}");
