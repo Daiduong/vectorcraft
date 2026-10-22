@@ -523,6 +523,10 @@ impl Tool for SelectionTool {
         }
     }
 
+    fn scaling_bbox(&self) -> bool {
+        matches!(self.state, State::Scaling { .. })
+    }
+
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
         if let State::Loaded { from, press } = self.state
             && let Some(out) = self.loaded(cx, ev, from, press)
@@ -1020,6 +1024,16 @@ mod tests {
         let Some(Action::Preview(_, v)) = a.get(1) else { panic!("{a:?}") };
         let (x, y) = (v["matrix"][4].as_f64().unwrap(), v["matrix"][5].as_f64().unwrap());
         assert!((200.0 + x - 350.3).abs() < 1e-9 && (200.0 + y - 250.0).abs() < 1e-9, "the corner lands at ({}, {})", 200.0 + x, 200.0 + y);
+    }
+
+    #[test]
+    fn scaling_bbox_is_true_while_scaling_from_a_handle() {
+        let mut t = SelectionTool::default();
+        assert!(!t.scaling_bbox());
+        t.state =
+            State::Scaling { handle: Handle::Right, bx: OrientedBox::aligned(vectorcraft_geom::Rect::new(0.0, 0.0, 100.0, 100.0)), areas: false };
+        assert!(t.scaling_bbox());
+        assert!(t.transforming());
     }
 
     /// A corner-radius drag is a transform, so the sharp selection box hides while the radius changes.
