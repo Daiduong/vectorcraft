@@ -112,16 +112,17 @@ fn fit(size: [f32; 2], room: [f32; 2]) -> [f32; 2] {
 /// Size and place the new window (eframe shows it after drawing the first frame) and return its
 /// geometry. On Linux the window may not be mapped yet, so [`apply_pending_maximize`] must run
 /// until the host reports maximized (fixes #3635).
-pub fn restore(window: &winit::window::Window, saved: Option<WindowGeometry>) -> WindowGeometry {
-    let handles: Vec<_> = window.available_monitors().collect();
-    let monitors: Vec<Monitor> = handles.iter().map(|m| Monitor::new(m.position(), m.size(), m.scale_factor())).collect();
+pub fn restore(window: &dyn winit::window::Window, saved: Option<WindowGeometry>) -> WindowGeometry {
+    let handles: Vec<_> = window.available_monitors().filter(|m| m.position().is_some() && m.current_video_mode().is_some()).collect();
+    let monitors: Vec<Monitor> =
+        handles.iter().filter_map(|m| Some(Monitor::new(m.position()?, m.current_video_mode()?.size(), m.scale_factor()))).collect();
     let home = window.current_monitor().or_else(|| window.primary_monitor()).and_then(|c| handles.iter().position(|m| *m == c));
     let g = place(saved, &monitors, home);
     if let Some([x, y]) = g.pos {
-        window.set_outer_position(PhysicalPosition::new(x, y));
+        window.set_outer_position(PhysicalPosition::new(x, y).into());
     }
     // Returns the new size when it applies at once; either way the window gets it.
-    let _ = window.request_inner_size(LogicalSize::new(g.size[0], g.size[1]));
+    let _ = window.request_surface_size(LogicalSize::new(g.size[0], g.size[1]).into());
     #[cfg(not(target_os = "linux"))]
     if g.maximized {
         window.set_maximized(true);
@@ -130,7 +131,7 @@ pub fn restore(window: &winit::window::Window, saved: Option<WindowGeometry>) ->
 }
 
 /// Keep asking the host to maximize until it sticks, or give up after a few frames.
-pub fn apply_pending_maximize(window: &winit::window::Window, want: bool, tries: &mut u8) -> bool {
+pub fn apply_pending_maximize(window: &dyn winit::window::Window, want: bool, tries: &mut u8) -> bool {
     if !want {
         return false;
     }

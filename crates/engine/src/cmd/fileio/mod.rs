@@ -979,21 +979,32 @@ fn may_write(path: &str) -> Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
     may_read(path)?;
-    std::fs::read(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))
+    #[cfg(target_os = "linux")]
+    let bytes = crate::linux_file_read::read(path);
+    #[cfg(not(target_os = "linux"))]
+    let bytes = std::fs::read(path).map_err(|e| e.to_string());
+    bytes.map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 
 /// The first `max` bytes of the file at `path` (all of it when it is shorter). Anything but a
 /// regular file (a folder, a pipe, a device) is refused, also through a link.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn read_file_head(path: &str, max: usize) -> Result<Vec<u8>> {
-    use std::io::Read;
     may_read(path)?;
-    if !std::fs::metadata(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?.is_file() {
-        return Err(EngineError::Other(format!("{path}: not a file")));
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_file_read::read_head(path, max).map_err(|e| EngineError::Other(format!("{path}: {e}")))
     }
-    let mut out = vec![];
-    std::fs::File::open(path).and_then(|f| f.take(max as u64).read_to_end(&mut out)).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
-    Ok(out)
+    #[cfg(not(target_os = "linux"))]
+    {
+        use std::io::Read;
+        if !std::fs::metadata(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?.is_file() {
+            return Err(EngineError::Other(format!("{path}: not a file")));
+        }
+        let mut out = vec![];
+        std::fs::File::open(path).and_then(|f| f.take(max as u64).read_to_end(&mut out)).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+        Ok(out)
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

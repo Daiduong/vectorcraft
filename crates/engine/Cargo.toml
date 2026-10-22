@@ -55,3 +55,7 @@ vectorcraft-text = { workspace = true, features = ["test-fonts"] }
 wat = { workspace = true }
 # Zstandard streams for the Illustrator editing data fuzz tests.
 ruzstd = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Nonblocking descriptor validation for paths supplied by file drops.
+rustix = { workspace = true, features = ["std", "fs"] }

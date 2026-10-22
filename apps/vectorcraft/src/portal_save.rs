@@ -147,7 +147,7 @@ fn x11_parent(window: impl std::fmt::LowerHex) -> String {
 /// module's comment). `None` when `pick` offers fewer than two file types, or the portal couldn't
 /// show the dialog; rfd shows it then.
 #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd", target_os = "openbsd"))]
-pub fn pick(pick: &FilePick, window: Option<&winit::window::Window>) -> Option<Vec<String>> {
+pub fn pick(pick: &FilePick, window: Option<&dyn winit::window::Window>) -> Option<Vec<String>> {
     if pick.filters.len() < 2 {
         return None;
     }
@@ -197,7 +197,7 @@ fn save_file(conn: &zbus::blocking::Connection, request: &SaveRequest) -> Result
 
 /// The portal's identifier of `window` when it is an X11 window.
 #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd", target_os = "openbsd"))]
-fn x11_window(window: &winit::window::Window) -> Option<String> {
+fn x11_window(window: &dyn winit::window::Window) -> Option<String> {
     use winit::raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
     match window.window_handle().ok()?.as_raw() {
         RawWindowHandle::Xlib(h) => Some(x11_parent(h.window)),
@@ -209,7 +209,7 @@ fn x11_window(window: &winit::window::Window) -> Option<String> {
 /// The portal's identifier of `window`, and on Wayland the export that keeps it valid; empty when
 /// the window has neither an X11 id nor a Wayland handle.
 #[cfg(target_os = "linux")]
-fn parent(window: &winit::window::Window) -> (String, Option<wayland::Export>) {
+fn parent(window: &dyn winit::window::Window) -> (String, Option<wayland::Export>) {
     if let Some(id) = x11_window(window) {
         return (id, None);
     }
@@ -222,7 +222,7 @@ fn parent(window: &winit::window::Window) -> (String, Option<wayland::Export>) {
 /// The portal's identifier of `window`: its X11 id, else empty (no Wayland export is made off
 /// Linux).
 #[cfg(any(target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd", target_os = "openbsd"))]
-fn parent(window: &winit::window::Window) -> (String, Option<()>) {
+fn parent(window: &dyn winit::window::Window) -> (String, Option<()>) {
     (x11_window(window).unwrap_or_default(), None)
 }
 
@@ -276,7 +276,7 @@ mod wayland {
 
     /// Export `window`'s surface on the window's own Wayland connection, with an event queue of its
     /// own → `None` when the compositor has no xdg-foreign v2 or answers no handle.
-    pub fn export(window: &winit::window::Window) -> Option<Export> {
+    pub fn export(window: &dyn winit::window::Window) -> Option<Export> {
         let (conn, surface) = surface(window)?;
         let (globals, mut queue) = registry_queue_init::<State>(&conn).ok()?;
         let qh = queue.handle();
@@ -298,7 +298,7 @@ mod wayland {
 
     /// `window`'s Wayland connection and surface, from its raw handles.
     #[allow(unsafe_code)]
-    fn surface(window: &winit::window::Window) -> Option<(Connection, WlSurface)> {
+    fn surface(window: &dyn winit::window::Window) -> Option<(Connection, WlSurface)> {
         use wayland_backend::sys::client::{Backend, ObjectId};
         use winit::raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _, RawDisplayHandle, RawWindowHandle};
         let (RawWindowHandle::Wayland(w), RawDisplayHandle::Wayland(d)) =

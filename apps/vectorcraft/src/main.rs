@@ -71,7 +71,7 @@ struct App {
     /// Keeps the custom title bar's window borderless (Windows, #1758).
     window_frame: Option<window_frame::WindowFrameFn>,
     /// The main window; used to read and set maximized state the UI layer does not see on Linux (#3635).
-    winit_window: Option<std::sync::Arc<winit::window::Window>>,
+    winit_window: Option<std::sync::Arc<dyn winit::window::Window>>,
     /// A saved or fitted geometry asked for maximize once the window is mapped (Linux).
     pending_maximize: bool,
     /// Frames left to retry [`window::apply_pending_maximize`].
@@ -155,7 +155,7 @@ impl App {
         self.app.logic(ctx);
         if self.pending_maximize {
             if let Some(w) = &self.winit_window {
-                self.pending_maximize = window::apply_pending_maximize(w, true, &mut self.maximize_tries);
+                self.pending_maximize = window::apply_pending_maximize(w.as_ref(), true, &mut self.maximize_tries);
             } else {
                 self.pending_maximize = false;
             }
@@ -300,11 +300,11 @@ fn save_prefs(app: &VectorcraftApp) {
 }
 
 /// The window file dialogs belong to.
-type Parent = Option<std::sync::Arc<winit::window::Window>>;
+type Parent = Option<std::sync::Arc<dyn winit::window::Window>>;
 
 /// What rfd's blocking and asynchronous file dialogs are both set up with.
 trait DialogSettings: Sized {
-    fn parent(self, window: &winit::window::Window) -> Self;
+    fn parent(self, window: &dyn winit::window::Window) -> Self;
     fn title(self, title: &str) -> Self;
     fn filter(self, name: &str, exts: &[impl ToString]) -> Self;
     fn folder(self, folder: &str) -> Self;
@@ -314,7 +314,7 @@ trait DialogSettings: Sized {
 macro_rules! dialog_settings {
     ($($dialog:ty),*) => {$(
         impl DialogSettings for $dialog {
-            fn parent(self, window: &winit::window::Window) -> Self {
+            fn parent(self, window: &dyn winit::window::Window) -> Self {
                 self.set_parent(window)
             }
             fn title(self, title: &str) -> Self {
@@ -361,7 +361,7 @@ fn dialog_for<D: DialogSettings>(d: D, request: &PickRequest) -> D {
 #[cfg(not(target_os = "macos"))]
 fn file_dialog(request: &PickRequest, parent: &Parent) -> rfd::FileDialog {
     match parent {
-        Some(w) => dialog_for(rfd::FileDialog::new().parent(w), request),
+        Some(w) => dialog_for(rfd::FileDialog::new().parent(w.as_ref()), request),
         None => dialog_for(rfd::FileDialog::new(), request),
     }
 }
@@ -503,7 +503,7 @@ fn start_pick(request: PickRequest, parent: &Parent, ui: &egui::Context) -> Opti
         .ok()?;
     make_folder(&request);
     // The panel is built and the sheet is begun below, on the main thread (as it must).
-    let dialog = dialog_for(rfd::AsyncFileDialog::new().parent(window), &request);
+    let dialog = dialog_for(rfd::AsyncFileDialog::new().parent(window.as_ref()), &request);
     let path = |f: &rfd::FileHandle| f.path().to_string_lossy().to_string();
     let answer: SheetAnswer = match request {
         PickRequest::Open(_) => {
@@ -516,7 +516,7 @@ fn start_pick(request: PickRequest, parent: &Parent, ui: &egui::Context) -> Opti
         }
         // A save panel with two or more named file types is built by `mac_save_format`, which sets
         // up its Format menu before the sheet begins (#866); rfd shows the others.
-        PickRequest::Save(pick) => match mac_save_format::begin(window, &pick) {
+        PickRequest::Save(pick) => match mac_save_format::begin(window.as_ref(), &pick) {
             // The dialog thread blocks here until the sheet answers.
             Some(picked) => Box::pin(async move { picked.recv().unwrap_or_default() }),
             None => {
@@ -553,7 +553,16 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         dialogs_are_sheets: cfg!(target_os = "macos"),
         wayland,
         no_cursor_theme: wayland && cursor_theme::theme_missing(),
-        read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
+        read: Some(Box::new(|p: &str| {
+            #[cfg(target_os = "linux")]
+            {
+                vectorcraft_engine::linux_file_read::read(p)
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                std::fs::read(p).map_err(|e| e.to_string())
+            }
+        })),
         write: Some(Box::new(write_file)),
         exists: Some(Box::new(|p: &str| std::path::Path::new(p).exists())),
         // Background Save and Export write from a worker thread.
@@ -624,12 +633,12 @@ fn app_icon() -> egui::IconData {
 /// Windows shows a window's big icon (`ICON_BIG`) in the taskbar and Alt+Tab; eframe sets only the
 /// small one (the title bar's), so the taskbar showed a generic icon. Set the big one too.
 #[cfg(windows)]
-fn set_taskbar_icon(w: &winit::window::Window) {
+fn set_taskbar_icon(w: &dyn winit::window::Window) {
     use winit::platform::windows::WindowExtWindows as _;
     let icon = app_icon();
     // An icon that can't be made leaves the generic one: nothing else depends on it.
-    if let Ok(i) = winit::window::Icon::from_rgba(icon.rgba, icon.width, icon.height) {
-        w.set_taskbar_icon(Some(i));
+    if let Ok(i) = winit::icon::RgbaIcon::new(icon.rgba, icon.width, icon.height) {
+        w.set_taskbar_icon(Some(i.into()));
     }
 }
 
@@ -969,10 +978,10 @@ fn main() -> std::process::ExitCode {
                 // Fit the window to its monitor, or put it back where it was (still hidden).
                 let winit_window = cc.winit_window().cloned();
                 if let Some(w) = &winit_window {
-                    let g = window::restore(w, saved_window);
+                    let g = window::restore(w.as_ref(), saved_window);
                     app.ui.window = Some(g);
                     #[cfg(windows)]
-                    set_taskbar_icon(w);
+                    set_taskbar_icon(w.as_ref());
                 }
                 // Linux may not map the window before the first frames, so a saved maximize is retried then (#3635).
                 let pending_maximize = cfg!(target_os = "linux") && app.ui.window.as_ref().is_some_and(|g| g.maximized);

@@ -137,3 +137,32 @@ hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63
 hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
 hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
 krilla = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
+
+winit = { git = "https://github.com/mockydevs/winit", rev = "4c38d2fe338245fb7a20602466cab94973313792" }
+
+smithay-client-toolkit = { git = "https://github.com/mockydevs/client-toolkit", rev = "d78cab10c8945a83f7a39aaf264c3ae679ca9d1e" }
+
+ecolor = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+emath = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+epaint = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+epaint_default_fonts = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+egui = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+egui_extras = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+egui-winit = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+egui-wgpu = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+egui_glow = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+eframe = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+egui_kittest = { git = "https://github.com/mockydevs/egui", rev = "9aa2af7425a924d50775f2f82be03de7b2d83f3a" }
+
+[patch."https://github.com/rust-windowing/winit"]
+winit = { git = "https://github.com/mockydevs/winit", rev = "4c38d2fe338245fb7a20602466cab94973313792" }

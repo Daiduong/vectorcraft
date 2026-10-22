@@ -111,7 +111,7 @@ fn set_allowed_types(panel: &NSSavePanel, filters: &[Filter], selected: usize) {
 /// Show the save panel for `pick` as a sheet on `window`, with a Format menu, and answer on the
 /// receiver with the path picked (none when canceled). `None` when the request has fewer than two
 /// named file types, or `window` has no AppKit window; nothing is shown then.
-pub fn begin(window: &winit::window::Window, pick: &FilePick) -> Option<Receiver<Vec<String>>> {
+pub fn begin(window: &dyn winit::window::Window, pick: &FilePick) -> Option<Receiver<Vec<String>>> {
     let mtm = MainThreadMarker::new()?;
     let filters = menu_formats(&pick.filters);
     if filters.is_empty() {

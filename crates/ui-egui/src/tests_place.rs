@@ -808,3 +808,26 @@ fn a_file_placed_while_idle_follows_its_changes() {
     };
     assert!(idle(&mut app, &ctx, &mut time, 10.0, &updated), "the changed file was never read again");
 }
+
+/// A raster dropped on the welcome screen opens an image-sized board, including non-square
+/// images and resolution metadata. Further drops place in that document without resizing it.
+#[test]
+fn raster_drops_open_matching_boards_then_place_without_resizing() {
+    for (w, h, ppi) in [(120, 60, 72.0), (60, 120, 300.0), (240, 160, 144.0)] {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let ctx = egui::Context::default();
+        let path = temp_file(&format!("aspect-{w}-{h}.png"), &png(w, h, ppi));
+        frame(&mut app, &ctx, vec![], &[], false);
+        frame(&mut app, &ctx, vec![], &[&path], false);
+        let board = app.session.active().unwrap().doc.artboards[0].rect;
+        assert!((board.width() / board.height() - f64::from(w) / f64::from(h)).abs() < 1e-9);
+        assert_eq!(images(&app, 0), 1);
+        frame(&mut app, &ctx, vec![], &[&path], false);
+        assert_eq!(app.session.documents().len(), 1);
+        assert_eq!(app.session.active().unwrap().doc.artboards[0].rect, board);
+        assert_eq!(images(&app, 0), 2);
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(images(&app, 0), 1);
+        assert_eq!(app.session.active().unwrap().doc.artboards[0].rect, board);
+    }
+}

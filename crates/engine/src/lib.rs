@@ -12,6 +12,8 @@ pub mod guard;
 pub mod inspect;
 pub mod journal;
 pub mod link_watch;
+#[cfg(target_os = "linux")]
+pub mod linux_file_read;
 pub mod namematch;
 pub mod steps;
 pub mod store;
