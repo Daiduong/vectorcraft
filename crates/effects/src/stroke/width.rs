@@ -657,12 +657,12 @@ mod tests {
         assert!((area(&width_outline(&line(), 10.0, &p, &capped(LineCap::Square), 0.01)) - 1100.0).abs() < 1e-6);
     }
 
-    /// The lens eases up to full width and back down (a smooth bump averaging half the width); a
-    /// one-sided profile keeps its side at zero and stays on the other.
+    /// The lens eases up to full width and back down (a parabolic bump averaging two thirds of
+    /// the width); a one-sided profile keeps its side at zero and stays on the other.
     #[test]
     fn lens_profile_is_a_smooth_bump_and_one_sided_profiles_stay_on_their_side() {
         let a = area(&width_outline(&line(), 10.0, &WidthProfile::lens(), &capped(LineCap::Butt), 0.01));
-        assert!((a - 500.0).abs() < 0.1, "{a}");
+        assert!((a - 2000.0 / 3.0).abs() < 0.1, "{a}");
         let one = WidthProfile { points: vec![(0.0, 1.0, 0.0), (1.0, 1.0, 0.0)] };
         let o = width_outline(&line(), 10.0, &one, &capped(LineCap::Butt), 0.01);
         assert!((area(&o) - 500.0).abs() < 1e-6);

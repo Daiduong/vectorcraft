@@ -233,9 +233,10 @@ impl WidthProfile {
     /// weighted harmonic mean of the secants either side (Fritsch–Carlson). That is C1
     /// continuous and monotone between points, so it never overshoots them, a point eases into
     /// its neighbours instead of making a corner, and moving one reshapes the curve as far as its
-    /// neighbours' neighbours (their slopes depend on it). The ends are flat, where the width is
-    /// constant outside the profile. Two points at one `t` are still a step: the runs either side
-    /// are independent and flat there.
+    /// neighbours' neighbours (their slopes depend on it). The ends use the one-sided PCHIP
+    /// slope, or the secant when there are only two points, so a two-point profile stays a
+    /// straight taper. Two points at one `t` are still a step: the runs either side are
+    /// independent and flat there.
     pub fn at_points(p: &[(f64, f64, f64)], t: f64) -> (f64, f64) {
         let (Some(first), Some(last)) = (p.first(), p.last()) else { return (1.0, 1.0) };
         if t <= first.0 {
@@ -306,12 +307,58 @@ impl WidthProfile {
     }
 }
 
+/// The one-sided three-point PCHIP slope at the start of a run, from the first two secants.
+/// The caller uses the secant for a run of only two points; a sign change caps the slope, and a
+/// slope that turns back on the first secant is flattened.
+fn end_slope(h0: f64, h1: f64, d0: f64, d1: f64) -> f64 {
+    let m = ((2.0 * h0 + h1) * d0 - h0 * d1) / (h0 + h1);
+    if !m.is_finite() || m * d0 <= 0.0 {
+        return 0.0;
+    }
+    if d0 * d1 < 0.0 {
+        return if d0 > 0.0 { m.min(3.0 * d0) } else { m.max(3.0 * d0) };
+    }
+    m
+}
+
 /// The slope of the smooth width curve at `p[i]` for one side: the weighted harmonic mean of the
-/// secants either side, or flat at a local extremum and at the ends of a run (the profile's ends
-/// and either side of a step).
+/// secants either side. The profile's first and last points use the one-sided three-point PCHIP
+/// slope instead (or the secant when their run has only two points), so a two-point profile stays
+/// a straight taper. Either side of a step, and at a local extremum, the slope is flat.
 fn slope(p: &[(f64, f64, f64)], i: usize, right: bool) -> f64 {
     let value = |k: usize| p.get(k).map_or(0.0, |q| if right { q.2 } else { q.1 });
-    let (Some(&(t, _, _)), Some(&(tm, _, _)), Some(&(tp, _, _))) = (p.get(i), i.checked_sub(1).and_then(|k| p.get(k)), p.get(i + 1)) else {
+    let Some(&(t, _, _)) = p.get(i) else { return 0.0 };
+    if i == 0 {
+        let Some(&(t1, _, _)) = p.get(1) else { return 0.0 };
+        let h0 = t1 - t;
+        if h0 <= 1e-12 {
+            return 0.0;
+        }
+        let d0 = (value(1) - value(0)) / h0;
+        let Some(&(t2, _, _)) = p.get(2) else { return d0 };
+        let h1 = t2 - t1;
+        if h1 <= 1e-12 {
+            return d0;
+        }
+        let d1 = (value(2) - value(1)) / h1;
+        return end_slope(h0, h1, d0, d1);
+    }
+    if i + 1 == p.len() {
+        let Some(&(tm, _, _)) = i.checked_sub(1).and_then(|k| p.get(k)) else { return 0.0 };
+        let h0 = t - tm;
+        if h0 <= 1e-12 {
+            return 0.0;
+        }
+        let d0 = (value(i) - value(i - 1)) / h0;
+        let Some(&(tmm, _, _)) = i.checked_sub(2).and_then(|k| p.get(k)) else { return d0 };
+        let h1 = tm - tmm;
+        if h1 <= 1e-12 {
+            return d0;
+        }
+        let d1 = (value(i - 1) - value(i - 2)) / h1;
+        return end_slope(h0, h1, d0, d1);
+    }
+    let (Some(&(tm, _, _)), Some(&(tp, _, _))) = (i.checked_sub(1).and_then(|k| p.get(k)), p.get(i + 1)) else {
         return 0.0;
     };
     let (h0, h1) = (t - tm, tp - t);
@@ -1340,7 +1387,7 @@ mod tests {
     fn profile_interp() {
         let p = WidthProfile::lens();
         assert_eq!(p.at(0.5), (1.0, 1.0));
-        assert_eq!(p.at(0.25), (0.5, 0.5));
+        assert_eq!(p.at(0.25), (0.75, 0.75));
         assert_eq!(p.at(2.0), (0.0, 0.0));
     }
 
@@ -1363,20 +1410,30 @@ mod tests {
         }
     }
 
-    /// A two-point profile is a smoothstep: it eases out of and into the constant ends, and its
-    /// midpoint is still the linear one.
+    /// A run with only two points takes its secant as both end slopes, so it stays a straight
+    /// taper on each side instead of becoming a smoothstep.
     #[test]
-    fn profile_eases_into_its_ends() {
-        let p = [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0)];
-        assert!((WidthProfile::at_points(&p, 0.5).0 - 0.5).abs() < 1e-12);
-        let slope = |t: f64| (WidthProfile::at_points(&p, t + 1e-6).0 - WidthProfile::at_points(&p, t - 1e-6).0) / 2e-6;
-        assert!(slope(0.0).abs() < 1e-3, "{}", slope(0.0));
-        assert!(slope(1.0).abs() < 1e-3, "{}", slope(1.0));
-        let mut prev = 0.0;
+    fn profile_two_point_runs_are_linear() {
+        let p = [(0.0, 0.0, 1.0), (1.0, 1.0, 0.0)];
         for k in 0..=100 {
-            let w = WidthProfile::at_points(&p, k as f64 / 100.0).0;
-            assert!((0.0..=1.0).contains(&w) && w >= prev - 1e-12, "{w} at {k}");
-            prev = w;
+            let t = k as f64 / 100.0;
+            let (l, r) = WidthProfile::at_points(&p, t);
+            assert!((l - t).abs() < 1e-12, "left {l} at {t}");
+            assert!((r - (1.0 - t)).abs() < 1e-12, "right {r} at {t}");
+        }
+    }
+
+    /// The lens's one-sided end slopes make it a parabola: at a quarter of the way it is 0.75,
+    /// above the 0.5 a straight line between its points would give.
+    #[test]
+    fn profile_lens_is_convex() {
+        let p = WidthProfile::lens();
+        assert!((p.at(0.25).0 - 0.75).abs() < 1e-12);
+        assert!((p.at(0.75).0 - 0.75).abs() < 1e-12);
+        for k in 1..25 {
+            let t = k as f64 / 100.0;
+            assert!(p.at(t).0 > 2.0 * t, "{} at {t}", p.at(t).0);
+            assert!(p.at(1.0 - t).0 > 2.0 * t, "{} at {}", p.at(1.0 - t).0, 1.0 - t);
         }
     }
 
