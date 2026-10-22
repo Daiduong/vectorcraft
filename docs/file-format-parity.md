@@ -7,6 +7,9 @@ Every format Illustrator opens, places, saves or exports, against VectorCraft's 
 documentation (helpx "file formats" and Save/Export pages), not from its installed bundle: the clean-room rule
 forbids reading the install. Part of [target-app-parity.md](target-app-parity.md).
 
+> **CDR status:** 2026-10-22 · CDR.8 editable-vector subset added; native import remains partial.
+> Current verification is pending; format scores and hour estimates are unchanged.
+
 **Fidelity** is estimated unless a test is named. Test sources: unit and property tests per crate
 (`crates/svg/tests`, `crates/pdf/tests`, `crates/format/tests/prop_format.rs`), import fuzzing
 (`crates/engine/tests/import_fuzz.rs`), the Affinity corpus (`cargo xtask corpus --affinity`, 51 pinned public
@@ -17,7 +20,7 @@ from the public specifications, and users' own `.ai` files are used locally only
 
 | | Illustrator | VectorCraft | Notes |
 |---|---:|---:|---|
-| Formats opened or placed | ~30 | 25 | missing: FreeHand, CorelDRAW, DWG, HEIC/HEIF, JPEG 2000, PICT, PCX, Pixar, Word `.doc`, PS |
+| Formats opened or placed | ~30 | 26 | CorelDRAW import is partial; missing: FreeHand, DWG, HEIC/HEIF, JPEG 2000, PICT, PCX, Pixar, Word `.doc`, PS |
 | Formats saved (Save As) | 6 (AI, AIT, PDF, EPS, SVG, SVGZ) | 6 + native | `.ai` written PDF-compatible (no Illustrator editing data) or as legacy version 7 (layers and groups, one artboard per file) |
 | Formats exported | ~16 | 17 | missing: DWG, 3D (OBJ/USDA/glTF); extra: GIF/PNG-8 palette export, DXF up to 2018, layered PSD |
 | **Overall (weighted by use)** | | **~75%** | `.ai` and PDF dominate the weighting |
@@ -108,7 +111,7 @@ the app's own editing copy of a file (an EPS after its `%%EOF`, a `.ai`'s `AIPri
 | JPEG 2000 | open, place | no | no | |
 | PICT, PCX, Pixar PXR | open, place (legacy) | no | no | rarely used |
 | FreeHand `.fh*` | open (legacy) | no | no | |
-| CorelDRAW `.cdr` | open | no | no | |
+| CorelDRAW `.cdr` | open | partial | no | native geometry, pages, groups, paint and cropped embedded images; CDR.8 adds editable nested PowerClip, modern rectangle corners, polygon/star seeds, B-spline cubics and fill rules; explicit loss warnings; [subset and checks](#coreldraw-editable-imports-cdr8), [CDR import](cdr-import.md) |
 | Text `.txt` | place, export | place (Text Import Options) | yes | |
 | RTF `.rtf` | place | place (area type with fonts, size, bold, italic, underline, strikethrough, caps, superscript and subscript, color, alignment, indents and paragraph spacing) | no | `tests_textimport.rs`, `place/rtf.rs`; fuzzed (`text_import_fuzz.rs`); `\'hh` bytes read as Windows-1252 or Mac Roman only |
 | Word `.docx` | place | place (area type with the document's styles and its fonts, size, bold, italic, underline, strikethrough, caps, superscript and subscript, color, alignment, indents and paragraph spacing) | no | `tests_textimport.rs`, `place/docx.rs`; fuzzed (`text_import_fuzz.rs`); list numbers, pictures and text boxes are left out |
@@ -117,6 +120,16 @@ the app's own editing copy of a file (an EPS after its `%%EOF`, a `.ai`'s `AIPri
 | OBJ / USDA / glTF | 3D export | — | no | needs 3D (gap G3) |
 | Affinity `.af`, `.afdesign`, `.afpub` | no | yes (beyond Illustrator) | no (#665) | 51 pinned files, [affinity-validation.md](affinity-validation.md) |
 | Clipboard: PDF, SVG, PNG, EMF, text | yes | yes | yes | copied files paste as art |
+
+## CorelDRAW editable imports (CDR.8)
+
+- **PowerClip:** native content references resolve to editable clipping groups, including nested and rotated frames, ordered children and the frame's own fill and outline. Missing, ambiguous and cyclic references are rejected; expansion has cumulative visit, point and depth limits.
+- **Modern rectangle corners:** asymmetric round, inward scallop and chamfer treatments become editable paths, retaining relative and absolute radius scaling through the object's transform. Legacy layouts and unknown metadata retain warned fallbacks; oversized radii are clamped with a warning.
+- **Polygon/star seeds:** the actual seed's anchors and cubic handles expand by its side count and repetition step, then its axis scales. Unsupported modes and non-coprime compound-star steps are rejected rather than replaced by regular polygons.
+- **B-splines:** native controls and clamped points become editable cubic paths, including open endpoints and the curved closed seam. Other property identifiers are not guessed as geometry.
+- **Compound coverage:** even-odd is the default; explicit argument `14001 = 1` selects nonzero winding, including the PowerClip frame's clipping rule.
+- **Focused verification passed (2026-10-22):** 72 parser tests, eight CDR engine tests and two engine fuzz checks passed. `crates/engine/tests/cdr_files.rs` compared 32 pages from 29 original CDR15/16/27 files with independent SVGs through `CDR_FIXTURE_DIR`, including `powerclip`, `corners`, `corner-types`, `polygons`, `fill-rules` and `bspline`. Vector-only imports contain no image resources; their worst mean byte difference was 0.053344/255 under the existing 0.1 threshold. `crates/engine/src/cmd/fileio/tests_cdr.rs` verifies clipped-child editing, Undo, native save/reopen, Place/Undo and vector `<clipPath>` export. Bitmap colour/profile differences remain a separate measurement.
+- **Still unsupported:** text/font/style reconstruction, master-page artwork, patterns, colour profiles and Corel-specific effects. PowerClip fitting/locking settings and complex transparency remain unverified. Source CDRs stay read-only; there is no CDR export. See [observed record subset and boundaries](cdr-vector-records.md).
 
 ## PDF editable imports
 
@@ -134,6 +147,12 @@ the app's own editing copy of a file (an EPS after its `%%EOF`, a `.ai`'s `AIPri
 | 2026-10-21 | minor | EPS and `.ai` editing data: type with an art style of several fills or strokes, effects on a fill (Offset Path, Transform with copies, Drop Shadow, Gaussian Blur, Bas Relief), pattern and gradient fills, per-fill blend modes and a Warp comes in as type with that live appearance instead of its drawn look (outlines), the style read as a tree of filters; other objects keep the rule for plain styles. Point type whose frame has no matrix (written so by newer files) is read; such stories were left out. Where a styled object's drawn look lay, the page isn't held to look like VectorCraft's drawing of the style. `editingData: "always"` also opens an Illustrator EPS from its editing data. Own-fixture tests; a user's file used locally only; scores and hours unchanged |
 | 2026-10-18 | minor | PDF import: invisible text (rendering mode 3, which carries a scanned page's recognized text) opens as type with no fill or stroke instead of being dropped without a word; when it can't be type (text opened as outlines, Type 3 fonts) it is left out with a warning. PDF export writes characters with no fill or stroke as invisible text in rendering mode 3, so a scanned PDF opened and saved keeps its searchable text, in PDF/X-1a and PDF/A too (#2675); own-fixture tests; scores and hours unchanged |
 | 2026-10-18 | minor | DXF circular cubic paths export as native CIRCLE/ARC where stroke semantics permit (R13–2018 for weighted strokes; R12 weighted strokes remain POLYLINE); R12 stroked circles/arcs retain their POLYLINE width, and ClosePath geometry with an implicit closing chord is not promoted to CIRCLE (#1299); scores and hours unchanged |
+| 2026-10-19 | minor | CDR.1: bounded native CorelDRAW import, explicit feature-loss warnings and original CorelDRAW 15/16/27 fixture checks; see [CDR import](cdr-import.md). Scores and estimates unchanged. |
+| 2026-10-19 | minor | CDR.4: native embedded bitmap data, continuous alpha and editable crop outlines; first display fits artwork outside every artboard without changing document coordinates. Original bitmap/SVG oracles and viewport regressions; scores and estimates unchanged. |
+| 2026-10-20 | minor | CDR.5: keep CDR revision entries apart from the shared format summary and the current upstream history entry, allowing independent format documentation updates to merge. |
+| 2026-10-20 | minor | CDR.6: share identical bitmap resource aliases before decoding; accept different raw encodings of the same image identifier only when dimensions and complete decoded PNG bytes agree; retain cumulative work quotas and reject conflicting content. |
+| 2026-10-22 | minor | CDR.8: editable nested PowerClip, modern round/scallop/chamfer corners with relative/absolute scaling, polygon/star seeds, B-spline cubics and default even-odd/explicit winding coverage. Focused parser/engine/fuzz checks and 32 original oracle pages passed. Import remains partial; scores and hours unchanged. |
+| 2026-10-22 | minor | CDR.9: exact PowerClip aliases retain separate occurrences under bounded name materialization; drawing-only zero-page CDRs recover a warned artboard from editable artwork bounds. A local180-curve/424-subpath file matches its independent Corel SVG; broader scores unchanged. |
 | 2026-10-17 | minor | PDF Place and clipboard paste preserve live text; explicit outlines remain supported on Place. Synthetic regressions; scores and hours unchanged. |
 | 2026-10-16 | minor | An Illustrator 3 file without prolog or layers (an image editor's exported paths) opens with its art on one layer instead of being refused (storytold/photocraft#6036); scores unchanged |
 | 2026-10-16 | minor | EPS editing data: legacy mesh corners, vector opacity masks and compound member paint retained; raster page comparison filters minification without relaxing limits; scores and hours unchanged. Synthetic EPS/parser/minification regressions; user EPS/SVG/JPG kept local. |
