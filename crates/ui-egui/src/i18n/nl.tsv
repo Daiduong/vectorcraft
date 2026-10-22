@@ -4068,7 +4068,7 @@ imageTrace	Outline	Contour
 @msg	give horizontal or vertical	geef horizontaal of verticaal
 @msg	give the path `id` and the width point `index`	geef het `id` van het pad en de `index` van het breedtepunt
 @msg	guides are locked	de hulplijnen zijn vergrendeld
-@msg	image '{key}' has no pixels and was left out	afbeelding '{key}' heeft geen pixels en is weggelaten
+@msg	an image has no pixels and was left out	een afbeelding zonder pixels is weggelaten
 @msg	image data `{_1}` is missing	afbeeldingsgegevens `{_1}` ontbreken
 @msg	image would be too large; lower the resolution	de afbeelding zou te groot worden; verlaag de resolutie
 @msg	index must be a number or first, previous, next or last	index moet een getal zijn of first, previous, next of last
@@ -5369,6 +5369,7 @@ swatch	Bright Violet	Felviolet
 @msg	Persistent libraries not found: {files}	Permanente bibliotheken niet gevonden: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` is geen bibliotheekpaneel (zie window.swatchLibrary)
 @msg	library panel `{given}` isn't open	bibliotheekpaneel `{given}` is niet geopend
+@msg	library panel `{given}` isn't missing its library	de bibliotheek van bibliotheekpaneel `{given}` ontbreekt niet
 @msg	too many library panels were opened in this session	er zijn in deze sessie te veel bibliotheekpanelen geopend
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	De afbeelding is {_1} × {_2} pixels, meer dan {LARGE_TRACE_SIDE} aan één zijde: ze wordt getraceerd, maar langzamer. Een voorinstelling met minder detail of een kleinere kopie van de afbeelding traceert sneller.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	De afbeelding is getraceerd op {_1} × {_2} pixels, verkleind van {_3} × {_4} (maximaal {_5} megapixels).
@@ -5388,6 +5389,14 @@ swatch	Bright Violet	Felviolet
 	Full Justify	Volledig uitvullen
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum mag niet groter zijn dan Gewenst, en Gewenst niet groter dan Maximum.
 	Justification	Uitvullen
+	Add filters from the list above	Voeg filters toe uit de lijst hierboven
+	Add to Stack	Toevoegen aan stapel
+	Applied Filters	Toegepaste filters
+	Categories	Categorieën
+	Choose a filter	Kies een filter
+	Effect Gallery	Effectgalerij
+	Filters	Filters
+	Select artwork to apply effects	Selecteer grafiek om effecten toe te passen
 # Select by Color (select.color)
 	Select by Color	Selecteren op kleur
 	Smudge Stick…	Uitsmeerstift…
@@ -5441,3 +5450,5 @@ swatch	Bright Violet	Felviolet
 	Shift:	Verschuiving:
 	Fresco…	Fresco…
 	Fresco	Fresco
+	Effect Gallery…	Effectgalerij…
+	Effect Gallery Dialog	Dialoogvenster Effectgalerij

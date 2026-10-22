@@ -3838,7 +3838,7 @@ theme	Appearance	외관
 @msg	the scale is not a usable number	배율이 사용할 수 없는 숫자입니다
 @msg	the drawing is too large to open	도면이 너무 커서 열 수 없습니다
 @msg	scale must be a number from {_1} to {_2}, not {_3}	배율은 {_1}에서 {_2} 사이의 숫자여야 합니다: {_3}
-@msg	image '{key}' has no pixels and was left out	이미지 '{key}'에 픽셀이 없어 제외했습니다
+@msg	an image has no pixels and was left out	픽셀이 없는 이미지를 제외했습니다
 @msg	Embedded {n} image(s)	이미지 {n}개를 포함했습니다
 @msg	object {0} cannot have children	개체 {0}에는 하위 항목을 둘 수 없습니다
 @msg	range `{s}` is empty	범위 `{s}`이(가) 비어 있습니다
@@ -4950,6 +4950,7 @@ lighting	Light	광원
 @msg	Persistent libraries not found: {files}	지속 라이브러리를 찾을 수 없습니다: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}`은(는) 라이브러리 패널이 아닙니다(window.swatchLibrary 참조)
 @msg	library panel `{given}` isn't open	라이브러리 패널 `{given}`이(가) 열려 있지 않습니다
+@msg	library panel `{given}` isn't missing its library	라이브러리 패널 `{given}`의 라이브러리가 누락되지 않았습니다
 @msg	too many library panels were opened in this session	이 세션에서 라이브러리 패널을 너무 많이 열었습니다
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	이미지가 {_1} × {_2}픽셀로 한 변이 {LARGE_TRACE_SIDE}을 넘습니다. 추적은 되지만 더 느립니다. 충실도가 낮은 사전 설정이나 이미지의 작은 사본을 사용하면 더 빠릅니다.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	이미지를 {_3} × {_4}에서 축소한 {_1} × {_2}픽셀로 추적했습니다(최대 {_5}메가픽셀).
@@ -4971,6 +4972,14 @@ lighting	Light	광원
 	Minimum must not exceed Desired, nor Desired Maximum.	최소값은 희망값을, 희망값은 최대값을 넘을 수 없습니다.
 	Minimum	최소
 	Justification	양끝 맞춤
+	Add filters from the list above	위 목록에서 필터 추가
+	Add to Stack	스택에 추가
+	Applied Filters	적용된 필터
+	Categories	범주
+	Choose a filter	필터 선택
+	Effect Gallery	효과 갤러리
+	Filters	필터
+	Select artwork to apply effects	효과를 적용할 그래픽을 선택하세요
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	파일의 변수와 데이터 세트를 읽지 않았습니다(변수: {variables}, 데이터 세트: {data_sets}). 변수 패널에 표시되지 않습니다
 # Select by Color (select.color)
 	Select by Color	색상별 선택
@@ -5010,3 +5019,5 @@ lighting	Light	광원
 	Shift:	이동:
 	Fresco…	프레스코…
 	Fresco	프레스코
+	Effect Gallery…	효과 갤러리…
+	Effect Gallery Dialog	효과 갤러리 대화 상자

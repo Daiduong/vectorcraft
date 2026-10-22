@@ -4040,7 +4040,7 @@ axis	Both	Обидві
 @msg	give the path `id` and the width point `index`	вкажіть `id` контуру та `index` точки ширини
 @msg	guides are locked	напрямні заблоковані
 @msg	handle must be in or out	handle має бути in або out
-@msg	image '{key}' has no pixels and was left out	зображення '{key}' не має пікселів і було пропущено
+@msg	an image has no pixels and was left out	зображення без пікселів пропущено
 @msg	image data `{_1}` is missing	дані зображення `{_1}` відсутні
 @msg	image would be too large; lower the resolution	зображення буде завеликим; зменште роздільну здатність
 @msg	index must be a number or first, previous, next or last	index має бути числом або first, previous, next, last
@@ -4967,6 +4967,7 @@ lighting	Light	Світло
 @msg	Persistent libraries not found: {files}	Постійні бібліотеки не знайдено: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` — не панель бібліотеки (див. window.swatchLibrary)
 @msg	library panel `{given}` isn't open	панель бібліотеки `{given}` не відкрита
+@msg	library panel `{given}` isn't missing its library	бібліотека панелі бібліотеки `{given}` не відсутня
 @msg	too many library panels were opened in this session	у цьому сеансі відкрито забагато панелей бібліотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Зображення {_1} × {_2} пікселів, понад {LARGE_TRACE_SIDE} з одного боку: трасування виконується, але повільніше. Стиль із нижчою точністю або менша копія зображення трасуються швидше.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Зображення трасовано в розмірі {_1} × {_2} пікселів, зменшене з {_3} × {_4} (щонайбільше {_5} мегапікселів).
@@ -4988,6 +4989,14 @@ lighting	Light	Світло
 	Minimum must not exceed Desired, nor Desired Maximum.	Мінімум не може перевищувати бажане значення, а бажане — максимум.
 	Minimum	Мінімум
 	Justification	Вирівнювання за шириною
+	Add filters from the list above	Додайте фільтри зі списку вище
+	Add to Stack	Додати до стека
+	Applied Filters	Застосовані фільтри
+	Categories	Категорії
+	Choose a filter	Виберіть фільтр
+	Effect Gallery	Галерея ефектів
+	Filters	Фільтри
+	Select artwork to apply effects	Виберіть графіку, щоб застосувати ефекти
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	змінні та набори даних файлу не прочитано (змінних: {variables}, наборів даних: {data_sets}): панель «Змінні» їх не показує
 # Select by Color (select.color)
 	Select by Color	Виділити за кольором
@@ -5027,3 +5036,5 @@ lighting	Light	Світло
 	Shift:	Зсув:
 	Fresco…	Фреска…
 	Fresco	Фреска
+	Effect Gallery…	Галерея ефектів…
+	Effect Gallery Dialog	Діалог «Галерея ефектів»

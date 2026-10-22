@@ -4054,7 +4054,7 @@ imageTrace	Outline	Kontur
 @msg	give horizontal or vertical	angiv vandret eller lodret
 @msg	give the path `id` and the width point `index`	angiv `id` for kurven og `index` for breddepunktet
 @msg	guides are locked	hjælpelinjerne er låst
-@msg	image '{key}' has no pixels and was left out	billedet '{key}' har ingen pixels og blev udeladt
+@msg	an image has no pixels and was left out	et billede uden pixels blev udeladt
 @msg	image data `{_1}` is missing	billeddata `{_1}` mangler
 @msg	image would be too large; lower the resolution	billedet ville blive for stort; sænk opløsningen
 @msg	index must be a number or first, previous, next or last	indeks skal være et tal eller first, previous, next eller last
@@ -5346,6 +5346,14 @@ swatch	Bright Violet	Kraftig violet
 	Full Justify	Lige margener
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum må ikke overstige Ønsket, og Ønsket ikke Maksimum.
 	Justification	Justering
+	Add filters from the list above	Tilføj filtre fra listen ovenfor
+	Add to Stack	Tilføj til stak
+	Applied Filters	Anvendte filtre
+	Categories	Kategorier
+	Choose a filter	Vælg et filter
+	Effect Gallery	Effektgalleri
+	Filters	Filtre
+	Select artwork to apply effects	Vælg grafik for at anvende effekter
 # Select by Color (select.color)
 	Select by Color	Markér efter farve
 	Smudge Stick…	Udtværingsstift…
@@ -5399,3 +5407,5 @@ swatch	Bright Violet	Kraftig violet
 	Shift:	Forskydning:
 	Fresco…	Fresko…
 	Fresco	Fresko
+	Effect Gallery…	Effektgalleri…
+	Effect Gallery Dialog	Dialogboksen Effektgalleri

@@ -3928,7 +3928,7 @@ axis	Both	И двете
 @msg	give the path `id` and the width point `index`	дайте пътя `id` и точката на ширина `index`
 @msg	guides are locked	водачите са заключени
 @msg	handle must be in or out	handle трябва да е in или out
-@msg	image '{key}' has no pixels and was left out	изображението '{key}' няма пиксели и беше пропуснато
+@msg	an image has no pixels and was left out	изображение без пиксели беше пропуснато
 @msg	image data `{_1}` is missing	данните за изображение `{_1}` липсват
 @msg	image would be too large; lower the resolution	изображението ще бъде твърде голямо; намалете разделителната способност
 @msg	index must be a number or first, previous, next or last	индексът трябва да е число или first, previous, next или last
@@ -5350,6 +5350,14 @@ theme	Appearance	Външен вид
 	Full Justify	Пълно двустранно
 	Minimum must not exceed Desired, nor Desired Maximum.	Минималната стойност не може да надвишава желаната, нито желаната – максималната.
 	Justification	Подравняване
+	Add filters from the list above	Добавете филтри от списъка по-горе
+	Add to Stack	Добавяне към стека
+	Applied Filters	Приложени филтри
+	Categories	Категории
+	Choose a filter	Изберете филтър
+	Effect Gallery	Галерия с ефекти
+	Filters	Филтри
+	Select artwork to apply effects	Изберете графика, за да приложите ефекти
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	променливите и наборите от данни на файла не бяха прочетени (променливи: {variables}, набори от данни: {data_sets}): панелът „Променливи“ не ги показва
 # Select by Color (select.color)
 	Select by Color	Избиране по цвят
@@ -5383,3 +5391,5 @@ theme	Appearance	Външен вид
 	Shift:	Изместване:
 	Fresco…	Фреска…
 	Fresco	Фреска
+	Effect Gallery…	Галерия с ефекти…
+	Effect Gallery Dialog	Диалог „Галерия с ефекти“
