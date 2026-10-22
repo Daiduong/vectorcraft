@@ -1100,8 +1100,22 @@ mod tests {
             .collect()
     }
 
-    /// Flat: the toolbar and the dock reach the window's left and right edges, square; Modern keeps
-    /// them cards, inset from the edges with rounded corners.
+    /// The vertical lines among `shapes` in `color`: their x and span.
+    fn vertical_lines(shapes: &[egui::Shape], color: egui::Color32) -> Vec<(f32, egui::Rangef)> {
+        shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::LineSegment { points: [a, b], stroke } if stroke.width > 0.0 && stroke.color == color && (a.x - b.x).abs() < 0.01 => {
+                    Some((a.x, egui::Rangef::new(a.y.min(b.y), a.y.max(b.y))))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Flat: the toolbar and the dock reach the window's left and right edges, square, with a
+    /// divider the full height of the column where the toolbar, the canvas, the rail and the dock
+    /// meet; Modern keeps them cards, inset from the edges with rounded corners, with no short line.
     #[test]
     fn flat_columns_reach_the_window_edges_and_modern_keeps_its_cards() {
         let (shapes, t) = docked_frame(theme::Scheme::Flat);
@@ -1109,6 +1123,16 @@ mod tests {
         assert!(flat.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {flat:?}");
         assert!(flat.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {flat:?}");
         assert!(flat.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO), "{flat:?}");
+        let dividers = vertical_lines(&shapes, t.divider);
+        for column in &flat {
+            assert!(
+                dividers.iter().any(
+                    |(x, span)| ((x - column.rect.left()).abs() < 1.0 || (x - column.rect.right()).abs() < 1.0) && *span == column.rect.y_range()
+                ),
+                "a full-height divider beside {:?}: {dividers:?}",
+                column.rect
+            );
+        }
         let (shapes, t) = docked_frame(theme::Scheme::Modern);
         let modern = docked_surfaces(&shapes, &t);
         assert!(modern.len() >= 3, "toolbar, rail and dock are cards: {modern:?}");
@@ -1116,18 +1140,39 @@ mod tests {
             assert!(r.rect.left() >= 3.0 && r.rect.right() <= 1440.0 - 3.0, "a card stands off the edges: {:?}", r.rect);
             assert_eq!(r.corner_radius, egui::CornerRadius::same(8));
         }
+        let lines = vertical_lines(&shapes, t.divider);
+        assert!(lines.iter().all(|(_, span)| span.span() >= 899.0), "Modern's lines run the full height: {lines:?}");
     }
 
-    /// Quiet: the toolbar, the dock and the rail reach the window's edges, square, with no line
-    /// anywhere in them, and the dock's tabs are a segmented control: a pill-shaped track in the
+    /// Quiet: the toolbar, the dock and the rail reach the window's edges, square, with no line or
+    /// outline in the divider or border colour anywhere in them; where the toolbar meets the
+    /// canvas, the canvas the rail and the rail the dock, a short separator stands clear of both
+    /// ends of the column. The dock's tabs are a segmented control: a pill-shaped track in the
     /// field colour, the tab in front on a raised pill-shaped chip in the button colour inside it.
     #[test]
-    fn quiet_dock_tabs_are_a_segmented_control_and_its_columns_have_no_dividers() {
+    fn quiet_dock_tabs_are_a_segmented_control_and_its_columns_meet_at_short_separators() {
         let (shapes, t) = docked_frame(theme::Scheme::Quiet);
         let quiet = docked_surfaces(&shapes, &t);
         assert!(quiet.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {quiet:?}");
         assert!(quiet.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {quiet:?}");
         assert!(quiet.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO && r.stroke.width == 0.0), "{quiet:?}");
+        let separator = t.column_separator.expect("Quiet separates its columns");
+        let separators = vertical_lines(&shapes, separator.color);
+        let mut columns: Vec<Rect> = quiet.iter().map(|r| r.rect).collect();
+        columns.sort_by(|a, b| a.left().total_cmp(&b.left()));
+        let [toolbar, rail, dock] = columns[..] else { panic!("the toolbar, the rail and the dock: {columns:?}") };
+        assert!(toolbar.right() < rail.left() && rail.right() <= dock.left(), "{columns:?}");
+        // The side of each column that meets the canvas or the next column.
+        let junctions = [(toolbar.right(), toolbar), (rail.left(), rail), (dock.left(), dock)];
+        assert_eq!(separators.len(), junctions.len(), "one separator per junction: {separators:?}");
+        for (edge, column) in junctions {
+            let (x, span) =
+                separators.iter().find(|(x, _)| (x - edge).abs() < 1.0).unwrap_or_else(|| panic!("a separator at x = {edge}: {separators:?}"));
+            assert!(column.x_range().contains(*x), "{x} lies on {column:?}");
+            assert!(span.span() < column.height(), "shorter than {column:?}: {span:?}");
+            assert!(span.min >= column.top() + 12.0 && span.max <= column.bottom() - 12.0, "clear of the ends of {column:?}: {span:?}");
+            assert!(span.span() > column.height() / 2.0, "most of {column:?}: {span:?}");
+        }
         let line = |s: &egui::Stroke| s.width > 0.0 && (s.color == t.divider || s.color == t.border);
         for s in &shapes {
             match s {

@@ -89,9 +89,10 @@ impl Accent {
 /// User Interface › Color Scheme: Modern (the default: slate greys and the chosen accent),
 /// Classic (the neutral greys and blue accent of earlier versions), Flat (neutral greys, a blue
 /// accent, and the toolbar, rail and dock flush with the window's edges instead of cards) or Quiet
-/// (Flat without the lines: the chrome one surface, raised controls on inset fields). The layout
-/// is the same in all four; Flat's and Quiet's looks come from their tokens ([`Tokens::cards`],
-/// [`Tokens::tab_style`], [`Tokens::chrome_lines`], [`Tokens::raised_shadow`],
+/// (Flat without the full-height lines: the chrome one surface with short inset lines between its
+/// columns, raised controls on inset fields). The layout is the same in all four; Flat's and
+/// Quiet's looks come from their tokens ([`Tokens::cards`], [`Tokens::tab_style`],
+/// [`Tokens::chrome_lines`], [`Tokens::column_separator`], [`Tokens::raised_shadow`],
 /// [`Tokens::field_shade`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Scheme {
@@ -134,6 +135,16 @@ pub enum TabStyle {
 pub enum Edge {
     Left,
     Right,
+}
+
+/// A short line where two docked columns meet (the toolbar and the canvas, the canvas and the rail,
+/// the rail and the dock) when the chrome has no full-height lines ([`Tokens::column_separator`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ColumnSeparator {
+    /// Its colour: a little off the panel colour and the canvas next to it.
+    pub color: Color32,
+    /// The space left clear at its top and bottom ends, in points.
+    pub inset: f32,
 }
 
 /// All colours and metrics the UI uses. Never hard-code a colour in a widget.
@@ -187,6 +198,10 @@ pub struct Tokens {
     /// The shade along the top inside edge of an inset field ([`paint_inset`]);
     /// [`Color32::TRANSPARENT`] draws fields flat.
     pub field_shade: Color32,
+    /// Without [`Tokens::chrome_lines`], a short line inset from the column's ends down the side of
+    /// the toolbar, rail and dock that meets the canvas or the next column
+    /// ([`Tokens::column_divider`]); `None` leaves them separated by tone alone.
+    pub column_separator: Option<ColumnSeparator>,
     /// Field values, button labels, link labels.
     pub text_strong: Color32,
     /// Panel tab strips, doc-tab bar, dock header.
@@ -259,6 +274,7 @@ impl Tokens {
             chrome_lines: true,
             raised_shadow: Shadow::NONE,
             field_shade: Color32::TRANSPARENT,
+            column_separator: None,
             text_strong: hex(0xffffff),
             tab_strip: hex(0x0f1116),
             button_border: hex(0x4a5363),
@@ -603,15 +619,19 @@ impl Tokens {
     }
 
     /// The Quiet colour scheme at brightness `b`: Flat without the lines. The app bar, toolbar,
-    /// rail, dock and status bars are one surface separated by tone and space alone (no cards, no
-    /// dividers); fields are inset (a darker fill with a shade along the top), buttons, the pressed
-    /// tool and the tab in front raised (a lighter fill with a soft shadow); panel tabs are a
-    /// segmented control; corners are 8 for controls and 14 for floating surfaces. The pressed tool
-    /// is neutral and the blue accent is kept for selection, focus and the primary action. Light and
-    /// Medium Dark are the proposal's light and dark tokens; Medium Light and Dark a shade deeper.
+    /// rail, dock and status bars are one surface separated by tone and space (no cards, no
+    /// full-height dividers): where the toolbar, the canvas, the rail and the dock meet, a short
+    /// line a little off the panel colour stands 14 pt clear of the column's ends
+    /// ([`Tokens::column_separator`]); fields are inset (a darker fill with a shade along the top),
+    /// buttons, the pressed tool and the tab in front raised (a lighter fill with a soft shadow);
+    /// panel tabs are a segmented control; corners are 8 for controls and 14 for floating surfaces.
+    /// The pressed tool is neutral and the blue accent is kept for selection, focus and the primary
+    /// action. Light and Medium Dark are the proposal's light and dark tokens; Medium Light and Dark
+    /// a shade deeper.
     pub fn quiet(b: Brightness) -> Self {
         let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
         let raised = |alpha: u8| Shadow { offset: [0, 1], blur: 3, spread: 0, color: Color32::from_black_alpha(alpha) };
+        let separator = |s: u32| Some(ColumnSeparator { color: hex(s), inset: 14.0 });
         let base = Tokens {
             dark: true,
             cards: false,
@@ -619,6 +639,7 @@ impl Tokens {
             chrome_lines: false,
             raised_shadow: raised(128),
             field_shade: hex(0x0e0f11),
+            column_separator: separator(0x3a3c41),
             radius: 8,
             radius_small: 4,
             radius_float: 14,
@@ -655,6 +676,7 @@ impl Tokens {
                 app_bar: hex(0x151618),
                 panel: hex(0x151618),
                 panel_darker: hex(0x111214),
+                column_separator: separator(0x303236),
                 tab_strip: hex(0x151618),
                 input: hex(0x0f1012),
                 input_border: hex(0x0b0c0d),
@@ -677,6 +699,7 @@ impl Tokens {
                 raised_shadow: raised(36),
                 app_bar: hex(0xe5e7ea),
                 panel: hex(0xe5e7ea),
+                column_separator: separator(0xc7cacf),
                 panel_darker: hex(0xdddfe3),
                 tab_strip: hex(0xe5e7ea),
                 input: hex(0xdadde1),
@@ -709,6 +732,7 @@ impl Tokens {
                 raised_shadow: raised(31),
                 app_bar: hex(0xf3f4f6),
                 panel: hex(0xf3f4f6),
+                column_separator: separator(0xd7dadf),
                 panel_darker: hex(0xecedf0),
                 tab_strip: hex(0xf3f4f6),
                 input: hex(0xe9ebee),
@@ -790,6 +814,18 @@ impl Tokens {
     pub fn chrome_stroke(&self, color: Color32) -> Stroke {
         if self.chrome_lines { Stroke::new(1.0, color) } else { Stroke::NONE }
     }
+    /// The line down the side of a docked column spanning `span` that meets the canvas or the next
+    /// column, and its stroke: the whole span in the divider colour with [`Tokens::chrome_lines`],
+    /// else the [`Tokens::column_separator`] with its ends inset, else none (also when the column is
+    /// too short for the insets).
+    pub fn column_divider(&self, span: egui::Rangef) -> Option<(egui::Rangef, Stroke)> {
+        if self.chrome_lines {
+            return Some((span, Stroke::new(1.0, self.divider)));
+        }
+        let separator = self.column_separator?;
+        let inset = egui::Rangef::new(span.min + separator.inset, span.max - separator.inset);
+        (inset.span() > 0.0).then_some((inset, Stroke::new(1.0, separator.color)))
+    }
 }
 
 /// Fully rounded ends: pills and segmented controls.
@@ -836,8 +872,8 @@ pub fn paint_segments(painter: &Painter, track: Rect, chip: Option<Rect>, t: &To
 
 /// The toolbar, the panel dock and the icon rail: with [`Tokens::cards`], `body` drawn on the panel
 /// colour with the floating corners, `margin` of the window's frame colour around it; without, the
-/// panel colour fills the whole column, square, and (with [`Tokens::chrome_lines`]) a divider runs
-/// down its `inner` side.
+/// panel colour fills the whole column, square, and its [`Tokens::column_divider`] runs down its
+/// `inner` side.
 pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, inner: Edge, body: impl FnOnce(&mut egui::Ui) -> R) -> R {
     if !t.cards {
         let shown = egui::Frame::NONE.fill(t.panel).show(ui, |ui| {
@@ -849,7 +885,9 @@ pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, inner: Edge,
             Edge::Left => r.left() + 0.5,
             Edge::Right => r.right() - 0.5,
         };
-        ui.painter().vline(x, r.y_range(), t.chrome_stroke(t.divider));
+        if let Some((span, stroke)) = t.column_divider(r.y_range()) {
+            ui.painter().vline(x, span, stroke);
+        }
         return shown.inner;
     }
     egui::Frame::NONE
@@ -1118,6 +1156,37 @@ mod tests {
         for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat] {
             let t = Tokens::for_scheme(scheme, Brightness::default(), Accent::default());
             assert!(t.chrome_lines && t.raised_shadow == Shadow::NONE && t.field_shade == Color32::TRANSPARENT, "{scheme:?}");
+        }
+    }
+
+    /// Quiet's columns meet at short lines: 1 pt, clear of both ends of the column by 12 pt or
+    /// more, a little off the panel and the canvas next to them (further from the panel than
+    /// either, nowhere near as far as dim text); none when a column is shorter than the insets. The
+    /// other schemes keep the full-height divider and have no separator.
+    #[test]
+    fn quiet_columns_meet_at_short_inset_lines() {
+        let luma = |c: Color32| i32::from(c.r()) + i32::from(c.g()) + i32::from(c.b());
+        let span = egui::Rangef::new(40.0, 860.0);
+        for b in Brightness::ALL {
+            let t = Tokens::for_scheme(Scheme::Quiet, b, Accent::default());
+            let separator = t.column_separator.expect("Quiet separates its columns");
+            assert!(separator.inset >= 12.0, "{b:?}: {separator:?}");
+            let (line, stroke) = t.column_divider(span).expect("a separator");
+            assert_eq!(line, egui::Rangef::new(span.min + separator.inset, span.max - separator.inset), "{b:?}");
+            assert_eq!(stroke, Stroke::new(1.0, separator.color), "{b:?}");
+            assert!(chroma(separator.color) <= 10, "{b:?}: {separator:?} is grey");
+            let off = |c: Color32| (luma(separator.color) - luma(c)).abs();
+            assert!(off(t.panel) >= 24 && off(t.pasteboard) >= 24, "{b:?}: {separator:?} shows on the panel and the canvas");
+            assert!(off(t.panel) > (luma(t.pasteboard) - luma(t.panel)).abs(), "{b:?}: {separator:?} stands off the canvas edge");
+            assert!(off(t.panel) < (luma(t.text_dim) - luma(t.panel)).abs() / 2, "{b:?}: {separator:?} is subtle");
+            assert_eq!(t.column_divider(egui::Rangef::new(0.0, 2.0 * separator.inset)), None, "{b:?}: too short for the insets");
+        }
+        for b in Brightness::ALL {
+            for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat] {
+                let t = Tokens::for_scheme(scheme, b, Accent::default());
+                assert_eq!(t.column_separator, None, "{scheme:?} {b:?}");
+                assert_eq!(t.column_divider(span), Some((span, Stroke::new(1.0, t.divider))), "{scheme:?} {b:?}: the full height");
+            }
         }
     }
 
