@@ -1214,7 +1214,7 @@ pub(crate) fn load_library(app: &mut VectorcraftApp, params: Value) -> Result<Va
 /// Other Library…: load the library (or document) at `path`, else one picked in an open dialog
 /// (on the web the picked file arrives later and opens through [`crate::io::open_bytes`]).
 pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> Result<Value, String> {
-    match library_panel::pick_library_file(app, path)? {
+    match library_panel::pick_library_file(app, path, library_panel::library_pick_filters(SwatchLibraries::KIND))? {
         Some(path) => load_library(app, json!({ "path": path })),
         None => Ok(Value::Null),
     }
@@ -1763,7 +1763,7 @@ mod tests {
         let grad = |c: &str| {
             let stops =
                 vec![vectorcraft_color::GradientStop::new(0.0, Color::from_hex(c).unwrap()), vectorcraft_color::GradientStop::new(1.0, Color::WHITE)];
-            Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient { kind: GradientKind::Radial, stops })))
+            Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::new(GradientKind::Radial, stops))))
         };
         let drop_on = |app: &mut VectorcraftApp, name: &str, paint: Paint, m: Modifiers, time: f64| {
             let at = tile_center(&ctx, name);

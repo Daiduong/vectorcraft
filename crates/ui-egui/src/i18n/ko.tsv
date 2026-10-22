@@ -96,6 +96,11 @@
 	Medium Light	약간 밝게
 	Light	밝게
 	Quit VectorCraft	VectorCraft 종료
+# Artwork drag between document tabs.
+	Drop Artwork	아트워크 놓기
+@msg	{key} must be [x, y] with finite coordinates	{key}은(는) 유한한 좌표의 [x, y]여야 합니다
+@msg	ids must contain 1–10000 object ids	ids에는 1~10000개의 오브젝트 ID가 있어야 합니다
+
 	File	파일
 	New…	새로 만들기…
 	New Without Dialog	대화상자 없이 새로 만들기
@@ -2359,7 +2364,7 @@
 	Performance	성능
 diagnostics	render	렌더링
 diagnostics	ui	UI
-	Performance & Storage	성능 및 저장 공간
+	Plug-ins & Scratch Disks	플러그인 & 스크래치 디스크
 	Permissions	권한
 	Permissions password:	권한 암호:
 	Perspective Grid Options	원근 격자 옵션
@@ -3225,7 +3230,7 @@ mark-style	Japanese	일본식
 	the preset	프리셋
 	tile {number}	타일 {number}
 	to	~
-	{count} file(s) in {folder}{note}. Show the package folder?	{folder}에 파일 {count}개{note}. 패키지 폴더를 표시하시겠습니까?
+	{count} file(s) in {folder} {note}. Show the package folder?	{folder}에 파일 {count}개{note}. 패키지 폴더를 표시하시겠습니까?
 	{count} linked file(s) not found	연결된 파일 {count}개를 찾을 수 없습니다
 	fonts not copied: {fonts}	복사되지 않은 글꼴: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	이 문서를 저장한 이후 연결된 이미지 {count}개가 변경되었습니다. 새 버전을 표시하시겠습니까?
@@ -3501,7 +3506,7 @@ file-filter	Templates	템플릿
 	Output Black	출력 검정
 	Output White	출력 흰색
 	Output › Mode	출력 › 모드
-	Packaged {n} file(s) in {folder}{note}	{folder}에 파일 {n}개를 패키지했습니다{note}
+	Packaged {n} file(s) in {folder} {note}	{folder}에 파일 {n}개를 패키지했습니다{note}
 	Packaged {n} file(s){note}	파일 {n}개를 패키지했습니다{note}
 	Page information	페이지 정보
 	Paragraph Style	단락 스타일
@@ -4247,6 +4252,7 @@ theme	Appearance	외관
 @msg	SVG parse error: {0}	SVG 구문 분석 오류: {0}
 @msg	decimals must be {_1}–{_2} (got {_3})	소수 자릿수는 {_1}~{_2}이어야 합니다({_3} 입력됨)
 @msg	Exporting {_1}	{_1} 내보내는 중
+@msg	Packaging {_1}	{_1} 패키지 만드는 중
 @msg	Exported {what}	{what}을(를) 내보냈습니다
 @msg	"{0}" is not a colour: write it as #rrggbb	"{0}"은(는) 색상이 아닙니다: #rrggbb 형식으로 입력하세요
 @msg	could not decode image: {0}	이미지를 디코딩할 수 없습니다: {0}
@@ -4293,7 +4299,7 @@ theme	Appearance	외관
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	링크된 이미지 {_1}개가 디스크에서 바뀌었습니다: 링크 업데이트를 하면 새 버전이 표시됩니다
 @msg	Updated {_1} linked file(s) changed on disk	디스크에서 바뀐 링크된 파일 {_1}개를 업데이트했습니다
 @msg	pick a colour, gradient or pattern to save as a swatch	견본으로 저장할 색상, 그레이디언트 또는 패턴을 선택하세요
-@msg	Packaged {n} file(s) in {folder}{note}	{folder}에 파일 {n}개를 패키지했습니다{note}
+@msg	Packaged {n} file(s) in {folder} {note}	{folder}에 파일 {n}개를 패키지했습니다{note}
 @msg	Packaged {n} file(s){note}	파일 {n}개를 패키지했습니다{note}
 @msg	choose a location for the package	패키지 위치를 선택하세요
 @msg	missing `folder`	`folder`가 없습니다
@@ -4416,6 +4422,7 @@ theme	Appearance	외관
 @msg	no user library folder here	여기에는 사용자 라이브러리 폴더가 없습니다
 @msg	Couldn't place {name}: the document it was dropped on was closed	{name}을(를) 가져올 수 없습니다: 놓은 문서가 닫혔습니다
 @msg	no files to place	가져올 파일이 없습니다
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}`은(는) VectorCraft 문서, PDF 또는 PDF 호환 .ai 파일이 아닙니다
 @msg	paths: give at least one file	paths: 파일을 하나 이상 지정하세요
 @msg	Couldn't place {name}: {e}	{name}을(를) 가져올 수 없습니다: {e}
 @msg	no print service	인쇄 서비스가 없습니다
@@ -4489,7 +4496,9 @@ theme	Appearance	외관
 @msg	automation filesystem access is not granted: read authority is absent: {path}	자동화 파일 시스템 접근이 허용되지 않았습니다: 읽기 권한이 없습니다: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	자동화 파일 시스템 접근이 허용되지 않았습니다: 쓰기 권한이 없습니다: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	자동화 경로가 거부되었습니다: 읽기 루트 {root} 밖입니다: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	자동화 경로가 거부되었습니다: 읽기 루트 {roots} 밖입니다: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	자동화 경로가 거부되었습니다: 쓰기 루트 {root} 밖입니다: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	자동화 경로가 거부되었습니다: 쓰기 루트 {roots} 밖입니다: {path}
 @msg	automation path rejected: path is empty	자동화 경로가 거부되었습니다: 경로가 비어 있습니다
 @msg	automation path rejected: a link that leads nowhere: {path}	자동화 경로가 거부되었습니다: 어디로도 이어지지 않는 링크입니다: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	자동화 경로가 거부되었습니다: {path}을(를) 해석할 수 없습니다: {e}
@@ -4899,6 +4908,10 @@ lighting	Light	광원
 	Halftone Pattern	하프톤 패턴
 	Torn Edges…	찢어진 가장자리…
 	Torn Edges	찢어진 가장자리
+	Conté Crayon…	콘테 크레용…
+	Conté Crayon	콘테 크레용
+	Foreground Level	전경 레벨
+	Background Level	배경 레벨
 	Pattern Type	패턴 유형
 	Dot	점
 # User Interface › Color Scheme
@@ -5021,3 +5034,27 @@ lighting	Light	광원
 	Fresco	프레스코
 	Effect Gallery…	효과 갤러리…
 	Effect Gallery Dialog	효과 갤러리 대화 상자
+	Arc Segment Tool Options	호 세그먼트 도구 옵션
+	Base Along:	기준 방향:
+	Closed	닫힘
+	Concave	오목
+	Convex	볼록
+	Fill Arc	호 채우기
+	Length X-Axis:	X축 길이:
+	Length Y-Axis:	Y축 길이:
+	Slope:	기울기:
+axis	X Axis	X축
+axis	Y Axis	Y축
+@msg	Packaged {n} file(s) in {folder}	{folder}에 파일 {n}개를 패키지했습니다
+@msg	Packaged {n} file(s) {note}	파일 {n}개를 패키지했습니다 {note}
+@msg	Packaged {n} file(s)	파일 {n}개를 패키지했습니다
+	Packaged {n} file(s)	파일 {n}개를 패키지했습니다
+	Packaged {n} file(s) in {folder}	{folder}에 파일 {n}개를 패키지했습니다
+	Packaged {n} file(s) {note}	파일 {n}개를 패키지했습니다 {note}
+	{count} file(s) in {folder}. Show the package folder?	{folder}에 파일 {count}개. 패키지 폴더를 표시하시겠습니까?
+	Clockwise	시계 방향
+	Dither	디더
+	Fine noise hides banding in the gradient fill	미세한 노이즈로 그레이디언트 칠의 띠를 감춥니다
+@msg	`dither` applies to gradient fills (stroke: false)	`dither`는 그레이디언트 칠에 적용됩니다 (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither`는 그레이디언트 칠에 적용됩니다 (paint.setFill)
+@msg	`dither` must be true or false	`dither`은(는) true 또는 false여야 합니다

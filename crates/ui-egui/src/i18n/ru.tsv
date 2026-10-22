@@ -1094,6 +1094,11 @@
 	Fidelity:	Точность:
 	Figure Space	Цифровая шпация
 	Figure:	Цифры:
+# Artwork drag between document tabs.
+	Drop Artwork	Поместить графику
+@msg	{key} must be [x, y] with finite coordinates	{key} должен быть [x, y] с конечными координатами
+@msg	ids must contain 1–10000 object ids	ids должен содержать от 1 до 10000 идентификаторов объектов
+
 	File	Файл
 	File Dimensions	Размеры файла
 	File Format:	Формат файла:
@@ -2263,7 +2268,7 @@ file-filter	Templates	Шаблоны
 	Package	Упаковать
 	Package collects a saved document with its linked files and fonts.	Упаковка собирает сохранённый документ с его связанными файлами и шрифтами.
 	Package created	Пакет создан
-	Packaged {n} file(s) in {folder}{note}	Упаковано файлов: {n} в {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Упаковано файлов: {n} в {folder}{note}
 	Packaged {n} file(s){note}	Упаковано файлов: {n}{note}
 	Package…	Упаковать…
 	Page	Страница
@@ -2326,7 +2331,7 @@ file-filter	Templates	Шаблоны
 	Performance	Производительность
 diagnostics	render	отрисовка
 diagnostics	ui	интерфейс
-	Performance & Storage	Производительность и хранение
+	Plug-ins & Scratch Disks	Модули & Рабочие диски
 	Permissions	Разрешения
 	Permissions password:	Пароль разрешений:
 	Perspective	Перспектива
@@ -3636,7 +3641,7 @@ mark-style	Japanese	Японский
 	Zoom Tool	Инструмент «Масштаб»
 	Zoom with Mouse Wheel	Масштабировать колесом мыши
 	Scrub Numeric Fields by Dragging	Изменять числовые поля перетаскиванием
-	{count} file(s) in {folder}{note}. Show the package folder?	Файлов: {count} в {folder}{note}. Показать папку пакета?
+	{count} file(s) in {folder} {note}. Show the package folder?	Файлов: {count} в {folder}{note}. Показать папку пакета?
 	{count} linked file(s) not found	Не найдено связанных файлов: {count}
 	fonts not copied: {fonts}	шрифты не скопированы: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	Связанных изображений ({count}) изменились с момента сохранения этого документа. Показать новые версии?
@@ -3881,7 +3886,7 @@ axis	Both	Оба
 @msg	Outline Stroke: no stroked paths selected	Обводка контура: не выделены контуры с обводкой
 @msg	PDF settings are not an object	параметры PDF не являются объектом
 @msg	PDF writer error: {0}	ошибка записи PDF: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Упаковано файлов: {n} в {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Упаковано файлов: {n} в {folder}{note}
 @msg	Packaged {n} file(s){note}	Упаковано файлов: {n}{note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Просмотр в браузере требует настольного приложения (web-версия скачивает файлы)
 @msg	Release Guides: no guides	Освобождение направляющих: нет направляющих
@@ -4118,6 +4123,7 @@ axis	Both	Оба
 @msg	no file system here	здесь нет файловой системы
 @msg	no file writer	нет средства записи файлов
 @msg	no files to place	нет файлов для размещения
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` не является документом VectorCraft, PDF или файлом .ai, совместимым с PDF
 @msg	no format to export to	нет формата для экспорта
 @msg	no free recovery area	нет свободной области восстановления
 @msg	no gradient stop or freeform point is selected	не выделена ни точка перехода градиента, ни произвольная точка
@@ -4409,6 +4415,7 @@ axis	Both	Оба
 @msg	Saving	Сохранение
 @msg	Saving {_1}	Сохранение {_1}
 @msg	Exporting {_1}	Экспорт {_1}
+@msg	Packaging {_1}	Упаковка {_1}
 @msg	Saving recovery data for {_1}	Сохранение данных восстановления для {_1}
 @msg	Discarded {_1} recovered document(s)	Отменено восстановленных документов: {_1}
 @msg	Restored {_1} recovered document(s): save them to keep them	Восстановлено документов: {_1}: сохраните их, чтобы оставить
@@ -4517,7 +4524,9 @@ axis	Both	Оба
 @msg	automation filesystem access is not granted: read authority is absent: {path}	у автоматизации нет доступа к файловой системе: нет права на чтение: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	у автоматизации нет доступа к файловой системе: нет права на запись: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	путь автоматизации отклонён: вне корневой папки для чтения {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	путь автоматизации отклонён: вне корневых папок для чтения {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	путь автоматизации отклонён: вне корневой папки для записи {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	путь автоматизации отклонён: вне корневых папок для записи {roots}: {path}
 @msg	automation path rejected: path is empty	путь автоматизации отклонён: путь пуст
 @msg	automation path rejected: a link that leads nowhere: {path}	путь автоматизации отклонён: ссылка, которая никуда не ведёт: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	путь автоматизации отклонён: не удаётся определить {path}: {e}
@@ -4932,6 +4941,10 @@ lighting	Light	Свет
 	Halftone Pattern	Полутоновый узор
 	Torn Edges…	Рваные края…
 	Torn Edges	Рваные края
+	Conté Crayon…	Мелок Конте…
+	Conté Crayon	Мелок Конте
+	Foreground Level	Уровень переднего плана
+	Background Level	Уровень фона
 	Pattern Type	Тип узора
 	Dot	Точка
 # User Interface › Color Scheme
@@ -5054,3 +5067,27 @@ lighting	Light	Свет
 	Fresco	Фреска
 	Effect Gallery…	Галерея эффектов…
 	Effect Gallery Dialog	Диалог «Галерея эффектов»
+	Arc Segment Tool Options	Параметры инструмента «Дуговой сегмент»
+	Base Along:	Основание вдоль:
+	Closed	Замкнутый
+	Concave	Вогнутый
+	Convex	Выпуклый
+	Fill Arc	Заливка дуги
+	Length X-Axis:	Длина по оси X:
+	Length Y-Axis:	Длина по оси Y:
+	Slope:	Уклон:
+axis	X Axis	Ось X
+axis	Y Axis	Ось Y
+@msg	Packaged {n} file(s) in {folder}	Упаковано файлов: {n} в {folder}
+@msg	Packaged {n} file(s) {note}	Упаковано файлов: {n} {note}
+@msg	Packaged {n} file(s)	Упаковано файлов: {n}
+	Packaged {n} file(s)	Упаковано файлов: {n}
+	Packaged {n} file(s) in {folder}	Упаковано файлов: {n} в {folder}
+	Packaged {n} file(s) {note}	Упаковано файлов: {n} {note}
+	{count} file(s) in {folder}. Show the package folder?	Файлов: {count} в {folder}. Показать папку пакета?
+	Clockwise	По часовой стрелке
+	Dither	Дизеринг
+	Fine noise hides banding in the gradient fill	Мелкий шум скрывает полосы в градиентной заливке
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` применяется к градиентным заливкам (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` применяется к градиентным заливкам (paint.setFill)
+@msg	`dither` must be true or false	`dither` должно быть true или false

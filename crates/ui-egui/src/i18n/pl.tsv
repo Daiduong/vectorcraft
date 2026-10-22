@@ -63,6 +63,11 @@
 	Medium Light	Średnio jasny
 	Light	Jasny
 	Quit VectorCraft	Zakończ VectorCraft
+# Artwork drag between document tabs.
+	Drop Artwork	Upuść kompozycję
+@msg	{key} must be [x, y] with finite coordinates	{key} musi mieć postać [x, y] ze skończonymi współrzędnymi
+@msg	ids must contain 1–10000 object ids	ids musi zawierać od 1 do 10000 identyfikatorów obiektów
+
 	File	Plik
 	New…	Nowy…
 	New Without Dialog	Nowy bez okna dialogowego
@@ -747,7 +752,7 @@
 	Units	Jednostki
 	Guides & Grid	Linie pomocnicze i siatka
 	Hyphenation	Dzielenie wyrazów
-	Performance & Storage	Wydajność i pamięć
+	Plug-ins & Scratch Disks	Wtyczki & Dyski robocze
 	User Interface	Interfejs użytkownika
 	Performance	Wydajność
 	File Handling	Obsługa plików
@@ -2318,11 +2323,11 @@ lighting	Light	Światło
 	Fonts whose licence doesn't allow embedding are not copied.	Czcionki, których licencja nie zezwala na osadzanie, nie są kopiowane.
 	Package collects a saved document with its linked files and fonts.	Pakowanie zbiera zapisany dokument wraz z połączonymi plikami i czcionkami.
 	Package created	Utworzono pakiet
-	Packaged {n} file(s) in {folder}{note}	Spakowane pliki: {n} w {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Spakowane pliki: {n} w {folder}{note}
 	Packaged {n} file(s){note}	Spakowane pliki: {n}{note}
 	Relink Linked Files to the Document	Połącz ponownie połączone pliki z dokumentem
 	Save the document first?	Najpierw zapisać dokument?
-	{count} file(s) in {folder}{note}. Show the package folder?	Pliki: {count} w {folder}{note}. Pokazać folder pakietu?
+	{count} file(s) in {folder} {note}. Show the package folder?	Pliki: {count} w {folder}{note}. Pokazać folder pakietu?
 	{count} linked file(s) not found	Nie znaleziono połączonych plików: {count}
 	fonts not copied: {fonts}	nieskopiowane czcionki: {fonts}
 	Built-in presets are read-only: New… starts an editable copy.	Wbudowane ustawienia są tylko do odczytu: Nowe… tworzy edytowalną kopię.
@@ -3971,7 +3976,7 @@ imageTrace	Outline	Kontur
 @msg	Outline Stroke: no stroked paths selected	Obrys konturu: nie zaznaczono ścieżek z obrysem
 @msg	PDF settings are not an object	Ustawienia PDF nie są obiektem
 @msg	PDF writer error: {0}	Błąd zapisu PDF: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Spakowane pliki: {n} w {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Spakowane pliki: {n} w {folder}{note}
 @msg	Packaged {n} file(s){note}	Spakowane pliki: {n}{note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Podgląd w przeglądarce wymaga aplikacji desktopowej (wersja webowa zamiast tego pobiera pliki)
 @msg	Release Guides: no guides	Uwolnij linie pomocnicze: brak linii pomocniczych
@@ -4207,6 +4212,7 @@ imageTrace	Outline	Kontur
 @msg	no file system here	brak systemu plików
 @msg	no file writer	brak modułu zapisu plików
 @msg	no files to place	brak plików do umieszczenia
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` nie jest dokumentem VectorCraft, plikiem PDF ani plikiem .ai zgodnym z PDF
 @msg	no format to export to	brak formatu eksportu
 @msg	no free recovery area	brak wolnego obszaru odzyskiwania
 @msg	no gradient stop or freeform point is selected	nie zaznaczono punktu koloru gradientu ani dowolnego punktu
@@ -4499,6 +4505,7 @@ imageTrace	Outline	Kontur
 @msg	Saving	Zapisywanie
 @msg	Saving {_1}	Zapisywanie {_1}
 @msg	Exporting {_1}	Eksportowanie {_1}
+@msg	Packaging {_1}	Pakowanie {_1}
 @msg	Saving recovery data for {_1}	Zapisywanie danych odzyskiwania dla {_1}
 @msg	Discarded {_1} recovered document(s)	Odrzucone odzyskane dokumenty: {_1}
 @msg	Restored {_1} recovered document(s): save them to keep them	Przywrócone odzyskane dokumenty: {_1} — zapisz je, aby je zachować
@@ -4583,7 +4590,9 @@ imageTrace	Outline	Kontur
 @msg	automation filesystem access is not granted: read authority is absent: {path}	nie przyznano dostępu automatyzacji do systemu plików: brak uprawnień do odczytu: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	nie przyznano dostępu automatyzacji do systemu plików: brak uprawnień do zapisu: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	odrzucono ścieżkę automatyzacji: poza katalogiem głównym odczytu {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	odrzucono ścieżkę automatyzacji: poza katalogami głównymi odczytu {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	odrzucono ścieżkę automatyzacji: poza katalogiem głównym zapisu {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	odrzucono ścieżkę automatyzacji: poza katalogami głównymi zapisu {roots}: {path}
 @msg	automation path rejected: path is empty	odrzucono ścieżkę automatyzacji: ścieżka jest pusta
 @msg	automation path rejected: a link that leads nowhere: {path}	odrzucono ścieżkę automatyzacji: łącze prowadzi donikąd: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	odrzucono ścieżkę automatyzacji: nie można rozwiązać {path}: {e}
@@ -5174,6 +5183,10 @@ mark-style	Japanese	Japońskie
 	Halftone Pattern	Wzór rastra
 	Torn Edges…	Postrzępione krawędzie…
 	Torn Edges	Postrzępione krawędzie
+	Conté Crayon…	Kredka Conté…
+	Conté Crayon	Kredka Conté
+	Foreground Level	Poziom pierwszego planu
+	Background Level	Poziom tła
 	Pattern Type	Typ wzoru
 	Dot	Kropka
 # User Interface › Color Scheme
@@ -5295,3 +5308,26 @@ mark-style	Japanese	Japońskie
 	Fresco	Fresk
 	Effect Gallery…	Galeria efektów…
 	Effect Gallery Dialog	Okno dialogowe Galeria efektów
+	Arc Segment Tool Options	Opcje narzędzia Segment łuku
+	Base Along:	Podstawa wzdłuż:
+	Closed	Zamknięty
+	Convex	Wypukła
+	Fill Arc	Wypełnij łuk
+	Length X-Axis:	Długość osi X:
+	Length Y-Axis:	Długość osi Y:
+	Slope:	Nachylenie:
+axis	X Axis	Oś X
+axis	Y Axis	Oś Y
+@msg	Packaged {n} file(s) in {folder}	Spakowane pliki: {n} w {folder}
+@msg	Packaged {n} file(s) {note}	Spakowane pliki: {n} {note}
+@msg	Packaged {n} file(s)	Spakowane pliki: {n}
+	Packaged {n} file(s)	Spakowane pliki: {n}
+	Packaged {n} file(s) in {folder}	Spakowane pliki: {n} w {folder}
+	Packaged {n} file(s) {note}	Spakowane pliki: {n} {note}
+	{count} file(s) in {folder}. Show the package folder?	Pliki: {count} w {folder}. Pokazać folder pakietu?
+	Clockwise	Zgodnie z ruchem wskazówek zegara
+	Dither	Rozpraszanie
+	Fine noise hides banding in the gradient fill	Drobny szum ukrywa pasy w wypełnieniu gradientem
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` dotyczy wypełnień gradientem (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` dotyczy wypełnień gradientem (paint.setFill)
+@msg	`dither` must be true or false	`dither` musi mieć wartość true lub false

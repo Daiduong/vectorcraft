@@ -1096,6 +1096,11 @@
 	Fidelity:	Fedeltà:
 	Figure Space	Spazio cifra
 	Figure:	Cifre:
+# Artwork drag between document tabs.
+	Drop Artwork	Rilascia illustrazione
+@msg	{key} must be [x, y] with finite coordinates	{key} deve essere [x, y] con coordinate finite
+@msg	ids must contain 1–10000 object ids	ids deve contenere da 1 a 10000 identificatori di oggetti
+
 	File	File
 	File Dimensions	Dimensioni file
 	File Format:	Formato file:
@@ -2267,7 +2272,7 @@ file-filter	Templates	Modelli
 	Package	Crea pacchetto
 	Package collects a saved document with its linked files and fonts.	Il comando Crea pacchetto raccoglie un documento salvato insieme ai file collegati e ai font.
 	Package created	Pacchetto creato
-	Packaged {n} file(s) in {folder}{note}	Pacchetto creato con {n} file in {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Pacchetto creato con {n} file in {folder} {note}
 	Packaged {n} file(s){note}	Pacchetto creato con {n} file{note}
 	Package…	Crea pacchetto…
 	Page	Pagina
@@ -2330,7 +2335,7 @@ file-filter	Templates	Modelli
 	Performance	Prestazioni
 diagnostics	render	rendering
 diagnostics	ui	interfaccia
-	Performance & Storage	Prestazioni e archiviazione
+	Plug-ins & Scratch Disks	Plug-in & Dischi di memoria virtuale
 	Permissions	Autorizzazioni
 	Permissions password:	Password autorizzazioni:
 	Perspective	Prospettiva
@@ -3640,7 +3645,7 @@ mark-style	Japanese	Giapponese
 	Zoom Tool	Strumento Zoom
 	Zoom with Mouse Wheel	Zoom con la rotellina del mouse
 	Scrub Numeric Fields by Dragging	Regola i campi numerici trascinando
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} file in {folder}{note}. Vuoi mostrare la cartella del pacchetto?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} file in {folder} {note}. Vuoi mostrare la cartella del pacchetto?
 	{count} linked file(s) not found	File collegati non trovati: {count}
 	fonts not copied: {fonts}	font non copiati: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	Immagini collegate modificate dopo il salvataggio di questo documento: {count}. Vuoi mostrare le nuove versioni?
@@ -3885,7 +3890,7 @@ axis	Both	Entrambi
 @msg	Outline Stroke: no stroked paths selected	Contorna traccia: nessun tracciato con traccia selezionato
 @msg	PDF settings are not an object	Le impostazioni PDF non sono un oggetto
 @msg	PDF writer error: {0}	Errore del generatore PDF: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Pacchetto creato con {n} file in {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Pacchetto creato con {n} file in {folder} {note}
 @msg	Packaged {n} file(s){note}	Pacchetto creato con {n} file{note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Anteprima nel browser richiede l'app desktop (sul web i file vengono invece scaricati)
 @msg	Release Guides: no guides	Rilascia guide: nessuna guida
@@ -4122,6 +4127,7 @@ axis	Both	Entrambi
 @msg	no file system here	nessun file system disponibile qui
 @msg	no file writer	nessun modulo di scrittura file
 @msg	no files to place	nessun file da inserire
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` non è un documento VectorCraft, un PDF o un file .ai compatibile con PDF
 @msg	no format to export to	nessun formato di esportazione
 @msg	no free recovery area	nessuna area di recupero libera
 @msg	no gradient stop or freeform point is selected	nessun cursore colore o punto a forma libera selezionato
@@ -4413,6 +4419,7 @@ axis	Both	Entrambi
 @msg	Saving	Salvataggio
 @msg	Saving {_1}	Salvataggio di {_1}
 @msg	Exporting {_1}	Esportazione di {_1}
+@msg	Packaging {_1}	Creazione del pacchetto {_1}
 @msg	Saving recovery data for {_1}	Salvataggio dei dati di recupero per {_1}
 @msg	Discarded {_1} recovered document(s)	Documenti recuperati scartati: {_1}
 @msg	Restored {_1} recovered document(s): save them to keep them	Documenti recuperati ripristinati: {_1}. Salvali per conservarli
@@ -4519,7 +4526,9 @@ axis	Both	Entrambi
 @msg	automation filesystem access is not granted: read authority is absent: {path}	l'automazione non ha accesso al file system: manca l'autorizzazione di lettura: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	l'automazione non ha accesso al file system: manca l'autorizzazione di scrittura: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	percorso di automazione rifiutato: fuori dalla cartella radice di lettura {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	percorso di automazione rifiutato: fuori dalle cartelle radice di lettura {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	percorso di automazione rifiutato: fuori dalla cartella radice di scrittura {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	percorso di automazione rifiutato: fuori dalle cartelle radice di scrittura {roots}: {path}
 @msg	automation path rejected: path is empty	percorso di automazione rifiutato: il percorso è vuoto
 @msg	automation path rejected: a link that leads nowhere: {path}	percorso di automazione rifiutato: un collegamento che non porta da nessuna parte: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	percorso di automazione rifiutato: impossibile risolvere {path}: {e}
@@ -4936,6 +4945,10 @@ lighting	Light	Luce
 	Halftone Pattern	Pattern mezzetinte
 	Torn Edges…	Bordi strappati…
 	Torn Edges	Bordi strappati
+	Conté Crayon…	Matita Conté…
+	Conté Crayon	Matita Conté
+	Foreground Level	Livello primo piano
+	Background Level	Livello sfondo
 	Pattern Type	Tipo di pattern
 	Dot	Punto
 # User Interface › Color Scheme
@@ -5058,3 +5071,27 @@ lighting	Light	Luce
 	Fresco	Affresco
 	Effect Gallery…	Galleria effetti…
 	Effect Gallery Dialog	Finestra di dialogo Galleria effetti
+	Arc Segment Tool Options	Opzioni strumento Segmento arco
+	Base Along:	Base lungo:
+	Closed	Chiuso
+	Concave	Concavo
+	Convex	Convesso
+	Fill Arc	Riempi arco
+	Length X-Axis:	Lunghezza asse X:
+	Length Y-Axis:	Lunghezza asse Y:
+	Slope:	Pendenza:
+axis	X Axis	Asse X
+axis	Y Axis	Asse Y
+@msg	Packaged {n} file(s) in {folder}	Pacchetto creato con {n} file in {folder}
+@msg	Packaged {n} file(s) {note}	Pacchetto creato con {n} file {note}
+@msg	Packaged {n} file(s)	Pacchetto creato con {n} file
+	Packaged {n} file(s)	Pacchetto creato con {n} file
+	Packaged {n} file(s) in {folder}	Pacchetto creato con {n} file in {folder}
+	Packaged {n} file(s) {note}	Pacchetto creato con {n} file {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} file in {folder}. Vuoi mostrare la cartella del pacchetto?
+	Clockwise	In senso orario
+	Dither	Dithering
+	Fine noise hides banding in the gradient fill	Un rumore fine nasconde le bande nel riempimento sfumato
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` si applica ai riempimenti sfumati (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` si applica ai riempimenti sfumati (paint.setFill)
+@msg	`dither` must be true or false	`dither` deve essere true o false

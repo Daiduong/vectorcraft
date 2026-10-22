@@ -1078,6 +1078,11 @@
 	Fidelity:	Återgivning:
 	Figure Space	Siffermellanrum
 	Figure:	Figur:
+# Artwork drag between document tabs.
+	Drop Artwork	Släpp grafik
+@msg	{key} must be [x, y] with finite coordinates	{key} måste vara [x, y] med ändliga koordinater
+@msg	ids must contain 1–10000 object ids	ids måste innehålla 1–10000 objekt-id:n
+
 	File	Fil
 	File Dimensions	Fildimensioner
 	File Format:	Filformat:
@@ -2190,7 +2195,7 @@
 	Package	Paketera
 	Package collects a saved document with its linked files and fonts.	Paketera samlar ett sparat dokument med dess länkade filer och typsnitt.
 	Package created	Paketet har skapats
-	Packaged {n} file(s) in {folder}{note}	Paketerade {n} fil(er) i {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Paketerade {n} fil(er) i {folder}{note}
 	Packaged {n} file(s){note}	Paketerade {n} fil(er){note}
 	Package…	Paketera…
 	Page	Sida
@@ -2249,7 +2254,7 @@
 	Percent:	Procent:
 	Perceptual Scales	Perceptuella skalor
 	Performance	Prestanda
-	Performance & Storage	Prestanda och lagring
+	Plug-ins & Scratch Disks	Insticksprogram & Arbetsdiskar
 	Permissions	Behörigheter
 	Permissions password:	Lösenord för behörigheter:
 	Perspective	Perspektiv
@@ -3539,7 +3544,7 @@
 	Zoom Tool	Zoomverktyg
 	Zoom with Mouse Wheel	Zooma med mushjulet
 	Scrub Numeric Fields by Dragging	Ändra numeriska fält genom att dra
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} fil(er) i {folder}{note}. Visa paketmappen?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} fil(er) i {folder}{note}. Visa paketmappen?
 	{count} linked file(s) not found	{count} länkad(e) fil(er) hittades inte
 	fonts not copied: {fonts}	typsnitt som inte kopierats: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	{count} länkad(e) bild(er) har ändrats sedan dokumentet sparades. Visa de nya versionerna?
@@ -3767,7 +3772,7 @@ axis	Both	Båda
 @msg	Outline Stroke: no stroked paths selected	Kontur till bana: inga banor med kontur markerade
 @msg	PDF settings are not an object	PDF-inställningarna är inte ett objekt
 @msg	PDF writer error: {0}	fel i PDF-skrivaren: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Paketerade {n} fil(er) i {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Paketerade {n} fil(er) i {folder}{note}
 @msg	Packaged {n} file(s){note}	Paketerade {n} fil(er){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Förhandsgranska i webbläsare kräver skrivbordsappen (webbversionen hämtar filer i stället)
 @msg	Release Guides: no guides	Släpp stödlinjer: inga stödlinjer
@@ -3999,6 +4004,7 @@ axis	Both	Båda
 @msg	no file system here	inget filsystem här
 @msg	no file writer	ingen filskrivare
 @msg	no files to place	inga filer att placera
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` är inte ett VectorCraft-dokument, en PDF eller en PDF-kompatibel .ai-fil
 @msg	no format to export to	inget format att exportera till
 @msg	no free recovery area	inget ledigt återställningsområde
 @msg	no gradient stop or freeform point is selected	inget övertoningsstopp eller fri punkt är markerad
@@ -4284,6 +4290,7 @@ axis	Both	Båda
 @msg	Saving	Sparar
 @msg	Saving {_1}	Sparar {_1}
 @msg	Exporting {_1}	Exporterar {_1}
+@msg	Packaging {_1}	Paketerar {_1}
 @msg	Saving recovery data for {_1}	Sparar återställningsdata för {_1}
 @msg	Discarded {_1} recovered document(s)	Kastade {_1} återställda dokument
 @msg	Restored {_1} recovered document(s): save them to keep them	Återställde {_1} återskapade dokument: spara dem för att behålla dem
@@ -4402,7 +4409,9 @@ axis	Both	Båda
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: läsbehörighet saknas: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: skrivbehörighet saknas: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automatiseringssökvägen avvisades: utanför läsroten {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automatiseringssökvägen avvisades: utanför läsrötterna {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automatiseringssökvägen avvisades: utanför skrivroten {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automatiseringssökvägen avvisades: utanför skrivrötterna {roots}: {path}
 @msg	automation path rejected: path is empty	automatiseringssökvägen avvisades: sökvägen är tom
 @msg	automation path rejected: a link that leads nowhere: {path}	automatiseringssökvägen avvisades: en länk som inte leder någonstans: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automatiseringssökvägen avvisades: kan inte lösa upp {path}: {e}
@@ -5278,6 +5287,10 @@ theme	Appearance	Utseende
 	Halftone Pattern	Rastermönster
 	Torn Edges…	Riviga kanter…
 	Torn Edges	Riviga kanter
+	Conté Crayon…	Contékrita…
+	Conté Crayon	Contékrita
+	Foreground Level	Förgrundsnivå
+	Background Level	Bakgrundsnivå
 	Pattern Type	Mönstertyp
 	Dot	Punkt
 # User Interface › Color Scheme
@@ -5399,3 +5412,26 @@ theme	Appearance	Utseende
 	Fresco	Fresk
 	Effect Gallery…	Effektgalleri…
 	Effect Gallery Dialog	Dialogrutan Effektgalleri
+	Arc Segment Tool Options	Alternativ för bågsegmentsverktyget
+	Base Along:	Bas längs:
+	Closed	Stängd
+	Convex	Konvex
+	Fill Arc	Fyll båge
+	Length X-Axis:	Längd X-axel:
+	Length Y-Axis:	Längd Y-axel:
+	Slope:	Lutning:
+axis	X Axis	X-axel
+axis	Y Axis	Y-axel
+@msg	Packaged {n} file(s) in {folder}	Paketerade {n} fil(er) i {folder}
+@msg	Packaged {n} file(s) {note}	Paketerade {n} fil(er) {note}
+@msg	Packaged {n} file(s)	Paketerade {n} fil(er)
+	Packaged {n} file(s)	Paketerade {n} fil(er)
+	Packaged {n} file(s) in {folder}	Paketerade {n} fil(er) i {folder}
+	Packaged {n} file(s) {note}	Paketerade {n} fil(er) {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} fil(er) i {folder}. Visa paketmappen?
+	Clockwise	Medurs
+	Dither	Dithering
+	Fine noise hides banding in the gradient fill	Fint brus döljer bandningen i övertoningsfyllningen
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` gäller övertoningsfyllningar (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` gäller övertoningsfyllningar (paint.setFill)
+@msg	`dither` must be true or false	`dither` måste vara true eller false

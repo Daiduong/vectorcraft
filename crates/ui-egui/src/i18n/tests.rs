@@ -281,6 +281,7 @@ fn is_cjk(c: char) -> bool {
 }
 
 /// Georgian letters (Mkhedruli, Mtavruli, Asomtavruli): only craft-fonts' Noto Sans Georgian has them.
+#[cfg(feature = "interface-fonts")]
 fn is_georgian(c: char) -> bool {
     matches!(c as u32, 0x10A0..=0x10FF | 0x1C90..=0x1CBF | 0x2D00..=0x2D2F)
 }
@@ -290,7 +291,9 @@ fn is_georgian(c: char) -> bool {
 /// the craft-fonts build input, which is optional: without it they are left to the installed
 /// fonts, and with it the Japanese catalog is checked against BIZ UDPGothic (the Traditional
 /// Chinese one waits for a Traditional Chinese UI font in craft-fonts). Georgian letters are the
-/// same: checked against Noto Sans Georgian when craft-fonts has it.
+/// same: checked against Noto Sans Georgian when craft-fonts has it. It needs the interface's own
+/// faces (`interface-fonts`): egui's built-in fonts lack some of the catalogs' symbols.
+#[cfg(feature = "interface-fonts")]
 #[test]
 fn bundled_fonts_cover_the_catalogs() {
     let japanese_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_japanese());
@@ -870,7 +873,7 @@ fn cs() -> Lang {
 }
 
 /// Languages whose catalogs leave [`MENU_KEEP_AS_IS`] in English.
-const KEEPS_MENU_NAMES: [&str; 17] = ["cs", "de", "el", "es", "fr", "hu", "it", "ja", "ka", "ko", "pl", "pt-br", "ru", "sv", "uk", "vi", "fi"];
+const KEEPS_MENU_NAMES: [&str; 18] = ["cs", "de", "el", "es", "fr", "hu", "it", "ja", "ka", "ko", "pl", "pt-br", "ru", "sv", "uk", "vi", "fi", "tr"];
 
 /// Menu labels the menu-complete catalogs (Czech, German, Spanish, Italian, Japanese, Brazilian Portuguese) show as they are: the product name, a format name, the built-in workspace
 /// names and the perspective grid presets (names, shown untranslated wherever else they appear).
@@ -1188,6 +1191,41 @@ fn finnish_reads_as_finnish() {
     }
     let nested = "command `object.group` is not available right now: nothing selected";
     assert_eq!(message(fi(), nested), "komento `object.group` ei ole nyt käytettävissä: mitään ei ole valittu");
+}
+
+/// The Turkish catalog registers under `tr`, claims complete menus and messages, and passes
+/// locale resolution, vocabulary and count formatting checks.
+#[test]
+fn turkish_reads_as_turkish() {
+    assert_eq!(tr_lang().name(), "Türkçe");
+    assert!(tr_lang().complete_menus());
+    assert_eq!(Lang::from_pref("tr"), tr_lang());
+    assert_eq!(Lang::from_pref("TR"), tr_lang());
+    for tag in ["tr", "tr-TR", "tr_TR.UTF-8", "TR-tr", "tr-CY"] {
+        assert_eq!(lang_from_tag(tag), Some(tr_lang()), "{tag}");
+    }
+    for (en, want) in [
+        ("Artboard Tool", "Çalışma Yüzeyi Aracı"),
+        ("Swatches", "Renk Örnekleri"),
+        ("Stroke", "Kontur"),
+        ("Fill", "Dolgu"),
+        ("Direct Selection Tool", "Doğrudan Seçim Aracı"),
+        ("Save As…", "Farklı Kaydet…"),
+        ("Undo", "Geri Al"),
+        ("Close", "Kapat"),
+    ] {
+        assert_eq!(tr(tr_lang(), en), want);
+    }
+    for n in [0, 1, 3, 21] {
+        assert_eq!(trn(tr_lang(), n, "{n} Layer", "{n} Layers"), format!("{n} Katman"));
+    }
+    let nested = "command `object.group` is not available right now: nothing selected";
+    assert_eq!(message(tr_lang(), nested), "`object.group` komutu şu anda kullanılamıyor: hiçbir şey seçilmedi");
+}
+
+/// The [`Lang`] handle for the Turkish catalog.
+fn tr_lang() -> Lang {
+    Lang::from_code("tr").expect("tr registered")
 }
 
 /// Ambiguous English terms keep their intended Vietnamese meaning across UI contexts.
@@ -1647,6 +1685,21 @@ fn messages_translate_by_template_and_their_parts() {
     assert_eq!(message(Lang::EN, nested), nested);
 }
 
+#[test]
+fn package_status_message_templates_parse() {
+    let c = Catalog::parse(concat!(
+        "@msg\tPackaged {n} file(s) in {folder}\tpackaged plain\n",
+        "@msg\tPackaged {n} file(s) in {folder} {note}\tpackaged noted\n",
+        "@msg\t{count} file(s) in {folder}. Show the package folder?\tdetail plain\n",
+        "@msg\t{count} file(s) in {folder} {note}. Show the package folder?\tdetail noted\n",
+    ));
+    assert!(c.message("Packaged 1 file(s) in /tmp/foo").is_some());
+    assert!(c.message("Packaged 1 file(s) in /tmp/foo (1 linked file(s) not found)").is_some());
+    assert!(c.message("2 file(s) in /tmp/foo. Show the package folder?").is_some());
+    assert!(c.message("2 file(s) in /tmp/foo (1 linked file(s) not found). Show the package folder?").is_some());
+    assert!(Catalog::parse("@msg\tPackaged {n} file(s) in {folder}{note}\tbad\n").message("Packaged 1 file(s) in /a b").is_none());
+}
+
 /// Each language that translates status and error messages ([`COMPLETE_MESSAGES`]) has an `@msg`
 /// row for every message in the sources that reach the status bar, so a new one can't ship
 /// untranslated by accident (`VECTORCRAFT_I18N_DUMP_MESSAGES=<file>` lists them). A message listed
@@ -2104,7 +2157,7 @@ fn shared_param_check_errors_are_translated() {
 
 /// Languages whose catalogs cover every status and error message.
 const COMPLETE_MESSAGES: &[&str] =
-    &["cs", "de", "el", "es", "fr", "hu", "it", "ja", "ka", "ko", "pl", "pt-br", "ru", "sv", "uk", "vi", "zh-hans", "zh-hant", "fi"];
+    &["cs", "de", "el", "es", "fr", "hu", "it", "ja", "ka", "ko", "pl", "pt-br", "ru", "sv", "uk", "vi", "zh-hans", "zh-hant", "fi", "tr"];
 
 /// Crates whose error and status messages reach the status bar.
 const MESSAGE_CRATES: &[&str] = &["ui-egui", "engine", "doc", "format", "svg", "pdf", "eps", "text", "plugins", "metafile", "cad", "trace"];

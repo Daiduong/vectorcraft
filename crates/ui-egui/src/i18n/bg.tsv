@@ -1076,6 +1076,11 @@
 	Fidelity:	Точност:
 	Figure Space	Цифрово разстояние
 	Figure:	Фигура:
+# Artwork drag between document tabs.
+	Drop Artwork	Поставяне на графика
+@msg	{key} must be [x, y] with finite coordinates	{key} трябва да е [x, y] с крайни координати
+@msg	ids must contain 1–10000 object ids	ids трябва да съдържа от 1 до 10000 идентификатора на обекти
+
 	File	Файл
 	File Dimensions	Размери на файла
 	File Format:	Файлов формат:
@@ -2190,7 +2195,7 @@
 	Package	Пакет
 	Package collects a saved document with its linked files and fonts.	Пакетът събира запазен документ заедно с неговите свързани файлове и шрифтове.
 	Package created	Пакетът е създаден
-	Packaged {n} file(s) in {folder}{note}	Пакетирани са {n} файла в {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Пакетирани са {n} файла в {folder}{note}
 	Packaged {n} file(s){note}	Пакетирани са {n} файла{note}
 	Package…	Пакет…
 	Page	Страница
@@ -2249,7 +2254,7 @@
 	Percent:	Процент:
 	Perceptual Scales	Перцептивни скали
 	Performance	Производителност
-	Performance & Storage	Производителност и съхранение
+	Plug-ins & Scratch Disks	Приставки & Временни дискове
 	Permissions	Права
 	Permissions password:	Парола за права:
 	Perspective	Перспектива
@@ -3539,7 +3544,7 @@
 	Zoom Tool	Инструмент „Мащаб“
 	Zoom with Mouse Wheel	Мащабиране с колелцето на мишката
 	Scrub Numeric Fields by Dragging	Плъзгане на числени полета чрез влачене
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} файл(а) в {folder}{note}. Показване на папката на пакета?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} файл(а) в {folder}{note}. Показване на папката на пакета?
 	{count} linked file(s) not found	{count} свързан(и) файл(а) не са намерени
 	fonts not copied: {fonts}	некопирани шрифтове: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	{count} свързано(и) изображение(я) е/са променено(и) след запазването на този документ. Показване на новите версии?
@@ -3763,7 +3768,7 @@ axis	Both	И двете
 @msg	Outline Stroke: no stroked paths selected	Преобразуване на щрих в контур: няма избрани пътища с щрих
 @msg	PDF settings are not an object	Настройките за PDF не са обект
 @msg	PDF writer error: {0}	Грешка на PDF записа: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Пакетирани са {n} файла в {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Пакетирани са {n} файла в {folder}{note}
 @msg	Packaged {n} file(s){note}	Пакетирани са {n} файла{note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Прегледът в браузър изисква настолното приложение (уеб версията изтегля файловете вместо това)
 @msg	Release Guides: no guides	Освобождаване на водачи: няма водачи
@@ -4278,6 +4283,7 @@ axis	Both	И двете
 @msg	Saving	Запазване
 @msg	Saving {_1}	Записване на {_1}
 @msg	Exporting {_1}	Експортиране на {_1}
+@msg	Packaging {_1}	Пакетиране на {_1}
 @msg	Saving recovery data for {_1}	Записване на данни за възстановяване на {_1}
 @msg	Discarded {_1} recovered document(s)	Изхвърлени са {_1} възстановени документ(и)
 @msg	Restored {_1} recovered document(s): save them to keep them	Възстановени са {_1} документ(и): запазете ги, за да ги съхраните
@@ -4396,7 +4402,9 @@ axis	Both	И двете
 @msg	automation filesystem access is not granted: read authority is absent: {path}	достъпът на автоматизацията до файловата система не е разрешен: липсва право за четене: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	достъпът на автоматизацията до файловата система не е разрешен: липсва право за запис: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	пътят за автоматизация е отхвърлен: извън корена за четене {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	пътят за автоматизация е отхвърлен: извън корените за четене {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	пътят за автоматизация е отхвърлен: извън корена за запис {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	пътят за автоматизация е отхвърлен: извън корените за запис {roots}: {path}
 @msg	automation path rejected: path is empty	пътят за автоматизация е отхвърлен: пътят е празен
 @msg	automation path rejected: a link that leads nowhere: {path}	пътят за автоматизация е отхвърлен: връзка, която не води доникъде: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	пътят за автоматизация е отхвърлен: не може да се разреши {path}: {e}
@@ -5291,6 +5299,10 @@ theme	Appearance	Външен вид
 	Halftone Pattern	Полутонов шаблон
 	Torn Edges…	Разкъсани краища…
 	Torn Edges	Разкъсани краища
+	Conté Crayon…	Креда Конте…
+	Conté Crayon	Креда Конте
+	Foreground Level	Ниво на преден план
+	Background Level	Ниво на фон
 	Pattern Type	Тип шаблон
 	Dot	Точка
 # User Interface › Color Scheme
@@ -5393,3 +5405,26 @@ theme	Appearance	Външен вид
 	Fresco	Фреска
 	Effect Gallery…	Галерия с ефекти…
 	Effect Gallery Dialog	Диалог „Галерия с ефекти“
+	Arc Segment Tool Options	Опции на инструмента „Дъгов сегмент“
+	Base Along:	Основа по:
+	Closed	Затворен
+	Convex	Изпъкнал
+	Fill Arc	Запълване на дъга
+	Length X-Axis:	Дължина по X:
+	Length Y-Axis:	Дължина по Y:
+	Slope:	Наклон:
+axis	X Axis	X ос
+axis	Y Axis	Y ос
+@msg	Packaged {n} file(s) in {folder}	Пакетирани са {n} файла в {folder}
+@msg	Packaged {n} file(s) {note}	Пакетирани са {n} файла {note}
+@msg	Packaged {n} file(s)	Пакетирани са {n} файла
+	Packaged {n} file(s)	Пакетирани са {n} файла
+	Packaged {n} file(s) in {folder}	Пакетирани са {n} файла в {folder}
+	Packaged {n} file(s) {note}	Пакетирани са {n} файла {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} файл(а) в {folder}. Показване на папката на пакета?
+	Clockwise	По часовниковата стрелка
+	Dither	Дитъринг
+	Fine noise hides banding in the gradient fill	Фин шум скрива ивиците в градиентната запълка
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` се прилага към градиентни запълки (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` се прилага към градиентни запълки (paint.setFill)
+@msg	`dither` must be true or false	`dither` трябва да бъде true или false

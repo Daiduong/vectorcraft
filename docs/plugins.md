@@ -47,7 +47,7 @@ Artboards is greyed out (the plug-in writes the whole document); one with parame
 same kind once the file is picked, and its Export button writes the file. **File › Open** of a `.wasm` file installs
 a plug-in too (on the web this is how plug-ins get in).
 
-**Preference folder.** Edit › Preferences › Performance & Storage › *Additional Plug-ins Folder*: when set, every
+**Preference folder.** Edit › Preferences › Plug-ins & Scratch Disks › *Additional Plug-ins Folder*: when set, every
 `*.wasm` in that folder (not recursive) is installed at startup and whenever the preference changes (desktop builds;
 the web build installs from bytes).
 
@@ -198,7 +198,7 @@ type and `blob` but without their data, which follows the JSON in a saved file; 
   `paint`, `width` in points, `join` (`"miter"`, `"round"` or `"bevel"`), `cap` (`"butt"`, `"round"` or `"square"`)
   and `miterLimit`. Paints use the
   native file format's form: `{"type": "solid", "color", "swatch"?, "tint"?}`, `{"type": "gradient", "gradient":
-  {"kind": "Linear"|"Radial"|"Freeform", "stops": [{offset, color, opacity, midpoint}]}, "geom"?, "angle",
+  {"kind": "Linear"|"Radial"|"Freeform", "stops": [{offset, color, opacity, midpoint}], "dither"?}, "geom"?, "angle",
   "freeform"?}`, `{"type": "pattern", "pattern", "xf"?}`. Colours are `{"model": "rgb", r, g, b}`, `{"model": "cmyk",
   c, m, y, k}`, `{"model": "gray", k}` (ink: 0 white, 1 black) or `{"model": "lab", l, a, b}`; components 0–1 except
   Lab's.

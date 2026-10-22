@@ -67,6 +67,11 @@
 	Medium Light	Keskivaalea
 	Light	Vaalea
 	Quit VectorCraft	Lopeta VectorCraft
+# Artwork drag between document tabs.
+	Drop Artwork	Pudota kuvitus
+@msg	{key} must be [x, y] with finite coordinates	{key} on annettava muodossa [x, y] äärellisillä koordinaateilla
+@msg	ids must contain 1–10000 object ids	ids-arvon on sisällettävä 1–10000 objektitunnusta
+
 	File	Tiedosto
 	New…	Uusi…
 	New Without Dialog	Uusi ilman valintaikkunaa
@@ -789,7 +794,7 @@
 	Units	Yksiköt
 	Guides & Grid	Apuviivat ja ruudukko
 	Hyphenation	Tavutus
-	Performance & Storage	Suorituskyky ja tallennustila
+	Plug-ins & Scratch Disks	Laajennukset & Työlevyt
 	User Interface	Käyttöliittymä
 	Performance	Suorituskyky
 	File Handling	Tiedostojen käsittely
@@ -2353,11 +2358,11 @@ lighting	Light	Valo
 	Fonts whose licence doesn't allow embedding are not copied.	Fontteja, joiden lisenssi ei salli upottamista, ei kopioida.
 	Package collects a saved document with its linked files and fonts.	Paketointi kokoaa tallennetun asiakirjan sekä sen linkitetyt tiedostot ja fontit.
 	Package created	Paketti luotu
-	Packaged {n} file(s) in {folder}{note}	Paketoitu {n} tiedosto(a) kansioon {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Paketoitu {n} tiedosto(a) kansioon {folder}{note}
 	Packaged {n} file(s){note}	Paketoitu {n} tiedosto(a){note}
 	Relink Linked Files to the Document	Linkitä linkitetyt tiedostot uudelleen asiakirjaan
 	Save the document first?	Tallennetaanko asiakirja ensin?
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}{note}. Näytetäänkö pakettikansio?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}{note}. Näytetäänkö pakettikansio?
 	{count} linked file(s) not found	{count} linkitettyä tiedostoa ei löytynyt
 	fonts not copied: {fonts}	fontteja ei kopioitu: {fonts}
 	Built-in presets are read-only: New… starts an editable copy.	Sisäiset esiasetukset ovat vain luku -tilassa: Uusi… luo muokattavan kopion.
@@ -4069,7 +4074,7 @@ imageTrace	Outline	Ääriviiva
 @msg	Outline Stroke: no stroked paths selected	Muunna viiva ääriviivaksi: viivallisia polkuja ei ole valittu
 @msg	PDF settings are not an object	PDF-asetukset eivät ole objekti
 @msg	PDF writer error: {0}	PDF-kirjoittimen virhe: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Paketoitiin {n} tiedosto(a) kansioon {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Paketoitiin {n} tiedosto(a) kansioon {folder}{note}
 @msg	Packaged {n} file(s){note}	Paketoitiin {n} tiedosto(a){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Esikatselu selaimessa vaatii työpöytäsovelluksen (verkkoversio lataa tiedostot sen sijaan)
 @msg	Release Guides: no guides	Vapauta apuviivat: ei apuviivoja
@@ -4300,6 +4305,7 @@ imageTrace	Outline	Ääriviiva
 @msg	no file system here	täällä ei ole tiedostojärjestelmää
 @msg	no file writer	ei tiedostonkirjoittajaa
 @msg	no files to place	ei sijoitettavia tiedostoja
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` ei ole VectorCraft-asiakirja, PDF- eikä PDF-yhteensopiva .ai-tiedosto
 @msg	no format to export to	ei vientimuotoa
 @msg	no free recovery area	ei vapaata palautusaluetta
 @msg	no gradient stop or freeform point is selected	liukuvärin väripistettä tai vapaamuotoista pistettä ei ole valittu
@@ -4583,6 +4589,7 @@ imageTrace	Outline	Ääriviiva
 @msg	Saving	Tallennetaan
 @msg	Saving {_1}	Tallennetaan {_1}
 @msg	Exporting {_1}	Viedään {_1}
+@msg	Packaging {_1}	Paketoidaan {_1}
 @msg	Saving recovery data for {_1}	Tallennetaan palautustietoja: {_1}
 @msg	Discarded {_1} recovered document(s)	Hylättiin {_1} palautettu(a) asiakirja(a)
 @msg	Restored {_1} recovered document(s): save them to keep them	Palautettiin {_1} asiakirja(a): tallenna ne säilyttääksesi ne
@@ -4667,7 +4674,9 @@ imageTrace	Outline	Ääriviiva
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: lukuoikeus puuttuu: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: kirjoitusoikeus puuttuu: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automaation polku hylättiin: lukujuuren {root} ulkopuolella: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	automaation polku hylättiin: lukujuurten {roots} ulkopuolella: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	automaation polku hylättiin: kirjoitusjuuren {root} ulkopuolella: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	automaation polku hylättiin: kirjoitusjuurten {roots} ulkopuolella: {path}
 @msg	automation path rejected: path is empty	automaation polku hylättiin: polku on tyhjä
 @msg	automation path rejected: a link that leads nowhere: {path}	automaation polku hylättiin: linkki, joka ei johda mihinkään: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	automaation polku hylättiin: polkua {path} ei voi selvittää: {e}
@@ -5286,6 +5295,10 @@ mark-style	Japanese	Japanilainen
 	Halftone Pattern	Rasterikuvio
 	Torn Edges…	Repeytyneet reunat…
 	Torn Edges	Repeytyneet reunat
+	Conté Crayon…	Conté-liitu…
+	Conté Crayon	Conté-liitu
+	Foreground Level	Edustan taso
+	Background Level	Taustan taso
 	Pattern Type	Kuviotyyppi
 	Dot	Piste
 # User Interface › Color Scheme
@@ -5474,3 +5487,26 @@ swatch	Bright Violet	Kirkas violetti
 	Fresco	Fresko
 	Effect Gallery…	Tehostegalleria…
 	Effect Gallery Dialog	Tehostegalleria-valintaikkuna
+	Arc Segment Tool Options	Kaarisegmenttityökalun asetukset
+	Base Along:	Pohja pitkin:
+	Closed	Suljettu
+	Convex	Kupera
+	Fill Arc	Täytä kaari
+	Length X-Axis:	Pituus X-akseli:
+	Length Y-Axis:	Pituus Y-akseli:
+	Slope:	Kaltevuus:
+axis	X Axis	X-akseli
+axis	Y Axis	Y-akseli
+@msg	Packaged {n} file(s) in {folder}	Paketoitiin {n} tiedosto(a) kansioon {folder}
+@msg	Packaged {n} file(s) {note}	Paketoitiin {n} tiedosto(a) {note}
+@msg	Packaged {n} file(s)	Paketoitiin {n} tiedosto(a)
+	Packaged {n} file(s)	Paketoitiin {n} tiedosto(a)
+	Packaged {n} file(s) in {folder}	Paketoitiin {n} tiedosto(a) kansioon {folder}
+	Packaged {n} file(s) {note}	Paketoitiin {n} tiedosto(a) {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} tiedosto(a) kansiossa {folder}. Näytetäänkö pakettikansio?
+	Clockwise	Myötäpäivään
+	Dither	Rasterointi
+	Fine noise hides banding in the gradient fill	Hieno kohina piilottaa raidat liukuväritäytöstä
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` koskee liukuväritäyttöjä (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` koskee liukuväritäyttöjä (paint.setFill)
+@msg	`dither` must be true or false	`dither` on oltava true tai false

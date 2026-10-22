@@ -1060,6 +1060,11 @@
 	Fidelity:	精確度：
 	Figure Space	數字空格
 	Figure:	數字：
+# Artwork drag between document tabs.
+	Drop Artwork	放置圖稿
+@msg	{key} must be [x, y] with finite coordinates	{key} 必須是具有有限座標的 [x, y]
+@msg	ids must contain 1–10000 object ids	ids 必須包含 1–10000 個物件 ID
+
 	File	檔案
 	File Dimensions	檔案尺寸
 	File Format:	檔案格式：
@@ -2032,6 +2037,7 @@ file-filter	Templates	範本
 @msg	SVG parse error: {0}	SVG 剖析錯誤：{0}
 @msg	decimals must be {_1}–{_2} (got {_3})	小數位數必須為 {_1}–{_2} (收到 {_3})
 @msg	Exporting {_1}	正在匯出 {_1}
+@msg	Packaging {_1}	正在封裝 {_1}
 @msg	Exported {what}	已匯出 {what}
 @msg	"{0}" is not a colour: write it as #rrggbb	"{0}" 不是顏色：請寫成 #rrggbb
 @msg	could not decode image: {0}	無法解碼影像：{0}
@@ -2074,7 +2080,7 @@ file-filter	Templates	範本
 @msg	{_1} linked file(s) can't be read here: their previews show	此處無法讀取 {_1} 個連結檔案：顯示的是其預覽
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	有 {_1} 個連結影像已在磁碟上變更：「更新連結」可顯示新版本
 @msg	pick a colour, gradient or pattern to save as a swatch	請挑選要儲存為色票的顏色、漸層或圖樣
-@msg	Packaged {n} file(s) in {folder}{note}	已將 {n} 個檔案封裝到 {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	已將 {n} 個檔案封裝到 {folder}{note}
 @msg	Packaged {n} file(s){note}	已封裝 {n} 個檔案{note}
 @msg	choose a location for the package	請選擇封裝的位置
 @msg	missing `folder`	未提供 `folder`
@@ -2194,6 +2200,7 @@ file-filter	Templates	範本
 @msg	no user library folder here	此處沒有使用者資料庫資料夾
 @msg	Couldn't place {name}: the document it was dropped on was closed	無法置入 {name}：放置它的文件已關閉
 @msg	no files to place	沒有要置入的檔案
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` 不是 VectorCraft 文件、PDF 或 PDF 相容的 .ai 檔案
 @msg	paths: give at least one file	paths：請提供至少一個檔案
 @msg	Couldn't place {name}: {e}	無法置入 {name}：{e}
 @msg	no print service	沒有列印服務
@@ -2261,7 +2268,9 @@ file-filter	Templates	範本
 @msg	automation filesystem access is not granted: read authority is absent: {path}	未授予自動化檔案系統存取權：沒有讀取權限：{path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	未授予自動化檔案系統存取權：沒有寫入權限：{path}
 @msg	automation path rejected: outside the read root {root}: {path}	已拒絕自動化路徑：位於讀取根目錄 {root} 之外：{path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	已拒絕自動化路徑：位於所有讀取根目錄 {roots} 之外：{path}
 @msg	automation path rejected: outside the write root {root}: {path}	已拒絕自動化路徑：位於寫入根目錄 {root} 之外：{path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	已拒絕自動化路徑：位於所有寫入根目錄 {roots} 之外：{path}
 @msg	automation path rejected: path is empty	已拒絕自動化路徑：路徑是空的
 @msg	automation path rejected: a link that leads nowhere: {path}	已拒絕自動化路徑：連結指向不存在的位置：{path}
 @msg	automation path rejected: cannot resolve {path}: {e}	已拒絕自動化路徑：無法解析 {path}：{e}
@@ -3012,7 +3021,7 @@ file-filter	Templates	範本
 	Package	封裝
 	Package collects a saved document with its linked files and fonts.	封裝會將已儲存的文件連同其連結檔案與字體一併收集。
 	Package created	已建立封裝
-	Packaged {n} file(s) in {folder}{note}	已將 {n} 個檔案封裝於 {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	已將 {n} 個檔案封裝於 {folder}{note}
 	Packaged {n} file(s){note}	已封裝 {n} 個檔案{note}
 	Package…	封裝…
 	Page	頁面
@@ -3076,7 +3085,7 @@ file-filter	Templates	範本
 	Performance	效能
 diagnostics	render	繪製
 diagnostics	ui	介面
-	Performance & Storage	效能與儲存空間
+	Plug-ins & Scratch Disks	增效模組 & 暫存磁碟
 	Permissions	權限
 	Permissions password:	權限密碼：
 	Perspective	透視
@@ -4399,7 +4408,7 @@ font-script	Japanese	漢字
 	Zoom Tool	縮放工具
 	Zoom with Mouse Wheel	使用滑鼠滾輪縮放
 	Scrub Numeric Fields by Dragging	拖曳以調整數值欄位
-	{count} file(s) in {folder}{note}. Show the package folder?	{folder} 中有 {count} 個檔案{note}。要顯示封裝資料夾嗎？
+	{count} file(s) in {folder} {note}. Show the package folder?	{folder} 中有 {count} 個檔案{note}。要顯示封裝資料夾嗎？
 	{count} linked file(s) not found	找不到 {count} 個連結檔案
 	fonts not copied: {fonts}	未複製的字體：{fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	自儲存此文件後，有 {count} 個連結影像已變更。要顯示新版本嗎？
@@ -4968,6 +4977,10 @@ lighting	Light	光源
 	Halftone Pattern	半色調圖樣
 	Torn Edges…	撕裂邊緣…
 	Torn Edges	撕裂邊緣
+	Conté Crayon…	孔特蠟筆…
+	Conté Crayon	孔特蠟筆
+	Foreground Level	前景層級
+	Background Level	背景層級
 	Pattern Type	圖樣類型
 	Dot	網點
 # User Interface › Color Scheme
@@ -5077,3 +5090,27 @@ lighting	Light	光源
 	Fresco	壁畫
 	Effect Gallery…	效果庫…
 	Effect Gallery Dialog	效果庫對話框
+	Arc Segment Tool Options	弧段工具選項
+	Base Along:	基線方向:
+	Closed	封閉
+	Concave	凹
+	Convex	凸
+	Fill Arc	填色弧形
+	Length X-Axis:	X 軸長度:
+	Length Y-Axis:	Y 軸長度:
+	Slope:	斜率:
+axis	X Axis	X 軸
+axis	Y Axis	Y 軸
+@msg	Packaged {n} file(s) in {folder}	已將 {n} 個檔案封裝到 {folder}
+@msg	Packaged {n} file(s) {note}	已封裝 {n} 個檔案 {note}
+@msg	Packaged {n} file(s)	已封裝 {n} 個檔案
+	Packaged {n} file(s)	已封裝 {n} 個檔案
+	Packaged {n} file(s) in {folder}	已將 {n} 個檔案封裝到 {folder}
+	Packaged {n} file(s) {note}	已封裝 {n} 個檔案 {note}
+	{count} file(s) in {folder}. Show the package folder?	{folder} 中有 {count} 個檔案。要顯示封裝資料夾嗎？
+	Clockwise	順時針
+	Dither	仿色
+	Fine noise hides banding in the gradient fill	細微雜色可隱藏漸層填色中的色帶
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` 適用於漸層填色 (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` 適用於漸層填色 (paint.setFill)
+@msg	`dither` must be true or false	`dither` 必須是 true 或 false

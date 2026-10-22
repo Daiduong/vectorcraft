@@ -1382,6 +1382,11 @@
 	Fidelity:	Pontosság:
 	Figure Space	Számjegyszóköz
 	Figure:	Számjegyek:
+# Artwork drag between document tabs.
+	Drop Artwork	Grafika elhelyezése
+@msg	{key} must be [x, y] with finite coordinates	A(z) {key} értékének [x, y] alakúnak kell lennie véges koordinátákkal
+@msg	ids must contain 1–10000 object ids	Az ids értékének 1–10000 objektumazonosítót kell tartalmaznia
+
 	File	Fájl
 	File Dimensions	Fájl méretei
 	File Format:	Fájlformátum:
@@ -2731,7 +2736,7 @@ file-filter	Templates	Sablonok
 	Package	Csomagolás
 	Package collects a saved document with its linked files and fonts.	A csomagolás egy mentett dokumentumot a csatolt fájljaival és betűtípusaival együtt gyűjt össze.
 	Package created	A csomag elkészült
-	Packaged {n} file(s) in {folder}{note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
 	Packaged {n} file(s){note}	Becsomagolt fájlok: {n}{note}
 	Package…	Csomagolás…
 	Page	Oldal
@@ -2809,7 +2814,7 @@ file-filter	Templates	Sablonok
 	Performance	Teljesítmény
 diagnostics	render	renderelés
 diagnostics	ui	felület
-	Performance & Storage	Teljesítmény és tárolás
+	Plug-ins & Scratch Disks	Bővítmények & Munkalemezek
 	Permissions	Engedélyek
 	Permissions password:	Engedélyek jelszava:
 	Perspective	Perspektíva
@@ -4333,7 +4338,7 @@ mark-style	Japanese	Japán
 	Zoom to Selection	Nagyítás a kijelölésre
 	Zoom Tool	Nagyító
 	Zoom with Mouse Wheel	Nagyítás egérgörgővel
-	{count} file(s) in {folder}{note}. Show the package folder?	Fájlok: {count}, mappa: {folder}{note}. Megnyitod a csomag mappáját?
+	{count} file(s) in {folder} {note}. Show the package folder?	Fájlok: {count}, mappa: {folder}{note}. Megnyitod a csomag mappáját?
 	{count} folder(s) or file(s) couldn't be read	Nem olvasható mappák vagy fájlok: {count}
 	{count} folder(s) skipped, such as other apps' and the system's folders and hidden ones	Kihagyott mappák: {count} (például más alkalmazások, a rendszer és a rejtett mappák)
 	{count} linked file(s) not found	Nem található csatolt fájlok: {count}
@@ -4515,7 +4520,9 @@ imageTrace	Outline	Körvonal
 @msg	automation path rejected: a link that leads nowhere: {path}	az automatizálás útvonala elutasítva: a hivatkozás nem vezet sehova: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	az automatizálás útvonala elutasítva: nem oldható fel: {path}: {e}
 @msg	automation path rejected: outside the read root {root}: {path}	az automatizálás útvonala elutasítva: kívül esik az olvasási gyökéren ({root}): {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	az automatizálás útvonala elutasítva: kívül esik az olvasási gyökereken ({roots}): {path}
 @msg	automation path rejected: outside the write root {root}: {path}	az automatizálás útvonala elutasítva: kívül esik az írási gyökéren ({root}): {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	az automatizálás útvonala elutasítva: kívül esik az írási gyökereken ({roots}): {path}
 @msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	az automatizálás útvonala elutasítva: szülőmappára lépés egy nem létező mappa alatt: {path}
 @msg	automation path rejected: path is empty	az automatizálás útvonala elutasítva: az útvonal üres
 @msg	automation path rejected: reserved device names are not allowed: {path}	az automatizálás útvonala elutasítva: fenntartott eszköznév nem használható: {path}
@@ -4611,6 +4618,7 @@ imageTrace	Outline	Körvonal
 @msg	Exported {what}	Exportálva: {what}
 @msg	Exported {what} with {_1} note(s): {first}	Exportálva: {what}; megjegyzések: {_1}, az első: {first}
 @msg	Exporting {_1}	Exportálás: {_1}
+@msg	Packaging {_1}	Csomagolás: {_1}
 @msg	file version {0} is newer than this VectorCraft supports ({VERSION})	a fájl verziója újabb, mint amit ez a VectorCraft támogat: {0} (támogatott: {VERSION})
 @msg	Flatten Transparency: select objects to flatten	Átlátszóság lapítása: jelöld ki a lapítandó objektumokat
 @msg	Flatten Transparency: {e}	Átlátszóság lapítása: {e}
@@ -4739,6 +4747,7 @@ imageTrace	Outline	Körvonal
 @msg	no file system here	itt nincs fájlrendszer
 @msg	no file writer	nincs fájlíró
 @msg	no files to place	nincs elhelyezendő fájl
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	nem VectorCraft-dokumentum, PDF- vagy PDF-kompatibilis .ai-fájl: `{file}`
 @msg	No fonts are missing in this document	Ebből a dokumentumból nem hiányzik betűtípus
 @msg	no format to export to	nincs exportálási formátum
 @msg	no free recovery area	nincs szabad helyreállítási terület
@@ -4845,7 +4854,7 @@ imageTrace	Outline	Körvonal
 @msg	Opened with {_1} note(s): {_2}	Megnyitva; megjegyzések: {_1}: {_2}
 @msg	Opened {url}	Megnyitva: {url}
 @msg	Outline Stroke: no stroked paths selected	Körvonal útvonallá alakítása: nincs kijelölt körvonalas útvonal
-@msg	Packaged {n} file(s) in {folder}{note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Becsomagolt fájlok: {n}, mappa: {folder}{note}
 @msg	Packaged {n} file(s){note}	Becsomagolt fájlok: {n}{note}
 @msg	page size {w} × {h}	oldalméret: {w} × {h}
 @msg	page {0} does not exist (the PDF has {1})	nincs ilyen oldal: {0} (a PDF oldalszáma: {1})
@@ -5308,6 +5317,10 @@ imageTrace	Outline	Körvonal
 	Halftone Pattern	Féltónus minta
 	Torn Edges…	Szaggatott szélek…
 	Torn Edges	Szaggatott szélek
+	Conté Crayon…	Conté-kréta…
+	Conté Crayon	Conté-kréta
+	Foreground Level	Előtér szintje
+	Background Level	Háttér szintje
 	Pattern Type	Mintatípus
 	Dot	Pont
 # User Interface › Color Scheme
@@ -5429,3 +5442,26 @@ imageTrace	Outline	Körvonal
 	Fresco	Freskó
 	Effect Gallery…	Effektusgaléria…
 	Effect Gallery Dialog	Effektusgaléria párbeszédpanel
+	Arc Segment Tool Options	Ívszakasz eszköz beállításai
+	Base Along:	Alap mentén:
+	Closed	Zárt
+	Convex	Domború
+	Fill Arc	Ív kitöltése
+	Length X-Axis:	Hossz X tengely:
+	Length Y-Axis:	Hossz Y tengely:
+	Slope:	Lejtés:
+axis	X Axis	X tengely
+axis	Y Axis	Y tengely
+@msg	Packaged {n} file(s) in {folder}	Becsomagolt fájlok: {n}, mappa: {folder}
+@msg	Packaged {n} file(s) {note}	Becsomagolt fájlok: {n} {note}
+@msg	Packaged {n} file(s)	Becsomagolt fájlok: {n}
+	Packaged {n} file(s)	Becsomagolt fájlok: {n}
+	Packaged {n} file(s) in {folder}	Becsomagolt fájlok: {n}, mappa: {folder}
+	Packaged {n} file(s) {note}	Becsomagolt fájlok: {n} {note}
+	{count} file(s) in {folder}. Show the package folder?	Fájlok: {count}, mappa: {folder}. Megnyitod a csomag mappáját?
+	Clockwise	Óramutató járásával megegyező
+	Dither	Árnyalatkeverés
+	Fine noise hides banding in the gradient fill	A finom zaj elrejti a sávokat a színátmenetes kitöltésben
+@msg	`dither` applies to gradient fills (stroke: false)	A `dither` színátmenetes kitöltésekre vonatkozik (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	A `dither` színátmenetes kitöltésekre vonatkozik (paint.setFill)
+@msg	`dither` must be true or false	`dither`: true vagy false kell
