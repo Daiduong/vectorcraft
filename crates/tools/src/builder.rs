@@ -343,7 +343,7 @@ impl BuilderMap {
         drawn.nearest(mid).filter(|n| n.4 <= snap)?;
         // A run that cannot be cut out, or that is all of the path (such as a lone line), leaves
         // nothing to split off.
-        if !po::cut_out(drawn, &run, false, snap).is_some_and(|rest| !rest.is_empty()) {
+        if po::cut_out(drawn, &run, false, snap).is_none_or(|rest| rest.is_empty()) {
             return None;
         }
         Some((i, run))
