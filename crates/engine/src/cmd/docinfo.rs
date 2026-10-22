@@ -18,7 +18,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Document Info",
             ["Window", "Document Info"],
             None,
-            "{selectionOnly?, category?: document|objects|graphicStyles|brushes|spotColors|patterns|gradients|symbols|fonts|fontDetails|linkedImages|embeddedImages|repeats (only that one in sections and the text), format?: \"text\" (→ {text}: the report Document Info › Save… and Package write)} → {document, objects: {paths, compoundPaths, groups, …}, pathLength: pt (the paths' total length, compound paths' included, guides left out), fonts, images, swatches, graphicStyleNames (with selectionOnly: the styles the selected objects are linked to), brushNames (the Brushes panel's brushes; with selectionOnly: the brushes the selected objects' strokes use), repeatObjects: [{id, name, type: radial|grid|mirror, instances, rows?, cols?}] (the Repeat objects, those in groups and other repeats included; with selectionOnly: those in the selection), …, sections: [{id, title, rows: [[label, value]]}] (the panel's categories; fontDetails: each font's file and whether its license lets it be embedded)}",
+            "{selectionOnly?, category?: document|objects|graphicStyles|brushes|spotColors|patterns|gradients|symbols|fonts|fontDetails|linkedImages|embeddedImages|repeats (only that one in sections and the text), format?: \"text\" (→ {text}: the report Document Info › Save… and Package write)} → {document, objects: {paths, compoundPaths, groups, …}, pathLength: pt (selected paths' length when anything is selected, else the document total; compound paths' pieces included, guides left out), fonts, images, swatches, graphicStyleNames (with selectionOnly: the styles the selected objects are linked to), brushNames (the Brushes panel's brushes; with selectionOnly: the brushes the selected objects' strokes use), repeatObjects: [{id, name, type: radial|grid|mirror, instances, rows?, cols?}] (the Repeat objects, those in groups and other repeats included; with selectionOnly: those in the selection), …, sections: [{id, title, rows: [[label, value]]}] (the panel's categories; fontDetails: each font's file and whether its license lets it be embedded)}",
             has_doc,
             info
         ),
@@ -277,6 +277,13 @@ fn info(s: &mut Session, p: &Value) -> Result<Value> {
     let selection_only = bool_or(p, "selectionOnly", false);
     let roots: Vec<&Node> =
         if selection_only { st.selection.objects.iter().filter_map(|id| d.node(*id)).collect() } else { d.layers.iter().map(|l| &**l).collect() };
+    // Path Length follows the selection when any object is selected; with nothing selected it is
+    // the document total (#3633). Selection Only still limits the other object counts.
+    let path_length_roots: Vec<&Node> = if selection_only || st.selection.objects.is_empty() {
+        roots.clone()
+    } else {
+        st.selection.objects.iter().filter_map(|id| d.node(*id)).collect()
+    };
     let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
     // The paths' total length, as Document Info › Objects shows it (the length of a cut line, a
     // strip of LEDs along the letters, #1958).
@@ -293,6 +300,17 @@ fn info(s: &mut Session, p: &Value) -> Result<Value> {
     // `repeats` and `repeat_rows` hold the `repeatObjects` entries and the rows of the Repeat objects that the walk visits, in walk order.
     let mut repeats: Vec<Value> = vec![];
     let mut repeat_rows: Vec<(String, String)> = vec![];
+    let mut add_path_length = |n: &Node| {
+        if let NodeKind::Path { guide: false, path, .. } = &n.kind {
+            let l = path.length();
+            if l.is_finite() {
+                path_length += l;
+            }
+        }
+    };
+    for r in &path_length_roots {
+        r.walk(&mut add_path_length);
+    }
     for r in roots {
         r.walk(&mut |n| {
             let k = match &n.kind {
@@ -300,13 +318,7 @@ fn info(s: &mut Session, p: &Value) -> Result<Value> {
                 NodeKind::Group { clip: true, .. } => Some("clipGroups"),
                 NodeKind::Group { .. } => Some("groups"),
                 NodeKind::Path { guide: true, .. } => Some("guides"),
-                NodeKind::Path { path, .. } => {
-                    let l = path.length();
-                    if l.is_finite() {
-                        path_length += l;
-                    }
-                    Some("paths")
-                }
+                NodeKind::Path { .. } => Some("paths"),
                 NodeKind::Compound { .. } => Some("compoundPaths"),
                 NodeKind::Text(t) => {
                     for run in &t.runs {
@@ -497,8 +509,10 @@ mod tests {
         let line = s.execute("shape.line", &json!({"x1": 0, "y1": 0, "x2": 72, "y2": 0})).unwrap()["id"].clone();
         let rect = s.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 10, "height": 20})).unwrap()["id"].clone();
         let length = |s: &mut Session, p: Value| s.execute("document.info", &p).unwrap()["pathLength"].as_f64().unwrap();
+        s.execute("select.none", &json!({})).unwrap();
         assert!((length(&mut s, json!({})) - 132.0).abs() < 1e-6);
         s.execute("select.set", &json!({"ids": [line]})).unwrap();
+        assert!((length(&mut s, json!({})) - 72.0).abs() < 1e-6, "selected path only (#3633)");
         assert!((length(&mut s, json!({"selectionOnly": true})) - 72.0).abs() < 1e-6);
         let rows = s.execute("document.info", &json!({"selectionOnly": true, "category": "objects"})).unwrap()["sections"][0]["rows"].clone();
         assert_eq!(rows, json!([["Paths", "1"], ["Path Length", "25.4 mm"]]));
