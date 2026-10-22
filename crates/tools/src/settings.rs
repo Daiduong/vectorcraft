@@ -26,7 +26,7 @@ const ROWS: &[Row] = &[
     (SYMBOLISM, Some("symbolism"), &["diameter", "intensity", "density"]),
     (&["mirrorCut"], None, &["axis", "keep"]),
     (&["puppetWarp"], None, &["showMesh", "expand"]),
-    (&["arc"], None, &["closed"]),
+    (&["arc"], None, &["closed", "lengthX", "lengthY", "reference", "baseAlong", "slope", "fillArc"]),
     (&["spiral"], None, &["decay", "segments", "clockwise"]),
     (&["rectangularGrid"], None, &["rows", "columns", "rowSkew", "columnSkew", "frame", "fill"]),
     (&["polarGrid"], None, &["concentric", "radial", "concentricSkew", "radialSkew", "compound", "fill"]),
@@ -42,7 +42,11 @@ const ROWS: &[Row] = &[
     (&["star"], None, &["points"]),
     (&["freeTransform"], None, &["constrain"]),
     // Shape Builder Tool Options (`builder::ShapeBuilderOptions`).
-    (&["shapeBuilder"], None, &["openFilledAsClosed", "pickColorFrom", "cursorSwatchPreview", "selection", "highlightFill"]),
+    (
+        &["shapeBuilder"],
+        None,
+        &["openFilledAsClosed", "pickColorFrom", "cursorSwatchPreview", "selection", "highlightFill", "gapDetection", "gapLength"],
+    ),
     (&["artboard"], None, &["moveArt", "scaleArt"]),
     // Flare Tool Options (`extra::FLARE_OPTIONS` and the Rays and Rings checkboxes).
     (

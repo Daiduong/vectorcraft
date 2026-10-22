@@ -64,6 +64,7 @@ pub mod unsaved;
 pub mod widgets;
 pub mod workspaces;
 
+mod document_drag;
 #[cfg(test)]
 mod tests_adjust;
 #[cfg(test)]
@@ -82,6 +83,8 @@ mod tests_cut;
 mod tests_distortkeys;
 #[cfg(test)]
 mod tests_docsetup;
+#[cfg(test)]
+mod tests_document_drag;
 #[cfg(test)]
 mod tests_font_menu;
 #[cfg(test)]
@@ -321,6 +324,10 @@ pub struct CanvasCache {
     pub renderer: vectorcraft_render::Renderer,
     pub texture: Option<egui::TextureHandle>,
     pub key: Option<CacheKey>,
+    /// The document the frame shown was rendered from, and the options it was rendered with, with
+    /// [`Self::key`]: when only the document changes, the canvas renders again only where it
+    /// changed ([`vectorcraft_render::changed`]).
+    pub shown: Option<(std::sync::Arc<vectorcraft_doc::Document>, vectorcraft_render::RenderOptions)>,
     pub last_ms: f64,
     /// The frame shown drew raster effects from rasters made before their objects moved, or at a
     /// drag's lower resolution ([`vectorcraft_render::FrameStats::moved`]): the next frame outside
@@ -514,6 +521,8 @@ pub struct VectorcraftApp {
     pub(crate) ime_discard: bool,
     /// Preferences were confirmed (see [`Self::take_prefs_changed`]).
     pub(crate) prefs_changed: bool,
+    /// Whether the last frame's input reported a touch screen (Preferences › Devices › Touch Workspace).
+    pub touch_screen: bool,
     /// A numeric field is being scrubbed: the document's edits meanwhile are one undo step
     /// ([`scrub::begin_frame`]).
     scrub_group: bool,
@@ -563,6 +572,7 @@ impl VectorcraftApp {
                 renderer: vectorcraft_render::Renderer::new(),
                 texture: None,
                 key: None,
+                shown: None,
                 last_ms: 0.0,
                 moved: false,
                 from_worker: false,
@@ -623,6 +633,7 @@ impl VectorcraftApp {
             ime_marked: None,
             ime_discard: false,
             prefs_changed: false,
+            touch_screen: false,
             scrub_group: false,
             scrub_scope: None,
             automation_roots: None,
@@ -841,11 +852,11 @@ impl VectorcraftApp {
                 if matches!(id, "dataset.select" | "dataset.next" | "dataset.prev") {
                     self.ui.status.clear();
                 }
-                if id == "text.setStyle"
+                if matches!(id, "text.setStyle" | "text.setRangeStyle")
                     && let Some(font) = params.get("font").and_then(Value::as_str)
                 {
                     let r = &mut self.ui.recent_fonts;
-                    r.retain(|f| f != font);
+                    r.retain(|f| !f.eq_ignore_ascii_case(font));
                     r.insert(0, font.to_string());
                     r.truncate(MAX_RECENT_FONTS);
                 }
