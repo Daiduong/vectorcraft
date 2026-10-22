@@ -12,7 +12,7 @@ use vectorcraft_color::cms::Model;
 use vectorcraft_color::freeform::spread_scale;
 use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, Paint};
 use vectorcraft_doc::appearance::{AppearanceItem, FillLayer};
-use vectorcraft_doc::live::{GradientMesh, lerp_color};
+use vectorcraft_doc::live::GradientMesh;
 use vectorcraft_doc::pattern::{PatternDef, place_art};
 use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, Scaling};
 use vectorcraft_geom::{Affine, PathData, Point, Rect, SubPath, Vec2, shapes};
@@ -290,7 +290,7 @@ fn expand_fills(d: &mut Document, l: &Node, to: GradientTo) -> Option<Node> {
     for item in &l.appearance.items {
         // Items that paint nothing go; a gradient that can't be expanded stays.
         let art = gradient_fill(item).and_then(|(f, g)| {
-            let (fl, path, bounds) = fill_shape(l, f, &path, bounds)?;
+            let (fl, path, bounds) = fill_shape(l, item, &path, bounds)?;
             gradient_art(d, &fl, &path, bounds, f, g, to)
         });
         let Some(art) = art else {
@@ -363,15 +363,16 @@ fn reshaped(l: &Node) -> Option<Node> {
     Some(m)
 }
 
-/// Path `l` (outline `path`, box `bounds`) as fill `f` paints it on the canvas, with its outline
-/// and box: when the fill has visible geometry effects, `l` with the outline they make of `path`
-/// as a plain path, and that outline's box.
-fn fill_shape(l: &Node, f: &FillLayer, path: &PathData, bounds: Rect) -> Option<(Node, PathData, Rect)> {
+/// Path `l` (outline `path`, box `bounds`) as its fill `item` paints it on the canvas, with its
+/// outline and box: when the fill has visible geometry effects, `l` with the outline they make of
+/// `path` as a plain path, and that outline's box.
+fn fill_shape(l: &Node, item: &AppearanceItem, path: &PathData, bounds: Rect) -> Option<(Node, PathData, Rect)> {
     use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry};
-    if !has_geometry(&f.effects) {
+    if !has_geometry(item.effects()) {
         return Some((l.clone(), path.clone(), bounds));
     }
-    let outline = apply_geometry_with(&f.effects, path, bounds, &GeomContext::of(l));
+    // In the fill's context, as drawing runs them: a plug-in effect is told which fill it is on.
+    let outline = apply_geometry_with(item.effects(), path, bounds, &GeomContext::of(l).item(item));
     let b = outline.bounds()?;
     Some((with_path(l, outline.clone()), outline, b))
 }
@@ -432,7 +433,7 @@ fn expand_patterns(d: &mut Document, l: &Node) -> Option<Node> {
     for item in &l.appearance.items {
         let fill = pattern_fill(d, item).map(|(f, def, xf)| (f, def.clone(), xf));
         let tiles = fill.and_then(|(f, def, xf)| {
-            let (fl, _, bounds) = fill_shape(l, f, &path, bounds)?;
+            let (fl, _, bounds) = fill_shape(l, item, &path, bounds)?;
             let t = pattern_tiles(d, &def, xf, bounds);
             (!t.is_empty()).then_some((f, fl, t))
         });
@@ -603,7 +604,7 @@ fn seeded_here(n: &Node) -> bool {
 
 /// Does `n`, something in it or one of their opacity masks have a random Transform effect
 /// ([`seeded_here`])?
-fn has_seeded(n: &Node) -> bool {
+pub(crate) fn has_seeded(n: &Node) -> bool {
     seeded_here(n)
         || n.extras().mask.as_ref().is_some_and(|m| has_seeded(&m.art))
         || (!matches!(n.kind, NodeKind::Compound { .. }) && n.children().is_some_and(|c| c.iter().any(|c| has_seeded(c))))
@@ -735,7 +736,7 @@ pub(crate) fn gradient_sampler(g: &GradientPaint, bounds: Rect, doc_model: Model
         });
     }
     let geom = g.resolve(bounds);
-    Box::new(move |p| g.gradient.sample_with(geom.param_at(g.gradient.kind, p) as f32, lerp_color))
+    Box::new(move |p| g.gradient.sample_keep_model(geom.param_at(g.gradient.kind, p) as f32))
 }
 
 /// Where the colour changes along a gradient between parameters `t0` and `t1`: both ends, every
@@ -744,8 +745,13 @@ pub(crate) fn gradient_sampler(g: &GradientPaint, bounds: Rect, doc_model: Model
 /// are over `max_gap` apart. The colour is linear in display RGB between neighbours, as the
 /// canvas draws it.
 fn breaks(g: &Gradient, t0: f64, t1: f64, max_gap: f64) -> Vec<(f64, (Color, f32))> {
-    let at = |t: f64| (t, g.sample_with(t as f32, lerp_color));
+    let at = |t: f64| (t, g.sample_keep_model(t as f32));
     let mut v = vec![at(t0)];
+    // A Perceptual gradient curves between its stops: the mesh takes a column at each of the stops
+    // its expansion adds, so the linear mix between columns follows that curve.
+    if !g.method.is_classic() {
+        v.extend(g.expanded().map(|(o, ..)| f64::from(o)).filter(|o| *o > t0 && *o < t1).map(at));
+    }
     for (i, s) in g.stops.iter().enumerate() {
         let o = s.offset as f64;
         if o > t0 && o < t1 {
@@ -843,7 +849,7 @@ impl Frame {
     /// is just its band, so nothing doubles up.
     fn pieces(&self, g: &Gradient, n: usize) -> Vec<(PathData, (Color, f32))> {
         let step = (self.t1 - self.t0) / n as f64;
-        let color = |k: usize| g.sample_with((self.t0 + (k as f64 + 0.5) * step) as f32, lerp_color);
+        let color = |k: usize| g.sample_keep_model((self.t0 + (k as f64 + 0.5) * step) as f32);
         let opaque = g.stops.iter().all(|s| s.opacity >= 1.0);
         if self.radial {
             let ellipse = |t: f64| {
