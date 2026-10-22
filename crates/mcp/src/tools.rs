@@ -2,6 +2,7 @@
 //! [`Backend`].
 
 use serde_json::{Map, Value, json};
+use vectorcraft_engine::cmd::color_value;
 use vectorcraft_engine::cmd::fileio::{ARTBOARD_PARAMS, FORMATS, OPEN_EXTS, SAVE_FORMATS, format, writable_format};
 
 use crate::backend::Backend;
@@ -563,6 +564,26 @@ fn apply_paint(b: &mut dyn Backend, a: &Args, ids: Option<Value>) -> Result<Valu
     Ok(Value::Object(applied))
 }
 
+/// Checks `fill`, `stroke` and `strokeWidth` before a path or shape is created, so a bad colour
+/// does not leave a new object behind (#3545).
+fn check_paint(a: &Args) -> Result<(), String> {
+    for key in ["fill", "stroke"] {
+        if let Some(v) = a.get(key) {
+            let p = paint_params(v)?;
+            if p.get("none").is_some() {
+                continue;
+            }
+            if let Some(c) = p.get("color") {
+                color_value(c).ok_or_else(|| format!("invalid parameters for `paint`: bad color {c}"))?;
+            }
+        }
+    }
+    if let Some(w) = a.get("strokeWidth") && !w.as_f64().is_some_and(f64::is_finite) {
+        return Err("`strokeWidth` must be a number".into());
+    }
+    Ok(())
+}
+
 /// Checks `draw_path` / `draw_shape`'s `dash`, `cap`, `join`, `opacity`, `name` and `effects`
 /// before anything is drawn, so a bad one leaves no half-styled object behind (#2112).
 fn check_draw_options(b: &mut dyn Backend, a: &Args) -> Result<(), String> {
@@ -647,6 +668,7 @@ fn created_id(r: &Value) -> Option<Value> {
 
 fn draw_path(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
     check_draw_options(b, a)?;
+    check_paint(a)?;
     let mut p = json!({});
     if let Some(d) = a.get("d").and_then(Value::as_str) {
         p["d"] = json!(d);
@@ -685,6 +707,7 @@ fn draw_shape(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
         other => return Err(format!("unknown shape `{other}` (rectangle, ellipse, polygon, star, line)")),
     };
     check_draw_options(b, a)?;
+    check_paint(a)?;
     let mut p = a.clone();
     for k in ["shape", "fill", "stroke", "strokeWidth", "dash", "cap", "join", "opacity", "name", "effects"] {
         p.remove(k);

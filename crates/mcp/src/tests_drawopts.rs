@@ -105,6 +105,9 @@ fn bad_options_draw_nothing() {
         json!({"effects": [{"effect": "blur.gaussian", "extra": 1}]}),
         json!({"effects": [{"effect": "no.suchEffect"}]}),
         json!({"effects": [{"effect": "blur.gaussian", "params": 6}]}),
+        json!({"stroke": "currentColor"}),
+        json!({"fill": "#zzzzzz"}),
+        json!({"strokeWidth": "thick"}),
     ] {
         for (tool, base) in
             [("draw_path", json!({"d": "M0 0 L10 10"})), ("draw_shape", json!({"shape": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}))]
