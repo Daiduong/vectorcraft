@@ -155,8 +155,8 @@ const EVEN_TRACKING: f64 = 10.0;
 
 /// A line's spacing: the tracking after its letters, and how much more its spaces take (word
 /// spacing, `Tw`; `None` when it has none). `None` when its letters are tracked apart (set by
-/// hand).
-fn line_spacing(t: &TextObject) -> Option<(f64, Option<f64>)> {
+/// hand), or its spaces more than `slack` apart.
+fn line_spacing(t: &TextObject, slack: f64) -> Option<(f64, Option<f64>)> {
     // The tracking of the runs with characters that are spaces (`true`) or that aren't.
     let tracking = |space: bool| -> Vec<f64> {
         t.runs.iter().filter(|r| r.text.chars().any(|c| c.is_whitespace() == space)).map(|r| r.style.tracking).collect()
@@ -167,7 +167,7 @@ fn line_spacing(t: &TextObject) -> Option<(f64, Option<f64>)> {
     let spaces = tracking(true);
     let word = match median(spaces.clone()) {
         Some(s) => {
-            spaces.iter().all(|x| (x - s).abs() <= EVEN_TRACKING).then_some(())?;
+            spaces.iter().all(|x| (x - s).abs() <= slack).then_some(())?;
             Some(s - one)
         }
         None => None,
@@ -192,7 +192,9 @@ fn area_type(nodes: &[Arc<Node>], lines: &HashMap<NodeId, LineFacts>, b: &Block)
     // Each line's tracking and word spacing. A justified line spaces its words out (word spacing,
     // `Tw`), which justification does again (#722); word spacing the same on every line is the
     // type's own.
-    let spacings: Vec<(f64, Option<f64>)> = texts.iter().map(|(t, _)| line_spacing(t)).collect::<Option<_>>()?;
+    // A wrapped line's spaces may each be tracked apart, within a fiftieth of an em of each other.
+    let spacings: Vec<(f64, Option<f64>)> =
+        texts.iter().map(|(t, f)| line_spacing(t, if f.wraps { 20.0 } else { EVEN_TRACKING })).collect::<Option<_>>()?;
     let trackings: Vec<f64> = spacings.iter().map(|(t, _)| *t).collect();
     let words: Vec<Option<f64>> = spacings.iter().map(|(_, w)| *w).collect();
     let wrapped: Vec<f64> = texts.iter().filter(|(_, f)| f.wraps).map(|(_, f)| f.length).collect();
