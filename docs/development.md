@@ -1,5 +1,7 @@
 # Development
 
+> **Last updated:** 2026-10-21 · **Change:** the interface faces as vectorcraft-ui-egui's `interface-fonts` feature, and `theme::install_fonts` for an embedder that draws the panels itself.
+> **Last updated:** 2026-10-21 · **Change:** leaving out the bundled fonts with the egui panels (vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features).
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
 > **Last updated:** 2026-10-14 · **Change:** document-font registration for all explicitly supplied faces.
 
@@ -160,17 +162,42 @@ CRAFT_FONTS_DIR="$PWD/../craft-fonts" cargo xtask ci   # also runs the Japanese-
 
 The Latin fonts in `assets/fonts/` are compiled into `vectorcraft-text` by its `bundled-fonts`
 feature (3.4 MB of the binary). It is on by default, and `vectorcraft-engine`'s default
-`bundled-fonts` feature turns it on, so the apps and anything built on the engine have them. An
+`bundled-fonts` feature turns it on, so the apps and anything built on the engine with its default
+features have them. An
 embedder that brings every font itself at run time (`FontDb::add_font`, say a web app serving its
 own font catalogue) depends on the engine with `default-features = false` and doesn't ship them
 twice. Its font database starts without them: on the web and without craft-fonts it starts empty,
 and text has no glyphs until a font is added.
 
-- The workspace declares `vectorcraft-text` without default features, so no library crate turns the
-  fonts back on; a crate whose tests lay type out asks for `bundled-fonts` in its
-  dev-dependencies (or gets it through `vectorcraft-testkit`, which uses the engine).
+An embedder that also hosts the egui panels depends on `vectorcraft-ui-egui` with
+`default-features = false` as well: its own `bundled-fonts` feature, on by default, turns the
+engine's on; `vectorcraft-mcp` has the same feature. The panels' interface faces (Source Sans 3
+Regular and Semibold, Inter Regular and SemiBold, JetBrains Mono, about 2 MB: `theme.rs`) are
+`vectorcraft-ui-egui`'s `interface-fonts` feature, also on by default; without it the panels draw in
+egui's built-in fonts, which lack some symbols they show (→ ▾ ● ✓), so such an embedder adds a
+font that has them to each of the families below (`ctx.add_font` with an `InsertFontFamily` per
+family).
+
+The panels and dialogs draw in their own egui families (`theme::FONT_UI`, `FONT_UI_SEMIBOLD`,
+`FONT_MONO`), and egui panics drawing text in a family no font is bound to. `VectorcraftApp::logic`
+binds them on its first frame; an embedder that draws the panels or dialogs without it calls
+`theme::install_fonts` once on its context, with or without `interface-fonts`. It replaces the
+context's font definitions, so the embedder's own fonts are added after it.
+
+- The workspace declares `vectorcraft-text` and `vectorcraft-engine` without default features, so
+  each crate that wants the fonts asks for them (the apps, and `vectorcraft-testkit` for tests);
+  a crate whose tests lay type out asks for `bundled-fonts` in its dev-dependencies (or gets it
+  through `vectorcraft-testkit`).
+- `cargo xtask ci`'s `no-bundled-fonts` step also checks that `vectorcraft-ui-egui` and
+  `vectorcraft-mcp` without their default features turn them on nowhere, for any target
+  (`cargo tree -p vectorcraft-ui-egui --no-default-features --target all -e features,normal -i
+  vectorcraft-text`, and the same for `vectorcraft-mcp`), and with them do; a test of either can't
+  see that configuration, since their dev-dependencies turn the fonts on.
 - `cargo test -p vectorcraft-text --no-default-features --test without_bundled_fonts` checks the
-  configuration without them.
+  configuration without them, and `cargo test -p vectorcraft-ui-egui --no-default-features --test
+  install_fonts` that the panels without their interface faces still bind every family; the same
+  step lints `vectorcraft-ui-egui` without its default features. Of the crate's other tests, those
+  about the interface faces need them.
 
 ### Arabic fonts and the web build
 
@@ -240,9 +267,14 @@ other `sv-*` locale resolve to it), Georgian (`ka`, complete; `ka-GE` and `ka_GE
   `Couldn't open {name}: {e}`; `{_1}`, `{_2}` … stand for the format string's `{}`, and the values in the
   placeholders are translated in turn (the reason after `: {e}` is often a message too). Czech, German, Greek, Spanish, French, Georgian, Hungarian, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Simplified Chinese, Traditional Chinese, Swedish, Ukrainian, Vietnamese and Finnish cover every
   message literal the test scan finds (`complete_languages_translate_every_message`, languages listed in
-  `COMPLETE_MESSAGES`): a new `Err("…")`, `Other(…)`, `#[error(…)]` or `status(…)` message needs a row in each of those catalogs (`VECTORCRAFT_I18N_DUMP_MESSAGES=messages.txt cargo test -p vectorcraft-ui-egui
-  complete_languages_translate_every_message` lists them all). Other languages show messages in English
-  until they add `@msg` rows.
+  `COMPLETE_MESSAGES`), except the messages listed in `crates/ui-egui/src/i18n/untranslated_messages.txt`.
+  A new `Err("…")`, `Other(…)`, `#[error(…)]` or `status(…)` message needs a row in each of those catalogs, and so
+  does a new message given to an error enum's variant (`PsError::Limit(…)`), to the engine's `bad(cmd, …)`, `err(…)` or
+  `error(…)`, or to the PDF writer's `bad(…)` or `failed(…)` (`VECTORCRAFT_I18N_DUMP_MESSAGES=messages.txt cargo test -p vectorcraft-ui-egui
+  complete_languages_translate_every_message` lists them all). The list also holds the messages that open pull
+  requests add without those rows. A change that adds the rows for a listed message removes its line from the list
+  (`VECTORCRAFT_I18N_DUMP_UNTRANSLATED=<file>` writes the messages in the sources that lack a row). Other languages
+  show messages in English until they add `@msg` rows.
 - Not translated on purpose: names that are user data (layers, swatches, fonts, documents), the tab
   title's colour mode, command ids and parameter names inside messages. Not done yet: locale-aware number
   and date formats, right-to-left layout. Chinese and Japanese UI text
@@ -371,10 +403,70 @@ The original site's plain HTTP archive is no longer fetched or extracted. To ref
 review the mirror commit, original-file list, redistribution license, sizes and hashes together;
 do not replace expected hashes automatically in response to a download mismatch.
 
+## Highlighted-text Eyedropper (2026-10-21)
+
+Switching from Type to Eyedropper preserves the highlighted character range and its overlay.
+Sampling applies enabled font and paint attributes to that range; Shift samples color only.
+Returning to Type retains the range; deselection and document changes clear stale ranges.
+Character styles cannot represent object opacity or blend modes. With Transparency enabled,
+sampling refuses a non-neutral source or target object before changing art, paint defaults,
+selection or history. Disable Transparency in Eyedropper Options to sample supported attributes
+while preserving the target object's transparency. Whole-object sampling remains unchanged.
+Regression evidence: `tests_eyedropper.rs` covers Unicode, font/paint, Undo/Redo, tool switches,
+and atomic rejection of source and target opacity/blend modes; `text_range_and_brush_sampling_options_coexist`
+covers upstream brush-key sampling. Scores and estimates unchanged.
+
+## Drag artwork between document tabs (2026-10-22)
+
+Hold a Selection-tool move over another visible document tab for 400 ms to activate it,
+then release over its canvas to copy the selected artwork. The original grab point is kept
+across different zoom levels and view rotations. The source preview is rolled back before
+the switch; source artwork, source history and the internal clipboard are preserved. Returning
+to the source tab resumes a move (Alt copies). Escape or release outside the canvas cancels.
+Changing the source revision or unexpectedly changing/closing the destination cancels a stale
+transfer; focus loss, touch cancellation and multitouch cancel too. Moving tabs under a stationary
+pointer does not activate further tabs until the pointer moves. The close icon does not activate a tab during a drag. Overflow-menu hover activation and
+cross-window dragging remain outside this change.
+The cited regressions assert the internal clipboard; they do not exercise the native
+system-clipboard adapter. Tab activation resets the Selection tool through
+`Session::set_active`; gesture regressions verify it is idle after switching, dropping
+and cancelling a transfer.
+
+`edit.dropSelection {sourceDocument, ids, grab, at}` uses document-scoped ids
+(`sourceDocument` is `document.inspect`’s session-unique `uid`), validates 1–10000 ids
+before editing, targets the current editable insertion context (Paste Remembers Layers does
+not reroute a drag into a matching source layer), and uses the existing
+lossless paste resource pipeline: groups, editable paths/type, images, symbols and patterns
+travel together. Same-name conflicting swatches are added under unique names to preserve
+source colours; pattern fills/strokes translate with the dropped artwork to preserve their alignment. The target receives one Undo/Redo step. Invalid or closed sources fail before
+editing. Existing artwork-to-panel drags retain their original behavior.
+
+Evidence: `tests_document_drag` drives actual tab-strip/canvas pointer frames; `tests_clipboard`
+covers resource rendering, id collisions, swatch conflicts, grab-point placement, locked-target
+refusal, excessive ids, malformed numeric parameters and atomic invalid-input refusal. A private Linux/Xvfb native build also placed an original logo group
+onto a flyer through the command API; its screenshot was inspected, source preservation and
+Undo/Redo checked. Physical mouse hover on the desktop is not covered by that native smoke test.
+Public behavior reference: [Illustrator public duplication documentation](https://helpx.adobe.com/illustrator/desktop/manage-objects/edit-objects/duplicate-objects.html).
+The tab-hover workflow follows the contributor’s requested behavior. All test artwork is original geometry/text generated locally.
+The new command and validation messages are translated in all 24 language catalogs, including Turkish.
+Scores and hour estimates are unchanged.
+
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-21 | minor | Fonts › Leaving out the bundled fonts: vectorcraft-ui-egui's `interface-fonts` feature, and `theme::install_fonts` for an embedder that draws the panels without `VectorcraftApp::logic`. |
+| 2026-10-21 | minor | M3: highlighted-text Eyedropper sampling preserves ranges and rejects unsupported source/target transparency atomically; regression-tested; scores and estimates unchanged. |
+| 2026-10-21 | minor | Fonts › Leaving out the bundled fonts: vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features, and the engine declared without default features. |
 | 2026-10-14 | minor | Document the `bundled-fonts` feature of vectorcraft-text and vectorcraft-engine (Fonts › Leaving out the bundled fonts). |
 | 2026-10-14 | minor | Document registration of every explicitly supplied craft-fonts face after the existing script-specific prefix; empty input and web selection remain unchanged. |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
+
+> **Tab-drag status (2026-10-22):** updated from upstream, including the Turkish catalog and all three tab-drag translations requested in #3479; Selection-tool reset regression-checked and clipboard evidence scoped to internal state; drag lifecycle, insertion and regression contracts documented; behavior, scores and estimates unchanged.
+
+| Date | Change | Tab-drag history |
+|---|---|---|
+| 2026-10-22 | minor | Verify Selection-tool reset after tab activation, drop and cancellation; narrow clipboard evidence to the tested internal clipboard and correct documentation grammar; behavior, scores and estimates unchanged. |
+| 2026-10-22 | minor | Merge current main and complete the Turkish tab-drag labels and validation messages requested by the maintainer; all 24 catalogs covered; scores and estimates unchanged. |
+| 2026-10-22 | minor | Tab-drag follow-up: reconcile upstream progress updates and document drag lifecycle, insertion behavior and regression contracts; behavior, scores and estimates unchanged. |
+| 2026-10-22 | minor | Artwork dragged with Selection switches visible document tabs after a 400 ms hover, then copies editable artwork on canvas release; source and clipboard stay intact; scores and hours unchanged |

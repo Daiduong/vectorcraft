@@ -79,15 +79,19 @@ fn one_page_per_artboard_with_sizes() {
         id: 2,
         name: "B".into(),
         rect: Rect::new(300.0, 0.0, 400.0, 400.0),
+        locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        color: None,
     });
     d.artboards.push(Artboard {
         id: 3,
         name: "C".into(),
         rect: Rect::new(0.0, 500.0, 612.0, 1292.0),
+        locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        color: None,
     });
     let bytes = export(&d, &PdfOptions::default()).unwrap();
     let pdf = craft_pdf::syntax::Pdf::new(bytes).unwrap();
@@ -102,8 +106,10 @@ fn artboard_range_and_bad_index() {
         id: 2,
         name: "B".into(),
         rect: Rect::new(300.0, 0.0, 400.0, 400.0),
+        locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        color: None,
     });
     let bytes = export(&d, &PdfOptions { artboards: Some(vec![1]), ..Default::default() }).unwrap();
     let pdf = craft_pdf::syntax::Pdf::new(bytes).unwrap();
@@ -723,8 +729,10 @@ fn import_max_pages_and_multi_page() {
         id: 2,
         name: "B".into(),
         rect: Rect::new(300.0, 0.0, 400.0, 400.0),
+        locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        color: None,
     });
     add(&mut d, rect_node(Rect::new(10.0, 10.0, 50.0, 50.0), Color::BLACK));
     add(&mut d, rect_node(Rect::new(310.0, 10.0, 350.0, 50.0), Color::BLACK));
@@ -951,4 +959,26 @@ fn dictionary_values_the_reader_cannot_parse_are_skipped() {
         let e = import(&looped).err().map(|e| e.to_string());
         assert!(e.as_deref().is_some_and(|e| e.contains("built on one another without end")), "{junk}: {e:?}");
     }
+}
+
+/// Illustrator's documentation describes dither as the gradient converted to pixels with subtle
+/// noise, at the Document Raster Effects resolution
+/// (https://helpx.adobe.com/illustrator/desktop/paint-and-fill/create-and-edit-gradients/control-dither-in-gradients.html):
+/// a dithered gradient fill is drawn as an image at that resolution, clipped to the shape; a
+/// stroke (dither applies to fills only) and an undithered fill stay shadings.
+#[test]
+fn dithered_gradient_fills_export_as_images_and_strokes_as_shadings() {
+    let grad = |dither| Paint::Gradient(Box::new(GradientPaint::new(Gradient { dither, ..Default::default() })));
+    let shape = shapes::rectangle(Rect::new(10.0, 10.0, 110.0, 60.0));
+    let mut d = doc(200.0, 100.0);
+    d.raster_effects_ppi = 144.0;
+    add(&mut d, Node::path(NodeId(0), shape.clone(), Appearance::basic(grad(true), grad(true), 4.0)));
+    let pdf = uncompressed(&d).replace(' ', "");
+    assert!(pdf.contains("/Subtype/Image"), "the fill is an image");
+    assert!(pdf.contains("/Width200") && pdf.contains("/Height100"), "two pixels a point at 144 ppi");
+    assert!(pdf.contains("/ShadingType2"), "the stroke keeps its shading");
+    let mut plain = doc(200.0, 100.0);
+    add(&mut plain, Node::path(NodeId(0), shape, Appearance::basic(grad(false), Paint::None, 0.0)));
+    let pdf = uncompressed(&plain).replace(' ', "");
+    assert!(!pdf.contains("/Subtype/Image") && pdf.contains("/ShadingType2"));
 }
