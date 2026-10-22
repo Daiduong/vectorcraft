@@ -5441,3 +5441,6 @@ axis	Y Axis	Y-as
 	Packaged {n} file(s) in {folder}	{n} bestand(en) verpakt in {folder}
 	Packaged {n} file(s) {note}	{n} bestand(en) verpakt {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} bestand(en) in {folder}. De pakketmap openen?
+	Reading	Leeswijze
+	Overhang	Overhang
+	applied	Toegepast

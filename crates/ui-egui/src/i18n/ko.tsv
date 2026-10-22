@@ -5005,3 +5005,6 @@ axis	Y Axis	Y축
 	Packaged {n} file(s) in {folder}	{folder}에 파일 {n}개를 패키지했습니다
 	Packaged {n} file(s) {note}	파일 {n}개를 패키지했습니다 {note}
 	{count} file(s) in {folder}. Show the package folder?	{folder}에 파일 {count}개. 패키지 폴더를 표시하시겠습니까?
+	Reading	읽기
+	Overhang	오버행
+	applied	적용됨

@@ -5278,3 +5278,6 @@ axis	Y Axis	Oś Y
 	Packaged {n} file(s) in {folder}	Spakowane pliki: {n} w {folder}
 	Packaged {n} file(s) {note}	Spakowane pliki: {n} {note}
 	{count} file(s) in {folder}. Show the package folder?	Pliki: {count} w {folder}. Pokazać folder pakietu?
+	Reading	Odczyt
+	Overhang	Wystawanie
+	applied	Zastosowano
