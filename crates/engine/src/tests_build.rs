@@ -358,6 +358,55 @@ fn shape_builder_fills_an_area_lines_enclose() {
     assert_eq!(ids(&r).len(), 4, "the triangle + the three lines, which only bound it");
 }
 
+/// Two diagonals and a crossbar that stops about 3 pt short of each: the triangle they bound.
+fn lines_with_gaps(s: &mut Session) {
+    let l1 = line(s, (0.0, 0.0), (100.0, 100.0));
+    let l2 = line(s, (100.0, 0.0), (0.0, 100.0));
+    let l3 = line(s, (24.0, 80.0), (76.0, 80.0));
+    s.execute("select.set", &json!({"ids": [l1.0, l2.0, l3.0]})).unwrap();
+}
+
+#[test]
+fn shape_builder_gap_detection_closes_small_gaps_between_lines() {
+    let mut s = session();
+    lines_with_gaps(&mut s);
+    let regions = |s: &mut Session, p: Value| s.execute("shapeBuilder.regions", &p).unwrap()["regions"].as_array().unwrap().len();
+    assert_eq!(regions(&mut s, json!({})), 0, "off by default");
+    assert_eq!(regions(&mut s, json!({"gap": 2})), 0, "the gap is longer");
+    assert_eq!(regions(&mut s, json!({"gap": 3})), 1);
+    assert!(s.execute("shapeBuilder.merge", &json!({"points": [[50, 70]]})).is_err(), "no gap, no region");
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[50, 70]], "gap": 3})).unwrap();
+    let merged = NodeId(r["merged"].as_u64().unwrap());
+    let a = area(&s, merged);
+    assert!(a > 850.0 && a < 900.0, "the triangle and its two bridges: {a}");
+    assert_eq!(ids(&r).len(), 4, "the bridges are no art: the merged shape and the three lines");
+    assert_eq!(open_paths(&s, &ids(&r)).len(), 3);
+}
+
+#[test]
+fn shape_builder_tool_gap_detection_option() {
+    let mut s = session();
+    lines_with_gaps(&mut s);
+    let v = ViewInfo::default();
+    s.select_tool("shapeBuilder", v).unwrap();
+    assert_eq!((s.tool_options()["gapDetection"].clone(), s.tool_options()["gapLength"].clone()), (json!(false), json!(3.0)));
+    let click = |s: &mut Session| {
+        s.pointer(&PointerEvent::new(PointerKind::Down, 50.0, 70.0), v).unwrap();
+        s.pointer(&PointerEvent::new(PointerKind::Up, 50.0, 70.0), v).unwrap();
+    };
+    click(&mut s);
+    assert_eq!(layer_children(&s), 3, "Gap Detection is off");
+    s.set_tool_option_cmd(&json!({"values": {"gapDetection": true, "gapLength": 6.0}})).unwrap();
+    click(&mut s);
+    assert_eq!(layer_children(&s), 4, "the triangle");
+    // The options are kept when another tool is chosen.
+    s.select_tool("selection", v).unwrap();
+    assert_eq!(
+        (s.tool_options_of("shapeBuilder")["gapDetection"].clone(), s.tool_options_of("shapeBuilder")["gapLength"].clone()),
+        (json!(true), json!(6.0))
+    );
+}
+
 #[test]
 fn shape_builder_closes_filled_open_paths() {
     let mut s = session();
@@ -687,6 +736,32 @@ fn live_paint_stroke_edge_skips_hidden_edges() {
     assert!(vertical_at(&s, 50.0).contains(&r["edge"].as_u64().unwrap()), "{r}");
     // With only the hidden edge within the tolerance, no edge is stroked.
     assert!(s.execute("livePaint.strokeEdge", &json!({"group": g.0, "point": [99, 50]})).is_err());
+}
+
+#[test]
+fn live_paint_fill_skips_hidden_faces() {
+    let mut s = session();
+    let g = live(&mut s);
+    // The face from x=50 to x=100 is hidden on its own; the group stays visible.
+    let hidden = vectorcraft_tools::builder::face_at(&node(&s, g), vectorcraft_geom::Point::new(75.0, 50.0)).unwrap().id;
+    s.execute("object.setProps", &json!({"ids": [hidden.0], "visible": false})).unwrap();
+    let green = Paint::solid(Color::from_hex("#00ff00").unwrap());
+    let children = node(&s, g).children().unwrap().len();
+    // livePaint.fill at a point on the hidden face returns an error and fills no face, with `group`
+    // and with the group in `ids`, and it does not rebuild the group.
+    for p in [json!({"group": g.0, "point": [75, 50], "color": "#00ff00"}), json!({"ids": [g.0], "point": [75, 50], "color": "#00ff00"})] {
+        assert!(s.execute("livePaint.fill", &p).is_err(), "{p}");
+        let face = node(&s, hidden);
+        assert!(!face.visible && face.appearance.fill_paint() != green, "{p}");
+        assert_eq!(node(&s, g).children().unwrap().len(), children, "{p}");
+    }
+    // Given another Live Paint group with a face at that point as well, that face is filled.
+    let other = rect(&mut s, 60.0, 40.0, 20.0, 20.0);
+    let other = NodeId(s.execute("livePaint.make", &json!({"ids": [other.0]})).unwrap()["id"].as_u64().unwrap());
+    let r = s.execute("livePaint.fill", &json!({"ids": [g.0, other.0], "point": [75, 50], "color": "#00ff00"})).unwrap();
+    assert_eq!(r["group"], other.0);
+    assert_eq!(node(&s, NodeId(r["face"].as_u64().unwrap())).appearance.fill_paint(), green);
+    assert!(!node(&s, hidden).visible);
 }
 
 #[test]
