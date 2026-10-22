@@ -15,6 +15,52 @@
 # Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language names,
 # OpenType, the built-in workspace names and the bracketed perspective grid preset names. Keep
 # placeholders, ellipses and the leading/trailing spaces of fragments when editing.
+# The barcode panel's rows sit here rather than at the end of the file: `main` appends new
+# strings at the end, and rows parked there conflicted on every merge.
+	Max per Row:	მაქსიმუმი რიგზე:
+	No fonts are installed.	ფონტები არ არის დაყენებული.
+	No line in the box is a code this type can carry.	ჩარჩოში არც ერთი სტრიქონი არ არის კოდი, რომელიც ამ ტიპს შეუძლია.
+	One code a line, each a whole value of the type above.	თითო კოდი სტრიქონზე, თითოეული ზემოთ მოცემული ტიპის სრული მნიშვნელობა.
+	Outline the digits	ციფრების კონტურებად ქცევა
+	printable ASCII	ბეჭდვადი ASCII
+	printable ASCII, upper case and control characters	ბეჭდვადი ASCII, დიდი ასოები და მართვის სიმბოლოები
+	Valid:	სწორია:
+	White background box	თეთრი ფონის ჩარჩო
+	Barcode	შტრიხკოდი
+	Barcode Options	შტრიხკოდის პარამეტრები
+	Data:	მონაცემები:
+	Document Default	დოკუმენტის ნაგულისხმევი
+	Error Correction:	შეცდომების კორექცია:
+	Human Readable Line	ადამიანისთვის წასაკითხი სტრიქონი
+	Install OCR-B for the standard digits.	დააყენეთ OCR-B სტანდარტული ციფრებისთვის.
+	Magnification:	გადიდება:
+	Mask:	ნიღაბი:
+	Module:	მოდული:
+	Quiet Zone:	მშვიდი ზონა:
+	Update	განახლება
+	Width Ratio:	სიგანის შეფარდება:
+@msg	a QR Code version is 1 to 40, not {other}	QR კოდის ვერსია არის 1-დან 40-მდე, არა {other}
+@msg	no codes to draw	დასახატი კოდები არ არის
+@msg	no line in the data is a code this symbology can carry	მონაცემებში არც ერთი სტრიქონი არ არის კოდი, რომლის გადატანაც ამ სიმბოლიკას შეუძლია
+@msg	select a barcode	აირჩიეთ შტრიხკოდი
+@msg	unknown barcode type `{name}`	უცნობი შტრიხკოდის ტიპი `{name}`
+@msg	unknown error correction level `{other}`	უცნობი შეცდომის კორექციის დონე `{other}`
+	11 or 12 digits	11 ან 12 ციფრი
+	12 or 13 digits	12 ან 13 ციფრი
+	6 or 8 digits	6 ან 8 ციფრი
+	7 or 8 digits	7 ან 8 ციფრი
+	an even number of digits	ციფრების ლუწი რაოდენობა
+	any text	ნებისმიერი ტექსტი
+	ASCII	ASCII
+	Barcodes	შტრიხკოდები
+	Check	შემოწმება
+	Check Barcode	შტრიხკოდის შემოწმება
+	Codes:	კოდები:
+	Create Batch	პარტიის შექმნა
+	digits, A–Z and - . $ / + % and space	ციფრები, A–Z და - . $ / + % და ინტერვალი
+	digits, with or without the (01) application identifier	ციფრები, (01) აპლიკაციის იდენტიფიკატორით ან მის გარეშე
+	Drawn:	დახატულია:
+	Gap:	დაშორება:
 	Glowing Edges…	მანათობელი კიდეები…
 	About VectorCraft	VectorCraft-ის შესახებ
 	Align to Path	ტრაექტორიაზე სწორება
@@ -3452,13 +3498,6 @@ effect	Regular	ჩვეულებრივი
 	Glowing Edges	მანათობელი კიდეები
 	Edge Width	კიდის სიგანე
 	Edge Brightness	კიდის სიკაშკაშე
-	Max per Row:	მაქსიმუმი რიგზე:
-	No fonts are installed.	ფონტები არ არის დაყენებული.
-	No line in the box is a code this type can carry.	ჩარჩოში არც ერთი სტრიქონი არ არის კოდი, რომელიც ამ ტიპს შეუძლია.
-	One code a line, each a whole value of the type above.	თითო კოდი სტრიქონზე, თითოეული ზემოთ მოცემული ტიპის სრული მნიშვნელობა.
-	Outline the digits	ციფრების კონტურებად ქცევა
-	printable ASCII	ბეჭდვადი ASCII
-	printable ASCII, upper case and control characters	ბეჭდვადი ASCII, დიდი ასოები და მართვის სიმბოლოები
 	Smoothness	სიგლუვე
 	Color Halftone	ფერადი ნახევარტონი
 	Mezzotint	მეცოტინტო
@@ -4682,7 +4721,6 @@ mark-style	Japanese	იაპონური
 	Check Script	სკრიპტის შემოწმება
 	Check Script…	სკრიპტის შემოწმება…
 	Copy Report	ანგარიშის კოპირება
-	Valid:	სწორია:
 	VectorCraft read this script without running it.	VectorCraft-მა ეს სკრიპტი წაიკითხა მისი გაშვების გარეშე.
 	Needs nothing beyond plain JavaScript	საკმარისია ჩვეულებრივი JavaScript
 	Needs the script language's own objects or directives	სჭირდება სკრიპტის ენის საკუთარი ობიექტები ან დირექტივები
@@ -4692,7 +4730,6 @@ mark-style	Japanese	იაპონური
 	Needs dialogs	სჭირდება დიალოგები
 	Needs features only the reference app has	სჭირდება ფუნქციები, რომლებიც მხოლოდ საორიენტაციო აპს აქვს
 	Outside the document	დოკუმენტის გარეთ
-	White background box	თეთრი ფონის ჩარჩო
 	Writes, moves or deletes files	ფაილებს წერს, გადააადგილებს ან შლის
 	Opens files in other apps	ფაილებს სხვა აპებში ხსნის
 	Opens network connections	ქსელურ კავშირებს ხსნის
@@ -4940,19 +4977,6 @@ imageTrace	Outline	კონტური
 @msg	open a document with data sets	გახსენით დოკუმენტი მონაცემთა ნაკრებებით
 @msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	მონაცემთა ნაკრები {name}: არაფერი გამოყენებულა; არცერთი ობიექტი არ არის მიბმული ცვლადზე, რომელსაც მასში მნიშვნელობა აქვს
 @msg	the action has no steps	მოქმედებას ნაბიჯები არ აქვს
-	Barcode	შტრიხკოდი
-	Barcode Options	შტრიხკოდის პარამეტრები
-	Data:	მონაცემები:
-	Document Default	დოკუმენტის ნაგულისხმევი
-	Error Correction:	შეცდომების კორექცია:
-	Human Readable Line	ადამიანისთვის წასაკითხი სტრიქონი
-	Install OCR-B for the standard digits.	დააყენეთ OCR-B სტანდარტული ციფრებისთვის.
-	Magnification:	გადიდება:
-	Mask:	ნიღაბი:
-	Module:	მოდული:
-	Quiet Zone:	მშვიდი ზონა:
-	Update	განახლება
-	Width Ratio:	სიგანის შეფარდება:
 	Convert to Straight Lines	სწორ ხაზებად გარდაქმნა
 	Corner Point Angle Threshold:	კუთხოვანი წერტილის კუთხის ზღვარი:
 	Decrease Font Size by Five Steps	შრიფტის შემცირება ხუთი საფეხურით
@@ -5287,12 +5311,6 @@ imageTrace	Outline	კონტური
 	Move Anchor Point	საყრდენი წერტილის გადაადგილება
 	Alt key toggles to Smooth Tool	Alt კლავიში ჩართავს გაგლუვების ხელსაწყოს
 @msg	{label} keeps 1 of the document's {n} artboards: the file reopens with one. Turn on Preserve Editing Capabilities to keep them all.	{label} ინახავს დოკუმენტის {n} სამუშაო დაფიდან 1-ს: ფაილი ხელახლა ერთით გაიხსნება. ყველას შესანარჩუნებლად ჩართეთ „რედაქტირების შესაძლებლობების შენარჩუნება“.
-@msg	a QR Code version is 1 to 40, not {other}	QR კოდის ვერსია არის 1-დან 40-მდე, არა {other}
-@msg	no codes to draw	დასახატი კოდები არ არის
-@msg	no line in the data is a code this symbology can carry	მონაცემებში არც ერთი სტრიქონი არ არის კოდი, რომლის გადატანაც ამ სიმბოლიკას შეუძლია
-@msg	select a barcode	აირჩიეთ შტრიხკოდი
-@msg	unknown barcode type `{name}`	უცნობი შტრიხკოდის ტიპი `{name}`
-@msg	unknown error correction level `{other}`	უცნობი შეცდომის კორექციის დონე `{other}`
 	Chalk & Charcoal…	ცარცი და ნახშირი…
 	Chalk & Charcoal	ცარცი და ნახშირი
 	Graphic Pen…	გრაფიკული კალამი…
@@ -5325,22 +5343,6 @@ imageTrace	Outline	კონტური
 	Shift:	წანაცვლება:
 	Fresco…	ფრესკა…
 	Fresco	ფრესკა
-	11 or 12 digits	11 ან 12 ციფრი
-	12 or 13 digits	12 ან 13 ციფრი
-	6 or 8 digits	6 ან 8 ციფრი
-	7 or 8 digits	7 ან 8 ციფრი
-	an even number of digits	ციფრების ლუწი რაოდენობა
-	any text	ნებისმიერი ტექსტი
-	ASCII	ASCII
-	Barcodes	შტრიხკოდები
-	Check	შემოწმება
-	Check Barcode	შტრიხკოდის შემოწმება
-	Codes:	კოდები:
-	Create Batch	პარტიის შექმნა
-	digits, A–Z and - . $ / + % and space	ციფრები, A–Z და - . $ / + % და ინტერვალი
-	digits, with or without the (01) application identifier	ციფრები, (01) აპლიკაციის იდენტიფიკატორით ან მის გარეშე
-	Drawn:	დახატულია:
-	Gap:	დაშორება:
 	Effect Gallery	ეფექტების გალერეა
 	Add filters from the list above	დაამატეთ ფილტრები ზემოთ მოცემული სიიდან
 	Add to Stack	დასტაში დამატება
