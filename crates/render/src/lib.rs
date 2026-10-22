@@ -1576,7 +1576,7 @@ impl Renderer {
             ctx.set_fill_rule(peniko::Fill::NonZero);
             match self.cached_stroke(f, &pieces.line, st, width) {
                 Some(o) => ctx.fill_path(&o),
-                None => ctx.fill_path(&effects::stroke::line_outline(&pieces.line, st, width, f.px * 0.25)),
+                None => ctx.fill_path(&raster_stroke_outline(&pieces.line, st, width, f.px * 0.25)),
             }
             for head in &pieces.heads {
                 ctx.fill_path(&head.outline);
@@ -1651,7 +1651,7 @@ impl Renderer {
         };
         let line = match self.cached_stroke(f, &pieces.line, st, width) {
             Some(o) => o,
-            None => Arc::new(effects::stroke::line_outline(&pieces.line, st, width, f.px * 0.25)),
+            None => Arc::new(raster_stroke_outline(&pieces.line, st, width, f.px * 0.25)),
         };
         ctx.set_fill_rule(peniko::Fill::NonZero);
         for clip in std::iter::once(&*line).chain(pieces.heads.iter().map(|h| &h.outline)) {
@@ -1686,7 +1686,7 @@ impl Renderer {
             e.stamp = self.stamp;
             return Some(e.outline.clone());
         }
-        let outline = Arc::new(effects::stroke::line_outline(line, st, width, 2f64.powi(level)));
+        let outline = Arc::new(raster_stroke_outline(line, st, width, 2f64.powi(level)));
         self.strokes.insert(key, StrokeEntry { node, outline: outline.clone(), stamp: self.stamp });
         Some(outline)
     }
@@ -2203,6 +2203,22 @@ fn painted_items(n: &Node) -> usize {
         })
         .count()
         .max(if n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Fill(f) if f.visible && !matches!(f.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None)) || matches!(i, AppearanceItem::Stroke(s) if s.visible && !matches!(s.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None))) { 2 } else { 0 })
+}
+
+/// Vello flattens fill contours independently at 0.25 device pixels. On thin curved strokes
+/// that can erase much of the band between the inner and outer contours. Preflatten just those
+/// outlines more tightly; the document's weight/opacity and export geometry stay unchanged.
+fn raster_stroke_outline(line: &BezPath, st: &StrokeLayer, width: f64, tol: f64) -> BezPath {
+    if width >= tol * 4.0 {
+        return effects::stroke::line_outline(line, st, width, tol);
+    }
+    // Offset fitting must be tight too: coordinate rounding at a closed endpoint can make
+    // the independently fitted sides differ by much of a subpixel stroke's entire width.
+    let fine = (tol / 8.0).min(width / 32.0).max(1e-4);
+    let outline = effects::stroke::line_outline(line, st, width, fine);
+    let mut flat = BezPath::new();
+    kurbo::flatten(outline.iter(), fine, |el| flat.push(el));
+    flat
 }
 
 /// Whether `st` is one of `n`'s own strokes (the strokes of the brush art drawn for `n` are not).
