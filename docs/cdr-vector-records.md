@@ -146,3 +146,39 @@ Text/font/style reconstruction, master-page artwork, patterns,
 colour profiles and Corel-specific effects remain outside this subset. Existing
 embedded bitmaps remain images, while genuine vector objects remain paths. No
 thumbnail, screenshot or tracing pass is substituted for native geometry.
+
+## Control-heavy curve capacity (CDR.10)
+
+A second supplied format-24.3 file has 1,068,736 encoded point records, including
+596,188 cubic controls. Independent Corel27.2 observations count 1,897 curves,
+4,343 subpaths and 468,205 editable nodes/segments, with no bitmaps or text. Its
+page is A4 portrait and the artwork is off-page. The local SVG oracle has the same
+path-object count but normalizes some subpaths; its move count is not a topology
+oracle. The source and all derived artwork remain private.
+
+The importer separates coordinate-work capacity (two million records) from native
+editable storage (one million anchors), rather than removing its geometry bounds.
+Each native curve pre-counts a conservative anchor bound, including implicit starts
+after close, and borrows the source arrays instead of building a temporary full point
+vector. Rectangles/ellipses charge conservative bounds and generated geometry
+receives the remaining coordinate and anchor quota before expansion. Duplicate
+occurrences still consume both quotas. Unit checks exercise the old million-record
+boundary, cubic-handle preservation, both independent ceilings and repeated curves.
+
+The local native import retains all Corel-observed paths, subpaths and anchors;
+three closed single-anchor subpaths have no drawable segment in PathData, rather
+than being lost. The original SVG is demonstrably incomplete: one 91,621-coordinate
+curve is serialized only through coordinate 26,085 (the native count modulo 65,536).
+Its command roles/coordinates match that native prefix; the omitted 840 moves
+explain the entire subpath-count discrepancy and missing horizontal extrema.
+This is consistent with an export-count truncation; the exporter implementation
+was not inspected. No scaling correction or relaxed threshold is inferred from
+that incomplete oracle. A separate Corel-rendered 1600 by 1595 RGBA PNG is the
+coverage oracle; native object/node counts are checked independently. Since it
+uses a different rasterizer, half-covered binary masks must agree away from an
+explicit one-pixel boundary: all 2,924 differing mask pixels are within that band,
+with zero disagreements outside it. Raw alpha MAE is 0.296852/255; premultiplied
+RGB MAE is 4.001351/255. These are not claims of pixel equality or of passing the
+existing shared-renderer SVG byte threshold, which remains unchanged for the
+other scenes. CMYK numbers remain native and a warning states that embedded
+profiles are not imported.

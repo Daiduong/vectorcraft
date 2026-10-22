@@ -7,6 +7,29 @@ use std::path::Path;
 use vectorcraft_engine::cmd::fileio;
 use vectorcraft_render::Renderer;
 
+/// Give corresponding paths distinct RGB fills to isolate geometry and stacking
+/// from profile-dependent paint. Compound members inherit their parent's paint.
+fn geometry_colours(nodes: &mut [std::sync::Arc<vectorcraft_doc::Node>], index: &mut u32) {
+    for node in nodes {
+        let node = std::sync::Arc::make_mut(node);
+        node.opacity = 1.0;
+        let compound = matches!(node.kind, vectorcraft_doc::NodeKind::Compound { .. });
+        if node.path_data().is_some() || compound {
+            let n = *index;
+            *index += 1;
+            let color = vectorcraft_color::Color::rgb8((30 + n * 53 % 200) as u8, (30 + n * 97 % 200) as u8, (30 + n * 131 % 200) as u8);
+            node.appearance = vectorcraft_doc::Appearance {
+                items: vec![vectorcraft_doc::AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(vectorcraft_color::Paint::solid(color)))],
+                ..Default::default()
+            }
+            .into();
+        }
+        if !compound && let Some(children) = node.children_mut() {
+            geometry_colours(children, index);
+        }
+    }
+}
+
 #[test]
 /// Compare every page of optional original CorelDRAW fixtures with independently exported SVGs.
 fn original_corel_files_match_their_independent_svg_exports() {
@@ -147,29 +170,6 @@ fn private_zero_page_drawing_matches_its_local_vector_oracle() {
     // Check geometry/stacking independently as well as the original colours:
     // corresponding paths get distinct RGB paints so equal-coloured overlapping
     // objects cannot hide an internal boundary or paint-order regression.
-    /// Assign corresponding paths distinct RGB paints to check internal boundaries and stacking.
-    fn geometry_colours(nodes: &mut [std::sync::Arc<vectorcraft_doc::Node>], index: &mut u32) {
-        for node in nodes {
-            let node = std::sync::Arc::make_mut(node);
-            node.opacity = 1.0;
-            // SVG import represents a multi-subpath <path> as one painted compound
-            // with unpainted members; CDR retains it as one multi-subpath PathData.
-            let compound = matches!(node.kind, vectorcraft_doc::NodeKind::Compound { .. });
-            if node.path_data().is_some() || compound {
-                let n = *index;
-                *index += 1;
-                let color = vectorcraft_color::Color::rgb8((30 + n * 53 % 200) as u8, (30 + n * 97 % 200) as u8, (30 + n * 131 % 200) as u8);
-                node.appearance = vectorcraft_doc::Appearance {
-                    items: vec![vectorcraft_doc::AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(vectorcraft_color::Paint::solid(color)))],
-                    ..Default::default()
-                }
-                .into();
-            }
-            if !compound && let Some(children) = node.children_mut() {
-                geometry_colours(children, index);
-            }
-        }
-    }
     let mut actual_geometry = loaded.doc.clone();
     let mut expected_geometry = reference.clone();
     let (mut actual_count, mut expected_count) = (0, 0);
@@ -190,4 +190,97 @@ fn private_zero_page_drawing_matches_its_local_vector_oracle() {
     }
     assert!(geometry_mean < 0.1, "native zero-page geometry/stacking differs from its Corel SVG oracle: {geometry_mean}");
     assert!(mean < 0.1, "native zero-page colours differ from this drawing's Corel SVG oracle: {mean}");
+}
+
+#[test]
+/// A control-heavy drawing retains native topology and matches Corel's independently rendered alpha.
+/// The incomplete SVG is not a coverage oracle; CMYK colours remain a separate measurement.
+fn private_control_heavy_drawing_retains_topology_and_matches_corel_coverage() {
+    let Ok(folder) = std::env::var("CDR_LARGE_CURVE_FIXTURE_DIR") else { return };
+    let folder = Path::new(&folder);
+    let loaded = fileio::load("large-curves.cdr", &std::fs::read(folder.join("input.cdr")).unwrap()).unwrap();
+    assert!(loaded.doc.images.is_empty() && !loaded.preview_only);
+    let (mut paths, mut subpaths, mut anchors, mut segments, mut point_subpaths) = (0, 0, 0, 0, 0);
+    loaded.doc.walk(|node| {
+        if let Some(path) = node.path_data() {
+            paths += 1;
+            subpaths += path.subpaths.len();
+            anchors += path.anchor_count();
+            segments += path.subpaths.iter().map(|subpath| subpath.segment_count()).sum::<usize>();
+            point_subpaths += path.subpaths.iter().filter(|subpath| subpath.closed && subpath.anchors.len() == 1).count();
+        }
+    });
+    assert_eq!((paths, subpaths, anchors), (1897, 4343, 468205));
+    // Three closed one-anchor subpaths retain their points but have no drawable
+    // segment in PathData; Corel's collection counts each as a degenerate segment.
+    assert_eq!(point_subpaths, 3);
+    assert_eq!(segments + point_subpaths, 468205);
+    let board = loaded.doc.artboards[0].rect;
+    assert!((board.width() - 210.0 * 72.0 / 25.4).abs() < 0.01);
+    assert!((board.height() - 297.0 * 72.0 / 25.4).abs() < 0.01);
+    let bounds = loaded.doc.layers.iter().filter_map(|layer| layer.visual_bounds()).reduce(|bounds, next| bounds.union(next)).unwrap();
+    assert!((bounds.width() - 195.2517 * 72.0 / 25.4).abs() < 0.02);
+    assert!((bounds.height() - 194.612 * 72.0 / 25.4).abs() < 0.02);
+    // Corel's SVG truncates one 91621-coordinate curve to its first 26085
+    // coordinates. This separate PNG is rendered from the original native
+    // document, with the complete off-page artwork selected.
+    let expected = image::open(folder.join("corel-artwork-rgba-20261022.png")).unwrap().to_rgba8();
+    let scale = expected.width() as f64 / bounds.width();
+    let actual = Renderer::new().render_region(&loaded.doc, bounds, scale, false);
+    assert_eq!((actual.width, actual.height), expected.dimensions());
+    let colour_mean = actual
+        .pixels
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(expected.pixels())
+        .map(|(a, b)| {
+            (0..3)
+                .map(|channel| {
+                    let premultiplied = (u32::from(b[channel]) * u32::from(b[3]) + 127) / 255;
+                    u32::from(a[channel]).abs_diff(premultiplied) as f64
+                })
+                .sum::<f64>()
+        })
+        .sum::<f64>()
+        / (expected.pixels().len() * 3) as f64;
+    let alpha_mean = actual.pixels.as_chunks::<4>().0.iter().zip(expected.pixels()).map(|(a, b)| a[3].abs_diff(b[3]) as f64).sum::<f64>()
+        / expected.pixels().len() as f64;
+    eprintln!(
+        "private control-heavy CDR: {paths} paths,{subpaths} subpaths,{anchors} anchors,{segments} segments; Corel-native alpha mean {alpha_mean:.6}; premultiplied colour mean {colour_mean:.6}; warnings={:?}",
+        loaded.warnings
+    );
+    if let Ok(output) = std::env::var("CDR_RENDER_DIR") {
+        std::fs::create_dir_all(&output).unwrap();
+        std::fs::write(Path::new(&output).join("large-curves-native-complete.png"), actual.to_png().unwrap()).unwrap();
+    }
+    assert!(actual.pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] != 0));
+    // This is a different rasterizer, not the shared-renderer SVG oracle used by
+    // the original suite. Keep exact topology and compare half-covered masks:
+    // all binary disagreement must lie within one output pixel of the other
+    // renderer's boundary, rather than widening the SVG suite's 0.1-byte gate.
+    let actual_mask: Vec<bool> = actual.pixels.as_chunks::<4>().0.iter().map(|pixel| pixel[3] >= 128).collect();
+    let expected_mask: Vec<bool> = expected.pixels().map(|pixel| pixel[3] >= 128).collect();
+    let (width, height) = (actual.width as usize, actual.height as usize);
+    let mut mismatches = 0;
+    let mut outside_boundary = 0;
+    for y in 0..height {
+        for x in 0..width {
+            let at = y * width + x;
+            if actual_mask[at] == expected_mask[at] {
+                continue;
+            }
+            mismatches += 1;
+            let (foreground, other) = if actual_mask[at] { (&actual_mask, &expected_mask) } else { (&expected_mask, &actual_mask) };
+            assert!(foreground[at]);
+            let has_neighbour = (y.saturating_sub(1)..=(y + 1).min(height - 1))
+                .any(|row| (x.saturating_sub(1)..=(x + 1).min(width - 1)).any(|col| other[row * width + col]));
+            if !has_neighbour {
+                outside_boundary += 1;
+            }
+        }
+    }
+    eprintln!("Corel/native half-coverage disagreements: {mismatches}; outside one-pixel boundary: {outside_boundary}");
+    assert_eq!(outside_boundary, 0, "native/Corel coverage differs beyond the explicit one-pixel raster boundary");
+    assert!(loaded.warnings.iter().any(|warning| warning.contains("CMYK colours retain numeric values")));
 }

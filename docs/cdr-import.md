@@ -77,6 +77,14 @@ sizes are checked. Unit/property tests cover truncated, mutated and hostile
 records; the engine fuzz tests also open, place, render and export successful
 imports.
 
+CDR.10 distinguishes up to two million coordinate records (including cubic control
+points) from at most one million editable anchors. Native curve points are streamed
+from borrowed arrays rather than copied into another full point vector. Both quotas
+remain cumulative across objects, crops and referenced occurrences. Generated
+polygon/B-spline paths also respect the unspent anchor quota before expansion.
+This permits control-heavy production drawings without allowing two million
+straight anchors or unbounded repeated geometry.
+
 Run the synthetic checks with `cargo test -p vectorcraft-cdr` and
 `cargo test -p vectorcraft-engine cdr`. To run the independent application-oracle
 checks, set `CDR_FIXTURE_DIR` to a local folder containing
@@ -128,6 +136,7 @@ assuming the UI's drawing coordinates are the page coordinates.
 
 | Date | Change |
 |---|---|
+| 2026-10-22 | CDR.10: separate coordinate-work and editable-anchor budgets and stream native curve coordinates; optional control-heavy private-file oracle and boundary/alias regressions. CDR.9 history entries completed in the progress documents. |
 | 2026-10-22 | CDR.9: accept exact PowerClip aliases with bounded name materialization; recover drawing-only zero-page files as editable vectors with a fitted artboard. External-reference, branching-graph, synthetic page and local independent-oracle regressions cover both fixes. |
 | 2026-10-22 | CDR.8: native PowerClip references, modern corner treatments, polygon/star seeds, B-spline cubics and alternate/winding fills; original 15/16/27 SVG oracles and bounded reference expansion. |
 | 2026-10-19 | CDR.4: native embedded images, continuous alpha and editable crop outlines; initial framing of off-page artwork. |

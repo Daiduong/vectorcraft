@@ -8,8 +8,8 @@ the work list made from it. Deep areas have their own checklists: [UI and intera
 [file formats](file-format-parity.md), [hardware](hardware-parity.md), [languages](localization-parity.md),
 [effects](effects-parity.md) and [type](type-parity.md).
 
-> **CDR status:** 2026-10-22 · CDR.8 extends the partial native importer with editable vector features.
-> Current verification is pending; feature, format and readiness scores and hour estimates are unchanged.
+> **CDR status:** 2026-10-22 · CDR.1–CDR.10 provide partial native import with editable vectors, bounded aliases, zero-page recovery and control-heavy curve capacity.
+> Validation boundaries are recorded below and in the CDR notes. Feature, format and readiness scores and hour estimates are unchanged.
 
 ## Headline
 
@@ -114,9 +114,9 @@ checks and 32 original oracle pages passed (evidence below). The area's **75%** 
 estimates are unchanged.
 
 CDR.9 additionally recovers zero-by-zero page metadata with a warned, artwork-fitted
-board and bounded PowerClip aliases. The local zero-page oracle retains180 curves,
+board and bounded PowerClip aliases. The local zero-page oracle retains 180 curves,
 424 subpaths and zero images; measured colour/geometry differences are below the
-existing0.1/255 threshold. Source files and derived artwork remain private.
+existing 0.1/255 threshold. Source files and derived artwork remain private.
 
 Excluding the generative-AI row (the old table had none), depth is ~76% and the remaining feature work
 ~220–360 h. With 4–6 agents on disjoint crates, wall-clock time divides by about 3.5–4 (shared files such as
@@ -862,6 +862,8 @@ Evidence for the shared light Color: geometry tests in `tests_lighting`, effect 
 | 2026-10-19 | minor | CDR.1: bounded native CorelDRAW import, explicit feature-loss warnings and original CorelDRAW 15/16/27 fixture checks; see [CDR import](cdr-import.md). Scores and estimates unchanged. |
 | 2026-10-19 | minor | CDR.4: native embedded bitmap data, continuous alpha and editable crop outlines; first display fits artwork outside every artboard without changing document coordinates. Original bitmap/SVG oracles and viewport regressions; scores and estimates unchanged. |
 | 2026-10-22 | minor | CDR.8: partial native import gains editable PowerClip references/nesting, modern round/scallop/chamfer corners with relative/absolute scaling, polygon/star seeds, B-spline cubics and default even-odd/explicit winding fills. Focused parser/engine/fuzz checks and 32 original oracle pages passed. CDR-specific gaps moved below the shared area table to keep independent updates mergeable. Scores and hours unchanged. |
+| 2026-10-22 | minor | CDR.9: exact PowerClip aliases retain their separate page/parent occurrences with bounded name materialization; drawing-only zero-page files recover a warned artboard from native artwork bounds. A private 180-curve/424-subpath drawing matches its independent Corel SVG; native anchor editing, Undo and save/reopen passed. Full CI passed all 10 stages and 8521 tests. Scores and hours unchanged. |
+| 2026-10-22 | minor | CDR.10: native curves stream borrowed point/flag arrays under separate two-million-coordinate and one-million-anchor quotas; repeated and procedural geometry stays bounded. A private file retains 1897 paths, 4343 subpaths and 468205 anchors; independent Corel raster coverage agrees outside a one-pixel edge band. Corel's truncated SVG is not used as a complete oracle; CMYK colour fidelity remains separate. Scores and hours unchanged. |
 | 2026-10-19 | minor | Status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates. Contributor original-file acceptance confirmed; scores and estimates unchanged. |
 | 2026-10-19 | minor | Cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission. Regression coverage; scores and estimates unchanged. |
 | 2026-10-19 | minor | Cached canvas reprojection preserves scale during resize, rotation and DPI changes. Contributor original-file acceptance confirmed; scores and estimates unchanged. |

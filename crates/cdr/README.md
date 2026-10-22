@@ -73,7 +73,8 @@ The input is limited to 128 MiB. Decompression has a cumulative 128 MiB budget;
 materialized leaf records have a separate 128 MiB budget. Every recursive visit,
 including an alias of an external LIST, consumes a cumulative 512 MiB traversal
 budget. Other bounds: 64 nested lists, 200,000 records, 4,096 ZIP entries/streams,
-1,000 pages, 20,000 styles, 1,000,000 geometry points and 250,000 materialized
+1,000 pages, 20,000 styles, 2,000,000 geometry coordinate records (including cubic
+controls), 1,000,000 editable anchors and 250,000 materialized
 gradient stops/dash values (both style definitions and object copies count).
 Referenced drawing expansion additionally limits interpretation to 200,000 record
 visits and 64 recursive levels; cyclic or mismatched PowerClip references fail.
@@ -82,6 +83,11 @@ share indexing; distinct definitions reusing an identifier fail. Each occurrence
 remains editable under its own page/parent transform. Materialized names have a
 cumulative 16 MiB UTF-8 budget, including aliases; source decoding is bounded too.
 Polygon expansion charges its generated point count before allocating the outline.
+Native curves also charge their anchor bound before allocating their path, including
+implicit starts after closed segments. They read borrowed coordinate/flag arrays
+without another full point-vector allocation. Straight-heavy drawings and repeated
+aliases cannot bypass the anchor cap; procedural expansion also takes the remaining
+anchor quota before allocation. These quotas are independent of the input-byte limit.
 Bitmap decoding additionally limits each side to 32,768 pixels, the cumulative
 pixel count to 32 million and generated encoded PNGs to 128 MiB. Exact raw bitmap
 aliases are skipped before decoding and consume no additional image quota. A
@@ -117,6 +123,16 @@ Record observations and unresolved cases are in [the vector record notes](../../
 `CDR_ZERO_PAGE_FIXTURE_DIR` optionally points to a local supplied `input.cdr` and
 its independently exported `corel-artwork.svg`. The checked zero-page scene keeps
 180 editable curves/424 subpaths and matches the separate SVG's geometry and paint.
+`CDR_LARGE_CURVE_FIXTURE_DIR` optionally supplies a local control-heavy `input.cdr`
+and independent `corel-artwork.svg`. The native example contains 1,068,736 coordinate
+records but 468,205 editable anchors: 1,897 curves, 4,343 native subpaths, no images.
+Corel's SVG may normalize subpaths, so its move-command count is not used to assert
+native topology. Original curve counts are checked separately from rendering.
+For the checked large file, Corel's SVG truncates one curve's coordinates, so
+`corel-artwork-rgba-20261022.png` is the complete native-rendered coverage oracle.
+The two rasterizers' half-coverage masks must agree outside a one-pixel edge band;
+raw alpha and profile-dependent RGB differences are reported separately. This
+does not change the existing original-scene SVG comparison limits.
 `cargo clippy -p vectorcraft-cdr --all-targets --all-features -- -D warnings` checks
 the shipped no-unsafe/no-panic policy as well as the fixture feature.
 

@@ -10,7 +10,11 @@ use vectorcraft_doc::{
 };
 use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Shape};
 
-const MAX_POINTS: usize = 1_000_000;
+// A cubic stores two control coordinates as well as its editable endpoint.
+// Bound editable storage to one million anchors while allowing control-heavy art
+// to use up to two million encoded/generated coordinates. Both count aliases.
+const MAX_POINTS: usize = 2_000_000;
+const MAX_ANCHORS: usize = 1_000_000;
 const MAX_NAME_BYTES: usize = 16 * 1024 * 1024;
 const MAX_COORD: f64 = 1e6;
 const DEFAULT_PAGE_SIZE: (f64, f64) = (612.0 / 72.0, 792.0 / 72.0);
@@ -225,6 +229,95 @@ mod tests {
             assert_eq!(drawing.name_bytes, MAX_NAME_BYTES);
         }
     }
+
+    /// Original cubic records let tests vary raw coordinate and editable-anchor counts independently.
+    fn cubic_records(segments: usize) -> Vec<u8> {
+        let count = 1 + segments * 3;
+        let mut bytes = (count as u32).to_le_bytes().to_vec();
+        bytes.extend([0; 8]);
+        for i in 0..segments {
+            let x = (i % 1000) as i32 * 254;
+            for (x, y) in [(x + 70, 254i32), (x + 180, -254), (x + 254, 0)] {
+                bytes.extend(x.to_le_bytes());
+                bytes.extend(y.to_le_bytes());
+            }
+        }
+        bytes.push(0);
+        for _ in 0..segments {
+            bytes.extend([0xc0, 0xc0, 0x80]);
+        }
+        bytes
+    }
+
+    /// More than one million coordinates are legitimate when most are cubic handles.
+    #[test]
+    fn control_heavy_curves_keep_every_cubic_beyond_the_old_point_limit() {
+        let segments = 356_245;
+        let bytes = cubic_records(segments);
+        let mut drawing = Drawing::new(2403);
+        let path = drawing.curve(&bytes, false).unwrap();
+        assert_eq!(drawing.points, 1_068_736);
+        assert_eq!(drawing.anchors, segments + 1);
+        assert_eq!(path.elements().len(), segments + 1);
+        assert!(path.elements().iter().skip(1).all(|element| matches!(element, vectorcraft_geom::PathEl::CurveTo(..))));
+        let native = PathData::from_bezpath(&path);
+        assert_eq!(native.subpaths.len(), 1);
+        assert_eq!(native.anchor_count(), segments + 1);
+        assert!(native.subpaths[0].anchors[0].has_out());
+        assert!(native.subpaths[0].anchors[1].has_in());
+    }
+
+    /// Coordinate work and native anchor storage keep independent finite ceilings.
+    #[test]
+    fn point_and_anchor_quotas_remain_cumulative_and_reject_without_reset() {
+        let mut drawing = Drawing::new(1200);
+        drawing.add_points(MAX_POINTS).unwrap();
+        assert!(drawing.add_points(1).unwrap_err().contains("geometry point limit"));
+        assert_eq!(drawing.points, MAX_POINTS);
+        drawing.add_anchors(MAX_ANCHORS).unwrap();
+        assert!(drawing.add_anchors(1).unwrap_err().contains("editable anchor limit"));
+        assert_eq!(drawing.anchors, MAX_ANCHORS);
+
+        let mut drawing = Drawing::new(1200);
+        assert!(drawing.curve(&((MAX_POINTS + 1) as u32).to_le_bytes(), false).unwrap_err().contains("geometry point limit"));
+        let bytes = cubic_records(1);
+        drawing.anchors = MAX_ANCHORS - 1;
+        assert!(drawing.curve(&bytes, false).unwrap_err().contains("editable anchor limit"));
+        assert_eq!(drawing.anchors, MAX_ANCHORS - 1);
+    }
+
+    /// Repeated resources still charge both budgets; sharing source bytes is not free geometry.
+    #[test]
+    fn repeated_curve_occurrences_charge_their_materialized_anchors() {
+        let bytes = cubic_records(2);
+        let mut drawing = Drawing::new(1200);
+        drawing.anchors = MAX_ANCHORS - 6;
+        for _ in 0..2 {
+            drawing.curve(&bytes, false).unwrap();
+        }
+        assert_eq!(drawing.anchors, MAX_ANCHORS);
+        assert!(drawing.curve(&bytes, false).unwrap_err().contains("editable anchor limit"));
+    }
+
+    /// A post-close line implicitly materializes a start as well as its endpoint.
+    #[test]
+    fn implicit_post_close_starts_are_included_in_the_anchor_budget() {
+        let flags = [0, 0x48, 0x40, 0x48];
+        let mut bytes = 4u32.to_le_bytes().to_vec();
+        for i in 0..4i32 {
+            bytes.extend((i * 254000).to_le_bytes());
+            bytes.extend(0i32.to_le_bytes());
+        }
+        bytes.extend(flags);
+        let mut drawing = Drawing::new(1200);
+        let path = drawing.curve(&bytes, false).unwrap();
+        assert_eq!(drawing.anchors, 5);
+        assert_eq!(path_anchor_bound(&path), 5);
+        assert!(PathData::from_bezpath(&path).anchor_count() <= drawing.anchors);
+        let mut drawing = Drawing::new(1200);
+        drawing.anchors = MAX_ANCHORS - 4;
+        assert!(drawing.curve(&bytes, false).unwrap_err().contains("editable anchor limit"));
+    }
 }
 
 /// Detect object records even inside containers whose artwork is unsupported.
@@ -258,6 +351,47 @@ fn valid_size(w: f64, h: f64) -> Result<(f64, f64), String> {
 /// Partial zeros, negative dimensions and out-of-range dimensions remain errors.
 fn stored_size(w: f64, h: f64) -> Result<Option<(f64, f64)>, String> {
     if w == 0.0 && h == 0.0 { Ok(None) } else { valid_size(w, h).map(Some) }
+}
+
+/// Bound anchors before decoding a native curve. A line/cubic following a close
+/// starts an implicit subpath in PathData, so charge its extra starting anchor too.
+fn curve_anchor_bound(types: &[u8]) -> usize {
+    let mut anchors = 0;
+    let mut open = false;
+    for typ in types {
+        match typ >> 6 {
+            0 => {
+                anchors += 1;
+                open = true;
+            }
+            1 | 2 => {
+                anchors += 1 + usize::from(!open);
+                open = typ & 8 == 0;
+            }
+            _ => {}
+        }
+    }
+    anchors
+}
+
+/// Bound the anchors of procedurally expanded paths before native materialization.
+fn path_anchor_bound(path: &BezPath) -> usize {
+    let mut anchors = 0;
+    let mut open = false;
+    for element in path.elements() {
+        match element {
+            vectorcraft_geom::PathEl::MoveTo(_) => {
+                anchors += 1;
+                open = true;
+            }
+            vectorcraft_geom::PathEl::LineTo(_) | vectorcraft_geom::PathEl::QuadTo(_, _) | vectorcraft_geom::PathEl::CurveTo(_, _, _) => {
+                anchors += 1 + usize::from(!open);
+                open = true;
+            }
+            vectorcraft_geom::PathEl::ClosePath => open = false,
+        }
+    }
+    anchors
 }
 
 /// Read an object kind and bounded borrowed arguments from its `loda` table.
@@ -304,6 +438,7 @@ struct Drawing<'a> {
     strokes: BTreeMap<u32, Option<StrokeLayer>>,
     warnings: BTreeSet<String>,
     points: usize,
+    anchors: usize,
     next_id: u64,
     objects_seen: usize,
     objects_imported: usize,
@@ -387,6 +522,7 @@ impl<'a> Drawing<'a> {
             strokes: BTreeMap::new(),
             warnings: BTreeSet::new(),
             points: 0,
+            anchors: 0,
             next_id: 1,
             objects_seen: 0,
             objects_imported: 0,
@@ -870,8 +1006,10 @@ impl<'a> Drawing<'a> {
                 return Err("ambiguous CDR B-spline geometry properties".into());
             }
             let data = property.child(b"ppdt").ok_or("CDR B-spline property is missing its control points")?;
-            let (path, points) = crate::bspline::bspline(&data.data, MAX_POINTS.saturating_sub(self.points))?;
+            let remaining = MAX_POINTS.saturating_sub(self.points).min(MAX_ANCHORS.saturating_sub(self.anchors));
+            let (path, points) = crate::bspline::bspline(&data.data, remaining)?;
             self.add_points(points)?;
+            self.add_anchors(path_anchor_bound(&path))?;
             path
         } else {
             let Some(coords) = args.get(&30) else {
@@ -887,8 +1025,10 @@ impl<'a> Drawing<'a> {
                 3 | 0x25 => self.curve(coords, kind == 0x25)?,
                 20 => {
                     let parameters = args.get(&11000).ok_or("CDR polygon is missing its repetition parameters")?;
-                    let (path, points) = crate::polygon::polygon(coords, parameters, self.version, MAX_POINTS.saturating_sub(self.points))?;
+                    let remaining = MAX_POINTS.saturating_sub(self.points).min(MAX_ANCHORS.saturating_sub(self.anchors));
+                    let (path, points) = crate::polygon::polygon(coords, parameters, self.version, remaining)?;
                     self.add_points(points)?;
+                    self.add_anchors(path_anchor_bound(&path))?;
                     path
                 }
                 _ => {
@@ -934,6 +1074,19 @@ impl<'a> Drawing<'a> {
                     self.warn("An unresolved CDR outline style was omitted");
                 }
             }
+        }
+        if items.iter().any(|item| {
+            let paint = match item {
+                AppearanceItem::Fill(fill) => &fill.paint,
+                AppearanceItem::Stroke(stroke) => &stroke.paint,
+            };
+            match paint {
+                Paint::Solid { color: Color::Cmyk { .. }, .. } => true,
+                Paint::Gradient(gradient) => gradient.gradient.stops.iter().any(|stop| matches!(stop.color, Color::Cmyk { .. })),
+                _ => false,
+            }
+        }) {
+            self.warn("CMYK colours retain numeric values; display may differ because embedded colour profiles are not imported");
         }
         self.note_properties(&args);
         let mut node = Node::path(self.id(), path, Appearance { items, ..Appearance::default() });
@@ -1016,12 +1169,23 @@ impl<'a> Drawing<'a> {
         self.objects_imported += 1;
         Ok(Some(node))
     }
-    /// Charge geometry before allocation against the cumulative one-million-point limit.
+    /// Charge coordinate work against the cumulative two-million-coordinate limit.
     fn add_points(&mut self, n: usize) -> Result<(), String> {
-        self.points = self.points.checked_add(n).ok_or("CDR point count overflow")?;
-        if self.points > MAX_POINTS {
+        let total = self.points.checked_add(n).ok_or("CDR point count overflow")?;
+        if total > MAX_POINTS {
             return Err("CDR geometry point limit exceeded".into());
         }
+        self.points = total;
+        Ok(())
+    }
+    /// Bound materialized editable anchors independently of cubic control coordinates.
+    /// Upper bounds include duplicate closing endpoints and implicit post-close starts.
+    fn add_anchors(&mut self, n: usize) -> Result<(), String> {
+        let total = self.anchors.checked_add(n).ok_or("CDR anchor count overflow")?;
+        if total > MAX_ANCHORS {
+            return Err("CDR editable anchor limit exceeded".into());
+        }
+        self.anchors = total;
         Ok(())
     }
     /// Charge both style definitions and per-object gradient/dash copies against their limit.
@@ -1035,6 +1199,7 @@ impl<'a> Drawing<'a> {
     /// Decode rectangle corners into editable local-space cubic or straight segments.
     fn rectangle(&mut self, bytes: &[u8]) -> Result<BezPath, String> {
         self.add_points(17)?;
+        self.add_anchors(17)?;
         let (path, approximated) = crate::corners::rectangle(bytes, self.version)?;
         if approximated {
             self.warn("An unsupported or overlapping rectangle corner treatment was approximated");
@@ -1044,6 +1209,7 @@ impl<'a> Drawing<'a> {
     /// Approximate an ellipse, arc or pie with up to four cubic segments in local inches.
     fn ellipse(&mut self, bytes: &[u8]) -> Result<BezPath, String> {
         self.add_points(16)?;
+        self.add_anchors(16)?;
         let mut r = Reader::new(bytes);
         let w = r.coord()?;
         let h = r.coord()?;
@@ -1092,15 +1258,17 @@ impl<'a> Drawing<'a> {
         if count > bytes.len().saturating_sub(r.pos) / 9 {
             return Err("truncated CDR curve points".into());
         }
-        let mut points = Vec::new();
-        for _ in 0..count {
-            points.push(Point::new(r.coord()?, r.coord()?));
-        }
+        let coordinate_bytes = count.checked_mul(8).ok_or("CDR curve coordinate size overflow")?;
+        let mut points = Reader::new(r.take(coordinate_bytes)?);
         let types = r.take(count)?;
+        self.add_anchors(curve_anchor_bound(types))?;
         let mut p = BezPath::new();
         let mut controls = Vec::new();
         let mut started = false;
-        for (point, typ) in points.into_iter().zip(types) {
+        // Coordinates and flags occupy separate source arrays. Borrow both and
+        // read them in lockstep instead of allocating a second full point vector.
+        for typ in types {
+            let point = Point::new(points.coord()?, points.coord()?);
             match typ >> 6 {
                 0 => {
                     p.move_to(point);
