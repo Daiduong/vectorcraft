@@ -55,6 +55,7 @@ Text options: {e}
 `background` must be a colour
 `burasagari` must be "none", "standard" or "forced"
 `charAlign` must be "romanBaseline", "emBoxTop", "emBoxCenter", "emBoxBottom", "icfTop" or "icfBottom"
+`charDirection` must be "default", "leftToRight" or "rightToLeft"
 `color` needs a `rule` to make the theme from
 `colors` is empty
 `columnType` is vertical, uniform, repeating or sliding
@@ -165,7 +166,6 @@ Text options: {e}
 `{_1}` would be overwritten by the package: choose a different folder or name
 `{file}` has no art to place
 `{file}` is over {_1} MB
-`{file}` isn't a VectorCraft document
 `{f}` belongs to a VectorCraft that is running
 `{f}` is the copy of a document open now
 `{id}` is no writable format (see document.formats)
@@ -430,6 +430,7 @@ each of `items` is {{id, corners?}} with an object id, not {it}
 each row needs `from`
 each stop needs a position
 each subpath needs an anchors array
+easingType must be easeIn, easeOut, easeInOut or easeOutIn
 editingData must be true or false
 editingData must be true, false or "always"
 edits overlap
@@ -700,7 +701,7 @@ no design named `{n}`
 no design named `{old}`
 no encoder for {_1} yet
 no export preset `{name}` (see document.exportPresets.list)
-no folder: pass `path` or set Preferences › Performance & Storage › Additional Plug-ins Folder
+no folder: pass `path` or set Preferences › Plug-ins & Scratch Disks › Additional Plug-ins Folder
 no fonts to look for: they are all available
 no formats to export
 no graphic style `{n}` in `{_1}`
@@ -934,6 +935,7 @@ scope must be selection or all (got {other})
 scribble is too long
 segment does not exist
 select a Shaper group
+select a blend to set easing or color shift
 select a graph
 select a group or layer with visible, unlocked members
 select a layer
@@ -1254,6 +1256,7 @@ zoom must be positive
 {key} must be 0–{MAX_ADD_AROUND} pt
 {key} must be Unix seconds (an integer) or null
 {key} must be [x,y]
+{key} must be a percentage {min}..100
 {key} must be a positive number, not {v}
 {key} must be an array of non-negative integer object ids
 {key} must be one of {_1}

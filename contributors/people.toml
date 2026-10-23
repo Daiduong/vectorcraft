@@ -160,3 +160,7 @@ real_name = "Majed Alaejem"
 display_name = "Majed Alaejem"
 sync_github_name = true
 
+[people.Ronfo2013]
+real_name = "Angelo Bernardini"
+display_name = "Angelo Bernardini"
+sync_github_name = false
