@@ -9,6 +9,9 @@ use vectorcraft_doc::Unit;
 use crate::theme::{self, Tokens};
 use crate::{icons, scrub};
 
+/// Shared editable-field height, matching the Control bar's buttons and profile selector.
+pub(crate) const FIELD_HEIGHT: f32 = 24.0;
+
 /// Square icon button; `selected` draws the pressed well.
 pub fn icon_button(ui: &mut Ui, icon: &str, tip: &str, selected: bool, size: f32) -> Response {
     let (_, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
@@ -601,16 +604,19 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
         select_all(ui, id, &buf);
     }
     let kept = rows == 1 && shift_enter_keeps_focus(ui, id);
-    // The box is exactly as tall as the other controls of a row (26 points a line), its text
-    // centred in it: a frame around the text came out a point taller and stood out next to
-    // spinners and dropdowns (#900).
-    let height = 26.0 + 16.0 * (rows.max(1) - 1) as f32;
+    let height = FIELD_HEIGHT + 16.0 * (rows.max(1) - 1) as f32;
     let layout = if rows > 1 { egui::Layout::top_down(egui::Align::Min) } else { egui::Layout::left_to_right(egui::Align::Center) };
     let (rect, resp) = ui
         .allocate_ui_with_layout(vec2(width, height), layout, |ui| {
             ui.set_min_size(vec2(width, height));
             let rect = ui.max_rect();
-            ui.painter().rect(rect, 5.0, t.input, Stroke::new(1.0, if editing { t.accent } else { t.input_border }), StrokeKind::Inside);
+            ui.painter().rect(
+                rect,
+                CornerRadius::ZERO,
+                t.input,
+                Stroke::new(1.0, if editing { t.accent } else { t.input_border }),
+                StrokeKind::Inside,
+            );
             let margin = egui::Margin { left: 7, right: 7, top: if rows > 1 { 4 } else { 0 }, bottom: 0 };
             let resp = egui::Frame::NONE
                 .inner_margin(margin)
@@ -1292,14 +1298,14 @@ pub fn opacity_blend(
             }
         });
         dim_label(ui, "Opacity:");
-        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.spacing_mut().item_spacing.x = -1.0;
         ui.add_enabled_ui(enabled, |ui| {
             if let Some(o) = range_field(ui, (id, "opacity"), opacity.map(|o| o as f64 * 100.0), 0.0..=100.0, "%", 0, 50.0) {
                 edit = Some(TransparencyEdit::Opacity(o, Live::Released));
             }
         });
-        let (r, resp) = ui.allocate_exact_size(vec2(18.0, 26.0), if enabled { Sense::click() } else { Sense::hover() });
-        ui.painter().rect_stroke(r, 2, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+        let (r, resp) = ui.allocate_exact_size(vec2(18.0, FIELD_HEIGHT), if enabled { Sense::click() } else { Sense::hover() });
+        ui.painter().rect_stroke(r, CornerRadius::ZERO, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
         icons::paint(ui, "chevron-right", r.shrink2(vec2(3.0, 7.0)), if enabled { t.icon } else { t.text_disabled });
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled && ui.is_enabled(), tl!("Opacity")));
         egui::Popup::menu(&resp).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
@@ -1654,14 +1660,14 @@ fn spin_generic(
 ) -> Option<SpinPick> {
     let t = Tokens::get(ui.ctx());
     let mut out = None;
-    let h = 26.0;
+    let h = FIELD_HEIGHT;
     let enabled = ui.is_enabled();
     ui.scope(|ui| {
         // The spinner, the field and the chevron share their borders: one box in three parts.
         ui.spacing_mut().item_spacing.x = -1.0;
         let (sr, sresp) = ui.allocate_exact_size(vec2(16.0, h), Sense::click());
-        ui.painter().rect_filled(sr, CornerRadius { nw: 2, sw: 2, ne: 0, se: 0 }, t.input);
-        ui.painter().rect_stroke(sr, CornerRadius { nw: 2, sw: 2, ne: 0, se: 0 }, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+        ui.painter().rect_filled(sr, CornerRadius::ZERO, t.input);
+        ui.painter().rect_stroke(sr, CornerRadius::ZERO, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
         let up = Rect::from_min_max(sr.min, pos2(sr.right(), sr.center().y));
         let down = Rect::from_min_max(pos2(sr.left(), sr.center().y), sr.max);
         let hover = sresp.hover_pos();
@@ -2094,11 +2100,10 @@ pub fn hex_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, hex: &
     let resp = egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, if editing { t.accent } else { t.input_border }))
-        .corner_radius(5)
-        .inner_margin(egui::Margin::symmetric(6, 4))
+        .corner_radius(CornerRadius::ZERO)
+        .inner_margin(egui::Margin::symmetric(6, 3))
         .show(ui, |ui| {
-            // As tall as the other fields (26 points with the margin), whatever the font's line height.
-            ui.set_height(18.0);
+            ui.set_height(FIELD_HEIGHT - 8.0);
             ui.add(
                 egui::TextEdit::singleline(&mut buf)
                     .id(id)
@@ -2577,12 +2582,11 @@ pub fn region_texture(
     ctx.load_texture(name, color, egui::TextureOptions::LINEAR)
 }
 
-/// The chevron cell on the right of a field that opens its preset list (rounded on the right).
 fn chevron_cell(ui: &mut Ui, h: f32) -> Response {
     let t = Tokens::get(ui.ctx());
     let (dr, dresp) = ui.allocate_exact_size(vec2(20.0, h), Sense::click());
-    ui.painter().rect_filled(dr, CornerRadius { nw: 0, sw: 0, ne: 2, se: 2 }, t.input);
-    ui.painter().rect_stroke(dr, CornerRadius { nw: 0, sw: 0, ne: 2, se: 2 }, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+    ui.painter().rect_filled(dr, CornerRadius::ZERO, t.input);
+    ui.painter().rect_stroke(dr, CornerRadius::ZERO, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
     let c = if !ui.is_enabled() {
         t.text_disabled
     } else if dresp.hovered() {
@@ -2603,7 +2607,7 @@ pub fn text_presets(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, val
         // The field and the chevron share a border.
         ui.spacing_mut().item_spacing.x = -1.0;
         out = text_field(ui, &id, Some(value), width - 19.0, 1);
-        let resp = chevron_cell(ui, 26.0);
+        let resp = chevron_cell(ui, FIELD_HEIGHT);
         egui::Popup::menu(&resp).show(|ui| {
             ui.set_min_width(width - 10.0);
             for p in presets {
@@ -3047,7 +3051,7 @@ pub(crate) mod look_tests {
     // boxes side by side: its text box was a point taller than the 26-point row, and each joint had
     // two borders.
     #[test]
-    fn a_spinner_field_reads_as_one_box_in_three_parts() {
+    fn grouped_fields_have_square_corners_matching_heights_and_shared_borders() {
         let ctx = themed(Default::default());
         let mut add = |ui: &mut Ui| {
             ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, &[1.0, 2.0]));
@@ -3059,19 +3063,42 @@ pub(crate) mod look_tests {
         for s in &shapes {
             if let egui::Shape::Rect(r) = s
                 && r.rect.height() > 20.0
-                && !boxes.contains(&r.rect)
             {
-                boxes.push(r.rect);
+                assert_eq!(r.corner_radius, CornerRadius::ZERO, "every field part has square corners: {r:?}");
+                if !boxes.contains(&r.rect) {
+                    boxes.push(r.rect);
+                }
             }
         }
         boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
         assert_eq!(boxes.len(), 3, "{boxes:?}");
         for b in &boxes {
-            assert_eq!((b.min.y, b.height()), (boxes[0].min.y, 26.0), "all as tall as the row: {boxes:?}");
+            assert_eq!((b.min.y, b.height()), (boxes[0].min.y, 24.0), "all as tall as the neighboring controls: {boxes:?}");
         }
         for pair in boxes.windows(2) {
             assert!((pair[1].min.x - pair[0].max.x + 1.0).abs() < 0.01, "neighbours share one border: {boxes:?}");
         }
+
+        let mut add_opacity = |ui: &mut Ui| {
+            opacity_blend(ui, "opacity", Some(1.0), Some(BlendMode::Normal), true);
+        };
+        let shapes = frame(&ctx, 0.2, vec![], &mut add_opacity);
+        let mut boxes: Vec<Rect> = shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Rect(r) if r.rect.width() == 50.0 || r.rect.width() == 18.0 => {
+                    assert_eq!(r.corner_radius, CornerRadius::ZERO);
+                    assert_eq!(r.rect.height(), 24.0);
+                    Some(r.rect)
+                }
+                _ => None,
+            })
+            .collect();
+        boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
+        boxes.dedup();
+        assert_eq!(boxes.len(), 2, "the opacity field and popup arrow: {boxes:?}");
+        assert_eq!(boxes[0].top(), boxes[1].top());
+        assert_eq!(boxes[0].right() - boxes[1].left(), 1.0, "opacity cells share one border");
     }
 
     /// The colour of every glyph of the text in `shapes`: selected glyphs are drawn in the
