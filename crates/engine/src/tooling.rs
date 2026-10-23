@@ -282,6 +282,7 @@ impl Session {
             measurement_labels: self.prefs.measurement_labels,
             transform_tools_guides: self.prefs.transform_tools_guides,
             spacing_guides: self.prefs.spacing_guides,
+            distance_guides: self.prefs.distance_guides,
             snapping_tolerance: self.prefs.snapping_tolerance,
             construction_angles: if self.prefs.construction_guides {
                 vectorcraft_tools::guides::construction_angles(&self.prefs.construction_angles)
@@ -438,6 +439,17 @@ impl Session {
         self.with_tool_cx(view, |t, cx| t.ime_caret(cx))
     }
 
+    /// The pointer stopped hovering for the active tool ([`vectorcraft_tools::Tool::hover_ended`]).
+    pub fn tool_hover_ended(&mut self, view: ViewInfo) {
+        self.with_tool_cx(view, |t, cx| t.hover_ended(cx));
+    }
+
+    /// Whether the active tool's hover depends on what lies under a still pointer
+    /// ([`vectorcraft_tools::Tool::wants_rehover`]).
+    pub fn tool_wants_rehover(&self) -> bool {
+        self.tool.wants_rehover()
+    }
+
     pub fn tool_busy(&self) -> bool {
         self.tool.busy()
     }
@@ -461,11 +473,11 @@ impl Session {
 
     pub fn overlays(&mut self, view: ViewInfo) -> Vec<Overlay> {
         let mut v = self.with_tool_cx(view, |t, cx| t.overlays(cx));
-        // The Type tools draw the overflow markers of selected type themselves.
+        // The Type tools draw the ports of selected type themselves.
         if !matches!(self.tool.id(), "type" | "areaType" | "typeOnPath" | "verticalType" | "verticalAreaType" | "verticalTypeOnPath") {
-            let mut marks = std::mem::take(&mut self.overflow_marks);
-            v.extend(self.with_tool_cx(view, |_, cx| vectorcraft_tools::text::overflow_markers(&mut marks, cx)));
-            self.overflow_marks = marks;
+            let mut marks = std::mem::take(&mut self.port_marks);
+            v.extend(self.with_tool_cx(view, |_, cx| vectorcraft_tools::text::thread_ports(&mut marks, cx)));
+            self.port_marks = marks;
         }
         if let Some(g) = self.ruler_guide.take() {
             v.extend(self.with_tool_cx(view, |_, cx| g.overlays(cx)));
@@ -476,6 +488,10 @@ impl Session {
             let w = self.prefs.perspective_widget;
             let place = w.show.then_some(WidgetPlace { screen: view.screen.as_ref(), corner: w.position });
             v.splice(0..0, vectorcraft_tools::distort::perspective::grid_overlays_in(&d.doc, 1.0 / view.zoom.max(1e-9), place));
+        }
+        // Global Edit: the objects edited with the selected one are highlighted.
+        for (path, color) in crate::cmd::globaledit::highlights(self) {
+            v.push(Overlay::Path { path, color, width: 1.0, dashed: false });
         }
         if let Some((cmd, p)) = deferred_preview {
             v.extend(self.deferred_preview_overlays_from_command(&cmd, &p));
