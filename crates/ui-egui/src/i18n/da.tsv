@@ -2235,6 +2235,8 @@ lighting	Light	Lys
 	File Dimensions	Fildimensioner
 	Transforms	Transformationer
 	Background Color:	Baggrundsfarve:
+	Show Center Mark	Vis midtermærke
+	Show Cross Hairs	Vis trådkors
 	Client-side (.html)	Klientbaseret (.html)
 	Color Reduction:	Farvereduktion:
 	Lossless (lossy WebP isn't available yet)	Tabsfri (WebP med tab er ikke tilgængelig endnu)
@@ -3825,6 +3827,7 @@ imageTrace	Outline	Kontur
 @msg	Couldn't copy to the system clipboard: {e}	Kunne ikke kopiere til systemets udklipsholder: {e}
 @msg	Couldn't open {name}: {e}	Kunne ikke åbne {name}: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Kunne ikke placere {name}: dokumentet, den blev sluppet på, var lukket
+@msg	Couldn't place {name}: the document it was placed in was closed	Kunne ikke placere {name}: dokumentet, den blev placeret i, var lukket
 @msg	Couldn't read {name}: {e}	Kunne ikke læse {name}: {e}
 @msg	Couldn't save recovery data: {e}	Kunne ikke gemme gendannelsesdata: {e}
 @msg	Create Outlines: select text objects	Opret konturer: markér tekstobjekter
@@ -4168,6 +4171,7 @@ imageTrace	Outline	Kontur
 @msg	path is already closed	stien er allerede lukket
 @msg	paths contain invalid coordinates	stierne indeholder ugyldige koordinater
 @msg	paths: give at least one file	stier: angiv mindst én fil
+@msg	replace: the object to replace was changed or deleted	erstat: objektet, der skulle erstattes, er ændret eller slettet
 @msg	pattern missing	mønster mangler
 @msg	patterns nested too deeply are filled with mid-grey	mønstre, der er indlejret for dybt, udfyldes med mellemgrå
 @msg	percent must be above 0 and at most 6400, not {p}	procent skal være over 0 og højst 6400, ikke {p}
@@ -4353,6 +4357,7 @@ imageTrace	Outline	Kontur
 @msg	Saving {_1}	Gemmer {_1}
 @msg	Exporting {_1}	Eksporterer {_1}
 @msg	Packaging {_1}	Pakker {_1}
+@msg	Placing {_1}	Placerer {_1}
 @msg	Saving recovery data for {_1}	Gemmer gendannelsesdata for {_1}
 @msg	Discarded {_1} recovered document(s)	Forkastede {_1} gendannet(e) dokument(er)
 @msg	Restored {_1} recovered document(s): save them to keep them	Genvandt {_1} gendannet(e) dokument(er): gem dem for at beholde dem
@@ -5140,12 +5145,14 @@ swatch	Bright Violet	Kraftig violet
 @msg	no saved selection recalled	ingen gemt markering hentet
 	Merge only with selection	Flet kun med markering
 	Consider Open Filled Paths as Closed	Behandl åbne udfyldte kurver som lukkede
+	In Merge Mode, Clicking Stroke Splits the Path	I fletningstilstand opdeler et klik på stregen kurven
 	Pick Color From:	Hent farve fra:
 	Artwork	Grafik
 	Cursor Swatch Preview	Forhåndsvisning af farveprøver ved markøren
 	Selection:	Markering:
 	Straight Line	Lige linje
 	Highlight:	Fremhævning:
+	Stroke When Editable	Streg, når den kan redigeres
 	Sketch	Skitse
 	Halftone Pattern…	Rastermønster…
 	Halftone Pattern	Rastermønster
@@ -5301,8 +5308,13 @@ swatch	Bright Violet	Kraftig violet
 	Persistent	Vedvarende
 	Locate Library…	Lokalisér bibliotek…
 	Library Panel Options	Indstillinger for bibliotekspanel
+	Snapping	Fastgørelse
+	Snap to Tangent	Fastgør til tangent
+	Snap to Perpendicular	Fastgør vinkelret
+@msg	unknown snap option `{key}` (use {options})	ukendt fastgørelsesindstilling `{key}` (brug {options})
 	Gap Length:	Hullængde:
 	Artboard {n} of {total}	Tegneflade {n} af {total}
+	File {n} of {total}	Fil {n} af {total}
 	Encoding and writing the file…	Koder og skriver filen…
 @plural	{n} more export waiting|{n} more exports waiting	{n} eksport mere venter|{n} eksporter mere venter
 	Continue in Background	Fortsæt i baggrunden
@@ -5371,6 +5383,7 @@ swatch	Bright Violet	Kraftig violet
 	Water Paper	Vådt papir
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Geometriske hjælpelinjer
 	Ease In	Langsom start
 	Ease Out	Langsom slutning
 	Ease In Out	Langsom start og slutning
@@ -5405,4 +5418,13 @@ axis	Y Axis	Y-akse
 	Dither	Dither
 	Fine noise hides banding in the gradient fill	Fin støj skjuler striber i gradientfyldet
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` gælder for gradientfyld (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` gælder for gradientfyld (paint.setFill)
 @msg	`dither` must be true or false	`dither` skal være true eller false
+@msg	`method` must be classic or perceptual	`method` skal være classic eller perceptual
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
+	Install “{name}”, which asks for a heavy budget?	Installér »{name}«, som beder om et stort beregningsbudget?
+	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	Hver kørsel kan tage op til {minutes} minutter og udføre {times} gange så meget arbejde, som andre plug-ins må. Den kører i baggrunden, og du kan annullere den.
+	It may take minutes, so it runs in the background, where you can cancel it.	Det kan tage minutter, så det kører i baggrunden, hvor du kan annullere det.
+	The plug-in is computing…	Plug-in'en regner…
+	Inspect Plug-in	Undersøg plug-in
+	Cancel Plug-in Run	Annullér plug-in-kørsel

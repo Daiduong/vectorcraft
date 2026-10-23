@@ -44,6 +44,8 @@ mod panel_docking;
 pub mod panels;
 pub mod picks;
 pub mod place;
+pub mod placing;
+pub mod plugin_runs;
 pub mod prefs_dialog;
 pub mod print;
 pub mod recovery;
@@ -53,6 +55,7 @@ mod scrub;
 pub mod shortcut_editor;
 pub mod shortcuts;
 pub mod state;
+pub mod stylus;
 pub mod sysclip;
 pub mod theme;
 pub mod thumb_worker;
@@ -115,6 +118,8 @@ mod tests_pdfoutput;
 mod tests_picks;
 #[cfg(test)]
 mod tests_place;
+#[cfg(test)]
+mod tests_plugin_runs;
 #[cfg(test)]
 mod tests_plugins;
 #[cfg(test)]
@@ -317,6 +322,10 @@ pub struct Services {
     /// default one would never come back once the canvas hid it: the canvas keeps the system
     /// pointer visible next to the tool glyph ([`cursors::hide_system_pointer`], #2450).
     pub no_cursor_theme: bool,
+    /// The pen pressure the host reads from the system itself (desktop Linux under X11 and
+    /// XWayland). The canvas uses it when a frame's events carry no touch force. Without it, pen
+    /// pressure comes from touch events only ([`stylus`]).
+    pub stylus: Option<stylus::StylusFeed>,
 }
 
 /// Cached canvas raster.
@@ -514,6 +523,10 @@ pub struct VectorcraftApp {
     pub background: background::Background,
     /// Documents being read off the UI thread ([`opening`]).
     pub opening: opening::Opening,
+    /// Heavy plug-in filters running off the UI thread ([`plugin_runs`]).
+    pub plugin_runs: plugin_runs::PluginRuns,
+    /// Files being read off the UI thread for Place ([`placing`]).
+    pub placing: placing::Placing,
     /// Data Recovery's timer and startup question ([`recovery`]).
     pub recovery: recovery::Timer,
     /// Modifiers the keyboard holds (from the host's input), given back after synthetic input.
@@ -562,12 +575,18 @@ const SYSTEM_CLIPBOARD_POLL: f64 = 0.25;
 const FONT_INSTALL_POLL: f64 = 2.0;
 
 impl VectorcraftApp {
+    /// The app around `session`, reaching the platform through `services` (file pickers, the
+    /// clipboard, files and the like). It starts cataloguing the installed fonts at once, gives
+    /// Data Recovery the host's store and makes a view for each open document.
     pub fn new(mut session: Session, services: Services) -> Self {
         // The font menus and the first file opened need the installed fonts: catalog them now.
         vectorcraft_text::FontDb::global().scan_in_background();
         if let Some(store) = &services.recovery_store {
             session.recovery.set_store(store.clone());
         }
+        // The place cursor's clicks and drags place their files through the app
+        // ([`place::place_from_cursor`]).
+        session.place_cursor_requests = true;
         let views = session.documents().iter().map(View::of).collect();
         Self {
             session,
@@ -635,6 +654,8 @@ impl VectorcraftApp {
             paste_chord: Default::default(),
             background: Default::default(),
             opening: Default::default(),
+            plugin_runs: Default::default(),
+            placing: Default::default(),
             recovery: Default::default(),
             host_modifiers: Default::default(),
             synthetic_modifiers: false,
@@ -715,29 +736,36 @@ impl VectorcraftApp {
         }
     }
 
-    /// The active document's uid and the artboards the Artboard tool has selected (null with another
-    /// tool), which [`Self::follow_artboard_tool`] compares before and after a command.
-    fn artboard_tool_state(&self) -> (Option<u64>, Value) {
+    /// The active document's uid, how many times the tool has started afresh
+    /// ([`vectorcraft_engine::Session::tool_resets`]) and the artboards the Artboard tool has
+    /// selected (null with another tool), which [`Self::follow_artboard_tool`] compares before and
+    /// after a command.
+    fn artboard_tool_state(&self) -> (Option<u64>, u64, Value) {
         let selected = if self.session.tool_id() == "artboard" { self.session.tool_options()["selected"].clone() } else { Value::Null };
-        (self.session.active().map(|d| d.uid), selected)
+        (self.session.active().map(|d| d.uid), self.session.tool_resets(), selected)
     }
 
     /// After a command run with the Artboard tool, given [`Self::artboard_tool_state`] from before
-    /// it: when the command chose another document, or `reverted` the document (File › Revert),
-    /// the tool takes the document's active artboard, as choosing its tab does. When the command
-    /// changed the artboards the tool has selected (Paste and Cut with the tool, `tool.setOption`),
-    /// the tool's active artboard becomes the active one (the view's), as a click with the tool
-    /// makes it.
-    fn follow_artboard_tool(&mut self, before: (Option<u64>, Value), reverted: bool) {
+    /// it: when the command chose another document, or started the tool afresh in the same one
+    /// (File › Revert, a `command.batch` or `action.batch` that reverts it or switches to another
+    /// document and back), the tool takes the document's active artboard, as choosing its tab
+    /// does. When the command changed the artboards the tool has selected (Paste and Cut with the
+    /// tool, `tool.setOption`), also after starting it afresh (a batch step after the revert or the
+    /// switch), the tool's active artboard becomes the active one (the view's), as a click with the
+    /// tool makes it.
+    fn follow_artboard_tool(&mut self, before: (Option<u64>, u64, Value)) {
         self.sync_views();
         if self.session.tool_id() != "artboard" {
             return;
         }
         let Some(n) = self.session.active().map(|d| d.doc.artboards.len()).filter(|n| *n > 0) else { return };
-        let (doc, selected) = self.artboard_tool_state();
-        if reverted || doc != before.0 {
+        let (doc, resets, selected) = self.artboard_tool_state();
+        // The tool started afresh during the command, and no later step (a Paste or Cut) set its options.
+        let reset = resets != before.1;
+        let fresh = reset && !self.session.tool_set_since_reset();
+        if fresh || (doc != before.0 && !reset) {
             panels::artboards::select(self, panels::artboards::selected(self, n));
-        } else if selected != before.1
+        } else if (reset || selected != before.2)
             && let Some(i) = self.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok())
             && i < n
             && let Some(v) = self.view_mut()
@@ -815,7 +843,7 @@ impl VectorcraftApp {
         }
         let artboards = self.artboard_tool_state();
         if let Some(r) = menus::run_ui_command(self, id, &params) {
-            self.follow_artboard_tool(artboards, false);
+            self.follow_artboard_tool(artboards);
             return r;
         }
         let mut params = params;
@@ -873,7 +901,7 @@ impl VectorcraftApp {
         }
         self.sync_views();
         // File › Revert replaces the document in its tab, keeps the tab's view and starts the tool afresh.
-        self.follow_artboard_tool(artboards, r.is_ok() && id == "file.revert");
+        self.follow_artboard_tool(artboards);
         match &r {
             Err(e) => self.ui.status = e.clone(),
             Ok(v) => {
@@ -1273,6 +1301,9 @@ impl VectorcraftApp {
         }
     }
 
+    /// [`Self::logic`]'s work, inside its guard: the UI language and styling, the clipboard and
+    /// font polls, the results of work done in the background (saves, exports, files being opened,
+    /// heavy plug-in filters) and the window's close button.
     fn logic_frame(&mut self, ctx: &egui::Context) {
         let lang = self.ui_language();
         i18n::set_current(lang);
@@ -1320,9 +1351,15 @@ impl VectorcraftApp {
         background::poll(self);
         screen_color::poll(self, ctx);
         opening::poll(self);
+        plugin_runs::poll(self);
+        placing::poll(self);
         #[cfg(not(target_arch = "wasm32"))]
         self.tick_link_updates(ctx, now);
-        if !self.background.jobs.is_empty() || !self.opening.pending.is_empty() {
+        if !self.background.jobs.is_empty()
+            || !self.opening.pending.is_empty()
+            || !self.plugin_runs.running.is_empty()
+            || !self.placing.pending.is_empty()
+        {
             // Keep the status bar's progress moving and pick the result up when it arrives.
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
@@ -1523,6 +1560,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// [`Self::ui`]'s work, inside its guard: the bars, panels and canvas, then the dialogs and
+    /// progress windows over them.
     fn ui_frame(&mut self, ui: &mut egui::Ui) {
         crate::state::sync_zoom_stops_display_print_size(self.session.prefs.display_print_size);
         let ctx = ui.ctx().clone();
@@ -1575,6 +1614,7 @@ impl VectorcraftApp {
         floating::show(self, &ctx);
         dialogs::show(self, &ctx);
         export_progress::show(self, &ctx);
+        plugin_runs::show(self, &ctx);
         palette::show(self, &ctx);
         if self.custom_titlebar {
             titlebar::resize_zones(ui);

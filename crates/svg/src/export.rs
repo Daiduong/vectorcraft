@@ -1,6 +1,6 @@
 //! The SVG writer.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::sync::Arc;
 
@@ -35,6 +35,8 @@ pub(crate) fn export(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>
     write(doc, opts, native, &prefix)
 }
 
+/// `doc` as SVG with `opts`, the native file `native` embedded for Preserve Editing, its generated
+/// ids starting with `id_prefix`.
 fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix: &str) -> Output {
     let rect = opts
         .artboard
@@ -71,6 +73,7 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         shared_images: HashMap::new(),
         layer_nest: 0,
         non_latin1_names: false,
+        foreign_ns: BTreeMap::new(),
     };
     w.assign_name_ids();
     // Page Isolated Blending / Page Knockout Group: the page content is one isolated group.
@@ -108,6 +111,9 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
     }
     let (ww, hh) = (w.num(rect.width()), w.num(rect.height()));
     out.push_str("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"");
+    for (ns, prefix) in &w.foreign_ns {
+        out.push_str(&format!(" xmlns:{prefix}=\"{}\"", xml_attr_escape(ns)));
+    }
     if w.tiny() {
         out.push_str(" version=\"1.2\" baseProfile=\"tiny\"");
     }
@@ -195,6 +201,12 @@ fn xml_text(s: &str) -> String {
 
 fn valid_xml_value(s: &str) -> bool {
     s.chars().all(|c| matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}'))
+}
+
+/// An XML name without a colon (an NCName): a letter or `_`, then [`xml_name_char`]s.
+fn xml_ncname(s: &str) -> bool {
+    let mut chars = s.chars();
+    chars.next().is_some_and(|c| c.is_alphabetic() || c == '_') && chars.all(xml_name_char)
 }
 
 /// Namespace-free XML 1.0 NameChar. The fixed `data-` prefix supplies NameStartChar.
@@ -330,6 +342,9 @@ struct Writer<'a> {
     layer_nest: usize,
     /// An emitted attribute name requires an encoding wider than Latin-1.
     non_latin1_names: bool,
+    /// The prefix written for each namespace of other applications' attributes, by its URI
+    /// ([`Writer::foreign_attrs`]): declared on the root.
+    foreign_ns: BTreeMap<String, String>,
 }
 
 /// The characters type uses from one face, under one `@font-face` description: the family the
@@ -652,8 +667,49 @@ impl Writer<'_> {
             self.non_latin1_names |= k.chars().any(|c| u32::from(c) > 0xff);
             out.push_str(&format!(" data-{k}=\"{}\"", xml_attr_escape(v)));
         }
+        self.foreign_attrs(n, &mut out);
         self.event_attrs(n, &mut out);
         out
+    }
+    /// `n`'s attributes in other applications' namespaces (`plotter:pen="2"`), added to `out`.
+    /// Each namespace is declared once, on the root, under the prefix the file gave it unless the
+    /// export uses that prefix itself or for another namespace ([`Writer::foreign_prefix`]).
+    fn foreign_attrs(&mut self, n: &Node, out: &mut String) {
+        let attrs = n.extras().attrs.as_deref().map_or(&[][..], |a| a.foreign.as_slice());
+        let mut seen = HashSet::new();
+        for a in attrs {
+            if !xml_ncname(&a.prefix) || !xml_ncname(&a.name) || a.ns.is_empty() || !valid_xml_value(&a.ns) || !valid_xml_value(&a.value) {
+                self.warn("Attributes of other applications with invalid XML names or characters were left out of SVG");
+                continue;
+            }
+            // Native data is a list: one attribute per namespace and name.
+            if !seen.insert((a.ns.as_str(), a.name.as_str())) {
+                self.warn("Repeated attributes of other applications were written only once in SVG");
+                continue;
+            }
+            let prefix = self.foreign_prefix(&a.ns, &a.prefix);
+            self.non_latin1_names |= prefix.chars().chain(a.name.chars()).any(|c| u32::from(c) > 0xff);
+            out.push_str(&format!(" {prefix}:{}=\"{}\"", a.name, xml_attr_escape(&a.value)));
+        }
+    }
+    /// The prefix namespace `ns` is written under: `wanted` (the file's), else `wanted2`,
+    /// `wanted3`… when the export's own prefixes or another namespace already have it. XML keeps
+    /// prefixes starting with `xml` for itself: those become `ns`, `ns2`…
+    fn foreign_prefix(&mut self, ns: &str, wanted: &str) -> String {
+        if let Some(p) = self.foreign_ns.get(ns) {
+            return p.clone();
+        }
+        const OURS: [&str; 5] = ["svg", "xlink", "rdf", "dc", "vectorcraft"];
+        let base = if wanted.to_ascii_lowercase().starts_with("xml") { "ns" } else { wanted };
+        let taken = |p: &str| OURS.contains(&p) || self.foreign_ns.values().any(|q| q == p);
+        let mut prefix = base.to_string();
+        let mut k = 2;
+        while taken(&prefix) {
+            prefix = format!("{base}{k}");
+            k += 1;
+        }
+        self.foreign_ns.insert(ns.to_string(), prefix.clone());
+        prefix
     }
     /// Window › SVG Interactivity: `n`'s events as event attributes (`onclick="…"`), added to
     /// `out`. The SVG Tiny 1.2 profile leaves them out with a warning.
@@ -1084,7 +1140,7 @@ impl Writer<'_> {
                     if let (Some(g), Some(b)) = (pixel_gradient(&f.paint, true), bounds) {
                         p.extend((f.opacity < 1.0).then(|| ("opacity", fmt_num(f.opacity as f64, 3))));
                         p.extend(blend);
-                        self.raster_paint(g, b, &[d.to_string()], rule, &p, "");
+                        self.raster_paint(g, b, &[d.to_string()], rule, &p, "", true);
                     } else {
                         self.fill_props(f, rule, bounds, &mut p);
                         p.extend(blend);
@@ -1121,13 +1177,13 @@ impl Writer<'_> {
                             let clip = self.path_d(&PathData::from_bezpath(&outline), self.xf);
                             p.extend(opacity);
                             p.extend(blend);
-                            self.raster_paint(g, b, &[clip], FillRule::NonZero, &p, &side);
+                            self.raster_paint(g, b, &[clip], FillRule::NonZero, &p, &side, false);
                         }
                         (WrittenShape::Fill(outlines), Some((g, b))) if s.path_gradient().is_none() => {
                             let clip: Vec<String> = outlines.iter().map(|o| self.path_d(&PathData::from_bezpath(o), self.xf)).collect();
                             p.extend(opacity);
                             p.extend(blend);
-                            self.raster_paint(g, b, &clip, FillRule::NonZero, &p, &side);
+                            self.raster_paint(g, b, &clip, FillRule::NonZero, &p, &side, false);
                         }
                         (WrittenShape::Stroke { width }, _) => {
                             p.push(("fill", "none".into()));
@@ -1535,13 +1591,15 @@ impl Writer<'_> {
     }
 
     /// A gradient `g` painted over `bounds` (the space [`Self::xf`] maps into user space) that is
-    /// drawn as pixels ([`GradientPaint::draws_as_pixels`]): an `<image>` over its painted box,
-    /// clipped to `clip` (outlines in user space filled by `rule`), in a group with `props` and
-    /// the `side` attribute. A freeform gradient's colour field, which SVG can't express, is
-    /// sampled as the canvas samples it (at twice the box's size in points); a linear or radial
-    /// gradient at the document's raster effects resolution (at most [`MAX_GRADIENT_PX`] a
-    /// side). Nothing is written for an empty box.
-    fn raster_paint(&mut self, g: &GradientPaint, bounds: Rect, clip: &[String], rule: FillRule, props: &Props, side: &str) {
+    /// drawn as pixels ([`GradientPaint::draws_as_pixels`]) when it paints a fill (`fill`) or a
+    /// stroke: an `<image>` over its painted box, clipped to `clip` (outlines in user space filled
+    /// by `rule`), in a group with `props` and the `side` attribute. A freeform gradient's colour
+    /// field, which SVG can't express, is sampled as the canvas samples it (at twice the box's size
+    /// in points); a linear or radial gradient at the document's raster effects resolution (at most
+    /// [`MAX_GRADIENT_PX`] a side), with dither's noise on a fill. Nothing is written for an empty
+    /// box.
+    #[allow(clippy::too_many_arguments)]
+    fn raster_paint(&mut self, g: &GradientPaint, bounds: Rect, clip: &[String], rule: FillRule, props: &Props, side: &str, fill: bool) {
         use vectorcraft_color::freeform::{grid_size, painted_box, spread_scale};
         let Some(b) = painted_box(bounds) else { return };
         let freeform = g.gradient.kind == GradientKind::Freeform;
@@ -1554,7 +1612,7 @@ impl Writer<'_> {
             let k = self.doc.raster_effects_ppi / 72.0;
             let along = |len: f64| (len * k).ceil().clamp(1.0, MAX_GRADIENT_PX) as u16;
             let (cols, rows) = (along(b.width()), along(b.height()));
-            (g.pixels(b, b, cols, rows, &Color::to_rgb).flatten().collect(), cols, rows)
+            (g.pixels(b, b, cols, rows, fill, &Color::to_rgb).flatten().collect(), cols, rows)
         };
         let mut png = Vec::new();
         let Some(img) = image::RgbaImage::from_raw(u32::from(cols), u32::from(rows), rgba) else { return };
@@ -1897,6 +1955,21 @@ impl Writer<'_> {
             let d = self.path_d(&pd, self.xf);
             self.shape(&glyphs, &d, &[&pd], FillRule::NonZero, Some(lay.bounds));
         }
+        // Colour bitmap glyphs (emoji): their images, which the runs' paint doesn't paint.
+        for (image, to_text) in lay.glyphs.iter().filter_map(|g| g.placed_image()) {
+            let m = self.matrix(self.xf * to_text);
+            let href = self.blob_href(&image.blob);
+            self.line(&format!(
+                "<image width=\"{}\" height=\"{}\" transform=\"{m}\" preserveAspectRatio=\"none\" xlink:href=\"{}\"/>",
+                image.width,
+                image.height,
+                xml_escape(&href)
+            ));
+        }
+        // COLR glyphs: their layers, as art.
+        for art in lay.glyphs.iter().filter_map(|g| g.placed_colour(Affine::IDENTITY)) {
+            self.node(&art);
+        }
         self.xf = saved;
         self.depth -= 1;
         self.line("</g>");
@@ -2090,6 +2163,12 @@ impl Writer<'_> {
         let mut face: Option<Arc<FontFace>> = None;
         for g in &lay.glyphs {
             let Some(st) = t.runs.get(g.run).map(|r| &r.style) else { continue };
+            // A colour font's subset would hold no bitmaps or COLR layers: its emoji are left to the
+            // viewer.
+            if g.image.is_some() || g.colour.is_some() {
+                self.warn("colour emoji fonts are not embedded: viewers show emoji in their own fonts");
+                continue;
+            }
             if face.as_ref().is_none_or(|f| f.id() != g.font_id) {
                 face = db.face_by_id(g.font_id);
             }

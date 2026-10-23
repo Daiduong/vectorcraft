@@ -2235,6 +2235,8 @@ lighting	Light	Cahaya
 	File Dimensions	Dimensi file
 	Transforms	Transformasi
 	Background Color:	Warna latar belakang:
+	Show Center Mark	Tampilkan tanda tengah
+	Show Cross Hairs	Tampilkan garis silang
 	Client-side (.html)	Sisi klien (.html)
 	Color Reduction:	Reduksi warna:
 	Lossless (lossy WebP isn't available yet)	Tanpa kehilangan (WebP lossy belum tersedia)
@@ -3825,6 +3827,7 @@ imageTrace	Outline	Kontur
 @msg	Couldn't copy to the system clipboard: {e}	Tidak dapat menyalin ke papan klip sistem: {e}
 @msg	Couldn't open {name}: {e}	Tidak dapat membuka {name}: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Tidak dapat menempatkan {name}: dokumen tempatnya dijatuhkan sudah ditutup
+@msg	Couldn't place {name}: the document it was placed in was closed	Tidak dapat menempatkan {name}: dokumen tempatnya ditempatkan sudah ditutup
 @msg	Couldn't read {name}: {e}	Tidak dapat membaca {name}: {e}
 @msg	Couldn't save recovery data: {e}	Tidak dapat menyimpan data pemulihan: {e}
 @msg	Create Outlines: select text objects	Buat kontur: pilih objek teks
@@ -4168,6 +4171,7 @@ imageTrace	Outline	Kontur
 @msg	path is already closed	jalur sudah tertutup
 @msg	paths contain invalid coordinates	jalur berisi koordinat yang tidak valid
 @msg	paths: give at least one file	jalur: berikan setidaknya satu berkas
+@msg	replace: the object to replace was changed or deleted	ganti: objek yang akan diganti telah diubah atau dihapus
 @msg	pattern missing	pola hilang
 @msg	patterns nested too deeply are filled with mid-grey	pola yang bersarang terlalu dalam diisi dengan abu-abu tengah
 @msg	percent must be above 0 and at most 6400, not {p}	persen harus di atas 0 dan paling banyak 6400, bukan {p}
@@ -4353,6 +4357,7 @@ imageTrace	Outline	Kontur
 @msg	Saving {_1}	Menyimpan {_1}
 @msg	Exporting {_1}	Mengekspor {_1}
 @msg	Packaging {_1}	Mengemas {_1}
+@msg	Placing {_1}	Menempatkan {_1}
 @msg	Saving recovery data for {_1}	Menyimpan data pemulihan untuk {_1}
 @msg	Discarded {_1} recovered document(s)	{_1} dokumen hasil pemulihan dibuang
 @msg	Restored {_1} recovered document(s): save them to keep them	{_1} dokumen hasil pemulihan dipulihkan: simpan agar tidak hilang
@@ -5140,12 +5145,14 @@ swatch	Bright Violet	Violet cerah
 @msg	no saved selection recalled	tidak ada seleksi tersimpan yang dipanggil
 	Merge only with selection	Gabungkan hanya dengan seleksi
 	Consider Open Filled Paths as Closed	Anggap jalur terbuka yang terisi sebagai tertutup
+	In Merge Mode, Clicking Stroke Splits the Path	Dalam mode gabung, mengeklik stroke memisahkan jalur
 	Pick Color From:	Ambil warna dari:
 	Artwork	Karya seni
 	Cursor Swatch Preview	Pratinjau swatch di kursor
 	Selection:	Seleksi:
 	Straight Line	Garis lurus
 	Highlight:	Sorotan:
+	Stroke When Editable	Stroke saat dapat diedit
 	Sketch	Sketsa
 	Halftone Pattern…	Pola halftone…
 	Halftone Pattern	Pola halftone
@@ -5301,8 +5308,13 @@ swatch	Bright Violet	Violet cerah
 	Persistent	Persisten
 	Locate Library…	Temukan pustaka…
 	Library Panel Options	Opsi panel pustaka
+	Snapping	Snap
+	Snap to Tangent	Snap ke garis singgung
+	Snap to Perpendicular	Snap tegak lurus
+@msg	unknown snap option `{key}` (use {options})	opsi snap `{key}` tidak dikenal (gunakan {options})
 	Gap Length:	Panjang celah:
 	Artboard {n} of {total}	Artboard {n} dari {total}
+	File {n} of {total}	Berkas {n} dari {total}
 	Encoding and writing the file…	Mengodekan dan menulis berkas…
 @plural	{n} more export waiting|{n} more exports waiting	{n} ekspor lagi menunggu
 	Continue in Background	Lanjutkan di latar belakang
@@ -5371,6 +5383,7 @@ swatch	Bright Violet	Violet cerah
 	Water Paper	Kertas Basah
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Panduan Geometris
 	Ease In	Awal Lambat
 	Ease Out	Akhir Lambat
 	Ease In Out	Awal dan Akhir Lambat
@@ -5405,4 +5418,13 @@ axis	Y Axis	Sumbu Y
 	Dither	Dither
 	Fine noise hides banding in the gradient fill	Derau halus menyembunyikan pita warna pada isian gradien
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` berlaku untuk isian gradien (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` berlaku untuk isian gradien (paint.setFill)
 @msg	`dither` must be true or false	`dither` harus true atau false
+@msg	`method` must be classic or perceptual	`method` harus classic atau perceptual
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
+	Install “{name}”, which asks for a heavy budget?	Instal “{name}”, yang meminta anggaran komputasi besar?
+	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	Setiap kali dijalankan, plug-in ini bisa memakan waktu hingga {minutes} menit dan melakukan {times} kali pekerjaan yang diizinkan untuk plug-in lain. Plug-in ini berjalan di latar belakang, dan Anda dapat membatalkannya.
+	It may take minutes, so it runs in the background, where you can cancel it.	Ini bisa memakan waktu beberapa menit, jadi berjalan di latar belakang, tempat Anda dapat membatalkannya.
+	The plug-in is computing…	Plug-in sedang menghitung…
+	Inspect Plug-in	Periksa plug-in
+	Cancel Plug-in Run	Batalkan jalannya plug-in

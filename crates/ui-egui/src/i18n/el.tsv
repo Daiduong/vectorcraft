@@ -255,6 +255,8 @@
 	Average…	Μέσος όρος…
 	Axis:	Άξονας:
 	Background Color:	Χρώμα φόντου:
+	Show Center Mark	Εμφάνιση σημαδιού κέντρου
+	Show Cross Hairs	Εμφάνιση σταυρονήματος
 	Background Contents	Περιεχόμενα φόντου
 	Background Contents:	Περιεχόμενο φόντου:
 	Background:	Φόντο:
@@ -2054,6 +2056,7 @@ axis	Both	Και τα δύο
 @msg	Couldn't copy to the system clipboard: {e}	Δεν ήταν δυνατή η αντιγραφή στο πρόχειρο συστήματος: {e}
 @msg	Couldn't open {name}: {e}	Δεν ήταν δυνατό το άνοιγμα του {name}: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Δεν ήταν δυνατή η τοποθέτηση του {name}: το έγγραφο στο οποίο αποθέσατε το αρχείο έκλεισε
+@msg	Couldn't place {name}: the document it was placed in was closed	Δεν ήταν δυνατή η τοποθέτηση του {name}: το έγγραφο στο οποίο τοποθετούνταν το αρχείο έκλεισε
 @msg	Couldn't read {name}: {e}	Δεν ήταν δυνατή η ανάγνωση του {name}: {e}
 @msg	Couldn't save recovery data: {e}	Δεν ήταν δυνατή η αποθήκευση δεδομένων ανάκτησης: {e}
 @msg	Create Outlines: select text objects	Δημιουργία περιγραμμάτων: επιλέξτε αντικείμενα κειμένου
@@ -4134,6 +4137,7 @@ theme	Appearance	Εμφάνιση
 @msg	path is already closed	η διαδρομή είναι ήδη κλειστή
 @msg	paths contain invalid coordinates	οι διαδρομές περιέχουν μη έγκυρες συντεταγμένες
 @msg	paths: give at least one file	διαδρομές: δώστε τουλάχιστον ένα αρχείο
+@msg	replace: the object to replace was changed or deleted	αντικατάσταση: το αντικείμενο προς αντικατάσταση άλλαξε ή διαγράφηκε
 @msg	pattern missing	λείπει το μοτίβο
 @msg	patterns nested too deeply are filled with mid-grey	τα πολύ βαθιά ένθετα μοτίβα γεμίζονται με μέτριο γκρι
 @msg	percent must be above 0 and at most 6400, not {p}	το ποσοστό πρέπει να είναι μεγαλύτερο από 0 και έως 6400, όχι {p}
@@ -4298,6 +4302,7 @@ theme	Appearance	Εμφάνιση
 @msg	{_1} font families available	{_1} διαθέσιμες οικογένειες γραμματοσειρών
 @msg	{_1} is a live effect (Effect › Plug-ins)	το {_1} είναι δυναμικό εφέ (Εφέ › Πρόσθετα)
 @msg	{_1} is an exporter (File › Export › Export As…)	το {_1} είναι πρόσθετο εξαγωγής (Αρχείο › Εξαγωγή › Εξαγωγή ως…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	το `documentData` έχει {size} byte (όριο {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	το {_1} χρησιμοποιείται ήδη από το {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} συνδεδεμένα αρχεία δεν μπορούν να διαβαστούν εδώ: εμφανίζονται οι προεπισκοπήσεις τους
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} συνδεδεμένες εικόνες άλλαξαν στον δίσκο: η Ενημέρωση συνδέσμων εμφανίζει τις νέες εκδόσεις
@@ -4328,6 +4333,7 @@ theme	Appearance	Εμφάνιση
 @msg	Saving {_1}	Αποθήκευση {_1}
 @msg	Exporting {_1}	Εξαγωγή {_1}
 @msg	Packaging {_1}	Συσκευασία {_1}
+@msg	Placing {_1}	Τοποθέτηση {_1}
 @msg	Saving recovery data for {_1}	Αποθήκευση δεδομένων ανάκτησης για {_1}
 @msg	Discarded {_1} recovered document(s)	Απορρίφθηκαν {_1} ανακτημένα έγγραφα
 @msg	Restored {_1} recovered document(s): save them to keep them	Επαναφέρθηκαν {_1} ανακτημένα έγγραφα: αποθηκεύστε τα για να διατηρηθούν
@@ -5149,12 +5155,14 @@ effect	Points	Σημεία
 	Keep selected	Διατήρηση επιλογής
 	Merge only with selection	Συγχώνευση μόνο με την επιλογή
 	Consider Open Filled Paths as Closed	Οι ανοιχτές γεμισμένες διαδρομές θεωρούνται κλειστές
+	In Merge Mode, Clicking Stroke Splits the Path	Σε λειτουργία συγχώνευσης, το κλικ στο περίγραμμα διαιρεί τη διαδρομή
 	Pick Color From:	Λήψη χρώματος από:
 	Artwork	Γραφικά
 	Cursor Swatch Preview	Προεπισκόπηση δείγματος δίπλα στον δείκτη
 	Selection:	Επιλογή:
 	Straight Line	Ευθεία γραμμή
 	Highlight:	Επισήμανση:
+	Stroke When Editable	Περίγραμμα όταν είναι επεξεργάσιμο
 	Legacy (version 7)	Παλαιού τύπου (έκδοση 7)
 	Legacy .ai Options	Επιλογές .ai παλαιού τύπου
 	Linked Files	Συνδεδεμένα αρχεία
@@ -5302,8 +5310,13 @@ effect	Points	Σημεία
 @msg	too many library panels were opened in this session	άνοιξαν πάρα πολλοί πίνακες βιβλιοθηκών σε αυτή τη συνεδρία
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Η εικόνα είναι {_1} × {_2} εικονοστοιχεία, πάνω από {LARGE_TRACE_SIDE} σε μία πλευρά: ανιχνεύεται, αλλά πιο αργά. Μια προρύθμιση χαμηλότερης πιστότητας ή ένα μικρότερο αντίγραφο της εικόνας ανιχνεύεται γρηγορότερα.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Η εικόνα ανιχνεύτηκε σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη από {_3} × {_4} (το πολύ {_5} megapixel).
+	Snapping	Προσκόλληση
+	Snap to Tangent	Προσκόλληση σε εφαπτομένη
+	Snap to Perpendicular	Προσκόλληση σε κάθετο
+@msg	unknown snap option `{key}` (use {options})	άγνωστη επιλογή προσκόλλησης `{key}` (χρησιμοποιήστε {options})
 	Gap Length:	Μήκος κενού:
 	Artboard {n} of {total}	Πίνακας σχεδίασης {n} από {total}
+	File {n} of {total}	Αρχείο {n} από {total}
 	Encoding and writing the file…	Κωδικοποίηση και εγγραφή του αρχείου…
 @plural	{n} more export waiting|{n} more exports waiting	{n} ακόμη εξαγωγή σε αναμονή|{n} ακόμη εξαγωγές σε αναμονή
 	Continue in Background	Συνέχεια στο παρασκήνιο
@@ -5352,6 +5365,7 @@ effect	Points	Σημεία
 	Water Paper	Βρεγμένο χαρτί
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Γεωμετρικοί οδηγοί
 	Ease In	Ομαλή αρχή
 	Ease Out	Ομαλό τέλος
 	Ease In Out	Ομαλή αρχή και τέλος
@@ -5386,4 +5400,18 @@ axis	Y Axis	Άξονας Y
 	Dither	Πρόσθεση θορύβου
 	Fine noise hides banding in the gradient fill	Ο λεπτός θόρυβος κρύβει τις λωρίδες στο γέμισμα ντεγκραντέ
 @msg	`dither` applies to gradient fills (stroke: false)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (paint.setFill)
 @msg	`dither` must be true or false	Το `dither` πρέπει να είναι true ή false
+@msg	`method` must be classic or perceptual	Το `method` πρέπει να είναι classic ή perceptual
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
+	Install “{name}”, which asks for a heavy budget?	Να εγκατασταθεί το «{name}», που ζητά μεγάλο υπολογιστικό προϋπολογισμό;
+	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	Κάθε εκτέλεση μπορεί να διαρκέσει έως {minutes} λεπτά και να κάνει {times} φορές τη δουλειά που επιτρέπεται στα άλλα πρόσθετα. Εκτελείται στο παρασκήνιο και μπορείτε να την ακυρώσετε.
+	It may take minutes, so it runs in the background, where you can cancel it.	Μπορεί να διαρκέσει λεπτά, γι’ αυτό εκτελείται στο παρασκήνιο, όπου μπορείτε να το ακυρώσετε.
+	The plug-in is computing…	Το πρόσθετο υπολογίζει…
+	Inspect Plug-in	Επιθεώρηση προσθέτου
+	Cancel Plug-in Run	Ακύρωση εκτέλεσης προσθέτου
+@msg	{_1} finished, but the document or the plug-in changed meanwhile: run it again	Το {_1} ολοκληρώθηκε, αλλά το έγγραφο ή το πρόσθετο άλλαξε στο μεταξύ: εκτελέστε το ξανά
+@msg	Running “{name}”…	Εκτέλεση του «{name}»…
+@msg	a live effect runs while the document is drawn, so it can't be `heavy`	ένα δυναμικό εφέ εκτελείται κατά τη σχεδίαση του εγγράφου, οπότε δεν μπορεί να είναι `heavy`
+@msg	an exporter always gets an export's budget: leave `budget` out	ένα πρόσθετο εξαγωγής παίρνει πάντα τον προϋπολογισμό μιας εξαγωγής: παραλείψτε το `budget`
+@msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	το «{_1}» ζητά μεγάλο υπολογιστικό προϋπολογισμό (κάθε εκτέλεση έως {minutes} λεπτά και {times} φορές τις συνήθεις εντολές): εγκαταστήστε το με `allowHeavy: true` μόλις συμφωνήσει ο χρήστης

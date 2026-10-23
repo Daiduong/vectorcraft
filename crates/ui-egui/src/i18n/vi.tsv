@@ -300,6 +300,8 @@
 	Axis:	Trục:
 	Back	Sau
 	Background Color:	Màu nền:
+	Show Center Mark	Hiện dấu tâm
+	Show Cross Hairs	Hiện đường chữ thập
 	Background Contents	Nội dung nền
 	Background Contents:	Nội dung nền:
 	Background:	Nền:
@@ -1261,6 +1263,7 @@
 	Keep selected	Giữ trạng thái đã chọn
 	Merge only with selection	Chỉ hợp nhất với vùng chọn
 	Consider Open Filled Paths as Closed	Coi đường dẫn mở có tô là đường dẫn đóng
+	In Merge Mode, Clicking Stroke Splits the Path	Ở chế độ hợp nhất, nhấp vào nét sẽ tách đường dẫn
 	Pick Color From:	Lấy màu từ:
 	Artwork	Tác phẩm
 	Cursor Swatch Preview	Xem trước mẫu màu cạnh con trỏ
@@ -1268,6 +1271,7 @@
 	Freeform	Tự do
 	Straight Line	Đường thẳng
 	Highlight:	Làm nổi bật:
+	Stroke When Editable	Nét khi có thể chỉnh sửa
 	Fill New Type Objects With Placeholder Text	Tô đối tượng chữ mới bằng văn bản giữ chỗ
 	Fill Rule	Quy tắc tô
 	Fill with Placeholder Text	Tô bằng văn bản giữ chỗ
@@ -4202,6 +4206,7 @@ theme	Appearance	Giao diện
 @msg	Couldn't open {name}: {e}	Không thể mở {name}: {e}
 @msg	Couldn't paste from the clipboard: {e}	Không thể dán từ khay nhớ tạm: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Không thể đặt {name}: tài liệu mà nó được thả vào đã đóng
+@msg	Couldn't place {name}: the document it was placed in was closed	Không thể đặt {name}: tài liệu mà nó được đặt vào đã đóng
 @msg	Couldn't place {name}: {e}	Không thể đặt {name}: {e}
 @msg	Couldn't read {name}: {e}	Không thể đọc {name}: {e}
 @msg	Couldn't save recovery data: {e}	Không thể lưu dữ liệu phục hồi: {e}
@@ -4239,6 +4244,7 @@ theme	Appearance	Giao diện
 @msg	Exported {what} with {_1} note(s): {first}	Đã xuất {what} với {_1} ghi chú: {first}
 @msg	Exporting {_1}	Đang xuất {_1}
 @msg	Packaging {_1}	Đang đóng gói {_1}
+@msg	Placing {_1}	Đang đặt {_1}
 @msg	file version {0} is newer than this VectorCraft supports ({VERSION})	phiên bản tệp {0} mới hơn VectorCraft hỗ trợ ({VERSION})
 @msg	Flatten Transparency: select objects to flatten	Dẹp phẳng độ trong suốt: hãy chọn đối tượng để dẹp phẳng
 @msg	Flatten Transparency: {e}	Dẹp phẳng độ trong suốt: {e}
@@ -4488,6 +4494,7 @@ theme	Appearance	Giao diện
 @msg	path is already closed	đường dẫn đã được đóng
 @msg	paths contain invalid coordinates	đường dẫn chứa tọa độ không hợp lệ
 @msg	paths: give at least one file	đường dẫn: hãy cung cấp ít nhất một tệp
+@msg	replace: the object to replace was changed or deleted	thay thế: đối tượng cần thay thế đã bị thay đổi hoặc xóa
 @msg	pattern missing	thiếu họa tiết
 @msg	patterns nested too deeply are filled with mid-grey	họa tiết lồng nhau quá sâu được tô bằng màu xám trung tính
 @msg	PDF settings are not an object	Cài đặt PDF không phải là đối tượng
@@ -4740,6 +4747,7 @@ theme	Appearance	Giao diện
 @msg	{_1} has no {_2} style	{_1} không có kiểu {_2}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} là hiệu ứng trực tiếp (Hiệu ứng › Plug-ins)
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1} là plug-in xuất (Tệp › Xuất › Xuất thành…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData` có {size} byte (giới hạn {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	{_1} đã được dùng bởi {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} tệp liên kết không thể đọc ở đây: bản xem trước được hiển thị
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} ảnh liên kết đã thay đổi trên đĩa: Cập nhật liên kết hiển thị phiên bản mới
@@ -4944,8 +4952,13 @@ theme	Appearance	Giao diện
 @msg	too many library panels were opened in this session	đã mở quá nhiều bảng thư viện trong phiên này
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Ảnh có kích thước {_1} × {_2} điểm ảnh, hơn {LARGE_TRACE_SIDE} ở một cạnh: ảnh vẫn được dò, nhưng chậm hơn. Một thiết lập sẵn có độ trung thực thấp hơn hoặc một bản sao nhỏ hơn của ảnh sẽ dò nhanh hơn.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Ảnh đã được dò ở {_1} × {_2} điểm ảnh, thu nhỏ từ {_3} × {_4} (tối đa {_5} megapixel).
+	Snapping	Hút
+	Snap to Tangent	Hút vào tiếp tuyến
+	Snap to Perpendicular	Hút vào đường vuông góc
+@msg	unknown snap option `{key}` (use {options})	tùy chọn hút không hợp lệ `{key}` (dùng {options})
 	Gap Length:	Độ dài khoảng hở:
 	Artboard {n} of {total}	Bảng vẽ {n} / {total}
+	File {n} of {total}	Tệp {n} / {total}
 	Encoding and writing the file…	Đang mã hóa và ghi tệp…
 @plural	{n} more export waiting|{n} more exports waiting	Còn {n} lượt xuất đang chờ
 	Continue in Background	Tiếp tục trong nền
@@ -4995,6 +5008,7 @@ theme	Appearance	Giao diện
 	Water Paper	Giấy ướt
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Đường dẫn hình học
 	Ease In	Chậm lúc đầu
 	Ease Out	Chậm lúc cuối
 	Ease In Out	Chậm lúc đầu và cuối
@@ -5030,4 +5044,19 @@ axis	Y Axis	Trục Y
 	Dither	Dither
 	Fine noise hides banding in the gradient fill	Nhiễu mịn che dải màu trong vùng tô chuyển sắc
 @msg	`dither` applies to gradient fills (stroke: false)	`dither` áp dụng cho vùng tô chuyển sắc (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` áp dụng cho vùng tô chuyển sắc (paint.setFill)
 @msg	`dither` must be true or false	`dither` phải là true hoặc false
+	Perceptual	Theo cảm nhận
+@msg	`method` must be classic or perceptual	`method` phải là classic hoặc perceptual
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
+	Install “{name}”, which asks for a heavy budget?	Cài đặt “{name}”, plug-in yêu cầu ngân sách tính toán lớn?
+	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	Mỗi lần chạy có thể mất tới {minutes} phút và làm khối lượng việc gấp {times} lần mức cho phép với các plug-in khác. Plug-in chạy trong nền và bạn có thể hủy.
+	It may take minutes, so it runs in the background, where you can cancel it.	Việc này có thể mất vài phút nên plug-in chạy trong nền, nơi bạn có thể hủy.
+	The plug-in is computing…	Plug-in đang tính toán…
+	Inspect Plug-in	Kiểm tra plug-in
+	Cancel Plug-in Run	Hủy lần chạy plug-in
+@msg	{_1} finished, but the document or the plug-in changed meanwhile: run it again	{_1} đã chạy xong, nhưng tài liệu hoặc plug-in đã thay đổi trong lúc đó: hãy chạy lại
+@msg	Running “{name}”…	Đang chạy “{name}”…
+@msg	a live effect runs while the document is drawn, so it can't be `heavy`	hiệu ứng trực tiếp chạy trong lúc tài liệu được vẽ nên không thể là `heavy`
+@msg	an exporter always gets an export's budget: leave `budget` out	plug-in xuất luôn nhận ngân sách của một lần xuất: hãy bỏ `budget`
+@msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	“{_1}” yêu cầu ngân sách tính toán lớn (mỗi lần chạy tới {minutes} phút và gấp {times} lần số lệnh thông thường): hãy cài đặt với `allowHeavy: true` khi người dùng đồng ý

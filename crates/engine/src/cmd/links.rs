@@ -21,7 +21,8 @@
 //! Link) link to their files the same way: checking, updating, relinking and finding them on open
 //! work alike, and they are listed. Embed (Break Link) turns one into an editable copy of its art.
 
-use std::collections::BTreeMap;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};
 
 use serde_json::{Value, json};
@@ -286,6 +287,18 @@ fn previewing(d: &Document, key: &str) -> bool {
     d.images.get(key).is_none_or(ImageBlob::is_proxy)
 }
 
+/// A linked raster image whose file is an EPS (Preferences › File Handling › Use Low Resolution
+/// Proxy for Linked EPS).
+fn linked_eps(link: &LinkInfo) -> bool {
+    fileio::format_for_name(link.name()).is_some_and(|f| f.id == "eps")
+}
+
+/// With `low_res_proxy_eps`, a linked EPS image that already shows its saved preview keeps it on
+/// open instead of reading the file again (Update Links still reads modified files).
+fn keep_eps_preview(low_res_proxy_eps: bool, g: &Group, d: &Document) -> bool {
+    low_res_proxy_eps && g.document.is_none() && linked_eps(&g.link) && previewing(d, &g.key)
+}
+
 /// Does group `g` of `d` show something other than its file: an image its preview, a placed
 /// document nothing (its file's bytes are gone)?
 fn stale(d: &Document, g: &Group) -> bool {
@@ -324,6 +337,47 @@ pub(crate) fn linked_files(d: &Document, doc_path: Option<&str>) -> Vec<LinkedFi
         .collect()
 }
 
+/// `d` for output: linked raster images that still show only their saved preview read their files
+/// again (Preferences › Use Low Resolution Proxy for Linked EPS keeps the preview on screen only).
+pub(crate) fn full_linked_images<'a>(d: &'a Document, doc_path: Option<&str>) -> (Cow<'a, Document>, Vec<String>) {
+    let mut keys = BTreeSet::new();
+    d.visit_images(|_, im| {
+        if im.link.is_some() && d.images.get(&im.key).is_some_and(ImageBlob::is_proxy) {
+            keys.insert(im.key.clone());
+        }
+    });
+    if keys.is_empty() {
+        return (Cow::Borrowed(d), vec![]);
+    }
+    let mut out = d.clone();
+    let mut previews = BTreeSet::new();
+    let all = groups(d, None);
+    for key in keys {
+        let Some(g) = all.iter().find(|g| g.document.is_none() && g.key == key) else { continue };
+        let Some(mut f) = locate(&g.link, doc_path) else {
+            previews.insert(key);
+            continue;
+        };
+        let Some(bytes) = f.read().ok() else {
+            previews.insert(key);
+            continue;
+        };
+        let Ok(img) = fileio::raster_image(&bytes) else {
+            previews.insert(key);
+            continue;
+        };
+        let preview = d.images.get(&key).map(|b| b.bytes.clone());
+        let mime = fileio::format_for_name(g.link.name()).map(|f| f.mime.to_string()).unwrap_or_else(|| img.blob.mime.clone());
+        out.images.insert(key, ImageBlob { mime, bytes: img.blob.bytes, proxy: preview });
+    }
+    let mut warnings = vec![];
+    if !previews.is_empty() {
+        warnings
+            .push(format!("{} linked image(s) output as their previews: their files can't be found or read (relink or update them)", previews.len()));
+    }
+    (Cow::Owned(out), warnings)
+}
+
 /// The linked files of the open document `st` that `links.findFiles` looks for, each with the
 /// objects in the layers that show it: the files of objects `ids` whatever their status, else the
 /// files that can't be found.
@@ -338,11 +392,12 @@ pub(crate) fn files_to_find(st: &crate::DocState, ids: Option<&[NodeId]>) -> Vec
 // ---------- reading files into the document ----------
 
 /// Keep `full` (a file's pixels) as image `key` of `d`, unless pixels are there already; a
-/// preview there is kept, and a linked image gets one.
+/// preview there is kept, and a linked image gets one (the one `full` carries, when it has one).
 pub(crate) fn store_image(d: &mut Document, key: &str, full: ImageBlob, linked: bool) {
+    let made = full.proxy.clone().filter(|_| linked);
     let blob = match d.images.get(key) {
         Some(b) if !b.is_proxy() => b.clone(),
-        old => ImageBlob { proxy: old.and_then(|b| b.proxy.clone()), ..full },
+        old => ImageBlob { proxy: old.and_then(|b| b.proxy.clone()).or(made), ..full },
     };
     d.images.insert(key.to_string(), if linked { blob.with_proxy() } else { blob });
 }
@@ -559,11 +614,12 @@ impl Resolved {
 /// away from their path take the new path. A link nothing is known of whose image shows a preview
 /// (a file another app wrote kept only that) was never read: its file is read now, into the
 /// image's bounds, which isn't a change to report. Nothing here is an undo step.
-pub fn resolve(d: &mut Document, doc_path: Option<&str>, update: bool) -> Resolved {
+pub fn resolve(d: &mut Document, doc_path: Option<&str>, update: bool, low_res_proxy_eps: bool) -> Resolved {
     let mut out = Resolved::default();
     for g in groups(d, None) {
         let row = rows(std::iter::once(&g), doc_path);
         let unread = g.document.is_none() && g.link.hash.is_none() && g.link.size.is_none() && previewing(d, &g.key);
+        let eps_preview = keep_eps_preview(low_res_proxy_eps, &g, d);
         match probe(&g, doc_path) {
             (Status::Missing, _) => out.missing.extend(row),
             (Status::Modified, Some(mut f)) if update || unread => {
@@ -598,8 +654,8 @@ pub fn resolve(d: &mut Document, doc_path: Option<&str>, update: bool) -> Resolv
             (Status::Ok, Some(mut f)) => {
                 let preview = previewing(d, &g.key);
                 // Read when the images show the preview, or when the file's details changed.
-                let bytes = if preview || f.bytes.is_some() { f.read().ok() } else { None };
-                if preview {
+                let bytes = if (preview && !eps_preview) || f.bytes.is_some() { f.read().ok() } else { None };
+                if preview && !eps_preview {
                     let Some(img) = bytes.as_deref().and_then(|b| fileio::raster_image(b).ok()) else {
                         out.missing.extend(row);
                         continue;
