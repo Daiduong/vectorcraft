@@ -44,7 +44,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Arrow",
             [],
             None,
-            "{x, y, width, height, shaft=40 (% of the height: the shaft's thickness), head=35 (% of the width: each head's length; with two heads at most 50), heads=1 (1: pointing right, 2: both ways), rotation?: deg (about centre)} an arrow filling the box → {id}",
+            "{x, y, width, height, shaft=40 (% of the height: the shaft's thickness), head=35 (% of the width: each head's length; with two heads at most 50), heads=1 (1: pointing right, 2: both ways; other counts are clamped to these), rotation?: deg (about centre)} an arrow filling the box → {id}",
             has_doc,
             arrow
         ),
@@ -53,7 +53,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Gear",
             [],
             None,
-            "{x, y, width, height, teeth=12 (3–360), depth=20 (% of the radius: how far the teeth stand out, 2–90), hole=30 (% of the radius: the hole in the middle, 0 for none; it leaves a rim of at least 5 %), rotation?: deg (about centre)} a gear in the box, the first tooth straight up, tooth tops on the ellipse inscribed in it → {id}",
+            "{x, y, width, height, teeth=12 (3–360, rounded), depth=20 (% of the radius: how far the teeth stand out, 2–90), hole=30 (% of the radius: the hole in the middle, 0 for none; it leaves a rim of at least 5 %), rotation?: deg (about centre)} a gear in the box, the first tooth straight up, tooth tops on the ellipse inscribed in it → {id}",
             has_doc,
             gear
         ),
@@ -364,17 +364,11 @@ fn ellipse(s: &mut Session, p: &Value) -> Result<Value> {
     add_art_turned(s, "Ellipse", path_kind(live.to_path(), Some(live)), f64_or(p, "rotation", 0.0))
 }
 
-/// A whole number `p` gives for `key` clamped into `lo..=hi`, or `default` when it leaves it out or
-/// gives null; anything else (text, a fraction, a negative number) is an error.
+/// The count `p` gives for `key`, rounded and clamped into `lo..=hi`, or `default` when it leaves
+/// it out or gives null; a value that isn't a number is an error, as [`number_or`] says.
 fn count_or(p: &Value, key: &str, default: u32, (lo, hi): (u32, u32), cmd: &str) -> Result<u32> {
-    match p.get(key) {
-        None | Some(Value::Null) => Ok(default),
-        Some(v) if !v.is_number() => Err(bad(cmd, format!("`{key}` must be a number, not {v}"))),
-        Some(v) => v
-            .as_u64()
-            .map(|n| n.clamp(u64::from(lo), u64::from(hi)) as u32)
-            .ok_or_else(|| bad(cmd, format!("`{key}` must be a whole number, not {v}"))),
-    }
+    let n = number_or(p, key, f64::from(default), cmd)?;
+    Ok(if n.is_finite() { n.round().clamp(f64::from(lo), f64::from(hi)) as u32 } else { default })
 }
 
 /// A figure drawn by `outline` in the box of `p` (at the origin, then placed and turned as
@@ -395,10 +389,7 @@ fn arrow(s: &mut Session, p: &Value) -> Result<Value> {
     const CMD: &str = "shape.arrow";
     let shaft = number_or(p, "shaft", 40.0, CMD)? / 100.0;
     let head = number_or(p, "head", 35.0, CMD)? / 100.0;
-    let heads = count_or(p, "heads", 1, (0, 3), CMD)?;
-    if !(1..=2).contains(&heads) {
-        return Err(bad(CMD, "`heads` must be 1 or 2"));
-    }
+    let heads = count_or(p, "heads", 1, (1, 2), CMD)?;
     boxed_figure(s, p, CMD, "Arrow", |r| vectorcraft_geom::figures::arrow(r, shaft, head, heads))
 }
 

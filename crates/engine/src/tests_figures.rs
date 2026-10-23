@@ -84,8 +84,9 @@ fn arrow_takes_its_shaft_head_and_heads_in_percent() {
     // Defaults: shaft 40 %, head 35 %, one head.
     let plain = drawn(&mut s, "shape.arrow", in_box(json!({"shaft": null, "heads": null})));
     assert!(points(&plain).contains(&Point::new(20.0, 54.0)));
-    assert!(s.execute("shape.arrow", &in_box(json!({"heads": 3}))).is_err(), "one or two heads");
-    assert!(s.execute("shape.arrow", &in_box(json!({"heads": 0}))).is_err());
+    // One or two heads: other counts are clamped.
+    assert_eq!(points(&drawn(&mut s, "shape.arrow", in_box(json!({"heads": 3})))).len(), 10);
+    assert_eq!(points(&drawn(&mut s, "shape.arrow", in_box(json!({"heads": 0})))).len(), 7);
 }
 
 #[test]
@@ -109,7 +110,9 @@ fn gear_takes_its_teeth_depth_and_hole() {
     // Defaults: 12 teeth, 20 % deep, a hole of 30 %.
     let d = drawn(&mut s, "shape.gear", sq.clone());
     assert_eq!((d.subpaths.len(), d.subpaths[0].anchors.len()), (2, 48));
-    assert!(s.execute("shape.gear", &with(&sq, json!({"teeth": -4}))).is_err(), "a count, not a negative number");
+    // Counts are rounded and clamped: −4 teeth is 3, 7.6 is 8.
+    assert_eq!(drawn(&mut s, "shape.gear", with(&sq, json!({"teeth": -4}))).subpaths[0].anchors.len(), 12);
+    assert_eq!(drawn(&mut s, "shape.gear", with(&sq, json!({"teeth": 7.6}))).subpaths[0].anchors.len(), 32);
 }
 
 fn with(base: &Value, extra: Value) -> Value {
