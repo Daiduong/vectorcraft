@@ -41,13 +41,13 @@ fi
 # Assemble build/<app>/: the shared sources, this app's Info.plist, icon and web site.
 OUT="$HERE/build/$APP"
 SRC="$OUT/$NAME"
-rm -rf "$SRC" "$OUT/$NAME.xcodeproj"
+rm -rf "$SRC" "$OUT/web" "$OUT/$NAME.xcodeproj"
 mkdir -p "$SRC"
 /bin/cp -f "$HERE"/Shared/*.swift "$SRC/"
 /bin/cp -R "$HERE/Shared/Assets.xcassets" "$SRC/"
 /bin/cp -f "$REPO/assets/app-icon/$APP-1024.png" "$SRC/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
-/bin/cp -R "$REPO/dist/web" "$SRC/web"
-rm -f "$SRC/web/.trunk-lock"
+/bin/cp -R "$REPO/dist/web" "$OUT/web"
+rm -f "$OUT/web/.trunk-lock"
 strings() { for v in $1; do printf '\t\t\t\t<string>%s</string>\n' "$v"; done; }
 DOC_EXTS_XML="$(strings "$DOC_EXTS")" IMPORT_UTIS_XML="$(strings "$IMPORT_UTIS")" NAME="$NAME" PORT="$PORT" JS_API="$JS_API" \
   perl -pe 's/\@APP_NAME\@/$ENV{NAME}/g; s/\@PORT\@/$ENV{PORT}/g; s/\@JS_API\@/$ENV{JS_API}/g;
@@ -73,9 +73,9 @@ targets:
     platform: iOS
     sources:
       - path: $NAME
-        excludes: [web]
-      # The static site from trunk, kept as a folder so its layout (fonts/…) survives.
-      - path: $NAME/web
+      # The static site from trunk, kept as a folder so its layout (fonts/…) survives. It sits
+      # beside $NAME/, not inside it: some XcodeGen versions drop the parent of a nested folder.
+      - path: web
         type: folder
         buildPhase: resources
     settings:
