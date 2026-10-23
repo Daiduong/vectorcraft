@@ -26,10 +26,8 @@ pub fn open_bytes(app: &mut VectorcraftApp, name: &str, bytes: &[u8], path: Opti
     let opens = opens_as(name);
     // A WebAssembly plug-in is installed.
     if opens == Some(OpensAs::Plugin) {
-        let r =
-            app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(bytes), "name": path.as_deref().unwrap_or(name)}))?;
-        app.status(format!("Installed plug-in {}", r["name"].as_str().unwrap_or(name)));
-        return Ok(Value::Null);
+        let module = json!({"dataBase64": vectorcraft_format::base64_encode(bytes), "name": path.as_deref().unwrap_or(name)});
+        return install_module(app, module).map(|_| Value::Null);
     }
     if opens == Some(OpensAs::ShortcutSet) {
         return dialogs::shortcut_import::open(app, name, bytes).map(|_| Value::Null);
@@ -146,17 +144,47 @@ fn pick_open(app: &mut VectorcraftApp, pick: &FilePick) -> Result<String, String
     crate::picks::open(app, pick).ok_or_else(|| "cancelled".into())
 }
 
-/// Object › Plug-ins › Install Plug-in…: installs the `.wasm` at `path`, else a picked one (the
-/// web's file picker hands the file to [`open_bytes`], which installs it).
-pub fn install_plugin(app: &mut VectorcraftApp, path: Option<String>) -> Result<Value, String> {
-    let path = match path {
-        Some(p) => p,
-        None if app.services.open_async.is_some() => return open_dialog(app).map(|_| Value::Null),
-        None => {
-            pick_open(app, &FilePick { filters: vec![FilePick::filter("Plug-ins", vectorcraft_engine::cmd::plugin::EXTS)], ..Default::default() })?
+/// Object › Plug-ins › Install Plug-in…: installs the module `p` gives (`path`, or `dataBase64`
+/// with `name`), else a picked `.wasm` (the web's file picker hands the file to [`open_bytes`],
+/// which installs it) → [`install_module`]'s result.
+pub fn install_plugin(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+    let given = |k: &str| p.get(k).and_then(Value::as_str).is_some_and(|v| !v.is_empty());
+    if given("path") || given("dataBase64") {
+        return install_module(app, p.clone());
+    }
+    if app.services.open_async.is_some() {
+        return open_dialog(app).map(|_| Value::Null);
+    }
+    let path =
+        pick_open(app, &FilePick { filters: vec![FilePick::filter("Plug-ins", vectorcraft_engine::cmd::plugin::EXTS)], ..Default::default() })?;
+    install_module(app, json!({ "path": path }))
+}
+
+/// Installs the plug-in module that `module` names (`plugin.install`'s `path`, or `dataBase64`
+/// with `name`) → `plugin.install`'s result. A filter that asks for a heavy budget the user hasn't
+/// allowed yet (`allowHeavy`) asks them first, and OK installs it → `{pending}` while it asks.
+pub fn install_module(app: &mut VectorcraftApp, module: Value) -> Result<Value, String> {
+    if module.get("allowHeavy").and_then(Value::as_bool) != Some(true) {
+        let given = |k: &str| module.get(k).map(|v| (k.to_string(), v.clone()));
+        let source = Value::Object(["path", "dataBase64", "name"].into_iter().filter_map(given).collect());
+        let info = app.run("plugin.inspect", source.clone())?;
+        if info["budget"] == "heavy" {
+            let name = info["name"].as_str().unwrap_or_default();
+            let (minutes, times) = vectorcraft_plugins::heavy_terms();
+            let message = crate::i18n::fmt(tl!("Install “{name}”, which asks for a heavy budget?"), &[("name", name)]);
+            let detail = crate::i18n::fmt(
+                tl!(
+                    "Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it."
+                ),
+                &[("minutes", &minutes.to_string()), ("times", &times.to_string())],
+            );
+            let mut allowed = source;
+            allowed["allowHeavy"] = json!(true);
+            dialogs::confirm::ask(app, &message, &detail, "ui.installPlugin", allowed);
+            return Ok(json!({ "pending": dialogs::confirm::KIND }));
         }
-    };
-    let r = app.run("plugin.install", json!({ "path": path }))?;
+    }
+    let r = app.run("plugin.install", module)?;
     app.status(format!("Installed plug-in {}", r["name"].as_str().unwrap_or_default()));
     Ok(r)
 }
@@ -975,10 +1003,47 @@ pub fn export_for_screens(app: &mut VectorcraftApp, params: Value) -> Result<Val
 }
 
 /// [`export_for_screens`] through command `id` (`document.exportForScreens` or `assets.export`).
+/// On the desktop with Background Export on, an export into a folder is checked, journaled and
+/// prepared from the document as it is now, and the files are encoded and written on the
+/// background thread ([`background`]): this returns `{background: true, status}` at once, with the
+/// progress dialog's Cancel, and the status bar reports the files once they are written.
 pub(crate) fn export_files(app: &mut VectorcraftApp, id: &str, params: Value) -> Result<Value, String> {
     let open_location = params.get("openLocation").and_then(Value::as_bool).unwrap_or(false);
     let folder = params.get("folder").and_then(Value::as_str).unwrap_or_default().to_string();
-    let r = app.run(id, params)?;
+    // Without a folder the files come back in the reply, which the caller waits for.
+    let in_background = app.session.prefs.background_export && app.services.write_shared.is_some() && !is_web(app) && !folder.is_empty();
+    if !in_background {
+        // Made at once, after the exports and saves started before it.
+        background::wait_all(app);
+        let r = app.run(id, params)?;
+        return report_exported(app, r, &folder, open_location);
+    }
+    let export = app.session.prepare_screen_export(id, &params).map_err(|e| e.to_string()).inspect_err(|e| app.ui.status = e.clone())?;
+    let label = format!("Exporting {}", fileio::file_name(&folder));
+    // The progress dialog counts the files, and its Cancel stops the export before the next one.
+    let progress = Progress::of_files();
+    let (reporting, asked) = (progress.clone(), progress.clone());
+    let work = move |write: Writer| {
+        progress::scope(&reporting, || {
+            let mut write = |path: &str, bytes: &[u8]| write(path, bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")));
+            export.write(&mut write).map_err(|e| e.to_string())
+        })
+    };
+    background::run_with_progress(app, true, label, None, Some(progress), work, move |app, r| {
+        // Files written before the Cancel arrived stay in the folder.
+        if r.is_err() && asked.cancelled() {
+            app.status(EXPORT_CANCELLED);
+            return Ok(json!({ "cancelled": true }));
+        }
+        let r = r.inspect_err(|e| report_write_error(app, true, &folder, e))?;
+        report_exported(app, r, &folder, open_location)
+    })
+}
+
+/// Report the files `r` (the reply of `document.exportForScreens`) in the status bar: the count
+/// written into `folder`, else the ZIP or the files downloaded (the web); with `open_location`,
+/// the file manager shows the first file written.
+fn report_exported(app: &mut VectorcraftApp, r: Value, folder: &str, open_location: bool) -> Result<Value, String> {
     let count = r["files"].as_array().map_or(0, Vec::len);
     let warned = r["warnings"].as_array().is_some_and(|w| !w.is_empty());
     // Files that came back as bytes: (name, base64).
@@ -992,7 +1057,7 @@ pub(crate) fn export_files(app: &mut VectorcraftApp, id: &str, params: Value) ->
         let first = r["path"].as_str().or_else(|| r["files"][0].as_str());
         let mut status = format!("Exported {count} file(s) to {folder}");
         if warned {
-            status = saved_status(r["path"].as_str().unwrap_or(&folder), &r);
+            status = saved_status(r["path"].as_str().unwrap_or(folder), &r);
         }
         if open_location
             && let Some(first) = first
@@ -1018,9 +1083,10 @@ pub(crate) fn export_files(app: &mut VectorcraftApp, id: &str, params: Value) ->
     Ok(r)
 }
 
-/// Place a file's bytes (no path, so embedded) centred in the view: `file.place`.
+/// Place a file's bytes (no path, so embedded) centered in the view: `file.place`, read off the UI
+/// thread on the desktop ([`crate::place::run_for_user`]).
 pub fn place_bytes(app: &mut VectorcraftApp, name: &str, bytes: &[u8]) -> Result<(), String> {
-    crate::place::run(app, &serde_json::json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).map(|_| ())
+    crate::place::run_for_user(app, &serde_json::json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).map(|_| ())
 }
 
 #[cfg(test)]
