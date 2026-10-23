@@ -456,6 +456,27 @@ fn type_is_text_or_outlines() {
     }
 }
 
+/// Area type that Shrink Text to Fit scales down is written at the height it draws at.
+#[test]
+fn shrunk_area_type_is_text_at_the_size_it_draws_at() {
+    let mut d = text_doc("Plan A, plan B and plan C", 20.0);
+    let id = d.layers[0].children().unwrap()[0].id;
+    let mut fit = 1.0;
+    if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
+        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 30.0)) };
+        t.area.fit = vectorcraft_doc::AreaFit::ShrinkText { min_percent: 10.0 };
+        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        assert!(!lay.overflow && lay.fit_scale < 0.9, "the text is shrunk to fit: {}", lay.fit_scale);
+        fit = lay.fit_scale;
+    }
+    let out = export(&d, &DxfOptions { preserve: Preserve::Editability, ..opts(&d) }).unwrap();
+    let e = entities(&out);
+    assert!(!e.is_empty() && e.iter().all(|e| kind(e) == "TEXT"), "{:?}", kinds(&out));
+    for e in &e {
+        assert!((all(e, 40)[0] - 14.0 * fit).abs() < 1e-6, "the cap height of {} pt type: {:?}", 20.0 * fit, all(e, 40));
+    }
+}
+
 #[test]
 fn text_outside_ascii_is_escaped_before_2007() {
     let d = text_doc("Größe", 12.0);
@@ -503,6 +524,24 @@ fn images_link_png_or_jpeg_files() {
     let r12 = export(&d, &DxfOptions { version: DxfVersion::R12, ..opts(&d) }).unwrap();
     assert!(entities(&r12).is_empty() && r12.images.is_empty());
     assert!(r12.warnings.iter().any(|w| w.contains("no images")));
+}
+
+#[test]
+fn images_without_pixels_are_left_out_with_one_note() {
+    // One image has no data in the document, and the other image's data is empty.
+    let mut d = doc_with(|d| {
+        ["raster-1", "raster-2"]
+            .into_iter()
+            .map(|key| {
+                let im = ImageObject { key: key.into(), width: 4, height: 2, xf: Affine::IDENTITY, link: None, placement: Default::default() };
+                Node::new(d.alloc_id(), NodeKind::Image(Box::new(im)))
+            })
+            .collect()
+    });
+    d.images.insert("raster-2".into(), ImageBlob { mime: "image/png".into(), bytes: Arc::new(vec![]), proxy: None });
+    let out = export(&d, &opts(&d)).unwrap();
+    assert!(entities(&out).is_empty() && out.images.is_empty());
+    assert_eq!(out.warnings, ["an image has no pixels and was left out"]);
 }
 
 #[test]

@@ -613,12 +613,44 @@ pub fn has_open_path(shapes: &[Shape]) -> bool {
 /// [`SHAPE_BUILDER_MAX_SEGMENTS`] segments or a map that can't be built, only the filled areas
 /// count and there are no pieces.
 pub fn shape_builder(shapes: &[Shape], edges: bool) -> BuilderArrangement {
+    shape_builder_with_gap(shapes, edges, 0.0)
+}
+
+/// Most distance (document units) a Shape Builder gap may span.
+pub const SHAPE_BUILDER_MAX_GAP: f64 = 72.0;
+
+/// Original inputs and the shared detector's temporary, unfilled bridges. Keep the originals'
+/// order and keys so only their split pieces can be returned as art.
+pub(crate) fn gap_inputs(shapes: &[Shape], gap: f64) -> Vec<Shape> {
+    let mut closed = shapes.to_vec();
+    let segments: usize = shapes.iter().flat_map(|s| &s.path.subpaths).map(|sp| sp.segment_count()).sum();
+    if segments <= SHAPE_BUILDER_MAX_SEGMENTS && gap.is_finite() && gap > 0.0 && has_open_path(shapes) {
+        let gaps = find_gaps(shapes, gap.min(SHAPE_BUILDER_MAX_GAP));
+        if !gaps.is_empty() {
+            let path = PathData::new(gaps.iter().map(|g| SubPath::polyline(g, false)).collect());
+            closed.push(Shape::new(path, FillRule::NonZero, u64::MAX));
+        }
+    }
+    closed
+}
+
+/// [`shape_builder`] with Gap Detection: open paths whose ends come within `gap` (document units)
+/// of another path are bridged for the regions they bound, so a region left open by a small gap is
+/// found. A `gap` of 0 is [`shape_builder`]. The bridges are in no region's sources and in no piece
+/// of `lines` or `edges`.
+pub fn shape_builder_with_gap(shapes: &[Shape], edges: bool, gap: f64) -> BuilderArrangement {
     let has_open = has_open_path(shapes);
     let segments: usize = shapes.iter().flat_map(|s| &s.path.subpaths).map(|sp| sp.segment_count()).sum();
     let planar = (segments <= SHAPE_BUILDER_MAX_SEGMENTS)
         .then(|| {
             let keyed: Vec<Shape> = shapes.iter().enumerate().map(|(i, s)| Shape::new(s.path.clone(), s.rule, i as u64)).collect();
-            live_paint(&keyed)
+            if has_open && gap.is_finite() && gap > 0.0 {
+                let (faces, pieces) = live_paint(&gap_inputs(&keyed, gap));
+                // Gap targets split original outlines too, but the bridges themselves aren't art.
+                (faces, pieces.into_iter().filter(|p| p.key < shapes.len() as u64).collect())
+            } else {
+                live_paint(&keyed)
+            }
         })
         .filter(|(faces, pieces)| !faces.is_empty() || !pieces.is_empty());
     let Some((faces, pieces)) = planar else {
@@ -715,6 +747,69 @@ pub fn cut_out(path: &PathData, piece: &SubPath, fill_closes: bool, tol: f64) ->
     subpaths.extend(keep.into_iter().filter_map(|(u0, u1)| span(&geom, u0, u1)).map(|sp| snap_ends(sp, [a, b], tol)));
     subpaths.extend(path.subpaths.iter().skip(si + 1).cloned());
     Some(PathData::new(subpaths))
+}
+
+/// The run of `piece` (a Shape Builder edge or line piece) around the point of it nearest `at`,
+/// from the nearest of `stops` before that point to the nearest after it, open. Stops are the
+/// points within `tol` of the piece, such as the anchors of the path it lies on; an open piece's
+/// own ends bound the run where no stop comes first. None when the piece has no segments, or when
+/// it is closed and fewer than two different stops lie on it (the run would be all of it).
+pub fn run_around(piece: &SubPath, stops: &[Point], at: Point, tol: f64) -> Option<SubPath> {
+    let n = piece.segment_count();
+    if n == 0 {
+        return None;
+    }
+    let len = n as f64;
+    let (u, _) = nearest_u(piece, at)?;
+    // The stops by x, so that each segment measures only the stops within its bounds.
+    let mut by_x: Vec<Point> = stops.iter().copied().filter(|s| s.x.is_finite() && s.y.is_finite()).collect();
+    by_x.sort_by(|a, b| a.x.total_cmp(&b.x));
+    // The parameters of the stops within `tol` of segment `j` whose nearest point on the whole
+    // piece lies on it (a ring's segments repeat past either end, `len` apart).
+    let on = |j: isize| -> Vec<f64> {
+        use kurbo::ParamCurveNearest;
+        let seg = piece.segment(j.rem_euclid(n as isize) as usize);
+        let b = kurbo::Shape::bounding_box(&seg).inflate(tol, tol);
+        let near = by_x.get(by_x.partition_point(|s| s.x < b.x0)..).unwrap_or_default();
+        near.iter()
+            .take_while(|s| s.x <= b.x1)
+            .filter(|s| s.y >= b.y0 && s.y <= b.y1)
+            .filter_map(|s| {
+                let m = seg.nearest(*s, 1e-9);
+                let d = m.distance_sq.sqrt();
+                (d <= tol && nearest_u(piece, *s).is_some_and(|(_, nearest)| d <= nearest + 1e-9)).then_some(j as f64 + m.t)
+            })
+            .collect()
+    };
+    // From the segment under `at`, the walk goes back to the nearest stop at or before it and on
+    // to the nearest stop after it; an open piece's ends bound it.
+    let k0 = (u.floor().max(0.0) as isize).min(n as isize - 1);
+    let (first, last) = if piece.closed { (k0 - n as isize, k0 + n as isize) } else { (0, n as isize - 1) };
+    let lo = (first..=k0).rev().find_map(|j| on(j).into_iter().filter(|&x| x <= u).max_by(f64::total_cmp));
+    let lo = match lo {
+        Some(lo) => lo,
+        None if !piece.closed => 0.0,
+        None => return None,
+    };
+    let after = u.max(lo + 1e-9);
+    let hi = (k0..=last).find_map(|j| on(j).into_iter().filter(|&x| x > after).min_by(f64::total_cmp));
+    let hi = match hi {
+        Some(hi) => hi,
+        None if !piece.closed => len,
+        None => return None,
+    };
+    // On a ring, a lone stop would make the run all of it.
+    if piece.closed && hi - lo >= len - 1e-9 {
+        return None;
+    }
+    // A run that passes the ring's start begins before its end and is unrolled past it.
+    let (lo, hi) = if lo < 0.0 { (lo + len, hi + len) } else { (lo, hi) };
+    let run = span(piece, lo, hi)?;
+    // The run's ends go exactly on the stops they end at.
+    let stop_at =
+        |q: Point| stops.iter().copied().filter(|s| s.distance(q) <= tol).min_by(|a, b| a.distance(q).total_cmp(&b.distance(q))).unwrap_or(q);
+    let ends = [run.anchors.first()?.p, run.anchors.last()?.p].map(stop_at);
+    Some(snap_ends(run, ends, tol))
 }
 
 /// The point of `sp` nearest `p`, as a parameter `segment + t`, with its distance.
@@ -1543,6 +1638,78 @@ mod tests {
     }
 
     #[test]
+    fn shape_builder_merges_adjacent_gap_closed_faces_without_keeping_bridges() {
+        let outline = Shape::new(
+            PathData::single(SubPath::polyline(
+                &[Point::new(0.0, 4.0), Point::new(0.0, 100.0), Point::new(100.0, 100.0), Point::new(100.0, 0.0), Point::new(0.0, 0.0)],
+                false,
+            )),
+            FillRule::NonZero,
+            0,
+        );
+        let shapes = [outline, line((50.0, 0.0), (50.0, 100.0), 1)];
+        let arr = shape_builder_with_gap(&shapes, true, 6.0);
+        assert_eq!(arr.regions.len(), 2);
+        let faces: Vec<_> = arr.regions.iter().collect();
+        let merged = crate::FaceMerger::with_gap(&shapes, 6.0).merge(&faces);
+        assert!((crate::area(&merged, FillRule::NonZero).abs() - 10000.0).abs() < 1e-6);
+        assert_eq!(merged.subpaths.len(), 1, "the shared edge disappears");
+        assert!(arr.lines.iter().chain(&arr.edges).all(|p| p.key < 2), "bridges are not art");
+        // A request over 72 pt cannot close a gap of 80 pt.
+        let large = [Shape::new(
+            PathData::single(SubPath::polyline(
+                &[Point::new(0.0, 80.0), Point::new(0.0, 200.0), Point::new(200.0, 200.0), Point::new(200.0, 0.0), Point::new(0.0, 0.0)],
+                false,
+            )),
+            FillRule::NonZero,
+            0,
+        )];
+        assert!(shape_builder_with_gap(&large, false, 1000.0).regions.is_empty());
+    }
+
+    #[test]
+    fn shape_builder_gap_detection_closes_small_gaps() {
+        // Three sides of a 100 x 100 square, the fourth open by 4: no region without Gap Detection.
+        let open = |gap: f64| {
+            let pts = [(0.0, gap), (0.0, 100.0), (100.0, 100.0), (100.0, 0.0), (0.0, 0.0)];
+            let pts: Vec<Point> = pts.iter().map(|&(x, y)| Point::new(x, y)).collect();
+            vec![Shape::new(PathData::single(SubPath::polyline(&pts, false)), FillRule::NonZero, 0)]
+        };
+        let s = open(4.0);
+        assert!(shape_builder(&s, false).regions.is_empty());
+        assert!(shape_builder_with_gap(&s, false, 3.0).regions.is_empty(), "a gap longer than the length stays open");
+        let arr = shape_builder_with_gap(&s, true, 6.0);
+        assert_eq!(arr.regions.len(), 1);
+        assert!((area(&arr.regions[0]) - 10000.0).abs() < 1e-6);
+        // The bridge is no art: the path comes back as it was, in its own pieces only.
+        assert!(arr.lines.iter().chain(&arr.edges).all(|p| p.key == 0));
+        let len: f64 = arr.lines.iter().map(|p| p.path.to_bezpath().perimeter(1e-6)).sum();
+        assert!((len - 396.0).abs() < 1e-6, "{len}");
+        // Two paths whose ends miss each other: a U and a lid 3 above it.
+        let u = Shape::new(
+            PathData::single(SubPath::polyline(
+                &[Point::new(0.0, 0.0), Point::new(0.0, 100.0), Point::new(100.0, 100.0), Point::new(100.0, 0.0)],
+                false,
+            )),
+            FillRule::NonZero,
+            0,
+        );
+        let s = [u, line((0.0, -3.0), (100.0, -3.0), 1)];
+        assert!(shape_builder_with_gap(&s, false, 2.0).regions.is_empty());
+        let arr = shape_builder_with_gap(&s, false, 3.5);
+        assert_eq!(arr.regions.len(), 1);
+        assert!((area(&arr.regions[0]) - 10300.0).abs() < 1e-6);
+        // An end close to the side of another path bridges to the nearest point on it.
+        let s = [rect(0.0, 0.0, 100.0, 100.0, 0), line((50.0, 140.0), (50.0, 104.0), 1)];
+        assert_eq!(shape_builder_with_gap(&s, false, 5.0).regions.len(), 1, "nothing is enclosed, nothing breaks");
+        // Bad gaps are no gap.
+        let s = open(4.0);
+        for gap in [f64::NAN, f64::INFINITY, -3.0] {
+            assert!(shape_builder_with_gap(&s, false, gap).regions.is_empty());
+        }
+    }
+
+    #[test]
     fn shape_builder_closed_only_or_degenerate_is_the_filled_arrangement() {
         let s = [rect(0.0, 0.0, 100.0, 100.0, 0), rect(50.0, 0.0, 150.0, 100.0, 1)];
         assert_eq!(shape_builder(&s, false), BuilderArrangement { regions: crate::regions(&s), ..Default::default() });
@@ -1688,6 +1855,60 @@ mod tests {
         assert_eq!(cut.subpaths.len(), 2);
         assert!(cut.subpaths.iter().all(|sp| !sp.closed));
         assert!((cut.length() - 160.0).abs() < 1e-6, "{}", cut.length());
+    }
+
+    #[test]
+    fn run_around_stops_at_the_stops_either_side() {
+        // A lone square's edge is its whole outline; with its corners as stops, a point by any side
+        // gives that side.
+        let lone = shape_builder(&[rect(0.0, 0.0, 100.0, 100.0, 0)], true);
+        let edge = &lone.edges[0].path.subpaths[0];
+        let corners = [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)].map(Point::from);
+        let side = |at: (f64, f64)| {
+            run_around(edge, &corners, Point::from(at), 1e-3)
+                .map(|sp| (sp.closed, PathData::single(sp.clone()).length(), PathData::single(sp).bounds()))
+        };
+        assert_eq!(side((50.0, 1.0)), Some((false, 100.0, Some(Rect::new(0.0, 0.0, 100.0, 0.0)))));
+        for at in [(0.5, 50.0), (99.0, 50.0), (50.0, 100.0)] {
+            let (closed, length, _) = side(at).expect("a side");
+            assert!(!closed && (length - 100.0).abs() < 1e-6, "{at:?}: {length}");
+        }
+        // Without two stops on it, the run would be all of the outline.
+        assert_eq!(run_around(edge, &corners[..1], Point::new(50.0, 0.0), 1e-3), None);
+        // An open piece's run ends at the piece's own ends where no stop comes first; (40, 5) lies
+        // off the line and does not stop the run.
+        let line = poly(&[(0.0, 0.0), (100.0, 0.0)], false);
+        let run = run_around(&line, &[Point::new(40.0, 0.0), Point::new(40.0, 5.0)], Point::new(70.0, 0.0), 1e-3).unwrap();
+        assert_eq!(ends(&run), (Point::new(40.0, 0.0), Point::new(100.0, 0.0)));
+        let run = run_around(&line, &[Point::new(40.0, 0.0)], Point::new(10.0, 0.0), 1e-3).unwrap();
+        assert_eq!(ends(&run), (Point::new(0.0, 0.0), Point::new(40.0, 0.0)));
+        // A stop counts only where it is nearest the piece: the folded line's last anchor lies
+        // 0.02 from its first side and does not stop the run there.
+        let folded = poly(&[(0.0, 0.0), (100.0, 0.0), (50.0, 0.02)], false);
+        let stops = folded.anchors.iter().map(|a| a.p).collect::<Vec<_>>();
+        let run = run_around(&folded, &stops, Point::new(25.0, 0.0), 0.05).unwrap();
+        assert_eq!(ends(&run), (Point::new(0.0, 0.0), Point::new(100.0, 0.0)));
+    }
+
+    #[test]
+    fn run_around_a_ring_of_4000_sides_measures_only_the_stops_it_reaches() {
+        // Every anchor of the ring is a stop, so each run is one side. Measuring every stop along
+        // the whole ring would take 16 million nearest-point searches a call.
+        let n = 4000;
+        let pts: Vec<(f64, f64)> = (0..n)
+            .map(|k| {
+                let a = k as f64 * std::f64::consts::TAU / n as f64;
+                (500.0 * a.cos(), 500.0 * a.sin())
+            })
+            .collect();
+        let ring = poly(&pts, true);
+        let stops: Vec<Point> = ring.anchors.iter().map(|a| a.p).collect();
+        let start = std::time::Instant::now();
+        for k in (0..n).step_by(200) {
+            let run = run_around(&ring, &stops, ring.segment(k).eval(0.5), 1e-3).expect("a side");
+            assert_eq!(ends(&run), (stops[k], stops[(k + 1) % n]), "side {k}");
+        }
+        assert!(start.elapsed().as_secs_f64() < 5.0, "20 runs took {:?}", start.elapsed());
     }
 
     /// Proptest shrank a failure of `pieces_cut_out_of_their_inputs` to this input with linesweeper

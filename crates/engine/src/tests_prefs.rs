@@ -1,6 +1,8 @@
 //! Preferences: `prefs.get` / `prefs.set` / `prefs.reset` / `prefs.list`.
 
 use serde_json::{Value, json};
+use vectorcraft_doc::NodeKind;
+use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use super::*;
 use crate::cmd::prefscmds::{PREF_CATEGORIES, PREF_GROUPS, PREF_SPECS, validate};
@@ -458,6 +460,24 @@ fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
     s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": false})).unwrap();
     for (tool, c) in own {
         assert_eq!(cursor(&mut s, tool), c, "{tool} off again");
+    }
+}
+
+/// With Alt held, the Pencil and the Paintbrush show their closing cursors, and Use Precise Cursors turns those into
+/// a crosshair too.
+#[test]
+fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
+    use vectorcraft_tools::{Cursor, Mods};
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    let at = vectorcraft_geom::Point::new(300.0, 300.0);
+    let alt = Mods { alt: true, ..Default::default() };
+    for precise in [false, true] {
+        s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": precise})).unwrap();
+        for (tool, c) in [("pencil", Cursor::PencilClose), ("paintbrush", Cursor::PaintbrushClose)] {
+            s.select_tool(tool, ViewInfo::default()).unwrap();
+            assert_eq!(s.cursor(at, alt, ViewInfo::default()), if precise { Cursor::Crosshair } else { c }, "{tool}, precise {precise}");
+        }
     }
 }
 
@@ -1352,6 +1372,17 @@ fn show_font_names_in_english_preference_is_stored() {
     assert!(s.prefs.font_names_in_english);
 }
 
+/// Preferences › Devices › Enable Touch Workspace (#394): stored and restored through `prefs.set`.
+#[test]
+fn touch_workspace_preference_is_stored() {
+    let mut s = Session::new();
+    assert!(s.prefs.touch_workspace, "on by default");
+    set_pref(&mut s, "touchWorkspace", json!(false));
+    assert!(!s.prefs.touch_workspace);
+    set_pref(&mut s, "touchWorkspace", json!(true));
+    assert!(s.prefs.touch_workspace);
+}
+
 /// Preferences › Type › Highlight Alternate Glyphs (#394): off by default so OpenType
 /// substitutions are not pink on every canvas until the user turns the preference on.
 #[test]
@@ -1362,6 +1393,141 @@ fn highlight_alternate_glyphs_preference_is_off_by_default() {
     assert!(s.prefs.highlight_alternate_glyphs);
     set_pref(&mut s, "highlightAlternateGlyphs", json!(false));
     assert!(!s.prefs.highlight_alternate_glyphs);
+}
+
+/// Preferences › Performance › Real-time Drawing and Editing (#394): off, the document isn't
+/// previewed while dragging but the pending shape still shows as a canvas overlay until commit.
+#[test]
+fn real_time_drawing_off_skips_tool_previews_until_commit() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    let v = ViewInfo::default();
+    s.select_tool("rectangle", v).unwrap();
+    set_pref(&mut s, "realTimeDrawing", json!(false));
+    let paths = |s: &Session| {
+        s.doc()
+            .unwrap()
+            .doc
+            .layers
+            .first()
+            .and_then(|l| l.children())
+            .map_or(0, |c| c.iter().filter(|n| matches!(n.kind, NodeKind::Path { .. })).count())
+    };
+    let rev = s.doc().unwrap().revision;
+    assert_eq!(paths(&s), 0);
+    s.pointer(&PointerEvent::new(PointerKind::Down, 50.0, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 150.0, 150.0), v).unwrap();
+    assert_eq!(s.doc().unwrap().revision, rev, "no preview steps");
+    assert_eq!(paths(&s), 0, "the rectangle isn't in the document yet");
+    assert!(s.overlays(v).iter().any(|o| matches!(o, vectorcraft_tools::Overlay::Path { .. })), "the deferred rectangle shows as an outline");
+    s.pointer(&PointerEvent::new(PointerKind::Up, 150.0, 150.0), v).unwrap();
+    assert!(s.doc().unwrap().revision > rev, "commit applies the shape");
+    assert_eq!(paths(&s), 1);
+    set_pref(&mut s, "realTimeDrawing", json!(true));
+    let rev = s.doc().unwrap().revision;
+    s.pointer(&PointerEvent::new(PointerKind::Down, 200.0, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 280.0, 120.0), v).unwrap();
+    assert!(s.doc().unwrap().revision > rev, "on again: previews run while dragging");
+}
+
+/// Real-time Drawing turned on mid-drag still applies the deferred preview on commit.
+#[test]
+fn real_time_drawing_turned_on_mid_drag_still_commits_deferred_preview() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    let v = ViewInfo::default();
+    s.select_tool("rectangle", v).unwrap();
+    set_pref(&mut s, "realTimeDrawing", json!(false));
+    let paths = |s: &Session| {
+        s.doc()
+            .unwrap()
+            .doc
+            .layers
+            .first()
+            .and_then(|l| l.children())
+            .map_or(0, |c| c.iter().filter(|n| matches!(n.kind, NodeKind::Path { .. })).count())
+    };
+    s.pointer(&PointerEvent::new(PointerKind::Down, 50.0, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 150.0, 150.0), v).unwrap();
+    assert_eq!(paths(&s), 0);
+    set_pref(&mut s, "realTimeDrawing", json!(true));
+    s.pointer(&PointerEvent::new(PointerKind::Up, 150.0, 150.0), v).unwrap();
+    assert_eq!(paths(&s), 1, "the deferred rectangle is committed");
+}
+
+/// Repeated overlay redraws with Real-time Drawing off reuse the cached deferred feedback.
+#[test]
+fn deferred_preview_overlays_are_cached_across_redraws() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    let v = ViewInfo::default();
+    s.select_tool("rectangle", v).unwrap();
+    set_pref(&mut s, "realTimeDrawing", json!(false));
+    s.pointer(&PointerEvent::new(PointerKind::Down, 50.0, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 150.0, 150.0), v).unwrap();
+    let rev = s.doc().unwrap().revision;
+    let count = |s: &mut Session| s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Path { .. })).count();
+    let first = count(&mut s);
+    assert!(first > 0);
+    assert_eq!(s.doc().unwrap().revision, rev);
+    let second = count(&mut s);
+    assert_eq!(first, second);
+    assert_eq!(s.doc().unwrap().revision, rev, "the preview command is not run again");
+}
+
+/// A deferred commit that fails its preview cancels the interaction instead of leaving it open.
+#[test]
+fn deferred_commit_preview_failure_cancels_interaction() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    set_pref(&mut s, "realTimeDrawing", json!(false));
+    s.begin_interaction("Bad").unwrap();
+    s.doc_mut().unwrap().interaction.as_mut().unwrap().preview = Some(("no.such.command".into(), json!({})));
+    s.apply_actions(vec![vectorcraft_tools::Action::Commit]).unwrap();
+    assert!(s.doc().unwrap().interaction.is_none());
+}
+
+/// A deferred commit applies preview warnings to the UI, as live previews do.
+#[test]
+fn deferred_commit_forwards_preview_warnings() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+    let rect = s.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 200, "height": 200})).unwrap();
+    let text = s.execute("text.create", &json!({"x": 300, "y": 200, "text": "Hi"})).unwrap();
+    s.execute("select.set", &json!({"ids": [rect["id"], text["id"]]})).unwrap();
+    set_pref(&mut s, "realTimeDrawing", json!(false));
+    s.begin_interaction("Bloat").unwrap();
+    let p = json!({"tool": "bloat", "points": [[290.0, 200.0]], "width": 200.0, "height": 200.0});
+    s.doc_mut().unwrap().interaction.as_mut().unwrap().preview = Some(("object.liquify".into(), p));
+    let ui = s.apply_actions(vec![vectorcraft_tools::Action::Commit]).unwrap();
+    assert!(ui.iter().any(|r| matches!(r, UiRequest::Status(m) if m.contains("type"))), "{ui:?}");
+}
+
+/// File Handling › Use Low Resolution Proxy for Linked EPS (#394): off by default; toggling it does
+/// not replace full-resolution pixels already in the document.
+#[test]
+fn low_res_proxy_eps_preference_does_not_swap_full_resolution_pixels() {
+    use crate::tests_links::{Folder, RED, place, png, save, write};
+    let dir = Folder::new("eps-proxy-pref");
+    let pic = dir.file("photo.eps");
+    write(&pic, &png(600, 300, RED));
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+    assert!(!s.prefs.low_res_proxy_eps);
+    let id = place(&mut s, &pic);
+    let doc_path = dir.file("doc.vectorcraft");
+    save(&mut s, &doc_path);
+    s.execute("links.update", &json!({})).unwrap();
+    let key = {
+        let st = s.doc().unwrap();
+        let NodeKind::Image(im) = &st.doc.node(id).unwrap().kind else { panic!("image") };
+        im.key.clone()
+    };
+    assert!(!s.doc().unwrap().doc.images[&key].is_proxy());
+    set_pref(&mut s, "lowResProxyEps", json!(true));
+    assert!(!s.doc().unwrap().doc.images[&key].is_proxy(), "full pixels stay in the document");
+    set_pref(&mut s, "lowResProxyEps", json!(false));
+    assert!(!s.prefs.low_res_proxy_eps);
 }
 
 /// Preferences › Hyphenation › Exceptions (#394): `prefs.set` pushes the list into the hyphenator

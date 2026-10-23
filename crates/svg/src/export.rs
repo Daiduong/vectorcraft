@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::sync::Arc;
 
-use vectorcraft_color::{BlendMode, GradientKind, GradientPaint, Paint};
+use vectorcraft_color::{BlendMode, Color, GradientKind, GradientPaint, Paint};
 use vectorcraft_doc::{
     AppearanceItem, Document, FillLayer, LineCap, LineJoin, Node, NodeId, NodeKind, SVG_EVENTS, StrokeAlign, StrokeLayer, TextKind, TextObject,
 };
@@ -133,9 +133,13 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         out.push_str(&w.indent(1));
         out.push_str(&format!("</defs>{nl}"));
     }
-    if !doc.title.is_empty() {
+    // An artboard exported on its own is named after it (#3544), else after the document.
+    // A name that is blank once the characters XML can't hold are dropped falls back too.
+    let board = opts.artboard.filter(|_| opts.artboard_title).and_then(|i| doc.artboards.get(i)).map(|a| xml_text(&a.name));
+    let title = board.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| xml_text(&doc.title));
+    if !title.is_empty() {
         out.push_str(&w.indent(1));
-        out.push_str(&format!("<title>{}</title>{nl}", xml_text(&doc.title)));
+        out.push_str(&format!("<title>{title}</title>{nl}"));
     }
     // File Info's description.
     if !doc.metadata.description.trim().is_empty() {
@@ -1043,7 +1047,7 @@ impl Writer<'_> {
             && strokes <= 1
             && !items.iter().any(|i| has_raster(i.effects()))
             && items.iter().all(|i| i.blend() == BlendMode::Normal)
-            && !items.iter().any(|i| freeform(i.paint()).is_some())
+            && !items.iter().any(|i| pixel_gradient(i.paint(), matches!(i, AppearanceItem::Fill(_))).is_some())
             && plans.iter().flatten().all(|p| matches!(p, StrokePlan::Written(Written { shape: WrittenShape::Stroke { .. }, side: None })));
         if simple {
             let mut p = Props::new();
@@ -1077,10 +1081,10 @@ impl Writer<'_> {
             match (it, plan) {
                 (AppearanceItem::Fill(f), _) => {
                     let blend = (f.blend != BlendMode::Normal).then(|| ("mix-blend-mode", blend_css(f.blend).to_string()));
-                    if let (Some(g), Some(b)) = (freeform(&f.paint), bounds) {
+                    if let (Some(g), Some(b)) = (pixel_gradient(&f.paint, true), bounds) {
                         p.extend((f.opacity < 1.0).then(|| ("opacity", fmt_num(f.opacity as f64, 3))));
                         p.extend(blend);
-                        self.raster_paint(g, b, &[d.to_string()], rule, &p, "");
+                        self.raster_paint(g, b, &[d.to_string()], rule, &p, "", true);
                     } else {
                         self.fill_props(f, rule, bounds, &mut p);
                         p.extend(blend);
@@ -1109,7 +1113,7 @@ impl Writer<'_> {
                     let side = self.side_attr(w.side, d, rule, w.reach(s, bounds.unwrap_or_default()));
                     let blend = (s.blend != BlendMode::Normal).then(|| ("mix-blend-mode", blend_css(s.blend).to_string()));
                     let opacity = (s.opacity < 1.0).then(|| ("opacity", fmt_num(s.opacity as f64, 3)));
-                    match (&w.shape, freeform(&s.paint).zip(paint_bounds(s))) {
+                    match (&w.shape, pixel_gradient(&s.paint, false).zip(paint_bounds(s))) {
                         (WrittenShape::Stroke { width }, Some((g, b))) => {
                             // The stroke's outline clips the gradient's image.
                             let bp = bp.get_or_insert_with(|| doc_path(paths));
@@ -1117,13 +1121,13 @@ impl Writer<'_> {
                             let clip = self.path_d(&PathData::from_bezpath(&outline), self.xf);
                             p.extend(opacity);
                             p.extend(blend);
-                            self.raster_paint(g, b, &[clip], FillRule::NonZero, &p, &side);
+                            self.raster_paint(g, b, &[clip], FillRule::NonZero, &p, &side, false);
                         }
                         (WrittenShape::Fill(outlines), Some((g, b))) if s.path_gradient().is_none() => {
                             let clip: Vec<String> = outlines.iter().map(|o| self.path_d(&PathData::from_bezpath(o), self.xf)).collect();
                             p.extend(opacity);
                             p.extend(blend);
-                            self.raster_paint(g, b, &clip, FillRule::NonZero, &p, &side);
+                            self.raster_paint(g, b, &clip, FillRule::NonZero, &p, &side, false);
                         }
                         (WrittenShape::Stroke { width }, _) => {
                             p.push(("fill", "none".into()));
@@ -1530,24 +1534,40 @@ impl Writer<'_> {
         name
     }
 
-    /// A freeform gradient `g` painted over `bounds` (the space [`Self::xf`] maps into user
-    /// space), which SVG can't express: an `<image>` of the colour field over its painted box,
-    /// sampled as the canvas samples it (at twice the box's size in points) and clipped to
-    /// `clip` (outlines in user space filled by `rule`), in a group with `props` and the `side`
-    /// attribute. Nothing is written for an empty box.
-    fn raster_paint(&mut self, g: &GradientPaint, bounds: Rect, clip: &[String], rule: FillRule, props: &Props, side: &str) {
+    /// A gradient `g` painted over `bounds` (the space [`Self::xf`] maps into user space) that is
+    /// drawn as pixels ([`GradientPaint::draws_as_pixels`]) when it paints a fill (`fill`) or a
+    /// stroke: an `<image>` over its painted box, clipped to `clip` (outlines in user space filled
+    /// by `rule`), in a group with `props` and the `side` attribute. A freeform gradient's colour
+    /// field, which SVG can't express, is sampled as the canvas samples it (at twice the box's size
+    /// in points); a linear or radial gradient at the document's raster effects resolution (at most
+    /// [`MAX_GRADIENT_PX`] a side), with dither's noise on a fill. Nothing is written for an empty
+    /// box.
+    #[allow(clippy::too_many_arguments)]
+    fn raster_paint(&mut self, g: &GradientPaint, bounds: Rect, clip: &[String], rule: FillRule, props: &Props, side: &str, fill: bool) {
         use vectorcraft_color::freeform::{grid_size, painted_box, spread_scale};
         let Some(b) = painted_box(bounds) else { return };
-        let (cols, rows) = grid_size(b, 2.0 * b.width().max(b.height()));
-        let field = g.freeform_on(b).field(spread_scale(b));
-        let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
-        let rgba: Vec<u8> = field.grid(b, cols, rows).flat_map(|([r, g, bl], a)| [q(r), q(g), q(bl), q(a)]).collect();
+        let freeform = g.gradient.kind == GradientKind::Freeform;
+        let (rgba, cols, rows): (Vec<u8>, u16, u16) = if freeform {
+            let (cols, rows) = grid_size(b, 2.0 * b.width().max(b.height()));
+            let field = g.freeform_on(b).field(spread_scale(b));
+            let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+            (field.grid(b, cols, rows).flat_map(|([r, g, bl], a)| [q(r), q(g), q(bl), q(a)]).collect(), cols, rows)
+        } else {
+            let k = self.doc.raster_effects_ppi / 72.0;
+            let along = |len: f64| (len * k).ceil().clamp(1.0, MAX_GRADIENT_PX) as u16;
+            let (cols, rows) = (along(b.width()), along(b.height()));
+            (g.pixels(b, b, cols, rows, fill, &Color::to_rgb).flatten().collect(), cols, rows)
+        };
         let mut png = Vec::new();
         let Some(img) = image::RgbaImage::from_raw(u32::from(cols), u32::from(rows), rgba) else { return };
         if img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).is_err() {
             return;
         }
-        self.warn("freeform gradients are written as images clipped to their shapes");
+        self.warn(if freeform {
+            "freeform gradients are written as images clipped to their shapes"
+        } else {
+            "linear and radial gradients drawn as pixels are written as images clipped to their shapes"
+        });
         let href = self.blob_href(&ImageBlob::new("image/png", png));
         let cid = self.fresh_id("clip-path");
         let r = if rule == FillRule::EvenOdd { " clip-rule=\"evenodd\"" } else { "" };
@@ -1758,6 +1778,12 @@ impl Writer<'_> {
         // Character paints resolve in the text's space (`to_user` maps it into user space).
         let (bounds, to_user) = space;
         let saved = std::mem::replace(&mut self.xf, to_user);
+        if let Paint::Gradient(g) = &st.fill
+            && g.gradient.dither
+            && g.gradient.kind != GradientKind::Freeform
+        {
+            self.warn("dithered gradients on characters are written without dither");
+        }
         let fill = self.paint(&st.fill, Some(bounds));
         p.push(("fill", fill));
         // An inside or outside stroke is drawn on the glyph outlines instead
@@ -1787,7 +1813,8 @@ impl Writer<'_> {
         let resolved = doc.inline_resolved(t);
         let t = &*resolved;
         let inline = t.runs.iter().any(|r| r.inline.is_some());
-        let outlined = self.opts.outline_text || t.vertical || (inline && matches!(t.kind, TextKind::OnPath { .. }));
+        // Ruby is written as outlines with its base text: a reader's <text> can't place it.
+        let outlined = self.opts.outline_text || t.vertical || !t.ruby.is_empty() || (inline && matches!(t.kind, TextKind::OnPath { .. }));
         let chars = |w: &mut Self, n: &Node| if outlined { w.text_outlines(n, t) } else { w.text(n, t) };
         let painted = n.appearance.items.iter().any(|i| i.visible() && !i.paint().is_none());
         // Live type with an inside or outside character stroke writes that stroke apart from the
@@ -1842,9 +1869,16 @@ impl Writer<'_> {
         let db = vectorcraft_text::FontDb::global();
         let lay = vectorcraft_text::layout(db, t);
         let mut runs: Vec<(usize, kurbo::BezPath)> = vec![];
-        // Underline and strikethrough bars join their run's outlines.
+        // Underline and strikethrough bars join their run's outlines; ruby glyphs are painted
+        // with the run of the text they annotate.
         let bars = vectorcraft_text::decorations(&lay, db, t);
-        for (run, outline) in lay.glyphs.iter().map(|g| (g.run, &g.outline)).chain(bars.iter().map(|(r, b)| (*r, b))) {
+        for (run, outline) in lay
+            .glyphs
+            .iter()
+            .map(|g| (g.run, &g.outline))
+            .chain(lay.ruby.iter().map(|g| (g.run, &g.outline)))
+            .chain(bars.iter().map(|(r, b)| (*r, b)))
+        {
             match runs.iter_mut().find(|(r, _)| *r == run) {
                 Some((_, bp)) => bp.extend(outline.iter()),
                 None => runs.push((run, outline.clone())),
@@ -1865,6 +1899,17 @@ impl Writer<'_> {
             let d = self.path_d(&pd, self.xf);
             self.shape(&glyphs, &d, &[&pd], FillRule::NonZero, Some(lay.bounds));
         }
+        // Colour bitmap glyphs (emoji): their images, which the runs' paint doesn't paint.
+        for (image, to_text) in lay.glyphs.iter().filter_map(|g| g.placed_image()) {
+            let m = self.matrix(self.xf * to_text);
+            let href = self.blob_href(&image.blob);
+            self.line(&format!(
+                "<image width=\"{}\" height=\"{}\" transform=\"{m}\" preserveAspectRatio=\"none\" xlink:href=\"{}\"/>",
+                image.width,
+                image.height,
+                xml_escape(&href)
+            ));
+        }
         self.xf = saved;
         self.depth -= 1;
         self.line("</g>");
@@ -1877,9 +1922,11 @@ impl Writer<'_> {
     fn text(&mut self, n: &Node, t: &TextObject) {
         // Live SVG text is written in logical order from left-aligned pieces: bidirectional text
         // (and right-to-left paragraphs) keep their look as outlines until it is written with
-        // `direction`/`unicode-bidi`.
+        // `direction`/`unicode-bidi`. So do runs set Right to Left (Character Direction), whose
+        // `direction="rtl"` would anchor their pieces at the right end.
         let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
-        if lay.glyphs.iter().any(|g| g.rtl) || lay.lines.iter().any(|l| l.rtl) {
+        let rtl_runs = t.runs.iter().any(|r| r.style.char_direction == Some(vectorcraft_doc::ParaDirection::RightToLeft));
+        if lay.glyphs.iter().any(|g| g.rtl) || lay.lines.iter().any(|l| l.rtl) || rtl_runs {
             self.warn("bidirectional text is outlined to preserve shaping and visual order");
             return self.text_outlines(n, t);
         }
@@ -1890,10 +1937,18 @@ impl Writer<'_> {
                 self.warn("type on a path with an end bracket, Align to Path or Spacing is outlined to keep its look");
                 return self.text_outlines(n, t);
             }
+            // It cannot hang glyphs outside the start bracket either.
+            if hangs_on_path(t, &lay) {
+                self.warn("type on a path with glyphs hanging outside its brackets is outlined to keep its look");
+                return self.text_outlines(n, t);
+            }
             return self.text_on_path(n, t, path, *start);
         }
         self.note_fonts(t, &lay);
         let lines = text_lines(t, &lay, self.opts.fewer_tspans);
+        // `drawn` holds the styles the layout draws the text in: Shrink Text to Fit scales its sizes, explicit leading and baseline shifts.
+        let fitted = (lay.fit_scale != 1.0).then(|| vectorcraft_text::scaled(t, lay.fit_scale));
+        let drawn = fitted.as_ref().unwrap_or(t);
         // Each line is anchored as its paragraph is aligned. A tab starts a new chunk at its
         // stop, and so does the text after an inline graphic: lines with tabs, and text with
         // inline graphics, are never anchored.
@@ -1914,7 +1969,7 @@ impl Writer<'_> {
         let uniform = anchors.first().copied().filter(|a| a.is_some() && anchors.iter().all(|b| b == a)).flatten();
         // The <text> element's user space is text space.
         let space = (lay.bounds, Affine::IDENTITY);
-        let base = TextBase { props: self.char_props(&t.first_style(), space), space, anchored: uniform.is_some() };
+        let base = TextBase { props: self.char_props(&drawn.first_style(), space), space, anchored: uniform.is_some() };
         let mut props = base.props.clone();
         if let Some((a, _)) = uniform {
             props.push(("text-anchor", a.into()));
@@ -1939,10 +1994,10 @@ impl Writer<'_> {
                 Some((a, _)) => {
                     s.push_str(&format!("<tspan x=\"{}\" y=\"{}\" text-anchor=\"{a}\">", self.num(start.0), self.num(start.1)));
                     let inner = TextBase { anchored: true, ..base.clone() };
-                    self.text_line(&mut s, t, &line.segs, start, &inner, false);
+                    self.text_line(&mut s, drawn, &line.segs, start, &inner, false);
                     s.push_str("</tspan>");
                 }
-                None => self.text_line(&mut s, t, &line.segs, start, &base, true),
+                None => self.text_line(&mut s, drawn, &line.segs, start, &base, true),
             }
         }
         s.push_str("</text>");
@@ -2019,7 +2074,8 @@ impl Writer<'_> {
             if st.rotation != 0.0 {
                 attrs.push_str(&format!(" rotate=\"{}\"", self.num(-st.rotation)));
             }
-            let diff = run_diff(&base.props, self.char_props(st, base.space));
+            let mut diff = run_diff(&base.props, self.char_props(st, base.space));
+            diff.extend(direction_props(st));
             attrs.push_str(&self.attrs(&diff));
             let text = xml_text(&seg.text);
             if attrs.is_empty() && fewer {
@@ -2047,6 +2103,11 @@ impl Writer<'_> {
         let mut face: Option<Arc<FontFace>> = None;
         for g in &lay.glyphs {
             let Some(st) = t.runs.get(g.run).map(|r| &r.style) else { continue };
+            // A colour bitmap font's subset would hold no bitmaps: its emoji are left to the viewer.
+            if g.image.is_some() {
+                self.warn("colour emoji fonts are not embedded: viewers show emoji in their own fonts");
+                continue;
+            }
             if face.as_ref().is_none_or(|f| f.id() != g.font_id) {
                 face = db.face_by_id(g.font_id);
             }
@@ -2149,7 +2210,8 @@ impl Writer<'_> {
         let offset = fmt_num(start * 100.0, 3);
         let mut s = format!("<text{id} xml:space=\"preserve\"{a}><textPath xlink:href=\"#{pid}\" startOffset=\"{offset}%\">");
         for run in &t.runs {
-            let diff = run_diff(&base, self.char_props(&run.style, space));
+            let mut diff = run_diff(&base, self.char_props(&run.style, space));
+            diff.extend(direction_props(&run.style));
             let a = self.attrs(&diff);
             s.push_str(&format!("<tspan{a}>{}</tspan>", xml_text(&run.text.replace('\n', " "))));
         }
@@ -2162,6 +2224,34 @@ impl Writer<'_> {
 /// Does a character style stroke inside or outside its glyphs (not centred)?
 fn aligned(st: &CharStyle) -> bool {
     st.has_stroke() && st.stroke_align != StrokeAlign::Center
+}
+
+/// Does type on a path `t`, laid out as `lay`, hang glyphs outside its brackets? It does when
+/// Optical Margin Alignment or its first paragraph's Roman Hanging Punctuation is on and its
+/// glyphs sit elsewhere with both off.
+fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
+    if !t.optical_margin && !t.para_at(0).roman_hanging {
+        return false;
+    }
+    let mut flush = t.clone();
+    flush.optical_margin = false;
+    let mut styles = flush.paragraph_styles();
+    for p in &mut styles {
+        p.roman_hanging = false;
+    }
+    flush.set_paragraph_styles(styles);
+    let flush = vectorcraft_text::layout(FontDb::global(), &flush);
+    lay.glyphs.len() != flush.glyphs.len() || lay.glyphs.iter().zip(&flush.glyphs).any(|(a, b)| a.origin != b.origin)
+}
+
+/// The `direction` and `unicode-bidi` of a `<tspan>` of characters in style `st`: an embedding in
+/// its Character Direction, and nothing without one. Each `<tspan>` of characters with a direction
+/// carries them, and the `<text>` does not. Type with a run set Right to Left is written as
+/// outlines ([`Writer::text`]), so live text writes `direction="ltr"` only.
+fn direction_props(st: &CharStyle) -> Props {
+    let Some(d) = st.char_direction else { return Props::new() };
+    let direction = if d == vectorcraft_doc::ParaDirection::RightToLeft { "rtl" } else { "ltr" };
+    vec![("direction", direction.into()), ("unicode-bidi", "embed".into())]
 }
 
 /// What the `<tspan>` of a run whose properties are `run` sets over its `<text>`'s `base`: the
@@ -2200,10 +2290,14 @@ fn doc_path(paths: &[&PathData]) -> BezPath {
 /// How closely stroke outlines that clip an image follow the stroke (points).
 const OUTLINE_TOLERANCE: f64 = 0.01;
 
-/// The freeform gradient a paint is, if it is one (SVG has no freeform gradients).
-fn freeform(p: &Paint) -> Option<&GradientPaint> {
+/// Most pixels along a side of a linear or radial gradient's image.
+const MAX_GRADIENT_PX: f64 = 4096.0;
+
+/// The gradient a fill (`fill`) or stroke paint is, if it is drawn as pixels
+/// ([`GradientPaint::draws_as_pixels`]; SVG has no freeform gradients, for one).
+fn pixel_gradient(p: &Paint, fill: bool) -> Option<&GradientPaint> {
     match p {
-        Paint::Gradient(g) if g.gradient.kind == GradientKind::Freeform => Some(g),
+        Paint::Gradient(g) if g.draws_as_pixels(fill) => Some(g),
         _ => None,
     }
 }

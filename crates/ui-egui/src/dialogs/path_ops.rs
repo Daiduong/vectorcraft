@@ -72,8 +72,8 @@ fn split_grid(ui: &mut egui::Ui, d: &mut Dialog, unit: Unit) {
     egui::Grid::new("dlg").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
         for (number, label, ..) in axes {
             form::row_label(ui, label);
-            if let Some(v) = crate::widgets::plain_field(ui, ("dlg-num", number), d.f64(number, 2.0), "", 0, WIDTH) {
-                d.fields.insert(number.into(), json!(v.round().clamp(1.0, 500.0)));
+            if let Some(v) = crate::widgets::range_field(ui, ("dlg-num", number), d.f64(number, 2.0), 1.0..=500.0, "", 0, WIDTH) {
+                d.fields.insert(number.into(), json!(v));
             }
         }
         ui.end_row();
@@ -193,7 +193,9 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     }
     // The fields as the dialog held them, so they show as typed when it opens again.
     if d.kind == "offsetPath" {
-        let kept = ["offset", "joins", "miterLimit"].into_iter().filter_map(|k| Some((k.to_string(), d.fields.get(k)?.clone())));
+        // Preview among them: the checkbox keeps its last state across opens (#3195), as
+        // Simplify's retained fields keep theirs.
+        let kept = ["offset", "joins", "miterLimit", "preview"].into_iter().filter_map(|k| Some((k.to_string(), d.fields.get(k)?.clone())));
         app.ui.offset_path = Value::Object(kept.collect());
     }
     Ok(r)
