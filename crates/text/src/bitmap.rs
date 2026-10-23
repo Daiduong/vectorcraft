@@ -83,8 +83,8 @@ pub(crate) fn glyph_image(font: &skrifa::FontRef<'_>, upem: f64, gid: u32) -> Op
 /// decoder unpacks it before it reads the image, whatever size the image says.
 fn has_compressed_metadata(bytes: &[u8]) -> bool {
     let mut at = 8;
-    while let Some(head) = bytes.get(at..at + 8) {
-        if matches!(&head[4..], b"iCCP" | b"zTXt" | b"iTXt" | b"eXIf") {
+    while let Some(head) = at.checked_add(8).and_then(|end| bytes.get(at..end)) {
+        if matches!(&head[4..], b"iCCP" | b"zTXt" | b"iTXt") {
             return true;
         }
         let len = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
