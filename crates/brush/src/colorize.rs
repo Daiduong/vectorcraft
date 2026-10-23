@@ -79,7 +79,7 @@ pub fn colorize(n: &mut Node, mode: Colorization, stroke: &Paint) {
         }
         // A mask's art is drawn too: a brush on its strokes would run this brush again. Its colours
         // are the mask's values, so they stay.
-        if let Some(m) = n.mask.as_mut() {
+        if let Some(m) = n.extras_if_any().and_then(|e| e.mask.as_mut()) {
             strip_brushes(Arc::make_mut(&mut m.art));
         }
     }
@@ -98,7 +98,7 @@ fn strip_brushes(n: &mut Node) {
             strip_brushes(Arc::make_mut(c));
         }
     }
-    if let Some(m) = n.mask.as_mut() {
+    if let Some(m) = n.extras_if_any().and_then(|e| e.mask.as_mut()) {
         strip_brushes(Arc::make_mut(&mut m.art));
     }
 }
