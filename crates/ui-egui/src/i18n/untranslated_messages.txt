@@ -34,6 +34,7 @@ JSON recovery transport exceeds 8 MiB; use the binary adapter
 PDF content is incomplete or exceeds the reader's limits; no document was imported
 PDF flattener: {e}
 PDF options: {e}
+PDF security settings are not an object
 SVG is not UTF-8, UTF-16 or ISO 8859-1
 Save writes one artboard: name one, or export several with document.export
 Select a dimension first
