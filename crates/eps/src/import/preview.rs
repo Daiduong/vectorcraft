@@ -98,6 +98,10 @@ fn epsi(ps: &[u8]) -> Option<image::RgbaImage> {
         hex.extend(l.strip_prefix('%')?.bytes().filter(u8::is_ascii_hexdigit));
     }
     let bytes = super::lex::hex_decode(&hex)?;
+    // A preview with its samples missing is none, not a blank image of the size it claims.
+    if bytes.len() < row * h {
+        return None;
+    }
     let max = (1u32 << depth) - 1;
     let mut img = image::RgbaImage::new(w as u32, h as u32);
     for (x, y, px) in img.enumerate_pixels_mut() {
