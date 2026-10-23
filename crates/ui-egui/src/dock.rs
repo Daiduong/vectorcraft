@@ -351,9 +351,20 @@ pub(crate) fn segment_track(tabs: Rect) -> Rect {
     tabs.shrink2(vec2(0.0, 4.0))
 }
 
-/// The raised chip of the segmented tab `tab` on `track`, two points inside the track.
-pub(crate) fn segment_chip(tab: Rect, track: Rect) -> Rect {
-    Rect::from_x_y_ranges(tab.x_range(), track.y_range()).intersect(track).shrink(2.0)
+/// The raised chip of the segmented tab `tab` on `track`, two points inside the track; `None` when
+/// the tab's part of the track can't hold those margins (a strip squeezed to a few points).
+pub(crate) fn segment_chip(tab: Rect, track: Rect) -> Option<Rect> {
+    let under = Rect::from_x_y_ranges(tab.x_range(), track.y_range()).intersect(track);
+    (under.width() > 4.0 && under.height() > 4.0).then(|| under.shrink(2.0))
+}
+
+/// The track and the chip of a segmented strip whose tabs span `span`, the one in front at
+/// `front`: the track stands off the column's edge by [`SEGMENT_INSET`] when the tabs are wider
+/// than that, else it keeps their whole span.
+pub(crate) fn segment_layout(span: Rect, front: Option<Rect>) -> (Rect, Option<Rect>) {
+    let span = if span.width() > SEGMENT_INSET { Rect::from_min_max(span.min + vec2(SEGMENT_INSET, 0.0), span.max) } else { span };
+    let track = segment_track(span);
+    (track, front.and_then(|tab| segment_chip(tab, track)))
 }
 
 pub(crate) fn panel_tabs(
@@ -389,7 +400,7 @@ pub(crate) fn panel_tabs(
         let mut chip = None;
         for &(i, width) in &fit.shown {
             if i == selected {
-                chip = Some(segment_chip(Rect::from_min_size(egui::pos2(x, area.top()), vec2(width, area.height())), track));
+                chip = segment_chip(Rect::from_min_size(egui::pos2(x, area.top()), vec2(width, area.height())), track);
             }
             x += width;
         }
@@ -643,6 +654,71 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// A segmented strip squeezed to a few points (a group with 23–27 pt left after its header, its
+    /// tab in front 1–5 pt wide): the track keeps the tabs' span rather than an inset larger than
+    /// it, and a tab too narrow for the chip's 2 pt margins gets no chip, never an inverted rect.
+    #[test]
+    fn a_squeezed_segmented_strip_draws_no_chip_and_no_inverted_rect() {
+        let valid = |r: Rect| r.is_finite() && r.width() >= 0.0 && r.height() >= 0.0;
+        for span_width in [0.0, 1.0, 3.0, 5.0, 6.0, 7.0, 23.0, 25.0, 27.0, 120.0] {
+            for front_width in [0.0_f32, 1.0, 3.0, 5.0, 40.0] {
+                let span = Rect::from_min_size(egui::pos2(100.0, 10.0), vec2(span_width, 33.0));
+                let front =
+                    Rect::from_min_size(egui::pos2(span.right() - front_width.min(span_width), 10.0), vec2(front_width.min(span_width), 33.0));
+                let (track, chip) = segment_layout(span, Some(front));
+                assert!(valid(track) && span.contains_rect(track), "{span_width} {front_width}: track {track:?} in {span:?}");
+                if span_width > SEGMENT_INSET {
+                    assert_eq!(track.left(), span.left() + SEGMENT_INSET, "{span_width}: inset");
+                }
+                match chip {
+                    Some(chip) => assert!(chip.is_positive() && track.contains_rect(chip), "{span_width} {front_width}: {chip:?} in {track:?}"),
+                    None => assert!(front.intersect(track).width() <= 4.0, "{span_width} {front_width}: room for a chip"),
+                }
+            }
+        }
+        assert_eq!(
+            segment_chip(
+                Rect::from_min_size(egui::pos2(0.0, 0.0), vec2(3.0, 33.0)),
+                segment_track(Rect::from_min_size(egui::Pos2::ZERO, vec2(3.0, 33.0)))
+            ),
+            None
+        );
+        // The dock's strip in Quiet at those widths: no chip on a tab too narrow for one, and no
+        // inverted rect anywhere.
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx);
+        theme::apply_with(&ctx, theme::Brightness::MediumDark, theme::Accent::default(), theme::Scheme::Quiet);
+        let t = Tokens::get(&ctx);
+        let names = [("properties", "Properties"), ("layers", "Layers"), ("libraries", "Libraries")];
+        let mut squeezed = false;
+        for width in [20.0, 23.0, 24.0, 25.0, 26.0, 27.0, 30.0] {
+            for selected in 0..names.len() {
+                let area = Rect::from_min_size(egui::pos2(20.0, 20.0), vec2(width, 32.0));
+                let mut front = None;
+                let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                    let out = panel_tabs(ui, "squeezed", area, &names, selected, theme::semibold(12.5), true);
+                    front = out.responses.iter().find(|(i, _)| *i == selected).map(|(_, r)| r.rect);
+                });
+                output.textures_delta.clear();
+                let rects: Vec<&egui::epaint::RectShape> = output
+                    .shapes
+                    .iter()
+                    .filter_map(|s| match &s.shape {
+                        egui::Shape::Rect(r) => Some(r),
+                        _ => None,
+                    })
+                    .collect();
+                assert!(rects.iter().all(|r| valid(r.rect)), "{width}: {rects:?}");
+                let chips: Vec<_> = rects.iter().filter(|r| r.fill == t.button && r.corner_radius == theme::PILL).collect();
+                if front.is_none_or(|f| f.width() <= 4.0) {
+                    squeezed = true;
+                    assert!(chips.is_empty(), "{width} {selected}: no chip on {front:?}: {chips:?}");
+                }
+            }
+        }
+        assert!(squeezed, "some width leaves the tab in front too narrow for a chip");
     }
 
     #[test]

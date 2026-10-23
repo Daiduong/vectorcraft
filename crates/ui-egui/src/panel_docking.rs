@@ -1280,8 +1280,9 @@ fn reserve_segments(ui: &egui::Ui, area: egui::Id, display: &Layout<String>) -> 
 }
 
 /// The segmented track under the tabs the shared surface drew for each group of `segments`
-/// ([`reserve_segments`]), and the raised chip under the one in front. The track stands off the
-/// column's edge by [`crate::dock::SEGMENT_INSET`].
+/// ([`reserve_segments`]), and the raised chip under the one in front
+/// ([`crate::dock::segment_layout`]: inset from the column's edge when the tabs are wide enough,
+/// no chip on a tab too narrow for one).
 fn paint_segments(
     ctx: &egui::Context,
     area: egui::Id,
@@ -1296,9 +1297,7 @@ fn paint_segments(
             .filter(|(_, rect)| rect.is_positive())
             .collect();
         let Some(span) = tabs.iter().map(|&(_, rect)| rect).reduce(|a, b| a.union(b)) else { continue };
-        let span = egui::Rect::from_min_max(egui::pos2((span.left() + crate::dock::SEGMENT_INSET).min(span.right()), span.top()), span.max);
-        let track = crate::dock::segment_track(span);
-        let chip = tabs.iter().find(|&&(i, _)| i == active).map(|&(_, rect)| crate::dock::segment_chip(rect, track));
+        let (track, chip) = crate::dock::segment_layout(span, tabs.iter().find(|&&(i, _)| i == active).map(|&(_, rect)| rect));
         ctx.layer_painter(layer).set(place, crate::theme::segment_shapes(track, chip, t));
     }
 }
