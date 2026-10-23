@@ -415,7 +415,15 @@ impl Tool for WidthTool {
                             }
                             // The side under the pointer follows it; the other keeps their ratio.
                             let (base, other) = if d.side { (d.base.0, d.base.1) } else { (d.base.1, d.base.0) };
-                            let other = (other * if base > 1e-9 { mag / base } else { 1.0 }).max(0.0);
+                            let other = if base > 1e-9 {
+                                (other * mag / base).max(0.0)
+                            } else if other > 1e-9 {
+                                // A side of no width has no ratio to scale from: the other keeps its width.
+                                other
+                            } else {
+                                // Neither side had a width, so there is no ratio: the drag stays even.
+                                mag
+                            };
                             if d.side {
                                 (d.left, d.right) = (mag, other);
                             } else {
@@ -745,6 +753,22 @@ mod tests {
         let (_, v) = preview(&acts);
         assert!((v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6 && (v["left"].as_f64().unwrap() - 10.0).abs() < 1e-6, "{v}");
         t.pointer(&c, &ev(PointerKind::Up, 200.0, 230.0, Mods::default()));
+    }
+
+    #[test]
+    fn a_plain_drag_from_a_point_with_no_width_on_either_side_stays_even() {
+        let (mut d, id) = doc_line();
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile = Some(WidthProfile { points: vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)] });
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        // The stroke has no width anywhere, so a new point dragged out of the path has no ratio to
+        // scale: both sides take the pointer's width rather than leaving one at zero.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 201.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 181.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!((v["left"].as_f64().unwrap() - 19.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 19.0).abs() < 1e-6, "{v}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 181.0, Mods::default()));
     }
 
     #[test]
