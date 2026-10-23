@@ -34,6 +34,13 @@
 	Channel 4	Kanal 4
 	Cell Size	Cellstorlek
 	Fine Dots	Fina punkter
+
+	Simple	Enkel
+	Light Rough	Lätt grov
+	Dark Rough	Mörk grov
+	Wide Sharp	Bred skarp
+	Wide Blurry	Bred suddig
+	Sparkle	Glittra
 	Medium Dots	Medelstora punkter
 	Grainy Dots	Korniga punkter
 	Coarse Dots	Grova punkter
@@ -258,9 +265,7 @@
 	Average	MedelvÃ¤rde
 	Averageâ€¦	MedelvÃ¤rdeâ€¦
 	Axis:	Axel:
-	Background Color:	BakgrundsfÃ¤rg:
-	Background Contents	BakgrundsinnehÃ¥ll
-	Background Contents:	BakgrundsinnehÃ¥ll:
+	Background Color:	Bakgrundsfärg:
 	Background:	Bakgrund:
 	Backspace	Backspace
 	Bar Graph Tool	Stapeldiagramverktyg
@@ -295,7 +300,7 @@
 	Blue	BlÃ¥
 	Blur	OskÃ¤rpa
 	Bottom	Nederkant
-	Bottom in Front	Nederkant framfÃ¶r
+	Bottom in Front	Nederkant framför
 	Bottom:	Nederkant:
 	Bounds	GrÃ¤nser
 	Bounds (Fill Proportionally)	GrÃ¤nser (fyll proportionellt)
@@ -1033,7 +1038,7 @@
 	Eyedropper Options	Pipettalternativ
 	Eyedropper Picks Up:	Pipetten hÃ¤mtar:
 	Eyedropper Tool	Pipettverktyg
-	Eyedropper: click the art to sample the stop's colour	Pipett: klicka pÃ¥ grafiken fÃ¶r att hÃ¤mta stoppets fÃ¤rg
+	Eyedropper: click the art to sample the stop's colour	Pipett: klicka på grafiken för att hämta stoppets färg
 	Favorites	Favoriter
 	Featherâ€¦	FjÃ¤dringâ€¦
 	Feet	Fot
@@ -1042,6 +1047,11 @@
 	Fidelity:	Ã…tergivning:
 	Figure Space	Siffermellanrum
 	Figure:	Figur:
+# Artwork drag between document tabs.
+	Drop Artwork	Släpp grafik
+@msg	{key} must be [x, y] with finite coordinates	{key} måste vara [x, y] med ändliga koordinater
+@msg	ids must contain 1–10000 object ids	ids måste innehålla 1–10000 objekt-id:n
+
 	File	Fil
 	File Dimensions	Fildimensioner
 	File Format:	Filformat:
@@ -1175,8 +1185,7 @@
 	Small Gaps	SmÃ¥ mellanrum
 	Medium Gaps	Medelstora mellanrum
 	Large Gaps	Stora mellanrum
-	Gap Preview Color:	FÃ¶rhandsgranskningsfÃ¤rg fÃ¶r mellanrum:
-	Close Gaps With Paths	StÃ¤ng mellanrum med banor
+	Gap Preview Color:	Förhandsgranskningsfärg för mellanrum:
 	Select Fills	Markera fyllningar
 	Select Strokes	Markera konturer
 	Gaussian Blurâ€¦	Gaussisk oskÃ¤rpaâ€¦
@@ -1282,7 +1291,7 @@
 	Hand Tool	Handverktyg
 	Hand-Drawn	Handritad
 	Handles	Handtag
-	Hard Light	HÃ¥rt ljus
+	Hard Light	Hårt ljus
 	Harmony Rules:	Harmoniregler:
 	Harmony Sets	HarmoniuppsÃ¤ttningar
 	Height	HÃ¶jd
@@ -1786,9 +1795,7 @@
 	Modified:	Ã„ndrad:
 	Modify	Ã„ndra
 	Mojikumi	Mojikumi
-	Mojikumi Set	Mojikumi-uppsÃ¤ttning
-	Kinsoku Set	Kinsoku-uppsÃ¤ttning
-	Hard	HÃ¥rd
+	Insert Kashidas	Infoga kashidor
 	Soft	Mjuk
 	Monitor RGB	BildskÃ¤rms-RGB
 	Mono	Mono
@@ -1820,7 +1827,7 @@
 	Move Slices	Flytta skivor
 	Move Spine Point	Flytta ryggradspunkt
 	Reshape Spine Segment	Omforma ryggradssegment
-	Move Swatch	Flytta fÃ¤rgruta
+	Move Brush	Flytta pensel
 	Move Up	Flytta upp
 	Moveâ€¦	Flyttaâ€¦
 	Multiply	Multiplicera
@@ -1872,9 +1879,7 @@
 	Approximate path	Approximera banan
 	Colorization	FÃ¤rglÃ¤ggning
 	Tints	Ljusare toner
-	Tints and Shades	Ljusare och mÃ¶rkare toner
-	Hue Shift	NyansfÃ¶rskjutning
-	Key Color:	NyckelfÃ¤rg:
+	Tints and Shades	Ljusare och mörkare toner
 	Roundness:	Rundhet:
 	Fixed	Fast
 	Pressure	Tryck
@@ -1892,9 +1897,7 @@
 	Flat Curve	Platt bÃ¶jd
 	Round Angle	Rund vinkel
 	Flat Angle	Platt vinklad
-	Round Fan	Rund solfjÃ¤der
-	Flat Fan	Platt solfjÃ¤der
-	New Brushâ€¦	Ny penselâ€¦
+	Round Fan	Rund solfjäder
 	New Calligraphic Brush	Ny kalligrafisk pensel
 	New Character Style	Ny teckenstil
 	New Color Group	Ny fÃ¤rggrupp
@@ -1923,8 +1926,7 @@
 	New Symbolâ€¦	Ny symbolâ€¦
 	New theme from the current color	Nytt tema frÃ¥n aktuell fÃ¤rg
 	New View	Ny vy
-	New Viewâ€¦	Ny vyâ€¦
-	New Window	Nytt fÃ¶nster
+	New View…	Ny vy…
 	New Workspace	Ny arbetsyta
 	New Workspaceâ€¦	Ny arbetsytaâ€¦
 	New {kind} Styleâ€¦	Ny {kind}stilâ€¦
@@ -2131,7 +2133,7 @@
 	Package	Paketera
 	Package collects a saved document with its linked files and fonts.	Paketera samlar ett sparat dokument med dess lÃ¤nkade filer och typsnitt.
 	Package created	Paketet har skapats
-	Packaged {n} file(s) in {folder}{note}	Paketerade {n} fil(er) i {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Paketerade {n} fil(er) i {folder}{note}
 	Packaged {n} file(s){note}	Paketerade {n} fil(er){note}
 	Packageâ€¦	Paketeraâ€¦
 	Page	Sida
@@ -2190,9 +2192,7 @@
 	Percent:	Procent:
 	Perceptual Scales	Perceptuella skalor
 	Performance	Prestanda
-	Performance & Storage	Prestanda och lagring
-	Permissions	BehÃ¶righeter
-	Permissions password:	LÃ¶senord fÃ¶r behÃ¶righeter:
+	Plug-ins & Scratch Disks	Insticksprogram & Arbetsdiskar
 	Perspective	Perspektiv
 	Perspective Grid	PerspektivrutnÃ¤t
 	Perspective Grid Options	Alternativ fÃ¶r perspektivrutnÃ¤t
@@ -2309,7 +2309,7 @@
 	Proof Colors	ProvtrycksfÃ¤rger
 	Proof Setup	ProvtrycksinstÃ¤llningar
 	Properties	Egenskaper
-	Proportional Metrics	Proportionella mÃ¥tt
+	Proportional Metrics	Proportionella mått
 	Digits	Siffror
 	Arabic	Arabiska
 	Hindi	Hindi
@@ -2503,6 +2503,7 @@
 	Reorder	Ã„ndra ordning
 	Reorder Appearance Item	Ã„ndra ordning pÃ¥ utseendeobjekt
 	Repeat	Upprepa
+	Repeat Objects	Upprepningsobjekt
 	Repeat Options	Upprepningsalternativ
 	Repeat Pathfinder	Upprepa banÃ¶verlappning
 	Repeat Tab	Upprepa tabb
@@ -2711,7 +2712,7 @@
 	Scale Cursor Proportional to UI	Skala pekaren proportionellt mot grÃ¤nssnittet
 	Scale Lineweights	Skala linjebredder
 	Scale Strokes & Effects	Skala konturer och effekter
-	Scale to Fit Artboard	Skala fÃ¶r att passa ritytan
+	Scale Text Attributes	Skala textattribut
 	Scale Tool	Skalningsverktyg
 	Scale:	Skala:
 	Scaleâ€¦	Skalaâ€¦
@@ -2970,7 +2971,7 @@
 	Snapping Tolerance	FÃ¤sttolerans
 	Social Square Post 1080Ã—1080	Kvadratiskt inlÃ¤gg fÃ¶r sociala medier 1080Ã—1080
 	Soft Light	Mjukt ljus
-	Solid	EnfÃ¤rgad
+	Soft Mix	Mjuk blandning
 	Sort by Kind	Sortera efter typ
 	Sort by Name	Sortera efter namn
 	Sort by Status	Sortera efter status
@@ -3208,9 +3209,7 @@
 	Toolbar: Reset	VerktygsfÃ¤lt: Ã…terstÃ¤ll
 	Toolbars	VerktygsfÃ¤lt
 	Tools	Verktyg
-	Top	Ã–verkant
-	Top in Front	Ovansidan framfÃ¶r
-	Top:	Ã–verkant:
+	Top	Överkant
 	Total Width:	Total bredd:
 	Touch Type Tool	BerÃ¶ringstextverktyg
 	Trace	Vektorisera
@@ -3474,9 +3473,7 @@
 	Zoom to Selection	Zooma till markering
 	Zoom Tool	Zoomverktyg
 	Zoom with Mouse Wheel	Zooma med mushjulet
-	Scrub Numeric Fields by Dragging	Ã„ndra numeriska fÃ¤lt genom att dra
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} fil(er) i {folder}{note}. Visa paketmappen?
-	{count} linked file(s) not found	{count} lÃ¤nkad(e) fil(er) hittades inte
+	Scrub Numeric Fields by Dragging	Ändra numeriska fält genom att dra
 	fonts not copied: {fonts}	typsnitt som inte kopierats: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	{count} lÃ¤nkad(e) bild(er) har Ã¤ndrats sedan dokumentet sparades. Visa de nya versionerna?
 	{count} linked image(s) changed on disk. Show the new versions?	{count} lÃ¤nkad(e) bild(er) har Ã¤ndrats pÃ¥ disken. Visa de nya versionerna?
@@ -3513,63 +3510,7 @@ imageTrace	Outline	Disposition
 @plural	{n} star|{n} stars	{n} stjÃ¤rna|{n} stjÃ¤rnor
 @plural	{n} step|{n} steps	{n} steg|{n} steg
 @plural	{n} stroke|{n} strokes	{n} kontur|{n} konturer
-	 the object to select  |  	 objektet fÃ¶r att markera  |  
-	 to select multiple objects  |  	 fÃ¶r att markera flera objekt  |  
-	 the object to duplicate	 objektet fÃ¶r att duplicera
-	 an anchor or path segment to select it  |  	 en ankarpunkt eller ett bansegment fÃ¶r att markera det  |  
-	 to move  |  	 fÃ¶r att flytta  |  
-	 to add	 fÃ¶r att lÃ¤gga till
-	 to add a corner point  |  	 fÃ¶r att lÃ¤gga till en hÃ¶rnpunkt  |  
-	 to add a smooth point  |  	 fÃ¶r att lÃ¤gga till en mjuk punkt  |  
-	 to close  |  	 fÃ¶r att stÃ¤nga  |  
-	 to finish	 fÃ¶r att slutfÃ¶ra
-	 to add smooth points  |  	 fÃ¶r att lÃ¤gga till mjuka punkter  |  
-	 to toggle corner  |  	 fÃ¶r att vÃ¤xla hÃ¶rn  |  
-	 to create point type  |  	 fÃ¶r att skapa punkttext  |  
-	 to create area type  |  	 fÃ¶r att skapa omrÃ¥destext  |  
-	 to exit editing	 fÃ¶r att avsluta redigeringen
-	 to draw  |  	 fÃ¶r att rita  |  
-	 to constrain proportions  |  	 fÃ¶r att behÃ¥lla proportionerna  |  
-	 from center  |  	 frÃ¥n mitten  |  
-	 for exact size	 fÃ¶r exakt storlek
-	 to set the reference point  |  	 fÃ¶r att ange referenspunkten  |  
-	 to transform  |  	 fÃ¶r att transformera  |  
-	 for exact values	 fÃ¶r exakta vÃ¤rden
-	 to pan the view	 fÃ¶r att panorera vyn
-	 to zoom in  |  	 fÃ¶r att zooma in  |  
-	 to zoom out  |  	 fÃ¶r att zooma ut  |  
-	 to zoom into an area	 fÃ¶r att zooma in pÃ¥ ett omrÃ¥de
-	Hold	HÃ¥ll
-	 right or left to zoom in or out  |  	 Ã¥t hÃ¶ger eller vÃ¤nster fÃ¶r att zooma in eller ut  |  
-	 to keep zooming	 fÃ¶r att fortsÃ¤tta zooma
-	 an object to copy its attributes  |  	 ett objekt fÃ¶r att kopiera dess attribut  |  
-	 to apply the selection's to it  |  	 fÃ¶r att anvÃ¤nda markeringens pÃ¥ det  |  
-	 to sample a color	 fÃ¶r att hÃ¤mta en fÃ¤rg
-	 across a selected object to set the gradient direction	 Ã¶ver ett markerat objekt fÃ¶r att ange gradientens riktning
-	 to select an artboard  |  	 fÃ¶r att markera en rityta  |  
-	 on the canvas to create one	 pÃ¥ arbetsytan fÃ¶r att skapa en
-	 a stroke to add a width point  |  	 en kontur fÃ¶r att lÃ¤gga till en breddpunkt  |  
-	 to change one side  |  	 fÃ¶r att Ã¤ndra en sida  |  
-	 to select more points  |  	 fÃ¶r att markera fler punkter  |  
-	 a point to edit it  |  	 en punkt fÃ¶r att redigera den  |  
-	 to remove points	 fÃ¶r att ta bort punkter
-	 the art to add a pin  |  	 pÃ¥ grafiken fÃ¶r att lÃ¤gga till en nÃ¥l  |  
-	 to select more pins  |  	 fÃ¶r att markera fler nÃ¥lar  |  
-	 a pin to warp  |  	 en nÃ¥l fÃ¶r att fÃ¶rvrÃ¤nga  |  
-	 near a selected pin to rotate  |  	 nÃ¤ra en markerad nÃ¥l fÃ¶r att rotera  |  
-	 to remove pins	 fÃ¶r att ta bort nÃ¥lar
-	 across paths to push them along  |  	 Ã¶ver banor fÃ¶r att skjuta dem framÃ¥t  |  
-	 to size the brush (	 fÃ¶r att Ã¤ndra penselstorleken (
-	 keeps its proportions)	 behÃ¥ller proportionerna)
-	 over paths, and hold still to keep going  |  	 Ã¶ver banor och hÃ¥ll stilla fÃ¶r att fortsÃ¤tta  |  
-	 over paths to roughen their outlines  |  	 Ã¶ver banor fÃ¶r att gÃ¶ra deras konturer ojÃ¤mna  |  
-	 to move in perspective  |  	 fÃ¶r att flytta i perspektiv  |  
-	 to copy  |  	 fÃ¶r att kopiera  |  
-	 while dragging to move perpendicular to the plane  |  	 medan du drar fÃ¶r att flytta vinkelrÃ¤tt mot planet  |  
-	 to scale in perspective	 fÃ¶r att skala i perspektiv
-	 an object, then another to blend them  |  	 ett objekt och sedan ett till fÃ¶r att blanda dem  |  
-	 to blend from it  |  	 fÃ¶r att blanda frÃ¥n det  |  
-	 to set spacing and orientation	 fÃ¶r att ange avstÃ¥nd och orientering
+	 the object to select  |  	 objektet för att markera  |  
 	:	:
 	Isolate Selected Group	Isolera markerad grupp
 	Release Clipping Mask	SlÃ¤pp klippningsmask
@@ -3663,10 +3604,7 @@ axis	Both	BÃ¥da
 @msg	Copied the script report	Kopierade skriptrapporten
 @msg	Corners edits the corners of a path	HÃ¶rn redigerar hÃ¶rnen pÃ¥ en bana
 @msg	Couldn't copy to the system clipboard: {e}	Kunde inte kopiera till systemets urklipp: {e}
-@msg	Couldn't open {name}: {e}	Kunde inte Ã¶ppna {name}: {e}
-@msg	Couldn't place {name}: the document it was dropped on was closed	Kunde inte placera {name}: dokumentet det slÃ¤pptes pÃ¥ har stÃ¤ngts
-@msg	Couldn't read {name}: {e}	Kunde inte lÃ¤sa {name}: {e}
-@msg	Couldn't save recovery data: {e}	Kunde inte spara Ã¥terstÃ¤llningsdata: {e}
+@msg	Couldn't open {name}: {e}	Kunde inte öppna {name}: {e}
 @msg	Create Outlines: select text objects	Skapa konturer: markera textobjekt
 @msg	Create from Guides: the document has no artboard	Skapa frÃ¥n stÃ¶dlinjer: dokumentet har ingen rityta
 @msg	Create from Guides: the guides make more than {MAX_PIECES} slices	Skapa frÃ¥n stÃ¶dlinjer: stÃ¶dlinjerna ger fler Ã¤n {MAX_PIECES} skivor
@@ -3702,7 +3640,7 @@ axis	Both	BÃ¥da
 @msg	Outline Stroke: no stroked paths selected	Kontur till bana: inga banor med kontur markerade
 @msg	PDF settings are not an object	PDF-instÃ¤llningarna Ã¤r inte ett objekt
 @msg	PDF writer error: {0}	fel i PDF-skrivaren: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Paketerade {n} fil(er) i {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	Paketerade {n} fil(er) i {folder}{note}
 @msg	Packaged {n} file(s){note}	Paketerade {n} fil(er){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	FÃ¶rhandsgranska i webblÃ¤sare krÃ¤ver skrivbordsappen (webbversionen hÃ¤mtar filer i stÃ¤llet)
 @msg	Release Guides: no guides	SlÃ¤pp stÃ¶dlinjer: inga stÃ¶dlinjer
@@ -3771,14 +3709,7 @@ axis	Both	BÃ¥da
 @msg	a PostScript error ({name} in `{op}`: {at})	ett PostScript-fel ({name} i `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	ett PostScript-fel ({name} i `{op}`: {at}), i {procs}
 @msg	a PostScript error ({name})	ett PostScript-fel ({name})
-@msg	a bitmap is empty	en bitmapp Ã¤r tom
-@msg	a bitmap is too large to read	en bitmapp Ã¤r fÃ¶r stor fÃ¶r att lÃ¤sas
-@msg	a colour index is 0 to {_1}, not {n}	ett fÃ¤rgindex Ã¤r 0 till {_1}, inte {n}
-@msg	a colour is an index, #rrggbb or a preset name, not {v}	en fÃ¤rg Ã¤r ett index, #rrggbb eller namnet pÃ¥ en fÃ¶rinstÃ¤llning, inte {v}
-@msg	a document needs at least one artboard	ett dokument behÃ¶ver minst en rityta
-@msg	a document needs at least one layer	ett dokument behÃ¶ver minst ett lager
-@msg	a freeform gradient keeps at least one point	en fri Ã¶vertoning behÃ¥ller minst en punkt
-@msg	a gradient needs at least two stops	en Ã¶vertoning behÃ¶ver minst tvÃ¥ stopp
+@msg	a PostScript error ({name} in `{op}`; {meaning})	ett PostScript-fel ({name} i `{op}`; {meaning})
 @msg	a graphic style named `{to}` already exists	det finns redan en grafisk stil med namnet `{to}`
 @msg	a key object sits on that point	ett nyckelobjekt ligger pÃ¥ den punkten
 @msg	a page is missing	en sida saknas
@@ -3847,9 +3778,7 @@ axis	Both	BÃ¥da
 @msg	give corners of the path: anchors where its sides meet at an angle	ange hÃ¶rn pÃ¥ banan: ankarpunkter dÃ¤r sidorna mÃ¶ts i en vinkel
 @msg	give horizontal or vertical	ange horisontell eller vertikal
 @msg	give the path `id` and the width point `index`	ange banans `id` och breddpunktens `index`
-@msg	guides are locked	stÃ¶dlinjerna Ã¤r lÃ¥sta
-@msg	handle must be in or out	handle mÃ¥ste vara in eller out
-@msg	image '{key}' has no pixels and was left out	bilden '{key}' har inga pixlar och utelÃ¤mnades
+@msg	guides are locked	stödlinjerna är låsta
 @msg	image data `{_1}` is missing	bilddata `{_1}` saknas
 @msg	image would be too large; lower the resolution	bilden skulle bli fÃ¶r stor; sÃ¤nk upplÃ¶sningen
 @msg	index must be a number or first, previous, next or last	index mÃ¥ste vara ett tal eller first, previous, next eller last
@@ -3894,7 +3823,7 @@ axis	Both	BÃ¥da
 @msg	no blend options	inga blandningsalternativ
 @msg	no bounds	inga grÃ¤nser
 @msg	no brush named `{name}`	ingen pensel med namnet `{name}`
-@msg	no brush selected	ingen pensel Ã¤r markerad
+@msg	a bristle brush name can have at most {max} characters: `{name}` has {count}	namnet på en borstpensel får ha högst {max} tecken: `{name}` har {count}
 @msg	no catalog	ingen katalog
 @msg	no changes since the last save	inga Ã¤ndringar sedan senaste sparningen
 @msg	no clock to keep a heartbeat by	ingen klocka att styra hjÃ¤rtslagen efter
@@ -3913,6 +3842,7 @@ axis	Both	BÃ¥da
 @msg	no file system here	inget filsystem hÃ¤r
 @msg	no file writer	ingen filskrivare
 @msg	no files to place	inga filer att placera
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` är inte ett VectorCraft-dokument, en PDF eller en PDF-kompatibel .ai-fil
 @msg	no format to export to	inget format att exportera till
 @msg	no free recovery area	inget ledigt Ã¥terstÃ¤llningsomrÃ¥de
 @msg	no gradient stop or freeform point is selected	inget Ã¶vertoningsstopp eller fri punkt Ã¤r markerad
@@ -3948,6 +3878,7 @@ axis	Both	BÃ¥da
 @msg	no such action	Ã¥tgÃ¤rden finns inte
 @msg	no such anchor	ankaret finns inte
 @msg	no such artboard	ritytan finns inte
+@msg	the artboard is locked	ritytan är låst
 @msg	no such document	dokumentet finns inte
 @msg	no such layer or object	lagret eller objektet finns inte
 @msg	no such object {0}	objektet {0} finns inte
@@ -4004,11 +3935,7 @@ axis	Both	BÃ¥da
 @msg	path is already closed	banan Ã¤r redan sluten
 @msg	paths contain invalid coordinates	banorna innehÃ¥ller ogiltiga koordinater
 @msg	paths: give at least one file	paths: ange minst en fil
-@msg	pattern missing	mÃ¶nster saknas
-@msg	patterns nested too deeply are filled with mid-grey	mÃ¶nster som Ã¤r kapslade fÃ¶r djupt fylls med mellangrÃ¥tt
-@msg	percent must be above 0 and at most 6400, not {p}	procent mÃ¥ste vara Ã¶ver 0 och hÃ¶gst 6400, inte {p}
-@msg	pick a colour, gradient or pattern to save as a swatch	vÃ¤lj en fÃ¤rg, Ã¶vertoning eller ett mÃ¶nster att spara som fÃ¤rgruta
-@msg	plane must be left, right or ground	plane mÃ¥ste vara left, right eller ground
+@msg	replace: the object to replace was changed or deleted	replace: objektet som skulle ersättas har ändrats eller tagits bort
 @msg	plug-in ABI: {0}	insticksmodulens ABI: {0}
 @msg	plug-in exceeded its {0}	insticksmodulen Ã¶verskred sin {0}
 @msg	plug-in failed: {0}	insticksmodulen misslyckades: {0}
@@ -4134,45 +4061,12 @@ axis	Both	BÃ¥da
 @msg	this is not a PostScript file	det hÃ¤r Ã¤r inte en PostScript-fil
 @msg	tool shortcuts must be a single key (optionally with Shift)	kortkommandon fÃ¶r verktyg mÃ¥ste vara en enda tangent (eventuellt med Shift)
 @msg	truncated	avkortad
-@msg	unknown command `{0}`	okÃ¤nt kommando `{0}`
-@msg	unknown effect `{id}`	okÃ¤nd effekt `{id}`
-@msg	unknown format	okÃ¤nt format
-@msg	unknown format `{f}` (Save writes {_1})	okÃ¤nt format `{f}` (Spara skriver {_1})
-@msg	unknown freeform mode `{m}` (points, lines)	okÃ¤nt fritt lÃ¤ge `{m}` (points, lines)
-@msg	unknown gradient kind `{k}` (linear, radial, freeform)	okÃ¤nd gradienttyp `{k}` (linear, radial, freeform)
-@msg	unknown highlight `{h}`	okÃ¤nd hÃ¶gdager `{h}`
-@msg	unknown option `{path}.{k}`	okÃ¤nt alternativ `{path}.{k}`
-@msg	unknown overprints `{o}` (preserve, simulate or discard)	okÃ¤nt vÃ¤rde fÃ¶r Ã¶vertryck `{o}` (preserve, simulate eller discard)
-@msg	unknown panel `{raw}`	okÃ¤nd panel `{raw}`
-@msg	unknown preference `{key}`	okÃ¤nd instÃ¤llning `{key}`
-@msg	unknown preset (one of {_1})	okÃ¤nd fÃ¶rinstÃ¤llning (en av {_1})
-@msg	unknown preset `{name}` (high, medium, low or a saved one: see flattener.presets.list)	okÃ¤nd fÃ¶rinstÃ¤llning `{name}` (high, medium, low eller en sparad: se flattener.presets.list)
-@msg	unknown preset `{name}` (see flattener.presets.list)	okÃ¤nd fÃ¶rinstÃ¤llning `{name}` (se flattener.presets.list)
-@msg	unknown preset `{name}` (see webExport.presets.list)	okÃ¤nd fÃ¶rinstÃ¤llning `{name}` (se webExport.presets.list)
-@msg	unknown side `{other}` (left|right|top|bottom)	okÃ¤nd sida `{other}` (left|right|top|bottom)
-@msg	unknown tool `{tool}`	okÃ¤nt verktyg `{tool}`
-@msg	unknown tool `{t}`	okÃ¤nt verktyg `{t}`
-@msg	unknown tool or command `{key}`	okÃ¤nt verktyg eller kommando `{key}`
-@msg	unknown workspace (one of {_1})	okÃ¤nd arbetsyta (en av {_1})
-@msg	unsupported: {0}	stÃ¶ds inte: {0}
-@msg	variables are locked	variablerna Ã¤r lÃ¥sta
-@msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	filer i version {0} kan inte komprimeras: endast version {COMPRESSED_SINCE} och senare kan Ã¶ppna komprimerade filer
-@msg	width and height are at least 1 pixel	bredd och hÃ¶jd Ã¤r minst 1 pixel
-@msg	workspace name can't be empty	arbetsytans namn fÃ¥r inte vara tomt
-@msg	x and y must be finite	x och y mÃ¥ste vara Ã¤ndliga
+@msg	unknown command `{0}`	okänt kommando `{0}`
 @msg	{C}: no effect at index {from}	{C}: ingen effekt vid index {from}
 @msg	{_1} failed: {e}	{_1} misslyckades: {e}
 @msg	{_1} files can be opened but not written (see document.formats)	{_1}-filer kan Ã¶ppnas men inte skrivas (se document.formats)
 @msg	{_1} files are written by file.saveAsTemplate	{_1}-filer skrivs av file.saveAsTemplate
-@msg	{_1} font families available	{_1} teckensnittsfamiljer tillgÃ¤ngliga
-@msg	{_1} is a live effect (Effect â€º Plug-ins)	{_1} Ã¤r en live-effekt (Effekt â€º Insticksprogram)
-@msg	{_1} is an exporter (File â€º Export â€º Export Asâ€¦)	{_1} Ã¤r ett exportinsticksprogram (Fil â€º Exportera â€º Exportera somâ€¦)
-@msg	{_1} is already used by {_2}	{_1} anvÃ¤nds redan av {_2}
-@msg	{_1} linked file(s) can't be read here: their previews show	{_1} lÃ¤nkade fil(er) kan inte lÃ¤sas hÃ¤r: deras fÃ¶rhandsgranskningar visas
-@msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} lÃ¤nkade bild(er) har Ã¤ndrats pÃ¥ disken: Uppdatera lÃ¤nkar visar de nya versionerna
-@msg	Updated {_1} linked file(s) changed on disk	Uppdaterade {_1} lÃ¤nkade fil(er) som Ã¤ndrats pÃ¥ disken
-@msg	{_1}: not saved, so not closed	{_1}: inte sparat, sÃ¥ inte stÃ¤ngt
-@msg	{bpp}-bit bitmaps can't be read	{bpp}-bitars bitmappar kan inte lÃ¤sas
+@msg	{_1} font families available	{_1} teckensnittsfamiljer tillgängliga
 @msg	{command} didn't create an object	{command} skapade inget objekt
 @msg	{label} produced an empty result	{label} gav ett tomt resultat
 @msg	{label}: lost track of a shape's style	{label}: tappade bort en forms stil
@@ -4196,14 +4090,7 @@ axis	Both	BÃ¥da
 @msg	Saving	Sparar
 @msg	Saving {_1}	Sparar {_1}
 @msg	Exporting {_1}	Exporterar {_1}
-@msg	Saving recovery data for {_1}	Sparar Ã¥terstÃ¤llningsdata fÃ¶r {_1}
-@msg	Discarded {_1} recovered document(s)	Kastade {_1} Ã¥terstÃ¤llda dokument
-@msg	Restored {_1} recovered document(s): save them to keep them	Ã…terstÃ¤llde {_1} Ã¥terskapade dokument: spara dem fÃ¶r att behÃ¥lla dem
-@msg	Embedded {n} image(s); {missing} missing: relink them first	BÃ¤ddade in {n} bild(er); {missing} saknas: lÃ¤nka om dem fÃ¶rst
-@msg	Embedded {n} image(s)	BÃ¤ddade in {n} bild(er)
-@msg	Relinked {_1} image(s)	OmlÃ¤nkade {_1} bild(er)
-@msg	Relinked {n} image(s)	OmlÃ¤nkade {n} bild(er)
-@msg	Relinked {n} image(s); not in that folder: {_1}	OmlÃ¤nkade {n} bild(er); finns inte i mappen: {_1}
+@msg	Packaging {_1}	Paketerar {_1}
 @msg	Updated {_1} image(s)	Uppdaterade {_1} bild(er)
 @msg	Unembedded to {_1}	Extraherad till {_1}
 @msg	Reset {_1}	Ã…terstÃ¤ll {_1}
@@ -4311,16 +4198,7 @@ axis	Both	BÃ¥da
 @msg	{key} must be an array of non-negative integer object ids	{key} mÃ¥ste vara en array med objekt-id:n som Ã¤r icke-negativa heltal
 @msg	invalid object id {value}: expected a non-negative integer	ogiltigt objekt-id {value}: ett icke-negativt heltal fÃ¶rvÃ¤ntades
 @msg	no such object id {value}	det finns inget objekt med id {value}
-@msg	automation filesystem access is not granted: read authority is absent: {path}	automatiseringen har inte fÃ¥tt Ã¥tkomst till filsystemet: lÃ¤sbehÃ¶righet saknas: {path}
-@msg	automation filesystem access is not granted: write authority is absent: {path}	automatiseringen har inte fÃ¥tt Ã¥tkomst till filsystemet: skrivbehÃ¶righet saknas: {path}
-@msg	automation path rejected: outside the read root {root}: {path}	automatiseringssÃ¶kvÃ¤gen avvisades: utanfÃ¶r lÃ¤sroten {root}: {path}
-@msg	automation path rejected: outside the write root {root}: {path}	automatiseringssÃ¶kvÃ¤gen avvisades: utanfÃ¶r skrivroten {root}: {path}
-@msg	automation path rejected: path is empty	automatiseringssÃ¶kvÃ¤gen avvisades: sÃ¶kvÃ¤gen Ã¤r tom
-@msg	automation path rejected: a link that leads nowhere: {path}	automatiseringssÃ¶kvÃ¤gen avvisades: en lÃ¤nk som inte leder nÃ¥gonstans: {path}
-@msg	automation path rejected: cannot resolve {path}: {e}	automatiseringssÃ¶kvÃ¤gen avvisades: kan inte lÃ¶sa upp {path}: {e}
-@msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	automatiseringssÃ¶kvÃ¤gen avvisades: navigering uppÃ¥t under en mapp som inte finns: {path}
-@msg	automation path rejected: reserved device names are not allowed: {path}	automatiseringssÃ¶kvÃ¤gen avvisades: reserverade enhetsnamn Ã¤r inte tillÃ¥tna: {path}
-@msg	Multichannel PSD files can't be read: save it in RGB, CMYK or Grayscale mode	PSD-filer med flera kanaler kan inte lÃ¤sas: spara filen i RGB-, CMYK- eller grÃ¥skalelÃ¤ge
+@msg	automation filesystem access is not granted: read authority is absent: {path}	automatiseringen har inte fått åtkomst till filsystemet: läsbehörighet saknas: {path}
 @msg	not a PSD file	inte en PSD-fil
 @msg	the PSD file has an unknown colour mode ({m})	PSD-filen har ett okÃ¤nt fÃ¤rglÃ¤ge ({m})
 @msg	the PSD file's image data uses an unknown compression ({m})	PSD-filens bilddata anvÃ¤nder en okÃ¤nd komprimering ({m})
@@ -4418,29 +4296,8 @@ effect	Soft	Mjuk
 	Text	Text
 	Visibility	Synlighet
 	Activate Panel	Aktivera panel
-	Change Panel Layout	Ã„ndra panellayout
-	Close Panel	StÃ¤ng panel
-	Move Panel	Flytta panel
-	Group with	Gruppera med
-	Resize panels	Ã„ndra storlek pÃ¥ paneler
-	Resize panel window	Ã„ndra storlek pÃ¥ panelfÃ¶nster
-@msg	Invalid panel layout; restored the default dock	Ogiltig panellayout; standarddockningen har Ã¥terstÃ¤llts
-@msg	action is required	action krÃ¤vs
-@msg	anchor must name a registered panel	anchor mÃ¥ste ange en registrerad panel
-@msg	before must name a panel	before mÃ¥ste ange en panel
-@msg	docking action contains an unknown panel or an excessive split path	dockningsÃ¥tgÃ¤rden innehÃ¥ller en okÃ¤nd panel eller en alltfÃ¶r djup delningssÃ¶kvÃ¤g
-@msg	group must be true or false	group mÃ¥ste vara true eller false
-@msg	move requires a destination panel	flyttning krÃ¤ver en mÃ¥lpanel
-@msg	move requires an existing destination panel	flyttning krÃ¤ver en befintlig mÃ¥lpanel
-@msg	onto must name a floating panel	onto mÃ¥ste ange en flytande panel
-@msg	panel group is empty	panelgruppen Ã¤r tom
-@msg	panel must name a registered panel	panel mÃ¥ste ange en registrerad panel
-@msg	saved panel layout is invalid; reset the workspace first	den sparade panellayouten Ã¤r ogiltig; Ã¥terstÃ¤ll arbetsytan fÃ¶rst
-@msg	zone must be a string	zone mÃ¥ste vara en strÃ¤ng
-@msg	zone must be tab, center, left, right, top or bottom	zone mÃ¥ste vara tab, center, left, right, top eller bottom
-@msg	{key} must be a finite coordinate	{key} mÃ¥ste vara en Ã¤ndlig koordinat
-@msg	x and y must be provided together	x och y mÃ¥ste anges tillsammans
-@msg	invalid restored panel group	ogiltig Ã¥terstÃ¤lld panelgrupp
+	Change Panel Layout	Ändra panellayout
+@msg	Invalid panel layout; restored the default dock	Ogiltig panellayout; standarddockningen har återställts
 	Lighting	Belysning
 	Revolve angle	Rotationsvinkel
 	Axis side	Axelsida
@@ -4501,17 +4358,7 @@ lighting	Light	Ljus
 	If a drawing tablet's pen doesn't draw, choose an X11 (XWayland) option.	Om ritplattans penna inte ritar vÃ¤ljer du ett X11 (XWayland)-alternativ.
 	X11 (XWayland)	X11 (XWayland)
 	Ruler Origin	Linjalens origo
-	Reset Ruler Origin	Ã…terstÃ¤ll linjalens origo
-	Artistic	KonstnÃ¤rligt
-	Film Grainâ€¦	Filmkornâ€¦
-	Cutoutâ€¦	Urklippâ€¦
-	Cutout	Urklipp
-	Neon Glowâ€¦	Neonskenâ€¦
-	Neon Glow	Neonsken
-	Poster Edgesâ€¦	Affischkanterâ€¦
-	Poster Edges	Affischkanter
-	Levels	NivÃ¥er
-	Edge Simplicity	KantfÃ¶renkling
+	Reset Ruler Origin	Återställ linjalens origo
 	Edge Fidelity	Kanttrohet
 	Glow Size	Skenets storlek
 	Glow Brightness	Skenets ljusstyrka
@@ -5017,6 +4864,9 @@ theme	Appearance	Utseende
 	Softness	Mjukhet
 	Ambient Light	Omgivande ljus
 	Light behind the object	Ljus bakom objektet
+	3D Lighting Preset	Förinställning för 3D-belysning
+	Standard	Standard
+	Diffuse	Diffust
 # 3D light management.
 	Lights	LjuskÃ¤llor
 	Add Light	LÃ¤gg till ljus
@@ -5042,7 +4892,7 @@ theme	Appearance	Utseende
 	Dimension Tool Options	Alternativ fÃ¶r mÃ¥ttverktyget
 	Drawing : real size â€” 1:10 labels 1 unit on the page as 10.	Ritning : verklig storlek â€” 1:10 visar 1 enhet pÃ¥ sidan som 10.
 	Editable	Redigerbar
-	Export Data Setsâ€¦	Exportera datauppsÃ¤ttningarâ€¦
+	Export Data Sets…	Exportera datauppsättningar…
 	Filter	Filter
 	Filter Layers Panel Rows	Filtrera rader i panelen Lager
 	Flatten	Platta till
@@ -5059,15 +4909,7 @@ theme	Appearance	Utseende
 	Isolate Selected Object	Isolera markerat objekt
 	Keep selected	BehÃ¥ll markerad
 	Merge only with selection	Sammanfoga endast med markeringen
-	Legacy (version 7)	Ã„ldre (version 7)
-	Legacy .ai Options	Alternativ fÃ¶r Ã¤ldre .ai
-	Linked Files	LÃ¤nkade filer
-	Locked	LÃ¥st
-	Make Graph Dynamic	GÃ¶r diagram dynamiskt
-	Make Image Dynamic	GÃ¶r bild dynamisk
-	Make Visible	GÃ¶r synlig
-	Omit	UtelÃ¤mna
-	Overrides	Ã…sidosÃ¤ttningar
+	Consider Open Filled Paths as Closed	Behandla öppna fyllda banor som slutna
 	PDF-compatible	PDF-kompatibel
 	Panels Except Tools and Control	Paneler utom Verktyg och Kontroll
 	Precision:	Precision:
@@ -5101,36 +4943,7 @@ theme	Appearance	Utseende
 @msg	Invalid dimension font name	Ogiltigt teckensnittsnamn fÃ¶r mÃ¥tt
 @msg	Invalid drawing scale	Ogiltig ritningsskala
 @msg	Invalid real scale	Ogiltig verklig skala
-@msg	Measured anchor no longer exists	Den mÃ¤tta ankarpunkten finns inte lÃ¤ngre
-@msg	Measured segment no longer exists	Det mÃ¤tta segmentet finns inte lÃ¤ngre
-@msg	Non-finite dimension	MÃ¥ttet Ã¤r inte ett Ã¤ndligt tal
-@msg	Scale must be drawing:real, for example 1:10	Skalan mÃ¥ste anges som ritning:verklighet, till exempel 1:10
-@msg	Scale ratio must be between 1:1000000 and 1000000:1	SkalfÃ¶rhÃ¥llandet mÃ¥ste ligga mellan 1:1000000 och 1000000:1
-@msg	Second measured segment no longer exists	Det andra mÃ¤tta segmentet finns inte lÃ¤ngre
-@msg	Unknown dimension mode	OkÃ¤nt mÃ¥ttlÃ¤ge
-@msg	Unknown dimension option {k}	OkÃ¤nt mÃ¥ttalternativ {k}
-@msg	`mode` must be grayscale, rgb, hsb, cmyk or websafe	`mode` mÃ¥ste vara grayscale, rgb, hsb, cmyk eller websafe
-@msg	`{key}` must be an array of these names: {_1}	`{key}` mÃ¥ste vara en lista med dessa namn: {_1}
-@msg	choose a destination folder	vÃ¤lj en mÃ¥lmapp
-@msg	choose a source folder	vÃ¤lj en kÃ¤llmapp
-@msg	open a document with data sets	Ã¶ppna ett dokument med datauppsÃ¤ttningar
-@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	inget i datauppsÃ¤ttningen {name} anvÃ¤ndes: inget objekt Ã¤r bundet till en variabel som den har ett vÃ¤rde fÃ¶r
-@msg	select an Intertwine group	markera en sammanflÃ¤tningsgrupp
-@msg	select an Objects on Path group	markera en grupp med objekt pÃ¥ bana
-@msg	span must be "object" or "selection", got {v}	span mÃ¥ste vara "object" eller "selection", fick {v}
-@msg	span: "selection" places a `gradient`, not a swatch	span: "selection" placerar en `gradient`, inte en fÃ¤rgruta
-@msg	span: "selection" places a gradient: give `gradient`	span: "selection" placerar en Ã¶vertoning: ange `gradient`
-@msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" placerar en linjÃ¤r eller radiell Ã¶vertoning, inte en fri
-@msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" placerar sjÃ¤lva Ã¶vertoningen: utelÃ¤mna `start` och `end` (de placerar den redan i dokumentkoordinater)
-@msg	the Color Picker is not open	fÃ¤rgvÃ¤ljaren Ã¤r inte Ã¶ppen
-@msg	the Simplify slider is not open	FÃ¶renkla-reglaget Ã¤r inte Ã¶ppet
-@msg	the action has no steps	Ã¥tgÃ¤rden har inga steg
-@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	filens lager lÃ¤stes inte ({_1}): den hÃ¤mtas in som en sida, i ett enda lager
-@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	filens lager lÃ¤stes inte frÃ¥n dess redigeringsdata ({_1}): de kommer frÃ¥n dess PDF-del
-@msg	the screen color sampler is already open	fÃ¤rghÃ¤mtningen frÃ¥n skÃ¤rmen Ã¤r redan Ã¶ppen
-@msg	this is a PostScript file (an .ai saved in an older format or without PDF compatibility, or an EPS file), not a PDF: File â€º Open and File â€º Place read it as EPS	det hÃ¤r Ã¤r en PostScript-fil (en .ai sparad i ett Ã¤ldre format eller utan PDF-kompatibilitet, eller en EPS-fil), inte en PDF: Fil â€º Ã–ppna och Fil â€º Placera lÃ¤ser den som EPS
-@msg	this system has no screen color sampler	det hÃ¤r systemet saknar fÃ¤rghÃ¤mtning frÃ¥n skÃ¤rmen
-@msg	the image can't be read as a texture	bilden kan inte lÃ¤sas som en textur
+@msg	Measured anchor no longer exists	Den mätta ankarpunkten finns inte längre
 
 # User Interface â€º Accent Color
 	Accent Color	AccentfÃ¤rg
@@ -5138,9 +4951,7 @@ theme	Appearance	Utseende
 	Coral	Korall
 	Violet	Violett
 	Sketch	Skiss
-	Halftone Patternâ€¦	RastermÃ¶nsterâ€¦
-	Halftone Pattern	RastermÃ¶nster
-	Pattern Type	MÃ¶nstertyp
+	Halftone Pattern…	Rastermönster…
 	Dot	Punkt
 # User Interface â€º Color Scheme
 	Color Scheme	FÃ¤rgschema
@@ -5158,7 +4969,7 @@ theme	Appearance	Utseende
 	Watercolorâ€¦	Akvarellâ€¦
 	Watercolor	Akvarell
 	Brush Size	Penselstorlek
-	Definition	SkÃ¤rpa
+	Texture Coverage	Texturtäckning
 	Brush Detail	Penseldetalj
 	Shadow Intensity	Skuggintensitet
 	Bas Reliefâ€¦	Basreliefâ€¦
@@ -5173,29 +4984,9 @@ theme	Appearance	Utseende
 	Detail	Detalj
 	Light/Dark Balance	Balans ljust/mÃ¶rkt
 # Links and Attributes: files and URLs handed to other apps.
-@msg	Edit Original opens image and document files only; â€œ{name}â€ is not one	Redigera original Ã¶ppnar bara bild- och dokumentfiler; â€{name}â€ Ã¤r ingen sÃ¥dan
-@msg	only http, https and mailto URLs open in the browser, not â€œ{url}â€	bara http-, https- och mailto-URL:er Ã¶ppnas i webblÃ¤saren, inte â€{url}â€
-@msg	{id} opens another app: only the person at the keyboard can run it	{id} Ã¶ppnar en annan app: bara personen vid tangentbordet kan kÃ¶ra kommandot
-@msg	â€œ{name}â€ is not a file	â€{name}â€ Ã¤r inte en fil
-	Enable Guides for 9-Slice Scaling	Aktivera hjÃ¤lplinjer fÃ¶r 9-slice-skalning
-@msg	a mask has more than one art block	en mask innehÃ¥ller mer Ã¤n ett grafikblock
-@msg	mask art ends outside a mask dictionary	maskens grafik slutar utanfÃ¶r en maskordlista
-@msg	cancelled; nothing was changed	avbrutet; inget Ã¤ndrades
-@msg	a linked image can't become a gradient mesh: embed it first	en lÃ¤nkad bild kan inte bli ett Ã¶vertoningsnÃ¤t: bÃ¤dda in den fÃ¶rst
-@msg	the image has no usable size or position	bilden har ingen anvÃ¤ndbar storlek eller position
-@msg	the image's pixels can't be read	bildens pixlar kan inte lÃ¤sas
-	Persistent	BestÃ¤ndig
-	Library Panel Options	Alternativ fÃ¶r bibliotekspanelen
-@msg	Persistent libraries not found: {files}	BestÃ¤ndiga bibliotek hittades inte: {files}
-@msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` Ã¤r inte en bibliotekspanel (se window.swatchLibrary)
-@msg	library panel `{given}` isn't open	bibliotekspanelen `{given}` Ã¤r inte Ã¶ppen
-@msg	too many library panels were opened in this session	fÃ¶r mÃ¥nga bibliotekspaneler har Ã¶ppnats i den hÃ¤r sessionen
-@msg	The image is {_1} Ã— {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Bilden Ã¤r {_1} Ã— {_2} pixlar, mer Ã¤n {LARGE_TRACE_SIDE} pÃ¥ en sida: den vektoriseras, men lÃ¥ngsammare. En fÃ¶rinstÃ¤llning med lÃ¤gre Ã¥tergivning eller en mindre kopia av bilden gÃ¥r snabbare.
-@msg	The image was traced at {_1} Ã— {_2} pixels, scaled down from {_3} Ã— {_4} ({_5} megapixels at most).	Bilden vektoriserades vid {_1} Ã— {_2} pixlar, nedskalad frÃ¥n {_3} Ã— {_4} (hÃ¶gst {_5} megapixlar).
-	Artboard {n} of {total}	Rityta {n} av {total}
-	Encoding and writing the fileâ€¦	Kodar och skriver filenâ€¦
-@plural	{n} more export waiting|{n} more exports waiting	{n} export till vÃ¤ntar|{n} exporter till vÃ¤ntar
-	Continue in Background	FortsÃ¤tt i bakgrunden
+@msg	Edit Original opens image and document files only; “{name}” is not one	Redigera original öppnar bara bild- och dokumentfiler; ”{name}” är ingen sådan
+	Enable Guides for 9-Slice Scaling	Aktivera hjälplinjer för 9-slice-skalning
+@plural	{n} more export waiting|{n} more exports waiting	{n} export till väntar|{n} exporter till väntar
 	Cancel Export	Avbryt export
 @msg	Export cancelled	Exporten avbrÃ¶ts
 # Paragraph panel menu â€º Justificationâ€¦
@@ -5208,7 +4999,8 @@ theme	Appearance	Utseende
 	Full Justify	FullstÃ¤ndig marginaljustering
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum fÃ¥r inte Ã¶verstiga Ã–nskat, och Ã–nskat inte Maximum.
 	Justification	Justering
-@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	filens variabler och datauppsÃ¤ttningar lÃ¤stes inte (variabler: {variables}, datauppsÃ¤ttningar: {data_sets}): panelen Variabler visar dem inte
+	Add filters from the list above	Lägg till filter från listan ovan
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	filens variabler och datauppsättningar lästes inte (variabler: {variables}, datauppsättningar: {data_sets}): panelen Variabler visar dem inte
 # Select by Color (select.color)
 	Select by Color	Markera efter fÃ¤rg
 	Move Anchor Point	Flytta ankarpunkt
@@ -5229,22 +5021,9 @@ theme	Appearance	Utseende
 	Plaster	Gips
 	Note Paperâ€¦	Anteckningspapperâ€¦
 	Note Paper	Anteckningspapper
+	Water Paper…	Vått papper…
+axis	X Axis	X-axel
+@msg	Packaged {n} file(s) in {folder}	Paketerade {n} fil(er) i {folder}
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
 
 # CollabCraft cloud Open / Save / Share
-	Browse a Cloud Folder	BlÃ¤ddra i en molnmapp
-	Cloud Status	Molnstatus
-	Connect Cloud Storage	Anslut molnlagring
-	List Cloud Shares	Lista molnresurser
-	Open a Cloud Drawing	Ã–ppna en molnritning
-	Open from the Cloudâ€¦	Ã–ppna frÃ¥n molnetâ€¦
-	Reload from the Cloud	LÃ¤s om frÃ¥n molnet
-	Save to the Cloud	Spara till molnet
-	Save to the Cloudâ€¦	Spara till molnetâ€¦
-	A folder on this computer	En mapp pÃ¥ den hÃ¤r datorn
-	Cloud	Moln
-	This computer	Den hÃ¤r datorn
-	Where	Var
-	Your cloud account	Ditt molnkonto
-@msg	VectorCraft cannot open {_1}	VectorCraft kan inte Ã¶ppna {_1}
-@msg	no drawing open	ingen ritning Ã¶ppen
-@msg	no such file in the cloud listing	ingen sÃ¥dan fil i molnlistan

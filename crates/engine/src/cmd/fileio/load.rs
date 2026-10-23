@@ -197,10 +197,36 @@ fn from_editing_data_alone(bytes: &[u8], opts: &LoadOptions) -> Option<Result<(D
     )
 }
 
+/// Is `e` the error of a file whose pages are only a placeholder
+/// ([`vectorcraft_pdf::PdfError::PlaceholderOnly`])?
+pub(crate) fn is_placeholder(e: &EngineError) -> bool {
+    e.to_string() == vectorcraft_pdf::PdfError::PlaceholderOnly.to_string()
+}
+
 /// Do `opts` read every page of the PDF `bytes`: no `pages`, or a range that names each one?
 fn every_page(bytes: &[u8], opts: &LoadOptions) -> bool {
     let Some(range) = &opts.pages else { return true };
     vectorcraft_pdf::info(bytes, opts.password.as_deref()).is_ok_and(|i| parse_range(range, i.pages.len()).is_ok_and(|p| p.len() == i.pages.len()))
+}
+
+/// A page read from a PDF or `.ai` (`read`, as [`super::page_document`] reads it) → (document,
+/// notes, false); for a `.ai` saved without PDF compatibility (its page only a placeholder), the
+/// file `name` read as `document.open` reads it with `password`, from its editing copy alone →
+/// (document, notes, true).
+pub(crate) fn page_or_editing_data(
+    name: &str,
+    bytes: &[u8],
+    password: Option<&str>,
+    read: Result<(Document, Vec<String>)>,
+) -> Result<(Document, Vec<String>, bool)> {
+    match read {
+        Ok((doc, notes)) => Ok((doc, notes, false)),
+        Err(e) if is_placeholder(&e) => {
+            let l = load_with(name, bytes, &LoadOptions { password: password.map(str::to_string), ..Default::default() })?;
+            Ok((l.doc, l.warnings, true))
+        }
+        Err(e) => Err(e),
+    }
 }
 
 /// [`load`] with `document.open` options (the PDF pages, box and password; the DXF options).
@@ -218,7 +244,8 @@ pub fn load_with(name: &str, bytes: &[u8], opts: &LoadOptions) -> Result<Loaded>
         _ if matches!(format.id, "eps" | "ps") || vectorcraft_pdf::is_postscript(bytes) => {
             let editing = vectorcraft_eps::has_native(bytes).then_some((true, || vectorcraft_eps::native(bytes)));
             restore_or_import(editing, || {
-                let r = vectorcraft_eps::import_with(bytes, opts.editing_data).map_err(|e| err(format!("can't open `{}`: {e}", file_name(name))))?;
+                let r = vectorcraft_eps::import_trusting(bytes, opts.editing_data, opts.trust_editing_data)
+                    .map_err(|e| err(format!("can't open `{}`: {e}", file_name(name))))?;
                 Ok((r.document, r.warnings))
             })?
         }
@@ -256,7 +283,7 @@ pub fn load_with(name: &str, bytes: &[u8], opts: &LoadOptions) -> Result<Loaded>
                 }
                 // Saved without its PDF part: the editing copy is all the file has (`pages` that
                 // name every page read it as the whole file).
-                Err(e) if e.to_string() == vectorcraft_pdf::PdfError::PlaceholderOnly.to_string() => {
+                Err(e) if is_placeholder(&e) => {
                     let whole = LoadOptions { pages: None, ..opts.clone() };
                     from_editing_data_alone(bytes, if every_page(bytes, opts) { &whole } else { opts })
                         .unwrap_or(Err(e))
@@ -343,7 +370,7 @@ pub fn open_bytes(s: &mut Session, name: &str, bytes: &[u8], path: Option<String
 /// [`open_bytes`] with the `document.open` options in `p` ([`LoadOptions::from_params`]).
 pub fn open_bytes_with(s: &mut Session, name: &str, bytes: &[u8], path: Option<String>, p: &Value) -> Result<Value> {
     let update_links = s.prefs.update_links == "automatically";
-    open_read(s, read_for_open(name, bytes, path, p, update_links)?)
+    open_read(s, read_for_open(name, bytes, path, p, update_links, s.prefs.low_res_proxy_eps)?)
 }
 
 /// A file read for `document.open` but not opened yet ([`read_for_open`], [`open_read`]).
@@ -369,10 +396,10 @@ impl ReadFile {
 /// [`open_read`] opens. The linked files are looked for from `path`, where the file was read from,
 /// and modified ones are read again when `update_links` (Preferences › File Handling › Update
 /// Links set to Automatically; see [`crate::cmd::links::resolve`]).
-pub fn read_for_open(name: &str, bytes: &[u8], path: Option<String>, p: &Value, update_links: bool) -> Result<ReadFile> {
+pub fn read_for_open(name: &str, bytes: &[u8], path: Option<String>, p: &Value, update_links: bool, low_res_proxy_eps: bool) -> Result<ReadFile> {
     let opts = LoadOptions::from_params("document.open", p)?;
     let mut loaded = load_with(name, bytes, &opts)?;
-    let links = crate::cmd::links::resolve(&mut loaded.doc, path.as_deref(), update_links);
+    let links = crate::cmd::links::resolve(&mut loaded.doc, path.as_deref(), update_links, low_res_proxy_eps);
     Session::refresh_text_bounds(&mut loaded.doc);
     Ok(ReadFile { loaded, opts, path, links })
 }
@@ -392,7 +419,7 @@ pub fn open_template(s: &mut Session, name: &str, bytes: &[u8], path: Option<&st
             "only this Affinity file's embedded preview could be read: use File › Open to see it with its warning, or export SVG or PDF from Affinity first",
         ));
     }
-    let links = crate::cmd::links::resolve(&mut loaded.doc, path, s.prefs.update_links == "automatically");
+    let links = crate::cmd::links::resolve(&mut loaded.doc, path, s.prefs.update_links == "automatically", s.prefs.low_res_proxy_eps);
     open_loaded(s, loaded, links, path.map(str::to_string), &LoadOptions::default(), true)
 }
 

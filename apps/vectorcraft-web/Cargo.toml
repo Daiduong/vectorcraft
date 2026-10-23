@@ -14,7 +14,7 @@ name = "vectorcraft-web"
 path = "src/main.rs"
 
 [dependencies]
-vectorcraft-engine = { workspace = true }
+vectorcraft-engine = { workspace = true, features = ["bundled-fonts"] }
 vectorcraft-ui-egui = { workspace = true }
 craft-cloud-client = { git = "https://github.com/wdunn001/collab-craft", rev = "b946dce" }
 collabcraft-share = { git = "https://github.com/wdunn001/collab-craft", rev = "b946dce" }

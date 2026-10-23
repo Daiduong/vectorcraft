@@ -37,14 +37,10 @@
 	Medium Dark	Åšrednio ciemny
 	Medium Light	Åšrednio jasny
 	Light	Jasny
-	Quit VectorCraft	ZakoÅ„cz VectorCraft
-	File	Plik
-	Newâ€¦	Nowyâ€¦
-	New from Templateâ€¦	Nowy z szablonuâ€¦
-	Openâ€¦	OtwÃ³rzâ€¦
-	Open Recent Files	OtwÃ³rz ostatnie pliki
-	Clear Recent Files	WyczyÅ›Ä‡ listÄ™ ostatnich plikÃ³w
-	Show in Folder	PokaÅ¼ w folderze
+	Quit VectorCraft	Zakończ VectorCraft
+# Artwork drag between document tabs.
+@msg	{key} must be [x, y] with finite coordinates	{key} musi mieć postać [x, y] ze skończonymi współrzędnymi
+
 	Close	Zamknij
 	Close All	Zamknij wszystkie
 	Save	Zapisz
@@ -223,13 +219,7 @@
 	Gap Optionsâ€¦	Opcje przerwâ€¦
 	Gap Options	Opcje przerw
 	Gap Detection	Wykrywanie przerw
-	Paint Stops At:	Farba zatrzymuje siÄ™ na:
-	Small Gaps	MaÅ‚e przerwy
-	Medium Gaps	Åšrednie przerwy
-	Large Gaps	DuÅ¼e przerwy
-	Gap Preview Color:	Kolor podglÄ…du przerw:
-	Close Gaps With Paths	Zamknij przerwy Å›cieÅ¼kami
-	Select Fills	Zaznaczaj wypeÅ‚nienia
+	Paint Stops At:	Farba zatrzymuje się na:
 	Select Strokes	Zaznaczaj obrysy
 	Image Trace	Obrys obrazu
 	Text Wrap	Oblewanie tekstem
@@ -716,14 +706,7 @@
 	Selection & Anchor Display	Zaznaczanie i wyÅ›wietlanie punktÃ³w
 	Units	Jednostki
 	Guides & Grid	Linie pomocnicze i siatka
-	Hyphenation	Dzielenie wyrazÃ³w
-	Performance & Storage	WydajnoÅ›Ä‡ i pamiÄ™Ä‡
-	User Interface	Interfejs uÅ¼ytkownika
-	Performance	WydajnoÅ›Ä‡
-	File Handling	ObsÅ‚uga plikÃ³w
-	Clipboard Handling	ObsÅ‚uga schowka
-	Appearance of Black	WyglÄ…d czerni
-	Devices	UrzÄ…dzenia
+	Hyphenation	Dzielenie wyrazów
 	A file dialog is open: choose there first	Otwarte jest okno wyboru pliku: najpierw dokonaj w nim wyboru
 	The document was closed while its file dialog was open	Dokument zostaÅ‚ zamkniÄ™ty, gdy jego okno wyboru pliku byÅ‚o otwarte
 	The dialog was closed before its file dialog answered	Okno dialogowe zostaÅ‚o zamkniÄ™te, zanim okno wyboru pliku odpowiedziaÅ‚o
@@ -767,7 +750,7 @@
 	Activate Panel	Aktywuj panel
 	Change Panel Layout	ZmieÅ„ ukÅ‚ad paneli
 	Close Panel	Zamknij panel
-	Move Panel	PrzesuÅ„ panel
+	Collapse Panel Group	Zwiń grupę paneli
 	Group with	Grupuj z
 	Resize panels	ZmieÅ„ rozmiar paneli
 	Resize panel window	ZmieÅ„ rozmiar okna paneli
@@ -1057,26 +1040,7 @@ lighting	Light	ÅšwiatÅ‚o
 	 to zoom out  |  	 aby pomniejszyÄ‡  |  
 	 to zoom into an area	 aby powiÄ™kszyÄ‡ obszar
 	Hold	Przytrzymaj
-	 right or left to zoom in or out  |  	 w prawo lub w lewo, aby powiÄ™kszyÄ‡ lub pomniejszyÄ‡  |  
-	 to keep zooming	 aby kontynuowaÄ‡ powiÄ™kszanie
-	 an object to copy its attributes  |  	 obiekt, aby skopiowaÄ‡ jego atrybuty  |  
-	 to apply the selection's to it  |  	 aby zastosowaÄ‡ do niego atrybuty zaznaczenia  |  
-	 to sample a color	 aby pobraÄ‡ prÃ³bkÄ™ koloru
-	 across a selected object to set the gradient direction	 przez zaznaczony obiekt, aby ustawiÄ‡ kierunek gradientu
-	 to select an artboard  |  	 aby zaznaczyÄ‡ obszar kompozycji  |  
-	 on the canvas to create one	 na pÅ‚Ã³tnie, aby go utworzyÄ‡
-	 a stroke to add a width point  |  	 obrys, aby dodaÄ‡ punkt szerokoÅ›ci  |  
-	 to change one side  |  	 aby zmieniÄ‡ jednÄ… stronÄ™  |  
-	 to select more points  |  	 aby zaznaczyÄ‡ wiÄ™cej punktÃ³w  |  
-	 a point to edit it  |  	 punkt, aby go edytowaÄ‡  |  
-	 to remove points	 aby usunÄ…Ä‡ punkty
-	 the art to add a pin  |  	 kompozycjÄ™, aby dodaÄ‡ pinezkÄ™  |  
-	 to select more pins  |  	 aby zaznaczyÄ‡ wiÄ™cej pinezek  |  
-	 a pin to warp  |  	 pinezkÄ™, aby wypaczyÄ‡  |  
-	 near a selected pin to rotate  |  	 obok zaznaczonej pinezki, aby obrÃ³ciÄ‡  |  
-	 to remove pins	 aby usunÄ…Ä‡ pinezki
-	 across paths to push them along  |  	 przez Å›cieÅ¼ki, aby je popchnÄ…Ä‡  |  
-	 to size the brush (	 aby zmieniÄ‡ rozmiar pÄ™dzla (
+	 right or left to zoom in or out  |  	 w prawo lub w lewo, aby powiększyć lub pomniejszyć  |  
 	 keeps its proportions)	 zachowuje proporcje)
 	 over paths, and hold still to keep going  |  	 po Å›cieÅ¼kach i przytrzymaj w miejscu, aby kontynuowaÄ‡  |  
 	 over paths to roughen their outlines  |  	 po Å›cieÅ¼kach, aby uszorstniÄ‡ ich kontury  |  
@@ -1303,6 +1267,7 @@ lighting	Light	ÅšwiatÅ‚o
 	Leading	Interlinia
 	No Break	Bez podziaÅ‚u
 	Proportional Metrics	Metryka proporcjonalna
+	Character Direction	Kierunek znaków
 	Digits	Cyfry
 	Arabic	Arabskie
 	Hindi	Hindi
@@ -1371,7 +1336,7 @@ lighting	Light	ÅšwiatÅ‚o
 	{count} more rules: Export writes every one.	WiÄ™cej reguÅ‚: {count}. Eksport zapisze wszystkie.
 	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	PominiÄ™to obiekty bez nazwy: {count}. Nadaj im nazwy lub wÅ‚Ä…cz Obiekty bez nazwy w menu panelu.
 	All Categories	Wszystkie kategorie
-	Saveâ€¦	Zapiszâ€¦
+	Repeat Objects	Obiekty powtórzenia
 	Selection Only	Tylko zaznaczenie
 	{title} (selection)	{title} (zaznaczenie)
 	Changed since the last Refresh.	Zmieniono od ostatniego odÅ›wieÅ¼enia.
@@ -1403,7 +1368,7 @@ lighting	Light	ÅšwiatÅ‚o
 	Edit Gradient	Edytuj gradient
 	Edit the selected point's colour in the Color panel	Edytuj kolor zaznaczonego punktu w panelu Kolor
 	Edit the stop	Edytuj punkt koloru
-	Eyedropper: click the art to sample the stop's colour	Kroplomierz: kliknij kompozycjÄ™, aby pobraÄ‡ kolor punktu
+	Eyedropper: click the art to sample the stop's colour	Kroplomierz: kliknij kompozycję, aby pobrać kolor punktu
 	Gradient across stroke	Gradient w poprzek obrysu
 	Gradient along stroke	Gradient wzdÅ‚uÅ¼ obrysu
 	Gradient Fill: click to apply, drag onto art	WypeÅ‚nienie gradientem: kliknij, aby zastosowaÄ‡, przeciÄ…gnij na kompozycjÄ™
@@ -1672,7 +1637,7 @@ lighting	Light	ÅšwiatÅ‚o
 	Justify with last line aligned right	Justuj z ostatnim wierszem do prawej
 	Left Indent	WciÄ™cie z lewej
 	Left-to-Right Paragraph Direction	Kierunek akapitu od lewej do prawej
-	Line-end Punctuation Half Width	Interpunkcja na koÅ„cu wiersza o poÅ‚owie szerokoÅ›ci
+	Line-end Punctuation Half Width	Interpunkcja na końcu wiersza o połowie szerokości
 	Mojikumi Set	Zestaw mojikumi
 	Kinsoku Set	Zestaw kinsoku
 	Hard	ÅšcisÅ‚y
@@ -1822,8 +1787,7 @@ lighting	Light	ÅšwiatÅ‚o
 	No symbols in this document	Brak symboli w tym dokumencie
 	Select art and click New Symbol to make one.	Zaznacz kompozycjÄ™ i kliknij Nowy symbol, aby go utworzyÄ‡.
 	Symbol Libraries (on the roadmap)	Biblioteki symboli (w planach)
-	Align On:	WyrÃ³wnaj do:
-	Center-Justified Tab	Tabulator Å›rodkowy
+	Align On:	Wyrównaj do:
 	Above Text	Nad tekstem
 	Position Panel Above Text	UmieÅ›Ä‡ panel nad tekstem
 	Click to add a tab stop, drag to move it, drag it off the ruler to delete it	Kliknij, aby dodaÄ‡ tabulator, przeciÄ…gnij, aby go przesunÄ…Ä‡, przeciÄ…gnij poza linijkÄ™, aby go usunÄ…Ä‡
@@ -1834,7 +1798,7 @@ lighting	Light	ÅšwiatÅ‚o
 	No text selected	Nie zaznaczono tekstu
 	Repeat Tab	PowtÃ³rz tabulator
 	Right-Justified Tab	Tabulator prawy
-	Select a text object to set its tab stops.	Zaznacz obiekt tekstowy, aby ustawiÄ‡ jego tabulatory.
+	Top-Justified Tab	Tabulator górny
 	Select text	Zaznacz tekst
 	Snap to Unit	PrzyciÄ…gaj do jednostek
 	+ Add Scale	+ Dodaj skalÄ™
@@ -1948,6 +1912,13 @@ lighting	Light	ÅšwiatÅ‚o
 	Tints and Shades	Tinty i odcienie
 	Hue Shift	PrzesuniÄ™cie barwy
 	Key Color:	Kolor kluczowy:
+	Tips	Wskazówki
+	Colorization Tips	Wskazówki dotyczące koloryzacji
+	The samples show this brush on a blue stroke.	Próbki pokazują ten pędzel na niebieskim obrysie.
+	The art keeps its own colors.	Kompozycja zachowuje własne kolory.
+	Black becomes the stroke color and white stays white. Other colors become tints of the stroke color by their lightness.	Czarny staje się kolorem obrysu, a biały pozostaje biały. Pozostałe kolory stają się tintami koloru obrysu, a im jaśniejszy jest kolor, tym jaśniejsza jest jego tinta.
+	Black and white stay as they are. Dark colors become shades of the stroke color and light colors become tints of it.	Czarny pozostaje czarny, a biały pozostaje biały. Pozostałe kolory stają się ciemnymi odcieniami koloru obrysu, gdy są ciemne, i jego tintami, gdy są jasne.
+	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Kolor kluczowy staje się kolorem obrysu. Pozostałe kolory przesuwają się po kole barw o tyle samo co kolor kluczowy i zachowują nasycenie oraz jasność.
 	Size:	Rozmiar:
 	Calligraphic Brush Options	Opcje pÄ™dzla kaligraficznego
 	Bristle Brush Options	Opcje pÄ™dzla wÅ‚osiankowego
@@ -2173,7 +2144,7 @@ lighting	Light	ÅšwiatÅ‚o
 	Alt key toggles to Smooth Tool	Klawisz Alt przeÅ‚Ä…cza na narzÄ™dzie WygÅ‚adzanie
 	Keep selected	Zachowaj zaznaczenie
 	Merge only with selection	Scalaj tylko z zaznaczeniem
-	The document has no colour swatches.	Dokument nie zawiera prÃ³bek kolorÃ³w.
+	Consider Open Filled Paths as Closed	Traktuj otwarte wypełnione ścieżki jako zamknięte
 	Style Name:	Nazwa stylu:
 	Crop To	Kadruj do
 	e.g. 1-3, 5	np. 1-3, 5
@@ -2264,12 +2235,9 @@ lighting	Light	ÅšwiatÅ‚o
 	Fonts whose licence doesn't allow embedding are not copied.	Czcionki, ktÃ³rych licencja nie zezwala na osadzanie, nie sÄ… kopiowane.
 	Package collects a saved document with its linked files and fonts.	Pakowanie zbiera zapisany dokument wraz z poÅ‚Ä…czonymi plikami i czcionkami.
 	Package created	Utworzono pakiet
-	Packaged {n} file(s) in {folder}{note}	Spakowane pliki: {n} w {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	Spakowane pliki: {n} w {folder}{note}
 	Packaged {n} file(s){note}	Spakowane pliki: {n}{note}
-	Relink Linked Files to the Document	PoÅ‚Ä…cz ponownie poÅ‚Ä…czone pliki z dokumentem
-	Save the document first?	Najpierw zapisaÄ‡ dokument?
-	{count} file(s) in {folder}{note}. Show the package folder?	Pliki: {count} w {folder}{note}. PokazaÄ‡ folder pakietu?
-	{count} linked file(s) not found	Nie znaleziono poÅ‚Ä…czonych plikÃ³w: {count}
+	Relink Linked Files to the Document	Połącz ponownie połączone pliki z dokumentem
 	fonts not copied: {fonts}	nieskopiowane czcionki: {fonts}
 	Built-in presets are read-only: Newâ€¦ starts an editable copy.	Wbudowane ustawienia sÄ… tylko do odczytu: Noweâ€¦ tworzy edytowalnÄ… kopiÄ™.
 	1 {unit} on the artboard stands for {real} {unit} in the scene.	1 {unit} na obszarze kompozycji odpowiada {real} {unit} w scenie.
@@ -2313,8 +2281,7 @@ lighting	Light	ÅšwiatÅ‚o
 	Bounds (Fill Proportionally)	Granice (wypeÅ‚nij proporcjonalnie)
 	Bounds (Fit Proportionally)	Granice (dopasuj proporcjonalnie)
 	File Dimensions	Wymiary pliku
-	Transforms	PrzeksztaÅ‚cenia
-	Background Color:	Kolor tÅ‚a:
+	Transforms	Przekształcenia
 	Client-side (.html)	Po stronie klienta (.html)
 	Color Reduction:	Redukcja kolorÃ³w:
 	Lossless (lossy WebP isn't available yet)	Bezstratny (stratny WebP nie jest jeszcze dostÄ™pny)
@@ -2760,14 +2727,8 @@ lighting	Light	ÅšwiatÅ‚o
 	Color Dodge	RozjaÅ›nianie koloru
 	Darken	Ciemniej
 	Exclusion	Wykluczenie
-	Hard Light	Ostre Å›wiatÅ‚o
-	Lighten	JaÅ›niej
-	Luminosity	JasnoÅ›Ä‡
-	Overlay	NakÅ‚adka
-	Soft Light	Åagodne Å›wiatÅ‚o
-	Crosshatch	Kreskowanie krzyÅ¼owe
-	Fine Dots	Drobne kropki
-	Medium Dots	Åšrednie kropki
+	Hard Light	Ostre światło
+
 	Grainy Dots	Ziarniste kropki
 	Coarse Dots	Grube kropki
 	Short Lines	KrÃ³tkie linie
@@ -2842,8 +2803,7 @@ theme	Appearance	WyglÄ…d
 	Duplicate Brush	Powiel pÄ™dzel
 	Duplicate Symbol	Powiel symbol
 	Edit Symbol	Edytuj symbol
-	Expand Brush Strokes	Rozszerz pociÄ…gniÄ™cia pÄ™dzla
-	New Brushâ€¦	Nowy pÄ™dzelâ€¦
+	Expand Brush Strokes	Rozszerz pociągnięcia pędzla
 	New Symbol	Nowy symbol
 	New Symbolâ€¦	Nowy symbolâ€¦
 	Place Symbol Instance	UmieÅ›Ä‡ wystÄ…pienie symbolu
@@ -3304,6 +3264,7 @@ theme	Appearance	WyglÄ…d
 	Scale Corners	Skaluj naroÅ¼niki
 	Scale Cursor Proportional to UI	Skaluj kursor proporcjonalnie do interfejsu
 	Scale Strokes & Effects	Skaluj obrysy i efekty
+	Scale Text Attributes	Skaluj atrybuty tekstu
 	Scratch Disks	Dyski robocze
 	Secondary	Dodatkowy
 	Select Same Tint %	Zaznaczaj ten sam % tinty
@@ -3393,19 +3354,7 @@ theme	Appearance	WyglÄ…d
 	Move Graphic Style	PrzesuÅ„ styl graficzny
 	New Graphic Style	Nowy styl graficzny
 	Redefine Graphic Style	Zdefiniuj ponownie styl graficzny
-	Rename Graphic Style	ZmieÅ„ nazwÄ™ stylu graficznego
-	Add to Graphic Styles	Dodaj do stylÃ³w graficznych
-	Graphic Style Library	Biblioteka stylÃ³w graficznych
-	Add Used Colors	Dodaj uÅ¼yte kolory
-	Delete Swatch	UsuÅ„ prÃ³bkÄ™
-	Duplicate Swatch	Powiel prÃ³bkÄ™
-	Merge Swatches	Scal prÃ³bki
-	Move Swatch	PrzesuÅ„ prÃ³bkÄ™
-	New Color Group	Nowa grupa kolorÃ³w
-	New Swatch	Nowa prÃ³bka
-	Select All Unused	Zaznacz wszystkie nieuÅ¼ywane
-	Sort by Kind	Sortuj wedÅ‚ug rodzaju
-	Sort by Name	Sortuj wedÅ‚ug nazwy
+	Rename Graphic Style	Zmień nazwę stylu graficznego
 	Spot Colors	Kolory dodatkowe
 	Swatch Options	Opcje prÃ³bki
 	Ungroup Color Group	Rozgrupuj grupÄ™ kolorÃ³w
@@ -3857,20 +3806,7 @@ imageTrace	Outline	Kontur
 @msg	Convert to Shape: no rectangles or ellipses selected	Konwertuj na ksztaÅ‚t: nie zaznaczono prostokÄ…tÃ³w ani elips
 @msg	Copied the CSS of {rules} object(s)	Skopiowano CSS obiektÃ³w: {rules}
 @msg	Copied the script report	Skopiowano raport skryptu
-@msg	Corners edits the corners of a path	NaroÅ¼niki edytuje naroÅ¼niki Å›cieÅ¼ki
-@msg	Couldn't copy to the system clipboard: {e}	Nie udaÅ‚o siÄ™ skopiowaÄ‡ do schowka systemowego: {e}
-@msg	Couldn't open {name}: {e}	Nie udaÅ‚o siÄ™ otworzyÄ‡ {name}: {e}
-@msg	Couldn't place {name}: the document it was dropped on was closed	Nie udaÅ‚o siÄ™ umieÅ›ciÄ‡ {name}: dokument, na ktÃ³ry go upuszczono, zostaÅ‚ zamkniÄ™ty
-@msg	Couldn't read {name}: {e}	Nie udaÅ‚o siÄ™ odczytaÄ‡ {name}: {e}
-@msg	Couldn't save recovery data: {e}	Nie udaÅ‚o siÄ™ zapisaÄ‡ danych odzyskiwania: {e}
-@msg	Create Outlines: select text objects	UtwÃ³rz kontury: zaznacz obiekty tekstowe
-@msg	Create from Guides: the document has no artboard	UtwÃ³rz z linii pomocniczych: dokument nie ma obszaru kompozycji
-@msg	Create from Guides: the guides make more than {MAX_PIECES} slices	UtwÃ³rz z linii pomocniczych: linie pomocnicze tworzÄ… wiÄ™cej niÅ¼ {MAX_PIECES} plasterkÃ³w
-@msg	Create from Selection: the selection has no area	UtwÃ³rz z zaznaczenia: zaznaczenie nie ma powierzchni
-@msg	Data Recovery has nowhere to keep copies: set Preferences â†’ File Handling â†’ Data Recovery â†’ Folder (recoveryFolder)	Odzyskiwanie danych nie ma gdzie przechowywaÄ‡ kopii: ustaw Preferencje â†’ ObsÅ‚uga plikÃ³w â†’ Odzyskiwanie danych â†’ Folder (recoveryFolder)
-@msg	direct-select anchor points to cut at (not the end points of open paths)	zaznacz bezpoÅ›rednio punkty kontrolne, w ktÃ³rych ma nastÄ…piÄ‡ ciÄ™cie (nie punkty koÅ„cowe otwartych Å›cieÅ¼ek)
-@msg	Divide Objects Below: select a path	Podziel obiekty poniÅ¼ej: zaznacz Å›cieÅ¼kÄ™
-@msg	Divide Objects Below: select exactly one path	Podziel obiekty poniÅ¼ej: zaznacz dokÅ‚adnie jednÄ… Å›cieÅ¼kÄ™
+@msg	Corners edits the corners of a path	Narożniki edytuje narożniki ścieżki
 @msg	Downloaded {_1} file(s)	Pobrane pliki: {_1}
 @msg	Downloaded {what}	Pobrano {what}
 @msg	Expand Appearance: the selection has a basic appearance	Rozszerz wyglÄ…d: zaznaczenie ma wyglÄ…d podstawowy
@@ -3895,10 +3831,7 @@ imageTrace	Outline	Kontur
 @msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	OdsuÅ„ Å›cieÅ¼kÄ™: po odsuniÄ™ciu nic nie zostaje z zaznaczonych Å›cieÅ¼ek (odsuniÄ™cie do wewnÄ…trz wiÄ™ksze niÅ¼ ksztaÅ‚ty)
 @msg	Opened with {_1} note(s): {_2}	Otwarto, uwagi ({_1}): {_2}
 @msg	Opened {url}	Otwarto {url}
-@msg	Outline Stroke: no stroked paths selected	Obrys konturu: nie zaznaczono Å›cieÅ¼ek z obrysem
-@msg	PDF settings are not an object	Ustawienia PDF nie sÄ… obiektem
-@msg	PDF writer error: {0}	BÅ‚Ä…d zapisu PDF: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Spakowane pliki: {n} w {folder}{note}
+@msg	Outline Stroke: no stroked paths selected	Obrys konturu: nie zaznaczono ścieżek z obrysem
 @msg	Packaged {n} file(s){note}	Spakowane pliki: {n}{note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	PodglÄ…d w przeglÄ…darce wymaga aplikacji desktopowej (wersja webowa zamiast tego pobiera pliki)
 @msg	Release Guides: no guides	Uwolnij linie pomocnicze: brak linii pomocniczych
@@ -3959,14 +3892,7 @@ imageTrace	Outline	Kontur
 @msg	`{name}` isn't a colour swatch	`{name}` nie jest prÃ³bkÄ… koloru
 @msg	`{path}` must be a bool or an object of bools	`{path}` musi byÄ‡ wartoÅ›ciÄ… logicznÄ… lub obiektem wartoÅ›ci logicznych
 @msg	`{s}` is not a colour (#rrggbb or a preset name)	`{s}` nie jest kolorem (#rrggbb lub nazwa ustawienia)
-@msg	`{tool}` isn't a Liquify tool	`{tool}` nie jest narzÄ™dziem upÅ‚ynniania
-@msg	`{tool}` isn't a freehand tool	`{tool}` nie jest narzÄ™dziem do rysowania odrÄ™cznego
-@msg	`{to}` is not an available name	`{to}` nie jest dostÄ™pnÄ… nazwÄ…
-@msg	a PostScript error ({name} in `{op}`)	bÅ‚Ä…d PostScript ({name} w `{op}`)
-@msg	a PostScript error ({name} in `{op}`), in {procs}	bÅ‚Ä…d PostScript ({name} w `{op}`), w {procs}
-@msg	a PostScript error ({name} in `{op}`: {at})	bÅ‚Ä…d PostScript ({name} w `{op}`: {at})
-@msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	bÅ‚Ä…d PostScript ({name} w `{op}`: {at}), w {procs}
-@msg	a PostScript error ({name})	bÅ‚Ä…d PostScript ({name})
+@msg	`{tool}` isn't a Liquify tool	`{tool}` nie jest narzędziem upłynniania
 @msg	a bitmap is empty	bitmapa jest pusta
 @msg	a bitmap is too large to read	bitmapa jest zbyt duÅ¼a, aby jÄ… odczytaÄ‡
 @msg	a colour index is 0 to {_1}, not {n}	indeks koloru musi mieÅ›ciÄ‡ siÄ™ w zakresie od 0 do {_1}, nie {n}
@@ -4046,10 +3972,7 @@ imageTrace	Outline	Kontur
 @msg	give both `start` and `end` [x, y] (or neither)	podaj zarÃ³wno `start`, jak i `end` [x, y] (albo Å¼adnego)
 @msg	give corners of the path: anchors where its sides meet at an angle	podaj naroÅ¼niki Å›cieÅ¼ki: punkty, w ktÃ³rych jej boki spotykajÄ… siÄ™ pod kÄ…tem
 @msg	give horizontal or vertical	podaj horizontal lub vertical
-@msg	give the path `id` and the width point `index`	podaj `id` Å›cieÅ¼ki i `index` punktu szerokoÅ›ci
-@msg	guides are locked	linie pomocnicze sÄ… zablokowane
-@msg	handle must be in or out	handle musi mieÄ‡ wartoÅ›Ä‡ in lub out
-@msg	image '{key}' has no pixels and was left out	obraz '{key}' nie ma pikseli i zostaÅ‚ pominiÄ™ty
+@msg	give the path `id` and the width point `index`	podaj `id` ścieżki i `index` punktu szerokości
 @msg	image data `{_1}` is missing	brak danych obrazu `{_1}`
 @msg	image would be too large; lower the resolution	obraz byÅ‚by zbyt duÅ¼y; zmniejsz rozdzielczoÅ›Ä‡
 @msg	index must be a number or first, previous, next or last	indeks musi byÄ‡ liczbÄ… lub first, previous, next albo last
@@ -4093,8 +4016,7 @@ imageTrace	Outline	Kontur
 @msg	no artwork	brak kompozycji
 @msg	no blend options	brak opcji przejÅ›cia
 @msg	no bounds	brak granic
-@msg	no brush named `{name}`	brak pÄ™dzla o nazwie `{name}`
-@msg	no brush selected	nie zaznaczono pÄ™dzla
+@msg	no brush named `{name}`	brak pędzla o nazwie `{name}`
 @msg	no catalog	brak katalogu
 @msg	no changes since the last save	brak zmian od ostatniego zapisu
 @msg	no clock to keep a heartbeat by	brak zegara do podtrzymywania sygnaÅ‚u aktywnoÅ›ci
@@ -4107,12 +4029,7 @@ imageTrace	Outline	Kontur
 @msg	no document open	brak otwartego dokumentu
 @msg	no effect applied yet	nie zastosowano jeszcze Å¼adnego efektu
 @msg	no effect at index {k}	brak efektu o indeksie {k}
-@msg	no end record	brak rekordu koÅ„cowego
-@msg	no file manager here	brak menedÅ¼era plikÃ³w
-@msg	no file reader	brak czytnika plikÃ³w
-@msg	no file system here	brak systemu plikÃ³w
-@msg	no file writer	brak moduÅ‚u zapisu plikÃ³w
-@msg	no files to place	brak plikÃ³w do umieszczenia
+@msg	no end record	brak rekordu końcowego
 @msg	no format to export to	brak formatu eksportu
 @msg	no free recovery area	brak wolnego obszaru odzyskiwania
 @msg	no gradient stop or freeform point is selected	nie zaznaczono punktu koloru gradientu ani dowolnego punktu
@@ -4148,6 +4065,7 @@ imageTrace	Outline	Kontur
 @msg	no such action	brak takiej operacji
 @msg	no such anchor	brak takiego punktu
 @msg	no such artboard	brak takiego obszaru kompozycji
+@msg	the artboard is locked	obszar kompozycji jest zablokowany
 @msg	no such document	brak takiego dokumentu
 @msg	no such layer or object	brak takiej warstwy lub obiektu
 @msg	no such object {0}	brak obiektu {0}
@@ -4205,6 +4123,7 @@ imageTrace	Outline	Kontur
 @msg	path is already closed	Å›cieÅ¼ka jest juÅ¼ zamkniÄ™ta
 @msg	paths contain invalid coordinates	Å›cieÅ¼ki zawierajÄ… nieprawidÅ‚owe wspÃ³Å‚rzÄ™dne
 @msg	paths: give at least one file	paths: podaj co najmniej jeden plik
+@msg	replace: the object to replace was changed or deleted	replace: obiekt do zastąpienia został zmieniony lub usunięty
 @msg	pattern missing	brak wzorka
 @msg	patterns nested too deeply are filled with mid-grey	zbyt gÅ‚Ä™boko zagnieÅ¼dÅ¼one wzorki sÄ… wypeÅ‚niane Å›redniÄ… szaroÅ›ciÄ…
 @msg	percent must be above 0 and at most 6400, not {p}	procent musi byÄ‡ wiÄ™kszy od 0 i nie wiÄ™kszy niÅ¼ 6400, nie {p}
@@ -4224,24 +4143,7 @@ imageTrace	Outline	Kontur
 @msg	range `{s}`: `{part}` runs backwards	zakres `{s}`: `{part}` jest odwrÃ³cony
 @msg	range `{s}`: `{t}` is not a number from 1 to {count}	zakres `{s}`: `{t}` nie jest liczbÄ… od 1 do {count}
 @msg	recovery copy `{file}`: {e}	kopia odzyskiwania `{file}`: {e}
-@msg	resolutions must be between 1 and 2400 ppi	rozdzielczoÅ›ci muszÄ… mieÅ›ciÄ‡ siÄ™ w zakresie od 1 do 2400 ppi
-@msg	result would exceed the canvas (coordinates out of range)	wynik wykroczyÅ‚by poza pÅ‚Ã³tno (wspÃ³Å‚rzÄ™dne poza zakresem)
-@msg	objects can't be nested more than 32 deep	obiektÃ³w nie moÅ¼na zagnieÅ¼dÅ¼aÄ‡ gÅ‚Ä™biej niÅ¼ na 32 poziomy
-@msg	the SVG's elements are nested more than {0} deep	elementy SVG sÄ… zagnieÅ¼dÅ¼one gÅ‚Ä™biej niÅ¼ na {0} poziomÃ³w
-@msg	scale must be a number from {_1} to {_2}, not {_3}	skala musi byÄ‡ liczbÄ… od {_1} do {_2}, nie {_3}
-@msg	scale must be a number from {_1} to {_2}, not {s}	skala musi byÄ‡ liczbÄ… od {_1} do {_2}, nie {s}
-@msg	select (or target) objects whose appearance isn't basic	zaznacz (lub wskaÅ¼) obiekty, ktÃ³rych wyglÄ…d nie jest podstawowy
-@msg	select a Live Paint group	zaznacz grupÄ™ aktywnego malowania
-@msg	select a blend	zaznacz przejÅ›cie
-@msg	select a blend or give `id`	zaznacz przejÅ›cie lub podaj `id`
-@msg	select a clip group	zaznacz grupÄ™ przycinajÄ…cÄ…
-@msg	select a gradient mesh	zaznacz siatkÄ™ gradientowÄ…
-@msg	select a linked image: an embedded one has no file	zaznacz obraz poÅ‚Ä…czony: osadzony nie ma pliku
-@msg	select a repeat	zaznacz powtÃ³rzenie
-@msg	select an Intertwine group	zaznacz grupÄ™ przeplotu
-@msg	select an Objects on Path group	zaznacz grupÄ™ obiektÃ³w na Å›cieÅ¼ce
-@msg	select a stroke with a variable width	zaznacz obrys o zmiennej szerokoÅ›ci
-@msg	select a symbol instance	zaznacz wystÄ…pienie symbolu
+@msg	resolutions must be between 1 and 2400 ppi	rozdzielczości muszą mieścić się w zakresie od 1 do 2400 ppi
 @msg	select an Image Trace object	zaznacz obiekt obrysu obrazu
 @msg	could not decode image: {0}	nie udaÅ‚o siÄ™ zdekodowaÄ‡ obrazu: {0}
 @msg	image is empty	obraz jest pusty
@@ -4358,32 +4260,12 @@ imageTrace	Outline	Kontur
 @msg	unknown tool `{t}`	nieznane narzÄ™dzie `{t}`
 @msg	unknown tool or command `{key}`	nieznane narzÄ™dzie lub polecenie `{key}`
 @msg	unknown workspace (one of {_1})	nieznany obszar roboczy (jeden z: {_1})
-@msg	unsupported: {0}	nieobsÅ‚ugiwane: {0}
-@msg	variables are locked	zmienne sÄ… zablokowane
-@msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	plikÃ³w w wersji {0} nie moÅ¼na kompresowaÄ‡: skompresowane pliki otwierajÄ… tylko wersje {COMPRESSED_SINCE} i nowsze
-@msg	width and height are at least 1 pixel	szerokoÅ›Ä‡ i wysokoÅ›Ä‡ muszÄ… wynosiÄ‡ co najmniej 1 piksel
-@msg	workspace name can't be empty	nazwa obszaru roboczego nie moÅ¼e byÄ‡ pusta
-@msg	x and y must be finite	x i y muszÄ… byÄ‡ skoÅ„czone
+@msg	unsupported: {0}	nieobsługiwane: {0}
 @msg	{C}: no effect at index {from}	{C}: brak efektu o indeksie {from}
 @msg	{_1} failed: {e}	{_1} â€” niepowodzenie: {e}
 @msg	{_1} files can be opened but not written (see document.formats)	pliki {_1} moÅ¼na otwieraÄ‡, ale nie zapisywaÄ‡ (patrz document.formats)
 @msg	{_1} files are written by file.saveAsTemplate	pliki {_1} zapisuje file.saveAsTemplate
-@msg	{_1} font families available	dostÄ™pne rodziny czcionek: {_1}
-@msg	{_1} is a live effect (Effect â€º Plug-ins)	{_1} to efekt na Å¼ywo (Efekt â€º Wtyczki)
-@msg	{_1} is an exporter (File â€º Export â€º Export Asâ€¦)	{_1} to wtyczka eksportu (Plik â€º Eksportuj â€º Eksportuj jakoâ€¦)
-@msg	{_1} is already used by {_2}	{_1} jest juÅ¼ uÅ¼ywany przez {_2}
-@msg	{_1} linked file(s) can't be read here: their previews show	poÅ‚Ä…czonych plikÃ³w nie moÅ¼na tu odczytaÄ‡ ({_1}): wyÅ›wietlane sÄ… ich podglÄ…dy
-@msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	poÅ‚Ä…czone obrazy zmienione na dysku: {_1} â€” Aktualizuj Å‚Ä…cza pokaÅ¼e nowe wersje
-@msg	{_1}: not saved, so not closed	{_1}: nie zapisano, wiÄ™c nie zamkniÄ™to
-@msg	{bpp}-bit bitmaps can't be read	nie moÅ¼na odczytaÄ‡ bitmap {bpp}-bitowych
-@msg	{command} didn't create an object	{command} nie utworzyÅ‚o obiektu
-@msg	{label} produced an empty result	{label} daÅ‚o pusty wynik
-@msg	{label}: lost track of a shape's style	{label}: utracono informacjÄ™ o stylu ksztaÅ‚tu
-@msg	{label}: select paths	{label}: zaznacz Å›cieÅ¼ki
-@msg	{label}: select paths, compound paths, groups or text	{label}: zaznacz Å›cieÅ¼ki, Å›cieÅ¼ki zÅ‚oÅ¼one, grupy lub tekst
-@msg	{label}â€¦	{label}â€¦
-@msg	{name}: CRC mismatch	{name}: niezgodnoÅ›Ä‡ CRC
-@msg	{name}: no local header	{name}: brak nagÅ‚Ã³wka lokalnego
+@msg	{_1} font families available	dostępne rodziny czcionek: {_1}
 @msg	{name}: no such recovery entry	{name}: brak takiego wpisu odzyskiwania
 @msg	{path} can't be found: relink it first	nie moÅ¼na znaleÅºÄ‡ {path}: najpierw poÅ‚Ä…cz go ponownie
 @msg	{path}: no file system here (pass dataBase64 to open; omit the path to get dataBase64)	{path}: brak systemu plikÃ³w (przekaÅ¼ dataBase64, aby otworzyÄ‡; pomiÅ„ Å›cieÅ¼kÄ™, aby otrzymaÄ‡ dataBase64)
@@ -4399,6 +4281,8 @@ imageTrace	Outline	Kontur
 @msg	Saving	Zapisywanie
 @msg	Saving {_1}	Zapisywanie {_1}
 @msg	Exporting {_1}	Eksportowanie {_1}
+@msg	Packaging {_1}	Pakowanie {_1}
+@msg	Placing {_1}	Umieszczanie {_1}
 @msg	Saving recovery data for {_1}	Zapisywanie danych odzyskiwania dla {_1}
 @msg	Discarded {_1} recovered document(s)	Odrzucone odzyskane dokumenty: {_1}
 @msg	Restored {_1} recovered document(s): save them to keep them	PrzywrÃ³cone odzyskane dokumenty: {_1} â€” zapisz je, aby je zachowaÄ‡
@@ -4480,16 +4364,7 @@ imageTrace	Outline	Kontur
 @msg	{key} must be an array of non-negative integer object ids	{key} musi byÄ‡ tablicÄ… identyfikatorÃ³w obiektÃ³w, ktÃ³re sÄ… nieujemnymi liczbami caÅ‚kowitymi
 @msg	invalid object id {value}: expected a non-negative integer	nieprawidÅ‚owy identyfikator obiektu {value}: oczekiwano nieujemnej liczby caÅ‚kowitej
 @msg	no such object id {value}	brak obiektu o identyfikatorze {value}
-@msg	automation filesystem access is not granted: read authority is absent: {path}	nie przyznano dostÄ™pu automatyzacji do systemu plikÃ³w: brak uprawnieÅ„ do odczytu: {path}
-@msg	automation filesystem access is not granted: write authority is absent: {path}	nie przyznano dostÄ™pu automatyzacji do systemu plikÃ³w: brak uprawnieÅ„ do zapisu: {path}
-@msg	automation path rejected: outside the read root {root}: {path}	odrzucono Å›cieÅ¼kÄ™ automatyzacji: poza katalogiem gÅ‚Ã³wnym odczytu {root}: {path}
-@msg	automation path rejected: outside the write root {root}: {path}	odrzucono Å›cieÅ¼kÄ™ automatyzacji: poza katalogiem gÅ‚Ã³wnym zapisu {root}: {path}
-@msg	automation path rejected: path is empty	odrzucono Å›cieÅ¼kÄ™ automatyzacji: Å›cieÅ¼ka jest pusta
-@msg	automation path rejected: a link that leads nowhere: {path}	odrzucono Å›cieÅ¼kÄ™ automatyzacji: Å‚Ä…cze prowadzi donikÄ…d: {path}
-@msg	automation path rejected: cannot resolve {path}: {e}	odrzucono Å›cieÅ¼kÄ™ automatyzacji: nie moÅ¼na rozwiÄ…zaÄ‡ {path}: {e}
-@msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	odrzucono Å›cieÅ¼kÄ™ automatyzacji: przejÅ›cie do katalogu nadrzÄ™dnego poniÅ¼ej nieistniejÄ…cego folderu: {path}
-@msg	automation path rejected: reserved device names are not allowed: {path}	odrzucono Å›cieÅ¼kÄ™ automatyzacji: zastrzeÅ¼one nazwy urzÄ…dzeÅ„ sÄ… niedozwolone: {path}
-@msg	Multichannel PSD files can't be read: save it in RGB, CMYK or Grayscale mode	nie moÅ¼na odczytaÄ‡ wielokanaÅ‚owych plikÃ³w PSD: zapisz plik w trybie RGB, CMYK lub skali szaroÅ›ci
+@msg	automation filesystem access is not granted: read authority is absent: {path}	nie przyznano dostępu automatyzacji do systemu plików: brak uprawnień do odczytu: {path}
 @msg	not a PSD file	to nie jest plik PSD
 @msg	the PSD file has an unknown colour mode ({m})	plik PSD ma nieznany tryb koloru ({m})
 @msg	the PSD file's image data uses an unknown compression ({m})	dane obrazu pliku PSD uÅ¼ywajÄ… nieznanej kompresji ({m})
@@ -4502,10 +4377,7 @@ imageTrace	Outline	Kontur
 @msg	Imported library {name}	Zaimportowano bibliotekÄ™ {name}
 @msg	Invalid panel layout; restored the default dock	NieprawidÅ‚owy ukÅ‚ad paneli; przywrÃ³cono domyÅ›lny dok
 @msg	action is required	wymagane jest action
-@msg	anchor must name a registered panel	anchor musi wskazywaÄ‡ zarejestrowany panel
-@msg	before must name a panel	before musi wskazywaÄ‡ panel
-@msg	docking action contains an unknown panel or an excessive split path	operacja dokowania zawiera nieznany panel lub zbyt dÅ‚ugÄ… Å›cieÅ¼kÄ™ podziaÅ‚u
-@msg	group must be true or false	group musi mieÄ‡ wartoÅ›Ä‡ true lub false
+@msg	anchor must name a registered panel	anchor musi wskazywać zarejestrowany panel
 @msg	move requires a destination panel	przeniesienie wymaga panelu docelowego
 @msg	move requires an existing destination panel	przeniesienie wymaga istniejÄ…cego panelu docelowego
 @msg	onto must name a floating panel	onto musi wskazywaÄ‡ panel pÅ‚ywajÄ…cy
@@ -4818,13 +4690,7 @@ imageTrace	Outline	Kontur
 	32 bits/pixel	32 bity/piksel
 	DWG (use DXF)	DWG (uÅ¼yj DXF)
 	Artistic	Artystyczne
-	Film Grainâ€¦	Ziarno filmuâ€¦
-	Cutoutâ€¦	Wycinankaâ€¦
-	Cutout	Wycinanka
-	Neon Glowâ€¦	Neonowa poÅ›wiataâ€¦
-	Neon Glow	Neonowa poÅ›wiata
-	Poster Edgesâ€¦	KrawÄ™dzie plakatuâ€¦
-	Poster Edges	KrawÄ™dzie plakatu
+	Film Grain…	Ziarno filmu…
 	Levels	Poziomy
 	Edge Simplicity	Prostota krawÄ™dzi
 	Edge Fidelity	WiernoÅ›Ä‡ krawÄ™dzi
@@ -4935,9 +4801,7 @@ mark-style	Japanese	JapoÅ„skie
 	Top Right:	Prawy gÃ³rny:
 	Bottom Left:	Lewy dolny:
 	Bottom Right:	Prawy dolny:
-	Softness	MiÄ™kkoÅ›Ä‡
-	Ambient Light	ÅšwiatÅ‚o otoczenia
-	Light behind the object	ÅšwiatÅ‚o za obiektem
+	Softness	Miękkość
 # 3D light management.
 	Lights	ÅšwiatÅ‚a
 	Add Light	Dodaj Å›wiatÅ‚o
@@ -4981,23 +4845,7 @@ mark-style	Japanese	JapoÅ„skie
 	Font Style:	Styl czcionki:
 	Precision:	DokÅ‚adnoÅ›Ä‡:
 	Update Dimensions	Aktualizuj wymiary
-@msg	Angles require two straight segments	KÄ…ty wymagajÄ… dwÃ³ch prostych odcinkÃ³w
-@msg	Choose two different points	Wybierz dwa rÃ³Å¼ne punkty
-@msg	Choose two non-parallel straight segments	Wybierz dwa nierÃ³wnolegÅ‚e proste odcinki
-@msg	Choose two nonzero angle arms	Wybierz dwa niezerowe ramiona kÄ…ta
-@msg	Dimension point is outside the canvas	Punkt wymiaru leÅ¼y poza obszarem roboczym
-@msg	Dimension size is outside its supported range	Rozmiar wymiaru jest poza obsÅ‚ugiwanym zakresem
-@msg	First measured segment no longer exists	Pierwszy mierzony odcinek juÅ¼ nie istnieje
-@msg	Invalid dimension distance	NieprawidÅ‚owa odlegÅ‚oÅ›Ä‡ wymiaru
-@msg	Invalid dimension font name	NieprawidÅ‚owa nazwa czcionki wymiaru
-@msg	Invalid drawing scale	NieprawidÅ‚owa skala rysunku
-@msg	Invalid real scale	NieprawidÅ‚owa skala rzeczywista
-@msg	Measured anchor no longer exists	Mierzony punkt kontrolny juÅ¼ nie istnieje
-@msg	Measured segment no longer exists	Mierzony odcinek juÅ¼ nie istnieje
-@msg	Non-finite dimension	Wymiar nie jest liczbÄ… skoÅ„czonÄ…
-@msg	Scale must be drawing:real, for example 1:10	Skala musi mieÄ‡ postaÄ‡ rysunek:rzeczywistoÅ›Ä‡, na przykÅ‚ad 1:10
-@msg	Scale ratio must be between 1:1000000 and 1000000:1	WspÃ³Å‚czynnik skali musi mieÅ›ciÄ‡ siÄ™ miÄ™dzy 1:1000000 a 1000000:1
-@msg	Second measured segment no longer exists	Drugi mierzony odcinek juÅ¼ nie istnieje
+@msg	Angles require two straight segments	Kąty wymagają dwóch prostych odcinków
 @msg	Unknown dimension mode	Nieznany tryb wymiaru
 @msg	Unknown dimension option {k}	Nieznana opcja wymiaru {k}
 @msg	Unknown dimension style	Nieznany styl wymiaru
@@ -5009,13 +4857,8 @@ mark-style	Japanese	JapoÅ„skie
 @msg	span: "selection" places a `gradient`, not a swatch	span: "selection" umieszcza `gradient`, a nie prÃ³bkÄ™
 @msg	span: "selection" places a gradient: give `gradient`	span: "selection" umieszcza gradient: podaj `gradient`
 @msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" umieszcza gradient liniowy lub radialny, a nie dowolny
-@msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" umieszcza sam gradient: pomiÅ„ `start` i `end` (one juÅ¼ umieszczajÄ… go we wspÃ³Å‚rzÄ™dnych dokumentu)
-	Make Image Dynamic	UczyÅ„ obraz dynamicznym
-	Import Data Setsâ€¦	Importuj zestawy danychâ€¦
-	Export Data Setsâ€¦	Eksportuj zestawy danychâ€¦
-	Make Graph Dynamic	UczyÅ„ wykres dynamicznym
-	Batchâ€¦	Przetwarzanie wsadoweâ€¦
-	Source Folder:	Folder ÅºrÃ³dÅ‚owy:
+@msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" umieszcza sam gradient: pomiń `start` i `end` (one już umieszczają go we współrzędnych dokumentu)
+	Make Image Dynamic	Uczyń obraz dynamicznym
 	Destination Folder:	Folder docelowy:
 	Overrides	ZastÄ…pienia
 	Uses every data set of the open document.	UÅ¼ywa kaÅ¼dego zestawu danych otwartego dokumentu.
@@ -5034,8 +4877,7 @@ mark-style	Japanese	JapoÅ„skie
 	Violet	Fioletowy
 	Pink	RÃ³Å¼owy
 	Sketch	Szkic
-	Halftone Patternâ€¦	WzÃ³r rastraâ€¦
-	Halftone Pattern	WzÃ³r rastra
+	Halftone Pattern…	Wzór rastra…
 	Pattern Type	Typ wzoru
 	Dot	Kropka
 # User Interface â€º Color Scheme
@@ -5053,15 +4895,7 @@ mark-style	Japanese	JapoÅ„skie
 	Sponge	GÄ…bka
 	Watercolorâ€¦	Akwarelaâ€¦
 	Watercolor	Akwarela
-	Brush Size	Rozmiar pÄ™dzla
-	Definition	WyrazistoÅ›Ä‡
-	Brush Detail	SzczegÃ³Å‚owoÅ›Ä‡ pÄ™dzla
-	Shadow Intensity	IntensywnoÅ›Ä‡ cieni
-	Bas Reliefâ€¦	PÅ‚askorzeÅºbaâ€¦
-	Bas Relief	PÅ‚askorzeÅºba
-	Charcoalâ€¦	WÄ™gielâ€¦
-	Charcoal	WÄ™giel
-	Photocopyâ€¦	Fotokopiaâ€¦
+	Brush Size	Rozmiar pędzla
 	Photocopy	Fotokopia
 	Stampâ€¦	Stempelâ€¦
 	Stamp	Stempel
@@ -5082,15 +4916,15 @@ mark-style	Japanese	JapoÅ„skie
 @msg	the image's pixels can't be read	nie moÅ¼na odczytaÄ‡ pikseli obrazu
 	Persistent	TrwaÅ‚y
 	Library Panel Options	Opcje panelu biblioteki
-@msg	Persistent libraries not found: {files}	Nie znaleziono trwaÅ‚ych bibliotek: {files}
+	Locate Library…	Znajdź bibliotekę…
+@msg	Persistent libraries not found: {files}	Nie znaleziono trwałych bibliotek: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` nie jest panelem biblioteki (zobacz window.swatchLibrary)
 @msg	library panel `{given}` isn't open	panel biblioteki `{given}` nie jest otwarty
+@msg	library panel `{given}` isn't missing its library	panelowi biblioteki `{given}` nie brakuje biblioteki
 @msg	too many library panels were opened in this session	w tej sesji otwarto zbyt wiele paneli bibliotek
-@msg	The image is {_1} Ã— {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz ma {_1} Ã— {_2} pikseli, ponad {LARGE_TRACE_SIDE} na jednym boku: zostanie obrysowany, ale wolniej. Ustawienie wstÄ™pne o niÅ¼szej wiernoÅ›ci lub mniejsza kopia obrazu obrysuje siÄ™ szybciej.
-@msg	The image was traced at {_1} Ã— {_2} pixels, scaled down from {_3} Ã— {_4} ({_5} megapixels at most).	Obraz obrysowano w rozdzielczoÅ›ci {_1} Ã— {_2} pikseli, po zmniejszeniu z {_3} Ã— {_4} (najwyÅ¼ej {_5} megapikseli).
-	Artboard {n} of {total}	Obszar kompozycji {n} z {total}
-	Encoding and writing the fileâ€¦	Kodowanie i zapisywanie plikuâ€¦
-@plural	{n} more export waiting|{n} more exports waiting	Czeka jeszcze {n} eksport|CzekajÄ… jeszcze {n} eksporty|Czeka jeszcze {n} eksportÃ³w
+@msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz ma {_1} × {_2} pikseli, ponad {LARGE_TRACE_SIDE} na jednym boku: zostanie obrysowany, ale wolniej. Ustawienie wstępne o niższej wierności lub mniejsza kopia obrazu obrysuje się szybciej.
+	Snapping	Przyciąganie
+@plural	{n} more export waiting|{n} more exports waiting	Czeka jeszcze {n} eksport|Czekają jeszcze {n} eksporty|Czeka jeszcze {n} eksportów
 	Continue in Background	Kontynuuj w tle
 	Cancel Export	Anuluj eksport
 @msg	Export cancelled	Eksport anulowany
@@ -5104,7 +4938,8 @@ mark-style	Japanese	JapoÅ„skie
 	Full Justify	PeÅ‚ne justowanie
 	Minimum must not exceed Desired, nor Desired Maximum.	Minimum nie moÅ¼e przekraczaÄ‡ wartoÅ›ci optymalnej, a wartoÅ›Ä‡ optymalna maksimum.
 	Justification	Justowanie
-@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	zmienne i zestawy danych pliku nie zostaÅ‚y wczytane (zmienne: {variables}, zestawy danych: {data_sets}): panel Zmienne ich nie wyÅ›wietla
+	Add filters from the list above	Dodaj filtry z listy powyżej
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	zmienne i zestawy danych pliku nie zostały wczytane (zmienne: {variables}, zestawy danych: {data_sets}): panel Zmienne ich nie wyświetla
 # Select by Color (select.color)
 	Select by Color	Zaznacz wedÅ‚ug koloru
 	Move Anchor Point	PrzesuÅ„ punkt kontrolny
@@ -5125,23 +4960,9 @@ mark-style	Japanese	JapoÅ„skie
 	Plaster	Gips
 	Note Paperâ€¦	Papier listowyâ€¦
 	Note Paper	Papier listowy
-
+	Water Paper…	Mokry papier…
+axis	X Axis	Oś X
+@msg	Packaged {n} file(s) in {folder}	Spakowane pliki: {n} w {folder}
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
 
 # CollabCraft cloud Open / Save / Share
-	Browse a Cloud Folder	PrzeglÄ…daj folder w chmurze
-	Cloud Status	Stan chmury
-	Connect Cloud Storage	PoÅ‚Ä…cz magazyn w chmurze
-	List Cloud Shares	Lista udostÄ™pnieÅ„ w chmurze
-	Open a Cloud Drawing	OtwÃ³rz rysunek z chmury
-	Open from the Cloudâ€¦	OtwÃ³rz z chmuryâ€¦
-	Reload from the Cloud	Wczytaj ponownie z chmury
-	Save to the Cloud	Zapisz w chmurze
-	Save to the Cloudâ€¦	Zapisz w chmurzeâ€¦
-	A folder on this computer	Folder na tym komputerze
-	Cloud	Chmura
-	This computer	Ten komputer
-	Where	Gdzie
-	Your cloud account	Twoje konto w chmurze
-@msg	VectorCraft cannot open {_1}	VectorCraft nie moÅ¼e otworzyÄ‡ {_1}
-@msg	no drawing open	brak otwartego rysunku
-@msg	no such file in the cloud listing	brak takiego pliku na liÅ›cie w chmurze

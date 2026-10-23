@@ -28,30 +28,11 @@
 	Cut Path at Selected Anchor Points	RozdÄ›lit cestu ve vybranÃ½ch kotevnÃ­ch bodech
 	Join Our Discord	PÅ™ipojit se k naÅ¡emu Discordu
 	Language	Jazyk
-	UI Brightness	Jas rozhranÃ­
-	Dark	TmavÃ½
-	Medium Dark	StÅ™ednÄ› tmavÃ½
-	Medium Light	StÅ™ednÄ› svÄ›tlÃ½
-	Light	SvÄ›tlÃ½
-	Quit VectorCraft	UkonÄit VectorCraft
-	File	Soubor
-	Newâ€¦	NovÃ½â€¦
-	New from Templateâ€¦	NovÃ½ ze Å¡ablonyâ€¦
-	Openâ€¦	OtevÅ™Ã­tâ€¦
-	Open Recent Files	OtevÅ™Ã­t nedÃ¡vnÃ© soubory
-	Clear Recent Files	Vymazat seznam nedÃ¡vnÃ½ch souborÅ¯
-	Show in Folder	Zobrazit ve sloÅ¾ce
-	Close	ZavÅ™Ã­t
-@id	file.close	ZavÅ™Ã­t
-	Close All	ZavÅ™Ã­t vÅ¡e
-	Save	UloÅ¾it
-	Save Asâ€¦	UloÅ¾it jakoâ€¦
-	Save a Copyâ€¦	UloÅ¾it kopiiâ€¦
-	Save as Templateâ€¦	UloÅ¾it jako Å¡ablonuâ€¦
-	Save as PDFâ€¦	UloÅ¾it jako PDFâ€¦
-	Save for Office Documentsâ€¦	UloÅ¾it pro kancelÃ¡Å™skÃ© dokumentyâ€¦
-	Revert	VrÃ¡tit k uloÅ¾enÃ© verzi
-	Placeâ€¦	UmÃ­stitâ€¦
+	UI Brightness	Jas rozhraní
+# Artwork drag between document tabs.
+@msg	{key} must be [x, y] with finite coordinates	{key} musí být [x, y] s konečnými souřadnicemi
+
+@id	file.close	Zavřít
 	Export	Export
 	Export for Screensâ€¦	Exportovat pro obrazovkyâ€¦
 	Export Asâ€¦	Exportovat jakoâ€¦
@@ -258,14 +239,7 @@
 	Gap Optionsâ€¦	MoÅ¾nosti mezerâ€¦
 	Gap Options	MoÅ¾nosti mezer
 	Gap Detection	Detekce mezer
-	Paint Stops At:	Barva se zastavÃ­ u:
-	Small Gaps	MalÃ© mezery
-	Medium Gaps	StÅ™ednÃ­ mezery
-	Large Gaps	VelkÃ© mezery
-	Gap Preview Color:	Barva nÃ¡hledu mezer:
-	Close Gaps With Paths	UzavÅ™Ã­t mezery cestami
-	Select Fills	VybÃ­rat vÃ½plnÄ›
-	Select Strokes	VybÃ­rat tahy
+	Paint Stops At:	Barva se zastaví u:
 	Image Trace	Vektorizace obrazu
 	Image Trace (Make and Expand)	Vektorizace obrazu (vytvoÅ™it a rozloÅ¾it)
 	Release Image Trace	Uvolnit vektorizaci obrazu
@@ -771,18 +745,7 @@
 	General	ObecnÃ©
 	Selection & Anchor Display	VÃ½bÄ›r a zobrazenÃ­ kotevnÃ­ch bodÅ¯
 	Units	Jednotky
-	Guides & Grid	VodÃ­tka a mÅ™Ã­Å¾ka
-	Hyphenation	DÄ›lenÃ­ slov
-	Performance & Storage	VÃ½kon a ÃºloÅ¾iÅ¡tÄ›
-	User Interface	UÅ¾ivatelskÃ© rozhranÃ­
-	Performance	VÃ½kon
-	File Handling	PrÃ¡ce se soubory
-	Clipboard Handling	PrÃ¡ce se schrÃ¡nkou
-	Appearance of Black	Vzhled ÄernÃ©
-	Devices	ZaÅ™Ã­zenÃ­
-	A file dialog is open: choose there first	Je otevÅ™enÃ© dialogovÃ© okno souboru: nejprve vyberte v nÄ›m
-	The document was closed while its file dialog was open	Dokument byl zavÅ™en, zatÃ­mco bylo otevÅ™enÃ© jeho dialogovÃ© okno souboru
-	The dialog was closed before its file dialog answered	DialogovÃ© okno se zavÅ™elo dÅ™Ã­v, neÅ¾ odpovÄ›dÄ›lo jeho dialogovÃ© okno souboru
+	Guides & Grid	Vodítka a mřížka
 	Shaper	Shaper
 	Expand Shaper Group	RozloÅ¾it skupinu Shaper
 	Release Shaper Group	Uvolnit skupinu Shaper
@@ -824,9 +787,7 @@
 	Rename Variable	PÅ™ejmenovat promÄ›nnou
 # Shared panel docking
 	Activate Panel	Aktivovat panel
-	Change Panel Layout	ZmÄ›nit rozloÅ¾enÃ­ panelÅ¯
-	Close Panel	ZavÅ™Ã­t panel
-	Move Panel	PÅ™esunout panel
+	Change Panel Layout	Změnit rozložení panelů
 	Group with	Seskupit s
 	Resize panels	ZmÄ›nit velikost panelÅ¯
 	Resize panel window	ZmÄ›nit velikost okna panelu
@@ -1131,33 +1092,7 @@ lighting	Light	SvÄ›tlo
 	 an object to copy its attributes  |  	 na objekt pÅ™evezme jeho atributy  |  
 	 to apply the selection's to it  |  	 na nÄ›j pouÅ¾ije atributy vÃ½bÄ›ru  |  
 	 to sample a color	 nabere barvu
-	 across a selected object to set the gradient direction	 pÅ™es vybranÃ½ objekt nastavÃ­ smÄ›r pÅ™echodu
-	 to select an artboard  |  	 vybere pracovnÃ­ plochu  |  
-	 on the canvas to create one	 na plÃ¡tnÄ› vytvoÅ™Ã­ novou
-	 a stroke to add a width point  |  	 tahu pÅ™idÃ¡ bod Å¡Ã­Å™ky  |  
-	 to change one side  |  	 zmÄ›nÃ­ jednu stranu  |  
-	 to select more points  |  	 vybere dalÅ¡Ã­ body  |  
-	 a point to edit it  |  	 na bod jej upravÃ­  |  
-	 to remove points	 odstranÃ­ body
-	 the art to add a pin  |  	 na kresbu pÅ™idÃ¡ Å¡pendlÃ­k  |  
-	 to select more pins  |  	 vybere dalÅ¡Ã­ Å¡pendlÃ­ky  |  
-	 a pin to warp  |  	 Å¡pendlÃ­ku deformuje  |  
-	 near a selected pin to rotate  |  	 poblÃ­Å¾ vybranÃ©ho Å¡pendlÃ­ku otÃ¡ÄÃ­  |  
-	 to remove pins	 odstranÃ­ Å¡pendlÃ­ky
-	 across paths to push them along  |  	 pÅ™es cesty je posouvÃ¡  |  
-	 to size the brush (	 mÄ›nÃ­ velikost Å¡tÄ›tce (
-	 keeps its proportions)	 zachovÃ¡ proporce)
-	 over paths, and hold still to keep going  |  	 na cestÃ¡ch, podrÅ¾enÃ­m na mÃ­stÄ› pokraÄuje  |  
-	 over paths to roughen their outlines  |  	 na cestÃ¡ch zdrsnÃ­ jejich obrysy  |  
-	 to move in perspective  |  	 pÅ™esouvÃ¡ v perspektivÄ›  |  
-	 to copy  |  	 kopÃ­ruje  |  
-	 while dragging to move perpendicular to the plane  |  	 bÄ›hem taÅ¾enÃ­ pÅ™esouvÃ¡ kolmo k rovinÄ›  |  
-	 to scale in perspective	 mÄ›nÃ­ velikost v perspektivÄ›
-	 an object, then another to blend them  |  	 na objekt a pak na dalÅ¡Ã­ je prolne  |  
-	 to blend from it  |  	 prolne od nÄ›j  |  
-	 to set spacing and orientation	 nastavÃ­ rozestupy a orientaci
-	Apply	PouÅ¾Ã­t
-	Change Screen Mode (F)	ZmÄ›nit reÅ¾im obrazovky (F)
+	 across a selected object to set the gradient direction	 přes vybraný objekt nastaví směr přechodu
 	Color (,)	Barva (,)
 	Draw Behind	Kreslit za
 	Draw Inside	Kreslit dovnitÅ™
@@ -1388,11 +1323,7 @@ lighting	Light	SvÄ›tlo
 	Kerning (0 = Auto)	VyrovnÃ¡nÃ­ pÃ¡rÅ¯ (0 = automaticky)
 	Leading	Proklad
 	No Break	Nezalamovat
-	Proportional Metrics	ProporcionÃ¡lnÃ­ metrika
-	Digits	ÄŒÃ­slice
-	Arabic	ArabskÃ©
-	Hindi	HindskÃ©
-	Farsi	PerskÃ©
+	Proportional Metrics	Proporcionální metrika
 	Reset Panel	Obnovit panel
 	Roman Baseline	LatinkovÃ¡ ÃºÄaÅ™Ã­
 	Select a text object to edit its character attributes.	Vyberte textovÃ½ objekt, abyste mohli upravit atributy jeho znakÅ¯.
@@ -1454,19 +1385,7 @@ lighting	Light	SvÄ›tlo
 	Select objects to see their CSS, or Generate CSS for the whole document.	Vyberte objekty, abyste vidÄ›li jejich CSS, nebo vygenerujte CSS pro celÃ½ dokument.
 	The selected objects have no CSS of their own (see below).	VybranÃ© objekty nemajÃ­ vlastnÃ­ CSS (viz nÃ­Å¾e).
 	Units: {units}	Jednotky: {units}
-	{count} more rules: Export writes every one.	DalÅ¡Ã­ pravidla ({count}): Export zapÃ­Å¡e vÅ¡echna.
-	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	VynechÃ¡no nepojmenovanÃ½ch objektÅ¯: {count}. Pojmenujte je, nebo v nabÃ­dce panelu zapnÄ›te NepojmenovanÃ© objekty.
-	All Categories	VÅ¡echny kategorie
-	Saveâ€¦	UloÅ¾itâ€¦
-	Selection Only	Pouze vÃ½bÄ›r
-	{title} (selection)	{title} (vÃ½bÄ›r)
-	Changed since the last Refresh.	ZmÄ›nÄ›no od poslednÃ­ho obnovenÃ­.
-	Click to zoom in, Alt-click to zoom out, drag to pan, double-click to fit	KliknutÃ­m zvÄ›tÅ¡Ã­te, Alt+kliknutÃ­m zmenÅ¡Ã­te, taÅ¾enÃ­m posunete, dvojklikem pÅ™izpÅ¯sobÃ­te
-	Fit in Window	PÅ™izpÅ¯sobit oknu
-	Open a document to preview its flattening.	OtevÅ™ete dokument, abyste vidÄ›li nÃ¡hled jeho slouÄenÃ­.
-	Overprints:	PÅ™etisky:
-	Preview the document as it is now	NÃ¡hled dokumentu v aktuÃ¡lnÃ­m stavu
-	Raster/Vector Balance:	PomÄ›r rastru a vektorÅ¯:
+	{count} more rules: Export writes every one.	Další pravidla ({count}): Export zapíše všechna.
 	Refresh	Obnovit
 	Save Transparency Flattener Presetâ€¦	UloÅ¾it pÅ™ednastavenÃ­ slouÄenÃ­ prÅ¯hlednostiâ€¦
 	Basic Latin	ZÃ¡kladnÃ­ latinka
@@ -1485,42 +1404,7 @@ lighting	Light	SvÄ›tlo
 	Click the art with the Gradient tool to add or select points.	Body pÅ™idÃ¡te nebo vyberete kliknutÃ­m na kresbu nÃ¡strojem PÅ™echod.
 	Click the ramp or a type button to apply a gradient.	PÅ™echod pouÅ¾ijete kliknutÃ­m na pruh nebo na tlaÄÃ­tko typu.
 	Color:	Barva:
-	Delete Stop	Odstranit zarÃ¡Å¾ku
-	Edit Gradient	Upravit pÅ™echod
-	Edit the selected point's colour in the Color panel	Upravit barvu vybranÃ©ho bodu v panelu Barva
-	Edit the stop	Upravit zarÃ¡Å¾ku
-	Eyedropper: click the art to sample the stop's colour	KapÃ¡tko: kliknutÃ­m na kresbu naberete barvu zarÃ¡Å¾ky
-	Gradient across stroke	PÅ™echod napÅ™Ã­Ä tahem
-	Gradient along stroke	PÅ™echod podÃ©l tahu
-	Gradient Fill: click to apply, drag onto art	PÅ™echodovÃ¡ vÃ½plÅˆ: kliknutÃ­m pouÅ¾ijete, pÅ™etÃ¡hnÄ›te na kresbu
-	Gradient swatches	PÅ™echody ve vzornÃ­ku
-	Gradient within stroke	PÅ™echod uvnitÅ™ tahu
-	Linear Gradient	LineÃ¡rnÃ­ pÅ™echod
-	Lines: clicks add points joined by a line	ÄŒÃ¡ry: kliknutÃ­m pÅ™idÃ¡te body spojenÃ© ÄÃ¡rou
-	No gradient swatches	Ve vzornÃ­ku nejsou Å¾Ã¡dnÃ© pÅ™echody
-	Points: clicks add free points	Body: kliknutÃ­m pÅ™idÃ¡te volnÃ© body
-	Radial Gradient	KruhovÃ½ pÅ™echod
-	Reset to White, Black	Obnovit na bÃ­lou a Äernou
-	Reverse Gradient	ObrÃ¡tit pÅ™echod
-	Save to Swatches	UloÅ¾it do vzornÃ­ku
-	Delete Graphic Style (Alt-click: without asking)	Odstranit grafickÃ½ styl (Alt+kliknutÃ­: bez dotazu)
-	Delete the graphic style â€œ{name}â€?	Odstranit grafickÃ½ styl â€ž{name}â€œ?
-	Delete these {n} graphic styles?	Odstranit tyto grafickÃ© styly ({n})?
-	Delete this {n} graphic style?	Odstranit tento grafickÃ½ styl ({n})?
-	Graphic Style Libraries Menu	NabÃ­dka knihoven grafickÃ½ch stylÅ¯
-	New Graphic Style (Alt-click to name it)	NovÃ½ grafickÃ½ styl (Alt+kliknutÃ­m jej pojmenujete)
-	New Graphic Styleâ€¦	NovÃ½ grafickÃ½ stylâ€¦
-	No graphic styles	Å½Ã¡dnÃ© grafickÃ© styly
-	Objects using them keep their look but are no longer linked.	Objekty, kterÃ© je pouÅ¾Ã­vajÃ­, si ponechajÃ­ vzhled, ale uÅ¾ nebudou propojenÃ©.
-	Open a document to see its graphic styles.	OtevÅ™ete dokument, abyste vidÄ›li jeho grafickÃ© styly.
-	Open Graphic Style Library	OtevÅ™Ã­t knihovnu grafickÃ½ch stylÅ¯
-	Select styled art and click New Graphic Style.	Vyberte stylovanou kresbu a kliknÄ›te na NovÃ½ grafickÃ½ styl.
-	Use Square for Previews	NÃ¡hledy na Ätverci
-	Use Text for Previews	NÃ¡hledy na textu
-	{percent}% opacity	krytÃ­ {percent} %
-	History Optionsâ€¦	MoÅ¾nosti historieâ€¦
-	Step Backward	Krok zpÄ›t
-	Step Forward	Krok vpÅ™ed
+	Delete Stop	Odstranit zarážku
 	Clear History	Vymazat historii
 	Set History Limitâ€¦	Nastavit limit historieâ€¦
 	Open a document to see its history.	OtevÅ™ete dokument, abyste vidÄ›li jeho historii.
@@ -1732,27 +1616,7 @@ lighting	Light	SvÄ›tlo
 	Proportional Oldstyle	ProporcionÃ¡lnÃ­ minuskovÃ©
 	Reset OpenType Features	Obnovit funkce OpenType
 	Select text to set its OpenType features.	Vyberte text, abyste mohli nastavit jeho funkce OpenType.
-	Standard Ligatures	StandardnÃ­ ligatury
-	Swash	OzdobnÃ© tvary
-	Tabular Lining	TabulkovÃ© verzÃ¡lkovÃ©
-	Tabular Oldstyle	TabulkovÃ© minuskovÃ©
-	Every-line Composer	Sazba vÅ¡ech Å™Ã¡dkÅ¯
-	First-line Left Indent	OdsazenÃ­ prvnÃ­ho Å™Ã¡dku zleva
-	Hyphenationâ€¦	DÄ›lenÃ­ slovâ€¦
-	Words Longer Than:	Slova delÅ¡Ã­ neÅ¾:
-	After First:	Po prvnÃ­ch:
-	Before Last:	PÅ™ed poslednÃ­mi:
-	Hyphen Limit:	Limit spojovnÃ­kÅ¯:
-	Hyphenation Zone:	ZÃ³na dÄ›lenÃ­ slov:
-	letters	pÃ­smen
-	hyphens	spojovnÃ­kÅ¯
-	Hyphenate Capitalized Words	DÄ›lit slova s velkÃ½m poÄÃ¡teÄnÃ­m pÃ­smenem
-	Justificationâ€¦	ZarovnÃ¡nÃ­ do blokuâ€¦
-	Justify with last line aligned center	Do bloku, poslednÃ­ Å™Ã¡dek na stÅ™ed
-	Justify with last line aligned right	Do bloku, poslednÃ­ Å™Ã¡dek vpravo
-	Left Indent	OdsazenÃ­ zleva
-	Left-to-Right Paragraph Direction	SmÄ›r odstavce zleva doprava
-	Line-end Punctuation Half Width	Interpunkce na konci Å™Ã¡dku poloviÄnÃ­ Å¡Ã­Å™ky
+	Standard Ligatures	Standardní ligatury
 	Mojikumi Set	Sada Mojikumi
 	Kinsoku Set	Sada Kinsoku
 	Hard	PevnÃ©
@@ -1904,18 +1768,7 @@ lighting	Light	SvÄ›tlo
 	Select art and click New Symbol to make one.	Vyberte kresbu a symbol vytvoÅ™te tlaÄÃ­tkem NovÃ½ symbol.
 	Symbol Libraries (on the roadmap)	Knihovny symbolÅ¯ (v plÃ¡nu)
 	Align On:	Zarovnat na:
-	Center-Justified Tab	TabulÃ¡tor zarovnanÃ½ na stÅ™ed
-	Above Text	Nad textem
-	Position Panel Above Text	UmÃ­stit panel nad text
-	Click to add a tab stop, drag to move it, drag it off the ruler to delete it	KliknutÃ­m pÅ™idÃ¡te zarÃ¡Å¾ku tabulÃ¡toru, taÅ¾enÃ­m ji pÅ™esunete, taÅ¾enÃ­m mimo pravÃ­tko ji odstranÃ­te
-	Decimal-Justified Tab	TabulÃ¡tor zarovnanÃ½ na desetinnou ÄÃ¡rku
-	Delete Tab	Odstranit tabulÃ¡tor
-	Leader:	VodicÃ­ znak:
-	Left-Justified Tab	TabulÃ¡tor zarovnanÃ½ doleva
-	No text selected	NenÃ­ vybrÃ¡n Å¾Ã¡dnÃ½ text
-	Repeat Tab	Opakovat tabulÃ¡tor
-	Right-Justified Tab	TabulÃ¡tor zarovnanÃ½ doprava
-	Select a text object to set its tab stops.	Vyberte textovÃ½ objekt, abyste mohli nastavit jeho zarÃ¡Å¾ky tabulÃ¡toru.
+	Bottom-Justified Tab	Tabulátor zarovnaný dolů
 	Select text	Vyberte text
 	Snap to Unit	PÅ™ichytÃ¡vat k jednotkÃ¡m
 	+ Add Scale	+ PÅ™idat mÄ›Å™Ã­tko
@@ -2018,20 +1871,7 @@ lighting	Light	SvÄ›tlo
 	Right to Left	Zprava doleva
 	Top to Bottom	Shora dolÅ¯
 	Bottom to Top	Zdola nahoru
-	Outer Corner Tile	DlaÅ¾dice vnÄ›jÅ¡Ã­ho rohu
-	Side Tile	BoÄnÃ­ dlaÅ¾dice
-	Inner Corner Tile	DlaÅ¾dice vnitÅ™nÃ­ho rohu
-	Start Tile	PoÄÃ¡teÄnÃ­ dlaÅ¾dice
-	End Tile	KoncovÃ¡ dlaÅ¾dice
-	Fit	PÅ™izpÅ¯sobenÃ­
-	Stretch to fit	RoztÃ¡hnout
-	Add space to fit	PÅ™idat mezery
-	Approximate path	PÅ™ibliÅ¾nÃ¡ cesta
-	Colorization	ObarvenÃ­
-	Tints	TÃ³ny
-	Tints and Shades	SvÄ›tlÃ© a tmavÃ© tÃ³ny
-	Hue Shift	Posun odstÃ­nu
-	Key Color:	KlÃ­ÄovÃ¡ barva:
+	Outer Corner Tile	Dlaždice vnějšího rohu
 	Size:	Velikost:
 	Calligraphic Brush Options	MoÅ¾nosti kaligrafickÃ©ho Å¡tÄ›tce
 	Bristle Brush Options	MoÅ¾nosti Å¡tÄ›tinovÃ©ho Å¡tÄ›tce
@@ -2247,22 +2087,7 @@ lighting	Light	SvÄ›tlo
 	Relative	RelativnÃ­
 	Absolute	AbsolutnÃ­
 	Vertical %	Svisle %
-	Miter	OstrÃ½
-	Bevel	ZkosenÃ½
-	A lower value follows the stroke closely; a higher one gives fewer points and smoother curves.	NiÅ¾Å¡Ã­ hodnota sleduje tah pÅ™esnÄ›, vyÅ¡Å¡Ã­ dÃ¡vÃ¡ mÃ©nÄ› bodÅ¯ a hladÅ¡Ã­ kÅ™ivky.
-	Accurate	PÅ™esnÃ©
-	Close paths when ends are within:	UzavÅ™Ã­t cesty, kdyÅ¾ jsou konce do:
-	Edit selected paths within:	Upravovat vybranÃ© cesty do:
-	Fidelity:	VÄ›rnost:
-	Fill new strokes	VyplÅˆovat novÃ© tahy
-	Alt key toggles to Smooth Tool	KlÃ¡vesa Alt pÅ™epÃ­nÃ¡ na nÃ¡stroj VyhlazenÃ­
-	Keep selected	Ponechat vybranÃ©
-	Merge only with selection	SlouÄit jen s vÃ½bÄ›rem
-	The document has no colour swatches.	Dokument nemÃ¡ ve vzornÃ­ku Å¾Ã¡dnÃ© barvy.
-	Style Name:	NÃ¡zev stylu:
-	Crop To	OÅ™Ã­znout na
-	e.g. 1-3, 5	napÅ™. 1-3, 5
-	First Page	PrvnÃ­ strÃ¡nka
+	Miter	Ostrý
 	Import PDF	Importovat PDF
 	Last Page	PoslednÃ­ strÃ¡nka
 	Next Page	DalÅ¡Ã­ strÃ¡nka
@@ -2332,77 +2157,7 @@ lighting	Light	SvÄ›tlo
 	New from Template	NovÃ½ ze Å¡ablony
 	Number of Artboards:	PoÄet pracovnÃ­ch ploch:
 	Orientation:	Orientace:
-	PRESET DETAILS	PODROBNOSTI PÅ˜EDNASTAVENÃ
-	Preset Name	NÃ¡zev pÅ™ednastavenÃ­
-	Preset {}	PÅ™ednastavenÃ­ {}
-	Presets you save with the Save Preset button appear here.	Zde se zobrazÃ­ pÅ™ednastavenÃ­ uloÅ¾enÃ¡ tlaÄÃ­tkem UloÅ¾it pÅ™ednastavenÃ­.
-	Preview Mode	ReÅ¾im nÃ¡hledu
-	RECENT	NEDÃVNÃ‰
-	RECENT (1)	NEDÃVNÃ‰ (1)
-	SAVED	ULOÅ½ENÃ‰
-	Templatesâ€¦	Å ablonyâ€¦
-	Transparent (Default)	PrÅ¯hlednÃ© (vÃ½chozÃ­)
-	Save for Office Documents	UloÅ¾it pro kancelÃ¡Å™skÃ© dokumenty
-	Transparent Background	PrÅ¯hlednÃ© pozadÃ­
-	Chooseâ€¦	Vybratâ€¦
-	Copy Fonts Used in the Document	KopÃ­rovat pÃ­sma pouÅ¾itÃ¡ v dokumentu
-	Copy Links	KopÃ­rovat propojenÃ© soubory
-	Create Report	VytvoÅ™it zprÃ¡vu
-	Fonts whose licence doesn't allow embedding are not copied.	PÃ­sma, jejichÅ¾ licence nepovoluje vklÃ¡dÃ¡nÃ­, se nekopÃ­rujÃ­.
-	Package collects a saved document with its linked files and fonts.	SbalenÃ­ shromÃ¡Å¾dÃ­ uloÅ¾enÃ½ dokument s jeho propojenÃ½mi soubory a pÃ­smy.
-	Package created	BalÃ­Äek vytvoÅ™en
-	Packaged {n} file(s) in {folder}{note}	Zabaleno souborÅ¯: {n} do {folder}{note}
-	Packaged {n} file(s){note}	Zabaleno souborÅ¯: {n}{note}
-	Relink Linked Files to the Document	Znovu propojit propojenÃ© soubory s dokumentem
-	Save the document first?	Nejprve uloÅ¾it dokument?
-	{count} file(s) in {folder}{note}. Show the package folder?	SouborÅ¯: {count} v {folder}{note}. Zobrazit sloÅ¾ku balÃ­Äku?
-	{count} linked file(s) not found	Nenalezeno propojenÃ½ch souborÅ¯: {count}
-	fonts not copied: {fonts}	nezkopÃ­rovanÃ¡ pÃ­sma: {fonts}
-	Built-in presets are read-only: Newâ€¦ starts an editable copy.	VestavÄ›nÃ¡ pÅ™ednastavenÃ­ jsou jen pro ÄtenÃ­: NovÃ½â€¦ vytvoÅ™Ã­ kopii, kterou lze upravit.
-	1 {unit} on the artboard stands for {real} {unit} in the scene.	1 {unit} na pracovnÃ­ ploÅ¡e odpovÃ­dÃ¡ {real} {unit} ve scÃ©nÄ›.
-	Grid Color & Opacity	Barva a krytÃ­ mÅ™Ã­Å¾ky
-	Gridline every:	ÄŒÃ¡ra mÅ™Ã­Å¾ky kaÅ¾dÃ½ch:
-	Horizon Height:	VÃ½Å¡ka horizontu:
-	Horizontal Grid:	VodorovnÃ¡ mÅ™Ã­Å¾ka:
-	Left Grid:	LevÃ¡ mÅ™Ã­Å¾ka:
-	Perspective Grid Settings	NastavenÃ­ perspektivnÃ­ mÅ™Ã­Å¾ky
-	Real World:	SkuteÄnÃ½ svÄ›t:
-	Right Grid:	PravÃ¡ mÅ™Ã­Å¾ka:
-	Save Grid as Preset	UloÅ¾it mÅ™Ã­Å¾ku jako pÅ™ednastavenÃ­
-	Save these settings as a preset	UloÅ¾it toto nastavenÃ­ jako pÅ™ednastavenÃ­
-	Third Vanishing Point:	TÅ™etÃ­ ÃºbÄ›Å¾nÃ­k:
-	Viewing Angle:	Ãšhel pohledu:
-	Viewing Distance:	VzdÃ¡lenost pohledu:
-	Show Active Plane Widget	Zobrazit ovladaÄ aktivnÃ­ roviny
-	Widget Position:	Poloha ovladaÄe:
-	Copy All Objects	KopÃ­rovat vÅ¡echny objekty
-	Do Not Move	NepÅ™esouvat
-	Horizontal Plane	VodorovnÃ¡ rovina
-	Left Plane	LevÃ¡ rovina
-	Move All Objects	PÅ™esunout vÅ¡echny objekty
-	Right Plane	PravÃ¡ rovina
-	Built-in presets don't change: Newâ€¦ starts an editable copy.	VestavÄ›nÃ¡ pÅ™ednastavenÃ­ se nemÄ›nÃ­: NovÃ½â€¦ vytvoÅ™Ã­ kopii, kterou lze upravit.
-	One Point	JednobodovÃ¡
-	Perspective grid presets	PÅ™ednastavenÃ­ perspektivnÃ­ mÅ™Ã­Å¾ky
-	Three Point	TÅ™Ã­bodovÃ¡
-	Two Point	DvoubodovÃ¡
-	User Preset	UÅ¾ivatelskÃ© pÅ™ednastavenÃ­
-	Click to place each file at 100%, or drag to size it; arrow keys switch files, Esc skips one.	KliknutÃ­m umÃ­stÃ­te kaÅ¾dÃ½ soubor ve 100 %, taÅ¾enÃ­m nastavÃ­te jeho velikost; Å¡ipky pÅ™epÃ­najÃ­ soubory, Esc jeden pÅ™eskoÄÃ­.
-	Keep a link to an image file instead of only embedding it	Ponechat propojenÃ­ na soubor obrÃ¡zku, ne jen ho vloÅ¾it
-	Place onto a new locked, dimmed template layer below the current layer	UmÃ­stit do novÃ© zamÄenÃ©, ztlumenÃ© vrstvy Å¡ablony pod aktuÃ¡lnÃ­ vrstvou
-	Swap the selected object for the file, keeping its place and transform	Nahradit vybranÃ½ objekt souborem se zachovÃ¡nÃ­m jeho polohy a transformace
-	On: one locked object showing the document, updated when it changes.	Zapnuto: jeden zamÄenÃ½ objekt zobrazujÃ­cÃ­ dokument, aktualizovanÃ½ pÅ™i jeho zmÄ›nÄ›.
-	Off: an editable copy of its art, embedded in this document.	Vypnuto: upravitelnÃ¡ kopie jeho kresby vloÅ¾enÃ¡ do tohoto dokumentu.
-	Images: link to the file instead of only embedding it.	ObrÃ¡zky: propojit se souborem mÃ­sto pouhÃ©ho vloÅ¾enÃ­.
-	VectorCraft documents: one locked object, updated when the file changes.	Dokumenty VectorCraft: jeden zamÄenÃ½ objekt, aktualizovanÃ½ pÅ™i zmÄ›nÄ› souboru.
-	Alignment:	ZarovnÃ¡nÃ­:
-	Applies when the linked file is relinked or updated.	PlatÃ­ pÅ™i opÄ›tovnÃ©m propojenÃ­ nebo aktualizaci propojenÃ©ho souboru.
-	Bounds (Fill Proportionally)	Hranice (vyplnit proporcionÃ¡lnÄ›)
-	Bounds (Fit Proportionally)	Hranice (pÅ™izpÅ¯sobit proporcionÃ¡lnÄ›)
-	File Dimensions	RozmÄ›ry souboru
-	Transforms	Transformace
-	Background Color:	Barva pozadÃ­:
-	Client-side (.html)	Na stranÄ› klienta (.html)
+	PRESET DETAILS	PODROBNOSTI PŘEDNASTAVENÍ
 	Color Reduction:	Redukce barev:
 	Lossless (lossy WebP isn't available yet)	BezeztrÃ¡tovÃ½ (ztrÃ¡tovÃ½ WebP zatÃ­m nenÃ­ k dispozici)
 	Scans:	PrÅ¯chody:
@@ -2881,28 +2636,9 @@ lighting	Light	SvÄ›tlo
 	Color Burn	Ztmavit barvy
 	Color Dodge	ZesvÄ›tlit barvy
 	Darken	Ztmavit
-	Exclusion	VylouÄit
-	Hard Light	TvrdÃ© svÄ›tlo
-	Lighten	ZesvÄ›tlit
-	Luminosity	SvÄ›tlost
-	Overlay	PÅ™ekrÃ½t
-	Soft Light	MÄ›kkÃ© svÄ›tlo
-	Crosshatch	KÅ™Ã­Å¾ovÃ© Å¡rafovÃ¡nÃ­
-	Fine Dots	JemnÃ© teÄky
-	Medium Dots	StÅ™ednÃ­ teÄky
-	Grainy Dots	ZrnitÃ© teÄky
-	Coarse Dots	HrubÃ© teÄky
-	Short Lines	KrÃ¡tkÃ© ÄÃ¡ry
-	Medium Lines	StÅ™ednÃ­ ÄÃ¡ry
-	Long Lines	DlouhÃ© ÄÃ¡ry
-	Short Strokes	KrÃ¡tkÃ© tahy
-	Medium Strokes	StÅ™ednÃ­ tahy
-	Long Strokes	DlouhÃ© tahy
-	Soft	MÄ›kkÃ©
-	Screen	ZÃ¡voj
-axis	Horizontal	VodorovnÃ¡
-axis	Vertical	SvislÃ¡
-	Sprinkles	PosypÃ¡nÃ­
+	Exclusion	Vyloučit
+
+axis	Horizontal	Vodorovná
 	Clumped	Shluky
 	Contrasty	KontrastnÃ­
 	Enlarged	ZvÄ›tÅ¡enÃ©
@@ -2964,13 +2700,7 @@ theme	Appearance	Motiv
 	Duplicate Brush	Duplikovat Å¡tÄ›tec
 	Duplicate Symbol	Duplikovat symbol
 	Edit Symbol	Upravit symbol
-	Expand Brush Strokes	RozloÅ¾it tahy Å¡tÄ›tcem
-	New Brushâ€¦	NovÃ½ Å¡tÄ›tecâ€¦
-	New Symbol	NovÃ½ symbol
-	New Symbolâ€¦	NovÃ½ symbolâ€¦
-	Place Symbol Instance	UmÃ­stit instanci symbolu
-	Redefine Symbol	PÅ™edefinovat symbol
-	Remove Brush Stroke	Odebrat tah Å¡tÄ›tcem
+	Expand Brush Strokes	Rozložit tahy štětcem
 	Replace Symbol	Nahradit symbol
 	Select All Instances	Vybrat vÅ¡echny instance
 	Symbol Sprayer	RozpraÅ¡ovaÄ symbolÅ¯
@@ -3436,24 +3166,7 @@ theme	Appearance	Motiv
 	Preserve Paths	Zachovat cesty
 	Primary	PrimÃ¡rnÃ­
 	Printing / Exporting	Tisk / export
-	Real-time Drawing and Editing	KreslenÃ­ a Ãºpravy v reÃ¡lnÃ©m Äase
-	Render Threads (-1 = Automatic)	VlÃ¡kna vykreslovÃ¡nÃ­ (-1 = automaticky)
-	Reset Preferences	Obnovit pÅ™edvolby
-	Scale Corners	MÄ›nit velikost rohÅ¯
-	Scale Cursor Proportional to UI	MÄ›nit velikost kurzoru ÃºmÄ›rnÄ› rozhranÃ­
-	Scale Strokes & Effects	MÄ›nit velikost tahÅ¯ a efektÅ¯
-	Scratch Disks	OdklÃ¡dacÃ­ disky
-	Secondary	SekundÃ¡rnÃ­
-	Select Same Tint %	VybÃ­rat stejnÃ© % tÃ³nu
-	Set Preference	Nastavit pÅ™edvolbu
-	Show East Asian Options	Zobrazit vÃ½chodoasijskÃ© moÅ¾nosti
-	Show Font Names in English	Zobrazovat nÃ¡zvy pÃ­sem anglicky
-	Show handles when multiple anchors are selected	Zobrazit Ãºchyty pÅ™i vÃ½bÄ›ru vÃ­ce kotevnÃ­ch bodÅ¯
-	Show Indic Options	Zobrazit indickÃ© moÅ¾nosti
-	Show Pixel Grid (Above 600% Zoom)	Zobrazit mÅ™Ã­Å¾ku obrazovÃ½ch bodÅ¯ (nad 600 %)
-	Show Slice Numbers	Zobrazit ÄÃ­sla Å™ezÅ¯
-	Show The Home Screen When No Documents Are Open	Zobrazit domovskou obrazovku, kdyÅ¾ nejsou otevÅ™eny dokumenty
-	Show Tool Tips	Zobrazovat popisky nÃ¡strojÅ¯
+	Real-time Drawing and Editing	Kreslení a úpravy v reálném čase
 	Size/Leading	Velikost/proklad
 	Snapping Tolerance	Tolerance pÅ™ichytÃ¡vÃ¡nÃ­
 	Spacing Guides	VodÃ­tka rozestupÅ¯
@@ -3518,45 +3231,7 @@ theme	Appearance	Motiv
 	Add to Profiles	PÅ™idat do profilÅ¯
 	Delete Profile	Odstranit profil
 	Reset Profiles	Obnovit profily
-	Stroke Options	MoÅ¾nosti tahu
-	Width Profiles	Profily Å¡Ã­Å™ky
-	Apply Graphic Style	PouÅ¾Ã­t grafickÃ½ styl
-	Break Link to Graphic Style	ZruÅ¡it propojenÃ­ s grafickÃ½m stylem
-	Delete Graphic Style	Odstranit grafickÃ½ styl
-	Duplicate Graphic Style	Duplikovat grafickÃ½ styl
-	Graphic Style Options	MoÅ¾nosti grafickÃ©ho stylu
-	Graphic Styles Options	MoÅ¾nosti grafickÃ½ch stylÅ¯
-	Default Graphic Style	VÃ½chozÃ­ grafickÃ½ styl
-	Black Outline	ÄŒernÃ½ obrys
-	Heavy Ink	SilnÃ½ nÃ¡nos barvy
-	Sunshine	SluneÄnÃ­ svit
-	List Graphic Styles	Vypsat grafickÃ© styly
-	Merge Graphic Styles	SlouÄit grafickÃ© styly
-	Move Graphic Style	PÅ™esunout grafickÃ½ styl
-	New Graphic Style	NovÃ½ grafickÃ½ styl
-	Redefine Graphic Style	PÅ™edefinovat grafickÃ½ styl
-	Rename Graphic Style	PÅ™ejmenovat grafickÃ½ styl
-	Add to Graphic Styles	PÅ™idat do grafickÃ½ch stylÅ¯
-	Graphic Style Library	Knihovna grafickÃ½ch stylÅ¯
-	Add Used Colors	PÅ™idat pouÅ¾itÃ© barvy
-	Delete Swatch	Odstranit poloÅ¾ku vzornÃ­ku
-	Duplicate Swatch	Duplikovat poloÅ¾ku vzornÃ­ku
-	Merge Swatches	SlouÄit poloÅ¾ky vzornÃ­ku
-	Move Swatch	PÅ™esunout poloÅ¾ku vzornÃ­ku
-	New Color Group	NovÃ¡ skupina barev
-	New Swatch	NovÃ¡ poloÅ¾ka vzornÃ­ku
-	Select All Unused	Vybrat vÅ¡echny nepouÅ¾itÃ©
-	Sort by Kind	SeÅ™adit podle druhu
-	Sort by Name	SeÅ™adit podle nÃ¡zvu
-	Spot Colors	PÅ™Ã­mÃ© barvy
-	Spot Colors (0)	PÅ™Ã­mÃ© barvy (0)
-	Swatch Options	MoÅ¾nosti poloÅ¾ky vzornÃ­ku
-	Ungroup Color Group	ZruÅ¡it skupinu barev
-	Copy to User Defined	KopÃ­rovat do uÅ¾ivatelskÃ½ch
-	Swatch Library	Knihovna vzornÃ­ku
-	Clear All Tabs	Vymazat vÅ¡echny tabulÃ¡tory
-	Set Tab Stops	Nastavit zarÃ¡Å¾ky tabulÃ¡toru
-	Tab Stops	ZarÃ¡Å¾ky tabulÃ¡toru
+	Stroke Options	Možnosti tahu
 	Flare	Odlesk
 	Rays	Paprsky
 	Rectangle	ObdÃ©lnÃ­k
@@ -4036,67 +3711,7 @@ imageTrace	Outline	Obrys
 @msg	Copied the CSS of {rules} object(s)	ZkopÃ­rovÃ¡no CSS objektÅ¯: {rules}
 @msg	Copied the script report	ZprÃ¡va o skriptu zkopÃ­rovÃ¡na
 @msg	Corners edits the corners of a path	Rohy upravuje rohy cesty
-@msg	Couldn't copy to the system clipboard: {e}	Nelze kopÃ­rovat do systÃ©movÃ© schrÃ¡nky: {e}
-@msg	Couldn't open {name}: {e}	{name} nelze otevÅ™Ã­t: {e}
-@msg	Couldn't place {name}: the document it was dropped on was closed	{name} nelze umÃ­stit: dokument, na kterÃ½ byl pÅ™etaÅ¾en, byl zavÅ™en
-@msg	Couldn't read {name}: {e}	{name} nelze pÅ™eÄÃ­st: {e}
-@msg	Couldn't save recovery data: {e}	Data pro obnovenÃ­ nelze uloÅ¾it: {e}
-@msg	Create Outlines: select text objects	PÅ™evÃ©st na kÅ™ivky: vyberte textovÃ© objekty
-@msg	Create from Guides: the document has no artboard	VytvoÅ™it z vodÃ­tek: dokument nemÃ¡ Å¾Ã¡dnou pracovnÃ­ plochu
-@msg	Create from Guides: the guides make more than {MAX_PIECES} slices	VytvoÅ™it z vodÃ­tek: vodÃ­tka vytvÃ¡Å™ejÃ­ vÃ­ce neÅ¾ {MAX_PIECES} Å™ezÅ¯
-@msg	Create from Selection: the selection has no area	VytvoÅ™it z vÃ½bÄ›ru: vÃ½bÄ›r nemÃ¡ Å¾Ã¡dnou plochu
-@msg	Data Recovery has nowhere to keep copies: set Preferences â†’ File Handling â†’ Data Recovery â†’ Folder (recoveryFolder)	ObnovenÃ­ dat nemÃ¡ kam uklÃ¡dat kopie: nastavte PÅ™edvolby â†’ PrÃ¡ce se soubory â†’ ObnovenÃ­ dat â†’ SloÅ¾ka (recoveryFolder)
-@msg	direct-select anchor points to cut at (not the end points of open paths)	nÃ¡strojem PÅ™Ã­mÃ½ vÃ½bÄ›r vyberte kotevnÃ­ body, kde se mÃ¡ cesta rozdÄ›lit (ne koncovÃ© body otevÅ™enÃ½ch cest)
-@msg	Divide Objects Below: select a path	RozdÄ›lit objekty pod: vyberte cestu
-@msg	Divide Objects Below: select exactly one path	RozdÄ›lit objekty pod: vyberte prÃ¡vÄ› jednu cestu
-@msg	Downloaded {_1} file(s)	StaÅ¾eno souborÅ¯: {_1}
-@msg	Downloaded {what}	StaÅ¾eno: {what}
-@msg	Expand Appearance: the selection has a basic appearance	RozloÅ¾it vzhled: vÃ½bÄ›r mÃ¡ zÃ¡kladnÃ­ vzhled
-@msg	Expand: no brush strokes selected	RozloÅ¾it: nejsou vybrÃ¡ny Å¾Ã¡dnÃ© tahy Å¡tÄ›tcem
-@msg	Expand: no gradient fills	RozloÅ¾it: Å¾Ã¡dnÃ© pÅ™echodovÃ© vÃ½plnÄ›
-@msg	Expand: nothing to expand	RozloÅ¾it: nenÃ­ co rozloÅ¾it
-@msg	Exported {count} file(s) to {folder}	ExportovÃ¡no souborÅ¯: {count} do {folder}
-@msg	Exported {path}	ExportovÃ¡no: {path}
-@msg	Flatten Transparency: select objects to flatten	SlouÄit prÅ¯hlednost: vyberte objekty ke slouÄenÃ­
-@msg	Flatten Transparency: {e}	SlouÄit prÅ¯hlednost: {e}
-@msg	Image Trace: the traced image is missing	Vektorizace obrazu: vektorizovanÃ½ obraz chybÃ­
-@msg	Imported {what}: {_1}	ImportovÃ¡no {what}: {_1}
-@msg	Installed plug-in {_1}	NainstalovÃ¡n zÃ¡suvnÃ½ modul {_1}
-@msg	Internal error: {msg} (please report this bug)	VnitÅ™nÃ­ chyba: {msg} (nahlaste prosÃ­m tuto chybu)
-@msg	Live Paint Merge: select a Live Paint group and the paths to add	SlouÄit Å¾ivou malbu: vyberte skupinu Å¾ivÃ© malby a cesty, kterÃ© chcete pÅ™idat
-@msg	Live Paint: select paths or compound paths	Å½ivÃ¡ malba: vyberte cesty nebo sloÅ¾enÃ© cesty
-@msg	Live Paint: these paths are too degenerate to paint	Å½ivÃ¡ malba: tyto cesty jsou pÅ™Ã­liÅ¡ degenerovanÃ©, aby je bylo moÅ¾nÃ© malovat
-@msg	Make Guides: select paths	VytvoÅ™it vodÃ­tka: vyberte cesty
-@msg	No saved selections (Select â†’ Save Selectionâ€¦)	Å½Ã¡dnÃ© uloÅ¾enÃ© vÃ½bÄ›ry (VÃ½bÄ›r â†’ UloÅ¾it vÃ½bÄ›râ€¦)
-@msg	No saved views (View â†’ New Viewâ€¦)	Å½Ã¡dnÃ¡ uloÅ¾enÃ¡ zobrazenÃ­ (ZobrazenÃ­ â†’ NovÃ© zobrazenÃ­â€¦)
-@msg	Offset Path: select paths	Odsadit cestu: vyberte cesty
-@msg	Offset Path: the offset leaves nothing of the selected paths (an inset larger than the shapes)	Odsadit cestu: po odsazenÃ­ z vybranÃ½ch cest nic nezbude (odsazenÃ­ dovnitÅ™ vÄ›tÅ¡Ã­ neÅ¾ tvary)
-@msg	Opened with {_1} note(s): {_2}	OtevÅ™eno, poznÃ¡mky ({_1}): {_2}
-@msg	Opened {url}	OtevÅ™eno {url}
-@msg	Outline Stroke: no stroked paths selected	PÅ™evÃ©st tah na obrys: nejsou vybrÃ¡ny Å¾Ã¡dnÃ© cesty s tahem
-@msg	PDF settings are not an object	nastavenÃ­ PDF nejsou objekt
-@msg	PDF writer error: {0}	chyba zÃ¡pisu PDF: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	Zabaleno souborÅ¯: {n} do {folder}{note}
-@msg	Packaged {n} file(s){note}	Zabaleno souborÅ¯: {n}{note}
-@msg	Preview in Browser needs the desktop app (the web downloads files instead)	NÃ¡hled v prohlÃ­Å¾eÄi vyÅ¾aduje desktopovou aplikaci (webovÃ¡ verze mÃ­sto toho stahuje soubory)
-@msg	Release Guides: no guides	Uvolnit vodÃ­tka: Å¾Ã¡dnÃ¡ vodÃ­tka
-@msg	Release: no layer to put the rectangle in	Uvolnit: chybÃ­ vrstva, do kterÃ© by Å¡el obdÃ©lnÃ­k umÃ­stit
-@msg	Replace Spine: select a blend and a path	Nahradit pÃ¡teÅ™: vyberte prolnutÃ­ a cestu
-@msg	select two or more objects to distribute	k rozmÃ­stÄ›nÃ­ vyberte dva nebo vÃ­ce objektÅ¯
-@msg	select paths or anchor points	vyberte cesty nebo kotevnÃ­ body
-@msg	SVG parse error: {0}	chyba pÅ™i analÃ½ze SVG: {0}
-@msg	Save for Web: the image is empty	UloÅ¾it pro web: obraz je prÃ¡zdnÃ½
-@msg	Save writes {_1}, not {_2}: use document.export for other formats	UloÅ¾enÃ­ zapisuje {_1}, ne {_2}: pro jinÃ© formÃ¡ty pouÅ¾ijte document.export
-@msg	Save writes {_1}, not {_2}: use file.saveAsTemplate to write it	UloÅ¾enÃ­ zapisuje {_1}, ne {_2}: k jeho zÃ¡pisu pouÅ¾ijte file.saveAsTemplate
-@msg	aiVersion 7 writes legacy .ai files; a .ait template is always PDF-compatible	aiVersion 7 zapisuje starÅ¡Ã­ soubory .ai; Å¡ablona .ait je vÅ¾dy kompatibilnÃ­ s PDF
-@msg	Saved recovery data for {title}	Data pro obnovenÃ­ uloÅ¾ena pro {title}
-@msg	Saved to User Defined: {_1}	UloÅ¾eno do uÅ¾ivatelskÃ½ch knihoven: {_1}
-@msg	Saved {path}	UloÅ¾eno: {path}
-@msg	Select text or click into text with the Type tool to insert glyphs	Glyfy vloÅ¾Ã­te, kdyÅ¾ vyberete text nebo do nÄ›j kliknete nÃ¡strojem Text
-@msg	Shape Builder: no region under the pointer	Tvorba tvarÅ¯: pod ukazatelem nenÃ­ Å¾Ã¡dnÃ¡ oblast
-@msg	Shape Builder: select paths or compound paths	Tvorba tvarÅ¯: vyberte cesty nebo sloÅ¾enÃ© cesty
-@msg	Show All Hidden Attributes: nothing is hidden	Zobrazit vÅ¡echny skrytÃ© atributy: nic nenÃ­ skryto
-@msg	Split Into Grid: select paths large enough for the grid	RozdÄ›lit do mÅ™Ã­Å¾ky: vyberte cesty dost velkÃ© pro mÅ™Ã­Å¾ku
+@msg	Couldn't copy to the system clipboard: {e}	Nelze kopírovat do systémové schránky: {e}
 @msg	Targa files are RGB: colorModel rgb	soubory Targa jsou RGB: colorModel rgb
 @msg	Text Wrap: select a wrap object	ObtÃ©kÃ¡nÃ­ textu: vyberte objekt obtÃ©kÃ¡nÃ­
 @msg	`aspect` must be a number (%)	`aspect` musÃ­ bÃ½t ÄÃ­slo (%)
@@ -4145,32 +3760,7 @@ imageTrace	Outline	Obrys
 @msg	a PostScript error ({name} in `{op}`: {at})	chyba PostScriptu ({name} v `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	chyba PostScriptu ({name} v `{op}`: {at}), v {procs}
 @msg	a PostScript error ({name})	chyba PostScriptu ({name})
-@msg	a bitmap is empty	bitmapa je prÃ¡zdnÃ¡
-@msg	a bitmap is too large to read	bitmapa je pÅ™Ã­liÅ¡ velkÃ¡ na naÄtenÃ­
-@msg	a colour index is 0 to {_1}, not {n}	index barvy je 0 aÅ¾ {_1}, ne {n}
-@msg	a colour is an index, #rrggbb or a preset name, not {v}	barva je index, #rrggbb nebo nÃ¡zev pÅ™ednastavenÃ­, ne {v}
-@msg	a document needs at least one artboard	dokument potÅ™ebuje alespoÅˆ jednu pracovnÃ­ plochu
-@msg	a document needs at least one layer	dokument potÅ™ebuje alespoÅˆ jednu vrstvu
-@msg	a freeform gradient keeps at least one point	volnÃ½ pÅ™echod si ponechÃ¡vÃ¡ alespoÅˆ jeden bod
-@msg	a gradient needs at least two stops	pÅ™echod potÅ™ebuje alespoÅˆ dvÄ› zarÃ¡Å¾ky
-@msg	a graphic style named `{to}` already exists	grafickÃ½ styl s nÃ¡zvem `{to}` uÅ¾ existuje
-@msg	a key object sits on that point	na tomto bodÄ› leÅ¾Ã­ klÃ­ÄovÃ½ objekt
-@msg	a page is missing	chybÃ­ strÃ¡nka
-@msg	a page out of range	strÃ¡nka mimo rozsah
-@msg	a page tree kid isn't a reference	potomek stromu strÃ¡nek nenÃ­ odkaz
-@msg	a page tree node has no kids	uzel stromu strÃ¡nek nemÃ¡ potomky
-@msg	a page's placement is not finite	umÃ­stÄ›nÃ­ strÃ¡nky nenÃ­ koneÄnÃ©
-@msg	a preset named `{_1}` exists	pÅ™ednastavenÃ­ s nÃ¡zvem `{_1}` existuje
-@msg	a swatch or color group named `{n}` exists	poloÅ¾ka vzornÃ­ku nebo skupina barev s nÃ¡zvem `{n}` existuje
-@msg	a slice size must be a positive number of points	velikost Å™ezu musÃ­ bÃ½t kladnÃ½ poÄet bodÅ¯
-@msg	a spine keeps at least two points	pÃ¡teÅ™ si ponechÃ¡vÃ¡ alespoÅˆ dva body
-@msg	a stream runs past the end	datovÃ½ proud pÅ™esahuje konec souboru
-@msg	a stream's length is wrong	dÃ©lka datovÃ©ho proudu je chybnÃ¡
-@msg	a stream's length isn't a number	dÃ©lka datovÃ©ho proudu nenÃ­ ÄÃ­slo
-@msg	add a format to export	pÅ™idejte formÃ¡t pro export
-@msg	already editing a pattern	vzorek se uÅ¾ upravuje
-@msg	an object can't be read	objekt nelze pÅ™eÄÃ­st
-@msg	an object in perspective would leave the edited grid	objekt v perspektivÄ› by opustil upravovanou mÅ™Ã­Å¾ku
+@msg	a PostScript error ({name} in `{op}`; {meaning})	chyba PostScriptu ({name} v `{op}`; {meaning})
 @msg	antiAlias `{id}`: none, art or type	antiAlias `{id}`: none, art nebo type
 @msg	artboard {0} does not exist	pracovnÃ­ plocha {0} neexistuje
 @msg	at this scale the drawing is {w} Ã— {h} pt, more than the canvas holds: choose a smaller scale or fit it to the artboard	v tomto mÄ›Å™Ã­tku mÃ¡ kresba {w} Ã— {h} pt, vÃ­c neÅ¾ pojme plÃ¡tno: zvolte menÅ¡Ã­ mÄ›Å™Ã­tko nebo ji pÅ™izpÅ¯sobte pracovnÃ­ ploÅ¡e
@@ -4224,110 +3814,12 @@ imageTrace	Outline	Obrys
 @msg	give both `start` and `end` [x, y] (or neither)	zadejte `start` i `end` [x, y] (nebo ani jedno)
 @msg	give corners of the path: anchors where its sides meet at an angle	zadejte rohy cesty: kotevnÃ­ body, kde se jejÃ­ strany stÃ½kajÃ­ pod Ãºhlem
 @msg	give horizontal or vertical	zadejte horizontal nebo vertical
-@msg	give the path `id` and the width point `index`	zadejte `id` cesty a `index` bodu Å¡Ã­Å™ky
-@msg	guides are locked	vodÃ­tka jsou zamÄenÃ¡
-@msg	handle must be in or out	handle musÃ­ bÃ½t in nebo out
-@msg	image '{key}' has no pixels and was left out	obrÃ¡zek '{key}' nemÃ¡ Å¾Ã¡dnÃ© obrazovÃ© body a byl vynechÃ¡n
-@msg	image data `{_1}` is missing	chybÃ­ obrazovÃ¡ data `{_1}`
-@msg	image would be too large; lower the resolution	obraz by byl pÅ™Ã­liÅ¡ velkÃ½; sniÅ¾te rozliÅ¡enÃ­
-@msg	index must be a number or first, previous, next or last	index musÃ­ bÃ½t ÄÃ­slo nebo first, previous, next Äi last
-@msg	index must be a number or first, previous, next or last, not `{other}`	index musÃ­ bÃ½t ÄÃ­slo nebo first, previous, next Äi last, ne `{other}`
-@msg	index must be â‰¥ 0	index nesmÃ­ bÃ½t zÃ¡pornÃ½
-@msg	installing from a path is not available on the web; pass the module as `dataBase64`	instalace z cesty nenÃ­ na webu k dispozici; pÅ™edejte modul jako `dataBase64`
-@msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	vnitÅ™nÃ­ chyba v `{cmd}`: {msg} (dokument zÅ¯stal ve stavu pÅ™ed pÅ™Ã­kazem; nahlaste prosÃ­m tuto chybu)
-@msg	internal error: {msg} (please report this bug)	vnitÅ™nÃ­ chyba: {msg} (nahlaste prosÃ­m tuto chybu)
-@msg	invalid PDF setting: {0}	neplatnÃ© nastavenÃ­ PDF: {0}
-@msg	invalid image data for `{0}`	neplatnÃ¡ obrazovÃ¡ data pro `{0}`
-@msg	invalid parameters for `{cmd}`: {msg}	neplatnÃ© parametry pro `{cmd}`: {msg}
-@msg	is not an image VectorCraft reads	nenÃ­ obraz, kterÃ½ VectorCraft umÃ­ pÅ™eÄÃ­st
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	pouÅ¾Ã­vÃ¡ `{at}`, kterÃ© ÄteÄka PostScriptu ve VectorCraftu neznÃ¡
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	pouÅ¾Ã­vÃ¡ `{at}`, kterÃ© ÄteÄka PostScriptu ve VectorCraftu neznÃ¡, v {procs}
-@msg	its Windows metafile preview was opened instead, which may simplify the art	mÃ­sto nÄ›j byl otevÅ™en jeho nÃ¡hled ve formÃ¡tu Windows metafile, kterÃ½ mÅ¯Å¾e kresbu zjednoduÅ¡it
-@msg	its preview was placed instead, at screen resolution	mÃ­sto nÄ›j byl umÃ­stÄ›n jeho nÃ¡hled v rozliÅ¡enÃ­ obrazovky
-@msg	join needs open paths	spojenÃ­ vyÅ¾aduje otevÅ™enÃ© cesty
-@msg	lang must be one of {_1}	lang musÃ­ bÃ½t jedno z {_1}
-@msg	layers can't be wrap objects	vrstvy nemohou bÃ½t objekty obtÃ©kÃ¡nÃ­
-@msg	missing `folder`	chybÃ­ `folder`
-@msg	missing `id` (see plugin.list)	chybÃ­ `id` (viz plugin.list)
-@msg	missing `name`	chybÃ­ `name`
-@msg	missing `tool`	chybÃ­ `tool`
-@msg	missing index	chybÃ­ index
-@msg	missing number `{key}`	chybÃ­ ÄÃ­slo `{key}`
-@msg	missing integer `{key}`	chybÃ­ celÃ© ÄÃ­slo `{key}`
-@msg	multiple windows land with M11.5	vÃ­ce oken pÅ™ijde s M11.5
-@msg	name the file	pojmenujte soubor
-@msg	no CSS to copy: select objects with CSS of their own	Å¾Ã¡dnÃ© CSS ke kopÃ­rovÃ¡nÃ­: vyberte objekty s vlastnÃ­m CSS
-@msg	no Live Paint edge near that point	poblÃ­Å¾ tohoto bodu nenÃ­ Å¾Ã¡dnÃ¡ hrana Å¾ivÃ© malby
-@msg	no Live Paint face at that point	v tomto bodÄ› nenÃ­ Å¾Ã¡dnÃ¡ plocha Å¾ivÃ© malby
-@msg	no PNG encoder	chybÃ­ kodÃ©r PNG
-@msg	no active document	Å¾Ã¡dnÃ½ aktivnÃ­ dokument
-@msg	no active perspective plane	Å¾Ã¡dnÃ¡ aktivnÃ­ perspektivnÃ­ rovina
-@msg	no anchor points selected	nejsou vybrÃ¡ny Å¾Ã¡dnÃ© kotevnÃ­ body
-@msg	no app to open files here	zde chybÃ­ aplikace pro otevÃ­rÃ¡nÃ­ souborÅ¯
-@msg	no artboard	Å¾Ã¡dnÃ¡ pracovnÃ­ plocha
-@msg	no artboard {i} (0-based; the document has {_1})	pracovnÃ­ plocha {i} neexistuje (ÄÃ­slovÃ¡no od 0; dokument jich mÃ¡ {_1})
-@msg	no artboard {i} (0-based; the document has {count})	pracovnÃ­ plocha {i} neexistuje (ÄÃ­slovÃ¡no od 0; dokument jich mÃ¡ {count})
-@msg	no artboards named	nejsou zadÃ¡ny Å¾Ã¡dnÃ© pracovnÃ­ plochy
-@msg	no artwork	Å¾Ã¡dnÃ¡ kresba
-@msg	no blend options	Å¾Ã¡dnÃ© moÅ¾nosti prolnutÃ­
-@msg	no bounds	Å¾Ã¡dnÃ© hranice
-@msg	no brush named `{name}`	Å¡tÄ›tec s nÃ¡zvem `{name}` neexistuje
-@msg	no brush selected	nenÃ­ vybrÃ¡n Å¾Ã¡dnÃ½ Å¡tÄ›tec
-@msg	no catalog	chybÃ­ katalog
-@msg	no changes since the last save	od poslednÃ­ho uloÅ¾enÃ­ nejsou Å¾Ã¡dnÃ© zmÄ›ny
-@msg	no clock to keep a heartbeat by	chybÃ­ hodiny, podle kterÃ½ch by Å¡lo udrÅ¾ovat signÃ¡l aktivity
-@msg	no colour group `{g}`	skupina barev `{g}` neexistuje
-@msg	no cross-reference table	chybÃ­ tabulka kÅ™Ã­Å¾ovÃ½ch odkazÅ¯
-@msg	no current layer	Å¾Ã¡dnÃ¡ aktuÃ¡lnÃ­ vrstva
-@msg	no data	Å¾Ã¡dnÃ¡ data
-@msg	no dialog open	nenÃ­ otevÅ™eno Å¾Ã¡dnÃ© dialogovÃ© okno
-@msg	no document	Å¾Ã¡dnÃ½ dokument
-@msg	no document open	nenÃ­ otevÅ™en Å¾Ã¡dnÃ½ dokument
-@msg	no effect applied yet	zatÃ­m nebyl pouÅ¾it Å¾Ã¡dnÃ½ efekt
-@msg	no effect at index {k}	na indexu {k} nenÃ­ Å¾Ã¡dnÃ½ efekt
-@msg	no end record	chybÃ­ koncovÃ½ zÃ¡znam
-@msg	no file manager here	zde nenÃ­ sprÃ¡vce souborÅ¯
-@msg	no file reader	chybÃ­ ÄtenÃ­ souborÅ¯
-@msg	no file system here	zde nenÃ­ souborovÃ½ systÃ©m
-@msg	no file writer	chybÃ­ zÃ¡pis souborÅ¯
-@msg	no files to place	Å¾Ã¡dnÃ© soubory k umÃ­stÄ›nÃ­
-@msg	no format to export to	Å¾Ã¡dnÃ½ formÃ¡t pro export
-@msg	no free recovery area	Å¾Ã¡dnÃ¡ volnÃ¡ oblast pro obnovenÃ­
-@msg	no gradient stop or freeform point is selected	nenÃ­ vybrÃ¡na Å¾Ã¡dnÃ¡ zarÃ¡Å¾ka pÅ™echodu ani volnÃ½ bod
-@msg	no graphic style `{name}`	grafickÃ½ styl `{name}` neexistuje
-@msg	no graphic style `{n}`	grafickÃ½ styl `{n}` neexistuje
-@msg	no interaction in progress	neprobÃ­hÃ¡ Å¾Ã¡dnÃ¡ interakce
-@msg	no key object	Å¾Ã¡dnÃ½ klÃ­ÄovÃ½ objekt
+@msg	give the path `id` and the width point `index`	zadejte `id` cesty a `index` bodu šířky
 @msg	no library `{key}` (see {list})	knihovna `{key}` neexistuje (viz {list})
 @msg	no native format	chybÃ­ nativnÃ­ formÃ¡t
 @msg	no pages	Å¾Ã¡dnÃ© strÃ¡nky
 @msg	no pattern `{name}`	vzorek `{name}` neexistuje
-@msg	no perspective grid preset named `{name}`	pÅ™ednastavenÃ­ perspektivnÃ­ mÅ™Ã­Å¾ky s nÃ¡zvem `{name}` neexistuje
-@msg	no plug-in {0} is installed	zÃ¡suvnÃ½ modul {0} nenÃ­ nainstalovÃ¡n
-@msg	no plug-in {id} is installed	zÃ¡suvnÃ½ modul {id} nenÃ­ nainstalovÃ¡n
-@msg	no point {i} (the gradient has {_1})	bod {i} neexistuje (pÅ™echod jich mÃ¡ {_1})
-@msg	no preset editor	chybÃ­ editor pÅ™ednastavenÃ­
-@msg	no previous transform	Å¾Ã¡dnÃ¡ pÅ™edchozÃ­ transformace
-@msg	no print preset named `{base}`	pÅ™ednastavenÃ­ tisku s nÃ¡zvem `{base}` neexistuje
-@msg	no print preset named `{name}`	pÅ™ednastavenÃ­ tisku s nÃ¡zvem `{name}` neexistuje
-@msg	no print service	chybÃ­ tiskovÃ¡ sluÅ¾ba
-@msg	no revert command	chybÃ­ pÅ™Ã­kaz pro nÃ¡vrat k uloÅ¾enÃ© verzi
-@msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	uloÅ¾enÃ© pÅ™ednastavenÃ­ PDF s nÃ¡zvem `{name}` neexistuje (vestavÄ›nÃ¡ pÅ™ednastavenÃ­ jsou jen pro ÄtenÃ­: vytvoÅ™te z nich novÃ©)
-@msg	no saved presets	Å¾Ã¡dnÃ¡ uloÅ¾enÃ¡ pÅ™ednastavenÃ­
-@msg	no saved print preset named `{name}` ({DEFAULT_PRESET} is protected: start a new one from it)	uloÅ¾enÃ© pÅ™ednastavenÃ­ tisku s nÃ¡zvem `{name}` neexistuje ({DEFAULT_PRESET} je chrÃ¡nÄ›nÃ©: vytvoÅ™te z nÄ›j novÃ©)
-@msg	no saved profiles	Å¾Ã¡dnÃ© uloÅ¾enÃ© profily
-@msg	no saved selection recalled	nenÃ­ vyvolÃ¡n Å¾Ã¡dnÃ½ uloÅ¾enÃ½ vÃ½bÄ›r
-@msg	no saved selections	Å¾Ã¡dnÃ© uloÅ¾enÃ© vÃ½bÄ›ry
-@msg	no saved themes	Å¾Ã¡dnÃ© uloÅ¾enÃ© motivy
-@msg	no segment {segment} on line {line}	na ÄÃ¡Å™e {line} nenÃ­ segment {segment}
-@msg	no selected slice in the image: select slices, or save all of them	v obraze nenÃ­ vybrÃ¡n Å¾Ã¡dnÃ½ Å™ez: vyberte Å™ezy, nebo uloÅ¾te vÅ¡echny
-@msg	no selection bounds	vÃ½bÄ›r nemÃ¡ hranice
-@msg	no slice selected	nenÃ­ vybrÃ¡n Å¾Ã¡dnÃ½ Å™ez
-@msg	no such action	takovÃ¡ akce neexistuje
-@msg	no such anchor	takovÃ½ kotevnÃ­ bod neexistuje
-@msg	no such artboard	takovÃ¡ pracovnÃ­ plocha neexistuje
-@msg	no such document	takovÃ½ dokument neexistuje
-@msg	no such layer or object	takovÃ¡ vrstva ani objekt neexistuje
+@msg	no perspective grid preset named `{name}`	přednastavení perspektivní mřížky s názvem `{name}` neexistuje
 @msg	no such object {0}	objekt {0} neexistuje
 @msg	no such perspective grid preset	takovÃ© pÅ™ednastavenÃ­ perspektivnÃ­ mÅ™Ã­Å¾ky neexistuje
 @msg	no such recent file	takovÃ½ nedÃ¡vnÃ½ soubor neexistuje
@@ -4357,66 +3849,7 @@ imageTrace	Outline	Obrys
 @msg	not a valid plug-in module: {0}	neplatnÃ½ modul zÃ¡suvnÃ©ho modulu: {0}
 @msg	not an EMF or WMF file	nejde o soubor EMF ani WMF
 @msg	not found	nenalezeno
-@msg	not in pattern editing mode	nenÃ­ aktivnÃ­ reÅ¾im Ãºprav vzorku
-@msg	nothing encoded	nic nebylo zakÃ³dovÃ¡no
-@msg	nothing selected	nic nenÃ­ vybrÃ¡no
-@msg	nothing to align	nenÃ­ co zarovnat
-@msg	nothing to distort	nenÃ­ co deformovat
-@msg	nothing to export: the document has no visible art (or turn on Use Artboards)	nenÃ­ co exportovat: dokument nemÃ¡ Å¾Ã¡dnou viditelnou kresbu (nebo zapnÄ›te PouÅ¾Ã­t pracovnÃ­ plochy)
-@msg	nothing to preview	nenÃ­ co zobrazit v nÃ¡hledu
-@msg	nothing to print	nenÃ­ co tisknout
-@msg	nothing to redo	nenÃ­ co opakovat
-@msg	nothing to save: the document has no visible art	nenÃ­ co uloÅ¾it: dokument nemÃ¡ Å¾Ã¡dnou viditelnou kresbu
-@msg	nothing to undo	nenÃ­ co vrÃ¡tit
-@msg	no history to clear	nenÃ­ Å¾Ã¡dnÃ¡ historie k vymazÃ¡nÃ­
-@msg	nothing to warp	nenÃ­ co pokÅ™ivit
-@msg	nothing to wrap	nenÃ­ co obtÃ©kat
-@msg	object {0} cannot have children	objekt {0} nemÅ¯Å¾e mÃ­t potomky
-@msg	object {id} is not a path	objekt {id} nenÃ­ cesta
-@msg	object {id} is not a selected top-level object	objekt {id} nenÃ­ vybranÃ½ objekt nejvyÅ¡Å¡Ã­ ÃºrovnÄ›
-@msg	page size {w} Ã— {h}	velikost strÃ¡nky {w} Ã— {h}
-@msg	page {0} does not exist (the PDF has {1})	strÃ¡nka {0} neexistuje (PDF jich mÃ¡ {1})
-@msg	thumbnail: no page {n} (the file has 1)	thumbnail: strÃ¡nka {n} neexistuje (soubor mÃ¡ 1)
-@msg	paste unavailable	vloÅ¾enÃ­ nenÃ­ k dispozici
-@msg	path is already closed	cesta uÅ¾ je uzavÅ™enÃ¡
-@msg	paths contain invalid coordinates	cesty obsahujÃ­ neplatnÃ© souÅ™adnice
-@msg	paths: give at least one file	paths: zadejte alespoÅˆ jeden soubor
-@msg	pattern missing	chybÃ­ vzorek
-@msg	patterns nested too deeply are filled with mid-grey	pÅ™Ã­liÅ¡ hluboko vnoÅ™enÃ© vzorky se vyplnÃ­ stÅ™ednÄ› Å¡edou
-@msg	percent must be above 0 and at most 6400, not {p}	procento musÃ­ bÃ½t vÄ›tÅ¡Ã­ neÅ¾ 0 a nejvÃ½Å¡e 6400, ne {p}
-@msg	pick a colour, gradient or pattern to save as a swatch	vyberte barvu, pÅ™echod nebo vzorek, kterÃ½ se mÃ¡ uloÅ¾it do vzornÃ­ku
-@msg	plane must be left, right or ground	rovina musÃ­ bÃ½t left, right nebo ground
-@msg	plug-in ABI: {0}	ABI zÃ¡suvnÃ©ho modulu: {0}
-@msg	plug-in exceeded its {0}	zÃ¡suvnÃ½ modul pÅ™ekroÄil limit: {0}
-@msg	plug-in failed: {0}	zÃ¡suvnÃ½ modul selhal: {0}
-@msg	plug-in manifest: {0}	manifest zÃ¡suvnÃ©ho modulu: {0}
-@msg	plug-in output: {0}	vÃ½stup zÃ¡suvnÃ©ho modulu: {0}
-@msg	plug-in parameters: {0}	parametry zÃ¡suvnÃ©ho modulu: {0}
-@msg	plug-in trapped: {0}	zÃ¡suvnÃ½ modul narazil na chybu: {0}
-@msg	print settings are not an object	nastavenÃ­ tisku nejsou objekt
-@msg	printing isn't available here	tisk zde nenÃ­ k dispozici
-@msg	range `{s}` is empty	rozsah `{s}` je prÃ¡zdnÃ½
-@msg	range `{s}`: `{part}` names no number	rozsah `{s}`: `{part}` neobsahuje ÄÃ­slo
-@msg	range `{s}`: `{part}` runs backwards	rozsah `{s}`: `{part}` jde pozpÃ¡tku
-@msg	range `{s}`: `{t}` is not a number from 1 to {count}	rozsah `{s}`: `{t}` nenÃ­ ÄÃ­slo od 1 do {count}
-@msg	recovery copy `{file}`: {e}	kopie pro obnovenÃ­ `{file}`: {e}
-@msg	resolutions must be between 1 and 2400 ppi	rozliÅ¡enÃ­ musÃ­ bÃ½t mezi 1 a 2400 ppi
-@msg	result would exceed the canvas (coordinates out of range)	vÃ½sledek by pÅ™esÃ¡hl plÃ¡tno (souÅ™adnice mimo rozsah)
-@msg	objects can't be nested more than 32 deep	objekty nelze vnoÅ™it hloubÄ›ji neÅ¾ do 32 ÃºrovnÃ­
-@msg	the SVG's elements are nested more than {0} deep	prvky SVG jsou vnoÅ™eny hloubÄ›ji neÅ¾ do {0} ÃºrovnÃ­
-@msg	scale must be a number from {_1} to {_2}, not {_3}	mÄ›Å™Ã­tko musÃ­ bÃ½t ÄÃ­slo od {_1} do {_2}, ne {_3}
-@msg	scale must be a number from {_1} to {_2}, not {s}	mÄ›Å™Ã­tko musÃ­ bÃ½t ÄÃ­slo od {_1} do {_2}, ne {s}
-@msg	select (or target) objects whose appearance isn't basic	vyberte (nebo zacilte) objekty, jejichÅ¾ vzhled nenÃ­ zÃ¡kladnÃ­
-@msg	select a Live Paint group	vyberte skupinu Å¾ivÃ© malby
-@msg	select a blend	vyberte prolnutÃ­
-@msg	select a blend or give `id`	vyberte prolnutÃ­, nebo zadejte `id`
-@msg	select a clip group	vyberte oÅ™ezovou skupinu
-@msg	select a gradient mesh	vyberte pÅ™echodovou sÃ­Å¥
-@msg	select a linked image: an embedded one has no file	vyberte propojenÃ½ obrÃ¡zek: vloÅ¾enÃ½ nemÃ¡ soubor
-@msg	select a repeat	vyberte opakovÃ¡nÃ­
-@msg	select an Intertwine group	vyberte skupinu propletenÃ­
-@msg	select an Objects on Path group	vyberte skupinu objektÅ¯ na cestÄ›
-@msg	select a stroke with a variable width	vyberte tah s promÄ›nnou Å¡Ã­Å™kou
+@msg	not in pattern editing mode	není aktivní režim úprav vzorku
 @msg	select a symbol instance	vyberte instanci symbolu
 @msg	select an Image Trace object	vyberte objekt vektorizace obrazu
 @msg	could not decode image: {0}	obraz nelze dekÃ³dovat: {0}
@@ -4492,67 +3925,11 @@ imageTrace	Outline	Obrys
 @msg	the objects would leave the grid	objekty by opustily mÅ™Ã­Å¾ku
 @msg	the package came back damaged	balÃ­Äek se vrÃ¡til poÅ¡kozenÃ½
 @msg	the pointer is beyond the plane's horizon	ukazatel je za horizontem roviny
-@msg	the preview image is empty	obraz nÃ¡hledu je prÃ¡zdnÃ½
-@msg	the print job has no data	tiskovÃ¡ Ãºloha nemÃ¡ Å¾Ã¡dnÃ¡ data
-@msg	the scale is not a usable number	mÄ›Å™Ã­tko nenÃ­ pouÅ¾itelnÃ© ÄÃ­slo
-@msg	the selected stroke's profile is already listed as {_1}	profil vybranÃ©ho tahu uÅ¾ je v seznamu jako {_1}
-@msg	the selection has no URL (or they differ)	vÃ½bÄ›r nemÃ¡ URL (nebo se URL liÅ¡Ã­)
-@msg	the selection isn't in perspective	vÃ½bÄ›r nenÃ­ v perspektivÄ›
-@msg	the spine has no segments	pÃ¡teÅ™ nemÃ¡ Å¾Ã¡dnÃ© segmenty
-@msg	the stroke has no weight	tah nemÃ¡ tlouÅ¡Å¥ku
-@msg	the thumbnail image is malformed	obraz miniatury je chybnÄ› utvoÅ™enÃ½
-@msg	the top object must be a path, compound path or text object to use as a clipping mask	hornÃ­ objekt musÃ­ bÃ½t cesta, sloÅ¾enÃ¡ cesta nebo textovÃ½ objekt, aby jej Å¡lo pouÅ¾Ã­t jako oÅ™ezovou masku
-@msg	the {tool} tool has no options	nÃ¡stroj {tool} nemÃ¡ Å¾Ã¡dnÃ© moÅ¾nosti
-@msg	there are no objects to release	nejsou Å¾Ã¡dnÃ© objekty k uvolnÄ›nÃ­
-@msg	there are no printer settings to open here	zde nelze otevÅ™Ã­t Å¾Ã¡dnÃ© nastavenÃ­ tiskÃ¡rny
-@msg	this PostScript file can't be read ({why}): save it as PDF or SVG in the app that made it	tento soubor PostScript nelze pÅ™eÄÃ­st ({why}): uloÅ¾te jej jako PDF nebo SVG v aplikaci, ve kterÃ© vznikl
-@msg	this file's PostScript couldn't be read ({why}): {what}	PostScript tohoto souboru nelze pÅ™eÄÃ­st ({why}): {what}
-@msg	this format holds one artboard: export several as PDF or with document.exportForScreens	tento formÃ¡t pojme jednu pracovnÃ­ plochu: vÃ­ce jich exportujte jako PDF nebo pomocÃ­ document.exportForScreens
-@msg	this is a DWG drawing, which can't be read: save it from the CAD app as an ASCII DXF and open that	toto je vÃ½kres DWG, kterÃ½ nelze pÅ™eÄÃ­st: uloÅ¾te jej v aplikaci CAD jako ASCII DXF a otevÅ™ete ten
-@msg	this is a PostScript file (an .ai saved in an older format or without PDF compatibility, or an EPS file), not a PDF: File â€º Open and File â€º Place read it as EPS	toto je soubor PostScript (.ai uloÅ¾enÃ½ ve starÅ¡Ã­m formÃ¡tu nebo bez kompatibility s PDF, nebo soubor EPS), nikoli PDF: Soubor â€º OtevÅ™Ã­t a Soubor â€º UmÃ­stit jej naÄtou jako EPS
-@msg	this is not a PostScript file	toto nenÃ­ soubor PostScript
-@msg	tool shortcuts must be a single key (optionally with Shift)	zkratky nÃ¡strojÅ¯ musÃ­ bÃ½t jedinÃ¡ klÃ¡vesa (volitelnÄ› se Shift)
-@msg	truncated	zkrÃ¡ceno
-@msg	unknown command `{0}`	neznÃ¡mÃ½ pÅ™Ã­kaz `{0}`
-@msg	unknown effect `{id}`	neznÃ¡mÃ½ efekt `{id}`
-@msg	unknown format	neznÃ¡mÃ½ formÃ¡t
-@msg	unknown format `{f}` (Save writes {_1})	neznÃ¡mÃ½ formÃ¡t `{f}` (UloÅ¾it zapisuje {_1})
-@msg	unknown freeform mode `{m}` (points, lines)	neznÃ¡mÃ½ reÅ¾im volnÃ©ho pÅ™echodu `{m}` (points, lines)
-@msg	unknown gradient kind `{k}` (linear, radial, freeform)	neznÃ¡mÃ½ druh pÅ™echodu `{k}` (linear, radial, freeform)
-@msg	unknown highlight `{h}`	neznÃ¡mÃ© zvÃ½raznÄ›nÃ­ `{h}`
-@msg	unknown option `{path}.{k}`	neznÃ¡mÃ¡ moÅ¾nost `{path}.{k}`
-@msg	unknown overprints `{o}` (preserve, simulate or discard)	neznÃ¡mÃ© pÅ™etisky `{o}` (preserve, simulate nebo discard)
-@msg	unknown panel `{raw}`	neznÃ¡mÃ½ panel `{raw}`
-@msg	unknown preference `{key}`	neznÃ¡mÃ¡ pÅ™edvolba `{key}`
-@msg	unknown preset (one of {_1})	neznÃ¡mÃ© pÅ™ednastavenÃ­ (jedno z {_1})
-@msg	unknown preset `{name}` (high, medium, low or a saved one: see flattener.presets.list)	neznÃ¡mÃ© pÅ™ednastavenÃ­ `{name}` (high, medium, low nebo uloÅ¾enÃ©: viz flattener.presets.list)
-@msg	unknown preset `{name}` (see flattener.presets.list)	neznÃ¡mÃ© pÅ™ednastavenÃ­ `{name}` (viz flattener.presets.list)
-@msg	unknown preset `{name}` (see webExport.presets.list)	neznÃ¡mÃ© pÅ™ednastavenÃ­ `{name}` (viz webExport.presets.list)
-@msg	unknown side `{other}` (left|right|top|bottom)	neznÃ¡mÃ¡ strana `{other}` (left|right|top|bottom)
-@msg	unknown tool `{tool}`	neznÃ¡mÃ½ nÃ¡stroj `{tool}`
-@msg	unknown tool `{t}`	neznÃ¡mÃ½ nÃ¡stroj `{t}`
-@msg	unknown tool or command `{key}`	neznÃ¡mÃ½ nÃ¡stroj nebo pÅ™Ã­kaz `{key}`
-@msg	unknown workspace (one of {_1})	neznÃ¡mÃ½ pracovnÃ­ prostor (jeden z {_1})
-@msg	unsupported: {0}	nepodporovÃ¡no: {0}
-@msg	variables are locked	promÄ›nnÃ© jsou zamÄenÃ©
-@msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	soubory verze {0} nelze komprimovat: komprimovanÃ© soubory otevÃ­rÃ¡ aÅ¾ verze {COMPRESSED_SINCE} a novÄ›jÅ¡Ã­
-@msg	width and height are at least 1 pixel	Å¡Ã­Å™ka i vÃ½Å¡ka jsou alespoÅˆ 1 obrazovÃ½ bod
-@msg	workspace name can't be empty	nÃ¡zev pracovnÃ­ho prostoru nesmÃ­ bÃ½t prÃ¡zdnÃ½
-@msg	x and y must be finite	x a y musÃ­ bÃ½t koneÄnÃ¡ ÄÃ­sla
-@msg	{C}: no effect at index {from}	{C}: na indexu {from} nenÃ­ Å¾Ã¡dnÃ½ efekt
+@msg	the preview image is empty	obraz náhledu je prázdný
 @msg	{_1} failed: {e}	{_1} selhalo: {e}
 @msg	{_1} files can be opened but not written (see document.formats)	soubory {_1} lze otevÅ™Ã­t, ale ne zapisovat (viz document.formats)
 @msg	{_1} files are written by file.saveAsTemplate	soubory {_1} zapisuje file.saveAsTemplate
-@msg	{_1} font families available	DostupnÃ© rodiny pÃ­sem: {_1}
-@msg	{_1} is a live effect (Effect â€º Plug-ins)	{_1} je Å¾ivÃ½ efekt (Efekt â€º ZÃ¡suvnÃ© moduly)
-@msg	{_1} is an exporter (File â€º Export â€º Export Asâ€¦)	{_1} je exportnÃ­ zÃ¡suvnÃ½ modul (Soubor â€º Export â€º Exportovat jakoâ€¦)
-@msg	{_1} is already used by {_2}	{_1} uÅ¾ pouÅ¾Ã­vÃ¡ {_2}
-@msg	{_1} linked file(s) can't be read here: their previews show	propojenÃ© soubory ({_1}) zde nelze pÅ™eÄÃ­st: zobrazujÃ­ se jejich nÃ¡hledy
-@msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	propojenÃ© obrÃ¡zky ({_1}) se na disku zmÄ›nily: novÃ© verze zobrazÃ­ Aktualizovat propojenÃ­
-@msg	{_1}: not saved, so not closed	{_1}: neuloÅ¾eno, proto nezavÅ™eno
-@msg	{bpp}-bit bitmaps can't be read	{bpp}bitovÃ© bitmapy nelze pÅ™eÄÃ­st
-@msg	{command} didn't create an object	{command} nevytvoÅ™il Å¾Ã¡dnÃ½ objekt
-@msg	{label} produced an empty result	{label} vytvoÅ™il prÃ¡zdnÃ½ vÃ½sledek
+@msg	{_1} font families available	Dostupné rodiny písem: {_1}
 @msg	{label}: lost track of a shape's style	{label}: ztratil se styl tvaru
 @msg	{label}: select paths	{label}: vyberte cesty
 @msg	{label}: select paths, compound paths, groups or text	{label}: vyberte cesty, sloÅ¾enÃ© cesty, skupiny nebo text
@@ -4565,25 +3942,7 @@ imageTrace	Outline	Obrys
 @msg	{path}: not a file	{path}: nejde o soubor
 @msg	{path}: {e}	{path}: {e}
 @msg	{status} ({e})	{status} ({e})
-@msg	Couldn't place {name}: {e}	{name} nelze umÃ­stit: {e}
-@msg	Couldn't paste from the clipboard: {e}	Nelze vloÅ¾it ze schrÃ¡nky: {e}
-@msg	Saved {path} with {_1} note(s): {first}	UloÅ¾eno: {path}, poznÃ¡mky ({_1}): {first}
-@msg	Exported {what} with {_1} note(s): {first}	ExportovÃ¡no: {what}, poznÃ¡mky ({_1}): {first}
-@msg	Exported {what}	ExportovÃ¡no: {what}
-@msg	Saved {n} files beside {path}	UloÅ¾eno souborÅ¯: {n} vedle {path}
-@msg	Saving	UklÃ¡dÃ¡nÃ­
-@msg	Saving {_1}	UklÃ¡dÃ¡nÃ­ {_1}
-@msg	Exporting {_1}	ExportovÃ¡nÃ­ {_1}
-@msg	Saving recovery data for {_1}	UklÃ¡dÃ¡nÃ­ dat pro obnovenÃ­ pro {_1}
-@msg	Discarded {_1} recovered document(s)	Zahozeno obnovenÃ½ch dokumentÅ¯: {_1}
-@msg	Restored {_1} recovered document(s): save them to keep them	Obnoveno dokumentÅ¯: {_1}; pokud je chcete zachovat, uloÅ¾te je
-@msg	Embedded {n} image(s); {missing} missing: relink them first	VloÅ¾eno obrÃ¡zkÅ¯: {n}; chybÃ­ {missing}: nejprve je znovu propojte
-@msg	Embedded {n} image(s)	VloÅ¾eno obrÃ¡zkÅ¯: {n}
-@msg	Relinked {_1} image(s)	Znovu propojeno obrÃ¡zkÅ¯: {_1}
-@msg	Relinked {n} image(s)	Znovu propojeno obrÃ¡zkÅ¯: {n}
-@msg	Relinked {n} image(s); not in that folder: {_1}	Znovu propojeno obrÃ¡zkÅ¯: {n}; nejsou v danÃ© sloÅ¾ce: {_1}
-@msg	Updated {_1} image(s)	AktualizovÃ¡no obrÃ¡zkÅ¯: {_1}
-@msg	Unembedded to {_1}	VloÅ¾enÃ­ zruÅ¡eno, uloÅ¾eno do: {_1}
+@msg	Couldn't place {name}: {e}	{name} nelze umístit: {e}
 @msg	Reset {_1}	Obnoveno: {_1}
 @msg	Sent to {_1}	OdeslÃ¡no do {_1}
 @msg	{_1} files	Soubory {_1}
@@ -4655,52 +4014,8 @@ imageTrace	Outline	Obrys
 @msg	{key} must be an array of non-negative integer object ids	{key} musÃ­ bÃ½t pole ID objektÅ¯, kterÃ¡ jsou nezÃ¡pornÃ¡ celÃ¡ ÄÃ­sla
 @msg	invalid object id {value}: expected a non-negative integer	neplatnÃ© ID objektu {value}: oÄekÃ¡vÃ¡ se nezÃ¡pornÃ© celÃ© ÄÃ­slo
 @msg	no such object id {value}	objekt s ID {value} neexistuje
-@msg	automation filesystem access is not granted: read authority is absent: {path}	pÅ™Ã­stup automatizace k systÃ©mu souborÅ¯ nenÃ­ udÄ›len: chybÃ­ oprÃ¡vnÄ›nÃ­ ke ÄtenÃ­: {path}
-@msg	automation filesystem access is not granted: write authority is absent: {path}	pÅ™Ã­stup automatizace k systÃ©mu souborÅ¯ nenÃ­ udÄ›len: chybÃ­ oprÃ¡vnÄ›nÃ­ k zÃ¡pisu: {path}
-@msg	automation path rejected: outside the read root {root}: {path}	cesta automatizace odmÃ­tnuta: mimo koÅ™en pro ÄtenÃ­ {root}: {path}
-@msg	automation path rejected: outside the write root {root}: {path}	cesta automatizace odmÃ­tnuta: mimo koÅ™en pro zÃ¡pis {root}: {path}
-@msg	automation path rejected: path is empty	cesta automatizace odmÃ­tnuta: cesta je prÃ¡zdnÃ¡
-@msg	automation path rejected: a link that leads nowhere: {path}	cesta automatizace odmÃ­tnuta: odkaz, kterÃ½ nikam nevede: {path}
-@msg	automation path rejected: cannot resolve {path}: {e}	cesta automatizace odmÃ­tnuta: {path} nelze vyhodnotit: {e}
-@msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	cesta automatizace odmÃ­tnuta: pÅ™echod do nadÅ™azenÃ© sloÅ¾ky pod sloÅ¾kou, kterÃ¡ neexistuje: {path}
-@msg	automation path rejected: reserved device names are not allowed: {path}	cesta automatizace odmÃ­tnuta: rezervovanÃ© nÃ¡zvy zaÅ™Ã­zenÃ­ nejsou povoleny: {path}
-@msg	Multichannel PSD files can't be read: save it in RGB, CMYK or Grayscale mode	vÃ­cekanÃ¡lovÃ© soubory PSD nelze pÅ™eÄÃ­st: uloÅ¾te jej v reÅ¾imu RGB, CMYK nebo stupnÄ› Å¡edi
-@msg	not a PSD file	nejde o soubor PSD
-@msg	the PSD file has an unknown colour mode ({m})	soubor PSD mÃ¡ neznÃ¡mÃ½ barevnÃ½ reÅ¾im ({m})
-@msg	the PSD file's image data uses an unknown compression ({m})	obrazovÃ¡ data souboru PSD pouÅ¾Ã­vajÃ­ neznÃ¡mou kompresi ({m})
-@msg	the PSD image is too large to read ({_1} Ã— {_2} pixels)	obraz PSD je pÅ™Ã­liÅ¡ velkÃ½ na pÅ™eÄtenÃ­ ({_1} Ã— {_2} obrazovÃ½ch bodÅ¯)
-@msg	zipped 32-bit PSD image data with prediction can't be read	zazipovanÃ¡ 32bitovÃ¡ obrazovÃ¡ data PSD s predikcÃ­ nelze pÅ™eÄÃ­st
-@msg	{depth}-bit PSD files in this colour mode can't be read	{depth}bitovÃ© soubory PSD v tomto barevnÃ©m reÅ¾imu nelze pÅ™eÄÃ­st
-@msg	the PSD file is cut short	soubor PSD je useknutÃ½
-@msg	the PSD file's header is damaged	hlaviÄka souboru PSD je poÅ¡kozenÃ¡
-@msg	the PSD file's image data can't be read: {e}	obrazovÃ¡ data souboru PSD nelze pÅ™eÄÃ­st: {e}
-@msg	Imported library {name}	ImportovÃ¡na knihovna {name}
-@msg	Invalid panel layout; restored the default dock	NeplatnÃ© rozloÅ¾enÃ­ panelÅ¯; obnoveno vÃ½chozÃ­ ukotvenÃ­
-@msg	action is required	action je povinnÃ©
-@msg	anchor must name a registered panel	anchor musÃ­ urÄovat registrovanÃ½ panel
-@msg	before must name a panel	before musÃ­ urÄovat panel
-@msg	docking action contains an unknown panel or an excessive split path	akce ukotvenÃ­ obsahuje neznÃ¡mÃ½ panel nebo pÅ™Ã­liÅ¡ dlouhou cestu rozdÄ›lenÃ­
-@msg	group must be true or false	group musÃ­ bÃ½t true nebo false
-@msg	move requires a destination panel	pÅ™esun vyÅ¾aduje cÃ­lovÃ½ panel
-@msg	move requires an existing destination panel	pÅ™esun vyÅ¾aduje existujÃ­cÃ­ cÃ­lovÃ½ panel
-@msg	onto must name a floating panel	onto musÃ­ urÄovat plovoucÃ­ panel
-@msg	panel group is empty	skupina panelÅ¯ je prÃ¡zdnÃ¡
-@msg	panel must name a registered panel	panel musÃ­ urÄovat registrovanÃ½ panel
-@msg	saved panel layout is invalid; reset the workspace first	uloÅ¾enÃ© rozloÅ¾enÃ­ panelÅ¯ je neplatnÃ©; nejprve obnovte pracovnÃ­ prostor
-@msg	zone must be a string	zone musÃ­ bÃ½t Å™etÄ›zec
-@msg	zone must be tab, center, left, right, top or bottom	zone musÃ­ bÃ½t tab, center, left, right, top nebo bottom
-@msg	{key} must be a finite coordinate	{key} musÃ­ bÃ½t koneÄnÃ¡ souÅ™adnice
-@msg	x and y must be provided together	x a y musÃ­ bÃ½t zadÃ¡ny spoleÄnÄ›
-@msg	invalid restored panel group	neplatnÃ¡ obnovenÃ¡ skupina panelÅ¯
-@msg	invalid native panel set	neplatnÃ¡ nativnÃ­ sada panelÅ¯
-@msg	missing panel layout	chybÃ­ rozloÅ¾enÃ­ panelÅ¯
-@msg	unsupported native docking operation	nepodporovanÃ¡ nativnÃ­ operace ukotvenÃ­
-@msg	this kind of brush has no options dialog yet	tento druh Å¡tÄ›tce zatÃ­m nemÃ¡ dialogovÃ© okno moÅ¾nostÃ­
-	Ruler Origin	PoÄÃ¡tek pravÃ­tek
-	Reset Ruler Origin	Obnovit poÄÃ¡tek pravÃ­tek
-	Column Width:	Å Ã­Å™ka sloupce:
-	Import Dataâ€¦	Importovat dataâ€¦
-	Number of Decimals:	PoÄet desetinnÃ½ch mÃ­st:
+@msg	automation filesystem access is not granted: read authority is absent: {path}	přístup automatizace k systému souborů není udělen: chybí oprávnění ke čtení: {path}
+	Ruler Origin	Počátek pravítek
 	Switch x/y	Prohodit x/y
 	Transpose	Transponovat
 	Phone 393Ã—852	Telefon 393Ã—852
@@ -4976,29 +4291,7 @@ imageTrace	Outline	Obrys
 	TIFF (8-bit Color)	TIFF (8bitovÃ¡ barva)
 	1 bit	1 bit
 	4 bit	4 bity
-	8 bit	8 bitÅ¯
-	16 bit	16 bitÅ¯
-	24 bit	24 bitÅ¯
-	32 bit	32 bitÅ¯
-	16 bits/pixel	16 bitÅ¯ na pixel
-	24 bits/pixel	24 bitÅ¯ na pixel
-	32 bits/pixel	32 bitÅ¯ na pixel
-	DWG (use DXF)	DWG (pouÅ¾ijte DXF)
-	Artistic	UmÄ›leckÃ©
-	Film Grainâ€¦	FilmovÃ© zrnoâ€¦
-	Cutoutâ€¦	VÃ½Å™ezâ€¦
-	Cutout	VÃ½Å™ez
-	Neon Glowâ€¦	NeonovÃ¡ zÃ¡Å™eâ€¦
-	Neon Glow	NeonovÃ¡ zÃ¡Å™e
-	Poster Edgesâ€¦	PlakÃ¡tovÃ© okrajeâ€¦
-	Poster Edges	PlakÃ¡tovÃ© okraje
-	Levels	ÃšrovnÄ›
-	Edge Simplicity	Jednoduchost okrajÅ¯
-	Edge Fidelity	VÄ›rnost okrajÅ¯
-	Glow Size	Velikost zÃ¡Å™e
-	Glow Brightness	Jas zÃ¡Å™e
-	Edge Thickness	TlouÅ¡Å¥ka okrajÅ¯
-	Edge Intensity	Intenzita okrajÅ¯
+	8 bit	8 bitů
 	Posterization	Posterizace
 	Highlight Area	Oblast svÄ›tel
 
@@ -5098,9 +4391,7 @@ mark-style	Japanese	JaponskÃ©
 	Top Right:	Vpravo nahoÅ™e:
 	Bottom Left:	Vlevo dole:
 	Bottom Right:	Vpravo dole:
-	Softness	MÄ›kkost
-	Ambient Light	OkolnÃ­ svÄ›tlo
-	Light behind the object	SvÄ›tlo za objektem
+	Softness	Měkkost
 # 3D light management.
 	Lights	SvÄ›tla
 	Add Light	PÅ™idat svÄ›tlo
@@ -5108,73 +4399,11 @@ mark-style	Japanese	JaponskÃ©
 3d	Light	SvÄ›tlo
 	Registration:	Registrace:
 # Dimension tool (linked dimension annotations)
-	Display	ZobrazenÃ­
-# Dimension tool and Object â€º Dimensions (dimension groups, their dialog and messages).
-	Dimension	RozmÄ›r
-	Drawing : real size â€” 1:10 labels 1 unit on the page as 10.	VÃ½kres : skuteÄnÃ¡ velikost â€” 1:10 oznaÄÃ­ 1 jednotku na strÃ¡nce jako 10.
-	Preview (1 inch on the page)	NÃ¡hled (1 palec na strÃ¡nce)
-	Set as Default	Nastavit jako vÃ½chozÃ­
-	 out from a highlighted edge to place its dimension  |  	 ze zvÃ½raznÄ›nÃ© hrany ven a umÃ­stÃ­te jejÃ­ kÃ³tu  |  
-	 cancels  |  Double-click the tool for options	 zruÅ¡Ã­  |  DvojitÃ½m kliknutÃ­m na nÃ¡stroj otevÅ™ete volby
-	Angular	ÃšhlovÃ¡
-	Away from the Line	DÃ¡l od ÄÃ¡ry
-	Between Line and Object	Mezi ÄÃ¡rou a objektem
-	Drag out from a segment, or click two points, then click to place.	TÃ¡hnÄ›te ven od ÃºseÄky, nebo kliknÄ›te na dva body a potom kliknÄ›nÃ­m umÃ­stÄ›te.
-	Drag out from a corner, or click two straight lines, then click to place.	TÃ¡hnÄ›te ven od rohu, nebo kliknÄ›te na dvÄ› rovnÃ© ÄÃ¡ry a potom kliknÄ›nÃ­m umÃ­stÄ›te.
-	Drag out from a circle or arc for its radius, inwards for its diameter.	TÃ¡hnÄ›te od kruhu nebo oblouku ven pro polomÄ›r, dovnitÅ™ pro prÅ¯mÄ›r.
-@msg	Choose a circle or a perfect arc	Vyberte kruh nebo dokonalÃ½ oblouk
-@msg	Choose a precision from 0 to 6	Zvolte pÅ™esnost od 0 do 6
-	Create Dimension	VytvoÅ™it kÃ³tu
-	Dimension Tool	NÃ¡stroj KÃ³ta
-	Dimension Tool Options	Volby nÃ¡stroje KÃ³ta
-	Font Family:	Rodina pÃ­sma:
-	Font Style:	Å˜ez pÃ­sma:
-	Precision:	PÅ™esnost:
-	Update Dimensions	Aktualizovat kÃ³ty
-@msg	Angles require two straight segments	Ãšhly vyÅ¾adujÃ­ dva pÅ™Ã­mÃ© segmenty
-@msg	Choose two different points	Vyberte dva rÅ¯znÃ© body
-@msg	Choose two non-parallel straight segments	Vyberte dva nerovnobÄ›Å¾nÃ© pÅ™Ã­mÃ© segmenty
-@msg	Choose two nonzero angle arms	Vyberte dvÄ› ramena Ãºhlu nenulovÃ© dÃ©lky
-@msg	Dimension point is outside the canvas	Bod kÃ³ty leÅ¾Ã­ mimo plÃ¡tno
-@msg	Dimension size is outside its supported range	Velikost kÃ³ty je mimo podporovanÃ½ rozsah
-@msg	First measured segment no longer exists	PrvnÃ­ mÄ›Å™enÃ½ segment uÅ¾ neexistuje
-@msg	Invalid dimension distance	NeplatnÃ¡ vzdÃ¡lenost kÃ³ty
-@msg	Invalid dimension font name	NeplatnÃ½ nÃ¡zev pÃ­sma kÃ³ty
-@msg	Invalid drawing scale	NeplatnÃ© mÄ›Å™Ã­tko vÃ½kresu
-@msg	Invalid real scale	NeplatnÃ© skuteÄnÃ© mÄ›Å™Ã­tko
-@msg	Measured anchor no longer exists	MÄ›Å™enÃ½ kotevnÃ­ bod uÅ¾ neexistuje
-@msg	Measured segment no longer exists	MÄ›Å™enÃ½ segment uÅ¾ neexistuje
-@msg	Non-finite dimension	KÃ³ta nenÃ­ koneÄnÃ© ÄÃ­slo
-@msg	Scale must be drawing:real, for example 1:10	MÄ›Å™Ã­tko musÃ­ mÃ­t tvar vÃ½kres:skuteÄnost, napÅ™Ã­klad 1:10
-@msg	Scale ratio must be between 1:1000000 and 1000000:1	PomÄ›r mÄ›Å™Ã­tka musÃ­ bÃ½t mezi 1:1000000 a 1000000:1
-@msg	Second measured segment no longer exists	DruhÃ½ mÄ›Å™enÃ½ segment uÅ¾ neexistuje
-@msg	Unknown dimension mode	NeznÃ¡mÃ½ reÅ¾im kÃ³ty
-@msg	Unknown dimension option {k}	NeznÃ¡mÃ¡ volba kÃ³ty {k}
-@msg	Unknown dimension style	NeznÃ¡mÃ½ styl kÃ³ty
-@msg	Unknown unit	NeznÃ¡mÃ¡ jednotka
+	Display	Zobrazení
+# Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
+@msg	Choose a circle or a perfect arc	Vyberte kruh nebo dokonalý oblouk
 # Revolve cap description
-	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	UzavÅ™e kruhovÃ© konce otevÅ™enÃ½ch profilÅ¯. BoÄnÃ­ Å™ezy ÄÃ¡steÄnÃ©ho otoÄenÃ­ zÅ¯stÃ¡vajÃ­ otevÅ™enÃ©.
-@msg	span must be "object" or "selection", got {v}	span musÃ­ bÃ½t "object" nebo "selection", ne {v}
-@msg	span: "selection" places a `gradient`, not a swatch	span: "selection" umÃ­sÅ¥uje `gradient`, ne vzornÃ­k
-@msg	span: "selection" places a gradient: give `gradient`	span: "selection" umÃ­sÅ¥uje pÅ™echod: zadejte `gradient`
-@msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" umÃ­sÅ¥uje lineÃ¡rnÃ­ nebo radiÃ¡lnÃ­ pÅ™echod, ne volnÃ½ pÅ™echod
-@msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" umÃ­sÅ¥uje samotnÃ½ pÅ™echod: vynechte `start` a `end` (ty ho uÅ¾ umÃ­sÅ¥ujÃ­ v souÅ™adnicÃ­ch dokumentu)
-	Make Image Dynamic	Nastavit obraz jako dynamickÃ½
-	Import Data Setsâ€¦	Importovat sady datâ€¦
-	Export Data Setsâ€¦	Exportovat sady datâ€¦
-	Make Graph Dynamic	Nastavit graf jako dynamickÃ½
-	Batchâ€¦	DÃ¡vkaâ€¦
-	Source Folder:	ZdrojovÃ¡ sloÅ¾ka:
-	Destination Folder:	CÃ­lovÃ¡ sloÅ¾ka:
-	Overrides	PÅ™epsÃ¡nÃ­
-	Uses every data set of the open document.	PouÅ¾ije kaÅ¾dou sadu dat otevÅ™enÃ©ho dokumentu.
-@msg	Batch: {count} processed	DÃ¡vka: zpracovÃ¡no {count}
-@msg	Batch: {count} processed, {failed} failed	DÃ¡vka: zpracovÃ¡no {count}, selhalo {failed}
-@msg	choose a destination folder	vyberte cÃ­lovou sloÅ¾ku
-@msg	choose a source folder	vyberte zdrojovou sloÅ¾ku
-@msg	open a document with data sets	otevÅ™ete dokument se sadami dat
-@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	ze sady dat {name} se nic nepouÅ¾ilo: Å¾Ã¡dnÃ½ objekt nenÃ­ svÃ¡zÃ¡n s promÄ›nnou, pro kterou mÃ¡ hodnotu
-@msg	the action has no steps	akce nemÃ¡ Å¾Ã¡dnÃ© kroky
+# Dimension tool and Object â€º Dimensions (dimension groups, their dialog and messages).
 
 # User Interface â€º Accent Color
 	Accent Color	Barva zvÃ½raznÄ›nÃ­
@@ -5182,8 +4411,7 @@ mark-style	Japanese	JaponskÃ©
 	Coral	KorÃ¡lovÃ¡
 	Violet	FialovÃ¡
 	Sketch	Skica
-	Halftone Patternâ€¦	PolotÃ³novÃ½ vzorekâ€¦
-	Halftone Pattern	PolotÃ³novÃ½ vzorek
+	Halftone Pattern…	Polotónový vzorek…
 	Pattern Type	Typ vzorku
 	Dot	TeÄka
 # User Interface â€º Color Scheme
@@ -5201,7 +4429,7 @@ mark-style	Japanese	JaponskÃ©
 	Sponge	Houba
 	Watercolorâ€¦	Akvarelâ€¦
 	Watercolor	Akvarel
-	Brush Size	Velikost Å¡tÄ›tce
+	Brush Size	Velikost štětce
 	Definition	Definice
 	Brush Detail	Detail Å¡tÄ›tce
 	Shadow Intensity	Intenzita stÃ­nÅ¯
@@ -5217,42 +4445,19 @@ mark-style	Japanese	JaponskÃ©
 	Detail	Detail
 	Light/Dark Balance	VyvÃ¡Å¾enÃ­ svÄ›tlÃ©/tmavÃ©
 # Links and Attributes: files and URLs handed to other apps.
-@msg	Edit Original opens image and document files only; â€œ{name}â€ is not one	Upravit originÃ¡l otevÃ­rÃ¡ pouze soubory obrÃ¡zkÅ¯ a dokumentÅ¯; â€ž{name}â€œ mezi nÄ› nepatÅ™Ã­
-@msg	only http, https and mailto URLs open in the browser, not â€œ{url}â€	v prohlÃ­Å¾eÄi se otevÃ­rajÃ­ pouze adresy URL http, https a mailto, ne â€ž{url}â€œ
-@msg	{id} opens another app: only the person at the keyboard can run it	{id} otevÃ­rÃ¡ jinou aplikaci: spustit ho mÅ¯Å¾e pouze ÄlovÄ›k u klÃ¡vesnice
-@msg	â€œ{name}â€ is not a file	â€ž{name}â€œ nenÃ­ soubor
-	Enable Guides for 9-Slice Scaling	Povolit vodÃ­tka pro 9-slice Å¡kÃ¡lovÃ¡nÃ­
-@msg	a mask has more than one art block	maska mÃ¡ vÃ­ce neÅ¾ jeden blok kresby
-@msg	mask art ends outside a mask dictionary	kresba masky konÄÃ­ mimo slovnÃ­k masky
-@msg	cancelled; nothing was changed	zruÅ¡eno; nic nebylo zmÄ›nÄ›no
-@msg	a linked image can't become a gradient mesh: embed it first	propojenÃ½ obraz nelze pÅ™evÃ©st na sÃ­Å¥ pÅ™echodu: nejprve jej vloÅ¾te
-@msg	the image has no usable size or position	obraz nemÃ¡ pouÅ¾itelnou velikost ani polohu
-@msg	the image's pixels can't be read	pixely obrazu nelze pÅ™eÄÃ­st
-	Persistent	TrvalÃ©
-	Library Panel Options	MoÅ¾nosti panelu knihovny
-@msg	Persistent libraries not found: {files}	TrvalÃ© knihovny nebyly nalezeny: {files}
-@msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` nenÃ­ panel knihovny (viz window.swatchLibrary)
-@msg	library panel `{given}` isn't open	panel knihovny `{given}` nenÃ­ otevÅ™enÃ½
-@msg	too many library panels were opened in this session	v tÃ©to relaci bylo otevÅ™eno pÅ™Ã­liÅ¡ mnoho panelÅ¯ knihoven
-@msg	The image is {_1} Ã— {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Obraz mÃ¡ {_1} Ã— {_2} pixelÅ¯, na jednÃ© stranÄ› vÃ­ce neÅ¾ {LARGE_TRACE_SIDE}: vektorizuje se, ale pomaleji. Rychleji se vektorizuje s pÅ™edvolbou niÅ¾Å¡Ã­ vÄ›rnosti nebo menÅ¡Ã­ kopie obrazu.
-@msg	The image was traced at {_1} Ã— {_2} pixels, scaled down from {_3} Ã— {_4} ({_5} megapixels at most).	Obraz byl vektorizovÃ¡n v rozliÅ¡enÃ­ {_1} Ã— {_2} pixelÅ¯, zmenÅ¡enÃ½ z {_3} Ã— {_4} (nejvÃ½Å¡e {_5} megapixelÅ¯).
-	Artboard {n} of {total}	PracovnÃ­ plocha {n} z {total}
-	Encoding and writing the fileâ€¦	KÃ³dovÃ¡nÃ­ a zÃ¡pis souboruâ€¦
-@plural	{n} more export waiting|{n} more exports waiting	ÄŒekÃ¡ jeÅ¡tÄ› {n} export|ÄŒekajÃ­ jeÅ¡tÄ› {n} exporty|ÄŒekÃ¡ jeÅ¡tÄ› {n} exportÅ¯
-	Continue in Background	PokraÄovat na pozadÃ­
-	Cancel Export	ZruÅ¡it export
-@msg	Export cancelled	Export byl zruÅ¡en
+@msg	Edit Original opens image and document files only; “{name}” is not one	Upravit originál otevírá pouze soubory obrázků a dokumentů; „{name}“ mezi ně nepatří
+	Enable Guides for 9-Slice Scaling	Povolit vodítka pro 9-slice škálování
+@plural	{n} more export waiting|{n} more exports waiting	Čeká ještě {n} export|Čekají ještě {n} exporty|Čeká ještě {n} exportů
+# Paragraph panel menu › Justification…
 # Paragraph panel menu â€º Justificationâ€¦
-	Desired	PoÅ¾adovanÃ©
 	Word Spacing:	Mezery mezi slovy:
 	Letter Spacing:	Mezery mezi pÃ­smeny:
 	Glyph Scaling:	ZmÄ›na velikosti glyfÅ¯:
 	Auto Leading:	AutomatickÃ© proklady:
 	Single Word Justification:	ZarovnÃ¡nÃ­ jednoho slova:
 	Full Justify	Zarovnat do bloku
-	Minimum must not exceed Desired, nor Desired Maximum.	Minimum nesmÃ­ pÅ™ekroÄit poÅ¾adovanou hodnotu ani poÅ¾adovanÃ¡ hodnota maximum.
-	Justification	ZarovnÃ¡nÃ­ do bloku
-@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	promÄ›nnÃ© a sady dat souboru nebyly naÄteny (promÄ›nnÃ©: {variables}, sady dat: {data_sets}): panel PromÄ›nnÃ© je nezobrazuje
+	Minimum must not exceed Desired, nor Desired Maximum.	Minimum nesmí překročit požadovanou hodnotu ani požadovaná hodnota maximum.
+@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	proměnné a sady dat souboru nebyly načteny (proměnné: {variables}, sady dat: {data_sets}): panel Proměnné je nezobrazuje
 # Select by Color (select.color)
 	Select by Color	Vybrat podle barvy
 	Move Anchor Point	PÅ™esunout kotevnÃ­ bod
@@ -5267,29 +4472,9 @@ mark-style	Japanese	JaponskÃ©
 	Plastic Wrap	PlastovÃ¡ fÃ³lie
 	Chromeâ€¦	Chromâ€¦
 	Chrome	Chrom
-	Drop here to take it out of its group	PusÅ¥te sem, chcete-li ji vyjmout ze skupiny
-	Move Library Group	PÅ™esunout skupinu knihovny
-	Plasterâ€¦	SÃ¡draâ€¦
-	Plaster	SÃ¡dra
-	Note Paperâ€¦	DopisnÃ­ papÃ­râ€¦
-	Note Paper	DopisnÃ­ papÃ­r
-
+	Drop here to take it out of its group	Pusťte sem, chcete-li ji vyjmout ze skupiny
+axis	X Axis	osa X
+@msg	Packaged {n} file(s) in {folder}	Zabaleno souborů: {n} do {folder}
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
 
 # CollabCraft cloud Open / Save / Share
-	Browse a Cloud Folder	ProchÃ¡zet cloudovou sloÅ¾ku
-	Cloud Status	Stav cloudu
-	Connect Cloud Storage	PÅ™ipojit cloudovÃ© ÃºloÅ¾iÅ¡tÄ›
-	List Cloud Shares	Seznam cloudovÃ½ch sdÃ­lenÃ­
-	Open a Cloud Drawing	OtevÅ™Ã­t cloudovou kresbu
-	Open from the Cloudâ€¦	OtevÅ™Ã­t z clouduâ€¦
-	Reload from the Cloud	Znovu naÄÃ­st z cloudu
-	Save to the Cloud	UloÅ¾it do cloudu
-	Save to the Cloudâ€¦	UloÅ¾it do clouduâ€¦
-	A folder on this computer	SloÅ¾ka v tomto poÄÃ­taÄi
-	Cloud	Cloud
-	This computer	Tento poÄÃ­taÄ
-	Where	Kam
-	Your cloud account	VÃ¡Å¡ cloudovÃ½ ÃºÄet
-@msg	VectorCraft cannot open {_1}	VectorCraft nemÅ¯Å¾e otevÅ™Ã­t {_1}
-@msg	no drawing open	nenÃ­ otevÅ™enÃ¡ Å¾Ã¡dnÃ¡ kresba
-@msg	no such file in the cloud listing	takovÃ½ soubor v cloudovÃ©m seznamu nenÃ­

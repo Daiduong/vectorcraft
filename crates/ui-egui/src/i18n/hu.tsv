@@ -22,70 +22,7 @@
 # purpose (`MENU_KEEP_AS_IS`): the product name, language names, OpenType, the built-in workspace
 # names and the bracketed perspective grid preset names; `hu-HU` and every other `hu-*` locale
 # resolve here.
-	  â€” missing	  â€“ hiÃ¡nyzik
-	  â€” substituted by {style}	  â€“ helyettesÃ­tve: {style}
-	  â€” {n} characters from another font	  â€“ {n} karakter mÃ¡sik betÅ±tÃ­pusbÃ³l
-	 a pin to warp  |  	 egy tÅ±n â€“ torzÃ­tÃ¡s  |  
-	 a point to edit it  |  	 egy pontra â€“ szerkesztÃ©s  |  
-	 a stroke to add a width point  |  	 egy kÃ¶rvonalon â€“ szÃ©lessÃ©gi pont hozzÃ¡adÃ¡sa  |  
-	 across a selected object to set the gradient direction	 egy kijelÃ¶lt objektumon Ã¡t â€“ a szÃ­nÃ¡tmenet irÃ¡nyÃ¡nak beÃ¡llÃ­tÃ¡sa
-	 across paths to push them along  |  	 Ãºtvonalakon Ã¡t â€“ az Ãºtvonalak tolÃ¡sa  |  
-	 an anchor or path segment to select it  |  	 horgonypontra vagy szakaszra â€“ kijelÃ¶lÃ©s  |  
-	 an object to copy its attributes  |  	 egy objektumra â€“ tulajdonsÃ¡gainak Ã¡tvÃ©tele  |  
-	 an object, then another to blend them  |  	 egy objektumra, majd egy mÃ¡sikra â€“ Ã¶sszemosÃ¡suk  |  
-	 for exact size	 â€“ pontos mÃ©ret megadÃ¡sa
-	 for exact values	 â€“ pontos Ã©rtÃ©kek megadÃ¡sa
-	 from center  |  	 â€“ rajzolÃ¡s a kÃ¶zÃ©ppontbÃ³l  |  
-	 keeps its proportions)	 â€“ arÃ¡nyok megtartÃ¡sa)
-	 near a selected pin to rotate  |  	 egy kijelÃ¶lt tÅ± kÃ¶zelÃ©ben â€“ forgatÃ¡s  |  
-	 on the canvas to create one	 a vÃ¡sznon â€“ Ãºj rajztÃ¡bla
-	 over paths to roughen their outlines  |  	 Ãºtvonalakon â€“ a kÃ¶rvonaluk eldurvÃ­tÃ¡sa  |  
-	 over paths, and hold still to keep going  |  	 Ãºtvonalakon â€“ nyomva tartva folytatÃ³dik  |  
-	 right or left to zoom in or out  |  	 jobbra vagy balra â€“ nagyÃ­tÃ¡s vagy kicsinyÃ­tÃ©s  |  
-	 the art to add a pin  |  	 a grafikÃ¡ra â€“ tÅ± hozzÃ¡adÃ¡sa  |  
-	 the object to duplicate	 az objektumon â€“ kettÅ‘zÃ©s
-	 the object to select  |  	 az objektumra â€“ kijelÃ¶lÃ©s  |  
-	 to add	 â€“ hozzÃ¡adÃ¡s a kijelÃ¶lÃ©shez
-	 to add a corner point  |  	 â€“ sarokpont hozzÃ¡adÃ¡sa  |  
-	 to add a smooth point  |  	 â€“ simÃ­tott pont hozzÃ¡adÃ¡sa  |  
-	 to add smooth points  |  	 â€“ simÃ­tott pontok hozzÃ¡adÃ¡sa  |  
-	 to apply the selection's to it  |  	 â€“ a kijelÃ¶lÃ©s tulajdonsÃ¡gainak rÃ¡alkalmazÃ¡sa  |  
-	 to blend from it  |  	 â€“ Ã¶sszemosÃ¡s ettÅ‘l a ponttÃ³l  |  
-	 to change one side  |  	 â€“ csak az egyik oldal mÃ³dosÃ­tÃ¡sa  |  
-	 to close  |  	 â€“ Ãºtvonal lezÃ¡rÃ¡sa  |  
-	 to constrain proportions  |  	 â€“ arÃ¡nyok megtartÃ¡sa  |  
-	 to copy  |  	 â€“ mÃ¡solÃ¡s  |  
-	 to create area type  |  	 â€“ terÃ¼letszÃ¶veg lÃ©trehozÃ¡sa  |  
-	 to create point type  |  	 â€“ pontszÃ¶veg lÃ©trehozÃ¡sa  |  
-	 to draw  |  	 â€“ rajzolÃ¡s  |  
-	 to exit editing	 â€“ kilÃ©pÃ©s a szerkesztÃ©sbÅ‘l
-	 to finish	 â€“ befejezÃ©s
-	 to keep zooming	 â€“ folyamatos nagyÃ­tÃ¡s
-	 to move  |  	 â€“ Ã¡thelyezÃ©s  |  
-	 to move in perspective  |  	 â€“ mozgatÃ¡s perspektÃ­vÃ¡ban  |  
-	 to pan the view	 â€“ a nÃ©zet gÃ¶rgetÃ©se
-	 to remove pins	 â€“ tÅ±k eltÃ¡volÃ­tÃ¡sa
-	 to remove points	 â€“ pontok eltÃ¡volÃ­tÃ¡sa
-	 to sample a color	 â€“ szÃ­n mintavÃ©tele
-	 to scale in perspective	 â€“ mÃ©retezÃ©s perspektÃ­vÃ¡ban
-	 to search every command	 â€“ keresÃ©s az Ã¶sszes parancs kÃ¶zÃ¶tt
-	 to select an artboard  |  	 â€“ rajztÃ¡bla kijelÃ¶lÃ©se  |  
-	 to select more pins  |  	 â€“ tovÃ¡bbi tÅ±k kijelÃ¶lÃ©se  |  
-	 to select more points  |  	 â€“ tovÃ¡bbi pontok kijelÃ¶lÃ©se  |  
-	 to select multiple objects  |  	 â€“ tÃ¶bb objektum kijelÃ¶lÃ©se  |  
-	 to set spacing and orientation	 â€“ tÃ©rkÃ¶z Ã©s tÃ¡jolÃ¡s beÃ¡llÃ­tÃ¡sa
-	 to set the reference point  |  	 â€“ viszonyÃ­tÃ¡si pont megadÃ¡sa  |  
-	 to size the brush (	 â€“ ecsetmÃ©ret beÃ¡llÃ­tÃ¡sa (
-	 to toggle corner  |  	 â€“ sarokpont be/ki  |  
-	 to transform  |  	 â€“ Ã¡talakÃ­tÃ¡s  |  
-	 to zoom in  |  	 â€“ nagyÃ­tÃ¡s  |  
-	 to zoom into an area	 â€“ terÃ¼let nagyÃ­tÃ¡sa
-	 to zoom out  |  	 â€“ kicsinyÃ­tÃ©s  |  
-	 while dragging to move perpendicular to the plane  |  	 hÃºzÃ¡s kÃ¶zben â€“ mozgatÃ¡s a sÃ­kra merÅ‘legesen  |  
-	% of all commits	Az Ã¶sszes commit %-a
-	(closest)	(legkÃ¶zelebbi)
-	+ Add Scale	+ MÃ©retarÃ¡ny hozzÃ¡adÃ¡sa
-	0.2 (quality) to 100 (speed)	0,2 (minÅ‘sÃ©g) â€“ 100 (sebessÃ©g)
+	  — missing	  – hiányzik
 	1 bit	1 bit
 	1 Color Job	1 szÃ­nes munka
 	1 Color Jobâ€¦	1 szÃ­nes munkaâ€¦
@@ -320,19 +257,7 @@
 	Arrow (open)	NyÃ­l (nyitott)
 	Arrowheads:	NyÃ­lhegyek:
 	Art	Grafikus
-	Art & Illustration	Grafika Ã©s illusztrÃ¡ciÃ³
-	Art and Bright Colors	Grafika Ã©s Ã©lÃ©nk szÃ­nek
-	Art Brush Options	Grafikus ecset beÃ¡llÃ­tÃ¡sai
-	Art Optimized	GrafikÃ¡ra optimalizÃ¡lt
-	Art using a deleted global swatch keeps its colour.	A tÃ¶rÃ¶lt globÃ¡lis szÃ­nmintÃ¡t hasznÃ¡lÃ³ grafika megtartja a szÃ­nÃ©t.
-	Artboard	RajztÃ¡bla
-	Artboard Options	RajztÃ¡bla beÃ¡llÃ­tÃ¡sai
-	Artboard Optionsâ€¦	RajztÃ¡bla beÃ¡llÃ­tÃ¡saiâ€¦
-	Artboard Tool	RajztÃ¡bla
-	Artboard {number}	RajztÃ¡bla {number}
-	Artboard:	RajztÃ¡bla:
-	Artboards	RajztÃ¡blÃ¡k
-	Artboards: {n}	RajztÃ¡blÃ¡k: {n}
+	Art & Illustration	Grafika és illusztráció
 	ArtCraft Website	Az ArtCraft webhelye
 	ArtCraft website	Az ArtCraft webhelye
 	Artwork Colors	Grafika szÃ­nei
@@ -370,10 +295,7 @@
 	Axis:	Tengely:
 	B4	B4
 	B5	B5
-	Background Color:	HÃ¡ttÃ©rszÃ­n:
-	Background Contents	HÃ¡ttÃ©rtartalom
-	Background Contents:	HÃ¡ttÃ©rtartalom:
-	Background:	HÃ¡ttÃ©r:
+	Background Color:	Háttérszín:
 	Backspace	Backspace
 	Balance	EgyensÃºly
 	Bar	Vonal
@@ -421,54 +343,11 @@
 	Bloat Tool	FelfÃºjÃ¡s
 	Blob Brush	Pacaecset
 	Blob Brush Tool	Pacaecset
-	Blocks	KockÃ¡k
-	Blue	KÃ©k
-	Blur	ElmosÃ¡s
-	Blur Mode	ElmosÃ¡si mÃ³d
-	Bold	FÃ©lkÃ¶vÃ©r
-	Border Thickness	SzegÃ©lyvastagsÃ¡g
-	Bottom	AlsÃ³
-	Bottom in Front	AlsÃ³ elÃ¶l
-	Bottom Left	Bal alsÃ³
-	Bottom Right	Jobb alsÃ³
-	Bottom to Top	LentrÅ‘l felfelÃ©
-	Bottom-to-Bottom Leading	AlulrÃ³l alulra mÃ©rt sorkÃ¶z
-	Bottom:	AlsÃ³:
-	Bounding Box	BefoglalÃ³ keret
-	Bounds	HatÃ¡rok
-	Bounds (Fill Proportionally)	HatÃ¡rok (arÃ¡nyos kitÃ¶ltÃ©s)
-	Bounds (Fit Proportionally)	HatÃ¡rok (arÃ¡nyos igazÃ­tÃ¡s)
-	Bracket	SzÃ¶gletes zÃ¡rÃ³jel
-	Branding	Arculat
-	Break Link	CsatolÃ¡s bontÃ¡sa
-	Break Link to Graphic Style	Grafikai stÃ­lus kapcsolatÃ¡nak bontÃ¡sa
-	Break Link to Symbol	SzimbÃ³lumkapcsolat bontÃ¡sa
-	Brick	TÃ©gla
-	Brick by Column	TÃ©glakÃ¶tÃ©s oszloponkÃ©nt
-	Brick by Row	TÃ©glakÃ¶tÃ©s soronkÃ©nt
-	Brick Offset:	TÃ©glaeltolÃ¡s:
-	Brightness	FÃ©nyessÃ©g
-	Brightness/Contrastâ€¦	FÃ©nyessÃ©g/kontrasztâ€¦
-	Brightness:	FÃ©nyessÃ©g:
-	Brights	Ã‰lÃ©nk szÃ­nek
-	Bring All to Front	Ã–sszes elÅ‘re hozÃ¡sa
-	Bring Forward	Eggyel elÅ‘re
-	Bring to Front	ElÅ‘re hozÃ¡s
-	Bristle	SÃ¶rte
-	Bristle Brush Options	SÃ¶rteecset beÃ¡llÃ­tÃ¡sai
-	Bristle Brush Strokes	SÃ¶rteecset-vonÃ¡sok
-	Bristle Density:	SÃ¶rtesÅ±rÅ±sÃ©g:
-	Bristle Length:	SÃ¶rtehossz:
-	Bristle Thickness:	SÃ¶rtevastagsÃ¡g:
+	Blocks	Kockák
 	Brown	Barna
 	Browser	BÃ¶ngÃ©szÅ‘
 	Brush Affects:	Az ecset ezekre hat:
-	Brush Definition	EcsetdefinÃ­ciÃ³
-	Brush Libraries	EcsetkÃ¶nyvtÃ¡rak
-	Brush Libraries (on the roadmap)	EcsetkÃ¶nyvtÃ¡rak (tervezett funkciÃ³)
-	Brush Optionsâ€¦	Ecset beÃ¡llÃ­tÃ¡saiâ€¦
-	Brush Scale Options	EcsetmÃ©retezÃ©si beÃ¡llÃ­tÃ¡sok
-	Brush Strokes	EcsetvonÃ¡sok
+	Brush Art	Ecsetgrafika
 	Brushes	Ecsetek
 	Built-in Libraries	BeÃ©pÃ­tett kÃ¶nyvtÃ¡rak
 	Built-in presets are read-only: Newâ€¦ starts an editable copy.	A beÃ©pÃ­tett elÅ‘beÃ¡llÃ­tÃ¡sok csak olvashatÃ³k: az Ãšjâ€¦ gomb szerkeszthetÅ‘ mÃ¡solatot indÃ­t.
@@ -483,27 +362,7 @@
 	Butt Cap	Lapos vonalvÃ©g
 	Byte Order:	BÃ¡jtsorrend:
 	Calligraphic	Kalligrafikus
-	Calligraphic Brush Options	Kalligrafikus ecset beÃ¡llÃ­tÃ¡sai
-	Can't open â€œ{name}â€.	Nem nyithatÃ³ meg: â€ž{name}â€.
-	Can't save â€œ{name}â€.	Nem menthetÅ‘: â€ž{name}â€.
-	Can't export â€œ{name}â€.	Nem exportÃ¡lhatÃ³: â€ž{name}â€.
-	Can't print these settings: see the Summary	Ezekkel a beÃ¡llÃ­tÃ¡sokkal nem lehet nyomtatni: lÃ¡sd az Ã–sszegzÃ©st
-	Cancel	MÃ©gse
-	Cancel Key Object	Kulcsobjektum megszÃ¼ntetÃ©se
-	Canvas	VÃ¡szon
-	Canvas Color	VÃ¡szon szÃ­ne
-	Cap	VonalvÃ©g
-	Cap Height	NagybetÅ±-magassÃ¡g
-	Cap:	VonalvÃ©g:
-	Capture Data Set	AdatkÃ©szlet rÃ¶gzÃ­tÃ©se
-	Cascade	LÃ©pcsÅ‘zetes elrendezÃ©s
-	Cell Size	CellamÃ©ret
-	Center	KÃ¶zÃ©p
-	Center Artwork	Grafika kÃ¶zÃ©pre helyezÃ©se
-	Center on Artboard	KÃ¶zÃ©pre a rajztÃ¡blÃ¡n
-	Center-Justified Tab	KÃ¶zÃ©pre igazÃ­tÃ³ tabulÃ¡tor
-	Centimeters	CentimÃ©ter
-	Chamfer	LetÃ¶rÃ©s
+	Calligraphic Brush	Kalligrafikus ecset
 	Change	Csere
 	Change All	Ã–sszes cserÃ©je
 	Change Case	Kis- Ã©s nagybetÅ± vÃ¡ltÃ¡sa
@@ -582,62 +441,7 @@
 	line {line}	sor: {line}
 	lines {lines}	sorok: {lines}
 	{file}, line {line}	{file}, sor: {line}
-	Compiled script: ask its author for the .jsx file	LefordÃ­tott szkript: kÃ©rd el a szerzÅ‘jÃ©tÅ‘l a .jsx fÃ¡jlt
-	Too large to check	TÃºl nagy az ellenÅ‘rzÃ©shez
-	Not a script for the reference app	Nem a referenciaalkalmazÃ¡shoz Ã­rt szkript
-	Some lists were cut short at their limit.	Egyes listÃ¡k a korlÃ¡tjuknÃ¡l megszakadtak.
-	Check Spellingâ€¦	HelyesÃ­rÃ¡s-ellenÅ‘rzÃ©sâ€¦
-	Chevron	CsÃºcsos nyÃ­l
-	Choose a folder	VÃ¡lassz mappÃ¡t
-	Chooseâ€¦	KivÃ¡lasztÃ¡sâ€¦
-	Circle	KÃ¶r
-	Circle (open)	KÃ¶r (nyitott)
-	Classic Defaults	Klasszikus alapÃ©rtÃ©kek
-	Clean Upâ€¦	TisztÃ­tÃ¡sâ€¦
-	Clear	KiÃ¼rÃ­tÃ©s
-	Clear All Tabs	Ã–sszes tabulÃ¡tor tÃ¶rlÃ©se
-	Clear Amount	TisztasÃ¡g mÃ©rtÃ©ke
-	Clear Appearance	MegjelenÃ©s tÃ¶rlÃ©se
-	Clear Guides	SegÃ©dvonalak tÃ¶rlÃ©se
-	Clear Overrides	FelÃ¼lbÃ­rÃ¡lÃ¡sok tÃ¶rlÃ©se
-	Clear Recent Files	LegutÃ³bbi fÃ¡jlok listÃ¡jÃ¡nak tÃ¶rlÃ©se
-	Click	KattintÃ¡s
-	Click an anchor point	KattintÃ¡s horgonypontra
-	Click or drag	KattintÃ¡s vagy hÃºzÃ¡s
-	Click the art with the Gradient tool to add or select points.	A SzÃ­nÃ¡tmenet eszkÃ¶zzel a grafikÃ¡ra kattintva pontokat adhatsz hozzÃ¡ vagy jelÃ¶lhetsz ki.
-	Click the first point	KattintÃ¡s az elsÅ‘ pontra
-	Click the ramp or a type button to apply a gradient.	SzÃ­nÃ¡tmenet alkalmazÃ¡sÃ¡hoz kattints a szÃ­nsÃ¡vra vagy egy tÃ­pusgombra.
-	Click to add a tab stop, drag to move it, drag it off the ruler to delete it	KattintÃ¡s: tabulÃ¡torpont hozzÃ¡adÃ¡sa, hÃºzÃ¡s: Ã¡thelyezÃ©s, a vonalzÃ³rÃ³l lehÃºzva: tÃ¶rlÃ©s
-	Click to apply to the selected type	KattintÃ¡ssal a kijelÃ¶lt szÃ¶vegre alkalmazza
-	Click to choose a swatch, Shift-click to mix a colour	KattintÃ¡s: szÃ­nminta vÃ¡lasztÃ¡sa, Shift+kattintÃ¡s: szÃ­n keverÃ©se
-	Click to edit the mask; Alt-click to view only the mask; Shift-click to disable or enable it	KattintÃ¡s: maszk szerkesztÃ©se; Alt+kattintÃ¡s: csak a maszk lÃ¡tszik; Shift+kattintÃ¡s: maszk ki- vagy bekapcsolÃ¡sa
-	Click to place each file at 100%, or drag to size it; arrow keys switch files, Esc skips one.	Kattints a fÃ¡jlok 100%-os elhelyezÃ©sÃ©hez, vagy hÃºzÃ¡ssal add meg a mÃ©retÃ¼ket; a nyÃ­lbillentyÅ±k fÃ¡jlt vÃ¡ltanak, az Esc kihagy egyet.
-	Click to select, double-click to edit	KattintÃ¡s: kijelÃ¶lÃ©s, dupla kattintÃ¡s: szerkesztÃ©s
-	Click to toggle visibility	KattintÃ¡ssal lÃ¡thatÃ³sÃ¡g be/ki
-	Click to zoom in, Alt-click to zoom out, drag to pan, double-click to fit	KattintÃ¡s: nagyÃ­tÃ¡s, Alt+kattintÃ¡s: kicsinyÃ­tÃ©s, hÃºzÃ¡s: gÃ¶rgetÃ©s, dupla kattintÃ¡s: igazÃ­tÃ¡s
-	Click, then press the new shortcut (Esc cancels)	Kattints, majd nyomd le az Ãºj billentyÅ±parancsot (Esc: mÃ©gse)
-	Client-side (.html)	ÃœgyfÃ©loldali (.html)
-	Clip	VÃ¡gÃ¡s
-	Clip Complex Regions	Ã–sszetett terÃ¼letek levÃ¡gÃ¡sa
-	Clip Group	VÃ¡gÃ³csoport
-	Clip to Art	LevÃ¡gÃ¡s a grafikÃ¡ra
-	Clip to Artboard	LevÃ¡gÃ¡s a rajztÃ¡blÃ¡ra
-	Clip to Bounding Box	LevÃ¡gÃ¡s a befoglalÃ³ keretre
-	Clipboard as PDF	VÃ¡gÃ³lap PDF-kÃ©nt
-	Clipboard as PNG	VÃ¡gÃ³lap PNG-kÃ©nt
-	Clipboard as SVG	VÃ¡gÃ³lap SVG-kÃ©nt
-	Clipboard as Text	VÃ¡gÃ³lap szÃ¶vegkÃ©nt
-	Clipboard Formats	VÃ¡gÃ³lapformÃ¡tumok
-	Clipboard Handling	VÃ¡gÃ³lapkezelÃ©s
-	Clipping Mask	VÃ¡gÃ³maszk
-	Clipping Masks	VÃ¡gÃ³maszkok
-	Close	BezÃ¡r
-	Close All	Ã–sszes bezÃ¡rÃ¡sa
-	Close Library	KÃ¶nyvtÃ¡r bezÃ¡rÃ¡sa
-	Close Panel	Panel bezÃ¡rÃ¡sa
-	Close Path	Ãštvonal lezÃ¡rÃ¡sa
-	Close paths when ends are within:	Ãštvonalak lezÃ¡rÃ¡sa, ha a vÃ©gek tÃ¡volsÃ¡ga legfeljebb:
-	Clumped	CsomÃ³s
+	Compiled script: ask its author for the .jsx file	Lefordított szkript: kérd el a szerzőjétől a .jsx fájlt
 	Cmd	Cmd
 	CMYK	CMYK
 	CMYK Color	CMYK-szÃ­n
@@ -968,29 +772,7 @@
 	Diameter:	ÃtmÃ©rÅ‘:
 	Diamond	Rombusz
 	Diamond (open)	Rombusz (nyitott)
-	Difference	KÃ¼lÃ¶nbsÃ©g
-	Differences from [Default]:	EltÃ©rÃ©sek az [AlapÃ©rtelmezett] beÃ¡llÃ­tÃ¡stÃ³l:
-	Differences from VectorCraft Default:	EltÃ©rÃ©sek a VectorCraft alapÃ©rtelmezÃ©sÃ©tÅ‘l:
-	Differences from {preset}:	EltÃ©rÃ©sek ettÅ‘l: {preset}:
-	Diffuse Glow	SzÃ³rt ragyogÃ¡s
-	Diffuse Glowâ€¦	SzÃ³rt ragyogÃ¡sâ€¦
-	Diffusion	DiffÃºziÃ³s
-	Digits	SzÃ¡mjegyek
-	Dim Copies to:	MÃ¡solatok halvÃ¡nyÃ­tÃ¡sa:
-	Dim Images to:	KÃ©pek halvÃ¡nyÃ­tÃ¡sa:
-	Dimensions	MÃ©retek
-	Direct Selection	KÃ¶zvetlen kijelÃ¶lÃ©s
-	Direct Selection Tool	KÃ¶zvetlen kijelÃ¶lÃ©s
-	Direction Balance	IrÃ¡nyegyensÃºly
-	Direction Handles	IrÃ¡nykezelÅ‘ fogantyÃºk
-	Direction:	IrÃ¡ny:
-	Disable Auto Add/Delete	Automatikus hozzÃ¡adÃ¡s Ã©s tÃ¶rlÃ©s kikapcsolÃ¡sa
-	Disable Opacity Mask	ÃtlÃ¡tszÃ³sÃ¡gi maszk kikapcsolÃ¡sa
-	Discard	ElvetÃ©s
-	Discard Empty Type	Ãœres szÃ¶veg elvetÃ©se
-	Discard Recovered Documents	HelyreÃ¡llÃ­tott dokumentumok elvetÃ©se
-	Discard White Overprint in Output	FehÃ©r felÃ¼lnyomÃ¡s elvetÃ©se a kimenetben
-	Discarded {} recovered document(s)	Elvetett helyreÃ¡llÃ­tott dokumentumok: {}
+	Difference	Különbség
 	Discord	Discord
 	Discretionary Hyphen	FeltÃ©teles elvÃ¡lasztÃ³jel
 	Discretionary Ligatures	VÃ¡laszthatÃ³ ligatÃºrÃ¡k
@@ -1335,7 +1117,7 @@
 	Eyedropper Options	Pipetta beÃ¡llÃ­tÃ¡sai
 	Eyedropper Picks Up:	A pipetta felveszi:
 	Eyedropper Tool	Pipetta
-	Eyedropper: click the art to sample the stop's colour	Pipetta: kattints a grafikÃ¡ra a pont szÃ­nÃ©nek mintavÃ©telÃ©hez
+	Eyedropper: click the art to sample the stop's colour	Pipetta: kattints a grafikára a pont színének mintavételéhez
 	Farsi	Perzsa
 	Favorites	Kedvencek
 	Feather	Tollazat
@@ -1343,74 +1125,10 @@
 	Feet	LÃ¡b
 	Feet & Inches	LÃ¡b Ã©s hÃ¼velyk
 	Fewer <tspan> Elements	Kevesebb <tspan> elem
-	Fidelity:	PontossÃ¡g:
-	Figure Space	SzÃ¡mjegyszÃ³kÃ¶z
-	Figure:	SzÃ¡mjegyek:
-	File	FÃ¡jl
-	File Dimensions	FÃ¡jl mÃ©retei
-	File Format:	FÃ¡jlformÃ¡tum:
-	File Formats	FÃ¡jlformÃ¡tumok
-	File Handling	FÃ¡jlkezelÃ©s
-	File Info	FÃ¡jlinformÃ¡ciÃ³
-	File Info Dialog	FÃ¡jlinformÃ¡ciÃ³ pÃ¡rbeszÃ©dablak
-	File Infoâ€¦	FÃ¡jlinformÃ¡ciÃ³â€¦
-	File Name:	FÃ¡jlnÃ©v:
-	File â€º Placeâ€¦ brings in an image, linked or embedded.	A FÃ¡jl â€º ElhelyezÃ©sâ€¦ paranccsal csatolt vagy beÃ¡gyazott kÃ©pet hozhatsz be.
-	Files	FÃ¡jlok
-	Files of a PDF standard can't be password-protected.	A PDF-szabvÃ¡nynak megfelelÅ‘ fÃ¡jlok nem vÃ©dhetÅ‘k jelszÃ³val.
-	Files of this standard tag their colours with ICC profiles.	Ennek a szabvÃ¡nynak a fÃ¡jljai ICC-profillal jelÃ¶lik a szÃ­neiket.
-	Fill	KitÃ¶ltÃ©s
-	Fill & Stroke	KitÃ¶ltÃ©s Ã©s kÃ¶rvonal
-	Fill (X), double-click for the Color Picker	KitÃ¶ltÃ©s (X), dupla kattintÃ¡s: SzÃ­nvÃ¡lasztÃ³
-	Fill and Stroke	KitÃ¶ltÃ©s Ã©s kÃ¶rvonal
-	Fill Color	KitÃ¶ltÅ‘szÃ­n
-	Fill new strokes	Ãšj vonÃ¡sok kitÃ¶ltÃ©se
-	Alt key toggles to Smooth Tool	Az Alt billentyÅ± a SimÃ­tÃ¡s eszkÃ¶zre vÃ¡lt
-	Keep selected	KijelÃ¶lÃ©s megtartÃ¡sa
-	Merge only with selection	Ã–sszeolvasztÃ¡s csak a kijelÃ¶lÃ©ssel
-	Fill New Type Objects With Placeholder Text	Ãšj szÃ¶vegobjektumok kitÃ¶ltÃ©se helykitÃ¶ltÅ‘ szÃ¶veggel
-	Fill Rule	KitÃ¶ltÃ©si szabÃ¡ly
-	Fill with Placeholder Text	KitÃ¶ltÃ©s helykitÃ¶ltÅ‘ szÃ¶veggel
-	Fill:	KitÃ¶ltÃ©s:
-	Fill: click for swatches, Shift-click for the color mixer	KitÃ¶ltÃ©s: kattintÃ¡s â€“ szÃ­nmintÃ¡k, Shift+kattintÃ¡s â€“ szÃ­nkeverÅ‘
-	Filling in form fields and signing	Å°rlapmezÅ‘k kitÃ¶ltÃ©se Ã©s alÃ¡Ã­rÃ¡s
-	Fills	KitÃ¶ltÃ©sek
-	Film & Video	Film Ã©s videÃ³
-	Find	KeresÃ©s
-	Find and Replaceâ€¦	KeresÃ©s Ã©s csereâ€¦
-	Find Font	BetÅ±tÃ­pus keresÃ©se
-	Find Font Files	BetÅ±tÃ­pusfÃ¡jlok keresÃ©se
-	Find Fonts	BetÅ±tÃ­pusok keresÃ©se
-	Find Fonts in Folderâ€¦	BetÅ±tÃ­pusok keresÃ©se mappÃ¡banâ€¦
-	Find Fontâ€¦	BetÅ±tÃ­pus keresÃ©seâ€¦
-	Find in Folderâ€¦	KeresÃ©s mappÃ¡banâ€¦
-	Find Next	KÃ¶vetkezÅ‘ keresÃ©se
-	Find Objects	Objektumok keresÃ©se
-	Fine Dots	Finom pontok
-	First	ElsÅ‘
-	First Baseline	ElsÅ‘ alapvonal
-	First commit	ElsÅ‘ commit
-	First Page	ElsÅ‘ oldal
-	First-line Left Indent	ElsÅ‘ sor bal behÃºzÃ¡sa
-	Fisheyeâ€¦	Halszemâ€¦
-	Fishâ€¦	Halâ€¦
-	Fit	IllesztÃ©s
-	Fit All	Ã–sszes lÃ¡thatÃ³
-	Fit All in Window	Mind az ablakhoz igazÃ­tva
-	Fit Artboard in Window	RajztÃ¡bla az ablakhoz igazÃ­tva
-	Fit dashes to corners and ends	Vonalak igazÃ­tÃ¡sa a sarkokhoz Ã©s a vÃ©gekhez
-	Fit Headline	CÃ­msor kiterÃ­tÃ©se
-	Fit in View	IgazÃ­tÃ¡s a nÃ©zethez
-	Fit in Window	IgazÃ­tÃ¡s az ablakhoz
-	Fit on Screen	IgazÃ­tÃ¡s a kÃ©pernyÅ‘hÃ¶z
-	Fit to Artwork Bounds	IgazÃ­tÃ¡s a grafika hatÃ¡raihoz
-	Fit to Page	Oldalhoz illesztÃ©s
-	Fit to Selected Art	IgazÃ­tÃ¡s a kijelÃ¶lt grafikÃ¡hoz
-	Fixed	RÃ¶gzÃ­tett
-	Flagâ€¦	ZÃ¡szlÃ³â€¦
-	Flare	FÃ©nyvillanÃ¡s
-	Flare Tool	FÃ©nyvillanÃ¡s
-	Flare Tool Options	FÃ©nyvillanÃ¡s beÃ¡llÃ­tÃ¡sai
+	Fidelity:	Pontosság:
+# Artwork drag between document tabs.
+@msg	{key} must be [x, y] with finite coordinates	A(z) {key} értékének [x, y] alakúnak kell lennie véges koordinátákkal
+
 	Flat Angle	Lapos, ferde
 	Flat Blunt	Lapos, tompa
 	Flat Curve	Lapos, Ã­velt
@@ -1493,40 +1211,7 @@ file-filter	Templates	Sablonok
 	Full Width	Teljes szÃ©lessÃ©g
 	Fuzziness:	ElmosÃ³dottsÃ¡g:
 	Gamma	Gamma
-	Gamut Check	SzÃ­ntartomÃ¡ny-ellenÅ‘rzÃ©s
-	Gamut Warning	SzÃ­ntartomÃ¡ny-figyelmeztetÃ©s
-	gap	hÃ©zag
-	Gap Optionsâ€¦	HÃ©zagbeÃ¡llÃ­tÃ¡sokâ€¦
-	Gap Options	HÃ©zagbeÃ¡llÃ­tÃ¡sok
-	Gap Detection	HÃ©zagÃ©szlelÃ©s
-	Paint Stops At:	FestÃ©s hatÃ¡ra:
-	Small Gaps	Kis hÃ©zagok
-	Medium Gaps	KÃ¶zepes hÃ©zagok
-	Large Gaps	Nagy hÃ©zagok
-	Gap Preview Color:	HÃ©zagok elÅ‘nÃ©zeti szÃ­ne:
-	Close Gaps With Paths	HÃ©zagok lezÃ¡rÃ¡sa Ãºtvonalakkal
-	Select Fills	KitÃ¶ltÃ©sek kijelÃ¶lÃ©se
-	Select Strokes	KÃ¶rvonalak kijelÃ¶lÃ©se
-	Gaussian Blur	Gauss-elmosÃ¡s
-	Gaussian Blurâ€¦	Gauss-elmosÃ¡sâ€¦
-	General	ÃltalÃ¡nos
-	General â€º Placement â€º X	ÃltalÃ¡nos â€º ElhelyezÃ©s â€º X
-	General â€º Thumbnails	ÃltalÃ¡nos â€º BÃ©lyegkÃ©pek
-	Generate CSS	CSS elÅ‘Ã¡llÃ­tÃ¡sa
-	Generate CSS: the whole document's CSS while nothing is selected	CSS elÅ‘Ã¡llÃ­tÃ¡sa: kijelÃ¶lÃ©s nÃ©lkÃ¼l a teljes dokumentum CSS-e
-	German	NÃ©met
-	Get Preferences	BeÃ¡llÃ­tÃ¡sok lekÃ©rÃ©se
-	Get Text Range	SzÃ¶vegtartomÃ¡ny lekÃ©rÃ©se
-	GIF, 128 colours	GIF, 128 szÃ­n
-	Glass	Ãœveg
-	Glassâ€¦	Ãœvegâ€¦
-	Global	GlobÃ¡lis
-	Global Brush Dimensions	GlobÃ¡lis ecsetmÃ©retek
-	Global Process Color	GlobÃ¡lis skÃ¡laszÃ­n
-	Global Process Color, CMYK	GlobÃ¡lis skÃ¡laszÃ­n, CMYK
-	Glow Amount	RagyogÃ¡s mÃ©rtÃ©ke
-	Glowing Edges	IzzÃ³ Ã©lek
-	Glowing Edgesâ€¦	IzzÃ³ Ã©lekâ€¦
+	Gamut Check	Színtartomány-ellenőrzés
 	glyph {id}	glifa {id}
 	Glyphs	GlifÃ¡k
 	Go to Artboard	UgrÃ¡s rajztÃ¡blÃ¡ra
@@ -1560,16 +1245,7 @@ file-filter	Templates	Sablonok
 	Grainâ€¦	SzemcsÃ©zetâ€¦
 	Graph	Diagram
 	Graph Data	Diagramadatok
-	Graph Type	DiagramtÃ­pus
-	Select Segments	Szakaszok kijelÃ¶lÃ©se
-	Artistic	MÅ±vÃ©szi
-	Film Grainâ€¦	Filmszemcseâ€¦
-	Cutoutâ€¦	KivÃ¡gÃ¡sâ€¦
-	Cutout	KivÃ¡gÃ¡s
-	Neon Glowâ€¦	NeonfÃ©nyâ€¦
-	Neon Glow	NeonfÃ©ny
-	Poster Edgesâ€¦	PoszterszÃ©lekâ€¦
-	Poster Edges	PoszterszÃ©lek
+	Graph Type	Diagramtípus
 	Levels	Szintek
 	Edge Simplicity	Ã‰lek egyszerÅ±sÃ©ge
 	Edge Fidelity	Ã‰lek hÅ±sÃ©ge
@@ -1656,20 +1332,7 @@ file-filter	Templates	Sablonok
 	Gutter:	TÃ©rkÃ¶z:
 	H Spacing:	VÃ­zszintes tÃ©rkÃ¶z:
 	H:	M:
-	Hair Space	HajszÃ¡lszÃ³kÃ¶z
-	Half Arrow (left)	FÃ©lnyÃ­l (bal)
-	Half Arrow (right)	FÃ©lnyÃ­l (jobb)
-	Half Circle	FÃ©lkÃ¶r
-	Halo	FÃ©nyudvar
-	Hand	KÃ©z
-	Hand Tool	KÃ©z
-	Hand-Drawn	KÃ©zzel rajzolt
-	Handles	FogantyÃºk
-	Hard	SzigorÃº
-	Hard Light	KemÃ©ny fÃ©ny
-	Harmony Rules	HarmÃ³niaszabÃ¡lyok
-	Harmony Rules:	HarmÃ³niaszabÃ¡lyok:
-	Harmony Sets	HarmÃ³niakÃ©szletek
+	Hair Space	Hajszálszóköz
 	HDTV 1080p	HDTV 1080p
 	HDTV 720p	HDTV 720p
 	Heavy Ink	Vastag tinta
@@ -2313,7 +1976,7 @@ file-filter	Templates	Sablonok
 	Modified:	MÃ³dosÃ­tva:
 	Modify	MÃ³dosÃ­tÃ¡s
 	Mojikumi	Mojikumi
-	Mojikumi Set	Mojikumi-kÃ©szlet
+	Insert Kashidas	Kasidák beszúrása
 	Monitor RGB	Monitor-RGB
 	Mono	EgyszÃ­nÅ±
 	Monochromatic	EgyszÃ­nÅ±
@@ -2337,23 +2000,7 @@ file-filter	Templates	Sablonok
 	Move Artwork with Artboard	Grafika mozgatÃ¡sa a rajztÃ¡blÃ¡val
 	Move Direction Handle	IrÃ¡nykezelÅ‘ fogantyÃº Ã¡thelyezÃ©se
 	Move Down	Lejjebb
-	Move Effect	Effektus Ã¡thelyezÃ©se
-	Move Envelope Mesh Point	BurkolÃ³hÃ¡lÃ³ pontjÃ¡nak Ã¡thelyezÃ©se
-	Move Graphic Style	Grafikai stÃ­lus Ã¡thelyezÃ©se
-	Move Guide	SegÃ©dvonal Ã¡thelyezÃ©se
-	Move Guide to Layer	SegÃ©dvonal Ã¡thelyezÃ©se rÃ©tegre
-	Move in Perspective	ÃthelyezÃ©s perspektÃ­vÃ¡ban
-	Move Library Item to Group	KÃ¶nyvtÃ¡relem Ã¡thelyezÃ©se csoportba
-	Move Locked and Hidden Artwork with Artboard	ZÃ¡rolt Ã©s rejtett grafika mozgatÃ¡sa a rajztÃ¡blÃ¡val
-	Move Mesh Point	HÃ¡lÃ³pont Ã¡thelyezÃ©se
-	Move Panel	Panel Ã¡thelyezÃ©se
-	Move Plane	SÃ­k Ã¡thelyezÃ©se
-	Move Plane to Match Object	SÃ­k igazÃ­tÃ¡sa az objektumhoz
-	Move Rows	Sorok Ã¡thelyezÃ©se
-	Move Slices	Szeletek Ã¡thelyezÃ©se
-	Move Spine Point	Gerincpont Ã¡thelyezÃ©se
-	Move Swatch	SzÃ­nminta Ã¡thelyezÃ©se
-	Move to Group	ÃthelyezÃ©s csoportba
+	Move Effect	Effektus áthelyezése
 	Move Up	Feljebb
 	Moveâ€¦	ÃthelyezÃ©sâ€¦
 	Multiple objects	TÃ¶bb objektum
@@ -2361,75 +2008,7 @@ file-filter	Templates	Sablonok
 	Muted	Tompa
 	My Themes	SajÃ¡t tÃ©mÃ¡k
 	N pt per	N pt /
-	N slices â€¦, evenly spaced	N szelet â€¦, egyenletes kÃ¶zzel
-	Name	NÃ©v
-	Name (Aâ€“Z)	NÃ©v (Aâ€“Z)
-	Name 40%	NÃ©v 40%
-	Name* @ 66.67 % (RGB/Preview)	NÃ©v* @ 66,67 % (RGB/ElÅ‘nÃ©zet)
-	Name* @ 66.67% (RGB/Preview)	NÃ©v* @ 66,67% (RGB/ElÅ‘nÃ©zet)
-	Name:	NÃ©v:
-	Navigate	NavigÃ¡lÃ¡s
-	Navigator	NavigÃ¡tor
-	Needs the desktop app	Az asztali alkalmazÃ¡s kell hozzÃ¡
-	Negative	NegatÃ­v
-	Neutral Gradients	Semleges szÃ­nÃ¡tmenetek
-	New	Ãšj
-	New Art Appearance	Ãšj grafika megjelenÃ©se
-	New Art Brush from Selection	Ãšj grafikus ecset a kijelÃ¶lÃ©sbÅ‘l
-	New Art Has Basic Appearance	Ãšj grafika alapmegjelenÃ©ssel
-	New Artboard	Ãšj rajztÃ¡bla
-	New Bristle Brush	Ãšj sÃ¶rteecset
-	New Brushâ€¦	Ãšj ecsetâ€¦
-	New Calligraphic Brush	Ãšj kalligrafikus ecset
-	New Character Style	Ãšj karakterstÃ­lus
-	New Color Group	Ãšj szÃ­ncsoport
-	New Color Groupâ€¦	Ãšj szÃ­ncsoportâ€¦
-	New Data Set	Ãšj adatkÃ©szlet
-	New Data Setâ€¦	Ãšj adatkÃ©szletâ€¦
-	New Document Presets	Ãšj dokumentum elÅ‘beÃ¡llÃ­tÃ¡sai
-	New file	Ãšj fÃ¡jl
-	New from Template	Ãšj sablonbÃ³l
-	New from Templateâ€¦	Ãšj sablonbÃ³lâ€¦
-	New Graphic Style	Ãšj grafikai stÃ­lus
-	New Graphic Style (Alt-click to name it)	Ãšj grafikai stÃ­lus (Alt+kattintÃ¡s: elnevezÃ©ssel)
-	New Graphic Styleâ€¦	Ãšj grafikai stÃ­lusâ€¦
-	New Group	Ãšj csoport
-	New Groupâ€¦	Ãšj csoportâ€¦
-	New Artboard Optionsâ€¦	Ãšj rajztÃ¡bla beÃ¡llÃ­tÃ¡saiâ€¦
-	New Layer Optionsâ€¦	Ãšj rÃ©teg beÃ¡llÃ­tÃ¡saiâ€¦
-	New Layerâ€¦	Ãšj rÃ©tegâ€¦
-	New Library Group	Ãšj kÃ¶nyvtÃ¡rcsoport
-	New Name	Ãšj nÃ©v
-	New Opacity Masks Are Clipping	Ãšj Ã¡tlÃ¡tszÃ³sÃ¡gi maszkok vÃ¡gnak
-	New Opacity Masks Are Inverted	Ãšj Ã¡tlÃ¡tszÃ³sÃ¡gi maszkok invertÃ¡ltak
-	New Paragraph Style	Ãšj bekezdÃ©sstÃ­lus
-	New Pattern Brush from Selection	Ãšj mintÃ¡zatecset a kijelÃ¶lÃ©sbÅ‘l
-	New PDF Preset	Ãšj PDF-elÅ‘beÃ¡llÃ­tÃ¡s
-	New Print Preset	Ãšj nyomtatÃ¡si elÅ‘beÃ¡llÃ­tÃ¡s
-	New Scatter Brush from Selection	Ãšj szÃ³rÃ³ecset a kijelÃ¶lÃ©sbÅ‘l
-	New Sublayerâ€¦	Ãšj alrÃ©tegâ€¦
-	New Swatch	Ãšj szÃ­nminta
-	New Swatchâ€¦	Ãšj szÃ­nmintaâ€¦
-	New Symbol	Ãšj szimbÃ³lum
-	New Symbolâ€¦	Ãšj szimbÃ³lumâ€¦
-	New theme from the current color	Ãšj tÃ©ma az aktuÃ¡lis szÃ­nbÅ‘l
-	New Variable	Ãšj vÃ¡ltozÃ³
-	New Variableâ€¦	Ãšj vÃ¡ltozÃ³â€¦
-	New View	Ãšj nÃ©zet
-	New Viewâ€¦	Ãšj nÃ©zetâ€¦
-	New Window	Ãšj ablak
-	New Workspace	Ãšj munkaterÃ¼let
-	New Workspaceâ€¦	Ãšj munkaterÃ¼letâ€¦
-	New {kind} Styleâ€¦	Ãšj stÃ­lus: {kind}â€¦
-	Newâ€¦	Ãšjâ€¦
-	Next	KÃ¶vetkezÅ‘
-	Next Data Set	KÃ¶vetkezÅ‘ adatkÃ©szlet
-	Next Library	KÃ¶vetkezÅ‘ kÃ¶nyvtÃ¡r
-	Next Object Above	KÃ¶vetkezÅ‘ objektum fÃ¶lÃ¶tte
-	Next Object Below	KÃ¶vetkezÅ‘ objektum alatta
-	Next page	KÃ¶vetkezÅ‘ oldal
-	Next Page	KÃ¶vetkezÅ‘ oldal
-	No actions. Press â— to record.	Nincs mÅ±velet. A felvÃ©telhez nyomd meg a â— gombot.
+	N slices …, evenly spaced	N szelet …, egyenletes közzel
 	No assets	Nincs elem
 	No assets yet. Collect art with Object â€º Collect for Export, or drag it into the Asset Export panel.	MÃ©g nincs elem. GyÅ±jts grafikÃ¡t az Objektum â€º GyÅ±jtÃ©s exportÃ¡lÃ¡shoz paranccsal, vagy hÃºzd az ElemexportÃ¡lÃ¡s panelre.
 	No Break	SortÃ¶rÃ©s tiltÃ¡sa
@@ -2640,29 +2219,7 @@ file-filter	Templates	Sablonok
 	Output White	Kimeneti fehÃ©r
 	Output â€º Mode	Kimenet â€º MÃ³d
 	Output:	Kimenet:
-	Oval	OvÃ¡lis
-	Overlap	ÃtfedÃ©s
-	Overlap:	ÃtfedÃ©s:
-	Overlapping	ÃtfedÅ‘
-	Overlay	ÃtfedÃ©s
-	Overlay Edge	Ã‰lek Ã¡tfedÃ©se
-	Overprint	FelÃ¼lnyomÃ¡s
-	Overprint and Transparency Flattener	FelÃ¼lnyomÃ¡s Ã©s Ã¡tlÃ¡tszÃ³sÃ¡g-lapÃ­tÃ¡s
-	Overprint and Transparency Flattener Options	FelÃ¼lnyomÃ¡s Ã©s Ã¡tlÃ¡tszÃ³sÃ¡g-lapÃ­tÃ¡s beÃ¡llÃ­tÃ¡sai
-	Overprint Blackâ€¦	Fekete felÃ¼lnyomÃ¡saâ€¦
-	Overprint Fill	KitÃ¶ltÃ©s felÃ¼lnyomÃ¡sa
-	Overprint Preview	FelÃ¼lnyomÃ¡s-elÅ‘nÃ©zet
-	Overprint Preview (separations)	FelÃ¼lnyomÃ¡s-elÅ‘nÃ©zet (szÃ­nkivonatok)
-	Overprint Stroke	KÃ¶rvonal felÃ¼lnyomÃ¡sa
-	Overprint:	FelÃ¼lnyomÃ¡s:
-	Overprints:	FelÃ¼lnyomÃ¡sok:
-	Override Character Color	KarakterszÃ­n felÃ¼lbÃ­rÃ¡lÃ¡sa
-	Package	CsomagolÃ¡s
-	Package collects a saved document with its linked files and fonts.	A csomagolÃ¡s egy mentett dokumentumot a csatolt fÃ¡jljaival Ã©s betÅ±tÃ­pusaival egyÃ¼tt gyÅ±jt Ã¶ssze.
-	Package created	A csomag elkÃ©szÃ¼lt
-	Packaged {n} file(s) in {folder}{note}	Becsomagolt fÃ¡jlok: {n}, mappa: {folder}{note}
-	Packaged {n} file(s){note}	Becsomagolt fÃ¡jlok: {n}{note}
-	Packageâ€¦	CsomagolÃ¡sâ€¦
+	Oval	Ovális
 	Page	Oldal
 	Page Cover 1640Ã—624	OldalborÃ­tÃ³ 1640Ã—624
 	Page information	Oldaladatok
@@ -2694,25 +2251,7 @@ file-filter	Templates	Sablonok
 	Paste Remembers Layers	BeillesztÃ©skor rÃ©tegek megÅ‘rzÃ©se
 	Paste without Formatting	BeillesztÃ©s formÃ¡zÃ¡s nÃ©lkÃ¼l
 	Pasted	Beillesztett
-	Pastels	PasztellszÃ­nek
-	Patchwork	FoltvarrÃ¡s
-	Patchworkâ€¦	FoltvarrÃ¡sâ€¦
-	Path	Ãštvonal
-	Path Eraser	ÃštvonalradÃ­r
-	Path Eraser Tool	ÃštvonalradÃ­r
-	Path:	Ãštvonal:
-	Pathfinder	ÃštvonalkezelÅ‘
-	Pathfinder Optionsâ€¦	ÃštvonalkezelÅ‘ beÃ¡llÃ­tÃ¡saiâ€¦
-	Pathfinders:	ÃštvonalkezelÅ‘k:
-	Paths	Ãštvonalak
-	Path Length	Ãštvonalak hossza
-	Paths: {paths}    Anchors: {anchors}    Colors: {colors}	Ãštvonalak: {paths}    Horgonypontok: {anchors}    SzÃ­nek: {colors}
-	Pattern	MintÃ¡zat
-	Pattern Brush Options	MintÃ¡zatecset beÃ¡llÃ­tÃ¡sai
-	Pattern Editing	MintÃ¡zatszerkesztÃ©s
-	Pattern Options	MintÃ¡zat beÃ¡llÃ­tÃ¡sai
-	Pattern options are available in pattern editing mode.	A mintÃ¡zat beÃ¡llÃ­tÃ¡sai mintÃ¡zatszerkesztÅ‘ mÃ³dban Ã©rhetÅ‘k el.
-	Pattern Swatches	MintÃ¡zatszÃ­nmintÃ¡k
+	Pastels	Pasztellszínek
 	PDF	PDF
 	PDF 1.3 files have no transparency: the preset flattens it.	A PDF 1.3-fÃ¡jlokban nincs Ã¡tlÃ¡tszÃ³sÃ¡g: az elÅ‘beÃ¡llÃ­tÃ¡s lapÃ­tja.
 	PDF 1.7	PDF 1.7
@@ -2730,36 +2269,8 @@ file-filter	Templates	Sablonok
 	Pencil	Ceruza
 	Pencil Tool	Ceruza
 	Pentagram	Pentagram
-	per slice	szeletenkÃ©nt
-	Percent:	SzÃ¡zalÃ©k:
-	Perceptual	Ã‰szlelÃ©si
-	Perceptual Scales	Ã‰szlelÃ©si skÃ¡lÃ¡k
-	Performance	TeljesÃ­tmÃ©ny
-diagnostics	render	renderelÃ©s
-diagnostics	ui	felÃ¼let
-	Performance & Storage	TeljesÃ­tmÃ©ny Ã©s tÃ¡rolÃ¡s
-	Permissions	EngedÃ©lyek
-	Permissions password:	EngedÃ©lyek jelszava:
-	Perspective	PerspektÃ­va
-	Perspective Distort	Perspektivikus torzÃ­tÃ¡s
-	Perspective Grid	Perspektivikus rÃ¡cs
-	Perspective Grid Options	Perspektivikus rÃ¡cs beÃ¡llÃ­tÃ¡sai
-	Perspective Grid Preset	Perspektivikus rÃ¡cs elÅ‘beÃ¡llÃ­tÃ¡sa
-	Perspective Grid Presets	Perspektivikus rÃ¡cs elÅ‘beÃ¡llÃ­tÃ¡sai
-	Perspective grid presets	Perspektivikus rÃ¡cs elÅ‘beÃ¡llÃ­tÃ¡sai
-	Perspective Grid Presetsâ€¦	Perspektivikus rÃ¡cs elÅ‘beÃ¡llÃ­tÃ¡saiâ€¦
-	Perspective Grid Settings	Perspektivikus rÃ¡cs beÃ¡llÃ­tÃ¡sa
-	Perspective Grid Tool	Perspektivikus rÃ¡cs
-	Perspective Plane Optionsâ€¦	Perspektivikus sÃ­k beÃ¡llÃ­tÃ¡saiâ€¦
-	Perspective Selection Tool	Perspektivikus kijelÃ¶lÃ©s
-	Phone 360Ã—800	Telefon 360Ã—800
-	Phone 375Ã—667	Telefon 375Ã—667
-	Phone 375Ã—812	Telefon 375Ã—812
-	Phone 390Ã—844	Telefon 390Ã—844
-	Phone 393Ã—852	Telefon 393Ã—852
-	Phone 412Ã—915	Telefon 412Ã—915
-	Phone 430Ã—932	Telefon 430Ã—932
-	Photo Low Fidelity	FotÃ³, kis pontossÃ¡g
+	per slice	szeletenként
+diagnostics	render	renderelés
 	Picas	Pica
 	Pie End Angle:	KÃ¶rcikk zÃ¡rÃ³szÃ¶ge:
 	Pie Graph Tool	KÃ¶rdiagram
@@ -2989,99 +2500,7 @@ mark-style	Japanese	JapÃ¡n
 	Rectangular Grid	TÃ©glalaprÃ¡cs
 	Rectangular Grid Tool	TÃ©glalaprÃ¡cs
 	Red	Piros
-	Redefine Character Style	KarakterstÃ­lus ÃºjradefiniÃ¡lÃ¡sa
-	Redefine Graphic Style	Grafikai stÃ­lus ÃºjradefiniÃ¡lÃ¡sa
-	Redefine Graphic Style â€œ{name}â€	Grafikai stÃ­lus ÃºjradefiniÃ¡lÃ¡sa: â€ž{name}â€
-	Apply {name}	StÃ­lus alkalmazÃ¡sa: â€ž{name}â€
-	Redefine {name}	StÃ­lus ÃºjradefiniÃ¡lÃ¡sa: â€ž{name}â€
-	Redefine Paragraph Style	BekezdÃ©sstÃ­lus ÃºjradefiniÃ¡lÃ¡sa
-	Redefine Symbol	SzimbÃ³lum ÃºjradefiniÃ¡lÃ¡sa
-	Redefine {kind} Style	StÃ­lus ÃºjradefiniÃ¡lÃ¡sa: {kind}
-	Redo	Ãšjra
-	Redo {name}	Ãšjra: {name}
-	Redo {}	Ãšjra: {}
-	Reduce Colors	SzÃ­nek csÃ¶kkentÃ©se
-	Reduce to Basic Appearance	VisszaÃ¡llÃ­tÃ¡s alapmegjelenÃ©sre
-	Reduction:	CsÃ¶kkentÃ©s:
-	Reference Point	ViszonyÃ­tÃ¡si pont
-	Reflect	TÃ¼krÃ¶zÃ©s
-	Reflect Horizontal	VÃ­zszintes tÃ¼krÃ¶zÃ©s
-	Reflect Tool	TÃ¼krÃ¶zÃ©s
-	Reflect X	X-tÃ¼krÃ¶zÃ©s
-	Reflect Y	Y-tÃ¼krÃ¶zÃ©s
-	Reflectâ€¦	TÃ¼krÃ¶zÃ©sâ€¦
-	Refresh	FrissÃ­tÃ©s
-	Refresh Font List	BetÅ±tÃ­puslista frissÃ­tÃ©se
-	Registered Trademark Symbol	Bejegyzett vÃ©djegy jele
-	Registration marks	IllesztÅ‘jelek
-	Registry name:	NyilvÃ¡ntartÃ¡s neve:
-	Regular	NormÃ¡l
-	Relative	RelatÃ­v
-	Relative Colorimetric	RelatÃ­v kolorimetrikus
-	Release	MegszÃ¼ntetÃ©s
-	Release Clipping Mask	VÃ¡gÃ³maszk megszÃ¼ntetÃ©se
-	Release Compound Path	Ã–sszetett Ãºtvonal megszÃ¼ntetÃ©se
-	Release Compound Shape	Ã–sszetett alakzat megszÃ¼ntetÃ©se
-	Release Guides	SegÃ©dvonalak visszaalakÃ­tÃ¡sa
-	Release Image Trace	KÃ©pvektorizÃ¡lÃ¡s megszÃ¼ntetÃ©se
-	Release Opacity Mask	ÃtlÃ¡tszÃ³sÃ¡gi maszk megszÃ¼ntetÃ©se
-	Release Selection	KijelÃ¶lÃ©s felszabadÃ­tÃ¡sa
-	Release Shaper Group	AlakformÃ¡lÃ³ csoport megszÃ¼ntetÃ©se
-	Release Text Wrap	KÃ¶rbefuttatÃ¡s megszÃ¼ntetÃ©se
-	Release to Layers (Build)	SzÃ©tosztÃ¡s rÃ©tegekre (Ã©pÃ­tkezve)
-	Release to Layers (Sequence)	SzÃ©tosztÃ¡s rÃ©tegekre (sorozatkÃ©nt)
-	Release with Perspective	FelszabadÃ­tÃ¡s a perspektÃ­vÃ¡val
-	Relief	DombormÅ±
-	Relink	ÃšjracsatolÃ¡s
-	Relink Linked Files to the Document	Csatolt fÃ¡jlok ÃºjracsatolÃ¡sa a dokumentumhoz
-	Relink to Folderâ€¦	ÃšjracsatolÃ¡s mappÃ¡bÃ³lâ€¦
-	Relinked {n} image(s)	Ãšjracsatolt kÃ©pek: {n}
-	Relinked {n} image(s); not in that folder: {}	Ãšjracsatolt kÃ©pek: {n}; nincs a mappÃ¡ban: {}
-	Relinked {} image(s)	Ãšjracsatolt kÃ©pek: {}
-	Relinkâ€¦	ÃšjracsatolÃ¡sâ€¦
-	Find Linked Files	Csatolt fÃ¡jlok keresÃ©se
-	Find Linked Files in Folderâ€¦	Csatolt fÃ¡jlok keresÃ©se mappÃ¡banâ€¦
-	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	VÃ¡laszd ki minden csatolt fÃ¡jlhoz azt a fÃ¡jlt, amelyhez Ãºjra kell csatolni. A csatolÃ¡ssal mentett mÃ©retÅ± Ã©s tartalmÃº fÃ¡jlok Ã¡llnak elÃ¶l.
-	Same file	Azonos fÃ¡jl
-	Same size	Azonos mÃ©ret
-	Don't Relink	ÃšjracsatolÃ¡s nÃ©lkÃ¼l
-	Copy into the document's folder	MÃ¡solÃ¡s a dokumentum mappÃ¡jÃ¡ba
-	Reload Plug-ins	BÅ‘vÃ­tmÃ©nyek ÃºjratÃ¶ltÃ©se
-	Remove	EltÃ¡volÃ­t
-	Remove Anchor Points	Horgonypontok eltÃ¡volÃ­tÃ¡sa
-	Remove Asset	Elem eltÃ¡volÃ­tÃ¡sa
-	Remove blank lines between paragraphs	Ãœres sorok eltÃ¡volÃ­tÃ¡sa a bekezdÃ©sek kÃ¶zÃ¶tt
-	Remove Brush Stroke	EcsetvonÃ¡s eltÃ¡volÃ­tÃ¡sa
-	Remove Effect	Effektus eltÃ¡volÃ­tÃ¡sa
-	Remove Guide	SegÃ©dvonal eltÃ¡volÃ­tÃ¡sa
-	Remove Item	Elem eltÃ¡volÃ­tÃ¡sa
-	Remove Plug-in	BÅ‘vÃ­tmÃ©ny eltÃ¡volÃ­tÃ¡sa
-	Remove Selected Assets	KijelÃ¶lt elemek eltÃ¡volÃ­tÃ¡sa
-	Remove the shortcut	BillentyÅ±parancs eltÃ¡volÃ­tÃ¡sa
-	Remove Threading	SzÃ¶veglÃ¡ncolÃ¡s megszÃ¼ntetÃ©se
-	Remove â€œ{keyword}â€	EltÃ¡volÃ­tÃ¡s: â€ž{keyword}â€
-	Rename	ÃtnevezÃ©s
-	Rename Asset	Elem Ã¡tnevezÃ©se
-	Rename Character Style	KarakterstÃ­lus Ã¡tnevezÃ©se
-	Rename Data Set	AdatkÃ©szlet Ã¡tnevezÃ©se
-	Rename Data Setâ€¦	AdatkÃ©szlet Ã¡tnevezÃ©seâ€¦
-	Rename Graphic Style	Grafikai stÃ­lus Ã¡tnevezÃ©se
-	Rename Groupâ€¦	Csoport Ã¡tnevezÃ©seâ€¦
-	Rename Library	KÃ¶nyvtÃ¡r Ã¡tnevezÃ©se
-	Rename Library Group	KÃ¶nyvtÃ¡rcsoport Ã¡tnevezÃ©se
-	Rename Libraryâ€¦	KÃ¶nyvtÃ¡r Ã¡tnevezÃ©seâ€¦
-	Rename Paragraph Style	BekezdÃ©sstÃ­lus Ã¡tnevezÃ©se
-	Rename Variable	VÃ¡ltozÃ³ Ã¡tnevezÃ©se
-	Rename Workspace	MunkaterÃ¼let Ã¡tnevezÃ©se
-	Render Threads (-1 = Automatic)	MegjelenÃ­tÃ©si szÃ¡lak (-1 = automatikus)
-	Rendering intent:	MegjelenÃ­tÃ©si cÃ©l:
-	Reorder	ÃtrendezÃ©s
-	Reorder Appearance Item	MegjelenÃ©si elem Ã¡trendezÃ©se
-	Repeat	IsmÃ©tlÃ©s
-	Repeat Options	IsmÃ©tlÃ©s beÃ¡llÃ­tÃ¡sai
-	Repeat Pathfinder	ÃštvonalkezelÅ‘-mÅ±velet ismÃ©tlÃ©se
-	Repeat Tab	TabulÃ¡tor ismÃ©tlÃ©se
-	Repeat {name}	IsmÃ©tlÃ©s: {name}
+	Redefine Character Style	Karakterstílus újradefiniálása
 	Replace	Csere
 	Replace Font	BetÅ±tÃ­pus cserÃ©je
 	Replace it with another file, or ignore it: its images keep showing the preview saved with the document.	CserÃ©ld le egy mÃ¡sik fÃ¡jlra, vagy hagyd ki: a kÃ©pei a dokumentummal mentett elÅ‘nÃ©zetet mutatjÃ¡k tovÃ¡bb.
@@ -3324,34 +2743,7 @@ mark-style	Japanese	JapÃ¡n
 	Saved Views	Mentett nÃ©zetek
 	Saved {n} files beside {path}	Mentett fÃ¡jlok: {n}, a kÃ¶vetkezÅ‘ mellett: {path}
 	Saved {path}	Mentve: {path}
-	Saved {path} with {} note(s): {first}	Mentve: {path}, megjegyzÃ©sek: {}. {first}
-	Saves the current bars, toolbar and panel layout.	Menti a sÃ¡vok, az eszkÃ¶ztÃ¡r Ã©s a panelek aktuÃ¡lis elrendezÃ©sÃ©t.
-	Saveâ€¦	MentÃ©sâ€¦
-	Saving	MentÃ©s
-	Saving Poster.vectorcraft	MentÃ©s: Poster.vectorcraft
-	Saving recovery data for {}	HelyreÃ¡llÃ­tÃ¡si adatok mentÃ©se: {}
-	Saving {}	MentÃ©s: {}
-	Scale	MÃ©retezÃ©s
-	Scale Artwork with Artboard	Grafika mÃ©retezÃ©se a rajztÃ¡blÃ¡val
-	Scale Corners	Sarkok mÃ©retezÃ©se
-	Scale Cursor Proportional to UI	Kurzor mÃ©retezÃ©se a felÃ¼lettel arÃ¡nyosan
-	Scale Lineweights	VonalvastagsÃ¡gok mÃ©retezÃ©se
-	Scale Proportionately	ArÃ¡nyos mÃ©retezÃ©s
-	Scale Strokes & Effects	KÃ¶rvonalak Ã©s effektusok mÃ©retezÃ©se
-	Scale Tints	TÃ³nusok skÃ¡lÃ¡zÃ¡sa
-	Scale to Fit Artboard	MÃ©retezÃ©s a rajztÃ¡blÃ¡hoz
-	Scale Tool	MÃ©retezÃ©s
-	Scale X:	X mÃ©retezÃ©s:
-	Scale Y:	Y mÃ©retezÃ©s:
-	Scale:	MÃ©retezÃ©s:
-	Scaleâ€¦	MÃ©retezÃ©sâ€¦
-	Scaling	MÃ©retezÃ©s
-	Scaling:	MÃ©retezÃ©s:
-	Scallop	CsipkÃ©zÃ©s
-	Scallop Tool	CsipkÃ©zÃ©s
-	Scans:	LetapogatÃ¡sok:
-	Scatter	SzÃ³rÃ³
-	Scatter Brush Options	SzÃ³rÃ³ecset beÃ¡llÃ­tÃ¡sai
+	Saved {path} with {} note(s): {first}	Mentve: {path}, megjegyzések: {}. {first}
 	Scatter Graph Tool	Pontdiagram
 	Scatter:	SzÃ³rÃ³dÃ¡s:
 	Scissors	OllÃ³
@@ -3387,66 +2779,7 @@ mark-style	Japanese	JapÃ¡n
 	Section Symbol	Paragrafusjel
 	Security	BiztonsÃ¡g
 	Segments	Szakaszok
-	Select	KijelÃ¶lÃ©s
-	Select a text object	JelÃ¶lj ki egy szÃ¶vegobjektumot
-	Select a text object to edit its character attributes.	JelÃ¶lj ki egy szÃ¶vegobjektumot a karakterjellemzÅ‘k szerkesztÃ©sÃ©hez.
-	Select a text object to edit its paragraph attributes.	JelÃ¶lj ki egy szÃ¶vegobjektumot a bekezdÃ©sjellemzÅ‘k szerkesztÃ©sÃ©hez.
-	Select a text object to set its tab stops.	JelÃ¶lj ki egy szÃ¶vegobjektumot a tabulÃ¡torpontjai beÃ¡llÃ­tÃ¡sÃ¡hoz.
-	Select All	Ã–sszes kijelÃ¶lÃ©se
-	Select All Art on Layer	RÃ©teg Ã¶sszes grafikÃ¡jÃ¡nak kijelÃ¶lÃ©se
-	Select All Assets	Ã–sszes elem kijelÃ¶lÃ©se
-	Select All Bound Objects	Ã–sszes kÃ¶tÃ¶tt objektum kijelÃ¶lÃ©se
-	Select All Instances	Ã–sszes pÃ©ldÃ¡ny kijelÃ¶lÃ©se
-	Select All Pins	Ã–sszes tÅ± kijelÃ¶lÃ©se
-	Select All Unused	Ã–sszes nem hasznÃ¡lt kijelÃ¶lÃ©se
-	Select an image to see its Link Info.	JelÃ¶lj ki egy kÃ©pet a csatolÃ¡si informÃ¡ciÃ³k megtekintÃ©sÃ©hez.
-	Select an image to trace	JelÃ¶lj ki egy kÃ©pet a vektorizÃ¡lÃ¡shoz
-	Select Anchors	Horgonypontok kijelÃ¶lÃ©se
-	Select Appearance Item	MegjelenÃ©si elem kijelÃ¶lÃ©se
-	Select Art	Grafika kijelÃ¶lÃ©se
-	Select art and choose Object â€º Pattern â€º Make.	JelÃ¶lj ki egy grafikÃ¡t, Ã©s vÃ¡laszd az Objektum â€º MintÃ¡zat â€º LÃ©trehozÃ¡s parancsot.
-	Select art and click New Symbol to make one.	JelÃ¶lj ki egy grafikÃ¡t, Ã©s kattints az Ãšj szimbÃ³lum gombra.
-	Select art and use New Brush to make one.	JelÃ¶lj ki egy grafikÃ¡t, Ã©s hozz lÃ©tre belÅ‘le ecsetet az Ãšj ecset paranccsal.
-	Select Bound Object	KÃ¶tÃ¶tt objektum kijelÃ¶lÃ©se
-	Select Data Set	AdatkÃ©szlet kivÃ¡lasztÃ¡sa
-	Select Freeform Point	Szabad formÃ¡jÃº pont kijelÃ¶lÃ©se
-	Select Gradient Stop	SzÃ­nÃ¡tmenet-pont kijelÃ¶lÃ©se
-	Select Guides	SegÃ©dvonalak kijelÃ¶lÃ©se
-	Select Objects	Objektumok kijelÃ¶lÃ©se
-	Select objects to see their CSS, or Generate CSS for the whole document.	JelÃ¶lj ki objektumokat a CSS-Ã¼k megtekintÃ©sÃ©hez, vagy a CSS elÅ‘Ã¡llÃ­tÃ¡sa paranccsal kÃ©rd a teljes dokumentumÃ©t.
-	Select Same Tint %	Azonos tÃ³nusszÃ¡zalÃ©k kijelÃ¶lÃ©se
-	Select Shaper Face	AlakformÃ¡lÃ³ felÃ¼let kijelÃ¶lÃ©se
-	Select Slices	Szeletek kijelÃ¶lÃ©se
-	Select styled art and click New Graphic Style.	JelÃ¶lj ki egy stÃ­lusos grafikÃ¡t, Ã©s kattints az Ãšj grafikai stÃ­lus gombra.
-	Select text	JelÃ¶lj ki szÃ¶veget
-	Select Text by Font	SzÃ¶veg kijelÃ¶lÃ©se betÅ±tÃ­pus szerint
-	Select text or click into text with the Type tool to insert glyphs	GlifÃ¡k beszÃºrÃ¡sÃ¡hoz jelÃ¶lj ki szÃ¶veget, vagy kattints bele egy szÃ¶vegbe a SzÃ¶veg eszkÃ¶zzel
-	Select text to set its OpenType features.	JelÃ¶lj ki szÃ¶veget az OpenType-funkciÃ³k beÃ¡llÃ­tÃ¡sÃ¡hoz.
-	Select the art (and, on top of it, the mask object)	JelÃ¶ld ki a grafikÃ¡t (Ã©s fÃ¶lÃ¶tte a maszkobjektumot)
-	Select Tool	EszkÃ¶z kivÃ¡lasztÃ¡sa
-	Select:	KijelÃ¶lÃ©s:
-	Selected Artwork	KijelÃ¶lt grafika
-	Selected Slices	KijelÃ¶lt szeletek
-	Selected Styles Only	Csak a kijelÃ¶lt stÃ­lusok
-	Selected Styles Only (0)	Csak a kijelÃ¶lt stÃ­lusok (0)
-	Selected Swatches	KijelÃ¶lt szÃ­nmintÃ¡k
-	Selected Swatches Only	Csak a kijelÃ¶lt szÃ­nmintÃ¡k
-	Selected Swatches Only (0)	Csak a kijelÃ¶lt szÃ­nmintÃ¡k (0)
-	Selection	KijelÃ¶lÃ©s
-	Selection & Anchor Display	KijelÃ¶lÃ©s Ã©s horgonypontok megjelenÃ­tÃ©se
-	Selection Only	Csak a kijelÃ¶lÃ©s
-	Selection Tool	KijelÃ¶lÃ©s
-	Selective	SzelektÃ­v
-	Send Backward	Eggyel hÃ¡tra
-	Send to Back	HÃ¡tra kÃ¼ldÃ©s
-	Send to Current Layer	ÃthelyezÃ©s az aktuÃ¡lis rÃ©tegre
-	Sentence case	MondatkezdÅ‘ nagybetÅ±
-	Separate colors into rows	SzÃ­nek szÃ©tvÃ¡lasztÃ¡sa kÃ¼lÃ¶n sorokba
-	Separate several keywords with commas.	TÃ¶bb kulcsszÃ³t vesszÅ‘vel vÃ¡lassz el.
-	Separations	SzÃ­nkivonatok
-	Separations list the document's inks here: one page per ink that prints.	SzÃ­nkivonatoknÃ¡l itt a dokumentum festÃ©kei szerepelnek: minden nyomtatott festÃ©k egy oldal.
-	Separations Preview	SzÃ­nkivonatok elÅ‘nÃ©zete
-	Serialize Document	Dokumentum szerializÃ¡lÃ¡sa
+	Select	Kijelölés
 	Serif / Mincho	Talpas / Mincho
 	Server-side (.map)	KiszolgÃ¡lÃ³oldali (.map)
 	Services	SzolgÃ¡ltatÃ¡sok
@@ -3644,27 +2977,7 @@ mark-style	Japanese	JapÃ¡n
 	Snap to Grid	IllesztÃ©s a rÃ¡cshoz
 	Snap to Pixel	IllesztÃ©s pixelhez
 	Precise Cursors	Pontos kurzorok
-	Snap to Point	IllesztÃ©s pontra
-	Snap to Unit	IllesztÃ©s mÃ©rtÃ©kegysÃ©ghez
-	Snapping Tolerance	IllesztÃ©si tÅ±rÃ©s
-	Social	KÃ¶zÃ¶ssÃ©gi mÃ©dia
-	Social Landscape Post 1200Ã—630	FekvÅ‘ kÃ¶zÃ¶ssÃ©gimÃ©dia-bejegyzÃ©s 1200Ã—630
-	Social Portrait Post 1080Ã—1350	ÃllÃ³ kÃ¶zÃ¶ssÃ©gimÃ©dia-bejegyzÃ©s 1080Ã—1350
-	Social Square Post 1080Ã—1080	NÃ©gyzetes kÃ¶zÃ¶ssÃ©gimÃ©dia-bejegyzÃ©s 1080Ã—1080
-	Social Story 1080Ã—1920	KÃ¶zÃ¶ssÃ©gimÃ©dia-tÃ¶rtÃ©net 1080Ã—1920
-	Social Tall Post 1000Ã—1500	Magas kÃ¶zÃ¶ssÃ©gimÃ©dia-bejegyzÃ©s 1000Ã—1500
-	Soft	LÃ¡gy
-	Soft Light	LÃ¡gy fÃ©ny
-	Solid	KitÃ¶ltÃ¶tt
-	Sort	RendezÃ©s
-	Sort by Hue	RendezÃ©s szÃ­nÃ¡rnyalat szerint
-	Sort by Kind	RendezÃ©s fajta szerint
-	Sort by Luminance	RendezÃ©s fÃ©nysÅ±rÅ±sÃ©g szerint
-	Sort by Name	RendezÃ©s nÃ©v szerint
-	Sort by Popularity	RendezÃ©s gyakorisÃ¡g szerint
-	Sort by Status	RendezÃ©s Ã¡llapot szerint
-	Source code on GitHub	ForrÃ¡skÃ³d a GitHubon
-	Source Image	ForrÃ¡skÃ©p
+	Snap to Point	Illesztés pontra
 	Source Sans 3	Source Sans 3
 	Space After Paragraph	TÃ©rkÃ¶z a bekezdÃ©s utÃ¡n
 	Space Before Paragraph	TÃ©rkÃ¶z a bekezdÃ©s elÅ‘tt
@@ -3913,127 +3226,7 @@ mark-style	Japanese	JapÃ¡n
 	Tile Size	CsempemÃ©ret
 	Tile Type:	CsempÃ©zÃ©s mÃ³dja:
 	tile {number}	csempe {number}
-	Tiles are numbered across, then down; leave the range empty for every tile.	A csempÃ©k szÃ¡mozÃ¡sa vÃ­zszintesen, majd lefelÃ© halad; az Ã¶sszes csempÃ©hez hagyd Ã¼resen a tartomÃ¡nyt.
-	Tint	TÃ³nus
-	Tints	TÃ³nusok
-	Tints and Shades	TÃ³nusok Ã©s Ã¡rnyalatok
-	Tiny Lens	AprÃ³ lencsÃ©k
-	Tip extends past the end point	A hegy tÃºlnyÃºlik a vÃ©gponton
-	Tip on the end point	A hegy a vÃ©gponton van
-	Title Case	Minden SzÃ³ NagybetÅ±s
-	to	â†’
-	Toggle Fill/Stroke Focus	VÃ¡ltÃ¡s kitÃ¶ltÃ©s Ã©s kÃ¶rvonal kÃ¶zÃ¶tt
-	Toggle Selection	KijelÃ¶lÃ©s Ã¡tvÃ¡ltÃ¡sa
-	Toggle single/double column	VÃ¡ltÃ¡s egy Ã©s kÃ©t oszlop kÃ¶zÃ¶tt
-	Tolerance	TÅ±rÃ©shatÃ¡r
-	Tolerance:	TÅ±rÃ©shatÃ¡r:
-	Tool	EszkÃ¶z
-	Tool Option	EszkÃ¶zbeÃ¡llÃ­tÃ¡s
-	Tool Optionsâ€¦	EszkÃ¶zbeÃ¡llÃ­tÃ¡sokâ€¦
-	Toolbar: Add Tool	EszkÃ¶ztÃ¡r: eszkÃ¶z hozzÃ¡adÃ¡sa
-	Toolbar: Advanced / Basic	EszkÃ¶ztÃ¡r: speciÃ¡lis / alap
-	Toolbar: Remove Tool	EszkÃ¶ztÃ¡r: eszkÃ¶z eltÃ¡volÃ­tÃ¡sa
-	Toolbar: Reset	EszkÃ¶ztÃ¡r: visszaÃ¡llÃ­tÃ¡s
-	Toolbar: Single/Double Column	EszkÃ¶ztÃ¡r: egy/kÃ©t oszlop
-	Toolbars	EszkÃ¶ztÃ¡rak
-	Tools	EszkÃ¶zÃ¶k
-	Top	FelsÅ‘
-	Top in Front	FelsÅ‘ elÃ¶l
-	Top Left	Bal felsÅ‘
-	Top Right	Jobb felsÅ‘
-	Top to Bottom	FentrÅ‘l lefelÃ©
-	Top-to-Top Leading	FelÃ¼lrÅ‘l felÃ¼lre mÃ©rt sorkÃ¶z
-	Top:	FelsÅ‘:
-	Total Width:	Teljes szÃ©lessÃ©g:
-	Touch Type	KÃ¶zvetlen karakterszerkesztÃ©s
-	Touch Type Tool	KÃ¶zvetlen karakterszerkesztÃ©s
-	Trace	VektorizÃ¡lÃ¡s
-	Trace the image with the Default preset	KÃ©p vektorizÃ¡lÃ¡sa az alapÃ©rtelmezett elÅ‘beÃ¡llÃ­tÃ¡ssal
-	Tracing Presets	VektorizÃ¡lÃ¡si elÅ‘beÃ¡llÃ­tÃ¡sok
-	Tracing Result	VektorizÃ¡lÃ¡s eredmÃ©nye
-	Tracing Result with Outlines	VektorizÃ¡lÃ¡s eredmÃ©nye vÃ¡zlattal
-	Tracking	BetÅ±kÃ¶z
-	Trademark Symbol	VÃ©djegy jele
-	Transform	ÃtalakÃ­tÃ¡s
-	Transform Again	ÃtalakÃ­tÃ¡s ismÃ©t
-	Transform Both	MindkettÅ‘ Ã¡talakÃ­tÃ¡sa
-	Transform Each	EgyenkÃ©nti Ã¡talakÃ­tÃ¡s
-	Transform Eachâ€¦	EgyenkÃ©nti Ã¡talakÃ­tÃ¡sâ€¦
-	Transform in Perspective	ÃtalakÃ­tÃ¡s perspektÃ­vÃ¡ban
-	Transform Object Only	Csak az objektum Ã¡talakÃ­tÃ¡sa
-	Transform options	ÃtalakÃ­tÃ¡s beÃ¡llÃ­tÃ¡sai
-	Transform Panel	ÃtalakÃ­tÃ¡s panel
-	Transform Pattern Only	Csak a mintÃ¡zat Ã¡talakÃ­tÃ¡sa
-	Transform Pattern Tiles	MintÃ¡zatcsempÃ©k Ã¡talakÃ­tÃ¡sa
-	Transform Patterns	MintÃ¡zatok Ã¡talakÃ­tÃ¡sa
-	Transform Tools	ÃtalakÃ­tÃ³ eszkÃ¶zÃ¶k
-	Transforms	ÃtalakÃ­tÃ¡sok
-	Transformâ€¦	ÃtalakÃ­tÃ¡sâ€¦
-	Transparency	ÃtlÃ¡tszÃ³sÃ¡g
-	Transparency Flattener Presets	ÃtlÃ¡tszÃ³sÃ¡g-lapÃ­tÃ¡si elÅ‘beÃ¡llÃ­tÃ¡sok
-	Transparency Flattener Presetsâ€¦	ÃtlÃ¡tszÃ³sÃ¡g-lapÃ­tÃ¡si elÅ‘beÃ¡llÃ­tÃ¡sokâ€¦
-	Transparency Grid	ÃtlÃ¡tszÃ³sÃ¡gi rÃ¡cs
-	Transparency Info	ÃtlÃ¡tszÃ³sÃ¡g adatai
-	Transparency is flattened with the preset. Type is written as outlines; gradients as bands of colour.	Az Ã¡tlÃ¡tszÃ³sÃ¡got az elÅ‘beÃ¡llÃ­tÃ¡s lapÃ­tja. A szÃ¶veg ÃºtvonalkÃ©nt, a szÃ­nÃ¡tmenetek szÃ­nsÃ¡vokkÃ©nt kerÃ¼lnek a fÃ¡jlba.
-	Transparency is flattened with the preset. Type is written as outlines; gradients stay smooth.	Az Ã¡tlÃ¡tszÃ³sÃ¡got az elÅ‘beÃ¡llÃ­tÃ¡s lapÃ­tja. A szÃ¶veg ÃºtvonalkÃ©nt kerÃ¼l a fÃ¡jlba, a szÃ­nÃ¡tmenetek folytonosak maradnak.
-	Transparency Options	ÃtlÃ¡tszÃ³sÃ¡g beÃ¡llÃ­tÃ¡sai
-	Transparent	ÃtlÃ¡tszÃ³
-	Transparent (Default)	ÃtlÃ¡tszÃ³ (alapÃ©rtelmezett)
-	Transparent Background	ÃtlÃ¡tszÃ³ hÃ¡ttÃ©r
-	Transparent Objects	ÃtlÃ¡tszÃ³ objektumok
-	Transverse (the page a quarter turn on the paper)	KeresztirÃ¡nyÃº (az oldal negyed fordulattal elforgatva a papÃ­ron)
-	Trapâ€¦	CsapdÃ¡zÃ¡sâ€¦
-	Triad	TriÃ¡d
-	Triad 2	TriÃ¡d 2
-	Triad 3	TriÃ¡d 3
-	Triangle	HÃ¡romszÃ¶g
-	Triangle (open)	HÃ¡romszÃ¶g (nyitott)
-	Triangle to Bar	HÃ¡romszÃ¶g vonalig
-	Trim	LevÃ¡gÃ¡s
-	Trim covered geometry on Expand Appearance. Live preview keeps the full surface. Transparent paints and surfaces exceeding visibility limits retain all faces.	A megjelenÃ©s kibontÃ¡sakor a takart geometria levÃ¡gÃ¡sa. Az Ã©lÅ‘ elÅ‘nÃ©zet a teljes felÃ¼letet mutatja. Az Ã¡tlÃ¡tszÃ³ festÃ©sÅ± Ã©s a lÃ¡thatÃ³sÃ¡gi korlÃ¡tot tÃºllÃ©pÅ‘ felÃ¼letek minden lapja megmarad.
-	Trim mark weight:	VÃ¡gÃ³jelek vastagsÃ¡ga:
-	Trim marks	VÃ¡gÃ³jelek
-	Trim View	LevÃ¡gott nÃ©zet
-	True Colors	ValÃ³di szÃ­nek
-	True colour needs version 2004 or later: the nearest of 256 colours is written.	A valÃ³di szÃ­nekhez 2004-es vagy Ãºjabb verziÃ³ kell: a 256 szÃ­n kÃ¶zÃ¼l a legkÃ¶zelebbi kerÃ¼l a fÃ¡jlba.
-	Turn off Data Recovery for complex documents	Adat-helyreÃ¡llÃ­tÃ¡s kikapcsolÃ¡sa Ã¶sszetett dokumentumoknÃ¡l
-	Tweakâ€¦	Finom torzÃ­tÃ¡sâ€¦
-	Twirl	Ã–rvÃ©nylÃ©s
-	Twirl Rate:	Ã–rvÃ©nylÃ©s sebessÃ©ge:
-	Twirl Tool	Ã–rvÃ©nylÃ©s
-	Twistâ€¦	CsavarÃ¡sâ€¦
-	Two Point	KÃ©tpontos
-	Two Point Perspective	KÃ©tpontos perspektÃ­va
-	Two Point Perspective Preset 1	KÃ©tpontos perspektÃ­va, 1. elÅ‘beÃ¡llÃ­tÃ¡s
-	Two Point Perspective Preset 2	KÃ©tpontos perspektÃ­va, 2. elÅ‘beÃ¡llÃ­tÃ¡s
-	Two Point Perspective Preset 3	KÃ©tpontos perspektÃ­va, 3. elÅ‘beÃ¡llÃ­tÃ¡s
-	Two Point Perspective Preset 4	KÃ©tpontos perspektÃ­va, 4. elÅ‘beÃ¡llÃ­tÃ¡s
-	Two Point Perspective Preset 5	KÃ©tpontos perspektÃ­va, 5. elÅ‘beÃ¡llÃ­tÃ¡s
-	Type	SzÃ¶veg
-	Type becomes outlines, and strokes a CAD line can't draw become filled shapes.	A szÃ¶veg ÃºtvonallÃ¡ alakul, a CAD-vonallal nem rajzolhatÃ³ kÃ¶rvonalak pedig kitÃ¶ltÃ¶tt alakzattÃ¡.
-	Type Object Selection by Path Only	SzÃ¶vegobjektum kijelÃ¶lÃ©se csak Ãºtvonallal
-	Type on a Path	ÃštvonalszÃ¶veg
-	Type on a Path Options	ÃštvonalszÃ¶veg beÃ¡llÃ­tÃ¡sai
-	Type on a Path Optionsâ€¦	ÃštvonalszÃ¶veg beÃ¡llÃ­tÃ¡saiâ€¦
-	Type on a Path Tool	ÃštvonalszÃ¶veg
-	Type Optimized	SzÃ¶vegre optimalizÃ¡lt
-	Type Orientation	SzÃ¶veg irÃ¡nya
-	Type stays text, and every stroke is a line with its lineweight and dashes.	A szÃ¶veg szÃ¶veg marad, Ã©s minden kÃ¶rvonal vonal lesz a sajÃ¡t vastagsÃ¡gÃ¡val Ã©s szaggatÃ¡sÃ¡val.
-	Type Tool	SzÃ¶veg
-	Type:	TÃ­pus:
-	Typeâ€¦	TÃ­pusâ€¦
-	UI Brightness	FelÃ¼let fÃ©nyessÃ©ge
-	UI Scaling	FelÃ¼let mÃ©retezÃ©se
-	Unbind Variable	VÃ¡ltozÃ³ kÃ¶tÃ©sÃ©nek bontÃ¡sa
-	Underline	AlÃ¡hÃºzÃ¡s
-	Undo	VisszavonÃ¡s
-	Undo {name}	VisszavonÃ¡s: {name}
-	Undo {}	VisszavonÃ¡s: {}
-	Unembed	BeÃ¡gyazÃ¡s megszÃ¼ntetÃ©se
-	Unembedded to {}	BeÃ¡gyazÃ¡s megszÃ¼ntetve, ide: {}
-	Unembedâ€¦	BeÃ¡gyazÃ¡s megszÃ¼ntetÃ©seâ€¦
-	Ungroup	CsoportbontÃ¡s
-	Ungroup Color Group	SzÃ­ncsoport bontÃ¡sa
+	Tiles are numbered across, then down; leave the range empty for every tile.	A csempék számozása vízszintesen, majd lefelé halad; az összes csempéhez hagyd üresen a tartományt.
 	Unicode	Unicode
 	Unicode (UTF-16)	Unicode (UTF-16)
 	Unicode (UTF-8)	Unicode (UTF-8)
@@ -4238,30 +3431,8 @@ mark-style	Japanese	JapÃ¡n
 	XML ID	XML-azonosÃ­tÃ³
 	Y:	Y:
 	Yards	Yard
-	Yellow	SÃ¡rga
-	Your browser downloads the files (several as one .zip).	A bÃ¶ngÃ©szÅ‘ letÃ¶lti a fÃ¡jlokat (tÃ¶bbet egy .zip fÃ¡jlban).
-	Your changes will be lost if you don't save them.	Ha nem mented, a mÃ³dosÃ­tÃ¡said elvesznek.
-	Zig Zagâ€¦	Cikcakkâ€¦
-	Zoom	NagyÃ­tÃ¡s/kicsinyÃ­tÃ©s
-	Zoom In	NagyÃ­tÃ¡s
-	Zoom Out	KicsinyÃ­tÃ©s
-	Zoom to Selection	NagyÃ­tÃ¡s a kijelÃ¶lÃ©sre
-	Zoom Tool	NagyÃ­tÃ³
-	Zoom with Mouse Wheel	NagyÃ­tÃ¡s egÃ©rgÃ¶rgÅ‘vel
-	{count} file(s) in {folder}{note}. Show the package folder?	FÃ¡jlok: {count}, mappa: {folder}{note}. Megnyitod a csomag mappÃ¡jÃ¡t?
-	{count} folder(s) or file(s) couldn't be read	Nem olvashatÃ³ mappÃ¡k vagy fÃ¡jlok: {count}
-	{count} folder(s) skipped, such as other apps' and the system's folders and hidden ones	Kihagyott mappÃ¡k: {count} (pÃ©ldÃ¡ul mÃ¡s alkalmazÃ¡sok, a rendszer Ã©s a rejtett mappÃ¡k)
-	{count} linked file(s) not found	Nem talÃ¡lhatÃ³ csatolt fÃ¡jlok: {count}
-	{count} linked image(s) changed on disk. Show the new versions?	A lemezen mÃ³dosult csatolt kÃ©pek: {count}. MegjelenÃ­tsÃ¼k az Ãºj vÃ¡ltozatokat?
-	{count} linked image(s) changed since this document was saved. Show the new versions?	A dokumentum mentÃ©se Ã³ta mÃ³dosult csatolt kÃ©pek: {count}. MegjelenÃ­tsÃ¼k az Ãºj vÃ¡ltozatokat?
-	{count} more rules: Export writes every one.	TovÃ¡bbi szabÃ¡lyok: {count}. Az exportÃ¡lÃ¡s mindet kiÃ­rja.
-	{count} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.	Kimaradt nÃ©vtelen objektumok: {count}. Nevezd el Å‘ket, vagy kapcsold be a panelmenÃ¼ben a NÃ©vtelen objektumok elemet.
-	{effect} is already applied	MÃ¡r alkalmazva: {effect}
-	{folders} folder(s) and {files} file(s) searched	Ãtkeresett mappÃ¡k: {folders}, fÃ¡jlok: {files}
-	{format} Options	FormÃ¡tumbeÃ¡llÃ­tÃ¡sok: {format}
-	{kind} Gradient	SzÃ­nÃ¡tmenet: {kind}
-gradient-kind	Radial	KÃ¶rkÃ¶rÃ¶s
-	{kind} Style Optionsâ€¦	StÃ­lusbeÃ¡llÃ­tÃ¡sok: {kind}â€¦
+	Yellow	Sárga
+gradient-kind	Radial	Körkörös
 	{kind}, {model}	{kind}, {model}
 	{name} (spot)	{name} (direkt)
 	{pages} in all, {count} per copy	Ã–sszesen: {pages}, pÃ©ldÃ¡nyonkÃ©nt: {count}
@@ -4386,169 +3557,7 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	a PostScript error ({name} in `{op}`: {at})	PostScript-hiba ({name}, itt: `{op}`: {at})
 @msg	a PostScript error ({name} in `{op}`: {at}), in {procs}	PostScript-hiba ({name}, itt: `{op}`: {at}), eljÃ¡rÃ¡s: {procs}
 @msg	a PostScript error ({name})	PostScript-hiba ({name})
-@msg	a preset named `{_1}` exists	mÃ¡r van ilyen nevÅ± elÅ‘beÃ¡llÃ­tÃ¡s: `{_1}`
-@msg	a swatch or color group named `{n}` exists	mÃ¡r van ilyen nevÅ± szÃ­nminta vagy szÃ­ncsoport: `{n}`
-@msg	a slice size must be a positive number of points	a szelet mÃ©rete pozitÃ­v pontÃ©rtÃ©k kell legyen
-@msg	a spine keeps at least two points	a gerincen legalÃ¡bb kÃ©t pont marad
-@msg	a stream runs past the end	egy adatfolyam tÃºlnyÃºlik a vÃ©gÃ©n
-@msg	a stream's length is wrong	egy adatfolyam hossza hibÃ¡s
-@msg	a stream's length isn't a number	egy adatfolyam hossza nem szÃ¡m
-@msg	action is required	az action kÃ¶telezÅ‘
-@msg	add a format to export	adj meg egy exportÃ¡lÃ¡si formÃ¡tumot
-@msg	already editing a pattern	mÃ¡r folyik egy mintÃ¡zat szerkesztÃ©se
-@msg	an image VectorCraft can't read was left out	kimaradt egy kÃ©p, amelyet a VectorCraft nem tud olvasni
-@msg	an image whose data is cut short was left out	kimaradt egy csonka adatÃº kÃ©p
-@msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	a csatolt kÃ©pek a fÃ¡jlban mentett kis felbontÃ¡sÃº elÅ‘nÃ©zetet mutatjÃ¡k, amÃ­g a fÃ¡jljaik elÅ‘ nem kerÃ¼lnek: csatold Å‘ket Ãºjra a CsatolÃ¡sok panelen
-@msg	area type in frames too short for a line of the font it shows in got taller frames ({_1}): their type wouldn't show otherwise	a tÃºl alacsony keretben lÃ©vÅ‘ terÃ¼letszÃ¶veg, amelybe a megjelenÃ­tÅ‘ betÅ±tÃ­pus egy sora sem fÃ©r el, magasabb keretet kapott ({_1}): kÃ¼lÃ¶nben nem lÃ¡tszana
-@msg	an object can't be read	egy objektum nem olvashatÃ³
-@msg	an object in perspective would leave the edited grid	egy perspektivikus objektum kikerÃ¼lne a szerkesztett rÃ¡csbÃ³l
-@msg	anchor must name a registered panel	az anchor egy regisztrÃ¡lt panelt kell megnevezzen
-@msg	antiAlias `{id}`: none, art or type	antiAlias `{id}`: none, art vagy type
-@msg	artboard {0} does not exist	nincs ilyen rajztÃ¡bla: {0}
-@msg	at this scale the drawing is {w} Ã— {h} pt, more than the canvas holds: choose a smaller scale or fit it to the artboard	ezen a mÃ©retarÃ¡nyon a rajz {w} Ã— {h} pt, ennyi nem fÃ©r el a vÃ¡sznon: vÃ¡lassz kisebb mÃ©retarÃ¡nyt, vagy illeszd a rajztÃ¡blÃ¡hoz
-@msg	automation filesystem access is not granted: read authority is absent: {path}	az automatizÃ¡lÃ¡snak nincs fÃ¡jlrendszer-hozzÃ¡fÃ©rÃ©se: nincs olvasÃ¡si jog: {path}
-@msg	automation filesystem access is not granted: write authority is absent: {path}	az automatizÃ¡lÃ¡snak nincs fÃ¡jlrendszer-hozzÃ¡fÃ©rÃ©se: nincs Ã­rÃ¡si jog: {path}
-@msg	automation path rejected: a link that leads nowhere: {path}	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: a hivatkozÃ¡s nem vezet sehova: {path}
-@msg	automation path rejected: cannot resolve {path}: {e}	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: nem oldhatÃ³ fel: {path}: {e}
-@msg	automation path rejected: outside the read root {root}: {path}	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: kÃ­vÃ¼l esik az olvasÃ¡si gyÃ¶kÃ©ren ({root}): {path}
-@msg	automation path rejected: outside the write root {root}: {path}	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: kÃ­vÃ¼l esik az Ã­rÃ¡si gyÃ¶kÃ©ren ({root}): {path}
-@msg	automation path rejected: parent traversal below a folder that doesn't exist: {path}	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: szÃ¼lÅ‘mappÃ¡ra lÃ©pÃ©s egy nem lÃ©tezÅ‘ mappa alatt: {path}
-@msg	automation path rejected: path is empty	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: az Ãºtvonal Ã¼res
-@msg	automation path rejected: reserved device names are not allowed: {path}	az automatizÃ¡lÃ¡s Ãºtvonala elutasÃ­tva: fenntartott eszkÃ¶znÃ©v nem hasznÃ¡lhatÃ³: {path}
-@msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	az axis Ã©rtÃ©ke "vertical", "horizontal" vagy fokban megadott szÃ¶g lehet, ez nem az: `{v}`
-@msg	background {other}: transparent, white, black or a colour such as "#ff8800"	background {other}: transparent, white, black vagy egy szÃ­n, pÃ©ldÃ¡ul "#ff8800"
-@msg	bad color {v}	hibÃ¡s szÃ­n: {v}
-@msg	the Color Picker is not open	a SzÃ­nvÃ¡lasztÃ³ nincs megnyitva
-@msg	the Simplify slider is not open	az EgyszerÅ±sÃ­tÃ©s csÃºszka nincs megnyitva
-@msg	the screen color sampler is already open	a kÃ©pernyÅ‘s szÃ­nmintavevÅ‘ mÃ¡r nyitva van
-@msg	this system has no screen color sampler	ezen a rendszeren nincs kÃ©pernyÅ‘s szÃ­nmintavevÅ‘
-@msg	bad colour `{hex}` (#rrggbb)	hibÃ¡s szÃ­n: `{hex}` (#rrggbb)
-@msg	bad page tree	hibÃ¡s oldalfa
-@msg	bad shortcut	hibÃ¡s billentyÅ±parancs
-@msg	bad stream length	hibÃ¡s adatfolyamhossz
-@msg	bad trailer	hibÃ¡s zÃ¡rÃ³ rÃ©sz (trailer)
-@msg	balance must be between 0 and 100	a balance Ã©rtÃ©ke 0 Ã©s 100 kÃ¶zÃ¶tt lehet
-@msg	batch step {_1} (`{id}`) failed: {e}	a kÃ¶tegelt lÃ©pÃ©s sikertelen: {_1} (`{id}`): {e}
-@msg	before must name a panel	a before egy panelt kell megnevezzen
-@msg	below and above must name a panel floating in another group	a below Ã©s az above egy mÃ¡sik csoportban lebegÅ‘ panelt kell megnevezzen
-@msg	Blend colors: select at least three objects with filled colours	SzÃ­nek Ã¶sszemosÃ¡sa: jelÃ¶lj ki legalÃ¡bb hÃ¡rom kitÃ¶ltÃ¶tt objektumot
-@msg	BMP files are RGB or grayscale: colorModel rgb or gray	a BMP-fÃ¡jlok RGB-k vagy szÃ¼rkeÃ¡rnyalatosak: colorModel rgb vagy gray
-@msg	brightness must be dark|mediumDark|mediumLight|light	a brightness Ã©rtÃ©ke dark|mediumDark|mediumLight|light lehet
-@msg	can't encode the document: {0}	a dokumentum nem kÃ³dolhatÃ³: {0}
-@msg	can't parse shortcut `{c}`	a billentyÅ±parancs nem Ã©rtelmezhetÅ‘: `{c}`
-@msg	can't parse shortcut `{s}` for `{k}`	a billentyÅ±parancs nem Ã©rtelmezhetÅ‘: `{s}` (ehhez: `{k}`)
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	ez a verziÃ³ nem menthetÅ‘: {0}; a VectorCraft ezeket a verziÃ³kat Ã­rja: {MIN_VERSION}â€“{VERSION}
-@msg	can't write .{ext} images	ilyen kÃ©p nem Ã­rhatÃ³: .{ext}
-@msg	cannot distort a zero-size bounding box	nulla mÃ©retÅ± befoglalÃ³ keret nem torzÃ­thatÃ³
-@msg	cannot read PDF: {0}	a PDF nem olvashatÃ³: {0}
-@msg	cannot split an open path at its end point	nyitott Ãºtvonal a vÃ©gpontjÃ¡nÃ¡l nem vÃ¡ghatÃ³ kettÃ©
-@msg	check an asset to export	jelÃ¶lj be egy exportÃ¡landÃ³ elemet
-@msg	check a layer to export	jelÃ¶ljÃ¶n be egy exportÃ¡landÃ³ rÃ©teget
-@msg	select the art to export first	elÅ‘szÃ¶r jelÃ¶lje ki az exportÃ¡landÃ³ grafikÃ¡t
-@msg	choice must be "merge" or "add", not `{choice}`	a choice Ã©rtÃ©ke "merge" vagy "add" lehet, ez nem az: `{choice}`
-@msg	choose a direction to divide in	vÃ¡laszd ki a felosztÃ¡s irÃ¡nyÃ¡t
-@msg	choose a folder to export to	vÃ¡laszd ki az exportÃ¡lÃ¡s cÃ©lmappÃ¡jÃ¡t
-@msg	choose a location for the package	vÃ¡laszd ki a csomag helyÃ©t
-@msg	choose the font files to add	vÃ¡laszd ki a hozzÃ¡adandÃ³ betÅ±tÃ­pusfÃ¡jlokat
-@msg	clipboard is empty	a vÃ¡gÃ³lap Ã¼res
-@msg	closing needs three anchors	a lezÃ¡rÃ¡shoz hÃ¡rom horgonypont kell
-@msg	colorTable.{what}: `{h}` is not a colour such as "#ff8800"	colorTable.{what}: `{h}` nem szÃ­n (pÃ©ldÃ¡ul "#ff8800")
-@msg	colorTable.{what}: at most {MAX_TABLE} colours	colorTable.{what}: legfeljebb {MAX_TABLE} szÃ­n
-@msg	column must be true or a number from 1	a column Ã©rtÃ©ke true vagy 1-tÅ‘l kezdÅ‘dÅ‘ szÃ¡m lehet
-@msg	Combine Slices: the slices have no bounds	Szeletek egyesÃ­tÃ©se: a szeleteknek nincsenek hatÃ¡rai
-@msg	command `{0}` is not available right now: {1}	a parancs jelenleg nem Ã©rhetÅ‘ el: `{0}`: {1}
-@msg	compound paths can only contain paths	Ã¶sszetett Ãºtvonal csak Ãºtvonalakat tartalmazhat
-@msg	compressed (RLE) bitmaps can't be read yet	a tÃ¶mÃ¶rÃ­tett (RLE) bitkÃ©pek mÃ©g nem olvashatÃ³k
-@msg	Convert to Artboards: selection has no area	ÃtalakÃ­tÃ¡s rajztÃ¡blÃ¡kkÃ¡: a kijelÃ¶lÃ©snek nincs terÃ¼lete
-@msg	Convert to Shape: no rectangles or ellipses selected	ÃtalakÃ­tÃ¡s alakzattÃ¡: nincs kijelÃ¶lt tÃ©glalap vagy ellipszis
-@msg	Copied the CSS of {rules} object(s)	CSS mÃ¡solva, objektumok: {rules}
-@msg	Copied the script report	SzkriptjelentÃ©s mÃ¡solva
-@msg	Corners edits the corners of a path	a Sarkok parancs egy Ãºtvonal sarkait szerkeszti
-@msg	could not decode image: {0}	a kÃ©p nem dekÃ³dolhatÃ³: {0}
-@msg	Couldn't copy to the system clipboard: {e}	Nem sikerÃ¼lt a rendszer vÃ¡gÃ³lapjÃ¡ra mÃ¡solni: {e}
-@msg	Couldn't open {name}: {e}	Nem sikerÃ¼lt megnyitni: {name}: {e}
-@msg	Couldn't paste from the clipboard: {e}	Nem sikerÃ¼lt beilleszteni a vÃ¡gÃ³laprÃ³l: {e}
-@msg	Couldn't place {name}: the document it was dropped on was closed	Nem sikerÃ¼lt elhelyezni: {name}; a cÃ©ldokumentumot bezÃ¡rtÃ¡k
-@msg	Couldn't place {name}: {e}	Nem sikerÃ¼lt elhelyezni: {name}: {e}
-@msg	Couldn't read {name}: {e}	Nem sikerÃ¼lt beolvasni: {name}: {e}
-@msg	Couldn't save recovery data: {e}	Nem sikerÃ¼lt menteni a helyreÃ¡llÃ­tÃ¡si adatokat: {e}
-@msg	Create from Guides: the document has no artboard	LÃ©trehozÃ¡s segÃ©dvonalakbÃ³l: a dokumentumban nincs rajztÃ¡bla
-@msg	Create from Guides: the guides make more than {MAX_PIECES} slices	LÃ©trehozÃ¡s segÃ©dvonalakbÃ³l: a segÃ©dvonalak tÃºl sok szeletet adnak (legfeljebb {MAX_PIECES})
-@msg	Create from Selection: the selection has no area	LÃ©trehozÃ¡s a kijelÃ¶lÃ©sbÅ‘l: a kijelÃ¶lÃ©snek nincs terÃ¼lete
-@msg	Create Outlines: select text objects	ÃtalakÃ­tÃ¡s ÃºtvonallÃ¡: jelÃ¶lj ki szÃ¶vegobjektumokat
-@msg	damaged	sÃ©rÃ¼lt
-@msg	Data Recovery has nowhere to keep copies: set Preferences â†’ File Handling â†’ Data Recovery â†’ Folder (recoveryFolder)	Az adat-helyreÃ¡llÃ­tÃ¡snak nincs hova mentenie a mÃ¡solatokat: Ã¡llÃ­tsd be a BeÃ¡llÃ­tÃ¡sok â†’ FÃ¡jlkezelÃ©s â†’ Adat-helyreÃ¡llÃ­tÃ¡s â†’ Mappa Ã©rtÃ©ket (recoveryFolder)
-@msg	decimals must be {_1}â€“{_2} (got {_3})	a tizedesjegyek szÃ¡ma {_1}â€“{_2} lehet (kapott Ã©rtÃ©k: {_3})
-@msg	direct-select anchor points to cut at (not the end points of open paths)	jelÃ¶ld ki kÃ¶zvetlen kijelÃ¶lÃ©ssel a vÃ¡gÃ¡si horgonypontokat (nyitott Ãºtvonal vÃ©gpontja nem lehet)
-@msg	Discarded {_1} recovered document(s)	Elvetett helyreÃ¡llÃ­tott dokumentumok: {_1}
-@msg	divide into 1 to {MAX_PIECES} slices	a felosztÃ¡s 1 Ã©s {MAX_PIECES} kÃ¶zÃ¶tti szeletre lehetsÃ©ges
-@msg	Divide Objects Below: select a path	Alatta lÃ©vÅ‘ objektumok felosztÃ¡sa: jelÃ¶lj ki egy Ãºtvonalat
-@msg	Divide Objects Below: select exactly one path	Alatta lÃ©vÅ‘ objektumok felosztÃ¡sa: pontosan egy Ãºtvonalat jelÃ¶lj ki
-@msg	docking action contains an unknown panel or an excessive split path	a dokkolÃ¡si mÅ±velet ismeretlen panelt vagy tÃºl hosszÃº felosztÃ¡si Ãºtvonalat tartalmaz
-@msg	Downloaded {_1} file(s)	LetÃ¶ltÃ¶tt fÃ¡jlok: {_1}
-@msg	Downloaded {what}	LetÃ¶ltve: {what}
-@msg	effect {k} is `{_1}`, not `{id}`	az effektus ({k}) ez: `{_1}`, nem ez: `{id}`
-@msg	Embedded {n} image(s)	BeÃ¡gyazott kÃ©pek: {n}
-@msg	Embedded {n} image(s); {missing} missing: relink them first	BeÃ¡gyazott kÃ©pek: {n}; hiÃ¡nyzik: {missing}, ezeket elÅ‘bb csatold Ãºjra
-@msg	empty brush stroke	Ã¼res ecsetvonÃ¡s
-@msg	empty cutter	Ã¼res vÃ¡gÃ³objektum
-@msg	empty path	Ã¼res Ãºtvonal
-@msg	every numbered name for it is taken in the Fonts folder	a Fonts mappÃ¡ban minden sorszÃ¡mozott nÃ©v foglalt hozzÃ¡
-@msg	every numbered name for {name} is taken in the document's folder	a dokumentum mappÃ¡jÃ¡ban minden sorszÃ¡mozott nÃ©v foglalt: {name}
-@msg	No linked files to look for	Nincs keresendÅ‘ csatolt fÃ¡jl
-@msg	Relinked {n} image(s); {name} couldn't be relinked: {reason}	Ãšjracsatolt kÃ©pek: {n}; nem sikerÃ¼lt Ãºjracsatolni: {name}: {reason}
-@msg	every search thread stopped on an internal error (please report this bug)	minden keresÃ©si szÃ¡l belsÅ‘ hibÃ¡val leÃ¡llt (kÃ©rjÃ¼k, jelentsd ezt a hibÃ¡t)
-@msg	Expand Appearance: the selection has a basic appearance	MegjelenÃ©s kibontÃ¡sa: a kijelÃ¶lÃ©snek alapmegjelenÃ©se van
-@msg	Expand: no brush strokes selected	KibontÃ¡s: nincs kijelÃ¶lt ecsetvonÃ¡s
-@msg	Expand: no gradient fills	KibontÃ¡s: nincs szÃ­nÃ¡tmenetes kitÃ¶ltÃ©s
-@msg	Expand: nothing to expand	KibontÃ¡s: nincs mit kibontani
-@msg	Exported {count} file(s) to {folder}	ExportÃ¡lt fÃ¡jlok: {count}, mappa: {folder}
-@msg	Exported {path}	ExportÃ¡lva: {path}
-@msg	Exported {what}	ExportÃ¡lva: {what}
-@msg	Exported {what} with {_1} note(s): {first}	ExportÃ¡lva: {what}; megjegyzÃ©sek: {_1}, az elsÅ‘: {first}
-@msg	Exporting {_1}	ExportÃ¡lÃ¡s: {_1}
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	a fÃ¡jl verziÃ³ja Ãºjabb, mint amit ez a VectorCraft tÃ¡mogat: {0} (tÃ¡mogatott: {VERSION})
-@msg	Flatten Transparency: select objects to flatten	ÃtlÃ¡tszÃ³sÃ¡g lapÃ­tÃ¡sa: jelÃ¶ld ki a lapÃ­tandÃ³ objektumokat
-@msg	Flatten Transparency: {e}	ÃtlÃ¡tszÃ³sÃ¡g lapÃ­tÃ¡sa: {e}
-@msg	freeform line {i} must be an array of point indices	a szabad formÃ¡jÃº vonal pontindexek tÃ¶mbje kell legyen: {i}
-@msg	freeform point {i} needs `at` [x, y] and a valid `color`	a szabad formÃ¡jÃº pontnak kell `at` [x, y] Ã©s Ã©rvÃ©nyes `color`: {i}
-@msg	give both `start` and `end` [x, y] (or neither)	a `start` Ã©s az `end` [x, y] Ã©rtÃ©kÃ©t egyÃ¼tt add meg (vagy egyiket se)
-@msg	give corners of the path: anchors between two straight sides	add meg az Ãºtvonal sarkait: kÃ©t egyenes oldal kÃ¶zÃ¶tti horgonypontokat
-@msg	give corners of the path: anchors where its sides meet at an angle	add meg az Ãºtvonal sarkait: azokat a horgonypontokat, ahol az oldalai szÃ¶gben talÃ¡lkoznak
-@msg	give horizontal or vertical	add meg a horizontal vagy a vertical Ã©rtÃ©ket
-@msg	give only one of onto, below and above	az onto, below Ã©s above kÃ¶zÃ¼l csak egyet adj meg
-@msg	give the path `id` and the width point `index`	add meg az Ãºtvonal `id` Ã©s a szÃ©lessÃ©gi pont `index` Ã©rtÃ©kÃ©t
-@msg	gradient â€œ{name}â€ isn't defined in the file: a plain colour stands in for it	a szÃ­nÃ¡tmenet nincs megadva a fÃ¡jlban: â€ž{name}â€; helyette egyszÃ­nÅ± kitÃ¶ltÃ©s Ã¡ll
-@msg	group must be true or false	a group Ã©rtÃ©ke true vagy false lehet
-@msg	guides are locked	a segÃ©dvonalak zÃ¡rolva vannak
-@msg	handle must be in or out	handle: in vagy out kell
-@msg	image '{key}' has no pixels and was left out	a kÃ©p kimaradt, mert nincsenek pixelei: '{key}'
-@msg	image data `{_1}` is missing	hiÃ¡nyoznak a kÃ©padatok: `{_1}`
-@msg	image is empty	a kÃ©p Ã¼res
-@msg	Image Trace: the traced image is missing	KÃ©pvektorizÃ¡lÃ¡s: a vektorizÃ¡lt kÃ©p hiÃ¡nyzik
-@msg	image would be too large; lower the resolution	a kÃ©p tÃºl nagy lenne; csÃ¶kkentsd a felbontÃ¡st
-@msg	Imported library {name}	ImportÃ¡lt kÃ¶nyvtÃ¡r: {name}
-@msg	Imported {what}: {_1}	ImportÃ¡lva: {what}: {_1}
-@msg	index must be a number or first, previous, next or last	az index szÃ¡m vagy first, previous, next, last lehet
-@msg	index must be a number or first, previous, next or last, not `{other}`	az index szÃ¡m vagy first, previous, next, last lehet, ez nem az: `{other}`
-@msg	index must be â‰¥ 0	az index nem lehet negatÃ­v
-@msg	Installed plug-in {_1}	TelepÃ­tett bÅ‘vÃ­tmÃ©ny: {_1}
-@msg	installing from a path is not available on the web; pass the module as `dataBase64`	a webes vÃ¡ltozatban ÃºtvonalrÃ³l nem lehet telepÃ­teni; add Ã¡t a modult `dataBase64`-kÃ©nt
-@msg	internal error in `{cmd}`: {msg} (the document was left as it was before; please report this bug)	belsÅ‘ hiba (`{cmd}`): {msg} (a dokumentum vÃ¡ltozatlan maradt; kÃ©rjÃ¼k, jelentsd ezt a hibÃ¡t)
-@msg	Internal error: {msg} (please report this bug)	BelsÅ‘ hiba: {msg} (kÃ©rjÃ¼k, jelentsd ezt a hibÃ¡t)
-@msg	internal error: {msg} (please report this bug)	belsÅ‘ hiba: {msg} (kÃ©rjÃ¼k, jelentsd ezt a hibÃ¡t)
-@msg	invalid image data for `{0}`	Ã©rvÃ©nytelen kÃ©padatok: `{0}`
-@msg	invalid native panel set	Ã©rvÃ©nytelen natÃ­v panelkÃ©szlet
-@msg	Invalid panel layout; restored the default dock	Ã‰rvÃ©nytelen panelelrendezÃ©s; az alapÃ©rtelmezett dokk visszaÃ¡llÃ­tva
-@msg	invalid parameters for `{cmd}`: {msg}	Ã©rvÃ©nytelen paramÃ©terek (`{cmd}`): {msg}
-@msg	invalid PDF setting: {0}	Ã©rvÃ©nytelen PDF-beÃ¡llÃ­tÃ¡s: {0}
-@msg	invalid restored panel group	Ã©rvÃ©nytelen visszaÃ¡llÃ­tott panelcsoport
-@msg	is not an image VectorCraft reads	nem olyan kÃ©p, amelyet a VectorCraft olvas
-@msg	it ends inside a layer	egy rÃ©tegen belÃ¼l Ã©r vÃ©get
-@msg	it has art outside its layers	a rÃ©tegein kÃ­vÃ¼l is van grafikÃ¡ja
-@msg	it has more than one artboard	egynÃ©l tÃ¶bb rajztÃ¡blÃ¡ja van
-@msg	it has more than {MAX_NODES} objects	tÃºl sok objektumot tartalmaz (legfeljebb {MAX_NODES})
-@msg	it has no layers	nincsenek rÃ©tegei
+@msg	a PostScript error ({name} in `{op}`; {meaning})	PostScript-hiba ({name}, itt: `{op}`; {meaning})
 @msg	it has no page	nincs oldala
 @msg	it has too many text objects	tÃºl sok szÃ¶vegobjektumot tartalmaz
 @msg	it has too many values in a row	tÃºl sok Ã©rtÃ©k Ã¡ll benne egymÃ¡s utÃ¡n
@@ -4604,36 +3613,14 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	no artboard {i} (0-based; the document has {count})	nincs ilyen sorszÃ¡mÃº rajztÃ¡bla: {i} (0-tÃ³l szÃ¡mozva; a dokumentumban ennyi van: {count})
 @msg	no artboards named	nincs megnevezett rajztÃ¡bla
 @msg	no artwork	nincs grafika
-@msg	no blend options	nincsenek Ã¶sszemosÃ¡si beÃ¡llÃ­tÃ¡sok
-@msg	no bounds	nincsenek hatÃ¡rok
-@msg	no brush named `{name}`	nincs ilyen nevÅ± ecset: `{name}`
-@msg	no brush selected	nincs kijelÃ¶lt ecset
-@msg	no catalog	nincs katalÃ³gus
-@msg	no changes since the last save	a legutÃ³bbi mentÃ©s Ã³ta nincs mÃ³dosÃ­tÃ¡s
-@msg	no clock to keep a heartbeat by	nincs Ã³ra az Ã©letjel idÅ‘zÃ­tÃ©sÃ©hez
-@msg	no colour group `{g}`	nincs ilyen szÃ­ncsoport: `{g}`
-@msg	no cross-reference table	nincs kereszthivatkozÃ¡si tÃ¡bla
-@msg	no CSS to copy: select objects with CSS of their own	nincs mÃ¡solhatÃ³ CSS: sajÃ¡t CSS-sel rendelkezÅ‘ objektumokat jelÃ¶lj ki
-@msg	no current layer	nincs aktuÃ¡lis rÃ©teg
+@msg	no blend options	nincsenek összemosási beállítások
 @msg	no data	nincs adat
 @msg	no dialog open	nincs nyitott pÃ¡rbeszÃ©dablak
 @msg	no document	nincs dokumentum
 @msg	no document open	nincs megnyitott dokumentum
 @msg	no effect applied yet	mÃ©g nincs alkalmazott effektus
 @msg	no effect at index {k}	ezen az indexen nincs effektus: {k}
-@msg	no end record	nincs zÃ¡rÃ³ rekord
-@msg	no file manager here	itt nincs fÃ¡jlkezelÅ‘
-@msg	no file reader	nincs fÃ¡jlolvasÃ³
-@msg	no file system here	itt nincs fÃ¡jlrendszer
-@msg	no file writer	nincs fÃ¡jlÃ­rÃ³
-@msg	no files to place	nincs elhelyezendÅ‘ fÃ¡jl
-@msg	No fonts are missing in this document	EbbÅ‘l a dokumentumbÃ³l nem hiÃ¡nyzik betÅ±tÃ­pus
-@msg	no format to export to	nincs exportÃ¡lÃ¡si formÃ¡tum
-@msg	no free recovery area	nincs szabad helyreÃ¡llÃ­tÃ¡si terÃ¼let
-@msg	no gradient stop or freeform point is selected	nincs kijelÃ¶lt szÃ­nÃ¡tmenet-pont vagy szabad formÃ¡jÃº pont
-@msg	no graphic style `{name}`	nincs ilyen grafikai stÃ­lus: `{name}`
-@msg	no graphic style `{n}`	nincs ilyen grafikai stÃ­lus: `{n}`
-@msg	no interaction in progress	nincs folyamatban lÃ©vÅ‘ mÅ±velet
+@msg	no end record	nincs záró rekord
 @msg	no key object	nincs kulcsobjektum
 @msg	no library `{id}`	nincs ilyen kÃ¶nyvtÃ¡r: `{id}`
 @msg	no library `{key}` (see {list})	nincs ilyen kÃ¶nyvtÃ¡r: `{key}` (lÃ¡sd: {list})
@@ -4668,7 +3655,7 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	no slice selected	nincs kijelÃ¶lt szelet
 @msg	no such action	nincs ilyen mÅ±velet
 @msg	no such anchor	nincs ilyen horgonypont
-@msg	no such artboard	nincs ilyen rajztÃ¡bla
+@msg	no such artboard	nincs ilyen rajztábla
 @msg	no such document	nincs ilyen dokumentum
 @msg	no such layer or object	nincs ilyen rÃ©teg vagy objektum
 @msg	no such object {0}	nincs ilyen objektum: {0}
@@ -4731,34 +3718,7 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	onto must name a panel floating in another group	az onto egy mÃ¡sik csoportban lebegÅ‘ panelt kell megnevezzen
 @msg	Opened with {_1} note(s): {_2}	Megnyitva; megjegyzÃ©sek: {_1}: {_2}
 @msg	Opened {url}	Megnyitva: {url}
-@msg	Outline Stroke: no stroked paths selected	KÃ¶rvonal ÃºtvonallÃ¡ alakÃ­tÃ¡sa: nincs kijelÃ¶lt kÃ¶rvonalas Ãºtvonal
-@msg	Packaged {n} file(s) in {folder}{note}	Becsomagolt fÃ¡jlok: {n}, mappa: {folder}{note}
-@msg	Packaged {n} file(s){note}	Becsomagolt fÃ¡jlok: {n}{note}
-@msg	page size {w} Ã— {h}	oldalmÃ©ret: {w} Ã— {h}
-@msg	page {0} does not exist (the PDF has {1})	nincs ilyen oldal: {0} (a PDF oldalszÃ¡ma: {1})
-@msg	thumbnail: no page {n} (the file has 1)	thumbnail: nincs ilyen oldal: {n} (a fÃ¡jl oldalszÃ¡ma: 1)
-@msg	panel group is empty	a panelcsoport Ã¼res
-@msg	panel must name a registered panel	a panel egy regisztrÃ¡lt panelt kell megnevezzen
-@msg	paste unavailable	a beillesztÃ©s nem Ã©rhetÅ‘ el
-@msg	path is already closed	az Ãºtvonal mÃ¡r zÃ¡rt
-@msg	paths contain invalid coordinates	az Ãºtvonalakban Ã©rvÃ©nytelen koordinÃ¡tÃ¡k vannak
-@msg	paths: give at least one file	paths: legalÃ¡bb egy fÃ¡jlt adj meg
-@msg	pattern missing	hiÃ¡nyzik a mintÃ¡zat
-@msg	patterns nested too deeply are filled with mid-grey	a tÃºl mÃ©lyen egymÃ¡sba Ã¡gyazott mintÃ¡zatok helyÃ©n kÃ¶zÃ©pszÃ¼rke kitÃ¶ltÃ©s Ã¡ll
-@msg	PDF settings are not an object	a PDF-beÃ¡llÃ­tÃ¡sok nem objektumot alkotnak
-@msg	PDF writer error: {0}	PDF-Ã­rÃ³ hiba: {0}
-@msg	percent must be above 0 and at most 6400, not {p}	a percent Ã©rtÃ©ke 0-nÃ¡l nagyobb Ã©s legfeljebb 6400 lehet, ez nem az: {p}
-@msg	pick a colour, gradient or pattern to save as a swatch	vÃ¡lassz szÃ­nt, szÃ­nÃ¡tmenetet vagy mintÃ¡zatot a szÃ­nmintakÃ©nt mentÃ©shez
-@msg	plane must be left, right or ground	a plane Ã©rtÃ©ke left, right vagy ground lehet
-@msg	plug-in ABI: {0}	bÅ‘vÃ­tmÃ©ny-ABI: {0}
-@msg	plug-in exceeded its {0}	a bÅ‘vÃ­tmÃ©ny tÃºllÃ©pte a korlÃ¡tjÃ¡t: {0}
-@msg	plug-in failed: {0}	a bÅ‘vÃ­tmÃ©ny hibÃ¡t jelzett: {0}
-@msg	plug-in manifest: {0}	bÅ‘vÃ­tmÃ©nyleÃ­rÃ³: {0}
-@msg	plug-in output: {0}	bÅ‘vÃ­tmÃ©ny kimenete: {0}
-@msg	plug-in parameters: {0}	bÅ‘vÃ­tmÃ©ny paramÃ©terei: {0}
-@msg	plug-in trapped: {0}	a bÅ‘vÃ­tmÃ©ny futÃ¡sa megszakadt: {0}
-@msg	Preview in Browser needs the desktop app (the web downloads files instead)	Az ElÅ‘nÃ©zet bÃ¶ngÃ©szÅ‘ben az asztali alkalmazÃ¡sban Ã©rhetÅ‘ el (a webes vÃ¡ltozat helyette letÃ¶lti a fÃ¡jlokat)
-@msg	print settings are not an object	a nyomtatÃ¡si beÃ¡llÃ­tÃ¡sok nem objektumot alkotnak
+@msg	Outline Stroke: no stroked paths selected	Körvonal útvonallá alakítása: nincs kijelölt körvonalas útvonal
 @msg	printing isn't available here	itt nem lehet nyomtatni
 @msg	range `{s}` is empty	a tartomÃ¡ny Ã¼res: `{s}`
 @msg	range `{s}`: `{part}` names no number	`{s}` tartomÃ¡ny: ez a rÃ©sz nem szÃ¡mot ad meg: `{part}`
@@ -4787,76 +3747,7 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	Saved to User Defined: {_1}	Mentve a felhasznÃ¡lÃ³iak kÃ¶zÃ©: {_1}
 @msg	Saved {n} files beside {path}	Mentett fÃ¡jlok: {n}, a kÃ¶vetkezÅ‘ mellett: {path}
 @msg	Saved {path}	Mentve: {path}
-@msg	Saved {path} with {_1} note(s): {first}	Mentve: {path}; megjegyzÃ©sek: {_1}, az elsÅ‘: {first}
-@msg	Saving	MentÃ©s
-@msg	Saving recovery data for {_1}	HelyreÃ¡llÃ­tÃ¡si adatok mentÃ©se: {_1}
-@msg	Saving {_1}	MentÃ©s: {_1}
-@msg	scale must be a number from {_1} to {_2}, not {_3}	a mÃ©retarÃ¡ny {_1} Ã©s {_2} kÃ¶zÃ¶tti szÃ¡m lehet, ez nem az: {_3}
-@msg	scale must be a number from {_1} to {_2}, not {s}	a mÃ©retarÃ¡ny {_1} Ã©s {_2} kÃ¶zÃ¶tti szÃ¡m lehet, ez nem az: {s}
-@msg	searching a folder isn't available on the web	a webes vÃ¡ltozatban nem lehet mappÃ¡ban keresni
-@msg	select (or target) objects whose appearance isn't basic	jelÃ¶lj ki (vagy cÃ©lozz meg) olyan objektumokat, amelyeknek nem alapmegjelenÃ©sÃ¼k van
-@msg	select a blend	jelÃ¶lj ki egy Ã¶sszemosÃ¡st
-@msg	select a blend or give `id`	jelÃ¶lj ki egy Ã¶sszemosÃ¡st, vagy add meg az `id` Ã©rtÃ©kÃ©t
-@msg	select a clip group	jelÃ¶lj ki egy vÃ¡gÃ³csoportot
-@msg	select a gradient mesh	jelÃ¶lj ki egy szÃ­nÃ¡tmenetes hÃ¡lÃ³t
-@msg	select a linked image: an embedded one has no file	jelÃ¶lj ki egy csatolt kÃ©pet: a beÃ¡gyazottnak nincs fÃ¡jlja
-@msg	select a Live Paint group	jelÃ¶lj ki egy Ã©lÅ‘festÃ©s-csoportot
-@msg	select a repeat	jelÃ¶lj ki egy ismÃ©tlÃ©st
-@msg	select an Intertwine group	jelÃ¶lj ki egy Ã¶sszefonÃ¡si csoportot
-@msg	select an Objects on Path group	jelÃ¶lj ki egy Objektumok Ãºtvonalon csoportot
-@msg	select a stroke with a variable width	jelÃ¶lj ki egy vÃ¡ltozÃ³ szÃ©lessÃ©gÅ± kÃ¶rvonalat
-@msg	select a symbol instance	jelÃ¶lj ki egy szimbÃ³lumpÃ©ldÃ¡nyt
-@msg	select an envelope	jelÃ¶lj ki egy burkolÃ³t
-@msg	select an image	jelÃ¶lj ki egy kÃ©pet
-@msg	select an Image Trace object	jelÃ¶lj ki egy kÃ©pvektorizÃ¡lÃ¡si objektumot
-@msg	select an object in perspective	jelÃ¶lj ki egy perspektivikus objektumot
-@msg	select artwork (or a colour group) to recolor	jelÃ¶lj ki Ã¡tszÃ­nezendÅ‘ grafikÃ¡t (vagy szÃ­ncsoportot)
-@msg	select at least two objects	jelÃ¶lj ki legalÃ¡bb kÃ©t objektumot
-@msg	select objects, not layers	objektumokat jelÃ¶lj ki, rÃ©tegeket ne
-@msg	select one path, or give its `id`	jelÃ¶lj ki egy Ãºtvonalat, vagy add meg az `id` Ã©rtÃ©kÃ©t
-@msg	select paths or anchor points	jelÃ¶lj ki Ãºtvonalakat vagy horgonypontokat
-@msg	select paths to join	jelÃ¶ld ki az Ã¶sszekapcsolandÃ³ Ãºtvonalakat
-@msg	select some type first	elÅ‘bb jelÃ¶lj ki szÃ¶veget
-@msg	Select text or click into text with the Type tool to insert glyphs	GlifÃ¡k beszÃºrÃ¡sÃ¡hoz jelÃ¶lj ki szÃ¶veget, vagy kattints bele egy szÃ¶vegbe a SzÃ¶veg eszkÃ¶zzel
-@msg	select the art to repeat	jelÃ¶ld ki az ismÃ©tlendÅ‘ grafikÃ¡t
-@msg	select the artwork to warp	jelÃ¶ld ki a torzÃ­tandÃ³ grafikÃ¡t
-@msg	select the objects to transform in perspective	jelÃ¶ld ki a perspektÃ­vÃ¡ban Ã¡talakÃ­tandÃ³ objektumokat
-@msg	select two or more graphic styles to merge	az egyesÃ­tÃ©shez jelÃ¶lj ki legalÃ¡bb kÃ©t grafikai stÃ­lust
-@msg	select two or more objects to distribute	az elosztÃ¡shoz jelÃ¶lj ki legalÃ¡bb kÃ©t objektumot
-@msg	select type in perspective	jelÃ¶lj ki perspektivikus szÃ¶veget
-@msg	selection has no bounds	a kijelÃ¶lÃ©snek nincsenek hatÃ¡rai
-@msg	Sent to {_1}	ElkÃ¼ldve ide: {_1}
-@msg	shadings of an unknown type were left out	kimaradtak az ismeretlen tÃ­pusÃº Ã¡rnyalÃ¡sok
-@msg	shadings of more than 4096 patches or triangles were left out	kimaradtak a 4096-nÃ¡l tÃ¶bb foltbÃ³l vagy hÃ¡romszÃ¶gbÅ‘l Ã¡llÃ³ Ã¡rnyalÃ¡sok
-@msg	shadings whose functions are of an unknown type are filled with their middle colour	az ismeretlen tÃ­pusÃº fÃ¼ggvÃ©nyt hasznÃ¡lÃ³ Ã¡rnyalÃ¡sok a kÃ¶zÃ©psÅ‘ szÃ­nÃ¼kkel kitÃ¶ltve jelennek meg
-@msg	Shape Builder: no region under the pointer	AlakzatÃ©pÃ­tÅ‘: a mutatÃ³ alatt nincs terÃ¼let
-@msg	Shape Builder: select paths or compound paths	AlakzatÃ©pÃ­tÅ‘: jelÃ¶lj ki Ãºtvonalakat vagy Ã¶sszetett Ãºtvonalakat
-@msg	shortcut for `{k}` must be a string	`{k}` billentyÅ±parancsa csak szÃ¶veg lehet
-@msg	Show All Hidden Attributes: nothing is hidden	Ã–sszes rejtett attribÃºtum megjelenÃ­tÃ©se: nincs rejtett elem
-@msg	Split Into Grid: select paths large enough for the grid	FelosztÃ¡s rÃ¡csra: a rÃ¡cshoz elÃ©g nagy Ãºtvonalakat jelÃ¶lj ki
-@msg	stop {i} needs `offset`	a szÃ­nÃ¡tmenet-pontnak kell `offset`: {i}
-@msg	stop {i} needs a valid `color`	a szÃ­nÃ¡tmenet-pontnak Ã©rvÃ©nyes `color` kell: {i}
-@msg	stop {i}: `{k}` must be a number	{i}. szÃ­nÃ¡tmenet-pont: `{k}` csak szÃ¡m lehet
-@msg	t, dx and dy must be finite	t, dx Ã©s dy: vÃ©ges szÃ¡m kell
-@msg	SVG parse error: {0}	SVG-elemzÃ©si hiba: {0}
-@msg	Targa files are RGB: colorModel rgb	a Targa-fÃ¡jlok RGB-k: colorModel rgb
-@msg	Text Wrap: select a wrap object	SzÃ¶veg kÃ¶rbefuttatÃ¡sa: jelÃ¶lj ki egy kÃ¶rbefuttatÃ³ objektumot
-@msg	that document is no longer open	az a dokumentum mÃ¡r nincs megnyitva
-@msg	the art could not be sampled	a grafikÃ¡bÃ³l nem sikerÃ¼lt mintÃ¡t venni
-@msg	the art has no bounds	a grafikÃ¡nak nincsenek hatÃ¡rai
-@msg	the art is too light for any dots	a grafika tÃºl vilÃ¡gos, egyetlen raszterpont sem keletkezik
-@msg	the art on them differs from the page's in {_1}% of it	a rajtuk lÃ©vÅ‘ grafika az oldalÃ©tÃ³l ennyiben tÃ©r el: {_1}%
-@msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	a rajtuk lÃ©vÅ‘ grafika az oldalÃ©tÃ³l ennyiben tÃ©r el: {_1}%; ennek ellenÃ©re a szerkesztÃ©si adataibÃ³l szÃ¡rmaznak
-@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	a fÃ¡jl rÃ©tegei nem olvashatÃ³k ({_1}): az oldalakÃ©nt, egyetlen rÃ©tegben nyÃ­lik meg
-@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	a fÃ¡jl rÃ©tegei nem olvashatÃ³k a szerkesztÃ©si adataibÃ³l ({_1}): a PDF-rÃ©szÃ©bÅ‘l szÃ¡rmaznak
-@msg	the artboard to fit must be a positive size up to {_1} pt	az illesztendÅ‘ rajztÃ¡bla mÃ©rete pozitÃ­v, legfeljebb {_1} pt lehet
-@msg	the background worker stopped	a hÃ¡ttÃ©rfolyamat leÃ¡llt
-@msg	the blend has no spine	az Ã¶sszemosÃ¡snak nincs gerince
-@msg	the compressed file unpacks to more than {_1} MB	a tÃ¶mÃ¶rÃ­tett fÃ¡jl kicsomagolva nagyobb lenne, mint {_1} MB
-@msg	the document has never been saved	a dokumentumot mÃ©g nem mentettÃ©k
-@msg	the document has no artboard	a dokumentumban nincs rajztÃ¡bla
-@msg	the document has no artboards	a dokumentumban nincs rajztÃ¡bla
-@msg	the document has no patterns	a dokumentumban nincs mintÃ¡zat
+@msg	Saved {path} with {_1} note(s): {first}	Mentve: {path}; megjegyzések: {_1}, az első: {first}
 @msg	the document has no slices	a dokumentumban nincs szelet
 @msg	the document has no symbols	a dokumentumban nincs szimbÃ³lum
 @msg	the drawing has no layout `{_1}` (it has {_2})	a rajzban nincs ilyen elrendezÃ©s: `{_1}` (ezek vannak: {_2})
@@ -4950,17 +3841,7 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	unknown preset `{name}` (see flattener.presets.list)	ismeretlen elÅ‘beÃ¡llÃ­tÃ¡s: `{name}` (lÃ¡sd: flattener.presets.list)
 @msg	unknown preset `{name}` (see webExport.presets.list)	ismeretlen elÅ‘beÃ¡llÃ­tÃ¡s: `{name}` (lÃ¡sd: webExport.presets.list)
 @msg	unknown side `{other}` (left|right|top|bottom)	ismeretlen oldal: `{other}` (left|right|top|bottom)
-@msg	unknown tool `{tool}`	ismeretlen eszkÃ¶z: `{tool}`
-@msg	unknown tool `{t}`	ismeretlen eszkÃ¶z: `{t}`
-@msg	unknown tool or command `{key}`	ismeretlen eszkÃ¶z vagy parancs: `{key}`
-@msg	unknown workspace (one of {_1})	ismeretlen munkaterÃ¼let (ezek egyike lehet: {_1})
-@msg	unsupported native docking operation	nem tÃ¡mogatott natÃ­v dokkolÃ¡si mÅ±velet
-@msg	unsupported: {0}	nem tÃ¡mogatott: {0}
-@msg	Updated {_1} image(s)	FrissÃ­tett kÃ©pek: {_1}
-@msg	Updated {_1} linked file(s) changed on disk	FrissÃ­tett, a lemezen mÃ³dosult csatolt fÃ¡jlok: {_1}
-@msg	variables are locked	a vÃ¡ltozÃ³k zÃ¡rolva vannak
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	a VectorCraft nem keres mÃ¡s alkalmazÃ¡sok Ã©s a rendszer mappÃ¡iban: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	a VectorCraft nem keres a Users alatti Shared Ã©s Public mappÃ¡ban: {path}
+@msg	unknown tool `{tool}`	ismeretlen eszköz: `{tool}`
 @msg	VectorCraft failed to start: {e}	A VectorCraft nem tudott elindulni: {e}
 @msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	a VectorCraft Fonts mappÃ¡ja itt nincs beÃ¡llÃ­tva: az asztali alkalmazÃ¡s Ã©s a vectorcraft-cli Ã¡llÃ­tja be
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	ilyen verziÃ³jÃº fÃ¡jl nem tÃ¶mÃ¶rÃ­thetÅ‘: {0}; tÃ¶mÃ¶rÃ­tett fÃ¡jlt csak ez a verziÃ³ Ã©s az Ãºjabbak nyitnak meg: {COMPRESSED_SINCE}
@@ -4974,19 +3855,7 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	zone must be a string	a zone Ã©rtÃ©ke szÃ¶veg lehet
 @msg	zone must be tab, center, left, right, top or bottom	a zone Ã©rtÃ©ke tab, center, left, right, top vagy bottom lehet
 @msg	{_1} failed: {e}	sikertelen: {_1}: {e}
-@msg	{_1} files	{_1} fÃ¡jlok
-@msg	{_1} files can be opened but not written (see document.formats)	ezek a fÃ¡jlok megnyithatÃ³k, de nem Ã­rhatÃ³k: {_1} (lÃ¡sd: document.formats)
-@msg	{_1} files are written by file.saveAsTemplate	ezeket a fÃ¡jlokat a file.saveAsTemplate Ã­rja: {_1}
-@msg	{_1} font families available	ElÃ©rhetÅ‘ betÅ±csalÃ¡dok: {_1}
-@msg	{_1} has no {_2} style	ennek nincs ilyen stÃ­lusa: {_1} ({_2})
-@msg	{_1} is a live effect (Effect â€º Plug-ins)	Ã©lÅ‘ effektus: {_1} (Effektus â€º BÅ‘vÃ­tmÃ©nyek)
-@msg	{_1} is an exporter (File â€º Export â€º Export Asâ€¦)	exportÃ¡lÃ³ bÅ‘vÃ­tmÃ©ny: {_1} (FÃ¡jl â€º ExportÃ¡lÃ¡s â€º ExportÃ¡lÃ¡s mÃ¡skÃ©ntâ€¦)
-@msg	{_1} is already used by {_2}	mÃ¡r foglalt: {_1} (hasznÃ¡lja: {_2})
-@msg	{_1} linked file(s) can't be read here: their previews show	Itt nem olvashatÃ³ csatolt fÃ¡jlok: {_1}; az elÅ‘nÃ©zetÃ¼k lÃ¡tszik
-@msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	A lemezen mÃ³dosult csatolt kÃ©pek: {_1}; a CsatolÃ¡sok frissÃ­tÃ©se az Ãºj vÃ¡ltozatokat mutatja
-@msg	{_1}: not saved, so not closed	{_1}: nincs mentve, ezÃ©rt nem zÃ¡rÃ³dott be
-@msg	{bpp}-bit bitmaps can't be read	ilyen bitmÃ©lysÃ©gÅ± bitkÃ©p nem olvashatÃ³: {bpp}
-@msg	{command} didn't create an object	a parancs nem hozott lÃ©tre objektumot: {command}
+@msg	{_1} files	{_1} fájlok
 @msg	{C}: no effect at index {from}	{C}: ezen az indexen nincs effektus: {from}
 @msg	{depth}-bit PSD files in this colour mode can't be read	ebben a szÃ­nmÃ³dban a PSD-fÃ¡jlok nem olvashatÃ³k ezzel a bitmÃ©lysÃ©ggel: {depth}
 @msg	{key} must be a finite coordinate	{key}: vÃ©ges koordinÃ¡ta kell
@@ -5079,98 +3948,20 @@ imageTrace	Outline	KÃ¶rvonal
 @msg	invalid stroke widths	Ã©rvÃ©nytelen kÃ¶rvonalszÃ©lessÃ©gek
 @msg	object has no weighted stroke	az objektumnak nincs Ã©rvÃ©nyes pozitÃ­v vastagsÃ¡gÃº kÃ¶rvonala
 # Corner Radius: a field per corner of a live rectangle.
-	Single Corner Radius	EgysÃ©ges sarokkerekÃ­tÃ©s
-	Top Left:	Bal felsÅ‘:
-	Top Right:	Jobb felsÅ‘:
-	Bottom Left:	Bal alsÃ³:
-	Bottom Right:	Jobb alsÃ³:
-	Softness	LÃ¡gysÃ¡g
-	Ambient Light	KÃ¶rnyezeti fÃ©ny
-	Light behind the object	FÃ©ny az objektum mÃ¶gÃ¶tt
+	Single Corner Radius	Egységes sarokkerekítés
 # 3D light management.
-	Lights	FÃ©nyek
-	Add Light	FÃ©ny hozzÃ¡adÃ¡sa
-	Delete Light	FÃ©ny tÃ¶rlÃ©se
-3d	Light	FÃ©ny
-	Registration:	RegisztrÃ¡ciÃ³:
-# Dimension tool and Object â€º Dimensions (dimension groups, their dialog and messages).
-	Dimension	MÃ©ret
-	Drawing : real size â€” 1:10 labels 1 unit on the page as 10.	Rajz : valÃ³s mÃ©ret â€” 1:10 esetÃ©n az oldalon 1 egysÃ©g 10-kÃ©nt jelenik meg.
-	Preview (1 inch on the page)	ElÅ‘nÃ©zet (1 hÃ¼velyk az oldalon)
-	Set as Default	BeÃ¡llÃ­tÃ¡s alapÃ©rtelmezettkÃ©nt
-	 out from a highlighted edge to place its dimension  |  	 egy kiemelt Ã©lrÅ‘l kifelÃ© a mÃ©ret elhelyezÃ©sÃ©hez  |  
-	 cancels  |  Double-click the tool for options	 megszakÃ­tja  |  Dupla kattintÃ¡s az eszkÃ¶zre a beÃ¡llÃ­tÃ¡sokhoz
-	Angular	SzÃ¶g
-	Away from the Line	A vonaltÃ³l tÃ¡vol
-	Between Line and Object	A vonal Ã©s az objektum kÃ¶zÃ¶tt
-	Drag out from a segment, or click two points, then click to place.	HÃºzzon kifelÃ© egy szakaszrÃ³l, vagy kattintson kÃ©t pontra, majd kattintson az elhelyezÃ©shez.
-	Drag out from a corner, or click two straight lines, then click to place.	HÃºzzon kifelÃ© egy sarokrÃ³l, vagy kattintson kÃ©t egyenes vonalra, majd kattintson az elhelyezÃ©shez.
-	Drag out from a circle or arc for its radius, inwards for its diameter.	HÃºzzon egy kÃ¶rrÅ‘l vagy Ã­vrÅ‘l kifelÃ© a sugÃ¡rhoz, befelÃ© az Ã¡tmÃ©rÅ‘hÃ¶z.
-@msg	Choose a circle or a perfect arc	VÃ¡lasszon egy kÃ¶rt vagy egy tÃ¶kÃ©letes Ã­vet
-@msg	Choose a precision from 0 to 6	VÃ¡lasszon 0 Ã©s 6 kÃ¶zÃ¶tti pontossÃ¡got
-	Create Dimension	MÃ©retvonal lÃ©trehozÃ¡sa
-	Dimension Tool	MÃ©retezÃ©s eszkÃ¶z
-	Dimension Tool Options	MÃ©retezÃ©s eszkÃ¶z beÃ¡llÃ­tÃ¡sai
-	Display	MegjelenÃ­tÃ©s
-	Font Family:	BetÅ±csalÃ¡d:
-	Font Style:	BetÅ±stÃ­lus:
-	Precision:	PontossÃ¡g:
-	Update Dimensions	MÃ©retek frissÃ­tÃ©se
-@msg	Angles require two straight segments	A szÃ¶ghÃ¶z kÃ©t egyenes szakasz kell
-@msg	Choose two different points	VÃ¡lassz kÃ©t kÃ¼lÃ¶nbÃ¶zÅ‘ pontot
-@msg	Choose two non-parallel straight segments	VÃ¡lassz kÃ©t nem pÃ¡rhuzamos egyenes szakaszt
-@msg	Choose two nonzero angle arms	VÃ¡lassz kÃ©t nem nulla hosszÃºsÃ¡gÃº szÃ¶gszÃ¡rat
-@msg	Dimension point is outside the canvas	A mÃ©retvonal pontja a vÃ¡sznon kÃ­vÃ¼l esik
-@msg	Dimension size is outside its supported range	A mÃ©ret a tÃ¡mogatott tartomÃ¡nyon kÃ­vÃ¼l esik
-@msg	First measured segment no longer exists	Az elsÅ‘ mÃ©rt szakasz mÃ¡r nem lÃ©tezik
-@msg	Invalid dimension distance	Ã‰rvÃ©nytelen mÃ©retezÃ©si tÃ¡volsÃ¡g
-@msg	Invalid dimension font name	Ã‰rvÃ©nytelen mÃ©retezÃ©si betÅ±tÃ­pusnÃ©v
-@msg	Invalid drawing scale	Ã‰rvÃ©nytelen rajzlÃ©ptÃ©k
-@msg	Invalid real scale	Ã‰rvÃ©nytelen valÃ³s lÃ©ptÃ©k
-@msg	Measured anchor no longer exists	A mÃ©rt horgonypont mÃ¡r nem lÃ©tezik
-@msg	Measured segment no longer exists	A mÃ©rt szakasz mÃ¡r nem lÃ©tezik
-@msg	Non-finite dimension	Nem vÃ©ges mÃ©ret
-@msg	Scale must be drawing:real, for example 1:10	A lÃ©ptÃ©knek rajz:valÃ³s alakÃºnak kell lennie, pÃ©ldÃ¡ul 1:10
-@msg	Scale ratio must be between 1:1000000 and 1000000:1	A lÃ©ptÃ©k arÃ¡nya 1:1000000 Ã©s 1000000:1 kÃ¶zÃ¶tt lehet
-@msg	Second measured segment no longer exists	A mÃ¡sodik mÃ©rt szakasz mÃ¡r nem lÃ©tezik
-@msg	Unknown dimension mode	Ismeretlen mÃ©retezÃ©si mÃ³d
-@msg	Unknown dimension option {k}	Ismeretlen mÃ©retezÃ©si beÃ¡llÃ­tÃ¡s: {k}
-@msg	Unknown dimension style	Ismeretlen mÃ©retezÃ©si stÃ­lus
-@msg	Unknown unit	Ismeretlen mÃ©rtÃ©kegysÃ©g
+3d	Light	Fény
+# Dimension tool and Object › Dimensions (dimension groups, their dialog and messages).
+@msg	Choose a circle or a perfect arc	Válasszon egy kört vagy egy tökéletes ívet
 # Revolve cap description
-	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Nyitott profilok kÃ¶r alakÃº vÃ©geinek lezÃ¡rÃ¡sa. RÃ©szleges kÃ¶rforgatÃ¡s esetÃ©n a vÃ¡gott oldalak nyitva maradnak.
-	Distance	TÃ¡volsÃ¡g
-@msg	span must be "object" or "selection", got {v}	a span Ã©rtÃ©ke "object" vagy "selection" lehet, nem {v}
-@msg	span: "selection" places a `gradient`, not a swatch	span: "selection" egy `gradient` Ã©rtÃ©ket helyez el, nem szÃ­nmintÃ¡t
-@msg	span: "selection" places a gradient: give `gradient`	span: "selection" szÃ­nÃ¡tmenetet helyez el: adja meg a `gradient` Ã©rtÃ©ket
-@msg	span: "selection" places a linear or radial gradient, not a freeform one	span: "selection" lineÃ¡ris vagy sugaras szÃ­nÃ¡tmenetet helyez el, nem szabad formÃ¡jÃºt
-@msg	span: "selection" places the gradient itself: leave out `start` and `end` (they already place it in document coordinates)	span: "selection" magÃ¡t a szÃ­nÃ¡tmenetet helyezi el: hagyja el a `start` Ã©s `end` Ã©rtÃ©ket (ezek mÃ¡r a dokumentum koordinÃ¡tÃ¡iban helyezik el)
-	Make Image Dynamic	KÃ©p dinamikussÃ¡ tÃ©tele
-	Import Data Setsâ€¦	AdatkÃ©szletek importÃ¡lÃ¡saâ€¦
-	Export Data Setsâ€¦	AdatkÃ©szletek exportÃ¡lÃ¡saâ€¦
-	Make Graph Dynamic	Diagram dinamikussÃ¡ tÃ©tele
-	Batchâ€¦	KÃ¶tegelt feldolgozÃ¡sâ€¦
-	Source Folder:	ForrÃ¡smappa:
-	Destination Folder:	CÃ©lmappa:
-	Overrides	FelÃ¼lbÃ­rÃ¡lÃ¡sok
-	Uses every data set of the open document.	A megnyitott dokumentum minden adatkÃ©szletÃ©t hasznÃ¡lja.
-@msg	Batch: {count} processed	KÃ¶tegelt feldolgozÃ¡s: {count} feldolgozva
-@msg	Batch: {count} processed, {failed} failed	KÃ¶tegelt feldolgozÃ¡s: {count} feldolgozva, {failed} sikertelen
-@msg	choose a destination folder	vÃ¡lasszon cÃ©lmappÃ¡t
-@msg	choose a source folder	vÃ¡lasszon forrÃ¡smappÃ¡t
-@msg	open a document with data sets	nyisson meg egy adatkÃ©szleteket tartalmazÃ³ dokumentumot
-@msg	nothing in data set {name} was applied: no object is bound to a variable it has a value for	ebbÅ‘l az adatkÃ©szletbÅ‘l semmi sem lett alkalmazva: {name}; egyetlen objektum sincs olyan vÃ¡ltozÃ³hoz kÃ¶tve, amelynek Ã©rtÃ©ke van benne
-@msg	the action has no steps	a mÅ±veletnek nincsenek lÃ©pÃ©sei
+# Dimension tool and Object â€º Dimensions (dimension groups, their dialog and messages).
 
 # User Interface â€º Accent Color
 	Accent Color	KiemelÅ‘szÃ­n
 	Amber	BorostyÃ¡n
 	Coral	Korall
 	Violet	Ibolya
-	Sketch	VÃ¡zlat
-	Halftone Patternâ€¦	FÃ©ltÃ³nus mintaâ€¦
-	Halftone Pattern	FÃ©ltÃ³nus minta
-	Pattern Type	MintatÃ­pus
+	Sketch	Vázlat
 	Dot	Pont
 # User Interface â€º Color Scheme
 	Color Scheme	SzÃ­nsÃ©ma
@@ -5187,58 +3978,12 @@ imageTrace	Outline	KÃ¶rvonal
 	Sponge	Szivacs
 	Watercolorâ€¦	Akvarellâ€¦
 	Watercolor	Akvarell
-	Brush Size	EcsetmÃ©ret
-	Definition	KidolgozottsÃ¡g
-	Brush Detail	EcsetrÃ©szletessÃ©g
-	Shadow Intensity	ÃrnyÃ©k intenzitÃ¡sa
-	Bas Reliefâ€¦	DombormÅ±â€¦
-	Bas Relief	DombormÅ±
-	Charcoalâ€¦	SzÃ©nâ€¦
-	Charcoal	SzÃ©n
-	Photocopyâ€¦	FÃ©nymÃ¡solatâ€¦
-	Photocopy	FÃ©nymÃ¡solat
-	Stampâ€¦	BÃ©lyegzÅ‘â€¦
-	Stamp	BÃ©lyegzÅ‘
-	Thickness	VastagsÃ¡g
-	Detail	RÃ©szletessÃ©g
-	Light/Dark Balance	VilÃ¡gos/sÃ¶tÃ©t egyensÃºly
+	Brush Size	Ecsetméret
 # Links and Attributes: files and URLs handed to other apps.
-@msg	Edit Original opens image and document files only; â€œ{name}â€ is not one	az Eredeti szerkesztÃ©se csak kÃ©p- Ã©s dokumentumfÃ¡jlokat nyit meg; ez nem ilyen: â€ž{name}â€
-@msg	only http, https and mailto URLs open in the browser, not â€œ{url}â€	a bÃ¶ngÃ©szÅ‘ben csak a http-, https- Ã©s mailto-URL-ek nyÃ­lnak meg; ez nem ilyen: â€ž{url}â€
-@msg	{id} opens another app: only the person at the keyboard can run it	{id}: mÃ¡sik alkalmazÃ¡st nyit meg, ezÃ©rt csak a billentyÅ±zetnÃ©l Ã¼lÅ‘ felhasznÃ¡lÃ³ futtathatja
-@msg	â€œ{name}â€ is not a file	nem fÃ¡jl: â€ž{name}â€
-	Enable Guides for 9-Slice Scaling	SegÃ©dvonalak engedÃ©lyezÃ©se a 9-slice mÃ©retezÃ©shez
-@msg	a mask has more than one art block	egy maszk egynÃ©l tÃ¶bb grafikai blokkot tartalmaz
-@msg	mask art ends outside a mask dictionary	a maszk grafikÃ¡ja a maszk szÃ³tÃ¡rÃ¡n kÃ­vÃ¼l Ã©r vÃ©get
-@msg	cancelled; nothing was changed	megszakÃ­tva; semmi sem vÃ¡ltozott
-@msg	a linked image can't become a gradient mesh: embed it first	csatolt kÃ©p nem alakÃ­thatÃ³ szÃ­nÃ¡tmenetes hÃ¡lÃ³vÃ¡: elÅ‘bb Ã¡gyazza be
-@msg	the image has no usable size or position	a kÃ©pnek nincs hasznÃ¡lhatÃ³ mÃ©rete vagy helyzete
-@msg	the image's pixels can't be read	a kÃ©p kÃ©ppontjai nem olvashatÃ³k
-	Persistent	ÃllandÃ³
-	Library Panel Options	KÃ¶nyvtÃ¡rpanel beÃ¡llÃ­tÃ¡sai
-@msg	Persistent libraries not found: {files}	Nem talÃ¡lhatÃ³k Ã¡llandÃ³ kÃ¶nyvtÃ¡rak: {files}
-@msg	`{given}` isn't a library panel (see window.swatchLibrary)	A(z) `{given}` nem kÃ¶nyvtÃ¡rpanel (lÃ¡sd: window.swatchLibrary)
-@msg	library panel `{given}` isn't open	a(z) `{given}` kÃ¶nyvtÃ¡rpanel nincs megnyitva
-@msg	too many library panels were opened in this session	ebben a munkamenetben tÃºl sok kÃ¶nyvtÃ¡rpanel nyÃ­lt meg
-@msg	The image is {_1} Ã— {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A kÃ©p {_1} Ã— {_2} kÃ©ppont, egyik oldalÃ¡n tÃ¶bb mint {LARGE_TRACE_SIDE}: a vektorizÃ¡lÃ¡s megtÃ¶rtÃ©nik, de lassabban. Kisebb hÅ±sÃ©gÅ± elÅ‘beÃ¡llÃ­tÃ¡ssal vagy a kÃ©p kisebb mÃ¡solatÃ¡val gyorsabb.
-@msg	The image was traced at {_1} Ã— {_2} pixels, scaled down from {_3} Ã— {_4} ({_5} megapixels at most).	A kÃ©p vektorizÃ¡lÃ¡sa {_1} Ã— {_2} kÃ©pponton tÃ¶rtÃ©nt, {_3} Ã— {_4} mÃ©retrÅ‘l kicsinyÃ­tve (legfeljebb {_5} megapixel).
-	Artboard {n} of {total}	RajztÃ¡bla: {n} / {total}
-	Encoding and writing the fileâ€¦	A fÃ¡jl kÃ³dolÃ¡sa Ã©s Ã­rÃ¡saâ€¦
-@plural	{n} more export waiting|{n} more exports waiting	MÃ©g {n} exportÃ¡lÃ¡s vÃ¡rakozik
-	Continue in Background	FolytatÃ¡s a hÃ¡ttÃ©rben
-	Cancel Export	ExportÃ¡lÃ¡s megszakÃ­tÃ¡sa
-@msg	Export cancelled	Az exportÃ¡lÃ¡s megszakÃ­tva
+@msg	Edit Original opens image and document files only; “{name}” is not one	az Eredeti szerkesztése csak kép- és dokumentumfájlokat nyit meg; ez nem ilyen: „{name}”
+@plural	{n} more export waiting|{n} more exports waiting	Még {n} exportálás várakozik
+# Paragraph panel menu › Justification…
 # Paragraph panel menu â€º Justificationâ€¦
-	Desired	KÃ­vÃ¡nt
-	Word Spacing:	SzÃ³kÃ¶z:
-	Letter Spacing:	BetÅ±kÃ¶z:
-	Glyph Scaling:	KaraktermÃ©retezÃ©s:
-	Auto Leading:	Automatikus sorkÃ¶z:
-	Single Word Justification:	Egyetlen szÃ³ igazÃ­tÃ¡sa:
-	Full Justify	Teljes sorkizÃ¡rÃ¡s
-	Minimum must not exceed Desired, nor Desired Maximum.	A minimum nem haladhatja meg a kÃ­vÃ¡nt Ã©rtÃ©ket, sem a kÃ­vÃ¡nt Ã©rtÃ©k a maximumot.
-	Justification	SorkizÃ¡rÃ¡s
-@msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	a fÃ¡jl vÃ¡ltozÃ³i Ã©s adatkÃ©szletei nem lettek beolvasva (vÃ¡ltozÃ³k: {variables}, adatkÃ©szletek: {data_sets}): a VÃ¡ltozÃ³k panel nem listÃ¡zza Å‘ket
 # Select by Color (select.color)
 	Select by Color	KijelÃ¶lÃ©s szÃ­n szerint
 	Move Anchor Point	Horgonypont Ã¡thelyezÃ©se
@@ -5257,25 +4002,9 @@ imageTrace	Outline	KÃ¶rvonal
 	Move Library Group	KÃ¶nyvtÃ¡rcsoport Ã¡thelyezÃ©se
 	Plasterâ€¦	Gipszâ€¦
 	Plaster	Gipsz
-	Note Paperâ€¦	JegyzetpapÃ­râ€¦
-	Note Paper	JegyzetpapÃ­r
-
+	Note Paper…	Jegyzetpapír…
+axis	X Axis	X tengely
+@msg	Packaged {n} file(s) in {folder}	Becsomagolt fájlok: {n}, mappa: {folder}
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
 
 # CollabCraft cloud Open / Save / Share
-	Browse a Cloud Folder	FelhÅ‘mappa tallÃ³zÃ¡sa
-	Cloud Status	FelhÅ‘Ã¡llapot
-	Connect Cloud Storage	FelhÅ‘tÃ¡rhely csatlakoztatÃ¡sa
-	List Cloud Shares	FelhÅ‘megosztÃ¡sok listÃ¡zÃ¡sa
-	Open a Cloud Drawing	FelhÅ‘beli rajz megnyitÃ¡sa
-	Open from the Cloudâ€¦	MegnyitÃ¡s a felhÅ‘bÅ‘lâ€¦
-	Reload from the Cloud	ÃšjratÃ¶ltÃ©s a felhÅ‘bÅ‘l
-	Save to the Cloud	MentÃ©s a felhÅ‘be
-	Save to the Cloudâ€¦	MentÃ©s a felhÅ‘beâ€¦
-	A folder on this computer	Mappa ezen a szÃ¡mÃ­tÃ³gÃ©pen
-	Cloud	FelhÅ‘
-	This computer	Ez a szÃ¡mÃ­tÃ³gÃ©p
-	Where	Hova
-	Your cloud account	A felhÅ‘fiÃ³kja
-@msg	VectorCraft cannot open {_1}	A VectorCraft nem tudja megnyitni: {_1}
-@msg	no drawing open	nincs megnyitott rajz
-@msg	no such file in the cloud listing	nincs ilyen fÃ¡jl a felhÅ‘listÃ¡ban
