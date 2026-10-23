@@ -1494,6 +1494,7 @@
 	Keep selected	선택 유지
 	Merge only with selection	선택 영역과만 병합
 	Consider Open Filled Paths as Closed	칠이 있는 열린 패스를 닫힌 패스로 처리
+	In Merge Mode, Clicking Stroke Splits the Path	병합 모드에서 선을 클릭하면 패스 분할
 	Pick Color From:	색상 출처:
 	Artwork	아트워크
 	Cursor Swatch Preview	포인터 옆 견본 미리 보기
@@ -1501,6 +1502,7 @@
 	Freeform	자유 형태
 	Straight Line	직선
 	Highlight:	강조:
+	Stroke When Editable	편집 가능한 선
 	Fill:	칠:
 	Find	찾기
 	Find Font	글꼴 찾기
@@ -4285,6 +4287,7 @@ theme	Appearance	외관
 @msg	no plug-in {id} is installed	플러그인 {id}이(가) 설치되어 있지 않습니다
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1}은(는) 라이브 효과입니다(효과 › 플러그인)
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1}은(는) 내보내기 플러그인입니다(파일 › 내보내기 › 다른 이름으로 내보내기…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData`가 {size}바이트입니다(한도 {MAX_DOCUMENT_DATA})
 @msg	a preset named `{_1}` exists	`{_1}`이라는 프리셋이 이미 있습니다
 @msg	a swatch or color group named `{n}` exists	`{n}`이라는 견본 또는 색상 그룹이 이미 있습니다
 @msg	no print preset named `{base}`	`{base}`라는 인쇄 프리셋이 없습니다
@@ -4927,6 +4930,10 @@ lighting	Light	광원
 @msg	too many library panels were opened in this session	이 세션에서 라이브러리 패널을 너무 많이 열었습니다
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	이미지가 {_1} × {_2}픽셀로 한 변이 {LARGE_TRACE_SIDE}을 넘습니다. 추적은 되지만 더 느립니다. 충실도가 낮은 사전 설정이나 이미지의 작은 사본을 사용하면 더 빠릅니다.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	이미지를 {_3} × {_4}에서 축소한 {_1} × {_2}픽셀로 추적했습니다(최대 {_5}메가픽셀).
+	Snapping	스냅
+	Snap to Tangent	접선에 스냅
+	Snap to Perpendicular	수직선에 스냅
+@msg	unknown snap option `{key}` (use {options})	알 수 없는 스냅 옵션 `{key}` ({options} 중에서 사용하세요)
 	Gap Length:	간격 길이:
 	Artboard {n} of {total}	아트보드 {n} / {total}
 	Encoding and writing the file…	파일을 인코딩하고 쓰는 중…
@@ -4978,6 +4985,7 @@ lighting	Light	광원
 	Water Paper	물 종이
 	Ruby…	루비…
 	Ruby	루비
+	Geometric Guides	기하학적 안내선
 	Ease In	서서히 시작
 	Ease Out	서서히 종료
 	Ease In Out	서서히 시작 및 종료
@@ -5006,3 +5014,11 @@ axis	Y Axis	Y축
 	Packaged {n} file(s) in {folder}	{folder}에 파일 {n}개를 패키지했습니다
 	Packaged {n} file(s) {note}	파일 {n}개를 패키지했습니다 {note}
 	{count} file(s) in {folder}. Show the package folder?	{folder}에 파일 {count}개. 패키지 폴더를 표시하시겠습니까?
+	Clockwise	시계 방향
+	Dither	디더
+	Fine noise hides banding in the gradient fill	미세한 노이즈로 그레이디언트 칠의 띠를 감춥니다
+@msg	`dither` applies to gradient fills (stroke: false)	`dither`는 그레이디언트 칠에 적용됩니다 (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither`는 그레이디언트 칠에 적용됩니다 (paint.setFill)
+@msg	`dither` must be true or false	`dither`은(는) true 또는 false여야 합니다
+	Perceptual	지각적
+@msg	`method` must be classic or perceptual	`method`는 classic 또는 perceptual이어야 합니다

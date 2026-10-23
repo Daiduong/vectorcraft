@@ -5176,6 +5176,7 @@ theme	Appearance	Görünüm
 @msg	select an Objects on Path group	bir Yol Üzerindeki Nesneler grubu seçin
 @msg	the Simplify slider is not open	Basitleştirme kaydırıcısı açık değil
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1} bir dışa aktarma eklentisidir (Dosya › Dışa Aktar › Farklı Dışa Aktar…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData` {size} bayt (sınır {MAX_DOCUMENT_DATA})
 	Alt key toggles to Smooth Tool	Alt tuşu Düzleştirme Aracına geçiş yapar
 	Auto-Simplify	Otomatik Basitleştir
 	Drag an item here, or right-click one, to put it in this group.	Bu gruba eklemek için bir öğeyi buraya sürükleyin veya sağ tıklayın.
@@ -5259,6 +5260,7 @@ theme	Appearance	Görünüm
 	Diffuse	Yayılma
 	Eyedropper: click the art to sample the key color	Damlalık: anahtar rengi örneklemek için çizime tıklayın
 	Highlight:	Vurgu:
+	In Merge Mode, Clicking Stroke Splits the Path	Birleştirme modunda kontura tıklamak yolu böler
 	Insert Kashidas	Keşide Ekle
 	Load Variable Library…	Değişken Kitaplığı Yükle…
 	Long	Uzun
@@ -5270,6 +5272,7 @@ theme	Appearance	Görünüm
 	Selection:	Seçim:
 	Standard	Standart
 	Straight Line	Düz Çizgi
+	Stroke When Editable	Düzenlenebilir olduğunda kontur
 	Stylistic	Biçimsel
 	The art keeps its own colors.	Çizim kendi renklerini korur.
 	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	Anahtar renk kontur rengi olur. Diğer renkler aynı miktarda renk tonu kaydırır ve doygunluk ile parlaklıklarını korur.
@@ -5391,3 +5394,14 @@ axis	Y Axis	Y ekseni
 	Packaged {n} file(s) in {folder}	{folder} biçiminde paketlenmiş {n} dosyası/dosyaları
 	Packaged {n} file(s) {note}	Paketlenmiş {n} dosyası/dosyaları {note}
 	{count} file(s) in {folder}. Show the package folder?	{folder} içindeki {count} dosyası/dosyaları. Paket klasörü gösterilsin mi?
+	Clockwise	Saat yönünde
+	Dither	Titreme
+	Fine noise hides banding in the gradient fill	İnce gürültü, degrade dolgudaki bantları gizler
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` degrade dolgulara uygulanır (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` degrade dolgulara uygulanır (paint.setFill)
+@msg	`dither` must be true or false	"dither" doğru veya yanlış olmalıdır
+	Snapping	Yaslama
+	Snap to Tangent	Teğete Yasla
+	Snap to Perpendicular	Dikeye Yasla
+	Geometric Guides	Geometrik Kılavuzlar
+@msg	`method` must be classic or perceptual	`method` classic veya perceptual olmalıdır

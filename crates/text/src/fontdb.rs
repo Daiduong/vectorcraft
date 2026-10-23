@@ -13,6 +13,10 @@ use skrifa::raw::FileRef;
 use skrifa::string::StringId;
 use skrifa::{GlyphId, MetadataProvider, Tag};
 
+use crate::GlyphImage;
+use crate::colr::ColourContent;
+use vectorcraft_doc::color::Color;
+
 /// The family used when a requested family is unknown (Illustrator's Myriad Pro analogue).
 pub const FALLBACK_FAMILY: &str = "Source Sans 3";
 
@@ -132,6 +136,10 @@ pub struct FontFace {
     ideographic_centre: std::sync::OnceLock<f64>,
     /// [`Self::icf_margins`], read once.
     icf_margins: std::sync::OnceLock<IcfMargins>,
+    /// Has `sbix` or `CBDT` strikes: colour bitmap glyphs ([`FontDb::glyph_image`]).
+    colour_bitmaps: bool,
+    /// Has `COLR` colour glyphs ([`FontDb::glyph_colour`]).
+    colour_layers: bool,
 }
 
 /// Where the ideographic character face (ICF) lies inside the ideographic em box: its distance
@@ -410,10 +418,75 @@ type PostScriptNames = HashMap<String, (String, String)>;
 /// are neither a loaded nor an installed family.
 type CanonicalNames = HashMap<(String, String), (String, String)>;
 
+/// [`FontDb::glyph_image`]'s answers by face and glyph.
+type GlyphImages = GlyphCache<(u32, u32), Arc<GlyphImage>>;
+/// [`FontDb::glyph_colour`]'s answers by face and glyph, and the foreground colour for glyphs that
+/// paint with it.
+type GlyphColours = GlyphCache<(u32, u32, Option<[u8; 4]>), ColourContent>;
+
+/// What a glyph's colour content (an image, layers) takes of memory, in bytes.
+trait Weight {
+    fn bytes(&self) -> usize;
+}
+
+impl Weight for Arc<GlyphImage> {
+    fn bytes(&self) -> usize {
+        self.blob.bytes.len()
+    }
+}
+
+impl Weight for ColourContent {
+    fn bytes(&self) -> usize {
+        match self {
+            ColourContent::Image(i) => i.bytes(),
+            // Roughly what a path node with its outline and fill takes.
+            ColourContent::Art(art) => {
+                let mut nodes = 0;
+                art.walk(&mut |_| nodes += 1);
+                nodes * 512
+            }
+        }
+    }
+}
+
+/// The colour content of glyphs ([`FontDb::glyph_image`], [`FontDb::glyph_colour`]) kept by
+/// face, glyph and what else it depends on, and its bytes in all.
+struct GlyphCache<K, V> {
+    kept: HashMap<K, Option<V>>,
+    bytes: usize,
+}
+
+impl<K, V> Default for GlyphCache<K, V> {
+    fn default() -> Self {
+        Self { kept: HashMap::new(), bytes: 0 }
+    }
+}
+
+impl<K: std::hash::Hash + Eq, V: Weight> GlyphCache<K, V> {
+    /// Keeps `value` (or that there is none), first letting go of all it keeps when that would
+    /// take more than [`IMAGE_CACHE_MAX`] glyphs or [`IMAGE_CACHE_BYTES`]. A glyph it keeps
+    /// already, which another thread looked up meanwhile, stays as it is.
+    fn keep(&mut self, key: K, value: Option<V>) {
+        if self.kept.contains_key(&key) {
+            return;
+        }
+        let bytes = value.as_ref().map_or(0, Weight::bytes);
+        if self.kept.len() >= IMAGE_CACHE_MAX || self.bytes.saturating_add(bytes) > IMAGE_CACHE_BYTES {
+            self.kept.clear();
+            self.bytes = 0;
+        }
+        self.bytes += bytes;
+        self.kept.insert(key, value);
+    }
+}
+
 /// Process-wide font database.
 pub struct FontDb {
     faces: RwLock<Vec<Arc<FontFace>>>,
     outlines: Mutex<HashMap<(u32, u32), Arc<BezPath>>>,
+    /// [`FontDb::glyph_image`]'s answers per (face, glyph), misses too.
+    images: Mutex<GlyphImages>,
+    colours: Mutex<GlyphColours>,
     catalog: RwLock<Catalog>,
     /// The installed faces by PostScript name (documents name fonts so: PDF, EPS, .ai).
     postscript: RwLock<PostScriptNames>,
@@ -550,6 +623,10 @@ const SYSTEM_FALLBACKS: &[&str] = &[
 
 static NEXT_ID: AtomicU32 = AtomicU32::new(1);
 const OUTLINE_CACHE_MAX: usize = 50_000;
+/// The most glyph images [`FontDb::glyph_image`] keeps (each a PNG of some 10–60 KB).
+const IMAGE_CACHE_MAX: usize = 4_096;
+/// The most PNG bytes it keeps: a font can make each one up to [`crate::bitmap::MAX_PNG_BYTES`].
+const IMAGE_CACHE_BYTES: usize = 64 << 20;
 /// How many answers [`FontDb::canonical`] keeps at most. When it has kept that many, it clears
 /// them before it keeps the next one.
 const CANONICAL_CACHE_MAX: usize = 4_096;
@@ -1026,10 +1103,11 @@ fn font_files(path: &Path) -> Vec<Vec<u8>> {
     std::fs::read(path).into_iter().collect()
 }
 
-/// The tables holding outlines the font engine draws: TrueType, CFF, CFF2 and VARC. A face with
-/// none of them (outlines in Apple's `hvgl` table, bitmaps only) draws nothing.
+/// The tables holding glyphs the font engine draws: TrueType, CFF, CFF2 and VARC outlines, and
+/// `sbix` and `CBDT` colour bitmaps. A face with none of them (outlines in Apple's `hvgl` table,
+/// monochrome bitmaps only) draws nothing.
 #[cfg(not(target_arch = "wasm32"))]
-const OUTLINE_TABLES: [&[u8; 4]; 4] = [b"glyf", b"CFF ", b"CFF2", b"VARC"];
+const OUTLINE_TABLES: [&[u8; 4]; 6] = [b"glyf", b"CFF ", b"CFF2", b"VARC", b"sbix", b"CBDT"];
 
 /// The styles of every face in the font file at `path` ([`face_styles`]), reading only its table
 /// directories and `name`, `fvar` and `OS/2` tables: a scan opens hundreds of font files, many of
@@ -1517,6 +1595,8 @@ fn make_face(bytes: FontBytes, index: u32, spec: FaceStyle, path: Option<std::pa
     };
     let underline = decoration(m.underline, (-0.075 * upem, 0.05 * upem));
     let strikeout = decoration(m.strikeout, (x_height * 0.5 + 0.025 * upem, 0.05 * upem));
+    let colour_bitmaps = crate::bitmap::has_colour_bitmaps(&f);
+    let colour_layers = crate::colr::has_colour_layers(&f);
     Some(FontFace {
         keys,
         traits,
@@ -1543,6 +1623,8 @@ fn make_face(bytes: FontBytes, index: u32, spec: FaceStyle, path: Option<std::pa
         path,
         ideographic_centre: std::sync::OnceLock::new(),
         icf_margins: std::sync::OnceLock::new(),
+        colour_bitmaps,
+        colour_layers,
     })
 }
 
@@ -1646,6 +1728,8 @@ impl FontDb {
         Self {
             faces: RwLock::new(faces),
             outlines: Mutex::new(HashMap::new()),
+            images: Mutex::new(GlyphCache::default()),
+            colours: Mutex::new(GlyphCache::default()),
             catalog: RwLock::new(Catalog::new()),
             postscript: RwLock::new(PostScriptNames::new()),
             font_paths,
@@ -2414,9 +2498,43 @@ impl FontDb {
         cache.insert(key, p.clone());
         p
     }
+
+    /// Glyph `gid`'s colour bitmap (`sbix`, `CBDT`) in `face`, cached per (face, glyph).
+    pub fn glyph_image(&self, face: &FontFace, gid: u32) -> Option<Arc<GlyphImage>> {
+        if !face.colour_bitmaps {
+            return None;
+        }
+        let key = (face.id, gid);
+        if let Some(i) = self.images.lock().unwrap_or_else(|e| e.into_inner()).kept.get(&key) {
+            return i.clone();
+        }
+        let image = face.skrifa().and_then(|f| crate::bitmap::glyph_image(&f, face.upem, gid)).map(Arc::new);
+        self.images.lock().unwrap_or_else(|e| e.into_inner()).keep(key, image.clone());
+        image
+    }
+
+    /// Glyph `gid`'s COLR colour content in `face`, its foreground layers in `foreground`, cached
+    /// per (face, glyph), and per foreground colour for the glyphs that paint with it.
+    pub(crate) fn glyph_colour(&self, face: &FontFace, gid: u32, foreground: Color) -> Option<ColourContent> {
+        if !face.colour_layers {
+            return None;
+        }
+        let keyed = Some(foreground.to_rgba8(1.0));
+        {
+            let cache = self.colours.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(c) = cache.kept.get(&(face.id, gid, None)).or_else(|| cache.kept.get(&(face.id, gid, keyed))) {
+                return c.clone();
+            }
+        }
+        let (content, used) = face.skrifa().map_or((None, false), |f| crate::colr::colour_glyph(&f, face.location(), face.upem, gid, foreground));
+        let key = (face.id, gid, if used { keyed } else { None });
+        self.colours.lock().unwrap_or_else(|e| e.into_inner()).keep(key, content.clone());
+        content
+    }
 }
 
-struct FlipPen(BezPath);
+/// A pen drawing outlines y down, as text space has them.
+pub(crate) struct FlipPen(pub(crate) BezPath);
 
 impl OutlinePen for FlipPen {
     fn move_to(&mut self, x: f32, y: f32) {
@@ -2573,5 +2691,31 @@ mod race_tests {
         for t in threads {
             assert_eq!(t.join().unwrap().as_deref(), Some("Inter"));
         }
+    }
+}
+
+#[cfg(test)]
+mod image_cache_tests {
+    use super::*;
+
+    #[test]
+    fn the_glyph_image_cache_keeps_its_bytes_within_its_budget() {
+        // Images as large as a font may make them: no test font has enough of those to fill the
+        // budget, so they're made here.
+        let image = || {
+            let blob = vectorcraft_doc::ImageBlob::png(vec![0; crate::bitmap::MAX_PNG_BYTES]);
+            Some(Arc::new(GlyphImage { blob, width: 1, height: 1, xf: kurbo::Affine::IDENTITY }))
+        };
+        let mut cache = GlyphCache::default();
+        for gid in 0..20 {
+            cache.keep((1, gid), image());
+            assert!(cache.bytes <= IMAGE_CACHE_BYTES, "{} bytes after {} images", cache.bytes, gid + 1);
+        }
+        // The same glyph again, as when two threads look it up at once, counts once.
+        cache.keep((1, 19), image());
+        assert_eq!(cache.bytes, cache.kept.values().flatten().map(|i: &Arc<GlyphImage>| i.blob.bytes.len()).sum::<usize>());
+        // A glyph without an image costs nothing, and is still kept.
+        cache.keep((1, 99), None);
+        assert!(cache.kept.contains_key(&(1, 99)));
     }
 }

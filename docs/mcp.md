@@ -782,6 +782,23 @@ radial shadings:
 {"name":"run_command","arguments":{"command":"paint.setGradientGeom","params":{"aspect":60,"focal":[130,140]}}}
 ```
 
+Dither (the Gradient panel's box) draws a linear or radial gradient fill with fine noise that hides banding;
+SVG and PDF exports write such a fill as an image at the Document Raster Effects resolution. It applies to fills
+(`stroke: true` is refused):
+
+```json
+{"name":"run_command","arguments":{"command":"paint.editGradient","params":{"dither":true}}}
+```
+
+Method (the Gradient panel's menu): `classic` (the default) mixes the colours between stops in display RGB,
+`perceptual` mixes a linear or radial gradient's colours in OKLab so the steps look even. SVG and PDF exports write a
+Perceptual gradient as an image at the Document Raster Effects resolution (a dithered Perceptual fill with its noise).
+`paint.setFill`/`paint.setStroke` take it in `gradient` too:
+
+```json
+{"name":"run_command","arguments":{"command":"paint.editGradient","params":{"method":"perceptual"}}}
+```
+
 Freeform gradients: `paint.editGradient {kind: "freeform"}` places four or more colour points inside each selected
 object (coloured along the stops; `mode: "points"|"lines"` is the Draw toggle). `paint.freeform.get` lists the points
 (document coordinates), lines and the selected point; `paint.freeform.addPoint {at, color?, opacity?, spread?,
@@ -1036,8 +1053,8 @@ and `type.fractionalWidths`; `remove` and `overhang` in `type.ruby`; `expandInst
 `swatch.delete`; `fromArtwork`, `toGlobal` and `includeTints` in `swatch.newGroup`; `global` and `selection` in
 `swatch.addUsedColors`; `visible` in `appearance.setItem`; `copy` in `appearance.transfer`; `reverse` and `append` in
 `appearance.copyFrom`; `reverse` and `stroke` in `paint.editGradient`; `stroke` in `paint.setGradientGeom` and in
-`paint.freeform.addPoint`, `setPoint`, `deletePoint`, `addLine`, `splitLine` and `get`; `erase` and
-`openFilledAsClosed` in `shapeBuilder.merge`; `openFilledAsClosed` in `shapeBuilder.regions`; `closeGaps` in `livePaint.gapOptions`; and
+`paint.freeform.addPoint`, `setPoint`, `deletePoint`, `addLine`, `splitLine` and `get`; `erase`,
+`openFilledAsClosed` and `splitStroke` in `shapeBuilder.merge`; `openFilledAsClosed` in `shapeBuilder.regions`; `closeGaps` in `livePaint.gapOptions`; and
 `enhanced` in `imageTrace.make` and `imageTrace.makeAndExpand`. A null is read as a key left out.
 
 These commands refuse a string or another value that is not a number with `` `radius` must be a number, not "2" ``,
@@ -2517,6 +2534,10 @@ and its steps of these commands get the artboard that is active when the action 
 Direct Selection or Group Selection tool inside an artboard makes that artboard the active one; with the Selection
 tool, a Shift-click on an empty spot inside an artboard makes it active and keeps the selection. Choosing the Artboard
 tool (`tool.select {tool: "artboard"}`) starts it on the active artboard: its `active` option is that artboard's index.
+A command that starts the Artboard tool afresh in the same document (`file.revert`, or a `command.batch` or
+`action.batch` that reverts the document or switches to another document and back) keeps the active artboard and
+starts the tool on it. When a later step of the batch chooses the tool's artboards (a Paste or Cut), the artboard the
+tool then has active becomes the active one.
 
 `artboard.fitToArt {index? | indices?}` (Object › Artboards › Fit to Artwork Bounds) fits each artboard it names to
 the art on that artboard, in one undo step. The art is what an export draws, measured with its strokes and with the
@@ -4542,17 +4563,48 @@ default name, "Artboard N" for the Nth artboard.
 
 The Shape Builder tool's options are its Shape Builder Tool Options (dialog `shapeBuilderOptions`):
 `openFilledAsClosed` (on: a filled open path bounds a region as if an invisible edge closed it; off: it cuts regions
-as an unfilled path does), `pickColorFrom` (`artwork`, the default: a merged shape takes the fill of the front-most
-object over the first region the drag touches that an object covers, and the current fill when only lines enclose
-every region touched; `swatches`: the current fill, and the Left and Right arrow keys step the current fill through the
-document's color swatches), `cursorSwatchPreview` (off; with `swatches`, chips above the pointer show the current fill
-and the swatches before and after it), `selection` (`freeform`, the default, or `straightLine`: a drag touches what
-the line from its first point to the pointer crosses) and `highlightFill` (on by default; when it is off, merge mode
-shades no regions). The tool sends `openFilledAsClosed` and `pickColorFrom` with `shapeBuilder.merge`, which takes
-both as params, and `shapeBuilder.regions` takes `openFilledAsClosed`.
+as an unfilled path does), `pickColorFrom` (`artwork`, the default: a merged shape takes the appearance, opacity and
+blending mode of the front-most selected object under the drag's first point, else of the one under its last point,
+else of the front-most selected object; `swatches`: the current fill, and the Left and Right arrow keys step the
+current fill through the document's color swatches), `cursorSwatchPreview` (off; with `swatches`, chips above the
+pointer show the current fill and the swatches before and after it), `selection` (`freeform`, the default, or
+`straightLine`: a drag touches what the line from its first point to the pointer crosses), `highlightFill` (on by
+default; when it is off, merge mode shades no regions), `gapDetection` (off) with `gapLength` (pt, 0 to 72; 3), `clickStrokeSplitsPath` (In Merge Mode,
+Clicking Stroke Splits the Path; off), `highlightStroke` (Highlight Stroke When Editable; on) and `highlightColor`
+(`#rrggbb` or a layer color's name; `#ff4f4f`, the layer color Red). With `clickStrokeSplitsPath` on, in merge mode,
+the pointer shows scissors within 4 screen pixels of a stroke, `highlightStroke` draws the run of stroke under it in
+`highlightColor`, and a click splits that run off its path: the run goes from the anchor or crossing point before the
+pointer to the one after it, the path keeps the rest of it, and a copy of the path with the run, in the path's
+direction, goes directly above it. Both keep the path's gradients where they were on it.
+A lone rectangle's side is such a run. A lone line is a run that is all of its path, and a run that would leave 0.05 pt
+or less of its path (a ten-thousandth of the larger side of a path over 500 pt) counts as all of it, so the pointer
+shows no scissors over it and a click on it does not split it. A release up to 3 screen pixels from the press is a
+click when the pointer went no farther during the drag.
+With `pickColorFrom` `swatches`, the run takes the current fill as its stroke. The tool sends `openFilledAsClosed`,
+`pickColorFrom`, the gap length (`gap`, 0 with Gap Detection off) and, for such a click, `splitStroke: true` with
+`shapeBuilder.merge`, which takes them all as params, and `shapeBuilder.regions` takes `openFilledAsClosed` and `gap`.
+`shapeBuilder.merge` with `splitStroke` returns the run's id as `split`.
 
 ```json
 {"name":"run_command","arguments":{"command":"tool.setOption","params":{"tool":"shapeBuilder","values":{"selection":"straightLine","pickColorFrom":"swatches"}}}}
+{"name":"run_command","arguments":{"command":"shapeBuilder.merge","params":{"points":[[50,-1]],"splitStroke":true}}}
+```
+
+With Shift held at the press, a Shape Builder drag draws a rectangular marquee from where the drag started to the
+pointer, and the Selection option does not apply to it. The regions the marquee reaches are shaded while it is drawn
+and merge into one shape on release; with Alt also held at the press, they are deleted. The marquee reaches a region
+when the region's outline crosses the rectangle or has an anchor inside it, or when the region holds the whole
+rectangle. The tool sends the marquee to `shapeBuilder.merge` as `rect: [x, y, width, height]` in place of `points`:
+`x` and `y` are where the drag started, and the width and height are negative for a drag up or to the left. For Pick
+Color From Artwork, the corner where the drag started counts as the drag's first point, and the opposite corner counts
+as its last: the merged shape takes the look of the front-most selected object under the first corner, else of the one
+under the opposite corner, else of the front-most selected object. A Shift-click that does not move sends `points`
+as a click does, so with `clickStrokeSplitsPath` on, a Shift-click on a stroke splits it. A marquee splits no stroke,
+however little the pointer moves: the tool sends no `splitStroke` with `rect`, and `shapeBuilder.merge` does not split
+a stroke when it has `rect`. With both `rect` and `points`, the command also touches what the points touch.
+
+```json
+{"name":"run_command","arguments":{"command":"shapeBuilder.merge","params":{"rect":[50,50,200,200]}}}
 ```
 
 ## Perspective grid

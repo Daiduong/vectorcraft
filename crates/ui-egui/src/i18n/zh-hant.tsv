@@ -1061,6 +1061,7 @@
 	Keep selected	保持選取狀態
 	Merge only with selection	僅與選取物件合併
 	Consider Open Filled Paths as Closed	將有填色的開放路徑視為封閉路徑
+	In Merge Mode, Clicking Stroke Splits the Path	在合併模式下，按一下筆畫可分割路徑
 	Pick Color From:	顏色來源：
 	Artwork	圖稿
 	Cursor Swatch Preview	在指標旁預覽色票
@@ -1068,6 +1069,7 @@
 	Freeform	自由
 	Straight Line	直線
 	Highlight:	強調顯示：
+	Stroke When Editable	可編輯時的筆畫
 	Fill New Type Objects With Placeholder Text	以預留位置文字填滿新文字物件
 	Fill Rule	填色規則
 	Fill with Placeholder Text	以預留位置文字填滿
@@ -2066,6 +2068,7 @@ file-filter	Templates	範本
 @msg	no plug-in {id} is installed	未安裝增效模組 {id}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} 是即時效果 (效果 › 增效模組)
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1} 是匯出增效模組 (檔案 › 匯出 › 匯出為…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData` 為 {size} 位元組（上限 {MAX_DOCUMENT_DATA}）
 @msg	a preset named `{_1}` exists	名為 `{_1}` 的預設集已存在
 @msg	a swatch or color group named `{n}` exists	名為 `{n}` 的色票或顏色群組已存在
 @msg	no print preset named `{base}`	沒有名為 `{base}` 的列印預設集
@@ -4978,6 +4981,10 @@ lighting	Light	光源
 	Persistent	持久
 	Locate Library…	尋找資料庫…
 	Library Panel Options	資料庫面板選項
+	Snapping	靠齊
+	Snap to Tangent	靠齊切線
+	Snap to Perpendicular	靠齊垂線
+@msg	unknown snap option `{key}` (use {options})	未知的靠齊選項 `{key}`（可用：{options}）
 	Gap Length:	間隙長度：
 	Artboard {n} of {total}	工作區域 {n} / {total}
 	Encoding and writing the file…	正在編碼並寫入檔案…
@@ -5034,6 +5041,7 @@ lighting	Light	光源
 	Water Paper	水彩畫紙
 	Ruby…	注音…
 	Ruby	注音
+	Geometric Guides	幾何參考線
 	Ease In	緩入
 	Ease Out	緩出
 	Ease In Out	緩入緩出
@@ -5062,3 +5070,11 @@ axis	Y Axis	Y 軸
 	Packaged {n} file(s) in {folder}	已將 {n} 個檔案封裝到 {folder}
 	Packaged {n} file(s) {note}	已封裝 {n} 個檔案 {note}
 	{count} file(s) in {folder}. Show the package folder?	{folder} 中有 {count} 個檔案。要顯示封裝資料夾嗎？
+	Clockwise	順時針
+	Dither	仿色
+	Fine noise hides banding in the gradient fill	細微雜色可隱藏漸層填色中的色帶
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` 適用於漸層填色 (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` 適用於漸層填色 (paint.setFill)
+@msg	`dither` must be true or false	`dither` 必須是 true 或 false
+	Perceptual	感知
+@msg	`method` must be classic or perceptual	`method` 必須是 classic 或 perceptual

@@ -4298,6 +4298,7 @@ theme	Appearance	Εμφάνιση
 @msg	{_1} font families available	{_1} διαθέσιμες οικογένειες γραμματοσειρών
 @msg	{_1} is a live effect (Effect › Plug-ins)	το {_1} είναι δυναμικό εφέ (Εφέ › Πρόσθετα)
 @msg	{_1} is an exporter (File › Export › Export As…)	το {_1} είναι πρόσθετο εξαγωγής (Αρχείο › Εξαγωγή › Εξαγωγή ως…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	το `documentData` έχει {size} byte (όριο {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	το {_1} χρησιμοποιείται ήδη από το {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} συνδεδεμένα αρχεία δεν μπορούν να διαβαστούν εδώ: εμφανίζονται οι προεπισκοπήσεις τους
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} συνδεδεμένες εικόνες άλλαξαν στον δίσκο: η Ενημέρωση συνδέσμων εμφανίζει τις νέες εκδόσεις
@@ -5149,12 +5150,14 @@ effect	Points	Σημεία
 	Keep selected	Διατήρηση επιλογής
 	Merge only with selection	Συγχώνευση μόνο με την επιλογή
 	Consider Open Filled Paths as Closed	Οι ανοιχτές γεμισμένες διαδρομές θεωρούνται κλειστές
+	In Merge Mode, Clicking Stroke Splits the Path	Σε λειτουργία συγχώνευσης, το κλικ στο περίγραμμα διαιρεί τη διαδρομή
 	Pick Color From:	Λήψη χρώματος από:
 	Artwork	Γραφικά
 	Cursor Swatch Preview	Προεπισκόπηση δείγματος δίπλα στον δείκτη
 	Selection:	Επιλογή:
 	Straight Line	Ευθεία γραμμή
 	Highlight:	Επισήμανση:
+	Stroke When Editable	Περίγραμμα όταν είναι επεξεργάσιμο
 	Legacy (version 7)	Παλαιού τύπου (έκδοση 7)
 	Legacy .ai Options	Επιλογές .ai παλαιού τύπου
 	Linked Files	Συνδεδεμένα αρχεία
@@ -5302,6 +5305,10 @@ effect	Points	Σημεία
 @msg	too many library panels were opened in this session	άνοιξαν πάρα πολλοί πίνακες βιβλιοθηκών σε αυτή τη συνεδρία
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Η εικόνα είναι {_1} × {_2} εικονοστοιχεία, πάνω από {LARGE_TRACE_SIDE} σε μία πλευρά: ανιχνεύεται, αλλά πιο αργά. Μια προρύθμιση χαμηλότερης πιστότητας ή ένα μικρότερο αντίγραφο της εικόνας ανιχνεύεται γρηγορότερα.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Η εικόνα ανιχνεύτηκε σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη από {_3} × {_4} (το πολύ {_5} megapixel).
+	Snapping	Προσκόλληση
+	Snap to Tangent	Προσκόλληση σε εφαπτομένη
+	Snap to Perpendicular	Προσκόλληση σε κάθετο
+@msg	unknown snap option `{key}` (use {options})	άγνωστη επιλογή προσκόλλησης `{key}` (χρησιμοποιήστε {options})
 	Gap Length:	Μήκος κενού:
 	Artboard {n} of {total}	Πίνακας σχεδίασης {n} από {total}
 	Encoding and writing the file…	Κωδικοποίηση και εγγραφή του αρχείου…
@@ -5352,6 +5359,7 @@ effect	Points	Σημεία
 	Water Paper	Βρεγμένο χαρτί
 	Ruby…	Ruby…
 	Ruby	Ruby
+	Geometric Guides	Γεωμετρικοί οδηγοί
 	Ease In	Ομαλή αρχή
 	Ease Out	Ομαλό τέλος
 	Ease In Out	Ομαλή αρχή και τέλος
@@ -5379,3 +5387,10 @@ axis	Y Axis	Άξονας Y
 	Packaged {n} file(s) in {folder}	Συσκευάστηκαν {n} αρχεία στον φάκελο {folder}
 	Packaged {n} file(s) {note}	Συσκευάστηκαν {n} αρχεία {note}
 	{count} file(s) in {folder}. Show the package folder?	{count} αρχεία στον φάκελο {folder}. Να εμφανιστεί ο φάκελος συσκευασίας;
+	Clockwise	Δεξιόστροφα
+	Dither	Πρόσθεση θορύβου
+	Fine noise hides banding in the gradient fill	Ο λεπτός θόρυβος κρύβει τις λωρίδες στο γέμισμα ντεγκραντέ
+@msg	`dither` applies to gradient fills (stroke: false)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	Το `dither` ισχύει για γεμίσματα ντεγκραντέ (paint.setFill)
+@msg	`dither` must be true or false	Το `dither` πρέπει να είναι true ή false
+@msg	`method` must be classic or perceptual	Το `method` πρέπει να είναι classic ή perceptual
