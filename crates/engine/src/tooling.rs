@@ -169,13 +169,15 @@ impl Session {
     }
 
     /// The lent selection tool's gesture is over: the tool it was lent to is back as it was (the
-    /// Pen goes on drawing its path).
+    /// Pen goes on drawing its path), less the work the gesture ended as a command would: a
+    /// Cmd+click that takes the type being edited out of the selection ends its edit (#3779).
     pub(crate) fn give_back_tool(&mut self, view: ViewInfo) -> Result<()> {
         let Some(lender) = self.lender.take() else { return Ok(()) };
         let acts = self.with_tool_cx(view, |t, cx| t.deactivate(cx));
         let r = self.apply_actions(acts);
         self.keep_tool_settings();
         self.tool = lender;
+        self.after_command();
         r.map(drop)
     }
 
@@ -311,6 +313,11 @@ impl Session {
     /// Feed a pointer event to the active tool. Returns requests for the UI.
     pub fn pointer(&mut self, ev: &PointerEvent, view: ViewInfo) -> Result<Vec<UiRequest>> {
         self.last_view = view;
+        match ev.kind {
+            PointerKind::Down | PointerKind::Drag => self.pointer_held = true,
+            PointerKind::Up | PointerKind::Move => self.pointer_held = false,
+            PointerKind::DoubleClick => {}
+        }
         // The Plane Switching Widget takes its clicks whatever the tool.
         if let Some(r) = self.plane_widget_pointer(ev, view) {
             return r;
@@ -433,6 +440,13 @@ impl Session {
 
     pub fn tool_busy(&self) -> bool {
         self.tool.busy()
+    }
+
+    /// Is the pointer button held: was the last pointer event a press or a drag, not a release or a
+    /// move? A tool that is busy while the button is not held is waiting between its clicks (the
+    /// Dimension tool after its first point).
+    pub fn pointer_held(&self) -> bool {
+        self.pointer_held
     }
 
     /// Is the active tool moving, scaling or rotating the selection with a drag?
