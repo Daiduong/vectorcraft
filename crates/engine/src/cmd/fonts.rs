@@ -138,24 +138,27 @@ pub(super) fn art_fonts(d: &Document, art: &[Node]) -> BTreeSet<UsedFont> {
 /// art of a placed document (`d` as [`Document::with_placed_art`] gives it, for that art's
 /// resources).
 pub(super) fn printed_type(d: &Document, layers: &[Arc<Node>], areas: &[Rect]) -> (BTreeSet<UsedFont>, BTreeSet<NodeId>) {
-    let mut walk = Printed { d, own: true, fonts: BTreeSet::new(), overflow: BTreeSet::new(), symbols: BTreeSet::new(), patterns: BTreeSet::new() };
+    let mut walk = Printed::new(d, &[]);
     for l in layers {
         walk.node(l, Some(areas));
     }
     (walk.fonts, walk.overflow)
 }
 
-/// The warning of an export that draws `layers` of `d` over `areas` (document space; `None`: the
-/// whole of them) about the area type and type on a path that it draws and whose text doesn't fit,
-/// found as [`printed_type`] finds them for Print: visible objects of the document that aren't on
-/// a template layer.
-pub(super) fn export_overflow_warning(d: &Document, layers: &[Arc<Node>], areas: Option<&[Rect]>) -> Option<String> {
-    let mut walk = Printed { d, own: true, fonts: BTreeSet::new(), overflow: BTreeSet::new(), symbols: BTreeSet::new(), patterns: BTreeSet::new() };
+/// The warnings of an export that draws `layers` of `d` over `areas` (document space, each one a
+/// page or file the export crops to; `None`: the whole of them) about the type it draws, found as
+/// [`printed_type`] finds it for Print (visible objects of the document that aren't on a template
+/// layer): area type and type on a path whose text doesn't fit, and type whose glyphs run over the
+/// edge of an area they are drawn on (#3784), where the part past it isn't drawn. Type wholly
+/// outside every area, or cut only by its own clipping paths, is left alone.
+pub(super) fn export_type_warnings(d: &Document, layers: &[Arc<Node>], areas: Option<&[Rect]>) -> Vec<String> {
+    let mut walk = Printed::new(d, areas.unwrap_or_default());
     for l in layers {
         walk.node(l, areas);
     }
     let overflow: Vec<NodeId> = walk.overflow.into_iter().collect();
-    super::typecmd::export_overflow_warning(&overflow)
+    let cut: Vec<NodeId> = walk.cut.into_iter().collect();
+    super::typecmd::export_overflow_warning(&overflow).into_iter().chain(super::typecmd::export_edge_warning(&cut)).collect()
 }
 
 /// The walk of [`printed_type`].
@@ -169,9 +172,28 @@ struct Printed<'a> {
     /// The symbols and patterns whose art was walked.
     symbols: BTreeSet<String>,
     patterns: BTreeSet<String>,
+    /// The areas an export crops to (empty: none is checked), the bounds of the clip groups around
+    /// the object walked, and the objects of the document whose glyphs run over an area's edge.
+    pages: &'a [Rect],
+    clips: Vec<Rect>,
+    cut: BTreeSet<NodeId>,
 }
 
-impl Printed<'_> {
+impl<'a> Printed<'a> {
+    fn new(d: &'a Document, pages: &'a [Rect]) -> Self {
+        Printed {
+            d,
+            own: true,
+            fonts: BTreeSet::new(),
+            overflow: BTreeSet::new(),
+            symbols: BTreeSet::new(),
+            patterns: BTreeSet::new(),
+            pages,
+            clips: vec![],
+            cut: BTreeSet::new(),
+        }
+    }
+
     /// Adds the fonts of `n` and its descendants that print, and the ids of those that don't fit
     /// while [`Printed::own`] is set: those whose bounds meet one of `areas`, or with `None` (in the
     /// art of a symbol, opacity mask, pattern or placed document, in brush pieces, or in a live
@@ -230,9 +252,12 @@ impl Printed<'_> {
             }
         }
         match &n.kind {
-            NodeKind::Text(_) => {
+            NodeKind::Text(t) => {
                 if overflows && self.own {
                     self.overflow.insert(n.id);
+                }
+                if self.own && areas.is_some() && self.runs_over_a_page(t) {
+                    self.cut.insert(n.id);
                 }
                 for r in runs {
                     self.fonts.insert((r.style.font_family.clone(), r.style.font_style.clone(), r.style.font_version.clone()));
@@ -255,8 +280,13 @@ impl Printed<'_> {
                     (true, Some(a)) => Some(self.clip(n, a)),
                     (true, None) => vectorcraft_render::painted_bounds(self.d, n).map(|c| vec![c]),
                 };
+                let bounds = if *clip { vectorcraft_render::painted_bounds(self.d, n) } else { None };
+                self.clips.extend(bounds);
                 for c in children {
                     self.node(c, clipped.as_deref().or(areas));
+                }
+                if bounds.is_some() {
+                    self.clips.pop();
                 }
             }
             _ => {
@@ -289,6 +319,21 @@ impl Printed<'_> {
     /// Whether what `n` paints, its effects applied, meets one of `areas`.
     fn meets(&self, n: &Node, areas: &[Rect]) -> bool {
         vectorcraft_render::painted_bounds(self.d, n).is_some_and(|b| areas.iter().any(|r| b.intersect(*r).area() > 0.0 || r.contains_rect(b)))
+    }
+
+    /// Whether the glyphs of `t` that show inside the clip groups around it meet one of the pages
+    /// but don't lie inside any one of them: a page cuts them off.
+    fn runs_over_a_page(&self, t: &vectorcraft_doc::TextObject) -> bool {
+        // Glyph edges that touch a page's edge aren't cut by it.
+        const SLACK: f64 = 0.01;
+        if self.pages.is_empty() {
+            return false;
+        }
+        let Some(ink) = super::pathops::text_outline(t).bounds() else { return false };
+        let ink = ink.inflate(t.char_stroke_outset(), t.char_stroke_outset());
+        let shown = self.clips.iter().try_fold(ink, |b, c| Some(b.intersect(*c)).filter(|r| r.area() > 0.0));
+        let Some(shown) = shown else { return false };
+        self.pages.iter().any(|p| shown.intersect(*p).area() > 0.0) && !self.pages.iter().any(|p| p.inflate(SLACK, SLACK).contains_rect(shown))
     }
 
     /// The parts of `areas` inside the bounds of clip group `n` (its clipping path's).
