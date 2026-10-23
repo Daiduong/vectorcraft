@@ -674,7 +674,8 @@ fn set_range_style(s: &mut Session, p: &Value) -> Result<Value> {
         refresh_bounds(t);
         Ok(t.runs.len())
     })?;
-    s.remember_type(id, (a, b), face, size);
+    let restyle = |st: &mut CharStyle| change.apply(st);
+    s.remember_type(id, (a, b), face.then_some(&restyle as &dyn Fn(&mut CharStyle)), size);
     Ok(json!({"id": id.0, "runs": n}))
 }
 

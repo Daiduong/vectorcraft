@@ -105,3 +105,19 @@ fn area_type_takes_it_and_text_create_keeps_its_defaults() {
     let c = create(&mut s, json!({"x": 10, "y": 200, "text": "Script"}));
     assert_eq!(face(&first_style(&s, c)), face(&CharStyle::default()));
 }
+
+/// A font set on an empty range inside type styles nothing there, but it is what was asked for:
+/// the next new type takes it.
+#[test]
+fn a_font_set_on_an_empty_range_is_remembered_as_asked() {
+    let mut s = session();
+    let a = create(&mut s, json!({"x": 10, "y": 40, "text": "Hello"}));
+    s.execute("text.setRangeStyle", &json!({"id": a.0, "start": 2, "end": 2, "font": "Test Mono", "style": "Italic", "size": 18})).unwrap();
+    assert_eq!(face(&first_style(&s, a)).0, CharStyle::default().font_family, "the type keeps its font");
+    let b = type_at(&mut s, 100.0, 300.0, "Two");
+    assert_eq!(face(&first_style(&s, b)), ("Test Mono", "Italic", 18.0));
+    // `text.setStyle` with an empty range likewise.
+    s.execute("text.setStyle", &json!({"ids": [a.0], "start": 1, "end": 1, "font": "Test Serif", "style": "Bold"})).unwrap();
+    let c = type_at(&mut s, 100.0, 500.0, "Three");
+    assert_eq!(face(&first_style(&s, c)), ("Test Serif", "Bold", 18.0));
+}
