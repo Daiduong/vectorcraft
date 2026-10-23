@@ -251,12 +251,18 @@ impl<'a> Printed<'a> {
                 }
             }
         }
+        // The members of a clip group show inside its clipping path's bounds, with effects or not.
+        let clipping = match n.kind {
+            NodeKind::Layer { clip: true, .. } | NodeKind::Group { clip: true, .. } => vectorcraft_render::painted_bounds(self.d, n),
+            _ => None,
+        };
+        self.clips.extend(clipping);
         match &n.kind {
             NodeKind::Text(t) => {
                 if overflows && self.own {
                     self.overflow.insert(n.id);
                 }
-                if self.own && areas.is_some() && self.runs_over_a_page(t) {
+                if self.own && self.runs_over_a_page(t) {
                     self.cut.insert(n.id);
                 }
                 for r in runs {
@@ -280,13 +286,8 @@ impl<'a> Printed<'a> {
                     (true, Some(a)) => Some(self.clip(n, a)),
                     (true, None) => vectorcraft_render::painted_bounds(self.d, n).map(|c| vec![c]),
                 };
-                let bounds = if *clip { vectorcraft_render::painted_bounds(self.d, n) } else { None };
-                self.clips.extend(bounds);
                 for c in children {
                     self.node(c, clipped.as_deref().or(areas));
-                }
-                if bounds.is_some() {
-                    self.clips.pop();
                 }
             }
             _ => {
@@ -294,6 +295,9 @@ impl<'a> Printed<'a> {
                     self.node(c, None);
                 }
             }
+        }
+        if clipping.is_some() {
+            self.clips.pop();
         }
     }
 
@@ -322,7 +326,7 @@ impl<'a> Printed<'a> {
     }
 
     /// Whether the glyphs of `t` that show inside the clip groups around it meet one of the pages
-    /// but don't lie inside any one of them: a page cuts them off.
+    /// without lying inside it: that page cuts them off (also when another page holds them).
     fn runs_over_a_page(&self, t: &vectorcraft_doc::TextObject) -> bool {
         // Glyph edges that touch a page's edge aren't cut by it.
         const SLACK: f64 = 0.01;
@@ -333,7 +337,7 @@ impl<'a> Printed<'a> {
         let ink = ink.inflate(t.char_stroke_outset(), t.char_stroke_outset());
         let shown = self.clips.iter().try_fold(ink, |b, c| Some(b.intersect(*c)).filter(|r| r.area() > 0.0));
         let Some(shown) = shown else { return false };
-        self.pages.iter().any(|p| shown.intersect(*p).area() > 0.0) && !self.pages.iter().any(|p| p.inflate(SLACK, SLACK).contains_rect(shown))
+        self.pages.iter().any(|p| shown.intersect(*p).area() > 0.0 && !p.inflate(SLACK, SLACK).contains_rect(shown))
     }
 
     /// The parts of `areas` inside the bounds of clip group `n` (its clipping path's).

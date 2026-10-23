@@ -196,3 +196,44 @@ fn two_objects_read_in_the_plural() {
         [format!("2 text objects run over the edges of their artboards: the parts past the edges aren't drawn in the export (ids {}, {})", a.0, b.0)]
     );
 }
+
+#[test]
+fn type_in_a_group_with_an_effect_of_its_own_is_named() {
+    let mut s = session();
+    let id = point(&mut s, 20.0, 100.0, LONG);
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.execute("object.group", &json!({})).unwrap();
+    // The group prints where its effect paints, so its members are walked without the areas.
+    s.execute("effect.apply", &json!({"effect": "stylize.dropShadow"})).unwrap();
+    for (format, options) in cropping() {
+        assert_eq!(edge_warnings(&mut s, format, options.clone()), [one(id)], "{format} {options}");
+    }
+}
+
+#[test]
+fn type_inside_one_artboard_and_over_the_edge_of_an_overlapping_one_is_named() {
+    let mut s = session();
+    s.execute("artboard.new", &json!({"x": 150, "y": 0, "width": 300, "height": 200})).unwrap();
+    let v = s.execute("text.create", &json!({"x": 20, "y": 100, "text": "Twenty characters ok", "size": 24})).unwrap();
+    let id = id_of(&v);
+    let right = v["bounds"]["x"].as_f64().unwrap() + v["bounds"]["width"].as_f64().unwrap();
+    assert!(right > 160.0 && right < 290.0, "inside the first artboard, into the second: {v}");
+    // The second page cuts it, though the first holds all of it.
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({})), [one(id)]);
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({"range": "2"})), [one(id)]);
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({"range": "1"})), Vec::<String>::new());
+}
+
+#[test]
+fn type_cut_by_the_clipping_path_of_a_clip_group_with_an_effect_is_left_alone() {
+    let mut s = session();
+    let text = point(&mut s, 20.0, 100.0, LONG);
+    let mask = id_of(&s.execute("shape.rectangle", &json!({"x": 10, "y": 50, "width": 200, "height": 100})).unwrap());
+    s.execute("select.set", &json!({"ids": [text.0, mask.0]})).unwrap();
+    let group = s.execute("object.clippingMask.make", &json!({})).unwrap();
+    s.execute("select.set", &json!({"ids": [group["id"]]})).unwrap();
+    s.execute("effect.apply", &json!({"effect": "stylize.dropShadow"})).unwrap();
+    for (format, options) in cropping() {
+        assert_eq!(edge_warnings(&mut s, format, options.clone()), Vec::<String>::new(), "{format} {options}");
+    }
+}
