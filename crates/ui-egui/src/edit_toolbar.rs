@@ -10,7 +10,7 @@
 //! (Edit Toolbar, the All Tools drawer; tools are added, removed or rearranged only while the drawer
 //! is open, and the ones already in the toolbar show dimmed in it).
 //!
-//! Each toolbar (Basic, Advanced) keeps its own edits in `UiState::toolbar_edits`, saved with the
+//! Each toolbar (Basic, standard Advanced, Classic Advanced) keeps its own edits in `UiState::toolbar_edits`, saved with the
 //! preferences; `toolbar.addTool`, `toolbar.removeTool` and `toolbar.reset` make them.
 
 use std::collections::BTreeSet;
@@ -93,8 +93,14 @@ fn shipped(advanced: bool, classic: bool) -> Vec<ToolbarCategory> {
     }
 }
 
-fn current(edits: &mut ToolbarEdits, advanced: bool) -> &mut Option<Vec<ToolbarCategory>> {
-    if advanced { &mut edits.advanced } else { &mut edits.basic }
+fn current(edits: &mut ToolbarEdits, advanced: bool, classic: bool) -> &mut Option<Vec<ToolbarCategory>> {
+    if !advanced {
+        &mut edits.basic
+    } else if classic {
+        &mut edits.classic_advanced
+    } else {
+        &mut edits.advanced
+    }
 }
 
 /// The Basic toolbar category named `name`.
@@ -106,7 +112,13 @@ fn category(name: &str) -> Option<&'static str> {
 /// out (the category name on each category's first slot); `None` while it is as it ships.
 pub(crate) fn edited_slots(app: &VectorcraftApp) -> Option<Vec<(Option<&'static str>, Vec<&'static str>)>> {
     let edits = &app.ui.toolbar_edits;
-    let cats = if app.ui.toolbar_advanced { &edits.advanced } else { &edits.basic };
+    let cats = if !app.ui.toolbar_advanced {
+        &edits.basic
+    } else if app.ui.toolbar_classic_order {
+        &edits.classic_advanced
+    } else {
+        &edits.advanced
+    };
     let mut out = vec![];
     for c in cats.as_ref()? {
         let mut name = c.name.as_deref().and_then(category);
@@ -130,7 +142,7 @@ fn prune(cats: &mut Vec<ToolbarCategory>) {
 
 /// Keep known tools, each once, and known category names (a hand-edited preferences file).
 pub(crate) fn sanitize(edits: &mut ToolbarEdits) {
-    for cats in [&mut edits.basic, &mut edits.advanced].into_iter().flatten() {
+    for cats in [&mut edits.basic, &mut edits.advanced, &mut edits.classic_advanced].into_iter().flatten() {
         let mut seen = BTreeSet::new();
         for c in cats.iter_mut() {
             c.name = c.name.as_deref().and_then(category).map(str::to_string);
@@ -146,8 +158,8 @@ pub(crate) fn sanitize(edits: &mut ToolbarEdits) {
 /// the edits. Returns the toolbar's slots.
 fn edit(app: &mut VectorcraftApp, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> Result<(), String>) -> Result<Value, String> {
     let advanced = app.ui.toolbar_advanced;
-    let defaults = shipped(advanced, app.ui.workspace == "Essentials Classic");
-    let slot = current(&mut app.ui.toolbar_edits, advanced);
+    let defaults = shipped(advanced, app.ui.toolbar_classic_order);
+    let slot = current(&mut app.ui.toolbar_edits, advanced, app.ui.toolbar_classic_order);
     let mut cats = slot.clone().unwrap_or_else(|| defaults.clone());
     f(&mut cats)?;
     prune(&mut cats);
@@ -259,7 +271,7 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             Ok(app.ui.toolbar_show.json())
         })(),
         "toolbar.reset" => {
-            *current(&mut app.ui.toolbar_edits, app.ui.toolbar_advanced) = None;
+            *current(&mut app.ui.toolbar_edits, app.ui.toolbar_advanced, app.ui.toolbar_classic_order) = None;
             Ok(slots_json(app))
         }
         _ => return None,
@@ -732,6 +744,64 @@ mod tests {
             .unwrap_or_else(|| panic!("no {name} in the drawer {drawer:?}"))
     }
 
+    #[test]
+    fn classic_order_survives_copy_rename_and_preference_round_trip() {
+        let mut app = app();
+        app.run("window.workspace", json!({"name": "Essentials Classic"})).unwrap();
+        let original = slots(&app);
+        app.run("toolbar.addTool", json!({"tool": "pen", "slot": 4, "place": "group"})).unwrap();
+        assert!(app.ui.toolbar_edits.classic_advanced.is_none(), "a no-op edit keeps defaults");
+        app.run("window.workspace.new", json!({"name": "Classic Copy"})).unwrap();
+        assert_eq!(slots(&app), original);
+        app.run("window.workspace.rename", json!({"name": "Classic Copy", "to": "My Tools"})).unwrap();
+        assert_eq!(slots(&app), original);
+        app.ui = serde_json::from_value::<crate::state::UiState>(serde_json::to_value(&app.ui).unwrap()).unwrap().sanitized();
+        app.run("window.workspace", json!({"name": "Painting"})).unwrap();
+        assert!(!app.ui.toolbar_classic_order);
+        assert_eq!(&slots(&app)[2..4], &[vec!["magicWand"], vec!["lasso"]]);
+        app.run("window.workspace", json!({"name": "My Tools"})).unwrap();
+        assert!(app.ui.toolbar_classic_order);
+        assert_eq!(slots(&app), original);
+        app.run("window.workspace.reset", json!({})).unwrap();
+        assert_eq!(slots(&app), original);
+        // Old preferences have neither the order flag nor the Classic edit bank.
+        let mut legacy = serde_json::to_value(crate::state::UiState::default()).unwrap();
+        legacy.as_object_mut().unwrap().remove("toolbar_classic_order");
+        legacy["toolbar_edits"].as_object_mut().unwrap().remove("classic_advanced");
+        let legacy: crate::state::UiState = serde_json::from_value(legacy).unwrap();
+        assert!(!legacy.toolbar_classic_order && legacy.toolbar_edits.classic_advanced.is_none());
+    }
+
+    #[test]
+    fn classic_and_standard_advanced_edits_do_not_reorder_each_other() {
+        let mut app = app();
+        app.run("window.workspace", json!({"name": "Painting"})).unwrap();
+        app.run("toolbar.removeTool", json!({"tool": "zoom"})).unwrap();
+        let standard = slots(&app);
+        app.run("window.workspace", json!({"name": "Essentials Classic"})).unwrap();
+        assert_eq!(&slots(&app)[2..4], &[vec!["lasso"], vec!["magicWand"]]);
+        assert!(slot_of(&app, "zoom").is_some());
+        app.run("toolbar.removeTool", json!({"tool": "hand"})).unwrap();
+        // The first edit and subsequent insert/group/remove all use displayed slot indices.
+        app.run("toolbar.addTool", json!({"tool": "artboard", "slot": 3})).unwrap();
+        assert_eq!(&slots(&app)[2..5], &[vec!["lasso"], vec!["artboard"], vec!["magicWand"]]);
+        app.run("toolbar.addTool", json!({"tool": "artboard", "slot": 2, "place": "group"})).unwrap();
+        assert_eq!(&slots(&app)[2..4], &[vec!["lasso", "artboard"], vec!["magicWand"]]);
+        app.run("toolbar.removeTool", json!({"tool": "artboard"})).unwrap();
+        let classic = slots(&app);
+        app.ui = serde_json::from_value::<crate::state::UiState>(serde_json::to_value(&app.ui).unwrap()).unwrap().sanitized();
+        app.run("window.workspace", json!({"name": "Painting"})).unwrap();
+        assert_eq!(slots(&app), standard);
+        app.run("window.workspace", json!({"name": "Essentials Classic"})).unwrap();
+        assert_eq!(slots(&app), classic);
+        app.run("toolbar.reset", json!({})).unwrap();
+        assert!(slot_of(&app, "hand").is_some());
+        assert_eq!(&slots(&app)[2..4], &[vec!["lasso"], vec!["magicWand"]]);
+        assert!(app.ui.toolbar_edits.classic_advanced.is_none() && app.ui.toolbar_edits.advanced.is_some());
+        app.run("window.workspace", json!({"name": "Painting"})).unwrap();
+        assert_eq!(slots(&app), standard);
+    }
+
     /// The drawer frames each flyout group whole, under the heading most of its tools have: every
     /// tool once, the Pencil's group (led by the Shaper) under Draw.
     #[test]
@@ -870,6 +940,7 @@ mod tests {
             toolbar_edits: ToolbarEdits {
                 basic: Some(vec![cat(Some("Nope"), &[&["pen", "nope"], &["pen"], &["nope"]]), cat(Some("Draw"), &[&[]])]),
                 advanced: None,
+                classic_advanced: None,
             },
             tools_drawer: true,
             ..Default::default()

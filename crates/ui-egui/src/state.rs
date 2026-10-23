@@ -331,6 +331,9 @@ pub struct UiState {
     /// Advanced toolbar (every tool group) instead of the categorized Basic toolbar.
     #[serde(default)]
     pub toolbar_advanced: bool,
+    /// Advanced group order and edit bank inherited when saving a workspace.
+    #[serde(default)]
+    pub toolbar_classic_order: bool,
     #[serde(default = "yes")]
     pub task_bar: bool,
     /// Where the Contextual Task Bar was dragged or pinned. Not saved, as in Illustrator: the bar
@@ -348,7 +351,7 @@ pub struct UiState {
     /// Tool flyouts torn off the toolbar into floating panels.
     #[serde(default)]
     pub floating_flyouts: Vec<FloatingFlyout>,
-    /// The Basic and Advanced toolbars as Edit Toolbar left them (none: as they ship).
+    /// Basic, standard Advanced and Classic Advanced edits (none: as they ship).
     #[serde(default)]
     pub toolbar_edits: ToolbarEdits,
     /// The controls under the toolbar's tools that the All Tools drawer's Show section shows
@@ -651,6 +654,9 @@ pub struct ToolbarEdits {
     pub basic: Option<Vec<ToolbarCategory>>,
     #[serde(default)]
     pub advanced: Option<Vec<ToolbarCategory>>,
+    /// Classic Advanced edits stay separate from the standard Advanced layout.
+    #[serde(default)]
+    pub classic_advanced: Option<Vec<ToolbarCategory>>,
 }
 
 /// Where the Contextual Task Bar sits once its handle has moved it (`window.taskBar.pin`,
@@ -822,6 +828,7 @@ impl Default for UiState {
             toolbar: true,
             toolbar_double: false,
             toolbar_advanced: false,
+            toolbar_classic_order: false,
             task_bar: true,
             task_bar_place: TaskBarPlace::default(),
             context_locked: None,

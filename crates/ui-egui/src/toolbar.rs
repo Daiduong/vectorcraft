@@ -79,7 +79,7 @@ pub(crate) fn slots(app: &VectorcraftApp) -> Vec<(Option<&'static str>, Vec<&'st
     if let Some(edited) = crate::edit_toolbar::edited_slots(app) {
         edited
     } else if app.ui.toolbar_advanced {
-        advanced_groups(app.ui.workspace == "Essentials Classic").iter().map(|g| (None, g.iter().map(|t| t.id).collect())).collect()
+        advanced_groups(app.ui.toolbar_classic_order).iter().map(|g| (None, g.iter().map(|t| t.id).collect())).collect()
     } else {
         BASIC.iter().flat_map(|(cat, ss)| ss.iter().enumerate().map(move |(i, s)| (if i == 0 { Some(*cat) } else { None }, s.to_vec()))).collect()
     }
@@ -89,8 +89,13 @@ pub(crate) fn slots(app: &VectorcraftApp) -> Vec<(Option<&'static str>, Vec<&'st
 pub(crate) fn advanced_groups(classic: bool) -> Vec<&'static [ToolInfo]> {
     let mut groups = TOOL_GROUPS.to_vec();
     // Classic's second row puts Lasso left and Magic Wand right.
-    if classic {
-        groups.swap(2, 3);
+    if classic
+        && let (Some(lasso), Some(wand)) = (
+            groups.iter().position(|g| g.first().is_some_and(|t| t.id == "lasso")),
+            groups.iter().position(|g| g.first().is_some_and(|t| t.id == "magicWand")),
+        )
+    {
+        groups.swap(lasso, wand);
     }
     groups
 }
@@ -113,7 +118,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let w = if cols == 2 { 80.0 } else { WIDTH };
     // Where the panel docks: along the window's left edge, under the bars.
     let edge = ui.available_rect_before_wrap();
-    ui.ctx().data_mut(|d| d.insert_temp(crate::floating::tools_zone_id(), egui::Rect::from_min_size(edge.min, vec2(WIDTH, edge.height()))));
+    ui.ctx().data_mut(|d| d.insert_temp(crate::floating::tools_zone_id(), egui::Rect::from_min_size(edge.min, vec2(w, edge.height()))));
     match app.ui.toolbar_pos {
         None => {
             let margin = egui::Margin { left: 6, right: 0, top: 6, bottom: 6 };
@@ -1335,6 +1340,14 @@ pub(crate) mod tests {
         assert!(row_sizes(&rects).iter().take(3).all(|n| *n == 2));
         let first_tools: Vec<_> = slots(&app).iter().take(6).map(|(_, s)| s[0]).collect();
         assert_eq!(first_tools, ["selection", "directSelection", "lasso", "magicWand", "pen", "curvature"]);
+        let mut rendered = rects.clone();
+        rendered.sort_by(|a, b| a.top().total_cmp(&b.top()).then_with(|| a.left().total_cmp(&b.left())));
+        for (i, (rect, tool)) in rendered.iter().zip(first_tools).take(6).enumerate() {
+            click_in(&mut app, &ctx, 1.1 + i as f64 * 0.1, rect.center(), PointerButton::Primary, 900.0);
+            assert_eq!(app.session.tool_id(), tool, "rendered left/right button identity");
+        }
+        let dock_zone: egui::Rect = ctx.data(|d| d.get_temp(crate::floating::tools_zone_id())).unwrap();
+        assert_eq!(dock_zone.width(), 80.0, "the dock target spans both columns");
         assert_eq!(widget_rects(&ctx, vec2(17.0, 17.0)).len(), 3, "two columns: three 17 pt chips");
         let modes = widget_rects(&ctx, vec2(22.0, 22.0));
         assert_eq!(modes.len(), 3, "the three drawing modes side by side");

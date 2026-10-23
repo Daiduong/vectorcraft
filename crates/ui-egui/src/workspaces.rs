@@ -25,6 +25,8 @@ pub struct Workspace {
     pub toolbar: bool,
     pub toolbar_double: bool,
     pub toolbar_advanced: bool,
+    /// Advanced ordering/edit bank, captured independently of the workspace name.
+    pub toolbar_classic_order: bool,
     pub task_bar: bool,
     pub dock: bool,
     pub dock_tab: DockTab,
@@ -77,6 +79,7 @@ pub fn builtins() -> Vec<Workspace> {
         w(ESSENTIALS, &|_| {}),
         w("Essentials Classic", &|x| {
             x.toolbar_double = true;
+            x.toolbar_classic_order = true;
             x.control_bar = true;
             x.rulers = true;
             x.toolbar_advanced = true;
@@ -173,6 +176,7 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
         toolbar: ui.toolbar,
         toolbar_double: ui.toolbar_double,
         toolbar_advanced: ui.toolbar_advanced,
+        toolbar_classic_order: ui.toolbar_classic_order,
         task_bar: ui.task_bar,
         dock: ui.dock,
         dock_tab: ui.dock_tab,
@@ -197,6 +201,7 @@ pub fn apply(ui: &mut UiState, w: &Workspace) {
     ui.toolbar = w.toolbar;
     ui.toolbar_double = w.toolbar_double;
     ui.toolbar_advanced = w.toolbar_advanced;
+    ui.toolbar_classic_order = w.toolbar_classic_order;
     ui.task_bar = w.task_bar;
     ui.dock = w.dock;
     ui.tab_hid = None;
