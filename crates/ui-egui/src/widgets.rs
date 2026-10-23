@@ -244,7 +244,7 @@ pub(crate) fn typed_unit(ctx: &egui::Context, unit: Unit) -> Unit {
 /// Supports unit suffixes and arithmetic; a number without a unit is in `unit` ([`typed_unit`]: in
 /// points in a picas field with Numbers Without Units Are Points on).
 pub fn num_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<f64>, unit: Unit, width: f32) -> Option<f64> {
-    unit_field(ui, id, value, unit, width, false, ANY)
+    unit_field(ui, id, value, unit, width, false, ANY, Tokens::get(ui.ctx()).cr())
 }
 
 /// Any number: the bounds of a field that has none.
@@ -257,7 +257,8 @@ fn within(v: f64, bounds: &RangeInclusive<f64>) -> f64 {
 
 /// [`num_field`]; with `share_of_value` a percentage typed alone is that share of `value`
 /// ([`share_of`]). ↑/↓, the wheel and a scrub stop at `bounds` (points), and the field shows where
-/// they stopped.
+/// they stopped. The box has `corners` ([`recessed_text`]).
+#[allow(clippy::too_many_arguments)]
 fn unit_field(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -266,11 +267,12 @@ fn unit_field(
     width: f32,
     share_of_value: bool,
     bounds: RangeInclusive<f64>,
+    corners: CornerRadius,
 ) -> Option<f64> {
     let id = ui.id().with(id);
     let shown = value.map(|v| unit.format(v)).unwrap_or_default();
     take_dialog_focus(ui, id, &shown);
-    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1);
+    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1, corners);
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step in the field's unit; a drag on its label scrubs it.
     let read = typed_unit(ui.ctx(), unit);
@@ -452,7 +454,7 @@ pub fn size_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value
             }
         });
     }
-    unit_field(ui, id, value, unit, width, true, ANY)
+    unit_field(ui, id, value, unit, width, true, ANY, Tokens::get(ui.ctx()).cr())
 }
 
 /// Select all of `text` in text field `id`.
@@ -567,10 +569,12 @@ fn select_all_on_focus(ui: &Ui, resp: &Response, text: &str) {
 }
 
 /// The recessed text box of the panel fields showing `shown`, `rows` lines tall (1: single line),
-/// its text kept under `id` while it has focus. Returns the text (as edited), whether the field
-/// applies it in this frame (it lost the focus, or a single-line field took Shift+Enter and kept
-/// the focus: [`shift_enter_keeps_focus`]), the text edit's response and the box.
-fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize) -> (String, bool, Response, Rect) {
+/// its text kept under `id` while it has focus, with `corners` (the scheme's control corners
+/// standing alone; square where it joins a spinner or a chevron). Returns the text (as edited),
+/// whether the field applies it in this frame (it lost the focus, or a single-line field took
+/// Shift+Enter and kept the focus: [`shift_enter_keeps_focus`]), the text edit's response and the
+/// box.
+fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize, corners: CornerRadius) -> (String, bool, Response, Rect) {
     let t = Tokens::get(ui.ctx());
     let editing = ui.memory(|m| m.has_focus(id));
     // A press outside the field ends its editing in this frame, so the text typed is committed
@@ -610,7 +614,7 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
         .allocate_ui_with_layout(vec2(width, height), layout, |ui| {
             ui.set_min_size(vec2(width, height));
             let rect = ui.max_rect();
-            ui.painter().rect(rect, t.cr(), t.input, Stroke::new(1.0, if editing { t.accent } else { t.input_border }), StrokeKind::Inside);
+            ui.painter().rect(rect, corners, t.input, Stroke::new(1.0, if editing { t.accent } else { t.input_border }), StrokeKind::Inside);
             let margin = egui::Margin { left: 7, right: 7, top: if rows > 1 { 4 } else { 0 }, bottom: 0 };
             let resp = egui::Frame::NONE
                 .inner_margin(margin)
@@ -645,7 +649,7 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
 pub fn text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<&str>, width: f32, rows: usize) -> Option<String> {
     let id = ui.id().with(id);
     let shown = value.unwrap_or_default();
-    let (buf, commit, _, _) = recessed_text(ui, id, shown, width, rows);
+    let (buf, commit, _, _) = recessed_text(ui, id, shown, width, rows, Tokens::get(ui.ctx()).cr());
     (commit && buf.trim() != shown).then(|| buf.trim().to_string())
 }
 
@@ -653,7 +657,7 @@ pub fn text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value
 /// leader such as ". "). Returns it when a change is committed (Enter, Shift+Enter or focus loss).
 pub fn exact_text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: &str, width: f32) -> Option<String> {
     let id = ui.id().with(id);
-    let (buf, commit, _, _) = recessed_text(ui, id, value, width, 1);
+    let (buf, commit, _, _) = recessed_text(ui, id, value, width, 1, Tokens::get(ui.ctx()).cr());
     (commit && buf != value).then_some(buf)
 }
 
@@ -688,7 +692,7 @@ pub fn range_field(
 ) -> Option<f64> {
     let places = decimals.min(6) as i32;
     let value = value.into().map(|v| within(v, &range));
-    bounded_field(ui, id, value, suffix, decimals, width, &range).map(|v| within(round_to(v, places), &range))
+    bounded_field(ui, id, value, suffix, decimals, width, &range, Tokens::get(ui.ctx()).cr()).map(|v| within(round_to(v, places), &range))
 }
 
 /// [`plain_field`] for a value the selected objects may not share: `None` shows a blank field.
@@ -700,10 +704,11 @@ pub fn mixed_field(
     decimals: usize,
     width: f32,
 ) -> Option<f64> {
-    bounded_field(ui, id, value, suffix, decimals, width, &ANY)
+    bounded_field(ui, id, value, suffix, decimals, width, &ANY, Tokens::get(ui.ctx()).cr())
 }
 
-/// [`mixed_field`] whose ↑/↓, wheel and scrub stop at `bounds`.
+/// [`mixed_field`] whose ↑/↓, wheel and scrub stop at `bounds`, its box with `corners`.
+#[allow(clippy::too_many_arguments)]
 fn bounded_field(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -712,6 +717,7 @@ fn bounded_field(
     decimals: usize,
     width: f32,
     bounds: &RangeInclusive<f64>,
+    corners: CornerRadius,
 ) -> Option<f64> {
     let id = ui.id().with(id);
     let show = |value: f64| field_text(value, suffix, decimals);
@@ -723,7 +729,7 @@ fn bounded_field(
     };
     let shown = value.map(show).unwrap_or_default();
     take_dialog_focus(ui, id, &shown);
-    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1);
+    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1, corners);
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step at the field's precision (a count ignores Ctrl/Cmd's tenth); a drag on
     // its label scrubs it.
@@ -1613,8 +1619,8 @@ pub fn spin_field_auto(
     min: f64,
     presets: &[f64],
 ) -> Option<SpinPick> {
-    spin_generic(ui, value, auto, width, step, min, presets, &|v| unit.format(v), &mut |ui, fw| {
-        unit_field(ui, id, value, unit, fw, false, min..=f64::INFINITY)
+    spin_generic(ui, value, auto, width, step, min, presets, &|v| unit.format(v), &mut |ui, fw, corners| {
+        unit_field(ui, id, value, unit, fw, false, min..=f64::INFINITY, corners)
     })
 }
 
@@ -1634,8 +1640,8 @@ pub fn spin_plain(
 ) -> Option<f64> {
     let value = value.into();
     let fmt = |v: f64| format!("{v}{suffix}");
-    spin_generic(ui, value, None, width, step, min, presets, &fmt, &mut |ui, fw| {
-        bounded_field(ui, id, value, suffix, decimals, fw, &(min..=f64::INFINITY))
+    spin_generic(ui, value, None, width, step, min, presets, &fmt, &mut |ui, fw, corners| {
+        bounded_field(ui, id, value, suffix, decimals, fw, &(min..=f64::INFINITY), corners)
     })
     .and_then(SpinPick::value)
 }
@@ -1650,7 +1656,7 @@ fn spin_generic(
     min: f64,
     presets: &[f64],
     fmt: &dyn Fn(f64) -> String,
-    field: &mut dyn FnMut(&mut Ui, f32) -> Option<f64>,
+    field: &mut dyn FnMut(&mut Ui, f32, CornerRadius) -> Option<f64>,
 ) -> Option<SpinPick> {
     let t = Tokens::get(ui.ctx());
     let mut out = None;
@@ -1688,7 +1694,10 @@ fn spin_generic(
             out = Some(SpinPick::Value(spinner_step(v, step, min, up.contains(p), modifiers)));
         }
         let fw = if presets.is_empty() { width - 15.0 } else { width - 34.0 };
-        if let Some(v) = field(ui, fw) {
+        // The field is the middle of the box: square where it meets the spinner, and where it
+        // meets the chevron; the box's right end when there are no presets.
+        let corners = if presets.is_empty() { CornerRadius { nw: 0, sw: 0, ne: t.radius, se: t.radius } } else { CornerRadius::ZERO };
+        if let Some(v) = field(ui, fw, corners) {
             out = Some(SpinPick::Value(v.max(min)));
         }
         if !presets.is_empty() {
@@ -3073,6 +3082,55 @@ pub(crate) mod look_tests {
         }
         for pair in boxes.windows(2) {
             assert!((pair[1].min.x - pair[0].max.x + 1.0).abs() < 0.01, "neighbours share one border: {boxes:?}");
+        }
+    }
+
+    /// A spinner field, with and without presets and in every scheme, is one box in three (or
+    /// two) parts: each part one box, square where it meets the next, the box's outer ends
+    /// rounded with the scheme's control corners.
+    #[test]
+    fn a_spinner_field_has_square_joints_and_the_schemes_outer_corners() {
+        use theme::Scheme;
+        let square = |r: CornerRadius| r == CornerRadius::ZERO;
+        for scheme in [Scheme::Modern, Scheme::Classic] {
+            for presets in [&[1.0, 2.0][..], &[]] {
+                let ctx = themed(Default::default());
+                theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
+                let t = Tokens::get(&ctx);
+                let mut add = |ui: &mut Ui| {
+                    ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, presets));
+                };
+                frame(&ctx, 0.0, vec![], &mut add);
+                let shapes = frame(&ctx, 0.1, vec![], &mut add);
+                // Each part's visible shapes as tall as the row, by its box (the text's frame
+                // leaves an empty rectangle over the field).
+                let mut parts: Vec<(Rect, Vec<CornerRadius>)> = vec![];
+                for s in &shapes {
+                    if let egui::Shape::Rect(r) = s
+                        && r.rect.height() > 20.0
+                        && (r.fill != Color32::TRANSPARENT || !r.stroke.is_empty())
+                    {
+                        match parts.iter_mut().find(|(rect, _)| rect.x_range() == r.rect.x_range()) {
+                            Some((rect, corners)) => {
+                                assert_eq!(*rect, r.rect, "{scheme:?} {presets:?}: a part's shapes cover one box");
+                                corners.push(r.corner_radius);
+                            }
+                            None => parts.push((r.rect, vec![r.corner_radius])),
+                        }
+                    }
+                }
+                parts.sort_by(|a, b| a.0.min.x.total_cmp(&b.0.min.x));
+                assert_eq!(parts.len(), if presets.is_empty() { 2 } else { 3 }, "{scheme:?}: {parts:?}");
+                let last = parts.len() - 1;
+                for (i, (_, corners)) in parts.iter().enumerate() {
+                    for &c in corners {
+                        let (left, right) = (CornerRadius { ne: 0, se: 0, ..c }, CornerRadius { nw: 0, sw: 0, ..c });
+                        let outer = |side: CornerRadius| side.nw.max(side.ne) == t.radius && side.sw.max(side.se) == t.radius;
+                        assert!(if i == 0 { outer(left) } else { square(left) }, "{scheme:?} {presets:?}: part {i}'s left corners {c:?}");
+                        assert!(if i == last { outer(right) } else { square(right) }, "{scheme:?} {presets:?}: part {i}'s right corners {c:?}");
+                    }
+                }
+            }
         }
     }
 
