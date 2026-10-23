@@ -5053,6 +5053,8 @@ mark-style	Japanese	Japansk
 	Violet	Violet
 	Color Scheme	Farveskema
 	Modern	Moderne
+	Flat	Flad
+	Quiet	Dæmpet
 @msg	`{key}` must be an array of these names: {_1}	`{key}` skal være et array af disse navne: {_1}
 	Mode	Tilstand
 	Blur Mode	Slørtilstand

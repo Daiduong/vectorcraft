@@ -4983,6 +4983,8 @@ lighting	Light	ライト
 # User Interface › Color Scheme
 	Color Scheme	配色
 	Modern	モダン
+	Flat	フラット
+	Quiet	控えめ
 
 # Symbol Options › Export Type
 	Export Type:	書き出しタイプ:

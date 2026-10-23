@@ -5315,6 +5315,8 @@ imageTrace	Outline	Körvonal
 # User Interface › Color Scheme
 	Color Scheme	Színséma
 	Modern	Modern
+	Flat	Lapos
+	Quiet	Csendes
 
 # Symbol Options › Export Type
 	Export Type:	Exportálás típusa:

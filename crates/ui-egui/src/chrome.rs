@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use egui::{CornerRadius, Sense, Stroke, Ui, vec2};
+use egui::{Sense, Stroke, Ui, vec2};
 use serde_json::json;
 use vectorcraft_doc::NodeKind;
 
@@ -32,79 +32,83 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
     let system = system_title_bar(app);
     let left = app.titlebar_inset.clamp(8.0, f32::from(i8::MAX)) as i8;
     let frame = egui::Frame::NONE.fill(t.app_bar).inner_margin(egui::Margin { left, right: if custom { 0 } else { 14 }, top: 0, bottom: 0 });
-    let bar = egui::Panel::top("app_bar").exact_size(APP_BAR_HEIGHT).frame(frame.stroke(Stroke::new(1.0, t.border))).show(ui, |ui| {
-        // macOS draws the bar under its transparent title bar, so the bar gets the title bar's
-        // clicks: without this a double-click there zooms nothing (#1932).
-        if custom || cfg!(target_os = "macos") {
-            titlebar::drag_area(ui, ui.max_rect());
-        }
-        ui.horizontal_centered(|ui| {
-            // With the system title bar the OS draws its own icon: no in-app brand mark.
-            if !system {
-                let (r, _) = ui.allocate_exact_size(vec2(MARK, MARK), Sense::hover());
-                crate::brand::paint_mark(ui, r);
-                ui.add_space(6.0);
+    let bar = egui::Panel::top("app_bar")
+        .exact_size(APP_BAR_HEIGHT)
+        .show_separator_line(t.chrome_lines)
+        .frame(frame.stroke(t.chrome_stroke(t.border)))
+        .show(ui, |ui| {
+            // macOS draws the bar under its transparent title bar, so the bar gets the title bar's
+            // clicks: without this a double-click there zooms nothing (#1932).
+            if custom || cfg!(target_os = "macos") {
+                titlebar::drag_area(ui, ui.max_rect());
             }
-            let on_home = menus::home_showing(app);
-            if widgets::icon_button(ui, "house", tl!("Home"), on_home, 20.0).clicked() {
-                app.run("app.home", json!({})).ok();
-            }
-            ui.add_space(2.0);
-            // With the macOS menu bar the menus are at the top of the screen instead.
-            let menus_end = if app.services.native_menu.is_some() { ui.cursor().min.x } else { menus::menu_bar(app, ui) };
-            // The right-side group fills the space after the menus from the right; when it runs
-            // short, Discord goes first (it is also under Help), then the search icon (the palette
-            // stays under its shortcut), then the workspace switcher narrows.
-            let full = ui.max_rect();
-            let right_edge = if custom { full.right() - titlebar::WIDTH - 10.0 } else { full.right() };
-            let right = egui::Rect::from_min_max(egui::pos2(menus_end + 8.0, full.top()), egui::pos2(right_edge, full.bottom()));
-            let room = right.width();
-            // Built-in workspace names translate; the user's own stay as typed.
-            let ws_name =
-                if crate::workspaces::is_builtin(&app.ui.workspace) { tl!(&app.ui.workspace).to_string() } else { app.ui.workspace.clone() };
-            let ws = ui.painter().layout_no_wrap(ws_name, egui::FontId::proportional(12.0), t.text);
-            let ws_w = (ws.size().x + 36.0).clamp(112.0, 190.0);
-            let gap = ui.spacing().item_spacing.x;
-            // The search icon, as in PhotoCraft: shown while a minimal switcher fits beside it.
-            let icon = 28.0;
-            let search = room >= 64.0 + 8.0 + gap + icon;
-            let ws_w = ws_w.min(room - 8.0 - gap - if search { icon } else { 0.0 }).max(64.0);
-            let discord = search && room >= ws_w + 8.0 + gap + icon + 10.0 + gap + crate::community::discord_width(ui, false);
-            let mut rui = ui.new_child(egui::UiBuilder::new().max_rect(right).layout(egui::Layout::right_to_left(egui::Align::Center)));
-            let ui = &mut rui;
-            // Workspace switcher: shows the current workspace, opens Window → Workspace.
-            let (wr, wresp) = ui.allocate_exact_size(vec2(ws_w, WIDGET_H), Sense::click());
-            ui.painter().rect_filled(wr, CornerRadius::same(4), if wresp.hovered() { t.hover } else { t.panel });
-            ui.painter().with_clip_rect(wr.shrink2(vec2(4.0, 0.0))).galley(wr.left_center() + vec2(10.0, -ws.size().y / 2.0), ws, t.text);
-            icons::paint(ui, "chevron-down", egui::Rect::from_center_size(wr.right_center() - vec2(12.0, 0.0), vec2(12.0, 12.0)), t.text_dim);
-            let wresp = wresp.on_hover_text(tl!("Switch workspace"));
-            egui::Popup::menu(&wresp).show(|ui| crate::workspaces::popup(app, ui));
-            ui.add_space(8.0);
-            // Search → command palette (its shortcut opens it too).
-            if search {
-                let tip = match menus::shortcut_of("help.commandPalette") {
-                    Some(sc) => format!("{}  ({})", tl!("Search commands and tools"), menus::pretty_shortcut(sc)),
-                    None => tl!("Search commands and tools").to_string(),
-                };
-                if widgets::icon_button(ui, "search", &tip, app.ui.palette_open, icon).clicked() {
-                    app.ui.palette_open = !app.ui.palette_open;
-                    app.ui.palette_query.clear();
+            ui.horizontal_centered(|ui| {
+                // With the system title bar the OS draws its own icon: no in-app brand mark.
+                if !system {
+                    let (r, _) = ui.allocate_exact_size(vec2(MARK, MARK), Sense::hover());
+                    crate::brand::paint_mark(ui, r);
+                    ui.add_space(6.0);
                 }
-            }
-            if discord {
-                ui.add_space(10.0);
-                crate::community::discord_button(app, ui, false);
-            }
-            if app.services.native_menu.is_some() {
-                let title = ui.painter().layout_no_wrap("VectorCraft".into(), egui::FontId::proportional(13.5), t.text);
-                let title_rect = egui::Rect::from_center_size(full.center(), title.size());
-                // Keep the title centered only while the interactive groups leave room for it.
-                if title_rect.left() >= menus_end + 8.0 && title_rect.right() <= ui.min_rect().left() - 8.0 {
-                    ui.painter().galley(title_rect.min, title, t.text);
+                let on_home = menus::home_showing(app);
+                if widgets::icon_button(ui, "house", tl!("Home"), on_home, 20.0).clicked() {
+                    app.run("app.home", json!({})).ok();
                 }
-            }
+                ui.add_space(2.0);
+                // With the macOS menu bar the menus are at the top of the screen instead.
+                let menus_end = if app.services.native_menu.is_some() { ui.cursor().min.x } else { menus::menu_bar(app, ui) };
+                // The right-side group fills the space after the menus from the right; when it runs
+                // short, Discord goes first (it is also under Help), then the search icon (the palette
+                // stays under its shortcut), then the workspace switcher narrows.
+                let full = ui.max_rect();
+                let right_edge = if custom { full.right() - titlebar::WIDTH - 10.0 } else { full.right() };
+                let right = egui::Rect::from_min_max(egui::pos2(menus_end + 8.0, full.top()), egui::pos2(right_edge, full.bottom()));
+                let room = right.width();
+                // Built-in workspace names translate; the user's own stay as typed.
+                let ws_name =
+                    if crate::workspaces::is_builtin(&app.ui.workspace) { tl!(&app.ui.workspace).to_string() } else { app.ui.workspace.clone() };
+                let ws = ui.painter().layout_no_wrap(ws_name, egui::FontId::proportional(12.0), t.text);
+                let ws_w = (ws.size().x + 36.0).clamp(112.0, 190.0);
+                let gap = ui.spacing().item_spacing.x;
+                // The search icon, as in PhotoCraft: shown while a minimal switcher fits beside it.
+                let icon = 28.0;
+                let search = room >= 64.0 + 8.0 + gap + icon;
+                let ws_w = ws_w.min(room - 8.0 - gap - if search { icon } else { 0.0 }).max(64.0);
+                let discord = search && room >= ws_w + 8.0 + gap + icon + 10.0 + gap + crate::community::discord_width(ui, false);
+                let mut rui = ui.new_child(egui::UiBuilder::new().max_rect(right).layout(egui::Layout::right_to_left(egui::Align::Center)));
+                let ui = &mut rui;
+                // Workspace switcher: shows the current workspace, opens Window → Workspace.
+                let (wr, wresp) = ui.allocate_exact_size(vec2(ws_w, WIDGET_H), Sense::click());
+                ui.painter().rect_filled(wr, t.cr(), if wresp.hovered() { t.hover } else { t.panel });
+                ui.painter().with_clip_rect(wr.shrink2(vec2(4.0, 0.0))).galley(wr.left_center() + vec2(10.0, -ws.size().y / 2.0), ws, t.text);
+                icons::paint(ui, "chevron-down", egui::Rect::from_center_size(wr.right_center() - vec2(12.0, 0.0), vec2(12.0, 12.0)), t.text_dim);
+                let wresp = wresp.on_hover_text(tl!("Switch workspace"));
+                egui::Popup::menu(&wresp).show(|ui| crate::workspaces::popup(app, ui));
+                ui.add_space(8.0);
+                // Search → command palette (its shortcut opens it too).
+                if search {
+                    let tip = match menus::shortcut_of("help.commandPalette") {
+                        Some(sc) => format!("{}  ({})", tl!("Search commands and tools"), menus::pretty_shortcut(sc)),
+                        None => tl!("Search commands and tools").to_string(),
+                    };
+                    if widgets::icon_button(ui, "search", &tip, app.ui.palette_open, icon).clicked() {
+                        app.ui.palette_open = !app.ui.palette_open;
+                        app.ui.palette_query.clear();
+                    }
+                }
+                if discord {
+                    ui.add_space(10.0);
+                    crate::community::discord_button(app, ui, false);
+                }
+                if app.services.native_menu.is_some() {
+                    let title = ui.painter().layout_no_wrap("VectorCraft".into(), egui::FontId::proportional(13.5), t.text);
+                    let title_rect = egui::Rect::from_center_size(full.center(), title.size());
+                    // Keep the title centered only while the interactive groups leave room for it.
+                    if title_rect.left() >= menus_end + 8.0 && title_rect.right() <= ui.min_rect().left() - 8.0 {
+                        ui.painter().galley(title_rect.min, title, t.text);
+                    }
+                }
+            });
         });
-    });
     if custom {
         titlebar::caption_buttons(app, ui, bar.response.rect);
     }
@@ -279,7 +283,8 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     egui::Panel::top("control_bar")
         .exact_size(34.0)
-        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(10, 0)).stroke(Stroke::new(1.0, t.border)))
+        .show_separator_line(t.chrome_lines)
+        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(10, 0)).stroke(t.chrome_stroke(t.border)))
         .show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 // Gripper
@@ -460,7 +465,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
     let (height, title_size) = if app.session.prefs.large_tabs { (44.0, 14.0) } else { (35.0, 12.5) };
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
     ui.painter().rect_filled(strip, 0.0, t.tab_strip);
-    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], Stroke::new(1.0, t.border));
+    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], t.chrome_stroke(t.border));
     // On the Home screen no tab is the current one.
     let active = app.session.active_index().filter(|_| app.ui.home.is_none());
     let tabs: Vec<(String, std::sync::Arc<egui::Galley>)> = app
@@ -490,12 +495,22 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
         let is_active = Some(i) == active;
         let r = egui::Rect::from_min_size(egui::pos2(x, strip.top()), vec2(*w, strip.height() - 1.0));
         let resp = ui.interact(r, ui.id().with(("tab", i)), Sense::click());
-        if is_active {
-            ui.painter().rect_filled(r, 0.0, t.panel);
-        } else if resp.hovered() {
-            ui.painter().rect_filled(r, 0.0, t.hover.gamma_multiply(0.4));
+        if !t.chrome_lines {
+            // No lines to mark the tabs off: the one in front is a raised chip, as the panel tabs.
+            let chip = r.shrink2(vec2(2.0, 4.0));
+            if is_active {
+                theme::paint_raised(ui.painter(), chip, t.cr(), t.button, &t);
+            } else if resp.hovered() {
+                ui.painter().rect_filled(chip, t.cr(), t.hover);
+            }
+        } else {
+            if is_active {
+                ui.painter().rect_filled(r, 0.0, t.panel);
+            } else if resp.hovered() {
+                ui.painter().rect_filled(r, 0.0, t.hover.gamma_multiply(0.4));
+            }
+            ui.painter().line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.5, t.border));
         }
-        ui.painter().line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.5, t.border));
         // The × where each platform puts a tab's: before the title on macOS, after it elsewhere
         // (#673).
         let (x_center, title_left) = if CLOSE_BEFORE_TITLE { (r.left() + 16.0, r.left() + 32.0) } else { (r.right() - 16.0, r.left() + 14.0) };
@@ -583,8 +598,8 @@ pub fn isolation_bar(app: &mut VectorcraftApp, ui: &mut Ui, area: egui::Rect) {
                 let w = 12.0 + 7.0 * label.len() as f32;
                 let r = egui::Rect::from_min_max(egui::pos2(x - w, bar.top() + 3.0), egui::pos2(x, bar.bottom() - 3.0));
                 let resp = ui.interact(r, ui.id().with(("pat-bar", cmd)), Sense::click());
-                ui.painter().rect_filled(r, 3.0, if resp.hovered() { t.hover } else { t.panel });
-                ui.painter().rect_stroke(r, 3.0, Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
+                ui.painter().rect_filled(r, t.cr(), if resp.hovered() { t.hover } else { t.panel });
+                ui.painter().rect_stroke(r, t.cr(), Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
                 ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, label, egui::FontId::proportional(12.0), t.text);
                 if resp.clicked() {
                     pattern_cmd = Some(cmd);
@@ -694,7 +709,8 @@ pub fn status_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     egui::Panel::bottom("status_bar")
         .exact_size(24.0)
-        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(8, 0)).stroke(Stroke::new(1.0, t.border)))
+        .show_separator_line(t.chrome_lines)
+        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(8, 0)).stroke(t.chrome_stroke(t.border)))
         .show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 let zoom = app.view().map(|v| v.zoom).unwrap_or(1.0);
@@ -1142,7 +1158,8 @@ pub fn hint_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let panel = egui::Panel::bottom("hint_bar")
         .exact_size(28.0)
-        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(10, 0)).stroke(Stroke::new(1.0, t.border)))
+        .show_separator_line(t.chrome_lines)
+        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(10, 0)).stroke(t.chrome_stroke(t.border)))
         .show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 let (r, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());

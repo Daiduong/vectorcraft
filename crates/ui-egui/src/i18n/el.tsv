@@ -5281,6 +5281,8 @@ effect	Points	Σημεία
 # User Interface › Color Scheme
 	Color Scheme	Χρωματικός συνδυασμός
 	Modern	Σύγχρονο
+	Flat	Επίπεδο
+	Quiet	Ήσυχο
 
 # Symbol Options › Export Type
 	Export Type:	Τύπος εξαγωγής:

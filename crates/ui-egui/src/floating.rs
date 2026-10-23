@@ -539,21 +539,21 @@ pub(crate) fn drop_target(app: &VectorcraftApp, ctx: &egui::Context, what: Movin
 pub(crate) fn highlight(ctx: &egui::Context, zone: Rect) {
     let t = Tokens::get(ctx);
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, Id::new("floating-drop-zone")));
-    painter.rect(zone.shrink(1.0), CornerRadius::same(2), t.accent.gamma_multiply(0.2), Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
+    painter.rect(zone.shrink(1.0), t.cr_small(), t.accent.gamma_multiply(0.2), Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
 }
 
 /// Light up the tabs a drop stacks the moved panels with, over the floating and docked groups.
 fn tab_zone(ctx: &egui::Context, tabs: Rect) {
     let t = Tokens::get(ctx);
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, Id::new("floating-drop-tabs")));
-    painter.rect(tabs.shrink(1.0), CornerRadius::same(2), t.accent.gamma_multiply(0.25), Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
+    painter.rect(tabs.shrink(1.0), t.cr_small(), t.accent.gamma_multiply(0.25), Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
 }
 
 /// Show where a drop puts the moved groups in a set: a line over the floating groups.
 fn insertion_line(ctx: &egui::Context, line: Rect) {
     let t = Tokens::get(ctx);
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, Id::new("floating-drop-line")));
-    painter.rect_filled(line, CornerRadius::same(2), t.accent);
+    painter.rect_filled(line, t.cr_small(), t.accent);
 }
 
 pub(crate) fn preview(ctx: &egui::Context, target: Drop, rect: Rect) {
@@ -884,7 +884,8 @@ pub(crate) fn docked_columns(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> Vec
             .resizable(true)
             .default_size(natural)
             .size_range(200.0..=520.0)
-            .frame(egui::Frame::NONE.fill(t.panel).stroke(Stroke::new(1.5, t.border)))
+            .show_separator_line(t.chrome_lines)
+            .frame(egui::Frame::NONE.fill(t.panel).stroke(if t.chrome_lines { Stroke::new(1.5, t.border) } else { Stroke::NONE }))
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
                 let width = ui.available_width();
@@ -952,7 +953,7 @@ fn show_set(app: &mut VectorcraftApp, ctx: &egui::Context, set: &[usize], action
     let tall = ((screen.bottom() - pos.y - TITLE - n * STRIP - (n - 1.0) * GAP - 60.0) / open).clamp(120.0, 560.0);
     let lead_active = lead.active;
     egui::Area::new(area).order(egui::Order::Middle).fixed_pos(pos).show(ctx, |ui| {
-        let frame = egui::Frame::popup(ui.style()).fill(t.panel).corner_radius(CornerRadius::same(4)).inner_margin(egui::Margin::ZERO);
+        let frame = egui::Frame::popup(ui.style()).fill(t.panel).corner_radius(t.cr_float()).inner_margin(egui::Margin::ZERO);
         frame.show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::ZERO;
             let width = groups
@@ -969,7 +970,7 @@ fn show_set(app: &mut VectorcraftApp, ctx: &egui::Context, set: &[usize], action
             ui.set_width(width);
             // Title bar: a grip that moves the set, and the × that docks it.
             let (bar, _) = ui.allocate_exact_size(vec2(width, TITLE), Sense::hover());
-            ui.painter().rect_filled(bar, CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 }, t.tab_strip);
+            ui.painter().rect_filled(bar, CornerRadius { nw: t.radius_float, ne: t.radius_float, sw: 0, se: 0 }, t.tab_strip);
             let close = Rect::from_center_size(bar.right_center() - vec2(10.0, 0.0), vec2(TITLE, TITLE));
             let grip = ui.interact(Rect::from_min_max(bar.min, pos2(close.left(), bar.bottom())), ui.id().with("title"), Sense::drag());
             for k in 0..2 {
@@ -1028,6 +1029,7 @@ fn draw_groups(
         let names: Vec<_> = g.ids.iter().zip(&labels).map(|(&id, label)| (id, label.as_str())).collect();
         let selected = g.ids.iter().position(|&id| id == g.active).unwrap_or(0);
         let out = dock::panel_tabs(ui, &format!("native-set-tabs-{}", g.gi), tab_area, &names, selected, theme::semibold(12.0), false);
+        ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], t.tab_rule());
         for (j, resp) in &out.responses {
             let Some(&id) = g.ids.get(*j) else { continue };
             if let Some((from, to)) = dock::tab_reorder_on_release(strip, pointer, resp, &out.responses) {

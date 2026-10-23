@@ -5296,6 +5296,8 @@ theme	Appearance	Външен вид
 # User Interface › Color Scheme
 	Color Scheme	Цветова схема
 	Modern	Модерна
+	Flat	Плоска
+	Quiet	Тиха
 
 # Symbol Options › Export Type
 	Export Type:	Тип на експортиране:

@@ -172,7 +172,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         ui.add_space(12.0);
         ui.horizontal_top(|ui| {
             // Category list.
-            egui::Frame::NONE.fill(t.panel_darker).corner_radius(egui::CornerRadius::same(4)).inner_margin(egui::Margin::same(6)).show(ui, |ui| {
+            egui::Frame::NONE.fill(t.panel_darker).corner_radius(t.cr()).inner_margin(egui::Margin::same(6)).show(ui, |ui| {
                 ui.set_width(196.0);
                 ui.set_min_height(430.0);
                 ui.vertical(|ui| {
@@ -322,7 +322,8 @@ fn category_fields(ui: &mut egui::Ui, d: &mut Dialog, cat: &str) {
             }
             // Linux only: the other platforms have a single display server.
             PrefKind::Choice(_) if sp.key == "linuxDisplayServer" && !cfg!(target_os = "linux") => {}
-            // The Classic colour scheme has its own accent: dimmed while it is chosen.
+            // The Classic, Flat and Quiet colour schemes have their own accent: dimmed while one is
+            // chosen.
             PrefKind::Choice(opts) if sp.key == "uiAccent" => {
                 let modern = Scheme::parse(&d.str("uiColorScheme")).unwrap_or_default() == Scheme::Modern;
                 ui.add_enabled_ui(modern, |ui| choice_row(ui, d, sp.key, sp.label, opts, &v));

@@ -9,6 +9,21 @@ use vectorcraft_doc::Unit;
 use crate::theme::{self, Tokens};
 use crate::{icons, scrub};
 
+/// Shared editable-field height, matching the Control bar's buttons and profile selector.
+pub(crate) const FIELD_HEIGHT: f32 = 24.0;
+
+/// The corners of the first part of a field group (spinner, field, arrow sharing their
+/// borders): the scheme's control corners on its left end, square where it meets the next part.
+fn group_start(t: &Tokens) -> CornerRadius {
+    CornerRadius { nw: t.radius, sw: t.radius, ne: 0, se: 0 }
+}
+
+/// The corners of the last part of a field group: square where it meets the part before it, the
+/// scheme's control corners on its right end ([`group_start`]).
+fn group_end(t: &Tokens) -> CornerRadius {
+    CornerRadius { nw: 0, sw: 0, ne: t.radius, se: t.radius }
+}
+
 /// Square icon button; `selected` draws the pressed well.
 pub fn icon_button(ui: &mut Ui, icon: &str, tip: &str, selected: bool, size: f32) -> Response {
     let (_, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
@@ -20,14 +35,11 @@ pub fn paint_icon_button(ui: &mut Ui, resp: Response, icon: &str, tip: &str, sel
     let t = Tokens::get(ui.ctx());
     let rect = resp.rect;
     let size = rect.width();
-    let bg = if selected {
-        t.tool_active
+    if selected {
+        theme::paint_raised(ui.painter(), rect, t.cr(), t.tool_active, &t);
     } else if resp.hovered() {
-        t.hover
-    } else {
-        Color32::TRANSPARENT
-    };
-    ui.painter().rect_filled(rect, CornerRadius::same(5), bg);
+        ui.painter().rect_filled(rect, t.cr(), t.hover);
+    }
     let pad = (size * 0.2).round();
     icons::paint(ui, icon, rect.shrink(pad), if selected { t.text_strong } else { t.icon });
     resp.widget_info(|| icon_button_info(ui.is_enabled(), selected, tl!(tip)));
@@ -39,7 +51,7 @@ pub fn flat_button(ui: &mut Ui, text: &str, width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click());
     let rect = rect.shrink2(vec2(0.0, 0.5));
-    ui.painter().rect_filled(rect, CornerRadius::same(5), t.button);
+    theme::paint_raised(ui.painter(), rect, t.cr(), t.button, &t);
     flat_fill(ui, rect, &resp);
     ui.painter().with_clip_rect(rect).text(rect.center(), egui::Align2::CENTER_CENTER, tl!(text), egui::FontId::proportional(12.5), t.text_strong);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(text)));
@@ -53,7 +65,7 @@ pub fn flat_button_fit(ui: &mut Ui, text: &str, min_width: f32) -> Response {
     let width = (galley.size().x + 24.0).max(min_width);
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click());
     let rect = rect.shrink2(vec2(0.0, 0.5));
-    ui.painter().rect_filled(rect, CornerRadius::same(5), t.button);
+    theme::paint_raised(ui.painter(), rect, t.cr(), t.button, &t);
     flat_fill(ui, rect, &resp);
     ui.painter().with_clip_rect(rect).text(rect.center(), egui::Align2::CENTER_CENTER, tl!(text), egui::FontId::proportional(12.5), t.text_strong);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(text)));
@@ -80,7 +92,7 @@ pub fn split_button_named(ui: &mut Ui, text: &str, arrow_tip: &str, width: f32) 
     let arrow_rect = Rect::from_min_max(pos2(split, rect.top()), rect.max);
     let main = ui.interact(main_rect, ui.id().with((text, "split")), Sense::click());
     let arrow = ui.interact(arrow_rect, ui.id().with((text, "split-arrow")), Sense::click());
-    ui.painter().rect_filled(rect, CornerRadius::same(5), t.button);
+    theme::paint_raised(ui.painter(), rect, t.cr(), t.button, &t);
     flat_fill(ui, main_rect, &main);
     flat_fill(ui, arrow_rect, &arrow);
     ui.painter().vline(split, rect.y_range().shrink(5.0), Stroke::new(1.0, t.panel));
@@ -104,9 +116,9 @@ pub fn split_button_named(ui: &mut Ui, text: &str, arrow_tip: &str, width: f32) 
 fn flat_fill(ui: &Ui, rect: Rect, resp: &Response) {
     let t = Tokens::get(ui.ctx());
     if resp.is_pointer_button_down_on() {
-        ui.painter().rect_filled(rect, CornerRadius::same(5), t.tool_active);
+        ui.painter().rect_filled(rect, t.cr(), t.tool_active);
     } else if resp.hovered() {
-        ui.painter().rect_filled(rect, CornerRadius::same(5), t.hover);
+        ui.painter().rect_filled(rect, t.cr(), t.hover);
     }
 }
 
@@ -138,9 +150,11 @@ fn primary_button_sized(ui: &mut Ui, text: &str, enabled: bool, min_width: f32) 
         (true, true) => t.accent,
         (true, false) => t.accent_strong,
     };
-    ui.painter().rect_filled(rect, CornerRadius::same(6), bg);
-    if !enabled {
-        ui.painter().rect_stroke(rect, CornerRadius::same(6), egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
+    if enabled {
+        theme::paint_raised(ui.painter(), rect, t.cr(), bg, &t);
+    } else {
+        // Greyed out: a flat face with a border, not raised.
+        ui.painter().rect(rect, t.cr(), bg, egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
     }
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, fg);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled && ui.is_enabled(), tl!(text)));
@@ -158,7 +172,7 @@ pub(crate) fn secondary_button_width(ui: &mut Ui, text: &str, min_width: f32) ->
     let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), t.text);
     let w = galley.size().x + 32.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(w.max(min_width), 28.0), Sense::click());
-    ui.painter().rect_filled(rect, CornerRadius::same(6), if resp.hovered() { t.hover } else { t.button });
+    theme::paint_raised(ui.painter(), rect, t.cr(), if resp.hovered() { t.hover } else { t.button }, &t);
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, t.text);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(text)));
     resp
@@ -184,7 +198,7 @@ pub fn section_toggle_name(ui: &mut Ui, text: &str, open: bool) -> Response {
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
     if resp.hovered() {
-        ui.painter().rect_filled(rect, 3.0, t.hover);
+        ui.painter().rect_filled(rect, t.cr(), t.hover);
     }
     let chevron = Rect::from_center_size(pos2(rect.left() + 8.0, rect.center().y), vec2(12.0, 12.0));
     icons::paint(ui, if open { "chevron-down" } else { "chevron-right" }, chevron, if resp.hovered() { t.text_strong } else { t.icon });
@@ -193,12 +207,15 @@ pub fn section_toggle_name(ui: &mut Ui, text: &str, open: bool) -> Response {
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-/// Full-width 1 px divider with vertical margins.
+/// Full-width 1 px divider with vertical margins; without [`Tokens::chrome_lines`] the margins
+/// alone.
 pub fn divider(ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     ui.add_space(6.0);
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
-    ui.painter().rect_filled(rect, 0.0, t.divider);
+    if t.chrome_lines {
+        ui.painter().rect_filled(rect, 0.0, t.divider);
+    }
     ui.add_space(6.0);
 }
 
@@ -244,7 +261,7 @@ pub(crate) fn typed_unit(ctx: &egui::Context, unit: Unit) -> Unit {
 /// Supports unit suffixes and arithmetic; a number without a unit is in `unit` ([`typed_unit`]: in
 /// points in a picas field with Numbers Without Units Are Points on).
 pub fn num_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<f64>, unit: Unit, width: f32) -> Option<f64> {
-    unit_field(ui, id, value, unit, width, false, ANY)
+    unit_field(ui, id, value, unit, width, false, ANY, Tokens::get(ui.ctx()).cr())
 }
 
 /// Any number: the bounds of a field that has none.
@@ -257,7 +274,8 @@ fn within(v: f64, bounds: &RangeInclusive<f64>) -> f64 {
 
 /// [`num_field`]; with `share_of_value` a percentage typed alone is that share of `value`
 /// ([`share_of`]). ↑/↓, the wheel and a scrub stop at `bounds` (points), and the field shows where
-/// they stopped.
+/// they stopped. The box has `corners` ([`recessed_text`]).
+#[allow(clippy::too_many_arguments)]
 fn unit_field(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -266,11 +284,12 @@ fn unit_field(
     width: f32,
     share_of_value: bool,
     bounds: RangeInclusive<f64>,
+    corners: CornerRadius,
 ) -> Option<f64> {
     let id = ui.id().with(id);
     let shown = value.map(|v| unit.format(v)).unwrap_or_default();
     take_dialog_focus(ui, id, &shown);
-    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1);
+    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1, corners);
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step in the field's unit; a drag on its label scrubs it.
     let read = typed_unit(ui.ctx(), unit);
@@ -452,7 +471,7 @@ pub fn size_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value
             }
         });
     }
-    unit_field(ui, id, value, unit, width, true, ANY)
+    unit_field(ui, id, value, unit, width, true, ANY, Tokens::get(ui.ctx()).cr())
 }
 
 /// Select all of `text` in text field `id`.
@@ -567,10 +586,12 @@ fn select_all_on_focus(ui: &Ui, resp: &Response, text: &str) {
 }
 
 /// The recessed text box of the panel fields showing `shown`, `rows` lines tall (1: single line),
-/// its text kept under `id` while it has focus. Returns the text (as edited), whether the field
-/// applies it in this frame (it lost the focus, or a single-line field took Shift+Enter and kept
-/// the focus: [`shift_enter_keeps_focus`]), the text edit's response and the box.
-fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize) -> (String, bool, Response, Rect) {
+/// its text kept under `id` while it has focus, with `corners` (the scheme's control corners
+/// standing alone; square where it joins a spinner or a chevron). Returns the text (as edited),
+/// whether the field applies it in this frame (it lost the focus, or a single-line field took
+/// Shift+Enter and kept the focus: [`shift_enter_keeps_focus`]), the text edit's response and the
+/// box.
+fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize, corners: CornerRadius) -> (String, bool, Response, Rect) {
     let t = Tokens::get(ui.ctx());
     let editing = ui.memory(|m| m.has_focus(id));
     // A press outside the field ends its editing in this frame, so the text typed is committed
@@ -601,16 +622,13 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
         select_all(ui, id, &buf);
     }
     let kept = rows == 1 && shift_enter_keeps_focus(ui, id);
-    // The box is exactly as tall as the other controls of a row (26 points a line), its text
-    // centred in it: a frame around the text came out a point taller and stood out next to
-    // spinners and dropdowns (#900).
-    let height = 26.0 + 16.0 * (rows.max(1) - 1) as f32;
+    let height = FIELD_HEIGHT + 16.0 * (rows.max(1) - 1) as f32;
     let layout = if rows > 1 { egui::Layout::top_down(egui::Align::Min) } else { egui::Layout::left_to_right(egui::Align::Center) };
     let (rect, resp) = ui
         .allocate_ui_with_layout(vec2(width, height), layout, |ui| {
             ui.set_min_size(vec2(width, height));
             let rect = ui.max_rect();
-            ui.painter().rect(rect, 5.0, t.input, Stroke::new(1.0, if editing { t.accent } else { t.input_border }), StrokeKind::Inside);
+            theme::paint_inset(ui.painter(), rect, corners, t.input, Stroke::new(1.0, if editing { t.accent } else { t.input_border }), &t);
             let margin = egui::Margin { left: 7, right: 7, top: if rows > 1 { 4 } else { 0 }, bottom: 0 };
             let resp = egui::Frame::NONE
                 .inner_margin(margin)
@@ -643,9 +661,22 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
 /// `rows` lines tall (1: single line, which Enter and Shift+Enter commit). Returns the new text,
 /// trimmed, when a change is committed (Enter, Shift+Enter or focus loss).
 pub fn text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<&str>, width: f32, rows: usize) -> Option<String> {
+    let corners = Tokens::get(ui.ctx()).cr();
+    text_field_with(ui, id, value, width, rows, corners)
+}
+
+/// [`text_field`] whose box has `corners` (a part of a field group).
+fn text_field_with(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: Option<&str>,
+    width: f32,
+    rows: usize,
+    corners: CornerRadius,
+) -> Option<String> {
     let id = ui.id().with(id);
     let shown = value.unwrap_or_default();
-    let (buf, commit, _, _) = recessed_text(ui, id, shown, width, rows);
+    let (buf, commit, _, _) = recessed_text(ui, id, shown, width, rows, corners);
     (commit && buf.trim() != shown).then(|| buf.trim().to_string())
 }
 
@@ -653,7 +684,7 @@ pub fn text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value
 /// leader such as ". "). Returns it when a change is committed (Enter, Shift+Enter or focus loss).
 pub fn exact_text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: &str, width: f32) -> Option<String> {
     let id = ui.id().with(id);
-    let (buf, commit, _, _) = recessed_text(ui, id, value, width, 1);
+    let (buf, commit, _, _) = recessed_text(ui, id, value, width, 1, Tokens::get(ui.ctx()).cr());
     (commit && buf != value).then_some(buf)
 }
 
@@ -686,9 +717,25 @@ pub fn range_field(
     decimals: usize,
     width: f32,
 ) -> Option<f64> {
+    let corners = Tokens::get(ui.ctx()).cr();
+    range_field_with(ui, id, value, range, suffix, decimals, width, corners)
+}
+
+/// [`range_field`] whose box has `corners` (a part of a field group).
+#[allow(clippy::too_many_arguments)]
+fn range_field_with(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: impl Into<Option<f64>>,
+    range: RangeInclusive<f64>,
+    suffix: &str,
+    decimals: usize,
+    width: f32,
+    corners: CornerRadius,
+) -> Option<f64> {
     let places = decimals.min(6) as i32;
     let value = value.into().map(|v| within(v, &range));
-    bounded_field(ui, id, value, suffix, decimals, width, &range).map(|v| within(round_to(v, places), &range))
+    bounded_field(ui, id, value, suffix, decimals, width, &range, corners).map(|v| within(round_to(v, places), &range))
 }
 
 /// [`plain_field`] for a value the selected objects may not share: `None` shows a blank field.
@@ -700,10 +747,11 @@ pub fn mixed_field(
     decimals: usize,
     width: f32,
 ) -> Option<f64> {
-    bounded_field(ui, id, value, suffix, decimals, width, &ANY)
+    bounded_field(ui, id, value, suffix, decimals, width, &ANY, Tokens::get(ui.ctx()).cr())
 }
 
-/// [`mixed_field`] whose ↑/↓, wheel and scrub stop at `bounds`.
+/// [`mixed_field`] whose ↑/↓, wheel and scrub stop at `bounds`, its box with `corners`.
+#[allow(clippy::too_many_arguments)]
 fn bounded_field(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -712,6 +760,7 @@ fn bounded_field(
     decimals: usize,
     width: f32,
     bounds: &RangeInclusive<f64>,
+    corners: CornerRadius,
 ) -> Option<f64> {
     let id = ui.id().with(id);
     let show = |value: f64| field_text(value, suffix, decimals);
@@ -723,7 +772,7 @@ fn bounded_field(
     };
     let shown = value.map(show).unwrap_or_default();
     take_dialog_focus(ui, id, &shown);
-    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1);
+    let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1, corners);
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step at the field's precision (a count ignores Ctrl/Cmd's tenth); a drag on
     // its label scrubs it.
@@ -1034,7 +1083,7 @@ pub(crate) fn combo<R>(
     egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, t.input_border))
-        .corner_radius(CornerRadius::same(3))
+        .corner_radius(t.cr())
         .show(ui, |ui| {
             if searchable {
                 return searchable_combo(ui, ui.id().with(id), current, width - 4.0, list);
@@ -1292,14 +1341,16 @@ pub fn opacity_blend(
             }
         });
         dim_label(ui, "Opacity:");
-        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.spacing_mut().item_spacing.x = -1.0;
+        // The field and its arrow are one box in two parts: square where they meet.
         ui.add_enabled_ui(enabled, |ui| {
-            if let Some(o) = range_field(ui, (id, "opacity"), opacity.map(|o| o as f64 * 100.0), 0.0..=100.0, "%", 0, 50.0) {
+            let corners = group_start(&t);
+            if let Some(o) = range_field_with(ui, (id, "opacity"), opacity.map(|o| o as f64 * 100.0), 0.0..=100.0, "%", 0, 50.0, corners) {
                 edit = Some(TransparencyEdit::Opacity(o, Live::Released));
             }
         });
-        let (r, resp) = ui.allocate_exact_size(vec2(18.0, 26.0), if enabled { Sense::click() } else { Sense::hover() });
-        ui.painter().rect_stroke(r, 2, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+        let (r, resp) = ui.allocate_exact_size(vec2(18.0, FIELD_HEIGHT), if enabled { Sense::click() } else { Sense::hover() });
+        ui.painter().rect_stroke(r, group_end(&t), Stroke::new(1.0, t.input_border), StrokeKind::Inside);
         icons::paint(ui, "chevron-right", r.shrink2(vec2(3.0, 7.0)), if enabled { t.icon } else { t.text_disabled });
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled && ui.is_enabled(), tl!("Opacity")));
         egui::Popup::menu(&resp).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
@@ -1517,8 +1568,8 @@ fn check_row_named(ui: &mut Ui, text: &str, name: &str, value: Option<bool>, ena
     let t = Tokens::get(ui.ctx());
     let (bx, resp, border) = choice_row(ui, text, enabled);
     let checked = value == Some(true);
-    ui.painter().rect_filled(bx, CornerRadius::same(2), if checked && enabled { t.accent_strong } else { t.input });
-    ui.painter().rect_stroke(bx, CornerRadius::same(2), Stroke::new(1.0, border), StrokeKind::Inside);
+    ui.painter().rect_filled(bx, t.cr_small(), if checked && enabled { t.accent_strong } else { t.input });
+    ui.painter().rect_stroke(bx, t.cr_small(), Stroke::new(1.0, border), StrokeKind::Inside);
     match value {
         Some(true) => {
             let c = if enabled { Color32::WHITE } else { t.text_disabled };
@@ -1613,8 +1664,8 @@ pub fn spin_field_auto(
     min: f64,
     presets: &[f64],
 ) -> Option<SpinPick> {
-    spin_generic(ui, value, auto, width, step, min, presets, &|v| unit.format(v), &mut |ui, fw| {
-        unit_field(ui, id, value, unit, fw, false, min..=f64::INFINITY)
+    spin_generic(ui, value, auto, width, step, min, presets, &|v| unit.format(v), &mut |ui, fw, corners| {
+        unit_field(ui, id, value, unit, fw, false, min..=f64::INFINITY, corners)
     })
 }
 
@@ -1634,8 +1685,8 @@ pub fn spin_plain(
 ) -> Option<f64> {
     let value = value.into();
     let fmt = |v: f64| format!("{v}{suffix}");
-    spin_generic(ui, value, None, width, step, min, presets, &fmt, &mut |ui, fw| {
-        bounded_field(ui, id, value, suffix, decimals, fw, &(min..=f64::INFINITY))
+    spin_generic(ui, value, None, width, step, min, presets, &fmt, &mut |ui, fw, corners| {
+        bounded_field(ui, id, value, suffix, decimals, fw, &(min..=f64::INFINITY), corners)
     })
     .and_then(SpinPick::value)
 }
@@ -1650,18 +1701,18 @@ fn spin_generic(
     min: f64,
     presets: &[f64],
     fmt: &dyn Fn(f64) -> String,
-    field: &mut dyn FnMut(&mut Ui, f32) -> Option<f64>,
+    field: &mut dyn FnMut(&mut Ui, f32, CornerRadius) -> Option<f64>,
 ) -> Option<SpinPick> {
     let t = Tokens::get(ui.ctx());
     let mut out = None;
-    let h = 26.0;
+    let h = FIELD_HEIGHT;
     let enabled = ui.is_enabled();
     ui.scope(|ui| {
         // The spinner, the field and the chevron share their borders: one box in three parts.
         ui.spacing_mut().item_spacing.x = -1.0;
         let (sr, sresp) = ui.allocate_exact_size(vec2(16.0, h), Sense::click());
-        ui.painter().rect_filled(sr, CornerRadius { nw: 2, sw: 2, ne: 0, se: 0 }, t.input);
-        ui.painter().rect_stroke(sr, CornerRadius { nw: 2, sw: 2, ne: 0, se: 0 }, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+        ui.painter().rect_filled(sr, group_start(&t), t.input);
+        ui.painter().rect_stroke(sr, group_start(&t), Stroke::new(1.0, t.input_border), StrokeKind::Inside);
         let up = Rect::from_min_max(sr.min, pos2(sr.right(), sr.center().y));
         let down = Rect::from_min_max(pos2(sr.left(), sr.center().y), sr.max);
         let hover = sresp.hover_pos();
@@ -1688,7 +1739,10 @@ fn spin_generic(
             out = Some(SpinPick::Value(spinner_step(v, step, min, up.contains(p), modifiers)));
         }
         let fw = if presets.is_empty() { width - 15.0 } else { width - 34.0 };
-        if let Some(v) = field(ui, fw) {
+        // The field is the middle of the box: square where it meets the spinner, and where it
+        // meets the chevron; the box's right end when there are no presets.
+        let corners = if presets.is_empty() { group_end(&t) } else { CornerRadius::ZERO };
+        if let Some(v) = field(ui, fw, corners) {
             out = Some(SpinPick::Value(v.max(min)));
         }
         if !presets.is_empty() {
@@ -1845,7 +1899,7 @@ pub fn color_slider_stepped(
     let focused = ui.memory(|m| m.has_focus(id));
     if focused {
         let t = Tokens::get(ui.ctx());
-        ui.painter().rect_stroke(resp.rect, 2.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+        ui.painter().rect_stroke(resp.rect, t.cr_small(), Stroke::new(1.0, t.accent), StrokeKind::Inside);
     }
     let stepped = shown.filter(|_| ui.is_enabled()).and_then(|s| {
         ui.ctx().accesskit_node_builder(id, |node| {
@@ -2094,11 +2148,10 @@ pub fn hex_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, hex: &
     let resp = egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, if editing { t.accent } else { t.input_border }))
-        .corner_radius(5)
-        .inner_margin(egui::Margin::symmetric(6, 4))
+        .corner_radius(t.cr())
+        .inner_margin(egui::Margin::symmetric(6, 3))
         .show(ui, |ui| {
-            // As tall as the other fields (26 points with the margin), whatever the font's line height.
-            ui.set_height(18.0);
+            ui.set_height(FIELD_HEIGHT - 8.0);
             ui.add(
                 egui::TextEdit::singleline(&mut buf)
                     .id(id)
@@ -2135,12 +2188,9 @@ pub fn swatch_tile(ui: &Ui, rect: Rect, paint: &Paint, selected: bool, hovered: 
 pub fn search_field(ui: &mut Ui, id: egui::Id, hint: &str) -> String {
     let t = Tokens::get(ui.ctx());
     let mut query: String = ui.data(|d| d.get_temp(id)).unwrap_or_default();
-    egui::Frame::NONE
-        .fill(t.input)
-        .stroke(Stroke::new(1.0, t.input_border))
-        .corner_radius(egui::CornerRadius::same(2))
-        .inner_margin(egui::Margin::symmetric(8, 5))
-        .show(ui, |ui| {
+    egui::Frame::NONE.fill(t.input).stroke(Stroke::new(1.0, t.input_border)).corner_radius(t.cr()).inner_margin(egui::Margin::symmetric(8, 5)).show(
+        ui,
+        |ui| {
             ui.add(
                 egui::TextEdit::singleline(&mut query)
                     .id(id.with("edit"))
@@ -2148,7 +2198,8 @@ pub fn search_field(ui: &mut Ui, id: egui::Id, hint: &str) -> String {
                     .hint_text(egui::RichText::new(tl!(hint)).italics())
                     .desired_width(ui.available_width()),
             );
-        });
+        },
+    );
     ui.data_mut(|d| d.insert_temp(id, query.clone()));
     query
 }
@@ -2210,7 +2261,7 @@ pub fn opt_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     let framed = egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, if editing { t.accent } else { t.input_border }))
-        .corner_radius(CornerRadius::same(2))
+        .corner_radius(t.cr())
         .inner_margin(egui::Margin::symmetric(4, 4))
         .show(ui, |ui| {
             ui.add(
@@ -2484,7 +2535,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[&str], current: usize) -> Option<usize> {
             if sel {
                 ui.painter().rect_filled(
                     Rect::from_min_max(pos2(rect.left(), rect.bottom() - 2.0), rect.right_bottom()),
-                    CornerRadius::same(1),
+                    CornerRadius::ZERO,
                     t.accent,
                 );
             }
@@ -2503,7 +2554,7 @@ pub fn orientation_button(ui: &mut Ui, landscape: bool, selected: bool, tip: &st
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(26.0), Sense::click());
     if resp.hovered() && !selected {
-        ui.painter().rect_filled(rect, CornerRadius::same(3), t.hover);
+        ui.painter().rect_filled(rect, t.cr(), t.hover);
     }
     let size = if landscape { vec2(16.0, 12.0) } else { vec2(12.0, 16.0) };
     let page = Rect::from_center_size(rect.center(), size);
@@ -2534,7 +2585,11 @@ pub fn layout_button(ui: &mut Ui, tiles: &[(u8, u8)], selected: bool, tip: &str)
     } else {
         Color32::TRANSPARENT
     };
-    ui.painter().rect_filled(rect, CornerRadius::same(3), bg);
+    if selected {
+        theme::paint_raised(ui.painter(), rect, t.cr(), bg, &t);
+    } else {
+        ui.painter().rect_filled(rect, t.cr(), bg);
+    }
     let color = if !enabled {
         t.text_disabled
     } else if selected {
@@ -2581,12 +2636,13 @@ pub fn region_texture(
     ctx.load_texture(name, color, egui::TextureOptions::LINEAR)
 }
 
-/// The chevron cell on the right of a field that opens its preset list (rounded on the right).
+/// The chevron cell on the right of a field that opens its preset list: the end of its field
+/// group ([`group_end`]).
 fn chevron_cell(ui: &mut Ui, h: f32) -> Response {
     let t = Tokens::get(ui.ctx());
     let (dr, dresp) = ui.allocate_exact_size(vec2(20.0, h), Sense::click());
-    ui.painter().rect_filled(dr, CornerRadius { nw: 0, sw: 0, ne: 2, se: 2 }, t.input);
-    ui.painter().rect_stroke(dr, CornerRadius { nw: 0, sw: 0, ne: 2, se: 2 }, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+    ui.painter().rect_filled(dr, group_end(&t), t.input);
+    ui.painter().rect_stroke(dr, group_end(&t), Stroke::new(1.0, t.input_border), StrokeKind::Inside);
     let c = if !ui.is_enabled() {
         t.text_disabled
     } else if dresp.hovered() {
@@ -2604,10 +2660,10 @@ fn chevron_cell(ui: &mut Ui, h: f32) -> Response {
 pub fn text_presets(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: &str, presets: &[&str], width: f32) -> Option<String> {
     let mut out = None;
     ui.scope(|ui| {
-        // The field and the chevron share a border.
+        // The field and the chevron share a border: one box, square where they meet.
         ui.spacing_mut().item_spacing.x = -1.0;
-        out = text_field(ui, &id, Some(value), width - 19.0, 1);
-        let resp = chevron_cell(ui, 26.0);
+        out = text_field_with(ui, &id, Some(value), width - 19.0, 1, group_start(&Tokens::get(ui.ctx())));
+        let resp = chevron_cell(ui, FIELD_HEIGHT);
         egui::Popup::menu(&resp).show(|ui| {
             ui.set_min_width(width - 10.0);
             for p in presets {
@@ -3049,32 +3105,160 @@ pub(crate) mod look_tests {
     }
     // Regression test for #900: a number field with a spinner and a preset list drew as three
     // boxes side by side: its text box was a point taller than the 26-point row, and each joint had
-    // two borders.
+    // two borders. In every scheme the parts of a field group (a spinner field, Opacity's field and
+    // arrow) are as tall as the other controls (24 pt), share their borders, are square where they
+    // meet and take the scheme's control corners at the group's two ends.
     #[test]
-    fn a_spinner_field_reads_as_one_box_in_three_parts() {
-        let ctx = themed(Default::default());
-        let mut add = |ui: &mut Ui| {
-            ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, &[1.0, 2.0]));
+    fn grouped_fields_have_square_joints_matching_heights_and_shared_borders() {
+        use theme::Scheme;
+        // The corners of part `i` of a group whose last part is `last`.
+        let corners = |i: usize, last: usize, t: &Tokens| {
+            let (start, end) = (if i == 0 { t.radius } else { 0 }, if i == last { t.radius } else { 0 });
+            CornerRadius { nw: start, sw: start, ne: end, se: end }
         };
-        frame(&ctx, 0.0, vec![], &mut add);
-        let shapes = frame(&ctx, 0.1, vec![], &mut add);
-        // The boxes of the row: the spinner, the field and the preset chevron, left to right.
-        let mut boxes: Vec<Rect> = vec![];
-        for s in &shapes {
-            if let egui::Shape::Rect(r) = s
-                && r.rect.height() > 20.0
-                && !boxes.contains(&r.rect)
-            {
-                boxes.push(r.rect);
+        let visible = |r: &egui::epaint::RectShape| r.fill != Color32::TRANSPARENT || !r.stroke.is_empty();
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet] {
+            let ctx = themed(Default::default());
+            theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
+            let t = Tokens::get(&ctx);
+            let mut add = |ui: &mut Ui| {
+                ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, &[1.0, 2.0]));
+            };
+            frame(&ctx, 0.0, vec![], &mut add);
+            let shapes = frame(&ctx, 0.1, vec![], &mut add);
+            // The boxes of the row: the spinner, the field and the preset chevron, left to right.
+            let rects: Vec<&egui::epaint::RectShape> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    egui::Shape::Rect(r) if r.rect.height() > 20.0 && visible(r) => Some(r),
+                    _ => None,
+                })
+                .collect();
+            let mut boxes: Vec<Rect> = vec![];
+            for r in &rects {
+                if !boxes.contains(&r.rect) {
+                    boxes.push(r.rect);
+                }
+            }
+            boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
+            assert_eq!(boxes.len(), 3, "{scheme:?}: {boxes:?}");
+            for r in &rects {
+                let i = boxes.iter().position(|b| *b == r.rect).unwrap_or_default();
+                assert_eq!(r.corner_radius, corners(i, 2, &t), "{scheme:?}: part {i} is square at its joints: {r:?}");
+            }
+            for b in &boxes {
+                assert_eq!((b.min.y, b.height()), (boxes[0].min.y, 24.0), "{scheme:?}: all as tall as the neighboring controls: {boxes:?}");
+            }
+            for pair in boxes.windows(2) {
+                assert!((pair[1].min.x - pair[0].max.x + 1.0).abs() < 0.01, "{scheme:?}: neighbours share one border: {boxes:?}");
+            }
+
+            let mut add_opacity = |ui: &mut Ui| {
+                opacity_blend(ui, "opacity", Some(1.0), Some(BlendMode::Normal), true);
+            };
+            let shapes = frame(&ctx, 0.2, vec![], &mut add_opacity);
+            let rects: Vec<&egui::epaint::RectShape> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    egui::Shape::Rect(r) if (r.rect.width() == 50.0 || r.rect.width() == 18.0) && visible(r) => Some(r),
+                    _ => None,
+                })
+                .collect();
+            let mut boxes: Vec<Rect> = rects.iter().map(|r| r.rect).collect();
+            boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
+            boxes.dedup();
+            assert_eq!(boxes.len(), 2, "{scheme:?}: the opacity field and popup arrow: {boxes:?}");
+            for r in &rects {
+                let i = boxes.iter().position(|b| *b == r.rect).unwrap_or_default();
+                assert_eq!(r.corner_radius, corners(i, 1, &t), "{scheme:?}: opacity part {i}: {r:?}");
+                assert_eq!(r.rect.height(), 24.0);
+            }
+            assert_eq!(boxes[0].top(), boxes[1].top());
+            assert_eq!(boxes[0].right() - boxes[1].left(), 1.0, "{scheme:?}: opacity cells share one border");
+        }
+    }
+
+    /// A spinner field, with and without presets and in every scheme, is one box in three (or
+    /// two) parts: each part one box, square where it meets the next, the box's outer ends
+    /// rounded with the scheme's control corners.
+    #[test]
+    fn a_spinner_field_has_square_joints_and_the_schemes_outer_corners() {
+        use theme::Scheme;
+        let square = |r: CornerRadius| r == CornerRadius::ZERO;
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet] {
+            for presets in [&[1.0, 2.0][..], &[]] {
+                let ctx = themed(Default::default());
+                theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
+                let t = Tokens::get(&ctx);
+                let mut add = |ui: &mut Ui| {
+                    ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, presets));
+                };
+                frame(&ctx, 0.0, vec![], &mut add);
+                let shapes = frame(&ctx, 0.1, vec![], &mut add);
+                // Each part's visible shapes as tall as the row, by its box (the text's frame
+                // leaves an empty rectangle over the field).
+                let mut parts: Vec<(Rect, Vec<CornerRadius>)> = vec![];
+                for s in &shapes {
+                    if let egui::Shape::Rect(r) = s
+                        && r.rect.height() > 20.0
+                        && (r.fill != Color32::TRANSPARENT || !r.stroke.is_empty())
+                    {
+                        match parts.iter_mut().find(|(rect, _)| rect.x_range() == r.rect.x_range()) {
+                            Some((rect, corners)) => {
+                                assert_eq!(*rect, r.rect, "{scheme:?} {presets:?}: a part's shapes cover one box");
+                                corners.push(r.corner_radius);
+                            }
+                            None => parts.push((r.rect, vec![r.corner_radius])),
+                        }
+                    }
+                }
+                parts.sort_by(|a, b| a.0.min.x.total_cmp(&b.0.min.x));
+                assert_eq!(parts.len(), if presets.is_empty() { 2 } else { 3 }, "{scheme:?}: {parts:?}");
+                let last = parts.len() - 1;
+                for (i, (_, corners)) in parts.iter().enumerate() {
+                    for &c in corners {
+                        let (left, right) = (CornerRadius { ne: 0, se: 0, ..c }, CornerRadius { nw: 0, sw: 0, ..c });
+                        let outer = |side: CornerRadius| side.nw.max(side.ne) == t.radius && side.sw.max(side.se) == t.radius;
+                        assert!(if i == 0 { outer(left) } else { square(left) }, "{scheme:?} {presets:?}: part {i}'s left corners {c:?}");
+                        assert!(if i == last { outer(right) } else { square(right) }, "{scheme:?} {presets:?}: part {i}'s right corners {c:?}");
+                    }
+                }
             }
         }
-        boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
-        assert_eq!(boxes.len(), 3, "{boxes:?}");
-        for b in &boxes {
-            assert_eq!((b.min.y, b.height()), (boxes[0].min.y, 26.0), "all as tall as the row: {boxes:?}");
-        }
-        for pair in boxes.windows(2) {
-            assert!((pair[1].min.x - pair[0].max.x + 1.0).abs() < 0.01, "neighbours share one border: {boxes:?}");
+    }
+
+    /// Every button face is raised the same way: in Quiet the primary (OK), secondary (Cancel) and
+    /// flat buttons and a pressed icon button cast the scheme's soft shadow; a greyed-out primary
+    /// button is flat; the schemes without a raised shadow draw none.
+    #[test]
+    fn button_faces_cast_the_schemes_raised_shadow() {
+        use theme::Scheme;
+        let shadowed = |scheme: Scheme, add: &mut dyn FnMut(&mut Ui)| {
+            let ctx = themed(Default::default());
+            theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
+            let shapes = frame(&ctx, 0.0, vec![], add);
+            shapes.iter().any(|s| matches!(s, egui::Shape::Rect(r) if r.blur_width > 0.0))
+        };
+        type Add = fn(&mut Ui);
+        let buttons: [(&str, Add); 4] = [
+            ("primary", |ui| {
+                primary_button(ui, "OK");
+            }),
+            ("secondary", |ui| {
+                secondary_button(ui, "Cancel");
+            }),
+            ("flat", |ui| {
+                flat_button(ui, "Document Setup", 120.0);
+            }),
+            ("pressed icon", |ui| {
+                icon_button(ui, "grid", "Grid", true, 26.0);
+            }),
+        ];
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet] {
+            for (name, mut add) in buttons {
+                assert_eq!(shadowed(scheme, &mut add), scheme == Scheme::Quiet, "{scheme:?}: {name}");
+            }
+            assert!(!shadowed(scheme, &mut |ui| _ = primary_button_enabled(ui, "OK", false)), "{scheme:?}: a greyed-out primary button is flat");
         }
     }
 

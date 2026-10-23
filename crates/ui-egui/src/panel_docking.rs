@@ -1045,10 +1045,15 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         // (square fills would cover its rounded corners). Floating groups get the fills below.
         style.background = egui::Color32::TRANSPARENT;
         style.tab_background = egui::Color32::TRANSPARENT;
-        style.active_background = t.button;
+        // Underlined (Flat) and segmented (Quiet) tabs have no fill of their own: the line under
+        // the one in front, or the track and chip under them all, are drawn below.
+        style.active_background = match t.tab_style {
+            crate::theme::TabStyle::Pill => t.button,
+            crate::theme::TabStyle::Underline | crate::theme::TabStyle::Segmented => egui::Color32::TRANSPARENT,
+        };
         style.text = t.text_strong;
         style.inactive_text = t.text_dim;
-        style.border = egui::Stroke::new(1.0, t.border);
+        style.border = t.chrome_stroke(t.border);
         style.accent = t.accent;
         style.float_label = tl!("Float Panel").to_string();
         style.close_label = tl!("Close Panel").to_string();
@@ -1071,6 +1076,8 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
             only_tabs = height.filter(|h| h.is_finite() && *h > 0.0);
         }
         let short = shut.clone();
+        // The segmented tracks lie under the tabs: their places are kept before the tabs are drawn.
+        let segments = if t.tab_style == crate::theme::TabStyle::Segmented { reserve_segments(ui, area, &drawn) } else { Vec::new() };
         let mut content = PanelContent { app, commands: Vec::new(), shut };
         let mut dock = |ui: &mut egui::Ui| {
             craft_ui::docking::DockArea::new(area).show_customized(
@@ -1116,7 +1123,18 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         if let Some(panel) = tab_area_double_clicked(ui.ctx(), ui.layer_id(), &display, &groups) {
             content.commands.push(("window.panel.collapse", json!({"panel": panel})));
         }
+        // A hairline under each group's tab row, across the group's whole width (Quiet).
+        let rule = t.tab_rule();
+        if !rule.is_empty() {
+            for group in &groups {
+                ui.painter().line_segment([group.strip.left_bottom(), group.strip.right_bottom()], rule);
+            }
+        }
         ui.ctx().data_mut(|data| data.insert_temp(crate::floating::root_groups_id(), groups));
+        if t.tab_style == crate::theme::TabStyle::Underline {
+            underline_active_tabs(ui.ctx(), area, &drawn, &t);
+        }
+        paint_segments(ui.ctx(), area, segments, &t);
         for (id, params) in content.commands {
             if let Err(error) = app.run(id, params) {
                 app.ui.status = error;
@@ -1129,9 +1147,11 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
             .default_size(shared_dock_default)
             .size_range(220.0..=720.0)
             .resizable(true)
+            .show_separator_line(t.chrome_lines)
             .frame(egui::Frame::NONE);
         let panel = if collapsed { panel.exact_size(38.0).resizable(false) } else { panel };
-        let shown = panel.show(ui, |ui| crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, &mut draw));
+        let shown = panel
+            .show(ui, |ui| crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, crate::theme::Edge::Left, &mut draw));
         ui.ctx().data_mut(|data| data.insert_temp(crate::floating::dock_rect_id(), shown.response.rect));
         crate::dock::note_dock_width(app, ui.ctx(), crate::dock::SHARED_DOCK_PANEL);
         shown.inner
@@ -1238,14 +1258,82 @@ fn dragged_tab(ctx: &egui::Context, layout: &Layout<String>) -> Option<String> {
     layout.panels().into_iter().find(|panel| area.with(("tab", *panel)) == dragged).cloned()
 }
 
+/// Where the segmented track of each group of `display` goes ([`crate::theme::TabStyle::Segmented`]):
+/// the group's panels, the one in front, and a place on its layer kept under its tabs. Docked
+/// groups lie on `ui`'s layer, floating ones on their own.
+fn reserve_segments(ui: &egui::Ui, area: egui::Id, display: &Layout<String>) -> Vec<(Vec<String>, usize, egui::LayerId, egui::layers::ShapeIdx)> {
+    let mut out = Vec::new();
+    let mut nodes: Vec<&Node<String>> = display.root.iter().collect();
+    while let Some(node) = nodes.pop() {
+        match node {
+            Node::Split { first, second, .. } => nodes.extend([first.as_ref(), second.as_ref()]),
+            Node::Tabs { panels, active } => out.push((panels.clone(), *active, ui.layer_id(), ui.painter().add(egui::Shape::Noop))),
+            Node::Stack { .. } => {}
+        }
+    }
+    for group in &display.floating {
+        let Some(first) = group.panels.first() else { continue };
+        let layer = egui::LayerId::new(egui::Order::Middle, area.with(("floating", first)));
+        out.push((group.panels.clone(), group.active, layer, ui.ctx().layer_painter(layer).add(egui::Shape::Noop)));
+    }
+    out
+}
+
+/// The segmented track under the tabs the shared surface drew for each group of `segments`
+/// ([`reserve_segments`]), and the raised chip under the one in front
+/// ([`crate::dock::segment_layout`]: inset from the column's edge when the tabs are wide enough,
+/// no chip on a tab too narrow for one).
+fn paint_segments(
+    ctx: &egui::Context,
+    area: egui::Id,
+    segments: Vec<(Vec<String>, usize, egui::LayerId, egui::layers::ShapeIdx)>,
+    t: &crate::theme::Tokens,
+) {
+    for (panels, active, layer, place) in segments {
+        let tabs: Vec<(usize, egui::Rect)> = panels
+            .iter()
+            .enumerate()
+            .filter_map(|(i, panel)| ctx.read_response(area.with(("tab", panel))).filter(|tab| tab.layer_id == layer).map(|tab| (i, tab.rect)))
+            .filter(|(_, rect)| rect.is_positive())
+            .collect();
+        let Some(span) = tabs.iter().map(|&(_, rect)| rect).reduce(|a, b| a.union(b)) else { continue };
+        let (track, chip) = crate::dock::segment_layout(span, tabs.iter().find(|&&(i, _)| i == active).map(|&(_, rect)| rect));
+        ctx.layer_painter(layer).set(place, crate::theme::segment_shapes(track, chip, t));
+    }
+}
+
+/// The 2 pt line in the text colour under the tab in front of each group of `display`, for
+/// underlined tabs ([`crate::theme::TabStyle::Underline`]). The shared surface draws the labels
+/// centred in tabs 24 pt wider than them.
+fn underline_active_tabs(ctx: &egui::Context, area: egui::Id, display: &Layout<String>, t: &crate::theme::Tokens) {
+    let mut front: Vec<&String> = display.floating.iter().filter_map(|group| group.panels.get(group.active)).collect();
+    let mut nodes: Vec<&Node<String>> = display.root.iter().collect();
+    while let Some(node) = nodes.pop() {
+        match node {
+            Node::Split { first, second, .. } => nodes.extend([first.as_ref(), second.as_ref()]),
+            Node::Tabs { panels, active } => front.extend(panels.get(*active)),
+            Node::Stack { .. } => {}
+        }
+    }
+    for panel in front {
+        let Some(tab) = ctx.read_response(area.with(("tab", panel))) else { continue };
+        let label = tab.rect.shrink2(egui::vec2(12.0, 0.0));
+        if label.width() > 0.0 {
+            let line = egui::Rect::from_min_max(egui::pos2(label.left(), label.bottom() - 2.0), label.right_bottom());
+            ctx.layer_painter(tab.layer_id).rect_filled(line, 0.0, t.text_strong);
+        }
+    }
+}
+
 fn icon_rail(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let column = egui::Panel::right("shared-panel-icons")
         .exact_size(38.0)
         .resizable(false)
+        .show_separator_line(t.chrome_lines)
         .frame(egui::Frame::NONE)
         .show(ui, |ui| {
-            crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, |ui| {
+            crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, crate::theme::Edge::Left, |ui| {
                 crate::widgets::strip_scroll(ui, "shared-panel-icons-scroll", |ui| {
                     ui.spacing_mut().item_spacing.y = 2.0;
                     // The tabbed group's panels dropped on the column head it, then the icon panels,

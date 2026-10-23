@@ -97,7 +97,7 @@ pub(crate) fn collapse_header(ui: &mut Ui, collapsed: bool) -> bool {
     let (hdr, resp) = ui.allocate_exact_size(vec2(ui.available_width(), HEADER), Sense::click());
     let arrow = Rect::from_min_size(hdr.right_top() + vec2(-16.0, 1.0), vec2(12.0, 12.0));
     if resp.hovered() {
-        ui.painter().rect_filled(arrow, CornerRadius::same(2), t.hover);
+        ui.painter().rect_filled(arrow, t.cr(), t.hover);
     }
     let icon = if collapsed { "chevrons-left" } else { "chevrons-right" };
     icons::paint(ui, icon, arrow.shrink(1.0), if resp.hovered() { t.text_strong } else { t.text });
@@ -139,11 +139,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let group = shown.filter(|_| !app.ui.dock_collapsed).map(|active| {
         egui::Panel::right(LEGACY_DOCK_PANEL)
             .resizable(true)
+            .show_separator_line(t.chrome_lines)
             .default_size(legacy_dock_default_width(&app.ui))
             .size_range(LEGACY_DOCK_MIN..=LEGACY_DOCK_MAX)
             .frame(egui::Frame::NONE)
             .show(ui, |ui| {
-                crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, |ui| {
+                crate::theme::card(ui, &t, egui::Margin { left: 0, right: 6, top: 6, bottom: 6 }, theme::Edge::Left, |ui| {
                     if collapse_header(ui, false) {
                         toggle(app, true);
                     }
@@ -183,45 +184,51 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // collapsed group's panels head it, under the « that expands them again. Floating panels leave
     // it.
     let collapsed = app.ui.dock_collapsed && shown.is_some();
-    let column = egui::Panel::right("icon_column").resizable(false).exact_size(ICON_COL).frame(egui::Frame::NONE).show(ui, |ui| {
-        crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, |ui| {
-            let bounds = ui.max_rect();
-            if collapsed && collapse_header(ui, true) {
-                toggle(app, false);
-            }
-            egui::Frame::NONE.inner_margin(egui::Margin::symmetric(1, 4)).show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 2.0;
-                // The icons scroll in a window too short for them.
-                widgets::strip_scroll(ui, "icon_column", |ui| {
-                    if collapsed {
-                        for tab in DockTab::ALL {
-                            let (id, label, icon) = tab.info();
-                            if floating::group_of(&app.ui, id).is_none() {
-                                panel_icon(app, ui, id, label, icon, bounds);
-                            }
-                        }
+    let column =
+        egui::Panel::right("icon_column").resizable(false).exact_size(ICON_COL).show_separator_line(t.chrome_lines).frame(egui::Frame::NONE).show(
+            ui,
+            |ui| {
+                crate::theme::card(ui, &t, egui::Margin { left: 3, right: 3, top: 6, bottom: 6 }, theme::Edge::Left, |ui| {
+                    let bounds = ui.max_rect();
+                    if collapsed && collapse_header(ui, true) {
+                        toggle(app, false);
                     }
-                    // A divider above each group with icons left, but the first.
-                    let mut divider = collapsed;
-                    for group in ICON_PANEL_GROUPS {
-                        let mut first = true;
-                        for id in group.iter() {
-                            let Some((_, label, icon)) = ICON_PANELS.iter().find(|p| p.0 == *id) else { continue };
-                            if floating::group_of(&app.ui, id).is_some() {
-                                continue;
+                    egui::Frame::NONE.inner_margin(egui::Margin::symmetric(1, 4)).show(ui, |ui| {
+                        ui.spacing_mut().item_spacing.y = 2.0;
+                        // The icons scroll in a window too short for them.
+                        widgets::strip_scroll(ui, "icon_column", |ui| {
+                            if collapsed {
+                                for tab in DockTab::ALL {
+                                    let (id, label, icon) = tab.info();
+                                    if floating::group_of(&app.ui, id).is_none() {
+                                        panel_icon(app, ui, id, label, icon, bounds);
+                                    }
+                                }
                             }
-                            if std::mem::take(&mut first) && std::mem::replace(&mut divider, true) {
-                                let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 7.0), Sense::hover());
-                                ui.painter()
-                                    .line_segment([r.left_center() + vec2(4.0, 0.0), r.right_center() - vec2(4.0, 0.0)], Stroke::new(1.0, t.divider));
+                            // A divider above each group with icons left, but the first.
+                            let mut divider = collapsed;
+                            for group in ICON_PANEL_GROUPS {
+                                let mut first = true;
+                                for id in group.iter() {
+                                    let Some((_, label, icon)) = ICON_PANELS.iter().find(|p| p.0 == *id) else { continue };
+                                    if floating::group_of(&app.ui, id).is_some() {
+                                        continue;
+                                    }
+                                    if std::mem::take(&mut first) && std::mem::replace(&mut divider, true) {
+                                        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 7.0), Sense::hover());
+                                        ui.painter().line_segment(
+                                            [r.left_center() + vec2(4.0, 0.0), r.right_center() - vec2(4.0, 0.0)],
+                                            t.chrome_stroke(t.divider),
+                                        );
+                                    }
+                                    panel_icon(app, ui, id, label, icon, bounds);
+                                }
                             }
-                            panel_icon(app, ui, id, label, icon, bounds);
-                        }
-                    }
-                });
-            });
-        })
-    });
+                        });
+                    });
+                })
+            },
+        );
     let column = column.response.rect;
     let dock = group.map_or(column, |g| g.union(column));
     // Floating sets docked as columns, left of the icon column.
@@ -241,7 +248,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 fn tab_strip(app: &mut VectorcraftApp, ui: &mut Ui, active: DockTab) -> bool {
     let t = Tokens::get(ui.ctx());
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), 33.0), Sense::hover());
-    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], Stroke::new(1.0, t.divider));
+    let rule = if t.chrome_lines { t.chrome_stroke(t.divider) } else { t.tab_rule() };
+    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], rule);
     let outside = ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| !strip.contains(p));
     // What a drag out of the strip floats: the panels, the one shown, where its tab began.
     let mut tear: Option<(Vec<&'static str>, &'static str, f32)> = None;
@@ -335,6 +343,30 @@ pub(crate) struct PanelTabs {
     pub right: f32,
 }
 
+/// How far a segmented tab strip ([`theme::TabStyle::Segmented`]) stands off its column's edge.
+pub(crate) const SEGMENT_INSET: f32 = 6.0;
+
+/// The track of a segmented tab strip whose tabs span `tabs`.
+pub(crate) fn segment_track(tabs: Rect) -> Rect {
+    tabs.shrink2(vec2(0.0, 4.0))
+}
+
+/// The raised chip of the segmented tab `tab` on `track`, two points inside the track; `None` when
+/// the tab's part of the track can't hold those margins (a strip squeezed to a few points).
+pub(crate) fn segment_chip(tab: Rect, track: Rect) -> Option<Rect> {
+    let under = Rect::from_x_y_ranges(tab.x_range(), track.y_range()).intersect(track);
+    (under.width() > 4.0 && under.height() > 4.0).then(|| under.shrink(2.0))
+}
+
+/// The track and the chip of a segmented strip whose tabs span `span`, the one in front at
+/// `front`: the track stands off the column's edge by [`SEGMENT_INSET`] when the tabs are wider
+/// than that, else it keeps their whole span.
+pub(crate) fn segment_layout(span: Rect, front: Option<Rect>) -> (Rect, Option<Rect>) {
+    let span = if span.width() > SEGMENT_INSET { Rect::from_min_max(span.min + vec2(SEGMENT_INSET, 0.0), span.max) } else { span };
+    let track = segment_track(span);
+    (track, front.and_then(|tab| segment_chip(tab, track)))
+}
+
 pub(crate) fn panel_tabs(
     ui: &mut Ui,
     id: &str,
@@ -352,8 +384,28 @@ pub(crate) fn panel_tabs(
         .map(|(i, label)| ui.painter().layout_no_wrap((*label).to_string(), font.clone(), if i == selected { t.text_strong } else { t.text_dim }))
         .collect();
     let natural: Vec<_> = galleys.iter().map(|g| g.size().x + 24.0).collect();
+    // A segmented strip stands off the column's edge, as the panel's contents do, when that leaves
+    // room for a tab: a narrower strip keeps all its width for the overflow button.
+    let area = if t.tab_style == theme::TabStyle::Segmented && area.width() >= SEGMENT_INSET + 40.0 {
+        Rect::from_min_max(area.min + vec2(SEGMENT_INSET, 0.0), area.max)
+    } else {
+        area
+    };
     let fit = craft_ui::tabs::fit(&natural, selected, area.width(), 40.0, 18.0);
     let mut out = PanelTabs { responses: Vec::with_capacity(fit.shown.len()), picked: None, right: area.left() };
+    if t.tab_style == theme::TabStyle::Segmented && !fit.shown.is_empty() {
+        let right = area.left() + fit.shown.iter().map(|&(_, width)| width).sum::<f32>();
+        let track = segment_track(Rect::from_min_max(area.min, egui::pos2(right, area.bottom())));
+        let mut x = area.left();
+        let mut chip = None;
+        for &(i, width) in &fit.shown {
+            if i == selected {
+                chip = segment_chip(Rect::from_min_size(egui::pos2(x, area.top()), vec2(width, area.height())), track);
+            }
+            x += width;
+        }
+        theme::paint_segments(&ui.painter().with_clip_rect(area.intersect(ui.clip_rect())), track, chip, &t);
+    }
     for (i, width) in fit.shown {
         let Some((key, _)) = tabs.get(i) else { continue };
         let Some(label) = labels.get(i) else { continue };
@@ -372,11 +424,37 @@ pub(crate) fn panel_tabs(
         let resp = craft_ui::tabs::Tab::new(ui.id().with((id, key)), label, i == selected)
             .sense(Sense::click_and_drag())
             .focus_stroke(Stroke::new(1.0, t.accent))
-            .show_at(ui, rect, |ui, _| {
-                if i == selected {
-                    ui.painter().rect_filled(rect.shrink2(vec2(3.0, 5.0)), 6.0, t.button);
+            .show_at(ui, rect, |ui, resp| {
+                let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+                let size = galley.size();
+                let at = rect.center() - size / 2.0;
+                match t.tab_style {
+                    theme::TabStyle::Pill => {
+                        if i == selected {
+                            theme::paint_raised(ui.painter(), rect.shrink2(vec2(3.0, 5.0)), t.cr(), t.button, &t);
+                        }
+                        painter.galley(at, galley, t.text);
+                    }
+                    theme::TabStyle::Underline => {
+                        if i == selected {
+                            painter.galley(at, galley, t.text);
+                            let line = Rect::from_min_max(egui::pos2(at.x, rect.bottom() - 2.0), egui::pos2(at.x + size.x, rect.bottom()));
+                            painter.rect_filled(line, 0.0, t.text_strong);
+                        } else if resp.hovered() {
+                            painter.galley_with_override_text_color(at, galley, t.text);
+                        } else {
+                            painter.galley(at, galley, t.text);
+                        }
+                    }
+                    // The track and the chip are drawn under all the tabs, above.
+                    theme::TabStyle::Segmented => {
+                        if i != selected && resp.hovered() {
+                            painter.galley_with_override_text_color(at, galley, t.text);
+                        } else {
+                            painter.galley(at, galley, t.text);
+                        }
+                    }
                 }
-                ui.painter().with_clip_rect(rect.intersect(ui.clip_rect())).galley(rect.center() - galley.size() / 2.0, galley, t.text);
                 let _ = separators;
             });
         out.responses.push((i, if shrunk { resp.on_hover_text(*label) } else { resp }));
@@ -453,13 +531,13 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let mut torn = None;
     let area = egui::Area::new(egui::Id::new("icon-panel")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP);
     area.fixed_pos(egui::pos2(right, FLYOUT_TOP)).show(ctx, |ui| {
-        egui::Frame::popup(ui.style()).fill(t.panel).corner_radius(CornerRadius::same(4)).inner_margin(egui::Margin::ZERO).show(ui, |ui| {
+        egui::Frame::popup(ui.style()).fill(t.panel).corner_radius(t.cr_float()).inner_margin(egui::Margin::ZERO).show(ui, |ui| {
             ui.set_width(width);
             let (strip, _) = ui.allocate_exact_size(vec2(width, 26.0), Sense::hover());
-            ui.painter().rect_filled(strip, CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 }, t.panel_darker);
+            ui.painter().rect_filled(strip, CornerRadius { nw: t.radius_float, ne: t.radius_float, sw: 0, se: 0 }, t.panel_darker);
             let title =
                 Rect::from_min_size(strip.min, vec2(ui.painter().layout_no_wrap(label.clone(), theme::semibold(12.0), t.text).size().x + 24.0, 26.0));
-            ui.painter().rect_filled(title, CornerRadius { nw: 4, ne: 0, sw: 0, se: 0 }, t.panel);
+            ui.painter().rect_filled(title, CornerRadius { nw: t.radius_float, ne: 0, sw: 0, se: 0 }, t.panel);
             ui.painter().text(title.left_center() + vec2(12.0, 0.0), egui::Align2::LEFT_CENTER, &label, theme::semibold(12.0), t.text);
             let close = Rect::from_center_size(strip.right_center() - vec2(13.0, 0.0), vec2(14.0, 14.0));
             let cr = ui.interact(close, ui.id().with("close-panel"), Sense::click());
@@ -576,6 +654,71 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// A segmented strip squeezed to a few points (a group with 23–27 pt left after its header, its
+    /// tab in front 1–5 pt wide): the track keeps the tabs' span rather than an inset larger than
+    /// it, and a tab too narrow for the chip's 2 pt margins gets no chip, never an inverted rect.
+    #[test]
+    fn a_squeezed_segmented_strip_draws_no_chip_and_no_inverted_rect() {
+        let valid = |r: Rect| r.is_finite() && r.width() >= 0.0 && r.height() >= 0.0;
+        for span_width in [0.0, 1.0, 3.0, 5.0, 6.0, 7.0, 23.0, 25.0, 27.0, 120.0] {
+            for front_width in [0.0_f32, 1.0, 3.0, 5.0, 40.0] {
+                let span = Rect::from_min_size(egui::pos2(100.0, 10.0), vec2(span_width, 33.0));
+                let front =
+                    Rect::from_min_size(egui::pos2(span.right() - front_width.min(span_width), 10.0), vec2(front_width.min(span_width), 33.0));
+                let (track, chip) = segment_layout(span, Some(front));
+                assert!(valid(track) && span.contains_rect(track), "{span_width} {front_width}: track {track:?} in {span:?}");
+                if span_width > SEGMENT_INSET {
+                    assert_eq!(track.left(), span.left() + SEGMENT_INSET, "{span_width}: inset");
+                }
+                match chip {
+                    Some(chip) => assert!(chip.is_positive() && track.contains_rect(chip), "{span_width} {front_width}: {chip:?} in {track:?}"),
+                    None => assert!(front.intersect(track).width() <= 4.0, "{span_width} {front_width}: room for a chip"),
+                }
+            }
+        }
+        assert_eq!(
+            segment_chip(
+                Rect::from_min_size(egui::pos2(0.0, 0.0), vec2(3.0, 33.0)),
+                segment_track(Rect::from_min_size(egui::Pos2::ZERO, vec2(3.0, 33.0)))
+            ),
+            None
+        );
+        // The dock's strip in Quiet at those widths: no chip on a tab too narrow for one, and no
+        // inverted rect anywhere.
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx);
+        theme::apply_with(&ctx, theme::Brightness::MediumDark, theme::Accent::default(), theme::Scheme::Quiet);
+        let t = Tokens::get(&ctx);
+        let names = [("properties", "Properties"), ("layers", "Layers"), ("libraries", "Libraries")];
+        let mut squeezed = false;
+        for width in [20.0, 23.0, 24.0, 25.0, 26.0, 27.0, 30.0] {
+            for selected in 0..names.len() {
+                let area = Rect::from_min_size(egui::pos2(20.0, 20.0), vec2(width, 32.0));
+                let mut front = None;
+                let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                    let out = panel_tabs(ui, "squeezed", area, &names, selected, theme::semibold(12.5), true);
+                    front = out.responses.iter().find(|(i, _)| *i == selected).map(|(_, r)| r.rect);
+                });
+                output.textures_delta.clear();
+                let rects: Vec<&egui::epaint::RectShape> = output
+                    .shapes
+                    .iter()
+                    .filter_map(|s| match &s.shape {
+                        egui::Shape::Rect(r) => Some(r),
+                        _ => None,
+                    })
+                    .collect();
+                assert!(rects.iter().all(|r| valid(r.rect)), "{width}: {rects:?}");
+                let chips: Vec<_> = rects.iter().filter(|r| r.fill == t.button && r.corner_radius == theme::PILL).collect();
+                if front.is_none_or(|f| f.width() <= 4.0) {
+                    squeezed = true;
+                    assert!(chips.is_empty(), "{width} {selected}: no chip on {front:?}: {chips:?}");
+                }
+            }
+        }
+        assert!(squeezed, "some width leaves the tab in front too narrow for a chip");
     }
 
     #[test]
@@ -992,5 +1135,186 @@ mod tests {
         assert!(!app.ui.dock_collapsed, "Essentials shows the panels");
         app.run("window.workspace", json!({"name": "Icons"})).unwrap();
         assert!(app.ui.dock_collapsed, "the user workspace keeps them collapsed");
+    }
+
+    /// Every shape one frame of the toolbar, the dock and the icon rail paints in a 1440 × 900
+    /// window in `scheme` at Medium Dark, flattened, and the scheme's tokens.
+    fn docked_frame(scheme: theme::Scheme) -> (Vec<egui::Shape>, Tokens) {
+        docked_frame_at(scheme, theme::Brightness::MediumDark)
+    }
+
+    /// [`docked_frame`] at brightness `b`.
+    fn docked_frame_at(scheme: theme::Scheme, b: theme::Brightness) -> (Vec<egui::Shape>, Tokens) {
+        fn flatten(shape: egui::Shape, out: &mut Vec<egui::Shape>) {
+            match shape {
+                egui::Shape::Vec(v) => v.into_iter().for_each(|s| flatten(s, out)),
+                s => out.push(s),
+            }
+        }
+        let ctx = egui::Context::default();
+        egui_extras::install_image_loaders(&ctx);
+        theme::install_fonts(&ctx);
+        theme::apply_with(&ctx, b, theme::Accent::default(), scheme);
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({})).unwrap();
+        let screen_rect = Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(1440.0, 900.0)));
+        let mut output = ctx.run_ui(egui::RawInput { screen_rect, ..Default::default() }, |ui| {
+            crate::toolbar::show(&mut app, ui);
+            show(&mut app, ui);
+        });
+        output.textures_delta.clear();
+        let mut out = Vec::new();
+        for s in output.shapes {
+            flatten(s.shape, &mut out);
+        }
+        (out, Tokens::get(&ctx))
+    }
+
+    /// The panel-coloured rectangles taller than 400 pt among `shapes`: the toolbar, the dock and
+    /// the icon rail.
+    fn docked_surfaces(shapes: &[egui::Shape], t: &Tokens) -> Vec<egui::epaint::RectShape> {
+        shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Rect(r) if r.fill == t.panel && r.rect.height() > 400.0 => Some(r.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The vertical lines among `shapes` in `color`: their x and span.
+    fn vertical_lines(shapes: &[egui::Shape], color: egui::Color32) -> Vec<(f32, egui::Rangef)> {
+        shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::LineSegment { points: [a, b], stroke } if stroke.width > 0.0 && stroke.color == color && (a.x - b.x).abs() < 0.01 => {
+                    Some((a.x, egui::Rangef::new(a.y.min(b.y), a.y.max(b.y))))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Flat: the toolbar and the dock reach the window's left and right edges, square, with a
+    /// divider the full height of the column where the toolbar, the canvas, the rail and the dock
+    /// meet; Modern keeps them cards, inset from the edges with rounded corners, with no short line.
+    #[test]
+    fn flat_columns_reach_the_window_edges_and_modern_keeps_its_cards() {
+        let (shapes, t) = docked_frame(theme::Scheme::Flat);
+        let flat = docked_surfaces(&shapes, &t);
+        assert!(flat.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {flat:?}");
+        assert!(flat.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {flat:?}");
+        assert!(flat.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO), "{flat:?}");
+        let dividers = vertical_lines(&shapes, t.divider);
+        for column in &flat {
+            assert!(
+                dividers.iter().any(
+                    |(x, span)| ((x - column.rect.left()).abs() < 1.0 || (x - column.rect.right()).abs() < 1.0) && *span == column.rect.y_range()
+                ),
+                "a full-height divider beside {:?}: {dividers:?}",
+                column.rect
+            );
+        }
+        let (shapes, t) = docked_frame(theme::Scheme::Modern);
+        let modern = docked_surfaces(&shapes, &t);
+        assert!(modern.len() >= 3, "toolbar, rail and dock are cards: {modern:?}");
+        for r in &modern {
+            assert!(r.rect.left() >= 3.0 && r.rect.right() <= 1440.0 - 3.0, "a card stands off the edges: {:?}", r.rect);
+            assert_eq!(r.corner_radius, egui::CornerRadius::same(8));
+        }
+        let lines = vertical_lines(&shapes, t.divider);
+        assert!(lines.iter().all(|(_, span)| span.span() >= 899.0), "Modern's lines run the full height: {lines:?}");
+    }
+
+    /// Quiet: the toolbar, the dock and the rail reach the window's edges, square, with no line or
+    /// outline in the divider or border colour anywhere in them; where the toolbar meets the
+    /// canvas, the canvas the rail and the rail the dock, a short separator stands clear of both
+    /// ends of the column. The dock's tabs are a segmented control: a pill-shaped track in the
+    /// field colour, the tab in front on a raised pill-shaped chip in the button colour inside it.
+    #[test]
+    fn quiet_dock_tabs_are_a_segmented_control_and_its_columns_meet_at_short_separators() {
+        let (shapes, t) = docked_frame(theme::Scheme::Quiet);
+        let quiet = docked_surfaces(&shapes, &t);
+        assert!(quiet.iter().any(|r| r.rect.left() <= 0.0), "the toolbar starts at the window's edge: {quiet:?}");
+        assert!(quiet.iter().any(|r| r.rect.right() >= 1440.0), "the dock ends at the window's edge: {quiet:?}");
+        assert!(quiet.iter().all(|r| r.corner_radius == egui::CornerRadius::ZERO && r.stroke.width == 0.0), "{quiet:?}");
+        let separator = t.column_separator.expect("Quiet separates its columns");
+        let separators = vertical_lines(&shapes, separator.color);
+        let mut columns: Vec<Rect> = quiet.iter().map(|r| r.rect).collect();
+        columns.sort_by(|a, b| a.left().total_cmp(&b.left()));
+        let [toolbar, rail, dock] = columns[..] else { panic!("the toolbar, the rail and the dock: {columns:?}") };
+        assert!(toolbar.right() < rail.left() && rail.right() <= dock.left(), "{columns:?}");
+        // The side of each column that meets the canvas or the next column.
+        let junctions = [(toolbar.right(), toolbar), (rail.left(), rail), (dock.left(), dock)];
+        assert_eq!(separators.len(), junctions.len(), "one separator per junction: {separators:?}");
+        for (edge, column) in junctions {
+            let (x, span) =
+                separators.iter().find(|(x, _)| (x - edge).abs() < 1.0).unwrap_or_else(|| panic!("a separator at x = {edge}: {separators:?}"));
+            assert!(column.x_range().contains(*x), "{x} lies on {column:?}");
+            assert!(span.span() < column.height(), "shorter than {column:?}: {span:?}");
+            assert!(span.min >= column.top() + 12.0 && span.max <= column.bottom() - 12.0, "clear of the ends of {column:?}: {span:?}");
+            assert!(span.span() > column.height() / 2.0, "most of {column:?}: {span:?}");
+        }
+        let line = |s: &egui::Stroke| s.width > 0.0 && (s.color == t.divider || s.color == t.border);
+        for s in &shapes {
+            match s {
+                egui::Shape::LineSegment { stroke, points } => assert!(!line(stroke), "a line from {:?} to {:?}", points[0], points[1]),
+                egui::Shape::Rect(r) => assert!(!line(&r.stroke), "an outline round {:?}", r.rect),
+                _ => {}
+            }
+        }
+        let rects: Vec<&egui::epaint::RectShape> = shapes
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Rect(r) => Some(r),
+                _ => None,
+            })
+            .collect();
+        let track = rects.iter().find(|r| r.fill == t.input && r.corner_radius == theme::PILL).expect("a segmented track");
+        let chip = rects
+            .iter()
+            .find(|r| r.fill == t.button && r.corner_radius == theme::PILL && track.rect.contains_rect(r.rect))
+            .expect("the tab in front on a chip in the track");
+        assert!(chip.rect.width() < track.rect.width() - 20.0, "the chip is one of the segments: {:?} in {:?}", chip.rect, track.rect);
+        assert!(
+            rects.iter().any(|r| r.blur_width > 0.0 && (r.rect.center().x - chip.rect.center().x).abs() < 0.5 && r.rect.top() > chip.rect.top()),
+            "the chip casts a soft shadow"
+        );
+    }
+
+    /// Quiet, light and dark: under the dock's tab row a hairline in the separator colour runs
+    /// the dock's whole width, edge to edge, so the row reads as the panel's tabs and not as a
+    /// field; the tabs sit above it.
+    #[test]
+    fn quiet_dock_tab_row_ends_at_a_full_width_hairline() {
+        for b in [theme::Brightness::MediumDark, theme::Brightness::Light] {
+            let (shapes, t) = docked_frame_at(theme::Scheme::Quiet, b);
+            let rule = t.tab_rule();
+            assert!(!rule.is_empty(), "{b:?}");
+            let dock = docked_surfaces(&shapes, &t).into_iter().map(|r| r.rect).max_by(|a, b| a.right().total_cmp(&b.right())).expect("the dock");
+            let lines: Vec<(egui::Rangef, f32)> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    egui::Shape::LineSegment { points: [a, b], stroke } if *stroke == rule && (a.y - b.y).abs() < 0.01 => {
+                        Some((egui::Rangef::new(a.x.min(b.x), a.x.max(b.x)), a.y))
+                    }
+                    _ => None,
+                })
+                .collect();
+            let (span, y) = lines
+                .iter()
+                .find(|(span, y)| dock.y_range().contains(*y) && span.max > dock.left())
+                .unwrap_or_else(|| panic!("{b:?}: a hairline across the dock {dock:?}: {lines:?}"));
+            assert!(span.min <= dock.left() + 0.5 && span.max >= dock.right() - 0.5, "{b:?}: {span:?} spans the dock {dock:?}");
+            assert!(*y > dock.top() && *y < dock.top() + 60.0, "{b:?}: under the tab row at the dock's top: {y} in {dock:?}");
+            let track = shapes
+                .iter()
+                .find_map(|s| match s {
+                    egui::Shape::Rect(r) if r.fill == t.input && r.corner_radius == theme::PILL => Some(r.rect),
+                    _ => None,
+                })
+                .expect("a segmented track");
+            assert!(track.bottom() <= *y, "{b:?}: the tabs {track:?} sit above the line at {y}");
+        }
     }
 }
