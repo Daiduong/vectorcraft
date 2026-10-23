@@ -26,17 +26,38 @@ const ROWS: &[Row] = &[
     (SYMBOLISM, Some("symbolism"), &["diameter", "intensity", "density"]),
     (&["mirrorCut"], None, &["axis", "keep"]),
     (&["puppetWarp"], None, &["showMesh", "expand"]),
-    (&["arc"], None, &["closed"]),
+    (&["arc"], None, &["closed", "lengthX", "lengthY", "reference", "baseAlong", "slope", "fillArc"]),
     (&["spiral"], None, &["decay", "segments", "clockwise"]),
     (&["rectangularGrid"], None, &["rows", "columns", "rowSkew", "columnSkew", "frame", "fill"]),
     (&["polarGrid"], None, &["concentric", "radial", "concentricSkew", "radialSkew", "compound", "fill"]),
     (&["pencil", "paintbrush"], None, &["fidelity", "fill", "keepSelected", "editWithin", "closeWithin"]),
+    // Pencil Tool Options' Alt key toggles to Smooth Tool (the Paintbrush has no such option).
+    (&["pencil"], None, &["altSmooth"]),
     (&["smooth"], None, &["fidelity"]),
     (&["blobBrush", "eraser"], None, &["size"]),
     (&["blobBrush"], None, &["keepSelected", "mergeOnlySelection"]),
+    // Live Paint Selection Tool Options (`builder::LivePaintSelectionTool`).
+    (&["livePaintSelection"], None, &["selectFills", "selectStrokes", "color", "width"]),
     (&["polygon"], None, &["sides"]),
     (&["star"], None, &["points"]),
     (&["freeTransform"], None, &["constrain"]),
+    // Shape Builder Tool Options (`builder::ShapeBuilderOptions`).
+    (
+        &["shapeBuilder"],
+        None,
+        &[
+            "openFilledAsClosed",
+            "pickColorFrom",
+            "cursorSwatchPreview",
+            "selection",
+            "highlightFill",
+            "gapDetection",
+            "gapLength",
+            "clickStrokeSplitsPath",
+            "highlightStroke",
+            "highlightColor",
+        ],
+    ),
     (&["artboard"], None, &["moveArt", "scaleArt"]),
     // Flare Tool Options (`extra::FLARE_OPTIONS` and the Rays and Rings checkboxes).
     (
