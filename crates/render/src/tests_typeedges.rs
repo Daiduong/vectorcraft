@@ -268,6 +268,7 @@ fn type_in_a_placed_document_takes_the_pages_pixels() {
             link: LinkInfo::new("/art/type.vectorcraft"),
             key: key.clone(),
             bounding: false,
+            page_box: Default::default(),
             width: f64::from(W),
             height: f64::from(H),
             xf: Affine::translate((0.3, 0.4)),
