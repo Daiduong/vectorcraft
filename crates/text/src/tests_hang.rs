@@ -281,9 +281,15 @@ fn burasagari_counts_the_hung_start() {
         eprintln!("skipping: no font with full-width punctuation");
         return;
     }
+    const EPS: f64 = 1e-6;
     let l = lay("\u{201C}\u{4E00}\u{4E8C}\u{4E09}\u{56DB}\u{3001}\u{4E94}\u{516D}\u{4E03}", true);
-    let (quote, comma) = (&l.glyphs[0], &l.glyphs[5]);
+    // The installed font may not set the nine characters as nine glyphs (a fallback that lacks
+    // some, or ligates them): the positions below would then name other characters.
+    let (9, Some(quote), Some(comma)) = (l.glyphs.len(), l.glyphs.first(), l.glyphs.get(5)) else {
+        eprintln!("skipping: the installed fonts don't set the nine characters as nine glyphs ({})", l.glyphs.len());
+        return;
+    };
     assert_eq!(comma.line, quote.line, "、 ends the first line");
-    assert!((quote.origin.x + quote.advance).abs() < 1e-6, "the quote hangs: {:?}", quote.origin);
-    assert!((comma.origin.x + comma.advance - 100.0).abs() < 1e-6, "、 inside, on the edge: {:?} {}", comma.origin, comma.advance);
+    assert!((quote.origin.x + quote.advance).abs() < EPS, "the quote hangs: {:?}", quote.origin);
+    assert!((comma.origin.x + comma.advance - 100.0).abs() < EPS, "、 inside, on the edge: {:?} {}", comma.origin, comma.advance);
 }
