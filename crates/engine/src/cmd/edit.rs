@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, RulerMode, Unit};
+use vectorcraft_doc::{Document, Node, NodeId, NodeKind, RulerMode, Unit};
 use vectorcraft_geom::{Affine, Point, Vec2};
 
 use super::clipboard::SwatchChoices;
@@ -528,8 +528,18 @@ fn copy(s: &mut Session, _: &Value) -> Result<Value> {
     if s.tool_id() == "artboard" {
         return super::panelcmds::artboard_copy(s, &json!({}), false);
     }
-    let roots = selected_roots(s)?;
-    s.clipboard = Clipboard::copy(s.doc()?, &roots);
+    let st = s.doc()?;
+    let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
+    let direct = !in_drawing_tool
+        && (!st.selection.anchors.is_empty()
+            || !st.selection.segments.is_empty()
+            || st.selection.objects.iter().any(|id| {
+                st.doc.parent_of(*id).is_some_and(|parent| {
+                    matches!(st.doc.node(parent).map(|n| &n.kind), Some(NodeKind::Compound { .. })) && !st.selection.contains(parent)
+                })
+            }));
+    let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), direct);
+    s.clipboard = Clipboard::copy(st, &roots, direct);
     Ok(json!({ "copied": s.clipboard.nodes.len() }))
 }
 
@@ -537,17 +547,25 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     if s.tool_id() == "artboard" {
         return super::panelcmds::artboard_copy(s, &json!({}), true);
     }
-    // Copy promotes a compound member to its compound. Cut must remove the same objects it
-    // copied, while Clear on its own deletes exactly the selected members.
-    let ids = selected_roots(s)?;
+    // Copy promotes a compound member to its compound unless direct-selected or selected individually (#2441).
+    // Cut must remove the same objects it copied, while Clear on its own deletes exactly the selected members.
+    let st = s.doc()?;
+    let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
+    let direct_parts = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
+    let has_compound_member = st.selection.objects.iter().any(|id| {
+        st.doc
+            .parent_of(*id)
+            .is_some_and(|parent| matches!(st.doc.node(parent).map(|n| &n.kind), Some(NodeKind::Compound { .. })) && !st.selection.contains(parent))
+    });
+    let ids = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), direct_parts || has_compound_member);
     copy(s, p)?;
-    if s.doc()?.selection.anchors.is_empty() { clear(s, &json!({ "ids": ids })) } else { clear(s, &json!({})) }
+    if !direct_parts { clear(s, &json!({ "ids": ids })) } else { clear(s, &json!({})) }
 }
 
 fn clear(s: &mut Session, p: &Value) -> Result<Value> {
     let explicit = if p.get("ids").is_some() { Some(checked_ids_param(s, p, "ids", "edit.clear")?) } else { None };
     // Direct-selected anchors or segments: remove those, and any objects selected whole with them.
-    if explicit.is_none() && !s.doc()?.selection.anchors.is_empty() {
+    if explicit.is_none() && (!s.doc()?.selection.anchors.is_empty() || !s.doc()?.selection.segments.is_empty()) {
         return super::path::delete_anchors(s, p);
     }
     // Selected ruler guides (selected on their own).
@@ -570,12 +588,22 @@ fn clear(s: &mut Session, p: &Value) -> Result<Value> {
         return ok();
     }
     s.edit("Clear", |d, sel| {
+        let parents: Vec<_> =
+            ids.iter().filter_map(|id| d.parent_of(*id).filter(|p| matches!(d.node(*p).map(|n| &n.kind), Some(NodeKind::Compound { .. })))).collect();
         d.remove_many(&ids)?;
+        for p in parents {
+            if d.node(p).is_some_and(|n| n.children().is_some_and(|c| c.is_empty())) {
+                d.remove(p)?;
+            }
+        }
         if with_guides {
             let gone = sel.guides.clone();
             d.retain_guides(sel, |i, _| !gone.contains(&i));
         }
-        sel.clear();
+        for id in &ids {
+            sel.remove(*id);
+        }
+        sel.prune(d);
         Ok(())
     })?;
     ok()
@@ -604,7 +632,7 @@ fn drop_selection(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(id) = ids.iter().find(|id| !paths.contains_key(id)) {
         return Err(EngineError::NoNode(*id));
     }
-    let clip = Clipboard::copy(source, &roots_of(&source.doc, ids));
+    let clip = Clipboard::copy(source, &roots_of(&source.doc, ids), false);
     let bounds = clip.bounds().ok_or_else(|| bad(CMD, "the art has no bounds"))?;
     let center = bounds.center() + Vec2::new(at[0] - grab[0], at[1] - grab[1]);
     if !center.x.is_finite() || !center.y.is_finite() {
