@@ -82,16 +82,29 @@ pub(crate) fn glyph_image(font: &skrifa::FontRef<'_>, upem: f64, gid: u32) -> Op
 /// Whether PNG `bytes` has a chunk of compressed metadata (a colour profile, compressed text): a
 /// decoder unpacks it before it reads the image, whatever size the image says.
 fn has_compressed_metadata(bytes: &[u8]) -> bool {
-    let mut at = 8;
+    let mut at: usize = 8;
     while let Some(head) = at.checked_add(8).and_then(|end| bytes.get(at..end)) {
-        if matches!(&head[4..], b"iCCP" | b"zTXt" | b"iTXt") {
+        if matches!(&head[4..], b"iCCP" | b"zTXt") {
             return true;
         }
-        let len = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
+        let len32 = u32::from_be_bytes([head[0], head[1], head[2], head[3]]);
+        if &head[4..] == b"iTXt" && !itxt_uncompressed(bytes, at, len32) {
+            return true;
+        }
         // The chunk's data and its checksum follow its length and type.
-        at = at.saturating_add(len).saturating_add(12);
+        at = at.saturating_add(len32 as usize).saturating_add(12);
     }
     false
+}
+
+/// Whether an `iTXt` chunk's `data` is stored uncompressed: the compression flag (0 = plain text)
+/// follows the keyword's nul. Anything that does not parse as that layout may still be compressed, so
+/// the caller treats it as such. The scan stays inside the chunk's declared data: beyond it lie other
+/// chunks, and a byte there could pose as the keyword's terminator.
+fn itxt_uncompressed(bytes: &[u8], head_at: usize, len: u32) -> bool {
+    let from = head_at + 8;
+    let data = bytes.get(from..from.saturating_add(len as usize)).unwrap_or(&[]);
+    data.iter().position(|&b| b == 0).and_then(|kw| data.get(kw + 1)).map_or(false, |&flag| flag == 0)
 }
 
 /// The width and height in PNG `bytes`' header (its signature, then the IHDR chunk); `None` when
@@ -129,5 +142,23 @@ mod tests {
         let mut cut = png(&[b"IHDR"]);
         cut.extend([255, 255, 255, 255, b'I', b'D', b'A', b'T']);
         assert!(!has_compressed_metadata(&cut));
+    }
+
+    /// A PNG signature and one chunk `t` carrying `data` (the stand-in CRC is never read: the
+    /// scan walks lengths and types only).
+    fn png_chunk(t: &[u8; 4], data: &[u8]) -> Vec<u8> {
+        let mut b = b"\x89PNG\r\n\x1a\n".to_vec();
+        b.extend(u32::try_from(data.len()).unwrap_or(u32::MAX).to_be_bytes());
+        b.extend(t);
+        b.extend(data);
+        b.extend([0; 4]);
+        b
+    }
+
+    #[test]
+    fn an_uncompressed_itxt_needs_no_decompression() {
+        assert!(!has_compressed_metadata(&png_chunk(b"iTXt", b"hi\0\0\0\0")), "compression flag 0 stores plain text");
+        assert!(has_compressed_metadata(&png_chunk(b"iTXt", b"hi\0\x01\0\0\0")), "compression flag 1 is unpacked by the decoder");
+        assert!(has_compressed_metadata(&png_chunk(b"iTXt", b"hi")), "no keyword nul: conservative stays safe");
     }
 }

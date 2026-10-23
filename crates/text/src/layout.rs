@@ -1308,8 +1308,9 @@ impl Pen<'_> {
                 if baseline + est.desc > r.bottom() + 0.01 {
                     break;
                 }
-                // A rectangle's lines are all as wide: none below has more room for the word.
-                let constant = r.rect || r.polys.is_empty();
+                // A rectangle's lines are all as wide: none below has more room for the word
+                // (until wrap shapes can narrow the first baseline: they stay bounded).
+                let constant = (r.rect || r.polys.is_empty()) && r.wraps.is_empty();
                 let min = if constant { 0.0 } else { min };
                 let fits = |&(a, b): &(f64, f64)| {
                     let room = b - a - ind_l - ind_r;
