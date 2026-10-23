@@ -53,7 +53,7 @@ pub fn flat_button_fit(ui: &mut Ui, text: &str, min_width: f32) -> Response {
     let width = (galley.size().x + 24.0).max(min_width);
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click());
     let rect = rect.shrink2(vec2(0.0, 0.5));
-    ui.painter().rect_filled(rect, CornerRadius::same(5), t.button);
+    ui.painter().rect_filled(rect, t.cr(), t.button);
     flat_fill(ui, rect, &resp);
     ui.painter().with_clip_rect(rect).text(rect.center(), egui::Align2::CENTER_CENTER, tl!(text), egui::FontId::proportional(12.5), t.text_strong);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(text)));
@@ -1845,7 +1845,7 @@ pub fn color_slider_stepped(
     let focused = ui.memory(|m| m.has_focus(id));
     if focused {
         let t = Tokens::get(ui.ctx());
-        ui.painter().rect_stroke(resp.rect, 2.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+        ui.painter().rect_stroke(resp.rect, t.cr_small(), Stroke::new(1.0, t.accent), StrokeKind::Inside);
     }
     let stepped = shown.filter(|_| ui.is_enabled()).and_then(|s| {
         ui.ctx().accesskit_node_builder(id, |node| {
