@@ -41,7 +41,7 @@ pub use {vectorcraft_doc as doc, vectorcraft_format as format, vectorcraft_rende
 
 /// A per-process temporary directory for test output (created on first use). It is made with
 /// `create_dir` (owner-only on Unix), and a directory that already exists is reused only when it is a
-/// real directory, not a link, with no access for others: one pre-made in a shared temp folder is refused.
+/// real directory, not a link, with no access for others and writable by this user: one pre-made in a shared temp folder is refused.
 pub fn temp_dir(tag: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("vectorcraft-testkit-{tag}-{}", std::process::id()));
     let mut b = std::fs::DirBuilder::new();
@@ -52,6 +52,10 @@ pub fn temp_dir(tag: &str) -> std::path::PathBuf {
         assert!(e.kind() == std::io::ErrorKind::AlreadyExists && m.is_dir(), "create temp dir: {e}");
         #[cfg(unix)]
         assert!(std::os::unix::fs::PermissionsExt::mode(&m.permissions()) & 0o077 == 0, "{}: not private", dir.display());
+        // A private directory made by another user passes the mode check but is closed to this one:
+        // writing a probe file tells it apart from ours without needing the user ids.
+        let probe = dir.join(".probe");
+        assert!(std::fs::write(&probe, b"").and_then(|()| std::fs::remove_file(&probe)).is_ok(), "{}: not owned by this user", dir.display());
     }
     dir
 }
