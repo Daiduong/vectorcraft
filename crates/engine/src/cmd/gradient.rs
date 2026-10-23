@@ -20,7 +20,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Gradient",
             ["Window", "Gradient"],
             None,
-            "{stroke?: bool (default: the targeted item's kind, else the active proxy), kind?: linear|radial|freeform (freeform places points on each object, coloured along the stops), mode?: points|lines (freeform: how the Gradient tool adds points), method?: classic|perceptual (how the colours between the stops mix: in display RGB, or perceptually (OKLab) so the steps look even, which SVG and PDF exports draw as an image; freeform gradients mix their own way), stops?: [{offset 0..1, color? (needed without swatch), opacity? 0..1 (or 0..100), midpoint? 0.13..0.87, swatch?: colour swatch name (a global or spot colour or tint swatch links the stop, so swatch edits recolour it and a spot stop prints on its plate; a process colour just gives its colour), tint?: 0..100 (% of the linked swatch; default 100, or a tint swatch's own)}] (at least 2; a freeform gradient's points are recoloured along them), keepModel?: bool (as paint.setFill; a stop color the gradient already has keeps its model), angle?: deg, aspect?: %, reverse?: bool, dither?: bool (fills only: a linear or radial gradient fill is drawn with fine noise that hides banding, and as pixels in SVG and PDF exports), item?: fill/stroke item index|null (omitted: the Appearance panel's active item when it is of the edited kind), ids?|id?, strokeMode?: within|along|across (strokes only: the gradient lies on the page and shows through the stroke, runs from the start of each subpath to its end, or runs from the stroke's left edge to its right all along it; with nothing selected, for the next object drawn; type characters' own strokes always paint within), target?: \"object\"|\"contents\"} edit the gradient in place (keeps its placement); solid/none paints become the default gradient",
+            "{stroke?: bool (default: the targeted item's kind, else the active proxy), kind?: linear|radial|conic|freeform (conic sweeps the stops once around the centre, clockwise from the vector, also accepted as angle or conical; freeform places points on each object, coloured along the stops), mode?: points|lines (freeform: how the Gradient tool adds points), method?: classic|perceptual (how the colours between the stops mix: in display RGB, or perceptually (OKLab) so the steps look even, which SVG and PDF exports draw as an image; freeform gradients mix their own way), stops?: [{offset 0..1, color? (needed without swatch), opacity? 0..1 (or 0..100), midpoint? 0.13..0.87, swatch?: colour swatch name (a global or spot colour or tint swatch links the stop, so swatch edits recolour it and a spot stop prints on its plate; a process colour just gives its colour), tint?: 0..100 (% of the linked swatch; default 100, or a tint swatch's own)}] (at least 2; a freeform gradient's points are recoloured along them), keepModel?: bool (as paint.setFill; a stop color the gradient already has keeps its model), angle?: deg (radial and conic: the vector turns about the centre), aspect?: %, reverse?: bool, dither?: bool (fills only: a linear or radial gradient fill is drawn with fine noise that hides banding, and as pixels in SVG and PDF exports), item?: fill/stroke item index|null (omitted: the Appearance panel's active item when it is of the edited kind), ids?|id?, strokeMode?: within|along|across (strokes only: the gradient lies on the page and shows through the stroke, runs from the start of each subpath to its end, or runs from the stroke's left edge to its right all along it; with nothing selected, for the next object drawn; type characters' own strokes always paint within), target?: \"object\"|\"contents\"} edit the gradient in place (keeps its placement); solid/none paints become the default gradient",
             has_doc,
             edit_gradient
         ),
@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Gradient Vector",
             [],
             None,
-            "{start?: [x,y], end?: [x,y] (document coordinates; both or neither: omitted, the vector stays), aspect?: % (radial: the extent ellipse's height / width; default: kept), focal?: [x,y] (document coordinates) | null (radial: the focal point, where the first stop sits, pulled inside the extent ellipse; null centres it; default: it keeps its place in the ellipse), ids?|id?, stroke?: bool (default: the targeted item's kind, else the active proxy), item?: fill/stroke item index|null (alias: index; omitted: the Appearance panel's active item when it is of the edited kind), target?: \"object\"|\"contents\", index?: appearance item index (as item)} set the gradient vector, aspect ratio and focal point (solid paints become the default gradient; type objects set it on their runs, in text space)",
+            "{start?: [x,y], end?: [x,y] (document coordinates; both or neither: omitted, the vector stays), aspect?: % (radial and conic: the extent ellipse's height / width; default: kept), focal?: [x,y] (document coordinates) | null (radial: the focal point, where the first stop sits, pulled inside the extent ellipse; null centres it; default: it keeps its place in the ellipse), ids?|id?, stroke?: bool (default: the targeted item's kind, else the active proxy), item?: fill/stroke item index|null (alias: index; omitted: the Appearance panel's active item when it is of the edited kind), target?: \"object\"|\"contents\", index?: appearance item index (as item)} set the gradient vector, aspect ratio and focal point (solid paints become the default gradient; type objects set it on their runs, in text space)",
             has_doc,
             set_gradient_geom
         ),
@@ -102,7 +102,7 @@ type Parsed<T> = std::result::Result<T, String>;
 
 /// Parse a kind name.
 fn parse_kind(k: &str) -> Parsed<GradientKind> {
-    GradientKind::parse(k).ok_or_else(|| format!("unknown gradient kind `{k}` (linear, radial, freeform)"))
+    GradientKind::parse(k).ok_or_else(|| format!("unknown gradient kind `{k}` (linear, radial, conic, freeform)"))
 }
 
 /// The `method` param of `p`, if given: how the colours between the stops mix.
@@ -242,8 +242,12 @@ pub(crate) fn parse_gradient(g: &Value) -> Parsed<GradientPaint> {
     gp.swatch = str_param(g, "swatch").map(str::to_string);
     let geom = GeomEdit::parse(g)?;
     if let Some((start, end)) = geom.vector {
-        let mut g = GradientGeom { start, end, aspect: geom.aspect.unwrap_or(1.0), focal: None };
-        g.set_focal(geom.focal.flatten());
+        // Only a conic gradient is mirrored by a negative aspect.
+        let aspect = geom.aspect.map_or(1.0, |a| if kind == GradientKind::Conic { a } else { a.abs() });
+        let mut g = GradientGeom { start, end, aspect, focal: None };
+        if kind == GradientKind::Radial {
+            g.set_focal(geom.focal.flatten());
+        }
         gp.angle = g.angle_deg();
         gp.geom = Some(g);
     }
@@ -253,10 +257,16 @@ pub(crate) fn parse_gradient(g: &Value) -> Parsed<GradientPaint> {
     Ok(gp)
 }
 
-/// The `aspect` param (a percentage) as a ratio.
+/// The `aspect` param (a percentage) as a ratio. Its sign is kept: a negative one is a mirrored
+/// conic gradient's (see [`GradientGeom::transform`]).
 fn aspect_param(p: &Value) -> Parsed<Option<f64>> {
     p.get("aspect")
-        .map(|v| v.as_f64().map(|a| (a / 100.0).clamp(0.005, 327.67)).ok_or_else(|| "`aspect` must be a number (%)".to_string()))
+        .map(|v| {
+            v.as_f64()
+                .filter(|a| a.is_finite())
+                .map(|a| (a.abs() / 100.0).clamp(0.005, 327.67).copysign(a))
+                .ok_or_else(|| "`aspect` must be a number (%)".to_string())
+        })
         .transpose()
 }
 
@@ -346,7 +356,7 @@ pub(crate) fn apply_gradient_edit_in(
         if let Some(g) = &mut gp.geom {
             let r = a.to_radians();
             let dir = vectorcraft_geom::Vec2::new(r.cos(), -r.sin());
-            if gp.gradient.kind == GradientKind::Radial {
+            if gp.gradient.kind.is_centred() {
                 g.end = g.start + dir * g.length();
             } else {
                 let c = g.start.midpoint(g.end);
@@ -357,13 +367,15 @@ pub(crate) fn apply_gradient_edit_in(
         }
     }
     if let Some(asp) = aspect_param(p)? {
-        if gp.geom.is_none()
-            && let Some(b) = bounds
-        {
+        // A conic this edit places takes the sign asked for (a negative aspect mirrors it); a
+        // placed one keeps its own, so a mirrored conic stays mirrored.
+        let placed = gp.geom.is_some();
+        if !placed && let Some(b) = bounds {
             gp.geom = Some(gp.resolve(b));
         }
+        let conic = gp.gradient.kind == GradientKind::Conic;
         if let Some(g) = &mut gp.geom {
-            g.aspect = asp;
+            g.aspect = if conic && !placed { asp } else { asp.abs().copysign(g.aspect) };
         }
     }
     if let (Some(b), Some(g)) = (before, &mut gp.geom) {
@@ -559,7 +571,13 @@ fn vector_paint(cur: &Paint, e: &GeomEdit, to_doc: Affine, bounds: Option<Rect>)
     };
     let shown = gp.geom.or_else(|| bounds.map(|b| gp.resolve(b))).map(|g| map(g, to_doc));
     let (start, end) = e.vector.or_else(|| shown.map(|g| (g.start, g.end)))?;
-    let aspect = e.aspect.or_else(|| shown.map(|g| g.aspect)).unwrap_or(1.0);
+    let aspect = match (e.aspect, shown) {
+        // A mirrored conic (negative aspect) stays mirrored; an unplaced one takes the sign
+        // asked for.
+        (Some(a), _) if kind == GradientKind::Conic && gp.geom.is_none() => a,
+        (Some(a), Some(g)) => a.abs().copysign(g.aspect),
+        (a, g) => a.map(f64::abs).or_else(|| g.map(|g| g.aspect)).unwrap_or(1.0),
+    };
     let mut geom = GradientGeom { start, end, aspect, focal: None };
     match (e.focal, shown) {
         _ if kind != GradientKind::Radial => {}

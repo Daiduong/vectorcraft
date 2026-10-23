@@ -2340,6 +2340,7 @@ font-script	Japanese	汉字
 	Radial	径向
 	Radial Glows	径向光晕
 	Radial Gradient	径向渐变
+	Conic Gradient	圆锥渐变
 	Radius 1	半径 1
 	Radius 2	半径 2
 	Radius1	半径1
@@ -3774,7 +3775,7 @@ imageTrace	Outline	轮廓
 @msg	stop {i} needs `offset`	色标 {i} 需要 `offset`
 @msg	stop {i} needs a valid `color`	色标 {i} 需要有效的 `color`
 @msg	stop {i}: `{k}` must be a number	色标 {i}：`{k}` 必须是数字
-@msg	unknown gradient kind `{k}` (linear, radial, freeform)	未知的渐变类型 `{k}` (linear、radial、freeform)
+@msg	unknown gradient kind `{k}` (linear, radial, conic, freeform)	未知的渐变类型 `{k}` (linear、radial、conic、freeform)
 @msg	the art could not be sampled	无法对图稿取样
 @msg	the art is too light for any dots	图稿太浅，无法生成任何网点
 @msg	the document has no symbols	文档中没有符号
