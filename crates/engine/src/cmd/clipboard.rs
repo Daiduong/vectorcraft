@@ -155,9 +155,8 @@ pub(crate) fn extract_direct_selection(node: &Node, selection: &Selection) -> Op
         let surviving = if unselected.is_empty() { vec![sp.clone()] } else { super::path::without_segments(sp.clone(), &unselected) };
         for surviving_sp in surviving {
             let mut piece = node.clone();
-            if let NodeKind::Path { rule, live, clipping, guide, .. } = &node.kind {
-                piece.kind =
-                    NodeKind::Path { path: PathData::single(surviving_sp), rule: *rule, live: live.clone(), clipping: *clipping, guide: *guide };
+            if let NodeKind::Path { rule, clipping, guide, .. } = &node.kind {
+                piece.kind = NodeKind::Path { path: PathData::single(surviving_sp), rule: *rule, live: None, clipping: *clipping, guide: *guide };
             }
             pieces.push(piece);
         }

@@ -28,6 +28,9 @@ fn copy_and_paste_direct_selected_segment_of_rect() {
     assert_eq!(ids.len(), 1);
 
     let pasted_node = s.doc().unwrap().doc.node(NodeId(ids[0])).unwrap();
+    if let NodeKind::Path { live, .. } = &pasted_node.kind {
+        assert!(live.is_none(), "extracted partial path must not retain live shape metadata");
+    }
     let path = pasted_node.path_data().unwrap();
     assert_eq!(path.subpaths.len(), 1);
     let sp = &path.subpaths[0];
@@ -74,7 +77,7 @@ fn copy_single_anchor_of_rect_copies_three_anchors_with_two_segments() {
     assert_eq!(path.subpaths.len(), 1);
     let sp = &path.subpaths[0];
     assert!(!sp.closed);
-    // In Illustrator parity, copying a single anchor on a closed path copies the anchor and both its incident segments.
+    // Copying a single anchor on a closed path copies the anchor and both its incident segments.
     assert_eq!(sp.anchors.len(), 3);
     assert_eq!(sp.segment_count(), 2);
 }

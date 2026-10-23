@@ -530,16 +530,13 @@ fn copy(s: &mut Session, _: &Value) -> Result<Value> {
     }
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
-    let direct = !in_drawing_tool
-        && (!st.selection.anchors.is_empty()
-            || !st.selection.segments.is_empty()
-            || st.selection.objects.iter().any(|id| {
-                st.doc.parent_of(*id).is_some_and(|parent| {
-                    matches!(st.doc.node(parent).map(|n| &n.kind), Some(NodeKind::Compound { .. })) && !st.selection.contains(parent)
-                })
-            }));
-    let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), direct);
-    s.clipboard = Clipboard::copy(st, &roots, direct);
+    let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
+    let roots = if direct { roots_within(&st.doc, st.selection.in_paint_order(&st.doc), true) } else { selected_roots(s)? };
+    let new_clip = Clipboard::copy(st, &roots, direct);
+    if direct && new_clip.nodes.is_empty() {
+        return Ok(json!({ "copied": 0 }));
+    }
+    s.clipboard = new_clip;
     Ok(json!({ "copied": s.clipboard.nodes.len() }))
 }
 
@@ -547,19 +544,15 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     if s.tool_id() == "artboard" {
         return super::panelcmds::artboard_copy(s, &json!({}), true);
     }
-    // Copy promotes a compound member to its compound unless direct-selected or selected individually (#2441).
-    // Cut must remove the same objects it copied, while Clear on its own deletes exactly the selected members.
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
-    let direct_parts = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
-    let has_compound_member = st.selection.objects.iter().any(|id| {
-        st.doc
-            .parent_of(*id)
-            .is_some_and(|parent| matches!(st.doc.node(parent).map(|n| &n.kind), Some(NodeKind::Compound { .. })) && !st.selection.contains(parent))
-    });
-    let ids = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), direct_parts || has_compound_member);
-    copy(s, p)?;
-    if !direct_parts { clear(s, &json!({ "ids": ids })) } else { clear(s, &json!({})) }
+    let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
+    let ids = if direct { roots_within(&st.doc, st.selection.in_paint_order(&st.doc), true) } else { selected_roots(s)? };
+    let res = copy(s, p)?;
+    if res.get("copied").and_then(Value::as_u64) == Some(0) {
+        return Ok(res);
+    }
+    if !direct { clear(s, &json!({ "ids": ids })) } else { clear(s, &json!({})) }
 }
 
 fn clear(s: &mut Session, p: &Value) -> Result<Value> {
