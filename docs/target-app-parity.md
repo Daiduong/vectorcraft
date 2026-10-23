@@ -429,15 +429,9 @@ since 2026-10-01.
 
 | Dimension | Estimate | Evidence and what's missing |
 |---|---|---|
-<<<<<<< HEAD
-| **Breadth:** menus, tools and panels exist | ~90% | 13 menu items still stubbed; every tool implemented except Touch Type; 40 panel modules |
-| **Depth:** each feature behaves like Illustrator | ~69–75% | Strong: paint, appearance and colour (M3), Pathfinder and booleans, selection, drawing, files (M4). Weak: advanced type (~45%; inline symbols in text are beyond parity and don't raise it), brushes and symbols (in progress), raster effects (~20%) |
-| **Large missing subsystems** | 0–20% | 3D & Materials (~25%, initial 3D types without materials), Photoshop-style raster effects and the Effect Gallery (~19 of ~56 filters), SVG Filters, CJK composition (vertical type with kinsoku, tate-chu-yoko and the font's vertical metrics; mojikumi open), scripting |
-=======
 | **Breadth:** menus, tools and panels exist | ~90% | 13 menu items still stubbed; every tool implemented except Touch Type; 51 panel modules |
 | **Depth:** each feature behaves like Illustrator | ~69–75% | Strong: paint, appearance and colour (M3), Pathfinder and booleans, selection, drawing, files (M4). Weak: advanced type (~45%; inline symbols in text are beyond parity and don't raise it), brushes and symbols (in progress), raster effects (~20%; since 57/57 filters and the Effect Gallery, #2883, see the area table above) |
 | **Large missing subsystems** | 0–20% | 3D & Materials (~25%, initial 3D types without materials), SVG Filters (Photoshop-style raster effects (57/57) and the Effect Gallery (#2883) have since shipped), CJK composition (vertical type with kinsoku, tate-chu-yoko and the font's vertical metrics; mojikumi open), scripting |
->>>>>>> 8b03e816344dc347c949c92988cbd1b9da21c891
 | **Interaction fidelity:** modifiers, cursors, small behaviours | ~30–40% | The dedicated pass hasn't started, and there has been no side-by-side session with Illustrator yet. A power user notices this first |
 | **Look & feel** | ~75–80% | Measured against Illustrator 2026 screenshots (2026-10-02); the panels added since haven't been re-measured |
 | **File interop** | ~85% | SVG/SVGZ, PDF and PDF-compatible `.ai` (and legacy version 7 `.ai` out, keeping layers, groups and type as text), EPS, DXF, EMF/WMF, raster formats, PSD export and PSD/PSB placement (merged image), Place and Links, Package, Print, clipboard flavours. Affinity documents (Affinity 1–3) open natively as editable art, checked against 51 pinned public files (33 current `.af`), with selected saved-thumbnail comparisons and every-board native/SVG/PDF/PSD checks for current files; Affinity export is missing and effects, adjustments and brushes don't import. Affinity isn't an Illustrator feature, so this doesn't raise the parity score. The editing copy inside an Illustrator EPS or `.ai` is read for its structure: layers, groups, names, hidden objects and type, colours, gradients, transparency, images and every artboard (see Out of scope for what it doesn't read yet); DWG has no open spec |
