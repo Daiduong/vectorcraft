@@ -3111,7 +3111,7 @@ pub(crate) mod look_tests {
             CornerRadius { nw: start, sw: start, ne: end, se: end }
         };
         let visible = |r: &egui::epaint::RectShape| r.fill != Color32::TRANSPARENT || !r.stroke.is_empty();
-        for scheme in [Scheme::Modern, Scheme::Classic] {
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet] {
             let ctx = themed(Default::default());
             theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
             let t = Tokens::get(&ctx);
@@ -3179,7 +3179,7 @@ pub(crate) mod look_tests {
     fn a_spinner_field_has_square_joints_and_the_schemes_outer_corners() {
         use theme::Scheme;
         let square = |r: CornerRadius| r == CornerRadius::ZERO;
-        for scheme in [Scheme::Modern, Scheme::Classic] {
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet] {
             for presets in [&[1.0, 2.0][..], &[]] {
                 let ctx = themed(Default::default());
                 theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);

@@ -855,17 +855,23 @@ pub fn paint_raised(painter: &Painter, rect: Rect, corners: CornerRadius, fill: 
     painter.extend(raised_shapes(rect, corners, fill, t));
 }
 
-/// An inset field's face: `fill` with [`Tokens::field_shade`] along its top inside edge, and
-/// `stroke` round it.
+/// An inset field's face: one `rect` in `fill` with `stroke` round it and corners `corners`, and,
+/// with a [`Tokens::field_shade`], a half-point line of it just under the top border, along the
+/// top's straight part (egui has no inner shadows). One box, so a field that is one part of a
+/// larger control (a spinner field) joins its neighbours as cleanly as a flat one.
 pub fn paint_inset(painter: &Painter, rect: Rect, corners: CornerRadius, fill: Color32, stroke: Stroke, t: &Tokens) {
+    painter.rect(rect, corners, fill, stroke, StrokeKind::Inside);
     if t.field_shade == Color32::TRANSPARENT {
-        painter.rect(rect, corners, fill, stroke, StrokeKind::Inside);
         return;
     }
-    // egui has no inner shadows: the shade, then the fill a point and a half lower over it.
-    painter.rect_filled(rect, corners, t.field_shade);
-    painter.rect_filled(Rect::from_min_max(rect.min + egui::vec2(0.0, 1.5), rect.max), corners, fill);
-    painter.rect_stroke(rect, corners, stroke, StrokeKind::Inside);
+    // egui draws a corner no rounder than half the box's shorter side.
+    let most = rect.width().min(rect.height()) / 2.0;
+    let left = rect.left() + f32::from(corners.nw).min(most).max(stroke.width);
+    let right = rect.right() - f32::from(corners.ne).min(most).max(stroke.width);
+    if right > left {
+        let y = rect.top() + stroke.width + 0.25;
+        painter.line_segment([egui::pos2(left, y), egui::pos2(right, y)], Stroke::new(0.5, t.field_shade));
+    }
 }
 
 /// The shapes of a segmented tab strip ([`TabStyle::Segmented`]): the pill-shaped `track` in the
