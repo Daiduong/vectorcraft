@@ -221,6 +221,32 @@ fn a_conic_gradient_becomes_wedges_or_a_mesh_that_paint_it() {
     assert!(mean_diff(&before, &after) < 2.5, "{}", mean_diff(&before, &after));
 }
 
+/// A conic with a flat extent ellipse (aspect 0, as a file can hold it) draws as a sweep from the
+/// right around its centre, as the canvas does: Expand makes wedges and a mesh that cover the box.
+#[test]
+fn a_conic_with_a_flat_ellipse_expands_as_the_canvas_draws_it() {
+    let conic = json!({"kind": "conic", "stops": [{"offset": 0, "color": "#ffff00"}, {"offset": 0.5, "color": "#ff00ff"}, {"offset": 1, "color": "#004080"}]});
+    for how in [json!({"steps": 180}), json!({"gradient": "mesh"})] {
+        let mut s = session();
+        let id = gradient_rect(&mut s, Rect::new(30.0, 40.0, 170.0, 160.0), conic.clone(), false);
+        let d = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
+        let n = d.node_mut(id).unwrap();
+        let vectorcraft_color::Paint::Gradient(mut g) = n.appearance.fill_paint().clone() else { panic!("a gradient fill") };
+        g.geom = Some(vectorcraft_color::GradientGeom {
+            start: vectorcraft_geom::Point::new(100.0, 100.0),
+            end: vectorcraft_geom::Point::new(150.0, 100.0),
+            aspect: 0.0,
+            focal: None,
+        });
+        n.appearance.set_fill(vectorcraft_color::Paint::Gradient(g));
+        let before = render(&s);
+        run(&mut s, "object.expand", how.clone());
+        let after = render(&s);
+        assert!(differing(&before, &after, 48) < 200, "{how}: {}", differing(&before, &after, 48));
+        assert!(mean_diff(&before, &after) < 2.5, "{how}: {}", mean_diff(&before, &after));
+    }
+}
+
 #[test]
 fn the_mesh_option_makes_a_mesh_that_paints_the_gradient() {
     for gradient in [

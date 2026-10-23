@@ -847,8 +847,13 @@ struct Frame {
 
 impl Frame {
     fn new(g: &GradientPaint, bounds: Rect) -> Self {
-        let geom = g.resolve(bounds);
+        let mut geom = g.resolve(bounds);
         let conic = g.gradient.kind == GradientKind::Conic;
+        if conic && geom.unit_frame().is_none() {
+            // A conic without an extent (no vector length, or a flat ellipse) sweeps from the
+            // right around its centre, as the canvas draws it.
+            geom = vectorcraft_color::GradientGeom { end: geom.start + Vec2::new(1.0, 0.0), aspect: 1.0, focal: None, ..geom };
+        }
         let radial = g.gradient.kind.is_centred();
         // A vector of no length paints as one pointing right (as the canvas does).
         let along = if geom.start.distance(geom.end) < 1e-9 { Vec2::new(1.0, 0.0) } else { geom.end - geom.start };
