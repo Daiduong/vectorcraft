@@ -575,6 +575,75 @@ fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
     fitted.subpaths.into_iter().next().filter(|s| s.anchors.len() >= 2).unwrap_or(sp)
 }
 
+/// The anchor nearest to `q` on `sp`: the one there, else a new one, and whether it was added.
+fn place_on_subpath(sp: &mut SubPath, q: Point) -> Option<(usize, bool)> {
+    let (_, seg, t, _, _) = PathData::single(sp.clone()).nearest(q)?;
+    let n = sp.anchors.len();
+    Some(if t <= 1e-6 {
+        (seg % n, false)
+    } else if t >= 1.0 - 1e-6 {
+        ((seg + 1) % n, false)
+    } else {
+        (sp.insert_anchor(seg, t), true)
+    })
+}
+
+/// Append a fitted stroke after `anchors`, snapping its start to the last anchor (#3793).
+fn append_stroke(anchors: &mut Vec<Anchor>, pts: &[Point], tol: f64) -> bool {
+    if pts.len() < 2 {
+        return false;
+    }
+    let mut stroke = pts.to_vec();
+    if let Some(a) = anchors.last() {
+        stroke[0] = a.p;
+    }
+    let fit = fit_freehand(&stroke, tol, false).anchors;
+    let (Some(f0), Some(last)) = (fit.first(), anchors.last_mut()) else { return false };
+    *last = Anchor::with_handles(last.p, last.h_in, f0.h_out);
+    anchors.extend_from_slice(fit.get(1..).unwrap_or_default());
+    true
+}
+
+/// Edit Selected Paths (#3793): a stroke that starts on a subpath within `within` but ends away
+/// opens a closed path at the start and appends the stroke, or on an open path keeps the side the
+/// stroke heads away from and appends the stroke.
+fn redraw_extend(pd: &PathData, pts: &[Point], tol: f64, within: f64) -> Option<(usize, SubPath)> {
+    let first = *pts.first()?;
+    let (si, _, _, _, d_a) = pd.nearest(first)?;
+    if d_a > within || pts.len() < 2 {
+        return None;
+    }
+    let last = *pts.last()?;
+    let (sj, _, _, _, d_b) = pd.nearest(last)?;
+    if si != sj || d_b <= within {
+        return None;
+    }
+    let mut sp = pd.subpaths.get(si)?.clone();
+    if sp.anchors.len() < 2 {
+        return None;
+    }
+    let (from, _) = place_on_subpath(&mut sp, first)?;
+    let n = sp.anchors.len();
+    let stroke_dir = pts[1] - pts[0];
+    let mut anchors = if sp.closed {
+        (0..n).map(|k| sp.anchors[(from + k) % n]).collect()
+    } else if from > 0 && from + 1 < n {
+        let forward = sp.anchors[from + 1].p - sp.anchors[from].p;
+        let back = sp.anchors[from].p - sp.anchors[from - 1].p;
+        if stroke_dir.dot(forward) >= stroke_dir.dot(back) { sp.anchors[..=from].to_vec() } else { sp.anchors[from..].to_vec() }
+    } else if from == 0 {
+        let along = sp.anchors[1].p - sp.anchors[0].p;
+        if stroke_dir.dot(along) >= 0.0 { vec![sp.anchors[0]] } else { sp.anchors.clone() }
+    } else {
+        let along = sp.anchors[n - 1].p - sp.anchors[n - 2].p;
+        if stroke_dir.dot(along) >= 0.0 { sp.anchors.clone() } else { vec![sp.anchors[n - 1]] }
+    };
+    if !append_stroke(&mut anchors, pts, tol) {
+        return None;
+    }
+    Some((si, SubPath::new(anchors, false)))
+}
+
 /// Pencil's Edit Selected Paths in the middle of a path: a stroke from one point of a subpath of
 /// `pd` to another, each within `within` of it, replaces the section between them (the shorter
 /// way round a closed subpath) with the stroke fitted at `tol`. The subpath's index and its new
@@ -591,22 +660,8 @@ fn redraw_section(pd: &PathData, pts: &[Point], tol: f64, within: f64) -> Option
     if sp.anchors.len() < 2 {
         return None;
     }
-    // The anchor nearest to `q`: the one there, else a new one, and whether it was added. Each
-    // point is looked up on the subpath as it is by then: splitting a straight segment makes two
-    // new ones, which a `t` along the old one doesn't measure.
-    let place = |sp: &mut SubPath, q: Point| {
-        let (_, seg, t, _, _) = PathData::single(sp.clone()).nearest(q)?;
-        let n = sp.anchors.len();
-        Some(if t <= 1e-6 {
-            (seg % n, false)
-        } else if t >= 1.0 - 1e-6 {
-            ((seg + 1) % n, false)
-        } else {
-            (sp.insert_anchor(seg, t), true)
-        })
-    };
-    let (mut from, _) = place(&mut sp, first)?;
-    let (to, added) = place(&mut sp, last)?;
+    let (mut from, _) = place_on_subpath(&mut sp, first)?;
+    let (to, added) = place_on_subpath(&mut sp, last)?;
     if added && to <= from {
         from += 1;
     }
@@ -748,7 +803,7 @@ fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
         let (pd, _) = path_of(&s.doc()?.doc, id)?;
         // shortcut: a stroke pressure profile is left as it was, measured along the old path; fit
         // it to the new length if Calligraphic pressure strokes get redrawn.
-        if let Some((si, sp)) = redraw_section(&pd, &pts, tol, within) {
+        if let Some((si, sp)) = redraw_section(&pd, &pts, tol, within).or_else(|| redraw_extend(&pd, &pts, tol, within)) {
             s.edit(if brush { "Paintbrush" } else { "Pencil" }, |d, sel| {
                 *path_mut(d, id)?.subpaths.get_mut(si).ok_or_else(|| bad(C, "no such subpath"))? = sp;
                 if keep_selected {
