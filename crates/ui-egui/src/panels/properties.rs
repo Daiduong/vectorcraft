@@ -643,8 +643,8 @@ fn appearance_section(app: &mut VectorcraftApp, ui: &mut Ui) {
     ui.horizontal(|ui| {
         widgets::field_label(ui, egui::RichText::new(tl!("Opacity")).size(12.0));
         ui.add_space(8.0);
-        if let Some(o) = widgets::plain_field(ui, "ap-op", n.opacity as f64 * 100.0, "%", 0, fw) {
-            app.run("object.setProps", json!({"opacity": o.clamp(0.0, 100.0)})).ok();
+        if let Some(o) = widgets::range_field(ui, "ap-op", n.opacity as f64 * 100.0, 0.0..=100.0, "%", 0, fw) {
+            app.run("object.setProps", json!({"opacity": o})).ok();
         }
         if widgets::icon_button(ui, "ellipsis", tl!("Transparency"), false, 22.0).clicked() {
             app.ui.open_panel = Some("transparency".into());
@@ -800,6 +800,25 @@ mod tests {
         assert!(!shown.iter().any(|t| t == "Edit Contents"), "nothing to edit: {shown:?}");
         click(&mut app, &ctx, &texts, "Edit Clipping Path");
         assert_eq!(selected(&app), std::slice::from_ref(&mask), "Edit Clipping Path selects the clipping path");
+    }
+
+    // Regression test for #1910: the Properties panel's flip buttons are named as the reference
+    // app's Properties panel names them, not Flip Horizontal and Flip Vertical (the Transform
+    // panel menu's names).
+    #[test]
+    fn the_flip_buttons_keep_the_reference_properties_names() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
+        let id = app.run("shape.rectangle", json!({"x": 50, "y": 50, "width": 120, "height": 80})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let tree = crate::widgets::accessibility_tests::tree(|ui| transform_section(&mut app, ui));
+        let names: Vec<&str> = tree.iter().filter_map(|n| n.label()).collect();
+        for want in ["Flip Along Horizontal Axis", "Flip Along Vertical Axis"] {
+            assert!(names.contains(&want), "{want} in {names:?}");
+        }
+        for old in ["Flip Horizontal", "Flip Vertical"] {
+            assert!(!names.contains(&old), "{old} in {names:?}");
+        }
     }
 
     /// #3451: the Properties panel Transform section shows ellipse pie angles and Invert Pie.

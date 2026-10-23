@@ -279,6 +279,8 @@
 	Average…	Усреднить…
 	Axis:	Ось:
 	Background Color:	Цвет фона:
+	Show Center Mark	Показать центральную метку
+	Show Cross Hairs	Показать перекрестие
 	Background Contents	Содержимое фона
 	Background Contents:	Содержимое фона:
 	Background:	Фон:
@@ -1098,6 +1100,7 @@
 	Keep selected	Оставлять выбранным
 	Merge only with selection	Объединять только с выделенным
 	Consider Open Filled Paths as Closed	Считать открытые контуры с заливкой замкнутыми
+	In Merge Mode, Clicking Stroke Splits the Path	В режиме объединения щелчок по обводке разделяет контур
 	Pick Color From:	Источник цвета:
 	Artwork	Графика
 	Cursor Swatch Preview	Образцы у указателя
@@ -1105,6 +1108,7 @@
 	Freeform	Произвольно
 	Straight Line	Прямая линия
 	Highlight:	Подсветка:
+	Stroke When Editable	Редактируемая обводка
 	Fill Color	Цвет заливки
 	Fill New Type Objects With Placeholder Text	Заполнять новые текстовые объекты текстом-заполнителем
 	Fill Rule	Правило заливки
@@ -3826,6 +3830,7 @@ axis	Both	Оба
 @msg	Couldn't copy to the system clipboard: {e}	Не удалось скопировать в системный буфер обмена: {e}
 @msg	Couldn't open {name}: {e}	Не удалось открыть {name}: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Не удалось поместить {name}: документ, в который его перетащили, был закрыт
+@msg	Couldn't place {name}: the document it was placed in was closed	Не удалось поместить {name}: документ, в который его помещали, был закрыт
 @msg	Couldn't read {name}: {e}	Не удалось прочитать {name}: {e}
 @msg	Couldn't save recovery data: {e}	Не удалось сохранить данные восстановления: {e}
 @msg	Create Outlines: select text objects	Создание контуров: выделите текстовые объекты
@@ -4101,6 +4106,7 @@ axis	Both	Оба
 @msg	no file system here	здесь нет файловой системы
 @msg	no file writer	нет средства записи файлов
 @msg	no files to place	нет файлов для размещения
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` не является документом VectorCraft, PDF или файлом .ai, совместимым с PDF
 @msg	no format to export to	нет формата для экспорта
 @msg	no free recovery area	нет свободной области восстановления
 @msg	no gradient stop or freeform point is selected	не выделена ни точка перехода градиента, ни произвольная точка
@@ -4193,6 +4199,7 @@ axis	Both	Оба
 @msg	path is already closed	контур уже замкнут
 @msg	paths contain invalid coordinates	контуры содержат недопустимые координаты
 @msg	paths: give at least one file	paths: укажите как минимум один файл
+@msg	replace: the object to replace was changed or deleted	replace: заменяемый объект был изменён или удалён
 @msg	pattern missing	узор отсутствует
 @msg	patterns nested too deeply are filled with mid-grey	слишком глубоко вложенные узоры заполняются серым
 @msg	percent must be above 0 and at most 6400, not {p}	процент должен быть больше 0 и не более 6400, а не {p}
@@ -4363,6 +4370,7 @@ axis	Both	Оба
 @msg	{_1} font families available	доступно семейств шрифтов: {_1}
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} — динамический эффект (Эффект › Модули)
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1} — модуль экспорта (Файл › Экспорт › Экспортировать как…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData` занимает {size} байт (предел {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	{_1} уже используется {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	здесь невозможно прочитать связанных файлов: {_1}: отображаются их предварительные просмотры
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	связанных изображений ({_1}) изменились на диске: «Обновить связи» покажет новые версии
@@ -4392,6 +4400,8 @@ axis	Both	Оба
 @msg	Saving	Сохранение
 @msg	Saving {_1}	Сохранение {_1}
 @msg	Exporting {_1}	Экспорт {_1}
+@msg	Packaging {_1}	Упаковка {_1}
+@msg	Placing {_1}	Размещение {_1}
 @msg	Saving recovery data for {_1}	Сохранение данных восстановления для {_1}
 @msg	Discarded {_1} recovered document(s)	Отменено восстановленных документов: {_1}
 @msg	Restored {_1} recovered document(s): save them to keep them	Восстановлено документов: {_1}: сохраните их, чтобы оставить
@@ -4500,7 +4510,9 @@ axis	Both	Оба
 @msg	automation filesystem access is not granted: read authority is absent: {path}	у автоматизации нет доступа к файловой системе: нет права на чтение: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	у автоматизации нет доступа к файловой системе: нет права на запись: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	путь автоматизации отклонён: вне корневой папки для чтения {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	путь автоматизации отклонён: вне корневых папок для чтения {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	путь автоматизации отклонён: вне корневой папки для записи {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	путь автоматизации отклонён: вне корневых папок для записи {roots}: {path}
 @msg	automation path rejected: path is empty	путь автоматизации отклонён: путь пуст
 @msg	automation path rejected: a link that leads nowhere: {path}	путь автоматизации отклонён: ссылка, которая никуда не ведёт: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	путь автоматизации отклонён: не удаётся определить {path}: {e}
@@ -4902,6 +4914,10 @@ lighting	Light	Свет
 	Halftone Pattern	Полутоновый узор
 	Torn Edges…	Рваные края…
 	Torn Edges	Рваные края
+	Conté Crayon…	Мелок Конте…
+	Conté Crayon	Мелок Конте
+	Foreground Level	Уровень переднего плана
+	Background Level	Уровень фона
 	Pattern Type	Тип узора
 	Dot	Точка
 # User Interface › Color Scheme
@@ -4957,8 +4973,13 @@ lighting	Light	Свет
 @msg	too many library panels were opened in this session	в этом сеансе открыто слишком много панелей библиотек
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	Изображение {_1} × {_2} пикселей, больше {LARGE_TRACE_SIDE} по одной стороне: трассировка выполняется, но медленнее. Стиль с меньшей точностью или уменьшенная копия изображения трассируются быстрее.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	Изображение трассировано в размере {_1} × {_2} пикселей, уменьшенное с {_3} × {_4} (не более {_5} мегапикселей).
+	Snapping	Привязка
+	Snap to Tangent	Привязать к касательной
+	Snap to Perpendicular	Привязать к перпендикуляру
+@msg	unknown snap option `{key}` (use {options})	неизвестный параметр привязки `{key}` (допустимо: {options})
 	Gap Length:	Длина зазора:
 	Artboard {n} of {total}	Монтажная область {n} из {total}
+	File {n} of {total}	Файл {n} из {total}
 	Encoding and writing the file…	Кодирование и запись файла…
 @plural	{n} more export waiting|{n} more exports waiting	Ещё {n} экспорт в очереди|Ещё {n} экспорта в очереди|Ещё {n} экспортов в очереди
 	Continue in Background	Продолжить в фоне
@@ -5008,6 +5029,7 @@ lighting	Light	Свет
 	Water Paper	Мокрая бумага
 	Ruby…	Руби…
 	Ruby	Руби
+	Geometric Guides	Геометрические направляющие
 	Ease In	Плавное начало
 	Ease Out	Плавное окончание
 	Ease In Out	Плавное начало и окончание
@@ -5036,3 +5058,23 @@ axis	Y Axis	Ось Y
 	Packaged {n} file(s) in {folder}	Упаковано файлов: {n} в {folder}
 	Packaged {n} file(s) {note}	Упаковано файлов: {n} {note}
 	{count} file(s) in {folder}. Show the package folder?	Файлов: {count} в {folder}. Показать папку пакета?
+	Clockwise	По часовой стрелке
+	Dither	Дизеринг
+	Fine noise hides banding in the gradient fill	Мелкий шум скрывает полосы в градиентной заливке
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` применяется к градиентным заливкам (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` применяется к градиентным заливкам (paint.setFill)
+@msg	`dither` must be true or false	`dither` должно быть true или false
+	Perceptual	Перцепционный
+@msg	`method` must be classic or perceptual	`method` должен быть classic или perceptual
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
+	Install “{name}”, which asks for a heavy budget?	Установить «{name}», которому нужен большой вычислительный бюджет?
+	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	Каждый запуск может длиться до {minutes} минут и выполнять в {times} раз больше работы, чем разрешено другим модулям. Он работает в фоне, и его можно отменить.
+	It may take minutes, so it runs in the background, where you can cancel it.	Это может занять несколько минут, поэтому модуль работает в фоне, где его можно отменить.
+	The plug-in is computing…	Модуль выполняет вычисления…
+	Inspect Plug-in	Проверить модуль
+	Cancel Plug-in Run	Отменить запуск модуля
+@msg	{_1} finished, but the document or the plug-in changed meanwhile: run it again	{_1} завершился, но документ или модуль за это время изменился: запустите его снова
+@msg	Running “{name}”…	Выполняется «{name}»…
+@msg	a live effect runs while the document is drawn, so it can't be `heavy`	динамический эффект выполняется во время отрисовки документа, поэтому он не может быть `heavy`
+@msg	an exporter always gets an export's budget: leave `budget` out	модуль экспорта всегда получает бюджет экспорта: не указывайте `budget`
+@msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	«{_1}» запрашивает большой вычислительный бюджет (каждый запуск до {minutes} минут и в {times} раз больше инструкций, чем обычно): установите его с `allowHeavy: true`, когда пользователь согласится
