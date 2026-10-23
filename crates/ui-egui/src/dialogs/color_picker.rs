@@ -948,7 +948,8 @@ mod tests {
                         self.visible_texts.push(t.galley.text().into());
                     }
                 }
-                egui::Shape::Rect(r) => self.boxes.push(r.rect),
+                // A raised control's soft shadow (Quiet) is not a control.
+                egui::Shape::Rect(r) if r.blur_width == 0.0 => self.boxes.push(r.rect),
                 egui::Shape::Mesh(m) if m.vertices.len() > 100 => self.fields.push(m.calc_bounds()),
                 egui::Shape::Vec(v) => v.iter().for_each(|s| self.collect(s, clip)),
                 _ => {}
