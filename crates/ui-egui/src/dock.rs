@@ -97,7 +97,7 @@ pub(crate) fn collapse_header(ui: &mut Ui, collapsed: bool) -> bool {
     let (hdr, resp) = ui.allocate_exact_size(vec2(ui.available_width(), HEADER), Sense::click());
     let arrow = Rect::from_min_size(hdr.right_top() + vec2(-16.0, 1.0), vec2(12.0, 12.0));
     if resp.hovered() {
-        ui.painter().rect_filled(arrow, CornerRadius::same(2), t.hover);
+        ui.painter().rect_filled(arrow, t.cr(), t.hover);
     }
     let icon = if collapsed { "chevrons-left" } else { "chevrons-right" };
     icons::paint(ui, icon, arrow.shrink(1.0), if resp.hovered() { t.text_strong } else { t.text });
@@ -374,7 +374,7 @@ pub(crate) fn panel_tabs(
             .focus_stroke(Stroke::new(1.0, t.accent))
             .show_at(ui, rect, |ui, _| {
                 if i == selected {
-                    ui.painter().rect_filled(rect.shrink2(vec2(3.0, 5.0)), 6.0, t.button);
+                    ui.painter().rect_filled(rect.shrink2(vec2(3.0, 5.0)), t.cr(), t.button);
                 }
                 ui.painter().with_clip_rect(rect.intersect(ui.clip_rect())).galley(rect.center() - galley.size() / 2.0, galley, t.text);
                 let _ = separators;
@@ -453,13 +453,13 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let mut torn = None;
     let area = egui::Area::new(egui::Id::new("icon-panel")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP);
     area.fixed_pos(egui::pos2(right, FLYOUT_TOP)).show(ctx, |ui| {
-        egui::Frame::popup(ui.style()).fill(t.panel).corner_radius(CornerRadius::same(4)).inner_margin(egui::Margin::ZERO).show(ui, |ui| {
+        egui::Frame::popup(ui.style()).fill(t.panel).corner_radius(t.cr_float()).inner_margin(egui::Margin::ZERO).show(ui, |ui| {
             ui.set_width(width);
             let (strip, _) = ui.allocate_exact_size(vec2(width, 26.0), Sense::hover());
-            ui.painter().rect_filled(strip, CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 }, t.panel_darker);
+            ui.painter().rect_filled(strip, CornerRadius { nw: t.radius_float, ne: t.radius_float, sw: 0, se: 0 }, t.panel_darker);
             let title =
                 Rect::from_min_size(strip.min, vec2(ui.painter().layout_no_wrap(label.clone(), theme::semibold(12.0), t.text).size().x + 24.0, 26.0));
-            ui.painter().rect_filled(title, CornerRadius { nw: 4, ne: 0, sw: 0, se: 0 }, t.panel);
+            ui.painter().rect_filled(title, CornerRadius { nw: t.radius_float, ne: 0, sw: 0, se: 0 }, t.panel);
             ui.painter().text(title.left_center() + vec2(12.0, 0.0), egui::Align2::LEFT_CENTER, &label, theme::semibold(12.0), t.text);
             let close = Rect::from_center_size(strip.right_center() - vec2(13.0, 0.0), vec2(14.0, 14.0));
             let cr = ui.interact(close, ui.id().with("close-panel"), Sense::click());

@@ -1508,7 +1508,7 @@ fn scroll_bars(app: &mut VectorcraftApp, ui: &Ui, rect: egui::Rect, outer: egui:
             egui::Rect::from_min_size(pos2(track.left(), track.top() + at), vec2(track.width(), size)).shrink2(vec2(3.0, 1.0))
         };
         let hot = drag.is_some() || hover.is_some_and(|p| thumb.contains(p));
-        painter.rect_filled(thumb, CornerRadius::same(3), if hot { t.text_dim } else { t.text_disabled });
+        painter.rect_filled(thumb, t.cr(), if hot { t.text_dim } else { t.text_disabled });
     }
     let Some(vm) = app.view_mut() else { return };
     if let Some(c) = center {
@@ -3266,7 +3266,7 @@ fn draw_overlays(p: &egui::Painter, xf: &Xf, overlays: &[Overlay], t: &Tokens, l
                 let sp = xf.to_screen(*pt) + vec2(14.0, 14.0);
                 let galley = p.layout(text.clone(), egui::FontId::proportional(11.0), Color32::WHITE, 200.0);
                 let r = egui::Rect::from_min_size(sp, galley.size() + vec2(12.0, 8.0));
-                p.rect_filled(r, CornerRadius::same(3), t.measure_bg);
+                p.rect_filled(r, t.cr(), t.measure_bg);
                 p.galley(sp + vec2(6.0, 4.0), galley, Color32::WHITE);
             }
             Overlay::Distance { a, b, text, color } => distance_guide(p, xf.to_screen(*a), xf.to_screen(*b), text, c32(*color)),
@@ -3403,7 +3403,7 @@ fn recent_row(ui: &mut Ui, path: &str) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), egui::Sense::click());
     if ui.is_rect_visible(rect) {
         if resp.hovered() {
-            ui.painter().rect_filled(rect, CornerRadius::same(4), t.hover);
+            ui.painter().rect_filled(rect, t.cr(), t.hover);
         }
         let icon = egui::Rect::from_center_size(egui::pos2(rect.left() + PAD + ICON / 2.0, rect.center().y), vec2(ICON, ICON));
         crate::icons::paint(ui, "history", icon, t.icon);
@@ -3696,7 +3696,7 @@ fn task_bar(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
         egui::Frame::NONE
             .fill(t.panel)
             .stroke(Stroke::new(1.0, t.tool_active))
-            .corner_radius(CornerRadius::same(5))
+            .corner_radius(t.cr_float())
             .inner_margin(egui::Margin::symmetric(8, 6))
             .shadow(egui::epaint::Shadow { offset: [0, 3], blur: 10, spread: 0, color: Color32::from_black_alpha(70) })
             .show(ui, |ui| {
@@ -3704,7 +3704,7 @@ fn task_bar(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
                     ui.spacing_mut().item_spacing.x = 6.0;
                     let (g, grip) = ui.allocate_exact_size(vec2(4.0, 28.0), Sense::drag());
                     let active = grip.hovered() || grip.dragged();
-                    ui.painter().rect_filled(g.shrink2(vec2(0.5, 4.0)), CornerRadius::same(2), if active { t.text_dim } else { t.button_border });
+                    ui.painter().rect_filled(g.shrink2(vec2(0.5, 4.0)), t.cr_small(), if active { t.text_dim } else { t.button_border });
                     if grip.dragged() {
                         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
                         moved = grip.drag_delta();
@@ -3715,9 +3715,9 @@ fn task_bar(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
                         let galley = ui.painter().layout_no_wrap(label.to_string(), egui::FontId::proportional(13.0), t.text_strong);
                         let (r, resp) = ui.allocate_exact_size(vec2(galley.size().x + 38.0, 30.0), Sense::click());
                         if resp.hovered() {
-                            ui.painter().rect_filled(r, CornerRadius::same(3), t.hover);
+                            ui.painter().rect_filled(r, t.cr(), t.hover);
                         }
-                        ui.painter().rect_stroke(r, CornerRadius::same(3), Stroke::new(1.0, t.button_border), StrokeKind::Inside);
+                        ui.painter().rect_stroke(r, t.cr(), Stroke::new(1.0, t.button_border), StrokeKind::Inside);
                         crate::icons::paint(ui, icon, egui::Rect::from_min_size(r.min + vec2(8.0, 7.0), vec2(16.0, 16.0)), t.icon);
                         ui.painter().galley(pos2(r.left() + 30.0, r.center().y - galley.size().y / 2.0), galley, t.text_strong);
                         if resp.clicked() {

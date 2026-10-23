@@ -153,7 +153,7 @@ pub(super) fn text_edit_limited(ui: &mut egui::Ui, d: &mut Dialog, key: &str, wi
     let r = egui::Frame::NONE
         .fill(t.input)
         .stroke(egui::Stroke::new(1.0, t.input_border))
-        .corner_radius(egui::CornerRadius::same(3))
+        .corner_radius(t.cr())
         .inner_margin(egui::Margin::symmetric(6, 3))
         .show(ui, |ui| {
             crate::theme::strong_selected_text(ui);
@@ -173,7 +173,7 @@ pub(super) fn text_area(ui: &mut egui::Ui, d: &mut Dialog, key: &str, width: f32
     let r = egui::Frame::NONE
         .fill(t.input)
         .stroke(egui::Stroke::new(1.0, t.input_border))
-        .corner_radius(egui::CornerRadius::same(3))
+        .corner_radius(t.cr())
         .inner_margin(egui::Margin::symmetric(6, 3))
         .show(ui, |ui| {
             crate::theme::strong_selected_text(ui);
