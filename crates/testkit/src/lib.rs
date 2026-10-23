@@ -39,10 +39,20 @@ pub use vectorcraft_engine::{Session, doc::NodeId};
 /// Re-exports so dependents without direct dependencies (e.g. app test crates) can use them.
 pub use {vectorcraft_doc as doc, vectorcraft_format as format, vectorcraft_render as render, vectorcraft_svg as svg};
 
-/// A per-process temporary directory for test output (created on first use).
+/// A per-process temporary directory for test output (created on first use). It is made with
+/// `create_dir` (owner-only on Unix), and a directory that already exists is reused only when it is a
+/// real directory, not a link, with no access for others: one pre-made in a shared temp folder is refused.
 pub fn temp_dir(tag: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("vectorcraft-testkit-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("create temp dir");
+    let mut b = std::fs::DirBuilder::new();
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut b, 0o700);
+    if let Err(e) = b.create(&dir) {
+        let m = std::fs::symlink_metadata(&dir).expect("temp dir");
+        assert!(e.kind() == std::io::ErrorKind::AlreadyExists && m.is_dir(), "create temp dir: {e}");
+        #[cfg(unix)]
+        assert!(std::os::unix::fs::PermissionsExt::mode(&m.permissions()) & 0o077 == 0, "{}: not private", dir.display());
+    }
     dir
 }
 
