@@ -23,12 +23,17 @@ const PT_PER_MM: f64 = 72.0 / 25.4;
 const THINNEST: f64 = 0.25;
 /// The most objects an import makes.
 const MAX_NODES: usize = 2_000_000;
+/// The most block visits (one per insert copy) an import makes, whatever they produce.
+const MAX_VISITS: usize = 10_000_000;
+/// The most path elements an import makes (blocks drawn as art are copied for every placement).
+const MAX_ELEMENTS: usize = if cfg!(test) { 1_000_000 } else { 4_000_000 };
 /// How far from the origin art may lie (points): the canvas.
 pub(crate) const MAX_EXTENT: f64 = 4.0e6;
 
 const NESTED: &str = "blocks nested more than 8 deep, or inside themselves, are left out";
 const XREFS: &str = "blocks referencing other drawings (external references) are left out";
 const TOO_MANY: &str = "the drawing has more than 2,000,000 objects: the rest are left out";
+const TOO_MANY_POINTS: &str = "the drawing has more than 4,000,000 path points: the rest are left out";
 
 /// What a block's art takes from the insert that places it: its colour, lineweight, linetype
 /// and opacity where the art says "by block", and its layer for art on layer 0.
@@ -63,6 +68,9 @@ pub(crate) struct Build<'d, 'a> {
     /// Lineweights are multiplied by this.
     lw_scale: f64,
     nodes: usize,
+    visits: usize,
+    /// Path elements made so far.
+    elements: usize,
     warnings: Vec<String>,
 }
 
@@ -118,6 +126,8 @@ impl<'d, 'a> Build<'d, 'a> {
             symbol_map: Affine::IDENTITY,
             lw_scale: 1.0,
             nodes: 0,
+            visits: 0,
+            elements: 0,
             warnings: vec![],
         }
     }
@@ -447,6 +457,12 @@ impl<'d, 'a> Build<'d, 'a> {
     }
 
     fn path(&mut self, bp: &BezPath, fill: bool, width: f64, p: &Props, map: Affine, inh: &Inherit) -> Option<Node> {
+        let n = bp.elements().len();
+        if self.elements.saturating_add(n) > MAX_ELEMENTS {
+            self.warn(TOO_MANY_POINTS);
+            return None;
+        }
+        self.elements += n;
         let mut bp = bp.clone();
         bp.apply_affine(map);
         super::curve::bounds(&bp)?;
@@ -557,6 +573,13 @@ impl<'d, 'a> Build<'d, 'a> {
 
     /// The art of block `name` drawn by `map`, as one object.
     fn art(&mut self, name: &str, map: Affine, inh: &Inherit, depth: u32) -> Option<Node> {
+        self.visits += 1;
+        if self.visits > MAX_VISITS {
+            if self.visits == MAX_VISITS + 1 {
+                self.warn(TOO_MANY);
+            }
+            return None;
+        }
         let items = self.block(name)?;
         if !self.enter(name, depth) {
             return None;
