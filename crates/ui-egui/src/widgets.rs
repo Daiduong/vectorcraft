@@ -2915,6 +2915,8 @@ mod gradient_chip_tests {
         assert!((at(0, 2) - 128).abs() <= 2, "half way: {}", at(0, 2));
         let (top, bottom) = (at(2, 0), at(2, 4));
         assert_ne!(top, bottom);
+        // Clockwise on the page: the quarter below comes first, nearer the white start.
+        assert!(bottom > top, "clockwise: top {top}, bottom {bottom}");
         assert!((top + bottom - 255).abs() <= 3, "quarters: {top} and {bottom}");
         // Every grid point on a ring around the centre has its own angle, so the chip is no
         // radial or linear ramp: opposite corners differ, unlike a radial chip.
