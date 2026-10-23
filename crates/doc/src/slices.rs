@@ -309,7 +309,14 @@ pub fn auto_slices(region: Rect, cut: &[Rect]) -> Vec<Rect> {
         }
         done.append(&mut open);
         open = next;
+        // Crossing strips make a cell of every crossing: the layout stops, short, past a bound.
+        if done.len() + open.len() > MAX_AUTO_SLICES {
+            break;
+        }
     }
     done.append(&mut open);
     done
 }
+
+/// The most slices automatic layout makes.
+const MAX_AUTO_SLICES: usize = 10_000;
