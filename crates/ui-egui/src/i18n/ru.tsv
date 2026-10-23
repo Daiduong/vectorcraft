@@ -1995,6 +1995,8 @@ file-filter	Templates	Шаблоны
 	Roundness:	Округлость:
 	Fixed	Фиксированный
 	Pressure	Нажим
+	Tilt	Наклон
+	Bearing	Азимут
 	Shape:	Форма:
 	Bristle Length:	Длина щетинок:
 	Bristle Density:	Плотность щетинок:

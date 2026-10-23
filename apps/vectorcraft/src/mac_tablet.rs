@@ -1,6 +1,7 @@
-//! macOS: a drawing tablet's pen pressure (#852). winit 0.30 hands a pen to the window there as a
-//! mouse, without its pressure, so the app reads it from AppKit itself and writes it into the UI's
-//! [`StylusFeed`] (`Services::stylus`), which the canvas reads, as on X11 ([`crate::tablet`]).
+//! macOS: a drawing tablet's pen pressure (#852), tilt and barrel rotation (#764). winit 0.30
+//! hands a pen to the window there as a mouse, without them, so the app reads them from AppKit
+//! itself and writes them into the UI's [`StylusFeed`] (`Services::stylus`), which the canvas
+//! reads, as on X11 ([`crate::tablet`]).
 //!
 //! A local event monitor (`addLocalMonitorForEventsMatchingMask:handler:`, which AppKit calls "with
 //! each event it is about to dispatch" in this app:
@@ -9,9 +10,11 @@
 //! it on unchanged:
 //! - A mouse event whose `subtype` is `NSEventSubtypeTabletPoint` comes from a pen: its `pressure`
 //!   (0..1) goes into the feed, kept for the pointer move winit makes of the event
-//!   ([`StylusFeed::set_move`]), so each move of a fast stroke has its own pressure. A mouse event
-//!   of any other subtype is a mouse's or a trackpad's: the feed is set to `None`.
-//! - An `NSEventTypeTabletPoint` event carries the same pressure without a move.
+//!   ([`StylusFeed::set_move`]), so each move of a fast stroke has its own pressure. Its `tilt`
+//!   (−1..1 on each axis, ±[`TILT_DEGREES`] at the ends) and its `rotation` go into the feed as the
+//!   pen's pose, kept for that move too; a rotation of 0 is read as none, since a pen without a rotating barrel reports 0.
+//!   A mouse event of any other subtype is a mouse's or a trackpad's: the feed is set to `None`.
+//! - An `NSEventTypeTabletPoint` event carries the same pressure, tilt and rotation without a move.
 //! - A tablet proximity event (`NSEventTypeTabletProximity`, or a mouse event of that subtype) says
 //!   which end of the pen came near (`pointingDeviceType`): the eraser end's samples are marked so,
 //!   and the canvas switches to the Eraser tool ([`vectorcraft_ui_egui::stylus`]). A puck
@@ -20,12 +23,17 @@
 //! The monitor also turns off mouse event coalescing (`NSEvent.mouseCoalescingEnabled`), which
 //! merges the drags that queue up between two reads into one: every report of the pen arrives.
 //!
-//! The mapping comes from PhotoCraft's `crates/tablet` (`appkit.rs` and `macos.rs`), with the
-//! pressure and the pen's end only. It is plain values, tested on every platform; the monitor
-//! reads them.
+//! The mapping comes from PhotoCraft's `crates/tablet` (`appkit.rs` and `macos.rs`). The tilt and
+//! rotation follow Qt's AppKit tablet code (`qnsview_tablet.mm`): AppKit's y tilt is positive when
+//! the pen leans away from the user and its rotation runs counterclockwise, so both are turned
+//! round for [`PenPose`]. It is plain values, tested on every platform; the monitor reads them.
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
-use vectorcraft_ui_egui::stylus::{PenSample, StylusFeed};
+use vectorcraft_ui_egui::stylus::{PenPose, PenSample, StylusFeed};
+
+/// The tilt at either end of AppKit's −1..1, in degrees (about what Wacom pens reach; Qt maps it
+/// the same way).
+const TILT_DEGREES: f64 = 60.0;
 
 /// `NSEventType` values (AppKit headers).
 mod event_type {
@@ -56,6 +64,10 @@ struct RawEvent {
     subtype: i16,
     /// `pressure` (tablet point events and mouse events of that subtype only).
     pressure: f32,
+    /// `tilt` (x, y), each −1..1 (the same events as `pressure`).
+    tilt: (f64, f64),
+    /// `rotation`, in degrees counterclockwise (the same events as `pressure`).
+    rotation: f32,
     /// `pointingDeviceType` (proximity events only).
     device: usize,
     /// `isEnteringProximity` (proximity events only).
@@ -74,6 +86,14 @@ impl RawEvent {
     fn point(&self) -> bool {
         self.kind == event_type::TABLET_POINT || (self.mouse() && self.subtype == subtype::TABLET_POINT)
     }
+
+    /// The pen's tilt in degrees in screen axes (y positive towards the user) and its rotation
+    /// clockwise, or none for a rotation of 0.
+    fn pose(&self) -> PenPose {
+        let degrees = |v: f64| (v.clamp(-1.0, 1.0) * TILT_DEGREES) as f32;
+        let rotation = (self.rotation != 0.0).then_some(360.0 - self.rotation);
+        PenPose { tilt: Some([degrees(self.tilt.0), -degrees(self.tilt.1)]), rotation }
+    }
 }
 
 /// The events the monitor reads (`NSEventMask` bits are `1 << type`).
@@ -86,7 +106,7 @@ fn event_mask() -> u64 {
 enum Update {
     /// Nothing: an event the monitor doesn't map.
     Keep,
-    /// The pressure and end of a pen, or `None` for a mouse.
+    /// The sample of a pen, or `None` for a mouse.
     Set(Option<PenSample>),
     /// A pen's sample that comes with a pointer move.
     Move(PenSample),
@@ -114,9 +134,9 @@ impl Pen {
             // Entering with the tip or the eraser end: it hovers. A puck, or leaving, is a mouse.
             self.eraser = e.entering && e.device == device::ERASER;
             let pen = e.entering && e.device != device::CURSOR;
-            return Update::Set(pen.then_some(PenSample { pressure: 0.0, eraser: self.eraser }));
+            return Update::Set(pen.then_some(PenSample { pressure: 0.0, eraser: self.eraser, ..PenSample::default() }));
         }
-        let sample = PenSample { pressure: e.pressure, eraser: self.eraser };
+        let sample = PenSample { pressure: e.pressure, eraser: self.eraser, pose: e.pose() };
         match (e.point(), e.mouse()) {
             (true, true) => Update::Move(sample),
             (true, false) => Update::Set(Some(sample)),
@@ -187,6 +207,9 @@ mod monitor {
         }
         if raw.point() {
             raw.pressure = e.pressure();
+            let tilt = e.tilt();
+            raw.tilt = (tilt.x, tilt.y);
+            raw.rotation = e.rotation();
         }
         if raw.proximity() {
             raw.device = e.pointingDeviceType().0;
@@ -211,8 +234,17 @@ mod tests {
         RawEvent { kind: event_type::TABLET_PROXIMITY, device, entering, ..Default::default() }
     }
 
+    /// The pose of a pen held upright that reads no rotation.
+    const UPRIGHT: PenPose = PenPose { tilt: Some([0.0, 0.0]), rotation: None };
+
+    /// A sample of the tip held upright.
     fn tip(pressure: f32) -> PenSample {
-        PenSample { pressure, eraser: false }
+        PenSample { pressure, eraser: false, pose: UPRIGHT }
+    }
+
+    /// A sample of the pen near the tablet but not yet read: no pose.
+    fn near(eraser: bool) -> PenSample {
+        PenSample { pressure: 0.0, eraser, pose: PenPose::default() }
     }
 
     #[test]
@@ -240,16 +272,34 @@ mod tests {
     #[test]
     fn proximity_says_which_end_is_near() {
         let mut p = Pen::default();
-        let eraser = |pressure| PenSample { pressure, eraser: true };
-        assert_eq!(p.handle(&proximity(device::ERASER, true)), Update::Set(Some(eraser(0.0))));
+        let eraser = |pressure| PenSample { pressure, eraser: true, pose: UPRIGHT };
+        assert_eq!(p.handle(&proximity(device::ERASER, true)), Update::Set(Some(near(true))));
         assert_eq!(p.handle(&pen(DRAG, 0.4)), Update::Move(eraser(0.4)));
         assert_eq!(p.handle(&proximity(device::ERASER, false)), Update::Set(None), "it left");
         assert_eq!(p.handle(&pen(DRAG, 0.4)), Update::Move(tip(0.4)));
-        assert_eq!(p.handle(&proximity(1, true)), Update::Set(Some(tip(0.0))), "the tip");
-        assert_eq!(p.handle(&proximity(0, true)), Update::Set(Some(tip(0.0))), "an unknown tool draws as the tip");
+        assert_eq!(p.handle(&proximity(1, true)), Update::Set(Some(near(false))), "the tip");
+        assert_eq!(p.handle(&proximity(0, true)), Update::Set(Some(near(false))), "an unknown tool draws as the tip");
         assert_eq!(p.handle(&proximity(device::CURSOR, true)), Update::Set(None), "a puck is a mouse");
         let e = RawEvent { kind: 5, subtype: subtype::TABLET_PROXIMITY, device: device::ERASER, entering: true, ..Default::default() };
-        assert_eq!(p.handle(&e), Update::Set(Some(eraser(0.0))), "as a mouse event's subtype");
+        assert_eq!(p.handle(&e), Update::Set(Some(near(true))), "as a mouse event's subtype");
+    }
+
+    /// #764: AppKit's tilt (−1..1, y away from the user) and counterclockwise rotation reach the
+    /// feed in degrees in screen axes, the rotation clockwise.
+    #[test]
+    fn a_pens_tilt_and_rotation_go_into_the_feed() {
+        let mut p = Pen::default();
+        let leaning = RawEvent { tilt: (0.5, -0.25), rotation: 30.0, ..pen(DRAG, 0.5) };
+        let pose = PenPose { tilt: Some([30.0, 15.0]), rotation: Some(330.0) };
+        assert_eq!(p.handle(&leaning), Update::Move(PenSample { pressure: 0.5, eraser: false, pose }));
+        let past_the_ends = RawEvent { tilt: (-4.0, 1.5), ..pen(event_type::TABLET_POINT, 0.8) };
+        let pose = PenPose { tilt: Some([-60.0, -60.0]), rotation: None };
+        assert_eq!(p.handle(&past_the_ends), Update::Set(Some(PenSample { pressure: 0.8, eraser: false, pose })), "clamped; no rotation");
+        let feed = StylusFeed::default();
+        p.handle(&RawEvent { tilt: (f64::NAN, 0.0), rotation: -90.0, ..pen(DRAG, 0.3) }).apply(&feed);
+        assert_eq!(feed.pose(), Some(PenPose { tilt: None, rotation: Some(90.0) }), "a tilt that is not a number is left out");
+        p.handle(&RawEvent { kind: DRAG, ..Default::default() }).apply(&feed);
+        assert_eq!(feed.pose(), None, "a mouse moved");
     }
 
     #[test]
@@ -259,7 +309,8 @@ mod tests {
         for e in [pen(DRAG, f32::NAN), pen(DRAG, 4.0), pen(DRAG, -1.0), pen(event_type::TABLET_POINT, 0.3)] {
             p.handle(&e).apply(&feed);
         }
-        assert_eq!((feed.take_moves(), feed.held()), (vec![1.0, 1.0, 0.0], Some(0.3)));
+        let pressures: Vec<f32> = feed.take_moves().into_iter().map(|(p, _)| p).collect();
+        assert_eq!((pressures, feed.held()), (vec![1.0, 1.0, 0.0], Some(0.3)));
         p.handle(&RawEvent { kind: DRAG, ..Default::default() }).apply(&feed);
         assert_eq!(feed.held(), None, "a mouse moved");
     }
