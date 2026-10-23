@@ -765,7 +765,8 @@ pub fn paint_chip(ui: &Ui, rect: Rect, paint: &Paint) {
 }
 
 /// Draw a gradient preview into `rect`, laid out as the gradient would be on an object of that
-/// shape: linear along its angle, radial from the centre, freeform from its colour points.
+/// shape: linear along its angle, radial from the centre, conic clockwise around the centre,
+/// freeform from its colour points.
 pub fn gradient_chip(ui: &Ui, rect: Rect, gradient: &vectorcraft_color::GradientPaint) {
     if !(rect.width() > 0.0 && rect.height() > 0.0) {
         return;
@@ -2903,6 +2904,21 @@ mod gradient_chip_tests {
         let colors = gradient_chip_colors(&paint(GradientKind::Radial, 0.0), 20.0, 20.0, 4, 4);
         assert_eq!(colors[2 * 5 + 2], Color32::WHITE);
         assert_eq!(colors[0], Color32::BLACK);
+    }
+
+    #[test]
+    fn conic_chip_sweeps_around_the_centre() {
+        // From the vector (pointing right at 0 degrees) once around: half way is left of the
+        // centre, and the quarter points above and below sit either side of it.
+        let colors = gradient_chip_colors(&paint(GradientKind::Conic, 0.0), 20.0, 20.0, 4, 4);
+        let at = |i: usize, j: usize| i32::from(colors[j * 5 + i].r());
+        assert!((at(0, 2) - 128).abs() <= 2, "half way: {}", at(0, 2));
+        let (top, bottom) = (at(2, 0), at(2, 4));
+        assert_ne!(top, bottom);
+        assert!((top + bottom - 255).abs() <= 3, "quarters: {top} and {bottom}");
+        // Every grid point on a ring around the centre has its own angle, so the chip is no
+        // radial or linear ramp: opposite corners differ, unlike a radial chip.
+        assert_ne!(at(0, 0), at(4, 4));
     }
 }
 

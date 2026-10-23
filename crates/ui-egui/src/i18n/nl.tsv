@@ -1451,6 +1451,7 @@ lighting	Light	Licht
 	No gradient swatches	Geen verloopstalen
 	Points: clicks add free points	Punten: klikken voegen vrije punten toe
 	Radial Gradient	Radiaal verloop
+	Conic Gradient	Conisch verloop
 	Reset to White, Black	Herstellen naar wit, zwart
 	Reverse Gradient	Verloop omkeren
 	Save to Swatches	Opslaan in stalen
@@ -4336,7 +4337,7 @@ imageTrace	Outline	Contour
 @msg	unknown format	onbekende indeling
 @msg	unknown format `{f}` (Save writes {_1})	onbekende indeling `{f}` (Opslaan schrijft {_1})
 @msg	unknown freeform mode `{m}` (points, lines)	onbekende vrijvormmodus `{m}` (punten, lijnen)
-@msg	unknown gradient kind `{k}` (linear, radial, freeform)	onbekend verlooptype `{k}` (lineair, radiaal, vrijvorm)
+@msg	unknown gradient kind `{k}` (linear, radial, conic, freeform)	onbekend verlooptype `{k}` (lineair, radiaal, conisch, vrijvorm)
 @msg	unknown highlight `{h}`	onbekende markering `{h}`
 @msg	unknown option `{path}.{k}`	onbekende optie `{path}.{k}`
 @msg	unknown overprints `{o}` (preserve, simulate or discard)	onbekende overdruk `{o}` (behouden, simuleren of verwerpen)

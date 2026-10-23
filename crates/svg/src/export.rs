@@ -921,6 +921,9 @@ impl Writer<'_> {
             // Object fills and strokes are images (see `raster_paint`); characters' paints aren't.
             self.warn("freeform gradients on characters are written as linear gradients");
         }
+        if g.gradient.kind == GradientKind::Conic {
+            self.warn("conic gradients on characters are written as linear gradients");
+        }
         let mut geom = g.resolve(bounds);
         geom.transform(self.xf, g.gradient.kind);
         let (s, e) = (geom.start, geom.end);
@@ -940,7 +943,7 @@ impl Writer<'_> {
                 };
                 ("radialGradient", "radial-gradient", attrs)
             }
-            GradientKind::Linear | GradientKind::Freeform => (
+            GradientKind::Linear | GradientKind::Freeform | GradientKind::Conic => (
                 "linearGradient",
                 "linear-gradient",
                 format!(" x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\"", self.num(s.x), self.num(s.y), self.num(e.x), self.num(e.y)),
@@ -1586,39 +1589,53 @@ impl Writer<'_> {
 
     /// A gradient `g` painted over `bounds` (the space [`Self::xf`] maps into user space) that is
     /// drawn as pixels ([`GradientPaint::draws_as_pixels`]) when it paints a fill (`fill`) or a
-    /// stroke: an `<image>` over its painted box, clipped to `clip` (outlines in user space filled
-    /// by `rule`), in a group with `props` and the `side` attribute. A freeform gradient's colour
-    /// field, which SVG can't express, is sampled as the canvas samples it (at twice the box's size
-    /// in points); a linear or radial gradient at the document's raster effects resolution (at most
-    /// [`MAX_GRADIENT_PX`] a side), with dither's noise on a fill. Nothing is written for an empty
-    /// box.
+    /// stroke, or a conic gradient (SVG has none): an `<image>` over its painted box, clipped to
+    /// `clip` (outlines in user space filled by `rule`), in a group with `props` and the `side`
+    /// attribute. A freeform gradient's colour field, which SVG can't express, is sampled as the
+    /// canvas samples it (at twice the box's size in points); a linear, radial or conic gradient
+    /// at the document's raster effects resolution (at most [`MAX_GRADIENT_PX`] a side), with
+    /// dither's noise on a fill. Nothing is written for an empty box.
+    ///
+    /// A conic gradient with opaque stops (and no dither on a fill) is written as
+    /// [`CONIC_WEDGES`] solid wedges around its centre in the same clip group instead: vector art
+    /// that stays sharp at any size, the seam included. With translucent stops (wedges drawn over
+    /// each other would darken) or dither it is an image.
     #[allow(clippy::too_many_arguments)]
     fn raster_paint(&mut self, g: &GradientPaint, bounds: Rect, clip: &[String], rule: FillRule, props: &Props, side: &str, fill: bool) {
         use vectorcraft_color::freeform::{grid_size, painted_box, spread_scale};
         let Some(b) = painted_box(bounds) else { return };
         let freeform = g.gradient.kind == GradientKind::Freeform;
-        let (rgba, cols, rows): (Vec<u8>, u16, u16) = if freeform {
-            let (cols, rows) = grid_size(b, 2.0 * b.width().max(b.height()));
-            let field = g.freeform_on(b).field(spread_scale(b));
-            let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
-            (field.grid(b, cols, rows).flat_map(|([r, g, bl], a)| [q(r), q(g), q(bl), q(a)]).collect(), cols, rows)
+        let conic = g.gradient.kind == GradientKind::Conic;
+        let wedges = conic && !(fill && g.gradient.dither) && g.gradient.stops.iter().all(|s| s.opacity >= 1.0);
+        let href = if wedges {
+            self.warn("conic gradients are written as solid wedges clipped to their shapes");
+            None
         } else {
-            let k = self.doc.raster_effects_ppi / 72.0;
-            let along = |len: f64| (len * k).ceil().clamp(1.0, MAX_GRADIENT_PX) as u16;
-            let (cols, rows) = (along(b.width()), along(b.height()));
-            (g.pixels(b, b, cols, rows, fill, &Color::to_rgb).flatten().collect(), cols, rows)
+            let (rgba, cols, rows): (Vec<u8>, u16, u16) = if freeform {
+                let (cols, rows) = grid_size(b, 2.0 * b.width().max(b.height()));
+                let field = g.freeform_on(b).field(spread_scale(b));
+                let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+                (field.grid(b, cols, rows).flat_map(|([r, g, bl], a)| [q(r), q(g), q(bl), q(a)]).collect(), cols, rows)
+            } else {
+                let k = self.doc.raster_effects_ppi / 72.0;
+                let along = |len: f64| (len * k).ceil().clamp(1.0, MAX_GRADIENT_PX) as u16;
+                let (cols, rows) = (along(b.width()), along(b.height()));
+                (g.pixels(b, b, cols, rows, fill, &Color::to_rgb).flatten().collect(), cols, rows)
+            };
+            let mut png = Vec::new();
+            let Some(img) = image::RgbaImage::from_raw(u32::from(cols), u32::from(rows), rgba) else { return };
+            if img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).is_err() {
+                return;
+            }
+            self.warn(if freeform {
+                "freeform gradients are written as images clipped to their shapes"
+            } else if conic {
+                "conic gradients with translucent stops or dither are written as images clipped to their shapes"
+            } else {
+                "linear and radial gradients drawn as pixels are written as images clipped to their shapes"
+            });
+            Some(self.blob_href(&ImageBlob::new("image/png", png)))
         };
-        let mut png = Vec::new();
-        let Some(img) = image::RgbaImage::from_raw(u32::from(cols), u32::from(rows), rgba) else { return };
-        if img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).is_err() {
-            return;
-        }
-        self.warn(if freeform {
-            "freeform gradients are written as images clipped to their shapes"
-        } else {
-            "linear and radial gradients drawn as pixels are written as images clipped to their shapes"
-        });
-        let href = self.blob_href(&ImageBlob::new("image/png", png));
         let cid = self.fresh_id("clip-path");
         let r = if rule == FillRule::EvenOdd { " clip-rule=\"evenodd\"" } else { "" };
         self.def(1, &format!("<clipPath id=\"{cid}\">"));
@@ -1636,12 +1653,22 @@ impl Writer<'_> {
             self.line(&format!("<g clip-path=\"url(#{cid})\"{a}>"));
         }
         self.depth += 1;
-        let (x, y, w, h) = (self.num(b.x0), self.num(b.y0), self.num(b.width()), self.num(b.height()));
-        let tr = if self.xf == Affine::IDENTITY { String::new() } else { format!(" transform=\"{}\"", self.matrix(self.xf)) };
-        self.line(&format!(
-            "<image x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{tr} preserveAspectRatio=\"none\" xlink:href=\"{}\"/>",
-            xml_escape(&href)
-        ));
+        match href {
+            Some(href) => {
+                let (x, y, w, h) = (self.num(b.x0), self.num(b.y0), self.num(b.width()), self.num(b.height()));
+                let tr = if self.xf == Affine::IDENTITY { String::new() } else { format!(" transform=\"{}\"", self.matrix(self.xf)) };
+                self.line(&format!(
+                    "<image x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{tr} preserveAspectRatio=\"none\" xlink:href=\"{}\"/>",
+                    xml_escape(&href)
+                ));
+            }
+            None => {
+                for (pts, t) in g.resolve(bounds).conic_wedges(b, CONIC_WEDGES, true) {
+                    let d = self.path_d(&PathData::single(vectorcraft_geom::SubPath::polyline(&pts, true)), self.xf);
+                    self.line(&format!("<path d=\"{d}\" fill=\"{}\"/>", g.gradient.sample(t as f32).0.to_hex()));
+                }
+            }
+        }
         self.depth -= 1;
         self.line("</g>");
         if nested {
@@ -2368,17 +2395,22 @@ fn doc_path(paths: &[&PathData]) -> BezPath {
     bp
 }
 
+/// Wedges a conic gradient is written as (one per degree: steps a ramp across the whole turn
+/// can't show).
+const CONIC_WEDGES: usize = 360;
+
 /// How closely stroke outlines that clip an image follow the stroke (points).
 const OUTLINE_TOLERANCE: f64 = 0.01;
 
-/// Most pixels along a side of a linear or radial gradient's image.
+/// Most pixels along a side of a linear, radial or conic gradient's image.
 const MAX_GRADIENT_PX: f64 = 4096.0;
 
 /// The gradient a fill (`fill`) or stroke paint is, if it is drawn as pixels
-/// ([`GradientPaint::draws_as_pixels`]; SVG has no freeform gradients, for one).
+/// ([`GradientPaint::draws_as_pixels`]; SVG has no freeform gradients, for one) or is a conic
+/// gradient (SVG has none either: [`Writer::raster_paint`] draws it as wedges or an image).
 fn pixel_gradient(p: &Paint, fill: bool) -> Option<&GradientPaint> {
     match p {
-        Paint::Gradient(g) if g.draws_as_pixels(fill) => Some(g),
+        Paint::Gradient(g) if g.draws_as_pixels(fill) || g.gradient.kind == GradientKind::Conic => Some(g),
         _ => None,
     }
 }
