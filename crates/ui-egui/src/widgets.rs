@@ -65,7 +65,7 @@ pub fn flat_button_fit(ui: &mut Ui, text: &str, min_width: f32) -> Response {
     let width = (galley.size().x + 24.0).max(min_width);
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click());
     let rect = rect.shrink2(vec2(0.0, 0.5));
-    ui.painter().rect_filled(rect, t.cr(), t.button);
+    theme::paint_raised(ui.painter(), rect, t.cr(), t.button, &t);
     flat_fill(ui, rect, &resp);
     ui.painter().with_clip_rect(rect).text(rect.center(), egui::Align2::CENTER_CENTER, tl!(text), egui::FontId::proportional(12.5), t.text_strong);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(text)));
@@ -150,9 +150,11 @@ fn primary_button_sized(ui: &mut Ui, text: &str, enabled: bool, min_width: f32) 
         (true, true) => t.accent,
         (true, false) => t.accent_strong,
     };
-    ui.painter().rect_filled(rect, t.cr(), bg);
-    if !enabled {
-        ui.painter().rect_stroke(rect, t.cr(), egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
+    if enabled {
+        theme::paint_raised(ui.painter(), rect, t.cr(), bg, &t);
+    } else {
+        // Greyed out: a flat face with a border, not raised.
+        ui.painter().rect(rect, t.cr(), bg, egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
     }
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, fg);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled && ui.is_enabled(), tl!(text)));
@@ -2583,7 +2585,11 @@ pub fn layout_button(ui: &mut Ui, tiles: &[(u8, u8)], selected: bool, tip: &str)
     } else {
         Color32::TRANSPARENT
     };
-    ui.painter().rect_filled(rect, t.cr(), bg);
+    if selected {
+        theme::paint_raised(ui.painter(), rect, t.cr(), bg, &t);
+    } else {
+        ui.painter().rect_filled(rect, t.cr(), bg);
+    }
     let color = if !enabled {
         t.text_disabled
     } else if selected {
@@ -3218,6 +3224,41 @@ pub(crate) mod look_tests {
                     }
                 }
             }
+        }
+    }
+
+    /// Every button face is raised the same way: in Quiet the primary (OK), secondary (Cancel) and
+    /// flat buttons and a pressed icon button cast the scheme's soft shadow; a greyed-out primary
+    /// button is flat; the schemes without a raised shadow draw none.
+    #[test]
+    fn button_faces_cast_the_schemes_raised_shadow() {
+        use theme::Scheme;
+        let shadowed = |scheme: Scheme, add: &mut dyn FnMut(&mut Ui)| {
+            let ctx = themed(Default::default());
+            theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
+            let shapes = frame(&ctx, 0.0, vec![], add);
+            shapes.iter().any(|s| matches!(s, egui::Shape::Rect(r) if r.blur_width > 0.0))
+        };
+        type Add = fn(&mut Ui);
+        let buttons: [(&str, Add); 4] = [
+            ("primary", |ui| {
+                primary_button(ui, "OK");
+            }),
+            ("secondary", |ui| {
+                secondary_button(ui, "Cancel");
+            }),
+            ("flat", |ui| {
+                flat_button(ui, "Document Setup", 120.0);
+            }),
+            ("pressed icon", |ui| {
+                icon_button(ui, "grid", "Grid", true, 26.0);
+            }),
+        ];
+        for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat, Scheme::Quiet] {
+            for (name, mut add) in buttons {
+                assert_eq!(shadowed(scheme, &mut add), scheme == Scheme::Quiet, "{scheme:?}: {name}");
+            }
+            assert!(!shadowed(scheme, &mut |ui| _ = primary_button_enabled(ui, "OK", false)), "{scheme:?}: a greyed-out primary button is flat");
         }
     }
 

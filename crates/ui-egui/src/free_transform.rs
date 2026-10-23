@@ -93,7 +93,11 @@ fn button(ui: &mut Ui, glyph: Glyph, tip: &str, on: bool, enabled: bool) -> bool
     } else {
         Color32::TRANSPARENT
     };
-    ui.painter().rect_filled(rect, t.cr(), bg);
+    if on && enabled {
+        crate::theme::paint_raised(ui.painter(), rect, t.cr(), bg, &t);
+    } else {
+        ui.painter().rect_filled(rect, t.cr(), bg);
+    }
     let color = match (enabled, on) {
         (false, _) => t.text_dim,
         (true, true) => t.text,

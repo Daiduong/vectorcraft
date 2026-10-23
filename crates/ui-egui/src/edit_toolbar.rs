@@ -533,7 +533,7 @@ fn show_button(ui: &mut Ui, t: &Tokens, name: &str, label: &str, icon: &str, on:
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, on, tl!(label)));
     let p = ui.painter();
     if on {
-        p.rect_filled(r, t.cr(), t.tool_active);
+        crate::theme::paint_raised(p, r, t.cr(), t.tool_active, t);
     } else if resp.hovered() {
         p.rect_filled(r, t.cr(), t.hover);
     }

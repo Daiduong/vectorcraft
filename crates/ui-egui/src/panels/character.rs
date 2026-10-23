@@ -715,7 +715,7 @@ fn style_toggle(ui: &mut Ui, g: Glyph, tip: &str, on: bool) -> bool {
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(30.0, 26.0), egui::Sense::click());
     if on {
-        ui.painter().rect_filled(r, t.cr(), t.tool_active);
+        crate::theme::paint_raised(ui.painter(), r, t.cr(), t.tool_active, &t);
     } else if resp.hovered() {
         ui.painter().rect_filled(r, t.cr(), t.hover);
     }

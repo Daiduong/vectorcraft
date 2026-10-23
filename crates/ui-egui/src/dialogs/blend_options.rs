@@ -112,7 +112,11 @@ pub(crate) fn orientation_button(ui: &mut egui::Ui, along: bool, selected: bool,
     } else {
         egui::Color32::TRANSPARENT
     };
-    ui.painter().rect_filled(rect, t.cr(), bg);
+    if selected {
+        crate::theme::paint_raised(ui.painter(), rect, t.cr(), bg, &t);
+    } else {
+        ui.painter().rect_filled(rect, t.cr(), bg);
+    }
     let color = if selected { t.text } else { t.icon };
     // An arch through the button: y = c + a·x² with x in -1..1.
     let c = rect.center() + vec2(0.0, -2.0);

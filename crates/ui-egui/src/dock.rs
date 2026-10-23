@@ -420,7 +420,7 @@ pub(crate) fn panel_tabs(
                 match t.tab_style {
                     theme::TabStyle::Pill => {
                         if i == selected {
-                            ui.painter().rect_filled(rect.shrink2(vec2(3.0, 5.0)), t.cr(), t.button);
+                            theme::paint_raised(ui.painter(), rect.shrink2(vec2(3.0, 5.0)), t.cr(), t.button, &t);
                         }
                         painter.galley(at, galley, t.text);
                     }
