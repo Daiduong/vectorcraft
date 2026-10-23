@@ -141,7 +141,22 @@ sync_github_name = false
 [people.KaboomFox]
 sync_github_name = true
 
+[people.odysseexp]
+real_name = "Harley Paiva"
+sync_github_name = true
+
+[people.addibble]
+sync_github_name = true
+
+[people.mockydevs]
+real_name = "Don Omondi"
+display_name = "Don Omondi"
+
+[people.alpha-rock]
+display_name = "Aditya Sisodiya"
+
 [people.MajedAlaejem]
 real_name = "Majed Alaejem"
 display_name = "Majed Alaejem"
 sync_github_name = true
+
