@@ -111,9 +111,10 @@ impl Annotator {
     fn focal(&self) -> bool {
         self.gradient.kind == GradientKind::Radial
     }
-    /// A radial's aspect handle: on the extent ellipse, across the bar from the stops.
+    /// A radial's (or conic's) aspect handle: on the extent ellipse, across the bar from the
+    /// stops (a mirrored conic's too: its negative aspect only reverses the sweep).
     pub fn aspect_point(&self) -> Point {
-        self.geom.start - self.normal() * (self.vector().hypot() * self.geom.aspect)
+        self.geom.start - self.normal() * (self.vector().hypot() * self.geom.aspect.abs())
     }
     /// How far `p` is from a radial's extent ellipse (approximately, along the ray from the
     /// centre).
@@ -956,5 +957,24 @@ mod tests {
         let hit = |x: f64, y: f64| a.hit(&cx, Point::new(x, y));
         // The centre is the start handle (no focal dot to grab there); the ellipse rotates.
         assert_eq!((hit(100.0, 150.0), hit(100.0, 100.0), hit(0.0, 150.0)), (Some(Part::Start), Some(Part::Aspect), Some(Part::Rotate)));
+    }
+
+    /// A mirrored conic (negative aspect) has its aspect handle on the same side as an unmirrored
+    /// one, across the bar from the stops, where a click takes it.
+    #[test]
+    fn a_mirrored_conic_keeps_its_aspect_handle_across_the_bar() {
+        let (mut d, s) = graded(two());
+        let n = d.node_mut(s.objects[0]).unwrap();
+        let Paint::Gradient(mut g) = n.appearance.fill_paint() else { panic!("a gradient fill") };
+        g.gradient.kind = GradientKind::Conic;
+        let geom = g.geom.as_mut().unwrap();
+        geom.aspect = -0.5;
+        n.appearance.set_fill(Paint::Gradient(g));
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let o = GradientTool::default().overlays(&cx);
+        assert!(o.contains(&Overlay::Handle { p: Point::new(100.0, 100.0), color: BAR }), "the aspect handle");
+        let a = Annotator::of(&cx).unwrap();
+        assert_eq!(a.hit(&cx, Point::new(100.0, 100.0)), Some(Part::Aspect));
     }
 }
