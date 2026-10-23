@@ -53,6 +53,9 @@ pub(crate) fn glyph_image(font: &skrifa::FontRef<'_>, upem: f64, gid: u32) -> Op
     let BitmapData::Png(png) = g.data else { return None };
     // The size the PNG decodes to is its header's (`CBDT`'s own metrics may say otherwise).
     let (w, h) = png_size(png)?;
+    if has_compressed_metadata(png) {
+        return None;
+    }
     let (ppem_x, ppem_y) = (f64::from(g.ppem_x), f64::from(g.ppem_y));
     if png.len() > MAX_PNG_BYTES || w > MAX_SIDE || h > MAX_SIDE || !(ppem_x >= 1.0 && ppem_y >= 1.0 && ppem_x.is_finite() && ppem_y.is_finite()) {
         return None;
@@ -74,6 +77,21 @@ pub(crate) fn glyph_image(font: &skrifa::FontRef<'_>, upem: f64, gid: u32) -> Op
         return None;
     }
     Some(GlyphImage { blob: ImageBlob::png(png.to_vec()), width: w, height: h, xf: Affine::new([sx, 0.0, 0.0, sy, left, -top]) })
+}
+
+/// Whether PNG `bytes` has a chunk of compressed metadata (a colour profile, compressed text): a
+/// decoder unpacks it before it reads the image, whatever size the image says.
+fn has_compressed_metadata(bytes: &[u8]) -> bool {
+    let mut at = 8;
+    while let Some(head) = bytes.get(at..at + 8) {
+        if matches!(&head[4..], b"iCCP" | b"zTXt" | b"iTXt" | b"eXIf") {
+            return true;
+        }
+        let len = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
+        // The chunk's data and its checksum follow its length and type.
+        at = at.saturating_add(len).saturating_add(12);
+    }
+    false
 }
 
 /// The width and height in PNG `bytes`' header (its signature, then the IHDR chunk); `None` when
