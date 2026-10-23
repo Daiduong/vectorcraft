@@ -39,6 +39,10 @@ const UNDECODED: &str = "an image couldn't be decoded and is missing from the pi
 const LARGE_IMAGE: &str = "an image that is too large for EPS was left out";
 const SPOT_GRADIENTS: &str = "gradients of spot colours are written in process colours";
 const MISSING_PATTERN: &str = "missing patterns are written as mid-grey";
+const TOO_LARGE: &str = "the artwork is too large for EPS: what follows 256 MB of PostScript was left out";
+/// The most PostScript the page body may grow to: symbols and patterns that hold one another
+/// expand into every instance, so nesting depth alone doesn't bound the output.
+const MAX_BODY: usize = 256 << 20;
 
 /// What the walk wrote: definitions for the setup, the page, the spot colours it uses (name and
 /// CMYK equivalent) and the warnings.
@@ -262,6 +266,10 @@ impl<'a> Scene<'a> {
             return;
         }
         if let NodeKind::Layer { template: true, .. } = n.kind {
+            return;
+        }
+        if self.body.len() > MAX_BODY {
+            self.warn(TOO_LARGE);
             return;
         }
         match n.visual_bounds_with(&self.symbols) {
