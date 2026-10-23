@@ -248,7 +248,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 fn tab_strip(app: &mut VectorcraftApp, ui: &mut Ui, active: DockTab) -> bool {
     let t = Tokens::get(ui.ctx());
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), 33.0), Sense::hover());
-    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], t.chrome_stroke(t.divider));
+    let rule = if t.chrome_lines { t.chrome_stroke(t.divider) } else { t.tab_rule() };
+    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], rule);
     let outside = ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| !strip.contains(p));
     // What a drag out of the strip floats: the panels, the one shown, where its tab began.
     let mut tear: Option<(Vec<&'static str>, &'static str, f32)> = None;
@@ -1061,8 +1062,13 @@ mod tests {
     }
 
     /// Every shape one frame of the toolbar, the dock and the icon rail paints in a 1440 × 900
-    /// window in `scheme`, flattened, and the scheme's tokens.
+    /// window in `scheme` at Medium Dark, flattened, and the scheme's tokens.
     fn docked_frame(scheme: theme::Scheme) -> (Vec<egui::Shape>, Tokens) {
+        docked_frame_at(scheme, theme::Brightness::MediumDark)
+    }
+
+    /// [`docked_frame`] at brightness `b`.
+    fn docked_frame_at(scheme: theme::Scheme, b: theme::Brightness) -> (Vec<egui::Shape>, Tokens) {
         fn flatten(shape: egui::Shape, out: &mut Vec<egui::Shape>) {
             match shape {
                 egui::Shape::Vec(v) => v.into_iter().for_each(|s| flatten(s, out)),
@@ -1072,7 +1078,7 @@ mod tests {
         let ctx = egui::Context::default();
         egui_extras::install_image_loaders(&ctx);
         theme::install_fonts(&ctx);
-        theme::apply_with(&ctx, theme::Brightness::MediumDark, theme::Accent::default(), scheme);
+        theme::apply_with(&ctx, b, theme::Accent::default(), scheme);
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.run("file.new", json!({})).unwrap();
         let screen_rect = Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(1440.0, 900.0)));
@@ -1198,5 +1204,41 @@ mod tests {
             rects.iter().any(|r| r.blur_width > 0.0 && (r.rect.center().x - chip.rect.center().x).abs() < 0.5 && r.rect.top() > chip.rect.top()),
             "the chip casts a soft shadow"
         );
+    }
+
+    /// Quiet, light and dark: under the dock's tab row a hairline in the separator colour runs
+    /// the dock's whole width, edge to edge, so the row reads as the panel's tabs and not as a
+    /// field; the tabs sit above it.
+    #[test]
+    fn quiet_dock_tab_row_ends_at_a_full_width_hairline() {
+        for b in [theme::Brightness::MediumDark, theme::Brightness::Light] {
+            let (shapes, t) = docked_frame_at(theme::Scheme::Quiet, b);
+            let rule = t.tab_rule();
+            assert!(!rule.is_empty(), "{b:?}");
+            let dock = docked_surfaces(&shapes, &t).into_iter().map(|r| r.rect).max_by(|a, b| a.right().total_cmp(&b.right())).expect("the dock");
+            let lines: Vec<(egui::Rangef, f32)> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    egui::Shape::LineSegment { points: [a, b], stroke } if *stroke == rule && (a.y - b.y).abs() < 0.01 => {
+                        Some((egui::Rangef::new(a.x.min(b.x), a.x.max(b.x)), a.y))
+                    }
+                    _ => None,
+                })
+                .collect();
+            let (span, y) = lines
+                .iter()
+                .find(|(span, y)| dock.y_range().contains(*y) && span.max > dock.left())
+                .unwrap_or_else(|| panic!("{b:?}: a hairline across the dock {dock:?}: {lines:?}"));
+            assert!(span.min <= dock.left() + 0.5 && span.max >= dock.right() - 0.5, "{b:?}: {span:?} spans the dock {dock:?}");
+            assert!(*y > dock.top() && *y < dock.top() + 60.0, "{b:?}: under the tab row at the dock's top: {y} in {dock:?}");
+            let track = shapes
+                .iter()
+                .find_map(|s| match s {
+                    egui::Shape::Rect(r) if r.fill == t.input && r.corner_radius == theme::PILL => Some(r.rect),
+                    _ => None,
+                })
+                .expect("a segmented track");
+            assert!(track.bottom() <= *y, "{b:?}: the tabs {track:?} sit above the line at {y}");
+        }
     }
 }

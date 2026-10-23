@@ -624,7 +624,9 @@ impl Tokens {
     /// line a little off the panel colour stands 14 pt clear of the column's ends
     /// ([`Tokens::column_separator`]); fields are inset (a darker fill with a shade along the top),
     /// buttons, the pressed tool and the tab in front raised (a lighter fill with a soft shadow);
-    /// panel tabs are a segmented control; corners are 8 for controls and 14 for floating surfaces.
+    /// panel tabs are a segmented control over a hairline in the separator colour across the
+    /// group's whole width ([`Tokens::tab_rule`]); corners are 8 for controls and 14 for floating
+    /// surfaces.
     /// The pressed tool is neutral and the blue accent is kept for selection, focus and the primary
     /// action. Light and Medium Dark are the proposal's light and dark tokens; Medium Light and Dark
     /// a shade deeper.
@@ -826,6 +828,16 @@ impl Tokens {
         let separator = self.column_separator?;
         let inset = egui::Rangef::new(span.min + separator.inset, span.max - separator.inset);
         (inset.span() > 0.0).then_some((inset, Stroke::new(1.0, separator.color)))
+    }
+    /// The hairline under a docked panel group's tab row, edge to edge across the group, so the row
+    /// reads as the group's tabs rather than as a field: in the [`Tokens::column_separator`]'s
+    /// colour without [`Tokens::chrome_lines`], else none (those schemes draw the divider or the
+    /// group's outline instead).
+    pub fn tab_rule(&self) -> Stroke {
+        match self.column_separator {
+            Some(separator) if !self.chrome_lines => Stroke::new(1.0, separator.color),
+            _ => Stroke::NONE,
+        }
     }
 }
 
@@ -1187,6 +1199,22 @@ mod tests {
                 let t = Tokens::for_scheme(scheme, b, Accent::default());
                 assert_eq!(t.column_separator, None, "{scheme:?} {b:?}");
                 assert_eq!(t.column_divider(span), Some((span, Stroke::new(1.0, t.divider))), "{scheme:?} {b:?}: the full height");
+            }
+        }
+    }
+
+    /// Quiet's tab rows end at a hairline in the separator colour, so the row reads as the panel's
+    /// tabs and not as a field; the other schemes draw no such line (they have the divider or the
+    /// group's outline).
+    #[test]
+    fn quiet_tab_rows_end_at_a_hairline_in_the_separator_colour() {
+        for b in Brightness::ALL {
+            let t = Tokens::for_scheme(Scheme::Quiet, b, Accent::default());
+            let separator = t.column_separator.expect("Quiet separates its columns");
+            assert_eq!(t.tab_rule(), Stroke::new(1.0, separator.color), "{b:?}");
+            assert_ne!(t.tab_rule().color, t.divider, "{b:?}: not a chrome line");
+            for scheme in [Scheme::Modern, Scheme::Classic, Scheme::Flat] {
+                assert_eq!(Tokens::for_scheme(scheme, b, Accent::default()).tab_rule(), Stroke::NONE, "{scheme:?} {b:?}");
             }
         }
     }

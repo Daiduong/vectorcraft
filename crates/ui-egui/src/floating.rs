@@ -1029,6 +1029,7 @@ fn draw_groups(
         let names: Vec<_> = g.ids.iter().zip(&labels).map(|(&id, label)| (id, label.as_str())).collect();
         let selected = g.ids.iter().position(|&id| id == g.active).unwrap_or(0);
         let out = dock::panel_tabs(ui, &format!("native-set-tabs-{}", g.gi), tab_area, &names, selected, theme::semibold(12.0), false);
+        ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], t.tab_rule());
         for (j, resp) in &out.responses {
             let Some(&id) = g.ids.get(*j) else { continue };
             if let Some((from, to)) = dock::tab_reorder_on_release(strip, pointer, resp, &out.responses) {

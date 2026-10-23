@@ -1123,6 +1123,13 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         if let Some(panel) = tab_area_double_clicked(ui.ctx(), ui.layer_id(), &display, &groups) {
             content.commands.push(("window.panel.collapse", json!({"panel": panel})));
         }
+        // A hairline under each group's tab row, across the group's whole width (Quiet).
+        let rule = t.tab_rule();
+        if !rule.is_empty() {
+            for group in &groups {
+                ui.painter().line_segment([group.strip.left_bottom(), group.strip.right_bottom()], rule);
+            }
+        }
         ui.ctx().data_mut(|data| data.insert_temp(crate::floating::root_groups_id(), groups));
         if t.tab_style == crate::theme::TabStyle::Underline {
             underline_active_tabs(ui.ctx(), area, &drawn, &t);
