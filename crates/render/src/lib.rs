@@ -528,6 +528,11 @@ pub struct Renderer {
     /// The picture [`Self::flatten`] started the current context again from, with 8-bit
     /// compositing: [`Self::finish`] renders the context over it.
     picture: Option<Arc<Pixmap>>,
+    /// Pixels of the groups being drawn offscreen (contexts and backdrop copies), and the most
+    /// they may hold (set from the frame when the first opens, see [`Self::group`]); both reset
+    /// at the start of every frame.
+    offscreen_live: u64,
+    offscreen_budget: u64,
     /// What clipping paths paint, per clipping path (see [`Self::clip_paint_of`]).
     clip_paints: FrameCache<usize, ClipPaintEntry>,
     /// Gradients along or across strokes (see [`Self::fill_path_gradient`]), keyed by
@@ -610,6 +615,8 @@ impl Frame<'_> {
     /// A render context for drawing this frame's art offscreen (on the calling thread), with its
     /// edge smoothing: hard edges must not depend on where the art is drawn.
     fn offscreen_context(&self, w: u16, h: u16) -> RenderContext {
+        #[cfg(test)]
+        OFFSCREEN_PIXELS.with(|n| n.set(n.get() + u64::from(w) * u64::from(h)));
         let mut ctx = single_threaded_context(w, h);
         ctx.set_aliasing_threshold(self.opts.anti_alias.threshold());
         ctx
@@ -651,6 +658,8 @@ impl Renderer {
             blends: PtrMap::default(),
             clip_paths: vec![],
             picture: None,
+            offscreen_live: 0,
+            offscreen_budget: 0,
             clip_paints: FrameCache::new(lru::CLIP_BUDGET, 256),
             stroke_slices: PtrMap::default(),
             adjusts: HashMap::new(),
@@ -735,6 +744,8 @@ impl Renderer {
     fn begin_frame(&mut self) {
         self.stamp += 1;
         self.inline_depth = 0;
+        // Nothing is drawn offscreen yet (even if an earlier frame stopped part way).
+        (self.offscreen_live, self.offscreen_budget) = (0, 0);
     }
 
     /// End a frame: drop cache entries not used for a few frames (every render, thumbnails too,
@@ -1075,19 +1086,16 @@ impl Renderer {
             && !f.opts.outline
             && !self.is_shape(a)
         {
-            // A masked object is a non-isolated group of its own.
-            let mask = Some(self.opacity_mask(f, m, ctx.width(), ctx.height()));
+            // A masked object is a non-isolated group of its own, drawn over its own pixels: the
+            // mask is rendered over those only.
+            let bounds = self.bounds_of(f.symbols, a);
+            let Some((r, sub)) = group::area(ctx, f, bounds) else { return };
+            let mask = Some(self.mask_values(&sub, m, r.w, r.h));
             let blends = a.blend != vectorcraft_color::BlendMode::Normal || (!a.isolate && self.blends_through(a));
-            let bounds = if blends { self.bounds_of(f.symbols, a) } else { None };
             self.group(ctx, f, Composite { mask, blends, bounds, ..Default::default() }, &mut |r, c, fr| r.draw_arc_body(c, fr, a));
             return;
         }
         self.draw_arc_body(ctx, f, a);
-    }
-
-    /// Render an opacity mask's art offscreen and turn its luminance into a coverage mask.
-    fn opacity_mask(&mut self, f: &Frame, m: &vectorcraft_doc::OpacityMask, w: u16, h: u16) -> vello_cpu::Mask {
-        vello_cpu::Mask::from_parts(self.mask_values(f, m, w, h), w, h)
     }
 
     /// The coverage of opacity mask `m` per output pixel (row-major): its art rendered offscreen,
@@ -2622,6 +2630,12 @@ fn now() -> u64 {
 #[cfg(target_arch = "wasm32")]
 fn now() -> u64 {
     0
+}
+
+#[cfg(test)]
+thread_local! {
+    /// The pixels of the offscreen contexts [`Frame::offscreen_context`] has made on this thread.
+    static OFFSCREEN_PIXELS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
 #[cfg(test)]
