@@ -5209,3 +5209,5 @@ axis	Y Axis	Trục Y
 @msg	a {width}×{height} screenshot's byte count overflows	số byte của ảnh chụp {width}×{height} bị tràn
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	{what} của cửa sổ ({points} điểm × {scale} DPI) không thể định cỡ ảnh chụp
 	Live preview	Xem trước trực tiếp
+# Live-effect overlays (plug-in effects)
+@msg	`overlay`: {why}	`overlay`: {why}

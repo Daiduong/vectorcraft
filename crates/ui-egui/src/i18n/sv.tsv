@@ -5637,3 +5637,5 @@ axis	Y Axis	Y-axel
 @msg	a {width}×{height} screenshot's byte count overflows	byteantalet för en skärmbild på {width}×{height} överstiger gränsen
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	fönstrets {what} ({points} punkter × {scale} DPI) kan inte bestämma en skärmbilds storlek
 	Live preview	Direkt förhandsgranskning
+# Live-effect overlays (plug-in effects)
+@msg	`overlay`: {why}	`overlay`: {why}

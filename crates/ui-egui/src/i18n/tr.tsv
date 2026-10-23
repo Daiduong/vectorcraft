@@ -5570,3 +5570,5 @@ axis	Y Axis	Y ekseni
 @msg	a {width}×{height} screenshot's byte count overflows	{width}×{height} ekran görüntüsünün bayt sayısı taşıyor
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	pencerenin {what} ({points} nokta × {scale} DPI) bir ekran görüntüsünü boyutlandıramaz
 	Live preview	Canlı önizleme
+# Live-effect overlays (plug-in effects)
+@msg	`overlay`: {why}	`overlay`: {why}
