@@ -367,14 +367,15 @@ pub(crate) fn apply_gradient_edit_in(
         }
     }
     if let Some(asp) = aspect_param(p)? {
-        if gp.geom.is_none()
-            && let Some(b) = bounds
-        {
+        // A conic this edit places takes the sign asked for (a negative aspect mirrors it); a
+        // placed one keeps its own, so a mirrored conic stays mirrored.
+        let placed = gp.geom.is_some();
+        if !placed && let Some(b) = bounds {
             gp.geom = Some(gp.resolve(b));
         }
+        let conic = gp.gradient.kind == GradientKind::Conic;
         if let Some(g) = &mut gp.geom {
-            // A mirrored conic (negative aspect) stays mirrored.
-            g.aspect = asp.abs().copysign(g.aspect);
+            g.aspect = if conic && !placed { asp } else { asp.abs().copysign(g.aspect) };
         }
     }
     if let (Some(b), Some(g)) = (before, &mut gp.geom) {
@@ -571,7 +572,9 @@ fn vector_paint(cur: &Paint, e: &GeomEdit, to_doc: Affine, bounds: Option<Rect>)
     let shown = gp.geom.or_else(|| bounds.map(|b| gp.resolve(b))).map(|g| map(g, to_doc));
     let (start, end) = e.vector.or_else(|| shown.map(|g| (g.start, g.end)))?;
     let aspect = match (e.aspect, shown) {
-        // A mirrored conic (negative aspect) stays mirrored.
+        // A mirrored conic (negative aspect) stays mirrored; an unplaced one takes the sign
+        // asked for.
+        (Some(a), _) if kind == GradientKind::Conic && gp.geom.is_none() => a,
         (Some(a), Some(g)) => a.abs().copysign(g.aspect),
         (a, g) => a.map(f64::abs).or_else(|| g.map(|g| g.aspect)).unwrap_or(1.0),
     };

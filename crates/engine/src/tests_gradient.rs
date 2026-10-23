@@ -537,7 +537,7 @@ fn a_conic_gradient_is_set_edited_transformed_and_saved() {
     // Unplaced, it sweeps from the right around the box's centre.
     let geom = g.resolve(node(&s, id).geometric_bounds().unwrap());
     assert_eq!(geom.start, Point::new(200.0, 150.0));
-    assert!(geom.param_at(GradientKind::Conic, Point::new(200.0, 190.0)) - 0.25 < 1e-9);
+    assert!((geom.param_at(GradientKind::Conic, Point::new(200.0, 190.0)) - 0.25).abs() < 1e-9);
     // The names other apps use mean the same.
     s.execute("paint.editGradient", &json!({"kind": "linear"})).unwrap();
     s.execute("paint.editGradient", &json!({"kind": "angle"})).unwrap();
@@ -575,4 +575,34 @@ fn a_conic_gradient_is_set_edited_transformed_and_saved() {
     let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Paint::Gradient(g) = back.node(id).unwrap().appearance.fill_paint() else { panic!("gradient lost") };
     assert_eq!((g.gradient.kind, g.geom), (GradientKind::Conic, want.geom));
+}
+
+/// A negative aspect mirrors a conic's sweep also where the edit places the gradient first: given
+/// with `paint.setFill` without a vector, to `paint.setGradientGeom` on an unplaced conic, and
+/// from a mirrored conic swatch. A placed conic keeps its own sign.
+#[test]
+fn a_negative_aspect_mirrors_a_conic_it_places() {
+    let mut s = session();
+    let id = rect(&mut s, 100.0, 100.0, 200.0, 100.0);
+    s.execute("paint.setFill", &json!({"gradient": {"kind": "conic", "aspect": -50}})).unwrap();
+    assert_eq!(fill_gradient(&s, id).geom.map(|g| g.aspect), Some(-0.5));
+    s.execute("paint.setFill", &json!({"gradient": {"kind": "conic"}})).unwrap();
+    assert_eq!(fill_gradient(&s, id).geom, None);
+    s.execute("paint.setGradientGeom", &json!({"aspect": -50})).unwrap();
+    assert_eq!(fill_gradient(&s, id).geom.map(|g| g.aspect), Some(-0.5));
+    // Placed, the sign stays the gradient's own (a mirror is undone by a mirror).
+    s.execute("paint.setGradientGeom", &json!({"aspect": 80})).unwrap();
+    assert_eq!(fill_gradient(&s, id).geom.map(|g| g.aspect), Some(-0.8));
+    s.execute("paint.editGradient", &json!({"aspect": 40})).unwrap();
+    assert_eq!(fill_gradient(&s, id).geom.map(|g| g.aspect), Some(-0.4));
+    // A mirrored conic swatch lands mirrored on other art.
+    let mut q = gradient_param(&fill_gradient(&s, id));
+    q["name"] = json!("Mirrored");
+    s.execute("swatch.new", &q).unwrap();
+    let b = rect(&mut s, 500.0, 300.0, 100.0, 100.0);
+    s.execute("paint.setFill", &json!({"swatch": "Mirrored"})).unwrap();
+    assert_eq!(fill_gradient(&s, b).geom.map(|g| g.aspect), Some(-0.4));
+    // Radial gradients have no mirror: the size counts.
+    s.execute("paint.setFill", &json!({"gradient": {"kind": "radial", "aspect": -50}})).unwrap();
+    assert_eq!(fill_gradient(&s, b).geom.map(|g| g.aspect), Some(0.5));
 }
