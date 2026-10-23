@@ -246,3 +246,26 @@ fn every_context_label_is_a_menu_string() {
         assert!(shown.contains(label), "`{label}` is listed but the context menu never shows it");
     }
 }
+
+/// A selected graph (or art inside one) offers Data…, which opens the Graph Data worksheet as
+/// Object › Graph › Data… does; other selections do not.
+#[test]
+fn a_selected_graph_offers_data() {
+    let mut app = app();
+    let a = rect(&mut app, 0.0, 0.0);
+    app.run("select.set", json!({"ids": [a.0]})).unwrap();
+    assert!(!labels(&menus::context_items(&app)).contains(&"Data…"));
+    let g = app.run("graph.create", json!({"type": "column", "x": 20, "y": 20, "width": 200, "height": 120, "csv": ",a,b\nQ1,1,2"})).unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    app.run("select.set", json!({"ids": [g]})).unwrap();
+    let items = menus::context_items(&app);
+    assert!(labels(&items).contains(&"Data…"), "{:?}", labels(&items));
+    menus::invoke(&mut app, "graph.setData", json!({}));
+    assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some(crate::dialogs::graph_data::KIND));
+    app.ui.dialog = None;
+    // Art inside the graph counts as the graph.
+    let inner = app.session.doc().unwrap().doc.children(Some(NodeId(g))).and_then(|c| c.first()).map(|n| n.id).unwrap();
+    app.run("select.set", json!({"ids": [inner.0]})).unwrap();
+    assert!(labels(&menus::context_items(&app)).contains(&"Data…"));
+}
