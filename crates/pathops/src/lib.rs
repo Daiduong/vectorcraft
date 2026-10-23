@@ -18,6 +18,7 @@ pub use edit::{
     AverageAxis, SIMPLIFY_LEVEL, SimplifyOptions, add_anchor_points, auto_simplify_level, average, join, remove_anchor, remove_redundant_points,
     simplify, simplify_level_tolerance, simplify_with, smooth, split_into_grid,
 };
+pub use fit::fit_cubics;
 pub use offset::{Cap, Join, offset_path, outline_stroke, stroke_region};
 pub use pathfinder::{FaceMerger, PathfinderOp, Region, Shape, merge_regions, pathfinder, region_at, regions};
 pub use planar::{

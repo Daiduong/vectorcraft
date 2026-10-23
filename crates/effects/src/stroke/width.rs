@@ -12,6 +12,7 @@ use std::f64::consts::PI;
 
 use kurbo::{BezPath, ParamCurve, ParamCurveNearest, PathEl, PathSeg, Point, Vec2};
 use vectorcraft_doc::{LineCap, LineJoin, StrokeLayer, WidthProfile};
+use vectorcraft_pathops::fit_cubics;
 
 use super::{kink, segments, subpaths, tangent, unit};
 
@@ -504,11 +505,10 @@ fn cap_points(ring: &mut Vec<(Point, bool)>, c: Point, u: Vec2, v: Vec2, r0: f64
 
 /// Append `pts` as a closed contour (a width outline's ring or loop), through a smooth run's
 /// points as cubic curves. Sampled as line segments, a curved, wide stroke shows the facets of
-/// its offset whenever it is magnified; the cubics keep it smooth. Every point is interpolated
-/// (so the sampled width is kept), a run whose points are collinear stays a line, and the points
-/// marked sharp — caps, miter joins, width steps and path corners — stay sharp. A rapid width
-/// change turns the offset sharply without being a corner: marking corners here rather than
-/// measuring turns keeps that turn smooth.
+/// its offset whenever it is magnified; the cubics keep it smooth. A run whose points are
+/// collinear stays a line, and the points marked sharp — caps, miter joins, width steps and path
+/// corners — stay sharp. A rapid width change turns the offset sharply without being a corner:
+/// marking corners here rather than measuring turns keeps that turn smooth.
 fn polygon(out: &mut BezPath, pts: impl Iterator<Item = (Point, bool)>, tol: f64) {
     let mut ring: Vec<(Point, bool)> = Vec::new();
     for (p, sharp) in pts {
@@ -656,7 +656,14 @@ fn tangents(run: &[Point], cyclic: bool) -> Vec<Vec2> {
     out
 }
 
-/// Append a run of points as cubics through them (or one line when they are collinear).
+/// Append a run of points as a fitted chain of cubics (or one line when they are collinear).
+///
+/// A cubic through every flattened point, as this used to emit, keeps the outline smooth but puts
+/// three coordinates per point into the file; a small, thin stroke then exports several times the
+/// path data of the same stroke without a profile. Fit a chain within the outline tolerance
+/// instead: the result is still G1 continuous and stays within `tol` of the sampled edge, but a
+/// smooth side is a few cubics rather than one per flatten step. Profile bends that need finer
+/// detail produce more cubics; straight runs stay lines.
 fn smooth_run(out: &mut BezPath, run: &[Point], cyclic: bool, tol: f64) {
     let n = run.len();
     if n < 2 {
@@ -666,17 +673,55 @@ fn smooth_run(out: &mut BezPath, run: &[Point], cyclic: bool, tol: f64) {
         out.line_to(run[n - 1]);
         return;
     }
-    let segs = if cyclic { n } else { n - 1 };
     let tans = tangents(run, cyclic);
-    for i in 0..segs {
-        let j = (i + 1) % n;
-        let h = run[i].distance(run[j]);
-        let (m0, m1) = (tans[i] * (h / 3.0), tans[j] * (h / 3.0));
-        if m0.hypot() <= 1e-12 || m1.hypot() <= 1e-12 {
-            out.line_to(run[j]);
-        } else {
-            out.curve_to(run[i] + m0, run[j] - m1, run[j]);
+    let tol = tol.max(1e-6);
+    // A short run is one or two profile features, not flattened path detail. Fitting it loosely
+    // enough to save path data can let a handle cross the narrow side of a V; keep the
+    // shape-preserving per-point cubics there.
+    let segs = if cyclic { n } else { n - 1 };
+    if n <= 3 {
+        for i in 0..segs {
+            let j = (i + 1) % n;
+            let h = run[i].distance(run[j]);
+            let (m0, m1) = (tans[i] * (h / 3.0), tans[j] * (h / 3.0));
+            if m0.hypot() <= 1e-12 || m1.hypot() <= 1e-12 {
+                out.line_to(run[j]);
+            } else {
+                out.curve_to(run[i] + m0, run[j] - m1, run[j]);
+            }
         }
+        return;
+    }
+    let unit_or = |v: Vec2, fallback: Vec2| {
+        let len = v.hypot();
+        if len > 1e-12 {
+            v / len
+        } else {
+            let len = fallback.hypot();
+            if len > 1e-12 { fallback / len } else { Vec2::new(1.0, 0.0) }
+        }
+    };
+    let t0 = unit_or(tans[0], run[1] - run[0]);
+    let (pts, t0, t1) = if cyclic {
+        // Fit the seam too: the fit starts and arrives with the same tangent, so closing the
+        // contour adds no kink.
+        let mut pts = Vec::with_capacity(n + 1);
+        pts.extend_from_slice(run);
+        pts.push(run[0]);
+        (pts, t0, t0)
+    } else {
+        (run.to_vec(), t0, unit_or(tans[n - 1], run[n - 1] - run[n - 2]))
+    };
+    // Fit tighter than the flattening tolerance: the fit's error is the whole outline's error,
+    // and a least-squares fit may sit on one side of the sampled edge, which would otherwise
+    // shift a profile's area visibly.
+    let cubics = fit_cubics(&pts, t0, t1, tol * 0.1);
+    if cubics.is_empty() {
+        out.line_to(run[n - 1]);
+        return;
+    }
+    for c in cubics {
+        out.curve_to(c.p1, c.p2, c.p3);
     }
 }
 
