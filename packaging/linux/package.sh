@@ -25,7 +25,7 @@ APP_ID=ai.storyteller.vectorcraft
 
 SKIP_BUILD=0
 FORMATS="appimage deb rpm tar"
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=1; shift ;;
     --formats) FORMATS="$2"; shift 2 ;;
@@ -46,8 +46,8 @@ BASENAME="vectorcraft-$VERSION-linux-$ARCH"
 
 echo "==> VectorCraft $VERSION for Linux $ARCH ($FORMATS)"
 
-if [ "$SKIP_BUILD" = 0 ]; then
-  if [ -n "${CROSS_TARGET:-}" ]; then
+if [[ "$SKIP_BUILD" = 0 ]]; then
+  if [[ -n "${CROSS_TARGET:-}" ]]; then
     (cd "$ROOT" && cargo build --release --locked -p vectorcraft -p vectorcraft-cli --target "$CROSS_TARGET")
   else
     (cd "$ROOT" && cargo build --release --locked -p vectorcraft -p vectorcraft-cli)
@@ -116,7 +116,7 @@ if has appimage; then
     aarch64) APPIMAGE_RUNTIME_SHA256=00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444 ;;
     *) APPIMAGE_RUNTIME_SHA256="" ;;
   esac
-  if [ -z "$APPIMAGE_RUNTIME_SHA256" ]; then
+  if [[ -z "$APPIMAGE_RUNTIME_SHA256" ]]; then
     echo "no pinned AppImage runtime for $ARCH; build the AppImage on x86_64 or aarch64" >&2
     exit 2
   fi
@@ -131,13 +131,13 @@ if has appimage; then
   ln -s "$APP_ID.png" "$APPDIR/.DirIcon"
 
   TOOL="${APPIMAGETOOL:-$(command -v appimagetool || true)}"
-  if [ -z "$TOOL" ]; then
-    if [ -z "$APPIMAGETOOL_SHA256" ]; then
+  if [[ -z "$TOOL" ]]; then
+    if [[ -z "$APPIMAGETOOL_SHA256" ]]; then
       echo "no pinned appimagetool for $ARCH; set APPIMAGETOOL or put appimagetool on PATH" >&2
       exit 2
     fi
     TOOL="$CARGO_TARGET_DIR/appimagetool-$APPIMAGETOOL_VERSION-$ARCH.AppImage"
-    if [ ! -x "$TOOL" ]; then
+    if [[ ! -x "$TOOL" ]]; then
       download="$TOOL.download"
       curl --proto '=https' -fsSL -o "$download" \
         "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-$ARCH.AppImage"
@@ -148,7 +148,7 @@ if has appimage; then
     printf '%s  %s\n' "$APPIMAGETOOL_SHA256" "$TOOL" | sha256sum -c -
   fi
   RUNTIME="$CARGO_TARGET_DIR/appimage-runtime-$APPIMAGE_RUNTIME_VERSION-$ARCH"
-  if [ ! -f "$RUNTIME" ]; then
+  if [[ ! -f "$RUNTIME" ]]; then
     download="$RUNTIME.download"
     curl --proto '=https' -fsSL -o "$download" \
       "https://github.com/AppImage/type2-runtime/releases/download/$APPIMAGE_RUNTIME_VERSION/runtime-$ARCH"
@@ -175,16 +175,16 @@ if has appimage; then
   # package) appimagetool also writes the .zsync, into its working directory, hence the cd.
   (cd "$DIST" && ARCH="$ARCH" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" --no-appstream --runtime-file "$RUNTIME" -u "$UPDATE_INFO" "$APPDIR" "$OUT")
   echo "wrote $OUT"
-  if [ -s "$OUT.zsync" ]; then
+  if [[ -s "$OUT.zsync" ]]; then
     echo "wrote $OUT.zsync"
   else
     warn "zsyncmake not found, so $OUT.zsync was not written; AppImage delta updates need it"
   fi
 fi
 
-if [ -z "${CROSS_TARGET:-}" ]; then
+if [[ -z "${CROSS_TARGET:-}" ]]; then
   "$STAGE/usr/bin/vectorcraft-cli" --version
-elif [ -n "${EMULATOR:-}" ]; then
+elif [[ -n "${EMULATOR:-}" ]]; then
   "$EMULATOR" "$STAGE/usr/bin/vectorcraft-cli" --version
 fi
 echo "==> done"
