@@ -380,6 +380,27 @@ fn solid_hatches_fill_and_pattern_hatches_outline() {
     assert!(square.appearance.fill().is_some_and(|f| !f.paint.is_none()));
 }
 
+#[test]
+fn hatch_declaring_many_absent_source_handles_parses_quickly() {
+    let base = hatch("1");
+    let at = |code: i32, from: usize| from + base[from..].iter().position(|p| p.0 == code).unwrap();
+    let first = at(92, 0);
+    let end = at(97, first) + 1;
+    let mut boundary = base[first..end].to_vec();
+    *boundary.last_mut().unwrap() = (97, "10000000");
+    let n = 300;
+    let mut e: Vec<(i32, &'static str)> = base[..first].to_vec();
+    e[at(91, 0)] = (91, "300");
+    for _ in 0..n {
+        e.extend_from_slice(&boundary);
+    }
+    e.extend_from_slice(&base[end..]);
+    let start = std::time::Instant::now();
+    let r = open(&entities(&e), &points());
+    assert!(start.elapsed() < std::time::Duration::from_millis(400), "took {:?}", start.elapsed());
+    assert_eq!(r.document.layers[0].children().unwrap().len(), 1, "{:?}", r.warnings);
+}
+
 /// A solid hatch: a loop of a line and a spline edge (`fit` its fit data, if any), followed by
 /// `source` (the loop's source-object count and handles), and a square hole.
 fn spline_edged_hatch(fit: &[(i32, &'static str)], source: &[(i32, &'static str)]) -> Vec<(i32, &'static str)> {
@@ -710,6 +731,27 @@ fn by_block_colours_make_a_symbol_per_look() {
     let inserts = [(0, "INSERT"), (2, "Door"), (62, "1"), (10, "0"), (20, "0"), (0, "INSERT"), (2, "Door"), (62, "3"), (10, "40"), (20, "0")];
     let doc = open(&with_door(&[(0, "LINE"), (8, "Doors"), (62, "4"), (10, "5"), (20, "5"), (11, "15"), (21, "5")], &inserts), &points()).document;
     assert_eq!(doc.symbols.len(), 1);
+}
+
+#[test]
+fn many_by_block_looks_import_in_linear_time() {
+    let by_block: &[(i32, &str)] = &[(0, "LINE"), (8, "0"), (62, "0"), (10, "5"), (20, "5"), (11, "15"), (21, "5")];
+    let n = 4000;
+    let mut inserts: Vec<(i32, &'static str)> = vec![];
+    for i in 0..n {
+        let colour: &'static str = Box::leak((i + 1).to_string().into_boxed_str());
+        inserts.extend([(0, "INSERT"), (2, "Door"), (420, colour), (10, "0"), (20, "0")]);
+    }
+    let text = with_door(by_block, &inserts);
+    let start = std::time::Instant::now();
+    let doc = open(&text, &points()).document;
+    let took = start.elapsed();
+    let mut names: Vec<&str> = doc.symbols.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names.len(), n);
+    names.sort_unstable();
+    names.dedup();
+    assert_eq!(names.len(), n, "names stay unique");
+    assert!(took < std::time::Duration::from_secs(4), "import took {took:?}");
 }
 
 #[test]
