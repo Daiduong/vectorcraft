@@ -1,5 +1,7 @@
 # VectorCraft Roadmap
 
+- 2026-10-23 · UI.Classic: Essentials Classic defaults to two toolbar columns with larger fill/stroke controls; its first rows are Selection / Direct Selection, Lasso / Magic Wand, and Pen / Curvature. Existing manual column choices remain saved until Workspace Reset. Scores and estimates unchanged. Evidence: `workspaces.rs`, `toolbar.rs` layout regression.
+
 - PDF.R1: editable PDF import uses the shared reader, scans page content in windows, and rejects known incomplete input before returning a document.
 - PDF.W1: PDF export and print composition use the shared optional writer for configuration, metadata, font preparation and guarded finalization; drawing and output policy remain app-owned.
 

@@ -80,10 +80,10 @@ impl Place {
 // ---------- the model ----------
 
 /// A toolbar as it ships: the Basic toolbar's categories, or the Advanced toolbar's tool groups.
-fn shipped(advanced: bool) -> Vec<ToolbarCategory> {
+fn shipped(advanced: bool, classic: bool) -> Vec<ToolbarCategory> {
     let strings = |s: &[&str]| s.iter().map(|id| id.to_string()).collect::<Vec<_>>();
     if advanced {
-        let slots = TOOL_GROUPS.iter().map(|g| g.iter().map(|t| t.id.to_string()).collect()).collect();
+        let slots = crate::toolbar::advanced_groups(classic).iter().map(|g| g.iter().map(|t| t.id.to_string()).collect()).collect();
         vec![ToolbarCategory { name: None, slots }]
     } else {
         crate::toolbar::BASIC
@@ -146,11 +146,12 @@ pub(crate) fn sanitize(edits: &mut ToolbarEdits) {
 /// the edits. Returns the toolbar's slots.
 fn edit(app: &mut VectorcraftApp, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> Result<(), String>) -> Result<Value, String> {
     let advanced = app.ui.toolbar_advanced;
+    let defaults = shipped(advanced, app.ui.workspace == "Essentials Classic");
     let slot = current(&mut app.ui.toolbar_edits, advanced);
-    let mut cats = slot.clone().unwrap_or_else(|| shipped(advanced));
+    let mut cats = slot.clone().unwrap_or_else(|| defaults.clone());
     f(&mut cats)?;
     prune(&mut cats);
-    *slot = (cats != shipped(advanced)).then_some(cats);
+    *slot = (cats != defaults).then_some(cats);
     Ok(slots_json(app))
 }
 

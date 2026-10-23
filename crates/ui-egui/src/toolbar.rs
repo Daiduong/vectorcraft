@@ -79,10 +79,20 @@ pub(crate) fn slots(app: &VectorcraftApp) -> Vec<(Option<&'static str>, Vec<&'st
     if let Some(edited) = crate::edit_toolbar::edited_slots(app) {
         edited
     } else if app.ui.toolbar_advanced {
-        TOOL_GROUPS.iter().map(|g| (None, g.iter().map(|t| t.id).collect())).collect()
+        advanced_groups(app.ui.workspace == "Essentials Classic").iter().map(|g| (None, g.iter().map(|t| t.id).collect())).collect()
     } else {
         BASIC.iter().flat_map(|(cat, ss)| ss.iter().enumerate().map(move |(i, s)| (if i == 0 { Some(*cat) } else { None }, s.to_vec()))).collect()
     }
+}
+
+/// Default Advanced groups, shared with Edit Toolbar so edits use the displayed slot order.
+pub(crate) fn advanced_groups(classic: bool) -> Vec<&'static [ToolInfo]> {
+    let mut groups = TOOL_GROUPS.to_vec();
+    // Classic's second row puts Lasso left and Magic Wand right.
+    if classic {
+        groups.swap(2, 3);
+    }
+    groups
 }
 
 /// Remember the tool shown in the slot that contains `id`.
@@ -1319,8 +1329,12 @@ pub(crate) mod tests {
         let ctx = egui::Context::default();
         frame_in(&mut app, &ctx, 0.0, vec![], 900.0);
         assert_eq!(widget_rects(&ctx, vec2(11.0, 11.0)).len(), 3, "one column: three 11 pt chips");
-        app.ui.toolbar_double = true;
-        frame_in(&mut app, &ctx, 1.0, vec![], 900.0);
+        crate::workspaces::switch(&mut app.ui, "Essentials Classic").unwrap();
+        let rects = frame_in(&mut app, &ctx, 1.0, vec![], 900.0);
+        assert_eq!(columns(&rects), 2);
+        assert!(row_sizes(&rects).iter().take(3).all(|n| *n == 2));
+        let first_tools: Vec<_> = slots(&app).iter().take(6).map(|(_, s)| s[0]).collect();
+        assert_eq!(first_tools, ["selection", "directSelection", "lasso", "magicWand", "pen", "curvature"]);
         assert_eq!(widget_rects(&ctx, vec2(17.0, 17.0)).len(), 3, "two columns: three 17 pt chips");
         let modes = widget_rects(&ctx, vec2(22.0, 22.0));
         assert_eq!(modes.len(), 3, "the three drawing modes side by side");

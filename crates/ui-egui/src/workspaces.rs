@@ -76,6 +76,7 @@ pub fn builtins() -> Vec<Workspace> {
     vec![
         w(ESSENTIALS, &|_| {}),
         w("Essentials Classic", &|x| {
+            x.toolbar_double = true;
             x.control_bar = true;
             x.rulers = true;
             x.toolbar_advanced = true;
@@ -529,12 +530,12 @@ mod tests {
         let mut ui = UiState { brightness: crate::theme::Brightness::Light, ..Default::default() };
         let w = find(&ui, "Essentials Classic").unwrap();
         apply(&mut ui, &w);
-        assert!(ui.control_bar && ui.view.rulers && ui.toolbar_advanced);
+        assert!(ui.control_bar && ui.view.rulers && ui.toolbar_advanced && ui.toolbar_double);
         assert_eq!(ui.open_panel.as_deref(), Some("color"));
         assert_eq!(ui.workspace, "Essentials Classic");
         let w = find(&ui, "essentials").unwrap();
         apply(&mut ui, &w);
-        assert!(!ui.control_bar && !ui.view.rulers);
+        assert!(!ui.control_bar && !ui.view.rulers && !ui.toolbar_double);
         assert_eq!(ui.brightness, crate::theme::Brightness::Light);
     }
 
