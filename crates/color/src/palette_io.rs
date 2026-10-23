@@ -189,8 +189,15 @@ fn write_css(lib: &SwatchLibrary, keep: impl Fn(&&Swatch) -> bool) -> String {
             let value = match &w.paint {
                 Paint::Solid { color, .. } => css_color(color, 1.0),
                 Paint::Gradient(g) if g.gradient.kind != GradientKind::Freeform => {
+                    // A mirrored conic (negative aspect) turns anticlockwise; CSS only turns
+                    // clockwise, so its stops are mirrored about the seam instead.
+                    let mirrored = g.gradient.kind == GradientKind::Conic && g.geom.is_some_and(|geom| geom.aspect < 0.0);
+                    let stop = |s: &crate::GradientStop| {
+                        let at = if mirrored { 1.0 - s.offset } else { s.offset };
+                        format!("{} {}%", css_color(&s.color, s.opacity), at * 100.0)
+                    };
                     let stops: Vec<String> =
-                        g.gradient.stops.iter().map(|s| format!("{} {}%", css_color(&s.color, s.opacity), s.offset * 100.0)).collect();
+                        if mirrored { g.gradient.stops.iter().rev().map(stop).collect() } else { g.gradient.stops.iter().map(stop).collect() };
                     match g.gradient.kind {
                         GradientKind::Radial => format!("radial-gradient(circle, {})", stops.join(", ")),
                         // CSS turns clockwise from straight up, as the angle is measured from the right.
@@ -839,6 +846,19 @@ mod tests {
         };
         let text = written(&lib, PaletteFormat::Css);
         assert!(text.contains("--sweep: conic-gradient(from 0deg, #ffffff 0%, #000000 100%);"), "{text}");
+        // A mirrored one (negative aspect) turns anticlockwise: CSS gets the stops mirrored, so
+        // the same colours lie on the same sides.
+        let mut conic = GradientPaint::new(Gradient { kind: GradientKind::Conic, ..Gradient::default() });
+        conic.gradient.stops[0].offset = 0.2;
+        conic.angle = 90.0;
+        conic.geom = Some(crate::GradientGeom { start: kurbo::Point::new(0.0, 0.0), end: kurbo::Point::new(0.0, -10.0), aspect: -1.0, focal: None });
+        let lib = SwatchLibrary {
+            name: "x".into(),
+            swatches: vec![Swatch { name: "Back".into(), paint: Paint::Gradient(Box::new(conic)), global: false, spot: false }],
+            groups: vec![],
+        };
+        let text = written(&lib, PaletteFormat::Css);
+        assert!(text.contains("--back: conic-gradient(from 0deg, #000000 0%, #ffffff 80%);"), "{text}");
     }
 
     #[test]
