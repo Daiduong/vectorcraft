@@ -237,3 +237,69 @@ fn type_cut_by_the_clipping_path_of_a_clip_group_with_an_effect_is_left_alone() 
         assert_eq!(edge_warnings(&mut s, format, options.clone()), Vec::<String>::new(), "{format} {options}");
     }
 }
+
+#[test]
+fn a_drop_shadow_past_the_edge_does_not_widen_the_clipping_path() {
+    let mut s = session();
+    let text = point(&mut s, 20.0, 100.0, LONG);
+    // The clipping path ends 4 pt short of the right edge; the group's shadow paints past it.
+    let mask = id_of(&s.execute("shape.rectangle", &json!({"x": 10, "y": 50, "width": 286, "height": 100})).unwrap());
+    s.execute("select.set", &json!({"ids": [text.0, mask.0]})).unwrap();
+    let group = s.execute("object.clippingMask.make", &json!({})).unwrap();
+    s.execute("select.set", &json!({"ids": [group["id"]]})).unwrap();
+    s.execute("effect.apply", &json!({"effect": "stylize.dropShadow"})).unwrap();
+    let painted = {
+        let d = &s.doc().unwrap().doc;
+        vectorcraft_render::painted_bounds(d, d.node(id_of(&group)).unwrap()).unwrap()
+    };
+    assert!(painted.x1 > 300.0, "the shadow paints past the edge: {painted:?}");
+    for (format, options) in cropping() {
+        assert_eq!(edge_warnings(&mut s, format, options.clone()), Vec::<String>::new(), "{format} {options}");
+    }
+}
+
+#[test]
+fn a_miter_spike_past_the_edge_is_named() {
+    let mut s = session();
+    let id = point(&mut s, 100.0, 100.0, "k");
+    s.execute(
+        "text.setRangeStyle",
+        &json!({"id": id.0, "stroke": "#000000", "strokeWidth": 6, "strokeOptions": {"join": "miter", "miterLimit": 10}}),
+    )
+    .unwrap();
+    let t = |s: &Session| match &s.doc().unwrap().doc.node(id).unwrap().kind {
+        vectorcraft_doc::NodeKind::Text(t) => (**t).clone(),
+        k => panic!("not text: {k:?}"),
+    };
+    // Put the glyph's right side 1 pt inside the right edge with the stroke's even reach.
+    let ink = crate::cmd::pathops::text_outline(&t(&s)).bounds().unwrap();
+    let dx = 300.0 - t(&s).char_stroke_outset() - 1.0 - ink.x1;
+    s.execute("object.move", &json!({"ids": [id.0], "dx": dx, "dy": 0})).unwrap();
+    let t = t(&s);
+    let outline = crate::cmd::pathops::text_outline(&t);
+    let ink = outline.bounds().unwrap();
+    assert!(ink.x1 + t.char_stroke_outset() < 300.0, "{ink:?}");
+    let stroked = t.runs[0].style.stroke_layer().bounds_on(&outline.to_bezpath(), ink);
+    assert!(stroked.x1 > 300.5, "the spike at the arm of the k crosses the edge: {stroked:?}");
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({})), [one(id)]);
+}
+
+#[test]
+fn a_round_joined_stroke_inside_the_edge_is_left_alone() {
+    let mut s = session();
+    let id = point(&mut s, 100.0, 100.0, "k");
+    s.execute(
+        "text.setRangeStyle",
+        &json!({"id": id.0, "stroke": "#000000", "strokeWidth": 6, "strokeOptions": {"join": "round", "miterLimit": 10}}),
+    )
+    .unwrap();
+    let t = |s: &Session| match &s.doc().unwrap().doc.node(id).unwrap().kind {
+        vectorcraft_doc::NodeKind::Text(t) => (**t).clone(),
+        k => panic!("not text: {k:?}"),
+    };
+    // Within the miter limit's reach of the right edge, but no spike to cross it.
+    let ink = crate::cmd::pathops::text_outline(&t(&s)).bounds().unwrap();
+    let dx = 300.0 - t(&s).char_stroke_outset() - 1.0 - ink.x1;
+    s.execute("object.move", &json!({"ids": [id.0], "dx": dx, "dy": 0})).unwrap();
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({})), Vec::<String>::new());
+}

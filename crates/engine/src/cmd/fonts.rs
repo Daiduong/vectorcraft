@@ -251,9 +251,12 @@ impl<'a> Printed<'a> {
                 }
             }
         }
-        // The members of a clip group show inside its clipping path's bounds, with effects or not.
-        let clipping = match n.kind {
-            NodeKind::Layer { clip: true, .. } | NodeKind::Group { clip: true, .. } => vectorcraft_render::painted_bounds(self.d, n),
+        // The members of a clip group show inside its clipping path's bounds, with effects or not
+        // (a shadow of the group painting past the path shows no more of them).
+        let clipping = match &n.kind {
+            NodeKind::Layer { children, clip: true, .. } | NodeKind::Group { children, clip: true } => {
+                children.first().and_then(|c| c.geometric_bounds_with(&self.d.symbol_boxes()))
+            }
             _ => None,
         };
         self.clips.extend(clipping);
@@ -333,8 +336,21 @@ impl<'a> Printed<'a> {
         if self.pages.is_empty() {
             return false;
         }
-        let Some(ink) = super::pathops::text_outline(t).bounds() else { return false };
-        let ink = ink.inflate(t.char_stroke_outset(), t.char_stroke_outset());
+        let outline = super::pathops::text_outline(t);
+        let Some(glyphs) = outline.bounds() else { return false };
+        // What the characters' strokes paint round the glyphs, their miter spikes included, at the
+        // weight the type's transform scales them to.
+        let k = vectorcraft_doc::Scaling::factor(t.xf).unwrap_or(1.0);
+        let mut strokes: Vec<vectorcraft_doc::StrokeLayer> = vec![];
+        for r in t.runs.iter().filter(|r| r.style.has_stroke()) {
+            let mut st = r.style.stroke_layer();
+            st.width *= k;
+            if !strokes.contains(&st) {
+                strokes.push(st);
+            }
+        }
+        let bp = (!strokes.is_empty()).then(|| outline.to_bezpath());
+        let ink = bp.map_or(glyphs, |bp| strokes.iter().fold(glyphs, |b, st| b.union(st.bounds_on(&bp, glyphs))));
         let shown = self.clips.iter().try_fold(ink, |b, c| Some(b.intersect(*c)).filter(|r| r.area() > 0.0));
         let Some(shown) = shown else { return false };
         self.pages.iter().any(|p| shown.intersect(*p).area() > 0.0 && !p.inflate(SLACK, SLACK).contains_rect(shown))
