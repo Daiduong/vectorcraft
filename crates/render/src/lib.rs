@@ -1958,11 +1958,12 @@ impl Renderer {
     /// the type is drawn offscreen again.
     ///
     /// Returns false, having drawn nothing, for type that is drawn as Sharp draws it: type with
-    /// inline graphics, type whose own fills or strokes include a brush stroke or a blend mode
-    /// other than Normal, type that overprints while Overprint Preview is on, and type that shows a
-    /// substitution highlight on screen. Drawn offscreen, those would blend with nothing or take
-    /// the method on art that is not the characters'. It also returns false for type whose
-    /// offscreen drawing would be more than [`MAX_RASTER_SIDE`] pixels a side.
+    /// inline graphics, type with color glyphs (bitmap or COLR), type whose own fills or strokes
+    /// include a brush stroke or a blend mode other than Normal, type that overprints while
+    /// Overprint Preview is on, and type that shows a substitution highlight on screen. Drawn
+    /// offscreen, those would blend with nothing or take the method on art that is not the
+    /// characters'. It also returns false for type whose offscreen drawing would be more than
+    /// [`MAX_RASTER_SIDE`] pixels a side.
     fn draw_type_edges(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, t: &TextObject, g: &TextGeom) -> bool {
         if proof::overprints(f.opts) && t.runs.iter().any(|r| r.style.overprint_fill || r.style.overprint_stroke) {
             return false;
@@ -1970,6 +1971,10 @@ impl Renderer {
         let normal = vectorcraft_color::BlendMode::Normal;
         let brush = |i: &AppearanceItem| matches!(i, AppearanceItem::Stroke(st) if st.brush.is_some());
         if t.runs.iter().any(|r| r.inline.is_some()) || n.appearance.items.iter().any(|i| i.visible() && (i.blend() != normal || brush(i))) {
+            return false;
+        }
+        // Color glyphs paint their own pixels and layers, whose opacity is not the characters' coverage.
+        if !g.images.is_empty() || !g.colours.is_empty() {
             return false;
         }
         if f.opts.highlight_substitutions {

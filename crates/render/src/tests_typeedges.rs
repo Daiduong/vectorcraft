@@ -201,6 +201,39 @@ fn type_with_an_inline_graphic_is_drawn_as_sharp() {
     }
 }
 
+/// Type with a color glyph (a bitmap in `sbix` or `CBDT`, or COLR v0 or v1 layers) is drawn as
+/// Sharp draws it, so the glyph's own opacity is kept.
+#[test]
+fn type_with_a_color_glyph_is_drawn_as_sharp() {
+    use vectorcraft_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font, colr_family, colr_font};
+    let _adding = crate::tests_fontchange::adding_fonts();
+    let fonts = [
+        (colour_bitmap_family(true), colour_bitmap_font(true)),
+        (colour_bitmap_family(false), colour_bitmap_font(false)),
+        (colr_family(false), colr_font(false)),
+        (colr_family(true), colr_font(true)),
+    ];
+    for (family, font) in fonts {
+        let Some(font) = font else { panic!("{family}: the test font is built") };
+        vectorcraft_text::FontDb::global().add_font(font);
+        let draw = |m: TypeAntiAlias| {
+            let mut d = Document::new(160.0, 160.0);
+            let style = CharStyle { font_family: family.into(), size: 100.0, ..Default::default() };
+            let mut t = TextObject::point(Point::new(20.3, 120.4), &COLOUR_CHAR.to_string(), style);
+            t.anti_alias = m;
+            let n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
+            let l = d.layers[0].id;
+            d.insert(Some(l), 0, n).unwrap();
+            Renderer::new().render(&d, 160, 160, Affine::IDENTITY, &RenderOptions::default()).pixels
+        };
+        let sharp = draw(TypeAntiAlias::Sharp);
+        assert!(sharp.chunks(4).any(|p| p[3] > 0), "{family}: the glyph is drawn");
+        for m in [TypeAntiAlias::None, TypeAntiAlias::Crisp, TypeAntiAlias::Strong] {
+            assert!(draw(m) == sharp, "{family}, {m:?}");
+        }
+    }
+}
+
 /// In a supersampled export, None type in a group drawn offscreen (it isolates art that blends)
 /// still has hard edges on the exported pixels, wherever the group's layer starts.
 #[test]

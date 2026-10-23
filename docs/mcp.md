@@ -4251,8 +4251,9 @@ method does, on the pixels of the picture being drawn (the canvas at its zoom, a
 - `strong` draws a pixel the type covers by a share c at `2c`, at most 1, so the type looks heavier.
 
 The opacity of the type's paints stays as it is inside the characters. Type is drawn as Sharp draws it when it holds
-inline graphics, when its own fills or strokes in the Appearance panel include a brush stroke or a blend mode other than
-Normal, when it overprints while Overprint Preview is on, and on the canvas while it shows a substitution highlight.
+inline graphics or color glyphs (bitmap or COLR), when its own fills or strokes in the Appearance panel include a brush
+stroke or a blend mode other than Normal, when it overprints while Overprint Preview is on, and on the canvas while it
+shows a substitution highlight.
 With Preferences › General › Anti-aliased Artwork off, the canvas draws all its art with hard edges, type included, and
 so does an export whose own Anti-aliasing option is None. SVG, PDF and EPS export are unchanged and carry no setting.
 Reset Panel sets Sharp. Saved as `antiAlias` only when not `sharp`. One undo step.
