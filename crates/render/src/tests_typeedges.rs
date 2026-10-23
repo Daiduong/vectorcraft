@@ -482,17 +482,24 @@ fn type_edges_are_drawn_on_at_most_the_budgets_pixels() {
     assert_eq!(edge_grid(Rect::new(0.0, 0.0, 10_000.0, 1.0), coarser), Affine::IDENTITY, "40,000 pixels a side");
 }
 
-/// Type whose offscreen drawing would be more than `MAX_RASTER_SIDE` pixels a side is drawn as
-/// Sharp type is.
+/// Type across a canvas of the largest side the renderer draws (`MAX_CONTEXT_SIDE` pixels) is
+/// drawn with its method on every pixel.
 #[test]
-fn type_wider_than_the_raster_limit_is_drawn_as_sharp() {
-    // "Hamburg" at 25,000%, about 37,000 pixels wide, on four rows through its letters.
-    let view = Affine::translate((-2_000.0, -12_500.0)) * Affine::scale(250.0);
-    let draw = |m| Renderer::new().render(&page(m, None), 40_000, 4, view, &RenderOptions::default()).pixels;
+fn type_across_the_widest_canvas_is_drawn_with_its_method() {
+    // "Hamburg" at 25,000%, about 37,000 pixels wide, past both sides of the canvas, on four rows
+    // through its letters.
+    let view = Affine::translate((-3_000.0, -12_500.0)) * Affine::scale(250.0);
+    let draw = |m| {
+        let pixels = Renderer::new().render(&page(m, None), MAX_CONTEXT_SIDE, 4, view, &RenderOptions::default()).pixels;
+        pixels.chunks(4).map(|p| p[3]).collect::<Vec<u8>>()
+    };
     let sharp = draw(TypeAntiAlias::Sharp);
-    let a: Vec<u8> = sharp.chunks(4).map(|p| p[3]).collect();
-    assert!(partial(&a) > 0, "the rows cross the edges of the letters");
-    assert!(draw(TypeAntiAlias::None) == sharp, "None type is drawn as Sharp");
+    assert!(partial(&sharp) > 0, "the rows cross the edges of the letters");
+    let none = draw(TypeAntiAlias::None);
+    assert_eq!(none.len(), sharp.len());
+    assert_eq!(partial(&none), 0, "None paints whole pixels");
+    let wrong = off_the_share(TypeAntiAlias::None, &sharp, &none);
+    assert!(wrong.is_empty(), "(pixel, Sharp, drawn) {wrong:?}");
 }
 
 /// The offscreen drawing takes in the farthest a stroke reaches: a mitered character stroke's
