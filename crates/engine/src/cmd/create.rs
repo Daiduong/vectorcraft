@@ -30,6 +30,33 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             flare
         ),
+        cmd!(
+            "shape.heart",
+            "Heart",
+            [],
+            None,
+            "{x, y, width, height, rotation?: deg (about centre)} a heart filling the box: two round lobes meeting in a notch at the top, a point at the bottom → {id}",
+            has_doc,
+            heart
+        ),
+        cmd!(
+            "shape.arrow",
+            "Arrow",
+            [],
+            None,
+            "{x, y, width, height, shaft=40 (% of the height: the shaft's thickness), head=35 (% of the width: each head's length; with two heads at most 50), heads=1 (1: pointing right, 2: both ways), rotation?: deg (about centre)} an arrow filling the box → {id}",
+            has_doc,
+            arrow
+        ),
+        cmd!(
+            "shape.gear",
+            "Gear",
+            [],
+            None,
+            "{x, y, width, height, teeth=12 (3–360), depth=20 (% of the radius: how far the teeth stand out, 2–90), hole=30 (% of the radius: the hole in the middle, 0 for none; it leaves a rim of at least 5 %), rotation?: deg (about centre)} a gear in the box, the first tooth straight up, tooth tops on the ellipse inscribed in it → {id}",
+            has_doc,
+            gear
+        ),
         cmd!("shape.line", "Line Segment", [], None, "{x1, y1, x2, y2, fill?: bool (Fill Line: the current fill, else none)} → {id}", has_doc, line),
         cmd!("shape.spiral", "Spiral", [], None, "{cx, cy, radius, decay=80 (%), segments=10, clockwise?} → {id}", has_doc, spiral),
         cmd!(
@@ -275,7 +302,7 @@ pub fn constrain_click(s: &Session, cmd: &str, mut params: Value, pivot: Point) 
     let (Some(rotation), Some(axes)) = (vectorcraft_geom::constrain_rotation(base), vectorcraft_geom::constrain_axes(base)) else { return params };
     let Some(o) = params.as_object_mut().filter(|o| !o.contains_key("rotation")) else { return params };
     match cmd {
-        "shape.rectangle" | "shape.ellipse" | "shape.rectangularGrid" | "shape.polarGrid" => {
+        "shape.rectangle" | "shape.ellipse" | "shape.rectangularGrid" | "shape.polarGrid" | "shape.heart" | "shape.arrow" | "shape.gear" => {
             let num = |k: &str| o.get(k).and_then(Value::as_f64).filter(|v| v.is_finite());
             let (Some(x), Some(y), Some(w), Some(h)) = (num("x"), num("y"), num("width"), num("height")) else { return params };
             // The box's centre along the turned axes from the pivot; the command turns it there.
@@ -335,6 +362,52 @@ fn ellipse(s: &mut Session, p: &Value) -> Result<Value> {
     let r = rect_of(p, "shape.ellipse")?;
     let live = LiveShape::Ellipse { w: r.width(), h: r.height(), pie: (0.0, 360.0), xf: rect_transform(r, p, "shape.ellipse")? };
     add_art_turned(s, "Ellipse", path_kind(live.to_path(), Some(live)), f64_or(p, "rotation", 0.0))
+}
+
+/// A whole number `p` gives for `key` clamped into `lo..=hi`, or `default` when it leaves it out or
+/// gives null; anything else (text, a fraction, a negative number) is an error.
+fn count_or(p: &Value, key: &str, default: u32, (lo, hi): (u32, u32), cmd: &str) -> Result<u32> {
+    match p.get(key) {
+        None | Some(Value::Null) => Ok(default),
+        Some(v) if !v.is_number() => Err(bad(cmd, format!("`{key}` must be a number, not {v}"))),
+        Some(v) => v
+            .as_u64()
+            .map(|n| n.clamp(u64::from(lo), u64::from(hi)) as u32)
+            .ok_or_else(|| bad(cmd, format!("`{key}` must be a whole number, not {v}"))),
+    }
+}
+
+/// A figure drawn by `outline` in the box of `p` (at the origin, then placed and turned as
+/// `shape.rectangle` places its box), added as one step named `label`.
+fn boxed_figure(s: &mut Session, p: &Value, cmd: &str, label: &str, outline: impl Fn(Rect) -> PathData) -> Result<Value> {
+    check_numbers(p, &["rotation"], cmd)?;
+    let r = rect_of(p, cmd)?;
+    let xf = rect_transform(r, p, cmd)?;
+    let path = outline(Rect::new(0.0, 0.0, r.width(), r.height())).transformed(xf);
+    add_art_turned(s, label, path_kind(path, None), f64_or(p, "rotation", 0.0))
+}
+
+fn heart(s: &mut Session, p: &Value) -> Result<Value> {
+    boxed_figure(s, p, "shape.heart", "Heart", vectorcraft_geom::figures::heart)
+}
+
+fn arrow(s: &mut Session, p: &Value) -> Result<Value> {
+    const CMD: &str = "shape.arrow";
+    let shaft = number_or(p, "shaft", 40.0, CMD)? / 100.0;
+    let head = number_or(p, "head", 35.0, CMD)? / 100.0;
+    let heads = count_or(p, "heads", 1, (0, 3), CMD)?;
+    if !(1..=2).contains(&heads) {
+        return Err(bad(CMD, "`heads` must be 1 or 2"));
+    }
+    boxed_figure(s, p, CMD, "Arrow", |r| vectorcraft_geom::figures::arrow(r, shaft, head, heads))
+}
+
+fn gear(s: &mut Session, p: &Value) -> Result<Value> {
+    const CMD: &str = "shape.gear";
+    let teeth = count_or(p, "teeth", 12, (3, vectorcraft_geom::figures::GEAR_MAX_TEETH), CMD)?;
+    let depth = number_or(p, "depth", 20.0, CMD)? / 100.0;
+    let hole = number_or(p, "hole", 30.0, CMD)? / 100.0;
+    boxed_figure(s, p, CMD, "Gear", |r| vectorcraft_geom::figures::gear(r, teeth, depth, hole))
 }
 
 fn polygon(s: &mut Session, p: &Value) -> Result<Value> {
