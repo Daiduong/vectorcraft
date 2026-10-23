@@ -1671,7 +1671,6 @@ impl VectorcraftApp {
         });
         dock::floating_panel(self, &ctx);
         floating::show(self, &ctx);
-        panels::library_panel::show_window(self, &ctx);
         self.share.show(&ctx);
         // A share of a drawing that has never been saved. The dialog asked; only this side can
         // encode one, so it answers.
