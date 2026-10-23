@@ -92,7 +92,7 @@ echo "Generated $OUT/$NAME.xcodeproj ($BUNDLE_ID)"
 
 case "$MODE" in
   --sim)
-    DEV="${SIM_DEVICE:-$(xcrun simctl list devices available | grep -E '^\s+iPad' | grep -m1 -E 'Pro|Air' | sed -E 's/^ *(.*) \(([-0-9A-F]+)\).*/\2/')}"
+    DEV="${SIM_DEVICE:-$(xcrun simctl list devices available | grep -E '^[[:space:]]+iPad' | grep -m1 -E 'Pro|Air' | sed -E 's/^ *(.*) \(([-0-9A-F]+)\).*/\2/')}"
     [ -n "$DEV" ] || { echo "error: no iPad simulator (Xcode › Settings › Components)" >&2; exit 1; }
     xcodebuild -project "$OUT/$NAME.xcodeproj" -scheme "$NAME" -configuration Debug \
       -destination "id=$DEV" -derivedDataPath "$OUT/derived" build -quiet
