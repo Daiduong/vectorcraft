@@ -411,15 +411,19 @@ fn outline_stroke_of_line() {
 }
 
 #[test]
-fn outline_stroke_drops_a_zero_area_default_fill_centerline() {
+fn outline_stroke_preserves_a_zero_area_fill_without_retaining_a_live_stroke() {
     let mut s = session();
     s.execute("shape.line", &json!({"x1": 10, "y1": 20, "x2": 60, "y2": 90})).unwrap();
+    s.execute("paint.setFill", &json!({"color":"#ffffff"})).unwrap();
     let before = s.doc().unwrap().doc.clone();
     let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap());
     let n = node(&s, result[0]);
-    assert!(matches!(n.kind, NodeKind::Path { .. }), "one filled outline, no centerline group");
+    let children = n.children().expect("the original fill and the outlined stroke");
+    assert_eq!(children.len(), 2);
+    assert!(children.iter().all(|n| n.appearance.stroke().is_none()));
+    assert!(children.iter().any(|n| n.appearance.fill_paint() == Paint::solid(Color::WHITE)), "an invisible fill is not a live stroke");
     assert!(n.appearance.stroke().is_none());
-    assert!(area_of(&s, result[0]) > 80.0);
+    assert!(children.iter().any(|n| n.appearance.fill_paint() == Paint::solid(Color::BLACK)));
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(s.doc().unwrap().doc.layers, before.layers);
     s.execute("edit.redo", &json!({})).unwrap();
@@ -1003,24 +1007,26 @@ fn outline_stroke_preserves_tiny_and_signed_area_canceling_closed_fills() {
 }
 
 #[test]
-fn outline_stroke_consumes_bent_open_fill_and_preserves_history() {
+fn outline_stroke_preserves_bent_open_fill_and_history() {
     let mut s = session();
     s.execute("path.create", &json!({"anchors":[{"x":0,"y":0},{"x":60,"y":0},{"x":75,"y":-15},{"x":110,"y":-15}],"closed":false})).unwrap();
     let before = s.doc().unwrap().doc.clone();
     let result = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap());
     let n = node(&s, result[0]);
-    assert!(matches!(n.kind, NodeKind::Path { .. }), "only the stroke outline remains");
-    assert_eq!(n.appearance.fill_paint(), Paint::solid(Color::BLACK));
-    assert!(n.appearance.stroke().is_none());
-    assert!(path_of(&s, result[0]).0.subpaths.iter().all(|sp| sp.closed));
+    let children = n.children().expect("original fill beside the outlined stroke");
+    assert_eq!(children.len(), 2);
+    let fill = children.iter().find(|n| n.appearance.fill_paint() == Paint::solid(Color::WHITE)).unwrap();
+    assert!(!fill.path_data().unwrap().subpaths[0].closed);
+    assert!(children.iter().all(|n| n.appearance.stroke().is_none()));
+    let after = s.doc().unwrap().doc.layers.clone();
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(s.doc().unwrap().doc.layers, before.layers);
     s.execute("edit.redo", &json!({})).unwrap();
-    assert_eq!(node(&s, result[0]).appearance.fill_paint(), Paint::solid(Color::BLACK));
+    assert_eq!(s.doc().unwrap().doc.layers, after);
 }
 
 #[test]
-fn outline_stroke_mixed_contours_keep_only_closed_fill() {
+fn outline_stroke_mixed_contours_preserve_all_fill() {
     use vectorcraft_geom::{Anchor, Point, SubPath};
     let mut s = session();
     let id = rect(&mut s, 0.0, 0.0, 20.0, 20.0);
@@ -1040,8 +1046,9 @@ fn outline_stroke_mixed_contours_keep_only_closed_fill() {
     let children = outlined.children().unwrap();
     let fill = children.iter().find(|n| n.appearance.fill_paint() == Paint::solid(Color::WHITE)).unwrap();
     let NodeKind::Path { path, .. } = &fill.kind else { panic!("fill is a path") };
-    assert_eq!(path.subpaths.len(), 1);
+    assert_eq!(path.subpaths.len(), 2);
     assert!(path.subpaths[0].closed);
+    assert!(!path.subpaths[1].closed);
 }
 
 #[test]
@@ -1050,7 +1057,7 @@ fn outline_stroke_keeps_closed_compound_members_editable() {
 }
 
 #[test]
-fn outline_stroke_filters_open_compound_contours_without_flattening_members() {
+fn outline_stroke_keeps_open_compound_contours_and_members() {
     check_outlined_compound_members(true);
 }
 
@@ -1085,10 +1092,8 @@ fn check_outlined_compound_members(mixed: bool) {
         .children()
         .unwrap()
         .iter()
-        .take(2)
         .map(|child| {
-            let mut path = child.path_data().unwrap().clone();
-            path.subpaths.retain(|sp| sp.closed);
+            let path = child.path_data().unwrap().clone();
             (child.name.clone(), path)
         })
         .collect();
@@ -1098,7 +1103,7 @@ fn check_outlined_compound_members(mixed: bool) {
     let fill = group.children().unwrap().iter().find(|child| child.appearance.fill_paint() == Paint::solid(Color::WHITE)).unwrap();
     let NodeKind::Compound { children, rule } = &fill.kind else { panic!("closed fill must retain editable compound members") };
     assert_eq!(*rule, FillRule::EvenOdd);
-    assert_eq!(children.len(), 2);
+    assert_eq!(children.len(), if mixed { 3 } else { 2 });
     for (child, (name, path)) in children.iter().zip(expected) {
         assert_eq!(child.name, name);
         assert_eq!(child.path_data().unwrap(), &path);
@@ -1123,6 +1128,68 @@ fn check_outlined_compound_members(mixed: bool) {
         1e-6
     ));
     assert_eq!(node(&s, sibling), *sibling_before);
+}
+
+/// Exercise the real Group Selection pointer route, not select.set by id.
+#[test]
+fn outline_fill_and_stroke_move_independently_with_group_selection() {
+    use vectorcraft_tools::{PointerEvent, PointerKind};
+    for closed in [true, false] {
+        for move_fill in [false, true] {
+            for click_first in [false, true] {
+                let mut s = session();
+                s.execute(
+                    "path.create",
+                    &json!({"anchors":[{"x":100,"y":100},{"x":200,"y":100},{"x":200,"y":200},{"x":100,"y":200}],"closed":closed}),
+                )
+                .unwrap();
+                s.execute("paint.setFill", &json!({"color":"#ff0000"})).unwrap();
+                s.execute("stroke.set", &json!({"color":"#000000","weight":10})).unwrap();
+                let root = ids(&s.execute("object.path.outlineStroke", &json!({})).unwrap())[0];
+                let group = node(&s, root);
+                let children = group.children().expect("fill and outlined stroke stay separate");
+                assert_eq!(children.len(), 2);
+                let fill = children.iter().find(|c| c.appearance.fill_paint().color().is_some_and(|c| c.to_hex() == "#ff0000")).unwrap().id;
+                let stroke = children.iter().find(|c| c.id != fill).unwrap().id;
+                group.walk(&mut |n| assert!(n.appearance.stroke().is_none(), "no retained live stroke"));
+                let moved = if move_fill { fill } else { stroke };
+                let other = if move_fill { stroke } else { fill };
+                let other_before = node(&s, other);
+                let bounds_before = bounds(&s, moved);
+                let layers_before_move = s.doc().unwrap().doc.layers.clone();
+                let v = ViewInfo { smart_guides: false, snap_to_point: false, ..ViewInfo::default() };
+                s.select_tool("groupSelection", v).unwrap();
+                // Start empty, as clicking the art with Group Selection does after deselection.
+                s.execute("select.none", &json!({})).unwrap();
+                let (x, y) = if move_fill { (150.0, 150.0) } else { (150.0, 100.0) };
+                let compound_stroke = !move_fill && matches!(node(&s, stroke).kind, NodeKind::Compound { .. });
+                for _ in 0..if compound_stroke {
+                    2
+                } else if click_first {
+                    1
+                } else {
+                    0
+                } {
+                    s.pointer(&PointerEvent::new(PointerKind::Down, x, y), v).unwrap();
+                    s.pointer(&PointerEvent::new(PointerKind::Up, x, y), v).unwrap();
+                }
+                for (kind, x, y) in [(PointerKind::Down, x, y), (PointerKind::Drag, x + 30.0, y + 15.0), (PointerKind::Up, x + 30.0, y + 15.0)] {
+                    s.pointer(&PointerEvent::new(kind, x, y), v).unwrap();
+                }
+                assert_eq!(node(&s, other), other_before, "sibling unchanged: closed={closed}, fill={move_fill}, click_first={click_first}");
+                let b = bounds(&s, moved);
+                assert!(
+                    close(b, Rect::new(bounds_before.x0 + 30.0, bounds_before.y0 + 15.0, bounds_before.x1 + 30.0, bounds_before.y1 + 15.0), 1e-6),
+                    "moved leaf: {b:?}"
+                );
+                let layers_after_move = s.doc().unwrap().doc.layers.clone();
+                s.execute("edit.undo", &json!({})).unwrap();
+                assert_eq!(s.doc().unwrap().doc.layers, layers_before_move);
+                s.execute("edit.redo", &json!({})).unwrap();
+                assert_eq!(s.doc().unwrap().doc.layers, layers_after_move);
+            }
+        }
+    }
 }
 
 /// #1590: an inset larger than the shape leaves nothing, and the error says so rather than asking
