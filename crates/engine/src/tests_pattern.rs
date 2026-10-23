@@ -504,7 +504,7 @@ fn radial_repeat_wraps_selection() {
     let RepeatKind::Radial { instances, radius, center, .. } = spec.kind else { panic!() };
     assert_eq!((instances, radius), (8, 50.0));
     assert!(close(center, Point::new(200.0, 150.0)));
-    assert_eq!(spec.transforms().len(), 8);
+    assert_eq!(spec.transforms(None).len(), 8);
     assert_eq!(n.kind_label(), "Radial Repeat");
 }
 
@@ -544,7 +544,7 @@ fn radial_instance_transforms_rotate_around_center() {
     sel(&mut s, &[r]);
     let v = s.execute("object.repeat.radial", &json!({"instances": 4, "radius": 50})).unwrap();
     let NodeKind::Repeat(spec) = node(&s, id_of(&v)).kind else { panic!() };
-    let t = spec.transforms();
+    let t = spec.transforms(None);
     let c = Point::new(200.0, 100.0);
     assert!(close(t[0] * c, Point::new(200.0, 100.0)));
     assert!(close(t[1] * c, Point::new(250.0, 150.0)));
@@ -583,7 +583,7 @@ fn object_expand_expands_repeats() {
         sel(&mut s, &[r]);
         let id = id_of(&s.execute(cmd, &opts).unwrap());
         let NodeKind::Repeat(spec) = node(&s, id).kind else { panic!("{cmd}") };
-        let n = spec.expand().len();
+        let n = spec.expand(None).len();
         assert_eq!(s.execute("object.expand.info", &json!({})).unwrap()["object"], json!(true), "{cmd}");
         let undo = s.doc().unwrap().history.undo.len();
         s.execute("object.expand", &json!({"fill": false, "stroke": false})).unwrap();
@@ -632,7 +632,7 @@ fn grid_repeat_and_options() {
     let RepeatKind::Grid { rows, cols, flip_cols, grid_type, .. } = spec.kind else { panic!() };
     assert_eq!((rows, cols, flip_cols), (2, 4, true));
     assert_eq!(grid_type, TileType::BrickByRow { offset: 0.5 });
-    assert_eq!(spec.expand().len(), 8);
+    assert_eq!(spec.expand(None).len(), 8);
 }
 
 #[test]
@@ -762,4 +762,90 @@ fn inner_glow_on_a_pattern_fill_stays_inside_the_object_on_the_threaded_renderer
     assert!(red < 0x30, "glow outside the object: red {red}");
     let [red, ..] = out.pixel(123, 200);
     assert!(red > 0x40, "no glow along the edge: red {red}");
+}
+
+fn mirror_axis(s: &Session) -> vectorcraft_tools::mirror::MirrorAxis {
+    let st = s.active().unwrap();
+    vectorcraft_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, 1.0).unwrap()
+}
+
+#[test]
+fn mirror_axis_drag_previews_once_and_undo_redo_preserve_source() {
+    use vectorcraft_tools::{PointerEvent, PointerKind};
+    let mut s = session();
+    rect(&mut s, 100.0, 100.0, 60.0, 80.0);
+    let id = id_of(&s.execute("object.repeat.mirror", &json!({})).unwrap());
+    let before = node(&s, id);
+    let axis = mirror_axis(&s);
+    let v = ViewInfo::default();
+    s.select_tool("selection", v).unwrap();
+    let h = super::tests::history(&s);
+    for (kind, dx) in [(PointerKind::Down, 0.0), (PointerKind::Drag, 20.0), (PointerKind::Drag, 30.0), (PointerKind::Up, 40.0)] {
+        s.pointer(&PointerEvent::new(kind, axis.center.x + dx, axis.center.y), v).unwrap();
+        assert!(close(mirror_axis(&s).center, axis.center + vectorcraft_geom::Vec2::new(dx, 0.0)));
+    }
+    assert_eq!(super::tests::history(&s).0, h.0 + 1);
+    let after = node(&s, id);
+    let (NodeKind::Repeat(a), NodeKind::Repeat(b)) = (&before.kind, &after.kind) else { panic!() };
+    assert_eq!(a.source, b.source, "moving the mirror axis leaves the source artwork in place");
+    assert_ne!(a.transforms(None), b.transforms(None), "the reflected copy updates live");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(node(&s, id), before);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(node(&s, id), after);
+}
+
+#[test]
+fn mirror_axis_rotation_snaps_and_escape_restores_document_and_history() {
+    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    let mut s = session();
+    rect(&mut s, 100.0, 100.0, 60.0, 80.0);
+    let id = id_of(&s.execute("object.repeat.mirror", &json!({})).unwrap());
+    let v = ViewInfo::default();
+    s.select_tool("selection", v).unwrap();
+    let before = node(&s, id);
+    let h = super::tests::history(&s);
+    let axis = mirror_axis(&s);
+    let end = axis.ends[1];
+    let destination = axis.center + vectorcraft_geom::Vec2::new(70.0, 60.0);
+    s.pointer(&PointerEvent::new(PointerKind::Down, end.x, end.y), v).unwrap();
+    let shift = Mods { shift: true, ..Default::default() };
+    s.pointer(&PointerEvent::new(PointerKind::Drag, destination.x, destination.y).with_mods(shift), v).unwrap();
+    assert!((mirror_axis(&s).angle - 45.0).abs() < 1e-6);
+    assert_eq!(mirror_axis(&s).center, axis.center);
+    s.tool_key(ToolKey::Escape, Mods::default(), v).unwrap();
+    assert!(!s.tool_busy());
+    s.pointer(&PointerEvent::new(PointerKind::Up, destination.x, destination.y), v).unwrap();
+    assert_eq!(node(&s, id), before);
+    assert_eq!(super::tests::history(&s), h);
+    // A click is not an edit, and a subsequent real drag still works after cancellation.
+    s.pointer(&PointerEvent::new(PointerKind::Down, end.x, end.y), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Up, end.x, end.y), v).unwrap();
+    assert_eq!(super::tests::history(&s), h);
+    s.pointer(&PointerEvent::new(PointerKind::Down, end.x, end.y), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Up, destination.x, destination.y).with_mods(shift), v).unwrap();
+    assert!((mirror_axis(&s).angle - 45.0).abs() < 1e-6);
+    assert_eq!(super::tests::history(&s).0, h.0 + 1);
+}
+
+#[test]
+fn mirror_axis_hidden_controls_and_other_repeat_kinds_do_not_capture_drags() {
+    use vectorcraft_tools::{PointerEvent, PointerKind};
+    for command in ["object.repeat.mirror", "object.repeat.radial", "object.repeat.grid"] {
+        let mut s = session();
+        rect(&mut s, 100.0, 100.0, 60.0, 80.0);
+        let id = id_of(&s.execute(command, &json!({})).unwrap());
+        let before = node(&s, id);
+        let st = s.active().unwrap();
+        if command != "object.repeat.mirror" {
+            assert!(vectorcraft_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, 1.0).is_none());
+        }
+        let v = ViewInfo { show_bbox: false, ..Default::default() };
+        s.select_tool("selection", v).unwrap();
+        // Away from every instance: the hidden axis's top handle cannot edit the repeat.
+        s.pointer(&PointerEvent::new(PointerKind::Down, 170.0, 76.0), v).unwrap();
+        s.pointer(&PointerEvent::new(PointerKind::Drag, 200.0, 80.0), v).unwrap();
+        s.pointer(&PointerEvent::new(PointerKind::Up, 200.0, 80.0), v).unwrap();
+        assert_eq!(node(&s, id), before);
+    }
 }
