@@ -351,6 +351,12 @@ font-technology	Variable	Варіативні
 	Apply Bullets	Застосувати маркери
 	Numbered List	Нумерований список
 	Apply Numbers	Застосувати нумерацію
+	Bullets and Numbering…	Маркери та нумерація…
+	Numbers	Номери
+	Bullet Character:	Символ маркера:
+	Number Style:	Стиль нумерації:
+	Left Indent:	Відступ зліва:
+	First Line Indent:	Відступ першого рядка:
 	Filled Dot	Заповнена крапка
 	Dash	Тире
 	Hollow Circle	Порожнє коло
@@ -2366,7 +2372,7 @@ diagnostics	ui	інтерфейс
 	Portrait	Книжкова
 	Power Saving (integrated)	Енергозбереження (вбудована)
 	Portuguese	Португальська
-	Position	Становище
+	Position	Положення
 	Postcard	Листівка
 	PostScript:	PostScript:
 	PPI	PPI

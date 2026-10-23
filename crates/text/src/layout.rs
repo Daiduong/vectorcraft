@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use kurbo::{Affine, BezPath, PathEl, Point, Rect, Shape, Vec2};
 use unicode_bidi::{BidiInfo, Level};
-use vectorcraft_doc::text::Kashida;
+use vectorcraft_doc::text::{Kashida, ListAlign};
 use vectorcraft_doc::{
     Burasagari, CharStyle, HyphenationOptions, InlineArt, Justify, Kinsoku, LeadingModel, Mojikumi, ParaDirection, ParaStyle, PathAlign, PathEffect,
     RubyAlign, RubyPosition, SingleWordJustify, TextKind, TextObject,
@@ -120,11 +120,14 @@ impl Ctx<'_> {
     /// marker). The marker's characters are set in
     /// [`vectorcraft_doc::text::ParaList::marker_style`], and a tab after them takes the text to
     /// the next tab stop past them on the first line, the left indent counting as a stop when no
-    /// explicit stop comes before it. In a horizontal right-to-left paragraph, whose indents are
-    /// mirrored ([`line_indents`]), these are measured from the right, and a number reads left to
-    /// right with its period at its left. The tab keeps that width however the line is aligned or
-    /// justified. Each of these glyphs stands for no character of the text: length 0, at the
-    /// paragraph's first byte, in its first character's run, at the paragraph's embedding level.
+    /// explicit stop comes before it. With the list's [`ListAlign::Right`] that tab goes before
+    /// them instead, with the same width: the marker ends where the text starts, and the text
+    /// starts where it does with [`ListAlign::Left`]. In a horizontal right-to-left paragraph,
+    /// whose indents are mirrored ([`line_indents`]), these are measured from the right, and a
+    /// number reads left to right with its period at its left. The tab keeps that width however
+    /// the line is aligned or justified. Each of these glyphs stands for no character of the
+    /// text: length 0, at the paragraph's first byte, in its first character's run, at the
+    /// paragraph's embedding level.
     fn prepend_marker(&self, pr: &Range<usize>, para: &ParaStyle, text: Option<&str>, rtl: bool, sg: &mut Vec<SGlyph>) -> usize {
         let Some(text) = text.filter(|_| para.list.is_some() && !pr.is_empty()) else { return 0 };
         let st = vectorcraft_doc::text::ParaList::marker_style(self.style_at(pr.start));
@@ -157,7 +160,11 @@ impl Ctx<'_> {
         let to_indent = para.left_indent - pen;
         let stop_before_indent = para.tabs.iter().any(|t| t.position > pen + EPS && t.position < para.left_indent - EPS);
         tab.adv = if to_indent > EPS && !stop_before_indent { to_indent } else { tab_advance(&para.tabs, 0.0, pen, sg).0 };
-        marker.push(tab);
+        if para.list.is_some_and(|l| l.align == ListAlign::Right) {
+            marker.insert(0, tab);
+        } else {
+            marker.push(tab);
+        }
         let n = marker.len();
         sg.splice(0..0, marker);
         n
@@ -1394,7 +1401,7 @@ fn tab_advance<'t>(tabs: &'t [vectorcraft_doc::TabStop], origin: f64, x: f64, re
 
 /// The width of glyphs `from..to` of `sg` set on a line whose content starts `x_start` from the
 /// tab origin: tabs of the text take what [`tab_advance`] gives them, not the width of their
-/// glyph. The tab after a list marker (length 0) keeps its own width.
+/// glyph. The tab of a list marker (length 0) keeps its own width.
 fn set_width(sg: &[SGlyph], from: usize, to: usize, tabs: &[vectorcraft_doc::TabStop], x_start: f64) -> f64 {
     let mut x = x_start;
     for (j, g) in sg.iter().enumerate().take(to).skip(from) {
@@ -1512,7 +1519,8 @@ fn break_line(
                 }
             }
         }
-        let cluster_width: f64 = if gl.ch == '\t' {
+        // A list marker's glyphs, its tab included, keep their own widths.
+        let cluster_width: f64 = if gl.ch == '\t' && gl.len > 0 {
             tab_advance(tabs, 0.0, x_start + x, g.get(cluster_end..).unwrap_or_default()).0
         } else {
             g[j..cluster_end].iter().map(|glyph| glyph.adv).sum()
@@ -1544,14 +1552,14 @@ fn break_line(
     if j >= g.len() {
         return (g.len(), false);
     }
-    // Hyphenate the word that overflows.
-    let word_start = last_break.map_or(i, |b| b.0);
+    // Hyphenate the word that overflows. A list marker starting the line is not part of a word.
+    let word_start = last_break.map_or(first, |b| b.0);
     let in_zone = |zone: f64| {
         let mut te = word_start;
-        while te > i && g[te - 1].is_space() {
+        while te > first && g[te - 1].is_space() {
             te -= 1;
         }
-        te > i && zone > 0.0 && width - g[i..te].iter().map(|g| g.adv).sum::<f64>() <= zone + EPS
+        te > first && zone > 0.0 && width - g[i..te].iter().map(|g| g.adv).sum::<f64>() <= zone + EPS
     };
     if let Some((opts, zone)) = hyphenate
         && g[j].is_letter()
@@ -1916,7 +1924,9 @@ fn candidates(text: &str, g: &[SGlyph], hyphenate: Option<&HyphenationOptions>, 
     let mut v = vec![];
     let mut ws = 0;
     for (j, gl) in g.iter().enumerate() {
-        let end_of_word = gl.is_space() || gl.break_after();
+        // A list marker (the glyphs of length 0 here) ends before the first word.
+        let marker_end = gl.len == 0 && g.get(j + 1).is_some_and(|n| n.len > 0);
+        let end_of_word = gl.is_space() || gl.break_after() || marker_end;
         if end_of_word {
             if let Some(opts) = hyphenate
                 && j > ws
@@ -1971,7 +1981,7 @@ fn compose_para(
     let may_hang = para.burasagari != Burasagari::None && sg.iter().any(hangs);
     // A tab's width depends on where it falls in its line, which the composer's fixed glyph widths
     // can't follow: such a paragraph is broken line by line ([`break_line`] measures its tabs).
-    // The tab after a list marker always starts the first line and has a fixed width.
+    // The tab of a list marker is on the first line, with the marker, and has a fixed width.
     let has_tab = sg.iter().any(|g| g.ch == '\t' && g.len > 0);
     if composer != Composer::EveryLine || pen.regions.is_none() || sg.len() < 2 || sg.len() > MAX_COMPOSE_GLYPHS || may_hang || has_tab {
         return None;
@@ -2419,7 +2429,7 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                 let mut scale = 1.0;
                 let mut leader = "";
                 if g.ch == '\t' {
-                    // The tab after a list marker keeps the width `prepend_marker` gave it.
+                    // The tab of a list marker keeps the width `prepend_marker` gave it.
                     if g.len > 0 {
                         (adv, leader) = tab_advance(&para.tabs, tab_origin, x - tab_shift, &sg[j + 1..trimmed.max(j + 1)]);
                     }
@@ -2457,7 +2467,7 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                 if j < marker {
                     let at = cx.out.glyphs.len();
                     marker_glyphs = Some(marker_glyphs.map_or(at..at + 1, |r: Range<usize>| r.start.min(at)..r.end.max(at + 1)));
-                    if j + 1 == marker {
+                    if g.ch == '\t' {
                         marker_tab = at;
                     }
                 }
