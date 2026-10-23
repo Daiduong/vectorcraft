@@ -78,7 +78,7 @@ pub use save::{
     save_with, stamp_save_dates, template_filters, templates_dialog_folder, templates_folder,
 };
 pub use screens::{
-    PRESET_KEYS as SCREEN_EXPORT_PRESET_KEYS, PRESETS as SCREEN_PRESETS, ScreenExportPreset, ScreenSize,
+    PRESET_KEYS as SCREEN_EXPORT_PRESET_KEYS, PRESETS as SCREEN_PRESETS, ScreenExport, ScreenExportPreset, ScreenSize,
     builtin_presets as screen_export_builtin_presets, first_file as screen_first_file, preset_rows as screen_preset_rows,
 };
 pub(crate) use screens::{
@@ -793,6 +793,17 @@ pub fn open_filters() -> impl Iterator<Item = (&'static str, &'static [&'static 
         .chain(std::iter::once(("Plug-ins", super::plugin::EXTS)))
 }
 
+/// Open-dialog filters for Swatch Libraries and Graphic Style Libraries Other Library… and Locate
+/// Library…. The library formats come first so Linux file portals (which grey out files that don't
+/// match the default filter) still list `.ase` and the other library extensions; then the same
+/// filters as [`open_filters`] so a document can be picked for its swatches or graphic styles.
+pub fn library_open_filters(
+    library_label: &'static str,
+    library_exts: &'static [&'static str],
+) -> impl Iterator<Item = (&'static str, &'static [&'static str])> {
+    std::iter::once((library_label, library_exts)).chain(open_filters())
+}
+
 /// File → Place dialog filters: "All placeable files", then one per placeable format, then text,
 /// RTF and Word.
 pub fn place_filters() -> impl Iterator<Item = (&'static str, &'static [&'static str])> {
@@ -860,9 +871,12 @@ pub fn file_stem(name: &str) -> String {
 /// document that only has the Untitled-N name New gave it is titled after its file, as its tab is
 /// (the title PDF, PNG and SVG metadata carry). A title of its own stays, and native files keep
 /// the stored title.
+pub fn has_own_title(doc: &vectorcraft_doc::Document) -> bool {
+    !doc.title.trim().is_empty() && !doc.title.strip_prefix("Untitled-").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+}
+
 pub fn titled_for_export(doc: &vectorcraft_doc::Document, path: Option<&str>, format: &str) -> Option<vectorcraft_doc::Document> {
-    let untitled = doc.title.strip_prefix("Untitled-").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
-    let path = path.filter(|_| untitled && !matches!(format, "vectorcraft" | "template" | "ai"))?;
+    let path = path.filter(|_| !has_own_title(doc) && !matches!(format, "vectorcraft" | "template" | "ai"))?;
     let mut d = doc.clone();
     d.title = file_stem(path);
     Some(d)

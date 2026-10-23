@@ -44,6 +44,7 @@ pub mod perspective;
 mod pixels;
 pub use pixels::MAX_RASTER_ALLOC;
 pub mod placed_document;
+pub mod plugin_data;
 pub mod profiles;
 pub mod puppet;
 pub mod range;
@@ -99,17 +100,17 @@ pub use graph::{
 };
 pub use hit::{Hit, HitKind};
 pub use links::{LinkInfo, PlacementOptions};
-pub use live::{BlendOrientation, BlendSpacing, BlendSpec, EnvelopeKind, GradientMesh, MeshPoint};
+pub use live::{BlendEase, BlendEaseType, BlendOrientation, BlendSpacing, BlendSpec, EnvelopeKind, GradientMesh, MeshPoint};
 pub use live_paint::{GapOptions, GapSize};
 pub use metadata::{CopyrightStatus, DocMetadata};
 pub use node::Knockout;
 pub use node::Scaling;
 pub use node::{Extras, ExtrasMut, ImageObject, LAYER_COLORS, LayerColor, LiveShape, Node, NodeExtras, NodeId, NodeKind, OpacityMask};
-pub use node::{ImageMap, MAX_SVG_SCRIPTS, ObjectAttributes, SVG_EVENTS};
+pub use node::{ForeignAttribute, ImageMap, MAX_SVG_SCRIPTS, ObjectAttributes, SVG_EVENTS};
 pub use orient::OrientedBox;
 pub use pattern::{Overlap, PatternDef, PatternEdit, RepeatKind, RepeatSpec, TileType};
 pub use perspective::PerspectiveAttachment;
-pub use placed_document::PlacedDocument;
+pub use placed_document::{PageBox, PlacedDocument};
 pub use profiles::ColorProfiles;
 pub use puppet::{PuppetPin, PuppetPins};
 pub use rastersettings::{RasterColorModel, RasterEffectsSettings};
@@ -119,8 +120,8 @@ pub use slices::{CellAlign, CellVAlign, Slice, SliceArea, SliceKind, SliceOption
 pub use style_libs::StyleLibrary;
 pub use text::{
     AreaFit, AreaOptions, Burasagari, CharAlign, CharPosition, CharStyle, Composer, Digits, FirstBaseline, HyphenationOptions, InlineArt,
-    JustificationOptions, Justify, Kinsoku, LeadingModel, Mojikumi, ParaDirection, ParaStyle, PathAlign, PathEffect, ScriptMetrics,
-    SingleWordJustify, TabAlign, TabStop, TextKind, TextObject, TextRun, TextStyleDef, TextWrap, VerticalAlign, WrapShape,
+    JustificationOptions, Justify, Kinsoku, LeadingModel, Mojikumi, ParaDirection, ParaStyle, PathAlign, PathEffect, RubyAlign, RubyPosition,
+    RubySpan, ScriptMetrics, SingleWordJustify, TabAlign, TabStop, TextKind, TextObject, TextRun, TextStyleDef, TextWrap, VerticalAlign, WrapShape,
 };
 pub use trace::TraceView;
 pub use variables::{DataSet, DataValue, Variable, VariableKind, Variables};
@@ -378,7 +379,9 @@ fn parse_measure(s: &str, default: Unit) -> Option<f64> {
 /// A number with an optional unit suffix (`12`, `3 mm`, `2in`) → (the number, its unit).
 fn number_unit(s: &str) -> Option<(f64, Option<Unit>)> {
     let s = s.trim();
-    let num_end = s.find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-')).unwrap_or(s.len());
+    // A leading `+` is a sign (`+5`), like `-`.
+    let sign = usize::from(s.starts_with('+'));
+    let num_end = s.get(sign..)?.find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-')).map_or(s.len(), |i| i + sign);
     let v: f64 = s.get(..num_end)?.trim().parse().ok()?;
     let unit = match s.get(num_end..)?.trim() {
         "" => None,
@@ -444,8 +447,13 @@ pub struct Artboard {
     /// selected ([`Document::new_art`]).
     #[serde(default, skip_serializing_if = "skip::is_default")]
     pub locked: bool,
+    /// Show Center Mark (Artboard Options): the canvas draws a mark at the artboard's center.
+    /// Exports and print leave it out. Always written, as before it could be set.
     #[serde(default)]
     pub show_center_mark: bool,
+    /// Show Cross Hairs (Artboard Options): the canvas draws a line from the middle of each side
+    /// through the center. Exports and print leave them out. Always written, as before it could
+    /// be set.
     #[serde(default)]
     pub show_cross_hairs: bool,
     /// Background color (Properties › Artboards › Fill, Artboard Options). The canvas draws the
@@ -935,6 +943,136 @@ type Places = BTreeMap<Vec<usize>, Vec<(usize, usize)>>;
 pub const FORMAT_VERSION: u32 = 1;
 
 impl Document {
+    /// Is everything but the layers the same in `other`, as the next version of the document after
+    /// an edit of its art? The id counter and the id index are left out, and art outside the layers
+    /// (symbols, patterns, graph designs) compares by identity, which an edit keeps for what it
+    /// doesn't change: quick for every frame of an animation.
+    pub fn same_outside_layers(&self, other: &Self) -> bool {
+        let same_art = |a: &[Arc<Node>], b: &[Arc<Node>]| a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Arc::ptr_eq(a, b));
+        let same_pattern = |a: &PatternDef, b: &PatternDef| {
+            same_art(&a.art, &b.art) && PatternDef { art: Vec::new(), ..a.clone() } == PatternDef { art: Vec::new(), ..b.clone() }
+        };
+        let Self {
+            version,
+            title,
+            template,
+            units,
+            ruler_origin,
+            rulers,
+            artboard_ruler_origins,
+            color_mode,
+            artboards,
+            layers: _,
+            swatches,
+            swatch_groups,
+            graphic_styles,
+            char_styles,
+            para_styles,
+            text_threads,
+            symbols,
+            graph_designs,
+            guides,
+            views,
+            saved_selections,
+            variables,
+            grid,
+            raster_effects_ppi,
+            images,
+            patterns,
+            pattern_edit,
+            mask_edit,
+            next_id: _,
+            unknown,
+            page_isolate,
+            page_knockout,
+            spot_use_lab,
+            setup,
+            paste_remembers_layers,
+            metadata,
+            raster_effects,
+            last_view,
+            transparency_grid,
+            layers_open,
+            color_profiles,
+            export_settings,
+            extra,
+            slices,
+            slices_clip_to_artboard,
+            print_setup,
+            assets,
+            svg_scripts,
+            puppet,
+            new_art,
+            dimensions,
+            index: _,
+        } = self;
+        *version == other.version
+            && *title == other.title
+            && *template == other.template
+            && *units == other.units
+            && *ruler_origin == other.ruler_origin
+            && *rulers == other.rulers
+            && *artboard_ruler_origins == other.artboard_ruler_origins
+            && *color_mode == other.color_mode
+            && *artboards == other.artboards
+            && *swatches == other.swatches
+            && *swatch_groups == other.swatch_groups
+            && *graphic_styles == other.graphic_styles
+            && *char_styles == other.char_styles
+            && *para_styles == other.para_styles
+            && *text_threads == other.text_threads
+            && symbols.len() == other.symbols.len()
+            && symbols.iter().zip(&other.symbols).all(|(a, b)| a.name == b.name && Arc::ptr_eq(&a.art, &b.art))
+            && graph_designs.len() == other.graph_designs.len()
+            && graph_designs.iter().zip(&other.graph_designs).all(|(a, b)| a.name == b.name && Arc::ptr_eq(&a.art, &b.art))
+            && *guides == other.guides
+            && *views == other.views
+            && *saved_selections == other.saved_selections
+            && *variables == other.variables
+            && *grid == other.grid
+            && *raster_effects_ppi == other.raster_effects_ppi
+            && *images == other.images
+            && patterns.len() == other.patterns.len()
+            && patterns.iter().zip(&other.patterns).all(|(a, b)| same_pattern(a, b))
+            && match (pattern_edit, &other.pattern_edit) {
+                (Some(a), Some(b)) => {
+                    a.pattern == b.pattern
+                        && a.layer == b.layer
+                        && match (&a.original, &b.original) {
+                            (Some(a), Some(b)) => same_pattern(a, b),
+                            (a, b) => a.is_none() && b.is_none(),
+                        }
+                }
+                (a, b) => a.is_none() && b.is_none(),
+            }
+            && *mask_edit == other.mask_edit
+            && *unknown == other.unknown
+            && *page_isolate == other.page_isolate
+            && *page_knockout == other.page_knockout
+            && *spot_use_lab == other.spot_use_lab
+            && *setup == other.setup
+            && *paste_remembers_layers == other.paste_remembers_layers
+            && *metadata == other.metadata
+            && *raster_effects == other.raster_effects
+            && *last_view == other.last_view
+            && *transparency_grid == other.transparency_grid
+            && *layers_open == other.layers_open
+            && *color_profiles == other.color_profiles
+            && *export_settings == other.export_settings
+            && *extra == other.extra
+            && *slices == other.slices
+            && *slices_clip_to_artboard == other.slices_clip_to_artboard
+            && *print_setup == other.print_setup
+            && *assets == other.assets
+            && *svg_scripts == other.svg_scripts
+            && match (puppet, &other.puppet) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (a, b) => a.is_none() && b.is_none(),
+            }
+            && *new_art == other.new_art
+            && *dimensions == other.dimensions
+    }
+
     /// Document Raster Effects Settings › Resolution in ppi, 1 to 2400 (72 when the stored value
     /// isn't a number).
     pub fn raster_ppi(&self) -> f64 {

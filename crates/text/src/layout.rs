@@ -7,7 +7,7 @@ use unicode_bidi::{BidiInfo, Level};
 use vectorcraft_doc::text::Kashida;
 use vectorcraft_doc::{
     Burasagari, CharStyle, HyphenationOptions, InlineArt, Justify, Kinsoku, LeadingModel, Mojikumi, ParaDirection, ParaStyle, PathAlign, PathEffect,
-    SingleWordJustify, TextKind, TextObject,
+    RubyAlign, RubyPosition, SingleWordJustify, TextKind, TextObject,
 };
 use vectorcraft_geom::{ArcPath, PathData};
 
@@ -37,6 +37,8 @@ struct Ctx<'a> {
     /// a quarter turn back (see [`stands_upright`]); [`TextLayout::line_xf`] then stands the lines
     /// up as columns.
     vertical: bool,
+    /// Character panel menu › System Layout. On: positive advances are whole points.
+    system_layout: bool,
     /// Character panel menu › Fractional Widths. Off, positive advances are whole points.
     fractional_widths: bool,
     out: TextLayout,
@@ -48,13 +50,33 @@ impl Ctx<'_> {
         find(b).or_else(|| b.checked_sub(1).and_then(find)).or_else(|| self.runs.first().map(|(_, s)| *s)).unwrap_or(&self.default)
     }
 
+    /// The stretches of paragraph `r` whose characters have a Character Direction, as byte ranges
+    /// from `r.start` with their direction, in order; neighboring runs of one direction make one
+    /// stretch.
+    fn char_directions(&self, r: &Range<usize>) -> Vec<(Range<usize>, ParaDirection)> {
+        let mut out: Vec<(Range<usize>, ParaDirection)> = Vec::new();
+        for (rr, st) in &self.runs {
+            let (a, b) = (rr.start.max(r.start), rr.end.min(r.end));
+            let Some(d) = st.char_direction.filter(|_| a < b) else { continue };
+            let (a, b) = (a - r.start, b - r.start);
+            match out.last_mut() {
+                Some((prev, pd)) if *pd == d && prev.end == a => prev.end = b,
+                _ => out.push((a..b, d)),
+            }
+        }
+        out
+    }
+
     /// Shape paragraph `r` (its bidi resolution `bidi`).
     fn shape_para(&self, r: Range<usize>, bidi: Option<&BidiInfo<'_>>) -> Vec<SGlyph> {
         let mut v = Vec::with_capacity(r.len());
         let levels = bidi.map_or(&[][..], |b| &b.levels);
         shape_range(self.db, self.text, r, &self.runs, &self.inlines, &self.opts.features, levels, &mut v);
         if self.vertical {
-            tate_chu_yoko(&mut v, |g| self.style_at(g.byte).size);
+            tate_chu_yoko(&mut v, |g| {
+                let st = self.style_at(g.byte);
+                (st.size, st.tate_chu_yoko)
+            });
             // An upright glyph advances down the column by its vertical advance (the font's vertical
             // metrics; without them at least one em, as CJK fonts' is), centred across it: a narrow
             // mark like § must not overlap its neighbours.
@@ -73,16 +95,39 @@ impl Ctx<'_> {
                 }
             }
         }
-        // Fractional Widths off: whole-point advances, after tate-chu-yoko and the upright cell
-        // have set the widths the line breaker will use. A zero advance stays zero.
-        if !self.fractional_widths {
+        // System Layout or Fractional Widths off: whole-point advances, after tate-chu-yoko and the
+        // upright cell have set the widths the line breaker will use. A zero advance stays zero.
+        if self.system_layout || !self.fractional_widths {
             whole_character_widths(&mut v);
         }
         v
     }
 
     fn emit(&mut self, g: &SGlyph, pre: Affine, origin: Point, angle: f64, advance: f64, line: usize) {
-        let src = if g.inline.is_some() { std::sync::Arc::new(BezPath::new()) } else { self.db.outline(&g.face, g.gid) };
+        // Control characters (tabs) and soft hyphens draw nothing (fonts map them to .notdef).
+        let blank = g.is_soft_hyphen() || g.ch.is_control();
+        // A colour glyph draws its art (COLR layers, an SVG document) or its image (a bitmap, or
+        // COLR paints documents have no form for), not its outline; COLR, then SVG, then bitmaps.
+        // Art in the text's colours takes the run's fill (black when it isn't a colour) and
+        // stroke.
+        let plain = g.inline.is_some() || blank;
+        let colour_of = |p: &vectorcraft_doc::color::Paint| match p {
+            vectorcraft_doc::color::Paint::Solid { color, .. } => Some(*color),
+            _ => None,
+        };
+        let st = self.style_at(g.byte);
+        let foreground = colour_of(&st.fill).unwrap_or(vectorcraft_doc::color::Color::BLACK);
+        let stroke = colour_of(&st.stroke).filter(|_| st.has_stroke());
+        let (colour, image) = match (!plain).then(|| self.db.glyph_colour(&g.face, g.gid, foreground, stroke)).flatten() {
+            Some(crate::colr::ColourContent::Art(art)) => (Some(art), None),
+            Some(crate::colr::ColourContent::Image(image)) => (None, Some(image)),
+            None => (None, (!plain).then(|| self.db.glyph_image(&g.face, g.gid)).flatten()),
+        };
+        let src = if g.inline.is_some() || image.is_some() || colour.is_some() {
+            std::sync::Arc::new(BezPath::new())
+        } else {
+            self.db.outline(&g.face, g.gid)
+        };
         // A glyph whose leading space was taken off (mojikumi) is drawn that much earlier: an
         // upright one in vertical type by moving it up the column once it stands upright.
         let upright = self.vertical && !self.on_path && g.tcy.is_none() && stands_upright(g);
@@ -118,8 +163,7 @@ impl Ctx<'_> {
                 * Affine::rotate_about(-std::f64::consts::FRAC_PI_2, Point::new(origin.x + cell * 0.5, origin.y - upright_centre(g, cell, em)))
                 * m;
         }
-        // Control characters (tabs) and soft hyphens draw nothing (fonts map them to .notdef).
-        let outline = if src.elements().is_empty() || g.is_soft_hyphen() || g.ch.is_control() {
+        let outline = if src.elements().is_empty() || blank {
             BezPath::new()
         } else {
             let mut p = BezPath::with_capacity(src.elements().len());
@@ -147,6 +191,8 @@ impl Ctx<'_> {
             // Vertical type keeps its logical order down the column.
             rtl: g.level.is_rtl() && !self.vertical,
             scale: 1.0,
+            image,
+            colour,
         });
     }
 
@@ -387,6 +433,7 @@ fn layout_once(db: &FontDb, t: &TextObject, opts: &LayoutOptions) -> TextLayout 
         default: CharStyle::default(),
         opts,
         vertical,
+        system_layout: t.system_layout,
         fractional_widths: t.fractional_widths,
         out: TextLayout::default(),
     };
@@ -421,9 +468,23 @@ fn layout_once(db: &FontDb, t: &TextObject, opts: &LayoutOptions) -> TextLayout 
         }
         TextKind::OnPath { path, .. } => on_path(&mut cx, &paras, t, path),
     }
+    // Ruby (furigana): placed over its base text in line space, before vertical type turns the
+    // lines into columns, so the same pass puts it above (right in vertical type) and widens the
+    // lines it sits on. Type on a path has no above/below; its ruby is left out for now.
+    if !is_on_path && !t.ruby.is_empty() {
+        ruby_layout(&mut cx, t);
+    }
     if vertical && !is_on_path {
         // Glyph origins, outlines and transforms to text space (lines stay in line space).
         for g in &mut cx.out.glyphs {
+            g.outline.apply_affine(line_xf);
+            g.xf = line_xf * g.xf;
+            g.origin = line_xf * g.origin;
+            g.angle += std::f64::consts::FRAC_PI_2;
+        }
+        // Ruby glyphs are placed in line space too (upright, along the column, in the vertical
+        // pass); the same turn takes them to text space.
+        for g in &mut cx.out.ruby {
             g.outline.apply_affine(line_xf);
             g.xf = line_xf * g.xf;
             g.origin = line_xf * g.origin;
@@ -440,9 +501,9 @@ fn layout_once(db: &FontDb, t: &TextObject, opts: &LayoutOptions) -> TextLayout 
     cx.out
 }
 
-/// Fractional Widths off: each character that takes space advances by a whole number of points,
-/// at least one, so small type does not collapse onto itself. A zero advance (a tate-chu-yoko
-/// continuation, a zero-width mark) stays zero.
+/// System Layout on or Fractional Widths off: each character that takes space advances by a whole
+/// number of points, at least one, so small type does not collapse onto itself. A zero advance (a
+/// tate-chu-yoko continuation, a zero-width mark) stays zero.
 fn whole_character_widths(glyphs: &mut [SGlyph]) {
     for g in glyphs {
         if g.adv.is_finite() && g.adv > 0.0 {
@@ -451,35 +512,56 @@ fn whole_character_widths(glyphs: &mut [SGlyph]) {
     }
 }
 
-/// Tate-chu-yoko: a run of two or three half-width digits (`10`月, `100`年) stands upright across
-/// the column as one block one em long, squeezed to the em when wider; longer numbers (`2026`)
-/// stay on their side.
-fn tate_chu_yoko(g: &mut [SGlyph], size: impl Fn(&SGlyph) -> f64) {
-    let digits: Vec<bool> = g.iter().map(|g| g.ch.is_ascii_digit()).collect();
-    let digit = |i: usize| digits.get(i).copied().unwrap_or(false);
+/// Tate-chu-yoko: a horizontal block one em of the column long, squeezed to the em when wider.
+///
+/// Automatic: a run of two or three half-width digits (`10`月, `100`年). A single digit and a
+/// longer number (`2026`) stay on their side.
+///
+/// Manual (Character panel menu › Tate-chu-yoko): any characters marked `tateChuYoko`, including
+/// one character, letters and numbers longer than three digits. Marked characters are taken
+/// before the automatic digit rule.
+/// <https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html>
+fn tate_chu_yoko(g: &mut [SGlyph], style: impl Fn(&SGlyph) -> (f64, bool)) {
+    let manual: Vec<bool> = g.iter().map(|gl| style(gl).1).collect();
+    let digits: Vec<bool> = g.iter().map(|gl| gl.inline.is_none() && gl.ch.is_ascii_digit()).collect();
     let mut i = 0;
     while i < g.len() {
-        if !digit(i) {
+        if manual.get(i).copied().unwrap_or(false) {
+            let mut end = i + 1;
+            while manual.get(end).copied().unwrap_or(false) {
+                end += 1;
+            }
+            let em = style(&g[i]).0;
+            place_tcy_block(&mut g[i..end], em);
+            i = end;
+            continue;
+        }
+        if !digits.get(i).copied().unwrap_or(false) {
             i += 1;
             continue;
         }
-        let mut end = i;
-        while digit(end) {
+        let mut end = i + 1;
+        while digits.get(end).copied().unwrap_or(false) && !manual.get(end).copied().unwrap_or(false) {
             end += 1;
         }
         if (2..=3).contains(&(end - i)) {
-            let em = size(&g[i]);
-            let width: f64 = g[i..end].iter().map(|g| g.adv).sum();
-            let squeeze = if width > em && width > 0.0 { em / width } else { 1.0 };
-            let mut ink = 0.0;
-            for (k, gl) in g[i..end].iter_mut().enumerate() {
-                let adv = gl.adv;
-                gl.tcy = Some(Tcy { pen: if k == 0 { 0.0 } else { em }, ink, width, squeeze });
-                gl.adv = if k == 0 { em } else { 0.0 };
-                ink += adv;
-            }
+            let em = style(&g[i]).0;
+            place_tcy_block(&mut g[i..end], em);
         }
         i = end;
+    }
+}
+
+/// Lay `g` across one em of the column. The first glyph takes the em; the rest share its cell.
+fn place_tcy_block(g: &mut [SGlyph], em: f64) {
+    let width: f64 = g.iter().map(|gl| gl.adv).sum();
+    let squeeze = if width > em && width > 0.0 { em / width } else { 1.0 };
+    let mut ink = 0.0;
+    for (k, gl) in g.iter_mut().enumerate() {
+        let adv = gl.adv;
+        gl.tcy = Some(Tcy { pen: if k == 0 { 0.0 } else { em }, ink, width, squeeze });
+        gl.adv = if k == 0 { em } else { 0.0 };
+        ink += adv;
     }
 }
 
@@ -662,6 +744,18 @@ fn finish_bounds(out: &mut TextLayout) {
     let mut b: Option<Rect> = None;
     let mut add = |r: Rect| b = Some(b.map_or(r, |b| b.union(r)));
     for g in &out.glyphs {
+        if !g.outline.elements().is_empty() {
+            add(g.outline.bounding_box());
+        }
+        if let Some((image, xf)) = g.placed_image() {
+            add(xf.transform_rect_bbox(image.rect()));
+        }
+        if let Some(b) = g.colour.as_ref().and_then(|c| c.geometric_bounds()) {
+            add(g.xf.transform_rect_bbox(b));
+        }
+    }
+    // Ruby: covered by its line's ascent, but its ink can overhang sideways past the line.
+    for g in &out.ruby {
         if !g.outline.elements().is_empty() {
             add(g.outline.bounding_box());
         }
@@ -1861,7 +1955,7 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
         // its first line) follow its own.
         pen.model = para.leading_model;
         let text = cx.text;
-        let bidi = para_bidi(text.get(pr.clone()).unwrap_or_default(), para.direction);
+        let bidi = para_bidi_with(text.get(pr.clone()).unwrap_or_default(), para.direction, &cx.char_directions(pr));
         let rtl = is_rtl(bidi.as_ref());
         let mut sg = cx.shape_para(pr.clone(), bidi.as_ref());
         // Thai, Lao, Khmer and Myanmar break lines between words, not at spaces.
@@ -1975,9 +2069,23 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                 None => 0.0,
             };
             let w: f64 = set_width(&sg, i, trimmed, &para.tabs, ind_l) + hyphen.as_ref().map_or(0.0, |h| h.adv) - end_trim;
+            let line_start = sg.get(i).map_or(pr.start, |g| g.byte);
+            let line_end = sg.get(end).map_or(pr.end, |g| g.byte);
+            let order = visual_order(bidi.as_ref().filter(|_| !cx.vertical), pr.start, line_start..line_end, &sg[i..end]);
+            // Optical Margin Alignment or Roman Hanging Punctuation: the share of a glyph that hangs.
+            let share: Option<fn(&SGlyph) -> f64> =
+                (t.optical_margin || para.roman_hanging).then_some(if t.optical_margin { optical_share } else { roman_share });
+            // The glyphs before `stop` in visual order, each with the advance it is set with.
+            let visible = |stop: usize| -> (Vec<usize>, Vec<(&SGlyph, f64)>) {
+                let at: Vec<usize> = order.iter().map(|&offset| i + offset).filter(|&j| j < stop).collect();
+                let glyphs = at.iter().filter_map(|&j| sg.get(j).map(|g| (g, if j + 1 == trimmed { g.adv - end_trim } else { g.adv }))).collect();
+                (at, glyphs)
+            };
             // Burasagari: a comma or full stop ending an area type line hangs outside it (Standard:
-            // when it doesn't fit; Forced: always). The rest of the line is aligned and justified
-            // without it, and it follows the line's last character.
+            // when it doesn't fit, counting what hangs at the line's start as room; Forced:
+            // always). The rest of the line is aligned and justified without it, and it follows
+            // the line's last character.
+            let room_at_start = || share.map_or(0.0, |share| optical_hangs(&visible(trimmed).1, share).0);
             let hang = (regions.is_some() && !rtl && hyphen.is_none() && trimmed > i + 1)
                 .then(|| sg.get(trimmed - 1))
                 .flatten()
@@ -1985,17 +2093,14 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                 .map(|g| g.adv - end_trim)
                 .filter(|_| match para.burasagari {
                     Burasagari::None => false,
-                    Burasagari::Standard => w > width + EPS,
+                    Burasagari::Standard => w > width + room_at_start() + EPS,
                     Burasagari::Forced => true,
                 });
             let body = if hang.is_some() { trimmed - 1 } else { trimmed };
             let w = w - hang.unwrap_or(0.0);
-            let line_start = sg.get(i).map_or(pr.start, |g| g.byte);
-            let line_end = sg.get(end).map_or(pr.end, |g| g.byte);
-            let order = visual_order(bidi.as_ref().filter(|_| !cx.vertical), pr.start, line_start..line_end, &sg[i..end]);
             // The glyphs before the line's trailing spaces (and its burasagari mark), in the order
             // they are drawn.
-            let drawn: Vec<usize> = order.iter().map(|&offset| i + offset).filter(|&j| j < body).collect();
+            let (drawn, mut visible) = visible(body);
             // Optical Margin Alignment: the glyphs at the ends of a line hang outside its margins
             // by `opt_l` and `opt_r`. The line is aligned and justified in a measure that much
             // wider at each end. A left-aligned line then hangs only at its left, a right-aligned
@@ -2004,13 +2109,11 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
             // left ([`optical_hangs_rtl`]). A line that ends in a burasagari mark hangs only at its
             // left. Justification adds no space after a punctuation mark hanging at the left, nor
             // before one hanging at the right (`held`). A letter that hangs by part of its width
-            // keeps its gaps. Roman Hanging Punctuation (a paragraph attribute) hangs the same
-            // punctuation by the same amounts, and no letters; with Optical Margin Alignment on as
-            // well, the letters hang too.
-            let (opt_l, opt_r, held) = if t.optical_margin || para.roman_hanging {
-                let share: fn(&SGlyph) -> f64 = if t.optical_margin { optical_share } else { roman_share };
-                let mut visible: Vec<(&SGlyph, f64)> =
-                    drawn.iter().filter_map(|&j| sg.get(j).map(|g| (g, if j + 1 == trimmed { g.adv - end_trim } else { g.adv }))).collect();
+            // keeps its gaps. Glyph Scaling leaves the glyphs that hang (`hung`) at their width, so
+            // they hang exactly by their published share. Roman Hanging Punctuation (a paragraph
+            // attribute) hangs the same punctuation by the same amounts, and no letters; with
+            // Optical Margin Alignment on as well, the letters hang too.
+            let (opt_l, opt_r, held, hung) = if let Some(share) = share {
                 if let Some(h) = &hyphen {
                     visible.push((h, h.adv));
                 }
@@ -2025,9 +2128,27 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                     .filter(|&(k, _)| (k < left_glyphs && punct(k)) || (right_glyphs > 0 && k + 1 + right_glyphs >= n_visible && punct(k + 1)))
                     .map(|(_, &j)| j)
                     .collect();
-                (l, r, held)
+                let hung: Vec<usize> = drawn
+                    .iter()
+                    .enumerate()
+                    .filter(|&(k, _)| k < left_glyphs || (right_glyphs > 0 && k + right_glyphs >= n_visible))
+                    .map(|(_, &j)| j)
+                    .collect();
+                (l, r, held, hung)
             } else {
-                (0.0, 0.0, vec![])
+                (0.0, 0.0, vec![], vec![])
+            };
+            // What justification may change of glyph `j`: nothing of a `held` glyph, and no glyph
+            // scaling of a `hung` one.
+            let line_flex = |j: usize| {
+                if held.contains(&j) {
+                    return Flex::default();
+                }
+                let mut f = flex.get(j).copied().unwrap_or_default();
+                if hung.contains(&j) {
+                    f.glyph = (0.0, 0.0);
+                }
+                f
             };
             let room = width + opt_l + opt_r;
             let (align, justify) = match para.justify {
@@ -2078,7 +2199,6 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                 if justify && !cx.vertical && room > w + EPS { kashida::plan(cx.text, &sg, i..body, para.kashida, room - w) } else { vec![] };
             let w = w + kashidas.iter().map(|k| k.1).sum::<f64>();
             if justify && (room - w).abs() > EPS {
-                let line_flex = |j: usize| if held.contains(&j) { Flex::default() } else { flex.get(j).copied().unwrap_or_default() };
                 if cjk_gaps > 0 && room > w {
                     // Spread over the CJK gaps and the word spaces alike.
                     let per = (room - w) / (cjk_gaps + spaces) as f64;
@@ -2146,7 +2266,7 @@ fn flow(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, regions: Optio
                 if g.ch == '\t' {
                     (adv, leader) = tab_advance(&para.tabs, tab_origin, x - tab_shift, &sg[j + 1..trimmed.max(j + 1)]);
                 } else if j < body {
-                    let f = if held.contains(&j) { Flex::default() } else { flex.get(j).copied().unwrap_or_default() };
+                    let f = line_flex(j);
                     if is_word_space(g) {
                         adv += fit.space(&f);
                     } else {
@@ -2258,28 +2378,36 @@ fn on_path(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, path: &Path
     cx.out.on_path = true;
     // Type on a path is one line: the first paragraph's attributes align it.
     let para = t.para_at(0);
-    let mut sg = Vec::new();
     // The first paragraph's direction aligns the line (Auto) and sets the caret's.
     let mut rtl = None;
+    let mut shaped = Vec::new();
     for pr in paras {
         let text = cx.text;
-        let bidi = para_bidi(text.get(pr.clone()).unwrap_or_default(), para.direction);
+        let bidi = para_bidi_with(text.get(pr.clone()).unwrap_or_default(), para.direction, &cx.char_directions(pr));
         rtl.get_or_insert(is_rtl(bidi.as_ref()) && !cx.vertical);
-        let shaped = cx.shape_para(pr.clone(), bidi.as_ref());
-        for i in visual_order(bidi.as_ref().filter(|_| !cx.vertical), pr.start, pr.clone(), &shaped) {
-            if let Some(g) = shaped.get(i) {
-                sg.push(g.clone());
-            }
-        }
+        let glyphs = cx.shape_para(pr.clone(), bidi.as_ref());
+        shaped.push((pr.clone(), bidi.filter(|b| b.has_rtl() && !cx.vertical), glyphs));
     }
     let rtl = rtl.unwrap_or(false);
+    // The text before byte `cut` in visual order, as area type reorders each line it breaks.
+    let visual = |cut: usize| {
+        let mut sg = Vec::new();
+        for (pr, bidi, glyphs) in &shaped {
+            let n = glyphs.iter().take_while(|g| g.byte < cut).count();
+            let line = glyphs.get(..n).unwrap_or_default();
+            let end = glyphs.get(n).map_or(pr.end, |g| g.byte);
+            sg.extend(visual_order(bidi.as_ref(), pr.start, pr.start..end, line).into_iter().filter_map(|i| line.get(i).cloned()));
+        }
+        sg
+    };
+    let text_len = cx.text.len();
+    let mut sg = visual(text_len);
     // A path out of range holds no text, as a path with no length holds none.
     let ap = if in_range(&path.to_bezpath()) { ArcPath::new(path) } else { ArcPath::default() };
     let m = Metrics::max(&sg).map(|m| (m.asc, m.desc)).unwrap_or_else(|| {
         let s = style_metrics(cx.db, cx.style_at(0));
         (s.0, s.1)
     });
-    let text_len = cx.text.len();
     if ap.is_empty() {
         cx.out.overflow = !sg.is_empty();
         cx.out.lines.push(LineInfo {
@@ -2304,8 +2432,6 @@ fn on_path(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, path: &Path
     let s_start = from * ap.len();
     let avail = (to - from) * ap.len();
     let spacing = if t.path_spacing.is_finite() { t.path_spacing } else { 0.0 };
-    let mut steps = path_steps(&ap, &sg, s_start, spacing);
-    let w: f64 = steps.iter().sum();
     // Optical Margin Alignment and Roman Hanging Punctuation: the brackets are the margins, and the
     // glyphs at the line's ends hang outside them by `hang_l` and `hang_r`, measured along the path.
     // The line is aligned in a span that much longer at each end, and the glyphs that hang at the
@@ -2316,7 +2442,7 @@ fn on_path(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, path: &Path
     // The hangs are measured on the steps the glyphs take where the line is placed. A right-to-left
     // line is read from right to left ([`optical_hangs_rtl`]); in vertical type `sg` is in text order.
     let hanging = t.optical_margin || para.roman_hanging;
-    let hangs = |steps: &[f64]| {
+    let hangs = |sg: &[SGlyph], steps: &[f64]| {
         if !hanging {
             return (0.0, 0.0, 0);
         }
@@ -2344,34 +2470,85 @@ fn on_path(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, path: &Path
         };
         (l, r, hung_r)
     };
-    let place = |(l, r, _): (f64, f64, usize)| {
-        let (lo, room) = (s_start - l, avail + l + r);
-        match para.justify {
-            Justify::Auto if rtl => lo + (room - w).max(0.0),
-            Justify::Center | Justify::JustifyCenter => lo + ((room - w) * 0.5).max(0.0),
-            Justify::Right | Justify::JustifyRight => lo + (room - w).max(0.0),
-            _ => lo,
-        }
-    };
-    let mut hung = hangs(&steps);
-    let mut s0 = place(hung);
-    if spacing != 0.0 && s0 != s_start {
-        // Spaced from where the alignment puts them, the curve under them is another. That changes
-        // the hanging glyphs' steps, so the line is placed again from the new steps until it stays
-        // where it is (at most 8 times).
-        steps = path_steps(&ap, &sg, s0, spacing);
-        for _ in 0..8 {
-            hung = hangs(&steps);
-            let moved = place(hung);
-            if (moved - s0).abs() < 1e-9 {
-                break;
+    // The glyphs `sg` arranged on the path: their steps, where the first starts, and the hangs.
+    let arrange = |sg: &[SGlyph]| {
+        let mut steps = path_steps(&ap, sg, s_start, spacing);
+        let w: f64 = steps.iter().sum();
+        let place = |(l, r, _): (f64, f64, usize)| {
+            let (lo, room) = (s_start - l, avail + l + r);
+            match para.justify {
+                Justify::Auto if rtl => lo + (room - w).max(0.0),
+                Justify::Center | Justify::JustifyCenter => lo + ((room - w) * 0.5).max(0.0),
+                Justify::Right | Justify::JustifyRight => lo + (room - w).max(0.0),
+                _ => lo,
             }
-            s0 = moved;
-            steps = path_steps(&ap, &sg, s0, spacing);
+        };
+        let mut hung = hangs(sg, &steps);
+        let mut s0 = place(hung);
+        if spacing != 0.0 && s0 != s_start {
+            // Spaced from where the alignment puts them, the curve under them is another. That
+            // changes the hanging glyphs' steps, so the line is placed again from the new steps
+            // until it stays where it is (at most 8 times).
+            steps = path_steps(&ap, sg, s0, spacing);
+            for _ in 0..8 {
+                hung = hangs(sg, &steps);
+                let moved = place(hung);
+                if (moved - s0).abs() < 1e-9 {
+                    break;
+                }
+                s0 = moved;
+                steps = path_steps(&ap, sg, s0, spacing);
+            }
         }
+        (steps, s0, hung)
+    };
+    // How many of the arranged glyphs fit before one runs past the end bracket (with the hang).
+    let fitting = |steps: &[f64], s0: f64, (hang_l, hang_r, hung_r): (f64, f64, usize)| {
+        let (lo, room) = (s_start - hang_l, avail + hang_l + hang_r);
+        let mut x = 0.0;
+        steps
+            .iter()
+            .enumerate()
+            .take_while(|&(k, &step)| {
+                let end = if k + hung_r >= steps.len() { room } else { room - hang_r };
+                let fit = s0 + x + step - lo <= end + 1e-6;
+                x += step;
+                fit
+            })
+            .count()
+    };
+    let (mut steps, mut s0, mut hung) = arrange(&sg);
+    // Where the text that fits ends: before the first glyph that doesn't, which threaded text
+    // flows on from, as from the last line of area type.
+    let mut fits = text_len;
+    // Right-to-left text that overflows keeps the start of its text, not what comes first in visual
+    // order: the longest start, in reading order, whose glyphs fit in visual order is laid out.
+    if shaped.iter().any(|(_, bidi, _)| bidi.is_some()) && fitting(&steps, s0, hung) < sg.len() {
+        let mut starts: Vec<usize> = shaped.iter().flat_map(|(_, _, glyphs)| glyphs.iter().map(|g| g.byte)).collect();
+        starts.dedup();
+        // The text before `starts[fit]` fits; before `starts[over]` (the whole text at the end) it
+        // doesn't.
+        let (mut fit, mut over) = (0, starts.len());
+        while over - fit > 1 {
+            let mid = (fit + over) / 2;
+            let sg = visual(starts.get(mid).copied().unwrap_or(text_len));
+            let (steps, s0, hung) = arrange(&sg);
+            if fitting(&steps, s0, hung) == sg.len() {
+                fit = mid;
+            } else {
+                over = mid;
+            }
+        }
+        cx.out.overflow = true;
+        fits = starts.get(fit).copied().unwrap_or(text_len);
+        sg = visual(fits);
+        (steps, s0, hung) = arrange(&sg);
     }
-    let (hang_l, hang_r, hung_r) = hung;
-    let (lo, room) = (s_start - hang_l, avail + hang_l + hang_r);
+    let fit = fitting(&steps, s0, hung);
+    if fit < sg.len() {
+        cx.out.overflow = true;
+        fits = sg.get(fit..).and_then(|rest| rest.iter().map(|g| g.byte).min()).unwrap_or(text_len);
+    }
     // Align to Path: how far down (glyph space) the type moves to run its ascender, centre or
     // descender along the path instead of its baseline.
     let rise = match t.path_align {
@@ -2381,17 +2558,8 @@ fn on_path(cx: &mut Ctx<'_>, paras: &[Range<usize>], t: &TextObject, path: &Path
         PathAlign::Center => (m.0 - m.1) * 0.5,
     };
     let mut x = 0.0;
-    // Where the text that fits ends: before the first glyph that doesn't, which threaded text
-    // flows on from, as from the last line of area type.
-    let mut fits = text_len;
-    for (k, (g, &step)) in sg.iter().zip(&steps).enumerate() {
+    for (g, &step) in sg.iter().zip(&steps).take(fit) {
         let s = s0 + x;
-        let end = if k + hung_r >= sg.len() { room } else { room - hang_r };
-        if s + step - lo > end + 1e-6 {
-            cx.out.overflow = true;
-            fits = sg.get(k..).and_then(|rest| rest.iter().map(|g| g.byte).min()).unwrap_or(text_len);
-            break;
-        }
         let (p, dir) = ap.at(s + step * 0.5);
         let angle = dir.y.atan2(dir.x);
         let half = Affine::translate((-g.adv * 0.5, rise));
@@ -2459,6 +2627,52 @@ pub(crate) fn para_bidi(text: &str, direction: Option<ParaDirection>) -> Option<
     Some(BidiInfo::new(text, level))
 }
 
+/// [`para_bidi`] for a paragraph whose characters in `set` (byte ranges of `text`, in order and not
+/// overlapping, from [`Ctx::char_directions`]) have a Character Direction: each range is resolved
+/// as a Unicode bidi embedding, as if an LRE or RLE stood before it and a PDF after it (UAX #9 X2,
+/// X3, X7). The levels, classes and paragraphs come back for the bytes of `text`. The paragraph's own
+/// direction is unchanged: the first strong character is found inside embeddings too (P2).
+pub(crate) fn para_bidi_with<'a>(text: &'a str, direction: Option<ParaDirection>, set: &[(Range<usize>, ParaDirection)]) -> Option<BidiInfo<'a>> {
+    let plain = para_bidi(text, direction);
+    if set.is_empty() || (plain.is_none() && set.iter().all(|(_, d)| *d == ParaDirection::LeftToRight)) {
+        // A left-to-right embedding in left-to-right text takes an even level: its order is the same.
+        return plain;
+    }
+    // The text with the embedding controls, and where each byte of `text` is in it.
+    let mut marked = String::with_capacity(text.len() + set.len() * 6);
+    let mut at_byte: Vec<usize> = Vec::with_capacity(text.len());
+    let mut copy = |marked: &mut String, from: usize, to: usize| {
+        if let Some(s) = text.get(from..to) {
+            at_byte.extend(marked.len()..marked.len() + s.len());
+            marked.push_str(s);
+        }
+    };
+    let mut done = 0;
+    for (r, d) in set {
+        let (a, b) = (r.start.max(done).min(text.len()), r.end.min(text.len()));
+        if a >= b {
+            continue;
+        }
+        copy(&mut marked, done, a);
+        marked.push(if *d == ParaDirection::RightToLeft { '\u{202B}' } else { '\u{202A}' });
+        copy(&mut marked, a, b);
+        marked.push('\u{202C}');
+        done = b;
+    }
+    copy(&mut marked, done, text.len());
+    let level = direction.map(|d| if d == ParaDirection::RightToLeft { Level::rtl() } else { Level::ltr() });
+    let info = BidiInfo::new(&marked, level);
+    let back = |i: usize| at_byte.partition_point(|&m| m < i);
+    let paragraphs =
+        info.paragraphs.iter().map(|p| unicode_bidi::ParagraphInfo { range: back(p.range.start)..back(p.range.end), level: p.level }).collect();
+    Some(BidiInfo {
+        text,
+        original_classes: at_byte.iter().filter_map(|&i| info.original_classes.get(i).copied()).collect(),
+        levels: at_byte.iter().filter_map(|&i| info.levels.get(i).copied()).collect(),
+        paragraphs,
+    })
+}
+
 /// Does the paragraph run right to left ([`para_bidi`])?
 pub(crate) fn is_rtl(bidi: Option<&BidiInfo<'_>>) -> bool {
     bidi.and_then(|b| b.paragraphs.first()).is_some_and(|p| p.level.is_rtl())
@@ -2491,4 +2705,294 @@ fn visual_order(bidi: Option<&BidiInfo<'_>>, paragraph_start: usize, line: Range
         .map(|g| levels.get(g.byte.saturating_sub(paragraph_start)).copied().unwrap_or(g.level))
         .collect();
     unicode_bidi::BidiInfo::reorder_visual(&cluster_levels).into_iter().filter_map(|i| clusters.get(i)).flat_map(|c| c.clone()).collect()
+}
+
+/// Ruby (furigana): lays each reading out over its base text in line space, grows the line's
+/// ascent/descent so the ruby fits, and moves the lines after it on in the block direction.
+///
+/// Positions are measured from the line's baseline. Vertical type uses the same geometry — ruby
+/// "above" the baseline is right of the column once the lines are turned — with each reading
+/// character set upright along the column (a quarter turn that the final vertical turn undoes).
+/// A reading over a line break is split between the lines, by the base characters' share of it.
+/// A reading wider than its base hangs over the neighbours (`overhang`), or is squeezed to the
+/// base's width. Type on a path is left out (it has no above/below).
+fn ruby_layout(cx: &mut Ctx<'_>, t: &TextObject) {
+    use std::collections::BTreeMap;
+
+    let db = cx.db;
+    let text_len = cx.text.len();
+    let n_lines = cx.out.lines.len();
+    if n_lines == 0 || cx.out.glyphs.is_empty() {
+        return;
+    }
+    let base_baselines: Vec<f64> = cx.out.lines.iter().map(|l| l.baseline).collect();
+    let old_ascent: Vec<f64> = cx.out.lines.iter().map(|l| l.ascent).collect();
+    let old_descent: Vec<f64> = cx.out.lines.iter().map(|l| l.descent).collect();
+    // One piece of base text on one line, with the part of the reading that belongs to it.
+    struct Piece {
+        line: usize,
+        x0: f64,
+        x1: f64,
+        run: usize,
+        byte: usize,
+        reading: String,
+        style: CharStyle,
+        position: RubyPosition,
+        align: RubyAlign,
+        base_size: f64,
+        overhang: bool,
+    }
+    let mut pieces: Vec<Piece> = Vec::new();
+    for span in &t.ruby {
+        let (start, end) = (span.start.min(text_len), span.end.min(text_len));
+        if start >= end || span.text.trim().is_empty() {
+            continue;
+        }
+        // The base glyphs of the span, by line; a glyph's cluster is its byte range (`len`, or
+        // one byte for generated glyphs).
+        let mut by_line: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+        for (i, g) in cx.out.glyphs.iter().enumerate() {
+            let b = g.byte.saturating_add(g.len.max(1));
+            if g.byte < end && b > start {
+                by_line.entry(g.line).or_default().push(i);
+            }
+        }
+        let total: usize = by_line.values().map(Vec::len).sum();
+        if total == 0 {
+            continue;
+        }
+        let reading: Vec<char> = span.text.trim().chars().collect();
+        let ratio = span.safe_size_percent() / 100.0;
+        // Split the reading by each line's share of the base glyphs: cumulative fractions keep
+        // every character once and in order.
+        let mut taken = 0;
+        let mut done = 0;
+        let lines: Vec<usize> = by_line.keys().copied().collect();
+        for line in &lines {
+            let count = by_line.get(line).map_or(0, Vec::len);
+            done += count;
+            let upto = if reading.is_empty() { 0 } else { (reading.len() * done / total).min(reading.len()) };
+            let part: String = reading.get(taken.min(reading.len())..upto.min(reading.len())).unwrap_or_default().iter().collect();
+            taken = upto;
+            if part.is_empty() {
+                continue;
+            }
+            let glyphs = by_line.get(line).map(Vec::as_slice).unwrap_or_default();
+            let mut x0 = f64::INFINITY;
+            let mut x1 = f64::NEG_INFINITY;
+            let mut base_size: f64 = 0.0;
+            let mut run = 0;
+            let mut byte = start;
+            for (j, &gi) in glyphs.iter().enumerate() {
+                let Some(g) = cx.out.glyphs.get(gi) else { continue };
+                x0 = x0.min(g.origin.x);
+                x1 = x1.max(g.origin.x + g.advance);
+                base_size = base_size.max(cx.style_at(g.byte).size);
+                if j == 0 {
+                    run = g.run;
+                    byte = g.byte;
+                }
+            }
+            if !(x0.is_finite() && x1.is_finite()) || base_size <= 0.0 {
+                continue;
+            }
+            let mut style = cx.style_at(byte).clone();
+            style.size = base_size * ratio;
+            style.leading = None;
+            style.baseline_shift = 0.0;
+            style.tracking = 0.0;
+            style.kerning = None;
+            pieces.push(Piece {
+                line: *line,
+                x0,
+                x1,
+                run,
+                byte,
+                reading: part,
+                style,
+                position: span.position,
+                align: span.align,
+                base_size,
+                overhang: span.overhang,
+            });
+        }
+    }
+    // Phase A: shape each reading, place it relative to the (unshifted) baseline, and note how
+    // far above/below the baseline its ink reaches.
+    let mut placed: Vec<(usize, Vec<PositionedGlyph>, f64, f64)> = Vec::new(); // (line, glyphs, ascent, descent)
+    for piece in &pieces {
+        let Some(baseline) = base_baselines.get(piece.line).copied() else { continue };
+        let mini = TextObject::point(Point::ZERO, &piece.reading, piece.style.clone());
+        let lay = layout(db, &mini);
+        let Some(first_line) = lay.lines.first() else { continue };
+        let mini_base = first_line.baseline;
+        let mini_asc = first_line.ascent;
+        let mini_desc = first_line.descent;
+        let base_w = (piece.x1 - piece.x0).max(0.0);
+        // Above: the reading's bottom sits on the base's em box top. Below: its top sits on the
+        // base's em box bottom (the line's descent below the baseline).
+        let ruby_y = if piece.position == RubyPosition::Above {
+            baseline - piece.base_size - mini_desc
+        } else {
+            baseline + old_descent.get(piece.line).copied().unwrap_or(0.0) + mini_asc
+        };
+        let dest = |width: f64| match piece.align {
+            RubyAlign::Center => piece.x0 + (base_w - width) * 0.5,
+            RubyAlign::Start => piece.x0,
+            RubyAlign::End => piece.x1 - width,
+        };
+        let mut glyphs: Vec<PositionedGlyph> = Vec::new();
+        if cx.vertical {
+            // Each reading character in its own cell along the column, upright once the lines turn.
+            let cell = (mini_asc + mini_desc).max(piece.style.size * 0.5);
+            let mut clusters: Vec<Vec<&PositionedGlyph>> = Vec::new();
+            for g in &lay.glyphs {
+                match clusters.last_mut() {
+                    Some(c) if c.last().is_some_and(|p| p.byte == g.byte && p.len == g.len) => c.push(g),
+                    _ => clusters.push(vec![g]),
+                }
+            }
+            let mut ruby_w = clusters.len() as f64 * cell;
+            let mut squeeze = 1.0;
+            if !piece.overhang && ruby_w > base_w + EPS && ruby_w > EPS {
+                squeeze = base_w / ruby_w;
+                ruby_w = base_w;
+            }
+            let x = dest(ruby_w);
+            for (ci, cluster) in clusters.iter().enumerate() {
+                let anchor = Point::new(x + (ci as f64 + 0.5) * cell, ruby_y);
+                let mut box_: Option<Rect> = None;
+                for g in cluster {
+                    if g.outline.elements().is_empty() {
+                        continue;
+                    }
+                    let b = g.outline.bounding_box();
+                    box_ = Some(box_.map_or(b, |a| a.union(b)));
+                }
+                let centre = box_.map_or(anchor, |b| Point::new((b.x0 + b.x1) * 0.5, (b.y0 + b.y1) * 0.5));
+                let mut m =
+                    Affine::rotate_about(-std::f64::consts::FRAC_PI_2, anchor) * Affine::translate((anchor.x - centre.x, anchor.y - centre.y));
+                if squeeze != 1.0 {
+                    m = Affine::translate((x, 0.0)) * Affine::scale_non_uniform(squeeze, 1.0) * Affine::translate((-x, 0.0)) * m;
+                }
+                for g in cluster {
+                    glyphs.push(ruby_glyph(g, m, piece.run, piece.byte, piece.line));
+                }
+            }
+        } else {
+            // The reading set along the line: the line's extent, centred or aligned to the base.
+            let mut ruby_w = (first_line.x1 - first_line.x0).max(0.0);
+            let mut squeeze = 1.0;
+            if !piece.overhang && ruby_w > base_w + EPS && ruby_w > EPS {
+                squeeze = base_w / ruby_w;
+                ruby_w = base_w;
+            }
+            let x = dest(ruby_w);
+            let mut m = Affine::translate((x - first_line.x0, ruby_y - mini_base));
+            if squeeze != 1.0 {
+                m = Affine::translate((x, 0.0)) * Affine::scale_non_uniform(squeeze, 1.0) * Affine::translate((-x, 0.0)) * m;
+            }
+            for g in &lay.glyphs {
+                glyphs.push(ruby_glyph(g, m, piece.run, piece.byte, piece.line));
+            }
+        }
+        // How far the reading reaches above and below the base line's baseline (its ink).
+        let mut ascent: f64 = 0.0;
+        let mut descent: f64 = 0.0;
+        for g in &glyphs {
+            if g.outline.elements().is_empty() {
+                continue;
+            }
+            let b = g.outline.bounding_box();
+            ascent = ascent.max(baseline - b.y0);
+            descent = descent.max(b.y1 - baseline);
+        }
+        if !glyphs.is_empty() {
+            placed.push((piece.line, glyphs, ascent, descent));
+        }
+    }
+    if placed.is_empty() {
+        return;
+    }
+    // Phase B: grow each line's box to fit its ruby, then move the lines on after it by what they
+    // need in the block direction (the first line too for area type, so the ruby stays inside the
+    // frame; point type's first baseline is its anchor and stays).
+    let mut growth = vec![0.0_f64; n_lines];
+    for (line, _, ascent, descent) in &placed {
+        if let (Some(a), Some(d)) = (old_ascent.get(*line), old_descent.get(*line)) {
+            let grown = (a.max(*ascent) + d.max(*descent)) - (a + d);
+            if grown > 0.0 {
+                let g = growth.get_mut(*line);
+                if let Some(slot) = g {
+                    *slot = slot.max(grown);
+                }
+            }
+        }
+    }
+    // A line's ruby grows above it: the line moves on in the block direction by its own growth,
+    // so the line before it keeps its room (for area type the first line moves too, keeping the
+    // ruby inside the frame; point type's first baseline is its anchor and stays).
+    let area = matches!(t.kind, TextKind::Area { .. });
+    let mut shift = vec![0.0_f64; n_lines];
+    let mut cum = 0.0;
+    for i in 0..n_lines {
+        if area || i > 0 {
+            cum += growth.get(i).copied().unwrap_or(0.0);
+            if let Some(s) = shift.get_mut(i) {
+                *s = cum;
+            }
+        }
+    }
+    // Grow the lines' boxes to fit their ruby, then move them on in the block direction.
+    for (line, _, ascent, descent) in &placed {
+        if let Some(l) = cx.out.lines.get_mut(*line) {
+            l.ascent = l.ascent.max(*ascent);
+            l.descent = l.descent.max(*descent);
+        }
+    }
+    for (i, line) in cx.out.lines.iter_mut().enumerate() {
+        line.baseline += shift.get(i).copied().unwrap_or(0.0);
+    }
+    for g in &mut cx.out.glyphs {
+        let s = shift.get(g.line).copied().unwrap_or(0.0);
+        if s != 0.0 {
+            g.origin.y += s;
+            g.outline.apply_affine(Affine::translate((0.0, s)));
+            g.xf = Affine::translate((0.0, s)) * g.xf;
+        }
+    }
+    for (line, glyphs, _, _) in placed {
+        let s = shift.get(line).copied().unwrap_or(0.0);
+        for mut g in glyphs {
+            if s != 0.0 {
+                g.origin.y += s;
+                g.outline.apply_affine(Affine::translate((0.0, s)));
+            }
+            g.line = line;
+            cx.out.ruby.push(g);
+        }
+    }
+}
+
+/// A ruby glyph from one of a reading's laid-out glyphs, moved by `m` into the base text's line
+/// space. It is not a character of the text: `len` 0, the base text's `run` for fill and stroke.
+fn ruby_glyph(g: &PositionedGlyph, m: Affine, run: usize, byte: usize, line: usize) -> PositionedGlyph {
+    PositionedGlyph {
+        outline: m * g.outline.clone(),
+        run,
+        byte,
+        origin: m * g.origin,
+        advance: 0.0,
+        len: 0,
+        angle: 0.0,
+        line,
+        font_id: g.font_id,
+        gid: g.gid,
+        xf: Affine::IDENTITY,
+        rtl: false,
+        scale: 1.0,
+        // Ruby draws outlines only.
+        image: None,
+        colour: None,
+    }
 }

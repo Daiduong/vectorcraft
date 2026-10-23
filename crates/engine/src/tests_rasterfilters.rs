@@ -31,13 +31,20 @@ const BRUSH_STROKES: [(&str, &str); 8] = [
 ];
 
 /// Effect › Artistic, at their defaults.
-const ARTISTIC: [(&str, &str); 9] = [
+const ARTISTIC: [(&str, &str); 15] = [
+    ("artistic.coloredPencil", "{}"),
     ("artistic.cutout", "{}"),
     ("artistic.dryBrush", "{}"),
     ("artistic.filmGrain", "{}"),
+    ("artistic.fresco", "{}"),
     ("artistic.neonGlow", "{}"),
+    // Wide Blurry softens dabs; Simple leaves uniform fills unchanged on the striped art.
+    ("artistic.paintDaubs", r#"{"brushType": "wideBlurry"}"#),
+    ("artistic.paletteKnife", "{}"),
     ("artistic.plasticWrap", "{}"),
     ("artistic.posterEdges", "{}"),
+    ("artistic.underpainting", "{}"),
+    ("artistic.roughPastels", "{}"),
     ("artistic.smudgeStick", "{}"),
     ("artistic.sponge", "{}"),
     ("artistic.watercolor", "{}"),
@@ -53,11 +60,12 @@ const PIXELATE: [(&str, &str); 4] =
     [("pixelate.colorHalftone", "{}"), ("pixelate.crystallize", "{}"), ("pixelate.mezzotint", "{}"), ("pixelate.pointillize", "{}")];
 
 /// Effect › Sketch, at their defaults.
-const SKETCH: [(&str, &str); 12] = [
+const SKETCH: [(&str, &str); 13] = [
     ("sketch.basRelief", "{}"),
     ("sketch.chalkCharcoal", "{}"),
     ("sketch.charcoal", "{}"),
     ("sketch.chrome", "{}"),
+    ("sketch.conteCrayon", "{}"),
     ("sketch.graphicPen", "{}"),
     ("sketch.halftonePattern", "{}"),
     ("sketch.notePaper", "{}"),
@@ -208,6 +216,7 @@ fn artistic_settings_survive_a_save_and_open() {
             json!({"levels": 3.0, "edgeSimplicity": 2.0, "edgeFidelity": 3.0}),
             [json!({"levels": 2.0}), json!({"edgeSimplicity": 10.0})],
         ),
+        ("artistic.fresco", json!({"brushSize": 4.0, "brushDetail": 6.0, "texture": 2.0}), [json!({"brushSize": 8.0}), json!({"texture": 3.0})]),
         (
             "artistic.neonGlow",
             json!({"glowSize": -6.0, "glowBrightness": 30.0, "color": "#ff3300"}),
@@ -222,6 +231,19 @@ fn artistic_settings_survive_a_save_and_open() {
             "artistic.plasticWrap",
             json!({"highlightStrength": 18.0, "detail": 10.0, "smoothness": 8.0}),
             [json!({"highlightStrength": 5.0}), json!({"highlightStrength": 0.0})],
+        ),
+        (
+            "artistic.roughPastels",
+            json!({
+                "strokeLength": 8.0,
+                "strokeDetail": 12.0,
+                "texture": "sandstone",
+                "scaling": 100.0,
+                "relief": 8.0,
+                "lightDirection": "topLeft",
+                "invert": false
+            }),
+            [json!({"strokeLength": 20.0}), json!({"relief": 0.0})],
         ),
     ] {
         let (mut s, g) = striped();

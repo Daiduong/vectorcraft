@@ -1046,6 +1046,66 @@ fn symbol_stainer_rgb_color_in_a_cmyk_document_separates_through_the_color_setti
     assert_eq!(node(&s, inst).appearance.fill().map(|f| f.paint.clone()), Some(Paint::solid(red)));
 }
 
+/// In a CMYK document the Symbol Stainer refuses a `keepModel` given as text or as another value that
+/// is not true or false, and the instance and the undo history stay as they were. Null is read as
+/// `keepModel` left out.
+#[test]
+fn symbol_stainer_refuses_a_keep_model_given_as_text() {
+    use vectorcraft_color::{Color, Paint, cms};
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 300, "colorMode": "cmyk"})).unwrap();
+    let (inst, _, b) = make_symbol(&mut s);
+    let at = json!([[b.center().x, b.center().y]]);
+    let state = |s: &Session| (node(s, inst), s.doc().unwrap().history.undo.len());
+    let before = state(&s);
+    for keep in [json!("true"), json!(1), json!("false"), json!([true])] {
+        let p = json!({"tool": "stain", "points": at, "color": "#ff0000", "intensity": 10, "keepModel": keep});
+        let r = s.execute("symbol.adjust", &p);
+        assert!(matches!(&r, Err(EngineError::BadParams { msg, .. }) if msg == "`keepModel` must be true or false"), "{p}: {r:?}");
+        assert_eq!(state(&s), before, "{p}");
+    }
+    s.execute("symbol.adjust", &json!({"tool": "stain", "points": at, "color": "#ff0000", "intensity": 10, "keepModel": null})).unwrap();
+    let red = cms::active().convert(&Color::rgb(1.0, 0.0, 0.0), cms::Model::Cmyk, cms::active().settings().intent);
+    assert_eq!(node(&s, inst).appearance.fill().map(|f| f.paint.clone()), Some(Paint::solid(red)));
+}
+
+/// Place Symbol Instance, Delete Symbol, the Symbol Sprayer and the symbolism tools refuse a number
+/// or an on/off option given as text or as another value of the wrong kind, naming the key; the
+/// document and the undo history stay as they were. Numbers, true, false and null still work.
+#[test]
+fn symbol_commands_refuse_a_number_or_boolean_given_as_text() {
+    use super::tests::{not_a_number, not_a_switch, not_refused};
+    let mut s = session();
+    let (_, name, b) = make_symbol(&mut s);
+    let at = json!([[b.center().x, b.center().y]]);
+    let mut calls: Vec<_> = [
+        ("symbol.place", json!({"name": name, "x": "200"}), "x"),
+        ("symbol.place", json!({"name": name, "x": 200, "y": [100]}), "y"),
+        ("symbol.spray", json!({"name": name, "points": at, "radius": "40"}), "radius"),
+        ("symbol.spray", json!({"name": name, "points": at, "density": "5"}), "density"),
+        ("symbol.spray", json!({"name": name, "points": at, "scale": true}), "scale"),
+        ("symbol.adjust", json!({"tool": "size", "points": at, "radius": "40"}), "radius"),
+        ("symbol.adjust", json!({"tool": "size", "points": at, "intensity": "10"}), "intensity"),
+    ]
+    .into_iter()
+    .map(|(cmd, p, key)| not_a_number(cmd, p, key))
+    .collect();
+    calls.extend(
+        [
+            ("symbol.spray", json!({"name": name, "points": at, "alt": "true"}), "alt"),
+            ("symbol.adjust", json!({"tool": "size", "points": at, "alt": 1}), "alt"),
+            ("symbol.delete", json!({"name": name, "expandInstances": "false"}), "expandInstances"),
+        ]
+        .map(|(cmd, p, key)| not_a_switch(cmd, p, key)),
+    );
+    let wrong = not_refused(&mut s, &calls);
+    assert!(wrong.is_empty(), "not refused: {wrong:#?}");
+    s.execute("symbol.place", &json!({"name": name, "x": 200, "y": null})).unwrap();
+    s.execute("symbol.spray", &json!({"name": name, "points": at, "radius": 40, "alt": false})).unwrap();
+    s.execute("symbol.delete", &json!({"name": name, "expandInstances": true})).unwrap();
+    assert!(s.doc().unwrap().doc.symbols.is_empty());
+}
+
 #[test]
 fn symbol_sprayer_tool_gesture_is_one_undo_step() {
     let mut s = session();

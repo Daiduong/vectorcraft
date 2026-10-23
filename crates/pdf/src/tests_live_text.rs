@@ -127,15 +127,62 @@ fn common_tracking_does_not_turn_gaps_into_spaces() {
     }
 }
 
-/// Glyphs set an em or more apart, each on its own, are words or columns: every gap stays a space,
-/// however evenly they are spaced.
+/// Words of one letter each, placed one by one with ordinary word spaces between them, are words:
+/// even gaps alone don't read as letter spacing.
+#[test]
+fn evenly_spaced_one_letter_words_keep_their_spaces() {
+    let font = vectorcraft_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
+    let size = 12.0_f32;
+    for gap in [0.25_f32, 0.3, 0.35] {
+        let mut x = 20.0;
+        let mut lines = vec![];
+        for text in ["A", "B", "C", "D"] {
+            lines.push((x, 60.0, size, text));
+            x += font.advance(font.glyph_for(text.chars().next().unwrap())) as f32 / font.units_per_em() as f32 * size + gap * size;
+        }
+        let d = import_with_report(&text_pdf(&lines, false), &ImportOptions::default()).unwrap().document;
+        let t = texts(&d);
+        assert_eq!(t.len(), 1, "gap {gap} em: {t:?}");
+        assert_eq!(t[0].plain_text(), "A B C D", "gap {gap} em");
+    }
+}
+
+/// Glyphs set more than half an em apart, each on its own, are words or columns: every gap stays a
+/// space, however evenly they are spaced.
 #[test]
 fn evenly_wide_gaps_stay_spaces() {
-    let lines: Vec<_> = ["1", "2", "3", "4"].iter().enumerate().map(|(i, text)| (20.0 + i as f32 * 18.0, 60.0, 12.0, *text)).collect();
-    let d = import_with_report(&text_pdf(&lines, false), &ImportOptions::default()).unwrap().document;
-    let t = texts(&d);
-    assert_eq!(t.len(), 1, "{t:?}");
-    assert_eq!(t[0].plain_text(), "1 2 3 4");
+    let font = vectorcraft_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
+    let size = 12.0_f32;
+    let one = font.advance(font.glyph_for('1')) as f32 / font.units_per_em() as f32 * size;
+    for gap in [0.55_f32, 0.75, 1.0] {
+        let lines: Vec<_> =
+            ["1", "2", "3", "4"].iter().enumerate().map(|(i, text)| (20.0 + i as f32 * (one + gap * size), 60.0, size, *text)).collect();
+        let d = import_with_report(&text_pdf(&lines, false), &ImportOptions::default()).unwrap().document;
+        let t = texts(&d);
+        assert_eq!(t.len(), 1, "gap {gap} em: {t:?}");
+        assert_eq!(t[0].plain_text(), "1 2 3 4", "gap {gap} em");
+    }
+}
+
+/// A word set beside a much larger one, apart by a gap and no space glyph (as a browser prints a
+/// margin between two sizes), reads as two words: the gap is measured against the smaller size
+/// (#3623). Set close, the two sizes stay one word.
+#[test]
+fn a_gap_between_two_sizes_is_measured_against_the_smaller() {
+    let font = vectorcraft_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
+    let advance = |c: char, size: f32| font.advance(font.glyph_for(c)) as f32 / font.units_per_em() as f32 * size;
+    // 3.4 pt: 0.17 em of the 20 pt "4", 0.43 em of the 8 pt "hours".
+    for (gap, want) in [(3.4_f32, "4 hours"), (0.4, "4hours")] {
+        let lines = [(20.0, 60.0, 20.0, "4"), (20.0 + advance('4', 20.0) + gap, 60.0, 8.0, "hours")];
+        let d = import_with_report(&text_pdf(&lines, false), &ImportOptions::default()).unwrap().document;
+        let t = texts(&d);
+        assert_eq!(t.len(), 1, "gap {gap} pt: {t:?}");
+        assert_eq!(t[0].plain_text(), want, "gap {gap} pt");
+    }
+    // The small size first.
+    let lines = [(20.0, 60.0, 8.0, "ca"), (20.0 + advance('c', 8.0) + advance('a', 8.0) + 3.4, 60.0, 20.0, "4")];
+    let t = texts(&import_with_report(&text_pdf(&lines, false), &ImportOptions::default()).unwrap().document);
+    assert_eq!(t.iter().map(TextObject::plain_text).collect::<Vec<_>>(), ["ca 4"]);
 }
 
 /// Embedded font data is untrusted: anything that isn't a CID-keyed CFF is no table, never a panic.

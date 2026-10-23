@@ -229,7 +229,9 @@ fn variables_panel_data_sets_ask_off_the_ui_thread() {
     let (mut app, shown, _) = app();
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     let dir = vectorcraft_testkit::temp_dir("picks-data-sets");
-    let _ = std::fs::remove_dir_all(&dir);
+    if let Err(e) = std::fs::remove_dir_all(&dir) {
+        assert_eq!(e.kind(), std::io::ErrorKind::NotFound, "cannot empty {}: {e}", dir.display());
+    }
     std::fs::create_dir_all(&dir).unwrap();
     let (csv, out) = (dir.join("sets.csv"), dir.join("out.csv"));
     std::fs::write(&csv, "name,Name\nB,y\n").unwrap();
@@ -258,7 +260,10 @@ fn other_swatch_library_asks_off_the_ui_thread() {
     app.run("swatch.new", json!({"name": "Signal", "color": "#ff3300"})).unwrap();
     let (dir, file) = saved_document(&mut app, "swatches");
     click(&mut app, "Other Library…", library_menu::<SwatchLibraries>);
-    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
+    assert!(matches!(
+        shown.requests().as_slice(),
+        [PickRequest::Open(p)] if p.filters.first().is_some_and(|(label, exts)| label == "Swatch libraries" && exts.iter().any(|e| e == "ase"))
+    ));
     poll(&mut app);
     assert!(library_panel::last_open(&app.ui).is_none() && app.ui.status.is_empty(), "{}", app.ui.status);
     shown.answer(&[&file]);
@@ -287,6 +292,29 @@ fn other_graphic_style_library_asks_off_the_ui_thread() {
     assert_eq!(open.kind, "graphicStyles");
     let (_, lib) = vectorcraft_engine::cmd::stylelib::library(&app.session, &open.id).unwrap();
     assert!(lib.style("Poster Look").is_some(), "{}", open.id);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// The Variables panel menu's Load Variable Library… asks off the UI thread: the library picked
+/// loads when the dialog answers.
+#[test]
+fn load_variable_library_asks_off_the_ui_thread() {
+    let (mut app, shown, _) = app();
+    app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+    let dir = std::env::temp_dir().join(format!("vc-picks-variables-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let library = dir.join("library.xml");
+    let xml = r#"<variableSets><variableSet><variables><variable varName="Name" trait="textcontent"/></variables>
+        <sampleDataSets><sampleDataSet dataSetName="A"><Name><p>x</p></Name></sampleDataSet></sampleDataSets></variableSet></variableSets>"#;
+    std::fs::write(&library, xml).unwrap();
+    let sets = |app: &VectorcraftApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+
+    click(&mut app, "Load Variable Library…", crate::panels::variables::menu);
+    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
+    assert!(sets(&app).is_empty(), "nothing loads before the dialog answers");
+    shown.answer(&[&library.to_string_lossy()]);
+    poll(&mut app);
+    assert_eq!(sets(&app), ["A"], "{}", app.ui.status);
     let _ = std::fs::remove_dir_all(dir);
 }
 

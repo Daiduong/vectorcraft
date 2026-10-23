@@ -56,6 +56,15 @@ pub fn specs() -> Vec<CommandSpec> {
             set_params
         ),
         cmd!(
+            "effect.lightingPreset",
+            "3D Lighting Preset",
+            [],
+            None,
+            "{index: int, preset: standard|diffuse|topLeft|right, item?: appearance item index|null (omitted: the active item, else the object's), ids?|id?: [..], target?: object|contents} replace an applied 3D effect's light rig and ambient with an original lighting preset; preserve shading, geometry and view; all targets must have a 3D effect at index; one undo step → {ids}",
+            has_doc,
+            lighting_preset
+        ),
+        cmd!(
             "effect.expandAppearance",
             "Expand Appearance",
             ["Object"],
@@ -130,8 +139,11 @@ fn check_revolve_count(n: &Node, cmd: &str) -> Result<()> {
     Ok(())
 }
 
-const ONE_3D: &str = "An object takes one 3D effect. Edit the existing effect's options, or remove it first.";
+pub(crate) const ONE_3D: &str = "An object takes one 3D effect. Edit the existing effect's options, or remove it first.";
 
+/// `effect.apply`: adds effect `effect` (or `id`) with `params`, its defaults filled in, to the
+/// targets' active item as one undo step. A 3D effect must fit each target, which takes only one;
+/// a Pathfinder effect on loose objects groups them first. → `{ids, index, item}`.
 pub(crate) fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "effect.apply";
     let id = str_param(p, "effect").or_else(|| str_param(p, "id")).ok_or_else(|| bad(C, "missing `effect` id"))?;
@@ -163,13 +175,9 @@ pub(crate) fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     if effects::is_three_d(id) {
         for target in appearance_targets(s, p)? {
             let n = s.doc()?.doc.node(target).ok_or(EngineError::NoNode(target))?;
-            if id == effects::REVOLVE {
-                effects::validate_revolve(n, &effect.params).map_err(|e| bad(C, e))?;
-                if effects::has_revolve(n) {
-                    return Err(bad(C, "A profile supports one Revolve effect. Edit the existing effect's options instead."));
-                }
-            } else {
-                effects::validate_solid(n, id, &effect.params).map_err(|e| bad(C, e))?;
+            effects::validate_three_d(n, id, &effect.params).map_err(|e| bad(C, e))?;
+            if id == effects::REVOLVE && effects::has_revolve(n) {
+                return Err(bad(C, "A profile supports one Revolve effect. Edit the existing effect's options instead."));
             }
             if effects::has_revolve(n) || effects::has_solid(n) {
                 return Err(bad(C, ONE_3D));
@@ -300,6 +308,33 @@ pub(crate) fn set_params_effects(s: &Session, p: &Value) -> Vec<String> {
     ids.iter().filter_map(effect).collect()
 }
 
+fn lighting_preset(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "effect.lightingPreset";
+    let patch = str_param(p, "preset")
+        .and_then(effects::lighting_preset_params)
+        .ok_or_else(|| bad(C, "preset must be standard, diffuse, topLeft or right"))?;
+    let index = index_param(p, "index", C)?;
+    let item = item_target(s, p, C)?;
+    // Validate the whole selection before changing any object. An unrelated effect or
+    // a missing index must not leave just some objects with a new lighting rig.
+    for id in appearance_targets(s, p)? {
+        let n = s.doc()?.doc.node(id).ok_or(EngineError::NoNode(id))?;
+        let slot = item.effects_item(&n.appearance, C)?;
+        let effect = n.appearance.effects_at(slot).and_then(|fx| fx.get(index));
+        if !effect.is_some_and(|e| effects::is_three_d(&e.id)) {
+            return Err(bad(C, format!("object {} needs a 3D effect at index {index}", id.0)));
+        }
+    }
+    let mut options = p.clone();
+    let map = options.as_object_mut().ok_or_else(|| bad(C, "parameters must be an object"))?;
+    map.remove("preset");
+    map.insert("params".into(), patch);
+    set_params(s, &options)
+}
+
+/// `effect.setParams`: merges `params` into the effect at `index` of the targets' active item, and
+/// sets its Warp style (`warpStyle`) or visibility (`visible`), as one undo step. They are checked
+/// as `effect.apply` checks them, and a visible 3D effect must still fit. → `{ids}`.
 fn set_params(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "effect.setParams";
     let index = index_param(p, "index", C)?;
@@ -339,11 +374,7 @@ fn set_params(s: &mut Session, p: &Value) -> Result<Value> {
             if let (Some(cur), Value::Object(new)) = (prospective.as_object_mut(), effects::upgrade_params(&e.id, &params)) {
                 cur.extend(new);
             }
-            if e.id == effects::REVOLVE {
-                effects::validate_revolve(n, &prospective).map_err(|e| bad(C, e))?;
-            } else {
-                effects::validate_solid(n, &e.id, &prospective).map_err(|e| bad(C, e))?;
-            }
+            effects::validate_three_d(n, &e.id, &prospective).map_err(|e| bad(C, e))?;
         }
     }
     let ids = edit_effects(s, p, item, C, "Effect Options", &format!("{C}: no effect at index {index}"), |fx| {
@@ -377,7 +408,9 @@ const GLASS: &str = "distort.glass";
 /// Effect › Texture › Texturizer.
 const TEXTURIZER: &str = "texture.texturizer";
 
-fn texture_load_effect(id: &str) -> bool {
+/// Does effect `id` have Load Texture: a `textureImage` that `effect.apply` reads from an image
+/// file (Glass, Texturizer)?
+pub(crate) fn texture_load_effect(id: &str) -> bool {
     id == GLASS || id == TEXTURIZER
 }
 
@@ -597,11 +630,11 @@ fn expanded_node(d: &mut Document, mut n: Node, brushes: &[vectorcraft_brush::Br
                     members = expand_pieces(d, &mut m, false, brushes, &mut stroke_art);
                     m
                 })
-            } else if matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }) && !effects::has_gradient_copies(&v) {
+            } else if matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }) && !effects::has_transform_art(&v) {
                 effects::expand_leaf(d, &v, &mut stroke_art)
             } else {
                 // Type, images, symbol instances, live objects (and paths whose Transform effect copies
-                // them with a gradient): through their outlines.
+                // them with a gradient or changes their fills and strokes): through their outlines.
                 let symbol = match &n.kind {
                     NodeKind::SymbolInstance { symbol, .. } => d.symbols.iter().find(|s| s.name == *symbol).map(|s| s.art.clone()),
                     _ => None,
@@ -672,6 +705,10 @@ fn expand_appearance(s: &mut Session, p: &Value) -> Result<Value> {
     }
     Ok(out)
 }
+
+#[cfg(test)]
+#[path = "tests_lighting_presets.rs"]
+mod lighting_presets_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1114,7 +1151,7 @@ mod tests {
         use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
         let (mut s, id) = session_with_rect();
         let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
-        let ramp = Paint::Gradient(Box::new(GradientPaint::new(Gradient { kind: GradientKind::Linear, stops })));
+        let ramp = Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))));
         s.edit("gradient", |d, _| {
             let n = d.node_mut(id).unwrap();
             n.appearance.set_fill(ramp);

@@ -264,6 +264,8 @@
 	Average…	Média…
 	BLANK DOCUMENT PRESETS	PREDEFINIDOS DE DOCUMENTO EM BRANCO
 	Background Color:	Cor do Plano de Fundo:
+	Show Center Mark	Mostrar Marca Central
+	Show Cross Hairs	Mostrar Linhas Cruzadas
 	Background Contents	Conteúdo do Plano de Fundo
 	Background Contents:	Conteúdo do Plano de Fundo:
 	Background:	Plano de Fundo:
@@ -908,6 +910,7 @@
 	Export CSS	Exportar CSS
 	Export CSS…	Exportar CSS…
 	Export Data Sets…	Exportar Conjuntos de Dados…
+	Load Variable Library…	Carregar Biblioteca de Variáveis…
 	Export DXF	Exportar DXF
 	Export Document	Exportar Documento
 	Export EPS	Exportar EPS
@@ -946,6 +949,11 @@
 	Fidelity:	Fidelidade:
 	Figure Space	Espaço de Figura
 	Figure:	Figura:
+# Artwork drag between document tabs.
+	Drop Artwork	Soltar arte
+@msg	{key} must be [x, y] with finite coordinates	{key} deve ser [x, y] com coordenadas finitas
+@msg	ids must contain 1–10000 object ids	ids deve conter de 1 a 10000 IDs de objetos
+
 	File	Arquivo
 	File Format:	Formato do Arquivo:
 	File Formats	Formatos de Arquivo
@@ -969,12 +977,14 @@
 	Keep selected	Manter selecionado
 	Merge only with selection	Mesclar somente com a seleção
 	Consider Open Filled Paths as Closed	Tratar caminhos abertos preenchidos como fechados
+	In Merge Mode, Clicking Stroke Splits the Path	No modo de mesclagem, clicar no traçado divide o caminho
 	Pick Color From:	Origem da cor:
 	Artwork	Ilustração
 	Cursor Swatch Preview	Visualização de amostras junto ao cursor
 	Selection:	Seleção:
 	Straight Line	Linha reta
 	Highlight:	Destaque:
+	Stroke When Editable	Traçado quando editável
 	Fill with Placeholder Text	Preencher com Texto de Placeholder
 	Insert Inline Symbol	Inserir Símbolo no Texto
 	Fill:	Preenchimento:
@@ -1867,7 +1877,7 @@
 	Percent:	Porcentagem:
 	Perceptual Scales	Escalas Perceptuais
 	Performance	Desempenho
-	Performance & Storage	Desempenho e Armazenamento
+	Plug-ins & Scratch Disks	Plug-ins & Discos de Cópia
 	Permissions	Permissões
 	Permissions password:	Senha de permissões:
 	Perspective	Perspectiva
@@ -1975,6 +1985,7 @@
 	Proof Setup	Configuração de Prova
 	Properties	Propriedades
 	Proportional Metrics	Métrica Proporcional
+	Character Direction	Direção de Caracteres
 	Digits	Dígitos
 	Arabic	Arábicos
 	Hindi	Hindi
@@ -2139,6 +2150,7 @@
 	Reorder	Reordenar
 	Reorder Appearance Item	Reordenar Item de Aparência
 	Repeat	Repetir
+	Repeat Objects	Objetos de Repetição
 	Repeat Pathfinder	Repetir Localizador de Caminhos
 	Repeat Tab	Repetir Parada de Tabulação
 	Repeat {name}	Repetir {name}
@@ -2540,6 +2552,7 @@
 	Snap to Unit	Ajustar à Unidade
 	Snapping Tolerance	Tolerância de Ajuste
 	Soft Light	Luz Suave
+	Soft Mix	Mistura suave
 	Solid	Sólido
 	Sort by Kind	Ordenar por Tipo
 	Sort by Name	Ordenar por Nome
@@ -2927,7 +2940,7 @@
 	the preset	o predefinido
 	tile {number}	bloco {number}
 	to	para
-	{count} file(s) in {folder}{note}. Show the package folder?	{count} arquivo(s) em {folder}{note}. Mostrar a pasta do pacote?
+	{count} file(s) in {folder} {note}. Show the package folder?	{count} arquivo(s) em {folder}{note}. Mostrar a pasta do pacote?
 	{count} linked file(s) not found	{count} arquivo(s) vinculado(s) não encontrado(s)
 	fonts not copied: {fonts}	fontes não copiadas: {fonts}
 	{count} linked image(s) changed since this document was saved. Show the new versions?	{count} imagem(ns) vinculada(s) alterada(s) desde que este documento foi salvo. Mostrar as novas versões?
@@ -3053,6 +3066,7 @@ imageTrace	Outline	Contorno
 	Activate Panel	Ativar Painel
 	Change Panel Layout	Alterar Layout dos Painéis
 	Close Panel	Fechar Painel
+	Collapse Panel Group	Recolher Grupo de Painéis
 	Move Panel	Mover Painel
 	Group with	Agrupar com
 	Resize panels	Redimensionar painéis
@@ -3359,6 +3373,7 @@ axis	Both	Ambos
 @msg	Couldn't copy to the system clipboard: {e}	Não foi possível copiar para a área de transferência do sistema: {e}
 @msg	Couldn't open {name}: {e}	Não foi possível abrir {name}: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Não foi possível inserir {name}: o documento em que foi solto foi fechado
+@msg	Couldn't place {name}: the document it was placed in was closed	Não foi possível inserir {name}: o documento em que estava sendo inserido foi fechado
 @msg	Couldn't read {name}: {e}	Não foi possível ler {name}: {e}
 @msg	Couldn't save recovery data: {e}	Não foi possível salvar os dados de recuperação: {e}
 @msg	Create Outlines: select text objects	Criar contornos: selecione objetos de texto
@@ -3396,7 +3411,7 @@ axis	Both	Ambos
 @msg	Outline Stroke: no stroked paths selected	Contornar traço: nenhum traçado com traço selecionado
 @msg	PDF settings are not an object	as configurações de PDF não são um objeto
 @msg	PDF writer error: {0}	Erro do gravador de PDF: {0}
-@msg	Packaged {n} file(s) in {folder}{note}	{n} arquivo(s) empacotado(s) em {folder}{note}
+@msg	Packaged {n} file(s) in {folder} {note}	{n} arquivo(s) empacotado(s) em {folder}{note}
 @msg	Packaged {n} file(s){note}	{n} arquivo(s) empacotado(s){note}
 @msg	Preview in Browser needs the desktop app (the web downloads files instead)	Visualizar no navegador exige o aplicativo para desktop (na web, os arquivos são baixados)
 @msg	Release Guides: no guides	Liberar guias: não há guias
@@ -3559,7 +3574,7 @@ axis	Both	Ambos
 @msg	give the path `id` and the width point `index`	informe o `id` do traçado e o `index` do ponto de largura
 @msg	guides are locked	as guias estão bloqueadas
 @msg	handle must be in or out	handle deve ser in ou out
-@msg	image '{key}' has no pixels and was left out	a imagem '{key}' não tem pixels e foi omitida
+@msg	an image has no pixels and was left out	uma imagem sem pixels foi omitida
 @msg	image data `{_1}` is missing	os dados da imagem `{_1}` estão ausentes
 @msg	image would be too large; lower the resolution	a imagem ficaria grande demais; reduza a resolução
 @msg	index must be a number or first, previous, next or last	index deve ser um número ou first, previous, next ou last
@@ -3625,6 +3640,7 @@ axis	Both	Ambos
 @msg	no file system here	nenhum sistema de arquivos aqui
 @msg	no file writer	sem gravador de arquivos
 @msg	no files to place	nenhum arquivo para inserir
+@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` não é um documento do VectorCraft, um PDF nem um arquivo .ai compatível com PDF
 @msg	no format to export to	nenhum formato para exportar
 @msg	no free recovery area	nenhuma área de recuperação livre
 @msg	no gradient stop or freeform point is selected	nenhuma parada de gradiente ou ponto de forma livre selecionado
@@ -3715,6 +3731,7 @@ axis	Both	Ambos
 @msg	path is already closed	o traçado já está fechado
 @msg	paths contain invalid coordinates	os traçados contêm coordenadas inválidas
 @msg	paths: give at least one file	paths: informe pelo menos um arquivo
+@msg	replace: the object to replace was changed or deleted	replace: o objeto a ser substituído foi alterado ou excluído
 @msg	pattern missing	padrão ausente
 @msg	patterns nested too deeply are filled with mid-grey	padrões aninhados com profundidade excessiva são preenchidos com cinza médio
 @msg	percent must be above 0 and at most 6400, not {p}	a porcentagem deve ser maior que 0 e no máximo 6400, não {p}
@@ -3873,6 +3890,7 @@ axis	Both	Ambos
 @msg	unknown workspace (one of {_1})	espaço de trabalho desconhecido (um de {_1})
 @msg	unsupported: {0}	não suportado: {0}
 @msg	variables are locked	as variáveis estão bloqueadas
+@msg	variables that aren't text were left out: {kinds}	as variáveis que não são de texto foram omitidas: {kinds}
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	arquivos da versão {0} não podem ser compactados: somente a versão {COMPRESSED_SINCE} e posteriores abrem arquivos compactados
 @msg	width and height are at least 1 pixel	largura e altura têm pelo menos 1 pixel
 @msg	workspace name can't be empty	o nome do espaço de trabalho não pode estar vazio
@@ -3884,6 +3902,7 @@ axis	Both	Ambos
 @msg	{_1} font families available	{_1} famílias de fontes disponíveis
 @msg	{_1} is a live effect (Effect › Plug-ins)	{_1} é um efeito dinâmico (Efeito › Plug-ins)
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1} é um plug-in de exportação (Arquivo › Exportar › Exportar Como…)
+@msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData` tem {size} bytes (limite {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	{_1} já é usado por {_2}
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} arquivo(s) vinculado(s) não podem ser lidos aqui: suas visualizações são exibidas
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} imagem(ns) vinculada(s) mudou(aram) no disco: Atualizar links mostra as novas versões
@@ -3911,6 +3930,8 @@ axis	Both	Ambos
 @msg	Saving	Salvando
 @msg	Saving {_1}	Salvando {_1}
 @msg	Exporting {_1}	Exportando {_1}
+@msg	Packaging {_1}	Empacotando {_1}
+@msg	Placing {_1}	Inserindo {_1}
 @msg	Saving recovery data for {_1}	Salvando dados de recuperação de {_1}
 @msg	Discarded {_1} recovered document(s)	{_1} documento(s) recuperado(s) descartado(s)
 @msg	Restored {_1} recovered document(s): save them to keep them	{_1} documento(s) recuperado(s) restaurado(s): salve-os para mantê-los
@@ -3991,7 +4012,9 @@ axis	Both	Ambos
 @msg	automation filesystem access is not granted: read authority is absent: {path}	o acesso da automação ao sistema de arquivos não foi concedido: falta autorização de leitura: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	o acesso da automação ao sistema de arquivos não foi concedido: falta autorização de gravação: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	caminho da automação rejeitado: fora da raiz de leitura {root}: {path}
+@msg	automation path rejected: outside the read roots {roots}: {path}	caminho da automação rejeitado: fora das raízes de leitura {roots}: {path}
 @msg	automation path rejected: outside the write root {root}: {path}	caminho da automação rejeitado: fora da raiz de gravação {root}: {path}
+@msg	automation path rejected: outside the write roots {roots}: {path}	caminho da automação rejeitado: fora das raízes de gravação {roots}: {path}
 @msg	automation path rejected: path is empty	caminho da automação rejeitado: o caminho está vazio
 @msg	automation path rejected: a link that leads nowhere: {path}	caminho da automação rejeitado: um link que não leva a lugar nenhum: {path}
 @msg	automation path rejected: cannot resolve {path}: {e}	caminho da automação rejeitado: não foi possível resolver {path}: {e}
@@ -4017,6 +4040,12 @@ axis	Both	Ambos
 @msg	before must name a panel	before deve nomear um painel
 @msg	docking action contains an unknown panel or an excessive split path	a ação de encaixe contém um painel desconhecido ou um caminho de divisão excessivo
 @msg	group must be true or false	group deve ser true ou false
+@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	o painel está flutuando; recolha o grupo com window.panel.float {panel, collapsed}
+@msg	panel is not in a dock group	o painel não está em um grupo do encaixe
+@msg	only a dock group above or below others collapses, not one beside another	só um grupo do encaixe acima ou abaixo de outros é recolhido, não um ao lado
+@msg	icon must be true or false	icon deve ser true ou false
+@msg	icon only docks a panel in the icon column, with no anchor	icon apenas encaixa um painel na coluna de ícones, sem anchor
+@msg	column docks a set as a dock column, with no anchor or icon	column encaixa um conjunto como coluna do encaixe, sem anchor nem icon
 @msg	move requires a destination panel	mover exige um painel de destino
 @msg	move requires an existing destination panel	mover exige um painel de destino existente
 @msg	onto must name a floating panel	onto deve nomear um painel flutuante
@@ -4036,14 +4065,24 @@ axis	Both	Ambos
 	Reset Ruler Origin	Redefinir origem das réguas
 	Artistic	Artístico
 	Film Grain…	Granulação de filme…
+	Colored Pencil…	Lápis de cor…
+	Colored Pencil	Lápis de cor
 	Cutout…	Recorte…
 	Cutout	Recorte
 	Dry Brush…	Pincel seco…
 	Dry Brush	Pincel seco
 	Neon Glow…	Brilho neon…
+	Palette Knife…	Espátula…
 	Neon Glow	Brilho neon
+	Paint Daubs…	Manchas de tinta…
+	Paint Daubs	Manchas de tinta
+	Palette Knife	Espátula
 	Poster Edges…	Bordas de pôster…
+	Rough Pastels…	Pastéis ásperos…
 	Poster Edges	Bordas de pôster
+	Rough Pastels	Pastéis ásperos
+	Underpainting…	Subpintura…
+	Underpainting	Subpintura
 	Levels	Níveis
 	Edge Simplicity	Simplicidade das bordas
 	Edge Fidelity	Fidelidade das bordas
@@ -4081,6 +4120,9 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+	3D Lighting Preset	Predefinição de iluminação 3D
+	Standard	Padrão
+	Diffuse	Difusa
 # 3D light management.
 	Lights	Luzes
 	Add Light	Adicionar luz
@@ -4103,6 +4145,13 @@ axis	Both	Ambos
 	Channel 4	Canal 4
 	Cell Size	Tamanho da Célula
 	Fine Dots	Pontos Finos
+
+	Simple	Simples
+	Light Rough	Áspero claro
+	Dark Rough	Áspero escuro
+	Wide Sharp	Largo nítido
+	Wide Blurry	Largo borrado
+	Sparkle	Brilho
 	Medium Dots	Pontos Médios
 	Grainy Dots	Pontos Granulados
 	Coarse Dots	Pontos Grossos
@@ -4397,7 +4446,7 @@ axis	Both	Ambos
 	Output Black	Preto de Saída
 	Output White	Branco de Saída
 	Output › Mode	Saída › Modo
-	Packaged {n} file(s) in {folder}{note}	{n} arquivo(s) empacotado(s) em {folder}{note}
+	Packaged {n} file(s) in {folder} {note}	{n} arquivo(s) empacotado(s) em {folder}{note}
 	Packaged {n} file(s){note}	{n} arquivo(s) empacotado(s){note}
 	Page information	Informações da página
 	Paragraph Style	Estilo de Parágrafo
@@ -5167,6 +5216,12 @@ mark-style	Japanese	Japonesas
 	Sketch	Esboço
 	Halftone Pattern…	Padrão de meio-tom…
 	Halftone Pattern	Padrão de meio-tom
+	Torn Edges…	Bordas rasgadas…
+	Torn Edges	Bordas rasgadas
+	Conté Crayon…	Lápis Conté…
+	Conté Crayon	Lápis Conté
+	Foreground Level	Nível do primeiro plano
+	Background Level	Nível do plano de fundo
 	Pattern Type	Tipo de padrão
 	Dot	Ponto
 # User Interface › Color Scheme
@@ -5183,6 +5238,7 @@ mark-style	Japanese	Japonesas
 	Watercolor…	Aquarela…
 	Watercolor	Aquarela
 	Brush Size	Tamanho do pincel
+	Texture Coverage	Cobertura da textura
 	Definition	Definição
 	Brush Detail	Detalhe do pincel
 	Shadow Intensity	Intensidade da sombra
@@ -5215,10 +5271,17 @@ mark-style	Japanese	Japonesas
 @msg	Persistent libraries not found: {files}	Bibliotecas persistentes não encontradas: {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` não é um painel de biblioteca (consulte window.swatchLibrary)
 @msg	library panel `{given}` isn't open	o painel de biblioteca `{given}` não está aberto
+@msg	library panel `{given}` isn't missing its library	a biblioteca do painel de biblioteca `{given}` não está faltando
 @msg	too many library panels were opened in this session	foram abertos painéis de biblioteca demais nesta sessão
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	A imagem tem {_1} × {_2} pixels, mais de {LARGE_TRACE_SIDE} em um lado: ela é traçada, mas mais devagar. Uma predefinição de menor fidelidade ou uma cópia menor da imagem traça mais rápido.
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	A imagem foi traçada em {_1} × {_2} pixels, reduzida de {_3} × {_4} (no máximo {_5} megapixels).
+	Snapping	Ajuste
+	Snap to Tangent	Ajustar à Tangente
+	Snap to Perpendicular	Ajustar à Perpendicular
+@msg	unknown snap option `{key}` (use {options})	opção de ajuste desconhecida `{key}` (use {options})
+	Gap Length:	Comprimento da Lacuna:
 	Artboard {n} of {total}	Mesa de Trabalho {n} de {total}
+	File {n} of {total}	Arquivo {n} de {total}
 	Encoding and writing the file…	Codificando e gravando o arquivo…
 @plural	{n} more export waiting|{n} more exports waiting	Mais {n} exportação aguardando|Mais {n} exportações aguardando
 	Continue in Background	Continuar em Segundo Plano
@@ -5234,6 +5297,14 @@ mark-style	Japanese	Japonesas
 	Full Justify	Justificação Completa
 	Minimum must not exceed Desired, nor Desired Maximum.	O mínimo não pode passar do desejado, nem o desejado do máximo.
 	Justification	Justificação
+	Add filters from the list above	Adicione filtros da lista acima
+	Add to Stack	Adicionar à Pilha
+	Applied Filters	Filtros Aplicados
+	Categories	Categorias
+	Choose a filter	Escolha um filtro
+	Effect Gallery	Galeria de Efeitos
+	Filters	Filtros
+	Select artwork to apply effects	Selecione a arte para aplicar efeitos
 @msg	the file's variables and data sets weren't read (variables: {variables}, data sets: {data_sets}): the Variables panel doesn't list them	as variáveis e os conjuntos de dados do arquivo não foram lidos (variáveis: {variables}, conjuntos de dados: {data_sets}): o painel Variáveis não os lista
 # Select by Color (select.color)
 	Select by Color	Selecionar por Cor
@@ -5311,3 +5382,52 @@ mark-style	Japanese	Japonesas
 	Note Paper	Papel de carta
 	Water Paper…	Papel molhado…
 	Water Paper	Papel molhado
+	Ruby…	Ruby…
+	Ruby	Ruby
+	Geometric Guides	Guias geométricas
+	Ease In	Entrada suave
+	Ease Out	Saída suave
+	Ease In Out	Entrada e saída suaves
+	Ease Out In	Saída e entrada suaves
+	Ramp:	Intensidade:
+	Shift:	Deslocamento:
+	Fresco…	Afresco…
+	Fresco	Afresco
+	Effect Gallery…	Galeria de Efeitos…
+	Effect Gallery Dialog	Caixa de diálogo Galeria de Efeitos
+	Arc Segment Tool Options	Opções da Ferramenta Segmento de Arco
+	Base Along:	Base ao longo de:
+	Closed	Fechado
+	Convex	Convexo
+	Fill Arc	Preencher arco
+	Length X-Axis:	Comprimento eixo X:
+	Length Y-Axis:	Comprimento eixo Y:
+	Slope:	Inclinação:
+axis	X Axis	Eixo X
+axis	Y Axis	Eixo Y
+@msg	Packaged {n} file(s) in {folder}	{n} arquivo(s) empacotado(s) em {folder}
+@msg	Packaged {n} file(s) {note}	{n} arquivo(s) empacotado(s) {note}
+@msg	Packaged {n} file(s)	{n} arquivo(s) empacotado(s)
+	Packaged {n} file(s)	{n} arquivo(s) empacotado(s)
+	Packaged {n} file(s) in {folder}	{n} arquivo(s) empacotado(s) em {folder}
+	Packaged {n} file(s) {note}	{n} arquivo(s) empacotado(s) {note}
+	{count} file(s) in {folder}. Show the package folder?	{count} arquivo(s) em {folder}. Mostrar a pasta do pacote?
+	Clockwise	Sentido horário
+	Dither	Dither
+	Fine noise hides banding in the gradient fill	Um ruído fino esconde as faixas do preenchimento em gradiente
+@msg	`dither` applies to gradient fills (stroke: false)	`dither` se aplica a preenchimentos em gradiente (stroke: false)
+@msg	`dither` applies to gradient fills (paint.setFill)	`dither` se aplica a preenchimentos em gradiente (paint.setFill)
+@msg	`dither` must be true or false	`dither` deve ser true ou false
+@msg	`method` must be classic or perceptual	`method` deve ser classic ou perceptual
+# Heavy plug-in filters (plugin.inspect, plug-in runs)
+	Install “{name}”, which asks for a heavy budget?	Instalar “{name}”, que pede um orçamento de processamento grande?
+	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	Cada execução pode levar até {minutes} minutos e fazer {times} vezes o trabalho permitido a outros plug-ins. Ela é executada em segundo plano, e você pode cancelá-la.
+	It may take minutes, so it runs in the background, where you can cancel it.	Pode levar minutos, então é executado em segundo plano, onde você pode cancelá-lo.
+	The plug-in is computing…	O plug-in está processando…
+	Inspect Plug-in	Inspecionar Plug-in
+	Cancel Plug-in Run	Cancelar Execução do Plug-in
+@msg	{_1} finished, but the document or the plug-in changed meanwhile: run it again	{_1} terminou, mas o documento ou o plug-in mudou nesse meio-tempo: execute-o novamente
+@msg	Running “{name}”…	Executando “{name}”…
+@msg	a live effect runs while the document is drawn, so it can't be `heavy`	um efeito dinâmico é executado enquanto o documento é desenhado, então não pode ser `heavy`
+@msg	an exporter always gets an export's budget: leave `budget` out	um plug-in de exportação sempre recebe o orçamento de uma exportação: omita `budget`
+@msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	“{_1}” pede um orçamento de processamento grande (cada execução até {minutes} minutos e {times} vezes as instruções habituais): instale-o com `allowHeavy: true` depois que o usuário concordar

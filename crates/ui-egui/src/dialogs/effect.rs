@@ -201,6 +201,10 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 pub(crate) const FILM_GRAIN_FIELDS: [(&str, &str, f64); 3] =
     [("grain", "Grain", 20.0), ("highlightArea", "Highlight Area", 20.0), ("intensity", "Intensity", 10.0)];
 
+/// Paint Daubs › Brush Type labels ([`vectorcraft_effects::pixel::PAINT_DAUB_BRUSH_TYPES`]); extend
+/// [`crate::menus::menu_strings`] with these like [`FILM_GRAIN_FIELDS`].
+pub(crate) const PAINT_DAUB_BRUSH_TYPE_LABELS: [&str; 6] = ["Simple", "Light Rough", "Dark Rough", "Wide Sharp", "Wide Blurry", "Sparkle"];
+
 fn film_grain_fields(ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let before = d.fields.clone();
     // Use one column wide enough for this language's longest label, keeping every rail aligned.
@@ -292,12 +296,15 @@ fn choices(effect: &str, key: &str) -> Option<form::Choices> {
         ("brushStrokes.sprayedStrokes", "strokeDirection") => Some(&vectorcraft_effects::pixel::STROKE_DIRECTIONS),
         ("distort.glass", "texture") => Some(&vectorcraft_effects::pixel::GLASS_TEXTURES),
         ("pixelate.mezzotint", "type") => Some(&vectorcraft_effects::pixel::MEZZOTINT_TYPES),
+        ("artistic.paintDaubs", "brushType") => Some(&vectorcraft_effects::pixel::PAINT_DAUB_BRUSH_TYPES),
         ("sketch.graphicPen", "strokeDirection") => Some(&vectorcraft_effects::pixel::STROKE_DIRECTIONS),
         ("sketch.halftonePattern", "patternType") => Some(&vectorcraft_effects::pixel::HALFTONE_TYPES),
         ("sketch.plaster", "lightDirection") => Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS),
         ("texture.grain", "grainType") => Some(&vectorcraft_effects::pixel::GRAIN_TYPES),
-        ("texture.texturizer", "texture") => Some(&vectorcraft_effects::pixel::TEXTURES),
-        ("sketch.basRelief" | "texture.texturizer", "lightDirection") => Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS),
+        ("texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "texture") => Some(&vectorcraft_effects::pixel::TEXTURES),
+        ("sketch.basRelief" | "texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "lightDirection") => {
+            Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS)
+        }
         ("video.deinterlace", "eliminate") => Some(&[("Odd Fields", "odd"), ("Even Fields", "even")]),
         ("video.deinterlace", "create") => Some(&[("Duplication", "duplication"), ("Interpolation", "interpolation")]),
         ("stylize.innerGlow", "source") => Some(&[("Center", "center"), ("Edge", "edge")]),
@@ -470,8 +477,9 @@ fn values_changed(d: &mut Dialog) -> bool {
 const TRANSFORM: &str = "distort.transform";
 
 /// The Transform effect's dialog: Transform Each's Scale and Move sliders and Rotate dial, then
-/// Copies, the reflections, the reference point and Random. Returns whether the values differ from
-/// those last previewed.
+/// the options Transform Objects, Transform Patterns and Scale Strokes & Effects (#885), Copies,
+/// the reflections, the reference point and Random. Returns whether the values differ from those
+/// last previewed.
 fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| transform_each::sections(ui, d, unit));
@@ -479,6 +487,9 @@ fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Un
         ui.vertical(|ui| {
             widgets::subheader(ui, tl!("Options"));
             ui.add_space(4.0);
+            form::check(ui, d, "objects", tl!("Transform Objects"));
+            form::check(ui, d, "patterns", tl!("Transform Patterns"));
+            form::check(ui, d, "strokes", tl!("Scale Strokes & Effects"));
             ui.horizontal(|ui| {
                 widgets::dim_label(ui, tl!("Copies:"));
                 if let Some(n) = widgets::range_field(ui, "fx-copies", d.f64("copies", 0.0), 0.0..=1000.0, "", 0, 50.0) {
@@ -714,6 +725,7 @@ mod tests {
             ("distort.roughen", "points"),
             ("stylize.innerGlow", "source"),
             (DROP_SHADOW, "shade"),
+            ("artistic.paintDaubs", "brushType"),
         ] {
             let doc = vectorcraft_effects::effect_info(effect).unwrap().params;
             let listed = doc.split(&format!("{key}: ")).nth(1).unwrap().split([',', '}', ' ']).next().unwrap().to_string();
