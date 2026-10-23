@@ -43,6 +43,8 @@
 	All Scripts	すべての文字
 	Anchors:	アンカー:
 	Any Kind	すべての種類
+	Font Technology	フォントテクノロジー
+font-technology	Variable	バリアブル
 	Ascender	アセンダ
 	Baseline	ベースライン
 	Bottom-to-Bottom Leading	欧文ベースライン基準の行送り
@@ -963,6 +965,8 @@
 	Average	平均
 	BLANK DOCUMENT PRESETS	空白のドキュメントプリセット
 	Background Color:	背景色:
+	Show Center Mark	中心マークを表示
+	Show Cross Hairs	十字線を表示
 	Background Contents	背景のカラー
 	Background Contents:	背景のカラー:
 	Background:	背景:
@@ -4323,6 +4327,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	decimals must be {_1}–{_2} (got {_3})	小数点以下の桁数は {_1} から {_2} までにしてください (指定値: {_3})
 @msg	Exporting {_1}	{_1} を書き出し中
 @msg	Packaging {_1}	{_1} をパッケージ中
+@msg	Placing {_1}	{_1} を配置中
 @msg	Exported {what}	{what} を書き出しました
 @msg	"{0}" is not a colour: write it as #rrggbb	「{0}」はカラーではありません: #rrggbb の形式で指定してください
 @msg	could not decode image: {0}	画像をデコードできませんでした: {0}
@@ -4400,6 +4405,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	name the file	ファイル名を入力してください
 @msg	unknown format	不明な形式です
 @msg	PDF settings are not an object	PDF 設定がオブジェクト形式ではありません
+@msg	PDF security settings are not an object	PDF のセキュリティ設定がオブジェクト形式ではありません
 @msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	`{name}` という名前の保存済み PDF プリセットが見つかりません (組み込みのプリセットは読み取り専用です: それを元に新しいプリセットを作成してください)
 @msg	Saved to User Defined: {_1}	「ユーザー定義」に保存しました: {_1}
 @msg	choose a direction to divide in	分割する方向を選択してください
@@ -4492,9 +4498,11 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	no swatch library `{l}` (see swatch.library.list)	スウォッチライブラリ `{l}` が見つかりません (swatch.library.list を参照)
 @msg	no user library folder here	この環境にはユーザーライブラリフォルダーがありません
 @msg	Couldn't place {name}: the document it was dropped on was closed	{name} を配置できませんでした: ドロップ先のドキュメントは閉じられています
+@msg	Couldn't place {name}: the document it was placed in was closed	{name} を配置できませんでした: 配置先のドキュメントは閉じられています
 @msg	no files to place	配置するファイルがありません
 @msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` は VectorCraft ドキュメント、PDF、PDF 互換の .ai ファイルのいずれでもありません
 @msg	paths: give at least one file	paths: ファイルを 1 つ以上指定してください
+@msg	replace: the object to replace was changed or deleted	replace: 置き換えるオブジェクトは変更または削除されています
 @msg	Couldn't place {name}: {e}	{name} を配置できませんでした: {e}
 @msg	no print service	プリントサービスがありません
 @msg	the print job has no data	プリントジョブにデータがありません
@@ -5053,6 +5061,7 @@ lighting	Light	ライト
 @msg	unknown snap option `{key}` (use {options})	不明なスナップオプション `{key}` ({options} を使用してください)
 	Gap Length:	ギャップの長さ:
 	Artboard {n} of {total}	アートボード {n} / {total}
+	File {n} of {total}	ファイル {n} / {total}
 	Encoding and writing the file…	ファイルをエンコードして書き込み中…
 @plural	{n} more export waiting|{n} more exports waiting	待機中の書き出し: あと {n} 件
 	Continue in Background	バックグラウンドで続行

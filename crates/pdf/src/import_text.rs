@@ -622,7 +622,9 @@ fn restyled(t: &TextObject, kern: Option<f64>, own: &[f64]) -> Vec<TextRun> {
 /// The runs of `t` that put its glyphs where the file did (#722), and their layout: with the
 /// font's kerning or none, whichever the file's spacing follows, and tracking that is the same
 /// after every character when the file spaced them evenly, else each character's own (word
-/// spacing, `TJ` adjustments, character tightening, spaces read from gaps).
+/// spacing, `TJ` adjustments, character tightening, spaces read from gaps), measured from the
+/// file's widths (not the font's advances, which may be a hair off them) and kept on course where
+/// the differences add up ([`on_course`]).
 ///
 /// The file put the glyph of each character with a [`Slot`] at `baseline` (one origin per glyph),
 /// measured along `path` (type on a path: one curve per glyph) or along `line`'s baseline from its
@@ -735,14 +737,38 @@ fn place_each(
     if !same_font {
         return None;
     }
+    // Where the glyphs go on the file's own widths: each character's pen moved by how much wider
+    // the file says the characters before it are than the font's advances (a file gives widths to
+    // the thousandth of an em, so a font of 2048 units an em is a hair off), where the file gives
+    // a character's width and the layout sets it as a glyph of its own. Spacing measured from them
+    // is the file's (its `Tc`, `Tw`, `TJ`): measured from the installed font's advances, each
+    // character would also take its own hair of tracking (a run each), and keep it once a font
+    // rounded otherwise is installed.
+    let end = pen;
+    let mut wider = 0.0;
+    let mut drift = Vec::with_capacity(chars.len());
+    for (i, t) in target.iter().enumerate() {
+        drift.push(wider);
+        let (Some(Some((start, _))), Some((_, Some(width)))) = (unkerned_pens.get(i), t) else { continue };
+        let next = match unkerned_pens.get(i + 1) {
+            Some(n) => n.map(|(p, _)| p),
+            None => Some(end),
+        };
+        if let Some(next) = next {
+            wider += width - (next - start);
+        }
+    }
+    let by_file =
+        |pens: &[Option<(f64, f64)>]| -> Vec<Option<(f64, f64)>> { pens.iter().zip(&drift).map(|(p, d)| p.map(|(x, a)| (x + d, a))).collect() };
     // The font's kerning when the file followed it (or there is none to follow), else none.
-    let kerned = spacing(&pens(&auto, &chars))?;
+    let kerned_pens = pens(&auto, &chars);
+    let kerned = spacing(&by_file(&kerned_pens))?;
     let (kern, own) = match even(&kerned) {
         Some(own) => (None, own),
         // Without kerning the line lays out the same.
         None if !kerned_any => (None, kerned),
         None => {
-            let unkerned = spacing(&unkerned_pens)?;
+            let unkerned = spacing(&by_file(&unkerned_pens))?;
             match even(&unkerned) {
                 Some(own) => (Some(0.0), own),
                 None if changes(&unkerned) < changes(&kerned) => (Some(0.0), unkerned),
@@ -750,11 +776,8 @@ fn place_each(
             }
         }
     };
+    let own = on_course(own, if kern.is_some() { &unkerned_pens } else { &kerned_pens }, &target, size);
     let runs = restyled(t, kern, &own);
-    // As the type is: laid out so already.
-    if kern.is_none() && runs.iter().all(|r| r.style.tracking == 0.0) {
-        return Some((runs, auto));
-    }
     // Laid out so, are they where the file put them? (A ligature the layout forms where the file
     // drew two glyphs moves those after it.)
     let mut probe = t.clone();
@@ -766,6 +789,65 @@ fn place_each(
         None => true,
     });
     ok.then_some((probe.runs, check))
+}
+
+/// `own` (each character's spacing, points, measured from the file's widths) kept on course: laid
+/// out from `pens` (where each character goes untracked), the glyphs land within a hundredth of an
+/// em of `target` (where the file put them). The font's advances may each be a little off the
+/// file's widths (by up to the 1% that still counts as the same font), and a line spaced evenly to
+/// a hair takes the same value after every character: small differences that add up along a line.
+/// Off course, each stretch of the line takes a share of the difference after every character
+/// (one run), as long a stretch as one share keeps on course.
+fn on_course(mut own: Vec<f64>, pens: &[Option<(f64, f64)>], target: &[Option<(f64, Option<f64>)>], size: f64) -> Vec<f64> {
+    let tolerance = size * 0.01;
+    // How much further along than `own` lays it out each glyph the file placed must go.
+    let mut at = 0.0;
+    let mut behind = vec![];
+    for (i, ((p, t), e)) in pens.iter().zip(target).zip(&own).enumerate() {
+        if let (Some((p, _)), Some((t, _))) = (p, t) {
+            behind.push((i, t - p - at));
+        }
+        at += e;
+    }
+    if behind.iter().all(|(_, d)| d.abs() <= tolerance) {
+        return own;
+    }
+    // The character the stretch starts at, how far the shares before it moved it, the last glyph
+    // the stretch keeps on course, and the shares (lowest, highest) that keep each since on it.
+    let (mut from, mut moved, mut last) = (0, 0.0, 0);
+    let (mut lo, mut hi) = (f64::NEG_INFINITY, f64::INFINITY);
+    for &(i, d) in &behind {
+        if i <= from {
+            continue;
+        }
+        let course = |from: usize, moved: f64| {
+            let n = (i - from) as f64;
+            ((d - moved - tolerance) / n, (d - moved + tolerance) / n)
+        };
+        let (l, h) = course(from, moved);
+        if l > hi || h < lo {
+            // No share keeps this glyph on course too: the stretch ends at the last one it does.
+            let share = (lo + hi) / 2.0;
+            for e in own.get_mut(from..last).into_iter().flatten() {
+                *e += share;
+            }
+            moved += share * (last - from) as f64;
+            from = last;
+            (lo, hi) = course(from, moved);
+        } else {
+            (lo, hi) = (lo.max(l), hi.min(h));
+        }
+        last = i;
+    }
+    // The last stretch takes its share after the characters past the last glyph the file placed
+    // too (it changes nothing there).
+    if lo.is_finite() && hi.is_finite() {
+        let share = (lo + hi) / 2.0;
+        for e in own.get_mut(from..).into_iter().flatten() {
+            *e += share;
+        }
+    }
+    own
 }
 
 /// The middle value of `v` (the upper one of an even count).

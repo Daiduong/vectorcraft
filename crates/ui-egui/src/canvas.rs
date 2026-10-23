@@ -10,6 +10,7 @@ use vectorcraft_tools::{Cursor, Mods, Overlay, PointerEvent, PointerKind};
 
 use crate::opening;
 use crate::state::View;
+use crate::stylus::StylusFeed;
 use crate::theme::{self, Tokens};
 use crate::{CacheKey, VectorcraftApp, now_ms, widgets};
 
@@ -152,9 +153,12 @@ fn tool_drag_moved(ui: &Ui, xf: &Xf, p: Pos2, pointer: &egui::PointerState) -> b
 }
 
 /// The pen pressure (0..1) of the press in progress: the force of this frame's pen or touch
-/// input, else the last one seen since the press (`pressed`: a new press, whose mouse has none
+/// input, else the pressure in the host's feed while a pen is the pointer that moved last
+/// ([`crate::Services::stylus`]: [`StylusFeed::press`] for a new press, [`StylusFeed::held`]
+/// after it), else the last one seen since the press (`pressed`: a new press, whose mouse has none
 /// until a pen reports it). A mouse presses fully (1).
-fn pen_pressure(ui: &Ui, pressed: bool) -> f32 {
+fn pen_pressure(ui: &Ui, app: &VectorcraftApp, pressed: bool) -> f32 {
+    let stylus = app.services.stylus.as_ref();
     let id = egui::Id::new("canvas-pressure");
     let force = ui.input(|i| {
         i.events.iter().rev().find_map(|e| match e {
@@ -162,6 +166,7 @@ fn pen_pressure(ui: &Ui, pressed: bool) -> f32 {
             _ => None,
         })
     });
+    let force = force.or_else(|| stylus.and_then(if pressed { StylusFeed::press } else { StylusFeed::held }));
     let p = force.or_else(|| if pressed { None } else { ui.data(|d| d.get_temp::<f32>(id)) }).unwrap_or(1.0);
     ui.data_mut(|d| d.insert_temp(id, p));
     p
@@ -562,6 +567,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         if doc.setup.has_bleed() {
             painter.add(Shape::closed_line(xf.quad(doc.setup.bleed_rect(ab.rect)), Stroke::new(1.0, t.bleed)));
         }
+        // Show Center Mark and Show Cross Hairs (Artboard Options). Only the canvas draws them,
+        // as it does the edges: exports and print leave them out.
+        artboard_marks(&painter, &xf, ab, t.artboard_mark);
         if editing_name != Some(i) && (artboard_tool || doc.artboards.len() > 1) && tool_labelled != u64::try_from(i).ok() {
             // At the artboard's own top-left corner, which a rotated view turns away from its
             // bounding box's (#1095).
@@ -996,7 +1004,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                 Drag::RotateView { start_angle: (p.y - c.y).atan2(p.x - c.x) as f64, start_rot: v.rotation, snaps: !space }
             } else {
                 // Cmd with another tool drags with the selection tool used last (the session lends it).
-                let ev = PointerEvent { kind: PointerKind::Down, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, true) };
+                let ev = PointerEvent { kind: PointerKind::Down, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, app, true) };
                 dispatch(app, &ev, view);
                 crate::document_drag::begin(app, ui.ctx(), ev.pos);
                 Drag::Tool
@@ -1063,7 +1071,8 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                 Drag::Art if on_canvas(ui, resp, p) => {
                     // Back on the canvas: the move goes on from where it left, with the pointer.
                     egui::DragAndDrop::clear_payload(ui.ctx());
-                    let ev = PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
+                    let ev =
+                        PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, app, false) };
                     dispatch(app, &ev, view);
                     ui.data_mut(|dd| {
                         dd.insert_temp(drag_id(), Drag::Tool);
@@ -1076,13 +1085,16 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                 }
                 Drag::Tool => {
                     if tool_drag_moved(ui, &xf, p, &pointer) {
-                        // Every position the pen or mouse passed this frame, not just the last: a
-                        // fast stroke keeps its curve (a pen reports far more often than frames come).
+                        // In a frame with touch events (a pen on Windows or the web, a finger), every
+                        // position the pen passed, not just the last: a fast stroke keeps its curve (a
+                        // pen reports far more often than frames come). Mouse events, a pen's on X11
+                        // among them, give the last position only, with the host's latest pressure.
                         for (at, force) in frame_moves(ui) {
-                            let pressure = force.unwrap_or_else(|| pen_pressure(ui, false));
+                            let pressure = force.unwrap_or_else(|| pen_pressure(ui, app, false));
                             dispatch(app, &PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(at), mods: mods(m, space), pressure }, view);
                         }
-                        let ev = PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
+                        let ev =
+                            PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, app, false) };
                         dispatch(app, &ev, view);
                     }
                     // Time held (Twirl, Pucker and Bloat keep applying); a stalled frame counts
@@ -1138,16 +1150,17 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     if let Some(last) = last_drag
                         && last != xf.to_doc(p)
                     {
-                        let ev = PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
+                        let ev =
+                            PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, app, false) };
                         dispatch(app, &ev, view);
                     }
-                    let ev = PointerEvent { kind: PointerKind::Up, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
+                    let ev = PointerEvent { kind: PointerKind::Up, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, app, false) };
                     dispatch(app, &ev, view);
                 }
                 Drag::Art if on_canvas(ui, resp, p) => {
                     // Came back to the canvas and released in one frame: finish the move here.
                     egui::DragAndDrop::clear_payload(ui.ctx());
-                    let pressure = pen_pressure(ui, false);
+                    let pressure = pen_pressure(ui, app, false);
                     let pos = xf.to_doc(p);
                     dispatch(app, &PointerEvent { kind: PointerKind::Drag, pos, mods: mods(m, space), pressure }, view);
                     dispatch(app, &PointerEvent { kind: PointerKind::Up, pos, mods: mods(m, space), pressure }, view);
@@ -1649,6 +1662,7 @@ pub fn apply_requests(app: &mut VectorcraftApp, r: vectorcraft_engine::Result<Ve
                     vectorcraft_engine::UiRequest::Dialog(kind, p) => crate::dialogs::open_tool_dialog(app, &kind, p),
                     vectorcraft_engine::UiRequest::SwitchTool(t) => app.select_tool(&t),
                     vectorcraft_engine::UiRequest::Status(msg) => app.status(msg),
+                    vectorcraft_engine::UiRequest::Place(p) => crate::place::place_from_cursor(app, &p),
                 }
             }
         }
@@ -2888,6 +2902,31 @@ fn canvas_name_galley(painter: &egui::Painter, corner: Pos2, width: f32, name: &
     let galley = painter.layout_job(job);
     let at = corner - vec2(0.0, 4.0 + galley.size().y);
     Some((galley, at))
+}
+
+/// The length on screen, in points, of each arm of an artboard's center mark (a cross), at any zoom.
+const CENTER_MARK_ARM: f32 = 6.0;
+
+/// Artboard `ab`'s display marks in `color`, each line 1 point wide on screen at any zoom and
+/// turned with the view: with Show Cross Hairs, a line from the middle of each side through the
+/// center to the middle of the opposite side; with Show Center Mark, a cross at the center whose
+/// arms run along the artboard's sides, [`CENTER_MARK_ARM`] long on screen
+/// (https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/modify-display-settings-of-artboards.html).
+fn artboard_marks(painter: &egui::Painter, xf: &Xf, ab: &vectorcraft_doc::Artboard, color: Color32) {
+    let (r, stroke) = (ab.rect, Stroke::new(1.0, color));
+    let c = r.center();
+    let at = |x: f64, y: f64| xf.to_screen(Point::new(x, y));
+    if ab.show_cross_hairs {
+        painter.line_segment([at(r.x0, c.y), at(r.x1, c.y)], stroke);
+        painter.line_segment([at(c.x, r.y0), at(c.x, r.y1)], stroke);
+    }
+    if ab.show_center_mark {
+        let mid = at(c.x, c.y);
+        for side in [at(c.x + 1.0, c.y), at(c.x, c.y + 1.0)] {
+            let arm = (side - mid).normalized() * CENTER_MARK_ARM;
+            painter.line_segment([mid - arm, mid + arm], stroke);
+        }
+    }
 }
 
 /// Artboard `name` above its top-left `corner` on screen, no wider than the artboard (`width` on
@@ -8498,6 +8537,82 @@ mod tests {
         let pressures: Vec<f64> = p["points"].as_array().unwrap().iter().map(|s| (s[2].as_f64().unwrap() * 100.0).round() / 100.0).collect();
         assert_eq!(pressures.first(), Some(&0.2), "the press's own pressure: {pressures:?}");
         assert!(pressures.contains(&0.5) && pressures.contains(&0.8), "{pressures:?}");
+    }
+
+    /// #764: on Linux under X11 a pen reaches egui as a mouse, and the host reads its pressure
+    /// itself (`Services::stylus`): the Paintbrush and Liquify's Use Pressure Pen get that
+    /// pressure, and once a mouse moves (`None`) a stroke presses fully.
+    #[test]
+    fn the_hosts_pen_pressure_drives_the_tools_under_mouse_events() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let feed = StylusFeed::default();
+        app.services.stylus = Some(feed.clone());
+        app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        // One frame per sample: the reader has set the pressure before the frame's mouse events.
+        let stroke = |app: &mut VectorcraftApp, pts: &[(f64, f64, Option<f32>)]| {
+            let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+            let button =
+                |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+            let mut at = Pos2::ZERO;
+            for (i, &(x, y, pressure)) in pts.iter().enumerate() {
+                feed.set(pressure);
+                at = xf.to_screen(Point::new(x, y));
+                let mut events = vec![egui::Event::PointerMoved(at)];
+                if i == 0 {
+                    events.push(button(at, true));
+                }
+                frame(app, &ctx, events);
+            }
+            frame(app, &ctx, vec![button(at, false)]);
+        };
+        let pressures = |p: &serde_json::Value| -> Vec<f64> {
+            // A point without a third value was pressed fully.
+            let pressure = |s: &serde_json::Value| s.get(2).and_then(serde_json::Value::as_f64).map_or(1.0, |f| (f * 100.0).round() / 100.0);
+            p["points"].as_array().unwrap().iter().map(pressure).collect()
+        };
+
+        app.select_tool("paintbrush");
+        stroke(&mut app, &[(100.0, 100.0, Some(0.3)), (140.0, 120.0, Some(0.6)), (180.0, 150.0, Some(0.9))]);
+        let (cmd, p) = app.session.journal.last().unwrap().clone();
+        assert_eq!(cmd, "path.freehand");
+        assert_eq!(pressures(&p), [0.3, 0.6, 0.9], "{p}");
+        // The lift reaches the feed before the frame of the stroke's last move: that move keeps the
+        // pressure the pen last touched with, not the lift's 0.
+        stroke(&mut app, &[(100.0, 300.0, Some(0.3)), (140.0, 320.0, Some(0.5)), (180.0, 350.0, Some(0.0))]);
+        let (cmd, p) = app.session.journal.last().unwrap().clone();
+        assert_eq!(cmd, "path.freehand");
+        assert_eq!(pressures(&p), [0.3, 0.5, 0.5], "{p}");
+
+        app.session.execute("shape.rectangle", &json!({"x": 300, "y": 300, "width": 200, "height": 200})).unwrap();
+        app.select_tool("bloat");
+        app.session.set_tool_option("usePressure", &json!(true));
+        stroke(&mut app, &[(500.0, 350.0, Some(0.2)), (500.0, 400.0, Some(0.5)), (500.0, 420.0, Some(0.8))]);
+        let (cmd, p) = app.session.journal.last().unwrap().clone();
+        assert_eq!(cmd, "object.liquify");
+        let pen = pressures(&p);
+        assert_eq!(pen.first(), Some(&0.2), "the press's own pressure: {pen:?}");
+        assert!(pen.contains(&0.5) && pen.contains(&0.8), "{pen:?}");
+
+        // A mouse moved last: no pen pressure.
+        stroke(&mut app, &[(350.0, 350.0, None), (350.0, 400.0, None), (350.0, 420.0, None)]);
+        let (cmd, p) = app.session.journal.last().unwrap().clone();
+        assert_eq!(cmd, "object.liquify");
+        assert!(pressures(&p).iter().all(|f| *f == 1.0), "{p}");
+
+        // A tap whose touch and lift both reach the feed before the frame that handles its press
+        // presses with the tap's pressure, not the lift's 0.
+        for p in [0.0, 0.4, 0.7, 0.0] {
+            feed.set(Some(p));
+        }
+        let at = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap()).to_screen(Point::new(450.0, 400.0));
+        let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at), button(true)]);
+        frame(&mut app, &ctx, vec![button(false)]);
+        let (cmd, p) = app.session.journal.last().unwrap().clone();
+        assert_eq!(cmd, "object.liquify");
+        assert_eq!(pressures(&p).first(), Some(&0.7), "{p}");
     }
 
     /// #491: a pen tap whose press and lift come in one frame selects what it tapped, and the

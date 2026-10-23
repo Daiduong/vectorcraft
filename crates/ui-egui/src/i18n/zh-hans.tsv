@@ -250,6 +250,8 @@
 	Average…	平均…
 	Axis:	轴：
 	Background Color:	背景颜色：
+	Show Center Mark	显示中心标记
+	Show Cross Hairs	显示十字线
 	Background Contents	背景内容
 	Background Contents:	背景内容：
 	Background:	背景：
@@ -4054,6 +4056,7 @@ imageTrace	Outline	轮廓
 @msg	decimals must be {_1}–{_2} (got {_3})	小数位数必须为 {_1}–{_2} (实际为 {_3})
 @msg	Exporting {_1}	正在导出 {_1}
 @msg	Packaging {_1}	正在打包 {_1}
+@msg	Placing {_1}	正在置入 {_1}
 @msg	Exported {what}	已导出 {what}
 @msg	"{0}" is not a colour: write it as #rrggbb	"{0}" 不是颜色：请写为 #rrggbb
 @msg	could not decode image: {0}	无法解码图像：{0}
@@ -4127,6 +4130,7 @@ imageTrace	Outline	轮廓
 @msg	name the file	请为文件命名
 @msg	unknown format	未知格式
 @msg	PDF settings are not an object	PDF 设置不是对象
+@msg	PDF security settings are not an object	PDF 安全性设置不是对象
 @msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	没有名为 `{name}` 的已保存 PDF 预设 (内置预设为只读：请以它们为基础新建一个)
 @msg	Saved to User Defined: {_1}	已保存到“用户定义”：{_1}
 @msg	choose a direction to divide in	请选择分割方向
@@ -4216,9 +4220,11 @@ imageTrace	Outline	轮廓
 @msg	no swatch library `{l}` (see swatch.library.list)	没有色板库 `{l}` (请参阅 swatch.library.list)
 @msg	no user library folder here	此处没有用户库文件夹
 @msg	Couldn't place {name}: the document it was dropped on was closed	无法置入 {name}：将它拖放到的文档已关闭
+@msg	Couldn't place {name}: the document it was placed in was closed	无法置入 {name}：要置入的文档已关闭
 @msg	no files to place	没有要置入的文件
 @msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` 不是 VectorCraft 文档、PDF 或 PDF 兼容的 .ai 文件
 @msg	paths: give at least one file	paths：请至少给出一个文件
+@msg	replace: the object to replace was changed or deleted	replace：要替换的对象已被更改或删除
 @msg	Couldn't place {name}: {e}	无法置入 {name}：{e}
 @msg	no print service	没有打印服务
 @msg	the print job has no data	打印作业没有数据
@@ -4630,6 +4636,8 @@ imageTrace	Outline	轮廓
 # The Layers panel, the graphics processor preference and the font menu's filters.
 	All Scripts	所有文字系统
 	Any Kind	所有类型
+	Font Technology	字体技术
+font-technology	Variable	可变
 	Applies the next time VectorCraft starts.	下次启动 VectorCraft 时生效。
 	Collapse to Icons	折叠为图标
 	Decorative	装饰
@@ -5237,6 +5245,7 @@ lighting	Light	光源
 @msg	{id} opens another app: only the person at the keyboard can run it	{id} 会打开其他应用程序：只有使用键盘的人才能运行它
 @msg	“{name}” is not a file	“{name}” 不是文件
 	Artboard {n} of {total}	画板 {n} / {total}
+	File {n} of {total}	文件 {n} / {total}
 	Encoding and writing the file…	正在编码并写入文件…
 @plural	{n} more export waiting|{n} more exports waiting	另有 {n} 个导出等待中
 	Continue in Background	在后台继续

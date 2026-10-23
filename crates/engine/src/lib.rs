@@ -28,8 +28,10 @@ use vectorcraft_tools::{PaintDefaults, Tool};
 
 pub use cmd::EyedropperOptions;
 pub use cmd::clipboard::Clipboard;
+pub use cmd::create::constrain_click;
 pub use cmd::distortcmds::perspective_click;
 pub use cmd::params::{check_keys, check_params};
+pub use cmd::pathops::auto_simplify_level;
 pub use cmd::rasterfx::{export_pdf, flatten_raster_effects};
 pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
 pub use journal::Journal;
@@ -1391,9 +1393,23 @@ pub struct Session {
     /// While `command.batch` runs: the documents its steps closed or replaced (Revert), which an
     /// error brings back; `None` otherwise.
     pub(crate) batch_stash: Option<Vec<DocState>>,
+    /// While [`Session::place_read`] runs `file.place`: the file read for it, which the command
+    /// places instead of reading the file; `None` otherwise.
+    pub(crate) place_hand_off: Option<cmd::place::PlaceRead>,
+    /// While [`Session::place_queue_read`] runs `file.place.queue`: the files read for it, which
+    /// the command loads the place cursor with instead of reading them; `None` otherwise.
+    pub(crate) queue_hand_off: Option<cmd::place::QueueRead>,
+    /// Whether a click or drag of the place cursor asks the frontend to place its file
+    /// ([`UiRequest::Place`]) instead of running `file.place`: the desktop app sets it to read the
+    /// file off the UI thread. False: the file is placed at once.
+    pub place_cursor_requests: bool,
     /// While [`Session::prepare_package`] runs `file.package`: the package the command prepared,
     /// which it leaves here instead of writing it; `None` otherwise.
     pub(crate) package_hand_off: Option<Option<cmd::package::Package>>,
+    /// While [`Session::prepare_screen_export`] runs `document.exportForScreens` or
+    /// `assets.export`: the export the command prepared, which it leaves here instead of writing
+    /// it; `None` otherwise.
+    pub(crate) screens_hand_off: Option<Option<cmd::fileio::ScreenExport>>,
     /// Where Data Recovery keeps its copies ([`cmd::recovery`]).
     pub recovery: cmd::recovery::Recovery,
     /// While the active tool's actions run: their commands aren't "a command from outside the
@@ -1409,6 +1425,9 @@ pub struct Session {
     pub(crate) liquify_stroke: Option<Box<cmd::distortcmds::LiquifyStroke>>,
     /// A press on the Plane Switching Widget is under way: its drag and release are the widget's.
     pub(crate) plane_widget_press: bool,
+    /// The pointer button is held: the last pointer event was a press or a drag, not a release or
+    /// a move ([`Session::pointer_held`]).
+    pub(crate) pointer_held: bool,
     /// A guide being dragged out of a ruler ([`Session::ruler_guide`]).
     pub(crate) ruler_guide: Option<vectorcraft_tools::rulerguide::NewGuide>,
     /// Which selected type overflows its frame, for the markers every tool but the Type tools shows.
@@ -1451,6 +1470,8 @@ impl Session {
         vectorcraft_doc::placed_document::set_file_reader(cmd::place::document::read_file_again);
         // Clicks find an image's own fills and strokes where their effects draw them.
         vectorcraft_doc::hit::set_image_paint(vectorcraft_render::effects::image_paint);
+        // OpenType SVG glyphs are drawn as the SVG importer reads their documents.
+        vectorcraft_text::set_svg_glyph_reader(vectorcraft_svg::glyph_art);
         Self {
             docs: vec![],
             active: None,
@@ -1491,13 +1512,18 @@ impl Session {
             journal_note: Default::default(),
             note_depth: 1,
             batch_stash: None,
+            place_hand_off: None,
+            queue_hand_off: None,
+            place_cursor_requests: false,
             package_hand_off: None,
+            screens_hand_off: None,
             recovery: Default::default(),
             in_tool_actions: false,
             previewing: false,
             envelope_defaults: None,
             liquify_stroke: None,
             plane_widget_press: false,
+            pointer_held: false,
             ruler_guide: None,
             overflow_marks: Default::default(),
             font_search: None,
@@ -2330,7 +2356,13 @@ mod tests_colormgmt;
 #[cfg(test)]
 mod tests_colorthemes;
 #[cfg(test)]
+mod tests_colourfonts;
+#[cfg(test)]
 mod tests_compoundpaint;
+#[cfg(test)]
+mod tests_constrain_new;
+#[cfg(test)]
+mod tests_constrain_tools;
 #[cfg(test)]
 mod tests_containers;
 #[cfg(test)]
@@ -2539,6 +2571,8 @@ mod tests_select_ids_first;
 mod tests_shaper;
 #[cfg(test)]
 mod tests_shortcutset;
+#[cfg(test)]
+mod tests_simplify_part;
 #[cfg(test)]
 mod tests_slices;
 #[cfg(test)]

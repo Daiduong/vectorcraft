@@ -2275,6 +2275,8 @@ lighting	Light	Cahaya
 	File Dimensions	Dimensi file
 	Transforms	Transformasi
 	Background Color:	Warna latar belakang:
+	Show Center Mark	Tampilkan tanda tengah
+	Show Cross Hairs	Tampilkan garis silang
 	Client-side (.html)	Sisi klien (.html)
 	Color Reduction:	Reduksi warna:
 	Lossless (lossy WebP isn't available yet)	Tanpa kehilangan (WebP lossy belum tersedia)
@@ -3601,6 +3603,8 @@ effect	Regular	Reguler
 	Put back in the dock	Kembalikan ke dok
 	All Scripts	Semua skrip
 	Any Kind	Jenis apa pun
+	Font Technology	Teknologi font
+font-technology	Variable	Variabel
 	Decorative	Dekoratif
 	Favorites	Favorit
 	Latin	Latin
@@ -3865,6 +3869,7 @@ imageTrace	Outline	Kontur
 @msg	Couldn't copy to the system clipboard: {e}	Tidak dapat menyalin ke papan klip sistem: {e}
 @msg	Couldn't open {name}: {e}	Tidak dapat membuka {name}: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Tidak dapat menempatkan {name}: dokumen tempatnya dijatuhkan sudah ditutup
+@msg	Couldn't place {name}: the document it was placed in was closed	Tidak dapat menempatkan {name}: dokumen tempatnya ditempatkan sudah ditutup
 @msg	Couldn't read {name}: {e}	Tidak dapat membaca {name}: {e}
 @msg	Couldn't save recovery data: {e}	Tidak dapat menyimpan data pemulihan: {e}
 @msg	Create Outlines: select text objects	Buat kontur: pilih objek teks
@@ -3901,6 +3906,7 @@ imageTrace	Outline	Kontur
 @msg	Opened {url}	Berhasil membuka {url}
 @msg	Outline Stroke: no stroked paths selected	Ubah goresan menjadi kontur: tidak ada jalur dengan goresan yang dipilih
 @msg	PDF settings are not an object	Pengaturan PDF bukan objek
+@msg	PDF security settings are not an object	Pengaturan keamanan PDF bukan objek
 @msg	PDF writer error: {0}	Kesalahan penulis PDF: {0}
 @msg	Packaged {n} file(s) in {folder} {note}	Berhasil mengemas {n} file di {folder}{note}
 @msg	Packaged {n} file(s){note}	Berhasil mengemas {n} file{note}
@@ -4208,6 +4214,7 @@ imageTrace	Outline	Kontur
 @msg	path is already closed	jalur sudah tertutup
 @msg	paths contain invalid coordinates	jalur berisi koordinat yang tidak valid
 @msg	paths: give at least one file	jalur: berikan setidaknya satu berkas
+@msg	replace: the object to replace was changed or deleted	ganti: objek yang akan diganti telah diubah atau dihapus
 @msg	pattern missing	pola hilang
 @msg	patterns nested too deeply are filled with mid-grey	pola yang bersarang terlalu dalam diisi dengan abu-abu tengah
 @msg	percent must be above 0 and at most 6400, not {p}	persen harus di atas 0 dan paling banyak 6400, bukan {p}
@@ -4393,6 +4400,7 @@ imageTrace	Outline	Kontur
 @msg	Saving {_1}	Menyimpan {_1}
 @msg	Exporting {_1}	Mengekspor {_1}
 @msg	Packaging {_1}	Mengemas {_1}
+@msg	Placing {_1}	Menempatkan {_1}
 @msg	Saving recovery data for {_1}	Menyimpan data pemulihan untuk {_1}
 @msg	Discarded {_1} recovered document(s)	{_1} dokumen hasil pemulihan dibuang
 @msg	Restored {_1} recovered document(s): save them to keep them	{_1} dokumen hasil pemulihan dipulihkan: simpan agar tidak hilang
@@ -5349,6 +5357,7 @@ swatch	Bright Violet	Violet cerah
 @msg	unknown snap option `{key}` (use {options})	opsi snap `{key}` tidak dikenal (gunakan {options})
 	Gap Length:	Panjang celah:
 	Artboard {n} of {total}	Artboard {n} dari {total}
+	File {n} of {total}	Berkas {n} dari {total}
 	Encoding and writing the file…	Mengodekan dan menulis berkas…
 @plural	{n} more export waiting|{n} more exports waiting	{n} ekspor lagi menunggu
 	Continue in Background	Lanjutkan di latar belakang

@@ -39,6 +39,8 @@
 	All Scripts	모든 스크립트
 	Anchors:	앵커:
 	Any Kind	모든 종류
+	Font Technology	글꼴 기술
+font-technology	Variable	가변
 	Ascender	어센더
 	Baseline	기준선
 	Bottom-to-Bottom Leading	아래쪽 기준 행간
@@ -958,6 +960,8 @@
 	Average	평균
 	BLANK DOCUMENT PRESETS	빈 문서 프리셋
 	Background Color:	배경색:
+	Show Center Mark	중심 표시 보기
+	Show Cross Hairs	십자선 보기
 	Background Contents	배경 내용
 	Background Contents:	배경 내용:
 	Background:	배경:
@@ -4255,6 +4259,7 @@ theme	Appearance	외관
 @msg	decimals must be {_1}–{_2} (got {_3})	소수 자릿수는 {_1}~{_2}이어야 합니다({_3} 입력됨)
 @msg	Exporting {_1}	{_1} 내보내는 중
 @msg	Packaging {_1}	{_1} 패키지 만드는 중
+@msg	Placing {_1}	{_1} 가져오는 중
 @msg	Exported {what}	{what}을(를) 내보냈습니다
 @msg	"{0}" is not a colour: write it as #rrggbb	"{0}"은(는) 색상이 아닙니다: #rrggbb 형식으로 입력하세요
 @msg	could not decode image: {0}	이미지를 디코딩할 수 없습니다: {0}
@@ -4332,6 +4337,7 @@ theme	Appearance	외관
 @msg	name the file	파일 이름을 지정하세요
 @msg	unknown format	알 수 없는 형식
 @msg	PDF settings are not an object	PDF 설정이 개체가 아닙니다
+@msg	PDF security settings are not an object	PDF 보안 설정이 개체가 아닙니다
 @msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	`{name}`이라는 저장된 PDF 프리셋이 없습니다(기본 제공 프리셋은 읽기 전용이니 이를 바탕으로 새로 만드세요)
 @msg	Saved to User Defined: {_1}	사용자 정의에 저장했습니다: {_1}
 @msg	choose a direction to divide in	나눌 방향을 선택하세요
@@ -4424,9 +4430,11 @@ theme	Appearance	외관
 @msg	no swatch library `{l}` (see swatch.library.list)	견본 라이브러리 `{l}`이(가) 없습니다(swatch.library.list 참조)
 @msg	no user library folder here	여기에는 사용자 라이브러리 폴더가 없습니다
 @msg	Couldn't place {name}: the document it was dropped on was closed	{name}을(를) 가져올 수 없습니다: 놓은 문서가 닫혔습니다
+@msg	Couldn't place {name}: the document it was placed in was closed	{name}을(를) 가져올 수 없습니다: 가져오던 문서가 닫혔습니다
 @msg	no files to place	가져올 파일이 없습니다
 @msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}`은(는) VectorCraft 문서, PDF 또는 PDF 호환 .ai 파일이 아닙니다
 @msg	paths: give at least one file	paths: 파일을 하나 이상 지정하세요
+@msg	replace: the object to replace was changed or deleted	replace: 바꿀 개체가 변경되었거나 삭제되었습니다
 @msg	Couldn't place {name}: {e}	{name}을(를) 가져올 수 없습니다: {e}
 @msg	no print service	인쇄 서비스가 없습니다
 @msg	the print job has no data	인쇄 작업에 데이터가 없습니다
@@ -4976,6 +4984,7 @@ lighting	Light	광원
 @msg	unknown snap option `{key}` (use {options})	알 수 없는 스냅 옵션 `{key}` ({options} 중에서 사용하세요)
 	Gap Length:	간격 길이:
 	Artboard {n} of {total}	아트보드 {n} / {total}
+	File {n} of {total}	파일 {n} / {total}
 	Encoding and writing the file…	파일을 인코딩하고 쓰는 중…
 @plural	{n} more export waiting|{n} more exports waiting	대기 중인 내보내기 {n}개 더
 	Continue in Background	백그라운드에서 계속

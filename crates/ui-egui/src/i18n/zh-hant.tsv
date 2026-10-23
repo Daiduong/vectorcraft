@@ -177,6 +177,8 @@
 	Anti-aliased Artwork	消除鋸齒的圖稿
 	Anti-aliasing:	消除鋸齒：
 	Any Kind	所有類型
+	Font Technology	字體技術
+font-technology	Variable	可變
 	Appearance	外觀
 	Appearance Attribute	外觀屬性
 	Appearance Item	外觀項目
@@ -261,6 +263,8 @@
 	Average…	平均…
 	Axis:	軸：
 	Background Color:	背景顏色：
+	Show Center Mark	顯示中心標記
+	Show Cross Hairs	顯示十字線
 	Background Contents	背景內容
 	Background Contents:	背景內容：
 	Background:	背景：
@@ -2040,6 +2044,7 @@ file-filter	Templates	範本
 @msg	decimals must be {_1}–{_2} (got {_3})	小數位數必須為 {_1}–{_2} (收到 {_3})
 @msg	Exporting {_1}	正在匯出 {_1}
 @msg	Packaging {_1}	正在封裝 {_1}
+@msg	Placing {_1}	正在置入 {_1}
 @msg	Exported {what}	已匯出 {what}
 @msg	"{0}" is not a colour: write it as #rrggbb	"{0}" 不是顏色：請寫成 #rrggbb
 @msg	could not decode image: {0}	無法解碼影像：{0}
@@ -2113,6 +2118,7 @@ file-filter	Templates	範本
 @msg	name the file	請為檔案命名
 @msg	unknown format	未知的格式
 @msg	PDF settings are not an object	PDF 設定不是物件
+@msg	PDF security settings are not an object	PDF 安全性設定不是物件
 @msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	沒有名為 `{name}` 的已儲存 PDF 預設集 (內建預設集為唯讀：請以它們為基礎新增一個)
 @msg	Saved to User Defined: {_1}	已儲存至「使用者定義」：{_1}
 @msg	choose a direction to divide in	請選擇分割方向
@@ -2202,9 +2208,11 @@ file-filter	Templates	範本
 @msg	no swatch library `{l}` (see swatch.library.list)	沒有色票資料庫 `{l}` (請參閱 swatch.library.list)
 @msg	no user library folder here	此處沒有使用者資料庫資料夾
 @msg	Couldn't place {name}: the document it was dropped on was closed	無法置入 {name}：放置它的文件已關閉
+@msg	Couldn't place {name}: the document it was placed in was closed	無法置入 {name}：要置入的文件已關閉
 @msg	no files to place	沒有要置入的檔案
 @msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` 不是 VectorCraft 文件、PDF 或 PDF 相容的 .ai 檔案
 @msg	paths: give at least one file	paths：請提供至少一個檔案
+@msg	replace: the object to replace was changed or deleted	replace：要取代的物件已被變更或刪除
 @msg	Couldn't place {name}: {e}	無法置入 {name}：{e}
 @msg	no print service	沒有列印服務
 @msg	the print job has no data	列印工作沒有資料
@@ -5027,6 +5035,7 @@ lighting	Light	光源
 @msg	unknown snap option `{key}` (use {options})	未知的靠齊選項 `{key}`（可用：{options}）
 	Gap Length:	間隙長度：
 	Artboard {n} of {total}	工作區域 {n} / {total}
+	File {n} of {total}	檔案 {n} / {total}
 	Encoding and writing the file…	正在編碼並寫入檔案…
 @plural	{n} more export waiting|{n} more exports waiting	另有 {n} 個匯出等待中
 	Continue in Background	在背景繼續

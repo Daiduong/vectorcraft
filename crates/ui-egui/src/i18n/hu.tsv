@@ -283,6 +283,8 @@
 	Any except extracting pages	Bármi, kivéve az oldalak kinyerését
 	Any Kind	Bármilyen típus
 	any text	bármilyen szöveg
+	Font Technology	Betűtípus-technológia
+font-technology	Variable	Változó
 	Appearance	Megjelenés
 	Appearance Attribute	Megjelenési attribútum
 	Appearance Item	Megjelenési elem
@@ -380,6 +382,8 @@
 	B4	B4
 	B5	B5
 	Background Color:	Háttérszín:
+	Show Center Mark	Középjel megjelenítése
+	Show Cross Hairs	Szálkereszt megjelenítése
 	Background Contents	Háttértartalom
 	Background Contents:	Háttértartalom:
 	Background:	Háttér:
@@ -4582,6 +4586,7 @@ imageTrace	Outline	Körvonal
 @msg	Couldn't open {name}: {e}	Nem sikerült megnyitni: {name}: {e}
 @msg	Couldn't paste from the clipboard: {e}	Nem sikerült beilleszteni a vágólapról: {e}
 @msg	Couldn't place {name}: the document it was dropped on was closed	Nem sikerült elhelyezni: {name}; a céldokumentumot bezárták
+@msg	Couldn't place {name}: the document it was placed in was closed	Nem sikerült elhelyezni: {name}; a dokumentumot, amelybe került volna, bezárták
 @msg	Couldn't place {name}: {e}	Nem sikerült elhelyezni: {name}: {e}
 @msg	Couldn't read {name}: {e}	Nem sikerült beolvasni: {name}: {e}
 @msg	Couldn't save recovery data: {e}	Nem sikerült menteni a helyreállítási adatokat: {e}
@@ -4621,6 +4626,7 @@ imageTrace	Outline	Körvonal
 @msg	Exported {what} with {_1} note(s): {first}	Exportálva: {what}; megjegyzések: {_1}, az első: {first}
 @msg	Exporting {_1}	Exportálás: {_1}
 @msg	Packaging {_1}	Csomagolás: {_1}
+@msg	Placing {_1}	Elhelyezés: {_1}
 @msg	file version {0} is newer than this VectorCraft supports ({VERSION})	a fájl verziója újabb, mint amit ez a VectorCraft támogat: {0} (támogatott: {VERSION})
 @msg	Flatten Transparency: select objects to flatten	Átlátszóság lapítása: jelöld ki a lapítandó objektumokat
 @msg	Flatten Transparency: {e}	Átlátszóság lapítása: {e}
@@ -4867,9 +4873,11 @@ imageTrace	Outline	Körvonal
 @msg	path is already closed	az útvonal már zárt
 @msg	paths contain invalid coordinates	az útvonalakban érvénytelen koordináták vannak
 @msg	paths: give at least one file	paths: legalább egy fájlt adj meg
+@msg	replace: the object to replace was changed or deleted	replace: a cserélendő objektumot módosították vagy törölték
 @msg	pattern missing	hiányzik a mintázat
 @msg	patterns nested too deeply are filled with mid-grey	a túl mélyen egymásba ágyazott mintázatok helyén középszürke kitöltés áll
 @msg	PDF settings are not an object	a PDF-beállítások nem objektumot alkotnak
+@msg	PDF security settings are not an object	a PDF biztonsági beállításai nem objektumot alkotnak
 @msg	PDF writer error: {0}	PDF-író hiba: {0}
 @msg	percent must be above 0 and at most 6400, not {p}	a percent értéke 0-nál nagyobb és legfeljebb 6400 lehet, ez nem az: {p}
 @msg	pick a colour, gradient or pattern to save as a swatch	válassz színt, színátmenetet vagy mintázatot a színmintaként mentéshez
@@ -5385,6 +5393,7 @@ imageTrace	Outline	Körvonal
 @msg	unknown snap option `{key}` (use {options})	ismeretlen illesztési beállítás: `{key}` (használható: {options})
 	Gap Length:	Rés hossza:
 	Artboard {n} of {total}	Rajztábla: {n} / {total}
+	File {n} of {total}	Fájl: {n} / {total}
 	Encoding and writing the file…	A fájl kódolása és írása…
 @plural	{n} more export waiting|{n} more exports waiting	Még {n} exportálás várakozik
 	Continue in Background	Folytatás a háttérben
