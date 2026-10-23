@@ -508,15 +508,17 @@ impl GradientGeom {
     /// focal point to the centre). For conic gradients it is the turn from the vector, clockwise
     /// on the page (in the extent ellipse's frame), in [0, 1).
     pub fn param_at(&self, kind: GradientKind, p: Point) -> f64 {
+        if kind == GradientKind::Conic {
+            // A vector without length (or a flat ellipse) sweeps from the right around the
+            // start, as the canvas, Expand, PDF and [`Self::conic_wedges`] draw it.
+            let frame = self.unit_frame().unwrap_or_else(|| Affine::translate(self.start.to_vec2()));
+            let q = (frame.inverse() * p).to_vec2();
+            let t = q.y.atan2(q.x) / std::f64::consts::TAU;
+            return if t < 0.0 { (t + 1.0).min(1.0 - f64::EPSILON) } else { t };
+        }
         let u = self.end - self.start;
         if u.hypot2() < 1e-18 {
             return 0.0;
-        }
-        if kind == GradientKind::Conic {
-            let Some(to_unit) = self.unit_frame().map(|m| m.inverse()) else { return 0.0 };
-            let q = (to_unit * p).to_vec2();
-            let t = q.y.atan2(q.x) / std::f64::consts::TAU;
-            return if t < 0.0 { (t + 1.0).min(1.0 - f64::EPSILON) } else { t };
         }
         if kind != GradientKind::Radial {
             return (p - self.start).dot(u) / u.hypot2();
@@ -1358,5 +1360,21 @@ mod tests {
         let at = |turn: f64| frame * Point::new(0.5 * (turn * std::f64::consts::TAU).cos(), 0.5 * (turn * std::f64::consts::TAU).sin());
         assert!(inside(&over[0].0, at(0.5)) && inside(&over[0].0, at(35.9 / 36.0)));
         assert!(inside(&over[20].0, at(35.9 / 36.0)) && !inside(&over[20].0, at(19.9 / 36.0)) && !inside(&over[20].0, at(0.1 / 36.0)));
+    }
+
+    /// A conic vector without length (start on end) sweeps from the right around its start, as
+    /// the canvas, Expand, PDF and the wedges draw it: the sample a point gets is the turn the
+    /// wedge holding it is coloured at.
+    #[test]
+    fn a_collapsed_conic_sweeps_from_the_right_everywhere_alike() {
+        let c = Point::new(50.0, 50.0);
+        let g = GradientGeom { start: c, end: c, aspect: 1.0, focal: None };
+        let t = |x: f64, y: f64| g.param_at(GradientKind::Conic, Point::new(x, y));
+        assert!(t(90.0, 50.0).abs() < 1e-12);
+        assert!((t(50.0, 90.0) - 0.25).abs() < 1e-12, "{}", t(50.0, 90.0));
+        assert!((t(10.0, 50.0) - 0.5).abs() < 1e-12);
+        let wedges = g.conic_wedges(Rect::new(0.0, 0.0, 100.0, 100.0), 4, false);
+        assert!((wedges[1].1 - 0.375).abs() < 1e-12);
+        assert!((t(40.0, 60.0) - 0.375).abs() < 1e-12, "the middle of the second wedge");
     }
 }
