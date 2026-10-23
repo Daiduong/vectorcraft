@@ -12,6 +12,18 @@ use crate::{icons, scrub};
 /// Shared editable-field height, matching the Control bar's buttons and profile selector.
 pub(crate) const FIELD_HEIGHT: f32 = 24.0;
 
+/// The corners of the first part of a field group (spinner, field, arrow sharing their
+/// borders): the scheme's control corners on its left end, square where it meets the next part.
+fn group_start(t: &Tokens) -> CornerRadius {
+    CornerRadius { nw: t.radius, sw: t.radius, ne: 0, se: 0 }
+}
+
+/// The corners of the last part of a field group: square where it meets the part before it, the
+/// scheme's control corners on its right end ([`group_start`]).
+fn group_end(t: &Tokens) -> CornerRadius {
+    CornerRadius { nw: 0, sw: 0, ne: t.radius, se: t.radius }
+}
+
 /// Square icon button; `selected` draws the pressed well.
 pub fn icon_button(ui: &mut Ui, icon: &str, tip: &str, selected: bool, size: f32) -> Response {
     let (_, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
@@ -614,13 +626,7 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
         .allocate_ui_with_layout(vec2(width, height), layout, |ui| {
             ui.set_min_size(vec2(width, height));
             let rect = ui.max_rect();
-            ui.painter().rect(
-                rect,
-                CornerRadius::ZERO,
-                t.input,
-                Stroke::new(1.0, if editing { t.accent } else { t.input_border }),
-                StrokeKind::Inside,
-            );
+            ui.painter().rect(rect, corners, t.input, Stroke::new(1.0, if editing { t.accent } else { t.input_border }), StrokeKind::Inside);
             let margin = egui::Margin { left: 7, right: 7, top: if rows > 1 { 4 } else { 0 }, bottom: 0 };
             let resp = egui::Frame::NONE
                 .inner_margin(margin)
@@ -653,9 +659,22 @@ fn recessed_text(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, rows: usize
 /// `rows` lines tall (1: single line, which Enter and Shift+Enter commit). Returns the new text,
 /// trimmed, when a change is committed (Enter, Shift+Enter or focus loss).
 pub fn text_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<&str>, width: f32, rows: usize) -> Option<String> {
+    let corners = Tokens::get(ui.ctx()).cr();
+    text_field_with(ui, id, value, width, rows, corners)
+}
+
+/// [`text_field`] whose box has `corners` (a part of a field group).
+fn text_field_with(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: Option<&str>,
+    width: f32,
+    rows: usize,
+    corners: CornerRadius,
+) -> Option<String> {
     let id = ui.id().with(id);
     let shown = value.unwrap_or_default();
-    let (buf, commit, _, _) = recessed_text(ui, id, shown, width, rows, Tokens::get(ui.ctx()).cr());
+    let (buf, commit, _, _) = recessed_text(ui, id, shown, width, rows, corners);
     (commit && buf.trim() != shown).then(|| buf.trim().to_string())
 }
 
@@ -696,9 +715,25 @@ pub fn range_field(
     decimals: usize,
     width: f32,
 ) -> Option<f64> {
+    let corners = Tokens::get(ui.ctx()).cr();
+    range_field_with(ui, id, value, range, suffix, decimals, width, corners)
+}
+
+/// [`range_field`] whose box has `corners` (a part of a field group).
+#[allow(clippy::too_many_arguments)]
+fn range_field_with(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    value: impl Into<Option<f64>>,
+    range: RangeInclusive<f64>,
+    suffix: &str,
+    decimals: usize,
+    width: f32,
+    corners: CornerRadius,
+) -> Option<f64> {
     let places = decimals.min(6) as i32;
     let value = value.into().map(|v| within(v, &range));
-    bounded_field(ui, id, value, suffix, decimals, width, &range, Tokens::get(ui.ctx()).cr()).map(|v| within(round_to(v, places), &range))
+    bounded_field(ui, id, value, suffix, decimals, width, &range, corners).map(|v| within(round_to(v, places), &range))
 }
 
 /// [`plain_field`] for a value the selected objects may not share: `None` shows a blank field.
@@ -1305,13 +1340,15 @@ pub fn opacity_blend(
         });
         dim_label(ui, "Opacity:");
         ui.spacing_mut().item_spacing.x = -1.0;
+        // The field and its arrow are one box in two parts: square where they meet.
         ui.add_enabled_ui(enabled, |ui| {
-            if let Some(o) = range_field(ui, (id, "opacity"), opacity.map(|o| o as f64 * 100.0), 0.0..=100.0, "%", 0, 50.0) {
+            let corners = group_start(&t);
+            if let Some(o) = range_field_with(ui, (id, "opacity"), opacity.map(|o| o as f64 * 100.0), 0.0..=100.0, "%", 0, 50.0, corners) {
                 edit = Some(TransparencyEdit::Opacity(o, Live::Released));
             }
         });
         let (r, resp) = ui.allocate_exact_size(vec2(18.0, FIELD_HEIGHT), if enabled { Sense::click() } else { Sense::hover() });
-        ui.painter().rect_stroke(r, CornerRadius::ZERO, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+        ui.painter().rect_stroke(r, group_end(&t), Stroke::new(1.0, t.input_border), StrokeKind::Inside);
         icons::paint(ui, "chevron-right", r.shrink2(vec2(3.0, 7.0)), if enabled { t.icon } else { t.text_disabled });
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled && ui.is_enabled(), tl!("Opacity")));
         egui::Popup::menu(&resp).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
@@ -1672,8 +1709,8 @@ fn spin_generic(
         // The spinner, the field and the chevron share their borders: one box in three parts.
         ui.spacing_mut().item_spacing.x = -1.0;
         let (sr, sresp) = ui.allocate_exact_size(vec2(16.0, h), Sense::click());
-        ui.painter().rect_filled(sr, CornerRadius::ZERO, t.input);
-        ui.painter().rect_stroke(sr, CornerRadius::ZERO, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+        ui.painter().rect_filled(sr, group_start(&t), t.input);
+        ui.painter().rect_stroke(sr, group_start(&t), Stroke::new(1.0, t.input_border), StrokeKind::Inside);
         let up = Rect::from_min_max(sr.min, pos2(sr.right(), sr.center().y));
         let down = Rect::from_min_max(pos2(sr.left(), sr.center().y), sr.max);
         let hover = sresp.hover_pos();
@@ -1702,7 +1739,7 @@ fn spin_generic(
         let fw = if presets.is_empty() { width - 15.0 } else { width - 34.0 };
         // The field is the middle of the box: square where it meets the spinner, and where it
         // meets the chevron; the box's right end when there are no presets.
-        let corners = if presets.is_empty() { CornerRadius { nw: 0, sw: 0, ne: t.radius, se: t.radius } } else { CornerRadius::ZERO };
+        let corners = if presets.is_empty() { group_end(&t) } else { CornerRadius::ZERO };
         if let Some(v) = field(ui, fw, corners) {
             out = Some(SpinPick::Value(v.max(min)));
         }
@@ -2109,7 +2146,7 @@ pub fn hex_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, hex: &
     let resp = egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, if editing { t.accent } else { t.input_border }))
-        .corner_radius(CornerRadius::ZERO)
+        .corner_radius(t.cr())
         .inner_margin(egui::Margin::symmetric(6, 3))
         .show(ui, |ui| {
             ui.set_height(FIELD_HEIGHT - 8.0);
@@ -2593,11 +2630,13 @@ pub fn region_texture(
     ctx.load_texture(name, color, egui::TextureOptions::LINEAR)
 }
 
+/// The chevron cell on the right of a field that opens its preset list: the end of its field
+/// group ([`group_end`]).
 fn chevron_cell(ui: &mut Ui, h: f32) -> Response {
     let t = Tokens::get(ui.ctx());
     let (dr, dresp) = ui.allocate_exact_size(vec2(20.0, h), Sense::click());
-    ui.painter().rect_filled(dr, CornerRadius::ZERO, t.input);
-    ui.painter().rect_stroke(dr, CornerRadius::ZERO, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+    ui.painter().rect_filled(dr, group_end(&t), t.input);
+    ui.painter().rect_stroke(dr, group_end(&t), Stroke::new(1.0, t.input_border), StrokeKind::Inside);
     let c = if !ui.is_enabled() {
         t.text_disabled
     } else if dresp.hovered() {
@@ -2615,9 +2654,9 @@ fn chevron_cell(ui: &mut Ui, h: f32) -> Response {
 pub fn text_presets(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: &str, presets: &[&str], width: f32) -> Option<String> {
     let mut out = None;
     ui.scope(|ui| {
-        // The field and the chevron share a border.
+        // The field and the chevron share a border: one box, square where they meet.
         ui.spacing_mut().item_spacing.x = -1.0;
-        out = text_field(ui, &id, Some(value), width - 19.0, 1);
+        out = text_field_with(ui, &id, Some(value), width - 19.0, 1, group_start(&Tokens::get(ui.ctx())));
         let resp = chevron_cell(ui, FIELD_HEIGHT);
         egui::Popup::menu(&resp).show(|ui| {
             ui.set_min_width(width - 10.0);
@@ -3060,56 +3099,77 @@ pub(crate) mod look_tests {
     }
     // Regression test for #900: a number field with a spinner and a preset list drew as three
     // boxes side by side: its text box was a point taller than the 26-point row, and each joint had
-    // two borders.
+    // two borders. In every scheme the parts of a field group (a spinner field, Opacity's field and
+    // arrow) are as tall as the other controls (24 pt), share their borders, are square where they
+    // meet and take the scheme's control corners at the group's two ends.
     #[test]
-    fn grouped_fields_have_square_corners_matching_heights_and_shared_borders() {
-        let ctx = themed(Default::default());
-        let mut add = |ui: &mut Ui| {
-            ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, &[1.0, 2.0]));
+    fn grouped_fields_have_square_joints_matching_heights_and_shared_borders() {
+        use theme::Scheme;
+        // The corners of part `i` of a group whose last part is `last`.
+        let corners = |i: usize, last: usize, t: &Tokens| {
+            let (start, end) = (if i == 0 { t.radius } else { 0 }, if i == last { t.radius } else { 0 });
+            CornerRadius { nw: start, sw: start, ne: end, se: end }
         };
-        frame(&ctx, 0.0, vec![], &mut add);
-        let shapes = frame(&ctx, 0.1, vec![], &mut add);
-        // The boxes of the row: the spinner, the field and the preset chevron, left to right.
-        let mut boxes: Vec<Rect> = vec![];
-        for s in &shapes {
-            if let egui::Shape::Rect(r) = s
-                && r.rect.height() > 20.0
-            {
-                assert_eq!(r.corner_radius, CornerRadius::ZERO, "every field part has square corners: {r:?}");
+        let visible = |r: &egui::epaint::RectShape| r.fill != Color32::TRANSPARENT || !r.stroke.is_empty();
+        for scheme in [Scheme::Modern, Scheme::Classic] {
+            let ctx = themed(Default::default());
+            theme::apply_with(&ctx, theme::Brightness::default(), theme::Accent::default(), scheme);
+            let t = Tokens::get(&ctx);
+            let mut add = |ui: &mut Ui| {
+                ui.horizontal(|ui| spin_field(ui, "weight", Some(4.0), Unit::Points, 100.0, 1.0, 0.0, &[1.0, 2.0]));
+            };
+            frame(&ctx, 0.0, vec![], &mut add);
+            let shapes = frame(&ctx, 0.1, vec![], &mut add);
+            // The boxes of the row: the spinner, the field and the preset chevron, left to right.
+            let rects: Vec<&egui::epaint::RectShape> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    egui::Shape::Rect(r) if r.rect.height() > 20.0 && visible(r) => Some(r),
+                    _ => None,
+                })
+                .collect();
+            let mut boxes: Vec<Rect> = vec![];
+            for r in &rects {
                 if !boxes.contains(&r.rect) {
                     boxes.push(r.rect);
                 }
             }
-        }
-        boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
-        assert_eq!(boxes.len(), 3, "{boxes:?}");
-        for b in &boxes {
-            assert_eq!((b.min.y, b.height()), (boxes[0].min.y, 24.0), "all as tall as the neighboring controls: {boxes:?}");
-        }
-        for pair in boxes.windows(2) {
-            assert!((pair[1].min.x - pair[0].max.x + 1.0).abs() < 0.01, "neighbours share one border: {boxes:?}");
-        }
+            boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
+            assert_eq!(boxes.len(), 3, "{scheme:?}: {boxes:?}");
+            for r in &rects {
+                let i = boxes.iter().position(|b| *b == r.rect).unwrap_or_default();
+                assert_eq!(r.corner_radius, corners(i, 2, &t), "{scheme:?}: part {i} is square at its joints: {r:?}");
+            }
+            for b in &boxes {
+                assert_eq!((b.min.y, b.height()), (boxes[0].min.y, 24.0), "{scheme:?}: all as tall as the neighboring controls: {boxes:?}");
+            }
+            for pair in boxes.windows(2) {
+                assert!((pair[1].min.x - pair[0].max.x + 1.0).abs() < 0.01, "{scheme:?}: neighbours share one border: {boxes:?}");
+            }
 
-        let mut add_opacity = |ui: &mut Ui| {
-            opacity_blend(ui, "opacity", Some(1.0), Some(BlendMode::Normal), true);
-        };
-        let shapes = frame(&ctx, 0.2, vec![], &mut add_opacity);
-        let mut boxes: Vec<Rect> = shapes
-            .iter()
-            .filter_map(|s| match s {
-                egui::Shape::Rect(r) if r.rect.width() == 50.0 || r.rect.width() == 18.0 => {
-                    assert_eq!(r.corner_radius, CornerRadius::ZERO);
-                    assert_eq!(r.rect.height(), 24.0);
-                    Some(r.rect)
-                }
-                _ => None,
-            })
-            .collect();
-        boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
-        boxes.dedup();
-        assert_eq!(boxes.len(), 2, "the opacity field and popup arrow: {boxes:?}");
-        assert_eq!(boxes[0].top(), boxes[1].top());
-        assert_eq!(boxes[0].right() - boxes[1].left(), 1.0, "opacity cells share one border");
+            let mut add_opacity = |ui: &mut Ui| {
+                opacity_blend(ui, "opacity", Some(1.0), Some(BlendMode::Normal), true);
+            };
+            let shapes = frame(&ctx, 0.2, vec![], &mut add_opacity);
+            let rects: Vec<&egui::epaint::RectShape> = shapes
+                .iter()
+                .filter_map(|s| match s {
+                    egui::Shape::Rect(r) if (r.rect.width() == 50.0 || r.rect.width() == 18.0) && visible(r) => Some(r),
+                    _ => None,
+                })
+                .collect();
+            let mut boxes: Vec<Rect> = rects.iter().map(|r| r.rect).collect();
+            boxes.sort_by(|a, b| a.min.x.total_cmp(&b.min.x));
+            boxes.dedup();
+            assert_eq!(boxes.len(), 2, "{scheme:?}: the opacity field and popup arrow: {boxes:?}");
+            for r in &rects {
+                let i = boxes.iter().position(|b| *b == r.rect).unwrap_or_default();
+                assert_eq!(r.corner_radius, corners(i, 1, &t), "{scheme:?}: opacity part {i}: {r:?}");
+                assert_eq!(r.rect.height(), 24.0);
+            }
+            assert_eq!(boxes[0].top(), boxes[1].top());
+            assert_eq!(boxes[0].right() - boxes[1].left(), 1.0, "{scheme:?}: opacity cells share one border");
+        }
     }
 
     /// A spinner field, with and without presets and in every scheme, is one box in three (or
