@@ -180,6 +180,8 @@
 	Anti-aliased Artwork	Загладено произведение
 	Anti-aliasing:	Заглаждане:
 	Any Kind	Всякакъв вид
+	Font Technology	Технология на шрифта
+font-technology	Variable	Променливи
 	Appearance	Външен вид
 	Appearance Attribute	Атрибут на външния вид
 	Appearance Item	Елемент на външния вид
@@ -1348,7 +1350,7 @@
 	Clear History	Изчистване на историята
 	Set History Limit…	Задаване на ограничение на историята…
 	History States	Състояния на историята
-# History panel: the names of undo steps (`every_undo_label_is_translated`).
+# History panel: the names of undo steps (`untranslated_report` lists any that are missing).
 	Apply Data Set	Прилагане на набор от данни
 	Cancel Pattern Editing	Отказ от редактирането на мостра
 	Copy Appearance	Копиране на външния вид
@@ -3743,6 +3745,7 @@ axis	Both	И двете
 @msg	Opened {url}	Отворено: {url}
 @msg	Outline Stroke: no stroked paths selected	Преобразуване на щрих в контур: няма избрани пътища с щрих
 @msg	PDF settings are not an object	Настройките за PDF не са обект
+@msg	PDF security settings are not an object	Настройките за сигурност на PDF не са обект
 @msg	PDF writer error: {0}	Грешка на PDF записа: {0}
 @msg	Packaged {n} file(s) in {folder} {note}	Пакетирани са {n} файла в {folder}{note}
 @msg	Packaged {n} file(s){note}	Пакетирани са {n} файла{note}

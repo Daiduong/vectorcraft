@@ -11,13 +11,15 @@
 	Smoothness	滑らかさ
 #
 # Coverage: the whole interface — every menu string and every `tl!` literal (`complete_menus`,
-# tested) — and the status and error messages (`@msg` rows at the end, `COMPLETE_MESSAGES`, tested).
+# `untranslated_report` lists gaps) — and the status and error messages (`@msg` rows at the end, `COMPLETE_MESSAGES`, `untranslated_report` lists gaps).
 # Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
 # names, OpenType, the built-in workspace names and the bracketed perspective grid preset names.
 	About VectorCraft	VectorCraft について
 	All Scripts	すべての文字
 	Anchors:	アンカー:
 	Any Kind	すべての種類
+	Font Technology	フォントテクノロジー
+font-technology	Variable	バリアブル
 	Ascender	アセンダ
 	Baseline	ベースライン
 	Bottom-to-Bottom Leading	欧文ベースライン基準の行送り
@@ -1637,7 +1639,7 @@
 	Clear History	ヒストリーを消去
 	Set History Limit…	ヒストリーの上限を設定…
 	History States	ヒストリー数
-# History panel: the names of undo steps (`every_undo_label_is_translated`).
+# History panel: the names of undo steps (`untranslated_report` lists any that are missing).
 	Apply Data Set	データセットを適用
 	Area Type	エリア内文字
 	Bloat	膨張
@@ -3805,7 +3807,7 @@ theme	Appearance	外観
 
 # Status and error messages (`@msg`), translated where the status bar shows them; the message itself
 # stays English for agents and tests. `{_1}`, `{_2}` … stand for the `{}` of the format string, in order
-# (`complete_languages_translate_every_message` lists any that are missing). Command ids, parameter
+# (`untranslated_report` lists any that are missing). Command ids, parameter
 # names and values in backticks or code (`colorModel rgb`, `document.export`) stay as they are.
 # Japanese: no final 。 (these are status lines, and reasons that follow a colon), unless the English ends
 # with a period; a space between Japanese text and an adjacent Latin word, number or {placeholder}.
@@ -4376,6 +4378,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	name the file	ファイル名を入力してください
 @msg	unknown format	不明な形式です
 @msg	PDF settings are not an object	PDF 設定がオブジェクト形式ではありません
+@msg	PDF security settings are not an object	PDF のセキュリティ設定がオブジェクト形式ではありません
 @msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	`{name}` という名前の保存済み PDF プリセットが見つかりません (組み込みのプリセットは読み取り専用です: それを元に新しいプリセットを作成してください)
 @msg	Saved to User Defined: {_1}	「ユーザー定義」に保存しました: {_1}
 @msg	choose a direction to divide in	分割する方向を選択してください
@@ -4651,7 +4654,7 @@ effect	Vertical	垂直
 	Define a variable first	先に変数を定義してください
 	Text	テキスト
 	Visibility	表示状態
-# tested). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
+# `untranslated_report` lists gaps). Left in English on purpose (`MENU_KEEP_AS_IS` in the tests): the product name, language
 # Shared panel docking
 	Activate Panel	パネルをアクティブにする
 	Change Panel Layout	パネルの配置を変更

@@ -152,6 +152,8 @@
 	Anti-aliased Artwork	消除鋸齒的圖稿
 	Anti-aliasing:	消除鋸齒：
 	Any Kind	所有類型
+	Font Technology	字體技術
+font-technology	Variable	可變
 	Appearance	外觀
 	Appearance Attribute	外觀屬性
 	Appearance Item	外觀項目
@@ -1358,7 +1360,7 @@ file-filter	Templates	範本
 	Clear History	清除步驟記錄
 	Set History Limit…	設定步驟記錄上限…
 	History States	步驟記錄狀態
-# History panel: the names of undo steps (`every_undo_label_is_translated`).
+# History panel: the names of undo steps (`untranslated_report` lists any that are missing).
 	Apply Data Set	套用資料集
 	Area Type	區域文字
 	Bloat	膨脹
@@ -1582,7 +1584,7 @@ file-filter	Templates	範本
 	Keyboard Shortcuts…	鍵盤快速鍵…
 # Status and error messages (`@msg`), translated where the status bar shows them; the message itself
 # stays English for agents and tests. `{_1}`, `{_2}` … stand for the `{}` of the format string, in order
-# (`complete_languages_translate_every_message` lists any that are missing). Command ids, parameter
+# (`untranslated_report` lists any that are missing). Command ids, parameter
 # names and values in backticks or code (`colorModel rgb`, `document.export`) stay as they are.
 # Traditional Chinese: no final 。 unless the English ends with a period; a space between Chinese text and
 # an adjacent Latin word, number or {placeholder}; 、 between the items of a list; 「」 around the name of
@@ -2089,6 +2091,7 @@ file-filter	Templates	範本
 @msg	name the file	請為檔案命名
 @msg	unknown format	未知的格式
 @msg	PDF settings are not an object	PDF 設定不是物件
+@msg	PDF security settings are not an object	PDF 安全性設定不是物件
 @msg	no saved PDF preset named `{name}` (built-in presets are read-only: start a new one from them)	沒有名為 `{name}` 的已儲存 PDF 預設集 (內建預設集為唯讀：請以它們為基礎新增一個)
 @msg	Saved to User Defined: {_1}	已儲存至「使用者定義」：{_1}
 @msg	choose a direction to divide in	請選擇分割方向
