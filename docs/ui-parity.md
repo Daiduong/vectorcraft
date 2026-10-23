@@ -335,6 +335,7 @@ separate. Scores and hours unchanged. [Behavior and command details](development
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-23 | minor | Width tool: Alt frees one side at any point in a drag and letting it go evens the point again; a plain drag scales both sides together, keeping their ratio, including through a crossing of the path (`distort/width.rs` pointer regressions); score unchanged (estimated) |
 | 2026-10-23 | minor | Preferences › General › Constrain Angle: arrow keys, Shift drags and new rectangles, ellipses, grids, type, polygons, stars and size-dialog shapes follow it (#394). Scores and estimates unchanged. |
 | 2026-10-22 | minor | Pen, Anchor Point and Direct Selection drags: the preview gets every pointer position, including where it re-enters the window and the move in the release's frame (#834); score unchanged (estimated) |
 | 2026-10-23 | minor | Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged. |

@@ -390,7 +390,12 @@ impl Tool for WidthTool {
                         // Crossing the path hands the drag to the other side; the ratio counts from
                         // there, so the change is smooth.
                         if side_now != d.side {
-                            d.base = (d.left.max(0.0), d.right.max(0.0));
+                            // Keep the previous baseline when both widths are zero (the pointer is
+                            // back on the path), so a crossing still leaves a ratio to scale.
+                            let now = (d.left.max(0.0), d.right.max(0.0));
+                            if now.0 > 0.0 || now.1 > 0.0 {
+                                d.base = now;
+                            }
                             d.side = side_now;
                         }
                         if ev.mods.alt {
@@ -719,6 +724,27 @@ mod tests {
         let (_, v) = preview(&acts);
         assert!((v["left"].as_f64().unwrap() - 15.0).abs() < 1e-6 && (v["right"].as_f64().unwrap() - 45.0).abs() < 1e-6, "{v}");
         t.pointer(&c, &ev(PointerKind::Up, 200.0, 185.0, Mods::default()));
+    }
+
+    #[test]
+    fn a_plain_drag_through_the_path_keeps_the_ratio_it_began_with() {
+        let (mut d, id) = doc_line();
+        d.node_mut(id).unwrap().appearance.stroke_mut().unwrap().profile =
+            Some(WidthProfile { points: vec![(0.0, 1.0, 1.0), (0.5, 1.0, 3.0), (1.0, 1.0, 1.0)] });
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let mut t = WidthTool::default();
+        // 5 pt left, 15 pt right: drag the left handle onto the path itself, which takes both
+        // widths to zero, and on out the right side. The ratio still counts from 5 and 15, so 30
+        // on the right leaves 10 on the left rather than none.
+        t.pointer(&c, &ev(PointerKind::Down, 200.0, 195.0, Mods::default()));
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 200.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!(v["left"].as_f64().unwrap().abs() < 1e-6 && v["right"].as_f64().unwrap().abs() < 1e-6, "{v}");
+        let acts = t.pointer(&c, &ev(PointerKind::Drag, 200.0, 230.0, Mods::default()));
+        let (_, v) = preview(&acts);
+        assert!((v["right"].as_f64().unwrap() - 30.0).abs() < 1e-6 && (v["left"].as_f64().unwrap() - 10.0).abs() < 1e-6, "{v}");
+        t.pointer(&c, &ev(PointerKind::Up, 200.0, 230.0, Mods::default()));
     }
 
     #[test]
