@@ -104,3 +104,30 @@ fn png_size(bytes: &[u8]) -> Option<(u32, u32)> {
     let (w, h) = (be(16)?, be(20)?);
     (w > 0 && h > 0).then_some((w, h))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A PNG signature and the chunks `types` (each with 2 bytes of data and a checksum).
+    fn png(types: &[&[u8; 4]]) -> Vec<u8> {
+        let mut b = b"\x89PNG\r\n\x1a\n".to_vec();
+        for t in types {
+            b.extend([0, 0, 0, 2]);
+            b.extend(*t);
+            b.extend([0; 6]);
+        }
+        b
+    }
+
+    #[test]
+    fn compressed_metadata_chunks_are_found_wherever_they_are() {
+        assert!(!has_compressed_metadata(&png(&[b"IHDR", b"IDAT", b"IEND"])));
+        assert!(has_compressed_metadata(&png(&[b"IHDR", b"iCCP", b"IDAT", b"IEND"])));
+        assert!(has_compressed_metadata(&png(&[b"IHDR", b"IDAT", b"zTXt"])));
+        // A length past the end ends the walk.
+        let mut cut = png(&[b"IHDR"]);
+        cut.extend([255, 255, 255, 255, b'I', b'D', b'A', b'T']);
+        assert!(!has_compressed_metadata(&cut));
+    }
+}
