@@ -1,6 +1,6 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-16 · **Change:** minor (Georgian (`ka`) interface catalog; Bulgarian (`bg`) and Greek (`el`) catalogs complete under the tests, #1909, #2076; Finnish (`fi`) catalog added, complete under the tests; Swedish (`sv`) catalog added, complete under the tests; scores and estimates unchanged; Brazilian Portuguese (`pt-br`) catalog completed under the tests: menus, `tl!` literals and messages; 12-language score 71% → 74%; #1914) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-23 · **Change:** patch (the completeness tests report missing translations instead of failing)
 
 Per-language status of VectorCraft's interface. How the catalogs work and how to add a language:
 [`development.md` › Localisation](development.md#localisation). Part of
@@ -11,9 +11,10 @@ origin/main `01e165af`, except the rows that give a count date, which were count
 The reference is the French catalog, which the tests hold complete: 3,416 interface
 strings (menus, command labels, `tl!` literals: panels, dialogs, tooltips, Preferences) plus 604 `@msg` status and
 error messages, 4,020 in all. A language's % is its rows over 4,020 (capped at 100% per part). The
-`complete_menus` flag and `COMPLETE_MESSAGES` list make `i18n::tests` fail if a complete language misses a
-string, so "full" here is enforced by tests. The messages listed in `crates/ui-egui/src/i18n/untranslated_messages.txt`
-are not translated yet, and the tests let them through. No language has help content: there is no translated (or English)
+`complete_menus` flag and `COMPLETE_MESSAGES` list make `i18n::tests` report the strings a complete language misses
+(`-- --nocapture` shows them); a missing translation never fails a test, and the interface shows the English text
+until a row is added. The messages listed in `crates/ui-egui/src/i18n/untranslated_messages.txt` are not translated
+yet, and the tests don't report them. No language has help content: there is no translated (or English)
 in-app help, and the docs are English.
 error messages, 4,020 in all. A language's % is its rows over 4,020 (capped at 100% per part).
 `i18n::tests` fail if a language with the `complete_menus` flag misses a menu string or `tl!` literal, or if a
@@ -95,6 +96,7 @@ font for the web build.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-23 | patch | The completeness tests report a complete language's missing strings instead of failing; scores unchanged |
 | 2026-10-16 | minor | Bulgarian (`bg`, #1909) and Greek (`el`, #2076) catalogs added, complete under the tests; Swedish (#2139) and Finnish (#1994) rows for strings added since; eighteen non-English catalogs |
 | 2026-10-16 | minor | Finnish (`fi`) catalog added, complete under the tests (menus, literals, messages; one/other plurals); AI-assisted, native proofreading pending |
 | 2026-10-15 | minor | Swedish (`sv`) catalog added, complete under the tests (menus, literals, messages; one/other plurals); every `sv-*` locale resolves to it; AI-drafted, native review welcome; scores and estimates unchanged |

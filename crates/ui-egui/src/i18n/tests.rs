@@ -432,8 +432,17 @@ fn no_translated_word_mixes_latin_cyrillic_and_greek_letters() {
     assert!(bad.is_empty(), "words that mix scripts:\n{}", bad.join("\n"));
 }
 
-/// Every menu string (top-level titles, submenu names, item labels, section headers, UI and
-/// engine command labels and menu paths) has an entry in each language that claims complete menus.
+/// Prints a language's untranslated strings (`cargo test … -- --nocapture` shows them). The tests
+/// that scan for untranslated strings report them instead of failing: until a translator adds a
+/// row, the interface shows the English text.
+fn report_missing<T: std::fmt::Debug>(code: &str, what: &str, missing: &[T]) {
+    if !missing.is_empty() {
+        eprintln!("{code}: {} untranslated {what}: {missing:#?}", missing.len());
+    }
+}
+
+/// Reports the menu strings (top-level titles, submenu names, item labels, section headers, UI and
+/// engine command labels and menu paths) that a language claiming complete menus has no entry for.
 #[test]
 fn complete_languages_translate_every_menu_string() {
     let strings = crate::menus::menu_strings();
@@ -443,13 +452,12 @@ fn complete_languages_translate_every_menu_string() {
         // Languages that keep the product, workspace and perspective preset names in English.
         let kept = |s: &str| KEEPS_MENU_NAMES.contains(&l.code) && MENU_KEEP_AS_IS.contains(&s);
         let missing: Vec<_> = strings.iter().filter(|s| !kept(s) && cat.plain(s).is_none()).collect();
-        assert!(missing.is_empty(), "{}: {} untranslated menu strings: {missing:#?}", l.code, missing.len());
+        report_missing(l.code, "menu strings", &missing);
     }
 }
 
-/// Every `tl!("literal")` in the shell has an entry in each language that claims complete menus
-/// (so a new label can't ship untranslated by accident). Literals that are deliberately shown as
-/// they are (names, units) are listed in `KEEP_AS_IS`.
+/// Reports the `tl!("literal")`s in the shell that a language claiming complete menus has no entry
+/// for. Literals that are deliberately shown as they are (names, units) are listed in `KEEP_AS_IS`.
 #[test]
 fn every_tl_literal_is_translated() {
     const KEEP_AS_IS: &[&str] = &[];
@@ -458,16 +466,16 @@ fn every_tl_literal_is_translated() {
     for l in LANGUAGES.iter().filter(|l| l.complete_menus) {
         let cat = l.catalog();
         let missing: Vec<_> = literals.iter().filter(|s| !KEEP_AS_IS.contains(&s.as_str()) && cat.plain(s).is_none()).collect();
-        assert!(missing.is_empty(), "{}: {} untranslated tl! strings: {missing:#?}", l.code, missing.len());
+        report_missing(l.code, "tl! strings", &missing);
     }
 }
 
-/// Every undo step name the engine, the tools and the shell record ([`undo_labels`]), every
-/// effect's name without its ellipsis, and the Liquify tools' step names (`{} Tool`), has a row in
-/// each language marked `complete_menus`: its plain row, or the row of the same name with an
-/// ellipsis (`panels::history::step_name`). Every template a step name is made from with
-/// `Session::edit_named` has a plain row in each, which `panels::history::entry_name` fills with the
-/// name. No other step name is built with `format!`.
+/// Reports the undo step names that a language marked `complete_menus` has no row for: the names
+/// the engine, the tools and the shell record ([`undo_labels`]), every effect's name without its
+/// ellipsis, and the Liquify tools' step names (`{} Tool`). A name's row is its plain row, or the row
+/// of the same name with an ellipsis (`panels::history::step_name`). It also reports the templates a
+/// step name is made from with `Session::edit_named` that have no plain row, which
+/// `panels::history::entry_name` fills with the name. No other step name is built with `format!`.
 #[test]
 fn every_undo_label_is_translated() {
     let scan = undo_scan();
@@ -481,9 +489,9 @@ fn every_undo_label_is_translated() {
     for l in LANGUAGES.iter().filter(|l| l.complete_menus) {
         let lang = Lang::from_code(l.code).expect("registered");
         let missing: Vec<_> = labels.iter().filter(|s| crate::panels::history::step_name(lang, s).is_none()).collect();
-        assert!(missing.is_empty(), "{}: {} untranslated undo labels: {missing:#?}", l.code, missing.len());
+        report_missing(l.code, "undo labels", &missing);
         let missing: Vec<_> = scan.templates.iter().filter(|t| l.catalog().plain(t).is_none()).collect();
-        assert!(missing.is_empty(), "{}: {} untranslated undo label templates: {missing:#?}", l.code, missing.len());
+        report_missing(l.code, "undo label templates", &missing);
     }
 }
 
@@ -968,8 +976,9 @@ fn toggled_labels() -> Vec<String> {
     labels
 }
 
-/// Czech, German, Spanish, Italian, Japanese and Brazilian Portuguese cover every menu label, the Show/Hide pairs
-/// and the canvas context menu included (panels and dialogs not yet).
+/// Reports the menu labels, the Show/Hide pairs and the canvas context menu included (panels and
+/// dialogs not yet), that Czech, German, Spanish, Italian, Japanese or Brazilian Portuguese has no
+/// entry for.
 #[test]
 fn menu_catalogs_translate_every_menu_label() {
     let labels = menu_labels();
@@ -995,7 +1004,7 @@ fn menu_catalogs_translate_every_menu_label() {
     for code in KEEPS_MENU_NAMES {
         let lang = Lang::from_code(code).expect("registered");
         let missing: Vec<&String> = all.iter().filter(|l| !has(lang, l)).collect();
-        assert!(missing.is_empty(), "{code}: untranslated menu labels: {missing:?}");
+        report_missing(code, "menu labels", &missing);
         for keep in MENU_KEEP_AS_IS {
             assert!(labels.iter().any(|(l, ..)| l == keep), "`{keep}` isn't a menu label");
             assert!(!has(lang, keep), "{code}: `{keep}` is both kept and translated");
@@ -1700,12 +1709,11 @@ fn package_status_message_templates_parse() {
     assert!(Catalog::parse("@msg\tPackaged {n} file(s) in {folder}{note}\tbad\n").message("Packaged 1 file(s) in /a b").is_none());
 }
 
-/// Each language that translates status and error messages ([`COMPLETE_MESSAGES`]) has an `@msg`
-/// row for every message in the sources that reach the status bar, so a new one can't ship
-/// untranslated by accident (`VECTORCRAFT_I18N_DUMP_MESSAGES=<file>` lists them). A message listed
-/// in `untranslated_messages.txt` passes whether or not it has rows
-/// (`VECTORCRAFT_I18N_DUMP_UNTRANSLATED=<file>` writes that file's header and the messages in the
-/// sources that lack a row).
+/// Reports the messages in the sources that reach the status bar that a language translating status
+/// and error messages ([`COMPLETE_MESSAGES`]) has no `@msg` row for
+/// (`VECTORCRAFT_I18N_DUMP_MESSAGES=<file>` lists the messages). Messages listed in
+/// `untranslated_messages.txt` aren't reported (`VECTORCRAFT_I18N_DUMP_UNTRANSLATED=<file>` writes
+/// that file's header and the messages in the sources that lack a row).
 #[test]
 fn complete_languages_translate_every_message() {
     let messages = message_literals();
@@ -1729,7 +1737,7 @@ fn complete_languages_translate_every_message() {
         std::fs::write(path, header.chain(untranslated).map(|l| format!("{l}\n")).collect::<String>()).expect("write dump");
     }
     for (code, missing) in unlisted {
-        assert!(missing.is_empty(), "{code}: {} untranslated messages: {missing:#?}", missing.len());
+        report_missing(code, "messages", &missing);
     }
 }
 

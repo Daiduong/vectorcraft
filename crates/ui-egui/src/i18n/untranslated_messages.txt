@@ -1,9 +1,8 @@
 # Status and error messages that at least one language in `COMPLETE_MESSAGES` (tests.rs) has no
-# `@msg` row for yet, one per line as the message scan writes it (`{}` as `{_1}`), sorted. The list
-# also holds the messages that open pull requests add without those rows, so those pull requests
-# don't fail when they merge. `complete_languages_translate_every_message` lets these through; every
-# other message needs a row in each complete catalog. A pull request that adds a message's rows
-# removes its line here. The test ignores a line whose message no source contains.
+# `@msg` row for yet, one per line as the message scan writes it (`{}` as `{_1}`), sorted.
+# `complete_languages_translate_every_message` reports the other messages that lack a row in a
+# complete catalog; a missing row never fails it. A pull request that adds a message's rows removes
+# its line here. The test ignores a line whose message no source contains.
 # `VECTORCRAFT_I18N_DUMP_UNTRANSLATED=<file>` writes this header and the messages in the sources
 # that lack a row.
 A profile supports one Revolve effect. Edit the existing effect's options instead.
