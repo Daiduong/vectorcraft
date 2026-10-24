@@ -557,7 +557,14 @@ fn copy(s: &mut Session, _: &Value) -> Result<Value> {
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
     let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
-    let handling = if direct { CompoundHandling::KeepOnlyPartial(&st.selection) } else { CompoundHandling::PromoteAll };
+    let in_isolated_compound = st.isolation.is_some_and(|iso| st.doc.node(iso).is_some_and(|n| matches!(n.kind, NodeKind::Compound { .. })));
+    let handling = if in_isolated_compound {
+        CompoundHandling::KeepAll
+    } else if direct {
+        CompoundHandling::KeepOnlyPartial(&st.selection)
+    } else {
+        CompoundHandling::PromoteAll
+    };
     let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), handling);
     let new_clip = Clipboard::copy(st, &roots, direct);
     if direct && new_clip.nodes.is_empty() {
@@ -574,7 +581,14 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
     let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
-    let handling = if direct { CompoundHandling::KeepOnlyPartial(&st.selection) } else { CompoundHandling::PromoteAll };
+    let in_isolated_compound = st.isolation.is_some_and(|iso| st.doc.node(iso).is_some_and(|n| matches!(n.kind, NodeKind::Compound { .. })));
+    let handling = if in_isolated_compound {
+        CompoundHandling::KeepAll
+    } else if direct {
+        CompoundHandling::KeepOnlyPartial(&st.selection)
+    } else {
+        CompoundHandling::PromoteAll
+    };
     let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), handling);
     let res = copy(s, p)?;
     if res.get("copied").and_then(Value::as_u64) == Some(0) {
@@ -869,7 +883,27 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                     }
                 };
                 *placed.entry(par).or_default() += 1;
-                new_ids.push(d.insert(par, idx, c)?);
+                let par_is_compound = par.and_then(|p| d.node(p)).is_some_and(|n| matches!(n.kind, NodeKind::Compound { .. }));
+                if par_is_compound && let NodeKind::Compound { children, .. } = c.kind {
+                    for child in children {
+                        let mut child_node = Arc::unwrap_or_clone(child);
+                        let child_id = d.alloc_id();
+                        child_node.id = child_id;
+                        child_node.appearance = Default::default();
+                        if let NodeKind::Path { live, .. } = &mut child_node.kind {
+                            *live = None;
+                        }
+                        new_ids.push(d.insert(par, idx, child_node)?);
+                    }
+                } else {
+                    if par_is_compound {
+                        c.appearance = Default::default();
+                        if let NodeKind::Path { live, .. } = &mut c.kind {
+                            *live = None;
+                        }
+                    }
+                    new_ids.push(d.insert(par, idx, c)?);
+                }
             }
         }
         sel.set(new_ids.iter().copied());

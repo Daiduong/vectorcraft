@@ -322,3 +322,68 @@ fn compound_member_selected_whole_with_direct_selection_promotes_member() {
     let clip_ids: Vec<NodeId> = s.clipboard.nodes.iter().map(|n| n.id).collect();
     assert!(clip_ids.contains(&compound), "whole compound member must be promoted to compound parent");
 }
+
+#[test]
+fn copy_and_paste_path_in_compound_path_isolation_adds_member_to_compound() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let outer = NodeId(run(&mut s, "shape.rectangle", json!({"x": 10, "y": 10, "width": 80, "height": 80}))["id"].as_u64().unwrap());
+    let inner = NodeId(run(&mut s, "shape.rectangle", json!({"x": 30, "y": 30, "width": 40, "height": 40}))["id"].as_u64().unwrap());
+    run(&mut s, "select.set", json!({"ids": [outer.0, inner.0]}));
+    let compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    // Enter isolation mode on the compound path.
+    run(&mut s, "object.isolate", json!({"id": compound.0}));
+    assert_eq!(s.doc().unwrap().isolation, Some(compound));
+
+    // In isolation mode, select member `inner` whole.
+    run(&mut s, "select.set", json!({"ids": [inner.0]}));
+    run(&mut s, "edit.copy", json!({}));
+
+    // Clipboard copies the selected member path, NOT the entire compound path.
+    assert_eq!(s.clipboard.nodes.len(), 1);
+    assert_eq!(s.clipboard.nodes[0].id, inner);
+
+    // Paste in isolation mode: the pasted path must be inserted into the compound path,
+    // not as a new path beside the compound path.
+    let pasted = run(&mut s, "edit.paste", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 1);
+    let pasted_id = NodeId(ids[0]);
+
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.parent_of(pasted_id), Some(compound), "pasted path must be added to the compound path");
+    let compound_node = doc.node(compound).unwrap();
+    assert_eq!(compound_node.children().unwrap().len(), 3, "compound path now has 3 member paths");
+}
+
+#[test]
+fn cut_and_paste_direct_selected_anchors_in_compound_path_isolation() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let outer = NodeId(run(&mut s, "shape.rectangle", json!({"x": 10, "y": 10, "width": 80, "height": 80}))["id"].as_u64().unwrap());
+    let inner = NodeId(run(&mut s, "shape.rectangle", json!({"x": 30, "y": 30, "width": 40, "height": 40}))["id"].as_u64().unwrap());
+    run(&mut s, "select.set", json!({"ids": [outer.0, inner.0]}));
+    let compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    // Enter isolation mode on the compound path.
+    run(&mut s, "object.isolate", json!({"id": compound.0}));
+
+    // Direct-select anchor 0 of `inner` and cut.
+    run(&mut s, "select.anchors", json!({"id": inner.0, "anchors": [[0, 0]], "mode": "set"}));
+    run(&mut s, "edit.cut", json!({}));
+
+    // Clipboard holds the cut segment piece.
+    assert_eq!(s.clipboard.nodes.len(), 1);
+
+    // Paste inside isolation mode:
+    let pasted = run(&mut s, "edit.paste", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 1);
+    let pasted_id = NodeId(ids[0]);
+
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.parent_of(pasted_id), Some(compound), "cut and pasted anchors must be inserted into compound path");
+    let compound_node = doc.node(compound).unwrap();
+    assert_eq!(compound_node.children().unwrap().len(), 3);
+}
