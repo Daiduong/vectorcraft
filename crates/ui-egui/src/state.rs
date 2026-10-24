@@ -330,6 +330,13 @@ pub struct UiState {
     /// Icon panel currently popped out of the collapsed column (also `properties`, `layers` or
     /// `libraries` while the dock is collapsed).
     pub open_panel: Option<String>,
+    /// `open_panel` was opened as a row's popup (the Appearance panel's links): while it is the open
+    /// panel, a press outside it closes it, whatever Auto-Collapse Iconic Panels says.
+    #[serde(skip)]
+    pub transient_panel: Option<String>,
+    /// That popup's first text field is still to take the keyboard.
+    #[serde(skip)]
+    pub transient_focus: bool,
     pub control_bar: bool,
     pub toolbar: bool,
     pub toolbar_double: bool,
@@ -827,6 +834,8 @@ impl Default for UiState {
             dock_tab_order: Vec::new(),
             dock_collapsed: false,
             open_panel: None,
+            transient_panel: None,
+            transient_focus: false,
             control_bar: false,
             toolbar: true,
             toolbar_double: false,

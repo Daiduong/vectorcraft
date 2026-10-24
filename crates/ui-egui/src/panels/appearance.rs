@@ -4,7 +4,9 @@
 //! effect's dialog; the disclosure an inline editor), the object's Opacity row and the bottom bar.
 //! Groups and layers show a Contents row and type a Characters row where their members
 //! (characters) paint among the object's own fills and strokes: double-clicking Contents targets
-//! the members, double-clicking Characters edits the characters' paint.
+//! the members, double-clicking Characters edits the characters' paint and its name opens the
+//! Character panel. The panels a row's link opens (Color, Stroke, Transparency, Character) are
+//! popups: a press outside closes them, and their first text field takes the keyboard.
 //!
 //! Rows drag: a fill/stroke row reorders the stack (across the Contents row too), the Contents row
 //! moves between the fills and strokes, an effect row reorders its list or moves into another item
@@ -20,10 +22,10 @@ use serde_json::{Value, json};
 use vectorcraft_color::{BlendMode, Paint};
 use vectorcraft_doc::{AppearanceItem, Effect, Node, NodeId};
 
-use super::{live_run, pstate, set_pstate};
+use super::{pstate, set_pstate};
 use crate::panels::stroke::paint_profile;
 use crate::theme::Tokens;
-use crate::widgets::{self, PanelDrag, TransparencyEdit, menu_item};
+use crate::widgets::{self, PanelDrag, menu_item};
 use crate::{VectorcraftApp, icons};
 
 const ROW: f32 = 30.0;
@@ -43,27 +45,24 @@ pub enum Sel {
     ItemEffect(usize, usize),
     /// The Contents (type: Characters) row: paint edits go to the members (characters).
     Contents,
+    /// The Opacity row of fill/stroke item `i` (the Transparency panel edits that item).
+    ItemOpacity(usize),
+    /// The object's own Opacity row.
+    Opacity,
 }
 
 impl Sel {
     /// The fill/stroke row this selection makes the active item.
     fn item(self) -> Option<usize> {
         match self {
-            Sel::Item(i) | Sel::ItemEffect(i, _) => Some(i),
-            Sel::None | Sel::Effect(_) | Sel::Contents => None,
+            Sel::Item(i) | Sel::ItemEffect(i, _) | Sel::ItemOpacity(i) => Some(i),
+            Sel::None | Sel::Effect(_) | Sel::Contents | Sel::Opacity => None,
         }
     }
-    /// `{item, index}` of a selected effect row (`item: null` for the object's own effects).
-    fn effect(self) -> Option<Value> {
-        match self {
-            Sel::Effect(k) => Some(json!({"item": null, "index": k})),
-            Sel::ItemEffect(i, k) => Some(json!({"item": i, "index": k})),
-            Sel::None | Sel::Item(_) | Sel::Contents => None,
-        }
-    }
-    /// Is a fill/stroke or effect row selected (what Duplicate and Delete act on)?
+    /// Is a fill/stroke or effect row selected (what Duplicate and Delete act on)? An Opacity row
+    /// is not an item: it can't be copied or removed.
     fn editable(self) -> bool {
-        self.item().is_some() || self.effect().is_some()
+        matches!(self, Sel::Item(_) | Sel::Effect(_) | Sel::ItemEffect(..))
     }
 }
 
@@ -75,9 +74,11 @@ fn current_sel(app: &VectorcraftApp, ctx: &egui::Context, node: Option<&Node>) -
     let exists = |item: Option<usize>, k: usize| owner == Some(n.id) && n.appearance.effects_at(item).is_some_and(|fx| k < fx.len());
     match (app.session.appearance_item(), sel) {
         (Some(i), Sel::ItemEffect(j, k)) if i == j && exists(Some(i), k) => sel,
+        (Some(i), Sel::ItemOpacity(j)) if i == j && owner == Some(n.id) => sel,
         (Some(i), _) => Sel::Item(i),
         (None, Sel::Effect(k)) if exists(None, k) => sel,
         (None, Sel::Contents) if owner == Some(n.id) && n.contents_label().is_some() => sel,
+        (None, Sel::Opacity) if owner == Some(n.id) => sel,
         (None, _) => Sel::None,
     }
 }
@@ -117,7 +118,7 @@ impl Sel {
             Sel::Item(i) => Some((Rows::Items, i)),
             Sel::Effect(k) => Some((Rows::Effects(None), k)),
             Sel::ItemEffect(i, k) => Some((Rows::Effects(Some(i)), k)),
-            Sel::None | Sel::Contents => None,
+            Sel::None | Sel::Contents | Sel::ItemOpacity(_) | Sel::Opacity => None,
         }
     }
 }
@@ -315,6 +316,14 @@ fn link(ui: &mut Ui, pos: egui::Pos2, id: impl std::hash::Hash + std::fmt::Debug
     resp
 }
 
+/// Open panel `id` as a row's popup: it closes once a press lands outside it, and its first text
+/// field takes the keyboard ([`crate::state::UiState::transient_panel`]).
+fn open_popup(app: &mut VectorcraftApp, id: &str) {
+    app.ui.open_panel = Some(id.into());
+    app.ui.transient_panel = Some(id.into());
+    app.ui.transient_focus = true;
+}
+
 /// A row's name that edits the row when clicked ([`link`]), with the tooltip "Click to edit".
 fn name_link(ui: &mut Ui, pos: egui::Pos2, id: impl std::hash::Hash + std::fmt::Debug, s: &str) -> egui::Response {
     link(ui, pos, id, s).on_hover_text(tl!("Click to edit"))
@@ -435,8 +444,9 @@ fn mixed_appearances(app: &VectorcraftApp) -> bool {
 }
 
 /// What the next object drawn gets when nothing is selected (`Session::new_art`): its fills and
-/// strokes, effects and transparency as read-only rows; "Stroke:" opens the Stroke panel, which
-/// sets up its stroke, and "Fill:" the Color panel.
+/// strokes, effects and transparency as rows. "Stroke:" opens the Stroke panel, which sets up its
+/// stroke, and "Fill:" the Color panel on its fill; the swatches work as an object's
+/// ([`swatch_button`]), on its top fill and stroke.
 fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let ap = app.session.new_art();
@@ -453,9 +463,11 @@ fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
         let lx = r.left() + EYE_W + 24.0;
         let label = if it.is_fill() { tl!("Fill:") } else { tl!("Stroke:") };
         if name_link(ui, pos2(lx, r.center().y), ("ap-def-link", i), label).clicked() {
-            app.ui.open_panel = Some(if it.is_fill() { "color" } else { "stroke" }.into());
+            // The Color panel then edits this one of the next object's paints.
+            app.run("paint.toggleActive", json!({ "fill": it.is_fill() })).ok();
+            open_popup(app, if it.is_fill() { "color" } else { "stroke" });
         }
-        chip(ui, Rect::from_min_size(pos2(r.left() + EYE_W + 76.0, r.center().y - 9.0), vec2(18.0, 18.0)), it.paint());
+        swatch_button(app, ui, r, it.paint(), Painted::NewArt { fill: it.is_fill() });
         if let AppearanceItem::Stroke(st) = it {
             let w = app.session.stroke_unit().format(st.width);
             text(ui, pos2(r.left() + EYE_W + 106.0, r.center().y), &w, false);
@@ -547,23 +559,9 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
         let label = if is_stroke { tl!("Stroke:") } else { tl!("Fill:") };
         if name_link(ui, pos2(lx, r.center().y), ("ap-link", i), label).clicked() {
             select_row(app, ui.ctx(), Sel::Item(i));
-            app.ui.open_panel = Some(if is_stroke { "stroke" } else { "color" }.into());
+            open_popup(app, if is_stroke { "stroke" } else { "color" });
         }
-        // Swatch with a swatches popup that sets this item's paint; Shift-click opens the Color
-        // panel's mixer on this row instead.
-        let cr = Rect::from_min_size(pos2(r.left() + EYE_W + 76.0, r.center().y - 9.0), vec2(18.0, 18.0));
-        chip(ui, cr, paint);
-        let cresp = ui
-            .interact(cr.expand(2.0), ui.id().with(("ap-chip", i)), Sense::click())
-            .on_hover_text(tl!("Click to choose a swatch, Shift-click to mix a colour"));
-        let mixer = cresp.clicked() && ui.input(|inp| inp.modifiers.shift);
-        if mixer {
-            select_row(app, ui.ctx(), Sel::Item(i));
-            app.ui.open_panel = Some("color".into());
-        }
-        egui::Popup::menu(&cresp).open_memory((cresp.clicked() && !mixer).then_some(egui::SetOpenCommand::Toggle)).show(|ui| {
-            swatch_picker(app, ui, i);
-        });
+        swatch_button(app, ui, r, paint, Painted::Item(i));
         if let AppearanceItem::Stroke(st) = it {
             let fr = Rect::from_min_size(pos2(r.left() + EYE_W + 104.0, r.center().y - 12.0), vec2(56.0, 24.0));
             let mut child = ui.new_child(egui::UiBuilder::new().max_rect(fr).layout(egui::Layout::left_to_right(egui::Align::Center)));
@@ -578,7 +576,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
         }
         track(&resp, Dragged::Item(i));
         if open {
-            let r = opacity_row(app, ui, Some(i), it.opacity(), it.blend());
+            let r = opacity_row(app, ui, Some(i), it.opacity(), it.blend(), sel);
             rows.push((Slot::Item { index: i, sub: true }, r));
             for (k, e) in it.effects().iter().enumerate() {
                 let (r, resp) = effect_row(app, ui, Some(i), k, e, lit(Some(i), k));
@@ -606,7 +604,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
         rows.push((Slot::Effect(None, k), r));
         track(&resp, Dragged::Effect(None, k));
     }
-    let r = opacity_row(app, ui, None, n.opacity, n.blend);
+    let r = opacity_row(app, ui, None, n.opacity, n.blend, sel);
     rows.push((Slot::Object { top: false }, r));
     let Some(what) = dragging else { return };
     let pointer = ui.ctx().pointer_interact_pos();
@@ -874,12 +872,24 @@ fn block_drop_command(n: &Node, rows: &[(Slot, Rect)], what: Dragged, set: &[usi
 
 /// The Contents (type: Characters) row of `n`: clicking it sends paint edits to the members
 /// (characters); double-clicking Contents targets the members, Characters opens the Color panel
-/// on the characters' paint (whose chips it shows). Returns its rect and response (for dragging).
+/// on the characters' paint (whose chips it shows), and its name the Character panel. Returns its
+/// rect and response (for dragging).
 fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, sel: Sel) -> (Rect, egui::Response) {
     let (r, resp) = row(ui, sel == Sel::Contents);
     eye(ui, r, "ap-contents-eye", true, false);
-    text(ui, pos2(r.left() + EYE_W + 24.0, r.center().y), tl!(label), false);
     let characters = matches!(n.kind, vectorcraft_doc::NodeKind::Text(_));
+    let at = pos2(r.left() + EYE_W + 24.0, r.center().y);
+    let name = if characters {
+        let name = name_link(ui, at, "ap-characters-link", tl!(label));
+        if name.clicked() {
+            select_row(app, ui.ctx(), Sel::Contents);
+            open_popup(app, "character");
+        }
+        Some(name)
+    } else {
+        text(ui, at, tl!(label), false);
+        None
+    };
     if characters {
         for (k, stroke) in [false, true].into_iter().enumerate() {
             let cr = Rect::from_min_size(pos2(r.left() + EYE_W + 100.0 + 24.0 * k as f32, r.center().y - 9.0), vec2(18.0, 18.0));
@@ -888,7 +898,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
     }
     // An image's row has no members to target.
     let image = matches!(n.kind, vectorcraft_doc::NodeKind::Image(_));
-    let resp = if image {
+    let resp = if image || name.is_some_and(|n| n.hovered()) {
         resp
     } else {
         resp.on_hover_text(if characters { tl!("Double-click to edit the characters' paint") } else { tl!("Double-click to target the contents") })
@@ -898,7 +908,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
     }
     if resp.double_clicked() {
         if characters {
-            app.ui.open_panel = Some("color".into());
+            open_popup(app, "color");
         } else if !image {
             app.run("appearance.targetContents", json!({})).ok();
         }
@@ -926,22 +936,25 @@ fn stroke_notes(ui: &Ui, r: Rect, st: &vectorcraft_doc::StrokeLayer) {
     }
 }
 
-/// The Opacity row of the object (`item: None`) or, indented, of fill/stroke `item`. Clicking it
-/// opens a popup with the shared opacity and blend controls (`transparency.set` on that item).
-/// Returns the row's rect.
-fn opacity_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, opacity: f32, blend: BlendMode) -> Rect {
-    let (r, resp) = row(ui, false);
+/// An Opacity row: of the object (`item: None`) or, indented, of fill/stroke `item`. A click
+/// highlights the row itself (any modifiers: it is never one of several); only "Opacity:" edits
+/// it: it opens the Transparency panel on it (the engine's active item is the row's fill/stroke,
+/// whose opacity and blend the panel edits). Returns the row's rect.
+fn opacity_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, opacity: f32, blend: BlendMode, sel: Sel) -> Rect {
+    let this = item.map_or(Sel::Opacity, Sel::ItemOpacity);
+    let (r, resp) = row(ui, sel == this);
     eye(ui, r, ("ap-op-eye", item), true, false);
     let lx = r.left() + EYE_W + 24.0 + if item.is_some() { 12.0 } else { 0.0 };
-    let clicked = link(ui, pos2(lx, r.center().y), ("ap-op-link", item), tl!("Opacity:")).clicked() || resp.clicked();
+    let link = name_link(ui, pos2(lx, r.center().y), ("ap-op-link", item), tl!("Opacity:")).clicked();
+    if link || resp.clicked() {
+        select_row(app, ui.ctx(), this);
+        // The panel has the keyboard (Delete then removes nothing, rather than the object).
+        super::set_row_keys(ui.ctx(), ROW_KEYS, true);
+    }
+    if link {
+        open_popup(app, "transparency");
+    }
     text(ui, pos2(lx + 56.0, r.center().y), &opacity_text(opacity, blend), false);
-    widgets::popover(&resp, clicked, |ui| match widgets::opacity_blend(ui, ("ap-op", item), Some(opacity), Some(blend), true) {
-        Some(TransparencyEdit::Blend(b)) => {
-            app.run("transparency.set", json!({"item": item, "blend": b.label()})).ok();
-        }
-        Some(TransparencyEdit::Opacity(o, phase)) => live_run(app, "Opacity", "transparency.set", json!({"item": item, "opacity": o}), phase),
-        None => {}
-    });
     r
 }
 
@@ -1128,8 +1141,39 @@ fn param_label(key: &str, built_in: bool) -> String {
     super::label_or_name(label.trim_end_matches(':'), built_in).to_string()
 }
 
-/// Small swatch grid inside the appearance chip popup.
-fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, index: usize) {
+/// The paint a fill/stroke row's swatch sets: of the selection's fill/stroke row `index`, or, with
+/// nothing selected, the next object drawn's top fill (`fill`) or stroke.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Painted {
+    Item(usize),
+    NewArt { fill: bool },
+}
+
+/// The swatch of fill/stroke row `r` showing `paint`: a click opens a popup of the document's
+/// swatches that sets the paint `target`; Shift-click opens the Color panel on it instead.
+fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, target: Painted) {
+    let cr = Rect::from_min_size(pos2(r.left() + EYE_W + 76.0, r.center().y - 9.0), vec2(18.0, 18.0));
+    chip(ui, cr, paint);
+    let resp = ui
+        .interact(cr.expand(2.0), ui.id().with(("ap-chip", target)), Sense::click())
+        .on_hover_text(tl!("Click to choose a swatch, Shift-click to mix a colour"));
+    let mixer = resp.clicked() && ui.input(|inp| inp.modifiers.shift);
+    if mixer {
+        match target {
+            Painted::Item(i) => select_row(app, ui.ctx(), Sel::Item(i)),
+            Painted::NewArt { fill } => {
+                app.run("paint.toggleActive", json!({ "fill": fill })).ok();
+            }
+        }
+        open_popup(app, "color");
+    }
+    egui::Popup::menu(&resp).open_memory((resp.clicked() && !mixer).then_some(egui::SetOpenCommand::Toggle)).show(|ui| {
+        swatch_picker(app, ui, target);
+    });
+}
+
+/// Small swatch grid inside the appearance chip popup; a pick paints `target`.
+fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, target: Painted) {
     let Some(st) = app.session.active() else { return };
     let mut all: Vec<(String, Paint)> = st.doc.swatches.iter().map(|s| (s.name.clone(), s.paint.clone())).collect();
     for g in &st.doc.swatch_groups {
@@ -1142,14 +1186,25 @@ fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, index: usize) {
         for (name, p) in &all {
             let (r, resp) = ui.allocate_exact_size(vec2(15.5, 15.5), Sense::click());
             widgets::swatch_tile(ui, r, p, false, resp.hovered());
-            if resp.on_hover_text(name).clicked() {
+            let resp = resp.on_hover_text(name);
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, name));
+            if resp.clicked() {
                 chosen = Some((name.clone(), p.is_none()));
             }
         }
     });
     if let Some((name, none)) = chosen {
-        let params = if none { json!({"index": index, "none": true}) } else { json!({"index": index, "swatch": name}) };
-        app.run("appearance.setItem", params).ok();
+        let paint = if none { json!({"none": true}) } else { json!({ "swatch": name }) };
+        let (cmd, mut params) = match target {
+            Painted::Item(index) => ("appearance.setItem", json!({ "index": index })),
+            // With nothing selected these set up the next object drawn.
+            Painted::NewArt { fill: true } => ("paint.setFill", json!({})),
+            Painted::NewArt { fill: false } => ("paint.setStroke", json!({})),
+        };
+        if let (Some(p), Some(extra)) = (params.as_object_mut(), paint.as_object()) {
+            p.extend(extra.clone());
+        }
+        app.run(cmd, params).ok();
         ui.close();
     }
 }
@@ -1244,7 +1299,7 @@ fn button_drop_command(items: &[usize], effects: Option<&(Option<usize>, Vec<usi
 fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
     match selected_effects(ui.ctx(), node, sel) {
         Some((item, ks)) => app.run("effect.duplicate", json!({"item": item, "indices": ks})).ok(),
-        None if sel.item().is_some() => app.run("appearance.duplicateItem", json!({"indices": selected_items(ui.ctx(), node, sel)})).ok(),
+        None if matches!(sel, Sel::Item(_)) => app.run("appearance.duplicateItem", json!({"indices": selected_items(ui.ctx(), node, sel)})).ok(),
         None => None,
     };
 }
@@ -1252,7 +1307,7 @@ fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, se
 fn delete_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
     let ok = match selected_effects(ui.ctx(), node, sel) {
         Some((item, ks)) => app.run("effect.remove", json!({"item": item, "indices": ks})).is_ok(),
-        None if sel.item().is_some() => app.run("appearance.removeItem", json!({"indices": selected_items(ui.ctx(), node, sel)})).is_ok(),
+        None if matches!(sel, Sel::Item(_)) => app.run("appearance.removeItem", json!({"indices": selected_items(ui.ctx(), node, sel)})).is_ok(),
         None => false,
     };
     // Removing the active item clears it in the engine; a removed item effect leaves its item
