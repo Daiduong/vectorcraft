@@ -238,6 +238,29 @@ fn touch_type_moves_one_character_and_leaves_the_others_where_they_are() {
     assert!(s.execute("text.touchType", &json!({"id": id.0, "start": (1u64 << 32) + 1, "dy": 1})).is_err(), "no character there");
 }
 
+/// Touch Type on the first character of a list item moves that character and leaves the bullet
+/// where it is. The bullet stands for no character, so the first character still moves only up
+/// and down.
+#[test]
+fn touch_type_moves_the_first_character_of_a_list_item_and_not_its_bullet() {
+    let mut s = session();
+    let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Type", "size": 40})).unwrap()["id"].as_u64().unwrap());
+    s.execute("text.setFormat", &json!({"ids": [id.0], "list": "bullet"})).unwrap();
+    let pens = |s: &Session| {
+        let t = obj(s, id);
+        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let bullet = lay.glyphs.iter().find(|g| g.len == 0).map(|g| t.xf * (g.xf * Point::ZERO)).unwrap();
+        (bullet, lay.glyphs.iter().filter(|g| g.len > 0).map(|g| (g.byte, t.xf * (g.xf * Point::ZERO))).collect::<Vec<_>>())
+    };
+    let (bullet, before) = pens(&s);
+    assert!(s.execute("text.touchType", &json!({"id": id.0, "start": 0, "dx": 5})).is_err(), "no character before it to kern");
+    s.execute("text.touchType", &json!({"id": id.0, "start": 0, "dy": 3})).unwrap();
+    let (bullet_after, after) = pens(&s);
+    assert!(near(moved_by(&before, &after, 0), (0.0, -3.0)), "the T moves 3 pt up: {:?}", moved_by(&before, &after, 0));
+    assert!(near(moved_by(&before, &after, 1), (0.0, 0.0)));
+    assert!((bullet_after - bullet).hypot() < 1e-6, "the bullet stays: {bullet:?} {bullet_after:?}");
+}
+
 /// Raising, scaling or rotating a character leaves it and the characters after it where they
 /// were along the line, also where the font kerns it with its neighbors (the T and the y).
 #[test]
@@ -1215,4 +1238,34 @@ fn clicking_the_out_port_then_the_canvas_threads_the_text_into_a_new_frame() {
     assert_eq!(thread[0], id);
     assert_eq!(format!("{}{}", obj(&s, id).plain_text(), obj(&s, thread[1]).plain_text()), long);
     assert_eq!(&undo_labels(&s)[steps..], ["Thread Text"]);
+}
+
+/// #2572: with the Selection tool, area type whose text fits shows both ports, and a click on its
+/// in port then on empty canvas makes a new frame the story starts in, flowing on into the frame
+/// clicked, in one undo step; the ports then show the thread's arrows.
+#[test]
+fn clicking_the_in_port_then_the_canvas_threads_a_new_frame_before_it() {
+    let mut s = session();
+    let v = ViewInfo::default();
+    let words = "Words that fit. ";
+    let r = s.execute("text.create", &json!({"x": 50, "y": 50, "text": words, "size": 12, "area": {"width": 100, "height": 40}})).unwrap();
+    let id = NodeId(r["id"].as_u64().unwrap());
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.select_tool("selection", v).unwrap();
+    let boxes = |s: &mut Session| {
+        s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Highlight { color: [255, 255, 255, 255], .. })).count()
+    };
+    assert_eq!(boxes(&mut s), 2, "an in port and an out port");
+    let steps = undo_labels(&s).len();
+    click(&mut s, 50.0, 50.0 + vectorcraft_tools::text::PORT_RISE_PX);
+    assert_eq!(s.cursor(Point::new(400.0, 400.0), Mods::default(), v), vectorcraft_tools::Cursor::LoadedText);
+    click(&mut s, 400.0, 400.0);
+    let doc = &s.doc().unwrap().doc;
+    let [thread] = &doc.text_threads[..] else { panic!("one thread: {:?}", doc.text_threads) };
+    assert_eq!(thread[1], id, "the frame clicked comes second");
+    assert_eq!(format!("{}{}", obj(&s, thread[0]).plain_text(), obj(&s, id).plain_text()), words);
+    assert!(!obj(&s, thread[0]).plain_text().is_empty(), "the story starts in the new frame");
+    assert_eq!(&undo_labels(&s)[steps..], ["Thread Text"]);
+    let strokes = s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Line { .. })).count();
+    assert_eq!(strokes, 6, "both frames selected: the first one's out port and the second one's in port show arrows");
 }

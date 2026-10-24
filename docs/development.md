@@ -1,5 +1,6 @@
 # Development
 
+> **Last updated:** 2026-10-23 · **Change:** Tests: cargo xtask test, one integration-test binary per crate, the dev profile's debug info.
 > **Last updated:** 2026-10-21 · **Change:** the interface faces as vectorcraft-ui-egui's `interface-fonts` feature, and `theme::install_fonts` for an embedder that draws the panels itself.
 > **Last updated:** 2026-10-21 · **Change:** leaving out the bundled fonts with the egui panels (vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features).
 > **Last updated:** 2026-10-14 · **Change:** leaving out the bundled fonts (`bundled-fonts` feature).
@@ -115,7 +116,7 @@ The window runs natively on Wayland (eframe's `wayland` feature) and on X11. On 
 - **Copied files:** files copied in a file manager (`text/uri-list`; `CF_HDROP` on Windows, file URLs on macOS) paste as the first one that is art (SVG, PDF, EPS, EMF/WMF or a bitmap; a `.ai` or `.ait` file from the editing data it holds, else as the PDF or PostScript it holds), before the clipboard's other formats (which include the files' paths as text).
 - **Dropping files on the window does not work under Wayland:** winit 0.30, which eframe 0.36 runs on, has no Wayland drag and drop ([winit#1881](https://github.com/rust-windowing/winit/issues/1881), added in winit 0.31; [egui#1563](https://github.com/emilk/egui/issues/1563)), so no `dropped_files` arrive. Until eframe moves to winit 0.31: copy the files in the file manager and paste them, use File › Place or Open, or open the window through XWayland, where drops work: set **Preferences › Performance › Linux Display Server** to **X11 (XWayland)** and restart (#1151), or start the app with `WAYLAND_DISPLAY= vectorcraft`. The preference (`linuxDisplayServer`, read at startup in `apps/vectorcraft/src/main.rs`, shown on Linux only) has winit open the window on X11 (`EventLoopBuilderExtX11::with_x11`) when the session is Wayland, `DISPLAY` is set and the X11 libraries winit loads are installed (`apps/vectorcraft/src/xwayland.rs` reads `ldconfig -p` and the usual library directories); otherwise the window opens on Wayland and the log says why. Unlike clearing `WAYLAND_DISPLAY`, it leaves the clipboard on the compositor's own.
 - **Pens and pen displays under Wayland (#491, #2028):** winit 0.30 doesn't bind the Wayland tablet protocol (`zwp_tablet_v2`; tablet input arrives in winit 0.31, [winit#4318](https://github.com/rust-windowing/winit/pull/4318), [egui#7731](https://github.com/emilk/egui/pull/7731)). Since Plasma 6.3, KWin no longer turns tablet input into pointer input for such apps ([kwin!6336](https://invent.kde.org/plasma/kwin/-/merge_requests/6336), commit [25c65abd](https://invent.kde.org/plasma/kwin/-/commit/25c65abddd95eb87fb892a8594faccbf509ff62f)), and GNOME's Mutter does not turn it into pointer input either (that commit's message): on KWin the pen moves the compositor's cursor over the window, but the app gets no motion or presses and shows none of its own cursors. Until eframe moves to winit 0.31, either run the app under XWayland, which supports the tablet protocol and hands the pen to X11 apps as a pointer (Preferences › Performance › Linux Display Server › X11 (XWayland); X11 (XWayland) When a Pen Is Attached (`x11WithPen`), which opens the window through XWayland only when `/proc/bus/input/devices` lists a pen as the app starts, a device with the `BTN_TOOL_PEN` key and the `ABS_X` and `ABS_Y` axes, and logs `pen found: opening the window through XWayland`; `WAYLAND_DISPLAY= vectorcraft`, or `env -u WAYLAND_DISPLAY vectorcraft`; for a desktop launcher, put `env WAYLAND_DISPLAY=` before the command in its `Exec=` line), or turn KWin's deprecated emulation back on for the whole session by setting `KWIN_WAYLAND_EMULATE_TABLET=1` in KWin's environment (for example in a file under `~/.config/environment.d/` or in `/etc/environment`) and logging in again. The pen then works as a mouse. Under XWayland the app also reads the pen's pressure (next item); with KWin's emulation on native Wayland the pen has no pressure. Other compositors that don't emulate a pointer for tablets behave the same way.
-- **Pen pressure under X11 and XWayland (#764):** winit 0.30 hands a pen to an X11 window as a mouse, without its pressure. When the window is on X11, XWayland included, the desktop app opens a second X connection (x11rb's `RustConnection`) and reads XInput2 raw events for every device (`apps/vectorcraft/src/tablet.rs`, from PhotoCraft's `crates/tablet`). A device with an `Abs Pressure` valuator is a pen, unless its XInput type is `TOUCHPAD` or `TOUCHSCREEN`. While a pen is the pointer that moved last, its pressure, scaled from the valuator's range to 0..1, reaches the tools that use pressure: the Paintbrush's pressure-sensitive brushes and the Liquify tools' Use Pressure Pen. The X server needs XInput 2.1 or later; otherwise the log has a `tablet pressure:` warning with the reason, and the pen draws at full pressure.
+- **Pen pressure under X11 and XWayland (#764):** winit 0.30 hands a pen to an X11 window as a mouse, without its pressure. When the window is on X11, XWayland included, the desktop app opens a second X connection (x11rb's `RustConnection`) and reads XInput2 raw events for every device (`apps/vectorcraft/src/tablet.rs`, from PhotoCraft's `crates/tablet`). A device with an `Abs Pressure` valuator is a pen, unless its XInput type is `TOUCHPAD` or `TOUCHSCREEN`. While a pen is the pointer that moved last, its pressure, scaled from the valuator's range to 0..1, reaches the tools that use pressure: the Paintbrush's pressure-sensitive brushes and the Liquify tools' Use Pressure Pen. A pen device whose name or XInput type contains `eraser` (in any case) is the pen's eraser end: while the pointer is over the window, the canvas selects the Eraser tool when the eraser end moves, and it selects the tool used before when the tip moves again (`crates/ui-egui/src/stylus.rs`). The X server needs XInput 2.1 or later; otherwise the log has a `tablet pressure:` warning with the reason, and the pen draws at full pressure.
 
 ## Fonts: craft-fonts (optional build input)
 
@@ -297,6 +298,31 @@ other `sv-*` locale resolve to it), Georgian (`ka`, complete; `ka-GE` and `ka_GE
 
 `cargo xtask brands` (part of `cargo xtask ci`) fails when user-visible text names another vendor's products or company: string literals in Rust sources (command labels and params docs, menus, panels, MCP tool definitions), `Cargo.toml` descriptions and packaging files. Comments, test files and `#[cfg(test)]` modules are not checked. Say "the reference app" or name the feature itself. A line that must keep an old name, such as an alias that files or preferences from earlier versions still use, or a name another project defines, such as a shared MIME type, carries a `brand-ok` comment. In the Linux desktop entry, whose comments take whole lines, the comment goes on the `#` line just above it; `MARK_ABOVE` in `xtask/src/brands.rs` lists the files that accept a mark there.
 
+## Tests
+
+- `cargo xtask test` runs the workspace's unit and integration tests with
+  [cargo-nextest](https://nexte.st) when it is installed (`cargo install cargo-nextest --locked`),
+  otherwise with `cargo test`, and then the doctests (`cargo test --workspace --doc`), which nextest
+  doesn't run. `cargo xtask ci` runs the same two as its `test` and `doctests` steps.
+- The test build leaves out the examples (`--lib --bins --tests`); clippy (`--all-targets`) still
+  checks them.
+- Each crate has one integration-test binary: its test files are modules of `tests/it/main.rs`. Run
+  one file's tests with `cargo nextest run -p vectorcraft-svg --test it roundtrip::` (or `cargo test`
+  with the same arguments). A new test file gets a `mod` line in `main.rs`.
+- A test file stays a binary of its own (`tests/<name>.rs`) when it changes process-wide state that
+  other tests would see, because `cargo test` runs a binary's tests as threads of one process (nextest
+  runs each test in its own process). In `crates/engine/tests`: the Color Settings
+  (`color_settings.rs`), the font database and Fonts folder (`removed_font.rs`, `font_folder.rs`,
+  `text_import_fuzz.rs`), installed plug-ins (`plugin_export.rs`, `plugin_fuzz.rs`), the working
+  directory (`open_relative_path.rs`) and every command run with junk parameters
+  (`command_sweep.rs`); the `system_fonts` tests of `vectorcraft-text` and `vectorcraft-pdf` too. The
+  fuzz files under Robustness › Fuzzing keep their own binaries, so a deeper search runs alone, and so
+  do `affinity_artboards`, `affinity_text` and `affinity_corpus`, which the Affinity corpus workflow
+  names.
+- The dev profile builds the workspace crates with line tables only (`debug = "line-tables-only"`),
+  so panics and backtraces still name file and line, and dependencies without debug info. For a
+  debugger session, `CARGO_PROFILE_DEV_DEBUG=true cargo build` gives full debug info.
+
 ## Robustness: VectorCraft never crashes
 
 A crash takes the user's unsaved work with it, and much of what the app reads is untrusted: SVG,
@@ -319,7 +345,8 @@ in the code:
 | `todo!`, `unimplemented!` | don't merge unfinished paths; return an error that says what isn't supported |
 
 `clippy.toml` allows `unwrap`, `expect` and `panic` inside `#[test]` and `#[cfg(test)]` code.
-Integration-test files under `tests/` and `examples/`, and the `testkit` crate, opt out with
+Integration tests (`tests/it/main.rs` and the test files that are binaries of their own), examples
+and the `testkit` crate opt out with
 `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`. Tests use `panic!("…")`
 instead of `unreachable!()`.
 
@@ -462,6 +489,7 @@ Scores and hour estimates are unchanged.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-23 | minor | Tests: `cargo xtask test` (nextest, then doctests), one integration-test binary per crate and the files that keep their own, the dev profile's debug info. |
 | 2026-10-21 | minor | Fonts › Leaving out the bundled fonts: vectorcraft-ui-egui's `interface-fonts` feature, and `theme::install_fonts` for an embedder that draws the panels without `VectorcraftApp::logic`. |
 | 2026-10-21 | minor | M3: highlighted-text Eyedropper sampling preserves ranges and rejects unsupported source/target transparency atomically; regression-tested; scores and estimates unchanged. |
 | 2026-10-21 | minor | Fonts › Leaving out the bundled fonts: vectorcraft-ui-egui's and vectorcraft-mcp's `bundled-fonts` features, and the engine declared without default features. |
