@@ -52,7 +52,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let item = editing.is_none().then(|| app.session.appearance_item()).flatten().and_then(|_| current_transparency(app));
     // A fill/stroke's transparency is only its opacity and blend: what applies to whole objects
     // (the opacity mask, isolation, knockout) is greyed out meanwhile.
-    let object = item.is_none();
+    let object = editing.is_some() || app.session.appearance_item().is_none();
     let (op, blend) = match item {
         Some((o, b)) => (Some(o), Some(b)),
         None if has => (info.opacity.map(|o| (o / 100.0) as f32), info.blend),
