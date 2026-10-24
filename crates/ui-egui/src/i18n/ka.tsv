@@ -1043,7 +1043,7 @@ lighting	Light	სინათლე
 	Toggle single/double column	ერთი/ორი სვეტის გადართვა
 	W:	სიგ.:
 	Drag to float the toolbar	გადაათრიეთ ხელსაწყოთა ზოლის მცურავად გადასაქცევად
-	Drag to the window's left edge to dock	მისამაგრებლად გადაათრიეთ ფანჯრის მარცხენა კიდესთან
+	Drag to the window's left or right edge to dock	მისამაგრებლად გადაათრიეთ ფანჯრის მარცხენა ან მარჯვენა კიდესთან
 	Crystallize	კრისტალიზაცია
 	Add Anchor Point Tool	საყრდენი წერტილის დამატების ხელსაწყო
 	Anchor Point Tool	საყრდენი წერტილის ხელსაწყო
@@ -5449,3 +5449,5 @@ axis	Y Axis	Y ღერძი
 	Rectangular Grid Tool Options	მართკუთხა ბადის ხელსაწყოს პარამეტრები
 	Polar Grid Tool Options	პოლარული ბადის ხელსაწყოს პარამეტრები
 	Fill Line	ხაზის შევსება
+@msg	the EPS Options dialog didn't open	EPS-ის პარამეტრების დიალოგი არ გაიხსნა
+@msg	side is left or right, not `{s}`	side არის left ან right და არა `{s}`

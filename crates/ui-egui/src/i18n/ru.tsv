@@ -3802,7 +3802,7 @@ axis	Both	Оба
 	Drag to float the panel group	Перетащите, чтобы сделать группу панелей плавающей
 	Put back in the dock	Вернуть в док
 	Drag to float the toolbar	Перетащите, чтобы сделать панель инструментов плавающей
-	Drag to the window's left edge to dock	Перетащите к левому краю окна для прикрепления
+	Drag to the window's left or right edge to dock	Перетащите к левому или правому краю окна для прикрепления
 	Float Tool Group	Сделать группу инструментов плавающей
 
 # Status and error messages (`@msg`), translated where the status bar shows them; the message itself
@@ -4290,6 +4290,7 @@ axis	Both	Оба
 @msg	the PDF is password-protected: give its password	PDF защищён паролем: укажите его пароль
 @msg	the PDF password is wrong	неверный пароль PDF
 @msg	the Save PDF dialog didn't open	диалоговое окно «Сохранить PDF» не открылось
+@msg	the EPS Options dialog didn't open	диалоговое окно «Параметры EPS» не открылось
 @msg	the WMF header is damaged	заголовок WMF повреждён
 @msg	the art could not be sampled	не удалось взять образец рисунка
 @msg	the art has no bounds	у рисунка нет границ
@@ -5145,3 +5146,4 @@ axis	Y Axis	Ось Y
 	Rectangular Grid Tool Options	Параметры инструмента «Прямоугольная сетка»
 	Polar Grid Tool Options	Параметры инструмента «Полярная сетка»
 	Fill Line	Заливка отрезка
+@msg	side is left or right, not `{s}`	side — это left или right, а не `{s}`

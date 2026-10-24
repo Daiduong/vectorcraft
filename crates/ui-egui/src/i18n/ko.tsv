@@ -3732,7 +3732,7 @@ axis	Both	양쪽
 	Drag to float the panel group	드래그하여 패널 그룹 분리
 	Put back in the dock	독으로 되돌리기
 	Drag to float the toolbar	드래그하여 도구 모음 분리
-	Drag to the window's left edge to dock	창 왼쪽 가장자리로 드래그하여 고정
+	Drag to the window's left or right edge to dock	창 왼쪽 또는 오른쪽 가장자리로 드래그하여 고정
 	Float Tool Group	도구 그룹 분리
 	Services	서비스
 	Hide VectorCraft	VectorCraft 숨기기
@@ -5112,3 +5112,5 @@ axis	Y Axis	Y축
 	Rectangular Grid Tool Options	사각형 격자 도구 옵션
 	Polar Grid Tool Options	극좌표 격자 도구 옵션
 	Fill Line	선 채우기
+@msg	the EPS Options dialog didn't open	EPS 옵션 대화상자가 열리지 않았습니다
+@msg	side is left or right, not `{s}`	side는 left 또는 right입니다(`{s}` 아님)

@@ -74,6 +74,8 @@ struct Move {
 pub(crate) enum Drop {
     /// Back in the dock (the Tools panel: at the window's left edge).
     Dock,
+    /// The Tools panel docked on the right, left of the panel dock.
+    DockRight,
     /// Stacked with the floating group holding this panel.
     Stack(&'static str),
     /// In a set with the floating group holding this panel, below it.
@@ -152,6 +154,11 @@ pub(crate) fn icons_rect_id() -> Id {
 
 pub(crate) fn tools_zone_id() -> Id {
     Id::new("floating-tools-zone")
+}
+
+/// Where a Tools panel dropped docks on the right: the strip left of the panel dock.
+pub(crate) fn tools_zone_right_id() -> Id {
+    Id::new("floating-tools-zone-right")
 }
 
 /// The area of the floating group whose first panel is `first` (of the set it heads).
@@ -418,7 +425,16 @@ pub(crate) fn drag_tools(app: &mut VectorcraftApp, ctx: &egui::Context, title: &
 /// Where the pointer at `at` would drop `what`, and the zone that lights up for it.
 pub(crate) fn drop_target(app: &VectorcraftApp, ctx: &egui::Context, what: Moving, at: Pos2) -> Option<(Drop, Rect)> {
     let zone = |id: Id| ctx.data(|d| d.get_temp::<Rect>(id)).filter(|r| r.contains(at));
-    let Moving::Panel(id) = what else { return zone(tools_zone_id()).map(|r| (Drop::Dock, r)) };
+    let Moving::Panel(id) = what else {
+        // Left of the panel dock, or anywhere along the window's right edge: it docks left of
+        // the panels either way, so that place lights up.
+        let right = ctx.data(|d| d.get_temp::<Rect>(tools_zone_right_id()));
+        let at_edge = at.x >= ctx.content_rect().right() - crate::toolbar::WIDTH && right.is_some_and(|r| r.y_range().contains(at.y));
+        return zone(tools_zone_id())
+            .map(|r| (Drop::Dock, r))
+            .or_else(|| zone(tools_zone_right_id()).map(|r| (Drop::DockRight, r)))
+            .or_else(|| right.filter(|_| at_edge).map(|r| (Drop::DockRight, r)));
+    };
     let own = group_of(&app.ui, id);
     let moving = own.map(|i| set_of(&app.ui, i)).unwrap_or_default();
     // The left edge of the icon column or of a dock column docks the moved groups as a new column
@@ -560,7 +576,7 @@ pub(crate) fn preview(ctx: &egui::Context, target: Drop, rect: Rect) {
     match target {
         Drop::Below(_) | Drop::Above(_) | Drop::Column(_) => insertion_line(ctx, rect),
         Drop::Stack(_) | Drop::Root(..) => tab_zone(ctx, rect),
-        Drop::Dock | Drop::Icons => highlight(ctx, rect),
+        Drop::Dock | Drop::DockRight | Drop::Icons => highlight(ctx, rect),
     }
 }
 
@@ -588,6 +604,7 @@ pub fn track(app: &mut VectorcraftApp, ctx: &egui::Context) {
         app.ui.open_panel = m.original.open_panel;
         app.ui.dock_tab = m.original.dock_tab;
         app.ui.toolbar_pos = m.original.toolbar_pos;
+        app.ui.toolbar_right = m.original.toolbar_right;
         ctx.data_mut(|data| {
             data.remove::<Move>(move_id());
             data.insert_temp(suppressed_id(), true);
@@ -626,6 +643,7 @@ pub fn track(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let Some((drop, _)) = target else { return };
     let Moving::Panel(id) = m.what else {
         app.ui.toolbar_pos = None;
+        app.ui.toolbar_right = drop == Drop::DockRight;
         return;
     };
     // The moved set: its groups' panels, showing the top group's.
@@ -657,7 +675,7 @@ pub fn track(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
     match drop {
         Drop::Root(..) | Drop::Icons => {}
-        Drop::Dock => {
+        Drop::Dock | Drop::DockRight => {
             dock(&mut app.ui, &ids, active);
             // One that went back to its icon pops out of it, so it doesn't seem to vanish.
             if app.ui.dock_collapsed || DockTab::from_id(active).is_none() {
@@ -1105,9 +1123,20 @@ fn float_or_dock(app: &mut VectorcraftApp, float_it: bool, p: &Value) -> Result<
     let group = crate::menus::opt_bool(p, "group")?.unwrap_or(false);
     let at = position(p)?;
     if raw.eq_ignore_ascii_case("tools") || raw.eq_ignore_ascii_case("toolbar") {
+        // Docking: at the window's left or right edge (default: the side it docked at last).
+        let right = match p.get("side").and_then(Value::as_str) {
+            None => app.ui.toolbar_right,
+            Some(s) if s.eq_ignore_ascii_case("left") => false,
+            Some(s) if s.eq_ignore_ascii_case("right") => true,
+            Some(s) => return Err(format!("side is left or right, not `{s}`")),
+        };
         app.ui.toolbar_pos = float_it.then(|| at.map_or(TOOLS_AT, |p| [p.x, p.y]));
         app.ui.toolbar |= float_it;
-        return Ok(json!({ "panel": "tools", "floating": float_it, "pos": app.ui.toolbar_pos }));
+        if !float_it {
+            app.ui.toolbar_right = right;
+        }
+        let side = if app.ui.toolbar_right { "right" } else { "left" };
+        return Ok(json!({ "panel": "tools", "floating": float_it, "pos": app.ui.toolbar_pos, "side": side }));
     }
     let Some(id) = crate::menus::normalize_panel(raw) else { return Err(format!("unknown panel `{raw}`")) };
     let own = group_of(&app.ui, id);
@@ -1626,6 +1655,73 @@ mod tests {
         let double = h.app.ui.toolbar_double;
         h.click(title);
         assert_ne!(h.app.ui.toolbar_double, double);
+    }
+
+    /// The Tools panel also docks on the right, dropped at the window's right edge or just left of
+    /// the panel dock: it stands between the canvas and the panels (left of their icon column),
+    /// stays there through a restart and a workspace, and its flyouts open on its left.
+    #[test]
+    fn the_tools_panel_docks_on_the_right_edge_too() {
+        let mut h = Harness::new();
+        let zone = h.temp_rect(tools_zone_id());
+        h.drag(zone.left_top() + vec2(30.0, 7.0), pos2(400.0, 300.0));
+        let float = h.ctx.memory(|m| m.area_rect(Id::new("toolbar-floating"))).unwrap();
+        let edge = pos2(SCREEN.x - 10.0, 400.0);
+        h.hold(float.left_top() + vec2(30.0, 7.0), edge);
+        assert_eq!(drop_target(&h.app, &h.ctx, Moving::Tools, edge).map(|t| t.0), Some(Drop::DockRight));
+        h.release(edge);
+        assert_eq!((h.app.ui.toolbar_pos, h.app.ui.toolbar_right), (None, true), "docked on the right");
+        h.settle();
+        let bar = h.temp_rect(crate::edit_toolbar::toolbar_id());
+        let dock = crate::toolbar::dock_left(&h.app, &h.ctx).expect("the panel dock shows");
+        assert!(dock < SCREEN.x - 40.0, "the panels keep the window's right edge: {dock}");
+        assert!(bar.right() <= dock + 1.0 && bar.right() > dock - 12.0, "left of the panel dock at {dock}: {bar:?}");
+        // A flyout opens on the toolbar's left, toward the canvas, not over the panels.
+        let screen = Rect::from_min_size(Pos2::ZERO, SCREEN);
+        let room = crate::toolbar::room(&h.app, &h.ctx);
+        assert!((room.right() - dock).abs() < 1.0, "room ends at the panels: {room:?}");
+        let x = crate::toolbar::beside(bar, 160.0, 8.0, room);
+        assert!(x + 160.0 <= bar.left() - 7.0, "left of the toolbar: {x}");
+        assert_eq!(crate::toolbar::beside(Rect::from_min_size(pos2(0.0, 50.0), vec2(40.0, 40.0)), 160.0, 8.0, screen), 48.0, "right of it elsewhere");
+        // Kept in the preferences and in a saved workspace; Essentials docks it on the left.
+        let prefs: UiState = serde_json::from_slice(&serde_json::to_vec(&h.app.ui).unwrap()).unwrap();
+        assert!(prefs.sanitized().toolbar_right);
+        h.app.run("window.workspace.new", json!({"name": "Right Tools"})).unwrap();
+        h.app.run("window.workspace", json!({"name": "Essentials"})).unwrap();
+        assert!(!h.app.ui.toolbar_right);
+        h.app.run("window.workspace", json!({"name": "Right Tools"})).unwrap();
+        assert!(h.app.ui.toolbar_right);
+        // Dragged back to the left edge, it docks there again.
+        h.settle();
+        let bar = h.temp_rect(crate::edit_toolbar::toolbar_id());
+        h.drag(bar.left_top() + vec2(30.0, 7.0), pos2(400.0, 300.0));
+        let float = h.ctx.memory(|m| m.area_rect(Id::new("toolbar-floating"))).unwrap();
+        h.drag(float.left_top() + vec2(30.0, 7.0), pos2(10.0, 400.0));
+        assert_eq!((h.app.ui.toolbar_pos, h.app.ui.toolbar_right), (None, false));
+        // Dropped just left of the panel dock (not at the window's edge), it docks there too.
+        h.settle();
+        let bar = h.temp_rect(crate::edit_toolbar::toolbar_id());
+        h.drag(bar.left_top() + vec2(30.0, 7.0), pos2(400.0, 300.0));
+        let float = h.ctx.memory(|m| m.area_rect(Id::new("toolbar-floating"))).unwrap();
+        let dock = crate::toolbar::dock_left(&h.app, &h.ctx).expect("the panel dock shows");
+        let beside = pos2(dock - 10.0, 400.0);
+        h.hold(float.left_top() + vec2(30.0, 7.0), beside);
+        assert_eq!(drop_target(&h.app, &h.ctx, Moving::Tools, beside).map(|t| t.0), Some(Drop::DockRight));
+        h.release(beside);
+        assert_eq!((h.app.ui.toolbar_pos, h.app.ui.toolbar_right), (None, true));
+    }
+
+    #[test]
+    fn the_dock_command_takes_the_tools_panels_side() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let r = app.run("window.panel.dock", json!({"panel": "tools", "side": "right"})).unwrap();
+        assert_eq!((r["side"].as_str(), app.ui.toolbar_right), (Some("right"), true));
+        app.run("window.panel.float", json!({"panel": "tools"})).unwrap();
+        let r = app.run("window.panel.dock", json!({"panel": "tools"})).unwrap();
+        assert_eq!(r["side"], "right", "back where it docked last");
+        app.run("window.panel.dock", json!({"panel": "tools", "side": "LEFT"})).unwrap();
+        assert!(!app.ui.toolbar_right);
+        assert!(app.run("window.panel.dock", json!({"panel": "tools", "side": "top"})).is_err());
     }
 
     #[test]

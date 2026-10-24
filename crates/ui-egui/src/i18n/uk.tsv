@@ -3795,7 +3795,7 @@ axis	Both	Обидві
 	Drag to float the panel group	Перетягніть, щоб від’єднати групу панелей
 	Put back in the dock	Повернути у док
 	Drag to float the toolbar	Перетягніть, щоб від’єднати панель інструментів
-	Drag to the window's left edge to dock	Перетягніть до лівого краю вікна для прикріплення
+	Drag to the window's left or right edge to dock	Перетягніть до лівого або правого краю вікна для прикріплення
 	Float Tool Group	Від’єднати групу інструментів
 @msg	no library `{id}`	немає бібліотеки `{id}`
 @msg	select some type first	спочатку виділіть текст
@@ -4278,6 +4278,7 @@ axis	Both	Обидві
 @msg	the PDF is password-protected: give its password	PDF захищений паролем: вкажіть його пароль
 @msg	the PDF password is wrong	неправильний пароль PDF
 @msg	the Save PDF dialog didn't open	діалогове вікно «Зберегти PDF» не відкрилося
+@msg	the EPS Options dialog didn't open	діалогове вікно «Параметри EPS» не відкрилося
 @msg	the WMF header is damaged	заголовок WMF пошкоджений
 @msg	the art could not be sampled	не вдалося взяти зразок малюнка
 @msg	the art has no bounds	малюнок не має меж
@@ -5129,3 +5130,4 @@ axis	Y Axis	Вісь Y
 	Rectangular Grid Tool Options	Параметри інструменту «Прямокутна сітка»
 	Polar Grid Tool Options	Параметри інструменту «Полярна сітка»
 	Fill Line	Заливка відрізка
+@msg	side is left or right, not `{s}`	side — це left або right, а не `{s}`

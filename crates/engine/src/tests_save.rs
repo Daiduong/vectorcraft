@@ -68,6 +68,43 @@ fn an_svg_path_writes_svg_and_save_writes_it_back() {
 }
 
 #[test]
+fn save_as_eps_carries_the_document_and_save_writes_it_back() {
+    let d = dir("eps");
+    let mut s = session();
+    rect(&mut s);
+    let eps = path(&d, "art.eps");
+    let r = s.execute("file.saveAs", &json!({"path": eps, "options": {"previewFormat": "none", "level": 2}})).unwrap();
+    assert_eq!(r["format"], "eps");
+    assert_eq!(r["warnings"], json!([]), "the file carries the whole document: {r}");
+    assert!(std::fs::read(&eps).unwrap().starts_with(b"%!PS-Adobe-3.0 EPSF-3.0"));
+    let st = s.doc().unwrap();
+    assert_eq!((st.path.as_deref(), st.format, st.is_dirty()), (Some(eps.as_str()), "eps", false));
+    assert_eq!(Value::Object(st.save_options.clone()), json!({"previewFormat": "none", "level": 2}));
+    // Reopened, it is the same document, keeps its path and saves as EPS again.
+    let mut s = Session::new();
+    let r = s.execute("document.open", &json!({"path": eps})).unwrap();
+    assert_eq!((&r["restored"], &r["format"]), (&json!(true), &json!("eps")), "{r}");
+    assert_eq!((s.doc().unwrap().path.as_deref(), s.doc().unwrap().format), (Some(eps.as_str()), "eps"));
+    let n = objects(&s);
+    rect(&mut s);
+    assert_eq!(s.execute("document.save", &json!({})).unwrap()["format"], "eps");
+    let mut s = Session::new();
+    s.execute("document.open", &json!({"path": eps})).unwrap();
+    assert_eq!(objects(&s), n + 1, "the second rectangle was saved");
+    // An EPS file another app wrote (no document of ours in it) is never saved over.
+    let foreign = path(&d, "foreign.eps");
+    let bytes = std::fs::read(&eps).unwrap();
+    let at = bytes.windows(30).position(|w| w == b"%VectorCraft_BeginData: native").unwrap();
+    let mut patched = bytes.clone();
+    patched[at + 29] = b'x';
+    std::fs::write(&foreign, patched).unwrap();
+    let r = s.execute("document.open", &json!({"path": foreign})).unwrap();
+    assert_eq!(r["restored"], false, "{r}");
+    assert_eq!(s.doc().unwrap().path, None);
+    let _ = std::fs::remove_dir_all(d);
+}
+
+#[test]
 fn save_as_takes_on_path_format_and_options() {
     let d = dir("saveas");
     let mut s = session();
@@ -84,7 +121,7 @@ fn save_as_takes_on_path_format_and_options() {
     let svg = s.execute("file.formatOptions", &json!({"format": "svg"})).unwrap();
     assert_eq!(svg["options"]["outlineText"]["value"], false, "another format shows its defaults");
     let ids: Vec<&str> = o["saveFormats"].as_array().unwrap().iter().map(|f| f["id"].as_str().unwrap()).collect();
-    assert_eq!(ids, ["vectorcraft", "template", "pdf", "svg", "svgz", "ai"]);
+    assert_eq!(ids, ["vectorcraft", "template", "pdf", "svg", "svgz", "ai", "eps"]);
     // SVGZ is gzip-compressed SVG and reopens as SVGZ.
     let svgz = path(&d, "doc.svgz");
     s.execute("file.saveAs", &json!({"path": svgz})).unwrap();

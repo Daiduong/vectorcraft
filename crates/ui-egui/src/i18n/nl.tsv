@@ -1127,7 +1127,7 @@ lighting	Light	Licht
 	X:	X:
 	Y:	Y:
 	Drag to float the toolbar	Sleep om de werkbalk zwevend te maken
-	Drag to the window's left edge to dock	Sleep naar de linkerrand van het venster om te dokken
+	Drag to the window's left or right edge to dock	Sleep naar de linker- of rechterrand van het venster om te dokken
 	Crystallize	Kristalliseren
 	Add Anchor Point Tool	Ankerpunt toevoegen
 	Anchor Point Tool	Ankerpunt-gereedschap
@@ -5531,3 +5531,5 @@ axis	Y Axis	Y-as
 	Rectangular Grid Tool Options	Opties rechthoekig-rastergereedschap
 	Polar Grid Tool Options	Opties polair-rastergereedschap
 	Fill Line	Lijn vullen
+@msg	the EPS Options dialog didn't open	het dialoogvenster EPS-opties is niet geopend
+@msg	side is left or right, not `{s}`	side is left of right, niet `{s}`

@@ -16,7 +16,7 @@ use crate::theme::{self, Tokens};
 use crate::{VectorcraftApp, icons, widgets};
 
 const PITCH: f32 = 30.0;
-const WIDTH: f32 = 48.0;
+pub(crate) const WIDTH: f32 = 48.0;
 /// Seconds a press on a tool group's button is held before its flyout opens.
 const LONG_PRESS: f64 = 0.35;
 /// Width of the grab bar down a flyout's right side: dragging it tears the flyout off.
@@ -101,13 +101,24 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // Two 36 pt buttons with 2 pt either side inside the border and separator line (at 76 they
     // overran the right border).
     let w = if cols == 2 { 80.0 } else { WIDTH };
-    // Where the panel docks: along the window's left edge, under the bars.
+    // Where the panel docks: along the window's left or right edge, under the bars.
     let edge = ui.available_rect_before_wrap();
-    ui.ctx().data_mut(|d| d.insert_temp(crate::floating::tools_zone_id(), egui::Rect::from_min_size(edge.min, vec2(WIDTH, edge.height()))));
+    // Docked right, it stands left of the panel dock (its icon column or its leftmost column),
+    // between the canvas and the panels.
+    let right = dock_left(app, ui.ctx()).map_or(edge.max.x, |x| x.min(edge.max.x));
+    ui.ctx().data_mut(|d| {
+        d.insert_temp(crate::floating::tools_zone_id(), egui::Rect::from_min_size(edge.min, vec2(WIDTH, edge.height())));
+        d.insert_temp(crate::floating::tools_zone_right_id(), egui::Rect::from_min_max(pos2(right - WIDTH, edge.min.y), pos2(right, edge.max.y)));
+    });
     match app.ui.toolbar_pos {
         None => {
-            let margin = egui::Margin { left: 6, right: 0, top: 6, bottom: 6 };
-            egui::Panel::left("toolbar").resizable(false).exact_size(w + 6.0).frame(egui::Frame::NONE).show(ui, |ui| {
+            // The card's outer gap faces the window edge it docks at.
+            let (panel, margin) = if app.ui.toolbar_right {
+                (egui::Panel::right("toolbar"), egui::Margin { left: 0, right: 6, top: 6, bottom: 6 })
+            } else {
+                (egui::Panel::left("toolbar"), egui::Margin { left: 6, right: 0, top: 6, bottom: 6 })
+            };
+            panel.resizable(false).exact_size(w + 6.0).frame(egui::Frame::NONE).show(ui, |ui| {
                 crate::theme::card(ui, &t, margin, |ui| body(app, ui, cols, None));
             });
         }
@@ -168,7 +179,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, cols: usize, floating: Option<egu
     {
         app.ui.status = e;
     }
-    let grip_tip = if floating.is_some() { tl!("Drag to the window's left edge to dock") } else { tl!("Drag to float the toolbar") };
+    let grip_tip = if floating.is_some() { tl!("Drag to the window's left or right edge to dock") } else { tl!("Drag to float the toolbar") };
     gresp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), grip_tip));
     gresp.on_hover_cursor(egui::CursorIcon::Grab).on_hover_text(grip_tip);
     // The tools and the controls under them scroll in a window too short for them.
@@ -572,6 +583,38 @@ fn raise_floating(ctx: &egui::Context, key: &str) {
 }
 
 /// A flyout's frame: drop shadow and border (the accent while it flashes).
+/// The panel dock's left edge as last drawn (its icon column, or the leftmost dock column), while
+/// it shows: where a toolbar docked right stands.
+pub(crate) fn dock_left(app: &VectorcraftApp, ctx: &egui::Context) -> Option<f32> {
+    if !app.ui.dock || app.ui.screen_mode >= 3 {
+        return None;
+    }
+    let (left, dock) = ctx.data(|d| (d.get_temp::<f32>(crate::dock::dock_left_id()), d.get_temp::<egui::Rect>(crate::floating::dock_rect_id())));
+    [left, dock.map(|r| r.left())].into_iter().flatten().filter(|x| x.is_finite()).reduce(f32::min)
+}
+
+/// Where the toolbar's flyouts and drawer may open: the window, or with the toolbar docked right
+/// the part left of the panel dock, so they open toward the canvas instead of over the panels.
+pub(crate) fn room(app: &VectorcraftApp, ctx: &egui::Context) -> egui::Rect {
+    let mut r = ctx.content_rect();
+    if app.ui.toolbar_right
+        && app.ui.toolbar_pos.is_none()
+        && let Some(x) = dock_left(app, ctx)
+    {
+        r.max.x = r.max.x.min(x);
+    }
+    r
+}
+
+/// The left edge of something `width` wide opened beside `anchor` (a tool, the toolbar), `gap`
+/// from it: on its right when it fits in `screen`, else on its left (a toolbar docked at the
+/// window's right edge), kept inside the screen either way.
+pub(crate) fn beside(anchor: egui::Rect, width: f32, gap: f32, screen: egui::Rect) -> f32 {
+    let right = anchor.right() + gap;
+    let x = if right + width <= screen.right() { right } else { anchor.left() - gap - width };
+    x.min(screen.right() - width).max(screen.left())
+}
+
 pub(crate) fn flyout_frame(t: &Tokens, flash: bool) -> egui::Frame {
     egui::Frame::NONE
         .fill(t.panel)
@@ -741,12 +784,12 @@ fn flyout(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let t = Tokens::get(ctx);
     let active = app.session.tool_id();
     let mut input = FlyoutInput::default();
-    let resp = egui::Area::new(egui::Id::new("tool-flyout")).order(egui::Order::Foreground).fixed_pos(anchor.right_top() + vec2(8.0, -1.0)).show(
-        ctx,
-        |ui| {
-            flyout_frame(&t, false).show(ui, |ui| input = flyout_body(ui, &t, active, &tools, false));
-        },
-    );
+    // Beside the tool, on the side with room for it (left of a toolbar docked at the right edge).
+    let size = ctx.memory(|m| m.area_rect(egui::Id::new("tool-flyout"))).map_or(vec2(160.0, 0.0), |r| r.size());
+    let x = beside(anchor, size.x, 8.0, room(app, ctx));
+    let resp = egui::Area::new(egui::Id::new("tool-flyout")).order(egui::Order::Foreground).fixed_pos(pos2(x, anchor.top() - 1.0)).show(ctx, |ui| {
+        flyout_frame(&t, false).show(ui, |ui| input = flyout_body(ui, &t, active, &tools, false));
+    });
     // Dragging the bar tears the flyout off, and so does releasing a press over it (a click, or the
     // end of the long press that opened the flyout): it floats where the pointer is.
     let at = ctx.input(|i| i.pointer.interact_pos());

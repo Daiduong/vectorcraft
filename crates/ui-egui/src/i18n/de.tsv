@@ -3690,7 +3690,7 @@ theme	Appearance	Erscheinungsbild
 	Drag to float the panel group	Ziehen, um die Bedienfeldgruppe abzulösen
 	Put back in the dock	Zurück ins Dock setzen
 	Drag to float the toolbar	Ziehen, um die Werkzeugleiste abzulösen
-	Drag to the window's left edge to dock	Zum Andocken an den linken Fensterrand ziehen
+	Drag to the window's left or right edge to dock	Zum Andocken an den linken oder rechten Fensterrand ziehen
 	Float Tool Group	Werkzeuggruppe ablösen
 
 # Status and error messages (`@msg`), translated where the status bar shows them; the message itself
@@ -4179,6 +4179,7 @@ theme	Appearance	Erscheinungsbild
 @msg	the PDF is password-protected: give its password	die PDF-Datei ist kennwortgeschützt: Geben Sie ihr Kennwort an
 @msg	the PDF password is wrong	das PDF-Kennwort ist falsch
 @msg	the Save PDF dialog didn't open	das Dialogfeld „PDF speichern“ wurde nicht geöffnet
+@msg	the EPS Options dialog didn't open	das Dialogfeld „EPS-Optionen“ wurde nicht geöffnet
 @msg	the WMF header is damaged	der WMF-Header ist beschädigt
 @msg	the art could not be sampled	die Grafik konnte nicht abgetastet werden
 @msg	the art has no bounds	die Grafik hat keine Begrenzung
@@ -5115,3 +5116,4 @@ axis	Y Axis	Y-Achse
 	Rectangular Grid Tool Options	Optionen für das Rechteckiges-Raster-Werkzeug
 	Polar Grid Tool Options	Optionen für das Radiales-Raster-Werkzeug
 	Fill Line	Linie füllen
+@msg	side is left or right, not `{s}`	side ist left oder right, nicht `{s}`

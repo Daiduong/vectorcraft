@@ -138,6 +138,30 @@ fn a_crash_leaves_copies_that_restore_modified_and_titled() {
     assert!(s.execute("file.recovery.restore", &json!({"file": format!("{mine}/Poster-1")})).is_err(), "an open document's copy");
 }
 
+/// A document whose own file is an EPS gets recovery copies too, and a restored one saves as EPS
+/// again (once a path is chosen).
+#[test]
+fn an_eps_documents_copy_restores_as_eps() {
+    let (mut s, store) = session();
+    let dir = std::env::temp_dir().join(format!("vc-recovery-eps-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let eps = dir.join("Poster.eps").to_string_lossy().to_string();
+    s.execute("file.saveAs", &json!({"path": eps, "options": {"previewFormat": "none"}})).unwrap();
+    s.execute("shape.ellipse", &json!({"x": 100, "y": 10, "width": 20, "height": 20})).unwrap();
+    let r = s.execute("file.recovery.save", &json!({})).unwrap();
+    assert_eq!(r["saved"].as_array().unwrap().len(), 1, "the modified EPS document is copied: {r}");
+    let nodes = s.doc().unwrap().doc.node_count();
+    drop(s);
+
+    let mut s = relaunch(&store);
+    assert_eq!(restored(s.execute("file.recovery.restore", &json!({})).unwrap()), 1);
+    let st = s.doc().unwrap();
+    assert_eq!((st.path.as_deref(), st.format, st.doc.node_count()), (Some(eps.as_str()), "eps", nodes));
+    let saved = s.execute("document.save", &json!({})).unwrap();
+    assert_eq!((saved["format"].as_str(), saved["name"].as_str()), (Some("eps"), Some("Poster.eps")), "{saved}");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 #[test]
 fn a_restored_copy_still_refuses_to_replace_the_file_an_import_left_things_out_of() {
     let (mut s, store) = session();

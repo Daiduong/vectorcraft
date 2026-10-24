@@ -388,9 +388,13 @@ pub struct UiState {
     #[serde(skip)]
     pub dock_width_pending: bool,
     /// The Tools panel floats with its top-left corner here (dragged out by its title bar); `None`:
-    /// docked at the window's left edge.
+    /// docked at the window's left edge (or right edge, [`Self::toolbar_right`]).
     #[serde(default)]
     pub toolbar_pos: Option<[f32; 2]>,
+    /// The docked Tools panel stands on the right, left of the panel dock, instead of at the window's
+    /// left edge (dropped there or on the window's right edge).
+    #[serde(default)]
+    pub toolbar_right: bool,
     pub status_bar: bool,
     pub dock: bool,
     /// The bars that Tab (`window.dock`) hid, which the next Tab shows again; none when Tab has not
@@ -848,6 +852,7 @@ impl Default for UiState {
             dock_width: None,
             dock_width_pending: false,
             toolbar_pos: None,
+            toolbar_right: false,
             status_bar: true,
             dock: true,
             tab_hid: None,

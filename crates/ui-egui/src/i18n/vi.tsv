@@ -986,7 +986,7 @@ font-technology	Variable	Biến thiên
 	Drag to float the toolbar	Kéo để thả nổi thanh công cụ
 	Drag to move	Kéo để di chuyển
 	Drag to move out of the set	Kéo để tách khỏi bộ
-	Drag to the window's left edge to dock	Kéo đến cạnh trái cửa sổ để neo
+	Drag to the window's left or right edge to dock	Kéo đến cạnh trái hoặc phải cửa sổ để neo
 	Step up or down	Tăng hoặc giảm một bước
 	Drag values or labels. Double-click a value to type.	Kéo giá trị hoặc nhãn. Bấm đúp vào giá trị để nhập.
 	Draw	Vẽ
@@ -5129,3 +5129,5 @@ axis	Y Axis	Trục Y
 	Rectangular Grid Tool Options	Tùy chọn công cụ Lưới chữ nhật
 	Polar Grid Tool Options	Tùy chọn công cụ Lưới cực
 	Fill Line	Tô đoạn thẳng
+@msg	the EPS Options dialog didn't open	hộp thoại Tùy chọn EPS không mở
+@msg	side is left or right, not `{s}`	side là left hoặc right, không phải `{s}`

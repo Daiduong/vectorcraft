@@ -1102,7 +1102,7 @@ font-technology	Variable	Változó
 	Drag to float the toolbar	Húzd el az eszköztár lebegtetéséhez
 	Drag to move	Húzással áthelyezhető
 	Drag to move out of the set	Húzással kivehető a csoportból
-	Drag to the window's left edge to dock	Dokkoláshoz húzd az ablak bal szélére
+	Drag to the window's left or right edge to dock	Dokkoláshoz húzd az ablak bal vagy jobb szélére
 	Step up or down	Léptetés fel vagy le
 	Drag values or labels. Double-click a value to type.	Húzd az értékeket vagy a címkéket. Gépeléshez kattints duplán egy értékre.
 	Draw	Rajzolás
@@ -5034,6 +5034,7 @@ imageTrace	Outline	Körvonal
 @msg	the PSD file's image data uses an unknown compression ({m})	a PSD-fájl képadatai ismeretlen tömörítést használnak ({m})
 @msg	the PSD image is too large to read ({_1} × {_2} pixels)	a PSD-kép túl nagy a beolvasáshoz ({_1} × {_2} pixel)
 @msg	the Save PDF dialog didn't open	a PDF mentése párbeszédablak nem nyílt meg
+@msg	the EPS Options dialog didn't open	az EPS-beállítások párbeszédablak nem nyílt meg
 @msg	the scale is not a usable number	a méretarány nem használható szám
 @msg	the search couldn't start: try again in a moment	a keresés nem indult el: próbáld újra egy kicsit később
 @msg	the selected stroke's profile is already listed as {_1}	a kijelölt körvonal profilja már szerepel a listán: {_1}
@@ -5519,3 +5520,4 @@ axis	Y Axis	Y tengely
 	Rectangular Grid Tool Options	Téglalaprács beállításai
 	Polar Grid Tool Options	Polárrács beállításai
 	Fill Line	Szakasz kitöltése
+@msg	side is left or right, not `{s}`	a side értéke left vagy right lehet, nem `{s}`

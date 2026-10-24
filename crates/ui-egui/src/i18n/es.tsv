@@ -3766,7 +3766,7 @@ axis	Both	Ambos
 	Drag to float the panel group	Arrastrar para hacer flotar el grupo de paneles
 	Put back in the dock	Devolver al área de paneles
 	Drag to float the toolbar	Arrastrar para hacer flotar la barra de herramientas
-	Drag to the window's left edge to dock	Arrastrar al borde izquierdo de la ventana para anclar
+	Drag to the window's left or right edge to dock	Arrastrar al borde izquierdo o derecho de la ventana para anclar
 	Float Tool Group	Hacer flotar el grupo de herramientas
 
 # Status and error messages (`@msg`), translated where the status bar shows them; the message itself
@@ -4254,6 +4254,7 @@ axis	Both	Ambos
 @msg	the PDF is password-protected: give its password	el PDF está protegido con contraseña: indica su contraseña
 @msg	the PDF password is wrong	la contraseña del PDF es incorrecta
 @msg	the Save PDF dialog didn't open	el cuadro de diálogo Guardar PDF no se abrió
+@msg	the EPS Options dialog didn't open	el cuadro de diálogo Opciones EPS no se abrió
 @msg	the WMF header is damaged	el encabezado WMF está dañado
 @msg	the art could not be sampled	no se pudo muestrear la ilustración
 @msg	the art has no bounds	la ilustración no tiene límites
@@ -5475,3 +5476,4 @@ axis	Y Axis	Eje Y
 	Rectangular Grid Tool Options	Opciones de la herramienta Cuadrícula rectangular
 	Polar Grid Tool Options	Opciones de la herramienta Cuadrícula polar
 	Fill Line	Rellenar línea
+@msg	side is left or right, not `{s}`	side es left o right, no `{s}`

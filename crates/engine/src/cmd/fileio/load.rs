@@ -443,11 +443,11 @@ fn open_loaded(s: &mut Session, loaded: Loaded, links: Resolved, path: Option<St
         doc.layers_open = Some(vec![]);
     }
     // Save writes the file back only in a format it writes, only a whole PDF (see
-    // [`LoadOptions::is_partial`]), and a .ai file only when it carried the native document (Save
-    // writes .ai that way).
+    // [`LoadOptions::is_partial`]), and a .ai or EPS file only when it carried the native document
+    // (Save writes them that way).
     let partial = format.id == "pdf" && opts.is_partial();
-    let lossy_ai = format.id == "ai" && !restored;
-    let path = path.filter(|_| !template && !partial && !lossy_ai && SAVE_FORMATS.contains(&format.id));
+    let lossy = matches!(format.id, "ai" | "eps") && !restored;
+    let path = path.filter(|_| !template && !partial && !lossy && SAVE_FORMATS.contains(&format.id));
     let saves_back = path.is_some();
     let converted = saves_back && converted && s.prefs.append_converted;
     let index = s.add_document(doc, path);

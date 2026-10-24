@@ -52,6 +52,8 @@ pub struct Workspace {
     /// Main dock column width in screen points (#1753).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dock_width: Option<f32>,
+    /// The docked Tools panel stands on the right, left of the panel dock (built-in workspaces: left).
+    pub toolbar_right: bool,
 }
 
 impl Default for Workspace {
@@ -186,6 +188,7 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
         docking_collapsed: ui.docking_collapsed.clone(),
         toolbar_pos: ui.toolbar_pos,
         dock_width: ui.dock_width,
+        toolbar_right: ui.toolbar_right,
     }
 }
 
@@ -213,6 +216,7 @@ pub fn apply(ui: &mut UiState, w: &Workspace) {
     ui.toolbar_pos = w.toolbar_pos;
     ui.dock_width = w.dock_width;
     ui.dock_width_pending = true;
+    ui.toolbar_right = w.toolbar_right;
     FloatingPanels::sanitize(&mut ui.floating_panels, &mut ui.toolbar_pos);
     ui.flyout = None;
     ui.workspace = w.name.clone();

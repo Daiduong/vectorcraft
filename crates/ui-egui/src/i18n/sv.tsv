@@ -3693,7 +3693,7 @@ axis	Both	Båda
 	Drag to float the panel group	Dra för att göra panelgruppen flytande
 	Put back in the dock	Lägg tillbaka i dockan
 	Drag to float the toolbar	Dra för att göra verktygsfältet flytande
-	Drag to the window's left edge to dock	Dra till fönstrets vänsterkant för att docka
+	Drag to the window's left or right edge to dock	Dra till fönstrets vänster- eller högerkant för att docka
 	Float Tool Group	Gör verktygsgruppen flytande
 @msg	no library `{id}`	inget bibliotek `{id}`
 @msg	select some type first	markera någon text först
@@ -5489,3 +5489,5 @@ axis	Y Axis	Y-axel
 	Rectangular Grid Tool Options	Alternativ för verktyget för rektangulärt rutnät
 	Polar Grid Tool Options	Alternativ för verktyget för polärt rutnät
 	Fill Line	Fyll linje
+@msg	the EPS Options dialog didn't open	dialogrutan EPS-alternativ öppnades inte
+@msg	side is left or right, not `{s}`	side är left eller right, inte `{s}`

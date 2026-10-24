@@ -1192,7 +1192,7 @@ lighting	Light	Světlo
 	X:	X:
 	Y:	Y:
 	Drag to float the toolbar	Přetažením vytvoříte plovoucí panel nástrojů
-	Drag to the window's left edge to dock	Přetažením k levému okraji okna panel ukotvíte
+	Drag to the window's left or right edge to dock	Přetažením k levému nebo pravému okraji okna panel ukotvíte
 
 # Tools
 	Crystallize	Krystalizace
@@ -4556,6 +4556,7 @@ imageTrace	Outline	Obrys
 @msg	the PDF is password-protected: give its password	PDF je chráněno heslem: zadejte heslo
 @msg	the PDF password is wrong	heslo k PDF je chybné
 @msg	the Save PDF dialog didn't open	dialogové okno Uložit PDF se neotevřelo
+@msg	the EPS Options dialog didn't open	dialogové okno Možnosti EPS se neotevřelo
 @msg	the WMF header is damaged	hlavička WMF je poškozená
 @msg	the art could not be sampled	z kresby nelze nabrat vzorek
 @msg	the art has no bounds	kresba nemá hranice
@@ -5533,3 +5534,4 @@ axis	Y Axis	osa Y
 	Rectangular Grid Tool Options	Možnosti nástroje Obdélníková mřížka
 	Polar Grid Tool Options	Možnosti nástroje Polární mřížka
 	Fill Line	Výplň úsečky
+@msg	side is left or right, not `{s}`	side je left nebo right, ne `{s}`
