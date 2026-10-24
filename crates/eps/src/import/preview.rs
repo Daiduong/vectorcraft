@@ -99,6 +99,11 @@ fn epsi(ps: &[u8]) -> Option<image::RgbaImage> {
         }
         hex.extend(l.strip_prefix('%')?.bytes().filter(u8::is_ascii_hexdigit));
     }
+    hex.truncate(row * h * 2);
+    // A trailing half byte would decode padded with zero: the preview is cut short, so none.
+    if hex.len() % 2 != 0 {
+        return None;
+    }
     let bytes = super::lex::hex_decode(&hex)?;
     // A preview with its samples missing is none, not a blank image of the size it claims.
     if bytes.len() < row * h {
