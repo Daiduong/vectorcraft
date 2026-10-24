@@ -88,12 +88,12 @@ ui_mirror!(fn store() -> Option<Arc<Mirror>>);
 
 /// The mirror: the keymap in effect.
 pub(crate) fn current() -> Arc<Mirror> {
-    static MAC: OnceLock<Arc<Mirror>> = OnceLock::new();
-    static OTHER: OnceLock<Arc<Mirror>> = OnceLock::new();
-    store().read().ok().and_then(|m| m.clone()).unwrap_or_else(|| {
-        let defaults = if crate::keymap::platform().is_mac() { &MAC } else { &OTHER };
-        defaults.get_or_init(|| Arc::new(Mirror::new(Overrides::new()))).clone()
-    })
+    static DEFAULTS: [OnceLock<Arc<Mirror>>; 3] = [OnceLock::new(), OnceLock::new(), OnceLock::new()];
+    store()
+        .read()
+        .ok()
+        .and_then(|m| m.clone())
+        .unwrap_or_else(|| crate::keymap::per_platform(&DEFAULTS, crate::keymap::platform(), || Arc::new(Mirror::new(Overrides::new()))).clone())
 }
 
 /// Leak-once interning for override strings (bounded by the chords a user ever assigns).

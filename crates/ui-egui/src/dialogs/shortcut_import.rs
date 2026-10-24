@@ -557,7 +557,7 @@ fn apply_ready(km: &mut Keymap, review: &Review, statuses: &[(Status, Option<Str
         rows.push((r.line, target));
     }
     let options = ImportOptions { remembered, start, none_defined: NoneDefined::Keep, suggest: false, ..ImportOptions::default() };
-    let mut planned = plan(&ForeignSet { name: None, entries }, km, &options);
+    let mut planned = plan(&ForeignSet::new(entries), km, &options);
     for p in &mut planned.commands {
         let key = crate::keymap::entry_key(&p.command);
         p.bindings.retain(|b| rows.get(b.order).is_some_and(|(_, t)| *t == key));

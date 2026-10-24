@@ -7,8 +7,7 @@
 //! outside it are VectorCraft's too (`Cmd+Shift+]`, `Comma`, `Period`, `~` for the backtick key,
 //! `=` for Plus with modifiers). Inside an [`Overrides`] keys and texts are the crate's.
 
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{OnceLock, RwLock};
 
 use craft_keymap::{Bindable, Binding, Chord, CommandRef, Key, Keymap, Kind, Lookup, Mods, Overrides, Platform, Scope, Scopes};
 use serde_json::{Value, json};
@@ -155,29 +154,45 @@ fn catalogue() -> Vec<Bindable> {
         .collect()
 }
 
-/// On the web, whether the browser runs on a Mac ([`note_os`]).
-static WEB_MAC: AtomicBool = AtomicBool::new(false);
+/// On the web, the browser's operating system once egui reports it ([`note_os`]).
+static WEB_PLATFORM: RwLock<Option<Platform>> = RwLock::new(None);
 
 /// The platform shortcuts follow: the build's, and on the web the browser's operating system, so
-/// Ctrl stays Ctrl in a browser on a Mac.
+/// Cmd shortcuts work in a browser on a Mac and Windows' reserved chords stay free on Windows.
 pub fn platform() -> Platform {
-    if cfg!(target_arch = "wasm32") && WEB_MAC.load(Ordering::Relaxed) { Platform::Mac } else { Platform::current() }
+    let web = if cfg!(target_arch = "wasm32") { WEB_PLATFORM.read().ok().and_then(|p| *p) } else { None };
+    web.unwrap_or_else(Platform::current)
 }
 
 /// Records the operating system egui reports, which the web build reads from the browser.
-pub fn note_os(os: egui::os::OperatingSystem) {
+pub fn note_os(ctx: &egui::Context) {
     if cfg!(target_arch = "wasm32") {
-        WEB_MAC.store(os == egui::os::OperatingSystem::Mac, Ordering::Relaxed);
+        let p = craft_keymap::egui::platform(ctx);
+        if let Ok(mut web) = WEB_PLATFORM.write()
+            && *web != Some(p)
+        {
+            *web = Some(p);
+        }
     }
+}
+
+/// The value for `p` in `cells`, made on first use. Each platform has its own cell, because the
+/// web build learns the browser's platform only after the first frame.
+pub(crate) fn per_platform<T>(cells: &'static [OnceLock<T>; 3], p: Platform, make: impl FnOnce() -> T) -> &'static T {
+    let [mac, windows, other] = cells;
+    let cell = match p {
+        Platform::Mac => mac,
+        Platform::Windows => windows,
+        _ => other,
+    };
+    cell.get_or_init(make)
 }
 
 /// The keymap with the default shortcuts for [`platform`], built once per platform.
 pub fn template() -> &'static Keymap {
-    static MAC: OnceLock<Keymap> = OnceLock::new();
-    static OTHER: OnceLock<Keymap> = OnceLock::new();
+    static TEMPLATES: [OnceLock<Keymap>; 3] = [OnceLock::new(), OnceLock::new(), OnceLock::new()];
     let p = platform();
-    let k = if p.is_mac() { &MAC } else { &OTHER };
-    k.get_or_init(|| keymap_for(p))
+    per_platform(&TEMPLATES, p, || keymap_for(p))
 }
 
 /// The default keymap of `p`. The chords the operating system takes can't be assigned.
@@ -196,6 +211,7 @@ pub fn lookup(km: &Keymap, chord: &Chord) -> Option<CommandRef> {
         Lookup::None => None,
         Lookup::Run(c) => Some(c),
         Lookup::Cycle(v) => v.into_iter().next(),
+        _ => None,
     }
 }
 
@@ -377,7 +393,7 @@ mod tests {
     fn the_default_shortcuts_do_not_conflict() {
         assert_eq!(template().conflicts(), vec![]);
         assert_eq!(template().problems(), vec![]);
-        assert_eq!(template().catalogue().len(), shortcut_editor::entries().len(), "every entry is bindable");
+        assert_eq!(template().catalog().len(), shortcut_editor::entries().len(), "every entry is bindable");
         // A default the bridge can't read would show in the menus but never run.
         let unbound: Vec<(&str, &str)> = shortcut_editor::entries()
             .iter()
