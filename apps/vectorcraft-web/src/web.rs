@@ -120,7 +120,8 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                 }
                 host.pasted.borrow_mut().ctx = Some(ctx.clone());
                 let stylus = host.pointers.borrow().stylus();
-                let services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.locks.clone(), stylus);
+                let mut services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.locks.clone(), stylus);
+                crate::storage::install(&mut services, host.inbox.clone(), ctx.clone());
                 let app = match taken.borrow_mut().take() {
                     Some(mut app) => {
                         // The old services asked the old context for frames.

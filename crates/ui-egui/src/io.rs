@@ -343,12 +343,35 @@ pub fn new_from_template(app: &mut VectorcraftApp, path: Option<String>) -> Resu
     Ok(r)
 }
 
-/// Web: download `bytes` under `path`'s file name; desktop: write them to `path`.
+/// Web: download `bytes` under `path`'s file name, or hand a host path ([`is_host_path`]) as it is
+/// to the download service, which writes it back to the host; desktop: write them to `path`.
 pub(crate) fn write_to(services: &mut Services, path: &str, bytes: &[u8]) -> Result<(), String> {
     if let Some(dl) = services.download.as_mut() {
-        return dl(&fileio::file_name(path), bytes);
+        return dl(&if is_host_path(path) { path.to_string() } else { fileio::file_name(path) }, bytes);
     }
     services.write.as_mut().ok_or("no file writer")?(path, bytes)
+}
+
+/// Whether a file name is a path in a host's own storage, `<scheme>:<folder>/<path>` such as
+/// `cloud:home/art/logo.svg`, rather than a bare file name. On the web, the page that serves the app
+/// can offer such storage next to the device (`apps/vectorcraft-web/src/storage.rs`). A one-letter
+/// scheme is a Windows drive, not a host.
+pub fn is_host_path(name: &str) -> bool {
+    name.split_once(':').is_some_and(|(scheme, rest)| {
+        rest.contains('/')
+            && scheme.len() > 1
+            && scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+            && scheme.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '.' | '-'))
+    })
+}
+
+/// Open a file that arrived on the web (picked or dropped). A file from a host's storage arrives
+/// under its host path ([`is_host_path`]) and keeps it, so File › Save writes back there.
+pub(crate) fn open_arrived(app: &mut VectorcraftApp, name: &str, bytes: &[u8]) -> Result<Value, String> {
+    if is_host_path(name) {
+        return open_bytes(app, &fileio::file_name(name), bytes, Some(name.to_string()));
+    }
+    open_bytes(app, name, bytes, None)
 }
 
 /// The web saves by downloading: no save panel, no folders.
@@ -1194,6 +1217,44 @@ mod tests {
             (dialogs::confirm::MESSAGE, "Can't save “Poster.vectorcraft”.", "the disk is full")
         );
         assert!(app.ui.told.is_empty());
+    }
+
+    /// On the web, a document saved to a host's storage (a cloud: path) and one opened from it keep
+    /// that path: File › Save hands it back to the download service (the host's writer) as it is.
+    #[test]
+    fn a_file_from_a_hosts_storage_saves_back_to_its_path() {
+        let written = Written::default();
+        let w = written.clone();
+        let download: crate::DownloadFn = Box::new(move |name: &str, b: &[u8]| {
+            w.borrow_mut().push((name.to_string(), b.to_vec()));
+            Ok(())
+        });
+        let mut app = VectorcraftApp::new(Session::new(), Services { download: Some(download), ..Default::default() });
+        app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
+        save(&mut app, SaveMode::Save, &json!({"path": "cloud:home/art/Poster.vectorcraft"}), false).unwrap();
+        let (name, bytes) = written.borrow().last().cloned().unwrap();
+        assert_eq!(name, "cloud:home/art/Poster.vectorcraft");
+        // Opened again from the host: named after the file, saved back to the host path.
+        open_arrived(&mut app, "cloud:home/art/Poster.vectorcraft", &bytes).unwrap();
+        let st = app.session.doc().unwrap();
+        assert_eq!(st.path.as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
+        app.run("shape.rectangle", json!({"x": 50, "y": 10, "width": 10, "height": 10})).unwrap();
+        save(&mut app, SaveMode::Save, &json!({}), false).unwrap();
+        assert_eq!(written.borrow().last().map(|(n, _)| n.as_str()), Some("cloud:home/art/Poster.vectorcraft"));
+        // A bare name still downloads under its file name.
+        save(&mut app, SaveMode::Save, &json!({"path": "/tmp/Other.vectorcraft"}), false).unwrap();
+        assert_eq!(written.borrow().last().map(|(n, _)| n.as_str()), Some("Other.vectorcraft"));
+    }
+
+    #[test]
+    fn host_paths_have_a_scheme_and_bare_names_and_drives_do_not() {
+        for path in ["cloud:home/logo.svg", "team-drive:a/b.png", "s3+x:bucket/k"] {
+            assert!(is_host_path(path), "{path}");
+        }
+        for name in ["logo.svg", "C:\\art\\logo.svg", "c:/art/logo.svg", ":nothing", "1x:y/z", "a b:c/d", "logo:1.svg"] {
+            assert!(!is_host_path(name), "{name}");
+        }
     }
 
     /// #1693: a browser download that can't be started is a failed save: the document stays
