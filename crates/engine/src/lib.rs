@@ -1431,6 +1431,10 @@ pub struct Session {
     /// The running top-level query command changed the selection and is journaled like any other
     /// command ([`Session::journal_query`]).
     journal_query: bool,
+    /// From `edit.undoGroup.begin` to `edit.undoGroup.end`: the name of the undo step (`None`: after
+    /// its first edit). Each document opened or created meanwhile opens an undo group of its own
+    /// ([`Session::add_document`]). `None` otherwise.
+    pub(crate) explicit_undo_group: Option<Option<String>>,
     /// While `command.batch` runs: the documents its steps closed or replaced (Revert), which an
     /// error brings back; `None` otherwise.
     pub(crate) batch_stash: Option<Vec<DocState>>,
@@ -1563,6 +1567,7 @@ impl Session {
             journal_note: Default::default(),
             note_depth: 1,
             journal_query: false,
+            explicit_undo_group: None,
             batch_stash: None,
             place_hand_off: None,
             queue_hand_off: None,
@@ -1665,7 +1670,9 @@ impl Session {
             refresh_tree_text_bounds(tree);
         }
     }
-    /// Add a document and make it active.
+    /// Add a document and make it active. Between `edit.undoGroup.begin` and `edit.undoGroup.end`,
+    /// an undo group with the begun group's name opens in it: here outside a command, and after the
+    /// command that adds it otherwise ([`Session::execute`]).
     pub fn add_document(&mut self, mut doc: Document, path: Option<String>) -> usize {
         // Every edit is checked against the document before it, so the first one is within the cap
         // (importers and the native reader have seen to theirs already, with a warning).
@@ -1680,6 +1687,11 @@ impl Session {
         self.docs.push(st);
         let i = self.docs.len() - 1;
         self.active = Some(i);
+        if self.depth == 0
+            && let Some(label) = self.explicit_undo_group.clone()
+        {
+            self.begin_named_undo_group(label);
+        }
         i
     }
     /// Replace the document in tab `index` (File → Revert): new content, cleared history and
@@ -1753,6 +1765,24 @@ impl Session {
         r
     }
 
+    /// Error, under the command's own id, at the first of `ids` that is malformed, names no node, or
+    /// names a layer or sublayer: a command in [`SELECTS_GIVEN_IDS`] acts on objects.
+    fn check_given_ids(&self, id: &str, params: &Value) -> Result<()> {
+        let (Some(st), Some(ids)) = (self.active(), params.get("ids")) else { return Ok(()) };
+        let Some(given) = ids.as_array() else { return cmd::checked_ids_param(self, params, "ids", id).map(drop) };
+        for value in given {
+            let node = cmd::checked_id(self, value, id)?;
+            if st.doc.node(node).is_some_and(|n| n.is_layer()) {
+                return Err(if id.starts_with("object.arrange.") {
+                    cmd::bad(id, format!("id {value} is a layer, not an object; move layers with layer.move"))
+                } else {
+                    cmd::bad(id, format!("id {value} is a layer, not an object"))
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Execute a command by id. This is THE entry point for every frontend.
     pub fn execute(&mut self, id: &str, params: &Value) -> Result<Value> {
         let spec = find_command(id).ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
@@ -1770,6 +1800,9 @@ impl Session {
             && params.get("id").and_then(Value::as_str).is_some_and(|e| !e.starts_with('$'));
         if cmd::params::id_stands_for_ids(spec.params) && !effect_named && self.active().is_some() {
             cmd::given_objects(self, params, id)?;
+        }
+        if SELECTS_GIVEN_IDS.contains(&id) {
+            self.check_given_ids(id, params)?;
         }
         // Clear's menu needs a selection; an agent supplying explicit targets only needs a
         // document. The command validates those targets before making any edit.
@@ -1822,10 +1855,14 @@ impl Session {
         // The entries the command journals belong to the undo groups of the documents it edits, and to
         // the group of the document it starts in when it ends there too.
         let (doc, journal, grouped) = (self.active().map(|d| d.uid), self.journal.len(), self.undo_group_docs());
+        let open = (self.depth == 0).then(|| self.docs.iter().map(|d| d.uid).collect::<Vec<_>>());
         let r = if self.depth == 0 { self.run_guarded(id, run) } else { self.run_nested(run) };
         let r = r?;
         if self.depth == 0 {
             self.inherit_new_art();
+        }
+        if let Some(open) = open {
+            self.open_undo_groups_in_new_documents(&open);
         }
         let journaled = spec.journal || (self.depth == 0 && std::mem::take(&mut self.journal_query));
         if journaled && self.depth == 0 && self.active().is_none_or(|d| d.interaction.is_none()) {
@@ -1976,6 +2013,9 @@ impl Session {
                     cmd::inline::refresh(&before, Arc::make_mut(&mut st.doc));
                     // Text Wrap: area type follows its wrap objects; then threads re-flow.
                     cmd::textwrap::refresh(Arc::make_mut(&mut st.doc));
+                    // Type in no thread numbers its list paragraphs from 1 (before the mask copies
+                    // its editing layer's art).
+                    cmd::threads::restart_unthreaded_counts(&mut st.doc);
                     // Opacity-mask editing: the mask follows its art on the editing layer.
                     if st.doc.mask_edit.is_some() {
                         cmd::maskedit::sync(Arc::make_mut(&mut st.doc));
@@ -2255,6 +2295,20 @@ impl Session {
         }
     }
 
+    /// Between `edit.undoGroup.begin` and `edit.undoGroup.end`, open an undo group with the begun
+    /// group's name in each document that the top-level command just run opened or created (its
+    /// [`DocState::uid`] is not in `open`). The group takes the edits after that command: the
+    /// command's own edits there stay its undo step, and a canceled group keeps them, as the journal
+    /// entry that made the document stays.
+    fn open_undo_groups_in_new_documents(&mut self, open: &[u64]) {
+        let Some(label) = &self.explicit_undo_group else { return };
+        for st in &mut self.docs {
+            if !open.contains(&st.uid) && st.undo_group.is_none() {
+                st.undo_group = Some(UndoGroup { first: None, journal: vec![], label: label.clone() });
+            }
+        }
+    }
+
     /// The documents with an undo group open ([`DocState::uid`]), each with the document it holds.
     fn undo_group_docs(&self) -> Vec<(u64, *const Document)> {
         self.docs.iter().filter(|st| st.undo_group.is_some()).map(|st| (st.uid, Arc::as_ptr(&st.doc))).collect()
@@ -2287,8 +2341,15 @@ impl Session {
     }
 
     /// Close the open undo groups: their edits stay one undo step or, `cancel`led (Escape), are
-    /// undone and dropped from the journal.
+    /// undone and dropped from the journal. A group begun with `edit.undoGroup.begin` ends too, so
+    /// documents opened after this open no undo group.
     pub fn end_undo_group(&mut self, cancel: bool) {
+        self.explicit_undo_group = None;
+        self.close_undo_groups(cancel);
+    }
+
+    /// [`Session::end_undo_group`] without ending a group begun with `edit.undoGroup.begin`.
+    fn close_undo_groups(&mut self, cancel: bool) {
         let mut journal: Vec<(usize, Option<usize>)> = vec![];
         for st in &mut self.docs {
             let Some(g) = st.undo_group.take() else { continue };
@@ -2329,7 +2390,7 @@ impl Session {
         // The other documents' groups are set aside while `end_undo_group` closes this one's.
         let others: Vec<(u64, UndoGroup)> =
             self.docs.iter_mut().filter(|st| st.uid != uid).filter_map(|st| Some((st.uid, st.undo_group.take()?))).collect();
-        self.end_undo_group(cancel);
+        self.close_undo_groups(cancel);
         for (other, g) in others {
             if let Some(st) = self.document_mut(other) {
                 st.undo_group = Some(g);

@@ -322,6 +322,8 @@
 	Bullets	Luettelomerkit
 	Bullets and Numbering	Luettelomerkit ja numerointi
 	Apply Bullets	Käytä luettelomerkkejä
+	Numbered List	Numeroitu luettelo
+	Apply Numbers	Käytä numerointia
 	Filled Dot	Täytetty piste
 	Dash	Ajatusviiva
 	Hollow Circle	Ontto ympyrä
@@ -3856,6 +3858,7 @@ font-technology	Variable	Muuttuvat
 	View:	Näkymä:
 	Tracing Result	Jäljityksen tulos
 	Outlines with Source Image	Ääriviivat ja lähdekuva
+	Press and hold to view the source image	Pidä painettuna nähdäksesi lähdekuvan
 	SVG Options	SVG-asetukset
 	Maximize	Suurenna
 	Restore	Palauta
@@ -4057,6 +4060,7 @@ imageTrace	Outline	Ääriviiva
 @msg	Installed plug-in {_1}	Asennettiin laajennus {_1}
 @msg	Internal error: {msg} (please report this bug)	Sisäinen virhe: {msg} (ilmoita tästä virheestä)
 @msg	Live Paint Merge: select a Live Paint group and the paths to add	Elävän maalauksen yhdistäminen: valitse elävän maalauksen ryhmä ja lisättävät polut
+@msg	Live Paint takes paths and compound paths: convert type, images and other objects to paths first	Elävä maalaus ottaa polkuja ja yhdistelmäpolkuja: muunna teksti, kuvat ja muut objektit ensin poluiksi
 @msg	Live Paint: select paths or compound paths	Elävä maalaus: valitse polkuja tai yhdistelmäpolkuja
 @msg	Live Paint: these paths are too degenerate to paint	Elävä maalaus: nämä polut ovat liian surkastuneita maalattaviksi
 @msg	Make Guides: select paths	Luo apuviivat: valitse polkuja
@@ -4677,6 +4681,8 @@ imageTrace	Outline	Ääriviiva
 @msg	{key} must be an array of non-negative integer object ids	{key} on oltava taulukko objektitunnuksia, jotka ovat ei-negatiivisia kokonaislukuja
 @msg	invalid object id {value}: expected a non-negative integer	virheellinen objektitunnus {value}: odotettiin ei-negatiivista kokonaislukua
 @msg	no such object id {value}	objektia tunnuksella {value} ei ole
+@msg	id {value} is a layer, not an object	tunnus {value} on taso, ei objekti
+@msg	id {value} is a layer, not an object; move layers with layer.move	tunnus {value} on taso, ei objekti; siirrä tasoja komennolla layer.move
 @msg	automation filesystem access is not granted: read authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: lukuoikeus puuttuu: {path}
 @msg	automation filesystem access is not granted: write authority is absent: {path}	automaation tiedostojärjestelmäkäyttöä ei ole myönnetty: kirjoitusoikeus puuttuu: {path}
 @msg	automation path rejected: outside the read root {root}: {path}	automaation polku hylättiin: lukujuuren {root} ulkopuolella: {path}
@@ -5355,6 +5361,7 @@ mark-style	Japanese	Japanilainen
 	Snap to Perpendicular	Kohdista kohtisuoraan
 @msg	unknown snap option `{key}` (use {options})	tuntematon tartuntavalinta `{key}` (käytä: {options})
 	Gap Length:	Aukon pituus:
+@msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Tasainen logo -tila jäljitti kuvan kokoon {_1} × {_2} kuvapistettä keskiarvoistamalla pienennettynä koosta {_3} × {_4}.
 	Artboard {n} of {total}	Piirtoalusta {n}/{total}
 	File {n} of {total}	Tiedosto {n}/{total}
 	Encoding and writing the file…	Tiedostoa koodataan ja kirjoitetaan…

@@ -39,6 +39,19 @@ pub fn is_live_paint(n: &Node) -> bool {
     matches!(n.kind, NodeKind::Group { clip: false, .. }) && n.name.as_deref().is_some_and(|s| s.starts_with(LIVE_PAINT_PREFIX))
 }
 
+/// Whether Live Paint can take `n` as it is: a Live Paint group, a path or compound path, or a
+/// group of those. Type, images, symbols, blends, meshes and the rest have to be converted to
+/// paths first (<https://helpx.adobe.com/illustrator/desktop/paint-and-fill/learn-painting-basics/create-live-paint-groups.html>);
+/// Make and Merge refuse them rather than hide them among the group's sources.
+pub fn live_paint_takes(n: &Node) -> bool {
+    is_live_paint(n)
+        || match &n.kind {
+            NodeKind::Path { .. } | NodeKind::Compound { .. } => true,
+            NodeKind::Group { children, .. } => children.iter().all(|c| live_paint_takes(c)),
+            _ => false,
+        }
+}
+
 fn named(n: &Node, name: &str) -> bool {
     n.name.as_deref() == Some(name)
 }
@@ -379,6 +392,74 @@ impl BuilderMap {
         Some((i, run))
     }
 
+    /// What a gesture along the polyline `pts` touches, in order: [`Self::hit`] at each vertex and
+    /// at the points [`Self::probes`] picks between them, so it touches every region it crosses,
+    /// however narrow.
+    pub fn hits_along(&self, pts: &[Point], piece_tol: Option<f64>) -> Touched {
+        let mut touched = Touched::default();
+        let mut last: Option<Point> = None;
+        for &p in pts {
+            if let Some(a) = last {
+                for q in self.probes(a, p, piece_tol) {
+                    touched.add(self.hit(q, piece_tol));
+                }
+            }
+            touched.add(self.hit(p, piece_tol));
+            last = Some(p);
+        }
+        touched
+    }
+
+    /// The points strictly between `a` and `b`, in order, that [`Self::hits_along`] tests: the
+    /// middle of each stretch between two places where the segment crosses a region's outline, and
+    /// with `piece_tol` (erasing) those crossings, the places where it crosses a line piece or an
+    /// edge, and points `piece_tol / 2` apart (at most 4,000 per segment), so the line pieces and
+    /// edges the segment crosses or passes close to are touched too.
+    fn probes(&self, a: Point, b: Point, piece_tol: Option<f64>) -> Vec<Point> {
+        let len = a.distance(b);
+        if !(len.is_finite() && len > 0.0) {
+            return vec![];
+        }
+        let line = kurbo::Line::new(a, b);
+        let lb = Rect::from_points(a, b);
+        let mut cross: Vec<f64> = vec![];
+        for (_, bp, rb) in &self.regions {
+            if rb.x0 > lb.x1 || rb.x1 < lb.x0 || rb.y0 > lb.y1 || rb.y1 < lb.y0 {
+                continue;
+            }
+            for seg in bp.segments() {
+                cross.extend(seg.intersect_line(line).iter().map(|x| x.line_t));
+            }
+        }
+        cross.retain(|t| t.is_finite() && *t > 0.0 && *t < 1.0);
+        cross.sort_by(f64::total_cmp);
+        // Crossings closer than this along the segment are one place.
+        let gap = 1e-9 / len;
+        let mut ts: Vec<f64> = vec![];
+        let mut from = 0.0;
+        for &t in cross.iter().chain([1.0].iter()) {
+            if t - from > gap {
+                ts.push((from + t) / 2.0);
+                from = t;
+            }
+        }
+        if let Some(tol) = piece_tol {
+            ts.extend(cross.iter().copied());
+            for (piece, pb) in self.lines.iter().chain(&self.edges) {
+                if pb.x0 > lb.x1 || pb.x1 < lb.x0 || pb.y0 > lb.y1 || pb.y1 < lb.y0 {
+                    continue;
+                }
+                for seg in piece.path.to_bezpath().segments() {
+                    ts.extend(seg.intersect_line(line).iter().map(|x| x.line_t).filter(|t| t.is_finite() && *t > 0.0 && *t < 1.0));
+                }
+            }
+            let n = ((len / (tol / 2.0).max(1e-3)).ceil() as usize).min(4000);
+            ts.extend((1..n).map(|k| k as f64 / n as f64));
+            ts.sort_by(f64::total_cmp);
+        }
+        ts.into_iter().map(|t| a.lerp(b, t)).collect()
+    }
+
     /// The regions just either side of the middle of `piece` (None: outside every region).
     pub fn sides(&self, piece: &po::Shape) -> [Option<usize>; 2] {
         let Some(sp) = piece.path.subpaths.first() else { return [None; 2] };
@@ -430,6 +511,14 @@ impl Touched {
         };
         if !list.contains(&i) {
             list.push(i);
+        }
+    }
+
+    /// Adds what `other` touched, in its order.
+    pub fn extend(&mut self, other: &Touched) {
+        let regions = other.regions.iter().map(|&i| Hit::Region(i));
+        for hit in regions.chain(other.lines.iter().map(|&i| Hit::Line(i))).chain(other.edges.iter().map(|&i| Hit::Edge(i))) {
+            self.add(Some(hit));
         }
     }
 
@@ -525,11 +614,15 @@ pub fn hatch(path: &BezPath, gap: f64) -> BezPath {
     out
 }
 
-/// The planar map of the current selection, cached by document identity, selection and whether
-/// filled open paths count as closed.
+/// What a [`RegionCache`] map was built for: the document's address and revision, the selected ids
+/// and whether filled open paths count as closed.
+type CacheKey = (usize, (u64, u64), Vec<NodeId>, bool);
+
+/// The planar map of the current selection, cached by document identity, revision, selection and
+/// whether filled open paths count as closed.
 #[derive(Default)]
 struct RegionCache {
-    key: Option<(usize, Vec<NodeId>, bool)>,
+    key: Option<CacheKey>,
     map: BuilderMap,
     /// Live Paint faces (every path an edge, filled or not) rather than Shape Builder regions.
     live: bool,
@@ -548,7 +641,7 @@ impl RegionCache {
     /// The map, with the outline edges when `edges` (built the first time they're wanted), and
     /// filled open paths closed when `open_filled_as_closed` (Shape Builder only).
     fn get(&mut self, cx: &ToolContext, edges: bool, open_filled_as_closed: bool) -> &BuilderMap {
-        let key = (cx.doc as *const Document as usize, cx.selection.objects.clone(), open_filled_as_closed);
+        let key = (cx.doc as *const Document as usize, cx.revision, cx.selection.objects.clone(), open_filled_as_closed);
         if self.key.as_ref() != Some(&key) || (edges && !self.edges) {
             let roots = sorted_roots(cx.doc, &cx.selection.objects);
             self.map = if self.live {
@@ -724,16 +817,12 @@ impl ShapeBuilderTool {
         alt.then(|| cx.tol(LINE_TOL_PX))
     }
 
+    /// Adds what the drag from `from` to `to` touches, picked as `shapeBuilder.merge` picks it.
     fn touch(&mut self, cx: &ToolContext, from: Option<Point>, to: Point) {
-        let pts = match from {
-            Some(a) => sample_polyline(&[a, to], cx.tol(2.0)),
-            None => vec![to],
-        };
+        let pts: Vec<Point> = from.into_iter().chain([to]).collect();
         let tol = Self::line_tol(cx, self.alt);
-        let map = self.cache.get(cx, self.alt, self.opts.open_filled_as_closed);
-        for p in pts {
-            self.touched.add(map.hit(p, tol));
-        }
+        let touched = self.cache.get(cx, self.alt, self.opts.open_filled_as_closed).hits_along(&pts, tol);
+        self.touched.extend(&touched);
     }
 
     /// Selection Straight Line: the drag touches what the line from its first point to `p` crosses.
@@ -1271,12 +1360,17 @@ mod tests {
     use vectorcraft_geom::shapes;
 
     fn two_rects() -> (Document, NodeId, NodeId) {
+        two_rects_at(0.0)
+    }
+
+    /// Squares A (`x`..`x`+100) and B (`x`+50..`x`+150), 100 pt tall, overlapping by half.
+    fn two_rects_at(x: f64) -> (Document, NodeId, NodeId) {
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let a = d.alloc_id();
-        d.insert(Some(l), 0, Node::path(a, shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::default_art())).unwrap();
+        d.insert(Some(l), 0, Node::path(a, shapes::rectangle(Rect::new(x, 0.0, x + 100.0, 100.0)), Appearance::default_art())).unwrap();
         let b = d.alloc_id();
-        d.insert(Some(l), 1, Node::path(b, shapes::rectangle(Rect::new(50.0, 0.0, 150.0, 100.0)), Appearance::default_art())).unwrap();
+        d.insert(Some(l), 1, Node::path(b, shapes::rectangle(Rect::new(x + 50.0, 0.0, x + 150.0, 100.0)), Appearance::default_art())).unwrap();
         (d, a, b)
     }
 
@@ -1320,6 +1414,24 @@ mod tests {
         assert_eq!(v["erase"], false);
         assert_eq!(v["ids"], json!([a.0, b.0]), "sorted back to front");
         assert!(v["points"].as_array().unwrap().len() >= 2);
+    }
+
+    #[test]
+    fn shape_builder_rebuilds_its_map_for_a_new_revision_at_the_same_address() {
+        let (mut d, a, b) = two_rects();
+        let mut s = Selection::default();
+        s.set([a, b]);
+        let p = paint();
+        let mut t = ShapeBuilderTool::default();
+        let cx1 = ToolContext { revision: (1, 1), ..cx(&d, &s, &p) };
+        t.pointer(&cx1, &ev(PointerKind::Move, 75.0, 50.0));
+        // A later revision of the document, with the squares 300 pt to the right, at the same address.
+        d = two_rects_at(300.0).0;
+        let cx2 = ToolContext { revision: (1, 2), ..cx(&d, &s, &p) };
+        t.pointer(&cx2, &ev(PointerKind::Down, 325.0, 50.0));
+        t.pointer(&cx2, &ev(PointerKind::Drag, 375.0, 50.0));
+        let acts = t.pointer(&cx2, &ev(PointerKind::Up, 375.0, 50.0));
+        assert!(matches!(acts.as_slice(), [Action::Exec(id, _)] if id == "shapeBuilder.merge"), "{acts:?}");
     }
 
     #[test]
@@ -1722,6 +1834,22 @@ mod tests {
         let Action::Exec(id, v) = &acts[0] else { panic!() };
         assert_eq!(id, "livePaint.fill");
         assert_eq!(v["ids"], json!([a.0, b.0]));
+    }
+
+    #[test]
+    fn bucket_rebuilds_its_map_for_a_new_revision_at_the_same_address() {
+        let (mut d, a, b) = two_rects();
+        let mut s = Selection::default();
+        s.set([a, b]);
+        let p = paint();
+        let mut t = LivePaintBucketTool::default();
+        let cx1 = ToolContext { revision: (1, 1), ..cx(&d, &s, &p) };
+        t.pointer(&cx1, &ev(PointerKind::Move, 75.0, 50.0));
+        // A later revision of the document, with the squares 300 pt to the right, at the same address.
+        d = two_rects_at(300.0).0;
+        let cx2 = ToolContext { revision: (1, 2), ..cx(&d, &s, &p) };
+        let acts = t.pointer(&cx2, &ev(PointerKind::Down, 375.0, 50.0));
+        assert_eq!(acts, vec![Action::Exec("livePaint.fill".into(), json!({ "ids": [a.0, b.0], "point": [375.0, 50.0] }))]);
     }
 
     #[test]
