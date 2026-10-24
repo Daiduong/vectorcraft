@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use vectorcraft_geom::Point;
 
 use crate::guides::{DrawSnap, Leave};
-use crate::shape::drag_rect;
+use crate::shape::{box_params, drag_rect, turned_box};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 pub struct FamilyTool {
@@ -41,6 +41,9 @@ pub struct FamilyTool {
     pub compound: bool,
     /// The grids take the current fill.
     pub fill: bool,
+    /// The grids' Default Size (width, height): the size a click's dialog opens with (a drag sets
+    /// its own). The Reference Point is `reference`.
+    pub grid_size: (f64, f64),
     snap: DrawSnap,
 }
 
@@ -74,6 +77,7 @@ impl FamilyTool {
             frame: true,
             compound: false,
             fill: false,
+            grid_size: (100.0, 100.0),
             snap: DrawSnap::default(),
         }
     }
@@ -88,13 +92,39 @@ impl FamilyTool {
     }
 
     /// How the dragged point keeps to the start: a spiral's radius goes anywhere, the arc's and
-    /// the grids' corner keeps to a diagonal with Shift.
-    fn leave(&self, start: Point, m: Mods) -> Option<Leave> {
-        (self.id != "spiral").then(|| Leave::diagonal(start, m.shift))
+    /// the grids' corner keeps to a diagonal with Shift (a grid's square is taken along the
+    /// Constrain Angle's axes instead when it turns them, [`Self::command_at`]).
+    fn leave(&self, cx: &ToolContext, start: Point, m: Mods) -> Option<Leave> {
+        let turned = self.is_grid() && vectorcraft_geom::constrain_axes(cx.constrain_angle).is_some();
+        (self.id != "spiral").then(|| Leave::diagonal(start, m.shift && !turned))
+    }
+
+    fn is_grid(&self) -> bool {
+        matches!(self.id, "rectangularGrid" | "polarGrid")
+    }
+
+    /// A grid's options a drag draws with: its dividers, skews and switches (the Default Size and
+    /// Reference Point are for a click's dialog).
+    fn grid_options(&self) -> Value {
+        if self.id == "polarGrid" {
+            json!({
+                "concentric": self.rows, "radial": self.columns, "concentricSkew": self.skew[0], "radialSkew": self.skew[1], "compound": self.compound, "fill": self.fill,
+            })
+        } else {
+            json!({
+                "rows": self.rows, "columns": self.columns, "rowSkew": self.skew[0], "columnSkew": self.skew[1], "frame": self.frame, "fill": self.fill,
+            })
+        }
     }
 
     /// The command for a drag from `start` to `p`.
     pub fn command(&self, start: Point, p: Point, m: Mods) -> (String, Value) {
+        self.command_at(start, p, m, 0.0)
+    }
+
+    /// [`Self::command`] with General › Constrain Angle `base` (degrees, counter-clockwise): the
+    /// grids are drawn along the x and y axes turned by it, as the rectangle is.
+    pub fn command_at(&self, start: Point, p: Point, m: Mods, base: f64) -> (String, Value) {
         match self.id {
             "spiral" => {
                 let r = p.distance(start).max(0.01);
@@ -103,12 +133,11 @@ impl FamilyTool {
                     json!({"cx": start.x, "cy": start.y, "radius": r, "decay": self.decay, "segments": self.segments, "clockwise": self.clockwise}),
                 )
             }
-            // The grids: the dragged box with the tool's options.
+            // The grids: the dragged box (along the Constrain Angle's axes) with the tool's options.
             "rectangularGrid" | "polarGrid" => {
-                let r = drag_rect(start, p, m);
-                let mut params = self.options();
-                if let Some(o) = params.as_object_mut() {
-                    o.extend([("x", r.x0), ("y", r.y0), ("width", r.width()), ("height", r.height())].map(|(k, v)| (k.to_string(), json!(v))));
+                let mut params = self.grid_options();
+                if let (Some(o), Value::Object(b)) = (params.as_object_mut(), box_params(start, p, m, base)) {
+                    o.extend(b);
                 }
                 (format!("shape.{}", self.id), params)
             }
@@ -158,7 +187,7 @@ impl Tool for FamilyTool {
             }
             PointerKind::Drag => {
                 let Some(mut s) = self.start else { return vec![] };
-                let pos = self.snap.drag(cx, ev.pos, self.leave(s, ev.mods).as_ref());
+                let pos = self.snap.drag(cx, ev.pos, self.leave(cx, s, ev.mods).as_ref());
                 let ev = &PointerEvent { pos, ..*ev };
                 crate::shape::space_moves(&mut s, &mut self.last, ev, self.began);
                 self.start = Some(s);
@@ -171,7 +200,7 @@ impl Tool for FamilyTool {
                     self.began = true;
                     out.push(Action::Begin(self.label().into()));
                 }
-                let (c, v) = self.command(s, ev.pos, ev.mods);
+                let (c, v) = self.command_at(s, ev.pos, ev.mods, cx.constrain_angle);
                 out.push(Action::Preview(c, v));
                 out
             }
@@ -183,7 +212,7 @@ impl Tool for FamilyTool {
             _ => vec![],
         }
     }
-    fn key(&mut self, _cx: &ToolContext, key: ToolKey, _m: Mods) -> Vec<Action> {
+    fn key(&mut self, cx: &ToolContext, key: ToolKey, _m: Mods) -> Vec<Action> {
         let Some(s) = self.start.filter(|_| self.began) else { return vec![] };
         let changed = match (self.id, key) {
             ("spiral", ToolKey::Up) => {
@@ -213,7 +242,7 @@ impl Tool for FamilyTool {
             _ => false,
         };
         if changed {
-            let (c, v) = self.command(s, self.last, self.mods);
+            let (c, v) = self.command_at(s, self.last, self.mods, cx.constrain_angle);
             vec![Action::Preview(c, v)]
         } else if key == ToolKey::Escape {
             self.start = None;
@@ -228,7 +257,8 @@ impl Tool for FamilyTool {
         let mut o = self.snap.guides().to_vec();
         if let Some(s) = self.start.filter(|_| self.began && cx.measurement_labels) {
             // The size as drawn (from the centre with Alt, square with Shift).
-            let r = drag_rect(s, self.last, self.mods);
+            // A grid's along the Constrain Angle's axes, as it is drawn.
+            let r = if self.is_grid() { turned_box(s, self.last, self.mods, cx.constrain_angle).0 } else { drag_rect(s, self.last, self.mods) };
             let (w, h) = if self.id == "spiral" { ((self.last - s).x.abs(), (self.last - s).y.abs()) } else { (r.width(), r.height()) };
             o.push(Overlay::Measure { p: self.last, text: cx.size_label(w, h) });
         }
@@ -240,12 +270,13 @@ impl Tool for FamilyTool {
     fn options(&self) -> Value {
         match self.id {
             "spiral" => json!({"decay": self.decay, "segments": self.segments, "clockwise": self.clockwise}),
-            "rectangularGrid" => json!({
-                "rows": self.rows, "columns": self.columns, "rowSkew": self.skew[0], "columnSkew": self.skew[1], "frame": self.frame, "fill": self.fill,
-            }),
-            "polarGrid" => json!({
-                "concentric": self.rows, "radial": self.columns, "concentricSkew": self.skew[0], "radialSkew": self.skew[1], "compound": self.compound, "fill": self.fill,
-            }),
+            "rectangularGrid" | "polarGrid" => {
+                let mut o = self.grid_options();
+                o["width"] = json!(self.grid_size.0);
+                o["height"] = json!(self.grid_size.1);
+                o["reference"] = json!(self.reference);
+                o
+            }
             _ => json!({
                 "closed": self.closed,
                 "lengthX": self.length_x,
@@ -280,6 +311,8 @@ impl Tool for FamilyTool {
             "frame" => self.frame = v.as_bool().unwrap_or(self.frame),
             "compound" => self.compound = v.as_bool().unwrap_or(self.compound),
             "fill" => self.fill = v.as_bool().unwrap_or(self.fill),
+            "width" => self.grid_size.0 = grid_length(v, self.grid_size.0),
+            "height" => self.grid_size.1 = grid_length(v, self.grid_size.1),
             _ => {}
         }
     }
@@ -288,6 +321,12 @@ impl Tool for FamilyTool {
 /// Arc segment length from a dialog or preference value.
 fn arc_length(v: &Value, current: f64) -> f64 {
     v.as_f64().filter(|n| n.is_finite()).map_or(current, |n| n.abs().max(1e-9))
+}
+
+/// A grid's Default Size side from option value `v`: a finite positive length (at most 1e6 pt),
+/// else `current`.
+fn grid_length(v: &Value, current: f64) -> f64 {
+    v.as_f64().filter(|n| n.is_finite() && *n > 0.0).map_or(current, |n| n.min(1e6))
 }
 
 /// A grid divider skew from option value `v`: a finite number within the range, else `current`.
@@ -349,7 +388,9 @@ mod tests {
             t.set_option(key, &value);
         }
         let options = json!({"concentric": 2, "radial": 5, "concentricSkew": -40.0, "radialSkew": 500.0, "compound": true, "fill": true});
-        assert_eq!(t.options(), options);
+        let mut reported = options.clone();
+        reported.as_object_mut().unwrap().extend(json!({"width": 100.0, "height": 100.0, "reference": 0}).as_object().unwrap().clone());
+        assert_eq!(t.options(), reported);
         let (command, params) = t.command(Point::new(10.0, 20.0), Point::new(40.0, 80.0), Mods::default());
         assert_eq!(command, "shape.polarGrid");
         let mut want = options;
@@ -358,7 +399,10 @@ mod tests {
         let mut t = FamilyTool::new("rectangularGrid");
         t.set_option("frame", &json!(false));
         t.set_option("rowSkew", &json!(12.5));
-        assert_eq!(t.options(), json!({"rows": 5, "columns": 5, "rowSkew": 12.5, "columnSkew": 0.0, "frame": false, "fill": false}));
+        assert_eq!(
+            t.options(),
+            json!({"rows": 5, "columns": 5, "rowSkew": 12.5, "columnSkew": 0.0, "frame": false, "fill": false, "width": 100.0, "height": 100.0, "reference": 0})
+        );
     }
 
     #[test]
@@ -425,6 +469,26 @@ mod tests {
         );
     }
 
+    /// General › Constrain Angle: grids are drawn along the turned axes, Shift's square too; at 0°
+    /// and whole turns as before.
+    #[test]
+    fn grids_follow_the_constrain_angle() {
+        let t = FamilyTool::new("polarGrid");
+        let (a, b) = (Point::new(100.0, 100.0), Point::new(160.0, 120.0));
+        let flat = t.command(a, b, Mods::default());
+        assert_eq!(t.command_at(a, b, Mods::default(), 360.0), flat);
+        assert_eq!(t.command_at(a, b, Mods::default(), -720.0), flat);
+        let (_, v) = t.command_at(a, b, Mods::default(), 90.0);
+        assert_eq!(
+            v,
+            json!({"x": 120.0, "y": 80.0, "width": 20.0, "height": 60.0, "rotation": -90.0, "concentric": 5, "radial": 5, "concentricSkew": 0.0, "radialSkew": 0.0, "compound": false, "fill": false})
+        );
+        let shift = Mods { shift: true, ..Mods::default() };
+        let (_, v) = FamilyTool::new("rectangularGrid").command_at(a, b, shift, 30.0);
+        assert!((v["width"].as_f64().unwrap() - v["height"].as_f64().unwrap()).abs() < 1e-9, "a square along the turned axes: {v}");
+        assert_eq!(v["rotation"], json!(-30.0));
+    }
+
     /// The start and the dragged corner snap to Smart Guides (#506), Shift sliding the corner of
     /// a square grid along its diagonal into line.
     #[test]
@@ -442,5 +506,22 @@ mod tests {
             "{a:?}"
         );
         assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Label { text, .. } if text == "align")));
+    }
+
+    /// A grid's Default Size and Reference Point are options for a click's dialog; the drag
+    /// draws the box it is dragged to and leaves them out of its command.
+    #[test]
+    fn grid_default_size_is_an_option_the_drag_leaves_out() {
+        for id in ["rectangularGrid", "polarGrid"] {
+            let mut t = FamilyTool::new(id);
+            for (k, v) in [("width", json!(150.0)), ("height", json!(-3.0)), ("reference", json!(4))] {
+                t.set_option(k, &v);
+            }
+            let o = t.options();
+            assert_eq!((o["width"].clone(), o["height"].clone(), o["reference"].clone()), (json!(150.0), json!(100.0), json!(4)), "{id}");
+            let (_, p) = t.command(Point::new(0.0, 0.0), Point::new(40.0, 30.0), Mods::default());
+            assert!(p.get("reference").is_none(), "{id}: {p}");
+            assert_eq!((p["width"].clone(), p["height"].clone()), (json!(40.0), json!(30.0)), "{id}");
+        }
     }
 }
