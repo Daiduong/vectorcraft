@@ -34,8 +34,8 @@ fn fixture(count: usize) -> (String, Arc<AtomicUsize>, std::thread::JoinHandle<(
     let worker = std::thread::spawn(move || {
         let mut mcp = Server::new(Box::new(Fake(backend)));
         for _ in 0..count {
-            let request = endpoint.transport.recv_timeout(Duration::from_secs(10)).unwrap().expect("test request");
-            endpoint.handle(request, &mut mcp);
+            let (socket, peer) = endpoint.transport.accept().unwrap();
+            endpoint.handle_socket(socket, peer, &mut mcp);
         }
     });
     (address, calls, worker)
@@ -49,7 +49,11 @@ fn raw(address: &str, method: &str, path: &str, headers: &str, body: &str) -> (u
         .unwrap();
     socket.shutdown(Shutdown::Write).unwrap();
     let mut response = String::new();
-    socket.read_to_string(&mut response).unwrap();
+    match socket.read_to_string(&mut response) {
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset && response.starts_with("HTTP/1.1 ") && response.contains("\r\n\r\n") => {}
+        Err(e) => panic!("HTTP response was lost before completion: {e}: {response:?}"),
+    }
     let status = response.split_whitespace().nth(1).unwrap().parse().unwrap();
     (status, response)
 }
@@ -188,6 +192,13 @@ fn public_bind_and_invalid_tokens_are_refused() {
         assert!(Options::from_file("127.0.0.1:0", &path).is_err());
     }
     std::fs::write(&path, format!("{TOKEN}\n")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o600);
+        std::fs::set_permissions(&path, permissions).unwrap();
+    }
     assert!(Options::from_file("127.0.0.1:0", &path).is_ok());
     std::fs::remove_file(path).unwrap();
 }
@@ -203,8 +214,8 @@ fn deferred_remote_discovery_works_while_desktop_is_closed() {
     let worker = std::thread::spawn(move || {
         let mut server = Server::new(Box::new(crate::Remote::deferred(&unused)));
         for _ in 0..2 {
-            let request = endpoint.transport.recv_timeout(Duration::from_secs(10)).unwrap().unwrap();
-            endpoint.handle(request, &mut server);
+            let (socket, peer) = endpoint.transport.accept().unwrap();
+            endpoint.handle_socket(socket, peer, &mut server);
         }
     });
     assert_eq!(rpc(&address, "tools/list", json!({}), "").0, 200);
@@ -249,6 +260,71 @@ fn oversized_requests_are_rejected_before_reading_or_dispatch() {
     let mut response = String::new();
     socket.read_to_string(&mut response).unwrap();
     assert_eq!(response.split_whitespace().nth(1), Some("413"));
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    worker.join().unwrap();
+}
+
+/// Reject unauthenticated requests before attempting to drain unread bodies.
+#[test]
+fn unauthorized_incomplete_body_does_not_block_next_request() {
+    let (address, calls, worker) = fixture(2);
+    let mut stalled = TcpStream::connect(&address).unwrap();
+    stalled.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    write!(stalled, "POST /mcp HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nAuthorization: Bearer wrong\r\nContent-Length: 900000\r\n\r\nx")
+        .unwrap();
+    stalled.flush().unwrap();
+    let began = std::time::Instant::now();
+    let mut wire = String::new();
+    let _ = stalled.read_to_string(&mut wire);
+    assert!(began.elapsed() < Duration::from_secs(3), "rejected bodies must not be drained");
+    let (status, response) = rpc(&address, "tools/list", json!({}), "");
+    assert_eq!(status, 200, "{response}");
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    worker.join().unwrap();
+}
+
+/// A partial authorized upload must expire rather than pin the serial MCP server.
+#[test]
+fn incomplete_authenticated_body_has_deadline_and_releases_server() {
+    let (address, calls, worker) = fixture(2);
+    let mut stalled = TcpStream::connect(&address).unwrap();
+    stalled.set_read_timeout(Some(REQUEST_DEADLINE + Duration::from_secs(4))).unwrap();
+    write!(stalled, "POST /mcp HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Length: 5000\r\n{}\r\nx", headers("")).unwrap();
+    stalled.flush().unwrap();
+    let began = std::time::Instant::now();
+    let mut response = String::new();
+    let _ = stalled.read_to_string(&mut response);
+    assert!(began.elapsed() < REQUEST_DEADLINE + Duration::from_secs(3));
+    assert!(response.contains(" 408 ") || response.is_empty(), "unexpected timeout response: {response}");
+    let (status, _) = rpc(&address, "tools/list", json!({}), "");
+    assert_eq!(status, 200);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    worker.join().unwrap();
+}
+
+/// Ambiguous lengths or transfer encoding never reach the MCP server.
+#[test]
+fn duplicate_length_and_transfer_encoding_are_rejected() {
+    let (address, calls, worker) = fixture(2);
+    assert_eq!(raw(&address, "POST", "/mcp", &headers("Content-Length: 2\r\n"), "{}").0, 400);
+    assert_eq!(raw(&address, "POST", "/mcp", &headers("Transfer-Encoding: chunked\r\n"), "{}").0, 400);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    worker.join().unwrap();
+}
+
+/// Incomplete request headers cannot hold the server open forever.
+#[test]
+fn incomplete_headers_are_bounded_by_deadline() {
+    let (address, calls, worker) = fixture(2);
+    let mut stalled = TcpStream::connect(&address).unwrap();
+    stalled.set_read_timeout(Some(REQUEST_DEADLINE + Duration::from_secs(4))).unwrap();
+    stalled.write_all(b"POST /mcp HTTP/1.1\r\nHost: ").unwrap();
+    let began = std::time::Instant::now();
+    let mut response = Vec::new();
+    let _ = stalled.read_to_end(&mut response);
+    assert!(began.elapsed() < REQUEST_DEADLINE + Duration::from_secs(3));
+    let (status, _) = rpc(&address, "tools/list", json!({}), "");
+    assert_eq!(status, 200);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     worker.join().unwrap();
 }

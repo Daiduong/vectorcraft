@@ -23,8 +23,13 @@ line and are never printed by the server. Protect the token file with the curren
 The listener and desktop destination must both be loopback IP addresses. Host and optional Origin
 must match the literal listener address. The implementation does not trust forwarded headers or
 enable cross-origin browser access. POST requires JSON and Accept values for both JSON and SSE.
-Requests are capped at 12 MiB; duplicate security headers, unsupported protocol versions and
-malformed/batched messages are refused before reaching the editor. Replies use JSON, notifications
+Requests are capped at 12 MiB and HTTP headers at 16 KiB. One HTTP/1.1 request is handled per
+connection with an absolute 10-second header-and-body deadline and a bounded response-write wait.
+Requests require a Content-Length for POST; chunked/other Transfer-Encoding and Expect requests
+are explicitly rejected. Rejected requests are **not** drained before closing their connections.
+This local prototype does not support keep-alive or request pipelining. Duplicate security or
+framing headers, unsupported protocol versions and malformed/batched messages are refused before
+reaching the editor. Replies use JSON, notifications
 receive empty 202 responses, and standalone GET/SSE and DELETE receive 405 responses. No HTTP
 session table is allocated. Each request's protocol-version header selects its native revision.
 
@@ -36,8 +41,9 @@ completed: inspect the document before explicitly retrying it.
 
 The original loopback transport deliberately omits OAuth, an authorization/settings interface, background
 service installation, remote app launching, SSE progress/logging, and HTTP cancellation. It does
-not advertise logging support. Long calls can delay other requests; connection/body deadlines,
-admission bounds, and concurrency need further work before public use. A bearer token alone does
+not advertise logging support. Long-running backend edits still execute serially and can delay other requests. A read deadline is
+not an admission control system: malicious local clients can still monopolize the listener by
+repeating stalled requests. Additional admission/rate controls are required before any public use. A bearer token alone does
 not implement the MCP OAuth authorization flow. **Do not publish or tunnel this prototype.**
 
 Transport behavior follows the public MCP specification:
