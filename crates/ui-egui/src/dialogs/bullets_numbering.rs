@@ -1,26 +1,26 @@
 //! Type › Bullets and Numbering › Bullets and Numbering…, and More Options at the end of the
 //! Paragraph panel's Bullets and Numbered List presets (or `ui.bulletsAndNumbering {tab?}`): a
-//! Bullets tab and a Numbers tab with the presets, and the Position group (Alignment, Left Indent
-//! and First Line Indent) of the paragraphs the Paragraph panel acts on. The dialog opens on the
-//! values the Paragraph panel shows, with no preset picked and a field blank where the paragraphs
-//! differ. Each change shows on the type while the dialog is open. OK runs `text.setFormat` with
-//! the values that changed, and with the indents it shows when a preset puts the paragraphs in a
-//! list, as one undo step; Cancel puts the type back as it was. A preset picked for paragraphs
-//! that are in no list and have no indents fills in the 18 pt and -18 pt indents `text.setFormat`
-//! gives them, and None takes them out again.
+//! Bullets tab and a Numbers tab, each with the Level field and the presets, and the Position group
+//! (Alignment, Left Indent and First Line Indent) of the paragraphs the Paragraph panel acts on.
+//! The dialog opens on the values the Paragraph panel shows, with no preset picked and a field
+//! blank where the paragraphs differ. Each change shows on the type while the dialog is open. OK
+//! runs `text.setFormat` with the values that changed, and with the indents it shows when a preset
+//! puts the paragraphs in a list, as one undo step; Cancel puts the type back as it was. A preset
+//! picked for paragraphs that are in no list and have no indents fills in the 18 pt and -18 pt
+//! indents `text.setFormat` gives them, and None takes them out again.
 //!
 //! Fields: `tab` (`bullets` or `numbers`), `list` (`none`, `bullet` or `number`: the kind of the
 //! preset picked), `bullet` (`dot`, `dash`, `circle` or `square`), `number` (`arabic`,
 //! `upperLetters`, `lowerLetters`, `upperRoman`, `lowerRoman`, `twoDigits` or `threeDigits`),
-//! `listAlign` (`left` or `right`), `leftIndent` and `firstLineIndent` (pt), as `text.setFormat`
-//! takes them, with `__initial` (the values it opened with) and `__targets` (the type and range it
-//! acts on).
+//! `listAlign` (`left` or `right`), `listLevel` (1 to 9; 1 for paragraphs in no list),
+//! `leftIndent` and `firstLineIndent` (pt), as `text.setFormat` takes them, with `__initial` (the
+//! values it opened with) and `__targets` (the type and range it acts on).
 //!
 //! Behavior reference (public documentation):
 //! <https://web.archive.org/web/20260417034638/https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/create-bulleted-or-numbered-lists.html>.
 
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::text::{LIST_HANGING_INDENT, NumberStyle, ParaList};
+use vectorcraft_doc::text::{LIST_HANGING_INDENT, LIST_LEVELS, NumberStyle, ParaList};
 
 use super::swatch_options::label;
 use super::{DialogSpec, form};
@@ -51,7 +51,7 @@ const ARROWS: egui::EventFilter = egui::EventFilter { tab: false, horizontal_arr
 /// The fields `ui.dialog.set` can set while the dialog does not hold them: the dialog leaves a
 /// field out where the paragraphs differ, and holds no `bullet` or `number` for paragraphs in no
 /// list or in another kind of list.
-const INPUTS: [&str; 6] = ["list", "bullet", "number", "listAlign", "leftIndent", "firstLineIndent"];
+const INPUTS: [&str; 7] = ["list", "bullet", "number", "listAlign", "listLevel", "leftIndent", "firstLineIndent"];
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
     heading: |_| tl!("Bullets and Numbering").into(),
@@ -103,6 +103,10 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     if let Some(a) = shared_para(app, |p| p.list.map(|l| l.align).unwrap_or_default()) {
         values.insert("listAlign".into(), json!(a));
     }
+    // …and the paragraphs' list level, 1 for a paragraph in no list (the level a list starts at).
+    if let Some(l) = shared_para(app, |p| p.list.map_or(1, |l| l.depth())) {
+        values.insert("listLevel".into(), json!(l));
+    }
     if let Some(v) = shared_para_field(app, |p| p.left_indent) {
         values.insert("leftIndent".into(), json!(v));
     }
@@ -125,6 +129,8 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         d.fields.insert("tab".into(), json!(tab));
     }
     ui.add_space(8.0);
+    level(ui, d);
+    ui.add_space(8.0);
     if d.str("tab") == "numbers" {
         number_tab(ui, d);
     } else {
@@ -140,6 +146,17 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         let _ = app.session.cancel_interaction();
     }
     false
+}
+
+/// The Level field: the paragraphs' list level, 1 to 9, blank where they differ.
+fn level(ui: &mut egui::Ui, d: &mut Dialog) {
+    ui.horizontal(|ui| {
+        label(ui, tl!("Level:"));
+        let value = d.fields.get("listLevel").and_then(Value::as_f64);
+        if let Some(v) = widgets::range_field(ui, ("bullets-numbering", "listLevel"), value, 1.0..=LIST_LEVELS as f64, "", 0, 60.0) {
+            d.fields.insert("listLevel".into(), json!(v));
+        }
+    });
 }
 
 /// The Bullets tab: the bullet presets in a row, None first, the one the dialog applies selected.
@@ -337,6 +354,11 @@ fn params(d: &Dialog) -> Map<String, Value> {
         && was("listAlign") != Some(a)
     {
         p.insert("listAlign".into(), json!(a));
+    }
+    if let Some(l) = d.fields.get("listLevel").and_then(Value::as_f64)
+        && initial.and_then(|m| m.get("listLevel")).and_then(Value::as_f64) != Some(l)
+    {
+        p.insert("listLevel".into(), json!(l));
     }
     let listing = ["bullet", "number"].iter().any(|k| p.contains_key(*k)) || p.get("list").is_some_and(|l| l.as_str() != Some("none"));
     for key in ["leftIndent", "firstLineIndent"] {
@@ -556,7 +578,7 @@ mod tests {
         super::super::confirm(&mut app).unwrap();
         assert_eq!(first(&app, id).0, Some(ParaList::numbered(NumberStyle::UpperRoman)));
         app.run("text.setFormat", json!({"ids": [id], "bullet": "circle", "leftIndent": 30, "firstLineIndent": -6, "start": 0, "end": 0})).unwrap();
-        app.run("text.setFormat", json!({"ids": [id], "listAlign": "right", "start": 0, "end": 0})).unwrap();
+        app.run("text.setFormat", json!({"ids": [id], "listAlign": "right", "listLevel": 2, "start": 0, "end": 0})).unwrap();
         app.run("ui.bulletsAndNumbering", json!({})).unwrap();
         let held = app.ui.dialog.as_ref().unwrap().fields.clone();
         for key in INPUTS {
@@ -566,15 +588,44 @@ mod tests {
             {"field": "list", "value": "bullet"},
             {"field": "bullet", "value": "square"},
             {"field": "listAlign", "value": "left"},
+            {"field": "listLevel", "value": 3},
             {"field": "leftIndent", "value": 24},
             {"field": "firstLineIndent", "value": -12},
         ]);
         crate::tests_synthetic::control(&mut app, &ctx, "ui.dialog.set", json!({"fields": fields}));
         super::super::confirm(&mut app).unwrap();
         let (one, two) = paras(&app, id);
-        let square = Some(ParaList::bulleted(Bullet::Square));
+        let square = Some(ParaList::bulleted(Bullet::Square).at_level(3));
         assert_eq!((one.list, one.left_indent, one.first_line_indent), (square, 24.0, -12.0));
         assert_eq!((two.list, two.left_indent, two.first_line_indent), (square, 24.0, -12.0));
+    }
+
+    /// The Level field opens on the paragraphs' list level (1 for paragraphs in no list, blank
+    /// where they differ), shows a change on the type at once, and OK sends it, with a preset or
+    /// alone.
+    #[test]
+    fn the_level_field_sets_the_list_level() {
+        let (mut app, id) = app();
+        app.run("ui.bulletsAndNumbering", json!({})).unwrap();
+        assert_eq!(app.ui.dialog.as_ref().unwrap().f64("listLevel", 0.0), 1.0, "in no list: level 1");
+        pick_preset(&mut app, "number", Some("arabic"));
+        set(&mut app, "listLevel", json!(3));
+        frame(&mut app);
+        assert_eq!(first(&app, id).0, Some(ParaList::numbered(NumberStyle::Arabic).at_level(3)), "previewed on the type");
+        super::super::confirm(&mut app).unwrap();
+        assert_eq!(paras(&app, id).1.list, Some(ParaList::numbered(NumberStyle::Arabic).at_level(3)));
+        app.run("text.setFormat", json!({"ids": [id], "listLevel": 5, "start": 0, "end": 0})).unwrap();
+        app.run("ui.bulletsAndNumbering", json!({})).unwrap();
+        assert!(!app.ui.dialog.as_ref().unwrap().fields.contains_key("listLevel"), "levels 5 and 3 differ: blank");
+        super::super::cancel(&mut app);
+        app.run("text.setFormat", json!({"ids": [id], "listLevel": 5})).unwrap();
+        app.run("ui.bulletsAndNumbering", json!({})).unwrap();
+        assert_eq!(app.ui.dialog.as_ref().unwrap().f64("listLevel", 0.0), 5.0);
+        assert!(!changes(&params(app.ui.dialog.as_ref().unwrap())), "nothing changed yet");
+        set(&mut app, "listLevel", json!(2));
+        assert_eq!(params(app.ui.dialog.as_ref().unwrap()).get("listLevel"), Some(&json!(2.0)));
+        super::super::confirm(&mut app).unwrap();
+        assert_eq!((first(&app, id).0.map(|l| l.level), paras(&app, id).1.list.map(|l| l.level)), (Some(2), Some(2)));
     }
 
     /// The presets are radio buttons named for screen readers, the one the dialog applies chosen;

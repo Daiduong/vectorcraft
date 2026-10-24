@@ -1557,7 +1557,7 @@ mod area_tests {
         assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["list"], json!({"bullet": "square"}));
         // A saved list reads the fields it leaves out as their defaults and ignores those it doesn't know.
         let read = |v: serde_json::Value| serde_json::from_value::<vectorcraft_doc::ParaStyle>(json!({ "list": v })).unwrap().list;
-        assert_eq!((read(json!({})), read(json!({"bullet": "dash", "level": 2}))), (dot, Some(ParaList::bulleted(Bullet::Dash))));
+        assert_eq!((read(json!({})), read(json!({"bullet": "dash", "restart": 2}))), (dot, Some(ParaList::bulleted(Bullet::Dash))));
         let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
         let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
         assert_eq!((back.para_at(0).list, back.para_at(1).list, back.para_at(2).list), (square, dot, None));
@@ -2139,6 +2139,134 @@ mod area_tests {
         assert_eq!(s.active().unwrap().selection.objects, vec![NodeId(a)], "the first frame is selected");
     }
 
+    /// Convert to Text of list paragraphs at deeper levels writes each level's own numbers, those
+    /// a thread's earlier frames counted at each level included, and every glyph is drawn where it
+    /// was: each converted paragraph's left indent takes its level's indent, with the plain left
+    /// stop there.
+    #[test]
+    fn convert_to_text_keeps_deeper_list_levels_in_place() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 800, "height": 800})).unwrap();
+        let text = |s: &Session, id: u64| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => (**t).clone(),
+            _ => panic!("text"),
+        };
+        let numbers = |s: &Session, id: u64| {
+            vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s, id)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
+        };
+        let text_in = "One\nTwo\nThree\nFour\nFive";
+        let id =
+            s.execute("text.create", &json!({"x": 10, "y": 10, "size": 20, "text": text_in, "area": {"width": 400, "height": 400}})).unwrap()["id"]
+                .as_u64()
+                .unwrap();
+        s.execute("text.setFormat", &json!({"ids": [id], "list": "number"})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [id], "listLevel": 2, "start": 4, "end": 9})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [id], "listLevel": 3, "start": 14, "end": 14})).unwrap();
+        let before = drawn_glyphs(&s, id);
+        s.execute("text.convertListToText", &json!({"ids": [id]})).unwrap();
+        assert_eq!(drawn_glyphs(&s, id), before, "every glyph is drawn where it was");
+        let t = text(&s, id);
+        assert_eq!(t.plain_text(), "1.\tOne\n1.\tTwo\n2.\tThree\n1.\tFour\n2.\tFive");
+        let paras = (0..5)
+            .map(|k| {
+                let p = t.para_at(k);
+                (p.list.is_none(), p.left_indent, p.tabs.iter().map(|tab| tab.position).collect::<Vec<_>>())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(paras, [18.0, 36.0, 36.0, 54.0, 18.0].map(|x| (true, x, vec![x])), "out of the list, at the level's indent");
+        // A thread whose second frame goes on with the numbers of level 2.
+        let items = std::iter::once("Head".to_string()).chain((1..=9).map(|i| format!("Item {i}"))).collect::<Vec<_>>().join("\n");
+        let a = s.execute("text.create", &json!({"x": 10, "y": 500, "text": items, "area": {"width": 150, "height": 60}})).unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        let b = s.execute("shape.rectangle", &json!({"x": 200, "y": 500, "width": 150, "height": 200})).unwrap()["id"].as_u64().unwrap();
+        s.execute("select.set", &json!({"ids": [a, b]})).unwrap();
+        s.execute("text.thread.create", &json!({})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [a, b], "list": "number", "listLevel": 2})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [a], "listLevel": 1, "start": 0, "end": 0})).unwrap();
+        let first = numbers(&s, a).len();
+        assert!((3..10).contains(&first) && text(&s, a).plain_text().ends_with('\n'), "both frames hold items: {first}");
+        assert_eq!(numbers(&s, b).first(), Some(&format!("{first}.")), "the second frame counts level 2 on");
+        let before = (drawn_glyphs(&s, a), drawn_glyphs(&s, b));
+        s.execute("text.convertListToText", &json!({"ids": [a, b]})).unwrap();
+        assert_eq!((drawn_glyphs(&s, a), drawn_glyphs(&s, b)), before, "both frames");
+        let story = std::iter::once("1.\tHead".to_string()).chain((1..=9).map(|i| format!("{i}.\tItem {i}"))).collect::<Vec<_>>().join("\n");
+        assert_eq!(text(&s, a).plain_text() + &text(&s, b).plain_text(), story);
+    }
+
+    /// List levels: `text.setFormat {listLevel}` sets the level of the list paragraphs it touches
+    /// as one undo step, from 1 to 9, and refuses other values; bullets and numbers keep it, a
+    /// list turned off and on starts at level 1 again, each level counts its own numbers, and the
+    /// level is saved past level 1, reopened and carried by paragraph styles.
+    #[test]
+    fn list_levels_are_set_per_paragraph_saved_and_styled() {
+        use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        let id = s
+            .execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo\nThree\nFour", "area": {"width": 300, "height": 200}}))
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        let text = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => (**t).clone(),
+            _ => panic!("text"),
+        };
+        let levels = |s: &Session| (0..4).map(|i| text(s).para_at(i).list.map(|l| l.level)).collect::<Vec<_>>();
+        let numbers = |s: &Session| {
+            vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
+        };
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        s.execute("text.setFormat", &json!({"list": "number", "start": 0, "end": 9})).unwrap();
+        assert_eq!(levels(&s), [Some(1), Some(1), Some(1), None]);
+        let undo = s.doc().unwrap().history.undo.len();
+        s.execute("text.setFormat", &json!({"listLevel": 2, "start": 4, "end": 9})).unwrap();
+        assert_eq!(levels(&s), [Some(1), Some(2), Some(2), None]);
+        assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
+        assert_eq!(numbers(&s), ["1.", "1.", "2."]);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(levels(&s), [Some(1), Some(1), Some(1), None]);
+        s.execute("text.setFormat", &json!({"listLevel": 2.0, "start": 4, "end": 4})).unwrap();
+        assert_eq!(levels(&s)[1], Some(2));
+        s.execute("text.setFormat", &json!({"listLevel": 9})).unwrap();
+        assert_eq!(levels(&s), [Some(9), Some(9), Some(9), None], "the paragraph in no list stays out of one");
+        let bad =
+            [json!({"listLevel": 0}), json!({"listLevel": 10}), json!({"listLevel": 1.5}), json!({"listLevel": "2"}), json!({"listLevel": true})];
+        for p in bad {
+            assert!(s.execute("text.setFormat", &p).is_err(), "{p}");
+        }
+        let err = s.execute("text.setFormat", &json!({"listLevel": 10})).unwrap_err().to_string();
+        assert!(err.contains("`listLevel` must be a whole number between 1 and 9 (got 10)"), "{err}");
+        assert_eq!(levels(&s)[0], Some(9), "an unknown value changes nothing");
+        // A deeper paragraph counts from 1, and one back at a shallower level goes on.
+        s.execute("text.setFormat", &json!({"listLevel": 1, "start": 0, "end": 0})).unwrap();
+        s.execute("text.setFormat", &json!({"listLevel": 3, "start": 4, "end": 4})).unwrap();
+        s.execute("text.setFormat", &json!({"listLevel": 1, "start": 8, "end": 8})).unwrap();
+        assert_eq!(numbers(&s), ["1.", "1.", "2."]);
+        // Bullets and numbers keep the level; a call that makes a list sets it there too.
+        s.execute("text.setFormat", &json!({"bullet": "square", "start": 4, "end": 4})).unwrap();
+        assert_eq!(text(&s).para_at(1).list, Some(ParaList::bulleted(Bullet::Square).at_level(3)));
+        s.execute("text.setFormat", &json!({"list": "bullet", "listLevel": 4, "start": 14, "end": 14})).unwrap();
+        assert_eq!(text(&s).para_at(3).list, Some(ParaList::bulleted(Bullet::Dot).at_level(4)));
+        assert_eq!(serde_json::to_value(text(&s).para_at(1)).unwrap()["list"], json!({"bullet": "square", "level": 3}));
+        assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["list"], json!({"bullet": "dot", "number": "arabic"}));
+        let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
+        assert_eq!((0..4).map(|i| back.para_at(i).list).collect::<Vec<_>>(), (0..4).map(|i| text(&s).para_at(i).list).collect::<Vec<_>>());
+        // A list turned off and on again starts at level 1.
+        s.execute("text.setFormat", &json!({"list": "none", "start": 4, "end": 4})).unwrap();
+        s.execute("text.setFormat", &json!({"list": "number", "start": 4, "end": 4})).unwrap();
+        assert_eq!(text(&s).para_at(1).list, Some(ParaList::numbered(NumberStyle::Arabic)));
+        // A style captured from a paragraph at level 4 sets that level, and one captured at level 1
+        // takes it back.
+        s.execute("paraStyle.new", &json!({"name": "Level 4", "id": id, "start": 14, "end": 14})).unwrap();
+        s.execute("paraStyle.new", &json!({"name": "Level 1", "id": id, "start": 0, "end": 0})).unwrap();
+        s.execute("paraStyle.apply", &json!({"name": "Level 4", "id": id, "start": 0, "end": 0})).unwrap();
+        assert_eq!(levels(&s)[0], Some(4));
+        s.execute("paraStyle.apply", &json!({"name": "Level 1", "id": id})).unwrap();
+        assert_eq!(levels(&s), [Some(1); 4]);
+    }
+
     /// Type › Create Outlines makes a path of a list item's bullet as well as of its characters.
     #[test]
     fn create_outlines_makes_a_path_of_the_bullet() {
@@ -2657,7 +2785,7 @@ fn headline_fit(t: &TextObject, tracking: f64) -> Option<(f64, f64, usize)> {
     let cell = lay.frames.first()?;
     let line = lay.lines.first()?;
     let para = t.para_at(0);
-    let avail = cell.width() - 2.0 * t.area.inset - para.left_indent - para.right_indent;
+    let avail = cell.width() - 2.0 * t.area.inset - para.laid_out_left_indent() - para.right_indent;
     Some((line.x1 - line.x0, avail, line.end))
 }
 

@@ -1175,6 +1175,49 @@ fn a_list_paragraph_breaks_its_lines_as_its_text_alone_does() {
     }
 }
 
+/// List levels: a paragraph at a level past the first is set 18 pt further in for each level, its
+/// marker, its text and the lines it wraps to; each level counts its own numbers, a deeper level
+/// starting at 1 and a shallower one going on with its count, from the counts the earlier frames of
+/// a thread carry. A right-to-left list paragraph is set that much further in from the right.
+#[test]
+fn a_list_paragraph_at_a_deeper_level_is_set_further_in_and_counts_on_its_own() {
+    use vectorcraft_doc::text::{Bullet, ListCounts, NumberStyle, ParaList};
+    let num = |level| Some(ParaList::numbered(NumberStyle::Arabic).at_level(level));
+    let t = listed("One\nTwo\nThree\nFour\nFive\nSix\nSeven", &[num(1), num(2), num(2), num(3), num(2), num(1), num(2)]);
+    assert_eq!(marker_texts(&t), ["1.", "1.", "2.", "1.", "3.", "2.", "1."]);
+    let lay = layout(db(), &t);
+    for (k, (m, level)) in lay.markers.iter().zip([1, 2, 2, 3, 2, 1, 2]).enumerate() {
+        let number = &lay.glyphs[m.glyphs.start];
+        let line = &lay.lines[number.line];
+        let text = lay.glyphs[line.glyph_start..line.glyph_end].iter().find(|g| g.len > 0).unwrap();
+        let step = 18.0 * f64::from(level - 1);
+        assert!((number.origin.x - step).abs() < 1e-6, "item {k}: the number starts at {}", number.origin.x);
+        assert!((text.origin.x - 18.0 - step).abs() < 1e-6, "item {k}: the text starts at {}", text.origin.x);
+    }
+    // The counts the earlier frames carry, per level.
+    let mut t = listed("Two\nThree\nFour", &[num(2), num(3), num(1)]);
+    t.set_list_counts(ListCounts([4, 6, 0, 0, 0, 0, 0, 0, 0]));
+    assert_eq!(marker_texts(&t), ["7.", "1.", "5."]);
+    // The lines a deeper paragraph wraps to start at its left indent plus the level's 18 pt.
+    let long = listed(LOREM, &[Some(ParaList::bulleted(Bullet::Dot).at_level(3))]);
+    let lay = layout(db(), &long);
+    assert!(lay.lines.len() > 2, "the paragraph wraps");
+    assert!((lay.glyphs[lay.markers[0].glyphs.start].origin.x - 36.0).abs() < 1e-6);
+    for (i, line) in lay.lines.iter().enumerate() {
+        let first = lay.glyphs[line.glyph_start..line.glyph_end].iter().find(|g| g.len > 0).unwrap();
+        assert!((first.origin.x - 54.0).abs() < 1e-6, "line {i} starts at {}", first.origin.x);
+    }
+    // Right to left: the bullet at level 2 ends 18 pt before the right edge.
+    let rtl = |level| {
+        let mut t = listed("שלום עולם", &[Some(ParaList::bulleted(Bullet::Dot).at_level(level))]);
+        t.edit_paras(None, |p| p.justify = Justify::Auto);
+        let lay = layout(db(), &t);
+        let m = &lay.markers[0];
+        m.glyphs.clone().find(|&i| i != m.tab).map(|i| lay.glyphs[i].origin.x + lay.glyphs[i].advance).unwrap()
+    };
+    assert!((rtl(1) - 200.0).abs() < 1e-6 && (rtl(2) - 182.0).abs() < 1e-6, "{} {}", rtl(1), rtl(2));
+}
+
 /// Are the Japanese craft-fonts faces built in? Tests of Japanese glyphs skip (and say so) when
 /// they aren't: the bundled fonts have none, and [`db`] reads no system fonts.
 fn japanese_fonts() -> bool {

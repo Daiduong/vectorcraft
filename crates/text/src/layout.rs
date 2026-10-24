@@ -120,10 +120,11 @@ impl Ctx<'_> {
     /// before its glyphs `sg` and return how many glyphs went in (none for a paragraph without a
     /// marker). The marker's characters are set in
     /// [`vectorcraft_doc::text::ParaList::marker_style`], and a tab after them takes the text to
-    /// the next tab stop past them on the first line, the left indent counting as a stop when no
-    /// explicit stop comes before it. With the list's [`ListAlign::Right`] that tab goes before
-    /// them instead, with the same width: the marker ends where the text starts, and the text
-    /// starts where it does with [`ListAlign::Left`]. In a horizontal right-to-left paragraph,
+    /// the next tab stop past them on the first line, the left indent plus its list level's indent
+    /// ([`ParaStyle::laid_out_left_indent`]) counting as a stop when no explicit stop comes before
+    /// it. With the list's [`ListAlign::Right`] that tab goes before them instead, with the same
+    /// width: the marker ends where the text starts, and the text starts where it does with
+    /// [`ListAlign::Left`]. In a horizontal right-to-left paragraph,
     /// whose indents are mirrored ([`line_indents`]), these are measured from the right, and a
     /// number reads left to right with its period at its left. The tab keeps that width however
     /// the line is aligned or justified. Each of these glyphs stands for no character of the
@@ -157,9 +158,10 @@ impl Ctx<'_> {
         tab.dy = 0.0;
         tab.tcy = None;
         tab.vpal = None;
-        let pen = para.left_indent + para.first_line_indent + marker.iter().map(|g| g.adv).sum::<f64>();
-        let to_indent = para.left_indent - pen;
-        let stop_before_indent = para.tabs.iter().any(|t| t.position > pen + EPS && t.position < para.left_indent - EPS);
+        let left = para.laid_out_left_indent();
+        let pen = left + para.first_line_indent + marker.iter().map(|g| g.adv).sum::<f64>();
+        let to_indent = left - pen;
+        let stop_before_indent = para.tabs.iter().any(|t| t.position > pen + EPS && t.position < left - EPS);
         tab.adv = if to_indent > EPS && !stop_before_indent { to_indent } else { tab_advance(&para.tabs, 0.0, pen, sg).0 };
         if para.list.is_some_and(|l| l.align == ListAlign::Right) {
             marker.insert(0, tab);
@@ -2008,7 +2010,7 @@ fn compose_para(
     // indents of a right-to-left list ([`line_indents`]) keep.
     while widths.len() < sg.len() {
         let first = widths.is_empty();
-        let ind_l = para.left_indent + if first && !continued { para.first_line_indent } else { 0.0 };
+        let ind_l = para.laid_out_left_indent() + if first && !continued { para.first_line_indent } else { 0.0 };
         // Only the first line's first word is known here. Later lines are placed as the composed
         // lines need: each fits its width, so its first word does too.
         let word = if first { word_width(sg, 0) } else { 0.0 };
@@ -2046,11 +2048,11 @@ fn compose_para(
 }
 
 /// The list marker of each of the paragraphs `paras` of `t` (None for none): bullets, and numbers
-/// counted through consecutive list paragraphs from [`TextObject::list_count`], as
+/// counted per level through consecutive list paragraphs from [`TextObject::list_counts`], as
 /// [`vectorcraft_doc::text::ParaList::next_marker`] counts them.
 fn list_markers(t: &TextObject, paras: &[Range<usize>]) -> Vec<Option<String>> {
-    let mut count = t.list_count;
-    paras.iter().enumerate().map(|(pi, pr)| vectorcraft_doc::text::ParaList::next_marker(t.para_at(pi).list, pr.is_empty(), &mut count)).collect()
+    let mut counts = t.list_counts();
+    paras.iter().enumerate().map(|(pi, pr)| vectorcraft_doc::text::ParaList::next_marker(t.para_at(pi).list, pr.is_empty(), &mut counts)).collect()
 }
 
 /// Whether paragraph `para` (right to left when `rtl`) has its indents mirrored: a horizontal
@@ -2062,9 +2064,10 @@ fn mirrors_indents(para: &ParaStyle, rtl: bool, vertical: bool) -> bool {
 /// The indents at the left and at the right of a line of paragraph `para` (its first line when
 /// `first`). With `mirror` ([`mirrors_indents`]) the left and first-line indents are measured from
 /// the right and the right indent from the left: the bullet of a right-to-left list hangs at the
-/// right, and the lines it wraps to line up with the text after the bullet.
+/// right, and the lines it wraps to line up with the text after the bullet. A list level past the
+/// first adds to the left indent ([`ParaStyle::laid_out_left_indent`]), mirrored with it.
 fn line_indents(para: &ParaStyle, first: bool, mirror: bool) -> (f64, f64) {
-    let start = para.left_indent + if first { para.first_line_indent } else { 0.0 };
+    let start = para.laid_out_left_indent() + if first { para.first_line_indent } else { 0.0 };
     if mirror { (para.right_indent, start) } else { (start, para.right_indent) }
 }
 

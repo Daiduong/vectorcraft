@@ -300,6 +300,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
         snap_to_unit_item(ui);
         return;
     };
+    let left_indent = para.laid_out_left_indent();
     let mut stops = para.tabs;
     // Clamp the selection to the last stop, as `show` does for the ruler.
     let mut sel: usize = pstate(ui.ctx(), "tabs-sel");
@@ -316,10 +317,11 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
         apply(app, &stops);
     }
     // Repeat Tab: copies of the selected stop across the ruler, spaced by its distance from the
-    // previous stop, or from the paragraph's left indent when it is the first stop.
+    // previous stop, or from the paragraph's left indent plus its list level's indent when it is
+    // the first stop.
     if menu_item(ui, tl!("Repeat Tab"), sel < stops.len(), false) {
         let step = match sel {
-            0 => (stops[0].position - para.left_indent).abs(),
+            0 => (stops[0].position - left_indent).abs(),
             _ => stops[sel].position - stops[sel - 1].position,
         }
         .max(1.0);
@@ -880,7 +882,8 @@ mod tests {
     }
 
     /// Repeat Tab on the first stop spaces the copies by the stop's distance from the paragraph's
-    /// left indent, from the paragraph the caret is in while the Type tool edits text.
+    /// left indent (18 pt further in for each list level past the first), from the paragraph the
+    /// caret is in while the Type tool edits text.
     #[test]
     fn repeat_tab_measures_the_first_stop_from_the_left_indent() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -899,6 +902,11 @@ mod tests {
         app.session.execute("text.tabs.set", &json!({"stops": [{"position": 5}]})).unwrap();
         choose(&ctx, &mut app, "Repeat Tab");
         assert_eq!(positions(&app)[..4], [5.0, 20.0, 35.0, 50.0]);
+        // A list paragraph at level 2 is set 18 pt further in, at 38: copies every 12 pt.
+        app.session.execute("text.setFormat", &json!({"list": "bullet", "listLevel": 2})).unwrap();
+        app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
+        choose(&ctx, &mut app, "Repeat Tab");
+        assert_eq!(positions(&app)[..3], [50.0, 62.0, 74.0]);
         // The Type tool's caret in the second paragraph, indented 40 pt: its stop at 50 repeats
         // every 10 pt, and the first paragraph keeps its stop.
         let mut app = VectorcraftApp::new(Session::new(), Default::default());

@@ -168,6 +168,7 @@ pub(crate) fn reflow(before: &Document, doc: &mut Document) {
                     || next.paras != t.paras
                     || optical != t.optical_margin
                     || part.list_count != t.list_count
+                    || part.list_level_counts != t.list_level_counts
                     || continues != t.first_para_continues
                 {
                     t.runs = next.runs;
@@ -175,6 +176,7 @@ pub(crate) fn reflow(before: &Document, doc: &mut Document) {
                     t.paras = next.paras;
                     t.optical_margin = optical;
                     t.list_count = part.list_count;
+                    t.list_level_counts = part.list_level_counts;
                     t.first_para_continues = continues;
                     refresh_bounds(t);
                 }
@@ -188,14 +190,15 @@ pub(crate) fn reflow(before: &Document, doc: &mut Document) {
 }
 
 /// Type that is not a frame of a thread is a story of its own: its numbered list paragraphs count
-/// from 1. Each such type object with another [`TextObject::list_count`] (a copy of a frame, a
-/// frame taken out of its thread, a frame converted to point type, which [`reflow`] takes out of
-/// its thread) gets 0 and is laid out again.
+/// from 1. Each such type object with another [`TextObject::list_count`] or
+/// [`TextObject::list_level_counts`] (a copy of a frame, a frame taken out of its thread, a frame
+/// converted to point type, which [`reflow`] takes out of its thread) gets 0 at every level and is
+/// laid out again.
 pub(crate) fn restart_unthreaded_counts(doc: &mut std::sync::Arc<Document>) {
     let mut stale = vec![];
     doc.walk(|n| {
         if let NodeKind::Text(t) = &n.kind
-            && t.list_count != 0
+            && (t.list_count != 0 || !t.list_level_counts.is_empty())
         {
             stale.push(n.id);
         }
@@ -212,6 +215,7 @@ pub(crate) fn restart_unthreaded_counts(doc: &mut std::sync::Arc<Document>) {
     for id in stale {
         if let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind) {
             t.list_count = 0;
+            t.list_level_counts.clear();
             refresh_bounds(t);
         }
     }
@@ -363,13 +367,13 @@ fn cut_to_shown(n: &mut Node, ids: &[NodeId]) {
     {
         // Split as `take_overflow` splits it: the first part is what the frame shows.
         let from: &TextObject = t;
-        let parts = vectorcraft_text::thread::distribute_continuing(
+        let parts = vectorcraft_text::thread::distribute_continuing_levels(
             vectorcraft_text::FontDb::global(),
             &[from, from],
             &from.runs,
             &from.paragraph_styles(),
             from.first_para_continues,
-            from.list_count,
+            from.list_counts(),
         );
         if let (Some(head), Some(_)) = (parts.first(), parts.get(1).filter(|p| p.runs.iter().any(|r| !r.text.is_empty()))) {
             t.runs = head.runs.clone();
@@ -404,13 +408,13 @@ fn take_overflow(d: &mut Document, to: NodeId, from: &TextObject) {
     // `from`'s text split as if it flowed on into a second frame: the second part is what `from`
     // has no room for. Its share is measured as it is laid out, continuing a paragraph or not and
     // with its numbered list paragraphs counted on from the frames before it.
-    let parts = vectorcraft_text::thread::distribute_continuing(
+    let parts = vectorcraft_text::thread::distribute_continuing_levels(
         db,
         &[from, from],
         &from.runs,
         &from.paragraph_styles(),
         from.first_para_continues,
-        from.list_count,
+        from.list_counts(),
     );
     let Some(rest) = parts.get(1).filter(|p| p.runs.iter().any(|r| !r.text.is_empty())) else { return };
     let mut tail = from.clone();
@@ -1611,6 +1615,75 @@ mod tests {
         assert_eq!(text(&s, a), format!("{}{hidden}", shown[0]));
     }
 
+    /// As above for a list at level 2: the last frame's numbered paragraphs are counted on from the
+    /// count the frames before it reached at that level.
+    #[test]
+    fn outlining_a_last_frame_numbered_at_a_deeper_level_keeps_only_the_text_it_has_no_room_for() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 600, "height": 300})).unwrap();
+        let items: String = (1..=7).map(|i| format!("Item {i}\n")).collect();
+        let story = format!("{items}{}", TEXT.repeat(4));
+        let a = new_id(s.execute("text.create", &json!({"x": 10, "y": 10, "text": story, "area": {"width": 150, "height": 106}})).unwrap());
+        let c = new_id(s.execute("text.create", &json!({"x": 200, "y": 10, "text": "", "area": {"width": 150, "height": 20}})).unwrap());
+        s.execute("text.thread.add", &json!({"from": a, "to": c})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [a, c], "number": "upperRoman", "listLevel": 2, "leftIndent": 14, "firstLineIndent": -14}))
+            .unwrap();
+        let shown = [a, c].map(|id| text(&s, id));
+        assert!(shown[0].ends_with("Item 7\n") && shown[1].starts_with("The quick"), "{shown:?}");
+        let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)).cloned() else { panic!("not area type") };
+        assert_eq!((t.list_count, t.list_level_counts.as_slice()), (0, &[7][..]));
+        let laid = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        assert_eq!(laid.markers.first().map(|m| m.text.as_str()), Some("VIII."));
+        assert!(laid.overflow, "the last frame has more text than it shows");
+        let end = laid.lines.last().map_or(0, |l| l.end);
+        let from_one = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &TextObject { list_level_counts: vec![], ..t });
+        assert_ne!(from_one.lines.last().map_or(0, |l| l.end), end, "counted from 1, the frame would show other text");
+        let hidden = shown[1][end..].trim_start_matches(' ');
+        s.execute("select.set", &json!({"ids": [c]})).unwrap();
+        s.execute("type.createOutlines", &json!({})).unwrap();
+        assert_eq!(text(&s, a), format!("{}{hidden}", shown[0]));
+    }
+
+    /// New Symbol and Redefine Symbol on a thread's last frame numbered at level 2: the symbol's
+    /// art holds the text the frame shows, measured with the count the frames before it reached at
+    /// that level, and the frame before it takes the rest.
+    #[test]
+    fn a_symbol_of_a_last_frame_numbered_at_a_deeper_level_holds_the_text_it_shows() {
+        for command in ["symbol.new", "symbol.update"] {
+            let mut s = Session::new();
+            s.execute("file.new", &json!({"width": 600, "height": 300})).unwrap();
+            let items: String = (1..=7).map(|i| format!("Item {i}\n")).collect();
+            let story = format!("{items}{}", TEXT.repeat(4));
+            let a = new_id(s.execute("text.create", &json!({"x": 10, "y": 10, "text": story, "area": {"width": 150, "height": 106}})).unwrap());
+            let c = new_id(s.execute("text.create", &json!({"x": 200, "y": 10, "text": "", "area": {"width": 150, "height": 20}})).unwrap());
+            s.execute("text.thread.add", &json!({"from": a, "to": c})).unwrap();
+            s.execute("text.setFormat", &json!({"ids": [a, c], "number": "upperRoman", "listLevel": 2, "leftIndent": 14, "firstLineIndent": -14}))
+                .unwrap();
+            let shown = [a, c].map(|id| text(&s, id));
+            assert!(shown[0].ends_with("Item 7\n") && shown[1].starts_with("The quick"), "{command}: {shown:?}");
+            let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)).cloned() else { panic!("not area type") };
+            let laid = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+            assert!(laid.overflow, "{command}: the last frame has more text than it shows");
+            let end = laid.lines.last().map_or(0, |l| l.end);
+            let from_one = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &TextObject { list_level_counts: vec![], ..t });
+            assert_ne!(from_one.lines.last().map_or(0, |l| l.end), end, "{command}: counted from 1, the frame would show other text");
+            let hidden = shown[1][end..].trim_start_matches(' ');
+            let name = if command == "symbol.update" {
+                let mark = new_id(s.execute("shape.rectangle", &json!({"x": 400, "y": 200, "width": 20, "height": 20})).unwrap());
+                s.execute("select.set", &json!({"ids": [mark]})).unwrap();
+                s.execute("symbol.new", &json!({"name": "Mark"})).unwrap();
+                "Mark"
+            } else {
+                "Story"
+            };
+            s.execute("select.set", &json!({"ids": [c]})).unwrap();
+            s.execute(command, &json!({"name": name})).unwrap();
+            let held = symbol_texts(&s, name);
+            assert_eq!(held.iter().map(|t| t.trim_end()).collect::<Vec<_>>(), [shown[1][..end].trim_end()], "{command}: the symbol's art");
+            assert_eq!(text(&s, a), format!("{}{hidden}", shown[0]), "{command}: the frame before it takes the rest");
+        }
+    }
+
     /// A story of one-line paragraphs that each start with a quotation mark, threaded from area
     /// type `a` into the rectangle `b`, which shows the paragraphs that `a` has no room for.
     fn quoted_thread() -> (Session, u64, u64) {
@@ -1782,6 +1855,42 @@ mod tests {
         s.execute("text.thread.releaseSelection", &json!({})).unwrap();
         assert!(threads(&s).is_empty());
         assert_eq!(numbers(&s, b), all(1), "the frame left holds the story");
+    }
+
+    /// List levels in a thread: a deeper level's count runs on into the next frame, which saves
+    /// it (`listLevelCounts`), and a pasted copy of that frame counts every level from 1.
+    #[test]
+    fn list_levels_count_on_through_a_thread() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 600, "height": 300})).unwrap();
+        let items = (1..=10).map(|i| format!("Item {i}")).collect::<Vec<_>>().join("\n");
+        let a = new_id(s.execute("text.create", &json!({"x": 10, "y": 10, "text": items, "area": {"width": 150, "height": 60}})).unwrap());
+        let b = new_id(s.execute("shape.rectangle", &json!({"x": 200, "y": 10, "width": 150, "height": 200})).unwrap());
+        s.execute("select.set", &json!({"ids": [a, b]})).unwrap();
+        s.execute("text.thread.create", &json!({})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [a, b], "list": "number", "listLevel": 2})).unwrap();
+        s.execute("text.setFormat", &json!({"ids": [a], "listLevel": 1, "start": 0, "end": 0})).unwrap();
+        let frame = |s: &Session, id: u64| text_of(&s.doc().unwrap().doc, NodeId(id)).cloned().unwrap();
+        let numbers = |t: &TextObject| {
+            vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
+        };
+        let first = numbers(&frame(&s, a));
+        assert!((2..10).contains(&first.len()), "both frames hold items: {first:?}");
+        let expected: Vec<String> = std::iter::once("1.".to_string()).chain((1..=9).map(|n| format!("{n}."))).collect();
+        assert_eq!([first.clone(), numbers(&frame(&s, b))].concat(), expected);
+        let b_counts = frame(&s, b).list_counts();
+        assert_eq!(b_counts.parts(), (1, vec![first.len() as u32 - 1]));
+        let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        let Some(NodeKind::Text(back)) = reopened.node(NodeId(b)).map(|n| &n.kind) else { panic!("text") };
+        assert_eq!((back.list_counts(), numbers(back)), (b_counts, numbers(&frame(&s, b))), "reopened");
+        s.execute("select.set", &json!({"ids": [b]})).unwrap();
+        s.execute("edit.copy", &json!({})).unwrap();
+        s.execute("edit.paste", &json!({})).unwrap();
+        let copy = s.doc().unwrap().selection.objects.first().copied().unwrap();
+        assert_ne!(copy, NodeId(b));
+        let pasted = frame(&s, copy.0);
+        assert_eq!((pasted.list_count, pasted.list_level_counts.as_slice()), (0, &[][..]));
+        assert_eq!(numbers(&pasted).first().map(String::as_str), Some("1."), "a pasted copy counts from 1");
     }
 
     /// New Symbol from a numbered thread keeps each frame's count in the symbol's art, so the art
