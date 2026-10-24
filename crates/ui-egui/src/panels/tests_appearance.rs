@@ -233,10 +233,12 @@ fn item_effect_rows_toggle_their_eye() {
     assert_eq!(app.session.appearance_item(), Some(1));
 }
 
+/// The effects of the selected object's stroke (item 1).
 fn current_stroke_effects(app: &VectorcraftApp) -> Vec<vectorcraft_doc::Effect> {
     first_selected(app).unwrap().appearance.items[1].effects().clone()
 }
 
+/// The blend mode list's separators come before the first mode of each group.
 #[test]
 fn blend_separators_follow_the_groups() {
     use vectorcraft_color::BlendMode;
@@ -263,6 +265,7 @@ fn an_opacity_rows_empty_space_opens_nothing() {
     }
 }
 
+/// The object row names the selection as the Control bar does.
 #[test]
 fn object_row_names_the_selection_like_the_control_bar() {
     let mut app = app_with_rect();
@@ -344,6 +347,7 @@ fn stack_items(app: &VectorcraftApp) -> Vec<(bool, Option<f32>)> {
         .collect()
 }
 
+/// A context with accessibility on, so tests find buttons by their labels.
 fn drop_ctx() -> egui::Context {
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
@@ -602,6 +606,7 @@ fn boxed_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| appearance::show(app, ui));
 }
 
+/// One frame of the boxed panel with `key` pressed.
 fn key_frame(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key) {
     let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
     frame_events(ctx, app, vec![ev], boxed_panel);
@@ -837,6 +842,7 @@ fn app_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Ev
     out.textures_delta.clear();
 }
 
+/// A click at `pos` in app-like frames of `f` ([`app_frame`]): hover, press, release, then a frame with the pointer still there.
 fn app_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
     let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
     for e in [egui::Event::PointerMoved(pos), button(true), button(false), egui::Event::PointerMoved(pos)] {
@@ -844,6 +850,7 @@ fn app_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, f: 
     }
 }
 
+/// `key` pressed and released in an app-like frame of `f`, then one more frame.
 fn app_key(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
     let ev = |pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::NONE };
     app_frame(ctx, app, vec![ev(true), ev(false)], f);
@@ -870,6 +877,7 @@ fn after_a_row_click_delete_reaches_the_appearance_panel_not_edit_clear() {
     }
 }
 
+/// The Layers panel in a 300×500 pt area at the top left, so clicks can land outside it.
 fn boxed_layers(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::layers::show(app, ui));
 }
@@ -956,6 +964,7 @@ fn lit_texts(ctx: &egui::Context, app: &mut VectorcraftApp) -> Vec<String> {
     out.textures_delta.clear();
     let lit = crate::theme::Tokens::get(ctx).row_selected;
     let (mut rows, mut texts) = (vec![], vec![]);
+    /// The highlighted rows' rects and every text with its rect in shape `s`.
     fn collect(s: &egui::Shape, lit: egui::Color32, rows: &mut Vec<egui::Rect>, texts: &mut Vec<(String, egui::Rect)>) {
         match s {
             egui::Shape::Rect(r) if r.fill == lit => rows.push(r.rect),
@@ -1218,6 +1227,7 @@ fn stroke_weights_step_by_quarters_below_one() {
     assert!((weight(&app) - 0.25).abs() < 1e-9, "down: {}", weight(&app));
     // The Stroke panel's field, focused, with ↓.
     run(&mut app, "stroke.set", json!({"weight": 1}));
+    /// The Stroke panel in a 300×500 pt area at the top left.
     fn stroke_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
         ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::stroke::show(app, ui));
     }

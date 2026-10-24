@@ -1708,6 +1708,7 @@ pub fn spin_plain(
     .and_then(SpinPick::value)
 }
 
+/// The spinner [`spin_field`] and [`spin_plain`] share: up/down arrows stepped by `spin`, the field `field` draws, and a dropdown of `presets` (with an Auto entry when `auto` is given). Returns what was typed, stepped or picked.
 #[allow(clippy::too_many_arguments)]
 fn spin_generic(
     ui: &mut Ui,
@@ -3308,8 +3309,8 @@ pub(crate) mod look_tests {
         }
     }
 
-    // Regression test for #2083: the rows of the panels' menus didn't light up under the pointer, as
-    // the menu bar's items do.
+    /// Regression test for #2083: the rows of the panels' menus didn't light up under the pointer, as
+    /// the menu bar's items do.
     #[test]
     fn a_panel_menu_row_lights_up_under_the_pointer() {
         let ctx = themed(Default::default());
@@ -3336,9 +3337,9 @@ pub(crate) mod look_tests {
         assert!(lit(&hovered, row), "the row under the pointer is lit: {row:?}");
     }
 
-    // Regression test for #3440: the Fill/Stroke chip's popover closed on the click that ended a
-    // drag between its proxies. It stays open for a click on its own anchor and while a panel
-    // drag is on; a click elsewhere still closes it.
+    /// Regression test for #3440: the Fill/Stroke chip's popover closed on the click that ended a
+    /// drag between its proxies. It stays open for a click on its own anchor and while a panel
+    /// drag is on; a click elsewhere still closes it.
     #[test]
     fn a_popover_stays_open_for_a_click_on_its_anchor_or_during_a_panel_drag() {
         let press = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -3384,6 +3385,7 @@ mod row_click_tests {
     const ROWS: [u32; 5] = [10, 20, 30, 40, 50];
     const SHIFT_CMD: Modifiers = Modifiers { shift: true, command: true, ..Modifiers::NONE };
 
+    /// A plain click highlights only the clicked row and Ctrl/Cmd toggles it; both move the anchor.
     #[test]
     fn a_plain_click_highlights_only_the_row_and_ctrl_toggles_it() {
         assert_eq!(row_click(&ROWS, &[20, 40], Some(20), 30, Modifiers::NONE), RowClick::Only(30));
@@ -3392,6 +3394,7 @@ mod row_click_tests {
         assert!(RowClick::Only(30).moves_anchor() && RowClick::Toggle(30).moves_anchor());
     }
 
+    /// Shift highlights the range from the anchor and Shift+Ctrl/Cmd adds it; neither moves the anchor.
     #[test]
     fn shift_ranges_from_the_anchor_and_shift_ctrl_adds_the_range() {
         // Top-down order whichever way the range runs.
@@ -3400,6 +3403,7 @@ mod row_click_tests {
         assert!(!RowClick::Range(vec![20]).moves_anchor() && !RowClick::AddRange(vec![20]).moves_anchor());
     }
 
+    /// Without an anchor, Shift starts at the last highlighted row, or acts as a plain click when none is.
     #[test]
     fn without_an_anchor_shift_starts_at_the_last_highlighted_row_else_acts_as_a_plain_click() {
         assert_eq!(row_click(&ROWS, &[10, 50], None, 30, Modifiers::SHIFT), RowClick::Range(vec![30, 40, 50]));
@@ -3409,6 +3413,7 @@ mod row_click_tests {
         assert_eq!(row_click(&ROWS, &[99], Some(99), 30, Modifiers::SHIFT), RowClick::Only(30));
     }
 
+    /// Applied clicks keep the rows in highlight order, as `layer.highlight` does.
     #[test]
     fn applying_a_click_keeps_highlight_order_as_layer_highlight_does() {
         let applied = |mut rows: Vec<u32>, c: RowClick<u32>| {

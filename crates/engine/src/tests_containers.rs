@@ -317,6 +317,7 @@ fn group_appearance_round_trips_and_expands() {
     assert!((n.geometric_bounds().unwrap().y0 - 69.5).abs() < 1e-6);
 }
 
+/// Type in a group with a geometry effect exports and expands with its look.
 #[test]
 fn type_in_a_group_with_a_geometry_effect_exports_and_expands_with_its_look() {
     let mut s = session();
@@ -342,6 +343,7 @@ fn type_in_a_group_with_a_geometry_effect_exports_and_expands_with_its_look() {
     assert!(!matches!(outlines.kind, NodeKind::Text(_)) && (outlines.opacity - 0.5).abs() < 1e-6 && !outlines.visible, "{outlines:?}");
 }
 
+/// Hidden type with a geometry effect (Offset Path) is left out of SVG export.
 #[test]
 fn hidden_type_with_a_geometry_effect_is_left_out_of_svg_export() {
     let mut s = session();
@@ -391,6 +393,7 @@ fn stack(s: &Session, g: NodeId) -> (Vec<&'static str>, usize) {
     (names, ap.contents_at())
 }
 
+/// Fills/strokes moved together land as one block; the Contents row stays among the rows that did not move.
 #[test]
 fn several_items_move_as_one_block_and_the_contents_row_keeps_its_unmoved_neighbours() {
     let mut s = session();
@@ -418,6 +421,7 @@ fn several_items_move_as_one_block_and_the_contents_row_keeps_its_unmoved_neighb
     assert_eq!(stack(&s, g), (vec!["F0", "S1", "FA", "S3"], 2));
 }
 
+/// Fills/strokes copied together land as one block where they are dropped.
 #[test]
 fn several_items_copy_as_one_block_where_they_are_dropped() {
     let mut s = session();

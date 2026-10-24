@@ -297,6 +297,7 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
+/// Run this frame's keyboard shortcuts: keymap commands, tools and panels, nudges, Delete/Backspace (left to a Layers or Appearance row that has the keys) and single-key tool shortcuts.
 pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // Taken before anything returns, so a press in a field or a dialog ends a pair of Escapes.
     let mut escape_pair = escape_press(ctx);

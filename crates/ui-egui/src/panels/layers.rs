@@ -126,10 +126,12 @@ struct ColumnDrag {
     ids: Vec<u64>,
 }
 
+/// The memory key of the Layers panel's state `name`.
 fn key(name: &str) -> egui::Id {
     egui::Id::new(("layers-panel", name))
 }
 
+/// The memory key of the row being renamed.
 fn rename_id() -> egui::Id {
     egui::Id::new("layers-rename")
 }
@@ -516,6 +518,7 @@ struct Out {
     toggle: Vec<(NodeId, bool)>,
 }
 
+/// The Layers panel: the layer tree with its click, drag and rename rules and the bottom buttons; Delete/Backspace after a row click delete the highlighted rows.
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else { return };

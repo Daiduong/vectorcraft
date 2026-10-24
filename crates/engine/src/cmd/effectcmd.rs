@@ -17,6 +17,7 @@ use super::expand::has_seeded;
 use super::rasterfx;
 use super::*;
 
+/// The effect commands of the Effect menu and the Appearance panel.
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
@@ -209,6 +210,7 @@ fn loose_for_pathfinder(s: &Session, p: &Value, id: &str) -> Result<Option<Vec<N
     Ok((roots.len() >= 2 && !grouped).then_some(roots))
 }
 
+/// `effect.list`: the effect catalog (built-in and plug-in effects) and the effects applied to the selection, with the active item.
 fn list(s: &mut Session, p: &Value) -> Result<Value> {
     let catalog: Vec<Value> = effects::effect_catalog()
         .into_iter()
@@ -246,6 +248,7 @@ fn effect_indices(p: &Value, cmd: &str) -> Result<(Vec<usize>, String)> {
     Ok((idx, none))
 }
 
+/// `effect.remove`: removes effect `index`, or every one of `indices`, from the object's list or fill/stroke `item`'s, in one undo step.
 fn remove(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "effect.remove";
     let (idx, none) = effect_indices(p, C)?;
@@ -264,6 +267,7 @@ fn remove(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "ids": ids_json(&ids) }))
 }
 
+/// `effect.duplicate`: copies effect `index`, or each of `indices`, right after its original, in one undo step.
 fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "effect.duplicate";
     let (idx, none) = effect_indices(p, C)?;
@@ -284,6 +288,7 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "ids": ids_json(&ids) }))
 }
 
+/// `effect.move`: moves (with `copy`: copies) effect `from`, or the effects `from` lists as one block in their order, to `to` in its own list or in `toItem`'s.
 fn move_effect(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "effect.move";
     // One position or several (ascending, no repeats).
@@ -1166,6 +1171,7 @@ mod tests {
         assert!((left - (10_000.0 - glyph_area)).abs() < 0.5, "{left} left of the square for a glyph area of {glyph_area}");
     }
 
+    /// A Pathfinder effect on a group renders live and expands to its result.
     #[test]
     fn pathfinder_effect_on_a_group_renders_live_and_expands() {
         let (mut s, a) = session_with_rect();
@@ -1185,6 +1191,7 @@ mod tests {
         assert_eq!(ch.len(), 1);
         assert!((ch[0].geometric_bounds().unwrap().width() - 50.0).abs() < 1e-6);
     }
+    /// Expand Appearance on a Transform effect with copies gives each copy its own gradient.
     #[test]
     fn expand_appearance_gives_each_copy_of_a_transform_its_own_gradient() {
         use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
@@ -1224,6 +1231,7 @@ mod tests {
         (s, id)
     }
 
+    /// `effect.remove` with `indices` removes several effects in one undo step.
     #[test]
     fn remove_takes_several_effects_in_one_undo_step() {
         let (mut s, id) = three_effects();
@@ -1238,6 +1246,7 @@ mod tests {
         }
     }
 
+    /// `effect.duplicate` with `indices` puts each copy right after its original.
     #[test]
     fn duplicate_takes_several_effects_each_copy_after_its_original() {
         let (mut s, id) = three_effects();
@@ -1249,6 +1258,7 @@ mod tests {
         assert_eq!(object_effects(&s, id).len(), 3);
     }
 
+    /// `effect.move` with several `from` lands them together, in their order.
     #[test]
     fn move_takes_several_effects_that_land_together_in_order() {
         // [Shadow, Glow, Twist]: Shadow and Twist moved to the end of the list land as one block.

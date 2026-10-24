@@ -39,6 +39,7 @@ fn state(app: &VectorcraftApp, ctx: &egui::Context) -> (TransparencyInfo, Option
     v
 }
 
+/// The Transparency panel: blend mode and opacity of the selection, or of the Appearance panel's active fill/stroke (whose object-only controls are greyed out), the opacity mask and the knockout options.
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     // While editing a mask the panel shows the masked object (the selection is its mask art).
@@ -189,6 +190,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
 }
 
+/// The Transparency panel's menu: showing thumbnails and options, and the opacity mask items (whole objects only).
 pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let hide_thumbs: bool = pstate(ui.ctx(), "tr-hide-thumbs");
     let hide_opts: bool = pstate(ui.ctx(), "tr-hide-options");

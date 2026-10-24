@@ -31,6 +31,7 @@ use super::*;
 use super::{AppearanceAttrs, EyedropperAttrs, FillAttrs, StrokeAttrs};
 use crate::EngineError;
 
+/// The Appearance panel's commands: fills and strokes, their order and copies, and the active item.
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
@@ -619,6 +620,7 @@ pub(super) fn item_indices(p: &Value, cmd: &str) -> Result<Vec<usize>> {
     Ok(v)
 }
 
+/// `appearance.removeItem`: removes fill/stroke `index`, or every one of `indices`, from the selected objects in one undo step.
 fn remove_item(s: &mut Session, p: &Value) -> Result<Value> {
     let idx = item_indices(p, "appearance.removeItem")?;
     let ids = require_targets(s, p, "appearance.removeItem")?;
@@ -640,6 +642,7 @@ fn remove_item(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
+/// `appearance.duplicateItem`: copies fill/stroke `index`, or the rows `indices` as one block at `to` (with the Contents row when `contents` says so), in one undo step.
 fn duplicate_item(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "appearance.duplicateItem";
     let idx = item_indices(p, C)?;
@@ -696,6 +699,7 @@ fn duplicate_item(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
+/// `appearance.showAllHidden`: shows every hidden fill, stroke and effect of the selected objects.
 fn show_all_hidden(s: &mut Session, p: &Value) -> Result<Value> {
     let roots = require_targets(s, p, "appearance.showAllHidden")?;
     let ids = s.edit("Show All Hidden Attributes", |d, _| {
@@ -708,6 +712,7 @@ fn show_all_hidden(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>() }))
 }
 
+/// `appearance.moveItem`: moves fill/stroke `from` (or the Contents row) to `to`, or the rows `indices` as one block; the active item stays on its row.
 fn move_item(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "appearance.moveItem";
     let to = index_param(p, "to", C)?;

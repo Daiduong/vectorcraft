@@ -298,6 +298,7 @@ impl Dialog {
             _ => d,
         }
     }
+    /// Field `k` as text: a string as it is, another value as JSON, empty when missing.
     pub fn str(&self, k: &str) -> String {
         match self.fields.get(k) {
             Some(Value::String(s)) => s.clone(),
@@ -305,6 +306,7 @@ impl Dialog {
             None => String::new(),
         }
     }
+    /// Field `k` as a bool; `false` when it is missing or not a bool.
     pub fn bool(&self, k: &str) -> bool {
         self.fields.get(k).and_then(Value::as_bool).unwrap_or(false)
     }
@@ -843,6 +845,7 @@ impl UiState {
 }
 
 impl Default for UiState {
+    /// The interface of a first start.
     fn default() -> Self {
         Self {
             legacy_language: None,

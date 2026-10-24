@@ -70,6 +70,7 @@ fn effects_move_and_copy_between_the_object_and_its_items() {
     assert!(s.execute("effect.move", &json!({"from": 0, "fromItem": 1, "to": 0, "toItem": 7})).is_err());
 }
 
+/// `effect.duplicate` copies a fill's effect right after it.
 #[test]
 fn duplicate_selected_works_for_effects() {
     let (mut s, id) = session_with_rect();
@@ -78,6 +79,7 @@ fn duplicate_selected_works_for_effects() {
     assert_eq!(fx(&s, id, Some(0)), ["distort.roughen", "distort.roughen"]);
 }
 
+/// `appearance.duplicateItem` copies a fill/stroke to a given position, and `appearance.removeItem` with `indices` removes several at once.
 #[test]
 fn items_duplicate_to_a_position_and_several_remove_at_once() {
     let (mut s, id) = session_with_rect();

@@ -287,11 +287,13 @@ fn chevron(ui: &mut Ui, r: Rect, id: impl std::hash::Hash + std::fmt::Debug, ope
     resp.clicked()
 }
 
+/// Text `s` at `pos` (left, vertically centred), strong or plain.
 fn text(ui: &Ui, pos: egui::Pos2, s: &str, strong: bool) {
     let t = Tokens::get(ui.ctx());
     ui.painter().text(pos, egui::Align2::LEFT_CENTER, s, egui::FontId::proportional(12.5), if strong { t.text_strong } else { t.text });
 }
 
+/// Paint `p` as a swatch in `r`, with a black edge and a white frame.
 fn chip(ui: &Ui, r: Rect, p: &Paint) {
     let t = Tokens::get(ui.ctx());
     ui.painter().rect_filled(r.expand(1.0), 0.0, egui::Color32::BLACK);
@@ -335,6 +337,7 @@ fn edit_tip(resp: egui::Response, name: &egui::Response) -> egui::Response {
     if name.hovered() { resp } else { resp.on_hover_text(tl!("Double-click to edit")) }
 }
 
+/// The Appearance panel: the object row, the stack of the selected object (or of new art with nothing selected) and the bottom bar; Delete/Backspace after a row click remove the highlighted rows.
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let node = first_subject(app);
@@ -511,6 +514,7 @@ enum Slot {
     Contents,
 }
 
+/// The rows of object `n` (fills/strokes with their Opacity and effect rows, the Contents row, the object's effects and Opacity) with the click rules, row drags and drop markers; `sel` is the active row.
 fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: Rect) {
     let t = Tokens::get(ui.ctx());
     let ctx = ui.ctx().clone();
@@ -1221,6 +1225,7 @@ fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, target: Painted) {
     }
 }
 
+/// The bottom bar: Add New Stroke, Add New Fill, Add New Effect, Clear Appearance, and Duplicate and Delete Selected Item, which also take dropped rows.
 fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, node: Option<&Node>, sel: Sel) {
     let has = node.is_some();
     widgets::bottom_bar(ui, |ui| {
@@ -1316,6 +1321,7 @@ fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, se
     };
 }
 
+/// Remove the highlighted fills/strokes or effects; a removed item effect leaves its fill/stroke selected.
 fn delete_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
     let ok = match selected_effects(ui.ctx(), node, sel) {
         Some((item, ks)) => app.run("effect.remove", json!({"item": item, "indices": ks})).is_ok(),
@@ -1718,7 +1724,7 @@ mod tests {
             out.textures_delta.clear();
             out
         };
-        // Every text drawn, with its center.
+        /// Every text drawn, with its center.
         fn texts(s: &egui::Shape, out: &mut Vec<(String, egui::Pos2)>) {
             match s {
                 egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.visual_bounding_rect().center())),
@@ -1765,6 +1771,7 @@ mod tests {
         assert_eq!(app.session.active().unwrap().history.undo.len(), undo + 1);
     }
 
+    /// Each place a dragged row can be dropped picks the command it runs and its parameters.
     #[test]
     fn drops_pick_the_command() {
         use vectorcraft_doc::{Appearance, FillLayer};
