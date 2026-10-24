@@ -12,8 +12,8 @@
 //!    `translations`, so an embedder may leave it out, and to `FEATURE_ON` in
 //!    `tests_compiled_in.rs`.
 //!
-//! That is all: the Preferences dropdown, the system-locale match and the catalog tests (parse,
-//! placeholders, plural forms, menu coverage) pick it up from the registry.
+//! That is all: the Preferences dropdown, the system-locale match, the catalog tests (parse,
+//! placeholders, plural forms) and the untranslated report pick it up from the registry.
 //!
 //! # Looking strings up
 //! - [`t`] / the `tl!` macro: a plain string in the language the UI is drawn in. [`tr`] takes the
@@ -57,8 +57,8 @@ pub struct LangInfo {
     pub source: &'static str,
     /// Plural form index for a count (English: 0 = one, 1 = other; Chinese: always 0).
     pub plural: fn(u64) -> usize,
-    /// Must the catalog cover every menu string? (checked by the tests; [`Lang::complete_menus`] is
-    /// false for a language left out)
+    /// Does the catalog aim to cover every menu string? The untranslated report lists what it lacks
+    /// ([`Lang::complete_menus`] is false for a language left out).
     pub complete_menus: bool,
     catalog: OnceLock<Catalog>,
 }
