@@ -497,9 +497,9 @@ mod tests {
         let line = s.execute("shape.line", &json!({"x1": 0, "y1": 0, "x2": 72, "y2": 0})).unwrap()["id"].clone();
         let rect = s.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 10, "height": 20})).unwrap()["id"].clone();
         let length = |s: &mut Session, p: Value| s.execute("document.info", &p).unwrap()["pathLength"].as_f64().unwrap();
-        s.execute("select.none", &json!({})).unwrap();
         assert!((length(&mut s, json!({})) - 132.0).abs() < 1e-6);
         s.execute("select.set", &json!({"ids": [line]})).unwrap();
+        assert!((length(&mut s, json!({})) - 132.0).abs() < 1e-6, "without Selection Only: document total, not the selection");
         assert!((length(&mut s, json!({"selectionOnly": true})) - 72.0).abs() < 1e-6);
         let rows = s.execute("document.info", &json!({"selectionOnly": true, "category": "objects"})).unwrap()["sections"][0]["rows"].clone();
         assert_eq!(rows, json!([["Paths", "1"], ["Path Length", "25.4 mm"]]));
