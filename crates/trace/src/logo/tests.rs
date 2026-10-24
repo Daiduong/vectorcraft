@@ -219,6 +219,63 @@ fn a_large_image_is_traced_at_reduced_size_and_scaled_back() {
     }
 }
 
+/// A light square inset 50 px with slanted 2 px black lines across it, on a transparent background.
+fn lined_square(n: u32) -> Raster {
+    Raster::from_fn(n, n, |x, y| {
+        if !(50..n - 50).contains(&x) || !(50..n - 50).contains(&y) {
+            [0, 0, 0, 0]
+        } else if (i64::from(x) - i64::from(y) / 8).rem_euclid(40) < 2 {
+            [0, 0, 0, 255]
+        } else {
+            [240, 240, 220, 255]
+        }
+    })
+}
+
+#[test]
+fn a_trace_averaged_down_says_the_size_it_worked_at() {
+    let named = TraceParams { logo_colors: vec!["#000000".into(), "#F0F0DC".into()], ..logo_params() };
+    // 1025 px is over the working size: averaged down by 2, to 513 px.
+    let res = trace(&lined_square(1025), &named);
+    assert!(!res.paths.is_empty());
+    assert_eq!(res.worked_at, Some((513, 513)));
+    let res = trace(&lined_square(1024), &named);
+    assert!(!res.paths.is_empty());
+    assert_eq!(res.worked_at, None);
+}
+
+#[test]
+fn named_colors_a_few_levels_off_trace_an_image_up_to_1024_px_at_full_size() {
+    // A light disc in a dark ring with a blue square on it, hard edges, 800 px square, and a dark
+    // 2 px dot on the disc at odd pixels: averaged down by 2, the dot would be a quarter of each of
+    // four pixels and leave no shape.
+    let img = Raster::from_fn(800, 800, |x, y| {
+        let (fx, fy) = (f64::from(x) / 5.0, f64::from(y) / 5.0);
+        let d = (fx - 80.0).hypot(fy - 80.0);
+        if (401..=402).contains(&x) && (201..=202).contains(&y) {
+            [4, 4, 3, 255]
+        } else if (70.0..=110.0).contains(&fx) && (70.0..=110.0).contains(&fy) {
+            [34, 124, 250, 255]
+        } else if d <= 60.0 {
+            [252, 248, 227, 255]
+        } else if d <= 68.0 {
+            [4, 4, 3, 255]
+        } else {
+            [0, 0, 0, 0]
+        }
+    });
+    for (off, names) in [(8, ["#0C0C0B", "#F4F0DB", "#1A74F2"]), (12, ["#10100F", "#F0ECD7", "#1670EE"])] {
+        let p = TraceParams { logo_colors: names.iter().map(|s| s.to_string()).collect(), ..logo_params() };
+        let res = trace(&img, &p);
+        let color_at = |p: Point| res.paths.iter().rev().find(|t| t.path.to_bezpath().winding(p) != 0).map(|t| t.color);
+        assert_eq!(res.paths.len(), 4, "names {off} levels off");
+        let (dark, cream, blue) = ([4 + off, 4 + off, 3 + off], [252 - off, 248 - off, 227 - off], [34 - off, 124 - off, 250 - off]);
+        assert_eq!(color_at(Point::new(402.0, 202.0)), Some(dark), "names {off} levels off");
+        assert_eq!(color_at(Point::new(450.0, 450.0)), Some(blue), "names {off} levels off");
+        assert_eq!(color_at(Point::new(200.0, 400.0)), Some(cream), "names {off} levels off");
+    }
+}
+
 /// Every anchor of every path is finite and inside (a small margin around) the image.
 fn assert_sane(res: &TraceResult, w: u32, h: u32) {
     for t in &res.paths {
@@ -533,5 +590,26 @@ fn anti_aliased_coloured_lettering_has_only_its_inks() {
     assert_eq!(colours.len(), 3, "palette {:?}", res.palette);
     for ink in INKS {
         assert!(colours.iter().any(|&c| near(c, ink, 12)), "{ink:?} missing from {:?}", res.palette);
+    }
+}
+
+/// An outline whose fit has no area is left out. A pixel-sized black and cream noise, with both
+/// colors named exactly, fits some specks to two anchors whose segments run along one line and
+/// others to one anchor, which has no segment.
+#[test]
+fn an_outline_fitted_without_area_is_left_out() {
+    use kurbo::ParamCurveArea;
+    let noise = render(96, 96, 0.0, |x, y| {
+        let n = ((x.floor() * 12.9898 + y.floor() * 78.233).sin() * 43758.5453).fract();
+        Some(if n > 0.5 { [4, 4, 3] } else { [252, 248, 227] })
+    });
+    let res = trace(&noise, &TraceParams { logo_colors: vec!["#040403".into(), "#FCF8E3".into()], ..logo_params() });
+    assert!(res.paths.len() > 1, "{} paths", res.paths.len());
+    for t in &res.paths {
+        for sp in &t.path.subpaths {
+            let origin = sp.anchors[0].p.to_vec2();
+            let area: f64 = (0..sp.segment_count()).map(|i| (kurbo::Affine::translate(-origin) * sp.segment(i)).signed_area()).sum();
+            assert!(area.abs() >= 1e-6, "a {:?} subpath of {} anchors with area {area:e}", t.color, sp.anchors.len());
+        }
     }
 }

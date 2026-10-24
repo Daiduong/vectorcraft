@@ -27,7 +27,7 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("document.activate", "Activate Document", [], None, "{index}", always, doc_activate),
         cmd!(query "document.inspect", "Inspect Document", [], None, "{depth?, childLimit?, ids?: [id…] (list just these nodes, of any level, in this order, under `nodes` in place of `layers`; an unknown id is an error; at most 10000), kind?: panel label such as Layer; Group; Path; Type or Image (exact, ignoring case; list every such node under `nodes`, each with `path`, its ancestor ids with the layer first, searching the subtrees of `ids` when given), limit?: at most this many entries of the list, offset?: entries skipped first (default 0; with `ids`, `kind`, `limit` or `offset` the reply adds `total`, the entries before paging)} → layer tree (each node: id, name, kind, visible, locked, bounds, opacity when below 1, blend when not Normal, fill, stroke and strokeWidth of objects and compound paths; a compound path's members have compoundMember: true instead of paint, which is the compound's), artboards, selection, history (a sliced tree reports childCount); without the scope options the reply is the whole layer tree", has_doc, doc_inspect),
         cmd!(query "document.node", "Inspect Object", [], None, "{id, summary?: compact summary, depth?: child levels in the summary (default all), childLimit?: children shown per node (default all; a level that shows fewer reports childCount)} → one object", has_doc, doc_node),
-        cmd!(query "document.find", "Find Objects", [], None, "{name?: substring of the Layers panel name, kind?: panel label such as Group; Path; Type or Image (exact), text?: substring of type content, limit?: max matches (default 100, 0 counts only)} → {matches: [{id, name, kind, path}], total}", has_doc, doc_find),
+        cmd!(query "document.find", "Find Objects", [], None, "{name?: substring of the Layers panel name, kind?: panel label such as Group; Path; Type or Image (exact), text?: substring of type content, within?: [x, y, width, height] (an object's geometric bounds inside this rectangle, edges included; document points as document.inspect's bounds; layers never match this or the size filters), intersects?: [x, y, width, height] (bounds touching or overlapping it), minWidth?, maxWidth?, minHeight?, maxHeight?: pt (the bounds' size), minThickness?, maxThickness?: pt (the smaller of the bounds' width and height), minArea?, maxArea?: pt² (the bounds' width × height), minAnchors?, maxAnchors?: anchor points of a path (a compound path's members together; other objects never match), select?: bool (also select the matches, leaving out hidden and locked ones, those inside another match, and a compound path's members unless the compound path is isolated; Select > Reselect repeats it), limit?: max matches listed (default 100, 0 counts only)} → {matches: [{id, name, kind, path}], total, selected (with select: the count selected)}; at least one filter, all of them matching", has_doc, doc_find),
         cmd!(query "document.json", "Document JSON", [], None, "{} → complete document model", has_doc, |s, _| Ok(serde_json::to_value(&*s.doc()?.doc).unwrap_or(Value::Null))),
         cmd!(
             "document.setUnits",
@@ -243,19 +243,82 @@ fn opt_u64(p: &Value, cmd: &str, key: &str) -> Result<Option<u64>> {
 }
 
 fn doc_find(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "document.find";
     // A filter of the wrong type is an error, not dropped: dropping it would widen the search.
     let needle = |key: &str| match p.get(key) {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(v)) => Ok(Some(v.to_lowercase()).filter(|v| !v.is_empty())),
-        Some(_) => Err(bad("document.find", format!("`{key}` must be a string"))),
+        Some(_) => Err(bad(C, format!("`{key}` must be a string"))),
     };
-    let filter = inspect::FindFilter { name: needle("name")?, kind: needle("kind")?, text: needle("text")? };
-    if filter.is_empty() {
-        return Err(bad("document.find", "give at least one of `name`, `kind`, `text`"));
+    let rect = |key: &str| match p.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(v) => match finite_numbers::<4>(v) {
+            Some([x, y, w, h]) if w >= 0.0 && h >= 0.0 => Ok(Some(vectorcraft_geom::Rect::new(x, y, x + w, y + h))),
+            _ => Err(bad(C, format!("`{key}` must be [x, y, width, height]: four finite numbers, width and height not negative"))),
+        },
+    };
+    let bound = |key: &str| match p.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(v) => v.as_f64().filter(|n| n.is_finite() && *n >= 0.0).map(Some).ok_or_else(|| bad(C, format!("`{key}` must be a number not below 0"))),
+    };
+    let range = |name: &str| -> Result<inspect::FindRange> {
+        let (min_key, max_key) = (format!("min{name}"), format!("max{name}"));
+        let r = inspect::FindRange { min: bound(&min_key)?, max: bound(&max_key)? };
+        if let (Some(min), Some(max)) = (r.min, r.max)
+            && min > max
+        {
+            return Err(bad(C, format!("`{min_key}` is greater than `{max_key}`")));
+        }
+        Ok(r)
+    };
+    let anchors = range("Anchors")?;
+    if [anchors.min, anchors.max].iter().flatten().any(|n| n.fract() != 0.0) {
+        return Err(bad(C, "`minAnchors` and `maxAnchors` must be whole numbers"));
     }
-    let limit = opt_u64(p, "document.find", "limit")?.unwrap_or(100);
-    let (matches, total) = inspect::find_nodes(&s.doc()?.doc, &filter, limit);
-    Ok(json!({"matches": matches, "total": total}))
+    let filter = inspect::FindFilter {
+        name: needle("name")?,
+        kind: needle("kind")?,
+        text: needle("text")?,
+        within: rect("within")?,
+        intersects: rect("intersects")?,
+        width: range("Width")?,
+        height: range("Height")?,
+        thickness: range("Thickness")?,
+        area: range("Area")?,
+        anchors,
+    };
+    if filter.is_empty() {
+        return Err(bad(
+            C,
+            "give at least one of `name`, `kind`, `text`, `within`, `intersects`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `minThickness`, `maxThickness`, `minArea`, `maxArea`, `minAnchors`, `maxAnchors`",
+        ));
+    }
+    let select = match p.get("select") {
+        None | Some(Value::Null) => false,
+        Some(v) => v.as_bool().ok_or_else(|| bad(C, "`select` must be true or false"))?,
+    };
+    let limit = opt_u64(p, C, "limit")?.unwrap_or(100);
+    let (matches, ids) = inspect::find_nodes(&s.doc()?.doc, &filter, limit);
+    let mut reply = json!({"matches": matches, "total": ids.len()});
+    if select {
+        reply["selected"] = select_found(s, p, &ids)?["count"].clone();
+        s.journal_query();
+    }
+    Ok(reply)
+}
+
+/// Select the objects among `ids` that Select All and the objects inside them take (none hidden or
+/// locked, nor inside a hidden or locked one), leaving out those inside another of them and the
+/// members of compound paths, unless a compound path is isolated. Select > Reselect repeats
+/// `document.find` with `p`.
+fn select_found(s: &mut Session, p: &Value, ids: &[NodeId]) -> Result<Value> {
+    let st = s.doc()?;
+    let compound = |n: &Node| matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. });
+    let members = st.isolation.and_then(|i| st.doc.ancestry(i)).is_some_and(|a| a.iter().any(|i| st.doc.node(*i).is_some_and(compound)));
+    let found: BTreeSet<NodeId> = ids.iter().copied().collect();
+    super::select::select_where(s, "document.find", p, |d, n| {
+        found.contains(&n.id) && (members || !d.parent_of(n.id).and_then(|p| d.node(p)).is_some_and(compound))
+    })
 }
 
 /// Document Setup's units (also `document.setup {units}`).
@@ -390,7 +453,7 @@ pub(crate) fn settle_interaction(s: &mut Session) -> Result<()> {
 
 fn undo(s: &mut Session, _: &Value) -> Result<Value> {
     settle_interaction(s)?;
-    let guides_locked = s.menu.guides_locked;
+    let menu = s.menu.clone();
     let st = s.doc_mut()?;
     let e = st.history.undo.pop().ok_or_else(|| EngineError::Other("nothing to undo".into()))?;
     let label = e.label.clone();
@@ -405,18 +468,18 @@ fn undo(s: &mut Session, _: &Value) -> Result<Value> {
     st.history.trim();
     st.revision += 1;
     st.selection.prune(&st.doc);
-    // Guides locked since the step was made stay deselected.
-    if guides_locked {
-        crate::deselect_guides(&st.doc, &mut st.selection);
-    }
+    // Guides locked and slices locked or hidden since the step was made stay deselected.
+    crate::deselect_hidden(&menu, &st.doc, &mut st.selection);
     st.sync_new_art();
     super::maskedit::follow_history(st, editing);
+    leave_isolation_if_gone(st);
+    super::globaledit::follow_history(st);
     Ok(json!({ "undone": label }))
 }
 
 fn redo(s: &mut Session, _: &Value) -> Result<Value> {
     settle_interaction(s)?;
-    let guides_locked = s.menu.guides_locked;
+    let menu = s.menu.clone();
     let st = s.doc_mut()?;
     let e = st.history.redo.pop().ok_or_else(|| EngineError::Other("nothing to redo".into()))?;
     let label = e.label.clone();
@@ -431,12 +494,21 @@ fn redo(s: &mut Session, _: &Value) -> Result<Value> {
     st.history.trim();
     st.revision += 1;
     st.selection.prune(&st.doc);
-    if guides_locked {
-        crate::deselect_guides(&st.doc, &mut st.selection);
-    }
+    crate::deselect_hidden(&menu, &st.doc, &mut st.selection);
     st.sync_new_art();
     super::maskedit::follow_history(st, editing);
+    leave_isolation_if_gone(st);
+    super::globaledit::follow_history(st);
     Ok(json!({ "redone": label }))
+}
+
+/// After undo or redo, isolation mode ends when the isolated object is no longer in the document,
+/// such as the clip group Draw Inside made around the isolated object (#3705), rather than naming
+/// an id a later object may take.
+fn leave_isolation_if_gone(st: &mut crate::DocState) {
+    if st.isolation.is_some_and(|i| st.doc.node(i).is_none()) {
+        st.isolation = None;
+    }
 }
 
 /// History panel › Clear History: removes the steps after the current state and the steps before
@@ -724,7 +796,7 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
         // In place, in front, in back: onto the active artboard when the UI names it.
         _ => vec![onto_artboard(&st.doc, p, clip)],
     };
-    let (ids, imported, artboards) = s.edit(mode.label(), |d, sel| {
+    let (ids, imported, artboards, into) = s.edit(mode.label(), |d, sel| {
         let imported = clip.import_into(d, choices, same_doc);
         // Draw Inside: the clip group of the object drawn into, made on the first paste.
         let into = inside.map(|t| super::create::draw_inside_group(d, t)).transpose()?;
@@ -771,8 +843,11 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
         // Pasted type arrives without the layout bounds cache: fill it so boxes and alignment are
         // right away (opening the file later would, but paste must not depend on a reopen).
         super::typecmd::refresh_bounds_of(d, &new_ids);
-        Ok((new_ids, imported, artboards))
+        Ok((new_ids, imported, artboards, into))
     })?;
+    if let (Some(target), Some(group)) = (inside, into) {
+        super::create::isolate_draw_inside_group(s, target, group)?;
+    }
     // The Artboard tool selects the pasted artboards, the first one active.
     if !artboards.is_empty() && s.tool_id() == "artboard" {
         s.set_tool_option("selected", &json!(artboards));
