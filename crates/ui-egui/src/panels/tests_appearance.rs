@@ -317,3 +317,165 @@ fn object_row_names_the_selection_like_the_control_bar() {
     crate::theme::install_fonts(&fonts);
     assert!(frame_in(&fonts, &mut app, crate::chrome::control_bar).contains(&"Type".to_string()));
 }
+
+/// The Appearance panel's button named `label`: the center of its rect (`ctx` needs accesskit on).
+fn panel_button(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) -> egui::Pos2 {
+    let mut out = ctx.run_ui(egui::RawInput::default(), |ui| appearance::show(app, ui));
+    out.textures_delta.clear();
+    let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;
+    let (_, n) = nodes
+        .iter()
+        .find(|(_, n)| n.label() == Some(label) && n.role() == egui::accesskit::Role::Button)
+        .unwrap_or_else(|| panic!("no button named {label:?}"));
+    let b = n.bounds().expect("bounds");
+    egui::pos2((b.x0 + b.x1) as f32 * 0.5, (b.y0 + b.y1) as f32 * 0.5)
+}
+
+/// Drag from `a` to `b` in the Appearance panel: press, move past the drag threshold, move, release.
+fn drag_in_panel(ctx: &egui::Context, app: &mut VectorcraftApp, a: egui::Pos2, b: egui::Pos2) {
+    let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    for e in [
+        vec![egui::Event::PointerMoved(a)],
+        vec![button(a, true)],
+        vec![egui::Event::PointerMoved(a + egui::vec2(0.0, 6.0))],
+        vec![egui::Event::PointerMoved(b)],
+        vec![button(b, false)],
+        vec![],
+    ] {
+        frame_events(ctx, app, e, appearance::show);
+    }
+}
+
+/// A point on the row whose label is the `nth` drawn `label`, clear of its eye, swatch and fields.
+fn row_point(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, nth: usize) -> egui::Pos2 {
+    let texts = frame_events(ctx, app, vec![], appearance::show);
+    let r = texts.iter().filter(|(t, _)| t == label).nth(nth).unwrap_or_else(|| panic!("no {label:?} #{nth}: {texts:?}")).1;
+    egui::pos2(r.left() + 400.0, r.center().y)
+}
+
+/// The selected object's fills/strokes as (is fill, stroke weight).
+fn stack_items(app: &VectorcraftApp) -> Vec<(bool, Option<f32>)> {
+    first_selected(app)
+        .unwrap()
+        .appearance
+        .items
+        .iter()
+        .map(|it| match it {
+            vectorcraft_doc::AppearanceItem::Stroke(s) => (false, Some(s.width as f32)),
+            _ => (true, None),
+        })
+        .collect()
+}
+
+fn drop_ctx() -> egui::Context {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx
+}
+
+/// Fill and stroke rows dropped on Delete Selected Item are removed, on Duplicate Selected Item
+/// copied, as rows dropped on the Layers panel's buttons are.
+#[test]
+fn rows_dropped_on_delete_are_removed_and_on_duplicate_copied() {
+    // [Fill, Stroke]: dropping the stroke on Delete leaves the fill.
+    let mut app = app_with_rect();
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let stroke = row_point(&ctx, &mut app, "Stroke:", 0);
+    drag_in_panel(&ctx, &mut app, stroke, delete);
+    assert_eq!(stack_items(&app), [(true, None)]);
+    // Dropping the fill on Duplicate adds one copy of it.
+    let mut app = app_with_rect();
+    let ctx = drop_ctx();
+    let duplicate = panel_button(&ctx, &mut app, "Duplicate Selected Item");
+    let fill = row_point(&ctx, &mut app, "Fill:", 0);
+    drag_in_panel(&ctx, &mut app, fill, duplicate);
+    let items = stack_items(&app);
+    assert_eq!(items.iter().filter(|(f, _)| *f).count(), 2, "{items:?}");
+    assert_eq!(items.len(), 3, "{items:?}");
+}
+
+/// Dragging one of the selected rows onto Delete removes every selected row; dragging a row outside
+/// the selection removes only that row.
+#[test]
+fn dropping_a_selected_row_acts_on_the_selection() {
+    let setup = || {
+        // [Fill, Stroke 1 pt, Stroke 6 pt]
+        let mut app = app_with_rect();
+        run(&mut app, "appearance.addStroke", json!({}));
+        run(&mut app, "stroke.set", json!({"item": 2, "weight": 6}));
+        let ctx = drop_ctx();
+        frame_events(&ctx, &mut app, vec![], appearance::show);
+        // Both strokes selected, the top one active.
+        appearance::select_row(&mut app, &ctx, appearance::Sel::Item(2));
+        let owner = first_selected(&app).map(|n| n.id);
+        super::set_pstate(&ctx, "ap-multi", (owner, vec![1usize, 2]));
+        (app, ctx)
+    };
+    // The top stroke row (drawn first) is in the selection: both strokes go.
+    let (mut app, ctx) = setup();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let top = row_point(&ctx, &mut app, "Stroke:", 0);
+    drag_in_panel(&ctx, &mut app, top, delete);
+    assert_eq!(stack_items(&app), [(true, None)]);
+    // The fill is not: only it goes.
+    let (mut app, ctx) = setup();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let fill = row_point(&ctx, &mut app, "Fill:", 0);
+    drag_in_panel(&ctx, &mut app, fill, delete);
+    assert_eq!(stack_items(&app), [(false, Some(1.0)), (false, Some(6.0))]);
+    // Onto Duplicate, the selected strokes are both copied.
+    let (mut app, ctx) = setup();
+    let duplicate = panel_button(&ctx, &mut app, "Duplicate Selected Item");
+    let top = row_point(&ctx, &mut app, "Stroke:", 0);
+    drag_in_panel(&ctx, &mut app, top, duplicate);
+    let items = stack_items(&app);
+    assert_eq!(items.len(), 5, "{items:?}");
+    assert_eq!(items.iter().filter(|(_, w)| *w == Some(6.0)).count(), 2, "{items:?}");
+}
+
+/// An effect row dropped on Delete removes that effect, on Duplicate copies it; the stroke it
+/// belongs to stays.
+#[test]
+fn effect_rows_dropped_on_delete_or_duplicate() {
+    for (button, left) in [("Delete Selected Item", 0), ("Duplicate Selected Item", 2)] {
+        let mut app = app_with_rect();
+        run(&mut app, "effect.apply", json!({"effect": "distort.roughen", "item": 1}));
+        let ctx = drop_ctx();
+        super::set_pstate(&ctx, "ap-open-1", true);
+        let at = panel_button(&ctx, &mut app, button);
+        let fx = row_point(&ctx, &mut app, "Roughen", 0);
+        drag_in_panel(&ctx, &mut app, fx, at);
+        assert_eq!(current_stroke_effects(&app).len(), left, "{button}");
+        assert_eq!(stack_items(&app).len(), 2, "{button}: the fill and stroke stay");
+    }
+}
+
+/// The Contents row can be neither copied nor removed: dropped on either button it changes nothing.
+/// A row released outside the panel changes nothing either, and the next drop still works.
+#[test]
+fn contents_rows_and_drops_elsewhere_change_nothing() {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    run(&mut app, "file.new", json!({"width": 100, "height": 100}));
+    let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
+    let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
+    run(&mut app, "select.set", json!({"ids": [a, b]}));
+    run(&mut app, "object.group", json!({}));
+    run(&mut app, "appearance.addFill", json!({}));
+    let ctx = drop_ctx();
+    let before = first_selected(&app).unwrap().appearance.clone();
+    for button in ["Delete Selected Item", "Duplicate Selected Item"] {
+        let at = panel_button(&ctx, &mut app, button);
+        let contents = row_point(&ctx, &mut app, "Contents", 0);
+        drag_in_panel(&ctx, &mut app, contents, at);
+        assert_eq!(first_selected(&app).unwrap().appearance, before, "{button}");
+    }
+    // Released far below the panel: nothing happens.
+    let fill = row_point(&ctx, &mut app, "Fill:", 0);
+    drag_in_panel(&ctx, &mut app, fill, egui::pos2(fill.x, 9000.0));
+    assert_eq!(first_selected(&app).unwrap().appearance, before);
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let fill = row_point(&ctx, &mut app, "Fill:", 0);
+    drag_in_panel(&ctx, &mut app, fill, delete);
+    assert!(first_selected(&app).unwrap().appearance.items.is_empty());
+}

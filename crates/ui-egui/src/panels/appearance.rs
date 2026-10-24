@@ -8,8 +8,10 @@
 //!
 //! Rows drag: a fill/stroke row reorders the stack (across the Contents row too), the Contents row
 //! moves between the fills and strokes, an effect row reorders its list or moves into another item
-//! (dropped on its row) or onto the object; Alt copies instead. Cmd-click and Shift-click select
-//! several fills/strokes for Duplicate and Delete.
+//! (dropped on its row) or onto the object; Alt copies instead. Dropped on Duplicate Selected Item
+//! or Delete Selected Item, a fill/stroke row (with the other selected rows, when it is one of
+//! them) or an effect row is copied or removed. Cmd-click and Shift-click select several
+//! fills/strokes for Duplicate and Delete.
 
 use std::sync::OnceLock;
 
@@ -511,9 +513,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
             (Dragged::Contents, _) => line(if contents_slot(n, slot).is_some_and(|k| k > below) { r.top() } else { r.bottom() }),
         }
     }
-    if !ui.ctx().input(|i| i.pointer.any_down()) {
-        set_pstate::<Option<Dragged>>(ui.ctx(), "ap-drag", None);
-    }
+    // The drag ends in `bottom`, which takes drops on its Duplicate and Delete buttons.
     if stopped
         && let Some(p) = pointer
         && let Some((cmd, params)) = drop_command(n, &rows, what, p, ui.input(|i| i.modifiers.alt))
@@ -912,14 +912,62 @@ fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, node: Option<&Node>, sel: Sel) 
             app.run("appearance.clear", json!({})).ok();
         }
         let can = has && sel.editable();
-        if widgets::icon_button_enabled(ui, "dc-new-item", tl!("Duplicate Selected Item"), false, can, 24.0).clicked() {
+        let duplicate = widgets::icon_button_enabled(ui, "dc-new-item", tl!("Duplicate Selected Item"), false, can, 24.0);
+        if duplicate.clicked() {
             duplicate_selected(app, ui, node, sel);
         }
-        if widgets::icon_button_enabled(ui, "trash-2", tl!("Delete Selected Item"), false, can, 24.0).clicked() {
+        let delete = widgets::icon_button_enabled(ui, "trash-2", tl!("Delete Selected Item"), false, can, 24.0);
+        if delete.clicked() {
             delete_selected(app, ui, node, sel);
         }
+        drop_on_buttons(app, ui, node, sel, &duplicate, &delete);
         let _ = basic;
     });
+}
+
+/// A stack row dragged onto Duplicate Selected Item or Delete Selected Item: the button is outlined
+/// while the row hangs over it, and on release the row is copied or removed, as rows dropped on
+/// the Layers panel's buttons are. The buttons take the row even when nothing is selected (the row
+/// names itself). Ends the row drag once the pointer is up.
+fn drop_on_buttons(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel, duplicate: &egui::Response, delete: &egui::Response) {
+    let ctx = ui.ctx();
+    let dragging: Option<Dragged> = pstate(ctx, "ap-drag");
+    if !ctx.input(|i| i.pointer.any_down()) {
+        set_pstate::<Option<Dragged>>(ctx, "ap-drag", None);
+    }
+    let (Some(what), Some(n), Some(p)) = (dragging, node, ctx.pointer_interact_pos()) else { return };
+    let items = selected_items(ctx, Some(n), sel);
+    let released = ctx.input(|i| i.pointer.any_released());
+    for (button, copy) in [(duplicate, true), (delete, false)] {
+        let Some((cmd, params)) = button_drop_command(&items, what, copy).filter(|_| button.rect.contains(p)) else { continue };
+        if !released {
+            ui.painter().rect_stroke(button.rect, 2.0, Stroke::new(2.0, Tokens::get(ctx).accent), StrokeKind::Inside);
+            continue;
+        }
+        let removed = app.run(cmd, params).is_ok() && !copy;
+        // A removed effect row that was selected leaves its fill/stroke (or nothing) selected; the
+        // engine clears or renumbers the active fill/stroke itself.
+        if removed
+            && let Dragged::Effect(item, k) = what
+            && sel == item.map_or(Sel::Effect(k), |i| Sel::ItemEffect(i, k))
+        {
+            select_row(app, ctx, item.map_or(Sel::None, Sel::Item));
+        }
+    }
+}
+
+/// The command a stack row `what` dropped on Duplicate Selected Item (`copy`) or Delete Selected
+/// Item runs: a fill/stroke row acts on the selected rows `items` when it is one of them, else on
+/// itself alone. The Contents row is neither copied nor removed (None).
+fn button_drop_command(items: &[usize], what: Dragged, copy: bool) -> Option<(&'static str, Value)> {
+    match what {
+        Dragged::Item(i) => {
+            let indices = if items.contains(&i) { items.to_vec() } else { vec![i] };
+            Some((if copy { "appearance.duplicateItem" } else { "appearance.removeItem" }, json!({ "indices": indices })))
+        }
+        Dragged::Effect(item, k) => Some((if copy { "effect.duplicate" } else { "effect.remove" }, json!({"item": item, "index": k}))),
+        Dragged::Contents => None,
+    }
 }
 
 /// Duplicate the selected fills/strokes (each copy right above its row) or the selected effect.
