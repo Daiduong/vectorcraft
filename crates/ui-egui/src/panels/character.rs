@@ -58,14 +58,27 @@ pub(crate) fn first_selected_text(app: &VectorcraftApp) -> Option<&vectorcraft_d
 /// caret's style at a caret), else every run of the selected type, groups' included. `None` (a
 /// blank field) where they differ, or with no type.
 pub(crate) fn shared<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&CharStyle) -> T) -> Option<T> {
-    shared_styles(app, |_, style| Some(f(style)))
+    shared_styles(app, |_, _, style, _| Some(f(style)))
 }
 
 /// Dimensional controls use document units and tolerate arithmetic roundoff when comparing
 /// compensated runs. Keep raw styles available to font/paragraph controls and style definitions,
 /// even if a collapsed affine prevents editing dimensions.
 fn shared_effective(app: &VectorcraftApp, f: impl Fn(&CharStyle) -> f64) -> Option<f64> {
-    shared_styles(app, |t, style| t.effective_char_style(style).map(|s| Metric(f(&s)))).map(|v| v.0)
+    shared_styles(app, |t, _, style, _| t.effective_char_style(style).map(|s| Metric(f(&s)))).map(|v| v.0)
+}
+
+/// The Leading shown: each character's own, or for Auto leading the share of the em size their
+/// font height reference gives them ([`vectorcraft_text::FontDb::em_size`]) that their paragraph's
+/// Justification › Auto Leading sets, as the layout uses. An inline graphic keeps its size.
+fn shared_leading(app: &VectorcraftApp) -> Option<f64> {
+    let db = vectorcraft_text::FontDb::global();
+    shared_styles(app, |t, para, style, inline| {
+        let s = t.effective_char_style(style)?;
+        let em = if inline { s.size } else { db.em_size(&s, t.vertical) };
+        Some(Metric(para.effective_leading(&CharStyle { size: em, ..s })))
+    })
+    .map(|v| v.0)
 }
 
 pub(crate) struct Metric(pub(crate) f64);
@@ -76,7 +89,13 @@ impl PartialEq for Metric {
     }
 }
 
-fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle) -> Option<T>) -> Option<T> {
+/// `f` of each character style in the selection, with its text object, the paragraph the
+/// characters are in (a run that spans paragraphs counts once for each) and whether the run is an
+/// inline graphic.
+fn shared_styles<T: PartialEq>(
+    app: &VectorcraftApp,
+    f: impl Fn(&vectorcraft_doc::TextObject, &vectorcraft_doc::ParaStyle, &CharStyle, bool) -> Option<T>,
+) -> Option<T> {
     let st = app.session.active()?;
     let text = |id: NodeId| match st.doc.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => Some(t),
@@ -86,21 +105,15 @@ fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc
     if let Some((id, a, b)) = text_editing(app) {
         let t = text(id)?;
         if b <= a {
-            return f(t, &vectorcraft_text::edit::insertion_style(&t.runs, a, b));
+            let para = t.plain_text().get(..a).map_or(0, |s| s.bytes().filter(|&c| c == b'\n').count());
+            return f(t, t.para_at(para), &vectorcraft_text::edit::insertion_style(&t.runs, a, b), false);
         }
-        let mut end = 0;
-        for r in &t.runs {
-            let start = end;
-            end += r.text.len();
-            if start < b && end > a {
-                acc.add(f(t, &r.style));
-            }
-        }
+        each_paragraph_run(t, Some((a, b)), |para, style, inline| acc.add(f(t, para, style, inline)));
     } else {
         for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
             n.walk(&mut |c| {
                 if let NodeKind::Text(t) = &c.kind {
-                    t.runs.iter().for_each(|r| acc.add(f(t, &r.style)));
+                    each_paragraph_run(t, None, |para, style, inline| acc.add(f(t, para, style, inline)));
                 }
             });
         }
@@ -108,62 +121,42 @@ fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc
     acc.value().flatten()
 }
 
-/// As [`shared_styles`], with whether the run is an inline graphic and the attributes of the
-/// paragraph each character is in: `f` sees a run that spans paragraphs once for each of them. A
-/// selected object that ends in a line break also gives its empty last paragraph. In a Type tool
-/// selection a line break belongs to the paragraph it ends.
-fn shared_para_styles<T: PartialEq>(
-    app: &VectorcraftApp,
-    f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle, bool, &vectorcraft_doc::ParaStyle) -> Option<T>,
-) -> Option<T> {
-    let st = app.session.active()?;
-    let breaks = |s: &[u8]| s.iter().filter(|&&c| c == b'\n').count();
-    // The paragraphs bytes `lo..hi` of a run are in, from `para`, the paragraph its first byte is in.
-    let paras = |text: &str, para: usize, lo: usize, hi: usize| {
-        let bytes = text.as_bytes();
-        let first = para + bytes.get(..lo).map_or(0, breaks);
-        first..=first + bytes.get(lo..hi.saturating_sub(1).max(lo)).map_or(0, breaks)
-    };
-    let mut acc = Shared::None;
-    if let Some((id, a, b)) = text_editing(app) {
-        let Some(NodeKind::Text(t)) = st.doc.node(id).map(|n| &n.kind) else {
-            return None;
-        };
-        if b <= a {
-            return f(t, &vectorcraft_text::edit::insertion_style(&t.runs, a, b), false, t.para_at(t.paragraphs_in(a, a).start));
-        }
-        let (mut end, mut para) = (0, 0);
-        for r in &t.runs {
-            let start = end;
-            end += r.text.len();
-            if start < b && end > a {
-                for i in paras(&r.text, para, a.max(start) - start, b.min(end) - start) {
-                    acc.add(f(t, &r.style, r.inline.is_some(), t.para_at(i)));
-                }
+/// `f` of the paragraph and style of each piece of `t`'s runs that lies in one paragraph (a
+/// paragraph's closing line break belongs to it), and whether the run is an inline graphic: the
+/// pieces within bytes `a..b`, or with no range every run's, empty ones included. With no range, a
+/// final empty paragraph (the text ends in a line break) counts too, with the style of the run
+/// before it, as the caret there types.
+fn each_paragraph_run<'a>(
+    t: &'a vectorcraft_doc::TextObject,
+    range: Option<(usize, usize)>,
+    mut f: impl FnMut(&'a vectorcraft_doc::ParaStyle, &'a CharStyle, bool),
+) {
+    let (mut end, mut para) = (0, 0);
+    // The style of the last character and whether it is a line break: the paragraph after it has
+    // no characters of its own.
+    let mut last: Option<(&'a CharStyle, bool)> = None;
+    for r in &t.runs {
+        if r.text.is_empty() {
+            if range.is_none_or(|(a, b)| a < end && end < b) {
+                f(t.para_at(para), &r.style, r.inline.is_some());
             }
-            para += breaks(r.text.as_bytes());
+            continue;
         }
-    } else {
-        for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
-            n.walk(&mut |c| {
-                if let NodeKind::Text(t) = &c.kind {
-                    let (mut para, mut len) = (0, 0);
-                    for r in &t.runs {
-                        for i in paras(&r.text, para, 0, r.text.len()) {
-                            acc.add(f(t, &r.style, r.inline.is_some(), t.para_at(i)));
-                        }
-                        para += breaks(r.text.as_bytes());
-                        len += r.text.len();
-                    }
-                    // The empty paragraph after a final line break, with the style typed there.
-                    if t.runs.iter().rev().find(|r| !r.text.is_empty()).is_some_and(|r| r.text.ends_with('\n')) {
-                        acc.add(f(t, &vectorcraft_text::edit::insertion_style(&t.runs, len, len), false, t.para_at(para)));
-                    }
-                }
-            });
+        for piece in r.text.split_inclusive('\n') {
+            let start = end;
+            end += piece.len();
+            if range.is_none_or(|(a, b)| start < b && end > a) {
+                f(t.para_at(para), &r.style, r.inline.is_some());
+            }
+            para += usize::from(piece.ends_with('\n'));
+            last = Some((&r.style, piece.ends_with('\n')));
         }
     }
-    acc.value().flatten()
+    if range.is_none()
+        && let Some((style, true)) = last
+    {
+        f(t.para_at(para), style, false);
+    }
 }
 
 /// The value a run of styles share so far ([`shared`]).
@@ -520,7 +513,7 @@ pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &
     egui::Grid::new(id).num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
         cell(ui, "T", tl!("Font Size"), |ui| size_field(app, ui, "ch-size", fw));
         cell(ui, "A↕", tl!("Leading"), |ui| {
-            let leading = shown_leading(app);
+            let leading = shared_leading(app);
             let auto = shared(app, |s| s.leading.is_none()) == Some(true);
             match widgets::spin_field_auto(ui, "ch-lead", leading, Some(auto), unit, fw, 1.0, 0.1, &SIZE_PRESETS) {
                 Some(SpinPick::Value(v)) => style(app, json!({"leading": v})),
@@ -580,20 +573,6 @@ pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width:
     if let Some(v) = widgets::spin_field(ui, id, size, app.session.type_unit(), width, 1.0, 0.1, &SIZE_PRESETS) {
         style(app, json!({"size": v}));
     }
-}
-
-/// The Leading field's value, in document points: the explicit leading, or the Auto leading the
-/// characters are set with, their paragraph's Auto Leading share of the em size their font height
-/// reference gives them ([`vectorcraft_text::FontDb::em_size`]), or an inline graphic's size;
-/// `None` where the characters differ.
-fn shown_leading(app: &VectorcraftApp) -> Option<f64> {
-    let db = vectorcraft_text::FontDb::global();
-    shared_para_styles(app, |t, style, inline, para| {
-        let s = t.effective_char_style(style)?;
-        let em = if inline { s.size } else { db.em_size(&s, t.vertical) };
-        Some(Metric(s.leading.unwrap_or_else(|| para.justification.auto_leading_for(em))))
-    })
-    .map(|v| v.0)
 }
 
 /// The panel state of the Character panel menu's Show Font Height Options.
@@ -1016,6 +995,36 @@ mod tests {
         }
     }
 
+    /// A final empty paragraph counts: with the object selected, its Auto Leading differing from
+    /// the paragraph before it shows Leading as mixed.
+    #[test]
+    fn leading_field_counts_the_final_empty_paragraph() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One\n", "size": 10})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 12.0).abs() < 1e-9);
+        app.run("text.setFormat", json!({"autoLeading": 200, "start": 4, "end": 4})).unwrap();
+        assert_eq!(shared_leading(&app), None, "the empty last paragraph differs");
+    }
+
+    /// Auto leading shows the leading the paragraph's Justification › Auto Leading sets.
+    #[test]
+    fn leading_field_shows_the_paragraph_auto_leading() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One\nTwo", "size": 10})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 12.0).abs() < 1e-9);
+        app.run("text.setFormat", json!({"autoLeading": 200, "start": 5, "end": 5})).unwrap();
+        assert_eq!(shared_leading(&app), None, "the paragraphs differ");
+        assert_eq!(shared(&app, |s| s.leading.is_none()), Some(true), "still Auto");
+        app.run("text.setFormat", json!({"autoLeading": 200})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 20.0).abs() < 1e-9);
+        app.run("text.setStyle", json!({"leading": 15})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 15.0).abs() < 1e-9, "a set leading is its own");
+    }
+
     #[test]
     fn scaled_collapsed_text_keeps_nondimensional_controls_available() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -1067,21 +1076,21 @@ mod tests {
         let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
         app.run("select.set", json!({"ids": [id]})).unwrap();
         let near = |l: Option<f64>, want: f64| l.is_some_and(|l| (l - want).abs() < 1e-9);
-        assert!(near(shown_leading(&app), 24.0), "{:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 24.0), "{:?}", shared_leading(&app));
         app.run("text.setFormat", json!({"fontHeightReference": "capHeight"})).unwrap();
         let cap = f64::from(HEIGHT_CAP) / 1000.0;
-        assert!(near(shown_leading(&app), 1.2 * 20.0 / cap), "{:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 1.2 * 20.0 / cap), "{:?}", shared_leading(&app));
         app.run("text.setFormat", json!({"autoLeading": 150})).unwrap();
-        assert!(near(shown_leading(&app), 1.5 * 20.0 / cap), "{:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 1.5 * 20.0 / cap), "{:?}", shared_leading(&app));
         // The second paragraph ends in a two-byte character.
         let two = app.run("text.create", json!({"x": 20, "y": 120, "text": "Hx\nHé", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
         app.run("select.set", json!({"ids": [two]})).unwrap();
-        assert!(near(shown_leading(&app), 24.0), "{:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 24.0), "{:?}", shared_leading(&app));
         app.run("text.setFormat", json!({"id": two, "start": 3, "end": 6, "autoLeading": 150})).unwrap();
-        assert_eq!(shown_leading(&app), None, "the second paragraph's Auto leading is 30 pt");
+        assert_eq!(shared_leading(&app), None, "the second paragraph's Auto leading is 30 pt");
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run("text.setStyle", json!({"leading": 30})).unwrap();
-        assert!(near(shown_leading(&app), 30.0), "{:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 30.0), "{:?}", shared_leading(&app));
     }
 
     /// An inline graphic keeps its size whatever the font height reference, so the Leading field
@@ -1102,10 +1111,10 @@ mod tests {
         app.run("text.insertInline", json!({"id": id, "at": 2, "symbol": "Dot"})).unwrap();
         app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 5, "fontHeightReference": "capHeight"})).unwrap();
         app.session.set_tool_option("select", &json!({"start": 0, "end": 5}));
-        assert_eq!(shown_leading(&app), None, "the type is set with 34.3 pt Auto leading and the graphic with 24 pt");
+        assert_eq!(shared_leading(&app), None, "the type is set with 34.3 pt Auto leading and the graphic with 24 pt");
         app.session.set_tool_option("select", &json!({"start": 2, "end": 5}));
         assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((2, 5)));
-        let shown = shown_leading(&app);
+        let shown = shared_leading(&app);
         assert!(shown.is_some_and(|l| (l - 24.0).abs() < 1e-9), "{shown:?}");
     }
 
@@ -1118,14 +1127,14 @@ mod tests {
         let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Ab\n", "size": 20})).unwrap()["id"].clone();
         app.run("select.set", json!({"ids": [id]})).unwrap();
         let near = |l: Option<f64>, want: f64| l.is_some_and(|l| (l - want).abs() < 1e-9);
-        assert!(near(shown_leading(&app), 24.0), "{:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 24.0), "{:?}", shared_leading(&app));
         app.run("text.setFormat", json!({"id": id, "start": 3, "end": 3, "autoLeading": 150})).unwrap();
-        assert_eq!(shown_leading(&app), None, "the empty last paragraph's Auto leading is 30 pt");
+        assert_eq!(shared_leading(&app), None, "the empty last paragraph's Auto leading is 30 pt");
         app.session.select_tool("type", Default::default()).unwrap();
         app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
         app.session.set_tool_option("select", &json!({"start": 0, "end": 3}));
         assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((0, 3)));
-        assert!(near(shown_leading(&app), 24.0), "a line break belongs to the paragraph it ends: {:?}", shown_leading(&app));
+        assert!(near(shared_leading(&app), 24.0), "a line break belongs to the paragraph it ends: {:?}", shared_leading(&app));
     }
 
     /// With the Type tool, the Leading field shows the Auto leading of the paragraphs the selection
@@ -1144,7 +1153,7 @@ mod tests {
         for ((start, end), want) in ranges {
             app.session.set_tool_option("select", &json!({"start": start, "end": end}));
             assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((start, end)));
-            let shown = shown_leading(&app);
+            let shown = shared_leading(&app);
             assert_eq!(shown.is_some(), want.is_some(), "{start}..{end}: {shown:?}");
             assert!(shown.zip(want).is_none_or(|(l, w)| (l - w).abs() < 1e-9), "{start}..{end}: {shown:?}");
         }
@@ -1210,11 +1219,13 @@ mod tests {
         let text = crate::tests_labels::painted_text(&mut app, |app, ui| axis_sliders(app, ui, &face));
         assert!(text.contains("Weight\n") && text.contains("Width\n") && text.contains("400") && text.contains("100"), "{text}");
         // The labels are the font's names in every interface language, not catalog words (ja
-        // translates the interface's Weight as 線幅, the stroke weight).
-        crate::i18n::set_current(crate::i18n::Lang::from_code("ja").unwrap());
+        // translates the interface's Weight as the stroke weight).
+        let ja = crate::i18n::Lang::from_code("ja").unwrap();
+        crate::i18n::set_current(ja);
         let text = crate::tests_labels::painted_text(&mut app, |app, ui| axis_sliders(app, ui, &face));
         crate::i18n::set_current(crate::i18n::Lang::EN);
-        assert!(text.contains("Weight\n") && text.contains("Width\n") && !text.contains("線幅"), "{text}");
+        let weight = crate::i18n::tr(ja, "Weight");
+        assert!(text.contains("Weight\n") && text.contains("Width\n") && (weight == "Weight" || !text.contains(weight)), "{text}");
         // Screen readers name each slider by its axis.
         let tree = crate::widgets::accessibility_tests::tree(|ui| axis_sliders(&mut app, ui, &face));
         for name in ["Weight", "Width"] {
