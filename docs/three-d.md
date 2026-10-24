@@ -110,6 +110,9 @@ remain available; the list shows **Custom** whenever the effective lighting matc
 presets, including when there is more than one light. An equivalent explicit single light is
 recognized too. Reset all returns to Standard. Preview, Cancel and Undo work as for other options.
 
+Presets remain available when Shading is off, so a light rig can be prepared without enabling
+lighting. The individual light controls stay disabled until Shading is on.
+
 These are original VectorCraft settings based on the public preset names and directions. Adobe's
 documentation does not publish numeric rigs; the values are not copied from its software or files
 and are not claimed to reproduce its presets exactly. Standard retains the existing default.
@@ -126,6 +129,8 @@ applies the same settings through commands, CLI and MCP. The index and item addr
 applied 3D effect. Every target must have a 3D effect at that position; validation is atomic, and
 the whole operation is one undo step. The numeric light settings are saved, not a preset name.
 Existing documents keep their appearance unless a preset is chosen.
+Unsupported top-level command fields, including `visible` and `params`, are refused before any
+changes. Use `effect.setParams` to edit other effect settings.
 
 ### Light settings
 
@@ -189,5 +194,6 @@ Release measurements and a repeatable CLI scene are in [3D lighting performance]
 
 | Date | Change |
 |---|---|
+| 2026-10-21 | Presets remain selectable with Shading off. Preset commands reject unsupported fields without changing the document or history. |
 | 2026-10-21 | Four original lighting presets, shared by all four 3D effects and commands, with effective-setting recognition and existing preview/history behavior. |
 | 2026-10-17 | Smooth colored Inflate lighting and surface batching; legacy white-light appearance and the 0.05 seam minimum preserved; shared light Color and multiple lights remain vector output. |

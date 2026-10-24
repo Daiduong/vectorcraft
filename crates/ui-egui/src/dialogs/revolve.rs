@@ -292,8 +292,8 @@ fn lighting_controls(ui: &mut egui::Ui, d: &mut Dialog) {
             d.fields.insert("shade".into(), json!(true));
         }
     });
+    lighting_presets(ui, d);
     ui.add_enabled_ui(d.bool("shade"), |ui| {
-        lighting_presets(ui, d);
         light_list(ui, d);
         let mut selected = selected_light(d);
         let before = light_record(&selected);

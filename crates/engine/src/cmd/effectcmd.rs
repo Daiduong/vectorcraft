@@ -310,6 +310,8 @@ pub(crate) fn set_params_effects(s: &Session, p: &Value) -> Vec<String> {
 
 fn lighting_preset(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "effect.lightingPreset";
+    // Validate here too: direct dispatch skips the frontend parameter audit in production.
+    super::params::check_params(C, p)?;
     let patch = str_param(p, "preset")
         .and_then(effects::lighting_preset_params)
         .ok_or_else(|| bad(C, "preset must be standard, diffuse, topLeft or right"))?;

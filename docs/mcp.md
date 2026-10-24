@@ -1610,6 +1610,8 @@ replaces the lighting rig and ambient of an existing Revolve, Extrude & Bevel, I
 effect. `item: null` addresses object-level effects; an item index addresses a fill/stroke's
 effects. All targets must have a 3D effect at `index`, otherwise nothing changes. The operation
 is one undo step and preserves Shading, geometry, source paint and the view.
+Unsupported top-level fields, such as `visible`, `warpStyle` or `params`, are refused before any
+changes. Use `effect.setParams` to change other effect settings.
 
 The four original rigs use one white front light at 80% intensity. Standard keeps the existing
 default; Diffuse uses 100% Softness and 35% Ambient Light, Top Left uses Rotation 135 and Height

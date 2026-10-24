@@ -12,10 +12,11 @@
 //! for a key the description doesn't name ([`check_params`]): a misspelt `widht` no longer runs the
 //! command with its default. So are the `params` of an effect (#1592): `effect.apply` and
 //! `effect.setParams` answer a key the effect doesn't take, or a value of another type than its
-//! default, with a parameter error ([`check_effect_params`]). [`Session::execute`] itself takes
-//! what it is given, so the journal of an older version still replays, except for an effect's
-//! `color` that the effect can't read and a Levels or Curves `channel` that the effect doesn't
-//! have, which `effect.apply` and `effect.setParams` refuse themselves ([`check_effect_color`],
+//! default, with a parameter error ([`check_effect_params`]). `effect.lightingPreset` also checks
+//! its own top-level keys, so direct dispatch cannot change unrelated effect settings.
+//! [`Session::execute`] otherwise takes what it is given, so the journal of an older version still
+//! replays, except for an effect's `color` that the effect can't read and a Levels or Curves
+//! `channel` that the effect doesn't have, which `effect.apply` and `effect.setParams` refuse themselves ([`check_effect_color`],
 //! [`check_effect_channel`]).
 
 use serde_json::Value;
