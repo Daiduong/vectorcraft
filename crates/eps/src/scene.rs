@@ -268,7 +268,7 @@ impl<'a> Scene<'a> {
         if let NodeKind::Layer { template: true, .. } = n.kind {
             return;
         }
-        if self.body.len() > MAX_BODY {
+        if self.body.len() >= MAX_BODY {
             self.warn(TOO_LARGE);
             return;
         }
@@ -278,6 +278,7 @@ impl<'a> Scene<'a> {
             _ => {}
         }
         self.note_losses(n);
+        let was = self.body.len();
         match &n.kind {
             NodeKind::Layer { children, clip: false, .. } | NodeKind::Group { children, clip: false } => {
                 children.iter().for_each(|c| self.node(c, false));
@@ -320,6 +321,10 @@ impl<'a> Scene<'a> {
                     self.node(c, false);
                 }
             }
+        }
+        if self.body.len() > MAX_BODY {
+            self.body.truncate(was);
+            self.warn(TOO_LARGE);
         }
     }
 
@@ -893,6 +898,10 @@ impl<'a> Scene<'a> {
     /// Draw an image of [`Self::encode_image`] on the unit square mapped by `place`.
     fn place_image(&mut self, encoded: &str, place: Affine) {
         if !invertible(place) {
+            return;
+        }
+        if self.body.len().saturating_add(encoded.len()).saturating_add(64) > MAX_BODY {
+            self.warn(TOO_LARGE);
             return;
         }
         self.line("q");
