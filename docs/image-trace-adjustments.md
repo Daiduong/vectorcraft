@@ -41,8 +41,9 @@ Ignore Color. An empty list traces every color, and a value that is not a six-di
 refused. With Ignore Color as well, a kept color that Ignore Color matches is still left out. Flat
 Logo does not use `keepColors`: it traces the colors named in `logoColors`, or the colors it finds.
 The reply's `warnings` name each listed color that matches none of the colors the trace found. When
-nothing is traced because no listed color matches, or because Ignore Color leaves out every area of
-the ones that match, the first warning says so, and the status bar shows it. In Flat Logo mode the
+nothing is traced because no listed color matches, because Ignore Color leaves out every area of the
+ones that match, or because the ones that match produce no paths, the first warning says so, and the
+status bar shows it. In Flat Logo mode the
 warning says that `keepColors` is not used.
 
 **Large images.** An image of more than 1500 pixels on a side is traced as any other, only more

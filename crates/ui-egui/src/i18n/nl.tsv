@@ -5381,6 +5381,7 @@ swatch	Bright Violet	Felviolet
 @msg	Flat Logo mode does not use keepColors: it traces the colors named in logoColors, or the colors it finds.	De modus Plat logo gebruikt keepColors niet: hij traceert de kleuren die in logoColors staan, of de kleuren die hij vindt.
 @msg	Nothing was traced: none of the colors the trace found matches keepColors ({_1}).	Er is niets getraceerd: geen van de kleuren die het traceren vond, komt overeen met keepColors ({_1}).
 @msg	Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.	Er is niets getraceerd: Kleur negeren laat elk gebied van de kleuren in keepColors weg.
+@msg	Nothing was traced: the colors that match keepColors produce no paths.	Er is niets getraceerd: de kleuren die overeenkomen met keepColors leveren geen paden op.
 @msg	keepColors: none of the colors the trace found matches {c}, so nothing of it is traced.	keepColors: geen van de kleuren die het traceren vond, komt overeen met {c}, dus daarvan wordt niets getraceerd.
 	Artboard {n} of {total}	Tekengebied {n} van {total}
 	File {n} of {total}	Bestand {n} van {total}

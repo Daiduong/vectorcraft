@@ -1416,6 +1416,8 @@ fn the_keep_colors_trace_warnings_are_translated() {
         let w = r["warnings"].as_array().and_then(|w| w.first()).and_then(|w| w.as_str()).unwrap_or_else(|| panic!("{params}: {r}"));
         warnings.push((w.to_string(), shown));
     }
+    // Listed colors that were traced and produced no paths (no square image gives that).
+    warnings.push(("Nothing was traced: the colors that match keepColors produce no paths.".to_string(), ""));
     for (warning, shown) in &warnings {
         for code in COMPLETE_MESSAGES {
             let tr = message(Lang::from_code(code).unwrap(), warning);

@@ -519,6 +519,12 @@ fn is_kept(c: [u8; 3], keep: &[[u8; 3]]) -> bool {
     keep.is_empty() || keep.iter().any(|&k| is_ignored(c, Some(k)))
 }
 
+/// For each color of `palette`, whether it is left out of the trace: Ignore Color's (`ignore`,
+/// `None` for white) and those Keep Colors does not list (`keep`).
+fn left_out(palette: &[[u8; 3]], params: &TraceParams, ignore: Option<[u8; 3]>, keep: &[[u8; 3]]) -> Vec<bool> {
+    palette.iter().map(|&c| (params.ignore_white && is_ignored(c, ignore)) || !is_kept(c, keep)).collect()
+}
+
 /// Trace `img` with `params`. Failures (an image Logo mode refuses, say) give an empty result: use
 /// [`trace_within`] to see why.
 pub fn trace(img: &Raster, params: &TraceParams) -> TraceResult {
@@ -635,8 +641,8 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
     // Layers left out: Ignore Color's, and those Keep Colors does not list. Abutting, the others
     // are traced as they are in the trace of every color; stacked, they do not reach under the
     // colors left out (see `Layers::ignored`).
-    let dropped = |ci: usize| (params.ignore_white && is_ignored(q.palette[ci], ignore)) || !is_kept(q.palette[ci], &listed);
-    let layers: Vec<(usize, usize)> = order.iter().copied().enumerate().filter(|&(_, ci)| !dropped(ci)).collect();
+    let left_out = left_out(&q.palette, params, ignore, &listed);
+    let layers: Vec<(usize, usize)> = order.iter().copied().enumerate().filter(|&(_, ci)| !left_out.get(ci).copied().unwrap_or(false)).collect();
     // The listed colors that match none of the colors found.
     let keep_unmatched = params
         .keep_colors
@@ -650,8 +656,7 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         rank: &rank,
         params,
         img,
-        ignore,
-        keep: &listed,
+        left_out,
         boxes,
         gradients: &gradients,
         bw_tones: bw_tones(img, &q),
@@ -712,10 +717,8 @@ struct Layers<'a> {
     rank: &'a [usize],
     params: &'a TraceParams,
     img: &'a Raster,
-    /// The colour Ignore Color leaves out, if not white.
-    ignore: Option<[u8; 3]>,
-    /// The colors Keep Colors lists (empty: every color).
-    keep: &'a [[u8; 3]],
+    /// For each palette entry, whether Ignore Color or Keep Colors leaves it out (see [`left_out`]).
+    left_out: Vec<bool>,
     /// The box each palette entry's pixels lie in: `(x0, y0, x1, y1)`, the far sides excluded.
     boxes: Vec<Option<(usize, usize, usize, usize)>>,
     /// Gradients: the gradient each palette entry is, if it is one.
@@ -736,7 +739,7 @@ impl Layers<'_> {
     /// layer (stacked layers reach under the layers above them, and must not reach under a color
     /// that is left out).
     fn ignored(&self, label: u16) -> bool {
-        self.q.palette.get(label as usize).is_some_and(|c| (self.params.ignore_white && is_ignored(*c, self.ignore)) || !is_kept(*c, self.keep))
+        self.left_out.get(label as usize).copied().unwrap_or(false)
     }
     /// The region across a crack, for cutting outlines at their junctions: the outside pixel's
     /// colour. Stacked layers end on many colours at once and share no edge: one neighbour.
@@ -1093,8 +1096,7 @@ pub(crate) fn shift_probe(img: &Raster, params: &TraceParams) -> Vec<[f64; 4]> {
         rank: &rank,
         params,
         img,
-        ignore: None,
-        keep: &[],
+        left_out: left_out(&q.palette, params, None, &[]),
         boxes: vec![None; n],
         gradients: &gradients,
         bw_tones: bw_tones(img, &q),

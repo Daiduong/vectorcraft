@@ -1223,8 +1223,9 @@ pub(crate) fn trace_warnings(size: (u32, u32), traced: (u32, u32)) -> Vec<String
 }
 
 /// What a trace with Keep Colors tells the user: that nothing was traced because no color the
-/// trace found matches a listed one, or because Ignore Color left out the ones that match; each
-/// listed color that matches none of them; and that Flat Logo mode does not use the list.
+/// trace found matches a listed one, because Ignore Color left out the ones that match, or because
+/// the ones that match produce no paths; each listed color that matches none of them; and that Flat
+/// Logo mode does not use the list.
 pub(crate) fn keep_warnings(params: &tr::TraceParams, res: &tr::TraceResult) -> Vec<String> {
     if params.keep_colors.is_empty() {
         return vec![];
@@ -1236,8 +1237,11 @@ pub(crate) fn keep_warnings(params: &tr::TraceParams, res: &tr::TraceResult) -> 
         return vec![format!("Nothing was traced: none of the colors the trace found matches keepColors ({}).", params.keep_colors.join(", "))];
     }
     let mut out = vec![];
-    if res.paths.is_empty() && params.ignore_white {
+    // The trace's palette holds each color it traced, also one that produced no paths.
+    if res.paths.is_empty() && params.ignore_white && res.palette.is_empty() {
         out.push("Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.".to_string());
+    } else if res.paths.is_empty() {
+        out.push("Nothing was traced: the colors that match keepColors produce no paths.".to_string());
     }
     out.extend(res.keep_unmatched.iter().map(|c| format!("keepColors: none of the colors the trace found matches {c}, so nothing of it is traced.")));
     out
@@ -1312,7 +1316,25 @@ fn trace_expand(s: &mut Session, p: &Value) -> Result<Value> {
 
 #[cfg(test)]
 mod trace_limit_tests {
-    use super::{MAX_TRACE_ANCHORS, trace_warnings};
+    use super::{MAX_TRACE_ANCHORS, keep_warnings, trace_warnings};
+    use vectorcraft_trace as tr;
+
+    #[test]
+    fn keep_warnings_name_matched_colors_that_produce_no_paths() {
+        let params = tr::TraceParams { keep_colors: vec!["#ff0000".into()], ..tr::TraceParams::default() };
+        // A listed color was traced, and produced no paths.
+        let traced = tr::TraceResult { palette: vec![[255, 0, 0]], ..tr::TraceResult::default() };
+        let none = vec!["Nothing was traced: the colors that match keepColors produce no paths.".to_string()];
+        assert_eq!(keep_warnings(&params, &traced), none);
+        // With Ignore Color, too: Ignore Color did not leave that color out.
+        let ignoring = tr::TraceParams { ignore_white: true, ..params.clone() };
+        assert_eq!(keep_warnings(&ignoring, &traced), none);
+        // Ignore Color left out every color that matches: none was traced.
+        assert_eq!(
+            keep_warnings(&ignoring, &tr::TraceResult::default()),
+            vec!["Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.".to_string()]
+        );
+    }
 
     #[test]
     fn trace_warnings_name_a_large_or_scaled_down_image() {

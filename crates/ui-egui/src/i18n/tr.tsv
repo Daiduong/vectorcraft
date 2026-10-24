@@ -5382,6 +5382,7 @@ theme	Appearance	Görünüm
 @msg	Flat Logo mode does not use keepColors: it traces the colors named in logoColors, or the colors it finds.	Düz Logo modu keepColors kullanmaz: logoColors içinde adı verilen renkleri veya bulduğu renkleri izler.
 @msg	Nothing was traced: none of the colors the trace found matches keepColors ({_1}).	Hiçbir şey izlenmedi: izlemenin bulduğu renklerin hiçbiri keepColors ({_1}) ile eşleşmiyor.
 @msg	Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.	Hiçbir şey izlenmedi: Rengi Yoksay, keepColors içinde listelenen renklerin tüm alanlarını dışarıda bırakıyor.
+@msg	Nothing was traced: the colors that match keepColors produce no paths.	Hiçbir şey izlenmedi: keepColors ile eşleşen renkler hiçbir yol oluşturmuyor.
 @msg	keepColors: none of the colors the trace found matches {c}, so nothing of it is traced.	keepColors: izlemenin bulduğu renklerin hiçbiri {c} ile eşleşmiyor, bu yüzden bu renkten hiçbir şey izlenmiyor.
 @plural	{n} more export waiting|{n} more exports waiting	{n} dışa aktarma daha bekliyor|{n} dışa aktarma daha bekliyor
 @msg	Export cancelled	Dışa aktarma iptal edildi
