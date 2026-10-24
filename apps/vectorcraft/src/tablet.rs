@@ -40,7 +40,7 @@ use vectorcraft_ui_egui::stylus::{PenPose, PenSample, StylusFeed};
 
 /// The tilt of a valuator whose range does not fit in ±90 (so does not give degrees), at the ends
 /// of its range.
-const TILT_DEGREES: f64 = 60.0;
+pub(crate) const TILT_DEGREES: f64 = 60.0;
 
 /// Valuator numbers from this one on are ignored (the protocol allows 65,535; tablets have fewer
 /// than 16).
