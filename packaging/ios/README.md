@@ -2,7 +2,7 @@
 
 A native iPad shell around the web build: a full-screen `WKWebView` that runs `dist/web` from a
 small HTTP server inside the app. The Rust app is unchanged; everything here is packaging. The same
-shell also wraps the sibling apps' web builds (PhotoCraft, DesignCraft), one config file each.
+shell also wraps DesignCraft's web build, one config file per app.
 
 ```sh
 packaging/ios/build.sh vectorcraft --sim                       # build, run on an iPad simulator
@@ -10,9 +10,8 @@ TEAM=ABCDE12345 packaging/ios/build.sh vectorcraft --device    # sign, install, 
 packaging/ios/build.sh vectorcraft                             # only generate build/vectorcraft/VectorCraft.xcodeproj
 ```
 
-`<app>` is a file name in `apps/` (`vectorcraft`, `photocraft`, `designcraft`). The other apps'
-repos are looked for beside this one (`../photocraft`, `../designcraft`; set `CRAFT_ROOT` to
-change it).
+`<app>` is a file name in `apps/` (`vectorcraft`, `designcraft`). DesignCraft's repo is looked
+for beside this one (`../designcraft`; set `CRAFT_ROOT` to change it).
 
 | Variable | Meaning |
 |---|---|
@@ -44,7 +43,7 @@ here), and the derived data.
 
 - Apple Pencil pressure, hover and palm rejection come from the web app itself
   (`apps/vectorcraft-web/src/pencil.rs`), so VectorCraft gets them in the wrapper as in Safari.
-  PhotoCraft and DesignCraft don't have that module yet: there a pen acts like a finger.
+  DesignCraft doesn't have that module yet: there a pen acts like a finger.
 - iOS gives a web view less memory than a native app, and wasm32 can't address more than 4 GB:
   very large documents can make WebKit reload the page.
 - With a free Personal Team, an installed app stops opening after 7 days (install it again) and

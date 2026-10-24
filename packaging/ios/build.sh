@@ -5,8 +5,8 @@
 #   packaging/ios/build.sh <app> --sim       # …then build and run on an iPad simulator
 #   TEAM=ABCDE12345 packaging/ios/build.sh <app> --device   # …then sign, install and launch on a connected iPad
 #
-# <app> is vectorcraft, designcraft or photocraft (apps/<app>.conf). The other apps' repos are
-# looked for beside this one (CRAFT_ROOT, default: this repo's parent folder).
+# <app> is vectorcraft or designcraft (apps/<app>.conf). DesignCraft's repo is looked for
+# beside this one (CRAFT_ROOT, default: this repo's parent folder).
 # Env: SKIP_WEB=1 reuses the last web build; BUNDLE_PREFIX (default dev.craft) → <prefix>.<app>;
 # SIM_DEVICE / DEVICE pick a simulator / device by id.
 # Needs: rustup with the wasm32-unknown-unknown target, trunk, xcodegen, Xcode.
