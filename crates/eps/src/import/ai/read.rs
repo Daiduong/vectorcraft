@@ -2009,6 +2009,18 @@ impl<'a> Reader<'a> {
             return Ok(());
         }
         let gs = self.gs.clone();
+        // One mesh where the patches join up into the grid they say they make; else each patch is
+        // a mesh of its own, in a group.
+        match m.one_mesh() {
+            Ok(one) => {
+                let mut node = self.new_node(NodeKind::Mesh(one), &gs);
+                node.opacity = gs.opacity;
+                node.blend = gs.blend;
+                return self.add(node, hidden);
+            }
+            Err(super::mesh::NotOne::Unjoined) => self.warn("a gradient mesh whose patches don't join up comes in as a group of its patches"),
+            Err(super::mesh::NotOne::Unplaced) => {}
+        }
         let mut patches: Vec<Node> = m.patches.into_iter().map(|p| self.new_node(NodeKind::Mesh(p), &gs)).collect();
         let mut node = match patches.len() {
             1 => patches.pop().unwrap_or_else(|| self.new_node(NodeKind::Group { children: vec![], clip: false }, &gs)),
@@ -2180,7 +2192,7 @@ impl<'a> Reader<'a> {
         let mask = alpha.and_then(|a| self.alpha_mask(a, w, h, xf));
         let key = blob.content_key();
         self.doc.images.entry(key.clone()).or_insert(blob);
-        self.add_image_masked(ImageObject { key, width: w, height: h, xf, link: None, placement: Default::default() }, mask, false)
+        self.add_image_masked(ImageObject { key, width: w, height: h, xf, link: None, placement: Default::default(), pixels: None }, mask, false)
     }
 
     /// An image's alpha channel (`w` × `h` bytes) as a grayscale image over the image (`xf`): its
@@ -2196,7 +2208,7 @@ impl<'a> Reader<'a> {
         self.doc.images.entry(key.clone()).or_insert(blob);
         let art = Node::new(
             self.doc.alloc_id(),
-            NodeKind::Image(Box::new(ImageObject { key, width: w, height: h, xf, link: None, placement: Default::default() })),
+            NodeKind::Image(Box::new(ImageObject { key, width: w, height: h, xf, link: None, placement: Default::default(), pixels: None })),
         );
         Some(OpacityMask::new(art, true))
     }
@@ -2241,7 +2253,10 @@ impl<'a> Reader<'a> {
         let key = blob.content_key();
         self.doc.images.entry(key.clone()).or_insert(blob);
         self.warn(LINKED_PREVIEWS);
-        self.add_image(ImageObject { key, width: w, height: h, xf, link: Some(LinkInfo::new(path)), placement: Default::default() }, hidden)
+        self.add_image(
+            ImageObject { key, width: w, height: h, xf, link: Some(LinkInfo::new(path)), placement: Default::default(), pixels: None },
+            hidden,
+        )
     }
 
     // ---- the document ----------------------------------------------------------------------
@@ -2329,6 +2344,8 @@ impl<'a> Reader<'a> {
                 locked: false,
                 show_center_mark: false,
                 show_cross_hairs: false,
+                show_video_safe_areas: false,
+                video_ruler_pixel_aspect_ratio: 1.0,
                 color: None,
             })
             .collect();
@@ -2341,6 +2358,8 @@ impl<'a> Reader<'a> {
                 locked: false,
                 show_center_mark: false,
                 show_cross_hairs: false,
+                show_video_safe_areas: false,
+                video_ruler_pixel_aspect_ratio: 1.0,
                 color: None,
             }];
         }
