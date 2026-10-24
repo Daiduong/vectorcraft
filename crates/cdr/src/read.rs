@@ -122,6 +122,8 @@ pub(crate) fn import(bytes: &[u8], title: &str, info: CdrInfo, opts: &ImportOpti
             locked: false,
             show_center_mark: false,
             show_cross_hairs: false,
+            show_video_safe_areas: false,
+            video_ruler_pixel_aspect_ratio: 1.0,
             color: None,
         });
         // CorelDRAW page (mm, Y up, origin at the bottom left) → document.
@@ -500,7 +502,7 @@ impl Reader<'_> {
                     let r = hw.hypot(hh) * (1.0 - 2.0 * pad);
                     GradientGeom { start: centre, end: centre + Vec2::new(r.max(1e-6), 0.0), aspect: 1.0, focal: None }
                 };
-                let mut gp = GradientPaint::new(Gradient { kind, stops });
+                let mut gp = GradientPaint::new(Gradient { kind, stops, ..Gradient::default() });
                 gp.angle = if kind == GradientKind::Linear && f.angle.is_finite() { f.angle } else { 0.0 };
                 gp.geom = Some(geom);
                 Some((Paint::Gradient(Box::new(gp)), 1.0))
@@ -672,7 +674,7 @@ impl Reader<'_> {
         let blob = ImageBlob::new("image/png", png.to_vec());
         let key = blob.content_key();
         self.doc.images.entry(key.clone()).or_insert(blob);
-        let im = ImageObject { key, width: pw, height: ph, xf: xf * px, link: None, placement: Default::default() };
+        let im = ImageObject { key, width: pw, height: ph, xf: xf * px, link: None, placement: Default::default(), pixels: None };
         Some(Node::new(self.id(), NodeKind::Image(Box::new(im))))
     }
 }

@@ -36,6 +36,8 @@ fn sample(with_text: bool) -> Document {
         locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        show_video_safe_areas: false,
+        video_ruler_pixel_aspect_ratio: 1.0,
         color: None,
     });
     let red = path_node(
@@ -47,6 +49,7 @@ fn sample(with_text: bool) -> Document {
     let mut grad = GradientPaint::new(Gradient {
         kind: GradientKind::Linear,
         stops: vec![GradientStop::new(0.0, Color::Rgb { r: 1.0, g: 1.0, b: 0.0 }), GradientStop::new(1.0, Color::Rgb { r: 0.0, g: 0.5, b: 0.0 })],
+        ..Gradient::default()
     });
     grad.angle = 0.0;
     let mut g = path_node(&mut d, Rect::new(120.0, 300.0, 320.0, 400.0), Paint::Gradient(Box::new(grad)), None);
@@ -74,6 +77,7 @@ fn sample(with_text: bool) -> Document {
         xf: Affine::translate((400.0, 100.0)) * Affine::scale(10.0),
         link: None,
         placement: Default::default(),
+        pixels: None,
     };
     let mut kids = vec![Arc::new(clip_group), Arc::new(Node::new(d.alloc_id(), NodeKind::Image(Box::new(im))))];
     if with_text {

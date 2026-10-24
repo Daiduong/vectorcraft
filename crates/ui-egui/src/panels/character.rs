@@ -58,14 +58,20 @@ pub(crate) fn first_selected_text(app: &VectorcraftApp) -> Option<&vectorcraft_d
 /// caret's style at a caret), else every run of the selected type, groups' included. `None` (a
 /// blank field) where they differ, or with no type.
 pub(crate) fn shared<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&CharStyle) -> T) -> Option<T> {
-    shared_styles(app, |_, style| Some(f(style)))
+    shared_styles(app, |_, _, style| Some(f(style)))
 }
 
 /// Dimensional controls use document units and tolerate arithmetic roundoff when comparing
 /// compensated runs. Keep raw styles available to font/paragraph controls and style definitions,
 /// even if a collapsed affine prevents editing dimensions.
 fn shared_effective(app: &VectorcraftApp, f: impl Fn(&CharStyle) -> f64) -> Option<f64> {
-    shared_styles(app, |t, style| t.effective_char_style(style).map(|s| Metric(f(&s)))).map(|v| v.0)
+    shared_styles(app, |t, _, style| t.effective_char_style(style).map(|s| Metric(f(&s)))).map(|v| v.0)
+}
+
+/// The Leading shown: each character's own, or for Auto leading the share of its size its
+/// paragraph's Justification › Auto Leading sets, as the layout uses.
+fn shared_leading(app: &VectorcraftApp) -> Option<f64> {
+    shared_styles(app, |t, para, style| t.effective_char_style(style).map(|s| Metric(para.effective_leading(&s)))).map(|v| v.0)
 }
 
 pub(crate) struct Metric(pub(crate) f64);
@@ -76,7 +82,12 @@ impl PartialEq for Metric {
     }
 }
 
-fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle) -> Option<T>) -> Option<T> {
+/// `f` of each character style in the selection, with its text object and the paragraph the
+/// characters are in (a run that spans paragraphs counts once for each).
+fn shared_styles<T: PartialEq>(
+    app: &VectorcraftApp,
+    f: impl Fn(&vectorcraft_doc::TextObject, &vectorcraft_doc::ParaStyle, &CharStyle) -> Option<T>,
+) -> Option<T> {
     let st = app.session.active()?;
     let text = |id: NodeId| match st.doc.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => Some(t),
@@ -86,26 +97,57 @@ fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc
     if let Some((id, a, b)) = text_editing(app) {
         let t = text(id)?;
         if b <= a {
-            return f(t, &vectorcraft_text::edit::insertion_style(&t.runs, a, b));
+            let para = t.plain_text().get(..a).map_or(0, |s| s.bytes().filter(|&c| c == b'\n').count());
+            return f(t, t.para_at(para), &vectorcraft_text::edit::insertion_style(&t.runs, a, b));
         }
-        let mut end = 0;
-        for r in &t.runs {
-            let start = end;
-            end += r.text.len();
-            if start < b && end > a {
-                acc.add(f(t, &r.style));
-            }
-        }
+        each_paragraph_run(t, Some((a, b)), |para, style| acc.add(f(t, para, style)));
     } else {
         for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
             n.walk(&mut |c| {
                 if let NodeKind::Text(t) = &c.kind {
-                    t.runs.iter().for_each(|r| acc.add(f(t, &r.style)));
+                    each_paragraph_run(t, None, |para, style| acc.add(f(t, para, style)));
                 }
             });
         }
     }
     acc.value().flatten()
+}
+
+/// `f` of the paragraph and style of each piece of `t`'s runs that lies in one paragraph (a
+/// paragraph's closing line break belongs to it): the pieces within bytes `a..b`, or with no
+/// range every run's, empty ones included. With no range, a final empty paragraph (the text ends
+/// in a line break) counts too, with the style of the run before it, as the caret there types.
+fn each_paragraph_run<'a>(
+    t: &'a vectorcraft_doc::TextObject,
+    range: Option<(usize, usize)>,
+    mut f: impl FnMut(&'a vectorcraft_doc::ParaStyle, &'a CharStyle),
+) {
+    let (mut end, mut para) = (0, 0);
+    // The style of the last character and whether it is a line break: the paragraph after it has
+    // no characters of its own.
+    let mut last: Option<(&'a CharStyle, bool)> = None;
+    for r in &t.runs {
+        if r.text.is_empty() {
+            if range.is_none_or(|(a, b)| a < end && end < b) {
+                f(t.para_at(para), &r.style);
+            }
+            continue;
+        }
+        for piece in r.text.split_inclusive('\n') {
+            let start = end;
+            end += piece.len();
+            if range.is_none_or(|(a, b)| start < b && end > a) {
+                f(t.para_at(para), &r.style);
+            }
+            para += usize::from(piece.ends_with('\n'));
+            last = Some((&r.style, piece.ends_with('\n')));
+        }
+    }
+    if range.is_none()
+        && let Some((style, true)) = last
+    {
+        f(t.para_at(para), style);
+    }
 }
 
 /// The value a run of styles share so far ([`shared`]).
@@ -461,7 +503,7 @@ pub(crate) fn metrics_grid(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, s: &
     egui::Grid::new(id).num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
         cell(ui, "T", tl!("Font Size"), |ui| size_field(app, ui, "ch-size", fw));
         cell(ui, "A↕", tl!("Leading"), |ui| {
-            let leading = shared_effective(app, CharStyle::effective_leading);
+            let leading = shared_leading(app);
             let auto = shared(app, |s| s.leading.is_none()) == Some(true);
             match widgets::spin_field_auto(ui, "ch-lead", leading, Some(auto), unit, fw, 1.0, 0.1, &SIZE_PRESETS) {
                 Some(SpinPick::Value(v)) => style(app, json!({"leading": v})),
@@ -712,6 +754,24 @@ fn style_toggle(ui: &mut Ui, g: Glyph, tip: &str, on: bool) -> bool {
     resp.clicked()
 }
 
+/// The Character Direction submenu: Default, Left to Right and Right to Left set the characters the
+/// panel acts on ([`char_cmd`]) as the bidi algorithm sets them, or left to right or right to left
+/// inside their paragraph. The direction those characters share is checked, and none is checked
+/// when they differ.
+fn char_direction_items(app: &mut VectorcraftApp, ui: &mut Ui) {
+    use vectorcraft_doc::ParaDirection;
+    let direction = shared(app, |s| s.char_direction);
+    for (label, d, key) in [
+        (tl!("Default"), None, "default"),
+        (tl!("Left to Right"), Some(ParaDirection::LeftToRight), "leftToRight"),
+        (tl!("Right to Left"), Some(ParaDirection::RightToLeft), "rightToLeft"),
+    ] {
+        if menu_item(ui, label, true, direction == Some(d)) {
+            format(app, json!({"charDirection": key}));
+        }
+    }
+}
+
 pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let st = text_style(app);
     let has = st.is_some();
@@ -795,6 +855,9 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
                 }
             });
         });
+        ui.add_enabled_ui(has, |ui| {
+            ui.menu_button(format!("   {}", tl!("Character Direction")), |ui| char_direction_items(app, ui));
+        });
         ui.separator();
     }
     // No Break: the selected characters stay on one line.
@@ -847,8 +910,9 @@ fn fractional_widths_on(app: &VectorcraftApp) -> bool {
 /// Reset Panel: the characters the panel acts on ([`char_cmd`]) take tracking 0, Auto leading and
 /// kerning, no baseline shift, 100% scales, no rotation, no underline or strikethrough, All Caps
 /// and Small Caps off, the normal position (neither superscript nor subscript), Roman Baseline
-/// character alignment, Proportional Metrics, Tate-chu-yoko and No Break off and the Default digits, whether
-/// or not Show East Asian Options and Show Indic Options are on.
+/// character alignment, Proportional Metrics, Tate-chu-yoko and No Break off, the Default character
+/// direction and the Default digits, whether or not Show East Asian Options and Show Indic Options
+/// are on.
 fn reset_panel(app: &mut VectorcraftApp) {
     let d = CharStyle::default();
     style(app, json!({"tracking": 0, "leading": "auto"}));
@@ -857,7 +921,8 @@ fn reset_panel(app: &mut VectorcraftApp) {
         json!({
             "kerning": "auto", "baselineShift": 0, "hScale": 100, "vScale": 100, "rotation": 0, "underline": false, "strikethrough": false,
             "allCaps": false, "smallCaps": d.small_caps.is_some(), "position": d.position.id(), "charAlign": d.char_align,
-            "proportionalMetrics": d.proportional_metrics, "tateChuYoko": d.tate_chu_yoko, "noBreak": d.no_break, "digits": d.digits
+            "proportionalMetrics": d.proportional_metrics, "tateChuYoko": d.tate_chu_yoko, "noBreak": d.no_break, "charDirection": "default",
+            "digits": d.digits
         }),
     );
 }
@@ -885,6 +950,36 @@ mod tests {
         ] {
             assert!((actual.expect("equal dimensions must not be mixed") - expected).abs() < 1e-8);
         }
+    }
+
+    /// A final empty paragraph counts: with the object selected, its Auto Leading differing from
+    /// the paragraph before it shows Leading as mixed.
+    #[test]
+    fn leading_field_counts_the_final_empty_paragraph() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One\n", "size": 10})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 12.0).abs() < 1e-9);
+        app.run("text.setFormat", json!({"autoLeading": 200, "start": 4, "end": 4})).unwrap();
+        assert_eq!(shared_leading(&app), None, "the empty last paragraph differs");
+    }
+
+    /// Auto leading shows the leading the paragraph's Justification › Auto Leading sets.
+    #[test]
+    fn leading_field_shows_the_paragraph_auto_leading() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One\nTwo", "size": 10})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 12.0).abs() < 1e-9);
+        app.run("text.setFormat", json!({"autoLeading": 200, "start": 5, "end": 5})).unwrap();
+        assert_eq!(shared_leading(&app), None, "the paragraphs differ");
+        assert_eq!(shared(&app, |s| s.leading.is_none()), Some(true), "still Auto");
+        app.run("text.setFormat", json!({"autoLeading": 200})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 20.0).abs() < 1e-9);
+        app.run("text.setStyle", json!({"leading": 15})).unwrap();
+        assert!((shared_leading(&app).unwrap() - 15.0).abs() < 1e-9, "a set leading is its own");
     }
 
     #[test]
@@ -985,11 +1080,13 @@ mod tests {
         let text = crate::tests_labels::painted_text(&mut app, |app, ui| axis_sliders(app, ui, &face));
         assert!(text.contains("Weight\n") && text.contains("Width\n") && text.contains("400") && text.contains("100"), "{text}");
         // The labels are the font's names in every interface language, not catalog words (ja
-        // translates the interface's Weight as 線幅, the stroke weight).
-        crate::i18n::set_current(crate::i18n::Lang::from_code("ja").unwrap());
+        // translates the interface's Weight as the stroke weight).
+        let ja = crate::i18n::Lang::from_code("ja").unwrap();
+        crate::i18n::set_current(ja);
         let text = crate::tests_labels::painted_text(&mut app, |app, ui| axis_sliders(app, ui, &face));
         crate::i18n::set_current(crate::i18n::Lang::EN);
-        assert!(text.contains("Weight\n") && text.contains("Width\n") && !text.contains("線幅"), "{text}");
+        let weight = crate::i18n::tr(ja, "Weight");
+        assert!(text.contains("Weight\n") && text.contains("Width\n") && (weight == "Weight" || !text.contains(weight)), "{text}");
         // Screen readers name each slider by its axis.
         let tree = crate::widgets::accessibility_tests::tree(|ui| axis_sliders(&mut app, ui, &face));
         for name in ["Weight", "Width"] {
@@ -1292,6 +1389,36 @@ mod tests {
         assert!(shown(&mut app));
     }
 
+    /// Character Direction is in the panel menu with the Middle Eastern (Indic) options, beside
+    /// Digits. Its submenu checks the direction the characters the panel acts on share: the
+    /// selected type's, or the range the Type tool has selected. It checks no item when they differ.
+    #[test]
+    fn character_direction_checks_the_direction_of_the_selection() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "שלום 21 10 2026"})).unwrap()["id"].as_u64().unwrap();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let shown = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, menu).contains("Character Direction");
+        assert!(!shown(&mut app));
+        app.session.prefs.show_indic_options = true;
+        assert!(shown(&mut app));
+        let checked = |app: &mut VectorcraftApp| {
+            let text = crate::tests_labels::painted_text(app, char_direction_items);
+            text.lines().filter_map(|l| l.strip_prefix("✓ ")).map(str::to_string).collect::<Vec<_>>()
+        };
+        assert_eq!(checked(&mut app), ["Default"]);
+        app.run("text.setRangeStyle", json!({"id": id, "start": 9, "end": 19, "charDirection": "leftToRight"})).unwrap();
+        // The object's characters differ: nothing is checked.
+        assert!(checked(&mut app).is_empty());
+        // The Type tool's selection: the date, then the Hebrew word.
+        app.select_tool("type");
+        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.set_tool_option("select", &json!({"start": 9, "end": 19}));
+        assert_eq!(checked(&mut app), ["Left to Right"]);
+        app.session.set_tool_option("select", &json!({"start": 0, "end": 8}));
+        assert_eq!(checked(&mut app), ["Default"]);
+    }
+
     /// No Break is in the panel menu, and choosing it marks the selected characters.
     #[test]
     fn no_break_menu_item_toggles_the_selected_characters() {
@@ -1321,8 +1448,8 @@ mod tests {
 
     /// Reset Panel sets every character attribute the panel shows, except the font family, style
     /// and size, back to its default (Small Caps, the position, Character Alignment, Proportional
-    /// Metrics, Tate-chu-yoko, No Break and Digits included), in the selected type and in the text
-    /// the Type tool has selected while it edits.
+    /// Metrics, Tate-chu-yoko, No Break, Character Direction and Digits included), in the selected
+    /// type and in the text the Type tool has selected while it edits.
     #[test]
     fn reset_panel_resets_every_attribute_but_the_font() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -1350,6 +1477,7 @@ mod tests {
                 s.proportional_metrics != d.proportional_metrics,
                 s.tate_chu_yoko != d.tate_chu_yoko,
                 s.no_break != d.no_break,
+                s.char_direction != d.char_direction,
                 s.digits != d.digits,
             ]
         };
@@ -1359,16 +1487,17 @@ mod tests {
                 json!({
                     "id": id, "tracking": 50, "leading": 30, "kerning": 20, "baselineShift": 3, "hScale": 120, "vScale": 90, "rotation": 15,
                     "underline": true, "strikethrough": true, "allCaps": true, "smallCaps": true, "position": "superscript",
-                    "charAlign": "emBoxCenter", "proportionalMetrics": true, "tateChuYoko": true, "noBreak": true, "digits": "hindi"
+                    "charAlign": "emBoxCenter", "proportionalMetrics": true, "tateChuYoko": true, "noBreak": true,
+                    "charDirection": "rightToLeft", "digits": "hindi"
                 }),
             )
             .unwrap();
         };
         let plain = runs(&app)[0].1.clone();
-        assert_eq!(differs(&plain, &CharStyle::default()), [false; 17]);
+        assert_eq!(differs(&plain, &CharStyle::default()), [false; 18]);
         custom(&mut app);
         let styled = runs(&app)[0].1.clone();
-        assert_eq!(differs(&styled, &CharStyle::default()), [true; 17]);
+        assert_eq!(differs(&styled, &CharStyle::default()), [true; 18]);
         app.run("select.set", json!({"ids": [id]})).unwrap();
         reset_panel(&mut app);
         assert_eq!(runs(&app), [("One 12".to_string(), plain.clone())]);

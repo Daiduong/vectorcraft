@@ -123,16 +123,18 @@ fn panel_icon(app: &mut VectorcraftApp, ui: &mut Ui, id: &'static str, label: &s
     if resp.clicked() {
         app.ui.open_panel = if open { None } else { Some(id.to_string()) };
     }
-    crate::panel_docking::legacy_tab(app, ui, id, &resp);
+    crate::panel_docking::legacy_tab(app, ui, id, &resp, false);
 }
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+    crate::panel_docking::prune_collapsed(&mut app.ui);
     if crate::panel_docking::show(app, ui) {
         return;
     }
     apply_pending_dock_width(app, ui.ctx(), LEGACY_DOCK_PANEL, clamp_legacy_dock_width);
     let t = Tokens::get(ui.ctx());
     let shown = floating::shown_tab(&app.ui);
+    ui.ctx().data_mut(|d| d.insert_temp(floating::root_groups_id(), Vec::<floating::RootGroup>::new()));
     // Main tabbed group, unless it is collapsed to icons or all its panels float.
     let group = shown.filter(|_| !app.ui.dock_collapsed).map(|active| {
         egui::Panel::right(LEGACY_DOCK_PANEL)
@@ -145,16 +147,28 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                     if collapse_header(ui, false) {
                         toggle(app, true);
                     }
+                    // What a group dropped on it joins ([`floating::Drop::Root`]).
+                    let rect = ui.available_rect_before_wrap();
+                    let group = floating::RootGroup {
+                        panels: floating::docked_tabs(&app.ui).map(|tab| tab.info().0).collect(),
+                        shown: active.info().0,
+                        rect,
+                        strip: Rect::from_min_size(rect.min, vec2(rect.width(), 33.0)),
+                    };
+                    ui.ctx().data_mut(|d| d.insert_temp(floating::root_groups_id(), vec![group]));
                     if tab_strip(app, ui, active) {
                         // It floats from this frame on.
                         return;
                     }
+                    // Collapsed to its tabs (a double-click on one).
+                    if app.ui.docking_collapsed.contains(app.ui.dock_tab.info().0) {
+                        return;
+                    }
                     egui::Frame::NONE.inner_margin(egui::Margin { left: 12, right: 10, top: 10, bottom: 8 }).show(ui, |ui| match active {
                         DockTab::Properties => {
-                            egui::ScrollArea::vertical()
-                                .id_salt("props")
-                                .auto_shrink([false, false])
-                                .show(ui, |ui| panels::properties::show(app, ui));
+                            widgets::panel_scroll(ui, egui::ScrollArea::vertical().id_salt("props").auto_shrink([false, false]), |ui| {
+                                panels::properties::show(app, ui)
+                            });
                         }
                         DockTab::Layers => panels::layers::show(app, ui),
                         DockTab::Libraries => panels::libraries(app, ui),
@@ -220,9 +234,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
 }
 
-/// The tabbed group's tab strip, showing `active`: a click on a tab shows it, a tab dragged out of
-/// the strip floats on its own, and the strip right of the tabs floats the whole group. True when
-/// the shown panel floats now.
+/// The tabbed group's tab strip, showing `active`: a click on a tab shows it, a double-click on a
+/// tab or on the strip right of the tabs collapses the group to its tabs or expands it, a tab
+/// dragged out of the strip floats on its own, and the strip right of the tabs floats the whole
+/// group. True when the shown panel floats now.
 fn tab_strip(app: &mut VectorcraftApp, ui: &mut Ui, active: DockTab) -> bool {
     let t = Tokens::get(ui.ctx());
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), 33.0), Sense::hover());
@@ -248,18 +263,26 @@ fn tab_strip(app: &mut VectorcraftApp, ui: &mut Ui, active: DockTab) -> bool {
         let id = tab.info().0;
         if let Some((from, to)) = tab_reorder_on_release(strip, pointer, resp, &out.responses) {
             apply_dock_tab_reorder(app, &tabs, from, to);
+        } else if resp.double_clicked() {
+            if let Err(error) = app.run("window.panel.collapse", json!({ "panel": id })) {
+                app.ui.status = error;
+            }
         } else if resp.clicked() {
             app.ui.dock_tab = tab;
         }
-        crate::panel_docking::legacy_tab_in_strip(app, ui, id, resp, Some(strip));
+        crate::panel_docking::legacy_tab_in_strip(app, ui, id, resp, true, Some(strip));
     }
     if let Some(tab) = out.picked.and_then(|i| tabs.get(i)).copied() {
         app.ui.dock_tab = tab;
     }
     let rest = Rect::from_min_max(egui::pos2(out.right, strip.top()), egui::pos2(menu.left() - 4.0, strip.bottom()));
     if rest.width() > 0.0 {
-        let resp = ui.interact(rest, ui.id().with("dock-group-bar"), Sense::drag());
-        if resp.dragged() && outside {
+        let resp = ui.interact(rest, ui.id().with("dock-group-bar"), Sense::click_and_drag());
+        if resp.double_clicked() {
+            if let Err(error) = app.run("window.panel.collapse", json!({ "panel": active.info().0 })) {
+                app.ui.status = error;
+            }
+        } else if resp.dragged() && outside {
             tear = Some((floating::docked_tabs(&app.ui).map(|t| t.info().0).collect(), active.info().0, strip.left()));
         }
         resp.on_hover_cursor(egui::CursorIcon::Grab).on_hover_text(tl!("Drag to float the panel group"));
@@ -398,8 +421,10 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
         return;
     };
     let tab = DockTab::from_id(id);
-    // Expanded, the group shows its panels in the dock itself; a floating panel shows in its group.
-    if tab.is_some() && !app.ui.dock_collapsed || floating::group_of(&app.ui, id).is_some() {
+    // Expanded, the group shows its panels in the dock itself, unless one was dropped on the icon
+    // column; a floating panel shows in its group.
+    let in_rail = app.ui.docking_icons.contains(id) && app.ui.docking.as_ref().is_some_and(|layout| !layout.contains(&id.to_string()));
+    if tab.is_some() && !app.ui.dock_collapsed && !in_rail || floating::group_of(&app.ui, id).is_some() {
         return;
     }
     // A library panel (in a collapsed dock) is titled by its library's name.
@@ -491,12 +516,11 @@ pub(crate) fn panel_body(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width:
                 // At least `tall` when the sections are taller: the flyout's area keeps the size its
                 // content needs, and egui sizes a new area at most 400 points high, so a scroll area
                 // that only took the room it was given never grew past it.
-                egui::ScrollArea::vertical()
-                    .id_salt("props-flyout")
-                    .max_height(tall)
-                    .min_scrolled_height(tall)
-                    .auto_shrink([false, true])
-                    .show(ui, |ui| panels::properties::show(app, ui));
+                widgets::panel_scroll(
+                    ui,
+                    egui::ScrollArea::vertical().id_salt("props-flyout").max_height(tall).min_scrolled_height(tall).auto_shrink([false, true]),
+                    |ui| panels::properties::show(app, ui),
+                );
             }
             Some(DockTab::Layers) => {
                 ui.set_max_height(tall);
@@ -659,6 +683,92 @@ mod tests {
             icons = frame(f64::from(k) * 0.1, vec![]);
         }
         assert!(icons.last().unwrap().bottom() <= 400.0, "scrolled into view: {:?}", icons.last());
+    }
+
+    /// #3093: in a window too short for the Properties panel, its scroll bar takes a column of its
+    /// own instead of floating over the panel's right edge, so it covers none of the controls
+    /// there, such as the arrow of an image's Image Trace button.
+    #[test]
+    fn the_properties_scroll_bar_covers_no_control() {
+        use egui::accesskit::{Action, Role};
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap();
+        app.run("object.rasterize", json!({})).unwrap();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        theme::install_fonts(&ctx);
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(1440.0, 600.0));
+        let mut nodes = vec![];
+        for k in 0..4 {
+            let input = egui::RawInput { time: Some(f64::from(k) * 0.1), screen_rect: Some(screen), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| show(&mut app, ui));
+            out.textures_delta.clear();
+            nodes = out.platform_output.accesskit_update.unwrap().nodes;
+        }
+        let rect = |n: &egui::accesskit::Node| {
+            n.bounds().map(|b| egui::Rect::from_min_max(egui::pos2(b.x0 as f32, b.y0 as f32), egui::pos2(b.x1 as f32, b.y1 as f32)))
+        };
+        // The Properties panel's is the right-most (the icon column's slim strip bar is left of it).
+        let bar = nodes
+            .iter()
+            .filter(|(_, n)| n.role() == Role::ScrollBar)
+            .filter_map(|(_, n)| rect(n))
+            .max_by(|a, b| a.left().total_cmp(&b.left()))
+            .filter(|bar| bar.left() > screen.right() - DOCK_WIDTH);
+        let bar = bar.expect("the Properties panel scrolls in a 600 pt window");
+        let mut covered = vec![];
+        for (_, n) in &nodes {
+            let Some(r) = rect(n) else { continue };
+            let control = n.role() != Role::ScrollBar && (n.supports_action(Action::Click) || n.supports_action(Action::Focus));
+            if control && r.intersect(bar).is_positive() {
+                covered.push(format!("{:?} {:?} at {r:?}", n.role(), n.label()));
+            }
+        }
+        assert!(covered.is_empty(), "under the scroll bar at {bar:?}: {covered:#?}");
+    }
+
+    /// #3443: the Layers list's scroll bar sits beside the rows, not over the target and selection
+    /// marks at their right edge.
+    #[test]
+    fn the_layers_scroll_bar_covers_no_row() {
+        use egui::accesskit::Role;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
+        for k in 0..40 {
+            app.run("shape.rectangle", json!({"x": k, "y": k, "width": 20, "height": 20})).unwrap();
+        }
+        app.run("window.panel", json!({"panel": "layers"})).unwrap();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        theme::install_fonts(&ctx);
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(1440.0, 600.0));
+        let mut nodes = vec![];
+        for k in 0..4 {
+            let input = egui::RawInput { time: Some(f64::from(k) * 0.1), screen_rect: Some(screen), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| show(&mut app, ui));
+            out.textures_delta.clear();
+            nodes = out.platform_output.accesskit_update.unwrap().nodes;
+        }
+        let rect = |n: &egui::accesskit::Node| {
+            n.bounds().map(|b| egui::Rect::from_min_max(egui::pos2(b.x0 as f32, b.y0 as f32), egui::pos2(b.x1 as f32, b.y1 as f32)))
+        };
+        let bar = nodes
+            .iter()
+            .filter(|(_, n)| n.role() == Role::ScrollBar)
+            .filter_map(|(_, n)| rect(n))
+            .max_by(|a, b| a.left().total_cmp(&b.left()))
+            .filter(|bar| bar.left() > screen.right() - DOCK_WIDTH)
+            .expect("40 layers scroll in a 600 pt window");
+        let rows: Vec<egui::Rect> = nodes
+            .iter()
+            .filter(|(_, n)| n.role() != Role::ScrollBar)
+            .filter_map(|(_, n)| rect(n))
+            .filter(|r| r.top() >= bar.top() && r.bottom() <= bar.bottom() && r.right() > bar.left() - 40.0)
+            .collect();
+        assert!(!rows.is_empty(), "the rows beside the bar are in the tree");
+        let covered: Vec<_> = rows.iter().filter(|r| r.intersect(bar).is_positive()).collect();
+        assert!(covered.is_empty(), "under the scroll bar at {bar:?}: {covered:#?}");
     }
 
     const SCREEN: egui::Vec2 = vec2(1600.0, 1000.0);
