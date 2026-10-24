@@ -1790,6 +1790,14 @@ pub struct FontSource {
 struct SourceRequests {
     asked: std::collections::HashSet<(String, String)>,
     queue: Vec<FontSource>,
+    /// How each source the host took on ended ([`FontDb::source_settled`]): `true` when its file was
+    /// added, `false` when it couldn't be fetched or added. Keyed as `asked` is.
+    settled: HashMap<(String, String), bool>,
+}
+
+/// A source's key in [`SourceRequests`]: its family and style, in lowercase.
+fn source_key(src: &FontSource) -> (String, String) {
+    (src.family.to_ascii_lowercase(), src.style.to_ascii_lowercase())
 }
 
 /// What [`FontDb::add_font_reporting`] did with a font file's bytes.
@@ -1973,7 +1981,7 @@ impl FontDb {
         }
         for src in self.sources.read().unwrap_or_else(|e| e.into_inner()).iter().filter(|s| s.family.eq_ignore_ascii_case(family)) {
             if !v.iter().any(|(_, _, s)| s.eq_ignore_ascii_case(&src.style)) {
-                v.push((false, style_weight(&src.style), src.style.clone()));
+                v.push((style_italic(&src.style), style_weight(&src.style), src.style.clone()));
             }
         }
         v.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)).then(a.2.cmp(&b.2)));
@@ -1983,17 +1991,27 @@ impl FontDb {
 
     /// Fonts a host can supply ([`FontSource`]): listed in the font menus from now on and
     /// requested when type names their family. A family and style already a source is kept as it
-    /// was. Returns how many were added.
+    /// was, unless it failed to load ([`FontDb::source_settled`]): given again, it replaces the
+    /// failed one and is asked for again. Returns how many were added.
     pub fn add_sources(&self, list: Vec<FontSource>) -> usize {
         let mut sources = self.sources.write().unwrap_or_else(|e| e.into_inner());
+        let mut requests = self.source_requests.lock().unwrap_or_else(|e| e.into_inner());
         let mut added = 0;
         for src in list {
-            if sources.iter().any(|s| s.family.eq_ignore_ascii_case(&src.family) && s.style.eq_ignore_ascii_case(&src.style)) {
-                continue;
+            let key = source_key(&src);
+            let same = |s: &FontSource| s.family.eq_ignore_ascii_case(&src.family) && s.style.eq_ignore_ascii_case(&src.style);
+            if let Some(at) = sources.iter().position(same) {
+                if requests.settled.get(&key) != Some(&false) {
+                    continue;
+                }
+                sources.remove(at);
+                requests.settled.remove(&key);
+                requests.asked.remove(&key);
             }
             sources.push(src);
             added += 1;
         }
+        drop(requests);
         drop(sources);
         if added > 0 {
             self.changed();
@@ -2012,11 +2030,29 @@ impl FontDb {
         std::mem::take(&mut self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).queue)
     }
 
+    /// Whether type has asked for sources not taken yet ([`FontDb::take_source_requests`]): a host
+    /// that takes them once a frame asks for another frame.
+    pub fn has_source_requests(&self) -> bool {
+        !self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).queue.is_empty()
+    }
+
+    /// The host is done with `src`: its file was added (`loaded`), or it couldn't be fetched or
+    /// added. Either way it is no longer pending, though the file's faces may name the family or
+    /// style otherwise; a failed one is asked for again only once the host gives it again
+    /// ([`FontDb::add_sources`]).
+    pub fn source_settled(&self, src: &FontSource, loaded: bool) {
+        self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).settled.insert(source_key(src), loaded);
+    }
+
     /// The source that type set in `family` and `style` asks for: the family's source of that
-    /// style, else its first; `None` when that style is loaded (however it came), when no source
-    /// supplies the family, or when the source's own face is loaded.
+    /// style, else its first; `None` when that style is loaded (however it came, by any of its
+    /// names, as [`FontDb::find`] takes them), when no source supplies the family, or when the
+    /// source's own face is loaded or the host is done with it ([`FontDb::source_settled`]).
     fn pending_source(&self, family: &str, style: &str) -> Option<FontSource> {
-        let loaded = |style: &str| self.read_faces().iter().any(|f| f.family.eq_ignore_ascii_case(family) && norm(&f.style) == norm(style));
+        let loaded = |style: &str| {
+            let ns = norm(style);
+            self.read_faces().iter().any(|f| f.family.eq_ignore_ascii_case(family) && (norm(&f.style) == ns || f.keys.styles.contains(&ns)))
+        };
         if loaded(style) {
             return None;
         }
@@ -2025,13 +2061,14 @@ impl FontDb {
             let of_family = || sources.iter().filter(|s| s.family.eq_ignore_ascii_case(family));
             of_family().find(|s| norm(&s.style) == norm(style)).or_else(|| of_family().next())?.clone()
         };
-        (!loaded(&src.style)).then_some(src)
+        let settled = self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).settled.contains_key(&source_key(&src));
+        (!settled && !loaded(&src.style)).then_some(src)
     }
 
     /// Ask for the source of `family` in `style` ([`FontDb::pending_source`]), once.
     fn request_source(&self, family: &str, style: &str) {
         let Some(src) = self.pending_source(family, style) else { return };
-        let key = (src.family.to_ascii_lowercase(), src.style.to_ascii_lowercase());
+        let key = source_key(&src);
         let mut requests = self.source_requests.lock().unwrap_or_else(|e| e.into_inner());
         if requests.asked.insert(key) {
             requests.queue.push(src);

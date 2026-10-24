@@ -65,7 +65,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Add Font Sources",
             [],
             None,
-            "{fonts: [{family, style?: \"Regular\", url: where the host gets the file (for the web build, a URL relative to the page), sha256: the file's SHA-256 in hex}] (1 to 10000)} fonts the host can supply, as a font provider's are activated on demand: listed in the font menus and text.fontList from now on, and fetched when type names their family (the web build fetches it, checks it against its SHA-256 and adds it as text.addFont does; until then the type draws in the fallback face). A family and style already a source is kept as it was. Not an edit: nothing is saved, journaled or undone → {added, sources (how many there are now)}",
+            "{fonts: [{family, style?: \"Regular\", url: where the host gets the file (for the web build, a URL relative to the page), sha256: the file's SHA-256 in hex}] (1 to 10000)} fonts the host can supply, as a font provider's are activated on demand: listed in the font menus and text.fontList from now on, and fetched when type names their family (the web build fetches it, checks it against its SHA-256 and adds it as text.addFont does; until then the type draws in the fallback face). A family and style already a source is kept as it was, unless it failed to load: given again, it is asked for again. Not an edit: nothing is saved, journaled or undone → {added, sources (how many there are now)}",
             always,
             add_font_sources
         ),
@@ -726,6 +726,56 @@ mod tests {
         assert!(db.is_pending_source(FAMILY, "Bold"));
         db.face(FAMILY, "Regular");
         assert!(db.take_source_requests().iter().all(|r| r.family != FAMILY), "the loaded style asks for nothing");
+    }
+
+    /// A source the host is done with is no longer pending: one that failed is drawn in the
+    /// fallback face and counted missing until the host gives it again, which asks for it again;
+    /// one whose file was added is done though the file names its style otherwise.
+    #[test]
+    fn a_settled_source_is_no_longer_pending() {
+        let _fonts = crate::adding_fonts();
+        let db = vectorcraft_text::FontDb::global();
+        let source = |family: &str, style: &str| vectorcraft_text::FontSource {
+            family: family.into(),
+            style: style.into(),
+            url: format!("fonts/{style}.ttf"),
+            integrity: format!("sha256-{}", vectorcraft_format::base64_encode(&[0x42; 32])),
+        };
+        let failed = source("Failed Src 01", "Regular");
+        db.add_sources(vec![failed.clone()]);
+        db.face(&failed.family, "Regular");
+        assert!(db.take_source_requests().contains(&failed));
+        db.source_settled(&failed, false);
+        assert!(!db.is_pending_source(&failed.family, "Regular"), "a failed source is not on its way");
+        db.face(&failed.family, "Regular");
+        assert!(!db.take_source_requests().contains(&failed), "nor asked for again by itself");
+        assert_eq!(db.add_sources(vec![failed.clone()]), 1, "given again, it is taken");
+        assert!(db.is_pending_source(&failed.family, "Regular"));
+        db.face(&failed.family, "Regular");
+        assert!(db.take_source_requests().contains(&failed), "and asked for again");
+
+        // The host's "Book" turns out to be a Regular face: done all the same.
+        let book = source("Book Style 01", "Book");
+        db.add_sources(vec![book.clone()]);
+        assert!(db.add_font(vectorcraft_testkit::fonts::renamed(&book.family)) > 0);
+        assert!(db.is_pending_source(&book.family, "Book"));
+        db.source_settled(&book, true);
+        assert!(!db.is_pending_source(&book.family, "Book"));
+    }
+
+    /// A source's italic styles are listed after its upright ones, as loaded faces' are.
+    #[test]
+    fn a_source_s_italics_follow_its_uprights() {
+        let _fonts = crate::adding_fonts();
+        const FAMILY: &str = "Italic Order 01";
+        let mut s = Session::new();
+        let fonts: Vec<Value> = ["Bold Italic", "Italic", "Bold", "Regular"]
+            .iter()
+            .map(|style| json!({"family": FAMILY, "style": style, "url": format!("fonts/{style}.ttf"), "sha256": "cd".repeat(32)}))
+            .collect();
+        s.execute("text.addFontSources", &json!({ "fonts": fonts })).unwrap();
+        let styles = s.execute("text.fontList", &json!({"family": FAMILY})).unwrap()["styles"].clone();
+        assert_eq!(styles, json!(["Regular", "Bold", "Italic", "Bold Italic"]));
     }
 
     /// Text › Add Font: a font file's faces join the session, text set in its family is no longer

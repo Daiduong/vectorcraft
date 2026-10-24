@@ -30,10 +30,10 @@ const SOURCE_MAX_BYTES: usize = 64 << 20;
 thread_local! {
     /// The background fetch runs once per page, though a graphics restart creates the app again.
     static BACKGROUND_STARTED: Cell<bool> = const { Cell::new(false) };
-    /// Font sources fetched and not yet added: a name for messages, and the file's bytes.
-    static FETCHED: std::cell::RefCell<Vec<(String, Vec<u8>)>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// Font sources fetched and not yet added, with the file's bytes.
+    static FETCHED: std::cell::RefCell<Vec<(FontSource, Vec<u8>)>> = const { std::cell::RefCell::new(Vec::new()) };
     /// Font sources that failed to fetch, and why, for the status line.
-    static FAILED: std::cell::RefCell<Vec<(String, String)>> = const { std::cell::RefCell::new(Vec::new()) };
+    static FAILED: std::cell::RefCell<Vec<(FontSource, String)>> = const { std::cell::RefCell::new(Vec::new()) };
     /// Font sources asked for and not fetched yet, waiting for a free fetch.
     static WAITING: std::cell::RefCell<std::collections::VecDeque<FontSource>> = const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
     /// Font sources being fetched now (at most [`BACKGROUND_PARALLEL`]).
@@ -52,10 +52,10 @@ pub fn fetch_requested(ctx: &egui::Context) {
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
             match fetch(&src.url, &src.integrity, BACKGROUND_TIMEOUT_MS, Some(SOURCE_MAX_BYTES)).await {
-                Ok(bytes) => FETCHED.with(|f| f.borrow_mut().push((format!("{} {}", src.family, src.style), bytes))),
+                Ok(bytes) => FETCHED.with(|f| f.borrow_mut().push((src, bytes))),
                 Err(e) => {
                     log::warn!("font source {} {}: {e}", src.family, src.style);
-                    FAILED.with(|f| f.borrow_mut().push((src.family.clone(), e)));
+                    FAILED.with(|f| f.borrow_mut().push((src, e)));
                 }
             }
             IN_FLIGHT.set(IN_FLIGHT.get().saturating_sub(1));
@@ -64,13 +64,13 @@ pub fn fetch_requested(ctx: &egui::Context) {
     }
 }
 
-/// The font sources fetched since the last call, for `text.addFont`.
-pub fn take_fetched() -> Vec<(String, Vec<u8>)> {
+/// The font sources fetched since the last call, with their files' bytes, for `text.addFont`.
+pub fn take_fetched() -> Vec<(FontSource, Vec<u8>)> {
     FETCHED.with(|f| std::mem::take(&mut *f.borrow_mut()))
 }
 
-/// The font sources that failed to fetch since the last call: the family, and why.
-pub fn take_failed() -> Vec<(String, String)> {
+/// The font sources that failed to fetch since the last call, and why.
+pub fn take_failed() -> Vec<(FontSource, String)> {
     FAILED.with(|f| std::mem::take(&mut *f.borrow_mut()))
 }
 

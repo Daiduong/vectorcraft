@@ -396,16 +396,22 @@ impl eframe::App for WebShell {
         }
         // Font sources: those type asked for are fetched; those fetched join the session, as
         // `text.addFont` adds a file, and the type set in them redraws.
+        // The host is told how each one ended, so it is no longer pending.
         crate::fonts::fetch_requested(ctx);
-        for (name, bytes) in crate::fonts::take_fetched() {
+        let db = vectorcraft_text::FontDb::global();
+        for (src, bytes) in crate::fonts::take_fetched() {
+            let name = format!("{} {}", src.family, src.style);
             let params = serde_json::json!({ "dataBase64": vectorcraft_format::base64_encode(&bytes), "name": name });
-            if let Err(e) = app.run("text.addFont", params) {
+            let added = app.run("text.addFont", params);
+            db.source_settled(&src, added.is_ok());
+            if let Err(e) = added {
                 log::warn!("font source {name}: {e}");
-                app.font_source_failed(&name, &e);
+                app.font_source_failed(&src.family, &e);
             }
         }
-        for (family, reason) in crate::fonts::take_failed() {
-            app.font_source_failed(&family, &reason);
+        for (src, reason) in crate::fonts::take_failed() {
+            db.source_settled(&src, false);
+            app.font_source_failed(&src.family, &reason);
         }
         app.logic(ctx);
         crate::api::poll_replies();
@@ -421,6 +427,11 @@ impl eframe::App for WebShell {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if let Some(app) = &mut self.app {
             app.ui(ui);
+        }
+        // Type laid out in this frame may have asked for font sources: the next frame's logic
+        // fetches them, so it is asked for now rather than at the next input.
+        if vectorcraft_text::FontDb::global().has_source_requests() {
+            ui.ctx().request_repaint();
         }
         crate::api::poll_replies();
     }

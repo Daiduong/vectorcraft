@@ -759,6 +759,8 @@ mod tests {
     /// on its way. One that fails to load says so then.
     #[test]
     fn the_web_leaves_out_a_font_a_source_is_fetching() {
+        // Adds to the shared font database: other tests' font lists hold still meanwhile.
+        let _fonts = crate::adding_fonts();
         const FAMILY: &str = "On Its Way 01";
         let integrity = format!("sha256-{}", vectorcraft_format::base64_encode(&[0xef; 32]));
         vectorcraft_text::FontDb::global().add_sources(vec![vectorcraft_text::FontSource {
