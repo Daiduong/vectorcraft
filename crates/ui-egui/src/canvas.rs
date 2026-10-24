@@ -2795,8 +2795,17 @@ fn rotate_view_dial(p: &egui::Painter, c: Pos2, rotation: f64, t: &Tokens) {
 }
 
 /// Whether the Selection tool's bounding box should draw (Show Bounding Box on, whole objects selected).
-fn show_selection_bounding_box(tool_id: &str, transforming: bool, scaling_bbox: bool, show_bbox: bool, has_selection: bool) -> bool {
-    let hide_box = transforming && !scaling_bbox;
+fn show_selection_bounding_box(
+    tool_id: &str,
+    transforming: bool,
+    scaling_bbox: bool,
+    real_time_drawing: bool,
+    show_bbox: bool,
+    has_selection: bool,
+) -> bool {
+    // Hide while moving/rotating (#712). During a bbox resize, show only when previews update the
+    // document (#3526); with Real-time Drawing off the box would lag the deferred outline (#394).
+    let hide_box = transforming && (!scaling_bbox || !real_time_drawing);
     tool_id == "selection" && !hide_box && show_bbox && has_selection
 }
 
@@ -2808,6 +2817,7 @@ fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve
         app.session.tool_id(),
         app.session.tool_transforming(),
         app.session.tool_scaling_bbox(),
+        app.session.prefs.real_time_drawing,
         app.ui.view.bounding_box,
         has_selection,
     );
@@ -3842,9 +3852,10 @@ mod tests {
 
     #[test]
     fn selection_bounding_box_stays_visible_during_a_resize_drag() {
-        assert!(show_selection_bounding_box("selection", true, true, true, true));
-        assert!(!show_selection_bounding_box("selection", true, false, true, true));
-        assert!(!show_selection_bounding_box("selection", true, true, false, true));
+        assert!(show_selection_bounding_box("selection", true, true, true, true, true));
+        assert!(!show_selection_bounding_box("selection", true, true, false, true, true));
+        assert!(!show_selection_bounding_box("selection", true, false, true, true, true));
+        assert!(!show_selection_bounding_box("selection", true, true, false, false, true));
     }
 
     /// With VECTORCRAFT_SYSTEM_CURSORS set the glyphs aren't drawn and the system's cursors stand in: those of
