@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 use vectorcraft_doc::{NodeId, NodeKind};
 use vectorcraft_engine::Session;
 use vectorcraft_geom::FillRule;
+use vectorcraft_testkit::invariants::check_session;
 
 fn run(s: &mut Session, command: &str, params: Value) -> Value {
     s.execute(command, &params).unwrap()
@@ -445,4 +446,70 @@ fn cut_and_paste_direct_selected_anchors_in_compound_path_isolation() {
     assert_eq!(doc.parent_of(pasted_id), Some(compound), "cut and pasted anchors must be inserted into compound path");
     let compound_node = doc.node(compound).unwrap();
     assert_eq!(compound_node.children().unwrap().len(), 3);
+    check_session(&s).unwrap();
+}
+
+#[test]
+fn paste_non_path_in_compound_path_isolation_inserts_into_layer() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let a = rect(&mut s, 10.0, 10.0, 40.0, 40.0);
+    let b = rect(&mut s, 60.0, 10.0, 40.0, 40.0);
+    run(&mut s, "select.set", json!({"ids": [a.0, b.0]}));
+    let _group = NodeId(run(&mut s, "object.group", json!({}))["id"].as_u64().unwrap());
+
+    // Copy the group to the clipboard.
+    run(&mut s, "edit.copy", json!({}));
+
+    // Create a compound path on the layer.
+    let c1 = rect(&mut s, 10.0, 100.0, 80.0, 80.0);
+    let c2 = rect(&mut s, 30.0, 120.0, 40.0, 40.0);
+    run(&mut s, "select.set", json!({"ids": [c1.0, c2.0]}));
+    let compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+    let layer_id = s.doc().unwrap().doc.parent_of(compound).unwrap();
+
+    // Isolate the compound path.
+    run(&mut s, "object.isolate", json!({"id": compound.0}));
+    assert_eq!(s.doc().unwrap().isolation, Some(compound));
+
+    // Generic insertion parent inside compound isolation resolves to the layer, not the compound.
+    assert_eq!(s.doc().unwrap().insertion_parent(), Some(layer_id));
+
+    // Paste the group while in compound path isolation.
+    // The group cannot be inserted into the compound path; it must be pasted into the layer beside the compound.
+    let pasted = run(&mut s, "edit.paste", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 1);
+    let pasted_group = NodeId(ids[0]);
+
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.parent_of(pasted_group), Some(layer_id), "pasted group must be added to layer, not compound");
+    let compound_node = doc.node(compound).unwrap();
+    assert_eq!(compound_node.children().unwrap().len(), 2, "compound path must keep only its 2 path children");
+
+    // All document invariants (including compound children being paths only) must hold.
+    check_session(&s).unwrap();
+}
+
+#[test]
+fn shape_creation_in_compound_path_isolation_adds_member_to_compound() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let outer = rect(&mut s, 10.0, 10.0, 80.0, 80.0);
+    let inner = rect(&mut s, 30.0, 30.0, 40.0, 40.0);
+    run(&mut s, "select.set", json!({"ids": [outer.0, inner.0]}));
+    let compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    // Isolate the compound path.
+    run(&mut s, "object.isolate", json!({"id": compound.0}));
+
+    // Draw a new rectangle while isolating the compound path.
+    let new_rect = rect(&mut s, 40.0, 40.0, 20.0, 20.0);
+
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.parent_of(new_rect), Some(compound), "new shape path must be added to isolated compound path");
+    let compound_node = doc.node(compound).unwrap();
+    assert_eq!(compound_node.children().unwrap().len(), 3, "compound path now has 3 member paths");
+
+    check_session(&s).unwrap();
 }

@@ -794,7 +794,7 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
     let off = s.prefs.paste_offset;
     let st = s.doc()?;
     let same_doc = clip.source_doc == Some(st.uid);
-    let parent = st.target_parent()?;
+    let parent = st.target_parent_for_path()?;
     // Copied artboards come back with their art: together right of the last artboard, as they lay,
     // or where they were (Paste in Place, in Front, in Back). Paste on All Artboards pastes only the
     // art.
@@ -883,25 +883,35 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                     }
                 };
                 *placed.entry(par).or_default() += 1;
-                let par_is_compound = par.and_then(|p| d.node(p)).is_some_and(|n| matches!(n.kind, NodeKind::Compound { .. }));
-                if par_is_compound && let NodeKind::Compound { children, .. } = c.kind {
-                    for child in children {
-                        let mut child_node = Arc::unwrap_or_clone(child);
-                        let child_id = d.alloc_id();
-                        child_node.id = child_id;
-                        child_node.appearance = Default::default();
-                        if let NodeKind::Path { live, .. } = &mut child_node.kind {
-                            *live = None;
+                let compound_par = par.filter(|p| d.node(*p).is_some_and(|n| matches!(n.kind, NodeKind::Compound { .. })));
+                if let Some(par_id) = compound_par {
+                    match c.kind {
+                        NodeKind::Compound { children, .. } => {
+                            for child in children {
+                                let mut child_node = Arc::unwrap_or_clone(child);
+                                let child_id = d.alloc_id();
+                                child_node.id = child_id;
+                                child_node.appearance = Default::default();
+                                if let NodeKind::Path { live, .. } = &mut child_node.kind {
+                                    *live = None;
+                                }
+                                new_ids.push(d.insert(par, idx, child_node)?);
+                            }
                         }
-                        new_ids.push(d.insert(par, idx, child_node)?);
+                        NodeKind::Path { .. } => {
+                            c.appearance = Default::default();
+                            if let NodeKind::Path { live, .. } = &mut c.kind {
+                                *live = None;
+                            }
+                            new_ids.push(d.insert(par, idx, c)?);
+                        }
+                        _ => {
+                            let outer_par = d.parent_of(par_id);
+                            let beside_idx = d.position(par_id).map(|(_, i, _)| i + 1).unwrap_or(usize::MAX);
+                            new_ids.push(d.insert(outer_par, beside_idx, c)?);
+                        }
                     }
                 } else {
-                    if par_is_compound {
-                        c.appearance = Default::default();
-                        if let NodeKind::Path { live, .. } = &mut c.kind {
-                            *live = None;
-                        }
-                    }
                     new_ids.push(d.insert(par, idx, c)?);
                 }
             }
