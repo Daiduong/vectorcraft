@@ -439,8 +439,9 @@ fn several_items_copy_as_one_block_where_they_are_dropped() {
 }
 
 /// Several objects with stacks of different lengths: a block moved past the end of the shorter
-/// stack lands at a different index on each, and the active row follows its row on the first
-/// selected object (whose stack it is in), not where the block landed on the last one.
+/// stack lands at a different index on each. The active row follows its row on the first selected
+/// object (whose stack it is in), and the result says where the block landed there, not on the
+/// last one.
 #[test]
 fn a_block_move_keeps_the_active_row_on_the_first_objects_stack() {
     let mut s = session();
@@ -452,6 +453,7 @@ fn a_block_move_keeps_the_active_row_on_the_first_objects_stack() {
     run(&mut s, "select.set", json!({"ids": [a.0, b.0]}));
     run(&mut s, "appearance.setActiveItem", json!({"index": 0}));
     // On A the fill lands at 1 (its top), on B at 3.
-    run(&mut s, "appearance.moveItem", json!({"indices": [0], "to": 3}));
+    let r = run(&mut s, "appearance.moveItem", json!({"indices": [0], "to": 3}));
     assert_eq!(s.appearance_item(), Some(1), "the active row is A's moved fill");
+    assert_eq!(r["index"], 1, "where it landed on the first target, whose stack the panel lists");
 }

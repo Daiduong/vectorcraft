@@ -764,16 +764,18 @@ fn move_items(s: &mut Session, p: &Value, ids: &[NodeId], to: usize) -> Result<V
     const C: &str = "appearance.moveItem";
     let idx = item_indices(p, C)?;
     let contents = p.get("contents").map(|_| index_param(p, "contents", C)).transpose()?;
-    let mut landed = to;
-    // Where the block landed on the active row's object (stacks of other lengths clamp `to`
-    // differently): the active row is in its stack.
+    // Where the block landed on the first target (stacks of other lengths clamp `to` differently):
+    // the result, as the panel lists the first object's stack.
+    let mut first_landed = None;
+    // Where it landed on the active row's object: the active row is in its stack.
     let active = s.active_appearance_item.as_ref().and_then(|a| a.objects.first().copied());
     let mut active_landed = None;
     let before = s.doc()?.doc.clone();
     super::overprint::edit_counted(s, "Reorder Appearance", |d| {
         for id in ids {
             let Some(n) = d.node_mut(*id) else { continue };
-            landed = n.appearance.move_items(&idx, to).ok_or_else(|| bad(C, format!("no item at one of the indices {idx:?}")))?;
+            let landed = n.appearance.move_items(&idx, to).ok_or_else(|| bad(C, format!("no item at one of the indices {idx:?}")))?;
+            first_landed.get_or_insert(landed);
             if active == Some(*id) {
                 active_landed = Some(landed);
             }
@@ -784,6 +786,7 @@ fn move_items(s: &mut Session, p: &Value, ids: &[NodeId], to: usize) -> Result<V
         Ok(count_changed(d, &before, ids))
     })?;
     let m = idx.len();
+    let landed = first_landed.unwrap_or(to);
     let at = active_landed.unwrap_or(landed);
     s.remap_appearance_item(ids, |a| {
         Some(match idx.iter().position(|i| *i == a) {
