@@ -406,10 +406,10 @@ fn dropping_a_selected_row_acts_on_the_selection() {
         run(&mut app, "stroke.set", json!({"item": 2, "weight": 6}));
         let ctx = drop_ctx();
         frame_events(&ctx, &mut app, vec![], appearance::show);
-        // Both strokes selected, the top one active.
-        appearance::select_row(&mut app, &ctx, appearance::Sel::Item(2));
-        let owner = first_selected(&app).map(|n| n.id);
-        super::set_pstate(&ctx, "ap-multi", (owner, vec![1usize, 2]));
+        // Both strokes highlighted (the top one, then Ctrl-click the lower one).
+        let (top, lower) = (row_point(&ctx, &mut app, "Stroke:", 0), row_point(&ctx, &mut app, "Stroke:", 1));
+        click_mod(&ctx, &mut app, top, egui::Modifiers::NONE);
+        click_mod(&ctx, &mut app, lower, egui::Modifiers::COMMAND);
         (app, ctx)
     };
     // The top stroke row (drawn first) is in the selection: both strokes go.
@@ -478,4 +478,438 @@ fn contents_rows_and_drops_elsewhere_change_nothing() {
     let fill = row_point(&ctx, &mut app, "Fill:", 0);
     drag_in_panel(&ctx, &mut app, fill, delete);
     assert!(first_selected(&app).unwrap().appearance.items.is_empty());
+}
+
+/// A row held over Delete Selected Item outlines the button as the Layers panel outlines its trash
+/// (1.5 px accent, corner radius 3).
+#[test]
+fn a_row_held_over_delete_outlines_it_as_layers_does() {
+    let mut app = app_with_rect();
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let stroke = row_point(&ctx, &mut app, "Stroke:", 0);
+    let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    for e in [vec![egui::Event::PointerMoved(stroke)], vec![button(stroke, true)], vec![egui::Event::PointerMoved(stroke + egui::vec2(0.0, 6.0))]] {
+        frame_events(&ctx, &mut app, e, appearance::show);
+    }
+    let mut out =
+        ctx.run_ui(egui::RawInput { events: vec![egui::Event::PointerMoved(delete)], ..Default::default() }, |ui| appearance::show(&mut app, ui));
+    out.textures_delta.clear();
+    let accent = crate::theme::Tokens::get(&ctx).accent;
+    let outlines: Vec<_> = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Rect(r) if r.stroke.color == accent && r.rect.contains(delete) => Some((r.stroke.width, r.corner_radius)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(outlines, [(1.5, egui::CornerRadius::same(3))]);
+}
+
+/// Click at `pos` with modifiers `m` held (hover, press, release).
+fn click_mod(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, m: egui::Modifiers) {
+    let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: m };
+    for e in [egui::Event::PointerMoved(pos), button(true), button(false)] {
+        frame_events(ctx, app, vec![egui::Event::ModifiersChanged(m), e], appearance::show);
+    }
+    frame_events(ctx, app, vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)], appearance::show);
+}
+
+/// The selected object's own effect ids, in order.
+fn object_effects(app: &VectorcraftApp) -> Vec<String> {
+    first_selected(app).unwrap().appearance.effects.iter().map(|e| e.id.clone()).collect()
+}
+
+/// A rectangle with Outer Glow, Drop Shadow and Twist on the object.
+fn rect_with_three_effects() -> VectorcraftApp {
+    let mut app = app_with_rect();
+    for e in ["stylize.outerGlow", "stylize.dropShadow", "distort.twist"] {
+        run(&mut app, "effect.apply", json!({"effect": e, "item": null}));
+    }
+    app
+}
+
+/// The owner's case: the stack Stroke, Fill, Outer Glow, Gaussian Blur-like effects; Ctrl-clicking
+/// two of the object's effects highlights both, and Delete Selected Item removes both in one undo
+/// step, leaving the fill and stroke.
+#[test]
+fn ctrl_clicked_effects_are_deleted_together() {
+    let mut app = rect_with_three_effects();
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let glow = row_point(&ctx, &mut app, "Outer Glow", 0);
+    let shadow = row_point(&ctx, &mut app, "Drop Shadow", 0);
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, shadow, egui::Modifiers::COMMAND);
+    click(&ctx, &mut app, delete, appearance::show);
+    assert_eq!(object_effects(&app), ["distort.twist"]);
+    assert_eq!(stack_items(&app).len(), 2, "the fill and stroke stay");
+    run(&mut app, "edit.undo", json!({}));
+    assert_eq!(object_effects(&app).len(), 3, "one undo step");
+}
+
+/// Shift ranges from the anchor (the last row clicked without Shift), Shift+Ctrl adds a range, and
+/// Ctrl can take the highlight off the last row, as in the Layers panel.
+#[test]
+fn effect_rows_follow_the_layers_click_rules() {
+    let mut app = rect_with_three_effects();
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let row = |ctx: &egui::Context, app: &mut VectorcraftApp, name: &str| row_point(ctx, app, name, 0);
+    // Shift from Outer Glow to Twist: all three.
+    let (glow, twist) = (row(&ctx, &mut app, "Outer Glow"), row(&ctx, &mut app, "Twist"));
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, twist, egui::Modifiers::SHIFT);
+    click(&ctx, &mut app, delete, appearance::show);
+    assert!(object_effects(&app).is_empty());
+    run(&mut app, "edit.undo", json!({}));
+    // Twist, then Shift+Ctrl from it to Drop Shadow adds that range: Shadow and Twist; Glow stays.
+    let (shadow, twist) = (row(&ctx, &mut app, "Drop Shadow"), row(&ctx, &mut app, "Twist"));
+    click_mod(&ctx, &mut app, twist, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, shadow, egui::Modifiers { shift: true, command: true, ..Default::default() });
+    click(&ctx, &mut app, delete, appearance::show);
+    assert_eq!(object_effects(&app), ["stylize.outerGlow"]);
+    run(&mut app, "edit.undo", json!({}));
+    // Ctrl-clicking the only highlighted effect takes its highlight off: Delete removes nothing.
+    let glow = row(&ctx, &mut app, "Outer Glow");
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::COMMAND);
+    click(&ctx, &mut app, delete, appearance::show);
+    assert_eq!(object_effects(&app).len(), 3);
+}
+
+/// Ctrl-clicking an effect of another list (the stroke's) starts a new selection there: Delete then
+/// removes only that effect.
+#[test]
+fn ctrl_clicking_an_effect_of_another_list_starts_a_new_selection() {
+    let mut app = rect_with_three_effects();
+    run(&mut app, "effect.apply", json!({"effect": "distort.roughen", "item": 1}));
+    let ctx = drop_ctx();
+    super::set_pstate(&ctx, "ap-open-1", true);
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let glow = row_point(&ctx, &mut app, "Outer Glow", 0);
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::NONE);
+    let roughen = row_point(&ctx, &mut app, "Roughen", 0);
+    click_mod(&ctx, &mut app, roughen, egui::Modifiers::COMMAND);
+    click(&ctx, &mut app, delete, appearance::show);
+    assert!(current_stroke_effects(&app).is_empty());
+    assert_eq!(object_effects(&app).len(), 3);
+}
+
+/// Fill/stroke rows use the same rules: Shift ranges from the anchor, not from the active row.
+#[test]
+fn fill_and_stroke_rows_range_from_the_anchor() {
+    // [Fill, Stroke 1 pt, Stroke 6 pt, Stroke 3 pt], listed top-down 3, 6, 1, Fill.
+    let mut app = app_with_rect();
+    run(&mut app, "appearance.addStroke", json!({}));
+    run(&mut app, "stroke.set", json!({"item": 2, "weight": 6}));
+    run(&mut app, "appearance.addStroke", json!({}));
+    run(&mut app, "stroke.set", json!({"item": 3, "weight": 3}));
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let stroke = |ctx: &egui::Context, app: &mut VectorcraftApp, nth| row_point(ctx, app, "Stroke:", nth);
+    let (s1, s3) = (stroke(&ctx, &mut app, 2), stroke(&ctx, &mut app, 0));
+    click_mod(&ctx, &mut app, s1, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, s3, egui::Modifiers::COMMAND);
+    // Ctrl-click S3 again: off, but it stays the anchor; S1 is the active row.
+    click_mod(&ctx, &mut app, s3, egui::Modifiers::COMMAND);
+    let fill = row_point(&ctx, &mut app, "Fill:", 0);
+    click_mod(&ctx, &mut app, fill, egui::Modifiers::SHIFT);
+    click(&ctx, &mut app, delete, appearance::show);
+    assert!(stack_items(&app).is_empty(), "the range from S3 down to the fill: all four");
+}
+
+/// The panel in a 300×500 pt area at the top left, so clicks can land outside it.
+fn boxed_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+    ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| appearance::show(app, ui));
+}
+
+fn key_frame(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key) {
+    let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
+    frame_events(ctx, app, vec![ev], boxed_panel);
+}
+
+/// After a click on a row, Delete or Backspace removes the highlighted rows, as in the Layers panel.
+/// A click outside the panel, or a focused text field, takes the key away.
+#[test]
+fn delete_and_backspace_remove_the_highlighted_rows_after_a_click_in_the_panel() {
+    let mut app = rect_with_three_effects();
+    let ctx = drop_ctx();
+    let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
+    let at = |name: &str| text_rect(&texts, name).right_center() + egui::vec2(40.0, 0.0);
+    let (glow, stroke) = (at("Outer Glow"), at("Stroke:"));
+    click(&ctx, &mut app, glow, boxed_panel);
+    key_frame(&ctx, &mut app, egui::Key::Delete);
+    assert_eq!(object_effects(&app), ["stylize.dropShadow", "distort.twist"]);
+    // Backspace too (rows moved up: Drop Shadow is where Outer Glow was).
+    click(&ctx, &mut app, glow, boxed_panel);
+    key_frame(&ctx, &mut app, egui::Key::Backspace);
+    assert_eq!(object_effects(&app), ["distort.twist"]);
+    // A press outside the panel: the key no longer reaches the rows.
+    click(&ctx, &mut app, stroke, boxed_panel);
+    click(&ctx, &mut app, egui::pos2(900.0, 900.0), boxed_panel);
+    key_frame(&ctx, &mut app, egui::Key::Delete);
+    assert_eq!(stack_items(&app).len(), 2);
+    // A focused text field keeps the key.
+    click(&ctx, &mut app, stroke, boxed_panel);
+    ctx.memory_mut(|m| m.request_focus(egui::Id::new("some-field")));
+    key_frame(&ctx, &mut app, egui::Key::Delete);
+    assert_eq!(stack_items(&app).len(), 2);
+}
+
+/// A selected group listed top-down `S3, FA, Contents, S1, F0` (fills red F0 and green FA, strokes
+/// 1 and 3 pt; paint order F0 S1 FA S3).
+fn straddling_group() -> VectorcraftApp {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    run(&mut app, "file.new", json!({"width": 200, "height": 200}));
+    let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
+    let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
+    run(&mut app, "select.set", json!({"ids": [a, b]}));
+    run(&mut app, "object.group", json!({}));
+    run(&mut app, "appearance.addFill", json!({}));
+    run(&mut app, "paint.setFill", json!({"color": "#ff0000", "item": 0}));
+    run(&mut app, "appearance.addStroke", json!({}));
+    run(&mut app, "stroke.set", json!({"item": 1, "weight": 1}));
+    run(&mut app, "appearance.addFill", json!({}));
+    run(&mut app, "paint.setFill", json!({"color": "#00ff00", "item": 2}));
+    run(&mut app, "appearance.addStroke", json!({}));
+    run(&mut app, "stroke.set", json!({"item": 3, "weight": 3}));
+    run(&mut app, "appearance.moveItem", json!({"from": "contents", "to": 2}));
+    app
+}
+
+/// The group's items, paint order (F0/FA by colour, S<weight>), and how many paint below Contents.
+fn group_stack(app: &VectorcraftApp) -> (Vec<&'static str>, usize) {
+    let ap = first_selected(app).unwrap().appearance.clone();
+    let red = vectorcraft_color::Paint::solid(vectorcraft_color::Color::from_hex("#ff0000").unwrap());
+    let names = ap
+        .items
+        .iter()
+        .map(|it| match it {
+            vectorcraft_doc::AppearanceItem::Stroke(st) if st.width == 1.0 => "S1",
+            vectorcraft_doc::AppearanceItem::Stroke(_) => "S3",
+            it if *it.paint() == red => "F0",
+            _ => "FA",
+        })
+        .collect();
+    (names, ap.contents_at())
+}
+
+/// The owner's example: FA and S1 highlighted, FA dragged onto S3, lands as one block above it:
+/// listed FA, S1, S3, Contents, F0. The moved rows stay highlighted: Delete then removes both.
+#[test]
+fn highlighted_rows_drag_as_one_block_and_stay_highlighted() {
+    let mut app = straddling_group();
+    assert_eq!(group_stack(&app), (vec!["F0", "S1", "FA", "S3"], 2));
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let (fa, s1) = (row_point(&ctx, &mut app, "Fill:", 0), row_point(&ctx, &mut app, "Stroke:", 1));
+    click_mod(&ctx, &mut app, fa, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, s1, egui::Modifiers::COMMAND);
+    let s3 = row_point(&ctx, &mut app, "Stroke:", 0);
+    drag_in_panel(&ctx, &mut app, fa, s3 - egui::vec2(0.0, 5.0));
+    assert_eq!(group_stack(&app), (vec!["F0", "S3", "S1", "FA"], 1));
+    click(&ctx, &mut app, delete, appearance::show);
+    // Listed S3, Contents, F0.
+    assert_eq!(group_stack(&app), (vec!["F0", "S3"], 1));
+}
+
+/// Alt-dragging two highlighted effects onto the stroke copies both into its list; the copies are
+/// then the highlighted rows.
+#[test]
+fn alt_dragging_highlighted_effects_copies_them_together() {
+    let mut app = rect_with_three_effects();
+    let ctx = drop_ctx();
+    let (glow, twist) = (row_point(&ctx, &mut app, "Outer Glow", 0), row_point(&ctx, &mut app, "Twist", 0));
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, twist, egui::Modifiers::COMMAND);
+    let stroke = row_point(&ctx, &mut app, "Stroke:", 0);
+    let alt = egui::Modifiers::ALT;
+    let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: alt };
+    for e in [
+        vec![egui::Event::ModifiersChanged(alt), egui::Event::PointerMoved(glow)],
+        vec![button(glow, true)],
+        vec![egui::Event::PointerMoved(glow + egui::vec2(0.0, 6.0))],
+        vec![egui::Event::PointerMoved(stroke)],
+        vec![button(stroke, false)],
+        vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)],
+    ] {
+        frame_events(&ctx, &mut app, e, appearance::show);
+    }
+    let ids: Vec<_> = current_stroke_effects(&app).iter().map(|e| e.id.clone()).collect();
+    assert_eq!(ids, ["stylize.outerGlow", "distort.twist"]);
+    assert_eq!(object_effects(&app).len(), 3, "the originals stay");
+}
+
+/// While highlighted rows are dragged, a dimmed copy of the first highlighted row follows the
+/// pointer (as in the Layers panel, whichever row was grabbed) and the cursor is the grabbing hand.
+#[test]
+fn dragged_rows_show_a_dimmed_copy_of_the_first_highlighted_row() {
+    let mut app = straddling_group();
+    let ctx = drop_ctx();
+    let (fa, s1) = (row_point(&ctx, &mut app, "Fill:", 0), row_point(&ctx, &mut app, "Stroke:", 1));
+    click_mod(&ctx, &mut app, fa, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, s1, egui::Modifiers::COMMAND);
+    let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    for e in [vec![egui::Event::PointerMoved(s1)], vec![button(s1, true)], vec![egui::Event::PointerMoved(s1 + egui::vec2(0.0, 6.0))]] {
+        frame_events(&ctx, &mut app, e, appearance::show);
+    }
+    let held = egui::pos2(s1.x, 2000.0);
+    // The copy shows from the frame after the drag starts.
+    frame_events(&ctx, &mut app, vec![egui::Event::PointerMoved(held - egui::vec2(0.0, 10.0))], appearance::show);
+    let mut out =
+        ctx.run_ui(egui::RawInput { events: vec![egui::Event::PointerMoved(held)], ..Default::default() }, |ui| appearance::show(&mut app, ui));
+    out.textures_delta.clear();
+    assert_eq!(out.platform_output.cursor_icon, egui::CursorIcon::Grabbing);
+    let mut near = vec![];
+    for c in &out.shapes {
+        if let egui::Shape::Text(t) = &c.shape
+            && (t.pos.y - held.y).abs() < 40.0
+        {
+            near.push(t.galley.text().to_string());
+        }
+    }
+    assert!(near.contains(&"Fill:".to_string()), "the copy shows the first highlighted row: {near:?}");
+    assert!(!near.contains(&"Stroke:".to_string()), "not the grabbed one: {near:?}");
+}
+
+/// One frame at time `t` (seconds) with `events`: the texts drawn.
+fn timed_frame(ctx: &egui::Context, app: &mut VectorcraftApp, t: f64, events: Vec<egui::Event>) -> Vec<String> {
+    frame_raw(ctx, app, egui::RawInput { events, time: Some(t), ..Default::default() }, appearance::show).into_iter().map(|(s, _)| s).collect()
+}
+
+/// The tooltip shown after resting the pointer on `pos`.
+fn tooltip_at(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2) -> Vec<String> {
+    let t = ctx.input(|i| i.time) + 1.0;
+    timed_frame(ctx, app, t, vec![egui::Event::PointerMoved(pos)]);
+    timed_frame(ctx, app, t + 2.0, vec![]);
+    timed_frame(ctx, app, t + 2.1, vec![])
+}
+
+/// Double-click at `pos` (two quick clicks).
+fn double_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2) {
+    let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    let t = ctx.input(|i| i.time) + 1.0;
+    for (i, e) in [egui::Event::PointerMoved(pos), button(true), button(false), button(true), button(false)].into_iter().enumerate() {
+        timed_frame(ctx, app, t + i as f64 * 0.05, vec![e]);
+    }
+}
+
+/// The text of an effect row (its name) opens the effect's settings dialog on a click, with or
+/// without Ctrl/Cmd or Shift held, and says "Click to edit"; the empty space right of it takes the
+/// click rules, opens the dialog on a double-click and says "Double-click to edit".
+#[test]
+fn an_effects_name_edits_it_and_its_empty_space_highlights_it() {
+    for m in [egui::Modifiers::NONE, egui::Modifiers::COMMAND, egui::Modifiers::SHIFT] {
+        let mut app = rect_with_three_effects();
+        let ctx = drop_ctx();
+        let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
+        click_mod(&ctx, &mut app, text_rect(&texts, "Outer Glow").center(), m);
+        assert!(app.ui.dialog.is_some(), "{m:?}: a click on the name opens the dialog");
+    }
+    let mut app = rect_with_three_effects();
+    let ctx = drop_ctx();
+    let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
+    // Over the name only its own tooltip shows, not the row's.
+    let tip = tooltip_at(&ctx, &mut app, text_rect(&texts, "Outer Glow").center());
+    assert!(tip.contains(&"Click to edit".to_string()) && !tip.contains(&"Double-click to edit".to_string()), "{tip:?}");
+    let space = row_point(&ctx, &mut app, "Outer Glow", 0);
+    assert!(tooltip_at(&ctx, &mut app, space).contains(&"Double-click to edit".to_string()));
+    // A single Ctrl-click on the empty space opens nothing; a double-click there does.
+    click_mod(&ctx, &mut app, space, egui::Modifiers::COMMAND);
+    assert!(app.ui.dialog.is_none());
+    double_click(&ctx, &mut app, space);
+    assert!(app.ui.dialog.is_some(), "a double-click on the empty space opens the dialog");
+}
+
+/// A fill or stroke row's label ("Fill:", "Stroke:") is a link: a click opens the Color or Stroke
+/// panel with or without modifiers, with the tooltip "Click to edit". Its empty space only takes the
+/// click rules: no tooltip, and neither a Ctrl-click nor a double-click there opens a panel.
+#[test]
+fn fill_and_stroke_labels_are_links_and_their_empty_space_only_highlights() {
+    for (label, panel) in [("Stroke:", "stroke"), ("Fill:", "color")] {
+        for m in [egui::Modifiers::NONE, egui::Modifiers::COMMAND, egui::Modifiers::SHIFT] {
+            let mut app = app_with_rect();
+            let ctx = drop_ctx();
+            let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
+            click_mod(&ctx, &mut app, text_rect(&texts, label).center(), m);
+            assert_eq!(app.ui.open_panel.as_deref(), Some(panel), "{label} {m:?}");
+        }
+        let mut app = app_with_rect();
+        let ctx = drop_ctx();
+        let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
+        let tip = tooltip_at(&ctx, &mut app, text_rect(&texts, label).center());
+        assert!(tip.contains(&"Click to edit".to_string()) && !tip.contains(&"Double-click to edit".to_string()), "{label}: {tip:?}");
+        let space = row_point(&ctx, &mut app, label, 0);
+        let tip = tooltip_at(&ctx, &mut app, space);
+        assert!(!tip.iter().any(|t| t.ends_with("to edit")), "{label}: no tooltip on the empty space: {tip:?}");
+        click_mod(&ctx, &mut app, space, egui::Modifiers::COMMAND);
+        double_click(&ctx, &mut app, space);
+        assert_eq!(app.ui.open_panel, None, "{label}");
+    }
+}
+
+/// One app-like frame: the global shortcuts first, then the panel `f` in a 300×500 area (as the app
+/// runs `shortcuts::handle` in `logic` before the panels draw).
+fn app_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+    let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
+        crate::shortcuts::handle(app, ui.ctx());
+        ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| f(app, ui));
+    });
+    out.textures_delta.clear();
+}
+
+fn app_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+    let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    for e in [egui::Event::PointerMoved(pos), button(true), button(false), egui::Event::PointerMoved(pos)] {
+        app_frame(ctx, app, vec![e], f);
+    }
+}
+
+fn app_key(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+    let ev = |pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::NONE };
+    app_frame(ctx, app, vec![ev(true), ev(false)], f);
+    app_frame(ctx, app, vec![], f);
+}
+
+/// With the app's shortcuts running first: after a click on an Appearance row, Delete and Backspace
+/// remove the highlighted rows and leave the object; after a click outside the panel they delete the
+/// selected object again (Edit › Clear).
+#[test]
+fn after_a_row_click_delete_reaches_the_appearance_panel_not_edit_clear() {
+    let ctx = drop_ctx();
+    for key in [egui::Key::Delete, egui::Key::Backspace] {
+        let mut app = rect_with_three_effects();
+        let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
+        let glow = text_rect(&texts, "Outer Glow").right_center() + egui::vec2(40.0, 0.0);
+        app_click(&ctx, &mut app, glow, boxed_panel);
+        app_key(&ctx, &mut app, key, boxed_panel);
+        assert!(first_selected(&app).is_some(), "{key:?}: the object stays");
+        assert_eq!(object_effects(&app), ["stylize.dropShadow", "distort.twist"], "{key:?}");
+        app_click(&ctx, &mut app, egui::pos2(900.0, 900.0), boxed_panel);
+        app_key(&ctx, &mut app, key, boxed_panel);
+        assert!(app.session.active().unwrap().doc.layers[0].children().unwrap().is_empty(), "{key:?}: Edit › Clear deletes the object");
+    }
+}
+
+fn boxed_layers(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+    ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::layers::show(app, ui));
+}
+
+/// The same in the Layers panel: after a click on a layer's row, Delete deletes that layer, not the
+/// art selected on another layer.
+#[test]
+fn after_a_row_click_delete_reaches_the_layers_panel_not_edit_clear() {
+    let ctx = drop_ctx();
+    let mut app = app_with_rect();
+    run(&mut app, "layer.new", json!({}));
+    let rect = first_selected(&app).unwrap().id;
+    let texts = frame_events(&ctx, &mut app, vec![], boxed_layers);
+    let row = text_rect(&texts, "Layer 2").center();
+    app_click(&ctx, &mut app, row, boxed_layers);
+    app_key(&ctx, &mut app, egui::Key::Delete, boxed_layers);
+    let d = &app.session.active().unwrap().doc;
+    assert_eq!(d.layers.len(), 1, "Layer 2 is deleted");
+    assert!(d.node(rect).is_some(), "the rectangle on Layer 1 stays");
 }

@@ -2332,6 +2332,95 @@ pub fn drag_source(ui: &Ui, resp: &Response, drag: impl FnOnce() -> PanelDrag) {
     }
 }
 
+/// What a click on a row of a list whose rows highlight (the Layers and Appearance panels) means.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RowClick<K> {
+    /// Highlight only this row (a plain click).
+    Only(K),
+    /// Highlight this row, or take its highlight off (Ctrl/Cmd).
+    Toggle(K),
+    /// Highlight these rows instead, listed top-down (Shift).
+    Range(Vec<K>),
+    /// Highlight these rows too, listed top-down (Shift+Ctrl/Cmd).
+    AddRange(Vec<K>),
+}
+
+impl<K> RowClick<K> {
+    /// Does the clicked row become the anchor Shift ranges start from? Every click but a Shift range.
+    pub fn moves_anchor(&self) -> bool {
+        matches!(self, Self::Only(_) | Self::Toggle(_))
+    }
+}
+
+/// What a click on row `clicked` with modifiers `m` means, the rows listed top-down in `order`:
+/// Shift ranges from `anchor` (else from the last of the `highlighted` rows) and Shift+Ctrl/Cmd adds
+/// the range; Ctrl/Cmd toggles the row; a plain click, or Shift with no start in `order`, highlights
+/// only it (Ctrl/Cmd: toggles it).
+pub fn row_click<K: Copy + PartialEq>(order: &[K], highlighted: &[K], anchor: Option<K>, clicked: K, m: egui::Modifiers) -> RowClick<K> {
+    let at = |k: K| order.iter().position(|r| *r == k);
+    if m.shift
+        && let Some(a) = anchor.or(highlighted.last().copied())
+        && let (Some(i), Some(j)) = (at(a), at(clicked))
+    {
+        let range = order.get(i.min(j)..=i.max(j)).unwrap_or_default().to_vec();
+        return if m.command { RowClick::AddRange(range) } else { RowClick::Range(range) };
+    }
+    if m.command { RowClick::Toggle(clicked) } else { RowClick::Only(clicked) }
+}
+
+/// Apply `click` to the `highlighted` rows, kept in highlight order as `layer.highlight` keeps the
+/// Layers panel's: a toggled row is appended (or taken off, even the last one), a range replaces the
+/// rows or adds those not there yet, top-down.
+pub fn apply_row_click<K: Copy + PartialEq>(highlighted: &mut Vec<K>, click: &RowClick<K>) {
+    let add = |rows: &mut Vec<K>, add: &[K]| {
+        for k in add {
+            if !rows.contains(k) {
+                rows.push(*k);
+            }
+        }
+    };
+    match click {
+        RowClick::Only(k) => *highlighted = vec![*k],
+        RowClick::Toggle(k) if highlighted.contains(k) => highlighted.retain(|r| r != k),
+        RowClick::Toggle(k) => highlighted.push(*k),
+        RowClick::Range(rows) => {
+            highlighted.clear();
+            add(highlighted, rows);
+        }
+        RowClick::AddRange(rows) => add(highlighted, rows),
+    }
+}
+
+/// Dimmed copies of dragged rows ([`drag_ghost`]) are drawn at this opacity.
+pub const DRAG_GHOST_OPACITY: f32 = 0.5;
+
+/// Which of the dragged rows the dimmed copy shows: the first of them in highlight order (`dragged`),
+/// as the Layers panel has always done, else the grabbed one. The one place to change it (to show the
+/// grabbed row, say) for both panels.
+pub fn ghost_row<K: Copy>(dragged: &[K], grabbed: K) -> K {
+    dragged.first().copied().unwrap_or(grabbed)
+}
+
+/// A dimmed copy of a dragged row at `rect`, above everything else, with the grabbing cursor (the
+/// Layers and Appearance panels): the highlighted row's fill and an accent edge; `contents` draws
+/// the row's own contents on it.
+pub fn drag_ghost(ctx: &egui::Context, id: egui::Id, rect: Rect, contents: impl FnOnce(&Ui, Rect)) {
+    let t = Tokens::get(ctx);
+    // A plain Ui on the tooltip layer, not an Area: a new Area is invisible for a frame and fades in.
+    let mut ui = Ui::new(ctx.clone(), id, egui::UiBuilder::new().layer_id(egui::LayerId::new(egui::Order::Tooltip, id)).max_rect(rect));
+    ui.set_opacity(DRAG_GHOST_OPACITY);
+    ui.painter().rect_filled(rect, 0.0, t.row_selected);
+    ui.painter().rect_stroke(rect, 0.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+    ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+    contents(&ui, rect);
+}
+
+/// The outline a panel button shows while dragged rows hang over it and it would take them (the
+/// Layers panel's trash and New Layer, the Appearance panel's Duplicate and Delete).
+pub fn drop_target_outline(ui: &Ui, rect: Rect) {
+    ui.painter().rect_stroke(rect, 3.0, Stroke::new(1.5, Tokens::get(ui.ctx()).accent), StrokeKind::Inside);
+}
+
 /// A small document rendered to a texture at the screen's pixel density (stroke previews: brushes,
 /// arrowheads), transparent where nothing paints. `build` makes the `w`×`h` pt document only when
 /// the texture for `key` at this size isn't cached yet.
@@ -3215,5 +3304,56 @@ pub(crate) mod look_tests {
         // a panel drag released elsewhere.
         let open = [open_after_click(far, None), open_after_click(None, None), open_after_click(far, panel_drag())];
         assert_eq!(open, [false, true, true]);
+    }
+}
+
+#[cfg(test)]
+mod row_click_tests {
+    use egui::Modifiers;
+
+    use super::{RowClick, apply_row_click, row_click};
+
+    const ROWS: [u32; 5] = [10, 20, 30, 40, 50];
+    const SHIFT_CMD: Modifiers = Modifiers { shift: true, command: true, ..Modifiers::NONE };
+
+    #[test]
+    fn a_plain_click_highlights_only_the_row_and_ctrl_toggles_it() {
+        assert_eq!(row_click(&ROWS, &[20, 40], Some(20), 30, Modifiers::NONE), RowClick::Only(30));
+        assert_eq!(row_click(&ROWS, &[20, 40], Some(20), 30, Modifiers::COMMAND), RowClick::Toggle(30));
+        // Neither moves past the anchor rules: both make the clicked row the new anchor.
+        assert!(RowClick::Only(30).moves_anchor() && RowClick::Toggle(30).moves_anchor());
+    }
+
+    #[test]
+    fn shift_ranges_from_the_anchor_and_shift_ctrl_adds_the_range() {
+        // Top-down order whichever way the range runs.
+        assert_eq!(row_click(&ROWS, &[40], Some(40), 20, Modifiers::SHIFT), RowClick::Range(vec![20, 30, 40]));
+        assert_eq!(row_click(&ROWS, &[20], Some(20), 40, SHIFT_CMD), RowClick::AddRange(vec![20, 30, 40]));
+        assert!(!RowClick::Range(vec![20]).moves_anchor() && !RowClick::AddRange(vec![20]).moves_anchor());
+    }
+
+    #[test]
+    fn without_an_anchor_shift_starts_at_the_last_highlighted_row_else_acts_as_a_plain_click() {
+        assert_eq!(row_click(&ROWS, &[10, 50], None, 30, Modifiers::SHIFT), RowClick::Range(vec![30, 40, 50]));
+        assert_eq!(row_click(&ROWS, &[], None, 30, Modifiers::SHIFT), RowClick::Only(30));
+        assert_eq!(row_click(&ROWS, &[], None, 30, SHIFT_CMD), RowClick::Toggle(30));
+        // An anchor (or last row) that isn't in the list: as without one.
+        assert_eq!(row_click(&ROWS, &[99], Some(99), 30, Modifiers::SHIFT), RowClick::Only(30));
+    }
+
+    #[test]
+    fn applying_a_click_keeps_highlight_order_as_layer_highlight_does() {
+        let applied = |mut rows: Vec<u32>, c: RowClick<u32>| {
+            apply_row_click(&mut rows, &c);
+            rows
+        };
+        assert_eq!(applied(vec![40, 20], RowClick::Only(30)), [30]);
+        // Toggling appends in click order; a highlighted row (even the last) goes off.
+        assert_eq!(applied(vec![40, 20], RowClick::Toggle(10)), [40, 20, 10]);
+        assert_eq!(applied(vec![40, 20], RowClick::Toggle(40)), [20]);
+        assert_eq!(applied(vec![40], RowClick::Toggle(40)), Vec::<u32>::new());
+        // A range replaces the rows, or adds the ones not there yet, top-down.
+        assert_eq!(applied(vec![50], RowClick::Range(vec![20, 30])), [20, 30]);
+        assert_eq!(applied(vec![30, 50], RowClick::AddRange(vec![20, 30, 40])), [30, 50, 20, 40]);
     }
 }

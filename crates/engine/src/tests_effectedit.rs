@@ -91,7 +91,10 @@ fn items_duplicate_to_a_position_and_several_remove_at_once() {
     // Duplicating several copies each above itself.
     run(&mut s, "appearance.duplicateItem", json!({"indices": [0, 2]}));
     assert_eq!(kinds(&s), ["fill", "fill", "fill", "stroke", "stroke", "fill"]);
-    assert!(s.execute("appearance.duplicateItem", &json!({"indices": [0, 1], "to": 3})).is_err());
+    // Several with `to` are copied as one block there (Alt-dragging highlighted rows).
+    run(&mut s, "appearance.duplicateItem", json!({"indices": [0, 1], "to": 3}));
+    assert_eq!(kinds(&s), ["fill", "fill", "fill", "fill", "fill", "stroke", "stroke", "fill"]);
+    s.execute("edit.undo", &json!({})).unwrap();
     // Removing several in one step; the active item follows.
     run(&mut s, "appearance.setActiveItem", json!({"index": 5}));
     run(&mut s, "appearance.removeItem", json!({"indices": [4, 0, 1]}));

@@ -606,9 +606,15 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
             return;
         }
     }
-    // Command shortcuts.
+    // Command shortcuts. A plain Delete or Backspace after a click on a Layers or Appearance row is
+    // that panel's (it removes the highlighted rows), not Edit › Clear's.
+    let rows_keys = crate::panels::rows_take_delete(ctx);
+    let row_key = |sc: &KeyboardShortcut| rows_keys && sc.modifiers.is_none() && matches!(sc.logical_key, Key::Delete | Key::Backspace);
     let mut fire = None;
     for (sc, id, p) in all_shortcuts() {
+        if row_key(&sc) {
+            continue;
+        }
         // Letter / punctuation keys without Cmd/Alt/Ctrl are handled below as text (tool shortcuts,
         // X, D, /, `,` and `.`).
         let plain = !(sc.modifiers.command || sc.modifiers.alt || sc.modifiers.ctrl);
@@ -660,7 +666,9 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
         }
     }
     // Delete / Backspace clear the selection.
-    if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Backspace)) && app.session.active().is_some_and(|d| d.selection.has_objects_or_guides())
+    if !rows_keys
+        && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Backspace))
+        && app.session.active().is_some_and(|d| d.selection.has_objects_or_guides())
     {
         let _ = app.run("edit.clear", json!({}));
     }

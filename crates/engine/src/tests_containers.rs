@@ -354,3 +354,82 @@ fn hidden_type_with_a_geometry_effect_is_left_out_of_svg_export() {
     let hidden = svg(&s);
     assert_eq!((shown.matches("<path").count(), hidden.matches("<path").count()), (1, 0), "{hidden}");
 }
+
+/// A selected group whose stack is, in paint order (bottom first), `F0 S1 FA S3` with the Contents
+/// row above the bottom two: listed top-down `S3, FA, Contents, S1, F0` (fills red F0 and green FA,
+/// strokes 1 and 3 pt).
+fn straddling_group(s: &mut Session) -> NodeId {
+    let (g, _) = group(s);
+    run(s, "appearance.addFill", json!({}));
+    run(s, "paint.setFill", json!({"color": "#ff0000", "item": 0}));
+    run(s, "appearance.addStroke", json!({}));
+    run(s, "stroke.set", json!({"item": 1, "weight": 1}));
+    run(s, "appearance.addFill", json!({}));
+    run(s, "paint.setFill", json!({"color": "#00ff00", "item": 2}));
+    run(s, "appearance.addStroke", json!({}));
+    run(s, "stroke.set", json!({"item": 3, "weight": 3}));
+    run(s, "appearance.moveItem", json!({"from": "contents", "to": 2}));
+    assert_eq!(stack(s, g), (vec!["F0", "S1", "FA", "S3"], 2));
+    g
+}
+
+/// The group's items in paint order (F0/FA by fill colour, S<weight>) and how many paint below its
+/// Contents row.
+fn stack(s: &Session, g: NodeId) -> (Vec<&'static str>, usize) {
+    let ap = node(s, g).appearance;
+    let red = Paint::solid(Color::from_hex("#ff0000").unwrap());
+    let names = ap
+        .items
+        .iter()
+        .map(|it| match it {
+            vectorcraft_doc::AppearanceItem::Stroke(st) if st.width == 1.0 => "S1",
+            vectorcraft_doc::AppearanceItem::Stroke(_) => "S3",
+            it if *it.paint() == red => "F0",
+            _ => "FA",
+        })
+        .collect();
+    (names, ap.contents_at())
+}
+
+#[test]
+fn several_items_move_as_one_block_and_the_contents_row_keeps_its_unmoved_neighbours() {
+    let mut s = session();
+    let g = straddling_group(&mut s);
+    // FA (active) and S1 dropped on S3: listed top-down FA, S1, S3, Contents, F0.
+    run(&mut s, "appearance.setActiveItem", json!({"index": 2}));
+    let r = run(&mut s, "appearance.moveItem", json!({"indices": [2, 1], "to": 2}));
+    assert_eq!(stack(&s, g), (vec!["F0", "S3", "S1", "FA"], 1));
+    assert_eq!(r["index"], json!(2), "where the lowest of them landed");
+    assert_eq!(s.appearance_item(), Some(3), "the active row moved with its row");
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(stack(&s, g), (vec!["F0", "S1", "FA", "S3"], 2), "one undo step");
+    // `contents` places the Contents row: under the stack, the block goes to the bottom with
+    // Contents above it and F0.
+    run(&mut s, "appearance.moveItem", json!({"indices": [1, 2], "to": 0, "contents": 3}));
+    assert_eq!(stack(&s, g), (vec!["S1", "FA", "F0", "S3"], 3));
+    run(&mut s, "edit.undo", json!({}));
+    // Without it, a block landing right at the Contents row keeps its lowest item's side.
+    run(&mut s, "appearance.moveItem", json!({"indices": [1, 3], "to": 1}));
+    assert_eq!(stack(&s, g), (vec!["F0", "S1", "S3", "FA"], 3));
+    run(&mut s, "edit.undo", json!({}));
+    // A missing index, or both `from` and `indices`, fail and change nothing.
+    assert!(s.execute("appearance.moveItem", &json!({"indices": [1, 9], "to": 0})).is_err());
+    assert!(s.execute("appearance.moveItem", &json!({"from": 1, "indices": [1, 2], "to": 0})).is_err());
+    assert_eq!(stack(&s, g), (vec!["F0", "S1", "FA", "S3"], 2));
+}
+
+#[test]
+fn several_items_copy_as_one_block_where_they_are_dropped() {
+    let mut s = session();
+    let g = straddling_group(&mut s);
+    // Alt-dropped on the object row: the copies go on top; Contents stays between the same rows.
+    run(&mut s, "appearance.duplicateItem", json!({"indices": [1, 2], "to": 4}));
+    assert_eq!(stack(&s, g), (vec!["F0", "S1", "FA", "S3", "S1", "FA"], 2));
+    run(&mut s, "edit.undo", json!({}));
+    // `contents` puts copies landing right at the Contents row above it.
+    run(&mut s, "appearance.duplicateItem", json!({"indices": [1, 2], "to": 2, "contents": 2}));
+    assert_eq!(stack(&s, g), (vec!["F0", "S1", "S1", "FA", "FA", "S3"], 2));
+    run(&mut s, "edit.undo", json!({}));
+    assert!(s.execute("appearance.duplicateItem", &json!({"indices": [1, 7], "to": 0})).is_err());
+    assert_eq!(stack(&s, g), (vec!["F0", "S1", "FA", "S3"], 2));
+}
