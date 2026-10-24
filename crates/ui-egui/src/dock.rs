@@ -414,6 +414,12 @@ pub(crate) fn panel_tabs(
 /// A panel popped out next to the icon column: an icon panel, or one of the tabbed group's panels
 /// while the dock is collapsed. Dragging its title floats it.
 pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    // A row's popup that was put away (a press outside, its », its icon, another panel) is no
+    // popup any more: opened again from its icon, it follows Auto-Collapse Iconic Panels.
+    if app.ui.transient_panel.is_some() && app.ui.transient_panel != app.ui.open_panel {
+        app.ui.transient_panel = None;
+        app.ui.transient_focus = false;
+    }
     let open = app.ui.open_panel.as_deref();
     let Some(id) =
         open.and_then(|p| crate::state::all_panels().map(|(q, _)| q).find(|q| *q == p).or_else(|| crate::panels::library_panel::intern(p)))
@@ -513,6 +519,8 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
         floating::tear(app, ctx, &[id], id, floating::strip_grab(ctx, left));
     } else if !open {
         app.ui.open_panel = None;
+        app.ui.transient_panel = None;
+        app.ui.transient_focus = false;
     }
 }
 

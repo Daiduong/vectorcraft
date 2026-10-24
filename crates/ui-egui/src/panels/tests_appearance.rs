@@ -1237,3 +1237,31 @@ fn stroke_weights_step_by_quarters_below_one() {
     app_key(&ctx, &mut app, egui::Key::ArrowDown, stroke_panel);
     assert!((weight(&app) - 0.75).abs() < 1e-9, "↓: {}", weight(&app));
 }
+
+/// A panel a row opened and that closed again is no popup any more: opened later from its dock
+/// icon, it stays on a press outside it (Auto-Collapse Iconic Panels off), however the popup closed.
+#[test]
+fn a_closed_row_popup_reopened_from_its_icon_is_no_popup() {
+    for close_by_icon in [false, true] {
+        let mut app = app_with_rect();
+        let ctx = flyout_ctx();
+        let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
+        app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
+        assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"));
+        if close_by_icon {
+            // Its icon (or its ») puts it away.
+            app.ui.open_panel = None;
+            app_frame(&ctx, &mut app, vec![], panel_and_flyout);
+        } else {
+            app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
+            assert_eq!(app.ui.open_panel, None, "a press outside closes the row's popup");
+        }
+        // Opened from its dock icon.
+        app.ui.open_panel = Some("stroke".into());
+        for _ in 0..3 {
+            app_frame(&ctx, &mut app, vec![], panel_and_flyout);
+        }
+        app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
+        assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"), "closed by its icon: {close_by_icon}");
+    }
+}
