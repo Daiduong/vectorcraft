@@ -197,10 +197,11 @@ context's font definitions, so the embedder's own fonts are added after it.
   vectorcraft-text`, and the same for `vectorcraft-mcp`), and with them do; a test of either can't
   see that configuration, since their dev-dependencies turn the fonts on.
 - `cargo test -p vectorcraft-text --no-default-features --test without_bundled_fonts` checks the
-  configuration without them, and `cargo test -p vectorcraft-ui-egui --no-default-features --test
-  install_fonts` that the panels without their interface faces still bind every family; the same
-  step lints `vectorcraft-ui-egui` without its default features. Of the crate's other tests, those
-  about the interface faces need them.
+  configuration without them, and `cargo test -p vectorcraft-ui-egui --no-default-features` runs
+  the panels' tests without their interface faces or any translation, among them `install_fonts`
+  (the panels still bind every family); the same step lints `vectorcraft-ui-egui` without its
+  default features. The crate's tests about the interface faces need them, and are left out of
+  that run.
 
 ### Arabic fonts and the web build
 
@@ -314,14 +315,16 @@ locale, as Automatic does (Preferences shows the code as it is), and `app.langua
 code. Preferences and the Language menu offer Automatic, English and the languages compiled in.
 
 - The catalog tests (`i18n/tests.rs`) and the tests that read another language's catalog run with
-  every language (`#[cfg(feature = "translations")]`).
+  every language (`#[cfg(feature = "translations")]`); every other test of the crate also passes
+  English only.
 - `i18n/tests_compiled_in.rs` checks what a left-out language does with a registry of its own, in
   which one language is compiled in and another is not, so the default test run covers it; that a
   catalog is empty without its feature (one no build has) and its file with it; and that each
   `catalog_tsv!` names the feature after its own file, each row reads its own file and
   `translations` lists every language's feature.
-- `cargo xtask ci`'s `no-bundled-fonts` step lints the crate and its tests with no default
-  feature, so with no language feature, as an English-only embedder builds it.
+- `cargo xtask ci`'s `no-bundled-fonts` step lints and runs the crate's tests with no default
+  feature, so with no language feature, as an English-only embedder builds it: a new test that
+  reads another language's catalog without that `cfg` fails there.
 
 ## Cursors
 

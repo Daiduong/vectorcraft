@@ -1081,6 +1081,8 @@ mod tests {
     }
 
     /// The Font Technology filter's Variable is the font adjective, not the Variables panel's noun.
+    // Reads catalogs other than English.
+    #[cfg(feature = "translations")]
     #[test]
     fn the_variable_filter_is_named_as_fonts_are() {
         use crate::i18n::{Lang, tr, tr_ctx};

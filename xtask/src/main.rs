@@ -278,16 +278,16 @@ fn cmd_ci() -> Result<(), String> {
                 // The egui panels and the MCP server as such an embedder builds them: nothing turns
                 // the fonts back on.
                 libraries_without_bundled_fonts()?;
-                // The panels without their interface faces or any language (English only, as
-                // such an embedder builds them) lint clean, tests too, and still bind every family
-                // they draw in. What a left-out language does is tested in the test step
-                // (i18n::tests_compiled_in).
+                // The panels without their interface faces or any language (English only), as
+                // such an embedder builds them: they lint clean, and their tests pass, among them
+                // install_fonts (every family they draw in is still bound). What a left-out
+                // language does is tested in the test step (i18n::tests_compiled_in).
                 let mut c = cargo();
                 c.args(["clippy", "-p", "vectorcraft-ui-egui", "--no-default-features", "--all-targets", "--", "-D", "warnings"]);
                 run(c, "cargo clippy -p vectorcraft-ui-egui --no-default-features --all-targets -- -D warnings")?;
                 let mut c = cargo();
-                c.args(["test", "-p", "vectorcraft-ui-egui", "--no-default-features", "--test", "install_fonts"]);
-                run(c, "cargo test -p vectorcraft-ui-egui --no-default-features --test install_fonts")
+                c.args(["test", "-p", "vectorcraft-ui-egui", "--no-default-features"]);
+                run(c, "cargo test -p vectorcraft-ui-egui --no-default-features")
             }),
         ),
         ("pdf-deps", Box::new(|| pdf_deps::run(&root()))),
