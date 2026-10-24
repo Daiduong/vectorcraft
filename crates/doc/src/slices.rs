@@ -298,6 +298,9 @@ pub fn auto_slices(region: Rect, cut: &[Rect]) -> Vec<Rect> {
         // Spans continuing an open slice extend it; the others close.
         let mut next = Vec::with_capacity(free.len());
         for (a, b) in free {
+            if done.len() + open.len() + next.len() >= MAX_AUTO_SLICES {
+                break;
+            }
             match open.iter().position(|r: &Rect| (r.x0 - a).abs() <= EPS && (r.x1 - b).abs() <= EPS) {
                 Some(i) => {
                     let mut r = open.swap_remove(i);
@@ -310,11 +313,12 @@ pub fn auto_slices(region: Rect, cut: &[Rect]) -> Vec<Rect> {
         done.append(&mut open);
         open = next;
         // Crossing strips make a cell of every crossing: the layout stops, short, past a bound.
-        if done.len() + open.len() > MAX_AUTO_SLICES {
+        if done.len() + open.len() >= MAX_AUTO_SLICES {
             break;
         }
     }
     done.append(&mut open);
+    done.truncate(MAX_AUTO_SLICES);
     done
 }
 
