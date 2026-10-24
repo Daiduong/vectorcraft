@@ -8611,6 +8611,26 @@ mod tests {
         assert_eq!(plain(&app, id), "0abx9t\tupq1\n\nk2");
     }
 
+    /// In a frame that began composing, an editing key after the IME's commit applies before the text
+    /// that follows it; a key before the commit and an Enter after it stay the IME's.
+    #[test]
+    fn editing_keys_after_an_ime_commit_apply_in_the_same_frame() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.prefs.placeholder_text = false;
+        let ctx = egui::Context::default();
+        let id = start_typing(&mut app, &ctx);
+        let text = |t: &str| egui::Event::Text(t.into());
+        let commit = |t: &str| egui::Event::Ime(egui::ImeEvent::Commit(t.into()));
+        typing_frame(&mut app, &ctx, vec![text("ab")]);
+        typing_frame(&mut app, &ctx, vec![preedit("漢", 1)]);
+        typing_frame(&mut app, &ctx, [vec![preedit("", 0), commit("漢")], tap(egui::Key::ArrowLeft).to_vec(), vec![text("x")]].concat());
+        assert_eq!(plain(&app, id), "abx漢");
+        typing_frame(&mut app, &ctx, vec![preedit("字", 1)]);
+        let keys = [tap(egui::Key::ArrowLeft).to_vec(), vec![preedit("", 0), commit("字")], tap(egui::Key::Enter).to_vec()];
+        typing_frame(&mut app, &ctx, keys.concat());
+        assert_eq!(plain(&app, id), "abx字漢");
+    }
+
     /// Cmd/Ctrl+Enter bound to a command runs the command and types no line break, also when a plain
     /// Enter comes in the same frame. Unbound, it types a line break as Enter does.
     #[test]

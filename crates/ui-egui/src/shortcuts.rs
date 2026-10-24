@@ -312,6 +312,8 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) {
             }
         })
     });
+    // Set once the IME commits text in this frame.
+    let mut committed = false;
     for e in seq {
         // Errors are already reported by the engine's interaction (a failed preview keeps it).
         let _ = match e {
@@ -329,6 +331,7 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) {
             }
             Seq::Commit(t) => {
                 app.ime_marked = None;
+                committed |= !t.is_empty();
                 app.session.tool_text(&t, view)
             }
             // While composing (or in a frame that began composing), editing keys belong to the IME.
@@ -341,7 +344,10 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 Ok(vec![])
             }
             Seq::Erase(..) => Ok(vec![]),
-            Seq::Enter | Seq::Edit(_) if was_composing || app.session.tool_composing() => Ok(vec![]),
+            // An Enter that confirms the composition types no line break. The other editing keys
+            // that come after the IME's commit in the same frame apply.
+            Seq::Enter if was_composing || app.session.tool_composing() => Ok(vec![]),
+            Seq::Edit(_) if app.session.tool_composing() || (was_composing && !committed) => Ok(vec![]),
             Seq::Enter => {
                 let r = app.session.tool_key(ToolKey::Enter, Mods::default(), view);
                 crate::canvas::apply_requests(app, r);
