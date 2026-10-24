@@ -123,10 +123,15 @@ pub struct Raster {
 }
 
 impl Raster {
-    /// A raster from RGBA bytes (`width * height * 4` of them).
-    pub fn new(width: u32, height: u32, rgba: Vec<u8>) -> Self {
-        assert_eq!(rgba.len(), width as usize * height as usize * 4, "rgba length must be width*height*4");
-        Self { width, height, rgba }
+    /// A raster from RGBA bytes, which must be exactly `width * height * 4` of them: any other
+    /// length (bytes from a file, a plug-in or a message) is a [`TraceError::Decode`] error, not
+    /// a crash. (That error's text is already translated; its detail names the sizes.)
+    pub fn new(width: u32, height: u32, rgba: Vec<u8>) -> Result<Self, TraceError> {
+        let want = (width as usize).checked_mul(height as usize).and_then(|n| n.checked_mul(4));
+        if want != Some(rgba.len()) {
+            return Err(TraceError::Decode(format!("{} bytes of RGBA data for a {width} × {height} image", rgba.len())));
+        }
+        Ok(Self { width, height, rgba })
     }
     /// A raster whose pixel `(x, y)` is `f(x, y)`.
     pub fn from_fn(width: u32, height: u32, f: impl Fn(u32, u32) -> [u8; 4]) -> Self {
@@ -192,9 +197,17 @@ impl Raster {
         }
         out
     }
+    /// Pixel `(x, y)`; transparent black outside the raster (or past the end of a raster whose
+    /// fields were set to a size its bytes don't have).
     pub fn pixel(&self, x: u32, y: u32) -> [u8; 4] {
+        if x >= self.width || y >= self.height {
+            return [0; 4];
+        }
         let i = (y as usize * self.width as usize + x as usize) * 4;
-        [self.rgba[i], self.rgba[i + 1], self.rgba[i + 2], self.rgba[i + 3]]
+        match self.rgba.get(i..i + 4) {
+            Some(&[r, g, b, a]) => [r, g, b, a],
+            _ => [0; 4],
+        }
     }
 }
 
@@ -471,6 +484,9 @@ pub struct TraceResult {
     /// option). Each path drawn together with those inside it, in the order they have here, paints
     /// what `paths` paints in its order.
     pub parents: Vec<Option<usize>>,
+    /// Flat Logo: the size in pixels the image was traced at when it was averaged down first;
+    /// `None` when it was traced at its own size.
+    pub worked_at: Option<(u32, u32)>,
 }
 
 impl TraceResult {
@@ -503,7 +519,7 @@ pub fn trace(img: &Raster, params: &TraceParams) -> TraceResult {
 /// colour layers are traced in parallel where threads are available.
 pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result<TraceResult, TraceError> {
     let (w, h) = (img.width as usize, img.height as usize);
-    if w == 0 || h == 0 || img.rgba.len() != w * h * 4 {
+    if w == 0 || h == 0 || w.checked_mul(h).and_then(|n| n.checked_mul(4)) != Some(img.rgba.len()) {
         return Ok(TraceResult::default());
     }
     let mut out = trace_paths(img, params, max_anchors)?;
@@ -549,7 +565,11 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         }
         rest
     });
-    let mut q = quantize(without.as_ref().unwrap_or(img), params);
+    let (mut q, rare) = quantize::quantize_keeping(without.as_ref().unwrap_or(img), params);
+    // The semi-transparent edge of a cut-out image traces as the color beside it.
+    if matches!(params.mode, Mode::Color | Mode::Grayscale) {
+        quantize::settle_cut_edges(&mut q, img, params.mode == Mode::Grayscale);
+    }
     drop(without);
     // Each gradient is a palette entry of its own (its colour: the gradient's middle).
     let mut gradients: Vec<Option<TracedGradient>> = vec![None; q.palette.len()];
@@ -565,7 +585,9 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         gradients.extend(found.into_iter().map(Some));
     }
     drop(grays);
-    denoise(&mut q.labels, w, h, params.noise as usize);
+    // Noise clears specks, not the regions of a rare colour Automatic kept on purpose.
+    let keep: Vec<bool> = q.palette.iter().map(|c| rare.contains(c)).collect();
+    quantize::denoise_keeping(&mut q.labels, w, h, params.noise as usize, &keep);
     // Pixel count per palette entry, and the box its pixels lie in.
     let mut counts = vec![0usize; q.palette.len()];
     let mut boxes: Vec<Option<(usize, usize, usize, usize)>> = vec![None; q.palette.len()];
@@ -967,6 +989,21 @@ impl Layers<'_> {
             // (Each loop fitted, and whether its own outline is hard.)
             let fit = |l: &Loop| {
                 let (sp, is_hard) = fit::fit_loop(l, w, h, &|c| (self.shift(c), self.neighbour(c)), &|x, y| self.junction(x, y), &self.style)?;
+                // Every trace straightens the pieces of an outline that lie close to a line (Snap
+                // Curves To Lines straightens more of them), so the outline of a single pixel or
+                // of a region one pixel thick can have all its pieces on one chord, and the loop
+                // then has no area. Filled, such a loop paints nothing, and it is left out.
+                // Without Fills its 1 px stroke draws it, so it is kept. (`fit::fit_closed` puts
+                // back the positioned outline of a loop that is one closed piece when its fit has
+                // no area.) The area is summed about the loop's first anchor.
+                if area_stroke.is_none() {
+                    use kurbo::ParamCurveArea;
+                    let origin = sp.anchors.first()?.p.to_vec2();
+                    let area: f64 = (0..sp.segment_count()).map(|i| (kurbo::Affine::translate(-origin) * sp.segment(i)).signed_area()).sum();
+                    if area.abs() < 1e-6 {
+                        return None;
+                    }
+                }
                 hard.set(hard.get() || is_hard);
                 Some((sp, is_hard))
             };

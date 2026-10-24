@@ -6,7 +6,7 @@
 //! to the art it is dropped on (`canvas::panel_drop`); art dragged off the canvas or the Appearance
 //! panel's thumbnail dropped on the panel becomes a new style. Holding the right button on a style
 //! shows it large, on the selected object when there is one. The Control bar's Style picker lists
-//! the same tiles ([`picker`]). Graphic style libraries open in the library panel
+//! the same tiles ([`picker`]). Graphic style libraries open in library panels
 //! ([`GraphicStyleLibraries`]).
 
 use std::cell::RefCell;
@@ -171,7 +171,7 @@ fn render(app: &VectorcraftApp, paints: Paints, g: &GraphicStyle, preview: Previ
     let layer = doc.layers[0].id;
     doc.insert(Some(layer), 0, app.session.styled(&shape, g)).ok()?;
     let img = RENDERER.with(|r| r.borrow_mut().render_region(&doc, vectorcraft_geom::Rect::new(0.0, 0.0, SIDE, SIDE), px as f64 / SIDE, true));
-    Some(egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels))
+    Some(crate::canvas::color_image(&img))
 }
 
 /// The thumbnail of style `g` (`look`: its [`look_hash`]) at `size` points.
@@ -213,7 +213,7 @@ fn paint_thumb(app: &VectorcraftApp, ui: &Ui, r: Rect, paints: Paints, g: &Graph
 }
 
 /// Outline thumbnail `r`: in the accent colour when selected (`on`), brighter when hovered.
-fn outline(ui: &Ui, r: Rect, on: bool, hovered: bool) {
+pub(super) fn outline(ui: &Ui, r: Rect, on: bool, hovered: bool) {
     let t = Tokens::get(ui.ctx());
     let color = if on {
         t.accent
@@ -239,7 +239,7 @@ fn object_preview(app: &VectorcraftApp, ctx: &egui::Context, g: &GraphicStyle, l
     }
     let styled = app.session.styled(n, g);
     let img = RENDERER.with(|r| r.borrow_mut().render_node_thumbnail(&st.doc, &styled, px, Some([255; 4])))?;
-    let color = egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.pixels);
+    let color = crate::canvas::color_image(&img);
     let tex = ctx.load_texture("gs-large-object", color, egui::TextureOptions::LINEAR);
     ctx.data_mut(|d| d.insert_temp(slot, (key, tex.clone())));
     Some(tex)
@@ -351,7 +351,13 @@ fn zone_input(ui: &Ui, zone: &Response, d: &Document, ev: &mut Events) {
         PanelDrag::GraphicStyle(n) => (Some(n), None),
         PanelDrag::Art(ids) => (None, ids.first().copied()),
         PanelDrag::Appearance(id) => (None, Some(*id)),
-        PanelDrag::Paint { .. } | PanelDrag::Symbol(_) | PanelDrag::Brush { .. } | PanelDrag::LibraryGraphic { .. } => (None, None),
+        PanelDrag::Paint { .. }
+        | PanelDrag::Symbol(_)
+        | PanelDrag::LibrarySymbol { .. }
+        | PanelDrag::Brush { .. }
+        | PanelDrag::LibraryGraphic { .. }
+        | PanelDrag::LibraryItem { .. }
+        | PanelDrag::LibraryGroup { .. } => (None, None),
     };
     if style.is_none() && source.is_none() {
         return;
@@ -479,7 +485,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let has_sel = selection_len(app) > 0;
     let linked = app.session.selection_graphic_style().is_some();
     widgets::bottom_bar(ui, |ui| {
-        let open = app.ui.library_panel.as_ref().is_some_and(|o| o.kind == GraphicStyleLibraries::KIND);
+        let open = library_panel::any_open::<GraphicStyleLibraries>(&app.ui);
         let lr = widgets::icon_button(ui, "library", GraphicStyleLibraries::MENU, open, 24.0);
         egui::Popup::menu(&lr).show(|ui| {
             ui.set_min_width(200.0);
@@ -681,13 +687,15 @@ fn describe(g: &GraphicStyle) -> String {
     parts.join(", ")
 }
 
-/// Graphic style libraries in the library panel (engine: `graphicStyle.libraries`,
+/// Graphic style libraries in library panels (engine: `graphicStyle.libraries`,
 /// `graphicStyle.addFromLibrary`…).
 pub(crate) struct GraphicStyleLibraries;
 
 impl LibraryKind for GraphicStyleLibraries {
     const KIND: &'static str = "graphicStyles";
     const OPEN: &'static str = "window.graphicStyleLibrary";
+    const LIST: &'static str = "graphicStyle.libraries";
+    const LOAD: &'static str = "graphicStyle.loadLibrary";
     const MENU: &'static str = "Graphic Style Libraries Menu";
     const ADD: &'static str = "Add to Graphic Styles";
     /// Styles need room to show their effects.
@@ -701,6 +709,12 @@ impl LibraryKind for GraphicStyleLibraries {
     }
     fn get(app: &VectorcraftApp, id: &str) -> Option<(String, Self::Lib)> {
         stylelib::library(&app.session, id).map(|(info, lib)| (info.name, shown_library(lib)))
+    }
+    fn find(app: &VectorcraftApp, key: &str) -> Option<(String, String, usize)> {
+        stylelib::library(&app.session, key).map(|(info, lib)| (info.id, info.name, lib.len()))
+    }
+    fn path(app: &VectorcraftApp, id: &str) -> Option<String> {
+        app.session.style_libraries.path(id).map(str::to_string)
     }
     fn rows<'a>(lib: &'a Self::Lib, query: &str) -> Vec<Row<'a, LibStyle>> {
         let found = |n: &str| query.is_empty() || n.to_lowercase().contains(query);
@@ -740,15 +754,13 @@ impl LibraryKind for GraphicStyleLibraries {
     }
 }
 
-/// `window.graphicStyleLibrary {library}`: open a graphic style library in the library panel
-/// (`library` null closes it).
+/// `window.graphicStyleLibrary {library}`: open a graphic style library in its own panel
+/// (`library` null closes every graphic style library panel).
 pub(crate) fn open_library(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
-    library_panel::open_command::<GraphicStyleLibraries>(app, p, "graphicStyle.libraries", |app, key| {
-        stylelib::library(&app.session, key).map(|(info, lib)| (info.id, info.name, lib.len()))
-    })
+    library_panel::open_command::<GraphicStyleLibraries>(app, p)
 }
 
-/// `graphicStyle.loadLibrary` params, then open the library in the panel.
+/// `graphicStyle.loadLibrary` params, then open the library in its panel.
 pub(crate) fn load_library(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
     let r = app.run("graphicStyle.loadLibrary", params)?;
     open_library(app, &json!({ "library": r["library"] }))
@@ -756,7 +768,7 @@ pub(crate) fn load_library(app: &mut VectorcraftApp, params: Value) -> Result<Va
 
 /// Other Library…: load the library (or document) at `path`, else one picked in an open dialog.
 pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> Result<Value, String> {
-    match library_panel::pick_library_file(app, path)? {
+    match library_panel::pick_library_file(app, path, library_panel::library_pick_filters(GraphicStyleLibraries::KIND))? {
         Some(path) => load_library(app, json!({ "path": path })),
         None => Ok(Value::Null),
     }

@@ -62,6 +62,9 @@ pub(crate) struct SGlyph {
     /// A word of a script written without spaces (Thai, Lao, Khmer, Myanmar) ends after the
     /// glyph's cluster, so a line may break there ([`mark_word_ends`]).
     pub word_end: bool,
+    /// No Break (Character panel menu): keep this glyph on the same line as the neighbouring
+    /// glyphs that have it.
+    pub no_break: bool,
 }
 
 /// How `vpal` and the vertical kerning with it move an upright glyph in vertical type and change
@@ -281,7 +284,7 @@ pub(crate) fn is_cjk(c: char) -> bool {
 /// Vertical metrics (points) of a style's resolved face: (ascent, descent, leading).
 pub(crate) fn style_metrics(db: &FontDb, st: &CharStyle) -> (f64, f64, f64) {
     let vs = st.v_scale / 100.0;
-    let Some(face) = db.face_version(&st.font_family, &st.font_style, st.font_version.as_deref()) else {
+    let Some(face) = db.style_face(st) else {
         return (st.size * 0.8 * vs, st.size * 0.2 * vs, st.effective_leading());
     };
     let k = st.size / face.upem;
@@ -291,7 +294,7 @@ pub(crate) fn style_metrics(db: &FontDb, st: &CharStyle) -> (f64, f64, f64) {
 /// Cap height and x height (points) of a style's resolved face.
 pub(crate) fn cap_x_heights(db: &FontDb, st: &CharStyle) -> (f64, f64) {
     let vs = st.v_scale / 100.0;
-    let Some(face) = db.face_version(&st.font_family, &st.font_style, st.font_version.as_deref()) else {
+    let Some(face) = db.style_face(st) else {
         return (st.size * 0.7 * vs, st.size * 0.5 * vs);
     };
     let k = st.size / face.upem * vs;
@@ -357,18 +360,18 @@ pub(crate) fn shape_range(
         let a = bytes.start;
         let b = bytes.end;
         if let Some(art) = art {
-            if let Some(face) = db.face_version(&st.font_family, &st.font_style, st.font_version.as_deref()).or_else(|| db.face_covering('a')) {
+            if let Some(face) = db.style_face(st).or_else(|| db.face_covering('a')) {
                 out.push(inline_glyph(&face, st, art, source_runs.start, a..b, text, level_at(a)));
             }
             continue;
         }
-        let Some(primary) = db.face_version(&st.font_family, &st.font_style, st.font_version.as_deref()) else { continue };
+        let Some(primary) = db.style_face(st) else { continue };
         let pmap = primary.skrifa().map(|f| f.charmap());
         // Synthesized Small Caps shape lowercase letters separately (as smaller capitals).
         let small_caps = st.small_caps.is_some() && !st.all_caps;
         // Split into segments by font coverage (and case, for Small Caps).
         let mut seg = Segment { range: a..a, runs, source_runs, st, face: primary.clone(), small: false, level: level_at(a) };
-        let mut cache: Vec<(char, Arc<FontFace>)> = Vec::new();
+        let mut cache: std::collections::HashMap<char, Arc<FontFace>> = std::collections::HashMap::new();
         let mut script = Script::Common;
         for (i, c) in text[a..b].char_indices() {
             let i = a + i;
@@ -381,18 +384,19 @@ pub(crate) fn shape_range(
             let covered = c.is_control() || pmap.as_ref().is_none_or(|m| m.map(c).is_some());
             let face = if covered {
                 primary.clone()
-            } else if let Some((_, f)) = cache.iter().find(|(k, _)| *k == c) {
+            } else if let Some(f) = cache.get(&c) {
                 f.clone()
             } else {
-                let f = db.fallback_for(c, primary.id()).unwrap_or_else(|| primary.clone());
-                cache.push((c, f.clone()));
+                let f = db.fallback_for_style(c, primary.id(), primary.weight, primary.italic).unwrap_or_else(|| primary.clone());
+                cache.insert(c, f.clone());
                 f
             };
             let small = small_caps && c.is_lowercase();
             let next_script = shaping_script(c);
             let strong_script = !matches!(next_script, Script::Common | Script::Inherited);
             let script_change = strong_script && script != Script::Common && script != next_script;
-            // Combining marks stay with their base.
+            // Combining marks, zero width joiners and non-joiners, and variation selectors stay
+            // with the character before them.
             if (face.id() != seg.face.id() || small != seg.small || level != seg.level || script_change) && !is_mark(c) {
                 if i > seg.range.start {
                     seg.range.end = i;
@@ -429,15 +433,17 @@ fn source_run_at(runs: &[(Range<usize>, &CharStyle)], span: &Range<usize>, byte:
 
 /// Do text runs in styles `a` and `b` shape alike, so that they are shaped as one piece of text?
 /// They do when they differ only in paint and stroke, underline and strikethrough, overprint, the
-/// character style's name, leading, baseline shift, rotation, Character Alignment, the kerning
-/// (each glyph takes its run's, see [`shape_segment`]) and the tracking, as long as the tracking
-/// keeps or drops standard ligatures alike ([`crate::features::ligatures_suppressed_by`]).
+/// character style's name, leading, baseline shift, rotation, Character Alignment, Character
+/// Direction (text is shaped apart where its bidi level changes), the kerning (each glyph takes its
+/// run's, see [`shape_segment`]) and the tracking, as long as the tracking keeps or drops standard
+/// ligatures alike ([`crate::features::ligatures_suppressed_by`]).
 fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
     // Every field is named, so that a new attribute has to be sorted into one group or the other.
     let CharStyle {
         font_family,
         font_style,
         font_version,
+        font_axes,
         size,
         leading: _,
         tracking,
@@ -464,12 +470,16 @@ fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
         position,
         small_caps,
         char_align: _,
+        char_direction: _,
         proportional_metrics,
+        tate_chu_yoko,
         digits,
+        no_break,
     } = a;
     *font_family == b.font_family
         && *font_style == b.font_style
         && *font_version == b.font_version
+        && *font_axes == b.font_axes
         && *size == b.size
         && *h_scale == b.h_scale
         && *v_scale == b.v_scale
@@ -478,7 +488,9 @@ fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
         && *position == b.position
         && *small_caps == b.small_caps
         && *proportional_metrics == b.proportional_metrics
+        && *tate_chu_yoko == b.tate_chu_yoko
         && *digits == b.digits
+        && *no_break == b.no_break
         && ligatures_suppressed_by(*tracking) == ligatures_suppressed_by(b.tracking)
 }
 
@@ -547,6 +559,7 @@ fn inline_glyph(face: &Arc<FontFace>, st: &CharStyle, art: &InlineArt, run: usiz
         level,
         inline: Some(InlineBox { art: drawn, xf }),
         word_end: false,
+        no_break: st.no_break,
     }
 }
 
@@ -578,7 +591,7 @@ struct Shaped {
 fn is_mark(c: char) -> bool {
     use unicode_general_category::{GeneralCategory, get_general_category};
     matches!(get_general_category(c), GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark)
-        || matches!(c, '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
+        || matches!(c, '\u{200C}' | '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
 }
 
 /// Shape `seg` and append its glyphs to `out`. Each glyph takes the tracking, kerning, baseline
@@ -806,6 +819,7 @@ fn shape_segment(text: &str, context: &Range<usize>, seg: &Segment, feats: &OtFe
             level: *level,
             inline: None,
             word_end: false,
+            no_break: gst.no_break,
         });
     }
 }
