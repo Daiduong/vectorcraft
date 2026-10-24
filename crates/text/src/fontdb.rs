@@ -2012,16 +2012,26 @@ impl FontDb {
         std::mem::take(&mut self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).queue)
     }
 
-    /// Ask for the source of `family` (its `style`, else its first style) when one supplies it and
-    /// the family has no face of that style loaded.
+    /// The source that type set in `family` and `style` asks for: the family's source of that
+    /// style, else its first; `None` when no source supplies the family or that source's face is
+    /// loaded.
+    fn pending_source(&self, family: &str, style: &str) -> Option<FontSource> {
+        let src = {
+            let sources = self.sources.read().unwrap_or_else(|e| e.into_inner());
+            let of_family = || sources.iter().filter(|s| s.family.eq_ignore_ascii_case(family));
+            of_family().find(|s| norm(&s.style) == norm(style)).or_else(|| of_family().next())?.clone()
+        };
+        let loaded = self.read_faces().iter().any(|f| f.family.eq_ignore_ascii_case(&src.family) && norm(&f.style) == norm(&src.style));
+        (!loaded).then_some(src)
+    }
+
+    /// Ask for the source of `family` in `style` ([`FontDb::pending_source`]), once.
     fn request_source(&self, family: &str, style: &str) {
-        let sources = self.sources.read().unwrap_or_else(|e| e.into_inner());
-        let of_family = || sources.iter().filter(|s| s.family.eq_ignore_ascii_case(family));
-        let Some(src) = of_family().find(|s| norm(&s.style) == norm(style)).or_else(|| of_family().next()) else { return };
+        let Some(src) = self.pending_source(family, style) else { return };
         let key = (src.family.to_ascii_lowercase(), src.style.to_ascii_lowercase());
         let mut requests = self.source_requests.lock().unwrap_or_else(|e| e.into_inner());
         if requests.asked.insert(key) {
-            requests.queue.push(src.clone());
+            requests.queue.push(src);
         }
     }
 
@@ -2042,6 +2052,7 @@ impl FontDb {
         self.add_font_report(bytes, path).added.len()
     }
 
+    /// [`FontDb::add_font_reporting`] for the bytes of the file at `path` (when known).
     fn add_font_report(&self, bytes: Vec<u8>, path: Option<&Path>) -> FontsAdded {
         self.add_fonts([(bytes, path.map(Path::to_path_buf))])
     }
@@ -2554,10 +2565,11 @@ impl FontDb {
         self.is_loaded(&family) || self.read_catalog().contains_key(&family.to_ascii_lowercase()) || self.is_source(&family)
     }
 
-    /// Whether `family` is a font source not loaded yet: what draws it would request it
-    /// ([`FontDb::face`]), so a font menu's sample leaves it out and only type set in it asks.
-    pub fn is_pending_source(&self, family: &str) -> bool {
-        self.is_source(family) && !self.is_loaded(family)
+    /// Whether `family` in `style` is a font source not loaded yet: what draws it would request it
+    /// ([`FontDb::face`]), so a font menu's sample leaves it out and only type set in it asks. Each
+    /// style counts apart: a family with Regular loaded may still have Bold to come.
+    pub fn is_pending_source(&self, family: &str, style: &str) -> bool {
+        self.pending_source(family, style).is_some()
     }
 
     /// Whether a host can supply `family` ([`FontDb::add_sources`]).

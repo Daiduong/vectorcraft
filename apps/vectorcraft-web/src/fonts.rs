@@ -6,12 +6,14 @@
 //!
 //! Font sources (`text.addFontSources`): the faces a page can supply. [`fetch_requested`] fetches
 //! each one type has asked for (`FontDb::take_source_requests`), checked against its SHA-256, and
-//! keeps the bytes until the app's next frame hands them to `text.addFont` ([`take_fetched`]).
+//! keeps the bytes until the app's next frame hands them to `text.addFont` ([`take_fetched`]). At
+//! most [`BACKGROUND_PARALLEL`] are fetched at once, and a file larger than `text.addFont` takes
+//! ([`SOURCE_MAX_BYTES`]) is refused before its bytes are copied into the app's memory.
 
 use std::cell::Cell;
 use std::rc::Rc;
 
-use vectorcraft_text::{FontDb, WEB_FONTS, WebFont};
+use vectorcraft_text::{FontDb, FontSource, WEB_FONTS, WebFont};
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen_futures::JsFuture;
@@ -22,6 +24,8 @@ const STARTUP_TIMEOUT_MS: i32 = 20_000;
 const BACKGROUND_TIMEOUT_MS: i32 = 120_000;
 /// Background fetches at once, leaving the connection to the app's own requests.
 const BACKGROUND_PARALLEL: usize = 4;
+/// The largest font source fetched: the most `text.addFont` takes.
+const SOURCE_MAX_BYTES: usize = 64 << 20;
 
 thread_local! {
     /// The background fetch runs once per page, though a graphics restart creates the app again.
@@ -30,26 +34,32 @@ thread_local! {
     static FETCHED: std::cell::RefCell<Vec<(String, Vec<u8>)>> = const { std::cell::RefCell::new(Vec::new()) };
     /// Font sources that failed to fetch, and why, for the status line.
     static FAILED: std::cell::RefCell<Vec<(String, String)>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// Font sources asked for and not fetched yet, waiting for a free fetch.
+    static WAITING: std::cell::RefCell<std::collections::VecDeque<FontSource>> = const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
+    /// Font sources being fetched now (at most [`BACKGROUND_PARALLEL`]).
+    static IN_FLIGHT: Cell<usize> = const { Cell::new(0) };
 }
 
-/// Fetch, each in the background, the font sources type has asked for since the last call; a
-/// fetched file waits for [`take_fetched`], and `ctx` is asked for a frame. A source that fails is
+/// Fetch, in the background, the font sources type has asked for: at most
+/// [`BACKGROUND_PARALLEL`] at once, the rest when one finishes (each asks `ctx` for a frame, whose
+/// call here starts the next). A fetched file waits for [`take_fetched`]. A source that fails is
 /// logged; its type stays in the fallback face.
 pub fn fetch_requested(ctx: &egui::Context) {
-    for src in FontDb::global().take_source_requests() {
+    WAITING.with(|w| w.borrow_mut().extend(FontDb::global().take_source_requests()));
+    while IN_FLIGHT.get() < BACKGROUND_PARALLEL {
+        let Some(src) = WAITING.with(|w| w.borrow_mut().pop_front()) else { break };
+        IN_FLIGHT.set(IN_FLIGHT.get() + 1);
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            match fetch(&src.url, &src.integrity, BACKGROUND_TIMEOUT_MS).await {
-                Ok(bytes) => {
-                    FETCHED.with(|f| f.borrow_mut().push((format!("{} {}", src.family, src.style), bytes)));
-                    ctx.request_repaint();
-                }
+            match fetch(&src.url, &src.integrity, BACKGROUND_TIMEOUT_MS, Some(SOURCE_MAX_BYTES)).await {
+                Ok(bytes) => FETCHED.with(|f| f.borrow_mut().push((format!("{} {}", src.family, src.style), bytes))),
                 Err(e) => {
                     log::warn!("font source {} {}: {e}", src.family, src.style);
                     FAILED.with(|f| f.borrow_mut().push((src.family.clone(), e)));
-                    ctx.request_repaint();
                 }
             }
+            IN_FLIGHT.set(IN_FLIGHT.get().saturating_sub(1));
+            ctx.request_repaint();
         });
     }
 }
@@ -101,7 +111,7 @@ pub fn spawn_background_fonts(ctx: egui::Context) {
 
 /// Fetch one face and add it to the font database. False (and a console warning) on failure.
 async fn load(f: &WebFont, timeout_ms: i32) -> bool {
-    let bytes = match fetch(f.url, f.integrity, timeout_ms).await {
+    let bytes = match fetch(f.url, f.integrity, timeout_ms, None).await {
         Ok(bytes) => bytes,
         Err(e) => {
             log::warn!("web font {} {}: {e}", f.family, f.style);
@@ -117,7 +127,11 @@ async fn load(f: &WebFont, timeout_ms: i32) -> bool {
 
 /// GET `url` (relative to the page) with Subresource Integrity `integrity`, aborted after
 /// `timeout_ms`.
-async fn fetch(url: &str, integrity: &str, timeout_ms: i32) -> Result<Vec<u8>, String> {
+/// The file at `url`, checked against `integrity` (Subresource Integrity), given up after
+/// `timeout_ms`. With `max_bytes`, a larger file is refused: by its Content-Length before its body
+/// is read when the server gives one, and otherwise before its bytes are copied into the app's
+/// memory (the browser holds the whole body to check its integrity).
+async fn fetch(url: &str, integrity: &str, timeout_ms: i32, max_bytes: Option<usize>) -> Result<Vec<u8>, String> {
     let window = web_sys::window().ok_or("no window")?;
     let abort = web_sys::AbortController::new().map_err(js)?;
     let init = web_sys::RequestInit::new();
@@ -134,8 +148,18 @@ async fn fetch(url: &str, integrity: &str, timeout_ms: i32) -> Result<Vec<u8>, S
         if !response.ok() {
             return Err(format!("HTTP {} for {url}", response.status()));
         }
+        let too_large = |n: usize| max_bytes.is_some_and(|max| n > max);
+        let declared = response.headers().get("content-length").ok().flatten().and_then(|n| n.trim().parse::<usize>().ok());
+        if declared.is_some_and(too_large) {
+            abort.abort();
+            return Err(format!("{url} is larger than {} MB", max_bytes.unwrap_or_default() >> 20));
+        }
         let buffer = JsFuture::from(response.array_buffer().map_err(js)?).await.map_err(js)?;
-        Ok(js_sys::Uint8Array::new(&buffer).to_vec())
+        let bytes = js_sys::Uint8Array::new(&buffer);
+        if too_large(bytes.length() as usize) {
+            return Err(format!("{url} is larger than {} MB", max_bytes.unwrap_or_default() >> 20));
+        }
+        Ok(bytes.to_vec())
     }
     .await;
     window.clear_timeout_with_handle(timer);

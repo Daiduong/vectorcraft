@@ -49,12 +49,14 @@ pub fn after_open(app: &mut VectorcraftApp, r: &Value) {
     after_open_for(app, r, cfg!(target_arch = "wasm32"));
 }
 
+/// [`after_open`], on the web (`web`: the status line, leaving out fonts a source is fetching) or
+/// on the desktop (the Missing Fonts dialog).
 fn after_open_for(app: &mut VectorcraftApp, r: &Value, web: bool) {
     let Some(st) = app.session.active() else { return };
     let uid = st.uid;
     if web {
         let db = vectorcraft_text::FontDb::global();
-        let n = vectorcraft_engine::cmd::fontfiles::missing_fonts(&st.doc).iter().filter(|f| !db.is_pending_source(&f.family)).count();
+        let n = vectorcraft_engine::cmd::fontfiles::missing_fonts(&st.doc).iter().filter(|f| !db.is_pending_source(&f.family, &f.style)).count();
         if n > 0 && r["warnings"].as_array().is_none_or(Vec::is_empty) {
             app.status(format!("{n} font(s) aren't available here: their text shows in another font"));
         }

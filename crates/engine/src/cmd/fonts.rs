@@ -422,6 +422,8 @@ fn font_param(p: &Value, k: &str, c: &str) -> Result<(String, Option<String>)> {
     Ok((family.to_string(), v.get("style").and_then(Value::as_str).map(str::to_string)))
 }
 
+/// `text.replaceFont`: the type in one family and style (in the selection, or the whole document)
+/// set in another, which is available, installed or a font source.
 fn replace(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "text.replaceFont";
     let (ff, fs) = font_param(p, "from", C)?;
@@ -489,6 +491,8 @@ fn select_font(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "count": n }))
 }
 
+/// `text.fontList`: every family the font menus list, or one family's styles and the axes of one
+/// style (none for a font source not loaded yet).
 fn font_list(_: &mut Session, p: &Value) -> Result<Value> {
     let db = vectorcraft_text::FontDb::global();
     match str_param(p, "family") {
@@ -500,8 +504,10 @@ fn font_list(_: &mut Session, p: &Value) -> Result<Value> {
             let name = db.family_list().iter().find(|f| f.eq_ignore_ascii_case(family)).cloned().unwrap_or_else(|| family.to_string());
             let styles = db.styles(family);
             let style = str_param(p, "style").map(str::to_string).or_else(|| styles.first().cloned()).unwrap_or_else(|| "Regular".into());
-            let axes: Vec<Value> = db
-                .face(family, &style)
+            // A font source not loaded yet has no axes to tell, and listing it asks for nothing
+            // (only type set in it does).
+            let face = if db.is_pending_source(family, &style) { None } else { db.face(family, &style) };
+            let axes: Vec<Value> = face
                 .map(|face| {
                     let axes = face.axes();
                     axes.iter()
@@ -520,6 +526,7 @@ fn font_list(_: &mut Session, p: &Value) -> Result<Value> {
     }
 }
 
+/// `text.rescanFonts`: the font folders scanned again, and the type laid out in the fonts available now.
 pub(crate) fn rescan(s: &mut Session, _: &Value) -> Result<Value> {
     let db = vectorcraft_text::FontDb::global();
     #[cfg(not(target_arch = "wasm32"))]
@@ -534,6 +541,8 @@ pub(crate) fn rescan(s: &mut Session, _: &Value) -> Result<Value> {
 /// megabytes).
 const MAX_ADDED_FONT: usize = 64 << 20;
 
+/// `text.addFont`: a font file's faces, given as base64, added to the session's font database; the
+/// type laid out again when any was added.
 fn add_font(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "text.addFont";
     let name = str_param(p, "name").unwrap_or("the font");
@@ -557,6 +566,8 @@ fn add_font(s: &mut Session, p: &Value) -> Result<Value> {
 /// The most font sources one `text.addFontSources` call may give.
 const MAX_FONT_SOURCES: usize = 10_000;
 
+/// `text.addFontSources`: the fonts a host can supply, checked (each a family, a style, a URL and a
+/// SHA-256) and registered with the font database as [`vectorcraft_text::FontSource`]s.
 fn add_font_sources(_: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "text.addFontSources";
     let fonts =
@@ -644,6 +655,7 @@ mod tests {
         let list = s.execute("text.fontList", &json!({})).unwrap();
         assert!(list["families"].as_array().unwrap().iter().any(|f| f == FAMILY), "listed before it is loaded");
         assert_eq!(s.execute("text.fontList", &json!({"family": FAMILY})).unwrap()["styles"], json!(["Regular"]));
+        assert!(db.take_source_requests().iter().all(|r| r.family != FAMILY), "listing a source asks for nothing");
 
         let source = vectorcraft_text::FontSource {
             family: FAMILY.into(),
@@ -673,6 +685,30 @@ mod tests {
         ] {
             assert!(s.execute("text.addFontSources", &bad).is_err(), "{bad}");
         }
+    }
+
+    /// Each style of a source counts apart: with its Regular added, a family's Bold source is still
+    /// to come, asked for when type takes Bold and not for Regular.
+    #[test]
+    fn a_source_s_styles_are_pending_apart() {
+        let _fonts = crate::adding_fonts();
+        const FAMILY: &str = "Two Styles 01";
+        let db = vectorcraft_text::FontDb::global();
+        let source = |style: &str| vectorcraft_text::FontSource {
+            family: FAMILY.into(),
+            style: style.into(),
+            url: format!("fonts/{style}.ttf"),
+            integrity: format!("sha256-{}", vectorcraft_format::base64_encode(&[0x5a; 32])),
+        };
+        db.add_sources(vec![source("Regular"), source("Bold")]);
+        assert!(db.is_pending_source(FAMILY, "Regular") && db.is_pending_source(FAMILY, "Bold"));
+        assert!(db.add_font(vectorcraft_testkit::fonts::renamed(FAMILY)) > 0);
+        assert!(!db.is_pending_source(FAMILY, "Regular"), "Regular is loaded");
+        assert!(db.is_pending_source(FAMILY, "Bold"), "Bold is still to come");
+        db.face(FAMILY, "Regular");
+        assert!(db.take_source_requests().iter().all(|r| r.family != FAMILY), "the loaded style asks for nothing");
+        db.face(FAMILY, "Bold");
+        assert_eq!(db.take_source_requests().into_iter().filter(|r| r.family == FAMILY).collect::<Vec<_>>(), [source("Bold")]);
     }
 
     /// Text › Add Font: a font file's faces join the session, text set in its family is no longer

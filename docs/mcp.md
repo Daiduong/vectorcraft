@@ -4728,8 +4728,8 @@ adds redraws in it; a face already loaded (the same family, style and version) i
 no font are refused. It answers `{faces: [{family, style}], found}` (the faces added, and the faces the file holds) and
 is not an edit: nothing is saved, journaled or undone. `text.addFontSources {fonts: [{family, style?, url, sha256}]}`
 registers fonts the host can supply, as a font provider's fonts are activated on demand: they are listed in the font
-menus and `text.fontList` from then on (a menu shows a source not loaded yet by name, without a sample), and type set in
-one asks for it. The web build fetches what type asks for from `url` (relative to the page), checks it against its
+menus and `text.fontList` from then on (a menu shows a source not loaded yet by name, without a sample, and `text.fontList` gives no axes for it; listing a source asks for nothing), and type set in
+one asks for it. The web build fetches what type asks for from `url` (relative to the page), four at a time and at most 64 MB each, checks it against its
 SHA-256, and adds it as `text.addFont` does; until then the type draws in the fallback face. `text.replaceFont` takes a
 source's family. A family and style already a source is kept; the answer is `{added, sources}`; not an edit either.
 

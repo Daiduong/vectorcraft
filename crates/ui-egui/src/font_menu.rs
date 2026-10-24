@@ -687,7 +687,7 @@ fn render_sample(family: &str, style: &str, text: &str, px: u32) -> Option<egui:
     let db = vectorcraft_text::FontDb::global();
     // A font source not loaded yet has no sample: drawing one would fetch every family the menu
     // shows. Choosing it sets type in it, which fetches it.
-    if db.is_pending_source(family) {
+    if db.is_pending_source(family, style) {
         return None;
     }
     let face: Arc<vectorcraft_text::FontFace> = db.face(family, style)?;
