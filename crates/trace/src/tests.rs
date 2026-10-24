@@ -1167,6 +1167,32 @@ fn ignore_background_leaves_out_only_the_areas_of_the_color_that_reach_the_edge(
 }
 
 #[test]
+fn ignore_background_traces_a_color_within_the_box_of_its_remaining_areas() {
+    // A 40 × 30 field of color 0 with a ring of color 1 around a 2 × 2 area of color 0.
+    let (w, h) = (40, 30);
+    let mut labels = vec![0u16; w * h];
+    for y in 10..16 {
+        for x in 20..26 {
+            labels[y * w + x] = 1;
+        }
+    }
+    for y in 12..14 {
+        for x in 22..24 {
+            labels[y * w + x] = 0;
+        }
+    }
+    let mut cleared = labels.clone();
+    clear_background(&mut cleared, w, h, &[true, false]);
+    let (counts, boxes) = label_extents(&labels, &cleared, w, 2);
+    // The counts stay those of the whole image (they order the layers); the boxes are those of
+    // what is traced.
+    assert_eq!(counts, vec![w * h - 32, 32]);
+    assert_eq!(boxes, vec![Some((22, 12, 24, 14)), Some((20, 10, 26, 16))]);
+    // Without Ignore Color, the boxes are those of every pixel.
+    assert_eq!(label_extents(&labels, &labels, w, 2).1, vec![Some((0, 0, w, h)), Some((20, 10, 26, 16))]);
+}
+
+#[test]
 fn snap_curves_to_lines_levels_a_rectangle_a_degree_askew() {
     // 120 × 60, turned 1.5° about its centre.
     let (c, t) = (Point::new(100.3, 60.6), 1.5f64.to_radians());

@@ -551,6 +551,29 @@ fn clear_background(labels: &mut [u16], w: usize, h: usize, ignored: &[bool]) {
     }
 }
 
+/// A box of pixels: `(x0, y0, x1, y1)`, the far sides excluded.
+type PixelBox = (usize, usize, usize, usize);
+
+/// Each of `n` palette entries' pixel count in `labels`, and the box its pixels lie in within
+/// `traced` (`labels` with Ignore Color's background [`TRANSPARENT`]). A layer is traced within its
+/// box, so a color whose background is left out is traced within the box of its remaining areas.
+fn label_extents(labels: &[u16], traced: &[u16], w: usize, n: usize) -> (Vec<usize>, Vec<Option<PixelBox>>) {
+    let mut counts = vec![0usize; n];
+    for &l in labels {
+        if let Some(c) = counts.get_mut(l as usize) {
+            *c += 1;
+        }
+    }
+    let mut boxes: Vec<Option<PixelBox>> = vec![None; n];
+    for (i, &l) in traced.iter().enumerate() {
+        if let Some(b) = boxes.get_mut(l as usize) {
+            let (x, y) = (i % w, i / w);
+            *b = Some(b.map_or((x, y, x + 1, y + 1), |b| (b.0.min(x), b.1.min(y), b.2.max(x + 1), b.3.max(y + 1))));
+        }
+    }
+    (counts, boxes)
+}
+
 /// Trace `img` with `params`. Failures (an image Logo mode refuses, say) give an empty result: use
 /// [`trace_within`] to see why.
 pub fn trace(img: &Raster, params: &TraceParams) -> TraceResult {
@@ -644,16 +667,7 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
             *r = true;
         }
     }
-    // Pixel count per palette entry, and the box its pixels lie in.
-    let mut counts = vec![0usize; q.palette.len()];
-    let mut boxes: Vec<Option<(usize, usize, usize, usize)>> = vec![None; q.palette.len()];
-    for (i, &l) in q.labels.iter().enumerate() {
-        if let (Some(c), Some(b)) = (counts.get_mut(l as usize), boxes.get_mut(l as usize)) {
-            *c += 1;
-            let (x, y) = (i % w, i / w);
-            *b = Some(b.map_or((x, y, x + 1, y + 1), |b| (b.0.min(x), b.1.min(y), b.2.max(x + 1), b.3.max(y + 1))));
-        }
-    }
+    let (counts, boxes) = label_extents(&q.labels, cleared.as_deref().unwrap_or(&q.labels), w, q.palette.len());
     // Layers bottom → top: largest area first.
     let mut order: Vec<usize> = (0..q.palette.len()).filter(|&i| counts[i] > 0).collect();
     order.sort_by(|a, b| counts[*b].cmp(&counts[*a]).then(a.cmp(b)));
