@@ -354,7 +354,7 @@ pub fn tool_definitions() -> Vec<Value> {
             "save_file",
             "Save file",
             &format!(
-                "Save the active document with the engine's document.save: by default to its own file in its own format (native .vectorcraft unless it was opened from or saved as SVG, PDF or a restorable .ai). With `path`, the extension picks the format: .{}. Other formats are exports (see export). The reply's `format` says what was written and `warnings` what that format loses.",
+                "Save the active document with the engine's document.save: by default to its own file in its own format (native .vectorcraft unless it was opened from or saved as SVG, PDF or a restorable .ai). With `path`, the extension picks the format: .{}. Other formats are exports (see export). The reply's `format` says what was written and `warnings` what that format loses. In the running app the call returns once the file is written, or with the error, even with Background Save on. When the save asks first (before replacing a file that opened with losses, or with a file dialog for an untitled document without `path`), the reply is `pending` or \"cancelled\" as before.",
                 save_extensions().join(", .")
             ),
             obj(json!({"path": string("Destination; its extension picks the format (default: the document's own file)")}), &[]),
@@ -370,7 +370,7 @@ pub fn tool_definitions() -> Vec<Value> {
                     "path": string("Destination file (omit to get dataBase64)"),
                     "scale": num("Raster pixels per point (default 1)"),
                     "artboard": {"type": "integer", "minimum": 0, "description": "0-based artboard (default: the first; PDF and .ai default: all)"},
-                    "range": string("1-based artboards such as \"1-3, 5\" (PDF and .ai: one page each; SVG, SVGZ and EPS: one file each; rasters, DXF, EMF and WMF: one, or one file each with options.useArtboards: true)"),
+                    "range": string("1-based artboards such as \"1-3, 5\" (PDF and .ai: one page each; SVG and SVGZ: one file each; EPS: one file each, after a central file of the whole document when there are two or more; rasters, DXF, EMF and WMF: one, or one file each with options.useArtboards: true)"),
                     "selection": {"type": "boolean", "description": "Export only the selection, cropped to it"},
                     "outlineText": {"type": "boolean", "description": "SVG/SVGZ: true writes text as outlines (viewable without the fonts). DXF takes it too (type outlined anyway unless preserve: editability). PDF uses options.advanced.outlineText instead (default false: live text)"},
                     "options": {"type": "object", "description": "More format options, passed through (see run_command document.formats), e.g. {\"quality\": 80} for jpg or {\"advanced\": {\"outlineText\": true}} for PDF text as outlines (default false: live text)"},
@@ -502,6 +502,16 @@ fn req_str<'a>(a: &'a Args, k: &str) -> Result<&'a str, String> {
     a.get(k).and_then(Value::as_str).filter(|s| !s.is_empty()).ok_or_else(|| format!("missing string argument `{k}`"))
 }
 
+/// A file tool's path made absolute against this process's working directory. An empty path is
+/// returned as given.
+fn absolute_path(p: &str) -> Result<String, String> {
+    if p.is_empty() {
+        return Ok(String::new());
+    }
+    let abs = std::path::absolute(p).map_err(|e| format!("{p}: {e}"))?;
+    abs.into_os_string().into_string().map_err(|abs| format!("{p}: the absolute path {} is not UTF-8", abs.to_string_lossy()))
+}
+
 fn exec(b: &mut dyn Backend, cmd: &str, params: Value) -> Result<Value, String> {
     b.call("engine.execute", json!({"command": cmd, "params": params}))
 }
@@ -528,20 +538,19 @@ fn paint_params(v: &Value) -> Result<Value, String> {
     })
 }
 
-fn apply_paint(b: &mut dyn Backend, a: &Args, ids: Option<Value>) -> Result<Value, String> {
-    let with_ids = |mut p: Value| {
-        if let Some(ids) = &ids {
-            p["ids"] = ids.clone();
-        }
-        p
-    };
-    let mut applied = Map::new();
+/// A command a drawing tool runs and its params.
+type Step<'a> = (&'a str, Value);
+
+/// The commands that apply `a`'s `fill`, `stroke`, `strokeWidth`, `dash`, `cap` and `join`, without
+/// targets, and what each applies.
+fn paint_steps(a: &Args) -> Result<(Vec<Step<'static>>, Map<String, Value>), String> {
+    let (mut steps, mut applied) = (vec![], Map::new());
     if let Some(f) = a.get("fill") {
-        exec(b, "paint.setFill", with_ids(paint_params(f)?))?;
+        steps.push(("paint.setFill", paint_params(f)?));
         applied.insert("fill".into(), f.clone());
     }
     if let Some(s) = a.get("stroke") {
-        exec(b, "paint.setStroke", with_ids(paint_params(s)?))?;
+        steps.push(("paint.setStroke", paint_params(s)?));
         applied.insert("stroke".into(), s.clone());
     }
     // Weight, dash, cap and join go to one stroke.set.
@@ -558,7 +567,18 @@ fn apply_paint(b: &mut dyn Backend, a: &Args, ids: Option<Value>) -> Result<Valu
         }
     }
     if !stroke.is_empty() {
-        exec(b, "stroke.set", with_ids(Value::Object(stroke)))?;
+        steps.push(("stroke.set", Value::Object(stroke)));
+    }
+    Ok((steps, applied))
+}
+
+fn apply_paint(b: &mut dyn Backend, a: &Args, ids: Option<Value>) -> Result<Value, String> {
+    let (steps, applied) = paint_steps(a)?;
+    for (cmd, mut p) in steps {
+        if let Some(ids) = &ids {
+            p["ids"] = ids.clone();
+        }
+        exec(b, cmd, p)?;
     }
     Ok(Value::Object(applied))
 }
@@ -609,9 +629,18 @@ fn check_draw_options(b: &mut dyn Backend, a: &Args) -> Result<(), String> {
     Ok(())
 }
 
-/// Applies the checked options of [`check_draw_options`] to the new object `ids`, adding what was
-/// applied to `made`. Paint and stroke options are [`apply_paint`]'s.
-fn apply_draw_options(b: &mut dyn Backend, a: &Args, ids: Option<Value>, made: &mut Value) -> Result<(), String> {
+/// Draws an object with `create` (a creating command and its params) and styles it with `a`'s
+/// paint and draw options ([`check_draw_options`], checked first) as ONE `command.batch`, named
+/// `label` (the undo step the creating command makes on its own): any step the engine refuses — a
+/// colour it can't read, a swatch the document lacks — rolls the whole call back, so it leaves no
+/// object and no undo step behind (#3545). The styling steps act on the new object, which the
+/// creating command selects, and on its whole appearance (`item: null`) → `made` with the new
+/// object's `id`, the `paint` applied and the other options applied.
+fn draw(b: &mut dyn Backend, a: &Args, label: &str, create: Step<'_>, mut made: Value) -> Result<Value, String> {
+    check_draw_options(b, a)?;
+    let (paint, applied) = paint_steps(a)?;
+    let mut steps = vec![create];
+    steps.extend(paint);
     let mut props = json!({});
     for k in ["name", "opacity"] {
         if let Some(v) = a.get(k) {
@@ -619,34 +648,40 @@ fn apply_draw_options(b: &mut dyn Backend, a: &Args, ids: Option<Value>, made: &
             made[k] = v.clone();
         }
     }
-    if let Some(ids) = &ids {
-        props["ids"] = ids.clone();
-    }
     if a.contains_key("name") || a.contains_key("opacity") {
-        exec(b, "object.setProps", props)?;
+        steps.push(("object.setProps", props));
     }
-    let effects = a.get("effects").and_then(Value::as_array).filter(|e| !e.is_empty());
-    if let Some(effects) = effects {
-        let mut applied = vec![];
-        for e in effects {
-            // The whole object (item: null), as the Effect menu applies it.
-            let mut p = json!({"effect": e.get("effect"), "params": e.get("params").cloned().unwrap_or(json!({})), "item": null});
-            if let Some(ids) = &ids {
-                p["ids"] = ids.clone();
+    // The fill, stroke and effects go to the new object's whole appearance (item: null), as the
+    // Fill and Stroke proxies and the Effect menu apply them to a selected object.
+    let effects = a.get("effects").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
+    for e in effects {
+        steps.push(("effect.apply", json!({"effect": e.get("effect"), "params": e.get("params").cloned().unwrap_or(json!({}))})));
+    }
+    let commands: Vec<Value> = steps
+        .into_iter()
+        .map(|(cmd, mut p)| {
+            if matches!(cmd, "paint.setFill" | "paint.setStroke" | "stroke.set" | "effect.apply") {
+                p["item"] = Value::Null;
             }
-            applied.push(exec(b, "effect.apply", p)?);
-        }
-        made["effects"] = Value::Array(applied);
+            json!({"command": cmd, "params": p})
+        })
+        .collect();
+    // The engine names the failed step of its batch; the caller sent no batch, so the reply gives
+    // the step's own error.
+    let r = exec(b, "command.batch", json!({"label": label, "commands": commands})).map_err(|e| match e.split_once(" failed: ") {
+        Some((step, error)) if step.starts_with("batch step ") => error.to_string(),
+        _ => e,
+    })?;
+    let results = r.get("results").and_then(Value::as_array).ok_or("command.batch returned no results")?;
+    made["id"] = results.first().and_then(|r| r.get("id")).cloned().unwrap_or(Value::Null);
+    made["paint"] = Value::Object(applied);
+    if !effects.is_empty() {
+        made["effects"] = Value::Array(results.iter().skip(results.len().saturating_sub(effects.len())).cloned().collect());
     }
-    Ok(())
-}
-
-fn created_id(r: &Value) -> Option<Value> {
-    r.get("id").filter(|v| v.is_u64()).map(|id| json!([id]))
+    Ok(made)
 }
 
 fn draw_path(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
-    check_draw_options(b, a)?;
     let mut p = json!({});
     if let Some(d) = a.get("d").and_then(Value::as_str) {
         p["d"] = json!(d);
@@ -667,33 +702,26 @@ fn draw_path(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
         p["anchors"] = Value::Array(anchors);
         p["closed"] = json!(a.get("closed").and_then(Value::as_bool).unwrap_or(false));
     }
-    let r = exec(b, "path.create", p)?;
-    let paint = apply_paint(b, a, created_id(&r))?;
-    let mut made = json!({"id": r.get("id"), "paint": paint});
-    apply_draw_options(b, a, created_id(&r), &mut made)?;
-    Ok(made)
+    draw(b, a, "Pen", ("path.create", p), json!({}))
 }
 
 fn draw_shape(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
     let shape = req_str(a, "shape")?;
-    let cmd = match shape {
-        "rectangle" | "rect" => "shape.rectangle",
-        "ellipse" | "circle" => "shape.ellipse",
-        "polygon" => "shape.polygon",
-        "star" => "shape.star",
-        "line" => "shape.line",
+    // Each command and the name of the undo step it makes.
+    let (cmd, label) = match shape {
+        "rectangle" | "rect" if a.get("radius").and_then(Value::as_f64).is_some_and(|r| r > 0.0) => ("shape.rectangle", "Rounded Rectangle"),
+        "rectangle" | "rect" => ("shape.rectangle", "Rectangle"),
+        "ellipse" | "circle" => ("shape.ellipse", "Ellipse"),
+        "polygon" => ("shape.polygon", "Polygon"),
+        "star" => ("shape.star", "Star"),
+        "line" => ("shape.line", "Line"),
         other => return Err(format!("unknown shape `{other}` (rectangle, ellipse, polygon, star, line)")),
     };
-    check_draw_options(b, a)?;
     let mut p = a.clone();
     for k in ["shape", "fill", "stroke", "strokeWidth", "dash", "cap", "join", "opacity", "name", "effects"] {
         p.remove(k);
     }
-    let r = exec(b, cmd, Value::Object(p))?;
-    let paint = apply_paint(b, a, created_id(&r))?;
-    let mut made = json!({"id": r.get("id"), "shape": shape, "paint": paint});
-    apply_draw_options(b, a, created_id(&r), &mut made)?;
-    Ok(made)
+    draw(b, a, label, (cmd, Value::Object(p)), json!({"shape": shape}))
 }
 
 /// Select `ids` when given (tools that act on the selection).
@@ -792,7 +820,8 @@ fn transform(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
 }
 
 fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
-    let path = a.get("path").and_then(Value::as_str);
+    let path = a.get("path").and_then(Value::as_str).map(absolute_path).transpose()?;
+    let path = path.as_deref();
     let window = a.get("window").and_then(Value::as_bool) == Some(true);
     // The backend writes the file, where its automation roots allow, and sends the image back too
     // (`data`): this process writes nothing.
@@ -992,8 +1021,16 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
             j(b.call("ui.set", json!({"panel": req_str(a, "panel")?}))?)
         }
         "screenshot" => screenshot(b, a),
-        "open_file" => j(b.call("app.open", json!({"path": req_str(a, "path")?}))?),
-        "save_file" => j(b.call("app.save", json!({"path": a.get("path").and_then(Value::as_str)}))?),
+        "open_file" => j(b.call("app.open", json!({"path": absolute_path(req_str(a, "path")?)?}))?),
+        "save_file" => {
+            let mut p = json!({"path": a.get("path").and_then(Value::as_str).map(absolute_path).transpose()?});
+            // The app writes the file before it replies, even with Background Save on, so a failed
+            // save is this call's error.
+            if b.has_ui() {
+                p["wait"] = json!(true);
+            }
+            j(b.call("app.save", p)?)
+        }
         "export" => {
             // One params object for every backend; the named arguments win over `options` (a named
             // artboard or range replaces every artboard choice in `options`).
@@ -1007,6 +1044,10 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
                 if let Some(v) = a.get(*k).filter(|v| !v.is_null()) {
                     params.insert((*k).into(), v.clone());
                 }
+            }
+            if let Some(path) = params.get("path").and_then(Value::as_str) {
+                let path = absolute_path(path)?;
+                params.insert("path".into(), json!(path));
             }
             let cmd = if a.get("selection").and_then(Value::as_bool) == Some(true) { "document.exportSelection" } else { "document.export" };
             j(exec(b, cmd, Value::Object(params))?)
@@ -1217,7 +1258,7 @@ fn render_preview(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     let encoded = r.get("pngBase64").and_then(Value::as_str).ok_or("renderer returned no image")?;
     let png = vectorcraft_format::base64_decode(encoded).ok_or("renderer returned bad base64")?;
     let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png).map_err(|e| format!("read preview: {e}"))?;
-    let img = img.thumbnail(max as u32, max as u32);
+    let img = if img.width() > max as u32 || img.height() > max as u32 { img.thumbnail(max as u32, max as u32) } else { img };
     let mut out = std::io::Cursor::new(Vec::new());
     img.write_to(&mut out, image::ImageFormat::Png).map_err(|e| format!("encode preview: {e}"))?;
     Ok(image_result(out.get_ref(), json!({"width":img.width(),"height":img.height()})))
