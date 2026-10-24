@@ -1987,7 +1987,7 @@ impl Renderer {
             self.draw_inlines(ctx, f, t, g);
             return;
         }
-        if t.anti_alias != TypeAntiAlias::Sharp && self.draw_type_edges(ctx, f, n, t, g) {
+        if t.anti_alias != TypeAntiAlias::Sharp && self.draw_type_edges(ctx, f, n, t, g, kept) {
             return;
         }
         let tb = t.xf.transform_rect_bbox(g.bounds);
@@ -2078,7 +2078,8 @@ impl Renderer {
     /// smoothing and what the type reads ([`Self::raster_inputs`]) are unchanged, the output has
     /// moved by whole pixels, and the kept pixels hold every pixel the frame needs. After a pan,
     /// the kept pixels are placed moved by it; after a pan that brings more of the type into view,
-    /// the type is drawn offscreen again.
+    /// the type is drawn offscreen again. The outlines of its character strokes are cached when
+    /// `g` is kept in `texts` (`geom_kept`).
     ///
     /// Returns false, having drawn nothing, for type that is drawn as Sharp draws it: type with
     /// inline graphics, type with color glyphs (bitmap or COLR), type whose own fills or strokes
@@ -2087,7 +2088,7 @@ impl Renderer {
     /// offscreen, those would blend with nothing or take the method on art that is not the
     /// characters'. It also returns false for type whose offscreen drawing would be more than
     /// [`MAX_RASTER_SIDE`] pixels a side.
-    fn draw_type_edges(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, t: &TextObject, g: &TextGeom) -> bool {
+    fn draw_type_edges(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, t: &TextObject, g: &Arc<TextGeom>, geom_kept: bool) -> bool {
         if proof::overprints(f.opts) && t.runs.iter().any(|r| r.style.overprint_fill || r.style.overprint_stroke) {
             return false;
         }
@@ -2170,7 +2171,7 @@ impl Renderer {
         let (image, ox, oy) = match kept {
             Some(kept) => kept,
             None => {
-                let pm = self.draw_type_pixels(&frame, n, t, g, (w, h), threshold);
+                let pm = self.draw_type_pixels(&frame, n, t, g, geom_kept, (w, h), threshold);
                 self.stats.type_edges += 1;
                 let image = Arc::new(pm);
                 if let Some(inputs) = inputs {
@@ -2194,12 +2195,23 @@ impl Renderer {
 
     /// The pixels of type `t` of node `n` (laid out in `g`) with its anti-aliasing method, drawn
     /// offscreen in `frame` on `w` × `h` pixels with edge threshold `threshold`
-    /// ([`Self::draw_type_edges`]).
-    fn draw_type_pixels(&mut self, frame: &Frame, n: &Node, t: &TextObject, g: &TextGeom, (w, h): (u16, u16), threshold: Option<u8>) -> Pixmap {
+    /// ([`Self::draw_type_edges`]). The outlines of its character strokes are cached when `g` is
+    /// kept in `texts` (`kept`).
+    #[allow(clippy::too_many_arguments)]
+    fn draw_type_pixels(
+        &mut self,
+        frame: &Frame,
+        n: &Node,
+        t: &TextObject,
+        g: &Arc<TextGeom>,
+        kept: bool,
+        (w, h): (u16, u16),
+        threshold: Option<u8>,
+    ) -> Pixmap {
         let draw = |r: &mut Self, frame: &Frame, n: &Node, t: &TextObject| {
             let mut off = single_threaded_context(w, h);
             off.set_aliasing_threshold(threshold);
-            r.inside_layer(|r| r.draw_text_geom(&mut off, frame, n, t, g));
+            r.inside_layer(|r| r.draw_text_geom(&mut off, frame, n, t, g, kept));
             off.flush();
             let mut pm = Pixmap::new(w, h);
             off.render(&mut pm, &mut r.resources);

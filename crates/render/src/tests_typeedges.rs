@@ -567,6 +567,29 @@ fn the_offscreen_drawing_takes_in_the_strokes_reach() {
     assert!(near(past(&own, &t), (90.0, 90.0)), "the object's own stroke after the characters': {:?}", past(&own, &t));
 }
 
+/// Crisp type with a character stroke expands the stroke once for both of its offscreen drawings,
+/// and keeps the outline as Sharp type does. Its pixels are those of a renderer that keeps no
+/// glyph geometry, which expands the stroke in every drawing.
+#[test]
+fn crisp_type_keeps_its_character_stroke_outline() {
+    let _fonts = crate::tests_fontchange::fonts_steady();
+    let mut d = page(TypeAntiAlias::Crisp, None);
+    let id = d.layers[0].children().and_then(|c| c.first()).map(|n| n.id).unwrap();
+    if let Some(Node { kind: NodeKind::Text(t), .. }) = d.node_mut(id) {
+        t.runs[0].style.stroke = Paint::solid(Color::BLACK);
+        t.runs[0].style.stroke_width = 1.0;
+    }
+    let opts = RenderOptions::default();
+    let mut r = Renderer::new();
+    let pixels = r.render(&d, W, H, Affine::IDENTITY, &opts).pixels;
+    assert_eq!(r.stats.type_edges, 1, "the type is drawn offscreen");
+    assert_eq!(r.char_strokes.len(), 1, "one outline for the one run's stroke, used by both drawings");
+    let mut uncached = Renderer::new();
+    uncached.texts = FrameCache::new(0, 0);
+    assert!(uncached.render(&d, W, H, Affine::IDENTITY, &opts).pixels == pixels, "the kept outline draws the same pixels");
+    assert_eq!(uncached.char_strokes.len(), 0);
+}
+
 /// Area type draws its punctuation outside its frame with Optical Margin Alignment, and None type
 /// draws it there too.
 #[test]
@@ -593,6 +616,7 @@ fn type_outside_its_frame_is_drawn() {
 /// the type again.
 #[test]
 fn a_pan_draws_the_type_from_the_kept_pixels() {
+    let _fonts = crate::tests_fontchange::fonts_steady();
     let opts = RenderOptions::default();
     let fonts = || vectorcraft_text::FontDb::global().generation();
     // How many type objects a renderer drew offscreen for `b` in `second` after drawing `a` in
