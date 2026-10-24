@@ -197,10 +197,10 @@ context's font definitions, so the embedder's own fonts are added after it.
   vectorcraft-text`, and the same for `vectorcraft-mcp`), and with them do; a test of either can't
   see that configuration, since their dev-dependencies turn the fonts on.
 - `cargo test -p vectorcraft-text --no-default-features --test without_bundled_fonts` checks the
-  configuration without them, and `cargo test -p vectorcraft-ui-egui --no-default-features` runs
-  the panels' tests without their interface faces or any translation, among them `install_fonts`
-  (the panels still bind every family); the same step lints `vectorcraft-ui-egui` without its
-  default features. The crate's tests about the interface faces need them, and are left out of
+  configuration without them, and `cargo nextest run -p vectorcraft-ui-egui --no-default-features`
+  (`cargo test` without nextest, as the test step runs) runs the panels' tests without their
+  interface faces or any translation, among them `install_fonts` (the panels still bind every
+  family); the same step lints `vectorcraft-ui-egui` without its default features. The crate's tests about the interface faces need them, and are left out of
   that run.
 
 ### Arabic fonts and the web build
