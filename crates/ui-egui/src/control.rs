@@ -17,7 +17,8 @@
 //! - `ui.resize {width, height}`, `ui.focus`, `ui.screenshot {path?, data?}` (`data: true`: the PNG
 //!   comes back as `pngBase64` as well)
 //! - `ui.render {path?, scale?, artboard?, data?}`: render an artboard headlessly (`artboard`: its
-//!   0-based index, default the first; PNG; without a path, or with `data: true`, as `pngBase64`)
+//!   0-based index, default the first; PNG with the pixels of a PNG export on white; without a
+//!   path, or with `data: true`, as `pngBase64`)
 //! - `app.open {path}` (any readable format) / `app.save {path?, svg?: {…SVG options}}` / `app.quit`
 //!   (`file.close`, `file.closeAll` and `app.quit` first open a `saveChanges` dialog for each
 //!   modified document: `ui.dialog.confirm` saves, set `discard: true` then confirm to discard)
@@ -29,6 +30,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc::Sender;
 
 use serde_json::{Value, json};
+use vectorcraft_render::encode::{RasterExportOptions, RasterFormat};
 use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::VectorcraftApp;
@@ -162,6 +164,9 @@ pub fn inspect(app: &VectorcraftApp, ctx: &egui::Context) -> Value {
         "background": app.background.jobs.iter().filter(|j| !j.label.is_empty()).map(|j| j.label.as_str()).collect::<Vec<_>>(),
         // Documents still being read off the UI thread (File › Open, Open Recent): their paths.
         "opening": app.opening.pending.iter().map(|p| p.path.as_str()).collect::<Vec<_>>(),
+        // Files still being read off the UI thread for Place (the Place dialog's OK, drops): their
+        // names, in the order they are placed.
+        "placing": app.placing.pending.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
         // The screen color sampler is shown, waiting for the person at the computer
         // (`ui.sampleScreenColor`).
         "screenSampler": app.screen_sampler.is_some(),
@@ -376,6 +381,9 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
             if let Some(v) = p.get("controlBar").and_then(Value::as_bool) {
                 app.ui.control_bar = v;
             }
+            if let Some(v) = p.get("imageTracePreview").and_then(Value::as_bool) {
+                app.ui.image_trace_preview = v;
+            }
             if p.get("closePanel").is_some() {
                 app.ui.open_panel = None;
             }
@@ -425,7 +433,9 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
             if let Err(e) = vectorcraft_render::raster_size(r, scale) {
                 return err(e);
             }
-            let img = app.canvas.renderer.render_region(&doc, r, scale, true);
+            // Rendered with the options of a PNG export on white, so its pixels are the exported file's.
+            let opts = RasterExportOptions { background: Some([255; 3]), ..Default::default() }.render_options(RasterFormat::Png);
+            let img = app.canvas.renderer.render_region_with(&doc, r, scale, &opts);
             let png = match img.to_png() {
                 Ok(png) => png,
                 Err(e) => return err(e),
@@ -502,6 +512,17 @@ mod tests {
         let (req, _) = ControlRequest::new(method, params);
         let Outcome::Done(r) = handle(app, &egui::Context::default(), &req) else { panic!("expected immediate reply") };
         r
+    }
+
+    #[test]
+    fn ui_set_turns_the_image_trace_preview_off_and_on() {
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        assert!(app.ui.image_trace_preview);
+        for on in [false, true] {
+            let r = input_request(&mut app, "ui.set", json!({"imageTracePreview": on}));
+            assert_eq!(r["ok"], true, "{r}");
+            assert_eq!(app.ui.image_trace_preview, on);
+        }
     }
 
     #[test]

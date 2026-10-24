@@ -36,6 +36,8 @@ pub(crate) const PLACED_ART_BUDGET: usize = 64 << 20;
 pub(crate) const BRUSH_BUDGET: usize = 64 << 20;
 /// Evaluated blends, envelopes and repeats (`Renderer::live_expanded`).
 pub(crate) const LIVE_BUDGET: usize = 64 << 20;
+/// What the walks of live objects and effect art found (`Renderer::live_found`).
+pub(crate) const WALK_BUDGET: usize = 16 << 20;
 /// Tessellated gradient meshes (`Renderer::mesh_quads`).
 pub(crate) const MESH_BUDGET: usize = 32 << 20;
 /// Pattern tile rasters, per thread and ink plane (`pattern::set_pattern_paint`): a tile is at
@@ -43,6 +45,9 @@ pub(crate) const MESH_BUDGET: usize = 32 << 20;
 pub(crate) const PATTERN_BUDGET: usize = 128 << 20;
 /// Freeform gradient grids, per thread (`freeform::set_freeform_paint`).
 pub(crate) const FREEFORM_BUDGET: usize = 32 << 20;
+/// Dithered gradient grids, per thread (`dither::set_dithered_paint`): a grid is at most 4096²
+/// pixels, 64 MiB.
+pub(crate) const DITHER_BUDGET: usize = 64 << 20;
 
 /// Frames an entry may go unused before [`FrameCache::sweep`] drops it.
 const AGE: u64 = 3;
