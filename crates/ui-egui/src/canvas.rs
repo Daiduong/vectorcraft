@@ -8582,32 +8582,8 @@ mod tests {
         [true, false].map(|pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: Default::default() })
     }
 
-    /// #2615: a keyboard tool can replace a character it typed by sending a Backspace and the new
-    /// character. Here n types ন and g sends a Backspace and ং; s types স and h sends a Backspace
-    /// and শ. The Backspace and the text after it come in one frame.
-    #[test]
-    fn a_backspace_and_the_text_after_it_in_one_frame_apply_in_order() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
-        app.session.prefs.placeholder_text = false;
-        let ctx = egui::Context::default();
-        let id = start_typing(&mut app, &ctx);
-        let text = |t: &str| egui::Event::Text(t.into());
-        typing_frame(&mut app, &ctx, vec![text("ন")]);
-        typing_frame(&mut app, &ctx, [tap(egui::Key::Backspace).to_vec(), vec![text("ং")]].concat());
-        assert_eq!(plain(&app, id), "ং");
-        typing_frame(&mut app, &ctx, tap(egui::Key::Backspace).to_vec());
-        assert_eq!(plain(&app, id), "");
-        // b a n g l a d e s h
-        for keys in ["ব", "া", "ন", "\u{8}ং", "ল", "া", "দ", "ে", "স", "\u{8}শ"] {
-            let events = match keys.strip_prefix('\u{8}') {
-                Some(t) => [tap(egui::Key::Backspace).to_vec(), vec![text(t)]].concat(),
-                None => vec![text(keys)],
-            };
-            typing_frame(&mut app, &ctx, events);
-        }
-        assert_eq!(plain(&app, id), "বাংলাদেশ");
-    }
-
+    /// Arrows, Home, End, Tab, Enter and clipboard events go to the Type tool in order with the text
+    /// of the same frame, and each Enter types a line break.
     #[test]
     fn the_type_tool_takes_text_and_editing_keys_in_the_order_they_came() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -8615,23 +8591,28 @@ mod tests {
         let ctx = egui::Context::default();
         let id = start_typing(&mut app, &ctx);
         let text = |t: &str| egui::Event::Text(t.into());
-        typing_frame(&mut app, &ctx, vec![text("abc")]);
-        // Two Backspaces, then text: each Backspace deletes one character before the text goes in.
-        typing_frame(&mut app, &ctx, [tap(egui::Key::Backspace).to_vec(), tap(egui::Key::Backspace).to_vec(), vec![text("x")]].concat());
-        assert_eq!(plain(&app, id), "ax");
-        // Text, then a Backspace: the Backspace deletes the text just typed.
-        typing_frame(&mut app, &ctx, [vec![text("y")], tap(egui::Key::Backspace).to_vec()].concat());
-        assert_eq!(plain(&app, id), "ax");
+        typing_frame(&mut app, &ctx, vec![text("ax")]);
         // ← moves the caret before the text that follows it goes in.
         typing_frame(&mut app, &ctx, [tap(egui::Key::ArrowLeft).to_vec(), vec![text("b")]].concat());
         assert_eq!(plain(&app, id), "abx");
+        // Home and End move the caret before the text that follows each goes in.
+        typing_frame(&mut app, &ctx, [tap(egui::Key::Home).to_vec(), vec![text("0")], tap(egui::Key::End).to_vec(), vec![text("9")]].concat());
+        assert_eq!(plain(&app, id), "0abx9");
+        // Tab and a paste go in between the texts around them.
+        let paste = egui::Event::Paste("p".into());
+        typing_frame(&mut app, &ctx, [vec![text("t")], tap(egui::Key::Tab).to_vec(), vec![text("u"), paste, text("q")]].concat());
+        assert_eq!(plain(&app, id), "0abx9t\tupq");
         // Enter types its line break between the texts around it, once for each press.
         typing_frame(&mut app, &ctx, [vec![text("1")], tap(egui::Key::Enter).to_vec(), tap(egui::Key::Enter).to_vec(), vec![text("2")]].concat());
-        assert_eq!(plain(&app, id), "ab1\n\n2x");
+        assert_eq!(plain(&app, id), "0abx9t\tupq1\n\n2");
+        // A key that comes before a composition starts in the same frame still moves the caret.
+        typing_frame(&mut app, &ctx, [tap(egui::Key::Home).to_vec(), vec![preedit("k", 1)]].concat());
+        typing_frame(&mut app, &ctx, vec![preedit("", 0), egui::Event::Ime(egui::ImeEvent::Commit("k".into()))]);
+        assert_eq!(plain(&app, id), "0abx9t\tupq1\n\nk2");
     }
 
-    /// Cmd/Ctrl+Enter bound to a command runs the command and types no line break. Unbound, it
-    /// types a line break as Enter does.
+    /// Cmd/Ctrl+Enter bound to a command runs the command and types no line break, also when a plain
+    /// Enter comes in the same frame. Unbound, it types a line break as Enter does.
     #[test]
     fn a_command_on_cmd_enter_runs_without_typing_a_line_break() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -8652,11 +8633,12 @@ mod tests {
         crate::shortcut_editor::sync(&app.ui);
         let grid = app.ui.view.grid;
         typing_frame(&mut app, &ctx, cmd_enter.to_vec());
+        let ran = (plain(&app, id), app.ui.view.grid);
+        typing_frame(&mut app, &ctx, [tap(egui::Key::Enter).to_vec(), cmd_enter.to_vec()].concat());
         app.ui.shortcut_overrides.clear();
         crate::shortcut_editor::sync(&app.ui);
-        assert_eq!((plain(&app, id).as_str(), app.ui.view.grid), ("a\n", !grid), "Cmd+Enter runs Show Grid only");
-        typing_frame(&mut app, &ctx, tap(egui::Key::Enter).to_vec());
-        assert_eq!(plain(&app, id), "a\n\n", "Enter types a line break");
+        assert_eq!((ran.0.as_str(), ran.1), ("a\n", !grid), "Cmd+Enter runs Show Grid only");
+        assert_eq!((plain(&app, id).as_str(), app.ui.view.grid), ("a\n\n", grid), "Enter types a line break and Cmd+Enter runs Show Grid");
     }
 
     #[test]

@@ -393,10 +393,7 @@ pub(crate) fn intercept_text_command(app: &mut VectorcraftApp, id: &str) -> Opti
     Some(Ok(Value::Null))
 }
 
-enum TextInput {
-    /// A `Text` or `Ime` event.
-    Typed(egui::Event),
-    Enter,
+pub(crate) enum TextInput {
     Key(ToolKey, Mods),
     Copy,
     Cut,
@@ -404,112 +401,87 @@ enum TextInput {
     Face(Face),
 }
 
-/// Route typed text, IME events, editing keys (with modifiers), Enter, clipboard events and
-/// Cmd+C/X/V to the Type tool in the order the frame received them (Cmd+A is left to the Select
-/// All shortcut, which selects the text being edited). A Backspace and the text typed after it
-/// in one frame delete and then insert. `composing`: the frame began with IME marked text. The
-/// keys and clipboard events of such a frame, and those that come while the tool composes, are
-/// dropped.
-pub(crate) fn route_type_input(app: &mut VectorcraftApp, ctx: &egui::Context, composing: bool) {
+/// Takes an editing key (with modifiers), a clipboard event or Cmd+C/X/V for the Type tool into
+/// `todo` (Cmd+A is left to the Select All shortcut, which selects the text being edited). Returns
+/// false for an event the tool takes, which is then removed from the input.
+pub(crate) fn type_input(e: &egui::Event, todo: &mut Vec<TextInput>) -> bool {
+    match e {
+        egui::Event::Copy => {
+            todo.push(TextInput::Copy);
+            false
+        }
+        egui::Event::Cut => {
+            todo.push(TextInput::Cut);
+            false
+        }
+        egui::Event::Paste(s) => {
+            todo.push(TextInput::Paste(Some(s.clone())));
+            false
+        }
+        egui::Event::Key { key, pressed, modifiers: m, .. } => {
+            let mods = Mods { shift: m.shift, alt: m.alt, cmd: m.command, ctrl: m.ctrl && !m.command, space: false };
+            let tk = match key {
+                Key::ArrowLeft => Some(ToolKey::Left),
+                Key::ArrowRight => Some(ToolKey::Right),
+                Key::ArrowUp => Some(ToolKey::Up),
+                Key::ArrowDown => Some(ToolKey::Down),
+                Key::Home => Some(ToolKey::Home),
+                Key::End => Some(ToolKey::End),
+                Key::Backspace => Some(ToolKey::Backspace),
+                Key::Delete => Some(ToolKey::Delete),
+                Key::Tab if !m.command => Some(ToolKey::Tab),
+                _ => None,
+            };
+            if let Some(tk) = tk {
+                if *pressed {
+                    todo.push(TextInput::Key(tk, mods));
+                }
+                return false;
+            }
+            // Type › Bold and Italic, as page layout apps have them while text is edited.
+            if m.command && m.shift && !m.alt && matches!(key, Key::B | Key::I) {
+                if *pressed {
+                    todo.push(TextInput::Face(if *key == Key::B { Face::Bold } else { Face::Italic }));
+                }
+                return false;
+            }
+            if m.command && !m.shift && !m.alt && matches!(key, Key::C | Key::X | Key::V) {
+                if *pressed {
+                    todo.push(match key {
+                        Key::C => TextInput::Copy,
+                        Key::X => TextInput::Cut,
+                        _ => TextInput::Paste(None),
+                    });
+                }
+                return false;
+            }
+            true
+        }
+        _ => true,
+    }
+}
+
+/// Keeps `ctx` for the Type tool's clipboard, which Edit › Copy and Cut also write to.
+pub(crate) fn keep_ctx(ctx: &egui::Context) {
     CTX.get_or_init(|| ctx.clone());
-    let shortcut_mods = ctx.input(|i| crate::shortcuts::is_shortcut_chord(i.modifiers));
-    let mut todo = vec![];
-    ctx.input_mut(|i| {
-        i.events.retain(|e| match e {
-            egui::Event::Text(_) | egui::Event::Ime(_) => {
-                todo.push(TextInput::Typed(e.clone()));
-                true
+}
+
+/// Applies an editing key or clipboard event taken by [`type_input`] to the Type tool.
+pub(crate) fn apply_type_input(app: &mut VectorcraftApp, t: TextInput) {
+    match t {
+        TextInput::Key(k, m) => text_key(app, k, m),
+        TextInput::Copy => {
+            text_copy(app);
+        }
+        TextInput::Cut => {
+            if text_copy(app) {
+                text_key(app, ToolKey::Delete, Mods::default());
             }
-            // Enter types a line break. The event stays in the input for the shortcuts: a command
-            // bound to its chord (Cmd+Enter) runs instead of the line break.
-            egui::Event::Key { key: Key::Enter, pressed, modifiers: m, .. } => {
-                let bound = || {
-                    let all = crate::shortcuts::all_shortcuts();
-                    all.iter().any(|(sc, ..)| sc.modifiers.command && sc.logical_key == Key::Enter && m.matches_logically(sc.modifiers))
-                };
-                if *pressed && !(m.command && bound()) {
-                    todo.push(TextInput::Enter);
-                }
-                true
-            }
-            egui::Event::Copy => {
-                todo.push(TextInput::Copy);
-                false
-            }
-            egui::Event::Cut => {
-                todo.push(TextInput::Cut);
-                false
-            }
-            egui::Event::Paste(s) => {
-                todo.push(TextInput::Paste(Some(s.clone())));
-                false
-            }
-            egui::Event::Key { key, pressed, modifiers: m, .. } => {
-                let mods = Mods { shift: m.shift, alt: m.alt, cmd: m.command, ctrl: m.ctrl && !m.command, space: false };
-                let tk = match key {
-                    Key::ArrowLeft => Some(ToolKey::Left),
-                    Key::ArrowRight => Some(ToolKey::Right),
-                    Key::ArrowUp => Some(ToolKey::Up),
-                    Key::ArrowDown => Some(ToolKey::Down),
-                    Key::Home => Some(ToolKey::Home),
-                    Key::End => Some(ToolKey::End),
-                    Key::Backspace => Some(ToolKey::Backspace),
-                    Key::Delete => Some(ToolKey::Delete),
-                    Key::Tab if !m.command => Some(ToolKey::Tab),
-                    _ => None,
-                };
-                if let Some(tk) = tk {
-                    if *pressed {
-                        todo.push(TextInput::Key(tk, mods));
-                    }
-                    return false;
-                }
-                // Type › Bold and Italic, as page layout apps have them while text is edited.
-                if m.command && m.shift && !m.alt && matches!(key, Key::B | Key::I) {
-                    if *pressed {
-                        todo.push(TextInput::Face(if *key == Key::B { Face::Bold } else { Face::Italic }));
-                    }
-                    return false;
-                }
-                if m.command && !m.shift && !m.alt && matches!(key, Key::C | Key::X | Key::V) {
-                    if *pressed {
-                        todo.push(match key {
-                            Key::C => TextInput::Copy,
-                            Key::X => TextInput::Cut,
-                            _ => TextInput::Paste(None),
-                        });
-                    }
-                    return false;
-                }
-                true
-            }
-            _ => true,
-        })
-    });
-    for t in todo {
-        let ime = composing || app.session.tool_composing();
-        match t {
-            TextInput::Typed(e) => crate::shortcuts::type_event(app, e, shortcut_mods),
-            _ if ime => {}
-            TextInput::Enter => {
-                let v = app.view_info();
-                let r = app.session.tool_key(ToolKey::Enter, Mods::default(), v);
-                crate::canvas::apply_requests(app, r);
-            }
-            TextInput::Key(k, m) => text_key(app, k, m),
-            TextInput::Copy => {
-                text_copy(app);
-            }
-            TextInput::Cut => {
-                if text_copy(app) {
-                    text_key(app, ToolKey::Delete, Mods::default());
-                }
-            }
-            TextInput::Paste(s) => text_paste(app, s),
-            TextInput::Face(f) => {
-                if let Err(e) = toggle_face(app, f) {
-                    app.status(e);
-                }
+        }
+        TextInput::Paste(s) => text_paste(app, s),
+        TextInput::Face(f) => {
+            if let Err(e) = toggle_face(app, f) {
+                app.status(e);
             }
         }
     }
