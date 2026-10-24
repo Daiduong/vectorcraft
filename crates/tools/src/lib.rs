@@ -252,6 +252,11 @@ pub struct ToolContext<'a> {
     /// points (a transform's reference point) land on anchors and ruler guides within
     /// [`Self::snap_tolerance`].
     pub snap_to_point: bool,
+    /// View → Snapping → Snap to Tangent: with Smart Guides on, a line drawn
+    /// from an anchor lands where it touches a nearby curve.
+    pub snap_tangent: bool,
+    /// View → Snapping → Snap to Perpendicular: likewise where it meets a nearby segment square.
+    pub snap_perpendicular: bool,
     /// View → Snap to Glyph: drawn points snap to live-text baselines and glyph bounds (with Smart Guides).
     pub snap_to_glyph: bool,
     /// View → Show Corner Widget: paths show draggable Live Corners widgets in their corners.
@@ -275,6 +280,9 @@ pub struct ToolContext<'a> {
     pub raster_sample: u32,
     /// General → Use Preview Bounds: the bounding box measures visual bounds (strokes included).
     pub preview_bounds: bool,
+    /// The session's memo of the selection tools' measurements for the document as it is
+    /// ([`select::PreviewMemo`]); without one they measure on every call.
+    pub preview_memo: Option<&'a select::PreviewMemo>,
     /// Units ▸ General: the unit measurement labels show lengths in.
     pub unit: Unit,
     /// Units ▸ Stroke: the unit measurement labels show stroke widths in.
@@ -344,6 +352,10 @@ pub struct ToolContext<'a> {
     /// two other objects in its row or column, or evenly between its two neighbours, and the
     /// equal gaps show.
     pub spacing_guides: bool,
+    /// Smart Guides → Invoke Distance Guides: with the Selection tool, Alt/Option held over another
+    /// object shows how far the selection is from it, and over an empty part of an artboard how
+    /// far it is from the artboard's edges ([`guides::distance_guides`]).
+    pub distance_guides: bool,
     /// Smart Guides → Snapping Tolerance (screen pixels): how near a smart guide target pulls the
     /// pointer, a dragged edge or a drawn point.
     pub snapping_tolerance: f64,
@@ -413,7 +425,18 @@ impl ToolContext<'_> {
             type_path_only: self.type_path_only,
             scope: self.isolation,
             skip_guides: !self.guides,
+            clip_outlines: false,
         }
+    }
+
+    /// [`Self::hit_options`] for the selection tools (Selection, Direct Selection, Group
+    /// Selection): a clipping path is also hit on its outline ([`HitOptions::clip_outlines`]).
+    /// Only for what a press or a hover selects: a double-click, loaded text or a guide's release
+    /// acts on what is drawn and takes [`Self::hit_options`].
+    ///
+    /// [`HitOptions::clip_outlines`]: vectorcraft_doc::hit::HitOptions::clip_outlines
+    pub fn selection_hit_options(&self) -> vectorcraft_doc::hit::HitOptions {
+        vectorcraft_doc::hit::HitOptions { clip_outlines: true, ..self.hit_options() }
     }
 }
 
@@ -436,6 +459,9 @@ pub enum Overlay {
     Label { p: Point, text: String, color: [u8; 3] },
     /// Measurement pill near the cursor (grey box with white text).
     Measure { p: Point, text: String },
+    /// A Distance Guides measurement: a line from `a` to `b` with a tick across each end, and
+    /// `text` (its length) in a pill of `color` on its middle.
+    Distance { a: Point, b: Point, text: String, color: [u8; 3] },
     /// Translucent filled quad (text selection highlight), RGBA.
     Highlight { quad: [Point; 4], color: [u8; 4] },
     /// A colour chip of fixed screen size (a gradient stop), RGBA; ringed when selected.
@@ -535,8 +561,8 @@ pub enum Cursor {
     /// Over the type widget of selected type (a double-click converts point type to area type and
     /// back): the arrow with a type badge.
     TypeWidget,
-    /// The Selection tool loaded with the text of an area type's out port (a click threads it
-    /// into a path or a new frame, a drag draws the new frame).
+    /// The Selection tool loaded with the text of area type or type on a path by a click on its out
+    /// or in port (a click threads it into a path or a new frame, a drag draws the new frame).
     LoadedText,
     /// The Shape Builder: a crosshair with a plus (merge mode)...
     ShapeBuilder,
@@ -548,8 +574,20 @@ pub enum Cursor {
     MagicWand,
     /// The Pencil tool.
     Pencil,
+    /// The Pencil tool with Alt pressed after the drag starts and Alt key toggles to Smooth Tool off:
+    /// releasing the mouse button with Alt still held closes the path. A drag started with Shift or
+    /// Alt held draws an open straight line instead. Also while a freehand stroke is drawn back near
+    /// its start, where releasing the mouse button closes the path. A crosshair with a ring.
+    PencilClose,
+    /// The Pencil tool before a press that draws a straight line (Shift or Alt held). A crosshair with a
+    /// short straight line.
+    PencilStraight,
     /// The Paintbrush tool.
     Paintbrush,
+    /// The Paintbrush tool with Alt held: releasing the mouse button with Alt still held closes
+    /// the path. Also while a stroke is drawn back near its start, where releasing the mouse button
+    /// closes the path. A crosshair with a ring.
+    PaintbrushClose,
     /// The Blob Brush tool.
     BlobBrush,
     /// The Eraser tool.
@@ -660,7 +698,10 @@ impl Cursor {
             | Cursor::Lasso
             | Cursor::MagicWand
             | Cursor::Pencil
+            | Cursor::PencilClose
+            | Cursor::PencilStraight
             | Cursor::Paintbrush
+            | Cursor::PaintbrushClose
             | Cursor::BlobBrush
             | Cursor::Eraser
             | Cursor::Smooth
@@ -779,6 +820,17 @@ pub trait Tool: Send {
         None
     }
     fn notify(&mut self, _cx: &ToolContext, _what: &str) {}
+    /// The pointer stopped hovering for the tool while it holds no press: it left the canvas (for a
+    /// panel or out of the window), went under a floating panel, menu, popup or dialog, or a press
+    /// started panning, zooming or turning the view. Drop what shows only for the hover (the
+    /// Selection tool's Distance Guides).
+    fn hover_ended(&mut self, _cx: &ToolContext) {}
+    /// Whether what the tool shows for the hover depends on what lies under a still pointer: then
+    /// the canvas hovers it again where the pointer is when the view, the document or the
+    /// selection changes (the Selection tool while Alt shows Distance Guides).
+    fn wants_rehover(&self) -> bool {
+        false
+    }
     /// Called when the user switches away (finish pending work).
     fn deactivate(&mut self, _cx: &ToolContext) -> Vec<Action> {
         vec![]
@@ -798,6 +850,16 @@ pub trait Tool: Send {
     fn wants_ticks(&self) -> bool {
         false
     }
+    /// Is the tool waiting for work it runs on another thread (the planar map of a large selection
+    /// for the Shape Builder and the Live Paint Bucket)? It highlights no region under the pointer
+    /// until the work is done. While this holds, the desktop app calls [`Tool::poll`] each frame,
+    /// and hosts without frames call it with `wait` after a [`PointerKind::Move`].
+    fn waiting(&self) -> bool {
+        false
+    }
+    /// Checks on the work [`Tool::waiting`] reports, waiting for it to finish with `wait`. Once it
+    /// is done, the tool shows the highlight under the pointer where it last moved.
+    fn poll(&mut self, _cx: &ToolContext, _wait: bool) {}
 }
 
 /// Create a tool by id. Unknown or not-yet-implemented tools fall back to a no-op tool that keeps the id.
@@ -842,6 +904,20 @@ impl Tool for NoopTool {
     }
 }
 
+/// The most samples a drawn stroke (freehand, Liquify) keeps: later drags add nothing to it.
+pub(crate) const MAX_STROKE_SAMPLES: usize = 100_000;
+
+/// Samples up to which every drag previews the whole stroke; past it, a drag previews it every
+/// `n / PREVIEW_ALL_UNTIL` samples. Each preview carries every sample so far, so previewing at
+/// every sample cost the square of the stroke's length (a gesture of many drags sent at once
+/// spent seconds); this way it is about `PREVIEW_ALL_UNTIL` per sample.
+const PREVIEW_ALL_UNTIL: usize = 1000;
+
+/// Whether a drag that made the stroke `n` samples long previews it ([`PREVIEW_ALL_UNTIL`]).
+pub(crate) fn previews_at(n: usize) -> bool {
+    n <= PREVIEW_ALL_UNTIL || n.is_multiple_of(n / PREVIEW_ALL_UNTIL)
+}
+
 pub(crate) fn json_ids(ids: &[NodeId]) -> Value {
     Value::Array(ids.iter().map(|i| Value::from(i.0)).collect())
 }
@@ -858,6 +934,51 @@ pub(crate) mod testutil {
         let id = d.alloc_id();
         d.insert(Some(l), 0, Node::path(id, shapes::rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)), Appearance::default_art())).unwrap();
         (d, id)
+    }
+
+    /// [`doc_with_rect`] plus a clip group: a filled 200 × 200 square (350, 350)–(550, 550)
+    /// clipped to an unpainted rectangle (400, 400)–(500, 500), so the art lies over the mask's
+    /// edges. The group, the clipping path and the art.
+    pub fn doc_with_masked_square() -> (Document, NodeId, NodeId, NodeId) {
+        let (mut d, _) = doc_with_rect();
+        let l = d.layers[0].id;
+        let (g, clip, art) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
+        let mut path = Node::path(clip, shapes::rectangle(Rect::new(400.0, 400.0, 500.0, 500.0)), Default::default());
+        if let vectorcraft_doc::NodeKind::Path { clipping, .. } = &mut path.kind {
+            *clipping = true;
+        }
+        let picture = Node::path(art, shapes::rectangle(Rect::new(350.0, 350.0, 550.0, 550.0)), Appearance::default_art());
+        let group =
+            Node::new(g, vectorcraft_doc::NodeKind::Group { children: vec![std::sync::Arc::new(path), std::sync::Arc::new(picture)], clip: true });
+        d.insert(Some(l), 1, group).unwrap();
+        (d, g, clip, art)
+    }
+
+    /// A new layer of `d`, above the others, with the unpainted rectangle `mask` as its clipping
+    /// mask and `art` clipped by it: the layer and the clipping mask.
+    pub fn add_masked_layer(d: &mut Document, mask: Rect, art: Node) -> (NodeId, NodeId) {
+        let l = d.add_layer(Some("Masked"));
+        let clip = d.alloc_id();
+        let mut path = Node::path(clip, shapes::rectangle(mask), Default::default());
+        if let vectorcraft_doc::NodeKind::Path { clipping, .. } = &mut path.kind {
+            *clipping = true;
+        }
+        d.insert(Some(l), 0, path).unwrap();
+        d.insert(Some(l), 1, art).unwrap();
+        d.node_mut(l).unwrap().set_clips(true);
+        (l, clip)
+    }
+
+    /// A layer clipped to (250, 250)–(360, 400), its mask's right edge through 120 × 40 area type
+    /// at (300, 300): the type, and a point on it just inside the mask's edge, within the
+    /// selection tolerance, where the selection tools take the mask.
+    pub fn doc_with_type_on_a_layer_masks_edge() -> (Document, NodeId, Point) {
+        let (mut d, _) = doc_with_rect();
+        let id = d.alloc_id();
+        let mut t = vectorcraft_doc::TextObject::point(Point::new(300.0, 300.0), "Some words", Default::default());
+        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 40.0)) };
+        add_masked_layer(&mut d, Rect::new(250.0, 250.0, 360.0, 400.0), Node::new(id, vectorcraft_doc::NodeKind::Text(Box::new(t))));
+        (d, id, Point::new(358.5, 320.0))
     }
 
     /// [`doc_with_rect`] plus 120 × 40 area type at (300, 300).
@@ -936,6 +1057,8 @@ pub(crate) mod testutil {
             show_bbox: true,
             snap_to_pixel: false,
             snap_to_point: true,
+            snap_tangent: true,
+            snap_perpendicular: true,
             snap_to_glyph: false,
             corner_widgets: true,
             fill_active: true,
@@ -946,6 +1069,7 @@ pub(crate) mod testutil {
             freeform_point: None,
             raster_sample: 1,
             preview_bounds: false,
+            preview_memo: None,
             unit: Unit::Points,
             stroke_unit: Unit::Points,
             paste_plain_text: false,
@@ -972,6 +1096,7 @@ pub(crate) mod testutil {
             measurement_labels: true,
             transform_tools_guides: true,
             spacing_guides: true,
+            distance_guides: true,
             snapping_tolerance: 4.0,
             construction_angles: guides::construction_angles(guides::DEFAULT_CONSTRUCTION_ANGLES),
             screen: None,
