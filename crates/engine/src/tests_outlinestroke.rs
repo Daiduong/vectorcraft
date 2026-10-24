@@ -303,6 +303,23 @@ fn each_transform_copy_keeps_its_own_gradient() {
     assert_eq!(differ, none_differ);
 }
 
+/// With Scale Strokes & Effects on, the canvas draws the stroke of a solid square that its
+/// Transform effect scales to 200% at 8 pt; the outlined result draws the same.
+#[test]
+fn a_transform_that_scales_strokes_outlines_the_scaled_stroke() {
+    let scale = json!({"scaleH": 200, "scaleV": 200, "strokes": true});
+    let mut differ = vec![];
+    for (command, p) in outlining() {
+        let mut s = session();
+        square_with(&mut s, json!({"color": "#33aa55"}), Value::Null, &[("distort.transform", scale.clone())]);
+        let before = render(&s);
+        outlined_by(&mut s, command, &p);
+        differ.push((command, differing(&before, &render(&s), 64)));
+    }
+    let none_differ: Vec<_> = outlining().map(|(command, _)| (command, 0)).into_iter().collect();
+    assert_eq!(differ, none_differ);
+}
+
 /// Random in a Transform effect takes its seed from the object's id. The outline draws as the
 /// canvas drew the object with Random in a Transform effect that copies a gradient square, in a
 /// Transform effect on the stroke of such a square, and in a Transform effect on the fill of a

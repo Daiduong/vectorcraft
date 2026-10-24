@@ -720,17 +720,18 @@ pub(crate) fn outlined_stroke(
 /// stroke's own geometry effects then shape the path that stroke outlines; [`outlined_stroke`]
 /// gets the stroke without them. A fill with a random Transform effect paints the outline its
 /// geometry effects make of the path, on a copy of its own. A path whose Transform effect copies
-/// it with a gradient becomes the art the canvas draws for it, each copy with its own gradient and
-/// its strokes outlined before the art gets new ids. Random in a Transform effect takes its seed
+/// it with a gradient, or has Scale Strokes & Effects or Transform Patterns on, becomes the art the
+/// canvas draws for it, each copy with its own gradient, stroke width and pattern, and its strokes
+/// outlined before the art gets new ids. Random in a Transform effect takes its seed
 /// from the object's id, so these effects give the outline the values the canvas drew.
 /// `None` when `l` has no stroke to outline.
 pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Brush], l: &Node) -> Option<Node> {
-    use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, has_gradient_copies, is_geometry, reshape};
+    use vectorcraft_render::effects::{GeomContext, apply_geometry_with, has_geometry, has_transform_art, is_geometry, reshape};
     if !l.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(st) if outlinable(st))) {
         return None;
     }
-    if has_gradient_copies(l) {
-        let mut art = reshape(l, None)?;
+    if has_transform_art(l) {
+        let mut art = reshape(Some(&*d), l, None)?;
         outline_member_strokes(d, brushes, &mut art);
         return Some(d.reid(&art));
     }
