@@ -7,7 +7,7 @@
 
 use serde_json::{Value, json};
 
-use super::{DialogSpec, form, run_and_close};
+use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::{VectorcraftApp, widgets};
 
@@ -60,6 +60,12 @@ fn params(d: &Dialog) -> Value {
     }
 }
 
+/// A name the save refuses (a taken one when renaming, a built-in preset's) keeps the dialog open,
+/// to be changed.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
-    run_and_close(app, "imageTrace.presets.save", params(d))
+    let r = app.run("imageTrace.presets.save", params(d));
+    if r.is_ok() {
+        app.ui.dialog = None;
+    }
+    r
 }

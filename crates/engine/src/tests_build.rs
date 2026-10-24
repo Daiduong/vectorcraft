@@ -2735,6 +2735,59 @@ fn image_trace_saved_presets_persist_with_the_preferences() {
     assert_eq!(t.execute("prefs.get", &json!({})).unwrap()["prefs"]["tracePresets"][0]["name"], "Keep");
 }
 
+/// A preset or name that isn't a string is an error, and changes no saved preset.
+#[test]
+fn image_trace_presets_reject_names_that_are_not_strings() {
+    let mut s = session();
+    let img = image_doc(&mut s);
+    s.execute("imageTrace.presets.save", &json!({"name": "Keep", "preset": "3 Colors"})).unwrap();
+    let kept = s.prefs.trace_presets.clone();
+    for p in [json!({"name": "Keep", "preset": 123}), json!({"name": 7}), json!({"name": "Keep", "newName": 5}), json!({"name": ["Keep"]})] {
+        let e = s.execute("imageTrace.presets.save", &p).unwrap_err().to_string();
+        assert!(e.contains("must be a string"), "{p}: {e}");
+    }
+    assert_eq!(s.prefs.trace_presets, kept, "nothing saved or changed");
+    let e = s.execute("imageTrace.presets.delete", &json!({"name": 1})).unwrap_err().to_string();
+    assert!(e.contains("`name` must be a string"), "{e}");
+    let e = s.execute("imageTrace.make", &json!({"id": img.0, "preset": 3})).unwrap_err().to_string();
+    assert!(e.contains("`preset` must be a string"), "{e}");
+}
+
+/// The journal records a saved preset's settings, so a replay traces with them after the preset is
+/// changed or deleted.
+#[test]
+fn image_trace_replays_a_saved_preset_with_the_settings_it_had() {
+    let mut s = session();
+    let img = image_doc(&mut s);
+    s.execute("imageTrace.presets.save", &json!({"name": "Keep", "params": {"ignoreWhite": true}})).unwrap();
+    assert_eq!(s.execute("imageTrace.make", &json!({"id": img.0, "preset": "Keep"})).unwrap()["paths"], 1, "the white is left out");
+    let (cmd, p) = s.journal.last().unwrap().clone();
+    assert_eq!((cmd.as_str(), &p["savedPreset"]["ignoreWhite"]), ("imageTrace.make", &json!(true)));
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("imageTrace.presets.save", &json!({"name": "Keep", "params": {"ignoreWhite": false}})).unwrap();
+    assert_ne!(s.execute("imageTrace.make", &json!({"id": img.0, "preset": "Keep"})).unwrap()["paths"], 1);
+    s.execute("edit.undo", &json!({})).unwrap();
+    // Changed: the replay traces as the first run did, and the object no longer names Keep.
+    let r = s.execute(&cmd, &p).unwrap();
+    assert_eq!(r["paths"], 1);
+    assert_eq!(node(&s, NodeId(r["id"].as_u64().unwrap())).extras().trace.clone().unwrap()["preset"], "Custom");
+    s.execute("edit.undo", &json!({})).unwrap();
+    // Deleted.
+    s.execute("imageTrace.presets.delete", &json!({"name": "Keep"})).unwrap();
+    assert_eq!(s.execute(&cmd, &p).unwrap()["paths"], 1);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert!(s.execute("imageTrace.make", &json!({"id": img.0, "preset": "Keep", "savedPreset": 5})).is_err());
+    // Recorded settings are checked as `params` are.
+    let e = s
+        .execute("imageTrace.make", &json!({"id": img.0, "preset": "Keep", "savedPreset": {"fills": false, "strokes": false}}))
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("Create needs fills, strokes or both"), "{e}");
+    // A built-in preset records nothing.
+    s.execute("imageTrace.make", &json!({"id": img.0, "preset": "6 Colors"})).unwrap();
+    assert!(s.journal.last().unwrap().1.get("savedPreset").is_none());
+}
+
 /// A soft-edged red disc (r = 30 px at (50.3, 49.6)) on transparency, placed at (50, 50) scaled ×2.
 fn soft_logo_doc(s: &mut Session) -> NodeId {
     let r = vectorcraft_trace::Raster::from_fn(100, 100, |x, y| {

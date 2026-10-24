@@ -1501,7 +1501,9 @@ already walks Image Trace. Short agent entry points:
   checks them; without `name` it is a new "Tracing Preset N", and `newName` renames a saved preset.
   `imageTrace.presets.delete {name}` deletes one. Built-in presets and the name `Custom` can't be saved over, renamed
   or deleted. `imageTrace.presets` lists the built-in presets with `builtIn: true`, then the saved ones with
-  `builtIn: false`, and `imageTrace.make {preset}` takes a saved preset's name, with ASCII letters matching in either case. In the app,
+  `builtIn: false`, and `imageTrace.make {preset}` takes a saved preset's name, with ASCII letters matching in either case.
+  Its journal entry records the saved preset's settings as `savedPreset`, so a replay traces with them after the preset
+  is changed, renamed or deleted. In the app,
   `ui.imageTracePresetDialog {params?, rename?}` opens the Image Trace panel's Save as New Preset… or Rename… dialog.
 - Live Paint: `livePaint.make`, `livePaint.merge`, `livePaint.fill {group?, point}`, `livePaint.strokeEdge`,
   `livePaint.info {group}`, `livePaint.release`, `livePaint.expand`, and `livePaint.gapOptions {ids?, detect?, size?,
