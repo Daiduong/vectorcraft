@@ -54,6 +54,8 @@ fn write(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>, id_prefix:
         classes: Vec::new(),
         class_ids: HashMap::new(),
         used_ids: HashSet::new(),
+        next_suffix: HashMap::new(),
+        linked_names: HashSet::new(),
         names: HashMap::new(),
         depth: 1,
         patterns: HashMap::new(),
@@ -304,6 +306,10 @@ struct Writer<'a> {
     /// 1-based class/entity number by declaration; avoids a linear scan for each style.
     class_ids: HashMap<String, usize>,
     used_ids: HashSet<String>,
+    /// The next suffix to try for a base name, so a repeated name doesn't probe the ones taken again.
+    next_suffix: HashMap<String, usize>,
+    /// The names in `linked`.
+    linked_names: HashSet<String>,
     names: HashMap<NodeId, String>,
     depth: usize,
     /// `<pattern>` def ids by pattern name + placement.
@@ -540,7 +546,7 @@ impl Writer<'_> {
     /// missing), else its bytes. `None` when it has neither.
     fn image_href(&mut self, im: &vectorcraft_doc::ImageObject) -> Option<String> {
         let (doc, link) = (self.doc, self.opts.images == ImageMode::Link);
-        match (im.link.as_ref().filter(|_| link), doc.images.get(&im.key)) {
+        match (im.link.as_ref().filter(|_| link), doc.image_blob(im)) {
             (Some(l), _) => Some(l.path.clone()),
             (None, Some(b)) if !b.bytes.is_empty() => Some(self.blob_href(&web_image(b))),
             _ => im.link.as_ref().map(|l| l.path.clone()),
@@ -550,17 +556,16 @@ impl Writer<'_> {
     /// Images drawn more than once in `art` (the pieces of a distorted image) go into the defs
     /// once; each piece then draws them with `<use>`.
     fn share_images(&mut self, art: &Node) {
-        let mut seen: HashMap<(String, u32, u32), usize> = HashMap::new();
+        // Each image's count and its first piece, which shows what they all show.
+        let mut seen: HashMap<(String, u32, u32), (usize, vectorcraft_doc::ImageObject)> = HashMap::new();
         art.walk(&mut |c| {
             if let NodeKind::Image(im) = &c.kind {
-                *seen.entry((im.key.clone(), im.width, im.height)).or_default() += 1;
+                seen.entry((im.key.clone(), im.width, im.height)).or_insert_with(|| (0, (**im).clone())).0 += 1;
             }
         });
-        let mut repeated: Vec<_> = seen.into_iter().filter(|(k, n)| *n > 1 && !self.shared_images.contains_key(k)).map(|(k, _)| k).collect();
-        repeated.sort();
-        for (key, width, height) in repeated {
-            let link = self.linked_of(art, &key);
-            let im = vectorcraft_doc::ImageObject { key: key.clone(), width, height, xf: Affine::IDENTITY, link, placement: Default::default() };
+        let mut repeated: Vec<_> = seen.into_iter().filter(|(k, (n, _))| *n > 1 && !self.shared_images.contains_key(k)).collect();
+        repeated.sort_by(|a, b| a.0.cmp(&b.0));
+        for ((key, width, height), (_, im)) in repeated {
             let Some(href) = self.image_href(&im) else { continue };
             let id = self.fresh_id("image");
             self.def(
@@ -572,20 +577,6 @@ impl Writer<'_> {
             );
             self.shared_images.insert((key, width, height), id);
         }
-    }
-
-    /// The link of the first image with blob `key` in `art`.
-    fn linked_of(&self, art: &Node, key: &str) -> Option<vectorcraft_doc::LinkInfo> {
-        let mut link = None;
-        art.walk(&mut |c| {
-            if let NodeKind::Image(im) = &c.kind
-                && im.key == key
-                && link.is_none()
-            {
-                link = im.link.clone();
-            }
-        });
-        link
     }
 
     fn fresh_id(&mut self, prefix: &str) -> String {
@@ -601,14 +592,17 @@ impl Writer<'_> {
     /// `base` (with the unique prefix) if free, else `base-2`, `base-3`…
     fn unique_id(&mut self, base: &str) -> String {
         let base = format!("{}{base}", self.id_prefix);
-        let mut cand = base.clone();
-        for i in 2.. {
-            if self.used_ids.insert(cand.clone()) {
-                break;
-            }
-            cand = format!("{base}-{i}");
+        if self.used_ids.insert(base.clone()) {
+            return base;
         }
-        cand
+        let next = self.next_suffix.entry(base.clone()).or_insert(2);
+        loop {
+            let cand = format!("{base}-{next}");
+            *next += 1;
+            if self.used_ids.insert(cand.clone()) {
+                return cand;
+            }
+        }
     }
 
     /// Reserve ids for every named object up front so generated def ids never collide with them.
@@ -1584,7 +1578,7 @@ impl Writer<'_> {
             return format!("data:{};base64,{}", b.mime, base64_encode(&b.bytes));
         }
         let name = format!("{}.{}", b.content_key(), image_ext(&b.mime));
-        if !self.linked.iter().any(|l| l.name == name) {
+        if self.linked_names.insert(name.clone()) {
             self.linked.push(LinkedImage { name: name.clone(), bytes: b.bytes.clone() });
         }
         name
@@ -1869,8 +1863,12 @@ impl Writer<'_> {
         let resolved = doc.inline_resolved(t);
         let t = &*resolved;
         let inline = t.runs.iter().any(|r| r.inline.is_some());
-        // Ruby is written as outlines with its base text: a reader's <text> can't place it.
-        let outlined = self.opts.outline_text || t.vertical || !t.ruby.is_empty() || (inline && matches!(t.kind, TextKind::OnPath { .. }));
+        // Ruby is written as outlines with its base text: a reader's <text> can't place it. So are
+        // small capitals, superscript and subscript and tab leaders, which SVG text doesn't draw (#3869).
+        let unwritable = t.runs.iter().any(|r| r.style.small_caps.is_some() || r.style.position != vectorcraft_doc::CharPosition::Normal)
+            || std::iter::once(&t.para).chain(&t.paras).any(|p| p.tabs.iter().any(|tab| !tab.leader.is_empty()));
+        let outlined =
+            self.opts.outline_text || t.vertical || !t.ruby.is_empty() || (inline && matches!(t.kind, TextKind::OnPath { .. })) || unwritable;
         let chars = |w: &mut Self, n: &Node| if outlined { w.text_outlines(n, t) } else { w.text(n, t) };
         let painted = n.appearance.items.iter().any(|i| i.visible() && !i.paint().is_none());
         // Live type with an inside or outside character stroke writes that stroke apart from the

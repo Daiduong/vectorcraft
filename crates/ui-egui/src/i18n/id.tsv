@@ -4069,7 +4069,7 @@ imageTrace	Outline	Kontur
 @msg	missing index	indeks tidak ada
 @msg	missing number `{key}`	angka `{key}` tidak ada
 @msg	missing integer `{key}`	bilangan bulat `{key}` tidak ada
-@msg	multiple windows land with M11.5	beberapa jendela hadir bersama M11.5
+@msg	New Window isn't available yet: a document opens in one window	Jendela baru belum tersedia: dokumen dibuka dalam satu jendela
 @msg	name the file	beri nama file
 @msg	no CSS to copy: select objects with CSS of their own	tidak ada CSS untuk disalin: pilih objek yang memiliki CSS sendiri
 @msg	no Live Paint edge near that point	tidak ada tepi Live Paint di dekat titik itu
@@ -4551,6 +4551,7 @@ imageTrace	Outline	Kontur
 	Logo 1000×1000	Logo 1000×1000
 	Business Card 3.5 × 2 in	Kartu nama 3.5 × 2 in
 	Business Card 85 × 55 mm	Kartu nama 85 × 55 mm
+	Business Card 91 × 55 mm	Kartu nama 91 × 55 mm
 	Letterhead Letter	Kop surat Letter
 	Letterhead A4	Kop surat A4
 	Envelope DL	Amplop DL
@@ -5446,6 +5447,12 @@ axis	Y Axis	Sumbu Y
 	The plug-in is computing…	Plug-in sedang menghitung…
 	Inspect Plug-in	Periksa plug-in
 	Cancel Plug-in Run	Batalkan jalannya plug-in
+# Actions panel: action sets (#3712).
+	New Set…	Set baru…
+	New Set	Set baru
+	Set Options…	Opsi set…
+	Set Options	Opsi set
+	Create New Set	Buat set baru
 	Stop Global Edit	Hentikan edit global
 	Global Edit Options	Opsi edit global
 	Match	Cocokkan

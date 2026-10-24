@@ -4047,7 +4047,7 @@ axis	Both	Ambos
 @msg	missing index	falta index
 @msg	missing number `{key}`	falta el número `{key}`
 @msg	missing integer `{key}`	falta el número entero `{key}`
-@msg	multiple windows land with M11.5	las ventanas múltiples llegan con M11.5
+@msg	New Window isn't available yet: a document opens in one window	Nueva ventana aún no está disponible: un documento se abre en una sola ventana
 @msg	name the file	ponle nombre al archivo
 @msg	no CSS to copy: select objects with CSS of their own	no hay CSS que copiar: selecciona objetos con CSS propio
 @msg	no Live Paint edge near that point	no hay ningún borde de pintura interactiva cerca de ese punto
@@ -4785,6 +4785,7 @@ effect	Regular	Regular
 	Logo 1000×1000	Logotipo 1000×1000
 	Business Card 3.5 × 2 in	Tarjeta de presentación de 3.5 × 2 pulgadas
 	Business Card 85 × 55 mm	Tarjeta de presentación de 85 × 55 mm
+	Business Card 91 × 55 mm	Tarjeta de presentación de 91 × 55 mm
 	Letterhead Letter	Membrete Carta
 	Letterhead A4	Membrete A4
 	Envelope DL	Sobre DL
@@ -5423,6 +5424,12 @@ axis	Y Axis	Eje Y
 @msg	a live effect runs while the document is drawn, so it can't be `heavy`	un efecto interactivo se ejecuta mientras se dibuja el documento, así que no puede ser `heavy`
 @msg	an exporter always gets an export's budget: leave `budget` out	un plugin de exportación siempre recibe el presupuesto de una exportación: omite `budget`
 @msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	“{_1}” pide un presupuesto de cálculo grande (cada ejecución hasta {minutes} minutos y {times} veces las instrucciones habituales): instálalo con `allowHeavy: true` cuando el usuario lo acepte
+# Actions panel: action sets (#3712).
+	New Set…	Nuevo conjunto…
+	New Set	Nuevo conjunto
+	Set Options…	Opciones de conjunto…
+	Set Options	Opciones de conjunto
+	Create New Set	Crear nuevo conjunto
 	Stop Global Edit	Detener edición global
 	Global Edit Options	Opciones de edición global
 	Match	Coincidir

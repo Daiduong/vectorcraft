@@ -4069,7 +4069,7 @@ imageTrace	Outline	Kontur
 @msg	missing index	indeks mangler
 @msg	missing number `{key}`	tallet `{key}` mangler
 @msg	missing integer `{key}`	heltallet `{key}` mangler
-@msg	multiple windows land with M11.5	flere vinduer lander med M11.5
+@msg	New Window isn't available yet: a document opens in one window	Nyt vindue er ikke tilgængeligt endnu: et dokument åbnes i ét vindue
 @msg	name the file	giv filen et navn
 @msg	no CSS to copy: select objects with CSS of their own	ingen CSS at kopiere: markér objekter med deres egen CSS
 @msg	no Live Paint edge near that point	ingen Live Paint-kant i nærheden af det punkt
@@ -4551,6 +4551,7 @@ imageTrace	Outline	Kontur
 	Logo 1000×1000	Logo 1000×1000
 	Business Card 3.5 × 2 in	Visitkort 3,5 × 2 tommer
 	Business Card 85 × 55 mm	Visitkort 85 × 55 mm
+	Business Card 91 × 55 mm	Visitkort 91 × 55 mm
 	Letterhead Letter	Brevpapir Letter
 	Letterhead A4	Brevpapir A4
 	Envelope DL	Konvolut DL
@@ -5446,6 +5447,12 @@ axis	Y Axis	Y-akse
 	The plug-in is computing…	Plug-in'en regner…
 	Inspect Plug-in	Undersøg plug-in
 	Cancel Plug-in Run	Annullér plug-in-kørsel
+# Actions panel: action sets (#3712).
+	New Set…	Nyt sæt…
+	New Set	Nyt sæt
+	Set Options…	Indstillinger for sæt…
+	Set Options	Indstillinger for sæt
+	Create New Set	Opret nyt sæt
 	Stop Global Edit	Stop global redigering
 	Global Edit Options	Indstillinger for global redigering
 	Match	Match

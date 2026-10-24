@@ -3971,7 +3971,7 @@ theme	Appearance	Erscheinungsbild
 @msg	missing index	der Index fehlt
 @msg	missing number `{key}`	die Zahl `{key}` fehlt
 @msg	missing integer `{key}`	die ganze Zahl `{key}` fehlt
-@msg	multiple windows land with M11.5	mehrere Fenster kommen mit M11.5
+@msg	New Window isn't available yet: a document opens in one window	Neues Fenster ist noch nicht verfügbar: ein Dokument öffnet sich in einem Fenster
 @msg	name the file	benennen Sie die Datei
 @msg	no CSS to copy: select objects with CSS of their own	kein CSS zum Kopieren: Wählen Sie Objekte mit eigenem CSS aus
 @msg	no Live Paint edge near that point	keine Interaktiv-malen-Kante in der Nähe dieses Punkts
@@ -5064,6 +5064,12 @@ axis	Y Axis	Y-Achse
 @msg	a live effect runs while the document is drawn, so it can't be `heavy`	ein Live-Effekt läuft, während das Dokument gezeichnet wird, daher kann er nicht `heavy` sein
 @msg	an exporter always gets an export's budget: leave `budget` out	ein Export-Plug-in erhält immer das Budget eines Exports: Lassen Sie `budget` weg
 @msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	„{_1}“ verlangt ein großes Rechenbudget (jede Ausführung bis zu {minutes} Minuten und {times}-mal so viele Anweisungen wie üblich): Installieren Sie es mit `allowHeavy: true`, sobald der Benutzer zustimmt
+# Actions panel: action sets (#3712).
+	New Set…	Neuer Satz…
+	New Set	Neuer Satz
+	Set Options…	Satzoptionen…
+	Set Options	Satzoptionen
+	Create New Set	Neuen Satz erstellen
 	Stop Global Edit	Globale Bearbeitung beenden
 	Global Edit Options	Optionen für globale Bearbeitung
 	Match	Übereinstimmung

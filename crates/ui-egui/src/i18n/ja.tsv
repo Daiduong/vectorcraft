@@ -4447,7 +4447,7 @@ swatch	Bright Violet	ビビッドバイオレット
 @msg	missing index	index が指定されていません
 @msg	missing number `{key}`	数値 `{key}` が指定されていません
 @msg	missing integer `{key}`	整数 `{key}` が指定されていません
-@msg	multiple windows land with M11.5	複数ウィンドウは M11.5 で対応予定です
+@msg	New Window isn't available yet: a document opens in one window	新規ウィンドウはまだ使用できません: ドキュメントは 1 つのウィンドウで開きます
 @msg	no PNG encoder	PNG エンコーダーがありません
 @msg	no document open	ドキュメントが開かれていません
 @msg	no effect applied yet	まだ効果を適用していません
@@ -5160,6 +5160,12 @@ axis	Y Axis	Y 軸
 @msg	a live effect runs while the document is drawn, so it can't be `heavy`	ライブ効果はドキュメントの描画中に実行されるため、`heavy` にはできません
 @msg	an exporter always gets an export's budget: leave `budget` out	書き出しプラグインには常に書き出しの予算が割り当てられます。`budget` は省略してください
 @msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	「{_1}」は大きな計算予算を求めています (1 回の実行につき最大 {minutes} 分、通常の {times} 倍の命令)。ユーザーが同意したら `allowHeavy: true` を指定してインストールしてください
+# Actions panel: action sets (#3712).
+	New Set…	新規セット…
+	New Set	新規セット
+	Set Options…	セットオプション…
+	Set Options	セットオプション
+	Create New Set	新規セットを作成
 	Stop Global Edit	グローバル編集を終了
 	Global Edit Options	グローバル編集オプション
 	Match	一致

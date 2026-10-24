@@ -1486,6 +1486,12 @@ impl Session {
         // Placed documents are read by the native format's loader.
         vectorcraft_doc::placed_document::set_loader(cmd::place::document::read_document);
         vectorcraft_doc::placed_document::set_file_reader(cmd::place::document::read_file_again);
+        vectorcraft_doc::placed_document::set_read_check(|path| file_access::check_read(path).is_ok());
+        // The background workers of placed documents read files in the scope that asked.
+        vectorcraft_render::placed_document::set_scope_capture(|| {
+            let scope = file_access::ScopeHandle::capture();
+            Box::new(move |f: &mut dyn FnMut()| scope.run(f))
+        });
         // Clicks find an image's own fills and strokes where their effects draw them.
         vectorcraft_doc::hit::set_image_paint(vectorcraft_render::effects::image_paint);
         // OpenType SVG glyphs are drawn as the SVG importer reads their documents.
@@ -2348,6 +2354,15 @@ fn refresh_tree_text_bounds(n: &mut Arc<vectorcraft_doc::Node>) {
     for c in n.children_mut().into_iter().flatten() {
         refresh_tree_text_bounds(c);
     }
+}
+
+/// Held by the tests that add fonts to the shared [`vectorcraft_text::FontDb::global`] for as long
+/// as they run: adding a font clears the database's caches, which would change how another such
+/// test's type resolves between its layout and its export.
+#[cfg(test)]
+pub(crate) fn adding_fonts() -> std::sync::MutexGuard<'static, ()> {
+    static FONTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    FONTS.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 #[cfg(test)]

@@ -3824,7 +3824,7 @@ axis	Both	Her İkisi
 @msg	missing `name`	"isim" eksik
 @msg	missing `tool`	'araç' eksik
 @msg	missing index	eksik dizin
-@msg	multiple windows land with M11.5	M11.5 ile birden fazla pencere açılır
+@msg	New Window isn't available yet: a document opens in one window	Yeni Pencere henüz kullanılamıyor: bir belge tek pencerede açılır
 @msg	name the file	dosyayı adlandırın
 @msg	no CSS to copy: select objects with CSS of their own	kopyalanacak CSS yok: kendilerine ait CSS'ye sahip nesneleri seçin
 @msg	no Live Paint edge near that point	bu noktanın yakınında Canlı Boyama kenarı yok
@@ -4561,6 +4561,7 @@ lighting	Light	Işık
 	Brown	Kahverengi
 	Business Card 3.5 × 2 in	Kartvizit 3,5 × 2 inç
 	Business Card 85 × 55 mm	Kartvizit 85×55 mm
+	Business Card 91 × 55 mm	Kartvizit 91×55 mm
 	CRLF (Windows)	CRLF (Windows)
 	Cap Height	Kapak Yüksekliği
 	Chevron	Şerit
@@ -5444,6 +5445,12 @@ axis	Y Axis	Y ekseni
 @msg	a live effect runs while the document is drawn, so it can't be `heavy`	canlı efekt belge çizilirken çalışır, bu yüzden `heavy` olamaz
 @msg	an exporter always gets an export's budget: leave `budget` out	dışa aktarma eklentisi her zaman bir dışa aktarmanın bütçesini alır: `budget` anahtarını çıkarın
 @msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	“{_1}” büyük bir hesaplama bütçesi istiyor (her çalıştırma en fazla {minutes} dakika ve olağan komutların {times} katı): kullanıcı onayladıktan sonra `allowHeavy: true` ile yükleyin
+# Actions panel: action sets (#3712).
+	New Set…	Yeni Set…
+	New Set	Yeni Set
+	Set Options…	Set Seçenekleri…
+	Set Options	Set Seçenekleri
+	Create New Set	Yeni Set Oluştur
 	Stop Global Edit	Genel Düzenlemeyi Durdur
 	Global Edit Options	Genel Düzenleme Seçenekleri
 	Match	Eşleştir

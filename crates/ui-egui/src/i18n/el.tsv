@@ -4026,7 +4026,7 @@ theme	Appearance	Εμφάνιση
 @msg	missing index	λείπει ο δείκτης
 @msg	missing number `{key}`	λείπει ο αριθμός `{key}`
 @msg	missing integer `{key}`	λείπει ο ακέραιος `{key}`
-@msg	multiple windows land with M11.5	τα πολλαπλά παράθυρα θα προστεθούν στην έκδοση M11.5
+@msg	New Window isn't available yet: a document opens in one window	Το Νέο παράθυρο δεν είναι ακόμη διαθέσιμο: ένα έγγραφο ανοίγει σε ένα παράθυρο
 @msg	name the file	δώστε όνομα στο αρχείο
 @msg	no CSS to copy: select objects with CSS of their own	δεν υπάρχει CSS για αντιγραφή: επιλέξτε αντικείμενα με δικό τους CSS
 @msg	no Live Paint edge near that point	δεν υπάρχει ακμή δυναμικής βαφής κοντά σε αυτό το σημείο
@@ -4632,6 +4632,7 @@ theme	Appearance	Εμφάνιση
 	Brown	Καφέ
 	Business Card 3.5 × 2 in	Επαγγελματική κάρτα 3,5 × 2 ίντσες
 	Business Card 85 × 55 mm	Επαγγελματική κάρτα 85 × 55 mm
+	Business Card 91 × 55 mm	Επαγγελματική κάρτα 91 × 55 mm
 	CRLF (Windows)	CRLF (Windows)
 	Cap Height	Ύψος κεφαλαίων
 	Chevron	Σχήμα V
@@ -5433,6 +5434,12 @@ axis	Y Axis	Άξονας Y
 @msg	a live effect runs while the document is drawn, so it can't be `heavy`	ένα δυναμικό εφέ εκτελείται κατά τη σχεδίαση του εγγράφου, οπότε δεν μπορεί να είναι `heavy`
 @msg	an exporter always gets an export's budget: leave `budget` out	ένα πρόσθετο εξαγωγής παίρνει πάντα τον προϋπολογισμό μιας εξαγωγής: παραλείψτε το `budget`
 @msg	“{_1}” asks for a heavy budget (each run up to {minutes} minutes and {times} times the usual instructions): install it with `allowHeavy: true` once the user agrees	το «{_1}» ζητά μεγάλο υπολογιστικό προϋπολογισμό (κάθε εκτέλεση έως {minutes} λεπτά και {times} φορές τις συνήθεις εντολές): εγκαταστήστε το με `allowHeavy: true` μόλις συμφωνήσει ο χρήστης
+# Actions panel: action sets (#3712).
+	New Set…	Νέο σύνολο…
+	New Set	Νέο σύνολο
+	Set Options…	Επιλογές συνόλου…
+	Set Options	Επιλογές συνόλου
+	Create New Set	Δημιουργία νέου συνόλου
 	Stop Global Edit	Τερματισμός καθολικής επεξεργασίας
 	Global Edit Options	Επιλογές καθολικής επεξεργασίας
 	Match	Αντιστοίχιση
