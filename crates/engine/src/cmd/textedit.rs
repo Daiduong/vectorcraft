@@ -1068,8 +1068,8 @@ fn type_step(s: &mut Session, p: &Value) -> Result<Value> {
                         Step::Leading => {
                             // With Auto leading the step starts from the leading the lines are set with:
                             // the paragraph's Auto Leading share of the em size the font height reference
-                            // gives the characters.
-                            let em = vectorcraft_text::FontDb::global().em_size(st, t.vertical);
+                            // gives the characters. An inline graphic keeps its size.
+                            let em = if run.inline.is_some() { st.size } else { vectorcraft_text::FontDb::global().em_size(st, t.vertical) };
                             let leading = st.leading.unwrap_or_else(|| t.para_at(para).justification.auto_leading_for(em));
                             st.leading = Some(super::typecmd::local_type_value(t, leading * points + inc, (0.1, 5000.0), false, C)?);
                         }

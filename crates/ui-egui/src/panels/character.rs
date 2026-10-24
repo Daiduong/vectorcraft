@@ -108,13 +108,13 @@ fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc
     acc.value().flatten()
 }
 
-/// As [`shared_styles`], with the attributes of the paragraph each character is in: `f` sees a run
-/// that spans paragraphs once for each of them. A selected object that ends in a line break also
-/// gives its empty last paragraph. In a Type tool selection a line break belongs to the paragraph it
-/// ends.
+/// As [`shared_styles`], with whether the run is an inline graphic and the attributes of the
+/// paragraph each character is in: `f` sees a run that spans paragraphs once for each of them. A
+/// selected object that ends in a line break also gives its empty last paragraph. In a Type tool
+/// selection a line break belongs to the paragraph it ends.
 fn shared_para_styles<T: PartialEq>(
     app: &VectorcraftApp,
-    f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle, &vectorcraft_doc::ParaStyle) -> Option<T>,
+    f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle, bool, &vectorcraft_doc::ParaStyle) -> Option<T>,
 ) -> Option<T> {
     let st = app.session.active()?;
     let breaks = |s: &[u8]| s.iter().filter(|&&c| c == b'\n').count();
@@ -130,7 +130,7 @@ fn shared_para_styles<T: PartialEq>(
             return None;
         };
         if b <= a {
-            return f(t, &vectorcraft_text::edit::insertion_style(&t.runs, a, b), t.para_at(t.paragraphs_in(a, a).start));
+            return f(t, &vectorcraft_text::edit::insertion_style(&t.runs, a, b), false, t.para_at(t.paragraphs_in(a, a).start));
         }
         let (mut end, mut para) = (0, 0);
         for r in &t.runs {
@@ -138,7 +138,7 @@ fn shared_para_styles<T: PartialEq>(
             end += r.text.len();
             if start < b && end > a {
                 for i in paras(&r.text, para, a.max(start) - start, b.min(end) - start) {
-                    acc.add(f(t, &r.style, t.para_at(i)));
+                    acc.add(f(t, &r.style, r.inline.is_some(), t.para_at(i)));
                 }
             }
             para += breaks(r.text.as_bytes());
@@ -150,14 +150,14 @@ fn shared_para_styles<T: PartialEq>(
                     let (mut para, mut len) = (0, 0);
                     for r in &t.runs {
                         for i in paras(&r.text, para, 0, r.text.len()) {
-                            acc.add(f(t, &r.style, t.para_at(i)));
+                            acc.add(f(t, &r.style, r.inline.is_some(), t.para_at(i)));
                         }
                         para += breaks(r.text.as_bytes());
                         len += r.text.len();
                     }
                     // The empty paragraph after a final line break, with the style typed there.
                     if t.runs.iter().rev().find(|r| !r.text.is_empty()).is_some_and(|r| r.text.ends_with('\n')) {
-                        acc.add(f(t, &vectorcraft_text::edit::insertion_style(&t.runs, len, len), t.para_at(para)));
+                        acc.add(f(t, &vectorcraft_text::edit::insertion_style(&t.runs, len, len), false, t.para_at(para)));
                     }
                 }
             });
@@ -584,12 +584,14 @@ pub(crate) fn size_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width:
 
 /// The Leading field's value, in document points: the explicit leading, or the Auto leading the
 /// characters are set with, their paragraph's Auto Leading share of the em size their font height
-/// reference gives them ([`vectorcraft_text::FontDb::em_size`]); `None` where the characters differ.
+/// reference gives them ([`vectorcraft_text::FontDb::em_size`]), or an inline graphic's size;
+/// `None` where the characters differ.
 fn shown_leading(app: &VectorcraftApp) -> Option<f64> {
     let db = vectorcraft_text::FontDb::global();
-    shared_para_styles(app, |t, style, para| {
+    shared_para_styles(app, |t, style, inline, para| {
         let s = t.effective_char_style(style)?;
-        Some(Metric(s.leading.unwrap_or_else(|| para.justification.auto_leading_for(db.em_size(&s, t.vertical)))))
+        let em = if inline { s.size } else { db.em_size(&s, t.vertical) };
+        Some(Metric(s.leading.unwrap_or_else(|| para.justification.auto_leading_for(em))))
     })
     .map(|v| v.0)
 }
@@ -1080,6 +1082,31 @@ mod tests {
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run("text.setStyle", json!({"leading": 30})).unwrap();
         assert!(near(shown_leading(&app), 30.0), "{:?}", shown_leading(&app));
+    }
+
+    /// An inline graphic keeps its size whatever the font height reference, so the Leading field
+    /// shows 120% of that size for it: blank for 20 pt Cap Height type with a graphic in it, and
+    /// 24 pt for the graphic alone.
+    #[test]
+    fn leading_of_an_inline_graphic_follows_its_own_size() {
+        use vectorcraft_text::test_fonts::{HEIGHT_FAMILY, height_font};
+        vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        app.run("shape.ellipse", json!({"x": 200, "y": 150, "width": 10, "height": 10})).unwrap();
+        app.run("symbol.new", json!({"name": "Dot"})).unwrap();
+        app.run("edit.clear", json!({})).unwrap();
+        app.session.select_tool("type", Default::default()).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
+        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.run("text.insertInline", json!({"id": id, "at": 2, "symbol": "Dot"})).unwrap();
+        app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 5, "fontHeightReference": "capHeight"})).unwrap();
+        app.session.set_tool_option("select", &json!({"start": 0, "end": 5}));
+        assert_eq!(shown_leading(&app), None, "the type is set with 34.3 pt Auto leading and the graphic with 24 pt");
+        app.session.set_tool_option("select", &json!({"start": 2, "end": 5}));
+        assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((2, 5)));
+        let shown = shown_leading(&app);
+        assert!(shown.is_some_and(|l| (l - 24.0).abs() < 1e-9), "{shown:?}");
     }
 
     /// A selected text object that ends in a line break has an empty last paragraph, which the

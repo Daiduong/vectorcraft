@@ -1831,6 +1831,33 @@ mod area_tests {
         assert_eq!(leading, [("Ab\n", Some(26.0)), ("Cd", Some(32.0))]);
     }
 
+    /// An inline graphic keeps its size whatever the font height reference, so a leading step from
+    /// Auto starts at 120% of that size: 20 pt Cap Height type steps from 120% of 20 / 0.7 pt and
+    /// the graphic in it from 24 pt.
+    #[test]
+    fn a_leading_step_from_auto_starts_at_an_inline_graphics_own_size() {
+        use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
+        vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
+        s.execute("shape.ellipse", &json!({"x": 300, "y": 300, "width": 10, "height": 10})).unwrap();
+        s.execute("symbol.new", &json!({"name": "Dot"})).unwrap();
+        s.execute("edit.clear", &json!({})).unwrap();
+        let id =
+            s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Hx", "font": HEIGHT_FAMILY, "size": 20})).unwrap()["id"].as_u64().unwrap();
+        s.execute("text.insertInline", &json!({"id": id, "at": 2, "symbol": "Dot"})).unwrap();
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        s.execute("text.setFormat", &json!({"fontHeightReference": "capHeight"})).unwrap();
+        s.execute("type.step", &json!({"attribute": "leading"})).unwrap();
+        let NodeKind::Text(t) = &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind else {
+            panic!("text");
+        };
+        let leading: Vec<_> = t.runs.iter().map(|r| (r.inline.is_some(), r.style.leading.unwrap())).collect();
+        let text = 1.2 * 20.0 * 1000.0 / f64::from(HEIGHT_CAP) + 2.0;
+        assert_eq!(leading.len(), 2, "{leading:?}");
+        assert!(leading.iter().all(|&(inline, l)| (l - if inline { 26.0 } else { text }).abs() < 1e-9), "{leading:?}");
+    }
+
     /// Variable Font settings (Character panel › Variable Font): a character attribute, saved only
     /// when set, each value clamped to its axis's range, and cleared by another font or style.
     #[test]
