@@ -75,14 +75,13 @@ fn a_view_box_is_the_em_square() {
     }
 }
 
-/// Text (which would lay type out inside type), images, embedded content and scripts are left out
-/// of a glyph, as the OpenType `SVG ` table asks.
+/// Text (which would lay type out inside type), embedded content and scripts are left out of a
+/// glyph, as the OpenType `SVG ` table asks.
 #[test]
-fn text_images_and_scripts_are_left_out() {
+fn text_and_scripts_are_left_out() {
     let doc = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="glyph1">
       <path fill="#f00" d="M0 0h500v-500z"/>
       <text font-family="Svgtest Glyphs" font-size="500">E<tspan>F</tspan></text>
-      <image width="10" height="10" xlink:href="data:image/png;base64,iVBORw0KGgo="/>
       <script>alert(1)</script>
     </g></svg>"##;
     let art = art(doc, 1).unwrap();
@@ -90,7 +89,7 @@ fn text_images_and_scripts_are_left_out() {
     art.walk(&mut |n| kinds.push(n.kind_label()));
     assert!(art.children().is_some_and(|c| !c.is_empty()), "the path stays");
     let mut other = false;
-    art.walk(&mut |n| other |= matches!(n.kind, NodeKind::Text(_) | NodeKind::Image(_)));
+    art.walk(&mut |n| other |= matches!(n.kind, NodeKind::Text(_)));
     assert!(!other, "{kinds:?}");
 }
 
@@ -138,4 +137,123 @@ fn event_attributes_are_left_out() {
     let mut events = vec![];
     art.walk(&mut |n| events.extend(n.extras().attrs.as_ref().map(|a| a.events.clone()).unwrap_or_default()));
     assert!(events.is_empty(), "{events:?}");
+}
+
+/// A size on the root without a `viewBox` sets up the em square as a `viewBox` would.
+#[test]
+fn a_root_size_is_the_em_square_without_a_view_box() {
+    let doc = r##"<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000">
+      <g id="glyph2"><path fill="#000" d="M500 500h500v500h-500z"/></g></svg>"##;
+    let b = art(doc, 2).unwrap().geometric_bounds().unwrap();
+    assert!((b.x0 - 250.0).abs() < 1e-6 && (b.width() - 250.0).abs() < 1e-6, "{b:?}");
+}
+
+/// A `viewBox` that isn't square fits the em square by its larger side, centred along the other.
+#[test]
+fn a_view_box_that_isnt_square_is_centred_in_the_em_square() {
+    // 2000 wide, 1000 high: half a unit per unit, the box 500 high centred in the em's 1000.
+    let doc = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1000">
+      <g id="glyph2"><path fill="#000" d="M0 0h2000v1000h-2000z"/></g></svg>"##;
+    let b = art(doc, 2).unwrap().geometric_bounds().unwrap();
+    assert!(b.x0.abs() < 1e-6 && (b.y0 - 250.0).abs() < 1e-6 && (b.height() - 500.0).abs() < 1e-6, "{b:?}");
+}
+
+/// A glyph element inside others is drawn on its own, as if used: what its parents apply doesn't
+/// reach it, and what it refers to still does.
+#[test]
+fn a_nested_glyph_is_drawn_on_its_own() {
+    let doc = r##"<svg xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient></defs>
+      <g transform="translate(1000 0)" opacity="0.5"><g id="glyph3"><path fill="url(#g)" d="M0 0h500v-500z"/></g></g>
+    </svg>"##;
+    let art = art(doc, 3).unwrap();
+    let b = art.geometric_bounds().unwrap();
+    assert!(b.x0.abs() < 1e-6 && (b.x1 - 500.0).abs() < 1e-6, "not moved by its parent: {b:?}");
+    let mut opacities = vec![];
+    art.walk(&mut |n| opacities.push(n.opacity));
+    assert!(opacities.iter().all(|o| *o == 1.0), "not faded by its parent: {opacities:?}");
+    assert!(fills(&art).iter().any(|p| matches!(p, Paint::Gradient(_))), "its gradient");
+}
+
+/// A namespace the glyph's parents declare still binds it when it is drawn on its own.
+#[test]
+fn a_nested_glyph_keeps_the_namespaces_its_parents_declare() {
+    let doc = r##"<svg xmlns="http://www.w3.org/2000/svg">
+      <g xmlns:l="http://www.w3.org/1999/xlink"><defs><path id="a" d="M0 0h500v-500z"/></defs>
+        <g id="glyph3"><use fill="#f00" l:href="#a"/></g></g>
+    </svg>"##;
+    assert!(art(doc, 3).is_some_and(|a| fills(&a).contains(&Paint::solid(Color::rgb8(255, 0, 0)))));
+}
+
+/// An image in a glyph's document is in its art, holding its pixels (the art has no document to
+/// keep them in), named by their content; one whose pixels don't read is left out.
+#[test]
+fn images_are_in_the_art_with_their_pixels() {
+    let png = vectorcraft_text::test_fonts::solid_png(4, [0, 0, 255, 255]);
+    let doc = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="glyph1">
+      <image x="0" y="-500" width="500" height="500" xlink:href="data:image/png;base64,{}"/>
+      <image width="10" height="10" xlink:href="missing.png"/>
+    </g></svg>"##,
+        vectorcraft_svg::base64_encode(&png)
+    );
+    let art = art(&doc, 1).unwrap();
+    let mut images = vec![];
+    art.walk(&mut |n| {
+        if let NodeKind::Image(im) = &n.kind {
+            images.push((**im).clone());
+        }
+    });
+    assert_eq!(images.len(), 1, "the one that reads");
+    let pixels = images[0].pixels.as_ref().expect("its own pixels");
+    assert_eq!(pixels.bytes.as_slice(), png.as_slice());
+    assert_eq!(images[0].key, pixels.content_key());
+    let b = art.geometric_bounds().unwrap();
+    assert!(b.x0.abs() < 1e-6 && (b.width() - 500.0).abs() < 1e-6 && (b.y0 + 500.0).abs() < 1e-6, "in font units: {b:?}");
+}
+
+/// An image whose data is an SVG document is left out, as the `SVG ` table asks: a glyph draws no
+/// documents inside it.
+#[test]
+fn svg_images_are_left_out() {
+    let inner = r##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#f00"/></svg>"##;
+    let doc = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="glyph1">
+      <path fill="#00f" d="M0 0h500v-500z"/>
+      <image width="500" height="500" xlink:href="data:image/svg+xml;base64,{}"/>
+      <image width="500" height="500" href=" DATA:image/SVG+xml;utf8,{}"/>
+    </g></svg>"##,
+        vectorcraft_svg::base64_encode(inner.as_bytes()),
+        vectorcraft_svg::xml_escape(&inner.replace('#', "%23"))
+    );
+    let fills = fills(&art(&doc, 1).unwrap());
+    assert!(fills.contains(&Paint::solid(Color::rgb8(0, 0, 255))), "the glyph's own art");
+    assert!(!fills.contains(&Paint::solid(Color::rgb8(255, 0, 0))), "not the images' documents: {fills:?}");
+}
+
+/// Of `href` and `xlink:href`, the plain one counts, as the importer reads them (SVG 2): an image
+/// whose `href` is a PNG stays, whatever its `xlink:href`; one whose `href` is a document goes.
+#[test]
+fn an_images_plain_href_decides_whether_it_is_an_svg_image() {
+    let png = vectorcraft_svg::base64_encode(&vectorcraft_text::test_fonts::solid_png(4, [0, 0, 255, 255]));
+    let svg = vectorcraft_svg::base64_encode(
+        br##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#f00"/></svg>"##,
+    );
+    let image = |href: &str, xlink: &str| {
+        format!(
+            r##"<image width="500" height="500" href="data:image/{href};base64,{}" xlink:href="data:image/{xlink};base64,{}"/>"##,
+            if href == "png" { &png } else { &svg },
+            if xlink == "png" { &png } else { &svg }
+        )
+    };
+    let images = |inner: String| {
+        let doc = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="glyph1"><path d="M0 0h1v-1z"/>{inner}</g></svg>"##
+        );
+        let mut n = 0;
+        art(&doc, 1).unwrap().walk(&mut |c| n += usize::from(matches!(c.kind, NodeKind::Image(_))));
+        n
+    };
+    assert_eq!(images(image("png", "svg+xml")), 1, "the PNG stays");
+    assert_eq!(images(image("svg+xml", "png")), 0, "the document goes");
 }
