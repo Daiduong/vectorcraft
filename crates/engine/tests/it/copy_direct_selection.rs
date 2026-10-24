@@ -320,7 +320,66 @@ fn compound_member_selected_whole_with_direct_selection_promotes_member() {
     // 1. The compound path (outer promoted to compound #786)
     // 2. The extracted segment piece from standalone
     let clip_ids: Vec<NodeId> = s.clipboard.nodes.iter().map(|n| n.id).collect();
+    assert_eq!(clip_ids.len(), 2, "promoted compound plus the extracted standalone piece");
     assert!(clip_ids.contains(&compound), "whole compound member must be promoted to compound parent");
+}
+
+#[test]
+fn cut_whole_compound_member_with_direct_selection_cuts_compound_and_extracted_piece() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let outer = NodeId(run(&mut s, "shape.rectangle", json!({"x": 10, "y": 10, "width": 80, "height": 80}))["id"].as_u64().unwrap());
+    let inner = NodeId(run(&mut s, "shape.rectangle", json!({"x": 30, "y": 30, "width": 40, "height": 40}))["id"].as_u64().unwrap());
+    run(&mut s, "select.set", json!({"ids": [outer.0, inner.0]}));
+    let compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    let standalone = NodeId(run(&mut s, "shape.rectangle", json!({"x": 100, "y": 100, "width": 50, "height": 50}))["id"].as_u64().unwrap());
+
+    let outer_anchors = (0..4).map(|i| vec![0, i]).collect::<Vec<_>>();
+    run(
+        &mut s,
+        "select.anchorsMany",
+        json!({
+            "items": [
+                {"id": outer.0, "anchors": outer_anchors},
+                {"id": standalone.0, "anchors": [[0, 0]]}
+            ]
+        }),
+    );
+
+    run(&mut s, "edit.cut", json!({}));
+    let clip_ids: Vec<NodeId> = s.clipboard.nodes.iter().map(|n| n.id).collect();
+    assert_eq!(clip_ids.len(), 2, "promoted compound plus the extracted standalone piece");
+    assert!(clip_ids.contains(&compound), "whole compound member must be promoted to compound parent");
+
+    // Compound was removed because member was selected whole
+    let doc = &s.doc().unwrap().doc;
+    assert!(doc.node(compound).is_none(), "compound path must be removed on cut");
+    // Standalone has cut pieces remaining
+    assert!(doc.node(standalone).is_some(), "partially cut standalone path remains");
+}
+
+#[test]
+fn cut_direct_selected_only_path_in_layer_preserves_layer() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    // Create a new layer
+    let layer_id = NodeId(run(&mut s, "layer.new", json!({}))["id"].as_u64().unwrap());
+    // Create a path inside the layer
+    let rect = NodeId(run(&mut s, "shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50}))["id"].as_u64().unwrap());
+    let doc = &s.doc().unwrap().doc;
+    assert_eq!(doc.parent_of(rect), Some(layer_id));
+
+    // Direct-select all 4 anchors of rect and cut
+    let all_anchors = (0..4).map(|i| vec![0, i]).collect::<Vec<_>>();
+    run(&mut s, "select.anchors", json!({"id": rect.0, "anchors": all_anchors, "mode": "set"}));
+    run(&mut s, "edit.cut", json!({}));
+
+    // The rect was cut, but the layer must NOT be deleted
+    let doc = &s.doc().unwrap().doc;
+    assert!(doc.node(rect).is_none(), "rect was cut");
+    assert!(doc.node(layer_id).is_some(), "layer must remain even when empty");
+    assert_eq!(doc.node(layer_id).unwrap().children().unwrap().len(), 0);
 }
 
 #[test]

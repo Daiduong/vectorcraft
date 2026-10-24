@@ -627,7 +627,7 @@ fn cut_direct_selection(s: &mut Session, roots: &[NodeId]) -> Result<Value> {
             }
             subpaths.retain(|sp| sp.anchors.len() >= 2);
             if subpaths.is_empty() {
-                let parent = d.parent_of(*id);
+                let parent = d.parent_of(*id).filter(|p| matches!(d.node(*p).map(|n| &n.kind), Some(NodeKind::Compound { .. })));
                 d.remove(*id)?;
                 if let Some(p) = parent
                     && d.node(p).is_some_and(|n| n.children().is_some_and(|c| c.is_empty()))
