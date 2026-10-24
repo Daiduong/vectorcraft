@@ -369,17 +369,19 @@ impl<'a> Printed<'a> {
 /// A clip group's clipping path, as [`Printed`] judges what it shows.
 struct Clip {
     bounds: Rect,
-    /// Its outline and fill rule (None when it has none to clip by, as a symbol instance's).
+    /// Its outline and fill rule (None when it has nothing to clip by, as a symbol instance or a
+    /// guide: the clipped art is then hidden).
     shape: Option<(PathData, FillRule)>,
 }
 
 impl Clip {
     /// The bounds of what this clipping path shows of box `b` (None when it shows none of it):
     /// the box cut to the path's shape, so a compound or curved path is judged by where it lies
-    /// over the box, not by its own bounds.
+    /// over the box, not by its own bounds. With nothing to clip by it shows nothing, as the
+    /// renderer and the PDF and SVG writers hide the clipped art.
     fn shown(&self, b: Rect) -> Option<Rect> {
         let b = Some(b.intersect(self.bounds)).filter(|r| r.area() > 0.0)?;
-        let Some((path, rule)) = &self.shape else { return Some(b) };
+        let (path, rule) = self.shape.as_ref()?;
         let rect = PathData::from_bezpath(&b.to_path(0.1));
         let cut = vectorcraft_pathops::boolean(&rect, FillRule::NonZero, path, *rule, vectorcraft_pathops::BoolOp::Intersect);
         cut.bounds().filter(|r| r.area() > 0.0)

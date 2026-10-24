@@ -357,3 +357,27 @@ fn a_miter_spike_alone_reaching_onto_the_artboard_is_named() {
     assert!(painted.x1 >= stroked.x1, "the painted bounds hold the spike: {painted:?} {stroked:?}");
     assert_eq!(edge_warnings(&mut s, "pdf", json!({})), [one(id)]);
 }
+
+/// A clip group whose clipping path has nothing to clip by (here one turned into a guide, as a
+/// file can hold it; a symbol instance is another) hides the type it clips, as the renderer and the
+/// PDF and SVG writers do: nothing of it is drawn, so nothing is cut off, even where the clipping
+/// path's box crosses the edge.
+#[test]
+fn type_hidden_by_a_clipping_path_with_nothing_to_clip_by_is_left_alone() {
+    let mut s = session();
+    let text = point(&mut s, 20.0, 100.0, LONG);
+    let mask = id_of(&s.execute("shape.rectangle", &json!({"x": 10, "y": 50, "width": 400, "height": 100})).unwrap());
+    s.execute("select.set", &json!({"ids": [text.0, mask.0]})).unwrap();
+    s.execute("object.clippingMask.make", &json!({})).unwrap();
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({})), [one(text)], "a clipping path past the edge shows the type there");
+    let d = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
+    if let vectorcraft_doc::NodeKind::Path { guide, .. } = &mut d.node_mut(mask).unwrap().kind {
+        *guide = true;
+    }
+    let clip = s.doc().unwrap().doc.node(mask).unwrap();
+    assert!(clip.geometric_bounds().is_some_and(|b| b.x1 > 300.0));
+    assert!(vectorcraft_render::effects::clip_outline(clip).is_none(), "nothing to clip by");
+    for (format, options) in cropping() {
+        assert_eq!(edge_warnings(&mut s, format, options.clone()), Vec::<String>::new(), "{format} {options}");
+    }
+}
