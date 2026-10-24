@@ -109,7 +109,9 @@ fn shared_styles<T: PartialEq>(app: &VectorcraftApp, f: impl Fn(&vectorcraft_doc
 }
 
 /// As [`shared_styles`], with the attributes of the paragraph each character is in: `f` sees a run
-/// that spans paragraphs once for each of them.
+/// that spans paragraphs once for each of them. A selected object that ends in a line break also
+/// gives its empty last paragraph. In a Type tool selection a line break belongs to the paragraph it
+/// ends.
 fn shared_para_styles<T: PartialEq>(
     app: &VectorcraftApp,
     f: impl Fn(&vectorcraft_doc::TextObject, &CharStyle, &vectorcraft_doc::ParaStyle) -> Option<T>,
@@ -145,12 +147,17 @@ fn shared_para_styles<T: PartialEq>(
         for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
             n.walk(&mut |c| {
                 if let NodeKind::Text(t) = &c.kind {
-                    let mut para = 0;
+                    let (mut para, mut len) = (0, 0);
                     for r in &t.runs {
                         for i in paras(&r.text, para, 0, r.text.len()) {
                             acc.add(f(t, &r.style, t.para_at(i)));
                         }
                         para += breaks(r.text.as_bytes());
+                        len += r.text.len();
+                    }
+                    // The empty paragraph after a final line break, with the style typed there.
+                    if t.runs.iter().rev().find(|r| !r.text.is_empty()).is_some_and(|r| r.text.ends_with('\n')) {
+                        acc.add(f(t, &vectorcraft_text::edit::insertion_style(&t.runs, len, len), t.para_at(para)));
                     }
                 }
             });
@@ -1073,6 +1080,25 @@ mod tests {
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run("text.setStyle", json!({"leading": 30})).unwrap();
         assert!(near(shown_leading(&app), 30.0), "{:?}", shown_leading(&app));
+    }
+
+    /// A selected text object that ends in a line break has an empty last paragraph, which the
+    /// Leading field takes in; a Type tool selection of all the text does not.
+    #[test]
+    fn leading_of_a_whole_object_takes_in_the_empty_last_paragraph() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
+        let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Ab\n", "size": 20})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        let near = |l: Option<f64>, want: f64| l.is_some_and(|l| (l - want).abs() < 1e-9);
+        assert!(near(shown_leading(&app), 24.0), "{:?}", shown_leading(&app));
+        app.run("text.setFormat", json!({"id": id, "start": 3, "end": 3, "autoLeading": 150})).unwrap();
+        assert_eq!(shown_leading(&app), None, "the empty last paragraph's Auto leading is 30 pt");
+        app.session.select_tool("type", Default::default()).unwrap();
+        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.set_tool_option("select", &json!({"start": 0, "end": 3}));
+        assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((0, 3)));
+        assert!(near(shown_leading(&app), 24.0), "a line break belongs to the paragraph it ends: {:?}", shown_leading(&app));
     }
 
     /// With the Type tool, the Leading field shows the Auto leading of the paragraphs the selection
