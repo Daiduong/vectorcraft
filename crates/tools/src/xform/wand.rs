@@ -114,7 +114,8 @@ impl Tool for LassoTool {
                         }
                     }
                 });
-                hits.retain(|(id, _)| cx.doc.is_selectable(*id) && cx.doc.is_visible(*id));
+                let selectable = cx.doc.selectable();
+                hits.retain(|(id, _)| selectable(*id) && cx.doc.is_visible(*id));
                 let items: Vec<Value> = hits.iter().map(|(id, v)| json!({ "id": id.0, "anchors": anchors_json(v) })).collect();
                 let mode = if sub {
                     "subtract"

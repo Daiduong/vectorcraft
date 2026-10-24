@@ -528,6 +528,33 @@ fn glyphs_spaced_each_their_own_way_keep_their_place() {
     });
 }
 
+/// Words set apart by spaces tracked past an em (#2384) come back with each glyph in its place:
+/// the file draws each space and leaves the gap after it. Evenly tracked words keep one run.
+#[test]
+fn words_set_apart_by_spaces_tracked_past_an_em_keep_their_place() {
+    let runs = [("Hooks", 0.0), (" ", 1800.0), ("and", 0.0), (" ", 2400.0), ("leads", 0.0)];
+    let mut t = TextObject::point(Point::new(20.0, 100.0), "", style(12.0));
+    t.runs = runs.iter().map(|(s, tr)| TextRun { text: s.to_string(), style: CharStyle { tracking: *tr, ..style(12.0) }, inline: None }).collect();
+    let d = doc(vec![t]);
+    let want = origins(&d);
+    let back = import_as(&pdf(&d, false).bytes, TextAs::default());
+    assert_eq!(texts(&back), ["Hooks and leads"]);
+    let got = origins(&back);
+    assert_eq!(got.len(), want.len());
+    for (g, w) in got.iter().zip(&want) {
+        assert!((g.x - w.x).abs() < 0.1 && (g.y - w.y).abs() < 0.1, "{got:?}\nvs {want:?}");
+    }
+    // Evenly tracked, the spaces too: one run.
+    let even = doc(vec![TextObject::point(Point::new(20.0, 100.0), "Hooks and leads", CharStyle { tracking: 150.0, ..style(12.0) })]);
+    let back = import_as(&pdf(&even, false).bytes, TextAs::default());
+    assert_eq!(texts(&back), ["Hooks and leads"]);
+    back.walk(|n| {
+        if let NodeKind::Text(t) = &n.kind {
+            assert_eq!(t.runs.len(), 1, "{:?}", t.runs.iter().map(|r| r.style.tracking).collect::<Vec<_>>());
+        }
+    });
+}
+
 /// Evenly tracked type on a path comes back with its tracking: each glyph where it was along the
 /// curve, not closed up to the font's advances.
 #[test]
@@ -545,4 +572,26 @@ fn evenly_tracked_type_on_a_path_keeps_its_length() {
     for (g, w) in got.iter().zip(&want) {
         assert!(g.distance(*w) < 0.3, "{got:?}\nvs {want:?}");
     }
+}
+
+/// Type filled with a dithered gradient is an image clipped to its outlines, sampled at the raster
+/// effects resolution on the page however the type is scaled, with its characters under it as
+/// invisible text (rendering mode 3), so they can still be selected and searched.
+#[test]
+fn dithered_type_keeps_its_resolution_when_scaled_and_stays_searchable() {
+    let fill = Paint::Gradient(Box::new(GradientPaint::new(Gradient { dither: true, ..Default::default() })));
+    let big = TextObject::point(Point::new(20.0, 80.0), "Dither", CharStyle { fill: fill.clone(), ..style(40.0) });
+    let mut scaled = TextObject::point(Point::new(5.0, 20.0), "Dither", CharStyle { fill, ..style(10.0) });
+    scaled.xf = Affine::scale(4.0) * scaled.xf;
+    let width = |bytes: &[u8]| -> u32 {
+        let s = String::from_utf8_lossy(bytes);
+        s.split("/Width ").nth(1).and_then(|w| w.split(|c: char| !c.is_ascii_digit()).next()).and_then(|n| n.parse().ok()).unwrap()
+    };
+    let (big, scaled) = (pdf(&doc(vec![big]), false).bytes, pdf(&doc(vec![scaled]), false).bytes);
+    let (wb, ws) = (width(&big), width(&scaled));
+    // At 72 ppi a pixel a point: 40 pt "Dither" is about 100 points wide.
+    assert!(wb >= 80 && wb.abs_diff(ws) <= 2, "40 pt type {wb} pixels wide, 10 pt type scaled 4 times {ws}");
+    let ops = String::from_utf8_lossy(&scaled).split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(ops.contains("3 Tr"), "the characters as invisible text");
+    assert_eq!(texts(&import_as(&scaled, TextAs::Text)), ["Dither"]);
 }
