@@ -576,7 +576,8 @@ pub enum Cursor {
     Pencil,
     /// The Pencil tool with Alt pressed after the drag starts and Alt key toggles to Smooth Tool off:
     /// releasing the mouse button with Alt still held closes the path. A drag started with Shift or
-    /// Alt held draws an open straight line instead. A crosshair with a ring.
+    /// Alt held draws an open straight line instead. Also while a freehand stroke is drawn back near
+    /// its start, where releasing the mouse button closes the path. A crosshair with a ring.
     PencilClose,
     /// The Pencil tool before a press that draws a straight line (Shift or Alt held). A crosshair with a
     /// short straight line.
@@ -584,7 +585,8 @@ pub enum Cursor {
     /// The Paintbrush tool.
     Paintbrush,
     /// The Paintbrush tool with Alt held: releasing the mouse button with Alt still held closes
-    /// the path. A crosshair with a ring.
+    /// the path. Also while a stroke is drawn back near its start, where releasing the mouse button
+    /// closes the path. A crosshair with a ring.
     PaintbrushClose,
     /// The Blob Brush tool.
     BlobBrush,
@@ -848,6 +850,16 @@ pub trait Tool: Send {
     fn wants_ticks(&self) -> bool {
         false
     }
+    /// Is the tool waiting for work it runs on another thread (the planar map of a large selection
+    /// for the Shape Builder and the Live Paint Bucket)? It highlights no region under the pointer
+    /// until the work is done. While this holds, the desktop app calls [`Tool::poll`] each frame,
+    /// and hosts without frames call it with `wait` after a [`PointerKind::Move`].
+    fn waiting(&self) -> bool {
+        false
+    }
+    /// Checks on the work [`Tool::waiting`] reports, waiting for it to finish with `wait`. Once it
+    /// is done, the tool shows the highlight under the pointer where it last moved.
+    fn poll(&mut self, _cx: &ToolContext, _wait: bool) {}
 }
 
 /// Create a tool by id. Unknown or not-yet-implemented tools fall back to a no-op tool that keeps the id.

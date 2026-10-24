@@ -49,8 +49,13 @@ fn area(s: &Session, id: NodeId) -> f64 {
 
 /// Rect A (0..100) and rect B (50..150), both 100 tall, selected. A red, B blue.
 fn two(s: &mut Session) -> (NodeId, NodeId) {
+    two_at(s, 50.0)
+}
+
+/// [`two`] with B at `x`..`x`+100.
+fn two_at(s: &mut Session, x: f64) -> (NodeId, NodeId) {
     let a = rect(s, 0.0, 0.0, 100.0, 100.0);
-    let b = rect(s, 50.0, 0.0, 100.0, 100.0);
+    let b = rect(s, x, 0.0, 100.0, 100.0);
     set_fill(s, a, Color::rgb(1.0, 0.0, 0.0));
     set_fill(s, b, Color::rgb(0.0, 0.0, 1.0));
     s.execute("select.set", &json!({"ids": [a.0, b.0]})).unwrap();
@@ -79,6 +84,35 @@ fn shape_builder_drag_merges_touched_regions() {
     // Merged shape takes the fill of the object under the drag start (A, red).
     assert_eq!(node(&s, merged).appearance.fill_paint(), Paint::solid(Color::rgb(1.0, 0.0, 0.0)));
     assert_eq!(layer_children(&s), 2);
+}
+
+#[test]
+fn shape_builder_drag_merges_a_region_thinner_than_the_sampling_step() {
+    let mut s = session();
+    two_at(&mut s, 99.9);
+    assert_eq!(s.execute("shapeBuilder.regions", &json!({})).unwrap()["regions"].as_array().unwrap().len(), 3);
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[50, 50], [150, 50]]})).unwrap();
+    assert_eq!(r["regions"], 3, "the 0.1 pt overlap too");
+    let out = ids(&r);
+    assert_eq!(out.len(), 1, "{out:?}");
+    assert_eq!(outline(&node(&s, out[0])).0.subpaths.len(), 1);
+    assert!((area(&s, out[0]) - 19990.0).abs() < 1.0, "{}", area(&s, out[0]));
+}
+
+#[test]
+fn shape_builder_drag_merges_a_narrow_overlap_when_far_art_is_selected() {
+    let mut s = session();
+    let (a, b) = two_at(&mut s, 99.0);
+    // A far square makes the selection 4,010 pt wide.
+    let far = rect(&mut s, 4000.0, 4000.0, 10.0, 10.0);
+    s.execute("select.set", &json!({"ids": [a.0, b.0, far.0]})).unwrap();
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[50.3, 50], [150.3, 50]]})).unwrap();
+    assert_eq!(r["regions"], 3);
+    let out = ids(&r);
+    assert_eq!(out.len(), 2, "the merged shape and the far square: {out:?}");
+    let merged = NodeId(r["merged"].as_u64().unwrap());
+    assert_eq!(outline(&node(&s, merged)).0.subpaths.len(), 1);
+    assert!((area(&s, merged) - 19900.0).abs() < 1.0, "{}", area(&s, merged));
 }
 
 #[test]
@@ -331,6 +365,54 @@ fn shape_builder_tool_drives_the_command() {
     assert_eq!(layer_children(&s), 1);
 }
 
+#[test]
+fn shape_builder_tool_merges_the_narrow_shape_it_highlights_in_a_wide_selection() {
+    let mut s = session();
+    let strip = rect(&mut s, 199.5, 100.0, 1.0, 100.0);
+    // A far square makes the selection 9,800.5 pt wide.
+    let far = rect(&mut s, 9900.0, 100.0, 100.0, 100.0);
+    s.execute("select.set", &json!({"ids": [strip.0, far.0]})).unwrap();
+    let v = ViewInfo::default();
+    s.select_tool("shapeBuilder", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 190.0, 150.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 210.0, 150.0), v).unwrap();
+    assert_eq!(s.overlays(v).len(), 3, "the strip's hatch and outline, and the drag path");
+    s.pointer(&PointerEvent::new(PointerKind::Up, 210.0, 150.0), v).unwrap();
+    assert_eq!(s.journal.last().unwrap().0, "shapeBuilder.merge");
+    assert_eq!(layer_children(&s), 2);
+}
+
+#[test]
+fn shape_builder_tool_highlights_and_merges_a_narrow_overlap() {
+    let mut s = session();
+    two_at(&mut s, 99.95);
+    let v = ViewInfo::default();
+    s.select_tool("shapeBuilder", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 50.3, 50.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 150.3, 50.0), v).unwrap();
+    assert_eq!(s.overlays(v).len(), 7, "the three regions' hatches and outlines, and the drag path");
+    s.pointer(&PointerEvent::new(PointerKind::Up, 150.3, 50.0), v).unwrap();
+    assert_eq!(layer_children(&s), 1, "one shape, no leftover strips");
+    let d = &s.doc().unwrap().doc;
+    let merged = d.children(d.default_layer()).unwrap()[0].id;
+    assert_eq!(outline(&node(&s, merged)).0.subpaths.len(), 1);
+}
+
+#[test]
+fn shape_builder_tool_zoomed_out_picks_a_narrow_shape() {
+    let mut s = session();
+    let strip = rect(&mut s, 199.5, 100.0, 1.0, 100.0);
+    let near = rect(&mut s, 300.0, 100.0, 3.0, 100.0);
+    s.execute("select.set", &json!({"ids": [strip.0, near.0]})).unwrap();
+    let v = ViewInfo { zoom: 0.05, ..Default::default() };
+    s.select_tool("shapeBuilder", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 190.0, 150.0), v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Drag, 260.0, 150.0), v).unwrap();
+    assert_eq!(s.overlays(v).len(), 3, "the strip's hatch and outline, and the drag path");
+    s.pointer(&PointerEvent::new(PointerKind::Up, 260.0, 150.0), v).unwrap();
+    assert_eq!(s.journal.last().unwrap().0, "shapeBuilder.merge");
+}
+
 /// The first and last stop colours of a gradient paint.
 fn gradient_ends(p: &Paint) -> Option<([f32; 3], [f32; 3])> {
     let Paint::Gradient(g) = p else { return None };
@@ -421,6 +503,27 @@ fn shape_builder_click_on_a_side_of_a_line_splits_the_shape() {
     assert!(closed.iter().all(|a| (a - 5000.0).abs() < 1.0), "{closed:?}");
     // The line only bounds the region: it stays whole.
     assert_eq!(open_paths(&s, &out), vec![(2, Rect::new(50.0, -20.0, 50.0, 120.0))]);
+}
+
+/// A line that ends inside a shape has the same region on both sides there: a click or a drag
+/// across it, or deleting the region, leaves it whole.
+#[test]
+fn shape_builder_merge_keeps_a_line_that_ends_inside_the_shape() {
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
+    set_fill(&mut s, a, Color::rgb(1.0, 0.0, 0.0));
+    let l = line(&mut s, (50.0, -20.0), (50.0, 99.0));
+    s.execute("select.set", &json!({"ids": [a.0, l.0]})).unwrap();
+    let mut lines = vec![];
+    for params in [json!({"points": [[25, 50]]}), json!({"points": [[25, 50], [75, 50]]}), json!({"points": [[25, 50]], "erase": true})] {
+        let r = s.execute("shapeBuilder.merge", &params).unwrap();
+        assert_eq!(r["regions"], 1, "{params}");
+        let merged = r["merged"].as_u64().map(|m| (area(&s, NodeId(m)) - 10000.0).abs() < 1.0);
+        assert_eq!(merged, params["erase"].is_null().then_some(true), "{params}");
+        lines.push(open_paths(&s, &ids(&r)));
+        s.execute("edit.undo", &json!({})).unwrap();
+    }
+    assert_eq!(lines, vec![vec![(2, Rect::new(50.0, -20.0, 50.0, 99.0))]; 3]);
 }
 
 #[test]
@@ -1995,6 +2098,105 @@ fn a_line_across_a_live_paint_shape_splits_its_face() {
     let face = |x: f64| vectorcraft_tools::builder::face_at(&gn, vectorcraft_geom::Point::new(x, 25.0)).unwrap().appearance.fill_paint();
     assert_eq!(face(10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)), "the left half keeps the rectangle's fill");
     assert_eq!(face(80.0), Paint::solid(Color::from_hex("#0000ff").unwrap()));
+}
+
+/// The total length of the stroked paths among `out` that have no fill.
+fn stroked_length(s: &Session, out: &[NodeId]) -> f64 {
+    out.iter()
+        .map(|i| node(s, *i))
+        .filter(|n| n.appearance.fill_paint().is_none() && !n.appearance.stroke_paint().is_none())
+        .map(|n| outline(&n).0.length())
+        .sum()
+}
+
+/// The Shape Builder takes a selected Live Paint group's filled faces as regions and its stroked
+/// edges as lines; its unfilled faces are not regions. The merge replaces the group as it does a
+/// path, and the edges keep their strokes, except those between the merged faces.
+#[test]
+fn shape_builder_uses_the_filled_faces_of_a_live_paint_group() {
+    let mut s = session();
+    let g = live(&mut s);
+    s.execute("livePaint.fill", &json!({"group": g.0, "point": [125, 50], "none": true})).unwrap();
+    let edges = vectorcraft_tools::builder::edges(&node(&s, g)).len();
+    let c = rect(&mut s, 160.0, 20.0, 100.0, 20.0);
+    set_fill(&mut s, c, Color::rgb(0.0, 1.0, 0.0));
+    s.execute("select.set", &json!({"ids": [g.0, c.0]})).unwrap();
+    let map = s.execute("shapeBuilder.regions", &json!({})).unwrap();
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[25, 50], [75, 50]]})).unwrap();
+    let out = ids(&r);
+    let unfilled_faces =
+        out.iter().map(|i| node(&s, *i)).filter(|n| n.appearance.fill_paint().is_none() && n.appearance.stroke_paint().is_none()).count();
+    assert_eq!(
+        (map["regions"].as_array().unwrap().len(), map["lines"].as_array().unwrap().len() >= edges, unfilled_faces),
+        (4, true, 0),
+        "the two faces, the rectangle and the area the edges enclose; the edges as lines; no unfilled face comes back"
+    );
+    let enclosed: Vec<&Value> = map["regions"].as_array().unwrap().iter().filter(|r| r["sources"].as_array().unwrap().is_empty()).collect();
+    assert_eq!(enclosed.len(), 1, "{map}");
+    let bounds: Vec<f64> = enclosed[0]["bounds"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+    assert!(bounds.iter().zip([100.0, 0.0, 150.0, 100.0]).all(|(a, b)| (a - b).abs() < 0.5), "{bounds:?}");
+    assert_eq!(r["regions"], 2);
+    let merged = NodeId(r["merged"].as_u64().unwrap());
+    assert!((area(&s, merged) - 10000.0).abs() < 1.0, "{}", area(&s, merged));
+    assert!(s.doc().unwrap().doc.node(g).is_none());
+    // The outline of 0..150 × 0..100 and the edge at x = 100 keep their strokes; the edge at x = 50
+    // between the merged faces is removed.
+    assert!((stroked_length(&s, &out) - 600.0).abs() < 1.0, "{}", stroked_length(&s, &out));
+}
+
+/// An edge that closes on itself is a line around its face, not a second shape over it.
+#[test]
+fn shape_builder_takes_a_closed_live_paint_edge_as_a_line() {
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
+    set_fill(&mut s, a, Color::rgb(1.0, 0.0, 0.0));
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    let g = NodeId(s.execute("livePaint.make", &json!({})).unwrap()["id"].as_u64().unwrap());
+    let group = node(&s, g);
+    let edges = vectorcraft_tools::builder::edges(&group);
+    assert_eq!(edges.len(), 1);
+    assert!(outline(edges[0]).0.subpaths.iter().any(|sp| sp.closed), "the edge closes on itself");
+    s.execute("select.set", &json!({"ids": [g.0]})).unwrap();
+    // A click on the face keeps its fill on the merged shape and the edge's stroke around it.
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[50, 50]]})).unwrap();
+    let out = ids(&r);
+    let merged = node(&s, NodeId(r["merged"].as_u64().unwrap()));
+    assert_eq!(merged.appearance.fill_paint(), Paint::solid(Color::rgb(1.0, 0.0, 0.0)));
+    assert!((stroked_length(&s, &out) - 400.0).abs() < 1.0, "{}", stroked_length(&s, &out));
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("select.set", &json!({"ids": [g.0]})).unwrap();
+    let map = s.execute("shapeBuilder.regions", &json!({})).unwrap();
+    let regions = map["regions"].as_array().unwrap();
+    assert_eq!((regions.len(), map["lines"].as_array().unwrap().len()), (1, 1), "{map}");
+    assert_eq!(regions[0]["sources"].as_array().unwrap().len(), 1, "{map}");
+    // Unfilled, the face is not a region, and the edge still encloses all of it, closing segment
+    // included.
+    s.execute("livePaint.fill", &json!({"group": g.0, "point": [50, 50], "none": true})).unwrap();
+    s.execute("select.set", &json!({"ids": [g.0]})).unwrap();
+    let map = s.execute("shapeBuilder.regions", &json!({})).unwrap();
+    let regions = map["regions"].as_array().unwrap();
+    assert_eq!(regions.len(), 1, "{map}");
+    assert!(regions[0]["sources"].as_array().unwrap().is_empty(), "{map}");
+    assert!((regions[0]["area"].as_f64().unwrap() - 10000.0).abs() < 1.0, "{map}");
+}
+
+/// A Live Paint group with no filled face keeps its stroked edges when another selected object is
+/// merged.
+#[test]
+fn shape_builder_keeps_the_edges_of_an_unfilled_live_paint_group() {
+    let mut s = session();
+    let g = live(&mut s);
+    for x in [25, 75, 125] {
+        s.execute("livePaint.fill", &json!({"group": g.0, "point": [x, 50], "none": true})).unwrap();
+    }
+    let c = rect(&mut s, 160.0, 20.0, 100.0, 20.0);
+    set_fill(&mut s, c, Color::rgb(0.0, 1.0, 0.0));
+    s.execute("select.set", &json!({"ids": [g.0, c.0]})).unwrap();
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[200, 30]]})).unwrap();
+    let out = ids(&r);
+    assert!(s.doc().unwrap().doc.node(g).is_none());
+    // Every edge of the group: the outline of 0..150 × 0..100 and the edges at x = 50 and 100.
+    assert!((stroked_length(&s, &out) - 700.0).abs() < 1.0, "{}", stroked_length(&s, &out));
 }
 
 // ---------- Image Trace ----------

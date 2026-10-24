@@ -9,7 +9,7 @@ It has two backends:
 | Mode | How | What works |
 |---|---|---|
 | **Remote** | `vectorcraft-cli mcp --connect 127.0.0.1:7979` (the app must run with `vectorcraft --control 7979`) | Everything. Tool calls are forwarded over the [control protocol](control-protocol.md), so you watch the app change live. |
-| **Headless** | `vectorcraft-cli mcp --headless` | An in-process engine session with a CPU renderer. Everything except the UI-only tools (`inspect_ui`, `type_text`, `open_panel`, `screenshot {window:true}`). |
+| **Headless** | `vectorcraft-cli mcp --headless` | An in-process engine session with a CPU renderer. Everything except the UI-only tools (`inspect_ui` or `ui_inspect`, `type_text`, `open_panel`, `screenshot {window:true}` or `ui_screenshot`). |
 
 With no flag, the server tries `127.0.0.1:7979` and falls back to headless. Logs go to stderr; stdout carries
 only protocol messages.
@@ -68,6 +68,25 @@ claude mcp add vectorcraft -- "C:\Program Files\VectorCraft\vectorcraft-cli.exe"
 # Linux, or macOS with the CLI unzipped onto PATH
 claude mcp add vectorcraft -- vectorcraft-cli mcp
 ```
+
+For a live session, start the installed app with the control port before the MCP client starts the server:
+
+```sh
+# macOS: quit VectorCraft first, since `open -a` passes no arguments to an app that is already running
+open -a VectorCraft --args --control 7979
+# Windows (PowerShell), default install folder
+& "C:\Program Files\VectorCraft\vectorcraft.exe" --control 7979
+# Linux (deb, rpm)
+vectorcraft --control 7979
+```
+
+The Dock, Start menu and desktop launchers start the app without `--control`, so the app opens no control
+port unless `VECTORCRAFT_CONTROL_PORT` is set. `vectorcraft-cli mcp` with no flag tries `127.0.0.1:7979`
+once, when it starts: a server that started before the app stays headless until the MCP client restarts
+it. `open -a` and PowerShell's `&` return before the app opens the port, so wait until the VectorCraft
+window is open before you start the MCP client. With `--connect`, a server that finds no app stops and
+prints `vectorcraft-cli: cannot connect to 127.0.0.1:7979: ` followed by the system's connection error, for
+example `connection timed out`.
 
 ## Confining file access
 
@@ -331,12 +350,14 @@ The older names below remain listed because existing workflows use them.
 
 | Tool | Arguments and result |
 |---|---|
+| `command_list` | Optional `filter` (or `query`), `menu` (a menu path substring, levels joined with ` > `), `enabled_only`, `brief` (no `params` text); returns the command array. `list_commands` lists the same commands; it takes `enabledOnly` and returns `{count, commands}` |
+| `command_run` | `id`, optional `params`; runs the command through the existing backend. An unknown key in `params` is an error that names it and the nearest key the command takes (`invalid parameters for `file.new`: unknown parameter `widht`; did you mean `width`?`), so a misspelt key no longer runs the command with its default (see [Parameter keys](#parameter-keys)). `run_command` runs a command the same way and takes its id as `command` |
+| `command_batch` | `steps: [{id, params?}]` (at most 256), optional `stop_on_error` (default true), `atomic` and `label`; returns `completed`, `failed`, `results: [{ok, result\|error}]` and `created` (the ids the `draw_path` / `draw_shape` steps made, in order). A step's `id` is a command id, or `draw_path` / `draw_shape` with that tool's arguments as `params` (checked as `tools/call` checks them; the step's result is the tool's, so `"$N.id"` is the new object). Each edit has its own undo step, or with `atomic: true` the batch's edits are one undo step named `label` (else after its first edit; `edit.undoGroup.begin`/`end` underneath), and the edits made in a document that a step opens or creates (`document.open`, `file.new`) are one undo step there, named the same, also when no document was open before the batch. In a document that was open before the batch and that a step switches to (`document.activate`), each edit stays its own undo step; failures set `isError`. A param string `"$N.path"` or `"$last.path"` takes a value from an earlier step's result (see `run` below). Kept step results total at most 8 MiB; past that the batch stops with the reason. This is the MCP tool, not the engine command `command.batch` (that one takes `commands: [{command, params}]` and is what the Actions panel plays); use `command_run` with `command.batch` when replaying a recorded action |
 | `command_list` | Optional `filter` (or `query`), `menu` (a menu path substring, levels joined with ` > `), `enabled_only`, `brief` (no `params` text); returns the command array |
 | `command_run` | `id`, optional `params`; runs the command through the existing backend. An unknown key in `params` is an error that names it and the nearest key the command takes (`invalid parameters for `file.new`: unknown parameter `widht`; did you mean `width`?`), so a misspelt key no longer runs the command with its default (see [Parameter keys](#parameter-keys)) |
-| `command_batch` | `steps: [{id, params?}]` (at most 256), optional `stop_on_error` (default true), `atomic` and `label`; returns `completed`, `failed`, `results: [{ok, result\|error}]` and `created` (the ids the `draw_path` / `draw_shape` steps made, in order). A step's `id` is a command id, or `draw_path` / `draw_shape` with that tool's arguments as `params` (checked as `tools/call` checks them; the step's result is the tool's, so `"$N.id"` is the new object). Each edit has its own undo step, or with `atomic: true` the batch's edits are one undo step named `label` (else after its first edit; `edit.undoGroup.begin`/`end` underneath); failures set `isError`. A param string `"$N.path"` or `"$last.path"` takes a value from an earlier step's result (see `run` below). Kept step results total at most 8 MiB; past that the batch stops with the reason. This is the MCP tool, not the engine command `command.batch` (that one takes `commands: [{command, params}]` and is what the Actions panel plays); use `command_run` with `command.batch` when replaying a recorded action |
 | `doc_inspect` | Optional `depth`, `childLimit`, `ids`, `kind`, `limit`, `offset`; same summary as `inspect_document` |
 | `render_preview` | Optional `max_side` (1–4096, default 1024) and `artboard` (0-based, default 0); inline PNG of that artboard without editing it, drawn as `export` draws a PNG with `background: "white"` at the scale that fits `max_side` (at most 1). Artboards too large to render within the allocation bound return a tool error |
-| `ui_inspect`, `ui_screenshot` | Connected desktop state/window capture; tool errors in headless mode |
+| `ui_inspect`, `ui_screenshot` | Connected desktop state/window capture; tool errors in headless mode. `ui_inspect` is the same call as `inspect_ui`, and `ui_screenshot` is `screenshot` with `window: true`. `ui_screenshot` takes an optional `max_side` (1–4096), as `screenshot {window: true}` does: a capture whose longer side is larger is scaled down to `max_side` pixels on that side, and the reply's text gives the returned size as `width`/`height` and the capture's as `capturedWidth`/`capturedHeight`. Without `max_side` the full capture comes back |
 
 Every tool declares read-only, destructive, idempotent and open-world hints. File-writing
 `screenshot`, `save_file` and `export` are conservatively marked as mutations. Unknown top-level
@@ -389,7 +410,7 @@ objects' fills or strokes differ (`fillMixed` / `strokeMixed`, drawn as a "?" pr
 | `inspect_document` | `{depth?, childLimit?, ids?, kind?, limit?, offset?}` | Artboards (with `color`, `#rrggbb`, for one with a background color), layer tree (ids, kinds, bounds, paint), selection, history, tool. A type node's `fill`, `stroke` and `strokeWidth` are the paint its characters show (its first run's); fills and strokes of the type object itself come as `objectFill`, `objectStroke` and `objectStrokeWidth`. Paint comes as a label (`"#ff0000"`, `"None"`, `"G1 40% (#ff9999)"` for a swatch at a tint); `paint.proxies` gives it as an object. |
 | `inspect_ui` | `{}` | UI state. Remote mode only. |
 | `select_tool` | `{tool}` | `selection`, `directSelection`, `pen`, `rectangle`, `ellipse`, `polygon`, `star`, `lineSegment`, … |
-| `pointer_gesture` | `{events:[{kind,x,y,mods?}], tool?, mods?}` | `kind` is one of `down`, `drag`, `up`, `move`, `doubleclick`. Events go through the same path as the mouse. |
+| `pointer_gesture` | `{events:[{kind,x,y,mods?}], tool?, mods?}` | `kind` is one of `down`, `drag`, `up`, `move`, `doubleclick`. Events go through the same path as the mouse. Headless, a `move` replies after the tool's highlight under the pointer is ready, including the Shape Builder's and the Live Paint Bucket's regions of a large selection, which the desktop app finds off the UI thread and highlights after the reply. |
 | `draw_path` | `{points \| d, closed?, fill?, stroke?, strokeWidth?, dash?, cap?, join?, opacity?, name?, effects?}` | `points` is `[[x,y],…]` or `[{x,y,in?,out?,smooth?},…]`. `d` is SVG path data. The options are below. |
 | `draw_shape` | `{shape, …geometry, fill?, stroke?, strokeWidth?, dash?, cap?, join?, opacity?, name?, effects?}` | `rectangle`/`ellipse`: `x,y,width,height` (plus `radius` for corners). `polygon`: `cx,cy,radius,sides`. `star`: `cx,cy,radius1,radius2,points`. `line`: `x1,y1,x2,y2`. |
 | `set_paint` | `{fill?, stroke?, strokeWidth?, ids?}` | Applies to the selection (or `ids`) and becomes the default for new art. |
@@ -397,9 +418,9 @@ objects' fills or strokes differ (`fillMixed` / `strokeMixed`, drawn as a "?" pr
 | `type_text` | `{text}` | Remote only. |
 | `invoke_menu` | `{command, params?}` | Invokes a menu item by command id. Includes UI commands such as `view.*` and `window.*` in remote mode. |
 | `open_panel` | `{panel}` | Remote only. `panel` is a panel id (`layers`, `swatches`, `colorGuide`, …, as `window.panel` takes) or its display label (`"Color Guide"`), in any case. |
-| `screenshot` | `{path?, scale?, artboard?, window?}` | Returns MCP image content (`image/png`, base64) plus a text block. Renders the artboard with the pixels of a PNG `export` with `background: "white"` at the same scale; `window:true` captures the app window (remote only). With `path` the backend (the headless session or the app) writes the PNG there too. |
+| `screenshot` | `{path?, scale?, artboard?, window?, max_side?}` | Returns MCP image content (`image/png`, base64) plus a text block. Renders the artboard with the pixels of a PNG `export` with `background: "white"` at the same scale; `window:true` captures the app window (remote only), as `ui_screenshot` does, and `max_side` (1–4096, window captures only) scales the returned image down as described for `ui_screenshot`. With `path` the backend (the headless session or the app) writes the PNG there too; a window capture written there keeps its full size with `max_side`. |
 | `open_file` | `{path}` | Opens any readable file as a new active document: `.vectorcraft`/`.drawcraft`, `.vctemplate`, `.svg`/`.svgz`, `.pdf`/`.ai`, `.ait`, `.eps`/`.epsf`, `.ps`, `.dxf`, `.emf`, `.wmf`, PNG, JPEG, GIF, WebP, TIFF, BMP, Targa (`.tga`/`.vda`/`.icb`/`.vst`), PSD/PSB (an image opens as a document of its pixel size; a Photoshop file as its merged image). Templates (`.vctemplate`, `.ait`) open as a new untitled document. PDF, `.ai` and SVG files saved with Preserve Editing reopen as the document they carry. The reply is `document.open`'s: its `warnings` say what didn't come in as it was (an EPS whose PostScript can't be read opens as its preview, and the warning names the PostScript error, the operator and the procedure). `run_command document.formats` lists the formats. |
-| `save_file` | `{path?}` | Runs `document.save`: the document's own file in its own format (native `.vectorcraft` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.vectorcraft`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). The app is sent `wait: true`: the call returns once the file is written, or with the error (such as a path outside the write root), even with Background Save on. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the Background Save preference. |
+| `save_file` | `{path?, compress?, version?, preview?, options?}` | Runs `document.save`: the document's own file in its own format (native `.vectorcraft` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.vectorcraft`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). For a native file, `compress: true` gzips it (default: the `useCompression` preference, Preferences › File Handling › Use Compression), `version` (1 to 4) writes it for an older VectorCraft (1 and 2 are never compressed, and `version: 2` with `compress: true` is an error), and `preview: true` embeds a PNG of the first artboard. `options` passes the format's save options as `run_command document.formats` lists them. When `compress`, `version` or `preview` is given both at the top level and in `options` with different values, the call is an error (`` `compress: true` and `options.compress: false` disagree: give the option once ``) and nothing is written. The save drops each option the written format doesn't read. The reply's `warnings` then name each such option given (for example `` `compress` was not used: SVG files don't read it `` for an `.svg` path, and `` `options.preview` was not used: … `` for a key in `options`; a `.ai` file reads `compress` but not `version` or `preview`). `run_command document.save` and the other save commands refuse any option given beside the path and in `options` with different values, and give the same warning for a top-level `compress`, `version` or `preview`. The headless session and the app receive the same `app.save` params, and the app is also sent `wait: true`: the call returns once the file is written, or with the error (such as a path outside the write root), even with Background Save on. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the Background Save preference. |
 | `export` | `{path?, format?, scale?, artboard?, range?, selection?, outlineText?, options?}` | `svg`, `svgz`, `pdf`, `ai` (the PDF-compatible `.ai` that Save writes, which carries the document when every artboard is written in order), `eps`, `dxf`, `emf`, `wmf`, `png`, `jpg`, `webp`, `gif`, `png8` (an indexed `.png`), `tiff`, `bmp`, `tga`, `psd` (layered), `txt` (the document's text), `vectorcraft` or `template` (a native template). The tool's `format` enum and `document.formats` list them, generated from the engine's format table. When `format` is omitted, it comes from the path's extension. PDF and `.ai` write one page per artboard: all of them, or `artboard` (0-based) / `range` (`"1-3, 5"`, 1-based). SVG, SVGZ and EPS write one file per chosen artboard. Rasters, DXF, EMF and WMF write one artboard, or one file per chosen artboard with `options: {"useArtboards": true}`. Rasters also take `options: {"rect": [x, y, width, height]}` (page points, y down): that area of the page at the given `ppi`/`scale`, without an artboard and without changing the document; it is refused with `artboard`, `range` or `useArtboards`, with a non-positive or non-finite size, and for non-raster formats. `options` carries more format options (e.g. `{"quality": 80}` for JPEG). `selection: true` exports the selected objects cropped to their bounds (the reply adds their `bounds`, and reports `format` and the encoder's `warnings` as a whole-document export does); `outlineText: true` writes SVG text as paths. Template layers are left out, live effects are kept, and exporting `vectorcraft` never changes the document's path. Without `path` the bytes come back as `dataBase64`. Both backends run the same `document.export` call. |
 | `add_text` | `{text, x?, y?, width?, height?, fit?, fitMinPercent?, path?, mode?, pathEffect?, size?, font?, color?, justify?, vertical?}` | Point type at (x, y) (`justify`: `left`, `center` or `right` starts, centres or ends each line on x); area type with `width`/`height` (`fit`: `none`, `autoHeight`, `shrinkText`, as `text.areaOptions`); or `path` + `mode` (`area`/`onPath`) to flow text in or along a path, with `pathEffect` (`rainbow`, `skew`, `3dRibbon`, `stairStep`, `gravity`); `justify` (also `auto`, `justifyAll`) aligns the paragraphs of every kind, as `text.setStyle` does later. `vertical: true` uses the existing vertical writing mode for every kind (default `false`, horizontal). Returns `{id}`, with `overflow: true` when the text doesn't fit its frame or path. |
 | `apply_effect` | `{effect?, params?, ids?}` | Appends a live effect. Without `effect`, returns the effect catalogue with parameters and defaults. |
@@ -4187,6 +4208,12 @@ that doesn't exist, a `from` that is point type, a `to` that is an open path, `f
 or already in a thread (`from` may be threaded already: the frame goes in beside it), coordinates that aren't finite
 numbers and a `before` that isn't true or false.
 
+In every thread, a paragraph that continues from one frame into the next has its first line, first-line indent and
+bullet or number in the frame where it starts. In the next frame its first line starts where its wrapped lines start,
+and it has no bullet or number. In a frame that is no longer threaded (after `text.thread.releaseSelection` or
+`text.thread.remove`), in a copy of a frame and in point type converted from one, the first paragraph has its first-line
+indent and bullet or number again.
+
 ```json
 {"name":"run_command","arguments":{"command":"text.thread.add","params":{"from":42,"at":[300,120]}}}
 ```
@@ -4197,7 +4224,8 @@ frames keep the text they hold. When the thread's last frame is outlined, the te
 outlines do not draw, goes after the text of the last frame that stays. A thread left with one frame is no longer a
 thread. When `effect.expandAppearance` keeps a frame as type in a group (type with no fills or strokes of its own whose only
 effects are shadows, outer glows or Crop Marks), the type stays in the thread in the frame's place. Object › Expand
-(`object.expand`) outlines type with these two commands.
+(`object.expand`) outlines type with these two commands. `object.flattenTransparency` takes each frame of threaded text
+that it outlines (`textToOutlines`) or turns into flat regions or an image out of its thread in the same way.
 
 ## Converting between point type and area type
 
@@ -4380,8 +4408,8 @@ bullets and numbers. In a horizontal right-to-left list paragraph the indents ar
 indents are measured from the right edge, and the right indent from the left edge. Its marker starts the first line at
 the right, and the lines it wraps to start at the right where the first line's text starts after the marker. A
 right-to-left paragraph without a list keeps its left and first-line indents at the left, and vertical type keeps its
-indents as they are. In threaded type, a list paragraph that continues into the next frame starts that frame with its
-bullet or number again, as it starts it with its first-line indent.
+indents as they are. In threaded type, a list paragraph that continues into the next frame starts that frame where its
+wrapped lines start, without the bullet or number, and the paragraph after it takes the next number.
 
 The layout draws the marker (the bullet, or the number and its period) before the first line of each list paragraph
 that has text, in the font, size, scales and color of the paragraph's first character, without that character's
