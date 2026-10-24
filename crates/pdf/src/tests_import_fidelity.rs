@@ -309,6 +309,19 @@ fn text_becomes_point_type() {
     assert!(all(&r.document).iter().any(|n| n.name.as_deref() == Some("<Text Outlines>")));
 }
 
+#[test]
+fn character_spacing_does_not_become_spaces() {
+    for size in [12.0, 13.0, 14.0, 15.0] {
+        for tracking in [150.0, 180.0, 200.0, 220.0, 250.0] {
+            let spacing = size * tracking / 1000.0;
+            let content = format!("BT /F1 {size} Tf {spacing} Tc 10 40 Td (OPEN DAILY) Tj ET");
+            let t = texts(&open(&one_page(&content, HELVETICA, &[])));
+            assert_eq!(t.len(), 1, "size {size}, tracking {tracking}: {t:?}");
+            assert_eq!(t[0].plain_text(), "OPEN DAILY", "size {size}, tracking {tracking}");
+        }
+    }
+}
+
 /// Invisible text (rendering mode 3: a scanned page's recognized text, laid over the scan) is
 /// type with neither fill nor stroke, and the visible text keeps its paint. On a line with
 /// stroked text it is a run of its own, not stroked. As outlines it would draw nothing: it is left
@@ -371,7 +384,8 @@ fn fonts_are_noted_past_font_resources_the_reader_cannot_parse() {
         let mut fonts = crate::import_scan::FontNames::new();
         let mut ocgs = crate::import_scan::Ocgs::read(&pdf);
         crate::import_scan::scan_page(&pdf.pages()[0], &mut ocgs, false, &mut fonts, pdf.decode_limits().max_decoded_stream()).unwrap();
-        assert_eq!(fonts.into_values().collect::<Vec<_>>(), [("Helvetica".to_string(), false)], "{junk}");
+        let noted: Vec<_> = fonts.into_values().map(|f| (f.name, f.embedded)).collect();
+        assert_eq!(noted, [("Helvetica".to_string(), false)], "{junk}");
     }
 }
 
@@ -418,7 +432,7 @@ fn gradient_stop_opacity_round_trips() {
     let mut d = Document::new(100.0, 100.0);
     let mut stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     stops[1].opacity = 0.2;
-    let g = GradientPaint::new(Gradient { kind: GradientKind::Linear, stops });
+    let g = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let n = Node::path(
         NodeId(0),
         shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 90.0)),
