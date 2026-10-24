@@ -8,7 +8,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use vectorcraft_color::Paint;
 use vectorcraft_doc::{AppearanceItem, Document, Node, NodeId, NodeKind, TextKind, TextRun};
-use vectorcraft_geom::Rect;
+use vectorcraft_geom::{FillRule, PathData, Rect, Shape};
 
 use super::typecmd::refresh_bounds;
 use super::*;
@@ -175,7 +175,7 @@ struct Printed<'a> {
     /// The areas an export crops to (empty: none is checked), the bounds of the clip groups around
     /// the object walked, and the objects of the document whose glyphs run over an area's edge.
     pages: &'a [Rect],
-    clips: Vec<Rect>,
+    clips: Vec<Clip>,
     cut: BTreeSet<NodeId>,
 }
 
@@ -254,11 +254,14 @@ impl<'a> Printed<'a> {
         // The members of a clip group show inside its clipping path's bounds, with effects or not
         // (a shadow of the group painting past the path shows no more of them).
         let clipping = match &n.kind {
-            NodeKind::Layer { children, clip: true, .. } | NodeKind::Group { children, clip: true } => {
-                children.first().and_then(|c| c.geometric_bounds_with(&self.d.symbol_boxes()))
-            }
+            NodeKind::Layer { children, clip: true, .. } | NodeKind::Group { children, clip: true } => children.first().and_then(|c| {
+                let bounds = c.geometric_bounds_with(&self.d.symbol_boxes())?;
+                let shape = vectorcraft_render::effects::clip_outline(c).map(|(bp, rule)| (PathData::from_bezpath(&bp), rule));
+                Some(Clip { bounds, shape })
+            }),
             _ => None,
         };
+        let clipped = clipping.is_some();
         self.clips.extend(clipping);
         match &n.kind {
             NodeKind::Text(t) => {
@@ -299,7 +302,7 @@ impl<'a> Printed<'a> {
                 }
             }
         }
-        if clipping.is_some() {
+        if clipped {
             self.clips.pop();
         }
     }
@@ -351,7 +354,7 @@ impl<'a> Printed<'a> {
         }
         let bp = (!strokes.is_empty()).then(|| outline.to_bezpath());
         let ink = bp.map_or(glyphs, |bp| strokes.iter().fold(glyphs, |b, st| b.union(st.bounds_on(&bp, glyphs))));
-        let shown = self.clips.iter().try_fold(ink, |b, c| Some(b.intersect(*c)).filter(|r| r.area() > 0.0));
+        let shown = self.clips.iter().try_fold(ink, |b, c| c.shown(b));
         let Some(shown) = shown else { return false };
         self.pages.iter().any(|p| shown.intersect(*p).area() > 0.0 && !p.inflate(SLACK, SLACK).contains_rect(shown))
     }
@@ -360,6 +363,26 @@ impl<'a> Printed<'a> {
     fn clip(&self, n: &Node, areas: &[Rect]) -> Vec<Rect> {
         let Some(c) = vectorcraft_render::painted_bounds(self.d, n) else { return areas.to_vec() };
         areas.iter().filter(|r| c.intersect(**r).area() > 0.0 || r.contains_rect(c)).map(|r| r.intersect(c)).collect()
+    }
+}
+
+/// A clip group's clipping path, as [`Printed`] judges what it shows.
+struct Clip {
+    bounds: Rect,
+    /// Its outline and fill rule (None when it has none to clip by, as a symbol instance's).
+    shape: Option<(PathData, FillRule)>,
+}
+
+impl Clip {
+    /// The bounds of what this clipping path shows of box `b` (None when it shows none of it):
+    /// the box cut to the path's shape, so a compound or curved path is judged by where it lies
+    /// over the box, not by its own bounds.
+    fn shown(&self, b: Rect) -> Option<Rect> {
+        let b = Some(b.intersect(self.bounds)).filter(|r| r.area() > 0.0)?;
+        let Some((path, rule)) = &self.shape else { return Some(b) };
+        let rect = PathData::from_bezpath(&b.to_path(0.1));
+        let cut = vectorcraft_pathops::boolean(&rect, FillRule::NonZero, path, *rule, vectorcraft_pathops::BoolOp::Intersect);
+        cut.bounds().filter(|r| r.area() > 0.0)
     }
 }
 

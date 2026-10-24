@@ -303,3 +303,57 @@ fn a_round_joined_stroke_inside_the_edge_is_left_alone() {
     s.execute("object.move", &json!({"ids": [id.0], "dx": dx, "dy": 0})).unwrap();
     assert_eq!(edge_warnings(&mut s, "pdf", json!({})), Vec::<String>::new());
 }
+
+/// A clipping path whose bounds cross the edge but whose shape doesn't reach past it over the type
+/// (a compound path of two rectangles, the second off the artboard beside the line, not over it)
+/// shows none of the type past the edge.
+#[test]
+fn a_compound_clipping_path_is_judged_by_its_shape_not_its_bounds() {
+    let mut s = session();
+    let text = point(&mut s, 20.0, 100.0, LONG);
+    let inside = id_of(&s.execute("shape.rectangle", &json!({"x": 10, "y": 50, "width": 200, "height": 100})).unwrap());
+    let away = id_of(&s.execute("shape.rectangle", &json!({"x": 350, "y": 0, "width": 50, "height": 20})).unwrap());
+    s.execute("select.set", &json!({"ids": [inside.0, away.0]})).unwrap();
+    let compound = id_of(&s.execute("object.compoundPath.make", &json!({})).unwrap());
+    let b = s.doc().unwrap().doc.node(compound).unwrap().geometric_bounds().unwrap();
+    assert!(b.x1 > 300.0 && b.y1 > 100.0, "its bounds reach past the edge, over the line: {b:?}");
+    s.execute("select.set", &json!({"ids": [text.0, compound.0]})).unwrap();
+    s.execute("object.clippingMask.make", &json!({})).unwrap();
+    for (format, options) in cropping() {
+        assert_eq!(edge_warnings(&mut s, format, options.clone()), Vec::<String>::new(), "{format} {options}");
+    }
+    // Moved so the second rectangle lies over the line across the edge, it shows the type there.
+    s.execute("object.move", &json!({"ids": [compound.0], "dx": -60, "dy": 80})).unwrap();
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({})), [one(text)]);
+}
+
+/// Type whose glyphs and even stroke lie past the left edge, with only a miter spike reaching onto
+/// the artboard, is cut by that edge too: what type paints (the cull before the edge check) takes
+/// its strokes' full miter reach, so the spike is never culled with it.
+#[test]
+fn a_miter_spike_alone_reaching_onto_the_artboard_is_named() {
+    let mut s = session();
+    let id = point(&mut s, 100.0, 100.0, "k");
+    s.execute(
+        "text.setRangeStyle",
+        &json!({"id": id.0, "stroke": "#000000", "strokeWidth": 6, "strokeOptions": {"join": "miter", "miterLimit": 10}}),
+    )
+    .unwrap();
+    let t = |s: &Session| match &s.doc().unwrap().doc.node(id).unwrap().kind {
+        vectorcraft_doc::NodeKind::Text(t) => (**t).clone(),
+        k => panic!("not text: {k:?}"),
+    };
+    // The glyph's right side, with the stroke's even reach, 1 pt left of the left edge.
+    let ink = crate::cmd::pathops::text_outline(&t(&s)).bounds().unwrap();
+    let dx = -t(&s).char_stroke_outset() - 1.0 - ink.x1;
+    s.execute("object.move", &json!({"ids": [id.0], "dx": dx, "dy": 0})).unwrap();
+    let painted = vectorcraft_render::painted_bounds(&s.doc().unwrap().doc, s.doc().unwrap().doc.node(id).unwrap()).unwrap();
+    let t = t(&s);
+    let outline = crate::cmd::pathops::text_outline(&t);
+    let ink = outline.bounds().unwrap();
+    assert!(ink.x1 + t.char_stroke_outset() < 0.0, "the glyph and its even stroke are off the artboard: {ink:?}");
+    let stroked = t.runs[0].style.stroke_layer().bounds_on(&outline.to_bezpath(), ink);
+    assert!(stroked.x1 > 0.5, "the spike at the arm of the k reaches onto the artboard: {stroked:?}");
+    assert!(painted.x1 >= stroked.x1, "the painted bounds hold the spike: {painted:?} {stroked:?}");
+    assert_eq!(edge_warnings(&mut s, "pdf", json!({})), [one(id)]);
+}
