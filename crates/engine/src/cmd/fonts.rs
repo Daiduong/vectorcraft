@@ -754,13 +754,21 @@ mod tests {
         db.face(&failed.family, "Regular");
         assert!(db.take_source_requests().contains(&failed), "and asked for again");
 
-        // The host's "Book" turns out to be a Regular face: done all the same.
+        // The host's "Book" turns out to be a Regular face: loaded all the same.
         let book = source("Book Style 01", "Book");
         db.add_sources(vec![book.clone()]);
         assert!(db.add_font(vectorcraft_testkit::fonts::renamed(&book.family)) > 0);
         assert!(db.is_pending_source(&book.family, "Book"));
-        db.source_settled(&book, true);
+        assert!(db.source_settled(&book, true));
         assert!(!db.is_pending_source(&book.family, "Book"));
+
+        // A file of another family is a failure: no longer pending, asked for again when given again.
+        let other = source("Wrong Family1", "Regular");
+        db.add_sources(vec![other.clone()]);
+        assert!(db.add_font(vectorcraft_testkit::fonts::renamed("Other Family1")) > 0);
+        assert!(!db.source_settled(&other, true), "the file holds another family");
+        assert!(!db.is_pending_source(&other.family, "Regular"));
+        assert_eq!(db.add_sources(vec![other.clone()]), 1, "a failure, so given again it is taken");
     }
 
     /// A source's italic styles are listed after its upright ones, as loaded faces' are.

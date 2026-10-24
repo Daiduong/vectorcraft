@@ -2036,12 +2036,16 @@ impl FontDb {
         !self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).queue.is_empty()
     }
 
-    /// The host is done with `src`: its file was added (`loaded`), or it couldn't be fetched or
-    /// added. Either way it is no longer pending, though the file's faces may name the family or
-    /// style otherwise; a failed one is asked for again only once the host gives it again
-    /// ([`FontDb::add_sources`]).
-    pub fn source_settled(&self, src: &FontSource, loaded: bool) {
+    /// The host is done with `src`: its file was added (`added`), or it couldn't be fetched or
+    /// added. Either way it is no longer pending. An added file counts only when a face of the
+    /// source's family is now loaded (by any of the family's names; its style may be named
+    /// otherwise, "Book" for a "Regular" source): a file of another family leaves the type in the
+    /// fallback face, so it counts as a failure. A failed source is asked for again only once the
+    /// host gives it again ([`FontDb::add_sources`]). Returns whether the source loaded.
+    pub fn source_settled(&self, src: &FontSource, added: bool) -> bool {
+        let loaded = added && self.is_loaded(&self.canonical(&src.family, "").0);
         self.source_requests.lock().unwrap_or_else(|e| e.into_inner()).settled.insert(source_key(src), loaded);
+        loaded
     }
 
     /// The source that type set in `family` and `style` asks for: the family's source of that
