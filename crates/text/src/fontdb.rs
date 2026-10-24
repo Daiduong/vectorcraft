@@ -2013,16 +2013,19 @@ impl FontDb {
     }
 
     /// The source that type set in `family` and `style` asks for: the family's source of that
-    /// style, else its first; `None` when no source supplies the family or that source's face is
-    /// loaded.
+    /// style, else its first; `None` when that style is loaded (however it came), when no source
+    /// supplies the family, or when the source's own face is loaded.
     fn pending_source(&self, family: &str, style: &str) -> Option<FontSource> {
+        let loaded = |style: &str| self.read_faces().iter().any(|f| f.family.eq_ignore_ascii_case(family) && norm(&f.style) == norm(style));
+        if loaded(style) {
+            return None;
+        }
         let src = {
             let sources = self.sources.read().unwrap_or_else(|e| e.into_inner());
             let of_family = || sources.iter().filter(|s| s.family.eq_ignore_ascii_case(family));
             of_family().find(|s| norm(&s.style) == norm(style)).or_else(|| of_family().next())?.clone()
         };
-        let loaded = self.read_faces().iter().any(|f| f.family.eq_ignore_ascii_case(&src.family) && norm(&f.style) == norm(&src.style));
-        (!loaded).then_some(src)
+        (!loaded(&src.style)).then_some(src)
     }
 
     /// Ask for the source of `family` in `style` ([`FontDb::pending_source`]), once.

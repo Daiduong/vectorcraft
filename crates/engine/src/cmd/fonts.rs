@@ -711,6 +711,23 @@ mod tests {
         assert_eq!(db.take_source_requests().into_iter().filter(|r| r.family == FAMILY).collect::<Vec<_>>(), [source("Bold")]);
     }
 
+    /// A style loaded some other way is not pending though the family's only source has another
+    /// style: Regular added by hand, Bold the only source, so Regular asks for nothing and keeps
+    /// its sample, and Bold is still to come.
+    #[test]
+    fn a_loaded_style_is_not_pending_for_another_style_s_source() {
+        let _fonts = crate::adding_fonts();
+        const FAMILY: &str = "Bold Source 1";
+        let db = vectorcraft_text::FontDb::global();
+        let integrity = format!("sha256-{}", vectorcraft_format::base64_encode(&[0x3c; 32]));
+        db.add_sources(vec![vectorcraft_text::FontSource { family: FAMILY.into(), style: "Bold".into(), url: "fonts/bold.ttf".into(), integrity }]);
+        assert!(db.add_font(vectorcraft_testkit::fonts::renamed(FAMILY)) > 0);
+        assert!(!db.is_pending_source(FAMILY, "Regular"), "Regular is loaded");
+        assert!(db.is_pending_source(FAMILY, "Bold"));
+        db.face(FAMILY, "Regular");
+        assert!(db.take_source_requests().iter().all(|r| r.family != FAMILY), "the loaded style asks for nothing");
+    }
+
     /// Text › Add Font: a font file's faces join the session, text set in its family is no longer
     /// missing, a face already loaded is not added again, and bytes that are no font are refused.
     #[test]

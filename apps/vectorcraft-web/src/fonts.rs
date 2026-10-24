@@ -128,9 +128,9 @@ async fn load(f: &WebFont, timeout_ms: i32) -> bool {
 /// GET `url` (relative to the page) with Subresource Integrity `integrity`, aborted after
 /// `timeout_ms`.
 /// The file at `url`, checked against `integrity` (Subresource Integrity), given up after
-/// `timeout_ms`. With `max_bytes`, a larger file is refused: by its Content-Length before its body
-/// is read when the server gives one, and otherwise before its bytes are copied into the app's
-/// memory (the browser holds the whole body to check its integrity).
+/// `timeout_ms`. With `max_bytes`, a larger file is refused before its bytes are copied into the
+/// app's memory. The browser has read and checked the whole body by the time the response
+/// arrives (it must, to check its integrity), so the download itself is not cut short.
 async fn fetch(url: &str, integrity: &str, timeout_ms: i32, max_bytes: Option<usize>) -> Result<Vec<u8>, String> {
     let window = web_sys::window().ok_or("no window")?;
     let abort = web_sys::AbortController::new().map_err(js)?;
@@ -148,15 +148,9 @@ async fn fetch(url: &str, integrity: &str, timeout_ms: i32, max_bytes: Option<us
         if !response.ok() {
             return Err(format!("HTTP {} for {url}", response.status()));
         }
-        let too_large = |n: usize| max_bytes.is_some_and(|max| n > max);
-        let declared = response.headers().get("content-length").ok().flatten().and_then(|n| n.trim().parse::<usize>().ok());
-        if declared.is_some_and(too_large) {
-            abort.abort();
-            return Err(format!("{url} is larger than {} MB", max_bytes.unwrap_or_default() >> 20));
-        }
         let buffer = JsFuture::from(response.array_buffer().map_err(js)?).await.map_err(js)?;
         let bytes = js_sys::Uint8Array::new(&buffer);
-        if too_large(bytes.length() as usize) {
+        if max_bytes.is_some_and(|max| bytes.length() as usize > max) {
             return Err(format!("{url} is larger than {} MB", max_bytes.unwrap_or_default() >> 20));
         }
         Ok(bytes.to_vec())
