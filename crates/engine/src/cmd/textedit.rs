@@ -892,6 +892,7 @@ fn create_in_path(s: &mut Session, p: &Value) -> Result<Value> {
         ruby: Vec::new(),
         para: super::create::new_type_para(),
         paras: Vec::new(),
+        first_para_continues: false,
         area: Default::default(),
         path_effect: Default::default(),
         path_align: Default::default(),
@@ -901,6 +902,7 @@ fn create_in_path(s: &mut Session, p: &Value) -> Result<Value> {
         anti_alias: Default::default(),
         system_layout: false,
         fractional_widths: true,
+        list_count: 0,
         cached_bounds: None,
         cached_baselines: Vec::new(),
     };
@@ -1141,6 +1143,7 @@ fn headline_tracking(t: &TextObject, target: f64) -> Option<f64> {
             ruby: t.ruby.clone(),
             para: Default::default(),
             paras: Vec::new(),
+            first_para_continues: false,
             area: Default::default(),
             path_effect: Default::default(),
             path_align: Default::default(),
@@ -1150,6 +1153,7 @@ fn headline_tracking(t: &TextObject, target: f64) -> Option<f64> {
             anti_alias: Default::default(),
             system_layout: t.system_layout,
             fractional_widths: t.fractional_widths,
+            list_count: 0,
             cached_bounds: None,
             cached_baselines: Vec::new(),
         };
