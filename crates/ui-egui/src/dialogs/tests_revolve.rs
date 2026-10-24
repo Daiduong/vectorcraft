@@ -498,3 +498,54 @@ fn lighting_presets_cancel_restores_an_existing_custom_light_rig() {
     dialogs::cancel(&mut h.app);
     assert_eq!(h.app.session.doc().unwrap().doc, before);
 }
+
+#[test]
+fn lighting_presets_work_with_shading_off_and_preserve_preview_cancel_and_history() {
+    for effect in [REVOLVE, EXTRUDE, INFLATE, vectorcraft_effects::ROTATE] {
+        for confirm in [false, true] {
+            let mut h = Harness::with("M100 100L200 100L200 200L100 200Z", effect, vec2(1280.0, 900.0));
+            h.settle();
+            dialogs::confirm(&mut h.app).unwrap();
+            h.app.run("effect.setParams", json!({"index":0,"item":null,"params":{"shade":false}})).unwrap();
+            h.app.session.doc_mut().unwrap().mark_saved();
+            let before = h.app.session.doc().unwrap().doc.clone();
+            let history = h.app.session.doc().unwrap().history.undo.len();
+            h.app.run("effect.dialog", json!({"effect":effect,"index":0,"item":null})).unwrap();
+            h.settle();
+            h.click(h.rect("Lighting").center());
+            h.app.ui.dialog.as_mut().unwrap().fields.insert("preview".into(), json!(false));
+            h.settle();
+            h.click(h.rect("Standard").center());
+            h.click(h.rect("Right").center());
+            assert_eq!(h.value("lightRotation"), 0.0, "preset selected with Shading off: {effect}");
+            assert!(!h.app.ui.dialog.as_ref().unwrap().bool("shade"));
+            assert_eq!(h.app.session.doc().unwrap().doc, before, "Preview off");
+            h.drag(h.rect("Height").center(), vec2(20.0, 0.0));
+            assert_eq!(h.value("lightHeight"), 30.0, "individual light editing stays disabled");
+            h.click(h.rect("Add Light").center());
+            assert!(h.app.ui.dialog.as_ref().unwrap().fields["lights"].is_null());
+            h.app.ui.dialog.as_mut().unwrap().fields.insert("preview".into(), json!(true));
+            h.settle();
+            let preview = h.app.session.doc().unwrap().doc.clone();
+            let id = h.app.session.doc().unwrap().selection.objects[0];
+            assert_eq!(preview.node(id).unwrap().appearance.effects[0].params["lightRotation"], 0.0);
+            assert_eq!(preview.node(id).unwrap().appearance.effects[0].params["shade"], false);
+            if confirm {
+                dialogs::confirm(&mut h.app).unwrap();
+                assert_eq!(h.app.session.doc().unwrap().doc, preview);
+                assert_eq!(h.app.session.doc().unwrap().history.undo.len(), history + 1);
+                h.app.run("edit.undo", json!({})).unwrap();
+                assert_eq!(h.app.session.doc().unwrap().doc, before);
+                assert!(!h.app.session.doc().unwrap().is_dirty());
+                h.app.run("edit.redo", json!({})).unwrap();
+                assert_eq!(h.app.session.doc().unwrap().doc, preview);
+            } else {
+                dialogs::cancel(&mut h.app);
+                assert_eq!(h.app.session.doc().unwrap().doc, before);
+                assert_eq!(h.app.session.doc().unwrap().history.undo.len(), history);
+                assert!(!h.app.session.doc().unwrap().is_dirty());
+            }
+            assert!(!h.app.session.in_interaction());
+        }
+    }
+}
