@@ -244,7 +244,7 @@ pub(crate) fn typed_unit(ctx: &egui::Context, unit: Unit) -> Unit {
 /// Supports unit suffixes and arithmetic; a number without a unit is in `unit` ([`typed_unit`]: in
 /// points in a picas field with Numbers Without Units Are Points on).
 pub fn num_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value: Option<f64>, unit: Unit, width: f32) -> Option<f64> {
-    unit_field(ui, id, value, unit, width, false, ANY)
+    unit_field(ui, id, value, unit, width, false, ANY, StepRule::Whole)
 }
 
 /// Any number: the bounds of a field that has none.
@@ -257,7 +257,8 @@ fn within(v: f64, bounds: &RangeInclusive<f64>) -> f64 {
 
 /// [`num_field`]; with `share_of_value` a percentage typed alone is that share of `value`
 /// ([`share_of`]). ↑/↓, the wheel and a scrub stop at `bounds` (points), and the field shows where
-/// they stopped.
+/// they stopped; a plain ↑/↓ or wheel step follows `rule`.
+#[allow(clippy::too_many_arguments)]
 fn unit_field(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -266,6 +267,7 @@ fn unit_field(
     width: f32,
     share_of_value: bool,
     bounds: RangeInclusive<f64>,
+    rule: StepRule,
 ) -> Option<f64> {
     let id = ui.id().with(id);
     let shown = value.map(|v| unit.format(v)).unwrap_or_default();
@@ -275,7 +277,7 @@ fn unit_field(
     // ↑/↓ and the wheel step in the field's unit; a drag on its label scrubs it.
     let read = typed_unit(ui.ctx(), unit);
     let bounds = unit.from_pt(*bounds.start())..=unit.from_pt(*bounds.end());
-    let stepped = step_value(ui, &resp, &mut buf, &bounds, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)));
+    let stepped = step_value(ui, &resp, &mut buf, &bounds, rule, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)));
     let scrubbed = scrub::field(ui, id, rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS, &bounds);
     let commit = commit && buf != shown;
     ui.data_mut(|d| d.insert_temp(id, buf.clone()));
@@ -307,6 +309,35 @@ pub(crate) fn round_to(v: f64, decimals: i32) -> f64 {
 /// the next multiple of its size ([`step_to_multiple`]); a Shift step adds or takes ten.
 const STEPS: [(egui::Modifiers, f64); 3] = [(egui::Modifiers::SHIFT, 10.0), (egui::Modifiers::COMMAND, 0.1), (egui::Modifiers::NONE, 1.0)];
 
+/// Where a plain step (no modifier) of a numeric field goes: to the next whole number
+/// ([`step_to_multiple`] by 1), or for a stroke weight by its ladder ([`weight_ladder`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StepRule {
+    Whole,
+    Weight,
+}
+
+/// Stroke weight `v` (as its field shows it) moved `n` plain steps (down when `n` is negative): from
+/// 1 up each step goes to the next whole number in its direction, below 1 to the next quarter (0,
+/// 0.25, 0.5, 0.75), never under 0. 1.3 goes up to 2 and down to 1, 0.35 up to 0.5 and down to 0.25,
+/// 1 down to 0.75.
+fn weight_ladder(v: f64, n: f64) -> f64 {
+    let mut v = v;
+    // A step count from a wheel turn: whole, and capped as no turn of a real wheel goes further.
+    let steps = n.abs().min(10_000.0) as u32;
+    for _ in 0..steps {
+        let size = if n > 0.0 {
+            if v + 1e-6 >= 1.0 { 1.0 } else { 0.25 }
+        } else if v - 1e-6 > 1.0 {
+            1.0
+        } else {
+            0.25
+        };
+        v = step_to_multiple(v, size, n.signum()).max(0.0);
+    }
+    v
+}
+
 /// `v` moved `n` steps of `size` (down when `n` is negative): the first step goes to the next
 /// multiple of `size` in its direction and each further step adds or takes one `size`. By 1, 5.1
 /// goes up to 6 and down to 5, and 5 goes up to 6 and down to 4. A value within a millionth of a
@@ -334,6 +365,7 @@ fn step_value(
     resp: &Response,
     buf: &mut String,
     bounds: &RangeInclusive<f64>,
+    rule: StepRule,
     read: impl Fn(&str) -> Option<f64>,
     show: impl Fn(f64) -> String,
 ) -> Option<f64> {
@@ -389,7 +421,13 @@ fn step_value(
     }
     let mut v = read(buf)?;
     for (mods, size, n) in steps {
-        v = if mods == egui::Modifiers::SHIFT { v + size * n } else { step_to_multiple(v, size, n) };
+        v = if mods == egui::Modifiers::SHIFT {
+            v + size * n
+        } else if mods == egui::Modifiers::NONE && rule == StepRule::Weight {
+            weight_ladder(v, n)
+        } else {
+            step_to_multiple(v, size, n)
+        };
         // Each step stops at the bounds, so a step back in the same frame starts from there.
         v = within(v, bounds);
     }
@@ -452,7 +490,7 @@ pub fn size_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value
             }
         });
     }
-    unit_field(ui, id, value, unit, width, true, ANY)
+    unit_field(ui, id, value, unit, width, true, ANY, StepRule::Whole)
 }
 
 /// Select all of `text` in text field `id`.
@@ -728,7 +766,7 @@ fn bounded_field(
     // ↑/↓ and the wheel step at the field's precision (a count ignores Ctrl/Cmd's tenth); a drag on
     // its label scrubs it.
     let decimals = decimals.min(6) as i32;
-    let stepped = step_value(ui, &resp, &mut buf, bounds, read, show).map(|v| round_to(v, decimals));
+    let stepped = step_value(ui, &resp, &mut buf, bounds, StepRule::Whole, read, show).map(|v| round_to(v, decimals));
     let scrubbed = scrub::field(ui, id, rect, &buf, value, decimals, bounds);
     if commit && buf != shown { read(&buf) } else { stepped.or(scrubbed).filter(|&v| Some(v) != value) }
 }
@@ -1613,9 +1651,38 @@ pub fn spin_field_auto(
     min: f64,
     presets: &[f64],
 ) -> Option<SpinPick> {
-    spin_generic(ui, value, auto, width, step, min, presets, &|v| unit.format(v), &mut |ui, fw| {
-        unit_field(ui, id, value, unit, fw, false, min..=f64::INFINITY)
+    let spin = |v, up, m| spinner_step(v, step, min, up, m);
+    spin_generic(ui, value, auto, width, min, presets, &spin, &|v| unit.format(v), &mut |ui, fw| {
+        unit_field(ui, id, value, unit, fw, false, min..=f64::INFINITY, StepRule::Whole)
     })
+}
+
+/// The stroke weight spinner (Stroke panel, Control bar, Properties, Appearance): [`spin_field`]
+/// from 0 whose plain steps, by its arrows, ↑/↓ or the wheel, follow the weight ladder in `unit`
+/// ([`weight_ladder`]); Shift and Ctrl/Cmd step as in any spinner.
+pub fn weight_spin_field(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug + Copy,
+    value: Option<f64>,
+    unit: Unit,
+    width: f32,
+    presets: &[f64],
+) -> Option<f64> {
+    let spin = |v, up, m| weight_spinner_step(v, unit, up, m);
+    spin_generic(ui, value, None, width, 0.0, presets, &spin, &|v| unit.format(v), &mut |ui, fw| {
+        unit_field(ui, id, value, unit, fw, false, 0.0..=f64::INFINITY, StepRule::Weight)
+    })
+    .and_then(SpinPick::value)
+}
+
+/// One click of the weight spinner's arrows on weight `value` (points) shown in `unit`: a plain one
+/// steps the ladder as the field shows the weight, Shift and Ctrl/Cmd as [`spinner_step`] by 1 pt.
+fn weight_spinner_step(value: f64, unit: Unit, up: bool, modifiers: egui::Modifiers) -> f64 {
+    if !modifiers.shift && !modifiers.command {
+        unit.to_pt(round_to(weight_ladder(unit.from_pt(value), if up { 1.0 } else { -1.0 }), STEP_DECIMALS))
+    } else {
+        spinner_step(value, 1.0, 0.0, up, modifiers)
+    }
 }
 
 /// [`spin_field`] for unitless values (percent, degrees, 1/1000 em) with a display suffix; a
@@ -1634,7 +1701,8 @@ pub fn spin_plain(
 ) -> Option<f64> {
     let value = value.into();
     let fmt = |v: f64| format!("{v}{suffix}");
-    spin_generic(ui, value, None, width, step, min, presets, &fmt, &mut |ui, fw| {
+    let spin = |v, up, m| spinner_step(v, step, min, up, m);
+    spin_generic(ui, value, None, width, min, presets, &spin, &fmt, &mut |ui, fw| {
         bounded_field(ui, id, value, suffix, decimals, fw, &(min..=f64::INFINITY))
     })
     .and_then(SpinPick::value)
@@ -1646,9 +1714,9 @@ fn spin_generic(
     value: Option<f64>,
     auto: Option<bool>,
     width: f32,
-    step: f64,
     min: f64,
     presets: &[f64],
+    spin: &dyn Fn(f64, bool, egui::Modifiers) -> f64,
     fmt: &dyn Fn(f64) -> String,
     field: &mut dyn FnMut(&mut Ui, f32) -> Option<f64>,
 ) -> Option<SpinPick> {
@@ -1685,7 +1753,7 @@ fn spin_generic(
             && let Some(v) = value
         {
             let modifiers = ui.input(|i| i.modifiers);
-            out = Some(SpinPick::Value(spinner_step(v, step, min, up.contains(p), modifiers)));
+            out = Some(SpinPick::Value(spin(v, up.contains(p), modifiers)));
         }
         let fw = if presets.is_empty() { width - 15.0 } else { width - 34.0 };
         if let Some(v) = field(ui, fw) {
@@ -2226,7 +2294,7 @@ pub fn opt_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step a value (an empty field stays empty); a drag on its label scrubs it.
     let lengths = 0.0..=f64::INFINITY;
-    let stepped = step_value(ui, &resp, &mut buf, &lengths, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)));
+    let stepped = step_value(ui, &resp, &mut buf, &lengths, StepRule::Whole, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)));
     let scrubbed = scrub::field(ui, id, framed.response.rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS, &lengths);
     let focused = ui.memory(|m| m.has_focus(id));
     ui.data_mut(|d| {
@@ -3355,5 +3423,47 @@ mod row_click_tests {
         // A range replaces the rows, or adds the ones not there yet, top-down.
         assert_eq!(applied(vec![50], RowClick::Range(vec![20, 30])), [20, 30]);
         assert_eq!(applied(vec![30, 50], RowClick::AddRange(vec![20, 30, 40])), [30, 50, 20, 40]);
+    }
+}
+
+#[cfg(test)]
+mod weight_ladder_tests {
+    use super::*;
+
+    /// A plain stroke weight step: whole numbers from 1 up, quarters below, never under 0.
+    #[test]
+    fn a_weight_steps_by_whole_numbers_from_one_and_by_quarters_below() {
+        for (v, n, want) in [
+            (1.3, 1.0, 2.0),
+            (1.3, -1.0, 1.0),
+            (2.0, 1.0, 3.0),
+            (2.0, -1.0, 1.0),
+            (0.3528, 1.0, 0.5),
+            (0.3528, -1.0, 0.25),
+            (0.75, 1.0, 1.0),
+            (0.9, 1.0, 1.0),
+            (1.0, -1.0, 0.75),
+            (1.0, 1.0, 2.0),
+            (0.0, 1.0, 0.25),
+            (0.0, -1.0, 0.0),
+            (0.1, -1.0, 0.0),
+            (0.5, 3.0, 2.0),
+            (2.0, -3.0, 0.5),
+        ] {
+            assert!((weight_ladder(v, n) - want).abs() < 1e-9, "{v} × {n}: {}", weight_ladder(v, n));
+        }
+    }
+
+    /// The spinner's arrows step the weight as the field shows it (here in millimetres); Shift and
+    /// Ctrl/Cmd keep their plain steps in points.
+    #[test]
+    fn the_weight_spinner_steps_in_the_shown_unit() {
+        let mm = Unit::Millimeters;
+        let up = weight_spinner_step(mm.to_pt(0.3528), mm, true, egui::Modifiers::NONE);
+        assert!((mm.from_pt(up) - 0.5).abs() < 1e-9, "{}", mm.from_pt(up));
+        let down = weight_spinner_step(mm.to_pt(0.3528), mm, false, egui::Modifiers::NONE);
+        assert!((mm.from_pt(down) - 0.25).abs() < 1e-9, "{}", mm.from_pt(down));
+        assert_eq!(weight_spinner_step(14.0, Unit::Points, true, egui::Modifiers::SHIFT), 24.0);
+        assert_eq!(weight_spinner_step(14.0, Unit::Points, false, egui::Modifiers::COMMAND), 13.9);
     }
 }

@@ -445,8 +445,8 @@ fn mixed_appearances(app: &VectorcraftApp) -> bool {
 
 /// What the next object drawn gets when nothing is selected (`Session::new_art`): its fills and
 /// strokes, effects and transparency as rows. "Stroke:" opens the Stroke panel, which sets up its
-/// stroke, and "Fill:" the Color panel on its fill; the swatches work as an object's
-/// ([`swatch_button`]), on its top fill and stroke.
+/// stroke, and "Fill:" the Color panel on its fill; the swatches and the weight field work as an
+/// object's ([`swatch_button`], [`weight_field`]), on its top fill and stroke.
 fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let ap = app.session.new_art();
@@ -469,9 +469,7 @@ fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         swatch_button(app, ui, r, it.paint(), Painted::NewArt { fill: it.is_fill() });
         if let AppearanceItem::Stroke(st) = it {
-            let w = app.session.stroke_unit().format(st.width);
-            text(ui, pos2(r.left() + EYE_W + 106.0, r.center().y), &w, false);
-            stroke_notes(ui, Rect::from_min_max(pos2(r.left() + EYE_W + 166.0, r.top()), pos2(r.right() - 4.0, r.bottom())), st);
+            weight_field(app, ui, r, st, Painted::NewArt { fill: false });
         }
         for (k, e) in it.effects().iter().enumerate() {
             fx(ui, e, (Some(i), k));
@@ -563,12 +561,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
         }
         swatch_button(app, ui, r, paint, Painted::Item(i));
         if let AppearanceItem::Stroke(st) = it {
-            let fr = Rect::from_min_size(pos2(r.left() + EYE_W + 104.0, r.center().y - 12.0), vec2(56.0, 24.0));
-            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(fr).layout(egui::Layout::left_to_right(egui::Align::Center)));
-            if let Some(w) = widgets::num_field(&mut child, ("ap-w", i), Some(st.width), app.session.stroke_unit(), 56.0) {
-                app.run("appearance.setItem", json!({"index": i, "weight": w})).ok();
-            }
-            stroke_notes(ui, Rect::from_min_max(pos2(fr.right() + 6.0, r.top()), pos2(r.right() - 4.0, r.bottom())), st);
+            weight_field(app, ui, r, st, Painted::Item(i));
         }
         if resp.clicked() {
             let m = ui.input(|inp| inp.modifiers);
@@ -1170,6 +1163,25 @@ fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, 
     egui::Popup::menu(&resp).open_memory((resp.clicked() && !mixer).then_some(egui::SetOpenCommand::Toggle)).show(|ui| {
         swatch_picker(app, ui, target);
     });
+}
+
+/// The weight of stroke row `r` (stroke `st`) and its notes after it: the Stroke panel's spinner
+/// (arrows, Units > Stroke, preset dropdown); a weight typed, stepped or picked goes to the stroke
+/// `target`, with nothing selected the next object drawn's (`stroke.set`).
+fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, st: &vectorcraft_doc::StrokeLayer, target: Painted) {
+    const W: f32 = 100.0;
+    let fr = Rect::from_min_size(pos2(r.left() + EYE_W + 104.0, r.center().y - 13.0), vec2(W, 26.0));
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(fr).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    let unit = app.session.stroke_unit();
+    let presets = super::stroke::weight_presets(unit);
+    if let Some(w) = widgets::weight_spin_field(&mut child, ("ap-w", target), Some(st.width), unit, W, &presets) {
+        match target {
+            Painted::Item(index) => app.run("appearance.setItem", json!({"index": index, "weight": w})),
+            Painted::NewArt { .. } => app.run("stroke.set", json!({ "weight": w })),
+        }
+        .ok();
+    }
+    stroke_notes(ui, Rect::from_min_max(pos2(fr.right() + 6.0, r.top()), pos2(r.right() - 4.0, r.bottom())), st);
 }
 
 /// Small swatch grid inside the appearance chip popup; a pick paints `target`.

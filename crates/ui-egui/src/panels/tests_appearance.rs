@@ -1151,3 +1151,79 @@ fn with_nothing_selected_the_swatches_set_up_new_art() {
         assert_eq!((app.ui.open_panel.as_deref(), app.session.fill_active), (Some(if fill { "color" } else { "stroke" }), fill), "{label}: its link");
     }
 }
+
+/// The stroke row's weight is the same field with or without a selection: typed in, it sets the
+/// selected stroke's weight, or with nothing selected the next object drawn's.
+#[test]
+fn the_stroke_weight_field_edits_with_or_without_a_selection() {
+    for selected in [true, false] {
+        let mut app = app_with_rect();
+        if !selected {
+            run(&mut app, "select.set", json!({"ids": []}));
+        }
+        let ctx = drop_ctx();
+        let one = Unit::Points.format(1.0);
+        let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
+        app_click(&ctx, &mut app, text_rect(&texts, &one).center(), boxed_panel);
+        let enter =
+            |pressed| egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::NONE };
+        app_frame(&ctx, &mut app, vec![egui::Event::Text("6".into())], boxed_panel);
+        app_frame(&ctx, &mut app, vec![enter(true), enter(false)], boxed_panel);
+        app_frame(&ctx, &mut app, vec![], boxed_panel);
+        let width =
+            if selected { first_selected(&app).unwrap().appearance.stroke().unwrap().width } else { app.session.new_art().stroke().unwrap().width };
+        assert_eq!(width, 6.0, "selected: {selected}");
+    }
+}
+
+/// The stroke row's weight is the Stroke panel's spinner, with or without a selection: its up arrow
+/// steps the weight by 1 pt and its dropdown sets a preset weight.
+#[test]
+fn the_stroke_weight_has_the_stroke_panels_arrows_and_presets() {
+    let preset = super::stroke::weight_presets(Unit::Points)[10];
+    for selected in [true, false] {
+        let mut app = app_with_rect();
+        if !selected {
+            run(&mut app, "select.set", json!({"ids": []}));
+        }
+        let width = |app: &VectorcraftApp| {
+            if selected { first_selected(app).unwrap().appearance.stroke().unwrap().width } else { app.session.new_art().stroke().unwrap().width }
+        };
+        let ctx = drop_ctx();
+        let arrows = control_at(&ctx, &mut app, "Step up or down", boxed_panel).unwrap_or_else(|| panic!("selected: {selected}: the arrows"));
+        app_click(&ctx, &mut app, arrows - egui::vec2(0.0, 6.0), boxed_panel);
+        assert_eq!(width(&app), 2.0, "selected: {selected}: the up arrow");
+        let presets = control_at(&ctx, &mut app, "Presets", boxed_panel).unwrap();
+        app_click(&ctx, &mut app, presets, boxed_panel);
+        let pick =
+            control_at(&ctx, &mut app, &Unit::Points.format(preset), boxed_panel).unwrap_or_else(|| panic!("selected: {selected}: the presets"));
+        app_click(&ctx, &mut app, pick, boxed_panel);
+        assert_eq!(width(&app), preset, "selected: {selected}: a preset");
+    }
+}
+
+/// Stroke weights step by the ladder (whole numbers from 1, quarters below): the Appearance
+/// panel's arrows go from 0.3 pt up to 0.5 pt and back down to 0.25 pt; ↓ in the Stroke panel's
+/// focused Weight field goes from 1 pt to 0.75 pt.
+#[test]
+fn stroke_weights_step_by_quarters_below_one() {
+    let mut app = app_with_rect();
+    run(&mut app, "stroke.set", json!({"weight": 0.3}));
+    let weight = |app: &VectorcraftApp| first_selected(app).unwrap().appearance.stroke().unwrap().width;
+    let ctx = drop_ctx();
+    let arrows = control_at(&ctx, &mut app, "Step up or down", boxed_panel).unwrap();
+    app_click(&ctx, &mut app, arrows - egui::vec2(0.0, 6.0), boxed_panel);
+    assert!((weight(&app) - 0.5).abs() < 1e-9, "up: {}", weight(&app));
+    app_click(&ctx, &mut app, arrows + egui::vec2(0.0, 6.0), boxed_panel);
+    assert!((weight(&app) - 0.25).abs() < 1e-9, "down: {}", weight(&app));
+    // The Stroke panel's field, focused, with ↓.
+    run(&mut app, "stroke.set", json!({"weight": 1}));
+    fn stroke_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+        ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::stroke::show(app, ui));
+    }
+    let ctx = drop_ctx();
+    let texts = frame_events(&ctx, &mut app, vec![], stroke_panel);
+    app_click(&ctx, &mut app, text_rect(&texts, &Unit::Points.format(1.0)).center(), stroke_panel);
+    app_key(&ctx, &mut app, egui::Key::ArrowDown, stroke_panel);
+    assert!((weight(&app) - 0.75).abs() < 1e-9, "↓: {}", weight(&app));
+}
