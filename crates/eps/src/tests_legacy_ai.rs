@@ -62,8 +62,15 @@ fn sample() -> Document {
     let blob = ImageBlob::new("image/png", png);
     let key = blob.content_key();
     doc.images.insert(key.clone(), blob);
-    let im =
-        ImageObject { key, width: 2, height: 1, xf: Affine::new([10.0, 0.0, 0.0, 10.0, 170.0, 70.0]), link: None, placement: Default::default() };
+    let im = ImageObject {
+        key,
+        width: 2,
+        height: 1,
+        xf: Affine::new([10.0, 0.0, 0.0, 10.0, 170.0, 70.0]),
+        link: None,
+        placement: Default::default(),
+        pixels: None,
+    };
     let im = Node::new(doc.alloc_id(), NodeKind::Image(Box::new(im)));
     doc.insert(Some(front), usize::MAX, im).unwrap();
     if let Some(l) = doc.layers.get_mut(1) {
@@ -93,7 +100,8 @@ fn write_with(doc: &Document, o: LegacyAiOptions) -> LegacyAiOutput {
 /// in their first stop's color.
 fn as_printed(doc: &Document, o: &LegacyAiOptions) -> Document {
     // A run's glyphs, laid out, as one path with the run's fill (the renderer draws no type), and
-    // its colour bitmap glyphs as images (their pixels added to `images`).
+    // its colour bitmap glyphs as images (their pixels added to `images`), its COLR glyphs as their
+    // layers.
     fn outlined(t: &vectorcraft_doc::TextObject, images: &mut std::collections::BTreeMap<String, ImageBlob>) -> Node {
         let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
         let mut nodes: Vec<Arc<Node>> = t
@@ -113,9 +121,19 @@ fn as_printed(doc: &Document, o: &LegacyAiOptions) -> Document {
             let Some((image, to_text)) = g.placed_image() else { continue };
             let key = image.blob.content_key();
             images.insert(key.clone(), image.blob.clone());
-            let im = ImageObject { key, width: image.width, height: image.height, xf: t.xf * to_text, link: None, placement: Default::default() };
+            let im = ImageObject {
+                key,
+                width: image.width,
+                height: image.height,
+                xf: t.xf * to_text,
+                link: None,
+                placement: Default::default(),
+                pixels: None,
+            };
             nodes.push(Arc::new(Node::new(vectorcraft_doc::NodeId(0), NodeKind::Image(Box::new(im)))));
         }
+        // COLR glyphs: their layers.
+        nodes.extend(layout.glyphs.iter().filter_map(|g| g.placed_colour(t.xf)).map(Arc::new));
         Node::group(vectorcraft_doc::NodeId(0), nodes)
     }
     fn plain(nodes: &mut Vec<Arc<Node>>, o: &LegacyAiOptions, images: &mut std::collections::BTreeMap<String, ImageBlob>) {
@@ -261,8 +279,10 @@ fn a_rotated_image_keeps_its_place() {
     doc.images.insert(key.clone(), blob);
     // Turned 90° clockwise on the page: the pixel rows run down, the next row is to the left.
     let xf = Affine::new([0.0, 10.0, -10.0, 0.0, 100.0, 40.0]);
-    let im =
-        Node::new(doc.alloc_id(), NodeKind::Image(Box::new(ImageObject { key, width: 2, height: 1, xf, link: None, placement: Default::default() })));
+    let im = Node::new(
+        doc.alloc_id(),
+        NodeKind::Image(Box::new(ImageObject { key, width: 2, height: 1, xf, link: None, placement: Default::default(), pixels: None })),
+    );
     doc.layers.clear();
     let layer = doc.add_layer(Some("Art"));
     doc.insert(Some(layer), usize::MAX, im).unwrap();
@@ -294,7 +314,10 @@ fn picture(doc: &mut Document, r: Rect) -> Node {
     let key = blob.content_key();
     doc.images.insert(key.clone(), blob);
     let xf = Affine::new([r.width() / 16.0, 0.0, 0.0, r.height() / 16.0, r.x0, r.y0]);
-    Node::new(doc.alloc_id(), NodeKind::Image(Box::new(ImageObject { key, width: 16, height: 16, xf, link: None, placement: Default::default() })))
+    Node::new(
+        doc.alloc_id(),
+        NodeKind::Image(Box::new(ImageObject { key, width: 16, height: 16, xf, link: None, placement: Default::default(), pixels: None })),
+    )
 }
 
 /// A layer `Below` holding a clipping group (a circle clipping an image, as in #2692), a group
@@ -408,7 +431,7 @@ fn empty_images_get_the_size_note_and_undecodable_ones_the_decode_note() {
         let blob = ImageBlob::new("image/png", bytes);
         let key = blob.content_key();
         doc.images.insert(key.clone(), blob);
-        let im = ImageObject { key, width: 4, height: 2, xf: Affine::IDENTITY, link: None, placement: Default::default() };
+        let im = ImageObject { key, width: 4, height: 2, xf: Affine::IDENTITY, link: None, placement: Default::default(), pixels: None };
         let node = Node::new(doc.alloc_id(), NodeKind::Image(Box::new(im)));
         doc.insert(Some(layer), usize::MAX, node).unwrap();
         let out = export_legacy_ai(&doc, &LegacyAiOptions::default()).unwrap();
@@ -994,6 +1017,21 @@ fn variable_font_settings_are_warned_as_left_out() {
     assert!(String::from_utf8(out.bytes).unwrap().contains("(H\\351llo \\2005\\r) Tx\n"), "still written as text");
 }
 
+/// A legacy `.ai` paragraph has no list: type with a bulleted list is written as its text, with the
+/// warning that the bullets are left out.
+#[test]
+fn bulleted_lists_are_warned_as_left_out() {
+    let mut doc = typed();
+    let id = texts(&doc)[0].0.id;
+    if let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind) {
+        t.para.list = Some(vectorcraft_doc::text::ParaList::bulleted(vectorcraft_doc::text::Bullet::Square));
+        t.normalize_paras();
+    }
+    let out = write(&doc);
+    assert!(out.warnings.iter().any(|w| w == TYPE_ATTRIBUTES && w.contains("bulleted lists")), "{:?}", out.warnings);
+    assert!(String::from_utf8(out.bytes).unwrap().contains("(H\\351llo \\2005\\r) Tx\n"), "still written as text");
+}
+
 #[test]
 fn type_reads_back_as_text() {
     use vectorcraft_doc::{Justify, TextKind};
@@ -1174,4 +1212,21 @@ fn colour_bitmap_glyphs_of_outlined_type_are_images() {
     let images = rasters(&text);
     assert_eq!(images.len(), 1, "{text}");
     assert!(images[0][2].ends_with(" ] 0 0 16 16 16 16 8 3 0 0 0 0 XI"), "{:?}", images[0]);
+}
+
+#[test]
+fn colr_glyphs_of_outlined_type_are_vector_art() {
+    use vectorcraft_doc::{CharStyle, TextObject};
+    use vectorcraft_text::test_fonts::{COLOUR_CHAR, colr_family, colr_font};
+    vectorcraft_text::FontDb::global().add_font(colr_font(false).unwrap());
+    let mut doc = Document::new(200.0, 100.0);
+    let st = CharStyle { font_family: colr_family(false).into(), size: 32.0, ..CharStyle::default() };
+    // Cyrillic, which 8-bit text can't hold: the type is written as outlines.
+    let t = TextObject::point(vectorcraft_geom::Point::new(20.0, 60.0), &format!("{COLOUR_CHAR}\u{416}"), st);
+    let l = doc.layers[0].id;
+    let id = doc.alloc_id();
+    doc.insert(Some(l), 0, Node::new(id, NodeKind::Text(Box::new(t)))).unwrap();
+    let text = String::from_utf8(write(&doc).bytes).unwrap();
+    assert!(rasters(&text).is_empty(), "no images: {text}");
+    assert!(text.contains("1 0 0 Xa"), "the red layer: {text}");
 }

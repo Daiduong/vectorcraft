@@ -182,6 +182,8 @@ pub(crate) fn linked_groups(d: &Document) -> Vec<(String, Vec<u64>)> {
 fn groups(d: &Document, ids: Option<&[NodeId]>) -> Vec<Group> {
     let mut out: Vec<Group> = vec![];
     let mut index: BTreeMap<(String, String, bool), usize> = BTreeMap::new();
+    // Looked up for every linked node: a set, not the list (which may repeat an id many times).
+    let wanted: Option<std::collections::HashSet<NodeId>> = ids.map(|ids| ids.iter().copied().collect());
     let mut add = |link: &LinkInfo, key: &str, document: Option<Shown>, id: Option<NodeId>| {
         let i = *index.entry((link.path.clone(), key.to_string(), document.is_some())).or_insert_with(|| {
             out.push(Group { link: link.clone(), key: key.to_string(), ids: vec![], document });
@@ -193,7 +195,7 @@ fn groups(d: &Document, ids: Option<&[NodeId]>) -> Vec<Group> {
     };
     d.walk(|n| {
         if let Some((l, key, document)) = linked(n)
-            && ids.is_none_or(|ids| ids.contains(&n.id))
+            && wanted.as_ref().is_none_or(|ids| ids.contains(&n.id))
         {
             add(l, key, document, Some(n.id));
         }
@@ -392,11 +394,12 @@ pub(crate) fn files_to_find(st: &crate::DocState, ids: Option<&[NodeId]>) -> Vec
 // ---------- reading files into the document ----------
 
 /// Keep `full` (a file's pixels) as image `key` of `d`, unless pixels are there already; a
-/// preview there is kept, and a linked image gets one.
+/// preview there is kept, and a linked image gets one (the one `full` carries, when it has one).
 pub(crate) fn store_image(d: &mut Document, key: &str, full: ImageBlob, linked: bool) {
+    let made = full.proxy.clone().filter(|_| linked);
     let blob = match d.images.get(key) {
         Some(b) if !b.is_proxy() => b.clone(),
-        old => ImageBlob { proxy: old.and_then(|b| b.proxy.clone()), ..full },
+        old => ImageBlob { proxy: old.and_then(|b| b.proxy.clone()).or(made), ..full },
     };
     d.images.insert(key.to_string(), if linked { blob.with_proxy() } else { blob });
 }

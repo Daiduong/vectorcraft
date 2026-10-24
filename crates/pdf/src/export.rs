@@ -38,7 +38,7 @@ pub fn export(doc: &Document, opts: &PdfOptions) -> Result<Vec<u8>, PdfError> {
 /// Like [`export`], also returning warnings: options accepted but not applied yet (see
 /// [`crate::PdfSettings::warnings`]) and features approximated or dropped.
 pub fn export_with_report(doc: &Document, opts: &PdfOptions) -> Result<ExportReport, PdfError> {
-    write::guard(|| leaving_out_undecodable(|left_out| export_with_report_inner(doc, opts, left_out)))
+    write::guard(|| leaving_out_undecodable(doc, |left_out| export_with_report_inner(doc, opts, left_out)))
 }
 
 /// Run `write` (a whole PDF written by a [`Writer`]), and run it again each time it fails on an
@@ -46,12 +46,21 @@ pub fn export_with_report(doc: &Document, opts: &PdfOptions) -> Result<ExportRep
 /// adds the image's key to the set `write` is given, and the exporters leave out the images it
 /// holds. The writer reports such an image (a PNG, GIF or WebP kept as it is, whose header reads)
 /// only when it finishes the file. Each repeated run leaves out at least one more image.
-pub(crate) fn leaving_out_undecodable<T>(mut write: impl FnMut(&mut HashSet<String>) -> Result<T, PdfError>) -> Result<T, PdfError> {
+pub(crate) fn leaving_out_undecodable<T>(doc: &Document, mut write: impl FnMut(&mut HashSet<String>) -> Result<T, PdfError>) -> Result<T, PdfError> {
+    // The most runs repeated: each is a whole export, and a document of many images that don't
+    // decode would make them quadratic. Past it, one last run leaves out every image of `doc`, so
+    // the export still finishes (the images left out are reported).
+    const MAX_RETRIES: usize = 16;
     let mut left_out = HashSet::new();
+    let mut retries = 0;
     loop {
         let known = left_out.len();
         match write(&mut left_out) {
-            Err(_) if left_out.len() > known => {}
+            Err(_) if left_out.len() > known && retries < MAX_RETRIES => retries += 1,
+            Err(_) if left_out.len() > known && retries == MAX_RETRIES => {
+                left_out.extend(doc.images.keys().cloned());
+                retries += 1;
+            }
             done => return done,
         }
     }
@@ -294,6 +303,9 @@ impl Writer {
             no_device_cs: out.tagged,
             cmyk_profile,
             configuration,
+            // SVG glyphs, which krilla can't draw, are drawn as art where they sit (`glyph_text`):
+            // as text they draw nothing, rather than their fonts' plain outlines over the art.
+            render_svg_glyph_fn: |_, _, _, _, _| Some(()),
             ..Default::default()
         };
 
@@ -609,6 +621,8 @@ pub(crate) struct Exporter<'a> {
     /// Inline graphics being drawn inside inline graphics (text in a symbol shown inline in
     /// text…): deeper ones are left out.
     inline_depth: u32,
+    /// Tiling patterns being drawn inside tiling patterns ([`Self::tiling`]).
+    pattern_depth: u32,
     /// Keys of the images left out because the writer couldn't decode them
     /// ([`leaving_out_undecodable`]).
     pub left_out: HashSet<String>,
@@ -616,6 +630,9 @@ pub(crate) struct Exporter<'a> {
 
 /// How deep inline graphics nest before they are left out.
 const MAX_INLINE_DEPTH: u32 = 4;
+
+/// How deep tiling patterns nest: deeper pattern fills are written as their tiles.
+const MAX_PATTERN_DEPTH: u32 = 4;
 
 /// The warning for an image left out because it can't be decoded: the note raster exports give
 /// (`vectorcraft-engine`'s `rasterfx::undecoded_warning`).
@@ -652,6 +669,7 @@ impl<'a> Exporter<'a> {
             overprinted: false,
             invisible: false,
             inline_depth: 0,
+            pattern_depth: 0,
             left_out: HashSet::new(),
         }
     }
@@ -1237,7 +1255,7 @@ impl Exporter<'_> {
                     }
                     self.warn_raster(&fl.effects, || "fills".into());
                     self.overprinting(s, fl.overprint, &fl.paint, |ex, s| {
-                        if ex.area(s, &path, rule(r), &fl.paint, (fl.opacity, fl.blend), bounds, bounds) {
+                        if ex.area(s, &path, rule(r), &fl.paint, (fl.opacity, fl.blend), bounds, bounds, true) {
                             return;
                         }
                         let Some(paint) = ex.paint(s, &fl.paint, bounds) else { return };
@@ -1291,10 +1309,10 @@ impl Exporter<'_> {
     }
 
     /// Paint the area `clip` (filled by `rule`; bounds `area`) with `p` at `transparency` (opacity,
-    /// blend mode) when it is an [area paint](Self::area_paint) of a fill (strokes check theirs
-    /// first): a pattern's tile instances
-    /// covering it, or an image of a gradient drawn as pixels placed on `bounds` (the painted
-    /// object's box, as on the canvas), clipped to it. False (nothing drawn) for other paints.
+    /// blend mode) when it is an [area paint](Self::area_paint) of a fill (`fill`) or a stroke: a
+    /// pattern's [tiling pattern](Self::tiling) (else its tile instances covering it), or an image
+    /// of a gradient drawn as pixels placed on `bounds` (the painted object's box, as on the
+    /// canvas), clipped to it. False (nothing drawn) for other paints.
     #[allow(clippy::too_many_arguments)]
     fn area(
         &mut self,
@@ -1305,31 +1323,46 @@ impl Exporter<'_> {
         transparency: (f32, BlendMode),
         bounds: Rect,
         area: Rect,
+        fill: bool,
     ) -> bool {
-        if !self.area_paint(p, true) {
+        if !self.area_paint(p, fill) {
             return false;
         }
         let (opacity, mode) = transparency;
+        let tiling = match p {
+            Paint::Pattern { pattern, xf } => self.tiling(s, pattern, *xf),
+            _ => None,
+        };
         let mut pushes = 0;
         if mode != BlendMode::Normal {
             s.push_blend_mode(blend(mode));
             pushes += 1;
         }
-        s.push_clip_path(clip, &rule);
-        pushes += 1;
-        if opacity < 1.0 {
-            s.push_opacity(norm(opacity));
+        if let Some(paint) = tiling {
+            s.set_stroke(None);
+            s.set_fill(Some(Fill { paint, opacity: norm(opacity), rule }));
+            s.draw_path(clip);
+            s.set_fill(None);
+        } else {
+            s.push_clip_path(clip, &rule);
             pushes += 1;
-        }
-        let doc = self.doc;
-        match p {
-            Paint::Pattern { pattern, xf } => {
-                for inst in doc.pattern(pattern).map(|def| def.instances_in(*xf, area)).unwrap_or_default() {
-                    self.node(s, &inst, area, true);
-                }
+            if opacity < 1.0 {
+                s.push_opacity(norm(opacity));
+                pushes += 1;
             }
-            Paint::Gradient(g) => self.field_image(s, g, bounds, area),
-            _ => {}
+            let doc = self.doc;
+            match p {
+                Paint::Pattern { pattern, xf } => {
+                    if let Some(def) = doc.pattern(pattern) {
+                        self.warn("pattern fills nested more than 4 patterns deep, or with tiles too large for PDF, are written as their tiles");
+                        for inst in def.instances_in(*xf, area) {
+                            self.node(s, &inst, area, true);
+                        }
+                    }
+                }
+                Paint::Gradient(g) => self.field_image(s, g, bounds, area, fill),
+                _ => {}
+            }
         }
         for _ in 0..pushes {
             s.pop();
@@ -1337,11 +1370,49 @@ impl Exporter<'_> {
         true
     }
 
+    /// Pattern swatch `name` placed by `at` (pattern space → the current space) as a PDF tiling
+    /// pattern (ISO 32000-1, 8.7.3.1): one period of the tiling ([`vectorcraft_doc::PatternDef::period`],
+    /// what the canvas repeats too) with every tile instance reaching into it, in paint order, so
+    /// brick and hex tilings and overlapping tiles repeat as they are; clipped to the period when
+    /// art reaches out of it. `None` for a pattern nested deeper than [`MAX_PATTERN_DEPTH`], a period
+    /// or placement beyond [`MAX_COORD`] or a placement that flattens the tiles.
+    fn tiling(&mut self, s: &mut Surface, name: &str, at: Affine) -> Option<krilla::paint::Paint> {
+        let doc = self.doc;
+        let def = doc.pattern(name)?;
+        let (pw, ph) = def.period();
+        if self.pattern_depth >= MAX_PATTERN_DEPTH || !in_range(&[pw, ph]) || !in_range(&at.as_coeffs()) || at.determinant().abs() <= 1e-12 {
+            return None;
+        }
+        let cell = Rect::new(0.0, 0.0, pw, ph);
+        let tiles = def.instances_in(Affine::IDENTITY, cell);
+        let mut sb = s.stream_builder();
+        let mut cs = sb.surface();
+        let reaches_out = tiles.iter().any(|t| t.visual_bounds().is_some_and(|b| cell.intersect(b) != b));
+        let clip = reaches_out.then(|| to_path(&cs, &cell.to_path(0.1))).flatten();
+        if let Some(c) = &clip {
+            cs.push_clip_path(c, &krilla::paint::FillRule::NonZero);
+        }
+        // Pattern art is a picture of its own: it takes no part in a knockout group around the object.
+        let knockout = std::mem::take(&mut self.knockout);
+        self.pattern_depth += 1;
+        for t in &tiles {
+            self.node(&mut cs, t, cell, true);
+        }
+        self.pattern_depth -= 1;
+        self.knockout = knockout;
+        if clip.is_some() {
+            cs.pop();
+        }
+        cs.finish();
+        Some(krilla::paint::Pattern { stream: sb.finish(), transform: xf(at), width: pw as f32, height: ph as f32 }.into())
+    }
+
     /// Draw gradient `g`, placed on `bounds`, as an image over `area`, sampled at the document's
     /// raster effects resolution where it is drawn (`area` as the current transform sizes it, so
     /// scaled type gets its pixels too): a freeform gradient's colour field (at most
-    /// [`MAX_FIELD_PX`] a side), or a linear or radial gradient (at most [`MAX_GRADIENT_PX`] a side).
-    fn field_image(&mut self, s: &mut Surface, g: &vectorcraft_color::GradientPaint, bounds: Rect, area: Rect) {
+    /// [`MAX_FIELD_PX`] a side), or a linear or radial gradient (at most [`MAX_GRADIENT_PX`] a side),
+    /// with dither's noise when it paints a fill (`fill`).
+    fn field_image(&mut self, s: &mut Surface, g: &vectorcraft_color::GradientPaint, bounds: Rect, area: Rect, fill: bool) {
         use vectorcraft_color::freeform::{painted_box, spread_scale};
         let Some(b) = painted_box(bounds) else { return };
         let area = area.abs();
@@ -1362,7 +1433,7 @@ impl Exporter<'_> {
             field.grid(area, cols, rows).flat_map(|(c, a)| [q(c[0]), q(c[1]), q(c[2]), q(a)]).collect()
         } else {
             self.warn("linear and radial gradients drawn as pixels are exported as images");
-            g.pixels(b, area, cols, rows, &|c| c.to_rgb()).flatten().collect()
+            g.pixels(b, area, cols, rows, fill, &|c| c.to_rgb()).flatten().collect()
         };
         let pixels = if self.convert { self.out.pixels() } else { None };
         let (Some(img), Some(size)) = (
@@ -1383,13 +1454,14 @@ impl Exporter<'_> {
         if !stroke::is_plain(st) && self.brush_art(s, bp, st, page) {
             return;
         }
-        if self.area_paint(&st.paint, false) {
+        if self.area_paint(&st.paint, false) && st.path_gradient().is_none() {
             // The area the stroke paints (dashes, caps, joins, profile, arrowheads, alignment), as
-            // Outline Stroke makes it, painted with the pattern's tiles or the freeform's image.
+            // Outline Stroke makes it, painted with the pattern's tiles or the gradient's image (a
+            // gradient along or across the stroke is written as slices below).
             let region = stroke::outline_region(&vectorcraft_geom::PathData::from_bezpath(bp), r, st).to_bezpath();
             if let Some(clip) = to_path(s, &region) {
                 let area = region.bounding_box();
-                self.area(s, &clip, krilla::paint::FillRule::NonZero, &st.paint, (st.opacity, st.blend), st.paint_bounds(bounds), area);
+                self.area(s, &clip, krilla::paint::FillRule::NonZero, &st.paint, (st.opacity, st.blend), st.paint_bounds(bounds), area, false);
             }
             return;
         }
@@ -1588,7 +1660,7 @@ impl Exporter<'_> {
                 };
                 let opaque = (1.0, BlendMode::Normal);
                 if let Some(path) = to_path(s, &outlines)
-                    && !ex.area(s, &path, krilla::paint::FillRule::NonZero, fill, opaque, layout.bounds, outlines.bounding_box())
+                    && !ex.area(s, &path, krilla::paint::FillRule::NonZero, fill, opaque, layout.bounds, outlines.bounding_box(), true)
                     && let Some(paint) = ex.paint(s, fill, layout.bounds)
                 {
                     s.set_stroke(None);
@@ -1602,6 +1674,10 @@ impl Exporter<'_> {
             s.push_transform(&text_space);
             for g in images.iter().filter_map(|&gi| layout.glyphs.get(gi)) {
                 self.glyph_image(s, g);
+                // COLR glyphs: their layers, as art.
+                if let Some(art) = g.placed_colour(Affine::IDENTITY) {
+                    self.node(s, &art, page, true);
+                }
             }
             s.pop();
             // Characters with neither fill nor stroke (a scanned page's recognized text), or whose
@@ -1658,7 +1734,7 @@ impl Exporter<'_> {
         for item in items {
             match item {
                 AppearanceItem::Fill(fl) if fl.visible => self.overprinting(s, fl.overprint, &fl.paint, |ex, s| {
-                    if !ex.area(s, path, krilla::paint::FillRule::NonZero, &fl.paint, (fl.opacity, fl.blend), tb, bp.bounding_box())
+                    if !ex.area(s, path, krilla::paint::FillRule::NonZero, &fl.paint, (fl.opacity, fl.blend), tb, bp.bounding_box(), true)
                         && let Some(paint) = ex.paint(s, &fl.paint, tb)
                     {
                         s.set_stroke(None);
@@ -1680,21 +1756,22 @@ impl Exporter<'_> {
     /// text space; `text` is the plain text, whose characters the glyphs stand for, which makes
     /// the text selectable and searchable) → the outlines of the glyphs left to draw as paths:
     /// those of fonts that can't be embedded, and missing glyphs. Glyphs sharing a font, a frame
-    /// (size, scale, rotation) and a baseline are written together. Colour bitmap glyphs (emoji),
-    /// with `images`, are written as text too, which draws their images; the indices of those it
-    /// can't write are returned with the outlines.
+    /// (size, scale, rotation) and a baseline are written together. Colour glyphs (bitmap emoji,
+    /// COLR, SVG), with `images`, are written as text too, which draws their images or layers; the
+    /// indices of those it can't write or draw (SVG glyphs) are returned with the outlines.
     fn glyph_text(&mut self, s: &mut Surface, layout: &TextLayout, run: usize, text: &str, fill: &Paint, images: bool) -> (BezPath, Vec<usize>) {
         let (mut rest, mut unwritten) = (BezPath::new(), vec![]);
         let mut line: Option<GlyphLine> = None;
         for (gi, g) in layout.glyphs.iter().enumerate().filter(|(_, g)| g.run == run) {
-            if g.image.is_some() && !images {
+            let coloured = g.image.is_some() || g.colour.is_some();
+            if coloured && !images {
                 continue;
             }
             let range = g.byte..g.byte + g.len;
             let ch = text.get(range.clone()).and_then(|t| t.chars().next());
             // Spaces are written too (text extraction needs them); control characters and soft
             // hyphens draw nothing.
-            let blank = g.outline.elements().is_empty() && g.image.is_none();
+            let blank = g.outline.elements().is_empty() && !coloured;
             if blank && !ch.is_some_and(|c| c.is_whitespace() && !c.is_control()) {
                 continue;
             }
@@ -1706,11 +1783,20 @@ impl Exporter<'_> {
             let det = g.xf.determinant();
             let Some((font, upem)) = font.filter(|(_, upem)| det.is_finite() && det.abs() > 1e-9 && (1e-3..=1e5).contains(&(upem * sy))) else {
                 rest.extend(g.outline.iter());
-                if g.image.is_some() {
+                if coloured {
                     unwritten.push(gi);
                 }
                 continue;
             };
+            // SVG glyphs are written as text that draws nothing (see the serialize settings): their
+            // art is drawn, or else their outline.
+            if is_svg_glyph(g) {
+                if coloured {
+                    unwritten.push(gi);
+                } else {
+                    rest.extend(g.outline.iter());
+                }
+            }
             let size = upem * sy;
             let frame = g.xf * Affine::scale(1.0 / sy);
             // Its pen position along the frame's baseline, when it continues the line.
@@ -1829,11 +1915,12 @@ impl Exporter<'_> {
         font
     }
 
-    /// Image `key` placed `size` points wide and high, resampled and compressed as the Compression
+    /// Image `im` placed `size` points wide and high, resampled and compressed as the Compression
     /// settings say ([`crate::images::recode`], [`crate::images::recode_cmyk`] for CMYK images);
     /// cached by key (and size when images are resampled). `None`, with [`UNDECODED`] among the
     /// warnings, for an image that is missing, can't be decoded or is in [`Self::left_out`].
-    fn load_image(&mut self, key: &str, size: (f64, f64)) -> Option<Image> {
+    fn load_image(&mut self, im: &vectorcraft_doc::ImageObject, size: (f64, f64)) -> Option<Image> {
+        let key = im.key.as_str();
         let c = self.compression;
         let sized = [c.color.downsample, c.gray.downsample, c.mono.downsample].iter().any(|d| *d != crate::Downsample::None);
         let cache = if sized { format!("{key}\u{0}{:.3}x{:.3}", size.0, size.1) } else { key.to_string() };
@@ -1843,7 +1930,7 @@ impl Exporter<'_> {
         let interpolate = self.interpolate;
         let doc = self.doc;
         let out = self.out.clone();
-        let img = doc.images.get(key).filter(|_| !self.left_out.contains(key)).and_then(|blob| {
+        let img = doc.image_blob(im).filter(|_| !self.left_out.contains(key)).and_then(|blob| {
             let cmyk_image = blob.is_cmyk();
             if !cmyk_image && self.convert && doc.color_mode == vectorcraft_doc::ColorMode::Cmyk {
                 self.rgb_in_cmyk.images.insert(key.to_string());
@@ -1884,8 +1971,8 @@ impl Exporter<'_> {
             return i.clone();
         }
         let doc = self.doc;
-        let img = doc.images.get(&im.key).filter(|b| b.is_cmyk()).and_then(|blob| {
-            let alpha = crate::images::mask_alpha(doc.images.get(&mi.key)?, im.width, im.height, m.clip)?;
+        let img = doc.image_blob(im).filter(|b| b.is_cmyk()).and_then(|blob| {
+            let alpha = crate::images::mask_alpha(doc.image_blob(mi)?, im.width, im.height, m.clip)?;
             let r = crate::images::recode_cmyk(blob, size, self.compression, self.interpolate, self.out.cmyk_pixels(), Some(alpha));
             if let (Some(w), Some(_)) = (r.warning, &r.image) {
                 self.warn(w);
@@ -1902,7 +1989,7 @@ impl Exporter<'_> {
         if !writable(s, im.xf, Rect::new(0.0, 0.0, im.width.max(1).into(), im.height.max(1).into())) {
             return;
         }
-        let Some(img) = img.or_else(|| self.load_image(&im.key, placed_size(im))) else { return };
+        let Some(img) = img.or_else(|| self.load_image(im, placed_size(im))) else { return };
         let Some(size) = Size::from_wh(im.width.max(1) as f32, im.height.max(1) as f32) else { return };
         s.push_transform(&xf(im.xf));
         s.draw_image(img, size);
@@ -1962,6 +2049,11 @@ fn embed(blob: &vectorcraft_doc::ImageBlob, interpolate: bool, sixteen_bit: bool
         let (w, h) = rgba.dimensions();
         Some(Image::from_rgba8(rgba.into_raw(), w, h))
     })
+}
+
+/// Is `g` drawn from its font's SVG document, which the PDF writer can't draw as a font's glyph?
+fn is_svg_glyph(g: &vectorcraft_text::PositionedGlyph) -> bool {
+    vectorcraft_text::FontDb::global().is_svg_glyph(g.font_id, g.gid)
 }
 
 #[cfg(test)]

@@ -288,7 +288,7 @@ impl<'a> Scene<'a> {
                 self.shape(n, &bp, *rule);
             }
             NodeKind::Text(t) => self.text(n, t),
-            NodeKind::Image(im) => self.image(&im.key, self.doc.images.get(&im.key), im.width, im.height, im.xf),
+            NodeKind::Image(im) => self.image(&im.key, self.doc.image_blob(im), im.width, im.height, im.xf),
             NodeKind::SymbolInstance { symbol, xf } => {
                 if let Some(sym) = self.doc.symbols.iter().find(|s| &s.name == symbol)
                     && self.nest < MAX_NEST
@@ -590,6 +590,10 @@ impl<'a> Scene<'a> {
                 if let Some((image, to_text)) = g.placed_image() {
                     let key = format!("\u{0}glyph\u{0}{}", image.blob.content_key());
                     self.image(&key, Some(&image.blob), image.width, image.height, to_text);
+                }
+                // COLR glyphs: their layers, as art (in text space, as the images).
+                if let Some(art) = g.placed_colour(Affine::IDENTITY) {
+                    self.node(&art, true);
                 }
             }
             if bp.elements().is_empty() {

@@ -16,7 +16,7 @@ pub mod swatch;
 
 pub use blend::BlendMode;
 pub use freeform::{Freeform, FreeformMode, FreeformPoint};
-pub use gradient::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+pub use gradient::{Gradient, GradientGeom, GradientKind, GradientMethod, GradientPaint, GradientStop};
 pub use libraries::SwatchLibrary;
 pub use swatch::{Swatch, SwatchGroup, default_swatches};
 
@@ -110,6 +110,16 @@ impl Color {
     /// Gamut warning: true when this colour can't be reproduced in the working CMYK space.
     pub fn out_of_gamut(&self) -> bool {
         cms::active().out_of_gamut(self)
+    }
+    /// The colour exactly, as a key: its model and its components' bits (colours that only look
+    /// alike, as a grey and the same RGB grey, differ).
+    pub fn key(&self) -> [u32; 5] {
+        match *self {
+            Color::Rgb { r, g, b } => [0, r.to_bits(), g.to_bits(), b.to_bits(), 0],
+            Color::Cmyk { c, m, y, k } => [1, c.to_bits(), m.to_bits(), y.to_bits(), k.to_bits()],
+            Color::Gray { k } => [2, k.to_bits(), 0, 0, 0],
+            Color::Lab { l, a, b } => [3, l.to_bits(), a.to_bits(), b.to_bits(), 0],
+        }
     }
     pub fn to_rgba8(&self, alpha: f32) -> [u8; 4] {
         let [r, g, b] = self.to_rgb();
