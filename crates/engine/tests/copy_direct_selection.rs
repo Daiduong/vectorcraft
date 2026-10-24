@@ -1,4 +1,4 @@
-//! Direct-selection Copy and Cut tests (#2122, #2441).
+//! Direct-selection Copy and Cut tests (#2122).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use serde_json::{Value, json};
@@ -189,4 +189,137 @@ fn pen_tool_drawing_copies_whole_path_not_single_anchor() {
     let pasted_node = s.doc().unwrap().doc.node(NodeId(ids[0])).unwrap();
     let path = pasted_node.path_data().unwrap();
     assert_eq!(path.subpaths[0].anchors.len(), 3);
+}
+
+#[test]
+fn cut_adjacent_anchors_clipboard_plus_remaining_equals_original() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let r = rect(&mut s, 10.0, 10.0, 100.0, 50.0);
+
+    // Direct-select two adjacent anchors: 1 and 2 of the 4-anchor rectangle.
+    run(&mut s, "select.anchors", json!({"id": r.0, "anchors": [[0, 1], [0, 2]], "mode": "set"}));
+    run(&mut s, "edit.cut", json!({}));
+
+    // Cut placed 1 segment on the clipboard (anchors 1 to 2).
+    assert_eq!(s.clipboard.nodes.len(), 1);
+    let clip_path = s.clipboard.nodes[0].path_data().unwrap();
+    assert_eq!(clip_path.subpaths[0].segment_count(), 1);
+    assert_eq!(clip_path.subpaths[0].anchors.len(), 2);
+
+    // Remaining source path must have the remaining 3 segments (segments 0, 2, 3), not 1.
+    let src_node = s.doc().unwrap().doc.node(r).unwrap();
+    let src_path = src_node.path_data().unwrap();
+    assert_eq!(src_path.subpaths[0].segment_count(), 3);
+    assert_eq!(src_path.subpaths[0].anchors.len(), 4);
+    assert!(!src_path.subpaths[0].closed);
+
+    // Sum of segments in clipboard + remaining = 1 + 3 = 4 (the original 4 segments).
+    assert_eq!(clip_path.subpaths[0].segment_count() + src_path.subpaths[0].segment_count(), 4);
+}
+
+#[test]
+fn copy_non_adjacent_anchors_on_rect_copies_full_object() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let r = rect(&mut s, 10.0, 10.0, 100.0, 50.0);
+
+    // Select non-adjacent anchors 1 and 3 of the 4-anchor rectangle.
+    // Incident segments for anchor 1 are segments 0 and 1; for anchor 3 are segments 2 and 3.
+    // Together they cover all 4 segments, so the path is copied whole.
+    run(&mut s, "select.anchors", json!({"id": r.0, "anchors": [[0, 1], [0, 3]], "mode": "set"}));
+    run(&mut s, "edit.copy", json!({}));
+    let pasted = run(&mut s, "edit.paste", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 1);
+
+    let pasted_node = s.doc().unwrap().doc.node(NodeId(ids[0])).unwrap();
+    if let NodeKind::Path { live, .. } = &pasted_node.kind {
+        assert!(live.is_some(), "copying all segments keeps live shape metadata");
+    }
+    let path = pasted_node.path_data().unwrap();
+    assert!(path.subpaths[0].closed);
+    assert_eq!(path.subpaths[0].segment_count(), 4);
+}
+
+#[test]
+fn copy_non_adjacent_anchors_on_five_point_path_extracts_selected_segments() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let id = NodeId(run(&mut s, "path.create", json!({"anchors": [{"x": 10, "y": 10}]}))["id"].as_u64().unwrap());
+    run(&mut s, "path.appendAnchor", json!({"id": id.0, "x": 50, "y": 10}));
+    run(&mut s, "path.appendAnchor", json!({"id": id.0, "x": 60, "y": 50}));
+    run(&mut s, "path.appendAnchor", json!({"id": id.0, "x": 30, "y": 80}));
+    run(&mut s, "path.appendAnchor", json!({"id": id.0, "x": 10, "y": 50}));
+    run(&mut s, "path.close", json!({"id": id.0}));
+
+    // Path has 5 anchors (0..4) and 5 segments (0..4).
+    // Select non-adjacent anchors 1 and 3.
+    // Anchor 1 gives segments 0, 1. Anchor 3 gives segments 2, 3. Segment 4 is unselected.
+    run(&mut s, "select.anchors", json!({"id": id.0, "anchors": [[0, 1], [0, 3]], "mode": "set"}));
+    run(&mut s, "edit.copy", json!({}));
+    let pasted = run(&mut s, "edit.paste", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 1);
+
+    let pasted_node = s.doc().unwrap().doc.node(NodeId(ids[0])).unwrap();
+    let path = pasted_node.path_data().unwrap();
+    assert!(!path.subpaths[0].closed);
+    assert_eq!(path.subpaths[0].segment_count(), 4);
+    assert_eq!(path.subpaths[0].anchors.len(), 5);
+}
+
+#[test]
+fn copy_when_all_segments_selected_preserves_live_shape() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let r = rect(&mut s, 10.0, 10.0, 100.0, 50.0);
+
+    // Select all 4 segments explicitly (like Select > Object > Direction Handles).
+    run(&mut s, "select.segments", json!({"id": r.0, "segments": [[0, 0], [0, 1], [0, 2], [0, 3]]}));
+    run(&mut s, "edit.copy", json!({}));
+    let pasted = run(&mut s, "edit.paste", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 1);
+
+    let pasted_node = s.doc().unwrap().doc.node(NodeId(ids[0])).unwrap();
+    if let NodeKind::Path { live, .. } = &pasted_node.kind {
+        assert!(live.is_some(), "all segments selected preserves live shape");
+    }
+}
+
+#[test]
+fn compound_member_selected_whole_with_direct_selection_promotes_member() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 200, "height": 200}));
+    let outer = NodeId(run(&mut s, "shape.rectangle", json!({"x": 10, "y": 10, "width": 80, "height": 80}))["id"].as_u64().unwrap());
+    let inner = NodeId(run(&mut s, "shape.rectangle", json!({"x": 30, "y": 30, "width": 40, "height": 40}))["id"].as_u64().unwrap());
+    run(&mut s, "select.set", json!({"ids": [outer.0, inner.0]}));
+    let compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    let standalone = rect(&mut s, 120.0, 10.0, 50.0, 50.0);
+
+    // Select outer compound member whole, and direct-select anchor 0 on standalone.
+    let outer_anchors: Vec<Vec<usize>> = (0..4).map(|i| vec![0, i]).collect();
+    run(
+        &mut s,
+        "select.anchorsMany",
+        json!({
+            "items": [
+                {"id": outer.0, "anchors": outer_anchors},
+                {"id": standalone.0, "anchors": [[0, 0]]}
+            ]
+        }),
+    );
+
+    // outer is selected whole, standalone is partially selected.
+    assert!(s.active().unwrap().selection.partial(outer).is_none());
+    assert!(s.active().unwrap().selection.partial(standalone).is_some());
+
+    run(&mut s, "edit.copy", json!({}));
+    // Clipboard should have:
+    // 1. The compound path (outer promoted to compound #786)
+    // 2. The extracted segment piece from standalone
+    let clip_ids: Vec<NodeId> = s.clipboard.nodes.iter().map(|n| n.id).collect();
+    assert!(clip_ids.contains(&compound), "whole compound member must be promoted to compound parent");
 }

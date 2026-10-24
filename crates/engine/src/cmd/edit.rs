@@ -472,17 +472,25 @@ pub(crate) fn selected_roots(s: &Session) -> Result<Vec<NodeId>> {
 /// rest still go to the compound path, which holds the paint.
 pub(crate) fn selected_roots_to_transform(s: &Session) -> Result<Vec<NodeId>> {
     let st = s.doc()?;
-    Ok(roots_within(&st.doc, st.selection.in_paint_order(&st.doc), true))
+    Ok(roots_within(&st.doc, st.selection.in_paint_order(&st.doc), CompoundHandling::KeepAll))
 }
 
 /// The top-level objects among `ids` (in paint order): compound-path members stand for their
 /// compound, and ids whose ancestor is also listed, and layers, are dropped.
 pub(crate) fn roots_of(doc: &Document, ids: Vec<NodeId>) -> Vec<NodeId> {
-    roots_within(doc, ids, false)
+    roots_within(doc, ids, CompoundHandling::PromoteAll)
 }
 
-/// [`roots_of`]; with `members`, a compound path's member listed stays itself.
-fn roots_within(doc: &Document, ids: Vec<NodeId>, members: bool) -> Vec<NodeId> {
+#[derive(Copy, Clone)]
+enum CompoundHandling<'a> {
+    PromoteAll,
+    KeepAll,
+    KeepOnlyPartial(&'a vectorcraft_doc::Selection),
+}
+
+/// [`roots_of`]; depending on `handling`, compound members may stay themselves or be promoted
+/// to their compound path parent.
+fn roots_within(doc: &Document, ids: Vec<NodeId>, handling: CompoundHandling<'_>) -> Vec<NodeId> {
     // Every id's place in the tree, found in one walk (a lookup per id is a walk per id).
     let paths = doc.index_paths(ids.iter().copied());
     // A compound-path member acts as its compound (compounds are one object).
@@ -491,8 +499,13 @@ fn roots_within(doc: &Document, ids: Vec<NodeId>, members: bool) -> Vec<NodeId> 
         .map(|id| {
             let path = paths.get(&id);
             let parent = path.and_then(|p| p.split_last()).map(|(_, up)| up).filter(|up| !up.is_empty());
+            let keep_member = match handling {
+                CompoundHandling::PromoteAll => false,
+                CompoundHandling::KeepAll => true,
+                CompoundHandling::KeepOnlyPartial(sel) => sel.partial(id).is_some() || sel.segments.contains_key(&id),
+            };
             match parent.and_then(|up| doc.node_at(up).map(|n| (up, n))) {
-                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) && !members => (n.id, Some(up.to_vec())),
+                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) && !keep_member => (n.id, Some(up.to_vec())),
                 _ => (id, path.cloned()),
             }
         })
@@ -531,7 +544,8 @@ fn copy(s: &mut Session, _: &Value) -> Result<Value> {
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
     let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
-    let roots = if direct { roots_within(&st.doc, st.selection.in_paint_order(&st.doc), true) } else { selected_roots(s)? };
+    let handling = if direct { CompoundHandling::KeepOnlyPartial(&st.selection) } else { CompoundHandling::PromoteAll };
+    let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), handling);
     let new_clip = Clipboard::copy(st, &roots, direct);
     if direct && new_clip.nodes.is_empty() {
         return Ok(json!({ "copied": 0 }));
@@ -547,12 +561,64 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
     let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
-    let ids = if direct { roots_within(&st.doc, st.selection.in_paint_order(&st.doc), true) } else { selected_roots(s)? };
+    let handling = if direct { CompoundHandling::KeepOnlyPartial(&st.selection) } else { CompoundHandling::PromoteAll };
+    let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), handling);
     let res = copy(s, p)?;
     if res.get("copied").and_then(Value::as_u64) == Some(0) {
         return Ok(res);
     }
-    if !direct { clear(s, &json!({ "ids": ids })) } else { clear(s, &json!({})) }
+    if !direct { clear(s, &json!({ "ids": roots })) } else { cut_direct_selection(s, &roots) }
+}
+
+fn cut_direct_selection(s: &mut Session, roots: &[NodeId]) -> Result<Value> {
+    let st = s.doc()?;
+    let sel = st.selection.clone();
+    s.edit("Cut", |d, selection| {
+        let mut survivors = vec![];
+        for id in roots {
+            let Some(node) = d.node(*id) else { continue };
+            let has_direct = sel.anchors.contains_key(id) || sel.segments.contains_key(id);
+            if !has_direct {
+                d.remove(*id)?;
+                continue;
+            }
+            let Some(path) = node.path_data() else {
+                d.remove(*id)?;
+                continue;
+            };
+
+            let seg_refs = sel.segments.get(id);
+            let anchor_refs = sel.anchors.get(id);
+            let mut subpaths = Vec::new();
+            for (si, sp) in path.subpaths.iter().enumerate() {
+                let cuts = super::clipboard::subpath_selected_segments(sp, si, seg_refs, anchor_refs);
+                if cuts.is_empty() {
+                    subpaths.push(sp.clone());
+                } else {
+                    subpaths.extend(super::path::without_segments(sp.clone(), &cuts));
+                }
+            }
+            subpaths.retain(|sp| sp.anchors.len() >= 2);
+            if subpaths.is_empty() {
+                let parent = d.parent_of(*id);
+                d.remove(*id)?;
+                if let Some(p) = parent
+                    && d.node(p).is_some_and(|n| n.children().is_some_and(|c| c.is_empty()))
+                {
+                    d.remove(p)?;
+                }
+            } else {
+                let path_node = super::path::path_mut(d, *id)?;
+                path_node.subpaths = subpaths;
+                survivors.push(*id);
+            }
+        }
+        selection.set(survivors);
+        selection.anchors.clear();
+        selection.segments.clear();
+        Ok(())
+    })?;
+    ok()
 }
 
 fn clear(s: &mut Session, p: &Value) -> Result<Value> {
@@ -568,6 +634,7 @@ fn clear(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     // Guides selected with the art go with it (not when ids are given).
     let with_guides = explicit.is_none();
+    let is_explicit = explicit.is_some();
     let targets = explicit.unwrap_or_else(|| st.selection.in_paint_order(&st.doc));
     // Keep the selected ids themselves, without promoting compound members. Delete a selected
     // ancestor just once; its selected descendants leave with it. Layers themselves are kept.
@@ -593,10 +660,14 @@ fn clear(s: &mut Session, p: &Value) -> Result<Value> {
             let gone = sel.guides.clone();
             d.retain_guides(sel, |i, _| !gone.contains(&i));
         }
-        for id in &ids {
-            sel.remove(*id);
+        if is_explicit {
+            for id in &ids {
+                sel.remove(*id);
+            }
+            sel.prune(d);
+        } else {
+            sel.clear();
         }
-        sel.prune(d);
         Ok(())
     })?;
     ok()
