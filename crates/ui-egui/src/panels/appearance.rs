@@ -1244,7 +1244,10 @@ fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, node: Option<&Node>, sel: Sel) 
         if widgets::icon_button_enabled(ui, "dc-clear", tl!("Clear Appearance"), false, has, 24.0).clicked() {
             app.run("appearance.clear", json!({})).ok();
         }
-        let can = has && sel.editable();
+        // A dragged fill/stroke or effect row can be dropped on them (not the Contents row), also
+        // with nothing selected: they light up while it is held.
+        let dragged = matches!(pstate::<Option<Dragged>>(ui.ctx(), "ap-drag"), Some(Dragged::Item(_) | Dragged::Effect(..)));
+        let can = has && (sel.editable() || dragged);
         let duplicate = widgets::icon_button_enabled(ui, "dc-new-item", tl!("Duplicate Selected Item"), false, can, 24.0);
         if duplicate.clicked() {
             duplicate_selected(app, ui, node, sel);
@@ -1278,12 +1281,19 @@ fn drop_on_buttons(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: 
             widgets::drop_target_outline(ui, button.rect);
             continue;
         }
+        // The effects removed with the dropped one (its highlighted list, when it is in it).
+        let gone: Vec<u64> = params["indices"].as_array().map(|a| a.iter().filter_map(Value::as_u64).collect()).unwrap_or_default();
         let removed = app.run(cmd, params).is_ok() && !copy;
-        // A removed effect row that was selected leaves its fill/stroke (or nothing) selected; the
+        // When the active effect was among them, its fill/stroke (or nothing) is selected; the
         // engine clears or renumbers the active fill/stroke itself.
+        let active_gone = match (what, sel) {
+            (Dragged::Effect(None, _), Sel::Effect(a)) => gone.contains(&(a as u64)),
+            (Dragged::Effect(Some(i), _), Sel::ItemEffect(j, a)) => i == j && gone.contains(&(a as u64)),
+            _ => false,
+        };
         if removed
-            && let Dragged::Effect(item, k) = what
-            && sel == item.map_or(Sel::Effect(k), |i| Sel::ItemEffect(i, k))
+            && active_gone
+            && let Dragged::Effect(item, _) = what
         {
             select_row(app, ctx, item.map_or(Sel::None, Sel::Item));
         }

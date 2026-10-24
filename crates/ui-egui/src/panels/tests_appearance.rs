@@ -1265,3 +1265,73 @@ fn a_closed_row_popup_reopened_from_its_icon_is_no_popup() {
         assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"), "closed by its icon: {close_by_icon}");
     }
 }
+
+/// Dragging a highlighted effect onto Delete removes every highlighted effect, the active one too:
+/// nothing is left active then, so the effect that moved up into the active one's place is not
+/// taken for it (Delete Selected Item then removes nothing).
+#[test]
+fn a_drop_on_delete_that_removes_the_active_effect_leaves_no_effect_active() {
+    let mut app = rect_with_three_effects();
+    let ctx = drop_ctx();
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    let (glow, shadow) = (row_point(&ctx, &mut app, "Outer Glow", 0), row_point(&ctx, &mut app, "Drop Shadow", 0));
+    // Drop Shadow, then Outer Glow with Ctrl: both highlighted, Outer Glow active.
+    click_mod(&ctx, &mut app, shadow, egui::Modifiers::NONE);
+    click_mod(&ctx, &mut app, glow, egui::Modifiers::COMMAND);
+    drag_in_panel(&ctx, &mut app, shadow, delete);
+    assert_eq!(object_effects(&app), ["distort.twist"]);
+    assert!(lit_texts(&ctx, &mut app).is_empty(), "nothing highlighted");
+    // (Two rows shorter, the panel has its button higher up now.)
+    let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
+    click(&ctx, &mut app, delete, appearance::show);
+    assert_eq!(object_effects(&app), ["distort.twist"], "Twist was never highlighted");
+}
+
+/// A row's link to a panel that floats in a group shows that panel's tab there, once: the group
+/// can then show another tab again.
+#[test]
+fn a_row_link_shows_its_panels_tab_in_a_floating_group() {
+    let mut app = app_with_rect();
+    crate::floating::float(&mut app.ui, &["color", "stroke"], "color", egui::pos2(400.0, 100.0));
+    let shown = |app: &VectorcraftApp| {
+        let g = &app.ui.floating_panels[crate::floating::group_of(&app.ui, "stroke").unwrap()];
+        g.panels[g.active].clone()
+    };
+    assert_eq!(shown(&app), "color");
+    let ctx = flyout_ctx();
+    let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
+    app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
+    assert_eq!(shown(&app), "stroke", "the link shows the Stroke tab");
+    let gi = crate::floating::group_of(&app.ui, "color").unwrap();
+    app.ui.floating_panels[gi].active = 0;
+    app_frame(&ctx, &mut app, vec![], panel_and_flyout);
+    assert_eq!(shown(&app), "color", "the group can show its other tab again");
+}
+
+/// Whether Duplicate Selected Item and Delete Selected Item are enabled in a frame of the panel
+/// with input `events`.
+fn drop_buttons_on(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> [bool; 2] {
+    let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| appearance::show(app, ui));
+    out.textures_delta.clear();
+    let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;
+    ["Duplicate Selected Item", "Delete Selected Item"].map(|l| !nodes.iter().find(|(_, n)| n.label() == Some(l)).unwrap().1.is_disabled())
+}
+
+/// With no row selected, Duplicate and Delete Selected Item light up while a row is dragged (it can
+/// be dropped on them) and go dark again once it is released.
+#[test]
+fn the_drop_buttons_light_up_while_a_row_is_dragged() {
+    let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    let mut app = app_with_rect();
+    let ctx = drop_ctx();
+    assert_eq!(drop_buttons_on(&ctx, &mut app, vec![]), [false, false], "nothing selected: dark");
+    let stroke = row_point(&ctx, &mut app, "Stroke:", 0);
+    drop_buttons_on(&ctx, &mut app, vec![egui::Event::PointerMoved(stroke)]);
+    drop_buttons_on(&ctx, &mut app, vec![button(stroke, true)]);
+    let held = stroke + egui::vec2(0.0, 40.0);
+    drop_buttons_on(&ctx, &mut app, vec![egui::Event::PointerMoved(stroke + egui::vec2(0.0, 6.0))]);
+    assert_eq!(drop_buttons_on(&ctx, &mut app, vec![egui::Event::PointerMoved(held)]), [true, true], "lit while the row is dragged");
+    drop_buttons_on(&ctx, &mut app, vec![button(held, false)]);
+    assert_eq!(drop_buttons_on(&ctx, &mut app, vec![]), [false, false], "dark again once it is released");
+    assert_eq!(stack_items(&app).len(), 2, "released elsewhere: nothing removed");
+}

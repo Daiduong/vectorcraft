@@ -437,3 +437,21 @@ fn several_items_copy_as_one_block_where_they_are_dropped() {
     assert!(s.execute("appearance.duplicateItem", &json!({"indices": [1, 7], "to": 0})).is_err());
     assert_eq!(stack(&s, g), (vec!["F0", "S1", "FA", "S3"], 2));
 }
+
+/// Several objects with stacks of different lengths: a block moved past the end of the shorter
+/// stack lands at a different index on each, and the active row follows its row on the first
+/// selected object (whose stack it is in), not where the block landed on the last one.
+#[test]
+fn a_block_move_keeps_the_active_row_on_the_first_objects_stack() {
+    let mut s = session();
+    let a = id_of(&run(&mut s, "shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})));
+    let b = id_of(&run(&mut s, "shape.rectangle", json!({"x": 20, "y": 0, "width": 10, "height": 10})));
+    run(&mut s, "appearance.addFill", json!({"ids": [b.0]}));
+    run(&mut s, "appearance.addStroke", json!({"ids": [b.0]}));
+    assert_eq!((node(&s, a).appearance.items.len(), node(&s, b).appearance.items.len()), (2, 4));
+    run(&mut s, "select.set", json!({"ids": [a.0, b.0]}));
+    run(&mut s, "appearance.setActiveItem", json!({"index": 0}));
+    // On A the fill lands at 1 (its top), on B at 3.
+    run(&mut s, "appearance.moveItem", json!({"indices": [0], "to": 3}));
+    assert_eq!(s.appearance_item(), Some(1), "the active row is A's moved fill");
+}

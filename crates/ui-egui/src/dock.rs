@@ -434,6 +434,13 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // Expanded, the group shows its panels in the dock itself, unless one was dropped on the icon
     // column; a floating panel shows in its group.
     let in_rail = app.ui.docking_icons.contains(id) && app.ui.docking.as_ref().is_some_and(|layout| !layout.contains(&id.to_string()));
+    // A row's link to a panel that floats in a group shows its tab there (as `window.panel`
+    // does), once: the group may show another tab again afterwards.
+    if transient && let Some(g) = floating::group_of(&app.ui, id).and_then(|gi| app.ui.floating_panels.get_mut(gi)) {
+        g.active = g.panels.iter().position(|p| p == id).unwrap_or(g.active);
+        app.ui.open_panel = None;
+        app.ui.transient_panel = None;
+    }
     if tab.is_some() && !app.ui.dock_collapsed && !in_rail || floating::group_of(&app.ui, id).is_some() {
         app.ui.transient_focus = false;
         return;
