@@ -1,7 +1,7 @@
 //! Creating art: shapes, paths, text.
 
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, CharStyle, LiveShape, Node, NodeKind, TextObject};
+use vectorcraft_doc::{Appearance, CharStyle, Figure, LiveShape, Node, NodeKind, TextObject};
 use vectorcraft_geom::{Affine, Anchor, AnchorKind, FillRule, PathData, Point, Rect, SubPath, shapes};
 
 use super::newart::NewArt;
@@ -366,23 +366,30 @@ fn ellipse(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The count `p` gives for `key`, rounded and clamped into `lo..=hi`, or `default` when it leaves
 /// it out or gives null; a value that isn't a number is an error, as [`number_or`] says.
-fn count_or(p: &Value, key: &str, default: u32, (lo, hi): (u32, u32), cmd: &str) -> Result<u32> {
+pub(crate) fn count_or(p: &Value, key: &str, default: u32, (lo, hi): (u32, u32), cmd: &str) -> Result<u32> {
     let n = number_or(p, key, f64::from(default), cmd)?;
     Ok(if n.is_finite() { n.round().clamp(f64::from(lo), f64::from(hi)) as u32 } else { default })
 }
 
-/// A figure drawn by `outline` in the box of `p` (at the origin, then placed and turned as
-/// `shape.rectangle` places its box), added as one step named `label`.
-fn boxed_figure(s: &mut Session, p: &Value, cmd: &str, label: &str, outline: impl Fn(Rect) -> PathData) -> Result<Value> {
+/// A live figure in the box of `p` (placed and turned as `shape.rectangle` places its box), added
+/// as one step named after it.
+fn boxed_figure(s: &mut Session, p: &Value, cmd: &str, figure: Figure) -> Result<Value> {
     check_numbers(p, &["rotation"], cmd)?;
     let r = rect_of(p, cmd)?;
-    let xf = rect_transform(r, p, cmd)?;
-    let path = outline(Rect::new(0.0, 0.0, r.width(), r.height())).transformed(xf);
-    add_art_turned(s, label, path_kind(path, None), f64_or(p, "rotation", 0.0))
+    let live = LiveShape::Figure {
+        figure: figure.clamped(),
+        w: r.width(),
+        h: r.height(),
+        xf: rect_transform(r, p, cmd)?,
+        radii: vec![],
+        kinds: vec![],
+        radii_relative: false,
+    };
+    add_art_turned(s, figure.label(), path_kind(live.to_path(), Some(live)), f64_or(p, "rotation", 0.0))
 }
 
 fn heart(s: &mut Session, p: &Value) -> Result<Value> {
-    boxed_figure(s, p, "shape.heart", "Heart", vectorcraft_geom::figures::heart)
+    boxed_figure(s, p, "shape.heart", Figure::Heart)
 }
 
 fn arrow(s: &mut Session, p: &Value) -> Result<Value> {
@@ -390,7 +397,7 @@ fn arrow(s: &mut Session, p: &Value) -> Result<Value> {
     let shaft = number_or(p, "shaft", 40.0, CMD)? / 100.0;
     let head = number_or(p, "head", 35.0, CMD)? / 100.0;
     let heads = count_or(p, "heads", 1, (1, 2), CMD)?;
-    boxed_figure(s, p, CMD, "Arrow", |r| vectorcraft_geom::figures::arrow(r, shaft, head, heads))
+    boxed_figure(s, p, CMD, Figure::Arrow { shaft, head, heads })
 }
 
 fn gear(s: &mut Session, p: &Value) -> Result<Value> {
@@ -398,7 +405,7 @@ fn gear(s: &mut Session, p: &Value) -> Result<Value> {
     let teeth = count_or(p, "teeth", 12, (3, vectorcraft_geom::figures::GEAR_MAX_TEETH), CMD)?;
     let depth = number_or(p, "depth", 20.0, CMD)? / 100.0;
     let hole = number_or(p, "hole", 30.0, CMD)? / 100.0;
-    boxed_figure(s, p, CMD, "Gear", |r| vectorcraft_geom::figures::gear(r, teeth, depth, hole))
+    boxed_figure(s, p, CMD, Figure::Gear { teeth, depth, hole })
 }
 
 fn polygon(s: &mut Session, p: &Value) -> Result<Value> {

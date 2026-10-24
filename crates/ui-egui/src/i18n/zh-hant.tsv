@@ -5174,3 +5174,11 @@ axis	Y Axis	Y 軸
 	Heart Tool	心形工具
 	Arrow Tool	箭頭工具
 	Gear Tool	齒輪工具
+	Heart Properties:	心形內容：
+	Arrow Properties:	箭頭內容：
+	Gear Properties:	齒輪內容：
+	Shaft	箭桿
+	Head	箭尖
+	Heads	箭尖數
+	Teeth	齒數
+	Hole	孔

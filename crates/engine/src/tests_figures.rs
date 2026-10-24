@@ -145,3 +145,106 @@ fn figures_draw_in_perspective_on_the_active_plane() {
         s.execute(&rewritten, &params).unwrap();
     }
 }
+
+fn live(s: &Session, id: NodeId) -> vectorcraft_doc::LiveShape {
+    let NodeKind::Path { live: Some(l), .. } = &node(s, id).kind else { panic!("not a live shape") };
+    (**l).clone()
+}
+
+fn undo_len(s: &Session) -> usize {
+    s.doc().unwrap().history.undo.len()
+}
+
+#[test]
+fn figures_stay_live_with_the_parameters_they_were_drawn_with() {
+    use vectorcraft_doc::Figure;
+    let mut s = session();
+    let h = draw(&mut s, "shape.heart", in_box(json!({})));
+    let a = draw(&mut s, "shape.arrow", in_box(json!({"shaft": 50, "head": 25, "heads": 2})));
+    let g = draw(&mut s, "shape.gear", in_box(json!({"teeth": 7.6, "depth": 30, "hole": 0})));
+    assert_eq!(live(&s, h).figure(), Some(Figure::Heart));
+    assert_eq!(live(&s, a).figure(), Some(Figure::Arrow { shaft: 0.5, head: 0.25, heads: 2 }));
+    assert_eq!(live(&s, g).figure(), Some(Figure::Gear { teeth: 8, depth: 0.3, hole: 0.0 }));
+    for id in [h, a, g] {
+        assert_eq!(live(&s, id).to_path(), path(&s, id), "the path is the live shape's");
+    }
+    assert_eq!(node(&s, g).kind_label(), "Gear");
+}
+
+#[test]
+fn set_live_shape_changes_a_figures_parameters_in_one_undo_step() {
+    use vectorcraft_doc::Figure;
+    let mut s = session();
+    let g = draw(&mut s, "shape.gear", in_box(json!({})));
+    let undo = undo_len(&s);
+    s.execute("object.setLiveShape", &json!({"teeth": 8, "depth": 30, "hole": 10})).unwrap();
+    assert_eq!(undo_len(&s), undo + 1);
+    assert_eq!(s.doc().unwrap().history.undo.last().unwrap().label, "Live Shape");
+    assert_eq!(live(&s, g).figure(), Some(Figure::Gear { teeth: 8, depth: 0.3, hole: 0.1 }));
+    assert_eq!(path(&s, g).subpaths[0].anchors.len(), 32);
+    assert!(same(path(&s, g).bounds(), BOX), "the gear keeps its box");
+    // The values it has already: no undo step.
+    s.execute("object.setLiveShape", &json!({"teeth": 8, "hole": 10})).unwrap();
+    assert_eq!(undo_len(&s), undo + 1);
+    // Values out of range are clamped as the command clamps them; counts are rounded. The largest
+    // hole leaves a rim.
+    let rim = 1.0 - 0.3 - vectorcraft_geom::figures::GEAR_MIN_RIM;
+    s.execute("object.setLiveShape", &json!({"teeth": 2.6, "hole": 500})).unwrap();
+    assert_eq!(live(&s, g).figure(), Some(Figure::Gear { teeth: 3, depth: 0.3, hole: rim }));
+    // An arrow's params leave a gear as it is, and the other way round.
+    s.execute("object.setLiveShape", &json!({"shaft": 10, "heads": 2})).unwrap();
+    assert_eq!(live(&s, g).figure(), Some(Figure::Gear { teeth: 3, depth: 0.3, hole: rim }));
+    let a = draw(&mut s, "shape.arrow", in_box(json!({})));
+    s.execute("object.setLiveShape", &json!({"ids": [a.0, g.0], "shaft": 20, "head": 60, "heads": 2, "teeth": 5})).unwrap();
+    assert_eq!(live(&s, a).figure(), Some(Figure::Arrow { shaft: 0.2, head: 0.5, heads: 2 }), "two heads: each at most half");
+    assert_eq!(live(&s, g).figure(), Some(Figure::Gear { teeth: 5, depth: 0.3, hole: rim }));
+    assert!(same(path(&s, a).bounds(), BOX));
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(live(&s, a).figure(), Some(Figure::ARROW));
+    // Not a number: refused, and nothing changes.
+    for key in ["shaft", "head", "heads", "teeth", "depth", "hole"] {
+        assert!(s.execute("object.setLiveShape", &json!({"ids": [a.0], key: "big"})).is_err(), "{key}");
+    }
+    assert_eq!(live(&s, a).figure(), Some(Figure::ARROW));
+}
+
+#[test]
+fn a_figure_turned_and_scaled_keeps_its_transform_when_its_parameters_change() {
+    let mut s = session();
+    let g = draw(&mut s, "shape.gear", in_box(json!({})));
+    s.execute("object.rotate", &json!({"angle": 30})).unwrap();
+    s.execute("object.scale", &json!({"sx": 150, "sy": 50})).unwrap();
+    let before = path(&s, g).bounds().unwrap();
+    let angle = live(&s, g).angle_deg();
+    s.execute("object.setLiveShape", &json!({"hole": 0})).unwrap();
+    let after = path(&s, g);
+    assert_eq!(after.subpaths.len(), 1, "no hole now");
+    assert!(same(after.bounds(), before), "{:?} vs {before:?}", after.bounds());
+    assert!((live(&s, g).angle_deg() - angle).abs() < 1e-9);
+}
+
+#[test]
+fn a_figures_live_corners_stay_round_as_its_outline_changes() {
+    let mut s = session();
+    let a = draw(&mut s, "shape.arrow", in_box(json!({})));
+    s.execute("object.setLiveShape", &json!({"radius": 4})).unwrap();
+    let vectorcraft_doc::LiveShape::Figure { radii, .. } = live(&s, a) else { panic!("the arrow stays an arrow") };
+    assert_eq!(radii, vec![4.0; 7]);
+    s.execute("object.setLiveShape", &json!({"heads": 2})).unwrap();
+    let vectorcraft_doc::LiveShape::Figure { radii, .. } = live(&s, a) else { panic!() };
+    assert_eq!(radii, vec![4.0; 10], "the new corners as round as the others");
+    assert!(path(&s, a).anchor_count() > 10, "corners cut");
+}
+
+#[test]
+fn a_live_figure_is_saved_and_opened_as_one() {
+    let mut s = session();
+    let g = draw(&mut s, "shape.gear", in_box(json!({"teeth": 9})));
+    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let NodeKind::Path { live: Some(l), path: p, .. } = &back.node(g).unwrap().kind else { panic!("the gear is live") };
+    assert_eq!(**l, live(&s, g));
+    assert_eq!(*p, path(&s, g));
+    // Expand Shape makes it a plain path.
+    s.execute("object.expandShape", &json!({})).unwrap();
+    assert!(matches!(node(&s, g).kind, NodeKind::Path { live: None, .. }));
+}
