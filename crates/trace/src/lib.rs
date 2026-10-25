@@ -295,6 +295,11 @@ pub struct TraceParams {
     /// The colour Ignore Color leaves out (`#rrggbb`): the palette colours within about 30 levels
     /// of it. `None` is white. (Flat Logo mode leaves out white only.)
     pub ignore_color: Option<String>,
+    /// Keep Colors: the colors to trace (`#rrggbb`). Only the palette colors within about 30
+    /// levels of one of them (as Ignore Color matches a color) are traced, a gradient by its middle
+    /// color, and their paths are the ones the trace of every color has. Empty traces every color.
+    /// (Flat Logo mode does not use it: it traces the colors named in `logo_colors`.)
+    pub keep_colors: Vec<String>,
     /// Replace nearly-straight curves with straight lines. In Logo mode this also snaps tight arcs
     /// to true circles.
     pub snap_curves_to_lines: bool,
@@ -336,6 +341,7 @@ impl Default for TraceParams {
             method: Method::Abutting,
             ignore_white: false,
             ignore_color: None,
+            keep_colors: Vec::new(),
             snap_curves_to_lines: false,
             shapes: false,
             auto_grouping: false,
@@ -484,6 +490,12 @@ pub struct TraceResult {
     /// option). Each path drawn together with those inside it, in the order they have here, paints
     /// what `paths` paints in its order.
     pub parents: Vec<Option<usize>>,
+    /// Keep Colors: the colors listed in [`TraceParams::keep_colors`] (as written) that no color
+    /// the trace found matches, so that nothing of them is traced. (Flat Logo mode: empty.)
+    pub keep_unmatched: Vec<String>,
+    /// Keep Colors: whether Ignore Color left out every color the trace found that a listed color
+    /// matches, so that none of them was traced. (Flat Logo mode: false.)
+    pub keep_ignored: bool,
     /// Flat Logo: the size in pixels the image was traced at when it was averaged down first;
     /// `None` when it was traced at its own size.
     pub worked_at: Option<(u32, u32)>,
@@ -505,6 +517,18 @@ fn is_ignored(c: [u8; 3], target: Option<[u8; 3]>) -> bool {
         None => is_white(c),
         Some(t) => (0..3).map(|k| (f64::from(c[k]) - f64::from(t[k])).powi(2)).sum::<f64>() <= 30.0 * 30.0 || (is_white(t) && is_white(c)),
     }
+}
+
+/// Whether Keep Colors traces palette color `c`: every color when `keep` is empty, else those
+/// Ignore Color would match to one of `keep`.
+fn is_kept(c: [u8; 3], keep: &[[u8; 3]]) -> bool {
+    keep.is_empty() || keep.iter().any(|&k| is_ignored(c, Some(k)))
+}
+
+/// For each color of `palette`, whether it is left out of the trace: Ignore Color's (`ignore`,
+/// `None` for white) and those Keep Colors does not list (`keep`).
+fn left_out(palette: &[[u8; 3]], params: &TraceParams, ignore: Option<[u8; 3]>, keep: &[[u8; 3]]) -> Vec<bool> {
+    palette.iter().map(|&c| (params.ignore_white && is_ignored(c, ignore)) || !is_kept(c, keep)).collect()
 }
 
 /// Trace `img` with `params`. Failures (an image Logo mode refuses, say) give an empty result: use
@@ -533,6 +557,12 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
 
 fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result<TraceResult, TraceError> {
     let (w, h) = (img.width as usize, img.height as usize);
+    // The colors Keep Colors traces (checked in every mode).
+    let listed = params
+        .keep_colors
+        .iter()
+        .map(|name| logo::parse_hex(name).ok_or_else(|| TraceError::BadPalette(name.clone())))
+        .collect::<Result<Vec<_>, _>>()?;
     if params.mode == Mode::Logo {
         return logo::trace_logo(img, params, max_anchors);
     }
@@ -618,14 +648,27 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
     for (r, &i) in order.iter().enumerate() {
         rank[i] = r;
     }
-    let layers: Vec<(usize, usize)> =
-        order.iter().copied().enumerate().filter(|&(_, ci)| !(params.ignore_white && is_ignored(q.palette[ci], ignore))).collect();
+    // Layers left out: Ignore Color's, and those Keep Colors does not list. Abutting, the others
+    // are traced as they are in the trace of every color; stacked, they do not reach under the
+    // colors left out (see `Layers::ignored`).
+    let left_out = left_out(&q.palette, params, ignore, &listed);
+    let layers: Vec<(usize, usize)> = order.iter().copied().enumerate().filter(|&(_, ci)| !left_out.get(ci).copied().unwrap_or(false)).collect();
+    // The listed colors that match none of the colors found.
+    let keep_unmatched = params
+        .keep_colors
+        .iter()
+        .zip(&listed)
+        .filter(|&(_, &k)| !order.iter().any(|&ci| is_kept(q.palette[ci], &[k])))
+        .map(|(name, _)| name.clone())
+        .collect();
+    // Every layer is left out although a listed color matches one: Ignore Color left those out.
+    let keep_ignored = !listed.is_empty() && layers.is_empty() && order.iter().any(|&ci| is_kept(q.palette[ci], &listed));
     let job = Layers {
         q: &q,
         rank: &rank,
         params,
         img,
-        ignore,
+        left_out,
         boxes,
         gradients: &gradients,
         bw_tones: bw_tones(img, &q),
@@ -635,7 +678,7 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         anchors: AtomicUsize::new(0),
         max_anchors,
     };
-    let mut out = TraceResult::default();
+    let mut out = TraceResult { keep_unmatched, keep_ignored, ..TraceResult::default() };
     // A layer takes about ten bytes a pixel of its box while it is traced (its mask, the labels
     // of its components, the stack that fills them, its edges): as many layers at a time as fit
     // in half a gigabyte, so that a large image is not traced at the cost of gigabytes.
@@ -691,8 +734,8 @@ struct Layers<'a> {
     rank: &'a [usize],
     params: &'a TraceParams,
     img: &'a Raster,
-    /// The colour Ignore Color leaves out, if not white.
-    ignore: Option<[u8; 3]>,
+    /// For each palette entry, whether Ignore Color or Keep Colors leaves it out (see [`left_out`]).
+    left_out: Vec<bool>,
     /// The box each palette entry's pixels lie in: `(x0, y0, x1, y1)`, the far sides excluded.
     boxes: Vec<Option<(usize, usize, usize, usize)>>,
     /// Gradients: the gradient each palette entry is, if it is one.
@@ -709,10 +752,11 @@ struct Layers<'a> {
 }
 
 impl Layers<'_> {
-    /// Ignore White: white is no part of any layer (stacked layers reach under the layers above
-    /// them, and must not reach under white that is left out).
+    /// Ignore White, and the colors Keep Colors does not list: such a color is no part of any
+    /// layer (stacked layers reach under the layers above them, and must not reach under a color
+    /// that is left out).
     fn ignored(&self, label: u16) -> bool {
-        self.params.ignore_white && self.q.palette.get(label as usize).is_some_and(|c| is_ignored(*c, self.ignore))
+        self.left_out.get(label as usize).copied().unwrap_or(false)
     }
     /// The region across a crack, for cutting outlines at their junctions: the outside pixel's
     /// colour. Stacked layers end on many colours at once and share no edge: one neighbour.
@@ -1084,7 +1128,7 @@ pub(crate) fn shift_probe(img: &Raster, params: &TraceParams) -> Vec<[f64; 4]> {
         rank: &rank,
         params,
         img,
-        ignore: None,
+        left_out: left_out(&q.palette, params, None, &[]),
         boxes: vec![None; n],
         gradients: &gradients,
         bw_tones: bw_tones(img, &q),

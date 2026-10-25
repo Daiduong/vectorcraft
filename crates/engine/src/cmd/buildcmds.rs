@@ -129,7 +129,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Make",
             ["Object", "Image Trace"],
             None,
-            "{id?: image or Image Trace group (default: selection), preset?: name (imageTrace.presets), enhanced?: false (the preset's enhanced version: with Auto Grouping, and with Shapes in all but High Fidelity Photo; Flat Logo has none and is traced as it is), params?: {mode: \"blackAndWhite\"|\"grayscale\"|\"color\"|\"logo\", threshold: 0-255, palette: \"limited\"|\"fullTone\"|\"automatic\"|\"documentLibrary\" (color mode; limited: the `colors` best colours, fullTone: as many as the tones need, more with colorDetail, automatic: flat art with its own colours, else fullTone, documentLibrary: at most `colors` of the library's colours, as they are), colors: 2-256, colorDetail: 0-100 (fullTone, automatic), library: \"document\" (the document's swatches) or a swatch library id or name (swatch.library.list; documentLibrary), paths: 0-100, corners: 0-100, noise: px, method: \"abutting\"|\"overlapping\", ignoreWhite (leave out white areas), ignoreColor?: \"#rrggbb\" (with ignoreWhite: the colour left out instead of white), snapCurvesToLines, shapes: false (filled outlines that are a circle, an ellipse, a rectangle or a regular polygon come out as that live shape), autoGrouping: false (each path that has others inside it is grouped with them), gradients: false (grayscale and color: an area whose colour changes evenly along one direction is one path with a linear gradient fill), fills: true, strokes: false (Create: lines up to strokeWidth wide become stroked centre lines; without fills, wider areas become stroked outlines), strokeWidth: px (10), logoColors?: [\"#rrggbb\"…] (mode logo: flat-colour logos only; colours found automatically or named here, white is always its own colour, at most ten; noise = areas under noise/10 px ignored; edges to a fraction of a pixel, sharp corners restored, lines and circles snapped; enclosed transparent areas are painted white unless ignoreWhite makes them holes; fills/strokes are ignored; gradients and photos are refused)}, view?: as imageTrace.setView (default: the traced object's own, else tracingResult), ids?: [id…] (instead of id)} → {id, paths, anchors, colors, warnings: [text…] (the image is over 1500 px on a side, so it traces more slowly; or it was traced scaled down; Flat Logo names only the size it traced a larger image at)}",
+            "{id?: image or Image Trace group (default: selection), preset?: name (imageTrace.presets), enhanced?: false (the preset's enhanced version: with Auto Grouping, and with Shapes in all but High Fidelity Photo; Flat Logo has none and is traced as it is), params?: {mode: \"blackAndWhite\"|\"grayscale\"|\"color\"|\"logo\", threshold: 0-255, palette: \"limited\"|\"fullTone\"|\"automatic\"|\"documentLibrary\" (color mode; limited: the `colors` best colours, fullTone: as many as the tones need, more with colorDetail, automatic: flat art with its own colours, else fullTone, documentLibrary: at most `colors` of the library's colours, as they are), colors: 2-256, colorDetail: 0-100 (fullTone, automatic), library: \"document\" (the document's swatches) or a swatch library id or name (swatch.library.list; documentLibrary), paths: 0-100, corners: 0-100, noise: px, method: \"abutting\"|\"overlapping\", ignoreWhite (leave out white areas), ignoreColor?: \"#rrggbb\" (with ignoreWhite: the colour left out instead of white), keepColors?: [\"#rrggbb\"…] (not mode logo: only the palette colors within about 30 levels of a listed color are traced; empty: every color), snapCurvesToLines, shapes: false (filled outlines that are a circle, an ellipse, a rectangle or a regular polygon come out as that live shape), autoGrouping: false (each path that has others inside it is grouped with them), gradients: false (grayscale and color: an area whose colour changes evenly along one direction is one path with a linear gradient fill), fills: true, strokes: false (Create: lines up to strokeWidth wide become stroked centre lines; without fills, wider areas become stroked outlines), strokeWidth: px (10), logoColors?: [\"#rrggbb\"…] (mode logo: flat-colour logos only; colours found automatically or named here, white is always its own colour, at most ten; noise = areas under noise/10 px ignored; edges to a fraction of a pixel, sharp corners restored, lines and circles snapped; enclosed transparent areas are painted white unless ignoreWhite makes them holes; fills/strokes are ignored; gradients and photos are refused)}, view?: as imageTrace.setView (default: the traced object's own, else tracingResult), ids?: [id…] (instead of id)} → {id, paths, anchors, colors, warnings: [text…] (the image is over 1500 px on a side, so it traces more slowly; or it was traced scaled down; Flat Logo names only the size it traced a larger image at; or a keepColors color matches none the trace found, or nothing was traced)}",
             has_selection_or_ids,
             |s, p| trace_make(s, p, false)
         ),
@@ -138,7 +138,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Make and Expand",
             ["Object", "Image Trace"],
             None,
-            "{…as imageTrace.make} same as imageTrace.make, then expand → {id, paths, anchors, colors}",
+            "{…as imageTrace.make} same as imageTrace.make, then expand → {id, paths, anchors, colors, warnings: [text…] (as imageTrace.make)}",
             has_selection_or_ids,
             |s, p| trace_make(s, p, true)
         ),
@@ -1137,7 +1137,8 @@ fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
     let raster = tr::Raster::decode_to_fit(&blob.bytes).map_err(|e| EngineError::Other(e.to_string()))?;
     let library = trace_library(c, s, &mut params)?;
     let res = tr::trace_within(&raster, &params, MAX_TRACE_ANCHORS).map_err(|e| EngineError::Other(e.to_string()))?;
-    let warnings = trace_warnings((img.width, img.height), (raster.width, raster.height), res.worked_at);
+    let mut warnings = keep_warnings(&params, &res);
+    warnings.extend(trace_warnings((img.width, img.height), (raster.width, raster.height), res.worked_at));
     // Pixel space of the decoded raster → the image object's pixel space → document.
     let sx = img.width.max(1) as f64 / raster.width.max(1) as f64;
     let sy = img.height.max(1) as f64 / raster.height.max(1) as f64;
@@ -1240,6 +1241,30 @@ pub(crate) fn trace_warnings(size: (u32, u32), traced: (u32, u32), worked: Optio
     out
 }
 
+/// What a trace with Keep Colors tells the user: that nothing was traced because no color the
+/// trace found matches a listed one, because Ignore Color left out the ones that match, or because
+/// the ones that match produce no paths; each listed color that matches none of them; and that Flat
+/// Logo mode does not use the list.
+pub(crate) fn keep_warnings(params: &tr::TraceParams, res: &tr::TraceResult) -> Vec<String> {
+    if params.keep_colors.is_empty() {
+        return vec![];
+    }
+    if params.mode == tr::Mode::Logo {
+        return vec!["Flat Logo mode does not use keepColors: it traces the colors named in logoColors, or the colors it finds.".to_string()];
+    }
+    if res.paths.is_empty() && res.keep_unmatched.len() == params.keep_colors.len() {
+        return vec![format!("Nothing was traced: none of the colors the trace found matches keepColors ({}).", params.keep_colors.join(", "))];
+    }
+    let mut out = vec![];
+    if res.paths.is_empty() && res.keep_ignored {
+        out.push("Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.".to_string());
+    } else if res.paths.is_empty() {
+        out.push("Nothing was traced: the colors that match keepColors produce no paths.".to_string());
+    }
+    out.extend(res.keep_unmatched.iter().map(|c| format!("keepColors: none of the colors the trace found matches {c}, so nothing of it is traced.")));
+    out
+}
+
 fn trace_targets(s: &Session, p: &Value) -> Result<Vec<NodeId>> {
     let d = &s.doc()?.doc;
     let v: Vec<NodeId> = root_ids(s, p)?.into_iter().filter(|i| d.node(*i).is_some_and(is_trace_group)).collect();
@@ -1309,7 +1334,25 @@ fn trace_expand(s: &mut Session, p: &Value) -> Result<Value> {
 
 #[cfg(test)]
 mod trace_limit_tests {
-    use super::{MAX_TRACE_ANCHORS, trace_warnings};
+    use super::{MAX_TRACE_ANCHORS, keep_warnings, trace_warnings};
+    use vectorcraft_trace as tr;
+
+    #[test]
+    fn keep_warnings_name_matched_colors_that_produce_no_paths() {
+        let params = tr::TraceParams { keep_colors: vec!["#ff0000".into()], ..tr::TraceParams::default() };
+        // A listed color was traced, and produced no paths: the palette lists no color without paths.
+        let traced = tr::TraceResult::default();
+        let none = vec!["Nothing was traced: the colors that match keepColors produce no paths.".to_string()];
+        assert_eq!(keep_warnings(&params, &traced), none);
+        // With Ignore Color, too: Ignore Color did not leave that color out.
+        let ignoring = tr::TraceParams { ignore_white: true, ..params.clone() };
+        assert_eq!(keep_warnings(&ignoring, &traced), none);
+        // Ignore Color left out every color that matches: none was traced.
+        assert_eq!(
+            keep_warnings(&ignoring, &tr::TraceResult { keep_ignored: true, ..tr::TraceResult::default() }),
+            vec!["Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.".to_string()]
+        );
+    }
 
     #[test]
     fn trace_warnings_name_a_large_or_scaled_down_image() {
