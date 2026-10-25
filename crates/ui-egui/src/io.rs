@@ -402,6 +402,16 @@ pub fn mark_unsaved(app: &mut VectorcraftApp, name: &str) {
     app.status(format!("Not saved: {}", fileio::file_name(name)));
 }
 
+/// A save a host's storage made after `download` returned has finished, as `name` (a host path or
+/// a download's file name): one that failed leaves its documents modified ([`mark_unsaved`]). A
+/// document that waited for it to close closes now.
+pub fn save_settled(app: &mut VectorcraftApp, name: &str, saved: bool) {
+    if !saved {
+        mark_unsaved(app, name);
+    }
+    crate::unsaved::save_settled(app);
+}
+
 /// The web saves by downloading: no save panel, no folders.
 pub(crate) fn is_web(app: &VectorcraftApp) -> bool {
     app.services.download.is_some()

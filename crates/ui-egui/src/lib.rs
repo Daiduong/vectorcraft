@@ -270,6 +270,10 @@ pub struct Services {
     pub inbox: Option<Inbox>,
     /// Web: trigger a browser download instead of writing a path.
     pub download: Option<DownloadFn>,
+    /// Web: whether a save handed to `download` is still going (a host's storage, which reports
+    /// back later through [`io::save_settled`]). Closing a document after Save waits for it.
+    /// Without it, `download` is done once it returns.
+    pub save_in_flight: Option<Box<dyn Fn() -> bool>>,
     /// Web: start an async open (bytes arrive via `inbox`).
     pub open_async: Option<Box<dyn FnMut()>>,
     /// Read the system clipboard's text (desktop). Without it, pasted text only arrives with
@@ -518,6 +522,9 @@ pub struct VectorcraftApp {
     clipboard_publishing: sysclip::Publishing,
     /// A URL to open through egui next frame (when the host has no `open_url` service).
     pending_url: Option<String>,
+    /// The document (uid) a Save Changes prompt saved and closes once the host's storage reports
+    /// the save done, and what continues after it (the prompt's `then`): [`unsaved::save_settled`].
+    pub(crate) close_when_saved: Option<(u64, String)>,
     /// Windows and Linux: the window has no OS decorations, so the app bar is the title bar (drag,
     /// double-click to maximize, caption buttons) and invisible edge zones resize the window.
     pub custom_titlebar: bool,
@@ -797,6 +804,7 @@ impl VectorcraftApp {
             clipboard_in: None,
             clipboard_publishing: Default::default(),
             pending_url: None,
+            close_when_saved: None,
             control_rx: None,
             pending_screenshots: vec![],
             queued_screenshots: vec![],

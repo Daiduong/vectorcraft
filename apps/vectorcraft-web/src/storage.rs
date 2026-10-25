@@ -20,7 +20,7 @@
 //! Browsers open a file picker only during a click: when the user picks "This device" in the host's
 //! own dialog, `chooseOpen` should resolve with "device" right from that click.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use vectorcraft_ui_egui::Services;
@@ -45,19 +45,26 @@ async fn call(method: &str, args: &[JsValue]) -> Result<JsValue, JsValue> {
 }
 
 thread_local! {
-    /// Saves that didn't happen after the app counted them done: the host failed or the user
-    /// cancelled. The web shell marks those documents modified again ([`take_unsaved`]).
-    static UNSAVED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    /// Saves the app counted done that the host is still making.
+    static IN_FLIGHT: Cell<usize> = const { Cell::new(0) };
+    /// Saves that finished since the web shell last looked: (name or host path, saved). One that
+    /// failed or that the user cancelled marks its document modified again ([`take_settled`]).
+    static SETTLED: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
 }
 
-fn unsaved(name: String, ctx: &egui::Context) {
-    UNSAVED.with(|u| u.borrow_mut().push(name));
+fn in_flight() -> bool {
+    IN_FLIGHT.with(Cell::get) > 0
+}
+
+fn settled(name: String, saved: bool, ctx: &egui::Context) {
+    IN_FLIGHT.with(|n| n.set(n.get().saturating_sub(1)));
+    SETTLED.with(|s| s.borrow_mut().push((name, saved)));
     ctx.request_repaint();
 }
 
-/// The names or host paths of saves that didn't happen since the last call.
-pub fn take_unsaved() -> Vec<String> {
-    UNSAVED.with(|u| std::mem::take(&mut *u.borrow_mut()))
+/// The saves that finished since the last call, for [`vectorcraft_ui_egui::io::save_settled`].
+pub fn take_settled() -> Vec<(String, bool)> {
+    SETTLED.with(|s| std::mem::take(&mut *s.borrow_mut()))
 }
 
 async fn write(path: &str, bytes: &[u8]) -> bool {
@@ -99,6 +106,7 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
         }));
     }
     if let Some(device_download) = services.download.take() {
+        services.save_in_flight = Some(Box::new(in_flight));
         let device_download = Rc::new(RefCell::new(device_download));
         services.download = Some(Box::new(move |name: &str, bytes: &[u8]| {
             if storage().is_none() {
@@ -106,6 +114,7 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
             }
             // The save counts as done now; one that doesn't happen marks the document modified again.
             let (device_download, name, bytes, ctx) = (device_download.clone(), name.to_string(), bytes.to_vec(), ctx.clone());
+            IN_FLIGHT.with(|n| n.set(n.get() + 1));
             wasm_bindgen_futures::spawn_local(async move {
                 let saved = if is_host_path(&name) {
                     // File › Save of a document from the host: straight back to its path.
@@ -120,9 +129,7 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                             .is_ok(),
                     }
                 };
-                if !saved {
-                    unsaved(name, &ctx);
-                }
+                settled(name, saved, &ctx);
             });
             Ok(())
         }));
