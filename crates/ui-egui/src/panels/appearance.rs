@@ -1289,9 +1289,15 @@ fn drop_on_buttons(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: 
             widgets::drop_target_outline(ui, button.rect);
             continue;
         }
-        // The effects removed with the dropped one (its highlighted list, when it is in it).
+        // The rows copied or removed with the dropped one (its highlighted list, when it is in it).
         let gone: Vec<u64> = params["indices"].as_array().map(|a| a.iter().filter_map(Value::as_u64).collect()).unwrap_or_default();
-        let removed = app.run(cmd, params).is_ok() && !copy;
+        let ran = app.run(cmd, params).is_ok();
+        let removed = ran && !copy;
+        if ran && copy {
+            let rows = if let Dragged::Effect(item, _) = what { Rows::Effects(item) } else { Rows::Items };
+            let copied: Vec<usize> = gone.iter().map(|k| *k as usize).collect();
+            rebase_after_duplicate(app, ctx, n, sel, rows, &copied);
+        }
         // When the active effect was among them, its fill/stroke (or nothing) is selected; the
         // engine clears or renumbers the active fill/stroke itself.
         let active_gone = match (what, sel) {
@@ -1332,11 +1338,36 @@ fn button_drop_command(items: &[usize], effects: Option<&(Option<usize>, Vec<usi
 /// Duplicate the highlighted fills/strokes (each copy right above its row) or effects (each copy
 /// right after it).
 fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
-    match selected_effects(ui.ctx(), node, sel) {
-        Some((item, ks)) => app.run("effect.duplicate", json!({"item": item, "indices": ks})).ok(),
-        None if matches!(sel, Sel::Item(_)) => app.run("appearance.duplicateItem", json!({"indices": selected_items(ui.ctx(), node, sel)})).ok(),
-        None => None,
+    let (rows, indices) = match selected_effects(ui.ctx(), node, sel) {
+        Some((item, ks)) => (Rows::Effects(item), ks),
+        None if matches!(sel, Sel::Item(_)) => (Rows::Items, selected_items(ui.ctx(), node, sel)),
+        None => return,
     };
+    let (cmd, params) = match rows {
+        Rows::Effects(item) => ("effect.duplicate", json!({"item": item, "indices": indices})),
+        Rows::Items => ("appearance.duplicateItem", json!({ "indices": indices })),
+    };
+    if let (Ok(_), Some(n)) = (app.run(cmd, params), node) {
+        rebase_after_duplicate(app, ui.ctx(), n, sel, rows, &indices);
+    }
+}
+
+/// After the rows `dup` of kind `rows` were copied in place (each copy right above or after its
+/// row), the highlight of those rows follows the originals: row `k` moves to `k` plus the copies
+/// below it. The selected effect row moves with them; the engine renumbers the active fill/stroke
+/// itself. `n` is the object as it was before the copy.
+fn rebase_after_duplicate(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, dup: &[usize]) {
+    let shift = |k: usize| k + dup.iter().filter(|d| **d < k).count();
+    let h = highlight(ctx, n, sel);
+    if h.rows == rows {
+        let order = h.order.iter().map(|k| shift(*k)).collect();
+        set_pstate(ctx, "ap-multi", Highlight { owner: Some(n.id), rows, order, anchor: h.anchor.map(shift) });
+    }
+    if let (Rows::Effects(_), Some((r, a))) = (rows, sel.rows())
+        && r == rows
+    {
+        set_active(app, ctx, rows.sel(shift(a)));
+    }
 }
 
 /// Remove the highlighted fills/strokes or effects; a removed item effect leaves its fill/stroke selected.
@@ -1430,6 +1461,45 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Duplicating highlighted rows leaves the originals highlighted: each moves up by the copies
+    /// below it, the selected effect row with them, the active fill/stroke by the engine.
+    #[test]
+    fn a_duplicate_keeps_the_originals_highlighted() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
+        let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
+        app.run("select.set", json!({ "ids": [id] })).unwrap();
+        for _ in 0..3 {
+            app.run("effect.apply", json!({"effect": "distort.roughen"})).unwrap();
+        }
+        let owner = Some(NodeId(id));
+        let ctx = egui::Context::default();
+        let duplicate = |app: &mut VectorcraftApp| {
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let node = first_subject(app);
+                let sel = current_sel(app, ui.ctx(), node.as_ref());
+                duplicate_selected(app, ui, node.as_ref(), sel);
+            });
+            out.textures_delta.clear();
+        };
+        // Effects 0 and 2 highlighted, 2 selected: the copies land after them, at 1 and 4.
+        app.run("appearance.setActiveItem", json!({ "index": null })).unwrap();
+        set_pstate(&ctx, "ap-sel", (owner, Sel::Effect(2)));
+        set_pstate(&ctx, "ap-multi", Highlight { owner, rows: Rows::Effects(None), order: vec![2, 0], anchor: Some(0) });
+        duplicate(&mut app);
+        let h: Highlight = pstate(&ctx, "ap-multi");
+        assert_eq!((h.order, h.anchor), (vec![3, 0], Some(0)));
+        assert_eq!(pstate::<(Option<NodeId>, Sel)>(&ctx, "ap-sel").1, Sel::Effect(3));
+        // [Fill, Stroke] both highlighted, the stroke active: the stroke goes from 1 to 2.
+        app.run("appearance.setActiveItem", json!({ "index": 1 })).unwrap();
+        set_pstate(&ctx, "ap-sel", (owner, Sel::Item(1)));
+        set_pstate(&ctx, "ap-multi", Highlight { owner, rows: Rows::Items, order: vec![1, 0], anchor: Some(1) });
+        duplicate(&mut app);
+        let h: Highlight = pstate(&ctx, "ap-multi");
+        assert_eq!((h.order, h.anchor), (vec![2, 0], Some(2)));
+        assert_eq!(app.session.appearance_item(), Some(2));
+    }
 
     #[test]
     fn opacity_labels() {
@@ -2007,5 +2077,41 @@ mod tests {
         for want in ["No Selection: Fancy".to_string(), effect_label("stylize.dropShadow"), "Opacity: 50%".into(), "Dashed".into()] {
             assert!(shown.contains(&want), "{want} in {shown:?}");
         }
+    }
+
+    /// A style that gives the next object two fills and two strokes: each row's swatch and weight
+    /// field has an id of its own (egui flags a clash with a 🔥 warning drawn over the widgets).
+    #[test]
+    fn new_art_rows_of_the_same_kind_have_their_own_widget_ids() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let run = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+        run(&mut app, "file.new", json!({"width": 100, "height": 100}));
+        run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}));
+        run(&mut app, "appearance.addFill", json!({}));
+        run(&mut app, "appearance.addStroke", json!({}));
+        run(&mut app, "graphicStyle.new", json!({"name": "Twice"}));
+        run(&mut app, "select.none", json!({}));
+        run(&mut app, "graphicStyle.apply", json!({"name": "Twice"}));
+        let ctx = egui::Context::default();
+        ctx.options_mut(|o| o.warn_on_id_clash = true);
+        fn texts(s: &egui::Shape, out: &mut Vec<String>) {
+            match s {
+                egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, out)),
+                _ => {}
+            }
+        }
+        let mut shown = vec![];
+        // The second frame: ids from the first are known by then.
+        for _ in 0..2 {
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(&mut app, ui));
+            out.textures_delta.clear();
+            shown.clear();
+            out.shapes.iter().for_each(|c| texts(&c.shape, &mut shown));
+        }
+        let rows = shown.iter().filter(|t| ["Fill:", "Stroke:"].contains(&t.as_str())).count();
+        assert_eq!(rows, 4, "two fills and two strokes: {shown:?}");
+        let clashes: Vec<&String> = shown.iter().filter(|t| t.contains('🔥')).collect();
+        assert!(clashes.is_empty(), "{clashes:?}");
     }
 }

@@ -877,6 +877,30 @@ fn after_a_row_click_delete_reaches_the_appearance_panel_not_edit_clear() {
     }
 }
 
+/// The same after a click on a row's name, which also edits the row: "Stroke:" opens the Stroke
+/// panel, the name of an effect without settings its inline editor (one with settings opens a
+/// dialog, which keeps the keys from the app's shortcuts anyway). Delete removes that row and
+/// leaves the object.
+#[test]
+fn after_a_name_click_delete_reaches_the_appearance_panel_not_edit_clear() {
+    for (name, key) in [("Stroke:", egui::Key::Delete), ("Outline Object", egui::Key::Backspace)] {
+        // A context of its own: the panel keeps the keys from one click to the next.
+        let ctx = drop_ctx();
+        let mut app = rect_with_three_effects();
+        run(&mut app, "effect.apply", json!({"effect": "path.outlineObject", "item": null}));
+        let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
+        let at = text_rect(&texts, name).center();
+        app_click(&ctx, &mut app, at, boxed_panel);
+        app_key(&ctx, &mut app, key, boxed_panel);
+        assert!(first_selected(&app).is_some(), "{name}: the object stays");
+        if name == "Stroke:" {
+            assert_eq!(stack_items(&app), [(true, None)], "{name}: the stroke goes");
+        } else {
+            assert_eq!(object_effects(&app), ["stylize.outerGlow", "stylize.dropShadow", "distort.twist"], "{name}: the effect goes");
+        }
+    }
+}
+
 /// The Layers panel in a 300×500 pt area at the top left, so clicks can land outside it.
 fn boxed_layers(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::layers::show(app, ui));
