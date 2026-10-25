@@ -1292,9 +1292,12 @@ mod tests {
         assert_eq!(written.borrow().last().map(|(n, _)| n.as_str()), Some("Other.vectorcraft"));
     }
 
+    /// What a download got: (name, the document whose save it was).
+    type Saves = std::rc::Rc<std::cell::RefCell<Vec<(String, Option<u64>)>>>;
+
     /// An app on the web whose download records which document each save was for.
-    fn web_app() -> (VectorcraftApp, std::rc::Rc<std::cell::RefCell<Vec<(String, Option<u64>)>>>) {
-        let saves: std::rc::Rc<std::cell::RefCell<Vec<(String, Option<u64>)>>> = Default::default();
+    fn web_app() -> (VectorcraftApp, Saves) {
+        let saves: Saves = Default::default();
         let s = saves.clone();
         let download: crate::DownloadFn = Box::new(move |name: &str, _: &[u8]| {
             s.borrow_mut().push((name.to_string(), saving_document()));
