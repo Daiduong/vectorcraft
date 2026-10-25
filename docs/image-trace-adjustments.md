@@ -32,6 +32,13 @@ white beside a cream), at most six; scattered specks of a colour add none. Adobe
 its own palettes are chosen; this is VectorCraft's own method (see
 [image-trace-quality.md](image-trace-quality.md#auto-color-keeps-rare-colours)).
 
+**Flat Logo colors.** Flat Logo traces white (every channel 245 or more) as a color of its own beside
+the colors named in `logoColors`. With `"logoWhite": false` in the params of `imageTrace.make` or
+`imageTrace.makeAndExpand`, it traces the named colors only: white areas take the nearest named color,
+a named white or near-white is used as named, and enclosed transparent areas stay holes instead of
+being painted white. When Flat Logo finds the colors itself, `logoWhite` has no effect, and with
+`ignoreWhite` white areas are left out whatever `logoWhite` says.
+
 **Abutting and Overlapping.** Abutting is the default Method, and the Default, Auto Color, 3 Colors,
 6 Colors and 16 Colors presets use it. With Abutting, two neighboring colors share one exact edge. The
 canvas smooths the edges of each path on its own, so each of the two paths covers only part of the
