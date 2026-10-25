@@ -223,13 +223,22 @@ pub fn run_network(app: &mut VectorcraftApp, settings: &Value, paper_chosen: boo
     let pages = v["pages"].as_u64().map_or(0, |n| n as usize);
     // The paper goes to the printer only when the person chose it; otherwise `media` is the document's
     // own default (Letter) and the printer's own paper stands, as for a local queue.
-    let paper = paper_chosen.then(|| settings["media"].as_str().and_then(crate::network_glue::media_for_paper)).flatten();
+    let paper = network_media(settings, paper_chosen);
     if !app.print_net.send(None, &title, pdf, pages, paper, by_printer) {
         return Err(tl!("Couldn't reach the printer").into());
     }
     v["printed"] = json!(false);
     v["network"] = json!(true);
     Ok(v)
+}
+
+/// The media name a network printer is asked for: the dialog's paper, only when the person chose it.
+#[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
+fn network_media(settings: &Value, paper_chosen: bool) -> Option<&'static str> {
+    if !paper_chosen {
+        return None;
+    }
+    settings["media"].as_str().and_then(crate::network_glue::media_for_paper)
 }
 
 #[cfg(test)]
@@ -268,5 +277,15 @@ mod tests {
         assert!(job_hints(&mut app, &json!({"settings": {"media": "a4"}})).1, "named media is a choice");
         assert!(job_hints(&mut app, &json!({"paperChosen": true})).1, "so is the dialog saying so");
         assert!(!job_hints(&mut app, &json!({"paperChosen": false, "settings": {"media": "a4"}})).1);
+    }
+
+    /// An untouched dialog leaves the document's Letter as `media`; an A4-only printer must not get it.
+    #[cfg(all(not(target_arch = "wasm32"), not(target_vendor = "win7")))]
+    #[test]
+    fn the_network_printer_gets_the_media_only_when_the_paper_was_chosen() {
+        let s = json!({"media": "a4"});
+        assert_eq!(super::network_media(&s, true), Some("iso_a4_210x297mm"));
+        assert_eq!(super::network_media(&s, false), None, "the document's default paper is not a choice");
+        assert_eq!(super::network_media(&json!({"media": "custom"}), true), None, "a custom size has no media name");
     }
 }

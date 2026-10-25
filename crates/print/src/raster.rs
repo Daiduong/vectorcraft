@@ -12,6 +12,24 @@ use craft_print::{ConvertContext, Document, DocumentConverter, DocumentFormat, D
 use vectorcraft_pdf::ImportOptions;
 use vectorcraft_render::{Renderer, raster_size};
 
+/// The most raster the converter keeps before encoding. `pwg::encode` takes every page at once, so the
+/// whole document is in memory until a per-page encoder exists in craft-print; past this the job is
+/// refused with a clear error rather than exhausting memory (1 GiB is about 40 Letter pages of RGB
+/// at 300 dpi, or 10 at 600 dpi).
+const MAX_RETAINED_BYTES: usize = 1 << 30;
+
+/// Counts `add` bytes of a rendered page against `limit`; an error once the total would pass it.
+fn retain(total: &mut usize, add: usize, limit: usize, number: usize) -> Result<(), PrintError> {
+    *total = total.saturating_add(add);
+    if *total > limit {
+        return Err(failed(format!(
+            "the document is too large to print as raster: page {number} would take it past {} MiB; print it at a lower resolution or in parts",
+            limit >> 20
+        )));
+    }
+    Ok(())
+}
+
 fn failed(why: impl Into<String>) -> PrintError {
     PrintError::new(ErrorKind::Failed, why)
 }
@@ -40,11 +58,14 @@ impl DocumentConverter for PdfToRaster {
         let gray = !context.colour;
         let mut renderer = Renderer::new();
         let mut pages = Vec::with_capacity(info.pages.len());
+        let mut retained = 0usize;
         for index in 0..info.pages.len() {
             if context.cancel.is_cancelled() {
                 return Err(PrintError::new(ErrorKind::Cancelled, "the print job was cancelled while the document was rendered"));
             }
-            pages.push(render_page(&mut renderer, document.bytes, index, (dx, dy), gray)?);
+            let page = render_page(&mut renderer, document.bytes, index, (dx, dy), gray)?;
+            retain(&mut retained, page.pixels.len(), MAX_RETAINED_BYTES, index + 1)?;
+            pages.push(page);
         }
         let duplex = match context.duplex {
             None | Some(Duplex::Off) => pwg::Duplex::Off,
@@ -122,6 +143,17 @@ fn flatten(rgba: &[u8], gray: bool) -> Vec<u8> {
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
     use super::*;
+
+    #[test]
+    fn retained_raster_past_the_limit_is_a_clear_error() {
+        let mut total = 0;
+        retain(&mut total, 600, 1000, 1).unwrap();
+        retain(&mut total, 400, 1000, 2).unwrap();
+        let err = retain(&mut total, 1, 1000, 3).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Failed);
+        assert!(err.to_string().contains("page 3"), "{err}");
+        assert!(retain(&mut usize::MAX.clone(), usize::MAX, 1000, 1).is_err(), "the sum cannot wrap");
+    }
 
     #[test]
     fn flattening_composites_over_white() {
