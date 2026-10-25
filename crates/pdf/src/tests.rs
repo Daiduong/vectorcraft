@@ -82,6 +82,8 @@ fn one_page_per_artboard_with_sizes() {
         locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        show_video_safe_areas: false,
+        video_ruler_pixel_aspect_ratio: 1.0,
         color: None,
     });
     d.artboards.push(Artboard {
@@ -91,6 +93,8 @@ fn one_page_per_artboard_with_sizes() {
         locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        show_video_safe_areas: false,
+        video_ruler_pixel_aspect_ratio: 1.0,
         color: None,
     });
     let bytes = export(&d, &PdfOptions::default()).unwrap();
@@ -109,6 +113,8 @@ fn artboard_range_and_bad_index() {
         locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        show_video_safe_areas: false,
+        video_ruler_pixel_aspect_ratio: 1.0,
         color: None,
     });
     let bytes = export(&d, &PdfOptions { artboards: Some(vec![1]), ..Default::default() }).unwrap();
@@ -379,6 +385,7 @@ fn art_reaching_beyond_a_billion_points_is_left_out() {
         xf: Affine::new([5.5e8, 0.0, 0.0, 10.0, far, 60.0]),
         link: None,
         placement: Default::default(),
+        pixels: None,
     };
     for (what, n) in [
         ("path", rect_node(Rect::new(far, 60.0, 90.0, 90.0), Color::BLACK)),
@@ -554,6 +561,7 @@ fn image_roundtrip() {
         xf: Affine::translate((20.0, 30.0)) * Affine::scale(10.0),
         link: None,
         placement: Default::default(),
+        pixels: None,
     };
     add(&mut d, Node::new(NodeId(0), NodeKind::Image(Box::new(im))));
     let out = roundtrip(&d);
@@ -595,7 +603,7 @@ fn an_image_whose_pixels_cant_be_decoded_is_left_out_with_one_note() {
     for (i, (key, blob)) in blobs.into_iter().enumerate() {
         d.images.insert(key.into(), blob);
         let xf = Affine::translate((20.0, 20.0 + 50.0 * i as f64)) * Affine::scale(10.0);
-        let im = ImageObject { key: key.into(), width: 4, height: 2, xf, link: None, placement: Default::default() };
+        let im = ImageObject { key: key.into(), width: 4, height: 2, xf, link: None, placement: Default::default(), pixels: None };
         add(&mut d, Node::new(NodeId(0), NodeKind::Image(Box::new(im))));
     }
     add(&mut d, rect_node(Rect::new(100.0, 100.0, 150.0, 150.0), Color::BLACK));
@@ -628,6 +636,7 @@ fn a_group_transform_effect_exports_its_image_copies() {
         xf: Affine::translate((20.0, 30.0)) * Affine::scale(5.0),
         link: None,
         placement: Default::default(),
+        pixels: None,
     };
     let image = Arc::new(Node::new(d.alloc_id(), NodeKind::Image(Box::new(im))));
     let mut square = rect_node(Rect::new(20.0, 60.0, 30.0, 70.0), Color::BLACK);
@@ -756,6 +765,8 @@ fn import_max_pages_and_multi_page() {
         locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
+        show_video_safe_areas: false,
+        video_ruler_pixel_aspect_ratio: 1.0,
         color: None,
     });
     add(&mut d, rect_node(Rect::new(10.0, 10.0, 50.0, 50.0), Color::BLACK));
@@ -1067,4 +1078,36 @@ fn dithered_perceptual_gradients_export_as_images_with_noise_on_the_fill() {
     }
     assert_ne!(export_with(true, false), export_with(false, false), "the fill's pixels carry the noise");
     assert_eq!(export_with(true, true), export_with(false, true), "a stroke has no dither");
+}
+
+/// COLR glyphs in the PDF: as real text, in their font's Type 3 glyphs (the foreground layer in
+/// the fill); outlined, as vector art, a sweep glyph as an image.
+#[test]
+fn colr_glyphs_export_as_vector_art() {
+    use vectorcraft_text::test_fonts::{COLOUR_CHAR, COLR_SWEEP_CHAR, colr_family, colr_font};
+    for v1 in [false, true] {
+        vectorcraft_text::FontDb::global().add_font(colr_font(v1).unwrap());
+    }
+    let page = |v1: bool, ch: char, outline_text: bool| {
+        let mut d = doc(300.0, 100.0);
+        let fill = Paint::solid(Color::rgb(0.0, 0.0, 1.0));
+        let st = CharStyle { font_family: colr_family(v1).into(), size: 24.0, fill, ..CharStyle::default() };
+        add(&mut d, Node::new(NodeId(0), NodeKind::Text(Box::new(TextObject::point(Point::new(10.0, 50.0), &ch.to_string(), st)))));
+        let mut o = PdfOptions::uncompressed();
+        o.settings.advanced.outline_text = outline_text;
+        import_with_report(&export(&d, &o).unwrap(), &ImportOptions::default()).unwrap().document
+    };
+    let fills = |d: &Document| -> Vec<Paint> { leaves(d).iter().map(|n| n.appearance.fill_paint()).collect() };
+    let near =
+        |p: &Paint, rgb: [f32; 3]| matches!(p, Paint::Solid { color, .. } if color.to_rgb().iter().zip(rgb).all(|(a, b)| (a - b).abs() < 0.02));
+    for outline_text in [false, true] {
+        let v0 = fills(&page(false, COLOUR_CHAR, outline_text));
+        assert!(v0.iter().any(|p| near(p, [1.0, 0.0, 0.0])), "the red layer (outlined {outline_text}): {v0:?}");
+        assert!(v0.iter().any(|p| near(p, [0.0, 0.0, 1.0])), "the foreground layer in the fill (outlined {outline_text}): {v0:?}");
+    }
+    let v1 = page(true, COLOUR_CHAR, true);
+    assert!(!leaves(&v1).iter().any(|n| matches!(n.kind, NodeKind::Image(_))), "vector art");
+    assert!(fills(&v1).iter().any(|p| matches!(p, Paint::Gradient(_))), "with its gradients");
+    let sweep = page(true, COLR_SWEEP_CHAR, true);
+    assert!(leaves(&sweep).iter().any(|n| matches!(n.kind, NodeKind::Image(_))), "a sweep glyph is an image");
 }

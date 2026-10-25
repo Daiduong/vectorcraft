@@ -585,3 +585,166 @@ pub fn solid_png(side: u32, rgba: [u8; 4]) -> Vec<u8> {
     chunk(&mut out, b"IEND", &[]);
     out
 }
+
+/// The palette of [`colr_font`] (palette 0, RGBA): its indices 0, 1 and 2.
+pub const COLR_RED: [u8; 4] = [255, 0, 0, 255];
+pub const COLR_BLUE: [u8; 4] = [0, 0, 255, 255];
+pub const COLR_GREEN: [u8; 4] = [0, 255, 0, 255];
+
+/// The character whose glyph [`colr_font`]`(true)` paints with a sweep gradient.
+pub const COLR_SWEEP_CHAR: char = 'S';
+
+/// The family of [`colr_font`] (COLRv1, or v0).
+pub fn colr_family(v1: bool) -> &'static str {
+    if v1 { "Colrtest Paints" } else { "Colrtest Layers" }
+}
+
+/// The glyph ids of `chars` in the bundled Source Sans 3.
+fn source_sans_gids<const N: usize>(chars: [char; N]) -> Option<[u16; N]> {
+    let font = skrifa::FontRef::new(SOURCE_SANS).ok()?;
+    let mut gids = [0; N];
+    for (gid, ch) in gids.iter_mut().zip(chars) {
+        *gid = u16::try_from(font.charmap().map(ch)?.to_u32()).ok()?;
+    }
+    Some(gids)
+}
+
+const SOURCE_SANS: &[u8] = include_bytes!("../../../assets/fonts/SourceSans3-Regular.ttf");
+
+/// The bundled Source Sans 3 Regular as family [`colr_family`], with `COLR` and `CPAL` tables
+/// written from the OpenType specification, palette 0 [`COLR_RED`], [`COLR_BLUE`], [`COLR_GREEN`].
+/// v0: [`COLOUR_CHAR`] is the outline of `O` in red, then that of `I` in the foreground colour
+/// (palette index 0xFFFF). v1: [`COLOUR_CHAR`] is, in a clip box, `O` filled with a linear
+/// gradient red → blue, `I` scaled by a half about the origin with a radial gradient blue → green,
+/// and `-` in green composited with Multiply over `-` in red; [`COLR_SWEEP_CHAR`] is `O` with a
+/// sweep gradient red → blue. Their outlines stay. `None` when it can't be built.
+pub fn colr_font(v1: bool) -> Option<Vec<u8>> {
+    use write_fonts::tables::colr::{
+        BaseGlyph, BaseGlyphList, BaseGlyphPaint, Clip, ClipBox, ClipList, ColorLine, ColorStop, Colr, CompositeMode, Extend, Layer, LayerList, Paint,
+    };
+    use write_fonts::types::{FWord, GlyphId16, UfWord};
+    let [base, sweep, o, i, dash] = source_sans_gids([COLOUR_CHAR, COLR_SWEEP_CHAR, 'O', 'I', '-'])?;
+    let (base, sweep, o, i, dash) = (GlyphId16::new(base), GlyphId16::new(sweep), GlyphId16::new(o), GlyphId16::new(i), GlyphId16::new(dash));
+    let colr = if v1 {
+        let one = F2Dot14::from_f32(1.0);
+        let line = |from: u16, to: u16| {
+            ColorLine::new(Extend::Pad, 2, vec![ColorStop::new(F2Dot14::from_f32(0.0), from, one), ColorStop::new(one, to, one)])
+        };
+        let w = FWord::new;
+        let layers = vec![
+            Paint::glyph(Paint::linear_gradient(line(0, 1), w(0), w(0), w(500), w(0), w(0), w(500)), o),
+            Paint::scale_uniform(
+                Paint::glyph(Paint::radial_gradient(line(1, 2), w(250), w(300), UfWord::new(0), w(250), w(300), UfWord::new(300)), i),
+                F2Dot14::from_f32(0.5),
+            ),
+            Paint::composite(Paint::glyph(Paint::solid(2, one), dash), CompositeMode::Multiply, Paint::glyph(Paint::solid(0, one), dash)),
+        ];
+        let mut colr = Colr::new(0, None, None, 0);
+        colr.layer_list = Some(LayerList::new(layers.len() as u32, layers)).into();
+        let mut glyphs = vec![
+            BaseGlyphPaint::new(base, Paint::colr_layers(3, 0)),
+            BaseGlyphPaint::new(sweep, Paint::glyph(Paint::sweep_gradient(line(0, 1), w(250), w(300), F2Dot14::from_f32(0.0), one), o)),
+        ];
+        glyphs.sort_by_key(|g| g.glyph_id);
+        colr.base_glyph_list = Some(BaseGlyphList::new(glyphs.len() as u32, glyphs)).into();
+        let clip = ClipBox::format_1(w(-50), w(-250), w(750), w(800));
+        colr.clip_list = Some(ClipList::new(1, 1, vec![Clip::new(base, base, clip)])).into();
+        colr
+    } else {
+        Colr::new(1, Some(vec![BaseGlyph::new(base, 0, 2)]), Some(vec![Layer::new(o, 0), Layer::new(i, 0xFFFF)]), 2)
+    };
+    colr_font_with(colr_family(v1), &colr)
+}
+
+/// The bundled Source Sans 3 Regular as `family` with `colr` and [`colr_font`]'s palette.
+pub fn colr_font_with(family: &str, colr: &write_fonts::tables::colr::Colr) -> Option<Vec<u8>> {
+    with_colr(SOURCE_SANS, family_names(family, &[])?, colr)
+}
+
+/// The family of [`colr_variable_font`].
+pub const COLR_VARIABLE_FAMILY: &str = "Colrtest Variable";
+
+/// [`variable_font`] as family [`COLR_VARIABLE_FAMILY`], with a `COLR` (v0) table in which
+/// [`COLOUR_CHAR`] is the outline of `l` (one of [`VARIABLE_CHARS`]) in red, so its layer widens
+/// with the weight. `None` when it can't be built.
+pub fn colr_variable_font() -> Option<Vec<u8>> {
+    use write_fonts::tables::colr::{BaseGlyph, Colr, Layer};
+    use write_fonts::types::GlyphId16;
+    let [base, l] = source_sans_gids([COLOUR_CHAR, 'l'])?;
+    let colr = Colr::new(1, Some(vec![BaseGlyph::new(GlyphId16::new(base), 0, 1)]), Some(vec![Layer::new(GlyphId16::new(l), 0)]), 1);
+    let axis_names = [(256, "Weight"), (257, "Normal"), (258, "SemiBold"), (259, "Bold")];
+    with_colr(&variable_font()?, family_names(COLR_VARIABLE_FAMILY, &axis_names)?, &colr)
+}
+
+/// A `name` table for Regular of `family`, with `more` records.
+fn family_names(family: &str, more: &[(u16, &str)]) -> Option<Vec<u8>> {
+    let ps = family.replace(' ', "");
+    let (full, postscript) = (format!("{family} Regular"), format!("{ps}-Regular"));
+    let mut records = vec![(1, family), (2, "Regular"), (4, full.as_str()), (6, postscript.as_str())];
+    records.extend_from_slice(more);
+    name_table(&records)
+}
+
+/// Font `base` with the `name` table `name`, `colr` and [`colr_font`]'s palette.
+fn with_colr(base: &[u8], name: Vec<u8>, colr: &write_fonts::tables::colr::Colr) -> Option<Vec<u8>> {
+    use write_fonts::tables::cpal::{ColorRecord, Cpal};
+    let font = skrifa::FontRef::new(base).ok()?;
+    let records = [COLR_RED, COLR_BLUE, COLR_GREEN].map(|[r, g, b, a]| ColorRecord::new(b, g, r, a)).to_vec();
+    let cpal = Cpal::new(3, 1, 3, Some(records), vec![0]);
+    let mut builder = FontBuilder::new();
+    builder.add_raw(Tag::new(b"name"), name);
+    builder.add_table(colr).ok()?;
+    builder.add_table(&cpal).ok()?;
+    for r in font.table_directory.table_records() {
+        let tag = Tag::new(&r.tag().to_be_bytes());
+        if !builder.contains(tag) {
+            builder.add_raw(tag, font.table_data(r.tag())?.as_bytes());
+        }
+    }
+    Some(builder.build())
+}
+
+/// The character whose glyph [`svg_font`]'s first document draws.
+pub const SVG_CHAR: char = 'E';
+
+/// The glyph id of `ch` in the bundled Source Sans 3 (and the fonts made from it).
+pub fn source_sans_gid(ch: char) -> Option<u16> {
+    source_sans_gids([ch]).map(|[g]| g)
+}
+
+/// The bundled Source Sans 3 Regular as `family` with an `SVG ` table written from the OpenType
+/// specification: `documents` are (first glyph, last glyph, SVG document), in glyph order. Its
+/// outlines stay. `None` when it can't be built.
+pub fn svg_font(family: &str, documents: &[(u16, u16, &str)]) -> Option<Vec<u8>> {
+    let font = skrifa::FontRef::new(SOURCE_SANS).ok()?;
+    let ps = family.replace(' ', "");
+    let name = name_table(&[(1, family), (2, "Regular"), (4, &format!("{family} Regular")), (6, &format!("{ps}-Regular"))])?;
+    // The header (version, the document list's offset, reserved), then the document list: its
+    // records (first and last glyph, the document's offset from the list and length), then the
+    // documents.
+    let records = documents.len();
+    let mut list = (u16::try_from(records).ok()?).to_be_bytes().to_vec();
+    let mut offset = 2 + 12 * records;
+    for (first, last, doc) in documents {
+        list.extend(first.to_be_bytes());
+        list.extend(last.to_be_bytes());
+        list.extend((u32::try_from(offset).ok()?).to_be_bytes());
+        list.extend((u32::try_from(doc.len()).ok()?).to_be_bytes());
+        offset += doc.len();
+    }
+    for (_, _, doc) in documents {
+        list.extend(doc.as_bytes());
+    }
+    let mut svg = vec![0, 0, 0, 0, 0, 10, 0, 0, 0, 0];
+    svg.extend(list);
+    let mut builder = FontBuilder::new();
+    builder.add_raw(Tag::new(b"name"), name);
+    builder.add_raw(Tag::new(b"SVG "), svg);
+    for r in font.table_directory.table_records() {
+        let tag = Tag::new(&r.tag().to_be_bytes());
+        if !builder.contains(tag) {
+            builder.add_raw(tag, font.table_data(r.tag())?.as_bytes());
+        }
+    }
+    Some(builder.build())
+}

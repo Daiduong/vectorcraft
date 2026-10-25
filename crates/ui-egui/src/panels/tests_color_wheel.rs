@@ -117,8 +117,8 @@ fn undo_len(app: &VectorcraftApp) -> usize {
 #[test]
 fn window_color_wheel_opens_the_panel_and_the_ring_picks_the_hue() {
     let mut app = app(json!("#ff0000"));
-    assert_eq!(app.run("window.panel", json!({"panel": ID})).unwrap()["open"], ID);
-    assert_eq!(app.ui.open_panel.as_deref(), Some(ID));
+    app.run("window.panel", json!({"panel": ID})).unwrap();
+    assert!(crate::panel_docking::showing(&app.ui, ID), "the panel shows");
     assert!(crate::state::ICON_PANELS.iter().any(|(id, label, _)| *id == ID && *label == "Color Wheel"));
     let item = crate::menus::menu_entries(&app).into_iter().find(|e| e.path == ["Window"] && e.label == "Color Wheel");
     assert!(item.is_some(), "the Window menu lists it");

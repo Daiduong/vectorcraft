@@ -130,7 +130,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         // A press between the square and the ring picks the closest point of the square, which
         // takes the keyboard focus.
         if let Some((p, phase)) = ring.inner {
-            let field_id = field_ui.id().with("field");
+            let field_id = field_ui.scope_id().with("field");
             field_ui.memory_mut(|m| m.request_focus(field_id));
             let f = |v: f32, lo: f32, len: f32| ((v - lo) / len).clamp(0.0, 1.0);
             pick = Some(([hsb[0], f(p.x, square.left(), square.width()), 1.0 - f(p.y, square.top(), square.height())], phase));

@@ -463,11 +463,11 @@ fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
     }
 }
 
-/// With Alt held, the Pencil and the Paintbrush show their closing cursors, and Use Precise Cursors turns those into
-/// a crosshair too.
+/// With Alt held while drawing, the Pencil and the Paintbrush show their closing cursors, and Use Precise Cursors
+/// turns those into a crosshair too.
 #[test]
 fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
-    use vectorcraft_tools::{Cursor, Mods};
+    use vectorcraft_tools::{Cursor, Mods, PointerEvent, PointerKind};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let at = vectorcraft_geom::Point::new(300.0, 300.0);
@@ -476,7 +476,10 @@ fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
         s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": precise})).unwrap();
         for (tool, c) in [("pencil", Cursor::PencilClose), ("paintbrush", Cursor::PaintbrushClose)] {
             s.select_tool(tool, ViewInfo::default()).unwrap();
+            s.pointer(&PointerEvent::new(PointerKind::Down, 250.0, 250.0), ViewInfo::default()).unwrap();
+            s.pointer(&PointerEvent::new(PointerKind::Drag, 300.0, 300.0), ViewInfo::default()).unwrap();
             assert_eq!(s.cursor(at, alt, ViewInfo::default()), if precise { Cursor::Crosshair } else { c }, "{tool}, precise {precise}");
+            s.pointer(&PointerEvent::new(PointerKind::Up, 300.0, 300.0), ViewInfo::default()).unwrap();
         }
     }
 }
@@ -614,6 +617,30 @@ fn spacing_guides_space_a_dragged_square_like_its_row() {
     assert!(marks >= 2, "both gaps marked");
     set_pref(&mut s, "spacingGuides", json!(false));
     assert_eq!(drag(&mut s), (161.0, 0), "off: where it was dragged");
+}
+
+/// Smart Guides › Invoke Distance Guides: with a square selected, Alt held over another square to
+/// its right shows the gap between them in the document's General unit; with the preference or
+/// View › Smart Guides off, nothing.
+#[test]
+fn invoke_distance_guides_measures_the_selection_to_the_object_under_alt() {
+    use vectorcraft_tools::{Mods, Overlay, PointerKind::Move};
+    let mut s = new_doc();
+    let a = square(&mut s, 100.0, 100.0);
+    square(&mut s, 250.0, 100.0);
+    s.execute("select.set", &json!({"ids": [a.0]})).unwrap();
+    let v = ViewInfo::default();
+    s.select_tool("selection", v).unwrap();
+    let shown = |s: &mut Session, v: ViewInfo| {
+        s.pointer(&PointerEvent::new(Move, 275.0, 125.0).with_mods(Mods { alt: true, ..Mods::default() }), v).unwrap();
+        s.overlays(v).into_iter().filter_map(|o| if let Overlay::Distance { text, .. } = o { Some(text) } else { None }).collect::<Vec<_>>()
+    };
+    assert_eq!(shown(&mut s, v), ["100.00 pt"], "the 100 pt gap; the tops and bottoms are level");
+    s.execute("document.setUnits", &json!({"units": "Millimeters"})).unwrap();
+    assert_eq!(shown(&mut s, v), ["35.28 mm"]);
+    assert!(shown(&mut s, ViewInfo { smart_guides: false, ..v }).is_empty(), "View › Smart Guides off");
+    set_pref(&mut s, "distanceGuides", json!(false));
+    assert!(shown(&mut s, v).is_empty(), "Invoke Distance Guides off");
 }
 
 /// Preferences › Smart Guides (#394): Color, Alignment Guides, Anchor/Path Labels, Measurement
@@ -1058,6 +1085,38 @@ fn type_increments_step_the_type() {
     // The type objects given in `ids` step in full while the tool edits.
     s.execute("type.step", &json!({"attribute": "size", "ids": [id.0]})).unwrap();
     assert_eq!((style_at(&s, id, 0).size, style_at(&s, id, 6).size), (22.0, 25.0));
+}
+
+/// Auto leading steps from the leading its paragraph's Justification › Auto Leading sets, which
+/// is what the layout shows; a run spanning paragraphs with different Auto Leading is split.
+/// Fill with Placeholder Text counts lines at that leading too.
+#[test]
+fn auto_leading_steps_and_fills_from_the_paragraph_auto_leading() {
+    let mut s = new_doc();
+    let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "One\nTwo", "size": 20})).unwrap()["id"].as_u64().unwrap());
+    s.execute("text.setFormat", &json!({"ids": [id.0], "autoLeading": 200, "start": 5, "end": 5})).unwrap();
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.execute("type.step", &json!({"attribute": "leading"})).unwrap();
+    let lead = |s: &Session, byte| style_at(s, id, byte).leading.unwrap();
+    assert!((lead(&s, 0) - (20.0 * 1.2 + 2.0)).abs() < 1e-9, "default Auto Leading 120%");
+    assert!((lead(&s, 3) - (20.0 * 1.2 + 2.0)).abs() < 1e-9, "the line break is the first paragraph's");
+    assert!((lead(&s, 5) - (20.0 * 2.0 + 2.0)).abs() < 1e-9, "Auto Leading 200%");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((style_at(&s, id, 0).leading, style_at(&s, id, 5).leading), (None, None), "one undo step");
+
+    let area = |s: &mut Session, x: f64| {
+        let r = s.execute("text.create", &json!({"x": x, "y": 10, "text": "x", "size": 10, "area": {"width": 100, "height": 200}})).unwrap();
+        NodeId(r["id"].as_u64().unwrap())
+    };
+    let (normal, airy) = (area(&mut s, 10.0), area(&mut s, 200.0));
+    s.execute("text.setFormat", &json!({"ids": [airy.0], "autoLeading": 240})).unwrap();
+    s.execute("type.fillPlaceholder", &json!({"ids": [normal.0, airy.0]})).unwrap();
+    let len = |s: &Session, id: NodeId| match s.doc().unwrap().doc.node(id).map(|n| &n.kind) {
+        Some(vectorcraft_doc::NodeKind::Text(t)) => t.plain_text().len(),
+        _ => panic!("not text"),
+    };
+    let (n, a) = (len(&s, normal), len(&s, airy));
+    assert!(a * 3 < n * 2 && a * 3 > n, "half as many lines at twice the leading: {a} vs {n}");
 }
 
 /// Cmd/Ctrl+Alt+Shift+. and , step the font size by five times the Size/Leading increment, on
@@ -1599,5 +1658,67 @@ fn snap_to_point_cues_anchors_and_lands_pen_clicks_on_them() {
         assert_eq!((p.x, p.y), first, "{v:?}");
         s.execute("edit.undo", &json!({})).unwrap();
         s.execute("select.none", &json!({})).unwrap();
+    }
+}
+
+/// A millimetre document with a rectangle (100, 100)–(300, 250) stroked 1 pt and a vertical
+/// ruler guide at no whole number of millimetres or points (62.31 mm): the rectangle and the
+/// guide's x.
+fn stroked_rect_and_guide() -> (Session, NodeId, f64) {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 600, "height": 600, "units": "Millimeters"})).unwrap();
+    let id = NodeId(s.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 200, "height": 150})).unwrap()["id"].as_u64().unwrap());
+    s.execute("stroke.set", &json!({"weight": 1})).unwrap();
+    let g = 62.31 / 25.4 * 72.0;
+    s.execute("guide.add", &json!({"vertical": true, "pos": g})).unwrap();
+    (s, id, g)
+}
+
+/// #3701: at 3,891%, the Selection tool pressed on a rectangle's 1 pt stroke inside its left edge,
+/// or on its fill 3 px inside it, and dragged until the edge is 1 px from a ruler guide lands the
+/// edge on the guide exactly, with "align". The pressed spot used to be what snapped, so the edge
+/// stopped that far beside the guide however far one zoomed in.
+#[test]
+fn a_move_held_by_a_paths_stroke_lands_the_path_on_a_ruler_guide() {
+    use vectorcraft_tools::Overlay;
+    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    let (mut s, id, g) = stroked_rect_and_guide();
+    let v = ViewInfo { zoom: 38.91, ..ViewInfo::default() };
+    s.select_tool("selection", v).unwrap();
+    // 0.3 pt (12 px) into the stroke, and 3 px into the fill.
+    for x in [100.3, 100.0 + 3.0 / v.zoom] {
+        s.execute("select.none", &json!({})).unwrap();
+        let to = x + g + 1.0 / v.zoom - 100.0;
+        gesture(&mut s, v, &[(Down, x, 175.0), (Drag, (x + to) / 2.0, 175.0), (Drag, to, 175.0)]);
+        let align = s.overlays(v).iter().any(|o| matches!(o, Overlay::Label { text, .. } if text == "align"));
+        gesture(&mut s, v, &[(Up, to, 175.0)]);
+        let edge = top_left(&s, id).0;
+        assert!((edge - g).abs() < 1e-9 && align, "pressed at {x}: the edge is {} pt off the guide (align: {align})", edge - g);
+        s.execute("edit.undo", &json!({})).unwrap();
+    }
+}
+
+/// #3701: at 28,757%, Direct Selection pressed 1.5 px beside a rectangle's straight left side and
+/// dragged until the side is 1 px from a ruler guide lands both its anchors on the guide; so does
+/// the same press and drag on the rectangle selected whole, which moves it.
+#[test]
+fn a_straight_segment_dragged_by_direct_selection_lands_on_a_ruler_guide() {
+    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    let (mut s, id, g) = stroked_rect_and_guide();
+    let v = ViewInfo { zoom: 287.57, ..ViewInfo::default() };
+    s.select_tool("directSelection", v).unwrap();
+    for whole in [false, true] {
+        s.execute("select.set", &json!({"ids": if whole { vec![id.0] } else { vec![] }})).unwrap();
+        let x = 100.0 + 1.5 / v.zoom;
+        let to = x + g + 1.0 / v.zoom - 100.0;
+        gesture(&mut s, v, &[(Down, x, 175.0), (Drag, (x + to) / 2.0, 175.0), (Drag, to, 175.0), (Up, to, 175.0)]);
+        let mut xs: Vec<f64> = s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().subpaths[0].anchors.iter().map(|a| a.p.x).collect();
+        xs.sort_by(f64::total_cmp);
+        assert!(
+            xs[..2].iter().all(|x| (x - g).abs() < 1e-9),
+            "whole: {whole}, the side's anchors are {:?} pt off the guide",
+            xs[..2].iter().map(|x| x - g).collect::<Vec<_>>()
+        );
+        s.execute("edit.undo", &json!({})).unwrap();
     }
 }
