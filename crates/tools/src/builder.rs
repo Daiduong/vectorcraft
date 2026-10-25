@@ -177,8 +177,8 @@ fn collect_members<'a>(n: &'a Node, builder: bool, out: &mut Vec<&'a Node>) {
         NodeKind::Path { guide: true, .. } | NodeKind::Path { clipping: true, .. } => {}
         NodeKind::Path { .. } | NodeKind::Compound { .. } => out.push(n),
         NodeKind::Group { .. } if builder && is_live_paint(n) => {
-            out.extend(faces(n).into_iter().filter(|f| !f.visible || !f.appearance.fill_paint().is_none()).map(|f| &**f));
-            out.extend(edges(n).into_iter().filter(|e| !e.visible || !e.appearance.stroke_paint().is_none()).map(|e| &**e));
+            out.extend(faces(n).into_iter().filter(|f| !f.visible || f.locked || !f.appearance.fill_paint().is_none()).map(|f| &**f));
+            out.extend(edges(n).into_iter().filter(|e| !e.visible || e.locked || !e.appearance.stroke_paint().is_none()).map(|e| &**e));
         }
         NodeKind::Group { children, .. } | NodeKind::Layer { children, .. } => {
             for c in children {

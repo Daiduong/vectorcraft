@@ -2317,6 +2317,33 @@ fn shape_builder_merge_keeps_a_hidden_live_paint_face() {
     assert!((area(&s, kept[0].id) - 5000.0).abs() < 1.0, "{}", area(&s, kept[0].id));
 }
 
+/// A locked face without a fill and a locked edge without a stroke, in a Live Paint group the
+/// merge replaces, each keep a copy, still locked.
+#[test]
+fn shape_builder_merge_keeps_unpainted_locked_live_paint_members() {
+    let mut s = session();
+    let g = live(&mut s);
+    s.execute("livePaint.fill", &json!({"group": g.0, "point": [125, 50], "none": true})).unwrap();
+    let n = node(&s, g);
+    let face = vectorcraft_tools::builder::face_at(&n, Point::new(125.0, 50.0)).unwrap().id;
+    let edge = vectorcraft_tools::builder::visible_edge_near(&n, Point::new(150.0, 50.0), 4.0).unwrap().id;
+    let names = (node(&s, face).name, node(&s, edge).name);
+    assert_ne!(names.0, names.1);
+    s.edit("t", |d, _| {
+        d.node_mut(edge).unwrap().appearance.set_stroke(Paint::None);
+        Ok(())
+    })
+    .unwrap();
+    s.execute("object.lock", &json!({"ids": [face.0, edge.0]})).unwrap();
+    s.execute("select.set", &json!({"ids": [g.0]})).unwrap();
+    let r = s.execute("shapeBuilder.merge", &json!({"points": [[25, 50], [75, 50]]})).unwrap();
+    assert!(s.doc().unwrap().doc.node(g).is_none());
+    let kept: Vec<Node> = ids(&r).into_iter().map(|i| node(&s, i)).filter(|n| n.locked).collect();
+    let faces = kept.iter().filter(|n| n.name == names.0 && n.appearance.fill_paint().is_none() && (area(&s, n.id) - 5000.0).abs() < 1.0).count();
+    let edges = kept.iter().filter(|n| n.name == names.1 && n.appearance.stroke_paint().is_none()).count();
+    assert_eq!((kept.len(), faces, edges), (2, 1, 1), "{r}");
+}
+
 // ---------- Image Trace ----------
 
 /// A 100×100 image with a black disc (r = 30 px), placed at (50, 50) scaled ×2.
