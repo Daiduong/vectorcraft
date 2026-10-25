@@ -77,7 +77,7 @@ fn dwg_place_is_one_editable_group_and_one_undo_step() {
 #[test]
 fn dwg_import_saves_as_native_without_overwriting_the_source() {
     let mut session = Session::new();
-    let read = read_for_open("drawing.dwg", DRAWING, Some("/tmp/source-3450.dwg".into()), &json!({}), false).unwrap();
+    let read = read_for_open("drawing.dwg", DRAWING, Some("/tmp/source-3450.dwg".into()), &json!({}), false, false).unwrap();
     open_read(&mut session, read).unwrap();
     assert!(session.doc().unwrap().path.is_none());
     let saved = session.execute("document.serialize", &json!({"format": "vectorcraft"})).unwrap();
