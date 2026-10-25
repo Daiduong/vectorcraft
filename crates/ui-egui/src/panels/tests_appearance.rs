@@ -901,6 +901,63 @@ fn after_a_name_click_delete_reaches_the_appearance_panel_not_edit_clear() {
     }
 }
 
+/// After a click on a group's Contents row or a type object's Characters link, Delete stays with
+/// the panel: the row can't be removed, so nothing is, and Edit › Clear doesn't delete the object.
+#[test]
+fn after_a_contents_click_delete_removes_nothing() {
+    let group = || {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        run(&mut app, "file.new", json!({"width": 100, "height": 100}));
+        let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
+        let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
+        run(&mut app, "select.set", json!({"ids": [a, b]}));
+        run(&mut app, "object.group", json!({}));
+        run(&mut app, "appearance.addFill", json!({}));
+        app
+    };
+    let type_object = || {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        run(&mut app, "file.new", json!({"width": 100, "height": 100}));
+        let t = run(&mut app, "text.create", json!({"x": 10, "y": 50, "text": "Hi"}))["id"].clone();
+        run(&mut app, "select.set", json!({"ids": [t]}));
+        app
+    };
+    for (mut app, label) in [(group(), "Contents"), (type_object(), "Characters")] {
+        let ctx = drop_ctx();
+        let before = first_selected(&app).unwrap().clone();
+        let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
+        // The Contents row's empty space; the Characters name, a link.
+        let r = text_rect(&texts, label);
+        let at = if label == "Contents" { r.right_center() + egui::vec2(40.0, 0.0) } else { r.center() };
+        app_click(&ctx, &mut app, at, boxed_panel);
+        app_key(&ctx, &mut app, egui::Key::Delete, boxed_panel);
+        let after = first_selected(&app).unwrap_or_else(|| panic!("{label}: the object stays"));
+        assert_eq!(after.appearance, before.appearance, "{label}: nothing is removed");
+    }
+}
+
+/// After a Shift-click on a fill/stroke row's swatch (which opens the Color panel on it), Delete
+/// removes that row, not the object.
+#[test]
+fn after_a_shift_click_on_a_swatch_delete_removes_its_row() {
+    let ctx = drop_ctx();
+    let mut app = app_with_rect();
+    let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
+    // The swatch: 61 pt right of where the row's name starts.
+    let r = text_rect(&texts, "Stroke:");
+    let at = egui::pos2(r.left() + 61.0, r.center().y);
+    let shift = egui::Modifiers::SHIFT;
+    let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: shift };
+    for e in [egui::Event::PointerMoved(at), button(true), button(false)] {
+        app_frame(&ctx, &mut app, vec![egui::Event::ModifiersChanged(shift), e], boxed_panel);
+    }
+    app_frame(&ctx, &mut app, vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)], boxed_panel);
+    assert_eq!(app.session.appearance_item(), Some(1), "the Shift-click selects the stroke row");
+    app_key(&ctx, &mut app, egui::Key::Delete, boxed_panel);
+    assert!(first_selected(&app).is_some(), "the object stays");
+    assert_eq!(stack_items(&app), [(true, None)], "the stroke goes");
+}
+
 /// The Layers panel in a 300×500 pt area at the top left, so clicks can land outside it.
 fn boxed_layers(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::layers::show(app, ui));

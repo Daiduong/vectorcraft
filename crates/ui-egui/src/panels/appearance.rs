@@ -887,6 +887,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
         let name = name_link(ui, at, "ap-characters-link", tl!(label));
         if name.clicked() {
             select_row(app, ui.ctx(), Sel::Contents);
+            super::set_row_keys(ui.ctx(), ROW_KEYS, true);
             open_popup(app, "character");
         }
         Some(name)
@@ -909,6 +910,8 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
     };
     if resp.clicked() || resp.double_clicked() {
         select_row(app, ui.ctx(), Sel::Contents);
+        // The panel has the keyboard (Delete then removes nothing, rather than the object).
+        super::set_row_keys(ui.ctx(), ROW_KEYS, true);
     }
     if resp.double_clicked() {
         if characters {
@@ -1165,7 +1168,10 @@ fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, 
     let mixer = resp.clicked() && ui.input(|inp| inp.modifiers.shift);
     if mixer {
         match target {
-            Painted::Item(i) => select_row(app, ui.ctx(), Sel::Item(i)),
+            Painted::Item(i) => {
+                select_row(app, ui.ctx(), Sel::Item(i));
+                super::set_row_keys(ui.ctx(), ROW_KEYS, true);
+            }
             Painted::NewArt { fill } => {
                 app.run("paint.toggleActive", json!({ "fill": fill })).ok();
             }
