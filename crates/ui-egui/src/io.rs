@@ -365,13 +365,41 @@ pub fn is_host_path(name: &str) -> bool {
     })
 }
 
-/// Open a file that arrived on the web (picked or dropped). A file from a host's storage arrives
-/// under its host path ([`is_host_path`]) and keeps it, so File › Save writes back there.
+/// Open a file that arrived on the web (picked or dropped).
 pub(crate) fn open_arrived(app: &mut VectorcraftApp, name: &str, bytes: &[u8]) -> Result<Value, String> {
-    if is_host_path(name) {
-        return open_bytes(app, &fileio::file_name(name), bytes, Some(name.to_string()));
+    let (file, path) = arrival(name);
+    open_bytes(app, &file, bytes, path)
+}
+
+/// The file name and path to open an arrived file under. A document from a host's storage arrives
+/// under its host path ([`is_host_path`]) and keeps it, so File › Save writes back there. Scripts,
+/// presets and libraries are read from their bytes: nothing on the web can read a host path.
+fn arrival(name: &str) -> (String, Option<String>) {
+    if !is_host_path(name) {
+        return (name.to_string(), None);
     }
-    open_bytes(app, name, bytes, None)
+    let file = fileio::file_name(name);
+    let path = opens_as(&file).is_none().then(|| name.to_string());
+    (file, path)
+}
+
+/// A web save that didn't go through after all: the host's storage failed or was cancelled after
+/// the save had returned. The documents saved as `name` (a host path, or a download's file name)
+/// count as modified again, so closing them asks first.
+pub fn mark_unsaved(app: &mut VectorcraftApp, name: &str) {
+    let uids: Vec<u64> = app
+        .session
+        .documents()
+        .iter()
+        .filter(|st| st.path.as_deref().is_some_and(|p| p == name || (!is_host_path(name) && fileio::file_name(p) == name)))
+        .map(|st| st.uid)
+        .collect();
+    for uid in uids {
+        if let Some(st) = app.session.document_mut(uid) {
+            st.mark_unsaved();
+        }
+    }
+    app.status(format!("Not saved: {}", fileio::file_name(name)));
 }
 
 /// The web saves by downloading: no save panel, no folders.
@@ -1245,6 +1273,34 @@ mod tests {
         // A bare name still downloads under its file name.
         save(&mut app, SaveMode::Save, &json!({"path": "/tmp/Other.vectorcraft"}), false).unwrap();
         assert_eq!(written.borrow().last().map(|(n, _)| n.as_str()), Some("Other.vectorcraft"));
+    }
+
+    /// A save the host's storage turns down after it returned leaves the document modified.
+    #[test]
+    fn a_host_save_that_fails_later_leaves_the_document_modified() {
+        let download: crate::DownloadFn = Box::new(|_: &str, _: &[u8]| Ok(()));
+        let mut app = VectorcraftApp::new(Session::new(), Services { download: Some(download), ..Default::default() });
+        app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
+        save(&mut app, SaveMode::Save, &json!({"path": "cloud:home/art/Poster.vectorcraft"}), false).unwrap();
+        assert!(!app.session.doc().unwrap().is_dirty());
+        mark_unsaved(&mut app, "cloud:home/art/Poster.vectorcraft");
+        assert!(app.session.doc().unwrap().is_dirty());
+        // A download's file name finds the document too.
+        save(&mut app, SaveMode::Save, &json!({"path": "/tmp/Other.vectorcraft"}), false).unwrap();
+        mark_unsaved(&mut app, "Other.vectorcraft");
+        assert!(app.session.doc().unwrap().is_dirty());
+    }
+
+    /// Only documents keep a host path; a script or library from the host is read from its bytes.
+    #[test]
+    fn only_documents_keep_a_host_path() {
+        assert_eq!(arrival("cloud:home/art/logo.svg"), (String::from("logo.svg"), Some(String::from("cloud:home/art/logo.svg"))));
+        assert_eq!(arrival("logo.svg"), (String::from("logo.svg"), None));
+        let ext = vectorcraft_engine::cmd::scripts::EXTS[0];
+        assert_eq!(arrival(&format!("cloud:home/run.{ext}")), (format!("run.{ext}"), None));
+        let ext = vectorcraft_engine::cmd::swatchlib::LIBRARY_EXTS[0];
+        assert_eq!(arrival(&format!("cloud:home/colors.{ext}")), (format!("colors.{ext}"), None));
     }
 
     #[test]

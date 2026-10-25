@@ -370,6 +370,9 @@ impl eframe::App for WebShell {
             self.restart(&why);
         }
         let Some(app) = &mut self.app else { return };
+        for name in crate::storage::take_unsaved() {
+            vectorcraft_ui_egui::io::mark_unsaved(app, &name);
+        }
         app.tick(ctx);
         crate::api::poll_replies();
         app.finish_ime_logic(ctx);

@@ -16,6 +16,9 @@
 //! Host paths have a scheme of their own, such as `cloud:home/art/logo.svg`
 //! ([`vectorcraft_ui_egui::io::is_host_path`]): a document opened from one keeps it, so File › Save
 //! writes back there without asking. Without `window.craftStorage` nothing changes.
+//!
+//! Browsers open a file picker only during a click: when the user picks "This device" in the host's
+//! own dialog, `chooseOpen` should resolve with "device" right from that click.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -41,13 +44,31 @@ async fn call(method: &str, args: &[JsValue]) -> Result<JsValue, JsValue> {
     JsFuture::from(promise).await
 }
 
-fn write(path: String, bytes: &[u8]) {
+thread_local! {
+    /// Saves that didn't happen after the app counted them done: the host failed or the user
+    /// cancelled. The web shell marks those documents modified again ([`take_unsaved`]).
+    static UNSAVED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+fn unsaved(name: String, ctx: &egui::Context) {
+    UNSAVED.with(|u| u.borrow_mut().push(name));
+    ctx.request_repaint();
+}
+
+/// The names or host paths of saves that didn't happen since the last call.
+pub fn take_unsaved() -> Vec<String> {
+    UNSAVED.with(|u| std::mem::take(&mut *u.borrow_mut()))
+}
+
+async fn write(path: &str, bytes: &[u8]) -> bool {
     let args = [JsValue::from(path), js_sys::Uint8Array::from(bytes).into()];
-    wasm_bindgen_futures::spawn_local(async move {
-        if let Err(e) = call("write", &args).await {
+    match call("write", &args).await {
+        Ok(_) => true,
+        Err(e) => {
             log::error!("vectorcraft-web: craftStorage.write failed: {e:?}");
+            false
         }
-    });
+    }
 }
 
 /// Wrap the async open and the download in `services` so they offer the host's storage when the
@@ -56,6 +77,7 @@ fn write(path: String, bytes: &[u8]) {
 pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
     if let Some(device_open) = services.open_async.take() {
         let device_open = Rc::new(RefCell::new(device_open));
+        let (inbox, ctx) = (inbox.clone(), ctx.clone());
         services.open_async = Some(Box::new(move || {
             if storage().is_none() {
                 return (device_open.borrow_mut())();
@@ -79,25 +101,27 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
     if let Some(device_download) = services.download.take() {
         let device_download = Rc::new(RefCell::new(device_download));
         services.download = Some(Box::new(move |name: &str, bytes: &[u8]| {
-            // File › Save of a document from the host: straight back to its path.
-            if is_host_path(name) && storage().is_some() {
-                write(name.to_string(), bytes);
-                return Ok(());
-            }
             if storage().is_none() {
                 return (device_download.borrow_mut())(name, bytes);
             }
-            // Anything else the app would download (Save As, exports): ask where it goes.
-            let (device_download, name, bytes) = (device_download.clone(), name.to_string(), bytes.to_vec());
+            // The save counts as done now; one that doesn't happen marks the document modified again.
+            let (device_download, name, bytes, ctx) = (device_download.clone(), name.to_string(), bytes.to_vec(), ctx.clone());
             wasm_bindgen_futures::spawn_local(async move {
-                match call("chooseSave", &[name.clone().into()]).await {
-                    Ok(c) if c.is_null() => {}
-                    Ok(c) if c.as_string().is_some_and(|p| is_host_path(&p)) => write(c.as_string().unwrap_or_default(), &bytes),
-                    _ => {
-                        if let Err(e) = (device_download.borrow_mut())(&name, &bytes) {
-                            log::error!("vectorcraft-web: download of {name} failed: {e}");
-                        }
+                let saved = if is_host_path(&name) {
+                    // File › Save of a document from the host: straight back to its path.
+                    write(&name, &bytes).await
+                } else {
+                    // Anything else the app would download (Save As, exports): ask where it goes.
+                    match call("chooseSave", &[name.clone().into()]).await {
+                        Ok(c) if c.is_null() => false,
+                        Ok(c) if c.as_string().is_some_and(|p| is_host_path(&p)) => write(&c.as_string().unwrap_or_default(), &bytes).await,
+                        _ => (device_download.borrow_mut())(&name, &bytes)
+                            .inspect_err(|e| log::error!("vectorcraft-web: download of {name} failed: {e}"))
+                            .is_ok(),
                     }
+                };
+                if !saved {
+                    unsaved(name, &ctx);
                 }
             });
             Ok(())
