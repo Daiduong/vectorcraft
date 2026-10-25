@@ -61,8 +61,7 @@ pub(crate) fn hit_rects(ctx: &egui::Context) -> Vec<(craft_ui::docking::Hit<Stri
 /// control the main window drew last frame (`hitRects`, rects in window points).
 pub(crate) fn inspect(app: &VectorcraftApp, ctx: &egui::Context) -> Value {
     let layout = layout_of(&app.ui);
-    let hits: Vec<Value> =
-        hit_rects(ctx).iter().map(|(hit, r)| json!({"hit": hit, "rect": [r.left(), r.top(), r.width(), r.height()]})).collect();
+    let hits: Vec<Value> = hit_rects(ctx).iter().map(|(hit, r)| json!({"hit": hit, "rect": [r.left(), r.top(), r.width(), r.height()]})).collect();
     json!({
         "layout": layout,
         "customized": app.ui.docking.is_some(),
@@ -540,7 +539,8 @@ impl Legacy {
             }
             Self::Icons => {
                 let columns = end_columns(layout);
-                let column = columns.iter().skip(1).find(|c| c.iconic).or_else(|| columns.iter().find(|c| c.iconic)).ok_or("the dock has no icon column")?;
+                let column =
+                    columns.iter().skip(1).find(|c| c.iconic).or_else(|| columns.iter().find(|c| c.iconic)).ok_or("the dock has no icon column")?;
                 if column.groups.iter().any(|g| g.panels.contains(panel)) {
                     return Ok(Vec::new());
                 }
@@ -603,13 +603,7 @@ fn shared_command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<
 
 /// [`shared_command`], with the panel put where `legacy` says instead of where the command puts
 /// it, and its group or floating window then minimized or restored (`minimized`).
-fn shared_command_with(
-    app: &mut VectorcraftApp,
-    id: &str,
-    params: &Value,
-    legacy: Option<Legacy>,
-    minimized: Option<bool>,
-) -> Result<Value, String> {
+fn shared_command_with(app: &mut VectorcraftApp, id: &str, params: &Value, legacy: Option<Legacy>, minimized: Option<bool>) -> Result<Value, String> {
     let mut params = resolve_panels(params)?;
     if let Some(fields) = params.as_object_mut() {
         fields.insert("command".into(), Value::String(id.to_owned()));
@@ -663,10 +657,10 @@ fn shared_command_with(
         }
         (_, Some(_)) => return Err("onto, above, below, icon and a column place belong to window.panel.float and window.panel.dock".into()),
         (command, None) => match command {
-        // Showing it was the whole command (craft-ui's `DockCommand::apply` does the same).
-        DockCommand::Dock { anchor: None, side: None, .. } if shown || returned => Vec::new(),
-        DockCommand::Activate { .. } if shown => Vec::new(),
-        _ => command.to_actions(&txn.workspace, false, &space).map_err(|e| e.to_string())?,
+            // Showing it was the whole command (craft-ui's `DockCommand::apply` does the same).
+            DockCommand::Dock { anchor: None, side: None, .. } if shown || returned => Vec::new(),
+            DockCommand::Activate { .. } if shown => Vec::new(),
+            _ => command.to_actions(&txn.workspace, false, &space).map_err(|e| e.to_string())?,
         },
     };
     if let (Some(minimized), Some(panel)) = (minimized, shows.as_ref()) {
