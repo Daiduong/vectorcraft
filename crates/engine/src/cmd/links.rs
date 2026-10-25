@@ -21,7 +21,8 @@
 //! Link) link to their files the same way: checking, updating, relinking and finding them on open
 //! work alike, and they are listed. Embed (Break Link) turns one into an editable copy of its art.
 
-use std::collections::BTreeMap;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};
 
 use serde_json::{Value, json};
@@ -181,6 +182,8 @@ pub(crate) fn linked_groups(d: &Document) -> Vec<(String, Vec<u64>)> {
 fn groups(d: &Document, ids: Option<&[NodeId]>) -> Vec<Group> {
     let mut out: Vec<Group> = vec![];
     let mut index: BTreeMap<(String, String, bool), usize> = BTreeMap::new();
+    // Looked up for every linked node: a set, not the list (which may repeat an id many times).
+    let wanted: Option<std::collections::HashSet<NodeId>> = ids.map(|ids| ids.iter().copied().collect());
     let mut add = |link: &LinkInfo, key: &str, document: Option<Shown>, id: Option<NodeId>| {
         let i = *index.entry((link.path.clone(), key.to_string(), document.is_some())).or_insert_with(|| {
             out.push(Group { link: link.clone(), key: key.to_string(), ids: vec![], document });
@@ -192,7 +195,7 @@ fn groups(d: &Document, ids: Option<&[NodeId]>) -> Vec<Group> {
     };
     d.walk(|n| {
         if let Some((l, key, document)) = linked(n)
-            && ids.is_none_or(|ids| ids.contains(&n.id))
+            && wanted.as_ref().is_none_or(|ids| ids.contains(&n.id))
         {
             add(l, key, document, Some(n.id));
         }
@@ -228,7 +231,12 @@ impl Found {
 
     /// `base` pointing at this file as read now (`bytes`).
     fn link(&self, bytes: &[u8], base: &LinkInfo) -> LinkInfo {
-        LinkInfo { path: self.path.clone(), size: Some(self.size), modified: self.modified, hash: Some(hash_bytes(bytes)), ..base.clone() }
+        self.link_hashed(hash_bytes(bytes), base)
+    }
+
+    /// [`Self::link`] with the bytes' hash already taken.
+    fn link_hashed(&self, hash: String, base: &LinkInfo) -> LinkInfo {
+        LinkInfo { path: self.path.clone(), size: Some(self.size), modified: self.modified, hash: Some(hash), ..base.clone() }
     }
 }
 
@@ -286,6 +294,18 @@ fn previewing(d: &Document, key: &str) -> bool {
     d.images.get(key).is_none_or(ImageBlob::is_proxy)
 }
 
+/// A linked raster image whose file is an EPS (Preferences › File Handling › Use Low Resolution
+/// Proxy for Linked EPS).
+fn linked_eps(link: &LinkInfo) -> bool {
+    fileio::format_for_name(link.name()).is_some_and(|f| f.id == "eps")
+}
+
+/// With `low_res_proxy_eps`, a linked EPS image that already shows its saved preview keeps it on
+/// open instead of reading the file again (Update Links still reads modified files).
+fn keep_eps_preview(low_res_proxy_eps: bool, g: &Group, d: &Document) -> bool {
+    low_res_proxy_eps && g.document.is_none() && linked_eps(&g.link) && previewing(d, &g.key)
+}
+
 /// Does group `g` of `d` show something other than its file: an image its preview, a placed
 /// document nothing (its file's bytes are gone)?
 fn stale(d: &Document, g: &Group) -> bool {
@@ -324,6 +344,47 @@ pub(crate) fn linked_files(d: &Document, doc_path: Option<&str>) -> Vec<LinkedFi
         .collect()
 }
 
+/// `d` for output: linked raster images that still show only their saved preview read their files
+/// again (Preferences › Use Low Resolution Proxy for Linked EPS keeps the preview on screen only).
+pub(crate) fn full_linked_images<'a>(d: &'a Document, doc_path: Option<&str>) -> (Cow<'a, Document>, Vec<String>) {
+    let mut keys = BTreeSet::new();
+    d.visit_images(|_, im| {
+        if im.link.is_some() && d.images.get(&im.key).is_some_and(ImageBlob::is_proxy) {
+            keys.insert(im.key.clone());
+        }
+    });
+    if keys.is_empty() {
+        return (Cow::Borrowed(d), vec![]);
+    }
+    let mut out = d.clone();
+    let mut previews = BTreeSet::new();
+    let all = groups(d, None);
+    for key in keys {
+        let Some(g) = all.iter().find(|g| g.document.is_none() && g.key == key) else { continue };
+        let Some(mut f) = locate(&g.link, doc_path) else {
+            previews.insert(key);
+            continue;
+        };
+        let Some(bytes) = f.read().ok() else {
+            previews.insert(key);
+            continue;
+        };
+        let Ok(img) = fileio::raster_image(&bytes) else {
+            previews.insert(key);
+            continue;
+        };
+        let preview = d.images.get(&key).map(|b| b.bytes.clone());
+        let mime = fileio::format_for_name(g.link.name()).map(|f| f.mime.to_string()).unwrap_or_else(|| img.blob.mime.clone());
+        out.images.insert(key, ImageBlob { mime, bytes: img.blob.bytes, proxy: preview });
+    }
+    let mut warnings = vec![];
+    if !previews.is_empty() {
+        warnings
+            .push(format!("{} linked image(s) output as their previews: their files can't be found or read (relink or update them)", previews.len()));
+    }
+    (Cow::Owned(out), warnings)
+}
+
 /// The linked files of the open document `st` that `links.findFiles` looks for, each with the
 /// objects in the layers that show it: the files of objects `ids` whatever their status, else the
 /// files that can't be found.
@@ -338,11 +399,12 @@ pub(crate) fn files_to_find(st: &crate::DocState, ids: Option<&[NodeId]>) -> Vec
 // ---------- reading files into the document ----------
 
 /// Keep `full` (a file's pixels) as image `key` of `d`, unless pixels are there already; a
-/// preview there is kept, and a linked image gets one.
+/// preview there is kept, and a linked image gets one (the one `full` carries, when it has one).
 pub(crate) fn store_image(d: &mut Document, key: &str, full: ImageBlob, linked: bool) {
+    let made = full.proxy.clone().filter(|_| linked);
     let blob = match d.images.get(key) {
         Some(b) if !b.is_proxy() => b.clone(),
-        old => ImageBlob { proxy: old.and_then(|b| b.proxy.clone()), ..full },
+        old => ImageBlob { proxy: old.and_then(|b| b.proxy.clone()).or(made), ..full },
     };
     d.images.insert(key.to_string(), if linked { blob.with_proxy() } else { blob });
 }
@@ -485,8 +547,11 @@ fn clip_image(d: &mut Document, id: NodeId, (frame, room): Clip) -> Result<()> {
 /// Replace image `id` with the raster at `path`, keeping the object's bounds (what an image
 /// variable does on `dataset.select`). The file is linked; a missing or unreadable path is an
 /// error so the dataset application can skip that binding.
-pub(crate) fn set_image_from_path(d: &mut Document, id: NodeId, path: &str) -> Result<()> {
-    let path = absolute_path(path);
+pub(crate) fn set_image_from_path(d: &mut Document, id: NodeId, path: &str, doc_path: Option<&str>) -> Result<()> {
+    // A path stored in the document (a data set's value) is followed as its other stored paths
+    // are: on this computer or the document's own share only, so choosing a data set can't make
+    // the app connect to another computer.
+    let path = fileio::document_path(path, doc_path).map_err(|r| EngineError::Other(format!("the image `{path}` isn't followed: {r}")))?;
     let bytes = read_file(&path)?;
     let read = (link_info(&path, &bytes), fileio::raster_image(&bytes)?);
     install(d, &[id], read, Some(Preserve::Bounds))
@@ -559,11 +624,16 @@ impl Resolved {
 /// away from their path take the new path. A link nothing is known of whose image shows a preview
 /// (a file another app wrote kept only that) was never read: its file is read now, into the
 /// image's bounds, which isn't a change to report. Nothing here is an undo step.
-pub fn resolve(d: &mut Document, doc_path: Option<&str>, update: bool) -> Resolved {
+pub fn resolve(d: &mut Document, doc_path: Option<&str>, update: bool, low_res_proxy_eps: bool) -> Resolved {
     let mut out = Resolved::default();
+    // The image (with its preview) and hash of each file read for a preview here, by path: images
+    // of other keys linking to the same file share them, rather than each reading, decoding and
+    // keeping a copy of its own.
+    let mut read_images: BTreeMap<String, (ImageBlob, String)> = BTreeMap::new();
     for g in groups(d, None) {
         let row = rows(std::iter::once(&g), doc_path);
         let unread = g.document.is_none() && g.link.hash.is_none() && g.link.size.is_none() && previewing(d, &g.key);
+        let eps_preview = keep_eps_preview(low_res_proxy_eps, &g, d);
         match probe(&g, doc_path) {
             (Status::Missing, _) => out.missing.extend(row),
             (Status::Modified, Some(mut f)) if update || unread => {
@@ -597,14 +667,24 @@ pub fn resolve(d: &mut Document, doc_path: Option<&str>, update: bool) -> Resolv
             }
             (Status::Ok, Some(mut f)) => {
                 let preview = previewing(d, &g.key);
+                if let Some((blob, hash)) = read_images.get(&f.path).filter(|_| preview && !eps_preview).cloned() {
+                    store_image(d, &g.key, blob, true);
+                    let link = f.link_hashed(hash, &g.link);
+                    if link != g.link {
+                        set_links(d, &g.ids, &link);
+                    }
+                    continue;
+                }
                 // Read when the images show the preview, or when the file's details changed.
-                let bytes = if preview || f.bytes.is_some() { f.read().ok() } else { None };
-                if preview {
-                    let Some(img) = bytes.as_deref().and_then(|b| fileio::raster_image(b).ok()) else {
+                let bytes = if (preview && !eps_preview) || f.bytes.is_some() { f.read().ok() } else { None };
+                if preview && !eps_preview {
+                    let Some((b, img)) = bytes.as_deref().and_then(|b| Some((b, fileio::raster_image(b).ok()?))) else {
                         out.missing.extend(row);
                         continue;
                     };
-                    store_image(d, &g.key, img.blob, true);
+                    let blob = img.blob.with_proxy();
+                    read_images.insert(f.path.clone(), (blob.clone(), hash_bytes(b)));
+                    store_image(d, &g.key, blob, true);
                 } else if let Some(b) = d.images.get(&g.key).filter(|b| b.proxy.is_none()) {
                     // Linked before links kept a preview.
                     let b = b.clone().with_proxy();
@@ -1208,6 +1288,11 @@ fn placement_json(o: PlacementOptions) -> Value {
 
 /// Link Info's fields of the linked file `l` (of object `id` of `st`) into `out`.
 fn file_fields(st: &crate::DocState, id: NodeId, l: &LinkInfo, out: &mut Value) {
+    // Within what the caller that opened the document may read, whoever asks.
+    crate::file_access::confine(st.opened_by.as_ref(), || file_fields_here(st, id, l, out));
+}
+
+fn file_fields_here(st: &crate::DocState, id: NodeId, l: &LinkInfo, out: &mut Value) {
     let status = groups(&st.doc, Some(&[id])).first().map_or(Status::Missing, |g| probe(g, st.path.as_deref()).0);
     let doc_path = st.path.as_deref();
     let path = fileio::document_path(&l.path, doc_path).ok();
