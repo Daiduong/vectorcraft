@@ -3998,6 +3998,7 @@ imageTrace	Outline	轮廓
 @msg	invalid image data for `{0}`	`{0}` 的图像数据无效
 @msg	not a VectorCraft file: {0}	不是 VectorCraft 文件：{0}
 @msg	the compressed file unpacks to more than {_1} MB	压缩文件解压后超过 {_1} MB
+@msg	`{key}: {top}` and `options.{key}: {inner}` disagree: give the option once	`{key}: {top}` 与 `options.{key}: {inner}` 不一致：该选项只能给出一次
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	版本 {0} 的文件不能压缩：只有版本 {COMPRESSED_SINCE} 及更高版本能打开压缩文件
 @msg	a bitmap is empty	某个位图为空
 @msg	a bitmap is too large to read	某个位图过大，无法读取
@@ -4249,6 +4250,7 @@ imageTrace	Outline	轮廓
 @msg	unknown preset (one of {_1})	未知预设 (应为 {_1} 之一)
 @msg	unknown tool or command `{key}`	未知工具或命令 `{key}`
 @msg	{_1} is already used by {_2}	{_1} 已被 {_2} 使用
+@msg	{_1} is reserved by the system	{_1} 已被系统保留
 @msg	Couldn't copy to the system clipboard: {e}	无法复制到系统剪贴板：{e}
 @msg	Couldn't paste from the clipboard: {e}	无法从剪贴板粘贴：{e}
 @msg	nothing selected	未选择任何对象
@@ -5220,6 +5222,7 @@ lighting	Light	光源
 @msg	Persistent libraries not found: {files}	找不到持久库：{files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` 不是库面板 (请参阅 window.swatchLibrary)
 @msg	library panel `{given}` isn't open	库面板 `{given}` 未打开
+@msg	too many changed shortcuts	已更改的快捷键过多
 @msg	library panel `{given}` isn't missing its library	库面板 `{given}` 的库未缺失
 @msg	too many library panels were opened in this session	本次会话中打开的库面板过多
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	图像为 {_1} × {_2} 像素，某一边超过 {LARGE_TRACE_SIDE}：会进行描摹，但速度较慢。使用保真度较低的预设或图像的较小副本会更快。

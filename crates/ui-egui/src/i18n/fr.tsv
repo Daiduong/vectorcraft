@@ -4346,6 +4346,7 @@ axis	Both	Les deux
 @msg	unsupported: {0}	non pris en charge : {0}
 @msg	variables are locked	les variables sont verrouillées
 @msg	variables that aren't text were left out: {kinds}	les variables qui ne sont pas du texte ({kinds}) ont été ignorées
+@msg	`{key}: {top}` and `options.{key}: {inner}` disagree: give the option once	`{key}: {top}` et `options.{key}: {inner}` ne concordent pas. Indiquez l’option une seule fois
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	les fichiers de version {0} ne peuvent pas être compressés : seules les versions {COMPRESSED_SINCE} et ultérieures ouvrent les fichiers compressés
 @msg	width and height are at least 1 pixel	la largeur et la hauteur valent au moins 1 pixel
 @msg	workspace name can't be empty	le nom de l’espace de travail ne peut pas être vide
@@ -4359,6 +4360,7 @@ axis	Both	Les deux
 @msg	{_1} is an exporter (File › Export › Export As…)	{_1} est un module externe d’exportation (Fichier › Exporter › Exporter sous…)
 @msg	`documentData` is {size} bytes (limit {MAX_DOCUMENT_DATA})	`documentData` fait {size} octets (limite {MAX_DOCUMENT_DATA})
 @msg	{_1} is already used by {_2}	{_1} est déjà utilisé par {_2}
+@msg	{_1} is reserved by the system	{_1} est réservé par le système
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} fichier(s) lié(s) illisible(s) ici : leurs aperçus sont affichés
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} image(s) liée(s) modifiée(s) sur le disque : Mettre à jour les liens affiche les nouvelles versions
 @msg	Updated {_1} linked file(s) changed on disk	{_1} fichier(s) lié(s) modifié(s) sur le disque mis à jour
@@ -5387,6 +5389,7 @@ theme	Appearance	Apparence
 @msg	Persistent libraries not found: {files}	Bibliothèques persistantes introuvables : {files}
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` n’est pas un panneau de bibliothèque (voir window.swatchLibrary)
 @msg	library panel `{given}` isn't open	le panneau de bibliothèque `{given}` n’est pas ouvert
+@msg	too many changed shortcuts	trop de raccourcis modifiés
 @msg	library panel `{given}` isn't missing its library	la bibliothèque du panneau de bibliothèque `{given}` ne manque pas
 @msg	too many library panels were opened in this session	trop de panneaux de bibliothèque ont été ouverts dans cette session
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	L’image fait {_1} × {_2} pixels, plus de {LARGE_TRACE_SIDE} sur un côté : elle est vectorisée, mais plus lentement. Un paramètre prédéfini moins fidèle ou une copie plus petite de l’image se vectorise plus vite.
