@@ -742,29 +742,44 @@ mod tests {
     }
 
     /// General › Scroll Sideways with Cmd/Ctrl + Wheel: its checkbox is dimmed while Zoom with
-    /// Mouse Wheel is checked in the dialog.
+    /// Mouse Wheel is checked in the dialog, and a click on it then leaves the setting as it was.
     #[test]
     fn scroll_sideways_with_cmd_wheel_dims_with_zoom_with_mouse_wheel() {
-        fn color(s: &egui::Shape, label: &str) -> Option<egui::Color32> {
+        fn label(s: &egui::Shape, text: &str) -> Option<(egui::Color32, egui::Rect)> {
             match s {
-                egui::Shape::Text(t) if t.galley.text() == label => t.galley.job.sections.first().map(|s| s.format.color),
-                egui::Shape::Vec(v) => v.iter().find_map(|s| color(s, label)),
+                egui::Shape::Text(t) if t.galley.text() == text => t.galley.job.sections.first().map(|s| (s.format.color, t.visual_bounding_rect())),
+                egui::Shape::Vec(v) => v.iter().find_map(|s| label(s, text)),
                 _ => None,
             }
         }
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let label = |zoom: bool| {
-            let mut d = Dialog::new("preferences", json!({"zoomWithMouseWheel": zoom}));
-            let raw =
-                egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 900.0))), ..Default::default() };
-            let mut out = ctx.run_ui(raw, |ui| category_fields(ui, &mut d, "General"));
+        let frame = |d: &mut Dialog, events: Vec<egui::Event>| {
+            let raw = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 900.0))),
+                events,
+                ..Default::default()
+            };
+            let mut out = ctx.run_ui(raw, |ui| category_fields(ui, d, "General"));
             out.textures_delta.clear();
-            out.shapes.iter().find_map(|c| color(&c.shape, "Scroll Sideways with Cmd/Ctrl + Wheel"))
+            out.shapes.iter().find_map(|c| label(&c.shape, "Scroll Sideways with Cmd/Ctrl + Wheel"))
         };
         let t = Tokens::get(&ctx);
-        assert_eq!(label(false), Some(t.text), "enabled while Zoom with Mouse Wheel is off");
-        assert_eq!(label(true), Some(t.text_disabled), "dimmed while it is on");
+        for (zoom, color, what) in [(false, t.text, "enabled while Zoom with Mouse Wheel is off"), (true, t.text_disabled, "dimmed while it is on")] {
+            let mut d = Dialog::new("preferences", json!({"zoomWithMouseWheel": zoom, "ctrlWheelScrollsSideways": true}));
+            let (shown, at) = frame(&mut d, vec![]).unwrap_or_else(|| panic!("no label ({what})"));
+            assert_eq!(shown, color, "{what}");
+            let press = |pressed| egui::Event::PointerButton {
+                pos: at.center(),
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            frame(&mut d, vec![egui::Event::PointerMoved(at.center()), press(true)]);
+            frame(&mut d, vec![press(false)]);
+            // A click turns it off while it is enabled, and leaves it on while it is dimmed.
+            assert_eq!(d.fields["ctrlWheelScrollsSideways"], json!(zoom), "after a click, {what}");
+        }
     }
 
     /// 0.5.0 saved `powerSaving` for everyone (its default): it reads as Automatic, while the
