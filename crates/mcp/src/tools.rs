@@ -2,7 +2,7 @@
 //! [`Backend`].
 
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::fileio::{ARTBOARD_PARAMS, FORMATS, OPEN_EXTS, SAVE_FORMATS, format, writable_format};
+use vectorcraft_engine::cmd::fileio::{ARTBOARD_PARAMS, FORMATS, OPEN_EXTS, SAVE_FORMATS, format, save_reads_option, writable_format};
 
 use crate::backend::Backend;
 
@@ -36,6 +36,8 @@ fn num(desc: &str) -> Value {
 fn string(desc: &str) -> Value {
     json!({"type": "string", "description": desc})
 }
+/// The arguments `save_file` passes on to `document.save` beside `path`.
+const SAVE_FILE_OPTIONS: [&str; 4] = ["compress", "version", "preview", "options"];
 /// The arguments `doc_inspect` / `inspect_document` pass on to `document.inspect`.
 const INSPECT_KEYS: [&str; 6] = ["depth", "childLimit", "ids", "kind", "limit", "offset"];
 
@@ -288,7 +290,7 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "set_paint",
             "Set paint",
-            "Set fill, stroke and/or stroke weight on the selection (or `ids`) and as the default for new art.",
+            "Set fill, stroke and/or stroke weight on the selection (or `ids`) and as the default for new art. Returns {applied, objects}: `objects` counts the objects painted, as paint.setFill, paint.setStroke and stroke.set report them (the largest of their counts); when it is 0, a `note` says that only the default for new art changed.",
             obj(
                 json!({
                     "fill": paint_schema("Fill"),
@@ -361,10 +363,19 @@ pub fn tool_definitions() -> Vec<Value> {
             "save_file",
             "Save file",
             &format!(
-                "Save the active document with the engine's document.save: by default to its own file in its own format (native .vectorcraft unless it was opened from or saved as SVG, PDF or a restorable .ai). With `path`, the extension picks the format: .{}. Other formats are exports (see export). The reply's `format` says what was written and `warnings` what that format loses. In the running app the call returns once the file is written, or with the error, even with Background Save on. When the save asks first (before replacing a file that opened with losses, or with a file dialog for an untitled document without `path`), the reply is `pending` or \"cancelled\" as before.",
+                "Save the active document with the engine's document.save: by default to its own file in its own format (native .vectorcraft unless it was opened from or saved as SVG, PDF or a restorable .ai). With `path`, the extension picks the format: .{}. Other formats are exports (see export). A native file is gzipped when `compress` is true (default: the useCompression preference, Preferences > File Handling > Use Compression); `version` writes it for an older VectorCraft and `preview` embeds a PNG of the first artboard. `options` carries the format's save options (see run_command document.formats); giving `compress`, `version` or `preview` both at the top level and in `options` with different values is an error. The reply's `format` says what was written and `warnings` what that format loses and each option given that the format doesn't read (such as `compress` for .svg). In the running app the call returns once the file is written, or with the error, even with Background Save on. When the save asks first (before replacing a file that opened with losses, or with a file dialog for an untitled document without `path`), the reply is `pending` or \"cancelled\" as before.",
                 save_extensions().join(", .")
             ),
-            obj(json!({"path": string("Destination; its extension picks the format (default: the document's own file)")}), &[]),
+            obj(
+                json!({
+                    "path": string("Destination; its extension picks the format (default: the document's own file)"),
+                    "compress": {"type": "boolean", "description": "Native files: gzip the file (default: the useCompression preference)"},
+                    "version": {"type": "integer", "minimum": 1, "maximum": vectorcraft_format::VERSION, "description": "Native files: the format version to write (default: the current one; 1 and 2 are never compressed)"},
+                    "preview": {"type": "boolean", "description": "Native files: embed a PNG of the first artboard, at most 256 px (default false)"},
+                    "options": {"type": "object", "description": "The format's save options, passed through (see run_command document.formats); default: as last saved"},
+                }),
+                &[],
+            ),
             false,
         ),
         tool(
@@ -377,7 +388,7 @@ pub fn tool_definitions() -> Vec<Value> {
                     "path": string("Destination file (omit to get dataBase64)"),
                     "scale": num("Raster pixels per point (default 1)"),
                     "artboard": {"type": "integer", "minimum": 0, "description": "0-based artboard (default: the first; PDF and .ai default: all)"},
-                    "range": string("1-based artboards such as \"1-3, 5\" (PDF and .ai: one page each; SVG and SVGZ: one file each; EPS: one file each, after a central file of the whole document when there are two or more; rasters, DXF, EMF and WMF: one, or one file each with options.useArtboards: true)"),
+                    "range": string("1-based artboards such as \"1-3, 5\" (PDF and .ai: one page each; SVG and SVGZ: one file each; EPS: one file each, after a central file of the whole document when there are two or more and art shows; rasters, DXF, EMF and WMF: one, or one file each with options.useArtboards: true)"),
                     "selection": {"type": "boolean", "description": "Export only the selection, cropped to it"},
                     "outlineText": {"type": "boolean", "description": "SVG/SVGZ: true writes text as outlines (viewable without the fonts). DXF takes it too (type outlined anyway unless preserve: editability). PDF uses options.advanced.outlineText instead (default false: live text)"},
                     "options": {"type": "object", "description": "More format options, passed through (see run_command document.formats), e.g. {\"quality\": 80} for jpg or {\"advanced\": {\"outlineText\": true}} for PDF text as outlines (default false: live text)"},
@@ -509,11 +520,11 @@ fn req_str<'a>(a: &'a Args, k: &str) -> Result<&'a str, String> {
     a.get(k).and_then(Value::as_str).filter(|s| !s.is_empty()).ok_or_else(|| format!("missing string argument `{k}`"))
 }
 
-/// A file tool's path made absolute against this process's working directory. An empty path is
-/// returned as given.
-fn absolute_path(p: &str) -> Result<String, String> {
-    if p.is_empty() {
-        return Ok(String::new());
+/// A file tool's path made absolute against this process's working directory when it goes to the app
+/// (`--connect`). Headless, and for an empty path, it is returned as given.
+fn absolute_path(b: &dyn Backend, p: &str) -> Result<String, String> {
+    if p.is_empty() || !b.has_ui() {
+        return Ok(p.to_owned());
     }
     let abs = std::path::absolute(p).map_err(|e| format!("{p}: {e}"))?;
     abs.into_os_string().into_string().map_err(|abs| format!("{p}: the absolute path {} is not UTF-8", abs.to_string_lossy()))
@@ -579,15 +590,20 @@ fn paint_steps(a: &Args) -> Result<(Vec<Step<'static>>, Map<String, Value>), Str
     Ok((steps, applied))
 }
 
-fn apply_paint(b: &mut dyn Backend, a: &Args, ids: Option<Value>) -> Result<Value, String> {
+/// Sets the paint `a` gives on `ids` (default: the selection) and as the default for new art.
+/// Returns the paint applied and the most objects one of its edits painted (the `objects` of the
+/// `paint.setFill`, `paint.setStroke` and `stroke.set` replies).
+fn apply_paint(b: &mut dyn Backend, a: &Args, ids: Option<Value>) -> Result<(Value, u64), String> {
     let (steps, applied) = paint_steps(a)?;
+    let mut objects = 0;
     for (cmd, mut p) in steps {
         if let Some(ids) = &ids {
             p["ids"] = ids.clone();
         }
-        exec(b, cmd, p)?;
+        let r = exec(b, cmd, p)?;
+        objects = objects.max(r.get("objects").and_then(Value::as_u64).unwrap_or(0));
     }
-    Ok(Value::Object(applied))
+    Ok((Value::Object(applied), objects))
 }
 
 /// Checks `draw_path` / `draw_shape`'s `dash`, `cap`, `join`, `opacity`, `name` and `effects`
@@ -827,7 +843,7 @@ fn transform(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
 }
 
 fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
-    let path = a.get("path").and_then(Value::as_str).map(absolute_path).transpose()?;
+    let path = a.get("path").and_then(Value::as_str).map(|p| absolute_path(b, p)).transpose()?;
     let path = path.as_deref();
     let window = a.get("window").and_then(Value::as_bool) == Some(true);
     let max = max_side(a)?;
@@ -1052,8 +1068,14 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
             if !["fill", "stroke", "strokeWidth"].iter().any(|k| a.contains_key(*k)) {
                 return Err("give at least one of `fill`, `stroke`, `strokeWidth`".into());
             }
-            let ids = a.get("ids").cloned();
-            j(json!({"applied": apply_paint(b, a, ids)?}))
+            let (applied, objects) = apply_paint(b, a, a.get("ids").cloned())?;
+            let mut reply = json!({"applied": applied, "objects": objects});
+            if objects == 0 {
+                reply["note"] = json!(
+                    "no object was painted (nothing selected, or `ids` is empty or holds no object this paint applies to): only the paint for new art changed"
+                );
+            }
+            j(reply)
         }
         "press_key" => {
             let mut p = json!({"key": req_str(a, "key")?});
@@ -1073,15 +1095,30 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
             j(b.call("ui.set", json!({"panel": req_str(a, "panel")?}))?)
         }
         "screenshot" => screenshot(b, a),
-        "open_file" => j(b.call("app.open", json!({"path": absolute_path(req_str(a, "path")?)?}))?),
+        "open_file" => {
+            let path = absolute_path(b, req_str(a, "path")?)?;
+            j(b.call("app.open", json!({"path": path}))?)
+        }
         "save_file" => {
-            let mut p = json!({"path": a.get("path").and_then(Value::as_str).map(absolute_path).transpose()?});
+            let mut p = json!({"path": a.get("path").and_then(Value::as_str).map(|p| absolute_path(b, p)).transpose()?});
+            for k in SAVE_FILE_OPTIONS {
+                if let Some(v) = a.get(k).filter(|v| !v.is_null()) {
+                    p[k] = v.clone();
+                }
+            }
             // The app writes the file before it replies, even with Background Save on, so a failed
             // save is this call's error.
             if b.has_ui() {
                 p["wait"] = json!(true);
             }
-            j(b.call("app.save", p)?)
+            let mut r = b.call("app.save", p)?;
+            let notes = save_file_warnings(a, r.get("format").and_then(Value::as_str));
+            if let Some(o) = r.as_object_mut().filter(|_| !notes.is_empty()) {
+                let mut all = o.get("warnings").and_then(Value::as_array).cloned().unwrap_or_default();
+                all.extend(notes.into_iter().map(Value::from));
+                o.insert("warnings".into(), Value::Array(all));
+            }
+            j(r)
         }
         "export" => {
             // One params object for every backend; the named arguments win over `options` (a named
@@ -1098,7 +1135,7 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
                 }
             }
             if let Some(path) = params.get("path").and_then(Value::as_str) {
-                let path = absolute_path(path)?;
+                let path = absolute_path(b, path)?;
                 params.insert("path".into(), json!(path));
             }
             let cmd = if a.get("selection").and_then(Value::as_bool) == Some(true) { "document.exportSelection" } else { "document.export" };
@@ -1157,6 +1194,20 @@ fn named_export_params(a: &Args) -> &'static [&'static str] {
     } else {
         &["path", "format", "artboard", "range", "outlineText"]
     }
+}
+
+/// What `save_file` with arguments `a` adds to the save's `warnings`, for a file written in format
+/// `written` (none when nothing was written yet): each key in `options` that the format doesn't
+/// read. The save itself warns about `compress`, `version` and `preview` given at the top level.
+fn save_file_warnings(a: &Args, written: Option<&str>) -> Vec<String> {
+    let Some(f) = written.and_then(format) else { return vec![] };
+    let nested = a.get("options").and_then(Value::as_object);
+    nested
+        .into_iter()
+        .flatten()
+        .filter(|(key, v)| !v.is_null() && !save_reads_option(f, key))
+        .map(|(key, _)| format!("`options.{key}` was not used: {} files don't read it", f.label))
+        .collect()
 }
 
 /// Run one tool. Failures (unknown tool, bad arguments, command errors) come back as an

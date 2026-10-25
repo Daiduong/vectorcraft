@@ -898,7 +898,7 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
         Cursor::Width | Cursor::WidthAdd => C::Crosshair,
         Cursor::WidthPoint => C::Move,
         Cursor::Blend | Cursor::BlendObject | Cursor::BlendAnchor | Cursor::ShapeBuilder | Cursor::ShapeBuilderErase => C::Crosshair,
-        Cursor::PencilClose | Cursor::PencilStraight | Cursor::PaintbrushClose => C::Crosshair,
+        Cursor::PencilClose | Cursor::PencilStraight | Cursor::PencilContinue | Cursor::PaintbrushClose => C::Crosshair,
         Cursor::TypeVertical => C::VerticalText,
         // Not drawn yet: the cursor each borrows.
         Cursor::Lasso
@@ -1274,6 +1274,14 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
     if was_over && hover_tool.is_none() && !drag.is_some_and(tool_holds) {
         app.session.tool_hover_ended(view);
         ui.ctx().request_repaint();
+    }
+    // The tool works on another thread (a large selection's planar map): it checks each frame
+    // whether the work is done, and then shows the highlight under the pointer.
+    if app.session.tool_waiting() {
+        if let Err(e) = app.session.tool_poll(view, false) {
+            app.status(e.to_string());
+        }
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
     }
     if pointer.primary_released()
         && let Some(i) = ui.data_mut(|d| d.remove_temp::<usize>(name_press_id()))
@@ -3868,6 +3876,7 @@ mod tests {
             Cursor::ShapeBuilder,
             Cursor::ShapeBuilderErase,
             Cursor::PencilStraight,
+            Cursor::PencilContinue,
         ] {
             assert_eq!(cursor_icon(c), egui::CursorIcon::Crosshair, "{c:?}");
             assert_eq!(cursor_icon(c), cursor_icon(c.precise()), "{c:?}");

@@ -582,6 +582,10 @@ pub enum Cursor {
     /// The Pencil tool before a press that draws a straight line (Shift or Alt held). A crosshair with a
     /// short straight line.
     PencilStraight,
+    /// The Pencil tool before a press that draws a straight line (Shift or Alt held), over an end of
+    /// a selected open path: the line continues the path from that end. A crosshair with a short
+    /// straight line leaving a square end point.
+    PencilContinue,
     /// The Paintbrush tool.
     Paintbrush,
     /// The Paintbrush tool with Alt held: releasing the mouse button with Alt still held closes
@@ -700,6 +704,7 @@ impl Cursor {
             | Cursor::Pencil
             | Cursor::PencilClose
             | Cursor::PencilStraight
+            | Cursor::PencilContinue
             | Cursor::Paintbrush
             | Cursor::PaintbrushClose
             | Cursor::BlobBrush
@@ -850,6 +855,16 @@ pub trait Tool: Send {
     fn wants_ticks(&self) -> bool {
         false
     }
+    /// Is the tool waiting for work it runs on another thread (the planar map of a large selection
+    /// for the Shape Builder and the Live Paint Bucket)? It highlights no region under the pointer
+    /// until the work is done. While this holds, the desktop app calls [`Tool::poll`] each frame,
+    /// and hosts without frames call it with `wait` after a [`PointerKind::Move`].
+    fn waiting(&self) -> bool {
+        false
+    }
+    /// Checks on the work [`Tool::waiting`] reports, waiting for it to finish with `wait`. Once it
+    /// is done, the tool shows the highlight under the pointer where it last moved.
+    fn poll(&mut self, _cx: &ToolContext, _wait: bool) {}
 }
 
 /// Create a tool by id. Unknown or not-yet-implemented tools fall back to a no-op tool that keeps the id.
