@@ -212,3 +212,25 @@ fn corner_radius_is_the_rounded_rectangle_tools_radius() {
     draw(&mut s, 300.0, true);
     assert_eq!(s.tool_options()["cornerRadius"], json!(1296.0), "↑ at the top stays there");
 }
+
+/// General › Corner Radius set for the Rounded Rectangle tool by name (`tool.setOption {tool}`)
+/// while it has lent a selection tool for a Cmd-drag reaches the tool kept aside: back from the
+/// drag, it draws the radius that is the preference now, not the one from before.
+#[test]
+fn corner_radius_set_by_name_reaches_the_tool_that_lent_a_selection_tool() {
+    use PointerKind::{Down, Drag, Up};
+    let mut s = new_doc();
+    let v = ViewInfo::default();
+    set_pref(&mut s, "cornerRadius", json!(7));
+    s.select_tool("roundedRectangle", v).unwrap();
+    let cmd = Mods { cmd: true, ..Mods::default() };
+    gesture(&mut s, cmd, &[(Down, 300.0, 300.0), (Drag, 320.0, 320.0)]);
+    assert_eq!(s.tool_id(), "selection", "Cmd lends the Selection tool");
+    s.set_tool_option_cmd(&json!({"tool": "roundedRectangle", "key": "cornerRadius", "value": 9})).unwrap();
+    assert_eq!(s.execute("prefs.get", &json!({"key": "cornerRadius"})).unwrap(), json!(9.0), "the preference");
+    gesture(&mut s, cmd, &[(Up, 320.0, 320.0)]);
+    assert_eq!(s.tool_id(), "roundedRectangle", "the drag over, the tool is back");
+    assert_eq!(s.tool_options()["cornerRadius"], json!(9.0), "with the radius set while it was aside");
+    gesture(&mut s, Mods::default(), &[(Down, 100.0, 100.0), (Drag, 150.0, 130.0), (Drag, 200.0, 160.0), (Up, 200.0, 160.0)]);
+    assert!(close(live_box(&s, last_id(&s)).3, 9.0), "and draws it");
+}

@@ -617,7 +617,19 @@ impl Session {
         }
         Self::store_tool_settings(&mut self.prefs, t);
         let out = t.options();
-        if other.is_some() {
+        if let Some(other) = other {
+            // The tool that lent a selection tool for a Cmd-drag is kept aside, not made again when
+            // it is back: when it is the tool set, it takes the writes too (the Rounded Rectangle's
+            // radius stays the Corner Radius preference it just set) and what it shares, like the
+            // active tool.
+            if let Some(lender) = self.lender.as_deref_mut() {
+                if lender.id() == other.id() {
+                    for (k, v) in values {
+                        lender.set_option(k, v);
+                    }
+                }
+                Self::restore_tool_settings(&self.prefs, lender);
+            }
             Self::restore_tool_settings(&self.prefs, self.tool.as_mut());
         }
         out
