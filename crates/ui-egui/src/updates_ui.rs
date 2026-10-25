@@ -74,7 +74,9 @@ pub(crate) fn tick(app: &mut VectorcraftApp, ctx: &egui::Context) {
 pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        match app.updates_rt.updater.show(ctx) {
+        // The restart helper is scheduled before the app closes, so no update starts over unsaved work.
+        let clean = !crate::unsaved::any_dirty(app);
+        match app.updates_rt.updater.show_if(ctx, clean) {
             Action::OpenUrl(url) => app.open_url(&url),
             Action::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Action::None => {}
