@@ -1,8 +1,2256 @@
 # UI and interaction parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-24 · **Change:** minor (Appearance panel: Shift, Ctrl/Cmd and Shift+Ctrl/Cmd highlight several fills/strokes or effects of one list by the Layers panel's rules; Duplicate/Delete, the panel menu, Delete/Backspace after a row click and drops on the two buttons act on them; highlighted rows drag as one block (Alt copies) with a dimmed copy under the pointer; a row's name (Fill:, Stroke:, an effect's) edits it ("Click to edit"), an effect row's empty space edits it on a double-click ("Double-click to edit"); Delete/Backspace after a Layers or Appearance row click no longer run Edit › Clear; "Opacity:" opens the Transparency panel on its row, which greys out the mask, isolation and knockout controls while a fill/stroke is active; an Opacity row highlights itself (not its fill/stroke); "Characters" opens the Character panel; the panels a row opens (Color, Stroke, Transparency, Character) close on a press outside them and give their first field the keyboard; with nothing selected the swatches and the stroke weight set up new art; the stroke weight (Appearance, Stroke panel, Control bar, Properties) is one spinner with arrows and presets whose plain steps go to whole numbers from 1 and to quarters below; scores and estimates unchanged; previously: docs catch-up: Relative rounding done (#3091), stale Video rulers duplicate removed; scores and estimates unchanged; previously: Select › Start/Stop Global Edit with the Global Edit Options in Properties › Quick Actions, Escape stops it, #3521; previously:; Window › Symbol Libraries and the Symbols panel's Symbol Libraries Menu open symbol library panels; symbols click to add and drag onto the canvas; previously:; Selection tool: in and out ports on every selected area type and type on a path, the in port threading a new or clicked frame before it, #2572; scores unchanged; Smart guides: Distance Guides, Alt/Option over another object or an empty part of an artboard with the Selection tool, and the Invoke Distance Guides preference; scores and estimates unchanged; previously:; Artboard Options: Show Video Safe Areas (`showVideoSafeAreas`) outlines the action-safe and title-safe areas 3.5% and 5% in from each edge (EBU R 95) on the canvas only, and Video Ruler Pixel Aspect Ratio (`videoRulerPixelAspectRatio`, 0.1–10, default 1) sets how wide a video pixel is, per artboard, in one undo step and in the native format; View › Rulers › Show Video Rulers (`view.videoRulers`) counts the active artboard in those pixels from its top-left corner (#2849); scores and estimates unchanged; a double-click on the Line Segment, Arc, Rectangular Grid or Polar Grid tool opens its Tool Options, whose OK sets the next drag's and click's options (#2691, in part); scores and estimates unchanged; Pencil: Shift held at the press draws a straight line at 45° steps from the Constrain Angle (part of #3799); status-bar pointer readout follow-up; scores and hours unchanged; Simplify of part of a path: with anchors or segments of a path direct-selected, Object › Path › Simplify (slider, Auto-Simplify and dialog) refits only each run of selected segments between its end anchors and leaves the rest of the path exactly as it was; the Simplify row is done; scores and estimates unchanged; Fix #3705: in Draw Inside, art drawn or pasted inside the isolated object takes isolation mode into its clip group, so it can be clicked and isn't dimmed; undo or redo that removes the isolated object ends isolation mode; Fix #3705 in part: drawing modes apply to pastes (Draw Inside puts Paste, Paste in Place and Paste on All Artboards inside the object drawn into; Draw Behind puts Paste in Place and Paste on All Artboards behind the selection), and Shift+D goes from Draw Behind back to Draw Normal when Draw Inside can't draw into the selection instead of stopping at Draw Behind; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Artboard Options: Show Center Mark and Show Cross Hairs (`artboard.setProps`/`artboard.new` `showCenterMark`, `showCrossHairs`) draw a center cross and lines from the middle of each side through the center on the canvas only, in one undo step; video safe areas, video rulers and the pixel aspect ratio remain missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Simplify: Object › Path › Simplify opens its slider at the Auto-Simplify level for the selection, previewing that result, instead of at 1 pt; partial-path simplify remains missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Preferences › General › Constrain Angle: arrow keys, Shift drags and new objects follow it, #394; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Merge Live Paint in Properties only for what Live Paint can take; Properties has the overview's contextual controls (Blend Options, Merge Live Paint, Width Profile, an effect's Delete icon, Direct-Selected corners), G1; previously: Select › Start/Stop Global Edit with the Global Edit Options in Properties › Quick Actions, Escape stops it, #3521; previously:; Window › Symbol Libraries and the Symbols panel's Symbol Libraries Menu open symbol library panels; symbols click to add and drag onto the canvas; previously:; Selection tool: in and out ports on every selected area type and type on a path, the in port threading a new or clicked frame before it, #2572; scores unchanged; Smart guides: Distance Guides, Alt/Option over another object or an empty part of an artboard with the Selection tool, and the Invoke Distance Guides preference; scores and estimates unchanged; previously:; Artboard Options: Show Video Safe Areas (`showVideoSafeAreas`) outlines the action-safe and title-safe areas 3.5% and 5% in from each edge (EBU R 95) on the canvas only, and Video Ruler Pixel Aspect Ratio (`videoRulerPixelAspectRatio`, 0.1–10, default 1) sets how wide a video pixel is, per artboard, in one undo step and in the native format; View › Rulers › Show Video Rulers (`view.videoRulers`) counts the active artboard in those pixels from its top-left corner (#2849); scores and estimates unchanged; a double-click on the Line Segment, Arc, Rectangular Grid or Polar Grid tool opens its Tool Options, whose OK sets the next drag's and click's options (#2691, in part); scores and estimates unchanged; Pencil: Shift held at the press draws a straight line at 45° steps from the Constrain Angle (part of #3799); status-bar pointer readout follow-up; scores and hours unchanged; Simplify of part of a path: with anchors or segments of a path direct-selected, Object › Path › Simplify (slider, Auto-Simplify and dialog) refits only each run of selected segments between its end anchors and leaves the rest of the path exactly as it was; the Simplify row is done; scores and estimates unchanged; Fix #3705: in Draw Inside, art drawn or pasted inside the isolated object takes isolation mode into its clip group, so it can be clicked and isn't dimmed; undo or redo that removes the isolated object ends isolation mode; Fix #3705 in part: drawing modes apply to pastes (Draw Inside puts Paste, Paste in Place and Paste on All Artboards inside the object drawn into; Draw Behind puts Paste in Place and Paste on All Artboards behind the selection), and Shift+D goes from Draw Behind back to Draw Normal when Draw Inside can't draw into the selection instead of stopping at Draw Behind; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Artboard Options: Show Center Mark and Show Cross Hairs (`artboard.setProps`/`artboard.new` `showCenterMark`, `showCrossHairs`) draw a center cross and lines from the middle of each side through the center on the canvas only, in one undo step; video safe areas, video rulers and the pixel aspect ratio remain missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Simplify: Object › Path › Simplify opens its slider at the Auto-Simplify level for the selection, previewing that result, instead of at 1 pt; partial-path simplify remains missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Preferences › General › Constrain Angle: arrow keys, Shift drags and new objects follow it, #394; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-24 · **Change:** minor (Recolor Artwork › Assign: double-click a new color for the Color Picker, which keeps a CMYK mix as typed (part of #4028; Lab can't be typed yet); scores and estimates unchanged; previously: docs catch-up: Relative rounding done (#3091), stale Video rulers duplicate removed; scores and estimates unchanged; previously: Select › Start/Stop Global Edit with the Global Edit Options in Properties › Quick Actions, Escape stops it, #3521; previously:; Window › Symbol Libraries and the Symbols panel's Symbol Libraries Menu open symbol library panels; symbols click to add and drag onto the canvas; previously:; Selection tool: in and out ports on every selected area type and type on a path, the in port threading a new or clicked frame before it, #2572; scores unchanged; Smart guides: Distance Guides, Alt/Option over another object or an empty part of an artboard with the Selection tool, and the Invoke Distance Guides preference; scores and estimates unchanged; previously:; Artboard Options: Show Video Safe Areas (`showVideoSafeAreas`) outlines the action-safe and title-safe areas 3.5% and 5% in from each edge (EBU R 95) on the canvas only, and Video Ruler Pixel Aspect Ratio (`videoRulerPixelAspectRatio`, 0.1–10, default 1) sets how wide a video pixel is, per artboard, in one undo step and in the native format; View › Rulers › Show Video Rulers (`view.videoRulers`) counts the active artboard in those pixels from its top-left corner (#2849); scores and estimates unchanged; a double-click on the Line Segment, Arc, Rectangular Grid or Polar Grid tool opens its Tool Options, whose OK sets the next drag's and click's options (#2691, in part); scores and estimates unchanged; Pencil: Shift held at the press draws a straight line at 45° steps from the Constrain Angle (part of #3799); status-bar pointer readout follow-up; scores and hours unchanged; Simplify of part of a path: with anchors or segments of a path direct-selected, Object › Path › Simplify (slider, Auto-Simplify and dialog) refits only each run of selected segments between its end anchors and leaves the rest of the path exactly as it was; the Simplify row is done; scores and estimates unchanged; Fix #3705: in Draw Inside, art drawn or pasted inside the isolated object takes isolation mode into its clip group, so it can be clicked and isn't dimmed; undo or redo that removes the isolated object ends isolation mode; Fix #3705 in part: drawing modes apply to pastes (Draw Inside puts Paste, Paste in Place and Paste on All Artboards inside the object drawn into; Draw Behind puts Paste in Place and Paste on All Artboards behind the selection), and Shift+D goes from Draw Behind back to Draw Normal when Draw Inside can't draw into the selection instead of stopping at Draw Behind; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Artboard Options: Show Center Mark and Show Cross Hairs (`artboard.setProps`/`artboard.new` `showCenterMark`, `showCrossHairs`) draw a center cross and lines from the middle of each side through the center on the canvas only, in one undo step; video safe areas, video rulers and the pixel aspect ratio remain missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Simplify: Object › Path › Simplify opens its slider at the Auto-Simplify level for the selection, previewing that result, instead of at 1 pt; partial-path simplify remains missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Preferences › General › Constrain Angle: arrow keys, Shift drags and new objects follow it, #394; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Merge Live Paint in Properties only for what Live Paint can take; Properties has the overview's contextual controls (Blend Options, Merge Live Paint, Width Profile, an effect's Delete icon, Direct-Selected corners), G1; previously: Select › Start/Stop Global Edit with the Global Edit Options in Properties › Quick Actions, Escape stops it, #3521; previously:; Window › Symbol Libraries and the Symbols panel's Symbol Libraries Menu open symbol library panels; symbols click to add and drag onto the canvas; previously:; Selection tool: in and out ports on every selected area type and type on a path, the in port threading a new or clicked frame before it, #2572; scores unchanged; Smart guides: Distance Guides, Alt/Option over another object or an empty part of an artboard with the Selection tool, and the Invoke Distance Guides preference; scores and estimates unchanged; previously:; Artboard Options: Show Video Safe Areas (`showVideoSafeAreas`) outlines the action-safe and title-safe areas 3.5% and 5% in from each edge (EBU R 95) on the canvas only, and Video Ruler Pixel Aspect Ratio (`videoRulerPixelAspectRatio`, 0.1–10, default 1) sets how wide a video pixel is, per artboard, in one undo step and in the native format; View › Rulers › Show Video Rulers (`view.videoRulers`) counts the active artboard in those pixels from its top-left corner (#2849); scores and estimates unchanged; a double-click on the Line Segment, Arc, Rectangular Grid or Polar Grid tool opens its Tool Options, whose OK sets the next drag's and click's options (#2691, in part); scores and estimates unchanged; Pencil: Shift held at the press draws a straight line at 45° steps from the Constrain Angle (part of #3799); status-bar pointer readout follow-up; scores and hours unchanged; Simplify of part of a path: with anchors or segments of a path direct-selected, Object › Path › Simplify (slider, Auto-Simplify and dialog) refits only each run of selected segments between its end anchors and leaves the rest of the path exactly as it was; the Simplify row is done; scores and estimates unchanged; Fix #3705: in Draw Inside, art drawn or pasted inside the isolated object takes isolation mode into its clip group, so it can be clicked and isn't dimmed; undo or redo that removes the isolated object ends isolation mode; Fix #3705 in part: drawing modes apply to pastes (Draw Inside puts Paste, Paste in Place and Paste on All Artboards inside the object drawn into; Draw Behind puts Paste in Place and Paste on All Artboards behind the selection), and Shift+D goes from Draw Behind back to Draw Normal when Draw Inside can't draw into the selection instead of stopping at Draw Behind; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Artboard Options: Show Center Mark and Show Cross Hairs (`artboard.setProps`/`artboard.new` `showCenterMark`, `showCrossHairs`) draw a center cross and lines from the middle of each side through the center on the canvas only, in one undo step; video safe areas, video rulers and the pixel aspect ratio remain missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Simplify: Object › Path › Simplify opens its slider at the Auto-Simplify level for the selection, previewing that result, instead of at 1 pt; partial-path simplify remains missing; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x; Preferences › General › Constrain Angle: arrow keys, Shift drags and new objects follow it, #394; bezier drag previews follow the pointer back into the window and to the release, #834; Guides: a path moved by a press on its stroke or beside its edge, and a straight segment Direct Selection drags, snap by the nearest point of the path, landing exactly on a ruler guide (#3701); scores and estimates unchanged; previously:; Artboard Options honors Scale Artwork with Artboard for preset, orientation and typed-size changes; both Fits keep artwork stationary; scores and estimates unchanged; Tangent and straight-segment perpendicular snapping use saved Smart Guides Geometric Guides preferences and Control bar quick access (#2537); no View submenu; G13: gradient Method (Illustrator 30.0): a Method menu in the Gradient panel, Classic or Perceptual (`paint.editGradient`/`paint.setFill` `method`, saved in the native file only when Perceptual, so older files open as Classic); Perceptual mixes a linear or radial gradient's colours in OKLab, on the canvas and in raster exports, and SVG and PDF exports write it as an image at the Document Raster Effects resolution, as the public documentation describes; Classic draws as before; a dithered Perceptual fill takes dither's noise; score and hours unchanged; G13: gradient Dither (Illustrator 30.0): a Dither box in the Gradient panel (`paint.editGradient`/`paint.setFill` `dither`, saved in the native file) draws a linear or radial gradient fill with seeded fine noise that hides banding, on the canvas and in raster exports; SVG and PDF exports write the fill as an image at the Document Raster Effects resolution, as the public documentation describes dither; fills only, as documented; score and hours unchanged; Recolor Artwork Edit chips scroll within the available screen height (#3416); small palettes retain their tab height; scores and estimates unchanged; Blend panel Type and Ramp control step easing with a separate color Shift (#2539); Blend Options retains spacing and orientation; polynomial curves are original approximations; Panels dock into any dock group or the icon column by dragging (UI.6), workspaces keep their layout changes (UI.7), dock groups collapse to their tabs by a double-click (UI.8); scores unchanged; Shape Builder Gap Detection shares Live Paint’s spatial gap finder and temporary merge bridges (#2526); Custom is capped at 72 pt in the existing options dialog; 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged; one selected clip group's Properties panel has Edit Clipping Path and Edit Contents at its top, G1; Distribute Objects and Distribute Spacing space from a key guide (#3165) with the Distribute Spacing value; Distribute spaces selected ruler guides with the objects, #1597 in part; the selection tools take a clipping path on its outline, over the art it clips; Polygon and Star exact-size placement remembers the chosen count for later drags and dialog openings; Cancel preserves the previous count; Live trace result bounds and selection highlights exclude the retained bitmap except in source-image views; a ruler guide can be the key object Align aligns to, and selected guides align to a key object, #2143; Pencil: Alt key toggles to Smooth Tool, #2001; status-readout sample widths cached by language, document unit and pixels per point; status messages and readouts use stable responsive allocations sized for localized labels and ordinary coordinates; cached canvas dimensions match the renderer limit before cache-key creation, view construction and worker submission; cached canvas reprojection preserves scale during resize, rotation and DPI changes; on-canvas Mirror Repeat axis, #2877; Background Export progress dialog with Cancel, #2564; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144; interactive Mirror Repeat axis; Background Export progress dialog with Cancel, #2564; scores unchanged; 3D lighting: one to ten colored lights, smooth colored Inflate, legacy white-light appearance preserved; surface batching and restored seam minimum; scores and estimates unchanged; Blend spine Anchor Point conversions, selection/stacking priority and Shift regression coverage (#2544); scores and hours unchanged; Artboard Options' X and Y with a reference point, #1876; scores unchanged; library panels: one per library, dockable and tabbable, with Persistent, #2603; the Selection tool threads text from the out port, #2572 in part; scores unchanged; Group Selection picks and moves one path of a compound path, #2441 in part; the Move dialog opens on the last move and its last checkboxes; scores unchanged; transparency grid visibility saved in native documents, #1968; Live Corners radius up to the neighbouring cuts, #2332; Image Trace quick presets: wording corrected to the shipped behaviour, the Image Trace button opens the controls; batch exporting, #1935; document window scroll bars, #2322; Anchor Point tool: a click on a handle end retracts that handle only, #2267; scores unchanged; Smart Guides: the dragged end of a straight segment keeps to its extension at any angle, #2120; Warp Options controls verified by focused checks and original-image review; estimates unchanged; existing-guide Escape cancellation validated 2026-10-14; scores and hours unchanged; open-path anchor Delete keeps surviving runs separate; estimates unchanged; Artboard tab-switch follow-up historically validated on `a0671777`; scores and hours unchanged; Artboard clean active-tab close/Delete follow-up validated 2026-10-15; Curvature curve geometry, #1236 in part; Width-point finite-arithmetic follow-up validated; scores and hours unchanged; Image Trace adjustment discovery; later 2026-10-14 merges: macOS save sheet Format menu back to missing, #1855, #866 reopened; anchor X/Y/W/H in the Transform panel, Properties and Control bar, #1824; Snap to Grid over Snap to Pixel, #1816; toolbar labels, columns and the All Tools drawer, #1751; Actions panel selection, #1629 in part; scores unchanged; 2026-10-14 merges: anchor Align and Distribute, #1636; Delete on closed paths and whole objects, #1674; selection inside isolation, #1666; Escape in a Direct Selection drag and while typing, #1743, #1686; Pen clicks under 3 px, #1663; [ and ] on more tools, #1661 in part; fields commit on click away, #1787; command search keys, #1757; a guide's position in the Transform panel is a convenience with no parity claim, #1659; scores unchanged; intersect Smart Guides for drawn points and dragged anchors, #1602 in part; a ruler guide's position in the Transform panel, #1597 in part; Symbol Options before New Symbol, #1560; tool flyout widths, #1616; Pathfinder Trim, Merge and Crop strokes, #1570; scores unchanged; G1/M11: Artboard deletion and history selection normalization; history regressions and full workspace CI pass; scores and hours unchanged; Width Point Edit: Shift-double-click enables adjoining adjustment; plain double-click keeps it off; scores and hours unchanged; per-corner radius fields with a link toggle, split from #1594; Join merges anchors lying on one another, #1533; correction: Average and Join with a corner or smooth choice is missing, not done; guide objects take the guide colour and style and Lock Guides, #1534; Keyboard Shortcuts lists commands outside the menus, #1539; round corners next to curves and the Smooth tool's reach, #1512; Make Compound Path on a group, #1537; dialog slider rails, #1483; template layers stay in Preview in Outline view, #1486; Direct Selection takes the selected object's anchor where anchors coincide, #1508; Tabs panel stop drags, #1458; Split Into Grid dialog, #1462; Transform Objects and Reflect's angle, #1448 and #1460; Pathfinder panel on a group, #1450; value fields: readable selection, #1465 in part, and a focused field follows its value, #1457; scores unchanged; Transform dialogs have a live Preview and step with the arrow keys, #1412; transform tools, dialogs and Move act on direct-selected anchors, #1408; the bounding box hides during a corner drag, #1229; scores unchanged; dialogs focus their first field on every open, #1367, and a first field that starts greyed out once it is enabled, #1395; scores unchanged; Rectangular Grid and Polar Grid click dialogs take the skew, frame, compound path and Fill Grid options, #1377 in part, score unchanged; Live Corners: a Direct Selection click on a widget selects its corner, #1239; custom ruler origin, #1212; Artboard tool clicks fit the topmost editable object in one undo step (#1227); scores unchanged; Pathfinder single-result source names and SVG IDs retained, #1293; DXF control-point SPLINE closure read, #1299 follow-up; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; Simplify preview/counts and valid rewritten-path selection (#1272); parity remains partial; Texture-effect drag redraws optimized (#1257); idle Windows interaction still unverified; scores unchanged; Curvature point display improved (#1236, in part); scores unchanged; Direct Selection: no-op anchor Align preserves Undo, Redo and saved state (#1180 follow-up); Eyedropper cursor distinguished from precise crosshair (#1269); scores unchanged; Eyedropper can read visible locked and outside-isolation sources (#1251); scores unchanged; Direct Selection: independent segment picks and Delete (#1278); scores unchanged; Adding paint to an unpainted zero-width stroke restores the 1 pt default (#1253); scores unchanged; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x)
 
 ## Feature submission evidence
+Sign in
+Home
+Shorts
+Subscriptions
+You
+History
+Sign in to like videos, comment, and subscribe.
+Sign in
+Explore
+Music
+Movies & TV
+Live
+Show more
+More from YouTube
+
+  
+    
+    
+  
+YouTube Premium
+
+  
+    
+    
+    
+  
+YouTube Music
+
+  
+    
+      
+      
+    
+    
+      
+      
+    
+  
+YouTube Kids
+Report history
+AboutPressCopyrightContact usCreatorsAdvertiseDevelopersImpressumCancel Memberships
+TermsPrivacyPolicy & SafetyHow YouTube worksTest new features
+© 2026 Google LLC
+All
+Shorts
+Unwatched
+Watched
+Videos
+Recently uploaded
+Live
+About these results
+Filters
+Shorts
+Step 1 for Monstera deliciosa: The BIG chop to propagate #monsteraplant #plantpropagation
+1.6M views
+Monstera deliciosa - Thai Constellation
+30K views
+This is how I grew my monstera deliciosa from seed! #timelapse #monstera
+767K views
+Never underestimate a well grown classic #monsteradeliciosa grown by @plantsdecoranddiy
+299K views
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+true
+11:21
+Now playing
+If I Only Knew These Monstera Tips 5 Years Ago
+2M 3y ago
+Sheffield Made Plants
+My best Monstera care tips I wish I knew 5 years ago. -------------------- Download my FREE Plant Parent's Troubleshooting ...
+9:12 ... actually two types of monstera plants you can buy that look very similar the monstera bozigiana and the monstera deliciosa they ...
+4K
+true
+4:28
+Now playing
+Do this after you buy your first Monstera
+204K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant analyzes why a new Monstera may struggle by measuring light levels and soil moisture. Discover how to identify if a plant is receiving enough light and why adjusting the environment immediately after purchase is crucial for healthy growth.
+true
+8:12
+Now playing
+How to grow the BEST Monstera
+1.3M 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+1 product
+4K
+Summary
+Kill This Plant compares top cuttings versus rearranging existing vines to fix crawling Monsteras. Learn methods for staking, pruning for propagation, and managing soil requirements for healthier, upright growth.
+true
+4:06
+Now playing
+how to grow a monstera as fast as possible
+57K 9mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant explains how to optimize monstera growth by mastering water saturation, soil drainage mixtures, and light intensity. Learn to use tools for testing soil moisture and tips for extending daylight hours to ensure consistent, rapid plant development.
+true
+8:01
+Now playing
+7 MONSTERA Plant Care Tips You Need to KNOW : Monstera Deliciousa
+340K 3y ago
+MonstroFarm
+I want to help you grow beautiful Monstera's, which is Super-Easy. Here are 7 Plant Care Tips on how I care and make sure that ...
+8 chapters
+Intro | LIGHTING | TEMPERATURE AND HUMIDITY | SOIL MIXTURE | FERTILIZER | PRUNING | PEST MANAGEMENT | WATERING
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+10:22
+Now playing
+0:19
+10:22
+Set Up Your Monstera For Success
+263K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Matching chapter
+0:19 My Monstera
+true
+3:13
+Now playing
+why people keep Killing their Monstera
+1M 3y ago
+Kill This Plant
+Hopefully this video will get you to stop killing your Monstera Deliciosa. *Links in this description contain affiliate links.
+0:00 Monstera deliciosa is supposed to be one of the easiest plants but you would not believe how many people are asking for help but ...
+4K
+true
+5:18
+Now playing
+Why you need to cut your monstera
+337K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates the process of air layering a large Monstera to safely propagate new roots before cutting. This technique allows for maintaining large foliage while preparing the plant for a fresh start in a new pot.
+true
+49:16
+Now playing
+I Wish I Knew These Monstera Tips 5 Years Ago
+562K 2y ago
+Sheffield Made Plants
+All my best Monstera tips in 1 video! -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 Perforations or holes in the Le or monstera deliciosa is one of the most highly Sal offer Commodities in the world sort of if you ...
+4K
+true
+7:22
+Now playing
+Do These 3 Things For The Largest Monstera Deliciosa
+70K 3y ago
+Techplant
+How to grow monstera deliciosa the right way for large leaves. These tips will help you grow a really nice monstera deliciosa!
+4K
+Summary
+Techplant clarifies common misconceptions about pruning lower leaves and recommends single-stalk configurations for easier management. Discover the importance of proper orientation when securing plants to supports, ensuring the aerial roots are pressed against the pole for maximum leaf growth.
+true
+12:30
+Now playing
+The World’s Largest Monstera Deliciosa Plant
+62K 3y ago
+SleepyLizard
+Get your Monstera Delciosa fruit and avocados at: https://www.guacfarm.com.
+Summary
+SleepyLizard showcases a massive Monstera Deliciosa plantation focused on fruit production rather than decoration. The video explores harvesting the sweet fruit and the agricultural challenges of integrating these plants within an avocado grove.
+true
+11:06
+Now playing
+10 Must Do Tricks For The BEST Monstera
+714K 3y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD.
+4K
+true
+10:59
+Now playing
+How To Propagate Your Monstera The Right Way
+347K 2y ago
+Sheffield Made Plants
+Monstera propagation the right way -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 This is The Ultimate Guide to propagating and multiplying your monstera deliciosa or swiss cheese plant so you can have more of ...
+4K
+true
+16:00
+Now playing
+Why You shouldn’t buy a Monstera Deliciosa !
+15K 1y ago
+The Millennial Plant Dad
+The Monstera Deliciosa may be an iconic house plant staple but the fact of the matter is that it's not for everyone, home or space !
+4K
+7 chapters
+Intro | Space | How it is sold | M poles | Climbing | Fertilizing | Outro
+true
+7:34
+Now playing
+Eating The Tastiest Fruit In The World! - How to Eat Monstera Deliciosa Safely | Mexican Breadfruit
+657K 3y ago
+Greenthumbs Garden
+Monstera Delcicosa is a popular houseplant all over the world. What many do not know is that when grown outside in the right ...
+CC
+6 chapters
+The Monstera Delcicosa Fruit | Monstera Delcicosa Fruit Nutritional Benefits | When To Harvest Monstera Delcicosa Fruit | When Is It Safe To Eat Monstera Delcicosa Fruit | What To Do With Unripe Monstera Delcicosa Fruit | Tasting The Monstera Delcicosa Fruit
+true
+11:05
+Now playing
+Grow Your Pothos 3x FASTER
+768K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Summary
+Sheffield Made Plants shares techniques for maximizing pothos growth through strategic potting, stem pinning, and propagation methods. Learn how proper lighting, soil selection, and understanding root health contribute to fuller, faster-growing vines.
+true
+12:48
+Now playing
+Popular Plant Products I’ll NEVER Buy Again (And What I Use Instead)
+272K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+10 chapters
+Intro | Rooting Hormone | Miracle Grow | Clear Pots | Decorative pots | Grow lights | Velcro plant eyes | Leaf shine | Core poles | Scissors
+true
+44:26
+Now playing
+Inside an Indoor Plant Oasis | Full Tour
+325K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Richard provides a comprehensive look into a living space transformed into a dense indoor jungle featuring over 200 diverse house plants. The tour showcases popular species alongside unique finds, sharing propagation tips and creative styling methods for various leaf types.
+true
+10:21
+Now playing
+Changing THIS Will Make Your Spider Plant THRIVE
+914K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+6 chapters
+Intro | Leaf Problems | Why Does This Work | Fertilizer | pH | Water Conditioner
+true
+12:26
+Now playing
+Growing A MATURE MONSTERA | How Long Does It Take???
+26K 3y ago
+Everything Plants
+Soltech Solutions 15% discount code 'everythingplants' https://glnk.io/0lyv/9 VeryPlants use the code EverythingPlants10 for 10% ...
+true
+16:40
+Now playing
+Tour of House Plant in their Natural Environment (outdoors!)
+57K 5y ago
+Plant Vibrations with Devin Wallien
+In this longer video I take a walking tour of the neighborhood El Poblado in Medellin, Colombia showing many of the most popular ...
+14:08 there's really nothing like it and then let's finish with many of our favorite plant the beautiful monstera deliciosa this plant has ...
+CC
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+The best way to get your monstera leaves to grow is to attach them to something for support!
+2.9M views
+Trying Monstera Deliciosa fruit and growing seeds! #monsteraplant #growingseeds
+315K views
+Giant Monstera! #plants #monsteradeliciosa
+18K views
+The 9 Monstera Deliciosa fruits are getting bigger and will soon reach maturity 💚 #monsteradeliciosa
+64K views
+true
+10:49
+Now playing
+You’re (Probably) Killing Your Monstera
+374K 3y ago
+Sheffield Made Plants
+You're probably killing your Monstera if you make this common mistake. -------------------- Download my FREE Plant Parent's ...
+4K
+Summary
+Sheffield Made Plants explores why pruning monsteras won't create a bushier appearance like other plants. Instead, learn how to properly propagate and stake these climbers to achieve a lush look without sacrificing mature foliage.
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+true
+23:55
+Now playing
+How To Shop & Care For MONSTERA DELICIOSA - Plant Care Light, Repot, Soil, Water Houseplant Care 101
+80K 2y ago
+Plant Life with Ashley Anita
+monstera #monsteradeliciosa #monsteraplant Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any ...
+Summary
+Ashley Anita guides viewers through the entire process of acquiring a new Monstera Deliciosa, from assessing plant health and pest checks at the nursery to the final potting steps. The episode covers selecting the right pot size, identifying when to repot, and creating the ideal, well-draining soil mix for optimal growth.
+true
+2:29
+Now playing
+How To Grow ~ Monstera
+5.6K 3y ago
+Urban Abundance
+Also known as the "Swiss cheese plant", monstera deliciosa is a tropical plant that is often used as a house plant because it is so ...
+0:00 Hey what's up guys it's farmer Jack and today we're going to talk about monstera deliciosa. So this plant is also known as The ...
+true
+6:41
+Now playing
+Grow Monstera From Seed ( 0 - 8 Months )
+89K 4y ago
+Techplant
+In this video I show you how to start monstera seeds and grow them into small plants! Growing Monstera deliciosa from seed is ...
+4K
+true
+23:26
+Now playing
+Houseplant Care 101: Monstera Care Tips - Monstera Watering, Feeding, & Repotting
+17K 4y ago
+Plant Life with Ashley Anita
+houseplants #monstera #plants Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any potting mix.
+0:44 ... when it comes to caring for your monstera deliciosa now on these three topics i've already done very very detailed episodes i've ...
+true
+10:01
+Now playing
+How To Propagate MONSTERA DELICIOSA 2 EASY Ways (DETAILED)
+1.7M 6y ago
+Techplant
+HowTo #Propagate #MonsteraDeliciosa How To Propagate Monstrea Deliciosa Cuttings Easily! I tried using two different methods ...
+4K
+6 chapters
+Intro | Cutting | Water Cutting | Spagna Moss Cutting | Mother Plant | Outro
+true
+8:13
+Now playing
+Easy IKEA Jungle Box (DIY Greenhouse)
+1.7M 2y ago
+SerpaDesign
+I've made plenty of IKEA projects before, and we thought it was time for another. Well, actually, it was my wife's idea. A few months ...
+4K
+Summary
+SerpaDesign transforms a standard IKEA cabinet into a self-sustaining greenhouse for lush tropical plants. The build involves custom glass sealing, a cork-panelled background, and specific drainage features to support thriving foliage like Alocasia and various bromeliads.
+true
+35:28
+Now playing
+All you need to know about Monstera Deliciosa
+610K 7y ago
+Swedish Plantguys
+We hope you will enjoy this video! And thank you for watching ! Chapters: Purchase start of the video Planting 08:14 Placement ...
+true
+12:47
+Now playing
+#91 Top 6 Common Indoor Plants That Can Grow In Water | Grow Houseplants Without Soil
+11M 5y ago
+The Green Earth
+My top 6 Indoor Plants that are growing in just water without soil. Growing plants in water, whether houseplants or an indoor herb ...
+2 products
+4K
+12 chapters
+Introduction | Cutting of Satin Pothos | Cutting of Golden Pothos | Cutting of Jade Plant | Cutting of ZZ Plant | Cutting of Rubber Plant | Cutting of Snake Plant | Day 01 of Water Propagation | Day 20 of Water Propagation | Day 34 of Water Propagation | Day 45 of Water Propagation | Growing Indoor Plants in LECA
+true
+10:47
+Now playing
+I Stopped Killing Jade Plants Once I Knew This
+562K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Sheffield Made Plants shares techniques for cultivating healthy jade plants, emphasizing the importance of ample sunlight and proper watering habits. Learn how to encourage a bushier structure through strategic pruning and explore methods for propagating new plants from cuttings.
+true
+1:41:19
+Now playing
+The ULTIMATE Guide To The 10 Most Popular Plants
+258K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ Book a ...
+4K
+true
+21:20
+Now playing
+Houseplants I would NEVER buy again! (and some that I would)
+54K 1y ago
+Kaylee Ellen
+Some houseplants just aren't worth it… but a few totally are! Here are the ones I'd buy again. Anthurium Rare Plant Index: ...
+Summary
+Kaylee Ellen shares her personal experiences with specific plant varieties, explaining why some species prove to be too high-maintenance for a relaxing collection. The discussion covers growth patterns, light requirements, and the effort needed to keep these popular indoor plants looking their best over time.
+true
+16:09
+Now playing
+Making Thick Trunk Bonsai from Jade Plant | in 2 Years | Pruning | Repotting | Portulacaria Afra
+3.6M 3y ago
+What a Plant
+Now You can Buy My Premium Bonsai Soil Mix (From Link Below) https://amzn.to/358xd84 Appreciate Your Support Please ...
+13 chapters
+Intro | Pruning | Preparing Bonsai Pot | Repotting | 2nd Pruning | 1st Result | Repotting into Bigger Pot | 3rd Pruning | Preparing Bonsai Pot | Repotting | Growth After Few Months | 4th Pruning | Final Result
+true
+17:04
+Now playing
+AFTER I CREATED THIS METHOD I NEVER LOST AN ORCHIDS AGAIN
+2.1M 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover the ultimate game-changing method that ensures you'll never lose an ...
+3 products
+4K
+Shorts
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+Monstera Deliciosa Aurea Variegated 🪴✨🌙 #plants #plantlover #indoorplants #monstera #houseplants
+7.3K views
+New
+She’s thriving ✨😍 #monstera #monsteradeliciosa #giantmonstera #plants #houseplants
+961 views
+New
+5 Poisonous Fruits You Should Never Eat Unripe! ⚠️Monstera Deliciosa.
+7.7K views
+New
+1 year Monstera Bulbasaur TC update. #monstera #philodendron #plantcare #anthurium #plantcaretips
+19K views
+true
+18:21
+Now playing
+18 Gorgeous Houseplants That Thrive Without Sunlight
+839K 1y ago
+Natural Health Remedies
+18 Gorgeous Houseplants That Thrive Without Sunlight Don't have a sunny window? No problem! In this video, we're showing ...
+Summary
+Natural Health Remedies explores diverse options for dimly lit spaces, from vining plants to flowering varieties. Learn specific care tips for each plant, including watering frequency and soil preferences, to ensure longevity without direct sunlight.
+true
+25:13
+Now playing
+Just one slice of onion can make Anthurium explode with so many beautiful flowers
+542K 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover an astonishing trick: just one slice of onion can make your Anthurium ...
+2 products
+4K
+true
+3:38
+Now playing
+STOP doing this to your Monstera Deliciosa
+349K 4y ago
+Kill This Plant
+I get the idea behind it. But this is not doing what you think its doing. We need to stop pruning our Monstera Deliciosa. Pruning this ...
+4K
+Summary
+Kill This Plant explains how pruning affects hormone pathways and growth in Monsteras, unlike branching plants like jade. They reveal how cutting stems reverts plants to a juvenile state with smaller leaves and fenestrations.
+true
+14:42
+Now playing
+The only 4 Monstera Deliciosa tips you need to know
+91K 5mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+5 chapters
+Find the back of the plant | Measure your light | Get grow lights | Take top cuttings | Conclusion
+true
+11:01
+Now playing
+Tips + Tricks For Monstera Deliciosa | ALL YOU NEED TO KNOW 🌿 Indoor Plant Tips For Beginners
+47K 5y ago
+The Jungle Haven
+Monstera deliciosa care tips - swiss cheese plant care - monstera houseplant tips and tricks - indoor plant tips for beginners ...
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+Shorts
+5 years of monstera growth! #monstera #plants
+696K views
+Repotting my NEW indoor monstera plant🪴 #plants #monstera #indoorplants #houseplants #monsteraplant
+315K views
+New
+Converting my M. deliciosa ‘brazil form’ from grown on wood to grown on a moss pole
+26K views
+Deliciosa VS Borsigiana Monstera | They’re VERY Different - Which One is Yours?
+203K views
+I have 600 houseplants and my Monstera Deliciosa my absolute FAVORITE plant in my collection 🤍🪴🥹
+83K views
+true
+5:46
+Now playing
+How to Grow Monstera Deliciosa
+6.5K 3mo ago
+Tanner The Planter
+Day 21/30 of teaching you how to grow your houseplants in a simple way. My reference guide to growing 150 of the most popular ...
+Summary
+Tanner The Planter provides a comprehensive guide on Monstera deliciosa care, focusing on proper soil composition, effective watering techniques, and optimal lighting conditions. Learn how to encourage healthy root systems and leaf maturity while managing growth through staking.
+true
+10:15
+Now playing
+cutting down my GIANT Monstera Deliciosa / Taking Cuttings / Repotting / Feed & Care Nicole's Garden
+80K 2y ago
+Nicole’s Garden
+Please Like and Subscribe! Affiliate links Ponytail sunhat (CAN) https://amzn.to/3UKGeeG Hori Hori Knife (CAN) ...
+true
+17:59
+Now playing
+Proper care for Monstera deliciosa! These 7 care tips are a MUST-know 🪴 (Swiss cheese plant)
+40K 9mo ago
+crazyplantboy
+Want your Monstera deliciosa to grow better and healthier? Need an overview of the most important care tips so you can ...
+4K
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+2:52
+Now playing
+How to Repot Monstera Deliciosa. IT'S EASY!
+149K 3y ago
+Tanner The Planter
+In this video we discuss and demonstrate the general methods of properly re-potting the Monstera Deliciosa. Find Your PERFECT ...
+5 chapters
+Intro | Preparing the soil | Checking the roots | Repot | Watering
+true
+19:41
+Now playing
+Monstera Deliciosa: From Jungle Survivor to Icon 🌿
+19K 1y ago
+Plantrums
+Watch next: The Orchid's Dark Past — Obsession, Mystery, and Survival → https://www.youtube.com/watch?v=q7VpOcKEpAw ...
+4 products
+7 chapters
+Intro | Monstera’s Ancient History | Monstera’s Early Documentation | Monstera’s Biological Secrets | Monstera’s Rise to Fame | Monstera’s Ecological Impact | Monstera’s True Value
+Shorts
+Eating Monstera Deliciosa Fruit, Finally!
+471K views
+What to do with your monstera aerial roots? #monsteraplant #plantcaretips #plantcare
+981K views
+New
+Monstera deliciosa (exotic plant that produces fruit) #shorts  #foodforest #tropical  #gardening
+1.1K views
+A lot of growth already in a year and a half for big mama Monstera Deliciosa. #monsteraplant
+433K views
+Monstera Deliciosa Repot #monstera #monsteraplant #repotting
+49K views
+true
+11:25
+Now playing
+How to start Monstera the right way
+61K 4mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant provides a comprehensive guide to maximizing growth for single-stem Monsteras. The discussion covers essential care routines, including light intensity monitoring, selecting appropriate soil amendments to improve drainage, proper staking techniques, and safe fertilizing schedules to help plants thrive.
+true
+5:37
+Now playing
+How to Add Support & Prune Back Overgrown Monstera Deliciosa Plants
+242K 3y ago
+My City Plants
+How to prune Monstera Deliciosa (complete guide) ...
+5 products
+Earns commission
+Summary
+My City Plants demonstrates techniques for managing large foliage using bamboo stakes, raffia, and clean pruners. Learn how to secure sprawling stems for a narrower profile and selectively cut back growth to maintain a balanced shape.
+true
+7:13
+Now playing
+You don’t need to repot your Monstera
+80K 2y ago
+Kill This Plant
+Join our discord community https://discord.gg/RYXzghkuhk * Get 15% off Soltech Grow Lights with promo code: KTP2025 ...
+4K
+Summary
+Kill This Plant explains how to determine when a Monstera actually needs a larger container based on root volume and soil moisture. Learn to identify the right balance of root mass to soil, and discover alternative solutions for managing water retention and light requirements.
+true
+19:37
+Now playing
+Saving a Giant: I got an 11+ year old Monstera Deliciosa Large Form
+210K 3y ago
+Leafy_Luster
+MONSTERA DELICIOSA large form exists & I finally found one to call my own. Join me on this Massive Monstera Makeover to ...
+4K
+true
+12:31
+Now playing
+The Full Story of my 11+ year old Monstera Deliciosa Large Form
+108K 2y ago
+Leafy_Luster
+It's one of my most requested videos to make. THE UPDATE on my rescue Monstera Deliciosa! My rescue mission was quite ...
+4K
+Shorts
+Repotting 7ft+ monstera #shorts #gardenup #monstera #plants
+409K views
+Monstera Fruit: The Strange Tropical Fruit 🍃🟢
+102K views
+let's propagate monstera #monstera #propagate #plants #soil #water #roots #areal #cutting #plants
+1M views
+Grow a BIG Monstera✨ #houseplants #plantcare #plantcaretips #monsteradeliciosa
+3.7K views
+If you love your monstera, set it free #houseplant #monstera #plantgrowth
+351K views
+true
+14:33
+Now playing
+MONSTERA PROPAGATION: How to Propagate Monstera deliciosa (2023)
+153K 4y ago
+Plant Vibrations with Devin Wallien
+My favorite Houseplant tools here: https://amzn.to/3sYJ3ta Yesssss, finally I have created a video on how to successfully ...
+CC
+true
+5:00
+Now playing
+5 quick tips Monstera Deliciosa
+88K 5y ago
+Swedish Plantguys
+In this video we give you 5 quick tips for your Monstera Deliciosa also know as Swiss cheese plant. Enjoy! And thank you for ...
+4K
+7 chapters
+Intro | Juvenile Monstera | Repot | Support | Prune | Humidity | Outro
+true
+14:29
+Now playing
+How to Repot a Monstera Deliciosa Plant | Staking | Aerial Roots | Care Guide
+37K 3y ago
+Ana Perez
+Hello friends, here's how to repot a monstera deliciosa plant and how to care for a monstera plant as well! Here are all the ...
+4K
+CC
+12 chapters
+intro | When to repot a monstera deliciosa? | What to do when a monstera is really root bound? | What type of potting soil to use for a monstera deliciosa? | What type of pot to use for a monstera? | Are moss poles necessary for a monstera? | What to do with the aerial roots of a monstera | What type of light does a monstera need? | How often should you water a monstera? | How much water should you give a monstera plant? | Fertilizing a monstera plant | Pest Preventions
+true
+17:27
+Now playing
+Monstera Deliciosa Single Node Propagation (0-9 Months)
+609K 4y ago
+Techplant
+propagating monstera nodes. In this video I will show you the process of making single node cuttings of monstera deliciosa and ...
+1 product
+4K
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:47
+Now playing
+MONSTERA DELICIOSA Care | Swiss Cheese Plant Tips & Tricks
+187K 7y ago
+Good Growing
+For bonus content, subscribe to my Patreon ›› https://www.patreon.com/goodgrowing Do you like being trendy? Want plants to ...
+11 chapters
+Intro | General Info | Water | Light | Temperature | Humidity | Fertiliser | Propagation | Toxicity | Growth Care | Outro
+Shorts
+Monstera Propagation (My Step by Step Process)
+313K views
+I CHOPPED UP my Monstera to get it to thrive #houseplants #plants #houseplant #monstera
+804K views
+Monstera Deliciosa 🌿 Complete Care, Propagation, Height & Fruit Facts!#youtubeshorts#shorts#reels
+2.2K views
+New
+Propagation Loop♻️🌿 #planttips #plants #monstera #propagation #plantcare #diy
+18K views
+Monstera Deliciosa 2023 Season is Here
+1.8M views
+true
+10:39
+Now playing
+MONSTERA DELICIOSA CARE + PROPAGATION | indoor swiss cheese plant care
+174K 6y ago
+Good & Planty
+this MONSTER of a care guide is here monstera leaves going yellow? not getting those fenestrations? is your swiss cheese ...
+CC
+6 chapters
+Intro | Water | Light | Repotting | Temperature Humidity | Propagation
+true
+10:25
+Now playing
+Monstera richtig pflegen – der komplette Guide | feey 🌱
+129K 3y ago
+feey
+In diesem Video zeigen wir dir alles, was du zur richtigen Pflege deiner Monstera wissen musst: Dazu zählt der richtige Standort, ...
+2:46 Das hier ist der Klassiker der Monsteras: die Monstera deliciosa. Diese findest du bei uns im Shop in ganz vielen verschiedenen ...
+4K
+CC
+true
+7:35
+Now playing
+Watch this before you separate your Monstera
+38K 1y ago
+Kill This Plant
+Get 15% off Soltech Grow Lights with promo code: KTP2025 https://glnk.io/0lyv/13 * GET 10% off the best professional ...
+4K
+Summary
+Kill This Plant explains how to properly assess indoor lighting and choose the correct pot size to prevent root rot after propagating. Using a light meter and moisture probe, they demonstrate the relationship between soil volume, oxygen levels, and plant stress.
+true
+35:40
+Now playing
+My Monstera Jungle Mint Started Reverting...So I Chopped It All Back 👀
+16K 6mo ago
+plantsbymelissa
+My Monstera jungle mint started reverting, so it was time to cut it back and restart. In this video I'm chopping it down, resetting the ...
+4K
+8 chapters
+Overview | Time to chop | Repotting the base | Chunky pon | Watering | Cuttings | Back in my plant room | Outro
+true
+15:38
+Now playing
+Every Type of Monstera Deliciosa Explained (And Which One to Buy)
+85K 2y ago
+Kaylee Ellen
+M E R C H : https://kayleeellen.creator-spring.com/? Monstera Vareities: ...
+Summary
+Kaylee Ellen outlines the differences between small and large form Monstera deliciosa, focusing on internodal spacing, growth patterns, and leaf characteristics. Learn which variety best suits your available space and aesthetic preferences through a detailed comparison of popular green and variegated cultivars.
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+MONSTERA Propagation with 100% SUCCESS | Watch Me Turn a sad 😢 Plant into 11 Happy 🤓babies!
+607K views
+Monstera Deliciosa : The Delicious Monster Houseplant ! 🪴🍍#garden  #farming #organic
+3.1M views
+Monstera deliciosa fruit #asmr
+901K views
+Would you do this?! Full Monstera Cut Back!
+456K views
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:00
+Now playing
+How to water propagate a Monstera Deliciosa
+64K 1y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates how to take top and mid cuttings for propagation while ensuring healthy root development and foliage maintenance. Learn techniques to prevent rot, choose appropriate pot sizes based on root mass, and mix suitable soil for growth.
+Shorts
+Monstera deliciosa harvest!
+4.4M views
+Here’s 4 tips to grow a HUGE Monstera Deliciosa! 🌱🪴
+286K views
+The Secret, Edible Fruit Hiding on Your Houseplant #monstera #animation
+713K views
+Monstera deliciosa propagation in water❤️#shorts #youtubeshorts #like #viral #fyp
+425K views
+Monstera Deliciosa Fruit #shorts
+51K views
+true
+2:41
+Now playing
+My Mutant Monstera Deliciosa Update
+7.9K 2y ago
+Techplant
+Amazon Affiliate link to light https://amzn.to/3S7wJVN These are amazon affiliate links, they don't change the price, however after ...
+4K
+true
+0:47
+Now playing
+Monstera Deliciosa Time Lapse (HUGE LEAF)
+28K 3y ago
+Interesting as FCK
+In this plant time lapse, we'll be taking a look at a GIANT monstera deliciosa growing, one of my favorite plants in the world!
+4K
+true
+Sign in
+Home
+Shorts
+Subscriptions
+You
+History
+Sign in to like videos, comment, and subscribe.
+Sign in
+Explore
+Music
+Movies & TV
+Live
+Show more
+More from YouTube
+
+  
+    
+    
+  
+YouTube Premium
+
+  
+    
+    
+    
+  
+YouTube Music
+
+  
+    
+      
+      
+    
+    
+      
+      
+    
+  
+YouTube Kids
+Report history
+AboutPressCopyrightContact usCreatorsAdvertiseDevelopersImpressumCancel Memberships
+TermsPrivacyPolicy & SafetyHow YouTube worksTest new features
+© 2026 Google LLC
+All
+Shorts
+Unwatched
+Watched
+Videos
+Recently uploaded
+Live
+About these results
+Filters
+Shorts
+Step 1 for Monstera deliciosa: The BIG chop to propagate #monsteraplant #plantpropagation
+1.6M views
+Monstera deliciosa - Thai Constellation
+30K views
+This is how I grew my monstera deliciosa from seed! #timelapse #monstera
+767K views
+Never underestimate a well grown classic #monsteradeliciosa grown by @plantsdecoranddiy
+299K views
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+true
+11:21
+Now playing
+If I Only Knew These Monstera Tips 5 Years Ago
+2M 3y ago
+Sheffield Made Plants
+My best Monstera care tips I wish I knew 5 years ago. -------------------- Download my FREE Plant Parent's Troubleshooting ...
+9:12 ... actually two types of monstera plants you can buy that look very similar the monstera bozigiana and the monstera deliciosa they ...
+4K
+true
+4:28
+Now playing
+Do this after you buy your first Monstera
+204K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant analyzes why a new Monstera may struggle by measuring light levels and soil moisture. Discover how to identify if a plant is receiving enough light and why adjusting the environment immediately after purchase is crucial for healthy growth.
+true
+8:12
+Now playing
+How to grow the BEST Monstera
+1.3M 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+1 product
+4K
+Summary
+Kill This Plant compares top cuttings versus rearranging existing vines to fix crawling Monsteras. Learn methods for staking, pruning for propagation, and managing soil requirements for healthier, upright growth.
+true
+4:06
+Now playing
+how to grow a monstera as fast as possible
+57K 9mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant explains how to optimize monstera growth by mastering water saturation, soil drainage mixtures, and light intensity. Learn to use tools for testing soil moisture and tips for extending daylight hours to ensure consistent, rapid plant development.
+true
+8:01
+Now playing
+7 MONSTERA Plant Care Tips You Need to KNOW : Monstera Deliciousa
+340K 3y ago
+MonstroFarm
+I want to help you grow beautiful Monstera's, which is Super-Easy. Here are 7 Plant Care Tips on how I care and make sure that ...
+8 chapters
+Intro | LIGHTING | TEMPERATURE AND HUMIDITY | SOIL MIXTURE | FERTILIZER | PRUNING | PEST MANAGEMENT | WATERING
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+10:22
+Now playing
+0:19
+10:22
+Set Up Your Monstera For Success
+263K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Matching chapter
+0:19 My Monstera
+true
+3:13
+Now playing
+why people keep Killing their Monstera
+1M 3y ago
+Kill This Plant
+Hopefully this video will get you to stop killing your Monstera Deliciosa. *Links in this description contain affiliate links.
+0:00 Monstera deliciosa is supposed to be one of the easiest plants but you would not believe how many people are asking for help but ...
+4K
+true
+5:18
+Now playing
+Why you need to cut your monstera
+337K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates the process of air layering a large Monstera to safely propagate new roots before cutting. This technique allows for maintaining large foliage while preparing the plant for a fresh start in a new pot.
+true
+49:16
+Now playing
+I Wish I Knew These Monstera Tips 5 Years Ago
+562K 2y ago
+Sheffield Made Plants
+All my best Monstera tips in 1 video! -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 Perforations or holes in the Le or monstera deliciosa is one of the most highly Sal offer Commodities in the world sort of if you ...
+4K
+true
+7:22
+Now playing
+Do These 3 Things For The Largest Monstera Deliciosa
+70K 3y ago
+Techplant
+How to grow monstera deliciosa the right way for large leaves. These tips will help you grow a really nice monstera deliciosa!
+4K
+Summary
+Techplant clarifies common misconceptions about pruning lower leaves and recommends single-stalk configurations for easier management. Discover the importance of proper orientation when securing plants to supports, ensuring the aerial roots are pressed against the pole for maximum leaf growth.
+true
+12:30
+Now playing
+The World’s Largest Monstera Deliciosa Plant
+62K 3y ago
+SleepyLizard
+Get your Monstera Delciosa fruit and avocados at: https://www.guacfarm.com.
+Summary
+SleepyLizard showcases a massive Monstera Deliciosa plantation focused on fruit production rather than decoration. The video explores harvesting the sweet fruit and the agricultural challenges of integrating these plants within an avocado grove.
+true
+11:06
+Now playing
+10 Must Do Tricks For The BEST Monstera
+714K 3y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD.
+4K
+true
+10:59
+Now playing
+How To Propagate Your Monstera The Right Way
+347K 2y ago
+Sheffield Made Plants
+Monstera propagation the right way -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 This is The Ultimate Guide to propagating and multiplying your monstera deliciosa or swiss cheese plant so you can have more of ...
+4K
+true
+16:00
+Now playing
+Why You shouldn’t buy a Monstera Deliciosa !
+15K 1y ago
+The Millennial Plant Dad
+The Monstera Deliciosa may be an iconic house plant staple but the fact of the matter is that it's not for everyone, home or space !
+4K
+7 chapters
+Intro | Space | How it is sold | M poles | Climbing | Fertilizing | Outro
+true
+7:34
+Now playing
+Eating The Tastiest Fruit In The World! - How to Eat Monstera Deliciosa Safely | Mexican Breadfruit
+657K 3y ago
+Greenthumbs Garden
+Monstera Delcicosa is a popular houseplant all over the world. What many do not know is that when grown outside in the right ...
+CC
+6 chapters
+The Monstera Delcicosa Fruit | Monstera Delcicosa Fruit Nutritional Benefits | When To Harvest Monstera Delcicosa Fruit | When Is It Safe To Eat Monstera Delcicosa Fruit | What To Do With Unripe Monstera Delcicosa Fruit | Tasting The Monstera Delcicosa Fruit
+true
+11:05
+Now playing
+Grow Your Pothos 3x FASTER
+768K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Summary
+Sheffield Made Plants shares techniques for maximizing pothos growth through strategic potting, stem pinning, and propagation methods. Learn how proper lighting, soil selection, and understanding root health contribute to fuller, faster-growing vines.
+true
+12:48
+Now playing
+Popular Plant Products I’ll NEVER Buy Again (And What I Use Instead)
+272K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+10 chapters
+Intro | Rooting Hormone | Miracle Grow | Clear Pots | Decorative pots | Grow lights | Velcro plant eyes | Leaf shine | Core poles | Scissors
+true
+44:26
+Now playing
+Inside an Indoor Plant Oasis | Full Tour
+325K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Richard provides a comprehensive look into a living space transformed into a dense indoor jungle featuring over 200 diverse house plants. The tour showcases popular species alongside unique finds, sharing propagation tips and creative styling methods for various leaf types.
+true
+10:21
+Now playing
+Changing THIS Will Make Your Spider Plant THRIVE
+914K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+6 chapters
+Intro | Leaf Problems | Why Does This Work | Fertilizer | pH | Water Conditioner
+true
+12:26
+Now playing
+Growing A MATURE MONSTERA | How Long Does It Take???
+26K 3y ago
+Everything Plants
+Soltech Solutions 15% discount code 'everythingplants' https://glnk.io/0lyv/9 VeryPlants use the code EverythingPlants10 for 10% ...
+true
+16:40
+Now playing
+Tour of House Plant in their Natural Environment (outdoors!)
+57K 5y ago
+Plant Vibrations with Devin Wallien
+In this longer video I take a walking tour of the neighborhood El Poblado in Medellin, Colombia showing many of the most popular ...
+14:08 there's really nothing like it and then let's finish with many of our favorite plant the beautiful monstera deliciosa this plant has ...
+CC
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+The best way to get your monstera leaves to grow is to attach them to something for support!
+2.9M views
+Trying Monstera Deliciosa fruit and growing seeds! #monsteraplant #growingseeds
+315K views
+Giant Monstera! #plants #monsteradeliciosa
+18K views
+The 9 Monstera Deliciosa fruits are getting bigger and will soon reach maturity 💚 #monsteradeliciosa
+64K views
+true
+10:49
+Now playing
+You’re (Probably) Killing Your Monstera
+374K 3y ago
+Sheffield Made Plants
+You're probably killing your Monstera if you make this common mistake. -------------------- Download my FREE Plant Parent's ...
+4K
+Summary
+Sheffield Made Plants explores why pruning monsteras won't create a bushier appearance like other plants. Instead, learn how to properly propagate and stake these climbers to achieve a lush look without sacrificing mature foliage.
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+true
+23:55
+Now playing
+How To Shop & Care For MONSTERA DELICIOSA - Plant Care Light, Repot, Soil, Water Houseplant Care 101
+80K 2y ago
+Plant Life with Ashley Anita
+monstera #monsteradeliciosa #monsteraplant Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any ...
+Summary
+Ashley Anita guides viewers through the entire process of acquiring a new Monstera Deliciosa, from assessing plant health and pest checks at the nursery to the final potting steps. The episode covers selecting the right pot size, identifying when to repot, and creating the ideal, well-draining soil mix for optimal growth.
+true
+2:29
+Now playing
+How To Grow ~ Monstera
+5.6K 3y ago
+Urban Abundance
+Also known as the "Swiss cheese plant", monstera deliciosa is a tropical plant that is often used as a house plant because it is so ...
+0:00 Hey what's up guys it's farmer Jack and today we're going to talk about monstera deliciosa. So this plant is also known as The ...
+true
+6:41
+Now playing
+Grow Monstera From Seed ( 0 - 8 Months )
+89K 4y ago
+Techplant
+In this video I show you how to start monstera seeds and grow them into small plants! Growing Monstera deliciosa from seed is ...
+4K
+true
+23:26
+Now playing
+Houseplant Care 101: Monstera Care Tips - Monstera Watering, Feeding, & Repotting
+17K 4y ago
+Plant Life with Ashley Anita
+houseplants #monstera #plants Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any potting mix.
+0:44 ... when it comes to caring for your monstera deliciosa now on these three topics i've already done very very detailed episodes i've ...
+true
+10:01
+Now playing
+How To Propagate MONSTERA DELICIOSA 2 EASY Ways (DETAILED)
+1.7M 6y ago
+Techplant
+HowTo #Propagate #MonsteraDeliciosa How To Propagate Monstrea Deliciosa Cuttings Easily! I tried using two different methods ...
+4K
+6 chapters
+Intro | Cutting | Water Cutting | Spagna Moss Cutting | Mother Plant | Outro
+true
+8:13
+Now playing
+Easy IKEA Jungle Box (DIY Greenhouse)
+1.7M 2y ago
+SerpaDesign
+I've made plenty of IKEA projects before, and we thought it was time for another. Well, actually, it was my wife's idea. A few months ...
+4K
+Summary
+SerpaDesign transforms a standard IKEA cabinet into a self-sustaining greenhouse for lush tropical plants. The build involves custom glass sealing, a cork-panelled background, and specific drainage features to support thriving foliage like Alocasia and various bromeliads.
+true
+35:28
+Now playing
+All you need to know about Monstera Deliciosa
+610K 7y ago
+Swedish Plantguys
+We hope you will enjoy this video! And thank you for watching ! Chapters: Purchase start of the video Planting 08:14 Placement ...
+true
+12:47
+Now playing
+#91 Top 6 Common Indoor Plants That Can Grow In Water | Grow Houseplants Without Soil
+11M 5y ago
+The Green Earth
+My top 6 Indoor Plants that are growing in just water without soil. Growing plants in water, whether houseplants or an indoor herb ...
+2 products
+4K
+12 chapters
+Introduction | Cutting of Satin Pothos | Cutting of Golden Pothos | Cutting of Jade Plant | Cutting of ZZ Plant | Cutting of Rubber Plant | Cutting of Snake Plant | Day 01 of Water Propagation | Day 20 of Water Propagation | Day 34 of Water Propagation | Day 45 of Water Propagation | Growing Indoor Plants in LECA
+true
+10:47
+Now playing
+I Stopped Killing Jade Plants Once I Knew This
+562K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Sheffield Made Plants shares techniques for cultivating healthy jade plants, emphasizing the importance of ample sunlight and proper watering habits. Learn how to encourage a bushier structure through strategic pruning and explore methods for propagating new plants from cuttings.
+true
+1:41:19
+Now playing
+The ULTIMATE Guide To The 10 Most Popular Plants
+258K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ Book a ...
+4K
+true
+21:20
+Now playing
+Houseplants I would NEVER buy again! (and some that I would)
+54K 1y ago
+Kaylee Ellen
+Some houseplants just aren't worth it… but a few totally are! Here are the ones I'd buy again. Anthurium Rare Plant Index: ...
+Summary
+Kaylee Ellen shares her personal experiences with specific plant varieties, explaining why some species prove to be too high-maintenance for a relaxing collection. The discussion covers growth patterns, light requirements, and the effort needed to keep these popular indoor plants looking their best over time.
+true
+16:09
+Now playing
+Making Thick Trunk Bonsai from Jade Plant | in 2 Years | Pruning | Repotting | Portulacaria Afra
+3.6M 3y ago
+What a Plant
+Now You can Buy My Premium Bonsai Soil Mix (From Link Below) https://amzn.to/358xd84 Appreciate Your Support Please ...
+13 chapters
+Intro | Pruning | Preparing Bonsai Pot | Repotting | 2nd Pruning | 1st Result | Repotting into Bigger Pot | 3rd Pruning | Preparing Bonsai Pot | Repotting | Growth After Few Months | 4th Pruning | Final Result
+true
+17:04
+Now playing
+AFTER I CREATED THIS METHOD I NEVER LOST AN ORCHIDS AGAIN
+2.1M 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover the ultimate game-changing method that ensures you'll never lose an ...
+3 products
+4K
+Shorts
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+Monstera Deliciosa Aurea Variegated 🪴✨🌙 #plants #plantlover #indoorplants #monstera #houseplants
+7.3K views
+New
+She’s thriving ✨😍 #monstera #monsteradeliciosa #giantmonstera #plants #houseplants
+961 views
+New
+5 Poisonous Fruits You Should Never Eat Unripe! ⚠️Monstera Deliciosa.
+7.7K views
+New
+1 year Monstera Bulbasaur TC update. #monstera #philodendron #plantcare #anthurium #plantcaretips
+19K views
+true
+18:21
+Now playing
+18 Gorgeous Houseplants That Thrive Without Sunlight
+839K 1y ago
+Natural Health Remedies
+18 Gorgeous Houseplants That Thrive Without Sunlight Don't have a sunny window? No problem! In this video, we're showing ...
+Summary
+Natural Health Remedies explores diverse options for dimly lit spaces, from vining plants to flowering varieties. Learn specific care tips for each plant, including watering frequency and soil preferences, to ensure longevity without direct sunlight.
+true
+25:13
+Now playing
+Just one slice of onion can make Anthurium explode with so many beautiful flowers
+542K 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover an astonishing trick: just one slice of onion can make your Anthurium ...
+2 products
+4K
+true
+3:38
+Now playing
+STOP doing this to your Monstera Deliciosa
+349K 4y ago
+Kill This Plant
+I get the idea behind it. But this is not doing what you think its doing. We need to stop pruning our Monstera Deliciosa. Pruning this ...
+4K
+Summary
+Kill This Plant explains how pruning affects hormone pathways and growth in Monsteras, unlike branching plants like jade. They reveal how cutting stems reverts plants to a juvenile state with smaller leaves and fenestrations.
+true
+14:42
+Now playing
+The only 4 Monstera Deliciosa tips you need to know
+91K 5mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+5 chapters
+Find the back of the plant | Measure your light | Get grow lights | Take top cuttings | Conclusion
+true
+11:01
+Now playing
+Tips + Tricks For Monstera Deliciosa | ALL YOU NEED TO KNOW 🌿 Indoor Plant Tips For Beginners
+47K 5y ago
+The Jungle Haven
+Monstera deliciosa care tips - swiss cheese plant care - monstera houseplant tips and tricks - indoor plant tips for beginners ...
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+Shorts
+5 years of monstera growth! #monstera #plants
+696K views
+Repotting my NEW indoor monstera plant🪴 #plants #monstera #indoorplants #houseplants #monsteraplant
+315K views
+New
+Converting my M. deliciosa ‘brazil form’ from grown on wood to grown on a moss pole
+26K views
+Deliciosa VS Borsigiana Monstera | They’re VERY Different - Which One is Yours?
+203K views
+I have 600 houseplants and my Monstera Deliciosa my absolute FAVORITE plant in my collection 🤍🪴🥹
+83K views
+true
+5:46
+Now playing
+How to Grow Monstera Deliciosa
+6.5K 3mo ago
+Tanner The Planter
+Day 21/30 of teaching you how to grow your houseplants in a simple way. My reference guide to growing 150 of the most popular ...
+Summary
+Tanner The Planter provides a comprehensive guide on Monstera deliciosa care, focusing on proper soil composition, effective watering techniques, and optimal lighting conditions. Learn how to encourage healthy root systems and leaf maturity while managing growth through staking.
+true
+10:15
+Now playing
+cutting down my GIANT Monstera Deliciosa / Taking Cuttings / Repotting / Feed & Care Nicole's Garden
+80K 2y ago
+Nicole’s Garden
+Please Like and Subscribe! Affiliate links Ponytail sunhat (CAN) https://amzn.to/3UKGeeG Hori Hori Knife (CAN) ...
+true
+17:59
+Now playing
+Proper care for Monstera deliciosa! These 7 care tips are a MUST-know 🪴 (Swiss cheese plant)
+40K 9mo ago
+crazyplantboy
+Want your Monstera deliciosa to grow better and healthier? Need an overview of the most important care tips so you can ...
+4K
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+2:52
+Now playing
+How to Repot Monstera Deliciosa. IT'S EASY!
+149K 3y ago
+Tanner The Planter
+In this video we discuss and demonstrate the general methods of properly re-potting the Monstera Deliciosa. Find Your PERFECT ...
+5 chapters
+Intro | Preparing the soil | Checking the roots | Repot | Watering
+true
+19:41
+Now playing
+Monstera Deliciosa: From Jungle Survivor to Icon 🌿
+19K 1y ago
+Plantrums
+Watch next: The Orchid's Dark Past — Obsession, Mystery, and Survival → https://www.youtube.com/watch?v=q7VpOcKEpAw ...
+4 products
+7 chapters
+Intro | Monstera’s Ancient History | Monstera’s Early Documentation | Monstera’s Biological Secrets | Monstera’s Rise to Fame | Monstera’s Ecological Impact | Monstera’s True Value
+Shorts
+Eating Monstera Deliciosa Fruit, Finally!
+471K views
+What to do with your monstera aerial roots? #monsteraplant #plantcaretips #plantcare
+981K views
+New
+Monstera deliciosa (exotic plant that produces fruit) #shorts  #foodforest #tropical  #gardening
+1.1K views
+A lot of growth already in a year and a half for big mama Monstera Deliciosa. #monsteraplant
+433K views
+Monstera Deliciosa Repot #monstera #monsteraplant #repotting
+49K views
+true
+11:25
+Now playing
+How to start Monstera the right way
+61K 4mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant provides a comprehensive guide to maximizing growth for single-stem Monsteras. The discussion covers essential care routines, including light intensity monitoring, selecting appropriate soil amendments to improve drainage, proper staking techniques, and safe fertilizing schedules to help plants thrive.
+true
+5:37
+Now playing
+How to Add Support & Prune Back Overgrown Monstera Deliciosa Plants
+242K 3y ago
+My City Plants
+How to prune Monstera Deliciosa (complete guide) ...
+5 products
+Earns commission
+Summary
+My City Plants demonstrates techniques for managing large foliage using bamboo stakes, raffia, and clean pruners. Learn how to secure sprawling stems for a narrower profile and selectively cut back growth to maintain a balanced shape.
+true
+7:13
+Now playing
+You don’t need to repot your Monstera
+80K 2y ago
+Kill This Plant
+Join our discord community https://discord.gg/RYXzghkuhk * Get 15% off Soltech Grow Lights with promo code: KTP2025 ...
+4K
+Summary
+Kill This Plant explains how to determine when a Monstera actually needs a larger container based on root volume and soil moisture. Learn to identify the right balance of root mass to soil, and discover alternative solutions for managing water retention and light requirements.
+true
+19:37
+Now playing
+Saving a Giant: I got an 11+ year old Monstera Deliciosa Large Form
+210K 3y ago
+Leafy_Luster
+MONSTERA DELICIOSA large form exists & I finally found one to call my own. Join me on this Massive Monstera Makeover to ...
+4K
+true
+12:31
+Now playing
+The Full Story of my 11+ year old Monstera Deliciosa Large Form
+108K 2y ago
+Leafy_Luster
+It's one of my most requested videos to make. THE UPDATE on my rescue Monstera Deliciosa! My rescue mission was quite ...
+4K
+Shorts
+Repotting 7ft+ monstera #shorts #gardenup #monstera #plants
+409K views
+Monstera Fruit: The Strange Tropical Fruit 🍃🟢
+102K views
+let's propagate monstera #monstera #propagate #plants #soil #water #roots #areal #cutting #plants
+1M views
+Grow a BIG Monstera✨ #houseplants #plantcare #plantcaretips #monsteradeliciosa
+3.7K views
+If you love your monstera, set it free #houseplant #monstera #plantgrowth
+351K views
+true
+14:33
+Now playing
+MONSTERA PROPAGATION: How to Propagate Monstera deliciosa (2023)
+153K 4y ago
+Plant Vibrations with Devin Wallien
+My favorite Houseplant tools here: https://amzn.to/3sYJ3ta Yesssss, finally I have created a video on how to successfully ...
+CC
+true
+5:00
+Now playing
+5 quick tips Monstera Deliciosa
+88K 5y ago
+Swedish Plantguys
+In this video we give you 5 quick tips for your Monstera Deliciosa also know as Swiss cheese plant. Enjoy! And thank you for ...
+4K
+7 chapters
+Intro | Juvenile Monstera | Repot | Support | Prune | Humidity | Outro
+true
+14:29
+Now playing
+How to Repot a Monstera Deliciosa Plant | Staking | Aerial Roots | Care Guide
+37K 3y ago
+Ana Perez
+Hello friends, here's how to repot a monstera deliciosa plant and how to care for a monstera plant as well! Here are all the ...
+4K
+CC
+12 chapters
+intro | When to repot a monstera deliciosa? | What to do when a monstera is really root bound? | What type of potting soil to use for a monstera deliciosa? | What type of pot to use for a monstera? | Are moss poles necessary for a monstera? | What to do with the aerial roots of a monstera | What type of light does a monstera need? | How often should you water a monstera? | How much water should you give a monstera plant? | Fertilizing a monstera plant | Pest Preventions
+true
+17:27
+Now playing
+Monstera Deliciosa Single Node Propagation (0-9 Months)
+609K 4y ago
+Techplant
+propagating monstera nodes. In this video I will show you the process of making single node cuttings of monstera deliciosa and ...
+1 product
+4K
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:47
+Now playing
+MONSTERA DELICIOSA Care | Swiss Cheese Plant Tips & Tricks
+187K 7y ago
+Good Growing
+For bonus content, subscribe to my Patreon ›› https://www.patreon.com/goodgrowing Do you like being trendy? Want plants to ...
+11 chapters
+Intro | General Info | Water | Light | Temperature | Humidity | Fertiliser | Propagation | Toxicity | Growth Care | Outro
+Shorts
+Monstera Propagation (My Step by Step Process)
+313K views
+I CHOPPED UP my Monstera to get it to thrive #houseplants #plants #houseplant #monstera
+804K views
+Monstera Deliciosa 🌿 Complete Care, Propagation, Height & Fruit Facts!#youtubeshorts#shorts#reels
+2.2K views
+New
+Propagation Loop♻️🌿 #planttips #plants #monstera #propagation #plantcare #diy
+18K views
+Monstera Deliciosa 2023 Season is Here
+1.8M views
+true
+10:39
+Now playing
+MONSTERA DELICIOSA CARE + PROPAGATION | indoor swiss cheese plant care
+174K 6y ago
+Good & Planty
+this MONSTER of a care guide is here monstera leaves going yellow? not getting those fenestrations? is your swiss cheese ...
+CC
+6 chapters
+Intro | Water | Light | Repotting | Temperature Humidity | Propagation
+true
+10:25
+Now playing
+Monstera richtig pflegen – der komplette Guide | feey 🌱
+129K 3y ago
+feey
+In diesem Video zeigen wir dir alles, was du zur richtigen Pflege deiner Monstera wissen musst: Dazu zählt der richtige Standort, ...
+2:46 Das hier ist der Klassiker der Monsteras: die Monstera deliciosa. Diese findest du bei uns im Shop in ganz vielen verschiedenen ...
+4K
+CC
+true
+7:35
+Now playing
+Watch this before you separate your Monstera
+38K 1y ago
+Kill This Plant
+Get 15% off Soltech Grow Lights with promo code: KTP2025 https://glnk.io/0lyv/13 * GET 10% off the best professional ...
+4K
+Summary
+Kill This Plant explains how to properly assess indoor lighting and choose the correct pot size to prevent root rot after propagating. Using a light meter and moisture probe, they demonstrate the relationship between soil volume, oxygen levels, and plant stress.
+true
+35:40
+Now playing
+My Monstera Jungle Mint Started Reverting...So I Chopped It All Back 👀
+16K 6mo ago
+plantsbymelissa
+My Monstera jungle mint started reverting, so it was time to cut it back and restart. In this video I'm chopping it down, resetting the ...
+4K
+8 chapters
+Overview | Time to chop | Repotting the base | Chunky pon | Watering | Cuttings | Back in my plant room | Outro
+true
+15:38
+Now playing
+Every Type of Monstera Deliciosa Explained (And Which One to Buy)
+85K 2y ago
+Kaylee Ellen
+M E R C H : https://kayleeellen.creator-spring.com/? Monstera Vareities: ...
+Summary
+Kaylee Ellen outlines the differences between small and large form Monstera deliciosa, focusing on internodal spacing, growth patterns, and leaf characteristics. Learn which variety best suits your available space and aesthetic preferences through a detailed comparison of popular green and variegated cultivars.
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+MONSTERA Propagation with 100% SUCCESS | Watch Me Turn a sad 😢 Plant into 11 Happy 🤓babies!
+607K views
+Monstera Deliciosa : The Delicious Monster Houseplant ! 🪴🍍#garden  #farming #organic
+3.1M views
+Monstera deliciosa fruit #asmr
+901K views
+Would you do this?! Full Monstera Cut Back!
+456K views
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:00
+Now playing
+How to water propagate a Monstera Deliciosa
+64K 1y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates how to take top and mid cuttings for propagation while ensuring healthy root development and foliage maintenance. Learn techniques to prevent rot, choose appropriate pot sizes based on root mass, and mix suitable soil for growth.
+Shorts
+Monstera deliciosa harvest!
+4.4M views
+Here’s 4 tips to grow a HUGE Monstera Deliciosa! 🌱🪴
+286K views
+The Secret, Edible Fruit Hiding on Your Houseplant #monstera #animation
+713K views
+Monstera deliciosa propagation in water❤️#shorts #youtubeshorts #like #viral #fyp
+425K views
+Monstera Deliciosa Fruit #shorts
+51K views
+true
+2:41
+Now playing
+My Mutant Monstera Deliciosa Update
+7.9K 2y ago
+Techplant
+Amazon Affiliate link to light https://amzn.to/3S7wJVN These are amazon affiliate links, they don't change the price, however after ...
+4K
+true
+0:47
+Now playing
+Monstera Deliciosa Time Lapse (HUGE LEAF)
+28K 3y ago
+Interesting as FCK
+In this plant time lapse, we'll be taking a look at a GIANT monstera deliciosa growing, one of my favorite plants in the world!
+4K
+true
+8:16
+Now playing
+Monstera Deliciosa LARGE FORM: Repotting & Root Dividing
+136K 6y ago
+reallybigplant
+How to repot an extra large Monstera Deliciosa with a huge developed root system! Join me while I try to root divide this Monstera ...
+true
+8:16
+Now playing
+How to Grow and Care for Monstera (Swiss Cheese) Indoors
+615K 5y ago
+Garden Up
+LINKS| Good quality soil : https://gardenup.in/products/ready-potting-soil-mix Succulent soil ...
+true
+7:41
+Now playing
+Monstera Roots - 4 Things to do with Aerial Roots - Monstera deliciosa (2023)
+189K 3y ago
+Plant Vibrations with Devin Wallien
+Shop plants here! https://plantvibrations-shop.myshopify.com/ While we're growing our Monstera deliciosa or many other aroid ...
+CC
+Summary
+Devin Wallien explains how aerial roots function as nutrient and water absorbers for the plant. The video demonstrates practical techniques for managing these roots, including guiding them into a moss pole, burying them in the soil, or placing them in water to enhance growth.
+true
+12:09
+Now playing
+The Easiest Monsteras to Care For 🌿 Great for Beginners Too!
+3K 3mo ago
+planty skies
+🌿 Monsteras are among the most popular houseplants – but which varieties are truly easy to care for and suitable for beginners ...
+4K
+true
+6:11
+Now playing
+The Giant Monstera Deliciosa Node Update
+12K 1y ago
+Techplant
+Here are the giant monstera nodes I've had propagating for 2 yeara These are amazon affiliate links, they don't change the price, ...
+4K
+Summary
+Techplant documents a two-year propagation experiment using various methods to revive severely rotted monstera cuttings. Despite initial setbaks and neglect, the video tracks the long-term survival and growth of the nodes under different environmental conditions.
+true
+2:44
+Now playing
+How to safely eat the poisonous tropical fruit Monstera Deliciosa
+130K 9y ago
+SleepyLizard
+One of our tastiest tropical fruits is also our most dangerous. The Monstera Deliciousa, known as the "fruit salad fruit" combines ...
+Shorts
+Look at all that Monstera Deliciosa #fruit  #art #india #photogr #reels #bhfyp #explorepage #garden
+1.2M views
+"Root rot almost killed Monstera… but I brought it back" #plants #gardening
+481K views
+Monstera Deliciosa Fruit!!!
+50K views
+Tips to keep your monstera deliciosa alive #plantcare #monsteraplant #monstera
+1.1M views
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+true
+8:57
+Now playing
+Monstera Deliciosa Review - Weird Fruit Explorer - Ep. 108
+303K 11y ago
+Weird Explorer
+Help support my series by checking out: My Patreon Page: https://www.patreon.com/weirdexplorer ---- Or get a TSHIRT: ...
+CC
+true
+3:25
+Now playing
+Monstera deliciosa learns its care easily
+122K 3y ago
+El De Las Plantas
+In this video, I'll show you a quick and easy way to keep your Monstera Deliciosa healthy and happy. #plants ...
+4K
+true
+4:11
+Now playing
+How to Set Your Monstera For Success // Monstera Deliciosa Plant Care
+38K 3y ago
+Plantalogy
+2 mistakes can hinder the growth of your monstera. These are some common mistakes plant growers often do but rarely notice ...
+Summary
+Plantalogy highlights two common mistakes regarding pot size and planting depth that lead to root rot and yellowing leaves. Learn proper repotting techniques and how to provide adequate vertical support for a healthy, lush plant.
+true
+5:47
+Now playing
+Monstera Plant Care for Beginners (Do This First!)
+10K 1y ago
+The Girl with a Shovel
+Keywords: monstera houseplant, monstera deliciosa care, monstera plant care indoors, how to support monstera plant, saving a ...
+CC
+7 chapters
+Intro | Light Requirements | Watering Requirements | Soil Requirements | Fertilizer Requirements | Humidity Requirements | Bonus Tips
+true
+20:37
+Now playing
+The Tastiest Fruit In The World! - How to Pick and Eat Monstera Deliciosa Safely
+18K 1y ago
+Fruitful Trees
+Tom at www.Guacfarm.com shows us how to pick and eat the Monstera Deliciosa Fruit safely. He also teaches me how to correctly ...
+true
+30:30
+Now playing
+Monstera Deliciosa Types! | Variegated and Non-Variegated
+61K 4y ago
+Kaylee Ellen
+Head to https://squarespace.com/kayleeellen to save 10% off your first purchase of a website or domain using code ...
+Shorts
+monstera leaves not splitting? do this! 🌱
+382K views
+I did the big monstera deliciosa chop… now it’s time to propagate! #monsteraplant #propagation
+391K views
+Look at how BIG this pretty Monstera is! #plants #monsteradeliciosa #plantmom #propagation
+110K views
+How To Propagate A Monstera Deliciosa #propagation #monsteradeliciosa #plantcaretips #plantcare
+468K views
+Repotting my very rootbound Monstera Thai constellation #plantcare #monsterathaiconstellation
+661K views
+true
+5:21
+Now playing
+HOUSEPLANT CARE TIPS | HOW TO CARE FOR MONSTERA ADANSONII SWISS CHEESE
+77K 4y ago
+Succulents Box
+In this video, you'll find all the care tips for Monstera Swiss Cheese. Time code 0:00 Intro 0:39 Lighting 0:59 Watering 1:41 ...
+10 chapters
+Intro | Lighting | Watering | Temperature | Soil | Pruning | Propagation | Troubleshooting | Toxicity | Outro
+true
+4:01
+Now playing
+Monstera Rehab. How to properly prune your Monstera deliciosa 🪴
+235K 4y ago
+Paul’s & Sandy’s Too 🪴Karens Content 🪴
+Rehab pruning a damaged Monstera! What you need to know.
+Summary
+After a shipment arrived with heat-damaged plants, Karen demonstrates how to rescue a Monstera deliciosa. The tutorial focuses on identifying the proper spot to prune without removing future leaf growth, a technique applicable to other plants with similar growth patterns.
+true
+11:32
+Now playing
+I Stopped Killing Monsteras Once I Knew This
+25K 10mo ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+Summary
+Learn how to optimize lighting and watering for faster leaf growth and more holes in Monstera plants. Sheffield Made Plants covers essential potting media, managing aerial roots, and troubleshooting pruning techniques.
+true
+13:59
+Now playing
+Monstera Deliciosa Care: 7 Things That Keep It Happy & Growing
+251 3w ago
+Her green space
+Monstera deliciosa is one of the easiest houseplants to grow once you understand what it really needs — but small leaves, ...
+30 products
+15 chapters
+Monstera Deliciosa Care | How much light does Monstera need? | Why your Monstera has small leaves or no fenestrations | How I water my Monstera | Best soil mix for Monstera | When should you repot? | Does Monstera really need a moss pole? | What to do with Monstera aerial roots | How much humidity does Monstera need? | Fertilizing Monstera | My Monstera growing in LECA | Yellow leaves, brown leaves & common problems | Cleaning leaves & checking for pests | Pests | What keeps A monstera happy
+true
+12:10
+Now playing
+MONSTERA DELICIOSA CARE TIPS
+152K 6y ago
+Green Yard TV
+Monstera Deliciosa Care tips I hope you find this video helpful and interesting! If you did, please don't forget to hit LIKE, ...
+true
+10:39
+Now playing
+How to properly care for Monstera Thai Constellation – Everything you need to know! 🌿✨
+20K 1y ago
+planty skies
+🌿✨ The Monstera deliciosa Thai Constellation is one of the most beautiful and sought-after houseplants – but how do you care ...
+4K
+true
+9:47
+Now playing
+Everything You Need to Know About MONSTERA DELICIOSA | Monstera deliciosa plant care | Bagicha Vl...
+34K 4y ago
+Drakht
+The Video Content is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the ...
+true
+16:24
+Now playing
+Everything about MONSTERA DELICIOSA | Growth and care guide
+175K 4y ago
+I Giardini di Ellis
+► Read my article on Monstera: https://igiardinidiellis.it/monstera-deliciosa/ ► Support your plants https://www.amazon.it ...
+CC
+9 chapters
+Intro | PROVENIENZA e nome della Monstera deliciosa | LUCE e temperatura ideale per la Monstera deliciosa | ACQUA e umidità ideale per la Monstera deliciosa | RINVASI e terriccio per la Monstera deliciosa | PARTICOLARITÀ della Monstera deliciosa | CURA per la Monstera deliciosa | PROPAGAZIONE per la Monstera deliciosa | MEGLIO SAPERLO
+true
+11:46
+Now playing
+The Alternative Way To Grow The Best Monstera
+79K 2y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+8 chapters
+Intro | Root Rot | Top cuttings | Vase | Stones | Assembling | Watering | pH
+true
+12:21
+Now playing
+The truth about monstera care!!!!
+35K 1y ago
+addictoplantes
+Everything you need to know about caring for Monsteras! Watering, lighting, repotting, pests... I'll tell you everything you ...
+true
+16:37
+Now playing
+Meet All Variegated Monstera Varieties And Expert Care Tips @noldy.topan
+115K 3y ago
+OnlyPlants
+In this tour, we cover the most extensive variegated monstera collector in Indonesia - Mr Noldy Topan of @dutahijauabadi.
+6:55 ... the monstera deliciosa called the Sphinx Mr Noli got this from Thailand and it's well known for its sectoral variegation this means ...
+4K
+true
+26:17
+Now playing
+Airlayering, chopping, and repotting my EXTRA large Monstera Deliciosa!
+80K 2y ago
+PlantswithKrystal
+Hey hey! Today's video shows the process of air layering, chopping, and repotting my large monstera. Hope it gives you a little ...
+1 product
+Summary
+After successfully air layering a massive Monstera Deliciosa, Krystal proceeds with a daring chop to manage its height. The process involves transferring the propagated cutting into a new, larger pot alongside the original plant to create a fuller appearance.
+true
+1:12
+Now playing
+Comment entretenir ma monstera ? - Truffaut
+70K 7y ago
+TRUFFAUT
+Découvrez le Monstera et ses secrets d'entretien ! Plante iconique des intérieurs végétalisés, le Monstera Deliciosa, aussi ...
+true
+18:15
+Now playing
+Monstera deliciosa: Easy propagation and tips for making it grow beautifully.
+178K 3y ago
+Ivet Suculentas y mas
+Hello plant lovers! This is your friend Ivet, from Oaxaca, who is completely in love with plants. My little paradise is ...
+4K
+Summary
+Ivet muestra cómo propagar una monstera deliciosa para recuperar su color blanco característico, utilizando un sustrato ligero a base de turba de coco y perlita. La demostración incluye el corte estratégico del tallo y el uso de tutores para asegurar raíces fuertes y frondosidad.
+true
+20:45
+Now playing
+Why Is My Variegated Monstera Reverting? (Causes & How to Fix It!)
+2.4K 8mo ago
+Jamie Rootledge
+Is your variegated Monstera reverting back to green? In this video, I break down why variegated Monsteras (Albo, Thai ...
+Summary
+Jamie Rootledge demonstrates how to propagate a reverted jungle mint Monstera to encourage the return of variegated growth. The process involves identifying healthy nodes on the stem, making strategic cuttings, and establishing them in moss to foster new, colorful foliage.
+true
+4:30
+Now playing
+Costilla de Adán o Monstera Deliciosa: características y reproducción - Decogarden - Jardinatis
+84K 6y ago
+Jardinatis
+Iñigo Segurola nos muestra las enormes variedades de Costilla de Adán que tiene en su invernadero y nos enseña las ...
+25 videos
+Monstera Essentials
+Kill This Plant
+Playlist
+How to set up your Monstera for success · 3:58
+why people keep Killing their Monstera · 3:13
+View full playlist
+If your Monstera Deliciosa is struggling, check out these essential videos to help troubleshoot your problems.
+true
+13:15
+Now playing
+Your Monstera Will NEVER Thrive Unless You Do This
+141K 1y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+true
+42:26
+Now playing
+My Variegated Monstera Deliciosa Collection 🌿
+30K 1y ago
+plantsbymelissa
+In this video, I'm sharing a closer look at all the stunning variegated monstera deliciosas in my collection, including albo, aurea, ...
+4K
+9 chapters
+intro | Monstera Deliciosa ‘Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Jungle Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Albo Variegata’ (White Tiger type) | Monstera Deliciosa ‘Mint’ (tissue culture) | Monstera Deliciosa ‘Aurea’ | Monstera Deliciosa ‘Thai Constellation’ | Monstera Deliciosa ‘Albo Variegata’ | outro
+true
+17:59
+Now playing
+Monstera Mania! | All of the Monstera Deliciosa I am Growing!
+3.1K 6mo ago
+PlantswithJacque
+Monstera Deliciosa Types Showcase In this video, I'm walking you through my collection of Monstera deliciosa varieties and ...
+Summary
+PlantswithJacque showcases a diverse collection of Monstera deliciosa varieties, detailing unique variegation patterns and specific growth forms. Each plant is presented with insights into its care requirements, preferred growing conditions, and individual developmental stages to help viewers distinguish between these popular botanical forms.
+true
+10:03
+Now playing
+The Ultimate Guide to Monstera Care | How to Grow Big, Healthy Monstera Plants Indoors
+7.8K 1y ago
+The Cozy Jungle
+Whether you're a beginner or an experienced plant parent, this video will help you keep your Monstera deliciosa looking vibrant ...
+4K
+true
+4:56
+Now playing
+Monstera deliciosa (Swiss Cheese Plant) Care 🌿 Watering, Propagation, Pruning and more!
+118K 5y ago
+EcologíaVerde
+🌿 Are you thinking about growing a Monstera deliciosa (Swiss cheese plant) indoors? In this Green Ecology video, we bring you ...
+7 chapters
+Cuidados de la costilla de Adán o Monstera deliciosa | Temperatura adecuada | Riego de la Monstera deliciosa | Luz y ubicación ideales | Poda recomendada | Hojas amarillas en la Monstera deliciosa | Cómo reproducir la planta costilla de Adán
+true
+1:09:24
+Now playing
+Growing & chopping up my huge Monstera adansonii (includes 12 months of updates)
+31K 1y ago
+Sydney Plant Guy
+Let's grow my Monstera adansonii even larger over the course of a full year! watch my review of the grow light: ...
+4K
+Summary
+Sydney Plant Guy tracks the recovery of a Monstera adansonii after an aggressive pruning session. The journey includes restructuring the plant's support pole and handling unexpected flowering to manage growth over the course of a full year.
+true
+30:59
+Now playing
+$15 BIG Monstera Deliciosa at 50% OFF HOME DEPOT PLANT SALE! Prices, Pet Safe Plants, Rare Plants
+15K 2mo ago
+Plant Life with Ashley Anita
+plants #homedepotfinds #plantshopping *This is a good vibes only channel for all plant friends to enjoy! :) Any negative and ...
+true
+8:16
+Now playing
+Monstera Deliciosa LARGE FORM: Repotting & Root Dividing
+136K 6y ago
+reallybigplant
+How to repot an extra large Monstera Deliciosa with a huge developed root system! Join me while I try to root divide this Monstera ...
+true
+8:16
+Now playing
+How to Grow and Care for Monstera (Swiss Cheese) Indoors
+615K 5y ago
+Garden Up
+LINKS| Good quality soil : https://gardenup.in/products/ready-potting-soil-mix Succulent soil ...
+true
+7:41
+Now playing
+Monstera Roots - 4 Things to do with Aerial Roots - Monstera deliciosa (2023)
+189K 3y ago
+Plant Vibrations with Devin Wallien
+Shop plants here! https://plantvibrations-shop.myshopify.com/ While we're growing our Monstera deliciosa or many other aroid ...
+CC
+Summary
+Devin Wallien explains how aerial roots function as nutrient and water absorbers for the plant. The video demonstrates practical techniques for managing these roots, including guiding them into a moss pole, burying them in the soil, or placing them in water to enhance growth.
+true
+12:09
+Now playing
+The Easiest Monsteras to Care For 🌿 Great for Beginners Too!
+3K 3mo ago
+planty skies
+🌿 Monsteras are among the most popular houseplants – but which varieties are truly easy to care for and suitable for beginners ...
+4K
+true
+6:11
+Now playing
+The Giant Monstera Deliciosa Node Update
+12K 1y ago
+Techplant
+Here are the giant monstera nodes I've had propagating for 2 yeara These are amazon affiliate links, they don't change the price, ...
+4K
+Summary
+Techplant documents a two-year propagation experiment using various methods to revive severely rotted monstera cuttings. Despite initial setbaks and neglect, the video tracks the long-term survival and growth of the nodes under different environmental conditions.
+true
+2:44
+Now playing
+How to safely eat the poisonous tropical fruit Monstera Deliciosa
+130K 9y ago
+SleepyLizard
+One of our tastiest tropical fruits is also our most dangerous. The Monstera Deliciousa, known as the "fruit salad fruit" combines ...
+Shorts
+Look at all that Monstera Deliciosa #fruit  #art #india #photogr #reels #bhfyp #explorepage #garden
+1.2M views
+"Root rot almost killed Monstera… but I brought it back" #plants #gardening
+481K views
+Monstera Deliciosa Fruit!!!
+50K views
+Tips to keep your monstera deliciosa alive #plantcare #monsteraplant #monstera
+1.1M views
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+true
+8:57
+Now playing
+Monstera Deliciosa Review - Weird Fruit Explorer - Ep. 108
+303K 11y ago
+Weird Explorer
+Help support my series by checking out: My Patreon Page: https://www.patreon.com/weirdexplorer ---- Or get a TSHIRT: ...
+CC
+true
+3:25
+Now playing
+Monstera deliciosa learns its care easily
+122K 3y ago
+El De Las Plantas
+In this video, I'll show you a quick and easy way to keep your Monstera Deliciosa healthy and happy. #plants ...
+4K
+true
+4:11
+Now playing
+How to Set Your Monstera For Success // Monstera Deliciosa Plant Care
+38K 3y ago
+Plantalogy
+2 mistakes can hinder the growth of your monstera. These are some common mistakes plant growers often do but rarely notice ...
+Summary
+Plantalogy highlights two common mistakes regarding pot size and planting depth that lead to root rot and yellowing leaves. Learn proper repotting techniques and how to provide adequate vertical support for a healthy, lush plant.
+true
+5:47
+Now playing
+Monstera Plant Care for Beginners (Do This First!)
+10K 1y ago
+The Girl with a Shovel
+Keywords: monstera houseplant, monstera deliciosa care, monstera plant care indoors, how to support monstera plant, saving a ...
+CC
+7 chapters
+Intro | Light Requirements | Watering Requirements | Soil Requirements | Fertilizer Requirements | Humidity Requirements | Bonus Tips
+true
+20:37
+Now playing
+The Tastiest Fruit In The World! - How to Pick and Eat Monstera Deliciosa Safely
+18K 1y ago
+Fruitful Trees
+Tom at www.Guacfarm.com shows us how to pick and eat the Monstera Deliciosa Fruit safely. He also teaches me how to correctly ...
+true
+30:30
+Now playing
+Monstera Deliciosa Types! | Variegated and Non-Variegated
+61K 4y ago
+Kaylee Ellen
+Head to https://squarespace.com/kayleeellen to save 10% off your first purchase of a website or domain using code ...
+Shorts
+monstera leaves not splitting? do this! 🌱
+382K views
+I did the big monstera deliciosa chop… now it’s time to propagate! #monsteraplant #propagation
+391K views
+Look at how BIG this pretty Monstera is! #plants #monsteradeliciosa #plantmom #propagation
+110K views
+How To Propagate A Monstera Deliciosa #propagation #monsteradeliciosa #plantcaretips #plantcare
+468K views
+Repotting my very rootbound Monstera Thai constellation #plantcare #monsterathaiconstellation
+661K views
+true
+5:21
+Now playing
+HOUSEPLANT CARE TIPS | HOW TO CARE FOR MONSTERA ADANSONII SWISS CHEESE
+77K 4y ago
+Succulents Box
+In this video, you'll find all the care tips for Monstera Swiss Cheese. Time code 0:00 Intro 0:39 Lighting 0:59 Watering 1:41 ...
+10 chapters
+Intro | Lighting | Watering | Temperature | Soil | Pruning | Propagation | Troubleshooting | Toxicity | Outro
+true
+4:01
+Now playing
+Monstera Rehab. How to properly prune your Monstera deliciosa 🪴
+235K 4y ago
+Paul’s & Sandy’s Too 🪴Karens Content 🪴
+Rehab pruning a damaged Monstera! What you need to know.
+Summary
+After a shipment arrived with heat-damaged plants, Karen demonstrates how to rescue a Monstera deliciosa. The tutorial focuses on identifying the proper spot to prune without removing future leaf growth, a technique applicable to other plants with similar growth patterns.
+true
+11:32
+Now playing
+I Stopped Killing Monsteras Once I Knew This
+25K 10mo ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+Summary
+Learn how to optimize lighting and watering for faster leaf growth and more holes in Monstera plants. Sheffield Made Plants covers essential potting media, managing aerial roots, and troubleshooting pruning techniques.
+true
+13:59
+Now playing
+Monstera Deliciosa Care: 7 Things That Keep It Happy & Growing
+251 3w ago
+Her green space
+Monstera deliciosa is one of the easiest houseplants to grow once you understand what it really needs — but small leaves, ...
+30 products
+15 chapters
+Monstera Deliciosa Care | How much light does Monstera need? | Why your Monstera has small leaves or no fenestrations | How I water my Monstera | Best soil mix for Monstera | When should you repot? | Does Monstera really need a moss pole? | What to do with Monstera aerial roots | How much humidity does Monstera need? | Fertilizing Monstera | My Monstera growing in LECA | Yellow leaves, brown leaves & common problems | Cleaning leaves & checking for pests | Pests | What keeps A monstera happy
+true
+12:10
+Now playing
+MONSTERA DELICIOSA CARE TIPS
+152K 6y ago
+Green Yard TV
+Monstera Deliciosa Care tips I hope you find this video helpful and interesting! If you did, please don't forget to hit LIKE, ...
+true
+10:39
+Now playing
+How to properly care for Monstera Thai Constellation – Everything you need to know! 🌿✨
+20K 1y ago
+planty skies
+🌿✨ The Monstera deliciosa Thai Constellation is one of the most beautiful and sought-after houseplants – but how do you care ...
+4K
+true
+9:47
+Now playing
+Everything You Need to Know About MONSTERA DELICIOSA | Monstera deliciosa plant care | Bagicha Vl...
+34K 4y ago
+Drakht
+The Video Content is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the ...
+true
+16:24
+Now playing
+Everything about MONSTERA DELICIOSA | Growth and care guide
+175K 4y ago
+I Giardini di Ellis
+► Read my article on Monstera: https://igiardinidiellis.it/monstera-deliciosa/ ► Support your plants https://www.amazon.it ...
+CC
+9 chapters
+Intro | PROVENIENZA e nome della Monstera deliciosa | LUCE e temperatura ideale per la Monstera deliciosa | ACQUA e umidità ideale per la Monstera deliciosa | RINVASI e terriccio per la Monstera deliciosa | PARTICOLARITÀ della Monstera deliciosa | CURA per la Monstera deliciosa | PROPAGAZIONE per la Monstera deliciosa | MEGLIO SAPERLO
+true
+11:46
+Now playing
+The Alternative Way To Grow The Best Monstera
+79K 2y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+8 chapters
+Intro | Root Rot | Top cuttings | Vase | Stones | Assembling | Watering | pH
+true
+12:21
+Now playing
+The truth about monstera care!!!!
+35K 1y ago
+addictoplantes
+Everything you need to know about caring for Monsteras! Watering, lighting, repotting, pests... I'll tell you everything you ...
+true
+16:37
+Now playing
+Meet All Variegated Monstera Varieties And Expert Care Tips @noldy.topan
+115K 3y ago
+OnlyPlants
+In this tour, we cover the most extensive variegated monstera collector in Indonesia - Mr Noldy Topan of @dutahijauabadi.
+6:55 ... the monstera deliciosa called the Sphinx Mr Noli got this from Thailand and it's well known for its sectoral variegation this means ...
+4K
+true
+26:17
+Now playing
+Airlayering, chopping, and repotting my EXTRA large Monstera Deliciosa!
+80K 2y ago
+PlantswithKrystal
+Hey hey! Today's video shows the process of air layering, chopping, and repotting my large monstera. Hope it gives you a little ...
+1 product
+Summary
+After successfully air layering a massive Monstera Deliciosa, Krystal proceeds with a daring chop to manage its height. The process involves transferring the propagated cutting into a new, larger pot alongside the original plant to create a fuller appearance.
+true
+1:12
+Now playing
+Comment entretenir ma monstera ? - Truffaut
+70K 7y ago
+TRUFFAUT
+Découvrez le Monstera et ses secrets d'entretien ! Plante iconique des intérieurs végétalisés, le Monstera Deliciosa, aussi ...
+true
+18:15
+Now playing
+Monstera deliciosa: Easy propagation and tips for making it grow beautifully.
+178K 3y ago
+Ivet Suculentas y mas
+Hello plant lovers! This is your friend Ivet, from Oaxaca, who is completely in love with plants. My little paradise is ...
+4K
+Summary
+Ivet muestra cómo propagar una monstera deliciosa para recuperar su color blanco característico, utilizando un sustrato ligero a base de turba de coco y perlita. La demostración incluye el corte estratégico del tallo y el uso de tutores para asegurar raíces fuertes y frondosidad.
+true
+20:45
+Now playing
+Why Is My Variegated Monstera Reverting? (Causes & How to Fix It!)
+2.4K 8mo ago
+Jamie Rootledge
+Is your variegated Monstera reverting back to green? In this video, I break down why variegated Monsteras (Albo, Thai ...
+Summary
+Jamie Rootledge demonstrates how to propagate a reverted jungle mint Monstera to encourage the return of variegated growth. The process involves identifying healthy nodes on the stem, making strategic cuttings, and establishing them in moss to foster new, colorful foliage.
+true
+4:30
+Now playing
+Costilla de Adán o Monstera Deliciosa: características y reproducción - Decogarden - Jardinatis
+84K 6y ago
+Jardinatis
+Iñigo Segurola nos muestra las enormes variedades de Costilla de Adán que tiene en su invernadero y nos enseña las ...
+25 videos
+Monstera Essentials
+Kill This Plant
+Playlist
+How to set up your Monstera for success · 3:58
+why people keep Killing their Monstera · 3:13
+View full playlist
+If your Monstera Deliciosa is struggling, check out these essential videos to help troubleshoot your problems.
+true
+13:15
+Now playing
+Your Monstera Will NEVER Thrive Unless You Do This
+141K 1y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+true
+42:26
+Now playing
+My Variegated Monstera Deliciosa Collection 🌿
+30K 1y ago
+plantsbymelissa
+In this video, I'm sharing a closer look at all the stunning variegated monstera deliciosas in my collection, including albo, aurea, ...
+4K
+9 chapters
+intro | Monstera Deliciosa ‘Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Jungle Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Albo Variegata’ (White Tiger type) | Monstera Deliciosa ‘Mint’ (tissue culture) | Monstera Deliciosa ‘Aurea’ | Monstera Deliciosa ‘Thai Constellation’ | Monstera Deliciosa ‘Albo Variegata’ | outro
+true
+17:59
+Now playing
+Monstera Mania! | All of the Monstera Deliciosa I am Growing!
+3.1K 6mo ago
+PlantswithJacque
+Monstera Deliciosa Types Showcase In this video, I'm walking you through my collection of Monstera deliciosa varieties and ...
+Summary
+PlantswithJacque showcases a diverse collection of Monstera deliciosa varieties, detailing unique variegation patterns and specific growth forms. Each plant is presented with insights into its care requirements, preferred growing conditions, and individual developmental stages to help viewers distinguish between these popular botanical forms.
+true
+10:03
+Now playing
+The Ultimate Guide to Monstera Care | How to Grow Big, Healthy Monstera Plants Indoors
+7.8K 1y ago
+The Cozy Jungle
+Whether you're a beginner or an experienced plant parent, this video will help you keep your Monstera deliciosa looking vibrant ...
+4K
+true
+4:56
+Now playing
+Monstera deliciosa (Swiss Cheese Plant) Care 🌿 Watering, Propagation, Pruning and more!
+118K 5y ago
+EcologíaVerde
+🌿 Are you thinking about growing a Monstera deliciosa (Swiss cheese plant) indoors? In this Green Ecology video, we bring you ...
+7 chapters
+Cuidados de la costilla de Adán o Monstera deliciosa | Temperatura adecuada | Riego de la Monstera deliciosa | Luz y ubicación ideales | Poda recomendada | Hojas amarillas en la Monstera deliciosa | Cómo reproducir la planta costilla de Adán
+true
+1:09:24
+Now playing
+Growing & chopping up my huge Monstera adansonii (includes 12 months of updates)
+31K 1y ago
+Sydney Plant Guy
+Let's grow my Monstera adansonii even larger over the course of a full year! watch my review of the grow light: ...
+4K
+Summary
+Sydney Plant Guy tracks the recovery of a Monstera adansonii after an aggressive pruning session. The journey includes restructuring the plant's support pole and handling unexpected flowering to manage growth over the course of a full year.
+true
+30:59
+Now playing
+$15 BIG Monstera Deliciosa at 50% OFF HOME DEPOT PLANT SALE! Prices, Pet Safe Plants, Rare Plants
+15K 2mo ago
+Plant Life with Ashley Anita
+plants #homedepotfinds #plantshopping *This is a good vibes only channel for all plant friends to enjoy! :) Any negative and ...
+true
 
 **Feature evidence last updated:** 2026-10-22.
 
@@ -81,7 +2329,7 @@ tools, never checked side by side) isn't captured row by row.
 | Click an open path's end to continue it; click another path's end to join | done | #776 |
 | Rubber Band preview | done | Preferences option |
 | Auto Add/Delete on a selected path; Shift or the preference disables it | done | |
-| Pen cursors (new path ×, continue /, close o, add +, delete −, convert ^) | partial | vector cursors exist; not every state verified |
+| Pen cursors (new path ×, continue /, close o, add +, delete −, convert ^) | done | the nib is a fountain-pen nib, tip on the hotspot, with the slit widening into the breather hole and the heel clipped square to its axis; bitmap tests at 1× and 2× pin the nib and the new-path asterisk, and in-app screenshots compare the Pen with Direct Selection |
 | Node-editing cursors: Direct Selection's white arrow with a hollow or filled square over an anchor (path unselected or selected); the Reshape Segment cursor over a curved segment (Direct Selection, Anchor Point, the Pen with Alt); the Anchor Point caret for the Pen with Alt; Group Selection's plus (also Direct Selection with Alt); a filled arrow while dragging that turns hollow on a snap; a double arrowhead for an Alt-drag copy | partial | as the public manual describes them, drawn in code; no cue over handles (none documented) |
 | Anchor Point and Curvature tools' own cursors | done | the caret on the anchor it converts; the pen nib with a curve badge |
 | Free Transform's Cmd/Ctrl side-shear cursor | done | two arrows passing along the side (ShearH, ShearV), instead of the resize arrow across it |
@@ -91,10 +2339,7 @@ tools, never checked side by side) isn't captured row by row.
 | Curvature tool: click/drag points, double-click or Alt-click for a corner, temporary Direct Selection, point conversion | partial | circular point markers without direction handles or duplicate markers, Anchor Size and Hide Edges regression-tested (#1236, in part); curve geometry: each stretch of three points follows the circle through them (handles along its tangent, chord/(3·cos²(α/2)) long, shorter in a turn tighter than 30°), open ends curving in, the same rule for the rubber band, dragged, inserted and converted points (#1236, in part); neighbours of a point dragged on an existing path keep their tangents, and modifiers requested in #975 remain |
 | Blend spine Anchor Point conversion and handle editing (#2544) | implemented | symmetric handles, independent drag/retraction, visible-handle policy and selection/stacking covered by tool and engine regressions; Windows native canvas checks and screenshots reviewed in PR #2643 |
 | Add/Delete/Anchor Point tools; Anchor Point tool drags segments to reshape | done | #2267: a click on a handle end retracts that handle and leaves the anchor a corner with the other one; Shift held at the press on an anchor moves it, handles and all (Shift kept down: at 45° steps) instead of pulling out handles |
-| Pencil: Fidelity, Keep selected, Alt to Smooth, edit selected paths, close by proximity | done | Alt key toggles to Smooth Tool (#2001); Shift held at the press draws a straight line at 45° steps from the Constrain Angle, and Alt held at the press (with Alt key toggles to Smooth Tool off) a straight line at any angle (#3799); Edit Selected Paths continues a selected path from an end and, from a stroke that starts and ends on a selected path, redraws the section between (the shorter way round a closed path, #2850); with Keep selected (Pencil and Paintbrush, on by default) off, the path a stroke draws or continues is not selected afterwards; a filled Pencil path keeps a stroke of None (#1804, part of #1679); while a freehand stroke is drawn back to within Close Paths When Ends Are Within of its start, the Pencil and the Paintbrush show the closing cursor, and a release there closes the path |
-| Pencil: Fidelity, Keep selected, Alt to Smooth, edit selected paths, close by proximity | done | Alt key toggles to Smooth Tool (#2001); Shift held at the press draws a straight line at 45° steps from the Constrain Angle, with a straight-line cursor while Shift is held before the press (part of #3799; Alt's unconstrained straight line is not done); Edit Selected Paths continues a selected path from an end and, from a stroke that starts and ends on a selected path, redraws the section between (the shorter way round a closed path, #2850); with Keep selected (Pencil and Paintbrush, on by default) off, the path a stroke draws or continues is not selected afterwards; a filled Pencil path keeps a stroke of None (#1804, part of #1679) |
-| Pencil: Fidelity, Keep selected, Alt to Smooth, edit selected paths, close by proximity | done | Alt key toggles to Smooth Tool (#2001); Shift held at the press draws a straight line at 45° steps from the Constrain Angle, and Alt held at the press (with Alt key toggles to Smooth Tool off) a straight line at any angle (#3799); Edit Selected Paths continues a selected path from an end and, from a stroke that starts and ends on a selected path, redraws the section between (the shorter way round a closed path, #2850); with Keep selected (Pencil and Paintbrush, on by default) off, the path a stroke draws or continues is not selected afterwards; a filled Pencil path keeps a stroke of None (#1804, part of #1679) |
-| Pencil: Fidelity, Keep selected, Alt to Smooth, edit selected paths, close by proximity | partial | Alt to Smooth is missing; Edit Selected Paths continues a selected path from an end and, from a stroke that starts and ends on a selected path, redraws the section between (the shorter way round a closed path, #2850); with Keep selected (Pencil and Paintbrush, on by default) off, the path a stroke draws or continues is not selected afterwards; a filled Pencil path keeps a stroke of None (#1804, part of #1679) |
+| Pencil: Fidelity, Keep selected, Alt to Smooth, edit selected paths, close by proximity | done | Alt key toggles to Smooth Tool (#2001); Shift held at the press draws a straight line at 45° steps from the Constrain Angle, and Alt held at the press (with Alt key toggles to Smooth Tool off) a straight line at any angle (#3799), with a straight-line cursor while Shift or Alt is held before the press, and a path-continuation cursor over an end of a selected open path, where the line continues the path; Edit Selected Paths continues a selected path from an end and, from a stroke that starts and ends on a selected path, redraws the section between (the shorter way round a closed path, #2850); with Keep selected (Pencil and Paintbrush, on by default) off, the path a stroke draws or continues is not selected afterwards; a filled Pencil path keeps a stroke of None (#1804, part of #1679); while a freehand stroke is drawn back to within Close Paths When Ends Are Within of its start, the Pencil and the Paintbrush show the closing cursor, and a release there closes the path |
 | Join tool scrubbing, Average, Join | done | Join merges the direct-selected anchors lying on one another along a path, as after Average, into one (#1533) |
 | Average and Join in one step, with a corner or smooth choice for the joined anchor | partial | `path.join` accepts `to: corner|smooth` on the merged anchor; Average and Join are still separate commands; [gap 1](gaps.md) |
 | Smooth tool smooths only the stretch of path under the drag | done | #1512 |
@@ -311,6 +2556,8 @@ empty), without opening the dialog.
 
 ## Look and feel
 
+- [x] Recolor Artwork › Assign: double-click a row's new color to pick it in the Color Picker, in the model it was picked in (part of #4028); a Lab new color is kept but can't be typed yet (the picker's Lab fields work in RGB); Lab entry, swatch libraries and the row menu remain.
+
 - [x] Recolor Artwork Edit color chips scroll within the screen, preserving the wheel and actions (#3416); 5, 20, 200 and 400 colors, resizing and UI scaling, final-chip editing and preview/history covered by egui_kittest.
 
 - [x] Status messages and bounded readouts remain stable as values, canvas hover and background jobs change; ordinary values fit all registered languages and units, and optional groups yield in narrow windows (regressions; contributor rebuilt and confirmed the original-file status-bar scenario on 2026-10-19). Sample widths are cached per UI and refreshed only when language, document units or pixels per point changes.
@@ -346,7 +2593,7 @@ separate. Scores and hours unchanged. [Behavior and command details](development
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-24 | minor | Appearance panel: Shift, Ctrl/Cmd and Shift+Ctrl/Cmd highlight several fills/strokes or effects of one list by the Layers panel's rules; Duplicate/Delete, the panel menu, Delete/Backspace after a row click and drops on the two buttons act on them; highlighted rows drag as one block (Alt copies) with a dimmed copy under the pointer; a row's name (Fill:, Stroke:, an effect's) edits it ("Click to edit"), an effect row's empty space edits it on a double-click ("Double-click to edit"); Delete/Backspace after a Layers or Appearance row click no longer run Edit › Clear; "Opacity:" opens the Transparency panel on its row, which greys out the mask, isolation and knockout controls while a fill/stroke is active; an Opacity row highlights itself (not its fill/stroke); "Characters" opens the Character panel; the panels a row opens (Color, Stroke, Transparency, Character) close on a press outside them and give their first field the keyboard; with nothing selected the swatches and the stroke weight set up new art; the stroke weight (Appearance, Stroke panel, Control bar, Properties) is one spinner with arrows and presets whose plain steps go to whole numbers from 1 and to quarters below. Scores and estimates unchanged. |
+| 2026-10-24 | minor | Recolor Artwork › Assign: double-clicking a row's new color opens the Color Picker over the dialog; its OK sets the row's new color in the model it was picked in (a CMYK mix stays CMYK, RGB becomes CMYK in a CMYK document), Cancel leaves the row as it was. A Lab new color is kept, but a Lab color can't be typed yet: the picker's Lab fields work in RGB, as for fill and stroke (part of #4028; Lab entry, swatch libraries and the row menu remain). Scores and estimates unchanged. |
 | 2026-10-24 | minor | Properties: Merge Live Paint shows only when the selection holds nothing Live Paint refuses (type, images and other objects that aren't paths), which `livePaint.merge` and Make now refuse too. Scores unchanged. |
 | 2026-10-24 | minor | G1: Properties has the additional contextual controls of the public Properties panel overview: Blend Options and Merge Live Paint in Quick Actions, the Width Profile list and an applied effect's Delete icon in Appearance, and the kind and radius of corners selected with Direct Selection. Scores unchanged. |
 | 2026-10-24 | minor | Docs catch-up: Relative rounding (#3091) marked done; the stale "Video rulers: missing" duplicate row removed (done, #2849). Scores and estimates unchanged. |
@@ -416,7 +2663,2255 @@ separate. Scores and hours unchanged. [Behavior and command details](development
 | 2026-10-16 | minor | 3D lighting: opaque RGB Color for the shared directional light, with neutral ambient, preview/reset controls and smooth vector Revolve shading; scores and hour estimates unchanged |
 | 2026-10-14 | minor | Effect > Warp: style, orientation and percent controls; focused checks passed and original captures reviewed; scores and hours unchanged |
 | 2026-10-14 | minor | G11: open-path anchor Delete leaves separate surviving runs; dedicated Remove Anchors remains connected. Keyboard and history regression coverage added; scores and hours unchanged. |
-| 2026-10-14 | minor | Curvature: the Curvature tool's curve: each stretch of three points follows the circle through them (handles along its tangent, chord/(3·cos²(α/2)) long, shorter in a turn tighter than 30°), and the ends of an open path curve in, so uneven spacing neither overshoots nor loops; the rubber band, dragged, inserted and converted points use the same rule; the Pencil's fitting unchanged (#1236, in part); scores unchanged (estimated) |
+| 2026-10-14 | minor | Curvature: the Curvature tool's curve: each stretch of three points follows the circle through them (handles along its tangent, chord/(3·cos²(α/2)) long, shorter in a turn tighter than
+Sign in
+Home
+Shorts
+Subscriptions
+You
+History
+Sign in to like videos, comment, and subscribe.
+Sign in
+Explore
+Music
+Movies & TV
+Live
+Show more
+More from YouTube
+
+  
+    
+    
+  
+YouTube Premium
+
+  
+    
+    
+    
+  
+YouTube Music
+
+  
+    
+      
+      
+    
+    
+      
+      
+    
+  
+YouTube Kids
+Report history
+AboutPressCopyrightContact usCreatorsAdvertiseDevelopersImpressumCancel Memberships
+TermsPrivacyPolicy & SafetyHow YouTube worksTest new features
+© 2026 Google LLC
+All
+Shorts
+Unwatched
+Watched
+Videos
+Recently uploaded
+Live
+About these results
+Filters
+Shorts
+Step 1 for Monstera deliciosa: The BIG chop to propagate #monsteraplant #plantpropagation
+1.6M views
+Monstera deliciosa - Thai Constellation
+30K views
+This is how I grew my monstera deliciosa from seed! #timelapse #monstera
+767K views
+Never underestimate a well grown classic #monsteradeliciosa grown by @plantsdecoranddiy
+299K views
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+true
+11:21
+Now playing
+If I Only Knew These Monstera Tips 5 Years Ago
+2M 3y ago
+Sheffield Made Plants
+My best Monstera care tips I wish I knew 5 years ago. -------------------- Download my FREE Plant Parent's Troubleshooting ...
+9:12 ... actually two types of monstera plants you can buy that look very similar the monstera bozigiana and the monstera deliciosa they ...
+4K
+true
+4:28
+Now playing
+Do this after you buy your first Monstera
+204K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant analyzes why a new Monstera may struggle by measuring light levels and soil moisture. Discover how to identify if a plant is receiving enough light and why adjusting the environment immediately after purchase is crucial for healthy growth.
+true
+8:12
+Now playing
+How to grow the BEST Monstera
+1.3M 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+1 product
+4K
+Summary
+Kill This Plant compares top cuttings versus rearranging existing vines to fix crawling Monsteras. Learn methods for staking, pruning for propagation, and managing soil requirements for healthier, upright growth.
+true
+4:06
+Now playing
+how to grow a monstera as fast as possible
+57K 9mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant explains how to optimize monstera growth by mastering water saturation, soil drainage mixtures, and light intensity. Learn to use tools for testing soil moisture and tips for extending daylight hours to ensure consistent, rapid plant development.
+true
+8:01
+Now playing
+7 MONSTERA Plant Care Tips You Need to KNOW : Monstera Deliciousa
+340K 3y ago
+MonstroFarm
+I want to help you grow beautiful Monstera's, which is Super-Easy. Here are 7 Plant Care Tips on how I care and make sure that ...
+8 chapters
+Intro | LIGHTING | TEMPERATURE AND HUMIDITY | SOIL MIXTURE | FERTILIZER | PRUNING | PEST MANAGEMENT | WATERING
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+10:22
+Now playing
+0:19
+10:22
+Set Up Your Monstera For Success
+263K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Matching chapter
+0:19 My Monstera
+true
+3:13
+Now playing
+why people keep Killing their Monstera
+1M 3y ago
+Kill This Plant
+Hopefully this video will get you to stop killing your Monstera Deliciosa. *Links in this description contain affiliate links.
+0:00 Monstera deliciosa is supposed to be one of the easiest plants but you would not believe how many people are asking for help but ...
+4K
+true
+5:18
+Now playing
+Why you need to cut your monstera
+337K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates the process of air layering a large Monstera to safely propagate new roots before cutting. This technique allows for maintaining large foliage while preparing the plant for a fresh start in a new pot.
+true
+49:16
+Now playing
+I Wish I Knew These Monstera Tips 5 Years Ago
+562K 2y ago
+Sheffield Made Plants
+All my best Monstera tips in 1 video! -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 Perforations or holes in the Le or monstera deliciosa is one of the most highly Sal offer Commodities in the world sort of if you ...
+4K
+true
+7:22
+Now playing
+Do These 3 Things For The Largest Monstera Deliciosa
+70K 3y ago
+Techplant
+How to grow monstera deliciosa the right way for large leaves. These tips will help you grow a really nice monstera deliciosa!
+4K
+Summary
+Techplant clarifies common misconceptions about pruning lower leaves and recommends single-stalk configurations for easier management. Discover the importance of proper orientation when securing plants to supports, ensuring the aerial roots are pressed against the pole for maximum leaf growth.
+true
+12:30
+Now playing
+The World’s Largest Monstera Deliciosa Plant
+62K 3y ago
+SleepyLizard
+Get your Monstera Delciosa fruit and avocados at: https://www.guacfarm.com.
+Summary
+SleepyLizard showcases a massive Monstera Deliciosa plantation focused on fruit production rather than decoration. The video explores harvesting the sweet fruit and the agricultural challenges of integrating these plants within an avocado grove.
+true
+11:06
+Now playing
+10 Must Do Tricks For The BEST Monstera
+714K 3y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD.
+4K
+true
+10:59
+Now playing
+How To Propagate Your Monstera The Right Way
+347K 2y ago
+Sheffield Made Plants
+Monstera propagation the right way -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 This is The Ultimate Guide to propagating and multiplying your monstera deliciosa or swiss cheese plant so you can have more of ...
+4K
+true
+16:00
+Now playing
+Why You shouldn’t buy a Monstera Deliciosa !
+15K 1y ago
+The Millennial Plant Dad
+The Monstera Deliciosa may be an iconic house plant staple but the fact of the matter is that it's not for everyone, home or space !
+4K
+7 chapters
+Intro | Space | How it is sold | M poles | Climbing | Fertilizing | Outro
+true
+7:34
+Now playing
+Eating The Tastiest Fruit In The World! - How to Eat Monstera Deliciosa Safely | Mexican Breadfruit
+657K 3y ago
+Greenthumbs Garden
+Monstera Delcicosa is a popular houseplant all over the world. What many do not know is that when grown outside in the right ...
+CC
+6 chapters
+The Monstera Delcicosa Fruit | Monstera Delcicosa Fruit Nutritional Benefits | When To Harvest Monstera Delcicosa Fruit | When Is It Safe To Eat Monstera Delcicosa Fruit | What To Do With Unripe Monstera Delcicosa Fruit | Tasting The Monstera Delcicosa Fruit
+true
+11:05
+Now playing
+Grow Your Pothos 3x FASTER
+768K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Summary
+Sheffield Made Plants shares techniques for maximizing pothos growth through strategic potting, stem pinning, and propagation methods. Learn how proper lighting, soil selection, and understanding root health contribute to fuller, faster-growing vines.
+true
+12:48
+Now playing
+Popular Plant Products I’ll NEVER Buy Again (And What I Use Instead)
+272K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+10 chapters
+Intro | Rooting Hormone | Miracle Grow | Clear Pots | Decorative pots | Grow lights | Velcro plant eyes | Leaf shine | Core poles | Scissors
+true
+44:26
+Now playing
+Inside an Indoor Plant Oasis | Full Tour
+325K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Richard provides a comprehensive look into a living space transformed into a dense indoor jungle featuring over 200 diverse house plants. The tour showcases popular species alongside unique finds, sharing propagation tips and creative styling methods for various leaf types.
+true
+10:21
+Now playing
+Changing THIS Will Make Your Spider Plant THRIVE
+914K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+6 chapters
+Intro | Leaf Problems | Why Does This Work | Fertilizer | pH | Water Conditioner
+true
+12:26
+Now playing
+Growing A MATURE MONSTERA | How Long Does It Take???
+26K 3y ago
+Everything Plants
+Soltech Solutions 15% discount code 'everythingplants' https://glnk.io/0lyv/9 VeryPlants use the code EverythingPlants10 for 10% ...
+true
+16:40
+Now playing
+Tour of House Plant in their Natural Environment (outdoors!)
+57K 5y ago
+Plant Vibrations with Devin Wallien
+In this longer video I take a walking tour of the neighborhood El Poblado in Medellin, Colombia showing many of the most popular ...
+14:08 there's really nothing like it and then let's finish with many of our favorite plant the beautiful monstera deliciosa this plant has ...
+CC
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+The best way to get your monstera leaves to grow is to attach them to something for support!
+2.9M views
+Trying Monstera Deliciosa fruit and growing seeds! #monsteraplant #growingseeds
+315K views
+Giant Monstera! #plants #monsteradeliciosa
+18K views
+The 9 Monstera Deliciosa fruits are getting bigger and will soon reach maturity 💚 #monsteradeliciosa
+64K views
+true
+10:49
+Now playing
+You’re (Probably) Killing Your Monstera
+374K 3y ago
+Sheffield Made Plants
+You're probably killing your Monstera if you make this common mistake. -------------------- Download my FREE Plant Parent's ...
+4K
+Summary
+Sheffield Made Plants explores why pruning monsteras won't create a bushier appearance like other plants. Instead, learn how to properly propagate and stake these climbers to achieve a lush look without sacrificing mature foliage.
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+true
+23:55
+Now playing
+How To Shop & Care For MONSTERA DELICIOSA - Plant Care Light, Repot, Soil, Water Houseplant Care 101
+80K 2y ago
+Plant Life with Ashley Anita
+monstera #monsteradeliciosa #monsteraplant Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any ...
+Summary
+Ashley Anita guides viewers through the entire process of acquiring a new Monstera Deliciosa, from assessing plant health and pest checks at the nursery to the final potting steps. The episode covers selecting the right pot size, identifying when to repot, and creating the ideal, well-draining soil mix for optimal growth.
+true
+2:29
+Now playing
+How To Grow ~ Monstera
+5.6K 3y ago
+Urban Abundance
+Also known as the "Swiss cheese plant", monstera deliciosa is a tropical plant that is often used as a house plant because it is so ...
+0:00 Hey what's up guys it's farmer Jack and today we're going to talk about monstera deliciosa. So this plant is also known as The ...
+true
+6:41
+Now playing
+Grow Monstera From Seed ( 0 - 8 Months )
+89K 4y ago
+Techplant
+In this video I show you how to start monstera seeds and grow them into small plants! Growing Monstera deliciosa from seed is ...
+4K
+true
+23:26
+Now playing
+Houseplant Care 101: Monstera Care Tips - Monstera Watering, Feeding, & Repotting
+17K 4y ago
+Plant Life with Ashley Anita
+houseplants #monstera #plants Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any potting mix.
+0:44 ... when it comes to caring for your monstera deliciosa now on these three topics i've already done very very detailed episodes i've ...
+true
+10:01
+Now playing
+How To Propagate MONSTERA DELICIOSA 2 EASY Ways (DETAILED)
+1.7M 6y ago
+Techplant
+HowTo #Propagate #MonsteraDeliciosa How To Propagate Monstrea Deliciosa Cuttings Easily! I tried using two different methods ...
+4K
+6 chapters
+Intro | Cutting | Water Cutting | Spagna Moss Cutting | Mother Plant | Outro
+true
+8:13
+Now playing
+Easy IKEA Jungle Box (DIY Greenhouse)
+1.7M 2y ago
+SerpaDesign
+I've made plenty of IKEA projects before, and we thought it was time for another. Well, actually, it was my wife's idea. A few months ...
+4K
+Summary
+SerpaDesign transforms a standard IKEA cabinet into a self-sustaining greenhouse for lush tropical plants. The build involves custom glass sealing, a cork-panelled background, and specific drainage features to support thriving foliage like Alocasia and various bromeliads.
+true
+35:28
+Now playing
+All you need to know about Monstera Deliciosa
+610K 7y ago
+Swedish Plantguys
+We hope you will enjoy this video! And thank you for watching ! Chapters: Purchase start of the video Planting 08:14 Placement ...
+true
+12:47
+Now playing
+#91 Top 6 Common Indoor Plants That Can Grow In Water | Grow Houseplants Without Soil
+11M 5y ago
+The Green Earth
+My top 6 Indoor Plants that are growing in just water without soil. Growing plants in water, whether houseplants or an indoor herb ...
+2 products
+4K
+12 chapters
+Introduction | Cutting of Satin Pothos | Cutting of Golden Pothos | Cutting of Jade Plant | Cutting of ZZ Plant | Cutting of Rubber Plant | Cutting of Snake Plant | Day 01 of Water Propagation | Day 20 of Water Propagation | Day 34 of Water Propagation | Day 45 of Water Propagation | Growing Indoor Plants in LECA
+true
+10:47
+Now playing
+I Stopped Killing Jade Plants Once I Knew This
+562K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Sheffield Made Plants shares techniques for cultivating healthy jade plants, emphasizing the importance of ample sunlight and proper watering habits. Learn how to encourage a bushier structure through strategic pruning and explore methods for propagating new plants from cuttings.
+true
+1:41:19
+Now playing
+The ULTIMATE Guide To The 10 Most Popular Plants
+258K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ Book a ...
+4K
+true
+21:20
+Now playing
+Houseplants I would NEVER buy again! (and some that I would)
+54K 1y ago
+Kaylee Ellen
+Some houseplants just aren't worth it… but a few totally are! Here are the ones I'd buy again. Anthurium Rare Plant Index: ...
+Summary
+Kaylee Ellen shares her personal experiences with specific plant varieties, explaining why some species prove to be too high-maintenance for a relaxing collection. The discussion covers growth patterns, light requirements, and the effort needed to keep these popular indoor plants looking their best over time.
+true
+16:09
+Now playing
+Making Thick Trunk Bonsai from Jade Plant | in 2 Years | Pruning | Repotting | Portulacaria Afra
+3.6M 3y ago
+What a Plant
+Now You can Buy My Premium Bonsai Soil Mix (From Link Below) https://amzn.to/358xd84 Appreciate Your Support Please ...
+13 chapters
+Intro | Pruning | Preparing Bonsai Pot | Repotting | 2nd Pruning | 1st Result | Repotting into Bigger Pot | 3rd Pruning | Preparing Bonsai Pot | Repotting | Growth After Few Months | 4th Pruning | Final Result
+true
+17:04
+Now playing
+AFTER I CREATED THIS METHOD I NEVER LOST AN ORCHIDS AGAIN
+2.1M 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover the ultimate game-changing method that ensures you'll never lose an ...
+3 products
+4K
+Shorts
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+Monstera Deliciosa Aurea Variegated 🪴✨🌙 #plants #plantlover #indoorplants #monstera #houseplants
+7.3K views
+New
+She’s thriving ✨😍 #monstera #monsteradeliciosa #giantmonstera #plants #houseplants
+961 views
+New
+5 Poisonous Fruits You Should Never Eat Unripe! ⚠️Monstera Deliciosa.
+7.7K views
+New
+1 year Monstera Bulbasaur TC update. #monstera #philodendron #plantcare #anthurium #plantcaretips
+19K views
+true
+18:21
+Now playing
+18 Gorgeous Houseplants That Thrive Without Sunlight
+839K 1y ago
+Natural Health Remedies
+18 Gorgeous Houseplants That Thrive Without Sunlight Don't have a sunny window? No problem! In this video, we're showing ...
+Summary
+Natural Health Remedies explores diverse options for dimly lit spaces, from vining plants to flowering varieties. Learn specific care tips for each plant, including watering frequency and soil preferences, to ensure longevity without direct sunlight.
+true
+25:13
+Now playing
+Just one slice of onion can make Anthurium explode with so many beautiful flowers
+542K 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover an astonishing trick: just one slice of onion can make your Anthurium ...
+2 products
+4K
+true
+3:38
+Now playing
+STOP doing this to your Monstera Deliciosa
+349K 4y ago
+Kill This Plant
+I get the idea behind it. But this is not doing what you think its doing. We need to stop pruning our Monstera Deliciosa. Pruning this ...
+4K
+Summary
+Kill This Plant explains how pruning affects hormone pathways and growth in Monsteras, unlike branching plants like jade. They reveal how cutting stems reverts plants to a juvenile state with smaller leaves and fenestrations.
+true
+14:42
+Now playing
+The only 4 Monstera Deliciosa tips you need to know
+91K 5mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+5 chapters
+Find the back of the plant | Measure your light | Get grow lights | Take top cuttings | Conclusion
+true
+11:01
+Now playing
+Tips + Tricks For Monstera Deliciosa | ALL YOU NEED TO KNOW 🌿 Indoor Plant Tips For Beginners
+47K 5y ago
+The Jungle Haven
+Monstera deliciosa care tips - swiss cheese plant care - monstera houseplant tips and tricks - indoor plant tips for beginners ...
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+Shorts
+5 years of monstera growth! #monstera #plants
+696K views
+Repotting my NEW indoor monstera plant🪴 #plants #monstera #indoorplants #houseplants #monsteraplant
+315K views
+New
+Converting my M. deliciosa ‘brazil form’ from grown on wood to grown on a moss pole
+26K views
+Deliciosa VS Borsigiana Monstera | They’re VERY Different - Which One is Yours?
+203K views
+I have 600 houseplants and my Monstera Deliciosa my absolute FAVORITE plant in my collection 🤍🪴🥹
+83K views
+true
+5:46
+Now playing
+How to Grow Monstera Deliciosa
+6.5K 3mo ago
+Tanner The Planter
+Day 21/30 of teaching you how to grow your houseplants in a simple way. My reference guide to growing 150 of the most popular ...
+Summary
+Tanner The Planter provides a comprehensive guide on Monstera deliciosa care, focusing on proper soil composition, effective watering techniques, and optimal lighting conditions. Learn how to encourage healthy root systems and leaf maturity while managing growth through staking.
+true
+10:15
+Now playing
+cutting down my GIANT Monstera Deliciosa / Taking Cuttings / Repotting / Feed & Care Nicole's Garden
+80K 2y ago
+Nicole’s Garden
+Please Like and Subscribe! Affiliate links Ponytail sunhat (CAN) https://amzn.to/3UKGeeG Hori Hori Knife (CAN) ...
+true
+17:59
+Now playing
+Proper care for Monstera deliciosa! These 7 care tips are a MUST-know 🪴 (Swiss cheese plant)
+40K 9mo ago
+crazyplantboy
+Want your Monstera deliciosa to grow better and healthier? Need an overview of the most important care tips so you can ...
+4K
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+2:52
+Now playing
+How to Repot Monstera Deliciosa. IT'S EASY!
+149K 3y ago
+Tanner The Planter
+In this video we discuss and demonstrate the general methods of properly re-potting the Monstera Deliciosa. Find Your PERFECT ...
+5 chapters
+Intro | Preparing the soil | Checking the roots | Repot | Watering
+true
+19:41
+Now playing
+Monstera Deliciosa: From Jungle Survivor to Icon 🌿
+19K 1y ago
+Plantrums
+Watch next: The Orchid's Dark Past — Obsession, Mystery, and Survival → https://www.youtube.com/watch?v=q7VpOcKEpAw ...
+4 products
+7 chapters
+Intro | Monstera’s Ancient History | Monstera’s Early Documentation | Monstera’s Biological Secrets | Monstera’s Rise to Fame | Monstera’s Ecological Impact | Monstera’s True Value
+Shorts
+Eating Monstera Deliciosa Fruit, Finally!
+471K views
+What to do with your monstera aerial roots? #monsteraplant #plantcaretips #plantcare
+981K views
+New
+Monstera deliciosa (exotic plant that produces fruit) #shorts  #foodforest #tropical  #gardening
+1.1K views
+A lot of growth already in a year and a half for big mama Monstera Deliciosa. #monsteraplant
+433K views
+Monstera Deliciosa Repot #monstera #monsteraplant #repotting
+49K views
+true
+11:25
+Now playing
+How to start Monstera the right way
+61K 4mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant provides a comprehensive guide to maximizing growth for single-stem Monsteras. The discussion covers essential care routines, including light intensity monitoring, selecting appropriate soil amendments to improve drainage, proper staking techniques, and safe fertilizing schedules to help plants thrive.
+true
+5:37
+Now playing
+How to Add Support & Prune Back Overgrown Monstera Deliciosa Plants
+242K 3y ago
+My City Plants
+How to prune Monstera Deliciosa (complete guide) ...
+5 products
+Earns commission
+Summary
+My City Plants demonstrates techniques for managing large foliage using bamboo stakes, raffia, and clean pruners. Learn how to secure sprawling stems for a narrower profile and selectively cut back growth to maintain a balanced shape.
+true
+7:13
+Now playing
+You don’t need to repot your Monstera
+80K 2y ago
+Kill This Plant
+Join our discord community https://discord.gg/RYXzghkuhk * Get 15% off Soltech Grow Lights with promo code: KTP2025 ...
+4K
+Summary
+Kill This Plant explains how to determine when a Monstera actually needs a larger container based on root volume and soil moisture. Learn to identify the right balance of root mass to soil, and discover alternative solutions for managing water retention and light requirements.
+true
+19:37
+Now playing
+Saving a Giant: I got an 11+ year old Monstera Deliciosa Large Form
+210K 3y ago
+Leafy_Luster
+MONSTERA DELICIOSA large form exists & I finally found one to call my own. Join me on this Massive Monstera Makeover to ...
+4K
+true
+12:31
+Now playing
+The Full Story of my 11+ year old Monstera Deliciosa Large Form
+108K 2y ago
+Leafy_Luster
+It's one of my most requested videos to make. THE UPDATE on my rescue Monstera Deliciosa! My rescue mission was quite ...
+4K
+Shorts
+Repotting 7ft+ monstera #shorts #gardenup #monstera #plants
+409K views
+Monstera Fruit: The Strange Tropical Fruit 🍃🟢
+102K views
+let's propagate monstera #monstera #propagate #plants #soil #water #roots #areal #cutting #plants
+1M views
+Grow a BIG Monstera✨ #houseplants #plantcare #plantcaretips #monsteradeliciosa
+3.7K views
+If you love your monstera, set it free #houseplant #monstera #plantgrowth
+351K views
+true
+14:33
+Now playing
+MONSTERA PROPAGATION: How to Propagate Monstera deliciosa (2023)
+153K 4y ago
+Plant Vibrations with Devin Wallien
+My favorite Houseplant tools here: https://amzn.to/3sYJ3ta Yesssss, finally I have created a video on how to successfully ...
+CC
+true
+5:00
+Now playing
+5 quick tips Monstera Deliciosa
+88K 5y ago
+Swedish Plantguys
+In this video we give you 5 quick tips for your Monstera Deliciosa also know as Swiss cheese plant. Enjoy! And thank you for ...
+4K
+7 chapters
+Intro | Juvenile Monstera | Repot | Support | Prune | Humidity | Outro
+true
+14:29
+Now playing
+How to Repot a Monstera Deliciosa Plant | Staking | Aerial Roots | Care Guide
+37K 3y ago
+Ana Perez
+Hello friends, here's how to repot a monstera deliciosa plant and how to care for a monstera plant as well! Here are all the ...
+4K
+CC
+12 chapters
+intro | When to repot a monstera deliciosa? | What to do when a monstera is really root bound? | What type of potting soil to use for a monstera deliciosa? | What type of pot to use for a monstera? | Are moss poles necessary for a monstera? | What to do with the aerial roots of a monstera | What type of light does a monstera need? | How often should you water a monstera? | How much water should you give a monstera plant? | Fertilizing a monstera plant | Pest Preventions
+true
+17:27
+Now playing
+Monstera Deliciosa Single Node Propagation (0-9 Months)
+609K 4y ago
+Techplant
+propagating monstera nodes. In this video I will show you the process of making single node cuttings of monstera deliciosa and ...
+1 product
+4K
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:47
+Now playing
+MONSTERA DELICIOSA Care | Swiss Cheese Plant Tips & Tricks
+187K 7y ago
+Good Growing
+For bonus content, subscribe to my Patreon ›› https://www.patreon.com/goodgrowing Do you like being trendy? Want plants to ...
+11 chapters
+Intro | General Info | Water | Light | Temperature | Humidity | Fertiliser | Propagation | Toxicity | Growth Care | Outro
+Shorts
+Monstera Propagation (My Step by Step Process)
+313K views
+I CHOPPED UP my Monstera to get it to thrive #houseplants #plants #houseplant #monstera
+804K views
+Monstera Deliciosa 🌿 Complete Care, Propagation, Height & Fruit Facts!#youtubeshorts#shorts#reels
+2.2K views
+New
+Propagation Loop♻️🌿 #planttips #plants #monstera #propagation #plantcare #diy
+18K views
+Monstera Deliciosa 2023 Season is Here
+1.8M views
+true
+10:39
+Now playing
+MONSTERA DELICIOSA CARE + PROPAGATION | indoor swiss cheese plant care
+174K 6y ago
+Good & Planty
+this MONSTER of a care guide is here monstera leaves going yellow? not getting those fenestrations? is your swiss cheese ...
+CC
+6 chapters
+Intro | Water | Light | Repotting | Temperature Humidity | Propagation
+true
+10:25
+Now playing
+Monstera richtig pflegen – der komplette Guide | feey 🌱
+129K 3y ago
+feey
+In diesem Video zeigen wir dir alles, was du zur richtigen Pflege deiner Monstera wissen musst: Dazu zählt der richtige Standort, ...
+2:46 Das hier ist der Klassiker der Monsteras: die Monstera deliciosa. Diese findest du bei uns im Shop in ganz vielen verschiedenen ...
+4K
+CC
+true
+7:35
+Now playing
+Watch this before you separate your Monstera
+38K 1y ago
+Kill This Plant
+Get 15% off Soltech Grow Lights with promo code: KTP2025 https://glnk.io/0lyv/13 * GET 10% off the best professional ...
+4K
+Summary
+Kill This Plant explains how to properly assess indoor lighting and choose the correct pot size to prevent root rot after propagating. Using a light meter and moisture probe, they demonstrate the relationship between soil volume, oxygen levels, and plant stress.
+true
+35:40
+Now playing
+My Monstera Jungle Mint Started Reverting...So I Chopped It All Back 👀
+16K 6mo ago
+plantsbymelissa
+My Monstera jungle mint started reverting, so it was time to cut it back and restart. In this video I'm chopping it down, resetting the ...
+4K
+8 chapters
+Overview | Time to chop | Repotting the base | Chunky pon | Watering | Cuttings | Back in my plant room | Outro
+true
+15:38
+Now playing
+Every Type of Monstera Deliciosa Explained (And Which One to Buy)
+85K 2y ago
+Kaylee Ellen
+M E R C H : https://kayleeellen.creator-spring.com/? Monstera Vareities: ...
+Summary
+Kaylee Ellen outlines the differences between small and large form Monstera deliciosa, focusing on internodal spacing, growth patterns, and leaf characteristics. Learn which variety best suits your available space and aesthetic preferences through a detailed comparison of popular green and variegated cultivars.
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+MONSTERA Propagation with 100% SUCCESS | Watch Me Turn a sad 😢 Plant into 11 Happy 🤓babies!
+607K views
+Monstera Deliciosa : The Delicious Monster Houseplant ! 🪴🍍#garden  #farming #organic
+3.1M views
+Monstera deliciosa fruit #asmr
+901K views
+Would you do this?! Full Monstera Cut Back!
+456K views
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:00
+Now playing
+How to water propagate a Monstera Deliciosa
+64K 1y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates how to take top and mid cuttings for propagation while ensuring healthy root development and foliage maintenance. Learn techniques to prevent rot, choose appropriate pot sizes based on root mass, and mix suitable soil for growth.
+Shorts
+Monstera deliciosa harvest!
+4.4M views
+Here’s 4 tips to grow a HUGE Monstera Deliciosa! 🌱🪴
+286K views
+The Secret, Edible Fruit Hiding on Your Houseplant #monstera #animation
+713K views
+Monstera deliciosa propagation in water❤️#shorts #youtubeshorts #like #viral #fyp
+425K views
+Monstera Deliciosa Fruit #shorts
+51K views
+true
+2:41
+Now playing
+My Mutant Monstera Deliciosa Update
+7.9K 2y ago
+Techplant
+Amazon Affiliate link to light https://amzn.to/3S7wJVN These are amazon affiliate links, they don't change the price, however after ...
+4K
+true
+0:47
+Now playing
+Monstera Deliciosa Time Lapse (HUGE LEAF)
+28K 3y ago
+Interesting as FCK
+In this plant time lapse, we'll be taking a look at a GIANT monstera deliciosa growing, one of my favorite plants in the world!
+4K
+true
+8:16
+Now playing
+Monstera Deliciosa LARGE FORM: Repotting & Root Dividing
+136K 6y ago
+reallybigplant
+How to repot an extra large Monstera Deliciosa with a huge developed root system! Join me while I try to root divide this Monstera ...
+true
+8:16
+Now playing
+How to Grow and Care for Monstera (Swiss Cheese) Indoors
+615K 5y ago
+Garden Up
+LINKS| Good quality soil : https://gardenup.in/products/ready-potting-soil-mix Succulent soil ...
+true
+7:41
+Now playing
+Monstera Roots - 4 Things to do with Aerial Roots - Monstera deliciosa (2023)
+189K 3y ago
+Plant Vibrations with Devin Wallien
+Shop plants here! https://plantvibrations-shop.myshopify.com/ While we're growing our Monstera deliciosa or many other aroid ...
+CC
+Summary
+Devin Wallien explains how aerial roots function as nutrient and water absorbers for the plant. The video demonstrates practical techniques for managing these roots, including guiding them into a moss pole, burying them in the soil, or placing them in water to enhance growth.
+true
+12:09
+Now playing
+The Easiest Monsteras to Care For 🌿 Great for Beginners Too!
+3K 3mo ago
+planty skies
+🌿 Monsteras are among the most popular houseplants – but which varieties are truly easy to care for and suitable for beginners ...
+4K
+true
+6:11
+Now playing
+The Giant Monstera Deliciosa Node Update
+12K 1y ago
+Techplant
+Here are the giant monstera nodes I've had propagating for 2 yeara These are amazon affiliate links, they don't change the price, ...
+4K
+Summary
+Techplant documents a two-year propagation experiment using various methods to revive severely rotted monstera cuttings. Despite initial setbaks and neglect, the video tracks the long-term survival and growth of the nodes under different environmental c
+Sign in
+Home
+Shorts
+Subscriptions
+You
+History
+Sign in to like videos, comment, and subscribe.
+Sign in
+Explore
+Music
+Movies & TV
+Live
+Show more
+More from YouTube
+
+  
+    
+    
+  
+YouTube Premium
+
+  
+    
+    
+    
+  
+YouTube Music
+
+  
+    
+      
+      
+    
+    
+      
+      
+    
+  
+YouTube Kids
+Report history
+AboutPressCopyrightContact usCreatorsAdvertiseDevelopersImpressumCancel Memberships
+TermsPrivacyPolicy & SafetyHow YouTube worksTest new features
+© 2026 Google LLC
+All
+Shorts
+Unwatched
+Watched
+Videos
+Recently uploaded
+Live
+About these results
+Filters
+Shorts
+Step 1 for Monstera deliciosa: The BIG chop to propagate #monsteraplant #plantpropagation
+1.6M views
+Monstera deliciosa - Thai Constellation
+30K views
+This is how I grew my monstera deliciosa from seed! #timelapse #monstera
+767K views
+Never underestimate a well grown classic #monsteradeliciosa grown by @plantsdecoranddiy
+299K views
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+true
+11:21
+Now playing
+If I Only Knew These Monstera Tips 5 Years Ago
+2M 3y ago
+Sheffield Made Plants
+My best Monstera care tips I wish I knew 5 years ago. -------------------- Download my FREE Plant Parent's Troubleshooting ...
+9:12 ... actually two types of monstera plants you can buy that look very similar the monstera bozigiana and the monstera deliciosa they ...
+4K
+true
+4:28
+Now playing
+Do this after you buy your first Monstera
+204K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant analyzes why a new Monstera may struggle by measuring light levels and soil moisture. Discover how to identify if a plant is receiving enough light and why adjusting the environment immediately after purchase is crucial for healthy growth.
+true
+8:12
+Now playing
+How to grow the BEST Monstera
+1.3M 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+1 product
+4K
+Summary
+Kill This Plant compares top cuttings versus rearranging existing vines to fix crawling Monsteras. Learn methods for staking, pruning for propagation, and managing soil requirements for healthier, upright growth.
+true
+4:06
+Now playing
+how to grow a monstera as fast as possible
+57K 9mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant explains how to optimize monstera growth by mastering water saturation, soil drainage mixtures, and light intensity. Learn to use tools for testing soil moisture and tips for extending daylight hours to ensure consistent, rapid plant development.
+true
+8:01
+Now playing
+7 MONSTERA Plant Care Tips You Need to KNOW : Monstera Deliciousa
+340K 3y ago
+MonstroFarm
+I want to help you grow beautiful Monstera's, which is Super-Easy. Here are 7 Plant Care Tips on how I care and make sure that ...
+8 chapters
+Intro | LIGHTING | TEMPERATURE AND HUMIDITY | SOIL MIXTURE | FERTILIZER | PRUNING | PEST MANAGEMENT | WATERING
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+10:22
+Now playing
+0:19
+10:22
+Set Up Your Monstera For Success
+263K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Matching chapter
+0:19 My Monstera
+true
+3:13
+Now playing
+why people keep Killing their Monstera
+1M 3y ago
+Kill This Plant
+Hopefully this video will get you to stop killing your Monstera Deliciosa. *Links in this description contain affiliate links.
+0:00 Monstera deliciosa is supposed to be one of the easiest plants but you would not believe how many people are asking for help but ...
+4K
+true
+5:18
+Now playing
+Why you need to cut your monstera
+337K 2y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates the process of air layering a large Monstera to safely propagate new roots before cutting. This technique allows for maintaining large foliage while preparing the plant for a fresh start in a new pot.
+true
+49:16
+Now playing
+I Wish I Knew These Monstera Tips 5 Years Ago
+562K 2y ago
+Sheffield Made Plants
+All my best Monstera tips in 1 video! -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 Perforations or holes in the Le or monstera deliciosa is one of the most highly Sal offer Commodities in the world sort of if you ...
+4K
+true
+7:22
+Now playing
+Do These 3 Things For The Largest Monstera Deliciosa
+70K 3y ago
+Techplant
+How to grow monstera deliciosa the right way for large leaves. These tips will help you grow a really nice monstera deliciosa!
+4K
+Summary
+Techplant clarifies common misconceptions about pruning lower leaves and recommends single-stalk configurations for easier management. Discover the importance of proper orientation when securing plants to supports, ensuring the aerial roots are pressed against the pole for maximum leaf growth.
+true
+12:30
+Now playing
+The World’s Largest Monstera Deliciosa Plant
+62K 3y ago
+SleepyLizard
+Get your Monstera Delciosa fruit and avocados at: https://www.guacfarm.com.
+Summary
+SleepyLizard showcases a massive Monstera Deliciosa plantation focused on fruit production rather than decoration. The video explores harvesting the sweet fruit and the agricultural challenges of integrating these plants within an avocado grove.
+true
+11:06
+Now playing
+10 Must Do Tricks For The BEST Monstera
+714K 3y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD.
+4K
+true
+10:59
+Now playing
+How To Propagate Your Monstera The Right Way
+347K 2y ago
+Sheffield Made Plants
+Monstera propagation the right way -------------------- Download my FREE Plant Parent's Troubleshooting Handbook ...
+0:00 This is The Ultimate Guide to propagating and multiplying your monstera deliciosa or swiss cheese plant so you can have more of ...
+4K
+true
+16:00
+Now playing
+Why You shouldn’t buy a Monstera Deliciosa !
+15K 1y ago
+The Millennial Plant Dad
+The Monstera Deliciosa may be an iconic house plant staple but the fact of the matter is that it's not for everyone, home or space !
+4K
+7 chapters
+Intro | Space | How it is sold | M poles | Climbing | Fertilizing | Outro
+true
+7:34
+Now playing
+Eating The Tastiest Fruit In The World! - How to Eat Monstera Deliciosa Safely | Mexican Breadfruit
+657K 3y ago
+Greenthumbs Garden
+Monstera Delcicosa is a popular houseplant all over the world. What many do not know is that when grown outside in the right ...
+CC
+6 chapters
+The Monstera Delcicosa Fruit | Monstera Delcicosa Fruit Nutritional Benefits | When To Harvest Monstera Delcicosa Fruit | When Is It Safe To Eat Monstera Delcicosa Fruit | What To Do With Unripe Monstera Delcicosa Fruit | Tasting The Monstera Delcicosa Fruit
+true
+11:05
+Now playing
+Grow Your Pothos 3x FASTER
+768K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ 1:1 ...
+4K
+Summary
+Sheffield Made Plants shares techniques for maximizing pothos growth through strategic potting, stem pinning, and propagation methods. Learn how proper lighting, soil selection, and understanding root health contribute to fuller, faster-growing vines.
+true
+12:48
+Now playing
+Popular Plant Products I’ll NEVER Buy Again (And What I Use Instead)
+272K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+10 chapters
+Intro | Rooting Hormone | Miracle Grow | Clear Pots | Decorative pots | Grow lights | Velcro plant eyes | Leaf shine | Core poles | Scissors
+true
+44:26
+Now playing
+Inside an Indoor Plant Oasis | Full Tour
+325K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Richard provides a comprehensive look into a living space transformed into a dense indoor jungle featuring over 200 diverse house plants. The tour showcases popular species alongside unique finds, sharing propagation tips and creative styling methods for various leaf types.
+true
+10:21
+Now playing
+Changing THIS Will Make Your Spider Plant THRIVE
+914K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+6 chapters
+Intro | Leaf Problems | Why Does This Work | Fertilizer | pH | Water Conditioner
+true
+12:26
+Now playing
+Growing A MATURE MONSTERA | How Long Does It Take???
+26K 3y ago
+Everything Plants
+Soltech Solutions 15% discount code 'everythingplants' https://glnk.io/0lyv/9 VeryPlants use the code EverythingPlants10 for 10% ...
+true
+16:40
+Now playing
+Tour of House Plant in their Natural Environment (outdoors!)
+57K 5y ago
+Plant Vibrations with Devin Wallien
+In this longer video I take a walking tour of the neighborhood El Poblado in Medellin, Colombia showing many of the most popular ...
+14:08 there's really nothing like it and then let's finish with many of our favorite plant the beautiful monstera deliciosa this plant has ...
+CC
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+The best way to get your monstera leaves to grow is to attach them to something for support!
+2.9M views
+Trying Monstera Deliciosa fruit and growing seeds! #monsteraplant #growingseeds
+315K views
+Giant Monstera! #plants #monsteradeliciosa
+18K views
+The 9 Monstera Deliciosa fruits are getting bigger and will soon reach maturity 💚 #monsteradeliciosa
+64K views
+true
+10:49
+Now playing
+You’re (Probably) Killing Your Monstera
+374K 3y ago
+Sheffield Made Plants
+You're probably killing your Monstera if you make this common mistake. -------------------- Download my FREE Plant Parent's ...
+4K
+Summary
+Sheffield Made Plants explores why pruning monsteras won't create a bushier appearance like other plants. Instead, learn how to properly propagate and stake these climbers to achieve a lush look without sacrificing mature foliage.
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+true
+23:55
+Now playing
+How To Shop & Care For MONSTERA DELICIOSA - Plant Care Light, Repot, Soil, Water Houseplant Care 101
+80K 2y ago
+Plant Life with Ashley Anita
+monstera #monsteradeliciosa #monsteraplant Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any ...
+Summary
+Ashley Anita guides viewers through the entire process of acquiring a new Monstera Deliciosa, from assessing plant health and pest checks at the nursery to the final potting steps. The episode covers selecting the right pot size, identifying when to repot, and creating the ideal, well-draining soil mix for optimal growth.
+true
+2:29
+Now playing
+How To Grow ~ Monstera
+5.6K 3y ago
+Urban Abundance
+Also known as the "Swiss cheese plant", monstera deliciosa is a tropical plant that is often used as a house plant because it is so ...
+0:00 Hey what's up guys it's farmer Jack and today we're going to talk about monstera deliciosa. So this plant is also known as The ...
+true
+6:41
+Now playing
+Grow Monstera From Seed ( 0 - 8 Months )
+89K 4y ago
+Techplant
+In this video I show you how to start monstera seeds and grow them into small plants! Growing Monstera deliciosa from seed is ...
+4K
+true
+23:26
+Now playing
+Houseplant Care 101: Monstera Care Tips - Monstera Watering, Feeding, & Repotting
+17K 4y ago
+Plant Life with Ashley Anita
+houseplants #monstera #plants Visit https://bit.ly/3rRx8hV and use code ASHLEY at checkout to get 10% off any potting mix.
+0:44 ... when it comes to caring for your monstera deliciosa now on these three topics i've already done very very detailed episodes i've ...
+true
+10:01
+Now playing
+How To Propagate MONSTERA DELICIOSA 2 EASY Ways (DETAILED)
+1.7M 6y ago
+Techplant
+HowTo #Propagate #MonsteraDeliciosa How To Propagate Monstrea Deliciosa Cuttings Easily! I tried using two different methods ...
+4K
+6 chapters
+Intro | Cutting | Water Cutting | Spagna Moss Cutting | Mother Plant | Outro
+true
+8:13
+Now playing
+Easy IKEA Jungle Box (DIY Greenhouse)
+1.7M 2y ago
+SerpaDesign
+I've made plenty of IKEA projects before, and we thought it was time for another. Well, actually, it was my wife's idea. A few months ...
+4K
+Summary
+SerpaDesign transforms a standard IKEA cabinet into a self-sustaining greenhouse for lush tropical plants. The build involves custom glass sealing, a cork-panelled background, and specific drainage features to support thriving foliage like Alocasia and various bromeliads.
+true
+35:28
+Now playing
+All you need to know about Monstera Deliciosa
+610K 7y ago
+Swedish Plantguys
+We hope you will enjoy this video! And thank you for watching ! Chapters: Purchase start of the video Planting 08:14 Placement ...
+true
+12:47
+Now playing
+#91 Top 6 Common Indoor Plants That Can Grow In Water | Grow Houseplants Without Soil
+11M 5y ago
+The Green Earth
+My top 6 Indoor Plants that are growing in just water without soil. Growing plants in water, whether houseplants or an indoor herb ...
+2 products
+4K
+12 chapters
+Introduction | Cutting of Satin Pothos | Cutting of Golden Pothos | Cutting of Jade Plant | Cutting of ZZ Plant | Cutting of Rubber Plant | Cutting of Snake Plant | Day 01 of Water Propagation | Day 20 of Water Propagation | Day 34 of Water Propagation | Day 45 of Water Propagation | Growing Indoor Plants in LECA
+true
+10:47
+Now playing
+I Stopped Killing Jade Plants Once I Knew This
+562K 1y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ...
+4K
+Summary
+Sheffield Made Plants shares techniques for cultivating healthy jade plants, emphasizing the importance of ample sunlight and proper watering habits. Learn how to encourage a bushier structure through strategic pruning and explore methods for propagating new plants from cuttings.
+true
+1:41:19
+Now playing
+The ULTIMATE Guide To The 10 Most Popular Plants
+258K 2y ago
+Sheffield Made Plants
+Download my FREE Plant Parent's Troubleshooting Handbook https://resources.sheffieldmadeplants.com/handbook ▸ Book a ...
+4K
+true
+21:20
+Now playing
+Houseplants I would NEVER buy again! (and some that I would)
+54K 1y ago
+Kaylee Ellen
+Some houseplants just aren't worth it… but a few totally are! Here are the ones I'd buy again. Anthurium Rare Plant Index: ...
+Summary
+Kaylee Ellen shares her personal experiences with specific plant varieties, explaining why some species prove to be too high-maintenance for a relaxing collection. The discussion covers growth patterns, light requirements, and the effort needed to keep these popular indoor plants looking their best over time.
+true
+16:09
+Now playing
+Making Thick Trunk Bonsai from Jade Plant | in 2 Years | Pruning | Repotting | Portulacaria Afra
+3.6M 3y ago
+What a Plant
+Now You can Buy My Premium Bonsai Soil Mix (From Link Below) https://amzn.to/358xd84 Appreciate Your Support Please ...
+13 chapters
+Intro | Pruning | Preparing Bonsai Pot | Repotting | 2nd Pruning | 1st Result | Repotting into Bigger Pot | 3rd Pruning | Preparing Bonsai Pot | Repotting | Growth After Few Months | 4th Pruning | Final Result
+true
+17:04
+Now playing
+AFTER I CREATED THIS METHOD I NEVER LOST AN ORCHIDS AGAIN
+2.1M 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover the ultimate game-changing method that ensures you'll never lose an ...
+3 products
+4K
+Shorts
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+Monstera Deliciosa Aurea Variegated 🪴✨🌙 #plants #plantlover #indoorplants #monstera #houseplants
+7.3K views
+New
+She’s thriving ✨😍 #monstera #monsteradeliciosa #giantmonstera #plants #houseplants
+961 views
+New
+5 Poisonous Fruits You Should Never Eat Unripe! ⚠️Monstera Deliciosa.
+7.7K views
+New
+1 year Monstera Bulbasaur TC update. #monstera #philodendron #plantcare #anthurium #plantcaretips
+19K views
+true
+18:21
+Now playing
+18 Gorgeous Houseplants That Thrive Without Sunlight
+839K 1y ago
+Natural Health Remedies
+18 Gorgeous Houseplants That Thrive Without Sunlight Don't have a sunny window? No problem! In this video, we're showing ...
+Summary
+Natural Health Remedies explores diverse options for dimly lit spaces, from vining plants to flowering varieties. Learn specific care tips for each plant, including watering frequency and soil preferences, to ensure longevity without direct sunlight.
+true
+25:13
+Now playing
+Just one slice of onion can make Anthurium explode with so many beautiful flowers
+542K 1y ago
+Wonder Garden
+Welcome to Wonder Garden! In today's video, discover an astonishing trick: just one slice of onion can make your Anthurium ...
+2 products
+4K
+true
+3:38
+Now playing
+STOP doing this to your Monstera Deliciosa
+349K 4y ago
+Kill This Plant
+I get the idea behind it. But this is not doing what you think its doing. We need to stop pruning our Monstera Deliciosa. Pruning this ...
+4K
+Summary
+Kill This Plant explains how pruning affects hormone pathways and growth in Monsteras, unlike branching plants like jade. They reveal how cutting stems reverts plants to a juvenile state with smaller leaves and fenestrations.
+true
+14:42
+Now playing
+The only 4 Monstera Deliciosa tips you need to know
+91K 5mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+5 chapters
+Find the back of the plant | Measure your light | Get grow lights | Take top cuttings | Conclusion
+true
+11:01
+Now playing
+Tips + Tricks For Monstera Deliciosa | ALL YOU NEED TO KNOW 🌿 Indoor Plant Tips For Beginners
+47K 5y ago
+The Jungle Haven
+Monstera deliciosa care tips - swiss cheese plant care - monstera houseplant tips and tricks - indoor plant tips for beginners ...
+true
+41:52
+Now playing
+How to continuously grow a large Monstera
+146K 1y ago
+Sydney Plant Guy
+I am chopping my Monstera adansonii in half & re-extend both: one with Moss to grow indoors, one with aroid mix to grow ...
+4K
+Summary
+Sydney Plant Guy demonstrates the 'chop and extend' process to manage a large Monstera adansonii in an indoor setting. The video covers techniques for maintaining plant stability using moss poles and garden stakes while preparing for future growth.
+Shorts
+5 years of monstera growth! #monstera #plants
+696K views
+Repotting my NEW indoor monstera plant🪴 #plants #monstera #indoorplants #houseplants #monsteraplant
+315K views
+New
+Converting my M. deliciosa ‘brazil form’ from grown on wood to grown on a moss pole
+26K views
+Deliciosa VS Borsigiana Monstera | They’re VERY Different - Which One is Yours?
+203K views
+I have 600 houseplants and my Monstera Deliciosa my absolute FAVORITE plant in my collection 🤍🪴🥹
+83K views
+true
+5:46
+Now playing
+How to Grow Monstera Deliciosa
+6.5K 3mo ago
+Tanner The Planter
+Day 21/30 of teaching you how to grow your houseplants in a simple way. My reference guide to growing 150 of the most popular ...
+Summary
+Tanner The Planter provides a comprehensive guide on Monstera deliciosa care, focusing on proper soil composition, effective watering techniques, and optimal lighting conditions. Learn how to encourage healthy root systems and leaf maturity while managing growth through staking.
+true
+10:15
+Now playing
+cutting down my GIANT Monstera Deliciosa / Taking Cuttings / Repotting / Feed & Care Nicole's Garden
+80K 2y ago
+Nicole’s Garden
+Please Like and Subscribe! Affiliate links Ponytail sunhat (CAN) https://amzn.to/3UKGeeG Hori Hori Knife (CAN) ...
+true
+17:59
+Now playing
+Proper care for Monstera deliciosa! These 7 care tips are a MUST-know 🪴 (Swiss cheese plant)
+40K 9mo ago
+crazyplantboy
+Want your Monstera deliciosa to grow better and healthier? Need an overview of the most important care tips so you can ...
+4K
+true
+2:42
+Now playing
+239 Days Monstera Deliciosa Time-Lapse – From Seed to Stunning Plant! 🌱
+83K 1y ago
+Interesting as FCK
+Ever wondered how long it really takes to grow a Monstera deliciosa from seed? Here's the full 239-day journey captured in one ...
+4K
+true
+2:52
+Now playing
+How to Repot Monstera Deliciosa. IT'S EASY!
+149K 3y ago
+Tanner The Planter
+In this video we discuss and demonstrate the general methods of properly re-potting the Monstera Deliciosa. Find Your PERFECT ...
+5 chapters
+Intro | Preparing the soil | Checking the roots | Repot | Watering
+true
+19:41
+Now playing
+Monstera Deliciosa: From Jungle Survivor to Icon 🌿
+19K 1y ago
+Plantrums
+Watch next: The Orchid's Dark Past — Obsession, Mystery, and Survival → https://www.youtube.com/watch?v=q7VpOcKEpAw ...
+4 products
+7 chapters
+Intro | Monstera’s Ancient History | Monstera’s Early Documentation | Monstera’s Biological Secrets | Monstera’s Rise to Fame | Monstera’s Ecological Impact | Monstera’s True Value
+Shorts
+Eating Monstera Deliciosa Fruit, Finally!
+471K views
+What to do with your monstera aerial roots? #monsteraplant #plantcaretips #plantcare
+981K views
+New
+Monstera deliciosa (exotic plant that produces fruit) #shorts  #foodforest #tropical  #gardening
+1.1K views
+A lot of growth already in a year and a half for big mama Monstera Deliciosa. #monsteraplant
+433K views
+Monstera Deliciosa Repot #monstera #monsteraplant #repotting
+49K views
+true
+11:25
+Now playing
+How to start Monstera the right way
+61K 4mo ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant provides a comprehensive guide to maximizing growth for single-stem Monsteras. The discussion covers essential care routines, including light intensity monitoring, selecting appropriate soil amendments to improve drainage, proper staking techniques, and safe fertilizing schedules to help plants thrive.
+true
+5:37
+Now playing
+How to Add Support & Prune Back Overgrown Monstera Deliciosa Plants
+242K 3y ago
+My City Plants
+How to prune Monstera Deliciosa (complete guide) ...
+5 products
+Earns commission
+Summary
+My City Plants demonstrates techniques for managing large foliage using bamboo stakes, raffia, and clean pruners. Learn how to secure sprawling stems for a narrower profile and selectively cut back growth to maintain a balanced shape.
+true
+7:13
+Now playing
+You don’t need to repot your Monstera
+80K 2y ago
+Kill This Plant
+Join our discord community https://discord.gg/RYXzghkuhk * Get 15% off Soltech Grow Lights with promo code: KTP2025 ...
+4K
+Summary
+Kill This Plant explains how to determine when a Monstera actually needs a larger container based on root volume and soil moisture. Learn to identify the right balance of root mass to soil, and discover alternative solutions for managing water retention and light requirements.
+true
+19:37
+Now playing
+Saving a Giant: I got an 11+ year old Monstera Deliciosa Large Form
+210K 3y ago
+Leafy_Luster
+MONSTERA DELICIOSA large form exists & I finally found one to call my own. Join me on this Massive Monstera Makeover to ...
+4K
+true
+12:31
+Now playing
+The Full Story of my 11+ year old Monstera Deliciosa Large Form
+108K 2y ago
+Leafy_Luster
+It's one of my most requested videos to make. THE UPDATE on my rescue Monstera Deliciosa! My rescue mission was quite ...
+4K
+Shorts
+Repotting 7ft+ monstera #shorts #gardenup #monstera #plants
+409K views
+Monstera Fruit: The Strange Tropical Fruit 🍃🟢
+102K views
+let's propagate monstera #monstera #propagate #plants #soil #water #roots #areal #cutting #plants
+1M views
+Grow a BIG Monstera✨ #houseplants #plantcare #plantcaretips #monsteradeliciosa
+3.7K views
+If you love your monstera, set it free #houseplant #monstera #plantgrowth
+351K views
+true
+14:33
+Now playing
+MONSTERA PROPAGATION: How to Propagate Monstera deliciosa (2023)
+153K 4y ago
+Plant Vibrations with Devin Wallien
+My favorite Houseplant tools here: https://amzn.to/3sYJ3ta Yesssss, finally I have created a video on how to successfully ...
+CC
+true
+5:00
+Now playing
+5 quick tips Monstera Deliciosa
+88K 5y ago
+Swedish Plantguys
+In this video we give you 5 quick tips for your Monstera Deliciosa also know as Swiss cheese plant. Enjoy! And thank you for ...
+4K
+7 chapters
+Intro | Juvenile Monstera | Repot | Support | Prune | Humidity | Outro
+true
+14:29
+Now playing
+How to Repot a Monstera Deliciosa Plant | Staking | Aerial Roots | Care Guide
+37K 3y ago
+Ana Perez
+Hello friends, here's how to repot a monstera deliciosa plant and how to care for a monstera plant as well! Here are all the ...
+4K
+CC
+12 chapters
+intro | When to repot a monstera deliciosa? | What to do when a monstera is really root bound? | What type of potting soil to use for a monstera deliciosa? | What type of pot to use for a monstera? | Are moss poles necessary for a monstera? | What to do with the aerial roots of a monstera | What type of light does a monstera need? | How often should you water a monstera? | How much water should you give a monstera plant? | Fertilizing a monstera plant | Pest Preventions
+true
+17:27
+Now playing
+Monstera Deliciosa Single Node Propagation (0-9 Months)
+609K 4y ago
+Techplant
+propagating monstera nodes. In this video I will show you the process of making single node cuttings of monstera deliciosa and ...
+1 product
+4K
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:47
+Now playing
+MONSTERA DELICIOSA Care | Swiss Cheese Plant Tips & Tricks
+187K 7y ago
+Good Growing
+For bonus content, subscribe to my Patreon ›› https://www.patreon.com/goodgrowing Do you like being trendy? Want plants to ...
+11 chapters
+Intro | General Info | Water | Light | Temperature | Humidity | Fertiliser | Propagation | Toxicity | Growth Care | Outro
+Shorts
+Monstera Propagation (My Step by Step Process)
+313K views
+I CHOPPED UP my Monstera to get it to thrive #houseplants #plants #houseplant #monstera
+804K views
+Monstera Deliciosa 🌿 Complete Care, Propagation, Height & Fruit Facts!#youtubeshorts#shorts#reels
+2.2K views
+New
+Propagation Loop♻️🌿 #planttips #plants #monstera #propagation #plantcare #diy
+18K views
+Monstera Deliciosa 2023 Season is Here
+1.8M views
+true
+10:39
+Now playing
+MONSTERA DELICIOSA CARE + PROPAGATION | indoor swiss cheese plant care
+174K 6y ago
+Good & Planty
+this MONSTER of a care guide is here monstera leaves going yellow? not getting those fenestrations? is your swiss cheese ...
+CC
+6 chapters
+Intro | Water | Light | Repotting | Temperature Humidity | Propagation
+true
+10:25
+Now playing
+Monstera richtig pflegen – der komplette Guide | feey 🌱
+129K 3y ago
+feey
+In diesem Video zeigen wir dir alles, was du zur richtigen Pflege deiner Monstera wissen musst: Dazu zählt der richtige Standort, ...
+2:46 Das hier ist der Klassiker der Monsteras: die Monstera deliciosa. Diese findest du bei uns im Shop in ganz vielen verschiedenen ...
+4K
+CC
+true
+7:35
+Now playing
+Watch this before you separate your Monstera
+38K 1y ago
+Kill This Plant
+Get 15% off Soltech Grow Lights with promo code: KTP2025 https://glnk.io/0lyv/13 * GET 10% off the best professional ...
+4K
+Summary
+Kill This Plant explains how to properly assess indoor lighting and choose the correct pot size to prevent root rot after propagating. Using a light meter and moisture probe, they demonstrate the relationship between soil volume, oxygen levels, and plant stress.
+true
+35:40
+Now playing
+My Monstera Jungle Mint Started Reverting...So I Chopped It All Back 👀
+16K 6mo ago
+plantsbymelissa
+My Monstera jungle mint started reverting, so it was time to cut it back and restart. In this video I'm chopping it down, resetting the ...
+4K
+8 chapters
+Overview | Time to chop | Repotting the base | Chunky pon | Watering | Cuttings | Back in my plant room | Outro
+true
+15:38
+Now playing
+Every Type of Monstera Deliciosa Explained (And Which One to Buy)
+85K 2y ago
+Kaylee Ellen
+M E R C H : https://kayleeellen.creator-spring.com/? Monstera Vareities: ...
+Summary
+Kaylee Ellen outlines the differences between small and large form Monstera deliciosa, focusing on internodal spacing, growth patterns, and leaf characteristics. Learn which variety best suits your available space and aesthetic preferences through a detailed comparison of popular green and variegated cultivars.
+Shorts
+The MOST DANGEROUS Fruit? - The Monstera Deliciosa Fruit!
+229K views
+MONSTERA Propagation with 100% SUCCESS | Watch Me Turn a sad 😢 Plant into 11 Happy 🤓babies!
+607K views
+Monstera Deliciosa : The Delicious Monster Houseplant ! 🪴🍍#garden  #farming #organic
+3.1M views
+Monstera deliciosa fruit #asmr
+901K views
+Would you do this?! Full Monstera Cut Back!
+456K views
+true
+9:13
+Now playing
+5 Things Monsteras HATE That Might Surprise You
+387K 3y ago
+Sheffield Made Plants
+Monsteras aren't particularly fussy plants but there are some key things they hate that might actually surprise you.
+Summary
+Sheffield Made Plants explains how common care habits like misting, incorrect potting, and allowing dust buildup can harm Monsteras. Learn about the importance of stable humidity, proper root support, and leaf hygiene for optimal plant health and leaf development.
+true
+11:00
+Now playing
+How to water propagate a Monstera Deliciosa
+64K 1y ago
+Kill This Plant
+Download My Houseplant App - https://blackthumbplant.app/ Join Our Discord for plant help - https://discord.gg/kw9FnABCRk ...
+4K
+Summary
+Kill This Plant demonstrates how to take top and mid cuttings for propagation while ensuring healthy root development and foliage maintenance. Learn techniques to prevent rot, choose appropriate pot sizes based on root mass, and mix suitable soil for growth.
+Shorts
+Monstera deliciosa harvest!
+4.4M views
+Here’s 4 tips to grow a HUGE Monstera Deliciosa! 🌱🪴
+286K views
+The Secret, Edible Fruit Hiding on Your Houseplant #monstera #animation
+713K views
+Monstera deliciosa propagation in water❤️#shorts #youtubeshorts #like #viral #fyp
+425K views
+Monstera Deliciosa Fruit #shorts
+51K views
+true
+2:41
+Now playing
+My Mutant Monstera Deliciosa Update
+7.9K 2y ago
+Techplant
+Amazon Affiliate link to light https://amzn.to/3S7wJVN These are amazon affiliate links, they don't change the price, however after ...
+4K
+true
+0:47
+Now playing
+Monstera Deliciosa Time Lapse (HUGE LEAF)
+28K 3y ago
+Interesting as FCK
+In this plant time lapse, we'll be taking a look at a GIANT monstera deliciosa growing, one of my favorite plants in the world!
+4K
+true
+8:16
+Now playing
+Monstera Deliciosa LARGE FORM: Repotting & Root Dividing
+136K 6y ago
+reallybigplant
+How to repot an extra large Monstera Deliciosa with a huge developed root system! Join me while I try to root divide this Monstera ...
+true
+8:16
+Now playing
+How to Grow and Care for Monstera (Swiss Cheese) Indoors
+615K 5y ago
+Garden Up
+LINKS| Good quality soil : https://gardenup.in/products/ready-potting-soil-mix Succulent soil ...
+true
+7:41
+Now playing
+Monstera Roots - 4 Things to do with Aerial Roots - Monstera deliciosa (2023)
+189K 3y ago
+Plant Vibrations with Devin Wallien
+Shop plants here! https://plantvibrations-shop.myshopify.com/ While we're growing our Monstera deliciosa or many other aroid ...
+CC
+Summary
+Devin Wallien explains how aerial roots function as nutrient and water absorbers for the plant. The video demonstrates practical techniques for managing these roots, including guiding them into a moss pole, burying them in the soil, or placing them in water to enhance growth.
+true
+12:09
+Now playing
+The Easiest Monsteras to Care For 🌿 Great for Beginners Too!
+3K 3mo ago
+planty skies
+🌿 Monsteras are among the most popular houseplants – but which varieties are truly easy to care for and suitable for beginners ...
+4K
+true
+6:11
+Now playing
+The Giant Monstera Deliciosa Node Update
+12K 1y ago
+Techplant
+Here are the giant monstera nodes I've had propagating for 2 yeara These are amazon affiliate links, they don't change the price, ...
+4K
+Summary
+Techplant documents a two-year propagation experiment using various methods to revive severely rotted monstera cuttings. Despite initial setbaks and neglect, the video tracks the long-term survival and growth of the nodes under different environmental conditions.
+true
+2:44
+Now playing
+How to safely eat the poisonous tropical fruit Monstera Deliciosa
+130K 9y ago
+SleepyLizard
+One of our tastiest tropical fruits is also our most dangerous. The Monstera Deliciousa, known as the "fruit salad fruit" combines ...
+Shorts
+Look at all that Monstera Deliciosa #fruit  #art #india #photogr #reels #bhfyp #explorepage #garden
+1.2M views
+"Root rot almost killed Monstera… but I brought it back" #plants #gardening
+481K views
+Monstera Deliciosa Fruit!!!
+50K views
+Tips to keep your monstera deliciosa alive #plantcare #monsteraplant #monstera
+1.1M views
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+true
+8:57
+Now playing
+Monstera Deliciosa Review - Weird Fruit Explorer - Ep. 108
+303K 11y ago
+Weird Explorer
+Help support my series by checking out: My Patreon Page: https://www.patreon.com/weirdexplorer ---- Or get a TSHIRT: ...
+CC
+true
+3:25
+Now playing
+Monstera deliciosa learns its care easily
+122K 3y ago
+El De Las Plantas
+In this video, I'll show you a quick and easy way to keep your Monstera Deliciosa healthy and happy. #plants ...
+4K
+true
+4:11
+Now playing
+How to Set Your Monstera For Success // Monstera Deliciosa Plant Care
+38K 3y ago
+Plantalogy
+2 mistakes can hinder the growth of your monstera. These are some common mistakes plant growers often do but rarely notice ...
+Summary
+Plantalogy highlights two common mistakes regarding pot size and planting depth that lead to root rot and yellowing leaves. Learn proper repotting techniques and how to provide adequate vertical support for a healthy, lush plant.
+true
+5:47
+Now playing
+Monstera Plant Care for Beginners (Do This First!)
+10K 1y ago
+The Girl with a Shovel
+Keywords: monstera houseplant, monstera deliciosa care, monstera plant care indoors, how to support monstera plant, saving a ...
+CC
+7 chapters
+Intro | Light Requirements | Watering Requirements | Soil Requirements | Fertilizer Requirements | Humidity Requirements | Bonus Tips
+true
+20:37
+Now playing
+The Tastiest Fruit In The World! - How to Pick and Eat Monstera Deliciosa Safely
+18K 1y ago
+Fruitful Trees
+Tom at www.Guacfarm.com shows us how to pick and eat the Monstera Deliciosa Fruit safely. He also teaches me how to correctly ...
+true
+30:30
+Now playing
+Monstera Deliciosa Types! | Variegated and Non-Variegated
+61K 4y ago
+Kaylee Ellen
+Head to https://squarespace.com/kayleeellen to save 10% off your first purchase of a website or domain using code ...
+Shorts
+monstera leaves not splitting? do this! 🌱
+382K views
+I did the big monstera deliciosa chop… now it’s time to propagate! #monsteraplant #propagation
+391K views
+Look at how BIG this pretty Monstera is! #plants #monsteradeliciosa #plantmom #propagation
+110K views
+How To Propagate A Monstera Deliciosa #propagation #monsteradeliciosa #plantcaretips #plantcare
+468K views
+Repotting my very rootbound Monstera Thai constellation #plantcare #monsterathaiconstellation
+661K views
+true
+5:21
+Now playing
+HOUSEPLANT CARE TIPS | HOW TO CARE FOR MONSTERA ADANSONII SWISS CHEESE
+77K 4y ago
+Succulents Box
+In this video, you'll find all the care tips for Monstera Swiss Cheese. Time code 0:00 Intro 0:39 Lighting 0:59 Watering 1:41 ...
+10 chapters
+Intro | Lighting | Watering | Temperature | Soil | Pruning | Propagation | Troubleshooting | Toxicity | Outro
+true
+4:01
+Now playing
+Monstera Rehab. How to properly prune your Monstera deliciosa 🪴
+235K 4y ago
+Paul’s & Sandy’s Too 🪴Karens Content 🪴
+Rehab pruning a damaged Monstera! What you need to know.
+Summary
+After a shipment arrived with heat-damaged plants, Karen demonstrates how to rescue a Monstera deliciosa. The tutorial focuses on identifying the proper spot to prune without removing future leaf growth, a technique applicable to other plants with similar growth patterns.
+true
+11:32
+Now playing
+I Stopped Killing Monsteras Once I Knew This
+25K 10mo ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+Summary
+Learn how to optimize lighting and watering for faster leaf growth and more holes in Monstera plants. Sheffield Made Plants covers essential potting media, managing aerial roots, and troubleshooting pruning techniques.
+true
+13:59
+Now playing
+Monstera Deliciosa Care: 7 Things That Keep It Happy & Growing
+251 3w ago
+Her green space
+Monstera deliciosa is one of the easiest houseplants to grow once you understand what it really needs — but small leaves, ...
+30 products
+15 chapters
+Monstera Deliciosa Care | How much light does Monstera need? | Why your Monstera has small leaves or no fenestrations | How I water my Monstera | Best soil mix for Monstera | When should you repot? | Does Monstera really need a moss pole? | What to do with Monstera aerial roots | How much humidity does Monstera need? | Fertilizing Monstera | My Monstera growing in LECA | Yellow leaves, brown leaves & common problems | Cleaning leaves & checking for pests | Pests | What keeps A monstera happy
+true
+12:10
+Now playing
+MONSTERA DELICIOSA CARE TIPS
+152K 6y ago
+Green Yard TV
+Monstera Deliciosa Care tips I hope you find this video helpful and interesting! If you did, please don't forget to hit LIKE, ...
+true
+10:39
+Now playing
+How to properly care for Monstera Thai Constellation – Everything you need to know! 🌿✨
+20K 1y ago
+planty skies
+🌿✨ The Monstera deliciosa Thai Constellation is one of the most beautiful and sought-after houseplants – but how do you care ...
+4K
+true
+9:47
+Now playing
+Everything You Need to Know About MONSTERA DELICIOSA | Monstera deliciosa plant care | Bagicha Vl...
+34K 4y ago
+Drakht
+The Video Content is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the ...
+true
+16:24
+Now playing
+Everything about MONSTERA DELICIOSA | Growth and care guide
+175K 4y ago
+I Giardini di Ellis
+► Read my article on Monstera: https://igiardinidiellis.it/monstera-deliciosa/ ► Support your plants https://www.amazon.it ...
+CC
+9 chapters
+Intro | PROVENIENZA e nome della Monstera deliciosa | LUCE e temperatura ideale per la Monstera deliciosa | ACQUA e umidità ideale per la Monstera deliciosa | RINVASI e terriccio per la Monstera deliciosa | PARTICOLARITÀ della Monstera deliciosa | CURA per la Monstera deliciosa | PROPAGAZIONE per la Monstera deliciosa | MEGLIO SAPERLO
+true
+11:46
+Now playing
+The Alternative Way To Grow The Best Monstera
+79K 2y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+8 chapters
+Intro | Root Rot | Top cuttings | Vase | Stones | Assembling | Watering | pH
+true
+12:21
+Now playing
+The truth about monstera care!!!!
+35K 1y ago
+addictoplantes
+Everything you need to know about caring for Monsteras! Watering, lighting, repotting, pests... I'll tell you everything you ...
+true
+16:37
+Now playing
+Meet All Variegated Monstera Varieties And Expert Care Tips @noldy.topan
+115K 3y ago
+OnlyPlants
+In this tour, we cover the most extensive variegated monstera collector in Indonesia - Mr Noldy Topan of @dutahijauabadi.
+6:55 ... the monstera deliciosa called the Sphinx Mr Noli got this from Thailand and it's well known for its sectoral variegation this means ...
+4K
+true
+26:17
+Now playing
+Airlayering, chopping, and repotting my EXTRA large Monstera Deliciosa!
+80K 2y ago
+PlantswithKrystal
+Hey hey! Today's video shows the process of air layering, chopping, and repotting my large monstera. Hope it gives you a little ...
+1 product
+Summary
+After successfully air layering a massive Monstera Deliciosa, Krystal proceeds with a daring chop to manage its height. The process involves transferring the propagated cutting into a new, larger pot alongside the original plant to create a fuller appearance.
+true
+1:12
+Now playing
+Comment entretenir ma monstera ? - Truffaut
+70K 7y ago
+TRUFFAUT
+Découvrez le Monstera et ses secrets d'entretien ! Plante iconique des intérieurs végétalisés, le Monstera Deliciosa, aussi ...
+true
+18:15
+Now playing
+Monstera deliciosa: Easy propagation and tips for making it grow beautifully.
+178K 3y ago
+Ivet Suculentas y mas
+Hello plant lovers! This is your friend Ivet, from Oaxaca, who is completely in love with plants. My little paradise is ...
+4K
+Summary
+Ivet muestra cómo propagar una monstera deliciosa para recuperar su color blanco característico, utilizando un sustrato ligero a base de turba de coco y perlita. La demostración incluye el corte estratégico del tallo y el uso de tutores para asegurar raíces fuertes y frondosidad.
+true
+20:45
+Now playing
+Why Is My Variegated Monstera Reverting? (Causes & How to Fix It!)
+2.4K 8mo ago
+Jamie Rootledge
+Is your variegated Monstera reverting back to green? In this video, I break down why variegated Monsteras (Albo, Thai ...
+Summary
+Jamie Rootledge demonstrates how to propagate a reverted jungle mint Monstera to encourage the return of variegated growth. The process involves identifying healthy nodes on the stem, making strategic cuttings, and establishing them in moss to foster new, colorful foliage.
+true
+4:30
+Now playing
+Costilla de Adán o Monstera Deliciosa: características y reproducción - Decogarden - Jardinatis
+84K 6y ago
+Jardinatis
+Iñigo Segurola nos muestra las enormes variedades de Costilla de Adán que tiene en su invernadero y nos enseña las ...
+25 videos
+Monstera Essentials
+Kill This Plant
+Playlist
+How to set up your Monstera for success · 3:58
+why people keep Killing their Monstera · 3:13
+View full playlist
+If your Monstera Deliciosa is struggling, check out these essential videos to help troubleshoot your problems.
+true
+13:15
+Now playing
+Your Monstera Will NEVER Thrive Unless You Do This
+141K 1y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+true
+42:26
+Now playing
+My Variegated Monstera Deliciosa Collection 🌿
+30K 1y ago
+plantsbymelissa
+In this video, I'm sharing a closer look at all the stunning variegated monstera deliciosas in my collection, including albo, aurea, ...
+4K
+9 chapters
+intro | Monstera Deliciosa ‘Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Jungle Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Albo Variegata’ (White Tiger type) | Monstera Deliciosa ‘Mint’ (tissue culture) | Monstera Deliciosa ‘Aurea’ | Monstera Deliciosa ‘Thai Constellation’ | Monstera Deliciosa ‘Albo Variegata’ | outro
+true
+17:59
+Now playing
+Monstera Mania! | All of the Monstera Deliciosa I am Growing!
+3.1K 6mo ago
+PlantswithJacque
+Monstera Deliciosa Types Showcase In this video, I'm walking you through my collection of Monstera deliciosa varieties and ...
+Summary
+PlantswithJacque showcases a diverse collection of Monstera deliciosa varieties, detailing unique variegation patterns and specific growth forms. Each plant is presented with insights into its care requirements, preferred growing conditions, and individual developmental stages to help viewers distinguish between these popular botanical forms.
+true
+10:03
+Now playing
+The Ultimate Guide to Monstera Care | How to Grow Big, Healthy Monstera Plants Indoors
+7.8K 1y ago
+The Cozy Jungle
+Whether you're a beginner or an experienced plant parent, this video will help you keep your Monstera deliciosa looking vibrant ...
+4K
+true
+4:56
+Now playing
+Monstera deliciosa (Swiss Cheese Plant) Care 🌿 Watering, Propagation, Pruning and more!
+118K 5y ago
+EcologíaVerde
+🌿 Are you thinking about growing a Monstera deliciosa (Swiss cheese plant) indoors? In this Green Ecology video, we bring you ...
+7 chapters
+Cuidados de la costilla de Adán o Monstera deliciosa | Temperatura adecuada | Riego de la Monstera deliciosa | Luz y ubicación ideales | Poda recomendada | Hojas amarillas en la Monstera deliciosa | Cómo reproducir la planta costilla de Adán
+true
+1:09:24
+Now playing
+Growing & chopping up my huge Monstera adansonii (includes 12 months of updates)
+31K 1y ago
+Sydney Plant Guy
+Let's grow my Monstera adansonii even larger over the course of a full year! watch my review of the grow light: ...
+4K
+Summary
+Sydney Plant Guy tracks the recovery of a Monstera adansonii after an aggressive pruning session. The journey includes restructuring the plant's support pole and handling unexpected flowering to manage growth over the course of a full year.
+true
+30:59
+Now playing
+$15 BIG Monstera Deliciosa at 50% OFF HOME DEPOT PLANT SALE! Prices, Pet Safe Plants, Rare Plants
+15K 2mo ago
+Plant Life with Ashley Anita
+plants #homedepotfinds #plantshopping *This is a good vibes only channel for all plant friends to enjoy! :) Any negative and ...
+trueonditions.
+true
+2:44
+Now playing
+How to safely eat the poisonous tropical fruit Monstera Deliciosa
+130K 9y ago
+SleepyLizard
+One of our tastiest tropical fruits is also our most dangerous. The Monstera Deliciousa, known as the "fruit salad fruit" combines ...
+Shorts
+Look at all that Monstera Deliciosa #fruit  #art #india #photogr #reels #bhfyp #explorepage #garden
+1.2M views
+"Root rot almost killed Monstera… but I brought it back" #plants #gardening
+481K views
+Monstera Deliciosa Fruit!!!
+50K views
+Tips to keep your monstera deliciosa alive #plantcare #monsteraplant #monstera
+1.1M views
+😲 8FT TALL Monstera Deliciosa Repot 🌿 PART 1 #monstera #houseplants #indoorplants #repotting #plants
+13K views
+true
+8:57
+Now playing
+Monstera Deliciosa Review - Weird Fruit Explorer - Ep. 108
+303K 11y ago
+Weird Explorer
+Help support my series by checking out: My Patreon Page: https://www.patreon.com/weirdexplorer ---- Or get a TSHIRT: ...
+CC
+true
+3:25
+Now playing
+Monstera deliciosa learns its care easily
+122K 3y ago
+El De Las Plantas
+In this video, I'll show you a quick and easy way to keep your Monstera Deliciosa healthy and happy. #plants ...
+4K
+true
+4:11
+Now playing
+How to Set Your Monstera For Success // Monstera Deliciosa Plant Care
+38K 3y ago
+Plantalogy
+2 mistakes can hinder the growth of your monstera. These are some common mistakes plant growers often do but rarely notice ...
+Summary
+Plantalogy highlights two common mistakes regarding pot size and planting depth that lead to root rot and yellowing leaves. Learn proper repotting techniques and how to provide adequate vertical support for a healthy, lush plant.
+true
+5:47
+Now playing
+Monstera Plant Care for Beginners (Do This First!)
+10K 1y ago
+The Girl with a Shovel
+Keywords: monstera houseplant, monstera deliciosa care, monstera plant care indoors, how to support monstera plant, saving a ...
+CC
+7 chapters
+Intro | Light Requirements | Watering Requirements | Soil Requirements | Fertilizer Requirements | Humidity Requirements | Bonus Tips
+true
+20:37
+Now playing
+The Tastiest Fruit In The World! - How to Pick and Eat Monstera Deliciosa Safely
+18K 1y ago
+Fruitful Trees
+Tom at www.Guacfarm.com shows us how to pick and eat the Monstera Deliciosa Fruit safely. He also teaches me how to correctly ...
+true
+30:30
+Now playing
+Monstera Deliciosa Types! | Variegated and Non-Variegated
+61K 4y ago
+Kaylee Ellen
+Head to https://squarespace.com/kayleeellen to save 10% off your first purchase of a website or domain using code ...
+Shorts
+monstera leaves not splitting? do this! 🌱
+382K views
+I did the big monstera deliciosa chop… now it’s time to propagate! #monsteraplant #propagation
+391K views
+Look at how BIG this pretty Monstera is! #plants #monsteradeliciosa #plantmom #propagation
+110K views
+How To Propagate A Monstera Deliciosa #propagation #monsteradeliciosa #plantcaretips #plantcare
+468K views
+Repotting my very rootbound Monstera Thai constellation #plantcare #monsterathaiconstellation
+661K views
+true
+5:21
+Now playing
+HOUSEPLANT CARE TIPS | HOW TO CARE FOR MONSTERA ADANSONII SWISS CHEESE
+77K 4y ago
+Succulents Box
+In this video, you'll find all the care tips for Monstera Swiss Cheese. Time code 0:00 Intro 0:39 Lighting 0:59 Watering 1:41 ...
+10 chapters
+Intro | Lighting | Watering | Temperature | Soil | Pruning | Propagation | Troubleshooting | Toxicity | Outro
+true
+4:01
+Now playing
+Monstera Rehab. How to properly prune your Monstera deliciosa 🪴
+235K 4y ago
+Paul’s & Sandy’s Too 🪴Karens Content 🪴
+Rehab pruning a damaged Monstera! What you need to know.
+Summary
+After a shipment arrived with heat-damaged plants, Karen demonstrates how to rescue a Monstera deliciosa. The tutorial focuses on identifying the proper spot to prune without removing future leaf growth, a technique applicable to other plants with similar growth patterns.
+true
+11:32
+Now playing
+I Stopped Killing Monsteras Once I Knew This
+25K 10mo ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+Summary
+Learn how to optimize lighting and watering for faster leaf growth and more holes in Monstera plants. Sheffield Made Plants covers essential potting media, managing aerial roots, and troubleshooting pruning techniques.
+true
+13:59
+Now playing
+Monstera Deliciosa Care: 7 Things That Keep It Happy & Growing
+251 3w ago
+Her green space
+Monstera deliciosa is one of the easiest houseplants to grow once you understand what it really needs — but small leaves, ...
+30 products
+15 chapters
+Monstera Deliciosa Care | How much light does Monstera need? | Why your Monstera has small leaves or no fenestrations | How I water my Monstera | Best soil mix for Monstera | When should you repot? | Does Monstera really need a moss pole? | What to do with Monstera aerial roots | How much humidity does Monstera need? | Fertilizing Monstera | My Monstera growing in LECA | Yellow leaves, brown leaves & common problems | Cleaning leaves & checking for pests | Pests | What keeps A monstera happy
+true
+12:10
+Now playing
+MONSTERA DELICIOSA CARE TIPS
+152K 6y ago
+Green Yard TV
+Monstera Deliciosa Care tips I hope you find this video helpful and interesting! If you did, please don't forget to hit LIKE, ...
+true
+10:39
+Now playing
+How to properly care for Monstera Thai Constellation – Everything you need to know! 🌿✨
+20K 1y ago
+planty skies
+🌿✨ The Monstera deliciosa Thai Constellation is one of the most beautiful and sought-after houseplants – but how do you care ...
+4K
+true
+9:47
+Now playing
+Everything You Need to Know About MONSTERA DELICIOSA | Monstera deliciosa plant care | Bagicha Vl...
+34K 4y ago
+Drakht
+The Video Content is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the ...
+true
+16:24
+Now playing
+Everything about MONSTERA DELICIOSA | Growth and care guide
+175K 4y ago
+I Giardini di Ellis
+► Read my article on Monstera: https://igiardinidiellis.it/monstera-deliciosa/ ► Support your plants https://www.amazon.it ...
+CC
+9 chapters
+Intro | PROVENIENZA e nome della Monstera deliciosa | LUCE e temperatura ideale per la Monstera deliciosa | ACQUA e umidità ideale per la Monstera deliciosa | RINVASI e terriccio per la Monstera deliciosa | PARTICOLARITÀ della Monstera deliciosa | CURA per la Monstera deliciosa | PROPAGAZIONE per la Monstera deliciosa | MEGLIO SAPERLO
+true
+11:46
+Now playing
+The Alternative Way To Grow The Best Monstera
+79K 2y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+8 chapters
+Intro | Root Rot | Top cuttings | Vase | Stones | Assembling | Watering | pH
+true
+12:21
+Now playing
+The truth about monstera care!!!!
+35K 1y ago
+addictoplantes
+Everything you need to know about caring for Monsteras! Watering, lighting, repotting, pests... I'll tell you everything you ...
+true
+16:37
+Now playing
+Meet All Variegated Monstera Varieties And Expert Care Tips @noldy.topan
+115K 3y ago
+OnlyPlants
+In this tour, we cover the most extensive variegated monstera collector in Indonesia - Mr Noldy Topan of @dutahijauabadi.
+6:55 ... the monstera deliciosa called the Sphinx Mr Noli got this from Thailand and it's well known for its sectoral variegation this means ...
+4K
+true
+26:17
+Now playing
+Airlayering, chopping, and repotting my EXTRA large Monstera Deliciosa!
+80K 2y ago
+PlantswithKrystal
+Hey hey! Today's video shows the process of air layering, chopping, and repotting my large monstera. Hope it gives you a little ...
+1 product
+Summary
+After successfully air layering a massive Monstera Deliciosa, Krystal proceeds with a daring chop to manage its height. The process involves transferring the propagated cutting into a new, larger pot alongside the original plant to create a fuller appearance.
+true
+1:12
+Now playing
+Comment entretenir ma monstera ? - Truffaut
+70K 7y ago
+TRUFFAUT
+Découvrez le Monstera et ses secrets d'entretien ! Plante iconique des intérieurs végétalisés, le Monstera Deliciosa, aussi ...
+true
+18:15
+Now playing
+Monstera deliciosa: Easy propagation and tips for making it grow beautifully.
+178K 3y ago
+Ivet Suculentas y mas
+Hello plant lovers! This is your friend Ivet, from Oaxaca, who is completely in love with plants. My little paradise is ...
+4K
+Summary
+Ivet muestra cómo propagar una monstera deliciosa para recuperar su color blanco característico, utilizando un sustrato ligero a base de turba de coco y perlita. La demostración incluye el corte estratégico del tallo y el uso de tutores para asegurar raíces fuertes y frondosidad.
+true
+20:45
+Now playing
+Why Is My Variegated Monstera Reverting? (Causes & How to Fix It!)
+2.4K 8mo ago
+Jamie Rootledge
+Is your variegated Monstera reverting back to green? In this video, I break down why variegated Monsteras (Albo, Thai ...
+Summary
+Jamie Rootledge demonstrates how to propagate a reverted jungle mint Monstera to encourage the return of variegated growth. The process involves identifying healthy nodes on the stem, making strategic cuttings, and establishing them in moss to foster new, colorful foliage.
+true
+4:30
+Now playing
+Costilla de Adán o Monstera Deliciosa: características y reproducción - Decogarden - Jardinatis
+84K 6y ago
+Jardinatis
+Iñigo Segurola nos muestra las enormes variedades de Costilla de Adán que tiene en su invernadero y nos enseña las ...
+25 videos
+Monstera Essentials
+Kill This Plant
+Playlist
+How to set up your Monstera for success · 3:58
+why people keep Killing their Monstera · 3:13
+View full playlist
+If your Monstera Deliciosa is struggling, check out these essential videos to help troubleshoot your problems.
+true
+13:15
+Now playing
+Your Monstera Will NEVER Thrive Unless You Do This
+141K 1y ago
+Sheffield Made Plants
+Head to https://squarespace.com/sheffield to save 10% off your first purchase of a website or domain using code SHEFFIELD ...
+4K
+true
+42:26
+Now playing
+My Variegated Monstera Deliciosa Collection 🌿
+30K 1y ago
+plantsbymelissa
+In this video, I'm sharing a closer look at all the stunning variegated monstera deliciosas in my collection, including albo, aurea, ...
+4K
+9 chapters
+intro | Monstera Deliciosa ‘Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Jungle Mint’ (NOID, non-TC) | Monstera Deliciosa ‘Albo Variegata’ (White Tiger type) | Monstera Deliciosa ‘Mint’ (tissue culture) | Monstera Deliciosa ‘Aurea’ | Monstera Deliciosa ‘Thai Constellation’ | Monstera Deliciosa ‘Albo Variegata’ | outro
+true
+17:59
+Now playing
+Monstera Mania! | All of the Monstera Deliciosa I am Growing!
+3.1K 6mo ago
+PlantswithJacque
+Monstera Deliciosa Types Showcase In this video, I'm walking you through my collection of Monstera deliciosa varieties and ...
+Summary
+PlantswithJacque showcases a diverse collection of Monstera deliciosa varieties, detailing unique variegation patterns and specific growth forms. Each plant is presented with insights into its care requirements, preferred growing conditions, and individual developmental stages to help viewers distinguish between these popular botanical forms.
+true
+10:03
+Now playing
+The Ultimate Guide to Monstera Care | How to Grow Big, Healthy Monstera Plants Indoors
+7.8K 1y ago
+The Cozy Jungle
+Whether you're a beginner or an experienced plant parent, this video will help you keep your Monstera deliciosa looking vibrant ...
+4K
+true
+4:56
+Now playing
+Monstera deliciosa (Swiss Cheese Plant) Care 🌿 Watering, Propagation, Pruning and more!
+118K 5y ago
+EcologíaVerde
+🌿 Are you thinking about growing a Monstera deliciosa (Swiss cheese plant) indoors? In this Green Ecology video, we bring you ...
+7 chapters
+Cuidados de la costilla de Adán o Monstera deliciosa | Temperatura adecuada | Riego de la Monstera deliciosa | Luz y ubicación ideales | Poda recomendada | Hojas amarillas en la Monstera deliciosa | Cómo reproducir la planta costilla de Adán
+true
+1:09:24
+Now playing
+Growing & chopping up my huge Monstera adansonii (includes 12 months of updates)
+31K 1y ago
+Sydney Plant Guy
+Let's grow my Monstera adansonii even larger over the course of a full year! watch my review of the grow light: ...
+4K
+Summary
+Sydney Plant Guy tracks the recovery of a Monstera adansonii after an aggressive pruning session. The journey includes restructuring the plant's support pole and handling unexpected flowering to manage growth over the course of a full year.
+true
+30:59
+Now playing
+$15 BIG Monstera Deliciosa at 50% OFF HOME DEPOT PLANT SALE! Prices, Pet Safe Plants, Rare Plants
+15K 2mo ago
+Plant Life with Ashley Anita
+plants #homedepotfinds #plantshopping *This is a good vibes only channel for all plant friends to enjoy! :) Any negative and ...
+true 30°), and the ends of an open path curve in, so uneven spacing neither overshoots nor loops; the rubber band, dragged, inserted and converted points use the same rule; the Pencil's fitting unchanged (#1236, in part); scores unchanged (estimated) |
 | 2026-10-14 | minor | Quick Image Trace presets reveal the adjustment panel with Advanced open; Properties reopens it. Sliders keep their preset row until release so the re-trace is committed. UI regressions added; scores and remaining estimates unchanged. |
 | 2026-10-14 | minor | The macOS save sheet's Format menu goes back to missing: #1855 withdrew it to restore saving (#866 reopened). Rows added for the X/Y/W/H of direct-selected anchors (#1839, fixes #1824), the toolbar and All Tools drawer (#1751) and the Actions panel selection (#1853, part of #1629); the snapping row notes Snap to Grid over Snap to Pixel (#1840). Scores unchanged (estimated) |
 | 2026-10-14 | minor | Existing-guide Escape cancellation: eight app-input regressions, the Direct Selection Escape control and current full CI passed; scores and hours unchanged. |
