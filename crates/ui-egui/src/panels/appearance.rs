@@ -471,9 +471,13 @@ fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
             app.run("paint.toggleActive", json!({ "fill": it.is_fill() })).ok();
             open_popup(app, if it.is_fill() { "color" } else { "stroke" });
         }
-        swatch_button(app, ui, r, it.paint(), Painted::NewArt { fill: it.is_fill() });
+        // A graphic style can give the next object two fills or strokes with the same target: a
+        // child Ui salted by the row keeps their widget ids apart (and, unlike `push_id`, takes no
+        // layout space).
+        let mut cells = ui.new_child(egui::UiBuilder::new().id_salt(("ap-def-row", i)).max_rect(r));
+        swatch_button(app, &mut cells, r, it.paint(), Painted::NewArt { fill: it.is_fill() });
         if let AppearanceItem::Stroke(st) = it {
-            weight_field(app, ui, r, st, Painted::NewArt { fill: false });
+            weight_field(app, &mut cells, r, st, Painted::NewArt { fill: false });
         }
         for (k, e) in it.effects().iter().enumerate() {
             fx(ui, e, (Some(i), k));
@@ -562,6 +566,8 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
         let label = if is_stroke { tl!("Stroke:") } else { tl!("Fill:") };
         if name_link(ui, pos2(lx, r.center().y), ("ap-link", i), label).clicked() {
             select_row(app, ui.ctx(), Sel::Item(i));
+            // The panel has the keyboard (Delete removes this row, not the art).
+            super::set_row_keys(ui.ctx(), ROW_KEYS, true);
             open_popup(app, if is_stroke { "stroke" } else { "color" });
         }
         swatch_button(app, ui, r, paint, Painted::Item(i));
@@ -983,6 +989,7 @@ fn effect_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: usi
     let edit = name.clicked() || resp.double_clicked();
     if edit {
         select_row(app, ui.ctx(), this);
+        super::set_row_keys(ui.ctx(), ROW_KEYS, true);
         if has_options(&e.id) {
             app.run("effect.dialog", json!({"effect": e.id, "index": k, "item": item})).ok();
         } else {
