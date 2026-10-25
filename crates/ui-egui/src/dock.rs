@@ -411,9 +411,17 @@ pub(crate) fn panel_tabs(
     out
 }
 
-/// A panel popped out next to the icon column: an icon panel, or one of the tabbed group's panels
-/// while the dock is collapsed. Dragging its title floats it.
+/// A panel popped out next to the icon column: an icon panel, one of the tabbed group's panels
+/// while the dock is collapsed, or a row's popup ([`crate::state::UiState::transient_panel`]),
+/// which pops out even where its panel is a tab in the dock or a floating group. Dragging its title
+/// floats it.
 pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    // A row's popup that was put away (a press outside, its », its icon, another panel) is no
+    // popup any more: opened again from its icon, it follows Auto-Collapse Iconic Panels.
+    if app.ui.transient_panel.is_some() && app.ui.transient_panel != app.ui.open_panel {
+        app.ui.transient_panel = None;
+        app.ui.transient_focus = false;
+    }
     let open = app.ui.open_panel.as_deref();
     let Some(id) =
         open.and_then(|p| crate::state::all_panels().map(|(q, _)| q).find(|q| *q == p).or_else(|| crate::panels::library_panel::intern(p)))
@@ -421,10 +429,18 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
         return;
     };
     let tab = DockTab::from_id(id);
+    let transient = app.ui.transient_panel.as_deref() == Some(id);
+    if !transient {
+        app.ui.transient_focus = false;
+    }
     // Expanded, the group shows its panels in the dock itself, unless one was dropped on the icon
     // column; a floating panel shows in its group.
     let in_rail = app.ui.docking_icons.contains(id) && app.ui.docking.as_ref().is_some_and(|layout| !layout.contains(&id.to_string()));
-    if tab.is_some() && !app.ui.dock_collapsed && !in_rail || floating::group_of(&app.ui, id).is_some() {
+    // A row's link (`transient`) pops its panel out even where the panel is a tab already, in the
+    // dock or in a floating group, which keeps the tab it shows.
+    let grouped = floating::group_of(&app.ui, id).is_some();
+    if !transient && (tab.is_some() && !app.ui.dock_collapsed && !in_rail || grouped) {
+        app.ui.transient_focus = false;
         return;
     }
     // A library panel (in a collapsed dock) is titled by its library's name.
@@ -474,17 +490,28 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 torn = Some(title.left());
             }
             // Torn off, or floated from its menu: it floats from this frame on.
-            if torn.is_some() || floating::group_of(&app.ui, id).is_some() {
+            if torn.is_some() || !grouped && floating::group_of(&app.ui, id).is_some() {
                 return;
             }
+            // A row's popup, just opened: its first enabled text field takes the keyboard, as a
+            // dialog's does.
+            let focus = app.ui.transient_focus;
+            if focus {
+                ui.data_mut(|m| m.insert_temp(widgets::dialog_focus_flag(), true));
+            }
             panel_body(app, ui, id, width, tall);
+            // Taken (the flag is gone): done. Still there (nothing could take it yet): next frame.
+            if focus && ui.data_mut(|m| m.remove_temp::<bool>(widgets::dialog_focus_flag())).is_none() {
+                app.ui.transient_focus = false;
+            }
         });
     });
     // User Interface › Auto-Collapse Iconic Panels (#394): a press away from the flyout puts it
     // away, on the canvas or a docked panel. Not one on the icon column (its icons swap or close the
     // flyout themselves, on release), nor one on a foreground layer (the flyout itself, a dialog, a palette) or a modal dialog's
     // backdrop, nor one that closes a popup (a panel menu, a dropdown the flyout opened).
-    if open && app.session.prefs.auto_collapse_icon_panels && !egui::Popup::is_any_open(ctx) {
+    // A row's popup (`transient`) closes so whatever the preference.
+    if open && (app.session.prefs.auto_collapse_icon_panels || transient) && !egui::Popup::is_any_open(ctx) {
         let away = |p: egui::Pos2| {
             !(column..=column + ICON_COL).contains(&p.x)
                 && ctx.layer_id_at(p).is_none_or(|l| l.order != egui::Order::Foreground && l != crate::dialogs::modal::backdrop())
@@ -497,6 +524,8 @@ pub fn floating_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
         floating::tear(app, ctx, &[id], id, floating::strip_grab(ctx, left));
     } else if !open {
         app.ui.open_panel = None;
+        app.ui.transient_panel = None;
+        app.ui.transient_focus = false;
     }
 }
 

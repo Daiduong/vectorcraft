@@ -2040,4 +2040,34 @@ mod tests {
     fn floating_pos(app: &VectorcraftApp, id: &str) -> [f32; 2] {
         group_of(&app.ui, id).map(|i| app.ui.floating_panels[i].pos).unwrap()
     }
+
+    /// A row's link (the Appearance panel's Fill:, Stroke:…) pops its panel out next to the icon
+    /// column even where the panel is a tab already: in the dock's tabbed group or in a floating
+    /// group. The group keeps the tab it showed.
+    #[test]
+    fn a_row_link_pops_its_panel_out_even_where_it_is_a_tab() {
+        let flyout = |h: &Harness| h.ctx.memory(|m| m.area_rect(Id::new("icon-panel")));
+        // In the dock's tabs.
+        let mut h = Harness::new();
+        h.drag(h.icons()[0].center(), pos2(500.0, 400.0));
+        h.drag(h.shared_tab("color").center(), h.shared_tab("layers").center());
+        assert!(h.app.ui.docking.as_ref().unwrap().contains(&"color".into()));
+        crate::panels::appearance::open_popup(&mut h.app, "color");
+        h.settle();
+        assert_eq!(h.app.ui.open_panel.as_deref(), Some("color"));
+        assert!(flyout(&h).is_some(), "docked as a tab, Color still pops out");
+        // In a floating group, behind another tab.
+        let mut h = Harness::new();
+        h.drag(h.icons()[0].center(), pos2(500.0, 400.0));
+        h.drag(h.icons()[0].center(), h.title("color"));
+        assert_eq!(h.groups().len(), 1);
+        let active = h.app.ui.floating_panels[0].active;
+        let other = h.app.ui.floating_panels[0].panels.iter().position(|p| p != "color").unwrap();
+        h.app.ui.floating_panels[0].active = other;
+        crate::panels::appearance::open_popup(&mut h.app, "color");
+        h.settle();
+        assert_eq!(h.app.ui.open_panel.as_deref(), Some("color"));
+        assert!(flyout(&h).is_some(), "floating in a group, Color still pops out");
+        assert_eq!(h.app.ui.floating_panels[0].active, other, "the group keeps its tab (was {active})");
+    }
 }
