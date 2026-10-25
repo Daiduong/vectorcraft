@@ -885,13 +885,16 @@ pub(crate) fn docked_columns(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> Vec
         let natural = groups.iter().flat_map(|g| g.ids.iter()).map(|id| dock::panel_width(id)).fold(200.0, f32::max);
         let id = Id::new(("dock-column", first));
         // The width saved with the set, after a workspace switch or when egui has none for the
-        // column (the preferences just loaded).
+        // column (the preferences just loaded). A set without one (docked again after floating, or
+        // a workspace saved without it) opens at its natural width, not at a width egui kept.
         let saved =
             set.iter().filter_map(|&i| app.ui.floating_panels.get(i)?.docked_width).find(|w| w.is_finite()).map(|w| w.clamp(COLUMN_MIN, COLUMN_MAX));
-        if let Some(width) = saved
-            && (app.ui.dock_columns_pending || egui::containers::panel::PanelState::load(ui.ctx(), id).is_none())
-        {
-            dock::seed_dock_panel_width(ui.ctx(), id, width);
+        match saved {
+            Some(width) if app.ui.dock_columns_pending || egui::containers::panel::PanelState::load(ui.ctx(), id).is_none() => {
+                dock::seed_dock_panel_width(ui.ctx(), id, width);
+            }
+            Some(_) => {}
+            None => ui.ctx().data_mut(|d| d.remove::<egui::containers::panel::PanelState>(id)),
         }
         let panel = egui::Panel::right(id)
             .resizable(true)
@@ -2040,6 +2043,18 @@ mod tests {
             h.frame(vec![]);
         }
         assert!((columns(&h)[0].width() - wide).abs() < 1.0, "{:?}", columns(&h));
+        // A workspace saved without the width opens the column at its natural width, not at the
+        // width egui kept from the workspace before it.
+        let mut plain = h.app.ui.custom_workspaces.iter().find(|w| w.name == "Wide").cloned().unwrap();
+        plain.name = "Plain".into();
+        plain.floating_panels.iter_mut().for_each(|g| g.docked_width = None);
+        h.app.ui.custom_workspaces.push(plain);
+        h.app.run("window.workspace", json!({"name": "Plain"})).unwrap();
+        h.settle();
+        assert!((columns(&h)[0].width() - natural).abs() < 1.0, "Plain: {:?}, natural {natural}", columns(&h));
+        h.app.run("window.workspace", json!({"name": "Wide"})).unwrap();
+        h.settle();
+        assert!((columns(&h)[0].width() - wide).abs() < 1.0, "Wide again: {:?}", columns(&h));
         // Kept in the preferences; a workspace saved without the width (an older file) loads, and
         // a width below zero is dropped.
         let prefs: UiState = serde_json::from_value(serde_json::to_value(&h.app.ui).unwrap()).unwrap();
@@ -2056,10 +2071,11 @@ mod tests {
         fresh.settle();
         assert_eq!(fresh.app.ui.docking.is_some(), shared);
         assert!((columns(&fresh)[0].width() - wide).abs() < 1.0, "after a restart: {:?}, saved {wide}", columns(&fresh));
-        // Floated again, the set keeps no width, so docked after a restart it opens at its natural width.
+        // Floated again, the set keeps no width, so docked again it opens at its natural width,
+        // although egui still holds the width the column had.
         fresh.app.run("window.panel.float", json!({"panel": "color", "group": true})).unwrap();
         assert!(fresh.app.ui.floating_panels.iter().all(|g| g.docked.is_none() && g.docked_width.is_none()), "{:?}", fresh.app.ui.floating_panels);
-        fresh.ctx = egui::Context::default();
+        fresh.settle();
         fresh.app.run("window.panel.dock", json!({"panel": "color", "column": true})).unwrap();
         fresh.settle();
         assert!((columns(&fresh)[0].width() - natural).abs() < 1.0, "docked again: {:?}, natural {natural}", columns(&fresh));
