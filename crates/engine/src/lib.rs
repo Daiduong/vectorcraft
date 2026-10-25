@@ -611,11 +611,6 @@ impl DocState {
     pub fn mark_saved_as(&mut self, snapshot: &Arc<Document>) {
         self.saved_doc = snapshot.clone();
     }
-    /// Count the document as modified again: a save that was reported done didn't happen after all
-    /// (on the web, a host's storage that failed or was cancelled after the save returned).
-    pub fn mark_unsaved(&mut self) {
-        self.saved_doc = Arc::new(Document::clone(&self.doc));
-    }
     /// Whether `doc` counts as having the content of the document now: it is the document, or one
     /// that changes that are not edits to save replaced since ([`DocState::change_unsaved`]).
     pub fn same_content(&self, doc: &Arc<Document>) -> bool {
