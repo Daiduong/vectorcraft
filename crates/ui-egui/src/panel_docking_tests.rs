@@ -219,18 +219,115 @@ fn a_library_panel_opens_renames_and_closes() {
     assert!(!h.layout().contains(&web));
 }
 
+/// The floating window holding `panel`, by its panels.
+fn window_of(layout: &Layout<String>, panel: &str) -> Vec<String> {
+    floating_window(layout, panel).map(window_panels).unwrap_or_default()
+}
+
 #[test]
-fn vectorcraft_only_parameters_are_refused() {
+fn float_onto_above_and_below_stack_with_a_floating_group() {
     let mut h = Harness::new();
+    h.app.run("window.panel.float", json!({"panel": "swatches"})).unwrap();
+    h.app.run("window.panel.float", json!({"panel": "stroke", "onto": "Swatches"})).unwrap();
+    let layout = h.layout();
+    assert_eq!(group_of(&layout, &"stroke".into()), vec!["swatches".to_string(), "stroke".into()], "a tab of its group");
+
+    h.app.run("window.panel.float", json!({"panel": "color", "below": "swatches"})).unwrap();
+    h.app.run("window.panel.float", json!({"panel": "gradient", "above": "swatches"})).unwrap();
+    let layout = h.layout();
+    let window = window_of(&layout, "swatches");
+    for panel in ["color", "gradient", "stroke"] {
+        assert!(window.contains(&panel.to_string()), "{panel} in the window: {window:?}");
+    }
+    assert_eq!(group_of(&layout, &"color".into()), vec!["color".to_string()], "a group of its own below");
+    assert_eq!(group_of(&layout, &"gradient".into()), vec!["gradient".to_string()]);
+    h.frame(vec![]);
+    let (top, middle, bottom) = (h.tab("gradient").unwrap(), h.tab("swatches").unwrap(), h.tab("color").unwrap());
+    assert!(top.top() < middle.top() && middle.top() < bottom.top(), "gradient above, color below");
+
+    // `onto` names a floating group; a docked one is refused.
+    assert!(h.app.run("window.panel.float", json!({"panel": "stroke", "onto": "layers"})).is_err());
+}
+
+#[test]
+fn float_collapsed_minimizes_its_window() {
+    let mut h = Harness::new();
+    h.app.run("window.panel.float", json!({"panel": "swatches", "collapsed": true})).unwrap();
+    assert!(floating_window(&h.layout(), "swatches").unwrap().minimized);
+    h.app.run("window.panel.float", json!({"panel": "swatches", "collapsed": false})).unwrap();
+    assert!(!floating_window(&h.layout(), "swatches").unwrap().minimized);
+}
+
+#[test]
+fn dock_column_n_docks_a_column_at_that_place() {
+    let mut h = Harness::new();
+    let before = end_columns(&h.layout()).len();
+    h.app.run("window.panel.float", json!({"panel": "swatches"})).unwrap();
+    h.app.run("window.panel.float", json!({"panel": "color", "below": "swatches"})).unwrap();
+    h.app.run("window.panel.dock", json!({"panel": "swatches", "column": 1})).unwrap();
+    let layout = h.layout();
+    let columns = end_columns(&layout);
+    assert_eq!(columns.len(), before + 1);
+    let panels: Vec<&String> = columns[2].groups.iter().flat_map(|g| &g.panels).collect();
+    assert_eq!(panels, ["swatches", "color"], "the whole floating window, next to the icon column");
+    assert!(layout.floating.is_empty());
+
+    // `true` docks at the innermost place; without `group`, the panel leaves its group.
+    h.app.run("window.panel.dock", json!({"panel": "layers", "column": true})).unwrap();
+    let layout = h.layout();
+    let columns = end_columns(&layout);
+    assert_eq!(columns.len(), before + 2);
+    assert_eq!(columns.last().unwrap().groups[0].panels, vec!["layers".to_string()]);
+    assert_eq!(main_panels(&layout), ["properties", "libraries"]);
+}
+
+#[test]
+fn dock_icon_puts_a_panel_in_the_icon_column() {
+    let mut h = Harness::new();
+    h.app.run("window.panel.dock", json!({"panel": "layers", "icon": true})).unwrap();
+    let layout = h.layout();
+    assert!(in_iconic_column(&layout, "layers"));
+    assert!(!main_panels(&layout).contains(&"layers".to_string()));
+    assert_eq!(group_of(&layout, &"layers".into()), vec!["layers".to_string()], "a row of its own");
+}
+
+#[test]
+fn invalid_docking_parameters_change_nothing() {
+    let mut h = Harness::new();
+    h.app.run("window.panel.float", json!({"panel": "swatches"})).unwrap();
+    let before = h.layout();
     for (id, params) in [
-        ("window.panel.float", json!({"panel": "layers", "onto": "swatches"})),
-        ("window.panel.float", json!({"panel": "layers", "below": "swatches"})),
-        ("window.panel.dock", json!({"panel": "layers", "icon": true})),
-        ("window.panel.dock", json!({"panel": "layers", "column": 2})),
+        ("window.panel.float", json!({"panel": "layers", "onto": "nope"})),
+        ("window.panel.float", json!({"panel": "layers", "onto": "swatches", "below": "swatches"})),
+        ("window.panel.float", json!({"panel": "layers", "onto": "swatches", "x": 10, "y": 10})),
+        ("window.panel.float", json!({"panel": "swatches", "onto": "swatches"})),
+        ("window.panel.float", json!({"panel": "layers", "icon": true})),
+        ("window.panel.float", json!({"panel": "layers", "collapsed": "yes"})),
+        ("window.panel.dock", json!({"panel": "layers", "icon": true, "anchor": "swatches"})),
+        ("window.panel.dock", json!({"panel": "layers", "column": 0})),
+        ("window.panel.dock", json!({"panel": "layers", "column": "left"})),
+        ("window.panel.dock", json!({"panel": "layers", "icon": "yes"})),
     ] {
         assert!(h.app.run(id, params.clone()).is_err(), "{id} {params}");
+        assert_eq!(h.layout(), before, "{id} {params} changed the layout");
     }
-    assert!(h.app.ui.docking.is_none(), "nothing changed");
+}
+
+#[test]
+fn ui_docking_reports_the_layout_and_hit_rects() {
+    let mut h = Harness::new();
+    h.app.run("window.panel.float", json!({"panel": "swatches"})).unwrap();
+    h.frame(vec![]);
+    let tab = h.tab("layers").unwrap();
+    h.click(tab.center());
+    let report = inspect(&h.app, &h.ctx);
+    assert_eq!(report["layout"], serde_json::to_value(h.layout()).unwrap());
+    assert_eq!(report["focused"], json!("layers"));
+    let hits = report["hitRects"].as_array().unwrap();
+    for hit in [json!({"Tab": "layers"}), json!({"Title": "swatches"})] {
+        let found = hits.iter().find(|h| h["hit"] == hit).unwrap_or_else(|| panic!("{hit} in {hits:?}"));
+        assert_eq!(found["rect"].as_array().unwrap().len(), 4);
+    }
 }
 
 #[test]
