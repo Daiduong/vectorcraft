@@ -4642,7 +4642,6 @@ axis	Both	Обидві
 @msg	before must name a panel	before має вказувати панель
 @msg	docking action contains an unknown panel or an excessive split path	Дія прикріплення містить невідому панель або надто довгий шлях поділів
 @msg	group must be true or false	group має мати значення true або false
-@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	панель від’єднана; згорніть її групу через window.panel.float {panel, collapsed}
 @msg	panel is not in a dock group	панель не входить до групи дока
 @msg	only a dock group above or below others collapses, not one beside another	згорнути можна лише групу дока над або під іншими, а не поруч з ними
 @msg	icon must be true or false	icon має бути true або false

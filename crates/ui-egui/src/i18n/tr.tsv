@@ -5366,7 +5366,6 @@ theme	Appearance	Görünüm
 @msg	thumbnail: no page {n} (the file has 1)	thumbnail: {n}. sayfa yok (dosyada 1 sayfa var)
 @msg	variables that aren't text were left out: {kinds}	metin olmayan değişkenler dışarıda bırakıldı: {kinds}
 	Collapse Panel Group	Panel Grubunu Daralt
-@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	panel kayan durumda; grubunu window.panel.float {panel, collapsed} ile daraltın
 @msg	panel is not in a dock group	panel bir yuva grubunda değil
 @msg	only a dock group above or below others collapses, not one beside another	yalnızca diğerlerinin üstünde veya altındaki bir yuva grubu daraltılabilir, yanındaki değil
 @msg	icon must be true or false	icon true veya false olmalı

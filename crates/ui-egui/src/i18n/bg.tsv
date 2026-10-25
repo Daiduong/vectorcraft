@@ -4522,7 +4522,6 @@ effect	Soft	Меко
 @msg	before must name a panel	параметърът „преди“ трябва да указва панел
 @msg	docking action contains an unknown panel or an excessive split path	действието по закачане съдържа непознат панел или прекомерен път на разделяне
 @msg	group must be true or false	групата трябва да е истина или лъжа
-@msg	panel floats; collapse its group with window.panel.float {panel, collapsed}	панелът е плаващ; свийте групата му с window.panel.float {panel, collapsed}
 @msg	panel is not in a dock group	панелът не е в група на дока
 @msg	only a dock group above or below others collapses, not one beside another	свива се само група на дока над или под други, не и такава до друга
 @msg	icon must be true or false	icon трябва да е истина или лъжа
