@@ -376,6 +376,14 @@ fn settings_params(app: &VectorcraftApp, d: &Dialog) -> Result<(Map<String, Valu
         }
     };
     let files = pieces * rows.len();
+    p.insert("formats".into(), Value::Array(rows));
+    naming_params(d, &mut p);
+    Ok((p, files))
+}
+
+/// The params of [`settings_params`] that do not depend on the document: the bleed, the folders,
+/// the naming and the format settings (not the formats).
+fn naming_params(d: &Dialog, p: &mut Map<String, Value>) {
     p.insert("includeBleed".into(), json!(d.bool("includeBleed")));
     let folders = d.str("folders");
     let folders = match (FOLDERS.iter().any(|(id, _)| *id == folders), d.bool("subfolders")) {
@@ -395,9 +403,24 @@ fn settings_params(app: &VectorcraftApp, d: &Dialog) -> Result<(Map<String, Valu
         p.insert("name".into(), json!(name.trim()));
     }
     p.insert("counterStart".into(), json!(counter_start(d)));
-    p.insert("formats".into(), Value::Array(rows));
     p.insert("settings".into(), d.fields.get("settings").cloned().unwrap_or(json!({})));
-    Ok((p, files))
+}
+
+/// What Save Preset… saves of dialog `d`: the formats, their settings, the naming, the folders,
+/// Full Document and the folder when one is chosen (not on the web), whatever art is checked or
+/// selected.
+fn preset_settings(app: &VectorcraftApp, d: &Dialog) -> Value {
+    let mut p = Map::new();
+    if !["assets", "layers", "selection"].contains(&d.str("tab").as_str()) && d.str("select") == "full" {
+        p.insert("fullDocument".into(), json!(true));
+    }
+    p.insert("formats".into(), d.fields.get("formats").cloned().unwrap_or(json!([])));
+    naming_params(d, &mut p);
+    let folder = d.str("folder");
+    if !io::is_web(app) && !folder.trim().is_empty() {
+        p.insert("folder".into(), json!(folder.trim()));
+    }
+    Value::Object(p)
 }
 
 /// Export; the dialog stays open when the export fails.
@@ -775,13 +798,10 @@ pub(super) fn preset_pick(app: &mut VectorcraftApp, d: &mut Dialog, pick: Preset
             apply_preset(d, &preset);
             Ok(())
         }
-        PresetPick::Save(name) => {
-            let settings = params(app, d).unwrap_or_else(|_| json!({"formats": d.fields.get("formats").cloned().unwrap_or(json!([]))}));
-            app.run("document.exportPresets.save", json!({"name": name, "settings": settings})).map(|_| {
-                d.fields.remove("__savePreset");
-                d.fields.insert("exportPreset".into(), json!(name));
-            })
-        }
+        PresetPick::Save(name) => app.run("document.exportPresets.save", json!({"name": name, "settings": preset_settings(app, d)})).map(|_| {
+            d.fields.remove("__savePreset");
+            d.fields.insert("exportPreset".into(), json!(name));
+        }),
         PresetPick::Delete(name) => app.run("document.exportPresets.delete", json!({ "name": name })).map(|_| {
             d.fields.insert("exportPreset".into(), json!(""));
         }),

@@ -40,19 +40,18 @@ pub fn open_bytes(app: &mut VectorcraftApp, name: &str, bytes: &[u8], path: Opti
         return dialogs::script_check::command(app, &p).map(|_| Value::Null);
     }
     if let Some(OpensAs::Presets { import, what }) = opens {
-        import_presets(app, import, what, serde_json::json!({"data": String::from_utf8_lossy(bytes)}))?;
+        import_presets(app, import, what, serde_json::json!({"dataBase64": vectorcraft_format::base64_encode(bytes)}))?;
         return Ok(Value::Null);
     }
     if opens == Some(OpensAs::Library) {
-        return crate::panels::libraries::import(app, json!({"data": String::from_utf8_lossy(bytes)})).map(|_| Value::Null);
+        return crate::panels::libraries::import(app, json!({"dataBase64": vectorcraft_format::base64_encode(bytes)})).map(|_| Value::Null);
     }
     let swatches = opens == Some(OpensAs::SwatchLibrary);
     if swatches || opens == Some(OpensAs::StyleLibrary) {
         let p = match path {
             Some(path) => serde_json::json!({ "path": path }),
-            // `.ase` swatch libraries are binary.
-            None if swatches => serde_json::json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)}),
-            None => serde_json::json!({"name": name, "data": String::from_utf8_lossy(bytes)}),
+            // The file's bytes as they are (`.ase` swatch libraries are binary).
+            None => serde_json::json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)}),
         };
         let load = if swatches { crate::panels::swatches::load_library } else { crate::panels::graphic_styles::load_library };
         return load(app, p).map(|_| Value::Null);
@@ -1331,5 +1330,28 @@ mod tests {
         let png = vectorcraft_format::base64_decode(r["result"]["dataBase64"].as_str().unwrap()).unwrap();
         assert_eq!(&png[16..20], 60u32.to_be_bytes(), "30 pt at scale 2");
         assert!(written.borrow().is_empty(), "no file and no save dialog");
+    }
+
+    /// A presets file, a Libraries panel file or a graphic style library that is opened or dropped
+    /// goes to its importer as the file's bytes: a byte that is not UTF-8 is refused instead of
+    /// read as a replacement character.
+    #[test]
+    fn opened_preset_and_library_files_keep_their_bytes() {
+        let (mut app, _) = app();
+        app.run("file.new", json!({"width": 60, "height": 40})).unwrap();
+        app.run("document.exportPresets.save", json!({"name": "Pack", "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+        let presets = app.run("document.exportPresets.export", json!({"names": ["Pack"]})).unwrap()["data"].as_str().unwrap().to_string();
+        let lib = app.run("library.create", json!({"name": "Brand"})).unwrap()["id"].as_str().unwrap().to_string();
+        let library = app.run("library.export", json!({ "library": lib })).unwrap()["data"].as_str().unwrap().to_string();
+        let styles = app.run("graphicStyle.saveLibrary", json!({"name": "Kit"})).unwrap()["data"].as_str().unwrap().to_string();
+        for (file, text, name) in [("pack.vcexportpresets", presets, "Pack"), ("brand.vclibrary", library, "Brand"), ("kit.vcstyles", styles, "Kit")]
+        {
+            let mut bytes = text.as_bytes().to_vec();
+            bytes.insert(text.find(name).unwrap() + 2, 0xFF);
+            assert!(open_bytes(&mut app, file, &bytes, None).is_err(), "{file}: {}", app.ui.status);
+            // The file as it was still opens.
+            open_bytes(&mut app, file, text.as_bytes(), None).unwrap();
+        }
+        assert_eq!(app.session.prefs.screen_export_presets.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["Pack", "Pack 2"]);
     }
 }

@@ -938,6 +938,41 @@ fn batch_naming_folders_layers_selection_and_presets() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Save Preset… keeps the naming and the folders while the dialog cannot export yet: no folder
+/// chosen, or no asset checked on the Assets tab.
+#[test]
+fn save_preset_keeps_the_naming_while_the_dialog_cannot_export() {
+    use export_for_screens::PresetPick;
+    let (mut app, _) = app(2, false);
+    let folder = temp_folder("save-preset").to_string_lossy().to_string();
+    open(&mut app);
+    let save = |app: &mut VectorcraftApp, name: &str| {
+        let mut d = app.ui.dialog.take().unwrap();
+        export_for_screens::preset_pick(app, &mut d, PresetPick::Save(name.into()));
+        app.ui.dialog = Some(d);
+    };
+    set(&mut app, "name", json!("ACME-<name>"));
+    set(&mut app, "prefix", json!("p-"));
+    set(&mut app, "folders", json!("format"));
+    set(&mut app, "counterStart", json!(5));
+    set(&mut app, "folder", json!(""));
+    save(&mut app, "No Folder");
+    set(&mut app, "folder", json!(folder));
+    set(&mut app, "tab", json!("assets"));
+    save(&mut app, "No Asset");
+    for (name, saved_folder) in [("No Folder", None), ("No Asset", Some(folder.as_str()))] {
+        let preset = app.session.prefs.screen_export_presets.iter().find(|p| p.name == name).unwrap_or_else(|| panic!("{name}: {}", app.ui.status));
+        let s = &preset.settings;
+        assert_eq!(
+            (&s["name"], &s["prefix"], &s["folders"], &s["counterStart"]),
+            (&json!("ACME-<name>"), &json!("p-"), &json!("format"), &json!(5)),
+            "{name}"
+        );
+        assert_eq!(s.get("folder").and_then(Value::as_str), saved_folder, "{name}");
+        assert_eq!(s["formats"], json!([{"format": "png", "scale": "1x", "suffix": ""}]), "{name}");
+    }
+}
+
 /// Export Preset… writes the current preset to a file and Import Preset… adds the presets of a
 /// file to the dropdown, as does opening the file while the dialog is open (the web's Import).
 #[cfg(not(target_arch = "wasm32"))]
