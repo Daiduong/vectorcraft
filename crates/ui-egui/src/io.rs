@@ -405,7 +405,7 @@ pub fn save_settled(app: &mut VectorcraftApp, doc: Option<u64>, name: &str, save
     if let Some(st) = doc.and_then(|uid| app.session.document_mut(uid)) {
         if !saved {
             st.mark_unsaved();
-        } else if let Some(to) = host_path.filter(|to| opens_as(&fileio::file_name(to)).is_none()) {
+        } else if let Some(to) = host_path {
             st.path = Some(to.to_string());
         }
     }
@@ -1349,8 +1349,8 @@ mod tests {
         save_settled(&mut app, Some(uid), "Poster.vectorcraft", true, Some("cloud:home/art/Poster.vectorcraft"));
         assert_eq!(path(&app, 1).as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
         assert_eq!(path(&app, 0), before, "the other Poster keeps its file");
-        // An export to the host stays a copy: the document keeps its file.
-        save_settled(&mut app, Some(uid), "Poster.vectorcraft", true, Some("cloud:home/art/Poster.png"));
+        // An export to the host names no document: it stays a copy, and the document keeps its file.
+        save_settled(&mut app, None, "Poster.png", true, Some("cloud:home/art/Poster.png"));
         assert_eq!(path(&app, 1).as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
     }
 
