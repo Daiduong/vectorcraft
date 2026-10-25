@@ -48,12 +48,6 @@ pub(crate) struct Runtime {
     raise: Option<String>,
 }
 
-/// The egui id of a docking control, for tests that press it or read its response.
-#[cfg(test)]
-pub(crate) fn hit_id(hit: &craft_ui::docking::Hit<String>) -> egui::Id {
-    craft_ui::docking::DockArea::<String>::hit_id(area_id(), hit)
-}
-
 /// Every docking control drawn last frame with its rect.
 #[cfg(test)]
 pub(crate) fn hit_rects(ctx: &egui::Context) -> Vec<(craft_ui::docking::Hit<String>, egui::Rect)> {
@@ -134,8 +128,9 @@ fn with_canvas(columns: Vec<Column<String>>, floating: Vec<Floating<String>>) ->
 }
 
 /// The default layout for these flags: the main column showing `tab` (collapsed to icons when
-/// `collapsed`, `width` wide), then the icon column.
-fn default_from(tab: DockTab, order: &[DockTab], collapsed: bool, width: Option<f32>) -> Layout<String> {
+/// `collapsed`, `width` wide), then the icon column. A group collapsed to icons shows `front`
+/// when it holds it (the open flyout).
+fn default_from(tab: DockTab, order: &[DockTab], collapsed: bool, width: Option<f32>, front: Option<&str>) -> Layout<String> {
     let mut placed = Placed::default();
     let panels: Vec<String> = main_tabs(order).into_iter().filter_map(|t| placed.take(t.info().0)).collect();
     let active = panels.iter().position(|p| p == tab.info().0).unwrap_or(0);
@@ -147,12 +142,17 @@ fn default_from(tab: DockTab, order: &[DockTab], collapsed: bool, width: Option<
     if !groups.is_empty() {
         columns.push(Column { groups, width: COLUMN_WIDTH, iconic: true, iconic_width: Some(ICON_WIDTH) });
     }
+    for group in columns.iter_mut().filter(|c| c.iconic).flat_map(|c| c.groups.iter_mut()) {
+        if let Some(k) = front.and_then(|front| group.panels.iter().position(|p| p == front)) {
+            group.active = k;
+        }
+    }
     with_canvas(columns, Vec::new())
 }
 
 /// The layout of a workspace that has not been customized, from its flags.
 pub(crate) fn default_layout(ui: &UiState) -> Layout<String> {
-    default_from(ui.dock_tab, &ui.dock_tab_order, ui.dock_collapsed, ui.dock_width)
+    default_from(ui.dock_tab, &ui.dock_tab_order, ui.dock_collapsed, ui.dock_width, ui.open_panel.as_deref())
 }
 
 /// The layout in use: the customized one, or the workspace's default.
@@ -167,7 +167,22 @@ fn default_flags(ui: &UiState, layout: &Layout<String>) -> Option<(DockTab, bool
     let group = main.groups.first()?;
     let tab = DockTab::from_id(group.panels.get(group.active)?)?;
     let width = if (main.width - main_width(ui.dock_width)).abs() < 0.01 { ui.dock_width } else { Some(main.width) };
-    (default_from(tab, &ui.dock_tab_order, main.iconic, width) == *layout).then_some((tab, main.iconic, width))
+    // The canvas split's size follows the dock's columns, whichever way a change kept it.
+    let mut default = default_from(tab, &ui.dock_tab_order, main.iconic, width, None);
+    if let (Some(Node::Split { size, .. }), Some(Node::Split { size: kept, .. })) = (default.root.as_mut(), layout.root.as_ref()) {
+        *size = *kept;
+    }
+    // Which panel an icon group shows follows the open flyout.
+    if let (Some(Node::Split { second, .. }), Some(Node::Split { second: kept, .. })) = (default.root.as_mut(), layout.root.as_ref())
+        && let (Node::Dock { columns, .. }, Node::Dock { columns: kept, .. }) = (second.as_mut(), kept.as_ref())
+    {
+        for (column, kept) in columns.iter_mut().zip(kept).filter(|(c, _)| c.iconic) {
+            for (group, kept) in column.groups.iter_mut().zip(&kept.groups) {
+                group.active = kept.active;
+            }
+        }
+    }
+    (default == *layout).then_some((tab, main.iconic, width))
 }
 
 /// Every dock column, from each dock's window edge inwards.
@@ -270,7 +285,7 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Opt
 }
 
 /// `window.panel {panel}`: show a panel. One in an icon column opens (or puts away) its flyout;
-/// one in a group comes to the front; one closed with a remembered place comes back there; a
+/// one in front of its floating window hides; one in a group comes to the front; one closed with a remembered place comes back there; a
 /// library panel or a panel the dock has no place for floats.
 fn show_panel(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
     let raw = params.get("panel").and_then(Value::as_str).unwrap_or_default();
@@ -280,6 +295,11 @@ fn show_panel(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String>
     if in_iconic_column(&layout, panel) {
         app.ui.open_panel = if app.ui.open_panel.as_deref() == Some(panel) { None } else { Some(panel.into()) };
         return Ok(json!({"open": app.ui.open_panel}));
+    }
+    // A floating panel in front of its window hides again, as an icon panel's flyout does: its
+    // shortcut shows and hides it.
+    if floating_window(&layout, panel).is_some() && layout.panel_state(&panel.to_string()) == craft_ui::docking::PanelState::Front {
+        return shared_command(app, "window.panel.close", &json!({"panel": panel}));
     }
     if !layout.contains(&panel.to_string()) && !app.ui.docking_hidden.contains_key(panel) && crate::panels::library_panel::parse(panel).is_some() {
         return crate::panels::library_panel::float(app, panel);
@@ -384,13 +404,13 @@ fn shared_command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<
     };
     let mut shown = false;
     if let Some(panel) = shows.as_ref().filter(|p| !txn.workspace.layout.contains(p)) {
-        let docks = matches!(command, DockCommand::Dock { .. } | DockCommand::Move { .. });
-        if txn.workspace.hidden.iter().any(|(p, _)| p == panel) || docks {
+        if txn.workspace.hidden.iter().any(|(p, _)| p == panel) {
+            // Its recorded place, else beside the main column's panels when that place is gone.
             let fallback = first_dock_panel(&txn.workspace.layout, panel);
             txn.workspace.set_visible(panel.clone(), true, fallback, model_permissions).map_err(|e| e.to_string())?;
         } else {
-            // A panel the dock has no place for (Tabs, OpenType, a library panel) floats.
-            txn.float_new(panel, &space)?;
+            let docks = matches!(command, DockCommand::Dock { .. } | DockCommand::Move { .. });
+            txn.place_new(panel, &space, docks)?;
         }
         shown = true;
     }
@@ -481,6 +501,23 @@ impl Transaction {
             }
         }
         Ok(Self { workspace, returns })
+    }
+
+    /// Show `panel`, which has no recorded place: in its icon group when a panel of that
+    /// [`ICON_PANEL_GROUPS`] row is in an icon column, else beside the main column's panels when
+    /// it `docks`, else floating.
+    fn place_new(&mut self, panel: &String, space: &FloatSpace<String>, docks: bool) -> Result<(), String> {
+        let layout = &self.workspace.layout;
+        let mate = ICON_PANEL_GROUPS
+            .iter()
+            .find(|row| row.contains(&panel.as_str()))
+            .and_then(|row| row.iter().find(|p| **p != panel.as_str() && in_iconic_column(layout, p)));
+        let action = match (mate, docks) {
+            (Some(mate), _) => Action::OpenAt { panel: panel.clone(), anchor: (*mate).to_string(), placement: Placement::Tab { before: None } },
+            (None, true) => Action::Open { panel: panel.clone(), anchor: first_dock_panel(layout, panel) },
+            (None, false) => return self.float_new(panel, space),
+        };
+        self.apply(action).map(|_| ())
     }
 
     /// Add `panel`, which is in no group, as a floating window of its own where `space` floats
@@ -604,6 +641,15 @@ impl Transaction {
                 app.ui.dock_width = width;
             }
             None => {
+                // `dock_tab` names the main column's front panel in a customized layout too.
+                if let Some(tab) = dock_columns(&layout)
+                    .first()
+                    .and_then(|c| c.groups.first())
+                    .and_then(|g| g.panels.get(g.active))
+                    .and_then(|p| DockTab::from_id(p))
+                {
+                    app.ui.dock_tab = tab;
+                }
                 app.ui.docking = Some(layout.clone());
                 app.ui.docking_hidden = hidden;
             }
@@ -703,12 +749,21 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
         app.ui.docking = None;
         app.status(tl!("Invalid panel layout; restored the default dock").to_string());
     }
-    let layout = layout_of(&app.ui);
-    // `open_panel` is the open flyout: a command or a workspace that sets it opens that flyout.
+    let mut layout = layout_of(&app.ui);
+    // `open_panel` is the open flyout: a command or a workspace that sets it opens that flyout,
+    // showing that panel of its group.
     let flyout = craft_ui::docking::flyout::<String>(&ctx, area);
     if flyout != app.ui.open_panel {
         match app.ui.open_panel.clone() {
-            Some(panel) if in_iconic_column(&layout, &panel) => craft_ui::docking::open_flyout(&ctx, area, panel),
+            Some(panel) if in_iconic_column(&layout, &panel) => {
+                if app.ui.docking.is_some() && layout.panel_state(&panel) != craft_ui::docking::PanelState::Front {
+                    if let Err(error) = gesture(app, Action::Activate { panel: panel.clone() }) {
+                        app.ui.status = error;
+                    }
+                    layout = layout_of(&app.ui);
+                }
+                craft_ui::docking::open_flyout(&ctx, area, panel);
+            }
             Some(_) => {
                 app.ui.open_panel = None;
                 craft_ui::docking::close_flyout::<String>(&ctx, area);

@@ -344,7 +344,7 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
             Ok(json!({ "dialog": dialog }))
         }
         // The Gradient and Magic Wand tools: their panels.
-        "gradient" | "magicWand" if app.ui.open_panel.as_deref() == Some(tool) => Ok(json!({ "open": tool })),
+        "gradient" | "magicWand" if crate::panel_docking::showing(&app.ui, tool) => Ok(json!({ "open": tool })),
         "gradient" | "magicWand" => app.run("window.panel", json!({ "panel": tool })),
         "artboard" => crate::dialogs::artboard_options::open(app),
         "eyedropper" => {
@@ -984,9 +984,9 @@ pub(crate) mod tests {
         assert_eq!((d.str("__command"), d.str("type")), ("graph.setType".to_string(), "column".to_string()));
         // The Magic Wand panel opens, and stays open on a second double-click.
         open_options(&mut app, "magicWand").unwrap();
-        assert_eq!(app.ui.open_panel.as_deref(), Some("magicWand"));
-        assert_eq!(open_options(&mut app, "magicWand").unwrap()["open"], "magicWand");
-        assert_eq!(app.ui.open_panel.as_deref(), Some("magicWand"));
+        assert!(crate::panel_docking::showing(&app.ui, "magicWand"));
+        open_options(&mut app, "magicWand").unwrap();
+        assert!(crate::panel_docking::showing(&app.ui, "magicWand"));
     }
 
     /// A double-click at `at`, `time` seconds in (a second apart from the last).

@@ -1154,7 +1154,7 @@ mod tests {
         assert_eq!(groups(&app).len(), 3);
         assert_eq!(last_open(&app.ui).map(LibraryPanel::panel), Some(pastels.clone()));
         // They group, dock and close as any panel, and `window.panel` shows one again.
-        app.run("window.panel.float", json!({"panel": brights, "onto": pastels})).unwrap();
+        app.run("window.panel.move", json!({"panel": brights, "anchor": pastels})).unwrap();
         assert!(groups(&app).contains(&vec![pastels.clone(), brights.clone()]), "{:?}", groups(&app));
         app.run("window.panel.dock", json!({"panel": styles})).unwrap();
         assert!(craft_ui::docking::Layout { root: docking(&app).root.clone(), floating: vec![] }.contains(&styles));

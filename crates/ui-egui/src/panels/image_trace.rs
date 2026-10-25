@@ -610,7 +610,7 @@ mod tests {
         app.run("imageTrace.release", json!({})).unwrap();
         app.ui.image_trace_advanced = false;
         trace_and_open(&mut app, "Sketched Art");
-        assert_eq!(app.ui.open_panel.as_deref(), Some("imageTrace"));
+        assert!(crate::panel_docking::showing(&app.ui, "imageTrace"));
         assert!(app.ui.image_trace_advanced);
         assert_eq!(selected_trace(&app).unwrap().0, "Sketched Art");
         let ctx = egui::Context::default();
@@ -625,7 +625,7 @@ mod tests {
         // Opening controls again neither closes the flyout nor adds a document undo step.
         let steps = app.session.active().unwrap().history.undo.len();
         open_settings(&mut app);
-        assert_eq!(app.ui.open_panel.as_deref(), Some("imageTrace"));
+        assert!(crate::panel_docking::showing(&app.ui, "imageTrace"));
         assert_eq!(app.session.active().unwrap().history.undo.len(), steps);
         // Optional local visual QA; no reference images or generated captures are committed.
         if let Some(path) = std::env::var_os("VECTORCRAFT_TRACE_CAPTURE") {
@@ -932,7 +932,7 @@ mod tests {
             let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| super::super::properties::show(&mut app, ui));
             out.textures_delta.clear();
         }
-        assert_eq!(app.ui.open_panel.as_deref(), Some("imageTrace"));
+        assert!(crate::panel_docking::showing(&app.ui, "imageTrace"));
     }
 
     /// #1358: in Properties the View row fits the panel, so the panel doesn't widen and clip its
