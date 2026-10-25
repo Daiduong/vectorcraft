@@ -155,8 +155,10 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                         inbox.lock().unwrap_or_else(|e| e.into_inner()).push((path, bytes));
                         ctx.request_repaint();
                     }
-                    // "device", nothing, or a failed host: the browser's own picker.
-                    _ => (device_open.borrow_mut())(),
+                    // Only the user's own choice opens the browser's picker.
+                    Ok(c) if c.as_string().as_deref() == Some("device") => (device_open.borrow_mut())(),
+                    // A host that failed or answered something else: nothing was chosen.
+                    other => log::error!("vectorcraft-web: craftStorage.chooseOpen didn't answer with a choice: {other:?}"),
                 }
             });
         }));
@@ -181,11 +183,18 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                     match call("chooseSave", &[name.clone().into()]).await {
                         Ok(c) if c.is_null() => (false, None),
                         Ok(c) if let Some(path) = c.as_string().filter(|p| is_host_path(p)) => (write(&path, &bytes).await, Some(path)),
-                        _ => {
+                        // Only the user's own choice downloads to the device.
+                        Ok(c) if c.as_string().as_deref() == Some("device") => {
                             let downloaded = (device_download.borrow_mut())(&name, &bytes)
                                 .inspect_err(|e| log::error!("vectorcraft-web: download of {name} failed: {e}"))
                                 .is_ok();
                             (downloaded, None)
+                        }
+                        // A host that failed or answered something else: not saved, so the
+                        // document stays modified.
+                        other => {
+                            log::error!("vectorcraft-web: craftStorage.chooseSave didn't answer with a choice: {other:?}");
+                            (false, None)
                         }
                     }
                 }
