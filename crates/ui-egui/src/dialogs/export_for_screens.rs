@@ -821,10 +821,13 @@ pub(super) fn preset_pick(app: &mut VectorcraftApp, d: &mut Dialog, pick: Preset
     d.fields.insert("__exportPresets".into(), fileio::screen_export_preset_list(&app.session.prefs.screen_export_presets));
 }
 
-/// Set the dialog to preset `preset` (`{name, settings}`): its formats, settings, naming and
-/// folders; what it doesn't name keeps the dialog's value.
+/// Set the dialog to preset `preset` (`{name, settings}`): its formats, settings, naming, folders
+/// and Full Document; what it doesn't name keeps the dialog's value.
 pub(super) fn apply_preset(d: &mut Dialog, preset: &Value) {
     let st = &preset["settings"];
+    if st["fullDocument"].as_bool() == Some(true) {
+        d.fields.insert("select".into(), json!("full"));
+    }
     if let Some(rows) = st["formats"].as_array() {
         d.fields.insert("formats".into(), json!(rows.iter().filter(|r| r.is_object()).map(editable_row).collect::<Vec<_>>()));
         d.fields.insert("preset".into(), json!(""));

@@ -973,6 +973,24 @@ fn save_preset_keeps_the_naming_while_the_dialog_cannot_export() {
     }
 }
 
+/// A preset saved with Full Document chosen chooses Full Document again when it is applied.
+#[test]
+fn a_preset_saved_with_full_document_chooses_it_again() {
+    use export_for_screens::PresetPick;
+    let (mut app, _) = app(2, false);
+    open(&mut app);
+    set(&mut app, "select", json!("full"));
+    let mut d = app.ui.dialog.take().unwrap();
+    export_for_screens::preset_pick(&mut app, &mut d, PresetPick::Save("Whole".into()));
+    app.ui.dialog = Some(d);
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Whole").unwrap_or_else(|| panic!("{}", app.ui.status));
+    assert_eq!(saved.settings["fullDocument"], json!(true));
+    let preset = json!({"name": "Whole", "settings": saved.settings.clone()});
+    set(&mut app, "select", json!("all"));
+    export_for_screens::apply_preset(app.ui.dialog.as_mut().unwrap(), &preset);
+    assert_eq!(field(&app, "select"), "full");
+}
+
 /// Export Preset… writes the current preset to a file and Import Preset… adds the presets of a
 /// file to the dropdown, as does opening the file while the dialog is open (the web's Import).
 #[cfg(not(target_arch = "wasm32"))]
