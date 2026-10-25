@@ -3,7 +3,8 @@
 //! The layout is a horizontal split of the protected `canvas` panel and a dock at the window's
 //! right edge. The dock's columns, from the window edge inwards: the Properties · Layers ·
 //! Libraries column, the icon column (one group per row of [`ICON_PANEL_GROUPS`]) and any columns
-//! the user adds. Panels float in windows of their own inside the main window. A workspace that
+//! the user adds. Floating panels open in OS windows of their own on the desktop (feature
+//! `native-windows`) and inside the main window on the web and on Wayland. A workspace that
 //! was never customized has no saved layout (`UiState::docking` is `None`): its layout is built
 //! from its flags (`dock_tab`, `dock_collapsed`, `dock_width`).
 //!
