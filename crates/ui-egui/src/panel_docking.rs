@@ -381,7 +381,8 @@ enum Legacy {
     /// `onto` (a tab of the group holding `anchor`, which floats unless the panel docks), `above`
     /// or `below` (a group of its own there, in that group's floating window or dock column).
     Join { anchor: String, placement: Placement<String>, key: &'static str, floats: bool },
-    /// `icon: true`: a group of its own at the end of the icon column.
+    /// `icon: true`: a group of its own at the end of the icon column ([`icon_column`]), or a new
+    /// icon column when the dock has none.
     Icons,
     /// `column: n` of `window.panel.dock`: a dock column of its own at place `n` of the dock, 1
     /// next to the icon column, counting inwards; `column: true` with no destination: the
@@ -514,6 +515,22 @@ fn end_columns(layout: &Layout<String>) -> Vec<&Column<String>> {
     Vec::new()
 }
 
+/// The icon column among a dock's `columns`: the column collapsed to icons holding the most
+/// panels of [`ICON_PANEL_GROUPS`] rows, the innermost on a tie. Columns carry no mark of their
+/// own, and the main column may be collapsed to icons too (or, in a converted layout, several
+/// columns from an old dock); what it holds tells them apart.
+fn icon_column(columns: &[&Column<String>]) -> Option<usize> {
+    let in_rows = |p: &&String| ICON_PANEL_GROUPS.iter().any(|row| row.contains(&p.as_str()));
+    columns
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.iconic)
+        .map(|(k, c)| (c.groups.iter().flat_map(|g| &g.panels).filter(in_rows).count(), k))
+        .filter(|(count, _)| *count > 0)
+        .max()
+        .map(|(_, k)| k)
+}
+
 impl Legacy {
     /// The action that puts `panel` (with `group`, its whole group) where `self` says, on the
     /// layout with the panel shown; none when it is there already.
@@ -539,16 +556,21 @@ impl Legacy {
             }
             Self::Icons => {
                 let columns = end_columns(layout);
-                let column =
-                    columns.iter().skip(1).find(|c| c.iconic).or_else(|| columns.iter().find(|c| c.iconic)).ok_or("the dock has no icon column")?;
-                if column.groups.iter().any(|g| g.panels.contains(panel)) {
-                    return Ok(Vec::new());
-                }
                 let moving = if group { mates } else { vec![panel.clone()] };
-                let Some(anchor) = column.groups.iter().rev().flat_map(|g| &g.panels).find(|p| !moving.contains(p)) else {
-                    return Ok(Vec::new());
+                if let Some(column) = icon_column(&columns).and_then(|k| columns.get(k)) {
+                    if column.groups.iter().any(|g| g.panels.contains(panel)) {
+                        return Ok(Vec::new());
+                    }
+                    if let Some(anchor) = column.groups.iter().rev().flat_map(|g| &g.panels).find(|p| !moving.contains(p)) {
+                        return Ok(vec![unit(Target::At { anchor: anchor.clone(), placement: Placement::Group { below: true, height: None } })]);
+                    }
+                }
+                // No icon column: a new one inside the outer column, collapsed to icons.
+                let to = match columns.iter().flat_map(|c| &c.groups).flat_map(|g| &g.panels).find(|p| !moving.contains(p)) {
+                    Some(anchor) => Target::At { anchor: anchor.clone(), placement: Placement::Column { after: true } },
+                    None => Target::NewDock { side: Side::End },
                 };
-                Ok(vec![unit(Target::At { anchor: anchor.clone(), placement: Placement::Group { below: true, height: None } })])
+                Ok(vec![unit(to), Action::SetIconic { panel: panel.clone(), iconic: true }])
             }
             Self::Column(place) => {
                 let columns = end_columns(layout);
@@ -561,12 +583,34 @@ impl Legacy {
                     _ if whole => mates,
                     _ => vec![panel.clone()],
                 };
-                let column = columns.get((*place).min(columns.len().saturating_sub(1))).ok_or("the window has no dock")?;
-                // What moves already is that column.
-                let Some(anchor) = column.groups.iter().flat_map(|g| &g.panels).find(|p| !moving.contains(p)) else {
-                    return Ok(Vec::new());
+                // The dock as it is without what moves: each column that keeps a panel, with one
+                // of them as the anchor.
+                let staying: Vec<(usize, &String)> = columns
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(k, c)| c.groups.iter().flat_map(|g| &g.panels).find(|p| !moving.contains(p)).map(|p| (k, p)))
+                    .collect();
+                // Place 1 is next to the icon column, inwards; without one, next to the outer column.
+                let base = match icon_column(&columns) {
+                    Some(icons) => staying.iter().filter(|(k, _)| *k <= icons).count(),
+                    None => staying.len().min(1),
                 };
-                let to = Target::At { anchor: anchor.clone(), placement: Placement::Column { after: true } };
+                let at = base.saturating_add(place.saturating_sub(1)).min(staying.len());
+                // What moves is a whole column at that place already.
+                let alone = columns.iter().position(|c| {
+                    let panels: Vec<&String> = c.groups.iter().flat_map(|g| &g.panels).collect();
+                    panels.len() == moving.len() && panels.iter().all(|p| moving.contains(p))
+                });
+                if alone.is_some_and(|k| staying.iter().filter(|(j, _)| *j < k).count() == at) {
+                    return Ok(Vec::new());
+                }
+                let to = match staying.get(at) {
+                    Some((_, anchor)) => Target::At { anchor: (*anchor).clone(), placement: Placement::Column { after: false } },
+                    None => {
+                        let (_, anchor) = staying.last().ok_or("the window has no dock")?;
+                        Target::At { anchor: (*anchor).clone(), placement: Placement::Column { after: true } }
+                    }
+                };
                 Ok(vec![match window {
                     Some(_) if whole => Action::MoveWindow { panel: panel.clone(), to },
                     _ if whole => Action::MoveGroup { panel: panel.clone(), to },

@@ -293,6 +293,72 @@ fn dock_icon_puts_a_panel_in_the_icon_column() {
     assert_eq!(group_of(&layout, &"layers".into()), vec!["layers".to_string()], "a row of its own");
 }
 
+fn column_panels(layout: &Layout<String>) -> Vec<Vec<String>> {
+    end_columns(layout).iter().map(|c| c.groups.iter().flat_map(|g| g.panels.clone()).collect()).collect()
+}
+
+#[test]
+fn a_docked_column_moves_to_a_later_place_and_back() {
+    let mut h = Harness::new();
+    h.app.run("window.panel.dock", json!({"panel": "swatches", "column": 1})).unwrap();
+    h.app.run("window.panel.dock", json!({"panel": "color", "column": 2})).unwrap();
+    let columns = column_panels(&h.layout());
+    assert_eq!(columns[2..], [vec!["swatches".to_string()], vec!["color".to_string()]]);
+    h.app.run("window.panel.dock", json!({"panel": "swatches", "column": 2})).unwrap();
+    let columns = column_panels(&h.layout());
+    assert_eq!(columns[2..], [vec!["color".to_string()], vec!["swatches".to_string()]], "swatches moved inwards");
+    h.app.run("window.panel.dock", json!({"panel": "swatches", "column": 1})).unwrap();
+    let columns = column_panels(&h.layout());
+    assert_eq!(columns[2..], [vec!["swatches".to_string()], vec!["color".to_string()]], "and back");
+    let before = h.layout();
+    h.app.run("window.panel.dock", json!({"panel": "swatches", "column": 1})).unwrap();
+    assert_eq!(h.layout(), before, "already there");
+}
+
+/// A layout converted from an old dock split side by side, with the dock collapsed: two
+/// collapsed tree columns before the icon column.
+#[test]
+fn column_places_and_icon_count_from_the_icon_column() {
+    let mut h = Harness::new();
+    let mut layout = h.layout();
+    if let Some(Node::Split { second, .. }) = layout.root.as_mut()
+        && let Node::Dock { columns, .. } = second.as_mut()
+    {
+        let libraries = columns[0].groups[0].panels.pop().unwrap();
+        assert_eq!(libraries, "libraries");
+        columns.insert(1, Column { groups: vec![Group::new(vec![libraries], 0)], width: 200.0, iconic: true, iconic_width: Some(ICON_WIDTH) });
+        columns[0].iconic = true;
+    }
+    let width: f32 = end_columns(&layout).iter().map(|c| c.iconic_width.unwrap_or(ICON_WIDTH)).sum();
+    if let Some(Node::Split { size, .. }) = layout.root.as_mut() {
+        *size = craft_ui::layout::SplitSize::FixedSecond(width);
+    }
+    assert!(valid(&layout));
+    h.app.ui.docking = Some(layout);
+    h.app.run("window.panel.dock", json!({"panel": "layers", "icon": true})).unwrap();
+    let layout = h.layout();
+    let columns = column_panels(&layout);
+    assert!(columns[2].contains(&"layers".to_string()), "{columns:?}");
+    h.app.run("window.panel.dock", json!({"panel": "swatches", "column": 1})).unwrap();
+    let columns = column_panels(&h.layout());
+    assert_eq!(columns[..2], [vec!["properties".to_string()], vec!["libraries".to_string()]]);
+    assert_eq!(columns[3], ["swatches"], "next to the icon column: {columns:?}");
+
+    // No icon column: `icon` makes one.
+    let mut layout = h.layout();
+    if let Some(Node::Split { second, .. }) = layout.root.as_mut()
+        && let Node::Dock { columns, .. } = second.as_mut()
+    {
+        columns.remove(2);
+    }
+    h.app.ui.docking = Some(layout);
+    assert_eq!(icon_column(&end_columns(&h.layout())), None);
+    h.app.run("window.panel.dock", json!({"panel": "properties", "icon": true})).unwrap();
+    let layout = h.layout();
+    assert!(in_iconic_column(&layout, "properties"));
+    assert!(icon_column(&end_columns(&layout)).is_none_or(|k| column_panels(&layout)[k].contains(&"properties".to_string())));
+}
+
 #[test]
 fn invalid_docking_parameters_change_nothing() {
     let mut h = Harness::new();
