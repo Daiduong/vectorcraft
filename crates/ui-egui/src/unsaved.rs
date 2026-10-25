@@ -244,13 +244,14 @@ mod tests {
         new_doc(&mut app, true);
         app.run("file.save", json!({ "path": path })).unwrap();
         app.run("shape.rectangle", json!({ "x": 20, "y": 20, "width": 5, "height": 5 })).unwrap();
+        let uid = app.session.documents()[1].uid;
         // The host fails: the document stays open and modified.
         close(&mut app, 1).unwrap();
         busy.set(true);
         assert_eq!(confirm(&mut app).unwrap(), json!({ "pending": "save" }));
         assert_eq!(docs(&app), 2);
         busy.set(false);
-        io::save_settled(&mut app, path, false, None);
+        io::save_settled(&mut app, Some(uid), path, false, None);
         assert_eq!(docs(&app), 2);
         assert!(app.session.documents()[1].is_dirty());
         // The host saves it: then it closes.
@@ -259,7 +260,7 @@ mod tests {
         confirm(&mut app).unwrap();
         assert_eq!(docs(&app), 2);
         busy.set(false);
-        io::save_settled(&mut app, path, true, None);
+        io::save_settled(&mut app, Some(uid), path, true, None);
         assert_eq!(docs(&app), 1);
     }
 

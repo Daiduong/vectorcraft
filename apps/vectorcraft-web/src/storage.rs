@@ -53,50 +53,60 @@ type Save = Pin<Box<dyn Future<Output = (bool, Option<String>)>>>;
 
 thread_local! {
     /// Saves waiting for the host, made one at a time in the order the app asked, so a later
-    /// save of a file is never overwritten by an earlier one: (id, name or host path, the save).
-    static QUEUE: RefCell<VecDeque<(u64, String, Save)>> = const { RefCell::new(VecDeque::new()) };
+    /// save of a file is never overwritten by an earlier one: (id, the document whose save it is,
+    /// name or host path, the save).
+    static QUEUE: RefCell<VecDeque<(u64, Option<u64>, String, Save)>> = const { RefCell::new(VecDeque::new()) };
     /// A save is being made now.
     static SAVING: Cell<bool> = const { Cell::new(false) };
-    /// The latest save of each name: an earlier one that failed doesn't count once a later one
-    /// is on its way, which answers for the document itself.
-    static LATEST: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+    /// The latest save of each document (or, for an export, each name): an earlier one that
+    /// failed doesn't count once a later one is on its way, which answers for the document itself.
+    static LATEST: RefCell<HashMap<(Option<u64>, String), u64>> = RefCell::new(HashMap::new());
     static LAST_ID: Cell<u64> = const { Cell::new(0) };
-    /// Saves that finished since the web shell last looked: (name or host path, saved, the host
-    /// path chosen). One that failed or that the user cancelled marks its document modified again
-    /// ([`take_settled`]).
-    static SETTLED: RefCell<Vec<(String, bool, Option<String>)>> = const { RefCell::new(Vec::new()) };
+    /// Saves that finished since the web shell last looked. One that failed or that the user
+    /// cancelled marks its document modified again ([`take_settled`]).
+    static SETTLED: RefCell<Vec<Settled>> = const { RefCell::new(Vec::new()) };
 }
 
 fn in_flight() -> bool {
     SAVING.with(Cell::get) || QUEUE.with(|q| !q.borrow().is_empty())
 }
 
-/// Queue a save of `name`; the first one starts the saver, which works through the queue.
-fn enqueue(name: String, save: Save, ctx: egui::Context) {
+/// A finished save, for [`vectorcraft_ui_egui::io::save_settled`]: (document, name or host path,
+/// saved, the host path the user chose).
+pub type Settled = (Option<u64>, String, bool, Option<String>);
+
+/// What tells saves apart for [`LATEST`]: the document, or an export's name.
+fn key(doc: Option<u64>, name: &str) -> (Option<u64>, String) {
+    (doc, if doc.is_some() { String::new() } else { name.to_string() })
+}
+
+/// Queue a save of `name` for `doc`; the first one starts the saver, which works through the queue.
+fn enqueue(doc: Option<u64>, name: String, save: Save, ctx: egui::Context) {
     let id = LAST_ID.with(|n| {
         n.set(n.get() + 1);
         n.get()
     });
-    LATEST.with(|l| l.borrow_mut().insert(name.clone(), id));
+    LATEST.with(|l| l.borrow_mut().insert(key(doc, &name), id));
     let start = !in_flight();
-    QUEUE.with(|q| q.borrow_mut().push_back((id, name, save)));
+    QUEUE.with(|q| q.borrow_mut().push_back((id, doc, name, save)));
     if !start {
         return;
     }
     SAVING.with(|s| s.set(true));
     wasm_bindgen_futures::spawn_local(async move {
-        while let Some((id, name, save)) = QUEUE.with(|q| q.borrow_mut().pop_front()) {
+        while let Some((id, doc, name, save)) = QUEUE.with(|q| q.borrow_mut().pop_front()) {
             let (saved, host_path) = save.await;
+            let key = key(doc, &name);
             let latest = LATEST.with(|l| {
                 let mut l = l.borrow_mut();
-                let latest = l.get(&name) == Some(&id);
+                let latest = l.get(&key) == Some(&id);
                 if latest {
-                    l.remove(&name);
+                    l.remove(&key);
                 }
                 latest
             });
             // A failed save that a later one replaces leaves the document to that one.
-            SETTLED.with(|s| s.borrow_mut().push((name, saved || !latest, host_path.filter(|_| saved))));
+            SETTLED.with(|s| s.borrow_mut().push((doc, name, saved || !latest, host_path.filter(|_| saved))));
             ctx.request_repaint();
         }
         SAVING.with(|s| s.set(false));
@@ -105,7 +115,7 @@ fn enqueue(name: String, save: Save, ctx: egui::Context) {
 }
 
 /// The saves that finished since the last call, for [`vectorcraft_ui_egui::io::save_settled`].
-pub fn take_settled() -> Vec<(String, bool, Option<String>)> {
+pub fn take_settled() -> Vec<Settled> {
     SETTLED.with(|s| std::mem::take(&mut *s.borrow_mut()))
 }
 
@@ -155,6 +165,7 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                 return (device_download.borrow_mut())(name, bytes);
             }
             // The save counts as done now; one that doesn't happen marks the document modified again.
+            let doc = vectorcraft_ui_egui::io::saving_document();
             let (device_download, owned, bytes) = (device_download.clone(), name.to_string(), bytes.to_vec());
             let save: Save = Box::pin(async move {
                 let name = owned;
@@ -175,7 +186,7 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                     }
                 }
             });
-            enqueue(name.to_string(), save, ctx.clone());
+            enqueue(doc, name.to_string(), save, ctx.clone());
             Ok(())
         }));
     }

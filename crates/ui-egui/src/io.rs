@@ -383,46 +383,34 @@ fn arrival(name: &str) -> (String, Option<String>) {
     (file, path)
 }
 
-/// A web save that didn't go through after all: the host's storage failed or was cancelled after
-/// the save had returned. The documents saved as `name` (a host path, or a download's file name)
-/// count as modified again, so closing them asks first.
-pub fn mark_unsaved(app: &mut VectorcraftApp, name: &str) {
-    let uids: Vec<u64> = app
-        .session
-        .documents()
-        .iter()
-        .filter(|st| st.path.as_deref().is_some_and(|p| p == name || (!is_host_path(name) && fileio::file_name(p) == name)))
-        .map(|st| st.uid)
-        .collect();
-    for uid in uids {
-        if let Some(st) = app.session.document_mut(uid) {
-            st.mark_unsaved();
-        }
-    }
-    app.status(format!("Not saved: {}", fileio::file_name(name)));
+thread_local! {
+    /// The document whose save is handing its bytes to the writer now ([`saving_document`]).
+    static SAVING: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
 }
 
-/// A save a host's storage made after `download` returned has finished, as `name` (a host path or
-/// a download's file name): one that failed leaves its documents modified ([`mark_unsaved`]). One
-/// the user sent to `host_path` in the host's Save dialog (Save As) makes that the file of the
-/// documents saved as `name`, so File › Save writes back there; exports stay one-off copies. A
-/// document that waited for it to close closes now.
-pub fn save_settled(app: &mut VectorcraftApp, name: &str, saved: bool, host_path: Option<&str>) {
-    if !saved {
-        mark_unsaved(app, name);
-    } else if let Some(to) = host_path.filter(|to| opens_as(&fileio::file_name(to)).is_none()) {
-        let uids: Vec<u64> = app
-            .session
-            .documents()
-            .iter()
-            .filter(|st| st.path.as_deref().is_some_and(|p| !is_host_path(p) && (p == name || fileio::file_name(p) == name)))
-            .map(|st| st.uid)
-            .collect();
-        for uid in uids {
-            if let Some(st) = app.session.document_mut(uid) {
-                st.path = Some(to.to_string());
-            }
+/// Web: the document (uid) whose File › Save or Save As is handing its bytes to `download` right
+/// now; `None` for exports and copies. A download service that finishes the save later (a host's
+/// storage) reports it back for that document through [`save_settled`].
+pub fn saving_document() -> Option<u64> {
+    SAVING.with(std::cell::Cell::get)
+}
+
+/// A save a host's storage made after `download` returned has finished: `doc` is the document
+/// whose save it was ([`saving_document`]; `None` for an export), `name` what it was saved as.
+/// One that failed or that the user cancelled leaves that document modified, so closing it asks
+/// first. One the user sent to `host_path` in the host's Save dialog (Save As) makes that path the
+/// document's file, so File › Save writes back there. A document that waited for the save to
+/// close closes now.
+pub fn save_settled(app: &mut VectorcraftApp, doc: Option<u64>, name: &str, saved: bool, host_path: Option<&str>) {
+    if let Some(st) = doc.and_then(|uid| app.session.document_mut(uid)) {
+        if !saved {
+            st.mark_unsaved();
+        } else if let Some(to) = host_path.filter(|to| opens_as(&fileio::file_name(to)).is_none()) {
+            st.path = Some(to.to_string());
         }
+    }
+    if !saved {
+        app.status(format!("Not saved: {}", fileio::file_name(name)));
     }
     crate::unsaved::save_settled(app);
 }
@@ -817,7 +805,11 @@ fn write_plan(app: &mut VectorcraftApp, plan: SavePlan) -> Result<Value, String>
         report_saved(app, &path, &r);
         Ok(r)
     };
-    let mut r = background::run(app, enabled, label, Some(uid), work, then)?;
+    // A document's own save (not a copy) names it to a writer that finishes later (saving_document).
+    SAVING.with(|s| s.set(retargets.then_some(uid)));
+    let r = background::run(app, enabled, label, Some(uid), work, then);
+    SAVING.with(|s| s.set(None));
+    let mut r = r?;
     if let Some(path) = target.filter(|_| r.get("path").is_none()) {
         r["path"] = json!(path);
     }
@@ -1300,40 +1292,63 @@ mod tests {
         assert_eq!(written.borrow().last().map(|(n, _)| n.as_str()), Some("Other.vectorcraft"));
     }
 
-    /// A save the host's storage turns down after it returned leaves the document modified.
+    /// An app on the web whose download records which document each save was for.
+    fn web_app() -> (VectorcraftApp, std::rc::Rc<std::cell::RefCell<Vec<(String, Option<u64>)>>>) {
+        let saves: std::rc::Rc<std::cell::RefCell<Vec<(String, Option<u64>)>>> = Default::default();
+        let s = saves.clone();
+        let download: crate::DownloadFn = Box::new(move |name: &str, _: &[u8]| {
+            s.borrow_mut().push((name.to_string(), saving_document()));
+            Ok(())
+        });
+        (VectorcraftApp::new(Session::new(), Services { download: Some(download), ..Default::default() }), saves)
+    }
+
+    /// A save the host's storage turns down after it returned leaves that document modified, and
+    /// only that one, even when another has a file of the same name.
     #[test]
     fn a_host_save_that_fails_later_leaves_the_document_modified() {
-        let download: crate::DownloadFn = Box::new(|_: &str, _: &[u8]| Ok(()));
-        let mut app = VectorcraftApp::new(Session::new(), Services { download: Some(download), ..Default::default() });
-        app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
-        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
-        save(&mut app, SaveMode::Save, &json!({"path": "cloud:home/art/Poster.vectorcraft"}), false).unwrap();
-        assert!(!app.session.doc().unwrap().is_dirty());
-        mark_unsaved(&mut app, "cloud:home/art/Poster.vectorcraft");
-        assert!(app.session.doc().unwrap().is_dirty());
-        // A download's file name finds the document too.
-        save(&mut app, SaveMode::Save, &json!({"path": "/tmp/Other.vectorcraft"}), false).unwrap();
-        mark_unsaved(&mut app, "Other.vectorcraft");
-        assert!(app.session.doc().unwrap().is_dirty());
+        let (mut app, saves) = web_app();
+        for folder in ["a", "b"] {
+            app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+            app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
+            save(&mut app, SaveMode::Save, &json!({"path": format!("cloud:home/{folder}/Poster.vectorcraft")}), false).unwrap();
+        }
+        let uids: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
+        assert_eq!(saves.borrow().iter().map(|s| s.1).collect::<Vec<_>>(), uids.iter().map(|u| Some(*u)).collect::<Vec<_>>());
+        assert!(app.session.documents().iter().all(|d| !d.is_dirty()));
+        save_settled(&mut app, Some(uids[1]), "cloud:home/b/Poster.vectorcraft", false, None);
+        assert!(!app.session.documents()[0].is_dirty());
+        assert!(app.session.documents()[1].is_dirty());
+        // An export names no document: its failure leaves the documents as they are.
+        let before = saves.borrow().len();
+        app.run("file.export.png", json!({"path": "Poster.png"})).ok();
+        assert!(saves.borrow().len() > before, "the export went to the download");
+        assert!(saves.borrow()[before..].iter().all(|s| s.1.is_none()));
+        save_settled(&mut app, None, "Poster.png", false, None);
+        assert!(!app.session.documents()[0].is_dirty());
     }
 
     /// A Save As the user sent to the host's storage makes the host path the document's file once
-    /// the host has it; a failed one doesn't.
+    /// the host has it; a failed one doesn't, and other documents of the same name keep theirs.
     #[test]
     fn a_host_save_as_makes_the_host_path_the_documents_file() {
-        let download: crate::DownloadFn = Box::new(|_: &str, _: &[u8]| Ok(()));
-        let mut app = VectorcraftApp::new(Session::new(), Services { download: Some(download), ..Default::default() });
-        app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
-        save(&mut app, SaveMode::SaveAs, &json!({"path": "Poster.vectorcraft"}), false).unwrap();
-        let before = app.session.doc().unwrap().path.clone();
+        let (mut app, _) = web_app();
+        for _ in 0..2 {
+            app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
+            save(&mut app, SaveMode::SaveAs, &json!({"path": "Poster.vectorcraft"}), false).unwrap();
+        }
+        let uid = app.session.documents()[1].uid;
+        let path = |app: &VectorcraftApp, i: usize| app.session.documents()[i].path.clone();
+        let before = path(&app, 1);
         assert!(before.as_deref().is_some_and(|p| !is_host_path(p)));
-        save_settled(&mut app, "Poster.vectorcraft", false, Some("cloud:home/art/Poster.vectorcraft"));
-        assert_eq!(app.session.doc().unwrap().path, before);
-        save_settled(&mut app, "Poster.vectorcraft", true, Some("cloud:home/art/Poster.vectorcraft"));
-        assert_eq!(app.session.doc().unwrap().path.as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
+        save_settled(&mut app, Some(uid), "Poster.vectorcraft", false, Some("cloud:home/art/Poster.vectorcraft"));
+        assert_eq!(path(&app, 1), before);
+        save_settled(&mut app, Some(uid), "Poster.vectorcraft", true, Some("cloud:home/art/Poster.vectorcraft"));
+        assert_eq!(path(&app, 1).as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
+        assert_eq!(path(&app, 0), before, "the other Poster keeps its file");
         // An export to the host stays a copy: the document keeps its file.
-        save_settled(&mut app, "Poster.vectorcraft", true, Some("cloud:home/art/Poster.png"));
-        assert_eq!(app.session.doc().unwrap().path.as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
+        save_settled(&mut app, Some(uid), "Poster.vectorcraft", true, Some("cloud:home/art/Poster.png"));
+        assert_eq!(path(&app, 1).as_deref(), Some("cloud:home/art/Poster.vectorcraft"));
     }
 
     /// Only documents keep a host path; a script or library from the host is read from its bytes.
