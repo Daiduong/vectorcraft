@@ -24,6 +24,9 @@ pub struct ReadPreferences {
     /// False when unreadable docking data, or a layout that could not be converted, was dropped:
     /// the caller keeps a copy of the file before saving over it.
     pub intact: bool,
+    /// True when a layout saved before the canvas joined the panel layout was converted: the
+    /// caller keeps a copy of the file as it was.
+    pub converted: bool,
 }
 
 /// Floating groups read from one legacy list; more are dropped.
@@ -50,8 +53,8 @@ impl UiState {
             }
         }
         let mut ui: UiState = serde_json::from_value(saved).ok()?;
-        intact &= migrate_ui(&mut ui);
-        Some(ReadPreferences { ui, intact })
+        let outcome = migrate_ui(&mut ui);
+        Some(ReadPreferences { ui, intact: intact && outcome.intact, converted: outcome.converted })
     }
 }
 
@@ -166,22 +169,36 @@ impl<'a> Fields<'a> {
     }
 }
 
-/// Convert the layouts of `ui`, its saved workspaces and the changes kept for each workspace.
-/// False when one was dropped.
-pub(crate) fn migrate_ui(ui: &mut UiState) -> bool {
-    let order = ui.dock_tab_order.clone();
-    let mut intact = migrate(Fields::of_ui(ui));
-    for w in ui.custom_workspaces.iter_mut().chain(ui.workspace_changes.iter_mut()) {
-        intact &= migrate(Fields::of_workspace(w, &order));
+/// What converting saved layouts did.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Outcome {
+    /// False when a layout was dropped.
+    pub intact: bool,
+    /// True when a legacy layout was converted (or dropped trying).
+    pub converted: bool,
+}
+
+impl Outcome {
+    fn and(self, other: Outcome) -> Outcome {
+        Outcome { intact: self.intact && other.intact, converted: self.converted || other.converted }
     }
-    intact
+}
+
+/// Convert the layouts of `ui`, its saved workspaces and the changes kept for each workspace.
+pub(crate) fn migrate_ui(ui: &mut UiState) -> Outcome {
+    let order = ui.dock_tab_order.clone();
+    let mut outcome = migrate(Fields::of_ui(ui));
+    for w in ui.custom_workspaces.iter_mut().chain(ui.workspace_changes.iter_mut()) {
+        outcome = outcome.and(migrate(Fields::of_workspace(w, &order)));
+    }
+    outcome
 }
 
 /// Convert one saved state's legacy layout in place and clear its legacy fields. A state with
 /// no legacy data is left alone: without a layout, its flags still describe its default one.
-/// False when a layout was dropped: one this version cannot use, or a conversion that failed
-/// (the state then falls back to its default layout).
-pub(crate) fn migrate(f: Fields<'_>) -> bool {
+/// Not intact when a layout was dropped: one this version cannot use, or a conversion that
+/// failed (the state then falls back to its default layout).
+pub(crate) fn migrate(f: Fields<'_>) -> Outcome {
     let current = f.docking.as_ref().is_some_and(has_canvas);
     let legacy = !current && (f.docking.is_some() || !f.floating.is_empty() || !f.icons.is_empty() || !f.collapsed.is_empty());
     let mut intact = true;
@@ -203,7 +220,7 @@ pub(crate) fn migrate(f: Fields<'_>) -> bool {
     f.floating.clear();
     f.icons.clear();
     f.collapsed.clear();
-    intact
+    Outcome { intact, converted: legacy }
 }
 
 /// The layout older versions described with `f`, and the hidden places that still apply. The
@@ -257,9 +274,12 @@ pub(crate) fn from_legacy(f: &Fields<'_>) -> Option<(Layout<String>, Hidden)> {
                 let all_minimized = kept.iter().all(|(group, _)| group.minimized);
                 let height = kept.iter().map(|(_, h)| *h).sum::<f32>().min(STACK_MAX);
                 let rect = [at[0], at[1], width, height];
+                // A floating window's groups have no minimized state of their own: a set is
+                // minimized when all its groups were collapsed, else every group shows. Their
+                // heights become the set's split ratios.
                 let window = match kept.as_slice() {
                     [(group, _)] => Some(Floating::single(group.panels.clone(), group.active, rect)),
-                    _ => Floating::stack(kept.into_iter().map(|(group, _)| group).collect(), rect),
+                    _ => Floating::stack(kept.into_iter().map(|(group, height)| Group { height: Some(height), ..group }).collect(), rect),
                 };
                 if let Some(mut window) = window {
                     window.minimized = all_minimized;
@@ -271,7 +291,7 @@ pub(crate) fn from_legacy(f: &Fields<'_>) -> Option<(Layout<String>, Hidden)> {
     // Windows of the old layout that the floating groups did not list.
     for window in old.map(|l| l.floating.as_slice()).unwrap_or_default() {
         if let Some(root) = unplaced_tree(&window.root, 0, &mut placed) {
-            floating.push(Floating { minimized: window.minimized, ..Floating::new(root, window.rect) });
+            floating.push(Floating { minimized: window.minimized, ..Floating::new(root, usable_rect(window.rect)) });
         }
     }
 
@@ -301,10 +321,12 @@ pub(crate) fn from_legacy(f: &Fields<'_>) -> Option<(Layout<String>, Hidden)> {
         })
         .collect();
 
-    // Panels closed with a remembered place stay closed.
+    // Panels closed with a remembered place stay closed, except those the icon column showed
+    // anyway (its rows, and the panels dropped on it): they take their place there.
+    let in_rows = |id: &str| ICON_PANEL_GROUPS.iter().any(|row| row.contains(&id));
     let hidden: BTreeMap<String, Location<String>> =
         f.hidden.iter().take(craft_ui::docking::MAX_PANELS).map(|(id, location)| (id.clone(), location.clone())).collect();
-    for id in hidden.keys() {
+    for id in hidden.keys().filter(|id| !in_rows(id) && !f.icons.contains(*id)) {
         let _ = placed.take(id);
     }
 
@@ -317,7 +339,6 @@ pub(crate) fn from_legacy(f: &Fields<'_>) -> Option<(Layout<String>, Hidden)> {
         let row: Vec<String> = row.iter().map(|id| id.to_string()).collect();
         icon_groups.extend(take_group(&mut placed, &row, 0));
     }
-    let in_rows = |id: &str| ICON_PANEL_GROUPS.iter().any(|row| row.contains(&id));
     let dropped: Vec<String> = ICON_PANELS.iter().map(|e| e.0).filter(|id| !in_rows(id) && f.icons.contains(*id)).map(String::from).collect();
     icon_groups.extend(take_group(&mut placed, &dropped, 0));
     if !icon_groups.is_empty() {
@@ -357,6 +378,15 @@ fn old_height(old: Option<&Layout<String>>, panels: &[String]) -> f32 {
         .map(|w| w.rect[3])
         .filter(|h| h.is_finite() && *h >= 40.0)
         .map_or(FLOAT_HEIGHT, |h| h.min(STACK_MAX))
+}
+
+/// A saved floating window rect with a usable position and size.
+fn usable_rect(rect: [f32; 4]) -> [f32; 4] {
+    let [x, y, width, height] = rect;
+    let at = finite_pos([x, y]);
+    let width = Some(width).filter(|w| w.is_finite() && *w > 0.0).map_or(FLOAT_WIDTH, |w| w.clamp(FLOAT_MIN, COLUMN_MAX));
+    let height = Some(height).filter(|h| h.is_finite() && *h >= 40.0).map_or(FLOAT_HEIGHT, |h| h.min(STACK_MAX));
+    [at[0], at[1], width, height]
 }
 
 /// A saved floating position, or a place near the window's corner when it is not a number.

@@ -265,7 +265,8 @@ fn prefs_enabled() -> bool {
 }
 
 /// The saved UI preferences, read before the window opens (they hold its size and position).
-/// A file read only in part is copied beside itself before anything saves over it.
+/// A file read only in part, or with layouts converted from an older version, is copied beside
+/// itself before anything saves over it.
 fn read_prefs() -> Option<vectorcraft_ui_egui::UiState> {
     if !prefs_enabled() {
         return None;
@@ -275,7 +276,10 @@ fn read_prefs() -> Option<vectorcraft_ui_egui::UiState> {
     {
         let read = vectorcraft_ui_egui::UiState::read_preferences(&bytes);
         if read.as_ref().is_none_or(|read| !read.intact) {
-            keep_unreadable_prefs(&p, &bytes);
+            keep_prefs_copy(&p, &bytes, "ui.unreadable");
+        }
+        if read.as_ref().is_some_and(|read| read.converted) {
+            keep_prefs_copy(&p, &bytes, "ui.before-layout-migration");
         }
         return read.map(|read| read.ui);
     }
@@ -289,17 +293,17 @@ fn decode_saved_prefs(bytes: &[u8]) -> Option<vectorcraft_ui_egui::UiState> {
     vectorcraft_ui_egui::UiState::read_preferences(bytes).map(|read| read.ui)
 }
 
-/// Set when `ui.json` could not be read in full and no copy of it could be kept: the file is
+/// Set when `ui.json` needed a copy kept ([`keep_prefs_copy`]) and none could be: the file is
 /// then left as it is rather than overwritten.
 static KEEP_UI_PREFS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Copy an unreadable (or partly unreadable) `ui.json` beside it, as `ui.unreadable.json` or the
-/// first free `ui.unreadable-N.json`, before the next save replaces it. A newer VectorCraft may
-/// have written it.
-fn keep_unreadable_prefs(path: &std::path::Path, bytes: &[u8]) {
+/// Copy `ui.json` beside it as `<stem>.json` or the first free `<stem>-N.json`, before the next
+/// save replaces it: `ui.unreadable` when it could not be read in full (a newer VectorCraft may
+/// have written it), `ui.before-layout-migration` when its layouts were converted.
+fn keep_prefs_copy(path: &std::path::Path, bytes: &[u8], stem: &str) {
     use std::io::Write as _;
     for n in 1..100u32 {
-        let name = if n == 1 { "ui.unreadable.json".to_string() } else { format!("ui.unreadable-{n}.json") };
+        let name = if n == 1 { format!("{stem}.json") } else { format!("{stem}-{n}.json") };
         match std::fs::OpenOptions::new().write(true).create_new(true).open(path.with_file_name(name)) {
             Ok(mut file) => {
                 if file.write_all(bytes).is_ok() {
@@ -1269,13 +1273,16 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("vectorcraft-ui-prefs-{}-{stamp}", std::process::id()));
         std::fs::create_dir(&dir).unwrap();
         let path = dir.join("ui.json");
-        super::keep_unreadable_prefs(&path, b"{\"docking\": {\"root\": {\"FutureNode\": {}}}}");
-        super::keep_unreadable_prefs(&path, b"not json");
+        super::keep_prefs_copy(&path, b"{\"docking\": {\"root\": {\"FutureNode\": {}}}}", "ui.unreadable");
+        super::keep_prefs_copy(&path, b"not json", "ui.unreadable");
+        super::keep_prefs_copy(&path, b"{}", "ui.before-layout-migration");
         let first = std::fs::read(dir.join("ui.unreadable.json")).unwrap();
         let second = std::fs::read(dir.join("ui.unreadable-2.json")).unwrap();
+        let before = std::fs::read(dir.join("ui.before-layout-migration.json")).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
         assert!(first.starts_with(b"{\"docking\""), "the first copy is not replaced");
         assert_eq!(second, b"not json");
+        assert_eq!(before, b"{}");
         assert!(!super::KEEP_UI_PREFS.load(std::sync::atomic::Ordering::Relaxed), "ui.json can be saved once a copy is kept");
     }
 

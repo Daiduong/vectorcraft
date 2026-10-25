@@ -5,7 +5,8 @@ use serde_json::json;
 /// `ui.json` as VectorCraft 0.16 (8bf090b25) saved it after: Swatches moved below Layers;
 /// Color, then Stroke onto it, floated; Gradient floated with Transparency below it (a set);
 /// Align floated and collapsed; Pathfinder floated with Transform below it, the set docked as
-/// column 1; Libraries docked on the icon column; Symbols moved beside Swatches, then closed;
+/// column 1; Libraries docked on the icon column; Symbols moved beside Swatches, then closed
+/// (0.16 then showed it in the icon column again);
 /// Swatches collapsed to its tab; the dock widened to 380; saved as workspace "Migration Test".
 const SAVED_BY_0_16: &str = include_str!("../tests/fixtures/ui-before-canvas-layout.json");
 
@@ -46,7 +47,7 @@ fn window_groups(window: &Floating<String>) -> Vec<Vec<&str>> {
 fn a_layout_saved_before_the_canvas_joined_keeps_its_arrangement() {
     let saved: Value = serde_json::from_str(SAVED_BY_0_16).unwrap();
     let read = read(&saved);
-    assert!(read.intact);
+    assert!(read.intact && read.converted);
     let ui = read.ui;
     assert!(ui.floating_panels.is_empty() && ui.docking_icons.is_empty() && ui.docking_collapsed.is_empty());
     let layout = ui.docking.as_ref().expect("converted layout");
@@ -65,7 +66,8 @@ fn a_layout_saved_before_the_canvas_joined_keeps_its_arrangement() {
     assert_eq!(groups(icons)[0], ["libraries"], "dropped on the icon column, at its head");
     let iconic: Vec<&str> = groups(icons).concat();
     assert!(iconic.contains(&"colorGuide") && iconic.contains(&"brushes") && iconic.contains(&"variables"));
-    for elsewhere in ["swatches", "symbols", "color", "stroke", "gradient", "transparency", "align", "pathfinder", "transform"] {
+    assert!(groups(icons).contains(&vec!["brushes", "symbols", "patternOptions"]), "closed Symbols in its icon row");
+    for elsewhere in ["swatches", "color", "stroke", "gradient", "transparency", "align", "pathfinder", "transform"] {
         assert!(!iconic.contains(&elsewhere), "{elsewhere} has a place of its own");
     }
 
@@ -87,11 +89,9 @@ fn a_layout_saved_before_the_canvas_joined_keeps_its_arrangement() {
     assert!(align.minimized, "collapsed floating group");
     assert_eq!(&align.rect[..2], &[300.0, 560.0]);
 
-    // Symbols stays closed and goes back beside Swatches. The floating panels went to the icon
-    // column from where they came, so they keep no place in the dock.
-    assert!(!layout.contains(&"symbols".to_string()));
-    assert_eq!(ui.docking_hidden.keys().collect::<Vec<_>>(), ["symbols"]);
-    assert_eq!(ui.docking_hidden["symbols"].anchor.as_deref(), Some("swatches"));
+    // Symbols is in the icon column, and the floating panels came from it: none keeps a
+    // place in the dock to go back to.
+    assert!(ui.docking_hidden.is_empty(), "{:?}", ui.docking_hidden);
 
     let workspace = ui.custom_workspaces.iter().find(|w| w.name == "Migration Test").expect("custom workspace");
     assert_eq!(workspace.docking, ui.docking);
@@ -111,7 +111,7 @@ fn a_converted_file_saved_again_has_no_legacy_fields_and_loads_the_same() {
         assert!(again["custom_workspaces"][0].get(key).is_none(), "{key} written");
     }
     let reread = read(&again);
-    assert!(reread.intact);
+    assert!(reread.intact && !reread.converted);
     assert_eq!(reread.ui.docking, ui.docking);
     assert_eq!(reread.ui.docking_hidden, ui.docking_hidden);
     assert_eq!(reread.ui.custom_workspaces, ui.custom_workspaces);
@@ -151,10 +151,28 @@ fn a_file_from_before_the_shared_dock_converts_and_remembered_changes_too() {
     assert!(changed.floating[0].minimized);
     assert_eq!(changed.floating[0].rect, [50.0, 60.0, 260.0, 400.0]);
 
+    // A floating set keeps the heights of its groups.
+    let ui = read(&json!({
+        "floating_panels": [
+            {"panels": ["stroke"], "active": 0, "pos": [0.0, 0.0], "column": 1},
+            {"panels": ["gradient"], "active": 0, "pos": [0.0, 0.0], "column": 1},
+        ],
+        "docking": {"root": {"Tabs": {"panels": ["properties"], "active": 0}}, "floating": [
+            {"panels": ["stroke"], "active": 0, "rect": [0.0, 0.0, 300.0, 150.0]},
+            {"panels": ["gradient"], "active": 0, "rect": [0.0, 0.0, 300.0, 450.0]},
+        ]},
+    }))
+    .ui;
+    let set = &ui.docking.as_ref().unwrap().floating[0];
+    let Node::Split { size: craft_ui::layout::SplitSize::Ratio(ratio), .. } = set.root else { panic!("{set:?}") };
+    assert!((ratio - 0.25).abs() < 1e-4, "{ratio}");
+    assert_eq!(set.rect[3], 600.0);
+
     // Nothing to convert: the flags still describe the workspace's default layout.
-    let ui = read(&json!({"dock_tab": "Layers", "dock_collapsed": true, "dock_width": 400.0})).ui;
-    assert!(ui.docking.is_none());
-    assert_eq!(ui.dock_width, Some(400.0));
+    let read = read(&json!({"dock_tab": "Layers", "dock_collapsed": true, "dock_width": 400.0}));
+    assert!(!read.converted);
+    assert!(read.ui.docking.is_none());
+    assert_eq!(read.ui.dock_width, Some(400.0));
 }
 
 #[test]
@@ -191,7 +209,11 @@ fn untrusted_legacy_fields_convert_without_failing() {
         "floating_panels": floating,
         "docking_icons": ["nosuch", "glyphs", "tabs"],
         "docking_collapsed": ["properties", "nosuch"],
-        "docking": {"root": {"Tabs": {"panels": ["properties", "properties", "nosuch"], "active": 9}}, "floating": []},
+        "docking": {"root": {"Tabs": {"panels": ["properties", "properties", "nosuch"], "active": 9}}, "floating": [
+            {"panels": ["brushes"], "active": 0, "rect": [0.0, 0.0, 0.0, 0.0]},
+            {"panels": ["info"], "active": 0, "rect": [1e39, 1e39, 1e39, 1e39]},
+            {"panels": ["navigator"], "active": 0, "rect": [-5.0, 2e6, -1.0, 1e7]},
+        ]},
     }))
     .ui;
     let layout = ui.docking.as_ref().unwrap();
@@ -202,6 +224,6 @@ fn untrusted_legacy_fields_convert_without_failing() {
     assert!(groups(&columns[1]).last().is_some_and(|g| g == &["tabs"]), "a panel outside the rows dropped on the icon column");
     assert_eq!(groups(columns.last().unwrap()), [vec!["stroke"]]);
     assert!(columns.last().unwrap().width <= COLUMN_MAX);
-    assert_eq!(layout.floating.len(), 1);
-    assert!(layout.floating[0].rect.iter().all(|v| v.is_finite()));
+    assert_eq!(layout.floating.len(), 4, "every old window kept");
+    assert!(layout.floating.iter().all(|w| w.rect.iter().all(|v| v.is_finite()) && w.rect[2] > 0.0 && w.rect[3] > 0.0));
 }
