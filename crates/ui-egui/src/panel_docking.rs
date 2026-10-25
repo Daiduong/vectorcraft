@@ -1493,6 +1493,10 @@ fn sync_legacy(app: &mut VectorcraftApp) {
                     .find(|native| group.panels.first().is_some_and(|first| native.panels.contains(first)))
                     .is_some_and(|g| g.collapsed),
                 docked: old.iter().find(|native| group.panels.first().is_some_and(|first| native.panels.contains(first))).and_then(|g| g.docked),
+                docked_width: old
+                    .iter()
+                    .find(|native| group.panels.first().is_some_and(|first| native.panels.contains(first)))
+                    .and_then(|g| g.docked_width),
             })
             .collect();
     }

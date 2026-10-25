@@ -39,6 +39,9 @@ pub const STRIP: f32 = 26.0;
 pub const GAP: f32 = 3.0;
 /// The least height of an open panel in a dock column: more panels than fit scroll.
 const MIN_TALL: f32 = 160.0;
+/// The narrowest and widest a dock column can be dragged.
+const COLUMN_MIN: f32 = 200.0;
+const COLUMN_MAX: f32 = 520.0;
 /// How far from a group's top or bottom edge a drop stacks it above or below the group.
 const EDGE: f32 = 7.0;
 /// Where `window.panel.float` floats a group given no position; each further group 24 points
@@ -880,10 +883,20 @@ pub(crate) fn docked_columns(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> Vec
         let groups = shown_groups(&app.ui, &set);
         let Some(first) = groups.first().and_then(|g| g.ids.first().copied()) else { continue };
         let natural = groups.iter().flat_map(|g| g.ids.iter()).map(|id| dock::panel_width(id)).fold(200.0, f32::max);
-        let panel = egui::Panel::right(Id::new(("dock-column", first)))
+        let id = Id::new(("dock-column", first));
+        // The width saved with the set, after a workspace switch or when egui has none for the
+        // column (the preferences just loaded).
+        let saved =
+            set.iter().filter_map(|&i| app.ui.floating_panels.get(i)?.docked_width).find(|w| w.is_finite()).map(|w| w.clamp(COLUMN_MIN, COLUMN_MAX));
+        if let Some(width) = saved
+            && (app.ui.dock_columns_pending || egui::containers::panel::PanelState::load(ui.ctx(), id).is_none())
+        {
+            dock::seed_dock_panel_width(ui.ctx(), id, width);
+        }
+        let panel = egui::Panel::right(id)
             .resizable(true)
             .default_size(natural)
-            .size_range(200.0..=520.0)
+            .size_range(COLUMN_MIN..=COLUMN_MAX)
             .frame(egui::Frame::NONE.fill(t.panel).stroke(Stroke::new(1.5, t.border)))
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
@@ -919,8 +932,17 @@ pub(crate) fn docked_columns(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> Vec
                     draw_groups(app, ui, &groups, width, tall, top, None, &mut action);
                 });
             });
+        if let Some(width) = egui::containers::panel::PanelState::load(ui.ctx(), id).map(|state| state.size().x).filter(|w| w.is_finite() && *w > 0.0)
+        {
+            for &i in &set {
+                if let Some(g) = app.ui.floating_panels.get_mut(i) {
+                    g.docked_width = Some(width);
+                }
+            }
+        }
         rects.push(panel.response.rect);
     }
+    app.ui.dock_columns_pending = false;
     ui.ctx().data_mut(|d| {
         let icons = d.get_temp::<Rect>(icons_rect_id());
         if let Some(left) = icons.map(|r| rects.iter().map(|r| r.left()).fold(r.left(), f32::min)) {
@@ -1964,6 +1986,100 @@ mod tests {
         let edited = edited.sanitized();
         let d = docked_of(&edited.floating_panels);
         assert_eq!(d, [(vec!["layers"], Some(2)), (vec!["color"], Some(1)), (vec!["stroke"], Some(1))]);
+    }
+
+    /// A dock column dragged wider or narrower keeps that width in the workspace saved with it,
+    /// and switching workspaces draws each one's column at its own width, frame after frame.
+    #[test]
+    fn a_dock_columns_width_is_kept_in_the_workspace_saved_with_it() {
+        dock_column_widths(false);
+    }
+
+    /// The same with the dock's panels in the shared docking layout.
+    #[test]
+    fn a_dock_columns_width_is_kept_in_the_workspace_saved_with_it_with_shared_docking() {
+        dock_column_widths(true);
+    }
+
+    fn dock_column_widths(shared: bool) {
+        let mut h = Harness::new();
+        if shared {
+            h.app.run("window.panel.move", json!({"panel": "swatches", "anchor": "layers", "zone": "top"})).unwrap();
+            h.app.run("window.panel.dock", json!({"panel": "color", "column": true})).unwrap();
+        } else {
+            float(&mut h.app.ui, &["color"], "color", pos2(100.0, 100.0));
+            dock_column(&mut h.app.ui, &[0], 1);
+        }
+        h.settle();
+        assert_eq!(h.app.ui.docking.is_some(), shared, "after the dock");
+        let natural = columns(&h)[0].width();
+        let col = columns(&h)[0];
+        // The resize edge lies along the column's left side.
+        h.drag(pos2(col.left() + 2.0, col.center().y), pos2(col.left() - 118.0, col.center().y));
+        let wide = columns(&h)[0].width();
+        assert!(wide > natural + 100.0, "dragged wider: {natural} -> {wide}");
+        if shared {
+            // A change to the shared layout rebuilds the floating groups from it, width included.
+            h.app.run("window.panel.move", json!({"panel": "properties", "anchor": "swatches", "before": "swatches"})).unwrap();
+            let kept: Vec<_> = h.app.ui.floating_panels.iter().map(|g| g.docked_width).collect();
+            assert!(!kept.is_empty() && kept.iter().all(|w| w.is_some_and(|w| (w - wide).abs() < 1.0)), "{kept:?}, dragged to {wide}");
+        }
+        h.app.run("window.workspace.new", json!({"name": "Wide"})).unwrap();
+        let col = columns(&h)[0];
+        h.drag(pos2(col.left() + 2.0, col.center().y), pos2(col.left() + 162.0, col.center().y));
+        let narrow = columns(&h)[0].width();
+        assert!(narrow < wide - 100.0, "dragged narrower: {wide} -> {narrow}");
+        h.app.run("window.workspace.new", json!({"name": "Narrow"})).unwrap();
+        for (name, width) in [("Wide", wide), ("Narrow", narrow), ("Wide", wide)] {
+            h.app.run("window.workspace", json!({"name": name})).unwrap();
+            h.settle();
+            assert!((columns(&h)[0].width() - width).abs() < 1.0, "{name}: {:?}, saved {width}", columns(&h));
+        }
+        // It stays at that width (it doesn't grow from one frame to the next).
+        for _ in 0..20 {
+            h.frame(vec![]);
+        }
+        assert!((columns(&h)[0].width() - wide).abs() < 1.0, "{:?}", columns(&h));
+        // Kept in the preferences; a workspace saved without the width (an older file) loads, and
+        // a width below zero is dropped.
+        let prefs: UiState = serde_json::from_value(serde_json::to_value(&h.app.ui).unwrap()).unwrap();
+        let prefs = prefs.sanitized();
+        assert!(
+            prefs
+                .custom_workspaces
+                .iter()
+                .any(|w| w.name == "Wide" && w.floating_panels.iter().any(|g| g.docked_width.is_some_and(|x| (x - wide).abs() < 1.0)))
+        );
+        // After a restart egui holds no width for the column, and it opens at the saved one.
+        let mut fresh = Harness::new();
+        fresh.app.ui = prefs;
+        fresh.settle();
+        assert_eq!(fresh.app.ui.docking.is_some(), shared);
+        assert!((columns(&fresh)[0].width() - wide).abs() < 1.0, "after a restart: {:?}, saved {wide}", columns(&fresh));
+        // Floated again, the set keeps no width, so docked after a restart it opens at its natural width.
+        fresh.app.run("window.panel.float", json!({"panel": "color", "group": true})).unwrap();
+        assert!(fresh.app.ui.floating_panels.iter().all(|g| g.docked.is_none() && g.docked_width.is_none()), "{:?}", fresh.app.ui.floating_panels);
+        fresh.ctx = egui::Context::default();
+        fresh.app.run("window.panel.dock", json!({"panel": "color", "column": true})).unwrap();
+        fresh.settle();
+        assert!((columns(&fresh)[0].width() - natural).abs() < 1.0, "docked again: {:?}, natural {natural}", columns(&fresh));
+        // A workspace saved without the width (an older file) loads, a width below zero is dropped,
+        // and so is a width on a group that floats.
+        let old: UiState = serde_json::from_value(json!({
+            "custom_workspaces": [{"name": "Old", "floatingPanels": [{"panels": ["color"], "pos": [0, 0], "docked": 1}]}],
+            "floating_panels": [
+                {"panels": ["stroke"], "pos": [0, 0], "docked": 1, "docked_width": -5.0},
+                {"panels": ["swatches"], "pos": [0, 0], "docked_width": 300.0},
+            ],
+        }))
+        .unwrap();
+        let old = old.sanitized();
+        let first = old.custom_workspaces.first().and_then(|w| w.floating_panels.first()).cloned();
+        assert_eq!(first.map(|g| (g.panels, g.docked_width)), Some((vec!["color".to_string()], None)));
+        assert_eq!(
+            old.floating_panels.iter().map(|g| (g.panels.clone(), g.docked_width)).collect::<Vec<_>>(),
+            [(vec!["stroke".to_string()], None), (vec!["swatches".to_string()], None)]
+        );
     }
 
     #[test]

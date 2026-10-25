@@ -213,6 +213,7 @@ pub fn apply(ui: &mut UiState, w: &Workspace) {
     ui.toolbar_pos = w.toolbar_pos;
     ui.dock_width = w.dock_width;
     ui.dock_width_pending = true;
+    ui.dock_columns_pending = true;
     FloatingPanels::sanitize(&mut ui.floating_panels, &mut ui.toolbar_pos);
     ui.flyout = None;
     ui.workspace = w.name.clone();

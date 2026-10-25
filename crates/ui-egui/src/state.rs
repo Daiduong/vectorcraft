@@ -387,6 +387,10 @@ pub struct UiState {
     /// Next frame should seed egui [`PanelState`] from [`Self::dock_width`] (workspace switch).
     #[serde(skip)]
     pub dock_width_pending: bool,
+    /// Next frame should seed the dock columns' egui [`PanelState`] from
+    /// [`FloatingPanels::docked_width`] (workspace switch).
+    #[serde(skip)]
+    pub dock_columns_pending: bool,
     /// The Tools panel floats with its top-left corner here (dragged out by its title bar); `None`:
     /// docked at the window's left edge.
     #[serde(default)]
@@ -727,6 +731,10 @@ pub struct FloatingPanels {
     /// stand left of the icon column, 1 next to it, counting left.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docked: Option<u32>,
+    /// The width of the dock column it is docked in, in screen points, as last drawn or dragged
+    /// (every group of the set holds it), so a saved workspace keeps it; `None` once it floats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docked_width: Option<f32>,
 }
 
 impl FloatingPanels {
@@ -737,6 +745,7 @@ impl FloatingPanels {
         groups.retain_mut(|g| {
             g.panels.retain(|id| crate::menus::normalize_panel(id) == Some(id.as_str()) && seen.insert(id.clone()));
             g.active = g.active.min(g.panels.len().saturating_sub(1));
+            g.docked_width = g.docked_width.filter(|w| w.is_finite() && *w > 0.0);
             !g.panels.is_empty()
         });
         Self::tidy(groups);
@@ -747,7 +756,8 @@ impl FloatingPanels {
 
     /// Keep each set's groups together in the list, after its first one and in the order they
     /// come, at its first one's position and in its dock column; a set left with one group floats
-    /// (or stays docked) on its own; the dock columns are numbered 1, 2… without gaps.
+    /// (or stays docked) on its own; the dock columns are numbered 1, 2… without gaps; a group
+    /// that floats keeps no dock column width.
     pub fn tidy(groups: &mut Vec<FloatingPanels>) {
         let mut out: Vec<FloatingPanels> = Vec::with_capacity(groups.len());
         for mut g in groups.drain(..) {
@@ -774,6 +784,9 @@ impl FloatingPanels {
         for g in &mut out {
             if let Some(d) = g.docked {
                 g.docked = numbers.iter().position(|n| *n == d).and_then(|k| u32::try_from(k + 1).ok());
+            }
+            if g.docked.is_none() {
+                g.docked_width = None;
             }
         }
         *groups = out;
@@ -864,6 +877,7 @@ impl Default for UiState {
             docking_generation: 0,
             dock_width: None,
             dock_width_pending: false,
+            dock_columns_pending: false,
             toolbar_pos: None,
             status_bar: true,
             dock: true,
