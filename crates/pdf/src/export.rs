@@ -355,11 +355,7 @@ impl Writer {
         if fits && let Some(c) = sheet.background {
             if let Some(p) = to_path(&s, &sheet.trim.to_path(0.1)) {
                 s.set_stroke(None);
-                s.set_fill(Some(Fill {
-                    paint: ex.col(&c).into(),
-                    opacity: NormalizedF32::ONE,
-                    rule: krilla::paint::FillRule::NonZero,
-                }));
+                s.set_fill(Some(Fill { paint: ex.col(&c).into(), opacity: NormalizedF32::ONE, rule: krilla::paint::FillRule::NonZero }));
                 s.draw_path(&p);
             }
             s.set_fill(None);
