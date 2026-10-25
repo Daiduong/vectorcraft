@@ -46,8 +46,6 @@ pub(crate) struct Runtime {
     space: Option<FloatSpace<String>>,
     /// A panel a command showed: its floating window comes forward on the next frame.
     raise: Option<String>,
-    /// A modal was open last frame ([`modal_open`]).
-    modal: bool,
 }
 
 /// Every docking control drawn last frame with its rect.
@@ -778,7 +776,6 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
         }
     }
     let modal = modal_open(app, &ctx);
-    focus_main_for_modal(app, &ctx, &layout, modal);
     let mut blocked = Vec::new();
     if modal || egui::Popup::is_any_open(&ctx) {
         blocked.push(ctx.content_rect());
@@ -836,24 +833,6 @@ pub(crate) fn modal_open(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
         || app.ui.palette_open
         || app.file_dialog_open()
         || ctx.memory(|m| m.areas().is_visible(&crate::dialogs::modal::backdrop()))
-}
-
-/// A modal opened from a floating panel's own OS window (a double-click, a key typed there)
-/// leaves the keyboard on that window, which takes no input while the modal is open: the main
-/// window gets it, on the frame the modal opens. With the app in the background nothing is
-/// focused, so a modal that opens on its own doesn't pull the app forward.
-#[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
-fn focus_main_for_modal(app: &mut VectorcraftApp, ctx: &egui::Context, layout: &Layout<String>, modal: bool) {
-    let was_open = std::mem::replace(&mut app.dock_rt.modal, modal);
-    #[cfg(not(target_arch = "wasm32"))]
-    if modal && !was_open && !ctx.embed_viewports() {
-        let viewports: Vec<egui::ViewportId> =
-            layout.floating.iter().map(|w| craft_ui::docking::DockArea::<String>::window_viewport(area_id(), w.id)).collect();
-        let float_focused = ctx.input(|i| viewports.iter().any(|v| i.raw.viewports.get(v).and_then(|v| v.focused) == Some(true)));
-        if float_focused {
-            ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, egui::ViewportCommand::Focus);
-        }
-    }
 }
 
 /// Keys, text and clipboard events that a floating panel's own OS window left over run the main
@@ -1002,3 +981,7 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
 #[cfg(test)]
 #[path = "panel_docking_tests.rs"]
 mod tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "panel_docking_native_tests.rs"]
+mod native_tests;
