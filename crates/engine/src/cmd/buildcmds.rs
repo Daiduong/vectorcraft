@@ -1256,8 +1256,7 @@ pub(crate) fn keep_warnings(params: &tr::TraceParams, res: &tr::TraceResult) -> 
         return vec![format!("Nothing was traced: none of the colors the trace found matches keepColors ({}).", params.keep_colors.join(", "))];
     }
     let mut out = vec![];
-    // The trace's palette holds each color it traced, also one that produced no paths.
-    if res.paths.is_empty() && params.ignore_white && res.palette.is_empty() {
+    if res.paths.is_empty() && res.keep_ignored {
         out.push("Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.".to_string());
     } else if res.paths.is_empty() {
         out.push("Nothing was traced: the colors that match keepColors produce no paths.".to_string());
@@ -1341,8 +1340,8 @@ mod trace_limit_tests {
     #[test]
     fn keep_warnings_name_matched_colors_that_produce_no_paths() {
         let params = tr::TraceParams { keep_colors: vec!["#ff0000".into()], ..tr::TraceParams::default() };
-        // A listed color was traced, and produced no paths.
-        let traced = tr::TraceResult { palette: vec![[255, 0, 0]], ..tr::TraceResult::default() };
+        // A listed color was traced, and produced no paths: the palette lists no color without paths.
+        let traced = tr::TraceResult::default();
         let none = vec!["Nothing was traced: the colors that match keepColors produce no paths.".to_string()];
         assert_eq!(keep_warnings(&params, &traced), none);
         // With Ignore Color, too: Ignore Color did not leave that color out.
@@ -1350,7 +1349,7 @@ mod trace_limit_tests {
         assert_eq!(keep_warnings(&ignoring, &traced), none);
         // Ignore Color left out every color that matches: none was traced.
         assert_eq!(
-            keep_warnings(&ignoring, &tr::TraceResult::default()),
+            keep_warnings(&ignoring, &tr::TraceResult { keep_ignored: true, ..tr::TraceResult::default() }),
             vec!["Nothing was traced: Ignore Color leaves out every area of the colors keepColors lists.".to_string()]
         );
     }

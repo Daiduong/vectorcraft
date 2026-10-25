@@ -1310,6 +1310,14 @@ fn keep_colors_names_the_colors_nothing_matches() {
     // A color Ignore Color leaves out still matches one the trace found.
     let ignoring = TraceParams { ignore_white: true, ignore_color: Some("#14285a".into()), ..params.clone() };
     assert_eq!(unmatched(&["#14285a"], &ignoring), (Vec::new(), 0));
+    // The result says that Ignore Color left out every color that matches, and only then.
+    let keep = |keep: &[&str], params: &TraceParams| {
+        trace(&img, &TraceParams { keep_colors: keep.iter().map(|k| k.to_string()).collect(), ..params.clone() })
+    };
+    assert!(keep(&["#14285a"], &ignoring).keep_ignored);
+    assert!(!keep(&["#14285a", "#f0c832"], &ignoring).keep_ignored);
+    assert!(!keep(&["#14285a"], &params).keep_ignored);
+    assert!(!keep(&["#ff00ff"], &ignoring).keep_ignored);
     // With none listed, none is named.
     assert!(trace(&img, &params).keep_unmatched.is_empty());
     // Flat Logo mode does not use the list.

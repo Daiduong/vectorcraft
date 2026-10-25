@@ -493,6 +493,9 @@ pub struct TraceResult {
     /// Keep Colors: the colors listed in [`TraceParams::keep_colors`] (as written) that no color
     /// the trace found matches, so that nothing of them is traced. (Flat Logo mode: empty.)
     pub keep_unmatched: Vec<String>,
+    /// Keep Colors: whether Ignore Color left out every color the trace found that a listed color
+    /// matches, so that none of them was traced. (Flat Logo mode: false.)
+    pub keep_ignored: bool,
     /// Flat Logo: the size in pixels the image was traced at when it was averaged down first;
     /// `None` when it was traced at its own size.
     pub worked_at: Option<(u32, u32)>,
@@ -658,6 +661,8 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         .filter(|&(_, &k)| !order.iter().any(|&ci| is_kept(q.palette[ci], &[k])))
         .map(|(name, _)| name.clone())
         .collect();
+    // Every layer is left out although a listed color matches one: Ignore Color left those out.
+    let keep_ignored = !listed.is_empty() && layers.is_empty() && order.iter().any(|&ci| is_kept(q.palette[ci], &listed));
     let job = Layers {
         q: &q,
         rank: &rank,
@@ -673,7 +678,7 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         anchors: AtomicUsize::new(0),
         max_anchors,
     };
-    let mut out = TraceResult { keep_unmatched, ..TraceResult::default() };
+    let mut out = TraceResult { keep_unmatched, keep_ignored, ..TraceResult::default() };
     // A layer takes about ten bytes a pixel of its box while it is traced (its mask, the labels
     // of its components, the stack that fills them, its edges): as many layers at a time as fit
     // in half a gigabyte, so that a large image is not traced at the cost of gigabytes.
