@@ -296,6 +296,60 @@ fn headless_end_to_end() {
     assert_eq!(v["error"]["code"], -32002);
 }
 
+/// The trace-and-style prompt's steps, run in its order on an image drawn here: each one
+/// succeeds, the expanded trace holds no image, and its paths keep the image's colors.
+#[test]
+fn trace_and_style_prompt_steps_run_in_order() {
+    let mut s = server();
+    // 60 × 40 pixels: a red and a blue block on white.
+    let png = tmp("trace-and-style.png");
+    image::RgbImage::from_fn(60, 40, |x, y| match (x, y) {
+        (5..25, 5..35) => image::Rgb([220, 30, 30]),
+        (35..55, 5..35) => image::Rgb([30, 60, 200]),
+        _ => image::Rgb([255, 255, 255]),
+    })
+    .save(&png)
+    .unwrap();
+    let path = png.to_str().unwrap();
+    let v = rpc(&mut s, 1, "prompts/get", json!({"name": "trace-and-style", "arguments": {"path": path}}));
+    let prompt = v["result"]["messages"][0]["content"]["text"].as_str().unwrap().to_string();
+
+    let ok = |s: &mut Server, id: u64, name: &str, args: Value| {
+        let r = call(s, id, name, args);
+        assert_eq!(r["isError"], false, "{name}: {r}");
+        serde_json::from_str::<Value>(&text_of(&r)).unwrap_or(Value::Null)
+    };
+    let command = |s: &mut Server, id: u64, command: &str, params: Value| {
+        assert!(prompt.contains(command), "the prompt names {command}: {prompt}");
+        ok(s, id, "run_command", json!({"command": command, "params": params}))
+    };
+    ok(&mut s, 2, "open_file", json!({"path": path}));
+    command(&mut s, 3, "select.all", json!({}));
+    let traced = command(&mut s, 4, "imageTrace.make", json!({"preset": "6 Colors"}));
+    assert!(traced["colors"].as_u64().unwrap() > 1, "{traced}");
+    command(&mut s, 5, "imageTrace.expand", json!({}));
+    ok(&mut s, 6, "apply_effect", json!({"effect": "stylize.scribble"}));
+    let colors = command(&mut s, 7, "recolor.colors", json!({}));
+    let from = colors["colors"].as_array().unwrap().iter().filter_map(|c| c["hex"].as_str()).find(|h| *h != "#ffffff").unwrap().to_string();
+    command(&mut s, 8, "recolor.apply", json!({"map": {from.as_str(): "#00aa00"}}));
+    let r = call(&mut s, 9, "render_preview", json!({}));
+    assert_eq!(r["isError"], false, "{r}");
+
+    // No image is left, and the paths carry more than one fill color, the new one among them.
+    let doc = ok(&mut s, 10, "inspect_document", json!({}));
+    let (mut kinds, mut fills) = (vec![], std::collections::BTreeSet::new());
+    let mut stack: Vec<&Value> = doc["layers"].as_array().unwrap().iter().collect();
+    while let Some(n) = stack.pop() {
+        kinds.push(n["kind"].as_str().unwrap_or_default().to_string());
+        if let Some(fill) = n["fill"].as_str().filter(|f| f.starts_with('#')) {
+            fills.insert(fill.to_string());
+        }
+        stack.extend(n["children"].as_array().into_iter().flatten());
+    }
+    assert!(!kinds.iter().any(|k| k == "Image"), "{kinds:?}");
+    assert!(fills.len() > 1 && fills.contains("#00aa00") && !fills.contains(&from), "{fills:?}");
+}
+
 #[test]
 fn headless_path_gesture_undo() {
     let mut s = server();
@@ -356,6 +410,26 @@ fn headless_path_gesture_undo() {
     assert_eq!(&std::fs::read(tmp("x.png")).unwrap()[..4], b"\x89PNG");
 }
 
+/// A hover's reply comes once the tool's highlight is ready, also when the tool finds it on another
+/// thread (the Shape Builder's map of a large selection).
+#[test]
+fn headless_hover_waits_for_the_shape_builder_map() {
+    let mut h = Headless::with_document();
+    let run = |h: &mut Headless, command: &str, params: Value| {
+        let r = crate::call_tool(h, "run_command", &json!({"command": command, "params": params}));
+        assert!(!r.is_error, "{command}: {r:?}");
+    };
+    for k in 0..40 {
+        run(&mut h, "shape.rectangle", json!({"x": 100 + k * 10, "y": 100, "width": 20, "height": 20}));
+    }
+    run(&mut h, "select.all", json!({}));
+    run(&mut h, "tool.select", json!({"tool": "shapeBuilder"}));
+    let r = crate::call_tool(&mut h, "pointer_gesture", &json!({"events": [{"kind": "move", "x": 115, "y": 110}]}));
+    assert!(!r.is_error, "{r:?}");
+    assert!(!h.session.tool_waiting());
+    assert!(!h.session.overlays(h.view).is_empty(), "the region under the pointer is highlighted");
+}
+
 /// inspect_document reads back the paint type's characters show, as add_text and set_paint give it.
 #[test]
 fn inspect_document_reports_the_paint_of_type() {
@@ -373,6 +447,63 @@ fn inspect_document_reports_the_paint_of_type() {
     assert_eq!(r["isError"], false, "{r}");
     let t = node(&mut s, 5);
     assert_eq!((t["fill"].as_str(), t["stroke"].as_str(), t["strokeWidth"].as_f64()), (Some("#0000ff"), Some("#00ff00"), Some(3.0)), "{t}");
+}
+
+/// set_paint says how many objects it painted, and says so when it only set the paint for new art.
+#[test]
+fn set_paint_reports_how_many_objects_it_painted() {
+    let mut s = server();
+    let r = call(&mut s, 2, "draw_shape", json!({"shape": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "fill": "#ffffff"}));
+    let id = serde_json::from_str::<Value>(&text_of(&r)).unwrap()["id"].clone();
+    let fill = |s: &mut Server, n: u64| {
+        let v: Value = serde_json::from_str(&text_of(&call(s, n, "inspect_document", json!({})))).unwrap();
+        v["layers"][0]["children"].as_array().unwrap().iter().find(|c| c["id"] == id).unwrap()["fill"].clone()
+    };
+    let paint = |s: &mut Server, n: u64, args: Value| {
+        let r = call(s, n, "set_paint", args);
+        assert_eq!(r["isError"], false, "{r}");
+        serde_json::from_str::<Value>(&text_of(&r)).unwrap()
+    };
+
+    // Nothing selected and no ids: only the paint for new art changes.
+    let r = call(&mut s, 3, "run_command", json!({"command": "select.set", "params": {"ids": []}}));
+    assert_eq!(r["isError"], false, "{r}");
+    let v = paint(&mut s, 4, json!({"fill": "#ff0000"}));
+    assert_eq!(v["applied"], json!({"fill": "#ff0000"}), "{v}");
+    assert_eq!(v["objects"], 0, "{v}");
+    assert!(v["note"].as_str().is_some_and(|n| n.contains("new art")), "{v}");
+    assert_eq!(fill(&mut s, 5), "#ffffff");
+
+    // The ids given, counted once each.
+    let v = paint(&mut s, 6, json!({"fill": "#00ff00", "ids": [id, id]}));
+    assert_eq!(v["objects"], 1, "{v}");
+    assert!(v.get("note").is_none(), "{v}");
+    assert_eq!(fill(&mut s, 7), "#00ff00");
+
+    // The selection.
+    let r = call(&mut s, 8, "run_command", json!({"command": "select.set", "params": {"ids": [id]}}));
+    assert_eq!(r["isError"], false, "{r}");
+    let v = paint(&mut s, 9, json!({"fill": "#0000ff"}));
+    assert_eq!(v["objects"], 1, "{v}");
+    assert!(v.get("note").is_none(), "{v}");
+    assert_eq!(fill(&mut s, 10), "#0000ff");
+
+    // Empty `ids` paint no object: only the paint for new art changes.
+    let v = paint(&mut s, 11, json!({"strokeWidth": 3, "ids": []}));
+    assert_eq!(v["objects"], 0, "{v}");
+    assert!(v["note"].as_str().is_some_and(|n| n.contains("new art")), "{v}");
+
+    // A selected group counts the objects inside it.
+    let r = call(&mut s, 12, "draw_shape", json!({"shape": "ellipse", "x": 20, "y": 0, "width": 10, "height": 10}));
+    assert_eq!(r["isError"], false, "{r}");
+    for (n, command) in [(13, "select.all"), (14, "object.group")] {
+        let r = call(&mut s, n, "run_command", json!({"command": command}));
+        assert_eq!(r["isError"], false, "{r}");
+    }
+    let v = paint(&mut s, 15, json!({"stroke": "#000000"}));
+    assert_eq!(v["objects"], 2, "{v}");
+    let v = paint(&mut s, 16, json!({"strokeWidth": 2}));
+    assert_eq!(v["objects"], 2, "{v}");
 }
 
 /// #1003: type made on or in a path takes add_text's `color` too, over the current fill.
@@ -605,6 +736,103 @@ fn remote_does_not_replay_when_edit_reply_is_lost() {
     let error = first.expect_err("the lost reply must report uncertainty");
     assert!(error.contains("operation may have completed"), "{error}");
     assert!(next.is_ok(), "the next call must reconnect: {next:?}");
+}
+
+#[test]
+fn remote_file_tools_send_absolute_paths() {
+    let (addr, h) = fake_app();
+    let mut s = Server::new(Box::new(Remote::connect(&addr).unwrap()));
+    let given = std::env::temp_dir().join("given.svg");
+    let given = given.to_str().unwrap();
+    call(&mut s, 1, "open_file", json!({"path": "rel/in.svg"}));
+    call(&mut s, 2, "open_file", json!({"path": given}));
+    call(&mut s, 3, "save_file", json!({"path": "rel/out.vectorcraft"}));
+    call(&mut s, 4, "export", json!({"path": "rel/out.png", "scale": 2}));
+    call(&mut s, 5, "export", json!({"format": "svg", "options": {"path": "rel/opt.svg"}}));
+    call(&mut s, 6, "screenshot", json!({"path": "rel/shot.png"}));
+    call(&mut s, 7, "run_command", json!({"command": "document.export", "params": {"path": "rel/cmd.svg"}}));
+    drop(s);
+    let seen = h.join().unwrap();
+    let abs = |p: &str| std::path::absolute(p).unwrap().to_str().unwrap().to_string();
+    let methods: Vec<&str> = seen.iter().map(|m| m["method"].as_str().unwrap()).collect();
+    assert_eq!(methods, ["app.open", "app.open", "app.save", "engine.execute", "engine.execute", "ui.render", "engine.execute"]);
+    assert_eq!(seen[0]["params"]["path"], abs("rel/in.svg"));
+    assert_eq!(seen[1]["params"]["path"], given);
+    assert_eq!(seen[2]["params"]["path"], abs("rel/out.vectorcraft"));
+    assert_eq!(seen[3]["params"]["params"]["path"], abs("rel/out.png"));
+    // The format still comes from the extension the agent gave: a raster export keeps `scale`.
+    assert_eq!(seen[3]["params"]["params"]["scale"], 2);
+    assert_eq!(seen[4]["params"]["params"]["path"], abs("rel/opt.svg"));
+    assert_eq!(seen[5]["params"]["path"], abs("rel/shot.png"));
+    // Command params go to the app as given.
+    assert_eq!(seen[6]["params"]["params"]["path"], "rel/cmd.svg");
+}
+
+/// `p` written relative to this process's working directory, or None when the two are on
+/// different drives.
+fn relative_to_cwd(p: &std::path::Path) -> Option<std::path::PathBuf> {
+    use std::path::Component;
+    let cwd = std::env::current_dir().unwrap();
+    if cwd.components().next() != p.components().next() {
+        return None;
+    }
+    let mut rel = std::path::PathBuf::new();
+    for _ in cwd.components().filter(|c| matches!(c, Component::Normal(_))) {
+        rel.push("..");
+    }
+    for c in p.components().filter(|c| matches!(c, Component::Normal(_))) {
+        rel.push(c);
+    }
+    Some(rel)
+}
+
+#[test]
+fn headless_file_tools_take_relative_paths() {
+    let mut s = server();
+    let file = tmp("relative.vectorcraft");
+    let Some(rel) = relative_to_cwd(&file) else { return };
+    let rel = rel.to_str().unwrap();
+    assert!(std::path::Path::new(rel).is_relative());
+    let r = call(&mut s, 1, "save_file", json!({"path": rel}));
+    assert_eq!(r["isError"], false, "{r}");
+    assert!(file.is_file());
+    let r = call(&mut s, 2, "open_file", json!({"path": rel}));
+    assert_eq!(r["isError"], false, "{r}");
+}
+
+#[test]
+fn headless_file_tools_send_paths_as_given() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    struct Recording(Rc<RefCell<Vec<Value>>>);
+    impl Backend for Recording {
+        fn call(&mut self, _: &str, params: Value) -> Result<Value, String> {
+            self.0.borrow_mut().push(params);
+            Ok(json!({}))
+        }
+        fn has_ui(&self) -> bool {
+            false
+        }
+        fn describe(&self) -> String {
+            "test".into()
+        }
+    }
+
+    let seen = Rc::new(RefCell::new(Vec::new()));
+    let mut s = Server::new(Box::new(Recording(seen.clone())));
+    call(&mut s, 1, "open_file", json!({"path": "rel/in.svg"}));
+    call(&mut s, 2, "save_file", json!({"path": "rel/out.vectorcraft"}));
+    call(&mut s, 3, "export", json!({"path": "rel/out.png"}));
+    call(&mut s, 4, "export", json!({"format": "svg", "options": {"path": "rel/opt.svg"}}));
+    call(&mut s, 5, "screenshot", json!({"path": "rel/shot.png"}));
+    let seen = seen.borrow();
+    assert_eq!(seen.len(), 5, "{seen:?}");
+    assert_eq!(seen[0]["path"], "rel/in.svg");
+    assert_eq!(seen[1]["path"], "rel/out.vectorcraft");
+    assert_eq!(seen[2]["params"]["path"], "rel/out.png");
+    assert_eq!(seen[3]["params"]["path"], "rel/opt.svg");
+    assert_eq!(seen[4]["path"], "rel/shot.png");
 }
 
 #[test]

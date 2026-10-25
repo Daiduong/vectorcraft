@@ -484,6 +484,9 @@ pub struct TraceResult {
     /// option). Each path drawn together with those inside it, in the order they have here, paints
     /// what `paths` paints in its order.
     pub parents: Vec<Option<usize>>,
+    /// Flat Logo: the size in pixels the image was traced at when it was averaged down first;
+    /// `None` when it was traced at its own size.
+    pub worked_at: Option<(u32, u32)>,
 }
 
 impl TraceResult {
@@ -516,7 +519,7 @@ pub fn trace(img: &Raster, params: &TraceParams) -> TraceResult {
 /// colour layers are traced in parallel where threads are available.
 pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result<TraceResult, TraceError> {
     let (w, h) = (img.width as usize, img.height as usize);
-    if w == 0 || h == 0 || img.rgba.len() != w * h * 4 {
+    if w == 0 || h == 0 || w.checked_mul(h).and_then(|n| n.checked_mul(4)) != Some(img.rgba.len()) {
         return Ok(TraceResult::default());
     }
     let mut out = trace_paths(img, params, max_anchors)?;
@@ -563,6 +566,10 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
         rest
     });
     let (mut q, rare) = quantize::quantize_keeping(without.as_ref().unwrap_or(img), params);
+    // The semi-transparent edge of a cut-out image traces as the color beside it.
+    if matches!(params.mode, Mode::Color | Mode::Grayscale) {
+        quantize::settle_cut_edges(&mut q, img, params.mode == Mode::Grayscale);
+    }
     drop(without);
     // Each gradient is a palette entry of its own (its colour: the gradient's middle).
     let mut gradients: Vec<Option<TracedGradient>> = vec![None; q.palette.len()];
@@ -635,7 +642,12 @@ fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result
     let largest = job.boxes.iter().flatten().map(|b| (b.2 - b.0) * (b.3 - b.1)).max().unwrap_or(1).max(1);
     let at_a_time = ((512 << 20) / (largest * 10)).max(1);
     for (paths, &(_, ci)) in parallel_map_at_most(at_a_time, &layers, |&(r, ci)| job.layer(r, ci)).into_iter().zip(&layers) {
-        out.paths.extend(paths.ok_or(TraceError::TooComplex { max: max_anchors })?);
+        let paths = paths.ok_or(TraceError::TooComplex { max: max_anchors })?;
+        // A layer with no paths adds no color to the palette.
+        if paths.is_empty() {
+            continue;
+        }
+        out.paths.extend(paths);
         let color = q.palette[ci];
         if !out.palette.contains(&color) {
             out.palette.push(color);
@@ -982,6 +994,21 @@ impl Layers<'_> {
             // (Each loop fitted, and whether its own outline is hard.)
             let fit = |l: &Loop| {
                 let (sp, is_hard) = fit::fit_loop(l, w, h, &|c| (self.shift(c), self.neighbour(c)), &|x, y| self.junction(x, y), &self.style)?;
+                // Every trace straightens the pieces of an outline that lie close to a line (Snap
+                // Curves To Lines straightens more of them), so the outline of a single pixel or
+                // of a region one pixel thick can have all its pieces on one chord, and the loop
+                // then has no area. Filled, such a loop paints nothing, and it is left out.
+                // Without Fills its 1 px stroke draws it, so it is kept. (`fit::fit_closed` puts
+                // back the positioned outline of a loop that is one closed piece when its fit has
+                // no area.) The area is summed about the loop's first anchor.
+                if area_stroke.is_none() {
+                    use kurbo::ParamCurveArea;
+                    let origin = sp.anchors.first()?.p.to_vec2();
+                    let area: f64 = (0..sp.segment_count()).map(|i| (kurbo::Affine::translate(-origin) * sp.segment(i)).signed_area()).sum();
+                    if area.abs() < 1e-6 {
+                        return None;
+                    }
+                }
                 hard.set(hard.get() || is_hard);
                 Some((sp, is_hard))
             };
