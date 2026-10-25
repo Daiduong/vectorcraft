@@ -392,6 +392,9 @@ fn compare_image(path: &str) -> Result<image::RgbaImage> {
     use image::ImageDecoder as _;
     const C: &str = "document.compare";
     let bytes = super::fileio::read_file(path)?;
+    if let Some((w, h)) = vectorcraft_doc::cmyk::oversized_tiff(&bytes) {
+        return Err(bad(C, format!("an image of {w} × {h} pixels is too large to draw")));
+    }
     let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().map_err(|e| bad(C, format!("{path}: {e}")))?;
     let readable = [image::ImageFormat::Png, image::ImageFormat::Jpeg, image::ImageFormat::WebP, image::ImageFormat::Tiff, image::ImageFormat::Bmp];
     if !reader.format().is_some_and(|f| readable.contains(&f)) {

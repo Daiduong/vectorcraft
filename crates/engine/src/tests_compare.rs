@@ -219,6 +219,37 @@ fn missing_unreadable_and_malformed_inputs_are_errors() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// A planar TIFF whose header claims more strips than the decoder can count (2^31 + 1 rows a strip
+/// each, times 5 planes) is refused as too large to draw, without a panic.
+#[test]
+fn a_tiff_with_more_strips_than_can_be_counted_is_too_large() {
+    let dir = vectorcraft_testkit::temp_dir("compare-strips");
+    let (mut s, _) = session();
+    let plane = |v: u16| vec![v; 6];
+    let channels = [plane(200), plane(40), plane(10), plane(0), plane(90)];
+    let t = vectorcraft_testkit::tiff::Tiff {
+        width: 3,
+        height: 2,
+        photometric: 5,
+        bits: 8,
+        extra: &[0],
+        planar: true,
+        ppi: Some(150),
+        channels: &channels,
+    };
+    let mut file = vectorcraft_testkit::tiff::tiff(&t);
+    // ImageLength (the directory's second entry, its value at offset 30) and RowsPerStrip (the
+    // eighth, at offset 102).
+    file[30..34].copy_from_slice(&(1u32 << 31 | 1).to_le_bytes());
+    file[102..106].copy_from_slice(&1u32.to_le_bytes());
+    assert_eq!(vectorcraft_doc::cmyk::oversized_tiff(&file), Some((3, 1 << 31 | 1)));
+    let tif = path_in(&dir, "strips.tif");
+    std::fs::write(&tif, &file).unwrap();
+    let e = error(&mut s, json!({"path": tif}));
+    assert_eq!(e, "invalid parameters for `document.compare`: an image of 3 × 2147483649 pixels is too large to draw");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 #[test]
 fn the_image_and_the_difference_image_stay_inside_the_automation_roots() {
     let dir = vectorcraft_testkit::temp_dir("compare-roots");
