@@ -13,7 +13,7 @@ fn panel_commands_group_split_reorder_float_and_restore_without_duplicate_owners
     app.run("window.panel.move", json!({"panel":"properties", "anchor":"swatches", "before":"swatches"})).unwrap();
     let before_float = app.ui.docking.clone().unwrap();
     app.run("window.panel.float", json!({"panel":"properties", "x":50,"y":70,"width":330,"height":410})).unwrap();
-    assert!(app.ui.docking.as_ref().unwrap().floating.iter().any(|g| g.panels == ["properties"]));
+    assert!(app.ui.docking.as_ref().unwrap().floating.iter().any(|g| window_panels(g) == ["properties"]));
     app.run("window.panel.dock", json!({"panel":"properties"})).unwrap();
     assert_eq!(app.ui.docking.as_ref().unwrap(), &before_float);
     app.run("window.panel.close", json!({"panel":"properties"})).unwrap();
@@ -90,12 +90,12 @@ fn ordinary_panel_tab_drag_enters_shared_docking_and_can_redock_into_another_tab
     let source = h.query_all_by_label("Layers").find(|node| node.rect().height() <= 45.0).unwrap().rect().center();
     drag(&mut h, source, egui::pos2(160.0, 140.0));
     let layout = h.state().ui.docking.as_ref().expect("ordinary tab drag starts shared docking");
-    assert!(layout.floating.iter().any(|g| g.panels.contains(&"layers".into())), "{layout:?}");
+    assert!(layout.floating.iter().any(|g| g.contains("layers")), "{layout:?}");
     let source = h.ctx.read_response(egui::Id::new("vectorcraft-panel-docking").with(("tab", &"layers".to_string()))).unwrap().rect.center();
     let destination = h.ctx.read_response(egui::Id::new("vectorcraft-panel-docking").with(("tab", &"properties".to_string()))).unwrap().rect.center();
     drag(&mut h, source, destination);
     let layout = h.state().ui.docking.as_ref().unwrap();
-    assert!(!layout.floating.iter().any(|g| g.panels.contains(&"layers".into())));
+    assert!(!layout.floating.iter().any(|g| g.contains("layers")));
     assert!(valid(layout));
 }
 
@@ -120,9 +120,9 @@ fn saved_workspace_restores_the_custom_tree_and_hidden_panel_placement() {
 fn legacy_float_group_aliases_use_atomic_shared_groups_and_preserve_tools() {
     let mut app = app();
     app.run("window.panel.float", json!({"panel":"layers","group":true,"x":30,"y":50})).unwrap();
-    assert_eq!(app.ui.docking.as_ref().unwrap().floating[0].panels.len(), 3);
+    assert_eq!(app.ui.docking.as_ref().unwrap().floating[0].panels().count(), 3);
     app.run("window.panel.float", json!({"panel":"swatches","onto":"layers"})).unwrap();
-    assert_eq!(app.ui.docking.as_ref().unwrap().floating[0].panels.len(), 4);
+    assert_eq!(app.ui.docking.as_ref().unwrap().floating[0].panels().count(), 4);
     let before = app.ui.docking.clone();
     assert!(app.run("window.panel.float", json!({"panel":"properties","onto":"missing","group":true})).is_err());
     assert_eq!(app.ui.docking, before);
@@ -200,10 +200,7 @@ fn serialized_layout_actions_cover_geometry_reorder_accordion_and_atomic_rejecti
     );
     app.run("window.panel.float", json!({"panel":"properties"})).unwrap();
     app.run("window.panel.layout", json!({"action":{"MoveFloating":{"panel":"properties","rect":[44,66,360,450]}}})).unwrap();
-    assert_eq!(
-        app.ui.docking.as_ref().unwrap().floating.iter().find(|group| group.panels.iter().any(|p| p == "properties")).unwrap().rect,
-        [44.0, 66.0, 360.0, 450.0]
-    );
+    assert_eq!(app.ui.docking.as_ref().unwrap().floating.iter().find(|group| group.contains("properties")).unwrap().rect, [44.0, 66.0, 360.0, 450.0]);
     app.run("window.panel.layout", json!({"action":{"Move":{"panel":"properties","anchor":"swatches","placement":{"Tab":{"before":"swatches"}}}}}))
         .unwrap();
     assert_eq!(group_members_for_test(app.ui.docking.as_ref().unwrap(), "swatches"), ["properties", "swatches"]);
@@ -1177,7 +1174,7 @@ fn escape_on_a_collapsed_groups_drag_leaves_it_collapsed() {
         h.event(Event::PointerMoved(from - vec2(80.0 * step as f32, 0.0)));
         h.run_steps(1);
     }
-    assert!(h.state().ui.docking.as_ref().unwrap().floating.iter().any(|g| g.panels.contains(&"layers".into())), "the group floats mid-drag");
+    assert!(h.state().ui.docking.as_ref().unwrap().floating.iter().any(|g| g.contains("layers")), "the group floats mid-drag");
     h.event(Event::Key { key: egui::Key::Escape, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
     h.run_steps(3);
     assert!(h.state().ui.docking.as_ref().unwrap().floating.is_empty(), "back in the dock");

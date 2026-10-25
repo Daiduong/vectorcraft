@@ -1132,7 +1132,7 @@ mod tests {
     }
 
     fn groups(app: &VectorcraftApp) -> Vec<Vec<String>> {
-        docking(app).floating.iter().map(|g| g.panels.clone()).collect()
+        docking(app).floating.iter().map(crate::panel_docking::window_panels).collect()
     }
 
     #[test]
@@ -1242,7 +1242,7 @@ mod tests {
         let next = restarted(&app);
         assert!(is_open(&next.ui, &pastels) && is_open(&next.ui, &brand), "{}", next.ui.status);
         assert!(!is_open(&next.ui, &brights), "a panel that isn't persistent closed with the app");
-        let group = docking(&next).floating.iter().find(|g| g.panels.contains(&pastels)).unwrap();
+        let group = docking(&next).floating.iter().find(|g| g.contains(&pastels)).unwrap();
         assert_eq!(group.rect[..2], [40.0, 90.0], "where it was");
         let s = settings(&next.ui, "swatches", "pastels").unwrap();
         assert_eq!((s.view, s.hide_find, s.persistent), (Some(View::LargeList), true, true));
@@ -1427,8 +1427,8 @@ mod tests {
         step::<SwatchLibraries>(&mut app, "pastels", 1);
         let next = panel_id("swatches", SWATCH_IDS[5]);
         assert!(!is_open(&app.ui, &first) && is_open(&app.ui, &next), "{}", app.ui.status);
-        let group = docking(&app).floating.iter().find(|g| g.panels.contains(&next)).unwrap();
-        assert_eq!((group.panels.len(), group.rect[0], group.rect[1]), (1, 50.0, 60.0), "in its place");
+        let group = docking(&app).floating.iter().find(|g| g.contains(&next)).unwrap();
+        assert_eq!((group.panels().count(), group.rect[0], group.rect[1]), (1, 50.0, 60.0), "in its place");
         let s = settings(&app.ui, "swatches", SWATCH_IDS[5]).unwrap();
         assert_eq!((s.view, s.persistent), (Some(View::SmallList), true), "the panel keeps its settings");
         assert!(settings(&app.ui, "swatches", "pastels").is_none());

@@ -1,6 +1,6 @@
 //! Application-owned panel IDs and commands around the shared docking layout.
 
-use craft_ui::docking::{Action, Floating, Layout, Node, Placement, Zone};
+use craft_ui::docking::{Action, Floating, Layout, Node, Placement, Target, Zone};
 use serde_json::{Value, json};
 
 use crate::VectorcraftApp;
@@ -45,6 +45,24 @@ fn normalize(raw: &str) -> Option<&'static str> {
     crate::menus::normalize_panel(raw)
 }
 
+/// A floating window's panels, first to last, as one group.
+pub(crate) fn window_panels(window: &Floating<String>) -> Vec<String> {
+    window.panels().cloned().collect()
+}
+
+/// The index in [`window_panels`] of the panel a floating window shows: its first group's
+/// active tab.
+pub(crate) fn window_active(window: &Floating<String>) -> usize {
+    let mut node = &window.root;
+    loop {
+        match node {
+            Node::Split { first, .. } => node = first,
+            Node::Tabs { active, .. } => return *active,
+            _ => return 0,
+        }
+    }
+}
+
 pub(crate) fn valid(layout: &Layout<String>) -> bool {
     layout.validate().is_ok() && layout.panels().iter().all(|id| normalize(id) == Some(id.as_str()))
 }
@@ -58,11 +76,11 @@ fn legacy(app: &VectorcraftApp) -> Layout<String> {
         let panels: Vec<String> = group.panels.iter().filter(|id| normalize(id).is_some() && !layout.contains(id)).cloned().collect();
         if !panels.is_empty() && group.pos.iter().all(|v| v.is_finite()) {
             let active = group.active.min(panels.len().saturating_sub(1));
-            layout.floating.push(Floating {
+            layout.floating.push(Floating::single(
                 panels,
                 active,
-                rect: [group.pos[0], group.pos[1], group.width.unwrap_or(300.0).clamp(200.0, 720.0), 400.0],
-            });
+                [group.pos[0], group.pos[1], group.width.unwrap_or(300.0).clamp(200.0, 720.0), 400.0],
+            ));
         }
     }
     layout
@@ -115,12 +133,12 @@ fn restore_float_fallback(layout: &mut Layout<String>, panel: Option<String>) ->
 
 fn ensure(layout: &mut Layout<String>, panel: &str) -> Result<(), String> {
     let anchor = first_root(layout, panel);
-    layout.apply(Action::Open { panel: panel.into(), anchor }).map_err(|e| e.to_string())
+    layout.apply(Action::Open { panel: panel.into(), anchor }).map(|_| ()).map_err(|e| e.to_string())
 }
 
 fn group_members(layout: &Layout<String>, panel: &str) -> Vec<String> {
-    if let Some(group) = layout.floating.iter().find(|g| g.panels.iter().any(|id| id == panel)) {
-        return group.panels.clone();
+    if let Some(group) = layout.floating.iter().find(|g| g.contains(panel)) {
+        return window_panels(group);
     }
     let mut visit: Vec<_> = layout.root.iter().collect();
     while let Some(node) = visit.pop() {
@@ -193,9 +211,8 @@ fn legacy_same_strip_reorder(app: &mut VectorcraftApp, panel: &str, before: &str
             if let Some(layout) = app.ui.docking.as_mut() {
                 let panels = g.panels.clone();
                 let active = g.active.min(panels.len().saturating_sub(1));
-                if let Some(group) = layout.floating.iter_mut().find(|group| group.panels.iter().any(|id| id == panel)) {
-                    group.panels = panels;
-                    group.active = active;
+                if let Some(group) = layout.floating.iter_mut().find(|group| group.contains(panel)) {
+                    group.root = Node::Tabs { panels, active };
                 }
             }
         }
@@ -322,6 +339,31 @@ fn apply_action(app: &mut VectorcraftApp, action: Action<String>) -> Result<Valu
         | Action::SetStackOpen { panel, .. }
         | Action::ResizeStack { panel, .. } => registered(panel),
         Action::ResizeSplit { path, .. } => path.len() <= craft_ui::docking::MAX_DEPTH,
+        Action::ResizeWindowSplit { panel, path, .. } => registered(panel) && path.len() <= craft_ui::docking::MAX_DEPTH,
+        Action::MoveGroup { panel, to } | Action::MoveColumn { panel, to } | Action::MoveWindow { panel, to } | Action::MovePanel { panel, to } => {
+            registered(panel)
+                && match to {
+                    Target::At { anchor, placement } => {
+                        registered(anchor)
+                            && match placement {
+                                Placement::Tab { before: Some(id) } => registered(id),
+                                _ => true,
+                            }
+                    }
+                    _ => true,
+                }
+        }
+        Action::CloseGroup { panel }
+        | Action::CloseWindow { panel }
+        | Action::CloseOthers { panel }
+        | Action::SetMinimized { panel, .. }
+        | Action::SetIconic { panel, .. }
+        | Action::ResizeColumn { panel, .. }
+        | Action::ResizeGroup { panel, .. }
+        | Action::ResizeIconic { panel, .. }
+        | Action::SetNative { panel, .. }
+        | Action::SetMonitor { panel, .. } => registered(panel),
+        _ => false,
     };
     if !known {
         return Err("docking action contains an unknown panel or an excessive split path".into());
@@ -340,7 +382,6 @@ fn apply_action(app: &mut VectorcraftApp, action: Action<String>) -> Result<Valu
         _ => None,
     };
     let returning = match &action {
-        Action::Close { panel } => layout.location(panel).ok().map(|location| (panel.clone(), location)),
         Action::Float { panel, .. } => {
             layout.location(panel).ok().filter(|location| location.floating.is_none()).map(|location| (panel.clone(), location))
         }
@@ -364,10 +405,18 @@ fn apply_action(app: &mut VectorcraftApp, action: Action<String>) -> Result<Valu
         | Action::Close { panel } => Some(panel.clone()),
         _ => None,
     };
-    layout.apply(action).map_err(|error| error.to_string())?;
+    let prior = layout.clone();
+    let closed = layout.apply(action).map_err(|error| error.to_string())?;
     restore_float_fallback(&mut layout, fallback)?;
     if let Some((panel, location)) = returning {
         app.ui.docking_hidden.insert(panel, location);
+    }
+    // Closed panels remember where they were, so the Window menu brings them back there.
+    for panel in &closed {
+        if let Ok(location) = prior.location(panel) {
+            app.ui.docking_hidden.insert(panel.clone(), location);
+        }
+        app.ui.docking_collapsed.remove(panel);
     }
     if let Some(panel) = explicit_dock {
         icons.remove(&panel);
@@ -631,7 +680,7 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
             let old = layout
                 .floating
                 .iter()
-                .find(|group| group.panels.iter().any(|id| id == panel) && group.panels.len() == members.len())
+                .find(|group| group.contains(panel) && group.panels().count() == members.len())
                 .map(|group| group.rect)
                 .unwrap_or([400.0 + 24.0 * layout.floating.len().min(12) as f32, 140.0 + 24.0 * layout.floating.len().min(12) as f32, 300.0, 400.0]);
             let rect =
@@ -653,8 +702,8 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
             if let Some(onto) = params.get("onto") {
                 let onto = onto.as_str().and_then(normalize).ok_or("onto must name a floating panel")?;
                 if members.iter().any(|id| id == onto)
-                    || layout.floating.iter().any(|group| group.panels.iter().any(|id| id == panel) && group.panels.iter().any(|id| id == onto))
-                    || !layout.floating.iter().any(|group| group.panels.iter().any(|id| id == onto))
+                    || layout.floating.iter().any(|group| group.contains(panel) && group.contains(onto))
+                    || !layout.floating.iter().any(|group| group.contains(onto))
                 {
                     return Err("onto must name a panel floating in another group".into());
                 }
@@ -719,8 +768,8 @@ fn change(app: &mut VectorcraftApp, operation: &str, params: &Value) -> Result<V
         }
         layout.apply(Action::Activate { panel: panel.into() }).map_err(|e| e.to_string())?;
     }
-    let group = layout.floating.iter().find(|group| group.panels.iter().any(|id| id == panel));
-    let result = json!({"panel": panel, "floating": group.is_some(), "group": group.map(|g| &g.panels), "pos": group.map(|g| [g.rect[0], g.rect[1]]), "layout": layout});
+    let group = layout.floating.iter().find(|group| group.contains(panel));
+    let result = json!({"panel": panel, "floating": group.is_some(), "group": group.map(window_panels), "pos": group.map(|g| [g.rect[0], g.rect[1]]), "layout": layout});
     if matches!(operation, "move" | "dock") && (Layout { root: layout.root.clone(), floating: Vec::new() }).contains(&panel.to_string()) {
         icons.remove(panel);
     }
@@ -783,7 +832,7 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
         crate::panels::panel_menu_items(self.app, ui, panel);
     }
 
-    fn group_header_width(&self, _panels: &[String], _active: &String, floating: bool) -> f32 {
+    fn group_header_width(&self, _panels: &[String], _active: &String, floating: bool, _strip_width: f32) -> f32 {
         if floating { 48.0 } else { 80.0 }
     }
 
@@ -851,6 +900,7 @@ fn root_groups(ctx: &egui::Context, layout: &Layout<String>, content: egui::Rect
             Node::Tabs { panels, .. } => panels.iter().filter_map(tab).map(|r| r.min).reduce(|a, b| a.min(b)),
             Node::Stack { entries } => entries.first().and_then(|entry| tab(&entry.panel)).map(|r| r.min),
             Node::Split { first, .. } => corner(first, tab),
+            _ => None,
         }
     }
     let mut out = Vec::new();
@@ -887,6 +937,7 @@ fn root_groups(ctx: &egui::Context, layout: &Layout<String>, content: egui::Rect
                 pending.push((second, b));
                 pending.push((first, a));
             }
+            _ => {}
         }
     }
     out
@@ -988,7 +1039,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
     let mut display = if collapsed { Layout { root: None, floating: layout.floating.clone() } } else { layout.clone() };
     display
         .floating
-        .retain(|group| !app.ui.floating_panels.iter().any(|native| decorated(native) && native.panels.iter().any(|id| group.panels.contains(id))));
+        .retain(|group| !app.ui.floating_panels.iter().any(|native| decorated(native) && native.panels.iter().any(|id| group.contains(id))));
     // Library panels are titled by their libraries' names.
     let library_labels: Vec<(String, String)> = layout
         .panels()
@@ -1002,7 +1053,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         .floating
         .iter()
         .filter_map(|group| {
-            let first = group.panels.first()?;
+            let first = group.panels().next()?;
             let layer = egui::LayerId::new(egui::Order::Middle, area.with(("floating", first)));
             let [x, y, w, h] = group.rect;
             let layout_rect = egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(w, h));
@@ -1052,7 +1103,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         style.accent = t.accent;
         style.float_label = tl!("Float Panel").to_string();
         style.close_label = tl!("Close Panel").to_string();
-        style.move_label = tl!("Group with").to_string();
+        style.move_panel_to_label = tl!("Group with").to_string();
         style.panels_label = tl!("Panels").to_string();
         style.resize_label = tl!("Resize panels").to_string();
         style.resize_window_label = tl!("Resize panel window").to_string();
@@ -1210,7 +1261,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
         ui.ctx().data_mut(|data| data.insert_temp(egui::Id::new("vectorcraft-native-panel-drop"), (command, params)));
     }
     for group in &display.floating {
-        if let Some(first) = group.panels.first()
+        if let Some(first) = group.panels().next()
             && let Some(rect) = ui.ctx().memory(|memory| memory.area_rect(area.with(("floating", first))))
         {
             ui.ctx().data_mut(|data| data.insert_temp(crate::floating::group_rect_id(first), rect));
@@ -1399,7 +1450,7 @@ pub(crate) fn reconcile_native(app: &mut VectorcraftApp, before: crate::state::U
         let prior = before.docking.as_ref().ok_or("missing panel layout")?;
         app.ui.docking = Some(prior.clone());
         for group in &prior.floating {
-            for panel in &group.panels {
+            for panel in group.panels() {
                 if !desired.iter().any(|g| g.panels.contains(panel)) {
                     change(app, "dock", &json!({"panel":panel}))?;
                 }
@@ -1419,11 +1470,13 @@ pub(crate) fn reconcile_native(app: &mut VectorcraftApp, before: crate::state::U
         layout.floating = desired
             .iter()
             .map(|group| {
-                let height = prior.floating.iter().find(|g| g.panels.iter().any(|id| group.panels.contains(id))).map_or(400.0, |g| g.rect[3]);
-                Floating {
-                    panels: group.panels.clone(),
-                    active: group.active,
-                    rect: [group.pos[0], group.pos[1], group.width.unwrap_or(300.0), height],
+                let old = prior.floating.iter().find(|g| g.panels().any(|id| group.panels.contains(id)));
+                let height = old.map_or(400.0, |g| g.rect[3]);
+                let window = Floating::single(group.panels.clone(), group.active, [group.pos[0], group.pos[1], group.width.unwrap_or(300.0), height]);
+                // The same window keeps its id, so it stays the same OS window.
+                match old {
+                    Some(old) => window.with_id(old.id),
+                    None => window,
                 }
             })
             .collect();
@@ -1483,16 +1536,16 @@ fn sync_legacy(app: &mut VectorcraftApp) {
             .floating
             .iter()
             .map(|group| crate::state::FloatingPanels {
-                panels: group.panels.clone(),
-                active: group.active,
+                panels: window_panels(group),
+                active: window_active(group),
                 pos: [group.rect[0], group.rect[1]],
                 width: Some(group.rect[2]),
-                column: old.iter().find(|native| group.panels.first().is_some_and(|first| native.panels.contains(first))).and_then(|g| g.column),
+                column: old.iter().find(|native| group.panels().next().is_some_and(|first| native.panels.contains(first))).and_then(|g| g.column),
                 collapsed: old
                     .iter()
-                    .find(|native| group.panels.first().is_some_and(|first| native.panels.contains(first)))
+                    .find(|native| group.panels().next().is_some_and(|first| native.panels.contains(first)))
                     .is_some_and(|g| g.collapsed),
-                docked: old.iter().find(|native| group.panels.first().is_some_and(|first| native.panels.contains(first))).and_then(|g| g.docked),
+                docked: old.iter().find(|native| group.panels().next().is_some_and(|first| native.panels.contains(first))).and_then(|g| g.docked),
             })
             .collect();
     }

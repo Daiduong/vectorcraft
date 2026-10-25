@@ -668,7 +668,7 @@ mod tests {
         trace_and_open(&mut app, "Sketched Art");
         let after = app.ui.docking.as_ref().unwrap();
         assert_eq!(after.floating.len(), before.floating.len());
-        assert!(after.floating.iter().any(|g| g.panels == ["imageTrace"]));
+        assert!(after.floating.iter().any(|g| crate::panel_docking::window_panels(g) == ["imageTrace"]));
         assert!(app.ui.open_panel.is_none(), "the existing floating group owns the panel");
     }
 
