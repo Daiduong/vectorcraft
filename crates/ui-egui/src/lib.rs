@@ -569,6 +569,9 @@ pub struct VectorcraftApp {
     pub(crate) forwarded_modifiers: Option<egui::Modifiers>,
     /// The last frame held the forwarded modifiers: this one goes back to the keyboard's.
     forwarded_modifiers_held: bool,
+    /// This host iteration's input carries forwarded keys: they are the main window's although
+    /// its OS window doesn't have the keyboard (see `shortcuts::handle`).
+    pub(crate) forwarded_frame: bool,
     /// Synthetic input set the modifiers egui holds (see [`Self::raw_input_hook`]).
     synthetic_modifiers: bool,
     /// The marked text the system IME last sent (`None` once it commits or clears). When the Type
@@ -827,6 +830,7 @@ impl VectorcraftApp {
             forwarded: Vec::new(),
             forwarded_modifiers: None,
             forwarded_modifiers_held: false,
+            forwarded_frame: false,
             synthetic_modifiers: false,
             ime_marked: None,
             ime_context: Default::default(),
@@ -2157,6 +2161,7 @@ impl VectorcraftApp {
         if std::mem::take(&mut self.forwarded_modifiers_held) {
             raw.events.insert(0, egui::Event::ModifiersChanged(self.host_modifiers));
         }
+        self.forwarded_frame = !self.forwarded.is_empty();
         if !self.forwarded.is_empty() {
             if let Some(m) = self.forwarded_modifiers.take() {
                 raw.events.push(egui::Event::ModifiersChanged(m));
