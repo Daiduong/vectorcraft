@@ -1710,15 +1710,24 @@ fn drag_art_out(app: &VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos2) -
 /// left open (#2826). The art stays where it last moved while the pointer is over the panel.
 pub(crate) fn release_over_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
     crate::document_drag::cleanup(app, ctx);
+    let art = matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art));
+    // Over a floating panel's own OS window the pointer is gone from this window, and the release
+    // comes here later, at a point of this window that may lie on the canvas: that panel takes it.
+    let gone_id = drag_id().with("art-gone");
     if !ctx.input(|i| i.pointer.primary_released()) {
+        if art {
+            let gone = ctx.input(|i| !i.pointer.has_pointer());
+            ctx.data_mut(|d| d.insert_temp(gone_id, gone));
+        }
         return;
     }
-    let Some(p) = ctx.input(|i| i.pointer.interact_pos().or(i.pointer.latest_pos())) else { return };
-    if !matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art)) {
+    let gone = ctx.data_mut(|d| d.remove_temp::<bool>(gone_id)).unwrap_or(false);
+    let p = ctx.input(|i| i.pointer.interact_pos().or(i.pointer.latest_pos()));
+    if !art {
         return;
     }
     let layer = ctx.data(|d| d.get_temp::<egui::LayerId>(drag_layer_id()));
-    let on = app.canvas_rect.is_some_and(|r| r.contains(p)) && ctx.layer_id_at(p).is_none_or(|l| Some(l) == layer);
+    let on = !gone && p.is_some_and(|p| app.canvas_rect.is_some_and(|r| r.contains(p)) && ctx.layer_id_at(p).is_none_or(|l| Some(l) == layer));
     if on {
         // The canvas's release finishes the move.
         return;

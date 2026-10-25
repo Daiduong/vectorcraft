@@ -367,7 +367,13 @@ fn rename(ui: &mut UiState, from: &str, to: &str) -> Result<(), String> {
         serde_json::from_value(v).map_err(|e| e.to_string())
     }
     registered(to)?;
-    let docking = ui.docking.as_ref().map(|l| renamed(l, from, to)).transpose()?;
+    let mut docking = ui.docking.as_ref().map(|l| renamed(l, from, to)).transpose()?;
+    // A floating window keeps its id, and with it its OS window.
+    if let (Some(new), Some(old)) = (docking.as_mut(), ui.docking.as_ref()) {
+        for (window, was) in new.floating.iter_mut().zip(&old.floating) {
+            window.id = was.id;
+        }
+    }
     let mut hidden = std::collections::BTreeMap::new();
     for (p, at) in &ui.docking_hidden {
         hidden.insert(if p == from { to.to_string() } else { p.clone() }, renamed(at, from, to)?);

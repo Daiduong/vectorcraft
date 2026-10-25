@@ -83,6 +83,23 @@ struct App {
     maximize_tries: u8,
 }
 
+/// The parts of [`App::raw_input_hook`] that every window needs, for the OS windows of floating
+/// panels: a click or Escape that closes the macOS menu bar's open menu, and the pen barrel
+/// button's secondary click on Windows. The control channel's input and the native menu's keys
+/// go to the main window only.
+#[cfg(target_os = "macos")]
+fn native_input_hook(app: &VectorcraftApp) -> Option<vectorcraft_ui_egui::NativeInputHook> {
+    app.services.native_menu.is_some().then(|| std::sync::Arc::new(mac_menu::raw_input_hook) as vectorcraft_ui_egui::NativeInputHook)
+}
+#[cfg(all(windows, not(target_vendor = "win7")))]
+fn native_input_hook(_: &VectorcraftApp) -> Option<vectorcraft_ui_egui::NativeInputHook> {
+    Some(std::sync::Arc::new(windows_stylus::raw_input_hook))
+}
+#[cfg(not(any(target_os = "macos", all(windows, not(target_vendor = "win7")))))]
+fn native_input_hook(_: &VectorcraftApp) -> Option<vectorcraft_ui_egui::NativeInputHook> {
+    None
+}
+
 impl eframe::App for App {
     // Each frame runs unconfined: it is the person at the keyboard's. The app confines what the
     // control channel asks for, and the frames carrying input it injected, to the automation roots
@@ -1109,6 +1126,7 @@ fn main() -> std::process::ExitCode {
                 }
                 #[cfg(not(target_os = "macos"))]
                 let _ = in_window_menus;
+                app.services.native_input_hook = native_input_hook(&app);
                 file_access::unconfined(|| open_files(&mut app, files));
                 // The first frame is due from now (`gpu::watch_first_frame`).
                 #[cfg(feature = "wgpu")]

@@ -328,7 +328,14 @@ pub struct Services {
     /// and the end to switch to the Eraser tool and back. Without it, pen pressure comes from
     /// touch events only ([`stylus`]).
     pub stylus: Option<stylus::StylusFeed>,
+    /// The host's rewrites of a window's raw input (pen barrel button, closing the macOS menu
+    /// bar's open menu) for floating panels in OS windows of their own: eframe runs the host's
+    /// `raw_input_hook` for the main window only.
+    pub native_input_hook: Option<NativeInputHook>,
 }
+
+/// Rewrites one window's raw input before egui reads it ([`Services::native_input_hook`]).
+pub type NativeInputHook = std::sync::Arc<dyn Fn(&mut egui::RawInput) + Send + Sync>;
 
 /// Cached canvas raster.
 pub struct CanvasCache {
@@ -540,6 +547,12 @@ pub struct VectorcraftApp {
     pub recovery: recovery::Timer,
     /// Modifiers the keyboard holds (from the host's input), given back after synthetic input.
     host_modifiers: egui::Modifiers,
+    /// Key, text and clipboard events a floating panel's own OS window forwarded, for the main
+    /// window's next frame ([`Self::raw_input_hook`]), and the modifiers held in that window.
+    pub(crate) forwarded: Vec<egui::Event>,
+    pub(crate) forwarded_modifiers: Option<egui::Modifiers>,
+    /// The last frame held the forwarded modifiers: this one goes back to the keyboard's.
+    forwarded_modifiers_held: bool,
     /// Synthetic input set the modifiers egui holds (see [`Self::raw_input_hook`]).
     synthetic_modifiers: bool,
     /// The marked text the system IME last sent (`None` once it commits or clears). When the Type
@@ -673,6 +686,9 @@ impl VectorcraftApp {
             placing: Default::default(),
             recovery: Default::default(),
             host_modifiers: Default::default(),
+            forwarded: Vec::new(),
+            forwarded_modifiers: None,
+            forwarded_modifiers_held: false,
             synthetic_modifiers: false,
             ime_marked: None,
             ime_discard: false,
@@ -1449,10 +1465,16 @@ impl VectorcraftApp {
     #[cfg(not(target_arch = "wasm32"))]
     fn take_dropped_files(&mut self, ctx: &egui::Context) {
         let (dropped, shift) = ctx.input(|i| (i.raw.dropped_files.clone(), i.modifiers.shift));
+        self.open_dropped_files(dropped, place::drag_pos(ctx), shift);
+    }
+
+    /// Files dropped on the main window or on a floating panel's own OS window, opened or placed
+    /// by kind; `pos` is the drop point in the main window, where the backend reports one.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn open_dropped_files(&mut self, dropped: Vec<egui::DroppedFileHandle>, pos: Option<egui::Pos2>, shift: bool) {
         if dropped.is_empty() {
             return;
         }
-        let pos = place::drag_pos(ctx);
         let mut files = vec![];
         for f in dropped {
             let path = Some(f.path().to_string_lossy().to_string()).filter(|s| !s.is_empty());
@@ -1541,6 +1563,18 @@ impl VectorcraftApp {
                 egui::Event::WindowFocused(true) => self.refresh_installed_fonts(true),
                 _ => {}
             }
+        }
+        // Keys a floating panel's own OS window left over run here, as if typed in this window,
+        // under the modifiers held there for this frame only.
+        if std::mem::take(&mut self.forwarded_modifiers_held) {
+            raw.events.insert(0, egui::Event::ModifiersChanged(self.host_modifiers));
+        }
+        if !self.forwarded.is_empty() {
+            if let Some(m) = self.forwarded_modifiers.take() {
+                raw.events.push(egui::Event::ModifiersChanged(m));
+                self.forwarded_modifiers_held = true;
+            }
+            raw.events.append(&mut self.forwarded);
         }
         self.synthetic_frame = !self.synthetic.is_empty();
         let Some(first) = self.synthetic.first() else {

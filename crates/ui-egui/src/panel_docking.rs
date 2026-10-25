@@ -46,6 +46,8 @@ pub(crate) struct Runtime {
     space: Option<FloatSpace<String>>,
     /// A panel a command showed: its floating window comes forward on the next frame.
     raise: Option<String>,
+    /// A modal was open last frame ([`modal_open`]).
+    modal: bool,
 }
 
 /// Every docking control drawn last frame with its rect.
@@ -775,12 +777,21 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
             None => craft_ui::docking::close_flyout::<String>(&ctx, area),
         }
     }
+    let modal = modal_open(app, &ctx);
+    focus_main_for_modal(app, &ctx, &layout, modal);
     let mut blocked = Vec::new();
-    if app.ui.dialog.is_some() || egui::Popup::is_any_open(&ctx) {
+    if modal || egui::Popup::is_any_open(&ctx) {
         blocked.push(ctx.content_rect());
     }
     let style = dock_style(ui);
-    let mut dock = craft_ui::docking::DockArea::new(area).blocked_rects(&blocked).auto_collapse_iconic(app.session.prefs.auto_collapse_icon_panels);
+    let mut dock = craft_ui::docking::DockArea::new(area)
+        .blocked_rects(&blocked)
+        .input_blocked(modal)
+        .auto_collapse_iconic(app.session.prefs.auto_collapse_icon_panels);
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(hook) = app.services.native_input_hook.clone() {
+        dock = dock.native_input_hook(move |_, raw| hook(raw));
+    }
     // Tab and Shift+Tab (`window.dock`, `window.panels`) and the full screen modes hide the panels;
     // the canvas stays.
     if !app.ui.dock || app.ui.screen_mode >= 3 {
@@ -806,6 +817,64 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
             app.ui.status = error;
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    for window in output.window_files {
+        // The keyboard's Shift as the main window last saw it: the window system sends a file
+        // drag no key events.
+        let shift = ctx.input(|i| i.modifiers.shift);
+        app.open_dropped_files(window.dropped, None, shift);
+    }
+    forward_keys(app, &ctx, output.forwarded_events, output.forwarded_modifiers);
+}
+
+/// Whether a modal is open: a dialog, About, the command palette, a native file dialog, or a
+/// window behind the modal backdrop last frame (export progress, plug-in runs). Floating panels
+/// in OS windows of their own take no input meanwhile, as the main window behind it takes none.
+pub(crate) fn modal_open(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+    app.ui.dialog.is_some()
+        || app.ui.about
+        || app.ui.palette_open
+        || app.file_dialog_open()
+        || ctx.memory(|m| m.areas().is_visible(&crate::dialogs::modal::backdrop()))
+}
+
+/// A modal opened from a floating panel's own OS window (a double-click, a key typed there)
+/// leaves the keyboard on that window, which takes no input while the modal is open: the main
+/// window gets it, on the frame the modal opens. With the app in the background nothing is
+/// focused, so a modal that opens on its own doesn't pull the app forward.
+#[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
+fn focus_main_for_modal(app: &mut VectorcraftApp, ctx: &egui::Context, layout: &Layout<String>, modal: bool) {
+    let was_open = std::mem::replace(&mut app.dock_rt.modal, modal);
+    #[cfg(not(target_arch = "wasm32"))]
+    if modal && !was_open && !ctx.embed_viewports() {
+        let viewports: Vec<egui::ViewportId> =
+            layout.floating.iter().map(|w| craft_ui::docking::DockArea::<String>::window_viewport(area_id(), w.id)).collect();
+        let float_focused = ctx.input(|i| viewports.iter().any(|v| i.raw.viewports.get(v).and_then(|v| v.focused) == Some(true)));
+        if float_focused {
+            ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, egui::ViewportCommand::Focus);
+        }
+    }
+}
+
+/// Keys, text and clipboard events that a floating panel's own OS window left over run the main
+/// window's shortcuts, tool keys and clipboard on its next frame ([`VectorcraftApp::raw_input_hook`]).
+/// craft-ui forwards nothing while a field in that window has the keyboard. A field of the main
+/// window loses it, as a click elsewhere in one window would take it.
+fn forward_keys(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: Option<egui::Modifiers>) {
+    if events.is_empty() {
+        return;
+    }
+    // Only key releases come while a modal is open; its field keeps the keyboard.
+    if events.iter().any(|e| !matches!(e, egui::Event::Key { pressed: false, .. })) {
+        ctx.memory_mut(|m| {
+            if let Some(id) = m.focused() {
+                m.surrender_focus(id);
+            }
+        });
+    }
+    app.forwarded.extend(events);
+    app.forwarded_modifiers = modifiers.or(app.forwarded_modifiers);
+    ctx.request_repaint();
 }
 
 /// VectorCraft's look and wording of craft-ui's docking.
