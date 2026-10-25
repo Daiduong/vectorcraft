@@ -369,7 +369,12 @@ impl Writer {
         let doc = ex.doc;
         let page_group = fits && !self.pdf13 && (doc.page_isolate || doc.page_knockout);
         let cmyk_page_group = fits && self.cmyk && !page_group && ex.shows_transparency();
+        // Each copy draws within an equal share of the symbol objects the export has left
+        // ([`vectorcraft_doc::MAX_SYMBOL_NODES`]), so every copy leaves out the same instances.
+        let limit = ex.symbol_limit;
+        let share = limit.saturating_sub(ex.symbol_nodes) / moves.len() as u64;
         for m in moves {
+            ex.symbol_limit = ex.symbol_nodes.saturating_add(share);
             let place = place_at(*m);
             let placed = place != Affine::IDENTITY;
             if placed {
@@ -398,6 +403,7 @@ impl Writer {
                 s.pop();
             }
         }
+        ex.symbol_limit = limit;
         if fits && let Some(art) = sheet.marks {
             // The drawing space the page shows (the marks' area).
             let shown = sheet.view.inverse().transform_rect_bbox(paper);
@@ -649,6 +655,9 @@ pub(crate) struct Exporter<'a> {
     /// Objects the symbol instances written held, together
     /// ([`vectorcraft_doc::MAX_SYMBOL_NODES`]).
     symbol_nodes: u64,
+    /// The most [`Self::symbol_nodes`] may reach: [`vectorcraft_doc::MAX_SYMBOL_NODES`], or less
+    /// while one of the copies on a sheet is drawn ([`Writer::page`]).
+    pub(crate) symbol_limit: u64,
 }
 
 /// How deep inline graphics nest before they are left out.
@@ -689,6 +698,7 @@ impl<'a> Exporter<'a> {
             layer_index: crate::forms::pdf_layers(doc).iter().enumerate().map(|(i, l)| (address(l.node), i)).collect(),
             in_layer: 0,
             symbol_nodes: 0,
+            symbol_limit: vectorcraft_doc::MAX_SYMBOL_NODES,
             overprint: false,
             overprinted: false,
             invisible: false,
@@ -1247,7 +1257,7 @@ impl Exporter<'_> {
                 // instances multiply.
                 let sym = self.doc.symbols.iter().find(|x| &x.name == symbol);
                 let total = sym.map_or(0, |sym| self.symbol_nodes.saturating_add(sym.art.count() as u64));
-                if let Some(sym) = sym.filter(|_| total <= vectorcraft_doc::MAX_SYMBOL_NODES) {
+                if let Some(sym) = sym.filter(|_| total <= self.symbol_limit) {
                     self.symbol_nodes = total;
                     let mut art = (*sym.art).clone();
                     art.transform(*xf, false);
