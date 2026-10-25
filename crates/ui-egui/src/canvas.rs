@@ -1334,6 +1334,9 @@ struct WheelTurn {
     /// A trackpad gesture is under way: egui has seen its Start phase and has not yet seen its End
     /// or Cancel phase.
     gesture: bool,
+    /// When the last wheel event came (`InputState::time`), and whether a trackpad sent it.
+    last: f64,
+    trackpad: bool,
     /// The zoom (natural log) wheel notches still have to glide in.
     glide: f64,
 }
@@ -1599,7 +1602,17 @@ fn wheel(i: &egui::InputState, prefs: &vectorcraft_engine::Prefs, line: f32, pag
         // Each wheel event changes `turn.held` and `turn.gesture` as `WheelState::on_wheel_event`
         // changes egui's wheel modifiers and status. Both are cleared while egui's wheel is idle.
         for e in &i.events {
-            if let egui::Event::MouseWheel { phase, modifiers, .. } = e {
+            if let egui::Event::MouseWheel { phase, modifiers, source, .. } = e {
+                // A wheel event that comes after egui's scroll timeout ends the turn first, as
+                // `on_wheel_event` does (1 s for fingers resting on a trackpad mid-gesture, else
+                // 0.15 s), also when no frame ran in between.
+                let timeout = if turn.gesture && turn.trackpad { 1.0 } else { 0.150 };
+                if i.time - turn.last > timeout {
+                    turn.gesture = false;
+                    turn.held = egui::Modifiers::NONE;
+                }
+                turn.last = i.time;
+                turn.trackpad = *source == egui::MouseWheelSource::Trackpad;
                 match phase {
                     egui::TouchPhase::Start => {
                         turn.gesture = true;
@@ -7256,8 +7269,9 @@ mod tests {
     /// off and scrolls sideways while it is on, and a trackpad pinch, two fingers spread on a touch
     /// screen, Alt + Cmd/Ctrl-wheel and Alt-wheel still zoom. A Cmd/Ctrl-wheel notch with a plain
     /// one right after it scrolls two notches in all, and a trackpad gesture during which Cmd/Ctrl
-    /// is pressed and released scrolls sideways until the gesture ends. With Zoom with Mouse Wheel
-    /// also on, Cmd/Ctrl-wheel scrolls sideways and the wheel zooms.
+    /// is pressed and released scrolls sideways until the gesture ends, while an Alt gesture that
+    /// pauses past egui's scroll timeout no longer holds Alt for the next move. With Zoom with
+    /// Mouse Wheel also on, Cmd/Ctrl-wheel scrolls sideways and the wheel zooms.
     #[test]
     fn cmd_wheel_scrolls_sideways_preference() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -7380,6 +7394,42 @@ mod tests {
         assert!(
             (after.zoom / before.zoom - 1.0).abs() < 1e-9 && (scroll.x + 12.0).abs() < 0.01 && scroll.y == 0.0,
             "on: a trackpad gesture scrolls sideways to its end after Cmd is let go ({}, {scroll:?})",
+            after.zoom / before.zoom
+        );
+        // An Alt-wheel gesture pauses past egui's scroll timeout with no frame in between: egui
+        // ends it before the next event, so a move with Cmd alone scrolls sideways.
+        // Frames at the given times, with the events in the frame's own input (the host's input
+        // hook hands synthetic events out over several frames).
+        let run_at = |app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>| {
+            let raw = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+                time: Some(time),
+                events,
+                ..Default::default()
+            };
+            let mut out = ctx.run_ui(raw, |ui| show(app, ui));
+            out.textures_delta.clear();
+        };
+        // The Alt part rests the fingers without moving, so only the Cmd move below acts.
+        let rest = |phase| egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: Vec2::ZERO,
+            phase,
+            modifiers: egui::Modifiers::ALT,
+            source: egui::MouseWheelSource::Unknown,
+        };
+        let t = ctx.input(|i| i.time) + 1.0;
+        run_at(&mut app, t, vec![egui::Event::PointerMoved(at), rest(egui::TouchPhase::Start), rest(egui::TouchPhase::Move)]);
+        let before = *app.view().unwrap();
+        run_at(&mut app, t + 2.0, vec![swipe(egui::TouchPhase::Move, egui::Modifiers::COMMAND)]);
+        for k in 1..=40 {
+            run_at(&mut app, t + 2.0 + f64::from(k) / 60.0, vec![]);
+        }
+        let after = *app.view().unwrap();
+        let scroll = (after.center - before.center) * after.zoom;
+        assert!(
+            (after.zoom / before.zoom - 1.0).abs() < 1e-9 && (scroll.x + 6.0).abs() < 0.01 && scroll.y == 0.0,
+            "on: after egui's timeout, a Cmd move scrolls sideways ({}, {scroll:?})",
             after.zoom / before.zoom
         );
         app.session.execute("prefs.set", &json!({"key": "zoomWithMouseWheel", "value": true})).unwrap();
