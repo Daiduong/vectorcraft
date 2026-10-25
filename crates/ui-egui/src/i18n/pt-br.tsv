@@ -5466,3 +5466,6 @@ axis	Y Axis	Eixo Y
 	Rectangular Grid Tool Options	Opções da Ferramenta Grade Retangular
 	Polar Grid Tool Options	Opções da Ferramenta Grade Polar
 	Fill Line	Preencher linha
+	DWG Import Options	Opções de Importação DWG
+	Place DWG	Colocar DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	versão DWG não compatível: abra um DWG salvo como R13–2018 ou exporte ASCII DXF do aplicativo CAD

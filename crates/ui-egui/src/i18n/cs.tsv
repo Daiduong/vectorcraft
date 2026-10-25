@@ -5549,3 +5549,6 @@ axis	Y Axis	osa Y
 	Rectangular Grid Tool Options	Možnosti nástroje Obdélníková mřížka
 	Polar Grid Tool Options	Možnosti nástroje Polární mřížka
 	Fill Line	Výplň úsečky
+	DWG Import Options	Možnosti importu DWG
+	Place DWG	Umístit DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	nepodporovaná verze DWG: otevřete DWG uložený jako R13–2018 nebo z aplikace CAD exportujte ASCII DXF

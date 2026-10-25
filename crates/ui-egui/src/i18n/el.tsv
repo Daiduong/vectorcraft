@@ -5501,3 +5501,6 @@ axis	Y Axis	Άξονας Y
 	Rectangular Grid Tool Options	Επιλογές εργαλείου ορθογώνιου πλέγματος
 	Polar Grid Tool Options	Επιλογές εργαλείου πολικού πλέγματος
 	Fill Line	Γέμισμα γραμμής
+	DWG Import Options	Επιλογές εισαγωγής DWG
+	Place DWG	Τοποθέτηση DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	μη υποστηριζόμενη έκδοση DWG: ανοίξτε ένα DWG αποθηκευμένο ως R13–2018 ή εξαγάγετε ASCII DXF από την εφαρμογή CAD

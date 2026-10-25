@@ -5184,3 +5184,6 @@ axis	Y Axis	Y 軸
 	Rectangular Grid Tool Options	矩形格線工具選項
 	Polar Grid Tool Options	極座標格點工具選項
 	Fill Line	填色線段
+	DWG Import Options	DWG 匯入選項
+	Place DWG	置入 DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	不支援此 DWG 版本：請開啟儲存為 R13–2018 格式的 DWG，或從 CAD 應用程式匯出 ASCII DXF

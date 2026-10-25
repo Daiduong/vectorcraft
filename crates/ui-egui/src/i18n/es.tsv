@@ -5491,3 +5491,6 @@ axis	Y Axis	Eje Y
 	Rectangular Grid Tool Options	Opciones de la herramienta Cuadrícula rectangular
 	Polar Grid Tool Options	Opciones de la herramienta Cuadrícula polar
 	Fill Line	Rellenar línea
+	DWG Import Options	Opciones de importación DWG
+	Place DWG	Colocar DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	versión de DWG no compatible: abra un DWG guardado como R13–2018 o exporte ASCII DXF desde la aplicación CAD

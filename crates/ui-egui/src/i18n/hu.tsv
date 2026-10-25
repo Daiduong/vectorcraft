@@ -5535,3 +5535,6 @@ axis	Y Axis	Y tengely
 	Rectangular Grid Tool Options	Téglalaprács beállításai
 	Polar Grid Tool Options	Polárrács beállításai
 	Fill Line	Szakasz kitöltése
+	DWG Import Options	DWG-importálás beállításai
+	Place DWG	DWG elhelyezése
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	nem támogatott DWG-verzió: nyisson meg egy R13–2018 formátumban mentett DWG-fájlt, vagy exportáljon ASCII DXF-fájlt a CAD-alkalmazásból

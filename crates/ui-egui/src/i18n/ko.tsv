@@ -5128,3 +5128,6 @@ axis	Y Axis	Y축
 	Rectangular Grid Tool Options	사각형 격자 도구 옵션
 	Polar Grid Tool Options	극좌표 격자 도구 옵션
 	Fill Line	선 채우기
+	DWG Import Options	DWG 가져오기 옵션
+	Place DWG	DWG 가져오기
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	지원하지 않는 DWG 버전입니다. R13–2018 형식으로 저장한 DWG를 열거나 CAD 앱에서 ASCII DXF로 내보내세요

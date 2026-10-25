@@ -5493,3 +5493,6 @@ axis	Y Axis	Sumbu Y
 	Rectangular Grid Tool Options	Opsi alat kisi persegi panjang
 	Polar Grid Tool Options	Opsi alat kisi polar
 	Fill Line	Isi garis
+	DWG Import Options	Opsi impor DWG
+	Place DWG	Tempatkan DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	versi DWG tidak didukung: buka DWG yang disimpan sebagai R13–2018, atau ekspor ASCII DXF dari aplikasi CAD

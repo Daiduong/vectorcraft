@@ -5493,3 +5493,6 @@ axis	Y Axis	Y-akse
 	Rectangular Grid Tool Options	Indstillinger for rektangulært gitterværktøj
 	Polar Grid Tool Options	Indstillinger for polært gitterværktøj
 	Fill Line	Udfyld linje
+	DWG Import Options	DWG-importindstillinger
+	Place DWG	Placér DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	DWG-versionen understøttes ikke: åbn en DWG gemt som R13–2018, eller eksportér ASCII DXF fra CAD-programmet

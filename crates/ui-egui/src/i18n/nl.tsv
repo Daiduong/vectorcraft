@@ -5537,3 +5537,6 @@ axis	Y Axis	Y-as
 	Rectangular Grid Tool Options	Opties rechthoekig-rastergereedschap
 	Polar Grid Tool Options	Opties polair-rastergereedschap
 	Fill Line	Lijn vullen
+	DWG Import Options	DWG-importopties
+	Place DWG	DWG plaatsen
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	niet-ondersteunde DWG-versie: open een DWG opgeslagen als R13–2018 of exporteer ASCII DXF vanuit de CAD-app

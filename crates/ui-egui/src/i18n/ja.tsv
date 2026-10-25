@@ -5227,3 +5227,6 @@ axis	Y Axis	Y 軸
 	Rectangular Grid Tool Options	長方形グリッドツールオプション
 	Polar Grid Tool Options	同心円グリッドツールオプション
 	Fill Line	線を塗りつぶす
+	DWG Import Options	DWG 読み込みオプション
+	Place DWG	DWG を配置
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	未対応の DWG バージョンです。R13–2018 形式で保存した DWG を開くか、CAD アプリから ASCII DXF を書き出してください

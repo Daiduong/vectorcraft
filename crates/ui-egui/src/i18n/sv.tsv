@@ -5573,3 +5573,6 @@ axis	Y Axis	Y-axel
 	Rectangular Grid Tool Options	Alternativ för verktyget för rektangulärt rutnät
 	Polar Grid Tool Options	Alternativ för verktyget för polärt rutnät
 	Fill Line	Fyll linje
+	DWG Import Options	Importalternativ för DWG
+	Place DWG	Placera DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	DWG-versionen stöds inte: öppna en DWG sparad som R13–2018 eller exportera ASCII DXF från CAD-programmet

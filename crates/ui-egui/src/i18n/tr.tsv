@@ -5512,3 +5512,6 @@ axis	Y Axis	Y ekseni
 	Rectangular Grid Tool Options	Dikdörtgen Izgara Aracı Seçenekleri
 	Polar Grid Tool Options	Yuvarlak Izgara Aracı Seçenekleri
 	Fill Line	Çizgiyi doldur
+	DWG Import Options	DWG İçe Aktarma Seçenekleri
+	Place DWG	DWG'yi yerleştir
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	desteklenmeyen DWG sürümü: R13–2018 olarak kaydedilmiş bir DWG açın veya CAD uygulamasından ASCII DXF dışa aktarın

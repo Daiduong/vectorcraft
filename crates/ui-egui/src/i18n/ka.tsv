@@ -5465,3 +5465,6 @@ axis	Y Axis	Y ღერძი
 	Rectangular Grid Tool Options	მართკუთხა ბადის ხელსაწყოს პარამეტრები
 	Polar Grid Tool Options	პოლარული ბადის ხელსაწყოს პარამეტრები
 	Fill Line	ხაზის შევსება
+	DWG Import Options	DWG-ის იმპორტის პარამეტრები
+	Place DWG	DWG-ის განთავსება
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	DWG-ის ვერსია არ არის მხარდაჭერილი: გახსენით R13–2018 ფორმატში შენახული DWG ან CAD აპლიკაციიდან გაიტანეთ ASCII DXF

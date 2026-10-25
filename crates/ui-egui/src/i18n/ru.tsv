@@ -5161,3 +5161,6 @@ axis	Y Axis	Ось Y
 	Rectangular Grid Tool Options	Параметры инструмента «Прямоугольная сетка»
 	Polar Grid Tool Options	Параметры инструмента «Полярная сетка»
 	Fill Line	Заливка отрезка
+	DWG Import Options	Параметры импорта DWG
+	Place DWG	Поместить DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	неподдерживаемая версия DWG: откройте DWG, сохранённый в формате R13–2018, или экспортируйте ASCII DXF из приложения САПР

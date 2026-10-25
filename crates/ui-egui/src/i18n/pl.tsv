@@ -5401,3 +5401,6 @@ axis	Y Axis	Oś Y
 	Rectangular Grid Tool Options	Opcje narzędzia Siatka prostokątna
 	Polar Grid Tool Options	Opcje narzędzia Siatka biegunowa
 	Fill Line	Wypełnij odcinek
+	DWG Import Options	Opcje importu DWG
+	Place DWG	Umieść DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	nieobsługiwana wersja DWG: otwórz plik DWG zapisany jako R13–2018 lub wyeksportuj ASCII DXF z aplikacji CAD

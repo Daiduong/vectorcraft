@@ -5131,3 +5131,6 @@ axis	Y Axis	Y-Achse
 	Rectangular Grid Tool Options	Optionen für das Rechteckiges-Raster-Werkzeug
 	Polar Grid Tool Options	Optionen für das Radiales-Raster-Werkzeug
 	Fill Line	Linie füllen
+	DWG Import Options	DWG-Importoptionen
+	Place DWG	DWG platzieren
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	nicht unterstützte DWG-Version: Öffnen Sie eine als R13–2018 gespeicherte DWG-Datei oder exportieren Sie ASCII-DXF aus der CAD-Anwendung

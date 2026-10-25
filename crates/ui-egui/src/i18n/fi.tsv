@@ -5580,3 +5580,6 @@ axis	Y Axis	Y-akseli
 	Rectangular Grid Tool Options	Suorakulmaisen ruudukon työkalun asetukset
 	Polar Grid Tool Options	Napakoordinaattiruudukon työkalun asetukset
 	Fill Line	Täytä viiva
+	DWG Import Options	DWG-tuonnin asetukset
+	Place DWG	Sijoita DWG
+@msg	unsupported DWG version: open a DWG saved as R13–2018, or export ASCII DXF from the CAD app	DWG-versiota ei tueta: avaa R13–2018-muodossa tallennettu DWG tai vie ASCII DXF CAD-sovelluksesta
