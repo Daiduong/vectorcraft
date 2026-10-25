@@ -31,8 +31,33 @@ fn label_w(d: &Dialog) -> f32 {
     if d.fields.contains_key("closeWithin") { 230.0 } else { 90.0 }
 }
 
-/// The range of the Fidelity slider (points); the field takes what the tool allows.
-const FIDELITY: (f64, f64) = (0.5, 20.0);
+/// The range of the Fidelity slider (points): from Accurate, the most precise value the tool
+/// takes, to Smooth (#3328). The field also takes values past 20, up to the tool's 100.
+const FIDELITY: (f64, f64) = (0.05, 20.0);
+
+/// The places the Fidelity field shows: enough for the 0.05 at the slider's Accurate end.
+const FIDELITY_DECIMALS: usize = 2;
+
+/// The Fidelity at `x` (0 to 1) along its slider. The rail is logarithmic, so that its Accurate
+/// half spans 0.05 to 1 pt and its Smooth half 1 to 20 pt; below 1 pt it gives hundredths, above
+/// it tenths. A NaN `x` gives the Accurate end.
+fn fidelity_at(x: f64) -> f64 {
+    let (min, max) = FIDELITY;
+    let x = if x.is_nan() { 0.0 } else { x.clamp(0.0, 1.0) };
+    let v = min * (max / min).powf(x);
+    let scale = if v < 1.0 { 100.0 } else { 10.0 };
+    ((v * scale).round() / scale).clamp(min, max)
+}
+
+/// Where Fidelity `v` sits along its slider (0 to 1), the inverse of [`fidelity_at`]; a value past
+/// the rail's ends sits at the nearer end.
+fn fidelity_pos(v: f64) -> f32 {
+    let (min, max) = FIDELITY;
+    if !v.is_finite() {
+        return 0.0;
+    }
+    ((v.clamp(min, max) / min).ln() / (max / min).ln()) as f32
+}
 
 fn heading(d: &Dialog) -> String {
     let label = vectorcraft_tools::tool_info(&d.str("tool")).map_or("", |t| t.label);
@@ -62,7 +87,7 @@ fn number(ui: &mut egui::Ui, d: &mut Dialog, (key, label): (&str, &str), suffix:
     });
 }
 
-/// The Fidelity row: a slider over [`FIDELITY`] in tenths, and a field.
+/// The Fidelity row: a logarithmic slider over [`FIDELITY`] ([`fidelity_at`]), and a field.
 fn fidelity(ui: &mut egui::Ui, d: &mut Dialog) {
     let label_w = label_w(d);
     let t = Tokens::get(ui.ctx());
@@ -70,12 +95,13 @@ fn fidelity(ui: &mut egui::Ui, d: &mut Dialog) {
     let (min, max) = FIDELITY;
     let mut new = None;
     widgets::label_row(ui, tl!("Fidelity:"), label_w, |ui| {
-        let at = ((v.clamp(min, max) - min) / (max - min)) as f32;
-        let shown = widgets::SliderValue::field(v, min..=max, "pt", 1);
+        let shown = widgets::SliderValue::field(v, min..=max, "pt", FIDELITY_DECIMALS);
         let (x, _, keyed) =
-            widgets::color_slider_stepped(ui, "freehand-fidelity", tl!("Fidelity:"), Some(shown), at, form::SLIDER_WIDTH, &|_| t.input_border);
-        new = x.map(|x| ((min + x as f64 * (max - min)) * 10.0).round() / 10.0).or(keyed);
-        if let Some(x) = widgets::range_field(ui, "freehand-fidelity-field", v, 0.05..=100.0, "pt", 1, 64.0) {
+            widgets::color_slider_stepped(ui, "freehand-fidelity", tl!("Fidelity:"), Some(shown), fidelity_pos(v), form::SLIDER_WIDTH, &|_| {
+                t.input_border
+            });
+        new = x.map(|x| fidelity_at(x as f64)).or(keyed);
+        if let Some(x) = widgets::range_field(ui, "freehand-fidelity-field", v, min..=100.0, "pt", FIDELITY_DECIMALS, 64.0) {
             new = Some(x);
         }
     });
@@ -234,6 +260,30 @@ mod tests {
         super::super::confirm(&mut app).unwrap();
         let smooth = anchors(&mut app, 200.0);
         assert!(smooth < precise, "{smooth} anchors at fidelity 12, {precise} at the default");
+        // The slider's two Accurate ends: the old 0.5 and the tool's 0.05, which keeps more (#3328).
+        let at = |app: &mut VectorcraftApp, fidelity: f64, y0: f64| {
+            app.run("tool.options", json!({"tool": "pencil"})).unwrap();
+            app.ui.dialog.as_mut().unwrap().fields.insert("fidelity".into(), json!(fidelity));
+            super::super::confirm(app).unwrap();
+            assert_eq!(app.session.tool_options_of("pencil")["fidelity"].as_f64(), Some(fidelity));
+            anchors(app, y0)
+        };
+        let (half, accurate) = (at(&mut app, 0.5, 100.0), at(&mut app, 0.05, 250.0));
+        assert!(accurate > half, "{accurate} anchors at fidelity 0.05, {half} at 0.5");
+    }
+
+    #[test]
+    fn the_fidelity_slider_is_logarithmic_from_accurate_to_smooth() {
+        assert_eq!((fidelity_at(0.0), fidelity_at(0.5), fidelity_at(1.0)), (0.05, 1.0, 20.0));
+        assert_eq!((fidelity_at(-1.0), fidelity_at(2.0), fidelity_at(f64::NAN)), (0.05, 20.0, 0.05));
+        // Hundredths below 1 pt, tenths above.
+        assert_eq!((fidelity_at(0.1), fidelity_at(0.8)), (0.09, 6.0));
+        let along: Vec<f64> = (0..=100).map(|i| fidelity_at(i as f64 / 100.0)).collect();
+        assert!(along.windows(2).all(|w| w[0] <= w[1]), "{along:?}");
+        for v in [0.05, 0.5, 1.5, 20.0] {
+            assert_eq!(fidelity_at(fidelity_pos(v) as f64), v, "{v}");
+        }
+        assert_eq!((fidelity_pos(0.01), fidelity_pos(100.0), fidelity_pos(f64::NAN)), (0.0, 1.0, 0.0));
     }
 
     #[test]

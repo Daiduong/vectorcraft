@@ -1442,7 +1442,10 @@ fn dialog_sliders_report_the_numbers_their_fields_show() {
     app.run("tool.options", json!({"tool": "pencil"})).unwrap();
     set(&mut app, "fidelity", json!(2.5));
     let shown = tree(|ui| show(&mut app, ui.ctx()));
-    assert_eq!(slider_value(&shown, "Fidelity:"), v(2.5, (0.5, 20.0), "2.5pt"));
+    assert_eq!(slider_value(&shown, "Fidelity:"), v(2.5, (0.05, 20.0), "2.5pt"));
+    set(&mut app, "fidelity", json!(0.05));
+    let shown = tree(|ui| show(&mut app, ui.ctx()));
+    assert_eq!(slider_value(&shown, "Fidelity:"), v(0.05, (0.05, 20.0), "0.05pt"), "not rounded to 0.1");
     app.ui.dialog = None;
     app.run("paint.setFill", json!({"color": "#ff8000"})).unwrap();
     app.run("ui.colorPicker", json!({})).unwrap();
@@ -1715,7 +1718,7 @@ fn tab_and_shift_tab_reach_a_dialog_slider_for_the_arrow_keys() {
     assert_eq!(app.run("perspective.grid.get", json!({})).unwrap()["define"]["opacity"].as_f64(), Some(start + 11.0));
 }
 
-/// Screen readers can step a dialog slider: the Pencil's Fidelity, a field with tenths, goes to
+/// Screen readers can step a dialog slider: the Pencil's Fidelity, a field with hundredths, goes to
 /// the next whole number on a decrement or an increment, as the slider's ← and → do.
 #[test]
 fn screen_readers_step_a_dialog_slider() {
@@ -1734,6 +1737,35 @@ fn screen_readers_step_a_dialog_slider() {
     f.run(&mut app, vec![request(Action::Increment)]);
     f.run(&mut app, vec![request(Action::Increment)]);
     assert_eq!(fidelity(&app), 4.0);
+}
+
+/// The Pencil's Fidelity slider reaches the field's 0.05 pt at its Accurate end and 20 pt at its
+/// Smooth end, by a drag or Home and End, and the field and screen readers show 0.05 pt as it is
+/// rather than rounded to 0.1 (#3328).
+#[test]
+fn the_fidelity_slider_reaches_the_fields_minimum() {
+    use egui::Key::{End, Home};
+    use egui::Modifiers as M;
+    let mut app = app();
+    app.run("tool.options", json!({"tool": "pencil"})).unwrap();
+    let fidelity = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Pencil Tool Options is open").f64("fidelity", 0.0);
+    let mut f = Frames::new();
+    let at = f.control(&mut app, "Fidelity:", egui::accesskit::Role::Slider);
+    f.drag(&mut app, at, egui::vec2(-400.0, 0.0));
+    assert_eq!(fidelity(&app), 0.05, "the Accurate end");
+    let out = f.run(&mut app, vec![]);
+    assert_eq!(slider_node(&out, "Fidelity:").1, Some(0.05));
+    assert_eq!(slider_node(&out, "Fidelity:").2.as_deref(), Some("0.05pt"));
+    let texts = f.texts(&mut app);
+    assert!(texts.iter().any(|(s, _)| s == "0.05pt"), "the field shows 0.05pt: {texts:?}");
+    f.drag(&mut app, at, egui::vec2(400.0, 0.0));
+    assert_eq!(fidelity(&app), 20.0, "the Smooth end");
+    f.key(&mut app, Home, M::NONE);
+    assert_eq!(fidelity(&app), 0.05, "Home");
+    f.key(&mut app, End, M::NONE);
+    assert_eq!(fidelity(&app), 20.0, "End");
+    confirm(&mut app).unwrap();
+    assert_eq!(app.session.tool_options_of("pencil")["fidelity"].as_f64(), Some(20.0));
 }
 
 /// Transform Each's sliders step the numbers of their fields: a Scale past the rail's 200% steps
