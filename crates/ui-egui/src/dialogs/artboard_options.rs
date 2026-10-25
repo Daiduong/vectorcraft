@@ -1,9 +1,12 @@
 //! Artboard Options (double-click with the Artboard tool, double-click the tool, or the Artboards
 //! panel's options icon or menu): the artboard's fields, sizes parsed with units, its position
 //! from a reference point, its background color (`color`: a color as the paint commands take
-//! it, or null for none), and Show Center Mark and Show Cross Hairs (`showCenterMark`,
+//! it, or null for none), Show Center Mark and Show Cross Hairs (`showCenterMark`,
 //! `showCrossHairs`), the display marks the canvas draws on the artboard
-//! (https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/modify-display-settings-of-artboards.html).
+//! (https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/modify-display-settings-of-artboards.html),
+//! and its video display options, Show Video Safe Areas and Video Ruler Pixel Aspect Ratio
+//! (`showVideoSafeAreas`, `videoRulerPixelAspectRatio`)
+//! (https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/set-video-display-options-for-artboards.html).
 //! Sizing choices also go to the other selected artboards; fitting changes only the active
 //! artboard around stationary artwork.
 
@@ -35,7 +38,8 @@ fn placed(d: &Dialog) -> Rect {
 /// as the Transform panel and the Control bar show an artboard's. A new Width or Height keeps the
 /// reference point where it was, as their sizes do.
 /// Then Background Color: the Fill list (None, White, Black; Custom for another color) and a swatch
-/// that picks a color of its own, and the Show Center Mark and Show Cross Hairs checkboxes.
+/// that picks a color of its own, the Show Center Mark, Show Cross Hairs and Show Video Safe Areas
+/// checkboxes, and the Video Ruler Pixel Aspect Ratio field.
 fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let (unit, origin, refi) = (app.session.general_unit(), app.ruler_origin(), reference_index(ui));
     let (was, w0, h0) = (placed(d), d.f64("width", 0.0), d.f64("height", 0.0));
@@ -82,15 +86,20 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let fills = fill_colors(app);
     let mut set = None;
     ui.horizontal(|ui| {
-        form::row_label(ui, tl!("Background Color:"));
-        if let Some(k) = crate::widgets::dropdown(ui, "ab-options-fill", fill_name(app, color), &FILLS, 110.0) {
-            set = fills.get(k).copied();
-        }
-        let [r, g, b, _] = color.unwrap_or(Color::WHITE).to_rgba8(1.0);
-        let mut rgb = [r, g, b];
-        if ui.color_edit_button_srgb(&mut rgb).changed() {
-            set = Some(Some(Color::rgb(f32::from(rgb[0]) / 255.0, f32::from(rgb[1]) / 255.0, f32::from(rgb[2]) / 255.0)));
-        }
+        let row = form::row_label(ui, tl!("Background Color:"));
+        ui.label_inputs_by(row.id, |ui| {
+            if let Some(k) =
+                crate::widgets::dropdown_named(ui, "ab-options-fill", Some(tl!("Background Color:")), fill_name(app, color), &FILLS, 110.0)
+            {
+                set = fills.get(k).copied();
+            }
+            let [r, g, b, _] = color.unwrap_or(Color::WHITE).to_rgba8(1.0);
+            let mut rgb = [r, g, b];
+            let swatch_name = format!("{} {}", tl!("Background Color:"), tl!("Swatches"));
+            if ui.name_inputs(swatch_name, |ui| ui.color_edit_button_srgb(&mut rgb)).changed() {
+                set = Some(Some(Color::rgb(f32::from(rgb[0]) / 255.0, f32::from(rgb[1]) / 255.0, f32::from(rgb[2]) / 255.0)));
+            }
+        });
     });
     if let Some(c) = set {
         d.fields.insert("color".into(), c.as_ref().map_or(Value::Null, crate::panels::color_json));
@@ -98,8 +107,22 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     ui.add_space(8.0);
     form::check(ui, d, "showCenterMark", tl!("Show Center Mark"));
     form::check(ui, d, "showCrossHairs", tl!("Show Cross Hairs"));
+    form::check(ui, d, "showVideoSafeAreas", tl!("Show Video Safe Areas"));
+    ui.horizontal(|ui| {
+        let row = form::row_label(ui, tl!("Video Ruler Pixel Aspect Ratio:"));
+        ui.label_inputs_by(row.id, |ui| {
+            let range = vectorcraft_doc::VIDEO_PIXEL_ASPECT_RANGE;
+            let now = d.f64(PIXEL_ASPECT, 1.0);
+            if let Some(v) = crate::widgets::range_field(ui, ("dlg-num", PIXEL_ASPECT), now, range, "", 4, 60.0) {
+                d.fields.insert(PIXEL_ASPECT.into(), json!(v));
+            }
+        });
+    });
     false
 }
+
+/// The field of the Video Ruler Pixel Aspect Ratio, as `artboard.setProps` takes it.
+pub(super) const PIXEL_ASPECT: &str = "videoRulerPixelAspectRatio";
 
 /// Store document-coordinate draft bounds, retaining an editable minimum for zero-area art.
 fn set_rect(d: &mut Dialog, r: Rect) {
@@ -143,7 +166,7 @@ fn fit_bounds(app: &mut VectorcraftApp, ctx: &egui::Context, selection: bool) ->
     }
     let st = app.session.active()?;
     let key = (st.uid, st.revision);
-    let id = egui::Id::new("artboard-options-artwork-fit-bounds");
+    let id = egui::Id::unique("artboard-options-artwork-fit-bounds");
     if let Some(cached) = ctx.data_mut(|data| data.get_temp::<ArtworkFitBounds>(id))
         && cached.key == key
     {
@@ -162,18 +185,21 @@ fn position_rows(ui: &mut egui::Ui, d: &mut Dialog, refi: usize, unit: Unit, ori
     let rp = vectorcraft_geom::reference_point(r, refi);
     let mut indent = 0.0;
     for (key, label, at, zero) in [("x", "X:", rp.x, origin.x), ("y", "Y:", rp.y, origin.y)] {
-        ui.horizontal(|ui| {
-            // Y's label lines up with X's, after the locator.
-            if key == "x" {
-                let left = ui.cursor().min.x;
-                reference_locator(ui, refi);
-                indent = ui.min_rect().right() - left;
-            } else {
-                ui.add_space(indent);
-            }
-            form::row_label(ui, label);
-        });
-        if let Some(v) = crate::widgets::num_field(ui, ("dlg-ab-xy", key), Some(at - zero), unit, form::FIELD_W) {
+        let row = ui
+            .horizontal(|ui| {
+                // Y's label lines up with X's, after the locator.
+                if key == "x" {
+                    let left = ui.cursor().min.x;
+                    reference_locator(ui, refi);
+                    indent = ui.min_rect().right() - left;
+                } else {
+                    ui.add_space(indent);
+                }
+                form::row_label(ui, label)
+            })
+            .inner;
+        let value = ui.label_inputs_by(row.id, |ui| crate::widgets::num_field(ui, ("dlg-ab-xy", key), Some(at - zero), unit, form::FIELD_W));
+        if let Some(v) = value {
             let n = if key == "x" {
                 artboard_rect(r, refi, Some(v + zero), None, None, None, false).x0
             } else {
@@ -188,14 +214,18 @@ fn position_rows(ui: &mut egui::Ui, d: &mut Dialog, refi: usize, unit: Unit, ori
 /// The dialog kind of Artboard Options.
 pub const KIND: &str = "artboardOptions";
 
-/// Open Artboard Options for the active artboard: the Artboard tool's while it is in use, else the
-/// window's.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
-    let index = if app.session.tool_id() == "artboard" {
+/// The active artboard's index: the Artboard tool's while it is in use, else the window's.
+pub(crate) fn active_index(app: &VectorcraftApp) -> usize {
+    if app.session.tool_id() == "artboard" {
         app.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok()).unwrap_or(0)
     } else {
         app.view().map_or(0, |v| v.artboard)
-    };
+    }
+}
+
+/// Open Artboard Options for the active artboard ([`active_index`]).
+pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+    let index = active_index(app);
     let st = app.session.active().ok_or("no document")?;
     let a = st.doc.artboards.get(index).ok_or("no artboard")?;
     let r = a.rect;
@@ -203,6 +233,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     let fields = json!({
         "index": index, "name": a.name, "x": r.x0, "y": r.y0, "width": r.width(), "height": r.height(), "color": color,
         "showCenterMark": a.show_center_mark, "showCrossHairs": a.show_cross_hairs,
+        "showVideoSafeAreas": a.show_video_safe_areas, PIXEL_ASPECT: a.video_ruler_pixel_aspect_ratio,
     });
     app.ui.dialog = Some(Dialog::new(KIND, fields));
     Ok(json!({ "dialog": KIND }))
@@ -219,7 +250,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
         return confirm_new(app, d);
     }
     let mut p = Value::Object(d.fields.clone());
-    for k in ["x", "y", "width", "height"] {
+    for k in ["x", "y", "width", "height", PIXEL_ASPECT] {
         if d.fields.contains_key(k) {
             p[k] = json!(d.f64(k, 0.0));
         }
@@ -275,8 +306,8 @@ pub fn open_new(app: &mut VectorcraftApp) -> Result<Value, String> {
 }
 
 /// OK for a new artboard: `artboard.new` with the fields (an empty name gives the default one),
-/// the background color picked and the display marks ticked, and the new artboard becomes the
-/// active one.
+/// the background color picked, the display marks ticked and the Video Ruler Pixel Aspect Ratio
+/// typed, and the new artboard becomes the active one.
 fn confirm_new(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let mut p = json!({});
     for k in ["x", "y", "width", "height"] {
@@ -289,10 +320,13 @@ fn confirm_new(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     if let Some(c) = d.fields.get("color") {
         p["color"] = c.clone();
     }
-    for k in ["showCenterMark", "showCrossHairs"] {
+    for k in ["showCenterMark", "showCrossHairs", "showVideoSafeAreas"] {
         if d.bool(k) {
             p[k] = json!(true);
         }
+    }
+    if d.fields.contains_key(PIXEL_ASPECT) {
+        p[PIXEL_ASPECT] = json!(d.f64(PIXEL_ASPECT, 1.0));
     }
     let r = run_and_close(app, "artboard.new", p)?;
     if let Some(i) = r["index"].as_u64().and_then(|i| usize::try_from(i).ok()) {

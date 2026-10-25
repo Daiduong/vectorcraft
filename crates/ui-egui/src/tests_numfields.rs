@@ -59,7 +59,7 @@ fn a_hex_field_passed_through_with_tab_commits_nothing() {
     let draw = |ui: &mut egui::Ui| {
         let [r, g, b] = rgb.get();
         let red = widgets::plain_field(ui, "red", r, "", 0, 80.0);
-        hex_id.set(ui.id().with("hex"));
+        hex_id.set(ui.scope_id().with("hex"));
         hex.set(widgets::hex_field(ui, "hex", &format!("{:02X}{:02X}{:02X}", r as u8, g as u8, b as u8)));
         blue.set(widgets::plain_field(ui, "blue", b, "", 0, 80.0));
         red
@@ -174,6 +174,56 @@ fn a_gap_field_passed_through_with_tab_commits_nothing() {
     }
 }
 
+/// #3497: committing a visible dash field must not replace an extended pattern with six values.
+/// Passing through the next field without typing must not commit anything else.
+#[test]
+fn dash_tab_and_enter_commits_preserve_the_unshown_pattern_tail() {
+    use crate::panels::stroke::{dash_fields, edited_dash_pattern};
+    for end in [key(Key::Tab, Modifiers::NONE), enter()] {
+        let original = vec![12.0, 6.0, 2.0, 3.0, 4.0, 5.0, 20.0, 10.0];
+        let pattern = RefCell::new(original.clone());
+        let edits = RefCell::new([None; 6]);
+        let draw = |ui: &mut egui::Ui| {
+            let fields = dash_fields(&pattern.borrow());
+            for (i, value) in fields.iter().enumerate() {
+                edits.borrow_mut()[i] = widgets::opt_field(ui, ("dash", i), *value, Unit::Points, 40.0);
+            }
+            None
+        };
+        let step = |f: &mut Field, events: Vec<Event>| {
+            f.frame(events, &draw);
+            let mut fields = dash_fields(&pattern.borrow());
+            let mut changed = false;
+            for (field, edit) in fields.iter_mut().zip(edits.borrow_mut().iter_mut()) {
+                if let Some(value) = edit.take() {
+                    *field = value;
+                    changed = true;
+                }
+            }
+            if changed {
+                let next = edited_dash_pattern(&fields, &pattern.borrow());
+                *pattern.borrow_mut() = next;
+            }
+            changed
+        };
+        let mut f = Field::new();
+        let tab = || key(Key::Tab, Modifiers::NONE);
+        for events in [vec![], vec![tab()], vec![], vec![tab()], vec![]] {
+            assert!(!step(&mut f, events));
+        }
+        assert_eq!(*pattern.borrow(), original, "tabbing without editing changes nothing");
+        // Shift+Tab back to the first dash, replace it, then commit with Tab or Enter.
+        for events in [vec![key(Key::Tab, Modifiers::SHIFT)], vec![], vec![Event::Text("14".into())]] {
+            assert!(!step(&mut f, events));
+        }
+        assert!(step(&mut f, vec![end]));
+        assert!(!step(&mut f, vec![]));
+        assert_eq!(*pattern.borrow(), vec![14.0, 6.0, 2.0, 3.0, 4.0, 5.0, 20.0, 10.0]);
+        assert!(!step(&mut f, vec![tab()]));
+        assert!(!step(&mut f, vec![]));
+    }
+}
+
 /// Headless frames of one field: its rect and id as last drawn.
 struct Field {
     ctx: egui::Context,
@@ -197,7 +247,7 @@ impl Field {
         let input = egui::RawInput { events, time: Some(self.time), screen_rect, focused: self.focused, ..Default::default() };
         let mut got = None;
         let mut out = self.ctx.run_ui(input, |ui| {
-            self.id.set(ui.id().with("f"));
+            self.id.set(ui.scope_id().with("f"));
             got = draw(ui);
             self.rect.set(ui.min_rect());
         });
@@ -356,7 +406,7 @@ fn shift_enter_applies_the_value_and_keeps_the_field_active() {
     let color = RefCell::new(String::from("FF8000"));
     let draw = |ui: &mut egui::Ui| {
         text.set(widgets::text_field(ui, "f", Some("Name"), 120.0, 1).or(text.take()));
-        hex_id.set(ui.id().with("hex"));
+        hex_id.set(ui.scope_id().with("hex"));
         let shown = color.borrow().clone();
         let applied = widgets::hex_field(ui, "hex", &shown);
         if let Some(h) = &applied {
@@ -558,7 +608,10 @@ fn arrow_keys_step_plain_fields() {
 
 /// A wheel turn of `dy` (`unit`s, up positive) with `modifiers`, the pointer at `at`.
 fn wheel(at: Pos2, unit: egui::MouseWheelUnit, dy: f32, modifiers: Modifiers) -> Vec<Event> {
-    vec![Event::PointerMoved(at), Event::MouseWheel { unit, delta: vec2(0.0, dy), phase: egui::TouchPhase::Move, modifiers }]
+    vec![
+        Event::PointerMoved(at),
+        Event::MouseWheel { unit, delta: vec2(0.0, dy), phase: egui::TouchPhase::Move, modifiers, source: egui::MouseWheelSource::Unknown },
+    ]
 }
 
 /// The mouse wheel over a focused numeric field steps it as ↑/↓ do (#485): a notch a step, Shift
@@ -611,7 +664,7 @@ fn the_wheel_scrolls_the_panel_unless_over_the_focused_field() {
                 ui.add_space(600.0);
                 v
             });
-            offset.set(out.state.offset.y);
+            offset.set(out.state.clamped_offset().y);
             out.inner
         };
         f.frame(vec![], &draw);
