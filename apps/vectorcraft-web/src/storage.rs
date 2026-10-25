@@ -21,6 +21,9 @@
 //! own dialog, `chooseOpen` should resolve with "device" right from that click.
 
 use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, VecDeque};
+use std::future::Future;
+use std::pin::Pin;
 use std::rc::Rc;
 
 use vectorcraft_ui_egui::Services;
@@ -44,22 +47,59 @@ async fn call(method: &str, args: &[JsValue]) -> Result<JsValue, JsValue> {
     JsFuture::from(promise).await
 }
 
+/// A save the app counted done that the host still has to make: true once the file is stored.
+type Save = Pin<Box<dyn Future<Output = bool>>>;
+
 thread_local! {
-    /// Saves the app counted done that the host is still making.
-    static IN_FLIGHT: Cell<usize> = const { Cell::new(0) };
+    /// Saves waiting for the host, made one at a time in the order the app asked, so a later
+    /// save of a file is never overwritten by an earlier one: (id, name or host path, the save).
+    static QUEUE: RefCell<VecDeque<(u64, String, Save)>> = const { RefCell::new(VecDeque::new()) };
+    /// A save is being made now.
+    static SAVING: Cell<bool> = const { Cell::new(false) };
+    /// The latest save of each name: an earlier one that failed doesn't count once a later one
+    /// is on its way, which answers for the document itself.
+    static LATEST: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+    static LAST_ID: Cell<u64> = const { Cell::new(0) };
     /// Saves that finished since the web shell last looked: (name or host path, saved). One that
     /// failed or that the user cancelled marks its document modified again ([`take_settled`]).
     static SETTLED: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
 }
 
 fn in_flight() -> bool {
-    IN_FLIGHT.with(Cell::get) > 0
+    SAVING.with(Cell::get) || QUEUE.with(|q| !q.borrow().is_empty())
 }
 
-fn settled(name: String, saved: bool, ctx: &egui::Context) {
-    IN_FLIGHT.with(|n| n.set(n.get().saturating_sub(1)));
-    SETTLED.with(|s| s.borrow_mut().push((name, saved)));
-    ctx.request_repaint();
+/// Queue a save of `name`; the first one starts the saver, which works through the queue.
+fn enqueue(name: String, save: Save, ctx: egui::Context) {
+    let id = LAST_ID.with(|n| {
+        n.set(n.get() + 1);
+        n.get()
+    });
+    LATEST.with(|l| l.borrow_mut().insert(name.clone(), id));
+    let start = !in_flight();
+    QUEUE.with(|q| q.borrow_mut().push_back((id, name, save)));
+    if !start {
+        return;
+    }
+    SAVING.with(|s| s.set(true));
+    wasm_bindgen_futures::spawn_local(async move {
+        while let Some((id, name, save)) = QUEUE.with(|q| q.borrow_mut().pop_front()) {
+            let saved = save.await;
+            let latest = LATEST.with(|l| {
+                let mut l = l.borrow_mut();
+                let latest = l.get(&name) == Some(&id);
+                if latest {
+                    l.remove(&name);
+                }
+                latest
+            });
+            // A failed save that a later one replaces leaves the document to that one.
+            SETTLED.with(|s| s.borrow_mut().push((name, saved || !latest)));
+            ctx.request_repaint();
+        }
+        SAVING.with(|s| s.set(false));
+        ctx.request_repaint();
+    });
 }
 
 /// The saves that finished since the last call, for [`vectorcraft_ui_egui::io::save_settled`].
@@ -113,10 +153,10 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                 return (device_download.borrow_mut())(name, bytes);
             }
             // The save counts as done now; one that doesn't happen marks the document modified again.
-            let (device_download, name, bytes, ctx) = (device_download.clone(), name.to_string(), bytes.to_vec(), ctx.clone());
-            IN_FLIGHT.with(|n| n.set(n.get() + 1));
-            wasm_bindgen_futures::spawn_local(async move {
-                let saved = if is_host_path(&name) {
+            let (device_download, owned, bytes) = (device_download.clone(), name.to_string(), bytes.to_vec());
+            let save: Save = Box::pin(async move {
+                let name = owned;
+                if is_host_path(&name) {
                     // File › Save of a document from the host: straight back to its path.
                     write(&name, &bytes).await
                 } else {
@@ -128,9 +168,9 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                             .inspect_err(|e| log::error!("vectorcraft-web: download of {name} failed: {e}"))
                             .is_ok(),
                     }
-                };
-                settled(name, saved, &ctx);
+                }
             });
+            enqueue(name.to_string(), save, ctx.clone());
             Ok(())
         }));
     }
