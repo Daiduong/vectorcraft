@@ -565,13 +565,24 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
             }
             // A key the tool claims (Esc with a loaded place cursor) is only the tool's.
             let claimed = app.session.tool_claims_key(tk, view);
+            let revision_before = app.session.active().map(|d| d.revision);
             let r = app.session.tool_key(tk, Mods::default(), view);
+            // Did the tool act on this key itself? A finished pen path, the Curvature tool's reset,
+            // Crop Image's Apply, or (Rotate, Scale, Reflect and Shear) the dialog it asks for.
+            // Most of these show as `claimed` or a request in `r` (the transform dialogs); a change
+            // the session applies for the tool (the Curvature's Enter clears the current point with
+            // select.set) moves the document's revision instead. Enter opens the tool's options only
+            // when the tool didn't act (see below).
+            let acted = !matches!(&r, Ok(reqs) if reqs.is_empty())
+                || revision_before.zip(app.session.active().map(|d| d.revision)).is_some_and(|(before, after)| after > before);
             // Enter also takes what the tool asks of the UI: Rotate, Scale, Reflect and Shear open
             // their dialog with it.
             if claimed || (k == Key::Enter && !busy) {
                 crate::canvas::apply_requests(app, r);
             }
-            if claimed {
+            // A key the tool acted on is the tool's too, claimed or not: the Curvature tool's reset
+            // (a select.set request, not a claimed key) is no place for a plain-Enter command.
+            if claimed || (k == Key::Enter && acted) {
                 ctx.input_mut(|i| i.consume_key(Modifiers::NONE, k));
             }
             if k == Key::Escape && !busy && !claimed {
@@ -595,15 +606,23 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 ctx.data_mut(|d| d.insert_temp(escape_pair_id(), now));
             }
             if k == Key::Enter && !busy && !claimed {
-                // Enter with a selection tool opens the Move dialog, as a double-click on its button
-                // does.
-                let tool = app.session.tool_id();
-                if app.ui.dialog.is_none() && vectorcraft_tools::catalog::is_selection_tool(tool) {
-                    // Nothing selected: it fails and nothing opens (the menu item is disabled then too).
-                    let _ = crate::toolbar::open_options(app, tool);
-                }
-                // The Enter that opened a dialog isn't also its OK: dialogs take Enter, this frame too.
-                if app.ui.dialog.is_some() {
+                // Enter opens the active tool's options, exactly as a double-click on its button
+                // does: the Move dialog for the selection tools, that tool's dialog or panel for
+                // the others, the Hand's fit, the Zoom's 100%, the Print Tiling's reset. A tool that
+                // acted on Enter itself keeps it (a finished path, Crop Image's Apply, a transform
+                // dialog), and a tool with no options opens nothing.
+                let opened = if !acted && app.ui.dialog.is_none() {
+                    let tool = app.session.tool_id();
+                    // Nothing selected (or nothing to open): it fails and nothing opens (the menu
+                    // item is disabled then too).
+                    crate::toolbar::open_options(app, tool).is_ok()
+                } else {
+                    false
+                };
+                // The Enter that opened the options is theirs, and isn't also a command's or a
+                // dialog's OK: a panel or an action (the Hand's fit, the Zoom's 100%) opens no
+                // dialog to take the Enter, so it is taken here.
+                if opened || app.ui.dialog.is_some() {
                     ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
                 }
             }
@@ -1853,7 +1872,152 @@ mod tests {
         }
         app.select_tool("rectangle");
         frame(&mut app, vec![enter()]);
-        assert_eq!(kind(&app), None, "another tool has its own Enter");
+        assert_eq!(kind(&app), None, "a tool with no options opens nothing");
+    }
+
+    /// Press Enter with `tool` in a fresh app (a whole app frame) and return what it opened: the
+    /// dialog kind and whether the tool's panel shows. A fresh app each time keeps a dialog's
+    /// keyboard focus from leaking into the next tool (which would make
+    /// `egui_wants_keyboard_input` swallow the Enter). It also checks the Enter that opened it
+    /// isn't also its OK: the frame after keeps it open.
+    fn enter_with(tool: &str) -> (Option<String>, bool) {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
+        let ctx = egui::Context::default();
+        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
+            let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            });
+            out.textures_delta.clear();
+        };
+        let enter = egui::Event::Key { key: Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
+        // Keys reach the app from the second frame on, and the canvas is laid out by then.
+        frame(&mut app, vec![]);
+        app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(660.0, 460.0)));
+        app.select_tool(tool);
+        frame(&mut app, vec![enter]);
+        let opened = (app.ui.dialog.as_ref().map(|d| d.kind.clone()), crate::panel_docking::showing(&app.ui, tool));
+        frame(&mut app, vec![]);
+        assert_eq!(
+            (app.ui.dialog.as_ref().map(|d| d.kind.clone()), crate::panel_docking::showing(&app.ui, tool)),
+            opened,
+            "{tool}: what Enter opened stays open"
+        );
+        opened
+    }
+
+    /// Enter opens every tool's options, exactly as a double-click on the tool's button does: the
+    /// dialog tools, the panel tools, and the action tools (Hand fits the artboard, Zoom shows
+    /// 100%). Tools with no options open nothing.
+    #[test]
+    fn enter_opens_any_tools_options() {
+        // The tools whose options are a dialog; none needs a selection.
+        for (tool, dialog) in [
+            ("blend", "blendOptions"),
+            ("pencil", "freehandOptions"),
+            ("paintbrush", "freehandOptions"),
+            ("blobBrush", "freehandOptions"),
+            ("eraser", "freehandOptions"),
+            ("smooth", "freehandOptions"),
+            ("eyedropper", "eyedropperOptions"),
+            ("warp", "liquifyOptions"),
+            ("twirl", "liquifyOptions"),
+            ("artboard", "artboardOptions"),
+            ("perspectiveGrid", "perspectiveGridOptions"),
+            ("flare", "flareOptions"),
+            ("symbolSprayer", "symbolismOptions"),
+            ("dimension", "dimensionOptions"),
+        ] {
+            assert_eq!(enter_with(tool).0.as_deref(), Some(dialog), "{tool}: Enter opens its options");
+        }
+        // The panel tools open their panel.
+        for panel in ["gradient", "magicWand"] {
+            assert!(enter_with(panel).1, "{panel}: Enter opens its panel");
+        }
+        // Tools with no options open nothing.
+        for tool in ["rectangle", "pen", "width", "lasso"] {
+            assert_eq!(enter_with(tool), (None, false), "{tool}: no options to open");
+        }
+        // The action tools do what a double-click on their button does: the Hand fits the artboard,
+        // the Zoom shows 100%.
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
+        let ctx = egui::Context::default();
+        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
+            let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            });
+            out.textures_delta.clear();
+        };
+        let enter = || egui::Event::Key { key: Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
+        frame(&mut app, vec![]);
+        app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(660.0, 460.0)));
+        app.run("view.setZoom", json!({"zoom": 333, "center": [10, 10]})).unwrap();
+        app.select_tool("hand");
+        frame(&mut app, vec![enter()]);
+        let v = *app.view().unwrap();
+        assert_eq!((v.center.x, v.center.y, v.zoom), (150.0, 100.0, 2.0), "Hand: Enter fits the artboard");
+        app.select_tool("zoom");
+        frame(&mut app, vec![enter()]);
+        assert_eq!(app.view().unwrap().zoom, 1.0, "Zoom: Enter shows 100%");
+    }
+
+    /// The Enter that opened a tool's options is the options': with plain Enter also assigned to a
+    /// command, the command doesn't run in the same frame. A panel or an action (the Hand's fit, the
+    /// Zoom's 100%) opens no dialog to take the Enter, so the shortcut loop would otherwise see it.
+    /// A tool that acts on Enter itself keeps it too, and a tool with no options leaves it to the
+    /// command.
+    #[test]
+    fn enter_that_opens_the_options_is_not_also_a_command() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
+        app.ui.shortcut_overrides.insert("view.grid", vec!["Enter".to_string()]);
+        crate::shortcut_editor::sync(&app.ui);
+        let ctx = egui::Context::default();
+        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
+            let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            });
+            out.textures_delta.clear();
+        };
+        let enter = || egui::Event::Key { key: Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
+        frame(&mut app, vec![]);
+        app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(660.0, 460.0)));
+        app.run("view.setZoom", json!({"zoom": 333, "center": [10, 10]})).unwrap();
+        // An action tool: Enter runs the action, and not also the command Enter holds.
+        app.select_tool("zoom");
+        frame(&mut app, vec![enter()]);
+        assert_eq!(app.view().unwrap().zoom, 1.0, "Enter shows 100%");
+        assert!(!app.ui.view.grid, "the Zoom's Enter is not also Show Grid, the command it holds");
+        // A tool with no options opens nothing, so it leaves Enter to that command.
+        app.select_tool("width");
+        frame(&mut app, vec![]);
+        frame(&mut app, vec![enter()]);
+        assert!(app.ui.view.grid, "a tool with no options leaves Enter to the command");
+        // A tool that acts on Enter itself keeps it too, so the command doesn't run: the Curvature
+        // tool's Enter clears the current point with a select.set request, not a claimed key.
+        use vectorcraft_tools::{PointerEvent, PointerKind};
+        let id = app.session.execute("path.create", &json!({"anchors": [{"x": 50, "y": 50}, {"x": 150, "y": 60}]})).unwrap()["id"].as_u64().unwrap();
+        app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
+        app.select_tool("curvature");
+        let view = app.view_info();
+        for kind in [PointerKind::Down, PointerKind::Up] {
+            app.session.pointer(&PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
+        }
+        assert_eq!(app.session.doc().unwrap().selection.anchors.len(), 1, "a point is current");
+        app.ui.view.grid = false;
+        frame(&mut app, vec![]);
+        frame(&mut app, vec![enter()]);
+        assert!(!app.ui.view.grid, "the Curvature tool's Enter is not also Show Grid");
+        assert!(app.session.doc().unwrap().selection.anchors.is_empty(), "Enter cleared the current point");
+        app.ui.shortcut_overrides.clear();
+        crate::shortcut_editor::sync(&app.ui);
     }
 
     /// A drag with the Selection tool, then Enter: the Move dialog opens on the drag's offset, and

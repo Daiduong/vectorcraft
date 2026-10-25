@@ -328,7 +328,8 @@ fn flyout_press(ui: &Ui, resp: &egui::Response, rect: egui::Rect) -> Option<Flyo
 /// Reflect and Shear tools' are their Object › Transform dialogs, the selection tools' are the
 /// Move dialog, and the Pencil, Paintbrush, Smooth, Blob Brush, Eraser and Shape Builder tools' are
 /// their Tool Options, as are the Line Segment, Arc, Rectangular Grid and Polar Grid tools'
-/// ([`crate::dialogs::shapes::open_options`]).
+/// ([`crate::dialogs::shapes::open_options`]). Pressing Enter with a tool does the same, for every
+/// tool it can (see [`crate::shortcuts::handle`]).
 pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::Value, String> {
     match tool {
         "dimension" => crate::dialogs::dimension::open(app),
