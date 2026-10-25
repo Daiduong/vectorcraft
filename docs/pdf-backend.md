@@ -1,7 +1,7 @@
 # PDF backend
 
 PDF writing uses `craft-pdf` from `storytold/craft-libs`, pinned to
-`d24e4bcce3b420f25b7bca2b2d786cbcc8631f96`. Its `write` feature supplies Krilla configuration,
+`5bbe9f6254de3bb9f9707ae0740ab0db8170afd5`. Its `write` feature supplies Krilla configuration,
 metadata construction, fallible font preparation and serialization, and native unwind guards.
 The dependency disables default features and enables `write` and `interpret`.
 The production writer retains Krilla’s raster-image support without its optional text shaper.
