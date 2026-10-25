@@ -215,7 +215,7 @@ pub(crate) fn is_open(ui: &UiState, panel: &str) -> bool {
 fn open_panels(ui: &UiState) -> Vec<String> {
     let mut out: Vec<String> = vec![];
     let docked = ui.docking.iter().flat_map(|l| l.panels());
-    for p in docked.chain(ui.floating_panels.iter().flat_map(|g| &g.panels)) {
+    for p in docked {
         if p.starts_with(PREFIX) && !out.contains(p) {
             out.push(p.clone());
         }
@@ -380,8 +380,8 @@ fn rename(ui: &mut UiState, from: &str, to: &str) -> Result<(), String> {
     }
     ui.docking = docking;
     ui.docking_hidden = hidden;
-    for p in ui.floating_panels.iter_mut().flat_map(|g| g.panels.iter_mut()).chain(ui.open_panel.as_mut()).filter(|p| p.as_str() == from) {
-        *p = to.into();
+    if ui.open_panel.as_deref() == Some(from) {
+        ui.open_panel = Some(to.into());
     }
     Ok(())
 }

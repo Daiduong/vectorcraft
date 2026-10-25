@@ -33,12 +33,12 @@ const HEADLESS_AREA: egui::Rect = egui::Rect::from_min_max(egui::Pos2::ZERO, egu
 /// The panel that holds the document area. It never moves, floats, closes or takes tabs.
 pub(crate) const CANVAS: &str = "canvas";
 /// Width of the Properties · Layers · Libraries column until the user resizes it.
-const COLUMN_WIDTH: f32 = 310.0;
+pub(crate) const COLUMN_WIDTH: f32 = 310.0;
 /// The widths the main column may be given (`dock_width`).
-const COLUMN_MIN: f32 = 220.0;
-const COLUMN_MAX: f32 = 720.0;
+pub(crate) const COLUMN_MIN: f32 = 220.0;
+pub(crate) const COLUMN_MAX: f32 = 720.0;
 /// Width of a column collapsed to icons.
-const ICON_WIDTH: f32 = 38.0;
+pub(crate) const ICON_WIDTH: f32 = 38.0;
 
 /// Docking state that lives for the session only.
 #[derive(Default)]
@@ -78,11 +78,11 @@ pub(crate) fn valid(layout: &Layout<String>) -> bool {
 
 /// Panels already given a place, so each appears once.
 #[derive(Default)]
-struct Placed(Vec<String>);
+pub(crate) struct Placed(Vec<String>);
 
 impl Placed {
     /// The registered id of `raw` if no other place holds it yet.
-    fn take(&mut self, raw: &str) -> Option<String> {
+    pub(crate) fn take(&mut self, raw: &str) -> Option<String> {
         let id = normalize(raw)?;
         if self.0.iter().any(|p| p == id) {
             return None;
@@ -99,7 +99,7 @@ impl Placed {
 }
 
 /// The main column's tabs in their order: `dock_tab_order` first, then the tabs it leaves out.
-fn main_tabs(order: &[DockTab]) -> Vec<DockTab> {
+pub(crate) fn main_tabs(order: &[DockTab]) -> Vec<DockTab> {
     let mut out: Vec<DockTab> = Vec::new();
     for tab in order.iter().copied().chain(DockTab::ALL) {
         if !out.contains(&tab) {
@@ -110,12 +110,12 @@ fn main_tabs(order: &[DockTab]) -> Vec<DockTab> {
 }
 
 /// The main column's width for a saved `dock_width`.
-fn main_width(width: Option<f32>) -> f32 {
+pub(crate) fn main_width(width: Option<f32>) -> f32 {
     width.filter(|w| w.is_finite()).map_or(COLUMN_WIDTH, |w| w.clamp(COLUMN_MIN, COLUMN_MAX))
 }
 
 /// The canvas beside a dock of `columns` (from the window edge inwards) at the right edge.
-fn with_canvas(columns: Vec<Column<String>>, floating: Vec<Floating<String>>) -> Layout<String> {
+pub(crate) fn with_canvas(columns: Vec<Column<String>>, floating: Vec<Floating<String>>) -> Layout<String> {
     let width: f32 = columns.iter().map(|c| if c.iconic { c.iconic_width.unwrap_or(ICON_WIDTH) } else { c.width }).sum();
     Layout {
         root: Some(Node::Split {

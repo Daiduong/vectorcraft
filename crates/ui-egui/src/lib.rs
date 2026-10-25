@@ -36,6 +36,7 @@ pub mod icon_data;
 pub mod icons;
 pub mod io;
 pub mod keymap;
+pub mod layout_migration;
 pub mod menus;
 pub mod native_menu;
 pub mod opening;
