@@ -423,3 +423,39 @@ fn a_ai_file_ignores_precision_as_save_does() {
         }
     }
 }
+
+/// The anchors of every path in `n` and the art it holds.
+fn all_anchors(n: &vectorcraft_doc::Node, out: &mut Vec<vectorcraft_geom::Point>) {
+    if let NodeKind::Path { path, .. } = &n.kind {
+        out.extend(path.subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|a| a.p)));
+    }
+    for c in n.children().into_iter().flatten() {
+        all_anchors(c, out);
+    }
+}
+
+#[test]
+fn the_preview_and_pdf_of_a_save_at_a_precision_show_the_rounded_art() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
+    let anchors = json!([{"x": 10.4, "y": 20.3}, {"x": 80.6, "y": 30.7}, {"x": 45.35, "y": 85.65}]);
+    s.execute("path.create", &json!({"anchors": anchors, "closed": true})).unwrap();
+    let file = bytes_of(&s.execute("file.saveCopy", &json!({"precision": 0, "pdfCompatible": true, "preview": true})).unwrap()["dataBase64"]);
+    // The embedded PDF, opened, has the path on whole points.
+    let pdf = vectorcraft_format::pdf_content(&file).unwrap();
+    let mut t = Session::new();
+    t.execute("document.open", &json!({"name": "x.pdf", "dataBase64": vectorcraft_format::base64_encode(&pdf)})).unwrap();
+    let mut got = vec![];
+    for l in &t.doc().unwrap().doc.layers {
+        all_anchors(l, &mut got);
+    }
+    for (x, y) in [(10.0, 20.0), (81.0, 31.0), (45.0, 86.0)] {
+        assert!(got.iter().any(|p| (p.x - x).abs() < 1e-3 && (p.y - y).abs() < 1e-3), "({x}, {y}) not in {got:?}");
+    }
+    assert!(got.iter().all(|p| (p.x - p.x.round()).abs() < 1e-3 && (p.y - p.y.round()).abs() < 1e-3), "{got:?}");
+    // The preview is the one the saved document draws, not the exact art's.
+    let preview = vectorcraft_format::preview(&file);
+    assert!(preview.is_some());
+    assert_eq!(preview, crate::cmd::fileio::preview_png(&vectorcraft_format::load(&file).unwrap()).unwrap());
+    assert_ne!(preview, crate::cmd::fileio::preview_png(&s.doc().unwrap().doc).unwrap());
+}

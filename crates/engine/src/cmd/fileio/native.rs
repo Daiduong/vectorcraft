@@ -199,13 +199,19 @@ pub(super) fn encode_to(cmd: &str, f: &Format, doc: &Document, p: &Value, w: imp
     } else {
         std::borrow::Cow::Borrowed(doc)
     };
+    // With a precision, the preview and PDF show the rounded art the file holds.
+    let drawn = match so.precision {
+        Some(decimals) if extras.preview || extras.pdf => Cow::Owned(rounded(&full, so.version, decimals)),
+        _ => Cow::Borrowed(full.as_ref()),
+    };
     if extras.preview {
-        so.preview = preview_png(&full)?;
+        so.preview = preview_png(&drawn)?;
     }
     if extras.pdf {
         // Every artboard as PDF pages (no editing data: the file is the native document).
-        so.pdf = Some(super::pdf::encode(cmd, &full, &json!({ "range": "all", "preserveEditing": false }))?.0);
+        so.pdf = Some(super::pdf::encode(cmd, &drawn, &json!({ "range": "all", "preserveEditing": false }))?.0);
     }
+    drop(drawn);
     let native = match full {
         Cow::Owned(full) if so.include_linked && so.version >= vectorcraft_format::VERSION => {
             // Include available bytes without replacing missing, relinkable placed objects.
@@ -217,6 +223,20 @@ pub(super) fn encode_to(cmd: &str, f: &Format, doc: &Document, p: &Value, w: imp
     };
     so.pretty = so.pretty_fits(&native);
     vectorcraft_format::save_to(&native, &so, w).map_err(|e| bad(cmd, e.to_string()))
+}
+
+/// `doc` with its path geometry rounded to `decimals` places, as [`vectorcraft_format::save_to`]
+/// writes it for `version`: placed documents become groups of their art for older versions.
+fn rounded(doc: &Document, version: u32, decimals: u8) -> Document {
+    let mut d = if version < vectorcraft_format::VERSION && doc.has_placed() {
+        let mut d = doc.with_placed_art().into_owned();
+        d.placed_as_groups();
+        d
+    } else {
+        doc.clone()
+    };
+    d.round_geometry(decimals.min(vectorcraft_format::MAX_PRECISION));
+    d
 }
 
 /// The ICC files of the profiles `doc` is tagged with that were loaded from files (the built-in

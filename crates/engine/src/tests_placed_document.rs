@@ -730,6 +730,12 @@ fn saved_for_older_apps_with_a_precision_the_placed_art_is_rounded_too() {
     let rounded = saved(json!({"format": "vectorcraft", "version": 3, "precision": 4}));
     assert_eq!(rounded.len(), exact.len());
     assert!(rounded.iter().all(|x| at4(*x)), "{rounded:?}");
+    // The preview shows the rounded art the older app opens, not the placed file's exact art.
+    let file = decode(&s.execute("file.saveCopy", &json!({"version": 3, "precision": 0, "preview": true})).unwrap());
+    let preview = vectorcraft_format::preview(&file);
+    assert!(preview.is_some());
+    assert_eq!(preview, crate::cmd::fileio::preview_png(&vectorcraft_format::load(&file).unwrap()).unwrap());
+    assert_ne!(preview, crate::cmd::fileio::preview_png(&s.doc().unwrap().doc).unwrap());
 }
 
 #[test]
