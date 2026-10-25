@@ -208,4 +208,7 @@ fn corner_radius_is_the_rounded_rectangle_tools_radius() {
     // A tool option set from the Tool Options dialog is the preference too, within its range.
     s.set_tool_option("cornerRadius", &json!(5000));
     assert_eq!(s.execute("prefs.get", &json!({"key": "cornerRadius"})).unwrap(), json!(1296.0));
+    assert_eq!(s.tool_options()["cornerRadius"], json!(1296.0), "and the tool itself stops at the range");
+    draw(&mut s, 300.0, true);
+    assert_eq!(s.tool_options()["cornerRadius"], json!(1296.0), "↑ at the top stays there");
 }

@@ -5,14 +5,13 @@ use vectorcraft_doc::Selection;
 use vectorcraft_geom::Point;
 use vectorcraft_tools::distort::perspective::widget::WidgetPlace;
 use vectorcraft_tools::draw2::FEEDBACK;
+use vectorcraft_tools::shape::MAX_CORNER_RADIUS;
 use vectorcraft_tools::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey, settings};
 
 use crate::{EngineError, Prefs, Result, Session};
 
 /// The tool whose radius is General › Corner Radius.
 const ROUNDED_RECTANGLE: &str = "roundedRectangle";
-/// The largest Corner Radius the preference takes, points (its `prefs.list` spec).
-const MAX_CORNER_RADIUS: f64 = 1296.0;
 
 /// View state the tools need from the frontend.
 #[derive(Clone, Copy, Debug)]
