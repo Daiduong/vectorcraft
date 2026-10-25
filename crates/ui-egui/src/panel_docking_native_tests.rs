@@ -305,3 +305,15 @@ fn art_dragged_from_the_canvas_onto_a_native_panel_window_drops_there() {
     assert!(st.interaction.is_none(), "no move is left open");
     assert_eq!(art(&h), before, "the art stays where it was");
 }
+
+#[test]
+fn ui_docking_leaves_out_the_controls_of_os_windows() {
+    let mut h = Harness::new();
+    h.float("swatches");
+    let report = inspect(&h.app, &h.ctx);
+    let hits = report["hitRects"].as_array().unwrap();
+    assert!(hits.iter().any(|hit| hit["hit"] == json!({"Tab": "layers"})), "the main window's tabs are there");
+    let swatches = |hit: &Value| hit["hit"].as_object().is_some_and(|o| o.values().any(|v| v == "swatches"));
+    assert!(!hits.iter().any(swatches), "none of the OS window's: {hits:?}");
+    assert!(report["layout"]["floating"][0]["native"].is_array(), "its place is the window's native rect");
+}

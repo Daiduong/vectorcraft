@@ -47,12 +47,31 @@ pub(crate) struct Runtime {
     space: Option<FloatSpace<String>>,
     /// A panel a command showed: its floating window comes forward on the next frame.
     raise: Option<String>,
+    /// The panel the user last clicked or pressed in (a tab, a panel body, a drop).
+    focused: Option<String>,
 }
 
-/// Every docking control drawn last frame with its rect.
-#[cfg(test)]
+/// Every docking control the main window drew last frame with its rect. Controls in floating
+/// panels' own OS windows are not among them: egui keeps each window's widgets apart.
 pub(crate) fn hit_rects(ctx: &egui::Context) -> Vec<(craft_ui::docking::Hit<String>, egui::Rect)> {
     craft_ui::docking::DockArea::<String>::hit_rects(ctx, area_id())
+}
+
+/// `ui.docking`: the layout in use, the open flyout, the focused panel and every docking
+/// control the main window drew last frame (`hitRects`, rects in window points).
+pub(crate) fn inspect(app: &VectorcraftApp, ctx: &egui::Context) -> Value {
+    let layout = layout_of(&app.ui);
+    let hits: Vec<Value> = hit_rects(ctx).iter().map(|(hit, r)| json!({"hit": hit, "rect": [r.left(), r.top(), r.width(), r.height()]})).collect();
+    json!({
+        "layout": layout,
+        "customized": app.ui.docking.is_some(),
+        "flyout": app.ui.open_panel,
+        "focused": app.dock_rt.focused.as_ref().filter(|p| layout.contains(p)),
+        "hidden": app.ui.docking_hidden.keys().collect::<Vec<_>>(),
+        "autoCollapse": app.session.prefs.auto_collapse_icon_panels,
+        "panelsShown": app.ui.dock && app.ui.screen_mode < 3,
+        "hitRects": hits,
+    })
 }
 
 fn normalize(raw: &str) -> Option<&'static str> {
@@ -278,10 +297,19 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Opt
                 Ok(c) => c,
                 Err(e) => return Some(Err(e)),
             };
-            let panel = params.get("panel").cloned().unwrap_or(Value::Null);
-            return Some(shared_command(app, "window.panel.minimize", &json!({"panel": panel, "minimized": minimized})));
+            let raw = params.get("panel").and_then(Value::as_str).unwrap_or_default();
+            let Some(panel) = normalize(raw) else { return Some(Err(format!("unknown panel `{raw}`"))) };
+            return Some(shared_command(app, "window.panel.minimize", &json!({"panel": panel, "minimized": minimized})).map(|mut value| {
+                let layout = layout_of(&app.ui);
+                let window = floating_window(&layout, panel).is_some_and(|w| w.minimized);
+                let group = layout.location(&panel.to_string()).ok().and_then(|l| l.group).is_some_and(|g| g.minimized);
+                value["panel"] = json!(panel);
+                value["collapsed"] = json!(window || group);
+                value
+            }));
         }
         "ui.dock.reset" => return Some(app.run("window.workspace.reset", json!({}))),
+        "window.panel.float" | "window.panel.dock" => return Some(float_or_dock(app, id, params)),
         _ if id.starts_with("window.workspace") => return None,
         _ => {}
     }
@@ -347,21 +375,213 @@ pub(crate) fn collapse_dock(app: &mut VectorcraftApp, collapsed: Option<bool>) -
     Ok(json!(iconic))
 }
 
-/// Command params with VectorCraft's panel names resolved (a panel id or English name, in any
-/// case). Parameters of VectorCraft's own docking that craft-ui's commands don't take are refused.
-fn resolve_panels(id: &str, params: &Value) -> Result<Value, String> {
-    let mut params = if params.is_null() { json!({}) } else { params.clone() };
-    let fields = params.as_object_mut().ok_or("params must be an object")?;
-    if matches!(id, "window.panel.float" | "window.panel.dock") {
-        for key in ["onto", "above", "below", "collapsed", "icon"] {
-            if fields.contains_key(key) {
-                return Err(format!("`{key}` is not supported by {id}"));
-            }
-        }
-        if fields.get("column").is_some_and(|c| !c.is_boolean()) {
-            return Err("column must be true or false".into());
+/// Where `window.panel.float` and `window.panel.dock` put a panel by the parameters VectorCraft
+/// gave them before its panels moved to craft-ui's layout.
+enum Legacy {
+    /// `onto` (a tab of the group holding `anchor`, which floats unless the panel docks), `above`
+    /// or `below` (a group of its own there, in that group's floating window or dock column).
+    Join { anchor: String, placement: Placement<String>, key: &'static str, floats: bool },
+    /// `icon: true`: a group of its own at the end of the icon column.
+    Icons,
+    /// `column: n` of `window.panel.dock`: a dock column of its own at place `n` of the dock, 1
+    /// next to the icon column, counting inwards; `column: true` with no destination: the
+    /// innermost place.
+    Column(usize),
+}
+
+/// The VectorCraft-only parameters of `window.panel.float` / `window.panel.dock`, taken out of
+/// `fields` so craft-ui parses the rest: where the panel goes, and `collapsed`.
+fn take_legacy(id: &str, fields: &mut serde_json::Map<String, Value>) -> Result<(Option<Legacy>, Option<bool>), String> {
+    let dock = id == "window.panel.dock";
+    let minimized = match fields.remove("collapsed") {
+        None | Some(Value::Null) => None,
+        Some(Value::Bool(c)) => Some(c),
+        Some(_) => return Err("collapsed must be true or false".into()),
+    };
+    let mut joins = Vec::new();
+    for (key, placement) in [
+        ("onto", Placement::Tab { before: None }),
+        ("above", Placement::Group { below: false, height: None }),
+        ("below", Placement::Group { below: true, height: None }),
+    ] {
+        if let Some(value) = fields.remove(key) {
+            let anchor = value.as_str().and_then(normalize).ok_or_else(|| format!("{key} must name a registered panel"))?;
+            joins.push(Legacy::Join { anchor: anchor.to_owned(), placement, key, floats: !dock && key == "onto" });
         }
     }
+    let icon = match fields.remove("icon") {
+        None | Some(Value::Null) | Some(Value::Bool(false)) => false,
+        Some(Value::Bool(true)) if dock => true,
+        Some(Value::Bool(true)) => return Err("icon docks a panel in the icon column: use window.panel.dock".into()),
+        Some(_) => return Err("icon must be true or false".into()),
+    };
+    let destination = ["anchor", "side", "zone", "before"].iter().any(|k| fields.get(*k).is_some_and(|v| !v.is_null()));
+    let column = match fields.get("column") {
+        None | Some(Value::Null) | Some(Value::Bool(false)) => None,
+        // craft-ui's `column: true`: the panel's whole dock column or floating window.
+        Some(Value::Bool(true)) if !dock || destination => None,
+        Some(Value::Bool(true)) => Some(usize::MAX),
+        Some(value) => match value.as_u64().filter(|n| *n >= 1) {
+            Some(n) if dock => Some(usize::try_from(n).unwrap_or(usize::MAX)),
+            // On float a place means nothing: it floats the whole column, as `true` does.
+            Some(_) => {
+                fields.insert("column".into(), Value::Bool(true));
+                None
+            }
+            None => return Err("column must be true or a number from 1".into()),
+        },
+    };
+    if column.is_some() {
+        fields.remove("column");
+    }
+    let mut legacy: Vec<Legacy> = joins;
+    if icon {
+        legacy.push(Legacy::Icons);
+    }
+    if let Some(n) = column {
+        legacy.push(Legacy::Column(n));
+    }
+    if legacy.len() > 1 {
+        return Err("give only one of onto, above, below, icon and a column place".into());
+    }
+    let legacy = legacy.pop();
+    if legacy.is_some() && destination {
+        return Err("onto, above, below, icon and a column place take no anchor, side, zone or before".into());
+    }
+    if legacy.is_some() && ["x", "y", "width", "height"].iter().any(|k| fields.contains_key(*k)) {
+        return Err("onto, above, below, icon and a column place take no x, y, width or height".into());
+    }
+    if legacy.is_some() && fields.get("column") == Some(&Value::Bool(true)) {
+        return Err("column: true floats the whole column and takes no onto, above or below".into());
+    }
+    Ok((legacy, minimized))
+}
+
+/// `window.panel.float` and `window.panel.dock`: craft-ui's commands, with VectorCraft's own
+/// parameters ([`Legacy`], `collapsed`) done in the same transaction.
+fn float_or_dock(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<Value, String> {
+    let mut params = if params.is_null() { json!({}) } else { params.clone() };
+    let fields = params.as_object_mut().ok_or("params must be an object")?;
+    let (legacy, minimized) = take_legacy(id, fields)?;
+    shared_command_with(app, id, &params, legacy, minimized)
+}
+
+/// The panels of the group holding `panel` (an accordion entry is a group of one).
+fn group_of(layout: &Layout<String>, panel: &String) -> Vec<String> {
+    let mut visit: Vec<&Node<String>> = layout.root.iter().chain(layout.floating.iter().map(|w| &w.root)).collect();
+    let mut seen = 0usize;
+    while let Some(node) = visit.pop() {
+        seen = seen.saturating_add(1);
+        if seen > 2 * craft_ui::docking::MAX_PANELS {
+            break;
+        }
+        match node {
+            Node::Split { first, second, .. } => {
+                visit.push(second);
+                visit.push(first);
+            }
+            Node::Tabs { panels, .. } if panels.contains(panel) => return panels.clone(),
+            Node::Stack { entries } if entries.iter().any(|e| &e.panel == panel) => return vec![panel.clone()],
+            Node::Dock { columns, .. } => {
+                if let Some(group) = columns.iter().flat_map(|c| &c.groups).find(|g| g.panels.contains(panel)) {
+                    return group.panels.clone();
+                }
+            }
+            _ => {}
+        }
+    }
+    Vec::new()
+}
+
+/// The columns of the dock at the window's end edge, from the edge inwards.
+fn end_columns(layout: &Layout<String>) -> Vec<&Column<String>> {
+    let mut visit: Vec<&Node<String>> = layout.root.iter().collect();
+    let mut seen = 0usize;
+    while let Some(node) = visit.pop() {
+        seen = seen.saturating_add(1);
+        if seen > 2 * craft_ui::docking::MAX_PANELS {
+            break;
+        }
+        match node {
+            Node::Split { first, second, .. } => {
+                visit.push(second);
+                visit.push(first);
+            }
+            Node::Dock { side: Side::End, columns } => return columns.iter().collect(),
+            _ => {}
+        }
+    }
+    Vec::new()
+}
+
+impl Legacy {
+    /// The action that puts `panel` (with `group`, its whole group) where `self` says, on the
+    /// layout with the panel shown; none when it is there already.
+    fn actions(&self, layout: &Layout<String>, panel: &String, group: bool) -> Result<Vec<Action<String>>, String> {
+        let mates = group_of(layout, panel);
+        let unit = |to: Target<String>| {
+            if group { Action::MoveGroup { panel: panel.clone(), to } } else { Action::MovePanel { panel: panel.clone(), to } }
+        };
+        match self {
+            Self::Join { anchor, placement, key, floats } => {
+                if !layout.contains(anchor) {
+                    return Err(format!("{key} must name a panel that shows"));
+                }
+                let tab = matches!(placement, Placement::Tab { .. });
+                if anchor == panel || ((group || tab) && mates.contains(anchor)) {
+                    return Err(format!("{key} must name a panel in another group"));
+                }
+                // Float Panel stacks onto floating groups only; Dock Panel's `onto` is its `anchor`.
+                if *floats && floating_window(layout, anchor).is_none() {
+                    return Err(format!("{key} must name a floating panel"));
+                }
+                Ok(vec![unit(Target::At { anchor: anchor.clone(), placement: placement.clone() })])
+            }
+            Self::Icons => {
+                let columns = end_columns(layout);
+                let column =
+                    columns.iter().skip(1).find(|c| c.iconic).or_else(|| columns.iter().find(|c| c.iconic)).ok_or("the dock has no icon column")?;
+                if column.groups.iter().any(|g| g.panels.contains(panel)) {
+                    return Ok(Vec::new());
+                }
+                let moving = if group { mates } else { vec![panel.clone()] };
+                let Some(anchor) = column.groups.iter().rev().flat_map(|g| &g.panels).find(|p| !moving.contains(p)) else {
+                    return Ok(Vec::new());
+                };
+                Ok(vec![unit(Target::At { anchor: anchor.clone(), placement: Placement::Group { below: true, height: None } })])
+            }
+            Self::Column(place) => {
+                let columns = end_columns(layout);
+                let window = floating_window(layout, panel);
+                // Its group, or alone in its group anyway: the group, or the whole floating
+                // window it floats in (a stack of groups docks as one column).
+                let whole = group || mates.len() == 1;
+                let moving = match window {
+                    Some(window) if whole => window_panels(window),
+                    _ if whole => mates,
+                    _ => vec![panel.clone()],
+                };
+                let column = columns.get((*place).min(columns.len().saturating_sub(1))).ok_or("the window has no dock")?;
+                // What moves already is that column.
+                let Some(anchor) = column.groups.iter().flat_map(|g| &g.panels).find(|p| !moving.contains(p)) else {
+                    return Ok(Vec::new());
+                };
+                let to = Target::At { anchor: anchor.clone(), placement: Placement::Column { after: true } };
+                Ok(vec![match window {
+                    Some(_) if whole => Action::MoveWindow { panel: panel.clone(), to },
+                    _ if whole => Action::MoveGroup { panel: panel.clone(), to },
+                    _ => Action::MovePanel { panel: panel.clone(), to },
+                }])
+            }
+        }
+    }
+}
+
+/// Command params with VectorCraft's panel names resolved (a panel id or English name, in any
+/// case).
+fn resolve_panels(params: &Value) -> Result<Value, String> {
+    let mut params = if params.is_null() { json!({}) } else { params.clone() };
+    let fields = params.as_object_mut().ok_or("params must be an object")?;
     for key in ["panel", "anchor", "target", "before"] {
         let Some(value) = fields.get_mut(key) else { continue };
         if key == "before" && value.is_null() {
@@ -378,7 +598,13 @@ fn resolve_panels(id: &str, params: &Value) -> Result<Value, String> {
 /// names, shows a hidden panel before moving, floating or docking it, floats a panel the layout
 /// has no place for, and returns a floated panel to its dock place on Dock Panel.
 fn shared_command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<Value, String> {
-    let mut params = resolve_panels(id, params)?;
+    shared_command_with(app, id, params, None, None)
+}
+
+/// [`shared_command`], with the panel put where `legacy` says instead of where the command puts
+/// it, and its group or floating window then minimized or restored (`minimized`).
+fn shared_command_with(app: &mut VectorcraftApp, id: &str, params: &Value, legacy: Option<Legacy>, minimized: Option<bool>) -> Result<Value, String> {
+    let mut params = resolve_panels(params)?;
     if let Some(fields) = params.as_object_mut() {
         fields.insert("command".into(), Value::String(id.to_owned()));
     }
@@ -420,17 +646,26 @@ fn shared_command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<
         shown = true;
     }
     let returned = match &command {
-        DockCommand::Dock { panel, anchor: None, side: None, group, column: false, .. } if !shown => {
+        DockCommand::Dock { panel, anchor: None, side: None, group, column: false, .. } if !shown && legacy.is_none() => {
             txn.dock_group_back(panel)? || (!group && txn.dock_back(panel)?)
         }
         _ => false,
     };
-    let actions = match &command {
-        // Showing it was the whole command (craft-ui's `DockCommand::apply` does the same).
-        DockCommand::Dock { anchor: None, side: None, .. } if shown || returned => Vec::new(),
-        DockCommand::Activate { .. } if shown => Vec::new(),
-        _ => command.to_actions(&txn.workspace, false, &space).map_err(|e| e.to_string())?,
+    let mut actions = match (&command, &legacy) {
+        (DockCommand::Float { panel, group, .. } | DockCommand::Dock { panel, group, .. }, Some(legacy)) => {
+            legacy.actions(&txn.workspace.layout, panel, *group)?
+        }
+        (_, Some(_)) => return Err("onto, above, below, icon and a column place belong to window.panel.float and window.panel.dock".into()),
+        (command, None) => match command {
+            // Showing it was the whole command (craft-ui's `DockCommand::apply` does the same).
+            DockCommand::Dock { anchor: None, side: None, .. } if shown || returned => Vec::new(),
+            DockCommand::Activate { .. } if shown => Vec::new(),
+            _ => command.to_actions(&txn.workspace, false, &space).map_err(|e| e.to_string())?,
+        },
     };
+    if let (Some(minimized), Some(panel)) = (minimized, shows.as_ref()) {
+        actions.push(Action::SetMinimized { panel: panel.clone(), minimized });
+    }
     let reveal = match &command {
         DockCommand::Layout { action } | DockCommand::UiDock(UiDock::Action { action }) => match action {
             Action::Activate { panel } | Action::Open { panel, .. } | Action::OpenAt { panel, .. } => Some(panel.clone()),
@@ -800,6 +1035,9 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     }
     let mut output = dock.show_content(ui, &layout, &style, &mut PanelContent { app: &mut *app });
     app.dock_rt.space = craft_ui::docking::float_space(&ctx, area);
+    if let Some(panel) = output.focused.take() {
+        app.dock_rt.focused = Some(panel);
+    }
     for event in std::mem::take(&mut output.events) {
         match event {
             DockEvent::ToggleAutoCollapse => app.session.prefs.auto_collapse_icon_panels = !app.session.prefs.auto_collapse_icon_panels,
