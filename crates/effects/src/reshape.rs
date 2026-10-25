@@ -145,14 +145,16 @@ pub(crate) fn glyph_outlines(t: &vectorcraft_doc::TextObject) -> (Vec<kurbo::Bez
     (runs, all)
 }
 
-/// [`glyph_outlines`], the bounds of `t`'s layout in text space, and the art of its colour glyphs
-/// (COLR layers, SVG documents), which have no outlines, placed in the document, with their runs.
+/// [`glyph_outlines`], the bounds of `t`'s layout in text space, and its colour glyphs, which have
+/// no outlines, placed in the document with their runs: bitmap glyphs (emoji) as images holding
+/// their pixels, then COLR and SVG glyphs as their art, as the renderer paints them.
 fn laid_out(t: &vectorcraft_doc::TextObject) -> (Vec<kurbo::BezPath>, kurbo::BezPath, Rect, Vec<(usize, Node)>) {
     let db = vectorcraft_text::FontDb::global();
     let layout = vectorcraft_text::layout(db, t);
     let mut runs = vec![kurbo::BezPath::new(); t.runs.len()];
     let mut all = kurbo::BezPath::new();
-    for g in &layout.glyphs {
+    // Ruby (furigana) glyphs are painted with their base text's run, as the renderer paints them.
+    for g in layout.glyphs.iter().chain(&layout.ruby) {
         if let Some(r) = runs.get_mut(g.run) {
             r.extend(g.outline.iter());
         }
@@ -165,14 +167,15 @@ fn laid_out(t: &vectorcraft_doc::TextObject) -> (Vec<kurbo::BezPath>, kurbo::Bez
         }
         all.extend(bar.iter());
     }
-    let colours = layout.glyphs.iter().filter_map(|g| Some((g.run, g.placed_colour(t.xf)?))).collect();
+    let images = layout.glyphs.iter().filter_map(|g| Some((g.run, g.placed_image_node(t.xf)?)));
+    let colours = images.chain(layout.glyphs.iter().filter_map(|g| Some((g.run, g.placed_colour(t.xf)?)))).collect();
     (runs, all, layout.bounds, colours)
 }
 
 /// Type as glyph outlines in document space: one path per run with the run's fill and stroke,
-/// its colour glyphs' art, and (when the object has its own fills/strokes) the whole outline with
-/// the object's items below the characters under them and the others over them, as the renderer
-/// paints them. Each run's path is placed by the type's transform, which also scales its stroke
+/// over its colour glyphs (images, art), and (when the object has its own fills/strokes) the whole
+/// outline with the object's items below the characters under them and the others over them, as
+/// the renderer paints them. Each run's path is placed by the type's transform, which also scales its stroke
 /// weights and dashes and transforms its pattern tiles; its unplaced gradients are first fixed to
 /// the layout's bounds in text space. The object's own unplaced gradients are fixed to the
 /// bounding box of those bounds in the document. The group is marked as type's outlines
