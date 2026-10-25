@@ -33,7 +33,7 @@ const FLOAT_WIDTH: f32 = 300.0;
 const FLOAT_HEIGHT: f32 = 400.0;
 const FLOAT_MIN: f32 = 200.0;
 /// The tallest a converted floating set starts.
-const STACK_MAX: f32 = 900.0;
+const STACK_MAX: f32 = 720.0;
 
 impl UiState {
     /// Read saved preferences. None when the file is not a preferences file at all; unreadable
