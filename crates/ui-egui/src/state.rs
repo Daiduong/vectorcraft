@@ -333,7 +333,8 @@ pub struct UiState {
     /// `libraries` while the dock is collapsed).
     pub open_panel: Option<String>,
     /// `open_panel` was opened as a row's popup (the Appearance panel's links): while it is the open
-    /// panel, a press outside it closes it, whatever Auto-Collapse Iconic Panels says.
+    /// panel, it pops out even where it is a tab already (in the dock or a floating group), and a
+    /// press outside it closes it, whatever Auto-Collapse Iconic Panels says.
     #[serde(skip)]
     pub transient_panel: Option<String>,
     /// That popup's first text field is still to take the keyboard.

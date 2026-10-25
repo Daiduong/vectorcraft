@@ -318,9 +318,10 @@ fn link(ui: &mut Ui, pos: egui::Pos2, id: impl std::hash::Hash + std::fmt::Debug
     resp
 }
 
-/// Open panel `id` as a row's popup: it closes once a press lands outside it, and its first text
-/// field takes the keyboard ([`crate::state::UiState::transient_panel`]).
-fn open_popup(app: &mut VectorcraftApp, id: &str) {
+/// Open panel `id` as a row's popup: it pops out next to the icon column even where it is a tab
+/// already (in the dock or a floating group), closes once a press lands outside it, and its first
+/// text field takes the keyboard ([`crate::state::UiState::transient_panel`]).
+pub(crate) fn open_popup(app: &mut VectorcraftApp, id: &str) {
     app.ui.open_panel = Some(id.into());
     app.ui.transient_panel = Some(id.into());
     app.ui.transient_focus = true;

@@ -1099,6 +1099,27 @@ fn panels_a_row_opens_close_when_they_lose_focus() {
     assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"));
 }
 
+/// A row's link pops its panel out even when the panel floats as a tab of a group; a press outside
+/// still closes it.
+#[test]
+fn a_row_link_pops_out_a_panel_that_floats_in_a_group() {
+    for (label, panel) in [("Fill:", "color"), ("Stroke:", "stroke"), ("Opacity:", "transparency")] {
+        let mut app = app_with_rect();
+        app.run("window.panel.float", json!({"panel": panel})).unwrap();
+        assert!(crate::floating::group_of(&app.ui, panel).is_some(), "{label}");
+        let ctx = flyout_ctx();
+        let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
+        app_click(&ctx, &mut app, text_rect(&texts, label).center(), panel_and_flyout);
+        for _ in 0..3 {
+            app_frame(&ctx, &mut app, vec![], panel_and_flyout);
+        }
+        assert_eq!(app.ui.open_panel.as_deref(), Some(panel), "{label}");
+        assert!(ctx.memory(|m| m.area_rect(egui::Id::new("icon-panel"))).is_some(), "{label}: the flyout shows");
+        app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
+        assert_eq!(app.ui.open_panel, None, "{label}: a press in the Appearance panel closes it");
+    }
+}
+
 /// On a type object "Characters" is a link ("Click to edit") to the Character panel, which closes
 /// on a press outside it.
 #[test]
@@ -1287,10 +1308,10 @@ fn a_drop_on_delete_that_removes_the_active_effect_leaves_no_effect_active() {
     assert_eq!(object_effects(&app), ["distort.twist"], "Twist was never highlighted");
 }
 
-/// A row's link to a panel that floats in a group shows that panel's tab there, once: the group
-/// can then show another tab again.
+/// A row's link to a panel that floats behind another tab of a group pops that panel out and leaves
+/// the group on the tab it showed.
 #[test]
-fn a_row_link_shows_its_panels_tab_in_a_floating_group() {
+fn a_row_link_leaves_a_floating_group_on_its_tab() {
     let mut app = app_with_rect();
     crate::floating::float(&mut app.ui, &["color", "stroke"], "color", egui::pos2(400.0, 100.0));
     let shown = |app: &VectorcraftApp| {
@@ -1301,11 +1322,9 @@ fn a_row_link_shows_its_panels_tab_in_a_floating_group() {
     let ctx = flyout_ctx();
     let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
     app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
-    assert_eq!(shown(&app), "stroke", "the link shows the Stroke tab");
-    let gi = crate::floating::group_of(&app.ui, "color").unwrap();
-    app.ui.floating_panels[gi].active = 0;
     app_frame(&ctx, &mut app, vec![], panel_and_flyout);
-    assert_eq!(shown(&app), "color", "the group can show its other tab again");
+    assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"), "the link pops the Stroke panel out");
+    assert_eq!(shown(&app), "color", "the group still shows Color");
 }
 
 /// Whether Duplicate Selected Item and Delete Selected Item are enabled in a frame of the panel
