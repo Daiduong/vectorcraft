@@ -910,6 +910,9 @@ impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
             self.app.canvas_area(ui);
             return;
         }
+        if ui.ctx().viewport_id() != egui::ViewportId::ROOT {
+            crate::canvas::release_art_in_window(self.app, ui.ctx());
+        }
         let t = crate::theme::Tokens::get(ui.ctx());
         let back = ui.max_rect();
         if back.is_positive() {

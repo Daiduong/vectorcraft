@@ -1153,7 +1153,8 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     }
                     ui.data_mut(|dd| dd.insert_temp(drag_id(), Drag::ZoomScrub { start, held, moved }));
                 }
-                Drag::Art if on_canvas(ui, resp, p) => {
+                // Without a pointer it is over a floating panel's own OS window (`drag_art_out`).
+                Drag::Art if pointer.has_pointer() && on_canvas(ui, resp, p) => {
                     // Back on the canvas: the move goes on from where it left, with the pointer.
                     egui::DragAndDrop::clear_payload(ui.ctx());
                     let ev =
@@ -1694,10 +1695,15 @@ fn drop_press(app: &mut VectorcraftApp, ui: &Ui, view: vectorcraft_engine::ViewI
 /// canvas, and a panel it is released on takes it (the Graphic Styles panel makes a style of it).
 /// Back on the canvas, [`Drag::Art`] takes the move up again where the pointer is (#2826).
 fn drag_art_out(app: &VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos2) -> bool {
-    let off = !on_canvas(ui, resp, p);
-    let Some(st) = app.session.active().filter(|_| off && app.session.tool_id() == "selection") else { return false };
+    let Some(st) = app.session.active().filter(|_| app.session.tool_id() == "selection") else { return false };
     // The Selection tool's interaction while it moves (or Alt-copies) the selection.
     if !st.interaction.as_ref().is_some_and(|i| i.label == "Move" || i.label == "Copy") {
+        return false;
+    }
+    // A floating panel in an OS window of its own takes the art too: craft-ui hands that window
+    // the pointer while it is over it, and this window sees the pointer go.
+    craft_ui::docking::route_app_drag(ui.ctx(), crate::panel_docking::area_id());
+    if on_canvas(ui, resp, p) && ui.input(|i| i.pointer.has_pointer()) {
         return false;
     }
     let ids = st.selection.objects.clone();
@@ -1732,11 +1738,28 @@ pub(crate) fn release_over_panel(app: &mut VectorcraftApp, ctx: &egui::Context) 
         // The canvas's release finishes the move.
         return;
     }
+    end_art_move(app, ctx);
+}
+
+/// A release in a floating panel's own OS window, during an art drag from the canvas: the move
+/// ends before that panel takes the art. The main window would only see it on its next pass.
+pub(crate) fn release_art_in_window(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    let art = matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art));
+    if art && ctx.input(|i| i.pointer.primary_released()) {
+        end_art_move(app, ctx);
+    }
+}
+
+/// Roll back the art move dragged off the canvas; a panel takes the art instead.
+fn end_art_move(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // With no document open there is nothing to roll back; the tool still gets its mouse-up.
     let _ = app.session.cancel_interaction();
     let view = app.view_info();
     dispatch(app, &PointerEvent { kind: PointerKind::Up, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
-    ctx.data_mut(|d| d.remove::<Drag>(drag_id()));
+    ctx.data_mut(|d| {
+        d.remove::<Drag>(drag_id());
+        d.remove::<bool>(drag_id().with("art-gone"));
+    });
 }
 
 /// Send a pointer event to the active tool and act on UI requests (dialogs, tool switches).

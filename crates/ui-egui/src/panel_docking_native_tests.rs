@@ -1,5 +1,7 @@
 //! Floating panels in OS windows of their own: the whole app's frames, with a stand-in for the
 //! window system that runs each native window's frame with its own input.
+// Clippy's test exemption doesn't cover a `cfg(all(test, …))` module's helpers.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -207,7 +209,9 @@ fn a_floated_panel_opens_its_own_os_window_where_the_backend_has_viewports() {
         });
         full.textures_delta.clear();
     }
-    let tab = craft_ui::docking::DockArea::<String>::hit_rects(&ctx, area_id()).into_iter().any(|(hit, _)| hit == craft_ui::docking::Hit::Tab("swatches".into()));
+    let tab = craft_ui::docking::DockArea::<String>::hit_rects(&ctx, area_id())
+        .into_iter()
+        .any(|(hit, _)| hit == craft_ui::docking::Hit::Tab("swatches".into()));
     assert!(tab, "its tab is drawn in the app window");
 }
 
@@ -242,7 +246,8 @@ fn a_modal_blocks_native_windows_and_takes_the_keyboard_from_them() {
     let viewport = h.float("swatches");
     h.app.ui.about = true;
     h.frames(6);
-    let focus_commands = |h: &Harness| h.host.borrow().commands.iter().filter(|(id, c)| *id == ViewportId::ROOT && *c == ViewportCommand::Focus).count();
+    let focus_commands =
+        |h: &Harness| h.host.borrow().commands.iter().filter(|(id, c)| *id == ViewportId::ROOT && *c == ViewportCommand::Focus).count();
     assert_eq!(focus_commands(&h), 1, "the main window gets the keyboard");
     h.key_in(viewport, Key::P);
     assert_eq!(h.app.session.tool_id(), "selection", "a key typed in the blocked window does nothing");
@@ -267,3 +272,36 @@ fn a_file_dropped_on_a_native_window_opens() {
     assert_eq!(h.app.session.documents().len(), documents + 1, "the SVG opens as a document");
 }
 
+fn button(pos: Pos2, pressed: bool) -> Event {
+    Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() }
+}
+
+/// Art dragged off the canvas onto a panel in an OS window of its own, which lies over the
+/// canvas: that panel takes it, and the art stays where it was.
+#[test]
+fn art_dragged_from_the_canvas_onto_a_native_panel_window_drops_there() {
+    let mut h = Harness::new();
+    let id = h.app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap();
+    let id = vectorcraft_doc::NodeId(id);
+    let viewport = h.float("graphicStyles");
+    h.host.borrow_mut().focus = ViewportId::ROOT;
+    h.frames(2);
+    let styles = h.app.session.active().unwrap().doc.graphic_styles.len();
+    let art = |h: &Harness| format!("{:?}", h.app.session.active().unwrap().doc.node(id).map(|n| &n.kind));
+    let before = art(&h);
+    let xf = crate::canvas::Xf::new(h.app.canvas_rect.unwrap(), h.app.view().unwrap());
+    let from = xf.to_screen(vectorcraft_geom::Point::new(35.0, 30.0));
+    let window = h.host.borrow().windows.get(&viewport).map(|w| w.rect).unwrap();
+    let to = window.min + vec2(60.0, 120.0) - ORIGIN.to_vec2();
+    assert!(h.app.canvas_rect.unwrap().contains(to), "the window lies over the canvas");
+    h.frame(vec![Event::PointerMoved(from), button(from, true)]);
+    for k in 1..=8 {
+        h.frame(vec![Event::PointerMoved(from + (to - from) * (k as f32 / 8.0))]);
+    }
+    h.frame(vec![Event::PointerMoved(to), button(to, false)]);
+    h.frames(4);
+    let st = h.app.session.active().unwrap();
+    assert_eq!(st.doc.graphic_styles.len(), styles + 1, "the art became a graphic style");
+    assert!(st.interaction.is_none(), "no move is left open");
+    assert_eq!(art(&h), before, "the art stays where it was");
+}

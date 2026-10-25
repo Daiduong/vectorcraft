@@ -385,7 +385,8 @@ panel shows its tab (expanding its group). `ui.floating_panels` in `ui.inspect` 
 index of the tab shown, the top-left corner, `column`: the set it is stacked in, top to bottom in list order,
 `collapsed`, and `docked`: the dock column it stands in) and `ui.toolbar_pos` the Tools panel's corner (null: docked); both are saved with the
 preferences and in user workspaces (the built-in workspaces dock everything), and a corner saved on a bigger window
-is clamped into this one when drawn. Floating panels stay inside the app window (no separate OS windows).
+is clamped into this one when drawn. On the desktop a floating group opens in an OS window of its own; on the web
+and on Wayland it floats inside the app window.
 
 Flatten Transparency: `ui.flattenTransparencyDialog` opens the `flattenTransparency` dialog for the selection
 (fields `preset`: a preset name, setting it loads that preset's options; the option keys of
@@ -859,8 +860,12 @@ distortions or mesh rows and columns, Reset, Envelope Options); each runs an `ob
 ## Shared panel docking
 
 Panel arrangements support tab grouping and reordering, horizontal and vertical splits,
-and movable, resizable floating groups inside the application window. Drag a panel tab,
-or use its context menu. Floating groups remain within the application viewport.
+and movable, resizable floating groups. Drag a panel tab, or use its context menu.
+On the desktop each floating group opens in an OS window of its own; on the web and on
+Wayland floating groups stay inside the application window. Synthetic `ui.pointer` and
+`ui.click` input reaches the main window only. A floating group in its own OS window keeps
+its place in the layout's `floating[].native` (desktop `[x, y, width, height]`); `rect` is
+its place inside the main window, used when it floats there.
 
 The shared layout begins with the existing workspace on the first docking operation.
 Workspace saves retain its groups, active tabs, split sizes, floating geometry, and the
