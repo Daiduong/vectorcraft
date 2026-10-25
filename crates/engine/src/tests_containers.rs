@@ -457,3 +457,21 @@ fn a_block_move_keeps_the_active_row_on_the_first_objects_stack() {
     assert_eq!(s.appearance_item(), Some(1), "the active row is A's moved fill");
     assert_eq!(r["index"], 1, "where it landed on the first target, whose stack the panel lists");
 }
+
+/// An Alt-drop (`appearance.duplicateItem` with `to`) on several objects with stacks of different
+/// lengths places the copies at a different index on each: the active row shifts by where they
+/// landed on its own object (the first selected one), not on the first target processed.
+#[test]
+fn a_block_copy_shifts_the_active_row_by_its_own_objects_landing() {
+    let mut s = session();
+    let a = id_of(&run(&mut s, "shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})));
+    let b = id_of(&run(&mut s, "shape.rectangle", json!({"x": 20, "y": 0, "width": 10, "height": 10})));
+    run(&mut s, "appearance.addFill", json!({"ids": [b.0]}));
+    run(&mut s, "appearance.addStroke", json!({"ids": [b.0]}));
+    // B first: the active row is in B's stack [F, S, F, S].
+    run(&mut s, "select.set", json!({"ids": [b.0, a.0]}));
+    run(&mut s, "appearance.setActiveItem", json!({"index": 2}));
+    // The copies land at 3 on B (above its active fill) and at 2 on A, its top.
+    run(&mut s, "appearance.duplicateItem", json!({"indices": [0], "to": 3}));
+    assert_eq!(s.appearance_item(), Some(2), "the copy landed above B's active fill: it stays at 2");
+}

@@ -652,8 +652,12 @@ fn duplicate_item(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(C, "`contents` goes with `to`"));
     }
     let ids = require_targets(s, p, C)?;
-    // Where the first object's copy landed (the active item lives in the first object's stack).
+    // Where the first target's copy landed, and where it landed on the active row's object (the
+    // first selected one, not always the first target): copies placed at `to` land at a different
+    // index on stacks of other lengths.
     let mut first_at = None;
+    let active = s.active_appearance_item.as_ref().and_then(|a| a.objects.first().copied());
+    let mut active_at = None;
     s.edit("Duplicate Item", |d, _| {
         let mut any = false;
         for id in &ids {
@@ -668,6 +672,9 @@ fn duplicate_item(s: &mut Session, p: &Value) -> Result<Value> {
                 let copies: Vec<_> = idx.iter().filter_map(|&i| ap.items.get(i).cloned()).collect();
                 let at = t.min(ap.items.len());
                 first_at.get_or_insert(at);
+                if active == Some(*id) {
+                    active_at = Some(at);
+                }
                 for (k, item) in copies.into_iter().enumerate() {
                     ap.insert_item(at + k, item);
                 }
@@ -690,9 +697,10 @@ fn duplicate_item(s: &mut Session, p: &Value) -> Result<Value> {
     })?;
     // Rows at or above each copy move up by one (by the block, for copies placed at `to`).
     let m = idx.len();
+    let landed = active_at.or(first_at);
     s.remap_appearance_item(&ids, |a| {
         Some(match to {
-            Some(_) => a + if first_at.is_some_and(|at| at <= a) { m } else { 0 },
+            Some(_) => a + if landed.is_some_and(|at| at <= a) { m } else { 0 },
             None => a + idx.iter().filter(|i| **i < a).count(),
         })
     });
