@@ -371,7 +371,7 @@ pub(crate) fn shape_range(
         let small_caps = st.small_caps.is_some() && !st.all_caps;
         // Split into segments by font coverage (and case, for Small Caps).
         let mut seg = Segment { range: a..a, runs, source_runs, st, face: primary.clone(), small: false, level: level_at(a) };
-        let mut cache: Vec<(char, Arc<FontFace>)> = Vec::new();
+        let mut cache: std::collections::HashMap<char, Arc<FontFace>> = std::collections::HashMap::new();
         let mut script = Script::Common;
         for (i, c) in text[a..b].char_indices() {
             let i = a + i;
@@ -384,11 +384,11 @@ pub(crate) fn shape_range(
             let covered = c.is_control() || pmap.as_ref().is_none_or(|m| m.map(c).is_some());
             let face = if covered {
                 primary.clone()
-            } else if let Some((_, f)) = cache.iter().find(|(k, _)| *k == c) {
+            } else if let Some(f) = cache.get(&c) {
                 f.clone()
             } else {
                 let f = db.fallback_for_style(c, primary.id(), primary.weight, primary.italic).unwrap_or_else(|| primary.clone());
-                cache.push((c, f.clone()));
+                cache.insert(c, f.clone());
                 f
             };
             let small = small_caps && c.is_lowercase();
@@ -433,9 +433,10 @@ fn source_run_at(runs: &[(Range<usize>, &CharStyle)], span: &Range<usize>, byte:
 
 /// Do text runs in styles `a` and `b` shape alike, so that they are shaped as one piece of text?
 /// They do when they differ only in paint and stroke, underline and strikethrough, overprint, the
-/// character style's name, leading, baseline shift, rotation, Character Alignment, the kerning
-/// (each glyph takes its run's, see [`shape_segment`]) and the tracking, as long as the tracking
-/// keeps or drops standard ligatures alike ([`crate::features::ligatures_suppressed_by`]).
+/// character style's name, leading, baseline shift, rotation, Character Alignment, Character
+/// Direction (text is shaped apart where its bidi level changes), the kerning (each glyph takes its
+/// run's, see [`shape_segment`]) and the tracking, as long as the tracking keeps or drops standard
+/// ligatures alike ([`crate::features::ligatures_suppressed_by`]).
 fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
     // Every field is named, so that a new attribute has to be sorted into one group or the other.
     let CharStyle {
@@ -469,6 +470,7 @@ fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
         position,
         small_caps,
         char_align: _,
+        char_direction: _,
         proportional_metrics,
         tate_chu_yoko,
         digits,

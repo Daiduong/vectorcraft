@@ -301,8 +301,8 @@ fn choices(effect: &str, key: &str) -> Option<form::Choices> {
         ("sketch.halftonePattern", "patternType") => Some(&vectorcraft_effects::pixel::HALFTONE_TYPES),
         ("sketch.plaster", "lightDirection") => Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS),
         ("texture.grain", "grainType") => Some(&vectorcraft_effects::pixel::GRAIN_TYPES),
-        ("texture.texturizer" | "artistic.underpainting", "texture") => Some(&vectorcraft_effects::pixel::TEXTURES),
-        ("sketch.basRelief" | "texture.texturizer" | "artistic.underpainting", "lightDirection") => {
+        ("texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "texture") => Some(&vectorcraft_effects::pixel::TEXTURES),
+        ("sketch.basRelief" | "texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "lightDirection") => {
             Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS)
         }
         ("video.deinterlace", "eliminate") => Some(&[("Odd Fields", "odd"), ("Even Fields", "even")]),
@@ -477,8 +477,9 @@ fn values_changed(d: &mut Dialog) -> bool {
 const TRANSFORM: &str = "distort.transform";
 
 /// The Transform effect's dialog: Transform Each's Scale and Move sliders and Rotate dial, then
-/// Copies, the reflections, the reference point and Random. Returns whether the values differ from
-/// those last previewed.
+/// the options Transform Objects, Transform Patterns and Scale Strokes & Effects (#885), Copies,
+/// the reflections, the reference point and Random. Returns whether the values differ from those
+/// last previewed.
 fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| transform_each::sections(ui, d, unit));
@@ -486,6 +487,9 @@ fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Un
         ui.vertical(|ui| {
             widgets::subheader(ui, tl!("Options"));
             ui.add_space(4.0);
+            form::check(ui, d, "objects", tl!("Transform Objects"));
+            form::check(ui, d, "patterns", tl!("Transform Patterns"));
+            form::check(ui, d, "strokes", tl!("Scale Strokes & Effects"));
             ui.horizontal(|ui| {
                 widgets::dim_label(ui, tl!("Copies:"));
                 if let Some(n) = widgets::range_field(ui, "fx-copies", d.f64("copies", 0.0), 0.0..=1000.0, "", 0, 50.0) {
@@ -607,7 +611,7 @@ fn curve_graph(ui: &mut egui::Ui, d: &mut Dialog) {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(SIZE, SIZE), egui::Sense::click_and_drag());
     let screen = |(x, y): (f32, f32)| egui::pos2(rect.left() + x * SIZE, rect.bottom() - y * SIZE);
     let unit = |p: egui::Pos2| (((p.x - rect.left()) / SIZE).clamp(0.0, 1.0), ((rect.bottom() - p.y) / SIZE).clamp(0.0, 1.0));
-    let held = ui.id().with("curve-point");
+    let held = ui.scope_id().with("curve-point");
     let mut grabbed: Option<usize> = ui.data(|m| m.get_temp(held)).flatten();
     let mut changed = false;
     if let Some(p) = resp.interact_pointer_pos()

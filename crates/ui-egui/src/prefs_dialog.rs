@@ -125,7 +125,7 @@ pub fn apply_runtime(app: &mut VectorcraftApp, ctx: &egui::Context) {
         scrub: p.scrub_numeric_fields,
         bare_points: p.numbers_without_units_are_points,
     };
-    let id = egui::Id::new("dc-applied-prefs");
+    let id = egui::Id::unique("dc-applied-prefs");
     let prev: Option<Applied> = ctx.data(|d| d.get_temp::<Option<Applied>>(id)).flatten();
     if prev != Some(want) {
         theme::apply_with(ctx, want.brightness, want.accent, want.scheme);
@@ -166,7 +166,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let (mut ok, mut cancel, mut reset) = (false, false, false);
     let cat = d.str("__category");
     let cat = PREF_CATEGORIES.iter().find(|c| **c == cat).copied().unwrap_or(PREF_CATEGORIES[0]);
-    crate::dialogs::modal::show(ctx, tl!("Preferences"), egui::Id::new("dialog-preferences"), -20.0, 20, |ui| {
+    crate::dialogs::modal::show(ctx, tl!("Preferences"), egui::Id::unique("dialog-preferences"), -20.0, 20, |ui| {
         ui.set_width(760.0);
         crate::dialogs::modal::heading(ui, tl!("Preferences"));
         ui.add_space(12.0);
@@ -422,6 +422,20 @@ mod tests {
     use super::*;
     use crate::Services;
     use vectorcraft_engine::Session;
+
+    #[test]
+    fn geometric_snapping_is_a_saved_smart_guides_preference() {
+        let mut a = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        open(&mut a, Some("Smart Guides"));
+        let text = crate::tests_labels::painted_text(&mut a, |a, ui| show(a, ui.ctx()));
+        assert!(text.contains("Geometric Guides") && text.contains("Snap to Perpendicular") && text.contains("Snap to Tangent"), "{text}");
+        a.ui.dialog.as_mut().unwrap().fields.insert("snapPerpendicular".into(), json!(false));
+        confirm(&mut a).unwrap();
+        assert!(!a.session.prefs.snap_perpendicular && a.session.prefs.snap_tangent);
+        let saved: Prefs = serde_json::from_value(a.ui.engine_prefs.clone()).unwrap();
+        assert!(!saved.snap_perpendicular && saved.snap_tangent);
+        assert!(a.run("view.snapping", json!({})).is_err());
+    }
 
     /// A resting checkbox must have a visible outline in both states and every brightness.
     #[test]

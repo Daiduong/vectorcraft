@@ -68,6 +68,23 @@ fn horizontal_ruby_sits_above_the_base_and_grows_the_line() {
     assert!(above.y1 <= below.y0 - 1.0, "a gap between ruby and base ink: {} vs {}", above.y1, below.y0);
 }
 
+/// Bullets: a reading over a list paragraph's first characters is centered over those characters,
+/// not over the bullet and the gap before them.
+#[test]
+fn ruby_over_a_list_item_leaves_out_its_bullet() {
+    use vectorcraft_doc::text::{Bullet, ParaList};
+    let mut t = ruby_text("漢字", 6, "かんじ", 20.0);
+    t.para.list = Some(ParaList::bulleted(Bullet::Dot));
+    t.para.left_indent = 18.0;
+    t.para.first_line_indent = -18.0;
+    let lay = layout(db(), &t);
+    assert_eq!(lay.markers.len(), 1);
+    let above = ruby_ink(&lay);
+    let base = union_rect(lay.glyphs.iter().filter(|g| g.len > 0)).expect("base ink");
+    let (centre, base_centre) = ((above.x0 + above.x1) * 0.5, (base.x0 + base.x1) * 0.5);
+    assert!((centre - base_centre).abs() < 1.0, "{centre} vs {base_centre}");
+}
+
 #[test]
 fn ruby_below_grows_the_descent() {
     let mut t = ruby_text("漢字", 6, "かんじ", 20.0);
@@ -142,12 +159,18 @@ fn vertical_ruby_is_upright_to_the_right_of_the_column() {
     let ruby = ruby_ink(&lay);
     assert!(ruby.x0 > base.x0, "ruby right of the column: {ruby:?} vs {base:?}");
     assert!(ruby.x0 >= base.x1 - 1.0, "ruby outside the column: {ruby:?} vs {base:?}");
-    // Upright kana are taller than wide (they would be lying on their side if not).
+    // Upright: each reading glyph's ink has the width and height of its outline at 10 pt (half the
+    // base size); a glyph on its side has them swapped.
+    let mut not_square = false;
     for g in &lay.ruby {
-        if let Some(b) = ink(g) {
-            assert!(b.width() <= b.height() + 1.0, "upright ruby glyph {b:?}");
-        }
+        let Some(r) = ink(g) else { continue };
+        let face = db().face_by_id(g.font_id).expect("the ruby glyph's face");
+        let o = db().outline(&face, g.gid).bounding_box();
+        let (w, h) = (o.width() * 10.0 / face.units_per_em(), o.height() * 10.0 / face.units_per_em());
+        assert!((r.width() - w).abs() < 0.01 && (r.height() - h).abs() < 0.01, "upright ruby glyph {r:?}, its outline {w} x {h}");
+        not_square |= (w - h).abs() > 0.5;
     }
+    assert!(not_square, "one reading glyph's outline is not square");
     // Down the column: the reading's glyphs have distinct y positions.
     let ys: Vec<f64> = lay.ruby.iter().filter_map(|g| ink(g).map(|b| b.center().y)).collect();
     assert!(ys.windows(2).any(|w| w[0] != w[1]), "the reading runs down the column: {ys:?}");

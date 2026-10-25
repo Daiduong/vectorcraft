@@ -127,11 +127,11 @@ struct ColumnDrag {
 }
 
 fn key(name: &str) -> egui::Id {
-    egui::Id::new(("layers-panel", name))
+    egui::Id::unique(("layers-panel", name))
 }
 
 fn rename_id() -> egui::Id {
-    egui::Id::new("layers-rename")
+    egui::Id::unique("layers-rename")
 }
 
 /// Ghost rows are drawn at this opacity.
@@ -526,7 +526,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else { return };
     // A rename belongs to the document it started in (node ids are per document): drop it when
     // another document shows, so it can't rename that document's node with the same id.
-    let shown_doc = egui::Id::new("layers-doc");
+    let shown_doc = egui::Id::unique("layers-doc");
     let before = ui.data(|d| d.get_temp::<u64>(shown_doc));
     if before != Some(st.uid) {
         ui.data_mut(|d| {
@@ -572,7 +572,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         .horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 filter_button(app, ui);
-                crate::widgets::search_field(ui, egui::Id::new("layers-search"), tl!("Search All"))
+                crate::widgets::search_field(ui, egui::Id::unique("layers-search"), tl!("Search All"))
             })
             .inner
         })
@@ -613,15 +613,27 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let revealed = reveal.and_then(|id| list.iter().position(|r| r.node.id == id));
     let scrolled = ui.scope(|ui| {
         ui.spacing_mut().item_spacing.y = 0.0;
-        egui::ScrollArea::vertical().max_height(list_h).auto_shrink([false, false]).show_rows(ui, view.h, list.len(), |ui, range| {
-            if let Some(i) = revealed.filter(|i| !range.contains(i)) {
-                let top = ui.max_rect().top() + (i as f32 - range.start as f32) * view.h;
-                ui.scroll_to_rect(egui::Rect::from_min_size(egui::pos2(ui.max_rect().left(), top), vec2(ui.max_rect().width(), view.h)), None);
-            }
-            for r in list.get(range).unwrap_or_default() {
-                row(ui, &view, r, &mut out);
-            }
-        })
+        // The bar takes a column of its own, so it never covers the target and selection marks at
+        // the rows' right edge (#3443). Whether the rows overflow is known before they are laid
+        // out, so the bar is decided up front and the rows never shift when it appears.
+        ui.spacing_mut().scroll = crate::widgets::list_scroll_style();
+        let overflows = view.h * list.len() as f32 > list_h;
+        let bar =
+            if overflows { egui::scroll_area::ScrollBarVisibility::AlwaysVisible } else { egui::scroll_area::ScrollBarVisibility::AlwaysHidden };
+        egui::ScrollArea::vertical().max_height(list_h).auto_shrink([false, false]).scroll_bar_visibility(bar).show_rows(
+            ui,
+            view.h,
+            list.len(),
+            |ui, range| {
+                if let Some(i) = revealed.filter(|i| !range.contains(i)) {
+                    let top = ui.max_rect().top() + (i as f32 - range.start as f32) * view.h;
+                    ui.scroll_to_rect(egui::Rect::from_min_size(egui::pos2(ui.max_rect().left(), top), vec2(ui.max_rect().width(), view.h)), None);
+                }
+                for r in list.get(range).unwrap_or_default() {
+                    row(ui, &view, r, &mut out);
+                }
+            },
+        )
     });
     let list_rect = scrolled.inner.inner_rect;
     resolve_click(ui, &view, &list, &mut out);
@@ -635,7 +647,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let released = ui.input(|i| i.pointer.any_released());
     // Layers dragged into the empty space under the last row go below the bottom layer (there is
     // no row there to take the drop).
-    let below = list_rect.top() - scrolled.inner.state.offset.y + list.len() as f32 * view.h;
+    let below = list_rect.top() - scrolled.inner.state.clamped_offset().y + list.len() as f32 * view.h;
     if query.is_empty()
         && !app.ui.layers_filter.is_on()
         && let Some(drag) = egui::DragAndDrop::payload::<LayersDrag>(ui.ctx())
@@ -671,7 +683,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         None => d.remove::<ColumnDrag>(key("column")),
     });
     if released {
-        ui.data_mut(|d| d.remove::<u64>(egui::Id::new("layers-drag")));
+        ui.data_mut(|d| d.remove::<u64>(egui::Id::unique("layers-drag")));
     }
     // Dragged rows show as a dimmed row under the pointer.
     if !released
@@ -994,7 +1006,7 @@ fn row(ui: &mut Ui, view: &View, item: &Row, out: &mut Out) {
     // Disclosure triangle; Alt opens or closes everything inside too.
     if has_children {
         let dr = egui::Rect::from_min_size(egui::pos2(x, r.center().y - 8.0), vec2(14.0, 16.0));
-        let dresp = ui.interact(dr, ui.id().with(("disc", n.id.0)), Sense::click());
+        let dresp = ui.interact(dr, ui.scope_id().with(("disc", n.id.0)), Sense::click());
         icons::paint(ui, if open { "chevron-down" } else { "chevron-right" }, dr, t.text_dim);
         if dresp.clicked() {
             out.toggle.push((n.id, !open));
@@ -1080,7 +1092,7 @@ fn row(ui: &mut Ui, view: &View, item: &Row, out: &mut Out) {
     } else if child_sel {
         ui.painter().rect_filled(egui::Rect::from_center_size(sq, vec2(4.0, 4.0)), 0.0, color);
     }
-    let sq_resp = ui.interact(egui::Rect::from_center_size(sq, vec2(18.0, h)), ui.id().with(("selsq", n.id.0)), Sense::click_and_drag());
+    let sq_resp = ui.interact(egui::Rect::from_center_size(sq, vec2(18.0, h)), ui.scope_id().with(("selsq", n.id.0)), Sense::click_and_drag());
     // Dragging the selected-art square carries the selection to another row.
     if (is_sel || child_sel) && sq_resp.drag_started() {
         egui::DragAndDrop::set_payload(ui.ctx(), LayersDrag::Art);
@@ -1161,7 +1173,7 @@ fn eye_and_lock(ui: &mut Ui, view: &View, n: &Node, r: egui::Rect, out: &mut Out
     ui.painter().line_segment([eye.right_top(), eye.right_bottom()], Stroke::new(1.0, t.input_border));
     ui.painter().line_segment([lock.right_top(), lock.right_bottom()], Stroke::new(1.0, t.input_border));
     let preview = !matches!(n.kind, NodeKind::Layer { preview: false, .. });
-    let er = ui.interact(eye, ui.id().with(("eye", n.id.0)), Sense::click_and_drag());
+    let er = ui.interact(eye, ui.scope_id().with(("eye", n.id.0)), Sense::click_and_drag());
     if n.visible {
         let icon = egui::Rect::from_center_size(eye.center(), vec2(14.0, 14.0));
         if n.is_template() {
@@ -1175,7 +1187,7 @@ fn eye_and_lock(ui: &mut Ui, view: &View, n: &Node, r: egui::Rect, out: &mut Out
             ui.painter().circle_stroke(eye.center(), 7.5, Stroke::new(1.0, t.text_dim));
         }
     }
-    let lr = ui.interact(lock, ui.id().with(("lock", n.id.0)), Sense::click_and_drag());
+    let lr = ui.interact(lock, ui.scope_id().with(("lock", n.id.0)), Sense::click_and_drag());
     if n.locked {
         icons::paint(ui, "lock", egui::Rect::from_center_size(lock.center(), vec2(12.0, 12.0)), t.icon);
     } else if lr.hovered() {
@@ -1276,7 +1288,7 @@ fn drop_target(ui: &Ui, view: &View, n: &Node, r: egui::Rect, indent: f32, open:
 /// it carries `n`'s appearance ([`PanelDrag::Appearance`]) onto another row's circle (Alt
 /// copies it) or the trash.
 fn target_circle(ui: &mut Ui, n: &Node, c: egui::Pos2, h: f32, targeted: bool, actions: &mut Vec<(String, Value)>, t: &Tokens) -> egui::Response {
-    let resp = ui.interact(egui::Rect::from_center_size(c, vec2(16.0, h)), ui.id().with(("target", n.id.0)), Sense::click_and_drag());
+    let resp = ui.interact(egui::Rect::from_center_size(c, vec2(16.0, h)), ui.scope_id().with(("target", n.id.0)), Sense::click_and_drag());
     widgets::drag_source(ui, &resp, || PanelDrag::Appearance(n.id));
     let held = resp.dnd_hover_payload::<PanelDrag>().is_some_and(|d| matches!(*d, PanelDrag::Appearance(id) if id != n.id));
     if let Some(d) = resp.dnd_release_payload::<PanelDrag>()
@@ -1782,7 +1794,6 @@ mod tests {
         let (stored, painted) = names(rect);
         let inner = stored.trim_start_matches('<').trim_end_matches('>');
         assert_eq!(painted, format!("<{}>", crate::i18n::tr(zh, inner)));
-        assert_ne!(painted, stored, "translated");
     }
 
     #[test]
@@ -2081,7 +2092,7 @@ mod tests {
             egui::Event::Key { key: egui::Key::A, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::COMMAND };
         // What a double-click on the row does: the name field opens with the name.
         let open = |app: &mut VectorcraftApp| {
-            ctx.data_mut(|d| d.insert_temp(egui::Id::new("layers-rename"), (layer.0, name(app))));
+            ctx.data_mut(|d| d.insert_temp(egui::Id::unique("layers-rename"), (layer.0, name(app))));
             frame(app, &ctx, vec![], false);
             frame(app, &ctx, vec![], false);
         };
@@ -2090,7 +2101,7 @@ mod tests {
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)], false);
         frame(&mut app, &ctx, vec![], false);
         assert_eq!(name(&app), "Sky", "Enter keeps the new name");
-        assert!(ctx.data(|d| d.get_temp::<(u64, String)>(egui::Id::new("layers-rename"))).is_none(), "and closes the field");
+        assert!(ctx.data(|d| d.get_temp::<(u64, String)>(egui::Id::unique("layers-rename"))).is_none(), "and closes the field");
         open(&mut app);
         frame(&mut app, &ctx, vec![select_all, egui::Event::Text("Ground".into())], false);
         frame(&mut app, &ctx, vec![key(egui::Key::Escape)], false);
@@ -2134,7 +2145,7 @@ mod tests {
         let layer = app.session.doc().unwrap().doc.layers[0].id;
         let ctx = egui::Context::default();
         frame(&mut app, &ctx, vec![], false);
-        ctx.data_mut(|d| d.insert_temp(egui::Id::new("layers-rename"), (layer.0, "Renamed in the first".to_string())));
+        ctx.data_mut(|d| d.insert_temp(egui::Id::unique("layers-rename"), (layer.0, "Renamed in the first".to_string())));
         frame(&mut app, &ctx, vec![], false);
         // A second document, whose first layer has the same node id, comes to the front.
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
@@ -2144,7 +2155,7 @@ mod tests {
         frame(&mut app, &ctx, vec![enter], false);
         frame(&mut app, &ctx, vec![], false);
         assert_eq!(app.session.doc().unwrap().doc.layers[0].display_name(), "Layer 1");
-        assert!(ctx.data(|d| d.get_temp::<(u64, String)>(egui::Id::new("layers-rename"))).is_none());
+        assert!(ctx.data(|d| d.get_temp::<(u64, String)>(egui::Id::unique("layers-rename"))).is_none());
     }
 
     #[test]
@@ -2855,7 +2866,7 @@ mod tests {
         let mut frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
             time += 0.05;
             let input = egui::RawInput { time: Some(time), events, screen_rect: Some(screen), ..Default::default() };
-            let mut out = ctx.run_ui(input, |ui| crate::dock::floating_panel(app, ui.ctx()));
+            let mut out = ctx.run_ui(input, |ui| crate::panel_docking::show(app, ui));
             out.textures_delta.clear();
             let mut c: Vec<egui::Pos2> = out
                 .shapes

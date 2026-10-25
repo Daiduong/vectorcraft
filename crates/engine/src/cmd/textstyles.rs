@@ -155,6 +155,7 @@ pub fn char_attrs(v: &CharStyle) -> Map<String, Value> {
         ("position", json!(v.position)),
         ("small_caps", json!(v.small_caps)),
         ("charAlign", json!(v.char_align)),
+        ("charDirection", json!(v.char_direction)),
         ("proportionalMetrics", json!(v.proportional_metrics)),
         ("tateChuYoko", json!(v.tate_chu_yoko)),
         ("noBreak", json!(v.no_break)),
@@ -167,7 +168,7 @@ pub fn char_attrs(v: &CharStyle) -> Map<String, Value> {
 
 /// Every paragraph attribute of `v` as a JSON map, without the style name: those the paragraph's
 /// JSON leaves out at their defaults (the Hyphenation and Justification options, the Every-line Composer, no tab
-/// stops, Auto direction…) are written out, as [`char_attrs`] does for characters.
+/// stops, no list, Auto direction…) are written out, as [`char_attrs`] does for characters.
 pub fn para_attrs(v: &ParaStyle) -> Map<String, Value> {
     let mut m = to_attrs(v);
     for (k, x) in [
@@ -175,6 +176,7 @@ pub fn para_attrs(v: &ParaStyle) -> Map<String, Value> {
         ("justification", json!(v.justification)),
         ("composer", json!(v.composer)),
         ("tabs", json!(v.tabs)),
+        ("list", json!(v.list)),
         ("mojikumi", json!(v.mojikumi)),
         ("direction", json!(v.direction)),
         ("leading_model", json!(v.leading_model)),
@@ -909,6 +911,7 @@ mod tests {
     /// resets the type that uses it.
     #[test]
     fn variable_font_settings_are_captured_explicitly() {
+        let _fonts = crate::adding_fonts();
         use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
         vectorcraft_text::FontDb::global().add_font(two_axis_font().unwrap());
         let (mut s, source) = session_with_text("Source");
@@ -932,6 +935,7 @@ mod tests {
     /// version and Variable Font settings, unless the style sets them.
     #[test]
     fn another_font_from_a_style_clears_the_old_fonts_version_and_settings() {
+        let _fonts = crate::adding_fonts();
         use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
         vectorcraft_text::FontDb::global().add_font(two_axis_font().unwrap());
         let (mut s, id) = session_with_text("Source");
