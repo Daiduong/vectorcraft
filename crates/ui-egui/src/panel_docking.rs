@@ -136,7 +136,12 @@ fn default_from(tab: DockTab, order: &[DockTab], collapsed: bool, width: Option<
     let active = panels.iter().position(|p| p == tab.info().0).unwrap_or(0);
     let mut columns = Vec::new();
     if !panels.is_empty() {
-        columns.push(Column { groups: vec![Group::new(panels, active)], width: main_width(width), iconic: collapsed, iconic_width: Some(ICON_WIDTH) });
+        columns.push(Column {
+            groups: vec![Group::new(panels, active)],
+            width: main_width(width),
+            iconic: collapsed,
+            iconic_width: Some(ICON_WIDTH),
+        });
     }
     let groups: Vec<Group<String>> = ICON_PANEL_GROUPS.iter().filter_map(|g| placed.group(g)).collect();
     if !groups.is_empty() {
@@ -240,8 +245,7 @@ pub(crate) fn floats(ui: &UiState, panel: &str) -> bool {
 pub(crate) fn showing(ui: &UiState, panel: &str) -> bool {
     let layout = layout_of(ui);
     let iconic = in_iconic_column(&layout, panel);
-    (ui.open_panel.as_deref() == Some(panel) && iconic)
-        || (!iconic && layout.panel_state(&panel.to_string()) == craft_ui::docking::PanelState::Front)
+    (ui.open_panel.as_deref() == Some(panel) && iconic) || (!iconic && layout.panel_state(&panel.to_string()) == craft_ui::docking::PanelState::Front)
 }
 
 /// Where a panel with no other destination goes: a panel of the first expanded dock column,

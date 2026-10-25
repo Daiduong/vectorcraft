@@ -758,7 +758,6 @@
 	% of all commits	% kaikista commiteista
 	Lines +/−	Rivit +/−
 	Drag to move	Siirrä vetämällä
-	Drag to move out of the set	Siirrä joukosta vetämällä
 	Drag to float as a toolbar	Kelluta työkalurivinä vetämällä
 	Put back in the toolbar	Palauta työkaluriviin
 	Float Panel	Kelluta paneeli
@@ -3757,8 +3756,6 @@ effect	Regular	Normaali
 	Replace With Font	Korvaa fontilla
 	  — substituted by {style}	  — korvattu tyylillä {style}
 	  — {n} characters from another font	  — {n} merkkiä toisesta fontista
-	Drag to float the panel group	Irrota paneeliryhmä vetämällä
-	Put back in the dock	Palauta telakkaan
 	All Scripts	Kaikki kirjoitusjärjestelmät
 	Any Kind	Mikä tahansa laji
 	Font Technology	Fonttitekniikka

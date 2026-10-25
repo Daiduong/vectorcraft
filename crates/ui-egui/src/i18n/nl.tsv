@@ -721,7 +721,6 @@
 	% of all commits	% van alle commits
 	Lines +/−	Regels +/−
 	Drag to move	Slepen om te verplaatsen
-	Drag to move out of the set	Slepen om uit de set te halen
 	Drag to float as a toolbar	Slepen om als losse werkbalk te laten zweven
 	Put back in the toolbar	Terug in de werkbalk zetten
 	Float Panel	Paneel laten zweven
@@ -3592,8 +3591,6 @@ effect	Regular	Regelmatig
 	Replace With Font	Vervangen door lettertype
 	  — substituted by {style}	  — vervangen door {style}
 	  — {n} characters from another font	  — {n} tekens van een ander lettertype
-	Drag to float the panel group	Sleep om de paneelgroep te laten zweven
-	Put back in the dock	Terugzetten in het dock
 	All Scripts	Alle scripts
 	Any Kind	Elke soort
 	Font Technology	Lettertypetechnologie

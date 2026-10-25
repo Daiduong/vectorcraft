@@ -45,7 +45,6 @@ mod tests {
     use super::*;
     use crate::theme;
 
-
     /// The main column's width in the default layout.
     const DOCK_WIDTH: f32 = 310.0;
 

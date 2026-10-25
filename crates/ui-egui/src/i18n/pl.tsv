@@ -716,7 +716,6 @@
 	% of all commits	% wszystkich commitów
 	Lines +/−	Wiersze +/−
 	Drag to move	Przeciągnij, aby przesunąć
-	Drag to move out of the set	Przeciągnij, aby wyjąć z zestawu
 	Drag to float as a toolbar	Przeciągnij, aby oderwać jako pasek narzędzi
 	Put back in the toolbar	Odłóż z powrotem na pasek narzędzi
 	Float Panel	Odepnij panel
@@ -3672,8 +3671,6 @@ effect	Regular	Normalny
 	Replace With Font	Zastąp czcionką
 	  — substituted by {style}	  — zastąpiona przez {style}
 	  — {n} characters from another font	  — znaki z innej czcionki: {n}
-	Drag to float the panel group	Przeciągnij, aby odpiąć grupę paneli
-	Put back in the dock	Odłóż z powrotem do doku
 	All Scripts	Wszystkie skrypty
 	Any Kind	Dowolny rodzaj
 	Font Technology	Technologia czcionek

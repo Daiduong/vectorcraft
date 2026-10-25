@@ -3688,13 +3688,10 @@ axis	Horizontal	Хоризонтално
 axis	Vertical	Вертикално
 axis	Both	И двете
 	Drag to move	Плъзнете за преместване
-	Drag to move out of the set	Плъзнете, за да извадите от групата
 	Drag to float as a toolbar	Плъзнете, за да го направите плаваща лента с инструменти
 	Put back in the toolbar	Връщане в лентата с инструменти
 	Float Panel	Плаващ панел
 	Dock Panel	Закотвен панел
-	Drag to float the panel group	Плъзнете, за да направите групата от панели плаваща
-	Put back in the dock	Връщане в дока
 	Drag to float the toolbar	Плъзнете, за да направите лентата с инструменти плаваща
 	Drag to the window's left edge to dock	Плъзнете до левия ръб на прозореца за закотвяне
 	Float Tool Group	Плаваща група инструменти
