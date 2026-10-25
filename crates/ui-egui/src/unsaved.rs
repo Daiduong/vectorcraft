@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(confirm(&mut app).unwrap(), json!({ "pending": "save" }));
         assert_eq!(docs(&app), 2);
         busy.set(false);
-        io::save_settled(&mut app, path, false);
+        io::save_settled(&mut app, path, false, None);
         assert_eq!(docs(&app), 2);
         assert!(app.session.documents()[1].is_dirty());
         // The host saves it: then it closes.
@@ -259,7 +259,7 @@ mod tests {
         confirm(&mut app).unwrap();
         assert_eq!(docs(&app), 2);
         busy.set(false);
-        io::save_settled(&mut app, path, true);
+        io::save_settled(&mut app, path, true, None);
         assert_eq!(docs(&app), 1);
     }
 

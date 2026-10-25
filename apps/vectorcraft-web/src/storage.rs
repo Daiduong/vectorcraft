@@ -47,8 +47,9 @@ async fn call(method: &str, args: &[JsValue]) -> Result<JsValue, JsValue> {
     JsFuture::from(promise).await
 }
 
-/// A save the app counted done that the host still has to make: true once the file is stored.
-type Save = Pin<Box<dyn Future<Output = bool>>>;
+/// A save the app counted done that the host still has to make: whether the file was stored, and
+/// the host path the user chose for it in the host's Save dialog.
+type Save = Pin<Box<dyn Future<Output = (bool, Option<String>)>>>;
 
 thread_local! {
     /// Saves waiting for the host, made one at a time in the order the app asked, so a later
@@ -60,9 +61,10 @@ thread_local! {
     /// is on its way, which answers for the document itself.
     static LATEST: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
     static LAST_ID: Cell<u64> = const { Cell::new(0) };
-    /// Saves that finished since the web shell last looked: (name or host path, saved). One that
-    /// failed or that the user cancelled marks its document modified again ([`take_settled`]).
-    static SETTLED: RefCell<Vec<(String, bool)>> = const { RefCell::new(Vec::new()) };
+    /// Saves that finished since the web shell last looked: (name or host path, saved, the host
+    /// path chosen). One that failed or that the user cancelled marks its document modified again
+    /// ([`take_settled`]).
+    static SETTLED: RefCell<Vec<(String, bool, Option<String>)>> = const { RefCell::new(Vec::new()) };
 }
 
 fn in_flight() -> bool {
@@ -84,7 +86,7 @@ fn enqueue(name: String, save: Save, ctx: egui::Context) {
     SAVING.with(|s| s.set(true));
     wasm_bindgen_futures::spawn_local(async move {
         while let Some((id, name, save)) = QUEUE.with(|q| q.borrow_mut().pop_front()) {
-            let saved = save.await;
+            let (saved, host_path) = save.await;
             let latest = LATEST.with(|l| {
                 let mut l = l.borrow_mut();
                 let latest = l.get(&name) == Some(&id);
@@ -94,7 +96,7 @@ fn enqueue(name: String, save: Save, ctx: egui::Context) {
                 latest
             });
             // A failed save that a later one replaces leaves the document to that one.
-            SETTLED.with(|s| s.borrow_mut().push((name, saved || !latest)));
+            SETTLED.with(|s| s.borrow_mut().push((name, saved || !latest, host_path.filter(|_| saved))));
             ctx.request_repaint();
         }
         SAVING.with(|s| s.set(false));
@@ -103,7 +105,7 @@ fn enqueue(name: String, save: Save, ctx: egui::Context) {
 }
 
 /// The saves that finished since the last call, for [`vectorcraft_ui_egui::io::save_settled`].
-pub fn take_settled() -> Vec<(String, bool)> {
+pub fn take_settled() -> Vec<(String, bool, Option<String>)> {
     SETTLED.with(|s| std::mem::take(&mut *s.borrow_mut()))
 }
 
@@ -158,15 +160,18 @@ pub fn install(services: &mut Services, inbox: Inbox, ctx: egui::Context) {
                 let name = owned;
                 if is_host_path(&name) {
                     // File › Save of a document from the host: straight back to its path.
-                    write(&name, &bytes).await
+                    (write(&name, &bytes).await, None)
                 } else {
                     // Anything else the app would download (Save As, exports): ask where it goes.
                     match call("chooseSave", &[name.clone().into()]).await {
-                        Ok(c) if c.is_null() => false,
-                        Ok(c) if c.as_string().is_some_and(|p| is_host_path(&p)) => write(&c.as_string().unwrap_or_default(), &bytes).await,
-                        _ => (device_download.borrow_mut())(&name, &bytes)
-                            .inspect_err(|e| log::error!("vectorcraft-web: download of {name} failed: {e}"))
-                            .is_ok(),
+                        Ok(c) if c.is_null() => (false, None),
+                        Ok(c) if let Some(path) = c.as_string().filter(|p| is_host_path(p)) => (write(&path, &bytes).await, Some(path)),
+                        _ => {
+                            let downloaded = (device_download.borrow_mut())(&name, &bytes)
+                                .inspect_err(|e| log::error!("vectorcraft-web: download of {name} failed: {e}"))
+                                .is_ok();
+                            (downloaded, None)
+                        }
                     }
                 }
             });
