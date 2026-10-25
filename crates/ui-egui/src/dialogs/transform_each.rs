@@ -36,10 +36,7 @@ pub fn fields() -> Value {
 /// Are horizontal and vertical scale linked (`__uniform`)? When that key is absent, linked only if
 /// the two scale values already match.
 fn uniform(d: &Dialog) -> bool {
-    d.fields
-        .get("__uniform")
-        .and_then(Value::as_bool)
-        .unwrap_or_else(|| (d.f64("scaleH", 100.0) - d.f64("scaleV", 100.0)).abs() < 1e-9)
+    d.fields.get("__uniform").and_then(Value::as_bool).unwrap_or_else(|| (d.f64("scaleH", 100.0) - d.f64("scaleV", 100.0)).abs() < 1e-9)
 }
 
 fn scale_pair_key(key: &str) -> Option<(&'static str, &'static str)> {
@@ -53,7 +50,9 @@ fn scale_pair_key(key: &str) -> Option<(&'static str, &'static str)> {
 /// Set one scale field; while [`uniform`] is on, set the other to the same value.
 fn set_scale(d: &mut Dialog, key: &str, value: f64) {
     d.fields.insert(key.into(), json!(value));
-    if uniform(d) && let Some((_, other)) = scale_pair_key(key) {
+    if uniform(d)
+        && let Some((_, other)) = scale_pair_key(key)
+    {
         d.fields.insert(other.into(), json!(value));
     }
 }
@@ -64,7 +63,9 @@ fn mirror_scale_slider(d: &mut Dialog, key: &str, before: f64) {
         return;
     }
     let after = d.f64(key, 100.0);
-    if (after - before).abs() > 1e-9 && let Some((_, other)) = scale_pair_key(key) {
+    if (after - before).abs() > 1e-9
+        && let Some((_, other)) = scale_pair_key(key)
+    {
         d.fields.insert(other.into(), json!(after));
     }
 }
