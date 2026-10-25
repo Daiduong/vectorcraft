@@ -49,14 +49,23 @@ pub fn specs() -> Vec<CommandSpec> {
             "Expand Options",
             [],
             None,
-            "{} what each Expand option would change in the selection → {object, fill, stroke, gradient} (true: something to expand; gradient: a gradient fill that Fill expands, which Expand Gradient To applies to)",
+            "{} what each Expand option would change in the selection → {object, fill, stroke, gradient, appearance} (true: something to expand; gradient: a gradient fill that Fill expands, which Expand Gradient To applies to; appearance: appearance attributes Expand Appearance expands first, for which Object › Expand… is dimmed in the menus)",
             has_selection,
             |s, _| {
                 let e = Expandable::of(&s.doc()?.doc, &selected_roots(s)?);
-                Ok(json!({"object": e.object(), "fill": e.fill, "stroke": e.stroke, "gradient": e.gradient}))
+                Ok(json!({"object": e.object(), "fill": e.fill, "stroke": e.stroke, "gradient": e.gradient, "appearance": has_appearance(s)}))
             }
         ),
     ]
+}
+
+/// Has the selection appearance attributes that Expand Appearance expands (effects, several fills
+/// or strokes, a fill or stroke with its own opacity, blend mode or effects, a brush)? Object ›
+/// Expand… is dimmed in the menus for them until Expand Appearance has turned them into plain art
+/// (#3089); `object.expand` itself still bakes them.
+pub fn has_appearance(s: &Session) -> bool {
+    let (Ok(st), Ok(roots)) = (s.doc(), selected_roots(s)) else { return false };
+    roots.iter().filter_map(|r| st.doc.node(*r)).any(super::effectcmd::expandable)
 }
 
 /// Every placed document in `roots` of `d` (at any depth) replaced by an editable copy of the art it

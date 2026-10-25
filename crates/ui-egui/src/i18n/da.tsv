@@ -5491,3 +5491,5 @@ axis	Y Axis	Y-akse
 	Polar Grid Tool Options	Indstillinger for polært gitterværktøj
 	Fill Line	Udfyld linje
 	Scale Presets	Skaleringsforudindstillinger
+# Object › Expand… dimmed until Expand Appearance (#3089).
+	Expand Appearance first (Object › Expand Appearance)	Udvid først udseendet (Objekt › Udvid udseende)

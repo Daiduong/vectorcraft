@@ -5535,3 +5535,5 @@ axis	Y Axis	Y-as
 	Polar Grid Tool Options	Opties polair-rastergereedschap
 	Fill Line	Lijn vullen
 	Scale Presets	Schaalvoorinstellingen
+# Object › Expand… dimmed until Expand Appearance (#3089).
+	Expand Appearance first (Object › Expand Appearance)	Breid eerst het uiterlijk uit (Object › Uiterlijk uitbreiden)

@@ -5491,3 +5491,5 @@ axis	Y Axis	Sumbu Y
 	Polar Grid Tool Options	Opsi alat kisi polar
 	Fill Line	Isi garis
 	Scale Presets	Preset skala
+# Object › Expand… dimmed until Expand Appearance (#3089).
+	Expand Appearance first (Object › Expand Appearance)	Perluas tampilan terlebih dahulu (Objek › Perluas tampilan)

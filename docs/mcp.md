@@ -2127,7 +2127,8 @@ is edited the panel lists only an `<Opacity Mask>` entry and the document tab sa
 
 `effect.expandAppearance {ids?, target?}` (Object → Expand Appearance, enabled when a selected or targeted object's appearance isn't basic)
 turns appearances into plain objects in one undo step: each visible fill becomes a copy of the path painted by that
-fill alone and each stroke its outline filled with its paint (a brushed stroke: its brush art), grouped in paint order
+fill alone and each stroke a copy of the path stroked by that stroke alone, its weight, caps, joins, dashes, arrowheads,
+alignment and width profile kept as stroke attributes (a brushed stroke: its brush art), grouped in paint order
 under the object's id; each piece takes its fill's or stroke's opacity and blend mode, and the group keeps the
 object's transparency and opacity mask. Geometry effects are baked; raster effects become an embedded image at the
 document's raster effects resolution (shadows and outer glows under the art; a blur, feather or inner glow replaces
@@ -2136,6 +2137,12 @@ is outlined; type that has no fills or strokes of its own and whose only effects
 type, with the image under it. A group's or layer's own fills and strokes become objects among its members, and its
 members are expanded too. The result is `{ids}`; when an image in the art can't be decoded, the images made from
 raster effects do not show it, and the result also carries the `warning` that Flatten Transparency gives.
+A path's strokes stay strokes, as the
+[Expand objects](https://helpx.adobe.com/illustrator/desktop/manage-objects/arrange-objects/expand-objects.html) help
+page's two steps imply (Expand Appearance first, then Expand, whose Stroke option outlines strokes): `object.expand`
+or `object.path.outlineStroke` outline them (#3089). Object → Expand… in the menus is dimmed while the selection has
+an appearance Expand Appearance expands (`object.expand.info`'s `appearance`); `object.expand` itself still bakes
+effects and outlines strokes in one step.
 
 ```json
 {"name":"run_command","arguments":{"command":"effect.expandAppearance","params":{"ids":[12]}}}
