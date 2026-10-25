@@ -24,7 +24,7 @@ use crate::state::{DockTab, ICON_PANEL_GROUPS, UiState};
 
 /// The id of the dock area that draws the panels.
 pub(crate) fn area_id() -> egui::Id {
-    egui::Id::new("vectorcraft-panel-docking")
+    egui::Id::unique("vectorcraft-panel-docking")
 }
 
 /// The dock area a headless app floats into, before it ever drew a frame.

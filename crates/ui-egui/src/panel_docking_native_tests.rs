@@ -118,7 +118,7 @@ impl Harness {
             (host.infos(), host.focus == ViewportId::ROOT, host.time)
         };
         let mut input = egui::RawInput { time: Some(time), events, screen_rect: Some(SCREEN), viewports, focused, ..Default::default() };
-        self.app.raw_input_hook(&mut input);
+        self.app.raw_input_hook(&self.ctx, &mut input);
         let app = &mut self.app;
         let mut full = self.ctx.run_ui(input, |ui| {
             app.logic(ui.ctx());

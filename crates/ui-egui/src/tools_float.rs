@@ -30,12 +30,12 @@ struct Move {
 }
 
 fn move_id() -> Id {
-    Id::new("tools-float-move")
+    Id::unique("tools-float-move")
 }
 
 /// The strip along the window's left edge where the Tools panel docks, as last laid out.
 pub(crate) fn tools_zone_id() -> Id {
-    Id::new("tools-float-zone")
+    Id::unique("tools-float-zone")
 }
 
 /// `pos` moved so a panel of `size` stays inside `screen` (a position saved on a bigger window).
@@ -82,7 +82,7 @@ fn drop_zone(ctx: &egui::Context, at: Pos2) -> Option<Rect> {
 
 fn highlight(ctx: &egui::Context, zone: Rect) {
     let t = Tokens::get(ctx);
-    let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, Id::new("tools-float-drop")));
+    let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, Id::unique("tools-float-drop")));
     painter.rect(zone.shrink(1.0), CornerRadius::same(2), t.accent.gamma_multiply(0.2), Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
 }
 
