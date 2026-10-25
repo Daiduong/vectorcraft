@@ -40,7 +40,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Expand…",
             ["Object"],
             None,
-            "{object?: true (type → outlines, live shapes → paths, effects baked, blends → groups of their steps, repeats → groups of their instances, Intertwine groups → groups of their objects and of the parts drawn over the others (clip groups), envelopes → their distorted content, placed documents → editable copies of their art, as placing the file without link gives, its symbols, patterns, swatches and images joining the document), fill?: true (gradient fills → `gradient` art, pattern fills → their tiles in a clip group shaped like the object), stroke?: true (strokes → filled outlines), gradient?: \"objects\" (default: `steps` solid strips, concentric ellipses for radial gradients) | \"mesh\" (a gradient mesh); both in a clip group shaped like the object (freeform gradients always become a mesh shaped like it), steps?: 1..1000 (255)} one undo step → {ids}",
+            "{object?: true (type → outlines, live shapes → paths, effects baked, blends → groups of their steps, repeats → groups of their instances, Intertwine groups → groups of their objects and of the parts drawn over the others (clip groups), envelopes → their distorted content, placed documents → editable copies of their art, as placing the file without link gives, its symbols, patterns, swatches and images joining the document), fill?: true (gradient fills → `gradient` art, pattern fills → their tiles in a clip group shaped like the object), stroke?: true (strokes → filled outlines, the stroked paths that baking effects leaves included), gradient?: \"objects\" (default: `steps` solid strips, concentric ellipses for radial gradients) | \"mesh\" (a gradient mesh); both in a clip group shaped like the object (freeform gradients always become a mesh shaped like it), steps?: 1..1000 (255)} one undo step → {ids}",
             has_selection,
             expand
         ),
@@ -191,7 +191,7 @@ fn expand(s: &mut Session, p: &Value) -> Result<Value> {
     let to = GradientTo::parse(p)?;
     let from = s.doc()?.history.undo.len();
     let rev0 = s.doc()?.revision;
-    let e = Expandable::of(&s.doc()?.doc, &selected_roots(s)?);
+    let mut e = Expandable::of(&s.doc()?.doc, &selected_roots(s)?);
     // Placed documents first: their art (type, strokes, gradients) expands below.
     if object && e.placed {
         let roots = selected_roots(s)?;
@@ -215,6 +215,9 @@ fn expand(s: &mut Session, p: &Value) -> Result<Value> {
     }
     if object && e.effects {
         let _ = run_raw(s, "effect.expandAppearance", &json!({}));
+        // What is left to expand is in the baked art: Expand Appearance leaves strokes strokes
+        // (#3089), a group's own as stroked paths among its members, which Stroke outlines below.
+        e = Expandable::of(&s.doc()?.doc, &selected_roots(s)?);
     }
     if object && e.envelope {
         let roots = selected_roots(s)?;
