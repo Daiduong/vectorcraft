@@ -101,7 +101,6 @@ fn letter_spacing_in_the_pdf_becomes_tracking() {
     assert!((ink_width(&t[0]) - expected).abs() < 0.3, "{} vs {expected}", ink_width(&t[0]));
 }
 
-#[test]
 /// Chromium places letter-spaced Latin as one `Tj` per glyph (~0.2 em); gaps must not become spaces
 /// (#3622).
 #[test]
