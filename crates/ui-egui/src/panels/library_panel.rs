@@ -208,7 +208,7 @@ fn registered(panel: &str) -> Result<&'static str, String> {
 
 /// Is panel `panel` open (in the dock or floating)?
 pub(crate) fn is_open(ui: &UiState, panel: &str) -> bool {
-    ui.docking.as_ref().is_some_and(|l| l.panels().iter().any(|p| p.as_str() == panel)) || crate::floating::group_of(ui, panel).is_some()
+    crate::panel_docking::layout_of(ui).contains(&panel.to_string())
 }
 
 /// The open library panels.

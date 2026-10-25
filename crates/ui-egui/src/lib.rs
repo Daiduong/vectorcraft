@@ -27,7 +27,6 @@ pub mod dock;
 mod edit_toolbar;
 pub mod export_progress;
 pub mod find_font;
-pub mod floating;
 pub mod font_menu;
 mod frame_rate;
 mod free_transform;
@@ -42,6 +41,7 @@ pub mod native_menu;
 pub mod opening;
 pub mod palette;
 mod panel_docking;
+mod tools_float;
 pub mod panels;
 pub mod picks;
 pub mod place;
@@ -450,6 +450,8 @@ pub struct VectorcraftApp {
     pub services: Services,
     pub canvas: CanvasCache,
     pub perf: Perf,
+    /// Docking state that lives for the session only.
+    pub(crate) dock_rt: panel_docking::Runtime,
     /// macOS: the room the app bar keeps at its left for the window buttons over it, in points
     /// (0 where the OS draws no buttons over the app bar).
     pub titlebar_inset: f32,
@@ -627,6 +629,7 @@ impl VectorcraftApp {
                 hover_cursor: None,
             },
             perf: Perf::default(),
+            dock_rt: Default::default(),
             titlebar_inset: 0.0,
             last_effect: None,
             last_warp: None,
@@ -1580,6 +1583,23 @@ impl VectorcraftApp {
         raw.events.extend(self.synthetic.drain(..n));
     }
 
+    /// The canvas panel's body: the document tabs, the canvas and the isolation bar over it.
+    pub(crate) fn canvas_area(&mut self, ui: &mut egui::Ui) {
+        let t = theme::Tokens::get(ui.ctx());
+        ui.painter().rect_filled(ui.max_rect(), 0.0, t.pasteboard);
+        if self.ui.screen_mode < 3 {
+            chrome::doc_tabs(self, ui);
+        }
+        canvas::show(self, ui);
+        // Over the canvas inside the rulers, so the rulers and scroll bars stay uncovered.
+        if self.ui.screen_mode < 3
+            && !menus::home_showing(self)
+            && let Some(area) = self.canvas_rect
+        {
+            chrome::isolation_bar(self, ui, area);
+        }
+    }
+
     /// Lay out the whole window.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
@@ -1602,7 +1622,7 @@ impl VectorcraftApp {
         widgets::set_dialog_open(&ctx, self.ui.dialog.is_some());
         scrub::begin_frame(self, &ctx);
         font_menu::end_stale_preview(self, &ctx);
-        floating::track(self, &ctx);
+        tools_float::track(self, &ctx);
         // A selection move released over a panel ends before any panel sees the release (#2826).
         canvas::release_over_panel(self, &ctx);
         let t = theme::Tokens::get(&ctx);
@@ -1623,24 +1643,8 @@ impl VectorcraftApp {
             toolbar::show(self, ui);
         }
         panels::library_panel::tidy(self);
-        if self.ui.dock && self.ui.screen_mode < 3 {
-            dock::show(self, ui);
-        }
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.pasteboard)).show(ui, |ui| {
-            if self.ui.screen_mode < 3 {
-                chrome::doc_tabs(self, ui);
-            }
-            canvas::show(self, ui);
-            // Over the canvas inside the rulers, so the rulers and scroll bars stay uncovered.
-            if self.ui.screen_mode < 3
-                && !menus::home_showing(self)
-                && let Some(area) = self.canvas_rect
-            {
-                chrome::isolation_bar(self, ui, area);
-            }
-        });
-        dock::floating_panel(self, &ctx);
-        floating::show(self, &ctx);
+        // The canvas and the panels: one docking layout. Tab hides the panels but not the canvas.
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.pasteboard)).show(ui, |ui| panel_docking::show(self, ui));
         dialogs::show(self, &ctx);
         export_progress::show(self, &ctx);
         plugin_runs::show(self, &ctx);

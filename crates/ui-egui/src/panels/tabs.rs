@@ -80,15 +80,10 @@ fn above_text(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, span: f64
         return None;
     }
     let width = span as f32 * per + RULER_LEFT * 2.0;
-    let height = ctx.memory(|m| m.area_rect(crate::floating::area_id("tabs"))).map_or(240.0, |r| r.height());
+    let height = crate::panel_docking::layout_of(&app.ui).floating.iter().find(|w| w.contains(&"tabs".to_string())).map_or(240.0, |w| w.rect[3]);
     let pos = egui::pos2(on_screen.left() - RULER_LEFT, on_screen.top() - height - 6.0);
-    if crate::floating::group_of(&app.ui, "tabs").is_none() {
-        crate::floating::float(&mut app.ui, &["tabs"], "tabs", pos);
-    }
-    let gi = crate::floating::group_of(&app.ui, "tabs")?;
-    let g = app.ui.floating_panels.get_mut(gi)?;
-    g.pos = [pos.x, pos.y];
-    g.width = Some(width);
+    let _ = ctx;
+    crate::panel_docking::place_floating(app, "tabs", pos, width).ok()?;
     Some(())
 }
 

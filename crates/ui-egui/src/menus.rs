@@ -12,7 +12,7 @@ use vectorcraft_engine::cmd::fileio::SaveMode;
 use crate::VectorcraftApp;
 use crate::io;
 use crate::panels::character::Face;
-use crate::state::{DockTab, next_zoom};
+use crate::state::next_zoom;
 use crate::theme::{Brightness, Tokens};
 use crate::widgets;
 
@@ -1287,7 +1287,6 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
     }
     if let Some(r) = crate::shortcut_editor::run_command(app, id, p)
         .or_else(|| crate::workspaces::run_command(app, id, p))
-        .or_else(|| crate::floating::command(app, id, p))
         .or_else(|| crate::edit_toolbar::command(app, id, p))
     {
         return Some(r);
@@ -1635,49 +1634,6 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
                 app.ui.open_panel = None;
             }
             Ok(json!(on))
-        }
-        "window.collapseDock" => opt_bool(p, "collapsed").map(|collapsed| {
-            let collapsed = collapsed.unwrap_or(!app.ui.dock_collapsed);
-            crate::dock::set_collapsed(app, collapsed);
-            json!(collapsed)
-        }),
-        "window.panel" => {
-            let raw = s("panel").unwrap_or_default();
-            // Canonical id (case-insensitive; display labels work too), then the
-            // dock tab it names, if any.
-            let canonical = normalize_panel(&raw);
-            // A floating panel shows its tab in its group.
-            if let Some(p) = canonical
-                && let Some(g) = crate::floating::group_of(&app.ui, p).and_then(|i| app.ui.floating_panels.get_mut(i))
-            {
-                g.active = g.panels.iter().position(|q| q == p).unwrap_or(g.active);
-                g.collapsed = false;
-                let out = json!({ "floating": g.panels });
-                app.ui.dock = true;
-                return Some(Ok(out));
-            }
-            let tab = canonical.and_then(DockTab::from_id);
-            match (canonical, tab) {
-                // A collapsed dock pops the panel out of its icon, like the icon panels.
-                (Some(p), Some(tab)) if app.ui.dock_collapsed => {
-                    app.ui.dock_tab = tab;
-                    app.ui.open_panel = if app.ui.open_panel.as_deref() == Some(p) { None } else { Some(p.to_string()) };
-                    app.ui.dock = true;
-                    Ok(json!({"open": app.ui.open_panel}))
-                }
-                (Some(_), Some(tab)) => {
-                    app.ui.dock_tab = tab;
-                    Ok(Value::Null)
-                }
-                // A library panel isn't in the icon column: it floats.
-                (Some(p), None) if crate::panels::library_panel::parse(p).is_some() => crate::panels::library_panel::float(app, p),
-                (Some(p), None) => {
-                    app.ui.open_panel = if app.ui.open_panel.as_deref() == Some(p) { None } else { Some(p.to_string()) };
-                    app.ui.dock = true;
-                    Ok(json!({"open": app.ui.open_panel}))
-                }
-                (None, _) => Err(format!("unknown panel `{raw}`")),
-            }
         }
         "window.brightness" => match s("brightness").as_deref().and_then(Brightness::parse) {
             Some(b) => {
@@ -2040,17 +1996,9 @@ pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
         "window.taskBar.pin" => app.ui.task_bar_place.pinned,
         "window.panel" => {
             let panel = p.get("panel").and_then(Value::as_str).unwrap_or("");
-            let canonical = normalize_panel(panel);
-            match canonical.and_then(DockTab::from_id) {
-                _ if app.ui.docking.is_some() => canonical.is_some_and(|id| {
-                    app.ui.open_panel.as_deref() == Some(id) || app.ui.docking.as_ref().is_some_and(|layout| layout.contains(&id.to_string()))
-                }),
-                _ if canonical.is_some_and(|id| crate::floating::group_of(&app.ui, id).is_some()) => true,
-                Some(tab) if !app.ui.dock_collapsed => crate::floating::shown_tab(&app.ui) == Some(tab),
-                _ => canonical.is_some_and(|id| app.ui.open_panel.as_deref() == Some(id)),
-            }
+            normalize_panel(panel).is_some_and(|id| crate::panel_docking::showing(&app.ui, id))
         }
-        "window.collapseDock" => app.ui.dock_collapsed,
+        "window.collapseDock" => crate::panel_docking::dock_collapsed(&app.ui),
         "window.workspace" => p.get("name").and_then(Value::as_str) == Some(app.ui.workspace.as_str()),
         "window.brightness" => p.get("brightness").and_then(Value::as_str).and_then(Brightness::parse) == Some(app.ui.brightness),
         "view.slices.lock" => app.session.slices_locked(),
