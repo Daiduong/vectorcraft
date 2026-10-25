@@ -94,7 +94,6 @@ pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     if app.updates_rt.manual_window_open {
         let mut open = true;
         egui::Window::new(tl!("VectorCraft Updates"))
-            .id(egui::Id::new("vectorcraft_manual_updates"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
