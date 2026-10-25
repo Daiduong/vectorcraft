@@ -1296,7 +1296,7 @@ fn drop_on_buttons(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: 
         if ran && copy {
             let rows = if let Dragged::Effect(item, _) = what { Rows::Effects(item) } else { Rows::Items };
             let copied: Vec<usize> = gone.iter().map(|k| *k as usize).collect();
-            rebase_after_duplicate(app, ctx, n, sel, rows, &copied);
+            highlight_copies(app, ctx, n, sel, rows, &copied);
         }
         // When the active effect was among them, its fill/stroke (or nothing) is selected; the
         // engine clears or renumbers the active fill/stroke itself.
@@ -1335,8 +1335,8 @@ fn button_drop_command(items: &[usize], effects: Option<&(Option<usize>, Vec<usi
     }
 }
 
-/// Duplicate the highlighted fills/strokes (each copy right above its row) or effects (each copy
-/// right after it).
+/// Duplicate the highlighted fills/strokes or effects: each copy shows right above its row and the
+/// copies are highlighted ([`highlight_copies`]).
 fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
     let (rows, indices) = match selected_effects(ui.ctx(), node, sel) {
         Some((item, ks)) => (Rows::Effects(item), ks),
@@ -1348,26 +1348,34 @@ fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, se
         Rows::Items => ("appearance.duplicateItem", json!({ "indices": indices })),
     };
     if let (Ok(_), Some(n)) = (app.run(cmd, params), node) {
-        rebase_after_duplicate(app, ui.ctx(), n, sel, rows, &indices);
+        highlight_copies(app, ui.ctx(), n, sel, rows, &indices);
     }
 }
 
-/// After the rows `dup` of kind `rows` were copied in place (each copy right above or after its
-/// row), the highlight of those rows follows the originals: row `k` moves to `k` plus the copies
-/// below it. The selected effect row moves with them; the engine renumbers the active fill/stroke
-/// itself. `n` is the object as it was before the copy.
-fn rebase_after_duplicate(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, dup: &[usize]) {
-    let shift = |k: usize| k + dup.iter().filter(|d| **d < k).count();
+/// After the rows `dup` of kind `rows` were copied in place, the copies are highlighted, as the
+/// Layers panel highlights its duplicates: each shows right above its original, a fill/stroke's at
+/// the next paint index, an effect's where the original was (the original one below it). The copy of
+/// the active row becomes active (else the first copy), the copy of the anchor the anchor. `n` is
+/// the object as it was before the copy.
+fn highlight_copies(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, dup: &[usize]) {
+    let below = |k: usize| dup.iter().filter(|d| **d < k).count();
+    let copy = |k: usize| match rows {
+        Rows::Items => k + below(k) + 1,
+        Rows::Effects(_) => k + below(k),
+    };
     let h = highlight(ctx, n, sel);
-    if h.rows == rows {
-        let order = h.order.iter().map(|k| shift(*k)).collect();
-        set_pstate(ctx, "ap-multi", Highlight { owner: Some(n.id), rows, order, anchor: h.anchor.map(shift) });
+    let ours = |k: &usize| h.rows == rows && dup.contains(k);
+    // The copies of the highlighted rows in their highlight order, then any other copied row.
+    let mut order: Vec<usize> = h.order.iter().filter(|k| ours(k)).map(|k| copy(*k)).collect();
+    for c in dup.iter().map(|k| copy(*k)) {
+        if !order.contains(&c) {
+            order.push(c);
+        }
     }
-    if let (Rows::Effects(_), Some((r, a))) = (rows, sel.rows())
-        && r == rows
-    {
-        set_active(app, ctx, rows.sel(shift(a)));
-    }
+    let active = sel.rows().filter(|(r, a)| *r == rows && dup.contains(a)).map(|(_, a)| copy(a)).or(order.first().copied());
+    let anchor = h.anchor.filter(|a| ours(a)).map(copy).or(active);
+    set_active(app, ctx, active.map_or(Sel::None, |a| rows.sel(a)));
+    set_pstate(ctx, "ap-multi", Highlight { owner: Some(n.id), rows, order, anchor });
 }
 
 /// Remove the highlighted fills/strokes or effects; a removed item effect leaves its fill/stroke selected.
@@ -1462,10 +1470,10 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 mod tests {
     use super::*;
 
-    /// Duplicating highlighted rows leaves the originals highlighted: each moves up by the copies
-    /// below it, the selected effect row with them, the active fill/stroke by the engine.
+    /// Duplicating rows highlights the copies, each right above its original, as the Layers panel
+    /// does: the active row's copy becomes active, the anchor's copy the anchor.
     #[test]
-    fn a_duplicate_keeps_the_originals_highlighted() {
+    fn a_duplicate_highlights_the_copies_above_the_originals() {
         let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
@@ -1483,7 +1491,8 @@ mod tests {
             });
             out.textures_delta.clear();
         };
-        // Effects 0 and 2 highlighted, 2 selected: the copies land after them, at 1 and 4.
+        // Effects 0 and 2 highlighted, 2 selected: the list reads copy, 0, 1, copy, 2 (top down), so
+        // the copies are rows 0 and 3.
         app.run("appearance.setActiveItem", json!({ "index": null })).unwrap();
         set_pstate(&ctx, "ap-sel", (owner, Sel::Effect(2)));
         set_pstate(&ctx, "ap-multi", Highlight { owner, rows: Rows::Effects(None), order: vec![2, 0], anchor: Some(0) });
@@ -1491,14 +1500,29 @@ mod tests {
         let h: Highlight = pstate(&ctx, "ap-multi");
         assert_eq!((h.order, h.anchor), (vec![3, 0], Some(0)));
         assert_eq!(pstate::<(Option<NodeId>, Sel)>(&ctx, "ap-sel").1, Sel::Effect(3));
-        // [Fill, Stroke] both highlighted, the stroke active: the stroke goes from 1 to 2.
+        // [Fill, Stroke] both highlighted, the stroke active: paint order fill, copy, stroke, copy,
+        // so the copies are 1 and 3 and the stroke's copy is active.
         app.run("appearance.setActiveItem", json!({ "index": 1 })).unwrap();
         set_pstate(&ctx, "ap-sel", (owner, Sel::Item(1)));
         set_pstate(&ctx, "ap-multi", Highlight { owner, rows: Rows::Items, order: vec![1, 0], anchor: Some(1) });
         duplicate(&mut app);
         let h: Highlight = pstate(&ctx, "ap-multi");
-        assert_eq!((h.order, h.anchor), (vec![2, 0], Some(2)));
-        assert_eq!(app.session.appearance_item(), Some(2));
+        assert_eq!((h.order, h.anchor), (vec![3, 1], Some(3)));
+        assert_eq!(app.session.appearance_item(), Some(3));
+        // A row outside the highlight (dropped on Duplicate): only its copy is highlighted and active.
+        app.run("appearance.setActiveItem", json!({ "index": null })).unwrap();
+        set_pstate(&ctx, "ap-sel", (owner, Sel::Effect(0)));
+        set_pstate(&ctx, "ap-multi", Highlight { owner, rows: Rows::Effects(None), order: vec![0], anchor: Some(0) });
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let n = first_subject(&app).unwrap();
+            let sel = current_sel(&app, ui.ctx(), Some(&n));
+            app.run("effect.duplicate", json!({"item": null, "indices": [4]})).unwrap();
+            highlight_copies(&mut app, ui.ctx(), &n, sel, Rows::Effects(None), &[4]);
+        });
+        out.textures_delta.clear();
+        let h: Highlight = pstate(&ctx, "ap-multi");
+        assert_eq!((h.order, h.anchor), (vec![4], Some(4)));
+        assert_eq!(pstate::<(Option<NodeId>, Sel)>(&ctx, "ap-sel").1, Sel::Effect(4));
     }
 
     #[test]
