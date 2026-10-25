@@ -32,6 +32,13 @@ white beside a cream), at most six; scattered specks of a colour add none. Adobe
 its own palettes are chosen; this is VectorCraft's own method (see
 [image-trace-quality.md](image-trace-quality.md#auto-color-keeps-rare-colours)).
 
+**Ignore Color, background only.** Ignore Color leaves out every area of the chosen color. With
+`"ignoreBackground": true` beside `"ignoreWhite": true` in the params of `imageTrace.make` or
+`imageTrace.makeAndExpand`, it leaves out only the areas of that color that reach the image's edge,
+joined through pixels above, below or to either side, and traces the areas of it that other colors
+enclose: black line work inside a panel stays when the black around the panel is left out. Flat Logo
+leaves out every white area whatever `ignoreBackground` is.
+
 **Abutting and Overlapping.** Abutting is the default Method, and the Default, Auto Color, 3 Colors,
 6 Colors and 16 Colors presets use it. With Abutting, two neighboring colors share one exact edge. The
 canvas smooths the edges of each path on its own, so each of the two paths covers only part of the
