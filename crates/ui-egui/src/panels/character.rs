@@ -1405,13 +1405,17 @@ mod tests {
         app.run("edit.undoGroup.end", json!({})).unwrap();
         let a_steps = steps(app.session.active().unwrap());
         assert_eq!(a_steps.1, Some("Batch".to_string()), "the reset is part of the Batch step");
-        // An undo group open in another document.
-        app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
-        app.run("text.setFormat", json!({"id": a, "antiAlias": "none"})).unwrap();
-        let a_steps = steps(app.session.active().unwrap());
+        // An undo group open in another document. The second document is open before the group
+        // begins, so switching to it opens no group there.
         app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
         assert_eq!(app.session.active_index(), Some(1));
         let b = app.run("text.create", json!({"x": 20, "y": 50, "text": "B"})).unwrap()["id"].clone();
+        app.session.set_active(0);
+        app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
+        app.run("text.setFormat", json!({"id": a, "antiAlias": "none"})).unwrap();
+        let a_steps = steps(app.session.active().unwrap());
+        app.session.set_active(1);
+        assert!(app.session.active().unwrap().undo_group.is_none());
         app.run("select.set", json!({"ids": [b]})).unwrap();
         let b_steps = steps(app.session.active().unwrap()).0;
         reset_panel(&mut app);
