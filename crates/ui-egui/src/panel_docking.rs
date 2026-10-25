@@ -298,8 +298,16 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Opt
                 Ok(c) => c,
                 Err(e) => return Some(Err(e)),
             };
-            let panel = params.get("panel").cloned().unwrap_or(Value::Null);
-            return Some(shared_command(app, "window.panel.minimize", &json!({"panel": panel, "minimized": minimized})));
+            let raw = params.get("panel").and_then(Value::as_str).unwrap_or_default();
+            let Some(panel) = normalize(raw) else { return Some(Err(format!("unknown panel `{raw}`"))) };
+            return Some(shared_command(app, "window.panel.minimize", &json!({"panel": panel, "minimized": minimized})).map(|mut value| {
+                let layout = layout_of(&app.ui);
+                let window = floating_window(&layout, panel).is_some_and(|w| w.minimized);
+                let group = layout.location(&panel.to_string()).ok().and_then(|l| l.group).is_some_and(|g| g.minimized);
+                value["panel"] = json!(panel);
+                value["collapsed"] = json!(window || group);
+                value
+            }));
         }
         "ui.dock.reset" => return Some(app.run("window.workspace.reset", json!({}))),
         "window.panel.float" | "window.panel.dock" => return Some(float_or_dock(app, id, params)),

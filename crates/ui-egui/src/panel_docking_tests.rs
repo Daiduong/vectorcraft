@@ -256,6 +256,8 @@ fn float_collapsed_minimizes_its_window() {
     assert!(floating_window(&h.layout(), "swatches").unwrap().minimized);
     h.app.run("window.panel.float", json!({"panel": "swatches", "collapsed": false})).unwrap();
     assert!(!floating_window(&h.layout(), "swatches").unwrap().minimized);
+    let r = h.app.run("window.panel.collapse", json!({"panel": "Layers"})).unwrap();
+    assert_eq!((r["panel"].clone(), r["collapsed"].clone()), (json!("layers"), json!(true)), "a docked group minimizes too");
 }
 
 #[test]
