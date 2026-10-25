@@ -9,6 +9,10 @@
 //!   // A save or export to download: a path in the host's storage, "device" for a download, or null.
 //!   async chooseSave(suggested /* the file name */) { … },
 //!   // Writes a file the user saved to a host path; the host reports progress and errors itself.
+//!   // The save counts once it resolves; a rejection leaves the document modified. Saves come
+//!   // one at a time, in the order the user made them, so each must settle: a host whose storage
+//!   // can hang should reject after its own timeout (only the host can tell a slow upload from a
+//!   // stuck one).
 //!   async write(path, bytes /* Uint8Array */) { … },
 //! };
 //! ```
