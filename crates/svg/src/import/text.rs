@@ -60,6 +60,27 @@ fn style_name(weight: u16, italic: bool) -> String {
     }
 }
 
+/// The axis settings of a `font-variation-settings` value (`"wght" 650, "wdth" 87.5`), by tag:
+/// none for `normal` and `initial`. `None` when an item isn't a quoted tag of four printable ASCII
+/// characters and a finite number, as CSS then ignores the declaration.
+fn variation_settings(v: &str) -> Option<std::collections::BTreeMap<String, f64>> {
+    let mut out = std::collections::BTreeMap::new();
+    if ["normal", "initial"].iter().any(|k| v.trim().eq_ignore_ascii_case(k)) {
+        return Some(out);
+    }
+    for item in v.split(',') {
+        let item = item.trim();
+        let quote = item.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+        let (tag, value) = item.get(1..)?.split_once(quote)?;
+        let value = value.trim().parse::<f64>().ok().filter(|v| v.is_finite())?;
+        if tag.len() != 4 || !tag.bytes().all(|b| (0x20..=0x7e).contains(&b)) {
+            return None;
+        }
+        out.insert(tag.to_string(), value);
+    }
+    Some(out)
+}
+
 fn solid(c: svgtypes::Color) -> Paint {
     Paint::solid(Color::rgb8(c.red, c.green, c.blue))
 }
@@ -175,7 +196,8 @@ pub(super) fn prepare<'s>(svg: &'s str, xml: &roxmltree::Document, dpi: f64, war
     let cx = Ctx::new(xml, dpi);
     let mut out = String::new();
     let mut copied = 0;
-    for t in xml.descendants().filter(|n| n.is_element() && n.tag_name().name() == "text" && n.tag_name().namespace() == Some(SVG_NS)) {
+    let is_text = |n: &XNode| n.is_element() && matches!(n.tag_name().name(), "text" | "flowRoot") && n.tag_name().namespace() == Some(SVG_NS);
+    for t in xml.descendants().filter(is_text) {
         let label = t.attribute("id").map_or_else(|| "a text".to_string(), |id| format!("text '{id}'"));
         if t.ancestors().skip(1).any(|a| a.is_element() && a.tag_name().name() == "clipPath") {
             warnings.push(format!("{label} in a clip path ignored"));
@@ -191,11 +213,13 @@ pub(super) fn prepare<'s>(svg: &'s str, xml: &roxmltree::Document, dpi: f64, war
         else {
             continue;
         };
-        let Some(q) = qname.strip_suffix("text").filter(|q| q.is_empty() || q.ends_with(':')) else { continue };
+        let flowed = t.tag_name().name() == "flowRoot";
+        let Some(q) = qname.strip_suffix(t.tag_name().name()).filter(|q| q.is_empty() || q.ends_with(':')) else { continue };
         if cx.css.own(t, "display").as_deref() == Some("none") || r.start < copied {
             continue;
         }
-        let Some((text, paints)) = cx.build(xml, t, &label, warnings) else { continue };
+        let built = if flowed { cx.build_flow(t, &label, warnings) } else { cx.build(xml, t, &label, warnings) };
+        let Some((text, paints)) = built else { continue };
         out.push_str(&svg[copied..r.start]);
         placeholder(&mut out, q, &cx.css, t, &slots.prefix, slots.texts.len(), text.marker, &paints);
         copied = r.end;
@@ -374,6 +398,10 @@ impl Ctx {
         st.size = size;
         let italic = css.prop(n, "font-style").is_some_and(|s| s == "italic" || s == "oblique");
         st.font_style = style_name(self.weight(n), italic);
+        // Inherited: `inherit`, `unset`, `revert` and a value CSS ignores leave the one inherited.
+        let inherits = |v: &String| ["inherit", "unset", "revert", "revert-layer"].iter().any(|k| v.trim().eq_ignore_ascii_case(k));
+        let own = |a: XNode| css.own(a, "font-variation-settings").filter(|v| !inherits(v)).and_then(|v| variation_settings(&v));
+        st.font_axes = n.ancestors().filter(|a| a.is_element()).find_map(own).unwrap_or_default();
         let (fill, mut fill_url) = self.paint(n, "fill");
         st.fill = fill;
         let (stroke, mut stroke_url) = self.paint(n, "stroke");
@@ -558,6 +586,47 @@ impl Ctx {
             }
             _ => None,
         }
+    }
+
+    /// Read one Inkscape `<flowRoot>` (SVG 1.2 flowed text, which browsers don't draw but
+    /// Inkscape writes) as area type: its frame the first `<rect>` of its `<flowRegion>`, a
+    /// paragraph per `<flowPara>`, styled as `<text>` is. Other regions are left out with a warning.
+    fn build_flow(&self, t: XNode, label: &str, warnings: &mut Vec<String>) -> Option<(PendingText, Vec<String>)> {
+        let (vw, vh) = self.viewport;
+        let region = t.children().find(|c| c.is_element() && c.tag_name().name() == "flowRegion");
+        let rect = region.and_then(|r| r.children().find(|c| c.is_element() && c.tag_name().name() == "rect"));
+        let size = |n: XNode, a: &str, pct: f64| n.attribute(a).and_then(|v| self.length(v, DEFAULT_FONT_SIZE, pct));
+        let frame = rect.and_then(|r| {
+            let (w, h) = (size(r, "width", vw)?, size(r, "height", vh)?);
+            (w > 0.0 && h > 0.0).then(|| (r, Rect::new(0.0, 0.0, w, h)))
+        });
+        let Some((r, frame)) = frame else {
+            warnings.push(format!("{label}: flowed text (flowRoot) without a rectangle region was left out"));
+            return None;
+        };
+        let origin = Affine::translate((size(r, "x", vw).unwrap_or(0.0), size(r, "y", vh).unwrap_or(0.0)));
+        let paras: Vec<XNode> = t.descendants().filter(|n| n.is_element() && n.tag_name().name() == "flowPara").collect();
+        let collapse = |n: XNode| {
+            n.descendants().filter(XNode::is_text).filter_map(|c| c.text()).collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ")
+        };
+        let text = paras.iter().map(|p| collapse(*p)).collect::<Vec<_>>().join("\n");
+        if text.trim().is_empty() {
+            return None;
+        }
+        let style = self.elem(paras.first().copied().unwrap_or(t)).style.clone();
+        let mut obj = TextObject::point(Point::ZERO, &text, style);
+        obj.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(frame) };
+        obj.xf = parse_transform(r.attribute("transform")) * origin;
+        let servers = vec![(None, None); obj.runs.len()];
+        let b = obj.xf.transform_rect_bbox(frame);
+        // A size, place or transform past what numbers hold (`width="1e999"`) has no frame to set type in.
+        if ![b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite()) {
+            warnings.push(format!("{label}: flowed text (flowRoot) with a region too large to place was left out"));
+            return None;
+        }
+        let marker = Rect::new(b.x0, b.y0, b.x1.max(b.x0 + 1.0), b.y1.max(b.y0 + 1.0));
+        let name = t.attribute("id").unwrap_or("").to_string();
+        Some((PendingText { name, obj, servers, paints: 0, non_scaling: false, under: None, marker }, Vec::new()))
     }
 
     /// Read one `<text>`: the pending text and its `url(#…)` paints.

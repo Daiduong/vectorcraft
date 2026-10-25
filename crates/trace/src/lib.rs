@@ -15,8 +15,9 @@
 //!    A continuous-tone image (a photo) is first smoothed within its tones, edges kept (see
 //!    `smooth`): otherwise its noise decides, pixel by pixel, which of two neighbouring tones a
 //!    pixel gets, and every such pixel is a speck.
-//! 2. **Remove noise**: 4-connected same-colour components smaller than `noise` pixels are merged
-//!    into their most common neighbouring colour.
+//! 2. **Remove noise**: whole 4-connected same-colour regions are merged, smallest first, into
+//!    their most common neighbouring colour until no mergeable region is smaller than `noise`.
+//!    Raising Noise continues the same merge sequence without splitting earlier regions.
 //! 3. **Follow boundaries**: for each colour layer, the pixel-crack edges between inside and
 //!    outside are linked into closed loops (inside on the right, right turns at saddles, so
 //!    diagonal pixels stay separate, matching 4-connectivity). Outer loops run clockwise and
@@ -34,8 +35,9 @@
 //!    Lines also straightens slightly curved runs and makes arcs of parts of circles.
 //!
 //! With **Create: Strokes**, the parts of a colour layer no wider than the stroke width are traced
-//! as stroked centre lines instead (see `centerline`); without Fills, wider parts become stroked
-//! outlines.
+//! as stroked centre lines instead (see `centerline`): placed in the middle of their ink to a
+//! fraction of a pixel, as wide as their ink, and fitted as outlines are. Without Fills, wider
+//! parts become stroked outlines.
 //!
 //! Colour layers are traced either *abutting* (each colour's own area; shapes share edges) or
 //! *overlapping* (stacked: each layer also covers every layer above it, so no hairline gaps).
@@ -44,9 +46,12 @@
 mod centerline;
 mod contour;
 mod fit;
+mod gradient;
+mod group;
 mod logo;
 mod mosaic;
 mod quantize;
+mod shapes;
 mod smooth;
 mod subpixel;
 
@@ -56,8 +61,10 @@ use serde::{Deserialize, Serialize};
 use vectorcraft_geom::PathData;
 
 pub use contour::{Component, Loop, trace_mask};
+pub use gradient::TracedGradient;
 pub use mosaic::mosaic;
 pub use quantize::{FULL_TONE_MAX, Quantized, TRANSPARENT, denoise, quantize};
+pub use shapes::TracedShape;
 use subpixel::Crack;
 
 /// Errors decoding a raster.
@@ -116,10 +123,15 @@ pub struct Raster {
 }
 
 impl Raster {
-    /// A raster from RGBA bytes (`width * height * 4` of them).
-    pub fn new(width: u32, height: u32, rgba: Vec<u8>) -> Self {
-        assert_eq!(rgba.len(), width as usize * height as usize * 4, "rgba length must be width*height*4");
-        Self { width, height, rgba }
+    /// A raster from RGBA bytes, which must be exactly `width * height * 4` of them: any other
+    /// length (bytes from a file, a plug-in or a message) is a [`TraceError::Decode`] error, not
+    /// a crash. (That error's text is already translated; its detail names the sizes.)
+    pub fn new(width: u32, height: u32, rgba: Vec<u8>) -> Result<Self, TraceError> {
+        let want = (width as usize).checked_mul(height as usize).and_then(|n| n.checked_mul(4));
+        if want != Some(rgba.len()) {
+            return Err(TraceError::Decode(format!("{} bytes of RGBA data for a {width} × {height} image", rgba.len())));
+        }
+        Ok(Self { width, height, rgba })
     }
     /// A raster whose pixel `(x, y)` is `f(x, y)`.
     pub fn from_fn(width: u32, height: u32, f: impl Fn(u32, u32) -> [u8; 4]) -> Self {
@@ -185,9 +197,17 @@ impl Raster {
         }
         out
     }
+    /// Pixel `(x, y)`; transparent black outside the raster (or past the end of a raster whose
+    /// fields were set to a size its bytes don't have).
     pub fn pixel(&self, x: u32, y: u32) -> [u8; 4] {
+        if x >= self.width || y >= self.height {
+            return [0; 4];
+        }
         let i = (y as usize * self.width as usize + x as usize) * 4;
-        [self.rgba[i], self.rgba[i + 1], self.rgba[i + 2], self.rgba[i + 3]]
+        match self.rgba.get(i..i + 4) {
+            Some(&[r, g, b, a]) => [r, g, b, a],
+            _ => [0; 4],
+        }
     }
 }
 
@@ -278,6 +298,15 @@ pub struct TraceParams {
     /// Replace nearly-straight curves with straight lines. In Logo mode this also snaps tight arcs
     /// to true circles.
     pub snap_curves_to_lines: bool,
+    /// Shapes: a filled outline that is a circle, an ellipse, a rectangle (square or rounded
+    /// corners) or a regular polygon comes out as exactly that shape ([`TracedPath::shape`]).
+    pub shapes: bool,
+    /// Auto Grouping: say which path lies inside which ([`TraceResult::parents`]).
+    pub auto_grouping: bool,
+    /// Gradients (Grayscale and Color): an area whose colour changes evenly along one direction
+    /// is one path filled with a linear gradient ([`TracedPath::gradient`]), not bands of colour.
+    /// Grayscale finds them in the image's grays, and their stops are gray.
+    pub gradients: bool,
     /// Create: trace areas as filled shapes.
     pub fills: bool,
     /// Create: trace lines no wider than `stroke_width` as stroked centre lines.
@@ -308,6 +337,9 @@ impl Default for TraceParams {
             ignore_white: false,
             ignore_color: None,
             snap_curves_to_lines: false,
+            shapes: false,
+            auto_grouping: false,
+            gradients: false,
             fills: true,
             strokes: false,
             stroke_width: 10.0,
@@ -317,20 +349,10 @@ impl Default for TraceParams {
 }
 
 impl TraceParams {
-    /// Maximum distance (px) of polygon vertices from the pixel boundary.
-    fn polygon_tolerance(&self) -> f64 {
-        let f = (self.paths / 100.0).clamp(0.0, 1.0);
-        0.55 + 0.75 * (1.0 - f)
-    }
-    /// Curve fitting tolerance (px).
-    fn fit_tolerance(&self) -> f64 {
-        let f = (self.paths / 100.0).clamp(0.0, 1.0);
-        0.2 + 1.6 * (1.0 - f)
-    }
     /// How outlines are fitted: Paths sets how closely the curves follow the edge (0.08 px at 100,
     /// 0.33 px at 50, 0.78 px at 0), Corners the turn that makes a corner (35° at 100, 90° at 0).
-    /// Straight edges are always lines; Snap Curves To Lines also straightens slightly curved ones
-    /// and makes parts of circles true arcs.
+    /// Straight edges are always lines; Snap Curves To Lines also straightens slightly curved ones,
+    /// makes parts of circles true arcs, and makes lines within 2.5° of level or upright exactly so.
     fn outline_style(&self) -> logo::Style {
         // Parameters come from users and agents: a NaN or infinity must not reach the geometry.
         let unit = |v: f64, default: f64| if v.is_finite() { (v / 100.0).clamp(0.0, 1.0) } else { default };
@@ -345,13 +367,9 @@ impl TraceParams {
             circle_tol: if snap { 0.3 } else { 0.15 },
             restore: Some(logo::RestoreParams::default()),
             check_step: 0.15,
+            upright: snap,
             ..logo::Style::default()
         }
-    }
-    /// Turn angle (degrees) above which a polygon vertex stays a corner.
-    fn corner_angle(&self) -> f64 {
-        let c = (self.corners / 100.0).clamp(0.0, 1.0);
-        150.0 - 115.0 * c
     }
 }
 
@@ -427,6 +445,14 @@ pub fn presets() -> Vec<(&'static str, TraceParams)> {
     PRESET_NAMES.iter().filter_map(|n| Some((*n, preset(n)?))).collect()
 }
 
+/// The enhanced version of built-in preset `name`: the preset with the options the enhanced
+/// presets have built in: Auto Grouping in all of them, Shapes in all but High Fidelity Photo.
+/// Gradients stay an option to turn on. Flat Logo, a preset of our own, has none.
+pub fn enhanced_preset(name: &str) -> Option<TraceParams> {
+    let p = preset(name).filter(|p| p.mode != Mode::Logo)?;
+    Some(TraceParams { auto_grouping: true, shapes: !name.eq_ignore_ascii_case("High Fidelity Photo"), ..p })
+}
+
 /// One traced shape: an outer contour plus its holes, filled with `color`, or (with `stroke`)
 /// lines stroked with it.
 #[derive(Clone, Debug, PartialEq)]
@@ -439,6 +465,13 @@ pub struct TracedPath {
     /// Create Strokes: the path is stroked this wide (px), not filled (centre lines, or the
     /// outlines of wider areas without Fills).
     pub stroke: Option<f64>,
+    /// Shapes: the shape the path is, exactly (`path` is that shape's outline).
+    pub shape: Option<TracedShape>,
+    /// Gradients: the linear gradient the path is filled with (`color` is its middle colour).
+    pub gradient: Option<TracedGradient>,
+    /// Create Strokes: the stroke's ends are square (a cap that goes half the width past the
+    /// path's end, cut straight), as the line's ink is; otherwise round.
+    pub square_caps: bool,
 }
 
 /// The traced result, bottom-most path first.
@@ -447,6 +480,13 @@ pub struct TraceResult {
     pub paths: Vec<TracedPath>,
     /// Colours actually used.
     pub palette: Vec<[u8; 3]>,
+    /// Auto Grouping: for each of `paths`, the path it lies inside, if any (empty without the
+    /// option). Each path drawn together with those inside it, in the order they have here, paints
+    /// what `paths` paints in its order.
+    pub parents: Vec<Option<usize>>,
+    /// Flat Logo: the size in pixels the image was traced at when it was averaged down first;
+    /// `None` when it was traced at its own size.
+    pub worked_at: Option<(u32, u32)>,
 }
 
 impl TraceResult {
@@ -479,9 +519,20 @@ pub fn trace(img: &Raster, params: &TraceParams) -> TraceResult {
 /// colour layers are traced in parallel where threads are available.
 pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result<TraceResult, TraceError> {
     let (w, h) = (img.width as usize, img.height as usize);
-    if w == 0 || h == 0 || img.rgba.len() != w * h * 4 {
+    if w == 0 || h == 0 || w.checked_mul(h).and_then(|n| n.checked_mul(4)) != Some(img.rgba.len()) {
         return Ok(TraceResult::default());
     }
+    let mut out = trace_paths(img, params, max_anchors)?;
+    if params.auto_grouping {
+        // Abutting areas cannot overlap; stacked layers, Logo's shapes and stroked lines can.
+        let stacked = params.method == Method::Overlapping || params.mode == Mode::Logo || params.strokes;
+        out.parents = group::parents(&out.paths, img.width as usize, img.height as usize, stacked);
+    }
+    Ok(out)
+}
+
+fn trace_paths(img: &Raster, params: &TraceParams, max_anchors: usize) -> Result<TraceResult, TraceError> {
+    let (w, h) = (img.width as usize, img.height as usize);
     if params.mode == Mode::Logo {
         return logo::trace_logo(img, params, max_anchors);
     }
@@ -493,8 +544,50 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
     // A photo is traced from a copy with its noise smoothed away (see `smooth`).
     let smoothed = (params.mode != Mode::BlackAndWhite && quantize::continuous_tone(img)).then(|| smooth::smoothed(img));
     let img = smoothed.as_ref().unwrap_or(img);
-    let mut q = quantize(img, params);
-    denoise(&mut q.labels, w, h, params.noise as usize);
+    // Gradients are found first and kept out of the palette: no colour is spent on bands of them.
+    // Grayscale finds them in the image's grays (as its flat colours are), so their stops are gray.
+    let grays = (params.gradients && params.mode == Mode::Grayscale).then(|| {
+        let mut grays = img.clone();
+        for p in grays.rgba.as_chunks_mut::<4>().0 {
+            let g = quantize::luma(*p);
+            p[..3].fill(g);
+        }
+        grays
+    });
+    let traced_as = grays.as_ref().unwrap_or(img);
+    let found = (params.gradients && params.mode != Mode::BlackAndWhite).then(|| gradient::detect(traced_as)).filter(|f| !f.1.is_empty());
+    let without = found.as_ref().map(|(of, _)| {
+        let mut rest = img.clone();
+        for (p, &g) in rest.rgba.as_chunks_mut::<4>().0.iter_mut().zip(of) {
+            if g != u32::MAX {
+                p[3] = 0;
+            }
+        }
+        rest
+    });
+    let (mut q, rare) = quantize::quantize_keeping(without.as_ref().unwrap_or(img), params);
+    // The semi-transparent edge of a cut-out image traces as the color beside it.
+    if matches!(params.mode, Mode::Color | Mode::Grayscale) {
+        quantize::settle_cut_edges(&mut q, img, params.mode == Mode::Grayscale);
+    }
+    drop(without);
+    // Each gradient is a palette entry of its own (its colour: the gradient's middle).
+    let mut gradients: Vec<Option<TracedGradient>> = vec![None; q.palette.len()];
+    if let Some((mut of, found)) = found {
+        gradient::settle_edges(traced_as, &mut of, &found, &mut q.labels);
+        let first = q.palette.len();
+        for (l, &g) in q.labels.iter_mut().zip(&of) {
+            if g != u32::MAX {
+                *l = u16::try_from(first + g as usize).unwrap_or(TRANSPARENT);
+            }
+        }
+        q.palette.extend(found.iter().map(|g| g.color_at(g.start.midpoint(g.end)).map(|v| v.round().clamp(0.0, 255.0) as u8)));
+        gradients.extend(found.into_iter().map(Some));
+    }
+    drop(grays);
+    // Noise clears specks, not the regions of a rare colour Automatic kept on purpose.
+    let keep: Vec<bool> = q.palette.iter().map(|c| rare.contains(c)).collect();
+    quantize::denoise_keeping(&mut q.labels, w, h, params.noise as usize, &keep);
     // Pixel count per palette entry, and the box its pixels lie in.
     let mut counts = vec![0usize; q.palette.len()];
     let mut boxes: Vec<Option<(usize, usize, usize, usize)>> = vec![None; q.palette.len()];
@@ -534,14 +627,9 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
         img,
         ignore,
         boxes,
+        gradients: &gradients,
         bw_tones: bw_tones(img, &q),
         style: params.outline_style(),
-        opts: fit::FitOptions {
-            polygon_tol: params.polygon_tolerance(),
-            fit_tol: params.fit_tolerance(),
-            corner_angle: params.corner_angle(),
-            snap_lines: params.snap_curves_to_lines,
-        },
         w,
         h,
         anchors: AtomicUsize::new(0),
@@ -554,7 +642,12 @@ pub fn trace_within(img: &Raster, params: &TraceParams, max_anchors: usize) -> R
     let largest = job.boxes.iter().flatten().map(|b| (b.2 - b.0) * (b.3 - b.1)).max().unwrap_or(1).max(1);
     let at_a_time = ((512 << 20) / (largest * 10)).max(1);
     for (paths, &(_, ci)) in parallel_map_at_most(at_a_time, &layers, |&(r, ci)| job.layer(r, ci)).into_iter().zip(&layers) {
-        out.paths.extend(paths.ok_or(TraceError::TooComplex { max: max_anchors })?);
+        let paths = paths.ok_or(TraceError::TooComplex { max: max_anchors })?;
+        // A layer with no paths adds no color to the palette.
+        if paths.is_empty() {
+            continue;
+        }
+        out.paths.extend(paths);
         let color = q.palette[ci];
         if !out.palette.contains(&color) {
             out.palette.push(color);
@@ -602,12 +695,12 @@ struct Layers<'a> {
     ignore: Option<[u8; 3]>,
     /// The box each palette entry's pixels lie in: `(x0, y0, x1, y1)`, the far sides excluded.
     boxes: Vec<Option<(usize, usize, usize, usize)>>,
+    /// Gradients: the gradient each palette entry is, if it is one.
+    gradients: &'a [Option<TracedGradient>],
     /// Black and White: the luminance of white and of black (see `bw_tones`).
     bw_tones: [f64; 2],
-    /// How outlines are fitted.
+    /// How outlines and centre lines are fitted.
     style: logo::Style,
-    /// How centre lines are fitted.
-    opts: fit::FitOptions,
     w: usize,
     h: usize,
     /// Anchor points made so far, by every layer.
@@ -678,7 +771,19 @@ impl Layers<'_> {
     /// Black and White then moves the edge to where the luminance crosses the threshold: by the
     /// threshold's distance from the middle tone, over how steep the edge is (nothing for a
     /// threshold in the middle, more the softer the edge).
+    ///
+    /// The estimate is read from each side of the crack and the two readings averaged, so that
+    /// the shift is exactly antisymmetric (`a - b == -(b - a)` in floating point) and the two
+    /// regions of a crack get the same points. A single reading is not: it looks for a thin run on
+    /// the inside before one on the outside, so where both sides are thin (a one- or two-pixel
+    /// sliver beside another, as in soft gradients and noisy scans) each region got its own shift,
+    /// their shared piece different points, and the abutting curves left a sliver uncovered.
     fn shift(&self, c: Crack) -> f64 {
+        (self.shift_one_side(c) - self.shift_one_side(c.flipped())) / 2.0
+    }
+
+    /// [`Self::shift`] read from the crack's inside pixel only.
+    fn shift_one_side(&self, c: Crack) -> f64 {
         let label = |k: i32| c.at(k).and_then(|i| self.q.labels.get(i).copied()).filter(|&l| l != TRANSPARENT);
         let (Some(la), Some(lb)) = (label(0), label(1)) else { return 0.0 };
         if la == lb {
@@ -701,8 +806,15 @@ impl Layers<'_> {
             let tone = |l: u16| [if l == 1 { black } else { white }; 3];
             (tone(la), tone(lb))
         } else {
-            let (Some(ca), Some(cb)) = (self.q.palette.get(la as usize), self.q.palette.get(lb as usize)) else { return 0.0 };
-            (ca.map(f64::from), cb.map(f64::from))
+            // A side's own colour: its palette entry's, or its gradient's colour here.
+            let own = |l: u16, k: i32| {
+                let flat = self.q.palette.get(l as usize)?.map(f64::from);
+                let Some(g) = self.gradients.get(l as usize).and_then(Option::as_ref) else { return Some(flat) };
+                let i = c.at(k)?;
+                Some(g.color_at(vectorcraft_geom::Point::new((i % self.w) as f64 + 0.5, (i / self.w) as f64 + 0.5)))
+            };
+            let (Some(ca), Some(cb)) = (own(la, 0), own(lb, 1)) else { return 0.0 };
+            (ca, cb)
         };
         let d = [0, 1, 2].map(|k| cb[k] - ca[k]);
         let len2: f64 = d.iter().map(|v| v * v).sum();
@@ -762,16 +874,77 @@ impl Layers<'_> {
         shift
     }
 
+    /// Whether the pixels inside `l` (a loop along pixel edges) all have one label.
+    fn one_colour_within(&self, l: &Loop) -> bool {
+        let mut first = None;
+        let (y0, y1) = l.pts.iter().fold((i32::MAX, i32::MIN), |m, p| (m.0.min(p.1), m.1.max(p.1)));
+        for y in y0..y1 {
+            // The loop's upright edges that pass this row of pixels, left to right: the pixels
+            // between the first and the second are inside, and so on.
+            let mut xs: Vec<i32> = l
+                .pts
+                .iter()
+                .zip(l.pts.iter().cycle().skip(1))
+                .filter(|(a, b)| a.0 == b.0 && a.1.min(b.1) <= y && y < a.1.max(b.1))
+                .map(|(a, _)| a.0)
+                .collect();
+            xs.sort_unstable();
+            for pair in xs.as_chunks::<2>().0 {
+                for x in pair[0]..pair[1] {
+                    let label = usize::try_from(y)
+                        .ok()
+                        .zip(usize::try_from(x).ok())
+                        .and_then(|(y, x)| self.q.labels.get(y * self.w + x).copied().filter(|_| x < self.w));
+                    if label.is_none() || *first.get_or_insert(label) != label {
+                        return false;
+                    }
+                }
+            }
+        }
+        first.is_some()
+    }
+
+    /// Shapes, Abutting: the shape the outline `sp` (fitted from the loop `l`, `hard` as that
+    /// loop is) is, where it may be one. The edge is shared by the regions on its two sides, so
+    /// both must become that same shape or neither: only a closed edge between two regions, a
+    /// region whose whole outline is the hole of one other (no junction on it, not on the image's
+    /// border), and only a shape inside the image. The shape is read from the outline run one way
+    /// from one start, so the region and the hole it fills get the very same one.
+    fn shared_shape(&self, l: &Loop, sp: &vectorcraft_geom::SubPath, hard: bool) -> Option<TracedShape> {
+        let (w, h) = (i32::try_from(self.w).ok()?, i32::try_from(self.h).ok()?);
+        if l.pts.iter().any(|&(x, y)| x <= 0 || y <= 0 || x >= w || y >= h || self.junction(x, y).is_some()) {
+            return None;
+        }
+        let mut one_way = sp.clone();
+        if one_way.signed_area() < 0.0 {
+            one_way.reverse();
+        }
+        let first = one_way.anchors.iter().enumerate().min_by(|a, b| a.1.p.x.total_cmp(&b.1.p.x).then(a.1.p.y.total_cmp(&b.1.p.y)))?.0;
+        one_way.anchors.rotate_left(first);
+        let shape = shapes::recognise(&one_way, hard)?;
+        let (wf, hf) = (self.w as f64, self.h as f64);
+        let inside = shape
+            .path()
+            .subpaths
+            .iter()
+            .flat_map(|s| &s.anchors)
+            .flat_map(|a| [a.p, a.h_in, a.h_out])
+            .all(|p| (0.0..=wf).contains(&p.x) && (0.0..=hf).contains(&p.y));
+        inside.then_some(shape)
+    }
+
     /// The paths of layer `r` (palette entry `ci`), or `None` once the anchors made pass the
     /// maximum.
     fn layer(&self, r: usize, ci: usize) -> Option<Vec<TracedPath>> {
-        let (params, opts) = (self.params, &self.opts);
+        let params = self.params;
         let color = *self.q.palette.get(ci)?;
         let overlapping = params.method == Method::Overlapping;
         let (w, h) = (self.w, self.h);
         // Create Strokes: this colour's lines, left out of its areas.
         let (thin, lines) = if params.strokes {
-            centerline::lines(&self.q.labels, u16::try_from(ci).unwrap_or(TRANSPARENT), w, h, params.stroke_width, opts)
+            // The ink the lines are read against: the layer's colour; Black and White's own black.
+            let ink = if params.mode == Mode::BlackAndWhite { [self.bw_tones[usize::from(ci == 1)]; 3] } else { color.map(f64::from) };
+            centerline::lines(&self.q.labels, u16::try_from(ci).unwrap_or(TRANSPARENT), w, h, params.stroke_width, self.img, ink, &self.style)
         } else {
             (vec![], vec![])
         };
@@ -796,12 +969,14 @@ impl Layers<'_> {
         let area_stroke = (params.strokes && !params.fills).then_some(1.0);
         let min_hole = params.noise.max(1) as i64;
         let mut paths = vec![];
-        let mut add = |path: PathData, pixels: usize, stroke: Option<f64>| {
+        let mut add = |path: PathData, pixels: usize, stroke: Option<f64>, shape: Option<TracedShape>, square_caps: bool| {
             let n = path.anchor_count();
             if self.anchors.fetch_add(n, Ordering::Relaxed).saturating_add(n) > self.max_anchors {
                 return false;
             }
-            paths.push(TracedPath { path, color, pixels, stroke });
+            // (A gradient fills; a stroked line of it is its middle colour.)
+            let gradient = self.gradients.get(ci).cloned().flatten().filter(|_| stroke.is_none());
+            paths.push(TracedPath { path, color, pixels, stroke, shape, gradient, square_caps });
             true
         };
         let mut comps = trace_mask(&mask, bw, bh);
@@ -814,26 +989,124 @@ impl Layers<'_> {
             }
         }
         for comp in comps {
-            let fit = |l: &Loop| fit::fit_loop(l, w, h, &|c| (self.shift(c), self.neighbour(c)), &|x, y| self.junction(x, y), &self.style);
-            let Some(outer) = fit(&comp.outer) else { continue };
+            // (`hard`: some of the outline has no anti-aliasing, and is known less exactly.)
+            let hard = std::cell::Cell::new(false);
+            // (Each loop fitted, and whether its own outline is hard.)
+            let fit = |l: &Loop| {
+                let (sp, is_hard) = fit::fit_loop(l, w, h, &|c| (self.shift(c), self.neighbour(c)), &|x, y| self.junction(x, y), &self.style)?;
+                // Every trace straightens the pieces of an outline that lie close to a line (Snap
+                // Curves To Lines straightens more of them), so the outline of a single pixel or
+                // of a region one pixel thick can have all its pieces on one chord, and the loop
+                // then has no area. Filled, such a loop paints nothing, and it is left out.
+                // Without Fills its 1 px stroke draws it, so it is kept. (`fit::fit_closed` puts
+                // back the positioned outline of a loop that is one closed piece when its fit has
+                // no area.) The area is summed about the loop's first anchor.
+                if area_stroke.is_none() {
+                    use kurbo::ParamCurveArea;
+                    let origin = sp.anchors.first()?.p.to_vec2();
+                    let area: f64 = (0..sp.segment_count()).map(|i| (kurbo::Affine::translate(-origin) * sp.segment(i)).signed_area()).sum();
+                    if area.abs() < 1e-6 {
+                        return None;
+                    }
+                }
+                hard.set(hard.get() || is_hard);
+                Some((sp, is_hard))
+            };
+            let Some((outer, _)) = fit(&comp.outer) else { continue };
             let mut subs = vec![outer];
             for hole in &comp.holes {
                 if hole.area2.abs() / 2 < min_hole && params.noise > 0 {
                     continue;
                 }
-                subs.extend(fit(hole));
+                let Some((mut sp, own_hard)) = fit(hole) else { continue };
+                // Shapes: a hole that is a shape is that shape, as what fills it is (the two are
+                // one outline: they stay one). Only where one colour fills it: the parts of
+                // several are not that shape, and would no longer meet it. Abutting, only where the
+                // region that fills it is that shape too (see `shared_shape`).
+                let exact = if !params.shapes || area_stroke.is_some() || !self.one_colour_within(hole) {
+                    None
+                } else if overlapping {
+                    shapes::recognise(&sp, hard.get())
+                } else {
+                    // (As hard as this outline is, as the region that fills it reads it.)
+                    self.shared_shape(hole, &sp, own_hard)
+                };
+                if let Some(exact) = exact.and_then(|shape| shape.path().subpaths.into_iter().next()) {
+                    // (Which way round each goes: by the area of the polygon through points along it.)
+                    let turn = |sp: &vectorcraft_geom::SubPath| {
+                        use vectorcraft_geom::ParamCurve;
+                        let pts: Vec<_> =
+                            (0..sp.segment_count()).flat_map(|i| (0..6).map(move |k| sp.segment(i).eval(f64::from(k) / 6.0).to_vec2())).collect();
+                        pts.iter().zip(pts.iter().cycle().skip(1)).map(|(a, b)| a.cross(*b)).sum::<f64>()
+                    };
+                    let mut exact = exact;
+                    if (turn(&exact) < 0.0) != (turn(&sp) < 0.0) {
+                        exact.reverse();
+                    }
+                    sp = exact;
+                }
+                subs.push(sp);
             }
-            if !add(PathData::new(subs), comp.pixels, area_stroke) {
+            // Shapes: a filled outline without holes that is a shape becomes that shape.
+            let shape = match subs.as_slice() {
+                [only] if params.shapes && area_stroke.is_none() && overlapping => shapes::recognise(only, hard.get()),
+                // Abutting: only an island in one other region, whose hole it is (see `shared_shape`).
+                [only] if params.shapes && area_stroke.is_none() && comp.holes.is_empty() => self.shared_shape(&comp.outer, only, hard.get()),
+                _ => None,
+            };
+            let path = shape.map_or_else(|| PathData::new(subs), |s| s.path());
+            if !add(path, comp.pixels, area_stroke, shape, false) {
                 return None;
             }
         }
         for line in lines {
-            if !add(line.path, line.pixels, Some(line.width)) {
+            if !add(line.path, line.pixels, Some(line.width), None, line.square) {
                 return None;
             }
         }
         Some(paths)
     }
+}
+
+/// Test probe: every crack between two labels of `img` quantised as `trace` does (no gradients),
+/// as `[shift, shift from the other side, one-sided reading, one-sided reading from the other
+/// side]`.
+#[cfg(test)]
+pub(crate) fn shift_probe(img: &Raster, params: &TraceParams) -> Vec<[f64; 4]> {
+    let (w, h) = (img.width as usize, img.height as usize);
+    let mut q = quantize(img, params);
+    denoise(&mut q.labels, w, h, params.noise as usize);
+    let n = q.palette.len();
+    let rank: Vec<usize> = (0..n).collect();
+    let gradients = vec![None; n];
+    let job = Layers {
+        q: &q,
+        rank: &rank,
+        params,
+        img,
+        ignore: None,
+        boxes: vec![None; n],
+        gradients: &gradients,
+        bw_tones: bw_tones(img, &q),
+        style: params.outline_style(),
+        w,
+        h,
+        anchors: AtomicUsize::new(0),
+        max_anchors: usize::MAX,
+    };
+    let mut out = vec![];
+    for y in 0..h as i32 {
+        for x in 0..w as i32 {
+            for step in [(1, 0), (0, 1)] {
+                let c = Crack::new((x, y), step, w, h);
+                let (Some(a), Some(b)) = (c.at(0), c.at(1)) else { continue };
+                if q.labels[a] != q.labels[b] {
+                    out.push([job.shift(c), job.shift(c.flipped()), job.shift_one_side(c), job.shift_one_side(c.flipped())]);
+                }
+            }
+        }
+    }
+    out
 }
 
 /// `f` of each of `items`, in order, spread over the available cores.
