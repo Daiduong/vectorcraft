@@ -14,6 +14,7 @@ use super::{DialogSpec, form, run_and_close};
 use crate::state::Dialog;
 use crate::theme::Tokens;
 use crate::{VectorcraftApp, widgets};
+use vectorcraft_tools::draw2::PAINTBRUSH_SIZE;
 
 /// The dialog kind of the freehand tools' Tool Options.
 pub const KIND: &str = "freehandOptions";
@@ -46,6 +47,11 @@ pub fn open(app: &mut VectorcraftApp, tool: &str) -> Result<Value, String> {
     }
     let o = app.session.tool_options_of(tool);
     let mut fields: Map<String, Value> = KEYS.iter().filter_map(|key| Some((key.to_string(), o.get(*key)?.clone()))).collect();
+    if tool == "paintbrush" {
+        if let Some(size) = fields.get("size").and_then(Value::as_f64) {
+            fields.insert("size".into(), json!(size / PAINTBRUSH_SIZE));
+        }
+    }
     fields.insert("tool".into(), json!(tool));
     app.ui.dialog = Some(Dialog { kind: KIND.into(), fields });
     Ok(json!({ "dialog": KIND }))
@@ -96,8 +102,10 @@ fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         ui.add_space(10.0);
     }
     if d.fields.contains_key("size") {
-        let suffix = if d.str("tool") == "paintbrush" { "×" } else { "pt" };
-        number(ui, d, ("size", tl!("Size:")), suffix, 1, (0.1, 1000.0));
+        let paintbrush = d.str("tool") == "paintbrush";
+        let suffix = if paintbrush { "×" } else { "pt" };
+        let range = if paintbrush { (0.1, 100.0) } else { (0.1, 1000.0) };
+        number(ui, d, ("size", tl!("Size:")), suffix, 1, range);
     }
     if d.fields.contains_key("fill") {
         check(ui, d, "fill", tl!("Fill new strokes"));
@@ -123,7 +131,12 @@ fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// OK: set the tool's options.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
-    let values: Map<String, Value> = KEYS.iter().filter_map(|k| Some((k.to_string(), d.fields.get(*k)?.clone()))).collect();
+    let mut values: Map<String, Value> = KEYS.iter().filter_map(|k| Some((k.to_string(), d.fields.get(*k)?.clone()))).collect();
+    if d.str("tool") == "paintbrush" {
+        if let Some(scale) = values.get("size").and_then(Value::as_f64) {
+            values.insert("size".into(), json!(scale * PAINTBRUSH_SIZE));
+        }
+    }
     run_and_close(app, "tool.setOption", json!({ "tool": d.str("tool"), "values": values }))
 }
 
@@ -141,6 +154,16 @@ mod tests {
     /// The labels the open dialog paints.
     fn painted(app: &mut VectorcraftApp) -> String {
         crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
+    }
+
+    #[test]
+    fn paintbrush_size_field_shows_multiplier_and_ok_converts_back() {
+        let mut app = app();
+        app.run("tool.options", json!({"tool": "paintbrush"})).unwrap();
+        assert_eq!(app.ui.dialog.as_ref().unwrap().f64("size", 0.0), 1.0);
+        app.ui.dialog.as_mut().unwrap().fields.insert("size".into(), json!(2.0));
+        super::super::confirm(&mut app).unwrap();
+        assert_eq!(app.session.tool_options_of("paintbrush")["size"].as_f64(), Some(20.0));
     }
 
     #[test]
@@ -182,7 +205,7 @@ mod tests {
         // The Paintbrush keeps its own: the Pencil's change left it alone.
         app.run("tool.options", json!({"tool": "paintbrush"})).unwrap();
         let d = app.ui.dialog.as_ref().unwrap();
-        assert_eq!((d.f64("fidelity", 0.0), d.bool("fill")), (1.5, false));
+        assert_eq!((d.f64("fidelity", 0.0), d.bool("fill"), d.f64("size", 0.0)), (1.5, false, 1.0));
         let pb_text = painted(&mut app);
         assert!(pb_text.contains("Paintbrush Tool Options"));
         assert!(!pb_text.contains("Alt key toggles to Smooth Tool"));
