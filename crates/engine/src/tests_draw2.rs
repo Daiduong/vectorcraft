@@ -2782,8 +2782,9 @@ fn pencil_redraws_a_selected_compound_path() {
 
 /// A Pencil stroke that starts on a selected closed shape and is lifted away from it takes the
 /// shape with it: the shape opens where the stroke started, keeps its whole outline, fill and
-/// selection, and ends where the pen was lifted. Going out past Edit Selected Paths' distance on
-/// the way changes nothing: no new path appears at any point of the stroke.
+/// selection, and ends where the pen was lifted. While the stroke is drawn the shape stays as it
+/// was and the selection with it (the preview shows the stroke on its own); the release leaves no
+/// new path.
 #[test]
 fn a_stroke_lifted_away_from_a_closed_shape_opens_it_and_follows_the_stroke() {
     let mut s = session();
@@ -2796,11 +2797,14 @@ fn a_stroke_lifted_away_from_a_closed_shape_opens_it_and_follows_the_stroke() {
     let v = view();
     s.select_tool("pencil", v).unwrap();
     let count = |s: &Session| s.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let shape = |s: &Session| s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().clone();
+    let before = shape(&s);
     // From the right edge, a little hook up and out to the right.
     s.pointer(&PointerEvent::new(PointerKind::Down, 300.0, 150.0), v).unwrap();
     for (x, y) in [(303.0, 140.0), (308.0, 128.0), (316.0, 118.0), (326.0, 112.0), (338.0, 110.0)] {
         s.pointer(&PointerEvent::new(PointerKind::Drag, x, y), v).unwrap();
-        assert_eq!(count(&s), 1, "no new path while drawing");
+        assert!(shape(&s) == before, "the shape stays as it was while the stroke is drawn");
+        assert_eq!(s.doc().unwrap().selection.objects, vec![id], "and stays selected");
     }
     s.pointer(&PointerEvent::new(PointerKind::Up, 338.0, 110.0), v).unwrap();
     assert_eq!(count(&s), 1, "no new path");
