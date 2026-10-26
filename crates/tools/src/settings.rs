@@ -37,11 +37,14 @@ const ROWS: &[Row] = &[
     (&["pencil", "paintbrush"], None, &["fidelity", "fill", "keepSelected", "editWithin", "closeWithin"]),
     // Paintbrush Tool Options' size (relative to stroke weight; not the Pencil's).
     (&["paintbrush"], None, &["size"]),
-    // Pencil Tool Options' Alt key toggles to Smooth Tool (the Paintbrush has no such option).
-    (&["pencil"], None, &["altSmooth"]),
+    // Pencil Tool Options' Alt key toggles to Smooth Tool, Live preview and Live curve fitting (the
+    // Paintbrush has none of them).
+    (&["pencil"], None, &["altSmooth", "livePreview", "liveFit"]),
     (&["smooth"], None, &["fidelity"]),
     (&["blobBrush", "eraser"], None, &["size"]),
     (&["blobBrush"], None, &["keepSelected", "mergeOnlySelection"]),
+    // Eraser Tool Options' tip shape.
+    (&["eraser"], None, &["angle", "roundness"]),
     // Live Paint Selection Tool Options (`builder::LivePaintSelectionTool`).
     (&["livePaintSelection"], None, &["selectFills", "selectStrokes", "color", "width"]),
     (&["polygon"], None, &["sides"]),
