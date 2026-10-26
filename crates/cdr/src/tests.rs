@@ -417,3 +417,26 @@ fn compatibility_doc_matches_the_matrix() {
     }
     assert!(doc.contains(&table), "docs/cdr-compatibility.md is out of date: run with VC_WRITE_CDR_DOC=1");
 }
+
+/// A layer's opacity reaches its objects (the format has no layer opacity).
+#[test]
+fn layer_opacity_is_applied_to_its_objects() {
+    let mut d = sample(false);
+    Arc::make_mut(&mut d.layers[0]).opacity = 0.5;
+    let out = export(&d, &ExportOptions::default()).unwrap();
+    let back = import(&out.bytes, "o", &ImportOptions::default()).unwrap().document;
+    let layer = back.layers.iter().find(|l| l.name.as_deref().is_some_and(|n| n.contains("Fundo"))).expect("the layer comes back");
+    let mut paths = Vec::new();
+    fn walk(n: &Node, alpha: f32, out: &mut Vec<f32>) {
+        let alpha = alpha * n.opacity;
+        if matches!(n.kind, NodeKind::Path { .. }) {
+            out.push(alpha);
+        }
+        for c in n.children().into_iter().flatten() {
+            walk(c, alpha, out);
+        }
+    }
+    walk(layer, 1.0, &mut paths);
+    assert!(!paths.is_empty());
+    assert!(paths.iter().all(|a| *a < 0.51), "{paths:?}");
+}

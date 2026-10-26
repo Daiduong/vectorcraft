@@ -23,7 +23,8 @@ use crate::{CdrInfo, Error, Result, guarded};
 pub(crate) const PT_PER_MM: f64 = 72.0 / 25.4;
 /// The gap between the artboards of neighbouring pages (pt).
 const PAGE_GAP: f64 = 36.0;
-/// The most objects an import makes (a hostile file can't exhaust memory with them).
+/// The most shapes an import visits, the ones left out included (a hostile file can't exhaust memory
+/// or time with them, as with a large symbol of invalid shapes placed many times).
 const MAX_OBJECTS: usize = 1 << 20;
 /// The deepest nesting of groups read.
 const MAX_DEPTH: usize = 64;
@@ -105,6 +106,7 @@ pub(crate) fn import(bytes: &[u8], title: &str, info: CdrInfo, opts: &ImportOpti
         fonts: BTreeSet::new(),
         layers: 0,
         objects: 0,
+        visited: 0,
     };
     r.doc.layers.clear();
     r.doc.artboards.clear();
@@ -223,7 +225,10 @@ struct Reader<'a> {
     notes: Notes,
     fonts: BTreeSet<String>,
     layers: u8,
+    /// Objects made.
     objects: usize,
+    /// Shapes visited, made or left out: what [`MAX_OBJECTS`] caps.
+    visited: usize,
 }
 
 /// Whether every coefficient of `a` is finite: a damaged file can hold NaN or infinity.
@@ -302,10 +307,11 @@ impl Reader<'_> {
     /// A shape (and its subtree) as VectorCraft art; `m` maps the shape's page coordinates into
     /// the document.
     fn shape(&mut self, s: &TdShape, m: Affine, depth: usize) -> Option<Node> {
-        if self.objects >= MAX_OBJECTS {
+        if self.visited >= MAX_OBJECTS {
             self.notes.warn(format!("the file has more than {MAX_OBJECTS} objects: the rest were left out"));
             return None;
         }
+        self.visited += 1;
         if depth > MAX_DEPTH {
             self.notes.warn("groups nested too deep were left out");
             return None;
@@ -735,5 +741,41 @@ pub(crate) fn ungroup(mut n: Arc<Node>, visible: bool, locked: bool, out: &mut V
             }
             out.push(n);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tracedraw_core::ShapeId;
+    use tracedraw_core::document::Symbol;
+
+    /// A symbol of shapes with invalid transforms, placed many times: every shape left out counts
+    /// towards the limit, so the import stops instead of copying the symbol for each instance.
+    #[test]
+    fn shapes_left_out_count_towards_the_object_limit() {
+        let mut bad = TdShape::new(ShapeId(1), ShapeKind::Rect { rect: Rect::new(0.0, 0.0, 1.0, 1.0), radius: 0.0, corners: None });
+        bad.transform = Affine::scale(f64::NAN);
+        let children = vec![bad; 2_000];
+        let mut td = TdDocument::new("t", kurbo::Size::new(10.0, 10.0));
+        td.symbols.push(Symbol { name: "s".into(), shape: TdShape::new(ShapeId(2), ShapeKind::Group { children }) });
+        let instance = TdShape::new(ShapeId(3), ShapeKind::SymbolInstance { index: 0 });
+        let opts = ImportOptions::default();
+        let mut r = Reader {
+            doc: Document::new(1.0, 1.0),
+            td: &td,
+            opts: &opts,
+            k: PT_PER_MM,
+            notes: Notes::default(),
+            fonts: BTreeSet::new(),
+            layers: 0,
+            objects: 0,
+            visited: 0,
+        };
+        for _ in 0..1_000 {
+            assert!(r.shape(&instance, Affine::IDENTITY, 0).is_none());
+        }
+        assert_eq!(r.visited, MAX_OBJECTS);
+        assert!(r.notes.list.iter().any(|w| w.contains("more than")), "{:?}", r.notes.list);
     }
 }

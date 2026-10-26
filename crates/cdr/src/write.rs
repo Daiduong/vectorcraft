@@ -234,7 +234,7 @@ impl Writer<'_> {
             for child in layer.children().into_iter().flatten() {
                 let page = self.page_of(child, &boards);
                 let Some(m) = to_page.get(page).copied() else { continue };
-                let shapes = self.node(child, m, 1.0, 0);
+                let shapes = self.node(child, m, layer.opacity.clamp(0.0, 1.0), 0);
                 if let Some(v) = per_page.get_mut(page) {
                     v.extend(shapes);
                 }
