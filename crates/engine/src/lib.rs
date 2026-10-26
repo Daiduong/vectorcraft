@@ -2635,6 +2635,8 @@ mod tests_colorthemes;
 #[cfg(test)]
 mod tests_colourfonts;
 #[cfg(test)]
+mod tests_compare;
+#[cfg(test)]
 mod tests_compoundpaint;
 #[cfg(test)]
 mod tests_constrain_new;
