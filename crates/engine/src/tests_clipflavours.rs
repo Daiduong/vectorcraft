@@ -150,6 +150,30 @@ fn import_image_then_paste_gives_an_image() {
     assert!(s.execute("clipboard.importImage", &json!({"dataBase64": "!!"})).is_err());
 }
 
+/// An image read apart from the session (off the UI thread in the desktop app) loads as
+/// `clipboard.importImage` loads its bytes: the same reply and clipboard, and the same errors.
+#[test]
+fn an_image_read_apart_loads_as_import_image_loads_it() {
+    let mut bmp = vec![];
+    image::RgbImage::from_pixel(30, 20, image::Rgb([200, 40, 40])).write_to(&mut std::io::Cursor::new(&mut bmp), image::ImageFormat::Bmp).unwrap();
+    let (mut at_once, mut apart) = (session(), session());
+    let p = json!({"mime": "image/bmp", "center": [100, 80]});
+    let mut with_data = p.clone();
+    with_data["dataBase64"] = json!(vectorcraft_format::base64_encode(&bmp));
+    let r = run(&mut at_once, "clipboard.importImage", with_data);
+    let read = crate::cmd::clipboard::read_image(&bmp).unwrap();
+    assert_eq!(apart.import_image_read(read, &p).unwrap(), r);
+    assert_eq!(apart.clipboard, at_once.clipboard);
+    assert!(apart.image_hand_off.is_none());
+    // Errors: bytes that aren't a picture, and a type that isn't a bitmap.
+    let not_a_picture = at_once.execute("clipboard.importImage", &json!({"dataBase64": vectorcraft_format::base64_encode(b"hello")})).unwrap_err();
+    assert_eq!(crate::cmd::clipboard::read_image(b"hello").err().map(|e| e.to_string()), Some(not_a_picture.to_string()));
+    let read = crate::cmd::clipboard::read_image(&bmp).unwrap();
+    let svg = apart.import_image_read(read, &json!({"mime": SVG})).unwrap_err();
+    assert!(svg.to_string().contains("isn't a bitmap"), "{svg}");
+    assert!(apart.image_hand_off.is_none() && apart.clipboard == at_once.clipboard, "nothing loaded");
+}
+
 #[test]
 fn copied_svgz_files_paste_as_svg() {
     let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"40\"><rect width=\"40\" height=\"40\" fill=\"#ff0000\"/></svg>";

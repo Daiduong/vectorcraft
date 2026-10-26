@@ -4,23 +4,120 @@
 //! the document it was placed in once it is ready, as it would be at once: the same object, undo
 //! step, selection and errors. The files the Place dialog loads the place cursor with are read, and
 //! their thumbnails made, the same way, and so is the file each click or drag of the place cursor
-//! places. Files are read and placed in the order they were started. `file.place` and
-//! `file.place.queue` from MCP and scripts run at once, and so does every place on wasm (no
-//! threads), with `VECTORCRAFT_SYNC_OPEN` set, and in unit tests that do not set
-//! `off_the_ui_thread` ([`available`]).
+//! places. A Paste the user gives decodes another app's bitmap on the same thread, and runs once it
+//! is decoded ([`adopt_for_paste`]). Files are read and placed in the order they were started.
+//! `file.place`, `file.place.queue` and `edit.paste*` from MCP and scripts run at once, and so does
+//! every place and paste on wasm (no threads), with `VECTORCRAFT_SYNC_OPEN` set, and in unit tests
+//! that do not set `off_the_ui_thread` ([`available`]).
 
+use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
+use std::sync::{Arc, Mutex};
 
 use serde_json::{Value, json};
+use vectorcraft_engine::cmd::clipboard::{Clipboard, Flavour, ImageRead, read_image};
 use vectorcraft_engine::cmd::place::{PlaceRead, QueueRead};
 use vectorcraft_engine::file_access::ScopeHandle;
 
 use crate::VectorcraftApp;
 
-/// What was read: one file to place, or the files to load the place cursor with.
+/// What was read: one file to place, the files to load the place cursor with, or a bitmap to paste.
 enum Read {
     Place(Box<PlaceRead>),
     Queue(QueueRead),
+    Paste(Box<Paste>),
+}
+
+/// A paste whose bitmap was decoded off the UI thread ([`adopt_for_paste`]).
+struct Paste {
+    /// The paste command and its params.
+    id: String,
+    params: Value,
+    /// What it pastes (`None`: a bitmap the host converts couldn't be converted, and the paste
+    /// takes the internal clipboard as it was when the paste started, as at once).
+    pasted: Option<Pasted>,
+    /// The view's center when the paste started, which the pasted objects are centered on.
+    center: Option<[f64; 2]>,
+    /// The objects selected when the paste started, which Paste in Front and Paste in Back paste
+    /// next to (`None`: the paste follows an earlier one of its chain, and takes the selection
+    /// that one left, [`Chain::left`]).
+    selection: Option<Vec<vectorcraft_doc::NodeId>>,
+    /// The number of its chain in [`Placing::chains`].
+    chain: u64,
+    /// Where new art went when the paste started, which is where the paste goes.
+    insertion: Insertion,
+    /// The latest Copy or Cut when the paste started ([`crate::sysclip::Publishing::latest`]).
+    copied: u64,
+    /// The internal clipboard when the paste started, which it pastes when [`Self::pasted`] is
+    /// `None`.
+    clipboard: Clipboard,
+}
+
+/// Where new art goes in the active document: the current layer, the isolated group or object, and
+/// the drawing mode with the object Draw Inside draws into.
+#[derive(Clone, PartialEq)]
+struct Insertion {
+    layer: Option<vectorcraft_doc::NodeId>,
+    isolation: Option<vectorcraft_doc::NodeId>,
+    draw_mode: vectorcraft_engine::DrawMode,
+    draw_inside: Option<vectorcraft_doc::NodeId>,
+}
+
+impl Insertion {
+    /// Where new art goes in `app`'s active document now.
+    fn of(app: &VectorcraftApp) -> Option<Self> {
+        let st = app.session.doc().ok()?;
+        Some(Self { layer: st.active_layer, isolation: st.isolation, draw_mode: app.session.draw_mode, draw_inside: app.session.draw_inside })
+    }
+
+    /// Make it where new art goes in `app`'s active document → where new art went before.
+    fn set(self, app: &mut VectorcraftApp) -> Option<Self> {
+        let st = app.session.doc_mut().ok()?;
+        let (layer, isolation) = (std::mem::replace(&mut st.active_layer, self.layer), std::mem::replace(&mut st.isolation, self.isolation));
+        let draw_mode = std::mem::replace(&mut app.session.draw_mode, self.draw_mode);
+        let draw_inside = std::mem::replace(&mut app.session.draw_inside, self.draw_inside);
+        Some(Self { layer, isolation, draw_mode, draw_inside })
+    }
+
+    /// Put back each part of `self` (where new art went before [`Self::set`] set `started`) that
+    /// differs from `started`, what the user changed meanwhile; a part the paste itself changed
+    /// stays as the paste left it.
+    fn restore_changed(self, started: &Self, app: &mut VectorcraftApp) {
+        if let Ok(st) = app.session.doc_mut() {
+            if self.layer != started.layer {
+                st.active_layer = self.layer;
+            }
+            if self.isolation != started.isolation {
+                st.isolation = self.isolation;
+            }
+        }
+        if self.draw_mode != started.draw_mode {
+            app.session.draw_mode = self.draw_mode;
+        }
+        if self.draw_inside != started.draw_inside {
+            app.session.draw_inside = self.draw_inside;
+        }
+    }
+}
+
+/// Pastes decoded off the UI thread that follow each other in one document: each was given while the
+/// one before waited, with the selection and the insertion context that one started with or, once
+/// it ran, left.
+struct Chain {
+    /// The selection and the insertion context a paste given now must have to join the chain.
+    context: (Vec<vectorcraft_doc::NodeId>, Insertion),
+    /// The selection the chain's latest paste left, which the next one takes.
+    left: Option<Vec<vectorcraft_doc::NodeId>>,
+    /// How many of its pastes wait.
+    waiting: usize,
+}
+
+/// What a paste whose bitmap was decoded off the UI thread pastes.
+enum Pasted {
+    /// The bitmap's type and the image read from it.
+    Image(&'static str, Result<ImageRead, String>),
+    /// Another flavour: the text that names the picture, when the picture couldn't be made.
+    Flavour(Flavour),
 }
 
 /// Files being read for Place.
@@ -34,6 +131,10 @@ pub struct Pending {
     /// Whether the file was dropped on the canvas (its messages say so, as
     /// [`crate::place::drop_files`]'s do).
     dropped: bool,
+    /// Whether it is a paste's bitmap ([`adopt_for_paste`]) rather than a file.
+    paste: bool,
+    /// The number of the paste's chain ([`Placing::chains`]).
+    chain: Option<u64>,
     done: Receiver<Result<Read, String>>,
 }
 
@@ -46,6 +147,17 @@ pub struct Placing {
     pub pending: Vec<Pending>,
     /// Set by unit tests whose app reads the files the user places off the UI thread.
     pub(crate) off_the_ui_thread: bool,
+    /// Set while [`crate::menus::invoke`] runs a Paste the user gave.
+    pub(crate) for_user: bool,
+    /// Set while a paste whose bitmap was converted off the UI thread runs: it takes the internal
+    /// clipboard as it is.
+    adopted: bool,
+    /// The chains of pastes decoded off the UI thread that have pastes waiting, by number.
+    chains: HashMap<u64, Chain>,
+    /// For each document, the number of its latest chain, which a paste given there may join.
+    latest_chain: HashMap<u64, u64>,
+    /// The number the next chain takes.
+    next_chain: u64,
     /// The thread that reads the files, one at a time in the order they were started: started with
     /// the first read, it ends when the app does.
     reader: Option<Sender<Job>>,
@@ -97,6 +209,71 @@ pub fn start_queue(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String>
     }
 }
 
+/// Before paste command `id` with `p`: what another app put on the system clipboard replaces the
+/// internal clipboard ([`VectorcraftApp::adopt_system_clipboard`]) → `None`, and the paste runs at
+/// once. For a Paste the user gives ([`crate::menus::invoke`]) where placed files are read off the
+/// UI thread ([`available`]), the bitmap's bytes are copied off the system clipboard at once and
+/// decoded on the thread that reads placed files, after the files started before it →
+/// `{background: true, status}`: a bitmap the host converts to PNG is converted there
+/// ([`crate::SystemClipboard::read_deferred`]), and the bitmap is read as `clipboard.importImage`
+/// reads it ([`read_image`]). The paste runs once it is decoded, in the document it was given in,
+/// as it would at once ([`poll`]). When no thread could start, the bitmap is read at once.
+pub fn adopt_for_paste(app: &mut VectorcraftApp, id: &str, p: &Value) -> Result<Option<Value>, String> {
+    if std::mem::take(&mut app.placing.adopted) {
+        app.clipboard_image_request = None;
+        return Ok(None);
+    }
+    if !(app.placing.for_user && available(app)) {
+        return app.adopt_system_clipboard().map(|()| None);
+    }
+    let center = app.view().map(|v| [v.center.x, v.center.y]);
+    let Some(make) = app.adopt_system_clipboard_or_defer(true)? else { return Ok(None) };
+    let copied = app.clipboard_publishing.latest();
+    let (doc, objects) = app.session.doc().map(|st| (st.uid, st.selection.objects.clone())).map_err(|e| e.to_string())?;
+    let insertion = Insertion::of(app).ok_or("no document")?;
+    // A paste given while one of the document's latest chain waits, with the selection and the
+    // insertion context that chain expects, joins it: it goes next to what the paste before it
+    // leaves selected, as at once. Otherwise it starts a chain.
+    let context = (objects, insertion.clone());
+    let joins =
+        app.placing.latest_chain.get(&doc).copied().filter(|c| app.placing.chains.get(c).is_some_and(|ch| ch.waiting > 0 && ch.context == context));
+    let (chain, selection) = match joins {
+        Some(chain) => (chain, None),
+        None => (app.placing.next_chain, Some(context.0.clone())),
+    };
+    let clipboard = app.session.clipboard.clone();
+    let (id, params) = (id.to_string(), p.clone());
+    // The work stays here when no thread could start.
+    let slot = Arc::new(Mutex::new(Some(make)));
+    let work = slot.clone();
+    let started = spawn_labeled(app, "clipboard".into(), "Pasting".into(), false, Some(chain), move || {
+        let make = work.lock().ok().and_then(|mut m| m.take());
+        let pasted = make.and_then(|m| m()).map(|f| {
+            if crate::sysclip::imports_as_image(f.mime) {
+                Pasted::Image(f.mime, read_image(&f.data).map_err(|e| e.to_string()))
+            } else {
+                Pasted::Flavour(f)
+            }
+        });
+        Ok(Read::Paste(Box::new(Paste { id, params, pasted, center, selection, chain, insertion, copied, clipboard })))
+    })?;
+    if started.is_some() {
+        if joins.is_none() {
+            app.placing.next_chain += 1;
+            app.placing.chains.insert(chain, Chain { context, left: None, waiting: 0 });
+            app.placing.latest_chain.insert(doc, chain);
+        }
+        if let Some(ch) = app.placing.chains.get_mut(&chain) {
+            ch.waiting += 1;
+        }
+        return Ok(started);
+    }
+    match slot.lock().ok().and_then(|mut m| m.take()).and_then(|m| m()) {
+        Some(f) => app.adopt_flavour(&f, center).map(|()| None),
+        None => Ok(None),
+    }
+}
+
 /// Run `read` for the active document on the thread that reads the files, after the reads started
 /// before it (so a batch of large pictures is decoded one at a time, as at once) →
 /// `{background: true, status}`, or `None` when that thread could not start.
@@ -105,6 +282,18 @@ fn spawn(
     name: String,
     shown: String,
     dropped: bool,
+    read: impl FnOnce() -> Result<Read, String> + Send + 'static,
+) -> Result<Option<Value>, String> {
+    spawn_labeled(app, name, format!("Placing {shown}"), dropped, None, read)
+}
+
+/// [`spawn`] with the status bar's `label`; `chain` for a paste's bitmap, its chain's number.
+fn spawn_labeled(
+    app: &mut VectorcraftApp,
+    name: String,
+    label: String,
+    dropped: bool,
+    chain: Option<u64>,
     read: impl FnOnce() -> Result<Read, String> + Send + 'static,
 ) -> Result<Option<Value>, String> {
     let doc = app.session.doc().map_err(|e| e.to_string())?.uid;
@@ -145,8 +334,7 @@ fn spawn(
         let _ = reader.send(job);
         app.placing.reader = Some(reader);
     }
-    let label = format!("Placing {shown}");
-    app.placing.pending.push(Pending { name, label: label.clone(), doc, dropped, done });
+    app.placing.pending.push(Pending { name, label: label.clone(), doc, dropped, paste: chain.is_some(), chain, done });
     let status = format!("{label}…");
     app.status(status.clone());
     Ok(Some(json!({ "background": true, "status": status })))
@@ -178,6 +366,16 @@ pub fn poll(app: &mut VectorcraftApp) {
             app.ui.status.clear();
         }
         finish(app, &p, r);
+        // A chain none of whose pastes waits any more is dropped, whether its pastes ran or not.
+        if let Some(chain) = p.chain
+            && let Some(ch) = app.placing.chains.get_mut(&chain)
+        {
+            ch.waiting = ch.waiting.saturating_sub(1);
+            if ch.waiting == 0 {
+                app.placing.chains.remove(&chain);
+                app.placing.latest_chain.retain(|_, c| *c != chain);
+            }
+        }
     }
 }
 
@@ -187,7 +385,9 @@ pub fn poll(app: &mut VectorcraftApp) {
 fn finish(app: &mut VectorcraftApp, p: &Pending, r: Result<Read, String>) {
     let Some(i) = app.session.documents().iter().position(|st| st.uid == p.doc) else {
         let name = &p.name;
-        if p.dropped {
+        if p.paste {
+            app.status("Couldn't paste: the document it was pasted in was closed");
+        } else if p.dropped {
             app.status(format!("Couldn't place {name}: the document it was dropped on was closed"));
         } else {
             app.status(format!("Couldn't place {name}: the document it was placed in was closed"));
@@ -198,6 +398,8 @@ fn finish(app: &mut VectorcraftApp, p: &Pending, r: Result<Read, String>) {
     let r = match r {
         Ok(Read::Place(read)) => app.session.place_read(*read).map(|_| ()).map_err(|e| e.to_string()),
         Ok(Read::Queue(read)) => app.session.place_queue_read(read).map(|r| crate::place::show_thumbnails(app, &r)).map_err(|e| e.to_string()),
+        Ok(Read::Paste(paste)) => return finish_paste(app, *paste),
+        Err(e) if p.paste => return app.status(format!("Couldn't paste from the clipboard: {e}")),
         Err(e) => Err(e),
     };
     app.sync_views();
@@ -209,11 +411,75 @@ fn finish(app: &mut VectorcraftApp, p: &Pending, r: Result<Read, String>) {
     }
 }
 
+/// Run a paste whose bitmap was decoded off the UI thread, in its document, which is the active one:
+/// the image replaces the internal clipboard, the objects selected when the paste started are
+/// selected again, and the paste command runs as it runs at once ([`VectorcraftApp::run`]), into
+/// the layer that was current when it started, with its errors in the status bar. A Copy or Cut
+/// made since the paste started keeps the internal clipboard it made.
+fn finish_paste(app: &mut VectorcraftApp, paste: Paste) {
+    let kept = (app.clipboard_publishing.latest() != paste.copied).then(|| app.session.clipboard.clone());
+    let adopted = match paste.pasted {
+        Some(Pasted::Image(mime, read)) => app.adopt_image_read(mime, paste.center, read),
+        Some(Pasted::Flavour(f)) => app.adopt_flavour(&f, paste.center),
+        None => {
+            app.session.clipboard = paste.clipboard;
+            Ok(())
+        }
+    };
+    let chain = paste.chain;
+    let selection = paste.selection.or_else(|| app.placing.chains.get_mut(&chain).and_then(|ch| ch.left.take()));
+    let left = match adopted {
+        Err(e) => {
+            app.status(e);
+            selection
+        }
+        Ok(()) => {
+            // Where new art goes now, before a selection changes the current layer.
+            let current = Insertion::of(app);
+            // The objects selected when the paste started (or that the paste it follows left) are
+            // selected again (those that are left), as `Session::place_read` selects the object
+            // Replace swaps.
+            let now = app.session.doc().map(|st| st.selection.objects.clone()).unwrap_or_default();
+            if let Some(selection) = selection.filter(|s| *s != now) {
+                let left: Vec<u64> =
+                    selection.iter().filter(|id| app.session.doc().is_ok_and(|st| st.doc.node(**id).is_some())).map(|id| id.0).collect();
+                let _ = app.session.execute("select.set", &json!({ "ids": left }));
+            }
+            // The paste goes where new art went when it started (the current layer, the isolated
+            // group, the object Draw Inside draws into), and what the user changed meanwhile is
+            // kept.
+            paste.insertion.clone().set(app);
+            app.placing.adopted = true;
+            // `run` shows an error in the status bar.
+            let _ = app.run(&paste.id, paste.params);
+            // Also when the paste did not reach the clipboard (the Type tool took it).
+            app.placing.adopted = false;
+            if let Some(current) = current {
+                current.restore_changed(&paste.insertion, app);
+            }
+            app.session.doc().ok().map(|st| st.selection.objects.clone())
+        }
+    };
+    // The chain's next paste takes the selection this one left, and a paste given with it and the
+    // insertion context joins the chain while a paste of it waits ([`poll`] drops the chain).
+    let context = app.session.doc().ok().map(|st| st.selection.objects.clone()).zip(Insertion::of(app));
+    if let Some(ch) = app.placing.chains.get_mut(&chain) {
+        ch.left = left;
+        if let Some(context) = context {
+            ch.context = context;
+        }
+    }
+    if let Some(kept) = kept {
+        app.session.clipboard = kept;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use image::ImageFormat::{Bmp, Png, Tiff};
     use vectorcraft_doc::{Document, NodeId};
     use vectorcraft_engine::Session;
+    use vectorcraft_engine::cmd::clipboard::{BITMAP, Flavour, PNG, TEXT};
 
     use super::*;
     use crate::Services;
@@ -322,6 +588,427 @@ mod tests {
             assert!(app.ui.status.is_empty(), "{name}: {}", app.ui.status);
             assert!(!crate::opening::long_operation_busy(&app), "{name}");
         }
+    }
+
+    /// Another app's bitmap on the system clipboard, and the text beside it, read as the desktop
+    /// hosts read them: with `converts`, the bitmap as the work that makes its flavour
+    /// ([`crate::ClipboardRead::Later`], `None`: it can't be made), which notes the thread it runs
+    /// on in `thread`. The work of each read waits for its entry of `holds` to send, when it has
+    /// one.
+    struct OtherApps {
+        bitmap: Option<Flavour>,
+        text: Option<Flavour>,
+        converts: bool,
+        thread: Arc<Mutex<Option<String>>>,
+        holds: Vec<Option<std::sync::mpsc::Receiver<()>>>,
+    }
+
+    impl crate::SystemClipboard for OtherApps {
+        fn write(&mut self, _: &[Flavour]) -> Result<(), String> {
+            Ok(())
+        }
+        fn holds_ours(&mut self) -> bool {
+            false
+        }
+        fn read(&mut self, mimes: &[&'static str]) -> Option<Flavour> {
+            self.read_deferred(mimes)?.flavour()
+        }
+        fn has(&mut self, mimes: &[&'static str]) -> bool {
+            mimes.contains(&BITMAP) || (mimes.contains(&TEXT) && self.text.is_some())
+        }
+        fn read_deferred(&mut self, mimes: &[&'static str]) -> Option<crate::ClipboardRead> {
+            if mimes.contains(&TEXT)
+                && let Some(text) = &self.text
+            {
+                return Some(crate::ClipboardRead::Now(text.clone()));
+            }
+            if !mimes.contains(&BITMAP) {
+                return None;
+            }
+            let (bitmap, thread) = (self.bitmap.clone(), self.thread.clone());
+            if !self.converts {
+                return bitmap.map(crate::ClipboardRead::Now);
+            }
+            let hold = if self.holds.is_empty() { None } else { self.holds.remove(0) };
+            Some(crate::ClipboardRead::Later(Box::new(move || {
+                if let Some(hold) = hold {
+                    let _ = hold.recv_timeout(std::time::Duration::from_secs(10));
+                }
+                *thread.lock().unwrap() = std::thread::current().name().map(str::to_string);
+                bitmap
+            })))
+        }
+    }
+
+    /// [`app`] with `bitmap` and `text` on the system clipboard ([`OtherApps`]), the view centered
+    /// on (250, 180) → the app and the thread the bitmap was converted on.
+    fn pasting_app(background: bool, bitmap: Option<Flavour>, text: Option<&str>, converts: bool) -> (VectorcraftApp, Arc<Mutex<Option<String>>>) {
+        let thread = Arc::new(Mutex::new(None));
+        let mut app = app(background);
+        let text = text.map(|t| Flavour { mime: TEXT, data: t.as_bytes().to_vec() });
+        app.services.system_clipboard = Some(Box::new(OtherApps { bitmap, text, converts, thread: thread.clone(), holds: vec![] }));
+        let v = app.view_mut().unwrap();
+        (v.center, v.fitted) = (vectorcraft_geom::Point::new(250.0, 180.0), true);
+        (app, thread)
+    }
+
+    /// A Paste the user gives decodes another app's bitmap off the UI thread: a BMP as
+    /// `clipboard.importImage` reads it, and a bitmap the host converts to PNG (Windows'
+    /// device-independent bitmap, Linux's image) converted there too. Until then the document is
+    /// unchanged, and the status bar and the busy cursor show the paste; then it is pasted as at
+    /// once, where the view was centered when the paste was given: the same object, selection, undo
+    /// step and internal clipboard. `edit.paste` from MCP and scripts reads it at once.
+    #[test]
+    fn a_bitmap_the_user_pastes_is_read_off_the_ui_thread() {
+        let bmp = Flavour { mime: "image/bmp", data: picture(Bmp, 300, 200) };
+        let png = Flavour { mime: PNG, data: picture(Png, 300, 200) };
+        for (bitmap, converts) in [(bmp, false), (png, true)] {
+            for id in ["edit.paste", "edit.pasteInPlace"] {
+                let (mut at_once, _) = pasting_app(false, Some(bitmap.clone()), None, converts);
+                crate::menus::invoke(&mut at_once, id, json!({}));
+                let (mut app, _) = pasting_app(true, Some(bitmap.clone()), None, converts);
+                crate::menus::invoke(&mut app, id, json!({}));
+                // The view moves before the bitmap is read.
+                app.view_mut().unwrap().center = vectorcraft_geom::Point::new(40.0, 30.0);
+                placed(&mut app);
+                assert!(state(&app) == state(&at_once), "{} {id}: pasted where the view was", bitmap.mime);
+            }
+            let (mut at_once, _) = pasting_app(false, Some(bitmap.clone()), None, converts);
+            crate::menus::invoke(&mut at_once, "edit.paste", json!({}));
+            let (mut app, thread) = pasting_app(true, Some(bitmap.clone()), None, converts);
+            let before = state(&app);
+            app.placing.for_user = true;
+            let r = app.run("edit.paste", json!({}));
+            app.placing.for_user = false;
+            assert_eq!(r, Ok(json!({"background": true, "status": "Pasting…"})), "{}", bitmap.mime);
+            assert_eq!(app.ui.status, "Pasting…");
+            assert!(crate::opening::long_operation_busy(&app));
+            assert!(state(&app) == before, "{}: nothing is pasted until the bitmap is read", bitmap.mime);
+            placed(&mut app);
+            assert!(state(&app) == state(&at_once), "{}: pasted as at once", bitmap.mime);
+            assert!(app.session.clipboard == at_once.session.clipboard, "{}", bitmap.mime);
+            assert!(app.ui.status.is_empty(), "{}", app.ui.status);
+            if converts {
+                assert_eq!(thread.lock().unwrap().as_deref(), Some("vectorcraft-place"));
+            }
+            // From the menu or the keys too.
+            crate::menus::invoke(&mut app, "edit.paste", json!({}));
+            assert_eq!(app.placing.pending.len(), 1);
+            placed(&mut app);
+            // MCP and scripts: at once.
+            let r = app.run("edit.paste", json!({})).unwrap();
+            assert!(r["ids"].is_array() && app.placing.pending.is_empty(), "{r}");
+            assert_eq!(app.session.doc().unwrap().selection.objects.len(), 1);
+        }
+    }
+
+    /// A bitmap that can't be read reports as at once and pastes nothing; one the host can't
+    /// convert pastes the internal clipboard as it is, or the address beside it as text, as at
+    /// once.
+    #[test]
+    fn a_pasted_bitmap_that_cant_be_read_off_the_ui_thread_reports_as_at_once() {
+        let url = "https://example.com/images/cat.png";
+        let cases = [(Some(Flavour { mime: PNG, data: b"not a picture".to_vec() }), None, false), (None, None, true), (None, Some(url), true)];
+        for (bitmap, text, converts) in cases {
+            let (mut at_once, _) = pasting_app(false, bitmap.clone(), text, converts);
+            let (mut app, _) = pasting_app(true, bitmap, text, converts);
+            for app in [&mut at_once, &mut app] {
+                app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
+                app.run("edit.copy", json!({})).unwrap();
+                crate::menus::invoke(app, "edit.paste", json!({}));
+                assert_eq!(app.placing.pending.len(), usize::from(app.placing.off_the_ui_thread));
+                placed(app);
+            }
+            assert_eq!(app.ui.status, at_once.ui.status);
+            assert!(state(&app) == state(&at_once), "text: {text:?}, converts: {converts}");
+            let st = app.session.doc().unwrap();
+            let pasted = st.selection.objects.first().and_then(|id| st.doc.node(*id)).map(|n| &n.kind);
+            match (text, converts) {
+                (Some(_), _) => assert!(matches!(pasted, Some(vectorcraft_doc::NodeKind::Text(_))), "the address is pasted as text"),
+                (None, true) => assert!(matches!(pasted, Some(vectorcraft_doc::NodeKind::Path { .. })), "the copied square is pasted"),
+                (None, false) => assert!(app.ui.status.starts_with("Couldn't paste from the clipboard: "), "{}", app.ui.status),
+            }
+        }
+    }
+
+    /// A Copy made while a pasted bitmap is read keeps the internal clipboard it made, and a paste
+    /// whose document was closed meanwhile pastes nothing, with a message.
+    #[test]
+    fn a_copy_or_a_close_while_a_pasted_bitmap_is_read() {
+        let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
+        let (mut app, _) = pasting_app(true, bitmap.clone(), None, true);
+        crate::menus::invoke(&mut app, "edit.paste", json!({}));
+        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
+        app.run("edit.copy", json!({})).unwrap();
+        let copied = app.session.clipboard.clone();
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let pasted = st.doc.node(st.selection.objects[0]).unwrap();
+        assert!(matches!(pasted.kind, vectorcraft_doc::NodeKind::Image(_)), "the bitmap is pasted");
+        assert!(app.session.clipboard == copied, "the copy stays on the internal clipboard");
+        // A bitmap that can't be converted pastes the internal clipboard as it was when the paste
+        // was given, and the later copy stays on it.
+        let (mut app, _) = pasting_app(true, None, None, true);
+        let square = |app: &mut VectorcraftApp, x: u32| {
+            app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap();
+            app.run("edit.copy", json!({})).unwrap();
+        };
+        square(&mut app, 10);
+        let first = app.session.clipboard.clone();
+        crate::menus::invoke(&mut app, "edit.pasteInPlace", json!({}));
+        square(&mut app, 200);
+        let second = app.session.clipboard.clone();
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let pasted = st.doc.node(st.selection.objects[0]).and_then(|n| n.geometric_bounds()).map(|b| b.x0);
+        assert!(first != second && pasted == Some(10.0), "the first copy is pasted: {pasted:?}");
+        assert!(app.session.clipboard == second, "the later copy stays on the internal clipboard");
+        let (mut app, _) = pasting_app(true, bitmap, None, true);
+        app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
+        crate::menus::invoke(&mut app, "edit.paste", json!({}));
+        app.session.execute("file.close", &json!({})).unwrap();
+        let left = state(&app);
+        placed(&mut app);
+        assert_eq!(app.ui.status, "Couldn't paste: the document it was pasted in was closed");
+        assert!(state(&app) == left, "the other document is unchanged");
+        assert!(app.placing.chains.is_empty() && app.placing.latest_chain.is_empty(), "no paste waits");
+    }
+
+    /// Paste in Front and Paste in Back put a bitmap decoded off the UI thread next to the objects
+    /// selected when the paste was given, as at once, when another object was selected meanwhile;
+    /// a second one given before the first is pasted goes next to the first, as at once.
+    #[test]
+    fn a_paste_in_front_read_off_the_ui_thread_keeps_its_place() {
+        let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
+        for id in ["edit.pasteInFront", "edit.pasteInBack"] {
+            for twice in [false, true] {
+                let (mut at_once, _) = pasting_app(false, bitmap.clone(), None, true);
+                let (mut app, _) = pasting_app(true, bitmap.clone(), None, true);
+                for app in [&mut at_once, &mut app] {
+                    let rect = |app: &mut VectorcraftApp, x: u32| {
+                        app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone()
+                    };
+                    let (a, b, c) = (rect(app, 10), rect(app, 40), rect(app, 70));
+                    app.run("select.set", json!({"ids": [b]})).unwrap();
+                    crate::menus::invoke(app, id, json!({}));
+                    if twice {
+                        crate::menus::invoke(app, id, json!({}));
+                    } else {
+                        let other = if id.ends_with("Front") { a } else { c };
+                        app.run("select.set", json!({"ids": [other]})).unwrap();
+                    }
+                    placed(app);
+                }
+                // Each object in paint order: `None` for a square, the paste order for a picture.
+                let order = |app: &VectorcraftApp| {
+                    let st = app.session.doc().unwrap();
+                    let children = st.doc.layers[0].children().unwrap();
+                    let mut pictures: Vec<NodeId> =
+                        children.iter().filter(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))).map(|n| n.id).collect();
+                    pictures.sort();
+                    children.iter().map(|n| pictures.iter().position(|p| *p == n.id)).collect::<Vec<_>>()
+                };
+                assert_eq!(order(&app), order(&at_once), "{id}, twice: {twice}");
+            }
+        }
+    }
+
+    /// A second Paste in Front given before the first is pasted goes next to the first one's
+    /// picture, also when another object was selected between the two pastes' ends, and a third
+    /// given after the first was pasted, while the second waits, goes next to the second's.
+    #[test]
+    fn a_second_paste_in_front_follows_the_first() {
+        for third in [false, true] {
+            let (mut app, _) = pasting_app(true, None, None, true);
+            let (go, hold) = channel();
+            let thread = Arc::new(Mutex::new(None));
+            let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
+            app.services.system_clipboard = Some(Box::new(OtherApps { bitmap, text: None, converts: true, thread, holds: vec![None, Some(hold)] }));
+            let rect = |app: &mut VectorcraftApp, x: u32| {
+                app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone()
+            };
+            let (a, b) = (rect(&mut app, 10), rect(&mut app, 40));
+            app.run("select.set", json!({"ids": [b]})).unwrap();
+            crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+            crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+            let t0 = std::time::Instant::now();
+            while app.placing.pending.len() > 1 && t0.elapsed().as_secs() < 60 {
+                poll(&mut app);
+                std::thread::yield_now();
+            }
+            assert_eq!(app.placing.pending.len(), 1, "the first paste ran");
+            if third {
+                crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+            } else {
+                app.run("select.set", json!({"ids": [a]})).unwrap();
+            }
+            let _ = go.send(());
+            placed(&mut app);
+            let st = app.session.doc().unwrap();
+            let kinds: Vec<Option<NodeId>> =
+                st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)).then_some(n.id)).collect();
+            let pictures: Vec<NodeId> = kinds.iter().flatten().copied().collect();
+            assert!(pictures.len() == 2 + usize::from(third) && pictures.is_sorted(), "each picture is above the one before: {kinds:?}");
+            assert_eq!(kinds.iter().position(Option::is_some), Some(2), "the pictures are above the square they were pasted on: {kinds:?}");
+        }
+    }
+
+    /// A paste given beside the picture an independent paste left, while another paste waits, goes
+    /// beside that picture.
+    #[test]
+    fn a_paste_beside_a_finished_picture_does_not_follow_another_chain() {
+        let (mut app, _) = pasting_app(true, None, None, true);
+        let (go, hold) = channel();
+        let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
+        let clip = OtherApps { bitmap, text: None, converts: true, thread: Arc::new(Mutex::new(None)), holds: vec![None, Some(hold)] };
+        app.services.system_clipboard = Some(Box::new(clip));
+        let rect =
+            |app: &mut VectorcraftApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
+        let (x, y) = (rect(&mut app, 10), rect(&mut app, 40));
+        app.run("select.set", json!({"ids": [x]})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        app.run("select.set", json!({"ids": [y]})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        let t0 = std::time::Instant::now();
+        while app.placing.pending.len() > 1 && t0.elapsed().as_secs() < 60 {
+            poll(&mut app);
+            std::thread::yield_now();
+        }
+        assert_eq!(app.placing.pending.len(), 1, "the first paste ran");
+        // The first picture is selected.
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        let _ = go.send(());
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let ids: Vec<Option<NodeId>> =
+            st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)).then_some(n.id)).collect();
+        let last = ids.iter().flatten().max().copied();
+        assert_eq!(ids.iter().position(|id| *id == last && last.is_some()), Some(2), "the third picture is above the first: {ids:?}");
+    }
+
+    /// Pastes that follow each other in one document follow each other there, also when a paste in
+    /// another document runs between them.
+    #[test]
+    fn pastes_in_two_documents_follow_their_own() {
+        let (mut app, _) = pasting_app(true, None, None, true);
+        let (go, hold) = channel();
+        let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
+        let clip = OtherApps { bitmap, text: None, converts: true, thread: Arc::new(Mutex::new(None)), holds: vec![None, Some(hold)] };
+        app.services.system_clipboard = Some(Box::new(clip));
+        let rect =
+            |app: &mut VectorcraftApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
+        let (_, b) = (rect(&mut app, 10), rect(&mut app, 40));
+        app.run("select.set", json!({"ids": [b]})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        let t0 = std::time::Instant::now();
+        while app.placing.pending.len() > 1 && t0.elapsed().as_secs() < 60 {
+            poll(&mut app);
+            std::thread::yield_now();
+        }
+        assert_eq!(app.placing.pending.len(), 1, "the first paste ran");
+        // A paste in another document, then one more in the first.
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        let x = rect(&mut app, 10);
+        app.run("select.set", json!({"ids": [x]})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        app.session.set_active(0);
+        app.sync_views();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        let _ = go.send(());
+        placed(&mut app);
+        let st = &app.session.documents()[0];
+        let kinds: Vec<Option<NodeId>> =
+            st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)).then_some(n.id)).collect();
+        let pictures: Vec<NodeId> = kinds.iter().flatten().copied().collect();
+        assert!(pictures.len() == 3 && pictures.is_sorted(), "each picture is above the one before: {kinds:?}");
+        assert_eq!(kinds.iter().position(Option::is_some), Some(2), "the pictures are above the square they were pasted on: {kinds:?}");
+    }
+
+    /// In Draw Inside in an isolated path, a bitmap decoded off the UI thread is pasted inside the path,
+    /// whose new clipping group stays isolated, when the user went back to Draw Normal meanwhile.
+    #[test]
+    fn a_bitmap_pasted_inside_an_isolated_path_stays_isolated() {
+        let (mut app, _) = pasting_app(true, Some(Flavour { mime: PNG, data: picture(Png, 60, 40) }), None, true);
+        let path = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 200, "height": 200})).unwrap()["id"].clone();
+        app.run("object.isolate", json!({"id": path})).unwrap();
+        app.run("select.set", json!({"ids": [path]})).unwrap();
+        app.run("view.drawMode", json!({"mode": "inside"})).unwrap();
+        crate::menus::invoke(&mut app, "edit.paste", json!({}));
+        app.run("view.drawMode", json!({"mode": "normal"})).unwrap();
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let pasted = st.selection.objects[0];
+        let group = st.doc.parent_of(pasted);
+        assert!(
+            group.is_some_and(|g| st.doc.node(g).is_some_and(|n| n.children().is_some_and(|c| c.iter().any(|n| n.id.0 == path.as_u64().unwrap())))),
+            "pasted inside the path"
+        );
+        assert_eq!(st.isolation, group, "the clipping group is isolated");
+        assert_eq!(app.session.draw_mode, vectorcraft_engine::DrawMode::Normal, "Draw Normal stays");
+    }
+
+    /// A bitmap decoded off the UI thread is pasted into the layer that was current when the paste
+    /// was given, and a layer made current meanwhile stays current.
+    #[test]
+    fn a_bitmap_read_off_the_ui_thread_is_pasted_into_its_layer() {
+        let (mut app, _) = pasting_app(true, Some(Flavour { mime: PNG, data: picture(Png, 60, 40) }), None, true);
+        let first = app.session.doc().unwrap().doc.layers[0].id;
+        app.run("layer.new", json!({})).unwrap();
+        let second = app.session.doc().unwrap().current_layer().unwrap();
+        app.run("layer.setCurrent", json!({"id": first.0})).unwrap();
+        crate::menus::invoke(&mut app, "edit.paste", json!({}));
+        app.run("layer.setCurrent", json!({"id": second.0})).unwrap();
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let pasted = st.selection.objects[0];
+        assert_eq!(st.doc.layer_containing(pasted), Some(first), "pasted into the layer current at the paste");
+        assert_eq!(st.current_layer(), Some(second), "the layer made current meanwhile stays current");
+        // With nothing selected, a Paste in Front given in another layer while the first waits
+        // goes into that layer.
+        app.run("layer.setCurrent", json!({"id": first.0})).unwrap();
+        app.run("select.none", json!({})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        app.run("layer.setCurrent", json!({"id": second.0})).unwrap();
+        app.run("select.none", json!({})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        assert_eq!(app.placing.pending.len(), 2);
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let tops: Vec<_> = [first, second]
+            .iter()
+            .map(|l| st.doc.node(*l).and_then(|n| n.children()).and_then(|c| c.last()).map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))))
+            .collect();
+        assert_eq!(tops, [Some(true), Some(true)], "each layer has a picture on top");
+        // A group isolated while the paste waits keeps its isolation, and the paste goes into the
+        // layer, where it was given.
+        let squares: Vec<Value> = (0..2)
+            .map(|i| app.run("shape.rectangle", json!({"x": 10 + 30 * i, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone())
+            .collect();
+        app.run("select.set", json!({"ids": squares})).unwrap();
+        let group = NodeId(app.run("object.group", json!({})).unwrap()["id"].as_u64().unwrap());
+        app.run("select.none", json!({})).unwrap();
+        crate::menus::invoke(&mut app, "edit.paste", json!({}));
+        app.run("object.isolate", json!({"id": group.0})).unwrap();
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        let pasted = st.selection.objects[0];
+        assert_eq!(st.doc.parent_of(pasted), Some(second), "pasted into the layer, not the group isolated meanwhile");
+        assert_eq!(st.isolation, Some(group), "the group stays isolated");
+        // An object selected in another layer while the paste waits makes that layer current, and
+        // it stays current after the paste.
+        app.run("object.exitIsolation", json!({})).unwrap();
+        let in_second = app.run("shape.rectangle", json!({"x": 300, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
+        app.run("layer.setCurrent", json!({"id": first.0})).unwrap();
+        let in_first = app.run("shape.rectangle", json!({"x": 300, "y": 100, "width": 20, "height": 20})).unwrap()["id"].clone();
+        app.run("select.set", json!({"ids": [in_first]})).unwrap();
+        crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
+        app.run("select.set", json!({"ids": [in_second]})).unwrap();
+        assert_eq!(app.session.doc().unwrap().current_layer(), Some(second));
+        placed(&mut app);
+        let st = app.session.doc().unwrap();
+        assert_eq!(st.doc.layer_containing(st.selection.objects[0]), Some(first), "pasted next to the object selected at the paste");
+        assert_eq!(st.current_layer(), Some(second), "the layer of the object selected meanwhile stays current");
     }
 
     /// The Place dialog's OK with one file, with several (the place cursor and its thumbnails), a
