@@ -944,6 +944,21 @@ fn join_tool_joins_two_lines() {
     assert_eq!(p.subpaths[0].anchors[2].p, Point::new(300.0, 150.0));
 }
 
+/// #2899: a scrub from one open end toward the other joins them when the line passes near the
+/// endpoints, not only when it crosses them.
+#[test]
+fn join_tool_joins_endpoints_near_the_scrub_ends() {
+    let mut s = session();
+    let a = line(&mut s, 100.0, 100.0, 200.0, 100.0);
+    line(&mut s, 205.0, 100.0, 300.0, 150.0);
+    s.execute("select.none", &json!({})).unwrap();
+    drag(&mut s, "join", &[(198.0, 92.0), (207.0, 92.0)], Mods::default());
+    assert_eq!(paths(&s).len(), 1);
+    let p = path(&s, a);
+    assert_eq!(p.anchor_count(), 3);
+    assert_eq!(p.subpaths[0].anchors[1].p, Point::new(202.5, 100.0));
+}
+
 #[test]
 fn line_family_tools_draw_and_click_asks_dialog() {
     let mut s = session();
@@ -2721,4 +2736,79 @@ fn pencil_option_takes_a_hundredth_and_smooth_keeps_its_floor() {
         s.set_tool_option_cmd(&json!({"tool": tool, "values": {"fidelity": 0.02}})).unwrap();
         assert_eq!(s.tool_options_of(tool)["fidelity"].as_f64(), Some(if tool == "smooth" { 0.05 } else { 0.02 }), "{tool}");
     }
+}
+
+/// A selected compound path (a shape with a hole) is overdrawn as its paths are: a Pencil stroke
+/// starting and ending on its outer path, or on its hole, redraws that member path, draws no new
+/// path, and leaves the compound path selected, so the next stroke redraws it too.
+#[test]
+fn pencil_redraws_a_selected_compound_path() {
+    let mut s = session();
+    s.execute("select.none", &json!({})).unwrap();
+    let ring = |cx: f64, rx: f64, ry: f64| -> Vec<serde_json::Value> {
+        (0..72)
+            .map(|i| {
+                let a = f64::from(i * 5).to_radians();
+                json!([cx + rx * a.cos(), 300.0 + ry * a.sin()])
+            })
+            .collect()
+    };
+    let outer = s.execute("path.freehand", &json!({"points": ring(400.0, 150.0, 90.0), "closed": true})).unwrap()["id"].as_u64().unwrap();
+    let hole = s.execute("path.freehand", &json!({"points": ring(380.0, 60.0, 30.0), "closed": true})).unwrap()["id"].as_u64().unwrap();
+    s.execute("select.set", &json!({"ids": [outer, hole]})).unwrap();
+    s.execute("object.compoundPath.make", &json!({})).unwrap();
+    let compound = s.doc().unwrap().selection.objects.clone();
+    assert_eq!(compound.len(), 1);
+    let members = |s: &Session| -> Vec<PathData> {
+        s.doc().unwrap().doc.node(compound[0]).unwrap().children().unwrap().iter().map(|c| c.path_data().unwrap().clone()).collect()
+    };
+    let before = members(&s);
+    let v = view();
+    s.select_tool("pencil", v).unwrap();
+    let count = |s: &Session| s.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let stroke = |s: &mut Session, pts: &[(f64, f64)]| {
+        s.pointer(&PointerEvent::new(PointerKind::Down, pts[0].0, pts[0].1), v).unwrap();
+        for &(x, y) in &pts[1..] {
+            s.pointer(&PointerEvent::new(PointerKind::Drag, x, y), v).unwrap();
+        }
+        let l = pts[pts.len() - 1];
+        s.pointer(&PointerEvent::new(PointerKind::Up, l.0, l.1), v).unwrap();
+    };
+    // Over the outer path's right side, bowing outward: from (550, 300) round to (520, 360).
+    stroke(&mut s, &[(550.0, 300.0), (575.0, 315.0), (580.0, 335.0), (560.0, 355.0), (520.0, 360.0)]);
+    assert_eq!(count(&s), 1, "no new path");
+    assert_eq!(s.doc().unwrap().selection.objects, compound, "the compound path stays selected");
+    let after = members(&s);
+    assert!(after[0] != before[0] && after[1] == before[1], "the outer path is redrawn, the hole left alone");
+    // Then over the hole's left side: the compound path is still the one redrawn.
+    stroke(&mut s, &[(320.0, 300.0), (310.0, 290.0), (312.0, 280.0), (330.0, 274.0)]);
+    assert_eq!(count(&s), 1, "no new path");
+    assert_eq!(s.doc().unwrap().selection.objects, compound);
+    assert!(members(&s)[1] != before[1], "the hole is redrawn");
+}
+
+/// With the Pencil's Live preview off, nothing is added to the document while a filled stroke is
+/// drawn; the release draws the path with its fill, as one undo step.
+#[test]
+fn pencil_with_live_preview_off_draws_the_filled_path_on_release() {
+    let mut s = session();
+    s.execute("select.none", &json!({})).unwrap();
+    s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    s.set_tool_option_cmd(&json!({"tool": "pencil", "values": {"livePreview": false, "fill": true}})).unwrap();
+    assert_eq!(s.tool_options_of("pencil")["livePreview"], json!(false));
+    let v = view();
+    s.select_tool("pencil", v).unwrap();
+    let count = |s: &Session| s.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let (before, undo) = (count(&s), s.doc().unwrap().history.undo.len());
+    s.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 100.0), v).unwrap();
+    for (x, y) in [(160.0, 110.0), (190.0, 170.0), (120.0, 190.0), (105.0, 120.0)] {
+        s.pointer(&PointerEvent::new(PointerKind::Drag, x, y), v).unwrap();
+        assert_eq!(count(&s), before, "nothing drawn while the stroke is drawn");
+    }
+    s.pointer(&PointerEvent::new(PointerKind::Up, 105.0, 120.0), v).unwrap();
+    assert_eq!(count(&s), before + 1, "the release draws the path");
+    let doc = &s.doc().unwrap().doc;
+    let n = doc.layers[0].children().unwrap().last().unwrap();
+    assert!(n.path_data().is_some() && !n.appearance.fill_paint().is_none(), "{:?}", n.appearance);
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
 }
