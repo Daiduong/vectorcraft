@@ -116,18 +116,14 @@ pub const PATHFINDER_MAX_OVERLAPS: usize = 16_384;
 /// Fenwick tree of counts over `n` slots, for counting the active boxes of [`within_budget`].
 struct Counts(Vec<isize>);
 
-#[inline]
-fn fenwick_step(i: usize) -> usize {
-    // Same as `i.isolate_lowest_one()`; that API is still unstable on the workspace MSRV.
-    1 << i.trailing_zeros()
-}
-
+// `isolate_lowest_one` is still unstable in Rust 1.96, and the workspace builds on 1.95 (rust-version).
+#[allow(unknown_lints, clippy::manual_isolate_lowest_one)]
 impl Counts {
     fn add(&mut self, slot: usize, d: isize) {
         let mut i = slot + 1;
         while let Some(c) = self.0.get_mut(i) {
             *c += d;
-            i += fenwick_step(i);
+            i += i & i.wrapping_neg();
         }
     }
 
@@ -136,7 +132,7 @@ impl Counts {
         let (mut i, mut s) = (end.min(self.0.len().saturating_sub(1)), 0);
         while i > 0 {
             s += self.0.get(i).copied().unwrap_or(0);
-            i -= fenwick_step(i);
+            i -= i & i.wrapping_neg();
         }
         s
     }
