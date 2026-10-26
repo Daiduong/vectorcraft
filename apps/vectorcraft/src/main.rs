@@ -67,6 +67,8 @@ use vectorcraft_ui_egui::{ClipboardProbeFactory, FilePick, Services, Vectorcraft
 
 struct App {
     app: VectorcraftApp,
+    /// Control sessions keep their runtime geometry out of the user's preferences.
+    window_prefs: WindowPrefs,
     /// Reported by wgpu when the window's graphics device is lost (a driver reset).
     graphics_loss: GraphicsLoss,
     /// The graphics device was lost and the unsaved changes are kept for Data Recovery.
@@ -101,6 +103,11 @@ fn native_input_hook(_: &VectorcraftApp) -> Option<vectorcraft_ui_egui::NativeIn
 }
 
 impl eframe::App for App {
+    // Preferences have their own store; eframe persists only the native window.
+    fn persist_egui_memory(&self) -> bool {
+        false
+    }
+
     // Each frame runs unconfined: it is the person at the keyboard's. The app confines what the
     // control channel asks for, and the frames carrying input it injected, to the automation roots
     // (`VectorcraftApp::with_automation_roots`), which are in force elsewhere in the process.
@@ -137,7 +144,7 @@ impl eframe::App for App {
         // Preferences are written when confirmed, not only at exit: a session ended any other way
         // (the system shutting down, the process ended or crashing) used to lose them (#1747).
         if self.app.take_prefs_changed() {
-            file_access::unconfined(|| save_prefs(&self.app));
+            file_access::unconfined(|| save_prefs(&self.app, self.window_prefs));
         }
         // Not while a file dialog's sheet has the keyboard: its name field's composition would go.
         #[cfg(target_os = "macos")]
@@ -147,12 +154,12 @@ impl eframe::App for App {
     }
     #[cfg(not(feature = "windows7"))]
     fn on_exit(&mut self) {
-        file_access::unconfined(|| save_prefs(&self.app));
+        file_access::unconfined(|| save_prefs(&self.app, self.window_prefs));
         end_before_teardown(self.frames);
     }
     #[cfg(feature = "windows7")]
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        file_access::unconfined(|| save_prefs(&self.app));
+        file_access::unconfined(|| save_prefs(&self.app, self.window_prefs));
     }
 }
 
@@ -262,6 +269,13 @@ fn log_dir() -> Option<std::path::PathBuf> {
     Some(prefs_path()?.parent()?.join("logs"))
 }
 
+/// Whether eframe restored the native window it saved: only while this run persists the window, and
+/// only from a value eframe can read (a corrupt one restores nothing, so the legacy preferences'
+/// place applies then).
+fn has_native_window(persist_window: bool, storage: Option<&dyn eframe::Storage>) -> bool {
+    persist_window && storage.and_then(|s| eframe::get_value::<egui_winit::WindowSettings>(s, "window")).is_some()
+}
+
 /// Runs without preferences (`VECTORCRAFT_NO_PREFS`, agents' test runs) neither read nor write them.
 fn prefs_enabled() -> bool {
     std::env::var_os("VECTORCRAFT_NO_PREFS").is_none()
@@ -331,13 +345,28 @@ fn load_prefs(app: &mut VectorcraftApp, saved: Option<vectorcraft_ui_egui::UiSta
     vectorcraft_ui_egui::prefs_dialog::restore(app);
 }
 
-fn save_prefs(app: &VectorcraftApp) {
+/// Which window geometry can cross the preferences boundary for this run.
+#[derive(Clone, Copy)]
+struct WindowPrefs {
+    persist: bool,
+    previous: Option<vectorcraft_ui_egui::state::WindowGeometry>,
+}
+
+impl WindowPrefs {
+    /// Automation never seeds its viewport from the user's legacy window geometry.
+    fn restored(self) -> Option<vectorcraft_ui_egui::state::WindowGeometry> {
+        self.previous.filter(|_| self.persist)
+    }
+}
+
+/// Save interface preferences, preserving the user's geometry in control-channel sessions.
+fn save_prefs(app: &VectorcraftApp, window: WindowPrefs) {
     if !prefs_enabled() || KEEP_UI_PREFS.load(std::sync::atomic::Ordering::Relaxed) {
         return;
     }
     if let Some(p) = prefs_path() {
         let _ = std::fs::create_dir_all(p.parent().unwrap_or(std::path::Path::new(".")));
-        if let Ok(bytes) = prefs_bytes(app) {
+        if let Ok(bytes) = prefs_bytes(app, window) {
             // Preferences are best effort: a failed write keeps the previous file.
             let _ = fileio::write_atomic(&p, &bytes);
         }
@@ -345,8 +374,11 @@ fn save_prefs(app: &VectorcraftApp) {
 }
 
 /// The preferences file's contents: the UI state with the engine preferences.
-fn prefs_bytes(app: &VectorcraftApp) -> serde_json::Result<Vec<u8>> {
+fn prefs_bytes(app: &VectorcraftApp, window: WindowPrefs) -> serde_json::Result<Vec<u8>> {
     let mut ui = app.ui.clone();
+    if !window.persist {
+        ui.window = window.previous;
+    }
     ui.engine_prefs = app.session.prefs.to_json();
     serde_json::to_vec_pretty(&ui)
 }
@@ -917,7 +949,8 @@ fn main() -> std::process::ExitCode {
         }
     };
     let saved = read_prefs();
-    let saved_window = saved.as_ref().and_then(|ui| ui.window);
+    let window_prefs = WindowPrefs { persist: prefs_enabled() && control_port.is_none(), previous: saved.as_ref().and_then(|ui| ui.window) };
+    let saved_window = window_prefs.restored();
     #[cfg(feature = "wgpu")]
     let gpu_pref = saved.as_ref().and_then(|ui| ui.engine_prefs.get("gpuPreference")).and_then(serde_json::Value::as_str);
     #[cfg(feature = "wgpu")]
@@ -954,7 +987,12 @@ fn main() -> std::process::ExitCode {
     #[cfg(feature = "wgpu")]
     let crash = left_out.crash.clone();
     let custom_titlebar = custom_titlebar(saved.as_ref());
-    let options = native_options(custom_titlebar);
+    let mut options = native_options(custom_titlebar);
+    // No-preferences and control-channel runs neither restore nor save the native window, so
+    // control-channel screenshots start from the same window every time.
+    let persist_window = window_prefs.persist;
+    options.persist_window = persist_window;
+    options.viewport = window::start_viewport(options.viewport, saved_window);
     // winit picks Wayland whenever `WAYLAND_DISPLAY` is set; Preferences › Performance › Linux
     // Display Server › X11 opens the window through XWayland instead, where file drops work (#1151),
     // and X11 (XWayland) When a Pen Is Attached does so when a pen is attached, where the pen draws (#2028).
@@ -1061,15 +1099,20 @@ fn main() -> std::process::ExitCode {
                 // which takes over from the copy the preferences file used to hold.
                 prefs_dir::attach_pdf_preset_store(&mut app.session);
                 // Fit the window to its monitor, or put it back where it was (still hidden).
+                let has_native_state = has_native_window(persist_window, cc.storage);
                 let winit_window = cc.winit_window().cloned();
                 if let Some(w) = &winit_window {
-                    let g = window::restore(w, saved_window);
-                    app.ui.window = Some(g);
+                    // Once eframe has native state, legacy preferences must not overwrite it.
+                    if !has_native_state {
+                        app.ui.window = Some(window::restore(w, saved_window));
+                    } else {
+                        window::fit_native_position(w);
+                    }
                     #[cfg(windows)]
                     set_taskbar_icon(w);
                 }
                 // Linux may not map the window before the first frames, so a saved maximize is retried then (#3635).
-                let pending_maximize = cfg!(target_os = "linux") && app.ui.window.as_ref().is_some_and(|g| g.maximized);
+                let pending_maximize = !has_native_state && cfg!(target_os = "linux") && app.ui.window.as_ref().is_some_and(|g| g.maximized);
                 // User Defined swatch, graphic style, symbol and brush libraries live next to the preferences.
                 let swatches = prefs_path().and_then(|p| Some(p.parent()?.join("Swatches").to_string_lossy().to_string()));
                 app.session.swatch_libraries.set_user_dir(swatches);
@@ -1157,6 +1200,7 @@ fn main() -> std::process::ExitCode {
                 let window_frame = window_frame::service(cc, custom_titlebar);
                 Ok(Box::new(App {
                     app,
+                    window_prefs,
                     graphics_loss,
                     graphics_lost: false,
                     frames: 0,
@@ -1187,6 +1231,54 @@ mod tests {
 
     fn ui_state_with_prefs(engine_prefs: serde_json::Value) -> vectorcraft_ui_egui::UiState {
         vectorcraft_ui_egui::UiState { engine_prefs, ..Default::default() }
+    }
+
+    /// eframe's storage with only a `"window"` value.
+    struct WindowStorage(&'static str);
+
+    impl eframe::Storage for WindowStorage {
+        fn get_string(&self, key: &str) -> Option<String> {
+            (key == "window").then(|| self.0.to_owned())
+        }
+        fn set_string(&mut self, _: &str, _: String) {}
+        fn remove_string(&mut self, _: &str) {}
+        fn flush(&mut self) {}
+    }
+
+    /// The legacy preferences' place applies unless eframe really restored a window: not from a
+    /// corrupt value, and not in a run that doesn't persist the window (no preferences, control).
+    #[test]
+    fn only_a_readable_window_eframe_restores_counts_as_native_state() {
+        let saved = WindowStorage(
+            "(normal_geometry:(outer_position_pixels:Some((x:10.0,y:20.0)),scale_factor:1.0,\
+             inner_size_points:(x:800.0,y:600.0),zoom_factor:Some(1.0)),fullscreen:false,maximized:true)",
+        );
+        assert!(has_native_window(true, Some(&saved)));
+        assert!(!has_native_window(false, Some(&saved)));
+        assert!(!has_native_window(true, Some(&WindowStorage("(normal_geometry:"))));
+        assert!(!has_native_window(true, None));
+    }
+
+    #[test]
+    fn control_runs_neither_restore_nor_replace_legacy_window_geometry() {
+        use vectorcraft_ui_egui::state::WindowGeometry;
+        let previous = WindowGeometry { pos: Some([200, 80]), size: [1100.0, 700.0], maximized: true };
+        let runtime = WindowGeometry { pos: Some([10, 20]), size: [1500.0, 900.0], maximized: false };
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.ui.window = Some(runtime);
+        app.ui.image_trace_preview = false;
+        for old in [None, Some(previous)] {
+            let control = WindowPrefs { persist: false, previous: old };
+            assert_eq!(control.restored(), None);
+            let saved = prefs_bytes(&app, control).unwrap();
+            let reloaded = decode_saved_prefs(&saved).unwrap();
+            assert_eq!(reloaded.window, old);
+            assert!(!reloaded.image_trace_preview);
+            let normal = WindowPrefs { persist: true, previous: old };
+            assert_eq!(normal.restored(), old);
+            let saved = prefs_bytes(&app, normal).unwrap();
+            assert_eq!(decode_saved_prefs(&saved).unwrap().window, Some(runtime));
+        }
     }
 
     /// Shortcut overrides an earlier version saved still load: its spellings, `panel:` keys, an
@@ -1306,7 +1398,7 @@ mod tests {
         for preview in [false, true] {
             let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
             app.ui.image_trace_preview = preview;
-            let saved = prefs_bytes(&app).unwrap();
+            let saved = prefs_bytes(&app, WindowPrefs { persist: true, previous: None }).unwrap();
             let loaded = decode_saved_prefs(&saved).unwrap().sanitized();
             assert_eq!(loaded.image_trace_preview, preview, "Preview {preview} after a restart");
         }
