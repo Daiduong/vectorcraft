@@ -354,16 +354,9 @@ pub(crate) fn write_to(services: &mut Services, path: &str, bytes: &[u8]) -> Res
 
 /// Whether a file name is a path in a host's own storage, `<scheme>:<folder>/<path>` such as
 /// `cloud:home/art/logo.svg`, rather than a bare file name. On the web, the page that serves the app
-/// can offer such storage next to the device (`apps/vectorcraft-web/src/storage.rs`). A one-letter
-/// scheme is a Windows drive, not a host.
-pub fn is_host_path(name: &str) -> bool {
-    name.split_once(':').is_some_and(|(scheme, rest)| {
-        rest.contains('/')
-            && scheme.len() > 1
-            && scheme.starts_with(|c: char| c.is_ascii_alphabetic())
-            && scheme.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '.' | '-'))
-    })
-}
+/// can offer such storage next to the device (`apps/vectorcraft-web/src/storage.rs`). The rule is
+/// shared by the Craft apps (`craft-web-host`).
+pub use craft_web_host::is_host_path;
 
 /// Open a file that arrived on the web (picked or dropped).
 pub(crate) fn open_arrived(app: &mut VectorcraftApp, name: &str, bytes: &[u8]) -> Result<Value, String> {

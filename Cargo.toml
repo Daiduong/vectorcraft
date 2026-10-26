@@ -16,6 +16,8 @@ craft-print = { git = "https://github.com/storytold/craft-libs", rev = "a0916808
 craft-docpath = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f" }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f", features = ["serde"] }
 craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f" }
+# window.craftStorage, shared by the Craft apps' web builds (storytold/craft-libs#360).
+craft-web-host = { git = "https://github.com/storytold/craft-libs", rev = "31bda8afa9b94038b0bb32208789ac4be018889d" }
 # Decides who draws the window frame (desktop vs. app) so the suite shares one native titlebar per
 # desktop. The `egui` feature adds `craft_window::decorate`. (craft-libs#217.)
 craft-window = { git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f", features = ["egui"] }

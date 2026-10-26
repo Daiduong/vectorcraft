@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 vectorcraft-engine = { workspace = true, features = ["bundled-fonts"] }
 vectorcraft-ui-egui = { workspace = true }
+craft-web-host = { workspace = true }
 vectorcraft-format = { workspace = true }
 vectorcraft-text = { workspace = true }
 egui = { workspace = true }
