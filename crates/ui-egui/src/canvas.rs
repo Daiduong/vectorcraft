@@ -521,6 +521,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             isolated: key.isolated.map(vectorcraft_doc::NodeId),
             // Images far smaller on screen than they are sample their mip levels (#1244).
             image_mips: true,
+            // An image whose pixels can't be decoded shows as a crossed box, and the status message
+            // below reports it.
+            mark_undecoded_images: true,
             // During a drag or a dialog's preview, objects that only moved draw their raster
             // effects from the cached rasters of an earlier frame (#1257).
             interacting: key.interacting,
@@ -570,6 +573,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 app.canvas.from_worker = false;
             }
         }
+    }
+    // The status bar reports each image that a renderer (this thread's or the worker's) could not
+    // decode, once per image in the process.
+    let undecoded = vectorcraft_render::newly_undecodable(doc.images.values());
+    if undecoded > 0 {
+        app.status(format!("{undecoded} image(s) couldn't be decoded and show as crossed boxes"));
     }
     if let (Some(tex), Some(k)) = (&app.canvas.texture, &app.canvas.key)
         && k.doc == key.doc
@@ -2494,6 +2503,12 @@ fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, xf: &Xf)
         widgets::PanelDrag::Brush { name, .. } => {
             ("brush.apply", json!({"name": name, "ids": [vectorcraft_tools::xform::paint_owner(&st.doc, hit.leaf).0]}))
         }
+        // A brush from a brush library panel: added to the document's Brushes and applied to the
+        // path it lands on, in one step.
+        widgets::PanelDrag::LibraryBrush { library, name } => (
+            "brush.addFromLibrary",
+            json!({"library": library, "name": name, "apply": true, "ids": [vectorcraft_tools::xform::paint_owner(&st.doc, hit.leaf).0]}),
+        ),
         // Art dragged back onto the canvas: its move was already dropped. (A symbol was placed
         // above.)
         widgets::PanelDrag::Art(_)
@@ -5698,6 +5713,55 @@ mod tests {
         assert_eq!(pink(&mut app), Some(on), "on again, as before");
     }
 
+    /// Images whose pixels can't be decoded draw as crossed boxes on the canvas, and the status
+    /// bar reports each of them once: two such images give one message, and later frames that
+    /// draw them again give none.
+    #[test]
+    fn undecodable_images_are_marked_and_reported_once() {
+        use vectorcraft_doc::{ImageBlob, ImageObject, NodeKind};
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.canvas.worker_started = true; // render on this thread
+        // PNGs of noisy pixels cut off halfway: their headers read, their pixels don't decode.
+        let cut = |w: u32| {
+            let img = image::RgbaImage::from_fn(w, 41, |x, y| image::Rgba([(x * 37 + y * 101) as u8, (x * y) as u8, (x ^ y) as u8, 255]));
+            let mut png = vec![];
+            img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+            png.truncate(png.len() / 2);
+            png
+        };
+        {
+            let st = app.session.doc_mut().unwrap();
+            let d = std::sync::Arc::make_mut(&mut st.doc);
+            for (i, w) in [53u32, 59].into_iter().enumerate() {
+                let key = format!("cut{i}");
+                d.images.insert(key.clone(), ImageBlob::new("image/png", cut(w)));
+                let im = ImageObject {
+                    key,
+                    width: w,
+                    height: 41,
+                    xf: Affine::translate((40.0 + 150.0 * i as f64, 100.0)),
+                    link: None,
+                    placement: Default::default(),
+                    pixels: None,
+                };
+                let (id, layer) = (d.alloc_id(), d.layers[0].id);
+                d.insert(Some(layer), 0, Node::new(id, NodeKind::Image(Box::new(im)))).unwrap();
+            }
+            st.revision += 1;
+        }
+        let ctx = egui::Context::default();
+        app.status("");
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.canvas.shown.as_ref().is_some_and(|(_, o)| o.mark_undecoded_images), "the canvas marks them");
+        assert_eq!(app.ui.status, "2 image(s) couldn't be decoded and show as crossed boxes");
+        app.status("");
+        app.session.doc_mut().unwrap().revision += 1;
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(app.ui.status, "", "said once");
+    }
+
     /// A drag of an object with raster effects (#1257): the drag's frames render while
     /// interacting and draw the object's drop shadow and filtered content from the rasters of the
     /// frame before; the frame after the drag renders without `interacting`, on the render worker,
@@ -8394,6 +8458,36 @@ mod tests {
     }
 
     #[test]
+    fn a_library_brush_dropped_on_a_path_is_added_and_applied_in_one_step() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        let id =
+            app.session.execute("path.create", &json!({"anchors": [{"x": 100, "y": 150}, {"x": 300, "y": 150}]})).unwrap()["id"].as_u64().unwrap();
+        app.session.execute("select.none", &json!({})).unwrap();
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let drop = |app: &mut VectorcraftApp, at: Point| {
+            let at = xf.to_screen(at);
+            egui::DragAndDrop::set_payload(&ctx, widgets::PanelDrag::LibraryBrush { library: "scatter-shapes".into(), name: "Sparkles".into() });
+            let up = egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() };
+            frame(app, &ctx, vec![egui::Event::PointerMoved(at), up]);
+        };
+        let undo = app.session.active().unwrap().history.undo.len();
+        // Off the path: nothing.
+        drop(&mut app, Point::new(200.0, 250.0));
+        assert!(vectorcraft_brush::find(&app.session.active().unwrap().doc, "Sparkles").is_none());
+        // On it: added, with the symbol it scatters, and applied, as one step.
+        drop(&mut app, Point::new(200.0, 150.0));
+        let st = app.session.active().unwrap();
+        assert!(vectorcraft_brush::find(&st.doc, "Sparkles").is_some() && st.doc.symbols.iter().any(|s| s.name == "Sparkle"), "{}", app.ui.status);
+        let n = st.doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+        assert_eq!(n.appearance.stroke().and_then(|s| s.brush.clone()).as_deref(), Some("Sparkles"));
+        assert_eq!(st.history.undo.len(), undo + 1);
+        assert_eq!(st.history.undo.last().unwrap().label, "Add to Brushes");
+    }
+
+    #[test]
     fn middle_drag_pans_the_view_with_any_tool() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
@@ -10749,6 +10843,36 @@ mod tests {
         assert_eq!(o.iter().filter(|x| matches!(x, Overlay::Line { .. })).count(), 7);
         app.run("select.none", json!({})).unwrap();
         assert!(thread_overlays(&app, zoom).is_empty());
+    }
+
+    /// A double-click with the Selection tool on the out port of a threaded frame breaks the
+    /// thread there: no new frame is threaded on, and the story flows back into the first frame.
+    #[test]
+    fn a_double_click_on_a_threaded_out_port_breaks_the_thread() {
+        use vectorcraft_tools::text::{Port, port_centre};
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
+        let text = "Words that fill more than the frame holds. ".repeat(10);
+        let a =
+            app.run("text.create", json!({"x": 20, "y": 20, "text": text, "area": {"width": 150, "height": 60}})).unwrap()["id"].as_u64().unwrap();
+        app.run("text.thread.add", json!({"from": a, "at": [300, 200]})).unwrap();
+        app.run("select.set", json!({"ids": [a]})).unwrap();
+        app.select_tool("selection");
+        let doc = |app: &VectorcraftApp| app.session.active().unwrap().doc.clone();
+        let before = doc(&app);
+        let NodeKind::Text(t) = &before.node(vectorcraft_doc::NodeId(a)).unwrap().kind else { panic!("not text") };
+        let view = app.view_info();
+        let at = port_centre(t, Port::Out, 1.0 / view.zoom).unwrap();
+        let count = doc(&app).layers[0].children().map_or(0, |c| c.len());
+        for kind in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
+            crate::canvas::dispatch(&mut app, &PointerEvent::new(kind, at.x, at.y), view);
+        }
+        let d = doc(&app);
+        assert!(d.text_threads.is_empty(), "the thread is broken");
+        assert_eq!(d.layers[0].children().map_or(0, |c| c.len()), count, "no new frame");
+        let NodeKind::Text(t) = &d.node(vectorcraft_doc::NodeId(a)).unwrap().kind else { panic!("not text") };
+        assert_eq!(t.plain_text(), text, "the story flows into the first frame");
+        assert_eq!(app.session.tool_id(), "selection");
     }
 
     /// With more than `PORTS_MAX` type objects selected the tools draw no ports, and Show Text

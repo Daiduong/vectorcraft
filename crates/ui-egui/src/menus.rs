@@ -43,11 +43,6 @@ fn todos(label: &'static str, sc: &'static str) -> Item {
 fn sub(label: &'static str, items: Vec<Item>) -> Item {
     Item::Sub(label, items)
 }
-/// Window → … Libraries until the code-generated libraries land (disabled entries).
-fn library_placeholders() -> Vec<Item> {
-    vec![todo("Built-in Libraries"), todo("User Defined"), Sep, todo("Other Library…")]
-}
-
 use Item::Sep;
 
 /// UI-level commands: (id, label, shortcut, params doc).
@@ -96,6 +91,21 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("view.goto8", "Saved View 8", "", "{} go to the 8. saved view"),
     ("view.goto9", "Saved View 9", "", "{} go to the 9. saved view"),
     ("view.goto10", "Saved View 10", "", "{} go to the 10. saved view"),
+    ("view.goto11", "Saved View 11", "", "{} go to the 11. saved view"),
+    ("view.goto12", "Saved View 12", "", "{} go to the 12. saved view"),
+    ("view.goto13", "Saved View 13", "", "{} go to the 13. saved view"),
+    ("view.goto14", "Saved View 14", "", "{} go to the 14. saved view"),
+    ("view.goto15", "Saved View 15", "", "{} go to the 15. saved view"),
+    ("view.goto16", "Saved View 16", "", "{} go to the 16. saved view"),
+    ("view.goto17", "Saved View 17", "", "{} go to the 17. saved view"),
+    ("view.goto18", "Saved View 18", "", "{} go to the 18. saved view"),
+    ("view.goto19", "Saved View 19", "", "{} go to the 19. saved view"),
+    ("view.goto20", "Saved View 20", "", "{} go to the 20. saved view"),
+    ("view.goto21", "Saved View 21", "", "{} go to the 21. saved view"),
+    ("view.goto22", "Saved View 22", "", "{} go to the 22. saved view"),
+    ("view.goto23", "Saved View 23", "", "{} go to the 23. saved view"),
+    ("view.goto24", "Saved View 24", "", "{} go to the 24. saved view"),
+    ("view.goto25", "Saved View 25", "", "{} go to the 25. saved view"),
     ("select.recall1", "Saved Selection 1", "", "{} select the 1. saved selection"),
     ("select.recall2", "Saved Selection 2", "", "{} select the 2. saved selection"),
     ("select.recall3", "Saved Selection 3", "", "{} select the 3. saved selection"),
@@ -621,7 +631,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "tool.options",
         "Tool Options…",
         "",
-        "{tool: id} what double-clicking a tool button opens: hand → fits the artboard in the window (view.fitArtboard), zoom → 100% (view.actualSize), rotate|scale|reflect|shear → that Object › Transform dialog (dialog `rotate`, `scale`, `reflect` or `shear`; error `nothing selected` without a selection), selection|directSelection|groupSelection → the Move dialog (dialog `move`; the same error), gradient|magicWand → the Gradient or Magic Wand panel (window.panel), artboard → Artboard Options of the active artboard (dialog `artboardOptions`, fields index, name, x, y, width, height, showCenterMark, showCrossHairs; OK runs artboard.setProps, and with other artboards selected with the Artboard tool a new width or height goes to each of them too, in its `artboards` list, each resized about the reference point the form used for that size, or about its top-left corner when the size was set in the fields directly), flare → Flare Tool Options (dialog `flareOptions`, fields diameter and pathLength (pt), opacity, brightness, growth, fuzziness, longest, rayFuzziness, largest (%), rays, rings, direction (°), raysOn, ringsOn; OK runs tool.setOption {tool: \"flare\", values}: the next flare dragged out uses them, and a Flare click's dialog, which also has x and y, draws one there with them), lineSegment|arc|rectangularGrid|polarGrid → that tool's Tool Options, its click dialog without x and y (dialog kind = the tool id, `__toolOptions: true`; lineSegment: length (pt), angle (°), fillLine; arc: lengthX, lengthY (pt), reference (0–8), arcType: open|closed, baseAlong: x|y, slope (−100…100), fillArc; rectangularGrid: width, height (pt, the Default Size), reference (0–8), rows, columns, rowSkew, columnSkew (%), frame, fill; polarGrid: the same with concentric, radial, concentricSkew, radialSkew and compound for rows, columns, the skews and frame; OK runs tool.setOption {tool, values} and draws nothing: the next drag uses them (Fill Line, the arc's type, base, slope and fill, the grids' dividers, skews and switches) and a click's dialog opens at them), columnGraph|stackedColumnGraph|barGraph|stackedBarGraph|lineGraph|areaGraph|scatterGraph|pieGraph|radarGraph → Graph Type for the selected graph (dialog `command` running graph.setType; an error without one), symbolSprayer|symbolShifter|symbolScruncher|symbolSizer|symbolSpinner|symbolStainer|symbolScreener|symbolStyler → Symbolism Tools Options (dialog `symbolismOptions`, fields tool, diameter (pt), intensity and density (1–10), shared by the eight tools; OK runs tool.setOption {tool, values}), blend → Blend Options, perspectiveGrid → Perspective Grid Options, eyedropper → Eyedropper Options (dialog `eyedropperOptions`, fields sampleSize, pickUp, apply; OK runs eyedropper.setOptions), printTiling → resets the print tiling (print.tiling.set {reset: true}), warp|twirl|pucker|bloat|scallop|crystallize|wrinkle → that tool's Tool Options (dialog `liquifyOptions`, fields tool, width, height, angle, intensity %, usePressure, detail, simplify, simplifyOn, rate, complexity, horizontal %, vertical %, affectAnchors, affectIn, affectOut, showBrush; OK runs tool.setOption {tool, values}), pencil|paintbrush|smooth|blobBrush|eraser → that tool's Tool Options (dialog `freehandOptions`, fields tool and the options the tool keeps: fidelity (pt), fill, keepSelected (on for pencil and paintbrush, off for blobBrush), mergeOnlySelection (off), closeWithin and editWithin (px, 0 is off), livePreview (pencil, on: off draws a thin line while the stroke is drawn, and the path's fill and stroke on release), size (pt), angle (°, −180–180; 0) and roundness (%, 1–100; 100) of the eraser's tip; OK runs tool.setOption {tool, values}), livePaintSelection → Live Paint Selection Tool Options (dialog `livePaintSelectionOptions`, fields selectFills and selectStrokes (both on), color (the highlight color, #rrggbb or a layer color's name; #ff2a2a), width (the highlight's width, 1–20 px; 4); OK runs tool.setOption {tool: \"livePaintSelection\", values}), shapeBuilder → Shape Builder Tool Options (dialog `shapeBuilderOptions`, fields gapDetection (off), gapLength (pt, 0–72; 3), openFilledAsClosed (on), clickStrokeSplitsPath (off), pickColorFrom: artwork|swatches (artwork), cursorSwatchPreview (off), selection: freeform|straightLine (freeform), highlightFill (on), highlightStroke (on), highlightColor (#rrggbb or a layer color's name; #ff4f4f); OK runs tool.setOption {tool: \"shapeBuilder\", values})",
+        "{tool: id} what double-clicking a tool button opens: hand → fits the artboard in the window (view.fitArtboard), zoom → 100% (view.actualSize), rotate|scale|reflect|shear → that Object › Transform dialog (dialog `rotate`, `scale`, `reflect` or `shear`; error `nothing selected` without a selection), selection|directSelection|groupSelection → the Move dialog (dialog `move`; the same error), gradient|magicWand → the Gradient or Magic Wand panel (window.panel), artboard → Artboard Options of the active artboard (dialog `artboardOptions`, fields index, name, x, y, width, height, showCenterMark, showCrossHairs; OK runs artboard.setProps, and with other artboards selected with the Artboard tool a new width or height goes to each of them too, in its `artboards` list, each resized about the reference point the form used for that size, or about its top-left corner when the size was set in the fields directly), flare → Flare Tool Options (dialog `flareOptions`, fields diameter and pathLength (pt), opacity, brightness, growth, fuzziness, longest, rayFuzziness, largest (%), rays, rings, direction (°), raysOn, ringsOn; OK runs tool.setOption {tool: \"flare\", values}: the next flare dragged out uses them, and a Flare click's dialog, which also has x and y, draws one there with them), lineSegment|arc|rectangularGrid|polarGrid → that tool's Tool Options, its click dialog without x and y (dialog kind = the tool id, `__toolOptions: true`; lineSegment: length (pt), angle (°), fillLine; arc: lengthX, lengthY (pt), reference (0–8), arcType: open|closed, baseAlong: x|y, slope (−100…100), fillArc; rectangularGrid: width, height (pt, the Default Size), reference (0–8), rows, columns, rowSkew, columnSkew (%), frame, fill; polarGrid: the same with concentric, radial, concentricSkew, radialSkew and compound for rows, columns, the skews and frame; OK runs tool.setOption {tool, values} and draws nothing: the next drag uses them (Fill Line, the arc's type, base, slope and fill, the grids' dividers, skews and switches) and a click's dialog opens at them), columnGraph|stackedColumnGraph|barGraph|stackedBarGraph|lineGraph|areaGraph|scatterGraph|pieGraph|radarGraph → Graph Type for the selected graph (dialog `command` running graph.setType; an error without one), typeOnPath|verticalTypeOnPath → Type on a Path Options for the selected type on a path (dialog `command` running type.pathOptions; error `nothing selected` without a selection, and the command's error when no type on a path is selected),symbolSprayer|symbolShifter|symbolScruncher|symbolSizer|symbolSpinner|symbolStainer|symbolScreener|symbolStyler → Symbolism Tools Options (dialog `symbolismOptions`, fields tool, diameter (pt), intensity and density (1–10), shared by the eight tools; OK runs tool.setOption {tool, values}), blend → Blend Options, perspectiveGrid → Perspective Grid Options, eyedropper → Eyedropper Options (dialog `eyedropperOptions`, fields sampleSize, pickUp, apply; OK runs eyedropper.setOptions), printTiling → resets the print tiling (print.tiling.set {reset: true}), warp|twirl|pucker|bloat|scallop|crystallize|wrinkle → that tool's Tool Options (dialog `liquifyOptions`, fields tool, width, height, angle, intensity %, usePressure, detail, simplify, simplifyOn, rate, complexity, horizontal %, vertical %, affectAnchors, affectIn, affectOut, showBrush; OK runs tool.setOption {tool, values}), pencil|paintbrush|smooth|blobBrush|eraser → that tool's Tool Options (dialog `freehandOptions`, fields tool and the options the tool keeps: fidelity (pt), fill, keepSelected (on for pencil and paintbrush, off for blobBrush), mergeOnlySelection (off), closeWithin and editWithin (px, 0 is off), livePreview (pencil, on: off draws a thin line while the stroke is drawn, and the path's fill and stroke on release), size (pt), angle (°, −180–180; 0) and roundness (%, 1–100; 100) of the eraser's tip; OK runs tool.setOption {tool, values}), livePaintSelection → Live Paint Selection Tool Options (dialog `livePaintSelectionOptions`, fields selectFills and selectStrokes (both on), color (the highlight color, #rrggbb or a layer color's name; #ff2a2a), width (the highlight's width, 1–20 px; 4); OK runs tool.setOption {tool: \"livePaintSelection\", values}), shapeBuilder → Shape Builder Tool Options (dialog `shapeBuilderOptions`, fields gapDetection (off), gapLength (pt, 0–72; 3), openFilledAsClosed (on), clickStrokeSplitsPath (off), pickColorFrom: artwork|swatches (artwork), cursorSwatchPreview (off), selection: freeform|straightLine (freeform), highlightFill (on), highlightStroke (on), highlightColor (#rrggbb or a layer color's name; #ff4f4f); OK runs tool.setOption {tool: \"shapeBuilder\", values})",
     ),
     (
         "ui.colorGuideOptions",
@@ -808,6 +818,34 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
     ("window.userSymbolLibrary8", "User Symbol Library 8", "", "{} open the 8. User Defined symbol library"),
     ("window.userSymbolLibrary9", "User Symbol Library 9", "", "{} open the 9. User Defined symbol library"),
     ("window.userSymbolLibrary10", "User Symbol Library 10", "", "{} open the 10. User Defined symbol library"),
+    (
+        "window.brushLibrary",
+        "Brush Library",
+        "",
+        "{library: id or name (see brush.libraries) | null (close)} open a brush library in a library panel of its own (UI state `library_panels`, kind brushes); clicking a brush there runs brush.addFromLibrary (with apply when paths are selected), dragging one onto a path runs it with apply on that path, dragging one onto the Brushes panel adds it → {open, panel, name, count}",
+    ),
+    (
+        "window.brushLibrary.other",
+        "Other Library…",
+        "",
+        "{path?} (default: pick a file) load the brushes of another document or a saved brush library (engine: brush.loadLibrary), and open them in a library panel",
+    ),
+    (
+        "ui.saveBrushLibrary",
+        "Save Brushes…",
+        "",
+        "{names?: [the brushes selected in the Brushes panel]} open Save Brush Library (dialog `saveBrushLibrary`: name, user: save to the user library folder, selectedOnly); OK runs brush.saveLibrary",
+    ),
+    ("window.userBrushLibrary1", "User Brush Library 1", "", "{} open the 1. User Defined brush library (brush.libraries, category user)"),
+    ("window.userBrushLibrary2", "User Brush Library 2", "", "{} open the 2. User Defined brush library"),
+    ("window.userBrushLibrary3", "User Brush Library 3", "", "{} open the 3. User Defined brush library"),
+    ("window.userBrushLibrary4", "User Brush Library 4", "", "{} open the 4. User Defined brush library"),
+    ("window.userBrushLibrary5", "User Brush Library 5", "", "{} open the 5. User Defined brush library"),
+    ("window.userBrushLibrary6", "User Brush Library 6", "", "{} open the 6. User Defined brush library"),
+    ("window.userBrushLibrary7", "User Brush Library 7", "", "{} open the 7. User Defined brush library"),
+    ("window.userBrushLibrary8", "User Brush Library 8", "", "{} open the 8. User Defined brush library"),
+    ("window.userBrushLibrary9", "User Brush Library 9", "", "{} open the 9. User Defined brush library"),
+    ("window.userBrushLibrary10", "User Brush Library 10", "", "{} open the 10. User Defined brush library"),
     (
         "ui.expandDialog",
         "Expand…",
@@ -1392,15 +1430,13 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             params["rotation"] = json!(v.rotation);
             app.session.execute(id, &params).map_err(|e| e.to_string())
         }
-        id if id.starts_with("view.goto") => {
-            let n: usize = id["view.goto".len()..].parse().unwrap_or(0);
-            let saved = app.session.active().and_then(|d| n.checked_sub(1).and_then(|i| d.doc.views.get(i)).cloned());
+        // A saved view: its zoom, centre and rotation, in the current window.
+        id if saved_view_slot(id).is_some() => {
+            let saved = saved_view(app, id).and_then(|sv| crate::state::View::saved(sv).map(|to| (sv.name.clone(), to)));
             match (saved, app.view_mut()) {
-                (Some(sv), Some(v)) => {
-                    v.center = sv.center;
-                    v.zoom = sv.zoom;
-                    v.rotation = sv.rotation;
-                    Ok(json!({ "name": sv.name }))
+                (Some((name, to)), Some(v)) => {
+                    (v.center, v.zoom, v.rotation) = (to.center, to.zoom, to.rotation);
+                    Ok(json!({ "name": name }))
                 }
                 _ => Err("no such view".into()),
             }
@@ -1795,6 +1831,16 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
             Some(l) => crate::panels::symbols::open_library(app, &json!({ "library": l.id })),
             None => Err("no such user library".into()),
         },
+        "window.brushLibrary" => crate::panels::brushes::open_library(app, p),
+        "window.brushLibrary.other" => crate::panels::brushes::other_library(app, s("path")),
+        "ui.saveBrushLibrary" => {
+            let names = p.get("names").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
+            crate::dialogs::save_brush_library::open(app, names.unwrap_or_default())
+        }
+        id if id.starts_with(crate::panels::brushes::USER_SLOT) => match crate::panels::brushes::user_library(app, id) {
+            Some(l) => crate::panels::brushes::open_library(app, &json!({ "library": l.id })),
+            None => Err("no such user library".into()),
+        },
         "ui.expandDialog" => crate::dialogs::expand::open(app),
         "ui.simplifyAuto" => crate::dialogs::simplify_slider::auto(app),
         "ui.simplifyMoreOptions" => crate::dialogs::simplify_slider::more_options(app),
@@ -2059,10 +2105,7 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
             let n: usize = id["type.recentFont".len()..].parse().unwrap_or(0);
             n.checked_sub(1).and_then(|i| app.recent_fonts().get(i)).cloned().unwrap_or_else(|| "—".into())
         }
-        id if id.starts_with("view.goto") => {
-            let n: usize = id["view.goto".len()..].parse().unwrap_or(0);
-            app.session.active().and_then(|d| n.checked_sub(1).and_then(|i| d.doc.views.get(i)).map(|v| v.name.clone())).unwrap_or_else(|| "—".into())
-        }
+        id if saved_view_slot(id).is_some() => saved_view(app, id).map(|v| v.name.clone()).unwrap_or_else(|| "—".into()),
         id if saved_selection_slot(id).is_some() => saved_selection_name(app, id).unwrap_or_else(|| "—".into()),
         "view.artboards" => if v.artboards { "Hide Artboards" } else { "Show Artboards" }.into(),
         "view.rulers" => if v.rulers { "Hide Rulers" } else { "Show Rulers" }.into(),
@@ -2110,6 +2153,9 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
         id if id.starts_with(crate::panels::symbols::USER_SLOT) => {
             crate::panels::symbols::user_library(app, id).map_or_else(|| "—".into(), |l| l.name)
         }
+        id if id.starts_with(crate::panels::brushes::USER_SLOT) => {
+            crate::panels::brushes::user_library(app, id).map_or_else(|| "—".into(), |l| l.name)
+        }
         id if id.starts_with(crate::dialogs::perspective_presets::SLOT) => {
             crate::dialogs::perspective_presets::slot_preset(app, id).unwrap_or_else(|| "—".into())
         }
@@ -2125,13 +2171,14 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
 /// plug-in? Such names are shown as they are, never translated (a workspace the user calls
 /// "Layers" stays "Layers").
 fn shows_a_name(id: &str, label: &str) -> bool {
-    const SLOTS: [&str; 7] = [
+    const SLOTS: [&str; 8] = [
         "file.openRecent",
         "view.goto",
         "type.recentFont",
         crate::panels::swatches::USER_SLOT,
         crate::panels::graphic_styles::USER_SLOT,
         crate::panels::symbols::USER_SLOT,
+        crate::panels::brushes::USER_SLOT,
         crate::dialogs::perspective_presets::SLOT,
     ];
     SLOTS.iter().any(|s| id.starts_with(s))
@@ -2218,6 +2265,7 @@ fn hidden_when_disabled(id: &str) -> bool {
         || id.starts_with(crate::panels::swatches::USER_SLOT)
         || id.starts_with(crate::panels::graphic_styles::USER_SLOT)
         || id.starts_with(crate::panels::symbols::USER_SLOT)
+        || id.starts_with(crate::panels::brushes::USER_SLOT)
         || id.starts_with(crate::dialogs::perspective_presets::SLOT)
 }
 
@@ -2414,6 +2462,45 @@ const SAVED_SELECTION_IDS: [&str; vectorcraft_engine::doc::SavedSelection::MAX] 
     "select.recall25",
 ];
 
+/// View → saved views: the n-th saved view of the active document.
+const SAVED_VIEW_IDS: [&str; vectorcraft_engine::doc::SavedView::MAX] = [
+    "view.goto1",
+    "view.goto2",
+    "view.goto3",
+    "view.goto4",
+    "view.goto5",
+    "view.goto6",
+    "view.goto7",
+    "view.goto8",
+    "view.goto9",
+    "view.goto10",
+    "view.goto11",
+    "view.goto12",
+    "view.goto13",
+    "view.goto14",
+    "view.goto15",
+    "view.goto16",
+    "view.goto17",
+    "view.goto18",
+    "view.goto19",
+    "view.goto20",
+    "view.goto21",
+    "view.goto22",
+    "view.goto23",
+    "view.goto24",
+    "view.goto25",
+];
+
+/// The 1-based slot a `view.gotoN` id stands for.
+fn saved_view_slot(id: &str) -> Option<usize> {
+    id.strip_prefix("view.goto")?.parse().ok()
+}
+
+/// The saved view a `view.gotoN` slot names (none past the document's last).
+fn saved_view<'a>(app: &'a VectorcraftApp, id: &str) -> Option<&'a vectorcraft_engine::doc::SavedView> {
+    app.session.active()?.doc.views.get(saved_view_slot(id)?.checked_sub(1)?)
+}
+
 /// The 1-based slot a `select.recallN` id stands for.
 fn saved_selection_slot(id: &str) -> Option<usize> {
     id.strip_prefix("select.recall")?.parse().ok()
@@ -2510,9 +2597,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
             id["type.recentFont".len()..].parse::<usize>().is_ok_and(|n| n >= 1 && n <= app.recent_fonts().len()) && app.session.active().is_some()
         }
         id if saved_selection_slot(id).is_some() => saved_selection_name(app, id).is_some(),
-        id if id.starts_with("view.goto") => {
-            id["view.goto".len()..].parse::<usize>().is_ok_and(|n| n >= 1 && app.session.active().is_some_and(|d| n <= d.doc.views.len()))
-        }
+        id if saved_view_slot(id).is_some() => saved_view(app, id).is_some(),
         "effect.dialog" | "ui.recolorDialog" | "ui.effectGalleryDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
         "ui.cropImage" => selected_image(app, |_| true),
         "effect.applyLast" | "effect.last" => app.last_effect.is_some() && app.session.active().is_some_and(|d| !d.selection.is_empty()),
@@ -2534,6 +2619,8 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         id if id.starts_with(crate::panels::graphic_styles::USER_SLOT) => crate::panels::graphic_styles::user_library(app, id).is_some(),
         "ui.saveSymbolLibrary" => app.session.active().is_some_and(|d| !d.doc.symbols.is_empty()),
         id if id.starts_with(crate::panels::symbols::USER_SLOT) => crate::panels::symbols::user_library(app, id).is_some(),
+        "ui.saveBrushLibrary" => crate::panels::brushes::has_brushes(app),
+        id if id.starts_with(crate::panels::brushes::USER_SLOT) => crate::panels::brushes::user_library(app, id).is_some(),
         "ui.expandDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
         "ui.spotColors" => app.session.active().is_some(),
         "ui.menuDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
@@ -3059,9 +3146,8 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
             v
         }),
         ("Effect", effect_menu()),
-        (
-            "View",
-            vec![
+        ("View", {
+            let mut v = vec![
                 c("Outline", "view.outline"),
                 c("Overprint Preview", "view.overprintPreview"),
                 c("Pixel Preview", "view.pixelPreview"),
@@ -3160,18 +3246,10 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 c("New View…", "view.saved.new"),
                 c("Edit Views…", "view.saved.edit"),
                 Sep,
-                c("Saved View 1", "view.goto1"),
-                c("Saved View 2", "view.goto2"),
-                c("Saved View 3", "view.goto3"),
-                c("Saved View 4", "view.goto4"),
-                c("Saved View 5", "view.goto5"),
-                c("Saved View 6", "view.goto6"),
-                c("Saved View 7", "view.goto7"),
-                c("Saved View 8", "view.goto8"),
-                c("Saved View 9", "view.goto9"),
-                c("Saved View 10", "view.goto10"),
-            ],
-        ),
+            ];
+            v.extend(SAVED_VIEW_IDS.iter().map(|id| c("Saved View", id)));
+            v
+        }),
         (
             "Window",
             vec![
@@ -3232,7 +3310,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 ),
                 panel("Variables", crate::panels::variables::ID),
                 Sep,
-                sub("Brush Libraries", library_placeholders()),
+                sub("Brush Libraries", crate::panels::brushes::window_menu()),
                 sub("Graphic Style Libraries", crate::panels::graphic_styles::window_menu()),
                 sub("Swatch Libraries", crate::panels::swatches::window_menu()),
                 sub("Symbol Libraries", crate::panels::symbols::window_menu()),
@@ -3752,6 +3830,11 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
         crate::dialogs::variables::open(app, id, None);
         return;
     }
+    // Pathfinder Options: a dialog with the current options.
+    if id == "object.pathfinder.options" && p.as_object().is_none_or(|o| o.is_empty()) {
+        crate::dialogs::pathfinder_options::open(app);
+        return;
+    }
     // Repeat Options: a dialog with the selected repeat's current values.
     if id == "object.repeat.options"
         && p.as_object().is_none_or(|o| o.is_empty())
@@ -3795,20 +3878,16 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
         }
         return;
     }
-    // New View… / Edit Views…: name dialogs.
+    // New View…: a name dialog, starting from the first free "View N".
     if id == "view.saved.new" && p.as_object().is_none_or(|o| o.is_empty()) {
-        let n = app.session.active().map_or(0, |d| d.doc.views.len()) + 1;
-        let _ = app.run("ui.paramDialog", json!({"command": id, "label": "New View", "params": {"name": format!("View {n}")}}));
+        let name = app.session.active().map(|d| vectorcraft_engine::doc::SavedView::default_name(&d.doc.views)).unwrap_or_default();
+        let _ = app.run("ui.paramDialog", json!({"command": id, "label": "New View", "params": {"name": name}}));
         return;
     }
+    // Edit Views…: the saved views in a list, to rename or delete.
     if id == "view.saved.edit" && p.as_object().is_none_or(|o| o.is_empty()) {
-        let first = app.session.active().and_then(|d| d.doc.views.first().map(|v| v.name.clone()));
-        match first {
-            Some(name) => {
-                let _ = app
-                    .run("ui.paramDialog", json!({"command": id, "label": "Edit Views", "params": {"name": name, "newName": "", "delete": false}}));
-            }
-            None => app.status("No saved views (View → New View…)"),
+        if let Err(e) = crate::dialogs::edit_views::open(app) {
+            app.status(e);
         }
         return;
     }
@@ -4638,6 +4717,65 @@ mod tests {
         assert_eq!((v.zoom, v.center.x, v.center.y), (3.0, 120.0, 80.0));
         // Unused slots stay out of the menu listing agents see.
         assert!(!menu_entries(&app).iter().any(|e| e.command.as_deref() == Some("view.goto2")));
+    }
+
+    /// A document's 25 views are all listed at the bottom of the View menu, by name, and the last
+    /// one brings back its zoom, centre and rotation after the view changed.
+    #[test]
+    fn every_saved_view_is_listed_at_the_bottom_of_the_view_menu() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({})).unwrap();
+        for i in 1..=25 {
+            {
+                let v = app.view_mut().unwrap();
+                (v.zoom, v.center, v.rotation) = (i as f64 / 4.0, vectorcraft_geom::Point::new(10.0 * i as f64, -5.0 * i as f64), i as f64);
+            }
+            invoke(&mut app, "view.saved.new", json!({}));
+            crate::dialogs::confirm(&mut app).unwrap();
+        }
+        assert_eq!(app.session.active().unwrap().doc.views.len(), 25);
+        let entries = menu_entries(&app);
+        let at = |id: &str| entries.iter().position(|e| e.command.as_deref() == Some(id));
+        let (edit, first, last) = (at("view.saved.edit").unwrap(), at("view.goto1").unwrap(), at("view.goto25").unwrap());
+        assert!(edit < first && last == first + 24, "listed in order after Edit Views…");
+        assert!(enabled(&app, "view.goto25"));
+        assert_eq!(display_label(&app, "view.goto25", "Saved View"), "View 25");
+        // The document's 26th view is refused, so there is never one the menu leaves out.
+        invoke(&mut app, "view.saved.new", json!({}));
+        assert!(crate::dialogs::confirm(&mut app).is_err());
+        app.ui.dialog = None;
+        {
+            let v = app.view_mut().unwrap();
+            (v.zoom, v.center, v.rotation) = (1.0, vectorcraft_geom::Point::new(0.0, 0.0), 0.0);
+        }
+        assert_eq!(app.run("view.goto25", json!({})).unwrap()["name"], "View 25");
+        let v = app.view().unwrap();
+        assert_eq!((v.zoom, v.center.x, v.center.y, v.rotation), (6.25, 250.0, -125.0, 25.0));
+    }
+
+    /// Edit Views… is off without a saved view and opens its list on the document's views, the
+    /// way Edit Selection… does.
+    #[test]
+    fn edit_views_opens_its_dialog_on_the_saved_views() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({})).unwrap();
+        assert!(!enabled(&app, "view.saved.edit"));
+        invoke(&mut app, "view.saved.edit", json!({}));
+        assert!(app.ui.dialog.is_none());
+        assert!(app.ui.status.contains("No saved views"), "{}", app.ui.status);
+        app.run("view.saved.new", json!({"name": "Detail"})).unwrap();
+        app.run("view.saved.new", json!({"name": "Page"})).unwrap();
+        assert!(enabled(&app, "view.saved.edit"));
+        invoke(&mut app, "view.saved.edit", json!({}));
+        let d = app.ui.dialog.clone().expect("Edit Views dialog");
+        assert_eq!((d.kind.as_str(), d.str("orig1"), d.str("name1")), ("editViews", "Page".into(), "Page".into()));
+        // Deleting a view takes its slot out of the menu.
+        let mut d = d;
+        d.fields.insert("deleted0".into(), json!(true));
+        app.ui.dialog = Some(d);
+        crate::dialogs::confirm(&mut app).unwrap();
+        assert_eq!(dynamic_label(&app, "view.goto1", ""), "Page");
+        assert!(shown_state(&app, "view.goto2", &Value::Null).is_none());
     }
 
     fn app_with_a_rectangle() -> VectorcraftApp {

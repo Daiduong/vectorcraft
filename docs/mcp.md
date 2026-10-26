@@ -105,7 +105,7 @@ The two flags (PhotoCraft and the other Craft apps take the same ones, so one cl
 the suite) keep the agent to the folders you give it:
 
 - Every file a command reads must lie inside a **read root**: `open_file`, `file.place`, relinking and
-  updating links, the images an SVG links to, swatch library, graphic style library, symbol library and colour-profile loads, plug-ins,
+  updating links, the images an SVG links to, swatch library, graphic style library, symbol library, brush library and colour-profile loads, plug-ins,
   `file.newFromTemplate`, preset imports, shortcut sets (`shortcutSet.read`), the folders `text.findFontFiles` and `links.findFiles` search, the
   scripts `script.check` reads and the files they include.
 - Every file a command writes must lie inside a **write root**: `save_file`, `export`, the save and
@@ -1385,6 +1385,19 @@ names must stay unique. In the desktop app the saved selections are listed at th
 (`select.recall {name}`). A file's saved selections are checked when it opens: past 25, blank or
 repeated names, and ids the document doesn't have are dropped.
 
+## Saved views
+
+View → New View… keeps a view under a name, in the document: `view.saved.new {name?, center: [x, y], zoom,
+rotation?}` (the desktop app fills in its current view; default the first free "View N"; at most 25 per document,
+names up to 255 characters, each name once) → `{name, index}`, one undo step. `view.saved.list` →
+`{views: [{name, center, zoom, rotation}…]}` in menu order. Edit Views… renames and deletes:
+`view.saved.edit {name, newName?, delete?}`, or several at once as `{edits: [{name, newName?, delete?}…]}` in one
+undo step (→ `{views}`), where every `name` is the name before the edit and the names must stay unique; it is
+enabled while the document has a saved view. In the desktop app the views are listed at the bottom of the View menu
+(`view.goto1` … `view.goto25`); choosing one sets the current window's zoom, centre and rotation. A file's views are
+checked when it opens: past 25, blank or repeated names, and views without a finite centre and a positive zoom are
+dropped.
+
 ## Ruler guides
 
 Ruler guides are numbered in the order they were made. `guide.add {vertical, pos, artboard?}` makes one (the x of a
@@ -1860,18 +1873,44 @@ document holding only them and what they use; without `path` it returns `{dataBa
 the user library folder (category `user`, User Defined). `symbol.loadLibrary {path? | data? | dataBase64?, name?}`
 loads the symbols of any document VectorCraft opens as a library to add from; a file it can't read is an error.
 
+## Brush libraries
+
+Brush libraries are read-only sets of brushes: four generated in code (Art Ribbons, Calligraphic Nibs, Pattern
+Borders, Scatter Shapes), the `.vectorcraft` files in the user library folder of the desktop app (User Defined) and
+the brushes of any document loaded with `brush.loadLibrary` (a document without brushes of its own has the default
+ones). `brush.libraries` lists them (`id`, `name`, `category`: `builtIn`, `user` or `loaded`, `count`) and
+`brush.library {library}` returns one's brushes (`name`, `type`; `library` is an id or a name).
+`brush.addFromLibrary {library, name? | names?}` copies brushes into the document's Brushes as one undo step (no
+names: the whole library), with the resources their art uses: patterns, symbols, swatches (`swatchConflict` as for
+`edit.paste`), graphic styles and images. Brushes the document already has (same name and definition) are reported
+under `existing`; a name another brush has gets a number, and `names` gives each one's name in the document. The
+first one becomes the current brush. `apply: true` also applies it to the paths `ids` (default: the selected ones)
+in the same step, as `brush.apply` does: what clicking a library brush with paths selected, or dragging one onto a
+path, does.
+
+```json
+{"name":"run_command","arguments":{"command":"brush.addFromLibrary","params":{"library":"art-ribbons","name":"Striped Ribbon","apply":true}}}
+```
+
+`brush.saveLibrary {path?, names?, name?, user?}` writes the document's brushes as a brush library: a `.vectorcraft`
+document holding only them and what their art uses; without `path` it returns `{dataBase64}`, and `user: true`
+saves into the user library folder (category `user`, User Defined). `brush.loadLibrary {path? | data? |
+dataBase64?, name?}` loads the brushes of any document VectorCraft opens as a library to add from; a file it can't
+read is an error.
+
 ## Library panels
 
-Each swatch, graphic style or symbol library opens in a read-only panel of its own (#2603), as in Illustrator, and
-several can be open at once. `window.swatchLibrary {library}`, `window.graphicStyleLibrary {library}` and
-`window.symbolLibrary {library}`
+Each swatch, graphic style, symbol or brush library opens in a read-only panel of its own (#2603), as in Illustrator,
+and several can be open at once. `window.swatchLibrary {library}`, `window.graphicStyleLibrary {library}`,
+`window.symbolLibrary {library}` and `window.brushLibrary {library}`
 (remote mode, `invoke_menu`) open one floating, or bring its panel forward when it is already open, and answer
 `{open, panel, name, count}`; `library: null` closes every panel of that kind. The panel id is
 `library:<kind>:<library id>` (`library:swatches:pastels`, `library:graphicStyles:hand-drawn`,
 `library:swatches:loaded/C:/Palettes/Brand.ase`), and the panel commands take it like any other panel's:
 `window.panel.float {panel, onto?, x?, y?}` groups or moves it, `window.panel.dock {panel}` docks it,
-`window.panel.close {panel}` closes it. `window.swatchLibrary.other {path}` and `window.graphicStyleLibrary.other
-{path}` load a file and open it the same way.
+`window.panel.close {panel}` closes it. `window.swatchLibrary.other {path}`, `window.graphicStyleLibrary.other
+{path}`, `window.symbolLibrary.other {path}` and `window.brushLibrary.other {path}` load a file and open it the same
+way.
 
 `ui.libraryPanel {panel, library?, view?, showFind?, persistent?}` sets one panel: `library` shows another library
 of its kind in that panel (what Previous Library and Next Library do; a library open in a panel of its own is
@@ -2023,6 +2062,20 @@ old name keeps it. A blank name gives "New Pattern N" in `object.pattern.make` a
 ```json
 {"name":"run_command","arguments":{"command":"pattern.options","params":{"showSwatchBounds":true}}}
 {"name":"run_command","arguments":{"command":"prefs.set","params":{"key":"patternTileEdgeColor","value":"#ff4f4f"}}}
+```
+
+Pathfinder Options: `object.pathfinder.options {precision?, removeRedundantPoints?, removeUnpainted?}` (or
+`prefs.get`/`prefs.set` with key `pathfinder`) reads and sets the options every later Shape Mode and Pathfinder
+operation uses: `precision` (0.001–10 pt, default 0.01; a string with a unit also reads) is how closely results follow
+the paths (they are refit to within it and pieces thinner than it are dropped), `removeRedundantPoints` takes the
+anchors that don't change a result's shape off it, and `removeUnpainted` makes Divide and Outline leave out the pieces
+of objects with no fill (or only hidden fills). Both default to false; `{}` reads the options. Each Shape Mode and
+Pathfinder command (`object.pathfinder.unite` … `minusBack`) also takes `precision`, `removeRedundantPoints` and
+`removeUnpainted` for one run; the values it used join its journal entry, so a replay or an action gives the same art
+whatever the options are then.
+
+```json
+{"name":"run_command","arguments":{"command":"object.pathfinder.options","params":{"precision":0.1,"removeUnpainted":true}}}
 ```
 
 The Eyedropper: `appearance.copyFrom {source}` copies what the Eyedropper Options pick up and apply from `source` to the
@@ -4238,6 +4291,13 @@ through the thread, the two frames are selected, and it returns `{id}`, the fram
 that doesn't exist, a `from` that is point type, a `to` that is an open path, `from` itself, inside a compound path
 or already in a thread (`from` may be threaded already: the frame goes in beside it), coordinates that aren't finite
 numbers and a `before` that isn't true or false.
+
+A double-click on a port where the frame is threaded breaks the thread there (one undo step, `text.thread.break`):
+
+`text.thread.break {id, port: "in" | "out"}` splits the thread of area type or type on a path `id` before it (`in`) or
+after it (`out`). The whole story flows into the frames before the break; the frames after it are left empty, still
+threaded with each other when two or more remain, and the first of them starts a paragraph. It refuses an `id` that
+doesn't exist, a `port` other than `in` or `out`, and a side where no frame of a thread comes before or after `id`.
 
 In every thread, a paragraph that continues from one frame into the next has its first line, first-line indent and
 bullet or number in the frame where it starts. In the next frame its first line starts where its wrapped lines start,

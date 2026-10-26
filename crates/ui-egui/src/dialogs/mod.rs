@@ -24,6 +24,7 @@ mod document_setup;
 pub mod dxf_import;
 pub mod dxf_options;
 pub mod edit_selection;
+pub mod edit_views;
 mod effect;
 pub mod effect_gallery;
 pub mod envelope;
@@ -64,6 +65,7 @@ pub mod new_swatch;
 pub mod office_export;
 pub mod package;
 pub(crate) mod path_ops;
+pub mod pathfinder_options;
 pub mod pdf_presets;
 pub mod perspective_grid;
 pub mod perspective_options;
@@ -83,6 +85,7 @@ mod recovery;
 mod revolve;
 pub(crate) mod revolve_gizmo;
 pub mod saturate;
+pub mod save_brush_library;
 mod save_changes;
 pub mod save_for_web;
 pub(crate) mod save_options;
@@ -299,6 +302,7 @@ registry! {
     FlattenerPresets: [flattener_presets::KIND] => flattener_presets::SPEC,
     SaveStyleLibrary: [save_style_library::KIND] => save_style_library::SPEC,
     SaveSymbolLibrary: [save_symbol_library::KIND] => save_symbol_library::SPEC,
+    SaveBrushLibrary: [save_brush_library::KIND] => save_brush_library::SPEC,
     Expand: [expand::KIND] => expand::SPEC,
     SpotColors: [spot_colors::KIND] => spot_colors::SPEC,
     TransformEach: [transform_each::KIND] => transform_each::SPEC,
@@ -364,9 +368,11 @@ registry! {
     BrushOptions: [brush_options::KIND] => brush_options::SPEC,
     NewBrush: [new_brush::KIND] => new_brush::SPEC,
     EditSelection: [edit_selection::KIND] => edit_selection::SPEC,
+    EditViews: [edit_views::KIND] => edit_views::SPEC,
     PerspectivePlane: [perspective_plane::KIND] => perspective_plane::SPEC,
     LayerOptions: [layer_options::KIND] => layer_options::SPEC,
     LayersPanelOptions: [layers_panel_options::KIND] => layers_panel_options::SPEC,
+    PathfinderOptions: [pathfinder_options::KIND] => pathfinder_options::SPEC,
     RearrangeArtboards: [rearrange_artboards::KIND] => rearrange_artboards::SPEC,
     ShortcutImport: [shortcut_import::KIND] => DialogSpec::window(shortcut_import::show, shortcut_import::confirm),
 }

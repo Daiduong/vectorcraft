@@ -165,5 +165,10 @@ real_name = "Caio Pontes Magalhães"
 display_name = "Caio Pontes"
 sync_github_name = false
 
+[people.xbirks]
+real_name = "Andrés Ortega Montoya"
+display_name = "Andrés Ortega Montoya"
+sync_github_name = false
+
 [people.abdallah-shehawey]
 sync_github_name = true
