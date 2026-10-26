@@ -30,6 +30,7 @@ pub mod pen;
 pub mod pie;
 pub mod place;
 pub mod printtiling;
+pub mod repeat_grid;
 pub mod rulerguide;
 pub mod select;
 pub mod settings;
@@ -741,7 +742,7 @@ impl Cursor {
     }
 
     /// The cursor this one borrows until it's drawn: the generic crosshair for the
-    /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh tool and Puppet
+    /// tools, the I-beam for vertical type, the Pen's add cursor for the Mesh tool and Puppet
     /// Warp, not-allowed for the Scissors away from a path. `None` for a cursor with a look of
     /// its own.
     pub fn stand_in(self) -> Option<Self> {
@@ -770,7 +771,7 @@ impl Cursor {
             | Cursor::SymbolScreener
             | Cursor::SymbolStyler
             | Cursor::Scissors => Some(Cursor::Crosshair),
-            Cursor::TypeVertical | Cursor::LoadedText => Some(Cursor::Text),
+            Cursor::TypeVertical => Some(Cursor::Text),
             Cursor::MeshAdd | Cursor::PuppetPin => Some(Cursor::PenAdd),
             Cursor::ScissorsNotAllowed => Some(Cursor::NotAllowed),
             _ => None,
@@ -921,6 +922,14 @@ pub trait Tool: Send {
     }
     /// Does the tool want [`Tool::tick`]s now (the host keeps time only then)?
     fn wants_ticks(&self) -> bool {
+        false
+    }
+    /// Does the tool build a stroke from the drag's samples (the Pencil and the other freehand
+    /// tools)? The host then hands it every position the pointer passed between two frames, not
+    /// only the last, so a fast stroke keeps its curve. Every other tool gets one drag a frame, so
+    /// one whose drag preview is costly (moving a large selection, Free Distort, the Width tool)
+    /// doesn't redo it for each sample.
+    fn wants_samples(&self) -> bool {
         false
     }
     /// Is the tool waiting for work it runs on another thread (the planar map of a large selection

@@ -196,9 +196,9 @@ fn pen_pressure(ui: &Ui, app: &VectorcraftApp, pressed: bool) -> f32 {
 
 /// The positions this frame's pointer moves passed through before its last one, each with the
 /// pen force a touch event gave just before it, or the pressure the host's feed kept for that move
-/// ([`StylusFeed::take_moves`], macOS), if any. The last move is the pointer's position. Only for
-/// pens and fingers (frames with touch events or with the feed's moves): a mouse's moves are left
-/// as they were.
+/// ([`StylusFeed::take_moves`], macOS), if any. The last move is the pointer's position. A mouse's
+/// moves count too, with no pressure: a fast mouse stroke otherwise keeps one position a frame, a
+/// sample every few pixels, too few for a low Fidelity to follow the hand (#3328).
 fn frame_moves(ui: &Ui, stylus: Option<&StylusFeed>) -> Vec<(Pos2, Option<f32>)> {
     let pressures = stylus.map(StylusFeed::take_moves).unwrap_or_default();
     ui.input(|i| {
@@ -219,6 +219,8 @@ fn frame_moves(ui: &Ui, stylus: Option<&StylusFeed>) -> Vec<(Pos2, Option<f32>)>
             let forces = pressures.iter().rev().map(|f| (*f > 0.0).then_some(*f)).chain(std::iter::repeat(None));
             moves = points.into_iter().rev().zip(forces).collect();
             moves.reverse();
+        } else {
+            moves = i.events.iter().filter_map(|e| if let egui::Event::PointerMoved(p) = e { Some((*p, None)) } else { None }).collect();
         }
         moves.pop();
         // A burst of events (a stalled frame) is thinned to a bounded count.
@@ -229,6 +231,15 @@ fn frame_moves(ui: &Ui, stylus: Option<&StylusFeed>) -> Vec<(Pos2, Option<f32>)>
         }
         moves
     })
+}
+
+/// The moves of this frame ([`frame_moves`]) the active tool gets before the pointer's position:
+/// all of them for a tool that builds a stroke from them ([`vectorcraft_engine::Session::tool_wants_samples`]), none
+/// for the others, which get one drag a frame. The moves are read either way, so the host's feed
+/// pairs the next frame's with its own.
+fn tool_frame_moves(ui: &Ui, app: &VectorcraftApp) -> Vec<(Pos2, Option<f32>)> {
+    let moves = frame_moves(ui, app.services.stylus.as_ref());
+    if app.session.tool_wants_samples() { moves } else { vec![] }
 }
 
 pub fn mods(m: egui::Modifiers, space: bool) -> Mods {
@@ -678,6 +689,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         selection_overlay(app, &painter, &xf, overlays.iter().any(|o| matches!(o, Overlay::CurvePoint { .. })));
         mirror_axis_overlay(app, &painter, &xf);
+        grid_repeat_overlay(app, &painter, &xf);
         if app.ui.view.text_threads {
             // Under the tools' overlays: a selected frame's own ports are drawn over its thread's.
             let mut threads = thread_overlays(app, xf.zoom);
@@ -878,7 +890,8 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
         | Cursor::GroupSelection
         | Cursor::CornerRadius
         | Cursor::PathBracket
-        | Cursor::TypeWidget => C::Default,
+        | Cursor::TypeWidget
+        | Cursor::LoadedText => C::Default,
         Cursor::SelectionCopy => C::Copy,
         Cursor::Move => C::Move,
         Cursor::Crosshair => C::Crosshair,
@@ -942,8 +955,7 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
         | Cursor::Scissors
         | Cursor::ScissorsNotAllowed
         | Cursor::MeshAdd
-        | Cursor::PuppetPin
-        | Cursor::LoadedText => cursor_icon(c.stand_in().unwrap_or(Cursor::Crosshair)),
+        | Cursor::PuppetPin => cursor_icon(c.stand_in().unwrap_or(Cursor::Crosshair)),
     }
 }
 
@@ -1185,13 +1197,16 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     ui.data_mut(|dd| dd.insert_temp(drag_id(), Drag::Art));
                 }
                 Drag::Tool => {
-                    if tool_drag_moved(ui, &xf, p, &pointer) {
-                        // In a frame with touch events (a pen on Windows or the web, a finger) or a
-                        // macOS pen's moves, every position the pen passed, not just the last: a fast
-                        // stroke keeps its curve (a pen reports far more often than frames come).
-                        // Mouse events, a pen's on X11 among them, give the last position only, with
-                        // the host's latest pressure.
-                        for (at, force) in frame_moves(ui, app.services.stylus.as_ref()) {
+                    // Every position the pen or mouse passed this frame, not just the last, for a
+                    // tool that builds a stroke from them: a fast stroke keeps its curve (a pen or a
+                    // mouse reports far more often than frames come). Touch events (a pen on Windows
+                    // or the web, a finger) and a macOS pen's moves carry their own pressure; a
+                    // mouse's, a pen's on X11 among them, take the host's latest. Other tools get
+                    // the last position only, so a costly drag preview runs once a frame.
+                    let moves = tool_frame_moves(ui, app);
+                    // A frame whose pointer ends where the last one did still moved in between.
+                    if tool_drag_moved(ui, &xf, p, &pointer) || !moves.is_empty() {
+                        for (at, force) in moves {
                             let pressure = force.unwrap_or_else(|| pen_pressure(ui, app, false));
                             dispatch(app, &PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(at), mods: mods(m, space), pressure }, view);
                         }
@@ -2841,6 +2856,36 @@ fn mirror_axis_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
     let handle = egui::Rect::from_center_size(center, vec2(12.0, 12.0));
     p.rect_filled(handle, 2.0, t.selection);
     p.rect_stroke(handle, 2.0, Stroke::new(2.0, t.measure_bg), StrokeKind::Outside);
+}
+
+/// A selected grid repeat's row, column and corner handles and its spacing sliders (#2691), at
+/// the places the Selection tool's hit testing finds them.
+fn grid_repeat_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+    use vectorcraft_tools::repeat_grid::{GridHandles, GridPart, HANDLE_RADIUS, SLIDER_HALF};
+    if app.session.tool_id() != "selection" || !app.ui.view.bounding_box {
+        return;
+    }
+    let frame = app.selection_box();
+    let Some(st) = app.session.active() else { return };
+    let Some(grid) = GridHandles::of(&st.doc, &st.selection, frame, xf.zoom) else { return };
+    let t = Tokens::get(p.ctx());
+    let half = f64::from(SLIDER_HALF) / xf.zoom;
+    for (part, at) in grid.parts() {
+        let c = xf.to_screen(at);
+        if !c.is_finite() {
+            continue;
+        }
+        if part.is_slider() {
+            // A bar across the gap's middle, square to the spacing it sets.
+            let along = if part == GridPart::HSpacing { vectorcraft_geom::Vec2::new(0.0, half) } else { vectorcraft_geom::Vec2::new(half, 0.0) };
+            let ends = [xf.to_screen(at - along), xf.to_screen(at + along)];
+            p.line_segment(ends, Stroke::new(6.0, t.measure_bg));
+            p.line_segment(ends, Stroke::new(2.5, t.selection));
+        } else {
+            p.circle_filled(c, HANDLE_RADIUS, t.measure_bg);
+            p.circle_stroke(c, HANDLE_RADIUS, Stroke::new(2.0, t.selection));
+        }
+    }
 }
 
 /// The radius of the Rotate View dial, in screen points.
@@ -6490,6 +6535,79 @@ mod tests {
         }
     }
 
+    /// A selected grid repeat draws its row handle below the grid and a slider between its first
+    /// two columns (none with the bounding box hidden). Dragging the row handle down two tiles in
+    /// a zoomed view makes five rows without scaling the source, as one undo step, and the slider
+    /// sets the horizontal spacing (#2691).
+    #[test]
+    fn grid_repeat_handles_set_rows_and_spacing_in_one_undo_step_each() {
+        use vectorcraft_tools::repeat_grid::{GridHandles, HANDLE_RADIUS};
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 40, "y": 40, "width": 40, "height": 40})).unwrap();
+        app.run("object.repeat.grid", json!({"hSpacing": 10, "vSpacing": 10})).unwrap();
+        app.ui.task_bar = false;
+        app.ui.view.rulers = false;
+        let ctx = egui::Context::default();
+        // The first frame fits the artboard in the window; then zoom to 1.5 px a point.
+        frame(&mut app, &ctx, vec![]);
+        app.view_mut().unwrap().zoom = 1.5;
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(app.view().unwrap().zoom, 1.5);
+        // Rows, columns, horizontal spacing and the source's bounds.
+        let grid = |app: &VectorcraftApp| {
+            let st = app.session.active().unwrap();
+            let n = st.doc.node(st.selection.objects[0]).unwrap();
+            let vectorcraft_doc::NodeKind::Repeat(spec) = &n.kind else { panic!("a repeat") };
+            let vectorcraft_doc::RepeatKind::Grid { rows, cols, h_spacing, .. } = spec.kind else { panic!("a grid repeat") };
+            (rows, cols, h_spacing, spec.source_bounds().unwrap())
+        };
+        let handles = |app: &mut VectorcraftApp| {
+            let frame = app.selection_box();
+            let st = app.session.active().unwrap();
+            GridHandles::of(&st.doc, &st.selection, frame, app.view().unwrap().zoom).unwrap()
+        };
+        let before = grid(&app);
+        assert_eq!((before.0, before.1, before.2), (3, 3, 10.0));
+        let g = handles(&mut app);
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let drawn = shapes(&mut app, &ctx);
+        let circle_at = |drawn: &[Shape], at: Pos2| {
+            drawn.iter().any(|s| matches!(s, Shape::Circle(c) if c.center.distance(at) < 0.01 && c.radius == HANDLE_RADIUS))
+        };
+        assert!(circle_at(&drawn, xf.to_screen(g.rows_at)), "the row handle is drawn");
+        assert!(circle_at(&drawn, xf.to_screen(g.corner_at)), "the corner handle is drawn");
+        app.ui.view.bounding_box = false;
+        assert!(!circle_at(&shapes(&mut app, &ctx), xf.to_screen(g.rows_at)), "hidden with the bounding box");
+        app.ui.view.bounding_box = true;
+        frame(&mut app, &ctx, vec![]);
+        let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        let drag = |app: &mut VectorcraftApp, from: Pos2, by: egui::Vec2| {
+            frame(app, &ctx, vec![egui::Event::PointerMoved(from), button(from, true)]);
+            for k in 1..=4 {
+                frame(app, &ctx, vec![egui::Event::PointerMoved(from + by * k as f32 / 4.0)]);
+            }
+            frame(app, &ctx, vec![button(from + by, false)]);
+        };
+        // Two tiles of 50 pt down, at 1.5 px a point.
+        drag(&mut app, xf.to_screen(g.rows_at), vec2(0.0, 150.0));
+        let after = grid(&app);
+        assert_eq!((after.0, after.1, after.2), (5, 3, 10.0));
+        assert_eq!(after.3, before.3, "the source keeps its size");
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(grid(&app).0, 3, "one undo step");
+        app.run("edit.redo", json!({})).unwrap();
+        assert_eq!(grid(&app).0, 5);
+        // The slider between the first two columns, 6 px (4 pt) right: it stays halfway across a
+        // gap 8 pt wider, 18 pt of spacing.
+        frame(&mut app, &ctx, vec![]);
+        let g = handles(&mut app);
+        drag(&mut app, xf.to_screen(g.h_slider.unwrap()), vec2(6.0, 0.0));
+        assert_eq!(grid(&app).2, 18.0);
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!((grid(&app).0, grid(&app).2), (5, 10.0), "the spacing's own undo step");
+    }
+
     #[test]
     fn top_bounding_box_handle_scales_a_default_mirror_repeat() {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
@@ -9127,7 +9245,7 @@ mod tests {
     }
 
     #[test]
-    fn frame_moves_keeps_touch_samples_and_pressure_but_leaves_mouse_unchanged() {
+    fn frame_moves_keeps_touch_feed_and_mouse_samples_with_their_pressure() {
         let ctx = egui::Context::default();
         let a = pos2(10.0, 20.0);
         let b = pos2(20.0, 30.0);
@@ -9136,7 +9254,8 @@ mod tests {
         let mut mouse = vec![];
         let mut out = ctx.run_ui(egui::RawInput { events: events.clone(), ..Default::default() }, |ui| mouse = frame_moves(ui, None));
         out.textures_delta.clear();
-        assert!(mouse.is_empty());
+        // A mouse keeps its moves too, without a pressure.
+        assert_eq!(mouse, [(a, None), (b, None)], "the last move follows the normal pointer path");
         // A macOS pen: the feed kept a pressure for each move, the last for the last.
         let feed = StylusFeed::default();
         for p in [0.9, 0.3, 0.0, 0.5] {
@@ -9148,7 +9267,7 @@ mod tests {
         assert_eq!(samples, [(a, Some(0.3)), (b, None)], "paired from the end; a lift's 0 is no pressure");
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| samples = frame_moves(ui, Some(&feed)));
         out.textures_delta.clear();
-        assert!(samples.is_empty(), "the moves were taken: a mouse's moves again");
+        assert_eq!(samples, [(a, None), (b, None)], "the moves were taken: a mouse's moves again");
         let events = [pen(egui::TouchPhase::Move, a, 0.2), pen(egui::TouchPhase::Move, b, 0.8), pen(egui::TouchPhase::Move, c, 0.6)].concat();
         let mut samples = vec![];
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| samples = frame_moves(ui, None));
@@ -9544,6 +9663,84 @@ mod tests {
         frame(&mut app, &ctx, vec![]);
         assert_eq!(app.session.tool_id(), "perspectiveGrid");
         assert!(!visible(&app), "the grid stays hidden");
+    }
+
+    /// #3328: every position a mouse reports within one frame reaches the Pencil, not only the
+    /// frame's last one, so a fast stroke keeps the hand's movement.
+    #[test]
+    fn a_mouse_stroke_keeps_every_move_of_a_frame() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        app.select_tool("pencil");
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let at = |x: f64, y: f64| xf.to_screen(Point::new(x, y));
+        let button =
+            |p, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
+        let start = at(100.0, 100.0);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start), button(start, true)]);
+        // One frame of a fast stroke: a zigzag of 20 moves, 6 pt apart.
+        let zigzag: Vec<_> = (1..=20).map(|i| at(100.0 + 6.0 * f64::from(i), if i % 2 == 0 { 100.0 } else { 112.0 })).collect();
+        frame(&mut app, &ctx, zigzag.iter().map(|p| egui::Event::PointerMoved(*p)).collect());
+        let end = *zigzag.last().unwrap();
+        frame(&mut app, &ctx, vec![button(end, false)]);
+        let (cmd, p) = app.session.journal.last().unwrap().clone();
+        assert_eq!(cmd, "path.freehand");
+        let pts = p["points"].as_array().unwrap();
+        let expected: Vec<_> = std::iter::once(start)
+            .chain(zigzag.iter().copied())
+            .map(|p| {
+                let p = xf.to_doc(p);
+                json!([p.x, p.y])
+            })
+            .collect();
+        assert_eq!(pts, expected.as_slice(), "the stroke keeps every move of the frame, in order");
+    }
+
+    /// A frame whose moves end where the last frame's did still reaches the Pencil: the stroke went
+    /// out and came back in between.
+    #[test]
+    fn a_mouse_stroke_keeps_a_frame_that_ends_where_it_started() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        app.select_tool("pencil");
+        let xf = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        let at = |x: f64, y: f64| xf.to_screen(Point::new(x, y));
+        let button =
+            |p, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
+        let (start, a) = (at(100.0, 100.0), at(160.0, 100.0));
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(start), button(start, true)]);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(a)]);
+        // Out to a bump and back to `a`, all in one frame.
+        let bump = [at(170.0, 80.0), at(180.0, 70.0), at(170.0, 80.0), a];
+        frame(&mut app, &ctx, bump.iter().map(|p| egui::Event::PointerMoved(*p)).collect());
+        frame(&mut app, &ctx, vec![button(a, false)]);
+        let (_, p) = app.session.journal.last().unwrap().clone();
+        let n = p["points"].as_array().unwrap().len();
+        assert!(n >= 5, "the bump's moves are kept: {n} points");
+    }
+
+    /// Only a tool that builds a stroke from the drag's samples gets every move of a frame (#4227):
+    /// the Selection tool and the other tools get one drag a frame, at the pointer's position, so a
+    /// costly drag preview runs once.
+    #[test]
+    fn only_the_freehand_tools_get_every_move_of_a_frame() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
+        let ctx = egui::Context::default();
+        let events: Vec<_> = (0..20).map(|i| egui::Event::PointerMoved(pos2(100.0 + i as f32 * 5.0, 100.0))).collect();
+        for (tool, every) in
+            [("pencil", true), ("paintbrush", true), ("blobBrush", true), ("selection", false), ("directSelection", false), ("width", false)]
+        {
+            app.select_tool(tool);
+            let mut moves = vec![];
+            let mut out = ctx.run_ui(egui::RawInput { events: events.clone(), ..Default::default() }, |ui| moves = tool_frame_moves(ui, &app));
+            out.textures_delta.clear();
+            assert_eq!(moves.len(), if every { 19 } else { 0 }, "{tool}");
+        }
     }
 
     /// #491: a pen tap whose press and lift come in one frame selects what it tapped, and the
