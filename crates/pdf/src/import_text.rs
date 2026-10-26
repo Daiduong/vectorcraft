@@ -217,6 +217,9 @@ pub(crate) struct LineFacts {
 
 /// The most a glyph on a curve turns from the one before it (about 20°).
 const CURVE_TURN_COS: f64 = 0.94;
+/// Uniform gaps below this (in ems) are letter spacing on one word; at or above they are spaces
+/// between one-letter words (see [`common_gap`] and #3622).
+const LETTER_SPACING_MAX_EM: f64 = 0.22;
 
 impl TextLine {
     pub fn new(at: Placement, opacity: f32) -> Self {
@@ -462,13 +465,17 @@ impl TextLine {
         // space (one set at exactly a fifth still counts, whatever the rounding). Letter spacing is
         // read only in text left in the file's order.
         let space = |gap: &Gap, common: f64| gap.width / gap.em - common > 0.199;
-        let directed = vectorcraft_text::logical_order(&t.plain_text()).is_some();
-        let mut common = if directed { 0.0 } else { common_gap(&self.gaps) };
+        let mut common = common_gap(&self.gaps);
         // Evenly spaced glyphs alone could be letters set apart or words of one letter each: the
         // shared spacing is letter spacing only on a line that also shows where its words break,
-        // with spaces it draws or with gaps wider than the rest.
+        // with spaces it draws or with gaps wider than the rest — except uniform gaps below
+        // [`LETTER_SPACING_MAX_EM`], which are per-glyph letter spacing on one word (#3622).
         if self.drawn_spaces.is_empty() && !self.gaps.iter().any(|gap| space(gap, common)) {
-            common = 0.0;
+            let on_line: Vec<_> = self.gaps.iter().filter(|g| g.on_line).collect();
+            let uniform = common > 0.0 && !on_line.is_empty() && on_line.iter().all(|g| (g.width / g.em - common).abs() < 0.06);
+            if !(uniform && common < LETTER_SPACING_MAX_EM) {
+                common = 0.0;
+            }
         }
         let mut spaces = vec![];
         for gap in &self.gaps {

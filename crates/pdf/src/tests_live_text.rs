@@ -101,6 +101,27 @@ fn letter_spacing_in_the_pdf_becomes_tracking() {
     assert!((ink_width(&t[0]) - expected).abs() < 0.3, "{} vs {expected}", ink_width(&t[0]));
 }
 
+/// Chromium places letter-spaced Latin as one `Tj` per glyph (~0.2 em); gaps must not become spaces
+/// (#3622).
+#[test]
+fn per_glyph_letter_spacing_on_one_line_stays_one_word() {
+    let font = vectorcraft_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
+    let size = 7.0_f32;
+    let tracking = 200.0_f32;
+    let extra = size * tracking / 1000.0;
+    let mut x = 20.0;
+    let mut lines = vec![];
+    for text in ["T", "R", "A", "C", "K", "I", "N", "G", " ", "B", " ", "2", "0", "2", "6"] {
+        lines.push((x, 60.0, size, text));
+        let c = text.chars().next().unwrap();
+        x += font.advance(font.glyph_for(c)) as f32 / font.units_per_em() as f32 * size + extra;
+    }
+    let d = import_with_report(&text_pdf(&lines, false), &ImportOptions::default()).unwrap().document;
+    let t = texts(&d);
+    assert_eq!(t.len(), 1, "{t:?}");
+    assert_eq!(t[0].plain_text(), "TRACKING B 2026");
+}
+
 #[test]
 fn common_tracking_does_not_turn_gaps_into_spaces() {
     let font = vectorcraft_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
