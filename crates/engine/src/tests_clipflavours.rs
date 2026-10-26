@@ -150,6 +150,19 @@ fn import_image_then_paste_gives_an_image() {
     assert!(s.execute("clipboard.importImage", &json!({"dataBase64": "!!"})).is_err());
 }
 
+/// A pasted PNG cut to half its length (a copied file still downloading) has a header but not
+/// all its pixels: importing it is an error, and the clipboard keeps what it held.
+#[test]
+fn a_bitmap_whose_pixels_cant_be_read_is_not_pasted() {
+    let mut s = session();
+    copy_red_square(&mut s);
+    let held = s.clipboard.clone();
+    let cut = crate::tests_links::cut_png(600, 300);
+    let e = s.execute("clipboard.importImage", &json!({"dataBase64": vectorcraft_format::base64_encode(&cut), "mime": "image/png"})).unwrap_err();
+    assert!(e.to_string().ends_with("the image's pixels can't be read"), "{e}");
+    assert_eq!(s.clipboard.nodes, held.nodes);
+}
+
 #[test]
 fn copied_svgz_files_paste_as_svg() {
     let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"40\"><rect width=\"40\" height=\"40\" fill=\"#ff0000\"/></svg>";

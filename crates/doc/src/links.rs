@@ -126,6 +126,34 @@ impl ImageBlob {
         self
     }
 
+    /// This blob after its pixels are decoded once, within [`crate::MAX_RASTER_ALLOC`], to check
+    /// that they can be read; with `proxy`, it also gets the preview [`Self::with_proxy`] makes,
+    /// made from that decode. `None` when the pixels can't be read, as with a file cut short that
+    /// has a header but not all its pixels. An image whose pixels would take more than the
+    /// allowance as RGBA is not decoded, and one whose decode needs more than the allowance stops
+    /// decoding; either is returned as it is.
+    pub fn checked_with_proxy(mut self, proxy: bool) -> Option<Self> {
+        let max = crate::MAX_RASTER_ALLOC;
+        let reader = || image::ImageReader::new(Cursor::new(self.bytes.as_slice())).with_guessed_format().ok();
+        let (w, h) = reader()?.into_dimensions().ok()?;
+        if u64::from(w) * u64::from(h) > max / 4 {
+            return Some(self);
+        }
+        let mut r = reader()?;
+        let mut limits = image::Limits::default();
+        limits.max_alloc = Some(max);
+        r.limits(limits);
+        let img = match r.decode() {
+            Ok(img) => img,
+            Err(image::ImageError::Limits(_)) => return Some(self),
+            Err(_) => return None,
+        };
+        if proxy && self.proxy.is_none() && w.max(h) > PROXY_SIZE {
+            self.proxy = proxy_of(&img).map(Arc::new);
+        }
+        Some(self)
+    }
+
     /// Are the bytes the preview (the linked file hasn't been read)?
     pub fn is_proxy(&self) -> bool {
         self.proxy.as_ref().is_some_and(|p| Arc::ptr_eq(p, &self.bytes))
@@ -139,7 +167,12 @@ fn proxy_png(bytes: &[u8]) -> Option<Vec<u8>> {
     if w.max(h) <= PROXY_SIZE {
         return None;
     }
-    let small = image::load_from_memory(bytes).ok()?.thumbnail(PROXY_SIZE, PROXY_SIZE);
+    proxy_of(&image::load_from_memory(bytes).ok()?)
+}
+
+/// Decoded image `img` shrunk to fit [`PROXY_SIZE`] as a PNG.
+fn proxy_of(img: &image::DynamicImage) -> Option<Vec<u8>> {
+    let small = img.thumbnail(PROXY_SIZE, PROXY_SIZE);
     let mut png = Vec::new();
     small.write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png).ok()?;
     Some(png)
@@ -430,6 +463,22 @@ mod tests {
         assert!(!big.is_proxy(), "the bytes are the full image");
         assert!(ImageBlob::new("image/png", png(40, 20)).with_proxy().proxy.is_none(), "small images keep their pixels");
         assert!(ImageBlob::new("image/png", vec![1, 2, 3]).with_proxy().proxy.is_none(), "undecodable");
+    }
+
+    /// A checked image's pixels are decoded once: the preview comes from that decode, and an image
+    /// whose header reads but whose pixels don't is refused.
+    #[test]
+    fn a_checked_image_is_refused_when_its_pixels_cant_be_read() {
+        let full = png(600, 300);
+        let big = ImageBlob::new("image/png", full.clone()).checked_with_proxy(true).unwrap();
+        let p = image::load_from_memory(big.proxy.as_ref().unwrap()).unwrap();
+        assert_eq!((p.width(), p.height()), (256, 128));
+        assert!(ImageBlob::new("image/png", full.clone()).checked_with_proxy(false).unwrap().proxy.is_none(), "no preview asked for");
+        assert!(ImageBlob::new("image/png", png(40, 20)).checked_with_proxy(true).unwrap().proxy.is_none(), "small images keep their pixels");
+        let cut = full[..full.len() / 2].to_vec();
+        assert_eq!(image::ImageReader::new(Cursor::new(&cut)).with_guessed_format().unwrap().into_dimensions().unwrap(), (600, 300));
+        assert!(ImageBlob::new("image/png", cut).checked_with_proxy(true).is_none(), "cut to half its length");
+        assert!(ImageBlob::new("image/png", vec![1, 2, 3]).checked_with_proxy(false).is_none(), "not an image");
     }
 
     #[test]

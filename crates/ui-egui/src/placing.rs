@@ -455,13 +455,22 @@ mod tests {
     }
 
     /// A file that can't be read shows the message it shows when read at once, dropped or placed
-    /// from the dialog, and nothing is placed.
+    /// from the dialog, and nothing is placed: a PNG cut to half its length, whose header reads but
+    /// whose pixels don't, too.
     #[test]
     fn a_file_that_cant_be_read_off_the_ui_thread_reports_as_at_once() {
         let gone = saved("unread", "gone.tif", b"");
         std::fs::remove_file(&gone).unwrap();
         let unknown = saved("unread", "notes.xyz", b"hello");
-        for path in [gone, unknown] {
+        let noise = image::RgbImage::from_fn(600, 300, |x, y| {
+            let v = x.wrapping_mul(2_654_435_761) ^ y.wrapping_mul(40_503).rotate_left(13);
+            image::Rgb([v as u8, (v >> 8) as u8, (v >> 16) as u8])
+        });
+        let mut png = vec![];
+        noise.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        png.truncate(png.len() / 2);
+        let cut = saved("unread", "cut.png", &png);
+        for path in [gone, unknown, cut] {
             let p = json!({"path": path});
             let mut at_once = app(false);
             crate::place::run_for_user(&mut at_once, &p).unwrap_err();
@@ -481,6 +490,9 @@ mod tests {
             }
             assert_eq!(app.ui.status, at_once.ui.status);
             assert!(app.ui.status.starts_with(&format!("Couldn't place {name}: ")), "{}", app.ui.status);
+            if name == "cut.png" {
+                assert_eq!(app.ui.status, "Couldn't place cut.png: the image's pixels can't be read");
+            }
         }
     }
 
