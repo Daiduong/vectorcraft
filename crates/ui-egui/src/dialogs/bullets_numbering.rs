@@ -48,8 +48,20 @@ const PRESET: f32 = 34.0;
 /// The keys a preset button with the keyboard focus keeps from egui's focus moves.
 const ARROWS: egui::EventFilter = egui::EventFilter { tab: false, horizontal_arrows: true, vertical_arrows: false, escape: false };
 
-pub(super) const SPEC: DialogSpec =
-    DialogSpec { heading: |_| tl!("Bullets and Numbering").into(), body, confirm, preview: true, min_width: 380.0, ..DialogSpec::FORM };
+/// The fields `ui.dialog.set` can set while the dialog does not hold them: the dialog leaves a
+/// field out where the paragraphs differ, and holds no `bullet` or `number` for paragraphs in no
+/// list or in another kind of list.
+const INPUTS: [&str; 6] = ["list", "bullet", "number", "listAlign", "leftIndent", "firstLineIndent"];
+
+pub(super) const SPEC: DialogSpec = DialogSpec {
+    heading: |_| tl!("Bullets and Numbering").into(),
+    body,
+    confirm,
+    preview: true,
+    min_width: 380.0,
+    inputs: |_| &INPUTS,
+    ..DialogSpec::FORM
+};
 
 /// The kind of list `list` is, as the `list` field names it.
 fn kind(list: Option<ParaList>) -> &'static str {
@@ -527,6 +539,42 @@ mod tests {
         let (one, two) = paras(&app, id);
         assert_eq!((one.list, one.left_indent), (Some(ParaList::bulleted(Bullet::Circle).aligned(ListAlign::Right)), 30.0));
         assert_eq!((two.list, two.left_indent), (None, 0.0), "the paragraph in no list stays out of one");
+    }
+
+    /// `ui.dialog.set` sets the fields the dialog does not hold: a bullet or a number for type in
+    /// no list, and the fields left blank where the paragraphs differ.
+    #[test]
+    fn the_control_channel_sets_fields_the_dialog_does_not_hold() {
+        let ctx = egui::Context::default();
+        let (mut app, id) = app();
+        app.run("ui.bulletsAndNumbering", json!({})).unwrap();
+        for key in ["bullet", "number"] {
+            assert!(!app.ui.dialog.as_ref().unwrap().fields.contains_key(key), "{key} is not held");
+        }
+        let fields = json!([{"field": "list", "value": "number"}, {"field": "number", "value": "upperRoman"}]);
+        crate::tests_synthetic::control(&mut app, &ctx, "ui.dialog.set", json!({"fields": fields}));
+        super::super::confirm(&mut app).unwrap();
+        assert_eq!(first(&app, id).0, Some(ParaList::numbered(NumberStyle::UpperRoman)));
+        app.run("text.setFormat", json!({"ids": [id], "bullet": "circle", "leftIndent": 30, "firstLineIndent": -6, "start": 0, "end": 0})).unwrap();
+        app.run("text.setFormat", json!({"ids": [id], "listAlign": "right", "start": 0, "end": 0})).unwrap();
+        app.run("ui.bulletsAndNumbering", json!({})).unwrap();
+        let held = app.ui.dialog.as_ref().unwrap().fields.clone();
+        for key in INPUTS {
+            assert!(!held.contains_key(key), "{key} is blank");
+        }
+        let fields = json!([
+            {"field": "list", "value": "bullet"},
+            {"field": "bullet", "value": "square"},
+            {"field": "listAlign", "value": "left"},
+            {"field": "leftIndent", "value": 24},
+            {"field": "firstLineIndent", "value": -12},
+        ]);
+        crate::tests_synthetic::control(&mut app, &ctx, "ui.dialog.set", json!({"fields": fields}));
+        super::super::confirm(&mut app).unwrap();
+        let (one, two) = paras(&app, id);
+        let square = Some(ParaList::bulleted(Bullet::Square));
+        assert_eq!((one.list, one.left_indent, one.first_line_indent), (square, 24.0, -12.0));
+        assert_eq!((two.list, two.left_indent, two.first_line_indent), (square, 24.0, -12.0));
     }
 
     /// The presets are radio buttons named for screen readers, the one the dialog applies chosen;

@@ -4567,7 +4567,7 @@ and the Numbers tab has None and the seven number styles. The Position group has
 and First Line Indent. The dialog opens with the values the Paragraph panel shows; where the paragraphs differ, no
 preset is picked and the field is blank. Its fields are `tab`, `list` (`none`, `bullet` or `number`: the kind of the
 preset picked), `bullet`, `number`, `listAlign`, `leftIndent` and `firstLineIndent` (points), and `ui.dialog.set` sets
-them. The type shows the dialog's values while it is open. A preset picked for paragraphs that are in no list and have
+them, including those the dialog opened blank or without. The type shows the dialog's values while it is open. A preset picked for paragraphs that are in no list and have
 no indents fills in 18 pt and -18 pt, and None takes them out again while they are unchanged. OK runs `text.setFormat`
 with the values that changed, as one undo step, and Cancel puts the type back as it was. When a preset puts the
 paragraphs in a list, OK also sends the indents the dialog shows, and the paragraphs take them, 0 included. With no type selected, or
