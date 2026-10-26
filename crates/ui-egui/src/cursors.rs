@@ -294,6 +294,18 @@ fn type_widget(p: &mut Ink, o: Pos2) {
     line(p, b + vec2(4.0, 0.0), b + vec2(4.0, 9.0));
 }
 
+/// Overflow text the Selection tool carries after a click on the red out port: a small block of
+/// lines at the hotspot (where a new frame's top-left would go).
+fn loaded_text(p: &mut Ink, o: Pos2) {
+    let tl = o;
+    let br = o + vec2(14.0, 11.0);
+    let frame = vec![tl, pos2(br.x, tl.y), br, pos2(tl.x, br.y)];
+    poly(p, frame, HALO, INK);
+    for y in [3.0, 6.5, 10.0] {
+        line(p, tl + vec2(2.0, y), tl + vec2(12.0, y));
+    }
+}
+
 /// The gradient annotator's stop cursors: the arrow with a plus (add a stop) or minus (delete it)
 /// badge.
 fn stop_badge(p: &mut Ink, o: Pos2, add: bool) {
@@ -428,7 +440,7 @@ fn magnifier(p: &mut Ink, o: Pos2, out: bool) {
 
 /// Every cursor with a glyph: its own, drawn here, or the one it borrows.
 #[cfg(test)]
-const GLYPHS: [Cursor; 80] = [
+const GLYPHS: [Cursor; 81] = [
     Cursor::Hand,
     Cursor::HandGrab,
     Cursor::ZoomIn,
@@ -482,6 +494,7 @@ const GLYPHS: [Cursor; 80] = [
     Cursor::Lasso,
     Cursor::MagicWand,
     Cursor::Pencil,
+    Cursor::PencilNew,
     Cursor::PencilClose,
     Cursor::PencilStraight,
     Cursor::PencilContinue,
@@ -533,6 +546,12 @@ fn glyph(c: Cursor, p: Pos2) -> Option<Vec<Shape>> {
             double_arrow(ink, p + vec2(15.0, 18.0), vec2(1.0, 0.0));
         }
         Cursor::Crosshair => crosshair(ink, p),
+        // The Pencil's crosshair with the Pen's star where the closing ring goes.
+        Cursor::PencilNew => {
+            crosshair(ink, p);
+            let b = p + vec2(5.0, 5.0);
+            strokes(ink, &[vec![b, b + vec2(6.0, 6.0)], vec![b + vec2(6.0, 0.0), b + vec2(0.0, 6.0)], vec![b + vec2(3.0, -1.0), b + vec2(3.0, 7.0)]]);
+        }
         // The crosshair the Pencil and the Paintbrush borrow, with the PenClose ring below right.
         Cursor::PencilClose | Cursor::PaintbrushClose => {
             crosshair(ink, p);
@@ -586,6 +605,7 @@ fn glyph(c: Cursor, p: Pos2) -> Option<Vec<Shape>> {
         Cursor::Blend | Cursor::BlendObject | Cursor::BlendAnchor => blend(ink, p, c),
         Cursor::PathBracket => path_bracket(ink, p),
         Cursor::TypeWidget => type_widget(ink, p),
+        Cursor::LoadedText => loaded_text(ink, p),
         Cursor::ShapeBuilder => shape_builder(ink, p, false),
         Cursor::ShapeBuilderErase => shape_builder(ink, p, true),
         Cursor::Hand => hand(ink, p, false),
@@ -818,6 +838,17 @@ mod tests {
         }
     }
 
+    /// Loaded text after a click on the overflow out port is a text-block glyph, not the I-beam.
+    #[test]
+    fn loaded_text_cursor_is_not_the_text_i_beam() {
+        assert!(Cursor::LoadedText.stand_in().is_none());
+        let loaded = rasterize(Cursor::LoadedText, 2.0).expect("loaded text bitmap");
+        let ibeam = rasterize(Cursor::Text, 2.0).expect("text bitmap");
+        assert_ne!(loaded.rgba, ibeam.rgba);
+        let [hx, hy] = loaded.hotspot.map(usize::from);
+        assert!(pixel(&loaded, hx, hy)[3] > 200, "hotspot lies on the drawn frame");
+    }
+
     #[test]
     fn every_glyph_becomes_a_bitmap_with_its_hotspot_inside() {
         for ppp in [1.0, 1.25, 1.5, 2.0, 3.0] {
@@ -949,6 +980,37 @@ mod tests {
                 // The arms are the crosshair's.
                 assert_eq!(at(&img, -6.0, 0.0), at(&cross, -6.0, 0.0), "{c:?} at {ppp}");
             }
+        }
+    }
+
+    /// The Pencil's new-path cursor is the crosshair with a small star below right, where the
+    /// closing cursor's ring is hollow and the straight-line cursor has a single line.
+    #[test]
+    fn the_pencil_new_path_cursor_is_the_crosshair_with_a_star() {
+        for ppp in [1.0, 2.0] {
+            let cross = rasterize(Cursor::Crosshair, ppp).unwrap();
+            let img = rasterize(Cursor::PencilNew, ppp).unwrap();
+            let ring = rasterize(Cursor::PencilClose, ppp).unwrap();
+            let straight = rasterize(Cursor::PencilStraight, ppp).unwrap();
+            assert_eq!(img.hotspot, cross.hotspot, "at {ppp}");
+            let at = |img: &CustomCursorImage, dx: f32, dy: f32| {
+                let [hx, hy] = img.hotspot.map(usize::from);
+                let (x, y) = ((hx as f32 + dx * ppp) as usize, (hy as f32 + dy * ppp) as usize);
+                if x < img.size[0] as usize && y < img.size[1] as usize { pixel(img, x, y) } else { [0; 4] }
+            };
+            let inked = |p: [u8; 4]| p[3] > 200 && p[0] < 64;
+            assert!(inked(at(&img, 8.5, 8.5)), "the star's middle at {ppp}");
+            assert_eq!(at(&ring, 8.5, 8.5)[3], 0, "the closing ring is hollow there at {ppp}");
+            assert_eq!(at(&cross, 8.5, 8.5)[3], 0, "the crosshair has no badge at {ppp}");
+            // Three strokes cross at the middle: the diagonal the straight-line cursor lacks, and the
+            // upright one.
+            assert!(inked(at(&img, 5.5, 5.5)) && !inked(at(&straight, 5.5, 5.5)), "the second diagonal at {ppp}");
+            // At 1 point per pixel the upright stroke covers two pixel columns in gray.
+            let dark = |p: [u8; 4]| p[3] > 200 && p[0] < 128;
+            let upright = |img: &CustomCursorImage, dy: f32| [7.5, 8.0, 8.5].iter().any(|&dx| dark(at(img, dx, dy)));
+            assert!(upright(&img, 4.5) && upright(&img, 11.5), "the upright stroke at {ppp}");
+            assert!(!upright(&straight, 4.5) && !upright(&straight, 11.5), "the straight line has none at {ppp}");
+            assert_eq!(at(&img, -6.0, 0.0), at(&cross, -6.0, 0.0), "the arms are the crosshair's at {ppp}");
         }
     }
 
@@ -1156,7 +1218,7 @@ mod tests {
         let painted = |scale: f32| {
             let ctx = egui::Context::default();
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
-                let layer = egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("probe"));
+                let layer = egui::LayerId::new(egui::Order::Tooltip, egui::Id::unique("probe"));
                 assert!(paint(&ui.ctx().layer_painter(layer), Cursor::Arrow, pos2(100.0, 100.0), scale));
             });
             out.textures_delta.clear();
