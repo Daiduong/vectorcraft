@@ -18,7 +18,7 @@ mod ink;
 mod live;
 mod lru;
 mod paint;
-pub use paint::decode_failures;
+pub use paint::{decode_failures, reduced_size};
 mod pattern;
 pub mod placed_document;
 pub mod proof;
@@ -37,9 +37,9 @@ use ink::Ink;
 use lru::FrameCache;
 
 pub use brush_fx::instance_art;
-pub use changed::{Changed, changed, view_pixels};
+pub use changed::{Changed, changed, placed_area, view_pixels};
 pub use effects::stroke::width_outline;
-pub use images::{IMAGE_CACHE_MAX, image_cache_bytes, set_image_cache_budget};
+pub use images::{IMAGE_CACHE_MAX, image_cache_bytes, newly_undecodable, set_image_cache_budget};
 pub use live::expand_live;
 pub use pattern::render_pattern_swatch;
 pub use vectorcraft_effects as effects;
@@ -186,6 +186,9 @@ pub struct RenderOptions {
     /// (box-filtered from the full image, kept with the decoded images), so the full image needn't
     /// stay in memory or be sampled. Off, images always sample their full pixels (exports).
     pub image_mips: bool,
+    /// Screen views: an image whose pixels can't be decoded draws as a light gray box crossed
+    /// from corner to corner. Off, it draws nothing (exports, which report it instead).
+    pub mark_undecoded_images: bool,
     /// Screen views while an interaction is in progress (a drag, a dialog's preview): an object
     /// whose content only moved since an earlier frame draws its cached drop shadows, outer glows
     /// and filtered content from the rasters made then, at the nearest whole pixel, without
@@ -281,6 +284,7 @@ impl Default for RenderOptions {
             precise: false,
             supersample: false,
             image_mips: false,
+            mark_undecoded_images: false,
             interacting: false,
             dragging: false,
             rich_black: false,
@@ -539,6 +543,9 @@ pub struct Renderer {
     fx_arts: FrameCache<usize, FxArtEntry>,
     /// Symbol art as instances and inline graphics draw it (see [`Self::placed_art`]).
     placed_arts: FrameCache<PlacedKey, PlacedEntry>,
+    /// The bitmap clock of [`placed_document`] when this frame first drew a placed document from
+    /// a bitmap: the bitmaps drawn since then are not dropped to make room for those it asks for.
+    placed_frame: Option<u64>,
     /// Layers open around the drawing point in the current context: a non-isolated group can copy
     /// its backdrop only when there are none (see [`Self::group`]).
     nested: u32,
@@ -688,6 +695,7 @@ impl Renderer {
             shape_of: 0,
             fx_arts: FrameCache::new(lru::FX_ART_BUDGET, 256),
             placed_arts: FrameCache::new(lru::PLACED_ART_BUDGET, 256),
+            placed_frame: None,
             nested: 0,
             backdrop: None,
             blends: PtrMap::default(),
@@ -788,6 +796,7 @@ impl Renderer {
         (self.offscreen_live, self.offscreen_budget) = (0, 0);
         self.symbol_nodes = 0;
         self.twice_drawn = 0;
+        self.placed_frame = None;
     }
 
     /// End a frame: drop cache entries not used for a few frames (every render, thumbnails too,
@@ -2151,11 +2160,39 @@ impl Renderer {
                     }
                 }
             }
+        } else if f.opts.mark_undecoded_images && (!outline || f.doc.setup.outline_images) {
+            self.draw_undecoded_mark(ctx, f, im, area);
         }
         if outline {
             let mut p = rect.to_path(0.1);
             p.apply_affine(im.xf);
             self.hairline(ctx, f, &p, [0, 0, 0, 255]);
+        }
+    }
+
+    /// Draw the mark of image `im` whose pixels can't be had ([`RenderOptions::mark_undecoded_images`]):
+    /// a light gray box over its frame, crossed from corner to corner with a gray hairline, and
+    /// with `area` (see [`Self::draw_image_in`]) only inside that region.
+    fn draw_undecoded_mark(&mut self, ctx: &mut RenderContext, f: &Frame, im: &vectorcraft_doc::ImageObject, area: Option<&(BezPath, FillRule)>) {
+        let (w, h) = (im.width as f64, im.height as f64);
+        if let Some((bp, rule)) = area {
+            ctx.set_transform(f.view);
+            ctx.set_fill_rule(fill_rule(*rule));
+            ctx.push_clip_layer(bp);
+        }
+        let rect = Rect::new(0.0, 0.0, w, h);
+        ctx.set_transform(f.view * im.xf);
+        ctx.set_paint(f.ink.fixed([128, 128, 128, 40]));
+        ctx.fill_rect(&rect);
+        let mut cross = rect.to_path(0.1);
+        cross.move_to((0.0, 0.0));
+        cross.line_to((w, h));
+        cross.move_to((w, 0.0));
+        cross.line_to((0.0, h));
+        cross.apply_affine(im.xf);
+        self.hairline(ctx, f, &cross, [128, 128, 128, 255]);
+        if area.is_some() {
+            ctx.pop_layer();
         }
     }
 
@@ -2276,16 +2313,30 @@ fn blob_key(blob: &vectorcraft_doc::ImageBlob) -> (images::ImageKey, Option<Arc<
 }
 
 /// The decoded pixels of `blob` (a CMYK image's inks shown through the working CMYK profile, again
-/// when the colour settings change), from the shared store, and their key there.
+/// when the colour settings change), from the shared store, and their key there. An image whose
+/// pixels can't be decoded is noted in the store and not decoded again; each request for it counts
+/// a failure in [`decode_failures`].
 fn blob_pixmap(blob: &vectorcraft_doc::ImageBlob, touch: bool) -> Option<(images::ImageKey, Arc<Pixmap>)> {
     let (key, lut, size) = blob_key(blob);
     let pm = match lookup(&key, touch) {
         Some(pm) => pm,
         None => {
+            if images::store().is_undecodable(&key.content) {
+                paint::add_decode_failures(1);
+                return None;
+            }
             // Decoded outside the lock: other renderers carry on meanwhile.
             let pm = match lut.and_then(|lut| ink::cmyk_pixmap(blob, &lut)) {
                 Some(pm) => pm,
-                None => paint::decode_pixmap(&blob.bytes)?,
+                None => match paint::decode_pixmap_or_why(&blob.bytes) {
+                    Ok(pm) => pm,
+                    Err(why) => {
+                        if why == paint::Undecoded::Unreadable {
+                            images::store().set_undecodable(key.content.clone());
+                        }
+                        return None;
+                    }
+                },
             };
             images::store().insert(key.clone(), Arc::new(pm))
         }
