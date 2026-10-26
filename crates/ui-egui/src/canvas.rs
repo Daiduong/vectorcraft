@@ -442,6 +442,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         app.canvas.worker_started = true;
         if std::env::var_os("VECTORCRAFT_SYNC_RENDER").is_none() {
             app.canvas.worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
+            app.canvas.fill_worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
         }
     }
     // Upload finished background renders.
@@ -560,6 +561,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             }
         }
     }
+    fill_uncovered(app, ui.ctx(), &painter, &key, &doc, rect, &xf);
     if let (Some(tex), Some(k)) = (&app.canvas.texture, &app.canvas.key)
         && k.doc == key.doc
     {
@@ -3579,6 +3581,202 @@ fn upload(app: &mut VectorcraftApp, ctx: &egui::Context, img: &vectorcraft_rende
     }
 }
 
+/// The fraction of the canvas's resolution, each way, that [`Fill`] is rendered at.
+const FILL_SCALE: f64 = 0.25;
+/// How many times the canvas's width and height [`Fill`] covers, around the view it is rendered
+/// for. A pan or zoom-out that stays within it draws it again without rendering it.
+const FILL_REACH: f64 = 2.0;
+
+/// [`crate::CanvasCache::fill`]: a frame of the art from [`crate::CanvasCache::fill_worker`],
+/// rendered for the canvas key `key` as [`fill_view`] gives, and its texture.
+pub struct Fill {
+    /// The document, revision and view it was rendered for.
+    key: CacheKey,
+    /// Document → its pixels.
+    view: Affine,
+    /// Its size in pixels.
+    size: (u32, u32),
+    tex: egui::TextureHandle,
+}
+
+/// The size in pixels and the view (document → its pixels) of the fill for the canvas key `key`:
+/// [`FILL_SCALE`] of the canvas's resolution, covering [`FILL_REACH`] times the canvas's width and
+/// height around the view of `key`.
+fn fill_view(key: &CacheKey) -> (u32, u32, Affine) {
+    let fw = (f64::from(key.w) * FILL_REACH * FILL_SCALE).ceil().clamp(1.0, f64::from(u16::MAX)) as u32;
+    let fh = (f64::from(key.h) * FILL_REACH * FILL_SCALE).ceil().clamp(1.0, f64::from(u16::MAX)) as u32;
+    let ppp = if key.ppp > 0.0 { f64::from(key.ppp) } else { 1.0 };
+    let view = Affine::translate((f64::from(fw) / 2.0, f64::from(fh) / 2.0))
+        * Affine::rotate(key.rot.to_radians())
+        * Affine::scale(key.zoom * ppp * FILL_SCALE)
+        * Affine::translate((-key.cx, -key.cy));
+    (fw, fh, view)
+}
+
+/// While the frame shown is drawn for a view it was not rendered for, and its key differs from
+/// `key` in the view alone (the frame for `key` is on its way from the render worker), the parts
+/// of the canvas `rect` it leaves uncovered show `doc` from [`crate::CanvasCache::fill`]. The fill
+/// worker ([`crate::CanvasCache::fill_worker`]) renders it with the frame shown's options and these
+/// changes: images draw only from pixels already decoded
+/// ([`vectorcraft_render::RenderOptions::kept_images_only`]) and draw mips
+/// ([`vectorcraft_render::RenderOptions::image_mips`]), raster effects render within a drag's
+/// budget ([`vectorcraft_render::RenderOptions::dragging`]), and rasters cached for moved objects
+/// are not reused ([`vectorcraft_render::RenderOptions::interacting`] off). This thread only copies a
+/// finished fill into its texture and draws it. A fill is asked for again when the one shown or on
+/// its way does not cover the canvas, when the view's zoom is more than twice or less than half
+/// its own, and when the document, its revision or anything but the view changed; until it
+/// arrives, the fill shown is drawn where it reaches. It is dropped once the canvas shows the frame
+/// for `key`, and while the frame shown differs from `key` in more than the view.
+fn fill_uncovered(
+    app: &mut VectorcraftApp,
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    key: &CacheKey,
+    doc: &std::sync::Arc<vectorcraft_doc::Document>,
+    rect: egui::Rect,
+    xf: &Xf,
+) {
+    // Taken every frame, so a fill that is no longer needed does not stay queued.
+    let done = app.canvas.fill_worker.as_mut().and_then(|w| w.poll());
+    let (Some(k), Some((_, opts))) = (&app.canvas.key, &app.canvas.shown) else {
+        app.canvas.fill = None;
+        return;
+    };
+    // The fill takes the frame shown's options, which match `key`'s only when the two keys differ
+    // in the view alone.
+    if k == key || !only_view_differs(k, key) || app.canvas.texture.is_none() {
+        app.canvas.fill = None;
+        return;
+    }
+    let screen_to_doc = xf.affine().inverse();
+    let corners =
+        [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom()].map(|p| screen_to_doc * Point::new(p.x as f64, p.y as f64));
+    let usable = |f: &CacheKey| only_view_differs(f, key) && (0.5..=2.0).contains(&(key.zoom / f.zoom));
+    let covers = |f: &CacheKey| {
+        let (w, h, view) = fill_view(f);
+        usable(f)
+            && corners.iter().all(|c| {
+                let p = view * *c;
+                (-0.5..=f64::from(w) + 0.5).contains(&p.x) && (-0.5..=f64::from(h) + 0.5).contains(&p.y)
+            })
+    };
+    let opts = vectorcraft_render::RenderOptions { kept_images_only: true, image_mips: true, interacting: false, dragging: true, ..opts.clone() };
+    let gaps = shown_frame(k, rect, xf).map_or_else(Vec::new, |shown| uncovered(shown, rect));
+    if let Some(done) = done.filter(|d| usable(&d.key)) {
+        let color = color_image(&done.img);
+        let tex = match app.canvas.fill.take() {
+            Some(mut f) => {
+                f.tex.set(color, egui::TextureOptions::LINEAR);
+                f.tex
+            }
+            None => ctx.load_texture("canvas-fill", color, egui::TextureOptions::LINEAR),
+        };
+        let (_, _, view) = fill_view(&done.key);
+        app.canvas.fill = Some(Fill { key: done.key, view, size: (done.img.width, done.img.height), tex });
+    }
+    let Some(worker) = app.canvas.fill_worker.as_mut().filter(|_| !gaps.is_empty()) else { return };
+    if !app.canvas.fill.as_ref().is_some_and(|f| covers(&f.key)) && !worker.pending.as_ref().is_some_and(covers) {
+        let (w, h, view) = fill_view(key);
+        worker.submit(crate::render_worker::Job { key: key.clone(), doc: doc.clone(), w, h, view, opts });
+    }
+    let Some(f) = app.canvas.fill.as_ref().filter(|f| usable(&f.key)) else { return };
+    let to_uv = Affine::scale_non_uniform(1.0 / f64::from(f.size.0.max(1)), 1.0 / f64::from(f.size.1.max(1))) * f.view * screen_to_doc;
+    let from_uv = to_uv.inverse();
+    let mut mesh = egui::Mesh::with_texture(f.tex.id());
+    for gap in gaps {
+        // Only where the fill reaches: its pixels are 0..1 each way in uv.
+        let uv: Vec<Point> = gap.iter().map(|p| to_uv * Point::new(p.x as f64, p.y as f64)).collect();
+        let uv = clip_polygon(&clip_polygon(&uv, |p| p.x, 0.0, false), |p| p.x, 1.0, true);
+        let uv = clip_polygon(&clip_polygon(&uv, |p| p.y, 0.0, false), |p| p.y, 1.0, true);
+        if uv.len() < 3 {
+            continue;
+        }
+        let first = mesh.vertices.len() as u32;
+        for p in &uv {
+            let pos = from_uv * *p;
+            mesh.vertices.push(egui::epaint::Vertex {
+                pos: pos2(pos.x as f32, pos.y as f32),
+                uv: pos2(p.x as f32, p.y as f32),
+                color: Color32::WHITE,
+            });
+        }
+        for i in 1..uv.len() as u32 - 1 {
+            mesh.indices.extend([first, first + i, first + i + 1]);
+        }
+    }
+    painter.add(Shape::mesh(mesh));
+}
+
+/// Where the canvas draws the frame shown (its key `k`) in the view `xf` of the canvas `rect`:
+/// the unit square (the frame's texture coordinates) → screen points. None when the mapping is
+/// degenerate.
+fn shown_frame(k: &CacheKey, rect: egui::Rect, xf: &Xf) -> Option<Affine> {
+    let to_screen = match k.pixel {
+        Some([x0, y0, x1, y1]) => {
+            xf.affine() * Affine::translate((x0 as f64, y0 as f64)) * Affine::scale_non_uniform((x1 - x0) as f64, (y1 - y0) as f64)
+        }
+        None => {
+            let ppp = if k.ppp > 0.0 { k.ppp } else { 1.0 };
+            let old_rect = egui::Rect::from_center_size(rect.center(), vec2(k.w as f32 / ppp, k.h as f32 / ppp));
+            let old = Xf { rect: old_rect, zoom: k.zoom, center: Point::new(k.cx, k.cy), rot: k.rot.to_radians() };
+            xf.affine()
+                * old.affine().inverse()
+                * Affine::translate((old_rect.min.x as f64, old_rect.min.y as f64))
+                * Affine::scale_non_uniform(old_rect.width() as f64, old_rect.height() as f64)
+        }
+    };
+    let det = to_screen.determinant();
+    (det.is_finite() && det.abs() > 1e-12).then_some(to_screen)
+}
+
+/// The parts of `rect` outside the parallelogram `shown` maps the unit square to, as convex
+/// polygons of screen points, leaving out those thinner than half a point (a frame whose pixel
+/// size was rounded from the canvas's leaves such slivers along its edges).
+fn uncovered(shown: Affine, rect: egui::Rect) -> Vec<Vec<Pos2>> {
+    // In the unit square's coordinates the canvas is a convex polygon and the frame shown is
+    // 0..1 each way: the parts left of it, right of it, and above and below it in between.
+    let inv = shown.inverse();
+    let canvas: Vec<Point> = [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom()]
+        .iter()
+        .map(|p| inv * Point::new(p.x as f64, p.y as f64))
+        .collect();
+    let left = clip_polygon(&canvas, |p| p.x, 0.0, true);
+    let right = clip_polygon(&canvas, |p| p.x, 1.0, false);
+    let between = clip_polygon(&clip_polygon(&canvas, |p| p.x, 0.0, false), |p| p.x, 1.0, true);
+    let above = clip_polygon(&between, |p| p.y, 0.0, true);
+    let below = clip_polygon(&between, |p| p.y, 1.0, false);
+    [left, right, above, below]
+        .into_iter()
+        .map(|part| part.into_iter().map(|p| shown * p).map(|p| pos2(p.x as f32, p.y as f32)).collect::<Vec<_>>())
+        .filter(|part| {
+            // Twice the area over the perimeter: about the width of a thin strip.
+            let perimeter: f32 = part.iter().zip(part.iter().cycle().skip(1)).map(|(a, b)| a.distance(*b)).sum();
+            perimeter > 0.0 && 2.0 * polygon_area(part) / perimeter > 0.5
+        })
+        .collect()
+}
+
+/// The part of convex polygon `poly` where `along(p)` is below `at` (`below`) or above it.
+fn clip_polygon(poly: &[Point], along: impl Fn(&Point) -> f64, at: f64, below: bool) -> Vec<Point> {
+    let inside = |p: &Point| if below { along(p) <= at } else { along(p) >= at };
+    let mut out = Vec::with_capacity(poly.len() + 1);
+    for (a, b) in poly.iter().zip(poly.iter().cycle().skip(1)) {
+        if inside(a) {
+            out.push(*a);
+        }
+        if inside(a) != inside(b) {
+            let t = (at - along(a)) / (along(b) - along(a));
+            out.push(a.lerp(*b, t));
+        }
+    }
+    out
+}
+
+/// The area of polygon `poly` (shoelace formula).
+fn polygon_area(poly: &[Pos2]) -> f32 {
+    poly.iter().zip(poly.iter().cycle().skip(1)).map(|(a, b)| a.x * b.y - b.x * a.y).sum::<f32>().abs() / 2.0
+}
+
 /// Pixel Preview: the whole document pixels (x0, y0, x1, y1) under the canvas, rotated view
 /// included. None when the view is degenerate.
 fn pixel_region(xf: &Xf) -> Option<[i64; 4]> {
@@ -6091,6 +6289,129 @@ mod tests {
         let at = Xf::new(rect, app.view().unwrap()).to_screen(Point::new(x0 as f64, y0 as f64));
         assert!((mesh.vertices[0].pos - at).length() < 0.01, "{:?} at {at:?}", mesh.vertices[0].pos);
         app.canvas.worker = None;
+    }
+
+    /// While the worker renders the frame for a panned view, the fill worker renders a
+    /// low-resolution frame, and the part of the canvas the last frame no longer covers shows the
+    /// art from it, drawn only there. When the worker's frame arrives, it covers the canvas and the
+    /// fill is dropped.
+    #[test]
+    fn a_pan_fills_the_area_the_last_frame_leaves_until_the_worker_frame_arrives() {
+        let ctx = egui::Context::default();
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 300, "y": 100, "width": 80, "height": 100})).unwrap();
+        app.canvas.worker_started = true; // render on this thread
+        app.ui.view.rulers = false;
+        app.ui.screen_mode = 2; // no scroll bars: the canvas is the window
+        // One frame → the meshes drawn and the fill's pixels, when this frame uploaded them.
+        let frame = |app: &mut VectorcraftApp| {
+            let (shapes, mut delta) = frame_output(app, &ctx);
+            let fill = app.canvas.fill.as_ref().map(|f| f.tex.id());
+            let pixels = delta.set.iter().find(|(id, _)| Some(**id) == fill).and_then(|(_, d)| d.last()).map(|d| match &d.image {
+                egui::ImageData::Color(img) => img.clone(),
+            });
+            delta.clear();
+            let meshes: Vec<egui::Mesh> = shapes
+                .into_iter()
+                .filter_map(|s| match s {
+                    Shape::Mesh(m) => Some(std::sync::Arc::unwrap_or_clone(m)),
+                    _ => None,
+                })
+                .collect();
+            (meshes, pixels)
+        };
+        frame(&mut app);
+        {
+            let v = app.view_mut().unwrap();
+            v.zoom = 4.0;
+            v.center = Point::new(100.0, 150.0);
+        }
+        frame(&mut app); // the art from about x 0 to 200, without the rectangle
+        let old = app.canvas.key.clone().unwrap();
+        let before = Xf::new(app.canvas_rect.unwrap(), app.view().unwrap());
+        assert!(app.canvas.fill.is_none());
+        let (worker, jobs, completed) = crate::render_worker::Worker::test_channel();
+        app.canvas.worker = Some(worker);
+        let (fill_worker, fill_jobs, fill_completed) = crate::render_worker::Worker::test_channel();
+        app.canvas.fill_worker = Some(fill_worker);
+        app.canvas.last_ms = 50.0;
+        // Pan right by 150 pt: the last frame covers the canvas's left quarter, and the rectangle
+        // comes into its right quarter.
+        app.view_mut().unwrap().center = Point::new(250.0, 150.0);
+        frame(&mut app);
+        assert_eq!(app.canvas.key.as_ref(), Some(&old), "the last frame is still shown");
+        let job = jobs.try_recv().expect("the frame for the new view is on the worker");
+        let fill_job = fill_jobs.try_recv().expect("the fill is on the fill worker");
+        let (fw, fh, _) = fill_view(&job.key);
+        assert!(fill_job.opts.kept_images_only && (fill_job.w, fill_job.h) == (fw, fh), "{:?}", (fill_job.w, fill_job.h));
+        assert!(app.canvas.fill.is_none(), "nothing to draw until the fill arrives");
+        // The fill arrives; the next frame draws it, and asks for no other fill.
+        let img = app.canvas.renderer.render(&fill_job.doc, fill_job.w, fill_job.h, fill_job.view, &fill_job.opts);
+        let (doc, opts) = (fill_job.doc, fill_job.opts);
+        fill_completed.send(crate::render_worker::Done { key: fill_job.key, doc, opts, img, ms: 5.0, moved: 0 }).unwrap();
+        let (meshes, pixels) = frame(&mut app);
+        assert!(fill_jobs.try_recv().is_err(), "the fill covers the canvas");
+        assert_eq!(app.canvas.key.as_ref(), Some(&old), "the last frame is still shown");
+        let fill = app.canvas.fill.as_ref().expect("the fill is kept");
+        let mesh = meshes.iter().find(|m| m.texture_id == fill.tex.id()).expect("the fill is drawn");
+        let rect = app.canvas_rect.unwrap();
+        let xf = Xf::new(rect, app.view().unwrap());
+        let edge = xf.to_screen(before.to_doc(rect.right_top())).x; // the last frame's right edge
+        assert!(edge > rect.left() + 100.0 && edge < xf.to_screen(Point::new(300.0, 0.0)).x, "{edge} in {rect:?}");
+        assert!(
+            mesh.vertices.iter().all(|v| v.pos.x >= edge - 1e-3 && rect.expand(1e-3).contains(v.pos)),
+            "only right of the last frame: {:?}",
+            mesh.vertices
+        );
+        let area: f32 = mesh.indices.as_chunks::<3>().0.iter().map(|t| polygon_area(&t.map(|i| mesh.vertices[i as usize].pos))).sum();
+        let uncovered = (rect.right() - edge) * rect.height();
+        assert!((area - uncovered).abs() < 1.0, "the whole uncovered area, {uncovered} square points: {area}");
+        // The fill's pixel under a point of the canvas, from the uv the mesh gives that point.
+        let img = pixels.expect("the fill's pixels were uploaded");
+        let to_uv = Affine::scale_non_uniform(1.0 / fill.size.0 as f64, 1.0 / fill.size.1 as f64) * fill.view * xf.affine().inverse();
+        let alpha = |p: Pos2| {
+            let uv = to_uv * Point::new(p.x as f64, p.y as f64);
+            img.pixels[(uv.y * img.size[1] as f64) as usize * img.size[0] + (uv.x * img.size[0] as f64) as usize].a()
+        };
+        assert!(alpha(xf.to_screen(Point::new(340.0, 150.0))) > 0, "the rectangle, in the uncovered area");
+        assert_eq!(alpha(xf.to_screen(Point::new(250.0, 150.0))), 0, "no art there");
+        for v in &mesh.vertices {
+            assert!((to_uv * Point::new(v.pos.x as f64, v.pos.y as f64) - Point::new(v.uv.x as f64, v.uv.y as f64)).hypot() < 1e-4);
+        }
+        // Panned until the fill reaches only the canvas's left half: it is drawn only there, and the
+        // fill for the new view is asked for.
+        let fill_tex = fill.tex.id();
+        let reach = fill.view.inverse() * Point::new(fill.size.0 as f64, 0.0); // the fill's right edge
+        app.view_mut().unwrap().center = Point::new(reach.x, 150.0);
+        let (meshes, _) = frame(&mut app);
+        let right = Xf::new(rect, app.view().unwrap()).to_screen(reach).x;
+        assert!((right - rect.center().x).abs() < 1.0, "{right} in {rect:?}");
+        let mesh = meshes.iter().find(|m| m.texture_id == fill_tex).expect("the fill is drawn where it reaches");
+        assert!(mesh.vertices.iter().all(|v| v.pos.x <= right + 1e-3), "only where the fill reaches: {:?}", mesh.vertices);
+        let next = fill_jobs.try_recv().expect("the next fill");
+        assert_eq!(Some(&next.key), app.canvas.worker.as_ref().unwrap().pending.as_ref());
+        app.view_mut().unwrap().center = Point::new(250.0, 150.0);
+        // That fill finishes after the worker's frame: it is taken and not kept.
+        let img = app.canvas.renderer.render(&next.doc, next.w, next.h, next.view, &next.opts);
+        fill_completed.send(crate::render_worker::Done { key: next.key, doc: next.doc, opts: next.opts, img, ms: 5.0, moved: 0 }).unwrap();
+        // The worker's frame arrives: it covers the canvas, and the fill is no longer drawn or kept.
+        let img = app.canvas.renderer.render(&job.doc, job.w, job.h, job.view, &job.opts);
+        let expected = job.key.clone();
+        completed.send(crate::render_worker::Done { key: job.key, doc: job.doc, opts: job.opts, img, ms: 50.0, moved: 0 }).unwrap();
+        let (meshes, _) = frame(&mut app);
+        assert_eq!(app.canvas.key.as_ref(), Some(&expected), "the worker's frame is shown");
+        assert!(app.canvas.fill.is_none() && meshes.iter().all(|m| m.texture_id != fill_tex), "the fill is dropped");
+        assert!(app.canvas.fill_worker.as_ref().unwrap().pending.is_none(), "the late fill was taken");
+        // A pan with Outline turned on: the frame shown's options are not the ones asked for, and
+        // no fill is asked for.
+        app.ui.view.outline = true;
+        app.view_mut().unwrap().center = Point::new(400.0, 150.0);
+        frame(&mut app);
+        assert!(jobs.try_iter().last().is_some_and(|j| j.key.outline), "the outline frame is on the worker");
+        assert!(fill_jobs.try_recv().is_err() && app.canvas.fill.is_none(), "no fill");
+        app.canvas.worker = None;
+        app.canvas.fill_worker = None;
     }
 
     /// With the web build's setting (`waits_for_still`, no render worker), a heavy document's canvas
