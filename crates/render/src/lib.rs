@@ -14,6 +14,7 @@ mod freeform;
 mod fx;
 mod group;
 mod images;
+pub use images::physical_memory;
 mod ink;
 mod live;
 mod lru;

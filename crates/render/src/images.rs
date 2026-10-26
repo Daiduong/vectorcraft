@@ -44,7 +44,7 @@ fn budget_for(memory: u64) -> usize {
 
 /// Installed memory in bytes (`MemTotal` in `/proc/meminfo`).
 #[cfg(target_os = "linux")]
-fn physical_memory() -> Option<u64> {
+pub fn physical_memory() -> Option<u64> {
     let info = std::fs::read_to_string("/proc/meminfo").ok()?;
     let line = info.lines().find(|l| l.starts_with("MemTotal:"))?;
     let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
@@ -53,21 +53,22 @@ fn physical_memory() -> Option<u64> {
 
 /// Installed memory in bytes (`GlobalMemoryStatusEx`).
 #[cfg(windows)]
-fn physical_memory() -> Option<u64> {
+pub fn physical_memory() -> Option<u64> {
     winsafe::GlobalMemoryStatusEx().ok().map(|m| m.ullTotalPhys)
 }
 
 /// Installed memory in bytes, as `sysctl` prints it (`hw.memsize` on macOS, `hw.physmem` on
 /// FreeBSD).
 #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-fn physical_memory() -> Option<u64> {
+pub fn physical_memory() -> Option<u64> {
     let (sysctl, name) = if cfg!(target_os = "macos") { ("/usr/sbin/sysctl", "hw.memsize") } else { ("/sbin/sysctl", "hw.physmem") };
     let out = std::process::Command::new(sysctl).args(["-n", name]).output().ok().filter(|o| o.status.success())?;
     String::from_utf8(out.stdout).ok()?.trim().parse().ok()
 }
 
-#[cfg(not(any(target_os = "linux", windows, target_os = "macos", target_os = "freebsd", target_arch = "wasm32")))]
-fn physical_memory() -> Option<u64> {
+/// Installed memory in bytes: not read on other targets, the web among them.
+#[cfg(not(any(target_os = "linux", windows, target_os = "macos", target_os = "freebsd")))]
+pub fn physical_memory() -> Option<u64> {
     None
 }
 
