@@ -1065,6 +1065,7 @@ font-technology	Variable	Μεταβλητές
 	Fill and Stroke	Γέμισμα και περίγραμμα
 	Fill new strokes	Γέμισμα νέων περιγραμμάτων
 	Alt key toggles to Smooth Tool	Το πλήκτρο Alt αλλάζει στο εργαλείο Εξομάλυνση (Smooth Tool)
+	Live curve fitting	Προσαρμογή καμπύλης σε πραγματικό χρόνο
 	Fill Color	Χρώμα γεμίσματος
 	Fill New Type Objects With Placeholder Text	Συμπλήρωση νέων αντικειμένων κειμένου με κείμενο υπόδειξης
 	Fill Rule	Κανόνας γεμίσματος
@@ -3494,6 +3495,7 @@ theme	Appearance	Εμφάνιση
 	Snap Options	Επιλογές προσκόλλησης
 	Snap to Glyph	Προσκόλληση σε γλυφή
 	Precise Cursors	Δείκτες ακριβείας
+	Image Trace Preview	Προεπισκόπηση ανίχνευσης περιγραμμάτων εικόνας
 	Snapping Tolerance	Ανοχή προσκόλλησης
 	Social Square Post 1080×1080	Τετράγωνη δημοσίευση κοινωνικών δικτύων 1080×1080
 	Sort by Kind	Ταξινόμηση κατά είδος
@@ -5360,6 +5362,10 @@ effect	Points	Σημεία
 	Snap to Perpendicular	Προσκόλληση σε κάθετο
 @msg	unknown snap option `{key}` (use {options})	άγνωστη επιλογή προσκόλλησης `{key}` (χρησιμοποιήστε {options})
 	Gap Length:	Μήκος κενού:
+@msg	`colorGroup` needs `library: "document"`	το `colorGroup` απαιτεί `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	το `colorGroup` απαιτεί `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	το `colorGroup` απαιτεί `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	δεν υπάρχει ομάδα χρωμάτων `{name}` στο έγγραφο (δείτε swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Η λειτουργία Επίπεδο λογότυπο ανίχνευσε την εικόνα σε {_1} × {_2} εικονοστοιχεία, σμικρυμένη με μέσο όρο από {_3} × {_4}.
 	Artboard {n} of {total}	Πίνακας σχεδίασης {n} από {total}
 	File {n} of {total}	Αρχείο {n} από {total}
@@ -5420,6 +5426,12 @@ effect	Points	Σημεία
 	Shift:	Μετατόπιση:
 	Fresco…	Νωπογραφία…
 	Fresco	Νωπογραφία
+	Lock Artboards	Κλείδωμα πινάκων σχεδίασης
+	Unlock Artboards	Ξεκλείδωμα πινάκων σχεδίασης
+	Lock Selected	Κλείδωμα επιλεγμένων
+	Lock All Except Selected	Κλείδωμα όλων εκτός από τα επιλεγμένα
+	Lock All	Κλείδωμα όλων
+	Unlock Selected	Ξεκλείδωμα επιλεγμένων
 	Effect Gallery…	Συλλογή εφέ…
 	Effect Gallery Dialog	Παράθυρο διαλόγου Συλλογή εφέ
 	Arc Segment Tool Options	Επιλογές εργαλείου τμήματος τόξου

@@ -332,7 +332,7 @@ pub struct Services {
     /// pointer visible next to the tool glyph ([`cursors::hide_system_pointer`], #2450).
     pub no_cursor_theme: bool,
     /// The pen pressure and pen end the host reads from the system itself (desktop Linux under
-    /// X11 and XWayland). The canvas uses the pressure when a frame's events carry no touch force,
+    /// X11 and XWayland, macOS and Windows). The canvas uses the pressure when a frame's events carry no touch force,
     /// and the end to switch to the Eraser tool and back. Without it, pen pressure comes from
     /// touch events only ([`stylus`]).
     pub stylus: Option<stylus::StylusFeed>,
@@ -432,6 +432,8 @@ pub struct CacheKey {
     pub anti_alias: bool,
     /// Type › Highlight Alternate Glyphs (#394).
     pub highlight_alternate_glyphs: bool,
+    /// Type › Highlight Substituted Fonts.
+    pub highlight_substituted_fonts: bool,
     /// [`vectorcraft_render::placed_document::generation`]: placed documents' bitmaps made since.
     pub placed: u64,
     /// View › Pixel Preview: the document pixels rendered (x0, y0, x1, y1), one per point, shown

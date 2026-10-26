@@ -1058,6 +1058,7 @@
 	Fill and Stroke	填色和描边
 	Fill new strokes	为新描边应用填色
 	Alt key toggles to Smooth Tool	Alt 键切换为平滑工具
+	Live curve fitting	实时曲线拟合
 	Keep selected	保持选择状态
 	Merge only with selection	仅与所选对象合并
 	Consider Open Filled Paths as Closed	将有填色的开放路径视为闭合路径
@@ -2967,6 +2968,7 @@ font-script	Japanese	汉字
 	Snap to Grid	对齐网格
 	Snap to Pixel	对齐像素
 	Precise Cursors	精确光标
+	Image Trace Preview	图像描摹预览
 	Snap to Point	对齐点
 	Snap to Unit	对齐单位
 	Snapping Tolerance	吸附容差
@@ -5240,6 +5242,10 @@ lighting	Light	光源
 	Snap to Perpendicular	对齐垂线
 @msg	unknown snap option `{key}` (use {options})	未知的对齐选项 `{key}`（可用：{options}）
 	Gap Length:	间隙长度：
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` 需要 `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` 需要 `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` 需要 `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	文档中没有颜色组 `{name}` (请参阅 swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	“扁平徽标”模式已按 {_1} × {_2} 像素描摹图像，由 {_3} × {_4} 平均缩小而来。
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	编辑原稿只能打开图像和文档文件；“{name}” 不是其中之一
@@ -5306,6 +5312,12 @@ lighting	Light	光源
 	Shift:	偏移：
 	Fresco…	壁画…
 	Fresco	壁画
+	Lock Artboards	锁定画板
+	Unlock Artboards	解锁画板
+	Lock Selected	锁定所选
+	Lock All Except Selected	锁定除所选以外的全部
+	Lock All	全部锁定
+	Unlock Selected	解锁所选
 	Effect Gallery…	效果库…
 	Effect Gallery Dialog	效果库对话框
 	Arc Segment Tool Options	弧段工具选项

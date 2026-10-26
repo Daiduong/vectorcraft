@@ -1093,6 +1093,7 @@ font-technology	Variable	Променливи
 	Fill and Stroke	Запълване и щрих
 	Fill new strokes	Запълване на нови щрихове
 	Alt key toggles to Smooth Tool	Клавишът Alt превключва към инструмент „Гладкост“
+	Live curve fitting	Напасване на кривата в реално време
 	Fill Color	Цвят на запълване
 	Fill New Type Objects With Placeholder Text	Запълване на нови текстови обекти с примесен текст
 	Fill Rule	Правило за запълване
@@ -3026,6 +3027,7 @@ font-technology	Variable	Променливи
 	Snap to Grid	Прилепване към мрежа
 	Snap to Pixel	Прилепване към пиксел
 	Precise Cursors	Прецизни курсори
+	Image Trace Preview	Преглед на трасирането на изображение
 	Snap to Point	Прилепване към точка
 	Snap to Unit	Прилепване към мерна единица
 	Snapping Tolerance	Толеранс на прилепване
@@ -5405,6 +5407,12 @@ theme	Appearance	Външен вид
 	Shift:	Изместване:
 	Fresco…	Фреска…
 	Fresco	Фреска
+	Lock Artboards	Заключване на работни области
+	Unlock Artboards	Отключване на работни области
+	Lock Selected	Заключване на избраните
+	Lock All Except Selected	Заключване на всички без избраните
+	Lock All	Заключване на всички
+	Unlock Selected	Отключване на избраните
 	Effect Gallery…	Галерия с ефекти…
 	Effect Gallery Dialog	Диалог „Галерия с ефекти“
 	Arc Segment Tool Options	Опции на инструмента „Дъгов сегмент“

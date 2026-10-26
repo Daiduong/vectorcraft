@@ -583,6 +583,7 @@
 	Save Grid as Preset…	Uložit mřížku jako přednastavení…
 	Snap to Pixel	Přichytávat k obrazovým bodům
 	Precise Cursors	Přesné kurzory
+	Image Trace Preview	Náhled vektorizace obrazu
 	Snap to Point	Přichytávat k bodům
 	Snap to Glyph	Přichytávat ke glyfům
 	New View…	Nové zobrazení…
@@ -2295,6 +2296,7 @@ lighting	Light	Světlo
 	Fidelity:	Věrnost:
 	Fill new strokes	Vyplňovat nové tahy
 	Alt key toggles to Smooth Tool	Klávesa Alt přepíná na nástroj Vyhlazení
+	Live curve fitting	Průběžné prokládání křivky
 	Keep selected	Ponechat vybrané
 	Merge only with selection	Sloučit jen s výběrem
 	Consider Open Filled Paths as Closed	Považovat otevřené vyplněné cesty za uzavřené
@@ -5408,6 +5410,10 @@ mark-style	Japanese	Japonské
 	Snap to Perpendicular	Přichytávat ke kolmici
 @msg	unknown snap option `{key}` (use {options})	neznámá možnost přichytávání `{key}` (použijte {options})
 	Gap Length:	Délka mezery:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` vyžaduje `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` vyžaduje `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` vyžaduje `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	skupina barev `{name}` v dokumentu neexistuje (viz swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Režim Ploché logo vektorizoval obraz v rozlišení {_1} × {_2} pixelů, zmenšený průměrováním z {_3} × {_4}.
 	Artboard {n} of {total}	Pracovní plocha {n} z {total}
 	File {n} of {total}	Soubor {n} z {total}
@@ -5468,6 +5474,12 @@ mark-style	Japanese	Japonské
 	Shift:	Posun:
 	Fresco…	Freska…
 	Fresco	Freska
+	Lock Artboards	Zamknout pracovní plochy
+	Unlock Artboards	Odemknout pracovní plochy
+	Lock Selected	Zamknout vybrané
+	Lock All Except Selected	Zamknout vše kromě vybraných
+	Lock All	Zamknout vše
+	Unlock Selected	Odemknout vybrané
 	Effect Gallery…	Galerie efektů…
 	Effect Gallery Dialog	Dialog Galerie efektů
 	Arc Segment Tool Options	Možnosti nástroje Obloukový segment

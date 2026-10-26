@@ -1405,6 +1405,7 @@ font-technology	Variable	Változó
 	Fill Color	Kitöltőszín
 	Fill new strokes	Új vonások kitöltése
 	Alt key toggles to Smooth Tool	Az Alt billentyű a Simítás eszközre vált
+	Live curve fitting	Görbeillesztés rajzolás közben
 	Keep selected	Kijelölés megtartása
 	Merge only with selection	Összeolvasztás csak a kijelöléssel
 	Consider Open Filled Paths as Closed	A nyitott kitöltött útvonalak zártnak számítanak
@@ -3726,6 +3727,7 @@ mark-style	Japanese	Japán
 	Snap to Grid	Illesztés a rácshoz
 	Snap to Pixel	Illesztés pixelhez
 	Precise Cursors	Pontos kurzorok
+	Image Trace Preview	Képvektorizálás előnézete
 	Snap to Point	Illesztés pontra
 	Snap to Unit	Illesztés mértékegységhez
 	Snapping Tolerance	Illesztési tűrés
@@ -5394,6 +5396,10 @@ imageTrace	Outline	Körvonal
 	Snap to Perpendicular	Illesztés merőlegesre
 @msg	unknown snap option `{key}` (use {options})	ismeretlen illesztési beállítás: `{key}` (használható: {options})
 	Gap Length:	Rés hossza:
+@msg	`colorGroup` needs `library: "document"`	a `colorGroup` használatához `library: "document"` szükséges
+@msg	`colorGroup` needs `palette: "documentLibrary"`	a `colorGroup` használatához `palette: "documentLibrary"` szükséges
+@msg	`colorGroup` needs `mode: "color"`	a `colorGroup` használatához `mode: "color"` szükséges
+@msg	no color group `{name}` in the document (see swatch.list)	nincs ilyen színcsoport a dokumentumban: `{name}` (lásd: swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Az Egyszínű logó mód {_1} × {_2} képponton vektorizálta a képet, {_3} × {_4} méretről átlagolással kicsinyítve.
 	Artboard {n} of {total}	Rajztábla: {n} / {total}
 	File {n} of {total}	Fájl: {n} / {total}
@@ -5454,6 +5460,12 @@ imageTrace	Outline	Körvonal
 	Shift:	Eltolás:
 	Fresco…	Freskó…
 	Fresco	Freskó
+	Lock Artboards	Rajztáblák zárolása
+	Unlock Artboards	Rajztáblák zárolásának feloldása
+	Lock Selected	Kijelöltek zárolása
+	Lock All Except Selected	Összes zárolása a kijelölteken kívül
+	Lock All	Összes zárolása
+	Unlock Selected	Kijelöltek zárolásának feloldása
 	Effect Gallery…	Effektusgaléria…
 	Effect Gallery Dialog	Effektusgaléria párbeszédpanel
 	Arc Segment Tool Options	Ívszakasz eszköz beállításai

@@ -1113,6 +1113,7 @@ font-technology	Variable	Варіативні
 	Fill and Stroke	Заливка та обведення
 	Fill new strokes	Заповнювати нові обведення
 	Alt key toggles to Smooth Tool	Клавіша Alt перемикає на інструмент «Згладжування»
+	Live curve fitting	Підгонка кривої під час малювання
 	Keep selected	Залишати вибраним
 	Merge only with selection	Об’єднувати лише з виділеним
 	Consider Open Filled Paths as Closed	Вважати відкриті контури із заливкою замкненими
@@ -3128,6 +3129,7 @@ effect	Points	Точки
 	Snap to Grid	Прив’язати до сітки
 	Snap to Pixel	Прив’язати до пікселя
 	Precise Cursors	Точні курсори
+	Image Trace Preview	Перегляд трасування зображення
 	Snap to Point	Прив’язати до точки
 	Snap to Unit	Прив’язати до одиниць
 	Snapping Tolerance	Допуск прив’язки
@@ -5001,6 +5003,10 @@ lighting	Light	Світло
 	Snap to Perpendicular	Прив’язати до перпендикуляра
 @msg	unknown snap option `{key}` (use {options})	невідомий параметр прив’язки `{key}` (використовуйте {options})
 	Gap Length:	Довжина проміжку:
+@msg	`colorGroup` needs `library: "document"`	для `colorGroup` потрібен `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	для `colorGroup` потрібен `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	для `colorGroup` потрібен `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	у документі немає колірної групи `{name}` (див. swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Режим «Плоский логотип» трасував зображення в розмірі {_1} × {_2} пікселів, зменшене усередненням з {_3} × {_4}.
 	Artboard {n} of {total}	Монтажна область {n} з {total}
 	File {n} of {total}	Файл {n} з {total}
@@ -5062,6 +5068,12 @@ lighting	Light	Світло
 	Shift:	Зсув:
 	Fresco…	Фреска…
 	Fresco	Фреска
+	Lock Artboards	Заблокувати монтажні області
+	Unlock Artboards	Розблокувати монтажні області
+	Lock Selected	Заблокувати вибрані
+	Lock All Except Selected	Заблокувати всі, крім вибраних
+	Lock All	Заблокувати всі
+	Unlock Selected	Розблокувати вибрані
 	Effect Gallery…	Галерея ефектів…
 	Effect Gallery Dialog	Діалог «Галерея ефектів»
 	Arc Segment Tool Options	Параметри інструменту «Дуговий сегмент»

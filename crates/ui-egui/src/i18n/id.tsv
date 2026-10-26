@@ -536,6 +536,7 @@
 	Save Grid as Preset…	Simpan kisi sebagai preset…
 	Snap to Pixel	Snap ke piksel
 	Precise Cursors	Kursor presisi
+	Image Trace Preview	Pratinjau Image Trace
 	Snap to Point	Snap ke titik
 	Snap to Glyph	Snap ke glif
 	New View…	Tampilan baru…
@@ -2105,6 +2106,7 @@ lighting	Light	Cahaya
 	Fidelity:	Fidelitas:
 	Fill new strokes	Isi stroke baru
 	Alt key toggles to Smooth Tool	Tombol Alt beralih ke Alat penghalus
+	Live curve fitting	Penyesuaian kurva langsung
 	The document has no colour swatches.	Dokumen tidak memiliki swatch warna.
 	Style Name:	Nama gaya:
 	Crop To	Pangkas ke
@@ -5421,6 +5423,12 @@ swatch	Bright Violet	Violet cerah
 	Shift:	Pergeseran:
 	Fresco…	Fresko…
 	Fresco	Fresko
+	Lock Artboards	Kunci artboard
+	Unlock Artboards	Buka kunci artboard
+	Lock Selected	Kunci yang dipilih
+	Lock All Except Selected	Kunci semua kecuali yang dipilih
+	Lock All	Kunci semua
+	Unlock Selected	Buka kunci yang dipilih
 	Effect Gallery…	Galeri Efek…
 	Effect Gallery Dialog	Dialog Galeri Efek
 	Arc Segment Tool Options	Opsi alat segmen busur

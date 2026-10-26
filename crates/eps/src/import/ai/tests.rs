@@ -1161,6 +1161,54 @@ fn ai_private_data() {
     assert!(decode_private(b"%AI12_CompressedDataxx").is_err());
 }
 
+const G_DEFS: &str = "%AI5_BeginGradient: (G)\n(G) 1 2 Bd\n[\n<00FF>\n0\n0 0 0 0 1 0 0 2 1 6 %_BS\n\
+                      %_0 0 0 0 1 0 0 2 1 6 40 0 Bs\n%_0 0 0 0 0 0 1 2 0.5 6 50 100 Bs\nBD\n%AI5_EndGradient\n";
+
+/// A radial gradient instance whose highlight line is `bh`, on a rectangle.
+fn highlighted(bh: &str) -> String {
+    let art_ = format!("{RED}{}Bb\n{bh} Bh\n1 (G) 0 0 0 1 1 0 0 1 0 0 1 Bg\n50 0 0 -50 100 50 Bm\nf\n0 BB\n", rect_path(50.0, 0.0, 150.0, 100.0));
+    format!("{G_DEFS}{}", layer(&art_))
+}
+
+#[test]
+fn an_undefined_highlight_is_a_gradient_without_one() {
+    // `--` stands for a number the writer has no value for, here the highlight's point.
+    let none = read_ok(&highlighted("-- -- 269.6 0.87")).doc;
+    let zero = read_ok(&highlighted("0 0 269.6 0.87")).doc;
+    let Paint::Gradient(g) = fill(&art(&none)[0]) else { panic!("{:?}", fill(&art(&none)[0])) };
+    let Paint::Gradient(z) = fill(&art(&zero)[0]) else { panic!("{:?}", fill(&art(&zero)[0])) };
+    assert_eq!(g.gradient.kind, GradientKind::Radial);
+    assert_eq!(g.geom, z.geom, "the same gradient as one with the highlight at the centre");
+}
+
+#[test]
+fn an_undefined_number_anywhere_else_is_still_an_operator_the_reader_doesnt_know() {
+    let err = read(stream(&layer(&format!("{RED}-- 5 m\n0 10 L\n10 10 L\nf\n"))).as_bytes()).unwrap_err();
+    assert!(err.contains("operators VectorCraft doesn't know (`--`)"), "{err}");
+}
+
+#[test]
+fn a_linked_images_colour_space_operator_is_ignored() {
+    let art_ = format!("{RED}1 /DeviceGray XC\n{}f\n", rect_path(0.0, 0.0, 10.0, 10.0));
+    assert_eq!(art(&read_ok(&layer(&art_)).doc).len(), 1);
+}
+
+/// Editing data past the old 256 MiB limit still opens on a 64-bit build (#3510): a card file with
+/// embedded rasters unpacks to over 300 MiB.
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn editing_data_past_256_mib_is_read() {
+    let mut body = stream(&layer("")).into_bytes();
+    // Comment lines the reader skips, so the data stays valid while it grows past the old limit.
+    let filler = vec![b'%'; (257 << 20) - body.len()];
+    body.extend_from_slice(&filler);
+    let raw = [&b"%AI12_CompressedData"[..], &crate::ps::deflate(&body)].concat();
+    assert!(raw.len() < 1 << 20, "zeros compress");
+    let data = decode_private(&raw).unwrap();
+    assert_eq!(data.len(), body.len());
+    assert!(too_large().contains("512 MB"));
+}
+
 #[test]
 fn many_zstandard_frames_are_read_in_one_pass_and_capped() {
     let frame = zstd(b" ");
