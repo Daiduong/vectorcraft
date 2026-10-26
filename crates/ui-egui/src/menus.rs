@@ -835,7 +835,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "ui.expandDialog",
         "Expand…",
         "",
-        "{} open Expand for the selection (dialog `expand`, fields object, fill, stroke (all on; one the selection has nothing for is disabled, see object.expand.info), gradient: objects|mesh, steps 1..1000 (255)): OK runs object.expand with them as one undo step",
+        "{} open Expand for the selection (dialog `expand`, fields object, fill, stroke (all on; one the selection has nothing for is disabled, see object.expand.info), gradient: objects|mesh, steps 1..1000 (255)): OK runs object.expand with them as one undo step; dimmed, and an error, while the selection has an appearance effect.expandAppearance expands (object.expand.info's appearance)",
     ),
     (
         "attributes.openUrl",
@@ -2574,7 +2574,10 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         id if id.starts_with(crate::panels::symbols::USER_SLOT) => crate::panels::symbols::user_library(app, id).is_some(),
         "ui.saveBrushLibrary" => crate::panels::brushes::has_brushes(app),
         id if id.starts_with(crate::panels::brushes::USER_SLOT) => crate::panels::brushes::user_library(app, id).is_some(),
-        "ui.expandDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
+        // Dimmed for appearance attributes, which Expand Appearance expands first (#3089).
+        "ui.expandDialog" => {
+            app.session.active().is_some_and(|d| !d.selection.is_empty()) && !vectorcraft_engine::cmd::expand::has_appearance(&app.session)
+        }
         "ui.spotColors" => app.session.active().is_some(),
         "ui.menuDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
         "ui.simplifyAuto" | "ui.simplifyMoreOptions" => crate::dialogs::simplify_slider::showing(app),
@@ -3643,9 +3646,21 @@ fn render_row(app: &VectorcraftApp, ui: &mut egui::Ui, row: &Row, checks: bool, 
         }
         None => ui.add_enabled(row.enabled, egui::Button::new(text).shortcut_text(sc)),
     };
+    let r = match (row.enabled, disabled_hint(app, id)) {
+        (false, Some(why)) => r.on_disabled_hover_text(why),
+        _ => r,
+    };
     if r.clicked() {
         *clicked = row.target();
         ui.close();
+    }
+}
+
+/// Why a dimmed menu item is dimmed, for the ones that say.
+fn disabled_hint(app: &VectorcraftApp, id: &str) -> Option<&'static str> {
+    match id {
+        "ui.expandDialog" if vectorcraft_engine::cmd::expand::has_appearance(&app.session) => Some(crate::dialogs::expand::appearance_first()),
+        _ => None,
     }
 }
 
