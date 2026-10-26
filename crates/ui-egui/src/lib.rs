@@ -173,6 +173,8 @@ mod tests_sysclip_emf;
 #[cfg(test)]
 mod tests_sysclip_probe;
 #[cfg(test)]
+mod tests_tab_overflow;
+#[cfg(test)]
 mod tests_taskbar;
 #[cfg(test)]
 mod tests_transparencygrid;
@@ -1961,6 +1963,8 @@ impl VectorcraftApp {
             || self.pending_screenshots.iter().any(|p| p.slot.is_none())
     }
 
+    /// Capture the viewport identity and geometry (content and inner rectangles, pixels per point and
+    /// zoom) whose change advances the screenshot epoch.
     fn geometry_stamp(ctx: &egui::Context) -> GeometryStamp {
         GeometryStamp {
             viewport: ctx.viewport_id(),
@@ -2065,6 +2069,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// Identify the document, modal dialog and focused widget that the current accepted input batch
+    /// belongs to.
     fn input_generation(&self) -> InputGeneration {
         InputGeneration {
             document: self.session.active().map_or(0, |document| document.uid),
