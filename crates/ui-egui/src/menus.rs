@@ -253,6 +253,12 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "{number?: \"arabic\"|\"upperLetters\"|\"lowerLetters\"|\"upperRoman\"|\"lowerRoman\"|\"twoDigits\"|\"threeDigits\"|\"none\"} Type › Bullets and Numbering › Apply Numbers: the selected type's paragraphs (or those the Type tool's selection touches) become a numbered list in that number style (text.setFormat {number}); without it, a numbered list keeps its style and other paragraphs are numbered 1, 2, 3 (text.setFormat {list: \"number\"}); \"none\" turns the list off",
     ),
     (
+        "ui.bulletsAndNumbering",
+        "Bullets and Numbering…",
+        "",
+        "{tab?: \"bullets\"|\"numbers\"} open Bullets and Numbering (Type › Bullets and Numbering › Bullets and Numbering…, and More Options in the Paragraph panel's Bullets and Numbered List presets) on the paragraphs the Paragraph panel acts on, filled in with the values it shows, on that tab (without it, Numbers when the paragraphs are a numbered list, else Bullets) (dialog `bulletsAndNumbering`: tab (bullets|numbers), list (none|bullet|number: the kind of the preset picked), bullet (dot|dash|circle|square), number (arabic|upperLetters|lowerLetters|upperRoman|lowerRoman|twoDigits|threeDigits), listAlign (left|right), leftIndent, firstLineIndent (pt)): the type shows the dialog's values while it is open, OK runs text.setFormat with the values that changed (and the indents it shows when a preset puts the paragraphs in a list), as one undo step, and Cancel puts the type back; a preset picked for paragraphs in no list whose indents are 0 fills in 18 and -18 pt; an error with no type selected or an unknown tab",
+    ),
+    (
         "type.convertListToText",
         "Convert to Text",
         "",
@@ -1471,6 +1477,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         }
         "type.applyBullets" => crate::panels::paragraph::apply_bullets(app, p),
         "type.applyNumbers" => crate::panels::paragraph::apply_numbers(app, p),
+        "ui.bulletsAndNumbering" => crate::dialogs::bullets_numbering::open(app, p),
         "type.convertListToText" => crate::panels::paragraph::convert_list_to_text(app),
         id if let Some(b) = crate::panels::align::button(id) => crate::panels::align::run_button(app, b),
         "view.gradientAnnotator" => flag(&mut app.ui.view.gradient_annotator),
@@ -2579,7 +2586,9 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         "file.save" => app.session.active().is_some_and(|d| d.path.is_none() || d.converted || d.is_dirty()),
         "type.bold" | "type.italic" => crate::panels::character::text_style(app).is_some(),
         id if crate::panels::paragraph::ALIGN_COMMANDS.iter().any(|c| c.0 == id) => crate::panels::character::text_style(app).is_some(),
-        "type.applyBullets" | "type.applyNumbers" | "type.convertListToText" => crate::panels::character::text_style(app).is_some(),
+        "type.applyBullets" | "type.applyNumbers" | "ui.bulletsAndNumbering" | "type.convertListToText" => {
+            crate::panels::character::text_style(app).is_some()
+        }
         id if let Some(b) = crate::panels::align::button(id) => enabled(app, b.command()),
         "file.reveal" => app.services.reveal.is_some() && app.session.active().is_some_and(|d| d.path.is_some()),
         "file.cancelExport" | "file.exportInBackground" => app.background.jobs.iter().any(|j| j.progress.is_some() && !j.cancelled()),
@@ -3082,6 +3091,7 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                         c("Apply Bullets", "type.applyBullets"),
                         c("Apply Numbers", "type.applyNumbers"),
                         c("Convert to Text", "type.convertListToText"),
+                        c("Bullets and Numbering…", "ui.bulletsAndNumbering"),
                     ],
                 ),
                 Sep,

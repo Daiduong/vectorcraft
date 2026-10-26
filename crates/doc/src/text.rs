@@ -601,11 +601,25 @@ fn roman(mut n: u32) -> String {
     s
 }
 
+/// Where a list's marker stands before the first line's text ([`ParaList::align`]): the Bullets
+/// and Numbering dialog's Alignment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ListAlign {
+    /// The marker starts where the first line starts: at the left indent plus the first-line
+    /// indent.
+    #[default]
+    Left,
+    /// The marker ends where the first line's text starts, against the text.
+    Right,
+}
+
 /// The list a paragraph is in (Paragraph panel › Bullets and Numbered List). The layout draws the
 /// list's marker before the paragraph's first line, in the font, size and color of the paragraph's
 /// first character without its baseline shift, rotation, superscript or subscript, tracking, manual
 /// kerning, tate-chu-yoko, underline and strikethrough ([`Self::marker_style`]), and the text after
-/// it starts at the next tab stop, the left indent counting as a stop. The marker is not a
+/// it starts at the next tab stop, the left indent counting as a stop. The marker stands at the
+/// first line's start, or against the text with [`ListAlign::Right`]. The marker is not a
 /// character of the text, and an empty paragraph has none. A saved list reads the fields it leaves
 /// out as their defaults, and a build ignores the fields it doesn't know.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -618,17 +632,26 @@ pub struct ParaList {
     /// numbered list.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<NumberStyle>,
+    /// Where the marker stands before the first line's text. The file saves it only when it is
+    /// [`ListAlign::Right`].
+    #[serde(skip_serializing_if = "crate::skip::is_default")]
+    pub align: ListAlign,
 }
 
 impl ParaList {
     /// A bulleted list with `bullet`.
     pub fn bulleted(bullet: Bullet) -> Self {
-        Self { bullet, number: None }
+        Self { bullet, ..Self::default() }
     }
 
     /// A numbered list with `style`.
     pub fn numbered(style: NumberStyle) -> Self {
-        Self { bullet: Bullet::default(), number: Some(style) }
+        Self { number: Some(style), ..Self::default() }
+    }
+
+    /// This list with its marker at `align`.
+    pub fn aligned(self, align: ListAlign) -> Self {
+        Self { align, ..self }
     }
 
     /// The characters of the marker the layout draws before the paragraph: the bullet, or for a
@@ -2350,6 +2373,20 @@ mod tests {
             serde_json::to_value(ParaList::numbered(NumberStyle::LowerRoman)).unwrap(),
             serde_json::json!({"bullet": "dot", "number": "lowerRoman"})
         );
+    }
+
+    /// A list's marker alignment: Left by default and not saved, Right saved as `"align": "right"`;
+    /// a list saved without it reads as Left.
+    #[test]
+    fn a_list_saves_its_marker_alignment_only_when_it_is_right() {
+        let right = ParaList::numbered(NumberStyle::Arabic).aligned(ListAlign::Right);
+        assert_eq!(ParaList::bulleted(Bullet::Dot).align, ListAlign::Left);
+        assert_eq!(serde_json::to_value(right).unwrap(), serde_json::json!({"bullet": "dot", "number": "arabic", "align": "right"}));
+        assert_eq!(serde_json::to_value(ParaList::bulleted(Bullet::Dash)).unwrap(), serde_json::json!({"bullet": "dash"}));
+        let read = |v: serde_json::Value| serde_json::from_value::<ParaList>(v).unwrap();
+        assert_eq!(read(serde_json::json!({"bullet": "dot", "number": "arabic", "align": "right"})), right);
+        assert_eq!(read(serde_json::json!({"bullet": "square"})).align, ListAlign::Left);
+        assert!(serde_json::from_value::<ParaList>(serde_json::json!({"align": "center"})).is_err());
     }
 
     /// Typed list detection: "1.", "1)", "A." and "A)" and a space at the start of a paragraph
