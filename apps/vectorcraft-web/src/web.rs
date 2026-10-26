@@ -59,8 +59,19 @@ struct Host {
 
 pub fn start() {
     eframe::WebLogger::init(log::LevelFilter::Info).ok();
+    // `?host=parent`: a same-origin page framing VectorCraft (or the parent on the origin
+    // `?host_origin=` names) opens documents in it and stores what it saves (`crate::host`).
+    // Installed first, so a page without a canvas still reports the failure.
+    if query_param("host").as_deref() == Some("parent")
+        && let Some(bridge) = crate::host::Bridge::new(query_param("host_origin").as_deref())
+    {
+        bridge.install();
+    }
     let Some(canvas) = element(CANVAS_ID).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else {
         log::error!("missing <canvas id=\"{CANVAS_ID}\">");
+        if let Some(bridge) = crate::host::installed() {
+            bridge.post_failed(&format!("missing <canvas id=\"{CANVAS_ID}\">"));
+        }
         return;
     };
     detect_language();
@@ -81,13 +92,6 @@ pub fn start() {
             restarts: 0,
         };
         track_paste(&host.pasted);
-        // `?host=parent`: a same-origin page framing VectorCraft opens documents in it and
-        // stores what it saves (`crate::host`).
-        if query_param("host").as_deref() == Some("parent")
-            && let Some(bridge) = crate::host::Bridge::new()
-        {
-            bridge.install();
-        }
         run(host, canvas, None).await;
     });
 }
@@ -141,7 +145,6 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                         }
                         if let Some(bridge) = crate::host::installed() {
                             bridge.listen(host.inbox.clone(), ctx.clone());
-                            bridge.post_ready();
                         }
                         VectorcraftApp::new(Session::new(), services).with_control(control_rx)
                     }
@@ -151,7 +154,13 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
         )
         .await;
     match (result, kept) {
-        (Ok(()), _) => {
+        (Ok(()), restart) => {
+            // Ready only once the runner started (and only on the first start, not a restart).
+            if restart.is_none()
+                && let Some(bridge) = crate::host::installed()
+            {
+                bridge.post_ready();
+            }
             if let Err(e) = crate::pencil::install(&runner, &pen_canvas, &pointers) {
                 log::error!("vectorcraft-web: no pen input: {}", js_err(e));
             }
@@ -411,7 +420,7 @@ impl eframe::App for WebShell {
             }
         }
         app.logic(ctx);
-        crate::host::report_dirty(app);
+        crate::host::report_dirty(app, ctx);
         crate::api::poll_replies();
     }
 

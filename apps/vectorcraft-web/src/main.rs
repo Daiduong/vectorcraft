@@ -13,14 +13,16 @@
 //! - pen and finger input is read from Pointer Events by `pencil` (Apple Pencil pressure and
 //!   hover, palm rejection, fingers navigate once a pen has been seen).
 //!
-//! With `?host=parent` (inside an `<iframe>`), a same-origin parent page opens documents and
-//! receives saves instead of downloads (`host.rs`).
+//! With `?host=parent` (inside an `<iframe>`), a same-origin parent page (or the parent on the
+//! origin `?host_origin=` names) opens documents and receives saves instead of downloads (`host.rs`).
 //!
 //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?lang=es` (any
 //! language code) stands in for the browser's languages when the interface language is Automatic.
 
 #[cfg(target_arch = "wasm32")]
 mod api;
+#[cfg(any(target_arch = "wasm32", test))]
+mod bridge;
 #[cfg(target_arch = "wasm32")]
 mod fonts;
 #[cfg(target_arch = "wasm32")]

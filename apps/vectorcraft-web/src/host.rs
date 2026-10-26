@@ -4,21 +4,30 @@
 //! - `vectorcraft:ready` (to the parent): `{ version }`, the app is listening; send a document now.
 //! - `vectorcraft:open` (from the parent): `{ name, bytes }`, bytes an `ArrayBuffer` or
 //!   `Uint8Array`. It opens like a file picked with File › Open or dropped on the window.
-//! - `vectorcraft:save` (to the parent): `{ name, bytes }` (a transferred `ArrayBuffer`) for every
-//!   file VectorCraft would otherwise download (Save, Save As, Export…). Once it is posted the app
-//!   counts a native save as saved.
+//! - `vectorcraft:save` (to the parent): `{ id, name, bytes }` (a transferred `ArrayBuffer`) for
+//!   every file VectorCraft would otherwise download (Save, Save As, Export…).
+//! - `vectorcraft:saved` (from the parent): `{ id }`, that save is stored. Until it arrives a
+//!   document save keeps the app reported dirty; after 30 s without it the app posts
+//!   `vectorcraft:failed { id, error }` and stays dirty.
 //! - `vectorcraft:dirty` (to the parent): `{ dirty }` whenever unsaved changes appear or go away.
 //! - `vectorcraft:failed` (to the parent): `{ error }` when the app couldn't start, or when a
-//!   `vectorcraft:open` document is over [`crate::host_open::MAX_OPEN_BYTES`] (it isn't opened).
+//!   `vectorcraft:open` document is over [`crate::host_open::MAX_OPEN_BYTES`] (it isn't opened), when the page
+//!   has no canvas, or when a save went unconfirmed.
 //!
-//! Only the parent window on the page's own origin is heard or answered.
+//! The bridge is installed only for a same-origin parent, or for a parent on the origin named by
+//! `?host_origin=` (a bare `scheme://host[:port]` origin); messages go to that exact origin and only
+//! the parent window on it is heard. A cross-origin parent without `host_origin` gets no bridge, so
+//! saves download as usual.
 
 use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 
 use vectorcraft_ui_egui::VectorcraftApp;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::Closure;
+
+use crate::bridge::SaveAcks;
 
 /// Longest file name taken from the parent page.
 const MAX_NAME_CHARS: usize = 255;
@@ -34,19 +43,25 @@ pub struct Bridge {
     parent: web_sys::Window,
     origin: String,
     /// The unsaved-changes state last reported to the parent.
-    reported: std::rc::Rc<Cell<Option<bool>>>,
+    reported: Rc<Cell<Option<bool>>>,
+    /// Saves waiting for `vectorcraft:saved`.
+    acks: Rc<RefCell<SaveAcks>>,
 }
 
 impl Bridge {
-    /// `None` when the page isn't framed (there is no parent to talk to).
-    pub fn new() -> Option<Self> {
+    /// `None` when the page isn't framed, or the parent is cross-origin and not the origin
+    /// `host_origin` allows (see [`crate::bridge::target_origin`]).
+    pub fn new(host_origin: Option<&str>) -> Option<Self> {
         let window = web_sys::window()?;
         let parent = window.parent().ok().flatten()?;
         if js_sys::Object::is(&parent, &window) {
             return None;
         }
-        let origin = window.location().origin().ok()?;
-        Some(Self { window, parent, origin, reported: Default::default() })
+        let own = window.location().origin().ok()?;
+        // Reading a cross-origin parent's location throws: treat that as cross-origin.
+        let parent_origin = parent.location().origin().ok();
+        let origin = crate::bridge::target_origin(&own, parent_origin.as_deref(), host_origin)?;
+        Some(Self { window, parent, origin, reported: Rc::default(), acks: Rc::default() })
     }
 
     /// Make this the bridge [`deliver`] and [`report_dirty`] use.
@@ -72,8 +87,17 @@ impl Bridge {
                 return;
             }
             let data = event.data();
-            if string(&data, "type").as_deref() != Some("vectorcraft:open") {
-                return;
+            match string(&data, "type").as_deref() {
+                Some("vectorcraft:open") => {}
+                Some("vectorcraft:saved") => {
+                    let id = js_sys::Reflect::get(&data, &JsValue::from_str("id")).ok().and_then(|v| v.as_f64());
+                    if let Some(id) = id.filter(|id| id.is_finite() && *id >= 0.0 && id.fract() == 0.0) {
+                        bridge.acks.borrow_mut().saved(id as u64);
+                        ctx.request_repaint();
+                    }
+                    return;
+                }
+                _ => return,
             }
             let name = string(&data, "name")
                 .filter(|n| !n.trim().is_empty())
@@ -97,11 +121,24 @@ impl Bridge {
 
     fn post_save(&self, name: &str, bytes: &[u8]) -> Result<(), String> {
         let buffer = js_sys::Uint8Array::from(bytes).buffer();
-        let message = message(&[("type", "vectorcraft:save".into()), ("name", name.into()), ("bytes", buffer.clone().into())])
-            .ok_or_else(|| "couldn't build the message".to_string())?;
-        self.parent
-            .post_message_with_transfer(&message, &self.origin, &js_sys::Array::of1(&buffer))
-            .map_err(|e| e.as_string().unwrap_or_else(|| format!("{e:?}")))
+        let document = [vectorcraft_format::EXTENSION, vectorcraft_format::LEGACY_EXTENSION].iter().any(|ext| name.ends_with(&format!(".{ext}")));
+        let id = self.acks.borrow_mut().posted(name, document, js_sys::Date::now());
+        let sent = message(&[
+            ("type", "vectorcraft:save".into()),
+            ("id", JsValue::from_f64(id as f64)),
+            ("name", name.into()),
+            ("bytes", buffer.clone().into()),
+        ])
+        .ok_or_else(|| "couldn't build the message".to_string())
+        .and_then(|m| {
+            self.parent
+                .post_message_with_transfer(&m, &self.origin, &js_sys::Array::of1(&buffer))
+                .map_err(|e| e.as_string().unwrap_or_else(|| format!("{e:?}")))
+        });
+        if sent.is_err() {
+            self.acks.borrow_mut().failed(id);
+        }
+        sent
     }
 
     /// Post a message to the parent; false if it couldn't be sent.
@@ -122,10 +159,26 @@ pub fn deliver(name: &str, bytes: &[u8]) -> Option<Result<(), String>> {
     Some(bridge.post_save(name, bytes))
 }
 
-/// After each frame: tell the parent when unsaved changes appear or go away.
-pub fn report_dirty(app: &VectorcraftApp) {
+/// After each frame: tell the parent when unsaved changes appear or go away (held dirty while a
+/// document save is unconfirmed), and fail saves the parent didn't confirm within 30 s.
+pub fn report_dirty(app: &VectorcraftApp, ctx: &egui::Context) {
     let Some(bridge) = BRIDGE.with(|b| b.borrow().clone()) else { return };
-    let dirty = app.session.documents().iter().any(|d| d.is_dirty());
+    let expired = bridge.acks.borrow_mut().expire(js_sys::Date::now());
+    for (id, name) in expired {
+        bridge.send(&[
+            ("type", "vectorcraft:failed".into()),
+            ("id", JsValue::from_f64(id as f64)),
+            ("error", format!("{name}: the host page didn't confirm the save").into()),
+        ]);
+    }
+    let engine_dirty = app.session.documents().iter().any(|d| d.is_dirty());
+    let (dirty, waiting) = {
+        let acks = bridge.acks.borrow();
+        (acks.dirty(engine_dirty), acks.waiting())
+    };
+    if waiting {
+        ctx.request_repaint_after(std::time::Duration::from_secs(1));
+    }
     if bridge.reported.get() != Some(dirty) && bridge.send(&[("type", "vectorcraft:dirty".into()), ("dirty", dirty.into())]) {
         bridge.reported.set(Some(dirty));
     }
