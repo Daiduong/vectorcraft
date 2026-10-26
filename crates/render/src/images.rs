@@ -259,6 +259,39 @@ pub fn image_cache_bytes() -> usize {
     store().bytes()
 }
 
+/// Keep `img`, the decoded pixels of `blob`, in the store as a renderer keeps the pixels it
+/// decodes, so the first render that draws `blob` uses them instead of decoding it. Returns whether
+/// `img` was kept or the store already held `blob`'s pixels. It returns false, without looking at
+/// the store, for a CMYK image and for pixels a renderer would refuse to decode: more than the
+/// decode allowance as RGBA, or more than fits beside the pixels being drawn now. The store then
+/// drops the least recently used entries beyond its budget, as it does whenever a renderer adds
+/// pixels.
+pub fn keep_decoded_image(blob: &ImageBlob, img: image::DynamicImage) -> bool {
+    let (key, lut, _) = crate::blob_key(blob);
+    if lut.is_some() || !crate::paint::within_allowance(img.width(), img.height()) {
+        return false;
+    }
+    let kept = store().get(&key);
+    let size = match kept {
+        Some(pm) => (pm.width(), pm.height()),
+        None => {
+            let Some(pm) = crate::paint::decoded_pixmap(img) else { return false };
+            let size = (pm.width(), pm.height());
+            drop(store().insert(key, Arc::new(pm)));
+            size
+        }
+    };
+    remember_size(blob, size);
+    true
+}
+
+/// Whether the store holds the decoded pixels of `blob` at full size.
+pub fn image_cached(blob: &ImageBlob) -> bool {
+    // The key first: working it out takes the store's lock too.
+    let (key, _, _) = crate::blob_key(blob);
+    store().peek(&key).is_some()
+}
+
 /// `blob`'s content key and kind, hashed and sniffed once per blob allocation.
 pub(crate) fn blob_id(blob: &ImageBlob) -> BlobId {
     if let Some(id) = store().known_id(&blob.bytes) {

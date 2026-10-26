@@ -378,6 +378,59 @@ fn a_linked_image_keeps_the_preview_made_when_its_file_was_read() {
     assert!(d.images["embedded"].proxy.is_none());
 }
 
+/// Keeping an image's pixels decodes nothing: a linked image read without a preview keeps none,
+/// and pixels already in the document take the preview the file was read with.
+#[test]
+fn keeping_an_image_decodes_nothing() {
+    let bytes = png(600, 300, [9, 9, 9, 255], None);
+    let mut d = vectorcraft_doc::Document::new(100.0, 100.0);
+    cmd::links::store_image(&mut d, "k", vectorcraft_doc::ImageBlob::new("image/png", bytes.clone()), true);
+    assert!(d.images["k"].proxy.is_none(), "no preview is made here");
+    let read = vectorcraft_doc::ImageBlob::new("image/png", bytes).with_proxy();
+    let made = read.proxy.clone().unwrap();
+    cmd::links::store_image(&mut d, "k", read, true);
+    assert!(d.images["k"].proxy.as_ref().is_some_and(|p| Arc::ptr_eq(p, &made)), "the preview it was read with");
+}
+
+/// `w`×`h` pixels of noise, which compress little, encoded as `format`.
+fn noise(w: u32, h: u32, format: image::ImageFormat) -> Vec<u8> {
+    let img = image::RgbImage::from_fn(w, h, |x, y| {
+        let v = x.wrapping_mul(2_654_435_761) ^ y.wrapping_mul(40_503).rotate_left(13);
+        image::Rgb([v as u8, (v >> 8) as u8, (v >> 16) as u8])
+    });
+    let mut out = vec![];
+    img.write_to(&mut std::io::Cursor::new(&mut out), format).unwrap();
+    out
+}
+
+/// A PNG cut to half its length, as a download or a sync still running leaves it, has a header
+/// but not all its pixels: placing it, embedded or linked, is an error and places nothing. A JPEG
+/// cut short still decodes, with its missing rows empty, and is placed.
+#[test]
+fn an_image_whose_pixels_cant_be_read_is_not_placed() {
+    let mut cut = noise(600, 300, image::ImageFormat::Png);
+    cut.truncate(cut.len() / 2);
+    let mut s = session();
+    let info = s.execute("file.place.info", &file("cut.png", &cut)).unwrap();
+    assert_eq!((info["pixelWidth"].as_u64(), info["pixelHeight"].as_u64()), (Some(600), Some(300)), "its header reads");
+    let dir = crate::tests_links::Folder::new("cut-png");
+    let path = dir.file("cut.png");
+    crate::tests_links::write(&path, &cut);
+    for p in [file("cut.png", &cut), json!({"path": path}), json!({"path": path, "link": false})] {
+        let (undo, journal) = (s.doc().unwrap().history.undo.len(), s.journal.len());
+        let e = s.execute("file.place", &p).unwrap_err();
+        assert_eq!(e.to_string(), "the image's pixels can't be read", "{p}");
+        assert!(s.prepare_place(&p).unwrap().read().is_err(), "{p}: read apart from the session");
+        assert!(top_children(&s).is_empty(), "{p}: nothing placed");
+        assert_eq!((s.doc().unwrap().history.undo.len(), s.journal.len()), (undo, journal), "{p}");
+    }
+    let mut jpeg = noise(600, 300, image::ImageFormat::Jpeg);
+    jpeg.truncate(jpeg.len() / 2);
+    let r = place(&mut s, "cut.jpg", &jpeg, json!({}));
+    assert_eq!(r["format"], "jpg");
+    assert_eq!(top_children(&s).len(), 1);
+}
+
 /// Type and a DXF drawing fitted to the artboard, read apart from the session while the artboard
 /// under `at` changes size, are placed against the artboard as it is when they are placed: as
 /// `file.place` places them after the change, which is what a replay of the journal does.
