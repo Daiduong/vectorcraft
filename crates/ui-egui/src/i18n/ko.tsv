@@ -564,6 +564,7 @@ font-technology	Variable	가변
 	Save Grid as Preset…	격자를 프리셋으로 저장…
 	Snap to Pixel	픽셀에 스냅
 	Precise Cursors	정밀 커서
+	Image Trace Preview	이미지 추적 미리 보기
 	Snap to Point	포인트에 스냅
 	Snap to Glyph	글리프에 스냅
 	New View…	새 보기…
@@ -1507,6 +1508,7 @@ font-technology	Variable	가변
 	Fill and Stroke	칠과 선
 	Fill new strokes	새 선 칠하기
 	Alt key toggles to Smooth Tool	Alt 키로 매끄럽게 도구로 전환
+	Live curve fitting	실시간 곡선 맞춤
 	Keep selected	선택 유지
 	Merge only with selection	선택 영역과만 병합
 	Consider Open Filled Paths as Closed	칠이 있는 열린 패스를 닫힌 패스로 처리
@@ -4973,6 +4975,10 @@ lighting	Light	광원
 	Snap to Perpendicular	수직선에 스냅
 @msg	unknown snap option `{key}` (use {options})	알 수 없는 스냅 옵션 `{key}` ({options} 중에서 사용하세요)
 	Gap Length:	간격 길이:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup`에는 `library: "document"`가 필요합니다
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup`에는 `palette: "documentLibrary"`가 필요합니다
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup`에는 `mode: "color"`가 필요합니다
+@msg	no color group `{name}` in the document (see swatch.list)	문서에 색상 그룹 `{name}`이(가) 없습니다(swatch.list 참조)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	단색 로고 모드에서 이미지를 {_3} × {_4}에서 평균을 내어 축소한 {_1} × {_2}픽셀로 추적했습니다.
 	Artboard {n} of {total}	아트보드 {n} / {total}
 	File {n} of {total}	파일 {n} / {total}
@@ -5088,6 +5094,12 @@ lighting	Light	광원
 	Shift:	이동:
 	Fresco…	프레스코…
 	Fresco	프레스코
+	Lock Artboards	아트보드 잠그기
+	Unlock Artboards	아트보드 잠금 해제
+	Lock Selected	선택 항목 잠그기
+	Lock All Except Selected	선택 항목 외 모두 잠그기
+	Lock All	모두 잠그기
+	Unlock Selected	선택 항목 잠금 해제
 	Effect Gallery…	효과 갤러리…
 	Effect Gallery Dialog	효과 갤러리 대화 상자
 	Arc Segment Tool Options	호 세그먼트 도구 옵션

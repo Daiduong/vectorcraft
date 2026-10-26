@@ -131,6 +131,7 @@ pub(crate) fn end_document_drag(ctx: &egui::Context) {
     });
 }
 
+/// Temp-memory key for the active canvas drag state.
 fn drag_id() -> egui::Id {
     egui::Id::unique("canvas-drag")
 }
@@ -277,6 +278,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // that does not draw the overlay drops them, for example with the option off, with the edges
     // hidden, on the Home screen or with no document open.
     let hidden_chars = std::mem::take(&mut app.canvas.hidden_chars);
+    // A release ends the Image Trace panel's eye-button hold, also when the panel is no longer
+    // drawn, so a later press elsewhere does not show the source image.
+    if app.ui.trace_hold_source.is_some() && !ui.input(|i| i.pointer.any_down()) {
+        app.ui.trace_hold_source = None;
+    }
     // The IME geometry this pass, if the Type tool gets one; `ime::end_of_pass` consumes it after
     // the dialogs and panels draw.
     app.ime_caret_rect = None;
@@ -416,6 +422,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         rot: v.rotation,
         anti_alias: app.session.prefs.anti_aliased_artwork,
         highlight_alternate_glyphs: app.session.prefs.highlight_alternate_glyphs,
+        highlight_substituted_fonts: app.session.prefs.highlight_substituted_fonts,
         placed: vectorcraft_render::placed_document::generation(),
         pixel,
         smooth_images,
@@ -424,8 +431,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         rich_black: app.session.prefs.black_on_screen == "rich",
         // A tool's drag on the canvas, during an interaction (not a dialog's preview).
         dragging: app.session.in_interaction() && ui.data(|d| d.get_temp::<Drag>(drag_id())) == Some(Drag::Tool),
-        // The Image Trace panel's eye button, only while a pointer button is down.
-        trace_source: app.ui.trace_hold_source.clone().filter(|_| ui.input(|i| i.pointer.any_down())),
+        // The Image Trace panel's eye button, while it is held.
+        trace_source: app.ui.trace_hold_source.clone(),
     };
     // Placed documents' bitmaps are being made: draw again when they are ready.
     if vectorcraft_render::placed_document::busy() {
@@ -489,6 +496,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             highlight_substitutions: true,
             // Type › Highlight Alternate Glyphs (#394): pink behind OpenType substitutions.
             highlight_alternate_glyphs: app.session.prefs.highlight_alternate_glyphs,
+            // Type › Highlight Substituted Fonts: pink behind text in a substitute font.
+            highlight_substituted_fonts: app.session.prefs.highlight_substituted_fonts,
             // General › Anti-aliased Artwork: off, edges are hard on screen (raster effects and
             // pattern tiles stay smooth), as in Illustrator.
             anti_alias: if app.session.prefs.anti_aliased_artwork { vectorcraft_render::AntiAlias::Art } else { vectorcraft_render::AntiAlias::None },
@@ -902,6 +911,7 @@ fn cursor_icon(c: Cursor) -> egui::CursorIcon {
         Cursor::SliceSelect => C::Default,
         Cursor::Width | Cursor::WidthAdd => C::Crosshair,
         Cursor::WidthPoint => C::Move,
+        Cursor::PencilNew => C::Crosshair,
         Cursor::Blend | Cursor::BlendObject | Cursor::BlendAnchor | Cursor::ShapeBuilder | Cursor::ShapeBuilderErase => C::Crosshair,
         Cursor::PencilClose | Cursor::PencilStraight | Cursor::PencilContinue | Cursor::PaintbrushClose => C::Crosshair,
         Cursor::TypeVertical => C::VerticalText,
@@ -3075,10 +3085,12 @@ fn ime_geometry(app: &mut VectorcraftApp, ctx: &egui::Context, xf: &Xf) {
 /// out rather than spilling over its neighbours.
 const MIN_LABELLED_ARTBOARD: f32 = 24.0;
 
+/// Temp-memory key recording an artboard-name press before its edit field opens.
 fn name_press_id() -> egui::Id {
     egui::Id::unique("canvas-artboard-name-press")
 }
 
+/// Temp-memory key for the artboard name field currently being edited.
 fn name_edit_id() -> egui::Id {
     egui::Id::unique("canvas-artboard-name-edit")
 }
@@ -3914,6 +3926,7 @@ mod tests {
             Cursor::BlendAnchor,
             Cursor::ShapeBuilder,
             Cursor::ShapeBuilderErase,
+            Cursor::PencilNew,
             Cursor::PencilStraight,
             Cursor::PencilContinue,
         ] {
@@ -4353,6 +4366,29 @@ mod tests {
         out.textures_delta.clear();
     }
 
+    /// The Image Trace panel's eye-button hold ends when the pointer is released, even when the
+    /// panel stopped drawing while the button was held, so a later press on the canvas does not
+    /// show the source image.
+    #[test]
+    fn a_release_ends_the_image_trace_hold_without_the_panel() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+        let made = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
+        let id = vectorcraft_doc::NodeId(made["id"].as_u64().unwrap());
+        let ctx = egui::Context::default();
+        let at = pos2(400.0, 300.0);
+        let press = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at), press(true)]);
+        app.ui.trace_hold_source = Some(std::sync::Arc::new(vec![id]));
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.ui.trace_hold_source.is_some(), "held while the button is down");
+        frame(&mut app, &ctx, vec![press(false)]);
+        assert_eq!(app.ui.trace_hold_source, None, "the release ends the hold");
+        frame(&mut app, &ctx, vec![press(true)]);
+        assert_eq!(app.ui.trace_hold_source, None, "a later press does not show the source image");
+        frame(&mut app, &ctx, vec![press(false)]);
+    }
+
     /// The baseline marker of selected point type runs under the line, wherever its alignment
     /// puts the anchor: under centred and right-aligned type too, not from the anchor rightwards
     /// (#2879).
@@ -4656,6 +4692,8 @@ mod tests {
                 })
                 .unwrap_or_else(|| panic!("no {text:?} text"))
         }
+        /// Build raw input with a fixed 800 by 600 screen so headless frames keep a stable canvas texture
+        /// size.
         fn raw() -> egui::RawInput {
             egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), ..Default::default() }
         }
@@ -5582,6 +5620,37 @@ mod tests {
         assert!(off.iter().filter(|&&a| a == 255).count() > 1000, "the disc is still painted");
         app.session.execute("prefs.set", &json!({"key": "antiAliasedArtwork", "value": true})).unwrap();
         assert!(partial(&alphas(&mut app).expect("re-rendered")) > 50, "smooth again");
+    }
+
+    /// Type › Highlight Substituted Fonts: on (the default), type in a missing font has pink
+    /// behind it on the canvas; off, it does not, and turning it either way re-renders.
+    #[test]
+    fn highlight_substituted_fonts_preference_reaches_the_canvas() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.canvas.worker_started = true; // render on this thread
+        app.session.execute("text.create", &json!({"x": 20, "y": 120, "text": "Hamburg", "size": 60, "font": "Missing Family"})).unwrap();
+        let ctx = egui::Context::default();
+        // How many pink pixels the art's raster uploaded by one frame has, None when it was not
+        // re-rendered.
+        let pink = |app: &mut VectorcraftApp| -> Option<usize> {
+            let (_, mut delta) = frame_output(app, &ctx);
+            let art = app.canvas.texture.as_ref().unwrap().id();
+            let n = delta.set.iter().find(|e| e.0.eq(&art)).and_then(|e| e.1.last()).map(|d| {
+                let egui::ImageData::Color(img) = &d.image;
+                img.pixels.iter().filter(|c| c.a() != 0 && c.r() > c.g().saturating_add(30) && c.b() > c.g()).count()
+            });
+            delta.clear();
+            n
+        };
+        let on = pink(&mut app).expect("the first frame renders the art");
+        assert!(on > 100, "on by default: the text has pink behind it ({on} pixels)");
+        assert!(app.canvas.shown.as_ref().is_some_and(|(_, o)| o.highlight_substituted_fonts));
+        app.session.execute("prefs.set", &json!({"key": "highlightSubstitutedFonts", "value": false})).unwrap();
+        assert_eq!(pink(&mut app), Some(0), "the preference off re-renders without the highlight");
+        assert!(app.canvas.key.as_ref().is_some_and(|k| !k.highlight_substituted_fonts));
+        app.session.execute("prefs.set", &json!({"key": "highlightSubstitutedFonts", "value": true})).unwrap();
+        assert_eq!(pink(&mut app), Some(on), "on again, as before");
     }
 
     /// A drag of an object with raster effects (#1257): the drag's frames render while
@@ -8691,6 +8760,8 @@ mod tests {
         assert_eq!(plain(&app, id), "雅がくらくか");
     }
 
+    /// Reset to a blank document, select the Type tool and click document point (100, 100), returning
+    /// the screen position used by IME fixtures.
     fn type_at(app: &mut VectorcraftApp, ctx: &egui::Context) -> egui::Pos2 {
         app.session.prefs.placeholder_text = false;
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();

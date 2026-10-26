@@ -550,6 +550,7 @@
 	Save Grid as Preset…	Raster opslaan als voorinstelling…
 	Snap to Pixel	Uitlijnen op pixel
 	Precise Cursors	Nauwkeurige cursors
+	Image Trace Preview	Voorbeeld van Afbeelding traceren
 	Snap to Point	Uitlijnen op punt
 	Snap to Glyph	Uitlijnen op glyph
 	New View…	Nieuwe weergave…
@@ -2119,6 +2120,7 @@ lighting	Light	Licht
 	Fidelity:	Nauwkeurigheid:
 	Fill new strokes	Nieuwe lijnen vullen
 	Alt key toggles to Smooth Tool	Alt-toets schakelt over naar Gladmaken-gereedschap
+	Live curve fitting	Curve aanpassen tijdens het tekenen
 	The document has no colour swatches.	Het document heeft geen kleurstalen.
 	Style Name:	Stijlnaam:
 	Crop To	Bijsnijden tot
@@ -5514,6 +5516,12 @@ swatch	Bright Violet	Felviolet
 	Shift:	Verschuiving:
 	Fresco…	Fresco…
 	Fresco	Fresco
+	Lock Artboards	Tekengebieden vergrendelen
+	Unlock Artboards	Tekengebieden ontgrendelen
+	Lock Selected	Selectie vergrendelen
+	Lock All Except Selected	Alles behalve selectie vergrendelen
+	Lock All	Alles vergrendelen
+	Unlock Selected	Selectie ontgrendelen
 	Effect Gallery…	Effectgalerij…
 	Effect Gallery Dialog	Dialoogvenster Effectgalerij
 	Arc Segment Tool Options	Opties boogsegmentgereedschap

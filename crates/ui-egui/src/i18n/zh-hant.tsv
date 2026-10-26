@@ -1074,6 +1074,7 @@ font-technology	Variable	可變
 	Fill Color	填色顏色
 	Fill new strokes	為新筆畫套用填色
 	Alt key toggles to Smooth Tool	Alt 鍵切換為平滑工具
+	Live curve fitting	即時曲線擬合
 	Keep selected	保持選取狀態
 	Merge only with selection	僅與選取物件合併
 	Consider Open Filled Paths as Closed	將有填色的開放路徑視為封閉路徑
@@ -2376,6 +2377,10 @@ file-filter	Templates	範本
 @msg	too many library panels were opened in this session	本次工作階段開啟的資料庫面板過多
 @msg	The image is {_1} × {_2} pixels, more than {LARGE_TRACE_SIDE} on a side: it is traced, but more slowly. A lower-fidelity preset or a smaller copy of the image traces faster.	影像為 {_1} × {_2} 像素，有一邊超過 {LARGE_TRACE_SIDE}：仍會描圖，但速度較慢。使用精確度較低的預設集或較小的影像拷貝，描圖會較快。
 @msg	The image was traced at {_1} × {_2} pixels, scaled down from {_3} × {_4} ({_5} megapixels at most).	影像已以 {_1} × {_2} 像素描圖，由 {_3} × {_4} 縮小而來 (最多 {_5} 百萬像素)。
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` 需要 `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` 需要 `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` 需要 `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	文件中沒有顏色群組 `{name}` (請參閱 swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	「扁平標誌」模式已以 {_1} × {_2} 像素描圖，由 {_3} × {_4} 平均縮小而來。
 # Links and Attributes: files and URLs handed to other apps.
 @msg	Edit Original opens image and document files only; “{name}” is not one	「編輯原稿」只能開啟影像與文件檔案；「{name}」不屬於這兩類
@@ -3892,6 +3897,7 @@ font-script	Japanese	漢字
 	Snap to Grid	靠齊格點
 	Snap to Pixel	靠齊像素
 	Precise Cursors	精確游標
+	Image Trace Preview	影像描圖預覽
 	Snap to Point	靠齊控制點
 	Snap to Unit	靠齊單位
 	Snapping Tolerance	靠齊容許度
@@ -5144,6 +5150,12 @@ lighting	Light	光源
 	Shift:	偏移：
 	Fresco…	壁畫…
 	Fresco	壁畫
+	Lock Artboards	鎖定工作區域
+	Unlock Artboards	解除鎖定工作區域
+	Lock Selected	鎖定所選
+	Lock All Except Selected	鎖定所選以外的全部
+	Lock All	全部鎖定
+	Unlock Selected	解除鎖定所選
 	Effect Gallery…	效果庫…
 	Effect Gallery Dialog	效果庫對話框
 	Arc Segment Tool Options	弧段工具選項

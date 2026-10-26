@@ -1109,6 +1109,7 @@ font-technology	Variable	Variables
 	Fill and Stroke	Relleno y trazo
 	Fill new strokes	Rellenar trazos nuevos
 	Alt key toggles to Smooth Tool	La tecla Alt cambia a la herramienta Suavizar
+	Live curve fitting	Ajuste de curva en tiempo real
 	Keep selected	Mantener seleccionado
 	Merge only with selection	Combinar solo con la selección
 	Consider Open Filled Paths as Closed	Tratar los trazados abiertos con relleno como cerrados
@@ -3090,6 +3091,7 @@ font-technology	Variable	Variables
 	Snap to Grid	Ajustar a cuadrícula
 	Snap to Pixel	Ajustar a píxel
 	Precise Cursors	Cursores precisos
+	Image Trace Preview	Vista previa de Calco de imagen
 	Snap to Point	Ajustar a punto
 	Snap to Unit	Ajustar a unidad
 	Snapping Tolerance	Tolerancia de ajuste
@@ -5339,6 +5341,10 @@ mark-style	Japanese	Japonesas
 	Snap to Perpendicular	Ajustar a perpendicular
 @msg	unknown snap option `{key}` (use {options})	opción de ajuste desconocida `{key}` (use {options})
 	Gap Length:	Longitud del hueco:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` requiere `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` requiere `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` requiere `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	no existe el grupo de colores `{name}` en el documento (consulta swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	El modo Logotipo plano calcó la imagen a {_1} × {_2} píxeles, reducida promediando desde {_3} × {_4}.
 	Artboard {n} of {total}	Mesa de trabajo {n} de {total}
 	File {n} of {total}	Archivo {n} de {total}
@@ -5453,6 +5459,12 @@ mark-style	Japanese	Japonesas
 	Shift:	Desplazamiento:
 	Fresco…	Fresco…
 	Fresco	Fresco
+	Lock Artboards	Bloquear mesas de trabajo
+	Unlock Artboards	Desbloquear mesas de trabajo
+	Lock Selected	Bloquear selección
+	Lock All Except Selected	Bloquear todo excepto la selección
+	Lock All	Bloquear todo
+	Unlock Selected	Desbloquear selección
 	Effect Gallery…	Galería de efectos…
 	Effect Gallery Dialog	Cuadro de diálogo Galería de efectos
 	Arc Segment Tool Options	Opciones de la herramienta Segmento de arco

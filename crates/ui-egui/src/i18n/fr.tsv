@@ -1109,6 +1109,7 @@ font-technology	Variable	Variables
 	Fill and Stroke	Fond et contour
 	Fill new strokes	Remplir les nouveaux contours
 	Alt key toggles to Smooth Tool	La touche Alt bascule sur l’outil Arrondi
+	Live curve fitting	Ajustement de la courbe en direct
 	Keep selected	Garder sélectionné
 	Merge only with selection	Fusionner uniquement avec la sélection
 	Consider Open Filled Paths as Closed	Traiter les tracés ouverts avec fond comme fermés
@@ -3087,6 +3088,7 @@ font-technology	Variable	Variables
 	Snap to Grid	Magnétisme de la grille
 	Snap to Pixel	Magnétisme du pixel
 	Precise Cursors	Pointeurs précis
+	Image Trace Preview	Aperçu de la vectorisation de l’image
 	Snap to Point	Magnétisme du point
 	Snap to Unit	Magnétisme de l’unité
 	Snapping Tolerance	Tolérance du magnétisme
@@ -5396,6 +5398,10 @@ theme	Appearance	Apparence
 	Snap to Perpendicular	Magnétisme de la perpendiculaire
 @msg	unknown snap option `{key}` (use {options})	option de magnétisme inconnue `{key}` (utilisez {options})
 	Gap Length:	Longueur de lacune :
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` nécessite `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` nécessite `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` nécessite `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	aucun groupe de couleurs `{name}` dans le document (voir swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Le mode Logo en aplats a vectorisé l’image à {_1} × {_2} pixels, réduite par moyennage de {_3} × {_4}.
 	Artboard {n} of {total}	Plan de travail {n} sur {total}
 	File {n} of {total}	Fichier {n} sur {total}
@@ -5510,6 +5516,12 @@ theme	Appearance	Apparence
 	Shift:	Décalage :
 	Fresco…	Fresque…
 	Fresco	Fresque
+	Lock Artboards	Verrouiller les plans de travail
+	Unlock Artboards	Déverrouiller les plans de travail
+	Lock Selected	Verrouiller la sélection
+	Lock All Except Selected	Tout verrouiller sauf la sélection
+	Lock All	Tout verrouiller
+	Unlock Selected	Déverrouiller la sélection
 	Effect Gallery…	Galerie d'effets…
 	Effect Gallery Dialog	Boîte de dialogue Galerie d'effets
 	Arc Segment Tool Options	Options de l’outil Segment d’arc

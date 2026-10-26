@@ -1086,6 +1086,7 @@ font-technology	Variable	Variabel
 	Fill and Stroke	Fläche und Kontur
 	Fill new strokes	Neue Striche füllen
 	Alt key toggles to Smooth Tool	Alt-Taste schaltet auf Glätten-Werkzeug um
+	Live curve fitting	Kurvenanpassung beim Zeichnen
 	Keep selected	Ausgewählt lassen
 	Merge only with selection	Nur mit Auswahl zusammenfügen
 	Consider Open Filled Paths as Closed	Offene gefüllte Pfade als geschlossen behandeln
@@ -3060,6 +3061,7 @@ effect	Points	Punkte
 	Snap to Grid	Am Raster ausrichten
 	Snap to Pixel	An Pixel ausrichten
 	Precise Cursors	Präzise Cursor
+	Image Trace Preview	Bildnachzeichner-Vorschau
 	Snap to Point	An Punkt ausrichten
 	Snap to Unit	An Einheit ausrichten
 	Snapping Tolerance	Einrasttoleranz
@@ -4976,6 +4978,10 @@ effect	Soft	Weich
 	Snap to Perpendicular	An Senkrechter ausrichten
 @msg	unknown snap option `{key}` (use {options})	unbekannte Einrastoption `{key}` (möglich: {options})
 	Gap Length:	Lückenlänge:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` erfordert `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` erfordert `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` erfordert `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	keine Farbgruppe `{name}` im Dokument (siehe swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Der Modus „Flaches Logo“ hat das Bild mit {_1} × {_2} Pixeln nachgezeichnet, durch Mittelung verkleinert von {_3} × {_4}.
 	Artboard {n} of {total}	Zeichenfläche {n} von {total}
 	File {n} of {total}	Datei {n} von {total}
@@ -5091,6 +5097,12 @@ effect	Soft	Weich
 	Shift:	Verschiebung:
 	Fresco…	Fresko…
 	Fresco	Fresko
+	Lock Artboards	Zeichenflächen sperren
+	Unlock Artboards	Zeichenflächen entsperren
+	Lock Selected	Auswahl sperren
+	Lock All Except Selected	Alle außer Auswahl sperren
+	Lock All	Alle sperren
+	Unlock Selected	Auswahl entsperren
 	Effect Gallery…	Effekt-Galerie…
 	Effect Gallery Dialog	Dialogfeld „Effekt-Galerie“
 	Arc Segment Tool Options	Optionen für das Bogensegment-Werkzeug
