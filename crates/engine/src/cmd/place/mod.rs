@@ -481,13 +481,15 @@ impl PlaceJob {
 
     /// Read and decode the file, as `file.place` does, without the session. The pixels of a PNG,
     /// JPEG, GIF or WebP file are decoded here to check that they can be read (an error when they
-    /// can't), and a linked image's preview is made from that decode ([`super::links::readable`]).
+    /// can't), a linked image's preview is made from that decode, and the decoded pixels are kept in
+    /// the renderers' image store for the first frame that draws them
+    /// ([`super::links::readable_and_kept`]).
     pub fn read(self) -> Result<PlaceRead> {
         let mut loaded = load(&self.params, PLACE, self.target, true)?;
         let linked = loaded.link.is_some() && bool_or(&self.params, "link", true);
         if let Art::Image(img) = &mut loaded.art {
             let unread = super::links::kept_unread(&img.blob.bytes);
-            img.blob = super::links::readable(img.blob.clone(), unread, linked)?;
+            img.blob = super::links::readable_and_kept(img.blob.clone(), unread, linked)?;
         }
         Ok(PlaceRead { job: self, loaded })
     }

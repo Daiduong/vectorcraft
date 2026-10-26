@@ -429,6 +429,20 @@ pub(crate) fn readable(blob: ImageBlob, unread: bool, linked: bool) -> Result<Im
     blob.checked_with_proxy(linked).ok_or_else(|| EngineError::Other("the image's pixels can't be read".into()))
 }
 
+/// [`readable`], and the pixels it decoded are kept in the image store the renderers share
+/// ([`vectorcraft_render::keep_decoded_image`]), so the first frame that draws the image finds
+/// them there and does not decode the file again.
+pub(crate) fn readable_and_kept(blob: ImageBlob, unread: bool, linked: bool) -> Result<ImageBlob> {
+    if !unread {
+        return readable(blob, unread, linked);
+    }
+    let (blob, pixels) = blob.checked_with_pixels(linked).ok_or_else(|| EngineError::Other("the image's pixels can't be read".into()))?;
+    if let Some(pixels) = pixels {
+        vectorcraft_render::keep_decoded_image(&blob, pixels);
+    }
+    Ok(blob)
+}
+
 /// The linked image file `bytes`, read ([`fileio::raster_image`]) with its preview; an error when
 /// its pixels can't be read ([`readable`]).
 fn linked_image(bytes: &[u8]) -> Result<RasterImage> {

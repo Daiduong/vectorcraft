@@ -420,7 +420,7 @@ fn import_image(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let data = data_param(p, C)?;
     let mut img = fileio::raster_image(&data).map_err(|e| bad(C, e.to_string()))?;
-    img.blob = links::readable(img.blob, links::kept_unread(&data), false).map_err(|e| bad(C, e.to_string()))?;
+    img.blob = links::readable_and_kept(img.blob, links::kept_unread(&data), false).map_err(|e| bad(C, e.to_string()))?;
     let (sx, sy) = pt_per_px(img.ppi);
     let (w, h) = (img.width, img.height);
     let image = ImageObject {

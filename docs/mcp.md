@@ -3128,7 +3128,8 @@ whose shown art lies on it; a hidden object on it is still placed and stays hidd
 `file.place` decodes the pixels of a PNG, JPEG, GIF or WebP file within the decode allowance before placing it. When
 they can't be read, as with a PNG cut short by a download or a sync still running, it fails with "the image's pixels
 can't be read" and places nothing; `clipboard.importImage` fails the same way. A JPEG cut short still decodes and is
-placed.
+placed. Both keep the decoded pixels (except a CMYK JPEG's) in the image store the renderers share, so the first render
+that draws the image does not decode the file again.
 `file.place.info` describes a file without placing it and `image.info` reports a placed image's link, colour mode and
 effective ppi. `file.place.queue` loads the place cursor (the `place` tool) with several files: headless, drive it
 with `pointer_gesture` (a click places at 100% with the top-left corner there, a drag at the dragged size) and

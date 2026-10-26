@@ -454,6 +454,32 @@ mod tests {
         assert_eq!(app.placing.reading[1].load(std::sync::atomic::Ordering::SeqCst), 1, "the most reads at once");
     }
 
+    /// A PNG read off the UI thread is decoded there once: its pixels are in the image store the
+    /// renderers share before the canvas draws it, and the canvas's first frame with it decodes
+    /// nothing on the UI thread.
+    #[test]
+    fn a_placed_image_is_drawn_without_decoding_it_on_the_ui_thread() {
+        // The image has pixels no other test uses, since every test shares the image store.
+        let noise = image::RgbImage::from_fn(2000, 2000, |x, y| image::Rgb([(x % 251) as u8, (y % 241) as u8, ((x + y) % 239) as u8]));
+        let mut png = vec![];
+        noise.write_to(&mut std::io::Cursor::new(&mut png), Png).unwrap();
+        let path = saved("seeded", "photo.png", &png);
+        let mut app = app(true);
+        start(&mut app, &json!({"path": path}), false).unwrap();
+        placed(&mut app);
+        assert_eq!(names(&app), ["photo.png"]);
+        let st = app.session.doc().unwrap();
+        let blob = st.doc.images.values().next().unwrap().clone();
+        assert!(vectorcraft_render::image_cached(&blob), "kept before the canvas draws it");
+        let decodes = vectorcraft_render::image_decodes();
+        let ctx = egui::Context::default();
+        let raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0))), ..Default::default() };
+        let mut out = ctx.run_ui(raw, |ui| crate::canvas::show(&mut app, ui));
+        out.textures_delta.clear();
+        assert!(app.canvas_rect.is_some(), "the canvas drew a frame");
+        assert_eq!(vectorcraft_render::image_decodes(), decodes, "no decode on the UI thread");
+    }
+
     /// A file that can't be read shows the message it shows when read at once, dropped or placed
     /// from the dialog, and nothing is placed: a PNG cut to half its length, whose header reads but
     /// whose pixels don't, too.

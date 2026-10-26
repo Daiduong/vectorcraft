@@ -132,12 +132,18 @@ impl ImageBlob {
     /// has a header but not all its pixels. An image whose pixels would take more than the
     /// allowance as RGBA is not decoded, and one whose decode needs more than the allowance stops
     /// decoding; either is returned as it is.
-    pub fn checked_with_proxy(mut self, proxy: bool) -> Option<Self> {
+    pub fn checked_with_proxy(self, proxy: bool) -> Option<Self> {
+        self.checked_with_pixels(proxy).map(|(blob, _)| blob)
+    }
+
+    /// [`Self::checked_with_proxy`], with the pixels it decoded: `None` beside the blob when it
+    /// decoded none (an image past the allowance).
+    pub fn checked_with_pixels(mut self, proxy: bool) -> Option<(Self, Option<image::DynamicImage>)> {
         let max = crate::MAX_RASTER_ALLOC;
         let reader = || image::ImageReader::new(Cursor::new(self.bytes.as_slice())).with_guessed_format().ok();
         let (w, h) = reader()?.into_dimensions().ok()?;
         if u64::from(w) * u64::from(h) > max / 4 {
-            return Some(self);
+            return Some((self, None));
         }
         let mut r = reader()?;
         let mut limits = image::Limits::default();
@@ -145,13 +151,13 @@ impl ImageBlob {
         r.limits(limits);
         let img = match r.decode() {
             Ok(img) => img,
-            Err(image::ImageError::Limits(_)) => return Some(self),
+            Err(image::ImageError::Limits(_)) => return Some((self, None)),
             Err(_) => return None,
         };
         if proxy && self.proxy.is_none() && w.max(h) > PROXY_SIZE {
             self.proxy = proxy_of(&img).map(Arc::new);
         }
-        Some(self)
+        Some((self, Some(img)))
     }
 
     /// Are the bytes the preview (the linked file hasn't been read)?
@@ -479,6 +485,15 @@ mod tests {
         assert_eq!(image::ImageReader::new(Cursor::new(&cut)).with_guessed_format().unwrap().into_dimensions().unwrap(), (600, 300));
         assert!(ImageBlob::new("image/png", cut).checked_with_proxy(true).is_none(), "cut to half its length");
         assert!(ImageBlob::new("image/png", vec![1, 2, 3]).checked_with_proxy(false).is_none(), "not an image");
+    }
+
+    /// A checked image hands on the pixels it decoded, so they need not be decoded again.
+    #[test]
+    fn a_checked_image_hands_on_its_pixels() {
+        let full = png(600, 300);
+        let (blob, pixels) = ImageBlob::new("image/png", full.clone()).checked_with_pixels(true).unwrap();
+        assert!(blob.proxy.is_some(), "the preview is made as checked_with_proxy makes it");
+        assert_eq!(pixels.map(|p| p.to_rgba8()), Some(image::load_from_memory(&full).unwrap().to_rgba8()));
     }
 
     #[test]
