@@ -1,5 +1,7 @@
 # VectorCraft Roadmap
 
+> **Review follow-up (2026-10-26):** Native window restoration on Linux X11 moves disconnected-monitor positions onto a connected monitor without replacing the native size or maximized state. Control-channel runs also skip legacy window restore and preserve the user's saved geometry when saving other preferences. Regression coverage added; parity scores and estimates unchanged.
+
 - PDF.R1: editable PDF import uses the shared reader, scans page content in windows, and rejects known incomplete input before returning a document.
 - PDF.W1: PDF export and print composition use the shared optional writer for configuration, metadata, font preparation and guarded finalization; drawing and output policy remain app-owned.
 
@@ -128,6 +130,8 @@ Ranked; detail in [docs/roadmap.md](docs/roadmap.md) and [docs/gaps.md](docs/gap
 
 ## Progress log
 
+- 2026-10-26: Native window restoration on Linux X11 moves disconnected-monitor positions onto a connected monitor without replacing the native size or maximized state. Control-channel runs also skip legacy window restore and preserve the user's saved geometry when saving other preferences. Regression coverage added; scores and estimates unchanged.
+
 - 2026-10-26: Windows reopen at their last size, or maximized, at any interface size (such as 150%), and Restore after a maximized restart returns to the last normal size. GNOME Wayland keeps VectorCraft's own title bar; the system frame there (Preferences › User Interface › System Title Bar, or `VECTORCRAFT_TITLEBAR=system`) now has minimize, maximize and close buttons. Shared change: storytold/egui#3; checked on Linux only.
 - 2026-10-23: Pathfinder › Trap: the Pathfinder panel's Trap… and Effect › Pathfinder › Trap… add a thin overprinting strip of the lighter colour inside the darker one where two solid colours meet, so misregistered plates leave no gap ([trapping](https://helpx.adobe.com/illustrator/using/trapping.html)), with Thickness, Height/Width, Tint Reduction, Traps with Process Color and Reverse Traps. Illustrator effects 49/50 (SVG Filters remains); Live vector effects hours 6–10 → 4–8; headline numbers unchanged.
 - 2026-10-23: OpenType SVG colour fonts draw as vector art: each glyph's SVG document is read by the SVG importer, in the text's colours where it asks for them, and draws, exports and outlines as COLR glyphs do; all colour font formats are now drawn.
@@ -199,6 +203,7 @@ The full pre-standard record of what landed is kept in [docs/roadmap.md](docs/ro
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-26 | trivial | Native window restoration on Linux X11 moves disconnected-monitor positions onto a connected monitor without replacing the native size or maximized state. Control-channel runs also skip legacy window restore and preserve the user's saved geometry when saving other preferences. Scores and estimates unchanged. |
 | 2026-10-26 | trivial | Progress log: windows reopen at their last size or maximized at any interface size; caption buttons on the GNOME Wayland system frame, Preferences › User Interface › System Title Bar, or `VECTORCRAFT_TITLEBAR=system` (storytold/egui#3) |
 | 2026-10-23 | minor | Progress log row for Pathfinder › Trap; Live vector effects hours 6–10 → 4–8; headline numbers unchanged. |
 | 2026-10-23 | minor | Progress log row for OpenType SVG colour fonts; headline numbers unchanged. |
