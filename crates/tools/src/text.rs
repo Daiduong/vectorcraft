@@ -314,6 +314,27 @@ impl TypeTool {
         out
     }
 
+    /// Tab (`by` 1) or Shift+Tab (`by` -1) in type `t` (plain text `text`) with the selection
+    /// `a..b`: with the caret at the start of a list paragraph, the `text.setFormat` that moves the
+    /// paragraph a level down or up (none at the first or the last level: the key then does
+    /// nothing). None when the caret is anywhere else, the selection holds characters, or the
+    /// paragraph is in no list. The start of a threaded frame whose first paragraph continues from
+    /// the frame before ([`TextObject::first_para_continues`]) is not the start of a paragraph.
+    fn list_level_step(&self, t: &TextObject, text: &str, a: usize, b: usize, by: i32) -> Option<Vec<Action>> {
+        let id = self.editing?;
+        if a != b || edit::paragraph_at(text, a).start != a || (a == 0 && t.first_para_continues) {
+            return None;
+        }
+        let para = text.get(..a)?.matches('\n').count();
+        let list = t.para_at(para).list?;
+        let level = i32::try_from(list.depth()).ok()? + by;
+        let max = i32::try_from(vectorcraft_doc::text::LIST_LEVELS).ok()?;
+        if !(1..=max).contains(&level) {
+            return Some(vec![]);
+        }
+        Some(vec![Action::Exec("text.setFormat".into(), json!({"id": id.0, "start": a, "end": a, "listLevel": level}))])
+    }
+
     /// Move the caret (Shift keeps the anchor). Moving ends the typing session.
     fn move_to(&mut self, byte: usize, extend: bool) -> Vec<Action> {
         let out = self.commit();
@@ -1079,7 +1100,16 @@ impl Tool for TypeTool {
                 out
             }
             ToolKey::Enter => self.replace(cx, "\n", None),
-            ToolKey::Tab => self.replace(cx, "\t", None),
+            // Tab and Shift+Tab with the caret at the start of a list paragraph move it a level
+            // down or up; anywhere else Tab inserts a tab.
+            ToolKey::Tab => match self.list_level_step(&t, &text, a, b, if mods.shift { -1 } else { 1 }) {
+                Some(step) => {
+                    let mut out = self.commit();
+                    out.extend(step);
+                    out
+                }
+                None => self.replace(cx, "\t", None),
+            },
             ToolKey::Backspace | ToolKey::Delete if a != b => self.replace(cx, "", None),
             ToolKey::Backspace if self.caret > 0 => {
                 self.anchor = if word { edit::prev_word(&text, self.caret) } else { edit::prev_char(&text, self.caret) };

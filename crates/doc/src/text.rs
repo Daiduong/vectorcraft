@@ -601,14 +601,29 @@ fn roman(mut n: u32) -> String {
     s
 }
 
+/// Where a list's marker stands before the first line's text ([`ParaList::align`]): the Bullets
+/// and Numbering dialog's Alignment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ListAlign {
+    /// The marker starts where the first line starts: at the left indent plus the first-line
+    /// indent.
+    #[default]
+    Left,
+    /// The marker ends where the first line's text starts, against the text.
+    Right,
+}
+
 /// The list a paragraph is in (Paragraph panel › Bullets and Numbered List). The layout draws the
 /// list's marker before the paragraph's first line, in the font, size and color of the paragraph's
 /// first character without its baseline shift, rotation, superscript or subscript, tracking, manual
 /// kerning, tate-chu-yoko, underline and strikethrough ([`Self::marker_style`]), and the text after
-/// it starts at the next tab stop, the left indent counting as a stop. The marker is not a
-/// character of the text, and an empty paragraph has none. A saved list reads the fields it leaves
-/// out as their defaults, and a build ignores the fields it doesn't know.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// it starts at the next tab stop, the left indent counting as a stop. The marker stands at the
+/// first line's start, or against the text with [`ListAlign::Right`]. A paragraph at a level past
+/// the first ([`Self::level`]) is set [`LIST_LEVEL_INDENT`] further in for each level. The marker
+/// is not a character of the text, and an empty paragraph has none. A saved list reads the fields
+/// it leaves out as their defaults, and a build ignores the fields it doesn't know.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ParaList {
     /// The bullet each paragraph of a bulleted list starts with. A numbered list keeps it for
@@ -618,17 +633,93 @@ pub struct ParaList {
     /// numbered list.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<NumberStyle>,
+    /// Where the marker stands before the first line's text. The file saves it only when it is
+    /// [`ListAlign::Right`].
+    #[serde(skip_serializing_if = "crate::skip::is_default")]
+    pub align: ListAlign,
+    /// The paragraph's level in the list, 1 to [`LIST_LEVELS`] (Tab and Shift+Tab at the start of
+    /// the paragraph, Bullets and Numbering…'s Level): each level counts its own numbers
+    /// ([`Self::next_marker`]). A value outside that range is read as the nearest level
+    /// ([`Self::depth`]). The file saves it only when it is not 1.
+    #[serde(skip_serializing_if = "is_first_level")]
+    pub level: u8,
+}
+
+impl Default for ParaList {
+    /// A bulleted list with a dot, its marker aligned left, at level 1.
+    fn default() -> Self {
+        Self { bullet: Bullet::default(), number: None, align: ListAlign::default(), level: 1 }
+    }
+}
+
+/// Is `level` the first list level, which the file does not save?
+fn is_first_level(level: &u8) -> bool {
+    *level == 1
+}
+
+/// How many levels a list has (Bullets and Numbering…'s Level: 1 to 9).
+pub const LIST_LEVELS: usize = 9;
+
+/// How much further in (pt) the layout sets a list paragraph for each level past the first: its
+/// left indent counts that much more, and the marker and the text move with it.
+pub const LIST_LEVEL_INDENT: f64 = 18.0;
+
+/// The numbered paragraphs a story's list has counted at each level, level 1 first
+/// ([`ParaList::next_marker`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ListCounts(pub [u32; LIST_LEVELS]);
+
+impl ListCounts {
+    /// The counts with `first` at level 1 and `deeper` at levels 2 on, a missing level at 0, as a
+    /// type object saves them ([`TextObject::list_count`], [`TextObject::list_level_counts`]).
+    pub fn from_parts(first: u32, deeper: &[u32]) -> Self {
+        let mut counts = [0; LIST_LEVELS];
+        counts[0] = first;
+        for (c, &d) in counts[1..].iter_mut().zip(deeper) {
+            *c = d;
+        }
+        Self(counts)
+    }
+
+    /// The count at level 1, and the counts at levels 2 on without the zeros that end them.
+    pub fn parts(&self) -> (u32, Vec<u32>) {
+        let deeper = &self.0[1..];
+        let used = deeper.iter().rposition(|&c| c != 0).map_or(0, |i| i + 1);
+        (self.0[0], deeper[..used].to_vec())
+    }
 }
 
 impl ParaList {
     /// A bulleted list with `bullet`.
     pub fn bulleted(bullet: Bullet) -> Self {
-        Self { bullet, number: None }
+        Self { bullet, ..Self::default() }
     }
 
     /// A numbered list with `style`.
     pub fn numbered(style: NumberStyle) -> Self {
-        Self { bullet: Bullet::default(), number: Some(style) }
+        Self { number: Some(style), ..Self::default() }
+    }
+
+    /// This list with its marker at `align`.
+    pub fn aligned(self, align: ListAlign) -> Self {
+        Self { align, ..self }
+    }
+
+    /// This list at level `level` (1 to [`LIST_LEVELS`]).
+    pub fn at_level(self, level: u8) -> Self {
+        Self { level, ..self }
+    }
+
+    /// The list's level, 1 to [`LIST_LEVELS`]: [`Self::level`], a value outside the range taken
+    /// as the nearest level.
+    pub fn depth(&self) -> usize {
+        usize::from(self.level).clamp(1, LIST_LEVELS)
+    }
+
+    /// How much further in (pt) than its left indent the layout sets a paragraph of this list:
+    /// [`LIST_LEVEL_INDENT`] for each level past the first.
+    pub fn level_indent(&self) -> f64 {
+        (self.depth() - 1) as f64 * LIST_LEVEL_INDENT
     }
 
     /// The characters of the marker the layout draws before the paragraph: the bullet, or for a
@@ -641,18 +732,26 @@ impl ParaList {
     }
 
     /// The marker of the next paragraph of a story, whose list is `list` (None: in no list) and
-    /// which holds no text when `empty`, with `count` the numbered paragraphs counted before it.
-    /// A paragraph in no list sets the count back to 0 and has no marker; an empty paragraph has
-    /// none and leaves the count as it is; a bulleted paragraph has its bullet and leaves the
-    /// count as it is; a numbered paragraph adds one to the count and is numbered with it.
-    pub fn next_marker(list: Option<ParaList>, empty: bool, count: &mut u32) -> Option<String> {
+    /// which holds no text when `empty`, with `counts` the numbered paragraphs counted before it at
+    /// each level. A paragraph in no list sets every count back to 0 and has no marker; an empty
+    /// paragraph has none and leaves the counts as they are. A paragraph with text sets the counts
+    /// of the levels deeper than its own back to 0, so a deeper paragraph after it counts from 1
+    /// again; a bulleted one has its bullet and leaves the count of its level as it is, and a
+    /// numbered one adds one to the count of its level and is numbered with it. A paragraph back
+    /// at a shallower level then goes on with that level's count.
+    pub fn next_marker(list: Option<ParaList>, empty: bool, counts: &mut ListCounts) -> Option<String> {
         let Some(list) = list else {
-            *count = 0;
+            *counts = ListCounts::default();
             return None;
         };
         if empty {
             return None;
         }
+        let level = list.depth() - 1;
+        for deeper in &mut counts.0[level + 1..] {
+            *deeper = 0;
+        }
+        let count = &mut counts.0[level];
         if list.number.is_some() {
             *count = count.saturating_add(1);
         }
@@ -932,6 +1031,12 @@ impl ParaStyle {
         for t in &mut self.tabs {
             t.position = within(t.position, 0.0, 100_000.0);
         }
+    }
+
+    /// The left indent the layout sets the paragraph at: its left indent, and for a paragraph in a
+    /// list at a level past the first, [`ParaList::level_indent`] more.
+    pub fn laid_out_left_indent(&self) -> f64 {
+        self.left_indent + self.list.map_or(0.0, |l| l.level_indent())
     }
 
     /// The leading of characters styled `st` in this paragraph, as the layout sets it: their own
@@ -1695,6 +1800,11 @@ pub struct TextObject {
     /// file saves the count only when it is not 0.
     #[serde(default, rename = "listCount", skip_serializing_if = "crate::skip::is_default")]
     pub list_count: u32,
+    /// Threaded text: as [`Self::list_count`], the counts the earlier frames carry into this frame
+    /// at list levels 2 on, level 2 first ([`ListCounts::from_parts`]). Empty when they are all 0,
+    /// and the file saves them only when not empty.
+    #[serde(default, rename = "listLevelCounts", skip_serializing_if = "Vec::is_empty")]
+    pub list_level_counts: Vec<u32>,
     /// Cached layout bounds in text space, filled in by the layout engine (not serialized).
     #[serde(skip)]
     pub cached_bounds: Option<Rect>,
@@ -1796,9 +1906,19 @@ impl TextObject {
             system_layout: false,
             fractional_widths: true,
             list_count: 0,
+            list_level_counts: Vec::new(),
             cached_bounds: None,
             cached_baselines: Vec::new(),
         }
+    }
+    /// The list counts the story's earlier frames carry into this frame at each level
+    /// ([`Self::list_count`] and [`Self::list_level_counts`]).
+    pub fn list_counts(&self) -> ListCounts {
+        ListCounts::from_parts(self.list_count, &self.list_level_counts)
+    }
+    /// Set the list counts the story's earlier frames carry into this frame ([`Self::list_counts`]).
+    pub fn set_list_counts(&mut self, counts: ListCounts) {
+        (self.list_count, self.list_level_counts) = counts.parts();
     }
     pub fn plain_text(&self) -> String {
         self.runs.iter().map(|r| r.text.as_str()).collect()
@@ -2335,13 +2455,13 @@ mod tests {
         assert_eq!(ParaList::numbered(NumberStyle::UpperRoman).marker(4), "IV.");
         assert_eq!(ParaList::bulleted(Bullet::Square).marker(4), "\u{25AA}");
         let (num, dot) = (Some(ParaList::numbered(NumberStyle::Arabic)), Some(ParaList::bulleted(Bullet::Dot)));
-        let mut count = 0;
+        let mut count = ListCounts::default();
         let markers: Vec<Option<String>> = [(num, false), (num, true), (dot, false), (num, false), (None, false), (num, false)]
             .iter()
             .map(|&(l, empty)| ParaList::next_marker(l, empty, &mut count))
             .collect();
         assert_eq!(markers, [Some("1.".into()), None, Some("\u{2022}".into()), Some("2.".into()), None, Some("1.".into())]);
-        assert_eq!(count, 1);
+        assert_eq!(count.parts(), (1, vec![]));
         let read = |v: serde_json::Value| serde_json::from_value::<ParaList>(v).unwrap();
         assert_eq!(read(serde_json::json!({"bullet": "dash"})), ParaList::bulleted(Bullet::Dash));
         assert_eq!(read(serde_json::json!({"number": "threeDigits"})), ParaList::numbered(NumberStyle::ThreeDigits));
@@ -2350,6 +2470,20 @@ mod tests {
             serde_json::to_value(ParaList::numbered(NumberStyle::LowerRoman)).unwrap(),
             serde_json::json!({"bullet": "dot", "number": "lowerRoman"})
         );
+    }
+
+    /// A list's marker alignment: Left by default and not saved, Right saved as `"align": "right"`;
+    /// a list saved without it reads as Left.
+    #[test]
+    fn a_list_saves_its_marker_alignment_only_when_it_is_right() {
+        let right = ParaList::numbered(NumberStyle::Arabic).aligned(ListAlign::Right);
+        assert_eq!(ParaList::bulleted(Bullet::Dot).align, ListAlign::Left);
+        assert_eq!(serde_json::to_value(right).unwrap(), serde_json::json!({"bullet": "dot", "number": "arabic", "align": "right"}));
+        assert_eq!(serde_json::to_value(ParaList::bulleted(Bullet::Dash)).unwrap(), serde_json::json!({"bullet": "dash"}));
+        let read = |v: serde_json::Value| serde_json::from_value::<ParaList>(v).unwrap();
+        assert_eq!(read(serde_json::json!({"bullet": "dot", "number": "arabic", "align": "right"})), right);
+        assert_eq!(read(serde_json::json!({"bullet": "square"})).align, ListAlign::Left);
+        assert!(serde_json::from_value::<ParaList>(serde_json::json!({"align": "center"})).is_err());
     }
 
     /// Typed list detection: "1.", "1)", "A." and "A)" and a space at the start of a paragraph
@@ -2378,6 +2512,59 @@ mod tests {
         t.set_paragraph_styles(styles);
         assert_eq!(t.typed_list_at(9), None, "a list paragraph stays as it is");
         assert_eq!(t.typed_list_at(19), Some((16, letters)));
+    }
+
+    /// List levels: each level counts its own numbers, a deeper paragraph starts its count at 1,
+    /// a paragraph back at a shallower level goes on with that level's count, and a paragraph in
+    /// no list starts every level again. A level past the first sets the paragraph 18 pt further
+    /// in; the file saves the level only when it is not 1, and a level outside 1 to 9 reads as the
+    /// nearest one. A type object's counts save level 1 and the deeper levels apart.
+    #[test]
+    fn list_levels_count_their_own_numbers_and_save_only_past_the_first() {
+        let num = |level| Some(ParaList::numbered(NumberStyle::Arabic).at_level(level));
+        let dot = |level| Some(ParaList::bulleted(Bullet::Dot).at_level(level));
+        let mut counts = ListCounts::default();
+        let markers: Vec<Option<String>> = [
+            (num(1), false),
+            (num(2), false),
+            (num(2), false),
+            (num(3), false),
+            (num(2), true),
+            (num(2), false),
+            (num(1), false),
+            (num(2), false),
+            (dot(1), false),
+            (num(2), false),
+            (num(1), false),
+            (None, false),
+            (num(2), false),
+        ]
+        .iter()
+        .map(|&(l, empty)| ParaList::next_marker(l, empty, &mut counts))
+        .collect();
+        let want = ["1.", "1.", "2.", "1.", "", "3.", "2.", "1.", "\u{2022}", "1.", "3.", "", "1."];
+        assert_eq!(markers.iter().map(|m| m.as_deref().unwrap_or("")).collect::<Vec<_>>(), want);
+        assert_eq!(counts, ListCounts([0, 1, 0, 0, 0, 0, 0, 0, 0]));
+        assert_eq!((ParaList::default().level, ParaList::bulleted(Bullet::Dot).depth()), (1, 1));
+        assert_eq!([0, 1, 4, 9, 12].map(|l| ParaList::bulleted(Bullet::Dot).at_level(l).depth()), [1, 1, 4, 9, 9]);
+        assert_eq!([1, 2, 9].map(|l| ParaList::bulleted(Bullet::Dot).at_level(l).level_indent()), [0.0, 18.0, 144.0]);
+        let para = ParaStyle { left_indent: 18.0, list: dot(3), ..Default::default() };
+        assert_eq!((para.laid_out_left_indent(), ParaStyle { list: None, ..para.clone() }.laid_out_left_indent()), (54.0, 18.0));
+        assert_eq!(serde_json::to_value(dot(1)).unwrap(), serde_json::json!({"bullet": "dot"}));
+        assert_eq!(serde_json::to_value(num(4)).unwrap(), serde_json::json!({"bullet": "dot", "number": "arabic", "level": 4}));
+        let read = |v: serde_json::Value| serde_json::from_value::<ParaList>(v).unwrap();
+        assert_eq!((read(serde_json::json!({"bullet": "dash"})).level, read(serde_json::json!({"level": 4}))), (1, dot(4).unwrap()));
+        assert!(serde_json::from_value::<ParaList>(serde_json::json!({"level": "two"})).is_err());
+        let deep = ListCounts([5, 0, 2, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(deep.parts(), (5, vec![0, 2]));
+        assert_eq!((ListCounts::from_parts(5, &[0, 2]), ListCounts::default().parts()), (deep, (0, vec![])));
+        let mut t = TextObject::point(Point::ZERO, "Text", CharStyle::default());
+        t.set_list_counts(deep);
+        assert_eq!((t.list_count, t.list_level_counts.as_slice(), t.list_counts()), (5, &[0, 2][..], deep));
+        let saved = serde_json::to_value(&t).unwrap();
+        assert_eq!((&saved["listCount"], &saved["listLevelCounts"]), (&serde_json::json!(5), &serde_json::json!([0, 2])));
+        t.set_list_counts(ListCounts::default());
+        assert!(serde_json::to_value(&t).unwrap().get("listLevelCounts").is_none(), "no counts past level 1 are saved without them");
     }
 
     #[test]
