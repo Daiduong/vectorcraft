@@ -1372,14 +1372,18 @@ mod tests {
         let mut app = VectorcraftApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
         let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "A"})).unwrap()["id"].clone();
+        // The second document is open before the group begins, so switching to it opens no group in it.
+        app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
+        assert_eq!(app.session.active_index(), Some(1));
+        app.run("text.create", json!({"x": 20, "y": 50, "text": "B"})).unwrap();
+        app.session.set_active(0);
         app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
         app.run("text.setFormat", json!({"id": a, "mojikumi": "none"})).unwrap();
         let steps = |st: &vectorcraft_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
         let a_steps = steps(&app.session.documents()[0]);
         assert_eq!(a_steps.1, Some("Batch".to_string()));
-        app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
-        assert_eq!(app.session.active_index(), Some(1));
-        app.run("text.create", json!({"x": 20, "y": 50, "text": "B"})).unwrap();
+        app.session.set_active(1);
+        assert!(app.session.active().unwrap().undo_group.is_none());
         let b_steps = steps(app.session.active().unwrap()).0;
         reset_panel(&mut app);
         assert_eq!(steps(app.session.active().unwrap()), (b_steps + 1, Some("Reset Panel".to_string())));
