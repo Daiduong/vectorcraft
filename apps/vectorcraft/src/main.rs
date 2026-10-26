@@ -108,6 +108,8 @@ impl eframe::App for App {
         file_access::unconfined(|| self.logic_frame(ctx, frame));
         self.app.finish_ime_logic(ctx);
     }
+    /// Restore the borderless caption, apply platform menu and pen input, and hand the frame to the
+    /// app's raw-input hook while the keyboard user is unconfined.
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
         // winit gives the window its caption back when it changes the window's flags (maximize,
         // restore, …): take it off again before the frame is laid out (#1758).
@@ -614,6 +616,9 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         // macOS reads it from AppKit's events (#852).
         #[cfg(target_os = "macos")]
         stylus: mac_tablet::start(),
+        // Windows reads it from the pen's pointer messages (`windows_stylus`).
+        #[cfg(all(windows, not(target_vendor = "win7")))]
+        stylus: Some(windows_stylus::start()),
         read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
         write: Some(Box::new(write_file)),
         exists: Some(Box::new(|p: &str| std::path::Path::new(p).exists())),
@@ -813,6 +818,11 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
 ";
 
 fn main() -> std::process::ExitCode {
+    // Windows: the update helper is a copy of this program started with `--finish-update`.
+    #[cfg(windows)]
+    if let Some(result) = craft_update::self_update::finish(&craft_update::suite::VECTORCRAFT, &std::env::args_os().skip(1).collect::<Vec<_>>()) {
+        std::process::exit(i32::from(result.is_err()));
+    }
     // Before any thread starts: the pointer must find a cursor theme on Wayland (#2450).
     #[cfg(target_os = "linux")]
     cursor_theme::apply();
@@ -969,9 +979,9 @@ fn main() -> std::process::ExitCode {
         }
         options
     };
-    // With Windows Ink, winit reports a pen as a touch and drops its barrel button; the message
-    // hook notes each pointer contact and whether it starts with the barrel button held
-    // (`windows_stylus`).
+    // With Windows Ink, winit reports a pen as a touch and drops its barrel button and which end
+    // is down; the message hook notes each pointer contact and whether it starts with the barrel
+    // button held, and writes the pen's end into the pen feed (`windows_stylus`).
     #[cfg(all(windows, not(target_vendor = "win7")))]
     let options = {
         use winit::platform::windows::EventLoopBuilderExtWindows as _;
@@ -1045,6 +1055,7 @@ fn main() -> std::process::ExitCode {
                 prefs_dir::attach_profile_store(&mut session);
                 prefs_dir::attach_plugin_store(&mut session);
                 let mut app = VectorcraftApp::new(session, services(cc.winit_window().cloned(), cc.egui_ctx.clone()));
+                app.set_startup_update_check(true);
                 load_prefs(&mut app, saved);
                 // The saved PDF presets live in their own folder (also read by vectorcraft-cli),
                 // which takes over from the copy the preferences file used to hold.

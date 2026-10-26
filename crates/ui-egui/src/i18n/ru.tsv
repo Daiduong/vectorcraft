@@ -1107,6 +1107,7 @@ font-technology	Variable	Вариативные
 	Fill and Stroke	Заливка и обводка
 	Fill new strokes	Заполнять новые обводки
 	Alt key toggles to Smooth Tool	Клавиша Alt переключает на инструмент «Сглаживание»
+	Live curve fitting	Подгонка кривой во время рисования
 	Keep selected	Оставлять выбранным
 	Merge only with selection	Объединять только с выделенным
 	Consider Open Filled Paths as Closed	Считать открытые контуры с заливкой замкнутыми
@@ -3120,6 +3121,7 @@ mark-style	Japanese	Японский
 	Snap to Grid	Привязать к сетке
 	Snap to Pixel	Привязать к пикселю
 	Precise Cursors	Точные курсоры
+	Image Trace Preview	Просмотр трассировки изображения
 	Snap to Point	Привязать к точке
 	Snap to Unit	Привязать к единицам
 	Snapping Tolerance	Допуск привязки
@@ -5006,6 +5008,10 @@ lighting	Light	Свет
 	Snap to Perpendicular	Привязать к перпендикуляру
 @msg	unknown snap option `{key}` (use {options})	неизвестный параметр привязки `{key}` (допустимо: {options})
 	Gap Length:	Длина зазора:
+@msg	`colorGroup` needs `library: "document"`	для `colorGroup` нужен `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	для `colorGroup` нужен `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	для `colorGroup` нужен `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	в документе нет цветовой группы `{name}` (см. swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Режим «Плоский логотип» трассировал изображение в размере {_1} × {_2} пикселей, уменьшенное усреднением с {_3} × {_4}.
 	Artboard {n} of {total}	Монтажная область {n} из {total}
 	File {n} of {total}	Файл {n} из {total}
@@ -5067,6 +5073,12 @@ lighting	Light	Свет
 	Shift:	Сдвиг:
 	Fresco…	Фреска…
 	Fresco	Фреска
+	Lock Artboards	Заблокировать монтажные области
+	Unlock Artboards	Разблокировать монтажные области
+	Lock Selected	Заблокировать выбранные
+	Lock All Except Selected	Заблокировать все, кроме выбранных
+	Lock All	Заблокировать все
+	Unlock Selected	Разблокировать выбранные
 	Effect Gallery…	Галерея эффектов…
 	Effect Gallery Dialog	Диалог «Галерея эффектов»
 	Arc Segment Tool Options	Параметры инструмента «Дуговой сегмент»
@@ -5158,6 +5170,8 @@ axis	Y Axis	Ось Y
 	Rectangular Grid Tool Options	Параметры инструмента «Прямоугольная сетка»
 	Polar Grid Tool Options	Параметры инструмента «Полярная сетка»
 	Fill Line	Заливка отрезка
+@msg	no empty artboards to delete	нет пустых монтажных областей для удаления
 	Scale Presets	Наборы масштаба
 @msg	a {width}×{height} screenshot's byte count overflows	количество байтов снимка {width}×{height} переполняется
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	{what} окна ({points} пунктов × {scale} DPI) не позволяет задать размер снимка
+	Live preview	Просмотр в реальном времени

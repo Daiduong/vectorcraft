@@ -566,6 +566,7 @@ font-technology	Variable	バリアブル
 	Save Grid as Preset…	グリッドをプリセットとして保存…
 	Snap to Pixel	ピクセルにスナップ
 	Precise Cursors	精密カーソル
+	Image Trace Preview	画像トレースのプレビュー
 	Snap to Point	ポイントにスナップ
 	Snap to Glyph	グリフにスナップ
 	New View…	新規表示…
@@ -1512,6 +1513,7 @@ font-technology	Variable	バリアブル
 	Fill and Stroke	塗りと線
 	Fill new strokes	新しいストロークに塗りを適用
 	Alt key toggles to Smooth Tool	Alt キーでスムーズツールに切り替え
+	Live curve fitting	描画中にカーブを調整
 	Keep selected	選択を保持
 	Merge only with selection	選択範囲とのみ結合
 	Consider Open Filled Paths as Closed	塗りのある開いたパスを閉じたパスとみなす
@@ -5050,6 +5052,10 @@ lighting	Light	ライト
 	Snap to Perpendicular	垂線にスナップ
 @msg	unknown snap option `{key}` (use {options})	不明なスナップオプション `{key}` ({options} を使用してください)
 	Gap Length:	ギャップの長さ:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` には `library: "document"` が必要です
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` には `palette: "documentLibrary"` が必要です
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` には `mode: "color"` が必要です
+@msg	no color group `{name}` in the document (see swatch.list)	ドキュメントにカラーグループ `{name}` が見つかりません (swatch.list を参照)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	フラットロゴモードは画像を {_3} × {_4} から平均化して縮小した {_1} × {_2} ピクセルでトレースしました。
 	Artboard {n} of {total}	アートボード {n} / {total}
 	File {n} of {total}	ファイル {n} / {total}
@@ -5118,6 +5124,12 @@ lighting	Light	ライト
 	Shift:	シフト:
 	Fresco…	フレスコ…
 	Fresco	フレスコ
+	Lock Artboards	アートボードをロック
+	Unlock Artboards	アートボードのロックを解除
+	Lock Selected	選択をロック
+	Lock All Except Selected	選択以外をすべてロック
+	Lock All	すべてをロック
+	Unlock Selected	選択のロックを解除
 
 # Keyboard Shortcuts editor (File › Keyboard Shortcuts…) and the Print dialog's overprint note.
 	Keyboard Shortcuts	キーボードショートカット
@@ -5224,6 +5236,8 @@ axis	Y Axis	Y 軸
 	Rectangular Grid Tool Options	長方形グリッドツールオプション
 	Polar Grid Tool Options	同心円グリッドツールオプション
 	Fill Line	線を塗りつぶす
+@msg	no empty artboards to delete	削除する空のアートボードはありません
 	Scale Presets	拡大縮小のプリセット
 @msg	a {width}×{height} screenshot's byte count overflows	{width}×{height} のスクリーンショットのバイト数がオーバーフローします
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	ウィンドウの {what}（{points} ポイント × {scale} DPI）ではスクリーンショットのサイズを決められません
+	Live preview	ライブプレビュー
