@@ -119,10 +119,10 @@ pub fn open(app: &mut VectorcraftApp, tool: &str) -> Result<Value, String> {
     }
     let o = app.session.tool_options_of(tool);
     let mut fields: Map<String, Value> = KEYS.iter().filter_map(|key| Some((key.to_string(), o.get(*key)?.clone()))).collect();
-    if tool == "paintbrush" {
-        if let Some(size) = fields.get("size").and_then(Value::as_f64) {
-            fields.insert("size".into(), json!(size / PAINTBRUSH_SIZE));
-        }
+    if tool == "paintbrush"
+        && let Some(size) = fields.get("size").and_then(Value::as_f64)
+    {
+        fields.insert("size".into(), json!(size / PAINTBRUSH_SIZE));
     }
     fields.insert("tool".into(), json!(tool));
     app.ui.dialog = Some(Dialog { kind: KIND.into(), fields });
@@ -229,10 +229,10 @@ fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 /// OK: set the tool's options.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let mut values: Map<String, Value> = KEYS.iter().filter_map(|k| Some((k.to_string(), d.fields.get(*k)?.clone()))).collect();
-    if d.str("tool") == "paintbrush" {
-        if let Some(scale) = values.get("size").and_then(Value::as_f64) {
-            values.insert("size".into(), json!(scale * PAINTBRUSH_SIZE));
-        }
+    if d.str("tool") == "paintbrush"
+        && let Some(scale) = values.get("size").and_then(Value::as_f64)
+    {
+        values.insert("size".into(), json!(scale * PAINTBRUSH_SIZE));
     }
     run_and_close(app, "tool.setOption", json!({ "tool": d.str("tool"), "values": values }))
 }
