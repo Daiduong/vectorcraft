@@ -37,13 +37,18 @@ fn close(a: Rect, b: Rect, tol: f64) -> bool {
     (a.x0 - b.x0).abs() < tol && (a.y0 - b.y0).abs() < tol && (a.x1 - b.x1).abs() < tol && (a.y1 - b.y1).abs() < tol
 }
 
+/// `d` exported with the default options and imported back: the document a round trip through a PDF
+/// gives.
 fn roundtrip(d: &Document) -> Document {
     let bytes = export(d, &PdfOptions::default()).expect("export");
     import(&bytes).expect("import")
 }
 
+/// `d` exported uncompressed, dated `created: Some(0)` rather than by the clock: two exports of one
+/// document are then the same bytes, where the clock's dates, in whole seconds, differ whenever a
+/// second ticks between them.
 fn uncompressed(d: &Document) -> String {
-    let bytes = export(d, &PdfOptions::uncompressed()).expect("export");
+    let bytes = export(d, &PdfOptions { created: Some(0), ..PdfOptions::uncompressed() }).expect("export");
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
@@ -1091,16 +1096,8 @@ fn dithered_perceptual_gradients_export_as_images_with_noise_on_the_fill() {
         assert!(!pdf.contains("/ShadingType"), "stroke {stroke}: no shading");
     }
     let norm = pdf_without_document_dates;
-    assert_ne!(
-        norm(&export_with(true, false)),
-        norm(&export_with(false, false)),
-        "the fill's pixels carry the noise",
-    );
-    assert_eq!(
-        norm(&export_with(true, true)),
-        norm(&export_with(false, true)),
-        "a stroke has no dither",
-    );
+    assert_ne!(norm(&export_with(true, false)), norm(&export_with(false, false)), "the fill's pixels carry the noise",);
+    assert_eq!(norm(&export_with(true, true)), norm(&export_with(false, true)), "a stroke has no dither",);
 }
 
 /// COLR glyphs in the PDF: as real text, in their font's Type 3 glyphs (the foreground layer in
