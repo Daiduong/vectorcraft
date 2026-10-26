@@ -56,20 +56,6 @@ fn page_count(bytes: &[u8]) -> usize {
     craft_pdf::syntax::Pdf::new(bytes.to_vec()).expect("parse").pages().len()
 }
 
-/// Info-dictionary dates are written at export time; strip them when comparing structure.
-fn pdf_without_document_dates(pdf: &str) -> String {
-    let mut out = pdf.to_string();
-    for key in ["/ModDate", "/CreationDate"] {
-        let prefix = format!("{key}(D:");
-        while let Some(i) = out.find(&prefix) {
-            let rest = &out[i + prefix.len()..];
-            let Some(end) = rest.find(')') else { break };
-            out.replace_range(i..i + prefix.len() + end + 1, &format!("{key}()"));
-        }
-    }
-    out
-}
-
 #[test]
 fn export_is_valid_pdf() {
     let mut d = doc(200.0, 100.0);
@@ -1095,9 +1081,8 @@ fn dithered_perceptual_gradients_export_as_images_with_noise_on_the_fill() {
         assert_eq!(pdf.matches("/Subtype/Image").count(), 1, "stroke {stroke}: an image");
         assert!(!pdf.contains("/ShadingType"), "stroke {stroke}: no shading");
     }
-    let norm = pdf_without_document_dates;
-    assert_ne!(norm(&export_with(true, false)), norm(&export_with(false, false)), "the fill's pixels carry the noise",);
-    assert_eq!(norm(&export_with(true, true)), norm(&export_with(false, true)), "a stroke has no dither",);
+    assert_ne!(export_with(true, false), export_with(false, false), "the fill's pixels carry the noise");
+    assert_eq!(export_with(true, true), export_with(false, true), "a stroke has no dither");
 }
 
 /// COLR glyphs in the PDF: as real text, in their font's Type 3 glyphs (the foreground layer in
